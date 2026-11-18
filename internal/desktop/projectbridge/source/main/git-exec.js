@@ -138,6 +138,9 @@ function run(command, args, cwd, limits = {}) {
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let truncated = false;
+    let timedOut = false;
+    let spawnError = null;
+    let streamError = null;
     /** Decode once at a settle point so multibyte sequences split across
      *  chunk boundaries never produce replacement characters. */
     const decode = () => ({
@@ -145,15 +148,11 @@ function run(command, args, cwd, limits = {}) {
       stderr: Buffer.concat(stderrChunks).toString('utf8'),
     });
     const timer = setTimeout(() => {
+      timedOut = true;
       killProcessTree(child);
-      finish({
-        code: -1,
-        stdout: decode().stdout,
-        stderr: 'git command timed out',
-        missing: false,
-        timedOut: true,
-        truncated,
-      });
+      // Keep the repository write owner until the child has actually exited.
+      // Returning at the kill request would admit another write while this one
+      // or its hooks still own Git's index/ref locks.
     }, timeoutMs);
     const onLine = typeof limits.onLine === 'function' ? limits.onLine : null;
     let lineBuf = '';
@@ -196,16 +195,13 @@ function run(command, args, cwd, limits = {}) {
       stderrChunks.push(chunk);
       pushLines(chunk);
     });
+    // Windows can also fail the pipe sockets after spawn rejects its cwd.
+    // Wait for close and report the spawn failure once, rather than leaving
+    // unhandled ENOTCONN events after the caller has already resumed.
+    child.stdout.on('error', error => { streamError = error; });
+    child.stderr.on('error', error => { streamError = error; });
     child.on('error', (error) => {
-      const decoded = decode();
-      finish({
-        code: -1,
-        stdout: decoded.stdout,
-        stderr: error.message,
-        missing: error.code === 'ENOENT',
-        timedOut: false,
-        truncated,
-      });
+      spawnError = error;
     });
     child.on('close', (code) => {
       if (onLine && lineBuf) {
@@ -214,12 +210,13 @@ function run(command, args, cwd, limits = {}) {
         lineBuf = '';
       }
       const decoded = decode();
+      const error = spawnError || streamError;
       finish({
-        code: code ?? 1,
+        code: timedOut || error ? -1 : code ?? 1,
         stdout: decoded.stdout,
-        stderr: decoded.stderr,
-        missing: false,
-        timedOut: false,
+        stderr: timedOut ? 'git command timed out' : error ? error.message : decoded.stderr,
+        missing: Boolean(spawnError?.code === 'ENOENT'),
+        timedOut,
         truncated,
       });
     });
@@ -273,10 +270,25 @@ function resetGitExecutableProbe() {
 
 async function runGitUncached(cwd, args, limits) {
   const result = await run(probedGitExe || 'git', args, cwd, limits);
-  if (!result.missing) return result;
+  if (!result.missing) return describeWindowsWorktreeFailure(cwd, result);
   probedGitExe = null; // PATH spawn failed or a cached fallback path vanished
   const fallback = probeGitExecutable();
-  return fallback ? run(fallback, args, cwd, limits) : result;
+  if (!fallback) return result;
+  return describeWindowsWorktreeFailure(cwd, await run(fallback, args, cwd, limits), fs.existsSync(fallback));
+}
+
+// Git for Windows' mingw_getcwd expands junctions and short names into a fixed
+// MAX_PATH buffer in affected versions. Diagnose only an actual failure: a
+// newer Git/Node capable of long working directories must remain usable.
+function describeWindowsWorktreeFailure(cwd, result, executableExists = false) {
+  if (result.code === 0 || process.platform !== 'win32' || typeof cwd !== 'string') return result;
+  let physical;
+  try { physical = fs.realpathSync.native(cwd); } catch { return result; }
+  if (physical.startsWith('\\\\?\\UNC\\')) physical = '\\\\' + physical.slice(8);
+  else if (physical.startsWith('\\\\?\\')) physical = physical.slice(4);
+  if (physical.length < 260 || !(result.missing && executableExists || /filename too long/i.test(result.stderr || ''))) return result;
+  return { ...result, missing: false, unsupportedPath: true,
+    stderr: '当前 Git 运行环境无法访问这个过长的实际工作目录；请保留现有目录与创建回执，使用支持该路径的 Git 运行环境后继续。' };
 }
 
 function runGit(cwd, args, limits) {
@@ -360,6 +372,7 @@ module.exports = {
   run,
   runGit,
   runGitUncached,
+  describeWindowsWorktreeFailure,
   isGitAdviceLine,
   gitFailureMessage,
   sanitizeProgressText,

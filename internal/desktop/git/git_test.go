@@ -201,6 +201,11 @@ func TestPullPushWithMockGitOnPath(t *testing.T) {
 	bin := t.TempDir()
 	script := filepath.Join(bin, "git.cmd")
 	const body = `@echo off
+if "%1"=="rev-parse" (
+echo %CD%\.git
+echo %CD%\.git
+exit /b 0
+)
 echo MOCK %*
 exit /b 0
 `

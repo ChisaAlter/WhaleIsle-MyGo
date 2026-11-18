@@ -63,6 +63,7 @@ func (r *Runtime) RevokeGit() {
 	child := r.child
 	r.mu.Unlock()
 	if child != nil {
+		r.cancelPendingGitWrites(child)
 		_ = r.sendControl(child, map[string]any{"action": "git-revoke"})
 	}
 }

@@ -141,6 +141,7 @@ function run(command, args, cwd, limits = {}) {
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let truncated = false;
+    let timedOut = false;
     /** Decode once at a settle point so multibyte sequences split across
      *  chunk boundaries never produce replacement characters. */
     const decode = () => ({
@@ -148,15 +149,10 @@ function run(command, args, cwd, limits = {}) {
       stderr: Buffer.concat(stderrChunks).toString('utf8'),
     });
     const timer = setTimeout(() => {
+      timedOut = true;
       killProcessTree(child);
-      finish({
-        code: -1,
-        stdout: decode().stdout,
-        stderr: 'git command timed out',
-        missing: false,
-        timedOut: true,
-        truncated,
-      });
+      // A kill request is not process completion. Keep write ownership until
+      // close so the next operation cannot race this child's Git locks/hooks.
     }, timeoutMs);
     const onLine = typeof limits.onLine === 'function' ? limits.onLine : null;
     let lineBuf = '';
@@ -218,11 +214,11 @@ function run(command, args, cwd, limits = {}) {
       }
       const decoded = decode();
       finish({
-        code: code ?? 1,
+        code: timedOut ? -1 : code ?? 1,
         stdout: decoded.stdout,
-        stderr: decoded.stderr,
+        stderr: timedOut ? 'git command timed out' : decoded.stderr,
         missing: false,
-        timedOut: false,
+        timedOut,
         truncated,
       });
     });

@@ -96,6 +96,15 @@ func PushCurrent(root string) (string, error) {
 
 // PushReviewed rechecks its destination immediately before an ordinary, non-force push.
 func PushReviewed(root string, reviewed PushPlan) (string, error) {
+	release, err := acquireBackgroundWrite(root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	return pushReviewed(root, reviewed)
+}
+
+func pushReviewed(root string, reviewed PushPlan) (string, error) {
 	current, err := PreparePush(root)
 	if err != nil {
 		return "", err
@@ -114,6 +123,11 @@ type CommitPushResult struct {
 // CommitPushReviewed never stages files and never repeats a successful commit
 // after a push failure. The caller can offer the separate Push action to retry.
 func CommitPushReviewed(root, message, token string, plan PushPlan) (CommitPushResult, error) {
+	release, err := acquireBackgroundWrite(root, ReferenceWrite)
+	if err != nil {
+		return CommitPushResult{}, err
+	}
+	defer release()
 	current, err := PreparePush(root)
 	if err != nil {
 		return CommitPushResult{}, err
@@ -121,12 +135,12 @@ func CommitPushReviewed(root, message, token string, plan PushPlan) (CommitPushR
 	if current != plan {
 		return CommitPushResult{}, errors.New("branch or push destination changed; review again")
 	}
-	out, err := CommitReviewed(root, message, token)
+	out, err := commitReviewed(root, message, token)
 	if err != nil {
 		return CommitPushResult{}, err
 	}
 	result := CommitPushResult{Output: out, Committed: true}
-	pushed, err := PushReviewed(root, plan)
+	pushed, err := pushReviewed(root, plan)
 	if err != nil {
 		return result, fmt.Errorf("committed locally, but push failed. Use Push to retry without making another commit: %w", err)
 	}

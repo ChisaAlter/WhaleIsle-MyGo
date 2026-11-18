@@ -84,6 +84,11 @@ func viewPR(ctx context.Context, root string, look PathLooker, run combinedRunne
 
 // CreatePRDraft runs `gh pr create --draft --fill` when gh is available.
 func CreatePRDraft(ctx context.Context, root string) PRStatus {
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return PRStatus{Err: err.Error()}
+	}
+	defer release()
 	return createPRDraft(ctx, root, nil, combinedExecRunner)
 }
 
@@ -107,6 +112,11 @@ func createPRDraft(ctx context.Context, root string, look PathLooker, run combin
 
 // CheckoutPR runs `gh pr checkout <number>` when gh is available.
 func CheckoutPR(ctx context.Context, root string, number int) PRStatus {
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return PRStatus{Err: err.Error()}
+	}
+	defer release()
 	return checkoutPR(ctx, root, number, nil, combinedExecRunner)
 }
 

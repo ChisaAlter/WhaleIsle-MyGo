@@ -196,7 +196,7 @@ test('successful explicit start still emits the existing snapshot protocol', asy
   assert.equal(f.events.at(-1).url, '');
 });
 
-test('usableURL and pairingOfferToken enforce v===2 and finite future expiresAtMs', async () => {
+test('offers keep expiry checks but never authorize retired HTTP shell routes', async () => {
   const encodeOffer = (payload, scheme = 'https://example.test/#offer=') =>
     scheme + Buffer.from(JSON.stringify(payload)).toString('base64url');
   const f = fixture();
@@ -212,7 +212,7 @@ test('usableURL and pairingOfferToken enforce v===2 and finite future expiresAtM
   f.setPairingUrl(valid);
   f.tick();
   assert.equal(f.events.at(-1).url, valid);
-  assert.deepEqual(Array.from(f.mountedShell.tokens()), ['pair-valid-1']);
+  assert.deepEqual(Array.from(f.mountedShell.tokens()), [], 'bootstrap token is never a business credential');
 
   const invalidCases = [
     ['expired', encodeOffer({v: 2, authBootstrap: {expiresAtMs: Date.now() - 1_000, pairingToken: 'pair-expired'}})],
@@ -230,7 +230,34 @@ test('usableURL and pairingOfferToken enforce v===2 and finite future expiresAtM
     f.setPairingUrl(badUrl);
     f.tick();
     assert.equal(f.events.at(-1).url, '', `usableURL must fail closed for ${label}`);
-    assert.deepEqual(Array.from(f.mountedShell.tokens()), [], `pairingOfferToken must fail closed for ${label}`);
+    assert.deepEqual(Array.from(f.mountedShell.tokens()), [], `HTTP shell remains closed for ${label}`);
   }
   f.send({action: 'stop'}); await settle();
+});
+
+test('real HTTP shell rejects bootstrap and legacy bearer while the SPA stays available', async () => {
+  const http = require('node:http');
+  const routes = require('./shell_routes.cjs');
+  const f = fixture();
+  f.remote.mobileWebServer = {};
+  f.send({action:'start',config:{remoteEnabled:true,remoteMode:'lan',remoteToken:'fictional-old-token'}});
+  await settle(); f.ready(); await settle();
+  f.setPairingUrl('http://example.test/#offer='+Buffer.from(JSON.stringify({v:2,authBootstrap:{expiresAtMs:Date.now()+60000,pairingToken:'fictional-bootstrap'}})).toString('base64url'));
+  const server = http.createServer((_req,res)=>res.end('owned static SPA'));
+  routes.mountShellRoutes(server,f.mountedShell);
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try {
+    const base='http://127.0.0.1:'+server.address().port;
+    assert.equal(await (await fetch(base)).text(),'owned static SPA');
+    for(const token of ['fictional-bootstrap','fictional-old-token']) {
+      const response=await fetch(base+'/__remote__/shell/saveConfig',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:'{"patch":{"remoteEnabled":false}}'});
+      assert.equal(response.status,401);
+      assert.equal(await response.text(),'unauthorized');
+    }
+    assert.equal(f.events.some(e=>e.kind==='host-save-config'),false);
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve=>server.close(resolve));
+    f.send({action:'stop'});await settle();
+  }
 });

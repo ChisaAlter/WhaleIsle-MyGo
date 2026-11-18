@@ -12,6 +12,66 @@ const { setDesktopDshHome, clearDesktopDshHome } = require('./git-source/shared/
 const authorityMod = require('./git-source/main/workspace-authority');
 const { createGitGate, loadOriginalGit } = require('./git-gate.cjs');
 
+test('Git timeout waits for process close before releasing its result', async () => {
+  const vm = require('node:vm');
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();child.stderr = new EventEmitter();
+  let killed=0, expire;
+  child.kill=()=>{killed++;};
+  const module={exports:{}};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'git-source/main/git-exec.js'),'utf8'),{
+    module,exports:module.exports,Buffer,process:{platform:'linux',env:{}},
+    setTimeout:fn=>{expire=fn;return 1;},clearTimeout(){},
+    require:id=>id==='node:child_process'?{spawn:()=>child}:id==='./workspace-authority'?authorityMod:require(id),
+  });
+  let completed=false;
+  const result=module.exports.run('git',['commit'],'/fixture',{timeoutMs:1}).then(value=>{completed=true;return value;});
+  expire();await Promise.resolve();
+  assert.equal(killed,1);assert.equal(completed,false);
+  child.emit('close',null);
+  assert.equal((await result).timedOut,true);
+});
+
+test('admitted Git writes retain result and ownership until backend completion after revocation', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mygo-git-owner-'));
+  let finish, entered, releases = 0;
+  const started = new Promise(resolve => { entered = resolve; });
+  const pending = new Promise(resolve => { finish = resolve; });
+  const gate = createGitGate({
+    backend: {setWorkspaceAuthority(){}, async gitCommit(){entered();return pending;}},
+    authority: authorityMod,
+    authorize: async () => true,
+    acquireWrite: async (cwd, action) => {assert.equal(cwd, fs.realpathSync(root));assert.equal(action,'gitCommit');return () => releases++;},
+  });
+  try {
+    gate.configure({remoteEnabled:true,remoteGitEnabled:true,remoteGitRoots:[root]});
+    const result = gate.git.gitCommit(root, 'owned change');
+    await started;
+    gate.revoke();
+    assert.equal(releases,0,'view revocation cannot release a running write');
+    let drained=false;
+    const drain=gate.drainWrites().then(()=>{drained=true;});
+    await Promise.resolve();assert.equal(drained,false,'runtime stop must wait for admitted writes');
+    finish({ok:true,commit:'fixture'});
+    assert.deepEqual(await result,{ok:true,commit:'fixture'});
+    await drain;
+    assert.equal(releases,1);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});
+
+test('revocation during queued Git ownership prevents the backend write', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mygo-git-queued-'));
+  let admit, waiting, writes=0, releases=0;
+  const queued = new Promise(resolve => {waiting=resolve;});
+  const gate=createGitGate({backend:{setWorkspaceAuthority(){},async gitPull(){writes++;}},authority:authorityMod,authorize:async()=>true,
+    acquireWrite:async()=>{waiting();return new Promise(resolve=>{admit=()=>resolve(()=>releases++);});}});
+  try {
+    gate.configure({remoteEnabled:true,remoteGitEnabled:true,remoteGitRoots:[root]});
+    const result=gate.git.gitPull(root);await queued;gate.revoke();admit();
+    await assert.rejects(result,/revoked/);assert.equal(writes,0);assert.equal(releases,1);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
 test('gitPublishRepository allowlists remote URLs, checks repo names, and inserts --', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'git-publish-sec-'));
   const origSpawn = childProcess.spawn;

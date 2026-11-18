@@ -64,12 +64,14 @@ type Runtime struct {
 	// builds urls[].pairingUrl and only flags relayDown in relay mode
 	// (reference/electron/src/main/remote.js:344-360), so a listening LAN
 	// daemon is ready without a relay connection.
-	lanMode          bool
-	child            Child
-	done             chan struct{}
-	spawn            func(Resources) (Child, error)
-	resources        func(string, string) (Resources, error)
-	stopTimeout      time.Duration
+	lanMode            bool
+	child              Child
+	closing            bool
+	gitWrites          map[string]*gitWriteAdmission
+	done               chan struct{}
+	spawn              func(Resources) (Child, error)
+	resources          func(string, string) (Resources, error)
+	stopTimeout        time.Duration
 	deviceAction       DeviceActionState
 	deviceSequence     uint64
 	deviceActionDone   chan struct{}
@@ -143,7 +145,9 @@ func requiredPhoneResources(persistent bool) []string {
 func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 	r.op.Lock()
 	defer r.op.Unlock()
-	r.stopLocked()
+	if !r.stopLocked() {
+		return
+	}
 	if enabled, _ := config["remoteEnabled"].(bool); !enabled {
 		r.set(RuntimeState{Status: "disabled"})
 		return
@@ -173,6 +177,7 @@ func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 		}
 		child.Kill()
 		_ = child.Wait()
+		r.releaseChildGitWrites(child)
 		r.mu.Lock()
 		if r.child == child {
 			r.finishDeviceActionLocked("stopped", false)
@@ -181,51 +186,109 @@ func (r *Runtime) Start(userData, vendor string, config map[string]any) {
 				message = "remote bridge stopped"
 			}
 			r.state = RuntimeState{Status: "offline", Message: message}
+			r.child, r.done, r.closing = nil, nil, false
 		}
 		r.mu.Unlock()
 		close(done)
 	}()
 	if err := r.sendControl(child, map[string]any{"action": "start", "config": config}); err != nil {
-		r.stopLocked()
-		r.set(RuntimeState{Status: "offline", Message: "remote control unavailable"})
+		if r.stopLocked() {
+			r.set(RuntimeState{Status: "offline", Message: "remote control unavailable"})
+		}
 	}
 }
 func (r *Runtime) Refresh(config map[string]any) {
 	r.op.Lock()
 	defer r.op.Unlock()
+	if enabled, _ := config["remoteEnabled"].(bool); !enabled {
+		if r.stopLocked() {
+			r.set(RuntimeState{Status: "disabled"})
+		}
+		return
+	}
 	r.mu.Lock()
 	child := r.child
+	closing := r.closing
 	// A transport change takes effect on the next snapshot, never mid-event.
 	r.lanMode = remoteModeLAN(config)
 	r.mu.Unlock()
-	if child != nil {
+	if child != nil && !closing {
 		if r.sendControl(child, map[string]any{"action": "refresh", "config": config}) != nil {
 			r.stopLocked()
 		}
 	}
 }
-func (r *Runtime) Stop() { r.op.Lock(); defer r.op.Unlock(); r.stopLocked() }
-func (r *Runtime) stopLocked() {
+
+// Stop closes admission and waits for the normal stop budget. A non-nil result
+// belongs to the stopped child and closes only after that child has exited and
+// released its writes. Callers can reconcile later without polling or losing
+// the exit event between inspecting state and subscribing to it.
+func (r *Runtime) Stop() <-chan struct{} {
+	r.op.Lock()
+	defer r.op.Unlock()
+	r.mu.Lock()
+	done := r.done
+	r.mu.Unlock()
+	if r.stopLocked() {
+		return nil
+	}
+	return done
+}
+func (r *Runtime) stopLocked() bool {
 	r.mu.Lock()
 	child, done := r.child, r.done
 	r.finishDeviceActionLocked("stopped", false)
-	r.child = nil
-	r.done = nil
-	r.state = RuntimeState{Status: "offline"}
+	r.closing = child != nil
+	if child != nil {
+		r.state = RuntimeState{Status: "stopping", Listening: r.state.Listening}
+	} else {
+		r.state = RuntimeState{Status: "offline"}
+	}
 	r.mu.Unlock()
 	if child == nil {
-		return
+		return true
 	}
+	r.cancelPendingGitWrites(child)
 	_ = r.sendControl(child, map[string]any{"action": "stop"})
 	select {
 	case <-done:
 	case <-time.After(r.stopTimeout):
+		r.mu.Lock()
+		runningWrite := false
+		for _, request := range r.gitWrites {
+			if request.child == child && request.release != nil {
+				runningWrite = true
+				break
+			}
+		}
+		if runningWrite {
+			r.state.Status = "stopping"
+			r.state.Message = "remote admission is closed; waiting for an accepted Git write to finish"
+		}
+		r.mu.Unlock()
+		if runningWrite {
+			return false
+		}
 		child.Kill()
 		select {
 		case <-done:
 		case <-time.After(time.Second):
+			r.mu.Lock()
+			if r.child == child {
+				r.state.Status = "stop-failed"
+				r.state.Message = "remote process has not exited; retry closing before starting another gateway"
+			}
+			r.mu.Unlock()
+			return false
 		}
 	}
+	r.mu.Lock()
+	if r.child == child {
+		r.child, r.done, r.closing = nil, nil, false
+	}
+	r.state = RuntimeState{Status: "offline"}
+	r.mu.Unlock()
+	return true
 }
 func (r *Runtime) set(s RuntimeState) { r.mu.Lock(); r.state = s; r.mu.Unlock() }
 
@@ -296,6 +359,14 @@ func (r *Runtime) consume(child Child, b []byte) {
 	if json.Unmarshal(b, &event) != nil {
 		return
 	}
+	if event.Kind == "git-write-acquire" {
+		r.acquireGitWrite(child, event.ID, event.Root, event.Action)
+		return
+	}
+	if event.Kind == "git-write-release" || event.Kind == "git-write-cancel" {
+		r.releaseGitWrite(child, event.ID)
+		return
+	}
 	if event.Kind == "git-review-request" {
 		go r.reviewGitRequest(child, append([]byte(nil), b...))
 		return
@@ -310,7 +381,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 	}
 	if event.Kind == "git-authorize" {
 		r.mu.Lock()
-		current := r.child == child
+		current := r.child == child && !r.closing
 		authorize := r.authorizeGit
 		r.mu.Unlock()
 		allowed := current && authorize != nil && len(event.ID) < 64 && authorize(event.Root, event.Action)
@@ -319,7 +390,7 @@ func (r *Runtime) consume(child Child, b []byte) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.child != child {
+	if r.child != child || r.closing {
 		return
 	}
 	if event.Kind == "device-action-result" {

@@ -314,6 +314,11 @@ func CommitSelectedReviewed(ctx context.Context, root, message string, review Se
 	if review.token == "" {
 		return result, errors.New("review the selected files before committing")
 	}
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return result, err
+	}
+	defer release()
 	canonical, e := filepath.Abs(root)
 	if e != nil {
 		return result, e

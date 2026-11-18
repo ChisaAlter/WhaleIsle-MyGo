@@ -50,8 +50,8 @@ func freePort(t *testing.T) int {
 // the phone remote server: it starts the product runtime (the original
 // dshd-remote component under the bundled Node), waits for a listening LAN
 // gateway, then performs the same requests a phone does — the SPA landing page
-// on the fixed mobile port, the daemon health probe, and an authenticated
-// shell route with the pairing token carried by the offer fragment.
+// on the fixed mobile port, the daemon health probe, and rejection of bootstrap
+// authentication on the retired HTTP shell route.
 //
 // The full path needs an explicit WHALEISLE_PHONE_LIVE=1 opt-in, or the existing
 // explicit LIVE_VENDOR/LIVE_BIND settings. Ordinary package tests must not bind
@@ -243,40 +243,15 @@ func TestLiveLanServeSPAHealthAndPairing(t *testing.T) {
 	}
 	t.Logf("GET /api/health -> %d %s", healthStatus, healthType)
 
-	// 4. The pairing route: the shell channel answers only with the token the
-	// offer fragment carries, never without it.
+	// 4. Offers only bootstrap the encrypted device channel; the retired HTTP
+	// shell must reject both anonymous requests and the valid offer token.
 	shellURL := mobile + "/__remote__/shell/getConfig"
-	unauthStatus, _ := livePost(t, client, shellURL, "", `{}`)
-	if unauthStatus != 401 {
-		t.Fatalf("shell route without a token: status=%d, want 401", unauthStatus)
-	}
-	var shellStatus int
-	var shellBody string
-	shellDeadline := time.Now().Add(15 * time.Second)
-	for {
-		shellStatus, shellBody = livePost(t, client, shellURL, offer.Auth.Token, `{}`)
-		if shellStatus != 401 || time.Now().After(shellDeadline) {
-			break
+	for _, token := range []string{"", offer.Auth.Token} {
+		status, body := livePost(t, client, shellURL, token, `{}`)
+		if status != http.StatusUnauthorized || strings.TrimSpace(body) != "unauthorized" {
+			t.Fatalf("retired HTTP shell accepted bootstrap authentication: status=%d", status)
 		}
-		// The shell routes attach to the running SPA server after it listens.
-		time.Sleep(250 * time.Millisecond)
 	}
-	var shell struct {
-		OK     bool `json:"ok"`
-		Result struct {
-			RemoteEnabled bool   `json:"remoteEnabled"`
-			RemoteMode    string `json:"remoteMode"`
-			RemotePort    int    `json:"remotePort"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(shellBody), &shell); err != nil || shellStatus != 200 || !shell.OK {
-		t.Fatalf("shell getConfig: status=%d body=%q err=%v", shellStatus, truncateForLog(shellBody), err)
-	}
-	if !shell.Result.RemoteEnabled || shell.Result.RemoteMode != "lan" || shell.Result.RemotePort != daemonPort {
-		t.Fatalf("shell getConfig reported %+v, want the live LAN config on port %d", shell.Result, daemonPort)
-	}
-	t.Logf("POST /__remote__/shell/getConfig -> %d %s", shellStatus, truncateForLog(shellBody))
-
 	// Optional hold so an operator can hit the same live service with curl. The
 	// ephemeral offer goes to a private temp file, never to the test log.
 	if hold := os.Getenv("WHALEISLE_PHONE_LIVE_HOLD_SECONDS"); hold != "" {
@@ -294,8 +269,8 @@ func TestLiveLanServeSPAHealthAndPairing(t *testing.T) {
 		_ = os.Remove(offerFile)
 	}
 
-	// 5. Stopping the runtime releases both listeners.
-	m.Stop()
+	// 5. Applying disabled state releases both listeners.
+	m.Refresh(map[string]any{"remoteEnabled": false})
 	stopped = true
 	if s := m.Snapshot(); s.Listening || s.PairingURL != "" {
 		t.Fatalf("stopped runtime kept pairing: %+v", s)

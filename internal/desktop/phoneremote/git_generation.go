@@ -23,7 +23,7 @@ func (r *Runtime) generateGitDraft(child Child, data []byte) {
 		return
 	}
 	r.mu.Lock()
-	current, authorize := r.child == child, r.authorizeGit
+	current, authorize := r.child == child && !r.closing, r.authorizeGit
 	r.mu.Unlock()
 	result := map[string]any{"action": "git-generation-result", "id": event.ID}
 	if !current || authorize == nil || !authorize(event.Root, "gitCreateChangeRequest") {

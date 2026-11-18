@@ -26,6 +26,7 @@ func TestWindowsLongWorktreeCheckoutAndInterruptedContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
+	t.Setenv("USERPROFILE", root)
 	source := filepath.Join(root, "source")
 	if err = os.MkdirAll(source, 0700); err != nil {
 		t.Fatal(err)
@@ -84,7 +85,7 @@ func TestWindowsLongWorktreeCheckoutAndInterruptedContent(t *testing.T) {
 		t.Fatalf("long-path worktree: %v", result)
 	}
 	target, _ := result["canonicalPath"].(string)
-	if len(target) < 225 || target != filepath.Join(home, "project-worktrees", projectID, workID) || result["ownership"] != "project" {
+	if target == filepath.Join(home, "project-worktrees", projectID, workID) || len(target) >= 260 || result["layout"] != "compact-v1" || result["projectId"] != projectID || result["workstreamId"] != workID || result["ownership"] != "project" {
 		t.Fatalf("actual full directory ownership: %v", result)
 	}
 	targetFile := filepath.Join(target, "result.txt")

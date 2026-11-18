@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -47,6 +48,43 @@ func TestProjectBoundaryFixture(t *testing.T) {
 	result := b.Dispatch(context.Background(), map[string]any{"action": "open-path", "path": root})
 	if result["ok"] != false {
 		t.Fatal("missing opener silently succeeded")
+	}
+}
+
+func TestConcurrentNonGitWorkspacePreparationRetainsOneReceipt(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node unavailable")
+	}
+	root, home := t.TempDir(), t.TempDir()
+	b := New(Options{NodeBin: node, Home: home, Workspace: root})
+	payload := map[string]any{"action": "prepare-workspace", "projectId": "project-concurrent", "workstreamId": "work-concurrent", "workingDirectory": root, "mode": "existing"}
+	results := make(chan map[string]any, 4)
+	var workers sync.WaitGroup
+	for range 4 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			results <- b.Dispatch(context.Background(), payload)
+		}()
+	}
+	workers.Wait()
+	close(results)
+	var receipt string
+	for result := range results {
+		if result["ok"] != true {
+			t.Fatalf("workspace preparation: %v", result)
+		}
+		current, _ := result["receipt"].(string)
+		if current == "" || receipt != "" && receipt != current {
+			t.Fatalf("concurrent preparation changed receipt: first=%q current=%q", receipt, current)
+		}
+		receipt = current
+	}
+	b.workspaceMu.Lock()
+	defer b.workspaceMu.Unlock()
+	if len(b.workspaces) != 0 {
+		t.Fatal("finished workspace binding retained its operation owner")
 	}
 }
 

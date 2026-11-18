@@ -22,7 +22,7 @@ func (r *Runtime) reviewGitRequest(child Child, data []byte) {
 	result := map[string]any{"action": "git-review-result", "id": e.ID}
 	r.mu.Lock()
 	review, auth := r.reviewGit, r.authorizeGit
-	if r.child != child || review == nil || auth == nil || r.reviewCancel != nil {
+	if r.child != child || r.closing || review == nil || auth == nil || r.reviewCancel != nil {
 		r.mu.Unlock()
 		result["error"] = "Desktop PR review unavailable or already active"
 		_ = r.sendControl(child, result)
@@ -34,7 +34,7 @@ func (r *Runtime) reviewGitRequest(child Child, data []byte) {
 	defer func() { cancel(); r.mu.Lock(); r.reviewCancel = nil; r.mu.Unlock() }()
 	valid := func() bool {
 		r.mu.Lock()
-		current := r.child == child && r.state.Listening
+		current := r.child == child && !r.closing && r.state.Listening
 		r.mu.Unlock()
 		return current && auth(e.Root, "gitCreateChangeRequest")
 	}

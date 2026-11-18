@@ -74,7 +74,7 @@ func (r *Runtime) dispatchHostAction(child Child, kind, id, section string, patc
 		return
 	}
 	r.mu.Lock()
-	active := r.child == child
+	active := r.child == child && !r.closing
 	r.mu.Unlock()
 	if !active || child == nil {
 		return
@@ -101,7 +101,7 @@ func (r *Runtime) handleHostAction(child Child, kind, id, section string, patch 
 		return
 	}
 	r.mu.Lock()
-	if r.child != child {
+	if r.child != child || r.closing {
 		r.mu.Unlock()
 		return
 	}

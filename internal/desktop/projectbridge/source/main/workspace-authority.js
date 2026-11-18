@@ -3,6 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { logicalRealpathSync } = require('./logical-realpath');
 const { getDesktopDshHome, tryGetDesktopDshHome } = require('../shared/dsh-home');
+const { checkedWorktreePath } = require('../shared/project-worktree-layout');
 
 /**
  * Workspace authority: the trust roots for desktop capabilities that touch
@@ -352,10 +353,10 @@ function readProjectExecutionPaths(homeDir = dshHome()) {
       const workstreamId = filename.replace(/\.json$/, '');
       if (filename !== `${workstreamId}.json` || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,100}$/.test(workstreamId)) continue;
       const file = safePath('projects', projectId, 'internal', 'desktop-workspaces', filename);
-      const cwd = safePath('project-worktrees', projectId, workstreamId);
-      if (!file || !cwd) continue;
+      if (!file) continue;
       try {
         const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const cwd = checkedWorktreePath(realHome, projectId, workstreamId, record.layout);
         if (record.projectId !== projectId || record.workstreamId !== workstreamId
           || record.ownership !== 'project' || record.mode !== 'worktree' || record.state !== 'ready'
           || typeof record.receipt !== 'string' || !record.receipt

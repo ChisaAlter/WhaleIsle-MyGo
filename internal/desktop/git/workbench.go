@@ -165,6 +165,11 @@ func StagePaths(root string, paths ...string) (string, error) {
 			return "", err
 		}
 	}
+	release, err := acquireBackgroundWrite(root, WorktreeWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	return localCommand(root, "--literal-pathspecs", append([]string{"add", "--"}, paths...)...)
 }
 func UnstagePaths(root string, paths ...string) (string, error) {
@@ -176,6 +181,11 @@ func UnstagePaths(root string, paths ...string) (string, error) {
 			return "", err
 		}
 	}
+	release, err := acquireBackgroundWrite(root, WorktreeWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	if _, err := localCommand(root, "rev-parse", "--verify", "HEAD"); err != nil {
 		return localCommand(root, "--literal-pathspecs", append([]string{"rm", "--cached", "--"}, paths...)...)
 	}
@@ -197,6 +207,18 @@ func IndexReview(root string) (text, token string, err error) {
 
 // CommitReviewed refuses a changed index after the user reviewed its exact diff.
 func CommitReviewed(root, message, token string) (string, error) {
+	if strings.TrimSpace(message) == "" {
+		return "", ErrEmptyCommitMessage
+	}
+	release, err := acquireBackgroundWrite(root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	return commitReviewed(root, message, token)
+}
+
+func commitReviewed(root, message, token string) (string, error) {
 	if strings.TrimSpace(message) == "" {
 		return "", ErrEmptyCommitMessage
 	}

@@ -80,3 +80,28 @@ func TestRuntimeFixture(t *testing.T) {
 		t.Fatal("disabled state")
 	}
 }
+
+func TestRefreshDisableWaitsForOwnedBridgeExit(t *testing.T) {
+	r, w := io.Pipe()
+	child := &fixtureChild{output: r, writer: w, done: make(chan struct{})}
+	m := NewRuntime()
+	m.stopTimeout = time.Millisecond
+	m.spawn = func(Resources) (Child, error) { return child, nil }
+	m.resources = func(string, string) (Resources, error) { return Resources{}, nil }
+	m.Start("fixture", "fixture", map[string]any{"remoteEnabled": true})
+	m.mu.Lock()
+	m.state = RuntimeState{Status: "ready", Listening: true}
+	m.mu.Unlock()
+	m.Refresh(map[string]any{"remoteEnabled": false})
+	if s := m.Snapshot(); s.Status != "disabled" || s.Listening || s.PairingURL != "" {
+		t.Fatalf("disabled configuration did not settle: %+v", s)
+	}
+	select {
+	case <-child.done:
+	default:
+		t.Fatal("disabled state preceded child exit")
+	}
+	if !bytes.Contains(child.input.Bytes(), []byte(`"action":"stop"`)) {
+		t.Fatal("disable did not tell the owned daemon to stop")
+	}
+}

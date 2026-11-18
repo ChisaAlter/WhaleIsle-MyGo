@@ -1,7 +1,9 @@
 'use strict';
 const gitFS=require('node:fs'),gitPath=require('node:path'),gitModule=require('node:module');
 function loadOriginalGit(sources){const cache=new Map();function load(name){if(cache.has(name))return cache.get(name).exports;if(!Object.hasOwn(sources,name))throw Error('Original Git optional module unavailable: '+name);const m={exports:{}};cache.set(name,m);const localRequire=id=>{if(id.startsWith('node:')||['fs','path','os'].includes(id))return require(id);if(!id.startsWith('.'))throw Error('Unexpected original Git dependency');let next=gitPath.posix.normalize(gitPath.posix.join(gitPath.posix.dirname(name),id));if(!next.endsWith('.js'))next+='.js';return load(next);};new Function('require','module','exports','__filename','__dirname',sources[name])(localRequire,m,m.exports,name,gitPath.posix.dirname(name));return m.exports;}return {git:load('main/git.js'),authority:load('main/workspace-authority.js')};}
-function createGitGate({backend,authority,authorize,review}){let generation=0,roots=new Set(),enabled=false;
+function createGitGate({backend,authority,authorize,review,acquireWrite}){let generation=0,roots=new Set(),enabled=false;
+ const runningWrites=new Set();
+ async function drainWrites(){await Promise.allSettled([...runningWrites]);}
  function revoke(){generation++;enabled=false;roots=new Set();backend.setWorkspaceAuthority(authority.createWorkspaceAuthority());}
  function configure(config){
   revoke();if(config.remoteEnabled!==true||config.remoteGitEnabled!==true)return;
@@ -29,8 +31,20 @@ function createGitGate({backend,authority,authorize,review}){let generation=0,ro
    if(!review)throw Error('Review and confirm a change-request title/body before creating it');
    const value=await review(root);if(epoch!==generation||!enabled||!roots.has(root))throw Error('Mobile Git permission was revoked');return value;
   }
-  const value=await backend[name](root,...args);if(epoch!==generation||!enabled||!roots.has(root))throw Error('Mobile Git permission was revoked');return value;
+  const writes = ['gitFetchForStatus','gitInit','gitCommit','gitPush','gitPull','gitPublishRepository','gitSwitchBranch','gitCreateBranch'].includes(name) || (name==='gitCreateChangeRequest'&&args[0]?.generateOnly!==true);
+  const release = writes && acquireWrite ? await acquireWrite(root,name) : null;
+  try {
+   if(epoch!==generation||!enabled||!roots.has(root))throw Error('Mobile Git permission was revoked');
+   // Once admitted, an actual write owns its result even if the view or Git
+   // grant closes meanwhile. The owner is released only after backend exit.
+   const operation=Promise.resolve().then(()=>backend[name](root,...args));
+   if(writes)runningWrites.add(operation);
+   let value;
+   try{value=await operation;}finally{if(writes)runningWrites.delete(operation);}
+   if(!writes&&(epoch!==generation||!enabled||!roots.has(root)))throw Error('Mobile Git permission was revoked');
+   return value;
+  } finally { if(release)release(); }
  };
- return {git,configure,revoke,get enabled(){return enabled;}};
+ return {git,configure,revoke,drainWrites,get enabled(){return enabled;}};
 }
 if(typeof module!=='undefined')module.exports={createGitGate,loadOriginalGit};

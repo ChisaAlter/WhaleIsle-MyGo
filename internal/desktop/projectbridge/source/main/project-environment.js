@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const { getDesktopDshHome } = require('../shared/dsh-home');
+const { checkedWorktreePath } = require('../shared/project-worktree-layout');
 const { loadWorkspaceAuthority, createWorkspaceAuthority, isPathInside, workspaceRootRefusal } = require('./workspace-authority');
 const { run, runGit, safeRefName, gitFailureMessage, GH_TIMEOUT_MS } = require('./git-exec');
 
@@ -85,6 +86,7 @@ function createProjectEnvironment(options = {}) {
   }
   async function repositoryAt(canonicalPath, readStatus = true) {
     const detected = await git(canonicalPath, ['rev-parse', '--show-toplevel']);
+    if (detected.unsupportedPath) throw new Error(gitFailureMessage(detected, 'Git 工作目录不可用'));
     if (detected.code !== 0) return { ok: true, canonicalPath, isGit: false, repoIdentity: null,
       repositoryRoot: null, branch: null, headCommit: null, dirty: null };
     const repositoryRoot = fs.realpathSync.native(detected.stdout.trim());
@@ -116,7 +118,7 @@ function createProjectEnvironment(options = {}) {
       throw new Error('后台工作目录与创建回执不一致');
     }
     if (binding.ownership === 'project') {
-      if (identity(cwd) !== identity(ownedPath('project-worktrees', projectId, workstreamId))) throw new Error('独立工作目录不属于该 Project');
+      if (identity(cwd) !== identity(checkedWorktreePath(home(), projectId, workstreamId, binding.layout))) throw new Error('独立工作目录不属于该 Project');
     } else if (binding.ownership === 'user') canonicalize(cwd);
     else throw new Error('后台工作目录所有权无效');
     const current = await repositoryAt(cwd, readStatus);
@@ -150,11 +152,15 @@ function createProjectEnvironment(options = {}) {
       baseCommit = await command(input.canonicalPath, ['rev-parse', '--verify', '--end-of-options', `${chosen}^{commit}`]);
       branch = `project/${projectId}/${workstreamId}`;
       await command(input.canonicalPath, ['check-ref-format', '--branch', branch]);
-      canonicalPath = ownedPath('project-worktrees', projectId, workstreamId); ownership = 'project';
+      canonicalPath = checkedWorktreePath(home(), projectId, workstreamId,
+        old ? old.layout : process.platform === 'win32' ? 'compact-v1' : undefined);
+      if (old && identity(canonicalPath) !== identity(old.canonicalPath)) throw new Error('独立工作目录与登记布局不一致');
+      ownership = 'project';
     }
     const binding = old || { projectId, workstreamId, mode, sourceIdentity: source.identity, canonicalPath, requestedBase: payload.baseCommit || null,
       directoryIdentity: identity(canonicalPath), ownership, branch, baseCommit, repoIdentity: input.repoIdentity,
       repositoryRoot: input.repositoryRoot, state: 'preparing', receipt: crypto.randomUUID(),
+      ...(ownership === 'project' && process.platform === 'win32' ? { layout: 'compact-v1' } : {}),
       ...(ownership === 'project' && process.platform === 'win32' ? { checkoutPending: true } : {}) };
     if (!old) writeRecord(file, binding);
     if (ownership === 'project') {
@@ -218,7 +224,7 @@ function createProjectEnvironment(options = {}) {
     if (current.dirty) throw new Error('独立工作目录有未提交内容，不能清理');
     const ignored = await command(current.canonicalPath, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z']);
     if (ignored) throw new Error('独立工作目录有 Git 忽略的文件，不能清理');
-    const target = ownedPath('project-worktrees', projectId, workstreamId);
+    const target = checkedWorktreePath(home(), projectId, workstreamId, current.layout);
     await command(current.repositoryRoot, ['worktree', 'remove', '--', target]);
     const { file, binding } = bindingFor(projectId, workstreamId);
     writeRecord(file, { ...binding, state: 'removed' });
@@ -389,6 +395,26 @@ function createProjectEnvironment(options = {}) {
       return { ok: true, applied: true };
     } finally { fs.rmSync(file, { force: true }); }
   }
+
+  // The native owner serializes mutations with the other desktop Git entries.
+  // Resolve this target through the same authority/receipt checks as execution;
+  // the caller-supplied workingDirectory is never itself a write capability.
+  async function writeTarget(payload) {
+    const operation = payload.operation;
+    if (operation === 'prepare-workspace') {
+      const current = await repository(payload.workingDirectory);
+      return { ok: true, root: current.repositoryRoot || current.canonicalPath, scope: 'references' };
+    }
+    if (operation === 'cleanup-workspace') {
+      const current = await checkWorkspace(payload.projectId, payload.workstreamId, payload.workspace);
+      return { ok: true, root: current.repositoryRoot, scope: 'references' };
+    }
+    if (operation === 'revert' || operation === 'baseline' || operation === 'changes') {
+      const { current, root } = await changeScope(payload);
+      return { ok: true, root: current.isGit ? root : '', scope: 'worktree' };
+    }
+    throw new Error('不支持的 Project 写入操作');
+  }
   async function dispatch(payload = {}) {
     switch (payload.action) {
       // Only the authenticated Project creation command uses this selection
@@ -428,6 +454,7 @@ function createProjectEnvironment(options = {}) {
       case 'baseline': return baseline(payload);
       case 'changes': return changes(payload);
       case 'revert': return revert(payload);
+      case 'write-target': return writeTarget(payload);
       default: throw new Error(`不支持的 Project 操作：${String(payload.action || '')}`);
     }
   }

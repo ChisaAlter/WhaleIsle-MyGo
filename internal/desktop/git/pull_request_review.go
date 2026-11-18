@@ -272,6 +272,11 @@ func LookupPullRequestReviewed(ctx context.Context, root string, p PullRequestPl
 	return lookupPullRequest(ctx, root, p, combinedExecRunner)
 }
 func CreatePullRequestReviewed(ctx context.Context, root string, p PullRequestPlan, head string) (PullRequestResult, error) {
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return PullRequestResult{}, err
+	}
+	defer release()
 	return createPullRequestReviewed(ctx, root, p, head, combinedExecRunner)
 }
 func createPullRequestReviewed(ctx context.Context, root string, p PullRequestPlan, head string, run combinedRunner) (PullRequestResult, error) {

@@ -15,5 +15,8 @@
     "main/git-generate.js": "2175657746c35f66cba32ce2b70a1dd5f82b74bf688669408cb20dc4ef8f7033",
     "shared/cleartext-base-url.js": "2ba729fd9c1220753565fe266cb29701db658380d812525590a3676ca515db80"
   },
-  "excludedDynamicModule": "main/config.js: ambient model generation is not enabled by the mobile Git bridge"
+  "excludedDynamicModule": "main/config.js: ambient model generation is not enabled by the mobile Git bridge",
+  "localChanges": {
+    "main/git-exec.js": "2026-11-17: a timeout requests process-tree termination but waits for child close before completing, retaining repository write ownership while Git or hooks exit. Original snapshot digests above remain source provenance."
+  }
 }

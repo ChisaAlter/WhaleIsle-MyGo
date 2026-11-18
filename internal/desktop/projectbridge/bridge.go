@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	desktopgit "whaleisle/internal/desktop/git"
 	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/processutil"
 )
@@ -32,12 +33,18 @@ type Options struct {
 type Bridge struct {
 	opts        Options
 	mu          sync.Mutex
+	workspaceMu sync.Mutex
+	workspaces  map[string]*workspaceOperation
 	selectionMu sync.Mutex
 	readyMu     sync.Mutex
 	readyNode   string
 	readySize   int64
 	readyMod    int64
 	readyOK     bool
+}
+
+type workspaceOperation struct {
+	done chan struct{}
 }
 
 var onReadyNodeProbe func()
@@ -90,8 +97,9 @@ func (b *Bridge) PrepareOverlay(ctx context.Context, sourceDir, profileDir, harn
 	return overlay, nil
 }
 
-// Dispatch serializes mutations across short-lived Node workers. Durable official
-// receipts make repeated prepare-workspace calls idempotent across restarts.
+// Dispatch authorizes write targets before acquiring the shared repository owner.
+// Reads and unrelated repositories remain independent. Durable official receipts
+// make repeated prepare-workspace calls idempotent across restarts.
 func (b *Bridge) Dispatch(ctx context.Context, payload map[string]any) map[string]any {
 	action, _ := payload["action"].(string)
 	switch action {
@@ -111,11 +119,16 @@ func (b *Bridge) Dispatch(ctx context.Context, payload map[string]any) map[strin
 			return failure("unsupported: native Project directory picker unavailable")
 		}
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	request := make(map[string]any, len(payload))
 	for k, v := range payload {
 		request[k] = v
+	}
+	if action == "prepare-workspace" || action == "cleanup-workspace" {
+		release, err := b.acquireWorkspaceOperation(ctx, request)
+		if err != nil {
+			return failure("Project workspace operation was cancelled")
+		}
+		defer release()
 	}
 	if action == "select-directory" {
 		suggested, _ := request["workingDirectory"].(string)
@@ -137,6 +150,31 @@ func (b *Bridge) Dispatch(ctx context.Context, payload map[string]any) map[strin
 		}
 		request["action"] = "resolve-path"
 	}
+	if projectWriteAction(request) {
+		preflight := make(map[string]any, len(request)+1)
+		for k, v := range request {
+			preflight[k] = v
+		}
+		preflight["action"], preflight["operation"] = "write-target", action
+		target := b.call(ctx, map[string]any{"action": "dispatch", "payload": preflight})
+		if target["ok"] != true {
+			return target
+		}
+		root, _ := target["root"].(string)
+		if root == "" {
+			return b.call(ctx, map[string]any{"action": "dispatch", "payload": request})
+		}
+		scope := desktopgit.WorktreeWrite
+		if target["scope"] == "references" {
+			scope = desktopgit.ReferenceWrite
+		}
+		owned, release, err := desktopgit.AcquireWrite(ctx, root, scope)
+		if err != nil {
+			return failure("Project Git write admission failed or was cancelled")
+		}
+		defer release()
+		ctx = owned
+	}
 	result := b.call(ctx, map[string]any{"action": "dispatch", "payload": request})
 	if action == "open-path" && result["ok"] == true {
 		target, _ := result["canonicalPath"].(string)
@@ -148,6 +186,61 @@ func (b *Bridge) Dispatch(ctx context.Context, payload map[string]any) map[strin
 		}
 	}
 	return result
+}
+
+// Receipts also exist for non-Git directories. Serialize only this binding;
+// different Project workstreams and read-only calls do not share the gate.
+func (b *Bridge) acquireWorkspaceOperation(ctx context.Context, request map[string]any) (func(), error) {
+	projectID, _ := request["projectId"].(string)
+	workstreamID, _ := request["workstreamId"].(string)
+	key := projectID + "\x00" + workstreamID
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		b.workspaceMu.Lock()
+		if b.workspaces == nil {
+			b.workspaces = make(map[string]*workspaceOperation)
+		}
+		prior := b.workspaces[key]
+		if prior == nil {
+			operation := &workspaceOperation{done: make(chan struct{})}
+			b.workspaces[key] = operation
+			b.workspaceMu.Unlock()
+			var once sync.Once
+			return func() {
+				once.Do(func() {
+					b.workspaceMu.Lock()
+					delete(b.workspaces, key)
+					close(operation.done)
+					b.workspaceMu.Unlock()
+				})
+			}, nil
+		}
+		b.workspaceMu.Unlock()
+		select {
+		case <-prior.done:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+func projectWriteAction(request map[string]any) bool {
+	switch request["action"] {
+	case "prepare-workspace":
+		return request["mode"] == "worktree"
+	case "cleanup-workspace", "baseline":
+		return true
+	case "changes":
+		end, _ := request["end"].(string)
+		return end == ""
+	case "revert":
+		checkOnly, _ := request["checkOnly"].(bool)
+		return !checkOnly
+	default:
+		return false
+	}
 }
 func failure(message string) map[string]any {
 	return map[string]any{"ok": false, "available": false, "error": message}

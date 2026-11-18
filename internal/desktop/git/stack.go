@@ -131,6 +131,11 @@ func PrepareStack(ctx context.Context, root string, commit *SelectedCommitPlan, 
 	return
 }
 func RunCommitStack(ctx context.Context, root string, p StackPlan) (StackResult, error) {
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return StackResult{}, err
+	}
+	defer release()
 	abs, dir, e := workflowIdentity(ctx, root)
 	if e != nil {
 		return StackResult{}, e
