@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"structs"
 	"sync"
@@ -15,6 +14,8 @@ import (
 	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
 	"github.com/egoist/mygo"
+
+	"whaleisle/internal/processutil"
 )
 
 type screenPoint struct {
@@ -121,7 +122,7 @@ func Capture(ctx context.Context, window uintptr) ([]byte, error) {
 	}
 	defer os.RemoveAll(dir)
 	path := filepath.Join(dir, "screen.png")
-	if err := exec.CommandContext(ctx, "/usr/sbin/screencapture", "-x", "-t", "png", "-R", region, path).Run(); err != nil {
+	if err := processutil.CommandContext(ctx, "/usr/sbin/screencapture", "-x", "-t", "png", "-R", region, path).Run(); err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}

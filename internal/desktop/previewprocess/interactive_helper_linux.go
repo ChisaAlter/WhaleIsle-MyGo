@@ -8,13 +8,13 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/htmlpreview"
+	"whaleisle/internal/processutil"
 )
 
 // The target is discovered inside the private display. No host window ID,
@@ -22,7 +22,7 @@ import (
 func privateInputWindow(ctx context.Context) (string, error) {
 	c, stop := context.WithTimeout(ctx, 2*time.Second)
 	defer stop()
-	out, err := exec.CommandContext(c, "/usr/bin/xdotool", "search", "--onlyvisible", "--pid", strconv.Itoa(os.Getpid())).Output()
+	out, err := processutil.CommandContext(c, "/usr/bin/xdotool", "search", "--onlyvisible", "--pid", strconv.Itoa(os.Getpid())).Output()
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func applyPrivateInput(ctx context.Context, id string, v interactiveInput, width
 	}
 	c, stop := context.WithTimeout(ctx, 2*time.Second)
 	defer stop()
-	return exec.CommandContext(c, "/usr/bin/xdotool", args...).Run()
+	return processutil.CommandContext(c, "/usr/bin/xdotool", args...).Run()
 }
 func servePrivateFrames(ctx context.Context, w *mygo.Window, input io.Reader, output io.Writer, nonce string, doc Document) error {
 	startup, stop := context.WithTimeout(ctx, 25*time.Second)
@@ -172,7 +172,7 @@ func servePrivateFrames(ctx context.Context, w *mygo.Window, input io.Reader, ou
 			}
 		case "release":
 			releaseCtx, stop := context.WithTimeout(ctx, 2*time.Second)
-			err = exec.CommandContext(releaseCtx, "/usr/bin/xdotool", "mouseup", "1", "mouseup", "2", "mouseup", "3").Run()
+			err = processutil.CommandContext(releaseCtx, "/usr/bin/xdotool", "mouseup", "1", "mouseup", "2", "mouseup", "3").Run()
 			stop()
 			if err != nil {
 				return err

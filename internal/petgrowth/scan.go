@@ -8,13 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"whaleisle/internal/processutil"
 )
 
 //go:embed scan.cjs
@@ -86,7 +87,7 @@ func scanSessionUsage(ctx context.Context, node, home string) (Usage, error) {
 	script := strings.Replace(scanScript, "'use strict';", "'use strict';\nconst PET_SCAN_PRIOR = "+string(priorJSON)+";", 1)
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, node, "--max-old-space-size=512", "--input-type=commonjs", "-", root)
+	cmd := processutil.CommandContext(ctx, node, "--max-old-space-size=512", "--input-type=commonjs", "-", root)
 	hideScanner(cmd)
 	cmd.Stdin = strings.NewReader(script)
 	// Avoid NODE_OPTIONS/NODE_PATH loaders and unrelated credentials inherited

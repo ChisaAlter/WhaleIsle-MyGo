@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/session"
 )
 
@@ -316,11 +316,11 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 	// cannot discover and snapshot the enclosing developer repository.
 	gitCtx, gitCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer gitCancel()
-	init := exec.CommandContext(gitCtx, "git", "init", "--quiet", workspace)
+	init := processutil.CommandContext(gitCtx, "git", "init", "--quiet", workspace)
 	if output, err := init.CombinedOutput(); err != nil {
 		return fmt.Errorf("initialize owned workspace repository: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	verify := exec.CommandContext(gitCtx, "git", "-C", workspace, "rev-parse", "--show-toplevel")
+	verify := processutil.CommandContext(gitCtx, "git", "-C", workspace, "rev-parse", "--show-toplevel")
 	output, err := verify.Output()
 	if err != nil {
 		return fmt.Errorf("verify owned workspace repository: %w", err)

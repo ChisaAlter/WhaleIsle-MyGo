@@ -10,17 +10,18 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"unsafe"
 
 	"github.com/ebitengine/purego"
+
+	"whaleisle/internal/processutil"
 )
 
 func macCodesign(ctx context.Context, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "/usr/bin/codesign", args...)
+	cmd := processutil.CommandContext(ctx, "/usr/bin/codesign", args...)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -115,7 +116,7 @@ func verifyMacBundle(ctx context.Context, helper string) (string, error) {
 	if _, err = macCodesign(ctx, "--verify", "--deep", "--strict", "-R", req, bundle); err != nil {
 		return "", err
 	}
-	cmd := exec.CommandContext(ctx, "/usr/bin/codesign", "-d", "--entitlements", ":-", helper)
+	cmd := processutil.CommandContext(ctx, "/usr/bin/codesign", "-d", "--entitlements", ":-", helper)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
 	ent, err := cmd.Output()
 	if err != nil {

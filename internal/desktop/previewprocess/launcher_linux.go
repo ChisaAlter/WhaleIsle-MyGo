@@ -9,11 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"whaleisle/internal/processutil"
 )
 
 var namespaceKinds = []string{"user", "mnt", "pid", "net", "ipc", "uts"}
@@ -91,7 +92,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 	}
 	nonce := hex.EncodeToString(random[:])
 	lifetime, cancel := context.WithTimeout(ctx, 30*time.Minute)
-	cmd := exec.CommandContext(lifetime, bwrap, linuxSandboxArgs(helper, root, nonce, parent)...)
+	cmd := processutil.CommandContext(lifetime, bwrap, linuxSandboxArgs(helper, root, nonce, parent)...)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C.UTF-8"}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	input, err := cmd.StdinPipe()

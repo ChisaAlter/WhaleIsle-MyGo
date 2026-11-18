@@ -4685,6 +4685,14 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					OnSelectVoice: func() {
+						state.mu.Lock()
+						state.settingsEmbeddedSection = settings.SectionVoice
+						state.mu.Unlock()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
 					OnSelectNamespace: func(ns string) {
 						state.mu.Lock()
 						if ns == "remote-workspace" {
@@ -5094,6 +5102,10 @@ func mainView(c *ui.Context) {
 				state.mu.Lock()
 				state.imDraft = imDraft
 				state.mu.Unlock()
+				return
+			}
+			if embeddedSection == settings.SectionVoice {
+				state.renderVoiceInputSection(c)
 				return
 			}
 			if (acceptPanelOK && embeddedSection == "" && remoteOpen) || embeddedSection == settings.SectionRemote || embeddedSection == settings.SectionRemoteWorkspace {
