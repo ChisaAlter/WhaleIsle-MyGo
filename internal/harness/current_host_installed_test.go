@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"whaleisle/internal/paths"
 )
 
 // installedProofFixture writes a temp vendor tree shaped like the staged rc.2
@@ -271,5 +273,26 @@ func TestSourceBuildManifestKeepsItsBranch(t *testing.T) {
 	c := ReadCurrentHostCapabilities(vendor, CurrentHostBridges{})
 	if c.ArtifactsReady || !strings.Contains(c.Reason, "provenance is unsupported") {
 		t.Fatalf("installed proof overrode the source-build manifest: %+v", c)
+	}
+}
+
+// TestHarnessTestsNeverReachTheRealProfileCache pins the isolation this file
+// relies on. The digest cache resolves through paths.UserDataDir(), which falls
+// back to the user's real data directory whenever no override is set, so a test
+// that clears the override must still be unable to reach it.
+func TestHarnessTestsNeverReachTheRealProfileCache(t *testing.T) {
+	t.Setenv(paths.EnvUserData, "")
+	if userData, cachePath := diskDigestCacheFile(); userData != "" || cachePath != "" {
+		t.Fatalf("test binary resolved the real profile cache at %s", cachePath)
+	}
+}
+
+// TestHarnessTestsRunAgainstAnIsolatedProfile checks the isolation the package
+// installs once, for every test: each capability read hashes artifacts through
+// paths.UserDataDir(), and none of them may land in the user profile.
+func TestHarnessTestsRunAgainstAnIsolatedProfile(t *testing.T) {
+	current, isolated := paths.UserDataDir(), paths.DefaultUserDataDir()
+	if current == "" || current == isolated {
+		t.Fatalf("harness tests run against the user profile: %s", current)
 	}
 }

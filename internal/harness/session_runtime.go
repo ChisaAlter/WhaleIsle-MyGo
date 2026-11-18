@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"whaleisle/internal/paths"
@@ -197,9 +199,18 @@ var (
 	diskDigestEntries map[string]persistedDigestEntry
 )
 
+// testingProcess reports whether this binary is a test binary: the testing
+// package registers its flags only there, and a desktop build has none.
+func testingProcess() bool {
+	return flag.Lookup("test.v") != nil
+}
+
 func diskDigestCacheFile() (userData string, cachePath string) {
 	userData = paths.UserDataDir()
-	if userData == "" {
+	// A test must never write the user's real data directory. Without an explicit
+	// override the cache degrades to no cache in a test binary, so a test that
+	// forgets to isolate the profile cannot reach the machine it runs on.
+	if userData == "" || (testingProcess() && strings.TrimSpace(os.Getenv(paths.EnvUserData)) == "") {
 		return "", ""
 	}
 	return userData, filepath.Join(userData, "cache", "runtime-digests-v1.json")

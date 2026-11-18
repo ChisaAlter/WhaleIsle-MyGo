@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"whaleisle/internal/paths"
 )
 
 // TestMain lets the test binary stand in for dsh: with FAKE_DSH set it
@@ -40,7 +42,32 @@ func TestMain(m *testing.M) {
 		fmt.Println("plugin tree failed to load")
 		os.Exit(2)
 	}
-	os.Exit(m.Run())
+	release, err := isolateProfile()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "isolate test profile:", err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	release()
+	os.Exit(code)
+}
+
+// isolateProfile points the tests at a throwaway profile before any of them
+// run. Every capability check here hashes artifacts through
+// paths.UserDataDir(), which falls back to the user's real data directory, so a
+// test that does not isolate the profile would write the machine it runs on.
+func isolateProfile() (release func(), err error) {
+	if strings.TrimSpace(os.Getenv(paths.EnvUserData)) != "" {
+		return func() {}, nil
+	}
+	dir, err := os.MkdirTemp("", "whaleisle-harness-profile-")
+	if err != nil {
+		return nil, err
+	}
+	if err = os.Setenv(paths.EnvUserData, dir); err != nil {
+		return nil, err
+	}
+	return func() { _ = os.RemoveAll(dir) }, nil
 }
 
 func fakeDsh() {
