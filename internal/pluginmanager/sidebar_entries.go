@@ -36,28 +36,30 @@ type SidebarPluginEntry struct {
 	ID    string
 	Label string
 	Order int
+	// Evidence identifies a launcher hint, never a live Slot registration.
+	Evidence string
 }
 
 var excludedSidebarPackages = map[string]bool{
-	"whaleisle-desktop-plugin-views":              true,
-	"dsh-task-control":                            true,
-	"dsh-platform-session":                        true,
-	"dsh-usage-panel":                             true,
-	"@xmanrui/dsh-im":                             true,
-	"dsh-im":                                      true,
-	"xmanrui-dsh-im":                              true,
-	"dsh-acp-agents":                              true,
-	"dsh-acp":                                     true,
-	"dshbot":                                      true,
-	"dsh-bot":                                     true,
-	"dsh-whale":                                   true,
-	"dsh-remote":                                  true,
-	"dsh-project":                                 true,
-	"mygo-proactive":                              true,
-	"session-search":                              true,
-	"@deepseek-ai/dsh-client-ui-settings-market":  true,
-	"@deepseek-ai/libreoffice-kit":                true,
-	"sherpa-onnx-node":                            true,
+	"whaleisle-desktop-plugin-views": true,
+	"dsh-task-control":               true,
+	"dsh-platform-session":           true,
+	"dsh-usage-panel":                true,
+	"@xmanrui/dsh-im":                true,
+	"dsh-im":                         true,
+	"xmanrui-dsh-im":                 true,
+	"dsh-acp-agents":                 true,
+	"dsh-acp":                        true,
+	"dshbot":                         true,
+	"dsh-bot":                        true,
+	"dsh-whale":                      true,
+	"dsh-remote":                     true,
+	"dsh-project":                    true,
+	"mygo-proactive":                 true,
+	"session-search":                 true,
+	"@deepseek-ai/dsh-client-ui-settings-market": true,
+	"@deepseek-ai/libreoffice-kit":               true,
+	"sherpa-onnx-node":                           true,
 }
 
 var (
@@ -124,9 +126,10 @@ func DiscoverSidebarPlugins(profileDir, locale string, candidates []SidebarPlugi
 			label = shortPackageLabel(pkg)
 		}
 		discovered[pkg] = SidebarPluginEntry{
-			ID:    pkg,
-			Label: label,
-			Order: defaultSidebarPluginOrder,
+			ID:       pkg,
+			Label:    label,
+			Order:    defaultSidebarPluginOrder,
+			Evidence: "host-inventory",
 		}
 	}
 
@@ -236,9 +239,10 @@ func inspectSidebarPackageDir(pkgDir, dirPkg, locale string, candMap map[string]
 		order = clientOrder
 	}
 	out[pkg] = SidebarPluginEntry{
-		ID:    pkg,
-		Label: label,
-		Order: order,
+		ID:       pkg,
+		Label:    label,
+		Order:    order,
+		Evidence: "static-manifest",
 	}
 }
 
