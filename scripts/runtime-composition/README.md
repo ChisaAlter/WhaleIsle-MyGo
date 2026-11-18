@@ -57,9 +57,9 @@ A harness pin bump, or a desktop release that changes its composition, fails
 The 0.2.2 line added an `apply_patch` tool and defaults it off:
 `applyPatch: z.boolean().default(false)` in the `tool-fs` config schema
 (`packages/fs/tool-fs/lib/index.js:2012-2017`), and the composition row only
-restates that default. The desktop's own users therefore do not have the tool, and enabling it
-here would make MyGo the only Host on this surface that differs from the one we
-are matching. Do not "fix" the row to `true` without a product decision to
+restates that default. The desktop's own users therefore do not have the tool,
+and enabling it here would make MyGo the only Host on this surface that differs
+from the one we are matching. Do not "fix" the row to `true` without a product decision to
 diverge; if that decision is ever taken, it belongs in this section with the
 reason.
 
