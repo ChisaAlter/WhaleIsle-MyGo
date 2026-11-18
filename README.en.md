@@ -51,7 +51,7 @@ The desktop installer is currently unsigned; if Windows SmartScreen prompts on f
 
 ## Getting started
 
-1. Install and launch **Whale Isle MyGo** (the desktop app includes a built-in start page that manages updates, runtime setup, imports and components).
+1. Install and launch **Whale Isle MyGo**. With Host auto-start enabled, the main window shows a native loading page, then opens the workbench in place. With auto-start disabled, it opens the workbench directly.
 2. Open **Settings → Models** and configure an API provider; usage is billed by your chosen provider.
 3. Pick a workspace folder or start a new conversation right away (if you already use Whale Isle, your existing sessions and model settings appear automatically).
 4. To hand a directory to an AI team: enable **Project** in **Settings → Built-in features**, then open Project from the new-session screen.

@@ -34,6 +34,8 @@
 
 鲸屿 MyGo 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 做成开箱即用的**原生桌面应用**：界面由 Go 与内置的 MyGo 原生图形引擎直接绘制，省去了主窗口的浏览器渲染进程，启动更快、常驻内存更省；服务在本机运行，数据保存在本机。
 
+MyGo 没有启动器。打开应用即进入原生工作台；是否自动启动 Host 可在「设置 → 通用」调整。组件、数据导入、启动诊断和更新也从设置按需打开。
+
 | 你想做的事 | 鲸屿 MyGo 提供 |
 | --- | --- |
 | 和模型一起改代码 | 对话里直接读写文件、搜索仓库、运行命令；需要更高权限的操作先请你批准 |
@@ -51,7 +53,7 @@
 
 ## 快速开始
 
-1. 安装并打开 **鲸屿 MyGo**（桌面端内置启动页，负责版本更新、运行环境、导入和组件管理）。
+1. 安装并打开 **鲸屿 MyGo**。自动启动 Host 时，主窗口先显示原生加载页，就绪后进入工作台；关闭自动启动时直接进入工作台。
 2. 打开「设置 → 模型」配置 API 服务，模型调用费用由你所选的服务商收取。
 3. 选择一个本地工作目录，或直接新建会话开始对话（若已安装原版鲸屿，原有的模型配置与历史会话会自动出现）。
 4. 想把目录交给团队长期推进：在「设置 → 内置功能」开启 **Project**，再在新会话首屏进入 Project。
@@ -108,15 +110,15 @@ Project 把一个本地代码库或目录变成可持续推进的项目。你在
 | **多主题与毛玻璃** | 浅色 / 深色 / 跟随系统，内置多套配色皮肤、字体微调、极光渐变与自定义壁纸 |
 
 <p align="center">
-  <img src="docs/images/v0.1.0/screenshot-launcher.png" alt="鲸屿 MyGo 0.1.0 内置启动页" width="680" />
+  <img src="docs/images/v0.1.0/screenshot-workbench.png" alt="鲸屿 MyGo 原生工作台" width="680" />
 </p>
 
 ## 常见问题
 
 - **要花钱吗？** 软件免费开源（MIT）；模型调用费用由你自己在「设置 → 模型」中配置的服务商收取。
 - **已安装原版鲸屿，再装 MyGo 版会冲突吗？** 不会。鲸屿 MyGo 默认安装在 `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo`，拥有独立的应用标识、快捷方式和更新通道，不会覆盖原版，两个版本甚至可以同时打开运行。
-- **数据保存在哪？** 默认与原版鲸屿共用 `%APPDATA%\Deepseek-Harness-Desktop`（macOS 为 `~/Library/Application Support/Deepseek-Harness-Desktop`），方便无缝延续已有会话与配置；覆盖升级不会丢失数据。若需导入官方 CLI `~/.dsh` 的配置，可在启动页「导入」页一键导入。
-- **怎么升级？** 在启动页或「设置 → 关于」中点击「检查更新」，下载校验完成后即可一键安装更新；支持暂停、断点续传。
+- **数据保存在哪？** 默认与原版鲸屿共用 `%APPDATA%\Deepseek-Harness-Desktop`（macOS 为 `~/Library/Application Support/Deepseek-Harness-Desktop`），方便无缝延续已有会话与配置；覆盖升级不会丢失数据。若需导入官方 CLI `~/.dsh` 的配置，可从「设置 → 通用 → 导入数据」选择要导入的内容。
+- **怎么升级？** 在托盘菜单或「设置 → 关于」中点击「检查更新」，下载校验完成后即可一键安装更新；支持暂停、断点续传。
 
 ## 从源码运行
 
@@ -144,7 +146,7 @@ Go 默认使用用户级共享缓存，显式设置的 `GOCACHE`、`GOMODCACHE` 
 | --- | --- |
 | `cmd/whaleisle` | 鲸屿 MyGo 桌面主程序入口与窗口管理 |
 | `cmd/whaleisle-preview` | 按需启动的网页与交互式卡片预览辅助进程 |
-| `internal/ui` | 基于 MyGo UI 实现的全部原生界面（对话、工作台、Project、设置、启动器等） |
+| `internal/ui` | 基于 MyGo UI 实现的全部原生界面（对话、工作台、Project、设置与按需维护） |
 | `internal/desktop` | 桌面能力集成（Git、SSH 远程、手机远程、桌宠、更新中心等） |
 | `internal/harness` | 本地 DeepSeek Harness 服务监管与运行时准备 |
 | `third_party/mygo` | 内置的跨平台原生桌面与图形界面引擎 |
