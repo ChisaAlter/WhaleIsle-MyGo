@@ -75,7 +75,9 @@ func TestAnswerReplyQueuedIsQueuedNotFailed(t *testing.T) {
 		t.Fatal("queued answer regained an editable card")
 	}
 	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"call-1"}]}`), emptyInboxFixture)
-	if len(s.SnapshotForAgent("A").Pending) != 0 || calls.Load() != 1 {
+	if got := s.SnapshotForAgent("A"); len(got.Pending) != 0 || calls.Load() != 1 {
 		t.Fatal("admitted answer reopened the card or replayed the RPC")
+	} else if got.QuestionStatus != "" {
+		t.Fatalf("queued notice outlived admission: %q", got.QuestionStatus)
 	}
 }

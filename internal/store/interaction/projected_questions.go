@@ -216,6 +216,11 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 	for callID := range p.submitted {
 		if !active[callID] || p.settled[callID] {
 			delete(p.submitted, callID)
+			// The queued notice describes a reply that has not been admitted, so
+			// it must not outlive the fence that made it true.
+			if p.status == "queued" {
+				p.status = ""
+			}
 		}
 	}
 	s.pruneQuestionDraftsLocked(agentID, active)
