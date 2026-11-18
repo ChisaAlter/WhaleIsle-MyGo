@@ -62,39 +62,19 @@ func (s *mainState) dataLocationAccess(win *mygo.Window) *settings.DataLocationA
 		access.ReadOnly = true
 		access.ReadOnlyReason = i18n.T(i18n.KeyDataLocationReadOnly)
 	}
-	if plan, ok := s.legacyImportOffer(); ok {
+	// Both offers come from a background pass; this frame never walks the
+	// sources. While the pass runs, the block shows its placeholder row.
+	offers, planning := s.dataLocationImportOffers(win)
+	if offers.legacyOK {
 		access.ImportAvailable = true
-		access.OnImport = func() { s.importLegacyData(win, plan) }
+		access.OnImport = func() { s.importLegacyData(win, offers.legacy) }
 	}
-	if plan, ok := s.previousImportOffer(); ok {
-		access.PreviousPath = plan.Source
-		access.OnImportPrevious = func() { s.importLegacyData(win, plan) }
+	if offers.previousOK {
+		access.PreviousPath = offers.previous.Source
+		access.OnImportPrevious = func() { s.importLegacyData(win, offers.previous) }
 	}
+	access.ImportChecking = planning
 	return access
-}
-
-// previousImportOffer plans the copy from the location this profile replaced,
-// so a location change never strands the sessions it left behind. Cached for
-// the same reason as legacyImportOffer: planning walks the source directory.
-func (s *mainState) previousImportOffer() (importer.FirstRunPlan, bool) {
-	s.mu.Lock()
-	if s.previousImportKnown {
-		plan, ok := s.previousImport, s.previousImportOK
-		s.mu.Unlock()
-		return plan, ok
-	}
-	s.mu.Unlock()
-	previous := paths.PreviousDataDir()
-	var plan importer.FirstRunPlan
-	ok := previous != "" && importer.HasLegacyData(previous)
-	if ok {
-		plan = importer.PlanFirstRun(paths.UserDataDir(), previous)
-		ok = plan.Source != "" && plan.Dest != ""
-	}
-	s.mu.Lock()
-	s.previousImport, s.previousImportOK, s.previousImportKnown = plan, ok, true
-	s.mu.Unlock()
-	return plan, ok
 }
 
 // dataLocationEditable reports whether this run may record a data location.
@@ -105,32 +85,93 @@ func (s *mainState) dataLocationEditable() bool {
 	return strings.TrimSpace(os.Getenv(paths.EnvUserData)) == "" && !isolatedDesktopRun()
 }
 
-// legacyImportOffer returns the manual legacy copy plan, planned once. The
-// legacy profile holds thousands of entries, so this walk may not run per
-// frame on the render thread.
-func (s *mainState) legacyImportOffer() (importer.FirstRunPlan, bool) {
-	s.mu.Lock()
-	if s.legacyImportKnown {
-		plan, ok := s.legacyImport, s.legacyImportOK
-		s.mu.Unlock()
-		return plan, ok
-	}
-	s.mu.Unlock()
-	plan, ok := importer.FirstRunOffer(paths.UserDataDir(), importer.ElectronUserDataDir())
-	s.mu.Lock()
-	s.legacyImport, s.legacyImportOK, s.legacyImportKnown = plan, ok, true
-	s.mu.Unlock()
-	return plan, ok
+// dataLocationOffers is the pair of import sources the data-location block
+// offers: the shell's own directory and the one this profile replaced.
+type dataLocationOffers struct {
+	legacy, previous     importer.FirstRunPlan
+	legacyOK, previousOK bool
 }
 
-// invalidateLegacyImport drops the planned copy after the directories it was
-// built from changed.
+// dataLocationOfferScan is the single-flight guard for the pass that plans
+// both offers. request retires a pass whose sources changed while it ran, so
+// one walk at a time still cannot republish what it started from.
+type dataLocationOfferScan struct {
+	running bool
+	request uint64
+}
+
+func planImportSources(dest, previousSource, legacySource string) dataLocationOffers {
+	var offers dataLocationOffers
+	if legacySource != "" {
+		offers.legacy, offers.legacyOK = importer.FirstRunOffer(dest, legacySource)
+	}
+	// The location this profile replaced is offered the same way, so a change
+	// never strands the sessions it left behind.
+	if previousSource != "" && importer.HasLegacyData(previousSource) {
+		plan := importer.PlanFirstRun(dest, previousSource)
+		if plan.Source != "" && plan.Dest != "" {
+			offers.previous, offers.previousOK = plan, true
+		}
+	}
+	return offers
+}
+
+// dataLocationImportOffers answers with the offers planned so far and starts
+// the pass that plans the rest. Planning walks the legacy profile, which holds
+// thousands of sessions, so it may not run inside the frame that draws the
+// settings page: the page paints with a placeholder and the offer arrives as a
+// row once its data exists.
+func (s *mainState) dataLocationImportOffers(win *mygo.Window) (dataLocationOffers, bool) {
+	s.mu.Lock()
+	if s.legacyImportKnown {
+		offers := dataLocationOffers{
+			legacy: s.legacyImport, legacyOK: s.legacyImportOK,
+			previous: s.previousImport, previousOK: s.previousImportOK,
+		}
+		s.mu.Unlock()
+		return offers, false
+	}
+	start := !s.dataLocationOfferScan.running
+	id := s.dataLocationOfferScan.request
+	if start {
+		s.dataLocationOfferScan.running = true
+		s.dataLocationOfferScan.request++
+		id = s.dataLocationOfferScan.request
+	}
+	s.mu.Unlock()
+	if start {
+		go s.planDataLocationOffersInBackground(win, id)
+	}
+	return dataLocationOffers{}, true
+}
+
+func (s *mainState) planDataLocationOffersInBackground(win *mygo.Window, id uint64) {
+	offers := planImportSources(paths.UserDataDir(), paths.PreviousDataDir(), importer.ElectronUserDataDir())
+	s.mu.Lock()
+	stale := s.dataLocationOfferScan.request != id
+	s.dataLocationOfferScan.running = false
+	if !stale {
+		s.legacyImport, s.legacyImportOK = offers.legacy, offers.legacyOK
+		s.previousImport, s.previousImportOK = offers.previous, offers.previousOK
+		s.legacyImportKnown, s.previousImportKnown = true, true
+	}
+	s.mu.Unlock()
+	if stale || win == nil {
+		return
+	}
+	if !win.IsDestroyed() {
+		win.Invalidate()
+	}
+}
+
+// invalidateLegacyImport drops the planned offers after the directories they
+// were built from changed. A pass already walking the old sources is retired
+// with them, so it cannot republish what it started from.
 func (s *mainState) invalidateLegacyImport() {
 	s.mu.Lock()
 	s.legacyImportKnown, s.legacyImport, s.legacyImportOK = false, importer.FirstRunPlan{}, false
-	// The previous location source is cached the same way: after the
-	// directories it was built from changed, both plans are stale.
 	s.previousImportKnown, s.previousImport, s.previousImportOK = false, importer.FirstRunPlan{}, false
+	s.dataLocationOfferScan.request++
 	s.mu.Unlock()
 }
 

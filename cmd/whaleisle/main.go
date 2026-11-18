@@ -171,16 +171,20 @@ type mainState struct {
 	// default directory the process fell back to.
 	pendingDataLocation           string
 	pendingDataLocationUnreadable bool
-	// legacyImport is the planned copy of the original Whale Isle profile,
-	// built once because planning it walks the legacy profile.
+	// legacyImport is the planned copy of the original Whale Isle profile. It
+	// is planned off the render thread because planning walks a profile that
+	// holds thousands of sessions.
 	legacyImport      importer.FirstRunPlan
 	legacyImportOK    bool
 	legacyImportKnown bool
 	// previousImport is the planned copy from the location this profile
-	// replaced, cached for the same reason.
+	// replaced, planned by the same background pass.
 	previousImport      importer.FirstRunPlan
 	previousImportOK    bool
 	previousImportKnown bool
+	// dataLocationOfferScan is the single-flight guard for that pass, so a
+	// frame and a second window cannot plan the same sources twice.
+	dataLocationOfferScan dataLocationOfferScan
 	// releaseProfile holds the desktop profile lock when startup could not
 	// claim it before the first window (a pending data-location warning).
 	releaseProfile func()

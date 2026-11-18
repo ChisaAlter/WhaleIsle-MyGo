@@ -36,20 +36,16 @@ func TestCompressedMetadataScriptRejectsDecompressionBomb(t *testing.T) {
 		t.Fatalf("generate zstd fixtures: %v\n%s", err, out)
 	}
 
-	if _, err := runCompressedMetadataScript(context.Background(), node, bomb); err == nil {
-		t.Fatal("expected compressedMetadataScript to reject >2MiB decompressed frame")
+	// The decoder runs one process for a whole list, so the bomb is judged
+	// inside that list and must leave the adjacent valid log readable.
+	metas := readCompressedSessionMeta(context.Background(), []string{bomb, valid})
+	if meta := metas[bomb]; meta.Title != "" || meta.Cwd != "" {
+		t.Fatalf("expected fail-closed empty metadata on bomb, got %+v", meta)
 	}
-	title, cwd := readCompressedSessionMetaWithNode(context.Background(), node, bomb)
-	if title != "" || cwd != "" {
-		t.Fatalf("expected fail-closed empty metadata on bomb, got title=%q cwd=%q", title, cwd)
-	}
-
-	title, cwd = readCompressedSessionMetaWithNode(context.Background(), node, valid)
-	if title != "Safe Title" || cwd != "/work" {
-		t.Fatalf("expected valid metadata extraction, got title=%q cwd=%q", title, cwd)
+	if meta := metas[valid]; meta.Title != "Safe Title" || meta.Cwd != "/work" {
+		t.Fatalf("expected valid metadata extraction, got %+v", meta)
 	}
 }
-
 func TestImportRejectsSymlinkAndWindowsJunction(t *testing.T) {
 	tmp := t.TempDir()
 	outside := filepath.Join(tmp, "outside")

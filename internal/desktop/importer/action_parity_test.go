@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,12 +126,12 @@ func TestCatalogRejectsSQLiteOnlyAndMixedSessionLogs(t *testing.T) {
 func TestSessionMetadataUsesLatestTitleBeyondScannerLimit(t *testing.T) {
 	dir := t.TempDir()
 	put(t, dir, "session.v3.jsonl", `{"type":"session","cwd":"C:\\fixture","title":"first"}`+"\n"+`{"type":"message","text":"`+strings.Repeat("x", 80000)+`"}`+"\n"+`{"type":"session/title","data":{"title":"latest title"}}`+"\n")
-	title, cwd := readPlainSessionMeta(dir)
-	if title != "latest title" || cwd != `C:\fixture` {
-		t.Fatalf("metadata %q %q", title, cwd)
+	plain, _ := sessionLogFiles(dir)
+	meta := readPlainSessionLog(context.Background(), plain)
+	if meta.Title != "latest title" || meta.Cwd != `C:\fixture` {
+		t.Fatalf("metadata %+v", meta)
 	}
 }
-
 func TestCompressedSessionMetadataUsesAllFrames(t *testing.T) {
 	dir := t.TempDir()
 	frame := func(s string) []byte {
@@ -142,8 +143,9 @@ func TestCompressedSessionMetadataUsesAllFrames(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "session.v3.jsonl.zstd"), data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	title, cwd := readPlainSessionMeta(dir)
-	if title != "compressed latest" || cwd != "/fixture" {
-		t.Fatalf("compressed metadata %q %q (requires the existing Host Node zstd decoder)", title, cwd)
+	_, packed := sessionLogFiles(dir)
+	meta := readCompressedSessionMeta(context.Background(), []string{packed})[packed]
+	if meta.Title != "compressed latest" || meta.Cwd != "/fixture" {
+		t.Fatalf("compressed metadata %+v (requires the existing Host Node zstd decoder)", meta)
 	}
 }

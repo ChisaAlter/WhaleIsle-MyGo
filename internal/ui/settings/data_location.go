@@ -40,6 +40,10 @@ type DataLocationAccess struct {
 	// read-only run: importing writes into the fixed directory and never
 	// touches the record.
 	ImportAvailable bool
+	// ImportChecking marks a block whose import sources are still being
+	// planned: the row says so instead of offering an action that cannot know
+	// what it would copy yet.
+	ImportChecking bool
 	// PreviousPath is the location this one replaced. It is offered as an
 	// import source after a change moved the profile.
 	PreviousPath     string
@@ -59,9 +63,9 @@ func dataLocationRow(c *ui.Context, d *DataLocationAccess, fg, muted ui.Color) {
 		return
 	}
 	// The hint names only what is on screen: the import sentence appears when
-	// an import button does, in a read-only run as well.
+	// an import control does, in a read-only run as well.
 	hint := i18n.T(i18n.KeyDataLocationHint)
-	if d.ImportAvailable || d.PreviousPath != "" {
+	if d.ImportAvailable || d.ImportChecking || d.PreviousPath != "" {
 		hint += " " + i18n.T(i18n.KeyDataLocationHintImport)
 	}
 	settingsFieldBlock(c, "general-data-location", i18n.T(i18n.KeyDataLocationTitle), hint, fg, muted, func() {
@@ -115,8 +119,12 @@ func dataLocationRow(c *ui.Context, d *DataLocationAccess, fg, muted ui.Color) {
 					d.OnReset()
 				}
 			}
-			if d.ImportAvailable {
-				if button(c, i18n.T(i18n.KeyDataLocationImport), d.OnImport != nil) {
+			// The import source is planned in the background. Its control
+			// holds its place while that runs: a disabled button that
+			// becomes the action is stable, a line of progress text would
+			// move everything below it twice.
+			if d.ImportAvailable || d.ImportChecking {
+				if button(c, i18n.T(i18n.KeyDataLocationImport), d.OnImport != nil && d.ImportAvailable) {
 					d.OnImport()
 				}
 			}
@@ -126,6 +134,10 @@ func dataLocationRow(c *ui.Context, d *DataLocationAccess, fg, muted ui.Color) {
 				}
 			}
 		})
+		// The sources are planned in the background, so the block is painted
+		// before it knows what it can offer. The control holds its place while
+		// that runs: a disabled button that becomes the action is stable, while
+		// a line of progress text would move everything below it twice.
 		if err := strings.TrimSpace(d.Err); err != "" {
 			ui.Text(c, err).FillWidth().MinWidth(0).
 				FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
