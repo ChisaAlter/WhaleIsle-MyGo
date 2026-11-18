@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 // Gateway is a single document lease. A fresh loopback origin and transient
@@ -38,7 +40,7 @@ func New(session Session, metadata ClientMetadata) (*Gateway, error) {
 	if err := session.Validate(); err != nil {
 		return nil, err
 	}
-	if strings.HasPrefix(strings.ToLower(metadata.Locale), "zh") {
+	if i18n.Language(metadata.Locale) == "zh" {
 		metadata.Locale = "zh_CN"
 	} else {
 		metadata.Locale = "en_US"
@@ -173,7 +175,7 @@ func (g *Gateway) Close() {
 	})
 }
 func (g *Gateway) Preload(locale string) string {
-	if strings.HasPrefix(strings.ToLower(locale), "zh") {
+	if i18n.Language(locale) == "zh" {
 		locale = "zh_CN"
 	} else {
 		locale = "en_US"

@@ -16,10 +16,7 @@ import (
 // minimalModeText localizes copy that belongs to the running shell rather than
 // to a vendor catalog, in the same zh/en pair the rest of the app uses.
 func minimalModeText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 // applyMinimalMode is the one place the switch takes effect: the render policy

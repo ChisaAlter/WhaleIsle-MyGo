@@ -63,10 +63,7 @@ func (a DirectoryAction) Presentation(path string, picker bool) (string, bool) {
 }
 
 func text(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 func View(c *ui.Context, m Model) {

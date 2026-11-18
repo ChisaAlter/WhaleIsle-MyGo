@@ -80,7 +80,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		// explanation in the select's own label.
 		bodyPreferenceRow(c, "general-language", providerCopy("语言", "Language"), "", fg, muted, func() {
 			lang := "中文"
-			if *d.Fields.Locale == "en" {
+			if i18n.Language(*d.Fields.Locale) == "en" {
 				lang = "English"
 			}
 			if settingsPreferenceSelect(c, &lang, []string{"中文", "English"}).Disabled(d.OnSetLocale == nil).Label(providerCopy("语言", "Language")).Changed() {

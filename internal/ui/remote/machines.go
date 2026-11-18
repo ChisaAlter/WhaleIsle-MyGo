@@ -30,10 +30,7 @@ type MachineEditor struct {
 }
 
 func label(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 // Status colours of a machine row, shared with the dot painted in the card.

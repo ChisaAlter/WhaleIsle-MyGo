@@ -11,10 +11,7 @@ import (
 )
 
 func composerText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 // The existing + launcher owns occasional intake and composition actions. They

@@ -11,10 +11,7 @@ import (
 )
 
 func pluginCreatorText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 // Background owner checks use state only; native visibility queries belong to

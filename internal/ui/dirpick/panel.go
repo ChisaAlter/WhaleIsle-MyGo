@@ -346,10 +346,7 @@ func createDialog(c *ui.Context, m Model) {
 }
 
 func dirText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 func editGlyph(c *ui.Context, color ui.Color) {

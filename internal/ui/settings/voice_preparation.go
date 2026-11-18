@@ -13,10 +13,7 @@ import (
 )
 
 func voiceText(zh, en string) string {
-	if i18n.Locale() == "en" {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 type voiceSelectOption struct{ ID, Label string }

@@ -10,10 +10,7 @@ import (
 )
 
 func releaseText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 // releaseIdle reports whether no download, install or result state is active.

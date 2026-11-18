@@ -8,10 +8,7 @@ import (
 )
 
 func signOutText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 func signOutError(code string) string {
 	switch code {

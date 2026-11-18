@@ -379,10 +379,7 @@ func StatusLine(st harness.Status) string {
 }
 
 func bootText(zh, en string) string {
-	if i18n.Locale() == "en" {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 func cancelRecoveryAction(c *ui.Context, m Model) {

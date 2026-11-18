@@ -3,10 +3,7 @@ package im
 import "whaleisle/internal/ui/i18n"
 
 func channelText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 type channelCopy struct {

@@ -141,10 +141,7 @@ func writeWhaleExport(path string, content []byte) error {
 	return closeErr
 }
 func whaleLabel(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 // Kept here to make the queue-mode nature of viewer submission explicit to

@@ -3,7 +3,6 @@ package assistant
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
-	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -11,7 +10,7 @@ import (
 )
 
 func whaleSectionCopy(zh, en string) string {
-	if strings.HasPrefix(i18n.Locale(), "zh") {
+	if i18n.Speaks("zh") {
 		return zh
 	}
 	return en

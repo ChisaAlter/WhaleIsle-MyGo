@@ -2946,6 +2946,40 @@ func Locale() string {
 	return current
 }
 
+// Language reduces a locale id or tag to the language it speaks: the catalog's
+// "zh-CN", a browser's "zh-Hant-TW" and a Host setting's "en-US" answer "zh" or
+// "en". Every comparison about which language the interface speaks goes through
+// this function, so no site repeats a prefix check on a string it did not
+// normalize, and none compares the catalog to a name Normalize never returns.
+func Language(locale string) string {
+	locale = strings.ToLower(strings.TrimSpace(locale))
+	if index := strings.IndexAny(locale, "-_"); index >= 0 {
+		return locale[:index]
+	}
+	return locale
+}
+
+// ActiveLanguage reports the language the active catalog speaks.
+func ActiveLanguage() string {
+	return Language(Locale())
+}
+
+// Speaks reports whether the active catalog speaks language, a bare tag such as
+// "zh" or "en".
+func Speaks(language string) bool {
+	return ActiveLanguage() == language
+}
+
+// Pick returns the Chinese string when the active catalog speaks Chinese and the
+// English one otherwise. Copy helpers delegate here, so the pair is chosen in
+// one place rather than in a comparison per helper.
+func Pick(zh, en string) string {
+	if Speaks("zh") {
+		return zh
+	}
+	return en
+}
+
 // T looks up key in the active catalog, then English, then returns key.
 func T(key string) string {
 	mu.RLock()

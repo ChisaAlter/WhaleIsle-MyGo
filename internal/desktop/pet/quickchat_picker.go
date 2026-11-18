@@ -161,8 +161,5 @@ func (p *quickChatPicker) view(c *ui.Context) {
 	}
 }
 func quickChatPickerCopy(zh, en string) string {
-	if storelocale.Locale() == "en" {
-		return en
-	}
-	return zh
+	return storelocale.Pick(zh, en)
 }

@@ -16,10 +16,7 @@ type MCPCatalogAccess struct {
 }
 
 func mcpCatalogText(zh, en string) string {
-	if i18n.Locale() == "zh-CN" {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) {

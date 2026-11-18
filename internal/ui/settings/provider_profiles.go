@@ -14,10 +14,7 @@ type ProviderProfilesAccess struct {
 }
 
 func providerCopy(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui.Color) {
 	if a == nil {
