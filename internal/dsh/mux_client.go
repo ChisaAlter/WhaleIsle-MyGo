@@ -222,13 +222,13 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 			return nil, err
 		}
 		select {
-		case <-s.done:
-			return nil, s.carrierFailure()
+		case frame := <-s.inbox:
+			return s.handleFrame(frame)
 		default:
 		}
 		select {
-		case frame := <-s.inbox:
-			return s.handleFrame(frame)
+		case <-s.done:
+			return s.queuedOrCarrierFailure()
 		default:
 		}
 		select {
@@ -244,8 +244,20 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 				return nil, context.Canceled
 			}
 		case <-s.done:
-			return nil, s.carrierFailure()
+			return s.queuedOrCarrierFailure()
 		}
+	}
+}
+
+// queuedOrCarrierFailure hands back a frame the read loop delivered before the
+// carrier died. Discarding it loses Host data the caller never saw, such as the
+// follow snapshot whose loss leaves the session reconnecting with no history.
+func (s *Stream) queuedOrCarrierFailure() (json.RawMessage, error) {
+	select {
+	case frame := <-s.inbox:
+		return s.handleFrame(frame)
+	default:
+		return nil, s.carrierFailure()
 	}
 }
 
