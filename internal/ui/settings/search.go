@@ -69,6 +69,8 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionGeneral, "性能与用量", "Performance and usage", "选择性能与用量信息展示的详细程度", "Choose how detailed the performance and usage information is"),
 		row(SectionGeneral, "在使用官方模型 API 时上传 Session Log", "Upload Session Log when using the official model API", "帮助改进 DeepSeek 模型与产品", "Help improve DeepSeek models and products"),
 		row(SectionGeneral, "Harness 自动恢复", "Harness auto-recovery", "Harness 进程意外退出后自动重启，最多重试有限次数。", "Restart the Harness automatically after an unexpected exit, with a bounded number of retries."),
+		row(SectionAppearance, "极简模式", "Minimal mode", "暂停壁纸、动态背景、透明模糊、指针与输入装饰、输入框流光和界面过渡；主题、字体和各项偏好原样保留，关闭后恢复。", "Pauses wallpapers, dynamic backgrounds, transparent materials, pointer and typing decorations, the composer beam and interface transitions; the theme, fonts and every preference are kept and come back when it is off."),
+		row(SectionAppearance, "启动卡顿时提示", "Suggest on slow startup", "启动明显卡顿时提示开启极简模式；每次启动最多提示一次。", "Offer minimal mode when startup noticeably stutters; at most once per launch."),
 		row(SectionAppearance, "颜色模式", "Color scheme", "选择浅色、深色或跟随系统。", "Choose light, dark, or follow the system."),
 		row(SectionAppearance, "主题", "Theme", "浅色与深色各自选择主题。", "Pick a theme for the light and the dark half."),
 		row(SectionAppearance, "背景图", "Wallpaper", "选一张图铺在整个界面后面。图要透过界面才能看见：玻璃透明度越高，图越被盖住。设好之后可以拉毛玻璃和像素化。", "Choose an image to sit behind the whole UI. It shows through the chrome: higher glass opacity hides more of it. Frost and pixelate sliders appear after it is set."),

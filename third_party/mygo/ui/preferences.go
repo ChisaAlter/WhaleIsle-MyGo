@@ -28,7 +28,9 @@ type Preferences struct {
 // A frame follows their changes.
 func (c *context) Preferences() Preferences { return c.rt.preferences() }
 
-// preferences returns the desktop's settings, read once until they change.
+// preferences returns the desktop's settings, read once until they change,
+// with the application's own policy applied over them: SetReduceMotion can ask
+// for less motion whatever the desktop says.
 func (rt *engine) preferences() Preferences {
 	if !rt.prefsKnown {
 		p := rt.host.preferences()
@@ -43,7 +45,11 @@ func (rt *engine) preferences() Preferences {
 		}
 		rt.prefsKnown = true
 	}
-	return rt.prefs
+	p := rt.prefs
+	if reduceMotionForced.Load() {
+		p.ReduceMotion = true
+	}
+	return p
 }
 
 // follow makes the theme follow the desktop's settings.

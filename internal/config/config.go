@@ -29,6 +29,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"whaleisle/internal/petgrowth"
 )
@@ -183,6 +184,17 @@ type Config struct {
 	// WallpaperPath is an optional local image for the main window backdrop
 	// (Go-native; Electron wallpaper lives in ui-theme host settings).
 	WallpaperPath string `json:"goWallpaperPath"`
+	// MinimalMode pauses the effects the desktop draws — wallpaper, ambient
+	// background, transparent materials, pointer and typing decorations, the
+	// composer beam and interface transitions. It never edits the individual
+	// preferences it pauses, so turning it off restores the stored look.
+	MinimalMode bool `json:"goMinimalMode"`
+	// MinimalModeSuggestionsOff stops the startup-slowness offer for minimal
+	// mode. It is stored as the "off" of a default-on offer so a profile that
+	// never touched it keeps receiving the offer.
+	MinimalModeSuggestionsOff bool `json:"goMinimalModeSuggestionsOff"`
+	// MinimalModeSnoozedUntil defers the offer until this RFC3339 instant.
+	MinimalModeSnoozedUntil string `json:"goMinimalModeSnoozedUntil,omitempty"`
 	// HideChatViewTabs hides ConversationRoot「对话/轨迹」tabs (Electron viewTabs=false).
 	HideChatViewTabs bool `json:"goHideChatViewTabs"`
 	// AutoAllowTools auto-answers approval/request (Electron tool auto-allow).
@@ -522,6 +534,13 @@ func normalize(c Config) Config {
 	}
 	if c.Locale != "en" && c.Locale != "zh" {
 		c.Locale = d.Locale
+	}
+	// A snooze that cannot be read is no snooze: the offer is due rather than
+	// deferred forever by a stale timestamp.
+	if c.MinimalModeSnoozedUntil != "" {
+		if _, err := time.Parse(time.RFC3339, c.MinimalModeSnoozedUntil); err != nil {
+			c.MinimalModeSnoozedUntil = ""
+		}
 	}
 
 	// Remote: port 1024-65535, mode lan|relay, loopback or explicit bind
