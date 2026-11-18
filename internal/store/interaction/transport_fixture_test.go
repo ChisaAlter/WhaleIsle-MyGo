@@ -126,6 +126,13 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		steps++
 		for !check() {
 			select {
+			case err := <-done:
+				// The pump is the only thing that can deliver the answer this
+				// step waits for. If it returned, no budget would help, so say
+				// that instead of reporting a timeout the next reader has to
+				// explain.
+				buf := make([]byte, 1<<20)
+				t.Fatalf("events pump exited at step %d (%s): %v\n%s", steps, state(), err, buf[:runtime.Stack(buf, true)])
 			case <-ctx.Done():
 				buf := make([]byte, 1<<20)
 				t.Fatalf("fixture timed out at step %d (%s)\n%s", steps, state(), buf[:runtime.Stack(buf, true)])
