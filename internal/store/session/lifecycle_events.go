@@ -189,7 +189,7 @@ func parseLifecycleEmit(emit dsh.EventsEmit) (lifecycleMutation, bool) {
 		}
 		m.sessionID = summary.SessionId
 		m.item = itemFromListRow(summary)
-		m.hasTitle = summary.Projections != nil && titleFromProjections(summary.Projections.Values) != ""
+		m.hasTitle = summary.Projections != nil && titleFromProjections(projectionsRaw(summary.Projections.Values)) != ""
 		return m, true
 	}
 	count := 2

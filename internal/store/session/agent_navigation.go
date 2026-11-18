@@ -531,7 +531,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 					err = fmt.Errorf("Child image target changed or request expired")
 					break
 				}
-				req := api.SubagentPromptRequest{RequestId: newRequestID(), ParentSessionId: address.ParentSessionID, ChildSessionId: address.ChildSessionID, Mode: "continuable", Delivery: delivery, Content: content}
+				req := api.SubagentPromptRequest{RequestId: newRequestID(), ChildSessionId: address.ChildSessionID, Delivery: delivery, Content: content}
 				var receipt api.SubagentPromptReceipt
 				err = client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &receipt)
 				if err == nil && strings.TrimSpace(receipt.MessageId) == "" {

@@ -11,6 +11,12 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
+// questionAnswerItem is one answer record the Host accepts. The pinned 0.2.2
+// runtime names this same shape after the projection that carries it, so the
+// generated identifier is long; keeping one alias here keeps the call sites
+// readable and the wire shape in a single place.
+type questionAnswerItem = api.SessionListValueItemsItemProjectionsValuesUserQuestionsSettledItemAnswersItem
+
 type projectedQuestion struct {
 	CallID    string             `json:"callId"`
 	State     string             `json:"state"`
@@ -309,9 +315,9 @@ func (s *Store) resolveContinuedQuestions(eventID string, answer userQuestionsAn
 	}
 	agentID, callID := p.AgentID, p.CallID
 	s.mu.Unlock()
-	out := api.AskUserQuestionAnswer{Answers: make([]api.AskUserQuestionAnswerAnswersItem, 0, len(answer.Answers))}
+	out := api.AskUserQuestionAnswer{Answers: make([]questionAnswerItem, 0, len(answer.Answers))}
 	for _, item := range answer.Answers {
-		out.Answers = append(out.Answers, api.AskUserQuestionAnswerAnswersItem{Id: item.ID, Selected: item.Selected, Custom: item.Custom})
+		out.Answers = append(out.Answers, questionAnswerItem{Id: item.ID, Selected: item.Selected, Custom: item.Custom})
 	}
 	s.AnswerUserQuestionsRPC(context.Background(), agentID, callID, out)
 }

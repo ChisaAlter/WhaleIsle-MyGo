@@ -41,7 +41,7 @@ func TestUpdatePublishesCanonicalInstantAndKeepsNewerReadback(t *testing.T) {
 				release := make(chan struct{})
 				client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://schedule-readback.fixture.invalid"}}
 				client.HTTP = &http.Client{Transport: epochRoundTrip(func(r *http.Request) (*http.Response, error) {
-					if strings.HasSuffix(r.URL.Path, "schedule/update") {
+					if strings.HasSuffix(r.URL.Path, "schedule/edit") {
 						if newerCatalog {
 							s.mu.Lock()
 							fresh := parseScheduleList([]json.RawMessage{newer})[0]
@@ -157,7 +157,7 @@ func TestDeleteOutcomeNoticeSurvivesDetailAndRetiresWithHost(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://delete-notice.fixture.invalid"}}
 				client.HTTP = &http.Client{Transport: epochRoundTrip(func(r *http.Request) (*http.Response, error) {
-					if strings.HasSuffix(r.URL.Path, "schedule/delete") {
+					if strings.HasSuffix(r.URL.Path, "schedule/edit") {
 						return readbackReply(r, tc.result)
 					}
 					return readbackReply(r, []any{})

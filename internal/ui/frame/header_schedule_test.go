@@ -136,7 +136,7 @@ func TestScheduleHeaderDeletionUsesCapturedOwningSession(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		var value any = rows
-		if body.Method == "schedule/delete" {
+		if body.Method == "schedule/edit" && string(body.Payload.Args.Request["action"]) == `"delete"` {
 			requests <- body.Payload.Args.Request
 			rows = rows[1:]
 			value = map[string]any{"id": "first", "deleted": true}
@@ -179,7 +179,7 @@ func TestScheduleHeaderDeletionUsesCapturedOwningSession(t *testing.T) {
 	}
 	select {
 	case request := <-requests:
-		if string(request["sessionId"]) != `"owner"` || string(request["id"]) != `"first"` {
+		if string(request["action"]) != `"delete"` || string(request["id"]) != `"first"` {
 			t.Fatalf("wrong delete target: %v", request)
 		}
 	case <-time.After(2 * time.Second):

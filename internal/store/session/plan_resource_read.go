@@ -158,9 +158,9 @@ func readAddressedPlan(ctx context.Context, client *dsh.Client, mux *dsh.Mux, ta
 		Header struct {
 			ID string `json:"id"`
 		} `json:"header"`
-		Cursor  *float64                     `json:"cursor"`
-		Records []api.SessionPageRecordsItem `json:"records"`
-		HasMore bool                         `json:"hasMore"`
+		Cursor  *float64                           `json:"cursor"`
+		Records []api.SessionEventsPageRecordsItem `json:"records"`
+		HasMore bool                               `json:"hasMore"`
 	}
 	for {
 		raw, recvErr := stream.Recv(ctx)
@@ -181,7 +181,7 @@ func readAddressedPlan(ctx context.Context, client *dsh.Client, mux *dsh.Mux, ta
 		return SubmittedPlan{}, errors.New("Invalid addressed plan history snapshot")
 	}
 	cursor := *snapshot.Cursor
-	page := api.SessionPage{Records: snapshot.Records, HasMore: snapshot.HasMore}
+	page := api.SessionEventsPage{Records: snapshot.Records, HasMore: snapshot.HasMore}
 	beforeLimit := cursor + 1
 	for {
 		if err := check(); err != nil {
@@ -204,8 +204,8 @@ func readAddressedPlan(ctx context.Context, client *dsh.Client, mux *dsh.Mux, ta
 			return SubmittedPlan{}, errors.New("Subagent plan history made no backward progress")
 		}
 		beforeLimit = before
-		req := api.SessionPageRequest{Address: address, ThroughSeq: cursor, BeforeSeq: &before}
-		var next api.SessionPage
+		req := api.SessionPageRequest{Address: address, ThroughSeq: &cursor, BeforeSeq: &before}
+		var next api.SessionEventsPage
 		if err := client.Call(ctx, "session/page", map[string]any{"request": req}, &next); err != nil {
 			return SubmittedPlan{}, err
 		}

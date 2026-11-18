@@ -25,7 +25,7 @@ func TestNativeAgentActionScopeFixture(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		args := body["payload"].(map[string]any)["args"].(map[string]any)
 		req := args["request"].(map[string]any)
-		if !strings.HasSuffix(r.URL.Path, "/subagents/prompt") || req["parentSessionId"] != "root" || req["childSessionId"] != "child" {
+		if !strings.HasSuffix(r.URL.Path, "/subagents/prompt") || req["childSessionId"] != "child" {
 			t.Errorf("wrong old Host/action: %s %#v", r.URL.Path, req)
 		}
 		started <- struct{}{}

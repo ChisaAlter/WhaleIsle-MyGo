@@ -8,7 +8,7 @@ import (
 
 func TestGoalActivationProjection(t *testing.T) {
 	s := New()
-	s.applyGoalView(&api.GoalView{Id: "g", Revision: 2, Phase: "active", Activation: "disarmed", BlockedReason: &api.GoalViewBlockedReason{Code: "limit", Message: "Round limit"}})
+	s.applyGoalView(&api.GoalView{Id: "g", Revision: 2, Phase: "active", Activation: "disarmed", BlockedReason: &goalBlockedReason{Code: "limit", Message: "Round limit"}})
 	g := s.planBoard.Goal
 	if g.Phase != "active" || g.Activation != "disarmed" || g.BlockedReason.Message != "Round limit" {
 		t.Fatalf("lost Host state: %+v", g)

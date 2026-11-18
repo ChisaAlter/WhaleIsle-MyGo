@@ -16,9 +16,9 @@ import (
 
 // One bounded synthetic fixture. It never starts a Host, model, or real session.
 func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
-	record := func(seq float64, typ string, turn int, body string) api.SessionPageRecordsItem {
+	record := func(seq float64, typ string, turn int, body string) api.SessionEventsPageRecordsItem {
 		data, _ := json.Marshal(map[string]any{"turn": turn, "source": map[string]any{"kind": "user"}, "content": []any{map[string]any{"type": "text", "text": body}}})
-		return api.SessionPageRecordsItem{Type: "event", Event: api.SessionPageRecordsItemEvent{Type: typ, Seq: seq, Data: data}}
+		return api.SessionEventsPageRecordsItem{Type: "event", Event: api.SessionEventsPageRecordsItemEvent{Type: typ, Seq: seq, Data: data}}
 	}
 	makeStore := func(client *dsh.Client) *Store {
 		s := New()
@@ -94,7 +94,7 @@ func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
 			_ = json.NewDecoder(r.Body).Decode(&in)
 			q := in.Payload.Args.Request
 			n := calls.Add(1)
-			if !strings.HasSuffix(r.URL.Path, "/session/page") || string(q.Address) != `{"kind":"session","sessionId":"main"}` || q.ThroughSeq != 200 || q.MaxMessages == nil || *q.MaxMessages != 500 || q.TurnWindow == nil || q.TurnWindow.MinMessages != 200 || q.TurnWindow.MinTurns != 2 {
+			if !strings.HasSuffix(r.URL.Path, "/session/page") || string(q.Address) != `{"kind":"session","sessionId":"main"}` || q.ThroughSeq == nil || *q.ThroughSeq != 200 || q.MaxMessages == nil || *q.MaxMessages != 500 || q.TurnWindow == nil || q.TurnWindow.MinMessages != 200 || q.TurnWindow.MinTurns != 2 {
 				wireErr.Store("incorrect canonical page request")
 			}
 			want := 180.
@@ -104,12 +104,12 @@ func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
 			if q.BeforeSeq == nil || *q.BeforeSeq != want {
 				wireErr.Store("page cursor did not advance through raw turn boundary")
 			}
-			records := []api.SessionPageRecordsItem{record(80, "turn/start", 2, ""), record(81, "user/message", 2, "middle")}
+			records := []api.SessionEventsPageRecordsItem{record(80, "turn/start", 2, ""), record(81, "user/message", 2, "middle")}
 			if n == 2 {
-				records = []api.SessionPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}
+				records = []api.SessionEventsPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}
 			}
 			records = denseHistoryFixture(records, want)
-			rpcOK(w, in.RPCID, api.SessionPage{Records: records, HasMore: n == 1})
+			rpcOK(w, in.RPCID, api.SessionEventsPage{Records: records, HasMore: n == 1})
 		}))
 		defer srv.Close()
 		s := makeStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})
@@ -142,12 +142,12 @@ func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
 			var in map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&in)
 			n := calls.Add(1)
-			records := []api.SessionPageRecordsItem{record(180, "turn/start", 3, "")}
+			records := []api.SessionEventsPageRecordsItem{record(180, "turn/start", 3, "")}
 			if n == 2 {
-				records = []api.SessionPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}
+				records = []api.SessionEventsPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}
 				records = denseHistoryFixture(records, 180)
 			}
-			rpcOK(w, in["rpcId"], api.SessionPage{Records: records, HasMore: true})
+			rpcOK(w, in["rpcId"], api.SessionEventsPage{Records: records, HasMore: true})
 		}))
 		defer srv.Close()
 		s := makeStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})
@@ -178,7 +178,7 @@ func TestNativeHistoryTurnNavigationFixture(t *testing.T) {
 				calls.Add(1)
 				close(started)
 				<-release
-				rpcOK(w, in["rpcId"], api.SessionPage{Records: []api.SessionPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}})
+				rpcOK(w, in["rpcId"], api.SessionEventsPage{Records: []api.SessionEventsPageRecordsItem{record(1, "turn/start", 1, ""), record(2, "user/message", 1, "first")}})
 			}))
 			defer srv.Close()
 			s := makeStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})

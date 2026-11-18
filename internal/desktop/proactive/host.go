@@ -64,7 +64,7 @@ func (h Host) Run(ctx context.Context, task Task, progress func(string) error) (
 	}
 	address, _ := json.Marshal(map[string]string{"kind": "session", "sessionId": e.SessionID})
 	maxMessages := float64(500)
-	stream, err := mux.Open(ctx, "session/follow", map[string]any{"args": map[string]any{"request": api.SessionFollowRequest{Address: address, MaxMessages: &maxMessages, TurnWindow: &api.SessionFollowRequestTurnWindow{MinMessages: 50, MinTurns: 2}}}})
+	stream, err := mux.Open(ctx, "session/follow", map[string]any{"args": map[string]any{"request": api.SessionFollowRequest{Address: address, MaxMessages: &maxMessages, TurnWindow: &api.SessionPageRequestTurnWindow{MinMessages: 50, MinTurns: 2}}}})
 	if err != nil {
 		return RunResult{}, err
 	}
@@ -107,8 +107,8 @@ func (h Host) Run(ctx context.Context, task Task, progress func(string) error) (
 			return RunResult{}, err
 		}
 		max := float64(500)
-		var page api.SessionPage
-		if err := h.Client.Call(ctx, "session/page", map[string]any{"request": api.SessionPageRequest{Address: address, ThroughSeq: snapshot.Cursor, BeforeSeq: &first.Seq, MaxMessages: &max}}, &page); err != nil {
+		var page api.SessionEventsPage
+		if err := h.Client.Call(ctx, "session/page", map[string]any{"request": api.SessionPageRequest{Address: address, ThroughSeq: &snapshot.Cursor, BeforeSeq: &first.Seq, MaxMessages: &max}}, &page); err != nil {
 			return RunResult{}, err
 		}
 		older := []json.RawMessage{}

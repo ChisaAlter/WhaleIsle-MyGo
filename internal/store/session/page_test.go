@@ -16,19 +16,19 @@ import (
 
 // Real journal pages include non-visible extension/configuration events too.
 // Keep their raw sequence dense without inventing extra chat messages.
-func denseHistoryFixture(records []api.SessionPageRecordsItem, before float64) []api.SessionPageRecordsItem {
+func denseHistoryFixture(records []api.SessionEventsPageRecordsItem, before float64) []api.SessionEventsPageRecordsItem {
 	if len(records) == 0 {
 		return nil
 	}
-	bySeq := make(map[float64]api.SessionPageRecordsItem, len(records))
+	bySeq := make(map[float64]api.SessionEventsPageRecordsItem, len(records))
 	for _, record := range records {
 		bySeq[record.Event.Seq] = record
 	}
-	var dense []api.SessionPageRecordsItem
+	var dense []api.SessionEventsPageRecordsItem
 	for seq := records[0].Event.Seq; seq < before; seq++ {
 		record, ok := bySeq[seq]
 		if !ok {
-			record = api.SessionPageRecordsItem{Type: "event", Event: api.SessionPageRecordsItemEvent{Type: "fixture/metadata", Seq: seq, Data: json.RawMessage(`{}`)}}
+			record = api.SessionEventsPageRecordsItem{Type: "event", Event: api.SessionEventsPageRecordsItemEvent{Type: "fixture/metadata", Seq: seq, Data: json.RawMessage(`{}`)}}
 		}
 		dense = append(dense, record)
 	}

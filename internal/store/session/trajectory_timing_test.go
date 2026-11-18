@@ -71,13 +71,13 @@ func TestTrajectoryMissingInvalidAndPagedBoundaries(t *testing.T) {
 		t.Fatal("missing step/start fabricated duration")
 	}
 	raw := trajectoryFixtureEvent(1, "step/start", 1000, map[string]any{"turn": 1, "step": 1})
-	var record api.SessionPageRecordsItem
+	var record api.SessionEventsPageRecordsItem
 	b, _ := json.Marshal(map[string]any{"type": "event", "event": json.RawMessage(raw)})
 	if err := json.Unmarshal(b, &record); err != nil {
 		t.Fatal(err)
 	}
 	s.mu.Lock()
-	s.prependPageRecordsLocked([]api.SessionPageRecordsItem{record})
+	s.prependPageRecordsLocked([]api.SessionEventsPageRecordsItem{record})
 	s.mu.Unlock()
 	if got, ok := trajectoryFixtureFind(t, s, "assistant:1:1").DurationMillis(); !ok || got != 1000 {
 		t.Fatalf("page boundary not hydrated: %v %v", got, ok)

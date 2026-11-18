@@ -121,9 +121,9 @@ func (s *ScopedStore) sendAnswer(id string, answer userQuestionsAnswer) {
 	continued, agent, call := p.Continued, p.AgentID, p.CallID
 	s.mu.Unlock()
 	if continued {
-		out := api.AskUserQuestionAnswer{Answers: make([]api.AskUserQuestionAnswerAnswersItem, 0, len(answer.Answers))}
+		out := api.AskUserQuestionAnswer{Answers: make([]questionAnswerItem, 0, len(answer.Answers))}
 		for _, item := range answer.Answers {
-			out.Answers = append(out.Answers, api.AskUserQuestionAnswerAnswersItem{Id: item.ID, Selected: item.Selected, Custom: item.Custom})
+			out.Answers = append(out.Answers, questionAnswerItem{Id: item.ID, Selected: item.Selected, Custom: item.Custom})
 		}
 		s.submitQuestionAnswerBound(s.scope.Context(), agent, call, out, s.scope.Client(), func() bool { return s.allows(id) })
 		return

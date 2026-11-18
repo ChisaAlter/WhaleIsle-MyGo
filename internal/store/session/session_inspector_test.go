@@ -52,7 +52,7 @@ func TestSessionInspectorWindowOwnershipAndUnknownEvents(t *testing.T) {
 func TestSessionInspectorOlderPageAndPackedStream(t *testing.T) {
 	s := New()
 	s.selectedID = "s"
-	var page api.SessionPage
+	var page api.SessionEventsPage
 	if err := json.Unmarshal([]byte(`{"records":[{"type":"event","event":{"type":"private/history","seq":2}}]}`), &page); err != nil {
 		t.Fatal(err)
 	}

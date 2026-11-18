@@ -76,7 +76,7 @@ func (s *Store) DeliveryHistory(ctx context.Context, row Entry, before string) (
 	if row.SessionID == "" || row.ID == "" {
 		return DeliveryPage{}, fmt.Errorf("missing owning Session or task")
 	}
-	req := api.ScheduleDeliveryHistoryRequest{Id: row.ID, SessionId: row.SessionID, Limit: 20}
+	req := api.ScheduleDeliveryHistoryRequest{Id: row.ID, Limit: 20}
 	if before != "" {
 		req.Before = &before
 	}

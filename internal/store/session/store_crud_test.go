@@ -341,11 +341,11 @@ func TestPromptChildAccepted(t *testing.T) {
 	})
 	st.PromptChild(context.Background(), "root", "child-1", "hello sub")
 	wait(t, done)
-	if gotParent != "root" || gotChild != "child-1" {
-		t.Fatalf("parent/child = %q/%q", gotParent, gotChild)
+	if gotChild != "child-1" || gotDelivery != "session" {
+		t.Fatalf("child/delivery = %q/%q", gotChild, gotDelivery)
 	}
-	if gotMode != "queue" || gotDelivery != "session" {
-		t.Fatalf("mode/delivery = %q/%q", gotMode, gotDelivery)
+	if gotParent != "" || gotMode != "" {
+		t.Fatalf("removed envelope fields still sent: parent=%q mode=%q", gotParent, gotMode)
 	}
 }
 

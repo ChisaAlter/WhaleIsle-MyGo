@@ -64,8 +64,8 @@ func fetchSessionAttachment(ctx context.Context, client *dsh.Client, sessionID, 
 	var out api.SessionAttachmentValue
 	err := client.Call(ctx, "session/attachment", map[string]any{
 		"request": api.SessionAttachmentRequest{
-			SessionId:    sessionID,
-			AttachmentId: attachmentID,
+			SessionId:  sessionID,
+			Attachment: api.SessionAttachmentRequestAttachment{AttachmentId: attachmentID},
 		},
 	}, &out)
 	if err != nil {

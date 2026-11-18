@@ -115,7 +115,7 @@ func (s *Store) RenameSession(ctx context.Context, sessionID, title string) {
 		if !currentHost {
 			return
 		}
-		req := api.SessionPresentationRequest{SessionId: sessionID, Presentation: api.SessionPresentationRequestPresentation{Owner: "whaleisle", Title: out.Title}}
+		req := api.SessionPresentationRequest{SessionId: sessionID, Presentation: api.SessionListValueItemsItemProjectionsValuesSessionListMetadataPresentation{Owner: "whaleisle", Title: out.Title}}
 		var presentation api.SessionPresentationValue
 		// Non-fatal follow-up; never let a late result mutate the current editor.
 		_ = client.Call(ctx, "session/setPresentation", map[string]any{"request": req}, &presentation)

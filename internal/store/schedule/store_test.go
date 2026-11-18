@@ -21,7 +21,7 @@ func TestParseScheduleList(t *testing.T) {
 	raw, _ := json.Marshal(map[string]any{
 		"id": "s1", "title": "Morning", "cron": "0 9 * * *", "status": "active",
 	})
-	rows := parseScheduleList(api.ListResult4{raw})
+	rows := parseScheduleList([]json.RawMessage{raw})
 	if len(rows) != 1 || rows[0].ID != "s1" || rows[0].Title != "Morning" {
 		t.Fatalf("%+v", rows)
 	}

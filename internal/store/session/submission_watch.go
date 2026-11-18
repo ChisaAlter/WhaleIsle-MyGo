@@ -248,8 +248,8 @@ func (s *Store) readSubmissionHistory(sessionID string, w *submissionWatch, snap
 		if !pending || !current {
 			return nil
 		}
-		var page api.SessionPage
-		req := api.SessionPageRequest{Address: sessionAddressJSON(sessionID), ThroughSeq: *snap.Cursor, BeforeSeq: &before}
+		var page api.SessionEventsPage
+		req := api.SessionPageRequest{Address: sessionAddressJSON(sessionID), ThroughSeq: snap.Cursor, BeforeSeq: &before}
 		if err := w.client.Call(w.ctx, "session/page", map[string]any{"request": req}, &page); err != nil {
 			return err
 		}

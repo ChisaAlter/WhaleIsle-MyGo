@@ -204,11 +204,10 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 			callErr = fmt.Errorf("Host catalog unavailable; select a Session to list its active schedules")
 		} else {
 			catalogHint = storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly) + sessionID + storelocale.T(storelocale.KeyStoreScheduleHostCatalogUnavailable)
-			var list api.ListResult4
-			req := map[string]any{"sessionId": sessionID}
-			callErr = client.Call(ctx, "schedule/list", map[string]any{"request": req}, &list)
+			var items []json.RawMessage
+			items, callErr = listScheduleItems(ctx, client, sessionID)
 			if callErr == nil {
-				rows = parseScheduleList(list)
+				rows = parseScheduleList(items)
 			}
 		}
 		s.mu.Lock()
@@ -261,7 +260,7 @@ func (s *Store) History(ctx context.Context, sessionID, id string) (string, erro
 		return "", fmt.Errorf("not connected")
 	}
 	req := api.ScheduleDeliveryHistoryRequest{
-		Id: id, SessionId: sessionID, Limit: 20,
+		Id: id, Limit: 20,
 	}
 	var out api.ScheduleDeliveryHistoryResult
 	if err := client.Call(ctx, "schedule/history", map[string]any{"request": req}, &out); err != nil {
@@ -285,9 +284,40 @@ func (s *Store) Delete(ctx context.Context, sessionID, id string) {
 	go func() { _ = s.DeleteChecked(ctx, sessionID, id) }()
 }
 
-func parseScheduleList(list api.ListResult4) []Entry {
-	out := make([]Entry, 0, len(list))
-	for _, raw := range list {
+// listScheduleItems reads the Host-wide task list and keeps one Session's tasks:
+// the pinned 0.2.2 runtime dropped the per-Session request, so the filter moved
+// here. Pages are read until the reported total is covered.
+func listScheduleItems(ctx context.Context, client *dsh.Client, sessionID string) ([]json.RawMessage, error) {
+	const pageSize = 500
+	var items []json.RawMessage
+	seen := 0
+	for {
+		limit, offset := float64(pageSize), float64(seen)
+		var page api.ScheduleListResult
+		if err := client.Call(ctx, "schedule/list", map[string]any{"request": api.ScheduleListRequest{Limit: &limit, Offset: &offset}}, &page); err != nil {
+			return nil, err
+		}
+		items = append(items, page.Items...)
+		seen += len(page.Items)
+		if len(page.Items) == 0 || float64(seen) >= page.Total {
+			break
+		}
+	}
+	out := make([]json.RawMessage, 0, len(items))
+	for _, raw := range items {
+		var item struct {
+			SessionID string `json:"sessionId"`
+		}
+		if json.Unmarshal(raw, &item) == nil && item.SessionID == sessionID {
+			out = append(out, raw)
+		}
+	}
+	return out, nil
+}
+
+func parseScheduleList(items []json.RawMessage) []Entry {
+	out := make([]Entry, 0, len(items))
+	for _, raw := range items {
 		var item struct {
 			ID           string `json:"id"`
 			Title        string `json:"title"`

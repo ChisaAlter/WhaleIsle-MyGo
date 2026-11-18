@@ -105,7 +105,7 @@ func TestPublishedResultCachedListHintsCannotReplaceLiveQuestions(t *testing.T) 
 				if r.URL.Path != "/api/session/list" {
 					t.Errorf("unexpected list request %s", r.URL.Path)
 				}
-				return composerRegressionReply(r, api.SessionListValue{Items: []api.SessionListValueItemsItem{{SessionId: "owned", FormatStatus: &status, Projections: &api.SessionListValueItemsItemProjections{Kind: kind, AsOfSeq: 9999, Values: hint}}}})
+				return composerRegressionReply(r, api.SessionListValue{Items: []api.SessionListValueItemsItem{{SessionId: "owned", FormatStatus: &status, Projections: &api.SessionListValueItemsItemProjections{Kind: kind, AsOfSeq: 9999, Values: projectionValues(t, string(hint))}}}})
 			})}}
 			s := New()
 			s.client, s.selectedID = client, "owned"

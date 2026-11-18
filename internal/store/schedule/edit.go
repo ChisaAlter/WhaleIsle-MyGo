@@ -44,6 +44,30 @@ func RuleSnapshot(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(out)
 }
 
+// scheduleEditRequest is the pinned runtime's edit envelope: one action against
+// one task, carrying the updatedAt value the editor read as its concurrency
+// baseline. It replaced the rc.4 schedule/update + schedule/delete pair, whose
+// request carried a full rule snapshot instead.
+func scheduleEditRequest(row Entry, action string, fields map[string]any) map[string]any {
+	request := map[string]any{"id": row.ID, "action": action, "expectedUpdatedAt": expectedUpdatedAt(row.Raw)}
+	for key, value := range fields {
+		request[key] = value
+	}
+	return request
+}
+
+// expectedUpdatedAt is the list record's own updatedAt, or null when the record
+// carries none, which the Host accepts as "no baseline".
+func expectedUpdatedAt(raw json.RawMessage) json.RawMessage {
+	var record map[string]json.RawMessage
+	if json.Unmarshal(raw, &record) == nil {
+		if value := record["updatedAt"]; len(value) > 0 {
+			return value
+		}
+	}
+	return json.RawMessage("null")
+}
+
 // ResultError retains the Host recovery code without parsing display text.
 type ResultError struct {
 	Code    string
@@ -86,9 +110,18 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 	s.lastAction = ""
 	s.mu.Unlock()
 	s.fire()
-	req := api.ScheduleUpdateRequest{Id: row.ID, SessionId: row.SessionID, Expected: expected, Title: title, Prompt: prompt, Change: change}
-	var out api.ScheduleUpdateResult
-	err = client.Call(ctx, "schedule/update", map[string]any{"request": req}, &out)
+	patch := map[string]any{}
+	if title != nil {
+		patch["title"] = *title
+	}
+	if prompt != nil {
+		patch["prompt"] = *prompt
+	}
+	if trimmed := bytes.TrimSpace(change); len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null")) {
+		patch["timing"] = change
+	}
+	var out api.ScheduleEditResult
+	err = client.Call(ctx, "schedule/edit", map[string]any{"request": scheduleEditRequest(row, "update", map[string]any{"patch": patch})}, &out)
 	if err == nil {
 		err = resultError(out)
 	}
@@ -130,7 +163,7 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 					}
 				}
 				merged, _ := json.Marshal(record)
-				fresh := parseScheduleList(api.ListResult4{merged})[0]
+				fresh := parseScheduleList([]json.RawMessage{merged})[0]
 				fresh.Origin, fresh.SessionID, fresh.Status = s.rows[i].Origin, s.rows[i].SessionID, s.rows[i].Status
 				s.rows[i] = fresh
 			}
@@ -168,8 +201,8 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 	s.lastAction = ""
 	s.mu.Unlock()
 	s.fire()
-	var out api.ScheduleDeleteResult
-	err := client.Call(ctx, "schedule/delete", map[string]any{"request": api.ScheduleDeleteRequest{Id: id, SessionId: sessionID}}, &out)
+	var out api.ScheduleEditResult
+	err := client.Call(ctx, "schedule/edit", map[string]any{"request": scheduleEditRequest(row, "delete", nil)}, &out)
 	if err == nil {
 		err = resultError(out)
 	}

@@ -130,7 +130,7 @@ func TestNativeModelSelectionReceiptWaitsForCommittedProjection(t *testing.T) {
 				t.Errorf("opaque route/default effort lost: %#v", req)
 			}
 			selected <- struct{}{}
-			modelTestReply(w, id, api.SessionSelectModelValue{Selected: api.ModelCatalogDefault{Provider: "p", Model: "m2", ReasoningEffort: func() *string { x := "adapter-deep"; return &x }()}})
+			modelTestReply(w, id, api.SessionSelectModelValue{Selected: modelSelection{Provider: "p", Model: "m2", ReasoningEffort: func() *string { x := "adapter-deep"; return &x }()}})
 		case "/api/session/projections":
 			projection <- struct{}{}
 			<-release
@@ -153,7 +153,7 @@ func TestNativeModelSelectionReceiptWaitsForCommittedProjection(t *testing.T) {
 	result := make(chan error, 1)
 	effort := "adapter-deep"
 	go func() {
-		result <- s.SelectNativeCommandModel(context.Background(), owner, api.ModelCatalogDefault{Provider: "p", Model: "m2", ReasoningEffort: &effort})
+		result <- s.SelectNativeCommandModel(context.Background(), owner, modelSelection{Provider: "p", Model: "m2", ReasoningEffort: &effort})
 	}()
 	select {
 	case <-selected:
@@ -198,7 +198,7 @@ func TestNativeModelSelectionFailureKeepsProjectionAndCanRetry(t *testing.T) {
 				json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": id, "result": map[string]any{"ok": false, "error": map[string]any{"code": "session/writer-held", "message": "busy"}}})
 				return
 			}
-			modelTestReply(w, id, api.SessionSelectModelValue{Selected: api.ModelCatalogDefault{Provider: "p", Model: "m3"}})
+			modelTestReply(w, id, api.SessionSelectModelValue{Selected: modelSelection{Provider: "p", Model: "m3"}})
 		case "/api/session/projections":
 			modelTestReply(w, id, map[string]any{"asOfSeq": 12, "values": map[string]any{"modelSelection": map[string]any{"next": map[string]any{"provider": "p", "model": "m3"}}}})
 		default:
@@ -209,7 +209,7 @@ func TestNativeModelSelectionFailureKeepsProjectionAndCanRetry(t *testing.T) {
 	defer srv.Close()
 	s := nativeSelectionStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, graph)
 	o := nativeSelectionOwner(s, "model")
-	selection := api.ModelCatalogDefault{Provider: "p", Model: "m3"}
+	selection := modelSelection{Provider: "p", Model: "m3"}
 	if err := s.SelectNativeCommandModel(context.Background(), o, selection); err == nil {
 		t.Fatal("writer refusal reported success")
 	}
@@ -262,7 +262,7 @@ func TestNativeOwnerFencesRejectBeforeAnyMutationRPC(t *testing.T) {
 					t.Fatalf("wrong owner validity after %s", change)
 				}
 				if shouldRetire && name == "model" {
-					if err := s.SelectNativeCommandModel(context.Background(), o, api.ModelCatalogDefault{Provider: "p", Model: "m3"}); err == nil {
+					if err := s.SelectNativeCommandModel(context.Background(), o, modelSelection{Provider: "p", Model: "m3"}); err == nil {
 						t.Fatal("retired model dispatched")
 					}
 				}
@@ -307,7 +307,7 @@ func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T)
 		case "/api/session/selectModel":
 			close(started)
 			<-release
-			modelTestReply(w, id, api.SessionSelectModelValue{Selected: api.ModelCatalogDefault{Provider: "p", Model: "m3"}})
+			modelTestReply(w, id, api.SessionSelectModelValue{Selected: modelSelection{Provider: "p", Model: "m3"}})
 		default:
 			projections.Add(1)
 			http.Error(w, "stale projection read", 500)
@@ -332,7 +332,7 @@ func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T)
 	o := nativeSelectionOwner(s, "model")
 	result := make(chan error, 1)
 	go func() {
-		result <- s.SelectNativeCommandModel(ctx, o, api.ModelCatalogDefault{Provider: "p", Model: "m3"})
+		result <- s.SelectNativeCommandModel(ctx, o, modelSelection{Provider: "p", Model: "m3"})
 	}()
 	select {
 	case <-started:

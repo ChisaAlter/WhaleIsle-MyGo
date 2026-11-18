@@ -115,7 +115,7 @@ func TestNativeAgentLiveNavigationFixture(t *testing.T) {
 			rpcOK(w, body["rpcId"], map[string]any{"records": []any{map[string]any{"type": "event", "event": map[string]any{"type": "user/message", "seq": 5, "data": map[string]any{"content": []any{map[string]any{"type": "text", "text": "older page"}}}}}}, "hasMore": false})
 		case strings.HasSuffix(r.URL.Path, "/subagents/prompt"):
 			req := args["request"].(map[string]any)
-			if req["mode"] != "continuable" || req["delivery"] != "queue" {
+			if req["delivery"] != "queue" {
 				t.Errorf("invalid prompt: %#v", req)
 			}
 			latestMu.Lock()

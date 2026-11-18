@@ -114,7 +114,7 @@ type Model struct {
 	OnPickCommand                   func(hostGeneration uint64, sessionID, line string)
 	OnNativeCommandAction           func(owner NativeCommandOwner, name string) bool
 	OnLoadNativeCommandOptions      func(context.Context, NativeCommandOwner, string) ([]NativeCommandOption, error)
-	OnSelectNativeCommandModel      func(context.Context, NativeCommandOwner, api.ModelCatalogDefault) error
+	OnSelectNativeCommandModel      func(context.Context, NativeCommandOwner, session.ModelSelection) error
 	OnSelectNativeCommandPermission func(context.Context, NativeCommandOwner, string, bool) error
 	OnNativeCommandChanged          func()
 	OnToggleSkills                  func(open bool)

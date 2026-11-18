@@ -8,7 +8,7 @@ import (
 
 func TestFlattenModelCatalog(t *testing.T) {
 	cat := api.ModelCatalog{
-		Default: api.ModelCatalogDefault{Provider: "p1", Model: "m1"},
+		Default: modelSelection{Provider: "p1", Model: "m1"},
 		Groups: []api.ModelCatalogGroupsItem{{
 			Id:   "p1",
 			Name: "Provider One",

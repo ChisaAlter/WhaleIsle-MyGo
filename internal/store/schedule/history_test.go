@@ -62,7 +62,7 @@ func TestDeliveryHistoryCapturedOwnerAndCursor(t *testing.T) {
 		if r.URL.Path != "/api/rpc/schedule/history" && r.URL.Path != "/rpc/schedule/history" {
 			t.Logf("Host RPC path: %s", r.URL.Path)
 		}
-		if string(req["id"]) != `"task"` || string(req["sessionId"]) != `"owner"` || string(req["before"]) != `"opaque"` || string(req["limit"]) != "20" {
+		if string(req["id"]) != `"task"` || string(req["before"]) != `"opaque"` || string(req["limit"]) != "20" {
 			t.Errorf("wrong request %+v", req)
 		}
 		json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": body.RPCID, "result": map[string]any{"ok": true, "value": json.RawMessage(`{"id":"task","records":[],"earlierRecordsPruned":false,"earlierRecordsUnavailable":false,"retention":{"days":30,"records":100}}`)}})

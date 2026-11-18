@@ -24,7 +24,12 @@ func TestAttachmentReadKeepsSessionHostAndLateWorkerOwners(t *testing.T) {
 				RPCID   string `json:"rpcId"`
 				Payload struct {
 					Args struct {
-						Request struct{ SessionID, AttachmentID string } `json:"request"`
+						Request struct {
+							SessionID  string `json:"sessionId"`
+							Attachment struct {
+								AttachmentID string `json:"attachmentId"`
+							} `json:"attachment"`
+						} `json:"request"`
 					} `json:"args"`
 				} `json:"payload"`
 			}
@@ -37,11 +42,11 @@ func TestAttachmentReadKeepsSessionHostAndLateWorkerOwners(t *testing.T) {
 				return
 			}
 			request := body.Payload.Args.Request
-			if request.AttachmentID == "delayed" {
+			if request.Attachment.AttachmentID == "delayed" {
 				close(started)
 				<-release
 			}
-			rpcOK(w, body.RPCID, map[string]any{"attachment": map[string]any{"mediaType": "image/png"}, "data": base64.StdEncoding.EncodeToString([]byte(host + "/" + request.SessionID + "/" + request.AttachmentID))})
+			rpcOK(w, body.RPCID, map[string]any{"attachment": map[string]any{"mediaType": "image/png"}, "data": base64.StdEncoding.EncodeToString([]byte(host + "/" + request.SessionID + "/" + request.Attachment.AttachmentID))})
 		}))
 	}
 	a, b := server("host-a"), server("host-b")

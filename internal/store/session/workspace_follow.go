@@ -196,12 +196,12 @@ func itemFromListRow(it api.SessionListValueItemsItem) Item {
 		UpdatedAt:      it.UpdatedAt,
 	}
 	if it.Projections != nil {
-		row.Presentation, row.presentationKnown = presentationFromValues(it.Projections.Values)
+		row.Presentation, row.presentationKnown = presentationFromValues(projectionsRaw(it.Projections.Values))
 		row.presentationKind, row.presentationSeq = it.Projections.Kind, it.Projections.AsOfSeq
-		row.SubagentIdentity, row.subagentIdentityKnown = subagentIdentityFromValues(it.Projections.Values)
+		row.SubagentIdentity, row.subagentIdentityKnown = subagentIdentityFromValues(projectionsRaw(it.Projections.Values))
 		row.subagentIdentityKind, row.subagentIdentitySeq = it.Projections.Kind, it.Projections.AsOfSeq
-		row.AgentMetrics = decodeAgentMetrics(it.Projections.Values, it.Projections.AsOfSeq)
-		row.BilledUsage = sessioncost.Decode(it.Projections.Values)
+		row.AgentMetrics = decodeAgentMetrics(projectionsRaw(it.Projections.Values), it.Projections.AsOfSeq)
+		row.BilledUsage = sessioncost.Decode(projectionsRaw(it.Projections.Values))
 		row.BilledUsageSeq = it.Projections.AsOfSeq
 		row.BilledUsageKind = it.Projections.Kind
 	}

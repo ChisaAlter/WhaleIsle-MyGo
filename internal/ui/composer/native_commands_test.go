@@ -132,7 +132,7 @@ func openNativePopup(t *testing.T, d *DraftState, m *Model, tt *ui.Tester, chang
 	}
 }
 func testModelRow(name string, active bool) NativeCommandOption {
-	return NativeCommandOption{ID: name, Label: name, Model: &api.ModelCatalogDefault{Provider: "p", Model: name}, Active: active}
+	return NativeCommandOption{ID: name, Label: name, Model: &session.ModelSelection{Provider: "p", Model: name}, Active: active}
 }
 
 func TestNativeCommandPortsOnlyDecorateExistingHostRows(t *testing.T) {
@@ -259,9 +259,9 @@ func TestNativePopupLoadRetryAndSelectionReceipt(t *testing.T) {
 		}
 		return load(ctx, o, n)
 	}
-	selected := make(chan api.ModelCatalogDefault, 2)
+	selected := make(chan session.ModelSelection, 2)
 	release := make(chan error, 2)
-	m.OnSelectNativeCommandModel = func(ctx context.Context, _ NativeCommandOwner, v api.ModelCatalogDefault) error {
+	m.OnSelectNativeCommandModel = func(ctx context.Context, _ NativeCommandOwner, v session.ModelSelection) error {
 		selected <- v
 		select {
 		case err := <-release:
@@ -321,7 +321,7 @@ func TestNativePopupLoadRetryAndSelectionReceipt(t *testing.T) {
 func TestNativePopupMenuCASRejectsUndoABA(t *testing.T) {
 	text := "prefix /model suffix"
 	d, m, tt, changed := nativePopupFixture(t, text, []NativeCommandOption{testModelRow("Beta", false)})
-	m.OnSelectNativeCommandModel = func(context.Context, NativeCommandOwner, api.ModelCatalogDefault) error { return nil }
+	m.OnSelectNativeCommandModel = func(context.Context, NativeCommandOwner, session.ModelSelection) error { return nil }
 	d.Client.SetSelectionUTF16(13, 13)
 	if !pickSlashCommand(*m, suggestItem{insert: "/model ", command: true}, TokenRange{7, 13}) {
 		t.Fatal("inline model menu not claimed")
@@ -511,7 +511,7 @@ func TestNativePopupSendOpensOneShell(t *testing.T) {
 func TestNativePopupPointerHoverControlsKeyboardSelection(t *testing.T) {
 	d, m, tt, changed := nativePopupFixture(t, "/model", []NativeCommandOption{testModelRow("Alpha", true), testModelRow("Beta", false)})
 	picked := make(chan string, 1)
-	m.OnSelectNativeCommandModel = func(_ context.Context, _ NativeCommandOwner, selection api.ModelCatalogDefault) error {
+	m.OnSelectNativeCommandModel = func(_ context.Context, _ NativeCommandOwner, selection session.ModelSelection) error {
 		picked <- selection.Model
 		return nil
 	}

@@ -148,7 +148,7 @@ func exerciseACP(ctx context.Context, client *dsh.Client, store *session.Store, 
 	}); err != nil {
 		return fmt.Errorf("ACP model catalog: %w", err)
 	}
-	store.SelectModelSelectionForSessionID(ctx, id, api.ModelCatalogDefault{Provider: "acp:qa-local", Model: "mock-pro"})
+	store.SelectModelSelectionForSessionID(ctx, id, session.ModelSelection{Provider: "acp:qa-local", Model: "mock-pro"})
 	if err = await(ctx, func() (bool, error) {
 		v := store.Snapshot()
 		return !v.ModelSelectionBusy && v.ModelChoices[v.SelectedModel].Provider == "acp:qa-local" && v.ModelChoices[v.SelectedModel].Model == "mock-pro", nil
@@ -157,7 +157,7 @@ func exerciseACP(ctx context.Context, client *dsh.Client, store *session.Store, 
 	}
 	pass("acp-native-model-route", "production Store selected ACP provider/model from real Host catalog and committed projection")
 	effort := "high"
-	store.SelectModelEffortSelectionForSessionID(ctx, id, api.ModelCatalogDefault{Provider: "acp:qa-local", Model: "mock-pro", ReasoningEffort: &effort})
+	store.SelectModelEffortSelectionForSessionID(ctx, id, session.ModelSelection{Provider: "acp:qa-local", Model: "mock-pro", ReasoningEffort: &effort})
 	if err = await(ctx, func() (bool, error) {
 		v := store.Snapshot()
 		return !v.ModelSelectionBusy && v.ModelSelection != nil && v.ModelSelection.ReasoningEffort != nil && *v.ModelSelection.ReasoningEffort == effort, nil

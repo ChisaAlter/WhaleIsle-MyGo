@@ -123,3 +123,36 @@ func TestResolveNodePrefersSiblingAndPairedRC4(t *testing.T) {
 		t.Fatalf("resolveNodeForVendor sibling = %q, %v; want %q", gotSibling, err, rcNode)
 	}
 }
+
+func TestResolveNodePrefersPairedRuntime022OverRC4(t *testing.T) {
+	base := t.TempDir()
+	t.Chdir(base)
+	t.Setenv(paths.EnvVendor, "")
+	t.Setenv(paths.EnvNodeDir, "")
+
+	rt022Harness := filepath.Join(base, "runtime-0.2.2-rc2", "vendor", "deepseek-harness")
+	rt022Node := filepath.Join(base, "runtime-0.2.2-rc2", "node", nodeExecutableName())
+	rc4Harness := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
+	rc4Node := filepath.Join(base, "runtime-rc4", "node", nodeExecutableName())
+	for _, dir := range []string{rt022Harness, rc4Harness, filepath.Dir(rc4Node)} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(rc4Node, []byte("rc4"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The newer pair wins only when its own Node is staged with it.
+	if got, err := resolveNode(""); err != nil || got != rc4Node {
+		t.Fatalf("resolveNode(\"\") = %q, %v; want %q", got, err, rc4Node)
+	}
+	if err := os.MkdirAll(filepath.Dir(rt022Node), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(rt022Node, []byte("022"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolveNode(""); err != nil || got != rt022Node {
+		t.Fatalf("resolveNode(\"\") = %q, %v; want %q", got, err, rt022Node)
+	}
+}

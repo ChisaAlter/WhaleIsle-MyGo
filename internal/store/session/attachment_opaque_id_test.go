@@ -24,7 +24,8 @@ func TestFetchAttachmentPreservesOpaqueWhitespaceIDs(t *testing.T) {
 		payload, _ := body["payload"].(map[string]any)
 		args, _ := payload["args"].(map[string]any)
 		request, _ := args["request"].(map[string]any)
-		id, _ := request["attachmentId"].(string)
+		attachment, _ := request["attachment"].(map[string]any)
+		id, _ := attachment["attachmentId"].(string)
 		if r.URL.Path == "/api/session/attachment" {
 			requested = append(requested, id)
 		} else {

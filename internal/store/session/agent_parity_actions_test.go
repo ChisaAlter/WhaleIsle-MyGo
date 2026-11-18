@@ -77,7 +77,7 @@ func TestParityChildGestureReceiptAndQueueWire(t *testing.T) {
 	}
 	s.PromptAgentNavigationGesture(7, address, "authored", true, "steer")
 	req := <-calls
-	if req["delivery"] != "queue" || req["parentSessionId"] != "root" || req["childSessionId"] != "child" {
+	if req["delivery"] != "queue" || req["childSessionId"] != "child" {
 		t.Fatalf("gesture inversion/identity lost: %+v", req)
 	}
 	wait(func(v AgentNavigationView) bool { return !v.ActionBusy && v.PromptReceipt == 1 })
