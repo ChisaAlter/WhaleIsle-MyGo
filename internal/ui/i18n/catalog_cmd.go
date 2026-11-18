@@ -113,7 +113,6 @@ const (
 	KeyCmdThisAccountCannotAcknowledgeTheNoticeR = "cmd.this_account_cannot_acknowledge_the_notice_r"
 	KeyCmdGotIt                                  = "cmd.got_it"
 	KeyCmdRetry                                  = "cmd.retry"
-	KeyCmdRewardNotice                           = "cmd.reward_notice"
 	KeyCmdRequestQuotaExhausted                  = "cmd.request_quota_exhausted"
 	KeyCmdNoBalanceAvailable                     = "cmd.no_balance_available"
 	KeyCmdMygoCannotStartANewTaskWithThisAccou   = "cmd.mygo_cannot_start_a_new_task_with_this_accou"
@@ -436,7 +435,6 @@ func init() {
 	Register(KeyCmdThisAccountCannotAcknowledgeTheNoticeR, "当前账户无法确认这条通知，请刷新账户状态。", "This account cannot acknowledge the notice. Refresh the account state.")
 	Register(KeyCmdGotIt, "知道了", "Got it")
 	Register(KeyCmdRetry, "重试", "Retry")
-	Register(KeyCmdRewardNotice, "奖励通知", "Reward notice")
 	Register(KeyCmdRequestQuotaExhausted, "当前请求的额度已用尽", "Request quota exhausted.")
 	Register(KeyCmdNoBalanceAvailable, "当前无可用余额", "No balance available")
 	Register(KeyCmdMygoCannotStartANewTaskWithThisAccou, "没有可用额度时，鲸屿 MyGo 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。", "Whale Isle MyGo cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.")

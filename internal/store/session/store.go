@@ -237,9 +237,6 @@ type ViewState struct {
 	// ArchivedSessionIDs is the last workspace archive roster (for unarchive UI).
 	ArchivedSessionIDs []string
 
-	// BandActions/BandGeneration come from claudeCodeMods/watchBand when present.
-	BandActions    []BandAction
-	BandGeneration float64
 	// SpeechSelection is the latest speech/follow catalog selection summary.
 	SpeechSelection                                            string
 	SpeechReadinessKnown, SpeechReady, SpeechNeedsInstallation bool
@@ -457,10 +454,6 @@ type Store struct {
 	turnFiles                            turnFilesState
 	turnFilesHistoryBinding              string
 	workspaceFollowCancel                context.CancelFunc
-	bandCancel                           context.CancelFunc
-	bandActions                          []BandAction
-	bandGeneration                       float64
-	bandPressSeq                         uint64
 	speechFollowCancel                   context.CancelFunc
 	speechSelection                      string
 	speechReadiness                      speechReadinessState
@@ -729,13 +722,6 @@ func (s *Store) Detach() {
 		s.workspaceFollowCancel()
 		s.workspaceFollowCancel = nil
 	}
-	if s.bandCancel != nil {
-		s.bandCancel()
-		s.bandCancel = nil
-	}
-	s.bandActions = nil
-	s.bandGeneration = 0
-	s.bandPressSeq++
 	if s.speechFollowCancel != nil {
 		s.speechFollowCancel()
 		s.speechFollowCancel = nil
@@ -1295,8 +1281,6 @@ func (s *Store) ensureViewCacheLocked() {
 	if len(s.archivedSessionIDs) > 0 {
 		st.ArchivedSessionIDs = append([]string(nil), s.archivedSessionIDs...)
 	}
-	st.BandGeneration = s.bandGeneration
-	st.BandActions = append([]BandAction(nil), s.bandActions...)
 	st.SpeechSelection = s.speechSelection
 	st.SpeechReadinessKnown, st.SpeechReady, st.SpeechNeedsInstallation = s.speechReadinessFlagsLocked()
 	st.ControlNote = s.controlNote
@@ -1469,7 +1453,6 @@ func (s *Store) Select(sessionID string) {
 
 func (s *Store) refreshSelectedViews() {
 	s.FollowSelected(context.Background())
-	s.WatchBand(context.Background())
 	s.WatchControl(context.Background())
 	s.RefreshProjections(context.Background())
 	s.RefreshGoal(context.Background())

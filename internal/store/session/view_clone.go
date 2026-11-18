@@ -64,7 +64,6 @@ func cloneStoreViewCache(in ViewState) ViewState {
 	out.HistoryNavigation = cloneHistoryNavigationView(in.HistoryNavigation)
 	out.PinnedSessionIDs = cloneSlice(in.PinnedSessionIDs)
 	out.ArchivedSessionIDs = cloneSlice(in.ArchivedSessionIDs)
-	out.BandActions = cloneSlice(in.BandActions)
 	return out
 }
 
@@ -121,7 +120,6 @@ func cloneViewStateSchemas(in ViewState, schemas bool) ViewState {
 	out.HistoryNavigation = cloneHistoryNavigationView(in.HistoryNavigation)
 	out.PinnedSessionIDs = cloneSlice(in.PinnedSessionIDs)
 	out.ArchivedSessionIDs = cloneSlice(in.ArchivedSessionIDs)
-	out.BandActions = cloneSlice(in.BandActions)
 	return out
 }
 

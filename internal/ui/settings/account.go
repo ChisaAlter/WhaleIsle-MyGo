@@ -47,23 +47,7 @@ type AccountAccess struct {
 	OnCheckSignOut   func()
 	OnCancelSignIn   func()
 	SignInAttemptID  string
-	Bonuses          []AccountBonus
-	BonusesLoading   bool
-	BonusesError     string
-	BonusAckState    string
-	BonusAckError    string
-	BonusAckAccount  string
-	BonusAckOrder    string
-	OnAckBonus       func(accountID, orderID string)
 	HasRunningTasks  bool
-}
-
-// AccountBonus is one row from account/getUnnotifiedBonuses.
-type AccountBonus struct {
-	AccountID string
-	OrderID   string
-	Label     string
-	Detail    string
 }
 
 func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {

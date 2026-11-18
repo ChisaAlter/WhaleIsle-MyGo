@@ -118,7 +118,6 @@ var migratedCmdKeys = []string{
 	"cmd.this_account_cannot_acknowledge_the_notice_r",
 	"cmd.got_it",
 	"cmd.retry",
-	"cmd.reward_notice",
 	"cmd.request_quota_exhausted",
 	"cmd.no_balance_available",
 	"cmd.mygo_cannot_start_a_new_task_with_this_accou",
@@ -337,7 +336,6 @@ var migratedCmdKeys = []string{
 
 // migratedCmdFiles still contain the call sites for that slice.
 var migratedCmdFiles = []string{
-	"account_bonus_notice.go",
 	"account_quota_notice.go",
 	"account_return.go",
 	"account_status_notices.go",

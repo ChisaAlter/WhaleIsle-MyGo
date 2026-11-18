@@ -332,7 +332,6 @@ type mainState struct {
 	credsShowSecrets                        bool
 	usage                                   *usagestore.Store
 	accountReturn                           accountReturnState
-	accountNotice                           accountBonusNoticeState
 	accountStatusNotices                    accountStatusNoticeState
 	accountQuotaNotice                      accountQuotaNoticeState
 	im                                      *imstore.Store
@@ -3051,7 +3050,6 @@ func mainView(c *ui.Context) {
 	composerRendered := false
 	composerSessionID := ""
 	defer func() { state.observeComposerEdit(composerRendered, composerSessionID) }()
-	defer state.syncAccountBonusNotice(c)
 	defer state.syncAccountStatusNotices(c)
 	defer state.syncAccountQuotaNotice(c)
 	defer state.syncResidentAccount(c)
@@ -3886,22 +3884,6 @@ func mainView(c *ui.Context) {
 					if usageSnap.AuthorizeURL == "" && loginState.URL != "" {
 						usageSnap.AuthorizeURL = loginState.URL
 					}
-					bonuses := make([]settings.AccountBonus, 0, len(usageSnap.Bonuses))
-					for _, b := range usageSnap.Bonuses {
-						label := strings.TrimSpace(b.Amount + " " + b.Currency)
-						if label == "" {
-							label = b.Campaign
-						}
-						if b.Title != nil {
-							label = *b.Title
-						}
-						bonuses = append(bonuses, settings.AccountBonus{
-							AccountID: b.AccountID,
-							OrderID:   b.OrderID,
-							Label:     label,
-							Detail:    b.Message,
-						})
-					}
 					accountSection = &settings.AccountAccess{
 						OnContact:        state.contactAccountSupport,
 						SignInBusy:       loginState.Busy || signOutState.Open || signOutState.Busy,
@@ -3922,27 +3904,6 @@ func mainView(c *ui.Context) {
 						AttemptErrorCode: usageSnap.AttemptErrorCode,
 						SignInAttemptID:  usageSnap.AttemptID,
 						AuthorizeURL:     usageSnap.AuthorizeURL,
-						BonusesLoading:   usageSnap.BonusesLoading,
-						BonusesError:     usageSnap.BonusesError,
-						BonusAckState:    usageSnap.BonusFeedback.State,
-						BonusAckError:    usageSnap.BonusFeedback.Error,
-						BonusAckAccount:  usageSnap.BonusFeedback.AccountID,
-						BonusAckOrder:    usageSnap.BonusFeedback.OrderID,
-						Bonuses:          bonuses,
-						OnAckBonus: func(accountID, orderID string) {
-							if usageStore == nil {
-								state.refuseHostAction()
-								return
-							}
-							sid := ""
-							if sessions != nil {
-								sid = sessions.SelectedSessionID()
-							}
-							usageStore.AckBonusNotified(context.Background(), accountID, orderID, sid)
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
 						OnRefresh: func() {
 							if usageStore == nil {
 								state.refuseHostAction()
@@ -6182,16 +6143,14 @@ func mainView(c *ui.Context) {
 						OnOpenDesktopUpdate:     func() { state.openNativeUpdateCenter(win) },
 						OnContactAccount:        state.contactAccountSupport,
 						Account: sidebar.Account{
-							Name:                strings.TrimSpace(accountUsage.Name),
-							Detail:              strings.TrimSpace(accountUsage.Email),
-							AvatarURL:           avatarURL,
-							SignedIn:            accountUsage.AccountStatus == "credential-stored" || strings.TrimSpace(accountUsage.Name) != "" || strings.TrimSpace(accountUsage.Email) != "",
-							OnSignOut:           func() { state.runAccountSignOut(win, state.accountSignOut.Request) },
-							OnOpen:              state.openAccountSettings,
-							OnSignIn:            state.startAccountSignIn,
-							OnContact:           state.contactAccountSupport,
-							Notices:             state.sidebarAccountNotices(),
-							LauncherActions:     state.phoneLauncherActions,
+							Name:      strings.TrimSpace(accountUsage.Name),
+							Detail:    strings.TrimSpace(accountUsage.Email),
+							AvatarURL: avatarURL,
+							SignedIn:  accountUsage.AccountStatus == "credential-stored" || strings.TrimSpace(accountUsage.Name) != "" || strings.TrimSpace(accountUsage.Email) != "",
+							OnSignOut: func() { state.runAccountSignOut(win, state.accountSignOut.Request) },
+							OnOpen:    state.openAccountSettings,
+							OnSignIn:  state.startAccountSignIn,
+							OnContact: state.contactAccountSupport, LauncherActions: state.phoneLauncherActions,
 							RenderLauncherPopup: state.renderPhonePopup,
 						},
 						OnOpenSettings: func() { state.toggleApplicationSettings(c) },
@@ -6550,16 +6509,14 @@ func mainView(c *ui.Context) {
 			WorkspaceRoot: workspaceRoot, WorkspacePage: sharedNativeCaption && desktopChromeLocked,
 			GitWorkbench: &gitWorkbench,
 			Account: sidebar.Account{
-				Name:                strings.TrimSpace(navAccountUsage.Name),
-				Detail:              strings.TrimSpace(navAccountUsage.Email),
-				AvatarURL:           navAvatarURL,
-				SignedIn:            navAccountUsage.AccountStatus == "credential-stored" || strings.TrimSpace(navAccountUsage.Name) != "" || strings.TrimSpace(navAccountUsage.Email) != "",
-				OnSignOut:           func() { state.runAccountSignOut(win, state.accountSignOut.Request) },
-				OnOpen:              state.openAccountSettings,
-				OnSignIn:            state.startAccountSignIn,
-				OnContact:           state.contactAccountSupport,
-				Notices:             state.sidebarAccountNotices(),
-				LauncherActions:     state.phoneLauncherActions,
+				Name:      strings.TrimSpace(navAccountUsage.Name),
+				Detail:    strings.TrimSpace(navAccountUsage.Email),
+				AvatarURL: navAvatarURL,
+				SignedIn:  navAccountUsage.AccountStatus == "credential-stored" || strings.TrimSpace(navAccountUsage.Name) != "" || strings.TrimSpace(navAccountUsage.Email) != "",
+				OnSignOut: func() { state.runAccountSignOut(win, state.accountSignOut.Request) },
+				OnOpen:    state.openAccountSettings,
+				OnSignIn:  state.startAccountSignIn,
+				OnContact: state.contactAccountSupport, LauncherActions: state.phoneLauncherActions,
 				RenderLauncherPopup: state.renderPhonePopup,
 			},
 		}
