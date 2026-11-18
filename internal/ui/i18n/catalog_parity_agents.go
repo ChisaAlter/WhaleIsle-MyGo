@@ -1,18 +1,7 @@
 package i18n
 
-import "strings"
-
 // CatalogParityAgents 注册智能体面板、子智能体、后台任务、定时任务、运行轨迹、
 // 项目团队、会话检查器、会话日志导出与 Cordis 面板的全部原版中英文词条。
-
-// AgentsParityFormat 取词并将 {name} 形式占位符替换为成对给出的键值。
-func AgentsParityFormat(key string, kv ...string) string {
-	text := T(key)
-	for i := 0; i+1 < len(kv); i += 2 {
-		text = strings.ReplaceAll(text, "{"+kv[i]+"}", kv[i+1])
-	}
-	return text
-}
 
 func init() {
 	// 1. dsh-client-ui-subagent

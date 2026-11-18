@@ -161,11 +161,3 @@ func TargetRelative(t projectflow.FileTarget, validate func(root, canonicalPath 
 	}
 	return rel, nil
 }
-
-func absoluteProjectPath(root, value string) string {
-	value = strings.ReplaceAll(value, `\`, "/")
-	if strings.HasPrefix(value, "/") || len(value) > 1 && value[1] == ':' {
-		return value
-	}
-	return strings.TrimRight(strings.ReplaceAll(root, `\`, "/"), "/") + "/" + value
-}
