@@ -203,7 +203,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			}
 		}
 		if p.Error != "" {
-			ui.Text(c, p.Error).FontSize(theme.InterfaceSize(12)).TextColor(t.Danger)
+			ui.Text(c, questionErrorText(p.Error)).FontSize(theme.InterfaceSize(12)).TextColor(t.Danger)
 		}
 		ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
 			if p.Sending {

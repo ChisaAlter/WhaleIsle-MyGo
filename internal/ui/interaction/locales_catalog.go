@@ -1,6 +1,9 @@
 package interaction
 
-import "whaleisle/internal/ui/i18n"
+import (
+	storeinteraction "whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/i18n"
+)
 
 type interactionLocaleEntry struct {
 	module string
@@ -33,6 +36,7 @@ var interactionLocaleCatalog = []interactionLocaleEntry{
 	{module: `dsh-client-ui-approval`, key: `reject`, zh: `拒绝`, en: `Reject`},
 	{module: `dsh-client-ui-user-questions`, key: `error.incomplete`, zh: `请先完成这道问题。`, en: `Please complete this question first.`},
 	{module: `dsh-client-ui-user-questions`, key: `error.unanswered`, zh: `请选择一个选项或填写自定义答案。`, en: `Please select an option or enter a custom answer.`},
+	{module: `dsh-client-ui-user-questions`, key: `delivery.stopped`, zh: `这条问题没有送达主机：投递通道已关闭。可重试重新发送。`, en: `This question never reached the host — its delivery channel closed. Retry to send it again.`},
 	{module: `dsh-client-ui-user-questions`, key: `wait.takeTime`, zh: `慢慢回答`, en: `Take time`},
 	{module: `dsh-client-ui-user-questions`, key: `wait.held`, zh: `会一直等你回答`, en: `Waiting until you answer`},
 	{module: `dsh-client-ui-user-questions`, key: `wait.countdown`, zh: `{seconds} 秒后继续工作`, en: `Continuing in {seconds}s`},
@@ -60,4 +64,14 @@ func interactionLocaleText(key string) string {
 		}
 	}
 	return i18n.T(key)
+}
+
+// questionErrorText resolves the store's delivery markers into copy this surface
+// owns. Any other text is a specific failure the store already worded and is
+// shown unchanged.
+func questionErrorText(text string) string {
+	if text == storeinteraction.QuestionDeliveryStopped {
+		return interactionLocaleText("delivery.stopped")
+	}
+	return text
 }

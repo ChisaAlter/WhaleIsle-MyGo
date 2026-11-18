@@ -130,6 +130,40 @@ func (s *Store) retireEventsDeliveryLocked(owner *EventsDeliveryOwner) {
 	if s.eventsDeliveryOwner == owner {
 		s.eventsDeliveryOwner = nil
 	}
+	s.releaseStalledAnswersLocked()
+}
+
+// releaseStalledAnswerLocked clears the sending flag of one card whose answer
+// attempt is gone. A different attempt that holds the card keeps it.
+func (s *Store) releaseStalledAnswerLocked(eventID string) {
+	if _, inFlight := s.questionRecovery.inFlight[eventID]; inFlight {
+		return
+	}
+	if p := s.findPending(eventID); p != nil && p.Sending {
+		p.Sending, p.Error = false, QuestionDeliveryStopped
+	}
+}
+
+// releaseStalledAnswersLocked clears the progress claim of any card that has no
+// attempt and no live delivery left to finish it. A retired delivery generation
+// is exactly that case: the channel is gone, so the card has to say so instead
+// of looking like a slow send forever.
+func (s *Store) releaseStalledAnswersLocked() {
+	for i := range s.pending {
+		p := &s.pending[i]
+		// A continued question is answered through the question RPC attempt that
+		// owns its Sending flag, not through this delivery generation.
+		if !p.Sending || p.Continued {
+			continue
+		}
+		if _, inFlight := s.questionRecovery.inFlight[p.EventID]; inFlight {
+			continue
+		}
+		if d := s.eventsDeliveries[p.EventID]; d != nil && s.waiters[p.EventID] == d.waiter {
+			continue
+		}
+		p.Sending, p.Error = false, QuestionDeliveryStopped
+	}
 }
 
 func (s *Store) RetireEventsDelivery(owner *EventsDeliveryOwner) {
