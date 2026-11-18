@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"strings"
+
+	whaleislecomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -57,6 +60,14 @@ func hostNotReadyToast() string {
 }
 
 // saveFailedToast names the action that failed and keeps the Host's reason.
+// revealInFileManager reports a failed reveal instead of leaving the menu click
+// silent. The path is in the message because it is what the user can act on.
+func (s *mainState) revealInFileManager(win *mygo.Window, path string) {
+	if err := whaleislecomponents.OpenInFileManager(path); err != nil {
+		s.notifyUser(win, fmt.Sprintf(i18n.T(i18n.KeyCmdRevealInFileManagerFailed), path))
+	}
+}
+
 func saveFailedToast(action string, err error) string {
 	reason := ""
 	if err != nil {

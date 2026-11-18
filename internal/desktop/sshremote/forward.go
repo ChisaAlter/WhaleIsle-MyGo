@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -197,11 +198,14 @@ func bridgeForwardConnections(ctx context.Context, listener net.Listener, target
 				return
 			}
 			defer remote.Close()
-			done := make(chan struct{}, 2)
-			go func() { _, _ = io.Copy(remote, local); done <- struct{}{} }()
-			go func() { _, _ = io.Copy(local, remote); done <- struct{}{} }()
+			done := make(chan error, 2)
+			go func() { _, err := io.Copy(remote, local); done <- err }()
+			go func() { _, err := io.Copy(local, remote); done <- err }()
 			select {
-			case <-done:
+			case err := <-done:
+				if err != nil && ctx.Err() == nil {
+					log.Printf("ssh forward %s:%d: %v", targetHost, targetPort, err)
+				}
 			case <-ctx.Done():
 			}
 		}(conn)

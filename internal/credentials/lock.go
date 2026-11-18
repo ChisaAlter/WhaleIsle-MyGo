@@ -98,6 +98,10 @@ func withProfileDirLock(dir string, createDir, shared bool, fn func() error) err
 	return fn()
 }
 
+// lockMetadataWrite is replaced in tests to force a metadata write failure;
+// a real filesystem will not fail on demand.
+var lockMetadataWrite = func(f *os.File, data []byte) (int, error) { return f.Write(data) }
+
 func acquireCredentialsLock(dir string) (func(), error) {
 	lockPath := filepath.Join(dir, lockFileName)
 	tokenBytes := make([]byte, 16)
@@ -117,9 +121,22 @@ func acquireCredentialsLock(dir string) (func(), error) {
 				Token:     token,
 				CreatedAt: time.Now().UnixMilli(),
 			})
-			if marshalErr == nil {
-				_, _ = f.Write(append(meta, '\n'))
-				_ = f.Sync()
+			if marshalErr != nil {
+				_ = f.Close()
+				_ = os.Remove(lockPath)
+				return nil, fmt.Errorf("credentials: encode lock metadata: %w", marshalErr)
+			}
+			// A lock file without its PID and token cannot be identified, so a
+			// concurrent instance may treat it as stale and delete a held lock.
+			if _, writeErr := lockMetadataWrite(f, append(meta, '\n')); writeErr != nil {
+				_ = f.Close()
+				_ = os.Remove(lockPath)
+				return nil, fmt.Errorf("credentials: write lock metadata: %w", writeErr)
+			}
+			if syncErr := f.Sync(); syncErr != nil {
+				_ = f.Close()
+				_ = os.Remove(lockPath)
+				return nil, fmt.Errorf("credentials: sync lock metadata: %w", syncErr)
 			}
 			if closeErr := f.Close(); closeErr != nil {
 				_ = os.Remove(lockPath)

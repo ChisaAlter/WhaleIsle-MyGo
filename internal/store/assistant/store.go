@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"whaleisle/internal/store/internal/storefs"
+	"whaleisle/internal/store/storelocale"
 )
 
 const (
@@ -135,7 +136,7 @@ func (s *Store) SetMode(mode Mode) {
 		return
 	}
 	s.mode = mode
-	_ = s.saveModeLocked()
+	s.notePersistFailureLocked(s.saveModeLocked(), storelocale.KeyStoreAssistantModeSaveFailed)
 	s.mu.Unlock()
 	s.fire()
 }
@@ -186,9 +187,21 @@ func (s *Store) AppendTurn(t Turn) {
 	if len(s.history) > MaxHistory {
 		s.history = s.history[:MaxHistory]
 	}
-	_ = s.saveHistoryLocked()
+	s.notePersistFailureLocked(s.saveHistoryLocked(), storelocale.KeyStoreAssistantHistorySaveFailed)
 	s.mu.Unlock()
 	s.fire()
+}
+
+// notePersistFailureLocked records a failed write in the field the panel renders,
+// and clears that note once a later write of the same kind succeeds.
+func (s *Store) notePersistFailureLocked(err error, key string) {
+	if err != nil {
+		s.lastErr = storelocale.T(key)
+		return
+	}
+	if s.lastErr == storelocale.T(key) {
+		s.lastErr = ""
+	}
 }
 
 // PrefixForMode returns the prompt prefix used for session-routed native sends.

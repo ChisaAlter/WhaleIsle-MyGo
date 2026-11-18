@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -118,6 +119,10 @@ func (r genericStoredRecord) MarshalJSON() ([]byte, error) {
 
 type genericRegistryFile struct {
 	Components map[string]genericStoredRecord `json:"components"`
+	// LoadFailure records a registry that exists but could not be parsed and
+	// could not be set aside. Saves refuse to run so an unreadable registry is
+	// never replaced with an empty one.
+	LoadFailure string `json:"-"`
 }
 
 type genericPayloadManifest struct {
@@ -428,6 +433,9 @@ func (s *genericService) ensureLoadedLocked() {
 }
 
 func (s *genericService) saveRegistryLocked() error {
+	if s.reg.LoadFailure != "" {
+		return fmt.Errorf("%s: %s", storelocale.T(storelocale.KeyStoreComponentsRegistryUnreadable), s.reg.LoadFailure)
+	}
 	data, err := json.MarshalIndent(s.reg, "", "  ")
 	if err != nil {
 		return err
@@ -442,6 +450,24 @@ func (s *genericService) recordFor(id string) (genericStoredRecord, bool) {
 	s.ensureLoadedLocked()
 	rec, ok := s.reg.Components[id]
 	return rec, ok
+}
+
+// saveRegistryBackground persists supervisor state on paths with no caller that
+// can act on a failure. The failure is logged with its source so a lost state
+// change is traceable.
+func (s *genericService) saveRegistryBackground(source string) {
+	if err := s.saveRegistryLocked(); err != nil {
+		log.Printf("desktop components: persist registry after %s: %v", source, err)
+	}
+}
+
+// saveRecordBackground persists a component record on a path that already
+// reports a failure. The write failure is logged with the component id instead
+// of replacing the reported error.
+func (s *genericService) saveRecordBackground(rec genericStoredRecord) {
+	if err := s.saveRecord(rec); err != nil {
+		log.Printf("desktop components: persist %s state: %v", rec.ID, err)
+	}
 }
 
 func (s *genericService) saveRecord(rec genericStoredRecord) error {
@@ -543,7 +569,7 @@ func (s *genericService) reconcile() {
 		dirty = true
 	}
 	if dirty {
-		_ = s.saveRegistryLocked()
+		s.saveRegistryBackground("reconcile")
 	}
 }
 
@@ -806,15 +832,18 @@ func (s *genericService) uninstall(id string) GenericResult {
 	versionsRoot := s.versionsDir(id)
 	if !isContainedResolvedPath(s.componentsRoot(), versionsRoot, false) {
 		rec.LastError = "组件目录路径无效，已拒绝删除。"
-		_ = s.saveRecord(rec)
+		s.saveRecordBackground(rec)
 		return GenericResult{OK: false, Error: "remove-failed", Message: rec.LastError}
 	}
 	if err := s.deps.removeAll(versionsRoot); err != nil {
 		rec.LastError = "组件程序文件删除失败，请重试卸载。"
-		_ = s.saveRecord(rec)
+		s.saveRecordBackground(rec)
 		return GenericResult{OK: false, Error: "remove-failed", Message: rec.LastError}
 	}
-	_ = s.deleteRecord(id)
+	if err := s.deleteRecord(id); err != nil {
+		s.emit("uninstall", id, "error", 100, "")
+		return GenericResult{OK: false, Error: "record-save-failed", Message: storelocale.T(storelocale.KeyStoreComponentsUninstallRecordSaveFailed)}
+	}
 	s.emit("uninstall", id, "done", 100, "")
 	return GenericResult{OK: true}
 }
@@ -939,7 +968,7 @@ func (s *genericService) startComponent(id, op string) GenericResult {
 	if !ok {
 		rec.State = "error"
 		rec.LastError = "组件负载缺失（versions 目录被移除或损坏）。"
-		_ = s.saveRecord(rec)
+		s.saveRecordBackground(rec)
 		return GenericResult{OK: false, Error: "payload-missing", State: "error", Message: rec.LastError}
 	}
 
@@ -956,7 +985,7 @@ func (s *genericService) startComponent(id, op string) GenericResult {
 	if err != nil {
 		rec.State = "error"
 		rec.LastError = fmt.Sprintf("启动失败：%v", err)
-		_ = s.saveRecord(rec)
+		s.saveRecordBackground(rec)
 		s.emit(op, id, "error", 100, rec.LastError)
 		return GenericResult{OK: false, Error: "spawn-failed", State: "error", Message: rec.LastError}
 	}
@@ -972,7 +1001,7 @@ func (s *genericService) startComponent(id, op string) GenericResult {
 		} else {
 			rec.LastError = "组件进程启动即退出。"
 		}
-		_ = s.saveRecord(rec)
+		s.saveRecordBackground(rec)
 		s.emit(op, id, "error", 100, rec.LastError)
 		return GenericResult{OK: false, Error: "early-exit", State: "error", Message: rec.LastError}
 	}
@@ -985,7 +1014,7 @@ func (s *genericService) startComponent(id, op string) GenericResult {
 		rec.PID = nil
 		rec.URL = ""
 		rec.LastError = "组件进程在启动就绪等待期间退出。"
-		_ = s.saveRecord(rec)
+		s.saveRecordBackground(rec)
 		return GenericResult{OK: false, Error: "early-exit", State: "error", Message: rec.LastError}
 	}
 
@@ -1141,7 +1170,7 @@ func (s *genericService) superviseChild(id string, proc *genericProc) {
 		rec.URL = ""
 		rec.LastError = fmt.Sprintf("组件进程反复退出（%v），已达重试上限。", err)
 		s.reg.Components[id] = rec
-		_ = s.saveRegistryLocked()
+		s.saveRegistryBackground(id)
 		s.mu.Unlock()
 		s.emit("supervise", id, "error", 100, rec.LastError)
 		return
@@ -1189,7 +1218,7 @@ func (s *genericService) restartSupervised(id string, prev *genericProc, attempt
 			current.State = "error"
 			current.LastError = "组件负载缺失，无法重启。"
 			s.reg.Components[id] = current
-			_ = s.saveRegistryLocked()
+			s.saveRegistryBackground(id)
 		}
 		s.mu.Unlock()
 		return
@@ -1212,7 +1241,7 @@ func (s *genericService) restartSupervised(id string, prev *genericProc, attempt
 			current.URL = ""
 			current.LastError = fmt.Sprintf("组件重启失败：%v", err)
 			s.reg.Components[id] = current
-			_ = s.saveRegistryLocked()
+			s.saveRegistryBackground(id)
 		}
 		s.mu.Unlock()
 		return
@@ -1236,7 +1265,7 @@ func (s *genericService) restartSupervised(id string, prev *genericProc, attempt
 		pid := child.PID()
 		current.PID = &pid
 		s.reg.Components[id] = current
-		_ = s.saveRegistryLocked()
+		s.saveRegistryBackground(id)
 	}
 	s.mu.Unlock()
 	go s.superviseChild(id, next)
@@ -1287,7 +1316,7 @@ func (s *genericService) stopComponent(id, op string) GenericResult {
 				p := pid
 				rec.PID = &p
 				rec.LastError = "组件进程退出尚未确认，请重试停止。"
-				_ = s.saveRecord(rec)
+				s.saveRecordBackground(rec)
 				return GenericResult{OK: false, Error: "stop-unconfirmed", State: "running", Message: rec.LastError}
 			}
 		}
@@ -1302,7 +1331,9 @@ func (s *genericService) stopComponent(id, op string) GenericResult {
 	rec.PID = nil
 	rec.URL = ""
 	rec.LastError = ""
-	_ = s.saveRecord(rec)
+	if err := s.saveRecord(rec); err != nil {
+		return GenericResult{OK: false, Error: "record-save-failed", State: "stopped", Message: storelocale.T(storelocale.KeyStoreComponentsStopRecordSaveFailed)}
+	}
 	return GenericResult{OK: true, State: "stopped"}
 }
 
@@ -1592,8 +1623,12 @@ func loadGenericRegistry(file string) genericRegistryFile {
 		return out
 	}
 	var parsed genericRegistryFile
-	if json.Unmarshal(raw, &parsed) != nil {
-		_ = os.Rename(file, file+".broken")
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		if renameErr := os.Rename(file, file+".broken"); renameErr != nil {
+			// The corrupt file stays where it is and saves are refused, so the
+			// unreadable record is never replaced by an empty registry.
+			out.LoadFailure = err.Error()
+		}
 		return out
 	}
 	for id, rec := range parsed.Components {

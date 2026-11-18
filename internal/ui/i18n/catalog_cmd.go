@@ -220,6 +220,7 @@ const (
 	KeyCmdOpenTheDownloadPage                    = "cmd.open_the_download_page"
 	KeyCmdAutoAllowTools                         = "cmd.auto_allow_tools"
 	KeyCmdCouldNotOpenInstalledApps              = "cmd.could_not_open_installed_apps"
+	KeyCmdRevealInFileManagerFailed              = "cmd.reveal_in_file_manager_failed"
 	KeyCmdOpenWindowsSettingsAppsInstalledAppsMa = "cmd.open_windows_settings_apps_installed_apps_ma"
 	KeyCmdNoVerifiedUninstallerFound             = "cmd.no_verified_uninstaller_found"
 	KeyCmdThisMayBeAPortableSourceBuildOrAnIn    = "cmd.this_may_be_a_portable_source_build_or_an_in"
@@ -542,6 +543,7 @@ func init() {
 	Register(KeyCmdOpenTheDownloadPage, "打开下载页", "Open the download page")
 	Register(KeyCmdAutoAllowTools, "自动允许工具", "Auto-allow tools")
 	Register(KeyCmdCouldNotOpenInstalledApps, "无法打开已安装应用", "Could not open Installed apps")
+	Register(KeyCmdRevealInFileManagerFailed, "无法打开文件管理器：%s", "Could not open the file manager: %s")
 	Register(KeyCmdOpenWindowsSettingsAppsInstalledAppsMa, "请手动进入 Windows 设置 → 应用 → 已安装应用，核对应用后再自行卸载。当前应用和安装状态未更改。", "Open Windows Settings > Apps > Installed apps manually, check the application, then uninstall it there. The current app and installation state are unchanged.")
 	Register(KeyCmdNoVerifiedUninstallerFound, "未检测到可安全启动的卸载器", "No verified uninstaller found")
 	Register(KeyCmdThisMayBeAPortableSourceBuildOrAnIn, "当前程序可能为便携版、源码构建或没有新版原生安装标记。未启动任何卸载器。请使用“已安装应用”并核对安装位置。", "This may be a portable/source build or an installation without the native marker. No uninstaller was started. Use Installed apps and check the installation location.")

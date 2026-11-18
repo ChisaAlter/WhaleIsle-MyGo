@@ -26,9 +26,9 @@ type AboutAccess struct {
 	Identifier                          string
 	UserData                            string
 	VendorRoot                          string
-	OnRevealUserData                    func()
-	OnRevealLogs                        func()
-	OnRevealVendor                      func()
+	OnRevealUserData                    func() error
+	OnRevealLogs                        func() error
+	OnRevealVendor                      func() error
 	OnCheckUpdates                      func()
 	OnCopyUserData                      func()
 	OnCopyVersion                       func()
@@ -162,7 +162,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return credentials.StorageStatus{Mode: "unknown"}
 	})
 	linkError := ui.Local(anchor, "error", func() string { return "" })
-	homeResult := ui.Local(anchor, "home-result", func() string { return "" })
+	revealResult := ui.Local(anchor, "home-result", func() string { return "" })
 	meta := func(text string) {
 		ui.Text(c, text).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 	}
@@ -203,15 +203,15 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						folder.AlignSelf(ui.Start)
 						if folder.Clicked() {
 							if err := a.OnRevealHome(); err != nil {
-								*homeResult = err.Error()
+								*revealResult = err.Error()
 							} else {
-								*homeResult = ""
+								*revealResult = ""
 							}
 						}
 					})
 				}
-				if *homeResult != "" {
-					meta(*homeResult)
+				if *revealResult != "" {
+					meta(*revealResult)
 				}
 				link(links[0])
 			})
@@ -241,12 +241,25 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			}
 			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 				for _, action := range []struct {
-					label string
-					run   func()
-				}{{i18n.T(i18n.KeySettingsAboutRevealData), a.OnRevealUserData}, {i18n.T(i18n.KeySettingsAboutRevealLogs), a.OnRevealLogs}, {i18n.T(i18n.KeySettingsAboutRevealVendor), a.OnRevealVendor}, {i18n.T(i18n.KeySettingsAboutCopyData), a.OnCopyUserData}, {i18n.T(i18n.KeySettingsRefresh), a.OnRefreshAnalytics}} {
-					if action.run != nil && ui.Button(c, action.label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
-						action.run()
+					label  string
+					run    func()
+					reveal func() error
+				}{{i18n.T(i18n.KeySettingsAboutRevealData), nil, a.OnRevealUserData}, {i18n.T(i18n.KeySettingsAboutRevealLogs), nil, a.OnRevealLogs}, {i18n.T(i18n.KeySettingsAboutRevealVendor), nil, a.OnRevealVendor}, {i18n.T(i18n.KeySettingsAboutCopyData), a.OnCopyUserData, nil}, {i18n.T(i18n.KeySettingsRefresh), a.OnRefreshAnalytics, nil}} {
+					if action.run == nil && action.reveal == nil {
+						continue
 					}
+					if !ui.Button(c, action.label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+						continue
+					}
+					if action.reveal != nil {
+						if err := action.reveal(); err != nil {
+							*revealResult = err.Error()
+						} else {
+							*revealResult = ""
+						}
+						continue
+					}
+					action.run()
 				}
 			})
 			if hasDesktopDiagnostics(m.Desktop) {

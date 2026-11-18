@@ -153,6 +153,14 @@ func (s *Service) BindProactiveRunner(ctx context.Context, client *dsh.Client) {
 	}
 }
 
+// pauseOutboxEntry bounds one approval pause with its own timeout, so the cancel
+// runs when that entry is done instead of when the whole decision returns.
+func pauseOutboxEntry(pause func(context.Context, string) error, taskID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return pause(ctx, taskID)
+}
+
 // StopProactiveRunner closes any active Host-bound proactive runner.
 func (s *Service) StopProactiveRunner() {
 	s.BindProactiveRunner(context.Background(), nil)
@@ -388,9 +396,7 @@ func (s *Service) ProactiveModel() assistantui.ProactiveModel {
 						if p.runner == nil {
 							return "", errors.New(whaleTaskText("连接原 Host 并停止执行后再决定。", "Connect the original Host and stop execution before deciding."))
 						}
-						ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-						defer cancel()
-						if err := p.runner.PauseForApproval(ctx, a.TaskID); err != nil {
+						if err := pauseOutboxEntry(p.runner.PauseForApproval, a.TaskID); err != nil {
 							return "", err
 						}
 					}
