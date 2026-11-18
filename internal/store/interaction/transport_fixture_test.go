@@ -3,6 +3,7 @@ package interaction
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -107,7 +108,19 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	// to time one that is fast: a genuine block does not clear at six seconds,
 	// while a few seconds of CI scheduler starvation does, and the dump below
 	// names which one happened.
+	// The goroutine dump alone was not enough to explain a timeout: an
+	// occurrence on CI showed an otherwise idle process, with no reader left and
+	// no lock held, which means the awaited state could not arrive at any price
+	// rather than arrive late. Report the state the step waits on as well.
 	steps := 0
+	state := func() string {
+		snap := s.Snapshot()
+		out := fmt.Sprintf("pending=%d status=%q", len(snap.Pending), snap.QuestionStatus)
+		if len(snap.Pending) > 0 {
+			out += fmt.Sprintf(" sending=%v error=%q", snap.Pending[0].Sending, snap.Pending[0].Error)
+		}
+		return out
+	}
 	wait := func(check func() bool) {
 		t.Helper()
 		steps++
@@ -115,7 +128,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 			select {
 			case <-ctx.Done():
 				buf := make([]byte, 1<<20)
-				t.Fatalf("fixture timed out at step %d\n%s", steps, buf[:runtime.Stack(buf, true)])
+				t.Fatalf("fixture timed out at step %d (%s)\n%s", steps, state(), buf[:runtime.Stack(buf, true)])
 			case <-time.After(time.Millisecond):
 			}
 		}
