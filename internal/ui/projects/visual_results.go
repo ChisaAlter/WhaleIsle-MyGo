@@ -57,9 +57,6 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 				state.Close()
 				return
 			}
-			if state.Loading {
-				ui.Text(c, tr("正在打开页面…", "Opening page…")).FontSize(theme.InterfaceSize(12))
-			}
 			if state.Error != "" {
 				ui.Text(c, state.Error).FontSize(theme.InterfaceSize(12)).Selectable()
 			}
@@ -79,7 +76,12 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 				if state.CapturedHeight < state.ContentHeight {
 					ui.Text(c, tr("页面较长，预览未包含底部内容。", "The page is longer than this preview; the bottom is not shown.")).FontSize(theme.InterfaceSize(12))
 				}
+				return
 			}
+			// Nothing has arrived yet: hold the preview's final height so the
+			// conversation below does not jump when the page does. Loading copy
+			// belongs in an overlay, not in the page flow.
+			ui.Column(c).FillWidth().Height(float32(max(80, min(2000, page.Height))))
 		})
 	}
 }
