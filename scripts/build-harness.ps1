@@ -30,7 +30,8 @@ param(
     [string]$SourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770',
     [string]$NodeDir = $env:WHALEISLE_NODE_DIR,
     [switch]$UnifiedShortcuts,
-    [switch]$BuildOnly
+    [switch]$BuildOnly,
+    [switch]$WithoutPaidAPIs
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'env.ps1')
@@ -104,6 +105,14 @@ foreach ($name in @('deepseek-harness', 'dsh-usage-panel', 'dsh-im', 'dshbot', '
         Copy-Item $source $target -Recurse -Force
     }
 }
+# Tracked third-party desktop plugins this stage must carry. A source that cannot
+# be read stops the stage: a runtime that silently lacks the plugin boots fine and
+# hides the gap. Builds that deliberately ship without paid application APIs pass
+# -WithoutPaidAPIs instead of dropping the copy by hand.
+$thirdParty = @((Join-Path $PSScriptRoot 'stage-third-party-plugins.mjs'), $VendorDir)
+if ($WithoutPaidAPIs) { $thirdParty += '--without=dsh-deepseek-tools' }
+& node @thirdParty
+if ($LASTEXITCODE -ne 0) { throw 'Third-party desktop plugin staging failed.' }
 # Node.js 24 toolchain location (prefer explicit NodeDir / WHALEISLE_NODE_DIR, then runtime/node, then PATH).
 $savedPath = $env:PATH
 $savedCommitHash = $env:DSH_CLIENT_COMMIT_HASH
