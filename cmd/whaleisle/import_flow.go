@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -61,7 +62,7 @@ func (s *mainState) startImport(win *mygo.Window) {
 	release := func() { s.mu.Lock(); s.launcherImportBusy = false; s.mu.Unlock(); refresh() }
 	if err := importer.ValidateRoots(cat.SourceHome, cat.DestHome); err != nil {
 		s.mu.Lock()
-		s.launcherImport = err.Error()
+		s.launcherImport = errcopy.Sentence(err)
 		s.mu.Unlock()
 		release()
 		return
@@ -144,14 +145,14 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 		} else if errors.Is(err, context.Canceled) || errors.Is(err, taskcontrol.ErrCancelled) {
 			result.Message = i18n.T(i18n.KeyCmdImportCancelledNoImportDataWasWritten)
 		} else {
-			result.Message = i18n.T(i18n.KeyCmdImportDidNotStart) + err.Error()
+			result.Message = i18n.T(i18n.KeyCmdImportDidNotStart) + errcopy.Sentence(err)
 		}
 		s.mu.Lock()
 		s.launcherImport = result.Message
 		s.launcherImportJournal = result.Journal
 		if err != nil && result.Message == "" {
-			s.launcherImport = err.Error()
-			s.launcherImportJournal = []string{err.Error()}
+			s.launcherImport = errcopy.Sentence(err)
+			s.launcherImportJournal = []string{errcopy.Sentence(err)}
 		}
 		if kernelStopped {
 			s.launcherImport += i18n.T(i18n.KeyCmdTheRuntimeRemainsStoppedStartItManuall)

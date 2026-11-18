@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/mediapreview"
@@ -132,7 +133,7 @@ func (s *mainState) refreshFileOpenWith(win *mygo.Window, o fileOpenWithOwner, f
 	if err != nil {
 		s.mu.Lock()
 		if s.fileOpenWithOwner == o {
-			s.fileOpenWithState = files.OpenWithState{Error: err.Error()}
+			s.fileOpenWithState = files.OpenWithState{Error: errcopy.Sentence(err)}
 		}
 		s.mu.Unlock()
 		return
@@ -157,7 +158,7 @@ func (s *mainState) refreshFileOpenWith(win *mygo.Window, o fileOpenWithOwner, f
 			defer s.mu.Unlock()
 			s.fileOpenWithState = files.OpenWithState{}
 			if err != nil {
-				s.fileOpenWithState.Error = err.Error()
+				s.fileOpenWithState.Error = errcopy.Sentence(err)
 				return
 			}
 			for _, a := range apps {
@@ -202,7 +203,7 @@ func (s *mainState) openWorkspacePathWithOwner(o fileOpenWithOwner, path, app st
 			return
 		}
 		if err != nil {
-			o.sessions.SetLastAction(err.Error())
+			o.sessions.SetLastAction(errcopy.Sentence(err))
 		} else if !out.Opened {
 			o.sessions.SetLastAction(resumeText("未能使用所选应用打开文件。", "The selected application could not open the file."))
 		}

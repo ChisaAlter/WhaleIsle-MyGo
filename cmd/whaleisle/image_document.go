@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/desktop/imagepreview"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -52,7 +53,7 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 				s.filesPaneOpen = true
 				s.rightPaneTab = "files"
 				s.mu.Unlock()
-				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdImageSnapshotFailed), err.Error()))
+				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdImageSnapshotFailed), errcopy.Sentence(err)))
 				return
 			}
 			s.navigateMainRoute(routeBrowser)

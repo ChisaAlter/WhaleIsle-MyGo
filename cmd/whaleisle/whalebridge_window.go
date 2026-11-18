@@ -179,7 +179,7 @@ func (s *mainState) openWhaleBridgeWindow(parent *mygo.Window, accounts bool) {
 		s.mu.Unlock()
 	})
 	if err := pg.LoadURL(target); err != nil {
-		report("load", err.Error())
+		report("load", err.Error()) // raw-ok: bridge diagnostic report, not copy
 		win.Show()
 	}
 }

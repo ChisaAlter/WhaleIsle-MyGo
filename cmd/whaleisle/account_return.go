@@ -7,6 +7,7 @@ import (
 	"strings"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/i18n"
@@ -56,7 +57,7 @@ func (s *mainState) reportAccountAction(err error) {
 	s.mu.Lock()
 	s.accountReturn.err = ""
 	if err != nil {
-		s.accountReturn.err = err.Error()
+		s.accountReturn.err = errcopy.Sentence(err)
 	}
 	win := s.win
 	s.mu.Unlock()
@@ -103,7 +104,7 @@ func (s *mainState) cancelAccountSignIn(client *dsh.Client, attemptID string, us
 		}
 		if err != nil {
 			err = fmt.Errorf("%s: %w", i18n.T(i18n.KeyCmdCouldNotCancelSignIn), err)
-			s.accountLogin.CancelFailed(err.Error())
+			s.accountLogin.CancelFailed(errcopy.Sentence(err))
 		} else {
 			s.accountLogin.Finish()
 		}

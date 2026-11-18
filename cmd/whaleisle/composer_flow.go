@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
@@ -112,7 +113,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	if isRoom && editSeq == 0 {
 		thread, body, claimed, err := session.ParseGroupThreadReply(text)
 		if err != nil {
-			d.Error = err.Error()
+			d.Error = errcopy.Sentence(err)
 			return
 		}
 		if claimed {
@@ -122,7 +123,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			}
 			text, err = session.EncodeGroupThreadReply(thread, body)
 			if err != nil {
-				d.Error = err.Error()
+				d.Error = errcopy.Sentence(err)
 				return
 			}
 			groupReply = true
@@ -138,7 +139,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	}
 	owner, captureErr := sessions.CaptureComposerGestureTarget(sourceID, id, hostGeneration, accelerated, preferences.BusyEnterFor)
 	if captureErr != nil {
-		d.Error = captureErr.Error()
+		d.Error = errcopy.Sentence(captureErr)
 		return
 	}
 	if groupReply {
@@ -209,7 +210,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 				if errors.Is(err, context.DeadlineExceeded) {
 					d.Error = i18n.T(i18n.KeyCmdComposerSendTimeout)
 				} else {
-					d.Error = err.Error()
+					d.Error = errcopy.Sentence(err)
 				}
 				if flightID == 0 {
 					d.Attachments = attachments

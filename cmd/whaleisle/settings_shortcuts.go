@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -217,7 +218,7 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 		s.shortcutEditor.SetDescribe(func(id, raw string) string {
 			binding, err := shortcuts.SharedBinding(raw)
 			if err != nil {
-				return err.Error()
+				return errcopy.Sentence(err)
 			}
 			issue, conflicts := prefs.Describe("native", shortcuts.CanonicalID(id), binding)
 			if issue != "" {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/egoist/mygo"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 )
@@ -43,7 +44,7 @@ func (s *mainState) openNoDirectory(win *mygo.Window, sessions *session.Store, d
 		}
 		win.Update(func() {
 			if err != nil && op.current() {
-				draft.Error = err.Error()
+				draft.Error = errcopy.Sentence(err)
 			}
 			if op.finish(id, err) {
 				// No status on success: the conversation is the feedback.

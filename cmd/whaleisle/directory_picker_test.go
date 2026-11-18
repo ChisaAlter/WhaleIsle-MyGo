@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
@@ -264,7 +266,7 @@ func TestDirectoryPickerListingFailureAndCreateNavigation(t *testing.T) {
 	s.requestDirectoryPicker(sessions, nil, "/denied", "")
 	awaitDirectoryPicker(t, settled)
 	s.mu.Lock()
-	if !s.dirPickOpen || !strings.Contains(s.dirPickErr, "directory access denied") || s.dirPickListing.Path != "/home" {
+	if !s.dirPickOpen || s.dirPickErr != errcopy.Sentence(errors.New("directory access denied")) || strings.Contains(s.dirPickErr, "directory access denied") || s.dirPickListing.Path != "/home" {
 		t.Fatalf("failed navigation lost previous listing or error: %+v %s", s.dirPickListing, s.dirPickErr)
 	}
 	s.mu.Unlock()

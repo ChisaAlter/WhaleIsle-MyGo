@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/whale"
 	"whaleisle/internal/harness"
@@ -62,7 +63,7 @@ func (s *mainState) requestWhaleCatalog(ep harness.Endpoint, force bool) {
 	client, err := whale.New(ep.Origin, ep.Cookie)
 	if err != nil {
 		st.mu.Lock()
-		st.loading, st.key, st.err = false, key, err.Error()
+		st.loading, st.key, st.err = false, key, errcopy.Sentence(err)
 		st.mu.Unlock()
 		return
 	}
@@ -77,7 +78,7 @@ func (s *mainState) requestWhaleCatalog(ep harness.Endpoint, force bool) {
 		case live.Origin != "" && key != whaleHostKey(live):
 			// A different Host answered while this call was in flight; drop it.
 		case callErr != nil:
-			st.key, st.snap, st.err = key, nil, callErr.Error()
+			st.key, st.snap, st.err = key, nil, errcopy.Sentence(callErr)
 		default:
 			st.key, st.snap, st.err = key, &catalog, ""
 		}
@@ -106,7 +107,7 @@ func (s *mainState) runWhaleMutation(ep harness.Endpoint, apply func(context.Con
 		if callErr := apply(ctx, client); callErr != nil {
 			st := &s.whaleCatalog
 			st.mu.Lock()
-			st.key, st.err = whaleHostKey(ep), callErr.Error()
+			st.key, st.err = whaleHostKey(ep), errcopy.Sentence(callErr)
 			st.mu.Unlock()
 			s.refreshWhaleSettingsUI()
 			return

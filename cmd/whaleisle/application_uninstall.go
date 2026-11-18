@@ -2,6 +2,7 @@ package main
 
 import (
 	"runtime"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -19,7 +20,7 @@ func (s *mainState) withApplicationUninstall(win *mygo.Window, m launcher.Model)
 		// Fixed OS URI through MyGo's native ShellExecuteW path, never a command
 		// interpreter or an installation/registry-derived executable.
 		if err := appuninstall.OpenInstalledApps(runtime.GOOS, mygo.Shell.OpenExternal); err != nil {
-			s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdCouldNotOpenInstalledApps), Body: i18n.T(i18n.KeyCmdOpenWindowsSettingsAppsInstalledAppsMa) + "\n\n" + err.Error(), ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
+			s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdCouldNotOpenInstalledApps), Body: i18n.T(i18n.KeyCmdOpenWindowsSettingsAppsInstalledAppsMa) + "\n\n" + errcopy.Sentence(err), ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
 		}
 	}
 	return m
@@ -47,7 +48,7 @@ func (s *mainState) uninstallCurrentApplication(win *mygo.Window) {
 		}()
 		plan, err := appuninstall.DetectCurrent()
 		if err != nil {
-			s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdNoVerifiedUninstallerFound), Body: i18n.T(i18n.KeyCmdThisMayBeAPortableSourceBuildOrAnIn) + "\n\n" + err.Error(), ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
+			s.askConfirm(confirmAskRequest{Owner: win, Title: i18n.T(i18n.KeyCmdNoVerifiedUninstallerFound), Body: i18n.T(i18n.KeyCmdThisMayBeAPortableSourceBuildOrAnIn) + "\n\n" + errcopy.Sentence(err), ConfirmLabel: i18n.T(i18n.KeyCmdOk), CancelLabel: i18n.T(i18n.KeyCmdClose)})
 			return
 		}
 		approved := s.askConfirmBlocking(confirmAskRequest{

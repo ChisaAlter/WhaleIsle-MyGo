@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -786,5 +787,5 @@ func directoryFailureText(err error) string {
 	if errors.As(err, &remote) && remote.Message != "" {
 		return remote.Message
 	}
-	return err.Error()
+	return errcopy.Sentence(err)
 }

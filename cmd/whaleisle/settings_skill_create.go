@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/store/session"
@@ -57,7 +58,7 @@ func (s *mainState) openSettingsSkillCreate() {
 		var err error
 		state.target, err = state.source.SkillInventoryTarget(state.draft.Root)
 		if err != nil {
-			state.err = err.Error()
+			state.err = errcopy.Sentence(err)
 		}
 	}
 	s.settingsSkillCreate = state
@@ -135,7 +136,7 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 		s.settingsSkillCreate.busy = false
 		s.settingsSkillCreate.cancel = nil
 		if err != nil {
-			s.settingsSkillCreate.err = err.Error()
+			s.settingsSkillCreate.err = errcopy.Sentence(err)
 		} else {
 			s.invalidateSettingsSkillCreateLocked()
 			s.settingsSkillsLastAction = fmt.Sprintf(i18n.T(i18n.KeyCmdSkillCreated), draft.Name)

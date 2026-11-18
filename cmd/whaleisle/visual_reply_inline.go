@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/previewprocess"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -140,7 +141,7 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 	inlinePages.Lock()
 	page.state.Loading = false
 	if err != nil {
-		page.state.Error = err.Error()
+		page.state.Error = errcopy.Sentence(err)
 		page.retryable = session.VisualReplyRetryable(err)
 	} else {
 		page.handle = surface
@@ -231,7 +232,7 @@ done:
 	}
 	page.state.Surface = nil
 	page.handle = nil
-	page.state.Error = err.Error()
+	page.state.Error = errcopy.Sentence(err)
 	page.retryable = session.VisualReplyRetryable(err)
 	inlinePages.Unlock()
 	win.Update(func() {})

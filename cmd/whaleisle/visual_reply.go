@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -52,7 +53,7 @@ func savePublishedHTML(win *mygo.Window, s *session.Store, sessionID, attachment
 	}
 	target, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdSavePublishedHtml), DefaultPath: name})
 	if err != nil {
-		mygo.Dialog.Error(i18n.T(i18n.KeyCmdSavePublishedHtml), err.Error())
+		mygo.Dialog.Error(i18n.T(i18n.KeyCmdSavePublishedHtml), errcopy.Sentence(err))
 		return
 	}
 	if target == "" {
@@ -64,7 +65,7 @@ func savePublishedHTML(win *mygo.Window, s *session.Store, sessionID, attachment
 		return
 	}
 	if err = os.WriteFile(target, []byte(page.HTML), 0600); err != nil {
-		mygo.Dialog.Error(i18n.T(i18n.KeyCmdSavePublishedHtml), err.Error())
+		mygo.Dialog.Error(i18n.T(i18n.KeyCmdSavePublishedHtml), errcopy.Sentence(err))
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/egoist/mygo"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/i18n"
@@ -46,7 +47,7 @@ func (s *mainState) nativeComposerCommandAction(win *mygo.Window, sessions *sess
 			return false
 		}
 		if err != nil {
-			draft.Error = err.Error()
+			draft.Error = errcopy.Sentence(err)
 			return true
 		}
 		s.addComposerFiles(win, sessions, sourceID, draft, paths)

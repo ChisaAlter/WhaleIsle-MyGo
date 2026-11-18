@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/networkstatus"
 	"whaleisle/internal/dsh"
@@ -126,7 +127,7 @@ func (a *connectionAttemptState) bootstrap(err error) {
 	a.state.dshMuxLost = err != nil || a.state.dshNetworkOffline
 	a.state.dshBootstrapError = ""
 	if err != nil {
-		a.state.dshBootstrapError = err.Error()
+		a.state.dshBootstrapError = errcopy.Sentence(err)
 	}
 	a.state.mu.Unlock()
 	a.state.dshMu.Unlock()

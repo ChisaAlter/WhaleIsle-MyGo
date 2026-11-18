@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
@@ -49,7 +50,7 @@ func installImportPlugin(ctx context.Context, spec string, run func([]string) in
 	seenBuilds := map[string]bool{}
 	for {
 		if err := ctx.Err(); err != nil {
-			return importer.PluginInstallResult{Error: err.Error(), Log: strings.Join(logs, "\n")}
+			return importer.PluginInstallResult{Error: errcopy.Sentence(err), Log: strings.Join(logs, "\n")}
 		}
 		result := run(append([]string(nil), approved...))
 		if result.Log != "" {
@@ -60,7 +61,7 @@ func installImportPlugin(ctx context.Context, spec string, run func([]string) in
 			return out
 		}
 		if err := ctx.Err(); err != nil {
-			out.Error = err.Error()
+			out.Error = errcopy.Sentence(err)
 			return out
 		}
 		builds := installctrl.NormalizeAllowBuilds(result.AllowBuilds)

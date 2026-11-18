@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 
@@ -66,7 +67,7 @@ func (s *mainState) runGitCommitMessageGeneration(win *mygo.Window, root string)
 		s.mu.Lock()
 		s.gitCommitGenerating = false
 		if err != nil {
-			s.gitCommitGenErr = err.Error()
+			s.gitCommitGenErr = errcopy.Sentence(err)
 		} else if text := strings.TrimSpace(generated.Text()); text != "" {
 			s.gitCommitGenPending = &text
 			s.gitCommitGenErr = ""

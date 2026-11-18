@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -119,7 +120,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 						g, e := desktopgit.GeneratePullRequestContent(q.ctx, q.root)
 						return func() {
 							if e != nil {
-								q.message = e.Error()
+								q.message = errcopy.Sentence(e)
 							} else {
 								q.candidate = &g
 								q.message = i18n.T(i18n.KeyCmdCandidateNotYetApplied)
@@ -148,7 +149,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 						}
 						return func() {
 							if e != nil {
-								q.message = e.Error()
+								q.message = errcopy.Sentence(e)
 							} else {
 								q.plan = &p
 								q.message = i18n.T(i18n.KeyCmdReviewTheExactContentBelow)
@@ -171,7 +172,7 @@ func (q *phonePRReview) view(c *ui.Context) {
 							result, e := desktopgit.CreatePullRequestReviewed(q.ctx, q.root, p, "")
 							return func() {
 								if e != nil {
-									q.message = e.Error()
+									q.message = errcopy.Sentence(e)
 									if result.Uncertain {
 										q.message += i18n.T(i18n.KeyCmdOutcomeUncertainCheckExistingPrBefo)
 									}

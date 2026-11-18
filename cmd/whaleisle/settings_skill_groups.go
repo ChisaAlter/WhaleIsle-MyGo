@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/settings"
@@ -26,6 +27,6 @@ func (s *mainState) setVisibleSkillGroupInvocation(source *session.Store, catalo
 		}
 	}
 	if err := source.SetVisibleSkillGroupInvocation(context.Background(), catalog, members, enabled); err != nil {
-		source.SetLastAction(err.Error())
+		source.SetLastAction(errcopy.Sentence(err))
 	}
 }

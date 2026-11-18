@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -28,7 +29,7 @@ func (s *mainState) openCustomPanels(userData string) {
 	defer s.mu.Unlock()
 	s.customPanels.Store = store
 	if err != nil {
-		s.customPanels.OpenError = err.Error()
+		s.customPanels.OpenError = errcopy.Sentence(err)
 	}
 }
 func customPanelBotScope(hostScope, origin, sid string, roster dshbotstore.Snapshot) (panel.Scope, string) {
@@ -98,7 +99,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			editor.Error = ""
 			editor.Notice = ""
 			if err != nil {
-				editor.Error = err.Error()
+				editor.Error = errcopy.Sentence(err)
 			} else {
 				editor.Notice = notice
 			}

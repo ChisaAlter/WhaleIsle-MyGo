@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"whaleisle/internal/store/session"
@@ -52,7 +53,7 @@ func (s *mainState) inspectSettingsSkill(name string) {
 	target, err := source.CaptureCatalogSkillEdit(strings.TrimSpace(name))
 	if err != nil {
 		s.mu.Lock()
-		s.settingsSkillsDetail = err.Error()
+		s.settingsSkillsDetail = errcopy.Sentence(err)
 		s.mu.Unlock()
 		if win != nil {
 			win.Update(func() {})
@@ -72,7 +73,7 @@ func (s *mainState) inspectSettingsSkill(name string) {
 			return
 		}
 		if err != nil {
-			s.settingsSkillsDetail = err.Error()
+			s.settingsSkillsDetail = errcopy.Sentence(err)
 		} else {
 			fields := loaded.Fields()
 			s.settingsSkillEditTarget = loaded
@@ -126,7 +127,7 @@ func (s *mainState) reloadSettingsSkillEdit() {
 		}
 		s.settingsSkillEditorSaving = false
 		if err != nil {
-			s.settingsSkillsLastAction = err.Error()
+			s.settingsSkillsLastAction = errcopy.Sentence(err)
 		} else {
 			s.settingsSkillEditTarget = loaded
 			fields := loaded.Fields()
@@ -170,7 +171,7 @@ func (s *mainState) saveSettingsSkillEdit() {
 			return
 		}
 		if err != nil {
-			s.settingsSkillsLastAction = err.Error()
+			s.settingsSkillsLastAction = errcopy.Sentence(err)
 		} else {
 			s.settingsSkillsLastAction = fmt.Sprintf(i18n.T(i18n.KeyCmdSkillSaved), s.settingsSkillEditName)
 			s.settingsSkillEditWritable = false

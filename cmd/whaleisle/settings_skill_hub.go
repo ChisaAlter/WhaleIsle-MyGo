@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
@@ -97,7 +98,7 @@ func (s *mainState) openSettingsSkillHub() {
 		var err error
 		hub.target, err = hub.source.SkillInventoryTarget(s.settingsSkillRoot)
 		if err != nil {
-			hub.err = err.Error()
+			hub.err = errcopy.Sentence(err)
 			// Keep the selector usable if a former project target has no cwd.
 			hub.target, _ = hub.source.SkillInventoryTarget(session.SkillRootUser)
 		}
@@ -130,7 +131,7 @@ func (s *mainState) selectSettingsSkillHubRoot(root string) {
 	}
 	target, err := s.sessions.SkillInventoryTarget(root)
 	if err != nil {
-		s.settingsSkillHub.err = err.Error()
+		s.settingsSkillHub.err = errcopy.Sentence(err)
 	} else if target != s.settingsSkillHub.target || s.settingsSkillRoot != target.Root {
 		open := s.settingsSkillHub.open
 		s.invalidateSettingsSkillHubLocked()
@@ -181,7 +182,7 @@ func (s *mainState) searchSettingsSkillHub(query string) {
 		} else {
 			s.settingsSkillHub.searching, s.settingsSkillHub.cancel = false, nil
 			if err != nil {
-				s.settingsSkillHub.err = err.Error()
+				s.settingsSkillHub.err = errcopy.Sentence(err)
 			} else {
 				hits := make([]settings.SkillHubHit, 0, len(out))
 				for _, item := range out {
@@ -271,7 +272,7 @@ func (s *mainState) confirmSettingsSkillHubInstall() {
 		} else {
 			s.settingsSkillHub.installing, s.settingsSkillHub.cancel = false, nil
 			if err != nil {
-				s.settingsSkillHub.err = err.Error()
+				s.settingsSkillHub.err = errcopy.Sentence(err)
 			} else {
 				s.settingsSkillHub.confirm = nil
 				s.settingsSkillsLastAction = message

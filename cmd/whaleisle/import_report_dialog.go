@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -13,7 +14,7 @@ func (s *mainState) showElectronImportReportNative(win *mygo.Window) {
 		report, err := importer.ImportReport(importer.ElectronUserDataDir())
 		message := importer.FormatReport(report)
 		if err != nil {
-			message = err.Error()
+			message = errcopy.Sentence(err)
 		}
 		if win == nil || win.IsDestroyed() {
 			return

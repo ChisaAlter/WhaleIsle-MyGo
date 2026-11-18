@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 
@@ -316,7 +317,7 @@ func (s *mainState) loadCredentialsDraftAsync(ctx context.Context, gen uint64, d
 		return
 	}
 	if err != nil {
-		s.credsSaveErr = err.Error()
+		s.credsSaveErr = errcopy.Sentence(err)
 		s.credsDraft.loadFailed = true
 	} else {
 		s.credsDraft = credentialDraftFromEditor(editor)
