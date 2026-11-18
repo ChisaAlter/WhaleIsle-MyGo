@@ -112,7 +112,6 @@ jobs:
             ./internal/store/usage \
             ./internal/errcopy \
             ./internal/ui/browserpreview \
-            ./internal/ui/frame \
             ./internal/ui/interaction \
             ./internal/ui/layoutstability \
             ./internal/jobflow \
@@ -180,8 +179,17 @@ jobs:
         # only compiled (preview-native-build.yml runs go build,
         # voice-native-build.yml runs go test -c), so this is the first job that
         # executes their tests at all.
+        # internal/ui/frame belongs here for the same reason: it asserts the
+        # desktop shortcut model. On the fallback (non-desktop) grammar
+        # TestDSK10ReboundCommandsKeepInputOwnership fails at
+        # shortcut_preferences_test.go:80 because page.close binds Mod+W, which
+        # that grammar reserves for system and text-editing actions. The
+        # shortcuts package's own tests already skip under the fallback grammar
+        # for exactly these Mod+B/Mod+W defaults, so this is a known platform
+        # boundary rather than a defect introduced by running it.
         run: |
           go test -count=1 \
+            ./internal/ui/frame \
             ./internal/desktop/previewprocess \
             ./internal/desktop/sshremote \
             ./internal/desktop/importer \
