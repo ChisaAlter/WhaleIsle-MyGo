@@ -2,6 +2,7 @@ package settings
 
 import (
 	"encoding/json"
+	"errors"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -212,4 +213,36 @@ func containsOverride(text string) bool {
 		}
 	}
 	return false
+}
+
+// TestMinimalModeFailureIsASentenceNotRawText pins the package's copy rule on
+// the row this lane added: a refused write shows the shared classifier's
+// sentence, and the transport's own words never reach the page.
+func TestMinimalModeFailureIsASentenceNotRawText(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	defer i18n.SetLocale(old)
+	renderpolicy.SetMinimal(false)
+	defer renderpolicy.SetMinimal(false)
+
+	f := newMinimalModeFixture(t)
+	f.access.Minimal.OnToggle = func(bool) error {
+		return errors.New("rpc error: code = Unavailable desc = dial tcp 10.0.0.1:443: connect: connection refused")
+	}
+	tt := f.frame()
+	if err := tt.Click("开启极简模式"); err != nil {
+		t.Fatalf("the switch is not reachable: %v", err)
+	}
+	texts := tt.Texts()
+	if !tt.HasText("网络连接不可用") {
+		t.Fatalf("the refusal is not the classifier's sentence: %v", texts)
+	}
+	for _, raw := range []string{"dial tcp", "rpc error", "connection refused"} {
+		if tt.HasText(raw) {
+			t.Fatalf("the page paints the raw failure %q: %v", raw, texts)
+		}
+	}
+	if f.enabled {
+		t.Fatal("a refused write still moved the switch")
+	}
 }

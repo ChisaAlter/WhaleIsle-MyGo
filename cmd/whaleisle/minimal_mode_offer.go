@@ -1,8 +1,11 @@
 package main
 
 import (
+	"log"
+
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -79,8 +82,10 @@ func (s *mainState) syncMinimalModeOffer(c *ui.Context) {
 					if ui.Button(c, minimalModeText("开启极简模式", "Turn on minimal mode")).Height(32).Padding(0, 14).Radius(10).BorderWidth(0).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).FontSize(theme.InterfaceSize(13)).Clicked() {
 						if err := s.setMinimalMode(true); err != nil {
 							// A failed write leaves the offer in place with the reason, so
-							// the user is not told the switch moved when it did not.
-							*failure = err.Error()
+							// the user is not told the switch moved when it did not. The
+							// raw text goes to the log; the card paints the shared sentence.
+							log.Printf("minimal mode: enable from the startup offer: %v", err)
+							*failure = errcopy.Under(minimalModeText("开启极简模式失败", "Turning on minimal mode failed"), err)
 						} else {
 							answered = true
 							open = false
