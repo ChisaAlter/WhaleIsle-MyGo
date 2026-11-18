@@ -70,6 +70,8 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: |
+          # Copy and rendering surfaces whose defects reached main because no
+          # workflow ran them.
           go test -race -count=1 \
             ./internal/paths \
             ./internal/config \
@@ -108,11 +110,49 @@ jobs:
             ./internal/store/sessioncost \
             ./internal/store/settings \
             ./internal/store/usage \
+            ./internal/errcopy \
+            ./internal/ui/browserpreview \
+            ./internal/ui/interaction \
             ./internal/jobflow \
             ./internal/workflowrun
       - name: Test build storage contracts
         if: ${{ !cancelled() }}
         run: node --test scripts/build-storage.test.mjs
+
+  ui-windows:
+    name: UI packages (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test UI packages
+        shell: bash
+        run: |
+          # These four packages assert Windows copy, path decoding and layout
+          # behaviour. Portability debt: file:// decoding, long- vs short-form
+          # local paths, hover and focus repaint, and badge geometry all assume
+          # Windows, so moving them to the Linux job needs real work rather than
+          # a workflow edit. Every test added here must pass on a clean runner.
+          # TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU asserts a timing
+          # outcome rather than a contract: it requires the first render to return
+          # before the async avatar decode finishes, and a hosted runner can win
+          # that race. Excluded by name here so the exclusion stays visible where
+          # this job is read, instead of hiding as a skip inside the test.
+          go test -count=1 \
+            -skip '^TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU$' \
+            ./internal/ui/settings \
+            ./internal/ui/files \
+            ./internal/ui/chat \
+            ./internal/ui/composer
 
   cross-build:
     name: Cross-build ${{ matrix.goos }}/${{ matrix.goarch }}

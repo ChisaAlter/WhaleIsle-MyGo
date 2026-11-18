@@ -94,8 +94,8 @@ func TestNativeFileTreeExternalOpenUsesClickedPathWithoutSelecting(t *testing.T)
 	if err := tt.ChooseMenuItem(i18n.T(i18n.KeyFilesOpenExternal)); err != nil {
 		t.Fatal(err)
 	}
-	if opened != filepath.Join(root, "clicked.txt") || selected != "other.txt" {
-		t.Fatalf("menu used selected file instead of clicked file: opened=%q selected=%q", opened, selected)
+	if !samePath(opened, filepath.Join(root, "clicked.txt")) || selected != "other.txt" {
+		t.Fatalf("menu used selected file instead of clicked file: opened=%q want %q selected=%q", opened, filepath.Join(root, "clicked.txt"), selected)
 	}
 }
 
