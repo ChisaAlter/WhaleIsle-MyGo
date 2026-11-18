@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
@@ -99,6 +100,9 @@ func TestCreatorTaskEntryNavigationFenceFixture(t *testing.T) {
 	}
 	// Start another retained-result opening, then replace both client and mux in
 	// the publication callback before Open can start its observer goroutines.
+	// Those captured readers open the old Host best-effort: runControlWatch
+	// returns silently when the socket is already gone, so this asserts the
+	// binding they cannot escape, never that a frame arrives.
 	c.Prepare()
 	c.mu.Lock()
 	c.state.Review = false
@@ -125,18 +129,78 @@ func TestCreatorTaskEntryNavigationFenceFixture(t *testing.T) {
 	if !c.Open(next.Ticket, false) {
 		t.Fatal("second explicit admission rejected")
 	}
-	// The captured control reader may open on the OLD mux; the replacement is
-	// never dynamically acquired. Its frame fence rejects the changed owner.
-	select {
-	case frame := <-opened:
-		if frame.Endpoint != "session/control" {
-			t.Fatal("unexpected stale reader", frame.Endpoint)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("captured old reader was not launched")
-	}
+	// The captured readers were bound under the old owner, so they can never
+	// reach the replacement Host or the replacement selection. Whether they
+	// still open the old mux afterwards depends on that socket, which the store
+	// does not own; TestControlReaderFramesAreFencedAcrossOwnerSwap covers the
+	// receive fence on a reader that provably opened.
 	if replacementCalls.Load() != 0 || s.Snapshot().SelectedID != "replacement-session" {
 		t.Fatal("observer rebound to replacement Host/selection")
+	}
+	s.Detach()
+}
+
+// A captured control reader must fold nothing once another owner holds the
+// store. Swap the owner while the reader is provably open on a live Host, then
+// let the Host push a frame: the reader's fence rejects it and the reader
+// exits, which the Host observes as the stream's cancel.
+func TestControlReaderFramesAreFencedAcrossOwnerSwap(t *testing.T) {
+	controlOpen := make(chan struct{})
+	sendFrame := make(chan struct{})
+	readerExited := make(chan struct{})
+	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.CloseNow()
+		var open dsh.ClientFrame
+		if wsjson.Read(r.Context(), conn, &open) != nil || open.Endpoint != "session/control" {
+			return
+		}
+		close(controlOpen)
+		<-sendFrame
+		if wsjson.Write(r.Context(), conn, dsh.ServerFrame{
+			Type:     dsh.FrameItem,
+			StreamID: open.StreamID,
+			Value:    json.RawMessage(`{"type":"session-presentation","note":"stale-owner"}`),
+		}) != nil {
+			return
+		}
+		for {
+			var frame dsh.ClientFrame
+			if wsjson.Read(r.Context(), conn, &frame) != nil {
+				return
+			}
+			if frame.Type == dsh.FrameCancel && frame.StreamID == open.StreamID {
+				close(readerExited)
+				return
+			}
+		}
+	}))
+	defer host.Close()
+
+	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: host.URL}}
+	mux := &dsh.Mux{Endpoint: client.Endpoint}
+	defer mux.Close()
+	s := New()
+	s.Attach(client, nil)
+	s.AttachMux(mux)
+	s.mu.Lock()
+	s.selectedID = "A"
+	s.mu.Unlock()
+	s.WatchControl(context.Background())
+	wait(t, controlOpen)
+
+	replacement := &dsh.Client{Endpoint: dsh.Endpoint{Origin: host.URL}}
+	s.Attach(replacement, nil)
+	s.mu.Lock()
+	s.selectSessionLocked("B")
+	s.mu.Unlock()
+	close(sendFrame)
+	wait(t, readerExited)
+	if note := s.Snapshot().ControlNote; note != "" {
+		t.Fatalf("stale control frame folded after the owner swap: %q", note)
 	}
 	s.Detach()
 }
