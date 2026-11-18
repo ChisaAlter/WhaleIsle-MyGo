@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 	"whaleisle/internal/dsh"
 )
 
@@ -206,6 +207,17 @@ func TestEventsOwnersFenceSameClientReconnectAndCanceledReady(t *testing.T) {
 	s.OnEmit(newOwner, dsh.EventsEmit{Type: dsh.EventEmit, Event: "api-session/status", Args: []json.RawMessage{json.RawMessage(`"A"`), json.RawMessage(`false`)}})
 	if s.Snapshot().Items[0].Running {
 		t.Fatal("current stream owner was rejected")
+	}
+	// The accepted status flip starts a background goals/get for the selected
+	// session. Let that read settle before the baseline below: otherwise its
+	// diagnostic lands mid-assertion and the comparison reports a read this
+	// fixture itself started as the canceled owner disturbing the store.
+	settle := time.Now().Add(5 * time.Second)
+	for s.Snapshot().GoalReadError == "" {
+		if time.Now().After(settle) {
+			t.Fatal("goals/get diagnostic never settled")
+		}
+		time.Sleep(time.Millisecond)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	canceledOwner := s.BeginEvents(ctx, client)
