@@ -81,6 +81,7 @@ type Model struct {
 	OnSelectInterface     func()
 	OnSelectConversation  func()
 	OnSelectFeatures      func()
+	OnSelectVoice         func()
 	OnSelectModels        func()
 	OnSelectMCP           func()
 	OnSelectPlugins       func()
@@ -170,6 +171,8 @@ func sectionLabel(id SectionID) string {
 		return i18n.T(i18n.KeySettingsSectionConversation)
 	case SectionFeatures:
 		return i18n.T(i18n.KeySettingsSectionFeatures)
+	case SectionVoice:
+		return i18n.T(i18n.KeySettingsSectionVoice)
 	case SectionModels:
 		return i18n.T(i18n.KeySettingsSectionModels)
 	case SectionPlugins:

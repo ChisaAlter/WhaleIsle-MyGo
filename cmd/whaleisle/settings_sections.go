@@ -25,7 +25,7 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 			s.usage.RefreshStats(context.Background(), false)
 		}
 	}
-	if (section == settings.SectionMarket || section == settings.SectionRemote || section == settings.SectionRemoteWorkspace || section == settings.SectionUsageStats) && sectionContent != nil {
+	if (section == settings.SectionMarket || section == settings.SectionVoice || section == settings.SectionRemote || section == settings.SectionRemoteWorkspace || section == settings.SectionUsageStats) && sectionContent != nil {
 		// Capture the section: OnClose clears settingsEmbeddedSection before the
 		// modal builds its content, and a live read would paint the chat behind
 		// the dialog with the same ListState as the page (panic: ListState shown
