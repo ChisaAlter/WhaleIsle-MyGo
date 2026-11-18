@@ -486,14 +486,9 @@ func (t *WorkspaceSessionTarget) Select(id string) bool {
 	generation, client, mux := s.followGeneration, s.client, s.mux
 	owner := workspaceSelectedOwner{client: client, hostGeneration: s.eventsGeneration, composerGeneration: s.composerHostGeneration,
 		followGeneration: generation, sessionID: id, cwd: s.cwd}
-	var followCtx, bandCtx context.Context
+	var followCtx context.Context
 	if mux != nil {
 		followCtx, s.followCancel = context.WithCancel(context.Background())
-		if s.bandCancel != nil {
-			s.bandCancel()
-		}
-		bandCtx, s.bandCancel = context.WithCancel(context.Background())
-		s.bandActions, s.bandGeneration = nil, 0
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -501,7 +496,6 @@ func (t *WorkspaceSessionTarget) Select(id string) bool {
 	if mux != nil {
 		go s.runFollow(followCtx, mux, id, generation)
 		s.WatchControl(ctx)
-		go s.runBandWatch(bandCtx, mux, id)
 	}
 	go s.runRefreshGoalForOwner(ctx, client, id, generation, &owner)
 	s.refreshProjectionsForOwner(ctx, &owner)

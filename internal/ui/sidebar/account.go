@@ -41,7 +41,6 @@ type Account struct {
 	OnContact           func()
 	LauncherActions     func(*ui.Menu)
 	RenderLauncherPopup func(*ui.Context, ui.Element)
-	Notices             []AccountNotice
 }
 
 const (
@@ -322,7 +321,6 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 	if a.RenderLauncherPopup != nil {
 		a.RenderLauncherPopup(c, row)
 	}
-	accountNoticeStack(c, row, a.Notices)
 	row.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Justify(ui.Start).Children(func() {
 			if signedOut {

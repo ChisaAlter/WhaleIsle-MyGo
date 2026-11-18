@@ -29,12 +29,9 @@ func (s *mainState) syncResidentAccount(c *ui.Context) {
 		*bound = client
 	}
 	s.mu.Lock()
-	store, preferences, win, themeID, sessions := s.usage, s.settings, s.win, s.themeID, s.sessions
+	store, win, themeID, sessions := s.usage, s.win, s.themeID, s.sessions
 	s.mu.Unlock()
 	if store != nil && client != nil {
-		if preferences != nil {
-			store.ConfigureBonusAcknowledgements(preferences.NamespaceValue("ui-settings-account"))
-		}
 		account := store.Snapshot()
 		code := account.AttemptErrorCode
 		s.accountLogin.Observe(api.AccountView{Status: account.AccountStatus, Attempt: api.AccountViewAttempt{

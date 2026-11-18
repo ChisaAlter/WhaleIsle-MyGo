@@ -136,8 +136,6 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 			return
 		}
 		if view.Status != "credential-stored" || s.accountStatus != view.Status || view.Attempt.Phase == "succeeded" && view.Attempt.Id != s.attemptID {
-			s.resetBonusNoticesLocked()
-			s.bonuses = nil
 		}
 		s.resetAccountDetailsLocked()
 		client, epoch := s.client, s.accountEpoch
@@ -174,7 +172,6 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		s.fire()
 		if client != nil {
 			s.refreshAccountDetails(ctx, client, epoch, view.Status)
-			s.refreshAccountBonuses(ctx, client, epoch, view.Status)
 		}
 	}
 }

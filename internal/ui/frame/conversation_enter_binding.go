@@ -18,7 +18,7 @@ func conversationEnterOwner(snap session.ViewState) string {
 // actual card/viewport resizing is measured separately after layout.
 func conversationEnterStructure(m Model, snap session.ViewState, phase conversationLayoutPhase, takeover bool) string {
 	var signature strings.Builder
-	fmt.Fprintf(&signature, "%d:%t:%t:%t:%d:%d:%d:%t:%s", phase, takeover, snap.PromptBusy, snap.HistoryLoading, len(snap.BandActions), len(snap.WorkflowRuns), len(snap.Messages), !snap.PlanBoard.Empty(), snap.QueueEditor.ItemID)
+	fmt.Fprintf(&signature, "%d:%t:%t:%t:%d:%d:%t:%s", phase, takeover, snap.PromptBusy, snap.HistoryLoading, len(snap.WorkflowRuns), len(snap.Messages), !snap.PlanBoard.Empty(), snap.QueueEditor.ItemID)
 	if m.ChatPaneTab != nil {
 		fmt.Fprintf(&signature, ":%s", *m.ChatPaneTab)
 	}

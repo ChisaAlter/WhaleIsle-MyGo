@@ -1378,23 +1378,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ui.Box(c).Grow(1).MinWidth(0)
 							})
 						}
-						if len(snap.BandActions) > 0 {
-							ui.Row(c).FillWidth().Padding(0, conversationScrollGutter, 0, 0).Children(func() {
-								ui.Box(c).Grow(1).MinWidth(0)
-								ui.Column(c).Width(chatContentW).MaxWidthPercent(100).MinWidth(0).Gap(6).Padding(0, 0, 6, 0).Children(func() {
-									ui.Text(c, i18n.T(i18n.KeyChatBandTitle)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-									ui.Row(c).FillWidth().Gap(6).Children(func() {
-										for _, a := range snap.BandActions {
-											act := a
-											if ui.Button(c, act.Label).FontSize(theme.InterfaceSize(11)).Clicked() {
-												m.Store.PressBand(context.Background(), act.ID)
-											}
-										}
-									})
-								})
-								ui.Box(c).Grow(1).MinWidth(0)
-							})
-						}
 					}
 					// Electron keeps the composer seat mounted on the trajectory tab
 					// (data-conversation-composer-overlay); do not hide it.

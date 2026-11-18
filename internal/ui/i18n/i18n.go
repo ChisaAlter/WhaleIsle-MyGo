@@ -465,9 +465,6 @@ const (
 	KeyUsageKillJob                       = "usage.kill_job"
 	KeyUsageFollowJob                     = "usage.follow_job"
 	KeyUsageExpiry                        = "usage.expiry"
-	KeySettingsAccountBonuses             = "settings.account.bonuses"
-	KeySettingsAccountBonusesEmpty        = "settings.account.bonuses_empty"
-	KeySettingsAccountBonusAck            = "settings.account.bonus_ack"
 	KeySettingsAccountRunningTasks        = "settings.account.running_tasks"
 	KeySettingsAboutAnalytics             = "settings.about.analytics"
 	KeySettingsAboutAnalyticsOn           = "settings.about.analytics_on"
@@ -676,7 +673,6 @@ const (
 	KeySettingsInterfaceAutoStartDesc     = "settings.interface.auto_start_desc"
 	KeyChatPaneTabChat                    = "chat.pane_tab.chat"
 	KeyChatPaneTabTrajectory              = "chat.pane_tab.trajectory"
-	KeyChatBandTitle                      = "chat.band_title"
 	KeyChatControlNote                    = "chat.control_note"
 	KeySettingsInterfaceViewTabs          = "settings.interface.view_tabs"
 	KeySettingsInterfaceViewTabsDesc      = "settings.interface.view_tabs_desc"
@@ -1208,7 +1204,6 @@ var zhCN = map[string]string{
 	KeySettingsInterfaceAutoStartDesc:     "打开工作台时，自动为已配置的工作区启动 Host。",
 	KeyChatPaneTabChat:                    "对话",
 	KeyChatPaneTabTrajectory:              "轨迹",
-	KeyChatBandTitle:                      "快捷操作",
 	KeyChatControlNote:                    "会话控制",
 	KeySettingsInterfaceViewTabs:          "对话与轨迹页签",
 	KeySettingsInterfaceViewTabsDesc:      "在会话顶栏显示「对话」「轨迹」切换。关闭后仍停留在当前视图。",
@@ -1599,9 +1594,6 @@ var zhCN = map[string]string{
 	KeyUsageKillJob:                       "终止",
 	KeyUsageFollowJob:                     "跟踪",
 	KeyUsageExpiry:                        "到期",
-	KeySettingsAccountBonuses:             "未读奖励",
-	KeySettingsAccountBonusesEmpty:        "暂无未读奖励",
-	KeySettingsAccountBonusAck:            "已读",
 	KeySettingsAccountRunningTasks:        "账号任务进行中",
 	KeySettingsAboutAnalytics:             "产品分析",
 	KeySettingsAboutAnalyticsOn:           "已启用",
@@ -2171,7 +2163,6 @@ var en = map[string]string{
 	KeySettingsInterfaceAutoStartDesc:     "Start Host for the configured workspace when the workbench opens.",
 	KeyChatPaneTabChat:                    "Chat",
 	KeyChatPaneTabTrajectory:              "Trajectory",
-	KeyChatBandTitle:                      "Quick actions",
 	KeyChatControlNote:                    "Session control",
 	KeySettingsInterfaceViewTabs:          "Chat and Trajectory tabs",
 	KeySettingsInterfaceViewTabsDesc:      "Show the Chat and Trajectory switcher in the session header. Turning this off keeps the current view.",
@@ -2562,9 +2553,6 @@ var en = map[string]string{
 	KeyUsageKillJob:                       "Kill",
 	KeyUsageFollowJob:                     "Follow",
 	KeyUsageExpiry:                        "Expiry",
-	KeySettingsAccountBonuses:             "Unnotified bonuses",
-	KeySettingsAccountBonusesEmpty:        "No unnotified bonuses",
-	KeySettingsAccountBonusAck:            "Dismiss",
 	KeySettingsAccountRunningTasks:        "Account tasks running",
 	KeySettingsAboutAnalytics:             "Product analytics",
 	KeySettingsAboutAnalyticsOn:           "Enabled",
