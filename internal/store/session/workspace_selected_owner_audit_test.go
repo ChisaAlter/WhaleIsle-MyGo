@@ -169,7 +169,7 @@ func TestSelectedOwnerAuditGoalReadRevocation(t *testing.T) {
 			defer cancel()
 			go func() {
 				defer close(done)
-				s.runRefreshGoalForOwner(ctx, client, owner.sessionID, owner.followGeneration, owner)
+				s.runRefreshGoalForOwner(ctx, client, owner.sessionID, owner.followGeneration, 0, owner)
 			}()
 			selectedOwnerAuditWait(t, entered)
 			if revoke == "same-client-events" {
@@ -200,7 +200,7 @@ func TestSelectedOwnerAuditGoalReadAdmission(t *testing.T) {
 	})
 	s, client, owner := selectedOwnerAuditFixture(transport, nil)
 	s.BeginEvents(context.Background(), client)
-	s.runRefreshGoalForOwner(context.Background(), client, owner.sessionID, owner.followGeneration, owner)
+	s.runRefreshGoalForOwner(context.Background(), client, owner.sessionID, owner.followGeneration, 0, owner)
 	if calls.Load() != 0 {
 		t.Fatal("revoked owner started a goal RPC")
 	}
