@@ -28,6 +28,7 @@ import (
 
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/processutil"
+	"whaleisle/internal/store/storelocale"
 )
 
 const (
@@ -718,9 +719,12 @@ func (s *WhaleBridgeService) switchVersion(ctx context.Context, oldVersion, newV
 	}
 	if err := s.startRuntime(ctx, s.root, s.dshHome); err != nil {
 		_ = s.stopRuntime(ctx, s.root)
-		_ = writeJSONAtomic(filepath.Join(s.root, "installed.json"), WhaleBridgeInstalled{Version: oldVersion, Previous: oldPrevious})
+		restoreErr := writeJSONAtomic(filepath.Join(s.root, "installed.json"), WhaleBridgeInstalled{Version: oldVersion, Previous: oldPrevious})
 		if restartErr := s.startRuntime(ctx, s.root, s.dshHome); restartErr != nil {
 			return Row{}, fmt.Errorf("switch failed and original restart failed: %v (original: %w)", restartErr, err)
+		}
+		if restoreErr != nil {
+			return Row{}, fmt.Errorf("%s: %v (original: %w)", fmt.Sprintf(storelocale.T(storelocale.KeyStoreWhalebridgeRollbackRecordFailed), oldVersion), restoreErr, err)
 		}
 		return Row{}, fmt.Errorf("switch failed; restored previous version: %w", err)
 	}
@@ -768,8 +772,12 @@ func (s *WhaleBridgeService) Uninstall(ctx context.Context, removeData bool, onP
 		return Row{}, statErr
 	}
 	if err := os.Remove(filepath.Join(s.root, "installed.json")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		var restoreVersionsErr error
 		if hasVersions {
-			_ = os.Rename(stagedVersions, versions)
+			restoreVersionsErr = os.Rename(stagedVersions, versions)
+		}
+		if restoreVersionsErr != nil {
+			return Row{}, fmt.Errorf("%s: %v (original: %w)", fmt.Sprintf(storelocale.T(storelocale.KeyStoreWhalebridgeRollbackRetained), staged), restoreVersionsErr, err)
 		}
 		_ = os.RemoveAll(staged)
 		return Row{}, err
@@ -779,9 +787,15 @@ func (s *WhaleBridgeService) Uninstall(ctx context.Context, removeData bool, onP
 		disconnectRoot = stagedVersions
 	}
 	if err := s.disconnect(ctx, disconnectRoot, rec.Version); err != nil {
-		_ = writeJSONAtomic(filepath.Join(s.root, "installed.json"), *rec)
+		restoreRecordErr := writeJSONAtomic(filepath.Join(s.root, "installed.json"), *rec)
+		var restoreVersionsErr error
 		if hasVersions {
-			_ = os.Rename(stagedVersions, versions)
+			restoreVersionsErr = os.Rename(stagedVersions, versions)
+		}
+		if restoreErr := errors.Join(restoreRecordErr, restoreVersionsErr); restoreErr != nil {
+			// Keep the payload where it is. Deleting it here would destroy the
+			// only copy when the rename back into place failed.
+			return Row{}, fmt.Errorf("%s: %v (original: %w)", fmt.Sprintf(storelocale.T(storelocale.KeyStoreWhalebridgeRollbackRetained), staged), restoreErr, err)
 		}
 		_ = os.RemoveAll(staged)
 		return Row{}, err

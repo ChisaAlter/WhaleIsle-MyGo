@@ -1245,6 +1245,8 @@ func (s *mainState) pollAcceptOpenHook() bool {
 			go func() {
 				var sessions *session.Store
 				var snap session.ViewState
+				poll := time.NewTimer(100 * time.Millisecond)
+				defer poll.Stop()
 				for i := 0; i < 100; i++ {
 					if ctx.Err() != nil {
 						return
@@ -1258,10 +1260,11 @@ func (s *mainState) pollAcceptOpenHook() bool {
 							break
 						}
 					}
+					poll.Reset(100 * time.Millisecond)
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(100 * time.Millisecond):
+					case <-poll.C:
 					}
 				}
 				if sessions == nil {
@@ -2971,9 +2974,11 @@ func (s *mainState) tryHydrateViewTabsFromHarness(setStore *settingsstore.Store,
 		win := s.win
 		s.mu.Unlock()
 		if cfgStore != nil {
-			_ = cfgStore.Update(func(c *config.Config) {
-				c.HideChatViewTabs = !on
-			})
+			if err := migrateViewTabsSetting(cfgStore, !on); err != nil {
+				log.Printf("desktop: migrate view tabs setting: %v", err)
+				hydrated.Store(false)
+				return
+			}
 		}
 		if win != nil {
 			win.Update(func() {})
@@ -4034,16 +4039,14 @@ func mainView(c *ui.Context) {
 						UserData:              paths.UserDataDir(),
 						VendorRoot:            paths.VendorDir(),
 						AnalyticsEnabled:      state.analyticsEnabled,
-						OnRevealUserData: func() {
-							_ = desktopcomponents.OpenInFileManager(paths.UserDataDir())
+						OnRevealUserData: func() error {
+							return desktopcomponents.OpenInFileManager(paths.UserDataDir())
 						},
-						OnRevealLogs: func() {
-							dir := filepath.Join(paths.UserDataDir(), "logs")
-							_ = os.MkdirAll(dir, 0o755)
-							_ = desktopcomponents.OpenInFileManager(dir)
+						OnRevealLogs: func() error {
+							return desktopcomponents.OpenInFileManager(filepath.Join(paths.UserDataDir(), "logs"))
 						},
-						OnRevealVendor: func() {
-							_ = desktopcomponents.OpenInFileManager(paths.VendorDir())
+						OnRevealVendor: func() error {
+							return desktopcomponents.OpenInFileManager(paths.VendorDir())
 						},
 						OnCopyUserData: func() {
 							mygo.Clipboard.WriteText(paths.UserDataDir())
@@ -5086,15 +5089,10 @@ func mainView(c *ui.Context) {
 								return
 							}
 							if state.cfgStore != nil {
-								_ = state.cfgStore.Update(func(c *config.Config) {
-									kept := c.DisabledPlugins[:0]
-									for _, name := range c.DisabledPlugins {
-										if name != "dsh-im" {
-											kept = append(kept, name)
-										}
-									}
-									c.DisabledPlugins = kept
-								})
+								if err := dropDisabledPlugin(state.cfgStore, "dsh-im"); err != nil {
+									state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdEnableDshIm), err))
+									return
+								}
 							}
 							state.notifyUser(win, i18n.T(i18n.KeyCmdDshImEnabledRestartTheAppIfThePageS))
 							if win != nil {
@@ -5878,7 +5876,7 @@ func mainView(c *ui.Context) {
 							if root == "" {
 								return
 							}
-							_ = desktopcomponents.OpenInFileManager(root)
+							state.revealInFileManager(win, root)
 						},
 						WorkspaceRenameDraft: &state.workspaceRenameDraft,
 						OnRenameWorkspace: func(title string) {
@@ -6334,7 +6332,7 @@ func mainView(c *ui.Context) {
 								sessions.OpenWorkspacePath(context.Background(), absPath, "reveal", "")
 								return
 							}
-							_ = desktopcomponents.OpenInFileManager(absPath)
+							state.revealInFileManager(win, absPath)
 						},
 						OnOpenWithApp: func(absPath, appID string) {
 							state.openWorkspacePathWithOwner(openWithOwner, absPath, appID)

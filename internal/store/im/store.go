@@ -654,7 +654,9 @@ func (s *Store) finishRefresh(a finishArgs) {
 		}
 	} else if len(s.rows) == 0 {
 		s.rows = defaultChannels()
-		_ = s.saveChannelsLocked()
+		if err := s.saveChannelsLocked(); err != nil {
+			s.err = firstErr(s.err, err)
+		}
 		if s.selectedID == "" {
 			s.selectedID = channelKey(s.rows[0])
 		}
@@ -664,7 +666,9 @@ func (s *Store) finishRefresh(a finishArgs) {
 			s.history = map[string][]Message{}
 		}
 		s.history[a.channelID] = mergeMessages(s.history[a.channelID], a.remoteMsgs)
-		_ = s.saveHistoryLocked()
+		if err := s.saveHistoryLocked(); err != nil {
+			s.err = firstErr(s.err, err)
+		}
 	}
 	s.mu.Unlock()
 	s.fire()

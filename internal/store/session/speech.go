@@ -213,6 +213,8 @@ func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux, generation ui
 		s.failSpeechReadiness(ctx, mux, generation, err)
 		return
 	}
+	poll := time.NewTicker(200 * time.Millisecond)
+	defer poll.Stop()
 	for ctx.Err() == nil {
 		stream, err := mux.Open(ctx, "speech/follow", map[string]any{"args": map[string]any{}})
 		if err != nil {
@@ -257,7 +259,7 @@ func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux, generation ui
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(200 * time.Millisecond):
+		case <-poll.C:
 		}
 	}
 }

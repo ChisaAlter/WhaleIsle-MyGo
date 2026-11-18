@@ -6,7 +6,6 @@ import (
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
-	desktopcomponents "whaleisle/internal/desktop/components"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/frame"
@@ -175,7 +174,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.OnRevealWorkspace = func() {
 		root := strings.TrimSpace(m.WorkspaceRoot)
 		if root != "" {
-			_ = desktopcomponents.OpenInFileManager(root)
+			s.revealInFileManager(win, root)
 		}
 	}
 	m.WorkspaceRenameDraft = &s.workspaceRenameDraft
