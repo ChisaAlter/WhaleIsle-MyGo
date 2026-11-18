@@ -16,22 +16,22 @@ Only the shipped sources are included: `lib/api.js`, `lib/desktop-confirm.js`,
 upstream `tests/` are omitted: they drive the upstream Host and its test runtime,
 not this desktop.
 
-WhaleIsle adaptations: none. Every file matches the upstream checkout; the only
-difference is line endings, which this repository normalizes to LF
-(`.gitattributes: * text=auto`) while upstream keeps CRLF. Fix behaviour here only
-by re-copying from upstream and recording the change in this note, never by
-editing in place.
+WhaleIsle adaptations: one, in `lib/desktop-confirm.js`. Upstream reads the
+control token from the in-process secret store through a sibling package
+(`../../dsh-shared/lib/internal-secret.mjs`); this copy reads
+`process.env.DSH_DESKTOP_INSTALL_TOKEN`, the way the desktop plugins WhaleIsle
+already stages do, so the package has no sibling dependency and needs no second
+copy of `dsh-shared`. Everything else matches the upstream checkout apart from
+line endings, which this repository normalizes to LF (`.gitattributes: * text=auto`)
+while upstream keeps CRLF. Fix behaviour here only by re-copying from upstream and
+recording the change in this note, never by editing in place.
 
 Host contract this package needs, recorded because the desktop has to supply it:
 
-- Sibling module `vendor/dsh-shared/lib/internal-secret.mjs`: `lib/desktop-confirm.js`
-  imports it relatively (`../../dsh-shared/...`). It is not part of this tree and
-  WhaleIsle's runtime stage does not carry it yet, so the package cannot load
-  until the stage supplies that sibling.
 - Desktop control plane `POST /desktop/confirm` on the loopback install channel
   (`DSH_DESKTOP_INSTALL_URL` + Bearer token): every TTS/ASR/OCR call asks the
   desktop to confirm the upload first and fails closed when the channel is
   absent. See `lib/desktop-confirm.js`.
-- The Host composition row (`dsh-deepseek-tools`, gated on
-  `DSHD_DEEPSEEK_TOOLS_ENABLED`) is owned by the Host composition lane, not by
-  this tree.
+- The mount row is written by `internal/harness/overlay.go` and gated on
+  `DSHD_DEEPSEEK_TOOLS_ENABLED`, which `internal/harness/launch.go` sets for a
+  desktop start.

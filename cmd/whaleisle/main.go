@@ -546,6 +546,7 @@ var state = mainState{fileEditViewMode: files.EditViewEdit}
 func desktopControlOps() installctrl.DesktopOps {
 	return installctrl.DesktopOps{
 		Proactive: state.dispatchProactive,
+		Confirm:   state.confirmPluginSideEffect,
 		State: func(context.Context) (any, error) {
 			plugins := state.marketCoordinator().InstalledPluginLabels()
 			state.mu.Lock()

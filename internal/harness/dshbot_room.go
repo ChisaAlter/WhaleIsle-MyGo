@@ -119,5 +119,5 @@ func writeDshbotRoomOverlay(o PrepareOptions, plugin DesktopPlugin) (string, err
 	if _, err = writeRawOverlay(o.ProfileDir, filepath.Join(plugin.OverlayDir, "client"), "client.js", string(client)); err != nil {
 		return "", err
 	}
-	return writeRawOverlay(o.ProfileDir, plugin.OverlayDir, plugin.OverlayFile, overlayYAML(plugin.InsertID, filepath.ToSlash(adapter)))
+	return writeRawOverlay(o.ProfileDir, plugin.OverlayDir, plugin.OverlayFile, overlayYAML(DesktopPlugin{InsertID: plugin.InsertID, Package: filepath.ToSlash(adapter)}))
 }

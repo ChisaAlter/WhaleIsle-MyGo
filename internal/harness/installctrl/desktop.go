@@ -36,6 +36,20 @@ type DesktopOps struct {
 	DisablePlugins   func(context.Context, []string) (any, error)
 	EnablePlugin     func(context.Context, string) (any, error)
 	Proactive        func(context.Context, string, json.RawMessage) (any, error)
+	// Confirm asks the person to allow a plugin tool's external side effect.
+	// The answer is {"ok":bool}; a missing channel, a dismissal or a timeout
+	// is a refusal, never a silent allow.
+	Confirm func(context.Context, ConfirmRequest) (any, error)
+}
+
+// ConfirmRequest is the payload a plugin sends before an external side effect:
+// which tool, what it will do, and the summary and details the dialog shows.
+type ConfirmRequest struct {
+	Tool    string `json:"tool"`
+	Action  string `json:"action"`
+	Effect  string `json:"effect"`
+	Summary string `json:"summary"`
+	Details string `json:"details"`
 }
 
 func (s *Server) handleDesktop(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +87,8 @@ func (s *Server) handleDesktop(w http.ResponseWriter, r *http.Request) {
 		s.handleDesktopPlugin(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/desktop/proactive":
 		s.handleProactive(w, r)
+	case r.Method == http.MethodPost && r.URL.Path == "/desktop/confirm":
+		s.handleConfirm(w, r)
 	default:
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 	}
@@ -85,7 +101,7 @@ func (s *Server) desktopEmpty() bool {
 	// wired. Other desktop operations still report their individual boundary.
 	return !s.hasInstallHandler() && d.State == nil && d.ListMarketplace == nil && d.ApplyConfig == nil &&
 		d.PetSettings == nil && d.ApplyPetSettings == nil && d.InstallCatalog == nil &&
-		d.RemovePlugin == nil && d.DisablePlugins == nil && d.EnablePlugin == nil && d.Proactive == nil
+		d.RemovePlugin == nil && d.DisablePlugins == nil && d.EnablePlugin == nil && d.Proactive == nil && d.Confirm == nil
 }
 
 func (s *Server) handleProactive(w http.ResponseWriter, r *http.Request) {
@@ -448,4 +464,35 @@ func withJSONFields(value any, fields map[string]any) any {
 		out[k] = v
 	}
 	return out
+}
+
+// handleConfirm forwards one plugin tool's confirmation request to the desktop.
+// It always answers with a JSON body: {ok:true} only when a person allowed the
+// action, {ok:false} for a refusal, a dismissal or a timeout. The plugin treats
+// anything else as a refusal, so no answer path may look like consent.
+func (s *Server) handleConfirm(w http.ResponseWriter, r *http.Request) {
+	if s.opts.Desktop.Confirm == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false})
+		return
+	}
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	var ask ConfirmRequest
+	err := decoder.Decode(&ask)
+	if err == nil {
+		var extra any
+		if decoder.Decode(&extra) != io.EOF {
+			err = fmt.Errorf("expected one JSON object")
+		}
+	}
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	value, err := s.opts.Desktop.Confirm(r.Context(), ask)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false})
+		return
+	}
+	writeJSON(w, http.StatusOK, value)
 }
