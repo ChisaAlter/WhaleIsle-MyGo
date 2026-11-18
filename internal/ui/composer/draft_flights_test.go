@@ -76,3 +76,68 @@ func TestEnterDuringOrdinaryAdmission(t *testing.T) {
 		t.Fatal("exclusive command/edit allowed concurrent send")
 	}
 }
+
+func TestDetachedUnconfirmedRecoveryNeverReturnsPayloadToEditableDraft(t *testing.T) {
+	d := NewDraftState("sent once")
+	d.Attachments = []session.ComposerAttachment{{Path: "note.txt", Name: "note.txt"}}
+	f, _ := d.BeginDetachedSend()
+	d.BindDetachedSubmission(f.ID, "request-a", "session-a")
+	d.Text = "newer"
+	d.CompleteDetachedSend(f.ID, f.Attachments, session.ErrSubmissionUnconfirmed)
+	if d.Text != "newer" || len(d.Attachments) != 0 || d.FailedSendCount() != 0 {
+		t.Fatal("unknown send restored as retryable")
+	}
+	restored, err := RestoreDraftChecked(d.SaveDraft())
+	if err != nil {
+		t.Fatal(err)
+	}
+	flights := restored.PendingSubmissionFlights()
+	if len(flights) != 1 || flights[0].RequestID != "request-a" || restored.Text != "newer" {
+		t.Fatal("unknown identity lost on restart")
+	}
+	restored.RestoreFailedSends()
+	if restored.Text != "newer" {
+		t.Fatal("restore failure action repeated uncertain send")
+	}
+	restored.CompleteDetachedSend(flights[0].ID, flights[0].Attachments, nil)
+	if len(restored.PendingSubmissionFlights()) != 0 || restored.Text != "newer" {
+		t.Fatal("confirmation cleared a newer draft")
+	}
+}
+
+func TestExclusiveUnknownSubmissionCannotBeSentTwice(t *testing.T) {
+	d := NewDraftState("/unrecognized command")
+	id := d.BeginExclusiveSubmission("stable-request", "session-a", d.Text, nil, 0)
+	d.CompleteDetachedSend(id, nil, session.ErrSubmissionUnconfirmed)
+	if !d.Sending || len(d.PendingSubmissionFlights()) != 1 {
+		t.Fatal("unknown exclusive submission lost guard")
+	}
+	if _, ok := d.BeginDetachedSend(); ok {
+		t.Fatal("unknown request can be dispatched again")
+	}
+	d.CompleteDetachedSend(id, nil, nil)
+	if d.Sending || d.Text != "" {
+		t.Fatal("confirmed exclusive operation did not release its original draft")
+	}
+	d.Text = "rejected"
+	id = d.BeginExclusiveSubmission("rejected-request", "session-a", d.Text, nil, 0)
+	d.CompleteDetachedSend(id, nil, errors.New("not accepted"))
+	if d.Sending || d.Text != "rejected" || d.FailedSendCount() != 0 {
+		t.Fatal("known failure duplicated or hid original input")
+	}
+}
+
+func TestExclusiveAcceptedFailurePreservesNewerDraft(t *testing.T) {
+	d := NewDraftState("/unknown original")
+	id := d.BeginExclusiveSubmission("request", "session-a", d.Text, nil, 0)
+	d.AwaitDetachedSubmission(id, nil)
+	d.Text = "newer draft"
+	d.CompleteDetachedSend(id, nil, errors.New("canceled before admission"))
+	if d.Sending || d.Text != "newer draft" || d.FailedSendCount() != 1 {
+		t.Fatal("accepted then canceled exclusive submission lost either draft")
+	}
+	d.RestoreFailedSends()
+	if d.Text != "/unknown original\n\nnewer draft" {
+		t.Fatal(d.Text)
+	}
+}

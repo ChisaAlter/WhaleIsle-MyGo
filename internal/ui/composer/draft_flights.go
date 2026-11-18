@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"errors"
 	"reflect"
 	"sort"
 	"strings"
@@ -11,6 +12,10 @@ import (
 // never by comparing against a newer text or attachment list.
 type DraftFlight struct {
 	ID          uint64
+	RequestID   string
+	SessionID   string
+	Exclusive   bool
+	EditSeq     float64
 	Text        string
 	Attachments []session.ComposerAttachment
 	Error       string
@@ -49,9 +54,44 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 	if !ok {
 		return
 	}
-	delete(d.flights, id)
-	if err == nil {
+	if errors.Is(err, session.ErrSubmissionUnconfirmed) {
+		if f.Exclusive {
+			d.Sending = true
+		}
+		f.Error = err.Error()
+		f.Attachments = append([]session.ComposerAttachment(nil), attachments...)
+		d.flights[id] = f
+		d.Error = f.Error
 		return
+	}
+	delete(d.flights, id)
+	if f.Exclusive {
+		d.Sending = false
+	}
+	if err == nil {
+		if f.Exclusive && f.EditSeq > 0 {
+			d.EndEdit()
+		} else if f.Exclusive && d.Text == f.Text {
+			d.Text, d.Attachments, d.TargetID = "", nil, ""
+			d.Client.ClearHistory()
+		}
+		if f.Exclusive && f.EditSeq == 0 {
+			d.GroupReply = nil
+		}
+		if d.Error == f.Error || d.Error == session.ErrSubmissionUnconfirmed.Error() {
+			d.Error = ""
+		}
+		return
+	}
+	if f.Exclusive {
+		if d.Text == f.Text {
+			d.Error = err.Error()
+			d.Attachments = append([]session.ComposerAttachment(nil), attachments...)
+			return
+		}
+		// The original command/edit text is still owned by this flight even
+		// when the user typed a newer draft while admission was in progress.
+		f.Exclusive = false
 	}
 	restoredUnchanged := d.failedRestoredMatches()
 	restoreText := restoredUnchanged || d.Text == "" && len(d.Attachments) == 0
@@ -141,9 +181,12 @@ func (d *DraftState) RestoreFailedSends() {
 
 type savedComposerFile struct{ Path, Name string }
 type savedComposerSend struct {
-	ID          uint64
-	Text, Error string
-	Files       []savedComposerFile
+	ID                   uint64
+	RequestID, SessionID string
+	Exclusive            bool
+	EditSeq              float64
+	Text, Error          string
+	Files                []savedComposerFile
 }
 
 func (d *DraftState) recoverySends() []savedComposerSend {
@@ -159,7 +202,7 @@ func (d *DraftState) recoverySends() []savedComposerSend {
 	}
 	var out []savedComposerSend
 	for _, f := range orderedDraftFlights(entries) {
-		saved := savedComposerSend{ID: f.ID, Text: f.Text, Error: f.Error}
+		saved := savedComposerSend{ID: f.ID, RequestID: f.RequestID, SessionID: f.SessionID, Text: f.Text, Error: f.Error, Exclusive: f.Exclusive, EditSeq: f.EditSeq}
 		for _, a := range f.Attachments {
 			saved.Files = append(saved.Files, savedComposerFile{Path: a.Path, Name: a.Name})
 		}
@@ -170,11 +213,23 @@ func (d *DraftState) recoverySends() []savedComposerSend {
 func (d *DraftState) restoreRecoverySends(entries []savedComposerSend) {
 	for _, entry := range entries {
 		d.flightSeq++
-		f := DraftFlight{ID: d.flightSeq, Text: entry.Text, Error: entry.Error}
+		f := DraftFlight{ID: d.flightSeq, RequestID: entry.RequestID, SessionID: entry.SessionID, Text: entry.Text, Error: entry.Error}
 		for _, a := range entry.Files {
 			if a.Path != "" {
 				f.Attachments = append(f.Attachments, session.ComposerAttachment{Path: a.Path, Name: a.Name})
 			}
+		}
+		if f.RequestID != "" {
+			if d.flights == nil {
+				d.flights = make(map[uint64]DraftFlight)
+			}
+			d.flights[f.ID] = f
+			if entry.Exclusive && entry.EditSeq == 0 && d.Text == entry.Text {
+				d.Text, d.Attachments = "", nil
+				d.Client.ClearHistory()
+			}
+			d.Error = session.ErrSubmissionUnconfirmed.Error()
+			continue
 		}
 		if d.failedSends == nil {
 			d.failedSends = make(map[uint64]DraftFlight)
@@ -182,4 +237,77 @@ func (d *DraftState) restoreRecoverySends(entries []savedComposerSend) {
 		d.failedSends[f.ID] = f
 		d.Error = f.Error
 	}
+}
+
+// BindDetachedSubmission records the stable Host request before the draft can
+// be checkpointed or the request dispatched. It does not change later edits.
+func (d *DraftState) BindDetachedSubmission(id uint64, requestID, sessionID string) {
+	if f, ok := d.flights[id]; ok {
+		f.RequestID, f.SessionID = requestID, sessionID
+		d.flights[id] = f
+	}
+}
+
+func (d *DraftState) BeginExclusiveSubmission(requestID, sessionID, text string, attachments []session.ComposerAttachment, editSeq float64) uint64 {
+	d.flightSeq++
+	if d.flights == nil {
+		d.flights = make(map[uint64]DraftFlight)
+	}
+	d.flights[d.flightSeq] = DraftFlight{ID: d.flightSeq, RequestID: requestID, SessionID: sessionID, Text: text,
+		Attachments: append([]session.ComposerAttachment(nil), attachments...), Exclusive: true, EditSeq: editSeq}
+	d.Sending = true
+	return d.flightSeq
+}
+
+func (d *DraftState) AwaitDetachedSubmission(id uint64, attachments []session.ComposerAttachment) {
+	if f, ok := d.flights[id]; ok {
+		f.Attachments = append([]session.ComposerAttachment(nil), attachments...)
+		d.flights[id] = f
+	}
+}
+
+func (d *DraftState) PendingSubmissionFlights() []DraftFlight {
+	var out []DraftFlight
+	for _, f := range orderedDraftFlights(d.flights) {
+		if f.RequestID != "" {
+			f.Attachments = append([]session.ComposerAttachment(nil), f.Attachments...)
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// RestoreSubmissionFlight recovers a dispatch recorded before its ordinary UI
+// checkpoint. It stays separate from the editable draft until the Host outcome
+// is known; merely reopening the application can never resend it.
+func (d *DraftState) RestoreSubmissionFlight(record session.SubmissionRecord) {
+	for id, f := range d.flights {
+		if f.RequestID == record.RequestID {
+			// The independent journal retains authoritative attachment receipts
+			// and inline bytes that ordinary draft checkpoints deliberately omit.
+			f.Attachments = append([]session.ComposerAttachment(nil), record.Attachments...)
+			d.flights[id] = f
+			return
+		}
+	}
+	if d.flights == nil {
+		d.flights = make(map[uint64]DraftFlight)
+	}
+	// A crash before the detached checkpoint may leave the exact pre-send draft
+	// beside the write-ahead request. Move that identical snapshot into the
+	// confirmation owner; never erase independently edited text or attachments.
+	match := d.Text == record.Text && len(d.Attachments) == len(record.Attachments)
+	for i := range d.Attachments {
+		if match && (d.Attachments[i].Path != record.Attachments[i].Path || d.Attachments[i].Name != record.Attachments[i].Name) {
+			match = false
+		}
+	}
+	if match {
+		d.Text, d.Attachments = "", nil
+		d.Client.ClearHistory()
+	}
+	d.flightSeq++
+	d.flights[d.flightSeq] = DraftFlight{ID: d.flightSeq, RequestID: record.RequestID, SessionID: record.SessionID,
+		Text: record.Text, Attachments: append([]session.ComposerAttachment(nil), record.Attachments...), Error: session.ErrSubmissionUnconfirmed.Error()}
+	d.Error = session.ErrSubmissionUnconfirmed.Error()
 }

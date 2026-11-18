@@ -36,9 +36,9 @@ func TestNativeFilePasteFixture(t *testing.T) {
 		t.Fatal("read error fell through")
 	}
 	d.Error = ""
-	intakeTransferredFiles(m, []string{path, root})
+	intakeTransferredFiles(m, []string{path, "relative-file.txt"})
 	if calls != 1 || d.Error == "" {
-		t.Fatal("directory mixed with files was admitted")
+		t.Fatal("invalid native path representation was admitted")
 	}
 	d.Error = ""
 	d.Sending = true

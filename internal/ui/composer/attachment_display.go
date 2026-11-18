@@ -220,6 +220,7 @@ func attachmentDisplayStatus(d *DraftState, i int) string {
 // Metadata reads and upload state never reserve an additional vertical block.
 func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 	d := m.State
+	paintFileIntake(c, d, muted)
 	if len(d.Attachments) > 0 {
 		ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(66).Padding(2, 10, 0).Margin(0, 0, -6, 0).Gap(10).Children(func() {
 			for i, a := range d.Attachments {
