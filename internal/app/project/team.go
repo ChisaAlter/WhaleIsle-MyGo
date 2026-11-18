@@ -71,12 +71,20 @@ func (m *Manager) OrdinaryTeamModel(win any) projects.OrdinaryTeamModel {
 		return projects.OrdinaryTeamModel{}
 	}
 	sid := sessions.SelectedSessionID()
+	var firstRead uint64
 	m.mu.Lock()
 	t := m.ordinaryTeam
-	initial := t == nil || t.client != client || t.sessionID != sid
-	if initial {
+	if t == nil || t.client != client || t.sessionID != sid {
 		t = &ordinaryTeamState{client: client, sessionID: sid}
 		m.ordinaryTeam = t
+		if client != nil && sid != "" {
+			// Claim the first read in this critical section, before the model
+			// reads the flag. Starting it after the model was assembled let a
+			// fast read finish in between, and the frame then carried
+			// Loading=false with the nil Team it snapshotted first, the
+			// unavailable flash this model exists to avoid.
+			firstRead, _ = m.beginOrdinaryTeamReadLocked(t, client)
+		}
 	}
 	model := projects.OrdinaryTeamModel{
 		SessionID: sid,
@@ -89,6 +97,9 @@ func (m *Manager) OrdinaryTeamModel(win any) projects.OrdinaryTeamModel {
 		model.NextRefresh = t.lastRead.Add(5 * time.Second)
 	}
 	m.mu.Unlock()
+	if firstRead != 0 {
+		go m.readOrdinaryTeam(win, t, firstRead)
+	}
 
 	if model.Team != nil {
 		snapshot := sessions.RenderSnapshot()
@@ -122,55 +133,58 @@ func (m *Manager) OrdinaryTeamModel(win any) projects.OrdinaryTeamModel {
 		}
 		m.mu.Unlock()
 	}
-	if initial && client != nil && sid != "" {
-		m.refreshOrdinaryTeam(win, t)
-		m.mu.Lock()
-		model.Loading = t.loading
-		if !t.lastRead.IsZero() {
-			model.NextRefresh = t.lastRead.Add(5 * time.Second)
-		}
-		m.mu.Unlock()
-	}
 	return model
 }
 
+// refreshOrdinaryTeam starts one read of the selected session's team.
 func (m *Manager) refreshOrdinaryTeam(win any, t *ordinaryTeamState) {
 	snap := m.hostSnapshot()
-	lc := m.lifecycleContext()
 	m.mu.Lock()
-	if t == nil || t.client == nil || t.loading || m.ordinaryTeam != t || snap.Client != t.client || t.sessionID == "" {
-		m.mu.Unlock()
+	read, ok := m.beginOrdinaryTeamReadLocked(t, snap.Client)
+	m.mu.Unlock()
+	if !ok {
 		return
 	}
+	go m.readOrdinaryTeam(win, t, read)
+}
+
+// beginOrdinaryTeamReadLocked marks t loading and returns its read generation.
+// The caller holds the manager mutex, so the flag is set before any frame can
+// snapshot the state and before the read asks its dependencies for anything.
+func (m *Manager) beginOrdinaryTeamReadLocked(t *ordinaryTeamState, client *dsh.Client) (uint64, bool) {
+	if t == nil || t.client == nil || t.loading || m.ordinaryTeam != t || client != t.client || t.sessionID == "" {
+		return 0, false
+	}
 	t.read++
-	read := t.read
 	t.loading = true
 	t.err = ""
 	t.lastRead = time.Now()
-	m.mu.Unlock()
+	return t.read, true
+}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(lc, 30*time.Second)
-		defer cancel()
-		rpc := projectRPC(t.client)
-		team, err := rpc.SessionTeam(ctx, t.sessionID)
-		nowSnap := m.hostSnapshot()
-		m.mu.Lock()
-		if m.ordinaryTeam != t || nowSnap.Client != t.client || t.read != read {
-			m.mu.Unlock()
-			return
-		}
-		t.loading = false
-		if err != nil {
-			t.err = err.Error()
-		} else {
-			t.team = team
-		}
+// readOrdinaryTeam performs one read on a worker and commits it only while the
+// state it read is still the current one.
+func (m *Manager) readOrdinaryTeam(win any, t *ordinaryTeamState, read uint64) {
+	ctx, cancel := context.WithTimeout(m.lifecycleContext(), 30*time.Second)
+	defer cancel()
+	rpc := projectRPC(t.client)
+	team, err := rpc.SessionTeam(ctx, t.sessionID)
+	nowSnap := m.hostSnapshot()
+	m.mu.Lock()
+	if m.ordinaryTeam != t || nowSnap.Client != t.client || t.read != read {
 		m.mu.Unlock()
-		if win != nil {
-			m.updateWindow(win, func() {})
-		}
-	}()
+		return
+	}
+	t.loading = false
+	if err != nil {
+		t.err = err.Error()
+	} else {
+		t.team = team
+	}
+	m.mu.Unlock()
+	if win != nil {
+		m.updateWindow(win, func() {})
+	}
 }
 
 func (m *Manager) bindTeamModel(win any, model *projects.Model) {
