@@ -240,14 +240,25 @@ func paintVirtualizedReadOnlySource(c *ui.Context, m Model, path, text string, t
 	matchBG := ui.RGBA(accent.R, accent.G, accent.B, 0.25)
 	wrap := previewPreferences(m).WordWrap
 	gutterW := float32(max(36, (len(fmt.Sprintf("%d", len(lines)))+1)*8))
+	textRevision := uint64(0)
+	if tab != nil {
+		textRevision = tab.sourceVersionFor(text)
+	}
 
 	renderList := func(minWidth float32) {
 		list := ui.List(c.Key(path+"/"+key+"/virtual-list"), listState, len(lines)).
 			ItemKey(func(i int) any { return previewVirtualRowKey{path: path, line: i} }).
+			SelectionText(textRevision, func(i int) []string { return lines[i : i+1] }).
 			FillHeight().
 			MinHeight(0).
 			Padding(6, 8, 6, 8).
 			Selectable()
+		// PageShortcut deliberately leaves focused selectable text alone.
+		// Find in this document is owned by this list, so it remains available
+		// after clicking or copying source without widening page shortcuts.
+		if list.Shortcut(ui.Cmd, ui.KeyF) {
+			triggerPreviewFind(m)
+		}
 		if minWidth > 0 {
 			list.Width(minWidth)
 		} else {

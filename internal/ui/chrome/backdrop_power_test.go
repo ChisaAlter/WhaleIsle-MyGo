@@ -268,12 +268,23 @@ func TestApplyCursorEffectsRespectsWindowActive(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		enabled = ApplyCursorEffects(c, p, accent)
 	}, 80, 60)
+	// Start a new activity epoch after rewinding the headless clock.
+	resetBackdropPowerForTest()
 	tt.SetTime(now)
 	if !enabled {
 		t.Fatal("expected ApplyCursorEffects to enable pointer effects when active")
 	}
 	if !backdropActivityAt().Equal(now) {
 		t.Fatalf("activity timestamp = %v, want %v", backdropActivityAt(), now)
+	}
+	tt.SetTime(now.Add(ambientIdleFreezeDelay + time.Second))
+	tt.Frame()
+	if !backdropActivityAt().Equal(now) {
+		t.Fatal("a passive view rebuild renewed its own activity lease")
+	}
+	tt.Move(20, 20)
+	if !backdropActivityAt().Equal(now.Add(ambientIdleFreezeDelay + time.Second)) {
+		t.Fatal("actual pointer movement did not renew activity")
 	}
 
 	setBackdropWindowActiveHook(func() bool { return false })
@@ -287,5 +298,24 @@ func TestApplyCursorEffectsRespectsWindowActive(t *testing.T) {
 	tt.Frame()
 	if enabled {
 		t.Fatal("expected ApplyCursorEffects to suppress pointer effects in low-power mode")
+	}
+}
+
+func TestRecreatedPainterKeepsIdleEpoch(t *testing.T) {
+	resetBackdropPowerForTest()
+	t.Cleanup(resetBackdropPowerForTest)
+	setBackdropWindowActiveHook(func() bool { return true })
+	now := time.Unix(8000, 0)
+	for i := 0; i < 15; i++ {
+		var newPainterStart time.Time
+		frozen := shouldFreezeAmbientAnimation(false, &newPainterStart, now.Add(time.Duration(i)*time.Second))
+		if frozen != (i >= 10) {
+			t.Fatalf("new painter at second %d frozen=%v", i, frozen)
+		}
+	}
+	NoteBackdropActivity(now.Add(15 * time.Second))
+	var newPainterStart time.Time
+	if shouldFreezeAmbientAnimation(false, &newPainterStart, now.Add(15*time.Second)) {
+		t.Fatal("real activity did not resume animation")
 	}
 }

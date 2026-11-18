@@ -136,6 +136,19 @@ func TestReadOnlyPreviewListVirtualizationAndCtrlFFindNavigation(t *testing.T) {
 	if tt.HasText("func tailMatch() { // needle_token }") {
 		t.Fatal("offscreen bottom line 1180 should not be built when scrolled at top")
 	}
+	lineRect, ok := tt.Find("var line_0000 = 0")
+	if !ok {
+		t.Fatal("first source line is not selectable")
+	}
+	tt.ClickAt(lineRect.X+4, lineRect.Y+lineRect.H/2)
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Key(ui.Cmd, ui.KeyC)
+	if got := tt.Clipboard(); got != text {
+		t.Fatalf("virtualized source Select All copied %d bytes, want complete %d bytes", len(got), len(text))
+	}
+	if tt.HasText("func tailMatch() { // needle_token }") {
+		t.Fatal("copying a large source built its offscreen tail")
+	}
 
 	// Open Ctrl+F find bar and search across virtualized file.
 	tt.Key(ui.Cmd, ui.KeyF)

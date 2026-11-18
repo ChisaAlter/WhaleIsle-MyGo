@@ -115,24 +115,6 @@ type compareBranchesResult struct {
 	err      error
 }
 
-type stageRequest struct {
-	root   string
-	gen    uint64
-	seq    uint64
-	path   string
-	stage  bool
-	cancel context.CancelFunc
-}
-
-type stageResult struct {
-	root  string
-	gen   uint64
-	seq   uint64
-	path  string
-	stage bool
-	err   error
-}
-
 type discardPrepRequest struct {
 	root   string
 	gen    uint64
@@ -189,10 +171,6 @@ type workbenchLoader struct {
 	compareBranchesPending  *compareBranchesResult
 	compareBranchesReadyGen uint64
 
-	stageSeq      uint64
-	stageInFlight *stageRequest
-	stagePending  *stageResult
-
 	discardPrepSeq      uint64
 	discardPrepInFlight *discardPrepRequest
 	discardPrepPending  *discardPrepResult
@@ -240,12 +218,6 @@ func (l *workbenchLoader) cancelAllLocked() {
 	}
 	l.compareBranchesPending = nil
 	l.compareBranchesReadyGen = 0
-
-	if l.stageInFlight != nil {
-		l.stageInFlight.cancel()
-		l.stageInFlight = nil
-	}
-	l.stagePending = nil
 
 	if l.discardPrepInFlight != nil {
 		l.discardPrepInFlight.cancel()
@@ -391,6 +363,7 @@ func (w *Workbench) resetStateForRoot(root string, invalidate func()) {
 	}
 	l := w.ensureLoader()
 	operation := w.Operation
+	progress := w.Progress
 	w.cancelBranchList()
 	w.cancelRepositoryStatus()
 	w.cancelCommitPreparation()
@@ -407,6 +380,7 @@ func (w *Workbench) resetStateForRoot(root string, invalidate func()) {
 		loader:      l,
 		Root:        root,
 		Operation:   operation,
+		Progress:    progress,
 		invalidate:  effectiveInv,
 		AgainstHEAD: true,
 	}
@@ -433,13 +407,7 @@ func (w *Workbench) isCompareBranchesLoading() bool {
 }
 
 func (w *Workbench) isStagingBusy() bool {
-	if w == nil || w.loader == nil {
-		return false
-	}
-	l := w.loader
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.stageInFlight != nil && l.stageInFlight.root == w.Root && l.stageInFlight.gen == l.generation
+	return w != nil && w.Operation != nil && w.Operation.staging
 }
 
 func (w *Workbench) isDiscardPreparing() bool {
@@ -930,47 +898,36 @@ func (w *Workbench) invalidateDiffCache() {
 }
 
 func (w *Workbench) requestStage(m Model, ch git.Change, stage bool) {
-	if w == nil {
+	if w == nil || w.Operation != nil {
 		return
 	}
 	root := strings.TrimSpace(m.WorkspaceRoot)
 	if root == "" {
 		return
 	}
-	gen := w.bindRoot(root)
+	w.bindRoot(root)
 	paths := []string{ch.Path}
 	if ch.Original != "" {
 		paths = append(paths, ch.Original)
 	}
 	w.invalidateCommitReview()
-	if stage {
-		w.Status = word("正在暂存：", "Staging: ") + ch.Path
-	} else {
-		w.Status = word("正在取消暂存：", "Unstaging: ") + ch.Path
-	}
-
 	l := w.ensureLoader()
 	l.mu.Lock()
-	if l.closed {
-		l.mu.Unlock()
+	closed := l.closed
+	l.mu.Unlock()
+	if closed {
 		return
 	}
-	if l.stageInFlight != nil {
-		l.stageInFlight.cancel()
-		l.stageInFlight = nil
+	label := word("正在暂存：", "Staging: ") + ch.Path
+	completed := word("已暂存：", "Staged: ") + ch.Path
+	if !stage {
+		label = word("正在取消暂存：", "Unstaging: ") + ch.Path
+		completed = word("已取消暂存：", "Unstaged: ") + ch.Path
 	}
-	l.stageSeq++
-	seq := l.stageSeq
-	ctx, cancel := context.WithTimeout(context.Background(), asyncGitReadTimeout)
-	req := &stageRequest{root: root, gen: gen, seq: seq, path: ch.Path, stage: stage, cancel: cancel}
-	l.stageInFlight = req
 	ops := gitOps
-	l.mu.Unlock()
-
-	go func() {
-		defer cancel()
-		if ctx.Err() != nil {
-			return
+	startGitOperation(w, label, true, func(ctx context.Context) gitOperationResult {
+		if err := ctx.Err(); err != nil {
+			return gitOperationResult{err: err}
 		}
 		var err error
 		if stage {
@@ -978,47 +935,11 @@ func (w *Workbench) requestStage(m Model, ch git.Change, stage bool) {
 		} else {
 			_, err = ops.unstagePaths(root, paths...)
 		}
-		if ctx.Err() != nil {
-			return
+		if err != nil {
+			return gitOperationResult{err: err}
 		}
-		l.mu.Lock()
-		valid := !l.closed && l.generation == gen && l.root == root && l.stageInFlight == req
-		if valid {
-			l.stageInFlight = nil
-			l.stagePending = &stageResult{root: root, gen: gen, seq: seq, path: ch.Path, stage: stage, err: err}
-		}
-		l.mu.Unlock()
-		if valid {
-			l.notify()
-		}
-	}()
-}
-
-func (w *Workbench) finishStage(m Model) {
-	if w == nil || w.loader == nil {
-		return
-	}
-	l := w.loader
-	l.mu.Lock()
-	res := l.stagePending
-	if res == nil || l.closed || res.gen != l.generation || res.root != l.root || res.root != w.Root || res.root != m.WorkspaceRoot {
-		l.stagePending = nil
-		l.mu.Unlock()
-		return
-	}
-	l.stagePending = nil
-	l.mu.Unlock()
-
-	if res.err != nil {
-		w.Status = res.err.Error()
-	} else if res.stage {
-		w.Status = word("已暂存：", "Staged: ") + res.path
-	} else {
-		w.Status = word("已取消暂存：", "Unstaged: ") + res.path
-	}
-	w.invalidateDiffCache()
-	w.requestReload(m.WorkspaceRoot, true)
-	refreshWithForce(m, true)
+		return gitOperationResult{text: completed, err: err}
+	})
 }
 
 func (w *Workbench) requestDiscardPrepare(m Model, path string) {
@@ -1187,7 +1108,6 @@ func (w *Workbench) finishAsync(m Model) {
 	w.finishReload()
 	w.finishRepositoryStatus()
 	w.finishCompareBranches()
-	w.finishStage(m)
 	w.finishDiscardPrepare(m)
 	w.finishPublishPrepare(m)
 	finishComparison(m)

@@ -137,10 +137,10 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 				scopeDiff(m, ch.Path, !ch.Unstaged())
 			}
 			if ch.Unstaged() {
-				if menu.Item(word("暂存此文件", "Stage file")).Chosen() {
+				if menu.Item(word("暂存此文件", "Stage file")).Disabled(w.Operation != nil).Chosen() {
 					stageCommitFile(m, ch)
 				}
-				if menu.Item(word("还原…", "Discard file…")).Chosen() {
+				if menu.Item(word("还原…", "Discard file…")).Disabled(w.Operation != nil).Chosen() {
 					reviewDiscard(m, ch.Path)
 				}
 			}
@@ -148,7 +148,7 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 				if menu.Item(word("查看已暂存", "Staged diff")).Chosen() {
 					scopeDiff(m, ch.Path, true)
 				}
-				if menu.Item(word("取消暂存", "Unstage")).Chosen() {
+				if menu.Item(word("取消暂存", "Unstage")).Disabled(w.Operation != nil).Chosen() {
 					unstageCommitFile(m, ch)
 				}
 			}

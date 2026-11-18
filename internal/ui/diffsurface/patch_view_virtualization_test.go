@@ -203,6 +203,37 @@ func TestPatchViewVirtualizedSelectionExcludesHeadersAndGutters(t *testing.T) {
 	}
 }
 
+func TestPatchViewCopyIncludesUnvisitedLogicalRows(t *testing.T) {
+	patch := buildLargeSyntheticPatch(1, 1000)
+	view := &patchViewState{Wrap: true}
+	st := diff.Style{FontSize: 12, FG: ui.RGB(20, 20, 20), Add: ui.RGB(0, 140, 0), Muted: ui.RGB(100, 100, 100)}
+	tt := ui.NewTester(func(c *ui.Context) {
+		paintVirtualizedPatchList(c, Model{}, view, patch, st)
+	}, 700, 320)
+	r, ok := tt.Find("var row_00_0000 = 0")
+	if !ok {
+		t.Fatal("first patch line not visible")
+	}
+	if tt.HasText("var row_00_0999 = 999") {
+		t.Fatal("tail was built before copying")
+	}
+	tt.ClickAt(r.X+4, r.Y+r.H/2)
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Key(ui.Cmd, ui.KeyC)
+	// File metadata is rendered as selectable patch text. Only the native file
+	// header, hunk controls and number/sign gutters are unselectable.
+	want := []string{"diff --git a/pkg/file_00.go b/pkg/file_00.go", "--- a/pkg/file_00.go", "+++ b/pkg/file_00.go", "package pkg"}
+	for i := 0; i < 1000; i++ {
+		want = append(want, fmt.Sprintf("var row_00_%04d = %d", i, i))
+	}
+	if got := tt.Clipboard(); got != strings.Join(want, "\n") {
+		t.Fatalf("logical patch copy = %d bytes, want %d", len(got), len(strings.Join(want, "\n")))
+	}
+	if tt.HasText("var row_00_0999 = 999") {
+		t.Fatal("copying patch rendered offscreen tail")
+	}
+}
+
 func TestRecordedPatchViewWorksInsideOuterScrollAcrossModes(t *testing.T) {
 	patch := "diff --git a/rec.go b/rec.go\n--- a/rec.go\n+++ b/rec.go\n@@ -1,1 +1,2 @@\n lineA\n+lineB\n"
 	st := diff.Style{

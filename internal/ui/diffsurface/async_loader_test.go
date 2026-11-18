@@ -2,6 +2,7 @@ package diffsurface
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,6 +13,48 @@ import (
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
 )
+
+func TestStageWriteSurvivesNavigationAndKeepsItsResult(t *testing.T) {
+	i18n.SetLocale("en")
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	entered, finish := make(chan struct{}), make(chan struct{})
+	var calls atomic.Int32
+	withTestGitOps(t, func(ops *diffsurfaceGitOps) {
+		ops.stagePaths = func(root string, paths ...string) (string, error) {
+			calls.Add(1)
+			close(entered)
+			<-finish
+			return "", errors.New("first stage result")
+		}
+	})
+	root := `C:\mock\first`
+	w := &Workbench{Root: root}
+	m := Model{WorkspaceRoot: root, Workbench: w}
+	w.requestStage(m, git.Change{Path: "first.txt", Worktree: 'M'}, true)
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("write did not start")
+	}
+	operation := w.Operation
+	w.requestStage(m, git.Change{Path: "second.txt", Worktree: 'M'}, true)
+	if w.Operation != operation || calls.Load() != 1 {
+		t.Fatal("second action replaced an admitted write")
+	}
+	w.ClosePane()
+	w.resetStateForRoot(`C:\mock\second`, nil)
+	if w.Operation != operation {
+		t.Fatal("navigation lost write ownership")
+	}
+	close(finish)
+	waitUntil(t, "first write result after navigation", func() bool {
+		finishGitOperation(Model{WorkspaceRoot: w.Root, Workbench: w})
+		return w.Operation == nil
+	}, nil)
+	if !strings.Contains(w.Status, "first stage result") || !strings.Contains(w.Status, root) {
+		t.Fatalf("lost write result or target: %q", w.Status)
+	}
+}
 
 func withTestGitOps(t *testing.T, configure func(ops *diffsurfaceGitOps)) {
 	t.Helper()

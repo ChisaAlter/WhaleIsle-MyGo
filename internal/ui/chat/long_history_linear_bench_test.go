@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/settings"
 )
@@ -51,6 +52,40 @@ func BenchmarkLongHistoryLinear(b *testing.B) {
 			for range b.N {
 				longHistoryActionsSink = assistantActionTargets(messages)
 			}
+		})
+	}
+}
+
+// BenchmarkLongHistoryViewport includes the real chat View and headless engine
+// layout at a fixed viewport. It excludes Host, the native window, GPU present
+// and user input latency. Warm-up constructs the derived history once.
+func BenchmarkLongHistoryViewport(b *testing.B) {
+	for _, turns := range []int{125, 500, 2000} {
+		b.Run(fmt.Sprintf("rows_%d", turns*4), func(b *testing.B) {
+			messages := longHistoryLinearFixture(turns)
+			list := &ui.ListState{}
+			// Keep a valid immutable store revision, as the real render caller
+			// does. A zero-value ViewState deliberately bypasses revision caches.
+			snapshot := session.New().Snapshot()
+			snapshot.SelectedID, snapshot.PlanHistoryBinding, snapshot.Messages = "synthetic-viewport", "synthetic-host", messages
+			if !snapshot.HistoryProjectionKey().Valid() {
+				b.Fatal("fixture has no store history revision")
+			}
+			m := Model{Snapshot: snapshot,
+				Preferences: settings.ChatPreferences{TranscriptView: "standard"}, List: list}
+			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 720, 360)
+			tt.Frame()
+			first, last := list.Visible()
+			if first < 0 || last <= first || last-first >= 100 {
+				b.Fatalf("fixed viewport did not virtualize history: %d..%d", first, last)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				tt.Frame()
+			}
+			b.StopTimer()
+			b.ReportMetric(float64(last-first), "visible-rows")
 		})
 	}
 }

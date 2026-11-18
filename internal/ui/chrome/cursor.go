@@ -67,7 +67,13 @@ func CursorEffectConfig(p wallpapers.Preferences, accent ui.Color, reducedMotion
 func ApplyCursorEffects(c *ui.Context, p wallpapers.Preferences, accent ui.Color) bool {
 	active := backdropWindowActive()
 	if active && c != nil {
-		NoteBackdropActivity(c.Now())
+		// Building a view is not user activity: Host updates and animation
+		// frames must not renew their own idle lease indefinitely.
+		activity := c.LastInputTime()
+		if activity.IsZero() && backdropActivityAt().IsZero() {
+			activity = c.Now()
+		}
+		NoteBackdropActivity(activity)
 	}
 	config, enabled := CursorEffectConfig(p, accent, c.Preferences().ReduceMotion || !active)
 	ui.SetDecorativeEffects(c, config)

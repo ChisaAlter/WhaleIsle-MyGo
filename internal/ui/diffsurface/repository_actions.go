@@ -23,22 +23,29 @@ type gitOperationResult struct {
 type gitOperation struct {
 	root, label string
 	gen         uint64
+	staging     bool
 	done        chan gitOperationResult
 }
 
 func beginGitOperation(c *ui.Context, w *Workbench, label string, run func(context.Context) gitOperationResult) {
+	w.setInvalidate(c.Services().Invalidate)
+	startGitOperation(w, label, false, run)
+}
+
+// Writes outlive their presentation. Keep their result until the workbench
+// consumes it, even when read loaders were cancelled by navigation or closing.
+func startGitOperation(w *Workbench, label string, staging bool, run func(context.Context) gitOperationResult) {
 	if w.Operation != nil {
 		return
 	}
-	w.setInvalidate(c.Services().Invalidate)
 	gen := w.bindRoot(w.Root)
-	operation := &gitOperation{root: w.Root, label: label, gen: gen, done: make(chan gitOperationResult, 1)}
+	operation := &gitOperation{root: w.Root, label: label, gen: gen, staging: staging, done: make(chan gitOperationResult, 1)}
 	w.Operation = operation
 	w.ReviewToken = ""
 	w.ReviewText = ""
 	w.Status = ""
 	loader := w.loader
-	invalidate := c.Services().Invalidate
+	invalidate := w.invalidate
 	progress := git.NewProgress(w.Root, label, invalidate)
 	w.Progress = progress
 	go func() {
@@ -98,7 +105,7 @@ func finishGitOperation(m Model) {
 			if result.committed {
 				w.Message = ""
 			}
-			if result.err == nil {
+			if result.err == nil && !operation.staging {
 				w.PublishOpen, w.PublishReview = false, false
 			}
 		}

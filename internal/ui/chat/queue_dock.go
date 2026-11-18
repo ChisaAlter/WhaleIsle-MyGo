@@ -213,9 +213,6 @@ func normalizeConversationNotice(text string) string {
 }
 
 func conversationSessionNotice(snap session.ViewState) string {
-	if notice := normalizeConversationNotice(snap.HistoryError); notice != "" && notice != strings.TrimSpace(snap.HistoryError) {
-		return notice
-	}
 	if notice := normalizeConversationNotice(snap.LastAction); notice != "" && notice != strings.TrimSpace(snap.LastAction) {
 		return notice
 	}

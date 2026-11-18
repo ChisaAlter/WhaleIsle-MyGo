@@ -104,7 +104,13 @@ func shouldFreezeAmbientAnimation(reduced bool, startedAt *time.Time, now time.T
 		return false
 	}
 	if startedAt.IsZero() {
-		*startedAt = now
+		// View builds recreate painter closures. Keep the initial idle epoch
+		// with the shared activity owner rather than restarting on every build.
+		*startedAt = backdropActivityAt()
+		if startedAt.IsZero() {
+			*startedAt = now
+			NoteBackdropActivity(now)
+		}
 	}
 	if act := backdropActivityAt(); act.After(*startedAt) && !now.Before(act) {
 		*startedAt = act

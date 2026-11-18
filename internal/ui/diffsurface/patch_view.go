@@ -394,9 +394,14 @@ func paintVirtualizedPatchList(c *ui.Context, m Model, view *patchViewState, sou
 	if len(items) == 0 {
 		return
 	}
+	// Copy reads the same logical rows as the painter, including rows that
+	// virtualization has never built. layoutSeq changes on source replacement
+	// and fold/view changes; row keys keep the remaining endpoints attached.
+	textRows := func(i int) []string { return patchSelectableParagraphs(items[i]) }
 	if view.Wrap {
 		ui.List(c, view.ensureList(), len(items)).
 			ItemKey(func(i int) any { return items[i].key }).
+			SelectionText(view.layoutSeq, textRows).
 			Fill().
 			MinHeight(0).
 			Gap(1).
@@ -420,6 +425,7 @@ func paintVirtualizedPatchList(c *ui.Context, m Model, view *patchViewState, sou
 	}).Children(func() {
 		ui.List(c, view.ensureList(), len(items)).
 			ItemKey(func(i int) any { return items[i].key }).
+			SelectionText(view.layoutSeq, textRows).
 			Width(listW).
 			FillHeight().
 			MinHeight(0).
@@ -430,6 +436,27 @@ func paintVirtualizedPatchList(c *ui.Context, m Model, view *patchViewState, sou
 				paintPatchListItem(row.Context, m, view, items[row.Index], st, rowMinW)
 			})
 	})
+}
+
+// patchSelectableParagraphs follows paintPatchListItem's selectable build order.
+// Headers and gutters are explicitly unselectable. A split row has two logical
+// paragraphs; endpoint clipping must not append the cell after the selected one.
+func patchSelectableParagraphs(item patchListItem) []string {
+	switch item.key.kind {
+	case patchItemMetaLine, patchItemUnifiedLine:
+		return []string{item.line.Text}
+	case patchItemSplitRow:
+		return []string{splitCellText(item.splitRow.Old), splitCellText(item.splitRow.New)}
+	default:
+		return nil
+	}
+}
+
+func splitCellText(line string) string {
+	if strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-") || strings.HasPrefix(line, " ") {
+		return line[1:]
+	}
+	return line
 }
 
 func paintRecordedPatchFiles(c *ui.Context, source string, split, wrap bool, st diff.Style) {
