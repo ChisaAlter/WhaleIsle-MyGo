@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/sshremote"
 	"whaleisle/internal/ui/i18n"
@@ -129,7 +130,7 @@ func (op *sshConnectOperation) run(e sshConnectEffects) {
 		switch {
 		case errors.As(err, &changed):
 			e.changed(changed, op.current)
-			msg = i18n.T(i18n.KeyRemoteSSHHostChangedStatus) + ": " + changed.Error()
+			msg = i18n.T(i18n.KeyRemoteSSHHostChangedStatus) + ": " + errcopy.Sentence(changed)
 		case errors.As(err, &unknown):
 			if e.prompt(unknown, op.current) {
 				owned, aerr := op.accept(unknown, e.accept)
@@ -137,7 +138,7 @@ func (op *sshConnectOperation) run(e sshConnectEffects) {
 					return
 				}
 				if aerr != nil {
-					msg = aerr.Error()
+					msg = errcopy.Sentence(aerr)
 				} else {
 					if !op.current() {
 						return
@@ -145,14 +146,14 @@ func (op *sshConnectOperation) run(e sshConnectEffects) {
 					// Connect also rejects a pre-canceled context before touching
 					// its state, closing the check-to-call cancellation boundary.
 					if err = e.connect(op.ctx); err != nil {
-						msg = err.Error()
+						msg = errcopy.Sentence(err)
 					}
 				}
 			} else {
 				msg = i18n.T(i18n.KeyRemoteSSHHostDeclined)
 			}
 		default:
-			msg = err.Error()
+			msg = errcopy.Sentence(err)
 		}
 	}
 	if op.publish(msg) && e.redraw != nil {

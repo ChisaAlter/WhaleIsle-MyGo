@@ -3,6 +3,7 @@ package main
 import (
 	"strconv"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -300,7 +301,7 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			}
 			state.sshTunnel.SetConfig(cfg)
 			if err != nil {
-				state.sshTunnelMsg = err.Error()
+				state.sshTunnelMsg = errcopy.Sentence(err)
 			} else {
 				state.sshTunnelMsg = i18n.T(i18n.KeyCmdSSHTunnelSaved)
 			}

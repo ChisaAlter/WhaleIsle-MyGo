@@ -2,6 +2,7 @@ package main
 
 import (
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/i18n"
 )
@@ -20,7 +21,7 @@ func (s *mainState) recoverImportBeforeStart() bool {
 	s.mu.Lock()
 	errMsg := ""
 	if err != nil {
-		errMsg = i18n.T(i18n.KeyCmdImportRecoveryIsIncompleteAllCopiesWer) + err.Error()
+		errMsg = i18n.T(i18n.KeyCmdImportRecoveryIsIncompleteAllCopiesWer) + errcopy.Sentence(err)
 		s.launcherImport = errMsg
 	} else {
 		s.launcherImport = i18n.T(i18n.KeyCmdAnInterruptedImportWasRecoveredComplet)

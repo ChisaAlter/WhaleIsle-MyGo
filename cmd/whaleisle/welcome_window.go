@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -275,7 +276,7 @@ func (w *welcomeWindow) saveAPIKey() {
 		win.Update(func() {
 			w.busy = false
 			if err != nil {
-				w.note, w.noteErr = i18n.T(i18n.KeyWelcomeKeyFailed)+": "+err.Error(), true
+				w.note, w.noteErr = i18n.T(i18n.KeyWelcomeKeyFailed)+": "+errcopy.Sentence(err), true
 				return
 			}
 			s := &state

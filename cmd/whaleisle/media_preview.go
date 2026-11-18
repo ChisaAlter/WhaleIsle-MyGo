@@ -6,6 +6,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -63,7 +64,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 			if err != nil || doc == nil {
 				message := i18n.T(i18n.KeyCmdMediaBoundedReadFailed)
 				if err != nil {
-					message += " " + err.Error()
+					message += " " + errcopy.Sentence(err)
 				}
 				sessions.SetLastAction(message)
 				return
@@ -73,7 +74,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 				s.browserController = s.newBrowserController(win)
 			}
 			if err = s.browserController.OpenMedia(doc, floating); err != nil {
-				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdMediaPreviewUnavailable), err.Error()))
+				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdMediaPreviewUnavailable), errcopy.Sentence(err)))
 			} else {
 				sessions.SetLastAction(i18n.T(i18n.KeyCmdMediaSnapshotOpened))
 			}

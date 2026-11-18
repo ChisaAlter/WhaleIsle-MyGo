@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
@@ -92,7 +93,7 @@ func (s *mainState) changeHostBundle(win *mygo.Window, action string) {
 			err = desktopcomponents.ErrUnknownAction
 		}
 		if err != nil {
-			message = i18n.T(i18n.KeyCmdHostActionDidNotComplete) + err.Error()
+			message = i18n.T(i18n.KeyCmdHostActionDidNotComplete) + errcopy.Sentence(err)
 		}
 		if message != "" {
 			s.hostBundleMessage(win, message)

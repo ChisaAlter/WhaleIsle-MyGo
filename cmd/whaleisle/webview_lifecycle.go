@@ -3,6 +3,7 @@ package main
 import (
 	"net/url"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	desktopwebview "whaleisle/internal/desktop/webview"
 	manager "whaleisle/internal/pluginmanager"
@@ -119,7 +120,7 @@ func (s *mainState) openMainWebViewURL(browse string) {
 		current := s.mainRouteCurrentLocked(ticket) && s.webviewHost == existing
 		if current {
 			if err != nil {
-				s.webviewHostErr = err.Error()
+				s.webviewHostErr = errcopy.Sentence(err)
 			} else {
 				s.pluginViewInventoryHost, s.pluginViewInventoryRevision = inventory.Owner, inventory.Revision
 				s.lastWebViewURL = browse
@@ -157,7 +158,7 @@ func (s *mainState) openMainWebViewURL(browse string) {
 	current := s.mainRouteCurrentLocked(ticket) && s.bootStatus.Generation == generation && s.bootStatus.Endpoint == ep
 	if current {
 		if err != nil {
-			s.webviewHostErr = err.Error()
+			s.webviewHostErr = errcopy.Sentence(err)
 		} else {
 			s.webviewHost = host
 			s.pluginViewResumeAfterRestart = false
@@ -173,7 +174,7 @@ func (s *mainState) openMainWebViewURL(browse string) {
 		return
 	}
 	if current && err != nil {
-		go s.recordWebBootFailure(err.Error())
+		go s.recordWebBootFailure(err.Error()) // raw-ok: boot-failure record, not copy
 		return
 	}
 	if host != nil {

@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/recovery"
@@ -28,7 +29,7 @@ func (s *mainState) openResume(dir string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err != nil {
-		s.resumeError = err.Error()
+		s.resumeError = errcopy.Sentence(err)
 		return
 	}
 	s.resumeStore = store
@@ -287,7 +288,7 @@ func (s *mainState) saveResumeBeforeClose(win *mygo.Window) bool {
 	if err := s.saveResume(); err != nil {
 		return s.askConfirmBlocking(confirmAskRequest{Owner: win,
 			Title:       i18n.T(i18n.KeyCmdCouldNotSaveResumeState),
-			Body:        strings.Join([]string{err.Error(), i18n.T(i18n.KeyCmdTheOriginalFileWasNotOverwrittenKeepT)}, "\n\n"),
+			Body:        strings.Join([]string{errcopy.Sentence(err), i18n.T(i18n.KeyCmdTheOriginalFileWasNotOverwrittenKeepT)}, "\n\n"),
 			CancelLabel: i18n.T(i18n.KeyCmdKeepWindowOpen), ConfirmLabel: i18n.T(i18n.KeyCmdQuitWithoutSaving), Danger: true})
 	}
 	return true

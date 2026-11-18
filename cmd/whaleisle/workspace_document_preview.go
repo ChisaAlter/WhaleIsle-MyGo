@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/desktop/imagepreview"
@@ -236,12 +237,12 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 			case err != nil && readFailed:
 				s.setOfficePreviewMessage(sessions, sid, path, officePreviewFailure(err))
 			case err != nil:
-				s.setOfficePreviewMessage(sessions, sid, path, fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeReaderFailed), err.Error()))
+				s.setOfficePreviewMessage(sessions, sid, path, fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeReaderFailed), errcopy.Sentence(err)))
 			case office != nil:
 				s.setOfficePreviewMessage(sessions, sid, path, officePreviewReady(office.MissingFonts))
 			}
 		} else if err != nil {
-			sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdDocumentPreviewFailed), err.Error()))
+			sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdDocumentPreviewFailed), errcopy.Sentence(err)))
 		} else if html != nil {
 			sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdHTMLSnapshotOpened), html.Resources.Summary()))
 		} else {

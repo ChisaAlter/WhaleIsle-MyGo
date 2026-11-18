@@ -706,12 +706,12 @@ func (s *mainState) saveDesktopConfig() {
 	}
 	restartPolicy, err := config.ParseRestartPreferences(s.desktopDraft.harnessAutoRestart, s.desktopDraft.harnessRestartMaxAttempts, s.desktopDraft.harnessRestartBaseDelayMs)
 	if err != nil {
-		s.desktopSaveErr = err.Error()
+		s.desktopSaveErr = errcopy.Sentence(err)
 		s.desktopLastAction = ""
 		return
 	}
 	if err := s.materializeWallpaperDraft(); err != nil {
-		s.desktopSaveErr = err.Error()
+		s.desktopSaveErr = errcopy.Sentence(err)
 		return
 	}
 	workspaceChanged := strings.TrimSpace(s.desktopDraft.workspace) != strings.TrimSpace(s.desktopDraft.workspaceSeed)
@@ -736,7 +736,7 @@ func (s *mainState) saveDesktopConfig() {
 		c.AutoAllowTools = s.desktopDraft.autoAllowTools
 	})
 	if err != nil {
-		s.desktopSaveErr = err.Error()
+		s.desktopSaveErr = errcopy.Sentence(err)
 		s.desktopLastAction = ""
 		return
 	}
@@ -983,7 +983,7 @@ func (s *mainState) setAssistantFlag(whale *bool, dshbot *bool) {
 	}); err != nil {
 		log.Printf("assistant: config update: %v", err)
 		s.mu.Lock()
-		s.desktopSaveErr = err.Error()
+		s.desktopSaveErr = errcopy.Sentence(err)
 		s.mu.Unlock()
 		if win != nil {
 			win.Update(func() {})
@@ -1372,7 +1372,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		}
 		if st.Err != nil && key != s.crashReportGeneration {
 			s.crashReportGeneration = key
-			failedMessage = st.Err.Error()
+			failedMessage = errcopy.Sentence(st.Err)
 		}
 	} else {
 		s.crashReportGeneration = 0
@@ -2893,14 +2893,14 @@ func (s *mainState) confirmGitCommit(win *mygo.Window, root, message string, dir
 	_, reviewedToken, reviewErr := desktopgit.IndexReview(root)
 	if reviewErr != nil {
 		s.mu.Lock()
-		s.gitMsg = reviewErr.Error()
+		s.gitMsg = errcopy.Sentence(reviewErr)
 		s.mu.Unlock()
 		return
 	}
 	summary, reviewErr := desktopgit.StagedSummary(root)
 	if reviewErr != nil {
 		s.mu.Lock()
-		s.gitMsg = reviewErr.Error()
+		s.gitMsg = errcopy.Sentence(reviewErr)
 		s.mu.Unlock()
 		return
 	}
@@ -4030,7 +4030,7 @@ func mainView(c *ui.Context) {
 								})
 								state.mu.Lock()
 								if err != nil {
-									state.credsHarnessNote = err.Error()
+									state.credsHarnessNote = errcopy.Sentence(err)
 								} else {
 									parts := make([]string, 0, len(desc))
 									for ref, v := range desc {
@@ -4318,7 +4318,7 @@ func mainView(c *ui.Context) {
 							if sessions != nil {
 								ticket, err := sessions.CaptureSkillDirectory(name)
 								if err != nil {
-									sessions.SetLastAction(err.Error())
+									sessions.SetLastAction(errcopy.Sentence(err))
 									return
 								}
 								go sessions.OpenCapturedSkillDirectory(context.Background(), ticket)
@@ -4934,14 +4934,14 @@ func mainView(c *ui.Context) {
 						data := marketStore.ExportHistory()
 						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdExportInstallationHistory), DefaultPath: "whaleisle-marketplace.log"})
 						if err != nil {
-							mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), err.Error())
+							mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), errcopy.Sentence(err))
 							return
 						}
 						if path == "" {
 							return
 						}
 						if err = os.WriteFile(path, data, 0600); err != nil {
-							mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), err.Error())
+							mygo.Dialog.Error(i18n.T(i18n.KeyCmdMarketExportErrorTitle), errcopy.Sentence(err))
 						}
 					},
 					OnCopyInstallLog: func(log string) {
@@ -5080,7 +5080,7 @@ func mainView(c *ui.Context) {
 							imStore.SetDraft(sel, imDraft)
 						}
 						if err := imStore.Persist(); err != nil {
-							state.notifyUser(win, err.Error())
+							state.notifyUser(win, errcopy.Sentence(err))
 							return
 						}
 						state.mu.Lock()
@@ -5292,7 +5292,7 @@ func mainView(c *ui.Context) {
 						c.CloseToast("usage-export-error")
 						data, err := usageStore.ExportStats(format)
 						if err != nil {
-							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: err.Error(), Type: "error", Timeout: -1})
+							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
 							return
 						}
 						ext := "csv"
@@ -5301,14 +5301,14 @@ func mainView(c *ui.Context) {
 						}
 						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdUsageExportStatistics), DefaultPath: "usage-" + format + "." + ext})
 						if err != nil {
-							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: err.Error(), Type: "error", Timeout: -1})
+							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
 							return
 						}
 						if path == "" {
 							return
 						}
 						if err = os.WriteFile(path, data, 0600); err != nil {
-							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: err.Error(), Type: "error", Timeout: -1})
+							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
 						}
 					},
 					OnOpenSession: func(id string) {
@@ -5522,7 +5522,7 @@ func mainView(c *ui.Context) {
 									win.Invalidate()
 								}
 							} else if err != nil {
-								sessions.SetLastAction(err.Error())
+								sessions.SetLastAction(errcopy.Sentence(err))
 							}
 						}
 						if !current() {
@@ -5983,7 +5983,7 @@ func mainView(c *ui.Context) {
 								})
 								if err != nil {
 									if sessions != nil {
-										sessions.SetLastAction(err.Error())
+										sessions.SetLastAction(errcopy.Sentence(err))
 									}
 									return
 								}
@@ -6008,7 +6008,7 @@ func mainView(c *ui.Context) {
 						OnPickComposerImage: func() {
 							paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdAttachFilesImages), DefaultPath: workspaceRoot, Multiple: true})
 							if err != nil {
-								activeDraft.Error = err.Error()
+								activeDraft.Error = errcopy.Sentence(err)
 								return
 							}
 							state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths)
@@ -6031,7 +6031,7 @@ func mainView(c *ui.Context) {
 								Title:  i18n.T(i18n.KeyComposerSpeech),
 							})
 							if err != nil {
-								sessions.SetLastAction(err.Error())
+								sessions.SetLastAction(errcopy.Sentence(err))
 								return
 							}
 							if len(paths) == 0 {
@@ -6040,7 +6040,7 @@ func mainView(c *ui.Context) {
 							go func() {
 								text, err := sessions.TranscribeAudioFile(context.Background(), paths[0])
 								if err != nil {
-									sessions.SetLastAction(err.Error())
+									sessions.SetLastAction(errcopy.Sentence(err))
 									if win != nil {
 										win.Update(func() {})
 									}
@@ -6369,7 +6369,7 @@ func mainView(c *ui.Context) {
 								return mygo.Shell.OpenPath(path)
 							})
 							if err != nil {
-								sessions.SetLastAction(err.Error())
+								sessions.SetLastAction(errcopy.Sentence(err))
 							}
 						},
 						OnRenderOfficePDF: func(rel string) {

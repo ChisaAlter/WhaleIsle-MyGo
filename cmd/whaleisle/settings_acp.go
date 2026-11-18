@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/desktop/acp"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/settings"
 )
 
@@ -95,7 +96,7 @@ func (s *mainState) runACP(method string, payload map[string]any) {
 		s.acpPanel.loaded = true
 		s.acpPanel.cancel = nil
 		if err != nil {
-			s.acpPanel.error = err.Error()
+			s.acpPanel.error = errcopy.Sentence(err)
 		} else {
 			if method == "agent/registry-search" {
 				s.acpPanel.registry = registry

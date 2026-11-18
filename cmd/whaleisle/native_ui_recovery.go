@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -288,7 +289,7 @@ func handleNativeRecoveryProcess() bool {
 									}
 									if stopErr != nil {
 										mu.Lock()
-										failure = stopErr.Error()
+										failure = errcopy.Sentence(stopErr)
 										recovering = false
 										restarting = false
 										mu.Unlock()

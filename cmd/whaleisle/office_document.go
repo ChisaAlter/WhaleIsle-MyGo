@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
@@ -91,5 +92,5 @@ func officePreviewFailure(err error) string {
 	if strings.Contains(err.Error(), "harness not ready") {
 		return unavailable
 	}
-	return fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeRetryFailure), err.Error())
+	return fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeRetryFailure), errcopy.Sentence(err))
 }

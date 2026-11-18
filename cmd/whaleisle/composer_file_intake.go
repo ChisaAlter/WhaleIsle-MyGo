@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/store/session"
@@ -83,7 +84,7 @@ func (s *mainState) beginComposerFileIntake(win *mygo.Window, sessions *session.
 		var err error
 		owner, err = sessions.CaptureComposerTarget(id)
 		if err != nil && local {
-			d.Error = err.Error()
+			d.Error = errcopy.Sentence(err)
 			return
 		}
 		limits = sessions.ComposerImageLimits(id)

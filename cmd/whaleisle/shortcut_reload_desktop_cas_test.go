@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"strings"
 	"testing"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/paths"
@@ -80,7 +80,7 @@ func TestShortcutReloadDoesNotAuthorizeStaleDesktopDraft(t *testing.T) {
 			}
 			s.desktopDraft.closeToTray = !s.desktopDraft.closeToTray
 			s.saveDesktopConfig()
-			if !strings.Contains(s.desktopSaveErr, config.ErrConflict.Error()) || s.desktopLastAction != "" {
+			if s.desktopSaveErr != errcopy.Sentence(config.ErrConflict) || s.desktopLastAction != "" {
 				t.Fatal("stale desktop-form save was not rejected by CAS", s.desktopSaveErr, s.desktopLastAction)
 			}
 			after, err := os.ReadFile(cfg.Path())

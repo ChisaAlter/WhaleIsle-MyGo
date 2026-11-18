@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"whaleisle/internal/errcopy"
 
 	desktopgit "whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
@@ -16,7 +17,7 @@ func (s *mainState) reviewGitPush(root string) {
 	s.mu.Lock()
 	win := s.win
 	if err != nil {
-		s.gitMsg = err.Error()
+		s.gitMsg = errcopy.Sentence(err)
 	}
 	s.mu.Unlock()
 	if err != nil {

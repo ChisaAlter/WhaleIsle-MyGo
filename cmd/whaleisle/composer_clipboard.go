@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"whaleisle/internal/desktop/clipboardimage"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
@@ -58,7 +59,7 @@ func (s *mainState) pasteComposerImage(win *mygo.Window, sessions *session.Store
 				return
 			}
 			if err != nil {
-				d.Error = err.Error()
+				d.Error = errcopy.Sentence(err)
 				return
 			}
 			s.addComposerFiles(win, sessions, id, d, []string{path})

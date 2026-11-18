@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
@@ -85,9 +86,9 @@ func (s *mainState) copyAccountAuthorization(raw string) {
 		message = "已复制登录链接。"
 	}
 	if err != nil {
-		message = "Could not copy the sign-in link. " + err.Error()
+		message = "Could not copy the sign-in link. " + errcopy.Sentence(err)
 		if i18n.Locale() == i18n.LocaleZH {
-			message = "复制登录链接失败：" + err.Error()
+			message = "复制登录链接失败：" + errcopy.Sentence(err)
 		}
 	}
 	if win != nil {

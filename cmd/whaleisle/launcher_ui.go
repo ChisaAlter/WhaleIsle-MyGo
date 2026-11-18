@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -306,7 +307,7 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 				c.DownloadRoute = saved.DownloadRoute
 			})
 			if err != nil {
-				l.SetPrefsError(err.Error())
+				l.SetPrefsError(errcopy.Sentence(err))
 			} else {
 				l.SetPrefsError("")
 			}
@@ -362,7 +363,7 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 				}
 			})
 			if err != nil {
-				l.SetNote(err.Error())
+				l.SetNote(errcopy.Sentence(err))
 			} else {
 				l.SetNote(i18n.T(i18n.KeyLauncherSkipUserPluginsOn))
 				s.syncHarnessFromConfig()
@@ -381,7 +382,7 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 			}
 			err := cfgStore.ClearPluginRecovery()
 			if err != nil {
-				l.SetNote(err.Error())
+				l.SetNote(errcopy.Sentence(err))
 			} else {
 				l.SetNote(i18n.T(i18n.KeyLauncherSkipUserPluginsOff))
 				s.syncHarnessFromConfig()

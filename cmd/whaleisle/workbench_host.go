@@ -5,6 +5,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -48,14 +49,14 @@ func (s *mainState) startWorkbenchHost(win *mygo.Window, sup *harness.Supervisor
 					l.EndPreparationOnly()
 					l.SetStartBusy(false)
 					if err != nil {
-						s.notifyUser(win, err.Error())
+						s.notifyUser(win, errcopy.Sentence(err))
 					}
 					win.Invalidate()
 					return
 				}
 				go func() {
 					if err := store.Update(func(c *config.Config) { c.Workspace = picked[0] }); err != nil {
-						l.FinishStartPreparation(true, err.Error(), "", gen)
+						l.FinishStartPreparation(true, errcopy.Sentence(err), "", gen)
 						win.Invalidate()
 						return
 					}

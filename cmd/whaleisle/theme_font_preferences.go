@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"os"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
@@ -32,7 +33,7 @@ func (s *mainState) themeFontEditor(visible bool) *theme.Editor {
 			return string(data), err
 		}
 		if err != nil {
-			s.appearanceEditor.Status = err.Error()
+			s.appearanceEditor.Status = errcopy.Sentence(err)
 		}
 	}
 	return s.appearanceEditor

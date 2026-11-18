@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/paths"
@@ -24,7 +25,7 @@ func credentialDraftFromEditor(editor *credentials.Store) credentialsDraft {
 	f := editor.Fields()
 	draft := credentialsDraft{apiKey: f.APIKey, baseURL: f.BaseURL, githubToken: f.GithubToken, remoteToken: f.RemoteToken, remoteRelayToken: f.RemoteRelayToken, seeded: true, editor: editor}
 	if err := editor.WriteAccessError(); err != nil {
-		draft.writeAccessErr = err.Error()
+		draft.writeAccessErr = errcopy.Sentence(err)
 	}
 	return draft
 }
@@ -89,7 +90,7 @@ func (s *mainState) retryCredentialsLoad() {
 		s.credsSeedLoading = false
 		if ctx.Err() == nil {
 			if err != nil {
-				s.credsSaveErr = err.Error()
+				s.credsSaveErr = errcopy.Sentence(err)
 			} else {
 				fresh := credentialDraftFromEditor(editor)
 				keepCredentialEdits(&s.credsDraft, previous, fresh)
@@ -154,7 +155,7 @@ func (s *mainState) saveCredentials() {
 				s.credsDraft.conflicted = true
 				s.credsSaveErr = "凭据已在其他窗口更改，编辑内容已保留。请重新读取文件、核对后保存。 / Credentials changed in another window. Reload the file, review your retained edits, then save."
 			} else {
-				s.credsSaveErr = err.Error()
+				s.credsSaveErr = errcopy.Sentence(err)
 			}
 		} else {
 			keepCredentialEdits(&s.credsDraft, submitted.fields(), credentialDraftFromEditor(submitted.editor))
@@ -163,7 +164,7 @@ func (s *mainState) saveCredentials() {
 				s.credsLastAction += " · credentials/set"
 			}
 			if syncErr != nil {
-				s.credsHarnessNote = syncErr.Error()
+				s.credsHarnessNote = errcopy.Sentence(syncErr)
 			} else {
 				s.credsHarnessNote = ""
 			}

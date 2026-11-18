@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+	"whaleisle/internal/errcopy"
 
 	projectctl "whaleisle/internal/app/project"
 	"whaleisle/internal/harness/installctrl"
@@ -124,7 +125,7 @@ func TestCmdInlineAuditImportAndPreviewUseCurrentLocale(t *testing.T) {
 			if got := officePreviewFailure(errors.New("response exceeds bounded wire limit")); got != i18n.T(i18n.KeyCmdOfficeTransportTooLarge) {
 				t.Fatalf("size error %q", got)
 			}
-			if got := officePreviewFailure(errors.New("fixture detail")); got != fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeRetryFailure), "fixture detail") {
+			if got := officePreviewFailure(errors.New("fixture detail")); got != fmt.Sprintf(i18n.T(i18n.KeyCmdOfficeRetryFailure), errcopy.Sentence(errors.New("fixture detail"))) {
 				t.Fatalf("detail argument changed: %q", got)
 			}
 			s := &mainState{}

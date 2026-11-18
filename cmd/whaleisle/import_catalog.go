@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/i18n"
 )
@@ -79,7 +80,7 @@ func (s *mainState) requestImportCatalog(win *mygo.Window, source, extraRoot str
 			s.launcherImportScan.busy, s.launcherImportScan.cancel = false, nil
 			s.launcherImportScan.owner = nil
 			if err != nil {
-				s.launcherImport = err.Error()
+				s.launcherImport = errcopy.Sentence(err)
 			} else {
 				if current := s.launcherImportCatalog; previous != nil && current != nil {
 					importer.MergeCatalogSelections(&cat, current.Snapshot())

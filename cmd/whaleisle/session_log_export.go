@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -155,7 +156,7 @@ func (s *mainState) requestSessionLogExport(win *mygo.Window, sessions *session.
 	if err != nil || path == "" || ctx.Err() != nil {
 		message := ""
 		if err != nil {
-			message = resumeText("无法选择日志保存位置：", "Could not choose the log destination: ") + err.Error()
+			message = resumeText("无法选择日志保存位置：", "Could not choose the log destination: ") + errcopy.Sentence(err)
 		}
 		finish(message)
 		return false
@@ -180,7 +181,7 @@ func (s *mainState) requestSessionLogExport(win *mygo.Window, sessions *session.
 		}
 		message := resumeText("会话日志已保存", "Session log saved")
 		if err != nil {
-			message = resumeText("会话日志导出失败：", "Session log export failed: ") + err.Error()
+			message = resumeText("会话日志导出失败：", "Session log export failed: ") + errcopy.Sentence(err)
 		}
 		mygo.RunOnMain(func() { finish(message) })
 	}()

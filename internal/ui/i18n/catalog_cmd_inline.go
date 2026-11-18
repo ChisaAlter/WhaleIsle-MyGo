@@ -84,7 +84,7 @@ func init() {
 	Register(KeyCmdImportStartBlocked, "导入尚未结束，暂不能启动内核。", "The import has not finished; the core cannot start yet.")
 	Register(KeyCmdMediaBoundedReadFailed, "媒体预览失败；当前 Host/backend 必须支持有界字节读取。可在 Files 显式外部打开。", "Media preview failed; the current Host/backend must support bounded byte reads. Use Files to open it externally.")
 	Register(KeyCmdOfficeTransportTooLarge, "转换后的 PDF 超过预览传输大小上限；请缩小文件后重试。", "The converted PDF exceeds the preview transfer limit; shrink the file and retry.")
-	Register(KeyCmdOfficeRetryFailure, "Office 预览失败：%s。点击“转为 PDF 预览”可重试。", "Office preview failed: %s. Click Convert to PDF preview to retry.")
+	Register(KeyCmdOfficeRetryFailure, "Office 预览失败：%s点击“转为 PDF 预览”可重试。", "Office preview failed: %s Click Convert to PDF preview to retry.")
 	Register(KeyCmdOfficePreparing, "正在转换 Office 文档并准备 PDF 预览…", "Converting the Office document and preparing its PDF preview…")
 	Register(KeyCmdPDFPreparing, "正在准备 PDF 只读预览…", "Preparing a read-only PDF preview…")
 	Register(KeyCmdHTMLPreparing, "正在打开已保存的 HTML 快照，编辑草稿保持不变…", "Opening the saved HTML snapshot; editor drafts are retained…")

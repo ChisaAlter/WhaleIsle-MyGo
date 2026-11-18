@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
@@ -319,7 +320,7 @@ func (s *mainState) syncResumeCheckpoint(c *ui.Context) {
 	if show {
 		c.AddToast(ui.Toast{ID: "resume-checkpoint-error", Type: "error", Timeout: -1,
 			Title:       i18n.T(i18n.KeyCmdResumeStateWasNotSaved),
-			Description: err.Error(), Action: i18n.T(i18n.KeyCmdRetry), OnAction: checkpoint.retry})
+			Description: errcopy.Sentence(err), Action: i18n.T(i18n.KeyCmdRetry), OnAction: checkpoint.retry})
 	} else if err == nil {
 		c.CloseToast("resume-checkpoint-error")
 	}

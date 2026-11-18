@@ -10,6 +10,7 @@ import (
 	"strings"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/chrome"
@@ -73,7 +74,7 @@ func (s *mainState) wallpaperEditor() *settings.WallpaperEditor {
 		return s.resolvedWallpaperPathFor(s.desktopDraft.wallpaperPath, p)
 	}
 	if err != nil {
-		g.Status = err.Error()
+		g.Status = errcopy.Sentence(err)
 	}
 	s.wallpaperControls = g
 	return g

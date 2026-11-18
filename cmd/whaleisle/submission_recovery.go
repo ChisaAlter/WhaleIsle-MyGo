@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/recovery"
@@ -38,7 +39,7 @@ func (s *mainState) bindSubmissionRecovery(ctx context.Context, sessions *sessio
 	})
 	if err != nil {
 		sessions.RequireSubmissionRecovery(err)
-		sessions.SetLastAction(err.Error())
+		sessions.SetLastAction(errcopy.Sentence(err))
 		return
 	}
 	var saved session.SubmissionRecovery

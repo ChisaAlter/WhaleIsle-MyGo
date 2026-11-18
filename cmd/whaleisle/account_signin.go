@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/dsh/api"
@@ -63,7 +64,7 @@ func (s *mainState) retryAccountSignIn() {
 			return
 		}
 		if err != nil {
-			s.accountLogin.CancelFailed(err.Error())
+			s.accountLogin.CancelFailed(errcopy.Sentence(err))
 			s.reportAccountAction(err)
 			return
 		}
