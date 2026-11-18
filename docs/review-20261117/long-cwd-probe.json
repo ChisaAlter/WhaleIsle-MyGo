@@ -1,0 +1,22 @@
+[
+  {
+    "name": "short",
+    "cwdLength": 82,
+    "status": 0,
+    "stdout": "git version 2.55.0.windows.5",
+    "stderr": ""
+  },
+  {
+    "name": "long-cwd",
+    "cwdLength": 287,
+    "status": null,
+    "error": "ENOENT"
+  },
+  {
+    "name": "short-cwd-long-C",
+    "cwdLength": 82,
+    "status": 128,
+    "stdout": "",
+    "stderr": "fatal: cannot change to 'C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-c95bd195e9bf485b8bf99859a86a2748\\long\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding\\padding': Filename too long"
+  }
+]

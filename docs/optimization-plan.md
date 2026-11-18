@@ -4,6 +4,8 @@
 
 技术基线：[核心架构与技术路线](../ARCHITECTURE.md)。本方案规定执行顺序与交付批次，指标数值、插件兼容合同与数据权威以架构文档为准。
 
+2026-11-17 后续实施：[路线 A 系统优化方案](route-a-system-optimization-20261117.md)已获准执行，覆盖状态归属、按需资源、原生性能与发行恢复；当前进展统一记录在新方案。本文的历史完成记录不代表 2026-11-17 候选已全面通过。
+
 ## 1. 路线 A 核心目标：零浏览器常驻，纯粹极速原生
 
 本轮优化全力实施产品路线 A，定位为与 Electron 鲸屿本体互补共存（共享 `%APPDATA%\Deepseek-Harness-Desktop`）的极速原生编码利器：
@@ -183,7 +185,7 @@
 - [草稿绑定退役](../internal/ui/composer/draft_binding.go)、[草稿输入](../internal/ui/composer/draft_input.go)
 - [聊天投影缓存](../internal/ui/chat/chat.go)、[侧栏及名称读取](../internal/ui/sidebar/sidebar.go)
 - [文件关闭与保存](../internal/ui/files/close_save.go)、[Diff 工作台](../internal/ui/diffsurface/workbench.go)
-- [鉴权网关](../internal/desktop/pluginslots/gateway.go)、[插件能力画像](../internal/dsh/api/plugin_capability.go)
+- [鉴权网关](../internal/desktop/pluginslots/gateway.go)、[插件能力画像](../internal/pluginmanager/capabilities.go)
 
 这些源码位置用于确定复用与改造落点，运行效果由对应批次的当前候选证据确认。
 
