@@ -20,7 +20,7 @@
 | `internal/ui/pluginmanager/assets/*.svg` | 同上，`//go:embed assets/*.svg`（`internal/ui/pluginmanager/artwork.go:19`） |
 | `resources/mobile/web/chisacode/parity.js` | 无按名引用，但 `scripts/mobile-runtime.mjs:74` 整目录打包带入，会随包发出；删前需运行时复核 |
 | `internal/harness/link_windows.go`、`internal/harness/installctrl/junction_windows.go` | 两份 `mklink /J` 实现都在用：`internal/harness/link.go:43`、`installctrl/rollback.go:213` 及各测试 |
-| 8 组重复资产（12.8MB，`icon.png`/`whale-head.png` 各 4 份，echarts、mermaid、three、icons、`viewer.html` 各 2 份） | 每份由不同 loader 消费，去重属重构而非清理 |
+| 8 组重复资产（12.8MB，`icon.png` 与 `whale-head.png` 合计 4 份同内容副本，echarts 两个文件、mermaid、three、icons、`viewer.html` 各 2 份） | 每份由不同 loader 消费，去重属重构而非清理 |
 | `docs/route-a-implementation-20261117/`、`docs/review-20261117/`、`docs/fix-plan-20261020.md` | 由 `docs/route-a-system-optimization-20261117.md` 与 `docs/review-20261020/CLOSURE-AUDIT.md:4` 按路径引用，而前者被 `ARCHITECTURE.md` 引用 |
 
 **`docs/review-20261022/`、`docs/review-20261020/`（169MB）：决定保留。** 属被引用的证据而非杂物，压缩仓库不值得切断活的文档链。若日后要删，前置条件是先退役 `docs/route-a-system-optimization-20261117.md` 及其在 `ARCHITECTURE.md` 的入站链接——那是内容决定，不是清理决定；处理后需重跑引用检查。
