@@ -137,8 +137,11 @@ jobs:
       - name: Test UI packages
         shell: bash
         run: |
-          # These surfaces assert Windows copy and rendering behaviour, so the
-          # Linux race job cannot carry them without failing on layout metrics.
+          # These four packages assert Windows copy, path decoding and layout
+          # behaviour. Portability debt: file:// decoding, long- vs short-form
+          # local paths, hover and focus repaint, and badge geometry all assume
+          # Windows, so moving them to the Linux job needs real work rather than
+          # a workflow edit. Every test added here must pass on a clean runner.
           go test -count=1 \
             ./internal/ui/settings \
             ./internal/ui/files \

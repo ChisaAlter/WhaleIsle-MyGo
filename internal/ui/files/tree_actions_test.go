@@ -20,8 +20,8 @@ func TestTreeDirectoryActions(t *testing.T) {
 		t.Fatalf("copies: %+v, %v", values, ok)
 	}
 	revealTreePath(m, "nested folder")
-	if revealed != filepath.Join(root, "nested folder") {
-		t.Fatalf("reveal: %q", revealed)
+	if !samePath(revealed, filepath.Join(root, "nested folder")) {
+		t.Fatalf("reveal: %q want %q", revealed, filepath.Join(root, "nested folder"))
 	}
 	// Host paths need no corresponding local directory. Resolve them lexically
 	// against the selected workspace, never against the Host process cwd.
