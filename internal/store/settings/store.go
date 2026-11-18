@@ -76,6 +76,7 @@ type Store struct {
 	draftRevisions            map[string]float64
 	draftSeeds                map[string]*draftSeed
 	hostDraftRevisions        map[string]map[string]float64
+	providerPage              uint64
 	providerDirectory         api.ListConfigurableProvidersResult
 	providerRegistered        api.ListProvidersResult
 	providerDirectoryErr      string

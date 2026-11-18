@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -25,14 +23,15 @@ type providerDraft struct {
 	paths         map[string][]string
 }
 
-var providerPages sync.Map // *Store -> *atomic.Uint64
-func providerPage(s *Store) uint64 {
-	p, _ := providerPages.LoadOrStore(s, &atomic.Uint64{})
-	return p.(*atomic.Uint64).Load()
-}
+// providerPageLocked is this store's card-owner counter. It lives on the store
+// so a retired store takes the counter with it instead of leaving an entry in a
+// package-level map keyed by the store pointer.
+func (s *Store) providerPageLocked() uint64 { return s.providerPage }
+
 func (s *Store) LeaveProviderForms() {
-	p, _ := providerPages.LoadOrStore(s, &atomic.Uint64{})
-	p.(*atomic.Uint64).Add(1)
+	s.mu.Lock()
+	s.providerPage++
+	s.mu.Unlock()
 }
 
 func (s *Store) BindProviderEditor(namespace, provider string, path []string) *NamespaceBinding {
@@ -42,7 +41,7 @@ func (s *Store) BindProviderEditor(namespace, provider string, path []string) *N
 	if ns == nil {
 		return nil
 	}
-	d := &providerDraft{page: providerPage(s), ns: *ns, drafts: map[string]string{}, dirty: map[string]bool{}, resets: map[string]bool{}, path: append([]string(nil), path...), paths: map[string][]string{}}
+	d := &providerDraft{page: s.providerPageLocked(), ns: *ns, drafts: map[string]string{}, dirty: map[string]bool{}, resets: map[string]bool{}, path: append([]string(nil), path...), paths: map[string][]string{}}
 	for _, f := range ns.Fields {
 		d.drafts[f.Key] = ValueDraft(ns.Value, f.Key, f.Kind)
 	}

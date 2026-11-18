@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/frame"
 )
 
@@ -196,6 +197,16 @@ func (s *mainState) disposeWorkspaceSessions() {
 	for _, entry := range s.workspaceSessions.BySession {
 		entry.Panes.DisposeContent()
 	}
+}
+
+// replaceSessionsLocked installs next as the session store and releases the
+// frame memory the previous store owned. Every store installation goes through
+// here, so a replaced store cannot stay reachable through that bookkeeping.
+func (s *mainState) replaceSessionsLocked(next *session.Store) {
+	if previous := s.sessions; previous != nil && previous != next {
+		frame.ForgetExternalAccount(previous)
+	}
+	s.sessions = next
 }
 
 // Only records that arrived with a durable Host scope are eligible. Legacy
