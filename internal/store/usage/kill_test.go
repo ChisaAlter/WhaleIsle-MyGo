@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,7 +143,12 @@ func TestKillJobAndFollowJobRespectHostReplacement(t *testing.T) {
 	select {
 	case <-followCancelled:
 	case <-time.After(3 * time.Second):
-		t.Fatal("Attach did not cancel active FollowJob stream")
+		// The only proof this test accepts is the cancel frame reaching the old
+		// server. When it does not, say what the store and the process were
+		// doing, so a future occurrence names the stall instead of the deadline.
+		snap := st.Snapshot()
+		buf := make([]byte, 1<<20)
+		t.Fatalf("Attach did not cancel active FollowJob stream (recent=%d err=%q)\n%s", len(snap.Recent), snap.Err, buf[:runtime.Stack(buf, true)])
 	}
 	time.Sleep(30 * time.Millisecond)
 	snap := st.Snapshot()
