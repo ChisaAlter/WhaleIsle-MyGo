@@ -1,7 +1,7 @@
 package mygo_test
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,88 +9,46 @@ import (
 	"testing"
 )
 
+// Link the real product entry point; an empty example can shed its entire UI.
 func TestReleaseBuildStripsTestHooks(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping build test in short mode")
+		t.Skip("skipping product build in short mode")
 	}
-
-	tmpDir := t.TempDir()
-
-	mygoDir, err := filepath.Abs(".")
+	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
-		t.Fatalf("failed to resolve mygo dir: %v", err)
+		t.Fatal(err)
 	}
-	mygoDir = filepath.ToSlash(mygoDir)
-
-	goModContent := fmt.Sprintf(`module testrelease
-
-go 1.27
-
-replace github.com/egoist/mygo => %s
-
-require github.com/egoist/mygo v0.0.0
-`, mygoDir)
-
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0644); err != nil {
-		t.Fatalf("failed to write go.mod: %v", err)
+	raw, err := os.ReadFile(filepath.Join(root, "scripts", "release-build.json"))
+	if os.IsNotExist(err) {
+		t.Skip("product release contract absent in standalone MyGo checkout")
 	}
-
-	mainContent := `package main
-
-import (
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
-)
-
-func main() {
-	_ = mygo.Version
-	_ = ui.Rect{}
-}
-`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644); err != nil {
-		t.Fatalf("failed to write main.go: %v", err)
-	}
-
-	tidyCmd := exec.Command("go", "mod", "tidy")
-	tidyCmd.Dir = tmpDir
-	tidyCmd.Env = os.Environ()
-	if tidyOut, err := tidyCmd.CombinedOutput(); err != nil {
-		t.Fatalf("go mod tidy failed: %v\nOutput:\n%s", err, string(tidyOut))
-	}
-
-	binPath := filepath.Join(tmpDir, "testapp.exe")
-
-	buildCmd := exec.Command("go", "build", "-tags", "release", "-trimpath", "-o", binPath, ".")
-	buildCmd.Dir = tmpDir
-	buildCmd.Env = os.Environ()
-	out, err := buildCmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go build -tags release failed: %v\nOutput:\n%s", err, string(out))
+		t.Fatal(err)
 	}
-
-	nmCmd := exec.Command("go", "tool", "nm", binPath)
-	nmCmd.Dir = tmpDir
-	nmCmd.Env = os.Environ()
-	nmOut, err := nmCmd.CombinedOutput()
+	var contract struct{ ForbiddenSymbols []string }
+	if err := json.Unmarshal(raw, &contract); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(t.TempDir(), "whaleisle-release-symbols.exe")
+	build := exec.Command("pwsh", "-NoProfile", "-File", filepath.Join(root, "scripts", "build-release.ps1"), "-Package", "cmd/whaleisle", "-Output", bin, "-KeepSymbols")
+	build.Dir = root
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("real release build: %v\n%s", err, out)
+	}
+	nm := exec.Command("go", "tool", "nm", bin)
+	nm.Dir = root
+	out, err := nm.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go tool nm failed: %v\nOutput:\n%s", err, string(nmOut))
+		t.Fatalf("release symbols: %v\n%s", err, out)
 	}
-
-	forbiddenSymbols := []string{
-		"TestClick",
-		"TestAccessibility",
-		"DriveWindow",
-		"WindowDriver",
-		"NewTester",
-		"testCountersEnabled",
-		"testFrameCountersEnabled",
+	symbols := string(out)
+	if !strings.Contains(symbols, "main.main") || !strings.Contains(symbols, "github.com/egoist/mygo") {
+		t.Fatal("product window implementation was not linked")
 	}
-
-	nmLines := strings.Split(string(nmOut), "\n")
-	for _, sym := range forbiddenSymbols {
-		for _, line := range nmLines {
-			if strings.Contains(line, sym) {
-				t.Errorf("found forbidden test symbol %q in release binary:\n  %s", sym, line)
+	for _, forbidden := range contract.ForbiddenSymbols {
+		for _, line := range strings.Split(symbols, "\n") {
+			if strings.Contains(line, forbidden) {
+				t.Errorf("forbidden release symbol %q: %s", forbidden, line)
 			}
 		}
 	}

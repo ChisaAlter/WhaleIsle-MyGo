@@ -767,13 +767,33 @@ Function wiBeginStage
     FindClose $0
   ${EndIf}
   ${If} $2 == 1
+    ; Electron's installation identity is never an upgrade target for MyGo,
+    ; even when an unrelated native executable was copied into that directory.
+    ${If} ${FileExists} "$wiFinalFS\Whale Isle.exe"
+    ${OrIf} ${FileExists} "$wiFinalFS\Deepseek-Harness-Desktop.exe"
+    ${OrIf} ${FileExists} "$wiFinalFS\Whale Isle Launcher.exe"
+    ${OrIf} ${FileExists} "$wiFinalFS\Deepseek-Harness-Launcher.exe"
+      Abort "This is an Electron Whale Isle installation. Choose the independent WhaleIsle-MyGo directory."
+    ${EndIf}
     ${IfNot} ${FileExists} "$wiFinalFS\whaleisle.exe"
-    ${AndIfNot} ${FileExists} "$wiFinalFS\Whale Isle.exe"
-    ${AndIfNot} ${FileExists} "$wiFinalFS\Deepseek-Harness-Desktop.exe"
-    ${AndIfNot} ${FileExists} "$wiFinalFS\Whale Isle Launcher.exe"
-    ${AndIfNot} ${FileExists} "$wiFinalFS\Deepseek-Harness-Launcher.exe"
       Abort "This directory contains unrelated files. Choose a dedicated application directory."
     ${EndIf}
+    ; Accept a modern owned payload, including a moved native installation.
+    ; Older native installs are accepted only at their registered MyGo path.
+    StrCpy $wiRoot $wiFinal
+    StrCpy $wiRootFS $wiFinalFS
+    StrCpy $wiError 0
+    Call wiReadManifestIdentity
+    ${If} $wiError != 0
+      ${If} $wiOldNative != "WhaleIsle-MyGo"
+        Abort "The existing directory has no MyGo installation identity. Choose an empty directory."
+      ${EndIf}
+      ${If} $wiOldLocation != $wiFinal
+      ${AndIf} $wiOldProductLocation != $wiFinal
+        Abort "The existing directory is not the registered MyGo installation. Choose an empty directory."
+      ${EndIf}
+    ${EndIf}
+    StrCpy $wiError 0
   ${EndIf}
   Call wiCaptureOldManagement
   System::Call 'ole32::CoCreateGuid(g .r0) i.r1'
@@ -916,6 +936,23 @@ Function wiRestoreRegistration
     MessageBox MB_OK|MB_ICONEXCLAMATION "Installation failed and the previous registration could not be completely restored. Previous application backup (if present): $wiOld. No user data was deleted." /SD IDOK
   ${EndIf}
   StrCpy $wiRegistryTouched ""
+FunctionEnd
+
+; Keep the old payload and registration until the actual promoted candidate's
+; native/Host/workspace health has been confirmed. SHELL_ONLY retains its
+; explicit development contract: no bundled Host exists to probe.
+Function wiConfirmHealth
+!ifndef SHELL_ONLY
+  InitPluginsDir
+  File /oname=$PLUGINSDIR\whaleisle-health.exe "${STAGE_DIR}\whaleisle-integration.exe"
+  ClearErrors
+  ExecWait '"$PLUGINSDIR\whaleisle-health.exe" --check-installation "$wiFinal" "$LOCALAPPDATA\mygo\installation-health.json"' $R9
+  ${If} ${Errors}
+  ${OrIf} $R9 != 0
+    SetErrorLevel 2
+    Abort "The new application's startup health check failed. The previous installation will be restored. Diagnostic: $LOCALAPPDATA\mygo\installation-health.json"
+  ${EndIf}
+!endif
 FunctionEnd
 
 Function wiCommitInstallation

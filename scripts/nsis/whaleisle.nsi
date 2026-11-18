@@ -159,6 +159,7 @@ Section "Install"
     Abort "Cannot create the application ownership manifest. The previous installation was retained."
   ${EndIf}
   Call wiPromote
+  Call wiConfirmHealth
   ClearErrors
   StrCpy $wiRegistryTouched "1"
   WriteRegStr HKCU "Software\${APP_ID}" "InstallLocation" "$INSTDIR"

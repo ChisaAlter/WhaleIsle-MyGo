@@ -139,28 +139,19 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Compile desktop targets
-        shell: bash
+        shell: pwsh
         env:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GOTOOLCHAIN: local
         run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/out"
-          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-${GOOS}-${GOARCH}" ./cmd/whaleisle
-          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-preview-${GOOS}-${GOARCH}" ./cmd/whaleisle-preview
-          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-launcher-${GOOS}-${GOARCH}" ./cmd/whaleisle-launcher
-          go build -mod=readonly -tags release -trimpath -o "$RUNNER_TEMP/out/whaleisle-integration-${GOOS}-${GOARCH}" ./cmd/whaleisle-integration
-          if [ "${GOOS}" = "windows" ] && [ "${GOARCH}" = "amd64" ]; then
-            EXE_SIZE=$(wc -c < "$RUNNER_TEMP/out/whaleisle-${GOOS}-${GOARCH}")
-            MAX_BYTES=99614720
-            echo "Windows amd64 binary size: ${EXE_SIZE} bytes (threshold: ${MAX_BYTES} bytes / 95 MiB)"
-            if [ "${EXE_SIZE}" -ge "${MAX_BYTES}" ]; then
-              echo "Error: Windows amd64 binary size ${EXE_SIZE} exceeds 95 MiB (${MAX_BYTES} bytes)" >&2
-              exit 1
-            fi
-          fi
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:RUNNER_TEMP 'out'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          foreach ($name in @('whaleisle', 'whaleisle-preview', 'whaleisle-integration')) {
+            ./scripts/build-release.ps1 -Package "cmd/$name" -Output (Join-Path $out "$name-$env:GOOS-$env:GOARCH")
+          }
 
   windows-zero-webview-gate:
     name: Windows Zero-WebView2 & Release Strip Gate
@@ -181,10 +172,10 @@ jobs:
         run: go test -tags release . -run TestReleaseBuildStripsTestHooks
       - name: Build release binary
         shell: pwsh
-        run: go build -mod=readonly -tags release -trimpath -o "$env:RUNNER_TEMP\whaleisle.exe" ./cmd/whaleisle
-      - name: Run LauncherOnly Zero-WebView2 Gate
+        run: ./scripts/build-release.ps1 -Package cmd/whaleisle -Output "$env:RUNNER_TEMP\whaleisle.exe"
+      - name: Run WorkbenchOnly Zero-WebView2 Gate
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/qa-gate-zero-webview.ps1 -Executable "$env:RUNNER_TEMP\whaleisle.exe" -LauncherOnly -WarmupSeconds 8
+        run: pwsh -NoProfile -File scripts/qa-gate-zero-webview.ps1 -Executable "$env:RUNNER_TEMP\whaleisle.exe" -WorkbenchOnly -WarmupSeconds 8
       - name: Run packaging and branding offline fixtures
         shell: pwsh
         run: |

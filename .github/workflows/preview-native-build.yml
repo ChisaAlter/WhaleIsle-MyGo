@@ -11,7 +11,6 @@ on:
       - native/macos-preview/**
       - scripts/build-preview-macos.sh
       - cmd/whaleisle-preview/**
-      - cmd/whaleisle-launcher/**
       - cmd/whaleisle-integration/**
       - internal/desktop/previewprocess/**
       - internal/desktop/htmlpreview/**
@@ -23,7 +22,6 @@ on:
       - native/macos-preview/**
       - scripts/build-preview-macos.sh
       - cmd/whaleisle-preview/**
-      - cmd/whaleisle-launcher/**
       - cmd/whaleisle-integration/**
       - internal/desktop/previewprocess/**
       - internal/desktop/htmlpreview/**
@@ -75,7 +73,7 @@ jobs:
           go version
           for arch in amd64 arm64; do
             mkdir -p "$RUNNER_TEMP/out-$arch"
-            GOARCH="$arch" go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out-$arch/" ./cmd/whaleisle ./cmd/whaleisle-preview ./cmd/whaleisle-launcher ./cmd/whaleisle-integration
+            GOARCH="$arch" go build -mod=readonly -trimpath -o "$RUNNER_TEMP/out-$arch/" ./cmd/whaleisle ./cmd/whaleisle-preview ./cmd/whaleisle-integration
           done
           echo 'macOS desktop Go compile passed for amd64 and arm64. No application was launched or packaged.' >> "$GITHUB_STEP_SUMMARY"
 
@@ -104,6 +102,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Go toolchain unavailable' }
           $output = Join-Path $env:RUNNER_TEMP 'whaleisle-build'
           New-Item -ItemType Directory -Path $output | Out-Null
-          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-preview ./cmd/whaleisle-launcher ./cmd/whaleisle-integration
+          go build -mod=readonly -trimpath -o "$output/" ./cmd/whaleisle ./cmd/whaleisle-preview ./cmd/whaleisle-integration
           if ($LASTEXITCODE -ne 0) { throw 'Windows compile failed' }
           'Windows amd64 desktop and preview Go compile passed. No executable was launched or packaged.' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

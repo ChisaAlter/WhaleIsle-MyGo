@@ -96,7 +96,7 @@ test('QA wrapper propagates a native nonzero exit after reclaiming its workspace
   assert.equal(fs.existsSync(fs.readFileSync(witness, 'utf8')), false);
 });
 
-test('real Go builds share native caches across two disposable workspaces', { skip: process.platform !== 'win32' }, () => {
+test('real Go builds share native caches when isolated profiles change LOCALAPPDATA', { skip: process.platform !== 'win32' }, () => {
   const source = path.join(temporary, 'storage-smoke.go');
   fs.writeFileSync(source, 'package main\nimport "fmt"\nfunc main() { fmt.Println("storage-smoke-ok") }\n');
   const result = powershell(`foreach ($key in @('GOPATH','GOCACHE','GOMODCACHE','GOTMPDIR')) { Remove-Item "Env:$key" -ErrorAction SilentlyContinue }
@@ -106,14 +106,23 @@ $modulesBefore = go env GOMODCACHE
 foreach ($iteration in 1..2) {
   & ${quote(path.join(scripts, 'with-build-workspace.ps1'))} {
     param($work)
-    $exe = Join-Path $work 'smoke.exe'
-    go build -o $exe ${quote(source)}
-    if ($LASTEXITCODE -ne 0) { throw 'Real Go compilation failed' }
-    & $exe
-    [IO.File]::AppendAllText(${quote(path.join(temporary, 'go-workspaces.txt'))}, $work + [Environment]::NewLine)
+    $callerLocalData = $env:LOCALAPPDATA
+    $profile = Join-Path $work 'profile'
+    $null = New-Item -ItemType Directory $profile
+    try {
+      $env:LOCALAPPDATA = $profile
+      if ((go env GOCACHE) -ne $cacheBefore -or (go env GOMODCACHE) -ne $modulesBefore) { throw 'Profile redirected the shared caches' }
+      $exe = Join-Path $work 'smoke.exe'
+      go build -o $exe ${quote(source)}
+      if ($LASTEXITCODE -ne 0) { throw 'Real Go compilation failed' }
+      & $exe
+      if (Test-Path -LiteralPath (Join-Path $profile 'go-build')) { throw 'Isolated profile contains a compile cache' }
+      [IO.File]::AppendAllText(${quote(path.join(temporary, 'go-workspaces.txt'))}, $work + [Environment]::NewLine)
+    } finally { $env:LOCALAPPDATA = $callerLocalData }
   }
 }
 if ((go env GOCACHE) -ne $cacheBefore -or (go env GOMODCACHE) -ne $modulesBefore) { throw 'Shared cache paths changed' }
+if ($env:GOCACHE -or $env:GOMODCACHE) { throw 'Wrapper did not restore initially unset cache variables' }
 Write-Output "SHARED_GOCACHE=$cacheBefore"
 Write-Output "SHARED_GOMODCACHE=$modulesBefore"`);
   assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -153,7 +162,8 @@ test('packaging keeps legacy StageOnly, cleans successful installer stage, retai
   const fakeGo = path.join(temporary, 'fixture-go.ps1');
   fs.writeFileSync(fakeGo, String.raw`
 $global:LASTEXITCODE=0
-if ($args[0] -eq 'env') { if ($args[1] -eq 'GOOS') { 'windows' } else { 'amd64' }; return }
+if ($args[0] -eq 'env') { if ($args[1] -in @('GOOS','GOHOSTOS')) { 'windows' } else { 'amd64' }; return }
+if ($args[0] -eq 'tool') { $out=$args[[Array]::IndexOf($args,'-out')+1]; [IO.File]::WriteAllText($out,'fixture resource'); return }
 if ($args[0] -eq 'build') {
  if ($env:WHALE_STORAGE_FAIL -eq '1') { $global:LASTEXITCODE=7; return }
  $out=$args[[Array]::IndexOf($args,'-o')+1]; [IO.File]::WriteAllText($out,'fixture payload, never executed'); return
@@ -168,7 +178,7 @@ if ($args[0] -eq 'run') {
   const env = { PATH: nsis + path.delimiter + process.env.PATH, WHALEISLE_PACKAGE_SKIP_RUNTIME: '1', WHALEISLE_PET_RENDER_ASSETS: path.join(temporary, 'no-pet-input'), WHALEISLE_VERSION: '0.0.0-dev' };
   for (const mode of ['stage', 'clean', 'failure']) {
     const output = fresh();
-    const result = powershell(`& ${quote(path.join(scripts, 'package.ps1'))} -GoExecutable ${quote(fakeGo)} -OutputRoot ${quote(output)} ${mode === 'stage' ? '-StageOnly' : '-CleanStage'}`, { ...env, WHALE_STORAGE_FAIL: mode === 'failure' ? '1' : '0' });
+    const result = powershell(`& ${quote(path.join(scripts, 'package.ps1'))} -GoExecutable ${quote(fakeGo)} -OutputRoot ${quote(output)} ${mode === 'stage' ? '-StageOnly' : '-CleanStage'}`, { ...env, WHALEISLE_VERSION: mode === 'clean' ? '1.2.3' : env.WHALEISLE_VERSION, WHALE_STORAGE_FAIL: mode === 'failure' ? '1' : '0' });
     if (mode === 'failure') {
       assert.notEqual(result.status, 0);
       assert.match(result.stderr, /go build failed/);
@@ -184,6 +194,28 @@ if ($args[0] -eq 'run') {
       }
     }
   }
+});
+
+test('production desktop reports size without enforcing the retired EXE limit', { skip: process.platform !== 'win32' }, () => {
+  const fakeGo = path.join(temporary, 'large-build-go.ps1');
+  fs.writeFileSync(fakeGo, String.raw`
+$global:LASTEXITCODE=0
+if ($args[0] -eq 'env') { if ($args[1] -in @('GOOS','GOHOSTOS')) { 'windows' } else { 'amd64' }; return }
+if ($args[0] -eq 'tool') { $out=$args[[Array]::IndexOf($args,'-out')+1]; [IO.File]::WriteAllText($out,'fixture resource'); return }
+if ($args[0] -eq 'build') {
+ $out=$args[[Array]::IndexOf($args,'-o')+1]
+ $file=[IO.File]::Create($out)
+ try { $file.SetLength(100*1024*1024) } finally { $file.Dispose() }
+}
+`);
+  const output = path.join(temporary, 'large-desktop.exe');
+  const result = powershell(`& ${quote(path.join(scripts, 'with-build-workspace.ps1'))} {
+    & ${quote(path.join(scripts, 'build-release.ps1'))} -Package cmd/whaleisle -Output ${quote(output)} -GoExecutable ${quote(fakeGo)}
+  }`);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.statSync(output).size, 100 * 1024 * 1024);
+  assert.match(result.stdout, /Production desktop: 104857600 bytes/);
+  assert.equal(Object.hasOwn(JSON.parse(fs.readFileSync(path.join(scripts, 'release-build.json'))), 'windowsAmd64MaxBytes'), false);
 });
 
 test('owned-dir cleanup unlinks nested junctions without descending and enforces prefix', () => {

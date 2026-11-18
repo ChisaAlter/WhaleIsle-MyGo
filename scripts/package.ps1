@@ -10,7 +10,9 @@ param(
     [switch]$StageOnly,
     # Opt in: preserve the installer/metadata, reclaim only this run's payload.
     [switch]$CleanStage,
-    [string]$GoExecutable = 'go'
+    [string]$GoExecutable = 'go',
+    [string]$SigningScript = $env:WHALEISLE_SIGNING_SCRIPT,
+    [switch]$RequireSignature = (([string]$env:WHALEISLE_UPDATE_REQUIRE_SIGNATURE).Trim() -notin @('', '0', 'false', 'no'))
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,39 +40,20 @@ if (Test-Path -LiteralPath $Stage) {
 New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 Write-Host "Building whaleisle.exe (buildVersion=$Version) -> $ExeOut"
-$ldflags = "-s -w -X main.buildVersion=$Version"
-try {
-    if ((& $GoExecutable env GOOS).Trim() -eq 'windows') {
-        $ldflags += ' -H windowsgui'
-        # Plain go build links .syso in the main package: icon, manifest and
-        # version info (mygo build embeds the same resources). Without them the
-        # installed exe and its shortcuts show no icon.
-        & $GoExecutable tool mygo winres -pkg cmd/whaleisle -arch ((& $GoExecutable env GOARCH).Trim()) -version $Version
-        if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
-    }
-    & $GoExecutable build -tags release -trimpath -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
-    if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
+$BuildRelease = Join-Path $PSScriptRoot 'build-release.ps1'
+& $BuildRelease -Package 'cmd/whaleisle' -Output $ExeOut -Version $Version -GoExecutable $GoExecutable
 
-    # Package the separate helper, but never run it during build/staging.
-    # Its presence does not enable scripts: the product requires an explicit
-    # per-document gesture followed by the runtime AppContainer/job gate.
-    $PreviewOS = (& $GoExecutable env GOOS).Trim()
-    $PreviewArch = (& $GoExecutable env GOARCH).Trim()
-    if ($PreviewOS -eq 'windows') {
-        if ($PreviewArch -notin @('amd64', 'arm64')) { throw 'Interactive preview helper supports Windows amd64/arm64 only.' }
-        $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
-        & $GoExecutable tool mygo winres -pkg cmd/whaleisle-preview -arch $PreviewArch -version $Version
-        if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
-        & $GoExecutable build -tags release -trimpath -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
-        if ($LASTEXITCODE -ne 0) { throw "Preview helper build failed (exit $LASTEXITCODE)" }
-        $IntegrationOut = Join-Path $Stage 'whaleisle-integration.exe'
-        & $GoExecutable tool mygo winres -pkg cmd/whaleisle-integration -arch $PreviewArch -version $Version
-        if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
-        & $GoExecutable build -tags release -trimpath -ldflags '-s -w -H windowsgui' -o $IntegrationOut ./cmd/whaleisle-integration
-        if ($LASTEXITCODE -ne 0) { throw "Integration cleanup helper build failed (exit $LASTEXITCODE)" }
-    }
-} finally {
-    Remove-Item -Path "$ProjectRoot\cmd\*\mygo_windows_*.syso" -Force -ErrorAction SilentlyContinue
+# Package the separate helper, but never run it during build/staging.
+# Its presence does not enable scripts: the product requires an explicit
+# per-document gesture followed by the runtime AppContainer/job gate.
+$PreviewOS = (& $GoExecutable env GOOS).Trim()
+$PreviewArch = (& $GoExecutable env GOARCH).Trim()
+if ($PreviewOS -eq 'windows') {
+    if ($PreviewArch -notin @('amd64', 'arm64')) { throw 'Interactive preview helper supports Windows amd64/arm64 only.' }
+    $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
+    & $BuildRelease -Package 'cmd/whaleisle-preview' -Output $PreviewOut -Version $Version -GoExecutable $GoExecutable
+    $IntegrationOut = Join-Path $Stage 'whaleisle-integration.exe'
+    & $BuildRelease -Package 'cmd/whaleisle-integration' -Output $IntegrationOut -Version $Version -GoExecutable $GoExecutable
 }
 
 $ResSrc = Join-Path $ProjectRoot 'resources'
@@ -120,11 +103,9 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     $VendorSrc = $env:WHALEISLE_VENDOR
     if ($RuntimeRoot) { $VendorSrc = Join-Path ([System.IO.Path]::GetFullPath($RuntimeRoot)) 'vendor' }
     if (-not $VendorSrc) {
-        $candidateRc4 = Join-Path $ProjectRoot 'runtime-rc4\vendor'
-        if (Test-Path $candidateRc4) {
-            $VendorSrc = $candidateRc4
-        } else {
-            $VendorSrc = Join-Path $ProjectRoot 'runtime\vendor'
+        $VendorSrc = Join-Path $ProjectRoot 'runtime-0.2.2-rc2\vendor'
+        if (-not (Test-Path -LiteralPath $VendorSrc -PathType Container)) {
+            throw 'Stage the 0.2.2-rc.2 Host with build-harness.ps1 or explicitly select an alternate runtime with -RuntimeRoot.'
         }
     }
     if (Test-Path (Join-Path $VendorSrc 'current-host-build.json')) {
@@ -250,7 +231,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 2. Select that exact runtime for packaging: `scripts/package.ps1 -RuntimeRoot <fresh-runtime> -OutputRoot <fresh-output>`. Existing rc.2 inputs remain available through the original defaults.
 3. `mygo.json` `identifier` is **`ai.deepseek.harness.gui.mygo`** (independent side-by-side install under `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo` while sharing `%APPDATA%\Deepseek-Harness-Desktop` userData).
 4. NSIS script: `scripts/nsis/whaleisle.nsi` installs exe, resources, and optional `runtime/` trees.
-5. Sign the setup executable before release.
+5. Windows releases are unsigned by default. Finalize emits SHA-256 and blockmap metadata from the final installer bytes. Optional -RequireSignature, WHALEISLE_UPDATE_REQUIRE_SIGNATURE, an expected publisher or a supplied WHALEISLE_SIGNING_SCRIPT enforces the requested signature before metadata is emitted. Hashes verify file integrity; an unsigned package has no verified platform publisher.
 
 ## Application identifier
 
@@ -301,41 +282,8 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
     }
     if (Test-Path $Setup) {
         Write-Host "Installer: $Setup"
-		# Emit the same offset/size/SHA256 blockmap consumed by the MyGo
-		# incremental updater. The setup remains the signed release artifact;
-		# this sidecar is metadata only and is safe to regenerate after signing.
-		$blockSize = 65536
-		$setupBytes = [System.IO.File]::ReadAllBytes($Setup)
-		$blocks = @()
-		for ($offset = 0; $offset -lt $setupBytes.Length; $offset += $blockSize) {
-			$size = [Math]::Min($blockSize, $setupBytes.Length - $offset)
-			$hash = [System.Security.Cryptography.SHA256]::Create()
-			try {
-				$digest = $hash.ComputeHash($setupBytes, $offset, $size)
-			} finally {
-				$hash.Dispose()
-			}
-			$blocks += [ordered]@{
-				offset = [int64]$offset
-				size = [int64]$size
-				sha256 = ([BitConverter]::ToString($digest) -replace '-', '').ToLowerInvariant()
-			}
-		}
-		$blockmapPath = "${Setup}.blockmap.json"
-		$blockmap = [ordered]@{ fileSize = [int64]$setupBytes.Length; blocks = $blocks } |
-			ConvertTo-Json -Depth 4
-		[System.IO.File]::WriteAllText($blockmapPath, $blockmap + "`n")
-		$sumHash = [System.Security.Cryptography.SHA256]::Create()
-		try {
-			$sumBytes = $sumHash.ComputeHash([System.IO.File]::ReadAllBytes($Setup))
-		} finally {
-			$sumHash.Dispose()
-		}
-		$sum = ([BitConverter]::ToString($sumBytes) -replace '-', '').ToLowerInvariant()
-		$sumPath = Join-Path $DistRoot 'SHA256SUMS.txt'
-		[System.IO.File]::WriteAllText($sumPath, "$sum  $(Split-Path -Leaf $Setup)`n")
-		Write-Host "Wrote blockmap: $blockmapPath"
-		Write-Host "Wrote SHA256 manifest: $sumPath"
+        $developmentBuild = $Version -match '^0\.0\.0(?:-|$)'
+        & (Join-Path $PSScriptRoot 'finalize-windows-release.ps1') -Installer $Setup -SigningScript $SigningScript -RequireSignature:$RequireSignature -Development:$developmentBuild
         if ($CleanStage) {
             & node (Join-Path $PSScriptRoot 'build-storage.mjs') package-stage $Stage $DistRoot
             if ($LASTEXITCODE -ne 0) { throw "Installer is ready at $Setup; package stage cleanup failed at $Stage" }
