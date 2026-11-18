@@ -8,7 +8,7 @@ import {verifyStagedSessionRuntime} from './session-runtime.mjs';
 export async function carryDshbot(sourceVendor, targetStage) {
   const targetVendor = path.join(fs.realpathSync(targetStage), 'vendor');
   const host = await verifyStagedSessionRuntime(targetVendor);
-  if (host.cliVersion !== '0.2.1-rc.4') throw Error('dshbot carry-forward requires the rc.4 target');
+  if (!['0.2.1-rc.4', '0.2.2-rc.2'].includes(host.cliVersion)) throw Error('dshbot carry-forward requires a supported target');
   const source = fs.realpathSync(path.join(sourceVendor, 'dshbot'));
   const manifest = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
   if (manifest.name !== 'dshbot' || manifest.version !== '0.2.0') throw Error('Unsupported source dshbot package');
@@ -19,9 +19,9 @@ export async function carryDshbot(sourceVendor, targetStage) {
     const value = manifest.peerDependencies?.[key];
     if (typeof value !== 'string' || !value.split('||').some(part => part.trim() === '0.2.1-rc.2')) throw Error(`Unsupported dshbot peer: ${key}`);
     const installed = JSON.parse(fs.readFileSync(path.join(targetVendor, 'deepseek-harness/node_modules', key, 'package.json'), 'utf8'));
-    if (installed.version !== '0.2.1-rc.4') throw Error(`Target peer version mismatch: ${key}`);
+    if (installed.version !== host.cliVersion) throw Error(`Target peer version mismatch: ${key}`);
     before[key] = value;
-    manifest.peerDependencies[key] = value + ' || 0.2.1-rc.4';
+    manifest.peerDependencies[key] = value + ' || ' + host.cliVersion;
   }
   const target = path.join(targetVendor, 'dshbot');
   cloneGraph(source, target);
@@ -32,6 +32,6 @@ export async function carryDshbot(sourceVendor, targetStage) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [sourceVendor, targetStage, extra] = process.argv.slice(2);
-  if (!sourceVendor || !targetStage || extra) throw Error('Usage: session-runtime-dshbot.mjs <old vendor> <staged rc.4 runtime>');
+  if (!sourceVendor || !targetStage || extra) throw Error('Usage: session-runtime-dshbot.mjs <old vendor> <staged runtime>');
   console.log(JSON.stringify(await carryDshbot(sourceVendor, targetStage), null, 2));
 }

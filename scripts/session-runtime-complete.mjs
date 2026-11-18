@@ -48,9 +48,22 @@ export async function stageCompleteRuntime(resources, destination, desktopSource
   return verifyCompleteRuntime(destination);
 }
 
+// Use the installed desktop plugins and their matching Host as one release.
+// Carry only the MyGo-specific optional bot which that desktop no longer ships.
+export async function stageInstalledRuntime(resources, destination, legacyVendor) {
+  for (const input of [resources, legacyVendor]) fs.realpathSync(input);
+  const sourceHost = read(path.join(resources, 'vendor/deepseek-harness/package.json'));
+  if (sourceHost.version !== '0.2.2-rc.2') throw Error('Expected installed 0.2.2-rc.2 resources');
+  const host = await stageSessionRuntime(resources, destination);
+  const mobile = await completeInstalledMobile(resources, destination);
+  const dshbot = await carryDshbot(legacyVendor, destination);
+  return {runtimeRoot: path.resolve(destination), host: host.cliVersion, mobile, dshbot};
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, ...args] = process.argv.slice(2);
   if (command === 'stage' && args.length === 5) console.log(JSON.stringify(await stageCompleteRuntime(...args), null, 2));
+  else if (command === 'stage-installed' && args.length === 3) console.log(JSON.stringify(await stageInstalledRuntime(...args), null, 2));
   else if (command === 'verify' && args.length === 1) console.log(JSON.stringify(await verifyCompleteRuntime(args[0]), null, 2));
-  else throw Error('Usage: session-runtime-complete.mjs stage <resources> <destination> <desktop source> <revision> <legacy vendor> | verify <runtime>');
+  else throw Error('Usage: session-runtime-complete.mjs stage <resources> <destination> <desktop source> <revision> <legacy vendor> | stage-installed <resources> <destination> <legacy vendor> | verify <runtime>');
 }

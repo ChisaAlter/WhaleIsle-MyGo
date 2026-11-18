@@ -28,7 +28,14 @@ const supportedHarnessPins = Object.freeze([{
 }, {
   repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
   ref: 'dsh-v0.2.1-rc.4', sha: '504a01a9578abc2c6f1fb896b1dc322c9fe24f66', npm: '0.2.1-rc.4',
+}, {
+  repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
+  ref: 'dsh-v0.2.2-rc.2', sha: 'ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c', npm: '0.2.2-rc.2',
 }]);
+const sharedDesktopAdmissionTypes = ['team/mode', 'subagent/catalog', 'assistant/attempt'];
+function admissionTypesFor(version) {
+  return version === '0.2.2-rc.2' ? [...sessionAdmissionTypes, ...sharedDesktopAdmissionTypes] : sessionAdmissionTypes;
+}
 function supportedPin(version, pin) {
   return supportedHarnessPins.find(candidate => candidate.npm === version &&
     Object.entries(candidate).every(([key, value]) => pin?.[key] === value));
@@ -40,6 +47,9 @@ function fixtureEvent(type) {
   const data = type === 'job/registered' ? registered
     : type === 'job/settled' ? {...registered, finishedAt: 1, status: 'completed', cause: 'producer', producerReported: true}
     : type === 'working-directory/change' ? {cwd: 'C:/runtime-compat-fixture'}
+    : type === 'team/mode' ? {mode: 'active'}
+    : type === 'subagent/catalog' ? {version: 3, childId: 'fixture-child', childCreatedAt: 1, mode: 'continuable', label: 'Fixture child', name: 'fixture-child'}
+    : type === 'assistant/attempt' ? {turn: 1, step: 1, stream: []}
     : {};
   return {seq: 20, time: 0, type, data};
 }
@@ -88,7 +98,8 @@ export async function inspectSessionRuntime(harnessRoot) {
   if (!(session.KNOWN_SESSION_EVENT_TYPES instanceof Set) || typeof persistence.validateStoredEvents !== 'function') {
     throw new Error('Runtime does not export the Session vocabulary and strict storage validator');
   }
-  for (const type of sessionAdmissionTypes) {
+  const requiredEventTypes = admissionTypesFor(cliPackage.version);
+  for (const type of requiredEventTypes) {
     try {
       await persistence.validateStoredEvents(fixtureHeader(), [fixtureEvent(type)]);
     } catch (error) {
@@ -120,7 +131,7 @@ export async function inspectSessionRuntime(harnessRoot) {
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   return {
     schemaVersion: 1, harnessRoot: root, cliVersion: cliPackage.version,
-    rootVersion: rootPackage.version, requiredEventTypes: [...sessionAdmissionTypes],
+    rootVersion: rootPackage.version, requiredEventTypes: [...requiredEventTypes],
     unknownRequiredRejected, artifacts, harnessPin,
   };
 }
@@ -461,8 +472,9 @@ export async function verifyStagedSessionRuntime(vendorDir) {
   if (manifest.schemaVersion !== 1 || !supportedPin(manifest.cliVersion, manifest.harnessPin)) {
     throw new Error('Unsupported staged Session runtime profile or Harness pin');
   }
-  if (!Array.isArray(manifest.requiredEventTypes) || manifest.requiredEventTypes.length !== sessionAdmissionTypes.length ||
-      sessionAdmissionTypes.some(type => !manifest.requiredEventTypes.includes(type))) {
+  const requiredTypes = admissionTypesFor(manifest.cliVersion);
+  if (!Array.isArray(manifest.requiredEventTypes) || manifest.requiredEventTypes.length !== requiredTypes.length ||
+      requiredTypes.some(type => !manifest.requiredEventTypes.includes(type))) {
     throw new Error('Staged Session runtime admission vocabulary is incomplete');
   }
   if (!manifest.artifacts || typeof manifest.artifacts !== 'object' || Array.isArray(manifest.artifacts) ||

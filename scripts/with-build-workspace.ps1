@@ -11,6 +11,19 @@ $saved = @{}
 foreach ($name in @('TEMP', 'TMP', 'GOTMPDIR', 'GOPATH', 'GOCACHE', 'GOMODCACHE', 'npm_config_cache', 'PSModuleAnalysisCachePath')) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
+    # An isolated desktop may change LOCALAPPDATA inside Command. Resolve Go's
+    # defaults while still in the caller's environment, or every such run gets
+    # a new compile cache inside its disposable application profile.
+    if ((-not $env:GOCACHE -or -not $env:GOMODCACHE) -and (Get-Command go -ErrorAction SilentlyContinue)) {
+        $goCacheJSON = & go env -json GOCACHE GOMODCACHE
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the caller Go cache paths.' }
+        $goCaches = $goCacheJSON | ConvertFrom-Json
+        foreach ($name in @('GOCACHE', 'GOMODCACHE')) {
+            if (-not [Environment]::GetEnvironmentVariable($name, 'Process')) {
+                [Environment]::SetEnvironmentVariable($name, [string]$goCaches.$name, 'Process')
+            }
+        }
+    }
     foreach ($name in @('TEMP', 'TMP', 'GOTMPDIR')) { [Environment]::SetEnvironmentVariable($name, $work, 'Process') }
     $global:LASTEXITCODE = 0
     & $Command $work
