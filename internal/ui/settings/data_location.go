@@ -40,6 +40,10 @@ type DataLocationAccess struct {
 	// read-only run: importing writes into the fixed directory and never
 	// touches the record.
 	ImportAvailable bool
+	// ImportChecking marks a block whose import sources are still being
+	// planned: the row says so instead of offering an action that cannot know
+	// what it would copy yet.
+	ImportChecking bool
 	// PreviousPath is the location this one replaced. It is offered as an
 	// import source after a change moved the profile.
 	PreviousPath     string
@@ -126,6 +130,14 @@ func dataLocationRow(c *ui.Context, d *DataLocationAccess, fg, muted ui.Color) {
 				}
 			}
 		})
+		// The sources are planned in the background, so the block is painted
+		// before it knows what it can offer; the row speaks while it waits.
+		if d.ImportChecking {
+			ui.Text(c, i18n.T(i18n.KeyDataLocationImportChecking)).
+				FillWidth().MinWidth(0).
+				FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
+				TextColor(muted)
+		}
 		if err := strings.TrimSpace(d.Err); err != "" {
 			ui.Text(c, err).FillWidth().MinWidth(0).
 				FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).

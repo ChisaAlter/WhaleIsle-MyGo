@@ -41,10 +41,8 @@ const (
 
 // FirstRunPlan is one migration from the legacy profile to MyGo's directory.
 type FirstRunPlan struct {
-	Source    string
-	Dest      string
-	Catalog   Catalog
-	Selection ApplySelection
+	Source string
+	Dest   string
 	// Legacy reports whether Source is the Electron shell's default
 	// directory rather than another directory the user pointed at.
 	Legacy bool
@@ -147,26 +145,16 @@ func FirstRunOffer(dest, source string) (FirstRunPlan, bool) {
 
 // PlanFirstRun builds the migration plan without deciding whether to offer it.
 // Settings uses it to run the same import again after the first offer was
-// skipped; the copy keeps whatever the destination already holds.
+// skipped; the copy keeps whatever the destination already holds. It reads no
+// session log: what the plan carries is where the copy starts and ends, and
+// the catalog that decides what to copy is built by the run itself.
 func PlanFirstRun(dest, source string) FirstRunPlan {
 	dest = filepath.Clean(strings.TrimSpace(dest))
 	source = filepath.Clean(strings.TrimSpace(source))
 	if dest == "" || dest == "." || source == "" || source == "." || strings.EqualFold(dest, source) {
 		return FirstRunPlan{}
 	}
-	plan := FirstRunPlan{Source: source, Dest: dest, Legacy: source == ElectronUserDataDir()}
-	if entryExists(filepath.Join(source, "dsh-home"), true) {
-		cat, err := BuildCatalog(filepath.Join(source, "dsh-home"), filepath.Join(dest, "dsh-home"))
-		if err == nil {
-			plan.Catalog = cat
-			selection := SelectionFromCatalog(cat, cat.HasAttachments, false)
-			// A first run has no marketplace session to reinstall plugins
-			// with; the plugin page owns that afterwards.
-			selection.SelectedPluginIDs = nil
-			plan.Selection = selection
-		}
-	}
-	return plan
+	return FirstRunPlan{Source: source, Dest: dest, Legacy: source == ElectronUserDataDir()}
 }
 
 // isEmptyProfile reports whether dir holds none of the artifacts MyGo or the
@@ -254,19 +242,29 @@ func RunFirstRun(ctx context.Context, plan FirstRunPlan) (FirstRunResult, error)
 			note("credentials.json: copied")
 		}
 	}
-	if plan.Catalog.SourceHome != "" && plan.Selection.Count() > 0 {
-		applied, err := ApplyCatalogWithPlugins(ctx, plan.Catalog, plan.Selection, nil, nil)
-		result.Copied += applied.Copied
-		result.Skipped += applied.Skipped
-		result.Failed += applied.Failed
-		result.Journal = append(result.Journal, applied.Journal...)
-		if err != nil {
-			// Completed items stay and the marker records the partial run,
-			// so the next launch offers to finish it instead of treating the
-			// destination as a profile the user already chose.
-			result.Message = applied.Message
-			_ = writeFirstRunMarker(plan.Dest, firstRunMarkerFor(result, err))
-			return result, err
+	if entryExists(filepath.Join(plan.Source, "dsh-home"), true) {
+		// The catalog is built here, where the copy needs it, and not in the
+		// plan: planning runs while a page is being drawn, and reading a
+		// session title costs a decode of its log.
+		cat, catErr := BuildCatalogContext(ctx, filepath.Join(plan.Source, "dsh-home"), filepath.Join(plan.Dest, "dsh-home"))
+		selection := SelectionFromCatalog(cat, cat.HasAttachments, false)
+		// A first run has no marketplace session to reinstall plugins with;
+		// the plugin page owns that afterwards.
+		selection.SelectedPluginIDs = nil
+		if catErr == nil && cat.SourceHome != "" && selection.Count() > 0 {
+			applied, err := ApplyCatalogWithPlugins(ctx, cat, selection, nil, nil)
+			result.Copied += applied.Copied
+			result.Skipped += applied.Skipped
+			result.Failed += applied.Failed
+			result.Journal = append(result.Journal, applied.Journal...)
+			if err != nil {
+				// Completed items stay and the marker records the partial run,
+				// so the next launch offers to finish it instead of treating the
+				// destination as a profile the user already chose.
+				result.Message = applied.Message
+				_ = writeFirstRunMarker(plan.Dest, firstRunMarkerFor(result, err))
+				return result, err
+			}
 		}
 	}
 	result.Message = fmt.Sprintf("copied %d, skipped %d, failed %d", result.Copied, result.Skipped, result.Failed)

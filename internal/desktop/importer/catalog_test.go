@@ -1,8 +1,12 @@
 package importer
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -97,9 +101,10 @@ func TestReadPlainSessionMeta(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "session.v3.jsonl"),
 		`{"type":"session","title":"Hello World","cwd":"C:\\proj"}`+"\n"+`{"type":"message"}`+"\n")
-	title, cwd := readPlainSessionMeta(dir)
-	if title != "Hello World" || cwd != `C:\proj` {
-		t.Fatalf("title=%q cwd=%q", title, cwd)
+	plain, _ := sessionLogFiles(dir)
+	meta := readPlainSessionLog(context.Background(), plain)
+	if meta.Title != "Hello World" || meta.Cwd != `C:\proj` {
+		t.Fatalf("meta=%+v", meta)
 	}
 }
 
@@ -130,5 +135,44 @@ func TestAppendSkillDirectory(t *testing.T) {
 	}
 	if AppendSkillDirectory(&cat, root) != 0 {
 		t.Fatal("duplicate root should add 0")
+	}
+}
+
+// A profile's compressed logs are decoded by one process, not by one process
+// per session: five hundred sessions must not mean five hundred spawns.
+func TestSessionScanDecodesCompressedLogsInOneProcess(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	const sessions = 25
+	for i := 0; i < sessions; i++ {
+		writeFileAll(t, filepath.Join(src, "sessions", "ws", fmt.Sprintf("session-%02d", i), "session.v4.jsonl.zstd"), "packed")
+	}
+
+	var calls atomic.Int32
+	previous := readCompressedSessionMeta
+	readCompressedSessionMeta = func(_ context.Context, paths []string) map[string]sessionMeta {
+		calls.Add(1)
+		metas := make(map[string]sessionMeta, len(paths))
+		for _, path := range paths {
+			metas[path] = sessionMeta{Title: "title " + filepath.Base(filepath.Dir(path)), Cwd: "/ws"}
+		}
+		return metas
+	}
+	t.Cleanup(func() { readCompressedSessionMeta = previous })
+
+	cat, err := BuildCatalog(src, dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("%d compressed sessions opened %d decoders, want one", sessions, got)
+	}
+	if len(cat.Sessions) != sessions {
+		t.Fatalf("listed %d sessions, want %d", len(cat.Sessions), sessions)
+	}
+	for _, row := range cat.Sessions {
+		if !strings.HasPrefix(row.Label, "title session-") {
+			t.Fatalf("row label %q did not come from the decoder", row.Label)
+		}
 	}
 }

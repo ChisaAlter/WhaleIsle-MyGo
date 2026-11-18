@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"whaleisle/internal/config"
@@ -48,12 +49,6 @@ func TestDetectFirstRunOffersOnlyForAnEmptyDestination(t *testing.T) {
 	}
 	if plan.Source != filepath.Clean(source) || plan.Dest != filepath.Clean(dest) {
 		t.Fatalf("plan paths: %q -> %q", plan.Source, plan.Dest)
-	}
-	if len(plan.Selection.SelectedRels) != 1 {
-		t.Fatalf("session selection: %+v", plan.Selection.SelectedRels)
-	}
-	if len(plan.Selection.SelectedPluginIDs) != 0 {
-		t.Fatalf("a first run selected plugins without an installer: %+v", plan.Selection.SelectedPluginIDs)
 	}
 
 	if _, offered := DetectFirstRun(source, source); offered {
@@ -232,19 +227,66 @@ func TestRunFirstRunWritesPartialWhenItStops(t *testing.T) {
 	if !offered {
 		t.Fatal("offer missing")
 	}
-	// The session gains a compressed log after the scan, which the import
-	// refuses: a run that stops part way must leave a partial marker so the
-	// next launch finishes it.
-	mixed := filepath.Join(source, "dsh-home", "sessions", "fixture-cwd", "fixture-session", "session.jsonl.zstd")
-	writeFile(t, mixed, "fixture")
+	// The copy stops part way: a file holds the directory the session needs.
+	// Recording that as partial is what makes the next launch finish the copy
+	// instead of treating the destination as a profile the user chose.
+	blocked := filepath.Join(dest, "dsh-home", "sessions", "fixture-cwd")
+	if err := os.MkdirAll(filepath.Dir(blocked), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, blocked, "in the way")
 
-	if _, err := RunFirstRun(context.Background(), plan); err == nil {
-		t.Fatal("an import over a mixed-encoding session reported success")
+	if result, err := RunFirstRun(context.Background(), plan); err == nil {
+		t.Fatalf("an import whose session could not be published reported success: %+v", result)
 	}
 	if got := FirstRunStatus(dest); got != FirstRunPartial {
 		t.Fatalf("marker = %q, want %q", got, FirstRunPartial)
 	}
 	if _, offered := DetectFirstRun(dest, source); !offered {
 		t.Fatal("a stopped import was not offered again")
+	}
+}
+
+// Planning a copy must not read a session log: the offer is drawn from the
+// profile's shape, and the catalog that decides what to copy belongs to the
+// run. Reading a log used to mean one decoder process per session, which put a
+// whole profile's worth of spawns inside the frame that offered the copy.
+func TestFirstRunPlanningReadsNoSessionLog(t *testing.T) {
+	source, dest := firstRunFixture(t)
+	frame := func(s string) []byte {
+		n := len(s)
+		h := uint32(n<<3 | 1)
+		return append([]byte{0x28, 0xb5, 0x2f, 0xfd, 0x20, byte(n), byte(h), byte(h >> 8), byte(h >> 16)}, []byte(s)...)
+	}
+	writeFileAll(t, filepath.Join(source, "dsh-home", "sessions", "packed-cwd", "packed-session", "session.v4.jsonl.zstd"),
+		string(frame(`{"type":"session","title":"Packed","cwd":"/packed"}`+"\n")))
+
+	var decoders atomic.Int32
+	previous := readCompressedSessionMeta
+	readCompressedSessionMeta = func(context.Context, []string) map[string]sessionMeta {
+		decoders.Add(1)
+		return nil
+	}
+	t.Cleanup(func() { readCompressedSessionMeta = previous })
+
+	plan, offered := FirstRunOffer(dest, source)
+	if !offered {
+		t.Fatal("the legacy profile was not offered as an import source")
+	}
+	if _, offered := DetectFirstRun(dest, source); !offered {
+		t.Fatal("the first-run offer was not planned")
+	}
+	if got := decoders.Load(); got != 0 {
+		t.Fatalf("planning a copy opened %d session decoders on the caller", got)
+	}
+
+	if _, err := RunFirstRun(context.Background(), plan); err != nil {
+		t.Fatalf("RunFirstRun: %v", err)
+	}
+	if got := decoders.Load(); got != 1 {
+		t.Fatalf("the copy opened %d session decoders, want one for the whole profile", got)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "dsh-home", "sessions", "packed-cwd", "packed-session")); err != nil {
+		t.Fatalf("the packed session was not copied: %v", err)
 	}
 }

@@ -322,6 +322,12 @@ func scanSessionsContext(ctx context.Context, src, dst string) ([]CatalogItem, e
 		return nil, err
 	}
 	out := make([]CatalogItem, 0, len(rels))
+	type logSource struct {
+		item              int
+		plain, compressed string
+	}
+	sources := make([]logSource, 0, len(rels))
+	var compressed []string
 	for _, rel := range rels {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -330,14 +336,11 @@ func scanSessionsContext(ctx context.Context, src, dst string) ([]CatalogItem, e
 			continue
 		}
 		abs := filepath.Join(srcRoot, filepath.FromSlash(rel))
-		id := filepath.Base(abs)
-		label, group := readPlainSessionMetaContext(ctx, abs)
-		if label == "" {
-			label = id
+		plain, packed := sessionLogFiles(abs)
+		if packed != "" {
+			compressed = append(compressed, packed)
 		}
-		if group == "" {
-			group = storelocale.T(storelocale.KeyStoreImporterNoWorkspace)
-		}
+		sources = append(sources, logSource{item: len(out), plain: plain, compressed: packed})
 		blocker, readErr := sessionEncoding(abs)
 		if readErr != nil {
 			// The row carries a category and the launcher writes the sentence;
@@ -346,50 +349,68 @@ func scanSessionsContext(ctx context.Context, src, dst string) ([]CatalogItem, e
 		}
 		conflict := entryExists(filepath.Join(dstRoot, filepath.FromSlash(rel)), true)
 		out = append(out, CatalogItem{
-			ID: id, Label: label, Group: group, Rel: rel, Abs: abs,
+			ID: filepath.Base(abs), Rel: rel, Abs: abs,
 			Conflict: conflict, Blocker: blocker,
 		})
+	}
+	// The directories are known before any log is opened, so one process
+	// decodes every compressed log instead of one process per session.
+	packed := readCompressedSessionMeta(ctx, compressed)
+	if len(compressed) > 0 && len(packed) == 0 {
+		log.Printf("import catalog: %d compressed session logs had no decoder; listing them by id", len(compressed))
+	}
+	for _, source := range sources {
+		var meta sessionMeta
+		switch {
+		case source.plain != "":
+			meta = readPlainSessionLog(ctx, source.plain)
+		case source.compressed != "":
+			meta = packed[source.compressed]
+		}
+		item := &out[source.item]
+		item.Label = meta.Title
+		if item.Label == "" {
+			item.Label = item.ID
+		}
+		item.Group = meta.Cwd
+		if item.Group == "" {
+			item.Group = storelocale.T(storelocale.KeyStoreImporterNoWorkspace)
+		}
 	}
 	return out, ctx.Err()
 }
 
-// Display metadata follows the log in order: the last session/title wins.
-// A compressed log uses the same bundled Node zstd decoder as the Host.
-func readPlainSessionMeta(dir string) (title, cwd string) {
-	return readPlainSessionMetaContext(context.Background(), dir)
-}
-
-func readPlainSessionMetaContext(ctx context.Context, dir string) (title, cwd string) {
+// sessionLogFiles picks the log a session row shows: the first plain session
+// log, else the last compressed one.
+func sessionLogFiles(dir string) (plain, compressed string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return "", ""
 	}
-	var logPath, compressed string
 	for _, e := range entries {
 		name := strings.ToLower(e.Name())
 		if strings.HasPrefix(name, "session") && strings.HasSuffix(name, ".jsonl") && !strings.Contains(name, ".zstd") {
-			logPath = filepath.Join(dir, e.Name())
-			break
+			return filepath.Join(dir, e.Name()), ""
 		}
 		if strings.HasPrefix(name, "session") && strings.HasSuffix(name, ".jsonl.zstd") {
 			compressed = filepath.Join(dir, e.Name())
 		}
 	}
-	if logPath == "" {
-		if compressed != "" {
-			return readCompressedSessionMetaContext(ctx, compressed)
-		}
-		return "", ""
-	}
-	f, err := os.Open(logPath)
+	return "", compressed
+}
+
+// Display metadata follows the log in order: the last session/title wins.
+func readPlainSessionLog(ctx context.Context, path string) sessionMeta {
+	var meta sessionMeta
+	f, err := os.Open(path)
 	if err != nil {
-		return "", ""
+		return meta
 	}
 	defer f.Close()
 	r := bufio.NewReader(f)
 	for {
 		if ctx.Err() != nil {
-			return title, cwd
+			return meta
 		}
 		line, err := r.ReadBytes('\n')
 		var row struct {
@@ -399,10 +420,10 @@ func readPlainSessionMetaContext(ctx context.Context, dir string) (title, cwd st
 		if json.Unmarshal(line, &row) == nil {
 			if row.Type == "session" {
 				if row.Cwd != "" {
-					cwd = row.Cwd
+					meta.Cwd = row.Cwd
 				}
-				if title == "" && strings.TrimSpace(row.Title) != "" {
-					title = strings.TrimSpace(row.Title)
+				if meta.Title == "" && strings.TrimSpace(row.Title) != "" {
+					meta.Title = strings.TrimSpace(row.Title)
 				}
 			}
 			if row.Type == "session/title" {
@@ -411,7 +432,7 @@ func readPlainSessionMetaContext(ctx context.Context, dir string) (title, cwd st
 					v = row.Title
 				}
 				if strings.TrimSpace(v) != "" {
-					title = strings.TrimSpace(v)
+					meta.Title = strings.TrimSpace(v)
 				}
 			}
 		}
@@ -422,7 +443,7 @@ func readPlainSessionMetaContext(ctx context.Context, dir string) (title, cwd st
 			break
 		}
 	}
-	return title, cwd
+	return meta
 }
 
 func jsonStringField(line, key string) string {
