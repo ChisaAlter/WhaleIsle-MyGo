@@ -13,6 +13,7 @@ const (
 	KeySettingsNavGroupOther       = "settings.nav.group.other"
 	KeySettingsSectionConversation = "settings.section.conversation"
 	KeySettingsSectionFeatures     = "settings.section.features"
+	KeySettingsSectionVoice        = "settings.section.voice"
 )
 
 func init() {
@@ -26,4 +27,5 @@ func init() {
 	Register(KeySettingsNavGroupOther, "其他", "Other")
 	Register(KeySettingsSectionConversation, "对话", "Conversation")
 	Register(KeySettingsSectionFeatures, "内置功能", "Built-in features")
+	Register(KeySettingsSectionVoice, "语音输入", "Voice input")
 }

@@ -55,6 +55,14 @@ func (s *mainState) renderVoiceDeviceSettings(c *ui.Context, key string) bool {
 	if key != voiceInputBundle {
 		return false
 	}
+	s.renderVoiceInputSection(c)
+	return true
+}
+
+// renderVoiceInputSection paints the real voice page — device, provider,
+// language and Host readiness — that the settings rail opens directly. The
+// microphone preview is owned only while that page paints.
+func (s *mainState) renderVoiceInputSection(c *ui.Context) {
 	microphone := s.voiceMicrophone()
 	s.mu.Lock()
 	visible := !s.projectWindowHidden && !s.quitting
@@ -71,7 +79,6 @@ func (s *mainState) renderVoiceDeviceSettings(c *ui.Context, key string) bool {
 	s.mu.Unlock()
 	microphone.SetActive(visible)
 	settingsui.VoicePreparationView(c, sessions, microphone)
-	return true
 }
 
 // Window hide/minimize/close and shutdown retire microphone requests as well

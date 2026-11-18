@@ -16,6 +16,7 @@ const (
 	SectionInterface       SectionID = "interface"
 	SectionConversation    SectionID = "conversation"
 	SectionFeatures        SectionID = "features"
+	SectionVoice           SectionID = "voice"
 	SectionModels          SectionID = "models"
 	SectionPlugins         SectionID = "plugins"
 	SectionSkills          SectionID = "skills"
