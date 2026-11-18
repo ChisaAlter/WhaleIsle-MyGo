@@ -140,6 +140,9 @@ func recordViewFrame(start time.Time) {
 	if took > 16*time.Millisecond {
 		uiDiagSlowFrames.Add(1)
 	}
+	// The startup offer for minimal mode reads the same cost the sampler does,
+	// so it never samples anything of its own.
+	state.observeStartupSlowdown(took)
 }
 
 // recordStartupWorkspaceReady completes the startup trace only after the

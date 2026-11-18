@@ -66,7 +66,7 @@ func wallpaperImagePreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.SkinWallpaperEnabled = value })
 		})
 	}
-	row := bodyPreferenceRow(c, "appearance-wallpaper", providerCopy("背景图", "Wallpaper"), providerCopy("选一张图铺在整个界面后面。图要透过界面才能看见：玻璃透明度越高，图越被盖住。设好之后可以拉毛玻璃和像素化。", "Choose an image to sit behind the whole UI. It shows through the chrome: higher glass opacity hides more of it. Frost and pixelate sliders appear after it is set."), fg, muted, func() {
+	row := bodyPreferenceRow(c, "appearance-wallpaper", providerCopy("背景图", "Wallpaper"), minimalOverrideHint(providerCopy("选一张图铺在整个界面后面。图要透过界面才能看见：玻璃透明度越高，图越被盖住。设好之后可以拉毛玻璃和像素化。", "Choose an image to sit behind the whole UI. It shows through the chrome: higher glass opacity hides more of it. Frost and pixelate sliders appear after it is set.")), fg, muted, func() {
 		ui.Row(c).Wrap().Gap(8).Children(func() {
 			if g.OnBrowse != nil && ui.Button(c, providerCopy("选择图片", "Choose image")).Disabled(g.Busy || g.Apply == nil).Clicked() {
 				g.OnBrowse()
@@ -520,7 +520,7 @@ func wallpaperCropModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			}).DrawOver(func(_ *ui.Painter, r ui.Rect) { g.previewWidth, g.previewHeight = r.W, r.H })
 		}
 		before := g.cropDraft.Zoom
-		wallpaperSliderStep(c, "wallpaper-crop-zoom", providerCopy("缩放", "Zoom"), &g.cropDraft.Zoom, 1, 3, .05, busy, fg, muted)
+		wallpaperSliderStep(c, "wallpaper-crop-zoom", providerCopy("缩放", "Zoom"), "", &g.cropDraft.Zoom, 1, 3, .05, busy, fg, muted)
 		if before != g.cropDraft.Zoom {
 			g.updatePreview()
 		}

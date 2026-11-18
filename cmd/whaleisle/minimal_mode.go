@@ -1,0 +1,150 @@
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/config"
+	"whaleisle/internal/renderpolicy"
+	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/settings"
+)
+
+// minimalModeText localizes copy that belongs to the running shell rather than
+// to a vendor catalog, in the same zh/en pair the rest of the app uses.
+func minimalModeText(zh, en string) string {
+	if i18n.Locale() == i18n.LocaleZH {
+		return zh
+	}
+	return en
+}
+
+// applyMinimalMode is the one place the switch takes effect: the render policy
+// the chrome reads on every frame, and the framework's motion policy, so
+// interface transitions stop without threading a flag through each surface.
+// Both are process-wide, so a window that rebuilds arrives already minimal.
+func applyMinimalMode(on bool) {
+	renderpolicy.SetMinimal(on)
+	ui.SetReduceMotion(on)
+}
+
+// minimalModeUnavailable is the refusal a switch reports before the profile's
+// settings are open; it says what to do rather than naming the field.
+func minimalModeUnavailable() error {
+	return fmt.Errorf("%s", minimalModeText("设置尚未就绪，请稍后再试。", "Settings are not ready yet. Try again in a moment."))
+}
+
+// setMinimalMode persists the switch and paints the result.
+func (s *mainState) setMinimalMode(on bool) error {
+	if s.cfgStore == nil {
+		return minimalModeUnavailable()
+	}
+	if err := s.cfgStore.Update(func(c *config.Config) { c.MinimalMode = on }); err != nil {
+		return err
+	}
+	applyMinimalMode(on)
+	s.invalidateAppearance()
+	return nil
+}
+
+// invalidateAppearance repaints the main window after an appearance-policy
+// change. The next frame reconfigures the backdrop, the pointer decoration and
+// the closing overlay from the new policy; nothing else has to be notified.
+func (s *mainState) invalidateAppearance() {
+	s.mu.Lock()
+	win := s.win
+	s.mu.Unlock()
+	if win != nil {
+		win.Invalidate()
+	}
+}
+
+// minimalModeAccess is the appearance page's minimal-mode block. The values are
+// read from the stored config every frame, so a write only has to succeed for
+// the page to show it.
+func (s *mainState) minimalModeAccess() *settings.MinimalModeAccess {
+	if s.cfgStore == nil {
+		return nil
+	}
+	cfg := s.cfgStore.Get()
+	enabled, suggestions := cfg.MinimalMode, !cfg.MinimalModeSuggestionsOff
+	access := &settings.MinimalModeAccess{Enabled: &enabled, Suggestions: &suggestions}
+	access.OnToggle = s.setMinimalMode
+	access.OnToggleSuggestions = func(on bool) error {
+		if err := s.cfgStore.Update(func(c *config.Config) {
+			c.MinimalModeSuggestionsOff = !on
+			if on {
+				// Turning the offer back on clears a snooze it may still carry.
+				c.MinimalModeSnoozedUntil = ""
+			}
+		}); err != nil {
+			return err
+		}
+		s.invalidateAppearance()
+		return nil
+	}
+	return access
+}
+
+// observeStartupSlowdown feeds the bounded startup observation one built frame.
+// The application's frame hook already measures this cost, so nothing here
+// samples on its own; a decided observer is one pointer load per frame.
+func (s *mainState) observeStartupSlowdown(build time.Duration) {
+	observer := s.minimalSuggestion
+	if observer == nil || observer.Done() {
+		return
+	}
+	s.mu.Lock()
+	win := s.win
+	s.mu.Unlock()
+	foreground := true
+	if win != nil {
+		foreground = win.IsVisible() && !win.IsMinimized() && win.IsFocused()
+	}
+	if !observer.Observe(time.Now(), build, foreground) {
+		return
+	}
+	if s.minimalSuggestionWanted() {
+		s.openMinimalModeOffer()
+	}
+}
+
+// minimalSuggestionWanted is the offer's own gate: it is never made while the
+// interface is already minimal, after the user turned the offer off, or during
+// a snooze.
+func (s *mainState) minimalSuggestionWanted() bool {
+	if s.cfgStore == nil || renderpolicy.Minimal() {
+		return false
+	}
+	cfg := s.cfgStore.Get()
+	if cfg.MinimalMode || cfg.MinimalModeSuggestionsOff {
+		return false
+	}
+	if cfg.MinimalModeSnoozedUntil != "" {
+		if until, err := time.Parse(time.RFC3339, cfg.MinimalModeSnoozedUntil); err == nil && time.Now().Before(until) {
+			return false
+		}
+	}
+	return true
+}
+
+// minimalModeSnooze is how long "暂不开启" defers the offer.
+const minimalModeSnooze = 7 * 24 * time.Hour
+
+func (s *mainState) snoozeMinimalModeOffer() {
+	if s.cfgStore == nil {
+		return
+	}
+	until := time.Now().Add(minimalModeSnooze).UTC().Format(time.RFC3339)
+	_ = s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSnoozedUntil = until })
+}
+
+func (s *mainState) stopMinimalModeOffers() {
+	if s.cfgStore == nil {
+		return
+	}
+	_ = s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSuggestionsOff = true })
+	s.invalidateAppearance()
+}

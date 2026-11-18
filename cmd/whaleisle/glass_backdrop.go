@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -20,6 +21,11 @@ var desktopGlassWindows sync.Map // *mygo.Window -> mygo.Vibrancy
 
 func desktopGlassMaterial(path string, p wallpapers.Preferences, dark, highContrast bool) mygo.Vibrancy {
 	p = wallpapers.NormalizeEffect(path, p)
+	// Acrylic samples the live desktop, so it is one of the transparent
+	// materials minimal mode pauses; the canvas paints its own fill instead.
+	if renderpolicy.Minimal() {
+		return mygo.VibrancyNone
+	}
 	if runtime.GOOS == "windows" && path == "" && p.Effect != "gradient" && dark && !highContrast {
 		return mygo.VibrancyAcrylic
 	}

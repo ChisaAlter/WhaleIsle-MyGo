@@ -409,7 +409,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 			if typing {
 				hint = providerCopy("键入字符时在输入框播放短暂回显，可替换光标样式。", "Echo typed characters in the composer, with an optional custom caret.")
 			}
-			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, hint, fg, muted, func() {
+			bodyPreferenceRow(c, "effect-row-"+enabledKey, title, minimalOverrideHint(hint), fg, muted, func() {
 				ui.Row(c).Wrap().Gap(8).Justify(ui.End).Children(func() {
 					checked := enabled == "true"
 					if settingsPreferenceSwitch(c, &checked, settingsSwitchInput).Label(title).Disabled(bodyHostFieldDisabled(a, "ui-conversation", enabledKey)).Changed() {

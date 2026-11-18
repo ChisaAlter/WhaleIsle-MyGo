@@ -25,7 +25,7 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			g.Status = ""
 		}}, func() {
 			enabled := g.currentPreferences().CursorEnabled
-			bodyLocalToggle(c, "cursor-enabled", providerCopy("指针特效", "Cursor effects"), providerCopy("移动指针即可预览；系统减少动态效果会关闭动画。", "Move the pointer to preview. Reduced motion disables the animation."), &enabled, g.Save == nil, fg, muted, func(value bool) {
+			bodyLocalToggle(c, "cursor-enabled", providerCopy("指针特效", "Cursor effects"), minimalOverrideHint(providerCopy("移动指针即可预览；系统减少动态效果会关闭动画。", "Move the pointer to preview. Reduced motion disables the animation.")), &enabled, g.Save == nil, fg, muted, func(value bool) {
 				wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.CursorEnabled = value })
 			})
 		})
@@ -62,8 +62,8 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			}
 		})
 		beforeSpeed, beforeSize := p.CursorSpeed, p.CursorSize
-		wallpaperSliderStep(c, "cursor-speed", providerCopy("指针速度", "Pointer speed"), &p.CursorSpeed, 20, 300, 10, g.Save == nil || busy, fg, muted)
-		wallpaperSliderStep(c, "cursor-size", providerCopy("指针大小", "Pointer size"), &p.CursorSize, 25, 300, 5, g.Save == nil || busy, fg, muted)
+		wallpaperSliderStep(c, "cursor-speed", providerCopy("指针速度", "Pointer speed"), minimalOverrideHint(""), &p.CursorSpeed, 20, 300, 10, g.Save == nil || busy, fg, muted)
+		wallpaperSliderStep(c, "cursor-size", providerCopy("指针大小", "Pointer size"), minimalOverrideHint(""), &p.CursorSize, 25, 300, 5, g.Save == nil || busy, fg, muted)
 		if beforeSpeed != p.CursorSpeed || beforeSize != p.CursorSize {
 			p.CursorPreset = "custom"
 		}

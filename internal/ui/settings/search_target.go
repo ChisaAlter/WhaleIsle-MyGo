@@ -163,6 +163,10 @@ func searchRowTarget(section SectionID, zh, title string) string {
 	}
 	if section == SectionAppearance {
 		switch zh {
+		case "极简模式":
+			return "appearance-minimal-mode"
+		case "启动卡顿时提示":
+			return "appearance-minimal-suggestions"
 		case "颜色模式":
 			return "appearance-scheme"
 		case "主题":
