@@ -1,0 +1,191 @@
+{
+  "appPID": 42640,
+  "completedCycles": 2,
+  "finalProcesses": [
+    {
+      "pid": 36388,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34712,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 44180,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36320,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47496,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 39772,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44224,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36788,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30852,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 21120,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34364,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46960,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 15348,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5012,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36176,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45760,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    }
+  ],
+  "helper": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-ef8a53f4336242d7b802a7c588c30113\\whaleisle-preview.exe",
+  "hideEvents": 0,
+  "host": "loopback synthetic Project/readVisualReply responses",
+  "lastOpenButtonBounds": {
+    "X": 374.35855,
+    "Y": 225.21289,
+    "W": 136.61621,
+    "H": 18.621094
+  },
+  "modelRequests": 0,
+  "osHideShowExercised": false,
+  "passed": true,
+  "plannedCycles": 2,
+  "processObservation": "owned helper/WebView2 descendants sampled every 25 ms with retained process handles",
+  "schemaVersion": 1,
+  "scope": "production Project Manager, ObserverView, mainProjectDeps renderer, publishedHTMLSurface and real AppContainer/WebView2",
+  "showEvents": 0,
+  "stages": [
+    {
+      "active": 0,
+      "htmlReads": 0,
+      "resources": {
+        "goroutines": 8,
+        "handles": 369,
+        "handlesWithoutAudit": 369,
+        "privateBytes": 77582336,
+        "retainedAuditHandles": 0,
+        "workingSetBytes": 52490240
+      },
+      "stage": "default-awaiting-open"
+    },
+    {
+      "active": 8,
+      "htmlReads": 1,
+      "stage": "explicit-open-1"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 243,
+      "stage": "close-completed-1"
+    },
+    {
+      "active": 0,
+      "htmlReads": 1,
+      "resources": {
+        "goroutines": 8,
+        "handles": 447,
+        "handlesWithoutAudit": 439,
+        "privateBytes": 83013632,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 60231680
+      },
+      "stage": "released-and-restored-1"
+    },
+    {
+      "active": 0,
+      "htmlReads": 1,
+      "resources": {
+        "goroutines": 8,
+        "handles": 448,
+        "handlesWithoutAudit": 440,
+        "privateBytes": 82030592,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 59371520
+      },
+      "stage": "remained-closed-1"
+    },
+    {
+      "active": 8,
+      "htmlReads": 2,
+      "stage": "explicit-open-2"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 188,
+      "stage": "close-completed-2"
+    },
+    {
+      "active": 0,
+      "htmlReads": 2,
+      "resources": {
+        "goroutines": 8,
+        "handles": 468,
+        "handlesWithoutAudit": 452,
+        "privateBytes": 81158144,
+        "retainedAuditHandles": 16,
+        "workingSetBytes": 58679296
+      },
+      "stage": "released-and-restored-2"
+    },
+    {
+      "active": 0,
+      "htmlReads": 2,
+      "resources": {
+        "goroutines": 8,
+        "handles": 467,
+        "handlesWithoutAudit": 451,
+        "privateBytes": 82604032,
+        "retainedAuditHandles": 16,
+        "workingSetBytes": 60137472
+      },
+      "stage": "remained-closed-2"
+    }
+  ],
+  "visibility": "ordinary desktop; parent stays Hidden for its entire life; hidden child attachment and Close only"
+}

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-17",
+  "platform": "windows/amd64",
+  "cpu": "Intel Core i7-11800H",
+  "iterationsPerCase": 100,
+  "windowDIPs": [720, 360],
+  "scope": "Prewarmed synthetic Store snapshots and real chat/file View headless frame layout. No Host, native window, GPU presentation, system clipboard or model requests.",
+  "logs": ["close-windows-long-content.log", "close-windows-long-content-chat-revision.log"],
+  "fixtureCorrection": "The first chat viewport measurement constructed a zero-revision ViewState, selecting the compatibility fallback. Only that benchmark was corrected to retain an immutable Store history revision and rerun; the original log remains. Use the chat-revision log for production revision-cache conclusions.",
+  "chatViewport": [
+    {"historyRows": 500, "visibleRows": 6, "nanosecondsPerFrame": 168908, "bytesPerFrame": 42017, "allocationsPerFrame": 230},
+    {"historyRows": 2000, "visibleRows": 6, "nanosecondsPerFrame": 192335, "bytesPerFrame": 43228, "allocationsPerFrame": 230},
+    {"historyRows": 8000, "visibleRows": 6, "nanosecondsPerFrame": 350088, "bytesPerFrame": 43227, "allocationsPerFrame": 230}
+  ],
+  "fileViewport": [
+    {"sourceLines": 1000, "visibleRows": 20, "nanosecondsPerFrame": 188456, "bytesPerFrame": 19971, "allocationsPerFrame": 119},
+    {"sourceLines": 10000, "visibleRows": 20, "nanosecondsPerFrame": 205414, "bytesPerFrame": 44165, "allocationsPerFrame": 115},
+    {"sourceLines": 100000, "visibleRows": 17, "nanosecondsPerFrame": 152141, "bytesPerFrame": 17007, "allocationsPerFrame": 107}
+  ],
+  "snapshotWhileStreaming": [
+    {"nominalEvents": 500, "actualMessagesWithLiveRow": 488, "liveAttemptNanoseconds": 1374450, "liveAttemptBytes": 1577182, "liveAttemptAllocations": 3984, "frameLiveAttemptNanoseconds": 1090646, "frameLiveAttemptBytes": 1374255, "frameLiveAttemptAllocations": 1683},
+    {"nominalEvents": 2000, "actualMessagesWithLiveRow": 1951, "liveAttemptNanoseconds": 3385381, "liveAttemptBytes": 6162195, "liveAttemptAllocations": 15744, "frameLiveAttemptNanoseconds": 2203519, "frameLiveAttemptBytes": 5376206, "frameLiveAttemptAllocations": 6566},
+    {"nominalEvents": 8000, "actualMessagesWithLiveRow": 7801, "liveAttemptNanoseconds": 10129890, "liveAttemptBytes": 24540359, "liveAttemptAllocations": 62770, "frameLiveAttemptNanoseconds": 7578613, "frameLiveAttemptBytes": 21431211, "frameLiveAttemptAllocations": 26092}
+  ],
+  "conclusions": [
+    "File View steady frames retain a bounded viewport through 100000 lines; measured frame work and allocations do not grow with source size in this fixture.",
+    "Chat View with a valid unchanged history revision retains 6 visible rows and 230 allocations per frame; time rises from 0.169 to 0.350 ms across 500 to 8000 rows rather than proportional 16x growth.",
+    "Store streaming snapshot work remains history-size dependent: at 7801 messages the frame snapshot path costs 7.579 ms and 21.431 MB per changed snapshot. Viewport virtualization alone does not establish full streaming performance.",
+    "These are average microbenchmark costs, not input-to-visible p95/p99, first-frame latency or overall application memory. Cold line parsing is outside the timed window. The original snapshot fixture excludes every fortieth nominal event as a trajectory boundary; actual message counts are recorded explicitly."
+  ],
+  "cleanup": "Both runs used with-build-workspace shared caches and reclaimed their own temporary workspaces.",
+  "productCodeChanged": false
+}

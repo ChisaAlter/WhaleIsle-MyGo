@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scope": "Production whaleisle.nsi with shell-only synthetic bytes; real silent NSIS install, identity rejection and upgrade",
+  "appID": "whaleisle.nsis-identity.1ad29fe7f48d4d90b7fe436910ecae4d",
+  "workRoot": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-c74edb28afe34a9eb19009e25eb81486\\identity-fixture",
+  "productScript": "scripts/nsis/whaleisle.nsi",
+  "checks": [],
+  "passed": false,
+  "cleanup": {
+    "disk": "caller-owned build workspace finally",
+    "registrationAndShortcutsRemoved": true,
+    "runningInstallers": 0
+  },
+  "installerBytes": [
+    295786,
+    295721
+  ],
+  "error": "Unexpected transaction sibling: C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-c74edb28afe34a9eb19009e25eb81486\\identity-fixture\\installed.old-{8C8E712F-BE28-44CD-8419-8660F2701E45}"
+}

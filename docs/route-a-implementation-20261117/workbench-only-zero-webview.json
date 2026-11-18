@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "executable": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-workbench-0.2.0-candidate.exe",
+  "hidden": true,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 28.325
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 29.537
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 45.707
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 53.59
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 224.42
+    }
+  ],
+  "idle": null,
+  "scheduledUpdatesSuppressed": false,
+  "warmupSeconds": 8,
+  "coverage": "sampled-startup",
+  "readiness": "main-window-created-hidden",
+  "runtime": {
+    "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor",
+    "nodeDirectory": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node"
+  },
+  "webViewCount": 0
+}

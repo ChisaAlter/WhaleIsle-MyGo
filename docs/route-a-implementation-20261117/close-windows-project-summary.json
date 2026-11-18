@@ -1,0 +1,75 @@
+{
+  "scope": "Production Project Manager -> native ObserverView -> real AppContainer/WebView2 child attached to a permanently hidden parent. Explicit Open/Close, not OS Hide/Show or visible input.",
+  "cycles": 50,
+  "passed": true,
+  "processesObserved": 400,
+  "processesRemaining": 0,
+  "releaseMilliseconds": {
+    "min": 96.0,
+    "mean": 161.0,
+    "max": 478.0
+  },
+  "resources": [
+    {
+      "cycle": 1,
+      "sample": {
+        "goroutines": 8,
+        "handles": 477,
+        "handlesWithoutAudit": 469,
+        "privateBytes": 82804736,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 58961920
+      }
+    },
+    {
+      "cycle": 10,
+      "sample": {
+        "goroutines": 8,
+        "handles": 603,
+        "handlesWithoutAudit": 523,
+        "privateBytes": 85454848,
+        "retainedAuditHandles": 80,
+        "workingSetBytes": 61796352
+      }
+    },
+    {
+      "cycle": 25,
+      "sample": {
+        "goroutines": 8,
+        "handles": 738,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 85581824,
+        "retainedAuditHandles": 200,
+        "workingSetBytes": 62271488
+      }
+    },
+    {
+      "cycle": 50,
+      "sample": {
+        "goroutines": 8,
+        "handles": 940,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 86294528,
+        "retainedAuditHandles": 400,
+        "workingSetBytes": 63488000
+      }
+    }
+  ],
+  "interpretation": "Goroutines remain 8 at every closed stage. After subtracting retained audit process handles, handles approach 538-541 by cycle 25 onward. Private bytes increase about 3.49 MB across all cycles and 0.71 MB from cycle 25 to 50 without forced GC; the observer itself retains per-cycle evidence. This bounded run establishes complete process teardown, not an unlimited-time memory-leak claim.",
+  "productFix": "Wait on all pinned owned process exit events, within the existing five-second termination deadline, before closing process/job handles and deleting the profile. Finish an observed Windows partial deletion once immediately on sharing violation; preserve all other or repeated errors with the exact owned profile path.",
+  "sourceReferences": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-deleteappcontainerprofile",
+    "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess"
+  ],
+  "evidence": [
+    "close-windows-project-exit.json",
+    "close-windows-project-50-exit.json",
+    "close-windows-profile-deletion.log"
+  ],
+  "remaining": [
+    "OS Hide/Show on an isolated interactive desktop",
+    "System clipboard permission and real IME composition",
+    "Native visible input/presentation p95/p99"
+  ],
+  "cleanup": "Owned test executables/profiles reclaimed by with-build-workspace. Both known partial-delete profiles completed with DeleteAppContainerProfile; no recursive profile deletion or unrelated process termination."
+}

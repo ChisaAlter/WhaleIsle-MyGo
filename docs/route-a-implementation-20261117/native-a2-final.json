@@ -1,0 +1,13 @@
+{
+  "allWindowsHidden": true,
+  "appPID": 42384,
+  "defaultActiveWebViewPIDs": null,
+  "defaultObservedWebViewPIDs": null,
+  "error": "required bundled plugin dsh-usage-panel unavailable",
+  "modelRequestsByDriver": 0,
+  "passed": false,
+  "plugin": "dsh-usage-panel",
+  "processObservation": "owned descendants sampled every 25 ms; retained process handles",
+  "scope": "real hidden production main, real Host and WebView2; callbacks and WindowDriver; no physical input",
+  "steps": null
+}

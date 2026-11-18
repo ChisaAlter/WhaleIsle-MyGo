@@ -1,0 +1,211 @@
+{
+  "beforeFreeGiB": 50.21601486206055,
+  "afterFreeGiB": 54.12491226196289,
+  "removedBytes": 4197128859.0,
+  "retained": "current installed runtime, all previous runtime recovery directories and empty staging directories",
+  "files": [
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-0oyOSH\\node-runtime.tar.gz",
+      "Bytes": 380082477,
+      "Mtime": "2026-11-05T09:03:19.9690535Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-12OAqr\\node-runtime.tar.gz",
+      "Bytes": 54656529,
+      "Mtime": "2026-11-05T13:04:14.977538Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-1eIXi3\\node-runtime.tar.gz",
+      "Bytes": 54525952,
+      "Mtime": "2026-11-04T13:08:52.4218971Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-1Gcr9n\\node-runtime.tar.gz",
+      "Bytes": 285822593,
+      "Mtime": "2026-11-03T20:08:20.4484626Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-2nU6Fs\\node-runtime.tar.gz",
+      "Bytes": 71319471,
+      "Mtime": "2026-11-04T00:08:06.467478Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-3AhxAX\\node-runtime.tar.gz",
+      "Bytes": 385142140,
+      "Mtime": "2026-11-05T10:03:36.5190766Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-3IGwiy\\node-runtime.tar.gz",
+      "Bytes": 44010714,
+      "Mtime": "2026-11-05T14:04:18.8689333Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-3mioo2\\node-runtime.tar.gz",
+      "Bytes": 28851972,
+      "Mtime": "2026-11-04T12:08:35.7013043Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-3qWQQA\\node-runtime.tar.gz",
+      "Bytes": 66649563,
+      "Mtime": "2026-11-05T05:02:16.5489503Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-5jq0TH\\node-runtime.tar.gz",
+      "Bytes": 192872079,
+      "Mtime": "2026-11-05T12:03:57.7918132Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-71pW2m\\node-runtime.tar.gz",
+      "Bytes": 61619792,
+      "Mtime": "2026-11-05T02:01:41.3324976Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-7CBegg\\node-runtime.tar.gz",
+      "Bytes": 341871276,
+      "Mtime": "2026-11-04T02:09:14.0043716Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-a2wRpG\\node-runtime.tar.gz",
+      "Bytes": 104693643,
+      "Mtime": "2026-11-05T04:01:59.4570231Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-bNlADz\\node-runtime.tar.gz",
+      "Bytes": 283936741,
+      "Mtime": "2026-11-03T22:08:35.8749995Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-bu49ds\\node-runtime.tar.gz",
+      "Bytes": 18857642,
+      "Mtime": "2026-11-04T23:59:55.6507073Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-Cn7aKd\\node-runtime.tar.gz",
+      "Bytes": 211651460,
+      "Mtime": "2026-11-04T01:08:56.9277333Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-CrN9AU\\node-runtime.tar.gz",
+      "Bytes": 39738365,
+      "Mtime": "2026-11-04T10:08:24.4749211Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-GPZiMg\\node-runtime.tar.gz",
+      "Bytes": 2555751,
+      "Mtime": "2026-11-04T11:07:52.0564373Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-hKNOzM\\node-runtime.tar.gz",
+      "Bytes": 41733284,
+      "Mtime": "2026-11-05T08:03:03.4257343Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-M39QJ1\\node-runtime.tar.gz",
+      "Bytes": 66748110,
+      "Mtime": "2026-11-05T06:02:32.8164068Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-MArxOH\\node-runtime.tar.gz",
+      "Bytes": 13500128,
+      "Mtime": "2026-11-05T00:11:46.7798687Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-n7cnCR\\node-runtime.tar.gz",
+      "Bytes": 380931173,
+      "Mtime": "2026-11-11T03:10:24.7902846Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-PpIm3R\\node-runtime.tar.gz",
+      "Bytes": 63753353,
+      "Mtime": "2026-11-05T01:01:23.6962422Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-QfIn32\\node-runtime.tar.gz",
+      "Bytes": 55041409,
+      "Mtime": "2026-11-04T14:09:09.23482Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-QLpvgD\\node-runtime.tar.gz",
+      "Bytes": 252677509,
+      "Mtime": "2026-11-05T11:03:53.2530853Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-SupMYB\\node-runtime.tar.gz",
+      "Bytes": 281759361,
+      "Mtime": "2026-11-03T23:08:43.6471545Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-t9sP0G\\node-runtime.tar.gz",
+      "Bytes": 286523302,
+      "Mtime": "2026-11-03T21:08:27.9917858Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-UPFTcU\\node-runtime.tar.gz",
+      "Bytes": 60870138,
+      "Mtime": "2026-11-05T07:01:18.0323693Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\Users\\48818\\.cache\\codex-runtimes\\codex-runtime-install-VN3XIx\\node-runtime.tar.gz",
+      "Bytes": 64732932,
+      "Mtime": "2026-11-05T03:01:59.0081745Z",
+      "Classification": "abandoned download-only runtime install staging; payload contains no extracted files; replacement runtime 26.1112.11217 installed",
+      "Removed": true
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "operation": "go clean -cache",
+  "path": "C:\\Users\\48818\\AppData\\Local\\go-build",
+  "beforeFreeGiB": 40.83855438232422,
+  "afterFreeGiB": 48.0247802734375,
+  "sourceAndModuleCacheUntouched": true
+}

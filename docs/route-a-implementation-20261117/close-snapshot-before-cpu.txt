@@ -1,0 +1,127 @@
+File: session.test.exe
+Build ID: C:\Users\48818\AppData\Local\Temp\whaleisle-build-923067fe31684007aa4ed426b7221499\go-build3483939680\b001\session.test.exe2026-11-17 16:41:28.3103387 +0800 CST
+Type: cpu
+Time: 2026-11-17 16:41:28 CST
+Duration: 3.20s, Total samples = 6.08s (190.15%)
+Showing nodes accounting for 5.39s, 88.65% of 6.08s total
+Dropped 156 nodes (cum <= 0.03s)
+      flat  flat%   sum%        cum   cum%
+     0.83s 13.65% 13.65%      1.94s 31.91%  runtime.scanObject
+     0.79s 12.99% 26.64%      1.20s 19.74%  runtime.tryDeferToSpanScan
+     0.59s  9.70% 36.35%      0.59s  9.70%  runtime.memmove
+     0.27s  4.44% 40.79%      0.27s  4.44%  runtime.spanClass.sizeclass (inline)
+     0.23s  3.78% 44.57%      0.23s  3.78%  runtime.memclrNoHeapPointers
+     0.23s  3.78% 48.36%      0.33s  5.43%  whaleisle/internal/store/session.(*Store).historyCacheMatchesLocked
+     0.19s  3.12% 51.48%      0.19s  3.12%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.18s  2.96% 54.44%      0.18s  2.96%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.17s  2.80% 57.24%      0.17s  2.80%  memeqbody
+     0.16s  2.63% 59.87%      0.42s  6.91%  whaleisle/internal/store/session.(*Store).projectAssistantMessagesLocked
+     0.15s  2.47% 62.34%      0.15s  2.47%  runtime.typePointers.nextFast (inline)
+     0.11s  1.81% 64.14%      0.41s  6.74%  whaleisle/internal/store/session.cloneMessages
+     0.09s  1.48% 65.62%      0.09s  1.48%  whaleisle/internal/store/session.volatileMessageRow (inline)
+     0.08s  1.32% 66.94%      0.08s  1.32%  internal/runtime/maps.memHashAES
+     0.08s  1.32% 68.26%      0.08s  1.32%  runtime.heapArenaOf (inline)
+     0.08s  1.32% 69.57%      0.08s  1.32%  runtime.preemptM
+     0.08s  1.32% 70.89%      0.08s  1.32%  runtime.procyieldAsm
+     0.08s  1.32% 72.20%      0.08s  1.32%  runtime.semawakeup
+     0.08s  1.32% 73.52%      0.09s  1.48%  runtime.typePointers.next
+     0.08s  1.32% 74.84%      0.08s  1.32%  runtime.unlock2
+     0.07s  1.15% 75.99%      0.14s  2.30%  runtime.mapaccess2_faststr
+     0.07s  1.15% 77.14%      0.18s  2.96%  runtime.sweepone
+     0.06s  0.99% 78.12%      0.12s  1.97%  runtime.bulkBarrierPreWriteSrcOnly
+     0.05s  0.82% 78.95%      0.05s  0.82%  runtime.alignDown (inline)
+     0.05s  0.82% 79.77%      0.09s  1.48%  runtime.findObject
+     0.05s  0.82% 80.59%      0.57s  9.38%  runtime.scanSpan
+     0.05s  0.82% 81.41%      0.12s  1.97%  runtime.wbBufFlush1
+     0.05s  0.82% 82.24%      0.18s  2.96%  whaleisle/internal/store/session.(*Store).trajectoryRequestsViewLocked
+     0.04s  0.66% 82.89%      0.04s  0.66%  runtime.f64equal
+     0.04s  0.66% 83.55%      0.05s  0.82%  runtime.mallocgcSmallScanNoHeaderSC5
+     0.04s  0.66% 84.21%      0.21s  3.45%  whaleisle/internal/store/session.cloneMessage
+     0.04s  0.66% 84.87%      0.10s  1.64%  whaleisle/internal/store/session.sameHistoryMessage
+     0.03s  0.49% 85.36%      0.11s  1.81%  runtime.bulkBarrierPreWrite
+     0.03s  0.49% 85.86%      0.20s  3.29%  runtime.mapassign_faststr
+     0.02s  0.33% 86.18%      0.11s  1.81%  runtime.mallocgcSmallScanNoHeader
+     0.02s  0.33% 86.51%      0.16s  2.63%  runtime.mapaccess1_faststr
+     0.02s  0.33% 86.84%      0.18s  2.96%  runtime.mapaccess2
+     0.02s  0.33% 87.17%      0.12s  1.97%  whaleisle/internal/store/session.(*Store).cachedProjectAssistantMessageLocked
+     0.02s  0.33% 87.50%      0.05s  0.82%  whaleisle/internal/store/session.cloneTrajectoryTiming
+     0.01s  0.16% 87.66%      0.09s  1.48%  runtime.(*sweepLocked).sweep
+     0.01s  0.16% 87.83%      0.04s  0.66%  runtime.(*wbBuf).get1 (inline)
+     0.01s  0.16% 87.99%      2.67s 43.91%  runtime.gcDrain
+     0.01s  0.16% 88.16%      0.07s  1.15%  runtime.mallocgcSmallNoscan
+     0.01s  0.16% 88.32%      0.09s  1.48%  runtime.suspendG
+     0.01s  0.16% 88.49%      0.38s  6.25%  runtime.typedslicecopy
+     0.01s  0.16% 88.65%      0.80s 13.16%  whaleisle/internal/store/session.(*Store).projectTrajectoryTimingLocked
+         0     0% 88.65%      0.08s  1.32%  bytes.Equal (inline)
+         0     0% 88.65%      0.04s  0.66%  encoding/json.Unmarshal (inline)
+         0     0% 88.65%      0.04s  0.66%  encoding/json/v2.Unmarshal
+         0     0% 88.65%      0.04s  0.66%  encoding/json/v2.makeStructArshaler.func3
+         0     0% 88.65%      0.04s  0.66%  encoding/json/v2.unmarshalDecode
+         0     0% 88.65%      0.19s  3.12%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 88.65%      0.19s  3.12%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+         0     0% 88.65%      0.10s  1.64%  internal/runtime/maps.(*table).rehash
+         0     0% 88.65%      0.08s  1.32%  internal/runtime/maps.(*table).split
+         0     0% 88.65%      0.06s  0.99%  internal/runtime/maps.MemHash
+         0     0% 88.65%      0.06s  0.99%  internal/runtime/maps.StrHash (inline)
+         0     0% 88.65%      0.07s  1.15%  runtime.(*gcControllerState).enlistWorker
+         0     0% 88.65%      0.07s  1.15%  runtime.(*mcache).nextFree
+         0     0% 88.65%      0.07s  1.15%  runtime.(*mcache).refill
+         0     0% 88.65%      0.05s  0.82%  runtime.(*mcentral).cacheSpan
+         0     0% 88.65%      0.07s  1.15%  runtime.(*wbBuf).get2 (inline)
+         0     0% 88.65%      0.28s  4.61%  runtime.bgsweep
+         0     0% 88.65%      0.04s  0.66%  runtime.callers
+         0     0% 88.65%      0.04s  0.66%  runtime.callers.func1
+         0     0% 88.65%      0.06s  0.99%  runtime.deductAssistCredit
+         0     0% 88.65%      0.04s  0.66%  runtime.forEachP.func1
+         0     0% 88.65%      0.04s  0.66%  runtime.forEachPInternal
+         0     0% 88.65%      0.04s  0.66%  runtime.freeSomeWbufs
+         0     0% 88.65%      0.06s  0.99%  runtime.gcAssistAlloc
+         0     0% 88.65%      0.06s  0.99%  runtime.gcAssistAlloc.func2
+         0     0% 88.65%      0.06s  0.99%  runtime.gcAssistAlloc1
+         0     0% 88.65%      2.62s 43.09%  runtime.gcBgMarkWorker
+         0     0% 88.65%      2.68s 44.08%  runtime.gcBgMarkWorker.func2
+         0     0% 88.65%      1.17s 19.24%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0% 88.65%      1.50s 24.67%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0% 88.65%      0.06s  0.99%  runtime.gcDrainN
+         0     0% 88.65%      0.05s  0.82%  runtime.growslice
+         0     0% 88.65%      0.05s  0.82%  runtime.mProf_Malloc
+         0     0% 88.65%      0.16s  2.63%  runtime.makeslice
+         0     0% 88.65%      0.44s  7.24%  runtime.makeslicecopy
+         0     0% 88.65%      0.49s  8.06%  runtime.mallocgc
+         0     0% 88.65%      0.22s  3.62%  runtime.mallocgcLarge
+         0     0% 88.65%      0.10s  1.64%  runtime.markroot
+         0     0% 88.65%      0.09s  1.48%  runtime.markroot.func1
+         0     0% 88.65%      0.04s  0.66%  runtime.mcall
+         0     0% 88.65%      0.20s  3.29%  runtime.memclrNoHeapPointersChunked
+         0     0% 88.65%      0.11s  1.81%  runtime.newobject
+         0     0% 88.65%      0.08s  1.32%  runtime.notewakeup
+         0     0% 88.65%      0.04s  0.66%  runtime.preemptall
+         0     0% 88.65%      0.08s  1.32%  runtime.preemptone
+         0     0% 88.65%      0.08s  1.32%  runtime.procyield (inline)
+         0     0% 88.65%      0.05s  0.82%  runtime.profilealloc
+         0     0% 88.65%      0.08s  1.32%  runtime.startm
+         0     0% 88.65%      0.06s  0.99%  runtime.strhash
+         0     0% 88.65%      3.02s 49.67%  runtime.systemstack
+         0     0% 88.65%      0.04s  0.66%  runtime.tracebackPCs
+         0     0% 88.65%      0.08s  1.32%  runtime.unlock (partial-inline)
+         0     0% 88.65%      0.08s  1.32%  runtime.unlockWithRank (inline)
+         0     0% 88.65%      0.09s  1.48%  runtime.wakep
+         0     0% 88.65%      0.12s  1.97%  runtime.wbBufFlush
+         0     0% 88.65%      0.12s  1.97%  runtime.wbBufFlush.func1
+         0     0% 88.65%      2.89s 47.53%  testing.(*B).launch
+         0     0% 88.65%      0.09s  1.48%  testing.(*B).run1.func1
+         0     0% 88.65%      2.98s 49.01%  testing.(*B).runN
+         0     0% 88.65%      2.96s 48.68%  whaleisle/internal/store/session.(*FrameSnapshot).Snapshot
+         0     0% 88.65%      0.04s  0.66%  whaleisle/internal/store/session.(*Store).ensureTrajectoryTimingCacheLocked
+         0     0% 88.65%      2.52s 41.45%  whaleisle/internal/store/session.(*Store).ensureViewCacheLocked
+         0     0% 88.65%      0.05s  0.82%  whaleisle/internal/store/session.(*Store).projectDurableTimingLocked
+         0     0% 88.65%      0.27s  4.44%  whaleisle/internal/store/session.(*Store).projectMessagesIncrementalLocked
+         0     0% 88.65%      0.05s  0.82%  whaleisle/internal/store/session.(*Store).trajectoryFingerprintLocked
+         0     0% 88.65%      1.65s 27.14%  whaleisle/internal/store/session.(*Store).trajectoryJournalMessagesLocked
+         0     0% 88.65%      2.98s 49.01%  whaleisle/internal/store/session.BenchmarkSnapshotWhileStreaming.func3
+         0     0% 88.65%      0.44s  7.24%  whaleisle/internal/store/session.cloneFramePassView (inline)
+         0     0% 88.65%      0.13s  2.14%  whaleisle/internal/store/session.cloneRawMessage (inline)
+         0     0% 88.65%      0.44s  7.24%  whaleisle/internal/store/session.cloneSlice[go.shape.6f8aefab3764f21aab036648f8984658919debf1a8c7d828a6b318642c477bff] (inline)
+         0     0% 88.65%      0.13s  2.14%  whaleisle/internal/store/session.cloneSlice[go.shape.uint8] (inline)
+         0     0% 88.65%      0.10s  1.64%  whaleisle/internal/store/session.projectAssistantMessage
+         0     0% 88.65%      0.04s  0.66%  whaleisle/internal/store/session.splitVolatileTail (inline)

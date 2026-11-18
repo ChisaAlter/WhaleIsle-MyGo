@@ -1,0 +1,360 @@
+{
+  "schema": 1,
+  "pass": true,
+  "installer": "C:\\AI\\WhaleIsle-MyGo\\dist\\route-a-no-launcher-0.2.0\\WhaleIsle-MyGo-Setup-0.2.0.exe",
+  "installerBytes": 255588767,
+  "startedAt": "2026-11-18T09:50:19.8479641+08:00",
+  "durationSeconds": 1141.3530674,
+  "exitCode": 0,
+  "before": {
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{E275AD6F-7052-48EB-85D0-3B8059BDA29B}",
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo"
+  },
+  "after": {
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{2C9C3C5B-2895-4245-85EA-0AFE91DACD38}",
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo"
+  },
+  "manifestMatches": true,
+  "transactionSiblings": [],
+  "manualBackup": false,
+  "finalShortcuts": [
+    {
+      "path": "C:\\Users\\48818\\Desktop\\鲸屿 MyGo.lnk",
+      "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe"
+    },
+    {
+      "path": "C:\\Users\\48818\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\鲸屿 MyGo\\鲸屿 MyGo.lnk",
+      "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe"
+    }
+  ],
+  "health": {
+    "schema": 1,
+    "installation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "passed": true,
+    "elapsedMs": 10995,
+    "profile": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-install-health-214677609",
+    "profileRemoved": true,
+    "processesExited": true,
+    "startup": {
+      "schema": 1,
+      "pid": 34056,
+      "startedAt": "2026-11-18T10:06:37.9771029+08:00",
+      "updatedAt": "2026-11-18T10:06:48.6759394+08:00",
+      "finished": true,
+      "reason": "ready",
+      "totalMs": 10698.836,
+      "meta": {
+        "isolated": "true",
+        "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-install-health-214677609",
+        "vendor": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\vendor"
+      },
+      "events": [
+        {
+          "stage": "process.start",
+          "kind": "mark",
+          "atMs": 28.274
+        },
+        {
+          "stage": "shell.prepared",
+          "kind": "mark",
+          "atMs": 29.857
+        },
+        {
+          "stage": "app.when_ready",
+          "kind": "mark",
+          "atMs": 42.692
+        },
+        {
+          "stage": "config.loaded",
+          "kind": "mark",
+          "atMs": 53.823
+        },
+        {
+          "stage": "window.created",
+          "kind": "mark",
+          "atMs": 239.014
+        },
+        {
+          "stage": "harness.start_requested",
+          "kind": "mark",
+          "atMs": 245.982
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 251.563,
+          "detail": "starting"
+        },
+        {
+          "stage": "runtime.warmup.gate",
+          "kind": "mark",
+          "atMs": 254.262,
+          "detail": "cold=false probeUs=66"
+        },
+        {
+          "stage": "host.port_selected",
+          "kind": "mark",
+          "atMs": 254.785,
+          "detail": "3181"
+        },
+        {
+          "stage": "runtime.verify.node",
+          "kind": "span",
+          "atMs": 255.314,
+          "durMs": 886.975,
+          "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+        },
+        {
+          "stage": "runtime.validate.session_runtime",
+          "kind": "span",
+          "atMs": 254.785,
+          "durMs": 894.025
+        },
+        {
+          "stage": "runtime.read_capabilities",
+          "kind": "span",
+          "atMs": 254.785,
+          "durMs": 896.024
+        },
+        {
+          "stage": "runtime.verify.node",
+          "kind": "span",
+          "atMs": 2167.467,
+          "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+        },
+        {
+          "stage": "runtime.validate.session_runtime",
+          "kind": "span",
+          "atMs": 2167.467,
+          "durMs": 1.056999999999789
+        },
+        {
+          "stage": "runtime.validate.current_host",
+          "kind": "span",
+          "atMs": 2166.851,
+          "durMs": 1.6729999999997744
+        },
+        {
+          "stage": "runtime.verify.node",
+          "kind": "span",
+          "atMs": 2169.048,
+          "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+        },
+        {
+          "stage": "runtime.validate",
+          "kind": "span",
+          "atMs": 2166.851,
+          "durMs": 2.1969999999996617
+        },
+        {
+          "stage": "profile.disabled_plugins",
+          "kind": "span",
+          "atMs": 2169.048
+        },
+        {
+          "stage": "profile.links",
+          "kind": "span",
+          "atMs": 2169.048,
+          "durMs": 91.72600000000011
+        },
+        {
+          "stage": "profile.overlays",
+          "kind": "span",
+          "atMs": 2260.774,
+          "durMs": 74.56600000000026
+        },
+        {
+          "stage": "runtime.profile_prepare",
+          "kind": "span",
+          "atMs": 2169.048,
+          "durMs": 166.29200000000037
+        },
+        {
+          "stage": "host.plan",
+          "kind": "span",
+          "atMs": 2166.851,
+          "durMs": 181.82199999999966
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 2349.198,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.spawned",
+          "kind": "mark",
+          "atMs": 2359.963,
+          "detail": "17596"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 2360.97,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 8307.881,
+          "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 8307.881,
+          "detail": "starting"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 8361.14,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 8493.251,
+          "detail": "(node:17596) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 8493.251,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 8493.251,
+          "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 8493.251,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.readyline",
+          "kind": "mark",
+          "atMs": 8897.383
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 8898.252,
+          "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 8898.252,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.auth.get_connection",
+          "kind": "mark",
+          "atMs": 8898.252
+        },
+        {
+          "stage": "host.auth.connect_start",
+          "kind": "mark",
+          "atMs": 8898.252
+        },
+        {
+          "stage": "host.auth.connect_done",
+          "kind": "mark",
+          "atMs": 8898.76
+        },
+        {
+          "stage": "host.auth.got_connection",
+          "kind": "mark",
+          "atMs": 8898.76
+        },
+        {
+          "stage": "host.auth.request_written",
+          "kind": "mark",
+          "atMs": 8899.287
+        },
+        {
+          "stage": "host.auth.first_response_byte",
+          "kind": "mark",
+          "atMs": 9520.11
+        },
+        {
+          "stage": "host.handshake",
+          "kind": "span",
+          "atMs": 8898.252,
+          "durMs": 621.8580000000002
+        },
+        {
+          "stage": "host.ready",
+          "kind": "mark",
+          "atMs": 9520.11
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 9520.11,
+          "detail": "ready"
+        },
+        {
+          "stage": "boot.outcome_recorded",
+          "kind": "mark",
+          "atMs": 9520.11
+        },
+        {
+          "stage": "trace.finish",
+          "kind": "mark",
+          "atMs": 9520.11,
+          "detail": "ready"
+        },
+        {
+          "stage": "connection.bootstrap_start",
+          "kind": "mark",
+          "atMs": 9542.626
+        },
+        {
+          "stage": "stores.opened",
+          "kind": "mark",
+          "atMs": 9555.568
+        },
+        {
+          "stage": "connection.carrier_connected",
+          "kind": "mark",
+          "atMs": 9770.143
+        },
+        {
+          "stage": "connection.events_ready",
+          "kind": "mark",
+          "atMs": 9772.958
+        },
+        {
+          "stage": "workspace.ready",
+          "kind": "mark",
+          "atMs": 9856.507
+        },
+        {
+          "stage": "trace.finish",
+          "kind": "mark",
+          "atMs": 9856.507,
+          "detail": "ready"
+        },
+        {
+          "stage": "plugins.inventory_ready",
+          "kind": "mark",
+          "atMs": 10698.836
+        },
+        {
+          "stage": "trace.finish",
+          "kind": "mark",
+          "atMs": 10698.836,
+          "detail": "ready"
+        }
+      ]
+    }
+  }
+}

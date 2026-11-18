@@ -1,0 +1,14 @@
+{
+  "error": "desktop submit: exit status 1",
+  "model": "deterministic loopback",
+  "modelRequests": 0,
+  "passed": false,
+  "scope": "two real hidden desktop/Host processes; real transport loss, durable resume and Host journal",
+  "submit": {
+    "error": "proxied production connection: context deadline exceeded",
+    "hidden": true,
+    "passed": false,
+    "phase": "submit",
+    "pid": 30992
+  }
+}

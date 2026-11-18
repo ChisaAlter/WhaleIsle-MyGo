@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "candidate": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-idle-0.2.0-candidate.exe",
+  "containsStationaryPointerFilter": true,
+  "warmupSeconds": 60,
+  "observedSeconds": 120.2499063,
+  "desktop": {
+    "pid": 27656,
+    "name": "route-a-idle-0.2.0-candidate",
+    "role": "desktop",
+    "observedSeconds": 120.2499063,
+    "cpuPercentOneCore": 1.1824333537963014,
+    "initialWorkingSetBytes": 421027840,
+    "finalWorkingSetBytes": 379613184,
+    "initialPrivateBytes": 447578112,
+    "finalPrivateBytes": 395108352,
+    "initialHandles": 788,
+    "finalHandles": 919,
+    "finalThreads": 86
+  },
+  "lateObservedSeconds": 59.948665500000004,
+  "lateCpu": 0.13031983172336004,
+  "latePrivateMiB": -0.0625,
+  "lateHandleChange": -3,
+  "zeroWebViewSampled": true,
+  "windowInspection": "CUA observed current native AX tree; gate exited before fresh framebuffer capture. Earlier candidate with same layout was raised and visually inspected.",
+  "performanceBudgetPassed": false,
+  "installed": false,
+  "healthPackageContainsThisChange": false
+}

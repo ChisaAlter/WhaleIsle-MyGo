@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-17",
+  "branch": "codex/route-a-system-optimization",
+  "sourceBase": "11595831f43af4e401bdb613a2e744d6bfe2a5af",
+  "sourceDirty": true,
+  "platform": "windows/amd64",
+  "buildEntry": "scripts/build-release.ps1",
+  "version": "0.2.0",
+  "byteLength": 96431104,
+  "mebibytes": 91.964,
+  "maxMebibytes": 95,
+  "buildSeconds": 20.764,
+  "installerBuilt": false,
+  "temporaryExecutableReclaimedOnExit": true,
+  "scope": "Production build of latest integrated source including shared credential API, workspace-first inventory, frozen trajectory cache and unsigned update policy; not installed-user acceptance"
+}

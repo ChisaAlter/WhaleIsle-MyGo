@@ -1,0 +1,3839 @@
+{
+  "appPID": 43896,
+  "completedCycles": 50,
+  "finalProcesses": [
+    {
+      "pid": 36212,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44936,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45572,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17928,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14820,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18400,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35584,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23008,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14188,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46876,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 28884,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38144,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 31312,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46040,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47320,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44784,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40272,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44736,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40864,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40648,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 46292,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 21632,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 852,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22260,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18628,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42812,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18464,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 23724,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23172,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46820,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14532,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 41324,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47400,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37520,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34544,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46548,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23020,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44536,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9888,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42712,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38188,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 28476,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40232,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40116,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37596,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45828,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5220,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36028,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 19240,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43872,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41700,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29384,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5788,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 28260,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34336,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35160,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 25756,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44232,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24976,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 35912,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5056,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 372,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46568,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 25676,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37776,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43864,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23000,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36820,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42440,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 21872,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40316,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24172,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 1864,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 45212,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 6164,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30040,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46056,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 25368,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44680,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 40592,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 40980,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44748,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37308,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41856,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 27804,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43424,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24060,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 8748,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46748,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29660,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22184,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 45712,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43540,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42204,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 32316,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18828,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 25180,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33788,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39872,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35884,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 23916,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23348,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13188,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41872,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9316,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45004,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39860,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14364,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39752,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 34836,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36244,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40264,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47020,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47924,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38336,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30816,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 1716,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38720,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 44596,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40480,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37400,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36812,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45944,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18264,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43832,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39084,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 25972,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 23468,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41388,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35012,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29156,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42180,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 41536,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24696,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33892,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29776,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47164,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 27168,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37556,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14984,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39816,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45640,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 31164,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 12860,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33480,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40672,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22416,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5084,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38440,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13572,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37820,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40340,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13552,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38148,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13760,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44868,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 21600,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30368,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46184,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35720,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34500,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18236,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 1004,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 46344,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43528,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 48008,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 21048,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43852,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 6568,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43064,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38392,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40368,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39540,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47960,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14656,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47684,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7656,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 8176,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41540,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5672,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17912,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24364,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7476,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43800,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45600,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 32824,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 15816,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 44116,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44468,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 8780,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 20996,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7868,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37620,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33696,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29664,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 1280,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 21660,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 1580,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 2420,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 3040,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42416,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39196,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 34776,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 45920,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46016,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42320,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 26704,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 35712,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 4928,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 26324,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 14100,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45432,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39952,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45744,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 26592,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39024,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29364,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41296,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40020,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 38816,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47128,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17684,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33828,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18100,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 31076,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18396,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41408,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46120,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 41292,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 10284,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44160,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 4024,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22696,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42568,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47064,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24688,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 15100,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 14352,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17852,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37896,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9148,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36828,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 41132,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38308,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7000,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42068,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43552,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40880,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 47052,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44828,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39516,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40576,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42680,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 37708,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34792,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36412,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41096,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37020,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 41816,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44344,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 27756,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 25244,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43756,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44880,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 26692,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47560,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 12232,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42788,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5648,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 28700,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 6156,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43536,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39636,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17628,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44508,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 8744,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 15168,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35060,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18088,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 48044,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34696,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38880,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 31552,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9452,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 15348,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38520,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 6124,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44980,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 44956,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39120,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 27732,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39132,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40460,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 4856,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 19616,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17164,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 30360,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45540,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 2680,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37296,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45208,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 31124,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40884,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 9432,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 44512,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35316,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 12368,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29540,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7928,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 8764,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23048,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38680,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 472,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14152,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37656,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17268,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45324,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45252,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37048,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45816,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9920,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46560,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41124,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 19404,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 10384,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41448,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 38848,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7648,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13476,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17540,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 5800,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44100,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38232,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 10096,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30700,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34636,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23852,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 2556,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 19332,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37008,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37764,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43456,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29592,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 27712,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22360,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33184,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33756,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42256,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 21556,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44700,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42960,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24320,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 46408,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45700,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34600,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 42736,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40700,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43492,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 12372,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 24912,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 24656,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43648,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 21416,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 39260,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 39292,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36580,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44192,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 17944,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35824,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 25836,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40452,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42312,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13272,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46632,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 3180,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43876,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47620,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34932,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 25712,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 19156,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 2624,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9720,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 27984,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29444,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 25772,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44904,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 15328,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 11152,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13032,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 31688,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37264,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 38248,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 42600,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 7344,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 6652,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 18688,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 8368,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43372,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30256,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 36780,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    }
+  ],
+  "helper": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-ef8a53f4336242d7b802a7c588c30113\\whaleisle-preview.exe",
+  "hideEvents": 0,
+  "host": "loopback synthetic Project/readVisualReply responses",
+  "lastOpenButtonBounds": {
+    "X": 374.35855,
+    "Y": 225.21289,
+    "W": 136.61621,
+    "H": 18.621094
+  },
+  "modelRequests": 0,
+  "osHideShowExercised": false,
+  "passed": true,
+  "plannedCycles": 50,
+  "processObservation": "owned helper/WebView2 descendants sampled every 25 ms with retained process handles",
+  "schemaVersion": 1,
+  "scope": "production Project Manager, ObserverView, mainProjectDeps renderer, publishedHTMLSurface and real AppContainer/WebView2",
+  "showEvents": 0,
+  "stages": [
+    {
+      "active": 0,
+      "htmlReads": 0,
+      "resources": {
+        "goroutines": 8,
+        "handles": 385,
+        "handlesWithoutAudit": 385,
+        "privateBytes": 80797696,
+        "retainedAuditHandles": 0,
+        "workingSetBytes": 54407168
+      },
+      "stage": "default-awaiting-open"
+    },
+    {
+      "active": 8,
+      "htmlReads": 1,
+      "stage": "explicit-open-1"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 99,
+      "stage": "close-completed-1"
+    },
+    {
+      "active": 0,
+      "htmlReads": 1,
+      "resources": {
+        "goroutines": 8,
+        "handles": 475,
+        "handlesWithoutAudit": 467,
+        "privateBytes": 83853312,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 59998208
+      },
+      "stage": "released-and-restored-1"
+    },
+    {
+      "active": 0,
+      "htmlReads": 1,
+      "resources": {
+        "goroutines": 8,
+        "handles": 477,
+        "handlesWithoutAudit": 469,
+        "privateBytes": 82804736,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 58961920
+      },
+      "stage": "remained-closed-1"
+    },
+    {
+      "active": 8,
+      "htmlReads": 2,
+      "stage": "explicit-open-2"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 211,
+      "stage": "close-completed-2"
+    },
+    {
+      "active": 0,
+      "htmlReads": 2,
+      "resources": {
+        "goroutines": 8,
+        "handles": 496,
+        "handlesWithoutAudit": 480,
+        "privateBytes": 82821120,
+        "retainedAuditHandles": 16,
+        "workingSetBytes": 59129856
+      },
+      "stage": "released-and-restored-2"
+    },
+    {
+      "active": 0,
+      "htmlReads": 2,
+      "resources": {
+        "goroutines": 8,
+        "handles": 496,
+        "handlesWithoutAudit": 480,
+        "privateBytes": 83947520,
+        "retainedAuditHandles": 16,
+        "workingSetBytes": 60272640
+      },
+      "stage": "remained-closed-2"
+    },
+    {
+      "active": 8,
+      "htmlReads": 3,
+      "stage": "explicit-open-3"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 139,
+      "stage": "close-completed-3"
+    },
+    {
+      "active": 0,
+      "htmlReads": 3,
+      "resources": {
+        "goroutines": 8,
+        "handles": 509,
+        "handlesWithoutAudit": 485,
+        "privateBytes": 84054016,
+        "retainedAuditHandles": 24,
+        "workingSetBytes": 60436480
+      },
+      "stage": "released-and-restored-3"
+    },
+    {
+      "active": 0,
+      "htmlReads": 3,
+      "resources": {
+        "goroutines": 8,
+        "handles": 511,
+        "handlesWithoutAudit": 487,
+        "privateBytes": 82939904,
+        "retainedAuditHandles": 24,
+        "workingSetBytes": 59363328
+      },
+      "stage": "remained-closed-3"
+    },
+    {
+      "active": 8,
+      "htmlReads": 4,
+      "stage": "explicit-open-4"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 140,
+      "stage": "close-completed-4"
+    },
+    {
+      "active": 0,
+      "htmlReads": 4,
+      "resources": {
+        "goroutines": 8,
+        "handles": 528,
+        "handlesWithoutAudit": 496,
+        "privateBytes": 84209664,
+        "retainedAuditHandles": 32,
+        "workingSetBytes": 60784640
+      },
+      "stage": "released-and-restored-4"
+    },
+    {
+      "active": 0,
+      "htmlReads": 4,
+      "resources": {
+        "goroutines": 8,
+        "handles": 528,
+        "handlesWithoutAudit": 496,
+        "privateBytes": 83156992,
+        "retainedAuditHandles": 32,
+        "workingSetBytes": 59760640
+      },
+      "stage": "remained-closed-4"
+    },
+    {
+      "active": 8,
+      "htmlReads": 5,
+      "stage": "explicit-open-5"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 145,
+      "stage": "close-completed-5"
+    },
+    {
+      "active": 0,
+      "htmlReads": 5,
+      "resources": {
+        "goroutines": 8,
+        "handles": 541,
+        "handlesWithoutAudit": 501,
+        "privateBytes": 83099648,
+        "retainedAuditHandles": 40,
+        "workingSetBytes": 59731968
+      },
+      "stage": "released-and-restored-5"
+    },
+    {
+      "active": 0,
+      "htmlReads": 5,
+      "resources": {
+        "goroutines": 8,
+        "handles": 540,
+        "handlesWithoutAudit": 500,
+        "privateBytes": 83337216,
+        "retainedAuditHandles": 40,
+        "workingSetBytes": 59969536
+      },
+      "stage": "remained-closed-5"
+    },
+    {
+      "active": 8,
+      "htmlReads": 6,
+      "stage": "explicit-open-6"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 141,
+      "stage": "close-completed-6"
+    },
+    {
+      "active": 0,
+      "htmlReads": 6,
+      "resources": {
+        "goroutines": 8,
+        "handles": 553,
+        "handlesWithoutAudit": 505,
+        "privateBytes": 83292160,
+        "retainedAuditHandles": 48,
+        "workingSetBytes": 59990016
+      },
+      "stage": "released-and-restored-6"
+    },
+    {
+      "active": 0,
+      "htmlReads": 6,
+      "resources": {
+        "goroutines": 8,
+        "handles": 552,
+        "handlesWithoutAudit": 504,
+        "privateBytes": 84402176,
+        "retainedAuditHandles": 48,
+        "workingSetBytes": 61100032
+      },
+      "stage": "remained-closed-6"
+    },
+    {
+      "active": 8,
+      "htmlReads": 7,
+      "stage": "explicit-open-7"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 97,
+      "stage": "close-completed-7"
+    },
+    {
+      "active": 0,
+      "htmlReads": 7,
+      "resources": {
+        "goroutines": 8,
+        "handles": 566,
+        "handlesWithoutAudit": 510,
+        "privateBytes": 83664896,
+        "retainedAuditHandles": 56,
+        "workingSetBytes": 60112896
+      },
+      "stage": "released-and-restored-7"
+    },
+    {
+      "active": 0,
+      "htmlReads": 7,
+      "resources": {
+        "goroutines": 8,
+        "handles": 567,
+        "handlesWithoutAudit": 511,
+        "privateBytes": 83668992,
+        "retainedAuditHandles": 56,
+        "workingSetBytes": 60121088
+      },
+      "stage": "remained-closed-7"
+    },
+    {
+      "active": 8,
+      "htmlReads": 8,
+      "stage": "explicit-open-8"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 140,
+      "stage": "close-completed-8"
+    },
+    {
+      "active": 0,
+      "htmlReads": 8,
+      "resources": {
+        "goroutines": 8,
+        "handles": 579,
+        "handlesWithoutAudit": 515,
+        "privateBytes": 84983808,
+        "retainedAuditHandles": 64,
+        "workingSetBytes": 61513728
+      },
+      "stage": "released-and-restored-8"
+    },
+    {
+      "active": 0,
+      "htmlReads": 8,
+      "resources": {
+        "goroutines": 8,
+        "handles": 579,
+        "handlesWithoutAudit": 515,
+        "privateBytes": 84250624,
+        "retainedAuditHandles": 64,
+        "workingSetBytes": 60784640
+      },
+      "stage": "remained-closed-8"
+    },
+    {
+      "active": 8,
+      "htmlReads": 9,
+      "stage": "explicit-open-9"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 143,
+      "stage": "close-completed-9"
+    },
+    {
+      "active": 0,
+      "htmlReads": 9,
+      "resources": {
+        "goroutines": 8,
+        "handles": 590,
+        "handlesWithoutAudit": 518,
+        "privateBytes": 84291584,
+        "retainedAuditHandles": 72,
+        "workingSetBytes": 60862464
+      },
+      "stage": "released-and-restored-9"
+    },
+    {
+      "active": 0,
+      "htmlReads": 9,
+      "resources": {
+        "goroutines": 8,
+        "handles": 589,
+        "handlesWithoutAudit": 517,
+        "privateBytes": 85147648,
+        "retainedAuditHandles": 72,
+        "workingSetBytes": 61718528
+      },
+      "stage": "remained-closed-9"
+    },
+    {
+      "active": 8,
+      "htmlReads": 10,
+      "stage": "explicit-open-10"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 140,
+      "stage": "close-completed-10"
+    },
+    {
+      "active": 0,
+      "htmlReads": 10,
+      "resources": {
+        "goroutines": 8,
+        "handles": 603,
+        "handlesWithoutAudit": 523,
+        "privateBytes": 85184512,
+        "retainedAuditHandles": 80,
+        "workingSetBytes": 61775872
+      },
+      "stage": "released-and-restored-10"
+    },
+    {
+      "active": 0,
+      "htmlReads": 10,
+      "resources": {
+        "goroutines": 8,
+        "handles": 603,
+        "handlesWithoutAudit": 523,
+        "privateBytes": 85454848,
+        "retainedAuditHandles": 80,
+        "workingSetBytes": 61796352
+      },
+      "stage": "remained-closed-10"
+    },
+    {
+      "active": 8,
+      "htmlReads": 11,
+      "stage": "explicit-open-11"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 139,
+      "stage": "close-completed-11"
+    },
+    {
+      "active": 0,
+      "htmlReads": 11,
+      "resources": {
+        "goroutines": 8,
+        "handles": 613,
+        "handlesWithoutAudit": 525,
+        "privateBytes": 84422656,
+        "retainedAuditHandles": 88,
+        "workingSetBytes": 60739584
+      },
+      "stage": "released-and-restored-11"
+    },
+    {
+      "active": 0,
+      "htmlReads": 11,
+      "resources": {
+        "goroutines": 8,
+        "handles": 614,
+        "handlesWithoutAudit": 526,
+        "privateBytes": 84422656,
+        "retainedAuditHandles": 88,
+        "workingSetBytes": 60739584
+      },
+      "stage": "remained-closed-11"
+    },
+    {
+      "active": 8,
+      "htmlReads": 12,
+      "stage": "explicit-open-12"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 99,
+      "stage": "close-completed-12"
+    },
+    {
+      "active": 0,
+      "htmlReads": 12,
+      "resources": {
+        "goroutines": 8,
+        "handles": 623,
+        "handlesWithoutAudit": 527,
+        "privateBytes": 84303872,
+        "retainedAuditHandles": 96,
+        "workingSetBytes": 60628992
+      },
+      "stage": "released-and-restored-12"
+    },
+    {
+      "active": 0,
+      "htmlReads": 12,
+      "resources": {
+        "goroutines": 8,
+        "handles": 623,
+        "handlesWithoutAudit": 527,
+        "privateBytes": 84303872,
+        "retainedAuditHandles": 96,
+        "workingSetBytes": 60633088
+      },
+      "stage": "remained-closed-12"
+    },
+    {
+      "active": 8,
+      "htmlReads": 13,
+      "stage": "explicit-open-13"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 186,
+      "stage": "close-completed-13"
+    },
+    {
+      "active": 0,
+      "htmlReads": 13,
+      "resources": {
+        "goroutines": 8,
+        "handles": 634,
+        "handlesWithoutAudit": 530,
+        "privateBytes": 84320256,
+        "retainedAuditHandles": 104,
+        "workingSetBytes": 60665856
+      },
+      "stage": "released-and-restored-13"
+    },
+    {
+      "active": 0,
+      "htmlReads": 13,
+      "resources": {
+        "goroutines": 8,
+        "handles": 634,
+        "handlesWithoutAudit": 530,
+        "privateBytes": 84402176,
+        "retainedAuditHandles": 104,
+        "workingSetBytes": 60747776
+      },
+      "stage": "remained-closed-13"
+    },
+    {
+      "active": 8,
+      "htmlReads": 14,
+      "stage": "explicit-open-14"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 138,
+      "stage": "close-completed-14"
+    },
+    {
+      "active": 0,
+      "htmlReads": 14,
+      "resources": {
+        "goroutines": 8,
+        "handles": 641,
+        "handlesWithoutAudit": 529,
+        "privateBytes": 84402176,
+        "retainedAuditHandles": 112,
+        "workingSetBytes": 60768256
+      },
+      "stage": "released-and-restored-14"
+    },
+    {
+      "active": 0,
+      "htmlReads": 14,
+      "resources": {
+        "goroutines": 8,
+        "handles": 642,
+        "handlesWithoutAudit": 530,
+        "privateBytes": 84566016,
+        "retainedAuditHandles": 112,
+        "workingSetBytes": 60936192
+      },
+      "stage": "remained-closed-14"
+    },
+    {
+      "active": 8,
+      "htmlReads": 15,
+      "stage": "explicit-open-15"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 144,
+      "stage": "close-completed-15"
+    },
+    {
+      "active": 0,
+      "htmlReads": 15,
+      "resources": {
+        "goroutines": 8,
+        "handles": 651,
+        "handlesWithoutAudit": 531,
+        "privateBytes": 84369408,
+        "retainedAuditHandles": 120,
+        "workingSetBytes": 60751872
+      },
+      "stage": "released-and-restored-15"
+    },
+    {
+      "active": 0,
+      "htmlReads": 15,
+      "resources": {
+        "goroutines": 8,
+        "handles": 651,
+        "handlesWithoutAudit": 531,
+        "privateBytes": 84303872,
+        "retainedAuditHandles": 120,
+        "workingSetBytes": 60686336
+      },
+      "stage": "remained-closed-15"
+    },
+    {
+      "active": 8,
+      "htmlReads": 16,
+      "stage": "explicit-open-16"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 140,
+      "stage": "close-completed-16"
+    },
+    {
+      "active": 0,
+      "htmlReads": 16,
+      "resources": {
+        "goroutines": 8,
+        "handles": 660,
+        "handlesWithoutAudit": 532,
+        "privateBytes": 84303872,
+        "retainedAuditHandles": 128,
+        "workingSetBytes": 60723200
+      },
+      "stage": "released-and-restored-16"
+    },
+    {
+      "active": 0,
+      "htmlReads": 16,
+      "resources": {
+        "goroutines": 8,
+        "handles": 659,
+        "handlesWithoutAudit": 531,
+        "privateBytes": 84410368,
+        "retainedAuditHandles": 128,
+        "workingSetBytes": 60821504
+      },
+      "stage": "remained-closed-16"
+    },
+    {
+      "active": 8,
+      "htmlReads": 17,
+      "stage": "explicit-open-17"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 97,
+      "stage": "close-completed-17"
+    },
+    {
+      "active": 0,
+      "htmlReads": 17,
+      "resources": {
+        "goroutines": 8,
+        "handles": 668,
+        "handlesWithoutAudit": 532,
+        "privateBytes": 84418560,
+        "retainedAuditHandles": 136,
+        "workingSetBytes": 60833792
+      },
+      "stage": "released-and-restored-17"
+    },
+    {
+      "active": 0,
+      "htmlReads": 17,
+      "resources": {
+        "goroutines": 8,
+        "handles": 667,
+        "handlesWithoutAudit": 531,
+        "privateBytes": 85536768,
+        "retainedAuditHandles": 136,
+        "workingSetBytes": 61947904
+      },
+      "stage": "remained-closed-17"
+    },
+    {
+      "active": 8,
+      "htmlReads": 18,
+      "stage": "explicit-open-18"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 98,
+      "stage": "close-completed-18"
+    },
+    {
+      "active": 0,
+      "htmlReads": 18,
+      "resources": {
+        "goroutines": 8,
+        "handles": 677,
+        "handlesWithoutAudit": 533,
+        "privateBytes": 85221376,
+        "retainedAuditHandles": 144,
+        "workingSetBytes": 61624320
+      },
+      "stage": "released-and-restored-18"
+    },
+    {
+      "active": 0,
+      "htmlReads": 18,
+      "resources": {
+        "goroutines": 8,
+        "handles": 677,
+        "handlesWithoutAudit": 533,
+        "privateBytes": 84373504,
+        "retainedAuditHandles": 144,
+        "workingSetBytes": 60780544
+      },
+      "stage": "remained-closed-18"
+    },
+    {
+      "active": 8,
+      "htmlReads": 19,
+      "stage": "explicit-open-19"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 142,
+      "stage": "close-completed-19"
+    },
+    {
+      "active": 0,
+      "htmlReads": 19,
+      "resources": {
+        "goroutines": 8,
+        "handles": 685,
+        "handlesWithoutAudit": 533,
+        "privateBytes": 84389888,
+        "retainedAuditHandles": 152,
+        "workingSetBytes": 60809216
+      },
+      "stage": "released-and-restored-19"
+    },
+    {
+      "active": 0,
+      "htmlReads": 19,
+      "resources": {
+        "goroutines": 8,
+        "handles": 687,
+        "handlesWithoutAudit": 535,
+        "privateBytes": 84389888,
+        "retainedAuditHandles": 152,
+        "workingSetBytes": 60829696
+      },
+      "stage": "remained-closed-19"
+    },
+    {
+      "active": 8,
+      "htmlReads": 20,
+      "stage": "explicit-open-20"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 184,
+      "stage": "close-completed-20"
+    },
+    {
+      "active": 0,
+      "htmlReads": 20,
+      "resources": {
+        "goroutines": 8,
+        "handles": 694,
+        "handlesWithoutAudit": 534,
+        "privateBytes": 85786624,
+        "retainedAuditHandles": 160,
+        "workingSetBytes": 62328832
+      },
+      "stage": "released-and-restored-20"
+    },
+    {
+      "active": 0,
+      "htmlReads": 20,
+      "resources": {
+        "goroutines": 8,
+        "handles": 694,
+        "handlesWithoutAudit": 534,
+        "privateBytes": 85782528,
+        "retainedAuditHandles": 160,
+        "workingSetBytes": 62328832
+      },
+      "stage": "remained-closed-20"
+    },
+    {
+      "active": 8,
+      "htmlReads": 21,
+      "stage": "explicit-open-21"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 205,
+      "stage": "close-completed-21"
+    },
+    {
+      "active": 0,
+      "htmlReads": 21,
+      "resources": {
+        "goroutines": 8,
+        "handles": 705,
+        "handlesWithoutAudit": 537,
+        "privateBytes": 84344832,
+        "retainedAuditHandles": 168,
+        "workingSetBytes": 60923904
+      },
+      "stage": "released-and-restored-21"
+    },
+    {
+      "active": 0,
+      "htmlReads": 21,
+      "resources": {
+        "goroutines": 8,
+        "handles": 705,
+        "handlesWithoutAudit": 537,
+        "privateBytes": 85233664,
+        "retainedAuditHandles": 168,
+        "workingSetBytes": 61812736
+      },
+      "stage": "remained-closed-21"
+    },
+    {
+      "active": 8,
+      "htmlReads": 22,
+      "stage": "explicit-open-22"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 139,
+      "stage": "close-completed-22"
+    },
+    {
+      "active": 0,
+      "htmlReads": 22,
+      "resources": {
+        "goroutines": 8,
+        "handles": 713,
+        "handlesWithoutAudit": 537,
+        "privateBytes": 84987904,
+        "retainedAuditHandles": 176,
+        "workingSetBytes": 61542400
+      },
+      "stage": "released-and-restored-22"
+    },
+    {
+      "active": 0,
+      "htmlReads": 22,
+      "resources": {
+        "goroutines": 8,
+        "handles": 712,
+        "handlesWithoutAudit": 536,
+        "privateBytes": 85590016,
+        "retainedAuditHandles": 176,
+        "workingSetBytes": 62156800
+      },
+      "stage": "remained-closed-22"
+    },
+    {
+      "active": 8,
+      "htmlReads": 23,
+      "stage": "explicit-open-23"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 220,
+      "stage": "close-completed-23"
+    },
+    {
+      "active": 0,
+      "htmlReads": 23,
+      "resources": {
+        "goroutines": 8,
+        "handles": 720,
+        "handlesWithoutAudit": 536,
+        "privateBytes": 84475904,
+        "retainedAuditHandles": 184,
+        "workingSetBytes": 61063168
+      },
+      "stage": "released-and-restored-23"
+    },
+    {
+      "active": 0,
+      "htmlReads": 23,
+      "resources": {
+        "goroutines": 8,
+        "handles": 721,
+        "handlesWithoutAudit": 537,
+        "privateBytes": 84631552,
+        "retainedAuditHandles": 184,
+        "workingSetBytes": 61247488
+      },
+      "stage": "remained-closed-23"
+    },
+    {
+      "active": 8,
+      "htmlReads": 24,
+      "stage": "explicit-open-24"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 139,
+      "stage": "close-completed-24"
+    },
+    {
+      "active": 0,
+      "htmlReads": 24,
+      "resources": {
+        "goroutines": 8,
+        "handles": 730,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 84643840,
+        "retainedAuditHandles": 192,
+        "workingSetBytes": 61276160
+      },
+      "stage": "released-and-restored-24"
+    },
+    {
+      "active": 0,
+      "htmlReads": 24,
+      "resources": {
+        "goroutines": 8,
+        "handles": 730,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 84643840,
+        "retainedAuditHandles": 192,
+        "workingSetBytes": 61288448
+      },
+      "stage": "remained-closed-24"
+    },
+    {
+      "active": 8,
+      "htmlReads": 25,
+      "stage": "explicit-open-25"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 180,
+      "stage": "close-completed-25"
+    },
+    {
+      "active": 0,
+      "htmlReads": 25,
+      "resources": {
+        "goroutines": 8,
+        "handles": 739,
+        "handlesWithoutAudit": 539,
+        "privateBytes": 84475904,
+        "retainedAuditHandles": 200,
+        "workingSetBytes": 61177856
+      },
+      "stage": "released-and-restored-25"
+    },
+    {
+      "active": 0,
+      "htmlReads": 25,
+      "resources": {
+        "goroutines": 8,
+        "handles": 738,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 85581824,
+        "retainedAuditHandles": 200,
+        "workingSetBytes": 62271488
+      },
+      "stage": "remained-closed-25"
+    },
+    {
+      "active": 8,
+      "htmlReads": 26,
+      "stage": "explicit-open-26"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 144,
+      "stage": "close-completed-26"
+    },
+    {
+      "active": 0,
+      "htmlReads": 26,
+      "resources": {
+        "goroutines": 8,
+        "handles": 746,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 85639168,
+        "retainedAuditHandles": 208,
+        "workingSetBytes": 62357504
+      },
+      "stage": "released-and-restored-26"
+    },
+    {
+      "active": 0,
+      "htmlReads": 26,
+      "resources": {
+        "goroutines": 8,
+        "handles": 746,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 85639168,
+        "retainedAuditHandles": 208,
+        "workingSetBytes": 62357504
+      },
+      "stage": "remained-closed-26"
+    },
+    {
+      "active": 8,
+      "htmlReads": 27,
+      "stage": "explicit-open-27"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 478,
+      "stage": "close-completed-27"
+    },
+    {
+      "active": 0,
+      "htmlReads": 27,
+      "resources": {
+        "goroutines": 8,
+        "handles": 754,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 85643264,
+        "retainedAuditHandles": 216,
+        "workingSetBytes": 62394368
+      },
+      "stage": "released-and-restored-27"
+    },
+    {
+      "active": 0,
+      "htmlReads": 27,
+      "resources": {
+        "goroutines": 8,
+        "handles": 754,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 84750336,
+        "retainedAuditHandles": 216,
+        "workingSetBytes": 61505536
+      },
+      "stage": "remained-closed-27"
+    },
+    {
+      "active": 8,
+      "htmlReads": 28,
+      "stage": "explicit-open-28"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 96,
+      "stage": "close-completed-28"
+    },
+    {
+      "active": 0,
+      "htmlReads": 28,
+      "resources": {
+        "goroutines": 8,
+        "handles": 762,
+        "handlesWithoutAudit": 538,
+        "privateBytes": 84766720,
+        "retainedAuditHandles": 224,
+        "workingSetBytes": 61546496
+      },
+      "stage": "released-and-restored-28"
+    },
+    {
+      "active": 0,
+      "htmlReads": 28,
+      "resources": {
+        "goroutines": 8,
+        "handles": 763,
+        "handlesWithoutAudit": 539,
+        "privateBytes": 84766720,
+        "retainedAuditHandles": 224,
+        "workingSetBytes": 61546496
+      },
+      "stage": "remained-closed-28"
+    },
+    {
+      "active": 8,
+      "htmlReads": 29,
+      "stage": "explicit-open-29"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 260,
+      "stage": "close-completed-29"
+    },
+    {
+      "active": 0,
+      "htmlReads": 29,
+      "resources": {
+        "goroutines": 8,
+        "handles": 772,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84774912,
+        "retainedAuditHandles": 232,
+        "workingSetBytes": 61566976
+      },
+      "stage": "released-and-restored-29"
+    },
+    {
+      "active": 0,
+      "htmlReads": 29,
+      "resources": {
+        "goroutines": 8,
+        "handles": 773,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84774912,
+        "retainedAuditHandles": 232,
+        "workingSetBytes": 61575168
+      },
+      "stage": "remained-closed-29"
+    },
+    {
+      "active": 8,
+      "htmlReads": 30,
+      "stage": "explicit-open-30"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 98,
+      "stage": "close-completed-30"
+    },
+    {
+      "active": 0,
+      "htmlReads": 30,
+      "resources": {
+        "goroutines": 8,
+        "handles": 780,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84774912,
+        "retainedAuditHandles": 240,
+        "workingSetBytes": 61571072
+      },
+      "stage": "released-and-restored-30"
+    },
+    {
+      "active": 0,
+      "htmlReads": 30,
+      "resources": {
+        "goroutines": 8,
+        "handles": 781,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84774912,
+        "retainedAuditHandles": 240,
+        "workingSetBytes": 61579264
+      },
+      "stage": "remained-closed-30"
+    },
+    {
+      "active": 8,
+      "htmlReads": 31,
+      "stage": "explicit-open-31"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 99,
+      "stage": "close-completed-31"
+    },
+    {
+      "active": 0,
+      "htmlReads": 31,
+      "resources": {
+        "goroutines": 8,
+        "handles": 788,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85889024,
+        "retainedAuditHandles": 248,
+        "workingSetBytes": 62693376
+      },
+      "stage": "released-and-restored-31"
+    },
+    {
+      "active": 0,
+      "htmlReads": 31,
+      "resources": {
+        "goroutines": 8,
+        "handles": 788,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84774912,
+        "retainedAuditHandles": 248,
+        "workingSetBytes": 61579264
+      },
+      "stage": "remained-closed-31"
+    },
+    {
+      "active": 8,
+      "htmlReads": 32,
+      "stage": "explicit-open-32"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 137,
+      "stage": "close-completed-32"
+    },
+    {
+      "active": 0,
+      "htmlReads": 32,
+      "resources": {
+        "goroutines": 8,
+        "handles": 796,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85884928,
+        "retainedAuditHandles": 256,
+        "workingSetBytes": 62701568
+      },
+      "stage": "released-and-restored-32"
+    },
+    {
+      "active": 0,
+      "htmlReads": 32,
+      "resources": {
+        "goroutines": 8,
+        "handles": 796,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84774912,
+        "retainedAuditHandles": 256,
+        "workingSetBytes": 61599744
+      },
+      "stage": "remained-closed-32"
+    },
+    {
+      "active": 8,
+      "htmlReads": 33,
+      "stage": "explicit-open-33"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 138,
+      "stage": "close-completed-33"
+    },
+    {
+      "active": 0,
+      "htmlReads": 33,
+      "resources": {
+        "goroutines": 8,
+        "handles": 804,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84779008,
+        "retainedAuditHandles": 264,
+        "workingSetBytes": 61603840
+      },
+      "stage": "released-and-restored-33"
+    },
+    {
+      "active": 0,
+      "htmlReads": 33,
+      "resources": {
+        "goroutines": 8,
+        "handles": 805,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84779008,
+        "retainedAuditHandles": 264,
+        "workingSetBytes": 61607936
+      },
+      "stage": "remained-closed-33"
+    },
+    {
+      "active": 8,
+      "htmlReads": 34,
+      "stage": "explicit-open-34"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 143,
+      "stage": "close-completed-34"
+    },
+    {
+      "active": 0,
+      "htmlReads": 34,
+      "resources": {
+        "goroutines": 8,
+        "handles": 812,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84779008,
+        "retainedAuditHandles": 272,
+        "workingSetBytes": 61632512
+      },
+      "stage": "released-and-restored-34"
+    },
+    {
+      "active": 0,
+      "htmlReads": 34,
+      "resources": {
+        "goroutines": 8,
+        "handles": 813,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84779008,
+        "retainedAuditHandles": 272,
+        "workingSetBytes": 61640704
+      },
+      "stage": "remained-closed-34"
+    },
+    {
+      "active": 8,
+      "htmlReads": 35,
+      "stage": "explicit-open-35"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 191,
+      "stage": "close-completed-35"
+    },
+    {
+      "active": 0,
+      "htmlReads": 35,
+      "resources": {
+        "goroutines": 8,
+        "handles": 820,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84844544,
+        "retainedAuditHandles": 280,
+        "workingSetBytes": 61706240
+      },
+      "stage": "released-and-restored-35"
+    },
+    {
+      "active": 0,
+      "htmlReads": 35,
+      "resources": {
+        "goroutines": 8,
+        "handles": 820,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84779008,
+        "retainedAuditHandles": 280,
+        "workingSetBytes": 61644800
+      },
+      "stage": "remained-closed-35"
+    },
+    {
+      "active": 8,
+      "htmlReads": 36,
+      "stage": "explicit-open-36"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 219,
+      "stage": "close-completed-36"
+    },
+    {
+      "active": 0,
+      "htmlReads": 36,
+      "resources": {
+        "goroutines": 8,
+        "handles": 829,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84647936,
+        "retainedAuditHandles": 288,
+        "workingSetBytes": 61534208
+      },
+      "stage": "released-and-restored-36"
+    },
+    {
+      "active": 0,
+      "htmlReads": 36,
+      "resources": {
+        "goroutines": 8,
+        "handles": 828,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84713472,
+        "retainedAuditHandles": 288,
+        "workingSetBytes": 61595648
+      },
+      "stage": "remained-closed-36"
+    },
+    {
+      "active": 8,
+      "htmlReads": 37,
+      "stage": "explicit-open-37"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 138,
+      "stage": "close-completed-37"
+    },
+    {
+      "active": 0,
+      "htmlReads": 37,
+      "resources": {
+        "goroutines": 8,
+        "handles": 836,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84951040,
+        "retainedAuditHandles": 296,
+        "workingSetBytes": 61796352
+      },
+      "stage": "released-and-restored-37"
+    },
+    {
+      "active": 0,
+      "htmlReads": 37,
+      "resources": {
+        "goroutines": 8,
+        "handles": 836,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84787200,
+        "retainedAuditHandles": 296,
+        "workingSetBytes": 61681664
+      },
+      "stage": "remained-closed-37"
+    },
+    {
+      "active": 8,
+      "htmlReads": 38,
+      "stage": "explicit-open-38"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 185,
+      "stage": "close-completed-38"
+    },
+    {
+      "active": 0,
+      "htmlReads": 38,
+      "resources": {
+        "goroutines": 8,
+        "handles": 845,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 85073920,
+        "retainedAuditHandles": 304,
+        "workingSetBytes": 62021632
+      },
+      "stage": "released-and-restored-38"
+    },
+    {
+      "active": 0,
+      "htmlReads": 38,
+      "resources": {
+        "goroutines": 8,
+        "handles": 844,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85983232,
+        "retainedAuditHandles": 304,
+        "workingSetBytes": 62930944
+      },
+      "stage": "remained-closed-38"
+    },
+    {
+      "active": 8,
+      "htmlReads": 39,
+      "stage": "explicit-open-39"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 143,
+      "stage": "close-completed-39"
+    },
+    {
+      "active": 0,
+      "htmlReads": 39,
+      "resources": {
+        "goroutines": 8,
+        "handles": 853,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84398080,
+        "retainedAuditHandles": 312,
+        "workingSetBytes": 61390848
+      },
+      "stage": "released-and-restored-39"
+    },
+    {
+      "active": 0,
+      "htmlReads": 39,
+      "resources": {
+        "goroutines": 8,
+        "handles": 853,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84398080,
+        "retainedAuditHandles": 312,
+        "workingSetBytes": 61386752
+      },
+      "stage": "remained-closed-39"
+    },
+    {
+      "active": 8,
+      "htmlReads": 40,
+      "stage": "explicit-open-40"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 137,
+      "stage": "close-completed-40"
+    },
+    {
+      "active": 0,
+      "htmlReads": 40,
+      "resources": {
+        "goroutines": 8,
+        "handles": 860,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84561920,
+        "retainedAuditHandles": 320,
+        "workingSetBytes": 61562880
+      },
+      "stage": "released-and-restored-40"
+    },
+    {
+      "active": 0,
+      "htmlReads": 40,
+      "resources": {
+        "goroutines": 8,
+        "handles": 861,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84561920,
+        "retainedAuditHandles": 320,
+        "workingSetBytes": 61566976
+      },
+      "stage": "remained-closed-40"
+    },
+    {
+      "active": 8,
+      "htmlReads": 41,
+      "stage": "explicit-open-41"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 142,
+      "stage": "close-completed-41"
+    },
+    {
+      "active": 0,
+      "htmlReads": 41,
+      "resources": {
+        "goroutines": 8,
+        "handles": 868,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84725760,
+        "retainedAuditHandles": 328,
+        "workingSetBytes": 61734912
+      },
+      "stage": "released-and-restored-41"
+    },
+    {
+      "active": 0,
+      "htmlReads": 41,
+      "resources": {
+        "goroutines": 8,
+        "handles": 869,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 85204992,
+        "retainedAuditHandles": 328,
+        "workingSetBytes": 62210048
+      },
+      "stage": "remained-closed-41"
+    },
+    {
+      "active": 8,
+      "htmlReads": 42,
+      "stage": "explicit-open-42"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 148,
+      "stage": "close-completed-42"
+    },
+    {
+      "active": 0,
+      "htmlReads": 42,
+      "resources": {
+        "goroutines": 8,
+        "handles": 876,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85270528,
+        "retainedAuditHandles": 336,
+        "workingSetBytes": 62300160
+      },
+      "stage": "released-and-restored-42"
+    },
+    {
+      "active": 0,
+      "htmlReads": 42,
+      "resources": {
+        "goroutines": 8,
+        "handles": 876,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85204992,
+        "retainedAuditHandles": 336,
+        "workingSetBytes": 62242816
+      },
+      "stage": "remained-closed-42"
+    },
+    {
+      "active": 8,
+      "htmlReads": 43,
+      "stage": "explicit-open-43"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 356,
+      "stage": "close-completed-43"
+    },
+    {
+      "active": 0,
+      "htmlReads": 43,
+      "resources": {
+        "goroutines": 8,
+        "handles": 885,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84942848,
+        "retainedAuditHandles": 344,
+        "workingSetBytes": 62009344
+      },
+      "stage": "released-and-restored-43"
+    },
+    {
+      "active": 0,
+      "htmlReads": 43,
+      "resources": {
+        "goroutines": 8,
+        "handles": 885,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84611072,
+        "retainedAuditHandles": 344,
+        "workingSetBytes": 61685760
+      },
+      "stage": "remained-closed-43"
+    },
+    {
+      "active": 8,
+      "htmlReads": 44,
+      "stage": "explicit-open-44"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 142,
+      "stage": "close-completed-44"
+    },
+    {
+      "active": 0,
+      "htmlReads": 44,
+      "resources": {
+        "goroutines": 8,
+        "handles": 892,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85823488,
+        "retainedAuditHandles": 352,
+        "workingSetBytes": 62918656
+      },
+      "stage": "released-and-restored-44"
+    },
+    {
+      "active": 0,
+      "htmlReads": 44,
+      "resources": {
+        "goroutines": 8,
+        "handles": 892,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84717568,
+        "retainedAuditHandles": 352,
+        "workingSetBytes": 61820928
+      },
+      "stage": "remained-closed-44"
+    },
+    {
+      "active": 8,
+      "htmlReads": 45,
+      "stage": "explicit-open-45"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 145,
+      "stage": "close-completed-45"
+    },
+    {
+      "active": 0,
+      "htmlReads": 45,
+      "resources": {
+        "goroutines": 8,
+        "handles": 900,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84717568,
+        "retainedAuditHandles": 360,
+        "workingSetBytes": 61841408
+      },
+      "stage": "released-and-restored-45"
+    },
+    {
+      "active": 0,
+      "htmlReads": 45,
+      "resources": {
+        "goroutines": 8,
+        "handles": 900,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84717568,
+        "retainedAuditHandles": 360,
+        "workingSetBytes": 61841408
+      },
+      "stage": "remained-closed-45"
+    },
+    {
+      "active": 8,
+      "htmlReads": 46,
+      "stage": "explicit-open-46"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 194,
+      "stage": "close-completed-46"
+    },
+    {
+      "active": 0,
+      "htmlReads": 46,
+      "resources": {
+        "goroutines": 8,
+        "handles": 908,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85073920,
+        "retainedAuditHandles": 368,
+        "workingSetBytes": 62201856
+      },
+      "stage": "released-and-restored-46"
+    },
+    {
+      "active": 0,
+      "htmlReads": 46,
+      "resources": {
+        "goroutines": 8,
+        "handles": 908,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84910080,
+        "retainedAuditHandles": 368,
+        "workingSetBytes": 62038016
+      },
+      "stage": "remained-closed-46"
+    },
+    {
+      "active": 8,
+      "htmlReads": 47,
+      "stage": "explicit-open-47"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 140,
+      "stage": "close-completed-47"
+    },
+    {
+      "active": 0,
+      "htmlReads": 47,
+      "resources": {
+        "goroutines": 8,
+        "handles": 917,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 85172224,
+        "retainedAuditHandles": 376,
+        "workingSetBytes": 62308352
+      },
+      "stage": "released-and-restored-47"
+    },
+    {
+      "active": 0,
+      "htmlReads": 47,
+      "resources": {
+        "goroutines": 8,
+        "handles": 916,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85884928,
+        "retainedAuditHandles": 376,
+        "workingSetBytes": 63029248
+      },
+      "stage": "remained-closed-47"
+    },
+    {
+      "active": 8,
+      "htmlReads": 48,
+      "stage": "explicit-open-48"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 146,
+      "stage": "close-completed-48"
+    },
+    {
+      "active": 0,
+      "htmlReads": 48,
+      "resources": {
+        "goroutines": 8,
+        "handles": 924,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85114880,
+        "retainedAuditHandles": 384,
+        "workingSetBytes": 62242816
+      },
+      "stage": "released-and-restored-48"
+    },
+    {
+      "active": 0,
+      "htmlReads": 48,
+      "resources": {
+        "goroutines": 8,
+        "handles": 924,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 84168704,
+        "retainedAuditHandles": 384,
+        "workingSetBytes": 61300736
+      },
+      "stage": "remained-closed-48"
+    },
+    {
+      "active": 8,
+      "htmlReads": 49,
+      "stage": "explicit-open-49"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 142,
+      "stage": "close-completed-49"
+    },
+    {
+      "active": 0,
+      "htmlReads": 49,
+      "resources": {
+        "goroutines": 8,
+        "handles": 933,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 84111360,
+        "retainedAuditHandles": 392,
+        "workingSetBytes": 61304832
+      },
+      "stage": "released-and-restored-49"
+    },
+    {
+      "active": 0,
+      "htmlReads": 49,
+      "resources": {
+        "goroutines": 8,
+        "handles": 932,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 85217280,
+        "retainedAuditHandles": 392,
+        "workingSetBytes": 62402560
+      },
+      "stage": "remained-closed-49"
+    },
+    {
+      "active": 8,
+      "htmlReads": 50,
+      "stage": "explicit-open-50"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 244,
+      "stage": "close-completed-50"
+    },
+    {
+      "active": 0,
+      "htmlReads": 50,
+      "resources": {
+        "goroutines": 8,
+        "handles": 941,
+        "handlesWithoutAudit": 541,
+        "privateBytes": 85192704,
+        "retainedAuditHandles": 400,
+        "workingSetBytes": 62394368
+      },
+      "stage": "released-and-restored-50"
+    },
+    {
+      "active": 0,
+      "htmlReads": 50,
+      "resources": {
+        "goroutines": 8,
+        "handles": 940,
+        "handlesWithoutAudit": 540,
+        "privateBytes": 86294528,
+        "retainedAuditHandles": 400,
+        "workingSetBytes": 63488000
+      },
+      "stage": "remained-closed-50"
+    }
+  ],
+  "visibility": "ordinary desktop; parent stays Hidden for its entire life; hidden child attachment and Close only"
+}

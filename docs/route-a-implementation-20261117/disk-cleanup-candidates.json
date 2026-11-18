@@ -1,0 +1,32 @@
+[
+  {
+    "Path": "C:\\Users\\48818\\AppData\\Local\\go-build",
+    "GiB": 7.17,
+    "Bytes": 7698475469,
+    "Files": 29653
+  },
+  {
+    "Path": "C:\\Users\\48818\\AppData\\Local\\npm-cache",
+    "GiB": 0.869,
+    "Bytes": 932935145,
+    "Files": 10176
+  },
+  {
+    "Path": "C:\\Users\\48818\\.bun\\install\\cache",
+    "GiB": 0.682,
+    "Bytes": 732802645,
+    "Files": 70097
+  },
+  {
+    "Path": "C:\\Users\\48818\\.gradle\\caches",
+    "GiB": 2.519,
+    "Bytes": 2705189552,
+    "Files": 24228
+  },
+  {
+    "Path": "C:\\Users\\48818\\AppData\\Local\\Temp",
+    "GiB": 8.709,
+    "Bytes": 9351520259,
+    "Files": 129960
+  }
+]

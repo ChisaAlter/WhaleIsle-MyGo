@@ -1,0 +1,358 @@
+{
+  "window": "readyline to workspace-ready",
+  "milliseconds": 3241.224,
+  "self": [
+    {
+      "frame": "readFileUtf8 @ :0",
+      "ms": 512.566,
+      "percent": 15.813964107386592
+    },
+    {
+      "frame": "internalModuleStat @ :0",
+      "ms": 321.857,
+      "percent": 9.930106651067621
+    },
+    {
+      "frame": "readdir @ :0",
+      "ms": 135.218,
+      "percent": 4.171819041201719
+    },
+    {
+      "frame": "lstat @ :0",
+      "ms": 94.545,
+      "percent": 2.916953595308439
+    },
+    {
+      "frame": "get @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/cordis/lib/index.js:1205",
+      "ms": 90.812,
+      "percent": 2.8017810555518534
+    },
+    {
+      "frame": "NodeError @ node:internal/errors:469",
+      "ms": 87.594,
+      "percent": 2.702497574990189
+    },
+    {
+      "frame": "existsSync @ :0",
+      "ms": 85.414,
+      "percent": 2.6352390331553757
+    },
+    {
+      "frame": "stat @ :0",
+      "ms": 79.906,
+      "percent": 2.4653032311250316
+    },
+    {
+      "frame": "parse @ :0",
+      "ms": 78.742,
+      "percent": 2.4293908720902966
+    },
+    {
+      "frame": "join @ node:path:506",
+      "ms": 77.494,
+      "percent": 2.3908868995169725
+    },
+    {
+      "frame": "readObject @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2195",
+      "ms": 72.059,
+      "percent": 2.223203333061831
+    },
+    {
+      "frame": "realpath @ :0",
+      "ms": 71.956,
+      "percent": 2.220025521222847
+    },
+    {
+      "frame": "(garbage collector) @ :0",
+      "ms": 71.3,
+      "percent": 2.1997862535881505
+    },
+    {
+      "frame": "requireBuiltin @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/node_modules/.dsh-instances/a4522ec3ed8e56e0edc527cc/lib/index.js:571",
+      "ms": 70.137,
+      "percent": 2.1639047470955415
+    },
+    {
+      "frame": "SideEffectFreeRegExpPrototypeSymbolReplace @ node:internal/util:758",
+      "ms": 51.679,
+      "percent": 1.5944285245327074
+    },
+    {
+      "frame": "toJSON @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/schemastery/lib/index.mjs:70",
+      "ms": 41.188,
+      "percent": 1.2707545050882012
+    },
+    {
+      "frame": "getPathFromURLWin32 @ node:internal/url:1490",
+      "ms": 34.518,
+      "percent": 1.0649680491073743
+    },
+    {
+      "frame": "fs.readFileSync @ file:///C:/AI/WhaleIsle-MyGo/scripts/profile-host-startup.mjs:15",
+      "ms": 33.33,
+      "percent": 1.0283152290616138
+    },
+    {
+      "frame": "defaultPrepareStackTrace @ node:internal/errors:96",
+      "ms": 28.591,
+      "percent": 0.8821050319262106
+    },
+    {
+      "frame": "getPackageScopeConfig @ :0",
+      "ms": 27.236,
+      "percent": 0.8402998373453979
+    },
+    {
+      "frame": "realpathSync @ node:fs:2781",
+      "ms": 26.792,
+      "percent": 0.8266013086414268
+    },
+    {
+      "frame": "readPackageManifest @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:712",
+      "ms": 24.676,
+      "percent": 0.7613173295026817
+    },
+    {
+      "frame": "readPackageJSON @ :0",
+      "ms": 23.723,
+      "percent": 0.7319148568565456
+    },
+    {
+      "frame": "get @ node:internal/modules/package_json_reader:80",
+      "ms": 23.417,
+      "percent": 0.7224739789659709
+    },
+    {
+      "frame": "normalize @ node:path:350",
+      "ms": 21.565,
+      "percent": 0.6653350709485059
+    },
+    {
+      "frame": "isPathInInvalidatedDirectory @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/hmr/lib/index.js:254",
+      "ms": 20.346,
+      "percent": 0.6277258220968375
+    },
+    {
+      "frame": " @ node:path:586",
+      "ms": 19.734,
+      "percent": 0.6088440663156881
+    },
+    {
+      "frame": "manifestAt @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/plugin-manager/lib/index.js:898",
+      "ms": 19.224,
+      "percent": 0.593109269831397
+    },
+    {
+      "frame": "URL @ node:internal/url:879",
+      "ms": 19.115,
+      "percent": 0.5897463427396564
+    },
+    {
+      "frame": "pathToFileURL @ :0",
+      "ms": 18.793,
+      "percent": 0.5798118241750647
+    },
+    {
+      "frame": "normalizeString @ node:path:92",
+      "ms": 18.706,
+      "percent": 0.5771276530100974
+    },
+    {
+      "frame": "getPackageScopeConfig @ node:internal/modules/package_json_reader:222",
+      "ms": 18.205,
+      "percent": 0.5616705294049409
+    },
+    {
+      "frame": "localizedText @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2227",
+      "ms": 18.11,
+      "percent": 0.558739537902965
+    },
+    {
+      "frame": "replaceErrorMessage @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1846",
+      "ms": 17.64,
+      "percent": 0.5442388431037164
+    },
+    {
+      "frame": "(idle) @ :0",
+      "ms": 16.037,
+      "percent": 0.49478221807564055
+    }
+  ],
+  "inclusive": [
+    {
+      "frame": "(root) @ :0",
+      "ms": 3241.224,
+      "percent": 100
+    },
+    {
+      "frame": "processTicksAndRejections @ node:internal/process/task_queues:72",
+      "ms": 2459.632,
+      "percent": 75.88589989460772
+    },
+    {
+      "frame": "runMicrotasks @ :0",
+      "ms": 2434.496,
+      "percent": 75.11039039572705
+    },
+    {
+      "frame": "apply @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/cordis/lib/index.js:118",
+      "ms": 2297.191,
+      "percent": 70.87418209910824
+    },
+    {
+      "frame": "readPluginMeta @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2255",
+      "ms": 1865.762,
+      "percent": 57.56350070220386
+    },
+    {
+      "frame": "invokeRpc @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/api/gateway/lib/index.js:1160",
+      "ms": 1830.338,
+      "percent": 56.47058024993027
+    },
+    {
+      "frame": "invokePrepared @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/api/gateway/lib/index.js:918",
+      "ms": 1823.89,
+      "percent": 56.27164305830143
+    },
+    {
+      "frame": "metaOf @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:3601",
+      "ms": 1816.453,
+      "percent": 56.042192702509915
+    },
+    {
+      "frame": "readPluginInventory @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/host/plugin-inventory/lib/index.js:121",
+      "ms": 1553.292,
+      "percent": 47.92300686407357
+    },
+    {
+      "frame": "resolvePluginResource @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2166",
+      "ms": 1243.003,
+      "percent": 38.34980242032022
+    },
+    {
+      "frame": "wrapped @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1967",
+      "ms": 1226.187,
+      "percent": 37.830986071928386
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1952",
+      "ms": 1224.615,
+      "percent": 37.782485875706215
+    },
+    {
+      "frame": "adapted @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1890",
+      "ms": 1151.372,
+      "percent": 35.52275313276713
+    },
+    {
+      "frame": "optionalResourcePath @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2178",
+      "ms": 1088.785,
+      "percent": 33.59178507872335
+    },
+    {
+      "frame": "resolveSync @ node:internal/modules/esm/loader:741",
+      "ms": 988.709,
+      "percent": 30.504186072915665
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1963",
+      "ms": 988.709,
+      "percent": 30.504186072915665
+    },
+    {
+      "frame": "#cachedDefaultResolve @ node:internal/modules/esm/loader:697",
+      "ms": 985.443,
+      "percent": 30.403421670331948
+    },
+    {
+      "frame": "#resolveAndMaybeBlockOnLoaderThread @ node:internal/modules/esm/loader:720",
+      "ms": 985.443,
+      "percent": 30.403421670331948
+    },
+    {
+      "frame": "defaultResolve @ node:internal/modules/esm/resolve:961",
+      "ms": 978.199,
+      "percent": 30.17992585517076
+    },
+    {
+      "frame": "moduleResolve @ node:internal/modules/esm/resolve:845",
+      "ms": 960.555,
+      "percent": 29.635563601898543
+    },
+    {
+      "frame": "list @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/host/plugin-inventory/lib/index.js:112",
+      "ms": 949.419,
+      "percent": 29.291989692782728
+    },
+    {
+      "frame": "packageResolve @ node:internal/modules/esm/resolve:762",
+      "ms": 836.844,
+      "percent": 25.818764762941406
+    },
+    {
+      "frame": "iconOf @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2124",
+      "ms": 635.387,
+      "percent": 19.60330418385153
+    },
+    {
+      "frame": "fs.readFileSync @ file:///C:/AI/WhaleIsle-MyGo/scripts/profile-host-startup.mjs:15",
+      "ms": 564.624,
+      "percent": 17.420085745385077
+    },
+    {
+      "frame": "dictionariesOf @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2207",
+      "ms": 547.487,
+      "percent": 16.89136573097077
+    },
+    {
+      "frame": "listBundles @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/plugin-manager/lib/index.js:1681",
+      "ms": 536.702,
+      "percent": 16.5586210641412
+    },
+    {
+      "frame": "readFileSync @ node:fs:473",
+      "ms": 528.337,
+      "percent": 16.3005395492567
+    },
+    {
+      "frame": "readFileUtf8 @ :0",
+      "ms": 512.566,
+      "percent": 15.813964107386592
+    },
+    {
+      "frame": "getPackageJSONURL @ node:internal/modules/package_json_reader:297",
+      "ms": 457.224,
+      "percent": 14.106522721046124
+    },
+    {
+      "frame": "readObject @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:2195",
+      "ms": 442.223,
+      "percent": 13.643703736613082
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/host/plugin-inventory/lib/index.js:146",
+      "ms": 430.724,
+      "percent": 13.288930354705506
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/host/plugin-inventory/lib/index.js:144",
+      "ms": 430.724,
+      "percent": 13.288930354705506
+    },
+    {
+      "frame": "internalModuleStat @ :0",
+      "ms": 321.857,
+      "percent": 9.930106651067621
+    },
+    {
+      "frame": "recompose @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:3837",
+      "ms": 320.588,
+      "percent": 9.89095477510965
+    },
+    {
+      "frame": "declaredRows @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/plugin-manager/lib/index.js:2166",
+      "ms": 314.167,
+      "percent": 9.692850602118211
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+File: session.test.exe
+Build ID: C:\Users\48818\AppData\Local\Temp\whaleisle-build-923067fe31684007aa4ed426b7221499\go-build3483939680\b001\session.test.exe2026-11-17 16:41:28.3103387 +0800 CST
+Type: alloc_space
+Time: 2026-11-17 16:41:31 CST
+Showing nodes accounting for 8286.56MB, 98.99% of 8371.09MB total
+Dropped 115 nodes (cum <= 41.86MB)
+      flat  flat%   sum%        cum   cum%
+ 2064.84MB 24.67% 24.67%  2064.84MB 24.67%  whaleisle/internal/store/session.cloneSlice[go.shape.6f8aefab3764f21aab036648f8984658919debf1a8c7d828a6b318642c477bff] (inline)
+ 1195.66MB 14.28% 38.95%  1305.67MB 15.60%  whaleisle/internal/store/session.(*Store).projectTrajectoryTimingLocked
+ 1081.86MB 12.92% 51.87%  1081.86MB 12.92%  whaleisle/internal/store/session.projectAssistantMessage
+ 1033.71MB 12.35% 64.22%  2115.57MB 25.27%  whaleisle/internal/store/session.(*Store).projectAssistantMessagesLocked
+ 1033.71MB 12.35% 76.57%  1385.74MB 16.55%  whaleisle/internal/store/session.cloneMessages
+ 1031.13MB 12.32% 88.89%  1072.81MB 12.82%  whaleisle/internal/store/session.(*Store).projectMessagesIncrementalLocked
+  382.11MB  4.56% 93.45%   387.24MB  4.63%  whaleisle/internal/store/session.(*Store).trajectoryRequestsViewLocked
+  256.52MB  3.06% 96.52%   256.52MB  3.06%  whaleisle/internal/store/session.cloneSlice[go.shape.uint8] (inline)
+     109MB  1.30% 97.82%      109MB  1.30%  whaleisle/internal/store/session.cloneTrajectoryTiming
+      98MB  1.17% 98.99%   354.03MB  4.23%  whaleisle/internal/store/session.cloneMessage
+         0     0% 98.99%  8262.43MB 98.70%  testing.(*B).launch
+         0     0% 98.99%    94.56MB  1.13%  testing.(*B).run1.func1
+         0     0% 98.99%  8357.48MB 99.84%  testing.(*B).runN
+         0     0% 98.99%  8329.45MB 99.50%  whaleisle/internal/store/session.(*FrameSnapshot).Snapshot
+         0     0% 98.99%  1081.86MB 12.92%  whaleisle/internal/store/session.(*Store).cachedProjectAssistantMessageLocked
+         0     0% 98.99%  6264.61MB 74.84%  whaleisle/internal/store/session.(*Store).ensureViewCacheLocked
+         0     0% 98.99%  4788.66MB 57.20%  whaleisle/internal/store/session.(*Store).trajectoryJournalMessagesLocked
+         0     0% 98.99%  8356.98MB 99.83%  whaleisle/internal/store/session.BenchmarkSnapshotWhileStreaming.func3
+         0     0% 98.99%  2064.84MB 24.67%  whaleisle/internal/store/session.cloneFramePassView (inline)
+         0     0% 98.99%   256.52MB  3.06%  whaleisle/internal/store/session.cloneRawMessage (inline)

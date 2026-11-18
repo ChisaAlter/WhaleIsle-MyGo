@@ -1,0 +1,36 @@
+{
+  "error": "\u003cnil\u003e",
+  "hostLog": [
+    "» C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe --expose-gc --import file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423/profile/dsh-home/profiles/web/desktop-plugins/mygo-proactive/proactive-provenance.mjs C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\route-a\\desktop-route-a.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-skill-import\\desktop-skill-import.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-mcp-import\\desktop-mcp-import.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-proactive\\desktop-proactive.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-9220e67baf9f49beaa74ebbcda1cd423\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --host 127.0.0.1 --port 32197 --no-open",
+    "» 13 desktop --patch overlay(s)",
+    "listening on http://127.0.0.1:32197 — waiting for dsh web ready URL",
+    "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true",
+    "(node:42252) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.",
+    "(Use `node --trace-deprecation ...` to show where the warning was created)",
+    "dsh web: http://127.0.0.1:32197/?[redacted]"
+  ],
+  "modelRequests": 0,
+  "pid": 47600,
+  "steps": [
+    {
+      "name": "create-two-sessions",
+      "pass": true,
+      "detail": "id1=session-84d2a8a2-20c4-41d0-a63a-e15c7b5639bf id2=session-766c449d-91a6-4eeb-87ca-7682ceb2cd2c createdSignalSampled=true"
+    },
+    {
+      "name": "file-open-preview",
+      "pass": true,
+      "detail": "qa-note.txt resource tab preview loaded through workspacefs read"
+    },
+    {
+      "name": "file-edit-switch-return",
+      "pass": true,
+      "detail": "dirty draft kept across diff/files route switch; disk not implicitly saved"
+    },
+    {
+      "name": "external-edit-conflict",
+      "pass": true,
+      "detail": "visible conflict after physical page refresh; original save baseline and local draft kept; external disk change not overwritten"
+    }
+  ]
+}

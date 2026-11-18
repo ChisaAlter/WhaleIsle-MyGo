@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "executable": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe",
+  "hidden": true,
+  "profile": "fresh-isolated",
+  "status": "failed",
+  "startup": [],
+  "idle": null,
+  "error": "Readiness/observation did not finish within 2s."
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "candidate": "bin/route-a-0.2.0-candidate.exe",
+  "sourceBase": "11595831f43af4e401bdb613a2e744d6bfe2a5af",
+  "sourceDirty": true,
+  "productionBytes": 96433664,
+  "windowTitle": "鲸屿 MyGo",
+  "windowId": 524488,
+  "profile": "fresh isolated, created by qa-gate-zero-webview.ps1",
+  "method": "CUA real native key input and Windows screenshots/accessibility; no WM_CHAR injection or UIA SetValue",
+  "checks": [
+    {
+      "action": "type n,i with installed Chinese IME enabled using Shift",
+      "observed": "visible system candidate bar: 1 你, 2 尼, 3 呢",
+      "passed": true
+    },
+    {
+      "action": "press Enter while composition candidate bar is visible",
+      "observed": "candidate bar closes, draft ni retained, conversation remains blank hero, no user message",
+      "passed": true
+    },
+    {
+      "action": "clear synthetic draft, type n,i,h,a,o",
+      "observed": "visible ni'hao composition and candidate 1 你好",
+      "passed": true
+    },
+    {
+      "action": "press Space to commit first candidate",
+      "observed": "Composer draft value 你好, candidate bar closes, no submission",
+      "passed": true
+    }
+  ],
+  "systemIMEExercised": true,
+  "clipboardUsed": false,
+  "timingDistributionMeasured": false,
+  "scope": "real composition, candidate selection and composition Enter suppression only; not p95/p99 latency acceptance",
+  "evidence": "CUA screenshots and accessibility observations in this chat"
+}

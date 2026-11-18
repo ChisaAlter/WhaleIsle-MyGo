@@ -1,0 +1,55 @@
+{
+  "error": "\u003cnil\u003e",
+  "hostLog": [
+    "» C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe --expose-gc --import file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7/profile/dsh-home/profiles/web/desktop-plugins/mygo-proactive/proactive-provenance.mjs C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\route-a\\desktop-route-a.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-skill-import\\desktop-skill-import.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-mcp-import\\desktop-mcp-import.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-proactive\\desktop-proactive.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-b9bac1b21a6c4d0f9a05b21be5eaedc7\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --host 127.0.0.1 --port 32197 --no-open",
+    "» 13 desktop --patch overlay(s)",
+    "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true",
+    "(node:45656) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.",
+    "(Use `node --trace-deprecation ...` to show where the warning was created)",
+    "dsh web: http://127.0.0.1:32197/?[redacted]"
+  ],
+  "modelRequests": 7,
+  "pid": 10076,
+  "steps": [
+    {
+      "name": "create-two-sessions",
+      "pass": true,
+      "detail": "id1=session-18c92cab-a12f-4d9a-ad58-59e8b081d61c id2=session-17684112-1244-4407-a81b-beeb5122c8bc createdSignalSampled=true"
+    },
+    {
+      "name": "draft-attachment-switch",
+      "pass": true,
+      "detail": "A=\"QA draft A\" att=1 B=\"QA draft B\""
+    },
+    {
+      "name": "attachment-confirmation-after-switch",
+      "pass": true,
+      "detail": "A confirmed without its visible transcript; B remained selected"
+    },
+    {
+      "name": "send-with-attachment-mid-edit",
+      "pass": true,
+      "detail": "user=1 reply=1 draft=\"typed while sending\""
+    },
+    {
+      "name": "stop-after-send",
+      "pass": true,
+      "detail": "session/cancel accepted while streaming (signalSampled=true)"
+    },
+    {
+      "name": "stale-edit-rejected-draft-kept",
+      "pass": true,
+      "detail": "err=\"当前消息已变化或会话正在运行，请取消编辑后重试\" text=\"stale edit attempt\""
+    },
+    {
+      "name": "retry-after-rejection",
+      "pass": true,
+      "detail": "second submit accepted and replied"
+    },
+    {
+      "name": "one-time-approval",
+      "pass": true,
+      "detail": "pending approval 3131d35c-9adc-4c27-adae-ead68842ad70 resolved once; tool result returned; pending cleared=true"
+    }
+  ]
+}

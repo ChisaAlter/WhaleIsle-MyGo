@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "branch": "codex/route-a-system-optimization",
+  "sourceBase": "11595831f43af4e401bdb613a2e744d6bfe2a5af",
+  "sourceDirty": true,
+  "includesCompactWorktreeLayout": true,
+  "buildEntry": "scripts/build-release.ps1",
+  "version": "0.2.0",
+  "byteLength": 96433664,
+  "buildSeconds": 26.8048295,
+  "freeGiBBefore": 53.273067474365234,
+  "freeGiBAfter": 52.9407844543457,
+  "installerBuilt": false,
+  "path": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-0.2.0-candidate.exe"
+}

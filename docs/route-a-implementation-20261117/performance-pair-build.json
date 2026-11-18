@@ -1,0 +1,25 @@
+{
+  "bytes": 96396288,
+  "MiB": 91.931,
+  "buildVersion": "0.2.0",
+  "tags": "release",
+  "trimpath": true,
+  "stripped": true,
+  "pairedStartup": [
+    {
+      "profile": "fresh",
+      "nodeSpawnToReadyLineMs": 7235.632,
+      "hostReadyMs": 8444.416,
+      "workspaceReadyMs": 10215.107,
+      "workspaceAfterHostReadyMs": 1770.6910000000007
+    },
+    {
+      "profile": "warm",
+      "nodeSpawnToReadyLineMs": 4841.715999999999,
+      "hostReadyMs": 5826.665,
+      "workspaceReadyMs": 8787.891,
+      "workspaceAfterHostReadyMs": 2961.2259999999997
+    }
+  ],
+  "interpretation": "Same candidate and same synthetic profile, two sequential starts; second startup remains over the 3 second target. Two samples do not establish p95. Both runtime warm probes reported cold=false. Candidate and profile reclaimed."
+}

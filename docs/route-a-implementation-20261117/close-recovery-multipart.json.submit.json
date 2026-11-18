@@ -1,0 +1,21 @@
+{
+  "connection": {
+    "bootstrapError": "",
+    "lost": false,
+    "ready": true,
+    "resumeError": ""
+  },
+  "error": "Host did not accept original request: {RequestID:c74280776e56a07722a811f9c80754c2 SessionID:session-d7918ee6-5bcb-4bcc-a06b-f04308caa5eb Accepted:false}",
+  "hidden": true,
+  "lastSession": {
+    "clientReady": true,
+    "lastAction": "",
+    "listError": "",
+    "listLoading": false,
+    "workspaceReady": true
+  },
+  "passed": false,
+  "phase": "submit",
+  "pid": 31412,
+  "wireErrors": null
+}

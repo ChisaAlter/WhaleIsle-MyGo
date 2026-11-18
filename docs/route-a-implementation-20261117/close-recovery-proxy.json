@@ -1,0 +1,28 @@
+{
+  "error": "desktop submit: exit status 1",
+  "model": "deterministic loopback",
+  "modelRequests": 2,
+  "passed": false,
+  "scope": "two real hidden desktop/Host processes; real transport loss, durable resume and Host journal",
+  "submit": {
+    "connection": {
+      "bootstrapError": "",
+      "lost": false,
+      "ready": true,
+      "resumeError": ""
+    },
+    "error": "Host did not accept original request: {RequestID:61ec5fd105d91b83760c8bc111350841 SessionID:session-3eb4b51a-0485-4de0-b182-476f613bee9c Accepted:false}",
+    "hidden": true,
+    "lastSession": {
+      "clientReady": true,
+      "lastAction": "",
+      "listError": "",
+      "listLoading": false,
+      "workspaceReady": true
+    },
+    "passed": false,
+    "phase": "submit",
+    "pid": 34532,
+    "wireErrors": null
+  }
+}

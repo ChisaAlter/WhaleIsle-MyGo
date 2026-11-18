@@ -1,0 +1,49 @@
+{
+  "beforeFreeGiB": 49.66975021362305,
+  "afterFreeGiB": 50.256263732910156,
+  "removedBytes": 629757426.0,
+  "files": [
+    {
+      "Path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-audit-round7-20261027\\native-round7-run-baseline-a\\native-round7.test.exe",
+      "Bytes": 117989376,
+      "Mtime": "2026-10-27T16:07:45.1805218Z",
+      "Kind": "inactive untracked Go test executable",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-audit-round7-20261027\\native-round7-run-baseline-b\\native-round7.test.exe",
+      "Bytes": 117995520,
+      "Mtime": "2026-10-27T16:14:57.7043219Z",
+      "Kind": "inactive untracked Go test executable",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-audit-round7-20261027\\native-round7-run-baseline-c\\native-round7.test.exe",
+      "Bytes": 117995520,
+      "Mtime": "2026-10-27T16:14:57.7043219Z",
+      "Kind": "inactive untracked Go test executable",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\perf-verify\\frame-before.test.exe",
+      "Bytes": 95880704,
+      "Mtime": "2026-11-01T07:48:37.709723Z",
+      "Kind": "inactive untracked Go test executable",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\darwin-display-orientation-20261027\\frame-complete-amd64.test",
+      "Bytes": 91632784,
+      "Mtime": "2026-10-27T04:25:13.6628948Z",
+      "Kind": "inactive untracked Go test executable",
+      "Removed": true
+    },
+    {
+      "Path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\darwin-display-orientation-20261027\\frame-complete-arm64.test",
+      "Bytes": 88263522,
+      "Mtime": "2026-10-27T04:25:03.5606466Z",
+      "Kind": "inactive untracked Go test executable",
+      "Removed": true
+    }
+  ]
+}

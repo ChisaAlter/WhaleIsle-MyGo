@@ -1,0 +1,106 @@
+{
+  "error": "composer QA step failures; see steps",
+  "hostLog": [
+    "» C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe --expose-gc --import file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280/profile/dsh-home/profiles/web/desktop-plugins/mygo-proactive/proactive-provenance.mjs C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor\\deepseek-harness\\apps\\cli\\lib\\bin.js web --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-project\\desktop-project.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-task-control\\desktop-task-control.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-platform-session\\desktop-platform-session.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-usage-panel\\desktop-usage-panel.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-im\\desktop-dsh-im.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-whale\\desktop-dsh-whale.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\dsh-remote\\desktop-dsh-remote.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\node_modules\\whaleisle-desktop-plugin-views\\desktop-plugin-views.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\route-a\\desktop-route-a.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-skill-import\\desktop-skill-import.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-mcp-import\\desktop-mcp-import.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\mygo-proactive\\desktop-proactive.patch.yml --patch C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-93d6bfa455d3462ab6eb6ff450a83280\\profile\\dsh-home\\profiles\\web\\desktop-plugins\\session-search\\desktop-session-search.patch.yml --host 127.0.0.1 --port 32197 --no-open",
+    "» 13 desktop --patch overlay(s)",
+    "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true",
+    "listening on http://127.0.0.1:32197 — waiting for dsh web ready URL",
+    "(node:19220) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.",
+    "(Use `node --trace-deprecation ...` to show where the warning was created)",
+    "dsh web: http://127.0.0.1:32197/?[redacted]"
+  ],
+  "modelRequests": 8,
+  "pid": 27380,
+  "steps": [
+    {
+      "name": "create-two-sessions",
+      "pass": true,
+      "detail": "id1=session-569dbc80-dc53-4e9c-9879-1b19cafc1859 id2=session-631d53a4-6c1a-4f70-b5d3-ea101944f2fe createdSignalSampled=true"
+    },
+    {
+      "name": "draft-attachment-switch",
+      "pass": true,
+      "detail": "A=\"QA draft A\" att=1 B=\"QA draft B\""
+    },
+    {
+      "name": "attachment-confirmation-after-switch",
+      "pass": true,
+      "detail": "A confirmed without its visible transcript; B remained selected"
+    },
+    {
+      "name": "send-with-attachment-mid-edit",
+      "pass": true,
+      "detail": "user=1 reply=1 draft=\"typed while sending\""
+    },
+    {
+      "name": "stop-after-send",
+      "pass": true,
+      "detail": "session/cancel accepted while streaming (signalSampled=true)"
+    },
+    {
+      "name": "stale-edit-rejected-draft-kept",
+      "pass": true,
+      "detail": "err=\"当前消息已变化或会话正在运行，请取消编辑后重试\" text=\"stale edit attempt\""
+    },
+    {
+      "name": "retry-after-rejection",
+      "pass": true,
+      "detail": "second submit accepted and replied"
+    },
+    {
+      "name": "one-time-approval",
+      "pass": true,
+      "detail": "pending approval 5d3fbeaf-a618-4bfb-9229-c4d6aaf2a27d resolved once; tool result returned; pending cleared=true"
+    },
+    {
+      "name": "workload-streams",
+      "pass": true,
+      "detail": "1 long turns; visible=false min=false holdFrames(interaction=false,sizeBurst=false) frames=1→1 | base[inv=0(-0) cc=0 conn=0 req=0 paint=0 frames=1] mid[inv=6(-2) cc=77 conn=77 req=77 paint=0 frames=1] end[req=262 paint=0]"
+    },
+    {
+      "name": "file-open-preview",
+      "pass": false,
+      "detail": "timeout waiting for workspace file preview loads"
+    },
+    {
+      "name": "diff-surface-load",
+      "pass": false,
+      "detail": "timeout waiting for diff surface loads git output"
+    },
+    {
+      "name": "file-edit-switch-return",
+      "pass": false,
+      "detail": "no open FileTab for qa-note.txt on the files pane"
+    },
+    {
+      "name": "external-edit-conflict",
+      "pass": false,
+      "detail": "no files pane"
+    },
+    {
+      "name": "diff-stage-reflect",
+      "pass": true,
+      "detail": "staged=true scopedHasContent=true commits=1 (no implicit commit)"
+    },
+    {
+      "name": "terminal-route",
+      "pass": true,
+      "detail": "terminal panel mounted on workspace root; routed back to files"
+    },
+    {
+      "name": "extension-panel-creator",
+      "pass": true,
+      "detail": "draft seeded; sent requests unchanged=true"
+    },
+    {
+      "name": "real-input-uia-setvalue",
+      "pass": false,
+      "detail": "Composer draft element not performable"
+    },
+    {
+      "name": "real-input-unichar",
+      "pass": false,
+      "detail": "focus=true sent=true draft=\"\""
+    }
+  ]
+}

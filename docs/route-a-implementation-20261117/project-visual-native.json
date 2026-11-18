@@ -1,0 +1,22 @@
+{
+  "appPID": 34536,
+  "error": "Project native lifecycle condition timed out",
+  "finalProcesses": null,
+  "helper": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-3b2299a6b4c4480c8ed5fc6718163cde\\whaleisle-preview.exe",
+  "host": "loopback synthetic Project/readVisualReply responses",
+  "modelRequests": 0,
+  "passed": false,
+  "privateDesktop": "WhaleIsleProjectVisual-34536-1794896056215089800",
+  "processObservation": "owned helper/WebView2 descendants sampled every 25 ms with retained process handles",
+  "schemaVersion": 1,
+  "scope": "production Project Manager, ObserverView, mainProjectDeps renderer, publishedHTMLSurface and real AppContainer/WebView2",
+  "stages": [
+    {
+      "active": 0,
+      "htmlReads": 0,
+      "processes": null,
+      "stage": "default-awaiting-open"
+    }
+  ],
+  "visibility": "native ShowInactive/Hide on a private desktop that is never switched to"
+}

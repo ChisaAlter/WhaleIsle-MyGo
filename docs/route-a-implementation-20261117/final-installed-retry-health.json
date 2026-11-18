@@ -1,0 +1,5330 @@
+{
+  "schema": 1,
+  "executable": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe",
+  "hidden": false,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 23.237
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 26.2
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 40.136
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 50.243
+    },
+    {
+      "stage": "ui.first_view_built",
+      "kind": "mark",
+      "atMs": 272.024
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 354.312
+    },
+    {
+      "stage": "harness.start_requested",
+      "kind": "mark",
+      "atMs": 361.28
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 366.864,
+      "detail": "starting"
+    },
+    {
+      "stage": "runtime.warmup.gate",
+      "kind": "mark",
+      "atMs": 369.511,
+      "detail": "cold=false probeUs=131"
+    },
+    {
+      "stage": "host.port_selected",
+      "kind": "mark",
+      "atMs": 369.511,
+      "detail": "3181"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 370.037,
+      "durMs": 753.3689999999999,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 369.511,
+      "durMs": 759.999
+    },
+    {
+      "stage": "runtime.read_capabilities",
+      "kind": "span",
+      "atMs": 369.511,
+      "durMs": 760.531
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 1994.604,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 1994.604
+    },
+    {
+      "stage": "runtime.validate.current_host",
+      "kind": "span",
+      "atMs": 1994.604
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 1995.614,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate",
+      "kind": "span",
+      "atMs": 1994.089,
+      "durMs": 1.525000000000091
+    },
+    {
+      "stage": "profile.disabled_plugins",
+      "kind": "span",
+      "atMs": 1995.614
+    },
+    {
+      "stage": "profile.links",
+      "kind": "span",
+      "atMs": 1995.614,
+      "durMs": 55.034999999999854
+    },
+    {
+      "stage": "profile.overlays",
+      "kind": "span",
+      "atMs": 2050.649,
+      "durMs": 22.78500000000031
+    },
+    {
+      "stage": "runtime.profile_prepare",
+      "kind": "span",
+      "atMs": 1995.614,
+      "durMs": 77.82000000000016
+    },
+    {
+      "stage": "host.plan",
+      "kind": "span",
+      "atMs": 1994.089,
+      "durMs": 86.62300000000005
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 2080.712,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.spawned",
+      "kind": "mark",
+      "atMs": 2096.567,
+      "detail": "41064"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 2097.614,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6763.485,
+      "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6763.485,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6920.038,
+      "detail": "(node:41064) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6920.038,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6920.038,
+      "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6921.075,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.readyline",
+      "kind": "mark",
+      "atMs": 7211.835
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 7211.835,
+      "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7211.835,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.auth.get_connection",
+      "kind": "mark",
+      "atMs": 7212.343
+    },
+    {
+      "stage": "host.auth.connect_start",
+      "kind": "mark",
+      "atMs": 7212.343
+    },
+    {
+      "stage": "host.auth.connect_done",
+      "kind": "mark",
+      "atMs": 7212.871
+    },
+    {
+      "stage": "host.auth.got_connection",
+      "kind": "mark",
+      "atMs": 7213.402
+    },
+    {
+      "stage": "host.auth.request_written",
+      "kind": "mark",
+      "atMs": 7213.402
+    },
+    {
+      "stage": "host.auth.first_response_byte",
+      "kind": "mark",
+      "atMs": 7712.548
+    },
+    {
+      "stage": "host.handshake",
+      "kind": "span",
+      "atMs": 7211.835,
+      "durMs": 500.71299999999974
+    },
+    {
+      "stage": "host.ready",
+      "kind": "mark",
+      "atMs": 7712.548
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7712.548,
+      "detail": "ready"
+    },
+    {
+      "stage": "boot.outcome_recorded",
+      "kind": "mark",
+      "atMs": 7712.548
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 7712.548,
+      "detail": "ready"
+    },
+    {
+      "stage": "connection.bootstrap_start",
+      "kind": "mark",
+      "atMs": 7727.812
+    },
+    {
+      "stage": "stores.opened",
+      "kind": "mark",
+      "atMs": 7738.657
+    },
+    {
+      "stage": "connection.carrier_connected",
+      "kind": "mark",
+      "atMs": 7939.372
+    },
+    {
+      "stage": "connection.events_ready",
+      "kind": "mark",
+      "atMs": 7941.042
+    },
+    {
+      "stage": "workspace.ready",
+      "kind": "mark",
+      "atMs": 7974.592
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 7974.592,
+      "detail": "ready"
+    },
+    {
+      "stage": "plugins.inventory_ready",
+      "kind": "mark",
+      "atMs": 8640.501
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 8640.501,
+      "detail": "ready"
+    }
+  ],
+  "idle": {
+    "requestedSeconds": 120,
+    "observedSeconds": 120.0113353,
+    "samples": [
+      {
+        "elapsedSeconds": 0.2656257,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 2.765625,
+            "workingSetBytes": 353423360,
+            "privateBytes": 372752384,
+            "handles": 914,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.328125,
+            "workingSetBytes": 427270144,
+            "privateBytes": 453971968,
+            "handles": 291,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.0625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 1.4612485,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 2.953125,
+            "workingSetBytes": 352972800,
+            "privateBytes": 374628352,
+            "handles": 914,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.359375,
+            "workingSetBytes": 427556864,
+            "privateBytes": 454266880,
+            "handles": 291,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.0625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 2.6751241,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 353071104,
+            "privateBytes": 376987648,
+            "handles": 913,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.359375,
+            "workingSetBytes": 427610112,
+            "privateBytes": 454270976,
+            "handles": 290,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.0625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 3.8777367,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 3.515625,
+            "workingSetBytes": 353308672,
+            "privateBytes": 379551744,
+            "handles": 906,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.359375,
+            "workingSetBytes": 427610112,
+            "privateBytes": 454270976,
+            "handles": 283,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.0625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 5.1047527,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 3.796875,
+            "workingSetBytes": 353886208,
+            "privateBytes": 382300160,
+            "handles": 900,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.359375,
+            "workingSetBytes": 427610112,
+            "privateBytes": 454270976,
+            "handles": 277,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.0625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 6.3436048,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.015625,
+            "workingSetBytes": 354959360,
+            "privateBytes": 385986560,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.625,
+            "workingSetBytes": 269070336,
+            "privateBytes": 291651584,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.0625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 7.5498452,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.3125,
+            "workingSetBytes": 356323328,
+            "privateBytes": 387776512,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.734375,
+            "workingSetBytes": 268988416,
+            "privateBytes": 293892096,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 8.7436511,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.421875,
+            "workingSetBytes": 357044224,
+            "privateBytes": 389251072,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.78125,
+            "workingSetBytes": 268988416,
+            "privateBytes": 293892096,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 9.9780474,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.5625,
+            "workingSetBytes": 357519360,
+            "privateBytes": 390332416,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.796875,
+            "workingSetBytes": 268988416,
+            "privateBytes": 293892096,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 11.2281034,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357597184,
+            "privateBytes": 390332416,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.796875,
+            "workingSetBytes": 268988416,
+            "privateBytes": 293892096,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 12.4590092,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357597184,
+            "privateBytes": 390332416,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.875,
+            "workingSetBytes": 271405056,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 13.6689653,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357285888,
+            "privateBytes": 390021120,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.875,
+            "workingSetBytes": 271405056,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 14.8702035,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357187584,
+            "privateBytes": 389922816,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.875,
+            "workingSetBytes": 271405056,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 16.0765625,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357187584,
+            "privateBytes": 389922816,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.875,
+            "workingSetBytes": 271409152,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 17.2609833,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357199872,
+            "privateBytes": 389922816,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271409152,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 18.4534723,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357199872,
+            "privateBytes": 389922816,
+            "handles": 898,
+            "threads": 104
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271409152,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 19.6505607,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.65625,
+            "workingSetBytes": 357171200,
+            "privateBytes": 389877760,
+            "handles": 895,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271409152,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 20.8836814,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.71875,
+            "workingSetBytes": 357298176,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10838016,
+            "privateBytes": 1798144,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271409152,
+            "privateBytes": 295612416,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 22.0757493,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.71875,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271400960,
+            "privateBytes": 295579648,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 23.272315,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.71875,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271400960,
+            "privateBytes": 295579648,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 24.4607479,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.71875,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271400960,
+            "privateBytes": 295579648,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 25.6617708,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.71875,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271400960,
+            "privateBytes": 295579648,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 26.8703352,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.71875,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.890625,
+            "workingSetBytes": 271421440,
+            "privateBytes": 295579648,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.078125,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 28.0637927,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.734375,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 29.2673132,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.734375,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 30.4682754,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.734375,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 31.6476126,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.734375,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 32.8426248,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.734375,
+            "workingSetBytes": 357318656,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 34.0369689,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.84375,
+            "workingSetBytes": 357392384,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 35.2343889,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.84375,
+            "workingSetBytes": 357392384,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 36.4354288,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.84375,
+            "workingSetBytes": 357392384,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 37.6590113,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.859375,
+            "workingSetBytes": 357392384,
+            "privateBytes": 389931008,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 38.8558951,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.90625,
+            "workingSetBytes": 357408768,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 40.0604029,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.90625,
+            "workingSetBytes": 357408768,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 41.2649567,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.90625,
+            "workingSetBytes": 357408768,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 274477056,
+            "privateBytes": 299020288,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 42.4700232,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.90625,
+            "workingSetBytes": 357408768,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.03125,
+            "workingSetBytes": 275058688,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 43.6551688,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.90625,
+            "workingSetBytes": 357408768,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.03125,
+            "workingSetBytes": 275058688,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 44.852483,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.90625,
+            "workingSetBytes": 357408768,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10817536,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275058688,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 46.0341978,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.921875,
+            "workingSetBytes": 357416960,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275062784,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 47.2304424,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.921875,
+            "workingSetBytes": 357416960,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275062784,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 48.442812,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.921875,
+            "workingSetBytes": 357416960,
+            "privateBytes": 389939200,
+            "handles": 896,
+            "threads": 103
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275062784,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 49.6396335,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 4.9375,
+            "workingSetBytes": 357363712,
+            "privateBytes": 389787648,
+            "handles": 890,
+            "threads": 99
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275062784,
+            "privateBytes": 299560960,
+            "handles": 274,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72216576,
+            "handles": 216,
+            "threads": 18
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 50.8383496,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 5.453125,
+            "workingSetBytes": 364523520,
+            "privateBytes": 397078528,
+            "handles": 1022,
+            "threads": 102
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275140608,
+            "privateBytes": 299638784,
+            "handles": 275,
+            "threads": 16
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 52.0365594,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 5.859375,
+            "workingSetBytes": 375844864,
+            "privateBytes": 408424448,
+            "handles": 1023,
+            "threads": 102
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275103744,
+            "privateBytes": 299569152,
+            "handles": 275,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 53.2199318,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 6.015625,
+            "workingSetBytes": 377667584,
+            "privateBytes": 410140672,
+            "handles": 1023,
+            "threads": 102
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275103744,
+            "privateBytes": 299569152,
+            "handles": 275,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 54.4365005,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 6.15625,
+            "workingSetBytes": 377843712,
+            "privateBytes": 407691264,
+            "handles": 1025,
+            "threads": 102
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 275103744,
+            "privateBytes": 299569152,
+            "handles": 275,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 55.6328099,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 6.375,
+            "workingSetBytes": 377860096,
+            "privateBytes": 407707648,
+            "handles": 1027,
+            "threads": 102
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.109375,
+            "workingSetBytes": 275103744,
+            "privateBytes": 299569152,
+            "handles": 275,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 56.8324359,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 6.609375,
+            "workingSetBytes": 377856000,
+            "privateBytes": 407162880,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.109375,
+            "workingSetBytes": 275177472,
+            "privateBytes": 299569152,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 58.0143232,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 6.71875,
+            "workingSetBytes": 377864192,
+            "privateBytes": 407302144,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.171875,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 59.198867,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 6.84375,
+            "workingSetBytes": 377876480,
+            "privateBytes": 407310336,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.171875,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 60.4255364,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.046875,
+            "workingSetBytes": 377880576,
+            "privateBytes": 407572480,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.1875,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 61.6227335,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.3125,
+            "workingSetBytes": 378011648,
+            "privateBytes": 409497600,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.1875,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 62.8091859,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.390625,
+            "workingSetBytes": 378011648,
+            "privateBytes": 409497600,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 63.9889575,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.390625,
+            "workingSetBytes": 378011648,
+            "privateBytes": 408973312,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 65.1813454,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 66.3948631,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 67.5835122,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 68.772712,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 69.9872781,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 71.2145521,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 275558400,
+            "privateBytes": 299835392,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 72.4467223,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.34375,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 73.6346828,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.34375,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 74.8356275,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.34375,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 76.0285063,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.390625,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 77.2269837,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.390625,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 78.4530918,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.390625,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 79.6356531,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.390625,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 80.8269071,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.40625,
+            "workingSetBytes": 378023936,
+            "privateBytes": 408322048,
+            "handles": 1026,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.390625,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 82.0185528,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.421875,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.390625,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 83.208092,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.421875,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.4375,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 84.4378218,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.421875,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.4375,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 85.6350425,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.421875,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.4375,
+            "workingSetBytes": 276275200,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 86.8298392,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.4375,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.453125,
+            "workingSetBytes": 276537344,
+            "privateBytes": 300720128,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 88.018429,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.4375,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.53125,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 89.2050869,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.546875,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 90.428911,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.59375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 91.6115795,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.59375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 92.7939286,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.59375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 93.9931112,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.59375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 95.1797483,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.59375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 96.3872973,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.59375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 97.5766474,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.609375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 98.7635126,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.609375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 99.9656821,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.609375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 101.1495649,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.609375,
+            "workingSetBytes": 276799488,
+            "privateBytes": 301264896,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 102.3476452,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.625,
+            "workingSetBytes": 276930560,
+            "privateBytes": 301535232,
+            "handles": 278,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 103.5386443,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 104.7268884,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378187776,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 105.9191691,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378216448,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 107.1232142,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378216448,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 108.3188384,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378216448,
+            "privateBytes": 408416256,
+            "handles": 1025,
+            "threads": 101
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 109.5118428,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378204160,
+            "privateBytes": 408387584,
+            "handles": 1025,
+            "threads": 100
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46231552,
+            "privateBytes": 72122368,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 110.6987288,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378204160,
+            "privateBytes": 408387584,
+            "handles": 1025,
+            "threads": 100
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 111.8836232,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378204160,
+            "privateBytes": 408387584,
+            "handles": 1025,
+            "threads": 100
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 113.0797971,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378204160,
+            "privateBytes": 408387584,
+            "handles": 1025,
+            "threads": 100
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 114.2754902,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378204160,
+            "privateBytes": 408387584,
+            "handles": 1025,
+            "threads": 100
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 115.4721119,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378171392,
+            "privateBytes": 408322048,
+            "handles": 1021,
+            "threads": 98
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.671875,
+            "workingSetBytes": 277135360,
+            "privateBytes": 301535232,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 116.6638794,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378171392,
+            "privateBytes": 408322048,
+            "handles": 1021,
+            "threads": 98
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.6875,
+            "workingSetBytes": 277504000,
+            "privateBytes": 301789184,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 117.8603085,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378171392,
+            "privateBytes": 408322048,
+            "handles": 1021,
+            "threads": 98
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.75,
+            "workingSetBytes": 278548480,
+            "privateBytes": 302600192,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 119.0561911,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378171392,
+            "privateBytes": 408322048,
+            "handles": 1021,
+            "threads": 98
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.75,
+            "workingSetBytes": 278548480,
+            "privateBytes": 302600192,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 120.276961,
+        "processes": [
+          {
+            "pid": 48024,
+            "startedAt": "2026-11-17T15:49:31.6194445Z",
+            "name": "whaleisle",
+            "role": "desktop",
+            "cpuSeconds": 7.453125,
+            "workingSetBytes": 378171392,
+            "privateBytes": 408322048,
+            "handles": 1021,
+            "threads": 98
+          },
+          {
+            "pid": 45760,
+            "startedAt": "2026-11-17T15:49:33.7513020Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.015625,
+            "workingSetBytes": 10919936,
+            "privateBytes": 1761280,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 41064,
+            "startedAt": "2026-11-17T15:49:33.7428400Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.75,
+            "workingSetBytes": 278548480,
+            "privateBytes": 302600192,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 24352,
+            "startedAt": "2026-11-17T15:49:32.0098240Z",
+            "name": "whaleisle",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 46317568,
+            "privateBytes": 72171520,
+            "handles": 216,
+            "threads": 15
+          }
+        ]
+      }
+    ],
+    "stableProcesses": [
+      {
+        "pid": 48024,
+        "name": "whaleisle",
+        "role": "desktop",
+        "observedSeconds": 120.0113353,
+        "cpuPercentOneCore": 3.9058810472213787,
+        "initialWorkingSetBytes": 353423360,
+        "finalWorkingSetBytes": 378171392,
+        "initialPrivateBytes": 372752384,
+        "finalPrivateBytes": 408322048,
+        "initialHandles": 914,
+        "finalHandles": 1021,
+        "finalThreads": 98
+      },
+      {
+        "pid": 45760,
+        "name": "conhost",
+        "role": "helper",
+        "observedSeconds": 120.0113353,
+        "cpuPercentOneCore": 0.0,
+        "initialWorkingSetBytes": 10838016,
+        "finalWorkingSetBytes": 10919936,
+        "initialPrivateBytes": 1798144,
+        "finalPrivateBytes": 1761280,
+        "initialHandles": 120,
+        "finalHandles": 120,
+        "finalThreads": 3
+      },
+      {
+        "pid": 41064,
+        "name": "node",
+        "role": "host",
+        "observedSeconds": 120.0113353,
+        "cpuPercentOneCore": 1.1847839176571515,
+        "initialWorkingSetBytes": 427270144,
+        "finalWorkingSetBytes": 278548480,
+        "initialPrivateBytes": 453971968,
+        "finalPrivateBytes": 302600192,
+        "initialHandles": 291,
+        "finalHandles": 274,
+        "finalThreads": 14
+      },
+      {
+        "pid": 24352,
+        "name": "whaleisle",
+        "role": "helper",
+        "observedSeconds": 120.0113353,
+        "cpuPercentOneCore": 0.1301960349073793,
+        "initialWorkingSetBytes": 46276608,
+        "finalWorkingSetBytes": 46317568,
+        "initialPrivateBytes": 72216576,
+        "finalPrivateBytes": 72171520,
+        "initialHandles": 216,
+        "finalHandles": 216,
+        "finalThreads": 15
+      }
+    ],
+    "summaryScope": "processes alive for the entire observation; transient processes remain in samples"
+  },
+  "coverage": "sampled-startup",
+  "readiness": "workspace",
+  "runtime": {
+    "vendor": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\vendor",
+    "nodeDirectory": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node"
+  },
+  "webViewCount": 0
+}

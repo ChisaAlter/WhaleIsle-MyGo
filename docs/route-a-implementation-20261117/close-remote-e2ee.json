@@ -1,0 +1,17 @@
+{
+  "checks": [
+    {
+      "name": "one-time-pair-application-hello-and-encrypted-ping",
+      "pass": true
+    },
+    {
+      "name": "formal-device-proof-reconnect-and-encrypted-ping",
+      "pass": true
+    }
+  ],
+  "internetRelay": false,
+  "modelRequestsByDriver": 0,
+  "passed": false,
+  "physicalPhone": false,
+  "scope": "real Go Runtime, shipped DshdRemote daemon, shipped Cloudflare relay on loopback Miniflare, original mobile session.js and DaemonClient"
+}

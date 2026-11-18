@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "pass": true,
+  "installer": "C:\\AI\\WhaleIsle-MyGo\\dist\\route-a-unsigned-current-0.2.0\\WhaleIsle-MyGo-Setup-0.2.0.exe",
+  "scenario": "Exact final package successful retry after controlled promotion failure; same-version upgrade 0.2.0 to 0.2.0",
+  "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+  "startedAt": "2026-11-17T23:39:43.7835927+08:00",
+  "durationSeconds": 572.771302,
+  "exitCode": 0,
+  "before": {
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{57B159CE-DB45-410E-8681-1A86318FD8B1}"
+  },
+  "after": {
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{5547A8FC-14CD-4115-93AC-A3CFB97D13B0}"
+  },
+  "transactionSiblings": [],
+  "manualBackupCreated": false,
+  "healthReport": "final-installed-retry-health.json",
+  "finalShortcuts": [
+    {
+      "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe",
+      "path": "C:\\Users\\48818\\Desktop\\鲸屿 MyGo.lnk"
+    },
+    {
+      "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe",
+      "path": "C:\\Users\\48818\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\鲸屿 MyGo\\鲸屿 MyGo.lnk"
+    }
+  ],
+  "nativeWindowVisuallyInspected": true,
+  "finalProfileRemoved": true
+}

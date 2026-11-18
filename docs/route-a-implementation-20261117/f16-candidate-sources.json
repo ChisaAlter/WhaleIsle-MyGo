@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-17",
+  "installedGit": "git version 2.55.0.windows.5",
+  "release": {
+    "tag": "v2.56.1.windows.1",
+    "longPathAware": false,
+    "getcwdLine": 1742,
+    "url": "https://github.com/git-for-windows/git/releases/tag/v2.56.1.windows.1",
+    "getcwdDeclaration": "\twchar_t cwd[MAX_PATH], wpointer[MAX_PATH];",
+    "published": "2026-11-10T22:13:20Z",
+    "minGitAsset": {
+      "name": "MinGit-2.56.1-64-bit.zip",
+      "size": 39849768,
+      "browser_download_url": "https://github.com/git-for-windows/git/releases/download/v2.56.1.windows.1/MinGit-2.56.1-64-bit.zip"
+    }
+  },
+  "main": {
+    "getcwdLine": 1983,
+    "commit": "e766978a9db5cdf196fdf3aaa63541e02ca513d6",
+    "getcwdDeclaration": "\twchar_t cwd[MAX_PATH], wpointer[MAX_PATH];",
+    "sourceURL": "https://github.com/git-for-windows/git/blob/e766978a9db5cdf196fdf3aaa63541e02ca513d6/compat/mingw.c"
+  },
+  "proposal": {
+    "state": "open",
+    "url": "https://github.com/git-for-windows/git/pull/3877",
+    "head": "82225ba08e1ba9c492b293b239d0d131fe3acdf5",
+    "authorHeadRuns": 0,
+    "authorReleaseCount": 0,
+    "limitationComment": "https://github.com/git-for-windows/git/pull/3877#issuecomment-2149394609",
+    "officialHeadRuns": 0,
+    "officialHeadChecks": 0,
+    "merged": false
+  },
+  "windows": {
+    "source": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setcurrentdirectory",
+    "createProcessLimitationFound": true
+  },
+  "action": {
+    "systemGitChanged": false,
+    "downloadedRuntime": false,
+    "builtGit": false,
+    "reason": "Latest official release and main retain the relevant fixed MAX_PATH getcwd buffers. The proposed patch has no available head build and documents child-process/hook limitations; do not build or integrate an incomplete runtime as the solution."
+  },
+  "buildEnvironment": {
+    "visualStudioRoot": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools",
+    "msvc": "19.44.35229",
+    "cmake": "3.31.6-msvc6",
+    "ninja": "1.12.1",
+    "windowsSdk": "10.0.26100.0",
+    "cFreeGiB": 42.8,
+    "commonVcpkgDependencyClosureFound": false,
+    "checkedVcpkgRoots": [
+      "C:\\vcpkg",
+      "C:\\dev\\vcpkg",
+      "C:\\Users\\48818\\AppData\\Local\\vcpkg",
+      "C:\\Users\\48818\\.cache\\vcpkg",
+      "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\vcpkg"
+    ],
+    "note": "VS vcpkg has tool/scripts/triplets but no installed/packages/downloads. Exact common paths inspected only; not a whole-disk compiler search."
+  }
+}

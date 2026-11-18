@@ -1,0 +1,117 @@
+{
+  "appPID": 46848,
+  "error": "production renderer cleanup: DeleteAppContainerProfile failed (HRESULT 0x80070020)",
+  "finalProcesses": [
+    {
+      "pid": 22416,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35620,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 6156,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 21968,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46896,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 12324,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13812,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45832,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    }
+  ],
+  "helper": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-86b01ece918f4878adcaa06af3396ece\\whaleisle-preview.exe",
+  "host": "loopback synthetic Project/readVisualReply responses",
+  "lastOpenButtonBounds": {
+    "X": 374.35855,
+    "Y": 225.21289,
+    "W": 136.61621,
+    "H": 18.621094
+  },
+  "modelRequests": 0,
+  "osHideShowExercised": false,
+  "passed": false,
+  "plannedCycles": 2,
+  "processObservation": "owned helper/WebView2 descendants sampled every 25 ms with retained process handles",
+  "schemaVersion": 1,
+  "scope": "production Project Manager, ObserverView, mainProjectDeps renderer, publishedHTMLSurface and real AppContainer/WebView2",
+  "stages": [
+    {
+      "active": 0,
+      "htmlReads": 0,
+      "processes": null,
+      "stage": "default-awaiting-open"
+    },
+    {
+      "active": 8,
+      "htmlReads": 1,
+      "processes": [
+        {
+          "pid": 45832,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 22416,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 35620,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 6156,
+          "name": "whaleisle-preview.exe",
+          "alive": true
+        },
+        {
+          "pid": 21968,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 46896,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 12324,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 13812,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        }
+      ],
+      "stage": "explicit-open-1"
+    }
+  ],
+  "visibility": "ordinary desktop; parent stays Hidden for its entire life; hidden child attachment and Close only"
+}
