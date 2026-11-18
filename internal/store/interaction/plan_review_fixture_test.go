@@ -3,6 +3,7 @@ package interaction
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -160,7 +161,20 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	// never settles, not to time a fast one: a genuine block does not clear at
 	// five seconds, while a few seconds of CI scheduler starvation does, and the
 	// dump below names which one happened.
+	// The goroutine dump alone was not enough to explain a timeout: an
+	// occurrence on CI showed an otherwise idle process, with no sender left
+	// and no lock held, which means the awaited state could not arrive at any
+	// price rather than arrive late. Print the state the step is waiting on so
+	// that trip names its own cause.
 	steps := 0
+	state := func() string {
+		snap := recovered.SnapshotForAgent("A")
+		out := fmt.Sprintf("pending=%d state=%q", len(snap.Pending), snap.QuestionStatus)
+		if len(snap.Pending) > 0 {
+			out += fmt.Sprintf(" sending=%v error=%q continued=%v", snap.Pending[0].Sending, snap.Pending[0].Error, snap.Pending[0].Continued)
+		}
+		return out
+	}
 	wait := func(check func() bool) {
 		t.Helper()
 		steps++
@@ -168,7 +182,7 @@ func TestPlanReviewContractFixture(t *testing.T) {
 		for !check() {
 			if time.Now().After(deadline) {
 				buf := make([]byte, 1<<20)
-				t.Fatalf("fixture timed out at step %d\n%s", steps, buf[:runtime.Stack(buf, true)])
+				t.Fatalf("fixture timed out at step %d (%s)\n%s", steps, state(), buf[:runtime.Stack(buf, true)])
 			}
 			time.Sleep(time.Millisecond)
 		}
