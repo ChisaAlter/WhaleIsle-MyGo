@@ -34,7 +34,7 @@ func TestNSISInstallerSmoke(t *testing.T) {
 	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, "-OutputRoot", output)
 	processutil.Background(cmd)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "WHALEISLE_PACKAGE_SKIP_RUNTIME=1")
+	cmd.Env = isolatedNSISPowerShellEnv(t.TempDir())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("smoke-nsis.ps1: %v\n%s", err, out)
@@ -70,7 +70,7 @@ func TestNSISSilentInstallSmoke(t *testing.T) {
 	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, "-SilentInstall", "-OutputRoot", t.TempDir())
 	processutil.Background(cmd)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "WHALEISLE_PACKAGE_SKIP_RUNTIME=1")
+	cmd.Env = isolatedNSISPowerShellEnv(t.TempDir())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("smoke-nsis.ps1 -SilentInstall: %v\n%s", err, out)
@@ -89,4 +89,41 @@ func resolveMakensis(repoRoot string) string {
 		return local
 	}
 	return ""
+}
+
+func isolatedNSISPowerShellEnv(cacheDir string) []string {
+	base := os.Environ()
+	out := make([]string, 0, len(base)+4)
+	hasTemp, hasTmp, hasLocalAppData := false, false, false
+	for _, entry := range base {
+		k, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		switch {
+		case strings.EqualFold(k, "PSModuleAnalysisCachePath"), strings.EqualFold(k, "WHALEISLE_PACKAGE_SKIP_RUNTIME"):
+			continue
+		case strings.EqualFold(k, "TEMP"):
+			hasTemp = true
+		case strings.EqualFold(k, "TMP"):
+			hasTmp = true
+		case strings.EqualFold(k, "LOCALAPPDATA"):
+			hasLocalAppData = true
+		}
+		out = append(out, entry)
+	}
+	out = append(out,
+		"WHALEISLE_PACKAGE_SKIP_RUNTIME=1",
+		"PSModuleAnalysisCachePath="+filepath.Join(cacheDir, "ModuleAnalysisCache"),
+	)
+	if !hasTemp {
+		out = append(out, "TEMP="+cacheDir)
+	}
+	if !hasTmp {
+		out = append(out, "TMP="+cacheDir)
+	}
+	if !hasLocalAppData {
+		out = append(out, "LOCALAPPDATA="+cacheDir)
+	}
+	return out
 }

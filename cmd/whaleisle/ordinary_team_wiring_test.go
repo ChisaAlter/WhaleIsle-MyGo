@@ -59,10 +59,7 @@ func TestOrdinaryTeamModelInitialLoadingAndProjectControllerPreservation(t *test
 	// Calling bindProjectModel when projectFlow.client transitions to s.dshClient must preserve ordinaryTeam.
 	parent := frame.Model{ThemeID: "system"}
 	s.bindProjectModel(nil, &parent)
-	s.mu.Lock()
-	preserved := s.projectFlow.ordinaryTeam != nil
-	s.mu.Unlock()
-	if !preserved {
+	if !s.projectManager().HasOrdinaryTeam() {
 		t.Fatal("projectController.projectModel wiped out projectFlow.ordinaryTeam")
 	}
 

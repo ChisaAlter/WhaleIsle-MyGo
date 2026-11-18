@@ -1,0 +1,33 @@
+{
+  "checks": [
+    {
+      "name": "one-time-pair-application-hello-and-encrypted-ping",
+      "pass": true
+    },
+    {
+      "name": "formal-device-proof-reconnect-and-encrypted-ping",
+      "pass": true
+    },
+    {
+      "name": "consumed-offer-rejected-with-existing-device-unaffected",
+      "pass": true
+    },
+    {
+      "name": "native-unbind-closes-live-device-and-rejects-new-proof",
+      "pass": true
+    },
+    {
+      "name": "fresh-offer-recovers-revoked-device",
+      "pass": true
+    },
+    {
+      "name": "owned-daemon-and-relay-listeners-closed",
+      "pass": true
+    }
+  ],
+  "internetRelay": false,
+  "modelRequestsByDriver": 0,
+  "passed": true,
+  "physicalPhone": false,
+  "scope": "real Go Runtime, shipped DshdRemote daemon, shipped Cloudflare relay on loopback Miniflare, original mobile session.js and DaemonClient"
+}

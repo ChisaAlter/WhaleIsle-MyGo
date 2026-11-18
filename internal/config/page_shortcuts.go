@@ -71,27 +71,13 @@ func (s *Store) SavePageShortcuts(patch map[string]string) error {
 	if err != nil {
 		return err
 	}
-	merged := map[string]json.RawMessage{}
-	for key, value := range s.raw {
-		merged[key] = value
-	}
+	merged := cloneRawMap(s.raw)
 	merged[pageShortcutsKey] = encoded
-	data, err := json.MarshalIndent(merged, "", "  ")
+	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
-		return err
-	}
-	unlock, err := s.lockCommit()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err = s.checkBaseline(); err != nil {
-		return err
-	}
-	if err = writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }

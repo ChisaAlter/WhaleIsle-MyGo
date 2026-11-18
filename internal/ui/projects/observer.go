@@ -37,6 +37,33 @@ type RequestMode struct {
 	Tab       string `json:"tab,omitempty"`
 }
 
+// ObserverReading retains navigation and editor positions without callbacks,
+// controllers or live resources. Host projections are refreshed after attach.
+type ObserverReading struct {
+	Section, HistoryKind string
+	RequestModes         map[string]RequestMode
+	ReadingOrder         []string
+	ScrollX, ScrollY     float32
+}
+
+func (o *ObserverState) Reading() ObserverReading {
+	modes := make(map[string]RequestMode, len(o.RequestModes))
+	for key, mode := range o.RequestModes {
+		modes[key] = mode
+	}
+	return ObserverReading{Section: o.Section, HistoryKind: o.HistoryKind, RequestModes: modes, ReadingOrder: append([]string(nil), o.ReadingOrder...), ScrollX: o.Scroll.X, ScrollY: o.Scroll.Y}
+}
+
+func (o *ObserverState) RestoreReading(r ObserverReading) {
+	o.Section, o.HistoryKind = r.Section, r.HistoryKind
+	o.RequestModes = make(map[string]RequestMode, len(r.RequestModes))
+	for key, mode := range r.RequestModes {
+		o.RequestModes[key] = mode
+	}
+	o.ReadingOrder = append([]string(nil), r.ReadingOrder...)
+	o.Scroll.X, o.Scroll.Y = r.ScrollX, r.ScrollY
+}
+
 func (o *ObserverState) Project(m Model) (projectflow.Project, bool) {
 	if o == nil || o.Host == "" || o.Host != m.ObserverHost || !m.Listing.Available {
 		return projectflow.Project{}, false
@@ -65,6 +92,17 @@ func (o *ObserverState) RefreshCatalog() {
 	o.CatalogLoaded = map[string]bool{}
 	o.CatalogErrors = map[string]string{}
 	o.Attention = projectflow.RequestPage{}
+}
+
+// DetachReads keeps the reading position and edited content while releasing
+// callbacks and making retained Host projections refresh on the next attach.
+func (o *ObserverState) DetachReads() {
+	o.OnLoadCatalog, o.OnPin, o.OnReturn = nil, nil, nil
+	o.Initialized = false
+	o.requested = nil
+	o.reading = ""
+	o.CatalogLoaded = nil
+	o.CatalogErrors = nil
 }
 
 func ObserverView(c *ui.Context, m Model, o *ObserverState) {

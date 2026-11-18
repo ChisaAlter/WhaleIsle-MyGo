@@ -202,3 +202,54 @@ func (s *Service) claimDue(hostHome string, at time.Time) ([]Task, error) {
 	}
 	return clone(tasks), nil
 }
+
+func (s *Service) nextRunnerWait(hostHome string, now time.Time) (time.Duration, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, a := range s.approvals {
+		if a.Status == "approved" && a.Delivery != nil && a.Delivery.Status == "ready" && a.Delivery.HostHome == hostHome {
+			return time.Millisecond, true
+		}
+	}
+	var earliest time.Time
+	hasEarliest := false
+	for _, id := range s.jobOrder {
+		j := s.jobs[id]
+		if j.Status != "scheduled" || j.Execution == nil || j.Execution.HostHome != hostHome {
+			continue
+		}
+		t, exists := s.tasks[j.TaskID]
+		if !exists || t.Terminal() {
+			return time.Millisecond, true
+		}
+		if t.ApprovalID != "" {
+			continue
+		}
+		busy := false
+		for _, candidate := range s.tasks {
+			if candidate.Execution != nil && candidate.Execution.JobID == j.ID && !candidate.Terminal() && (candidate.Execution.Unsettled() || candidate.ApprovalID != "") {
+				busy = true
+				break
+			}
+		}
+		if busy {
+			continue
+		}
+		when, err := time.Parse(time.RFC3339Nano, j.At)
+		if err != nil {
+			return time.Millisecond, true
+		}
+		if !hasEarliest || when.Before(earliest) {
+			earliest = when
+			hasEarliest = true
+		}
+	}
+	if !hasEarliest {
+		return 0, false
+	}
+	d := earliest.Sub(now)
+	if d < time.Millisecond {
+		d = time.Millisecond
+	}
+	return d, true
+}

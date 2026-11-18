@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/app/updater"
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
@@ -113,7 +114,12 @@ func stopNativeAcceptance() {
 // MyGo requires App.Run on the process main goroutine; testing.T runs its body
 // on a worker. TestMain keeps the production entry point on that required thread.
 func TestMain(m *testing.M) {
-	if reconnect := os.Getenv("WHALEISLE_ACCEPTANCE_RECONNECT_OUTPUT"); reconnect != "" {
+	if len(os.Args) == 3 && os.Args[1] == nativeRecoveryFlag {
+		os.Exit(0)
+	}
+	if a2 := os.Getenv("WHALEISLE_ACCEPTANCE_A2_OUTPUT"); a2 != "" {
+		nativeAcceptanceError = runNativeA2Desktop(a2)
+	} else if reconnect := os.Getenv("WHALEISLE_ACCEPTANCE_RECONNECT_OUTPUT"); reconnect != "" {
 		nativeAcceptanceError = runNativeReconnectDesktop(reconnect)
 	} else if os.Getenv("WHALEISLE_ACCEPTANCE_OUTPUT") != "" {
 		nativeAcceptanceError = runNativeCoreRecoveryDesktop()
@@ -133,6 +139,9 @@ func TestNativeCoreRecoveryDesktop(t *testing.T) {
 func runNativeCoreRecoveryDesktop() error {
 	if !isolatedDesktopRun() || os.Getenv("WHALEISLE_USER_DATA") == "" || os.Getenv("WHALEISLE_VENDOR") == "" {
 		return fmt.Errorf("explicit isolated data and verified vendor are required")
+	}
+	if os.Getenv(updater.EnvDisableAutoUpdate) == "" {
+		_ = os.Setenv(updater.EnvDisableAutoUpdate, "1")
 	}
 	out := os.Getenv("WHALEISLE_ACCEPTANCE_OUTPUT")
 	if !filepath.IsAbs(out) {

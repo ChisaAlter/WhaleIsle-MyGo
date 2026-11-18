@@ -1,0 +1,322 @@
+{
+  "schema": 1,
+  "installation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+  "passed": true,
+  "elapsedMs": 7550,
+  "profile": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-81f2edd6178245e9880fbddfcb6ff608\\whaleisle-install-health-563452582",
+  "profileRemoved": true,
+  "processesExited": true,
+  "startup": {
+    "schema": 1,
+    "pid": 35604,
+    "startedAt": "2026-11-18T00:05:56.0587209+08:00",
+    "updatedAt": "2026-11-18T00:06:03.4685996+08:00",
+    "finished": true,
+    "reason": "ready",
+    "totalMs": 7409.878,
+    "meta": {
+      "isolated": "true",
+      "userData": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-81f2edd6178245e9880fbddfcb6ff608\\whaleisle-install-health-563452582",
+      "vendor": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\vendor"
+    },
+    "events": [
+      {
+        "stage": "process.start",
+        "kind": "mark",
+        "atMs": 21.481
+      },
+      {
+        "stage": "shell.prepared",
+        "kind": "mark",
+        "atMs": 22.488
+      },
+      {
+        "stage": "app.when_ready",
+        "kind": "mark",
+        "atMs": 36.846
+      },
+      {
+        "stage": "config.loaded",
+        "kind": "mark",
+        "atMs": 44.406
+      },
+      {
+        "stage": "window.created",
+        "kind": "mark",
+        "atMs": 202.809
+      },
+      {
+        "stage": "harness.start_requested",
+        "kind": "mark",
+        "atMs": 210.552
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 216.538,
+        "detail": "starting"
+      },
+      {
+        "stage": "runtime.warmup.gate",
+        "kind": "mark",
+        "atMs": 219.923,
+        "detail": "cold=false probeUs=134"
+      },
+      {
+        "stage": "host.port_selected",
+        "kind": "mark",
+        "atMs": 219.923,
+        "detail": "3181"
+      },
+      {
+        "stage": "runtime.verify.node",
+        "kind": "span",
+        "atMs": 220.447,
+        "durMs": 110.02800000000002,
+        "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+      },
+      {
+        "stage": "runtime.validate.session_runtime",
+        "kind": "span",
+        "atMs": 220.447,
+        "durMs": 116.55700000000002
+      },
+      {
+        "stage": "runtime.read_capabilities",
+        "kind": "span",
+        "atMs": 219.923,
+        "durMs": 117.08100000000002
+      },
+      {
+        "stage": "runtime.verify.node",
+        "kind": "span",
+        "atMs": 573.873,
+        "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+      },
+      {
+        "stage": "runtime.validate.session_runtime",
+        "kind": "span",
+        "atMs": 573.873,
+        "durMs": 2.061999999999898
+      },
+      {
+        "stage": "runtime.validate.current_host",
+        "kind": "span",
+        "atMs": 573.873,
+        "durMs": 2.061999999999898
+      },
+      {
+        "stage": "runtime.verify.node",
+        "kind": "span",
+        "atMs": 576.462,
+        "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+      },
+      {
+        "stage": "runtime.validate",
+        "kind": "span",
+        "atMs": 573.873,
+        "durMs": 2.588999999999942
+      },
+      {
+        "stage": "profile.disabled_plugins",
+        "kind": "span",
+        "atMs": 576.462
+      },
+      {
+        "stage": "profile.links",
+        "kind": "span",
+        "atMs": 576.462,
+        "durMs": 79.56899999999996
+      },
+      {
+        "stage": "profile.overlays",
+        "kind": "span",
+        "atMs": 656.031,
+        "durMs": 21.41700000000003
+      },
+      {
+        "stage": "runtime.profile_prepare",
+        "kind": "span",
+        "atMs": 576.462,
+        "durMs": 100.98599999999999
+      },
+      {
+        "stage": "host.plan",
+        "kind": "span",
+        "atMs": 573.873,
+        "durMs": 109.00599999999997
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 682.879,
+        "detail": "starting"
+      },
+      {
+        "stage": "host.spawned",
+        "kind": "mark",
+        "atMs": 690.503,
+        "detail": "12016"
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 691.501,
+        "detail": "starting"
+      },
+      {
+        "stage": "host.log",
+        "kind": "log",
+        "atMs": 5503.355,
+        "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 5503.355,
+        "detail": "starting"
+      },
+      {
+        "stage": "host.log",
+        "kind": "log",
+        "atMs": 5648.331,
+        "detail": "(node:12016) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 5648.331,
+        "detail": "starting"
+      },
+      {
+        "stage": "host.log",
+        "kind": "log",
+        "atMs": 5648.331,
+        "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 5648.331,
+        "detail": "starting"
+      },
+      {
+        "stage": "host.readyline",
+        "kind": "mark",
+        "atMs": 5914.487
+      },
+      {
+        "stage": "host.log",
+        "kind": "log",
+        "atMs": 5914.487,
+        "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 5914.487,
+        "detail": "starting"
+      },
+      {
+        "stage": "host.auth.get_connection",
+        "kind": "mark",
+        "atMs": 5914.487
+      },
+      {
+        "stage": "host.auth.connect_start",
+        "kind": "mark",
+        "atMs": 5914.487
+      },
+      {
+        "stage": "host.auth.connect_done",
+        "kind": "mark",
+        "atMs": 5915.202
+      },
+      {
+        "stage": "host.auth.got_connection",
+        "kind": "mark",
+        "atMs": 5915.202
+      },
+      {
+        "stage": "host.auth.request_written",
+        "kind": "mark",
+        "atMs": 5915.202
+      },
+      {
+        "stage": "host.auth.first_response_byte",
+        "kind": "mark",
+        "atMs": 6426.512
+      },
+      {
+        "stage": "host.handshake",
+        "kind": "span",
+        "atMs": 5914.487,
+        "durMs": 512.0249999999996
+      },
+      {
+        "stage": "host.ready",
+        "kind": "mark",
+        "atMs": 6426.512
+      },
+      {
+        "stage": "boot.status",
+        "kind": "mark",
+        "atMs": 6426.512,
+        "detail": "ready"
+      },
+      {
+        "stage": "boot.outcome_recorded",
+        "kind": "mark",
+        "atMs": 6426.512
+      },
+      {
+        "stage": "trace.finish",
+        "kind": "mark",
+        "atMs": 6426.512,
+        "detail": "ready"
+      },
+      {
+        "stage": "connection.bootstrap_start",
+        "kind": "mark",
+        "atMs": 6439.922
+      },
+      {
+        "stage": "stores.opened",
+        "kind": "mark",
+        "atMs": 6454.622
+      },
+      {
+        "stage": "connection.carrier_connected",
+        "kind": "mark",
+        "atMs": 6640.132
+      },
+      {
+        "stage": "connection.events_ready",
+        "kind": "mark",
+        "atMs": 6641.175
+      },
+      {
+        "stage": "workspace.ready",
+        "kind": "mark",
+        "atMs": 6665.569
+      },
+      {
+        "stage": "trace.finish",
+        "kind": "mark",
+        "atMs": 6665.569,
+        "detail": "ready"
+      },
+      {
+        "stage": "plugins.inventory_ready",
+        "kind": "mark",
+        "atMs": 7409.878
+      },
+      {
+        "stage": "trace.finish",
+        "kind": "mark",
+        "atMs": 7409.878,
+        "detail": "ready"
+      }
+    ]
+  }
+}

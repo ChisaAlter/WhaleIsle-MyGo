@@ -1,0 +1,23 @@
+{
+  "capture": "CapturePage Content scene rasterization, not an OS/GPU framebuffer",
+  "checks": [
+    "direct synthetic OLE write and CF_UNICODETEXT read",
+    "file first jump Shift selection spans 850 rows without visiting the middle and preserves rune endpoints",
+    "file Select All copies all 1200 Unicode lines including trailing newline",
+    "split diff copies right-start to left-end across unvisited rows without leaking endpoint's right cell",
+    "split diff Select All copies all old/new cells in display order and excludes controls/gutters"
+  ],
+  "clipboard": "interactive Windows clipboard; synthetic text only; no original clipboard backup or read",
+  "clipboardReceiver": "independent process reading Win32 CF_UNICODETEXT while owner pumps its normal native message loop",
+  "hostStarted": false,
+  "input": "WindowDriver SurfaceEvent injection into a real visible MyGo window",
+  "modelRequests": 0,
+  "ownedRoot": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-567729442a414121b75558b7c243382b\\text-profile",
+  "pass": true,
+  "schemaVersion": 1,
+  "splitEndRow": 807,
+  "systemIMEExercised": false,
+  "userClipboardRead": false,
+  "userClipboardWritten": true,
+  "windowsShown": true
+}

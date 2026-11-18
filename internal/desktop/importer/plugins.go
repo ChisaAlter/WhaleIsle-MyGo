@@ -125,7 +125,7 @@ func scanPlugins(src, dst string) []CatalogItem {
 				continue
 			}
 			for _, entry := range entries {
-				if !entry.IsDir() {
+				if !isSafeDirEntry(entry) {
 					continue
 				}
 				out = append(out, CatalogItem{

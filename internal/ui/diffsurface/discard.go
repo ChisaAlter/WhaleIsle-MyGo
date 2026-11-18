@@ -1,23 +1,19 @@
 package diffsurface
 
 import (
+	"context"
+
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
 
 func reviewDiscard(m Model, path string) {
-	w := m.Workbench
-	plan, err := git.PrepareDiscard(m.WorkspaceRoot, path)
-	if err != nil {
-		w.Status = err.Error()
-		w.Discard = nil
+	if m.Workbench == nil {
 		return
 	}
-	w.Discard = &plan
-	w.Status = ""
+	m.Workbench.requestDiscardPrepare(m, path)
 }
 
 func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
@@ -46,19 +42,23 @@ func paintDiscard(c *ui.Context, m Model, fg, muted ui.Color) {
 				if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					w.Discard = nil
 				}
-				if widgets.Button(c, colors, word("还原", "Discard"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
+				if widgets.Button(c, colors, word("还原", "Discard"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(w.Operation != nil).Clicked() {
 					// Capture and clear before running: repeated clicks cannot replay this review.
 					w.Discard = nil
-					_, err := git.DiscardReviewed(m.WorkspaceRoot, plan)
-					if err != nil {
-						w.Status = err.Error()
-						return
-					}
 					w.ReviewToken = ""
 					w.ReviewText = ""
-					w.reload(m.WorkspaceRoot)
-					refresh(m)
-					w.Status = word("已还原：", "Discarded: ") + plan.Path
+					w.invalidateCommitReview()
+					w.invalidateDiffCache()
+					root := m.WorkspaceRoot
+					beginGitOperation(c, w, word("正在还原文件…", "Discarding file changes…"), func(ctx context.Context) gitOperationResult {
+						if ctx.Err() != nil {
+							return gitOperationResult{err: ctx.Err()}
+						}
+						if err := gitOps.discardReviewed(root, plan); err != nil {
+							return gitOperationResult{err: err}
+						}
+						return gitOperationResult{text: word("已还原：", "Discarded: ") + plan.Path}
+					})
 				}
 			})
 		})

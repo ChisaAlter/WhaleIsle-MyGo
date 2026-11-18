@@ -18,6 +18,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/imonboard"
+	"whaleisle/internal/store/internal/storefs"
 	officestore "whaleisle/internal/store/office"
 	"whaleisle/internal/store/storelocale"
 )
@@ -839,46 +840,21 @@ func (s *Store) saveHistoryLocked() error {
 }
 
 func readJSON[T any](path string) (*T, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if len(bytesTrimSpace(data)) == 0 {
-		return nil, nil
-	}
 	var out T
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("im: parse %s: %w", filepath.Base(path), err)
+	ok, err := storefs.ReadJSON("im", path, &out, true)
+	if err != nil || !ok {
+		return nil, err
 	}
 	return &out, nil
 }
 
-func bytesTrimSpace(b []byte) []byte {
-	return []byte(strings.TrimSpace(string(b)))
-}
-
 func writeJSON(path string, v any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		// Windows: rename over existing can fail; write directly as fallback.
-		return os.WriteFile(path, data, 0o644)
-	}
-	return nil
+	return storefs.WriteFileAtomic(path, data, 0o644)
 }
 
 func parseIMList(raw json.RawMessage) ([]Entry, string) {

@@ -67,6 +67,15 @@ function createComponentsService(deps = {}) {
       .finally(() => busy.delete(id));
   }
 
+  function expectedProcessFor(id, rec) {
+    if (!rec || !store.validComponentId(id) || !store.validComponentVersion(rec.version)) {
+      return { id };
+    }
+    const vDir = store.versionDir(root, id, rec.version);
+    const manifest = registry.readManifest(vDir, deps);
+    return manifest ? { id, version: rec.version, entryFile: manifest.entryFile } : { id, version: rec.version };
+  }
+
   // Reconcile persisted 'running' records with reality — a pid written by a
   // previous launcher process survives in the registry and is adopted here;
   // a dead pid marks the component stopped with evidence in lastError.
@@ -80,7 +89,7 @@ function createComponentsService(deps = {}) {
       if (procs.has(rec.id)) {
         continue;
       }
-      if (lifecycle.isPidAlive(rec.pid, deps)) {
+      if (lifecycle.isPidAlive(rec.pid, { ...deps, expectedProcess: expectedProcessFor(rec.id, rec) })) {
         continue;
       }
       rec.state = 'stopped';
@@ -141,8 +150,20 @@ function createComponentsService(deps = {}) {
   // Stage payload → verify staged manifest → swap into versions/<v>. A broken
   // stage never touches the active dir.
   async function stagePayload(id, manifest, onProgress, op) {
+    if (!store.validComponentId(id)) {
+      throw Object.assign(new Error('invalid component id'), { code: 'invalid-id' });
+    }
+    if (!manifest || !store.validComponentVersion(manifest.version)) {
+      throw Object.assign(new Error('invalid component version'), { code: 'bad-payload' });
+    }
+    const syncFs = deps.fs || require('fs');
+    const versionsRoot = store.versionsDir(root, id);
     const staging = store.stagingDir(root, id);
     const target = store.versionDir(root, id, manifest.version);
+    if (!store.isContainedPath(root, versionsRoot, { allowEqual: false, fsp: syncFs }) ||
+      !store.isContainedPath(versionsRoot, target, { allowEqual: false, fsp: syncFs })) {
+      throw Object.assign(new Error('component target escapes component root'), { code: 'bad-payload' });
+    }
     emit(onProgress, { id, op, phase: 'copy', percent: 30 });
     await lifecycle.removeDir(staging, deps);
     await lifecycle.copyDir(manifest.dir, staging, deps);
@@ -153,14 +174,11 @@ function createComponentsService(deps = {}) {
       throw Object.assign(new Error('staged payload failed manifest verification'), { code: 'bad-payload' });
     }
     emit(onProgress, { id, op, phase: 'switch', percent: 75 });
-    if (!store.validComponentId(id)) {
-      throw Object.assign(new Error('invalid component id'), { code: 'invalid-id' });
-    }
     if (!await lifecycle.removeDir(target, deps)) {
       await lifecycle.removeDir(staging, deps);
       throw Object.assign(new Error(`cannot replace ${target}`), { code: 'switch-failed' });
     }
-    const fsp = (deps.fs || require('fs')).promises;
+    const fsp = syncFs.promises;
     await fsp.mkdir(path.dirname(target), { recursive: true });
     try {
       await fsp.rename(staging, target);
@@ -172,9 +190,18 @@ function createComponentsService(deps = {}) {
   }
 
   function activePayload(id, rec) {
+    if (!rec || !store.validComponentId(id) || !store.validComponentVersion(rec.version)) {
+      return null;
+    }
+    const syncFs = deps.fs || require('fs');
+    const versionsRoot = store.versionsDir(root, id);
     const dir = store.versionDir(root, id, rec.version);
+    if (!store.isContainedPath(root, versionsRoot, { allowEqual: false, fsp: syncFs }) ||
+      !store.isContainedPath(versionsRoot, dir, { allowEqual: false, fsp: syncFs })) {
+      return null;
+    }
     const manifest = registry.readManifest(dir, deps);
-    return manifest ? { dir, manifest } : null;
+    return manifest && manifest.id === id && manifest.version === rec.version ? { dir, manifest } : null;
   }
 
   function attachSupervision(id, child, gen, onProgress) {
@@ -248,18 +275,22 @@ function createComponentsService(deps = {}) {
     }
   }
 
-  async function waitStopped(pid, graceMs = STOP_GRACE_MS) {
+  async function waitStopped(pid, graceMs = STOP_GRACE_MS, expectedProcess = null) {
     const deadline = Date.now() + graceMs;
+    const probeDeps = expectedProcess ? { ...deps, expectedProcess } : deps;
     while (Date.now() < deadline) {
-      if (!lifecycle.isPidAlive(pid, deps)) {
+      if (!lifecycle.isPidAlive(pid, probeDeps)) {
         return true;
       }
       await new Promise((resolve) => setTimeout(resolve, Math.min(200, Math.max(0, deadline - Date.now()))));
     }
-    return !lifecycle.isPidAlive(pid, deps);
+    return !lifecycle.isPidAlive(pid, probeDeps);
   }
 
   async function stopComponent(id, onProgress, op) {
+    if (!store.validComponentId(id)) {
+      return { ok: false, error: 'invalid-id', id };
+    }
     const rec = recordFor(id);
     if (!rec) {
       return { ok: false, error: 'not-installed', id };
@@ -277,11 +308,12 @@ function createComponentsService(deps = {}) {
       }
     }
     if (pid) {
-      lifecycle.killPid(pid, { force: false }, deps);
-      let dead = await waitStopped(pid, deps.stopSoftGraceMs ?? 1500);
+      const expectedProcess = expectedProcessFor(id, rec);
+      lifecycle.killPid(pid, { force: false, expectedProcess }, deps);
+      let dead = await waitStopped(pid, deps.stopSoftGraceMs ?? 1500, expectedProcess);
       if (!dead) {
-        lifecycle.killPid(pid, { force: true }, deps);
-        dead = await waitStopped(pid, deps.stopGraceMs ?? STOP_GRACE_MS);
+        lifecycle.killPid(pid, { force: true, expectedProcess }, deps);
+        dead = await waitStopped(pid, deps.stopGraceMs ?? STOP_GRACE_MS, expectedProcess);
       }
       if (!dead) {
         // Retain the exact supervised/recorded PID for a later stop retry.
@@ -303,11 +335,15 @@ function createComponentsService(deps = {}) {
   }
 
   async function startComponent(id, onProgress, op = 'start') {
+    if (!store.validComponentId(id)) {
+      return { ok: false, error: 'invalid-id', id };
+    }
     const rec = recordFor(id);
     if (!rec) {
       return { ok: false, error: 'not-installed', id };
     }
-    if (rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, deps)) {
+    const expectedProcess = expectedProcessFor(id, rec);
+    if (rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, { ...deps, expectedProcess })) {
       return { ok: true, state: 'running', id, pid: rec.pid, url: rec.url };
     }
     const payload = activePayload(id, rec);
@@ -466,6 +502,9 @@ function createComponentsService(deps = {}) {
 
   function update(id, onProgress) {
     id = typeof id === 'string' ? id.trim() : '';
+    if (!store.validComponentId(id)) {
+      return Promise.resolve({ ok: false, error: 'invalid-id', id });
+    }
     return withLock(id, async () => {
       const rec = recordFor(id);
       if (!rec) {
@@ -480,7 +519,7 @@ function createComponentsService(deps = {}) {
       if (registry.compareVersions(latest.version, from) <= 0) {
         return { ok: false, error: 'no-newer-version', id, from, to: from };
       }
-      const wasRunning = rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, deps);
+      const wasRunning = rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, { ...deps, expectedProcess: expectedProcessFor(id, rec) });
       if (wasRunning) {
         emit(onProgress, { id, op: 'update', phase: 'stop', percent: 10 });
         const stopped = await stopComponent(id, onProgress, 'update');
@@ -503,8 +542,11 @@ function createComponentsService(deps = {}) {
       rec.lastError = '';
       rec.updatedAt = new Date().toISOString();
       writeRegistry();
-      if (oldPrevious && oldPrevious !== rec.previous && oldPrevious !== rec.version) {
-        await lifecycle.removeDir(store.versionDir(root, id, oldPrevious), deps);
+      if (oldPrevious && oldPrevious !== rec.previous && oldPrevious !== rec.version && store.validComponentVersion(oldPrevious)) {
+        const oldDir = store.versionDir(root, id, oldPrevious);
+        if (store.isContainedPath(store.versionsDir(root, id), oldDir, { allowEqual: false, fsp: deps.fs || require('fs') })) {
+          await lifecycle.removeDir(oldDir, deps);
+        }
       }
       if (wasRunning) {
         const restarted = await startComponent(id, onProgress, 'update');
@@ -519,6 +561,9 @@ function createComponentsService(deps = {}) {
 
   function rollback(id, onProgress) {
     id = typeof id === 'string' ? id.trim() : '';
+    if (!store.validComponentId(id)) {
+      return Promise.resolve({ ok: false, error: 'invalid-id', id });
+    }
     return withLock(id, async () => {
       const rec = recordFor(id);
       if (!rec) {
@@ -528,15 +573,27 @@ function createComponentsService(deps = {}) {
         return { ok: false, error: 'nothing-to-rollback', id, to: rec.version };
       }
       const target = rec.previous;
+      if (!store.validComponentVersion(target)) {
+        return { ok: false, error: 'rollback-payload-missing', id, to: rec.version };
+      }
       const fsp = deps.fs || require('fs');
+      const versionsRoot = store.versionsDir(root, id);
+      const targetDir = store.versionDir(root, id, target);
+      if (!store.isContainedPath(versionsRoot, targetDir, { allowEqual: false, fsp })) {
+        return { ok: false, error: 'rollback-payload-missing', id, to: rec.version };
+      }
       try {
-        if (!fsp.statSync(store.versionDir(root, id, target)).isDirectory()) {
+        if (!fsp.statSync(targetDir).isDirectory()) {
           return { ok: false, error: 'rollback-payload-missing', id, to: rec.version };
         }
       } catch {
         return { ok: false, error: 'rollback-payload-missing', id, to: rec.version };
       }
-      const wasRunning = rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, deps);
+      const verified = registry.readManifest(targetDir, deps);
+      if (!verified || verified.id !== id || verified.version !== target) {
+        return { ok: false, error: 'rollback-payload-missing', id, to: rec.version };
+      }
+      const wasRunning = rec.state === 'running' && rec.pid && lifecycle.isPidAlive(rec.pid, { ...deps, expectedProcess: expectedProcessFor(id, rec) });
       if (wasRunning) {
         emit(onProgress, { id, op: 'rollback', phase: 'stop', percent: 15 });
         const stopped = await stopComponent(id, onProgress, 'rollback');
@@ -566,6 +623,9 @@ function createComponentsService(deps = {}) {
 
   function uninstall(id, onProgress) {
     id = typeof id === 'string' ? id.trim() : '';
+    if (!store.validComponentId(id)) {
+      return Promise.resolve({ ok: false, error: 'invalid-id', id });
+    }
     return withLock(id, async () => {
       const rec = recordFor(id);
       if (!rec) {
@@ -577,7 +637,14 @@ function createComponentsService(deps = {}) {
         if (!stopped.ok) return stopped;
       }
       emit(onProgress, { id, op: 'uninstall', phase: 'remove', percent: 60 });
-      if (!await lifecycle.removeDir(store.versionsDir(root, id), deps)) {
+      const versionsRoot = store.versionsDir(root, id);
+      const syncFs = deps.fs || require('fs');
+      if (!store.isContainedPath(root, versionsRoot, { allowEqual: false, fsp: syncFs })) {
+        rec.lastError = '组件目录路径无效，已拒绝删除。';
+        writeRegistry();
+        return { ok: false, error: 'remove-failed', id, message: rec.lastError };
+      }
+      if (!await lifecycle.removeDir(versionsRoot, deps)) {
         rec.lastError = '组件程序文件删除失败，请重试卸载。';
         writeRegistry();
         return { ok: false, error: 'remove-failed', id, message: rec.lastError };
@@ -610,8 +677,9 @@ function createComponentsService(deps = {}) {
         }
       }
       if (rec.state === 'running' && rec.pid) {
-        lifecycle.killPid(rec.pid, { force: true }, deps);
-        if (lifecycle.isPidAlive(rec.pid, deps)) {
+        const expectedProcess = expectedProcessFor(rec.id, rec);
+        lifecycle.killPid(rec.pid, { force: true, expectedProcess }, deps);
+        if (lifecycle.isPidAlive(rec.pid, { ...deps, expectedProcess })) {
           // Quit cannot await asynchronously; retain retry ownership on disk.
           rec.lastError = '退出时组件进程终止尚未确认。';
         } else {

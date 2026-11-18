@@ -1,0 +1,85 @@
+{
+  "candidate": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-idle-0.2.0-candidate.exe",
+  "runtime": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\vendor",
+  "profile": "same owned synthetic profile after prime",
+  "coverage": "hidden",
+  "rows": [
+    {
+      "mode": "prime",
+      "nodeToReadylineMs": 5580.085,
+      "milestonesMs": {
+        "host.spawned": 683.402,
+        "host.readyline": 6263.487,
+        "host.ready": 6833.232,
+        "workspace.ready": 7126.278,
+        "plugins.inventory_ready": 7880.943
+      },
+      "hook": null,
+      "zeroWebViewSampled": true
+    },
+    {
+      "mode": "baseline",
+      "nodeToReadylineMs": 5562.456,
+      "milestonesMs": {
+        "host.spawned": 571.589,
+        "host.readyline": 6134.045,
+        "host.ready": 6735.928,
+        "workspace.ready": 7040.243,
+        "plugins.inventory_ready": 7867.716
+      },
+      "hook": null,
+      "zeroWebViewSampled": true
+    },
+    {
+      "mode": "learn",
+      "nodeToReadylineMs": 5339.396000000001,
+      "milestonesMs": {
+        "host.spawned": 464.203,
+        "host.readyline": 5803.599,
+        "host.ready": 6397.778,
+        "workspace.ready": 6648.984,
+        "plugins.inventory_ready": 7404.088
+      },
+      "hook": {
+        "mode": "learn",
+        "entries": 3610,
+        "hits": 0,
+        "misses": 4257,
+        "elapsedMs": 5288.4063
+      },
+      "zeroWebViewSampled": true
+    },
+    {
+      "mode": "replay",
+      "nodeToReadylineMs": 4121.429999999999,
+      "milestonesMs": {
+        "host.spawned": 468.492,
+        "host.readyline": 4589.922,
+        "host.ready": 5157.808,
+        "workspace.ready": 5433.668,
+        "plugins.inventory_ready": 6415.71
+      },
+      "hook": {
+        "mode": "replay",
+        "entries": 3610,
+        "hits": 3618,
+        "misses": 639,
+        "elapsedMs": 4079.1858
+      },
+      "zeroWebViewSampled": true
+    },
+    {
+      "mode": "baseline",
+      "nodeToReadylineMs": 5880.66,
+      "milestonesMs": {
+        "host.spawned": 632.724,
+        "host.readyline": 6513.384,
+        "host.ready": 7138.175,
+        "workspace.ready": 7438.822,
+        "plugins.inventory_ready": 8345.63
+      },
+      "hook": null,
+      "zeroWebViewSampled": true
+    }
+  ]
+}

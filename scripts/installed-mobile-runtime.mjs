@@ -49,7 +49,8 @@ export async function completeInstalledMobile(resources, stageRoot, webDestinati
   const host = await verifyStagedSessionRuntime(path.join(stageRoot, 'vendor'));
   const archive = archiveReader(path.join(resources, 'app.asar'));
   const identity = JSON.parse(archive.read('package.json'));
-  if (identity.name !== 'deepseek-harness-desktop' || identity.version !== '0.3.14' || host.cliVersion !== '0.2.1-rc.4') throw Error('Expected shipped Whale Isle 0.3.14 with the staged rc.4 Host');
+  const desktopByHost = {'0.2.1-rc.4': '0.3.14', '0.2.2-rc.2': '0.3.15'};
+  if (identity.name !== 'deepseek-harness-desktop' || identity.version !== desktopByHost[host.cliVersion]) throw Error('Installed desktop and staged Host do not form a supported pair');
   const root = path.join(stageRoot, 'vendor/dshd-remote');
   for (const relative of ['src', 'mobile', 'vendor', 'node.exe', 'staging-manifest.json']) {
     if (fs.existsSync(path.join(root, relative))) throw Error(`Mobile completion requires an unassembled stage: ${relative}`);
@@ -97,7 +98,7 @@ export async function completeInstalledMobile(resources, stageRoot, webDestinati
   fs.mkdirSync(nested, {recursive: true});
   fs.symlinkSync(process.platform === 'win32' ? path.join(root, 'node_modules') : '../../node_modules', path.join(nested, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   for (const name of ['LICENSE', 'NOTICE']) fs.copyFileSync(path.join(root, name), path.join(nested, name), fs.constants.COPYFILE_EXCL);
-  write('source-provenance.json', JSON.stringify({schemaVersion: 1, profile: 'installed-rc4', source: {product: identity.name, version: identity.version, resources}, modifications}, null, 2) + '\n');
+  write('source-provenance.json', JSON.stringify({schemaVersion: 1, profile: host.cliVersion === '0.2.1-rc.4' ? 'installed-rc4' : 'installed-0.2.2-rc.2', source: {product: identity.name, version: identity.version, resources}, modifications}, null, 2) + '\n');
   return recordInstalled(root);
 }
 

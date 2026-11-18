@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -268,6 +271,12 @@ func (a Actions) Inspect() {
 		}
 		inspection, err := client.Inspect(ctx, spec, selected)
 		automatic := false
+		if err == nil {
+			enrichInspectionCapabilities(spec, &inspection)
+			if inspection.Capabilities != nil && inspection.Capabilities.InstallError != "" {
+				err = errors.New(inspection.Capabilities.InstallError)
+			}
+		}
 		c.patch(a.owner, func(s *State) {
 			if c.installRead != read || s.Install.Spec != spec || s.Install.Registry != registry {
 				return
@@ -279,10 +288,20 @@ func (a Actions) Inspect() {
 				return
 			}
 			s.Install.Inspection = &inspection
-			if inspection.Bundle != nil && !*inspection.Bundle {
-				s.Install.Error = "The package does not declare a plugin bundle."
+			s.Install.Capabilities = inspection.Capabilities
+			s.Install.CapabilityKind = inspection.CapabilityKind
+			if inspection.Capabilities != nil {
+				s.Install.Guidance = inspection.Capabilities.Guidance
+			} else {
+				s.Install.Guidance = ""
 			}
-			if inspection.Status != "accepted" {
+			if inspection.Capabilities != nil && inspection.Capabilities.Kind == CapabilityWebUIOnly && inspection.Bundle != nil && !*inspection.Bundle {
+				s.Install.Error = inspection.Capabilities.Guidance
+			} else if isNonBundleCapabilityGuidance(inspection) {
+				s.Install.Error = inspection.Capabilities.Guidance
+			} else if inspection.Bundle != nil && !*inspection.Bundle && !nativeCapabilityInstallReady(&inspection) {
+				s.Install.Error = "The package does not declare a plugin bundle."
+			} else if inspection.Status != "accepted" {
 				s.Install.Error = inspection.Problem + ": " + inspection.Reason
 			}
 			automatic = s.Install.Error == ""
@@ -292,18 +311,88 @@ func (a Actions) Inspect() {
 		}
 	}()
 }
+
+func enrichInspectionCapabilities(spec string, inspection *Inspection) {
+	if inspection == nil {
+		return
+	}
+	if inspection.Capabilities == nil {
+		var caps PackageCapabilities
+		if dir := fileSpecToDir(spec); dir != "" {
+			if localCaps, err := InspectLocalPackage(dir); err == nil {
+				caps = localCaps
+				if inspection.Name == "" {
+					switch {
+					case len(caps.MCPServers) > 0:
+						inspection.Name = caps.MCPServers[0]
+					case len(caps.SkillNames) > 0:
+						inspection.Name = caps.SkillNames[0]
+					default:
+						inspection.Name = filepath.Base(dir)
+					}
+				}
+			}
+		}
+		if caps.Kind == "" || caps.Kind == CapabilityUnknown {
+			inferred := InferCapabilityFromCatalogMetadata("", spec, inspection.Name, inspection.Description)
+			if inferred.Kind != CapabilityUnknown {
+				caps = inferred
+			} else if inspection.Bundle != nil && *inspection.Bundle {
+				caps.HasHostContribution = true
+				caps.HasBundle = true
+				finalizeCapabilities(&caps)
+			}
+		}
+		inspection.Capabilities = &caps
+	}
+	if inspection.Capabilities != nil {
+		inspection.CapabilityKind = inspection.Capabilities.Kind
+	}
+	if nativeCapabilityInstallReady(inspection) {
+		inspection.Status = "accepted"
+		inspection.Problem = ""
+		inspection.Reason = ""
+	}
+}
+
+func nativeCapabilityInstallReady(inspection *Inspection) bool {
+	if inspection == nil || inspection.Capabilities == nil || inspection.Capabilities.InstallError != "" {
+		return false
+	}
+	// A package can advertise a JS main entry alongside MCP/skills without
+	// declaring a Cordis bundle. The explicit local definitions own this path.
+	return !inspection.Capabilities.HasBundle && (len(inspection.Capabilities.MCPServerSpecs) > 0 || len(inspection.Capabilities.LocalSkills) > 0)
+}
+
+func isNonBundleCapabilityGuidance(inspection Inspection) bool {
+	if inspection.Capabilities == nil {
+		return false
+	}
+	kind := inspection.Capabilities.Kind
+	if kind != CapabilityMCP && kind != CapabilitySkill {
+		return false
+	}
+	if nativeCapabilityInstallReady(&inspection) {
+		return false
+	}
+	notBundle := inspection.Problem == "not-a-bundle" || inspection.Problem == "not-a-package" || (inspection.Bundle != nil && !*inspection.Bundle)
+	return notBundle && inspection.Capabilities.Guidance != ""
+}
+
 func (a Actions) RequestInstall() {
 	c := a.c
 	c.mu.Lock()
 	s := &c.state
 	i := &s.Install
-	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || (i.Inspection.Bundle != nil && !*i.Inspection.Bundle) || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
+	blockedBundle := i.Inspection != nil && i.Inspection.Bundle != nil && !*i.Inspection.Bundle && !nativeCapabilityInstallReady(i.Inspection)
+	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || blockedBundle || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
 		c.mu.Unlock()
 		return
 	}
 	id := requestID()
 	enabled := i.Enabled
-	if enabled == nil {
+	isNative := nativeCapabilityInstallReady(i.Inspection)
+	if enabled == nil && !isNative {
 		disabled := false
 		enabled = &disabled
 	}
@@ -315,6 +404,19 @@ func (a Actions) RequestInstall() {
 	remember := i.Enabled != nil && !i.TransientRegistry
 	choice := i.RegistrySelection
 	op := action{kind: "install", spec: i.Spec, target: i.Inspection.Name, owner: a.owner, revision: c.revision, options: options}
+	if isNative {
+		op.capabilityKind = i.Inspection.Capabilities.Kind
+		op.mcpSpecs = append([]json.RawMessage(nil), i.Inspection.Capabilities.MCPServerSpecs...)
+		op.localSkills = append([]LocalSkillManifest(nil), i.Inspection.Capabilities.LocalSkills...)
+	}
+	if nativeAction(op) {
+		if err := prepareNativeAction(&op); err != nil {
+			i.Error = err.Error()
+			c.mu.Unlock()
+			c.fire()
+			return
+		}
+	}
 	i.RequestID = id
 	i.Phase = "checking"
 	i.DetailsOpen = false
@@ -423,6 +525,19 @@ func (a Actions) cancelInstall(expectedID string) {
 		c.mu.Unlock()
 		return
 	}
+	if c.state.Owner == a.owner && c.nativeInstall != nil && c.nativeInstall.options.RequestID == i.RequestID && installPending(i.Phase) {
+		if c.nativeCancel != nil {
+			c.nativeCancel()
+			c.nativeCancel = nil
+		}
+		i.CancellationRequested = true
+		i.Phase = "unconfirmed"
+		i.Error = "Installation interrupted. Confirm the Host result before retrying."
+		c.state.Busy = false
+		c.mu.Unlock()
+		c.fire()
+		return
+	}
 	if c.state.Owner == a.owner && (i.Phase == "checking" || i.Phase == "failed" || i.Phase == "unknown") {
 		if c.inspectCancel != nil {
 			c.inspectCancel()
@@ -515,11 +630,26 @@ func (c *Controller) reconcileInstall(owner uint64, id string) {
 		return
 	}
 	client, ctx := Client{c.client}, c.life
+	var native *action
+	if c.nativeInstall != nil && c.nativeInstall.options.RequestID == id {
+		copy := *c.nativeInstall
+		native = &copy
+	}
 	c.state.Install.Recovering = true
 	c.mu.Unlock()
 	c.fire()
 	go func() {
-		result, err := client.WaitInstall(ctx, id)
+		var result *Change
+		var err error
+		if native != nil {
+			var confirmed Change
+			confirmed, err = client.reconcileNative(ctx, *native)
+			if err == nil {
+				result = &confirmed
+			}
+		} else {
+			result, err = client.WaitInstall(ctx, id)
+		}
 		settled := false
 		c.patch(owner, func(s *State) {
 			if s.Install.RequestID != id {

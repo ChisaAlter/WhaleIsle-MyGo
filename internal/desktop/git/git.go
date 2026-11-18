@@ -123,21 +123,44 @@ func FormatBadge(s Snapshot) string {
 
 // Fetch runs `git fetch` in workspaceRoot and returns combined stdout/stderr.
 func Fetch(workspaceRoot string) (string, error) {
+	release, err := acquireBackgroundWrite(workspaceRoot, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	return runGitCommand(workspaceRoot, DefaultCommandTimeout, combinedExecRunner, "fetch")
 }
 
 // Pull updates only by fast-forward; divergent history is left for explicit resolution.
 func Pull(workspaceRoot string) (string, error) {
+	release, err := acquireBackgroundWrite(workspaceRoot, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	return runGitCommand(workspaceRoot, DefaultCommandTimeout, combinedExecRunner, "pull", "--ff-only")
 }
 
 // Push runs `git push` in workspaceRoot and returns combined stdout/stderr.
 func Push(workspaceRoot string) (string, error) {
+	release, err := acquireBackgroundWrite(workspaceRoot, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	return runGitCommand(workspaceRoot, DefaultCommandTimeout, combinedExecRunner, "push")
 }
 
 // CommitAll runs `git add -A` then `git commit -m` in workspaceRoot.
 func CommitAll(workspaceRoot, message string) (string, error) {
+	if strings.TrimSpace(message) == "" {
+		return "", ErrEmptyCommitMessage
+	}
+	release, err := acquireBackgroundWrite(workspaceRoot, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	return commitAll(workspaceRoot, message, DefaultCommandTimeout, combinedExecRunner)
 }
 
@@ -166,6 +189,7 @@ func combinedDiffRunner(ctx context.Context, dir, name string, args ...string) (
 	cmd := exec.CommandContext(ctx, name, args...)
 	configureGitProcess(cmd)
 	cmd.Dir = dir
+	cmd.Env = gitChildEnv()
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return out, nil

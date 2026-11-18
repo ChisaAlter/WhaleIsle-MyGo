@@ -118,7 +118,7 @@ func (s *Store) writeShortcutDocument(data []byte, initialize bool) error {
 	if !current {
 		return ErrConflict
 	}
-	if err = writeAtomic(s.path, encoded, s.rename); err != nil {
+	if err = writeAtomic(s.path, encoded, s.guardedRenameFor(baseline)); err != nil {
 		return err
 	}
 	next := fileBaseline{exists: true, data: encoded}

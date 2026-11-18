@@ -142,6 +142,13 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 					ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 							ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+							if badge := capabilityBadgeLabel(i.CapabilityKind, i.NativeCompatibilityLabel); badge != "" {
+								badgeInk, badgeBorder := muted, border
+								if i.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
+									badgeInk, badgeBorder = accent, accent
+								}
+								ui.Text(c, badge).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, badgeBorder).TextColor(badgeInk).Tooltip(capabilityGuidanceText(i.CapabilityKind, i.Capabilities.Guidance))
+							}
 							if i.Deprecated {
 								ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, accent).TextColor(accent)
 							}
@@ -156,6 +163,9 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 					})
 				})
 				ui.Text(c, i.Description).FillWidth().MinWidth(0).MaxLines(2).MinHeight(36).FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(i.Description)
+				if i.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
+					ui.Text(c, capabilityGuidanceText(i.CapabilityKind, i.Capabilities.Guidance)).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+				}
 				ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted)
 					favoriteButton(c, m, i.ID)
@@ -249,8 +259,20 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 				card.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
 						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-							ui.Text(c, r.Label).FillWidth().SingleLine().Tooltip(r.Label).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+							ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
+								ui.Text(c, r.Label).Shrink(1).MinWidth(0).SingleLine().Tooltip(r.Label).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+								if badge := capabilityBadgeLabel(r.CapabilityKind, r.NativeCompatibilityLabel); badge != "" {
+									badgeInk, badgeBorder := muted, border
+									if r.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
+										badgeInk, badgeBorder = accent, accent
+									}
+									ui.Text(c, badge).FontSize(theme.InterfaceSize(11)).Padding(1, 7).Radius(999).Border(.5, badgeBorder).TextColor(badgeInk).Tooltip(capabilityGuidanceText(r.CapabilityKind, ""))
+								}
+							})
 							ui.Text(c, r.Detail).FillWidth().SingleLine().Tooltip(r.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+							if r.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
+								ui.Text(c, capabilityGuidanceText(r.CapabilityKind, "")).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(accent)
+							}
 							if r.ReadOnlyReason != "" {
 								ui.Text(c, r.ReadOnlyReason).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
 							}
@@ -341,7 +363,19 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 					catalogMetadata(c, marketText("作者", "Author"), item.Owner, fg, muted)
 					catalogMetadata(c, marketText("来源", "Source"), item.InstallSpec, fg, muted)
 					catalogMetadata(c, marketText("上架时间", "Added"), item.Added, fg, muted)
-					catalogMetadata(c, marketText("兼容性", "Compatibility"), marketText("未知", "Unknown"), fg, muted)
+					compatKind, compatLabel, compatGuidance := resolveDetailsCapability(item, d.Details)
+					compatValue := capabilityBadgeLabel(compatKind, compatLabel)
+					if compatValue == "" {
+						compatValue = marketText("未知", "Unknown")
+					}
+					catalogMetadata(c, marketText("兼容性", "Compatibility"), compatValue, fg, muted)
+					if compatGuidance != "" {
+						guidanceInk := muted
+						if compatKind == desktopmarket.CapabilityWebUIOnly {
+							guidanceInk = accent
+						}
+						ui.Text(c, compatGuidance).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(guidanceInk)
+					}
 					if item.Deprecated {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecatedInstallationIsNotOffered), "Deprecated; installation unavailable.")+" "+item.Replacement).FillWidth().TextColor(accent)
 					}
@@ -413,3 +447,93 @@ func marketIconTile(c *ui.Context, item desktopmarket.CatalogItem, muted, border
 
 // marketRefreshIcon is the circular-arrow glyph of the header's refresh button.
 var marketRefreshIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))
+
+func capabilityBadgeLabel(kind desktopmarket.CapabilityKind, rawLabel string) string {
+	trimmed := strings.TrimSpace(rawLabel)
+	var zhDefault, enDefault string
+	switch kind {
+	case desktopmarket.CapabilityPureHost:
+		zhDefault, enDefault = "纯原生可用 (Pure Host)", "Pure native (Host)"
+	case desktopmarket.CapabilityHybrid:
+		zhDefault, enDefault = "原生兼容 + 可选 Web (Hybrid)", "Native + Web (Hybrid)"
+	case desktopmarket.CapabilityMCP:
+		zhDefault, enDefault = "MCP 服务 (原生支持)", "MCP server (Native)"
+	case desktopmarket.CapabilitySkill:
+		zhDefault, enDefault = "Skill 技能包 (原生支持)", "Skill package (Native)"
+	case desktopmarket.CapabilityWebUIOnly:
+		zhDefault, enDefault = "仅 Web 界面 (需兼容工作台)", "Web UI only"
+	case desktopmarket.CapabilityUnknown, "":
+		if trimmed != "" && trimmed != "未探测" {
+			return trimmed
+		}
+		return ""
+	default:
+		if trimmed != "" {
+			return trimmed
+		}
+		return string(kind)
+	}
+	if i18n.Locale() == i18n.LocaleZH {
+		if trimmed != "" {
+			return trimmed
+		}
+		return zhDefault
+	}
+	if trimmed != "" && trimmed != zhDefault && trimmed != "未探测" {
+		return trimmed
+	}
+	return enDefault
+}
+
+func capabilityGuidanceText(kind desktopmarket.CapabilityKind, rawGuidance string) string {
+	switch kind {
+	case desktopmarket.CapabilityWebUIOnly:
+		return marketText(
+			"清单声明 Web UI 面板；在兼容工作台中打开后确认实际页面。",
+			"Manifest declares a Web UI; open the compatibility workbench to resolve its live panels.",
+		)
+	case desktopmarket.CapabilityHybrid:
+		return marketText(
+			"清单声明 Host 与 Web 能力；后端状态以 Host 为准，页面在兼容工作台中解析。",
+			"Host features run natively when enabled; the manifest's optional panels resolve in the compatibility workbench.",
+		)
+	case desktopmarket.CapabilityMCP:
+		return marketText(
+			"清单声明 MCP 服务；配置、连接与工具状态在 MCP 设置中确认。",
+			"Declared MCP server; confirm configuration, connection and tools in MCP Settings.",
+		)
+	case desktopmarket.CapabilitySkill:
+		return marketText(
+			"清单声明 Skill 技能；安装后在技能列表确认内容和调用权限。",
+			"Declared Skill package; confirm installed content and invocation settings in Skills.",
+		)
+	case desktopmarket.CapabilityPureHost:
+		return marketText(
+			"清单声明后端能力，无需 WebView2；实际启用与健康状态以 Host 为准。",
+			"Manifest declares Host capabilities without WebView2; the Host reports enabled and health state.",
+		)
+	default:
+		return strings.TrimSpace(rawGuidance)
+	}
+}
+
+func resolveDetailsCapability(item desktopmarket.CatalogItem, details desktopmarket.Details) (desktopmarket.CapabilityKind, string, string) {
+	kind := details.CapabilityKind
+	label := details.NativeCompatibilityLabel
+	guidance := details.Capabilities.Guidance
+	if kind == "" || kind == desktopmarket.CapabilityUnknown {
+		if item.CapabilityKind != "" && item.CapabilityKind != desktopmarket.CapabilityUnknown {
+			kind = item.CapabilityKind
+		}
+	}
+	if label == "" {
+		label = details.Capabilities.CompatibilityLabel
+	}
+	if label == "" {
+		label = item.NativeCompatibilityLabel
+	}
+	if guidance == "" {
+		guidance = item.Capabilities.Guidance
+	}
+	return kind, label, capabilityGuidanceText(kind, guidance)
+}

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -20,8 +19,8 @@ import (
 )
 
 // Explicit opt-in: starts only the selected bundled daemon with a throwaway
-// profile. It drives the shipped HTTP route -> Node bridge -> real Go config
-// transaction, without touching a user profile or displaying desktop windows.
+// profile. It rejects bootstrap HTTP access, then applies the real Go config
+// disable transaction without touching a user profile or desktop windows.
 func TestRemoteSaveLiveDesktopTransaction(t *testing.T) {
 	vendor := os.Getenv("WHALEISLE_REMOTE_SAVE_LIVE_VENDOR")
 	if vendor == "" {
@@ -79,10 +78,24 @@ web.MOBILE_WEB_PORT=%d;
 	runtime := phoneremote.NewRuntime()
 	runtime.SetHostActions(phoneremote.HostActions{SaveConfig: s.savePhoneConfigPatch})
 	defer runtime.Stop()
+	relay, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer relay.Close()
+	go func() {
+		for {
+			connection, err := relay.Accept()
+			if err != nil {
+				return
+			}
+			_ = connection.Close()
+		}
+	}()
 	if err := mobileListener.Close(); err != nil {
 		t.Fatal(err)
 	}
-	runtime.Start(root, vendor, map[string]any{"remoteEnabled": true, "remoteMode": "lan", "remoteBindAddress": "127.0.0.1", "remotePort": daemonPort})
+	runtime.Start(root, vendor, map[string]any{"remoteEnabled": true, "remoteMode": "lan", "remoteBindAddress": "127.0.0.1", "remotePort": daemonPort, "remoteRelayEndpoint": relay.Addr().String(), "remoteRelayUseTls": false})
 	var pairing string
 	for end := time.Now().Add(90 * time.Second); time.Now().Before(end); {
 		current := runtime.Snapshot()
@@ -119,82 +132,55 @@ web.MOBILE_WEB_PORT=%d;
 	}
 	client := &http.Client{Timeout: 8 * time.Second, Transport: &http.Transport{Proxy: nil}}
 	defer client.CloseIdleConnections()
-	post := func(patch map[string]any) (int, map[string]any) {
-		t.Helper()
-		raw, err := json.Marshal(map[string]any{"patch": patch})
+	baseline, err := os.ReadFile(store.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{"", offer.Auth.Token} {
+		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/__remote__/shell/saveConfig", mobilePort), strings.NewReader(`{"patch":{"theme":"deepseek.dark"}}`))
 		if err != nil {
 			t.Fatal(err)
 		}
-		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/__remote__/shell/saveConfig", mobilePort), bytes.NewReader(raw))
-		if err != nil {
-			t.Fatal(err)
-		}
-		request.Header.Set("authorization", "Bearer "+offer.Auth.Token)
+		request.Header.Set("authorization", "Bearer "+token)
 		request.Header.Set("content-type", "application/json")
 		response, err := client.Do(request)
 		if err != nil {
 			t.Fatal("owned shell request failed")
 		}
-		defer response.Body.Close()
-		payload, err := io.ReadAll(io.LimitReader(response.Body, 16384))
-		if err != nil {
-			t.Fatal(err)
+		payload, readErr := io.ReadAll(io.LimitReader(response.Body, 16384))
+		response.Body.Close()
+		if readErr != nil || response.StatusCode != http.StatusUnauthorized || strings.TrimSpace(string(payload)) != "unauthorized" {
+			t.Fatalf("retired shell accepted bootstrap credential: status=%d", response.StatusCode)
 		}
-		var result map[string]any
-		if err := json.Unmarshal(payload, &result); err != nil {
-			t.Fatalf("owned shell returned invalid JSON (status %d)", response.StatusCode)
-		}
-		return response.StatusCode, result
 	}
-	// Route mounting happens after the first listening snapshot. A no-op save
-	// proves the entire host bridge is ready, rather than merely a TCP listener.
-	ready := false
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end); {
-		status, result := post(map[string]any{})
-		if status == http.StatusOK && result["ok"] == true {
-			ready = true
+	after, err := os.ReadFile(store.Path())
+	if err != nil || !bytes.Equal(baseline, after) {
+		t.Fatal("rejected shell request changed configuration")
+	}
+	// The native desktop transaction remains usable and applies a disable to
+	// the exact owned runtime, independently of the retired HTTP entry point.
+	s.phoneRuntime = runtime
+	if err := store.Update(func(c *config.Config) { c.RemoteEnabled = true }); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := s.savePhoneConfigPatch(map[string]any{"remoteEnabled": false})
+	if err != nil || saved["gatewayState"] != "applying" {
+		t.Fatalf("disable admission: %v %v", saved, err)
+	}
+	for end := time.Now().Add(15 * time.Second); time.Now().Before(end); {
+		if current := runtime.Snapshot(); current.Status == "offline" || current.Status == "disabled" {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(25 * time.Millisecond)
 	}
-	if !ready {
-		t.Fatal("owned desktop save bridge did not become ready")
+	if current := runtime.Snapshot(); current.Listening || current.Status == "stopping" || current.Status == "stop-failed" {
+		t.Fatalf("saved disable did not finish: %s", current.Status)
 	}
-	before := store.Get()
-	baseline, err := os.ReadFile(store.Path())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, patch := range []map[string]any{
-		{"theme": 42},
-		{"theme": "deepseek.dark", "locale": 42},
-		{"theme": "deepseek.dark", "remotePort": 3499.5},
-		{"theme": "deepseek.dark", "remoteBindAddress": "not-an-ip"},
-		{"theme": "deepseek.dark", "remoteAppBaseUrl": "http://[fd00::1]/pair"},
-		{"theme": "deepseek.dark", "remoteAppBaseUrl": "https://example.com/pair?token=x"},
-	} {
-		status, result := post(patch)
-		if status != http.StatusBadRequest || result["ok"] != false || result["error"] == nil || result["result"] != nil {
-			t.Fatalf("invalid HTTP patch reported success: status=%d result=%v", status, result)
-		}
-		after, err := os.ReadFile(store.Path())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(after, baseline) || !reflect.DeepEqual(store.Get(), before) {
-			t.Fatal("invalid HTTP patch changed the on-disk or in-memory config")
+	for _, port := range []int{mobilePort, daemonPort} {
+		if connection, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 200*time.Millisecond); err == nil {
+			connection.Close()
+			t.Fatalf("owned listener %d survived saved disable", port)
 		}
 	}
-	status, result := post(map[string]any{"theme": "deepseek.dark", "locale": "en"})
-	if status != http.StatusOK || result["ok"] != true {
-		t.Fatalf("valid HTTP patch failed: status=%d result=%v", status, result)
-	}
-	reopened, err := config.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := reopened.Get(); got.Theme != "deepseek.dark" || got.Locale != "en" {
-		t.Fatal("successful HTTP response was not persisted")
-	}
-	t.Log("real bundled HTTP -> bridge -> desktop transaction rejects invalid and partial saves; valid values survive reopening")
+	t.Log("bundled HTTP rejects bootstrap auth without saving; native config disable closes the owned gateway listeners")
 }

@@ -60,7 +60,7 @@ func init() {
 	Register(KeyCmdComponentConfirmationChanged, "确认期间运行环境已改变，请重新检查组件并确认", "The runtime changed during confirmation; inspect the component and confirm again")
 	Register(KeyCmdComponentLifecycleBusy, "其他生命周期操作正在进行，已保留现有实例和已校验版本", "Another lifecycle action is running; the existing instance and verified version were retained")
 	Register(KeyCmdRuntimeChangedRetry, "运行环境已改变，请重新操作", "The runtime changed; retry the action")
-	Register(KeyCmdComponentTaskProtectionIncomplete, "操作未执行或任务保护未完成；请查看启动器提示后重试", "The action did not run or task protection did not finish; check the launcher notice and retry")
+	Register(KeyCmdComponentTaskProtectionIncomplete, "未更改组件。请先处理任务保护提示，再重试。", "The component did not change. Respond to the task protection prompt before retrying.")
 	Register(KeyCmdComponentConfirmationUnavailable, "无法显示组件操作确认；未更改组件", "Component confirmation is unavailable; the component was not changed")
 	Register(KeyCmdHostSelectionBusy, "其他生命周期操作正在进行，请稍后选择 Host", "Another lifecycle action is running; select the Host later")
 	Register(KeyCmdHostExternalOverride, "请先在启动设置中清空显式 dshBin/nodeBin，并移除 WHALEISLE_VENDOR 覆盖；现有外部运行时未更改", "Clear explicit dshBin/nodeBin in startup settings and remove the WHALEISLE_VENDOR override first; the external runtime was not changed")
@@ -184,6 +184,7 @@ const (
 	KeyCmdProjectHTMLReaderUnavailable     = "cmd.inline.project_h_t_m_l_reader_unavailable"
 	KeyCmdProjectPublishedPageClosed       = "cmd.inline.project_published_page_closed"
 	KeyCmdComposerHostChanged              = "cmd.inline.composer_host_changed"
+	KeyCmdComposerSendTimeout              = "cmd.inline.composer_send_timeout"
 	KeyCmdComposerReplyTargetChanged       = "cmd.inline.composer_reply_target_changed"
 	KeyCmdComposerFileNotRegular           = "cmd.inline.composer_file_not_regular"
 	KeyCmdComposerImageCountLimit          = "cmd.inline.composer_image_count_limit"
@@ -277,6 +278,7 @@ func init() {
 	Register(KeyCmdProjectHTMLReaderUnavailable, "已发布 HTML 阅读器不可用：%s", "published HTML reader is unavailable: %s")
 	Register(KeyCmdProjectPublishedPageClosed, "隔离的已发布页面已关闭", "isolated published page closed")
 	Register(KeyCmdComposerHostChanged, "Host 已改变，草稿已保留", "Host changed; draft retained")
+	Register(KeyCmdComposerSendTimeout, "发送超时，草稿已保留，请重试", "Send timed out; draft retained, please retry")
 	Register(KeyCmdComposerReplyTargetChanged, "回复目标已改变，请重新打开房间", "Reply target changed; reopen the room")
 	Register(KeyCmdComposerFileNotRegular, "不是普通文件：%s", "not a regular file: %s")
 	Register(KeyCmdComposerImageCountLimit, "一条消息最多添加 %d 张图片", "at most %d images per message")
@@ -304,7 +306,6 @@ const (
 	KeyCmdWorkspaceDeleteIDMissing        = "cmd.inline.workspace_delete_i_d_missing"
 	KeyCmdRemoteConfigUnavailable         = "cmd.inline.remote_config_unavailable"
 	KeyCmdTaskConfirmationWindowMissing   = "cmd.inline.task_confirmation_window_missing"
-	KeyCmdTaskCoverageUnknown             = "cmd.inline.task_coverage_unknown"
 	KeyCmdImportBeforeQuit                = "cmd.inline.import_before_quit"
 	KeyCmdRuntimeChangedRetryQuit         = "cmd.inline.runtime_changed_retry_quit"
 	KeyCmdRuntimeChangedRetryStop         = "cmd.inline.runtime_changed_retry_stop"
@@ -349,7 +350,6 @@ func init() {
 	Register(KeyCmdWorkspaceDeleteIDMissing, "无法删除工作区：缺少工作区 ID", "workspace delete: no workspace id")
 	Register(KeyCmdRemoteConfigUnavailable, "远程配置不可用", "remote configuration unavailable")
 	Register(KeyCmdTaskConfirmationWindowMissing, "没有可用于任务确认的桌面窗口", "no desktop window for the task confirmation")
-	Register(KeyCmdTaskCoverageUnknown, "：未知", ": unknown")
 	Register(KeyCmdImportBeforeQuit, "导入仍在进行，请完成或取消后再退出", "import is still running; finish or cancel it before quitting")
 	Register(KeyCmdRuntimeChangedRetryQuit, "运行时或导入状态已改变，请重新退出", "runtime or import state changed; retry quit")
 	Register(KeyCmdRuntimeChangedRetryStop, "运行时或导入状态已改变，请重新停止", "runtime or import state changed; retry stop")

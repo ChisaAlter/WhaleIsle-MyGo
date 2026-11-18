@@ -27,13 +27,15 @@ type Panel struct {
 	// Maximized uses 75% of the center column without overwriting its saved size.
 	Maximized bool
 
-	panes        []*terminalPane
-	groups       []*terminalGroup
-	active       uint64
-	focused      uint64
-	nextID       uint64
-	notice       string
-	onOpenTarget func(string) error
+	panes         []*terminalPane
+	groups        []*terminalGroup
+	active        uint64
+	focused       uint64
+	focusPending  uint64
+	nextID        uint64
+	notice        string
+	onOpenTarget  func(string) error
+	returnFocusFn func()
 	// pendingClose holds the pane whose close is waiting for confirmation.
 	pendingClose uint64
 }
@@ -127,9 +129,51 @@ func (p *Panel) Close() {
 		}
 	}
 	p.panes, p.groups = nil, nil
-	p.active, p.focused = 0, 0
+	p.active, p.focused, p.focusPending = 0, 0, 0
 	p.Term, p.Err = nil, nil
 	p.notice = ""
+}
+
+// FocusActive arms a one-shot focus request for the active terminal pane
+// when explicitly opening or switching into the terminal drawer.
+func (p *Panel) FocusActive() {
+	if p == nil || len(p.panes) == 0 {
+		return
+	}
+	if p.active == 0 || p.pane(p.active) == nil {
+		p.activate(p.panes[0].id)
+	}
+	if p.active != 0 {
+		p.focusPending = p.active
+	}
+}
+
+// ClearFocus cancels any pending one-shot focus request so collapsing and
+// reopening the terminal drawer never steals focus from the composer, and
+// returns focus if a terminal pane currently held it.
+func (p *Panel) ClearFocus() {
+	if p == nil {
+		return
+	}
+	hadFocus := p.focused != 0
+	p.focusPending = 0
+	p.focused = 0
+	if hadFocus && p.returnFocusFn != nil {
+		p.returnFocusFn()
+	}
+}
+
+// CloseDrawer collapses focus ownership and runs optional focus restoration when
+// the terminal drawer held focus.
+func (p *Panel) CloseDrawer(returnFocus ...func()) {
+	if p == nil {
+		return
+	}
+	if len(returnFocus) > 0 && returnFocus[0] != nil {
+		p.returnFocusFn = returnFocus[0]
+	}
+	p.FlushResize()
+	p.ClearFocus()
 }
 
 type Model struct {
@@ -140,7 +184,8 @@ type Model struct {
 	ShellsNote string
 	OnRestart  func()
 	// OnClose hides/removes the workspace panel once its last PTY is closed.
-	OnClose func()
+	OnClose       func()
+	OnReturnFocus func()
 	// OnOpenShortcuts opens the settings shortcuts page; nil keeps the menu
 	// entry disabled because this build cannot navigate there.
 	OnOpenShortcuts func()
@@ -175,8 +220,13 @@ func terminalTitle(pane *terminalPane) string {
 
 func closePaneFromView(m Model, id uint64) {
 	m.Panel.closePane(id)
-	if len(m.Panel.panes) == 0 && m.OnClose != nil {
-		m.OnClose()
+	if len(m.Panel.panes) == 0 {
+		if m.OnReturnFocus != nil {
+			m.OnReturnFocus()
+		}
+		if m.OnClose != nil {
+			m.OnClose()
+		}
 	}
 }
 
@@ -189,6 +239,10 @@ func View(c *ui.Context, m Model) {
 	p := m.Panel
 	if p != nil {
 		p.onOpenTarget = m.OnOpenTarget
+		if m.OnReturnFocus != nil {
+			p.returnFocusFn = m.OnReturnFocus
+		}
+		hadPanes := len(p.panes) > 0
 		for _, pane := range append([]*terminalPane(nil), p.panes...) {
 			if pane.term != nil {
 				select {
@@ -198,11 +252,14 @@ func View(c *ui.Context, m Model) {
 				}
 			}
 		}
-	}
-	// FocusBind writes pointer/keyboard focus back without replacing active state
-	// when a toolbar control temporarily takes focus.
-	if p != nil && p.focused != 0 && p.focused != p.active {
-		p.activate(p.focused)
+		if hadPanes && len(p.panes) == 0 {
+			if m.OnReturnFocus != nil {
+				m.OnReturnFocus()
+			}
+			if m.OnClose != nil {
+				m.OnClose()
+			}
+		}
 	}
 	selection := ""
 	if p != nil && p.Term != nil {
@@ -286,7 +343,20 @@ func View(c *ui.Context, m Model) {
 						shell.term.SetTheme(native, native)
 						shell.appearanceColors = colors
 					}
-					surface := myterm.View(c, shell.term).Fill().Grow(1).Margin(4, 8, 4, 8).FocusBind(&p.focused, shell.id)
+					surface := myterm.View(c, shell.term).Fill().Grow(1).Margin(4, 8, 4, 8)
+					if p.focusPending == shell.id {
+						surface.Focus()
+						p.focused = shell.id
+						p.focusPending = 0
+					} else if surface.Focused() {
+						p.focused = shell.id
+						if shell.id != p.active {
+							p.activate(shell.id)
+							c.Invalidate()
+						}
+					} else if p.focused == shell.id {
+						p.focused = 0
+					}
 					if fragment := FormatSelection(selection); shell.id == p.active && fragment != "" {
 						bounds := surface.Bounds()
 						ui.Overlay(c, func() {
@@ -308,6 +378,7 @@ func View(c *ui.Context, m Model) {
 					}
 				})
 			}
+			p.focusPending = 0
 		}
 		terminalTabs(c, m, fg, muted)
 		terminalClosePrompt(c, m, fg, muted)

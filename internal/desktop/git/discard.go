@@ -142,6 +142,11 @@ func PrepareDiscard(root, path string) (DiscardPlan, error) {
 // changes), or removes exactly one reviewed untracked file. It never resets the
 // repository, recurses into a directory, or accepts an unchecked path list.
 func DiscardReviewed(root string, plan DiscardPlan) (string, error) {
+	release, err := acquireBackgroundWrite(root, WorktreeWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	if plan.token == "" {
 		return "", errors.New("review the selected file before discarding")
 	}

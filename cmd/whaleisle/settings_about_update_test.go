@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"whaleisle/internal/app/updater"
 	"whaleisle/internal/paths"
 	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
@@ -20,13 +21,23 @@ func TestAboutUpdateFirstRenderRestoresPausedOwnerWithoutHost(t *testing.T) {
 	t.Setenv(paths.EnvUserData, t.TempDir())
 	seed := &mainState{}
 	release := updateCenterFixture()
-	seed.nativeReleases = nativeReleaseState{centerLoaded: true, autoDownload: true, requireRuntime: true, paused: true, phase: "paused", active: release, received: 8, total: 16}
-	seed.persistNativeUpdateCenter()
+	seed.updaterCenter().RestoreReleaseState(updater.ReleaseState{
+		CenterLoaded:   true,
+		AutoDownload:   true,
+		RequireRuntime: true,
+		Paused:         true,
+		Phase:          "paused",
+		Active:         release,
+		Received:       8,
+		Total:          16,
+	})
+	seed.updaterCenter().Persist()
 	reopened := &mainState{}
 	m := settings.Model{Store: settingsstore.New(), AboutActive: true, About: &settings.AboutAccess{}}
 	reopened.wireSettingsBodies(&m)
-	if !reopened.nativeReleases.centerLoaded || !reopened.nativeReleases.autoDownload || !reopened.nativeReleases.requireRuntime || m.About.UpdatePhase != "paused" || m.About.UpdatePercent != 50 {
-		t.Fatalf("About took an unrestored update snapshot: owner=%+v about=%+v", reopened.nativeReleases, m.About)
+	r := reopened.updaterCenter().ReleaseSnapshot()
+	if !r.CenterLoaded || !r.AutoDownload || !r.RequireRuntime || m.About.UpdatePhase != "paused" || m.About.UpdatePercent != 50 {
+		t.Fatalf("About took an unrestored update snapshot: owner=%+v about=%+v", r, m.About)
 	}
 	if m.About.OnOpenUpdateCenter == nil || m.About.OnResumeUpdate == nil || m.About.OnDownloadUpdate == nil || m.About.OnInstallUpdate == nil {
 		t.Fatal("Host absence hid native update/recovery actions")
@@ -51,8 +62,7 @@ func TestAboutUpdatePreservesRecoveryAndCatalogErrors(t *testing.T) {
 	if m.About.UpdatePhase != "error" || !strings.Contains(m.About.UpdateStatus, "Could not read update recovery state") || m.About.OnResumeUpdate == nil || m.About.OnOpenUpdateCenter == nil {
 		t.Fatalf("recovery error or recovery entry was hidden: %+v", m.About)
 	}
-	s.nativeReleases.status = "Catalog lookup failed; existing list retained"
-	s.nativeReleases.err = "synthetic catalog failure"
+	s.updaterCenter().SetCatalogStatus("Catalog lookup failed; existing list retained", "synthetic catalog failure")
 	s.wireSettingsBodies(&m)
 	if !strings.Contains(m.About.UpdateStatus, "Catalog lookup failed") || !strings.Contains(m.About.UpdateStatus, "synthetic catalog failure") {
 		t.Fatalf("catalog refusal was filtered out: %+v", m.About)

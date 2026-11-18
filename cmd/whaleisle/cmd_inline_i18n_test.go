@@ -15,6 +15,7 @@ import (
 	"testing"
 	"unicode"
 
+	projectctl "whaleisle/internal/app/project"
 	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
@@ -22,6 +23,21 @@ import (
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
+
+type cmdInlineDraftTarget struct{ *composer.DraftState }
+
+func (d cmdInlineDraftTarget) Snapshot() projectctl.LeadDraftSnapshot {
+	return projectctl.LeadDraftSnapshot{
+		Text:           d.Text,
+		HasAttachments: len(d.Attachments) > 0,
+		Sending:        d.Sending,
+		Preparing:      d.Preparing,
+		EditSeq:        d.EditSeq,
+		EditSessionID:  d.EditSessionID,
+	}
+}
+
+func (d cmdInlineDraftTarget) StageRecoveryText(text string) { d.Text = text }
 
 // Read only the new independently owned catalog, so this regression does not
 // dilute another migration's declared scope or duplicate its strings in cmd/.
@@ -147,9 +163,9 @@ func TestCmdInlineAuditVisibleLocalFailuresUseLocale(t *testing.T) {
 			s.hostAppearanceAccepted = true
 			wantError(s.setAppearanceTheme("dark"), i18n.KeyCmdHostAppearanceUnavailable)
 			wantError(s.saveAppearancePreferences(theme.Preferences{}), i18n.KeyCmdHostAppearanceUnavailable)
-			_, err := projectQueueChange(projectflow.RequestPage{}, nil, nil, "fixture", "enqueue")
+			_, err := projectctl.QueueChange(projectflow.RequestPage{}, nil, nil, "fixture", "enqueue")
 			wantError(err, i18n.KeyCmdProjectQueueUnavailable)
-			wantError(submitProjectRecoveryDraft(&composer.DraftState{Text: "retained"}, "replacement", func() { t.Fatal("pending draft sent") }), i18n.KeyCmdProjectLeadDraftPending)
+			wantError(projectctl.SubmitRecoveryDraft(cmdInlineDraftTarget{&composer.DraftState{Text: "retained"}}, "replacement", func() { t.Fatal("pending draft sent") }), i18n.KeyCmdProjectLeadDraftPending)
 			_, err = insertNativeComposerFiles(&composer.DraftState{Sending: true}, "", nil, true)
 			wantError(err, i18n.KeyCmdComposerWaitSendFiles)
 			limits := &session.ComposerImageLimits{MediaTypes: []string{"image/png"}, MaxImagesPerMessage: 0, MaxImageBytes: 4, MaxMessageImageBytes: 4}
@@ -170,9 +186,9 @@ func TestCmdInlineAuditPreservesIntentionalLocaleAndProtocolLiterals(t *testing.
 	// The migration should never translate these Host method/field discriminants
 	// or locale-aware helper pairs a second time.
 	for file, needles := range map[string][]string{
-		"market_catalog.go":  {`marketMessage("运行时未连接，无法安装。", "The runtime is not connected; installation is unavailable.")`},
-		"office_document.go": {`strings.Contains(err.Error(), "response exceeds bounded wire limit")`, `strings.Contains(err.Error(), "harness not ready")`},
-		"import_plugins.go":  {`ExpectedPackageName: row.ID`, `NormalizeAllowBuilds(result.AllowBuilds)`, `ctx.Err()`},
+		"../../internal/app/market/catalog.go": {`marketMessage("运行时未连接，无法安装。", "The runtime is not connected; installation is unavailable.")`},
+		"office_document.go":                   {`strings.Contains(err.Error(), "response exceeds bounded wire limit")`, `strings.Contains(err.Error(), "harness not ready")`},
+		"import_plugins.go":                    {`ExpectedPackageName: row.ID`, `NormalizeAllowBuilds(result.AllowBuilds)`, `ctx.Err()`},
 	} {
 		body, err := os.ReadFile(file)
 		if err != nil {

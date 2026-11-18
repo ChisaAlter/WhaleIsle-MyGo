@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 const FileName = "go-resume.json"
@@ -49,6 +50,8 @@ type State struct {
 	// QuestionDrafts is an opaque, explicit Host-profile-owned answer draft
 	// envelope. Loading it cannot recreate a Host interaction or submit an answer.
 	QuestionDrafts json.RawMessage `json:"questionDrafts,omitempty"`
+	// Submissions owns dispatch identities independently of UI checkpoint timing.
+	Submissions json.RawMessage `json:"submissions,omitempty"`
 }
 
 type Store struct {
@@ -106,6 +109,7 @@ func clone(s State) State {
 	}
 	s.Files = append(json.RawMessage(nil), s.Files...)
 	s.QuestionDrafts = append(json.RawMessage(nil), s.QuestionDrafts...)
+	s.Submissions = append(json.RawMessage(nil), s.Submissions...)
 	return s
 }
 func (s *Store) Snapshot() State { s.mu.Lock(); defer s.mu.Unlock(); return clone(s.data) }
@@ -130,16 +134,11 @@ func (s *Store) Update(fn func(*State)) error {
 	if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
 		return err
 	}
-	lock := s.path + ".lock"
-	f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if errors.Is(err, os.ErrExist) {
-		return ErrBusy
-	}
+	release, err := acquireLock(s.path + ".lock")
 	if err != nil {
 		return err
 	}
-	f.Close()
-	defer os.Remove(lock)
+	defer release()
 	current, exists, err := read(s.path)
 	if err != nil {
 		return err
@@ -171,4 +170,38 @@ func (s *Store) Update(fn func(*State)) error {
 	}
 	s.data, s.baseline, s.exists = clone(next), b, true
 	return nil
+}
+
+type lockOwnerInfo struct {
+	PID       int    `json:"pid"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func acquireLock(lockPath string) (func(), error) {
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return nil, ErrBusy
+	}
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(lockOwnerInfo{
+		PID:       os.Getpid(),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	})
+	if err != nil {
+		_ = f.Close()
+		_ = os.Remove(lockPath)
+		return nil, err
+	}
+	if _, err := f.Write(append(payload, '\n')); err != nil {
+		_ = f.Close()
+		_ = os.Remove(lockPath)
+		return nil, err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(lockPath)
+		return nil, err
+	}
+	return func() { _ = os.Remove(lockPath) }, nil
 }

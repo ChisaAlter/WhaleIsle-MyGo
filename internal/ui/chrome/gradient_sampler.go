@@ -43,16 +43,22 @@ func clearGradientBackdrop() {
 func SettingsPanelGlass(base, canvas, modalMask ui.Color, radius ...float32) func(*ui.Painter, ui.Rect) {
 	round := firstRadius(radius)
 	return func(p *ui.Painter, r ui.Rect) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
 		prefs := effectivePrefs(backgroundState.prefs)
-		if !backgroundState.active || gradientBackdrop.frame == nil {
-			DrawGlass(p, r, base, MaterialPanel, round)
+		if !backgroundState.active {
+			p.Fill(r, base, round)
 			return
 		}
 		alpha := MaterialAlpha(MaterialPanel, prefs, p.Theme().Dark)
-		if alpha <= 0 {
-			return
+		if prefs.Transparent {
+			// Transparency removes workbench chrome, not modal surfaces.
+			alpha = MaterialAlpha(MaterialMenu, prefs, p.Theme().Dark)
 		}
-		if bmp := gradientPanelFrames.get(gradientBackdrop.frame, canvas, modalMask, prefs, p.Theme().Dark); bmp != nil {
+		if gradientBackdrop.frame == nil {
+			menuPanelGlass{}.PaintMaterial(p, r, [4]float32{round, round, round, round})
+		} else if bmp := gradientPanelFrames.get(gradientBackdrop.frame, canvas, modalMask, prefs, p.Theme().Dark); bmp != nil {
 			p.Clip(r, round, func() { p.Image(bmp, gradientBackdrop.box, ui.FillBox) })
 		}
 		p.Fill(r, MaterialFill(base, alpha), round)

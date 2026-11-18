@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"whaleisle/internal/ui/i18n"
@@ -19,14 +20,16 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 	if err == nil || err == taskcontrol.ErrCancelled {
 		return
 	}
-	s.mu.Lock()
-	s.launcherStartErr = i18n.T(i18n.KeyCmdActionDidNotCompleteTheWindowWasKept) + err.Error()
-	s.launcherStartFailed = true
-	s.launcherOpen = true
-	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
+	// A sentence already written for a person is shown as it stands; anything
+	// else (an OS error, a transport failure) goes to the log and the row keeps
+	// the catalogue's own sentence.
+	var shown *localizedError
+	if errors.As(err, &shown) {
+		s.notifyUser(win, shown.Error())
+		return
 	}
+	log.Printf("task protection: %v", err)
+	s.notifyUser(win, i18n.T(i18n.KeyProtectedActionFailed))
 }
 
 func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
@@ -58,13 +61,6 @@ func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, oper
 	for key, value := range i.Coverage {
 		if value != "ok" && value != "intentional-disabled" {
 			missing = append(missing, key+": "+value)
-		}
-	}
-	if i.Unknown == "" && i.HostGeneration != "" {
-		for _, key := range []string{"agents", "jobs", "schedule", "bots"} {
-			if _, ok := i.Coverage[key]; !ok {
-				missing = append(missing, key+i18n.T(i18n.KeyCmdTaskCoverageUnknown))
-			}
 		}
 	}
 	sort.Strings(missing)
@@ -131,7 +127,7 @@ func (s *mainState) withTaskProtection(win *mygo.Window, sup *harness.Supervisor
 	busy := s.launcherImportBusy
 	s.mu.Unlock()
 	if busy {
-		s.taskProtectionError(win, errors.New(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion)))
+		s.taskProtectionError(win, localized(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion)))
 		return false
 	}
 	did, err := s.protectTaskAction(context.Background(), win, sup, operation, commit)
@@ -145,9 +141,8 @@ func (s *mainState) localTaskRunningCount() int {
 	count := s.sessionRunningCount()
 	s.mu.Lock()
 	count += s.terminalSessions.RunningCount()
-	runner := s.proactivePanel.runner
 	s.mu.Unlock()
-	if runner != nil && runner.DeliveryRunning() {
+	if s.assistantService().ProactiveDeliveryRunning() {
 		count++
 	}
 	return count
@@ -186,12 +181,7 @@ func (s *mainState) closeTaskProtectedResources() error {
 // Imports already own the import slot. Reuse the same task inspection, drain
 // and confirmation without rejecting that owner as a competing operation.
 func (s *mainState) protectTaskAction(ctx context.Context, win *mygo.Window, sup *harness.Supervisor, operation string, commit func() error) (bool, error) {
-	s.mu.Lock()
-	proactiveRunner := s.proactivePanel.runner
-	s.mu.Unlock()
-	if proactiveRunner != nil {
-		defer proactiveRunner.FreezeAdmissions()()
-	}
+	defer s.assistantService().FreezeProactiveAdmissions()()
 	var did bool
 	var err error
 	if sup != nil {
@@ -225,7 +215,7 @@ func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) boo
 	busy := s.launcherImportBusy
 	s.mu.Unlock()
 	if busy {
-		s.taskProtectionError(win, errors.New(i18n.T(i18n.KeyCmdImportBeforeQuit)))
+		s.taskProtectionError(win, localized(i18n.T(i18n.KeyCmdImportBeforeQuit)))
 		return false
 	}
 	// Save before acquiring the Host admission lock: a disk-recovery dialog must
@@ -239,14 +229,14 @@ func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) boo
 		same := s.sup == sup
 		s.mu.Unlock()
 		if busy || !same {
-			return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryQuit))
+			return localized(i18n.T(i18n.KeyCmdRuntimeChangedRetryQuit))
 		}
 		s.finalizeQuit(sup)
 		return nil
 	})
 }
 
-// stopProtected is the launcher's explicit Stop entry. Keep the window and
+// stopProtected is the explicit Host Stop action. Keep the window and
 // running Host intact until the same admission checks used by restart succeed.
 func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 	if sup == nil {
@@ -272,18 +262,14 @@ func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 			s.mu.Lock()
 			if s.launcherImportBusy || s.quitting || s.sup != sup {
 				s.mu.Unlock()
-				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryStop))
+				return localized(i18n.T(i18n.KeyCmdRuntimeChangedRetryStop))
 			}
 			s.mu.Unlock()
 			if err := s.closeTaskProtectedResources(); err != nil {
 				return err
 			}
 			sup.Stop()
-			s.mu.Lock()
-			s.launcherStartBusy = false
-			s.launcherStartFailed = false
-			s.launcherStartErr = ""
-			s.mu.Unlock()
+			s.launcherController().SetStartError(false, false, "")
 			return nil
 		})
 	}()
@@ -326,7 +312,7 @@ func (s *mainState) installStagedUpdateWithConsent(win *mygo.Window, staged desk
 		changed := s.launcherImportBusy || s.quitting || s.sup != sup
 		s.mu.Unlock()
 		if changed {
-			return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryUpdate))
+			return localized(i18n.T(i18n.KeyCmdRuntimeChangedRetryUpdate))
 		}
 		if _, err := desktopupdate.StartStaged(staged); err != nil {
 			return err

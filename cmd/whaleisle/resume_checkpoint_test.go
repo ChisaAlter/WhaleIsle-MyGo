@@ -2,16 +2,24 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"whaleisle/internal/config"
+	"whaleisle/internal/dsh"
+	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
@@ -430,5 +438,72 @@ func TestResumeVisibilityCapturePersistsThrottledLastEditWithoutAnotherPaint(t *
 	}
 	if repaintRequests == 0 {
 		t.Fatal("fixture failed to model invalidations that can be ignored by a hidden surface")
+	}
+}
+
+type resumeListTransport struct {
+	root string
+}
+
+func (f resumeListTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Method == http.MethodGet && r.URL.Path == "/" {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"text/html"}}, Body: io.NopCloser(strings.NewReader("<!doctype html><html></html>"))}, nil
+	}
+	var req struct {
+		Method string `json:"method"`
+		RPCID  string `json:"rpcId"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	var value any = map[string]any{}
+	if req.Method == "session/list" {
+		value = api.SessionListValue{Items: []api.SessionListValueItemsItem{
+			{SessionId: "auto-first", Cwd: &f.root},
+			{SessionId: "saved-target", Cwd: &f.root},
+		}}
+	}
+	body, err := json.Marshal(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": map[string]any{"ok": true, "value": value}})
+	if err != nil {
+		return nil, err
+	}
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(string(body)))}, nil
+}
+
+func TestRestoreResumeSelectionOverridesRefreshListAutoDefault(t *testing.T) {
+	ws := t.TempDir()
+	cfg, err := config.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Update(func(c *config.Config) { c.Workspace = ws }); err != nil {
+		t.Fatal(err)
+	}
+	store := session.New()
+	store.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://resume.fixture.invalid"}, HTTP: &http.Client{Transport: resumeListTransport{root: ws}}}, nil)
+	t.Cleanup(store.Detach)
+	store.RefreshList(context.Background())
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		snap := store.Snapshot()
+		if !snap.ListLoading && len(snap.Items) == 2 && snap.SelectedID == "auto-first" {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if got := store.Snapshot().SelectedID; got != "auto-first" || !store.SelectedIsAutoDefault() {
+		t.Fatalf("expected RefreshList auto-default on auto-first, got sel=%q auto=%v", got, store.SelectedIsAutoDefault())
+	}
+
+	s := &mainState{cfgStore: cfg, sessions: store, resumePendingSession: "saved-target", resumeWorkspace: ws}
+	s.restoreResumeSelection()
+	if got := store.Snapshot().SelectedID; got != "saved-target" || store.SelectedIsAutoDefault() {
+		t.Fatalf("restoreResumeSelection failed over auto-default: sel=%q auto=%v", got, store.SelectedIsAutoDefault())
+	}
+
+	// An explicit user/deeplink selection must still take precedence over resume.
+	store.Select("auto-first")
+	s.resumePendingSession = "saved-target"
+	s.restoreResumeSelection()
+	if got := store.Snapshot().SelectedID; got != "auto-first" {
+		t.Fatalf("restoreResumeSelection overwrote explicit user selection: sel=%q", got)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/taskcontrol"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
@@ -107,6 +108,21 @@ func runNativeReconnectDesktop(output string) error {
 	if err := os.MkdirAll(filepath.Dir(output), 0700); err != nil {
 		return err
 	}
+	// The owned desktop refuses to launch its Host without a configured
+	// workspace (launcher gates on cfg.Workspace). Seed one like the composer
+	// QA does so Host readiness reflects Host health, not a missing config.
+	if workspace := os.Getenv("WHALEISLE_ACCEPTANCE_WORKSPACE"); filepath.IsAbs(workspace) {
+		if err := os.MkdirAll(workspace, 0o755); err != nil {
+			return err
+		}
+		if cfg, err := config.Open(os.Getenv(paths.EnvUserData)); err == nil {
+			_ = cfg.Update(func(c *config.Config) {
+				c.Workspace = workspace
+				c.NodeBin = os.Getenv("WHALEISLE_NODE")
+				c.AutoDownloadUpdates = false
+			})
+		}
+	}
 	receipt := map[string]any{"startedUTC": time.Now().UTC().Format(time.RFC3339Nano), "appPID": os.Getpid(), "scope": "Real production main -> authenticated bootstrap -> EventsReady -> driver invokes existing production action callback -> new EventsReady; no physical reconnect/menu gesture; owned initially hidden window, briefly ShowInactive for a new software Content scene", "physicalInput": false, "originalSameStateVisualComparison": false, "startupModelAndBillingMetadataReads": "ordinary production startup; not suppressed or claimed absent", "promptOrCompletionSubmittedByDriver": false, "accountOrDeviceActionByDriver": false, "hostPIDDirectlyObserved": false}
 	mainReturned := make(chan struct{})
 	result := make(chan error, 1)
@@ -184,8 +200,21 @@ func runNativeReconnectDesktop(output string) error {
 				}
 			}
 		}
-		before, err := waitNativeReconnect(ctx, func(v nativeReconnectObservation) bool { return v.usable() })
+		// A fresh owned profile has no session and nothing auto-selects one;
+		// create one through the production entry so the reconnect equality
+		// check compares a converged, selected baseline rather than "".
+		usable0, err := waitNativeReconnect(ctx, func(v nativeReconnectObservation) bool { return v.usable() })
 		if err != nil {
+			receipt["timeoutObservation"] = nativeReconnectFacts(usable0)
+			finish(err)
+			return
+		}
+		usable0.win.Update(func() { usable0.sessions.CreateSession(ctx) })
+		before, err := waitNativeReconnect(ctx, func(v nativeReconnectObservation) bool {
+			return v.usable() && v.snapshot.SelectedID != ""
+		})
+		if err != nil {
+			receipt["timeoutObservation"] = nativeReconnectFacts(before)
 			finish(err)
 			return
 		}

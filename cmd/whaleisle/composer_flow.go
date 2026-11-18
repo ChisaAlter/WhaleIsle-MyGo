@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
-	"path/filepath"
+	"encoding/json"
+	"errors"
+	"log"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -44,36 +46,9 @@ func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
 	}
 }
 
-func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, id string, d *composer.DraftState, paths []string) {
-	if d == nil || d.Sending {
-		return
-	}
-	if sessions != nil {
-		if err := validateComposerImageIntake(d.Attachments, paths, sessions.ComposerImageLimits(id)); err != nil {
-			d.Error = err.Error()
-			return
-		}
-	}
-	cwd, local := s.nativeComposerFileScope(sessions, id, d)
-	uploads, err := insertNativeComposerFiles(d, cwd, paths, local)
-	if err != nil {
-		d.Error = err.Error()
-		return
-	}
-	for _, path := range uploads {
-		if strings.TrimSpace(path) == "" {
-			continue
-		}
-		a := session.ComposerAttachment{Path: path, Name: filepath.Base(path)}
-		index := len(d.Attachments)
-		d.Attachments = append(d.Attachments, a)
-		s.prepareComposerFile(win, sessions, id, d, index, false)
-	}
-	d.Error = ""
-}
-
 func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
 	if d.Sending || d.Preparing > 0 {
+		log.Printf("composer submit dropped: busy sending=%v preparing=%d id=%s", d.Sending, d.Preparing, id)
 		return
 	}
 	if win == nil || sessions == nil {
@@ -85,13 +60,14 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	s.mu.Unlock()
 	live := sessions.Snapshot()
 	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
+		log.Printf("composer submit dropped: stale current=%v selected=%q want=%q hostGen=%d/%d", current, live.SelectedID, id, live.ComposerHostGeneration, hostGeneration)
 		return
 	}
 	// Local contributions own their bare invocation before workspace/prompt
 	// admission. File and feedback actions retain existing attachment state.
 	isRoom, _ := s.assistantGroupMembers(id)
 	if !isRoom && strings.HasPrefix(strings.TrimSpace(d.Text), "/") {
-		sessions.EnsureSlashCommands(context.Background())
+		sessions.EnsureSlashCommands(s.lifecycleContext())
 		live = sessions.Snapshot()
 	}
 	if !isRoom && s.handleSessionLogExportCommand(win, sessions, d, live) {
@@ -115,12 +91,13 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	if composer.RequiresWorkspace(live, hero) {
 		// Match the Hero card's keyboard/click route even for a retained
 		// submit callback: choosing a workspace precedes creating a Session.
+		log.Printf("composer submit dropped: requires-workspace hero=%v sel=%q cwd=%q scratch=%q wsReady=%v workspaces=%d", hero, live.SelectedID, live.SelectedCwd, live.ScratchCwd, live.WorkspaceReady, len(live.Workspaces))
 		s.pickAndApplyWorkspace(win, sessions, cwd)
 		return
 	}
 	if strings.TrimSpace(d.Text) == "" && len(d.Attachments) == 0 {
 		if d.CanSteerPendingQueue(id, accelerated) {
-			sessions.SteerComposerQueue(context.Background(), id, hostGeneration)
+			sessions.SteerComposerQueue(s.lifecycleContext(), id, hostGeneration)
 		}
 		return
 	}
@@ -175,11 +152,27 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	d.Sending = true
 	d.Error = ""
 	go func() {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(s.lifecycleContext(), detachedSendTimeout)
+		defer cancel()
 		target := id
 		var err error
 		if target == "" {
 			target, err = owner.CreateSession(ctx, cwd)
+		}
+		requestID := ""
+		var flightID uint64
+		if err == nil {
+			requestID = owner.BeginSubmission(text, attachments)
+			if requestID == "" {
+				err = errors.New(i18n.T(i18n.KeyCmdComposerHostChanged))
+			} else {
+				var draftSnapshot json.RawMessage
+				mygo.RunOnMain(func() {
+					flightID = d.BeginExclusiveSubmission(requestID, target, inputText, attachments, editSeq)
+					draftSnapshot = d.SaveDraft()
+				})
+				err = owner.StageSubmissionDraft(requestID, inputText, sourceID, draftSnapshot)
+			}
 		}
 		if err == nil {
 			for i := range attachments {
@@ -190,44 +183,44 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			}
 		}
 		if err == nil {
-			requestID := ""
-			if groupReply {
-				requestID = owner.BeginSubmission(text, attachments)
-			}
+			owner.UpdateSubmissionAttachments(requestID, attachments)
 			err = owner.Submit(ctx, text, attachments, editSeq, requestID)
+		} else if requestID != "" {
+			err = owner.AbandonSubmission(requestID, err)
 		}
 		win.Update(func() {
-			d.Sending = false
-			d.TargetID = target
+			s.mu.Lock()
+			current := s.composerDrafts[sourceID] == d
+			quitting := s.quitting
+			s.mu.Unlock()
+			if quitting || !current {
+				return
+			}
 			if err != nil {
-				d.Error = err.Error()
-				d.Attachments = attachments
+				d.TargetID = target
+				if flightID != 0 {
+					d.CompleteDetachedSend(flightID, attachments, err)
+				} else {
+					d.Sending = false
+				}
+				if errors.Is(err, session.ErrSubmissionUnconfirmed) {
+					return
+				}
+				if errors.Is(err, context.DeadlineExceeded) {
+					d.Error = i18n.T(i18n.KeyCmdComposerSendTimeout)
+				} else {
+					d.Error = err.Error()
+				}
+				if flightID == 0 {
+					d.Attachments = attachments
+				}
+				sessions.AcknowledgeSubmissionOutcome(requestID)
 				return
 			}
-			if editSeq > 0 {
-				d.EndEdit()
-				return
+			if flightID != 0 {
+				d.AwaitDetachedSubmission(flightID, attachments)
 			}
-			// Typing while sending is allowed. Never erase newer edits.
-			if d.Text == inputText {
-				d.Text = ""
-			}
-			if groupReply {
-				d.GroupReply = nil
-			}
-			d.Attachments = nil
-			d.Error = ""
-			d.TargetID = ""
-			d.Client.ClearHistory()
-			if id == "" && sessions.SelectedSessionID() == "" {
-				s.mu.Lock()
-				s.composerDrafts[target] = d
-				delete(s.composerDrafts, "")
-				s.mu.Unlock()
-				sessions.Select(target)
-				sessions.RefreshList(context.Background())
-				sessions.FollowSelected(context.Background())
-			}
+			s.reconcileComposerSubmissions(sessions)
 		})
 	}()
 }

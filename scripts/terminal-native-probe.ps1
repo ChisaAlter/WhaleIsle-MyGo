@@ -1,7 +1,16 @@
-param([Parameter(Mandatory=$true)][int]$OwnerId)
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
-$fixturePath='C:\AI\WhaleIsle-MyGo\.devdata\r115-terminal-fixture.exe'
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\terminal-pass259-native-accessible-header'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r115-terminal-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
+$prefix = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\terminal-pass259-native-accessible-header' }
 $owner=Get-CimInstance Win32_Process -Filter ('ProcessId='+$OwnerId)
 if($null -eq $owner -or $owner.ExecutablePath -ne $fixturePath -or $OwnerId -in 20012,16008,12516){throw 'Wrong owned fixture'}
 $ownedStart=(Get-Process -Id $OwnerId).StartTime.ToUniversalTime()

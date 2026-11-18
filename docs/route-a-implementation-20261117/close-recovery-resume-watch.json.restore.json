@@ -1,0 +1,31 @@
+{
+  "afterRestart": {
+    "Selected": "session-af55d313-46dd-47e6-80be-c0b6b30604b1",
+    "A": "new draft after restart send",
+    "B": "keep B unsent",
+    "ErrorA": "",
+    "PendingA": 0,
+    "Phases": {
+      "25839edb4b4914f35cebb9c9916ea4d8": "confirmed"
+    }
+  },
+  "connection": {
+    "bootstrapError": "",
+    "lost": false,
+    "ready": true,
+    "resumeError": ""
+  },
+  "error": "\u003cnil\u003e",
+  "hidden": true,
+  "lastSession": {
+    "clientReady": true,
+    "lastAction": "",
+    "listError": "",
+    "listLoading": false,
+    "workspaceReady": true
+  },
+  "passed": true,
+  "phase": "restore",
+  "pid": 33592,
+  "restartJournalCount": 1
+}

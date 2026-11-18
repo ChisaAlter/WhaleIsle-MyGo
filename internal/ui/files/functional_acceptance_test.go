@@ -363,8 +363,18 @@ func TestFunctionalFilesGitAcceptance(t *testing.T) {
 		}
 		reloadSelectedFile(m)
 		awaitAcceptanceFileRead(t, m, done)
-		if *m.EditDraft != "pending draft 中文\n" {
-			t.Fatal("reload discarded draft")
+		if *m.EditDraft != "pending draft 中文\n" || *m.Preview != "automatic\n" {
+			t.Fatalf("reload altered draft or baseline: preview=%q draft=%q", *m.Preview, *m.EditDraft)
+		}
+		if tab := selectedTab(m); tab == nil || !tab.hasConflict || tab.conflictContent != "external writer\n" || !tab.externalChanged || !tab.readBlocked {
+			t.Fatalf("reload dropped conflict state: %+v", tab)
+		}
+		observeAutosave(m)
+		if err := PreflightDirtyForClose(m); err == nil {
+			t.Fatal("close preflight succeeded over unresolved external conflict")
+		}
+		if read(t, filepath.Join(root, "a.txt")) != "external writer\n" {
+			t.Fatal("autosave overwrote external edit after reload")
 		}
 		if closeTab(m, "a.txt", false) {
 			t.Fatal("dirty close bypassed confirmation")

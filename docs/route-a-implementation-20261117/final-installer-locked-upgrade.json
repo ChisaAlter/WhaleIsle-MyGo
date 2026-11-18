@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "pass": true,
+  "scenario": "Same final installer; existing whaleisle.exe held read-only without FILE_SHARE_DELETE to force promotion failure. No source or user data modified.",
+  "installer": "C:\\AI\\WhaleIsle-MyGo\\dist\\route-a-unsigned-current-0.2.0\\WhaleIsle-MyGo-Setup-0.2.0.exe",
+  "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+  "startedAt": "2026-11-17T23:36:20.3424899+08:00",
+  "durationSeconds": 155.5551134,
+  "exitCode": 2,
+  "before": {
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{57B159CE-DB45-410E-8681-1A86318FD8B1}"
+  },
+  "after": {
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{57B159CE-DB45-410E-8681-1A86318FD8B1}"
+  },
+  "ownedStageCleanup": [
+    {
+      "removed": true,
+      "path": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo.new-{74A0E09C-1EAD-4FED-B38E-8874796CF4FF}"
+    }
+  ],
+  "installedExeBytes": 96433664,
+  "healthReport": "final-installed-recovery-health.json",
+  "scope": "pre-commit transaction failure and existing installation restoration; not post-launch health-failure rollback"
+}

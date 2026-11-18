@@ -9,18 +9,7 @@ func (s *mainState) openPetSettings() {
 		return
 	}
 	s.settingsEmbeddedSection = ""
-	s.settingsOpen = true
-	s.launcherOpen = false
-	s.usageOpen = false
-	s.scheduleOpen = false
-	s.imOpen = false
-	s.marketOpen = false
-	s.remoteOpen = false
-	s.webviewOpen = false
-	s.browserPreviewOpen = false
-	s.assistantConversationGeneration++
-	s.assistantOpen = false
-	s.toolsMenuOpen = false
+	s.setMainRouteLocked(routeSettings)
 	s.settingsDesktopActive = false
 	s.settingsAccountActive = false
 	s.settingsCredentialsActive = false
@@ -36,6 +25,7 @@ func (s *mainState) openPetSettings() {
 	s.settingsAgentPresetsActive = false
 	settings, win := s.settings, s.win
 	s.mu.Unlock()
+	s.syncMainRouteResources()
 	if settings != nil {
 		settings.Select("pet")
 	}

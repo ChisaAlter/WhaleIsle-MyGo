@@ -3,6 +3,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -68,11 +69,53 @@ func TestEnsureCreatesDirs(t *testing.T) {
 }
 
 func TestUserDataDirWithoutOverride(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the AppData override is a Windows contract; elsewhere os.UserConfigDir reads XDG/HOME")
+	}
 	dir := t.TempDir()
 	t.Setenv(EnvUserData, "")
 	t.Setenv("AppData", dir) // os.UserConfigDir on Windows reads AppData
+	InvalidateDataLocation()
+	t.Cleanup(InvalidateDataLocation)
 	got := UserDataDir()
-	if want := filepath.Join(dir, "Deepseek-Harness-Desktop"); got != want {
+	// MyGo's own directory, with the data-location record above it rather
+	// than inside it.
+	if want := filepath.Join(dir, "WhaleIsle-MyGo", "data"); got != want {
 		t.Fatalf("UserDataDir() = %q, want %q", got, want)
+	}
+}
+
+func TestVendorDirPrefersPairedRC4AndFallsBackToRuntime(t *testing.T) {
+	base := t.TempDir()
+	t.Chdir(base)
+	t.Setenv(EnvVendor, "")
+	t.Setenv(EnvNodeDir, "")
+
+	rcHarness := filepath.Join(base, "runtime", "vendor", "deepseek-harness")
+	rc4Harness := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
+	rc4Node := filepath.Join(base, "runtime-rc4", "node", bundledNodeFilename())
+	if err := os.MkdirAll(rcHarness, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(rc4Harness, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Missing runtime-rc4 bundled node must fall back to runtime/vendor.
+	if got, want := VendorDir(), filepath.Join(base, "runtime", "vendor"); got != want {
+		t.Fatalf("incomplete rc4 selected %q, want %q", got, want)
+	}
+	if err := os.MkdirAll(filepath.Dir(rc4Node), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(rc4Node, []byte("node"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := VendorDir(), filepath.Join(base, "runtime-rc4", "vendor"); got != want {
+		t.Fatalf("paired rc4 got %q, want %q", got, want)
+	}
+	// Explicit WHALEISLE_NODE_DIR keeps runtime/vendor ahead of runtime-rc4 auto-switch.
+	t.Setenv(EnvNodeDir, filepath.Join(base, "custom-node"))
+	if got, want := VendorDir(), filepath.Join(base, "runtime", "vendor"); got != want {
+		t.Fatalf("with WHALEISLE_NODE_DIR set, got %q, want %q", got, want)
 	}
 }

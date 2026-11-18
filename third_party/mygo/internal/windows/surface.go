@@ -218,7 +218,10 @@ func (s *surface) Size() (float64, float64, float64) {
 	return float64(r.Right - r.Left), float64(r.Bottom - r.Top), float64(s.dpi()) / 96
 }
 
-func (s *surface) RequestFrame() { procInvalidateRectW.Call(s.hwnd, 0, 0) }
+func (s *surface) RequestFrame() {
+	recordTestFrameRequest()
+	procInvalidateRectW.Call(s.hwnd, 0, 0)
+}
 
 // RefreshRate returns the refresh rate of the monitor showing the window,
 // in its current display mode.
@@ -307,9 +310,11 @@ func (s *surface) SetTextInput(t platform.TextInputState) {
 	active, caret := t.Active, t.Caret
 	if s.input.Active && s.input.Client != t.Client {
 		s.clientComposition.Reset()
-		if himc, _, _ := procImmGetContext.Call(s.hwnd); himc != 0 {
-			procImmNotifyIME.Call(himc, niCompositionStr, cpsCancel, 0)
-			procImmReleaseContext.Call(s.hwnd, himc)
+		if s.hwnd != 0 {
+			if himc, _, _ := procImmGetContext.Call(s.hwnd); himc != 0 {
+				procImmNotifyIME.Call(himc, niCompositionStr, cpsCancel, 0)
+				procImmReleaseContext.Call(s.hwnd, himc)
+			}
 		}
 		s.reconvert = nil
 	}
@@ -317,14 +322,19 @@ func (s *surface) SetTextInput(t platform.TextInputState) {
 	if active != s.ime {
 		s.ime = active
 		if active {
-			procImmAssociateContextEx.Call(s.hwnd, 0, iaceDefault)
-		} else {
-			s.reconvert = nil
-			if himc, _, _ := procImmGetContext.Call(s.hwnd); himc != 0 {
-				procImmNotifyIME.Call(himc, niCompositionStr, cpsComplete, 0)
-				procImmReleaseContext.Call(s.hwnd, himc)
+			if s.hwnd != 0 {
+				procImmAssociateContextEx.Call(s.hwnd, 0, iaceDefault)
 			}
-			procImmAssociateContextEx.Call(s.hwnd, 0, 0)
+		} else {
+			s.clientComposition.Reset()
+			s.reconvert = nil
+			if s.hwnd != 0 {
+				if himc, _, _ := procImmGetContext.Call(s.hwnd); himc != 0 {
+					procImmNotifyIME.Call(himc, niCompositionStr, cpsComplete, 0)
+					procImmReleaseContext.Call(s.hwnd, himc)
+				}
+				procImmAssociateContextEx.Call(s.hwnd, 0, 0)
+			}
 		}
 	}
 	s.caret = caret
@@ -401,6 +411,7 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 	}
 	switch m {
 	case wmPaint:
+		recordTestPaintMsg()
 		var ps paintStruct
 		dc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
 		if s.w.holdsFrames() {
@@ -529,7 +540,6 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		s.send(platform.SurfaceEvent{Kind: platform.SurfaceBlur})
 		return 0, true
 	case wmKeyDown, wmSysKeyDown:
-		s.clientComposition.Reset()
 		s.keyTaken = false
 		if modifierKey(wp) {
 			s.send(platform.SurfaceEvent{Kind: platform.ModifiersChanged, Mods: mods()})
@@ -540,6 +550,12 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 			rightAlt, _, _ := procGetKeyState.Call(0xA5)
 			blocked := dead&0x80000000 != 0 || mods()&platform.ModCtrl != 0 && int16(rightAlt) < 0 || wp == 0xE5
 			s.keyTaken = s.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: k, Code: code, ShortcutBlocked: blocked, ShortcutDead: dead&0x80000000 != 0, Mods: mods(), Repeat: lp&(1<<30) != 0})
+		}
+		// Keep pending end-composition ranges intact across VK_PROCESSKEY (0xE5),
+		// modifier keys and untaken closing keys until wmImeComposition commits;
+		// clear stale pending ranges only when a non-IME key is actively consumed.
+		if wp != 0xE5 && !modifierKey(wp) && s.keyTaken {
+			s.clientComposition.Reset()
 		}
 		// Unhandled Alt+F4, Alt+Space and F10 keep working. A captured
 		// system key stays consumed even while a text client owns input.
@@ -573,11 +589,13 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		case utf16.IsSurrogate(rune(c)):
 			r := utf16.DecodeRune(rune(s.high), rune(c))
 			s.high = 0
+			s.clientComposition.Reset()
 			s.send(platform.SurfaceEvent{Kind: platform.TextInput, Text: string(r)})
 			return 0, true
 		case c < 0x20 || c == 0x7F:
 			return 0, true // control characters come as keys
 		}
+		s.clientComposition.Reset()
 		s.send(platform.SurfaceEvent{Kind: platform.TextInput, Text: string(rune(c))})
 		return 0, true
 	case wmImeSetContext:
@@ -591,19 +609,24 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		if himc == 0 {
 			return 0, true
 		}
-		if lp&gcsResultStr != 0 {
-			if text := imeString(himc, gcsResultStr); text != "" {
-				s.composed(platform.SurfaceEvent{Kind: platform.TextInput, Text: text})
+		func() {
+			defer procImmReleaseContext.Call(hwnd, himc)
+			if lp&gcsResultStr != 0 {
+				if text := imeString(himc, gcsResultStr); text != "" {
+					s.composed(platform.SurfaceEvent{Kind: platform.TextInput, Text: text})
+				}
 			}
-		}
-		if lp&gcsCompStr != 0 {
-			text := imeString(himc, gcsCompStr)
-			pos, _, _ := procImmGetCompositionStrW.Call(himc, gcsCursorPos, 0, 0)
-			units := utf16.Encode([]rune(text))
-			caret := len(utf16.Decode(units[:min(int(pos), len(units))]))
-			s.composed(platform.SurfaceEvent{Kind: platform.TextComposition, Text: text, Caret: caret})
-		}
-		procImmReleaseContext.Call(hwnd, himc)
+			if lp&gcsCompStr != 0 {
+				text := imeString(himc, gcsCompStr)
+				pos, _, _ := procImmGetCompositionStrW.Call(himc, gcsCursorPos, 0, 0)
+				caret := 0
+				if cursor := int32(pos); cursor > 0 {
+					units := utf16.Encode([]rune(text))
+					caret = len(utf16.Decode(units[:min(int(cursor), len(units))]))
+				}
+				s.composed(platform.SurfaceEvent{Kind: platform.TextComposition, Text: text, Caret: caret})
+			}
+		}()
 		s.placeIME()
 		return 0, true
 	case wmImeEndComp:
@@ -634,12 +657,21 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 // imeString reads a composition string of an input context.
 func imeString(himc, which uintptr) string {
 	n, _, _ := procImmGetCompositionStrW.Call(himc, which, 0, 0)
-	if int32(n) <= 0 {
+	byteCount := int32(n)
+	if byteCount < 2 {
 		return ""
 	}
-	buf := make([]uint16, n/2)
-	procImmGetCompositionStrW.Call(himc, which, uintptr(unsafe.Pointer(&buf[0])), n)
-	return string(utf16.Decode(buf))
+	buf := make([]uint16, int(byteCount+1)/2)
+	m, _, _ := procImmGetCompositionStrW.Call(himc, which, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)*2))
+	got := int32(m)
+	if got < 2 {
+		return ""
+	}
+	words := min(int(got)/2, len(buf))
+	if words == 0 {
+		return ""
+	}
+	return string(utf16.Decode(buf[:words]))
 }
 
 func wheelLines() int {

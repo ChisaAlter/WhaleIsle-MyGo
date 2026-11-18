@@ -41,17 +41,21 @@ var (
 	iunknownToastIID              = guid("00000000-0000-0000-c000-000000000046")
 )
 
+const maxToastHistory = 256
+
 type toastService struct {
 	b                         *Backend
 	initialized               bool
 	manager, factory, history uintptr
 	active                    map[string]*notification
+	activeOrder               []string
 	notifiers                 map[string]uintptr
 	mu                        sync.Mutex
 	queue                     []toastEvent
 	stopped                   bool
 	server                    *toastServer
 	activated                 map[string]bool // deduplicates WinRT and COM callbacks of the same delivery
+	activatedOrder            []string
 }
 
 type notification struct {
@@ -297,9 +301,28 @@ func (b *Backend) showNotification(n *platform.Notification) error {
 		old.detach()
 	}
 	delete(s.activated, n.ID)
-	s.active[n.ID] = record
+	s.trackActive(n.ID, record)
 	ok = true
 	return nil
+}
+
+func (s *toastService) trackActive(id string, record *notification) {
+	if s.active == nil {
+		s.active = map[string]*notification{}
+	}
+	s.active[id] = record
+	s.activeOrder = append(s.activeOrder, id)
+	for len(s.active) > maxToastHistory && len(s.activeOrder) > 0 {
+		evict := s.activeOrder[0]
+		s.activeOrder = s.activeOrder[1:]
+		if evict == id {
+			continue
+		}
+		if stale := s.active[evict]; stale != nil {
+			delete(s.active, evict)
+			stale.detach()
+		}
+	}
 }
 func newToastDocument(raw string) (uintptr, error) {
 	s, err := hstring("Windows.Data.Xml.Dom.XmlDocument")
@@ -563,6 +586,9 @@ func (s *toastService) close() {
 		n.detach()
 	}
 	clear(s.active)
+	s.activeOrder = nil
+	clear(s.activated)
+	s.activatedOrder = nil
 	for _, n := range s.notifiers {
 		release(n)
 	}

@@ -1,0 +1,15 @@
+{
+  "authenticode": "not_signed",
+  "bytes": 255588767,
+  "checks": [
+    "default finalizer emitted exact size/SHA256/blockmap for unsigned NSIS",
+    "default HTTPS staging paused, reopened and resumed exact bytes",
+    "complete durable ready restored with signature skipped and no publisher claim",
+    "explicit strict signature and publisher policies reject actual unsigned NSIS",
+    "SHA256, exact size and native HTTPS source rejection retained"
+  ],
+  "declaredReleaseVersion": "0.2.0",
+  "installerExecuted": false,
+  "passed": true,
+  "scope": "actual unsigned NSIS final bytes -\u003e local TLS -\u003e default native updater -\u003e pause/reopen/resume -\u003e durable ready"
+}

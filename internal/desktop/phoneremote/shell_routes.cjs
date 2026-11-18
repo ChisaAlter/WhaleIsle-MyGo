@@ -25,19 +25,87 @@ const HOST_ACTIONS = new Set(['openSettings', 'openGallery', 'saveConfig']);
 const GATED_TODO = new Set();
 const READ_BODY = Symbol('readBody');
 
-function tokenFromRequest(headers) {
-  const authorization = String((headers && (headers.authorization || headers.Authorization)) || '');
+function headerValue(headers, name) {
+  if (!headers || typeof headers !== 'object') return '';
+  const target = name.toLowerCase();
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === target) {
+      const value = headers[key];
+      return Array.isArray(value) ? String(value[0] || '') : String(value || '');
+    }
+  }
+  return '';
+}
+
+function authFromRequest(headers) {
+  const authorization = headerValue(headers, 'authorization');
   const bearer = authorization.match(/^Bearer\s+(\S+)/i);
-  if (bearer) return bearer[1];
-  const cookie = String((headers && (headers.cookie || headers.Cookie)) || '');
+  if (bearer) return { token: bearer[1], viaCookie: false };
+  const cookie = headerValue(headers, 'cookie');
   for (const part of cookie.split(';')) {
     const index = part.indexOf('=');
     if (index < 0) continue;
     if (part.slice(0, index).trim() === COOKIE_NAME) {
-      return decodeURIComponent(part.slice(index + 1).trim());
+      try {
+        return { token: decodeURIComponent(part.slice(index + 1).trim()), viaCookie: true };
+      } catch {
+        return { token: '', viaCookie: true };
+      }
     }
   }
-  return '';
+  return { token: '', viaCookie: false };
+}
+
+function tokenFromRequest(headers) {
+  return authFromRequest(headers).token;
+}
+
+function normalizedUrlHost(url) {
+  const port = url.port || (url.protocol === 'https:' ? '443' : url.protocol === 'http:' ? '80' : '');
+  return `${url.hostname.toLowerCase()}:${port}`;
+}
+
+function cookieCsrfOk(headers) {
+  const originRaw = headerValue(headers, 'origin').trim();
+  if (originRaw) {
+    if (originRaw === 'null') return false;
+    let originUrl;
+    try {
+      originUrl = new URL(originRaw);
+    } catch {
+      return false;
+    }
+    if (originUrl.protocol !== 'http:' && originUrl.protocol !== 'https:') return false;
+    if (originUrl.username || originUrl.password || (originUrl.pathname !== '/' && originUrl.pathname !== '') || originUrl.search || originUrl.hash) {
+      return false;
+    }
+    const hostRaw = headerValue(headers, 'host').trim();
+    if (!hostRaw || /[\\/@?#\s]/.test(hostRaw)) return false;
+    let hostUrl;
+    try {
+      hostUrl = new URL(`${originUrl.protocol}//${hostRaw}`);
+    } catch {
+      return false;
+    }
+    if (hostUrl.username || hostUrl.password || (hostUrl.pathname !== '/' && hostUrl.pathname !== '') || hostUrl.search || hostUrl.hash || !hostUrl.hostname) {
+      return false;
+    }
+    if (normalizedUrlHost(originUrl) !== normalizedUrlHost(hostUrl)) return false;
+  }
+
+  const fetchSiteRaw = headerValue(headers, 'sec-fetch-site').trim();
+  if (fetchSiteRaw) {
+    const fetchSite = fetchSiteRaw.toLowerCase();
+    if (fetchSite !== 'same-origin' && fetchSite !== 'none') return false;
+  }
+
+  const contentTypeRaw = headerValue(headers, 'content-type').trim();
+  if (contentTypeRaw) {
+    const mediaType = contentTypeRaw.split(';', 1)[0].trim().toLowerCase();
+    if (mediaType !== 'application/json') return false;
+  }
+
+  return true;
 }
 
 function tokensEqual(presented, expected) {
@@ -94,13 +162,55 @@ function nonEmptyString(value, max) {
   return typeof value === 'string' && value.trim() !== '' && value.length <= (max || 512);
 }
 
+function realpathOrNull(fs, targetPath) {
+  try {
+    const fn = typeof fs.realpathSync.native === 'function' ? fs.realpathSync.native : fs.realpathSync;
+    return fn(targetPath);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeCompare(path, value) {
+  const resolved = path.resolve(String(value || ''));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isContained(path, rootNorm, targetNorm) {
+  if (targetNorm === rootNorm) return true;
+  const prefix = rootNorm.endsWith(path.sep) ? rootNorm : rootNorm + path.sep;
+  return targetNorm.startsWith(prefix);
+}
+
+function hasGitSegment(value) {
+  return String(value || '')
+    .split(/[\\/]+/)
+    .some((part) => part.toLowerCase() === '.git');
+}
+
+function findContainingRoot(fs, path, cwd, roots) {
+  const cwdText = typeof cwd === 'string' ? cwd.trim() : '';
+  if (!cwdText) return null;
+  const cwdReal = realpathOrNull(fs, path.resolve(cwdText));
+  if (!cwdReal) return null;
+  const cwdNorm = normalizeCompare(path, cwdReal);
+  for (const entry of roots || []) {
+    if (typeof entry !== 'string' || !entry.trim()) continue;
+    const rootReal = realpathOrNull(fs, path.resolve(entry));
+    if (!rootReal) continue;
+    const rootNorm = normalizeCompare(path, rootReal);
+    if (!isContained(path, rootNorm, cwdNorm)) continue;
+    const relFromRoot = path.relative(rootNorm, cwdNorm);
+    if (path.basename(cwdNorm) === '.git' || hasGitSegment(relFromRoot)) continue;
+    return { cwdReal, cwdNorm, rootNorm };
+  }
+  return null;
+}
+
 function insideRoots(cwd, roots) {
+  const fs = require('node:fs');
   const path = require('node:path');
-  const root = path.resolve(String(cwd || ''));
-  return (roots || []).some((entry) => {
-    const allowed = path.resolve(String(entry));
-    return root === allowed || root.startsWith(allowed + path.sep);
-  });
+  return findContainingRoot(fs, path, cwd, roots) !== null;
 }
 
 function denial(error) {
@@ -128,22 +238,58 @@ function readBody(req) {
 function rootedListDir(cwd, relativePath, roots) {
   const fs = require('node:fs');
   const path = require('node:path');
-  const root = path.resolve(String(cwd || ''));
-  const allowed = (roots || []).map((entry) => path.resolve(String(entry)));
-  const inside = allowed.some((entry) => root === entry || root.startsWith(entry + path.sep));
-  if (!allowed.length || !inside) {
+  const match = findContainingRoot(fs, path, cwd, roots);
+  if (!match) {
     return { ok: false, error: '工作区不可用' };
   }
-  const target = path.resolve(root, String(relativePath || ''));
-  if (target !== root && !target.startsWith(root + path.sep)) {
+  const relText = relativePath == null ? '' : String(relativePath);
+  if (hasGitSegment(relText)) {
+    return { ok: false, error: '工作区不可用' };
+  }
+  const targetLexical = path.resolve(match.cwdReal, relText);
+  const targetLexNorm = normalizeCompare(path, targetLexical);
+  if (!isContained(path, match.cwdNorm, targetLexNorm)) {
+    return { ok: false, error: '工作区不可用' };
+  }
+  const targetReal = realpathOrNull(fs, targetLexical);
+  if (!targetReal) {
+    return { ok: false, error: '工作区不可用' };
+  }
+  const targetNorm = normalizeCompare(path, targetReal);
+  const relFromRoot = path.relative(match.rootNorm, targetNorm);
+  if (!isContained(path, match.cwdNorm, targetNorm) || path.basename(targetNorm) === '.git' || hasGitSegment(relFromRoot)) {
     return { ok: false, error: '工作区不可用' };
   }
   try {
-    const entries = fs.readdirSync(target, { withFileTypes: true }).slice(0, 512).map((entry) => ({
-      name: entry.name,
-      type: entry.isDirectory() ? 'directory' : 'file',
-    }));
-    return { ok: true, cwd: target, entries };
+    const names = fs.readdirSync(targetReal);
+    const entries = [];
+    for (const name of names) {
+      if (entries.length >= 512) break;
+      if (String(name).toLowerCase() === '.git') continue;
+      const entryPath = path.join(targetReal, name);
+      let lstat;
+      try {
+        lstat = fs.lstatSync(entryPath);
+      } catch {
+        continue;
+      }
+      let isDir = lstat.isDirectory();
+      if (lstat.isSymbolicLink()) {
+        const entryReal = realpathOrNull(fs, entryPath);
+        if (!entryReal) continue;
+        const entryNorm = normalizeCompare(path, entryReal);
+        if (!isContained(path, match.cwdNorm, entryNorm)) continue;
+        const entryRelFromRoot = path.relative(match.rootNorm, entryNorm);
+        if (path.basename(entryNorm) === '.git' || hasGitSegment(entryRelFromRoot)) continue;
+        try {
+          isDir = fs.statSync(entryReal).isDirectory();
+        } catch {
+          continue;
+        }
+      }
+      entries.push({ name, type: isDir ? 'directory' : 'file' });
+    }
+    return { ok: true, cwd: targetReal, entries };
   } catch (error) {
     return { ok: false, error: String(error && error.message ? error.message : error) };
   }
@@ -161,8 +307,13 @@ function createShellHandler(opts) {
     if (!name) return false;
     if ((req.method || '') !== 'POST') return false;
     const tokens = typeof options.tokens === 'function' ? options.tokens() : options.tokens;
-    if (!matchesAny(tokenFromRequest(req.headers || {}), tokens || [])) {
+    const auth = authFromRequest(req.headers || {});
+    if (!matchesAny(auth.token, tokens || [])) {
       send(res, 401, 'unauthorized', 'text/plain; charset=utf-8');
+      return true;
+    }
+    if (auth.viaCookie && !cookieCsrfOk(req.headers || {})) {
+      fail(res, 403, 'forbidden');
       return true;
     }
     if (!READ_ONLY.has(name) && !MUTATIONS.has(name) && !HOST_ACTIONS.has(name) && !GATED_TODO.has(name)) {

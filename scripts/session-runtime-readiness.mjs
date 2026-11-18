@@ -41,7 +41,8 @@ export const patchSHA256 = hash(replacement + '\n' + oldCall + ' => ' + newCall 
 
 export function readinessProfile(version) {
   if (version === '0.2.1-rc.2') return {id: guardID, baseSHA256, patchSHA256, outputSHA256};
-  if (version === '0.2.1-rc.4') return {id: guardID, baseSHA256: rc4BaseSHA256, patchSHA256, outputSHA256: rc4OutputSHA256};
+  // Both published versions ship identical compiled visual-reply bytes.
+  if (version === '0.2.1-rc.4' || version === '0.2.2-rc.2') return {id: guardID, baseSHA256: rc4BaseSHA256, patchSHA256, outputSHA256: rc4OutputSHA256};
   throw new Error(`Unsupported Session runtime readiness version: ${version}`);
 }
 

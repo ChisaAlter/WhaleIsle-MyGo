@@ -1,6 +1,14 @@
 package frame
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/store/session"
+)
+
+type workspacePageRefresh struct {
+	owner                            *session.Store
+	binding, fileBinding, root, kind string
+}
 
 // Focus, not the last selected dock tab, determines a page command target.
 // Committed bindings also resolve descendants without construction-order races.
@@ -73,8 +81,10 @@ func refreshFocusedWorkspacePage(c *ui.Context, m Model) {
 	}
 }
 
-// Install only an occurrence's real refresh capability. The captured reader
-// cannot run after its Host/session/workspace binding has changed.
+// A page command can arrive in NavigationShell before frame.View projects the
+// current adapter. Record its owner now and execute when this occurrence binds
+// its current model below that projection. Running a previous-frame reader
+// immediately would let the adapter overwrite its newly created read state.
 func bindWorkspacePageRefresh(m Model, refresh func()) {
 	n := m.workspacePane
 	if n == nil || m.Store == nil || m.Sizes == nil || m.Sizes.Workspace == nil {
@@ -82,10 +92,16 @@ func bindWorkspacePageRefresh(m Model, refresh func()) {
 	}
 	w, owner := m.Sizes.Workspace, m.Store
 	binding := owner.PlanHistoryBinding()
+	request := workspacePageRefresh{owner: owner, binding: binding, fileBinding: m.FileBindingID, root: m.WorkspaceRoot, kind: n.Kind}
 	n.refreshResource = func() {
 		if w.Root.find(n.ID) != n || owner.PlanHistoryBinding() != binding {
 			return
 		}
+		n.refreshPending = &request
+	}
+	pending := n.refreshPending
+	n.refreshPending = nil
+	if pending != nil && *pending == request {
 		refresh()
 	}
 }

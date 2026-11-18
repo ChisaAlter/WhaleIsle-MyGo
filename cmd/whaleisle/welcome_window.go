@@ -66,7 +66,7 @@ func (s *mainState) welcomeRequired() bool {
 }
 
 // openWelcomeWindow shows the welcome window and holds the main window until
-// the user completes or skips it, then runs the ordinary launcher/boot flow.
+// the user completes or skips it, then runs the ordinary Host boot flow.
 func (s *mainState) openWelcomeWindow(parent *mygo.Window, cfg config.Config) {
 	s.mu.Lock()
 	if s.welcomeWin != nil {
@@ -194,24 +194,19 @@ func (w *welcomeWindow) showParent() {
 	if w.parent == nil || w.parent.IsDestroyed() {
 		return
 	}
-	// When the launcher owns its own window, the welcome flow hands over to it
-	// (launcher_window.go); the main window stays hidden until the start.
-	if state.launcherStageHasWindow() {
-		return
-	}
 	w.parent.Show()
 	w.parent.Restore()
 	w.parent.Focus()
 }
 
-// beginBoot runs the launcher/boot flow at most once, whether the welcome
+// beginBoot runs the Host boot flow at most once, whether the welcome
 // window completed, was skipped, or never opened.
 func (w *welcomeWindow) beginBoot() {
 	if w.bootStarted {
 		return
 	}
 	w.bootStarted = true
-	state.beginLauncherBoot(w.cfg, w.parent)
+	state.beginWorkbenchBoot(w.cfg, w.parent)
 }
 
 // finish closes the window and continues the ordinary startup. Closing the
@@ -272,7 +267,7 @@ func (w *welcomeWindow) saveAPIKey() {
 		}
 		if err == nil {
 			existing.APIKey = key
-			err = credentials.Save(dir, existing)
+			err = credentials.SaveSharedProfile(dir, existing)
 		}
 		if win == nil || win.IsDestroyed() {
 			return

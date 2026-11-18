@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 )
 
 func TestKillJobCallsRPC(t *testing.T) {
+	var mu sync.Mutex
 	var gotSession, gotJob string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
@@ -25,8 +27,10 @@ func TestKillJobCallsRPC(t *testing.T) {
 			args, _ := payload["args"].(map[string]any)
 			req, _ := args["request"].(map[string]any)
 			if req != nil {
+				mu.Lock()
 				gotSession, _ = req["sessionId"].(string)
 				gotJob, _ = req["jobId"].(string)
+				mu.Unlock()
 			}
 			writeRPC(w, body["rpcId"], map[string]any{"outcome": "killed"})
 			return
@@ -44,12 +48,18 @@ func TestKillJobCallsRPC(t *testing.T) {
 	st.KillJob(context.Background(), "s1", "j9")
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if gotSession == "s1" && gotJob == "j9" {
+		mu.Lock()
+		done := gotSession == "s1" && gotJob == "j9"
+		mu.Unlock()
+		if done {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("session/job = %q/%q", gotSession, gotJob)
+	mu.Lock()
+	seenSession, seenJob := gotSession, gotJob
+	mu.Unlock()
+	t.Fatalf("session/job = %q/%q", seenSession, seenJob)
 }
 
 func TestKillJobAndFollowJobRespectHostReplacement(t *testing.T) {

@@ -1,0 +1,43 @@
+{
+  "bytes": 96425984,
+  "MiB": 91.959,
+  "buildVersion": "0.2.0",
+  "tags": "release",
+  "trimpath": true,
+  "stripped": true,
+  "nodeProfiler": false,
+  "pairedStartup": [
+    {
+      "profile": "fresh",
+      "nodeSpawnToReadyLineMs": 9303.459,
+      "hostReadyMs": 11037.745,
+      "workspaceReadyMs": 12585.17,
+      "workspaceAfterHostReadyMs": 1547.4249999999993,
+      "bootstrapToCarrierMs": 1504.964,
+      "eventsReadyToWorkspaceMs": 21.68499999999949
+    },
+    {
+      "profile": "warm",
+      "nodeSpawnToReadyLineMs": 6060.781,
+      "hostReadyMs": 7236.201,
+      "workspaceReadyMs": 8272.379,
+      "workspaceAfterHostReadyMs": 1036.1780000000008,
+      "bootstrapToCarrierMs": 983.0870000000004,
+      "eventsReadyToWorkspaceMs": 37.1820000000007
+    }
+  ],
+  "comparison": {
+    "baseline": "performance-pair-build.json",
+    "warmHostToWorkspaceBeforeMs": 2961.226,
+    "warmHostToWorkspaceAfterMs": 1036.178,
+    "warmHostToWorkspaceReductionPercent": 65.00847959595113,
+    "conclusion": "Default plugin inventory consolidation removed the material post-events startup blockage. Node startup remains dominant and total workspace time remains over the 3 second target.",
+    "limits": [
+      "Same runtime and default configuration, but one pair per candidate; not p95",
+      "Node startup variation 4841.716 to 6060.781 ms cannot establish a regression from one sample",
+      "Hidden startup has no presented frame/input latency evidence",
+      "WebView coverage is sampled; process-start events unavailable"
+    ],
+    "reclaimed": true
+  }
+}

@@ -68,9 +68,9 @@ func cloneStoreViewCache(in ViewState) ViewState {
 	return out
 }
 
-// cloneFramePassView creates a FrameSnapshot's read-only view from s.viewCache
-// with a distinct top-level Messages slice header so overlapping frames never
-// share slice backing arrays while avoiding per-frame deep copies of Raw bytes.
+// cloneFramePassView creates an additional read-only pass for a revision whose
+// frozen arrays have already been claimed by another handle. Only top-level
+// message arrays need separation; their nested immutable data remain shared.
 func cloneFramePassView(in ViewState) ViewState {
 	out := in
 	out.Messages = cloneSlice(in.Messages)

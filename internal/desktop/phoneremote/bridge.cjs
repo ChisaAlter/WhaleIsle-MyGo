@@ -17,6 +17,26 @@ try {
 } catch { /* Link pairing remains available when the optional QR encoder is missing. */ }
 let qrURL = '', qrPNG = '', qrGeneration = 0, offerBlocked = false;
 function clearQR() { qrURL = ''; qrPNG = ''; ++qrGeneration; }
+function parseOffer(raw) {
+  try {
+    if (typeof raw !== 'string' || raw.length > 8192) return null;
+    const url = new URL(raw);
+    if (!['https:', 'http:'].includes(url.protocol) || !url.hash.startsWith('#offer=')) return null;
+    const offer = JSON.parse(Buffer.from(url.hash.slice(7), 'base64url').toString('utf8'));
+    const expiresAtMs = offer?.authBootstrap?.expiresAtMs;
+    if (
+      !offer ||
+      offer.v !== 2 ||
+      typeof expiresAtMs !== 'number' ||
+      !Number.isFinite(expiresAtMs) ||
+      expiresAtMs <= Date.now()
+    ) {
+      return null;
+    }
+    return offer;
+  } catch { return null; }
+}
+
 function usableURL(s) {
   // Native snapshot() always builds urls[].pairingUrl and only flags relayDown
   // in relay mode (reference/electron/src/main/remote.js:344-360); a LAN
@@ -24,36 +44,22 @@ function usableURL(s) {
   if (offerBlocked || !s.listening) return '';
   if (!s.relayConnected && config.remoteMode !== 'lan') return '';
   const raw = s.urls?.[0]?.pairingUrl || '';
-  try {
-    if (raw.length > 8192) return '';
-    const url = new URL(raw);
-    if (!['https:', 'http:'].includes(url.protocol) || !url.hash.startsWith('#offer=')) return '';
-    const offer = JSON.parse(Buffer.from(url.hash.slice(7), 'base64url').toString('utf8'));
-    return offer.v === 2 && offer.authBootstrap?.expiresAtMs > Date.now() ? raw : '';
-  } catch { return ''; }
+  return parseOffer(raw) ? raw : '';
 }
 
 const shellRoutes = typeof __mygoShellRoutes !== 'undefined' ? __mygoShellRoutes : null;
 let shellMountedOn = null;
-function pairingOfferToken(raw) {
-  try {
-    const match = String(raw || '').match(/#offer=([^&\s]+)/);
-    if (!match) return '';
-    const offer = JSON.parse(Buffer.from(match[1], 'base64url').toString('utf8'));
-    return offer?.authBootstrap?.pairingToken || '';
-  } catch { return ''; }
-}
-// Mount POST /__remote__/shell/<name> in front of the SPA/proxy (native
-// reference/electron/src/main/remote.js:708-730, 779-807). Tokens are compared
-// constant-time and never logged; the pairing offer token is the one the phone
-// holds, config.remoteToken is the desktop-saved one.
+// chisacode-v2 authenticates paired devices on its encrypted WebSocket. Its
+// static mobile server has no HTTP device session. Keep the retired shell
+// path explicitly unauthorized; neither a bootstrap offer nor a saved legacy
+// token can grant access. Paired clients keep using hostRpc/gitRpc unchanged.
 function ensureShellRoutes() {
   try {
     const server = remote && remote.mobileWebServer;
     if (!server || !shellRoutes || shellMountedOn === server) return;
     shellMountedOn = server;
     shellRoutes.mountShellRoutes(server, {
-      tokens: () => [config.remoteToken, pairingOfferToken(remote.pairing && remote.pairing.url)].filter(Boolean),
+      tokens: () => [],
       git: gitGate.git,
       roots: () => (Array.isArray(config.remoteGitRoots) ? config.remoteGitRoots : []),
       config: () => config,
@@ -61,9 +67,24 @@ function ensureShellRoutes() {
     });
   } catch { /* the SPA server keeps working without the shell routes */ }
 }
-setInterval(ensureShellRoutes, 500).unref?.();
 const originalGit=loadOriginalGit(__MYGO_GIT_SOURCES__);
 const gitPending=new Map();let gitSequence=0;
+const gitWritePending = new Map();
+function acquireGitWrite(root, action) {
+  const id = String(++gitSequence);
+  return new Promise((resolve, reject) => {
+    gitWritePending.set(id, result => {
+      if (!result.allowed) { reject(Error('Mobile Git write admission was cancelled')); return; }
+      let released = false;
+      resolve(() => {
+        if (released) return;
+        released = true;
+        emit({kind:'git-write-release', id});
+      });
+    });
+    emit({kind:'git-write-acquire', id, root, action});
+  });
+}
 const draftPending = new Map();
 const reviewPending = new Map();
 function reviewOnDesktop(root){return new Promise((resolve,reject)=>{const id=String(++gitSequence);const timer=setTimeout(()=>{reviewPending.delete(id);reject(Error("Desktop PR review expired; retry remaining action"));},110000);reviewPending.set(id,result=>{clearTimeout(timer);if(result.error)reject(Error(result.error));else resolve(result.value);});emit({kind:"git-review-request",id,root});});}
@@ -75,8 +96,8 @@ originalGit.git.setChangeRequestGenerator((input, root) => new Promise(resolve =
  const bounded = {commitSummary:input.commitSummary.slice(0,20000),diffSummary:input.diffSummary.slice(0,20000),diffPatch:input.diffPatch.slice(0,60000),fallbackTitle:input.fallbackTitle.slice(0,256),changeRequestTemplate:input.changeRequestTemplate.slice(0,8000)};
  emit({kind:'git-generate-draft', id, root, input:bounded});
 }));
-const gitGate=createGitGate({...originalGit,backend:originalGit.git,review:reviewOnDesktop,authorize:(root,action)=>new Promise(resolve=>{const id=String(++gitSequence);const timer=setTimeout(()=>{gitPending.delete(id);resolve(false);},2500);gitPending.set(id,allowed=>{clearTimeout(timer);resolve(allowed);});emit({kind:'git-authorize',id,root,action});})});
-function revokeGit(){gitGate.revoke();for(const done of reviewPending.values())done({error:"Mobile Git permission was revoked"});reviewPending.clear();for(const done of gitPending.values())done(false);gitPending.clear();for(const done of draftPending.values())done({error:'Mobile Git permission was revoked'});draftPending.clear();}
+const gitGate=createGitGate({...originalGit,backend:originalGit.git,review:reviewOnDesktop,acquireWrite:acquireGitWrite,authorize:(root,action)=>new Promise(resolve=>{const id=String(++gitSequence);const timer=setTimeout(()=>{gitPending.delete(id);resolve(false);},2500);gitPending.set(id,allowed=>{clearTimeout(timer);resolve(allowed);});emit({kind:'git-authorize',id,root,action});})});
+function revokeGit(){gitGate.revoke();for(const done of reviewPending.values())done({error:"Mobile Git permission was revoked"});reviewPending.clear();for(const done of gitPending.values())done(false);gitPending.clear();for(const [id,done] of gitWritePending){done({allowed:false});emit({kind:'git-write-cancel',id});}gitWritePending.clear();for(const done of draftPending.values())done({error:'Mobile Git permission was revoked'});draftPending.clear();}
 let remote, config = {}, stopping = false, starting = false;
 try {
   installMobileDraftUI(process.argv[1], __MYGO_MOBILE_DRAFT_UI__);
@@ -96,6 +117,7 @@ try {
 } catch { emit({kind:'error',code:'runtime-load'}); process.exit(1); }
 function snapshot() {
   if (stopping || starting) return;
+  ensureShellRoutes();
   const s = remote.snapshot();
   if (s.error) { clearQR(); emit({kind:'error',code:'operation'}); return; }
   const url = usableURL(s);
@@ -174,9 +196,11 @@ async function stop() {
     // Do not wait behind sync(): the runtime cancels its pending ready lease
     // and cleans up the owned daemon with its separate bounded stop budget.
     await remote.stopDaemon();
+    await gitGate.drainWrites?.();
     emit({kind:'snapshot',listening:false,relayConnected:false,url:''});
     process.exit(0);
   } catch {
+    await gitGate.drainWrites?.();
     emit({kind:'error',code:'stop'});
     process.exit(1);
   }
@@ -207,6 +231,7 @@ input.on('line',line=>{
   if(immediate.action==='git-review-result'){const done=reviewPending.get(immediate.id);if(done){reviewPending.delete(immediate.id);done(immediate);}return;}
   if(immediate.action==='git-generation-result'){const done=draftPending.get(immediate.id);if(done){draftPending.delete(immediate.id);done(immediate.error?{error:immediate.error}:immediate.value);}return;}
   if(immediate.action==='git-authorize-result'){const done=gitPending.get(immediate.id);if(done){gitPending.delete(immediate.id);done(immediate.allowed===true);}return;}
+  if(immediate.action==='git-write-result'){const done=gitWritePending.get(immediate.id);if(done){gitWritePending.delete(immediate.id);done(immediate);}else if(immediate.allowed){emit({kind:'git-write-release',id:immediate.id});}return;}
   if(immediate.action==='host-open-settings-result'||immediate.action==='host-save-config-result'){const done=hostPending.get(immediate.id);if(done){hostPending.delete(immediate.id);done(immediate);}return;}
   if(immediate.action==='stop'){void stop();return;}
   if(stopping)return;

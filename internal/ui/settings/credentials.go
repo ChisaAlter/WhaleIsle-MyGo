@@ -21,6 +21,9 @@ type CredentialsAccess struct {
 	Fields      CredentialsFields
 	ShowSecrets *bool
 	OnSave      func()
+	CanSave     func() bool
+	Ready       func() bool
+	OnReload    func()
 	OnDescribe  func()
 	HarnessNote string
 	LastAction  string
@@ -36,6 +39,15 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	settingsNotice(c, "credentials:38", "error", d.Err != "", func() string { return d.Err })
 	settingsNotice(c, "credentials:41", "", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
+	if d.Ready != nil && !d.Ready() {
+		if d.Err == "" {
+			ui.Text(c, providerCopy("正在读取凭据…", "Loading credentials…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		}
+		if d.OnReload != nil && ui.Button(c, providerCopy("重新读取文件", "Reload file")).Height(30).Padding(0, 12).Clicked() {
+			d.OnReload()
+		}
+		return
+	}
 	if d.HarnessNote != "" {
 		ui.Text(c, d.HarnessNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
@@ -55,11 +67,14 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	secretRow(c, i18n.T(i18n.KeySettingsCredRelay), d.Fields.RemoteRelayToken, show, fg)
 	ui.Row(c).Gap(8).Wrap().Children(func() {
 		save := ui.Button(c, i18n.T(i18n.KeySettingsSave)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
-		if d.OnSave == nil {
+		if d.OnSave == nil || d.CanSave != nil && !d.CanSave() {
 			save = save.Disabled(true)
 		}
 		if save.Clicked() && d.OnSave != nil {
 			d.OnSave()
+		}
+		if d.OnReload != nil && ui.Button(c, providerCopy("重新读取文件", "Reload file")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+			d.OnReload()
 		}
 		if d.OnDescribe != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
 			d.OnDescribe()

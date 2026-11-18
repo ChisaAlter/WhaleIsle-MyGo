@@ -13,13 +13,14 @@ import (
 // VisualPagePreview contains only native presentation state. HTML and Host
 // credentials never enter the projects view or its retained observer state.
 type VisualPagePreview struct {
-	Available, Loading            bool
+	Available, Loading, Opened    bool
 	Error                         string
 	InteractiveError              string
 	Surface                       session.VisualReplySurface
 	Bitmap                        *ui.Bitmap
 	ContentHeight, CapturedHeight int
 	Retry                         func()
+	Open, Close                   func()
 }
 
 func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflow.DeliveryPageReference) {
@@ -45,6 +46,19 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 			if !state.Available {
 				ui.Text(c, tr("打开原任务详情以预览已发布页面。", "Open the original request details to preview this published page.")).FontSize(theme.InterfaceSize(12))
 				return
+			}
+			if state.Open != nil {
+				if ui.Button(c, tr("打开交互页面", "Open interactive page")).Clicked() {
+					state.Open()
+				}
+				return
+			}
+			if state.Close != nil && ui.Button(c, tr("关闭页面预览", "Close page preview")).Clicked() {
+				state.Close()
+				return
+			}
+			if state.Loading {
+				ui.Text(c, tr("正在打开页面…", "Opening page…")).FontSize(theme.InterfaceSize(12))
 			}
 			if state.Error != "" {
 				ui.Text(c, state.Error).FontSize(theme.InterfaceSize(12)).Selectable()

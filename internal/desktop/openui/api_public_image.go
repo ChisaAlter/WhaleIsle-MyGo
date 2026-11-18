@@ -127,6 +127,10 @@ type publicResource struct {
 // adapters. It never returns arbitrary upstream bodies to the renderer: each
 // adapter must validate its own media format before creating a typed data URL.
 func readPublicResource(ctx context.Context, e Event) (publicResource, *APIResponse) {
+	return readPublicResourceWithScheme(ctx, e, false)
+}
+
+func readPublicResourceWithScheme(ctx context.Context, e Event, requireHTTPS bool) (publicResource, *APIResponse) {
 	failure := func(status int, message string) (publicResource, *APIResponse) {
 		response := apiError(e, status, message)
 		return publicResource{}, &response
@@ -138,6 +142,9 @@ func readPublicResource(ctx context.Context, e Event) (publicResource, *APIRespo
 			status = 403
 		}
 		return failure(status, err.Error())
+	}
+	if requireHTTPS && u.Scheme != "https" {
+		return failure(400, "public resource requires an HTTPS URL")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
@@ -178,6 +185,9 @@ func readPublicResource(ctx context.Context, e Event) (publicResource, *APIRespo
 			u, err = publicImageURL(next.String())
 			if err != nil {
 				return failure(403, "Public resource redirect rejected: "+err.Error())
+			}
+			if requireHTTPS && u.Scheme != "https" {
+				return failure(403, "Public resource redirect to non-HTTPS URL rejected")
 			}
 			// A new request deliberately carries no cookies, Referer, auth or
 			// upstream headers from the previous response, even on the same host.

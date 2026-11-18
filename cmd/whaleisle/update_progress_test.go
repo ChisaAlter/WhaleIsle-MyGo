@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"whaleisle/internal/app/updater"
 	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
 )
@@ -13,28 +14,28 @@ import (
 // TestUpdateDownloadProgressCopy keeps the visible download row honest: bytes
 // are rendered in whole units and an unknown total shows activity, not 0 %.
 func TestUpdateDownloadProgressCopy(t *testing.T) {
-	if got := updateDownloadDetail(0, 0); got != "" {
+	if got := updater.DownloadDetail(0, 0); got != "" {
 		t.Fatalf("empty detail = %q", got)
 	}
-	if got := updateDownloadDetail(1536, 0); got != "2 KB" {
+	if got := updater.DownloadDetail(1536, 0); got != "2 KB" {
 		t.Fatalf("received-only detail = %q", got)
 	}
-	if got := updateDownloadDetail(1500000, 29000000); got != "1.4 MB / 27.7 MB" {
+	if got := updater.DownloadDetail(1500000, 29000000); got != "1.4 MB / 27.7 MB" {
 		t.Fatalf("detail = %q", got)
 	}
-	if got := updateDownloadPercent(0, 0); got >= 0 {
+	if got := updater.DownloadPercent(0, 0); got >= 0 {
 		t.Fatalf("unknown total percent = %v", got)
 	}
-	if got := updateDownloadPercent(5, 10); got != 50 {
+	if got := updater.DownloadPercent(5, 10); got != 50 {
 		t.Fatalf("percent = %v", got)
 	}
-	if got := updateDownloadPercent(20, 10); got != 100 {
+	if got := updater.DownloadPercent(20, 10); got != 100 {
 		t.Fatalf("clamped percent = %v", got)
 	}
-	if got := formatUpdateBytes(3 * 1024 * 1024 * 1024); got != "3.00 GB" {
+	if got := updater.FormatBytes(3 * 1024 * 1024 * 1024); got != "3.00 GB" {
 		t.Fatalf("gigabytes = %q", got)
 	}
-	if got := formatUpdateBytes(12); got != "12 B" {
+	if got := updater.FormatBytes(12); got != "12 B" {
 		t.Fatalf("bytes = %q", got)
 	}
 }
@@ -50,7 +51,7 @@ func TestUpdateAvailableDetailKeepsTheEvidenceBounded(t *testing.T) {
 		Size:                2048,
 		IncrementalPossible: true,
 	}
-	got := updateAvailableDetail(res, " CNB ")
+	got := updater.AvailableDetail(res, " CNB ")
 	for _, want := range []string{"2.0.0", "cnb", "2 KB", "abc123"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("detail %q does not contain %q", got, want)
@@ -59,7 +60,7 @@ func TestUpdateAvailableDetailKeepsTheEvidenceBounded(t *testing.T) {
 	if strings.Contains(got, "secret-installer") || strings.Contains(got, "example.com") {
 		t.Fatalf("detail leaked the download URL: %q", got)
 	}
-	if got := updateAvailableDetail(desktopupdate.Result{}, ""); got != "" {
+	if got := updater.AvailableDetail(desktopupdate.Result{}, ""); got != "" {
 		t.Fatalf("empty detail = %q", got)
 	}
 }
@@ -70,12 +71,13 @@ func TestUpdateJournalRecordsCheckAndDownloadMilestones(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(paths.EnvUserData, dir)
 	s := &mainState{}
+	u := s.updaterCenter()
 	s.recordUpdateAction(desktopupdate.JournalActionCheckRequested)
-	s.recordUpdateCheckResult(desktopupdate.Result{Status: desktopupdate.StatusUpdateAvailable, Version: "2.0.0"}, nil)
+	u.RecordCheckResult(desktopupdate.Result{Status: desktopupdate.StatusUpdateAvailable, Version: "2.0.0"}, nil)
 	percent := 42.5
-	s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseDownloading, Version: "2.0.0", Percent: &percent})
-	s.recordUpdateState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseError, FailedOperation: "download", Message: "dial tcp: ETIMEDOUT"})
-	files, err := filepath.Glob(filepath.Join(dir, updateJournalDirectory, "*.jsonl"))
+	u.RecordState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseDownloading, Version: "2.0.0", Percent: &percent})
+	u.RecordState(desktopupdate.JournalState{Phase: desktopupdate.JournalPhaseError, FailedOperation: "download", Message: "dial tcp: ETIMEDOUT"})
+	files, err := filepath.Glob(filepath.Join(dir, updater.JournalDirectory, "*.jsonl"))
 	if err != nil || len(files) != 1 {
 		t.Fatalf("journal files = %v (%v)", files, err)
 	}
@@ -107,7 +109,7 @@ func TestUpdateJournalRecordsCheckAndDownloadMilestones(t *testing.T) {
 func TestUpdateJournalStaysBestEffort(t *testing.T) {
 	dir := t.TempDir()
 	// A file where the journal directory belongs makes creation fail.
-	blocked := filepath.Join(dir, updateJournalDirectory)
+	blocked := filepath.Join(dir, updater.JournalDirectory)
 	if err := os.WriteFile(blocked, []byte("x"), 0o600); err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
@@ -115,7 +117,7 @@ func TestUpdateJournalStaysBestEffort(t *testing.T) {
 	s := &mainState{}
 	s.recordUpdateAction(desktopupdate.JournalActionCheckRequested)
 	s.recordUpdateAction(desktopupdate.JournalActionDownloadRequested)
-	if !s.updateJournal.failed {
+	if !s.updaterCenter().JournalFailed() {
 		t.Fatal("journal failure was not remembered")
 	}
 }

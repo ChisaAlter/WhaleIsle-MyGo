@@ -130,6 +130,13 @@ func creatorAvailable(roster api.AgentPresetRoster) bool {
 	}
 	return false
 }
+
+func creatorRecoveryText(zh, en string) string {
+	if storelocale.Locale() == "en" {
+		return en
+	}
+	return zh
+}
 func (c *CreatorTask) complete(id, phase, message string) {
 	c.mu.Lock()
 	if c.state.SessionID == id {
@@ -247,6 +254,57 @@ func (c *CreatorTask) Locate(ctx context.Context, ticket uint64) {
 	} else {
 		c.complete(id, "create-unknown", storelocale.T(storelocale.KeyStoreSessionThisIdIsNotConfirmedInTheListNo))
 	}
+}
+
+// ApplyToExisting is an explicit recovery action for the retained created ID.
+// It verifies that the original Host still considers that exact session blank
+// before applying cordis. It never creates a replacement or changes selection.
+func (c *CreatorTask) ApplyToExisting(ctx context.Context, ticket uint64) bool {
+	c.mu.Lock()
+	if c.state.Busy || !c.state.Created || c.state.Applied || ctx.Err() != nil || !c.currentLocked(ticket, false) {
+		c.mu.Unlock()
+		return false
+	}
+	id, client := c.state.SessionID, c.owner.rpc
+	c.state.Busy = true
+	c.state.Error = ""
+	c.state.Phase = "checking"
+	c.mu.Unlock()
+	c.source.fire()
+	var roster api.AgentPresetRoster
+	if err := client.Call(ctx, "agentPresets/list", map[string]any{}, &roster); err != nil || !creatorAvailable(roster) {
+		c.complete(id, "created", creatorRecoveryText("无法确认 cordis 预设可用；已创建的会话保留。", "Could not confirm an available cordis preset; the created conversation is retained."))
+		return false
+	}
+	var blank api.SessionBlankReuseValue
+	if err := client.Call(ctx, "session/blankReuse", map[string]any{"request": map[string]any{"sessionId": id}}, &blank); err != nil || !blank.Reusable {
+		c.complete(id, "created", creatorRecoveryText("未确认 Creator 会话为空，请打开保留的会话检查。", "Creator conversation is not confirmed blank; open the retained conversation to inspect it."))
+		return false
+	}
+	c.mu.Lock()
+	if ctx.Err() != nil || !c.currentLocked(ticket, false) {
+		c.mu.Unlock()
+		c.complete(id, "created", storelocale.T(storelocale.KeyStoreSessionTaskCreatedNavigationChangedBeforeC))
+		return false
+	}
+	c.state.Phase = "applying"
+	c.mu.Unlock()
+	var selected api.SelectResult
+	err := client.Call(ctx, "agentPresets/select", map[string]any{"agentId": id, "agentPreset": "cordis"}, &selected)
+	if err != nil || string(selected) != "cordis" {
+		c.complete(id, "apply-unknown", storelocale.T(storelocale.KeyStoreSessionTaskCreatedCordisOutcomeUnconfirmed))
+		return false
+	}
+	c.mu.Lock()
+	c.state.Applied = true
+	current := ctx.Err() == nil && c.currentLocked(ticket, false)
+	c.mu.Unlock()
+	if !current {
+		c.complete(id, "ready", storelocale.T(storelocale.KeyStoreSessionCordisAppliedNewerNavigationPreserve))
+		return false
+	}
+	c.complete(id, "ready", "")
+	return true
 }
 
 // Open atomically commits only the retained target. Automatic navigation must

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"whaleisle/internal/store/internal/storefs"
 )
 
 const (
@@ -249,24 +251,24 @@ func HistoryFromSessionMessages(messages []struct{ Role, Body string }, limit in
 }
 
 func (s *Store) load() error {
-	if raw, err := os.ReadFile(filepath.Join(s.root, modeFile)); err == nil {
-		var d modeDisk
-		if json.Unmarshal(raw, &d) == nil {
-			s.mode = NormalizeMode(d.Mode)
-		}
+	var d modeDisk
+	if ok, err := storefs.ReadJSON("assistant", filepath.Join(s.root, modeFile), &d, false); err != nil {
+		return err
+	} else if ok {
+		s.mode = NormalizeMode(d.Mode)
 	}
-	if raw, err := os.ReadFile(filepath.Join(s.root, historyFile)); err == nil {
-		var turns []Turn
-		if json.Unmarshal(raw, &turns) == nil {
-			s.history = turns
-			if len(s.history) > MaxHistory {
-				s.history = s.history[:MaxHistory]
-			}
-			for _, t := range s.history {
-				if sid := strings.TrimSpace(t.SessionID); sid != "" {
-					s.sessionID = sid
-					break
-				}
+	var turns []Turn
+	if ok, err := storefs.ReadJSON("assistant", filepath.Join(s.root, historyFile), &turns, false); err != nil {
+		return err
+	} else if ok {
+		s.history = turns
+		if len(s.history) > MaxHistory {
+			s.history = s.history[:MaxHistory]
+		}
+		for _, t := range s.history {
+			if sid := strings.TrimSpace(t.SessionID); sid != "" {
+				s.sessionID = sid
+				break
 			}
 		}
 	}
@@ -281,7 +283,7 @@ func (s *Store) saveModeLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.root, modeFile), raw, 0o644)
+	return storefs.WriteFileAtomic(filepath.Join(s.root, modeFile), raw, 0o644)
 }
 
 func (s *Store) saveHistoryLocked() error {
@@ -292,7 +294,7 @@ func (s *Store) saveHistoryLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.root, historyFile), raw, 0o644)
+	return storefs.WriteFileAtomic(filepath.Join(s.root, historyFile), raw, 0o644)
 }
 
 func (s *Store) fire() {

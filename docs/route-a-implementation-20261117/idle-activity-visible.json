@@ -1,0 +1,5283 @@
+{
+  "schema": 1,
+  "executable": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-idle-0.2.0-candidate.exe",
+  "hidden": false,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 22.168
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 24.37
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 38.005
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 47.782
+    },
+    {
+      "stage": "ui.first_view_built",
+      "kind": "mark",
+      "atMs": 249.594
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 325.999
+    },
+    {
+      "stage": "harness.start_requested",
+      "kind": "mark",
+      "atMs": 332.384
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 338.685,
+      "detail": "starting"
+    },
+    {
+      "stage": "runtime.warmup.gate",
+      "kind": "mark",
+      "atMs": 340.958,
+      "detail": "cold=false probeUs=66"
+    },
+    {
+      "stage": "host.port_selected",
+      "kind": "mark",
+      "atMs": 340.958,
+      "detail": "3181"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 341.495,
+      "durMs": 115.19299999999998,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 340.958,
+      "durMs": 123.18599999999998
+    },
+    {
+      "stage": "runtime.read_capabilities",
+      "kind": "span",
+      "atMs": 340.958,
+      "durMs": 123.637
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 766.244,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 765.713,
+      "durMs": 1.6200000000000045
+    },
+    {
+      "stage": "runtime.validate.current_host",
+      "kind": "span",
+      "atMs": 765.713,
+      "durMs": 1.6200000000000045
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 767.333,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate",
+      "kind": "span",
+      "atMs": 765.713,
+      "durMs": 1.6200000000000045
+    },
+    {
+      "stage": "profile.disabled_plugins",
+      "kind": "span",
+      "atMs": 767.333
+    },
+    {
+      "stage": "profile.links",
+      "kind": "span",
+      "atMs": 767.858,
+      "durMs": 83.375
+    },
+    {
+      "stage": "profile.overlays",
+      "kind": "span",
+      "atMs": 851.233,
+      "durMs": 29.442000000000007
+    },
+    {
+      "stage": "runtime.profile_prepare",
+      "kind": "span",
+      "atMs": 767.333,
+      "durMs": 113.34199999999998
+    },
+    {
+      "stage": "host.plan",
+      "kind": "span",
+      "atMs": 765.209,
+      "durMs": 137.37400000000002
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 903.125,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.spawned",
+      "kind": "mark",
+      "atMs": 914.461,
+      "detail": "39120"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 915.647,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 5638.551,
+      "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 5638.551,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 5772.359,
+      "detail": "(node:39120) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 5772.359,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 5772.359,
+      "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 5774.454,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.readyline",
+      "kind": "mark",
+      "atMs": 6078.704
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6079.335,
+      "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6079.335,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.auth.get_connection",
+      "kind": "mark",
+      "atMs": 6079.335
+    },
+    {
+      "stage": "host.auth.connect_start",
+      "kind": "mark",
+      "atMs": 6079.335
+    },
+    {
+      "stage": "host.auth.connect_done",
+      "kind": "mark",
+      "atMs": 6079.839
+    },
+    {
+      "stage": "host.auth.got_connection",
+      "kind": "mark",
+      "atMs": 6079.839
+    },
+    {
+      "stage": "host.auth.request_written",
+      "kind": "mark",
+      "atMs": 6080.374
+    },
+    {
+      "stage": "host.auth.first_response_byte",
+      "kind": "mark",
+      "atMs": 6534.408
+    },
+    {
+      "stage": "host.handshake",
+      "kind": "span",
+      "atMs": 6078.704,
+      "durMs": 455.70400000000063
+    },
+    {
+      "stage": "host.ready",
+      "kind": "mark",
+      "atMs": 6534.408
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6534.408,
+      "detail": "ready"
+    },
+    {
+      "stage": "boot.outcome_recorded",
+      "kind": "mark",
+      "atMs": 6534.408
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 6534.408,
+      "detail": "ready"
+    },
+    {
+      "stage": "connection.bootstrap_start",
+      "kind": "mark",
+      "atMs": 6548.483
+    },
+    {
+      "stage": "stores.opened",
+      "kind": "mark",
+      "atMs": 6557.729
+    },
+    {
+      "stage": "connection.carrier_connected",
+      "kind": "mark",
+      "atMs": 6794.678
+    },
+    {
+      "stage": "connection.events_ready",
+      "kind": "mark",
+      "atMs": 6797.213
+    },
+    {
+      "stage": "workspace.ready",
+      "kind": "mark",
+      "atMs": 6853.087
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 6853.087,
+      "detail": "ready"
+    },
+    {
+      "stage": "plugins.inventory_ready",
+      "kind": "mark",
+      "atMs": 7566.363
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 7566.363,
+      "detail": "ready"
+    }
+  ],
+  "idle": {
+    "requestedSeconds": 120,
+    "observedSeconds": 120.740828,
+    "samples": [
+      {
+        "elapsedSeconds": 0.2951336,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.765625,
+            "workingSetBytes": 428351488,
+            "privateBytes": 455733248,
+            "handles": 801,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.03125,
+            "workingSetBytes": 426180608,
+            "privateBytes": 452554752,
+            "handles": 291,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 1.5111944,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.765625,
+            "workingSetBytes": 427704320,
+            "privateBytes": 455086080,
+            "handles": 800,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.03125,
+            "workingSetBytes": 426233856,
+            "privateBytes": 452558848,
+            "handles": 290,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 2.7262592,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427712512,
+            "privateBytes": 455094272,
+            "handles": 793,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.03125,
+            "workingSetBytes": 426233856,
+            "privateBytes": 452558848,
+            "handles": 283,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 3.9300431,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427712512,
+            "privateBytes": 455094272,
+            "handles": 787,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.03125,
+            "workingSetBytes": 426233856,
+            "privateBytes": 452558848,
+            "handles": 277,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 5.1384364,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.03125,
+            "workingSetBytes": 426233856,
+            "privateBytes": 452558848,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 6.3715791,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.4375,
+            "workingSetBytes": 268365824,
+            "privateBytes": 292913152,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 7.5622652,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.4375,
+            "workingSetBytes": 268365824,
+            "privateBytes": 292913152,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 8.7572766,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.4375,
+            "workingSetBytes": 268369920,
+            "privateBytes": 292913152,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 10.0305722,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.4375,
+            "workingSetBytes": 268374016,
+            "privateBytes": 292913152,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 11.2899625,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.4375,
+            "workingSetBytes": 268378112,
+            "privateBytes": 292913152,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 12.5376797,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.53125,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 13.7371686,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.53125,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 14.9334841,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.53125,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 16.1328153,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.53125,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 17.3307346,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 18.5636982,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 19.7867865,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.09375,
+            "workingSetBytes": 46305280,
+            "privateBytes": 72884224,
+            "handles": 210,
+            "threads": 17
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427716608,
+            "privateBytes": 455094272,
+            "handles": 785,
+            "threads": 90
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 20.9883705,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427687936,
+            "privateBytes": 455049216,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270688256,
+            "privateBytes": 294682624,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 22.1843717,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427687936,
+            "privateBytes": 455049216,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270696448,
+            "privateBytes": 294682624,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 23.3951519,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.78125,
+            "workingSetBytes": 427687936,
+            "privateBytes": 455049216,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270696448,
+            "privateBytes": 294682624,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 24.643487,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.796875,
+            "workingSetBytes": 427687936,
+            "privateBytes": 455049216,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.546875,
+            "workingSetBytes": 270696448,
+            "privateBytes": 294682624,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 25.8670226,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.8125,
+            "workingSetBytes": 427864064,
+            "privateBytes": 455139328,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.578125,
+            "workingSetBytes": 270700544,
+            "privateBytes": 294682624,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 27.1003439,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.8125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.671875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 28.2932585,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.8125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 29.4976071,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 30.6969761,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 31.8966659,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 33.1106434,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 34.317405,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 35.5519344,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 36.7474317,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 37.9440763,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46276608,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10846208,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 39.1828706,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.828125,
+            "workingSetBytes": 427876352,
+            "privateBytes": 455147520,
+            "handles": 782,
+            "threads": 89
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273301504,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 40.427363,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.921875,
+            "workingSetBytes": 444768256,
+            "privateBytes": 467976192,
+            "handles": 886,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.6875,
+            "workingSetBytes": 273309696,
+            "privateBytes": 297250816,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 41.7074415,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.265625,
+            "workingSetBytes": 449028096,
+            "privateBytes": 474808320,
+            "handles": 886,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 42.95768,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.546875,
+            "workingSetBytes": 450875392,
+            "privateBytes": 478953472,
+            "handles": 886,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 44.1676442,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.703125,
+            "workingSetBytes": 452780032,
+            "privateBytes": 483282944,
+            "handles": 886,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 45.380723,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.96875,
+            "workingSetBytes": 454623232,
+            "privateBytes": 487727104,
+            "handles": 886,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 275,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 46.6185497,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.109375,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 4.265625,
+            "workingSetBytes": 456589312,
+            "privateBytes": 492171264,
+            "handles": 885,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 47.8518587,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 4.421875,
+            "workingSetBytes": 458461184,
+            "privateBytes": 496390144,
+            "handles": 885,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 49.0576331,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 46333952,
+            "privateBytes": 72822784,
+            "handles": 210,
+            "threads": 15
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 4.578125,
+            "workingSetBytes": 460517376,
+            "privateBytes": 500502528,
+            "handles": 885,
+            "threads": 101
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 50.270341,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 4.78125,
+            "workingSetBytes": 473747456,
+            "privateBytes": 515854336,
+            "handles": 883,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273321984,
+            "privateBytes": 297250816,
+            "handles": 274,
+            "threads": 17
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10948608,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 51.4781173,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.171875,
+            "workingSetBytes": 533676032,
+            "privateBytes": 576614400,
+            "handles": 1008,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273268736,
+            "privateBytes": 297148416,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 52.7234717,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.3125,
+            "workingSetBytes": 534474752,
+            "privateBytes": 576835584,
+            "handles": 1009,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273268736,
+            "privateBytes": 297148416,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 53.9444541,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.328125,
+            "workingSetBytes": 534474752,
+            "privateBytes": 576835584,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273268736,
+            "privateBytes": 297148416,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 55.1728132,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.328125,
+            "workingSetBytes": 534474752,
+            "privateBytes": 571670528,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273268736,
+            "privateBytes": 297148416,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 56.3856714,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.328125,
+            "workingSetBytes": 534474752,
+            "privateBytes": 571670528,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.8125,
+            "workingSetBytes": 273268736,
+            "privateBytes": 297148416,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 57.601372,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 534478848,
+            "privateBytes": 571670528,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 58.8124862,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 533282816,
+            "privateBytes": 570474496,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 60.0284899,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 533282816,
+            "privateBytes": 570474496,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 61.2372369,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 533282816,
+            "privateBytes": 570474496,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 62.4505711,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 533282816,
+            "privateBytes": 570474496,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 63.6552892,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 533282816,
+            "privateBytes": 570474496,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 64.8530037,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.34375,
+            "workingSetBytes": 533282816,
+            "privateBytes": 570474496,
+            "handles": 1011,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 66.0628313,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.359375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 67.2689281,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.359375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 68.5150739,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.359375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 69.7209759,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.359375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 70.9576735,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.4375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 8.953125,
+            "workingSetBytes": 273793024,
+            "privateBytes": 297689088,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 72.2227077,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.453125,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.046875,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 73.4579972,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.453125,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.046875,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 74.6961585,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.453125,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.0625,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 75.9134509,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.484375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 77.1212723,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.484375,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 78.3279195,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 79.5411298,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533450752,
+            "privateBytes": 570482688,
+            "handles": 1015,
+            "threads": 102
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 80.7743255,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1015,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.078125,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 81.9786206,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.09375,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 83.1990344,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.09375,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 84.4135719,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.09375,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 85.6086015,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.09375,
+            "workingSetBytes": 274116608,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 86.836611,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.203125,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 88.0415487,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.203125,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 89.2603589,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.21875,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 90.4903548,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.21875,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 91.705537,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 92.9252538,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 94.12549,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 95.350275,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 96.5738218,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 97.7803687,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 99.0724045,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.515625,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 100.2748431,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 101.5131727,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.265625,
+            "workingSetBytes": 274247680,
+            "privateBytes": 298622976,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 102.7418479,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 103.9573019,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 105.1683365,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 106.3779321,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 107.6366397,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 108.8713636,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533413888,
+            "privateBytes": 570413056,
+            "handles": 1014,
+            "threads": 100
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 110.0873913,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46321664,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.546875,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 111.2937078,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 112.5086364,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 113.7276373,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.359375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 114.9615163,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.375,
+            "workingSetBytes": 274317312,
+            "privateBytes": 299433984,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 116.1712587,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.40625,
+            "workingSetBytes": 274984960,
+            "privateBytes": 300023808,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 117.3815412,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.5,
+            "workingSetBytes": 275218432,
+            "privateBytes": 300023808,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 118.5938228,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.5,
+            "workingSetBytes": 275218432,
+            "privateBytes": 300023808,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 119.8046347,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.5,
+            "workingSetBytes": 275218432,
+            "privateBytes": 300023808,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 121.0359616,
+        "processes": [
+          {
+            "pid": 46016,
+            "startedAt": "2026-11-17T16:20:38.8709120Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.15625,
+            "workingSetBytes": 46383104,
+            "privateBytes": 72798208,
+            "handles": 210,
+            "threads": 14
+          },
+          {
+            "pid": 44828,
+            "startedAt": "2026-11-17T16:20:38.5022216Z",
+            "name": "route-a-idle-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 5.5625,
+            "workingSetBytes": 533393408,
+            "privateBytes": 570376192,
+            "handles": 1014,
+            "threads": 99
+          },
+          {
+            "pid": 39120,
+            "startedAt": "2026-11-17T16:20:39.4472920Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 9.5,
+            "workingSetBytes": 275218432,
+            "privateBytes": 300023808,
+            "handles": 274,
+            "threads": 14
+          },
+          {
+            "pid": 22912,
+            "startedAt": "2026-11-17T16:20:39.4599210Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10928128,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          }
+        ]
+      }
+    ],
+    "stableProcesses": [
+      {
+        "pid": 46016,
+        "name": "route-a-idle-0.2.0-candidate",
+        "role": "helper",
+        "observedSeconds": 120.740828,
+        "cpuPercentOneCore": 0.05176376627133947,
+        "initialWorkingSetBytes": 46305280,
+        "finalWorkingSetBytes": 46383104,
+        "initialPrivateBytes": 72884224,
+        "finalPrivateBytes": 72798208,
+        "initialHandles": 210,
+        "finalHandles": 210,
+        "finalThreads": 14
+      },
+      {
+        "pid": 44828,
+        "name": "route-a-idle-0.2.0-candidate",
+        "role": "desktop",
+        "observedSeconds": 120.740828,
+        "cpuPercentOneCore": 2.316428540642441,
+        "initialWorkingSetBytes": 428351488,
+        "finalWorkingSetBytes": 533393408,
+        "initialPrivateBytes": 455733248,
+        "finalPrivateBytes": 570376192,
+        "initialHandles": 801,
+        "finalHandles": 1014,
+        "finalThreads": 99
+      },
+      {
+        "pid": 39120,
+        "name": "node",
+        "role": "host",
+        "observedSeconds": 120.740828,
+        "cpuPercentOneCore": 1.2164485073764775,
+        "initialWorkingSetBytes": 426180608,
+        "finalWorkingSetBytes": 275218432,
+        "initialPrivateBytes": 452554752,
+        "finalPrivateBytes": 300023808,
+        "initialHandles": 291,
+        "finalHandles": 274,
+        "finalThreads": 14
+      },
+      {
+        "pid": 22912,
+        "name": "conhost",
+        "role": "helper",
+        "observedSeconds": 120.740828,
+        "cpuPercentOneCore": 0.0,
+        "initialWorkingSetBytes": 10846208,
+        "finalWorkingSetBytes": 10928128,
+        "initialPrivateBytes": 1794048,
+        "finalPrivateBytes": 1757184,
+        "initialHandles": 120,
+        "finalHandles": 120,
+        "finalThreads": 3
+      }
+    ],
+    "summaryScope": "processes alive for the entire observation; transient processes remain in samples"
+  },
+  "coverage": "sampled-startup",
+  "readiness": "workspace",
+  "runtime": {
+    "vendor": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\vendor",
+    "nodeDirectory": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node"
+  },
+  "webViewCount": 0
+}

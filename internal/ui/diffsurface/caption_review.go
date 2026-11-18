@@ -40,21 +40,18 @@ func CaptionAction(c *ui.Context, m Model, message, action string, overlay ...bo
 	if w.captionReview != nil {
 		closeCaptionReview(w, w.captionReview)
 	}
-	w.invalidate = c.Services().Invalidate
+	w.setInvalidate(c.Services().Invalidate)
 	if action == "init" {
 		root := m.WorkspaceRoot
 		w.cancelCommitPreparation()
 		w.cancelRemotePreparation()
 		w.Remote = nil
 		w.PublishOpen = false
-		if w.Root != root {
-			w.cancelBranchList()
-			w.cancelRepositoryStatus()
-			w.CancelComparison()
-			*w = Workbench{Root: root, invalidate: c.Services().Invalidate, AgainstHEAD: true}
+		if w.Root != "" && w.Root != root {
+			w.resetStateForRoot(root, c.Services().Invalidate)
 		}
-		w.Root = root
-		w.invalidate = c.Services().Invalidate
+		w.bindRoot(root)
+		w.setInvalidate(c.Services().Invalidate)
 		beginGitOperation(c, w, word("正在初始化 Git", "Initializing Git"), func(ctx context.Context) gitOperationResult {
 			out, err := git.Initialize(root)
 			return gitOperationResult{text: out, err: err}
@@ -113,6 +110,8 @@ func CaptionReview(c *ui.Context, m Model) {
 	owned := m
 	owned.WorkspaceRoot = seat.root
 	owned.CaptionAdmission = seat.valid
+	w.setInvalidate(c.Services().Invalidate)
+	w.finishAsync(owned)
 	open := true
 	width, height := c.Size()
 	title := word("核对 Git 操作", "Review Git action")
@@ -154,6 +153,9 @@ func CaptionReview(c *ui.Context, m Model) {
 							branch = w.RepositoryStatus.Branch
 						}
 						ui.Text(c, word("提交分支：", "Commit branch: ")+branch).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+						if len(w.Changes) == 0 && !w.Loaded && w.isReloading(seat.root) {
+							ui.Text(c, word("正在加载仓库变更…", "Loading repository changes…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+						}
 						for _, change := range w.Changes {
 							ch := change
 							ui.Row(c.Key("caption-commit-file-" + ch.Path)).FillWidth().MinWidth(0).Gap(8).Children(func() {

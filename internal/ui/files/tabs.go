@@ -50,6 +50,9 @@ type WorkspaceTabs struct {
 type FileTab struct {
 	AutoRefreshDisabled                       bool
 	externalChanged                           bool
+	hasConflict                               bool
+	conflictContent                           string
+	conflictTruncated                         bool
 	document                                  documentSurfaceState
 	deliverySource                            *deliveryPreviewSource
 	textPage                                  workspacefs.TextPage
@@ -70,6 +73,22 @@ type FileTab struct {
 	sourceWidthText                           string
 	sourceWidth                               float32
 	sourceWidthValid                          bool
+	sourceTextVer                             uint64
+	sourceTextLast                            string
+	sourceLinesText                           string
+	sourceLineSpans                           []sourceLine
+	sourceLineStrings                         []string
+	sourceRangeKeySig                         string
+	sourceLineRich                            [][]ui.Span
+	virtualLists                              map[string]*ui.ListState
+	findOpen                                  bool
+	findQuery                                 string
+	findLastQuery                             string
+	findMatchIndex                            int
+	findScrollPending                         bool
+	findFocusPending                          bool
+	revealMatchStart, revealMatchEnd          int
+	revealMatchPending                        bool
 	editBuffer                                *ui.TextBuffer
 	editBufferVersion                         uint64
 	editBufferText, editModelText             string
@@ -194,7 +213,13 @@ func prepareTabs(m Model) {
 		}
 		return
 	}
-	if m.SelectedFile != nil && *m.SelectedFile != "" && *m.SelectedFile != w.Active {
+	if m.SelectedFile != nil && *m.SelectedFile == "" && w.Active != "" {
+		if active := findTab(w, w.Active); active != nil {
+			restore(m, active)
+		} else {
+			w.Active = ""
+		}
+	} else if m.SelectedFile != nil && *m.SelectedFile != "" && *m.SelectedFile != w.Active {
 		requested := *m.SelectedFile
 		if active := findTab(w, w.Active); active != nil {
 			restore(m, active)
@@ -299,6 +324,9 @@ func saveDraft(m Model) error {
 	}
 	if m.SelectedFile == nil || m.EditDraft == nil || m.Preview == nil || m.OnSaveEdit == nil {
 		return errors.New("no editable file")
+	}
+	if t := selectedTab(m); t != nil && t.hasConflict {
+		return errors.New(label("存在外部修改冲突，请先选择应用磁盘版本或用草稿覆盖磁盘。", "External modification conflict exists. Choose Use disk version or Overwrite disk with draft first."))
 	}
 	if t := selectedTab(m); t != nil && t.save != nil {
 		if t.save.Snapshot().Running {

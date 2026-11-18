@@ -29,6 +29,7 @@ func (s *Store) WatchBand(ctx context.Context) {
 	changed := len(s.bandActions) != 0 || s.bandGeneration != 0
 	s.bandActions = nil
 	s.bandGeneration = 0
+	s.bandPressSeq++
 	if changed {
 		s.invalidateViewLocked()
 	}
@@ -76,7 +77,7 @@ func (s *Store) runBandWatch(ctx context.Context, mux *dsh.Mux, sessionID string
 		}
 		actions := parseBandActions(snap.Tree)
 		s.mu.Lock()
-		if s.selectedID != sessionID {
+		if ctx.Err() != nil || s.mux != mux || s.selectedID != sessionID {
 			s.mu.Unlock()
 			return
 		}
@@ -93,14 +94,22 @@ func (s *Store) runBandWatch(ctx context.Context, mux *dsh.Mux, sessionID string
 // PressBand calls claudeCodeMods/pressBand for the current generation.
 func (s *Store) PressBand(ctx context.Context, actionID string) {
 	actionID = strings.TrimSpace(actionID)
+	if ctx == nil || ctx.Err() != nil || actionID == "" {
+		return
+	}
 	s.mu.Lock()
 	client := s.client
 	sessionID := s.selectedID
 	gen := s.bandGeneration
-	s.mu.Unlock()
-	if client == nil || sessionID == "" || actionID == "" {
+	eventsGen := s.eventsGeneration
+	followGen := s.followGeneration
+	if client == nil || sessionID == "" {
+		s.mu.Unlock()
 		return
 	}
+	s.bandPressSeq++
+	pressSeq := s.bandPressSeq
+	s.mu.Unlock()
 	go func() {
 		var out api.SurfaceSnapshot
 		err := client.Call(ctx, "claudeCodeMods/pressBand", map[string]any{
@@ -109,11 +118,17 @@ func (s *Store) PressBand(ctx context.Context, actionID string) {
 			"actionId":   actionID,
 		}, &out)
 		s.mu.Lock()
+		if ctx.Err() != nil || s.client != client || s.eventsGeneration != eventsGen || s.followGeneration != followGen || s.selectedID != sessionID || s.bandPressSeq != pressSeq {
+			s.mu.Unlock()
+			return
+		}
 		if err != nil {
 			s.lastAction = "band: " + err.Error()
 		} else {
-			s.bandGeneration = out.Generation
-			s.bandActions = parseBandActions(out.Tree)
+			if out.Generation >= s.bandGeneration {
+				s.bandGeneration = out.Generation
+				s.bandActions = parseBandActions(out.Tree)
+			}
 			s.lastAction = "band " + actionID
 		}
 		s.invalidateViewLocked()

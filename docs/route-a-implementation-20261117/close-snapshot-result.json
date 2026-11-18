@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-17",
+  "platform": "windows/amd64",
+  "cpu": "Intel Core i7-11800H",
+  "scope": "Existing prewarmed Store BenchmarkSnapshotWhileStreaming. 400 iterations per case; synthetic source events, no Host/native window/presentation/model.",
+  "fixture": {
+    "nominalEvents": 8000,
+    "actualMessagesWithLiveRow": 7801
+  },
+  "before": {
+    "nanosecondsPerChangedFrame": 7458918,
+    "bytesPerChangedFrame": 21431377,
+    "allocationsPerChangedFrame": 26092,
+    "profiled": true,
+    "log": "close-snapshot-before.log"
+  },
+  "after": {
+    "nanosecondsPerChangedFrame": 2451876,
+    "bytesPerChangedFrame": 6293854,
+    "allocationsPerChangedFrame": 38,
+    "profiled": false,
+    "log": "close-snapshot-after.log"
+  },
+  "reduction": {
+    "timePercent": 67.12826176665303,
+    "allocatedBytesPercent": 70.63252631877084
+  },
+  "changedFrameSeries": [
+    {
+      "actualMessagesWithLiveRow": 488,
+      "nanoseconds": 143556,
+      "bytes": 411799,
+      "allocations": 38
+    },
+    {
+      "actualMessagesWithLiveRow": 1951,
+      "nanoseconds": 464982,
+      "bytes": 1591570,
+      "allocations": 38
+    },
+    {
+      "actualMessagesWithLiveRow": 7801,
+      "nanoseconds": 2451876,
+      "bytes": 6293854,
+      "allocations": 38
+    }
+  ],
+  "contractTests": "close-snapshot-final-packages.log",
+  "implementation": [
+    "Freeze durable trajectory message projection and only reproject active rows/timing on stream changes.",
+    "First read-only frame owns the frozen revision arrays; overlapping handles retain independent top-level arrays.",
+    "State-only revisions retain ownership of reused arrays; retired/changed session clears the journal projection.",
+    "Public Snapshot retains a fully independent mutable deep copy."
+  ],
+  "limits": [
+    "Microbenchmark averages are not visible input latency or p95/p99.",
+    "Before CPU/allocation profiling adds diagnostic overhead; the earlier unprofiled 100-iteration frame result was 7.579ms and 21.431MB.",
+    "Flat message and trajectory arrays still require history-sized immutable publication; 6.294MB per change remains, not tail-only allocation.",
+    "Last candidate adjustments affect state-only ownership and durable cache rebuild/clear; streaming benchmark path and output remain identical."
+  ]
+}

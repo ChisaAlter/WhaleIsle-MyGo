@@ -19,6 +19,7 @@ type discoveryState struct {
 	service                                                 CatalogService
 	catalog                                                 desktopmarket.Catalog
 	loaded, loading, detailsLoading                         bool
+	nativeCompatibleOnly                                    bool
 	err, detailsErr, query, category, tab, selected, locale string
 	sort, period                                            string
 	details                                                 desktopmarket.Details
@@ -33,7 +34,7 @@ type Discovery struct {
 	Total, Page                                       int
 	Query, Category, Tab, SelectedID, Err, DetailsErr string
 	Sort, Period                                      string
-	Loading, DetailsLoading                           bool
+	Loading, DetailsLoading, NativeCompatibleOnly     bool
 	Selected                                          *desktopmarket.CatalogItem
 	Details                                           desktopmarket.Details
 	Revision                                          uint64
@@ -54,7 +55,7 @@ func newDiscoveryState() discoveryState {
 	if dir != "" {
 		path = filepath.Join(dir, "whaleisle", "marketplace-cache.json")
 	}
-	return discoveryState{service: desktopmarket.NewService(path), category: "all", tab: "discover", sort: "catalog", period: "all"}
+	return discoveryState{service: desktopmarket.NewService(path), category: "all", tab: "discover", sort: "catalog", period: "all", nativeCompatibleOnly: true}
 }
 func (s *Store) SetCatalogService(service CatalogService) {
 	s.mu.Lock()
@@ -126,13 +127,15 @@ func (s *Store) Discovery() Discovery {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d := &s.discovery
-	out := Discovery{Catalog: d.catalog, Query: d.query, Category: d.category, Tab: d.tab, Sort: d.sort, Period: d.period, SelectedID: d.selected, Err: d.err, DetailsErr: d.detailsErr, Loading: d.loading, DetailsLoading: d.detailsLoading, Details: d.details, Revision: d.revision, RuntimeReady: s.client != nil, Page: d.page}
+	out := Discovery{Catalog: d.catalog, Query: d.query, Category: d.category, Tab: d.tab, Sort: d.sort, Period: d.period, SelectedID: d.selected, Err: d.err, DetailsErr: d.detailsErr, Loading: d.loading, DetailsLoading: d.detailsLoading, NativeCompatibleOnly: d.nativeCompatibleOnly, Details: d.details, Revision: d.revision, RuntimeReady: s.client != nil, Page: d.page}
 	out.Catalog.Items = append([]desktopmarket.CatalogItem(nil), d.catalog.Items...)
 	for i := range out.Catalog.Items {
 		out.Catalog.Items[i] = copyCatalogItem(out.Catalog.Items[i])
 	}
 	out.Catalog.Categories = append([]desktopmarket.Category(nil), d.catalog.Categories...)
 	out.Details.Requirements = append([]string(nil), d.details.Requirements...)
+	out.Details.Capabilities.MCPServers = append([]string(nil), d.details.Capabilities.MCPServers...)
+	out.Details.Capabilities.SkillNames = append([]string(nil), d.details.Capabilities.SkillNames...)
 	q := strings.ToLower(strings.TrimSpace(d.query))
 	for _, item := range d.catalog.Items {
 		if item.ID == d.selected {
@@ -143,6 +146,9 @@ func (s *Store) Discovery() Discovery {
 			continue
 		}
 		if d.category != "all" && d.category != "" && item.Category != d.category {
+			continue
+		}
+		if d.nativeCompatibleOnly && !item.AllowsNativeMode() {
 			continue
 		}
 		if q != "" && !strings.Contains(strings.ToLower(item.ID+" "+item.Description+" "+item.PackageName), q) {
@@ -173,7 +179,19 @@ func (s *Store) Discovery() Discovery {
 
 func copyCatalogItem(item desktopmarket.CatalogItem) desktopmarket.CatalogItem {
 	item.Screenshots = append([]string(nil), item.Screenshots...)
+	item.Capabilities.MCPServers = append([]string(nil), item.Capabilities.MCPServers...)
+	item.Capabilities.SkillNames = append([]string(nil), item.Capabilities.SkillNames...)
 	return item
+}
+
+// SetNativeCompatibleOnly toggles filtering out Web UI-only catalog entries.
+func (s *Store) SetNativeCompatibleOnly(enabled bool) {
+	s.mu.Lock()
+	s.discovery.nativeCompatibleOnly = enabled
+	s.discovery.page = 0
+	s.discovery.expanded = false
+	s.mu.Unlock()
+	s.fire()
 }
 func (s *Store) SetQuery(q string) {
 	s.mu.Lock()
@@ -276,6 +294,14 @@ func (s *Store) SelectDetails(id string, force bool) {
 			d.detailsErr = e.Error()
 		} else {
 			d.details = details
+			if details.CapabilityKind != "" {
+				for idx := range d.catalog.Items {
+					if d.catalog.Items[idx].ID == id {
+						desktopmarket.ApplyCapabilityProfile(&d.catalog.Items[idx], details.Capabilities)
+						break
+					}
+				}
+			}
 		}
 		s.mu.Unlock()
 		s.fire()

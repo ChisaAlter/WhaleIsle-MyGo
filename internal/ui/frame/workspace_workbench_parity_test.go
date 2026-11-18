@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
@@ -180,38 +179,6 @@ func TestInShellMiniAndRepeatedHostTerminalOccurrences(t *testing.T) {
 			t.Fatal("recovery would create another Host process")
 		}
 	})
-}
-
-func TestPluginResourceRetainsExactOccurrenceAndConfirmsClose(t *testing.T) {
-	w := &WorkspacePanes{}
-	first := w.OpenPluginRightPaneTab("owner:session:tab1", "First plugin")
-	if again := w.OpenPluginRightPaneTab("owner:session:tab1", "First plugin"); again != first {
-		t.Fatal("same plugin occurrence cloned")
-	}
-	second := w.OpenPluginRightPaneTab("owner:session:tab2", "Second plugin")
-	if second == first || w.Root.find(first).PluginRightPaneHandle != "owner:session:tab1" {
-		t.Fatal("source handle transferred to another resource")
-	}
-	closeCalls := 0
-	m := Model{PluginRightPaneTabs: []pluginui.RightPaneTab{{Handle: "owner:session:tab1"}, {Handle: "owner:session:tab2"}}, OnClosePluginRightPaneTab: func(handle string) {
-		if handle != "owner:session:tab1" {
-			t.Fatal(handle)
-		}
-		closeCalls++
-	}}
-	w.syncPluginRightPanes(m)
-	if w.close(first) || closeCalls != 1 || w.Root.find(first) == nil {
-		t.Fatal("unconfirmed source close removed native resource")
-	}
-	w.syncPluginRightPanes(m)
-	if w.Root.find(first) == nil {
-		t.Fatal("source refusal was ignored")
-	}
-	m.PluginRightPaneTabs = m.PluginRightPaneTabs[1:]
-	w.syncPluginRightPanes(m)
-	if w.Root.find(first) != nil || w.Root.find(second) == nil {
-		t.Fatal("source close confirmation affected wrong occurrence")
-	}
 }
 
 func TestFullscreenPadReserveKeepsCaptionFullWidth(t *testing.T) {

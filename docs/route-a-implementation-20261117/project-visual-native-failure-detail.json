@@ -1,0 +1,117 @@
+{
+  "appPID": 19116,
+  "error": "opened Project page has no observed live helper and WebView2 tree\ncould not attach isolated preview surface",
+  "finalProcesses": [
+    {
+      "pid": 40348,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9424,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44040,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 34880,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 14068,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22156,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46028,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 30968,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    }
+  ],
+  "helper": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-88ca4744bd244f0183f7c14386a2b590\\whaleisle-preview.exe",
+  "host": "loopback synthetic Project/readVisualReply responses",
+  "lastOpenButtonBounds": {
+    "X": 374.35855,
+    "Y": 225.21289,
+    "W": 136.61621,
+    "H": 18.621094
+  },
+  "modelRequests": 0,
+  "nativeSurfaceFailure": "could not attach isolated preview surface",
+  "passed": false,
+  "privateDesktop": "WhaleIsleProjectVisual-19116-1794897267379389300",
+  "processObservation": "owned helper/WebView2 descendants sampled every 25 ms with retained process handles",
+  "schemaVersion": 1,
+  "scope": "production Project Manager, ObserverView, mainProjectDeps renderer, publishedHTMLSurface and real AppContainer/WebView2",
+  "stages": [
+    {
+      "active": 0,
+      "htmlReads": 0,
+      "processes": null,
+      "stage": "default-awaiting-open"
+    },
+    {
+      "active": 2,
+      "htmlReads": 1,
+      "processes": [
+        {
+          "pid": 22156,
+          "name": "msedgewebview2.exe",
+          "alive": false
+        },
+        {
+          "pid": 46028,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 30968,
+          "name": "msedgewebview2.exe",
+          "alive": false
+        },
+        {
+          "pid": 40348,
+          "name": "msedgewebview2.exe",
+          "alive": false
+        },
+        {
+          "pid": 9424,
+          "name": "msedgewebview2.exe",
+          "alive": false
+        },
+        {
+          "pid": 44040,
+          "name": "whaleisle-preview.exe",
+          "alive": false
+        },
+        {
+          "pid": 34880,
+          "name": "msedgewebview2.exe",
+          "alive": true
+        },
+        {
+          "pid": 14068,
+          "name": "msedgewebview2.exe",
+          "alive": false
+        }
+      ],
+      "stage": "explicit-open-1"
+    }
+  ],
+  "visibility": "native ShowInactive/Hide on a private desktop that is never switched to"
+}

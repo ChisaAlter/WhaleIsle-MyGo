@@ -1,0 +1,56 @@
+{
+  "acceptedBeforeReconnectJournalCount": 1,
+  "acceptedBeforeRestartJournalCount": 1,
+  "afterReconnect": {
+    "Selected": "session-af55d313-46dd-47e6-80be-c0b6b30604b1",
+    "A": "new draft during reconnect",
+    "B": "keep B unsent",
+    "ErrorA": "",
+    "PendingA": 0,
+    "Phases": {
+      "0502b40a8b1309ae8145af45aa9e29bb": "confirmed"
+    }
+  },
+  "beforeReconnect": {
+    "Selected": "session-af55d313-46dd-47e6-80be-c0b6b30604b1",
+    "A": "new draft during reconnect",
+    "B": "keep B unsent",
+    "ErrorA": "发送结果待确认，请查看会话；不要重复发送 / Send outcome unconfirmed; check the conversation before resending: Post \"http://127.0.0.1:64990/api/session/prompt\": EOF",
+    "PendingA": 1,
+    "Phases": {
+      "0502b40a8b1309ae8145af45aa9e29bb": "dispatching"
+    }
+  },
+  "beforeRestart": {
+    "Selected": "session-af55d313-46dd-47e6-80be-c0b6b30604b1",
+    "A": "new draft after restart send",
+    "B": "keep B unsent",
+    "ErrorA": "发送结果待确认，请查看会话；不要重复发送 / Send outcome unconfirmed; check the conversation before resending: Post \"http://127.0.0.1:64990/api/session/prompt\": EOF",
+    "PendingA": 1,
+    "Phases": {
+      "0502b40a8b1309ae8145af45aa9e29bb": "confirmed",
+      "25839edb4b4914f35cebb9c9916ea4d8": "dispatching"
+    }
+  },
+  "connection": {
+    "bootstrapError": "",
+    "lost": true,
+    "ready": false,
+    "resumeError": ""
+  },
+  "error": "\u003cnil\u003e",
+  "hidden": true,
+  "lastSession": {
+    "clientReady": true,
+    "lastAction": "follow dial: dsh mux: dial: failed to WebSocket dial: expected handshake response status code 101 but got 503",
+    "listError": "",
+    "listLoading": false,
+    "workspaceReady": true
+  },
+  "passed": true,
+  "phase": "submit",
+  "pid": 41032,
+  "promptDispatches": 2,
+  "savedSelected": "session-af55d313-46dd-47e6-80be-c0b6b30604b1",
+  "wireErrors": null
+}

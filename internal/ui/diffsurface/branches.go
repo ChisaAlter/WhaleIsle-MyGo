@@ -18,6 +18,7 @@ type branchListResult struct {
 
 type branchListRequest struct {
 	root   string
+	gen    uint64
 	cancel context.CancelFunc
 	done   chan branchListResult
 }
@@ -29,19 +30,37 @@ func (w *Workbench) cancelBranchList() {
 	}
 }
 
+func (w *Workbench) reloadBranchesIfNeeded() {
+	if w == nil {
+		return
+	}
+	gen := w.bindRoot(w.Root)
+	if w.branchesRequest != nil && w.branchesRequest.root == w.Root && (w.branchesRequest.gen == 0 || w.branchesRequest.gen == gen) {
+		return
+	}
+	w.reloadBranches()
+}
+
 func (w *Workbench) reloadBranches() {
+	if w == nil {
+		return
+	}
+	gen := w.bindRoot(w.Root)
 	w.cancelBranchList()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	request := &branchListRequest{root: w.Root, cancel: cancel, done: make(chan branchListResult, 1)}
+	request := &branchListRequest{root: w.Root, gen: gen, cancel: cancel, done: make(chan branchListResult, 1)}
 	w.branchesRequest = request
-	root, invalidate := w.Root, w.invalidate
+	root, loader, invalidate := w.Root, w.loader, w.invalidate
+	ops := gitOps
 	w.Branches = nil
 	w.BranchStatus = ""
 	go func() {
 		defer cancel()
-		branches, err := git.BranchesContext(ctx, root)
+		branches, err := ops.branchesContext(ctx, root)
 		request.done <- branchListResult{branches: branches, err: err}
-		if invalidate != nil {
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()
@@ -52,7 +71,7 @@ func (w *Workbench) finishBranchList() {
 	if request == nil {
 		return
 	}
-	if request.root != w.Root || !w.BranchesOpen {
+	if request.root != w.Root || !w.BranchesOpen || (request.gen != 0 && request.gen != w.currentGen()) {
 		w.cancelBranchList()
 		return
 	}
@@ -79,7 +98,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 		if widgets.Button(c, colors, word("分支…", "Branches…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Clicked() {
 			w.BranchesOpen = !w.BranchesOpen
 			if w.BranchesOpen {
-				w.reloadBranches()
+				w.reloadBranchesIfNeeded()
 			} else {
 				w.cancelBranchList()
 			}

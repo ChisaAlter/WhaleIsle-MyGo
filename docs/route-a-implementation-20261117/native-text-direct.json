@@ -1,0 +1,18 @@
+{
+  "capture": "CapturePage Content scene rasterization, not an OS/GPU framebuffer",
+  "checks": [
+    "direct synthetic OLE write and CF_UNICODETEXT read"
+  ],
+  "clipboard": "interactive Windows clipboard; synthetic text only; no original clipboard backup or read",
+  "error": "file first jump Shift selection spans 850 rows without visiting the middle and preserves rune endpoints copied 0 bytes; expected exact 33173-byte logical range",
+  "hostStarted": false,
+  "input": "WindowDriver SurfaceEvent injection into a real visible MyGo window",
+  "modelRequests": 0,
+  "ownedRoot": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-442c1da025b34a7eb54fa7061a616960\\text-profile",
+  "pass": false,
+  "schemaVersion": 1,
+  "systemIMEExercised": false,
+  "userClipboardRead": false,
+  "userClipboardWritten": true,
+  "windowsShown": true
+}

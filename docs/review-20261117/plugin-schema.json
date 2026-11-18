@@ -1,0 +1,133 @@
+[
+  {
+    "method": "mcpServers/upsert",
+    "payload": {
+      "spec": {
+        "id": "demo",
+        "command": "node",
+        "args": [
+          "srv.js"
+        ]
+      }
+    },
+    "success": false,
+    "issues": [
+      {
+        "code": "invalid_union",
+        "errors": [
+          [
+            {
+              "code": "invalid_value",
+              "values": [
+                "stdio"
+              ],
+              "path": [
+                "transport"
+              ],
+              "message": "Invalid input: expected \"stdio\""
+            },
+            {
+              "expected": "boolean",
+              "code": "invalid_type",
+              "path": [
+                "enabled"
+              ],
+              "message": "Invalid input: expected boolean, received undefined"
+            },
+            {
+              "expected": "string",
+              "code": "invalid_type",
+              "path": [
+                "serverName"
+              ],
+              "message": "Invalid input: expected string, received undefined"
+            }
+          ],
+          [
+            {
+              "code": "invalid_value",
+              "values": [
+                "streamable-http"
+              ],
+              "path": [
+                "transport"
+              ],
+              "message": "Invalid input: expected \"streamable-http\""
+            },
+            {
+              "expected": "string",
+              "code": "invalid_type",
+              "path": [
+                "url"
+              ],
+              "message": "Invalid input: expected string, received undefined"
+            },
+            {
+              "expected": "boolean",
+              "code": "invalid_type",
+              "path": [
+                "enabled"
+              ],
+              "message": "Invalid input: expected boolean, received undefined"
+            },
+            {
+              "expected": "string",
+              "code": "invalid_type",
+              "path": [
+                "serverName"
+              ],
+              "message": "Invalid input: expected string, received undefined"
+            }
+          ]
+        ],
+        "path": [
+          "spec"
+        ],
+        "message": "Invalid input"
+      }
+    ]
+  },
+  {
+    "method": "skillInventory/create",
+    "payload": {
+      "name": "sample-skill",
+      "description": "x",
+      "content": "# Body",
+      "root": "user",
+      "modelInvocable": true,
+      "userInvocable": true
+    },
+    "success": false,
+    "issues": [
+      {
+        "code": "invalid_union",
+        "errors": [
+          [
+            {
+              "code": "invalid_value",
+              "values": [
+                "user-dsh"
+              ],
+              "path": [],
+              "message": "Invalid input: expected \"user-dsh\""
+            }
+          ],
+          [
+            {
+              "code": "invalid_value",
+              "values": [
+                "project-dsh"
+              ],
+              "path": [],
+              "message": "Invalid input: expected \"project-dsh\""
+            }
+          ]
+        ],
+        "path": [
+          "root"
+        ],
+        "message": "Invalid input"
+      }
+    ]
+  }
+]

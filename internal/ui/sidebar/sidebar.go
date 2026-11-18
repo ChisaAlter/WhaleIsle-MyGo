@@ -3,18 +3,12 @@
 package sidebar
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/desktop/pluginui"
-	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
@@ -25,63 +19,16 @@ import (
 	"whaleisle/internal/ui/workspacepicker"
 )
 
-var whaleSettingsCache struct {
-	mu        sync.Mutex
-	path      string
-	checkedAt time.Time
-	exists    bool
-	modTime   time.Time
-	name      string
-}
-
+// whaleAssistantNavLabel renders only the published snapshot. The name is
+// fetched through the Whale settings observation flow (Host plugin RPC); this
+// draw path never touches disk.
 func whaleAssistantNavLabel(m Model) string {
 	fallback := i18n.T(i18n.KeySidebarAssistant)
 	if !m.ConnectionReady {
 		return fallback
 	}
-	path := filepath.Join(paths.DshHome(), "data", "whale", "settings.json")
-	now := time.Now()
-	whaleSettingsCache.mu.Lock()
-	if whaleSettingsCache.path == path && now.Sub(whaleSettingsCache.checkedAt) < 2*time.Second {
-		exists := whaleSettingsCache.exists
-		name := whaleSettingsCache.name
-		whaleSettingsCache.mu.Unlock()
-		if exists && name != "" {
-			return name
-		}
-		return fallback
-	}
-	whaleSettingsCache.mu.Unlock()
-
-	st, err := os.Stat(path)
-	if err != nil || st.IsDir() {
-		whaleSettingsCache.mu.Lock()
-		whaleSettingsCache.path = path
-		whaleSettingsCache.checkedAt = now
-		whaleSettingsCache.exists = false
-		whaleSettingsCache.mu.Unlock()
-		return fallback
-	}
-	whaleSettingsCache.mu.Lock()
-	defer whaleSettingsCache.mu.Unlock()
-	whaleSettingsCache.checkedAt = now
-	whaleSettingsCache.exists = true
-	if whaleSettingsCache.path != path || !whaleSettingsCache.modTime.Equal(st.ModTime()) {
-		var cfg struct {
-			Name string `json:"name"`
-		}
-		name := ""
-		if raw, err := os.ReadFile(path); err == nil {
-			if json.Unmarshal(raw, &cfg) == nil {
-				name = strings.TrimSpace(cfg.Name)
-			}
-		}
-		whaleSettingsCache.path = path
-		whaleSettingsCache.modTime = st.ModTime()
-		whaleSettingsCache.name = name
-	}
-	if whaleSettingsCache.name != "" {
-		return whaleSettingsCache.name
+	if name := strings.TrimSpace(m.AssistantName); name != "" {
+		return name
 	}
 	return fallback
 }
@@ -106,25 +53,43 @@ func (m Model) viewport(c *ui.Context) (width, height float32) {
 	return c.Size()
 }
 
+var sidebarVirtualRowHook func(surface string, index int, id string)
+
+func sidebarListMaxHeight(m Model, c *ui.Context, ratio float32) float32 {
+	_, winH := m.viewport(c)
+	if winH <= 0 {
+		winH = 600
+	}
+	if ratio >= 0.99 {
+		return max(120, winH)
+	}
+	return max(120, winH*ratio)
+}
+
+// PluginEntry represents one custom installed plugin row in the left sidebar.
+type PluginEntry struct {
+	ID    string
+	Label string
+	Order int
+}
+
 // Model is sidebar state for one frame.
 type Model struct {
-	PublicContributions      pluginui.PublicContributions
-	WorkspaceNavigation      []pluginui.WorkspaceNavigation
-	OnWorkspaceSessionAction func(sessionID, owner, action string)
-	ownerNavigation          map[string]pluginui.WorkspaceNavigation
-	navigationOnly           map[string]bool
-	ownerRow                 bool
-	pinnedSection            bool
-	sessionContext           string
-	DirectoryActions         []workspacepicker.DirectoryAction
-	NativePages              []pluginui.NativeView
-	OnOpenNativePage         func(handle string)
+	pinnedSection     bool
+	scrollbarsVisible bool
+	sidebarBodyFill   bool
+	sessionContext    string
+	DirectoryActions  []workspacepicker.DirectoryAction
 	// ViewportW/H are the window's client area in DIPs. Context.Size reports
 	// device pixels on a scaled display, so the hover cards take their bounds
 	// from here and fall back to Context.Size only when the frame did not say.
-	ViewportW                   float32
-	ViewportH                   float32
-	ConnectionReady             bool
+	ViewportW       float32
+	ViewportH       float32
+	ConnectionReady bool
+	// AssistantName is the published Whale display name snapshot; empty falls
+	// back to the localized assistant label. Populated by the Host-side
+	// settings observer, never read from disk here.
+	AssistantName               string
 	ConnectionError             string
 	DesktopUpdateInstalling     bool
 	DesktopUpdatePhase          string
@@ -187,18 +152,17 @@ type Model struct {
 	OnRefresh            func()
 	OnCreate             func()
 	// ActivePanel is the built-in route or live NativeView handle; empty means conversation.
-	ActivePanel        string
-	NewSessionShortcut string
-	MenuShortcutLabels map[string]string
-	OnNoDirectory      func()
-	OnOpenMarket       func()
-	OnOpenSchedule     func()
-	OnOpenAssistant    func()
-	OnOpenLauncher     func()
-	// Explicit native access is attached only to the selected Session row.
-	OnOpenSessionPlugins  func(sessionID string)
-	OnCloseSessionPlugins func(sessionID string)
-	SessionPluginsActive  bool
+	ActivePanel           string
+	NewSessionShortcut    string
+	MenuShortcutLabels    map[string]string
+	OnNoDirectory         func()
+	OnOpenMarket          func()
+	PluginEntries         []PluginEntry
+	OnOpenPlugin          func(string)
+	OnCreatePlugin        func()
+	OnOpenSchedule        func()
+	OnOpenAssistant       func()
+	OnOpenDesktopSettings func()
 	OnContactAccount      func()
 	OnOpenSettings        func()
 	// OnBrowseWorkspace opens the folder picker (SidebarRoot ☰ / workspace row).
@@ -242,35 +206,28 @@ func sidebarBrand(c *ui.Context, m Model, colors theme.Colors, fg, muted ui.Colo
 	skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
 	identity := func() {
 		if skinLayout.Skin == theme.SkinCodex {
-			publicSidebarSlot(c, m, "sidebar.brand.mark", "", nil)
-			publicSidebarSlot(c, m, "sidebar.brand.name", "", func() {
-				ui.Text(c, product.Name).Font(theme.RenderPreferences().Interface.Family).FontSize(15).FontWeight(600).LetterSpacing(-.15).Grow(1).MinWidth(0).SingleLine().TextColor(fg)
-			})
+			ui.Text(c, product.Name).Font(theme.RenderPreferences().Interface.Family).FontSize(15).FontWeight(600).LetterSpacing(-.15).Grow(1).MinWidth(0).SingleLine().TextColor(fg)
 			return
 		}
-		publicSidebarSlot(c, m, "sidebar.brand.mark", "", func() {
-			if bmp := chrome.BrandAvatar(); bmp != nil {
-				ui.Image(c, bmp).Size(38, 38).Fit(ui.Contain)
-			} else {
-				ui.Box(c).Size(38, 38).Radius(19).Background(chrome.Color(colors.Accent).Alpha(0.25))
-			}
-		})
+		if bmp := chrome.BrandAvatar(); bmp != nil {
+			ui.Image(c, bmp).Size(38, 38).Fit(ui.Contain)
+		} else {
+			ui.Box(c).Size(38, 38).Radius(19).Background(chrome.Color(colors.Accent).Alpha(0.25))
+		}
 		// Claude's brand scope uses the user's sans stack rather than Inter.
-		publicSidebarSlot(c, m, "sidebar.brand.name", "", func() {
-			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Font(theme.RenderPreferences().Interface.Family).Children(func() {
-				ui.Row(c).Gap(4).AlignItems(ui.Center).MinWidth(0).Children(func() {
-					ui.Row(c).Label(product.Name).Gap(0).Shrink(0).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "鲸").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
-							FontWeight(700).TextColor(fg).SingleLine()
-						ui.Text(c, "屿 MyGo").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
-							FontWeight(700).TextColor(chrome.Color(colors.Accent)).SingleLine()
-					})
-					ui.Text(c, "WHALE ISLE MYGO").Shrink(0).FontSize(theme.InterfaceSize(8.5)).FixedLineHeight(theme.InterfaceSize(14)).
-						FontWeight(700).LetterSpacing(0.1).TextColor(fg.Alpha(0.88)).SingleLine()
+		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Font(theme.RenderPreferences().Interface.Family).Children(func() {
+			ui.Row(c).Gap(4).AlignItems(ui.Center).MinWidth(0).Children(func() {
+				ui.Row(c).Label(product.Name).Gap(0).Shrink(0).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, "鲸").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
+						FontWeight(700).TextColor(fg).SingleLine()
+					ui.Text(c, "屿 MyGo").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
+						FontWeight(700).TextColor(chrome.Color(colors.Accent)).SingleLine()
 				})
-				ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8.5)).
-					FixedLineHeight(theme.InterfaceSize(11)).FontWeight(500).LetterSpacing(0.28).TextColor(muted)
+				ui.Text(c, "WHALE ISLE MYGO").Shrink(0).FontSize(theme.InterfaceSize(8.5)).FixedLineHeight(theme.InterfaceSize(14)).
+					FontWeight(700).LetterSpacing(0.1).TextColor(fg.Alpha(0.88)).SingleLine()
 			})
+			ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8.5)).
+				FixedLineHeight(theme.InterfaceSize(11)).FontWeight(500).LetterSpacing(0.28).TextColor(muted)
 		})
 	}
 	if platform == "darwin" || m.OnCreate == nil {
@@ -366,7 +323,6 @@ type treeNode struct {
 
 // View paints the left session tree.
 func View(c *ui.Context, m Model) {
-	m = workspaceOwnerNavigationModel(m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
@@ -403,13 +359,6 @@ func View(c *ui.Context, m Model) {
 	// The archive filter belongs to the Host-scoped store, not this retained UI.
 	// Only the independent management section's expansion is session-local.
 	m.archiveExpanded = ui.Local(root, "archive-expanded", func() bool { return false })
-	if m.PublicContributions.WorkspaceContext != nil {
-		query := ""
-		if m.SearchQuery != nil {
-			query = *m.SearchQuery
-		}
-		m.PublicContributions.WorkspaceContext(query, *m.archiveExpanded)
-	}
 	m.searchState = ui.Local(root, "session-search", func() sessionSearchState {
 		return sessionSearchState{Expanded: m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != ""}
 	})
@@ -458,7 +407,6 @@ func View(c *ui.Context, m Model) {
 					}
 					collapse.Children(func() {
 						ui.Icon(c, sidebarRailIcons["panel"]).Size(16, 16).TextColor(collapseInk)
-						publicSidebarSlot(c, m, "sidebar.toggle.badge", "", nil)
 					})
 					if collapse.Clicked() {
 						m.OnToggle()
@@ -480,7 +428,7 @@ func View(c *ui.Context, m Model) {
 			// pitch is 40, inset 2 inside the 256-DIP list (native buttons sit at
 			// x=14, 252 wide, with 插件 at y=120 and 自动化任务 at y=160).
 			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, 2, 8, 2).Gap(4).Children(func() {
-				nav := func(id, key string, drawIcon func(), label string, fn func()) {
+				nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
 					row := ui.Button(c.Key("sidebar-panel-"+key), "").FillWidth().Height(skinLayout.NavHeight).Radius(12).
 						Selected(m.ActivePanel == id).Background(ui.Transparent).TextColor(fg).BorderWidth(0).
 						Padding(7, 8, 7, 8).AlignItems(ui.Center)
@@ -508,13 +456,28 @@ func View(c *ui.Context, m Model) {
 								FixedLineHeight(lineHeight).TextColor(fg).Grow(1)
 						})
 					})
+					if contextMenu != nil {
+						row.ContextMenu(contextMenu)
+					}
 					if fn != nil && row.Clicked() {
 						fn()
 					}
 				}
 				for _, panel := range sidebarPanelRows(m) {
 					panel := panel
-					nav(panel.active, panel.rowKey(), func() { publicPanelGlyph(c, m, panel, fg) }, panel.label, panel.run)
+					var menu func(*ui.Menu)
+					if panel.id == "plugins" && m.OnCreatePlugin != nil {
+						menu = func(ctxMenu *ui.Menu) {
+							ctxMenu.CloseOnPointerLeave(true)
+							if m.OnOpenMarket != nil && ctxMenu.Item(sidebarLocaleText("panels.browse")).Chosen() {
+								m.OnOpenMarket()
+							}
+							if ctxMenu.Item(sidebarLocaleText("panels.create")).Chosen() {
+								m.OnCreatePlugin()
+							}
+						}
+					}
+					nav(panel.active, "builtin:"+panel.id, func() { sidebarPanelIcon(c, panel.id, fg) }, panel.label, panel.run, menu)
 				}
 			})
 			menuOpen := &workspaceMenuFB
@@ -522,33 +485,51 @@ func View(c *ui.Context, m Model) {
 				menuOpen = m.WorkspaceMenuOpen
 			}
 			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
-			publicSidebarSlot(c, m, "sidebar.workspaces", "", func() {
-				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
-					// WorkspaceBrowser.sectionHeader and Rows.tasksSection use the
-					// source tertiary token, independent of other rail readability ink.
-					sectionInk := chrome.Color(colors.Muted)
-					workspaceHeading(c, m, menuOpen, fg, sectionInk)
-					batchToolbar(c, m, fg)
-					ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).ScrollbarsVisible(sidebarScrollbarLinger(c, root)).Children(func() {
-						if sessionSearchResultsView(c, m, fg, muted) {
-							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
-							// projects.View(c, m.Projects)
-							publicSidebarSlot(c, m, "sidebar.workspaces.sections", "", nil)
-							return
-						}
-						filter := browseArchiveFilter(m)
-						items := sidebarItemsForArchiveFilter(m.Snapshot, m.SearchQuery, filter)
-						workspaceRowsView(c, m, items, fg, muted, border)
-						workspaceListFeedback(c, m, items, fg, muted)
+			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
+				// WorkspaceBrowser.sectionHeader and Rows.tasksSection use the
+				// source tertiary token, independent of other rail readability ink.
+				sectionInk := chrome.Color(colors.Muted)
+				workspaceHeading(c, m, menuOpen, fg, sectionInk)
+				batchToolbar(c, m, fg)
+				m.scrollbarsVisible = sidebarScrollbarLinger(c, root)
+				searchActive := m.SearchQuery != nil && session.NormalizeSessionSearchQuery(*m.SearchQuery) != ""
+				if searchActive {
+					m.sidebarBodyFill = true
+					ui.Column(c.Key("sidebar-search-body")).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+						sessionSearchResultsView(c, m, fg, muted)
 						// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
 						// projects.View(c, m.Projects)
-						archivedItems := archivedSectionItems(m)
-						if (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0 {
-							archivedSection(c, m, archivedItems, sectionInk, muted)
-						}
-						publicSidebarSlot(c, m, "sidebar.workspaces.sections", "", nil)
 					})
-				})
+				} else {
+					filter := browseArchiveFilter(m)
+					items := sidebarItemsForArchiveFilter(m.Snapshot, m.SearchQuery, filter)
+					groups := visibleWorkspaceGroups(m, items)
+					archivedItems := archivedSectionItems(m)
+					showArchived := (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0
+					flatHost := len(groups) == 1 && groups[0].Kind == "flat"
+					if flatHost {
+						m.sidebarBodyFill = true
+						ui.Column(c.Key("sidebar-flat-body")).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+							workspaceRowsView(c, m, items, fg, muted, border)
+							workspaceListFeedback(c, m, items, fg, muted)
+							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+							// projects.View(c, m.Projects)
+							if showArchived {
+								archivedSection(c, m, archivedItems, sectionInk, muted)
+							}
+						})
+					} else {
+						ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).ScrollbarsVisible(m.scrollbarsVisible).Children(func() {
+							workspaceRowsView(c, m, items, fg, muted, border)
+							workspaceListFeedback(c, m, items, fg, muted)
+							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+							// projects.View(c, m.Projects)
+							if showArchived {
+								archivedSection(c, m, archivedItems, sectionInk, muted)
+							}
+						})
+					}
+				}
 			})
 		}
 		// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
@@ -558,16 +539,13 @@ func View(c *ui.Context, m Model) {
 			// The footer's top edge drags the window, like the logo row does.
 			ui.Box(c).Key("sidebar-footer-drag").FillWidth().Height(6).DragWindow()
 			// The launcher is not a sidebar row in the installed build: the header's
-			// ellipsis opens it (conversation-more -> OnOpenLauncher), so the tree stays
+			// ellipsis opens it (conversation-more), so the tree stays
 			// to workspaces and sessions.
 
 			// SidebarRoot.footArea: one account seat for both signed-in and
 			// signed-out profiles. Signed out it falls back to the settings
 			// entry, keeping the account menu and person avatar.
-			publicSidebarSlot(c, m, "sidebar.footer.action", "", nil)
-			publicSidebarSlot(c, m, "sidebar.settings", "", func() {
-				publicSidebarSlot(c, m, "settings.launcher", "", func() { accountRow(c, m, colors, muted, m.Collapsed) })
-			})
+			accountRow(c, m, colors, muted, m.Collapsed)
 			updatePhase := sidebarUpdatePhase(m)
 			if !m.Collapsed && updatePhase != "" {
 				bottomOffset := float32(4)
@@ -575,7 +553,7 @@ func View(c *ui.Context, m Model) {
 					bottomOffset = 8
 				}
 				ui.Box(c).Key("sidebar-footer-update-seat").Size(36, 36).Absolute().Right(2).Bottom(bottomOffset).Children(func() {
-					desktopUpdateSeat(c, m, updatePhase, colors, false)
+					desktopUpdateSeat(c, m, updatePhase, colors)
 				})
 			}
 		})
@@ -590,8 +568,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {
-	m = workspaceOwnerRowModel(m, it.SessionID)
-	if !m.ownerRow && batchSessionRow(c, m, it, depth, it.Title, fg, muted) {
+	if batchSessionRow(c, m, it, depth, it.Title, fg, muted) {
 		return
 	}
 	selected := it.SessionID == displayedSessionID(m)
@@ -614,28 +591,24 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	tasks := schedstore.ActiveForSession(m.Schedules, it.SessionID)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	row := ui.Button(c, "").Label(label).Description(hint).FillWidth().Height(32).Radius(8).
-		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).Clip().AlignItems(ui.Center).Disabled(m.ownerRow && m.Batch.Enabled)
+		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).Clip().AlignItems(ui.Center)
 	revealSessionSearchRow(row, m, it.SessionID)
 	if selected || row.Hovered() || row.FocusWithin() || row.MenuOpen() {
 		row.Background(selectedBackground(colors))
 	}
 	menu := sessionRowMenu(m, it)
-	pluginMenu := selected && m.OnOpenSessionPlugins != nil
-	if (!it.Blank || pluginMenu) && !renaming {
+	if !it.Blank && !renaming {
 		row.ContextMenu(menu)
 	}
 	hoverPressed := row.Pressed()
 	row.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(0).Children(func() {
 			if status == "" && !it.Blank {
-				if keepNative := publicSidebarBefore(c, m, "sidebar.session.row.leading", it.SessionID, "schedule-mark"); keepNative {
-					if len(tasks) > 0 {
-						sessionScheduleMark(c, len(tasks), muted)
-					} else {
-						sessionStatusSlot(c, status, muted)
-					}
+				if len(tasks) > 0 {
+					sessionScheduleMark(c, len(tasks), muted)
+				} else {
+					sessionStatusSlot(c, status, muted)
 				}
-				publicSidebarBefore(c, m, "sidebar.session.row.leading", it.SessionID, "")
 			} else {
 				sessionStatusSlot(c, status, muted)
 			}
@@ -655,11 +628,8 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 				}
 			}
 			if !it.Blank {
-				publicSidebarSlot(c, m, "sidebar.session.row.badge", it.SessionID, nil)
-			}
-			if !it.Blank || pluginMenu {
 				showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
-				if !showActions && !it.Blank {
+				if !showActions {
 					if m.pinnedSection {
 						ui.Text(c, m.sessionContext).Label("Workspace " + it.SessionID).MaxWidth(64).MinWidth(0).
 							FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine().Tooltip(m.sessionContext)
@@ -682,20 +652,15 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 						Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(16).Padding(0).
 						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
 					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
-					if showActions && !it.Blank {
-						if publicSidebarBefore(c, m, "sidebar.workspaces.session.row.action", it.SessionID, "archive") {
-							sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
-								i18n.T(i18n.KeySidebarArchive), muted, archiveAction(m, it))
+					if showActions {
+						sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
+							i18n.T(i18n.KeySidebarArchive), muted, archiveAction(m, it))
+						pinArt := menuPinArtwork
+						if it.Pinned {
+							pinArt = sessionPinArtwork
 						}
-						if publicSidebarBefore(c, m, "sidebar.workspaces.session.row.action", it.SessionID, "pin") {
-							pinArt := menuPinArtwork
-							if it.Pinned {
-								pinArt = sessionPinArtwork
-							}
-							sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
-								sessionPinTip(it.Pinned), muted, pinAction(m, it))
-						}
-						publicSidebarBefore(c, m, "sidebar.workspaces.session.row.action", it.SessionID, "")
+						sessionRowAction(c, "pin-"+it.SessionID, pinArt, sessionPinLabel(it.Pinned),
+							sessionPinTip(it.Pinned), muted, pinAction(m, it))
 					}
 				})
 			}
@@ -704,7 +669,6 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if m.sessionHover != nil {
 		m.sessionHover.dragging = m.sessionHover.dragging || row.Dragging()
 	}
-	publicSidebarRowContext(m, it.SessionID, row.MenuOpen(), row.Hovered() && !row.MenuOpen() && !m.Batch.Enabled && !renaming && !hoverPressed && (m.sessionHover == nil || !m.sessionHover.dragging))
 	sessionHoverCard(c, m, row, it, label, status, colors, hoverPressed)
 	if !renaming {
 		sessionDragSource(row, m, it)

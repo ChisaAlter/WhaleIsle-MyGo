@@ -37,7 +37,7 @@ func TestApplicationUninstallEntryFixture(t *testing.T) {
 			i18n.SetLocale(locale)
 			defer i18n.SetLocale(i18n.DefaultLocale)
 			calls := 0
-			model := Model{ActiveTab: TabSettings, VendorReady: true}
+			model := Model{VendorReady: true}
 			model.ApplicationUninstall = ApplicationUninstallModel{Supported: true, OnOpenSettings: func() {
 				if err := appuninstall.OpenInstalledApps("windows", func(target string) error {
 					if target != "ms-settings:appsfeatures" {
@@ -49,7 +49,8 @@ func TestApplicationUninstallEntryFixture(t *testing.T) {
 					t.Fatal(err)
 				}
 			}}
-			tt := ui.NewTester(func(c *ui.Context) { View(c, model) }, 1060, 900)
+			page := MaintenancePreferences
+			tt := ui.NewTester(func(c *ui.Context) { Maintenance(c, page, model) }, 1060, 900)
 			label := releaseText("打开“已安装应用”", "Open Installed apps")
 			for _, text := range []string{
 				releaseText("卸载应用", "Uninstall application"),
@@ -93,9 +94,9 @@ func TestApplicationUninstallEntryFixture(t *testing.T) {
 					t.Fatal("return/cancel changed installation state, UI or retriggered settings")
 				}
 			}
-			model.ActiveTab = TabHome
+			page = MaintenanceComponents
 			tt.Frame()
-			model.ActiveTab = TabSettings
+			page = MaintenancePreferences
 			tt.Frame()
 			if calls != 2 {
 				t.Fatal("navigation reopened settings")

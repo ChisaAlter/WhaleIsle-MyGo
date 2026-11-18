@@ -182,12 +182,18 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							if (!i.CancellationRequested || i.WaitingForStart) && ui.Button(c, copyText("重试取消", "Retry cancellation")).Clicked() {
 								a.CancelInstall()
 							}
+							if i.NativeCanFinish && ui.Button(c, copyText("保留当前结果并结束", "Keep current results and finish")).Disabled(i.Recovering).Clicked() {
+								a.FinishNativeReview()
+							}
 						} else if i.Phase != "unknown" && i.Phase != "applying" && i.Phase != "cancelling" && ui.Button(c, copyText("取消安装", "Cancel installation")).Clicked() {
 							a.CancelInstall()
 						}
 					}
 					if result := i.Result; result != nil {
 						ui.Text(c, result.Application).FillWidth().FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+						for _, warning := range result.Warnings {
+							ui.Text(c, warning).FillWidth().TextColor(muted)
+						}
 						if result.Application == "restart-required" {
 							ui.Text(c, copyText("已保存。重启运行时以生效：", "Saved. Restart the runtime to apply: ")+result.RestartReason).FillWidth().TextColor(muted)
 						}
@@ -213,7 +219,8 @@ func installDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 							if result.FailedAt == "registry" && !i.Confirmed && ui.Button(c, copyText("更换安装源", "Change registry")).Clicked() {
 								a.ChangeRegistry()
 							}
-							if widgets.Button(c, colors, copyText("重试安装", "Retry installation"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: s.Busy}).Clicked() {
+							unsafeRetry := result.Error != nil && (result.Error.Code == "native-install/partial" || result.Error.Code == "native-install/unconfirmed")
+							if !unsafeRetry && widgets.Button(c, colors, copyText("重试安装", "Retry installation"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: s.Busy}).Clicked() {
 								a.RetryInstall()
 							}
 						}

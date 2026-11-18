@@ -75,6 +75,8 @@ func (s *Store) OnEventsReady(owner *EventsOwner) {
 		s.mu.Unlock()
 		return
 	}
+	s.ensureNativeContributionsLocked(owner)
+	s.resumeSubmissionWatchesLocked()
 	client, generation := s.beginListRefreshLocked()
 	refreshSkills := s.skillRefreshOnEventsReady
 	skillsOwner := workspaceSelectedOwner{client: client, hostGeneration: owner.generation, composerGeneration: s.composerHostGeneration,
@@ -323,6 +325,7 @@ func sessionListItems(rows []api.SessionListValueItemsItem) []Item {
 // selectSessionLocked invalidates all work belonging to the old transcript,
 // including an Open or page request that completes after a selection change.
 func (s *Store) selectSessionLocked(sessionID string) {
+	s.selectedAuto = false
 	s.invalidateViewLocked()
 	s.mainConversationReadID = ""
 	delete(s.completionUnread, sessionID)
@@ -348,11 +351,13 @@ func (s *Store) selectSessionLocked(sessionID string) {
 func (s *Store) invalidateFollowLocked() {
 	s.invalidateViewLocked()
 	s.historyLoading = false
+	s.historyReconnecting = false
 	s.clearHistoryErrorLocked()
 	s.resetTurnFilesLocked()
 	s.turnFilesHistoryBinding = ""
 	s.resetHistoryPagingLocked()
 	s.clearHistoryOutlineLocked()
+	s.clearPerSessionDecodeCachesLocked()
 	s.trajectoryBoundaries = nil
 	s.systemPromptAnchors = nil
 	s.planHistoryBinding = ""

@@ -1,0 +1,310 @@
+{
+  "appPID": 37368,
+  "error": "production renderer cleanup: DeleteAppContainerProfile failed (HRESULT 0x80070020); retained profile WhaleIsle.Preview.3c6b18f71e7e8f97b088f635ac519e12 at C:\\Users\\48818\\AppData\\Local\\Packages\\whaleisle.preview.3c6b18f71e7e8f97b088f635ac519e12\\AC",
+  "finalProcesses": [
+    {
+      "pid": 46932,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46844,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42468,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44472,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 10096,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46168,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41884,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47140,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 18748,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45268,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 22260,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 23200,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 37400,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 45560,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 12372,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 41964,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 35988,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 42028,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 29212,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 9328,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 35300,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 46384,
+      "name": "whaleisle-preview.exe",
+      "alive": false
+    },
+    {
+      "pid": 36644,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40156,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 35096,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 44252,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 47496,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 43960,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 33996,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 40296,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 13272,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    },
+    {
+      "pid": 34028,
+      "name": "msedgewebview2.exe",
+      "alive": false
+    }
+  ],
+  "helper": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-7bf1f8e3f5c148c8b530110df0129438\\whaleisle-preview.exe",
+  "host": "loopback synthetic Project/readVisualReply responses",
+  "lastOpenButtonBounds": {
+    "X": 374.35855,
+    "Y": 225.21289,
+    "W": 136.61621,
+    "H": 18.621094
+  },
+  "modelRequests": 0,
+  "osHideShowExercised": false,
+  "passed": false,
+  "plannedCycles": 50,
+  "processObservation": "owned helper/WebView2 descendants sampled every 25 ms with retained process handles",
+  "schemaVersion": 1,
+  "scope": "production Project Manager, ObserverView, mainProjectDeps renderer, publishedHTMLSurface and real AppContainer/WebView2",
+  "stages": [
+    {
+      "active": 0,
+      "htmlReads": 0,
+      "resources": {
+        "goroutines": 8,
+        "handles": 403,
+        "handlesWithoutAudit": 403,
+        "privateBytes": 78041088,
+        "retainedAuditHandles": 0,
+        "workingSetBytes": 51970048
+      },
+      "stage": "default-awaiting-open"
+    },
+    {
+      "active": 8,
+      "htmlReads": 1,
+      "stage": "explicit-open-1"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 107,
+      "stage": "close-completed-1"
+    },
+    {
+      "active": 0,
+      "htmlReads": 1,
+      "resources": {
+        "goroutines": 8,
+        "handles": 488,
+        "handlesWithoutAudit": 480,
+        "privateBytes": 82124800,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 58277888
+      },
+      "stage": "released-and-restored-1"
+    },
+    {
+      "active": 0,
+      "htmlReads": 1,
+      "resources": {
+        "goroutines": 8,
+        "handles": 490,
+        "handlesWithoutAudit": 482,
+        "privateBytes": 81694720,
+        "retainedAuditHandles": 8,
+        "workingSetBytes": 57561088
+      },
+      "stage": "remained-closed-1"
+    },
+    {
+      "active": 8,
+      "htmlReads": 2,
+      "stage": "explicit-open-2"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 101,
+      "stage": "close-completed-2"
+    },
+    {
+      "active": 0,
+      "htmlReads": 2,
+      "resources": {
+        "goroutines": 8,
+        "handles": 502,
+        "handlesWithoutAudit": 486,
+        "privateBytes": 81793024,
+        "retainedAuditHandles": 16,
+        "workingSetBytes": 57741312
+      },
+      "stage": "released-and-restored-2"
+    },
+    {
+      "active": 0,
+      "htmlReads": 2,
+      "resources": {
+        "goroutines": 8,
+        "handles": 502,
+        "handlesWithoutAudit": 486,
+        "privateBytes": 82046976,
+        "retainedAuditHandles": 16,
+        "workingSetBytes": 57995264
+      },
+      "stage": "remained-closed-2"
+    },
+    {
+      "active": 8,
+      "htmlReads": 3,
+      "stage": "explicit-open-3"
+    },
+    {
+      "goroutines": 8,
+      "releaseMilliseconds": 105,
+      "stage": "close-completed-3"
+    },
+    {
+      "active": 0,
+      "htmlReads": 3,
+      "resources": {
+        "goroutines": 8,
+        "handles": 522,
+        "handlesWithoutAudit": 498,
+        "privateBytes": 82149376,
+        "retainedAuditHandles": 24,
+        "workingSetBytes": 58228736
+      },
+      "stage": "released-and-restored-3"
+    },
+    {
+      "active": 0,
+      "htmlReads": 3,
+      "resources": {
+        "goroutines": 8,
+        "handles": 526,
+        "handlesWithoutAudit": 502,
+        "privateBytes": 82149376,
+        "retainedAuditHandles": 24,
+        "workingSetBytes": 58322944
+      },
+      "stage": "remained-closed-3"
+    },
+    {
+      "active": 8,
+      "htmlReads": 4,
+      "stage": "explicit-open-4"
+    }
+  ],
+  "visibility": "ordinary desktop; parent stays Hidden for its entire life; hidden child attachment and Close only"
+}

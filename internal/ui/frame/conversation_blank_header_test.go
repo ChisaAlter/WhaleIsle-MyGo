@@ -49,7 +49,7 @@ func TestBlankCaptionPreservesOriginalLeadingAndCornerOnly(t *testing.T) {
 	sizes.Center = 1000
 	snap := session.ViewState{SelectedID: "s", SelectedSummaryBlank: true, Items: []session.Item{{SessionID: "s", Blank: true}}}
 	tt := ui.NewTester(func(c *ui.Context) {
-		workspaceSharedCaption(c, Model{Sizes: &sizes, Store: session.New(), OnOpenSessionPlugins: func() { t.Fatal("implicit plugin activation") }, ConversationContributions: func(c *ui.Context, _ session.ViewState, slot string) { ui.Button(c, slot).Height(28) }, WorkspaceTrailing: func(c *ui.Context, _ string) { ui.Button(c, "native corner controls").Height(28) }}, snap, theme.Resolve("deepseek.light").Light, true)
+		workspaceSharedCaption(c, Model{Sizes: &sizes, Store: session.New(), ConversationContributions: func(c *ui.Context, _ session.ViewState, slot string) { ui.Button(c, slot).Height(28) }, WorkspaceTrailing: func(c *ui.Context, _ string) { ui.Button(c, "native corner controls").Height(28) }}, snap, theme.Resolve("deepseek.light").Light, true)
 	}, 1000, 100)
 	for _, slot := range []string{"conversation.session.header.leading", "conversation.session.header.corner", "native corner controls", "Blank conversation caption"} {
 		if _, ok := tt.Find(slot); !ok {
@@ -61,37 +61,10 @@ func TestBlankCaptionPreservesOriginalLeadingAndCornerOnly(t *testing.T) {
 			t.Fatalf("blank caption retained %s", label)
 		}
 	}
-	// Running remains a header lifecycle fact even though the native empty-body
-	// layout still uses the hero, and the existing plugin action stays reachable.
+	// Running can reopen the header, but does not create a session action.
 	snap.Items[0].Running = true
 	tt.Frame()
-	if _, ok := tt.Find("更多操作"); !ok && !tt.HasText("More actions") {
-		t.Fatal("running hero lost its explicit plugin menu")
-	}
-}
-
-func TestSelectedSessionPluginActionRejectsStaleRowSelection(t *testing.T) {
-	store := session.New()
-	store.Select("a")
-	calls := 0
-	action := selectedSessionPluginAction(Model{Store: store}, "a", func() { calls++ })
-	if action == nil {
-		t.Fatal("selected callback unavailable")
-	}
-	action("b")
-	if calls != 0 {
-		t.Fatal("foreign row opened selected session")
-	}
-	action("a")
-	if calls != 1 {
-		t.Fatal("current row action did not run")
-	}
-	store.Select("b")
-	action("a")
-	if calls != 1 {
-		t.Fatal("stale menu opened new selection")
-	}
-	if selectedSessionPluginAction(Model{}, "a", func() {}) != nil || selectedSessionPluginAction(Model{Store: store}, "", func() {}) != nil {
-		t.Fatal("unbound menu became actionable")
+	if _, ok := tt.Find(paneLabel("更多操作", "More actions")); ok {
+		t.Fatal("running hero displayed an action menu with no session actions")
 	}
 }

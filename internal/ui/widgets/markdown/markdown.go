@@ -75,16 +75,19 @@ type Style struct {
 	CodeWrapDefault bool
 	// File mentions resolve only inline code, never ordinary prose or code blocks.
 	ResolveFile func(string) string
-	OnOpenFile  func(string)
-	codeSpanAt  func(int, string)
-	fileSpanAt  func(int, string)
-	blockAt     func(int, int, ast.Node)
-	maths       map[int]mathFormula
-	urlSpanAt   func(int, string)
-	urlTargets  map[int]string
-	lineHeight  float32
-	textWeight  int
-	docInlines  map[ast.Node]cachedDocumentInlines
+	// ResolveRevision invalidates cached file-link targets when ResolveFile
+	// results change for the same markdown source. Zero preserves default behavior.
+	ResolveRevision uint64
+	OnOpenFile      func(string)
+	codeSpanAt      func(int, string)
+	fileSpanAt      func(int, string)
+	blockAt         func(int, int, ast.Node)
+	maths           map[int]mathFormula
+	urlSpanAt       func(int, string)
+	urlTargets      map[int]string
+	lineHeight      float32
+	textWeight      int
+	docInlines      map[ast.Node]cachedDocumentInlines
 }
 
 func segmentText(seg text.Segment, src string) string {
@@ -159,9 +162,10 @@ type parsedBody struct {
 
 // bodyKey fingerprints every Style field that changes the spans or the
 // index-keyed maps Spans emits, so a theme, font or palette change re-parses
-// instead of serving stale output. Function fields (RenderFence, OnOpenURL,
-// ResolveFile, OnOpenFile, RenderImage) bind at click/render time, never at
-// parse time, so they are not part of the key.
+// instead of serving stale output. Layout-only width (AvailableWidth) and
+// click/render callbacks (RenderFence, OnOpenURL, OnOpenFile, RenderImage) are
+// applied during layout/paint, while ResolveFile targets are collected at parse
+// time and invalidated via hasResolveFile and resolveRevision.
 type bodyKey struct {
 	fontSize        float32
 	fg, muted       ui.Color
@@ -177,10 +181,11 @@ type bodyKey struct {
 	dark            bool
 	lineNumbers     bool
 	codeWrapDefault bool
-	availableWidth  float32
 	quoteInset      float32
 	lineHeight      float32
 	textWeight      int
+	resolveRevision uint64
+	hasResolveFile  bool
 	hasOpenURL      bool
 	hasOpenFile     bool
 	hasRenderImage  bool
@@ -193,8 +198,9 @@ func makeBodyKey(st Style) bodyKey {
 		tableHeader: st.TableHeader, codeBanner: st.CodeBanner, fontFamily: st.FontFamily,
 		streaming: st.Streaming, literalHTML: st.LiteralHTML, documentLayout: st.DocumentLayout,
 		dark: st.Dark, lineNumbers: st.LineNumbers, codeWrapDefault: st.CodeWrapDefault,
-		availableWidth: st.AvailableWidth, quoteInset: st.QuoteInset,
+		quoteInset: st.QuoteInset,
 		lineHeight: st.lineHeight, textWeight: st.textWeight,
+		resolveRevision: st.ResolveRevision, hasResolveFile: st.ResolveFile != nil,
 		hasOpenURL: st.OnOpenURL != nil, hasOpenFile: st.OnOpenFile != nil,
 		hasRenderImage: st.RenderImage != nil,
 	}

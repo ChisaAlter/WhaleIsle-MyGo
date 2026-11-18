@@ -120,7 +120,11 @@ func (s *mainState) processApplicationMenuFor(c *ui.Context, owner *mygo.Window)
 	}
 	actions := s.applicationMenuActions(c)
 	for _, gesture := range pending {
-		if s.quitting || gesture.revision != revision || !applicationMenuCommandAllowed(c, gesture.id) || s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending) {
+		s.mu.Lock()
+		quitting := s.quitting
+		shortcutBusy := s.shortcutEditor != nil && (s.shortcutEditor.Recording != "" || s.shortcutEditor.ResetPending)
+		s.mu.Unlock()
+		if quitting || gesture.revision != revision || !applicationMenuCommandAllowed(c, gesture.id) || shortcutBusy {
 			continue
 		}
 		if run := actions[gesture.id]; run != nil {
@@ -139,8 +143,6 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		s.selectMainPanel("")
 		s.mu.Lock()
 		w, sessions := s.win, s.sessions
-		s.settingsOpen = false
-		s.launcherOpen = false
 		s.mu.Unlock()
 		s.openDirectoryPicker(sessions, w, "workspace")
 	}
@@ -158,15 +160,17 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		}
 	}
 	actions["workspace.openLocal"] = func() {
+		asstOpen := s.assistantService().Open()
 		s.mu.Lock()
 		sessions := s.sessions
-		blocked := s.marketOpen || s.scheduleOpen || s.assistantOpen || s.launcherOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen
+		blocked := s.marketOpen || s.scheduleOpen || asstOpen || s.maintenanceOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen
 		s.mu.Unlock()
 		if !blocked {
 			s.observeWorkspaceOpenInApp().OpenCurrent(sessions)
 		}
 	}
-	actions["launcher.open"] = func() { s.openDesktopTrayPage(deeplink.ActionLauncher) }
+	// Keep the saved binding ID; it now opens General settings.
+	actions["launcher.open"] = s.openWorkbenchSettings
 	actions["settings.open"] = func() { s.toggleApplicationSettings(c) }
 	actions["market.open"] = func() { s.openDesktopTrayPage(deeplink.ActionMarket) }
 	actions["settings.mcp"] = func() { settings("mcp") }
@@ -174,10 +178,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 	actions["settings.about"] = func() { settings("about") }
 	actions["app.quit"] = s.quitDesktopTray
 	actions["window.close"] = func() {
-		s.mu.Lock()
-		w := mygo.FocusedWindow()
-		s.mu.Unlock()
-		if w != nil {
+		if w := mygo.FocusedWindow(); w != nil {
 			w.Close()
 		}
 	}
@@ -186,7 +187,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 		sup, quitting := s.sup, s.quitting
 		s.mu.Unlock()
 		if sup != nil && !quitting {
-			s.openDesktopTrayPage(deeplink.ActionLauncher)
+			s.showMainWindow()
 			go s.restartUnlessImport(sup)
 		}
 	}
@@ -206,7 +207,7 @@ func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {
 // counterpart is added, and every row keeps the native order and separators.
 func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
 	// item carries the command keycap; plain is a row the native template gives
-	// no accelerator to (the launcher, reveal, MCP, skills, help links, quit).
+	// no accelerator to (reveal, MCP, skills, help links, quit).
 	item := func(id, label string) *mygo.MenuItem {
 		if chord := spec.keycap(id); chord != "" {
 			label += applicationMenuKeycapGap + chord
@@ -242,7 +243,6 @@ func buildApplicationMenu(spec applicationMenuSpec) *mygo.Menu {
 	menu = append(menu,
 		group("file", i18n.T(i18n.KeyCmdFile),
 			item("workspace.add", i18n.T(i18n.KeyCmdOpenWorkspace)),
-			plain("launcher.open", i18n.T(i18n.KeyCmdOpenLauncher)),
 			plain("workspace.reveal", i18n.T(i18n.KeyCmdOpenWorkspaceInExplorer)),
 			mygo.Separator(),
 			item("settings.open", i18n.T(i18n.KeyCmdSettings)),

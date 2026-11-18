@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "firstScenario": {
+    "report": "native-text-visible.json",
+    "symptom": "first cross-screen copy returned 0 bytes; original OLE object restoration returned 0x800401d0",
+    "originalClipboardRestorationConfirmed": false
+  },
+  "discriminatingProbe": {
+    "log": "native-text-visible.log",
+    "change": "native Clipboard.Write before text selection to distinguish write backend from selection",
+    "outcome": "process exited 0xc000041d before completion record"
+  },
+  "productionCause": "undetermined; no product clipboard change made",
+  "disposition": "temporary raw COM preservation and visible clipboard test branches withdrawn; original private-station source restored; no further interactive clipboard write attempted",
+  "next": "minimize native OLE write in a clipboard environment explicitly allowed to be overwritten, then test the original logical file/Diff copy path"
+}

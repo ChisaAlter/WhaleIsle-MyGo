@@ -94,6 +94,10 @@ func paintCommitFileList(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 	})
 	if len(w.Changes) == 0 {
+		if !w.Loaded && w.isReloading(m.WorkspaceRoot) {
+			ui.Text(c, word("正在加载仓库变更…", "Loading repository changes…")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			return
+		}
 		ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitEmpty)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
@@ -133,10 +137,10 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 				scopeDiff(m, ch.Path, !ch.Unstaged())
 			}
 			if ch.Unstaged() {
-				if menu.Item(word("暂存此文件", "Stage file")).Chosen() {
+				if menu.Item(word("暂存此文件", "Stage file")).Disabled(w.Operation != nil).Chosen() {
 					stageCommitFile(m, ch)
 				}
-				if menu.Item(word("还原…", "Discard file…")).Chosen() {
+				if menu.Item(word("还原…", "Discard file…")).Disabled(w.Operation != nil).Chosen() {
 					reviewDiscard(m, ch.Path)
 				}
 			}
@@ -144,7 +148,7 @@ func paintCommitChangeRows(c *ui.Context, m Model, fg, muted ui.Color) {
 				if menu.Item(word("查看已暂存", "Staged diff")).Chosen() {
 					scopeDiff(m, ch.Path, true)
 				}
-				if menu.Item(word("取消暂存", "Unstage")).Chosen() {
+				if menu.Item(word("取消暂存", "Unstage")).Disabled(w.Operation != nil).Chosen() {
 					unstageCommitFile(m, ch)
 				}
 			}
@@ -168,34 +172,18 @@ func selectAllCommitFiles(w *Workbench, selected bool) {
 
 // stageCommitFile stages one change and refreshes the workbench.
 func stageCommitFile(m Model, ch git.Change) {
-	paths := []string{ch.Path}
-	if ch.Original != "" {
-		paths = append(paths, ch.Original)
+	if m.Workbench == nil {
+		return
 	}
-	m.Workbench.invalidateCommitReview()
-	if _, err := git.StagePaths(m.WorkspaceRoot, paths...); err != nil {
-		m.Workbench.Status = err.Error()
-	} else {
-		m.Workbench.Status = word("已暂存：", "Staged: ") + ch.Path
-	}
-	m.Workbench.reload(m.WorkspaceRoot)
-	refresh(m)
+	m.Workbench.requestStage(m, ch, true)
 }
 
 // unstageCommitFile clears one change from the index and refreshes the workbench.
 func unstageCommitFile(m Model, ch git.Change) {
-	paths := []string{ch.Path}
-	if ch.Original != "" {
-		paths = append(paths, ch.Original)
+	if m.Workbench == nil {
+		return
 	}
-	m.Workbench.invalidateCommitReview()
-	if _, err := git.UnstagePaths(m.WorkspaceRoot, paths...); err != nil {
-		m.Workbench.Status = err.Error()
-	} else {
-		m.Workbench.Status = word("已取消暂存：", "Unstaged: ") + ch.Path
-	}
-	m.Workbench.reload(m.WorkspaceRoot)
-	refresh(m)
+	m.Workbench.requestStage(m, ch, false)
 }
 
 // commitLauncher is the pane's only commit affordance: the form opens in the

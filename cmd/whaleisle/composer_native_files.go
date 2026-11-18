@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,11 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 	"whaleisle/internal/ui/i18n"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
@@ -52,33 +50,49 @@ func (s *mainState) nativeComposerFileScope(sessions *session.Store, id string, 
 	return cwd, sid == id && binding == fmt.Sprintf("%p\x00%s", client, id)
 }
 
-// Batch validation precedes the single undoable selection replacement. Images
-// and paths whose Host accessibility is unproven retain the upload path.
-func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []string, local bool) ([]string, error) {
-	if d == nil || d.Sending {
-		return nil, errors.New(i18n.T(i18n.KeyCmdComposerWaitSendFiles))
-	}
-	if !local {
-		return paths, nil
-	}
-	var uploads, mentions []string
+type composerFileInfo struct {
+	path      string
+	info      os.FileInfo
+	mediaType string
+}
+
+// inspectComposerFiles is worker-only. One sequential pass bounds open files
+// and identifies all inputs before any reference or upload enters the draft.
+func inspectComposerFiles(ctx context.Context, paths []string, regularOnly bool) ([]composerFileInfo, error) {
+	var files []composerFileInfo
+	seen := make(map[string]bool, len(paths))
 	for _, path := range paths {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if strings.TrimSpace(path) == "" {
 			continue
 		}
-		if !filepath.IsAbs(path) {
+		if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
 			return nil, errors.New(i18n.T(i18n.KeyCmdComposerAbsoluteFilePath))
 		}
+		path = filepath.Clean(path)
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
 		info, err := os.Stat(path)
 		if err != nil {
 			return nil, err
 		}
+		if regularOnly && !info.Mode().IsRegular() {
+			return nil, errors.New("粘贴或拖入仅接受文件；文件夹请使用显式引用入口 / Paste or drop accepts files only; use the folder reference picker")
+		}
 		if !info.IsDir() && !info.Mode().IsRegular() {
 			return nil, errors.New(i18n.T(i18n.KeyCmdComposerRegularFileDirectory))
 		}
+		file := composerFileInfo{path: path, info: info}
 		if !info.IsDir() {
-			image := strings.HasPrefix(mime.TypeByExtension(strings.ToLower(filepath.Ext(path))), "image/")
-			if !image {
+			file.mediaType = mime.TypeByExtension(strings.ToLower(filepath.Ext(path)))
+			if !strings.HasPrefix(file.mediaType, "image/") {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
 				f, err := os.Open(path)
 				if err != nil {
 					return nil, err
@@ -89,12 +103,26 @@ func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []strin
 				if err != nil && err != io.EOF {
 					return nil, err
 				}
-				image = strings.HasPrefix(http.DetectContentType(prefix[:n]), "image/")
+				file.mediaType = http.DetectContentType(prefix[:n])
 			}
-			if image {
-				uploads = append(uploads, path)
-				continue
-			}
+		}
+		files = append(files, file)
+	}
+	return files, ctx.Err()
+}
+
+type composerFilePlan struct {
+	uploads    []session.ComposerAttachment
+	references []string
+}
+
+func planNativeComposerFiles(cwd string, files []composerFileInfo, local bool) (composerFilePlan, error) {
+	var plan composerFilePlan
+	for _, file := range files {
+		path, info := file.path, file.info
+		if !local || strings.HasPrefix(file.mediaType, "image/") {
+			plan.uploads = append(plan.uploads, session.ComposerAttachment{Path: path, Name: filepath.Base(path), MediaType: file.mediaType})
+			continue
 		}
 		value := path
 		if cwd != "" {
@@ -109,37 +137,36 @@ func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []strin
 		// Completed directory references close quotes; suggestions alone leave them open.
 		mention, ok := composer.FormatFileMention(value, false, false)
 		if !ok {
-			return nil, errors.New(i18n.T(i18n.KeyCmdComposerUnsafeFilePath))
+			return composerFilePlan{}, errors.New(i18n.T(i18n.KeyCmdComposerUnsafeFilePath))
 		}
-		mentions = append(mentions, mention)
+		plan.references = append(plan.references, mention)
 	}
-	if len(mentions) == 0 {
-		return uploads, nil
+	return plan, nil
+}
+
+// Synchronous adapter for non-window callers. Interactive intake uses the same
+// inspector and planner on a bounded worker, then applies through Window.Update.
+func insertNativeComposerFiles(d *composer.DraftState, cwd string, paths []string, local bool) ([]string, error) {
+	if d == nil || d.Sending {
+		return nil, errors.New(i18n.T(i18n.KeyCmdComposerWaitSendFiles))
 	}
-	if d.Client == nil {
-		d.Client = composer.NewDraftClient(&d.Text)
+	if !local {
+		return paths, nil
 	}
-	if _, marked := d.Client.MarkedRange(); marked {
+	files, err := inspectComposerFiles(context.Background(), paths, false)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := planNativeComposerFiles(cwd, files, local)
+	if err != nil {
+		return nil, err
+	}
+	if !d.InsertPreparedReferences(plan.references) {
 		return nil, errors.New(i18n.T(i18n.KeyCmdComposerFinishComposition))
 	}
-	selection := d.Client.Selection().Range
-	start, end := ui.UTF16ByteOffset(d.Text, selection.Start), ui.UTF16ByteOffset(d.Text, selection.End)
-	replacement := strings.Join(mentions, " ")
-	if start > 0 {
-		r, _ := utf8.DecodeLastRuneInString(d.Text[:start])
-		if !unicode.IsSpace(r) {
-			replacement = " " + replacement
-		}
+	uploads := make([]string, 0, len(plan.uploads))
+	for _, a := range plan.uploads {
+		uploads = append(uploads, a.Path)
 	}
-	if end == len(d.Text) {
-		replacement += " "
-	} else {
-		r, _ := utf8.DecodeRuneInString(d.Text[end:])
-		if !unicode.IsSpace(r) {
-			replacement += " "
-		}
-	}
-	d.Client.ReplaceText(&selection, replacement)
-	d.EditFocus = true
 	return uploads, nil
 }

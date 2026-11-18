@@ -157,8 +157,15 @@ func TestWorkspaceCaptionActionsKeepCurrentPageAndDock(t *testing.T) {
 						if !workbench.CaptionReviewOpen() || !tt.HasText(action.modalControl) || workbench.Root != root {
 							t.Fatal("actual titlebar button did not expose the existing Workbench review", tt.Texts())
 						}
-						if action.dirty && (workbench.Commit == nil || workbench.Message != "explicit fixture message" || !tt.HasText("untracked.txt")) {
-							t.Fatal("Commit opened another review instance or lost its actual selected files")
+						if action.dirty {
+							deadline := time.Now().Add(5 * time.Second)
+							for !tt.HasText("untracked.txt") && time.Now().Before(deadline) {
+								time.Sleep(10 * time.Millisecond)
+								tt.Frame()
+							}
+							if workbench.Commit == nil || workbench.Message != "explicit fixture message" || !tt.HasText("untracked.txt") {
+								t.Fatal("Commit opened another review instance or lost its actual selected files", tt.Texts())
+							}
 						}
 						if !action.dirty && (!workbench.PublishOpen || workbench.PublishName != filepath.Base(root)) {
 							t.Fatal("Publish did not use the same Workbench publish form")

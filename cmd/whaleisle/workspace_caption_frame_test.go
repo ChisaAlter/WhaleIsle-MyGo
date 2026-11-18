@@ -85,6 +85,21 @@ func TestWorkspaceCaptionReviewSurvivesFrameProjection(t *testing.T) {
 						if err := tt.Click(action.button); err != nil {
 							t.Fatal(err)
 						}
+						deadline := time.Now().Add(5 * time.Second)
+						for {
+							tt.Frame()
+							if !workbench.CaptionReviewOpen() || workbench.Root != root {
+								t.Fatalf("loading frame lost the titlebar review: open=%t root=%q texts=%q", workbench.CaptionReviewOpen(), workbench.Root, tt.Texts())
+							}
+							assertOwner()
+							if workbench.Loaded && tt.HasText(action.control) && (!action.dirty || tt.HasText("untracked.txt")) {
+								break
+							}
+							if time.Now().After(deadline) {
+								t.Fatalf("titlebar review never converged to %q: loaded=%t texts=%q", action.control, workbench.Loaded, tt.Texts())
+							}
+							time.Sleep(10 * time.Millisecond)
+						}
 						for n := 0; n < 3; n++ {
 							tt.Frame()
 							if !workbench.CaptionReviewOpen() || !tt.HasText(action.control) || workbench.Root != root {

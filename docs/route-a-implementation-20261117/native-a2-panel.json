@@ -1,0 +1,44 @@
+{
+  "acceptance": "one real qa-panel overlay: dynamic sidebar/main registration, mounted panel content and owned teardown",
+  "allWindowsHidden": true,
+  "appPID": 22916,
+  "defaultActiveWebViewPIDs": null,
+  "defaultObservedWebViewPIDs": null,
+  "error": "dynamic qa-panel did not mount: A2 condition timed out",
+  "functionalPanel": {
+    "panelCount": 0,
+    "panelDisplay": "",
+    "panelHeight": 0,
+    "panelText": "",
+    "panelWidth": 0,
+    "pickerButtons": [],
+    "plugin": "qa-panel",
+    "ready": "complete",
+    "sidebarIconCount": 1
+  },
+  "liveDocument": "{\"ready\":\"complete\",\"title\":\"Whale Isle\",\"text\":\"鲸\\n屿\\nWHALE ISLE\\nBASED ON DEEPSEEK HARNESS\\n新会话\\nCtrl\\n+\\nAlt\\n+\\nN\\n插件\\n自动化任务\\n鲸鱼娘\\nP\\nQA Panel\\n更多\\n工作区\\nworkspace\\n已归档\\n设置与账号\\n探索未至之鲸\\n大肥鱼版\\n选择工作区\\n选择一个工作区开始\\n\\n请先打开可访问的项目会话，再启动终端。\\n\\nqa-panel · 此插件尚无可独立\"}",
+  "modelRequestsByDriver": 0,
+  "passed": false,
+  "plugin": "qa-panel",
+  "pluginPanelContentVerified": false,
+  "processObservation": "owned descendants sampled every 25 ms; retained process handles",
+  "scope": "real hidden production main, real Host and WebView2; callbacks and WindowDriver; no physical input",
+  "selectedHostLoaderEntries": [
+    {
+      "entryId": "include:qa-panel",
+      "moduleName": "qa-panel",
+      "meta": {
+        "title": "qa-panel"
+      },
+      "enabled": true,
+      "fiberPhase": "active"
+    }
+  ],
+  "selectedPluginState": {
+    "Owner": 10,
+    "Revision": 1,
+    "Known": true,
+    "Enabled": true
+  },
+  "steps": null
+}

@@ -1,39 +1,62 @@
 # Build the original mobile runtime with plain Node ABI, never Electron ABI.
 param(
     [string]$SourceRoot = $env:WHALEISLE_ELECTRON_SOURCE,
-    [string]$SileroVadFile = $env:WHALEISLE_SILERO_VAD_FILE
+    [string]$SileroVadFile = $env:WHALEISLE_SILERO_VAD_FILE,
+    [string]$NodeDir = $env:WHALEISLE_NODE_DIR,
+    [string]$WorkRoot
 )
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'env.ps1')
 if (-not $SourceRoot) { $SourceRoot = Join-Path $ProjectRoot 'reference\electron' }
-$NodeDir = $env:WHALEISLE_NODE_DIR
-if (-not $NodeDir) { $NodeDir = 'C:\AI\tools\node-v24.21.0-win-x64' }
+if (-not $NodeDir) {
+    $candidates = @()
+    $repoNode = Join-Path $ProjectRoot 'runtime\node'
+    if (Test-Path -LiteralPath (Join-Path $repoNode 'node.exe') -PathType Leaf) { $candidates += $repoNode }
+    $pathNode = Get-Command node -ErrorAction SilentlyContinue
+    if ($pathNode) { $candidates += (Split-Path -Parent $pathNode.Source) }
+    $NodeDir = $candidates | Where-Object {
+        (Test-Path -LiteralPath (Join-Path $_ 'node.exe') -PathType Leaf) -and
+        (Test-Path -LiteralPath (Join-Path $_ 'npm.cmd') -PathType Leaf)
+    } | Select-Object -First 1
+}
+if (-not $NodeDir -or -not (Test-Path -LiteralPath (Join-Path $NodeDir 'node.exe') -PathType Leaf) -or -not (Test-Path -LiteralPath (Join-Path $NodeDir 'npm.cmd') -PathType Leaf)) {
+    throw 'Set WHALEISLE_NODE_DIR (or put node.exe + npm.cmd on PATH) to an official Windows Node distribution.'
+}
 $Node = Join-Path $NodeDir 'node.exe'
 $Npm = Join-Path $NodeDir 'npm.cmd'
-if (-not (Test-Path $Node) -or -not (Test-Path $Npm)) { throw 'Set WHALEISLE_NODE_DIR to an official Windows Node distribution (node.exe and npm.cmd).' }
-$env:PATH = "$NodeDir;$env:PATH"
-$env:npm_config_runtime = 'node'
-$env:npm_config_target = (& $Node -p 'process.versions.node')
-if ($LASTEXITCODE -ne 0) { throw 'Could not inspect bundled Node version' }
-$Work = Join-Path $ProjectRoot 'runtime\build\mobile'
+
+$savedPath = $env:PATH
+$savedRuntime = $env:npm_config_runtime
+$savedTarget = $env:npm_config_target
+$ownsWork = -not $WorkRoot
+$tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+$workPrefix = 'whaleisle-mobile-build-'
+if (-not $WorkRoot) { $Work = Join-Path $tempParent ($workPrefix + [guid]::NewGuid().ToString('N')) }
+else { $Work = [IO.Path]::GetFullPath($WorkRoot) }
 $Helper = Join-Path $PSScriptRoot 'mobile-runtime.mjs'
-& $Node $Helper prepare $SourceRoot $Work $SileroVadFile
-if ($LASTEXITCODE -ne 0) { throw 'Mobile source preparation failed' }
-$Upstream = Join-Path $Work 'vendor\chisacode-remote'
-Push-Location $Upstream
 try {
-    # Locked dependency graph; enable only the required native build scripts.
-    & $Npm ci --ignore-scripts --no-audit --no-fund
-    if ($LASTEXITCODE -ne 0) { throw 'Mobile npm ci failed' }
-    & $Npm rebuild esbuild better-sqlite3 node-pty
-    if ($LASTEXITCODE -ne 0) { throw 'Mobile Node ABI rebuild failed' }
-    & $Npm run build:server
-    if ($LASTEXITCODE -ne 0) { throw 'Mobile server build failed' }
-} finally { Pop-Location }
-& $Node $Helper bundle $Work
-if ($LASTEXITCODE -ne 0) { throw 'Mobile browser bundle build failed' }
-# Load native modules only. No daemon, listening socket, home or credentials.
-$Probe = @'
+    $env:PATH = "$NodeDir;$env:PATH"
+    $env:npm_config_runtime = 'node'
+    $env:npm_config_target = (& $Node -p 'process.versions.node')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not inspect bundled Node version' }
+    & $Node $Helper prepare $SourceRoot $Work $SileroVadFile
+    if ($LASTEXITCODE -ne 0) { throw 'Mobile source preparation failed' }
+    $Upstream = Join-Path $Work 'vendor\chisacode-remote'
+    Push-Location $Upstream
+    try {
+        # Locked dependency graph; enable only the required native build scripts.
+        & $Npm ci --ignore-scripts --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw 'Mobile npm ci failed' }
+        & $Npm rebuild esbuild better-sqlite3 node-pty
+        if ($LASTEXITCODE -ne 0) { throw 'Mobile Node ABI rebuild failed' }
+        & $Npm run build:server
+        if ($LASTEXITCODE -ne 0) { throw 'Mobile server build failed' }
+    } finally { Pop-Location }
+    & $Node $Helper bundle $Work
+    if ($LASTEXITCODE -ne 0) { throw 'Mobile browser bundle build failed' }
+    # Load native modules only. No daemon, listening socket, home or credentials.
+    $Probe = @'
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=process.argv[1], nm=path.join(root,'vendor/chisacode-remote/node_modules');
 const Database=require(path.join(nm,'better-sqlite3'));
@@ -44,8 +67,18 @@ fs.writeFileSync(path.join(root,'node-build.json'),JSON.stringify({
   nodeSHA256:crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex')
 },null,2));
 '@
-& $Node -e $Probe $Work
-if ($LASTEXITCODE -ne 0) { throw 'Mobile native modules failed plain Node ABI verification' }
-& $Node $Helper stage $Work (Join-Path $ProjectRoot 'runtime\vendor\deepseek-harness') $NodeDir (Join-Path $ProjectRoot 'runtime\vendor\dshd-remote')
-if ($LASTEXITCODE -ne 0) { throw 'Mobile runtime staging failed' }
-Write-Host 'Mobile runtime built and staged; live phone/relay acceptance still required.'
+    & $Node -e $Probe $Work
+    if ($LASTEXITCODE -ne 0) { throw 'Mobile native modules failed plain Node ABI verification' }
+    & $Node $Helper stage $Work (Join-Path $ProjectRoot 'runtime\vendor\deepseek-harness') $NodeDir (Join-Path $ProjectRoot 'runtime\vendor\dshd-remote')
+    if ($LASTEXITCODE -ne 0) { throw 'Mobile runtime staging failed' }
+    Write-Host 'Mobile runtime built and staged; live phone/relay acceptance still required.'
+} finally {
+    $env:PATH = $savedPath
+    if ($null -eq $savedRuntime) { Remove-Item Env:npm_config_runtime -ErrorAction SilentlyContinue } else { $env:npm_config_runtime = $savedRuntime }
+    if ($null -eq $savedTarget) { Remove-Item Env:npm_config_target -ErrorAction SilentlyContinue } else { $env:npm_config_target = $savedTarget }
+    if ($ownsWork) {
+        $active = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath + ' ' + $_.CommandLine).IndexOf($Work, [StringComparison]::OrdinalIgnoreCase) -ge 0) }
+        if ($active) { Write-Warning "Owned mobile build tree still referenced by another process; retained: $Work" }
+        else { & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $Work $tempParent $workPrefix }
+    }
+}

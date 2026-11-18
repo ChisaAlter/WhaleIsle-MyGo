@@ -414,6 +414,13 @@ func copyDir(src, dst string, overwrite bool) error {
 		if err != nil {
 			return err
 		}
+		info, ierr := d.Info()
+		if ierr != nil {
+			return ierr
+		}
+		if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return fmt.Errorf("unsupported import entry: %s", path)
+		}
 		rel, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
@@ -421,6 +428,9 @@ func copyDir(src, dst string, overwrite bool) error {
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported import entry: %s", path)
 		}
 		if entryExists(target, false) && !overwrite {
 			return nil

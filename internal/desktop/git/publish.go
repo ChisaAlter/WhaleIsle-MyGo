@@ -19,6 +19,11 @@ func IsRepository(root string) bool {
 
 // Initialize creates an empty main branch only after an explicit Initialize click.
 func Initialize(root string) (string, error) {
+	release, err := acquireBackgroundWrite(root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	root = cleanWorkspaceRoot(root)
 	info, err := os.Stat(root)
 	if err != nil || !info.IsDir() {
@@ -87,7 +92,12 @@ func PreparePublish(root string, input PublishInput) (PublishInput, error) {
 // origin; blank URL creates a GitHub repository through the installed gh login.
 // Empty repositories get a remote only; no implicit initial commit is created.
 func PublishRepository(root string, input PublishInput) (string, error) {
-	input, err := PreparePublish(root, input)
+	release, err := acquireBackgroundWrite(root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	input, err = PreparePublish(root, input)
 	if err != nil {
 		return "", err
 	}
@@ -100,7 +110,11 @@ func PublishRepository(root string, input PublishInput) (string, error) {
 		if !hasCommits {
 			return "origin added. Create a commit, then use Push.", nil
 		}
-		out, err := PushCurrent(root)
+		plan, err := PreparePush(root)
+		if err != nil {
+			return "", err
+		}
+		out, err := pushReviewed(root, plan)
 		if err != nil {
 			return "", fmt.Errorf("origin was added, but push failed; resolve the error and use Push instead of publishing again: %w", err)
 		}

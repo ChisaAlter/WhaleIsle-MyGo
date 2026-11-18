@@ -34,12 +34,14 @@
 
 鲸屿 MyGo 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 做成开箱即用的**原生桌面应用**：界面由 Go 与内置的 MyGo 原生图形引擎直接绘制，省去了主窗口的浏览器渲染进程，启动更快、常驻内存更省；服务在本机运行，数据保存在本机。
 
+MyGo 没有启动器。打开应用即进入原生工作台；是否自动启动 Host 可在「设置 → 通用」调整。组件、数据导入、启动诊断和更新也从设置按需打开。
+
 | 你想做的事 | 鲸屿 MyGo 提供 |
 | --- | --- |
 | 和模型一起改代码 | 对话里直接读写文件、搜索仓库、运行命令；需要更高权限的操作先请你批准 |
 | 把一件事交给 AI 团队 | **Project**：说目标，协调者与成员分头推进，只在需要你拍板时才打扰你 |
 | 不离开窗口看结果 | 工作区文件、Git Diff、内嵌终端、分支与提交、网页预览都在对话旁边 |
-| 和已有鲸屿并存使用 | 安装在独立目录，不覆盖原版 [鲸屿 Whale Isle](https://github.com/ChisaAlter/WhaleIsle)，默认共用本地会话与模型配置 |
+| 和已有鲸屿并存使用 | 安装在独立目录，不覆盖原版 [鲸屿 Whale Isle](https://github.com/ChisaAlter/WhaleIsle)；首次运行可选把原版会话与模型配置复制到 MyGo 自己的数据目录 |
 
 ## 下载
 
@@ -51,7 +53,7 @@
 
 ## 快速开始
 
-1. 安装并打开 **鲸屿 MyGo**（桌面端内置启动页，负责版本更新、运行环境、导入和组件管理）。
+1. 安装并打开 **鲸屿 MyGo**。自动启动 Host 时，主窗口先显示原生加载页，就绪后进入工作台；关闭自动启动时直接进入工作台。
 2. 打开「设置 → 模型」配置 API 服务，模型调用费用由你所选的服务商收取。
 3. 选择一个本地工作目录，或直接新建会话开始对话（若已安装原版鲸屿，原有的模型配置与历史会话会自动出现）。
 4. 想把目录交给团队长期推进：在「设置 → 内置功能」开启 **Project**，再在新会话首屏进入 Project。
@@ -108,15 +110,15 @@ Project 把一个本地代码库或目录变成可持续推进的项目。你在
 | **多主题与毛玻璃** | 浅色 / 深色 / 跟随系统，内置多套配色皮肤、字体微调、极光渐变与自定义壁纸 |
 
 <p align="center">
-  <img src="docs/images/v0.1.0/screenshot-launcher.png" alt="鲸屿 MyGo 0.1.0 内置启动页" width="680" />
+  <img src="docs/images/v0.1.0/screenshot-workbench.png" alt="鲸屿 MyGo 原生工作台" width="680" />
 </p>
 
 ## 常见问题
 
 - **要花钱吗？** 软件免费开源（MIT）；模型调用费用由你自己在「设置 → 模型」中配置的服务商收取。
 - **已安装原版鲸屿，再装 MyGo 版会冲突吗？** 不会。鲸屿 MyGo 默认安装在 `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo`，拥有独立的应用标识、快捷方式和更新通道，不会覆盖原版，两个版本甚至可以同时打开运行。
-- **数据保存在哪？** 默认与原版鲸屿共用 `%APPDATA%\Deepseek-Harness-Desktop`（macOS 为 `~/Library/Application Support/Deepseek-Harness-Desktop`），方便无缝延续已有会话与配置；覆盖升级不会丢失数据。若需导入官方 CLI `~/.dsh` 的配置，可在启动页「导入」页一键导入。
-- **怎么升级？** 在启动页或「设置 → 关于」中点击「检查更新」，下载校验完成后即可一键安装更新；支持暂停、断点续传。
+- **数据保存在哪？** 默认在 MyGo 自己的 `%APPDATA%\WhaleIsle-MyGo\data`（macOS 为 `~/Library/Application Support/WhaleIsle-MyGo/data`），不再与原版鲸屿写入同一份数据。第一次在没有数据的目录启动时，若检测到原版 `%APPDATA%\Deepseek-Harness-Desktop` 的数据，会询问是否复制过来：只复制、不移动、不删除原数据，跳过之后也可以从「设置 → 通用 → 数据位置 → 从原版鲸屿导入…」再做一次。选定的位置记录在 `%APPDATA%\WhaleIsle-MyGo\data-location.json`，记录本身不放在数据目录里；也可以在「设置 → 通用 → 数据位置」用原生目录选择器改到其他磁盘，重启后生效，原目录不会被删除。`WHALEISLE_USER_DATA` 环境变量优先级最高，可把数据临时指向别处（测试与隔离运行使用）。若需导入官方 CLI `~/.dsh` 的配置，可从「设置 → 通用 → 导入数据」选择要导入的内容。
+- **怎么升级？** 在托盘菜单或「设置 → 关于」中点击「检查更新」，下载校验完成后即可一键安装更新；支持暂停、断点续传。
 
 ## 从源码运行
 
@@ -130,20 +132,29 @@ cd WhaleIsle-MyGo
 . .\scripts\env.ps1
 go build ./cmd/whaleisle ./cmd/whaleisle-preview
 
+# 验收临时文件在命令结束后回收，编译/下载缓存仍跨项目共享
+.\scripts\with-build-workspace.ps1 { go test ./internal/store/... }
+
 # 如需打包 Windows 安装程序
 $env:WHALEISLE_VERSION = '0.1.1'
-.\scripts\package.ps1
+.\scripts\package.ps1 -CleanStage
 ```
+
+Go 默认使用用户级共享缓存，显式设置的 `GOCACHE`、`GOMODCACHE` 等仍有效。`-CleanStage` 只在安装包和更新元数据生成成功后回收本轮打包副本；需要保留副本时省略它，`-StageOnly` 也继续保留输出。临时验收用法见 [构建产物管理](docs/build-storage.md)。
 
 | 目录 | 内容 |
 | --- | --- |
 | `cmd/whaleisle` | 鲸屿 MyGo 桌面主程序入口与窗口管理 |
 | `cmd/whaleisle-preview` | 按需启动的网页与交互式卡片预览辅助进程 |
-| `internal/ui` | 基于 MyGo UI 实现的全部原生界面（对话、工作台、Project、设置、启动器等） |
+| `internal/ui` | 基于 MyGo UI 实现的全部原生界面（对话、工作台、Project、设置与按需维护） |
 | `internal/desktop` | 桌面能力集成（Git、SSH 远程、手机远程、桌宠、更新中心等） |
 | `internal/harness` | 本地 DeepSeek Harness 服务监管与运行时准备 |
 | `third_party/mygo` | 内置的跨平台原生桌面与图形界面引擎 |
 | `scripts/` | 构建、运行时装配与安装包打包脚本 |
+
+## 开发技术路线
+
+后续开发遵循 [核心架构与技术路线](ARCHITECTURE.md)：**原生核心工作台 + DSH 前端插件兼容容器**。核心编码体验优先，同时承接 DSH 插件、左侧自定义扩展空间、会话 View 与右侧工具；不要求插件作者另写 Go 界面。文档区分目标设计、现有实现和验收条件。
 
 ## 反馈与致谢
 

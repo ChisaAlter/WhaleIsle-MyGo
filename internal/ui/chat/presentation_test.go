@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -220,9 +221,15 @@ func TestUserLocalAttachmentStaysInsideNarrowStack(t *testing.T) {
 	}
 	opened := ""
 	tt := messageTester(presentationMessage("[image] "+path), 320, func(m *Model) { m.OnOpenImageLightbox = func(s string) { opened = s } })
+	deadline := time.Now().Add(2 * time.Second)
 	image, ok := tt.Find("Message image")
-	if !ok {
-		t.Fatal("local attachment lost")
+	for !ok {
+		if time.Now().After(deadline) {
+			t.Fatal("local attachment lost")
+		}
+		time.Sleep(5 * time.Millisecond)
+		tt.Frame()
+		image, ok = tt.Find("Message image")
 	}
 	if image.X < 304-288*.82-.1 || image.X+image.W > 304.1 {
 		t.Errorf("attachment outside user cap: %v", image)

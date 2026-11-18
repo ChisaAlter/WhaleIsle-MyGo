@@ -141,10 +141,7 @@ func (w *window) createWebView() {
 		w.webViewFailed(w.b.envErr)
 		return
 	}
-	fail := testFailWebViews > 0
-	if fail {
-		testFailWebViews--
-	}
+	fail := consumeTestWebViewFailure()
 	p := w.isolated
 	if p != nil {
 		p.controllerPending = true
@@ -352,8 +349,56 @@ func (w *window) setUp(controller uintptr) {
 	}
 }
 
+const maxLoadHTMLFilters = 32
+
 func (w *window) addFilter(pattern string) {
+	if w.webview == 0 {
+		return
+	}
 	comCall(w.webview, wvAddWebResourceRequestedFilter, uintptr(unsafe.Pointer(u16(pattern))), 0) // COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL
+}
+
+func (w *window) removeFilter(pattern string) {
+	if w.webview == 0 {
+		return
+	}
+	comCall(w.webview, wvRemoveWebResourceRequestedFilter, uintptr(unsafe.Pointer(u16(pattern))), 0)
+}
+
+func (w *window) trackHTMLDocument(target, html string, needsFilter bool) {
+	if w.htmlFor == nil {
+		w.htmlFor = map[string]string{}
+	}
+	if w.htmlFilters == nil {
+		w.htmlFilters = map[string]bool{}
+	}
+	w.htmlFor[target] = html
+	if len(w.htmlFor) > maxLoadHTMLFilters {
+		for k := range w.htmlFor {
+			if k != target {
+				delete(w.htmlFor, k)
+				break
+			}
+		}
+	}
+	if !needsFilter || w.htmlFilters[target] {
+		return
+	}
+	w.addFilter(target)
+	w.htmlFilters[target] = true
+	w.htmlOrder = append(w.htmlOrder, target)
+	for len(w.htmlFilters) > maxLoadHTMLFilters && len(w.htmlOrder) > 0 {
+		old := w.htmlOrder[0]
+		w.htmlOrder = w.htmlOrder[1:]
+		if old == target {
+			continue
+		}
+		if w.htmlFilters[old] {
+			delete(w.htmlFilters, old)
+			delete(w.htmlFor, old)
+			w.removeFilter(old)
+		}
+	}
 }
 
 func (w *window) resizeWebView() {
@@ -639,10 +684,7 @@ func (w *window) LoadHTML(html, baseURL string) {
 		// Serve the document at its base URL, so relative URLs, the origin
 		// and custom schemes work as in the other backends.
 		target := w.webURL(baseURL)
-		w.htmlFor[target] = html
-		if w.appURL(target) == target { // not covered by the filters of the schemes
-			w.addFilter(target)
-		}
+		w.trackHTMLDocument(target, html, w.appURL(target) == target)
 		comCall(w.webview, wvNavigate, uintptr(unsafe.Pointer(u16(target))))
 	})
 }

@@ -66,7 +66,7 @@ func TestImportPluginRepeatedBuildFailureDoesNotLoop(t *testing.T) {
 
 func TestMarketAdmissionBlockedDuringImport(t *testing.T) {
 	s := &mainState{launcherImportBusy: true}
-	if op, _ := s.beginMarketAttempt("github:fixture/plugin", nil, true); op != nil {
+	if op, _ := s.marketCoordinator().BeginAttempt("github:fixture/plugin", nil, true); op != nil {
 		t.Fatal("market installation admitted during import")
 	}
 }

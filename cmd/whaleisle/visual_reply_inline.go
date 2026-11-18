@@ -21,6 +21,7 @@ type inlinePage struct {
 	state     session.InlineVisualReply
 	handle    *publishedHTMLSurface
 	valid     func() bool
+	retire    func()
 	retryable bool
 }
 
@@ -28,6 +29,25 @@ var inlinePages = struct {
 	sync.Mutex
 	pages map[inlinePageKey]*inlinePage
 }{pages: make(map[inlinePageKey]*inlinePage)}
+
+// retireStaleInlineVisualPages immediately evicts and tears down inline visual
+// pages whose owning session or host generation is no longer current.
+func retireStaleInlineVisualPages() {
+	var retire []func()
+	inlinePages.Lock()
+	for key, page := range inlinePages.pages {
+		if page.valid != nil && !page.valid() {
+			delete(inlinePages.pages, key)
+			if page.retire != nil {
+				retire = append(retire, page.retire)
+			}
+		}
+	}
+	inlinePages.Unlock()
+	for _, fn := range retire {
+		fn()
+	}
+}
 
 func inlinePublishedHTMLHandler(win *mygo.Window, store *session.Store, sid string, dark bool) func(string) session.InlineVisualReply {
 	if (runtime.GOOS != "windows" && runtime.GOOS != "linux" && runtime.GOOS != "darwin") || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
@@ -78,6 +98,19 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 	// must not discard a page that is still mounted and being used.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	retireCheck := make(chan struct{}, 1)
+	poke := func() {
+		select {
+		case retireCheck <- struct{}{}:
+		default:
+		}
+		cancel()
+	}
+	inlinePages.Lock()
+	if inlinePages.pages[key] == page {
+		page.retire = poke
+	}
+	inlinePages.Unlock()
 	readCtx, stop := context.WithTimeout(ctx, 30*time.Second)
 	publication, valid, err := key.store.ReadVisualReplyPageSnapshot(readCtx, key.sessionID, key.attachmentID)
 	stop()
@@ -122,32 +155,75 @@ func loadInlinePublishedHTML(win *mygo.Window, key inlinePageKey, page *inlinePa
 		return
 	}
 	defer surface.Close()
-	tick := time.NewTicker(100 * time.Millisecond)
-	defer tick.Stop()
-	// Builds read the page's content height; the card no longer rebuilds on a
-	// timer, so ask for a build when the helper reports a new height.
-	shown := -1
+	surface.SetHooks(func() {
+		select {
+		case retireCheck <- struct{}{}:
+		default:
+		}
+	}, func() {
+		win.Update(func() {})
+	})
+	// Perform only a brief bounded settle pass right after opening so initial
+	// layout height reaches the frame; thereafter remain 0 Hz until surface exit
+	// or explicit off-screen/session retirement.
+	shown := surface.ContentHeight()
+	for _, wait := range []time.Duration{60 * time.Millisecond, 150 * time.Millisecond, 300 * time.Millisecond} {
+		settle := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			settle.Stop()
+			if !valid() {
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
+			} else {
+				err = ctx.Err()
+			}
+			goto done
+		case <-surface.Done():
+			settle.Stop()
+			err = surface.Close()
+			if err == nil {
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdIsolatedPageClosed))
+			}
+			goto done
+		case <-retireCheck:
+			settle.Stop()
+			if !valid() {
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
+				goto done
+			}
+		case <-settle.C:
+			if !valid() {
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
+				goto done
+			}
+			if h := surface.ContentHeight(); h != shown {
+				shown = h
+				win.Update(func() {})
+			}
+		}
+	}
 	for {
 		select {
 		case <-ctx.Done():
-			err = ctx.Err()
+			if !valid() {
+				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
+			} else {
+				err = ctx.Err()
+			}
 		case <-surface.Done():
 			err = surface.Close()
 			if err == nil {
 				err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdIsolatedPageClosed))
 			}
-		case <-tick.C:
+		case <-retireCheck:
 			if valid() {
-				if h := surface.ContentHeight(); h != shown {
-					shown = h
-					win.Update(func() {})
-				}
 				continue
 			}
 			err = fmt.Errorf("%s", i18n.T(i18n.KeyCmdPublishedHTMLSessionChanged))
 		}
 		break
 	}
+done:
 	ownerGone := !valid()
 	inlinePages.Lock()
 	if ownerGone && inlinePages.pages[key] == page {

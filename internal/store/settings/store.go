@@ -96,6 +96,7 @@ type Store struct {
 	instructionsWrite         *instructionsWrite
 	preferenceWrites          map[string]*preferenceWriteQueue
 	preferenceErrors          map[string]string
+	patchBoolQueues           map[string]*patchBoolQueue
 	onboardingCredentialEpoch uint64
 	uploadNoticeSequence      uint64
 	uploadNotice              string
@@ -145,6 +146,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	s.preferenceWrites = nil
 	s.preferenceErrors = nil
+	s.patchBoolQueues = nil
 	s.snapCache.valid = false
 	s.uploadNotice = ""
 	s.generation++
@@ -211,6 +213,7 @@ func (s *Store) Detach() {
 	s.mu.Lock()
 	s.preferenceWrites = nil
 	s.preferenceErrors = nil
+	s.patchBoolQueues = nil
 	s.snapCache.valid = false
 	s.generation++
 	s.hasDocument = false
@@ -884,6 +887,18 @@ func (s *Store) ViewTabsEnabled() (enabled bool, ok bool) {
 	return false, false
 }
 
+type patchBoolMutation struct {
+	ctx context.Context
+	key string
+	raw json.RawMessage
+}
+
+type patchBoolQueue struct {
+	client     *dsh.Client
+	generation uint64
+	pending    []patchBoolMutation
+}
+
 // SyncViewTabs pushes Electron conversation/submissionPolicy viewTabs into harness
 // settings when those namespaces are present. Shell still keeps goHideChatViewTabs.
 func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
@@ -893,8 +908,9 @@ func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
 		{"submissionPolicy", "viewTabs"},
 		{"ui", "viewTabs"},
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for _, c := range candidates {
-		s.mu.Lock()
 		ns := s.findNamespaceLocked(c.ns)
 		has := false
 		if ns != nil {
@@ -913,9 +929,8 @@ func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
 				}
 			}
 		}
-		s.mu.Unlock()
 		if has {
-			s.PatchBool(ctx, c.ns, c.key, show)
+			s.enqueuePatchBoolLocked(ctx, c.ns, c.key, show)
 			return
 		}
 	}
@@ -924,48 +939,101 @@ func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
 // PatchBool posts settings/update for one bool key in a namespace.
 func (s *Store) PatchBool(ctx context.Context, nsName, key string, value bool) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.enqueuePatchBoolLocked(ctx, nsName, key, value)
+}
+
+func (s *Store) enqueuePatchBoolLocked(ctx context.Context, nsName, key string, value bool) {
 	client := s.client
+	generation := s.generation
 	ns := s.findNamespaceLocked(nsName)
-	if client == nil || ns == nil || !s.writable {
-		s.mu.Unlock()
+	if client == nil || s.describedClient != client || ns == nil || !s.writable {
 		return
 	}
-	rev := ns.Revision
-	s.mu.Unlock()
-
 	raw, err := PatchValue(FieldBool, fmt.Sprintf("%v", value))
 	if err != nil {
 		return
 	}
-	go func() {
+	if s.patchBoolQueues == nil {
+		s.patchBoolQueues = map[string]*patchBoolQueue{}
+	}
+	q := s.patchBoolQueues[nsName]
+	start := q == nil || q.client != client || q.generation != generation
+	if start {
+		q = &patchBoolQueue{client: client, generation: generation}
+		s.patchBoolQueues[nsName] = q
+	}
+	q.pending = append(q.pending, patchBoolMutation{ctx: ctx, key: key, raw: raw})
+	if start {
+		go s.flushPatchBoolQueue(nsName, q)
+	}
+}
+
+func (s *Store) flushPatchBoolQueue(nsName string, q *patchBoolQueue) {
+	for {
+		s.mu.Lock()
+		if s.client != q.client || s.generation != q.generation || s.describedClient != q.client || s.patchBoolQueues[nsName] != q || len(q.pending) == 0 {
+			s.mu.Unlock()
+			return
+		}
+		item := q.pending[0]
+		ns := s.findNamespaceLocked(nsName)
+		if ns == nil || !s.writable {
+			delete(s.patchBoolQueues, nsName)
+			s.mu.Unlock()
+			return
+		}
+		rev := ns.Revision
+		s.mu.Unlock()
+
 		args := map[string]any{
 			"ns":               nsName,
-			"patch":            map[string]json.RawMessage{key: raw},
+			"patch":            map[string]json.RawMessage{item.key: item.raw},
 			"expectedRevision": rev,
 		}
 		var out api.SettingsNamespaceView
-		err := client.Call(ctx, "settings/update", args, &out)
+		err := q.client.Call(item.ctx, "settings/update", args, &out)
+
 		s.mu.Lock()
+		if s.client != q.client || s.generation != q.generation || s.describedClient != q.client || s.patchBoolQueues[nsName] != q {
+			s.mu.Unlock()
+			return
+		}
+		if len(q.pending) > 0 {
+			q.pending = q.pending[1:]
+		}
 		if err != nil {
 			s.err = err
 			s.lastAction = "viewTabs sync: " + err.Error()
 		} else {
+			s.err = nil
 			s.lastAction = "viewTabs synced"
 			for i := range s.namespaces {
 				if s.namespaces[i].NS == nsName {
-					s.namespaces[i].Revision = out.Revision
-					s.namespaces[i].Value = append(json.RawMessage(nil), out.Value...)
-					s.namespaces[i].Base = append(json.RawMessage(nil), out.Base...)
-					s.namespaces[i].User = append(json.RawMessage(nil), out.User...)
-					s.namespaces[i].HasSecrets = hasSetSecrets(out.Secrets)
-					s.namespaces[i].SecretPaths = configuredSecretPaths(out.Secrets)
+					if s.namespaces[i].Revision <= out.Revision {
+						s.namespaces[i].Revision = out.Revision
+						s.namespaces[i].Value = append(json.RawMessage(nil), out.Value...)
+						s.namespaces[i].Base = append(json.RawMessage(nil), out.Base...)
+						s.namespaces[i].User = append(json.RawMessage(nil), out.User...)
+						s.namespaces[i].HasSecrets = hasSetSecrets(out.Secrets)
+						s.namespaces[i].SecretPaths = configuredSecretPaths(out.Secrets)
+						s.acknowledgeDraftsLocked(s.namespaces[i], map[string]string{})
+					}
 					break
 				}
 			}
 		}
+		s.snapCache.valid = false
+		done := len(q.pending) == 0
+		if done {
+			delete(s.patchBoolQueues, nsName)
+		}
 		s.mu.Unlock()
 		s.fire()
-	}()
+		if done {
+			return
+		}
+	}
 }
 
 func (s *Store) findNamespaceLocked(ns string) *Namespace {

@@ -84,6 +84,9 @@ func runPluginInstall(cfg InstallConfig, spec string, opts InstallOpts) Result {
 }
 
 func runPluginInstallContext(parent context.Context, cfg InstallConfig, spec string, opts InstallOpts) Result {
+	if parent == nil {
+		parent = context.Background()
+	}
 	spec = strings.TrimSpace(spec)
 	out := Result{Spec: spec, AllowBuilds: []string{}}
 	if err := parent.Err(); err != nil {
@@ -106,18 +109,25 @@ func runPluginInstallContext(parent context.Context, cfg InstallConfig, spec str
 		out.Error = "web profile 路径未配置"
 		return out
 	}
-	if err := os.MkdirAll(profile, 0o755); err != nil {
-		out.Error = fmt.Sprintf("无法创建 profile 目录：%v", err)
-		return out
-	}
-
 	allowBuilds := NormalizeAllowBuilds(opts.AllowBuilds)
 	if allowBuilds == nil {
 		out.Error = "allowBuilds 包含非法包名"
 		return out
 	}
+
+	unlock := lockProfile(profile)
+	defer unlock()
+	if err := parent.Err(); err != nil {
+		out.Error = err.Error()
+		return out
+	}
+	if err := os.MkdirAll(profile, 0o755); err != nil {
+		out.Error = fmt.Sprintf("无法创建 profile 目录：%v", err)
+		return out
+	}
+
 	beforeModules := ListNodeModuleNames(profile)
-	snap, snapErr := CaptureInstallSnapshot(profile)
+	snap, snapErr := captureInstallSnapshot(profile)
 	if snapErr != nil {
 		out.Error = "无法创建安装回滚点，未执行安装：" + snapErr.Error()
 		return out
@@ -128,7 +138,7 @@ func runPluginInstallContext(parent context.Context, cfg InstallConfig, spec str
 	if len(allowBuilds) > 0 {
 		if _, err := mergeAllowBuildsIntoWorkspace(profile, allowBuilds); err != nil {
 			out.Error = err.Error()
-			return RollbackInstall(snap, out)
+			return rollbackInstall(snap, out)
 		}
 	}
 
@@ -157,7 +167,7 @@ func runPluginInstallContext(parent context.Context, cfg InstallConfig, spec str
 	fail := func(msg string) Result {
 		out.OK = false
 		out.Error = msg
-		return RollbackInstall(snap, out)
+		return rollbackInstall(snap, out)
 	}
 
 	if ctx.Err() != nil {
@@ -283,6 +293,10 @@ func findPnpmCJS(harnessRoot string) string {
 	return ""
 }
 
+func escapeBatchPercent(s string) string {
+	return strings.ReplaceAll(s, "%", "%%")
+}
+
 func ensurePnpmShimDir(nodeBin, pnpmCJS string) (string, error) {
 	dir := filepath.Join(paths.UserDataDir(), "bin")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -290,14 +304,14 @@ func ensurePnpmShimDir(nodeBin, pnpmCJS string) (string, error) {
 	}
 	if runtime.GOOS == "windows" {
 		cmdPath := filepath.Join(dir, "pnpm.cmd")
-		body := fmt.Sprintf("@echo off\r\n\"%s\" \"%s\" %%*\r\n", nodeBin, pnpmCJS)
-		if err := os.WriteFile(cmdPath, []byte(body), 0o644); err != nil {
+		body := fmt.Sprintf("@echo off\r\n\"%s\" \"%s\" %%*\r\n", escapeBatchPercent(nodeBin), escapeBatchPercent(pnpmCJS))
+		if err := writeFileAtomic(cmdPath, []byte(body), 0o644); err != nil {
 			return "", err
 		}
 	} else {
 		shPath := filepath.Join(dir, "pnpm")
 		body := fmt.Sprintf("#!/bin/sh\nexec \"%s\" \"%s\" \"$@\"\n", nodeBin, pnpmCJS)
-		if err := os.WriteFile(shPath, []byte(body), 0o755); err != nil {
+		if err := writeFileAtomic(shPath, []byte(body), 0o755); err != nil {
 			return "", err
 		}
 	}
@@ -330,19 +344,11 @@ func mergeAllowBuildsIntoWorkspace(profileDir string, keys []string) (string, er
 		}
 		text = allowBuildsSectionRE.ReplaceAllString(text, "allowBuilds:\n  "+quoted+": true\n")
 	}
-	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-		return "", fmt.Errorf("无法写入 pnpm-workspace.yaml：%w", err)
-	}
-	tmp := file + ".tmp"
 	payload := text
 	if !strings.HasSuffix(payload, "\n") {
 		payload += "\n"
 	}
-	if err := os.WriteFile(tmp, []byte(payload), 0o644); err != nil {
-		return "", fmt.Errorf("无法写入 pnpm-workspace.yaml：%w", err)
-	}
-	if err := os.Rename(tmp, file); err != nil {
-		_ = os.Remove(tmp)
+	if err := writeFileAtomic(file, []byte(payload), 0o644); err != nil {
 		return "", fmt.Errorf("无法写入 pnpm-workspace.yaml：%w", err)
 	}
 	return file, nil

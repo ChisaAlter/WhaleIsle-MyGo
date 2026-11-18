@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	launcherctl "whaleisle/internal/app/launcher"
 	"whaleisle/internal/config"
 	"whaleisle/internal/paths"
 )
@@ -20,12 +21,11 @@ func portableTestEnvironment(t *testing.T) {
 	for _, key := range []string{"PATH", "NPM_CONFIG_USERCONFIG", "NPM_CONFIG_GLOBALCONFIG", "NPM_CONFIG_STORE_DIR"} {
 		t.Setenv(key, os.Getenv(key))
 	}
-	previous := portableDesktopRoot
-	portableDesktopRoot = ""
-	t.Cleanup(func() { portableDesktopRoot = previous })
+	previous := launcherctl.SetPortableDesktopRoot("")
+	t.Cleanup(func() { launcherctl.SetPortableDesktopRoot(previous) })
 }
 
-func writePortableManifest(t *testing.T, root string, manifest portableDesktopManifest) {
+func writePortableManifest(t *testing.T, root string, manifest launcherctl.PortableDesktopManifest) {
 	t.Helper()
 	data, err := json.Marshal(manifest)
 	if err != nil {
@@ -36,8 +36,8 @@ func writePortableManifest(t *testing.T, root string, manifest portableDesktopMa
 	}
 }
 
-func validPortableManifest() portableDesktopManifest {
-	return portableDesktopManifest{1, "whaleisle-isolated-portable", "data", "runtime", "WhaleIsle.exe"}
+func validPortableManifest() launcherctl.PortableDesktopManifest {
+	return launcherctl.PortableDesktopManifest{SchemaVersion: 1, Kind: "whaleisle-isolated-portable", UserData: "data", Runtime: "runtime", Entry: "WhaleIsle.exe"}
 }
 
 func TestPortableMissingManifestLeavesInstalledStartupAlone(t *testing.T) {
@@ -46,7 +46,7 @@ func TestPortableMissingManifestLeavesInstalledStartupAlone(t *testing.T) {
 	t.Setenv(paths.EnvUserData, data)
 	t.Setenv(paths.EnvVendor, vendor)
 	root := t.TempDir()
-	if err := preparePortableDesktopAt(filepath.Join(root, "whaleisle.exe")); err != nil {
+	if err := launcherctl.PreparePortableDesktopAt(filepath.Join(root, "whaleisle.exe")); err != nil {
 		t.Fatal(err)
 	}
 	if isolatedDesktopRun() || os.Getenv(paths.EnvUserData) != data || os.Getenv(paths.EnvVendor) != vendor {
@@ -76,10 +76,10 @@ func TestPortableRejectsOtherManifestPathsAndEntryBeforeInitialization(t *testin
 				entry = "other.exe"
 			}
 			writePortableManifest(t, root, manifest)
-			if err := preparePortableDesktopAt(filepath.Join(root, entry)); err == nil {
+			if err := launcherctl.PreparePortableDesktopAt(filepath.Join(root, entry)); err == nil {
 				t.Fatal("nonfixed package contract was accepted")
 			}
-			if _, err := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(err) || portableDesktopRoot != "" {
+			if _, err := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(err) || launcherctl.PortableDesktopRoot() != "" {
 				t.Fatal("invalid package initialized private data or activated portable mode")
 			}
 		})
@@ -95,7 +95,7 @@ func TestPortableRejectsExternalOverridesAndUnverifiedRuntime(t *testing.T) {
 			if key != "missing-runtime" {
 				t.Setenv(key, t.TempDir())
 			}
-			if err := preparePortableDesktopAt(filepath.Join(root, "WhaleIsle.exe")); err == nil {
+			if err := launcherctl.PreparePortableDesktopAt(filepath.Join(root, "WhaleIsle.exe")); err == nil {
 				t.Fatal("external override or missing runtime was accepted")
 			}
 			if _, err := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(err) {
@@ -108,10 +108,10 @@ func TestPortableRejectsExternalOverridesAndUnverifiedRuntime(t *testing.T) {
 func TestPortablePrivatePathBoundsAndFreshChildren(t *testing.T) {
 	root := t.TempDir()
 	private := filepath.Join(root, "data")
-	if err := portableContainedPath(private, filepath.Join(private, "config.json"), true); err != nil {
+	if err := launcherctl.PortableContainedPath(private, filepath.Join(private, "config.json"), true); err != nil {
 		t.Fatalf("fresh private child rejected: %v", err)
 	}
-	if err := portableContainedPath(private, root, false); err == nil {
+	if err := launcherctl.PortableContainedPath(private, root, false); err == nil {
 		t.Fatal("existing path outside the private root accepted")
 	}
 }
@@ -141,7 +141,7 @@ func TestPortableVerifiedRuntimeInitializesAndPreservesPrivateConfig(t *testing.
 	}
 	writePortableManifest(t, root, validPortableManifest())
 	entry := filepath.Join(root, "WhaleIsle.exe")
-	if err := preparePortableDesktopAt(entry); err != nil {
+	if err := launcherctl.PreparePortableDesktopAt(entry); err != nil {
 		t.Fatal(err)
 	}
 	data := filepath.Join(root, "data")
@@ -175,7 +175,7 @@ func TestPortableVerifiedRuntimeInitializesAndPreservesPrivateConfig(t *testing.
 	if err := os.WriteFile(store.Path(), retained, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := preparePortableDesktopAt(entry); err != nil {
+	if err := launcherctl.PreparePortableDesktopAt(entry); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(store.Path())
@@ -188,7 +188,7 @@ func TestPortableVerifiedRuntimeInitializesAndPreservesPrivateConfig(t *testing.
 	if err := os.WriteFile(store.Path(), []byte(`{"nodeBin":"C:\\outside\\node.exe"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := preparePortableDesktopAt(entry); err == nil {
+	if err := launcherctl.PreparePortableDesktopAt(entry); err == nil {
 		t.Fatal("existing config selected an external Node")
 	}
 }

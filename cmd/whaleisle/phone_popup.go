@@ -17,6 +17,13 @@ import (
 	"whaleisle/internal/ui/settings"
 )
 
+// phoneLauncherActions wires the native phone remote trigger into the account menu.
+func (s *mainState) phoneLauncherActions(menu *ui.Menu) {
+	if menu.Item(i18n.T(i18n.KeyRemotePhoneTitle)).Key("account:phone").Chosen() {
+		s.openPhonePopup()
+	}
+}
+
 // openPhonePopup is the native consumer of the existing phone launcher action.
 // Its launcher row stays mounted as the popup anchor; no second menu is added.
 func (s *mainState) openPhonePopup() {
@@ -168,13 +175,16 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 		OnClose: func() {
 			state.revokePhoneGit()
 			state.mu.Lock()
-			state.remoteOpen = false
+			if state.mainRoute == routeRemote {
+				state.setMainRouteLocked(routeConversation)
+			}
 			state.sshHost = sshHost
 			state.sshUser = sshUser
 			state.sshPort = sshPort
 			state.sshIdentity = sshIdentity
 			state.sshForward = sshForward
 			state.mu.Unlock()
+			state.syncMainRouteResources()
 			if win != nil {
 				win.Update(func() {})
 			}
@@ -184,9 +194,7 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			if state.cfgStore == nil {
 				return
 			}
-			if err := state.cfgStore.Update(func(c *config.Config) {
-				c.RemoteEnabled = enabled
-			}); err != nil {
+			if err := state.savePhoneEnabled(enabled); err != nil {
 				state.mu.Lock()
 				state.phoneActionMsg = i18n.T(i18n.KeyCmdPhoneRemoteSettingWasNotSavedRetry)
 				state.mu.Unlock()
@@ -195,19 +203,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 				}
 				return
 			}
-			if !enabled {
-				// Revoke before the asynchronous stop; no phone Git
-				// request may use the previous desktop grant meanwhile.
-				state.revokePhoneGit()
-			}
-			go func() {
-				// Read the latest saved setting inside phoneOp. A queued
-				// disable must not stop a more recent enable request.
-				_ = state.refreshPhoneRemote()
-				if win != nil {
-					win.Update(func() {})
-				}
-			}()
 			if win != nil {
 				win.Update(func() {})
 			}
@@ -294,7 +289,7 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			}
 			state.mu.Lock()
 			state.invalidateSSHConnectLocked()
-			err := sshremote.SaveTunnelConfig(paths.UserDataDir(), cfg)
+			err := sshremote.SaveSharedProfileTunnelConfig(paths.UserDataDir(), cfg)
 			state.sshHost = cfg.Host
 			state.sshUser = cfg.User
 			state.sshPort = strconv.Itoa(cfg.Port)

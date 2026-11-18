@@ -52,9 +52,10 @@ func DownloadBlockMap(ctx context.Context, url string, client *http.Client) (Blo
 	if url == "" {
 		return BlockMapInfo{}, fmt.Errorf("empty blockmap URL")
 	}
-	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second, Transport: updateTransport()}
+	if _, err := validateDownloadURL(url); err != nil {
+		return BlockMapInfo{}, err
 	}
+	client = hardenDownloadClient(client, 30*time.Second)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return BlockMapInfo{}, err

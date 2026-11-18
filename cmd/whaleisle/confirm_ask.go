@@ -115,22 +115,21 @@ func (s *mainState) askConfirm(req confirmAskRequest) *confirmAskRequest {
 }
 
 // The originating visible surface owns its decision. A hidden main window is
-// never substituted for the launcher or another foreground native window.
+// never substituted for another foreground native window.
 func (s *mainState) lifecycleDialogOwner(preferred *mygo.Window) *mygo.Window {
 	s.mu.Lock()
-	main, lw := s.win, s.launcherWin
+	main := s.win
 	s.mu.Unlock()
-	var launcher *mygo.Window
-	if !lw.destroyed() {
-		launcher = lw.win
-	}
 	focused := mygo.FocusedWindow()
-	s.mu.Lock()
-	if !s.lifecycleWindowOwnedLocked(focused) {
-		focused = nil
+	if focused != nil {
+		s.mu.Lock()
+		owned := s.win == focused || (s.whaleBridgeWin != nil && s.whaleBridgeWin.win == focused)
+		s.mu.Unlock()
+		if !owned && !s.updaterCenter().IsTemporaryModalWindow(focused) {
+			focused = nil
+		}
 	}
-	s.mu.Unlock()
-	for _, win := range []*mygo.Window{preferred, focused, launcher, main} {
+	for _, win := range []*mygo.Window{preferred, focused, main} {
 		if win != nil && !win.IsDestroyed() && win.IsVisible() && !win.IsMinimized() {
 			return win
 		}

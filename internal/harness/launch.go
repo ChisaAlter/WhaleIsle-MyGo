@@ -56,9 +56,8 @@ type LaunchOptions struct {
 	ExtraEnv []string
 	// DesktopDefaults is set only by the managed desktop composition. Configured
 	// external launchers keep their original environment contract.
-	DesktopDefaults     bool
-	ProfileDefaultPatch string
-	WhaleUIHost         string
+	DesktopDefaults bool
+	WhaleUIHost     string
 }
 
 // Plan is one resolved command line.
@@ -72,6 +71,9 @@ type Plan struct {
 	Port   int
 	// Kind is "source", "configured", "PATH", or "npx".
 	Kind string
+
+	prefixArgs  []string
+	preloadRoot string
 }
 
 // lookPath is exec.LookPath, replaced in tests.
@@ -84,6 +86,11 @@ func Resolve(o LaunchOptions, port int) (Plan, error) {
 }
 
 func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeRegistryReader) (Plan, error) {
+	plan, _, err := resolveLaunchPlanWithOptions(o, port, read)
+	return plan, err
+}
+
+func normalizeLaunchOptions(o LaunchOptions) (LaunchOptions, error) {
 	// Paths were configured relative to the desktop's cwd. Resolve them before
 	// the child switches to its workspace so that existing launchers, patches
 	// and runtime data continue to refer to the same files.
@@ -91,7 +98,7 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 		if *path != "" {
 			absolute, err := filepath.Abs(*path)
 			if err != nil {
-				return Plan{}, fmt.Errorf("resolve launch path: %w", err)
+				return LaunchOptions{}, fmt.Errorf("resolve launch path: %w", err)
 			}
 			*path = absolute
 		}
@@ -101,11 +108,15 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 		if path != "" {
 			absolute, err := filepath.Abs(path)
 			if err != nil {
-				return Plan{}, fmt.Errorf("resolve patch path: %w", err)
+				return LaunchOptions{}, fmt.Errorf("resolve patch path: %w", err)
 			}
 			o.PatchFiles[i] = absolute
 		}
 	}
+	return o, nil
+}
+
+func buildLaunchArgs(o LaunchOptions, port int, prefixArgs []string, preloadRoot string) []string {
 	web := []string{"web"}
 	if o.SkipUserPlugins {
 		web = append(web, "--skip-user-plugins")
@@ -116,11 +127,26 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 		}
 	}
 	web = append(web, "--host", o.Host, "--port", strconv.Itoa(port), "--no-open")
+	args := make([]string, 0, len(prefixArgs)+len(web)+2)
+	if preloadRoot != "" {
+		args = append(args, nativeTaskPreload(o, preloadRoot)...)
+	}
+	args = append(args, prefixArgs...)
+	args = append(args, web...)
+	return args
+}
+
+func resolveLaunchPlanWithOptions(o LaunchOptions, port int, read sessionRuntimeRegistryReader) (Plan, LaunchOptions, error) {
+	var err error
+	o, err = normalizeLaunchOptions(o)
+	if err != nil {
+		return Plan{}, LaunchOptions{}, err
+	}
 	plan := Plan{Env: childEnv(o), Host: o.Host, Port: port}
 
 	if o.DshBin != "" {
 		if _, err := os.Stat(o.DshBin); err != nil {
-			return Plan{}, fmt.Errorf("configured dshBin %s: %w", o.DshBin, err)
+			return Plan{}, LaunchOptions{}, fmt.Errorf("configured dshBin %s: %w", o.DshBin, err)
 		}
 		if isScript(o.DshBin) {
 			var sourceRoot string
@@ -131,79 +157,94 @@ func resolveWithRegistryReader(o LaunchOptions, port int, read sessionRuntimeReg
 				root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(clean))))
 				sourceRoot = root
 				if err := validateLaunchRuntime(root, read); err != nil {
-					return Plan{}, err
+					return Plan{}, LaunchOptions{}, err
 				}
 			}
-			node, err := resolveNode(o.NodeBin)
+			vendorHint := o.VendorDir
+			if sourceRoot != "" {
+				vendorHint = filepath.Dir(sourceRoot)
+			}
+			node, err := resolveNodeForVendor(o.NodeBin, vendorHint)
 			if err != nil {
-				return Plan{}, err
+				return Plan{}, LaunchOptions{}, err
 			}
 			if sourceRoot != "" {
-				if err := validateSessionRuntimeNode(filepath.Dir(sourceRoot), node); err != nil {
-					return Plan{}, err
+				if err := validateSessionRuntimeNode(vendorHint, node); err != nil {
+					return Plan{}, LaunchOptions{}, err
 				}
 			}
-			plan.Command, plan.Args = node, append(nativeTaskPreload(o, sourceRoot), append([]string{o.DshBin}, web...)...)
+			plan.Command = node
+			plan.prefixArgs = []string{o.DshBin}
+			plan.preloadRoot = sourceRoot
 		} else {
-			plan.Command, plan.Args = o.DshBin, web
+			plan.Command = o.DshBin
 		}
+		plan.Args = buildLaunchArgs(o, port, plan.prefixArgs, plan.preloadRoot)
 		plan.Source = "configured " + o.DshBin
 		plan.Kind = "configured"
-		return plan, nil
+		return plan, o, nil
 	}
 
 	if root := resolveHarnessRoot(o); root != "" {
 		if err := validateLaunchRuntime(root, read); err != nil {
-			return Plan{}, err
+			return Plan{}, LaunchOptions{}, err
 		}
 		binJS := filepath.Join(root, "apps", "cli", "lib", "bin.js")
 		if _, err := os.Stat(binJS); err != nil {
-			return Plan{}, fmt.Errorf("vendored harness missing bin.js at %s: %w", binJS, err)
+			return Plan{}, LaunchOptions{}, fmt.Errorf("vendored harness missing bin.js at %s: %w", binJS, err)
 		}
 		webDist := filepath.Join(root, "apps", "web", "dist", "index.html")
 		if _, err := os.Stat(webDist); err != nil {
-			return Plan{}, fmt.Errorf("vendored harness not built (missing %s); run scripts/build-harness.ps1", webDist)
+			return Plan{}, LaunchOptions{}, fmt.Errorf("vendored harness not built (missing %s); run scripts/build-harness.ps1", webDist)
 		}
-		node, err := resolveNode(o.NodeBin)
+		vendorDir := filepath.Dir(root)
+		node, err := resolveNodeForVendor(o.NodeBin, vendorDir)
 		if err != nil {
-			return Plan{}, err
+			return Plan{}, LaunchOptions{}, err
 		}
-		if err := validateSessionRuntimeNode(filepath.Dir(root), node); err != nil {
-			return Plan{}, err
+		if err := validateSessionRuntimeNode(vendorDir, node); err != nil {
+			return Plan{}, LaunchOptions{}, err
 		}
-		plan.Command, plan.Args = node, append(nativeTaskPreload(o, root), append([]string{binJS}, web...)...)
+		plan.Command = node
+		plan.prefixArgs = []string{binJS}
+		plan.preloadRoot = root
+		plan.Args = buildLaunchArgs(o, port, plan.prefixArgs, plan.preloadRoot)
 		plan.Source = "vendor " + binJS
 		plan.Kind = "source"
-		return plan, nil
+		return plan, o, nil
 	}
 
 	if bin, err := lookPath("dsh"); err == nil {
-		plan.Command, plan.Args, plan.Source = bin, web, "PATH "+bin
+		plan.Command = bin
+		plan.Args = buildLaunchArgs(o, port, nil, "")
+		plan.Source = "PATH " + bin
 		plan.Kind = "PATH"
-		return plan, nil
+		return plan, o, nil
 	}
 
 	if !o.AllowNpx {
-		return Plan{}, errors.New("vendored harness not found; set WHALEISLE_VENDOR or run scripts/build-harness.ps1")
+		return Plan{}, LaunchOptions{}, errors.New("vendored harness not found; set WHALEISLE_VENDOR or run scripts/build-harness.ps1")
 	}
 
 	node, err := resolveNode(o.NodeBin)
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, LaunchOptions{}, err
 	}
 	npx, err := resolveNpx(node)
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, LaunchOptions{}, err
 	}
 	version := o.Version
 	if version == "" {
 		version = "latest"
 	}
 	spec := npmPackage + "@" + version
-	plan.Command, plan.Args = npx, append([]string{"--yes", spec}, web...)
+	plan.Command = npx
+	plan.prefixArgs = []string{"--yes", spec}
+	plan.Args = buildLaunchArgs(o, port, plan.prefixArgs, "")
 	plan.Source = "npx " + spec
 	plan.Kind = "npx"
-	return plan, nil
+	return plan, o, nil
 }
 
 // Only the generated desktop overlay on a known source CLI opts into this
@@ -225,7 +266,11 @@ func nativeTaskPreload(o LaunchOptions, root string) []string {
 			if !strings.HasPrefix(p, "/") {
 				p = "/" + p
 			}
-			return []string{"--import", (&url.URL{Scheme: "file", Path: p}).String()}
+			fileURL := (&url.URL{Scheme: "file", Path: p}).String()
+			if o.DesktopDefaults {
+				return []string{"--expose-gc", "--import", fileURL}
+			}
+			return []string{"--import", fileURL}
 		}
 	}
 	return nil
@@ -259,7 +304,26 @@ func isScript(path string) bool {
 	return false
 }
 
+func nodeExecutableName() string {
+	if runtime.GOOS == "windows" {
+		return "node.exe"
+	}
+	return "node"
+}
+
+func selectedHostNode(selected string) (string, error) {
+	node := filepath.Join(selected, "node", nodeExecutableName())
+	if st, err := os.Stat(node); err != nil || !st.Mode().IsRegular() {
+		return "", fmt.Errorf("selected Host runtime is missing its bundled Node: %s", node)
+	}
+	return node, nil
+}
+
 func resolveNode(configured string) (string, error) {
+	return resolveNodeForVendor(configured, "")
+}
+
+func resolveNodeForVendor(configured, vendorDir string) (string, error) {
 	if configured != "" {
 		if _, err := os.Stat(configured); err != nil {
 			return "", fmt.Errorf("configured nodeBin %s: %w", configured, err)
@@ -270,19 +334,29 @@ func resolveNode(configured string) (string, error) {
 		return configured, nil
 	}
 	if selected := paths.SelectedHostRuntime(); selected != "" {
-		node := filepath.Join(selected, "node", "node")
-		if st, err := os.Stat(node); err != nil || !st.Mode().IsRegular() {
-			return "", fmt.Errorf("selected Host runtime is missing its bundled Node: %s", node)
+		return selectedHostNode(selected)
+	}
+	name := nodeExecutableName()
+	if nodeDir := strings.TrimSpace(os.Getenv(paths.EnvNodeDir)); nodeDir != "" {
+		candidate := filepath.Join(nodeDir, name)
+		st, err := os.Stat(candidate)
+		if err != nil || !st.Mode().IsRegular() {
+			return "", fmt.Errorf("%s node missing: %s", paths.EnvNodeDir, candidate)
 		}
-		return node, nil
+		if strings.Contains(strings.ToLower(candidate), "electron") {
+			return "", fmt.Errorf("%s looks like Electron: %s", paths.EnvNodeDir, candidate)
+		}
+		return candidate, nil
+	}
+	if vendorDir != "" {
+		sibling := filepath.Join(filepath.Dir(filepath.Clean(vendorDir)), "node", name)
+		if st, err := os.Stat(sibling); err == nil && st.Mode().IsRegular() && !strings.Contains(strings.ToLower(sibling), "electron") {
+			return sibling, nil
+		}
 	}
 	// Packaged Host runs with its matching bundled Node before any unrelated
 	// PATH installation. A fresh native runtime install must work without
 	// changing the user's PATH or requiring a separate global Node install.
-	name := "node"
-	if runtime.GOOS == "windows" {
-		name = "node.exe"
-	}
 	bases := []string{}
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
@@ -293,6 +367,17 @@ func resolveNode(configured string) (string, error) {
 	}
 	if wd, err := os.Getwd(); err == nil {
 		bases = append(bases, wd)
+	}
+	if strings.TrimSpace(os.Getenv(paths.EnvVendor)) == "" {
+		for _, base := range bases {
+			harnessDir := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
+			candidate := filepath.Join(base, "runtime-rc4", "node", name)
+			if hInfo, err := os.Stat(harnessDir); err == nil && hInfo.IsDir() {
+				if st, err := os.Stat(candidate); err == nil && st.Mode().IsRegular() {
+					return candidate, nil
+				}
+			}
+		}
 	}
 	for _, base := range bases {
 		candidate := filepath.Join(base, "runtime", "node", name)
@@ -346,13 +431,13 @@ func childEnv(o LaunchOptions) []string {
 	env := make([]string, 0, len(os.Environ())+4)
 	for _, kv := range os.Environ() {
 		key, _, _ := strings.Cut(kv, "=")
-		if o.DesktopDefaults && (strings.EqualFold(key, "DSHD_PROFILE_DEFAULT_PATCH") || strings.EqualFold(key, "DSHD_WHALE_UI_ENABLED") || strings.EqualFold(key, "DSHD_WHALE_UI_HOST")) {
+		if o.DesktopDefaults && (strings.EqualFold(key, "DSHD_WHALE_UI_ENABLED") || strings.EqualFold(key, "DSHD_WHALE_UI_HOST")) {
 			continue
 		}
 		switch strings.ToUpper(key) {
 		case "DSH_HOME", "DSH_HARNESS_ROOT", "ELECTRON_RUN_AS_NODE", "ELECTRON_NO_ASAR",
 			"DSH_DESKTOP_INSTALL_URL", "DSH_DESKTOP_INSTALL_TOKEN",
-			"DSHD_TASK_CONTROL_TOKEN", "DSHD_DSHBOT_ENABLED", "DSHD_SCHEDULE_ENABLED":
+			"DSHD_TASK_CONTROL_TOKEN", "DSHD_PLATFORM_TOKEN", "DSHD_DSHBOT_ENABLED", "DSHD_SCHEDULE_ENABLED":
 			continue
 		}
 		env = append(env, kv)
@@ -364,13 +449,8 @@ func childEnv(o LaunchOptions) []string {
 		env = append(env, "DSH_HARNESS_ROOT="+root)
 	}
 	env = append(env, "npm_config_yes=true", "npm_config_update_notifier=false")
-	if o.DesktopDefaults {
-		if o.ProfileDefaultPatch != "" {
-			env = append(env, "DSHD_PROFILE_DEFAULT_PATCH="+o.ProfileDefaultPatch)
-		}
-		if o.WhaleUIHost != "" {
-			env = append(env, "DSHD_WHALE_UI_ENABLED=1", "DSHD_WHALE_UI_HOST="+o.WhaleUIHost)
-		}
+	if o.DesktopDefaults && o.WhaleUIHost != "" {
+		env = append(env, "DSHD_WHALE_UI_ENABLED=1", "DSHD_WHALE_UI_HOST="+o.WhaleUIHost)
 	}
 	env = append(env, o.ExtraEnv...)
 	return env

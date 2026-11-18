@@ -27,6 +27,7 @@ func (d *DraftState) EndEdit() {
 	if d.EditSeq <= 0 || d.Sending {
 		return
 	}
+	d.CancelFileIntake()
 	d.Text, d.Attachments = d.stashedText, d.stashedAttachments
 	d.stashedText, d.stashedAttachments = "", nil
 	d.EditSeq, d.EditSessionID, d.TargetID, d.Error = 0, "", "", ""

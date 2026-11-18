@@ -14,22 +14,36 @@ param(
     [string]$Theme = "deepseek.dark",
     [int]$Port = 3191,
     [string]$Wallpaper = "",
-    [string]$Vendor = "C:\软件\Whale Isle\resources\vendor",
+    [string]$Vendor = $env:WHALEISLE_VENDOR,
     [int]$Width = 1440,
     [int]$Height = 900
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'env.ps1')
+if (-not $Vendor) {
+    $repoVendor = Join-Path $root 'runtime\vendor'
+    if (Test-Path -LiteralPath $repoVendor -PathType Container) { $Vendor = $repoVendor }
+}
+if (-not $Vendor -or -not (Test-Path -LiteralPath $Vendor -PathType Container)) {
+    throw 'Vendor runtime directory not found. Pass -Vendor or set WHALEISLE_VENDOR (e.g. runtime\vendor).'
+}
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $root '.devdata\accept') | Out-Null
-$data = Join-Path $root ('.devdata\accept\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+$dataPrefix = 'whaleisle-capture-parity-'
+$data = Join-Path $tempParent ($dataPrefix + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $data | Out-Null
 
+$savedUserData = $env:WHALEISLE_USER_DATA
+$savedVendor = $env:WHALEISLE_VENDOR
+$savedIsolated = $env:WHALEISLE_ISOLATED
+$p = $null
+try {
 # Synthetic wallpaper so translucent surfaces have something to sample when the
 # caller does not pass the real one.
 if ($Wallpaper -eq "") {
     Add-Type -AssemblyName System.Drawing
     $wp = Join-Path $data 'wallpaper.png'
-    New-Item -ItemType Directory -Force -Path $data | Out-Null
     $bmp = New-Object System.Drawing.Bitmap 2560, 1440
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $rect = New-Object System.Drawing.Rectangle 0, 0, 2560, 1440
@@ -53,7 +67,6 @@ if ($Wallpaper -eq "") {
     $Wallpaper = $wp
 }
 
-New-Item -ItemType Directory -Force -Path $data | Out-Null
 $config = @{
     theme           = $Theme
     port            = $Port
@@ -78,7 +91,7 @@ while ((Get-Date) -lt $deadline) {
     if ($p.HasExited) { throw "native shell exited early: $($p.ExitCode)" }
     if ($p.MainWindowHandle -ne 0) { $hwnd = $p.MainWindowHandle; break }
 }
-if ($hwnd -eq [IntPtr]::Zero) { Stop-Process -Id $p.Id -Force; throw 'main window did not appear' }
+if ($hwnd -eq [IntPtr]::Zero) { throw 'main window did not appear' }
 Start-Sleep -Seconds 6  # boot -> ready transition
 
 Add-Type -AssemblyName System.Drawing
@@ -101,11 +114,17 @@ $w = $r.Right - $r.Left; $h = $r.Bottom - $r.Top
 $bmp = New-Object System.Drawing.Bitmap $w, $h
 $g = [System.Drawing.Graphics]::FromImage($bmp)
 $hdc = $g.GetHdc()
-$ok = [ParityCapture]::PrintWindow($hwnd, $hdc, 2)
-$g.ReleaseHdc($hdc); $g.Dispose()
+try {
+    $ok = [ParityCapture]::PrintWindow($hwnd, $hdc, 2)
+} finally {
+    $g.ReleaseHdc($hdc); $g.Dispose()
+}
 $shot = Join-Path $OutDir ('native-' + $Theme + '-' + $w + 'x' + $h + '.png')
-$bmp.Save($shot, [System.Drawing.Imaging.ImageFormat]::Png)
-$bmp.Dispose()
+try {
+    $bmp.Save($shot, [System.Drawing.Imaging.ImageFormat]::Png)
+} finally {
+    $bmp.Dispose()
+}
 Write-Output "native=$shot ok=$ok size=${w}x${h} data=$data"
 
 # The installed Electron client is a read-only reference.
@@ -117,15 +136,38 @@ if ($ref) {
     $rb = New-Object System.Drawing.Bitmap $rw, $rh
     $rg = [System.Drawing.Graphics]::FromImage($rb)
     $rhdc = $rg.GetHdc()
-    $rok = [ParityCapture]::PrintWindow($ref.MainWindowHandle, $rhdc, 2)
-    $rg.ReleaseHdc($rhdc); $rg.Dispose()
+    try {
+        $rok = [ParityCapture]::PrintWindow($ref.MainWindowHandle, $rhdc, 2)
+    } finally {
+        $rg.ReleaseHdc($rhdc); $rg.Dispose()
+    }
     $rshot = Join-Path $OutDir ('original-' + $rw + 'x' + $rh + '.png')
-    $rb.Save($rshot, [System.Drawing.Imaging.ImageFormat]::Png)
-    $rb.Dispose()
+    try {
+        $rb.Save($rshot, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $rb.Dispose()
+    }
     Write-Output "original=$rshot ok=$rok size=${rw}x${rh}"
 } else {
     Write-Output 'original=not-running'
 }
 
-Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 Write-Output "capture-complete data=$data"
+} finally {
+    if ($p) {
+        if (-not $p.HasExited) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            try { $null = $p.WaitForExit(5000) } catch {}
+        }
+        $p.Dispose()
+    }
+    if ($null -eq $savedUserData) { Remove-Item Env:WHALEISLE_USER_DATA -ErrorAction SilentlyContinue } else { $env:WHALEISLE_USER_DATA = $savedUserData }
+    if ($null -eq $savedVendor) { Remove-Item Env:WHALEISLE_VENDOR -ErrorAction SilentlyContinue } else { $env:WHALEISLE_VENDOR = $savedVendor }
+    if ($null -eq $savedIsolated) { Remove-Item Env:WHALEISLE_ISOLATED -ErrorAction SilentlyContinue } else { $env:WHALEISLE_ISOLATED = $savedIsolated }
+    $active = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and (($_.ExecutablePath + ' ' + $_.CommandLine).IndexOf($data, [StringComparison]::OrdinalIgnoreCase) -ge 0) }
+    if ($active) {
+        Write-Warning "Owned capture profile still referenced by another process; retained: $data"
+    } else {
+        & node (Join-Path $PSScriptRoot 'build-storage.mjs') owned-dir $data $tempParent $dataPrefix
+    }
+}

@@ -71,7 +71,13 @@ func TestListReplayDoesNotRepeatForegroundEffects(t *testing.T) {
 			close(release)
 			wait(t, done)
 			got := s.Snapshot()
-			if got.LastAction != before.LastAction || got.SelectedID != before.SelectedID || !reflect.DeepEqual(got.Messages, before.Messages) || !reflect.DeepEqual(got.PlanBoard, before.PlanBoard) {
+			wantBoard := before.PlanBoard
+			if kind == "error" {
+				// The authoritative list reports A running. Queue availability
+				// follows that roster value, independently of transient feedback.
+				wantBoard.QueueActions.Running = true
+			}
+			if got.LastAction != before.LastAction || got.SelectedID != before.SelectedID || !reflect.DeepEqual(got.Messages, before.Messages) || !reflect.DeepEqual(got.PlanBoard, wantBoard) {
 				t.Fatalf("replayed transient effect changed new A: %+v", got)
 			}
 		})

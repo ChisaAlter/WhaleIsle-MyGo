@@ -218,3 +218,124 @@ func TestEventResultNext(t *testing.T) {
 		t.Fatalf("%#v", r)
 	}
 }
+
+func TestMuxStreamWatcherExitsOnFrameEnd(t *testing.T) {
+	var cancelCount atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.CloseNow()
+		var open ClientFrame
+		if err := wsjson.Read(r.Context(), c, &open); err != nil {
+			return
+		}
+		_ = wsjson.Write(r.Context(), c, ServerFrame{
+			Type:     FrameEnd,
+			StreamID: open.StreamID,
+		})
+		for {
+			var f ClientFrame
+			if err := wsjson.Read(r.Context(), c, &f); err != nil {
+				return
+			}
+			if f.Type == FrameCancel {
+				cancelCount.Add(1)
+			}
+		}
+	}))
+	defer srv.Close()
+
+	mux := &Mux{Endpoint: Endpoint{Origin: srv.URL}}
+	if err := mux.Dial(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer mux.Close()
+
+	stream, err := mux.Open(context.Background(), "session/follow", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stream.Recv(context.Background()); !errors.Is(err, ErrStreamEnd) {
+		t.Fatalf("Recv = %v, want ErrStreamEnd", err)
+	}
+	select {
+	case <-stream.streamDone:
+	case <-time.After(time.Second):
+		t.Fatal("streamDone was not closed after FrameEnd")
+	}
+	time.Sleep(30 * time.Millisecond)
+	if n := cancelCount.Load(); n != 0 {
+		t.Fatalf("unexpected FrameCancel count %d after normal FrameEnd", n)
+	}
+}
+
+func TestMuxOnCarrierLostCanCloseWithoutDeadlock(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		_ = c.CloseNow()
+	}))
+	defer srv.Close()
+
+	closedFromCB := make(chan struct{})
+	var mux *Mux
+	mux = &Mux{
+		Endpoint: Endpoint{Origin: srv.URL},
+		OnCarrierLost: func(error) {
+			_ = mux.Close()
+			close(closedFromCB)
+		},
+	}
+	if err := mux.Dial(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-closedFromCB:
+	case <-time.After(3 * time.Second):
+		t.Fatal("OnCarrierLost deadlocked calling mux.Close()")
+	}
+}
+
+func TestMuxConcurrentRecvAndCancel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.CloseNow()
+		for {
+			var f ClientFrame
+			if err := wsjson.Read(r.Context(), c, &f); err != nil {
+				return
+			}
+			if f.Type == FrameOpen {
+				_ = wsjson.Write(r.Context(), c, ServerFrame{Type: FrameEnd, StreamID: f.StreamID})
+			}
+		}
+	}))
+	defer srv.Close()
+
+	mux := &Mux{Endpoint: Endpoint{Origin: srv.URL}}
+	if err := mux.Dial(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer mux.Close()
+
+	for range 25 {
+		s, err := mux.Open(context.Background(), "session/follow", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			s.Cancel()
+		}()
+		_, _ = s.Recv(context.Background())
+		<-done
+	}
+}

@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 	"whaleisle/internal/processutil"
 	"whaleisle/internal/store/storelocale"
@@ -227,7 +226,7 @@ func validateBridgeRemovalPaths(root string) error {
 	}
 	for dir := abs; ; dir = filepath.Dir(dir) {
 		info, err := os.Lstat(dir)
-		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		if err != nil || !info.IsDir() || isReparseOrSymlink(info) {
 			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeComponentDirectoryIsMissi))
 		}
 		if filepath.Dir(dir) == dir {
@@ -239,7 +238,7 @@ func validateBridgeRemovalPaths(root string) error {
 		if name == "data" && os.IsNotExist(err) {
 			continue
 		}
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || name != "installed.json" && !info.IsDir() || name == "installed.json" && !info.Mode().IsRegular() {
+		if err != nil || isReparseOrSymlink(info) || name != "installed.json" && !info.IsDir() || name == "installed.json" && !info.Mode().IsRegular() {
 			return errors.New(storelocale.T(storelocale.KeyStoreComponentsTheWhalebridgeProgramOrInstallRecordIs))
 		}
 	}
@@ -307,15 +306,12 @@ func bridgeOfflineCommand(ctx context.Context, exe, data, dshHome, command strin
 	cmd := exec.CommandContext(ctx, exe, command)
 	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
-	for _, entry := range os.Environ() {
-		name, _, _ := strings.Cut(entry, "=")
-		switch strings.ToUpper(name) {
-		case "ELECTRON_RUN_AS_NODE", "MAGPIE_WEB_KEY", "MAGPIE_WEB_RUNKEY", "LAUNCHER_COMPONENT_ID", "LAUNCHER_COMPONENT_DATA_DIR", "WHALEBRIDGE_DSH_HOME", "MAGPIE_ADDR":
-			continue
-		}
-		cmd.Env = append(cmd.Env, entry)
-	}
-	cmd.Env = append(cmd.Env, "LAUNCHER_COMPONENT_ID=whalebridge", "LAUNCHER_COMPONENT_DATA_DIR="+data, "WHALEBRIDGE_DSH_HOME="+dshHome, "MAGPIE_ADDR=127.0.0.1:3427")
+	cmd.Env = sanitizeComponentEnv(os.Environ(),
+		"LAUNCHER_COMPONENT_ID=whalebridge",
+		"LAUNCHER_COMPONENT_DATA_DIR="+data,
+		"WHALEBRIDGE_DSH_HOME="+dshHome,
+		"MAGPIE_ADDR=127.0.0.1:3427",
+	)
 	var output bridgeCommandOutput
 	cmd.Stdout, cmd.Stderr = &output, io.Discard
 	cmd.WaitDelay = time.Second

@@ -25,6 +25,7 @@ type WorkspacePanes struct {
 	route              string
 	pending            func()
 	legacyFileID       string
+	legacyDiffID       string
 	focusPending       string
 	closing            string
 	closeSaving        string
@@ -35,12 +36,9 @@ type WorkspacePanes struct {
 
 type WorkspacePane struct {
 	refreshResource                    func()
+	refreshPending                     *workspacePageRefresh
 	ProjectTeam                        *WorkspaceProjectTeamState  `json:"projectTeam,omitempty"`
 	OrdinaryTeam                       *WorkspaceOrdinaryTeamState `json:"ordinaryTeam,omitempty"`
-	PluginRightPaneHandle              string                      `json:"pluginRightPaneHandle,omitempty"`
-	PluginRightPaneLabel               string                      `json:"pluginRightPaneLabel,omitempty"`
-	pluginClose                        func()
-	pluginCloseRequested               bool
 	terminalFresh                      bool
 	terminalFreshBound                 bool
 	terminalFreshGeneration            uint64
@@ -48,6 +46,7 @@ type WorkspacePane struct {
 	remoteFilesRendered                bool
 	paneWidth, stripWidth, tabRunWidth float32
 	tabDragging                        bool
+	paneBoxFocused                     bool
 	terminalClose                      func() *hostterminal.OccurrenceClose
 	terminalCloseRequest               *hostterminal.OccurrenceClose
 	terminalDispose                    func()
@@ -249,12 +248,6 @@ func (w *WorkspacePanes) close(id string) bool {
 	if !w.canCloseResource(w.Root.find(id)) {
 		return false
 	}
-	if n := w.Root.find(id); n != nil && n.PluginRightPaneHandle != "" && n.pluginClose != nil {
-		n.pluginCloseRequested = true
-		n.pluginClose()
-		w.message = paneLabel("已请求关闭插件面板；等待原面板确认。", "Plugin close requested; waiting for its owner to confirm.")
-		return false
-	}
 	if n := w.Root.find(id); n != nil && n.Kind == "host-terminal" && n.terminalClose != nil {
 		if n.terminalCloseRequest == nil {
 			n.terminalCloseRequest = n.terminalClose()
@@ -408,6 +401,20 @@ func workspaceVisible(m Model, kind string) bool {
 	}
 	return current == kind
 }
+func workspacePaneRenderable(w *WorkspacePanes, m Model, pane *WorkspacePane) bool {
+	if w == nil || pane == nil || pane.First != nil {
+		return false
+	}
+	if pane.Float != nil {
+		return !pane.Float.Minimized
+	}
+	if !m.RightPaneOpen {
+		return false
+	}
+	group := w.Root.dockGroup(pane.ID)
+	return group != nil && group.dockedLeaf() == pane
+}
+
 func prepareWorkspace(m Model) {
 	if m.Sizes.Workspace == nil {
 		m.Sizes.Workspace = &WorkspacePanes{}
@@ -418,9 +425,17 @@ func prepareWorkspace(m Model) {
 		if m.RightPaneTab != nil {
 			*m.RightPaneTab = pane.Kind
 		}
+		if workspacePaneRenderable(w, m, pane) {
+			w.focusedResource = pane.ID
+		}
 	}
 	w.focusPending = ""
 	w.syncRoute(derefString(m.RightPaneTab))
+	if w.focusedResource != "" {
+		if focused := w.Root.find(w.focusedResource); !workspacePaneRenderable(w, m, focused) {
+			w.focusedResource = ""
+		}
+	}
 }
 
 // The installed rightbar derives phone fullscreen from frame width. It is
@@ -485,6 +500,7 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 	box := ui.Box(c).Key(n.ID).Fill().MinWidth(0).MinHeight(0).Clip()
 	if n.Float == nil && n.First == nil {
 		box.FocusBind(&m.Sizes.Workspace.focusedResource, n.ID)
+		n.paneBoxFocused = box.Focused()
 	}
 	box.Children(func() {
 		if n.First != nil {
@@ -506,6 +522,9 @@ func workspaceNode(c *ui.Context, m Model, n *WorkspacePane) {
 		}
 		tab := n.Kind
 		n.refreshResource = nil
+		if c != nil && m.invalidate == nil {
+			m.invalidate = c.Services().Invalidate
+		}
 		local := workspaceContentModel(m, n)
 		local.RightPaneTab = &tab
 		local.workspacePane = n

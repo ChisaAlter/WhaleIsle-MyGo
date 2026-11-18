@@ -109,8 +109,13 @@ func (g *resourceGraph) readRemote(base, reference, kind string) (resourceFile, 
 	if err != nil {
 		return resourceFile{}, "", "", err
 	}
-	rel := pathpkg.Join(pathpkg.Dir(base), ref)
-	if rel == ".." || strings.HasPrefix(rel, "../") || gitPath(rel) {
+	normalizedBase := strings.ReplaceAll(strings.TrimSpace(base), `\`, "/")
+	cleanBase := pathpkg.Clean(normalizedBase)
+	if strings.HasPrefix(normalizedBase, "/") || strings.HasPrefix(cleanBase, "/") || filepath.VolumeName(base) != "" || cleanBase == ".." || strings.HasPrefix(cleanBase, "../") {
+		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsOutsideTheAuthorizedWorks))
+	}
+	rel := pathpkg.Join(pathpkg.Dir(cleanBase), ref)
+	if strings.HasPrefix(rel, "/") || filepath.VolumeName(rel) != "" || rel == ".." || strings.HasPrefix(rel, "../") || gitPath(rel) {
 		return resourceFile{}, "", "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheResourceIsOutsideTheAuthorizedWorks))
 	}
 	ext := strings.ToLower(pathpkg.Ext(rel))

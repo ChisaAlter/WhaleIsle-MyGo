@@ -85,7 +85,7 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 		// Whale's source sidebar action opens its canonical conversation, not
 		// the separate native management panel. Without a ready Host it stays
 		// on the conversation and reports that readiness is required.
-		if s.marketOpen != (index == 0) || s.scheduleOpen != (index == 1) || s.assistantOpen {
+		if s.marketOpen != (index == 0) || s.scheduleOpen != (index == 1) || s.assistantService().Open() {
 			t.Fatal("real route callback did not select its panel")
 		}
 		if index == 2 {
@@ -98,7 +98,7 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 		if err := tt.Click(product.Name); err != nil {
 			t.Fatal(err)
 		}
-		if s.marketOpen || s.scheduleOpen || s.assistantOpen {
+		if s.marketOpen || s.scheduleOpen || s.assistantService().Open() {
 			t.Fatal("brand action did not reveal the conversation")
 		}
 		check(-1)

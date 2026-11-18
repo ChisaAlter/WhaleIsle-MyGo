@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "pass": true,
+  "installer": "C:\\AI\\WhaleIsle-MyGo\\dist\\route-a-unsigned-current-0.2.0\\WhaleIsle-MyGo-Setup-0.2.0.exe",
+  "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+  "startedAt": "2026-11-17T23:18:05.7050523+08:00",
+  "durationSeconds": 956.56079,
+  "exitCode": 0,
+  "manualBackupCreated": false,
+  "before": {
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "DisplayVersion": "0.1.1",
+    "NativeInstallID": "{4DD4DA11-AFAD-43FC-85EA-B01F282C8918}"
+  },
+  "after": {
+    "InstallLocation": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo",
+    "DisplayVersion": "0.2.0",
+    "NativeInstallID": "{57B159CE-DB45-410E-8681-1A86318FD8B1}"
+  },
+  "shortcuts": [
+    {
+      "path": "C:\\Users\\48818\\Desktop\\鲸屿 MyGo.lnk",
+      "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe",
+      "exists": true
+    },
+    {
+      "path": "C:\\Users\\48818\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\鲸屿 MyGo\\鲸屿 MyGo.lnk",
+      "target": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\whaleisle.exe",
+      "exists": true
+    }
+  ],
+  "transactionSiblings": [],
+  "freeBytesBefore": 61057339392,
+  "freeBytesAfter": 60688732160,
+  "installedExeBytes": 96433664,
+  "manifestHeader": [
+    "WhaleIsle-Payload-1",
+    "I|{57B159CE-DB45-410E-8681-1A86318FD8B1}"
+  ]
+}

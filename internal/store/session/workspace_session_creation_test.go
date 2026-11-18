@@ -393,3 +393,113 @@ func TestWorkspaceGroupExpansionChecksRenderedHost(t *testing.T) {
 		t.Fatal("unknown workspace accepted")
 	}
 }
+
+func TestWorkspaceSessionSkipsSlashMismatchedBlankCandidateAndRetriesOnConflict(t *testing.T) {
+	t.Run("skips-slash-mismatch", func(t *testing.T) {
+		h := newWorkspaceCreationHost(t)
+		h.store.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"scratchCwd":"/scratch","items":[{"workspaceId":"win","path":"C:\\AI\\dsh-pad","title":"dsh-pad","sessionIds":["slash-blank"]}],"pinnedSessionIds":[],"archivedSessionIds":[]}}`))
+		h.store.mu.Lock()
+		h.store.items = []Item{{SessionID: "slash-blank", Cwd: "C:/AI/dsh-pad", Blank: true}}
+		h.store.mu.Unlock()
+		target := h.capture("win")
+		id, err := target.Create(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id != "new-target" {
+			t.Fatalf("id = %q, want new-target", id)
+		}
+		for _, call := range h.calls {
+			if call.Method == "session/blankReuse" {
+				t.Fatalf("proposed slash-mismatched candidate for blankReuse: %+v", call)
+			}
+			if call.Method == "session/create" && call.Request["sessionId"] != nil {
+				t.Fatalf("passed mismatched sessionId to session/create: %+v", call)
+			}
+		}
+	})
+
+	t.Run("retries-on-conflict", func(t *testing.T) {
+		h := newWorkspaceCreationHost(t)
+		h.store.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"scratchCwd":"/scratch","items":[{"workspaceId":"win","path":"C:\\AI\\dsh-pad","title":"dsh-pad","sessionIds":["exact-blank"]}],"pinnedSessionIds":[],"archivedSessionIds":[]}}`))
+		h.store.mu.Lock()
+		h.store.items = []Item{{SessionID: "exact-blank", Cwd: `C:\AI\dsh-pad`, Blank: true}}
+		h.store.mu.Unlock()
+		createCalls := 0
+		h.handler = func(call workspaceCreationCall) (map[string]any, *dsh.Error) {
+			switch call.Method {
+			case "session/blankReuse":
+				return map[string]any{"reusable": true}, nil
+			case "session/create":
+				createCalls++
+				if createCalls == 1 {
+					if call.Request["sessionId"] != "exact-blank" {
+						t.Fatalf("first create did not try exact-blank: %+v", call)
+					}
+					return nil, &dsh.Error{Code: "session/conflict", Message: `session "exact-blank" belongs to "C:/AI/dsh-pad", not "C:\AI\dsh-pad"`}
+				}
+				if call.Request["sessionId"] != nil {
+					t.Fatalf("retry create still sent sessionId: %+v", call)
+				}
+				return map[string]any{"sessionId": "fresh-after-conflict"}, nil
+			default:
+				return nil, nil
+			}
+		}
+		target := h.capture("win")
+		id, err := target.Create(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id != "fresh-after-conflict" || createCalls != 2 {
+			t.Fatalf("id=%q createCalls=%d", id, createCalls)
+		}
+	})
+}
+
+func TestWorkspaceSessionNormalizedStagedPresetAndActionClear(t *testing.T) {
+	h := newWorkspaceCreationHost(t)
+	h.store.applyWorkspaceBaseline(json.RawMessage(`{"type":"baseline","value":{"scratchCwd":"/scratch","items":[{"workspaceId":"win","path":"C:\\AI\\dsh-pad","title":"dsh-pad","sessionIds":[]}],"pinnedSessionIds":[],"archivedSessionIds":[]}}`))
+	h.store.mu.Lock()
+	h.store.presetStateLocked().staged[filepathClean("c:/ai/dsh-pad/")] = "reviewer"
+	h.store.lastAction = "create workspace session: session/conflict: stale"
+	h.store.mu.Unlock()
+
+	target := h.capture("win")
+	id, err := target.Create(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotPreset any
+	for _, call := range h.calls {
+		if call.Method == "session/create" {
+			gotPreset = call.Request["agentPreset"]
+		}
+	}
+	if gotPreset != "reviewer" {
+		t.Fatalf("staged agentPreset = %v, want reviewer", gotPreset)
+	}
+	if !target.Select(id) {
+		t.Fatal("target.Select returned false")
+	}
+	if snap := h.store.Snapshot(); snap.LastAction != "" {
+		t.Fatalf("target.Select kept stale LastAction %q", snap.LastAction)
+	}
+	h.store.mu.Lock()
+	if got := h.store.stagedPresetLocked(`C:\AI\dsh-pad`); got != "" {
+		h.store.mu.Unlock()
+		t.Fatalf("staged preset not cleared after Select: %q", got)
+	}
+	h.store.lastAction = "session archived"
+	h.store.mu.Unlock()
+
+	h.store.Select("other")
+	if got := h.store.Snapshot().LastAction; got != "session archived" {
+		t.Fatalf("Store.Select cleared archive undo status: %q", got)
+	}
+	h.store.SetLastAction("stale error")
+	h.store.Select("another")
+	if got := h.store.Snapshot().LastAction; got != "" {
+		t.Fatalf("Store.Select kept stale error %q", got)
+	}
+}

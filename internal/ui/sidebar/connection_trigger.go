@@ -102,7 +102,7 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 	if reduced {
 		opacity = 1
 	}
-	if !reduced && (opacity < 1 || status == "connecting" || status == "installing") {
+	if !reduced && (opacity < 1 || status == "connecting") {
 		c.After(16 * time.Millisecond)
 	}
 	for _, deadline := range []time.Time{state.holdUntil, state.recoveredUntil, state.leaveUntil} {
@@ -172,7 +172,7 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 				if status == "installing" {
 					phase = "installing"
 				}
-				desktopUpdateSeat(c, m, phase, colors, reduced)
+				desktopUpdateSeat(c, m, phase, colors)
 			} else {
 				connectionStatusSeat(c, m, status, colors, reduced)
 			}
@@ -246,9 +246,9 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 	}
 }
 
-// Phase and detail come from the existing native updater's actual progress;
-// opening an actionable status reuses its existing launcher management page.
-func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors, reduced bool) {
+// The sidebar is a status projection, not the update center. Only actual
+// updater changes should wake the workbench, including during a slow check.
+func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors) {
 	labels := map[string]string{"checking": sidebarConnectionCopy("正在检查更新…", "Checking for updates…"), "available": sidebarConnectionCopy("有可用更新", "Update available"), "downloading": sidebarConnectionCopy("正在下载更新…", "Downloading update…"), "verifying": sidebarConnectionCopy("正在校验更新…", "Verifying update…"), "installing": sidebarConnectionCopy("正在准备重启…", "Preparing to restart…"), "ready": sidebarConnectionCopy("安装并重启", "Install and Restart"), "error": sidebarConnectionCopy("重试更新", "Retry update")}
 	label := labels[phase]
 	if label == "" {
@@ -270,12 +270,7 @@ func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors
 		if phase == "error" {
 			ui.Box(c).Size(6, 6).Radius(3).Background(ink)
 		} else if busy {
-			angle := float32(0)
-			if !reduced {
-				angle = float32(c.Now().UnixNano()%int64(time.Second)) / float32(time.Second) * 360
-				c.After(16 * time.Millisecond)
-			}
-			ui.Icon(c, updateLoading).Size(14, 14).Rotate(angle).TextColor(ink)
+			ui.Icon(c, updateLoading).Size(14, 14).TextColor(ink)
 		} else {
 			ui.Icon(c, updateDownload).Size(14, 14).TextColor(ink)
 		}

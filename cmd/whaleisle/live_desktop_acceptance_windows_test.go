@@ -16,6 +16,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	assistantctl "whaleisle/internal/app/assistant"
 	"whaleisle/internal/config"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
@@ -80,6 +81,7 @@ func runLiveDesktopAcceptance() error {
 		v.Locale = "zh"
 		v.NodeBin = os.Getenv("WHALEISLE_NODE")
 		v.HarnessAutoRestart = false
+		v.AutoDownloadUpdates = false
 	}); err != nil {
 		return err
 	}
@@ -95,8 +97,6 @@ func runLiveDesktopAcceptance() error {
 		sup := state.sup
 		win := state.win
 		state.mu.Unlock()
-		state.suspendPluginContributions()
-		state.closePluginNativeView()
 		state.closeTerminal()
 		if sup != nil {
 			sup.Stop()
@@ -458,14 +458,11 @@ func runLiveDesktopAcceptance() error {
 			finish(fmt.Errorf("step 7 click 插件: %w", err))
 			return
 		}
-		_ = liveWaitFor("plugin manager packages and contributions loaded", 10*time.Second, func() bool {
+		_ = liveWaitFor("plugin manager packages loaded", 10*time.Second, func() bool {
 			mygo.RunOnMain(func() { drv.Frame() })
 			ctrl := state.nativePluginController()
 			snap := ctrl.Snapshot()
-			state.mu.Lock()
-			contrib := state.nativePlugins.contributions
-			state.mu.Unlock()
-			return snap.Status != "loading" && (contrib == nil || contrib.Snapshot().Connected)
+			return snap.Status != "loading"
 		})
 		if err := capture("09-marketplace"); err != nil {
 			finish(err)
@@ -490,7 +487,7 @@ func runLiveDesktopAcceptance() error {
 
 		// Verify persisted session-whale-* exists on disk under dsh-home/sessions/*/<sid> before clicking Claude Duts
 		sessions.Select(firstSessionID)
-		if diskSID, diskName, _ := (*mainState)(nil).whaleAssistantPersistedInfo(); !strings.HasPrefix(diskSID, "session-whale-") || diskName != "Claude Duts" {
+		if diskSID, diskName, _ := assistantctl.WhalePersistedInfoFromDisk(paths.DshHome()); !strings.HasPrefix(diskSID, "session-whale-") || diskName != "Claude Duts" {
 			finish(fmt.Errorf("step 7 expected persisted whale session on disk before click, got sid=%q name=%q", diskSID, diskName))
 			return
 		}

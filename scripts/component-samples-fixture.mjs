@@ -25,9 +25,9 @@ try {
  assert.throws(()=>stageComponentSamples(source,path.join(root,'bad')),/Invalid component manifest/);
  assert.equal(fs.existsSync(path.join(root,'bad')),false);
  const windows=fs.readFileSync(new URL('./package.ps1',import.meta.url),'utf8');
- assert.ok(windows.indexOf("'component-samples.mjs'")>=0);
- assert.ok(windows.indexOf("'component-samples.mjs'")<windows.indexOf('Set-Content -Path $Marker'));
+ assert.ok(windows.indexOf("'session-runtime-samples.mjs'")>=0);
+ assert.ok(windows.indexOf("'session-runtime-samples.mjs'")<windows.indexOf('Set-Content -Path $Marker'));
  const mac=fs.readFileSync(new URL('./package-macos.mjs',import.meta.url),'utf8');
- assert.match(mac,/stageComponentSamples\(.*path.join\(runtimeDir, 'components', 'samples'\)/);
+ assert.match(mac,/stageOptionalSamples\(.*path.join\(runtimeDir, 'components', 'samples'\)/);
  console.log('Bundled component clean-stage catalog fixture passed; no native packaging or payload execution.');
 } finally {fs.rmSync(root,{recursive:true,force:true});}

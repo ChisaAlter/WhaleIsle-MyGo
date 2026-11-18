@@ -75,54 +75,151 @@ func isFilesystemRoot(dir string) bool {
 	return dir == root || dir == vol+`/`
 }
 
-func highRiskAnchorPaths() []string {
-	var candidates []string
+type highRiskAnchor struct {
+	path           string
+	rejectSubdirs  bool
+	isLocalAppData bool
+}
+
+func resolveRealCandidate(candidate string) (string, bool) {
+	resolved := filepath.Clean(candidate)
+	real, err := filepath.EvalSymlinks(resolved)
+	if err != nil {
+		if _, statErr := os.Stat(resolved); statErr != nil {
+			return "", false
+		}
+		real = resolved
+	}
+	return filepath.Clean(real), true
+}
+
+func resolveTempDirReal() string {
+	tmp := strings.TrimSpace(os.TempDir())
+	if tmp == "" {
+		return ""
+	}
+	real, ok := resolveRealCandidate(tmp)
+	if !ok {
+		return ""
+	}
+	return real
+}
+
+func highRiskAnchorSpecs() []highRiskAnchor {
+	var rawSpecs []highRiskAnchor
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		candidates = append(candidates, home)
+		rawSpecs = append(rawSpecs, highRiskAnchor{path: home, rejectSubdirs: false})
 		if runtime.GOOS == "darwin" {
-			candidates = append(candidates,
-				filepath.Join(home, "Library"),
-				filepath.Join(home, "Library", "Application Support"),
+			rawSpecs = append(rawSpecs,
+				highRiskAnchor{path: filepath.Join(home, "Library"), rejectSubdirs: true},
+				highRiskAnchor{path: filepath.Join(home, "Library", "Application Support"), rejectSubdirs: true},
 			)
 		}
-		candidates = append(candidates,
-			filepath.Join(home, ".config"),
-			filepath.Join(home, ".ssh"),
-		)
+		for _, sub := range []string{".config", ".ssh", ".gnupg", ".aws", ".kube"} {
+			rawSpecs = append(rawSpecs, highRiskAnchor{path: filepath.Join(home, sub), rejectSubdirs: true})
+		}
 	}
 	for _, key := range []string{"APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME"} {
 		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-			candidates = append(candidates, value)
+			rawSpecs = append(rawSpecs, highRiskAnchor{
+				path:           value,
+				rejectSubdirs:  true,
+				isLocalAppData: key == "LOCALAPPDATA",
+			})
 		}
 	}
 	dshHome := paths.DshHome()
 	userData := paths.UserDataDir()
-	candidates = append(candidates, dshHome, userData, filepath.Dir(dshHome))
+	rawSpecs = append(rawSpecs,
+		highRiskAnchor{path: dshHome, rejectSubdirs: true},
+		highRiskAnchor{path: userData, rejectSubdirs: true},
+		highRiskAnchor{path: filepath.Dir(dshHome), rejectSubdirs: false},
+	)
 
-	seen := make(map[string]struct{})
-	var anchors []string
-	for _, candidate := range candidates {
-		resolved := filepath.Clean(candidate)
-		real, err := filepath.EvalSymlinks(resolved)
-		if err != nil {
-			if _, statErr := os.Stat(resolved); statErr != nil {
-				continue
-			}
-			real = resolved
-		}
-		key := identityKey(real)
-		if _, ok := seen[key]; ok {
+	seenIdx := make(map[string]int)
+	var anchors []highRiskAnchor
+	for _, candidate := range rawSpecs {
+		real, ok := resolveRealCandidate(candidate.path)
+		if !ok {
 			continue
 		}
-		seen[key] = struct{}{}
-		anchors = append(anchors, real)
+		key := identityKey(real)
+		if idx, exists := seenIdx[key]; exists {
+			if candidate.rejectSubdirs {
+				anchors[idx].rejectSubdirs = true
+			}
+			if !candidate.isLocalAppData {
+				anchors[idx].isLocalAppData = false
+			}
+			continue
+		}
+		seenIdx[key] = len(anchors)
+		anchors = append(anchors, highRiskAnchor{
+			path:           real,
+			rejectSubdirs:  candidate.rejectSubdirs,
+			isLocalAppData: candidate.isLocalAppData,
+		})
+	}
+	return anchors
+}
+
+func highRiskAnchorPaths() []string {
+	specs := highRiskAnchorSpecs()
+	anchors := make([]string, len(specs))
+	for i, spec := range specs {
+		anchors[i] = spec.path
 	}
 	return anchors
 }
 
 func isHighRiskWorkspaceRoot(real string, anchors []string) bool {
+	if len(anchors) == 0 {
+		return false
+	}
+	var homeKey, dshParentKey, localAppDataKey string
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if resolved, ok := resolveRealCandidate(home); ok {
+			homeKey = identityKey(resolved)
+		}
+	}
+	dshHome := paths.DshHome()
+	userData := paths.UserDataDir()
+	dshReal, dshOK := resolveRealCandidate(dshHome)
+	userReal, userOK := resolveRealCandidate(userData)
+	if parent := filepath.Dir(dshHome); parent != "" {
+		if resolved, ok := resolveRealCandidate(parent); ok {
+			key := identityKey(resolved)
+			if (!dshOK || key != identityKey(dshReal)) && (!userOK || key != identityKey(userReal)) {
+				dshParentKey = key
+			}
+		}
+	}
+	if localAppData := strings.TrimSpace(os.Getenv("LOCALAPPDATA")); localAppData != "" {
+		if resolved, ok := resolveRealCandidate(localAppData); ok {
+			key := identityKey(resolved)
+			if (!dshOK || key != identityKey(dshReal)) && (!userOK || key != identityKey(userReal)) {
+				localAppDataKey = key
+			}
+		}
+	}
+
+	tempReal := resolveTempDirReal()
+	realKey := identityKey(filepath.Clean(real))
 	for _, anchor := range anchors {
 		if containedIn(real, anchor) {
+			return true
+		}
+		anchorKey := identityKey(filepath.Clean(anchor))
+		if anchorKey == homeKey || anchorKey == dshParentKey {
+			continue
+		}
+		if containedIn(anchor, real) {
+			if anchorKey == localAppDataKey && tempReal != "" {
+				tempKey := identityKey(tempReal)
+				if tempKey != anchorKey && containedIn(anchor, tempReal) && realKey != tempKey && containedIn(tempReal, real) {
+					continue
+				}
+			}
 			return true
 		}
 	}
@@ -130,7 +227,7 @@ func isHighRiskWorkspaceRoot(real string, anchors []string) bool {
 }
 
 func containedIn(root, candidate string) bool {
-	fromRoot, err := filepath.Rel(root, candidate)
+	fromRoot, err := filepath.Rel(identityKey(filepath.Clean(root)), identityKey(filepath.Clean(candidate)))
 	if err != nil {
 		return false
 	}

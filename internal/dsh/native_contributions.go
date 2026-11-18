@@ -4,14 +4,20 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"mime"
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
+
+	"whaleisle/internal/dsh/api"
 )
 
 // NativeContributions is an authenticated declaration for five fixed Go
@@ -66,6 +72,138 @@ func (n NativeContributions) CommandRevision(name string) string {
 
 const nativeContributionLimit = 4 << 20
 
+// DefaultNativeContributions returns the built-in Go native adapter capability
+// baseline without opening a persistent /plugins/events SSE stream.
+func DefaultNativeContributions() NativeContributions {
+	return NativeContributions{
+		Known:              true,
+		Revision:           "native-default",
+		FileCommand:        true,
+		ModelCommand:       true,
+		PermissionCommand:  true,
+		FeedbackCommand:    true,
+		ModelLabel1017:     true,
+		fileRevision:       "native-file",
+		modelRevision:      "native-model",
+		permissionRevision: "native-permission",
+		feedbackRevision:   "native-feedback",
+		modelLabelRevision: "native-model-label-1017",
+	}
+}
+
+// ResolveNativeContributions performs a single lightweight pluginInventory/list
+// RPC instead of maintaining a persistent /plugins/events EventSource stream.
+// When Endpoint.Origin is empty or pluginInventory/list is unavailable on a test
+// stub (HTTP 404/405/501 or method-not-found), it returns DefaultNativeContributions.
+func (c *Client) ResolveNativeContributions(ctx context.Context) (NativeContributions, error) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return NativeContributions{}, err
+		}
+	}
+	if c == nil || strings.TrimSpace(c.Endpoint.Origin) == "" {
+		return DefaultNativeContributions(), nil
+	}
+	var inv api.PluginInventorySnapshot
+	if err := c.Call(ctx, "pluginInventory/list", nil, &inv); err != nil {
+		if ctx != nil && ctx.Err() != nil {
+			return NativeContributions{}, ctx.Err()
+		}
+		if isMissingNativeInventoryError(err) {
+			return DefaultNativeContributions(), nil
+		}
+		return NativeContributions{Error: err.Error()}, err
+	}
+	if len(inv.Entries) == 0 {
+		return DefaultNativeContributions(), nil
+	}
+	return snapshotFromPluginInventory(inv), nil
+}
+
+func isMissingNativeInventoryError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var rpcErr *Error
+	if errors.As(err, &rpcErr) {
+		code := strings.ToLower(rpcErr.Code)
+		return strings.Contains(code, "method-not-found") || strings.Contains(code, "not_found") || strings.Contains(code, "unknown-method")
+	}
+	msg := err.Error()
+	return strings.Contains(msg, ": HTTP 404:") || strings.Contains(msg, ": HTTP 405:") || strings.Contains(msg, ": HTTP 501:")
+}
+
+func snapshotFromPluginInventory(inv api.PluginInventorySnapshot) NativeContributions {
+	type modSummary struct {
+		EntryID    string
+		ModuleName string
+		Enabled    bool
+		FiberPhase string
+		Meta       *api.ListBundlesResultItemMeta
+	}
+	byModule := make(map[string][]modSummary, len(inv.Entries))
+	for _, e := range inv.Entries {
+		byModule[e.ModuleName] = append(byModule[e.ModuleName], modSummary{
+			EntryID:    e.EntryId,
+			ModuleName: e.ModuleName,
+			Enabled:    e.Enabled,
+			FiberPhase: e.FiberPhase,
+			Meta:       e.Meta,
+		})
+	}
+	capable := func(modules ...string) (bool, string) {
+		ok := true
+		var rows []modSummary
+		for _, mod := range modules {
+			list := byModule[mod]
+			if len(list) == 0 {
+				continue
+			}
+			rows = append(rows, list...)
+			anyActive := false
+			for _, item := range list {
+				if item.Enabled && item.FiberPhase != "failed" {
+					anyActive = true
+					break
+				}
+			}
+			if !anyActive {
+				ok = false
+			}
+		}
+		sort.Slice(rows, func(i, j int) bool {
+			if rows[i].ModuleName != rows[j].ModuleName {
+				return rows[i].ModuleName < rows[j].ModuleName
+			}
+			return rows[i].EntryID < rows[j].EntryID
+		})
+		canonical, _ := json.Marshal(rows)
+		sum := sha256.Sum256(canonical)
+		return ok, hex.EncodeToString(sum[:])
+	}
+	fileMods := []string{"@deepseek-ai/dsh-client-file-upload", "@deepseek-ai/dsh-commands", "@deepseek-ai/dsh-api-session-controller"}
+	modelMods := []string{"@deepseek-ai/dsh-api-session-controller", "@deepseek-ai/dsh-agent-default-model"}
+	permMods := []string{"@deepseek-ai/dsh-permission-presets", "@deepseek-ai/dsh-commands"}
+	feedbackMods := []string{"@deepseek-ai/dsh-message-feedback", "@deepseek-ai/dsh-command-feedback", "@deepseek-ai/dsh-commands"}
+	labelMods := []string{"@deepseek-ai/dsh-client-ui-deepseek-model-label-1017"}
+
+	snap := DefaultNativeContributions()
+	var fileRev, modelRev, permRev, feedbackRev, labelRev string
+	snap.FileCommand, fileRev = capable(fileMods...)
+	snap.ModelCommand, modelRev = capable(modelMods...)
+	snap.PermissionCommand, permRev = capable(permMods...)
+	snap.FeedbackCommand, feedbackRev = capable(feedbackMods...)
+	_, labelRev = capable(labelMods...)
+	snap.fileRevision = "native-file-" + fileRev
+	snap.modelRevision = "native-model-" + modelRev
+	snap.permissionRevision = "native-permission-" + permRev
+	snap.feedbackRevision = "native-feedback-" + feedbackRev
+	snap.modelLabelRevision = "native-label-" + labelRev
+	_, wholeRev := capable(append(append(append(append(fileMods, modelMods...), permMods...), feedbackMods...), labelMods...)...)
+	snap.Revision = "native-inventory-" + wholeRev
+	return snap
+}
+
 type nativeContributionWatch struct {
 	graph     *nativeContributionGraph
 	accepting bool
@@ -91,6 +229,9 @@ func (w *nativeContributionWatch) unavailable(message string) {
 // original loopback EventSource, a transport disconnect withdraws authority and
 // reconnects after three seconds. HTTP refusal, cross-origin redirects, a
 // non-SSE response or a different Host release require a new caller-owned watch.
+//
+// Deprecated: Route A startup uses one-shot ResolveNativeContributions or
+// DefaultNativeContributions; retained for SSE contract tests and core-host-check.
 func (c *Client) WatchNativeContributions(ctx context.Context, publish func(NativeContributions)) error {
 	if publish == nil {
 		return errors.New("native contribution receiver is missing")

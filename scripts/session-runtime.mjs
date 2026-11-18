@@ -28,7 +28,14 @@ const supportedHarnessPins = Object.freeze([{
 }, {
   repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
   ref: 'dsh-v0.2.1-rc.4', sha: '504a01a9578abc2c6f1fb896b1dc322c9fe24f66', npm: '0.2.1-rc.4',
+}, {
+  repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
+  ref: 'dsh-v0.2.2-rc.2', sha: 'ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c', npm: '0.2.2-rc.2',
 }]);
+const sharedDesktopAdmissionTypes = ['team/mode', 'subagent/catalog', 'assistant/attempt'];
+function admissionTypesFor(version) {
+  return version === '0.2.2-rc.2' ? [...sessionAdmissionTypes, ...sharedDesktopAdmissionTypes] : sessionAdmissionTypes;
+}
 function supportedPin(version, pin) {
   return supportedHarnessPins.find(candidate => candidate.npm === version &&
     Object.entries(candidate).every(([key, value]) => pin?.[key] === value));
@@ -40,6 +47,9 @@ function fixtureEvent(type) {
   const data = type === 'job/registered' ? registered
     : type === 'job/settled' ? {...registered, finishedAt: 1, status: 'completed', cause: 'producer', producerReported: true}
     : type === 'working-directory/change' ? {cwd: 'C:/runtime-compat-fixture'}
+    : type === 'team/mode' ? {mode: 'active'}
+    : type === 'subagent/catalog' ? {version: 3, childId: 'fixture-child', childCreatedAt: 1, mode: 'continuable', label: 'Fixture child', name: 'fixture-child'}
+    : type === 'assistant/attempt' ? {turn: 1, step: 1, stream: []}
     : {};
   return {seq: 20, time: 0, type, data};
 }
@@ -88,7 +98,8 @@ export async function inspectSessionRuntime(harnessRoot) {
   if (!(session.KNOWN_SESSION_EVENT_TYPES instanceof Set) || typeof persistence.validateStoredEvents !== 'function') {
     throw new Error('Runtime does not export the Session vocabulary and strict storage validator');
   }
-  for (const type of sessionAdmissionTypes) {
+  const requiredEventTypes = admissionTypesFor(cliPackage.version);
+  for (const type of requiredEventTypes) {
     try {
       await persistence.validateStoredEvents(fixtureHeader(), [fixtureEvent(type)]);
     } catch (error) {
@@ -120,7 +131,7 @@ export async function inspectSessionRuntime(harnessRoot) {
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   return {
     schemaVersion: 1, harnessRoot: root, cliVersion: cliPackage.version,
-    rootVersion: rootPackage.version, requiredEventTypes: [...sessionAdmissionTypes],
+    rootVersion: rootPackage.version, requiredEventTypes: [...requiredEventTypes],
     unknownRequiredRejected, artifacts, harnessPin,
   };
 }
@@ -257,9 +268,165 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
   return verifyStagedSessionRuntime(vendor);
 }
 
+export const heavyPackagesToSlim = Object.freeze([
+  '@deepseek-ai/libreoffice-kit',
+  '@deepseek-ai/libreoffice-kit-win32-x64',
+  'sherpa-onnx-node',
+  'sherpa-onnx-win-x64',
+]);
+
+export const criticalPackagesToPreserve = Object.freeze([
+  '@img/sharp-win32-x64',
+]);
+
+export async function applyReleaseSlim(vendorDir) {
+  const root = await fs.realpath(vendorDir);
+  const harnessRoot = path.join(root, 'deepseek-harness');
+  const dshInstancesDir = path.join(harnessRoot, 'node_modules/.dsh-instances');
+  const dshLinksFile = path.join(harnessRoot, '.dsh-runtime-links.json');
+
+  let instanceEntries = [];
+  try {
+    instanceEntries = await fs.readdir(dshInstancesDir, { withFileTypes: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') return { removedPackages: [], removedInstances: [], removedLinks: 0 };
+    throw err;
+  }
+
+  const packageToInstances = new Map();
+  for (const entry of instanceEntries) {
+    if (!entry.isDirectory()) continue;
+    const instanceId = entry.name;
+    const instancePath = path.join(dshInstancesDir, instanceId);
+
+    async function collectPackageNames(dir, depth = 0) {
+      if (depth > 3) return [];
+      const found = [];
+      try {
+        const sub = await fs.readdir(dir, { withFileTypes: true });
+        for (const s of sub) {
+          const full = path.join(dir, s.name);
+          if (s.isFile() && s.name === 'package.json') {
+            try {
+              const parsed = JSON.parse(await fs.readFile(full, 'utf8'));
+              if (parsed.name) found.push(parsed.name);
+            } catch {}
+          } else if (s.isDirectory() && s.name !== 'node_modules') {
+            found.push(...await collectPackageNames(full, depth + 1));
+          }
+        }
+      } catch {}
+      return found;
+    }
+
+    const pkgNames = await collectPackageNames(instancePath);
+    for (const name of pkgNames) {
+      if (!packageToInstances.has(name)) packageToInstances.set(name, new Set());
+      packageToInstances.get(name).add(instanceId);
+    }
+  }
+
+  const instancesToRemove = new Set();
+  const identifiedPackages = [];
+  for (const pkgName of heavyPackagesToSlim) {
+    const ids = packageToInstances.get(pkgName);
+    if (ids) {
+      for (const id of ids) instancesToRemove.add(id);
+      identifiedPackages.push(pkgName);
+    }
+  }
+
+  for (const critPkg of criticalPackagesToPreserve) {
+    const ids = packageToInstances.get(critPkg);
+    if (ids) {
+      for (const id of ids) {
+        if (instancesToRemove.has(id)) {
+          throw new Error(`Safety violation: critical package ${critPkg} marked for removal`);
+        }
+      }
+    }
+  }
+
+  let linkManifest;
+  try {
+    linkManifest = JSON.parse(await fs.readFile(dshLinksFile, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+
+  if (linkManifest && Array.isArray(linkManifest.links)) {
+    const isInstanceRemoved = targetOrPath => {
+      for (const id of instancesToRemove) {
+        const prefix = `node_modules/.dsh-instances/${id}`;
+        if (targetOrPath === prefix || targetOrPath.startsWith(prefix + '/')) return true;
+      }
+      return false;
+    };
+
+    // Verify no retained instance depends on removed instances
+    for (const link of linkManifest.links) {
+      const match = link.path.match(/^node_modules\/\.dsh-instances\/([^/]+)/);
+      const ownerId = match ? match[1] : null;
+      if (ownerId && !instancesToRemove.has(ownerId) && isInstanceRemoved(link.target)) {
+        throw new Error(`Safety violation: retained instance ${ownerId} depends on removed target: ${link.target}`);
+      }
+    }
+
+    const linksToRemove = [];
+    const remainingLinks = [];
+    for (const link of linkManifest.links) {
+      if (isInstanceRemoved(link.path) || isInstanceRemoved(link.target)) {
+        linksToRemove.push(link);
+      } else {
+        remainingLinks.push(link);
+      }
+    }
+
+    for (const link of linksToRemove) {
+      const linkFsPath = path.join(harnessRoot, link.path);
+      try {
+        const stat = await fs.lstat(linkFsPath);
+        if (stat.isSymbolicLink()) {
+          await fs.unlink(linkFsPath);
+        } else if (stat.isDirectory()) {
+          await fs.rm(linkFsPath, { recursive: true, force: true });
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+      }
+    }
+
+    for (const id of instancesToRemove) {
+      const instDir = path.join(dshInstancesDir, id);
+      await fs.rm(instDir, { recursive: true, force: true });
+    }
+
+    linkManifest.links = remainingLinks;
+    await fs.writeFile(dshLinksFile, JSON.stringify(linkManifest, null, 2) + '\n');
+
+    const hostManifestPath = path.join(root, 'host-session-runtime.json');
+    try {
+      const hostManifest = JSON.parse(await fs.readFile(hostManifestPath, 'utf8'));
+      hostManifest.relocatedLinks = remainingLinks.length;
+      await fs.writeFile(hostManifestPath, JSON.stringify(hostManifest, null, 2) + '\n');
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+
+    return {
+      removedPackages: identifiedPackages,
+      removedInstances: [...instancesToRemove],
+      removedLinks: linksToRemove.length,
+      remainingLinks: remainingLinks.length,
+    };
+  }
+
+  return { removedPackages: identifiedPackages, removedInstances: [...instancesToRemove], removedLinks: 0 };
+}
+
 // Package from a verified stage into a fresh directory. Existing source bytes
 // and selection remain untouched; only this independent copy receives records.
-export async function stageReleaseRuntime(stageRoot, freshDest) {
+export async function stageReleaseRuntime(stageRoot, freshDest, {slim = false} = {}) {
   const source = await fs.realpath(path.resolve(stageRoot));
   const target = path.resolve(freshDest);
   if (within(source, target) || within(target, source)) throw Error('Release runtime destination overlaps source');
@@ -286,11 +453,14 @@ export async function stageReleaseRuntime(stageRoot, freshDest) {
     recordInstalled(mobile);
   }
   verifyMobile(mobile);
+  if (slim) {
+    await applyReleaseSlim(vendor);
+  }
   const graph = inventoryGraph(vendor, ['runtime-graph.json', 'dshd-remote/debug.log']);
   const closure = {schemaVersion: 1, files: graph.files, links: graph.links};
   await fs.writeFile(path.join(vendor, 'runtime-graph.json'), JSON.stringify(closure, null, 2) + '\n', {flag: 'wx'});
   await verifyStagedSessionRuntime(vendor);
-  return {vendor, files: Object.keys(closure.files).length, links: Object.keys(closure.links).length};
+  return {vendor, files: Object.keys(closure.files).length, links: Object.keys(closure.links).length, slim};
 }
 
 /** Verify the MyGo-specific staged profile before packaging or selecting it. */
@@ -302,8 +472,9 @@ export async function verifyStagedSessionRuntime(vendorDir) {
   if (manifest.schemaVersion !== 1 || !supportedPin(manifest.cliVersion, manifest.harnessPin)) {
     throw new Error('Unsupported staged Session runtime profile or Harness pin');
   }
-  if (!Array.isArray(manifest.requiredEventTypes) || manifest.requiredEventTypes.length !== sessionAdmissionTypes.length ||
-      sessionAdmissionTypes.some(type => !manifest.requiredEventTypes.includes(type))) {
+  const requiredTypes = admissionTypesFor(manifest.cliVersion);
+  if (!Array.isArray(manifest.requiredEventTypes) || manifest.requiredEventTypes.length !== requiredTypes.length ||
+      requiredTypes.some(type => !manifest.requiredEventTypes.includes(type))) {
     throw new Error('Staged Session runtime admission vocabulary is incomplete');
   }
   if (!manifest.artifacts || typeof manifest.artifacts !== 'object' || Array.isArray(manifest.artifacts) ||
@@ -341,14 +512,17 @@ export async function verifyStagedSessionRuntime(vendorDir) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, source, destination, ...extra] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const slim = args.includes('--slim');
+  const positional = args.filter(a => a !== '--slim');
+  const [command, source, destination, ...extra] = positional;
   try {
     if (!source || extra.length || (command === 'inspect' || command === 'verify' ? destination !== undefined : !['stage', 'clone', 'release'].includes(command) || !destination)) {
-      throw new Error('Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | stage <resources> <fresh runtimeDir> | clone <stageRoot> <fresh runtimeDir>');
+      throw new Error('Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | stage <resources> <fresh runtimeDir> | clone <stageRoot> <fresh runtimeDir> | release <stageRoot> <fresh runtimeDir> [--slim]');
     }
     console.log(JSON.stringify(command === 'inspect' ? await inspectSessionRuntime(source)
       : command === 'verify' ? await verifyStagedSessionRuntime(source)
-      : command === 'clone' ? await cloneStagedSessionRuntime(source, destination) : command === 'release' ? await stageReleaseRuntime(source, destination) : await stageSessionRuntime(source, destination), null, 2));
+      : command === 'clone' ? await cloneStagedSessionRuntime(source, destination) : command === 'release' ? await stageReleaseRuntime(source, destination, {slim}) : await stageSessionRuntime(source, destination), null, 2));
   } catch (error) {
     console.error(`Session runtime: ${error.message}`);
     process.exitCode = 1;

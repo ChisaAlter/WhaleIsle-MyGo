@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
+	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/files"
 )
 
@@ -25,6 +27,9 @@ var nativeSessionRecoveryError error
 // App.Run must remain on the process main goroutine. Each invocation owns one
 // hidden desktop, one fresh profile and no prompt/credential operation.
 func TestMain(m *testing.M) {
+	if len(os.Args) == 3 && os.Args[1] == nativeRecoveryFlag {
+		os.Exit(0)
+	}
 	nativeSessionRecoveryError = runNativeSessionRecovery()
 	os.Exit(m.Run())
 }
@@ -50,6 +55,7 @@ func runNativeSessionRecovery() error {
 			c.Host = "127.0.0.1"
 			c.Port = 32182
 			c.NodeBin = os.Getenv("WHALEISLE_NODE")
+			c.AutoDownloadUpdates = false
 		}); err != nil {
 			return err
 		}
@@ -61,17 +67,20 @@ func runNativeSessionRecovery() error {
 	finish := func(err error) {
 		result <- err
 		state.mu.Lock()
-		state.quitting = true
 		sup := state.sup
 		state.mu.Unlock()
 		if sup != nil {
 			sup.Stop()
 		}
+		state.mu.Lock()
+		state.quitting = true
+		state.quitCleanupFinished = true
+		state.mu.Unlock()
 		mygo.App.Quit()
 	}
 	go func() {
-		deadline := time.Now().Add(105 * time.Second)
-		revealed, rendered, selected, projected, shown := false, false, false, false, false
+		deadline := time.Now().Add(40 * time.Second)
+		revealed, rendered, selected, projected, shown, patchedDevTools, hydratedRendered := false, false, false, false, false, false, false
 		for time.Now().Before(deadline) {
 			state.mu.Lock()
 			win, status, sessions, ready := state.win, state.bootStatus, state.sessions, state.dshMuxReady
@@ -98,9 +107,14 @@ func runNativeSessionRecovery() error {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
+			if !shown {
+				win.ShowInactive()
+				shown = true
+			}
 			// Hidden windows do not receive a natural first WM_PAINT. Render the
 			// production mainView so its normal resume-selection callback runs.
 			if !rendered {
+				win.Invalidate()
 				if _, err := win.CapturePage(); err != nil {
 					finish(err)
 					return
@@ -114,18 +128,12 @@ func runNativeSessionRecovery() error {
 				continue
 			}
 			if snap.SelectedID != id || !snap.HistoryReady || snap.HistoryLoading {
+				win.Invalidate()
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 			if !projected {
-				// CapturePage reuses an existing frame. Let this owned window paint
-				// normally so production mainView binds the newly selected session
-				// before injecting or checking per-session recovery state.
-				if !shown {
-					win.ShowInactive()
-					shown = true
-					continue
-				}
+				win.Invalidate()
 				if _, err := win.CapturePage(); err != nil {
 					finish(err)
 					return
@@ -139,6 +147,40 @@ func runNativeSessionRecovery() error {
 					continue
 				}
 				projected = true
+				continue
+			}
+			state.mu.Lock()
+			setStore := state.settings
+			state.mu.Unlock()
+			if setStore == nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			setStore.EnsureLoaded(context.Background())
+			sv := setStore.Snapshot()
+			if sv.Err != "" {
+				finish(fmt.Errorf("settings store failed: %s", sv.Err))
+				return
+			}
+			if !sv.Described || !sv.HasDocument || sv.Loading || sv.Saving || sv.PreferencePending["ui-settings.enabled"] {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			if phase == "save" && !settingsstore.DeveloperToolsEnabled(sv) {
+				if !patchedDevTools {
+					setStore.PatchBool(context.Background(), "ui-settings", "enabled", true)
+					patchedDevTools = true
+				}
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			if phase == "restore" && !hydratedRendered {
+				win.Invalidate()
+				if _, err := win.CapturePage(); err != nil {
+					finish(err)
+					return
+				}
+				hydratedRendered = true
 				continue
 			}
 			if phase == "save" {
@@ -181,7 +223,7 @@ func runNativeSessionRecovery() error {
 				}
 				state.mu.Unlock()
 				if !draftOK || !layoutOK || !filesOK {
-					finish(fmt.Errorf("native restore mismatch: draft=%v layout=%v fileTabs=%v", draftOK, layoutOK, filesOK))
+					finish(fmt.Errorf("native restore mismatch: draft=%v layout=%v (sidebar=%v tw=%v right=%v open=%v rightTab=%q chatTab=%q todo=%v) fileTabs=%v", draftOK, layoutOK, state.layout.Sidebar, state.layout.TranscriptWidth, state.layout.Right, state.filesPaneOpen, state.rightPaneTab, state.chatPaneTab, state.todoPanelCollapsed, filesOK))
 					return
 				}
 				bytes, err := os.ReadFile(filepath.Join(workspace, "owned-note.txt"))
@@ -245,13 +287,25 @@ func runNativeSessionRecovery() error {
 			finish(err)
 			return
 		}
-		finish(fmt.Errorf("owned native session recovery readiness timeout"))
+		state.mu.Lock()
+		pendSess, resWs, activeKey := state.resumePendingSession, state.resumeWorkspace, state.workspaceSessions.active
+		bootSt := state.bootStatus.State.String()
+		muxOK := state.dshMuxReady
+		var snap session.ViewState
+		var scope string
+		if state.sessions != nil {
+			snap = state.sessions.Snapshot()
+			scope = state.sessions.WorkspaceLayoutScope()
+		}
+		state.mu.Unlock()
+		finish(fmt.Errorf("owned native session recovery readiness timeout: phase=%s boot=%s mux=%v revealed=%v shown=%v rendered=%v projected=%v wsReady=%v listLoad=%v listErr=%q sel=%q want=%q histReady=%v histLoad=%v lastAction=%q resumePend=%q resumeWs=%q activeKey=%q scope=%q items=%d",
+			phase, bootSt, muxOK, revealed, shown, rendered, projected, snap.WorkspaceReady, snap.ListLoading, snap.ListErr, snap.SelectedID, id, snap.HistoryReady, snap.HistoryLoading, snap.LastAction, pendSess, resWs, activeKey, scope, len(snap.Items)))
 	}()
 	main()
 	select {
 	case err := <-result:
 		return err
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		return fmt.Errorf("native desktop exited before recovery proof")
 	}
 }

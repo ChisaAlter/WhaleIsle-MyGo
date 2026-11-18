@@ -1,0 +1,1502 @@
+[
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-implementation-20261103",
+    "n": 1260437965,
+    "count": 33358,
+    "links": 3600
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\fix",
+    "n": 676332370,
+    "count": 1245,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-audit-round7-20261027",
+    "n": 632167414,
+    "count": 1896,
+    "links": 55
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-inline-production-p2",
+    "n": 551982587,
+    "count": 6147,
+    "links": 125
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-round8-20261028",
+    "n": 352635482,
+    "count": 2807,
+    "links": 75
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\startup-trace",
+    "n": 286583354,
+    "count": 7539,
+    "links": 3486
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\perf-iso",
+    "n": 267042576,
+    "count": 1809,
+    "links": 27
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-v0.1.0",
+    "n": 252089152,
+    "count": 100,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-v0.3.14",
+    "n": 252087132,
+    "count": 100,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\opt-20261113",
+    "n": 233902377,
+    "count": 5212,
+    "links": 1080
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\perfround2-20261026",
+    "n": 216714328,
+    "count": 125,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\darwin-display-orientation-20261027",
+    "n": 204737980,
+    "count": 12,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\final-20261027",
+    "n": 198318988,
+    "count": 114,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-chain-rc2-stage",
+    "n": 191440446,
+    "count": 5960,
+    "links": 3146
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\alignment-20261111",
+    "n": 189142596,
+    "count": 2849,
+    "links": 289
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\click-freeze-20261111",
+    "n": 139508939,
+    "count": 791,
+    "links": 53
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-implementation-20261102",
+    "n": 129164021,
+    "count": 1648,
+    "links": 18
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\ref-0313",
+    "n": 124694792,
+    "count": 710,
+    "links": 20
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\proj-exp",
+    "n": 113233499,
+    "count": 5685,
+    "links": 3145
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\rc2-stage-20261024",
+    "n": 113230796,
+    "count": 5684,
+    "links": 3145
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-delivery-r4-20261103",
+    "n": 110540573,
+    "count": 1094,
+    "links": 90
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\r4-window-acceptance-20261103",
+    "n": 109658830,
+    "count": 569,
+    "links": 8
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\perf-verify",
+    "n": 103773534,
+    "count": 47,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-session-entry-20261027",
+    "n": 100658684,
+    "count": 3949,
+    "links": 50
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-inline-host-p1",
+    "n": 94472023,
+    "count": 884,
+    "links": 30
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\browser-keyboard-input-20261027",
+    "n": 91300867,
+    "count": 18,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\live-diag",
+    "n": 67057081,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\diag",
+    "n": 64166699,
+    "count": 144,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\chrome-profile",
+    "n": 55280636,
+    "count": 436,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\electron-parity-fixture-20261027",
+    "n": 41341237,
+    "count": 366,
+    "links": 10
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\comprehensive-qa-20261111",
+    "n": 38534387,
+    "count": 415,
+    "links": 8
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-session-real-20261026",
+    "n": 38112538,
+    "count": 1104,
+    "links": 25
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-ui-real-20261025",
+    "n": 31419448,
+    "count": 963,
+    "links": 10
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\stabilize-20261102",
+    "n": 29879801,
+    "count": 276,
+    "links": 21
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\host-startup-profile-20261027",
+    "n": 28738256,
+    "count": 123,
+    "links": 28
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hidden-webview-capture-audit-20261027",
+    "n": 23982172,
+    "count": 346,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\live-diag-2",
+    "n": 23084992,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\core-flow-20261110",
+    "n": 20869595,
+    "count": 175,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\skin-parity-20261027",
+    "n": 18626678,
+    "count": 742,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-native-scale-20261027",
+    "n": 18088477,
+    "count": 34,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-startup",
+    "n": 17449853,
+    "count": 487,
+    "links": 99
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\perf-20261029",
+    "n": 16664520,
+    "count": 103,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pstack-install",
+    "n": 15985985,
+    "count": 1176,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-diff-20261027-run3",
+    "n": 11717483,
+    "count": 13,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-full-review-r3-20261103",
+    "n": 10615379,
+    "count": 20,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-pickup-baseline",
+    "n": 9969955,
+    "count": 107,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-rest-pose-baseline",
+    "n": 9941963,
+    "count": 105,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\final-stage-startup",
+    "n": 9100098,
+    "count": 273,
+    "links": 59
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-diff-20261027-run4",
+    "n": 8626545,
+    "count": 13,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-diff-20261027-run6",
+    "n": 8476889,
+    "count": 13,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-chain-full-package-20261025",
+    "n": 8196692,
+    "count": 11,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\project-settings-lifecycle-20261027",
+    "n": 5440966,
+    "count": 379,
+    "links": 56
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\console-runtime-fix",
+    "n": 4788981,
+    "count": 143,
+    "links": 29
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-visual-20261027-run3",
+    "n": 4608092,
+    "count": 67,
+    "links": 5
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-parity-round5-20261027",
+    "n": 3711250,
+    "count": 78,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\deepseek-harness-go-review",
+    "n": 3656524,
+    "count": 105,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\dshd-remote-extract",
+    "n": 3457790,
+    "count": 257,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\uia-profile",
+    "n": 3289948,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hero-capture-e2a139",
+    "n": 2818061,
+    "count": 60,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hero-capture-76d0f7",
+    "n": 2760382,
+    "count": 60,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\proj-profile-20261025",
+    "n": 2760329,
+    "count": 59,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hero-capture-9c0ba9",
+    "n": 2759130,
+    "count": 60,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\full-audit-20261102",
+    "n": 2696708,
+    "count": 229,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\snapshots",
+    "n": 2692636,
+    "count": 88,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-07",
+    "n": 2675591,
+    "count": 87,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-5ac89fb485374b3fb8c5757ca765cdb3",
+    "n": 2674677,
+    "count": 20,
+    "links": 2
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-5e7f42fabb0243e2b4d1d624e546cb6f",
+    "n": 2674459,
+    "count": 17,
+    "links": 2
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-637546858d914303997a8b0ac5e34824",
+    "n": 2674444,
+    "count": 20,
+    "links": 2
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-0e6b6e9086654fa692c1ed44b8c8f972",
+    "n": 2673591,
+    "count": 14,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-f5152cc9296c49dab01e698b4121badf",
+    "n": 2673419,
+    "count": 14,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-4999e6288ca64997a62611a833ebafc2",
+    "n": 2673339,
+    "count": 18,
+    "links": 2
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-ec80d18a19d6439ea77d593cfc1f7143",
+    "n": 2672749,
+    "count": 12,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-4c1069eb81a54e1b8924ae02c694c5eb",
+    "n": 2671762,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-6a83b1a4ba7e4927ab118822f6e65a3d",
+    "n": 2671762,
+    "count": 17,
+    "links": 2
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-09",
+    "n": 2667986,
+    "count": 86,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-bc0295452481447495be9c63c88ff214",
+    "n": 2666406,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-06c0ec768f1343beb354381c84cbc663",
+    "n": 2666180,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-7c8696c4823d4f95b32b50360bbb7e7c",
+    "n": 2666033,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-bf8d35a90711491899308b8968687c7b",
+    "n": 2665665,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-05b711b36bad44f9b6325aa090a211ec",
+    "n": 2665384,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-a94874af888640909b63ffb2bc5a4c82",
+    "n": 2664950,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-cb2e99377e7f47c9b21db612f2ffb016",
+    "n": 2664496,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-97f82ca641514c8ea6f18a2bbace7bea",
+    "n": 2664103,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-bd37ab8f05574189b788ca5226fdd77b",
+    "n": 2663398,
+    "count": 6,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-c4ff6191b3824317916d81b6068ac50c",
+    "n": 2663274,
+    "count": 6,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\nsis-runtime-links-933018db29e94909a14675849e29483f",
+    "n": 2663270,
+    "count": 6,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hero-capture-4b5cff",
+    "n": 2653935,
+    "count": 59,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hero-capture-028168",
+    "n": 2653488,
+    "count": 58,
+    "links": 16
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-08",
+    "n": 2641532,
+    "count": 87,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-facing-gui",
+    "n": 2502269,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\gap-reopen-20261102",
+    "n": 2232765,
+    "count": 61,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\markdown-native-long-run-01",
+    "n": 2201874,
+    "count": 14,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\markdown-native-long-run-02",
+    "n": 2192378,
+    "count": 15,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-final",
+    "n": 2139252,
+    "count": 72,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\shots",
+    "n": 2137749,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\latest-dev-launch-20261027",
+    "n": 2124467,
+    "count": 58,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-parity-round4-20261027",
+    "n": 1989913,
+    "count": 64,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\cmd-inline-i18n-20261027",
+    "n": 1936693,
+    "count": 124,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-parity-20261027",
+    "n": 1807512,
+    "count": 58,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\mac-native-close",
+    "n": 1618060,
+    "count": 140,
+    "links": 28
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-rest-pose-gui-round3",
+    "n": 1533256,
+    "count": 29,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-parity-round2-20261027",
+    "n": 1445787,
+    "count": 58,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-rest-pose-gui",
+    "n": 1366920,
+    "count": 20,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\terminal-audit-20261025",
+    "n": 1355310,
+    "count": 100,
+    "links": 30
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\markdown-native-long-run-06",
+    "n": 1275151,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\markdown-native-long-run-04",
+    "n": 1274869,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\markdown-native-long-run-05",
+    "n": 1233256,
+    "count": 23,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\markdown-native-long-run-03",
+    "n": 1213895,
+    "count": 18,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-06",
+    "n": 1186335,
+    "count": 68,
+    "links": 15
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-05",
+    "n": 1185106,
+    "count": 67,
+    "links": 15
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\live-verify-b",
+    "n": 1179252,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-04",
+    "n": 1134431,
+    "count": 68,
+    "links": 14
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-03",
+    "n": 1107513,
+    "count": 65,
+    "links": 15
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-pickup-gui-round2",
+    "n": 1107205,
+    "count": 12,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-evidence",
+    "n": 1004150,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\acceptance-runtime-20261102",
+    "n": 907639,
+    "count": 63,
+    "links": 7
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round8-schedulefix-20261028",
+    "n": 685380,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round8-parityfix-20261028",
+    "n": 680967,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round8-quietfix-20261028",
+    "n": 680468,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round8-coldfix-20261028",
+    "n": 680467,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round8-final-20261028",
+    "n": 680465,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round8-20261028",
+    "n": 680459,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-sidebar-round7-20261028",
+    "n": 677414,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pass6-shots",
+    "n": 604578,
+    "count": 20,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-visual-20261027-run2",
+    "n": 572828,
+    "count": 43,
+    "links": 5
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-visual-20261027",
+    "n": 563590,
+    "count": 41,
+    "links": 6
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-sleep-gui-round2",
+    "n": 548216,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-sleep-gui-round3",
+    "n": 544264,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-sleep-gui-round4",
+    "n": 542340,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-sleep-gui",
+    "n": 540022,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-boundary-gui-round2",
+    "n": 488322,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-boundary-gui",
+    "n": 488218,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-frame-snapshot-20261027",
+    "n": 478591,
+    "count": 22,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-nav-parity-20261027",
+    "n": 457513,
+    "count": 39,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\gofmtcheck",
+    "n": 392857,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\settings-view-tabs-owner-20261027",
+    "n": 330470,
+    "count": 34,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-full-review-r4-20261103",
+    "n": 329818,
+    "count": 27,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-settings-installed-20261027",
+    "n": 309513,
+    "count": 30,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-hero-source-20261027",
+    "n": 301174,
+    "count": 27,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\stalls",
+    "n": 258893,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-cadence-gui",
+    "n": 246491,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\bootshot4",
+    "n": 222255,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\interaction-soak",
+    "n": 201721,
+    "count": 22,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-turn-tail-a1",
+    "n": 200218,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\bootshot5",
+    "n": 192988,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\bootshot",
+    "n": 180431,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\bootshot2",
+    "n": 175282,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\bootshot6",
+    "n": 174614,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-long-history-20261027",
+    "n": 173671,
+    "count": 26,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\post-merge-review-20261106",
+    "n": 171385,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\plugin-inline-mirror-prototype",
+    "n": 166465,
+    "count": 32,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\workspace-refresh-agent-home",
+    "n": 163842,
+    "count": 12,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-mention-lru-20261027",
+    "n": 163347,
+    "count": 19,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-parity-round6-20261027",
+    "n": 163112,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-mention-thrash-20261027",
+    "n": 162872,
+    "count": 20,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027",
+    "n": 162687,
+    "count": 74,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\bootshot3",
+    "n": 160011,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\phone-lan-diagnostic-20261027",
+    "n": 159005,
+    "count": 37,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r241",
+    "n": 157278,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-files-projection-20261027",
+    "n": 154704,
+    "count": 23,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\startup-selection-20261027",
+    "n": 152813,
+    "count": 16,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-delivery-projection-20261027",
+    "n": 151892,
+    "count": 24,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\warmup-walk-20261027",
+    "n": 148161,
+    "count": 19,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-source-memos-20261027",
+    "n": 145064,
+    "count": 21,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\popup-fix",
+    "n": 144232,
+    "count": 6,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-coordinate-memo-20261027",
+    "n": 126997,
+    "count": 16,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-narrow-reads-20261027",
+    "n": 126768,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\review-fix",
+    "n": 120063,
+    "count": 30,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\round5",
+    "n": 119921,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\round5-new",
+    "n": 119921,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r241b",
+    "n": 110985,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r247",
+    "n": 109545,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r256e",
+    "n": 109299,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r253",
+    "n": 109258,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r256",
+    "n": 108456,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r245",
+    "n": 106913,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r242",
+    "n": 106586,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\trajectory-diagnosis",
+    "n": 102527,
+    "count": 6,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\deliverable-preview-scope-audit-home",
+    "n": 98306,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\effect-snap",
+    "n": 90783,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-cadence-baseline",
+    "n": 90370,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-neural-live-20261027",
+    "n": 89003,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\round5-new2",
+    "n": 85811,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\cap",
+    "n": 81035,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-boundary-baseline",
+    "n": 78848,
+    "count": 6,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\menu-parity-20261106",
+    "n": 76231,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\history-derived-memo-20261027",
+    "n": 70405,
+    "count": 17,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-sleep-baseline",
+    "n": 70103,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-body-baseline",
+    "n": 64125,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\skin-layout-parity-20261027",
+    "n": 56722,
+    "count": 14,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\launch-validation-receipt-20261027",
+    "n": 46901,
+    "count": 18,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\gofmt-check6",
+    "n": 42172,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\theme-library-parity-20261027",
+    "n": 37897,
+    "count": 18,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-section-typography-20261027",
+    "n": 37790,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\gofmtcheck2",
+    "n": 31941,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\session-batch-parity-20261028",
+    "n": 31404,
+    "count": 16,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\gofmt-check5",
+    "n": 31155,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-agent-status-draft-20261028",
+    "n": 29793,
+    "count": 12,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\mygo-typed-mouse-overlay",
+    "n": 28993,
+    "count": 12,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-zzz-baseline",
+    "n": 27964,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\ambient-gradient-parity-20261027",
+    "n": 26169,
+    "count": 20,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-wrapper-validation-20261027",
+    "n": 23869,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\assistant-navigation-gate-20261027",
+    "n": 22080,
+    "count": 13,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\selection-query-proposal-20261028",
+    "n": 20043,
+    "count": 11,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\inline-portal-guard-20261027",
+    "n": 18435,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\skill-fast-negative-20261027",
+    "n": 17806,
+    "count": 9,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\mygo-menu-presentation-20261028",
+    "n": 16174,
+    "count": 11,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\images-fast-negative-20261027",
+    "n": 13962,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\probe-shell",
+    "n": 13272,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\git-titlebar-labels-20261027",
+    "n": 12814,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-settings-parity-20261027",
+    "n": 12799,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\builtin-theme-parity-20261027",
+    "n": 11594,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-round6-launchprep-20261027",
+    "n": 11153,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-search-parity-20261028",
+    "n": 10832,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\default-hero-copy-sidebar-review-20261027",
+    "n": 9016,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\mygo-shapeline-fix-20261027",
+    "n": 8563,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\schedule-hover-timing-20261028",
+    "n": 7769,
+    "count": 7,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\trajectory-delivery-20261102",
+    "n": 7751,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-perfround-20261026",
+    "n": 7597,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\session-batch-round8-20261028",
+    "n": 7533,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\refhome3",
+    "n": 7472,
+    "count": 10,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\parity-skins-collector-20261027",
+    "n": 6795,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\official-hero-mark-20261027",
+    "n": 6629,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\perfround-isolated-20261026",
+    "n": 6510,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\probe-remote-live",
+    "n": 6066,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\desktop-immediate-preferences-20261027",
+    "n": 5403,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\git-titlebar-frame-final-20261027",
+    "n": 5123,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\session-batch-finalC-20261028",
+    "n": 4463,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\scan_cmd_inline",
+    "n": 3877,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\host-background-parity-20261027",
+    "n": 3746,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-02",
+    "n": 3282,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\composer-settings-followup-20261027",
+    "n": 2879,
+    "count": 5,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\terminal-image-cache-20261027",
+    "n": 2112,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\sidebar-live-acceptance-20261027-probe-01",
+    "n": 2100,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\notification-nsis-e330d67bb519438cbfd67a67d05d77f2",
+    "n": 1331,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\refhome2",
+    "n": 1197,
+    "count": 8,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\probe-remote",
+    "n": 1142,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\pet-pickup-gui",
+    "n": 716,
+    "count": 4,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-chain-console-shellonly-20261026",
+    "n": 621,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\current-parity-round3-20261027",
+    "n": 325,
+    "count": 1,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\colcheck",
+    "n": 313,
+    "count": 2,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\log-profile",
+    "n": 298,
+    "count": 3,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\diag-ws",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-241",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\hwnd-r256d",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\log-ws",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\r4-install-20261103",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\refws3",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\release-chain-samples-source",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  },
+  {
+    "path": "C:\\AI\\WhaleIsle-MyGo\\tmp\\uia-ws",
+    "n": 0,
+    "count": 0,
+    "links": 0
+  }
+]

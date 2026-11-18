@@ -38,36 +38,51 @@ func (s *Store) DesktopPet() DesktopPet {
 	return out
 }
 
+var (
+	desktopPetFields  = structJSONFields[DesktopPet]()
+	petBehaviorFields = structJSONFields[PetBehavior]()
+	petPositionFields = structJSONFields[PetPosition]()
+)
+
 func (s *Store) SaveDesktopPet(value DesktopPet) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	value.Behavior = NormalizePetBehavior(value.Behavior)
-	data, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	merged := make(map[string]json.RawMessage, len(s.raw)+1)
-	for k, v := range s.raw {
-		merged[k] = v
-	}
-	merged["mygoDesktopPet"] = data
-	data, err = json.MarshalIndent(merged, "", "  ")
-	if err != nil {
-		return err
-	}
-	unlock, err := s.lockCommit()
-	if err != nil {
-		return err
-	}
-	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}
-	if err := writeAtomic(s.path, data, s.rename); err != nil {
+	value.Behavior = NormalizePetBehavior(value.Behavior)
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	mergedPet, err := mergeKnownFieldsObject(s.raw["mygoDesktopPet"], encoded, desktopPetFields, func(existing, out map[string]json.RawMessage) error {
+		if prevBehavior := existing["behavior"]; len(prevBehavior) > 0 {
+			if nextBehavior, ok := out["behavior"]; ok {
+				if mergedBehavior, err := mergeKnownFieldsObject(prevBehavior, nextBehavior, petBehaviorFields, nil); err == nil {
+					out["behavior"] = mergedBehavior
+				}
+			}
+		}
+		if prevPos := existing["position"]; len(prevPos) > 0 {
+			if nextPos, ok := out["position"]; ok {
+				if mergedPos, err := mergeKnownFieldsObject(prevPos, nextPos, petPositionFields, nil); err == nil {
+					out["position"] = mergedPos
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	merged := cloneRawMap(s.raw)
+	merged["mygoDesktopPet"] = mergedPet
+	baseline, err := s.commitRawLocked(s.baseline, merged)
+	if err != nil {
 		return err
 	}
 	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }
 

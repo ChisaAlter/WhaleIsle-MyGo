@@ -2,7 +2,6 @@ package openui
 
 import (
 	"crypto/sha256"
-	_ "embed"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -14,9 +13,6 @@ import (
 )
 
 const ViewerSHA256 = "ee5470ac1f67c50e69e554f6be5d7202625eef572b1f272f2276a1e250876961"
-
-//go:embed viewer/viewer.html
-var embeddedViewer string
 
 // LoadViewer defaults to the owned embedded Whale UI v2 viewer. An explicit
 // path retains the hash-pinned legacy import path; normal startup never probes

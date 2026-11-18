@@ -23,6 +23,10 @@ func TestRequiresWorkspaceFollowsSelectedSessionOwnership(t *testing.T) {
 		{"foreign membership", session.ViewState{SelectedID: "s", WorkspaceReady: true, Workspaces: []session.WorkspaceRow{{SessionIDs: []string{"other"}}}}, true, true},
 		{"scratch", session.ViewState{SelectedID: "s", WorkspaceReady: true, ScratchCwd: "C:/scratch", SelectedCwd: "C:/scratch"}, true, false},
 		{"active transcript", session.ViewState{SelectedID: "s", WorkspaceReady: true}, false, false},
+		// A just-created workspace Session reaches submit before the roster
+		// refresh lists its id; its resolved cwd still proves ownership.
+		{"roster lag", session.ViewState{SelectedID: "s", WorkspaceReady: true, SelectedCwd: `C:\AI\work`, Workspaces: []session.WorkspaceRow{{Path: "c:/ai/work/", SessionIDs: []string{"other"}}}}, true, false},
+		{"deleted cwd", session.ViewState{SelectedID: "s", WorkspaceReady: true, SelectedCwd: "C:/removed", Workspaces: []session.WorkspaceRow{{Path: "C:/work", SessionIDs: []string{"other"}}}}, true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := RequiresWorkspace(tc.snap, tc.hero); got != tc.want {
@@ -91,6 +95,31 @@ func TestInertComposerCardOpensWorkspaceWithoutEditingOrSubmitting(t *testing.T)
 			tt.Type("stale native input")
 			if draft != "chosen workspace draft" || tt.Focused("Composer draft") {
 				t.Fatal("removed workspace retained input ownership")
+			}
+		})
+	}
+}
+
+func TestHeroWorkspaceChipAcceptsRemotePOSIXPath(t *testing.T) {
+	choose := i18n.T(i18n.KeyChatHeroChooseWorkspace)
+	for _, tc := range []struct {
+		name string
+		root string
+		want string
+	}{
+		{name: "posix repo", root: "/home/dev/remote-repo", want: "remote-repo"},
+		{name: "posix root", root: "/", want: "/"},
+		{name: "posix no-workspace folder", root: "/var/dsh-home/no-workspace", want: choose},
+		{name: "sentinel relative", root: "no-workspace", want: choose},
+		{name: "windows path", root: `C:\work\win-repo`, want: "win-repo"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			draft := ""
+			tt := ui.NewTester(func(c *ui.Context) {
+				View(c, Model{Draft: &draft, Hero: true, WorkspaceRoot: tc.root, OnPickHeroWorkspace: func() {}})
+			}, 700, 500)
+			if !tt.HasText(tc.want) {
+				t.Fatalf("root=%q missing %q in texts %v", tc.root, tc.want, tt.Texts())
 			}
 		})
 	}

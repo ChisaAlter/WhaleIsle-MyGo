@@ -20,6 +20,10 @@ func Notice(c *ui.Context, id, tone string, show bool, text func() string) {
 	}
 	message := text()
 	if message == "" {
+		if *shown != "" {
+			c.CloseToast(toast)
+			*shown = ""
+		}
 		return
 	}
 	if *shown != message {

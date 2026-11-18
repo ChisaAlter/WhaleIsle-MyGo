@@ -217,7 +217,7 @@ func readCredentialImportFile(path string) ([]byte, error) {
 		return nil, errCredentialDocument
 	}
 	current, err := os.Lstat(path)
-	if err != nil || !os.SameFile(opened, current) || current.Mode()&os.ModeSymlink != 0 {
+	if err != nil || !os.SameFile(opened, current) || current.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
 		return nil, errCredentialDocument
 	}
 	const maxCredentialBytes = 4 << 20

@@ -3,6 +3,7 @@ package sshremote
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
+	"whaleisle/internal/credentials"
 	"whaleisle/internal/paths"
 )
 
@@ -116,13 +118,32 @@ func (t *TunnelSession) SetHostKeyMode(mode HostKeyMode) {
 	t.mu.Unlock()
 }
 
+type persistedTunnelConfig struct {
+	TunnelConfig
+	PasswordSet   bool `json:"passwordSet,omitempty"`
+	PassphraseSet bool `json:"passphraseSet,omitempty"`
+}
+
 // ConfigPath is userData/ssh-tunnel.json.
 func ConfigPath(userData string) string {
 	return filepath.Join(userData, "ssh-tunnel.json")
 }
 
-// LoadTunnelConfig reads ssh-tunnel.json; missing file yields defaults.
+// LoadTunnelConfig reads ssh-tunnel.json, backfilling secrets from encrypted
+// credentials storage and migrating any legacy plaintext secrets on disk. Missing
+// files yield defaults without creating directories or files.
 func LoadTunnelConfig(userData string) (TunnelConfig, error) {
+	return loadTunnelConfig(userData, false)
+}
+
+// LoadSharedProfileTunnelConfig reads the desktop's shared credentials. Legacy
+// plaintext remains readable when shared writing is unavailable; migration is
+// deferred without altering either file or discarding the loaded credentials.
+func LoadSharedProfileTunnelConfig(userData string) (TunnelConfig, error) {
+	return loadTunnelConfig(userData, true)
+}
+
+func loadTunnelConfig(userData string, shared bool) (TunnelConfig, error) {
 	cfg := TunnelConfig{Port: 22, User: "root"}
 	path := ConfigPath(userData)
 	data, err := os.ReadFile(path)
@@ -141,43 +162,97 @@ func LoadTunnelConfig(userData string) (TunnelConfig, error) {
 	if cfg.HostKeyMode != "" {
 		cfg.HostKeyMode = string(NormalizeHostKeyMode(cfg.HostKeyMode))
 	}
+	legacy := tunnelSecrets{Password: cfg.Password, Passphrase: cfg.Passphrase}
+	bucket, _, err := loadSSHSecrets(userData)
+	if err != nil {
+		return cfg, err
+	}
+	if !legacy.empty() {
+		if err := writeSSHTunnelProfileSecrets(userData, legacy, shared); err != nil {
+			if shared && errors.Is(err, credentials.ErrSharedProfileWriteUnavailable) {
+				return cfg, nil
+			}
+			return cfg, err
+		}
+		if err := writeSanitizedTunnelFile(path, cfg); err != nil {
+			return cfg, err
+		}
+	} else if bucket.Tunnel != nil {
+		if cfg.Password == "" {
+			cfg.Password = bucket.Tunnel.Password
+		}
+		if cfg.Passphrase == "" {
+			cfg.Passphrase = bucket.Tunnel.Passphrase
+		}
+	}
 	return cfg, nil
 }
 
-// SaveTunnelConfig writes ssh-tunnel.json atomically.
+// SaveTunnelConfig writes ssh-tunnel.json atomically without plaintext secrets,
+// persisting password and passphrase in encrypted credentials storage.
 func SaveTunnelConfig(userData string, cfg TunnelConfig) error {
+	return saveTunnelConfig(userData, cfg, false)
+}
+
+// SaveSharedProfileTunnelConfig requires the common desktop write lease before
+// saving secrets. On refusal the existing tunnel file is also left unchanged.
+func SaveSharedProfileTunnelConfig(userData string, cfg TunnelConfig) error {
+	return saveTunnelConfig(userData, cfg, true)
+}
+
+func saveTunnelConfig(userData string, cfg TunnelConfig, shared bool) error {
 	if cfg.Port <= 0 {
 		cfg.Port = 22
 	}
 	if cfg.HostKeyMode != "" {
 		cfg.HostKeyMode = string(NormalizeHostKeyMode(cfg.HostKeyMode))
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	sec := tunnelSecrets{Password: cfg.Password, Passphrase: cfg.Passphrase}
+	bucket, _, err := loadSSHSecrets(userData)
 	if err != nil {
 		return err
 	}
-	path := ConfigPath(userData)
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+	if !sec.empty() || bucket.Tunnel != nil {
+		if err := writeSSHTunnelProfileSecrets(userData, sec, shared); err != nil {
+			return err
+		}
 	}
-	tmpFile, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	return writeSanitizedTunnelFile(ConfigPath(userData), cfg)
+}
+
+func writeSSHTunnelSecrets(userData string, sec tunnelSecrets) error {
+	return writeSSHTunnelProfileSecrets(userData, sec, false)
+}
+
+func writeSSHTunnelProfileSecrets(userData string, sec tunnelSecrets, shared bool) error {
+	return updateSSHProfileSecrets(userData, shared, func(obj map[string]json.RawMessage) error {
+		if sec.empty() {
+			delete(obj, "tunnel")
+			return nil
+		}
+		encoded, err := json.Marshal(sec)
+		if err != nil {
+			return err
+		}
+		obj["tunnel"] = encoded
+		return nil
+	})
+}
+
+func writeSanitizedTunnelFile(path string, cfg TunnelConfig) error {
+	hasPass := cfg.Password != ""
+	hasPhrase := cfg.Passphrase != ""
+	cfg.Password = ""
+	cfg.Passphrase = ""
+	data, err := json.MarshalIndent(persistedTunnelConfig{
+		TunnelConfig:  cfg,
+		PasswordSet:   hasPass,
+		PassphraseSet: hasPhrase,
+	}, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := tmpFile.Name()
-	defer os.Remove(tmp)
-	if err := tmpFile.Chmod(0o600); err != nil {
-		_ = tmpFile.Close()
-		return err
-	}
-	if _, err := tmpFile.Write(data); err != nil {
-		_ = tmpFile.Close()
-		return err
-	}
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return writePrivateFileAtomic(path, data)
 }
 
 // Snapshot returns current state fields.
@@ -283,8 +358,8 @@ func (t *TunnelSession) Connect(ctx context.Context) error {
 	if strings.TrimSpace(kh) == "" {
 		kh = KnownHostsPath(paths.UserDataDir())
 	}
-	if cfg.HostKeyMode != "" {
-		mode = HostKeyMode(cfg.HostKeyMode)
+	if strings.TrimSpace(cfg.HostKeyMode) != "" {
+		mode = NormalizeHostKeyMode(cfg.HostKeyMode)
 	}
 	if mode == "" {
 		mode = HostKeyAcceptNew

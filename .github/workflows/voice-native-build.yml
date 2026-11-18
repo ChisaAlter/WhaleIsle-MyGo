@@ -3,7 +3,15 @@ name: Voice macOS native compile
 # Compile and link only. Never execute the test binary or access a microphone.
 on:
   push:
-    branches: [dot/mygo-reconstruction-20261014]
+    branches:
+      - main
+      - dot/mygo-reconstruction-20261014
+    paths:
+      - .github/workflows/voice-native-build.yml
+      - internal/desktop/voicecapture/**
+  pull_request:
+    branches:
+      - main
     paths:
       - .github/workflows/voice-native-build.yml
       - internal/desktop/voicecapture/**
@@ -24,7 +32,7 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - name: Compile and link voicecapture with macOS SDK
         shell: bash
         env:

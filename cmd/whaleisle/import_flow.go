@@ -20,12 +20,15 @@ func (s *mainState) startImport(win *mygo.Window) {
 			win.Update(func() {})
 		}
 	}
+	marketBusy := s.marketCoordinator().IsBusy()
+	startBusy := s.launcherController().StartBusy()
+	importOverwrite, importAttach := s.launcherController().ImportPrefs()
 	s.mu.Lock()
 	if s.launcherImportBusy {
 		s.mu.Unlock()
 		return
 	}
-	if s.marketWorker != nil || s.marketInstallBusy || s.taskRestartPending || s.quitting {
+	if marketBusy || s.taskRestartPending || s.quitting {
 		s.launcherImport = i18n.T(i18n.KeyCmdImportBusy)
 		s.mu.Unlock()
 		refresh()
@@ -38,14 +41,14 @@ func (s *mainState) startImport(win *mygo.Window) {
 		return
 	}
 	cat := s.launcherImportCatalog.Snapshot()
-	sel := importer.SelectionFromCatalog(cat, s.launcherImportAttachments && cat.HasAttachments, s.launcherImportOverwrite)
+	sel := importer.SelectionFromCatalog(cat, importAttach && cat.HasAttachments, importOverwrite)
 	if sel.Count() == 0 {
 		s.launcherImport = i18n.T(i18n.KeyCmdImportNothingSelected)
 		s.mu.Unlock()
 		refresh()
 		return
 	}
-	if s.launcherStartBusy {
+	if startBusy {
 		s.launcherImport = i18n.T(i18n.KeyCmdTheRuntimeIsStartingRetryImportAfterS)
 		s.mu.Unlock()
 		refresh()
@@ -103,8 +106,9 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			curStartBusy := s.launcherController().StartBusy()
 			s.mu.Lock()
-			changed := s.sup != sup || s.quitting || s.launcherStartBusy
+			changed := s.sup != sup || s.quitting || curStartBusy
 			s.mu.Unlock()
 			if changed {
 				return errors.New(i18n.T(i18n.KeyCmdTheRuntimeChangedConfirmTheImportAgain))
@@ -116,10 +120,8 @@ func (s *mainState) continueImport(win *mygo.Window, sup *harness.Supervisor, ca
 				kernelStopped = sup.Status().State != harness.Stopped
 				sup.Stop()
 			}
+			s.launcherController().SetStartError(false, false, "")
 			s.mu.Lock()
-			s.launcherStartBusy = false
-			s.launcherStartFailed = false
-			s.launcherStartErr = ""
 			s.launcherImport = i18n.T(i18n.KeyCmdTheRuntimeIsStoppedImportingCompletedI)
 			s.mu.Unlock()
 			refresh()
@@ -218,7 +220,7 @@ func (s *mainState) restartUnlessImportWithResult(sup *harness.Supervisor, maint
 		busy := s.launcherImportBusy
 		s.mu.Unlock()
 		if busy {
-			resultErr = errors.New(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion))
+			resultErr = localized(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion))
 			if complete == nil {
 				s.taskProtectionError(win, resultErr)
 			}
@@ -232,19 +234,17 @@ func (s *mainState) restartUnlessImportWithResult(sup *harness.Supervisor, maint
 			s.mu.Lock()
 			if s.launcherImportBusy || s.quitting || s.sup != sup {
 				s.mu.Unlock()
-				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryRestart))
+				return localized(i18n.T(i18n.KeyCmdRuntimeChangedRetryRestart))
 			}
-			s.launcherStartBusy = true
 			s.mu.Unlock()
+			s.launcherController().SetStartBusy(true)
 			if complete != nil {
 				// Publish an external writer's pending overlay only after task
 				// confirmation accepted this exact runtime's restart.
 				s.syncHarnessFromConfig()
 			}
 			if err := s.closeTaskProtectedResources(); err != nil {
-				s.mu.Lock()
-				s.launcherStartBusy = false
-				s.mu.Unlock()
+				s.launcherController().SetStartBusy(false)
 				return err
 			}
 			if complete != nil {

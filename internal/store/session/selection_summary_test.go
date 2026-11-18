@@ -63,3 +63,23 @@ func TestSelectionSummaryDoesNotProject(t *testing.T) {
 		t.Fatalf("summary allocated %.0f times per call", allocs)
 	}
 }
+
+func TestSelectedIsAutoDefaultClearedByExplicitSelect(t *testing.T) {
+	s := new(Store)
+	if s.SelectedIsAutoDefault() {
+		t.Fatal("empty store reported auto default selection")
+	}
+	s.mu.Lock()
+	s.items = []Item{{SessionID: "first"}, {SessionID: "second"}}
+	s.selectSessionLocked("first")
+	s.selectedAuto = true
+	s.mu.Unlock()
+	if !s.SelectedIsAutoDefault() {
+		t.Fatal("expected SelectedIsAutoDefault after RefreshList fallback")
+	}
+	// Clicking even the already-selected first item explicitly must clear the fallback marker.
+	s.Select("first")
+	if s.SelectedIsAutoDefault() {
+		t.Fatal("explicit Select did not clear SelectedIsAutoDefault")
+	}
+}

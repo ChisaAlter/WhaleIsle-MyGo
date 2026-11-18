@@ -1,0 +1,332 @@
+{
+  "schema": 1,
+  "executable": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-0.2.0-candidate.exe",
+  "hidden": false,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 23.511
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 25.645
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 41.217
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 51.837
+    },
+    {
+      "stage": "ui.first_view_built",
+      "kind": "mark",
+      "atMs": 349.23
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 467.241
+    },
+    {
+      "stage": "harness.start_requested",
+      "kind": "mark",
+      "atMs": 478.421
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 487.474,
+      "detail": "starting"
+    },
+    {
+      "stage": "runtime.warmup.gate",
+      "kind": "mark",
+      "atMs": 555.719,
+      "detail": "cold=true probeUs=8095"
+    },
+    {
+      "stage": "runtime.warmup.started",
+      "kind": "mark",
+      "atMs": 555.719,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor"
+    },
+    {
+      "stage": "host.port_selected",
+      "kind": "mark",
+      "atMs": 556.353,
+      "detail": "3181"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 557.418,
+      "durMs": 141.635,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 556.353,
+      "durMs": 163.9960000000001
+    },
+    {
+      "stage": "runtime.read_capabilities",
+      "kind": "span",
+      "atMs": 556.353,
+      "durMs": 172.95800000000008
+    },
+    {
+      "stage": "runtime.warmup.plan",
+      "kind": "mark",
+      "atMs": 1382.137,
+      "detail": "files=21290"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 2188.043,
+      "durMs": 0.6829999999999927,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 2188.043,
+      "durMs": 1.211999999999989
+    },
+    {
+      "stage": "runtime.validate.current_host",
+      "kind": "span",
+      "atMs": 2188.043,
+      "durMs": 1.211999999999989
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 2189.255,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate",
+      "kind": "span",
+      "atMs": 2187.537,
+      "durMs": 1.718000000000302
+    },
+    {
+      "stage": "profile.disabled_plugins",
+      "kind": "span",
+      "atMs": 2191.713
+    },
+    {
+      "stage": "profile.links",
+      "kind": "span",
+      "atMs": 2191.713,
+      "durMs": 135.40899999999965
+    },
+    {
+      "stage": "profile.overlays",
+      "kind": "span",
+      "atMs": 2327.122,
+      "durMs": 70.88200000000006
+    },
+    {
+      "stage": "runtime.profile_prepare",
+      "kind": "span",
+      "atMs": 2191.713,
+      "durMs": 206.2909999999997
+    },
+    {
+      "stage": "host.plan",
+      "kind": "span",
+      "atMs": 2187.537,
+      "durMs": 223.94400000000041
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 2413.576,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.spawned",
+      "kind": "mark",
+      "atMs": 2424.786,
+      "detail": "35172"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 2427.488,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 27368.954,
+      "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 27368.954,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 27558.272,
+      "detail": "(node:35172) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 27558.272,
+      "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 27558.822,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.readyline",
+      "kind": "mark",
+      "atMs": 27910.554
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 27910.554,
+      "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 27911.067,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.auth.get_connection",
+      "kind": "mark",
+      "atMs": 27911.067
+    },
+    {
+      "stage": "host.auth.connect_start",
+      "kind": "mark",
+      "atMs": 27911.067
+    },
+    {
+      "stage": "host.auth.connect_done",
+      "kind": "mark",
+      "atMs": 27911.595
+    },
+    {
+      "stage": "host.auth.got_connection",
+      "kind": "mark",
+      "atMs": 27911.595
+    },
+    {
+      "stage": "host.auth.request_written",
+      "kind": "mark",
+      "atMs": 27911.595
+    },
+    {
+      "stage": "runtime.warmup.done",
+      "kind": "mark",
+      "atMs": 27926.157,
+      "detail": "files=8725 bytes=125168658 skipped=0 ms=27370"
+    },
+    {
+      "stage": "host.auth.first_response_byte",
+      "kind": "mark",
+      "atMs": 28440.741
+    },
+    {
+      "stage": "host.handshake",
+      "kind": "span",
+      "atMs": 27910.554,
+      "durMs": 530.1870000000017
+    },
+    {
+      "stage": "host.ready",
+      "kind": "mark",
+      "atMs": 28440.741
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 28440.741,
+      "detail": "ready"
+    },
+    {
+      "stage": "boot.outcome_recorded",
+      "kind": "mark",
+      "atMs": 28440.741
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 28440.741,
+      "detail": "ready"
+    },
+    {
+      "stage": "connection.bootstrap_start",
+      "kind": "mark",
+      "atMs": 28457.344
+    },
+    {
+      "stage": "stores.opened",
+      "kind": "mark",
+      "atMs": 28468.03
+    },
+    {
+      "stage": "connection.carrier_connected",
+      "kind": "mark",
+      "atMs": 28688.721
+    },
+    {
+      "stage": "connection.events_ready",
+      "kind": "mark",
+      "atMs": 28693.44
+    },
+    {
+      "stage": "workspace.ready",
+      "kind": "mark",
+      "atMs": 28742.032
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 28742.032,
+      "detail": "ready"
+    },
+    {
+      "stage": "plugins.inventory_ready",
+      "kind": "mark",
+      "atMs": 32071.601
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 32071.601,
+      "detail": "ready"
+    }
+  ],
+  "idle": null,
+  "coverage": "sampled-startup",
+  "readiness": "workspace",
+  "runtime": {
+    "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor",
+    "nodeDirectory": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node"
+  },
+  "webViewCount": 0
+}

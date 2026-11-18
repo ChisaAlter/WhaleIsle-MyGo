@@ -1,5 +1,16 @@
-param([int]$OwnerId,[ValidateSet('manual-open','manual-fold','manual-latest','auto-open','auto-closed','auto-appended','auto-latest')][string]$Step)
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [ValidateSet('manual-open','manual-fold','manual-latest','auto-open','auto-closed','auto-appended','auto-latest')][string]$Step,
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r105-inspector-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
@@ -23,7 +34,7 @@ public class InspectorScrollR105 {
 '@
 [void][InspectorScrollR105]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $process=Get-CimInstance Win32_Process -Filter ('ProcessId = '+$OwnerId)
-if($process.ExecutablePath -ne 'C:\AI\WhaleIsle-MyGo\.devdata\r105-inspector-fixture.exe'){throw 'Unexpected fixture owner'}
+if($null -eq $process -or $process.ExecutablePath -ne $fixturePath){throw 'Unexpected fixture owner'}
 $handle=(Get-Process -Id $OwnerId).MainWindowHandle
 [void][InspectorScrollR105]::ShowWindow($handle,9)
 [void][InspectorScrollR105]::SetForegroundWindow($handle)
@@ -49,7 +60,8 @@ switch($Step){
 Start-Sleep -Milliseconds 400
 [InspectorScrollR105]::Key($handle,0x78)
 Start-Sleep -Milliseconds 200
-$prefix='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-native-pass249'
+$prefix = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-native-pass249' }
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $prefix) | Out-Null
 $metrics=Get-Content -LiteralPath ($prefix+'-metrics.json') -Raw | ConvertFrom-Json
 $records=@();$header=Find 'Inspector table header';$origin=$header.Current.BoundingRectangle.Y
 foreach($e in (Elements)){$name=$e.Current.Name;if($name -like 'Inspector record *'){$r=$e.Current.BoundingRectangle;$records+=@{key=$name.Substring(17);top=($r.Y-$origin)/1.5;height=$r.Height/1.5}}}

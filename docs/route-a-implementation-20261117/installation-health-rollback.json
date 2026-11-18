@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "scope": "Production whaleisle.nsi with shell-only synthetic bytes; real silent NSIS install, identity rejection and upgrade",
+  "appID": "whaleisle.nsis-identity.5f322a7e3c0a47c3986c30e2eb712db8",
+  "workRoot": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-976c943132a94c0c977db1240e1c006b\\identity-health",
+  "productScript": "scripts/nsis/whaleisle.nsi",
+  "checks": [
+    {
+      "pass": true,
+      "name": "empty-target-install",
+      "manifestAndRegistryAgree": true,
+      "initialEmptyDirectoryRetained": true,
+      "exitCode": 0
+    },
+    {
+      "name": "electron-with-native-spoof-rejected",
+      "pass": true,
+      "noStageOrBackup": true,
+      "exactFilesPreserved": true,
+      "exitCode": 2,
+      "nativeRegistrationPreserved": true
+    },
+    {
+      "name": "unowned-native-filename-rejected",
+      "pass": true,
+      "noStageOrBackup": true,
+      "exactFilesPreserved": true,
+      "exitCode": 2,
+      "nativeRegistrationPreserved": true
+    },
+    {
+      "name": "owned-native-upgrade",
+      "newPayloadConfirmed": true,
+      "pass": true,
+      "newManifestAndRegistryAgree": true,
+      "exitCode": 0,
+      "noNewStageOrBackup": true
+    },
+    {
+      "name": "post-promotion-startup-failure-rolls-back",
+      "previousPayloadExact": true,
+      "pass": true,
+      "health": {
+        "schema": 1,
+        "installation": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-976c943132a94c0c977db1240e1c006b\\identity-health\\installed",
+        "passed": false,
+        "error": "candidate exited before installation health was confirmed",
+        "elapsedMs": 238,
+        "profile": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-976c943132a94c0c977db1240e1c006b\\whaleisle-install-health-2123638424",
+        "profileRemoved": true,
+        "processesExited": true
+      },
+      "exitCode": 2,
+      "previousRegistrationAndShortcutsExact": true
+    }
+  ],
+  "passed": true,
+  "cleanup": {
+    "runningInstallers": 0,
+    "disk": "caller-owned build workspace finally",
+    "registrationAndShortcutsRemoved": true
+  },
+  "installerBytes": [
+    295805,
+    295805
+  ]
+}

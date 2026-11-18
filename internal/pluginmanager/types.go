@@ -103,7 +103,10 @@ type Row struct {
 }
 type Package struct {
 	Bundle
-	Parts []Row
+	Parts              []Row
+	CapabilityKind     CapabilityKind `json:"capabilityKind,omitempty"`
+	NativeCompatible   bool           `json:"nativeCompatible"`
+	CompatibilityLabel string         `json:"compatibilityLabel,omitempty"`
 }
 
 func (p Package) SwitchLocked() bool {
@@ -162,17 +165,19 @@ type RegistryChoice struct {
 	URL      string  `json:"url,omitempty"`
 }
 type Inspection struct {
-	Status      string    `json:"status"`
-	Kind        string    `json:"kind,omitempty"`
-	Name        string    `json:"name,omitempty"`
-	Version     string    `json:"version,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Bundle      *bool     `json:"bundle,omitempty"`
-	Registry    *string   `json:"registry"`
-	Host        string    `json:"host,omitempty"`
-	Problem     string    `json:"problem,omitempty"`
-	Reason      string    `json:"reason,omitempty"`
-	Registries  []*string `json:"registries,omitempty"`
+	Status         string               `json:"status"`
+	Kind           string               `json:"kind,omitempty"`
+	Name           string               `json:"name,omitempty"`
+	Version        string               `json:"version,omitempty"`
+	Description    string               `json:"description,omitempty"`
+	Bundle         *bool                `json:"bundle,omitempty"`
+	Registry       *string              `json:"registry"`
+	Host           string               `json:"host,omitempty"`
+	Problem        string               `json:"problem,omitempty"`
+	Reason         string               `json:"reason,omitempty"`
+	Registries     []*string            `json:"registries,omitempty"`
+	CapabilityKind CapabilityKind       `json:"capabilityKind,omitempty"`
+	Capabilities   *PackageCapabilities `json:"capabilities,omitempty"`
 }
 type PackageResult struct {
 	ExitCode  *int   `json:"exitCode"`
@@ -356,6 +361,9 @@ type Confirmation struct{ Kind, Target, Description string }
 type InstallState struct {
 	Open                                                 bool
 	Spec, Registry, Phase, Error, RequestID, Log         string
+	Guidance                                             string
+	CapabilityKind                                       CapabilityKind
+	Capabilities                                         *PackageCapabilities
 	RegistryInfo                                         *RegistryInfo
 	Inspection                                           *Inspection
 	Result                                               *Change
@@ -364,6 +372,7 @@ type InstallState struct {
 	ApprovedBuilds                                       []string
 	Acknowledged, CancellationRequested, WaitingForStart bool
 	Recovering                                           bool
+	NativeCanFinish                                      bool
 	Runs                                                 []InstallRun
 	Attempts                                             []InstallAttempt
 	Confirmed                                            bool

@@ -30,15 +30,16 @@ func FetchRange(ctx context.Context, url string, offset, size int64, client *htt
 	if url == "" {
 		return nil, fmt.Errorf("empty URL")
 	}
+	if _, err := validateDownloadURL(url); err != nil {
+		return nil, err
+	}
 	if offset < 0 || size <= 0 {
 		return nil, fmt.Errorf("invalid range offset=%d size=%d", offset, size)
 	}
 	if size > maxRangeBytes {
 		return nil, fmt.Errorf("range size %d exceeds %d", size, maxRangeBytes)
 	}
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute, Transport: updateTransport()}
-	}
+	client = hardenDownloadClient(client, 5*time.Minute)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

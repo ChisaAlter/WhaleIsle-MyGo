@@ -3,7 +3,6 @@ package frame
 import (
 	"math"
 	"runtime"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -78,7 +77,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 		})
 		// Installed AppFrame keeps clusterVisible true for native desktop
 		// platforms, including narrow windows; label density concedes instead.
-		if m.WorkspaceTrailing != nil || m.GlobalPluginSlot != nil {
+		if m.WorkspaceTrailing != nil {
 			densityWidth := m.Sizes.Center
 			if details > 0 {
 				densityWidth = min(densityWidth, details)
@@ -97,11 +96,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(8)
 			observeConversationTabInput(trailing, "trailing", m.ChatPaneTab)
 			trailing.Children(func() {
-				renderGlobalShellSlot(c, m, "shell.titlebar.trailing", func() {
-					if m.WorkspaceTrailing != nil {
-						m.WorkspaceTrailing(c, density)
-					}
-				})
+				m.WorkspaceTrailing(c, density)
 			})
 		}
 		// The reference's corner order is terminal, right panel, minimize,
@@ -114,7 +109,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// Request another frame only when that geometry changes, never on a timer.
 	row.DrawOver(func(_ *ui.Painter, bounds ui.Rect) {
 		width := float32(0)
-		if m.WorkspaceTrailing != nil || m.GlobalPluginSlot != nil {
+		if m.WorkspaceTrailing != nil {
 			width = trailing.Bounds().W
 		}
 		if measure.trailing != width || measure.height != bounds.H {
@@ -155,25 +150,6 @@ func conversationViewOptions(m Model) (ids, labels []string) {
 		ids = append(ids, "trajectory")
 		labels = append(labels, i18n.T(i18n.KeyChatPaneTabTrajectory))
 	}
-	seen := map[string]bool{"chat": true, "trajectory": true}
-	for _, view := range m.ConversationViews {
-		if strings.TrimSpace(view.Handle) == "" || view.ID == "chat" || view.ID == "trajectory" {
-			continue
-		}
-		id := "plugin:" + view.Handle
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		label := strings.TrimSpace(view.Label)
-		if label == "" {
-			label = view.ID
-		}
-		if label == "" {
-			continue
-		}
-		ids, labels = append(ids, id), append(labels, label)
-	}
 	return ids, labels
 }
 
@@ -183,15 +159,6 @@ func selectConversationView(m Model, id string) {
 	}
 	before := *m.ChatPaneTab
 	*m.ChatPaneTab = id
-	if strings.HasPrefix(id, "plugin:") {
-		if m.OnSelectConversationView != nil {
-			m.OnSelectConversationView(strings.TrimPrefix(id, "plugin:"))
-		}
-	} else if m.OnSelectBuiltinConversationView != nil {
-		m.OnSelectBuiltinConversationView(id)
-	} else if m.OnClearConversationView != nil {
-		m.OnClearConversationView()
-	}
 	traceConversationTabSelection(before, id, m.ChatPaneTab)
 }
 

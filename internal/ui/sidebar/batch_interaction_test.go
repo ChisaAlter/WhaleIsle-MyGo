@@ -15,7 +15,7 @@ func TestBatchKnownBlankIsInertButMissingArchivedSummarySelectable(t *testing.T)
 	blank := session.Item{SessionID: "blank", Title: "do not select", Blank: true}
 	expanded := true
 	calls, navigated := 0, 0
-	m := Model{Batch: session.SessionBatch{Enabled: true}, archiveExpanded: &expanded, Snapshot: session.ViewState{WorkspaceReady: true, SelectedID: "blank", Items: []session.Item{blank}, ArchivedSessionIDs: []string{"missing"}, Workspaces: []session.WorkspaceRow{{WorkspaceID: "w", SessionIDs: []string{"blank"}}}}, OnBatchEdit: func(string, []session.SessionBatchTarget) { calls++ }, OnSelect: func(string) { navigated++ }, OnOpenSessionPlugins: func(string) { navigated++ }}
+	m := Model{Batch: session.SessionBatch{Enabled: true}, archiveExpanded: &expanded, Snapshot: session.ViewState{WorkspaceReady: true, SelectedID: "blank", Items: []session.Item{blank}, ArchivedSessionIDs: []string{"missing"}, Workspaces: []session.WorkspaceRow{{WorkspaceID: "w", SessionIDs: []string{"blank"}}}}, OnBatchEdit: func(string, []session.SessionBatchTarget) { calls++ }, OnSelect: func(string) { navigated++ }}
 	if targets := VisibleBatchTargets(m); len(targets) != 1 || targets[0].ID != "missing" {
 		t.Fatalf("known blank/missing archived summary eligibility: %+v", targets)
 	}

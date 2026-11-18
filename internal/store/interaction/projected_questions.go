@@ -215,7 +215,7 @@ func (s *Store) reconcileProjectedQuestionsLocked(agentID string) {
 		if states[pending.CallID] == "continued" || p.settled[pending.CallID] || live.questionSeen && !active[pending.CallID] {
 			waiter := s.waiters[pending.EventID]
 			delete(s.waiters, pending.EventID)
-			s.cancelled[pending.EventID] = true
+			s.markCancelledLocked(pending.EventID)
 			s.dropPending(pending.EventID)
 			if waiter != nil {
 				select {

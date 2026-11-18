@@ -14,17 +14,34 @@ import (
 	"whaleisle/internal/desktop/previewprocess"
 )
 
+const defaultSVGOffscreenReclaimTTL = 5 * time.Second
+
 type imageTheme struct{ appearance, background string }
 
+type imageSession interface {
+	Done() <-chan struct{}
+	SetTheme(appearance string, vars map[string]string) error
+	PresentImageSurface(parent uintptr, x, y, w, h, clipX, clipY, clipW, clipH int) error
+	PresentImageSurfaceClipped(parent uintptr, x, y, w, h, clipX, clipY, clipW, clipH int, shape previewprocess.ImageSurfaceClip) error
+	PaintImagePixels(p *ui.Painter, r ui.Rect) bool
+	ImageSize() (float64, float64)
+	Close() error
+}
+
 type Surface struct {
-	handle    *previewprocess.Session
-	parent    *mygo.Window
-	cancel    context.CancelFunc
-	once      sync.Once
-	mu        sync.Mutex
-	lastPaint time.Time
-	err       error
-	themes    chan imageTheme
+	handle      imageSession
+	parent      *mygo.Window
+	cancel      context.CancelFunc
+	once        sync.Once
+	mu          sync.Mutex
+	lastPaint   time.Time
+	visible     bool
+	hiddenSince time.Time
+	reclaimed   bool
+	reclaimTTL  time.Duration
+	err         error
+	themes      chan imageTheme
+	wake        chan struct{}
 }
 
 // Open consumes an already-authorized immutable snapshot. The caller owns ctx
@@ -50,22 +67,121 @@ func Open(ctx context.Context, parent *mygo.Window, helperPath string, data []by
 		_ = handle.Close()
 		return nil, errors.New("SVG image owner changed while loading")
 	}
-	s := &Surface{handle: handle, parent: parent, cancel: cancel, themes: make(chan imageTheme, 1)}
+	s := &Surface{
+		handle:  handle,
+		parent:  parent,
+		cancel:  cancel,
+		visible: true,
+		themes:  make(chan imageTheme, 1),
+		wake:    make(chan struct{}, 1),
+	}
 	go s.watch(ctx, valid)
 	return s, nil
 }
 
+func newSurfaceForSession(ctx context.Context, parent *mygo.Window, handle imageSession, reclaimTTL time.Duration, valid func() bool) *Surface {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	s := &Surface{
+		handle:     handle,
+		parent:     parent,
+		cancel:     cancel,
+		visible:    true,
+		reclaimTTL: reclaimTTL,
+		themes:     make(chan imageTheme, 1),
+		wake:       make(chan struct{}, 1),
+	}
+	go s.watch(ctx, valid)
+	return s
+}
+
+func (s *Surface) effectiveReclaimTTL() time.Duration {
+	if s.reclaimTTL > 0 {
+		return s.reclaimTTL
+	}
+	return defaultSVGOffscreenReclaimTTL
+}
+
+func (s *Surface) signalWatch() {
+	if s.wake == nil {
+		return
+	}
+	select {
+	case s.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (s *Surface) markVisible() {
+	s.mu.Lock()
+	wasHidden := !s.visible
+	s.visible = true
+	s.hiddenSince = time.Time{}
+	s.lastPaint = time.Now()
+	s.mu.Unlock()
+	if wasHidden {
+		s.signalWatch()
+	}
+}
+
 func (s *Surface) watch(ctx context.Context, valid func() bool) {
-	tick := time.NewTicker(100 * time.Millisecond)
-	defer tick.Stop()
 	defer s.Close()
 	var last imageTheme
+	var reclaimTimer *time.Timer
+	stopTimer := func() {
+		if reclaimTimer == nil {
+			return
+		}
+		if !reclaimTimer.Stop() {
+			select {
+			case <-reclaimTimer.C:
+			default:
+			}
+		}
+		reclaimTimer = nil
+	}
+	defer stopTimer()
+
+	syncHiddenTimer := func() {
+		s.mu.Lock()
+		visible := s.visible
+		hiddenSince := s.hiddenSince
+		s.mu.Unlock()
+		if visible {
+			stopTimer()
+			return
+		}
+		if reclaimTimer != nil {
+			return
+		}
+		wait := s.effectiveReclaimTTL()
+		if !hiddenSince.IsZero() {
+			if elapsed := time.Since(hiddenSince); elapsed >= wait {
+				wait = time.Millisecond
+			} else {
+				wait -= elapsed
+			}
+		}
+		reclaimTimer = time.NewTimer(wait)
+	}
+
 	for {
+		var timerC <-chan time.Time
+		if reclaimTimer != nil {
+			timerC = reclaimTimer.C
+		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-s.handle.Done():
-			s.fail(errors.New("isolated SVG image closed"))
+			s.mu.Lock()
+			reclaimed := s.reclaimed
+			s.mu.Unlock()
+			if !reclaimed {
+				s.fail(errors.New("isolated SVG image closed"))
+			}
 			return
 		case theme := <-s.themes:
 			if theme != last {
@@ -75,18 +191,37 @@ func (s *Surface) watch(ctx context.Context, valid func() bool) {
 				}
 				last = theme
 			}
-		case <-tick.C:
-			if s.parent.IsDestroyed() || !valid() {
+		case <-s.wake:
+			if (s.parent != nil && s.parent.IsDestroyed()) || (valid != nil && !valid()) {
+				return
+			}
+			syncHiddenTimer()
+		case <-timerC:
+			reclaimTimer = nil
+			if (s.parent != nil && s.parent.IsDestroyed()) || (valid != nil && !valid()) {
 				return
 			}
 			s.mu.Lock()
-			hidden := time.Since(s.lastPaint) > 300*time.Millisecond
+			stillHidden := !s.visible
+			if stillHidden {
+				s.reclaimed = true
+			}
 			s.mu.Unlock()
-			if hidden {
-				_ = s.handle.PresentImageSurface(0, 0, 0, 0, 0, 0, 0, 0, 0)
+			if stillHidden {
+				return
 			}
 		}
 	}
+}
+
+func (s *Surface) Reclaimed() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	r := s.reclaimed
+	s.mu.Unlock()
+	return r
 }
 
 func (s *Surface) fail(err error) {
@@ -112,7 +247,23 @@ func (s *Surface) Close() error {
 	return s.Error()
 }
 
-func (s *Surface) Hide() { _ = s.handle.PresentImageSurface(0, 0, 0, 0, 0, 0, 0, 0, 0) }
+func (s *Surface) Hide() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	alreadyHidden := !s.visible
+	if s.visible {
+		s.visible = false
+		s.hiddenSince = time.Now()
+	}
+	s.mu.Unlock()
+	if alreadyHidden {
+		return
+	}
+	s.signalWatch()
+	_ = s.handle.PresentImageSurface(0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
 
 // Paint receives an aspect-fitted image rectangle from the native owner, so
 // existing zoom/pan/crop/thumbnail geometry and input remain authoritative.
@@ -131,24 +282,23 @@ func (s *Surface) PaintClipped(p *ui.Painter, r ui.Rect, appearance, background 
 		return errors.New("SVG image surface is closed")
 	default:
 	}
-	s.mu.Lock()
-	s.lastPaint = time.Now()
-	s.mu.Unlock()
+	s.markVisible()
 	select {
 	case s.themes <- imageTheme{appearance, background}:
 	default:
 	}
 	if s.handle.PaintImagePixels(p, r) {
-		// Repaint to keep the lease, as the presented branch below does.
-		p.After(100 * time.Millisecond)
 		return nil
 	}
 	clip := p.NativeSurfaceClip()
-	if err := s.handle.PresentImageSurfaceClipped(s.parent.NativeHandle(), int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H), shape); err != nil {
+	var parentHandle uintptr
+	if s.parent != nil && mygo.App.IsReady() {
+		parentHandle = s.parent.NativeHandle()
+	}
+	if err := s.handle.PresentImageSurfaceClipped(parentHandle, int(r.X), int(r.Y), int(r.W), int(r.H), int(clip.X), int(clip.Y), int(clip.W), int(clip.H), shape); err != nil {
 		s.fail(err)
 		go s.Close()
 		return err
 	}
-	p.After(100 * time.Millisecond)
 	return nil
 }

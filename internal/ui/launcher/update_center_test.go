@@ -17,10 +17,10 @@ func TestUpdateCenterPauseResumePreferenceAndUnavailableRoute(t *testing.T) {
 		if paused {
 			status = releaseText("下载已暂停，可继续。", "Download paused. You can resume it.")
 		}
-		return Model{ActiveTab: TabVersions, VendorReady: true, Version: "0.3.13", ReleaseBusy: busy, ReleasePaused: paused, ReleaseAutoDownload: automatic, ReleasePhase: "downloading", ReleaseStatus: status, ReleaseReceived: 8 << 20, ReleaseTotal: 32 << 20,
+		return Model{VendorReady: true, Version: "0.3.13", ReleaseBusy: busy, ReleasePaused: paused, ReleaseAutoDownload: automatic, ReleasePhase: "downloading", ReleaseStatus: status, ReleaseReceived: 8 << 20, ReleaseTotal: 32 << 20,
 			OnCancelRelease: func() {}, OnPauseRelease: func() { pauses++; busy = false; paused = true }, OnResumeRelease: func() { resumes++; busy = true; paused = false }, OnSetAutoDownload: func(v bool) { automatic = v }}
 	}
-	tt := ui.NewTester(func(c *ui.Context) { View(c, model()) }, 1060, 660)
+	tt := ui.NewTester(func(c *ui.Context) { UpdateCenter(c, model()) }, 1060, 660)
 	save := func(name string) {
 		if dir := os.Getenv("WHALEISLE_LIFECYCLE_SHOTS"); dir != "" {
 			if err := os.MkdirAll(dir, 0700); err != nil {
@@ -59,11 +59,9 @@ func TestUpdateCenterPauseResumePreferenceAndUnavailableRoute(t *testing.T) {
 	}
 
 	route := "github"
-	open := true
 	reason := releaseText("CNB 尚未配置 鲸屿 MyGo 原生发布源，请使用 GitHub。", "CNB has no configured Whale Isle MyGo native release source. Use GitHub.")
 	blocked := ui.NewTester(func(c *ui.Context) {
-		trigger := ui.Button(c, "route")
-		routePopup(c, Model{DownloadRoute: &route, RouteUnavailable: map[string]string{"cnb": reason}}, trigger, &open, false)
+		Maintenance(c, MaintenancePreferences, Model{DownloadRoute: &route, RouteUnavailable: map[string]string{"cnb": reason}})
 	}, 600, 320)
 	if !blocked.HasText(reason) {
 		t.Fatal("unavailable channel reason missing")

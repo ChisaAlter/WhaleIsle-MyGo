@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 	"whaleisle/internal/ui/i18n"
@@ -79,7 +81,7 @@ func (s *mainState) pageShortcutPreferences() *shortcutprefs.Store {
 	// to be noticed when that shell writes it. Reading it here, on a timer, keeps
 	// that check off the render path: the UI thread only compares the accepted
 	// revision. tmp/stalls captured the per-frame read inside the frame.
-	go watchShortcutDocument(cfg, prefs, func() *mygo.Window {
+	go watchShortcutDocument(s.lifecycleContext(), cfg, prefs, func() *mygo.Window {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		return s.win
@@ -87,9 +89,10 @@ func (s *mainState) pageShortcutPreferences() *shortcutprefs.Store {
 	return prefs
 }
 
-// watchShortcutDocument rereads the document periodically and asks for one
-// frame when its accepted revision advances. It never touches the render path.
-func watchShortcutDocument(cfg *config.Store, prefs *shortcutprefs.Store, window func() *mygo.Window) {
+// watchShortcutDocument observes external edits to the config document via OS
+// change notifications (with stat fallback) and refreshes only when the shortcut
+// accepted sequence advances. It never runs on the render path.
+func watchShortcutDocument(ctx context.Context, cfg *config.Store, prefs *shortcutprefs.Store, window func() *mygo.Window) {
 	if cfg == nil {
 		return
 	}
@@ -97,21 +100,50 @@ func watchShortcutDocument(cfg *config.Store, prefs *shortcutprefs.Store, window
 	if raw, err := cfg.ShortcutDocument(); err == nil {
 		last = raw
 	}
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	for range ticker.C {
+	check := func() {
 		raw, err := cfg.ShortcutDocument()
 		if err != nil || bytes.Equal(raw, last) {
-			continue
+			return
 		}
 		last = raw
 		before := prefs.Accepted().Sequence
 		prefs.Get()
 		if prefs.Accepted().Sequence == before {
-			continue
+			return
 		}
 		if win := window(); win != nil {
 			win.Update(func() {})
+		}
+	}
+	watchShortcutDocumentChanges(ctx, cfg.Path(), check)
+}
+
+func watchShortcutDocumentStat(ctx context.Context, path string, onChange func()) {
+	type fileSig struct {
+		ok      bool
+		modNano int64
+		size    int64
+	}
+	statSig := func() fileSig {
+		info, err := os.Stat(path)
+		if err != nil {
+			return fileSig{}
+		}
+		return fileSig{ok: true, modNano: info.ModTime().UnixNano(), size: info.Size()}
+	}
+	last := statSig()
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			next := statSig()
+			if next != last {
+				last = next
+				onChange()
+			}
 		}
 	}
 }

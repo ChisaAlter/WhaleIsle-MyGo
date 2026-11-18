@@ -153,24 +153,34 @@ func (s *mainState) returnFromAccountPage() {
 	}
 	s.accountReturn.embedded = ""
 	if source == "settings" {
+		s.setMainRouteLocked(routeSettings)
 		s.settingsEmbeddedSection = ""
-		s.settingsOpen = true
 		s.settingsAccountActive = true
 	} else if source == "usage" {
-		s.usageOpen = true
+		s.setMainRouteLocked(routeUsage)
 	}
 	s.mu.Unlock()
+	s.syncMainRouteResources()
 	if source != "" {
 		s.refreshReturnedAccount()
 	}
 }
 
-func (s *mainState) clearAccountReturn() {
-	s.closeAccountPlatform()
-	s.dismissAccountQuotaPage()
+func (s *mainState) clearAccountReturnDetached() *accountPlatformLease {
 	s.mu.Lock()
+	lease := s.detachAccountPlatformLocked()
 	s.accountReturn = accountReturnState{}
+	quotaState := s.accountQuotaNotice
+	s.accountQuotaNotice = accountQuotaNoticeState{}
 	s.mu.Unlock()
+	if quotaState.store != nil && quotaState.opened {
+		quotaState.store.DismissQuotaNotice(quotaState.id)
+	}
+	return lease
+}
+
+func (s *mainState) clearAccountReturn() {
+	closeAccountPlatformLease(s.clearAccountReturnDetached())
 }
 
 func (s *mainState) openAccountInfo(raw string) {

@@ -11,6 +11,7 @@ import (
 
 type prGenerationTask struct {
 	root   string
+	gen    uint64
 	cancel context.CancelFunc
 	done   chan prGenerated
 }
@@ -38,13 +39,16 @@ func beginPRGeneration(c *ui.Context, m Model) {
 		return
 	}
 	root := m.WorkspaceRoot
+	w.setInvalidate(c.Services().Invalidate)
+	gen := w.bindRoot(root)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	task := &prGenerationTask{root: root, cancel: cancel, done: make(chan prGenerated, 1)}
+	task := &prGenerationTask{root: root, gen: gen, cancel: cancel, done: make(chan prGenerated, 1)}
 	s.Generation = task
 	s.Generated = nil
 	s.GenerationError = ""
 	s.Plan = nil
 	s.PR = nil
+	loader := w.loader
 	invalidate := c.Services().Invalidate
 	progress := git.NewProgress(root, word("正在生成 PR 标题和正文…", "Generating PR title and body…"), invalidate)
 	w.Progress = progress
@@ -57,7 +61,9 @@ func beginPRGeneration(c *ui.Context, m Model) {
 		}
 		progress.Finish(phase, e != nil)
 		task.done <- prGenerated{content: result, err: e}
-		if invalidate != nil {
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()
@@ -69,7 +75,7 @@ func finishPRGeneration(m Model) {
 		return
 	}
 	task := s.Generation
-	if task.root != m.WorkspaceRoot {
+	if task.root != m.WorkspaceRoot || (task.gen != 0 && task.gen != w.currentGen()) {
 		w.cancelPRGeneration()
 		return
 	}

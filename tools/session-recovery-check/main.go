@@ -112,7 +112,8 @@ func run(stage, base, native string, r *report) error {
 	}
 	// BuildCatalog also checks ~/.agents/skills. Redirect every process-local
 	// default before using it; never inspect the caller's real home/profile.
-	for key, value := range map[string]string{paths.EnvUserData: userData, "DSH_HOME": home, "HOME": ownedUser, "USERPROFILE": ownedUser, "APPDATA": filepath.Join(ownedUser, "AppData", "Roaming"), "LOCALAPPDATA": filepath.Join(ownedUser, "AppData", "Local")} {
+	localAppData := filepath.Join(ownedUser, "AppData", "Local")
+	for key, value := range map[string]string{paths.EnvUserData: userData, "DSH_HOME": home, "HOME": ownedUser, "USERPROFILE": ownedUser, "APPDATA": filepath.Join(ownedUser, "AppData", "Roaming"), "LOCALAPPDATA": localAppData, "PSModuleAnalysisCachePath": filepath.Join(localAppData, "Microsoft", "Windows", "PowerShell", "ModuleAnalysisCache")} {
 		if err = os.Setenv(key, value); err != nil {
 			return err
 		}

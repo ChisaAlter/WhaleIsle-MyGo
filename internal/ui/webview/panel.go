@@ -13,6 +13,7 @@ import (
 
 // Model wires the plugin webview panel chrome (WebView2 host sits below).
 type Model struct {
+	Title         string
 	HarnessOrigin string
 	ThemeID       string
 	SystemDark    bool
@@ -29,8 +30,7 @@ type Model struct {
 }
 
 // View paints the plugin web chrome strip; the WebView2 Host covers the body.
-// It opens that host on the first frame it is shown, so the entry lands on the
-// real plugin page instead of a placeholder describing what could be built.
+// It renders the native placeholder until the user explicitly opens the host.
 func View(c *ui.Context, m Model) {
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
@@ -40,14 +40,13 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 
 	root := ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0).Background(bg)
-	autoOpen := ui.Local(root, "auto-open", func() bool { return false })
-	if !m.HostActive && !*autoOpen && m.HostError == "" && m.HarnessOrigin != "" && m.OnOpenHost != nil {
-		*autoOpen = true
-		m.OnOpenHost()
-	}
 	root.Children(func() {
 		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyWebViewTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
+			title := strings.TrimSpace(m.Title)
+			if title == "" {
+				title = i18n.T(i18n.KeyWebViewTitle)
+			}
+			ui.Text(c, title).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
 			if m.HostActive && m.HostError != "" {
 				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Grow(1)
 			} else {

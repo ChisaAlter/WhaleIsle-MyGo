@@ -20,6 +20,10 @@ import (
 // This exercises real HTTP and the launcher event simulation. It does not
 // certify Windows input or the native window's update queue.
 func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
+	checkLabel := "检查更新"
+	if i18n.Locale() == i18n.LocaleEN {
+		checkLabel = "Check for updates"
+	}
 	for _, status := range []int{http.StatusOK, http.StatusServiceUnavailable} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			var requests atomic.Int32
@@ -37,24 +41,27 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			defer server.Close()
 			defer unblock()
 			t.Setenv(desktopupdate.EnvFeedURL, server.URL)
-			s := &mainState{launcherUpdateAvailable: true}
+			s := &mainState{}
+			s.launcherController().SetUpdateAvailableForTest(true)
 			dispatched := make(chan error, 1)
 			go func() {
-				tab := ""
+				left := false
 				tt := ui.NewTester(func(c *ui.Context) {
-					launcher.View(c, launcher.Model{VendorReady: true, ActiveTab: launcher.TabHome,
-						OnCheckUpdate: func() { s.checkLauncherUpdate(nil) },
-						OnTab:         func(id string) { tab = id },
+					if ui.Button(c, "Back to workbench").Clicked() {
+						left = true
+					}
+					launcher.UpdateCenter(c, launcher.Model{VendorReady: true,
+						OnRefreshReleases: func() { s.checkLauncherUpdate(nil) },
 					})
 				}, 1200, 800)
-				for _, label := range []string{i18n.T(i18n.KeyLauncherCheckUpdate), i18n.T(i18n.KeyLauncherCheckUpdate), i18n.T(i18n.KeyLauncherTabComponents)} {
+				for _, label := range []string{checkLabel, checkLabel, "Back to workbench"} {
 					if err := tt.Click(label); err != nil {
 						dispatched <- err
 						return
 					}
 				}
-				if tab != launcher.TabComponents {
-					dispatched <- fmt.Errorf("pending check prevented rail callback: %q", tab)
+				if !left {
+					dispatched <- fmt.Errorf("pending check prevented navigation")
 					return
 				}
 				dispatched <- nil
@@ -72,10 +79,7 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatal("launcher dispatch waited for the gated HTTP response")
 			}
-			s.mu.Lock()
-			busy := s.launcherUpdateCheckBusy
-			s.mu.Unlock()
-			if !busy {
+			if !s.launcherController().UpdateProbeState().CheckBusy {
 				t.Fatal("check lost its busy state before the response")
 			}
 			select {
@@ -86,9 +90,8 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			unblock()
 			deadline := time.Now().Add(3 * time.Second)
 			for {
-				s.mu.Lock()
-				busy, message, available := s.launcherUpdateCheckBusy, s.launcherUpdate, s.launcherUpdateAvailable
-				s.mu.Unlock()
+				st := s.launcherController().UpdateProbeState()
+				busy, message, available := st.CheckBusy, st.Message, st.Available
 				if !busy {
 					want := string(desktopupdate.StatusUpToDate)
 					if status != http.StatusOK {

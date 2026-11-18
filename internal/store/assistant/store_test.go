@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -101,5 +102,71 @@ func TestHistoryFromSessionMessages(t *testing.T) {
 	}
 	if got[1].Prompt != "q1" {
 		t.Fatalf("older = %+v", got[1])
+	}
+}
+
+func TestOpenPreservesCorruptFilesAndAtomicWritesLeaveNoTemp(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		filename string
+		payload  string
+	}{
+		{"mode", modeFile, "{bad-mode"},
+		{"history", historyFile, "{bad-history"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			root := Dir(dir)
+			if err := os.MkdirAll(root, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(root, tc.filename)
+			if err := os.WriteFile(target, []byte(tc.payload), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Open(dir); err == nil {
+				t.Fatalf("Open(%s) succeeded on corrupt JSON, want error", tc.filename)
+			}
+			got, err := os.ReadFile(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tc.payload {
+				t.Fatalf("corrupt %s modified = %q, want %q", tc.filename, got, tc.payload)
+			}
+			entries, err := os.ReadDir(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			backups := 0
+			for _, e := range entries {
+				if strings.HasPrefix(e.Name(), tc.filename+".corrupt-") {
+					backups++
+				}
+				if strings.Contains(e.Name(), ".tmp-") {
+					t.Fatalf("unexpected temp file: %s", e.Name())
+				}
+			}
+			if backups != 1 {
+				t.Fatalf("backups for %s = %d, want 1", tc.filename, backups)
+			}
+		})
+	}
+
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.SetMode(ModeDshbot)
+	s.AppendTurn(Turn{Mode: ModeDshbot, Prompt: "hi"})
+	entries, err := os.ReadDir(Dir(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp") {
+			t.Fatalf("leaked temp file: %s", e.Name())
+		}
 	}
 }

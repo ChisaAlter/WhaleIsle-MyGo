@@ -44,12 +44,6 @@ func (i Inspection) NeedsConsent() bool {
 	if i.Unknown != "" || !i.OK || i.LocalRunning > 0 || len(i.ActiveWork) > 0 || len(i.ScheduledWork) > 0 {
 		return true
 	}
-	for _, key := range []string{"agents", "jobs", "schedule", "bots"} {
-		v := i.Coverage[key]
-		if v != "ok" && v != "intentional-disabled" {
-			return true
-		}
-	}
 	for _, v := range i.Coverage {
 		if v != "ok" && v != "intentional-disabled" {
 			return true

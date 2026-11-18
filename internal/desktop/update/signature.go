@@ -96,12 +96,136 @@ func enforceSignature(info SignatureInfo, opt VerifyOptions) error {
 	}
 	expect := strings.TrimSpace(opt.ExpectedPublisher)
 	if expect != "" {
-		pub := strings.ToLower(info.Publisher)
-		if pub == "" || !strings.Contains(pub, strings.ToLower(expect)) {
+		if !publisherMatches(info.Publisher, expect) {
 			return fmt.Errorf("authenticode publisher %q does not match %q", info.Publisher, expect)
 		}
 	}
 	return nil
+}
+
+type publisherRDN struct {
+	key string
+	val string
+}
+
+func publisherMatches(publisher, expect string) bool {
+	pub := strings.TrimSpace(publisher)
+	exp := strings.TrimSpace(expect)
+	if pub == "" || exp == "" {
+		return false
+	}
+	tokens := parsePublisherTokens(pub)
+	if expKey, expVal, hasKey := splitRDNToken(exp); hasKey {
+		for _, tok := range tokens {
+			if tok.key == expKey && strings.EqualFold(tok.val, expVal) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, tok := range tokens {
+		switch tok.key {
+		case "", "CN", "O", "AUTHORITY", "TEAMID":
+			if strings.EqualFold(tok.val, exp) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func parsePublisherTokens(raw string) []publisherRDN {
+	var parts []string
+	var buf strings.Builder
+	inQuotes := false
+	escaped := false
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		if escaped {
+			buf.WriteByte('\\')
+			buf.WriteByte(c)
+			escaped = false
+			continue
+		}
+		if c == '\\' {
+			escaped = true
+			continue
+		}
+		if c == '"' {
+			inQuotes = !inQuotes
+			buf.WriteByte(c)
+			continue
+		}
+		if !inQuotes && (c == ',' || c == ';') {
+			parts = append(parts, buf.String())
+			buf.Reset()
+			continue
+		}
+		buf.WriteByte(c)
+	}
+	if escaped {
+		buf.WriteByte('\\')
+	}
+	parts = append(parts, buf.String())
+
+	out := make([]publisherRDN, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		k, v, hasKey := splitRDNToken(part)
+		if hasKey {
+			out = append(out, publisherRDN{key: k, val: v})
+		} else {
+			out = append(out, publisherRDN{val: unquoteAndUnescapeRDN(part)})
+		}
+	}
+	return out
+}
+
+func splitRDNToken(token string) (string, string, bool) {
+	eq := strings.IndexByte(token, '=')
+	if eq <= 0 {
+		return "", "", false
+	}
+	key := strings.TrimSpace(token[:eq])
+	if !isRDNKey(key) {
+		return "", "", false
+	}
+	val := unquoteAndUnescapeRDN(strings.TrimSpace(token[eq+1:]))
+	return strings.ToUpper(key), val, true
+}
+
+func isRDNKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := 0; i < len(key); i++ {
+		c := key[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.') {
+			return false
+		}
+	}
+	return true
+}
+
+func unquoteAndUnescapeRDN(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		s = s[1 : len(s)-1]
+	}
+	var out strings.Builder
+	out.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			out.WriteByte(s[i])
+			continue
+		}
+		out.WriteByte(s[i])
+	}
+	return strings.TrimSpace(out.String())
 }
 
 // parseAuthenticodeOutput parses STATUS=/PUBLISHER= lines from the PowerShell probe.

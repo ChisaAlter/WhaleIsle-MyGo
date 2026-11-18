@@ -70,6 +70,7 @@ async function inspectWindows(stage, installer, arch) {
   const installedProfile = {
     '687f282e8625c6b8d11ff58211a90524be2e4317': 'installed-rc2',
     '504a01a9578abc2c6f1fb896b1dc322c9fe24f66': 'installed-rc4',
+    'ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c': 'installed-0.2.2-rc.2',
   }[host.sourceCommit];
   const guarded = supportedCommits.includes(host.sourceCommit) && host.safetyPatch?.id === guard || installedProfile !== undefined && host.buildProfile === installedProfile && host.safetyPatch?.id === sessionGuard;
   if (!guarded || host.platform !== 'win32' || host.arch !== (arch === 'amd64' ? 'x64' : 'arm64')) throw Error('Host is not the native MyGo-compatible runtime');

@@ -35,10 +35,14 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 		group := p.activeGroup()
 		canSplit := p.cwd != "" && group != nil && len(group.panes) < maxPanesPerGroup
 		if tool(terminalLabel("左右分屏", "Split horizontal"), terminalSplitIcon, !canSplit) {
-			_ = p.createPane(m.SystemDark, true, false)
+			if p.createPane(m.SystemDark, true, false) == nil {
+				p.focusPending = p.active
+			}
 		}
 		if tool(terminalLabel("上下分屏", "Split vertical"), terminalSplitVerticalIcon, !canSplit) {
-			_ = p.createPane(m.SystemDark, true, true)
+			if p.createPane(m.SystemDark, true, true) == nil {
+				p.focusPending = p.active
+			}
 		}
 		caption := terminalLabel("最大化", "Maximize")
 		if p.Maximized {
@@ -48,7 +52,9 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 			p.Maximized = !p.Maximized
 		}
 		if tool(terminalLabel("新建终端", "New terminal"), terminalPlusIcon, p.cwd == "") {
-			_ = p.createPane(m.SystemDark, false, false)
+			if p.createPane(m.SystemDark, false, false) == nil {
+				p.focusPending = p.active
+			}
 		}
 		if tool(terminalLabel("关闭终端", "Close terminal"), terminalTrashIcon, p.active == 0) {
 			requestClosePane(m, p.active)
@@ -105,6 +111,7 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, 
 		})
 		if title.Clicked() {
 			p.activate(pane.id)
+			p.focusPending = pane.id
 		}
 		if active || hovered {
 			closeLabel := terminalLabel("关闭终端", "Close terminal")

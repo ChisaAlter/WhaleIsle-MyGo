@@ -10,7 +10,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 )
 
 // This control directory is outside every selectable payload destination.
@@ -93,7 +95,7 @@ func directoryPath(path string) error {
 		if e != nil && !os.IsNotExist(e) {
 			return e
 		}
-		if e == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
+		if e == nil && (!info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0) {
 			return fmt.Errorf("unsafe import directory: %s", p)
 		}
 		if p == filepath.Dir(p) {
@@ -164,11 +166,14 @@ func treeFingerprint(ctx context.Context, root string) (string, error) {
 		if err != nil {
 			return err
 		}
+		if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return fmt.Errorf("unsupported import entry: %s", path)
+		}
 		if entry.IsDir() {
 			_, err = fmt.Fprintf(h, "d:%s\x00", filepath.ToSlash(rel))
 			return err
 		}
-		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported import entry: %s", path)
 		}
 		if _, err = fmt.Fprintf(h, "f:%s\x00%d\x00", filepath.ToSlash(rel), info.Size()); err != nil {
@@ -221,13 +226,16 @@ func copyTree(ctx context.Context, src, dst string, overwrite bool) error {
 		if err != nil {
 			return err
 		}
+		if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return fmt.Errorf("unsupported import entry: %s", path)
+		}
 		if entry.IsDir() {
 			if err := directoryPath(target); err != nil {
 				return err
 			}
 			return os.MkdirAll(target, 0700)
 		}
-		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported import entry: %s", path)
 		}
 		if err := privatePath(target); err != nil {
@@ -356,14 +364,37 @@ func publishDirectory(ctx context.Context, home, src, dst string, overwrite, mer
 		return abort(err)
 	}
 	if before != "" {
-		if err = os.Rename(dst, backup); err != nil {
+		if err = renameImportDir(dst, backup); err != nil {
 			return abort(err)
 		}
 	}
-	if err = os.Rename(stage, dst); err != nil {
+	if err = renameImportDir(stage, dst); err != nil {
 		return abort(err)
 	}
 	return recoverDirectoryTransaction(home)
+}
+
+func renameImportDir(src, dst string) error {
+	attempts := 1
+	if runtime.GOOS == "windows" {
+		attempts = 6
+	}
+	var err error
+	for i := 0; i < attempts; i++ {
+		err = os.Rename(src, dst)
+		if err == nil {
+			return nil
+		}
+		if runtime.GOOS != "windows" {
+			return err
+		}
+		msg := strings.ToLower(err.Error())
+		if !errors.Is(err, os.ErrPermission) && !strings.Contains(msg, "used by another process") && !strings.Contains(msg, "access is denied") {
+			return err
+		}
+		time.Sleep(time.Duration(15*(i+1)) * time.Millisecond)
+	}
+	return err
 }
 
 func validFingerprint(s string, optional bool) bool {
@@ -467,7 +498,7 @@ func recoverDirectoryTransaction(home string) error {
 		case live == journal.Before && old == "":
 			// No live rename happened, or rollback already restored the old tree.
 		case live == "" && old != "" && old == journal.Before:
-			if err = os.Rename(backup, dst); err != nil {
+			if err = renameImportDir(backup, dst); err != nil {
 				return fmt.Errorf("%w: %v", ErrRecoveryBlocked, err)
 			}
 		default:

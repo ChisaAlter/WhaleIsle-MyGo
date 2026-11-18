@@ -72,7 +72,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 	if m.Inert {
 		box.PassThrough()
 	} else {
-		box.HandleTextInput(&client.input).HandleInput(func(ev ui.InputEvent) bool {
+		box.HandleTextInput(client.textInputHandle()).HandleInput(func(ev ui.InputEvent) bool {
 			if ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEscape && !c.EscapeSequenceAvailable() {
 				client.stop.reset()
 				return false
@@ -135,6 +135,34 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	if m.Inert {
 		return false
 	}
+	switch ev.Kind {
+	case ui.InputKeyUp:
+		client.noteIMEKeyUp(ev.Key, ev.Code)
+	case ui.InputBlur:
+		client.clearIMEKeyLatch()
+	case ui.InputPointerDown:
+		if client.marked == nil {
+			client.clearIMEKeyLatch()
+		}
+	case ui.InputKeyDown:
+		if ev.Key == ui.KeyUnknown && ev.ShortcutBlocked {
+			client.noteIMEProcessKey(ev.Code)
+			return false
+		}
+		if client.marked == nil && ev.Key != ui.KeyUnknown {
+			sameProcessKey := client.imeProcessActive && ev.Code != "" && ev.Code == client.imeProcessKey
+			if ev.Key != ui.KeyEnter && !sameProcessKey {
+				client.imeClosingEnter = false
+			}
+			if ev.Key != ui.KeyEscape && !sameProcessKey {
+				client.imeClosingEscape = false
+			}
+			if ev.Key != ui.KeyEnter && ev.Key != ui.KeyEscape && !sameProcessKey {
+				client.imeProcessActive = false
+				client.imeProcessKey = ""
+			}
+		}
+	}
 	// Key-up separates independent presses without discarding the first. All
 	// other intervening input, repeated/modifier Esc and local UI ownership reset.
 	if ev.Kind != ui.InputKeyUp && (ev.Kind != ui.InputKeyDown || ev.Key != ui.KeyEscape || ev.Mods != 0 || ev.Repeat) {
@@ -143,8 +171,9 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 	if m.Disabled || composerParentOffline(m) {
 		if ev.Kind == ui.InputKeyDown && ev.Key == ui.KeyEscape {
 			target, eligible := composerStopTarget(m)
-			if !eligible || client.marked != nil || ev.Mods != 0 || ev.Repeat {
+			if !eligible || client.composing() || ev.Mods != 0 || ev.Repeat {
 				client.stop.reset()
+				client.consumeClosingEscape()
 				return false
 			}
 			if client.stop.press(target, time.Now(), time.Duration(m.Snapshot.StopSequenceMS)*time.Millisecond) {
@@ -162,11 +191,11 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 		}
 		return client.pointerEvent(m, ev)
 	case ui.InputKeyDown:
-		if client.marked == nil && ev.Mods == ui.Cmd && ev.Key == ui.KeyA {
+		if !client.composing() && ev.Mods == ui.Cmd && ev.Key == ui.KeyA {
 			client.selection = ui.TextInputSelection{Range: ui.TextInputRange{End: ui.UTF16Len(client.text())}}
 			return true
 		}
-		if client.marked == nil && (ev.Mods == ui.Cmd || ev.Mods == ui.Cmd|ui.Shift) {
+		if !client.composing() && (ev.Mods == ui.Cmd || ev.Mods == ui.Cmd|ui.Shift) {
 			switch ev.Key {
 			case ui.KeyZ:
 				if ev.Mods&ui.Shift != 0 {
@@ -191,39 +220,40 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 		}
 		switch ev.Key {
 		case ui.KeyTab:
-			if ev.Mods == 0 && client.marked == nil {
+			if ev.Mods == 0 && !client.composing() {
 				return acceptNextPrompt(m)
 			}
 			return false
 		case ui.KeyEscape:
 			target, eligible := composerStopTarget(m)
-			if !eligible || client.marked != nil || ev.Mods != 0 || ev.Repeat {
+			if !eligible || client.composing() || ev.Mods != 0 || ev.Repeat {
 				client.stop.reset()
 			}
-			if m.State != nil && m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
+			if m.State != nil && m.State.PermissionCommand.Visible(m.Snapshot.SelectedID) && !client.composing() {
 				m.State.PermissionCommand.Open = false
 				return true
 			}
-			if m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) && client.marked == nil {
+			if m.State != nil && m.State.ModelCommand.Visible(m.Snapshot.SelectedID) && !client.composing() {
 				m.State.ModelCommand.Open = false
 				return true
 			}
 			if cancelVoiceOnEscape(client, m, ev) {
 				return true
 			}
-			if m.Editing && client.marked == nil && m.OnCancelEdit != nil {
+			if m.Editing && !client.composing() && m.OnCancelEdit != nil {
 				m.OnCancelEdit()
 				return true
 			}
-			if eligible && client.marked == nil && ev.Mods == 0 && !ev.Repeat {
+			if eligible && !client.composing() && ev.Mods == 0 && !ev.Repeat {
 				if client.stop.press(target, time.Now(), time.Duration(m.Snapshot.StopSequenceMS)*time.Millisecond) {
 					m.OnStop()
 				}
 				return true
 			}
+			client.consumeClosingEscape()
 			return false
 		case ui.KeyBackspace, ui.KeyDelete:
-			if client.marked != nil {
+			if client.composing() {
 				return false
 			}
 			r := client.Selection().Range
@@ -237,7 +267,7 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			client.ReplaceText(&r, "")
 			return true
 		case ui.KeyEnter:
-			if client.composing() {
+			if client.consumeClosingEnter() || client.composing() || ev.Repeat {
 				return false
 			}
 			// Only plain Enter and exactly Ctrl/Cmd+Enter submit. Other
@@ -279,7 +309,7 @@ func draftInputEvent(client *DraftClient, m Model, ev ui.InputEvent) bool {
 			return true
 		}
 	case ui.InputCommand:
-		if client.marked != nil {
+		if client.composing() {
 			return false
 		}
 		switch ev.Text {

@@ -76,11 +76,13 @@ func isolateRealEnvironment(root, stage, home string) error {
 		}
 	}
 	owned := filepath.Join(root, "owned-home")
+	localAppData := filepath.Join(owned, "AppData", "Local")
 	for key, value := range map[string]string{
 		paths.EnvUserData: filepath.Join(root, "user-data"), paths.EnvVendor: filepath.Join(stage, "vendor"),
 		"DSH_HOME": home, "HOME": owned, "USERPROFILE": owned,
-		"APPDATA": filepath.Join(owned, "AppData", "Roaming"), "LOCALAPPDATA": filepath.Join(owned, "AppData", "Local"),
-		"TEMP": filepath.Join(root, "temp"), "TMP": filepath.Join(root, "temp"),
+		"APPDATA": filepath.Join(owned, "AppData", "Roaming"), "LOCALAPPDATA": localAppData,
+		"PSModuleAnalysisCachePath": filepath.Join(localAppData, "Microsoft", "Windows", "PowerShell", "ModuleAnalysisCache"),
+		"TEMP":                      filepath.Join(root, "temp"), "TMP": filepath.Join(root, "temp"),
 		"DEEPSEEK_API_KEY": "qa-real-flow-no-secret", "DEEPSEEK_BASE_URL": "https://api.deepseek.com/anthropic",
 		"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 	} {

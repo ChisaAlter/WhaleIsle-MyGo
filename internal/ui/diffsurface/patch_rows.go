@@ -307,12 +307,7 @@ func paintSplitCell(c *ui.Context, line string, number int, wrap bool, minWidth 
 	case strings.HasPrefix(line, "-"):
 		color, tint, sign = st.Del, st.Del.Alpha(.08), "-"
 	}
-	text := line
-	if sign != " " {
-		text = line[1:]
-	} else if strings.HasPrefix(text, " ") {
-		text = text[1:]
-	}
+	text := splitCellText(line)
 	row := ui.Row(c).FillWidth().MinWidth(minWidth).Height(diffRowHeight).Gap(6).Padding(0, 4).AlignItems(ui.Center)
 	if tint.A > 0 {
 		row.Background(tint)

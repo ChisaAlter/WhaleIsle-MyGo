@@ -47,15 +47,15 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 		}
 		return nil
 	})
-	c := manager.New()
-	c.Attach(fixture, nil)
+	var s mainState
+	c := s.nativePluginController()
+	transport := &dsh.Client{}
+	s.marketCoordinator().BindNativePluginManagerCaller(transport, fixture)
 	defer c.Detach()
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	owner := c.Snapshot().Owner
-	transport := &dsh.Client{}
-	s := mainState{nativePlugins: nativePluginManagerState{controller: c, client: transport, owner: owner}}
 	emit := s.nativePluginEventHandler(transport)
 	a := c.Actions(owner)
 	a.OpenInstall()

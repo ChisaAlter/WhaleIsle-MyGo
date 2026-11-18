@@ -4,11 +4,17 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type patchFile struct {
 	Path, Source string
 	Rows         []patchRow
+	metricsReady bool
+	splitColW    float32
+	uniMinW      float32
+	uniLines     []diffLine
 }
 type patchRow struct {
 	Old, New, Meta       string
@@ -19,9 +25,110 @@ type patchViewState struct {
 	Closed      map[string]bool
 	// Folded marks a file's collapsed hunks by hunk index; a missing entry is an
 	// expanded hunk, which is the default every patch opens with.
-	Folded map[string]map[int]bool
-	source string
-	files  []patchFile
+	Folded         map[string]map[int]bool
+	source         string
+	files          []patchFile
+	list           *ui.ListState
+	viewportW      float32
+	layoutSeq      uint64
+	cachedSeq      uint64
+	cachedSig      uint64
+	cachedSrc      string
+	cachedSplit    bool
+	cachedWrap     bool
+	cachedItems    []patchListItem
+	cachedMaxW     float32
+	uiParseCalls   int
+	uiMeasureCalls int
+	uiBuildCalls   int
+}
+
+func (s *patchViewState) ensureList() *ui.ListState {
+	if s.list == nil {
+		s.list = &ui.ListState{}
+	}
+	return s.list
+}
+
+func (s *patchViewState) bumpLayout() {
+	s.layoutSeq++
+}
+
+func (s *patchViewState) layoutSignature() uint64 {
+	var sig uint64 = 14695981039346656037
+	mix := func(v uint64) {
+		sig ^= v
+		sig *= 1099511628211
+	}
+	for i, f := range s.files {
+		if s.Closed[f.Path] {
+			mix(uint64(i+1)<<16 | 1)
+		}
+		for hunk, folded := range s.Folded[f.Path] {
+			if folded {
+				mix(uint64(i+1)<<32 | uint64(uint32(hunk))<<1 | 1)
+			}
+		}
+	}
+	return sig
+}
+
+func hasAnyClosedFile(m map[string]bool) bool {
+	for _, v := range m {
+		if v {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyFoldedHunk(m map[string]map[int]bool) bool {
+	for _, hunks := range m {
+		for _, v := range hunks {
+			if v {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *patchViewState) applyPrepared(pre *preparedPatchDoc) {
+	if s == nil || pre == nil {
+		return
+	}
+	if s.Closed == nil {
+		s.Closed = map[string]bool{}
+	}
+	if s.Folded == nil {
+		s.Folded = map[string]map[int]bool{}
+	}
+	if s.source != pre.source {
+		s.source = pre.source
+		s.files = pre.files
+		keep := map[string]bool{}
+		keepFolded := map[string]map[int]bool{}
+		for _, file := range s.files {
+			if s.Closed[file.Path] {
+				keep[file.Path] = true
+			}
+			if hunks := s.Folded[file.Path]; len(hunks) > 0 {
+				keepFolded[file.Path] = hunks
+			}
+		}
+		s.Closed = keep
+		s.Folded = keepFolded
+		s.bumpLayout()
+	}
+	if !hasAnyClosedFile(s.Closed) && !hasAnyFoldedHunk(s.Folded) && pre.split == s.Split && pre.wrap == s.Wrap && pre.items != nil {
+		s.cachedItems = pre.items
+		s.cachedMaxW = pre.maxRowW
+		s.cachedSrc = s.source
+		s.cachedSplit = pre.split
+		s.cachedWrap = pre.wrap
+		s.cachedSeq = s.layoutSeq
+		s.cachedSig = s.layoutSignature()
+	}
 }
 
 func (s *patchViewState) update(source string) []patchFile {
@@ -32,8 +139,20 @@ func (s *patchViewState) update(source string) []patchFile {
 		s.Folded = map[string]map[int]bool{}
 	}
 	if s.source != source {
-		s.source = source
-		s.files = parsePatchFiles(source)
+		if pre := lookupPrebuiltPatchDoc(source, s.Split, s.Wrap); pre != nil {
+			s.applyPrepared(pre)
+			return s.files
+		}
+		if pre := lookupPrebuiltPatchFiles(source); pre != nil {
+			s.source = source
+			s.files = pre.files
+		} else {
+			s.source = source
+			s.uiParseCalls++
+			files := parsePatchFiles(source)
+			measurePatchFilesMetrics(files, &s.uiMeasureCalls)
+			s.files = files
+		}
 		keep := map[string]bool{}
 		keepFolded := map[string]map[int]bool{}
 		for _, file := range s.files {
@@ -44,6 +163,7 @@ func (s *patchViewState) update(source string) []patchFile {
 		}
 		s.Closed = keep
 		s.Folded = keepFolded
+		s.bumpLayout()
 	}
 	return s.files
 }
@@ -65,6 +185,7 @@ func (s *patchViewState) foldedHunks(path string) map[int]bool {
 func (s *patchViewState) toggleHunk(path string, index int) {
 	hunks := s.foldedHunks(path)
 	hunks[index] = !hunks[index]
+	s.bumpLayout()
 }
 
 // setAllHunks folds or unfolds every hunk of every visible file, the per-hunk
@@ -85,6 +206,7 @@ func (s *patchViewState) setAllHunks(folded bool) {
 			index++
 		}
 	}
+	s.bumpLayout()
 }
 func (s *patchViewState) setAllClosed(closed bool) {
 	for _, file := range s.files {
@@ -94,6 +216,7 @@ func (s *patchViewState) setAllClosed(closed bool) {
 		}
 		s.Closed[file.Path] = true
 	}
+	s.bumpLayout()
 }
 func safePatchPath(p string) bool {
 	if p == "" || p == "." || strings.HasPrefix(p, "/") || strings.ContainsAny(p, "\\\x00:") || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") {

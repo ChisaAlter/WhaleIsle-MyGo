@@ -1,9 +1,16 @@
 # Native full packages, runtime variants, mirrors and range deltas
 
-The launcher selects an exact native package, downloads or reconstructs it,
+The update center selects an exact native package, downloads or reconstructs it,
 checks the final SHA-256/size and configured signature requirements, and retains
 the installer until the user confirms the existing task/session-safe handoff.
 Downloading does not change the installation.
+
+Windows releases are unsigned by default, following the 2026-11-17 product
+decision. Finalization and native staging still require the final size/SHA-256,
+HTTPS source and MyGo package/installation identity. A skipped signature check
+does not verify a platform publisher. Explicit `-RequireSignature`,
+`WHALEISLE_UPDATE_REQUIRE_SIGNATURE=1` or `WHALEISLE_UPDATE_PUBLISHER` retains
+strict enforcement. Other platform defaults are unchanged.
 
 For the current parity work, use the [LIFE-025 publication handoff](#life-025-publication-handoff-2026-11-03).
 The dated local artifacts below are historical evidence, not the current parity
@@ -71,7 +78,9 @@ Unsupported packages remain visible with their reason and cannot be selected.
 
 ## Publisher
 
-Use already built and signed native artifacts. This command reads/hashes them
+Use already built final native artifacts. Windows artifacts need no signature
+unless one was explicitly required; if signing is used, complete and verify it
+before producing metadata. This command reads/hashes the final bytes
 and emits metadata; it does not build, publish, upload, download, install, or
 execute an app or installer:
 
@@ -112,7 +121,8 @@ from a boolean in the config. Windows runtime packages use the existing Host,
 mobile and Node checks. macOS uses inspectMacOSApp/inspectDMG from the macOS
 packaging module; its app version must match the release. Run platform-specific
 verification with the matching platform/architecture as required by the current
-Host verifier. Generate metadata after signing because signing changes bytes.
+Host verifier. Generate metadata from the final bytes; any signing must happen
+first because it changes those bytes.
 
 Both variants need distinct installer filenames and distinct stage directories.
 Adding/replacing one variant keeps the other variant and other architectures.
@@ -124,7 +134,7 @@ bytes. The existing 500-entry and 2 MiB catalog limits remain.
 A delta is an independent package selection using algorithm=sha256-range-v1.
 It reuses the existing block-map/HTTP Range reconstruction implementation; it
 is not a separate executable or a fabricated patch asset. Its URL points at the
-same signed final installer as its full counterpart.
+same final installer as its full counterpart.
 
 The publisher accepts deltaBases only when the previous catalog identifies the
 exact same platform, architecture and runtime variant. It hashes the supplied
@@ -186,7 +196,7 @@ executing Node or changing the running Host.
 After confirmation, the existing Host task inspection/drain/stop path stops Host
 and the phone connection. The atomic installed.json selection points both vendor
 and Node at this complete runtime. Previous versions and profile data remain;
-selection itself leaves Host stopped. “Start Host” uses the ordinary launcher
+selection itself leaves Host stopped. “Start Host” uses the ordinary workbench
 start, recreating the supervisor, Project bridge and plugin install control with
 the selected paths. Subsequent app starts reuse that selection.
 
@@ -234,10 +244,10 @@ domestic-update feature.
 | Version/tag | The accepted version and one matching tag: the version itself, `v<version>`, or `mygo-v<version>`. Do not change the bundled Host version/source/readiness record to match a desktop version. |
 | GitHub target | The client's existing default is `ChisaAlter/WhaleIsle-MyGo`; publish the catalog as `WhaleIsle-MyGo-releases.json` in the release selected by `/releases/latest/download/`. This is the configured target, not an availability check. |
 | CNB target | The release owner's approved native repository and its actual anonymous HTTPS attachment-directory URL for this tag, plus the actual anonymous catalog URL. No native CNB address is recorded in this project. |
-| Authority | Separate permission to publish/upload and, if required, create the matching tag. Use the approved GitHub/CNB credential mechanism for that target; never put credentials in metadata or URLs. Signing keys remain in the existing signing process. |
+| Authority | Separate permission to publish/upload and, if required, create the matching tag. Use the approved GitHub/CNB credential mechanism for that target; never put credentials in metadata or URLs. If signing is explicitly required, keys remain in the existing signing process. |
 
 The final installer basename and exact size/SHA-256 become the package identity
-on both routes. Build the catalog **after signing** from those final bytes and
+on both routes. Build the catalog from the **final bytes**, after any configured signing, and
 the actual stage using `scripts/native-release-catalog.mjs`. The existing
 producer verifies the selected native Host/mobile graph and Node target for a
 runtime-inclusive package. A shell-only package cannot supply a missing Host.

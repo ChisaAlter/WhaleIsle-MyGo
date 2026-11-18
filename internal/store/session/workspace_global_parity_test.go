@@ -178,3 +178,44 @@ func TestDeleteFailureKeepsExactTargetForRetry(t *testing.T) {
 		}
 	})
 }
+
+func TestInitializeDefaultWorkspaceCreatesRemotePOSIXPathWithoutLocalStat(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New()
+		createCalled := 0
+		client := parityWorkspaceClient(t, func(method string) (any, error) {
+			switch method {
+			case "workspace/initializeDefault":
+				return map[string]any{"workspace": map[string]any{}}, nil
+			case "workspace/create":
+				createCalled++
+				return map[string]any{
+					"workspace": map[string]any{"workspaceId": "ws-remote", "path": "/remote/posix/repo"},
+				}, nil
+			default:
+				return map[string]any{"items": []any{}}, nil
+			}
+		})
+		s.Attach(client, nil)
+		s.SetWorkspaceCwd("/remote/posix/repo")
+		s.InitializeDefaultWorkspace(context.Background())
+		synctest.Wait()
+		if createCalled != 1 {
+			t.Fatalf("workspace/create calls = %d, want 1", createCalled)
+		}
+		if got := s.WorkspaceID(); got != "ws-remote" && s.initialWorkspaceSession.defaultID != "ws-remote" {
+			t.Fatalf("remote POSIX workspace was not created: wsID=%q defaultID=%q", got, s.initialWorkspaceSession.defaultID)
+		}
+		// Ensure WorkspaceRow was registered on the store.
+		snap := s.Snapshot()
+		found := false
+		for _, ws := range snap.Workspaces {
+			if ws.WorkspaceID == "ws-remote" && ws.Path == "/remote/posix/repo" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("remote POSIX workspace missing from snapshot: %+v", snap.Workspaces)
+		}
+	})
+}

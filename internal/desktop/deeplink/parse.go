@@ -41,11 +41,16 @@ type Target struct {
 //	whaleisle:///?action=settings&section=desktop
 func Parse(raw string) (Target, bool) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
+	if raw == "" || strings.ContainsRune(raw, '\\') {
 		return Target{}, false
 	}
+	for _, r := range raw {
+		if r < 0x20 || r == 0x7f {
+			return Target{}, false
+		}
+	}
 	u, err := url.Parse(raw)
-	if err != nil {
+	if err != nil || u.User != nil {
 		return Target{}, false
 	}
 	if !strings.EqualFold(u.Scheme, Scheme) {
@@ -56,6 +61,7 @@ func Parse(raw string) (Target, bool) {
 	path := strings.Trim(strings.TrimPrefix(u.Path, "/"), "/")
 	q := u.Query()
 
+	var ok bool
 	switch host {
 	case "", "open":
 		if path == "" && q.Get("action") == "" {
@@ -68,41 +74,68 @@ func Parse(raw string) (Target, bool) {
 		}
 		// path-only or query action on empty host
 		if a := strings.ToLower(q.Get("action")); a != "" {
-			return parseAction(a, q, t)
+			t, ok = parseAction(a, q, t)
+		} else {
+			t, ok = parsePath(path, q, t)
 		}
-		return parsePath(path, q, t)
 	case "launcher":
-		t.Action = ActionLauncher
-		return t, true
+		t.Action, ok = ActionLauncher, true
 	case "settings":
 		t.Action = ActionSettings
 		t.Section = strings.TrimSpace(q.Get("section"))
 		if path != "" && t.Section == "" {
 			t.Section = path
 		}
-		return t, true
+		ok = true
 	case "session":
 		t.Action = ActionSession
 		t.SessionID = firstNonEmpty(path, q.Get("id"), q.Get("sessionId"))
-		return t, true
+		ok = true
 	case "usage":
-		t.Action = ActionUsage
-		return t, true
+		t.Action, ok = ActionUsage, true
 	case "market", "plugins":
-		t.Action = ActionMarket
-		return t, true
+		t.Action, ok = ActionMarket, true
 	case "schedule":
-		t.Action = ActionSchedule
-		return t, true
+		t.Action, ok = ActionSchedule, true
 	case "agents":
-		t.Action = ActionAgents
-		return t, true
+		t.Action, ok = ActionAgents, true
 	case "auth", "callback", "oauth":
-		t.Action = ActionAuth
-		return t, true
+		t.Action, ok = ActionAuth, true
 	default:
-		return parsePath(host+"/"+path, q, t)
+		t, ok = parsePath(host+"/"+path, q, t)
 	}
+	if !ok || !validateTarget(&t) {
+		return Target{}, false
+	}
+	return t, true
+}
+
+func validateTarget(t *Target) bool {
+	if !validDeeplinkParam(t.Section, 64, false) {
+		return false
+	}
+	if !validDeeplinkParam(t.SessionID, 128, true) {
+		return false
+	}
+	return true
+}
+
+func validDeeplinkParam(v string, maxLen int, allowDot bool) bool {
+	if v == "" {
+		return true
+	}
+	if len(v) > maxLen || v == "." || v == ".." || strings.Contains(v, "..") {
+		return false
+	}
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		isAlphaNum := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+		if isAlphaNum || c == '-' || c == '_' || (allowDot && c == '.') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func parseAction(a string, q url.Values, t Target) (Target, bool) {

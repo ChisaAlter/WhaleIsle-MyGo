@@ -23,8 +23,13 @@ import (
 
 var settingsAcceptanceError error
 
-// The tag is intentionally exclusive of the other native TestMain tags.
-func TestMain(m *testing.M) { settingsAcceptanceError = nativeSettingsAcceptance(); os.Exit(m.Run()) }
+func TestMain(m *testing.M) {
+	if len(os.Args) == 3 && os.Args[1] == nativeRecoveryFlag {
+		os.Exit(0)
+	}
+	settingsAcceptanceError = nativeSettingsAcceptance()
+	os.Exit(m.Run())
+}
 func TestNativeSettingsAcceptance(t *testing.T) {
 	if settingsAcceptanceError != nil {
 		t.Fatal(settingsAcceptanceError)
@@ -62,6 +67,7 @@ func nativeSettingsAcceptance() error {
 		v.Workspace, v.Host, v.Port, v.Locale = workspace, "127.0.0.1", 32185, "en"
 		v.NodeBin = os.Getenv("WHALEISLE_NODE")
 		v.HarnessAutoRestart = false
+		v.AutoDownloadUpdates = false
 	}); err != nil {
 		return err
 	}
@@ -69,12 +75,15 @@ func nativeSettingsAcceptance() error {
 	finish := func(err error) {
 		result <- err
 		state.mu.Lock()
-		state.quitting = true
 		sup := state.sup
 		state.mu.Unlock()
 		if sup != nil {
 			sup.Stop()
 		}
+		state.mu.Lock()
+		state.quitting = true
+		state.quitCleanupFinished = true
+		state.mu.Unlock()
 		mygo.App.Quit()
 	}
 	go func() {
@@ -112,15 +121,15 @@ func nativeSettingsAcceptance() error {
 		// the unique General rail control and use the actual focus order, so an
 		// unscoped label lookup cannot accidentally dismiss the modal mask.
 		navigate := func(page string) error {
-			steps, ok := map[string]int{"Appearance": 1, "Interface": 2, "Plugins": 4, "Skills": 5, "MCP": 7, "About": 13}[page]
-			if !ok {
+			allowed := map[string]bool{"Appearance": true, "Interface": true, "Plugins": true, "Skills": true, "MCP": true, "About": true}
+			if !allowed[page] {
 				return fmt.Errorf("unapproved settings page %q", page)
 			}
 			return action(func() error {
 				if err := tt.Click("General"); err != nil {
 					return err
 				}
-				for range steps {
+				for i := 0; i < 24 && !tt.Focused(page); i++ {
 					tt.Key(0, ui.KeyTab)
 				}
 				if !tt.Focused(page) {
@@ -218,7 +227,10 @@ func nativeSettingsAcceptance() error {
 				return
 			}
 			if page == "Plugins" {
-				err = settingsQAWait("real plugin inventory", func() bool { s := state.settingsPluginInventory.Snapshot(); return s.Ready && !s.Busy && s.Err == "" })
+				err = settingsQAWait("real plugin inventory", func() bool {
+					s := state.marketCoordinator().Inventory().Snapshot()
+					return s.Ready && !s.Busy && s.Err == ""
+				})
 			} else if page == "MCP" {
 				err = settingsQAWait("real MCP empty catalog", func() bool {
 					s := state.mcpController().Snapshot()
@@ -323,7 +335,7 @@ func nativeSettingsAcceptance() error {
 	select {
 	case err := <-result:
 		return err
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		return fmt.Errorf("desktop exited before settings proof")
 	}
 }

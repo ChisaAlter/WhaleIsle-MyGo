@@ -15,14 +15,6 @@ type workspaceResourceEntry struct {
 	open                   func()
 }
 
-// PluginRightPaneKind describes one registered guide door, not an open tab.
-// The source keeps responsibility for creating/mounting its real occurrence.
-type PluginRightPaneKind struct {
-	ID, ProviderID, Kind, Label, Description, Icon string
-	Order                                          int
-	Disabled                                       bool
-}
-
 func workspaceResourceIcon(name string) *ui.SVG {
 	switch name {
 	case "terminal", "PluginArtworkTerminal":
@@ -88,61 +80,6 @@ func workspaceResourceEntries(m Model) []workspaceResourceEntry {
 	} else if m.BrowserContent != nil || m.NewWorkspaceBrowser != nil {
 		route("browser", i18n.T(i18n.KeyBrowserPreviewTitle), surfacesText("card.browser.description"), workspacePaneBrowserIcon, false)
 	}
-	for _, registered := range m.PluginRightPaneKinds {
-		if registered.ID == "" || registered.Kind == "" || registered.Label == "" || m.DisableDeveloperTools && registered.Kind == "session-inspector-log" {
-			continue
-		}
-		kind := registered.Kind
-		if kind == "terminal" {
-			kind = "host-terminal"
-		}
-		if kind == "agent-team" {
-			kind = "team"
-		}
-		nativeProviders := map[string]string{
-			"@deepseek-ai/dsh-client-ui-files/files":             "files",
-			"@deepseek-ai/dsh-client-ui-sidebar-files":           "files",
-			"@deepseek-ai/dsh-client-ui-diff":                    "diff",
-			"@deepseek-ai/dsh-client-ui-agents-panel":            "agents",
-			"@deepseek-ai/dsh-experimental-client-ui-agent-team": "team",
-			"@deepseek-ai/dsh-client-ui-sidebar-terminal":        "host-terminal",
-			"@deepseek-ai/dsh-client-ui-sidebar-browser":         "browser",
-			"@deepseek-ai/dsh-client-ui-preview/browser":         "browser",
-			"@deepseek-ai/dsh-experimental-session-inspector":    "session-inspector-log",
-		}
-		native := false
-		for i := range entries {
-			if entries[i].id == kind {
-				if nativeProviders[registered.ProviderID] != kind {
-					entries = append(entries[:i], entries[i+1:]...)
-					break
-				}
-				entries[i].title, entries[i].description = registered.Label, registered.Description
-				entries[i].disabled = entries[i].disabled || registered.Disabled
-				if icon := workspaceResourceIcon(registered.Icon); registered.Icon != "" && icon != workspacePaneResourcesIcon {
-					entries[i].icon = icon
-				}
-				order[kind] = registered.Order
-				native = true
-				break
-			}
-		}
-		if native {
-			continue
-		}
-		registered := registered
-		id := "registered:" + registered.ID
-		order[id] = registered.Order
-		entries = append(entries, workspaceResourceEntry{id, registered.Label, registered.Description, workspaceResourceIcon(registered.Icon), registered.Disabled || !selected || m.OnOpenPluginRightPaneKind == nil, func() {
-			guideID := ""
-			if m.workspacePane != nil && m.workspacePane.Kind == "guide" {
-				guideID = m.workspacePane.ID
-			}
-			if err := m.OnOpenPluginRightPaneKind(registered.Kind, guideID); err != nil && m.Sizes != nil && m.Sizes.Workspace != nil {
-				m.Sizes.Workspace.message = err.Error()
-			}
-		}})
-	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		left, ok := order[entries[i].id]
 		if !ok {
@@ -163,25 +100,6 @@ func workspaceResourceMenu(menu *ui.Menu, m Model) {
 	for _, entry := range workspaceResourceEntries(m) {
 		if menu.Item(entry.title).Disabled(entry.disabled).Chosen() {
 			entry.open()
-		}
-	}
-	if len(m.PluginRightPaneTabs) > 0 {
-		menu.Separator()
-	}
-	for _, plugin := range m.PluginRightPaneTabs {
-		if plugin.Handle == "" {
-			continue
-		}
-		plugin := plugin
-		label := plugin.Label
-		if label == "" {
-			label = plugin.Kind
-		}
-		if menu.Item(label).Disabled(m.OnSelectPluginRightPaneTab == nil || m.Sizes == nil || m.Sizes.Workspace == nil).Chosen() {
-			openWorkspaceResource(m, "plugin-native", func() {
-				m.OnSelectPluginRightPaneTab(plugin.Handle)
-				m.Sizes.Workspace.OpenPluginRightPaneTab(plugin.Handle, label)
-			})
 		}
 	}
 	if m.Sizes == nil || m.Sizes.Workspace == nil {

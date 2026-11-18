@@ -26,13 +26,18 @@ func (w *Workbench) RequestCaptionAction(root, message, action string) bool {
 		// The pinned default-ref quick action is named commit_push even on a
 		// clean tree. Its commit step is skipped; keep Push review reachable
 		// instead of trapping it in an empty selected-file commit form.
-		if len(w.Changes) == 0 && action != "commit" {
+		if w.Loaded && w.Root == root && len(w.Changes) == 0 && action != "commit" {
 			if action == "commit_push_pr" {
 				w.RequestPR(root)
 			} else {
 				w.requestRemote(root, "push")
 			}
 			return true
+		}
+		if !w.Loaded && action != "commit" {
+			w.pendingCaptionAction = action
+			w.pendingCaptionRoot = root
+			w.pendingCaptionGen = w.bindRoot(root)
 		}
 		s := w.commitState()
 		s.Excluded = map[string]bool{}
@@ -53,14 +58,10 @@ func (w *Workbench) RequestCaptionAction(root, message, action string) bool {
 		w.cancelCommitPreparation()
 		w.cancelRemotePreparation()
 		w.Remote = nil
-		if w.Root != root {
-			w.cancelBranchList()
-			w.cancelRepositoryStatus()
-			w.CancelComparison()
-			operation, invalidate := w.Operation, w.invalidate
-			*w = Workbench{Operation: operation, invalidate: invalidate, AgainstHEAD: true}
+		if w.Root != "" && w.Root != root {
+			w.resetStateForRoot(root, w.invalidate)
 		}
-		w.reload(root)
+		w.requestReload(root, false)
 		w.PublishOpen = true
 		w.PublishReview = false
 		if w.PublishOpen {
@@ -97,26 +98,20 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 		*state = captionBranchState{root: m.WorkspaceRoot}
 		*open = false
 	}
-	w.invalidate = c.Services().Invalidate
+	w.setInvalidate(c.Services().Invalidate)
 	finishGitOperation(m)
 	if w.Operation != nil {
 		*open = false
 		state.createOpen = false
 	}
-	if *open && w.Root != m.WorkspaceRoot {
-		w.cancelBranchList()
-		w.cancelRepositoryStatus()
-		w.cancelCommitPreparation()
-		w.cancelRemotePreparation()
-		w.CancelComparison()
-		operation, invalidate := w.Operation, w.invalidate
-		*w = Workbench{Root: m.WorkspaceRoot, Operation: operation, invalidate: invalidate, AgainstHEAD: true}
+	if *open && ((w.Root != "" && w.Root != m.WorkspaceRoot) || (w.loader != nil && w.loader.currentRoot() != "" && w.loader.currentRoot() != m.WorkspaceRoot)) {
+		w.resetStateForRoot(m.WorkspaceRoot, c.Services().Invalidate)
 	}
 	if *open && !state.open {
 		w.BranchesOpen = true
 		w.BranchQuery = ""
 		state.notice = ""
-		w.reloadBranches()
+		w.reloadBranchesIfNeeded()
 	}
 	if !*open && state.open {
 		w.BranchesOpen = false
@@ -231,6 +226,7 @@ func CaptionActivity(c *ui.Context, m Model) {
 	if w == nil {
 		return
 	}
+	w.setInvalidate(c.Services().Invalidate)
 	finishGitOperation(m)
 	width, height := c.Size()
 	if w.Progress != nil {

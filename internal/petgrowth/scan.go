@@ -6,9 +6,12 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +19,8 @@ import (
 
 //go:embed scan.cjs
 var scanScript string
+
+var logGenerationPattern = regexp.MustCompile(`^session(?:\.v([1-9][0-9]*))?\.jsonl\.zstd$`)
 
 // scanDir is one session directory's settlements and the log signature they
 // were decoded from.
@@ -41,8 +46,12 @@ type scanResultDir struct {
 // directories it finished for the next one.
 var scanCache struct {
 	sync.Mutex
-	root string
-	dirs map[string]scanDir
+	root     string
+	dirs     map[string]scanDir
+	order    []string
+	goRoot   string
+	goSigs   map[string]string
+	complete bool
 }
 
 // Scan reads only the authorized app DSH home's sessions directory. The caller
@@ -58,6 +67,10 @@ func scanSessionUsage(ctx context.Context, node, home string) (Usage, error) {
 		return Usage{}, errors.New("pet scanner runtime unavailable")
 	}
 	root := filepath.Join(home, "sessions")
+	fastUsage, goSigs, handled, fastErr := tryFastSessionScan(root)
+	if handled {
+		return fastUsage, fastErr
+	}
 	prior := map[string]string{}
 	scanCache.Lock()
 	if scanCache.root == root {
@@ -88,6 +101,10 @@ func scanSessionUsage(ctx context.Context, node, home string) (Usage, error) {
 	cmd.Stdout = &out
 	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Run(); err != nil {
+		scanCache.Lock()
+		scanCache.complete = false
+		scanCache.goSigs = nil
+		scanCache.Unlock()
 		return Usage{}, errors.New("pet usage scan unavailable or incomplete")
 	}
 	var result struct {
@@ -95,9 +112,186 @@ func scanSessionUsage(ctx context.Context, node, home string) (Usage, error) {
 		Complete bool            `json:"complete"`
 	}
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		scanCache.Lock()
+		scanCache.complete = false
+		scanCache.goSigs = nil
+		scanCache.Unlock()
 		return Usage{}, errors.New("invalid pet usage scan result")
 	}
-	return mergeScanUsage(root, result.Dirs, result.Complete)
+	usage, err := mergeScanUsage(root, result.Dirs, result.Complete)
+	if err != nil {
+		scanCache.Lock()
+		scanCache.complete = false
+		scanCache.goSigs = nil
+		scanCache.Unlock()
+		return Usage{}, err
+	}
+	scanCache.Lock()
+	if scanCache.root == root {
+		scanCache.goRoot = root
+		scanCache.goSigs = goSigs
+		scanCache.complete = true
+	}
+	scanCache.Unlock()
+	return usage, nil
+}
+
+func logGeneration(name string) int {
+	m := logGenerationPattern.FindStringSubmatch(name)
+	if m == nil {
+		return -1
+	}
+	if m[1] == "" {
+		return 0
+	}
+	v, err := strconv.Atoi(m[1])
+	if err != nil {
+		return -1
+	}
+	return v
+}
+
+func walkSessionLogSigs(root string) (map[string]string, error) {
+	rootStat, err := os.Lstat(root)
+	if err != nil || !rootStat.IsDir() || rootStat.Mode()&os.ModeSymlink != 0 {
+		return nil, errors.New("pet usage scan unavailable or incomplete")
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, errors.New("pet usage scan unavailable or incomplete")
+	}
+	withinRoot := func(realPath string) (string, bool) {
+		rel, err := filepath.Rel(realRoot, realPath)
+		if err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", false
+		}
+		if rel == "." {
+			return "", true
+		}
+		return rel, true
+	}
+
+	out := map[string]string{}
+	stack := []string{realRoot}
+	dirs, files := 0, 0
+	for len(stack) > 0 {
+		dir := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		dirs++
+		if dirs > 50000 {
+			return nil, errors.New("scan directory limit")
+		}
+		ds, err := os.Lstat(dir)
+		if err != nil || !ds.IsDir() || ds.Mode()&os.ModeSymlink != 0 {
+			return nil, errors.New("invalid session directory")
+		}
+		realDir, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			return nil, errors.New("invalid session directory")
+		}
+		dr, ok := withinRoot(realDir)
+		if !ok {
+			return nil, errors.New("invalid session directory")
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, errors.New("invalid session directory")
+		}
+		var (
+			hasBest  bool
+			bestGen  int
+			bestName string
+			bestSize int64
+			bestMod  int64
+		)
+		for _, ent := range entries {
+			if ent.Type()&os.ModeSymlink != 0 {
+				continue
+			}
+			full := filepath.Join(dir, ent.Name())
+			if ent.IsDir() {
+				stack = append(stack, full)
+				continue
+			}
+			gen := logGeneration(ent.Name())
+			if gen < 0 {
+				continue
+			}
+			files++
+			if files > 20000 {
+				return nil, errors.New("scan file limit")
+			}
+			st, err := os.Lstat(full)
+			if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() > 128*1024*1024 {
+				return nil, errors.New("invalid session file")
+			}
+			realFile, err := filepath.EvalSymlinks(full)
+			if err != nil {
+				return nil, errors.New("invalid session file")
+			}
+			if _, ok := withinRoot(realFile); !ok {
+				return nil, errors.New("invalid session file")
+			}
+			if !hasBest || gen > bestGen {
+				hasBest = true
+				bestGen = gen
+				bestName = ent.Name()
+				bestSize = st.Size()
+				bestMod = st.ModTime().UnixNano()
+			}
+		}
+		if hasBest {
+			out[dr] = fmt.Sprintf("%s:%d:%d", bestName, bestSize, bestMod)
+		}
+	}
+	return out, nil
+}
+
+func tryFastSessionScan(root string) (Usage, map[string]string, bool, error) {
+	goSigs, err := walkSessionLogSigs(root)
+	if err != nil {
+		return Usage{}, nil, true, errors.New("pet usage scan unavailable or incomplete")
+	}
+	if len(goSigs) == 0 {
+		scanCache.Lock()
+		scanCache.root = root
+		scanCache.goRoot = root
+		scanCache.dirs = map[string]scanDir{}
+		scanCache.order = nil
+		scanCache.goSigs = map[string]string{}
+		scanCache.complete = true
+		scanCache.Unlock()
+		return Usage{Samples: map[string]int64{}, Source: "sessions", CacheInclusive: map[string]int64{}}, nil, true, nil
+	}
+	scanCache.Lock()
+	defer scanCache.Unlock()
+	if scanCache.root != root || scanCache.goRoot != root || !scanCache.complete || len(scanCache.goSigs) != len(goSigs) {
+		return Usage{}, goSigs, false, nil
+	}
+	for k, v := range goSigs {
+		if scanCache.goSigs[k] != v {
+			return Usage{}, goSigs, false, nil
+		}
+	}
+	samples := map[string]int64{}
+	cacheInclusive := map[string]int64{}
+	for _, rel := range scanCache.order {
+		entry := scanCache.dirs[rel]
+		for id, n := range entry.samples {
+			samples[id] = n
+			delete(cacheInclusive, id)
+			if old := entry.cacheInclusive[id]; old > n && old <= MaxCount {
+				cacheInclusive[id] = old
+			}
+		}
+	}
+	if len(samples) > 200000 {
+		return Usage{}, nil, true, errors.New("pet usage scan settlement limit")
+	}
+	if _, err := ValidateSamples(samples); err != nil {
+		return Usage{}, nil, true, err
+	}
+	return Usage{Samples: samples, Source: "sessions", CacheInclusive: cacheInclusive}, goSigs, true, nil
 }
 
 // mergeScan folds directory results in scan order, as the scanner once did in
@@ -115,6 +309,7 @@ func mergeScanUsage(root string, dirs []scanResultDir, complete bool) (Usage, er
 		scanCache.root, scanCache.dirs = root, map[string]scanDir{}
 	}
 	next := make(map[string]scanDir, len(dirs))
+	order := make([]string, 0, len(dirs))
 	samples := map[string]int64{}
 	cacheInclusive := map[string]int64{}
 	for _, d := range dirs {
@@ -123,11 +318,13 @@ func mergeScanUsage(root string, dirs []scanResultDir, complete bool) (Usage, er
 			cached, ok := scanCache.dirs[d.R]
 			if !ok || cached.sig != d.S {
 				scanCache.dirs = map[string]scanDir{}
+				scanCache.order = nil
 				return Usage{}, errors.New("pet usage scan cache out of step")
 			}
 			entry = cached
 		}
 		next[d.R] = entry
+		order = append(order, d.R)
 		for id, n := range entry.samples {
 			samples[id] = n
 			delete(cacheInclusive, id)
@@ -137,6 +334,7 @@ func mergeScanUsage(root string, dirs []scanResultDir, complete bool) (Usage, er
 		}
 	}
 	scanCache.dirs = next
+	scanCache.order = order
 	if !complete {
 		return Usage{}, errors.New("pet usage scan unavailable or incomplete")
 	}

@@ -72,12 +72,18 @@ type PetSettingsAccess struct {
 	OnReplaceMemory func(string)
 	OnClearMemory   func()
 	OnToggleSkill   func(string, bool)
+
+	// Optional overrides for deterministic offline tests of render asset download UI.
+	RenderAssetsOverride         *pet.RenderAssetsSnapshot
+	OnDownloadRenderAssets       func()
+	OnCancelDownloadRenderAssets func()
 }
 
 func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.Color, accesses ...*PetSettingsAccess) {
 	if p == nil {
 		return
 	}
+	p.PollDownloadedRenderAssets()
 	var a *PetSettingsAccess
 	if len(accesses) > 0 {
 		a = accesses[0]
@@ -94,7 +100,6 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		if picked := petTabs(c, "pet-tabs", []string{providerCopy("聊天与能力", "Chat & capabilities"), providerCopy("桌面形象与行为", "Desktop appearance & behavior")}, *tab, fg); picked >= 0 {
 			*tab = picked
 		}
-		settingsItemVisibility("settings.pet.item", *tab == 0)
 		if p.Error != "" && *tab == 1 {
 			ui.Text(c, providerCopy("桌面形象加载失败，请重启应用重试。", "The desktop character failed to load. Restart the app to try again.")).
 				FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Warning).Tooltip(p.Error)
@@ -103,9 +108,6 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			ui.Text(c, a.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		}
 		if *tab == 0 {
-			if !settingsItemBefore(c, "pet-assistant") {
-				return
-			}
 			if a != nil && a.AssistantAvailable {
 				petGroupLabel(c, providerCopy("助理", "Assistant"))
 				enabled := a.AssistantEnabled
@@ -159,6 +161,10 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		commit := func(field string) { savePetSetting(p, a, field) }
 		bodyHeading(c, providerCopy("外观", "Appearance"), "", fg, muted)
 		bodyLocalToggle(c, "pet-enabled", providerCopy("在桌面显示鲸鱼娘", "Show Whale on desktop"), providerCopy("关闭后隐藏桌面上的她，随时可以再开。", "Hide the on-screen companion; you can bring her back anytime."), &p.Enabled, disabled, fg, muted, func(bool) { commit("enabled") })
+		renderSnap := petRenderAssetsSnapshot(p, a)
+		if p.Enabled && renderSnap.State != pet.RenderAssetsReady {
+			petRenderAssetsRow(c, colors, "pet-render-assets", p, a, renderSnap, fg, muted)
+		}
 		bodyPreferenceRow(c, "pet-scale-opacity", providerCopy("体型与不透明度", "Size & opacity"), "", fg, muted, func() {
 			percentage := func(label, field string, value *float64, choices []string) {
 				selected := fmt.Sprintf("%.0f%%", *value*100)
@@ -246,6 +252,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				save()
 			}
 			bodyLocalToggle(c, "pet-neural", providerCopy("THA4 动画", "THA4 animation"), providerCopy("使用已验证的本地资源；不可用时使用内置动画。", "Uses verified local resources, with bundled animation when unavailable."), &p.Neural, disabled, fg, muted, nil)
+			petRenderAssetsRow(c, colors, "pet-local-render-assets", p, a, renderSnap, fg, muted)
 			options := []string{""}
 			found := p.SkinID == ""
 			for _, skin := range p.Skins {
@@ -276,5 +283,66 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				}
 			}
 		})
+	})
+}
+
+func petRenderAssetsSnapshot(p *pet.Companion, a *PetSettingsAccess) pet.RenderAssetsSnapshot {
+	if a != nil && a.RenderAssetsOverride != nil {
+		return *a.RenderAssetsOverride
+	}
+	return p.RenderAssetsStatus()
+}
+
+func petRenderAssetsRow(c *ui.Context, colors theme.Colors, key string, p *pet.Companion, a *PetSettingsAccess, snap pet.RenderAssetsSnapshot, fg, muted ui.Color) {
+	title := providerCopy("高阶渲染包（THA4 + Anime4K）", "High-res render pack (THA4 + Anime4K)")
+	var hint string
+	switch snap.State {
+	case pet.RenderAssetsReady:
+		hint = providerCopy("已就绪，将用于鲸鱼娘高阶动画与超分显示。", "Verified and ready for THA4 animation and super-resolution.")
+	case pet.RenderAssetsDownloading:
+		pct := 0
+		if snap.TotalBytes > 0 {
+			pct = int(snap.DownloadedBytes * 100 / snap.TotalBytes)
+		}
+		hint = fmt.Sprintf(providerCopy("正在下载校验：%.1f / %.1f MiB (%d%%)", "Downloading & verifying: %.1f / %.1f MiB (%d%%)"),
+			float64(snap.DownloadedBytes)/(1024*1024), float64(snap.TotalBytes)/(1024*1024), pct)
+	case pet.RenderAssetsError:
+		hint = fmt.Sprintf(providerCopy("下载失败（已清理未完成文件）：%s", "Download failed (partial files cleaned): %s"), snap.Error)
+	default:
+		hint = fmt.Sprintf(providerCopy("未安装高阶渲染包（约 %.1f MiB），当前使用内置轻量动画。", "Optional render pack not installed (~%.1f MiB); using bundled animation."),
+			float64(snap.TotalBytes)/(1024*1024))
+	}
+	invalidate := c.Services().Invalidate
+	start := func() {
+		if a != nil && a.OnDownloadRenderAssets != nil {
+			a.OnDownloadRenderAssets()
+			return
+		}
+		p.StartDownloadRenderAssets(invalidate)
+	}
+	cancel := func() {
+		if a != nil && a.OnCancelDownloadRenderAssets != nil {
+			a.OnCancelDownloadRenderAssets()
+			return
+		}
+		p.CancelDownloadRenderAssets()
+	}
+	bodyPreferenceRow(c, key, title, hint, fg, muted, func() {
+		switch snap.State {
+		case pet.RenderAssetsReady:
+			ui.Text(c, providerCopy("已就绪", "Ready")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		case pet.RenderAssetsDownloading:
+			if widgets.Button(c, colors, providerCopy("取消下载", "Cancel download"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+				cancel()
+			}
+		case pet.RenderAssetsError:
+			if widgets.Button(c, colors, providerCopy("重试下载", "Retry download"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
+				start()
+			}
+		default:
+			if widgets.Button(c, colors, providerCopy("下载高阶渲染包", "Download render pack"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
+				start()
+			}
+		}
 	})
 }

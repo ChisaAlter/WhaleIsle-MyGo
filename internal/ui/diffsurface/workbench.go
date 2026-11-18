@@ -11,6 +11,7 @@ import (
 // Workbench is window-owned Git UI state. No operation stages or pushes implicitly.
 type Workbench struct {
 	captionReview *captionReviewState
+	loader        *workbenchLoader
 	Progress      *git.Progress
 	LastStack     *git.StackResult
 	Remote        *remoteWorkflowState
@@ -46,6 +47,9 @@ type Workbench struct {
 	ReviewedPublish                           git.PublishInput
 	PushAfterCommit                           bool
 	ReviewedPush                              git.PushPlan
+	pendingCaptionAction                      string
+	pendingCaptionRoot                        string
+	pendingCaptionGen                         uint64
 }
 
 func word(zh, en string) string {
@@ -54,38 +58,27 @@ func word(zh, en string) string {
 	}
 	return zh
 }
-func (w *Workbench) reload(root string) {
-	w.Root = root
-	w.Loaded = true
-	w.reloadRepositoryStatus()
-	w.Repository = git.IsRepository(root)
-	changes, err := git.Changes(root)
-	if err != nil {
-		w.Status = err.Error()
-		w.Changes = nil
-		return
-	}
-	w.Changes = changes
-	w.scanCommitFiles()
-}
 func refreshWorkbench(m Model) {
 	if m.Workbench != nil {
 		w := m.Workbench
 		w.cancelCommitPreparation()
 		w.cancelRemotePreparation()
-		if w.Loaded && w.Root != m.WorkspaceRoot {
-			w.cancelBranchList()
-			w.cancelRepositoryStatus()
-			w.CancelComparison()
-			operation := w.Operation
-			*w = Workbench{Operation: operation, invalidate: w.invalidate, AgainstHEAD: true}
+		rootChanged := (w.Root != "" && w.Root != m.WorkspaceRoot) || (w.loader != nil && w.loader.currentRoot() != "" && w.loader.currentRoot() != m.WorkspaceRoot)
+		if rootChanged {
+			if m.Text != nil {
+				*m.Text = ""
+			}
+			if m.ErrMsg != nil {
+				*m.ErrMsg = ""
+			}
 			if m.PathFilter != nil {
 				*m.PathFilter = ""
 			}
+			w.resetStateForRoot(m.WorkspaceRoot, w.invalidate)
 		}
-		w.reload(m.WorkspaceRoot)
+		w.requestReload(m.WorkspaceRoot, true)
 	}
-	refresh(m)
+	refreshWithForce(m, true)
 }
 func scopeDiff(m Model, path string, staged bool) {
 	if m.PathFilter != nil {
@@ -97,7 +90,7 @@ func scopeDiff(m Model, path string, staged bool) {
 		m.Workbench.Staged = staged
 		m.Workbench.AgainstHEAD = false
 	}
-	refresh(m)
+	refreshWithForce(m, true)
 }
 func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
@@ -112,44 +105,39 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		closeCaptionReview(w, seat)
 	}
-	w.invalidate = c.Services().Invalidate
-	if !w.Loaded || w.Root != m.WorkspaceRoot {
-		w.cancelBranchList()
-		w.cancelRepositoryStatus()
-		w.cancelCommitPreparation()
-		w.cancelRemotePreparation()
-		w.CancelComparison()
-		if w.Loaded && w.Root != m.WorkspaceRoot {
-			if m.Text != nil {
-				*m.Text = ""
-			}
-			if m.ErrMsg != nil {
-				*m.ErrMsg = ""
-			}
-			if m.PathFilter != nil {
-				*m.PathFilter = ""
-			}
+	w.setInvalidate(c.Services().Invalidate)
+	rootChanged := (w.Root != "" && w.Root != m.WorkspaceRoot) || (w.loader != nil && w.loader.currentRoot() != "" && w.loader.currentRoot() != m.WorkspaceRoot)
+	if rootChanged {
+		if m.Text != nil {
+			*m.Text = ""
 		}
-		operation := w.Operation
-		*w = Workbench{Operation: operation, invalidate: c.Services().Invalidate, AgainstHEAD: true}
-		w.reload(m.WorkspaceRoot)
-		refresh(m)
+		if m.ErrMsg != nil {
+			*m.ErrMsg = ""
+		}
+		if m.PathFilter != nil {
+			*m.PathFilter = ""
+		}
+		w.resetStateForRoot(m.WorkspaceRoot, c.Services().Invalidate)
+		w.requestReload(m.WorkspaceRoot, true)
+		refreshWithForce(m, true)
+	} else if !w.Loaded {
+		w.bindRoot(m.WorkspaceRoot)
+		needDiff := !w.isReloading(m.WorkspaceRoot) && !w.hasReloadResultForRoot(m.WorkspaceRoot)
+		w.requestReload(m.WorkspaceRoot, false)
+		if needDiff {
+			refreshWithForce(m, false)
+		}
+	} else {
+		w.bindRoot(m.WorkspaceRoot)
 	}
-	w.finishRepositoryStatus()
-	finishComparison(m)
-	finishCommitPreparation(m)
-	finishGitOperation(m)
+	w.finishAsync(m)
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(4, 12, 4, 12).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
 			paintDiffScope(c, m)
 			if widgets.Button(c, colors, word("比较分支…", "Compare branch…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!w.Repository || w.Operation != nil).Clicked() {
 				w.CompareOpen = !w.CompareOpen
 				if w.CompareOpen {
-					branches, err := git.Branches(w.Root)
-					w.CompareBranches, w.CompareError = branches, ""
-					if err != nil {
-						w.CompareError = err.Error()
-					}
+					w.requestCompareBranches(false)
 				}
 			}
 			if actionButtonWithReason(c, colors, word("提交…", "Commit…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}, w.commitDisabledReason()) {
@@ -172,7 +160,9 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 		} else {
 			DrawGitProgress(c, w.Progress, fg, muted, func() { w.Progress = nil })
-			if !w.Repository {
+			if !w.Loaded && w.isReloading(m.WorkspaceRoot) {
+				ui.Text(c, word("正在加载仓库状态…", "Loading repository status…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			} else if !w.Repository {
 				ui.Text(c, i18n.T(i18n.KeyDiffNotRepo)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			} else if w.Status != "" {
 				ui.Text(c, w.Status).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).SingleLine().Ellipsis("…").TextColor(muted).Tooltip(w.Status)
@@ -200,7 +190,7 @@ func paintDiffScope(c *ui.Context, m Model) {
 			}
 			w.CancelComparison()
 			w.BaseRef, w.Staged, w.AgainstHEAD = "", false, true
-			refresh(m)
+			refreshWithForce(m, true)
 		}
 		if menu.Item(word("未暂存", "Unstaged changes")).Checked(!w.AgainstHEAD && !w.Staged && w.BaseRef == "").Chosen() {
 			scopeDiff(m, "", false)

@@ -91,13 +91,17 @@ func (s *mainState) requestImportCatalog(win *mygo.Window, source, extraRoot str
 					s.launcherImportCategories[category] = count[0] > 0
 				}
 				if previous == nil {
-					s.launcherImportAttachments = false
+					hasAtt := false
 					for _, row := range cat.Sessions {
 						if cat.HasAttachments && !row.Unsupported {
-							s.launcherImportAttachments = true
+							hasAtt = true
 							break
 						}
 					}
+					s.mu.Unlock()
+					s.launcherController().SetImportAttachments(hasAtt)
+					notify()
+					return
 				}
 			}
 			s.mu.Unlock()

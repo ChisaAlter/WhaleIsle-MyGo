@@ -34,7 +34,15 @@ func (s *Store) WallpaperBackground() (wallpapers.Preferences, error) {
 	return p, nil
 }
 
-// SaveAppearance commits native appearance preferences without changing unrelated config.
+var (
+	wallpaperPrefsFields  = structJSONFields[wallpapers.Preferences]()
+	wallpaperCropFields   = structJSONFields[wallpapers.Crop]()
+	wallpaperSourceFields = structJSONFields[wallpapers.Source]()
+	wallpaperItemFields   = structJSONFields[wallpapers.Item]()
+)
+
+// SaveWallpaperBackground commits native appearance preferences without changing unrelated config
+// and preserves unknown fields inside goWallpaperBackground and its nested objects.
 func (s *Store) SaveWallpaperBackground(p wallpapers.Preferences) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -45,27 +53,40 @@ func (s *Store) SaveWallpaperBackground(p wallpapers.Preferences) error {
 	if err != nil {
 		return err
 	}
-	merged := map[string]json.RawMessage{}
-	for key, value := range s.raw {
-		merged[key] = value
-	}
-	merged[backgroundKey] = encoded
-	data, err := json.MarshalIndent(merged, "", "  ")
+	mergedObj, err := mergeKnownFieldsObject(s.raw[backgroundKey], encoded, wallpaperPrefsFields, func(existing, out map[string]json.RawMessage) error {
+		if prevCrop := existing["wallpaperCrop"]; len(prevCrop) > 0 {
+			if nextCrop, ok := out["wallpaperCrop"]; ok {
+				if mergedCrop, err := mergeKnownFieldsObject(prevCrop, nextCrop, wallpaperCropFields, nil); err == nil {
+					out["wallpaperCrop"] = mergedCrop
+				}
+			}
+		}
+		if prevSources := existing["wallpaperSources"]; len(prevSources) > 0 {
+			if nextSources, ok := out["wallpaperSources"]; ok {
+				if mergedSources, err := mergeObjectArrayByID(prevSources, nextSources, wallpaperSourceFields, nil); err == nil {
+					out["wallpaperSources"] = mergedSources
+				}
+			}
+		}
+		if prevFavs := existing["wallpaperFavorites"]; len(prevFavs) > 0 {
+			if nextFavs, ok := out["wallpaperFavorites"]; ok {
+				if mergedFavs, err := mergeObjectArrayByID(prevFavs, nextFavs, wallpaperItemFields, nil); err == nil {
+					out["wallpaperFavorites"] = mergedFavs
+				}
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	unlock, err := s.lockCommit()
+	merged := cloneRawMap(s.raw)
+	merged[backgroundKey] = mergedObj
+	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err = s.checkBaseline(); err != nil {
-		return err
-	}
-	if err = writeAtomic(s.path, data, s.rename); err != nil {
 		return err
 	}
 	s.raw = merged
-	s.baseline = fileBaseline{exists: true, data: data}
+	s.baseline = baseline
 	return nil
 }

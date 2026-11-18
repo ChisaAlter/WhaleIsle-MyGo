@@ -33,6 +33,6 @@ func childInteractionsView(c *ui.Context, m Model, v session.AgentNavigationView
 	snap.AutoAllow = false
 	snap.Banner = ""
 	snap, takeover := interui.SelectComposerInteraction(snap)
-	interui.View(c.Key("child-interactions:"+id), interui.Model{Snapshot: snap, Store: cardStore, ThemeID: m.ThemeID, SystemDark: m.SystemDark, ScopeAgentID: id, DisablePageShortcuts: true, OnOpenPlanResource: m.OnOpenPlanResource, RenderSlot: m.InteractionRenderSlot}, resident...)
+	interui.View(c.Key("child-interactions:"+id), interui.Model{Snapshot: snap, Store: cardStore, ThemeID: m.ThemeID, SystemDark: m.SystemDark, ScopeAgentID: id, DisablePageShortcuts: true, OnOpenPlanResource: m.OnOpenPlanResource}, resident...)
 	return takeover
 }

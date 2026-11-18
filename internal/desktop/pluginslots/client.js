@@ -72,7 +72,9 @@ window.__ModuleLoader__.load({
       const listeners = new Set();
       const changed = () => { revision++; for (const listener of listeners) listener(); };
       const entries = slot => ctx.slots.entriesOfSlot(slot);
-      const own = entry => entry.options.registrant === plugin;
+      // rc.4 StoredEntry keeps ownership and child declarations beside options;
+      // options contains only the entry's key/id/order/label/priority.
+      const own = entry => entry.registrant === plugin;
       const viewKey = view => [view.slot, view.id, view.bundle || '', view.item || ''].join(':');
       const buildViews = () => {
         const rows = [];
@@ -81,7 +83,9 @@ window.__ModuleLoader__.load({
             const options = entry.options;
             const id = options.key || options.id;
             if (!id || (slot === 'main' && id === 'conversation')) continue;
-            const tab = slot === 'sidebar.page' ? entries('sidebar.nav.tab').find(row => row.options.id === id) : null;
+            const tab = slot === 'sidebar.page'
+              ? entries('sidebar.nav.tab').find(row => row.options.id === id)
+              : (slot === 'main' ? entries('sidebar.panellist').find(row => (row.options.id || row.options.key) === id) : null);
             rows.push({slot, id, label: label(tab?.options || options)});
           }
         }
@@ -91,12 +95,12 @@ window.__ModuleLoader__.load({
         const hasContribution = (names, visited = new Set()) => names.some(name => {
           if (visited.has(name)) return false;
           visited.add(name);
-          return entries(name).some(entry => own(entry) || hasContribution(Object.keys(entry.options.children || {}), visited));
+          return entries(name).some(entry => own(entry) || hasContribution(Object.keys(entry.children || {}), visited));
         });
         for (const section of entries('settings.section')) {
           const options = section.options;
           if (options.id && !rows.some(row => row.slot === 'settings.section' && row.id === options.id)
-            && hasContribution(Object.keys(options.children || {}))) {
+            && hasContribution(Object.keys(section.children || {}))) {
             rows.push({slot:'settings.section',id:options.id,label:label(options)});
           }
         }
@@ -104,7 +108,7 @@ window.__ModuleLoader__.load({
         // form/revision props. Follow that main owner's declared child slots;
         // never render plugins.* entries as standalone React components.
         for (const panel of entries('main')) {
-          const options = panel.options, children = Object.keys(options.children || {});
+          const options = panel.options, children = Object.keys(panel.children || {});
           if (!options.key || options.key === 'conversation' || !hasContribution(children)) continue;
           const bundles = new Set();
           if (children.includes('plugins.bundle.config')) {

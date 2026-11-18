@@ -747,10 +747,10 @@ func MetallicSheen(p *ui.Painter, rect ui.Rect, radius float32, hovered, animate
 	}
 	t := p.Theme()
 	phase := float32(.5)
-	if animate {
+	now := p.Now()
+	if animate && !shouldFreezeSheenAnimation(now) {
 		period := float64(4500 * 1e6) // 4.5s, as the sheet's animation
-		now := float64(p.Now().UnixNano())
-		phase = float32(.5 - .5*math.Cos(now/period*2*math.Pi))
+		phase = float32(.5 - .5*math.Cos(float64(now.UnixNano())/period*2*math.Pi))
 		p.AnimationFrame()
 	}
 	ink := t.Text.Alpha(.20)

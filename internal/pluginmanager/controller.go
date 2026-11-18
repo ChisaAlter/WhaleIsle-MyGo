@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -19,6 +22,9 @@ type Controller struct {
 	notify                                                            func()
 	state                                                             State
 	read, listingRead, indexRead, installRead, registryRead, revision uint64
+	inventoryRevision                                                 uint64
+	inventoryPlugins                                                  []Plugin
+	inventorySourceVersion                                            uint64
 	pending                                                           *action
 	selectAdded                                                       bool
 	failedDiscover                                                    *discoverRead
@@ -27,6 +33,8 @@ type Controller struct {
 	choiceRead                                                        uint64
 	registryMemory                                                    *RegistryChoice
 	registrySave                                                      func(*RegistryChoice) error
+	nativeInstall                                                     *action
+	nativeCancel                                                      context.CancelFunc
 }
 type action struct {
 	kind, target, spec, runtime string
@@ -34,6 +42,10 @@ type action struct {
 	urls                        []string
 	options                     InstallOptions
 	owner, revision             uint64
+	capabilityKind              CapabilityKind
+	mcpSpecs                    []json.RawMessage
+	localSkills                 []LocalSkillManifest
+	progress                    *nativeProgress
 }
 
 func initial(owner uint64, connected bool) State {
@@ -64,7 +76,12 @@ func (c *Controller) Attach(call Caller, notify func()) {
 	c.read++
 	c.listingRead++
 	c.revision++
+	c.inventoryRevision = 0
+	c.inventoryPlugins = nil
+	c.inventorySourceVersion = 0
 	c.pending = nil
+	c.nativeInstall = nil
+	c.nativeCancel = nil
 	c.selectAdded = false
 	c.failedDiscover = nil
 	c.mu.Unlock()
@@ -116,15 +133,28 @@ func (c *Controller) capture(ctx context.Context) (Client, uint64, context.Conte
 func (c *Controller) Ensure() {
 	c.mu.Lock()
 	needed := c.state.Status == "idle"
+	if source, ok := c.client.(interface{ InventoryVersion() uint64 }); ok && c.inventorySourceVersion != source.InventoryVersion() && c.state.Status == "ready" {
+		needed = true
+	}
+	needed = needed && !c.state.Loading
 	if needed {
 		c.state.Status = "loading"
+		c.state.Loading = true
 	}
 	c.mu.Unlock()
 	if needed {
 		go c.Load(context.Background())
 	}
 }
-func (c *Controller) Refresh(ctx context.Context) { go c.Load(ctx) }
+func (c *Controller) Refresh(ctx context.Context) {
+	c.mu.Lock()
+	caller := c.client
+	c.mu.Unlock()
+	if source, ok := caller.(interface{ InvalidateInventory() }); ok {
+		source.InvalidateInventory()
+	}
+	go c.Load(ctx)
+}
 
 // Load reads the authoritative management capability before the manager RPCs.
 // A failed same-owner refresh keeps cards; a new owner always starts empty.
@@ -154,15 +184,19 @@ func (c *Controller) Load(ctx context.Context) error {
 	c.state.Error = ""
 	c.mu.Unlock()
 	c.fire()
+	var sourceVersion uint64
+	if source, ok := client.Caller.(interface{ InventoryVersion() uint64 }); ok {
+		sourceVersion = source.InventoryVersion()
+	}
 	inventory, err := client.Inventory(ctx)
 	var packages []Package
+	var plugins []Plugin
 	available := inventory.ManagementAvailable != nil && *inventory.ManagementAvailable
 	if err == nil && available {
 		bundles, e := client.Bundles(ctx)
 		err = e
 		if err == nil {
-			plugins, e := client.Plugins(ctx)
-			err = e
+			plugins, err = client.Plugins(ctx)
 			if err == nil {
 				packages = JoinPackages(bundles, plugins)
 			}
@@ -173,6 +207,11 @@ func (c *Controller) Load(ctx context.Context) error {
 		c.mu.Unlock()
 		return err
 	}
+	if source, ok := client.Caller.(interface{ InventoryVersion() uint64 }); ok && err == nil && sourceVersion != source.InventoryVersion() {
+		c.state.Loading = false
+		c.mu.Unlock()
+		return c.Load(ctx)
+	}
 	c.state.Loading = false
 	if err != nil {
 		c.state.Status = "error"
@@ -180,10 +219,14 @@ func (c *Controller) Load(ctx context.Context) error {
 	} else if !available {
 		c.state.Status = "unavailable"
 		c.state.Packages = nil
+		c.inventoryPlugins = nil
 	} else {
 		c.state.Status = "ready"
 		c.state.Packages = packages
+		c.inventoryPlugins = plugins
+		c.inventorySourceVersion = sourceVersion
 		c.revision++
+		c.inventoryRevision++
 		if c.state.View.Kind == "package" || c.state.View.Kind == "row" {
 			if !hasPackage(packages, c.state.View.Name) {
 				c.state.View = Subject{Kind: "list"}
@@ -210,12 +253,76 @@ func JoinPackages(bundles []Bundle, plugins []Plugin) []Package {
 			}
 			p.Parts = append(p.Parts, r)
 		}
+		caps := classifyInstalledBundle(bundle)
+		p.CapabilityKind = caps.Kind
+		p.NativeCompatible = caps.NativeCompatible
+		p.CompatibilityLabel = caps.CompatibilityLabel
 		packages = append(packages, p)
 	}
 	sort.SliceStable(packages, func(i, j int) bool {
 		return strings.ToLower(ShortName(packages[i].Name)) < strings.ToLower(ShortName(packages[j].Name))
 	})
 	return packages
+}
+
+func classifyInstalledBundle(bundle Bundle) PackageCapabilities {
+	if strings.HasPrefix(bundle.Source, "file:") {
+		if dir := fileSpecToDir(bundle.Source); dir != "" {
+			if caps, err := InspectLocalPackage(dir); err == nil && caps.Kind != CapabilityUnknown {
+				return caps
+			}
+		}
+	}
+	hasClient, hasHost := false, false
+	for _, row := range bundle.Rows {
+		lower := strings.ToLower(row.ModuleName)
+		if strings.Contains(lower, "client-ui-") || strings.HasSuffix(lower, "/client") || strings.Contains(lower, "-client-") {
+			hasClient = true
+		} else {
+			hasHost = true
+		}
+	}
+	var caps PackageCapabilities
+	switch {
+	case hasHost && hasClient:
+		caps.HasHostContribution, caps.HasWebClient = true, true
+		finalizeCapabilities(&caps)
+		return caps
+	case hasClient:
+		caps.HasWebClient = true
+		finalizeCapabilities(&caps)
+		return caps
+	case hasHost:
+		caps.HasHostContribution = true
+		finalizeCapabilities(&caps)
+		return caps
+	default:
+		return InferCapabilityFromCatalogMetadata("", bundle.Name, bundle.Name, bundle.Description)
+	}
+}
+
+func fileSpecToDir(spec string) string {
+	if strings.HasPrefix(spec, "file://") {
+		if u, err := url.Parse(spec); err == nil && u.Path != "" {
+			p := filepath.FromSlash(u.Path)
+			if len(p) >= 3 && p[0] == '\\' && p[2] == ':' {
+				p = p[1:]
+			}
+			return p
+		}
+	}
+	if strings.HasPrefix(spec, "file:") {
+		raw := strings.TrimSpace(strings.TrimPrefix(spec, "file:"))
+		if raw != "" {
+			return filepath.FromSlash(raw)
+		}
+	}
+	if spec != "" {
+		if info, err := os.Stat(spec); err == nil && info.IsDir() {
+			return spec
+		}
+	}
+	return ""
 }
 func hasPackage(packages []Package, name string) bool {
 	for _, p := range packages {
@@ -416,6 +523,16 @@ func (c *Controller) run(op action) {
 		return
 	}
 	client, ctx := Client{c.client}, c.life
+	refreshContext := c.life
+	if nativeAction(op) {
+		if op.progress == nil {
+			op.progress = newNativeProgress(op)
+		}
+		op.progress.setRunning(true)
+		ctx, c.nativeCancel = context.WithCancel(c.life)
+		copy := op
+		c.nativeInstall = &copy
+	}
 	if op.kind == "install" {
 		c.state.Busy = true
 	} else {
@@ -450,7 +567,12 @@ func (c *Controller) run(op action) {
 		case "remove":
 			result, err = client.Remove(ctx, op.target)
 		case "install":
-			result, err = client.Install(ctx, op.spec, op.options)
+			if nativeAction(op) {
+				result, err = client.applyNative(ctx, op)
+				op.progress.setRunning(false)
+			} else {
+				result, err = client.Install(ctx, op.spec, op.options)
+			}
 		case "exemption":
 			result, err = client.Exempt(ctx, op.target, op.runtime)
 		}
@@ -460,6 +582,13 @@ func (c *Controller) run(op action) {
 			}
 			if op.kind == "install" {
 				s.Busy = false
+				if nativeAction(op) {
+					s.Install.NativeCanFinish = true
+				}
+				if nativeAction(op) && c.nativeCancel != nil {
+					c.nativeCancel()
+					c.nativeCancel = nil
+				}
 			} else {
 				delete(s.BusyKeys, op.target)
 			}
@@ -481,7 +610,7 @@ func (c *Controller) run(op action) {
 			return
 		}
 		if err == nil || op.kind != "install" {
-			_ = c.Load(ctx)
+			_ = c.Load(refreshContext)
 			c.BundlesChanged(op.owner)
 		} else if op.kind == "install" {
 			c.reconcileInstall(op.owner, op.options.RequestID)

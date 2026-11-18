@@ -23,7 +23,7 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 	actions["market.open"] = m.OnOpenMarket
 	actions["schedule.open"] = m.OnOpenSchedule
 	actions["assistant.open"] = m.OnOpenAssistant
-	actions["launcher.open"] = m.OnOpenLauncher
+	actions["launcher.open"] = m.OnOpenDesktopSettings
 	actions["workspace.files"] = m.OnOpenWorkspaceFiles
 	actions["session.search"] = func() {
 		if m.Sizes != nil && m.Sizes.sidebarPreference() <= 0 {
@@ -101,16 +101,6 @@ func conversationActionItem(m Model, id string) (session.Item, bool) {
 // A Project whose catalog is still loading must not fall through to Session.
 func routeProjectConversationAction(m Model, item session.Item, action string) bool {
 	if p := item.Presentation; p != nil && p.Owner != "" && p.Owner != "project" && p.Owner != "whaleisle" {
-		for _, entry := range m.WorkspaceNavigation {
-			if entry.SessionID != item.SessionID || entry.Owner != p.Owner || entry.WorkingDirectory != p.WorkingDirectory {
-				continue
-			}
-			allowed := action == "open" || action == "rename" && entry.CanRename || action == "archive" && entry.CanArchive || action == "restore" && entry.CanRestore
-			if allowed && m.OnWorkspaceSessionAction != nil {
-				m.OnWorkspaceSessionAction(item.SessionID, entry.Owner, action)
-			}
-			return true
-		}
 		// Withdrawing a source revokes its actions, not its ownership.
 		return true
 	}

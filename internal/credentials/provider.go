@@ -7,6 +7,7 @@ type credentialProvider struct {
 	backend   string
 	supported bool
 	key       func(dir string, create bool) ([]byte, error)
+	seal      func(dir string, plaintext []byte, create bool) (version string, payload []byte, err error)
 }
 
 var credentialOS = platformCredentialProvider()

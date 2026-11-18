@@ -204,3 +204,19 @@ func TestNativeLegacyLookupAndSecretWipe(t *testing.T) {
 		t.Fatal("legacy identity or read-only contract changed")
 	}
 }
+
+func TestNativeSharedSafeStoragePasswordAddIdentity(t *testing.T) {
+	f := newKeychainFixture(t)
+	password := []byte("synthetic-shared-password")
+	if err := f.api.addPassword(macSafeStorageService, macSafeStorageAccount, password); err != nil {
+		t.Fatal(err)
+	}
+	if f.adds != 1 || f.reads != 0 || len(f.last) != 4 ||
+		string(f.last[f.api.service]) != macSafeStorageService || string(f.last[f.api.account]) != macSafeStorageAccount ||
+		!bytes.Equal(f.added, password) {
+		t.Fatal("shared password add used a different identity or changed its payload")
+	}
+	if err := f.api.addPassword(macSafeStorageService, macSafeStorageAccount, nil); err == nil || f.adds != 1 {
+		t.Fatal("empty password reached the Keychain")
+	}
+}

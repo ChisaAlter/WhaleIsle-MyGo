@@ -64,6 +64,7 @@ func runNativeAppearanceAcceptance(output string) (failure error) {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = os.RemoveAll(root) }()
 	record := map[string]any{"schemaVersion": 1, "ownedRoot": root, "runtimeStage": stage, "matrix": []string{"SET-05", "SET-06"},
 		"scope":         "real isolated config/controller persistence, real Host UI-only settings and restart, public MyGo native page/state rendering; no native pointer/keyboard injection",
 		"modelRequests": 0, "credentialsRead": false, "userSettingsChanged": false, "rawOSHelper": false,
@@ -91,7 +92,10 @@ func runNativeAppearanceAcceptance(output string) (failure error) {
 	if err != nil {
 		return err
 	}
-	if err = cfg.Update(func(c *config.Config) { c.Theme = theme.IDDeepseekLight }); err != nil {
+	if err = cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekLight
+		c.AutoDownloadUpdates = false
+	}); err != nil {
 		return err
 	}
 	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}

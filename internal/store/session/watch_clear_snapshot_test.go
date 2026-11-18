@@ -2,7 +2,13 @@ package session
 
 import (
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
+	"testing/synctest"
 
 	"whaleisle/internal/dsh"
 )
@@ -57,4 +63,72 @@ func TestWatchRestartClearsCachedControlAndBand(t *testing.T) {
 			}
 		})
 	}
+}
+
+type bandPressTestTransport func(*http.Request) (*http.Response, error)
+
+func (f bandPressTestTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestPressBandDiscardsStaleResponseAcrossSessionSwitch(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		entered := make(chan struct{})
+		release := make(chan struct{})
+		var enteredOnce sync.Once
+		client := &dsh.Client{
+			Endpoint: dsh.Endpoint{Origin: "https://band.invalid"},
+			HTTP: &http.Client{Transport: bandPressTestTransport(func(r *http.Request) (*http.Response, error) {
+				var env struct {
+					RPCID string `json:"rpcId"`
+				}
+				_ = json.NewDecoder(r.Body).Decode(&env)
+				if !strings.HasSuffix(r.URL.Path, "/claudeCodeMods/pressBand") {
+					raw, _ := json.Marshal(map[string]any{
+						"type":   "server-response",
+						"rpcId":  env.RPCID,
+						"result": map[string]any{"ok": true, "value": map[string]any{}},
+					})
+					return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(string(raw))), Request: r}, nil
+				}
+				enteredOnce.Do(func() { close(entered) })
+				<-release
+				raw, _ := json.Marshal(map[string]any{
+					"type":  "server-response",
+					"rpcId": env.RPCID,
+					"result": map[string]any{
+						"ok": true,
+						"value": map[string]any{
+							"generation": 9,
+							"tree":       []any{map[string]any{"actionId": "stale-btn", "label": "Stale"}},
+						},
+					},
+				})
+				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(string(raw))), Request: r}, nil
+			})},
+		}
+
+		s := New()
+		s.Attach(client, nil)
+		s.mu.Lock()
+		s.selectedID = "session-a"
+		s.bandGeneration = 3
+		s.bandActions = []BandAction{{ID: "old", Label: "Old"}}
+		s.mu.Unlock()
+
+		s.PressBand(context.Background(), "old")
+		<-entered
+		s.Select("session-b")
+		s.mu.Lock()
+		s.bandGeneration = 1
+		s.bandActions = []BandAction{{ID: "b-btn", Label: "Session B"}}
+		s.lastAction = "kept-b"
+		s.mu.Unlock()
+
+		close(release)
+		synctest.Wait()
+
+		snap := s.Snapshot()
+		if snap.SelectedID != "session-b" || snap.BandGeneration != 1 || len(snap.BandActions) != 1 || snap.BandActions[0].ID != "b-btn" || snap.LastAction != "kept-b" {
+			t.Fatalf("stale PressBand mutated session-b state: %+v", snap)
+		}
+	})
 }

@@ -74,11 +74,15 @@ func (s *mainState) captureWorkspaceSessionOpen(win *mygo.Window, sessions *sess
 		}
 	}
 	source := s.composerDraftLocked(snap.SelectedID)
-	op := &workspaceSessionOpen{state: s, store: sessions, win: win, generation: generation, bootGeneration: bootGeneration,
-		panelGeneration: s.assistantConversationGeneration, sourceID: snap.SelectedID, sourceDraft: source, sourceSnapshot: append(json.RawMessage(nil), source.SaveDraft()...),
-		sourceRevision: workspaceSessionDraftRevision(source), sourceEditSeq: source.EditSeq, sourceSending: source.Sending,
-		sourcePreparing: source.Preparing, sourceReply: source.GroupReply}
+	sourceSnap := append(json.RawMessage(nil), source.SaveDraft()...)
+	sourceRev := workspaceSessionDraftRevision(source)
+	sourceEditSeq, sourceSending, sourcePreparing, sourceReply := source.EditSeq, source.Sending, source.Preparing, source.GroupReply
 	s.mu.Unlock()
+	panelGen := s.assistantService().ConversationGeneration()
+	op := &workspaceSessionOpen{state: s, store: sessions, win: win, generation: generation, bootGeneration: bootGeneration,
+		panelGeneration: panelGen, sourceID: snap.SelectedID, sourceDraft: source, sourceSnapshot: sourceSnap,
+		sourceRevision: sourceRev, sourceEditSeq: sourceEditSeq, sourceSending: sourceSending,
+		sourcePreparing: sourcePreparing, sourceReply: sourceReply}
 	target, err := sessions.CaptureWorkspaceSessionTarget(expectedHost, workspaceID, excluded...)
 	if err != nil {
 		sessions.SetWorkspaceSessionErrorForHost(expectedHost, snap.ComposerSessionGeneration, snap.SelectedID, err)
@@ -99,11 +103,14 @@ func (op *workspaceSessionOpen) current() bool {
 		return false
 	}
 	s := op.state
+	asst := s.assistantService()
+	panelGen := asst.ConversationGeneration()
+	asstOpen := asst.Open()
 	s.mu.Lock()
 	current := !s.quitting && s.sessions == op.store && s.win == op.win &&
 		s.bootStatus.Generation == op.bootGeneration && s.workspaceSessionOpen.generation == op.generation &&
-		s.assistantConversationGeneration == op.panelGeneration && !s.marketOpen && !s.scheduleOpen && !s.assistantOpen &&
-		!s.settingsOpen && !s.launcherOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen &&
+		panelGen == op.panelGeneration && !s.marketOpen && !s.scheduleOpen && !asstOpen &&
+		!s.settingsOpen && !s.maintenanceOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen &&
 		s.composerDrafts[op.sourceID] == op.sourceDraft
 	if current {
 		d := op.sourceDraft
@@ -162,6 +169,7 @@ func (s *mainState) openGlobalWorkspaceSession(win *mygo.Window, sessions *sessi
 	if id == "" {
 		s.revealMainConversation()
 		sessions.Select("")
+		retireStaleInlineVisualPages()
 		return
 	}
 	s.openWorkspaceSession(win, sessions, state.WorkspaceLayout.HostGeneration, id)

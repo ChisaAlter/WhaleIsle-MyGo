@@ -3,6 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { logicalRealpathSync } = require('./logical-realpath');
 const { getDesktopDshHome, tryGetDesktopDshHome } = require('../shared/dsh-home');
+const { checkedWorktreePath } = require('../shared/project-worktree-layout');
 
 /**
  * Workspace authority: the trust roots for desktop capabilities that touch
@@ -352,10 +353,10 @@ function readProjectExecutionPaths(homeDir = dshHome()) {
       const workstreamId = filename.replace(/\.json$/, '');
       if (filename !== `${workstreamId}.json` || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,100}$/.test(workstreamId)) continue;
       const file = safePath('projects', projectId, 'internal', 'desktop-workspaces', filename);
-      const cwd = safePath('project-worktrees', projectId, workstreamId);
-      if (!file || !cwd) continue;
+      if (!file) continue;
       try {
         const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const cwd = checkedWorktreePath(realHome, projectId, workstreamId, record.layout);
         if (record.projectId !== projectId || record.workstreamId !== workstreamId
           || record.ownership !== 'project' || record.mode !== 'worktree' || record.state !== 'ready'
           || typeof record.receipt !== 'string' || !record.receipt
@@ -405,55 +406,102 @@ function isFilesystemRoot(dir) {
  * userData/dsh-home (this app's own config, tokens, sessions).
  * @returns {string[]} canonical anchor paths that exist on this machine.
  */
-function highRiskAnchorPaths() {
-  const candidates = [];
+function highRiskAnchorGroups() {
+  const exactOnly = [];
+  const subdirsToo = [];
+  const canonical = (candidate) => {
+    try { return fs.realpathSync.native(path.resolve(candidate)); } catch { return ''; }
+  };
   const home = os.homedir();
-  if (home) {
-    candidates.push(home);
+  const realHome = home ? canonical(home) : '';
+  if (realHome) {
+    exactOnly.push(realHome);
     if (process.platform === 'darwin') {
-      candidates.push(path.join(home, 'Library'), path.join(home, 'Library', 'Application Support'));
+      subdirsToo.push(path.join(home, 'Library'), path.join(home, 'Library', 'Application Support'));
     }
-    candidates.push(path.join(home, '.config'), path.join(home, '.ssh'));
+    subdirsToo.push(
+      path.join(home, '.config'),
+      path.join(home, '.ssh'),
+      path.join(home, '.gnupg'),
+      path.join(home, '.aws'),
+      path.join(home, '.kube'),
+    );
   }
-  for (const key of ['APPDATA', 'LOCALAPPDATA', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME']) {
+  for (const key of ['APPDATA', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME']) {
     const value = process.env[key];
-    if (typeof value === 'string' && value.trim() !== '') candidates.push(value);
+    if (typeof value === 'string' && value.trim() !== '') subdirsToo.push(value);
   }
+  const localAppData = typeof process.env.LOCALAPPDATA === 'string' && process.env.LOCALAPPDATA.trim() !== ''
+    ? canonical(process.env.LOCALAPPDATA)
+    : '';
+  if (localAppData && process.platform !== 'win32') {
+    subdirsToo.push(localAppData);
+  }
+  const localAppDataTemp = localAppData && process.platform === 'win32'
+    ? canonical(path.join(localAppData, 'Temp'))
+    : '';
   const desktopHome = tryGetDesktopDshHome();
+  const appDataSubdirs = [];
+  const appDataExact = [];
   if (desktopHome) {
-    candidates.push(desktopHome, path.dirname(desktopHome));
+    appDataSubdirs.push(desktopHome);
+    appDataExact.push(path.dirname(desktopHome));
+    subdirsToo.push(desktopHome);
+    exactOnly.push(path.dirname(desktopHome));
   }
-  const anchors = [];
-  for (const candidate of candidates) {
-    try {
-      anchors.push(fs.realpathSync.native(path.resolve(candidate)));
-    } catch { /* Missing anchors cannot expose stored data. */ }
-  }
-  return anchors;
+  const canonList = (items) => [...new Set(items.map(canonical).filter(Boolean))];
+  return {
+    exactOnly: canonList(exactOnly),
+    subdirsToo: canonList(subdirsToo),
+    localAppData: process.platform === 'win32' ? localAppData : '',
+    localAppDataTemp,
+    home: realHome,
+    appDataSubdirs: canonList(appDataSubdirs),
+    appDataExact: canonList(appDataExact),
+  };
+}
+
+function highRiskAnchorPaths() {
+  const groups = highRiskAnchorGroups();
+  return [...new Set([...groups.exactOnly, ...groups.subdirsToo, ...(groups.localAppData ? [groups.localAppData] : [])])];
+}
+
+function matchesLocalAppDataRisk(real, groups) {
+  if (!groups || !groups.localAppData) return false;
+  if (containedIn(real, groups.localAppData)) return true;
+  if (!containedIn(groups.localAppData, real)) return false;
+  // Windows go test / os.tmpdir() places per-run temp dirs under %LOCALAPPDATA%\Temp\.
+  // Reject %LOCALAPPDATA%\Temp itself and every non-Temp subtree, while allowing
+  // isolated subdirectories created under %LOCALAPPDATA%\Temp.
+  const insideLocalTempSubdir = groups.localAppDataTemp
+    && containedIn(groups.localAppDataTemp, real)
+    && !containedIn(real, groups.localAppDataTemp);
+  return !insideLocalTempSubdir;
 }
 
 /**
  * True when trusting `real` as a workspace root would expose a high-risk
- * anchor: the root equals an anchor or is one of its ancestors (the anchor
- * lives inside the root). Ordinary project folders — including siblings of
- * the boot workspace under Documents or any dev directory — contain none of
- * the anchors and stay accepted.
+ * anchor: for user home / parent containers, equals or contains the anchor;
+ * for sensitive trees (`.ssh`, `.config`, `.gnupg`, `.aws`, `.kube`, AppData,
+ * dsh-home, userData), equals, contains, or lives beneath the anchor.
  * @param {string} real - canonical registered root.
- * @param {string[]} [anchors] - injectable for tests.
+ * @param {string[] | ReturnType<typeof highRiskAnchorGroups>} [anchors] - injectable for tests.
  * @returns {boolean}
  */
-function isHighRiskWorkspaceRoot(real, anchors = highRiskAnchorPaths()) {
-  return anchors.some((anchor) => containedIn(real, anchor));
+function isHighRiskWorkspaceRoot(real, anchors) {
+  if (Array.isArray(anchors)) {
+    return anchors.some((anchor) => containedIn(real, anchor) || containedIn(anchor, real));
+  }
+  const groups = anchors && Array.isArray(anchors.exactOnly) && Array.isArray(anchors.subdirsToo)
+    ? anchors
+    : highRiskAnchorGroups();
+  return groups.exactOnly.some((anchor) => containedIn(real, anchor))
+    || groups.subdirsToo.some((anchor) => containedIn(real, anchor) || containedIn(anchor, real))
+    || matchesLocalAppDataRisk(real, groups);
 }
 
 /**
- * Why `dir` cannot be a trusted workspace root, or '' when it can. The
- * reasons follow the same anchors as `isHighRiskWorkspaceRoot`, most
- * specific first, so a refusal can name what the folder would expose:
- * 'missing' (unresolvable), 'not-directory', 'root' (volume root), 'home'
- * (the user home or an ancestor), 'system-data' (another per-user config
- * tree or an ancestor) and 'app-data' (this app's userData/dsh-home or an
- * ancestor).
+ * Why `dir` cannot be a trusted workspace root, or '' when it can.
  * @param {string} dir
  * @returns {'' | 'missing' | 'not-directory' | 'root' | 'home' | 'system-data' | 'app-data'}
  */
@@ -466,16 +514,14 @@ function workspaceRootRefusal(dir) {
     return 'missing';
   }
   if (isFilesystemRoot(real)) return 'root';
-  const canonical = (candidate) => {
-    try { return fs.realpathSync.native(path.resolve(candidate)); } catch { return ''; }
-  };
-  const home = os.homedir() ? canonical(os.homedir()) : '';
-  if (home && containedIn(real, home)) return 'home';
-  const desktopHome = tryGetDesktopDshHome();
-  const appData = desktopHome ? [desktopHome, path.dirname(desktopHome)].map(canonical).filter(Boolean) : [];
-  const systemData = highRiskAnchorPaths().filter((anchor) => anchor !== home && !appData.includes(anchor));
-  if (systemData.some((anchor) => containedIn(real, anchor))) return 'system-data';
-  if (appData.some((anchor) => containedIn(real, anchor))) return 'app-data';
+  const groups = highRiskAnchorGroups();
+  if (groups.appDataSubdirs.some((anchor) => containedIn(real, anchor) || containedIn(anchor, real))) return 'app-data';
+  if (groups.appDataExact.some((anchor) => containedIn(real, anchor))) return 'app-data';
+  const appSet = new Set([...groups.appDataSubdirs, ...groups.appDataExact]);
+  const systemData = groups.subdirsToo.filter((anchor) => anchor !== groups.home && !appSet.has(anchor));
+  if (systemData.some((anchor) => containedIn(real, anchor) || containedIn(anchor, real))) return 'system-data';
+  if (matchesLocalAppDataRisk(real, groups)) return 'system-data';
+  if (groups.home && containedIn(real, groups.home)) return 'home';
   return '';
 }
 
@@ -489,12 +535,12 @@ function workspaceRootRefusal(dir) {
  */
 function filterRegisteredWorkspaceRoots(listed) {
   const rows = Array.isArray(listed) ? listed : [];
-  const anchors = highRiskAnchorPaths();
+  const groups = highRiskAnchorGroups();
   return rows.filter((raw) => {
     if (typeof raw !== 'string' || raw.trim() === '') return false;
     try {
       const real = fs.realpathSync.native(path.resolve(raw));
-      return !isFilesystemRoot(real) && !isHighRiskWorkspaceRoot(real, anchors);
+      return !isFilesystemRoot(real) && !isHighRiskWorkspaceRoot(real, groups);
     } catch {
       return false;
     }

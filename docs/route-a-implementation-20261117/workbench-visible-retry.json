@@ -1,0 +1,405 @@
+{
+  "candidate": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-workbench-0.2.0-candidate.exe",
+  "status": "passed",
+  "phases": [
+    {
+      "name": "host-failure-visible",
+      "hwnd": 7276558,
+      "bounds": [
+        200,
+        36,
+        2160,
+        1296
+      ],
+      "class": "MyGoWindow",
+      "atMs": 678
+    },
+    {
+      "name": "diagnostics-open",
+      "hwnd": 7276558,
+      "atMs": 1162
+    },
+    {
+      "name": "workspace-ready-after-retry",
+      "hwnd": 7276558,
+      "trace": [
+        {
+          "stage": "process.start",
+          "kind": "mark",
+          "atMs": 23.214
+        },
+        {
+          "stage": "shell.prepared",
+          "kind": "mark",
+          "atMs": 24.307
+        },
+        {
+          "stage": "app.when_ready",
+          "kind": "mark",
+          "atMs": 40.49
+        },
+        {
+          "stage": "config.loaded",
+          "kind": "mark",
+          "atMs": 51.278
+        },
+        {
+          "stage": "ui.first_view_built",
+          "kind": "mark",
+          "atMs": 317.93
+        },
+        {
+          "stage": "window.created",
+          "kind": "mark",
+          "atMs": 413.962
+        },
+        {
+          "stage": "harness.start_requested",
+          "kind": "mark",
+          "atMs": 425.566
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 426.759,
+          "detail": "failed"
+        },
+        {
+          "stage": "harness.start_requested",
+          "kind": "mark",
+          "atMs": 1598.107
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 1603.005,
+          "detail": "starting"
+        },
+        {
+          "stage": "runtime.warmup.gate",
+          "kind": "mark",
+          "atMs": 1733.894,
+          "detail": "cold=true probeUs=16028"
+        },
+        {
+          "stage": "runtime.warmup.started",
+          "kind": "mark",
+          "atMs": 1733.894,
+          "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor"
+        },
+        {
+          "stage": "host.port_selected",
+          "kind": "mark",
+          "atMs": 1733.894,
+          "detail": "3181"
+        },
+        {
+          "stage": "runtime.verify.node",
+          "kind": "span",
+          "atMs": 1742.287,
+          "durMs": 1087.0400000000002,
+          "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+        },
+        {
+          "stage": "runtime.validate.session_runtime",
+          "kind": "span",
+          "atMs": 1733.894,
+          "durMs": 1185.2659999999998
+        },
+        {
+          "stage": "runtime.read_capabilities",
+          "kind": "span",
+          "atMs": 1733.894,
+          "durMs": 1194.468
+        },
+        {
+          "stage": "runtime.warmup.plan",
+          "kind": "mark",
+          "atMs": 3581.112,
+          "detail": "files=21290"
+        },
+        {
+          "stage": "runtime.verify.node",
+          "kind": "span",
+          "atMs": 4602.672,
+          "durMs": 0.5270000000000437,
+          "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+        },
+        {
+          "stage": "runtime.validate.session_runtime",
+          "kind": "span",
+          "atMs": 4602.672,
+          "durMs": 1.8100000000004002
+        },
+        {
+          "stage": "runtime.validate.current_host",
+          "kind": "span",
+          "atMs": 4602.064,
+          "durMs": 2.4179999999996653
+        },
+        {
+          "stage": "runtime.verify.node",
+          "kind": "span",
+          "atMs": 4604.482,
+          "durMs": 0.7809999999999491,
+          "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+        },
+        {
+          "stage": "runtime.validate",
+          "kind": "span",
+          "atMs": 4602.064,
+          "durMs": 3.1989999999996144
+        },
+        {
+          "stage": "profile.disabled_plugins",
+          "kind": "span",
+          "atMs": 4605.263
+        },
+        {
+          "stage": "profile.links",
+          "kind": "span",
+          "atMs": 4605.263,
+          "durMs": 133.59400000000005
+        },
+        {
+          "stage": "profile.overlays",
+          "kind": "span",
+          "atMs": 4738.857,
+          "durMs": 63.14900000000034
+        },
+        {
+          "stage": "runtime.profile_prepare",
+          "kind": "span",
+          "atMs": 4605.263,
+          "durMs": 196.7430000000004
+        },
+        {
+          "stage": "host.plan",
+          "kind": "span",
+          "atMs": 4602.064,
+          "durMs": 218.5630000000001
+        },
+        {
+          "stage": "host.spawned",
+          "kind": "mark",
+          "atMs": 4829.569,
+          "detail": "40160"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 4829.569,
+          "detail": "starting"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 4830.093,
+          "detail": "starting"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 44580.994,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 44665.342,
+          "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 44665.342,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 44896.566,
+          "detail": "(node:40160) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 44896.566,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 44896.566,
+          "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 44897.092,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.readyline",
+          "kind": "mark",
+          "atMs": 45374.067
+        },
+        {
+          "stage": "host.log",
+          "kind": "log",
+          "atMs": 45374.067,
+          "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 45374.591,
+          "detail": "starting"
+        },
+        {
+          "stage": "host.auth.get_connection",
+          "kind": "mark",
+          "atMs": 45374.591
+        },
+        {
+          "stage": "host.auth.connect_start",
+          "kind": "mark",
+          "atMs": 45374.591
+        },
+        {
+          "stage": "host.auth.connect_done",
+          "kind": "mark",
+          "atMs": 45375.313
+        },
+        {
+          "stage": "host.auth.got_connection",
+          "kind": "mark",
+          "atMs": 45375.313
+        },
+        {
+          "stage": "host.auth.request_written",
+          "kind": "mark",
+          "atMs": 45375.313
+        },
+        {
+          "stage": "runtime.warmup.done",
+          "kind": "mark",
+          "atMs": 45387.035,
+          "detail": "files=10342 bytes=133814076 skipped=0 ms=43653"
+        },
+        {
+          "stage": "host.auth.first_response_byte",
+          "kind": "mark",
+          "atMs": 46075.841
+        },
+        {
+          "stage": "host.handshake",
+          "kind": "span",
+          "atMs": 45374.067,
+          "durMs": 701.7739999999976
+        },
+        {
+          "stage": "host.ready",
+          "kind": "mark",
+          "atMs": 46075.841
+        },
+        {
+          "stage": "boot.status",
+          "kind": "mark",
+          "atMs": 46075.841,
+          "detail": "ready"
+        },
+        {
+          "stage": "boot.outcome_recorded",
+          "kind": "mark",
+          "atMs": 46075.841
+        },
+        {
+          "stage": "trace.finish",
+          "kind": "mark",
+          "atMs": 46075.841,
+          "detail": "ready"
+        },
+        {
+          "stage": "connection.bootstrap_start",
+          "kind": "mark",
+          "atMs": 46089.875
+        },
+        {
+          "stage": "stores.opened",
+          "kind": "mark",
+          "atMs": 46098.86
+        },
+        {
+          "stage": "connection.carrier_connected",
+          "kind": "mark",
+          "atMs": 46652.777
+        },
+        {
+          "stage": "connection.events_ready",
+          "kind": "mark",
+          "atMs": 46660.391
+        },
+        {
+          "stage": "workspace.ready",
+          "kind": "mark",
+          "atMs": 46727.409
+        },
+        {
+          "stage": "trace.finish",
+          "kind": "mark",
+          "atMs": 46727.409,
+          "detail": "ready"
+        }
+      ],
+      "atMs": 46902
+    }
+  ],
+  "isolation": "visible synthetic profile; no route override",
+  "processId": 28520,
+  "firstNodes": [
+    "鲸屿 MyGo",
+    "Collapse sidebar",
+    "New session",
+    "Global panels",
+    "Plugins",
+    "Scheduled tasks",
+    "Whale assistant",
+    "Workspace",
+    "Search sessions…",
+    "Select sessions",
+    "View options",
+    "Choose workspace…",
+    "Connect to load sessions",
+    "Archived",
+    "Archive section title",
+    "Account menu",
+    "Sidebar divider",
+    "Start failed",
+    "workspace missing: C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-f3a49c73b32b4c07a5f962f45e3fe0d9\\visible-profile\\test-workspace\nDiagnostic written to C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-f3a49c73b32b4c07a5f962f45e3fe0d9\\visible-profile\\logs\\crash\\crash-2026-11-18T01-05-41-607Z-host.log",
+    "Retry",
+    "Startup diagnostics",
+    "Export log",
+    "Blank conversation caption",
+    "Toggle terminal drawer",
+    "Toggle right panel",
+    "Conversation body",
+    "Conversation hero headline",
+    "Conversation hero fish",
+    "Into the Unknown",
+    "Preview",
+    "Composer hero preset row",
+    "Composer workspace",
+    "Composer hero preset",
+    "Standard",
+    "▾",
+    "Composer card",
+    "Composer draft",
+    "Commands",
+    "Voice input",
+    "Composer trailing controls",
+    "Send message",
+    "Choose a workspace to start",
+    "Expand right sidebar"
+  ]
+}

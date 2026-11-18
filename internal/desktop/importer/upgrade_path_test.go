@@ -8,14 +8,23 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/product"
+	"whaleisle/internal/store/storelocale"
 )
 
-// TestCoverUpgradePathInvariants encodes the side-by-side MyGo install + shared
-// userData contract: independent AppID and install directory (never overwriting
-// Programs\Deepseek-Harness-Desktop), while retaining shared DataDirName.
+// TestCoverUpgradePathInvariants encodes the side-by-side MyGo install +
+// userData contract: independent AppID and install directory (never
+// overwriting Programs\Deepseek-Harness-Desktop), the Electron directory name
+// kept as the first-run import source, and MyGo's own directory as its data
+// default.
 func TestCoverUpgradePathInvariants(t *testing.T) {
-	if got := config.DataDirName; got != "Deepseek-Harness-Desktop" {
-		t.Fatalf("DataDirName = %q, want Deepseek-Harness-Desktop (shared with Electron)", got)
+	if got := config.ElectronDataDirName; got != "Deepseek-Harness-Desktop" {
+		t.Fatalf("ElectronDataDirName = %q, want Deepseek-Harness-Desktop (the legacy import source)", got)
+	}
+	if got := config.AppDirName; got != "WhaleIsle-MyGo" {
+		t.Fatalf("AppDirName = %q, want WhaleIsle-MyGo", got)
+	}
+	if got := config.DefaultDataDirName; got != "data" {
+		t.Fatalf("DefaultDataDirName = %q, want data", got)
 	}
 
 	repoRoot := findRepoRoot(t)
@@ -72,7 +81,7 @@ func TestCoverUpgradePathInvariants(t *testing.T) {
 		t.Fatalf("ImportReport incomplete: %+v", rep)
 	}
 	summary := FormatReport(rep)
-	if !strings.Contains(summary, "config.json") {
+	if !strings.Contains(summary, storelocale.T(storelocale.KeyStoreImporterReportConfig)+storelocale.T(storelocale.KeyStoreImporterReportFound)) {
 		t.Fatalf("FormatReport = %q", summary)
 	}
 }

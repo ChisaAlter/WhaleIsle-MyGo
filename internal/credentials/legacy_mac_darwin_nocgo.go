@@ -8,8 +8,24 @@ func decryptSafeStorage(_ string, blob []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Query only the original application's documented identity. No writes,
-		// enumeration, fallback application identities or ACL changes.
-		return a.read("Whale Isle Safe Storage", "Whale Isle", 1, 4096)
+		return a.read(macSafeStorageService, macSafeStorageAccount, 1, 4096)
 	})
+}
+
+func macSafeStorageSeal(_ string, plaintext []byte, create bool) (string, []byte, error) {
+	a, err := loadKeychainAPI()
+	if err != nil {
+		return "", nil, err
+	}
+	password, err := getMacSafeStoragePassword(create,
+		func() ([]byte, error) { return a.read(macSafeStorageService, macSafeStorageAccount, 1, 4096) },
+		func(password []byte) error {
+			return a.addPassword(macSafeStorageService, macSafeStorageAccount, password)
+		})
+	defer clear(password)
+	if err != nil {
+		return "", nil, err
+	}
+	payload, err := sealLegacyMac(plaintext, password)
+	return EnvelopeVersion, payload, err
 }

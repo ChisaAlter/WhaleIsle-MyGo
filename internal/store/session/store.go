@@ -167,9 +167,10 @@ type ViewState struct {
 	Messages         []Message
 	// HistoryReady records an authoritative opening snapshot for this selection.
 	// Reopening the same selection retains that baseline while HistoryLoading.
-	HistoryLoading bool
-	HistoryReady   bool
-	HistoryError   string
+	HistoryLoading      bool
+	HistoryReconnecting bool
+	HistoryReady        bool
+	HistoryError        string
 	// SelectedSummaryBlank is Host list authority, not inferred from Messages.
 	SelectedSummaryBlank bool
 	MessageEditBusy      bool
@@ -289,6 +290,7 @@ type Store struct {
 	durableStepIndices         map[string][]int
 	durableHasEdits            bool
 	durableCacheValid          bool
+	trajectoryMessageCache     *trajectoryMessageCache
 	boundariesVerifiedRev      uint64
 	historyVerifiedRev         uint64
 	historyValid               bool
@@ -317,6 +319,7 @@ type Store struct {
 	viewCacheRev              uint64
 	viewCache                 ViewState
 	viewCacheValid            bool
+	viewCacheFrameClaimed     bool
 	snapshotBuilds            uint64
 	snapshotHits              uint64
 	workflowBoundaries        map[float64]json.RawMessage
@@ -337,6 +340,11 @@ type Store struct {
 	composerPending           map[string]*composerPending
 	composerObserved          map[string]composerObserved
 	composerAdmissions        map[string]*ComposerTarget
+	submissionPersistence     *submissionPersistence
+	submissionContext         context.Context
+	submissionWatches         map[string]*submissionWatch
+	submissionOutcomes        map[string]error
+	submissionTracked         map[string]*composerPending
 	workspacePreferences      workspacePreferenceBinding
 	rename                    SessionRenameView
 	renameEpoch               uint64
@@ -394,8 +402,10 @@ type Store struct {
 	listErr                              error
 	items                                []Item
 	selectedID                           string
+	selectedAuto                         bool
 	messages                             []Message
 	historyLoading                       bool
+	historyReconnecting                  bool
 	historyReady                         bool
 	historyError                         string
 	promptBusy                           bool
@@ -450,6 +460,7 @@ type Store struct {
 	bandCancel                           context.CancelFunc
 	bandActions                          []BandAction
 	bandGeneration                       float64
+	bandPressSeq                         uint64
 	speechFollowCancel                   context.CancelFunc
 	speechSelection                      string
 	speechReadiness                      speechReadinessState
@@ -570,6 +581,19 @@ func (s *Store) CreateSession(ctx context.Context) {
 				return
 			}
 			if target.Select(id) {
+				// Workspace creation has no receipt of its own; publish the same
+				// completion signal the non-workspace create path reports. The
+				// fence matches ReportFailure: only while the selection this
+				// gesture produced is still current on the same Host.
+				s.mu.Lock()
+				if s.selectedID == id && s.client == target.client && s.eventsGeneration == target.hostGeneration {
+					s.lastAction = "session created"
+					s.invalidateViewLocked()
+					s.mu.Unlock()
+					s.fire()
+				} else {
+					s.mu.Unlock()
+				}
 				s.InitializeDefaultModel(ctx)
 			}
 		}()
@@ -663,7 +687,12 @@ func (s *Store) CreateSession(ctx context.Context) {
 }
 
 func filepathClean(p string) string {
-	return strings.TrimSpace(strings.ReplaceAll(p, "\\", "/"))
+	return hostPathKey(p)
+}
+
+// HostPathKey normalizes a Host-reported filesystem path for equality checks.
+func HostPathKey(p string) string {
+	return hostPathKey(p)
 }
 
 // Detach clears the client (harness stopped or lost).
@@ -706,6 +735,7 @@ func (s *Store) Detach() {
 	}
 	s.bandActions = nil
 	s.bandGeneration = 0
+	s.bandPressSeq++
 	if s.speechFollowCancel != nil {
 		s.speechFollowCancel()
 		s.speechFollowCancel = nil
@@ -1079,6 +1109,7 @@ func (s *Store) ensureViewCacheLocked() {
 		ListLoading:         s.listLoading,
 		SelectedID:          s.selectedID,
 		HistoryLoading:      s.historyLoading,
+		HistoryReconnecting: s.historyReconnecting,
 		HistoryReady:        s.historyReady,
 		HistoryError:        s.historyError,
 		PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),
@@ -1188,7 +1219,7 @@ func (s *Store) ensureViewCacheLocked() {
 	if !msgProjChanged && !boundariesChanged && s.viewCacheValid {
 		st.TrajectoryMessages = s.viewCache.TrajectoryMessages
 	} else {
-		st.TrajectoryMessages = s.trajectoryJournalMessagesLocked()
+		st.TrajectoryMessages = s.trajectoryMessagesViewLocked(historyChanged)
 	}
 	if !boundariesChanged && s.viewCacheValid && s.trajHeadersCache != nil {
 		st.TrajectoryRequestHeaders = s.viewCache.TrajectoryRequestHeaders
@@ -1284,6 +1315,9 @@ func (s *Store) ensureViewCacheLocked() {
 	st.projection = s.projectionKeyLocked()
 	st.historyProjection = s.historyProjectionKeyLocked(msgProjChanged || inlinePendingChanged)
 	st.rosterProjection = s.rosterProjectionKeyLocked(rosterChanged)
+	// A state-only revision can reuse the old message arrays. Its first frame
+	// must not claim them again while a handle from the old revision owns them.
+	s.viewCacheFrameClaimed = s.viewCacheFrameClaimed && !msgProjChanged
 	s.viewCache = cloneStoreViewCache(st)
 	s.viewCacheRev = s.viewRev
 	s.viewCacheValid = true
@@ -1325,7 +1359,15 @@ func (f *FrameSnapshot) Snapshot() ViewState {
 		return f.view
 	}
 	s.ensureViewCacheLocked()
-	f.view = cloneFramePassView(s.viewCache)
+	if !s.viewCacheFrameClaimed {
+		// The first read-only pass can use the already frozen projection. Other
+		// handles receive independent top-level message arrays; no subsequent
+		// revision writes into either projection's backing storage.
+		f.view = s.viewCache
+		s.viewCacheFrameClaimed = true
+	} else {
+		f.view = cloneFramePassView(s.viewCache)
+	}
 	f.rev = s.viewRev
 	f.valid = true
 	return f.view
@@ -1401,6 +1443,7 @@ func (s *Store) RunningCount() int {
 func (s *Store) Select(sessionID string) {
 	s.mu.Lock()
 	if s.selectedID == sessionID {
+		s.selectedAuto = false
 		needRefresh := s.client != nil && sessionID != "" && !s.historyReady && !s.historyLoading
 		control, changed := s.beginControlWatchLocked(context.Background())
 		s.mu.Unlock()
@@ -1414,6 +1457,9 @@ func (s *Store) Select(sessionID string) {
 			s.refreshSelectedViews()
 		}
 		return
+	}
+	if s.lastAction != "session archived" {
+		s.lastAction = ""
 	}
 	s.selectSessionLocked(sessionID)
 	s.mu.Unlock()
@@ -1586,6 +1632,7 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 		}
 		if pick != "" {
 			s.selectSessionLocked(pick)
+			s.selectedAuto = true
 			startFollow = true
 		}
 	}

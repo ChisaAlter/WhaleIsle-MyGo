@@ -53,6 +53,9 @@ type PermissionPolicy struct {
 // permission in it is refused, so a page cannot pair a denied camera with an
 // allowed microphone.
 func (p PermissionPolicy) Decide(req mygo.PermissionRequest) bool {
+	if len(req.Permissions) == 0 {
+		return false
+	}
 	for _, permission := range req.Permissions {
 		switch permission {
 		case mygo.PermissionNotifications:
@@ -70,7 +73,8 @@ func (p PermissionPolicy) Decide(req mygo.PermissionRequest) bool {
 			// OS location service configured and the shell never offers one.
 			return false
 		default:
-			// The native handler leaves other permissions to the engine.
+			// Deny unrecognized or unhandled permission requests by default.
+			return false
 		}
 	}
 	return true

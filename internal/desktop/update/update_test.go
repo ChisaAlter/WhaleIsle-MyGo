@@ -105,7 +105,27 @@ func TestCompareVersions(t *testing.T) {
 	if CompareVersions("v1.0.0", "1.0.0") != 0 {
 		t.Fatal("v prefix")
 	}
-	if CompareVersions("1.0.0-beta", "1.0.0") != 0 {
-		t.Fatal("prerelease strip")
+	if CompareVersions("1.0.0-beta", "1.0.0") >= 0 {
+		t.Fatal("a prerelease must precede the final release")
+	}
+}
+
+func TestCompareVersionsPrereleasePrecedence(t *testing.T) {
+	ordered := []string{
+		"1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta",
+		"1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0",
+	}
+	for i := 1; i < len(ordered); i++ {
+		if CompareVersions(ordered[i-1], ordered[i]) >= 0 || CompareVersions(ordered[i], ordered[i-1]) <= 0 {
+			t.Fatalf("incorrect prerelease order: %s < %s", ordered[i-1], ordered[i])
+		}
+	}
+	for _, pair := range [][2]string{{"v1.2", "1.2.0"}, {"1.2.3+build.9", "1.2.3+other"}, {"1.2.3-rc.2+build", "1.2.3-rc.2"}} {
+		if CompareVersions(pair[0], pair[1]) != 0 {
+			t.Fatalf("equivalent versions differ: %q", pair)
+		}
+	}
+	if CompareVersions("1.0.0-rc.999999999999999999999", "1.0.0-rc.1000000000000000000000") >= 0 {
+		t.Fatal("numeric prerelease identifiers overflowed")
 	}
 }

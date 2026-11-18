@@ -52,9 +52,9 @@ func TestDesktopImmediateBoolUICommitsSingleFieldAndReopens(t *testing.T) {
 	}, 1100, 1600)
 	choose := func(label, option string) {
 		t.Helper()
-		current := "Open launcher first"
+		current := "Start Host manually"
 		if s.desktopDraft.autoStartDesktop {
-			current = "Start desktop directly"
+			current = "Start Host automatically"
 		}
 		if label == "When closing the window" {
 			current = "Quit"
@@ -86,7 +86,7 @@ func TestDesktopImmediateBoolUICommitsSingleFieldAndReopens(t *testing.T) {
 	if s.closeToTray || s.desktopDraft.closeToTray {
 		t.Fatal("accepted close choice did not update current close behavior and draft")
 	}
-	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Start desktop directly")
+	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Start Host automatically")
 	assertStored(false, true)
 	if !s.desktopDraft.autoStartDesktop {
 		t.Fatal("accepted startup choice did not publish")

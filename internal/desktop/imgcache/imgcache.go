@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -60,9 +61,86 @@ func New(dir string) *Cache {
 	return &Cache{
 		dir:      dir,
 		maxBytes: DefaultMaxBytes,
-		client:   &http.Client{Timeout: 30 * time.Second},
+		client:   newSafeHTTPClient(),
 		entries:  make(map[string]*entry),
 	}
+}
+
+func newSafeHTTPClient() *http.Client {
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+			if err != nil || len(ips) == 0 {
+				if err != nil {
+					return nil, err
+				}
+				return nil, fmt.Errorf("imgcache: no IP resolved for %q", host)
+			}
+			for _, ipAddr := range ips {
+				if isBlockedIP(ipAddr.IP) {
+					return nil, fmt.Errorf("imgcache: blocked non-public address %s", ipAddr.IP)
+				}
+			}
+			for _, ipAddr := range ips {
+				conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(ipAddr.String(), port))
+				if dialErr == nil {
+					return conn, nil
+				}
+				err = dialErr
+			}
+			return nil, err
+		},
+	}
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return checkRedirectSafety(req, via)
+		},
+	}
+}
+
+func isBlockedIP(ip net.IP) bool {
+	return ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified()
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func checkRedirectSafety(req *http.Request, via []*http.Request) error {
+	if len(via) >= 5 {
+		return errors.New("imgcache: too many redirects")
+	}
+	if req == nil || req.URL == nil || !IsHTTPURL(req.URL.String()) || req.URL.User != nil {
+		return errors.New("imgcache: unsafe redirect target")
+	}
+	host := req.URL.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
+			return errors.New("imgcache: redirect to restricted address blocked")
+		}
+		originLoopback := len(via) > 0 && via[0] != nil && via[0].URL != nil && isLoopbackHost(via[0].URL.Hostname())
+		if !originLoopback && (ip.IsLoopback() || ip.IsPrivate()) {
+			return errors.New("imgcache: redirect to private/loopback address blocked")
+		}
+	} else {
+		originLoopback := len(via) > 0 && via[0] != nil && via[0].URL != nil && isLoopbackHost(via[0].URL.Hostname())
+		if !originLoopback && isLoopbackHost(host) {
+			return errors.New("imgcache: redirect to localhost blocked")
+		}
+	}
+	return nil
 }
 
 // SetHTTPClient replaces the HTTP client (tests inject httptest clients).
@@ -195,7 +273,13 @@ func (c *Cache) Fetch(ctx context.Context, rawURL string) (string, error) {
 	maxBytes := c.maxBytes
 	c.mu.Unlock()
 	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
+		client = newSafeHTTPClient()
+	} else if client.CheckRedirect == nil {
+		cloned := *client
+		cloned.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return checkRedirectSafety(req, via)
+		}
+		client = &cloned
 	}
 	if maxBytes <= 0 {
 		maxBytes = DefaultMaxBytes
@@ -223,33 +307,35 @@ func (c *Cache) Fetch(ctx context.Context, rawURL string) (string, error) {
 	}
 
 	dest := c.FilePath(rawURL)
-	tmp := dest + ".tmp"
-	f, err := os.Create(tmp)
+	f, err := os.CreateTemp(c.dir, filepath.Base(dest)+".*.tmp")
 	if err != nil {
 		return "", err
 	}
+	tmp := f.Name()
+	cleanupTmp := true
+	defer func() {
+		if cleanupTmp {
+			_ = os.Remove(tmp)
+		}
+	}()
 	n, err := io.Copy(f, io.LimitReader(resp.Body, maxBytes+1))
 	closeErr := f.Close()
 	if err != nil {
-		_ = os.Remove(tmp)
 		return "", err
 	}
 	if closeErr != nil {
-		_ = os.Remove(tmp)
 		return "", closeErr
 	}
 	if n > maxBytes {
-		_ = os.Remove(tmp)
 		return "", fmt.Errorf("imgcache: body exceeds max %d bytes", maxBytes)
 	}
 	if n == 0 {
-		_ = os.Remove(tmp)
 		return "", errors.New("imgcache: empty body")
 	}
 	if err := os.Rename(tmp, dest); err != nil {
-		_ = os.Remove(tmp)
 		return "", err
 	}
+	cleanupTmp = false
 
 	c.mu.Lock()
 	c.entries[rawURL] = &entry{status: StatusReady, path: dest}
@@ -266,7 +352,7 @@ func IsHTTPURL(raw string) bool {
 	}
 	switch strings.ToLower(u.Scheme) {
 	case "http", "https":
-		return u.Host != ""
+		return u.Host != "" && u.User == nil
 	default:
 		return false
 	}

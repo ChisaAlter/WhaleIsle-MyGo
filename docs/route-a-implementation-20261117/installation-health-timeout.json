@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "installation": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-54038dbc92354b9bb08687e61efffa77\\TestRealTimeoutReclaimsWholeJobAndProfile3049560987\\001\\candidate",
+  "passed": false,
+  "error": "candidate did not confirm native window, Host, workspace and plugin inventory within 90 seconds",
+  "elapsedMs": 90310,
+  "profile": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-54038dbc92354b9bb08687e61efffa77\\whaleisle-install-health-3751248023",
+  "profileRemoved": true,
+  "processesExited": true
+}

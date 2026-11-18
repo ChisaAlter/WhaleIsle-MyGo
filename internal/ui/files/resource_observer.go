@@ -208,6 +208,9 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 		if tab.externalChanged && r.err == nil {
 			tab.externalChanged = false
 			tab.readBlocked = false
+			tab.hasConflict = false
+			tab.conflictContent = ""
+			tab.conflictTruncated = false
 			tab.Status = ""
 			restore(m, tab)
 		}
@@ -218,6 +221,11 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 		if tab.Dirty() {
 			pauseSave(tab)
 			tab.readBlocked = true
+			if r.err == nil && !r.truncated && r.text != tab.Preview {
+				tab.hasConflict = true
+				tab.conflictContent = r.text
+				tab.conflictTruncated = false
+			}
 		}
 		tab.Status = label("源文件已在外部更改；草稿和已加载内容已保留。", "Source changed externally; draft and loaded content were kept.")
 		if r.err != nil {
@@ -240,10 +248,31 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 func paintResourceRefreshControls(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	tab := selectedTab(m)
-	if tab == nil || !isAsyncPreviewPath(tab.Path) || tab.document.enabled || !tab.externalChanged {
+	if tab == nil || !isAsyncPreviewPath(tab.Path) || tab.document.enabled || (!tab.externalChanged && !tab.hasConflict) {
 		return
 	}
 	ui.Row(c).Gap(6).Padding(0, 12, 4, 12).Wrap().Children(func() {
+		if tab.hasConflict && tab.Dirty() {
+			ui.Text(c, label("外部修改与未保存草稿冲突；草稿与磁盘版本均已保留。", "External edit conflicts with unsaved draft; both versions kept.")).FontSize(11)
+			if !tab.conflictTruncated {
+				if widgets.Button(c, colors, label("应用磁盘版本", "Use disk version"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+					if err := applyConflictDiskVersion(m); err != nil {
+						setFileStatus(m, err.Error())
+					}
+				}
+			}
+			if m.OnSaveEdit != nil && !tab.Remote && tab.deliverySource == nil && !isTablePreviewPath(tab.Path) {
+				if widgets.Button(c, colors, label("用草稿覆盖磁盘", "Overwrite disk with draft"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
+					if err := overwriteDiskWithDraft(m); err != nil {
+						setFileStatus(m, err.Error())
+					}
+				}
+			}
+			if widgets.Button(c, colors, label("重新读取源文件", "Refresh source file"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+				reloadSelectedFile(m)
+			}
+			return
+		}
 		if tab.externalChanged {
 			ui.Text(c, label("外部内容已变化；未保存草稿不会被覆盖。", "External content changed; unsaved draft will not be overwritten.")).FontSize(11)
 			if widgets.Button(c, colors, label("重新读取源文件", "Refresh source file"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {

@@ -43,7 +43,7 @@ func (r *Runtime) DeviceAction(operation, id, name string) error {
 		return errors.New("a phone device action is already running")
 	}
 	child := r.child
-	if child == nil || !r.state.Listening || !r.state.DevicesLoaded {
+	if child == nil || r.closing || !r.state.Listening || !r.state.DevicesLoaded {
 		r.mu.Unlock()
 		return errors.New("refresh the phone runtime before managing devices")
 	}

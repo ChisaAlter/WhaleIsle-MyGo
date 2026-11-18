@@ -361,30 +361,3 @@ func TestAddMenuMarketplaceIsDisabledWithoutABrowser(t *testing.T) {
 		t.Fatalf("disabled marketplace entry navigated: %+v", snap.View)
 	}
 }
-func TestPluginPageExternalTabHasOriginalPositionAndNativeBack(t *testing.T) {
-	i18n.SetLocale(i18n.LocaleEN)
-	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
-	m := pageModel(t)
-	selected := ""
-	m.ExternalTabs = []PageTab{{ID: "fixture-report", Label: "Extension report"}}
-	m.OnSelectExternalTab = func(id string) { selected = id }
-	m.RenderExternalTab = func(c *ui.Context, id string) { ui.Text(c, "Extension report original body") }
-	tt := ui.NewTester(func(c *ui.Context) { m.SelectedExternalTab = selected; View(c, m) }, 900, 700)
-	if !tt.HasText("Extension report") {
-		t.Fatal(tt.Texts())
-	}
-	if err := tt.Click("Extension report"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if selected != "fixture-report" || !tt.HasText("Extension report original body") {
-		t.Fatal(tt.Texts())
-	}
-	if err := tt.Click("Installed"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if selected != "" || tt.HasText("Extension report original body") {
-		t.Fatal("native installed tab did not reclaim its body")
-	}
-}

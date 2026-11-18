@@ -31,9 +31,10 @@ func hostTerminalActions(m Model) termui.HostActions {
 		return m.Store.SelectedSessionID() == session && m.HostTerminalStore.CanCopySelection(view.Owner, session, view.ActiveID, view.Attachment)
 	}
 	return termui.HostActions{
-		StartFresh:   fresh,
-		CanAddToChat: m.CanAddSelectionToChat,
-		AddToChat:    m.OnAddSelectionToChat,
+		StartFresh:    fresh,
+		FocusTerminal: m.workspacePane != nil && m.workspacePane.paneBoxFocused,
+		CanAddToChat:  m.CanAddSelectionToChat,
+		AddToChat:     m.OnAddSelectionToChat,
 		OpenTarget: func(selection, cwd string) error {
 			openURL := func(url string) error {
 				if m.OnOpenCitationURL == nil {

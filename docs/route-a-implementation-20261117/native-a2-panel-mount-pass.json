@@ -1,0 +1,29 @@
+{
+  "recordType": "summary recovered from the first run tool output; not an original raw receipt",
+  "source": "exec output 690c4e plus completed run output d06993; first run before onboarding follow-up overwrote the original output path",
+  "passed": true,
+  "appPID": 35836,
+  "allWindowsHidden": true,
+  "defaultActiveWebViewPIDs": null,
+  "defaultObservedWebViewPIDs": null,
+  "plugin": "qa-panel",
+  "pluginPanelContentVerified": true,
+  "functionalPanel": {
+    "panelCount": 1,
+    "panelDisplay": "block",
+    "panelHeight": 744,
+    "panelText": "QA plugin panel view",
+    "panelWidth": 1146,
+    "pickerButtons": ["QA Panel"],
+    "ready": "complete",
+    "sidebarIconCount": 1
+  },
+  "teardown": {
+    "gatewayClosed": true,
+    "windowDestroyed": true,
+    "remainingWebViewPIDs": null,
+    "releaseMilliseconds": 361
+  },
+  "preservedScreenshot": "native-a2-panel-mount-pass.panel.png",
+  "visualObservation": "The QA panel and selected sidebar entry are rendered; the Host first-run Preview Notice overlays the page. Unobscured screenshot acceptance remained open."
+}

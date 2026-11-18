@@ -579,3 +579,80 @@ func TestNativeContributionsOriginAdmissionBeforeDial(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultAndResolveNativeContributionsWithoutSSE(t *testing.T) {
+	def := DefaultNativeContributions()
+	if !def.Known || !def.FileCommand || !def.ModelCommand || !def.PermissionCommand || !def.FeedbackCommand || !def.ModelLabel1017 {
+		t.Fatalf("DefaultNativeContributions incomplete: %+v", def)
+	}
+	if def.CommandRevision("model") == "" || def.CommandRevision("permission") == "" || def.ModelLabelRevision() == "" {
+		t.Fatalf("DefaultNativeContributions missing command revisions: %+v", def)
+	}
+
+	emptyOrigin, err := (&Client{}).ResolveNativeContributions(context.Background())
+	if err != nil || emptyOrigin != def {
+		t.Fatalf("empty origin should return defaults: got=%+v err=%v", emptyOrigin, err)
+	}
+
+	var sseHits atomic.Int32
+	var mode string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/plugins/events" {
+			sseHits.Add(1)
+			http.Error(w, "SSE decommissioned", http.StatusGone)
+			return
+		}
+		if r.URL.Path != "/api/pluginInventory/list" {
+			http.NotFound(w, r)
+			return
+		}
+		var req struct {
+			RPCID string `json:"rpcId"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if mode == "404" {
+			http.NotFound(w, r)
+			return
+		}
+		enabled := mode != "disable-perm"
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"type":  "server-response",
+			"rpcId": req.RPCID,
+			"result": map[string]any{
+				"ok": true,
+				"value": map[string]any{
+					"entries": []map[string]any{
+						{"entryId": "perm", "moduleName": "@deepseek-ai/dsh-permission-presets", "enabled": enabled, "fiberPhase": "active"},
+						{"entryId": "ui-hmr", "moduleName": "@deepseek-ai/dsh-client-hmr", "enabled": false, "fiberPhase": "disposed"},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := &Client{Endpoint: Endpoint{Origin: srv.URL}}
+	mode = "active"
+	active, err := client.ResolveNativeContributions(context.Background())
+	if err != nil || !active.Known || !active.PermissionCommand || !active.ModelCommand {
+		t.Fatalf("ResolveNativeContributions active failed: got=%+v err=%v", active, err)
+	}
+
+	mode = "disable-perm"
+	disabledPerm, err := client.ResolveNativeContributions(context.Background())
+	if err != nil || !disabledPerm.Known || disabledPerm.PermissionCommand || !disabledPerm.ModelCommand {
+		t.Fatalf("expected disabled permission module only: got=%+v err=%v", disabledPerm, err)
+	}
+	if disabledPerm.CommandRevision("permission") == active.CommandRevision("permission") {
+		t.Fatal("permission revision did not reflect inventory state change")
+	}
+
+	mode = "404"
+	fallback, err := client.ResolveNativeContributions(context.Background())
+	if err != nil || fallback != def {
+		t.Fatalf("missing pluginInventory/list should fall back to defaults: got=%+v err=%v", fallback, err)
+	}
+	if sseHits.Load() != 0 {
+		t.Fatalf("ResolveNativeContributions dialed /plugins/events %d times", sseHits.Load())
+	}
+}

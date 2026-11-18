@@ -1,5 +1,4 @@
-// Package launcher is the M11 native first-run / maintenance shell.
-// Layout mirrors reference/electron launcher.html + launcher.css 1:1.
+// Package launcher provides native runtime maintenance and update controls.
 package launcher
 
 import (
@@ -12,22 +11,11 @@ import (
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
-	"whaleisle/internal/product"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
-)
-
-// Tab ids match Electron data-tab values.
-const (
-	TabHome       = "home"
-	TabComponents = "components"
-	TabVersions   = "versions"
-	TabImport     = "import"
-	TabPlugins    = "plugins"
-	TabSettings   = "settings"
 )
 
 var (
@@ -73,18 +61,10 @@ type Model struct {
 	ThemeID                     string
 	SystemDark                  bool
 	Version                     string
-	Workspace                   string
 	VendorReady                 bool
-	LauncherPackage             bool // Electron: tray row visible when packaged (not only when desk running)
-	DesktopRunning              bool
-	RuntimeBusy                 bool
 	OnInstallUpdate             func()
 	StartBusy                   bool
-	StartFailed                 bool
 	StartError                  string
-	BootLogs                    []string
-	PluginLoad                  harness.PluginProgress
-	ActiveTab                   string
 	ImportSummary               string
 	ImportScanBusy              bool
 	OnCancelImportScan          func()
@@ -96,7 +76,7 @@ type Model struct {
 	SkipUserPlugins                                                       bool
 	PluginRecoveryReason                                                  string
 	StatusNote                                                            string
-	OnTab                                                                 func(tab string)
+	OnChooseRepairRelease                                                 func()
 	OnClose                                                               func()
 	OnStart                                                               func()
 	OnStop                                                                func()
@@ -120,14 +100,9 @@ type Model struct {
 	OnCancelRelease                                                       func()
 	OnDismissRelease                                                      func()
 	OnStartStagedRelease                                                  func()
-	OnOpenSettings                                                        func()
 	OnEnableSkipUserPlugins                                               func()
 	OnClearPluginRecovery                                                 func()
 	OnRestartHarness                                                      func()
-	WorkspacePtr                                                          *string
-	QuitAfterStart                                                        *bool
-	CloseToTray                                                           *bool
-	AutoStartDesktop                                                      *bool
 	AskOnUpdate                                                           *bool
 	DownloadRoute                                                         *string // "", "github", "cnb"
 	RouteUnavailable                                                      map[string]string
@@ -150,41 +125,13 @@ type Model struct {
 	OnStartImport  func()
 	ImportBusy     bool
 	OnCancelImport func()
-	// RoutePopOpen controls #rail-route-pop listbox visibility.
-	RoutePopOpen *bool
 }
 
 var (
-	diagOpen            bool
 	importOverwriteFB   bool
 	importAttachmentsFB bool
 	importCatActive     = "sessions"
 )
-
-// View paints the Electron-parity launcher shell (rail + stage).
-func View(c *ui.Context, m Model) {
-	if m.SystemDark {
-		applyDarkTokens()
-	} else {
-		applyLightTokens()
-	}
-	tab := m.ActiveTab
-	if tab == "" {
-		tab = TabHome
-	}
-
-	// launcher.css .shell: border-radius 20 + inset hairline on the window fill.
-	ui.Column(c).Fill().Background(colBase).Radius(20).Border(1, colBorderL2).Children(func() {
-		ui.Row(c).Fill().Children(func() {
-			rail(c, m, tab)
-			stage(c, m, tab)
-		})
-	})
-	ui.Overlay(c, func() {
-		// launcher.css .caption: 48px drag strip (trailing WCO reserve).
-		ui.Box(c).Absolute().Left(0).Top(0).Right(120).Height(48).DragWindow()
-	})
-}
 
 func applyLightTokens() {
 	launcherColors = theme.Resolve("deepseek").Light
@@ -238,418 +185,9 @@ func applyDarkTokens() {
 	colDanger = chrome.Color(th.Danger)
 }
 
-func rail(c *ui.Context, m Model, tab string) {
-	railPadTop := float32(56)
-	railW := float32(188)
-	ui.Column(c).Width(railW).FillHeight().Background(colSidebar).
-		BorderWidth(0, 1, 0, 0).BorderColor(colBorderL1).
-		Padding(railPadTop, 12, 16, 12).Gap(18).Children(func() {
-		railHead(c)
-		ui.Column(c).Gap(4).Grow(1).Role(ui.RoleTabList).FocusGroup(ui.Vertical).Children(func() {
-			railTab(c, m, TabHome, i18n.T(i18n.KeyLauncherTabHome), tab, 0)
-			compBadge := 0
-			for _, row := range m.Components {
-				// launcher-components.js syncComponentsBadge: updateAvailable || error only.
-				if row.UpdateAvailable || row.State == "error" {
-					compBadge++
-				}
-			}
-			railTab(c, m, TabComponents, i18n.T(i18n.KeyLauncherTabComponents), tab, compBadge)
-			railTab(c, m, TabVersions, i18n.T(i18n.KeyLauncherTabVersions), tab, 0)
-			railTab(c, m, TabImport, i18n.T(i18n.KeyLauncherTabImport), tab, 0)
-			railTab(c, m, TabPlugins, i18n.T(i18n.KeyLauncherTabPlugins), tab, 0)
-			railTab(c, m, TabSettings, i18n.T(i18n.KeyLauncherTabSettings), tab, 0)
-		})
-		if m.DownloadRoute != nil {
-			ui.Column(c).FillWidth().Padding(10, 12, 0, 12).
-				BorderWidth(1, 0, 0, 0).BorderColor(colBorderL1).Children(func() {
-				railRouteChip(c, m)
-			})
-		}
-	})
-}
-
-func railRouteLabel(m Model) string {
-	route := "GitHub"
-	if m.DownloadRoute != nil {
-		switch strings.ToLower(strings.TrimSpace(*m.DownloadRoute)) {
-		case "cnb":
-			route = i18n.T(i18n.KeyLauncherRouteCNB)
-		case "github", "":
-			route = i18n.T(i18n.KeyLauncherRouteGitHub)
-		default:
-			route = strings.TrimSpace(*m.DownloadRoute)
-		}
-	}
-	return route
-}
-
-func railRouteChip(c *ui.Context, m Model) {
-	btn := ui.Button(c, "").FillWidth().Background(ui.Transparent).
-		BorderWidth(0).BorderColor(ui.Transparent).
-		Padding(4, 6, 4, 6).Radius(6).AlignItems(ui.Center)
-	if btn.Hovered() {
-		btn.Background(colNavHover)
-	}
-	btn.Children(func() {
-		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-			globeIcon(c, colTertiary)
-			ui.Text(c, i18n.T(i18n.KeyLauncherRouteLabel)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-			ui.Text(c, railRouteLabel(m)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
-			ui.Box(c).Grow(1)
-			routeChevron(c, colTertiary, false)
-		})
-	})
-	routePopup(c, m, btn, m.RoutePopOpen, true)
-}
-
-func railHead(c *ui.Context) {
-	// The full product name wraps at its space within the narrow launcher rail.
-	ui.Row(c).Gap(8).Padding(0, 8, 0, 8).AlignItems(ui.Center).Children(func() {
-		if bmp := brandAvatar(); bmp != nil {
-			ui.Image(c, bmp).Width(36).Height(36).Shrink(0).Fit(ui.Contain)
-		} else {
-			ui.Box(c).Width(36).Height(36).Shrink(0).Radius(18).Background(colAccent.Alpha(0.2))
-		}
-		ui.Column(c).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, product.Name).Label(product.Name).MaxWidth(104).
-				FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).
-				FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, i18n.T(i18n.KeyLauncherBrandRole)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
-				FontWeight(500).LetterSpacing(0.72).TextColor(colTertiary).SingleLine()
-		})
-	})
-}
-
-func railTab(c *ui.Context, m Model, id, label, active string, badge int) {
-	bg := ui.Transparent
-	on := id == active
-	if on {
-		bg = colNavActive
-	}
-	// launcher.css .tab.is-active: wash only (no left accent bar).
-	btn := ui.Button(c, "").Role(ui.RoleTab).Checked(on).Label(label).FillWidth().Height(40).Radius(12).Background(bg).
-		BorderWidth(0).BorderColor(ui.Transparent).
-		Padding(9, 16, 9, 12).AlignItems(ui.Center)
-	if btn.Hovered() && !on {
-		btn.Background(colNavHover)
-	}
-	btn.Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			tabIcon(c, id, colPrimary)
-			ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(colPrimary).Grow(1)
-			if badge > 0 {
-				ui.Row(c).Background(colAccent).Padding(0, 5, 0, 5).Radius(999).
-					MinWidth(18).Children(func() {
-					ui.Text(c, fmt.Sprintf("%d", badge)).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(colPrimaryFg)
-				})
-			}
-		})
-	})
-	if btn.Clicked() && m.OnTab != nil {
-		m.OnTab(id)
-	}
-}
-
-func stage(c *ui.Context, m Model, tab string) {
-	// launcher.css: the padded stage stays fixed; main alone scrolls.
-	// Grow, not Fill: a row child at percent(100) measures the rail's full
-	// width, so long content (release errors) widened the shell past the
-	// window instead of wrapping inside the remaining space.
-	ui.Column(c).Grow(1).MinWidth(0).FillHeight().Padding(56, 24, 24, 24).Children(func() {
-		ui.Scroll(c).Fill().MinWidth(0).Children(func() {
-			ui.Row(c).FillWidth().Children(func() {
-				ui.Box(c).Grow(1).MinWidth(0)
-				ui.Column(c).FillWidth().MaxWidth(1040).MinWidth(0).Shrink(1).Children(func() {
-					stageBody(c, m, tab)
-				})
-				ui.Box(c).Grow(1).MinWidth(0)
-			})
-		})
-	})
-}
-
-func stageBody(c *ui.Context, m Model, tab string) {
-	ui.Column(c).FillWidth().Gap(0).Children(func() {
-		if tab != TabComponents {
-			bridgeAlertSummary(c, m, false)
-		}
-		switch tab {
-		case TabComponents:
-			routePageHead(c, m, i18n.T(i18n.KeyLauncherTabComponents), i18n.T(i18n.KeyLauncherComponentsLede))
-			componentsPanel(c, m)
-		case TabVersions:
-			routePageHead(c, m, i18n.T(i18n.KeyLauncherTabVersions), "")
-			versionsPanel(c, m)
-		case TabImport:
-			pageHead(c, i18n.T(i18n.KeyLauncherTabImport), i18n.T(i18n.KeyLauncherImportLede), "", nil)
-			importPanel(c, m)
-		case TabPlugins:
-			pageHead(c, i18n.T(i18n.KeyLauncherTabPlugins),
-				i18n.T(i18n.KeyLauncherPluginsUnknownHint), "", nil)
-			pluginsPanel(c, m)
-		case TabSettings:
-			pageHead(c, i18n.T(i18n.KeyLauncherTabSettings), i18n.T(i18n.KeyLauncherSettingsLede), "", nil)
-			settingsPanel(c, m)
-		default:
-			homePanel(c, m)
-		}
-	})
-}
-
-func pageHead(c *ui.Context, title, lede, action string, onAction func()) {
-	// launcher.css .home-heading h2: 16/600; p: 12 tertiary; margin-bottom 16.
-	titleSize := float32(16)
-	headBot := float32(16)
-	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(16).Padding(0, 0, headBot, 0).Children(func() {
-		ui.Column(c).Grow(1).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(theme.InterfaceSize(titleSize)).FontWeight(600).TextColor(colPrimary)
-			if lede != "" {
-				ui.Text(c, lede).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-			}
-		})
-		if action != "" {
-			if onAction != nil {
-				if ghostSmall(c, action).Clicked() {
-					onAction()
-				}
-			}
-		}
-	})
-}
-
-func homePanel(c *ui.Context, m Model) {
-	// Electron home header CTA jumps to the Versions tab.
-	pageHead(c, i18n.T(i18n.KeyLauncherTabHome), i18n.T(i18n.KeyLauncherHomeLede), i18n.T(i18n.KeyLauncherGotoVersions), func() {
-		if m.OnTab != nil {
-			m.OnTab(TabVersions)
-		}
-	})
-
-	// Electron home desktop card (launcher.html:68, launcher.css .home-desktop):
-	// a 48px brand avatar, the product name over the 16/24 title, the
-	// version pill top-right; status+CTAs one row; running note under the actions.
-	ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
-		Padding(20, 24, 20, 24).Gap(0).Children(func() {
-		ui.Row(c).FillWidth().AlignItems(ui.Start).Gap(16).Children(func() {
-			// .home-product: avatar + text column, 12px apart, centred.
-			ui.Row(c).Gap(12).AlignItems(ui.Center).Grow(1).MinWidth(0).Children(func() {
-				if bmp := brandAvatar(); bmp != nil {
-					ui.Image(c, bmp).Size(48, 48).Shrink(0).Fit(ui.Contain)
-				}
-				ui.Column(c).Gap(2).MinWidth(0).Children(func() {
-					// .home-eyebrow: 10/16, letter-spacing 1px, tertiary.
-					ui.Text(c, product.Name).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).
-						LetterSpacing(1).TextColor(colTertiary)
-					// .home-product h3: 16/24 semibold, 2px above.
-					ui.Text(c, i18n.T(i18n.KeyLauncherDesktopTitle)).FontSize(theme.InterfaceSize(16)).
-						FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(colPrimary)
-				})
-			})
-			badge := strings.TrimSpace(m.Version)
-			if badge == "" {
-				badge = i18n.T(i18n.KeyLauncherBadgeInstalled)
-			} else if !strings.HasPrefix(badge, "v") && !strings.HasPrefix(badge, "V") {
-				badge = "v" + badge
-			}
-			if !m.VendorReady {
-				badge = i18n.T(i18n.KeyLauncherBadgeMissing)
-			}
-			ui.Row(c).Background(colNavActive).Padding(1, 8, 1, 8).Radius(999).Children(func() {
-				ui.Text(c, badge).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(colSecondary)
-			})
-		})
-
-		ui.Text(c, i18n.T(i18n.KeyLauncherDesktopDesc)).FontSize(theme.InterfaceSize(14)).TextColor(colSecondary).
-			Padding(12, 0, 16, 0)
-
-		status := i18n.T(i18n.KeyLauncherDesktopStopped)
-		dot := colTertiary
-		if m.StartBusy {
-			status = i18n.T(i18n.KeyLauncherStarting)
-			dot = colAccent
-		} else if m.DesktopRunning {
-			status = i18n.T(i18n.KeyLauncherDesktopRunning)
-			dot = chrome.Color("rgb(34, 197, 94)")
-		} else if m.StartError != "" {
-			status = m.StartError
-		}
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(16).Children(func() {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Grow(1).Children(func() {
-				ui.Box(c).Width(6).Height(6).Radius(3).Background(dot)
-				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-			})
-			ui.Row(c).Gap(8).Children(func() {
-				if m.DesktopRunning && !m.StartBusy {
-					if ghostBtn(c, i18n.T(i18n.KeyLauncherCloseDesktop)).Disabled(m.RuntimeBusy).Clicked() && m.OnStop != nil {
-						m.OnStop()
-					}
-					if ghostBtn(c, i18n.T(i18n.KeyLauncherCheckUpdate)).Clicked() && m.OnCheckUpdate != nil {
-						m.OnCheckUpdate()
-					}
-				} else {
-					startLabel := i18n.T(i18n.KeyLauncherStartDesktop)
-					if m.StartBusy {
-						startLabel = i18n.T(i18n.KeyLauncherStarting)
-					} else if m.StartFailed {
-						startLabel = i18n.T(i18n.KeyLauncherRetryStart)
-					}
-					btn := primaryBtn(c, startLabel).Disabled(m.StartBusy || m.RuntimeBusy)
-					if btn.Clicked() && m.OnStart != nil {
-						m.OnStart()
-					}
-					if ghostBtn(c, i18n.T(i18n.KeyLauncherCheckUpdate)).Clicked() && m.OnCheckUpdate != nil {
-						m.OnCheckUpdate()
-					}
-				}
-			})
-		})
-
-		if m.DesktopRunning && !m.StartBusy {
-			ui.Text(c, i18n.T(i18n.KeyLauncherRunningNote)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary).
-				Padding(12, 0, 0, 0)
-		}
-		// launcher.html #home-update + #btn-home-update / ????.
-		if m.UpdateAvailable && m.UpdateStatus != "" {
-			ui.Column(c).FillWidth().Padding(16, 0, 0, 0).
-				BorderWidth(1, 0, 0, 0).BorderColor(colBorderL2).Gap(8).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherUpdateTitle)).FontSize(theme.InterfaceSize(10)).TextColor(colTertiary)
-				ui.Text(c, m.UpdateStatus).FontSize(theme.InterfaceSize(14)).TextColor(colPrimary)
-				ui.Row(c).Gap(8).Children(func() {
-					if primaryBtn(c, i18n.T(i18n.KeyLauncherUpdateNow)).Clicked() {
-						if m.OnInstallUpdate != nil {
-							m.OnInstallUpdate()
-						} else if m.OnCheckUpdate != nil {
-							m.OnCheckUpdate()
-						}
-					}
-					if ghostSmall(c, i18n.T(i18n.KeyLauncherViewVersions)).Clicked() && m.OnTab != nil {
-						m.OnTab(TabVersions)
-					}
-				})
-			})
-		}
-	})
-
-	if !m.VendorReady {
-		homeInstall(c, m)
-	} else {
-		// Without an install card the strip has no stable home; it surfaces as
-		// its own card only while an operation is active.
-		releaseStrip(c, m)
-	}
-	if r := strings.TrimSpace(m.PluginRecoveryReason); r != "" {
-		ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Children(func() {
-			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
-				Padding(16, 20, 16, 20).Gap(10).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherPluginFailTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
-				ui.Text(c, r).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary)
-				ui.Row(c).Gap(8).Children(func() {
-					if primaryBtn(c, i18n.T(i18n.KeyLauncherPluginFailDisable)).Clicked() && m.OnEnableSkipUserPlugins != nil {
-						m.OnEnableSkipUserPlugins()
-					}
-					if ghostBtn(c, i18n.T(i18n.KeyLauncherPluginFailOpen)).Clicked() && m.OnTab != nil {
-						m.OnTab(TabPlugins)
-					}
-				})
-			})
-		})
-	}
-	homeComponents(c, m)
-	diag(c, m)
-}
-
-func homeInstall(c *ui.Context, m Model) {
-	// launcher.html #home-install: route picker + install CTA when runtime missing.
-	ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Children(func() {
-		ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(16).
-			Padding(20, 24, 20, 24).Gap(12).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopDesc)).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary)
-			if m.DownloadRoute != nil {
-				ui.Row(c).Gap(8).Children(func() {
-					for _, id := range []string{"github", "cnb"} {
-						label := i18n.T(i18n.KeyLauncherRouteGitHub)
-						if id == "cnb" {
-							label = i18n.T(i18n.KeyLauncherRouteCNB)
-						}
-						cur := strings.ToLower(strings.TrimSpace(*m.DownloadRoute))
-						if cur == "" {
-							cur = "github"
-						}
-						bg := colField
-						if cur == id {
-							bg = colNavActive
-						}
-						opt := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(36).Radius(10).Padding(0, 14, 0, 14).
-							Background(bg).Border(1, colBorderL2).TextColor(colPrimary).FontSize(theme.InterfaceSize(13))
-						routeID := id
-						if opt.Clicked() {
-							*m.DownloadRoute = routeID
-							if m.OnSaveLauncherPrefs != nil {
-								m.OnSaveLauncherPrefs()
-							}
-						}
-					}
-				})
-				if reason := m.RouteUnavailable["cnb"]; reason != "" {
-					ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-				}
-			}
-			// The card's single action slot: the idle call to action and the
-			// operation strip swap content in the same row — a download, error
-			// or staged installer never adds a new block that shifts the card.
-			ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
-				if releaseIdle(m) {
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						if primaryBtn(c, i18n.T(i18n.KeyLauncherInstallDesktopCTA)).Disabled(m.ReleaseBusy).Clicked() && m.OnInstallRuntime != nil {
-							m.OnInstallRuntime()
-						}
-						ui.Text(c, i18n.T(i18n.KeyLauncherInstallDesktopVerify)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-					})
-				} else {
-					releaseStripContent(c, m)
-				}
-			})
-		})
-	})
-}
-
-func homeComponents(c *ui.Context, m Model) {
-	// Electron #home-components: visible only when installedVersion is set.
-	var installed []components.Row
-	for _, row := range m.Components {
-		if strings.TrimSpace(row.InstalledVersion) != "" {
-			installed = append(installed, row)
-		}
-	}
-	if len(installed) == 0 {
-		return
-	}
-	ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Gap(8).Children(func() {
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
-			ui.Column(c).Grow(1).Gap(4).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherMyComponents)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colPrimary)
-				ui.Text(c, i18n.T(i18n.KeyLauncherMyComponentsLede)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
-			})
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherManageComponents)).Clicked() && m.OnTab != nil {
-				m.OnTab(TabComponents)
-			}
-		})
-		width, _ := c.Size()
-		available := min(float32(1040), max(float32(0), width-188-48-2))
-		columns := max(1, min(len(installed), int((available+16)/(280+16))))
-		ui.Grid(c).FillWidth().Columns(columns).Gap(16).Children(func() {
-			for _, row := range installed {
-				componentCard(c, m, row, true)
-			}
-		})
-	})
-}
-
 func componentsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(12).Children(func() {
-		bridgeAlertSummary(c, m, true)
+		bridgeAlertSummary(c, m)
 		if m.ComponentStatus != "" {
 			ui.Text(c, m.ComponentStatus).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		}
@@ -832,7 +370,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 
 func componentAvatar(c *ui.Context, row components.Row, size float32) {
 	if row.ID == "whalebridge" {
-		if bmp := brandAvatar(); bmp != nil {
+		if bmp := chrome.BrandAvatar(); bmp != nil {
 			ui.Image(c, bmp).Width(size).Height(size).Fit(ui.Contain)
 			return
 		}
@@ -933,60 +471,6 @@ func stateLabel(state string) string {
 		return state
 	}
 }
-
-func pluginHint(p harness.PluginProgress) string {
-	if p.Total > 0 {
-		line := fmt.Sprintf(i18n.T(i18n.KeyBootPlugins), p.Ready, p.Total)
-		if p.Detail != "" {
-			line += " · " + p.Detail
-		}
-		return line
-	}
-	if p.Phase == "runtime" {
-		return i18n.T(i18n.KeyBootPluginsIndeterminate)
-	}
-	return ""
-}
-
-func diag(c *ui.Context, m Model) {
-	// Electron #home-recovery stays hidden unless recovery/start failure needs it.
-	// StartBusy alone must not open the accordion (live Electron keeps it collapsed).
-	show := m.StartFailed || m.StartError != "" || m.StatusNote != "" || m.SkipUserPlugins
-	if !show {
-		return
-	}
-	if m.StartFailed {
-		diagOpen = true
-	}
-	ui.Column(c).FillWidth().Padding(24, 0, 0, 0).Gap(8).Children(func() {
-		ui.Box(c).Height(1).FillWidth().Background(colBorderL1)
-		label := "? " + i18n.T(i18n.KeyLauncherDiagTitle)
-		if diagOpen {
-			label = "? " + i18n.T(i18n.KeyLauncherDiagTitle)
-		}
-		sum := ui.Button(c, label).Background(ui.Transparent).BorderWidth(0).
-			BorderColor(ui.Transparent).TextColor(colSecondary).FontSize(theme.InterfaceSize(16)).FontWeight(500).
-			Padding(0, 0, 0, 0).AlignSelf(ui.Start)
-		if sum.Clicked() {
-			diagOpen = !diagOpen
-		}
-		if !diagOpen {
-			return
-		}
-		if m.StatusNote != "" {
-			ui.Text(c, m.StatusNote).FontSize(theme.InterfaceSize(13)).TextColor(colAccent)
-		}
-		ui.Text(c, i18n.T(i18n.KeyLauncherWorkspace)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary)
-		if m.WorkspacePtr != nil {
-			ui.TextInput(c, m.WorkspacePtr).FillWidth().Placeholder(i18n.T(i18n.KeyLauncherWorkspaceHint))
-		}
-		kv(c, i18n.T(i18n.KeyLauncherVersion), nonempty(m.Version, "dev"))
-		kv(c, i18n.T(i18n.KeyLauncherVendor), onOff(m.VendorReady))
-		startupDiagnosticsPanel(c, m)
-	})
-}
-
-func versionsPanel(c *ui.Context, m Model) { UpdateCenter(c, m) }
 
 func importPanel(c *ui.Context, m Model) {
 	if m.ImportBusy {
@@ -1258,12 +742,6 @@ func pluginsPanel(c *ui.Context, m Model) {
 				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntimeDesc)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
 			})
 		}
-		// Electron: compact ????pill (not a full-width bar).
-		ui.Row(c).AlignSelf(ui.Start).Children(func() {
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherVerRefresh)).Disabled(m.StartupRepairBusy).Clicked() && m.OnRefreshStartupDiagnostics != nil {
-				m.OnRefreshStartupDiagnostics()
-			}
-		})
 		if len(m.DisabledPlugins) == 0 && !m.SkipUserPlugins {
 			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
 			ui.Box(c).FillWidth().Height(1).Background(colBorderL1)
@@ -1304,9 +782,6 @@ func pluginsPanel(c *ui.Context, m Model) {
 
 func settingsPanel(c *ui.Context, m Model) {
 	ui.Column(c).Gap(0).Children(func() {
-		hintBot := float32(16)
-		ui.Text(c, i18n.T(i18n.KeyLauncherSettingsOnlyHint)).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary).
-			Padding(0, 0, hintBot, 0)
 		if m.LauncherPrefsError != "" {
 			ui.Text(c, m.LauncherPrefsError).FontSize(theme.InterfaceSize(12)).TextColor(colPrimary).Padding(0, 0, 12, 0)
 		}
@@ -1346,16 +821,6 @@ func settingsPanel(c *ui.Context, m Model) {
 			ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(0, 0, 12, 0)
 		}
 
-		if m.QuitAfterStart != nil {
-			switchCheck(c, i18n.T(i18n.KeyLauncherOptQuitTitle), i18n.T(i18n.KeyLauncherOptQuitDesc), m.QuitAfterStart, m.OnSaveLauncherPrefs)
-		}
-		// launcher.js #row-opt-tray: hidden unless launcherPackage === true.
-		if m.CloseToTray != nil && m.LauncherPackage {
-			switchCheck(c, i18n.T(i18n.KeyLauncherOptTrayTitle), i18n.T(i18n.KeyLauncherOptTrayDesc), m.CloseToTray, m.OnSaveLauncherPrefs)
-		}
-		if m.AutoStartDesktop != nil {
-			switchCheck(c, i18n.T(i18n.KeyLauncherOptAutoTitle), i18n.T(i18n.KeyLauncherOptAutoDesc), m.AutoStartDesktop, m.OnSaveLauncherPrefs)
-		}
 		if m.AskOnUpdate != nil {
 			switchCheck(c, i18n.T(i18n.KeyLauncherOptAskTitle), i18n.T(i18n.KeyLauncherOptAskDesc), m.AskOnUpdate, m.OnSaveLauncherPrefs)
 		}

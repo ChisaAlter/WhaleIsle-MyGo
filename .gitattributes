@@ -1,8 +1,45 @@
 # Normalize line endings: text files are LF in the repository.
 * text=auto
+
+# Scripts and platform-specific text files
 *.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.nsi text eol=lf
+*.nsh text eol=lf
+*.go text eol=lf
+
+# Images and media
 *.png binary
 *.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.bmp binary
+*.avif binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+
+# Archives and binaries
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.dylib binary
+*.so binary
+*.syso binary
 
 # Preserve vendored mobile Git source bytes and recorded provenance hashes.
 internal/desktop/phoneremote/git-source/** -text

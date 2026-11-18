@@ -1,0 +1,26 @@
+{
+  "loadingMs": 966,
+  "sameWindow": true,
+  "loading": true,
+  "workbench": true,
+  "syntheticHistory": false,
+  "settings": false,
+  "milestones": [
+    {
+      "stage": "ui.first_view_built",
+      "atMs": 292.551
+    },
+    {
+      "stage": "host.ready",
+      "atMs": 8889.672
+    },
+    {
+      "stage": "connection.events_ready",
+      "atMs": 9318.707
+    },
+    {
+      "stage": "workspace.ready",
+      "atMs": 9413.703
+    }
+  ]
+}

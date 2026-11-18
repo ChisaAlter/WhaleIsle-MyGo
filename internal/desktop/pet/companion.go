@@ -14,7 +14,7 @@ import (
 	"whaleisle/internal/store/storelocale"
 )
 
-//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/anime4k.js assets/anime4k.LICENSE assets/anime4k-provenance.json assets/pet-super-resolution.js assets/pet-runtime.js assets/pet-sprite.js assets/pet-body.js assets/pet-sleep.js assets/pet-layout.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
+//go:embed assets/pet-head.png assets/pet.html assets/tha4.js assets/anime4k.LICENSE assets/anime4k-provenance.json assets/pet-super-resolution.js assets/pet-runtime.js assets/pet-sprite.js assets/pet-body.js assets/pet-sleep.js assets/pet-layout.js assets/pet-interaction.js assets/pet-behavior.js assets/pet-dialogue.json assets/render-manifest.json
 var assets embed.FS
 
 // Companion is owned by the UI thread. Use Window.Update to call it from a
@@ -72,6 +72,7 @@ type Companion struct {
 	quickChatBounds           mygo.Rectangle
 	OnOpenSession             func(string)
 	OnEnabledChanged          func()
+	renderDownload            renderDownloadState
 }
 
 func New(store *config.Store) *Companion {
@@ -138,7 +139,11 @@ func (p *Companion) Save() {
 	}
 }
 func (p *Companion) SetReady(ready bool) { p.ready = ready; p.sync() }
-func (p *Companion) Close()              { p.ready = false; p.close() }
+func (p *Companion) Close() {
+	p.CancelDownloadRenderAssets()
+	p.ready = false
+	p.close()
+}
 func (p *Companion) close() {
 	p.stopGrowthClock()
 	p.stopRestClock()
@@ -187,7 +192,7 @@ func (p *Companion) sync() {
 	// default for the bundled character when that skin is cleared.
 	if cfg.Neural && len(sheet) == 0 {
 		var err error
-		neuralAssets, err = loadRenderAssets(petRenderRoot())
+		neuralAssets, err = loadRenderAssets(p.resolveActiveRenderRoot())
 		if err != nil {
 			p.Error = err.Error()
 			notice = storelocale.T(storelocale.KeyDesktopPetMissingOrChangedTha4AssetsFallback)
@@ -446,7 +451,10 @@ func (p *Companion) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/pet-dialogue.json":
 		body, _ = assets.ReadFile("assets/pet-dialogue.json")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	case "/tha4.js", "/anime4k.js", "/pet-super-resolution.js", "/pet-runtime.js", "/pet-sprite.js", "/pet-body.js", "/pet-sleep.js", "/pet-layout.js", "/pet-interaction.js", "/pet-behavior.js":
+	case "/anime4k.js":
+		body = p.loadAnime4K()
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	case "/tha4.js", "/pet-super-resolution.js", "/pet-runtime.js", "/pet-sprite.js", "/pet-body.js", "/pet-sleep.js", "/pet-layout.js", "/pet-interaction.js", "/pet-behavior.js":
 		body, _ = assets.ReadFile("assets" + r.URL.Path)
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case "/sprite.webp":

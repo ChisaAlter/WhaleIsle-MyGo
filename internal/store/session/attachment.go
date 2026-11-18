@@ -14,10 +14,13 @@ import (
 	"whaleisle/internal/dsh/api"
 )
 
+const maxAttachmentCacheEntries = 512
+
 var attachmentCache struct {
 	mu    sync.Mutex
 	dir   string
 	paths map[string]string // attachmentId -> local path
+	order []string          // oldest -> newest for bounded LRU eviction
 }
 
 // SetAttachmentCacheDir installs the directory used for session/attachment blobs.
@@ -103,9 +106,31 @@ func fetchSessionAttachment(ctx context.Context, client *dsh.Client, sessionID, 
 	if attachmentCache.paths == nil {
 		attachmentCache.paths = map[string]string{}
 	}
-	attachmentCache.paths[identity] = local
+	putAttachmentCacheLocked(identity, local)
 	attachmentCache.mu.Unlock()
 	return local, nil
+}
+
+func putAttachmentCacheLocked(identity, local string) {
+	if _, exists := attachmentCache.paths[identity]; exists {
+		removeAttachmentOrderLocked(identity)
+	}
+	attachmentCache.paths[identity] = local
+	attachmentCache.order = append(attachmentCache.order, identity)
+	for len(attachmentCache.order) > maxAttachmentCacheEntries {
+		evict := attachmentCache.order[0]
+		attachmentCache.order = attachmentCache.order[1:]
+		delete(attachmentCache.paths, evict)
+	}
+}
+
+func removeAttachmentOrderLocked(identity string) {
+	for i, id := range attachmentCache.order {
+		if id == identity {
+			attachmentCache.order = append(attachmentCache.order[:i], attachmentCache.order[i+1:]...)
+			return
+		}
+	}
 }
 
 func decodeAttachmentData(data string) ([]byte, error) {
@@ -124,5 +149,6 @@ func decodeAttachmentData(data string) ([]byte, error) {
 func ForgetCachedAttachment(attachmentID string) {
 	attachmentCache.mu.Lock()
 	delete(attachmentCache.paths, attachmentID)
+	removeAttachmentOrderLocked(attachmentID)
 	attachmentCache.mu.Unlock()
 }

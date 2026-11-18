@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/startuptrace"
 )
@@ -153,30 +154,44 @@ func Prepare(o PrepareOptions) ([]string, error) {
 	// Every junction is created before any overlay is written: both loops keep
 	// Electron push order, and the split makes profile staging measurable.
 	endLinks := startuptrace.Begin("profile.links")
-	for _, p := range plugins {
-		source := filepath.Join(o.VendorDir, p.VendorName)
-		if p.VendorName == "dsh-acp" {
-			for _, name := range []string{"lib/index.js", "lib/presets.js", "lib/t3-runtime.js", "lib/t3-session.js", "lib/t3-auth.js", "lib/mcp-server.js", "lib/vendor/t3.cjs", "lib/vendor/t3-mcp-bridge.cjs"} {
-				if _, err := os.Stat(filepath.Join(source, filepath.FromSlash(name))); err != nil {
-					endLinks()
-					return nil, fmt.Errorf("incomplete ACP runtime: %s: %w", name, err)
+	if err := os.MkdirAll(filepath.Join(o.ProfileDir, "node_modules"), 0o755); err != nil {
+		endLinks()
+		return nil, err
+	}
+	errs := make([]error, len(plugins))
+	var wg sync.WaitGroup
+	for i, plugin := range plugins {
+		wg.Add(1)
+		go func(idx int, p DesktopPlugin) {
+			defer wg.Done()
+			source := filepath.Join(o.VendorDir, p.VendorName)
+			if p.VendorName == "dsh-acp" {
+				for _, name := range []string{"lib/index.js", "lib/presets.js", "lib/t3-runtime.js", "lib/t3-session.js", "lib/t3-auth.js", "lib/mcp-server.js", "lib/vendor/t3.cjs", "lib/vendor/t3-mcp-bridge.cjs"} {
+					if _, err := os.Stat(filepath.Join(source, filepath.FromSlash(name))); err != nil {
+						errs[idx] = fmt.Errorf("incomplete ACP runtime: %s: %w", name, err)
+						return
+					}
 				}
 			}
-		}
-		if _, err := os.Stat(filepath.Join(source, "package.json")); err != nil {
-			if p.Required {
-				endLinks()
-				return nil, fmt.Errorf("desktop plugin %s: missing package.json under %s", p.VendorName, source)
+			if _, err := os.Stat(filepath.Join(source, "package.json")); err != nil {
+				if p.Required {
+					errs[idx] = fmt.Errorf("desktop plugin %s: missing package.json under %s", p.VendorName, source)
+				}
+				return
 			}
-			continue
-		}
-		link := filepath.Join(o.ProfileDir, "node_modules", p.ModuleLink)
-		if _, err := EnsureDirectoryLink(source, link); err != nil {
-			endLinks()
-			return nil, fmt.Errorf("junction %s: %w", p.VendorName, err)
+			link := filepath.Join(o.ProfileDir, "node_modules", p.ModuleLink)
+			if _, err := EnsureDirectoryLink(source, link); err != nil {
+				errs[idx] = fmt.Errorf("junction %s: %w", p.VendorName, err)
+			}
+		}(i, plugin)
+	}
+	wg.Wait()
+	endLinks()
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
 		}
 	}
-	endLinks()
 	endOverlays := startuptrace.Begin("profile.overlays")
 	defer endOverlays()
 	var patches []string
@@ -214,15 +229,40 @@ func writeInsertOverlay(profileDir string, p DesktopPlugin) (string, error) {
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == contents {
 		return path, nil
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, []byte(contents), 0o644); err != nil {
-		return "", err
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	if err := writeFileAtomic(path, []byte(contents), 0o644); err != nil {
 		return "", err
 	}
 	return path, nil
+}
+
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmp)
+		}
+	}()
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Chmod(perm); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	cleanup = false
+	return nil
 }
 
 func overlayYAML(insertID, packageName string) string {

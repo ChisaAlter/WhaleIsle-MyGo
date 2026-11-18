@@ -37,6 +37,9 @@ type Seat struct {
 	lastPaint     time.Time
 	pending       bool
 	attempted     bool
+	hidden        bool
+	hiddenSince   time.Time
+	openFn        func(ctx context.Context, owner *Owner, width, height float32, appearance string, valid func() bool) (*Surface, error)
 	notify        func()
 	surface       *Surface
 	cancel        context.CancelFunc
@@ -86,33 +89,52 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 		s.err = nil
 		s.attempted = false
 	}
+	// Seat owns its live surface lease via explicit visibility transitions and
+	// owner validity, keeping visible settled images at 0 Hz.
 	if s.surface != nil {
-		select {
-		case <-s.surface.Done():
-			s.err = s.surface.Error()
-			if s.err == nil {
-				s.err = errors.New("isolated SVG image closed")
-			}
+		if s.surface.Reclaimed() {
 			s.surface = nil
 			s.pending = false
-		default:
+			s.err = nil
+			s.attempted = false
+		} else {
+			select {
+			case <-s.surface.Done():
+				if s.surface.Reclaimed() {
+					s.err = nil
+					s.attempted = false
+				} else {
+					s.err = s.surface.Error()
+					if s.err == nil {
+						s.err = errors.New("isolated SVG image closed")
+					}
+				}
+				s.surface = nil
+				s.pending = false
+			default:
+			}
 		}
 	}
-	// A live or opening surface renews its lease from Paint, whose frames
-	// repaint without building the view; asking for builds here rebuilt the
-	// whole window ten times a second while any SVG image was shown.
-	if s.surface != nil || s.pending || s.err != nil {
-		s.mu.Unlock()
-		return
-	}
 	if !owner.Valid() {
+		if s.cancel != nil {
+			s.cancel()
+		}
+		if surface := s.surface; surface != nil {
+			s.surface = nil
+			go surface.Close()
+		}
+		s.pending = false
 		s.err = errors.New("SVG image owner is no longer active")
 		s.mu.Unlock()
 		return
 	}
-	// A local seat that disappeared must not relaunch on unrelated view builds.
+	if s.surface != nil || s.pending || s.err != nil {
+		s.mu.Unlock()
+		return
+	}
+	// A hidden or offscreen seat must not relaunch on unrelated view builds.
 	// Its first visible paint invalidates once to resume with this same snapshot.
-	if s.attempted && time.Since(s.lastPaint) > 400*time.Millisecond {
+	if s.attempted && s.hidden {
 		s.mu.Unlock()
 		return
 	}
@@ -121,9 +143,11 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 	s.ctx = ctx
 	s.cancel = cancel
 	s.pending = true
+	s.hidden = false
+	s.hiddenSince = time.Time{}
 	s.generation++
 	generation := s.generation
-	// The first build grants only startup. Subsequent paints must renew it.
+	// The first build grants startup visibility; offscreen reclaim clears this.
 	s.lastPaint = time.Now()
 	width, height := s.width, s.height
 	s.mu.Unlock()
@@ -138,7 +162,8 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 			return false
 		}
 		s.mu.Lock()
-		current := s.generation == generation && s.ownerID == owner.ID && time.Since(s.lastPaint) < 400*time.Millisecond
+		hiddenExpired := s.hidden && !s.hiddenSince.IsZero() && time.Since(s.hiddenSince) >= defaultSVGOffscreenReclaimTTL
+		current := s.generation == generation && s.ownerID == owner.ID && !hiddenExpired
 		s.mu.Unlock()
 		if !current {
 			cancel()
@@ -147,7 +172,7 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 	}
 	openingDone := make(chan struct{})
 	go func() {
-		tick := time.NewTicker(100 * time.Millisecond)
+		tick := time.NewTicker(250 * time.Millisecond)
 		defer tick.Stop()
 		for {
 			select {
@@ -162,9 +187,15 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 			}
 		}
 	}()
+	openSurface := s.openFn
+	if openSurface == nil {
+		openSurface = func(ctx context.Context, owner *Owner, width, height float32, appearance string, valid func() bool) (*Surface, error) {
+			return Open(ctx, owner.Window, owner.HelperPath, s.data, int(width), int(height), appearance, valid)
+		}
+	}
 	go func() {
 		defer close(openingDone)
-		surface, err := Open(ctx, owner.Window, owner.HelperPath, s.data, int(width), int(height), appearance, valid)
+		surface, err := openSurface(ctx, owner, width, height, appearance, valid)
 		s.mu.Lock()
 		current := s.generation == generation && s.ownerID == owner.ID && ctx.Err() == nil
 		if current {
@@ -181,7 +212,6 @@ func (s *Seat) Prepare(c *ui.Context, owner *Owner) {
 		}
 		notify()
 	}()
-	c.After(50 * time.Millisecond)
 }
 
 func (s *Seat) Error() error {
@@ -224,11 +254,21 @@ func (s *Seat) PaintClipped(p *ui.Painter, r ui.Rect, fit ui.Fit, radius float32
 	s.mu.Lock()
 	if visible {
 		s.lastPaint = time.Now()
+		s.hidden = false
+		s.hiddenSince = time.Time{}
+	} else if !s.hidden {
+		s.hidden = true
+		s.hiddenSince = time.Now()
+	}
+	if s.surface != nil && s.surface.Reclaimed() {
+		s.surface = nil
+		s.err = nil
+		s.attempted = false
 	}
 	surface := s.surface
 	width, height := s.width, s.height
 	err := s.err
-	restart := surface == nil && !s.pending && err == nil && s.notify != nil
+	restart := visible && surface == nil && !s.pending && err == nil && s.notify != nil
 	notify := s.notify
 	s.mu.Unlock()
 	if !visible {
@@ -246,9 +286,6 @@ func (s *Seat) PaintClipped(p *ui.Painter, r ui.Rect, fit ui.Fit, radius float32
 			message = err.Error()
 		}
 		p.Clip(r, 0, func() { p.Text(r.X+4, r.Y+4, message, 12, p.Theme().TextMuted) })
-		if err == nil {
-			p.After(50 * time.Millisecond)
-		}
 		return
 	}
 	factor := min(r.W/width, r.H/height)

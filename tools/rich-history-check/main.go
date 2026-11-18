@@ -119,7 +119,8 @@ func run(stage, base, native, reuse string, r *report) error {
 			return err
 		}
 	}
-	for k, v := range map[string]string{paths.EnvUserData: data, "DSH_HOME": home, "HOME": ownedUser, "USERPROFILE": ownedUser, "APPDATA": filepath.Join(ownedUser, "AppData", "Roaming"), "LOCALAPPDATA": filepath.Join(ownedUser, "AppData", "Local")} {
+	localAppData := filepath.Join(ownedUser, "AppData", "Local")
+	for k, v := range map[string]string{paths.EnvUserData: data, "DSH_HOME": home, "HOME": ownedUser, "USERPROFILE": ownedUser, "APPDATA": filepath.Join(ownedUser, "AppData", "Roaming"), "LOCALAPPDATA": localAppData, "PSModuleAnalysisCachePath": filepath.Join(localAppData, "Microsoft", "Windows", "PowerShell", "ModuleAnalysisCache")} {
 		if err = os.Setenv(k, v); err != nil {
 			return err
 		}

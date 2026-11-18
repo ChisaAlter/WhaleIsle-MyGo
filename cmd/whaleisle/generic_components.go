@@ -24,9 +24,7 @@ func (s *mainState) launcherComponentActivitySnapshot() launcherComponentActivit
 		activity.Pending[key.(string)] = value.(string)
 		return true
 	})
-	s.mu.Lock()
-	activity.Status = s.launcherComponentStatus
-	s.mu.Unlock()
+	activity.Status = s.launcherController().ComponentStatus()
 	return activity
 }
 
@@ -46,12 +44,9 @@ func (s *mainState) configureGenericComponents() {
 		NodeBin:     node,
 		SamplesRoot: filepath.Join(filepath.Dir(paths.VendorDir()), "components", "samples"),
 		OnProgress: func(id, action string, p desktopcomponents.GenericProgress) {
+			msg := fmt.Sprintf("%s · %s · %s %d%% %s", id, action, p.Phase, p.Percent, p.Message)
+			s.launcherController().SetComponentActivity(msg, msg, p.Op == "supervise")
 			s.mu.Lock()
-			s.launcherUpdate = fmt.Sprintf("%s · %s · %s %d%% %s", id, action, p.Phase, p.Percent, p.Message)
-			s.launcherComponentStatus = s.launcherUpdate
-			if p.Op == "supervise" {
-				s.launcherComponentsFresh = false
-			}
 			win := s.win
 			s.mu.Unlock()
 			if win != nil {
@@ -67,9 +62,7 @@ func (s *mainState) claimLauncherComponentAction(win *mygo.Window, id, action st
 	if _, loaded := launcherComponentPending.LoadOrStore(id, action); loaded {
 		return nil, false
 	}
-	s.mu.Lock()
-	s.launcherComponentStatus = ""
-	s.mu.Unlock()
+	s.launcherController().SetComponentActivity("", "", false)
 	if win != nil {
 		win.Update(func() {})
 	}
@@ -90,14 +83,14 @@ func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action strin
 		defer release()
 		s.mu.Lock()
 		quitting := s.quitting
+		s.mu.Unlock()
 		var row desktopcomponents.Row
-		for _, candidate := range s.launcherComponents {
+		for _, candidate := range s.launcherController().Components() {
 			if candidate.ID == id {
 				row = candidate
 				break
 			}
 		}
-		s.mu.Unlock()
 		if quitting {
 			return
 		}
@@ -124,10 +117,8 @@ func (s *mainState) runGenericComponentAction(win *mygo.Window, id, action strin
 			return
 		}
 		_, err := desktopcomponents.RunGenericAction(paths.UserDataDir(), id, action)
-		s.mu.Lock()
-		s.launcherUpdate = desktopcomponents.FormatActionError(id, action, err)
-		s.launcherComponentStatus = s.launcherUpdate
-		s.mu.Unlock()
+		msg := desktopcomponents.FormatActionError(id, action, err)
+		s.launcherController().SetComponentActivity(msg, msg, false)
 		s.refreshLauncherComponents()
 		if win != nil {
 			win.Update(func() {})

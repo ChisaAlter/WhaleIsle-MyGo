@@ -53,9 +53,6 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Text(c, i18n.T(i18n.KeySettingsSectionPlugins)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 	pluginSettingsTabs(c, a, fg, muted)
-	if a.Inventory != nil {
-		clientModulesPane(c, a.Inventory, fg, muted)
-	}
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if ui.Button(c, pluginsText("管理插件包", "Manage plugin packages")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenManager == nil).Clicked() && a.OnOpenManager != nil {
 			a.OnOpenManager()
@@ -67,9 +64,6 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 }
 
 func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
-	if a.Inventory != nil {
-		clientModulesPane(c, a.Inventory, fg, muted)
-	}
 	builtinPluginGrid(c, a, fg, muted)
 	ui.Text(c, pluginsText("已安装插件包", "Installed plugin bundles")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	if !a.ClientReady {

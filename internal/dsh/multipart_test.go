@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"strings"
 	"testing"
 )
 
@@ -105,6 +106,40 @@ func TestCallMultipartNestedPath(t *testing.T) {
 	}
 	if string(out.Metadata.Attachments.Content) != string(payload) {
 		t.Fatalf("nested = %#v", out)
+	}
+}
+
+func TestCallMultipartRejectsOversizedPart(t *testing.T) {
+	oversized := bytes.Repeat([]byte("a"), (32<<20)+1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		rpcID, _ := body["rpcId"].(string)
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		meta := map[string]any{
+			"type":  "server-response",
+			"rpcId": rpcID,
+			"result": map[string]any{
+				"ok":    true,
+				"value": map[string]any{"data": nil},
+			},
+			"attachments": []map[string]any{
+				{"path": []any{"data"}, "codec": "bytes", "part": "bytes-0"},
+			},
+		}
+		writePart(t, mw, "metadata", "application/json", mustJSON(meta))
+		writePart(t, mw, "bytes-0", "application/octet-stream", oversized)
+		_ = mw.Close()
+		w.Header().Set("Content-Type", mw.FormDataContentType())
+		_, _ = w.Write(buf.Bytes())
+	}))
+	defer srv.Close()
+
+	c := &Client{Endpoint: Endpoint{Origin: srv.URL}}
+	_, err := c.CallMultipart(context.Background(), "officeToPdf/render", map[string]any{})
+	if err == nil || !strings.Contains(err.Error(), "exceeds bounded wire limit") {
+		t.Fatalf("expected bounded wire limit error, got %v", err)
 	}
 }
 

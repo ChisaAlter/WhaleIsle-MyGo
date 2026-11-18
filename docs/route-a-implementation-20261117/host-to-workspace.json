@@ -1,0 +1,309 @@
+{
+  "schema": 1,
+  "executable": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-c0d485c5549141a8985967d70890498c\\whaleisle.exe",
+  "hidden": true,
+  "profile": "resumed-owned-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 22.559
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 24.153
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 38.385
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 46.062
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 228.977
+    },
+    {
+      "stage": "harness.start_requested",
+      "kind": "mark",
+      "atMs": 235.85
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 241.838,
+      "detail": "starting"
+    },
+    {
+      "stage": "runtime.warmup.gate",
+      "kind": "mark",
+      "atMs": 243.948,
+      "detail": "cold=false probeUs=68"
+    },
+    {
+      "stage": "host.port_selected",
+      "kind": "mark",
+      "atMs": 243.948,
+      "detail": "3181"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 244.466,
+      "durMs": 0.5219999999999914,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 243.948,
+      "durMs": 1.5739999999999839
+    },
+    {
+      "stage": "runtime.read_capabilities",
+      "kind": "span",
+      "atMs": 243.948,
+      "durMs": 2.094999999999999
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 456.901,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 456.901,
+      "durMs": 0.5090000000000146
+    },
+    {
+      "stage": "runtime.validate.current_host",
+      "kind": "span",
+      "atMs": 456.901,
+      "durMs": 0.5090000000000146
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 457.931,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate",
+      "kind": "span",
+      "atMs": 455.901,
+      "durMs": 2.0299999999999727
+    },
+    {
+      "stage": "profile.disabled_plugins",
+      "kind": "span",
+      "atMs": 457.931
+    },
+    {
+      "stage": "profile.links",
+      "kind": "span",
+      "atMs": 457.931,
+      "durMs": 1.063000000000045
+    },
+    {
+      "stage": "profile.overlays",
+      "kind": "span",
+      "atMs": 458.994,
+      "durMs": 7.493999999999971
+    },
+    {
+      "stage": "runtime.profile_prepare",
+      "kind": "span",
+      "atMs": 457.931,
+      "durMs": 8.557000000000016
+    },
+    {
+      "stage": "host.plan",
+      "kind": "span",
+      "atMs": 455.901,
+      "durMs": 14.427999999999997
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 470.329,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.spawned",
+      "kind": "mark",
+      "atMs": 476.753,
+      "detail": "44752"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 476.753,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6166.563,
+      "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6167.086,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6216.359,
+      "detail": "(node:44752) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6216.359,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6216.359,
+      "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6216.359,
+      "detail": "starting"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6477.406,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.readyline",
+      "kind": "mark",
+      "atMs": 6517.36
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 6517.36,
+      "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 6517.36,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.auth.get_connection",
+      "kind": "mark",
+      "atMs": 6517.36
+    },
+    {
+      "stage": "host.auth.connect_start",
+      "kind": "mark",
+      "atMs": 6517.874
+    },
+    {
+      "stage": "host.auth.connect_done",
+      "kind": "mark",
+      "atMs": 6517.874
+    },
+    {
+      "stage": "host.auth.got_connection",
+      "kind": "mark",
+      "atMs": 6517.874
+    },
+    {
+      "stage": "host.auth.request_written",
+      "kind": "mark",
+      "atMs": 6518.466
+    },
+    {
+      "stage": "host.auth.first_response_byte",
+      "kind": "mark",
+      "atMs": 7047.663
+    },
+    {
+      "stage": "host.handshake",
+      "kind": "span",
+      "atMs": 6517.36,
+      "durMs": 531.3110000000006
+    },
+    {
+      "stage": "host.ready",
+      "kind": "mark",
+      "atMs": 7048.671
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7048.671,
+      "detail": "ready"
+    },
+    {
+      "stage": "boot.outcome_recorded",
+      "kind": "mark",
+      "atMs": 7048.671
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 7048.671,
+      "detail": "ready"
+    },
+    {
+      "stage": "stores.opened",
+      "kind": "mark",
+      "atMs": 7064.091
+    },
+    {
+      "stage": "connection.bootstrap_start",
+      "kind": "mark",
+      "atMs": 7064.091
+    },
+    {
+      "stage": "connection.carrier_connected",
+      "kind": "mark",
+      "atMs": 8135.646
+    },
+    {
+      "stage": "connection.events_ready",
+      "kind": "mark",
+      "atMs": 8137.7
+    },
+    {
+      "stage": "workspace.ready",
+      "kind": "mark",
+      "atMs": 9653.729
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 9653.729,
+      "detail": "ready"
+    }
+  ],
+  "idle": null,
+  "coverage": "sampled-startup",
+  "readiness": "workspace",
+  "runtime": {
+    "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor",
+    "nodeDirectory": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node"
+  },
+  "webViewCount": 0
+}

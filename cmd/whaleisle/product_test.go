@@ -5,14 +5,16 @@ import (
 
 	"github.com/egoist/mygo"
 
+	launcherctl "whaleisle/internal/app/launcher"
 	"whaleisle/internal/product"
 )
 
 func TestDesktopRenameKeepsNativeProfilePaths(t *testing.T) {
 	t.Setenv("WHALEISLE_ISOLATED", "")
-	priorApp, priorPortable := mygo.App, portableDesktopRoot
-	mygo.App, portableDesktopRoot = &mygo.Application{}, ""
-	t.Cleanup(func() { mygo.App, portableDesktopRoot = priorApp, priorPortable })
+	priorApp := mygo.App
+	priorPortable := launcherctl.SetPortableDesktopRoot("")
+	mygo.App = &mygo.Application{}
+	t.Cleanup(func() { mygo.App = priorApp; launcherctl.SetPortableDesktopRoot(priorPortable) })
 	mygo.App.SetName(product.LegacyNativeName)
 	paths := map[mygo.PathName]string{}
 	for _, key := range []mygo.PathName{mygo.PathUserData, mygo.PathCache, mygo.PathLogs} {

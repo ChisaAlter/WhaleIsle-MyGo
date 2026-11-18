@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -138,6 +136,12 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 		client = &http.Client{Timeout: 12 * time.Second, Transport: updateTransport()}
 	} else {
 		clone := *client
+		if clone.Timeout <= 0 {
+			clone.Timeout = 12 * time.Second
+		}
+		if clone.Transport == nil {
+			clone.Transport = updateTransport()
+		}
 		client = &clone
 	}
 	client.CheckRedirect = func(next *http.Request, _ []*http.Request) error {
@@ -209,22 +213,13 @@ func Check(ctx context.Context, opt Options) (Result, error) {
 }
 
 func validateUpdateURL(raw string) error {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || u.User != nil || u.Hostname() == "" {
-		return fmt.Errorf("update feed URL must be an HTTPS URL without userinfo")
-	}
-	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
-	if u.Scheme == "https" {
-		return nil
-	}
-	if u.Scheme == "http" && (host == "localhost" || (net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())) {
-		return nil
-	}
-	return fmt.Errorf("update feed URL must use HTTPS (HTTP is allowed only for loopback tests)")
+	_, err := validateDownloadURL(raw)
+	return err
 }
 
-// CompareVersions returns -1 if a<b, 0 if equal, 1 if a>b for dotted numeric
-// versions (non-numeric suffixes are stripped per segment).
+// CompareVersions orders release and prerelease versions using SemVer precedence.
+// The existing v prefix and short dotted versions remain accepted. Build metadata
+// does not affect precedence; legacy core segments keep their numeric prefix.
 func CompareVersions(a, b string) int {
 	as := versionParts(a)
 	bs := versionParts(b)
@@ -247,7 +242,72 @@ func CompareVersions(a, b string) int {
 			return 1
 		}
 	}
+	return comparePrerelease(versionPrerelease(a), versionPrerelease(b))
+}
+
+func versionPrerelease(v string) []string {
+	v = strings.TrimSpace(v)
+	v, _, _ = strings.Cut(v, "+")
+	_, prerelease, found := strings.Cut(v, "-")
+	if !found || prerelease == "" {
+		return nil
+	}
+	return strings.Split(prerelease, ".")
+}
+
+func comparePrerelease(a, b []string) int {
+	if len(a) == 0 && len(b) == 0 {
+		return 0
+	}
+	if len(a) == 0 {
+		return 1
+	}
+	if len(b) == 0 {
+		return -1
+	}
+	for i := 0; i < min(len(a), len(b)); i++ {
+		an, bn := numericVersionIdentifier(a[i]), numericVersionIdentifier(b[i])
+		if an && !bn {
+			return -1
+		}
+		if !an && bn {
+			return 1
+		}
+		av, bv := a[i], b[i]
+		if an {
+			// Compare decimal strings without an integer-width limit. Trimming
+			// leading zeroes also preserves accepted historical version inputs.
+			av, bv = strings.TrimLeft(av, "0"), strings.TrimLeft(bv, "0")
+			if len(av) < len(bv) {
+				return -1
+			}
+			if len(av) > len(bv) {
+				return 1
+			}
+		}
+		if order := strings.Compare(av, bv); order != 0 {
+			return order
+		}
+	}
+	if len(a) < len(b) {
+		return -1
+	}
+	if len(a) > len(b) {
+		return 1
+	}
 	return 0
+}
+
+func numericVersionIdentifier(v string) bool {
+	if v == "" {
+		return false
+	}
+	for _, ch := range v {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func versionParts(v string) []int {

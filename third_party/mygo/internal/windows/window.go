@@ -107,6 +107,8 @@ type window struct {
 	zoom        float64
 	devTools    bool
 	htmlFor     map[string]string // LoadHTML documents by the URL they load at
+	htmlFilters map[string]bool   // WebResourceRequested filters added by LoadHTML
+	htmlOrder   []string
 	calls       map[int]func(string, error)
 	nextCall    int
 }
@@ -122,7 +124,7 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		movable: o.Movable, closable: o.Closable, frameless: o.Frameless,
 		opacity: 1, zoom: 1, shadow: o.HasShadow, autoHideMenu: o.AutoHideMenu,
 		minW: o.MinSize.Width, minH: o.MinSize.Height, maxW: o.MaxSize.Width, maxH: o.MaxSize.Height,
-		htmlFor: map[string]string{}, calls: map[int]func(string, error){},
+		htmlFor: map[string]string{}, htmlFilters: map[string]bool{}, calls: map[int]func(string, error){},
 	}
 	w.hiddenTitleBar = !o.Frameless && (o.TitleBarStyle == "hidden" || o.TitleBarStyle == "hiddenInset")
 	// A page or native UI with a material behind it needs a window without

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"runtime"
+	"sync"
 	"time"
 
 	"whaleisle/internal/desktop/platformview"
@@ -15,40 +16,94 @@ import (
 )
 
 type accountPlatformLease struct {
+	mu      sync.Mutex
+	closed  bool
 	cancel  context.CancelFunc
 	gateway *platformview.Gateway
 	host    *desktopwebview.Host
 }
 
-func (s *mainState) closeAccountPlatform() {
-	s.mu.Lock()
+func (l *accountPlatformLease) ownsHost(host *desktopwebview.Host) bool {
+	if l == nil {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.host == host
+}
+
+func (l *accountPlatformLease) attachGateway(gateway *platformview.Gateway) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		gateway.Close()
+		return false
+	}
+	l.gateway = gateway
+	return true
+}
+
+func (l *accountPlatformLease) attachHost(host *desktopwebview.Host) bool {
+	l.mu.Lock()
+	if l.closed {
+		l.mu.Unlock()
+		_ = host.Close()
+		return false
+	}
+	l.host = host
+	l.mu.Unlock()
+	return true
+}
+
+func (s *mainState) detachAccountPlatformLocked() *accountPlatformLease {
 	lease := s.accountReturn.platform
 	s.accountReturn.platform = nil
-	if lease != nil && s.webviewHost == lease.host {
+	if lease.ownsHost(s.webviewHost) {
 		s.webviewHost = nil
 		s.lastWebViewURL = ""
 	}
-	s.mu.Unlock()
-	if lease != nil {
-		lease.cancel()
-		if lease.gateway != nil {
-			lease.gateway.Close()
-		}
-		if lease.host != nil {
-			_ = lease.host.Close()
-		}
+	return lease
+}
+
+func closeAccountPlatformLease(lease *accountPlatformLease) {
+	if lease == nil {
+		return
 	}
+	lease.mu.Lock()
+	if lease.closed {
+		lease.mu.Unlock()
+		return
+	}
+	lease.closed = true
+	cancel, gateway, host := lease.cancel, lease.gateway, lease.host
+	lease.mu.Unlock()
+	cancel()
+	if gateway != nil {
+		gateway.Close()
+	}
+	if host != nil {
+		_ = host.Close()
+	}
+}
+
+func (s *mainState) closeAccountPlatform() {
+	s.mu.Lock()
+	lease := s.detachAccountPlatformLocked()
+	s.mu.Unlock()
+	closeAccountPlatformLease(lease)
 }
 
 // The account link is only an entry-point signal. The authenticated Host chooses
 // the origin; no caller-supplied URL can receive the account session.
 func (s *mainState) openAccountPlatform(page, source string) {
 	s.closeWebViewHost()
+	s.navigateMainRoute(routeWebView)
 	ctx, cancel := context.WithCancel(context.Background())
 	lease := &accountPlatformLease{cancel: cancel}
 	s.mu.Lock()
 	win, sup := s.win, s.sup
 	generation := s.bootStatus.Generation
+	route := mainRouteToken{s.mainRoute, s.mainRouteEpoch}
 	s.accountReturn.platform = lease
 	s.accountReturn.err = ""
 	s.mu.Unlock()
@@ -60,7 +115,7 @@ func (s *mainState) openAccountPlatform(page, source string) {
 		session, err := sup.PlatformSession(ctx)
 		win.Update(func() {
 			s.mu.Lock()
-			current := s.accountReturn.platform == lease && s.bootStatus.Generation == generation
+			current := s.accountReturn.platform == lease && s.bootStatus.Generation == generation && s.mainRouteCurrentLocked(route)
 			s.mu.Unlock()
 			if !current || ctx.Err() != nil {
 				return
@@ -77,7 +132,9 @@ func (s *mainState) openAccountPlatform(page, source string) {
 				s.reportAccountAction(err)
 				return
 			}
-			lease.gateway = gateway
+			if !lease.attachGateway(gateway) {
+				return
+			}
 			entry, _ := gateway.Entry(page)
 			path := "/usage"
 			if page == "top-up" {
@@ -101,16 +158,18 @@ func (s *mainState) openAccountPlatform(page, source string) {
 				s.reportAccountAction(errors.New(i18n.T(i18n.KeyCmdPlatformOpenFailed)))
 				return
 			}
-			lease.host = host
+			if !lease.attachHost(host) {
+				return
+			}
 			s.mu.Lock()
+			if s.accountReturn.platform != lease || s.bootStatus.Generation != generation || !s.mainRouteCurrentLocked(route) {
+				s.mu.Unlock()
+				closeAccountPlatformLease(lease)
+				return
+			}
 			s.webviewHost = host
 			s.webviewHostErr = ""
 			s.lastWebViewURL = ""
-			s.settingsOpen = false
-			s.usageOpen = false
-			s.webviewOpen = true
-			s.assistantOpen = false
-			s.assistantConversationGeneration++
 			s.accountReturn.embedded = source
 			s.accountReturn.embeddedGeneration = generation
 			s.mu.Unlock()

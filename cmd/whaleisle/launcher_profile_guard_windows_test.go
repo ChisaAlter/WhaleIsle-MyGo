@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"golang.org/x/sys/windows"
+	launcherctl "whaleisle/internal/app/launcher"
 )
 
 func TestDesktopProfileGuardExcludesNativeProfileWriter(t *testing.T) {
@@ -21,12 +22,12 @@ func TestDesktopProfileGuardExcludesNativeProfileWriter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if release, err := claimDesktopProfileAt(profile); err == nil {
+	if release, err := launcherctl.ClaimDesktopProfileAt(profile); err == nil {
 		release()
 		t.Fatal("accepted an existing native writer")
 	}
 	_ = windows.CloseHandle(peer)
-	release, err := claimDesktopProfileAt(profile)
+	release, err := launcherctl.ClaimDesktopProfileAt(profile)
 	if err != nil {
 		t.Fatal(err)
 	}

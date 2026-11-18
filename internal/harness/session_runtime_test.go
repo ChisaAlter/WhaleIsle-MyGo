@@ -149,3 +149,44 @@ func TestSessionRuntimeNodeOverrideMustMatchSelectedAssembly(t *testing.T) {
 		t.Fatalf("mismatched Node accepted: %v", err)
 	}
 }
+
+func TestFileSHA256DiskCacheReusesAndInvalidates(t *testing.T) {
+	userData := t.TempDir()
+	t.Setenv(paths.EnvUserData, userData)
+	target := filepath.Join(t.TempDir(), "node.exe")
+	if err := os.WriteFile(target, []byte("alpha-binary"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum1, err := fileSHA256(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want1 := sha256.Sum256([]byte("alpha-binary"))
+	if sum1 != hex.EncodeToString(want1[:]) {
+		t.Fatalf("sum1 = %q, want %x", sum1, want1)
+	}
+	cacheFile := filepath.Join(userData, "cache", "runtime-digests-v1.json")
+	if _, err := os.Stat(cacheFile); err != nil {
+		t.Fatalf("expected persisted digest cache at %s: %v", cacheFile, err)
+	}
+	// Simulate fresh process by clearing memory map while keeping disk cache.
+	fileDigestCache.Delete(filepath.Clean(target))
+	diskDigestMu.Lock()
+	diskDigestPath = ""
+	diskDigestEntries = nil
+	diskDigestMu.Unlock()
+
+	sum2, err := fileSHA256(target)
+	if err != nil || sum2 != sum1 {
+		t.Fatalf("disk cache miss/mismatch: sum2=%q err=%v want=%q", sum2, err, sum1)
+	}
+	// Mutating bytes (different size) must invalidate cache cleanly.
+	if err := os.WriteFile(target, []byte("bravo-binary-longer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum3, err := fileSHA256(target)
+	want3 := sha256.Sum256([]byte("bravo-binary-longer"))
+	if err != nil || sum3 != hex.EncodeToString(want3[:]) {
+		t.Fatalf("invalidated sum3 = %q err=%v want %x", sum3, err, want3)
+	}
+}

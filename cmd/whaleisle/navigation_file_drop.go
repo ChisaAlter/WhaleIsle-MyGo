@@ -6,8 +6,9 @@ import (
 )
 
 func (s *mainState) navigationFileDropModel(m frame.Model) frame.Model {
+	asstOpen := s.assistantService().Open()
 	s.mu.Lock()
-	blocked := s.settingsOpen || s.launcherOpen || s.marketOpen || s.scheduleOpen || s.assistantOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen || s.sessions != m.Store
+	blocked := s.settingsOpen || s.maintenanceOpen || s.marketOpen || s.scheduleOpen || asstOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen || s.sessions != m.Store
 	if blocked || m.Store == nil {
 		s.mu.Unlock()
 		return m
@@ -21,13 +22,14 @@ func (s *mainState) navigationFileDropModel(m frame.Model) frame.Model {
 	s.mu.Unlock()
 	m.Draft, m.ComposerState = &draft.Text, draft
 	m.OnAttachComposerFiles = func(paths []string) {
+		curAsstOpen := s.assistantService().Open()
 		s.mu.Lock()
-		valid := s.sessions == m.Store && s.composerDrafts[selectedID] == draft && !s.settingsOpen && !s.launcherOpen && !s.marketOpen && !s.scheduleOpen && !s.assistantOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen
+		valid := s.sessions == m.Store && s.composerDrafts[selectedID] == draft && !s.settingsOpen && !s.maintenanceOpen && !s.marketOpen && !s.scheduleOpen && !curAsstOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen
 		s.mu.Unlock()
 		if !valid || m.Store.SelectedSessionID() != selectedID {
 			return
 		}
-		s.addComposerFiles(win, m.Store, selectedID, draft, paths)
+		s.addTransferredComposerFiles(win, m.Store, selectedID, draft, paths)
 	}
 	return m
 }

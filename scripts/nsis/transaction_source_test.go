@@ -45,6 +45,16 @@ func requireSourceOrder(t *testing.T, source string, steps ...string) {
 	}
 }
 
+func TestHealthIsConfirmedBeforeRegistrationAndOldPayloadRetirement(t *testing.T) {
+	install := sourceRegion(t, transactionSource(t, "whaleisle.nsi"), `Section "Install"`, "SectionEnd")
+	requireSourceOrder(t, install, "Call wiPromote", "Call wiConfirmHealth", `StrCpy $wiRegistryTouched "1"`, "WriteRegStr", "Call wiCommitInstallation")
+	health := sourceRegion(t, transactionSource(t, "payload-transaction.nsh"), "Function wiConfirmHealth", "FunctionEnd")
+	requireSourceOrder(t, health, "!ifndef SHELL_ONLY", "whaleisle-integration.exe", "ExecWait", "--check-installation", "$R9 != 0", "SetErrorLevel 2", "Abort")
+	if strings.Contains(health, "wiCommitted") {
+		t.Fatal("health failure can bypass rollback")
+	}
+}
+
 func TestInstallStagesBeforeReplacingAndRegistering(t *testing.T) {
 	source := transactionSource(t, "whaleisle.nsi")
 	install := sourceRegion(t, source, `Section "Install"`, "SectionEnd")
@@ -142,4 +152,15 @@ func TestLegacyRegisteredUninstallerRetiresBeforePromotion(t *testing.T) {
 	requireSourceOrder(t, promote, `Rename "$wiFinalFS" "$wiOldFS"`, "Call wiRetireLegacyManagement", `Rename "$wiStageFS" "$wiFinalFS"`)
 	rollback := sourceRegion(t, helper, "Function wiRollback", "FunctionEnd")
 	requireSourceOrder(t, rollback, ".retired-uninstaller", `Rename "$wiOldFS" "$wiFinalFS"`)
+}
+
+func TestUpgradeRequiresNativeIdentityAndRejectsElectron(t *testing.T) {
+	helper := transactionSource(t, "payload-transaction.nsh")
+	begin := sourceRegion(t, helper, "Function wiBeginStage", "FunctionEnd")
+	requireSourceOrder(t, begin, `"$wiFinalFS\Whale Isle.exe"`, "This is an Electron Whale Isle installation",
+		`"$wiFinalFS\whaleisle.exe"`, "Call wiReadManifestIdentity", `$wiOldNative != "WhaleIsle-MyGo"`,
+		"$wiOldLocation != $wiFinal", "Call wiCaptureOldManagement", "CoCreateGuid")
+	if strings.Contains(begin, `${AndIfNot} ${FileExists} "$wiFinalFS\Whale Isle.exe"`) {
+		t.Fatal("Electron executable still grants upgrade ownership")
+	}
 }

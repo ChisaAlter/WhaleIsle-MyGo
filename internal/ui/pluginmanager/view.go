@@ -30,30 +30,20 @@ type Contribution struct {
 	Order                     int
 	Render                    func(*ui.Context, manager.Subject)
 }
-type PageTab struct{ ID, Label string }
 type Model struct {
-	ExternalTabs        []PageTab
-	SelectedExternalTab string
-	OnSelectExternalTab func(string)
-	RenderExternalTab   func(*ui.Context, string)
-
-	SVGImages                                   *svgimage.Owner
-	Controller                                  *manager.Controller
-	ThemeID                                     string
-	SystemDark                                  bool
-	Contributions                               []Contribution
-	RenderConfiguration                         func(*ui.Context, manager.Subject) bool
-	DetailActions, DetailBadges, DetailSections func(*ui.Context, manager.Subject)
-	AddActions                                  func(*ui.Context)
-	Supplement                                  func(*ui.Context)
-	OnNativeOverlay                             func(bool)
-	RequestListEnable                           func(string) bool
-	OnClose                                     func()
-	OnOpenURL                                   func(string)
-	OnCreatePlugin, OnOpenAddMenu               func()
-	CreatePluginReady                           bool
-	CreatePluginDescription                     string
-	CreatorNotice                               func(*ui.Context)
+	SVGImages               *svgimage.Owner
+	Controller              *manager.Controller
+	ThemeID                 string
+	SystemDark              bool
+	Contributions           []Contribution
+	RenderConfiguration     func(*ui.Context, manager.Subject) bool
+	OnClose                 func()
+	OnOpenURL               func(string)
+	OnCreatePlugin          func()
+	OnOpenAddMenu           func()
+	CreatePluginReady       bool
+	CreatePluginDescription string
+	CreatorNotice           func(*ui.Context)
 }
 
 func copyText(zh, en string) string {
@@ -69,9 +59,6 @@ func View(c *ui.Context, m Model) {
 	}
 	m.Controller.Ensure()
 	s := m.Controller.Snapshot()
-	if m.OnNativeOverlay != nil {
-		m.OnNativeOverlay(s.Confirmation != nil || s.Discover.Choice != nil || s.Install.Open || s.Discover.SourcesOpen)
-	}
 	a := m.Controller.Actions(s.Owner)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, bg, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.BG), chrome.Color(colors.Border)
@@ -79,47 +66,25 @@ func View(c *ui.Context, m Model) {
 	inset := max(float32(24), min(float32(48), w*.04))
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, inset, 48, inset).Background(ui.Transparent).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(960).MinWidth(0).Gap(32).Children(func() {
-			detail := m.SelectedExternalTab == "" && s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
-			if !detail && (s.View.Kind != "more" || m.SelectedExternalTab != "") {
+			detail := s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
+			if !detail && s.View.Kind != "more" {
 				pageHeader(c, m, s, a, fg, muted)
 				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 0, 0).Children(func() {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
-						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(m.SelectedExternalTab == "" && s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(8).TextColor(muted).Background(ui.Transparent)
-						if m.SelectedExternalTab == "" && s.Tab == tab.id {
+						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(8).TextColor(muted).Background(ui.Transparent)
+						if s.Tab == tab.id {
 							b.Background(chrome.Color(colors.Field)).TextColor(fg)
 						}
 						if b.Clicked() {
-							if m.OnSelectExternalTab != nil {
-								m.OnSelectExternalTab("")
-							}
 							a.SelectTab(tab.id)
-						}
-					}
-					for _, tab := range m.ExternalTabs {
-						tab := tab
-						if tab.ID == "" || tab.ID == "discover" || tab.ID == "installed" {
-							continue
-						}
-						b := ui.Button(c, tab.Label).Role(ui.RoleTab).Selected(m.SelectedExternalTab == tab.ID).Height(32).MinWidth(120)
-						if b.Clicked() && m.OnSelectExternalTab != nil {
-							m.OnSelectExternalTab(tab.ID)
 						}
 					}
 
 				})
 			}
 			widgets.Notice(c, "view:113", "", s.Notice != "", func() string { return s.Notice })
-			if m.Supplement != nil {
-				m.Supplement(c)
-			}
 			if m.CreatorNotice != nil {
 				m.CreatorNotice(c)
-			}
-			if m.SelectedExternalTab != "" {
-				if m.RenderExternalTab != nil {
-					m.RenderExternalTab(c, m.SelectedExternalTab)
-				}
-				return
 			}
 			if s.Tab == "discover" {
 				discoverView(c, m, s, a, fg, muted, border)
@@ -398,9 +363,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 		})
 		value := p.Enabled
 		if ui.Switch(c, &value).Label(copyText("启用 ", "Enable ") + p.Name).Disabled(s.ActionBusy(p.Name) || p.SwitchLocked()).Changed() {
-			if !value || m.RequestListEnable == nil || !m.RequestListEnable(p.Name) {
-				a.Enable(p.Name, value)
-			}
+			a.Enable(p.Name, value)
 		}
 		menuLabel := copyText("更多操作", "More actions")
 		more := ui.Button(c, "").Label(menuLabel).Size(24, 24).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(menuLabel)
@@ -423,9 +386,7 @@ func packageMenu(menu *ui.Menu, m Model, p manager.Package, s manager.State, a m
 		a.Enable(p.Name, false)
 	}
 	if menu.Item(copyText("启用", "Enable")).Disabled(p.Enabled || s.ActionBusy(p.Name) || p.SwitchLocked()).Chosen() {
-		if m.RequestListEnable == nil || !m.RequestListEnable(p.Name) {
-			a.Enable(p.Name, true)
-		}
+		a.Enable(p.Name, true)
 	}
 	if p.Removable {
 		menu.Separator()
@@ -519,9 +480,6 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 		if ui.Button(c, copyText("返回插件", "Back to plugins")).Clicked() {
 			a.Back()
 		}
-		if m.DetailActions != nil {
-			m.DetailActions(c, subject)
-		}
 		if pkg != nil && subject.Kind == "package" {
 			if manager.UpdateAvailable(*pkg) && ui.Button(c, copyText("更新", "Update")).Disabled(s.ActionBusy(pkg.Name)).Clicked() {
 				a.Update(pkg.Name)
@@ -543,15 +501,9 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 			ui.Text(c, item.Title).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
-			if m.DetailBadges != nil {
-				m.DetailBadges(c, subject)
-			}
 		})
 		ui.Text(c, item.Summary).FillWidth().TextColor(muted)
 		renderConfig(c, m, subject)
-		if m.DetailSections != nil {
-			m.DetailSections(c, subject)
-		}
 		return
 	}
 	if pkg == nil {
@@ -584,9 +536,6 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 				ui.Text(c, "v"+pkg.Version).TextColor(muted)
 			}
 			packageTags(c, *pkg, muted)
-			if m.DetailBadges != nil {
-				m.DetailBadges(c, subject)
-			}
 		})
 		ui.Text(c, pkg.Name).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, description).FillWidth().TextColor(muted)
@@ -694,9 +643,6 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 				ui.Text(c, pkg.InstallTarget.Spec+" · "+pkg.InstallTarget.Version).FillWidth().Selectable().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 		})
-	}
-	if m.DetailSections != nil {
-		m.DetailSections(c, subject)
 	}
 }
 

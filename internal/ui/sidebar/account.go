@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/egoist/mygo/ui"
@@ -43,14 +44,26 @@ type Account struct {
 	Notices             []AccountNotice
 }
 
+const (
+	maxAccountBitmapCache = 32
+	accountBitmapNegTTL   = 30 * time.Second
+)
+
+type accountBitmapEntry struct {
+	bmp      *ui.Bitmap
+	failedAt time.Time
+}
+
 var (
 	accountRemoteCache struct {
 		mu sync.Mutex
 		c  *imgcache.Cache
 	}
 	accountBitmapCache struct {
-		mu      sync.Mutex
-		entries map[string]*ui.Bitmap
+		mu       sync.Mutex
+		entries  map[string]accountBitmapEntry
+		order    []string
+		inFlight map[string]bool
 	}
 )
 
@@ -61,7 +74,13 @@ func SetRemoteImageCache(c *imgcache.Cache) {
 	accountRemoteCache.mu.Unlock()
 }
 
-func RetryAccountAvatar(raw string, invalidate func()) { remoteAvatarCache().Retry(raw, invalidate) }
+func RetryAccountAvatar(raw string, invalidate func()) {
+	raw = strings.TrimSpace(raw)
+	accountBitmapCache.mu.Lock()
+	delete(accountBitmapCache.entries, raw)
+	accountBitmapCache.mu.Unlock()
+	remoteAvatarCache().Retry(raw, invalidate)
+}
 
 func remoteAvatarCache() *imgcache.Cache {
 	accountRemoteCache.mu.Lock()
@@ -85,41 +104,67 @@ func decodeAvatarBytes(data []byte) *ui.Bitmap {
 	return nil
 }
 
+func touchAccountBitmapLRU(order []string, key string) []string {
+	for i, existing := range order {
+		if existing == key {
+			order = append(order[:i], order[i+1:]...)
+			break
+		}
+	}
+	return append(order, key)
+}
+
+func storeAccountBitmap(key string, bmp *ui.Bitmap) {
+	accountBitmapCache.mu.Lock()
+	defer accountBitmapCache.mu.Unlock()
+	if accountBitmapCache.entries == nil {
+		accountBitmapCache.entries = make(map[string]accountBitmapEntry, maxAccountBitmapCache)
+	}
+	entry := accountBitmapEntry{bmp: bmp}
+	if bmp == nil {
+		entry.failedAt = time.Now()
+	}
+	accountBitmapCache.entries[key] = entry
+	accountBitmapCache.order = touchAccountBitmapLRU(accountBitmapCache.order, key)
+	for len(accountBitmapCache.order) > maxAccountBitmapCache {
+		oldest := accountBitmapCache.order[0]
+		accountBitmapCache.order = accountBitmapCache.order[1:]
+		delete(accountBitmapCache.entries, oldest)
+	}
+}
+
 func accountAvatarBitmap(c *ui.Context, rawURL string) *ui.Bitmap {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return nil
 	}
+	var invalidate func()
+	if c != nil {
+		invalidate = c.Services().Invalidate
+	}
+	now := time.Now()
 	accountBitmapCache.mu.Lock()
-	if accountBitmapCache.entries != nil {
-		if bmp, ok := accountBitmapCache.entries[rawURL]; ok {
+	if entry, ok := accountBitmapCache.entries[rawURL]; ok {
+		if entry.bmp != nil {
+			accountBitmapCache.order = touchAccountBitmapLRU(accountBitmapCache.order, rawURL)
 			accountBitmapCache.mu.Unlock()
-			return bmp
+			return entry.bmp
 		}
+		if now.Sub(entry.failedAt) < accountBitmapNegTTL {
+			accountBitmapCache.order = touchAccountBitmapLRU(accountBitmapCache.order, rawURL)
+			accountBitmapCache.mu.Unlock()
+			return nil
+		}
+		delete(accountBitmapCache.entries, rawURL)
+	}
+	if accountBitmapCache.inFlight[rawURL] {
+		accountBitmapCache.mu.Unlock()
+		return nil
 	}
 	accountBitmapCache.mu.Unlock()
 
-	cacheBmp := func(bmp *ui.Bitmap) *ui.Bitmap {
-		accountBitmapCache.mu.Lock()
-		if accountBitmapCache.entries == nil {
-			accountBitmapCache.entries = make(map[string]*ui.Bitmap)
-		}
-		accountBitmapCache.entries[rawURL] = bmp
-		accountBitmapCache.mu.Unlock()
-		return bmp
-	}
-
-	if strings.HasPrefix(rawURL, "data:image/") {
-		head, encoded, ok := strings.Cut(rawURL, ",")
-		if !ok || !strings.HasSuffix(head, ";base64") {
-			return cacheBmp(nil)
-		}
-		data, err := base64.StdEncoding.DecodeString(encoded)
-		if err != nil {
-			return cacheBmp(nil)
-		}
-		return cacheBmp(decodeAvatarBytes(data))
-	}
+	readPath := rawURL
+	isDataURI := strings.HasPrefix(rawURL, "data:image/")
 	if imgcache.IsHTTPURL(rawURL) {
 		cache := remoteAvatarCache()
 		if cache == nil {
@@ -127,24 +172,51 @@ func accountAvatarBitmap(c *ui.Context, rawURL string) *ui.Bitmap {
 		}
 		st, local, _ := cache.State(rawURL)
 		if st == imgcache.StatusMissing {
-			svc := c.Services()
-			cache.Ensure(rawURL, func() { svc.Invalidate() })
+			cache.Ensure(rawURL, invalidate)
 			return nil
 		}
-		if st != imgcache.StatusReady || local == "" {
+		if st != imgcache.StatusReady {
 			return nil
 		}
-		data, err := os.ReadFile(local)
-		if err != nil {
+		if local == "" {
+			storeAccountBitmap(rawURL, nil)
 			return nil
 		}
-		return cacheBmp(decodeAvatarBytes(data))
+		readPath = local
 	}
-	data, err := os.ReadFile(rawURL)
-	if err != nil {
+
+	accountBitmapCache.mu.Lock()
+	if accountBitmapCache.inFlight[rawURL] {
+		accountBitmapCache.mu.Unlock()
 		return nil
 	}
-	return cacheBmp(decodeAvatarBytes(data))
+	if accountBitmapCache.inFlight == nil {
+		accountBitmapCache.inFlight = make(map[string]bool)
+	}
+	accountBitmapCache.inFlight[rawURL] = true
+	accountBitmapCache.mu.Unlock()
+
+	go func() {
+		var bmp *ui.Bitmap
+		if isDataURI {
+			head, encoded, ok := strings.Cut(rawURL, ",")
+			if ok && strings.HasSuffix(head, ";base64") {
+				if data, err := base64.StdEncoding.DecodeString(encoded); err == nil {
+					bmp = decodeAvatarBytes(data)
+				}
+			}
+		} else if data, err := os.ReadFile(readPath); err == nil {
+			bmp = decodeAvatarBytes(data)
+		}
+		accountBitmapCache.mu.Lock()
+		delete(accountBitmapCache.inFlight, rawURL)
+		accountBitmapCache.mu.Unlock()
+		storeAccountBitmap(rawURL, bmp)
+		if bmp != nil && invalidate != nil {
+			invalidate()
+		}
+	}()
+	return nil
 }
 
 var accountPersonIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="8" cy="5.4" r="2.6"/><path d="M2.9 13.1c.7-2.4 2.7-3.7 5.1-3.7s4.4 1.3 5.1 3.7"/></svg>`))

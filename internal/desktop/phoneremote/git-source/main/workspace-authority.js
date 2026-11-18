@@ -202,8 +202,13 @@ function isAbsentNode(node) {
   }
 }
 
+function normalizeCompareKey(targetPath) {
+  const resolved = path.resolve(String(targetPath || ''));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
 function containedIn(root, candidate) {
-  const fromRoot = path.relative(root, candidate);
+  const fromRoot = path.relative(normalizeCompareKey(root), normalizeCompareKey(candidate));
   return !escapesBase(fromRoot);
 }
 
@@ -331,7 +336,13 @@ function highRiskAnchorPaths() {
     if (process.platform === 'darwin') {
       candidates.push(path.join(home, 'Library'), path.join(home, 'Library', 'Application Support'));
     }
-    candidates.push(path.join(home, '.config'), path.join(home, '.ssh'));
+    candidates.push(
+      path.join(home, '.config'),
+      path.join(home, '.ssh'),
+      path.join(home, '.gnupg'),
+      path.join(home, '.aws'),
+      path.join(home, '.kube'),
+    );
   }
   for (const key of ['APPDATA', 'LOCALAPPDATA', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME']) {
     const value = process.env[key];
@@ -341,26 +352,72 @@ function highRiskAnchorPaths() {
   if (desktopHome) {
     candidates.push(desktopHome, path.dirname(desktopHome));
   }
+  const seen = new Set();
   const anchors = [];
   for (const candidate of candidates) {
     const real = realPathOrNull(path.resolve(candidate));
-    if (real !== null) anchors.push(real);
+    if (real !== null) {
+      const key = normalizeCompareKey(real);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      anchors.push(real);
+    }
   }
   return anchors;
 }
 
 /**
  * True when trusting `real` as a workspace root would expose a high-risk
- * anchor: the root equals an anchor or is one of its ancestors (the anchor
- * lives inside the root). Ordinary project folders — including siblings of
- * the boot workspace under Documents or any dev directory — contain none of
- * the anchors and stay accepted.
+ * anchor: the root equals an anchor or is one of its ancestors (all anchors),
+ * or is a subdirectory of a sensitive anchor (`.config`, `.ssh`, `.gnupg`,
+ * `.aws`, `.kube`, AppData, XDG config/data, Library, or dsh-home). Ordinary
+ * project folders — including `~/src/proj` and siblings of the boot workspace —
+ * stay accepted.
  * @param {string} real - canonical registered root.
  * @param {string[]} [anchors] - injectable for tests.
  * @returns {boolean}
  */
 function isHighRiskWorkspaceRoot(real, anchors = highRiskAnchorPaths()) {
-  return anchors.some((anchor) => containedIn(real, anchor));
+  if (!Array.isArray(anchors) || anchors.length === 0) return false;
+  const home = os.homedir();
+  const homeReal = home ? realPathOrNull(path.resolve(home)) : null;
+  const homeKey = homeReal ? normalizeCompareKey(homeReal) : '';
+
+  const desktopHome = tryGetDesktopDshHome();
+  const desktopReal = desktopHome ? realPathOrNull(path.resolve(desktopHome)) : null;
+  const desktopKey = desktopReal ? normalizeCompareKey(desktopReal) : '';
+  const desktopParentReal = desktopHome ? realPathOrNull(path.dirname(path.resolve(desktopHome))) : null;
+  const desktopParentKey = desktopParentReal && normalizeCompareKey(desktopParentReal) !== desktopKey
+    ? normalizeCompareKey(desktopParentReal)
+    : '';
+
+  const localAppData = typeof process.env.LOCALAPPDATA === 'string' ? process.env.LOCALAPPDATA.trim() : '';
+  const localAppDataReal = localAppData ? realPathOrNull(path.resolve(localAppData)) : null;
+  const localAppDataKey = localAppDataReal ? normalizeCompareKey(localAppDataReal) : '';
+
+  const tempReal = realPathOrNull(path.resolve(os.tmpdir()));
+  const tempKey = tempReal ? normalizeCompareKey(tempReal) : '';
+  const realKey = normalizeCompareKey(real);
+
+  for (const anchor of anchors) {
+    if (containedIn(real, anchor)) return true;
+    const anchorKey = normalizeCompareKey(anchor);
+    if (anchorKey === homeKey || anchorKey === desktopParentKey) continue;
+    if (containedIn(anchor, real)) {
+      if (
+        anchorKey === localAppDataKey
+        && tempReal
+        && tempKey !== anchorKey
+        && containedIn(anchor, tempReal)
+        && realKey !== tempKey
+        && containedIn(tempReal, real)
+      ) {
+        continue;
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

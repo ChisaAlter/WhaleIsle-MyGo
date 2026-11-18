@@ -1,11 +1,8 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"mime"
-	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/store/session"
@@ -18,39 +15,23 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 	if limits == nil {
 		return nil
 	}
+	files, err := inspectComposerFiles(context.Background(), paths, false)
+	if err != nil {
+		return err
+	}
+	return validateComposerImageMetadata(context.Background(), existing, files, limits)
+}
+
+func validateComposerImageMetadata(ctx context.Context, existing []session.ComposerAttachment, files []composerFileInfo, limits *session.ComposerImageLimits) error {
+	if limits == nil {
+		return nil
+	}
 	supported := map[string]bool{}
 	for _, typ := range limits.MediaTypes {
 		supported[typ] = true
 	}
 	var count, total int64
-	check := func(path, knownType string) error {
-		info, err := os.Stat(path)
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerFileNotRegular), filepath.Base(path))
-		}
-		typ := knownType
-		if typ == "" {
-			typ = mime.TypeByExtension(strings.ToLower(filepath.Ext(path)))
-			if !supported[typ] {
-				f, err := os.Open(path)
-				if err != nil {
-					return err
-				}
-				var b [512]byte
-				n, e := f.Read(b[:])
-				f.Close()
-				if e != nil && e != io.EOF {
-					return e
-				}
-				typ = http.DetectContentType(b[:n])
-			}
-		}
+	check := func(typ string, size int64) error {
 		if !supported[typ] {
 			return nil
 		}
@@ -58,44 +39,53 @@ func validateComposerImageIntake(existing []session.ComposerAttachment, paths []
 		if count > limits.MaxImagesPerMessage {
 			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageCountLimit), limits.MaxImagesPerMessage)
 		}
-		if info.Size() > limits.MaxImageBytes {
+		if size > limits.MaxImageBytes {
 			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), humanBytes(limits.MaxImageBytes))
 		}
-		if info.Size() > limits.MaxMessageImageBytes-total {
+		if size > limits.MaxMessageImageBytes-total {
 			return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), humanBytes(limits.MaxMessageImageBytes))
 		}
-		total += info.Size()
+		total += size
 		return nil
 	}
 	for _, a := range existing {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if a.MediaType != "" && !supported[a.MediaType] {
 			continue
 		}
 		if a.ImageData != "" && supported[a.MediaType] {
 			size := int64(len(a.ImageData)/4*3 - (len(a.ImageData) - len(strings.TrimRight(a.ImageData, "="))))
-			count++
-			if count > limits.MaxImagesPerMessage {
-				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageCountLimit), limits.MaxImagesPerMessage)
+			if err := check(a.MediaType, size); err != nil {
+				return err
 			}
-			if size > limits.MaxImageBytes {
-				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageSizeLimit), humanBytes(limits.MaxImageBytes))
-			}
-			if size > limits.MaxMessageImageBytes-total {
-				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerImageTotalLimit), humanBytes(limits.MaxMessageImageBytes))
-			}
-			total += size
 			continue
 		}
-		if err := check(a.Path, a.MediaType); err != nil {
+		inspected, err := inspectComposerFiles(ctx, []string{a.Path}, false)
+		if err != nil {
 			return err
+		}
+		for _, file := range inspected {
+			if !file.info.IsDir() {
+				typ := file.mediaType
+				if a.MediaType != "" {
+					typ = a.MediaType
+				}
+				if err := check(typ, file.info.Size()); err != nil {
+					return err
+				}
+			}
 		}
 	}
-	for _, p := range paths {
-		if strings.TrimSpace(p) == "" {
-			continue
-		}
-		if err := check(p, ""); err != nil {
-			return err
+	for _, file := range files {
+		if !file.info.IsDir() {
+			if !file.info.Mode().IsRegular() {
+				return fmt.Errorf(i18n.T(i18n.KeyCmdComposerFileNotRegular), filepath.Base(file.path))
+			}
+			if err := check(file.mediaType, file.info.Size()); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

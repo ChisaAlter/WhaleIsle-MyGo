@@ -47,6 +47,12 @@ func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, mute
 		if p.Accepted {
 			status = i18n.T(i18n.KeyChatPendingAccepted)
 		}
+		if p.Unconfirmed {
+			status = "发送结果待确认，请查看会话"
+			if i18n.Locale() == "en" {
+				status = "Send outcome unconfirmed; check the conversation"
+			}
+		}
 		if p.Placement == "steering" {
 			status = i18n.T(i18n.KeyChatPendingSteering) + " · " + status
 		}

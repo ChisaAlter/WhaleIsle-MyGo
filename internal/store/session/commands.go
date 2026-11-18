@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 
 	"whaleisle/internal/dsh"
@@ -70,7 +69,7 @@ func executeCommand(ctx context.Context, client *dsh.Client, id, line string, at
 		Text string `json:"text"`
 	}
 	if len(result.Result) == 0 || string(result.Result) == "null" {
-		return errors.New("command was not accepted; check its name and retry")
+		return &commandExecutionError{"command was not accepted; check its name and retry"}
 	}
 	if err := json.Unmarshal(result.Result, &outcome); err != nil {
 		return err
@@ -80,13 +79,19 @@ func executeCommand(ctx context.Context, client *dsh.Client, id, line string, at
 		return nil
 	case "error":
 		if strings.TrimSpace(outcome.Text) != "" {
-			return errors.New(outcome.Text)
+			return &commandExecutionError{outcome.Text}
 		}
-		return errors.New("command failed")
+		return &commandExecutionError{"command failed"}
 	default:
-		return errors.New("command was not accepted; check its name and retry")
+		return &commandExecutionError{"command was not accepted; check its name and retry"}
 	}
 }
+
+// A valid command result is definitive even when its application reports an
+// error. Transport and decoding failures cannot establish whether it ran.
+type commandExecutionError struct{ message string }
+
+func (e *commandExecutionError) Error() string { return e.message }
 
 // commandForLine follows the original enter-resolution rule: a free-input
 // command owns its arguments; a no-input command owns only its bare token.

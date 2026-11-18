@@ -48,7 +48,7 @@ func composerStopTarget(m Model) (stopTarget, bool) {
 // changes between key events. Each DraftClient owns exactly one input region.
 func (c *DraftClient) syncStop(m Model, focused bool) {
 	target, eligible := composerStopTarget(m)
-	if !focused || !eligible || c.marked != nil || c.stop.target != target {
+	if !focused || !eligible || c.composing() || c.stop.target != target {
 		c.stop.reset()
 	}
 }

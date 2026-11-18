@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "scope": "Production whaleisle.nsi with shell-only synthetic bytes; real silent NSIS install, identity rejection and upgrade",
+  "appID": "whaleisle.nsis-identity.c4aeaa6bedfc4513ad7301591ec37e83",
+  "workRoot": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-e6ed227631bd4e0d9240e78da2b65b08\\identity-fixture",
+  "productScript": "scripts/nsis/whaleisle.nsi",
+  "checks": [
+    {
+      "exitCode": 0,
+      "manifestAndRegistryAgree": true,
+      "initialEmptyDirectoryRetained": true,
+      "name": "empty-target-install",
+      "pass": true
+    },
+    {
+      "noStageOrBackup": true,
+      "exactFilesPreserved": true,
+      "pass": true,
+      "exitCode": 2,
+      "nativeRegistrationPreserved": true,
+      "name": "electron-with-native-spoof-rejected"
+    },
+    {
+      "noStageOrBackup": true,
+      "exactFilesPreserved": true,
+      "pass": true,
+      "exitCode": 2,
+      "nativeRegistrationPreserved": true,
+      "name": "unowned-native-filename-rejected"
+    },
+    {
+      "noNewStageOrBackup": true,
+      "pass": true,
+      "newManifestAndRegistryAgree": true,
+      "newPayloadConfirmed": true,
+      "exitCode": 0,
+      "name": "owned-native-upgrade"
+    }
+  ],
+  "passed": true,
+  "cleanup": {
+    "disk": "caller-owned build workspace finally",
+    "runningInstallers": 0,
+    "registrationAndShortcutsRemoved": true
+  },
+  "installerBytes": [
+    295805,
+    295808
+  ]
+}

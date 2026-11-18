@@ -1,6 +1,7 @@
 // Package paths resolves the file system locations MyGo鲸屿 uses:
-// the user data directory it shares with the Electron shell, the dsh home
-// inside it, and the runtime directory holding the pid file.
+// the user data directory (its own by default, or wherever the user recorded
+// through the data-location record), the dsh home inside it, and the runtime
+// directory holding the pid file.
 //
 // Path lookup may read a managed runtime selection or probe candidate files;
 // it never starts a runtime or changes the selection. Tests override user data with
@@ -10,9 +11,8 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
-
-	"whaleisle/internal/config"
 )
 
 // EnvUserData, when set, overrides the user data directory. Tests use it
@@ -20,23 +20,19 @@ import (
 const EnvUserData = "WHALEISLE_USER_DATA"
 
 // UserDataDir returns the user data directory: the WHALEISLE_USER_DATA
-// override when set, else the Electron shell's directory under the user's
-// configuration directory (%AppData%\Deepseek-Harness-Desktop on Windows).
-// It does not create the directory; see EnsureUserData.
+// override when set, else the location recorded by the user, else this
+// build's default (%AppData%\WhaleIsle-MyGo\data on Windows). A record that
+// cannot be read, or that names a directory which is no longer there, falls
+// back to the default and logs why. It does not create the directory; see
+// EnsureUserData.
 func UserDataDir() string {
-	if override := os.Getenv(EnvUserData); override != "" {
+	if override := strings.TrimSpace(os.Getenv(EnvUserData)); override != "" {
 		return override
 	}
-	base, err := os.UserConfigDir()
-	if err != nil {
-		// os.UserConfigDir fails only when neither the platform's
-		// well-known variable nor the home directory resolves; fall
-		// back to a directory under the executable's own name so the
-		// app still has somewhere to write.
-		wd, _ := os.Getwd()
-		return filepath.Join(wd, ".whaleisle")
+	if stored := StoredDataDir(); stored != "" {
+		return stored
 	}
-	return filepath.Join(base, config.DataDirName)
+	return DefaultUserDataDir()
 }
 
 // DefaultWorkspace is the first-run project folder when config.workspace is empty.
@@ -68,9 +64,35 @@ func PidFile() string {
 // deepseek-harness and the desktop plugin packages.
 const EnvVendor = "WHALEISLE_VENDOR"
 
+// EnvNodeDir, when set, overrides the bundled Node runtime directory. When both
+// WHALEISLE_VENDOR and WHALEISLE_NODE_DIR are unset and a complete rc.4 runtime
+// (runtime-rc4/vendor + runtime-rc4/node/node[.exe]) exists, VendorDir prefers
+// it over runtime/vendor.
+const EnvNodeDir = "WHALEISLE_NODE_DIR"
+
+func bundledNodeFilename() string {
+	if runtime.GOOS == "windows" {
+		return "node.exe"
+	}
+	return "node"
+}
+
+func rc4CandidatePairReady(base string) bool {
+	harnessDir := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
+	nodePath := filepath.Join(base, "runtime-rc4", "node", bundledNodeFilename())
+	hInfo, err := os.Stat(harnessDir)
+	if err != nil || !hInfo.IsDir() {
+		return false
+	}
+	nInfo, err := os.Stat(nodePath)
+	return err == nil && nInfo.Mode().IsRegular()
+}
+
 // VendorDir returns the directory of vendored harness + desktop plugins
-// (runtime/vendor). Override with WHALEISLE_VENDOR; otherwise use a selected
-// macOS Host component, then look next to the executable and working directory.
+// (preferring runtime-rc4/vendor when unoverridden and paired with its bundled
+// Node, falling back to runtime/vendor). Override with WHALEISLE_VENDOR;
+// otherwise use a selected macOS Host component, then look next to the
+// executable and working directory.
 func VendorDir() string {
 	if override := os.Getenv(EnvVendor); override != "" {
 		return override
@@ -78,18 +100,26 @@ func VendorDir() string {
 	if selected := SelectedHostRuntime(); selected != "" {
 		return filepath.Join(selected, "vendor")
 	}
-	candidates := []string{}
+	bases := []string{}
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
-		candidates = append(candidates, filepath.Join(exeDir, "runtime", "vendor"))
+		bases = append(bases, exeDir)
 		if strings.EqualFold(filepath.Base(exeDir), "bin") {
-			candidates = append(candidates, filepath.Join(filepath.Dir(exeDir), "runtime", "vendor"))
+			bases = append(bases, filepath.Dir(exeDir))
 		}
 	}
 	if wd, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(wd, "runtime", "vendor"))
+		bases = append(bases, wd)
 	}
-	for _, c := range candidates {
+	if strings.TrimSpace(os.Getenv(EnvNodeDir)) == "" {
+		for _, base := range bases {
+			if rc4CandidatePairReady(base) {
+				return filepath.Join(base, "runtime-rc4", "vendor")
+			}
+		}
+	}
+	for _, base := range bases {
+		c := filepath.Join(base, "runtime", "vendor")
 		if st, err := os.Stat(filepath.Join(c, "deepseek-harness")); err == nil && st.IsDir() {
 			return c
 		}
@@ -99,8 +129,8 @@ func VendorDir() string {
 	if wd, err := os.Getwd(); err == nil {
 		return filepath.Join(wd, "runtime", "vendor")
 	}
-	if len(candidates) > 0 {
-		return candidates[len(candidates)-1]
+	if len(bases) > 0 {
+		return filepath.Join(bases[len(bases)-1], "runtime", "vendor")
 	}
 	return filepath.Join("runtime", "vendor")
 }

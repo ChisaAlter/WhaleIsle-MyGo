@@ -1,0 +1,49 @@
+{
+  "error": "desktop submit: exit status 1",
+  "model": "deterministic loopback",
+  "modelRequests": 2,
+  "passed": false,
+  "scope": "two real hidden desktop/Host processes; real transport loss, durable resume and Host journal",
+  "submit": {
+    "acceptedBeforeReconnectJournalCount": 1,
+    "afterReconnect": {
+      "A": "new draft during reconnect",
+      "B": "keep B unsent",
+      "ErrorA": "发送结果待确认，请查看会话；不要重复发送 / Send outcome unconfirmed; check the conversation before resending: Post \"http://127.0.0.1:55134/api/session/prompt\": EOF",
+      "PendingA": 1,
+      "Phases": {
+        "3f18a90f2ab963d4bb323167f577a027": "dispatching"
+      },
+      "Selected": "session-c616c9dc-e9af-4a53-80a1-3d5c355e9990"
+    },
+    "beforeReconnect": {
+      "A": "new draft during reconnect",
+      "B": "keep B unsent",
+      "ErrorA": "发送结果待确认，请查看会话；不要重复发送 / Send outcome unconfirmed; check the conversation before resending: Post \"http://127.0.0.1:55134/api/session/prompt\": EOF",
+      "PendingA": 1,
+      "Phases": {
+        "3f18a90f2ab963d4bb323167f577a027": "dispatching"
+      },
+      "Selected": "session-c616c9dc-e9af-4a53-80a1-3d5c355e9990"
+    },
+    "connection": {
+      "bootstrapError": "",
+      "lost": false,
+      "ready": true,
+      "resumeError": ""
+    },
+    "error": "same request confirmed after reconnect: context deadline exceeded",
+    "hidden": true,
+    "lastSession": {
+      "clientReady": true,
+      "lastAction": "",
+      "listError": "",
+      "listLoading": false,
+      "workspaceReady": true
+    },
+    "passed": false,
+    "phase": "submit",
+    "pid": 37228,
+    "wireErrors": null
+  }
+}

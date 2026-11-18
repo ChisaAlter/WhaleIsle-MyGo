@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "executable": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-no-launcher-0.2.0-candidate.exe",
+  "hidden": false,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 21.262
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 22.996
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 41.453
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 50.16
+    },
+    {
+      "stage": "ui.first_view_built",
+      "kind": "mark",
+      "atMs": 251.178
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 324.755
+    }
+  ],
+  "idle": null,
+  "scheduledUpdatesSuppressed": false,
+  "warmupSeconds": 5,
+  "coverage": "sampled-startup",
+  "readiness": "native-workbench-view-built",
+  "runtime": {
+    "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor",
+    "nodeDirectory": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node"
+  },
+  "webViewCount": 0
+}

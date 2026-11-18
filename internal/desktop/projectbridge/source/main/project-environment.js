@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const { getDesktopDshHome } = require('../shared/dsh-home');
+const { checkedWorktreePath } = require('../shared/project-worktree-layout');
 const { loadWorkspaceAuthority, createWorkspaceAuthority, isPathInside, workspaceRootRefusal } = require('./workspace-authority');
 const { run, runGit, safeRefName, gitFailureMessage, GH_TIMEOUT_MS } = require('./git-exec');
 
@@ -85,6 +86,7 @@ function createProjectEnvironment(options = {}) {
   }
   async function repositoryAt(canonicalPath, readStatus = true) {
     const detected = await git(canonicalPath, ['rev-parse', '--show-toplevel']);
+    if (detected.unsupportedPath) throw new Error(gitFailureMessage(detected, 'Git 工作目录不可用'));
     if (detected.code !== 0) return { ok: true, canonicalPath, isGit: false, repoIdentity: null,
       repositoryRoot: null, branch: null, headCommit: null, dirty: null };
     const repositoryRoot = fs.realpathSync.native(detected.stdout.trim());
@@ -116,7 +118,7 @@ function createProjectEnvironment(options = {}) {
       throw new Error('后台工作目录与创建回执不一致');
     }
     if (binding.ownership === 'project') {
-      if (identity(cwd) !== identity(ownedPath('project-worktrees', projectId, workstreamId))) throw new Error('独立工作目录不属于该 Project');
+      if (identity(cwd) !== identity(checkedWorktreePath(home(), projectId, workstreamId, binding.layout))) throw new Error('独立工作目录不属于该 Project');
     } else if (binding.ownership === 'user') canonicalize(cwd);
     else throw new Error('后台工作目录所有权无效');
     const current = await repositoryAt(cwd, readStatus);
@@ -150,11 +152,15 @@ function createProjectEnvironment(options = {}) {
       baseCommit = await command(input.canonicalPath, ['rev-parse', '--verify', '--end-of-options', `${chosen}^{commit}`]);
       branch = `project/${projectId}/${workstreamId}`;
       await command(input.canonicalPath, ['check-ref-format', '--branch', branch]);
-      canonicalPath = ownedPath('project-worktrees', projectId, workstreamId); ownership = 'project';
+      canonicalPath = checkedWorktreePath(home(), projectId, workstreamId,
+        old ? old.layout : process.platform === 'win32' ? 'compact-v1' : undefined);
+      if (old && identity(canonicalPath) !== identity(old.canonicalPath)) throw new Error('独立工作目录与登记布局不一致');
+      ownership = 'project';
     }
     const binding = old || { projectId, workstreamId, mode, sourceIdentity: source.identity, canonicalPath, requestedBase: payload.baseCommit || null,
       directoryIdentity: identity(canonicalPath), ownership, branch, baseCommit, repoIdentity: input.repoIdentity,
       repositoryRoot: input.repositoryRoot, state: 'preparing', receipt: crypto.randomUUID(),
+      ...(ownership === 'project' && process.platform === 'win32' ? { layout: 'compact-v1' } : {}),
       ...(ownership === 'project' && process.platform === 'win32' ? { checkoutPending: true } : {}) };
     if (!old) writeRecord(file, binding);
     if (ownership === 'project') {
@@ -207,7 +213,7 @@ function createProjectEnvironment(options = {}) {
       }
       files.push(item);
     }
-    const diff = current.headCommit ? await git(current.canonicalPath, ['diff', 'HEAD', '--'], { maxBytes: 1024 * 1024 }) : { code: 0, stdout: '', truncated: false };
+    const diff = current.headCommit ? await git(current.canonicalPath, ['diff', '--no-ext-diff', '--no-textconv', 'HEAD', '--'], { maxBytes: 1024 * 1024 }) : { code: 0, stdout: '', truncated: false };
     if (diff.code !== 0) throw new Error(gitFailureMessage(diff, '读取差异失败'));
     return { ok: true, isGit: true, headCommit: current.headCommit, branch: current.branch, dirty: files.length > 0,
       files, diff: diff.stdout, truncated: Boolean(diff.truncated), fingerprint: digest(JSON.stringify({ head: current.headCommit, files })) };
@@ -218,7 +224,7 @@ function createProjectEnvironment(options = {}) {
     if (current.dirty) throw new Error('独立工作目录有未提交内容，不能清理');
     const ignored = await command(current.canonicalPath, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z']);
     if (ignored) throw new Error('独立工作目录有 Git 忽略的文件，不能清理');
-    const target = ownedPath('project-worktrees', projectId, workstreamId);
+    const target = checkedWorktreePath(home(), projectId, workstreamId, current.layout);
     await command(current.repositoryRoot, ['worktree', 'remove', '--', target]);
     const { file, binding } = bindingFor(projectId, workstreamId);
     writeRecord(file, { ...binding, state: 'removed' });
@@ -358,7 +364,7 @@ function createProjectEnvironment(options = {}) {
     const { current, root, pathspec } = await changeScope(payload);
     if (!current.isGit) throw new Error('该目录不是 Git 仓库，无法读取需求改动');
     const base = treeId(payload.base), end = payload.end ? treeId(payload.end) : await captureTree(root, pathspec, current.canonicalPath);
-    const args = ['-c', 'core.quotepath=off', 'diff', '--no-renames', base, end];
+    const args = ['-c', 'core.quotepath=off', 'diff', '--no-ext-diff', '--no-textconv', '--no-renames', base, end];
     const targets = await git(root, [...args, '--name-only', '-z', '--', pathspec]);
     if (targets.code !== 0 || targets.truncated) throw new Error(gitFailureMessage(targets, '读取需求改动路径失败'));
     authorizeDiffPaths(root, current.canonicalPath, targets.stdout);
@@ -373,10 +379,10 @@ function createProjectEnvironment(options = {}) {
     const { current, root, pathspec } = await changeScope(payload);
     if (!current.isGit) throw new Error('该目录不是 Git 仓库，无法撤销');
     const base = treeId(payload.base), end = treeId(payload.end);
-    const targets = await git(root, ['diff', '--name-only', '--no-renames', '-z', end, base, '--', pathspec]);
+    const targets = await git(root, ['diff', '--no-ext-diff', '--no-textconv', '--name-only', '--no-renames', '-z', end, base, '--', pathspec]);
     if (targets.code !== 0 || targets.truncated) throw new Error(gitFailureMessage(targets, '读取撤销路径失败'));
     authorizeDiffPaths(root, current.canonicalPath, targets.stdout);
-    const patch = await git(root, ['diff', '--binary', '--no-renames', end, base, '--', pathspec], { maxBytes: 64 * 1024 * 1024 });
+    const patch = await git(root, ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--no-renames', end, base, '--', pathspec], { maxBytes: 64 * 1024 * 1024 });
     if (patch.code !== 0 || patch.truncated) throw new Error(gitFailureMessage(patch, '生成撤销补丁失败'));
     if (!patch.stdout.trim()) return { ok: true, applied: false };
     const file = path.join(os.tmpdir(), `whale-project-revert-${crypto.randomUUID()}.patch`);
@@ -388,6 +394,26 @@ function createProjectEnvironment(options = {}) {
       await command(root, ['apply', '--whitespace=nowarn', file]);
       return { ok: true, applied: true };
     } finally { fs.rmSync(file, { force: true }); }
+  }
+
+  // The native owner serializes mutations with the other desktop Git entries.
+  // Resolve this target through the same authority/receipt checks as execution;
+  // the caller-supplied workingDirectory is never itself a write capability.
+  async function writeTarget(payload) {
+    const operation = payload.operation;
+    if (operation === 'prepare-workspace') {
+      const current = await repository(payload.workingDirectory);
+      return { ok: true, root: current.repositoryRoot || current.canonicalPath, scope: 'references' };
+    }
+    if (operation === 'cleanup-workspace') {
+      const current = await checkWorkspace(payload.projectId, payload.workstreamId, payload.workspace);
+      return { ok: true, root: current.repositoryRoot, scope: 'references' };
+    }
+    if (operation === 'revert' || operation === 'baseline' || operation === 'changes') {
+      const { current, root } = await changeScope(payload);
+      return { ok: true, root: current.isGit ? root : '', scope: 'worktree' };
+    }
+    throw new Error('不支持的 Project 写入操作');
   }
   async function dispatch(payload = {}) {
     switch (payload.action) {
@@ -428,6 +454,7 @@ function createProjectEnvironment(options = {}) {
       case 'baseline': return baseline(payload);
       case 'changes': return changes(payload);
       case 'revert': return revert(payload);
+      case 'write-target': return writeTarget(payload);
       default: throw new Error(`不支持的 Project 操作：${String(payload.action || '')}`);
     }
   }

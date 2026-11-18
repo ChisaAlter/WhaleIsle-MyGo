@@ -14,7 +14,20 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/pluginmanager"
 	"whaleisle/internal/store/storelocale"
+)
+
+type CapabilityKind = pluginmanager.CapabilityKind
+type PackageCapabilities = pluginmanager.PackageCapabilities
+
+const (
+	CapabilityUnknown   = pluginmanager.CapabilityUnknown
+	CapabilityPureHost  = pluginmanager.CapabilityPureHost
+	CapabilityHybrid    = pluginmanager.CapabilityHybrid
+	CapabilityWebUIOnly = pluginmanager.CapabilityWebUIOnly
+	CapabilityMCP       = pluginmanager.CapabilityMCP
+	CapabilitySkill     = pluginmanager.CapabilitySkill
 )
 
 const CatalogURL = "https://awesome-dsh-plugin.com/plugins.json"
@@ -28,7 +41,38 @@ type CatalogItem struct {
 	ID, Owner, Repo, Description, PackageName, Homepage, InstallSpec, Category, Added, Replacement string
 	Stars                                                                                          float64
 	Deprecated                                                                                     bool
+	CapabilityKind                                                                                 CapabilityKind      `json:"capabilityKind,omitempty"`
+	NativeCompatible                                                                               bool                `json:"nativeCompatible"`
+	NativeCompatibilityLabel                                                                       string              `json:"nativeCompatibilityLabel,omitempty"`
+	Capabilities                                                                                   PackageCapabilities `json:"capabilities,omitempty"`
 }
+
+// AllowsNativeMode reports whether an item should remain visible under the
+// default NativeCompatibleOnly marketplace filter (hiding confirmed Web UI-only items).
+func (i CatalogItem) AllowsNativeMode() bool {
+	return i.CapabilityKind != CapabilityWebUIOnly
+}
+
+// ApplyCapabilityProfile writes detected capabilities onto item while keeping fields aligned.
+func ApplyCapabilityProfile(item *CatalogItem, caps PackageCapabilities) {
+	if item == nil {
+		return
+	}
+	if caps.Kind == "" {
+		caps.Kind = CapabilityUnknown
+	}
+	if caps.CompatibilityLabel == "" {
+		caps.CompatibilityLabel = pluginmanager.CompatibilityLabelFor(caps.Kind)
+	}
+	if caps.Guidance == "" {
+		caps.Guidance = pluginmanager.GuidanceFor(caps.Kind)
+	}
+	item.CapabilityKind = caps.Kind
+	item.NativeCompatible = caps.NativeCompatible
+	item.NativeCompatibilityLabel = caps.CompatibilityLabel
+	item.Capabilities = caps
+}
+
 type Category struct {
 	ID, Label string
 	Count     int
@@ -169,6 +213,7 @@ func decodeCatalog(raw []byte, locale string) (Catalog, error) {
 		if !ValidInstallItem(i) {
 			i.InstallSpec = ""
 		}
+		ApplyCapabilityProfile(&i, pluginmanager.InferCapabilityFromCatalogMetadata(i.Category, i.ID, i.PackageName, i.Description))
 		out.Items = append(out.Items, i)
 		counts[i.Category]++
 	}

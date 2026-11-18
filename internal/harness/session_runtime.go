@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sync"
 
+	"whaleisle/internal/paths"
 	"whaleisle/internal/startuptrace"
 )
 
@@ -44,6 +45,8 @@ func sessionRuntimeProfile(version string) (string, sessionRuntimeSafety, bool) 
 		return sessionRuntimeHarnessCommit, rc2SessionRuntimeSafety, true
 	case "0.2.1-rc.4":
 		return sessionRuntimeRC4Commit, rc4SessionRuntimeSafety, true
+	case "0.2.2-rc.2":
+		return "ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c", rc4SessionRuntimeSafety, true
 	default:
 		return "", sessionRuntimeSafety{}, false
 	}
@@ -109,7 +112,11 @@ func validateStagedSessionRuntimeWithReader(vendorDir string, read sessionRuntim
 	if err := validateSessionRuntimeNode(vendorDir, filepath.Join(filepath.Dir(vendorDir), "node", "node.exe")); err != nil {
 		return err
 	}
-	for _, required := range desktopSessionEventTypes {
+	requiredTypes := desktopSessionEventTypes
+	if manifest.CLIVersion == "0.2.2-rc.2" {
+		requiredTypes = append(append([]string(nil), requiredTypes...), "team/mode", "subagent/catalog", "assistant/attempt")
+	}
+	for _, required := range requiredTypes {
 		found := false
 		for _, event := range manifest.RequiredEventTypes {
 			found = found || event == required
@@ -177,7 +184,86 @@ type fileDigest struct {
 	sum   string
 }
 
-var fileDigestCache sync.Map
+type persistedDigestEntry struct {
+	Size      int64  `json:"size"`
+	MtimeNano int64  `json:"mtimeNano"`
+	Sum       string `json:"sum"`
+}
+
+var (
+	fileDigestCache   sync.Map
+	diskDigestMu      sync.Mutex
+	diskDigestPath    string
+	diskDigestEntries map[string]persistedDigestEntry
+)
+
+func diskDigestCacheFile() (userData string, cachePath string) {
+	userData = paths.UserDataDir()
+	if userData == "" {
+		return "", ""
+	}
+	return userData, filepath.Join(userData, "cache", "runtime-digests-v1.json")
+}
+
+func lookupDiskDigest(key string, size, mtimeNano int64) (string, bool) {
+	_, cachePath := diskDigestCacheFile()
+	if cachePath == "" {
+		return "", false
+	}
+	diskDigestMu.Lock()
+	defer diskDigestMu.Unlock()
+	if diskDigestPath != cachePath {
+		diskDigestPath = cachePath
+		diskDigestEntries = map[string]persistedDigestEntry{}
+		if raw, err := os.ReadFile(cachePath); err == nil {
+			var parsed map[string]persistedDigestEntry
+			if json.Unmarshal(raw, &parsed) == nil && parsed != nil {
+				diskDigestEntries = parsed
+			}
+		}
+	}
+	entry, ok := diskDigestEntries[key]
+	if !ok || entry.Size != size || entry.MtimeNano != mtimeNano || entry.Sum == "" {
+		return "", false
+	}
+	return entry.Sum, true
+}
+
+func saveDiskDigest(key string, size, mtimeNano int64, sum string) {
+	userData, cachePath := diskDigestCacheFile()
+	if cachePath == "" || sum == "" {
+		return
+	}
+	// Never create UserDataDir during preflight before desktop initialization.
+	st, err := os.Stat(userData)
+	if err != nil || !st.IsDir() {
+		return
+	}
+	diskDigestMu.Lock()
+	defer diskDigestMu.Unlock()
+	if diskDigestPath != cachePath {
+		diskDigestPath = cachePath
+		diskDigestEntries = map[string]persistedDigestEntry{}
+		if raw, err := os.ReadFile(cachePath); err == nil {
+			var parsed map[string]persistedDigestEntry
+			if json.Unmarshal(raw, &parsed) == nil && parsed != nil {
+				diskDigestEntries = parsed
+			}
+		}
+	}
+	if len(diskDigestEntries) >= 64 {
+		clear(diskDigestEntries)
+	}
+	diskDigestEntries[key] = persistedDigestEntry{Size: size, MtimeNano: mtimeNano, Sum: sum}
+	encoded, err := json.Marshal(diskDigestEntries)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+		return
+	}
+	_ = writeFileAtomic(cachePath, encoded, 0o600)
+}
 
 func fileSHA256(path string) (string, error) {
 	info, err := os.Stat(path)
@@ -191,6 +277,11 @@ func fileSHA256(path string) (string, error) {
 			return prior.sum, nil
 		}
 	}
+	if sum, ok := lookupDiskDigest(key, stamp.size, stamp.mtime); ok {
+		stamp.sum = sum
+		fileDigestCache.Store(key, stamp)
+		return stamp.sum, nil
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -198,6 +289,7 @@ func fileSHA256(path string) (string, error) {
 	sum := sha256.Sum256(data)
 	stamp.sum = hex.EncodeToString(sum[:])
 	fileDigestCache.Store(key, stamp)
+	saveDiskDigest(key, stamp.size, stamp.mtime, stamp.sum)
 	return stamp.sum, nil
 }
 

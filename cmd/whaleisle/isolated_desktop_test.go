@@ -10,7 +10,7 @@ import (
 
 	"github.com/egoist/mygo"
 
-	"whaleisle/internal/config"
+	launcherctl "whaleisle/internal/app/launcher"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 )
@@ -34,7 +34,7 @@ func TestIsolatedDesktopRequiresExplicitNonInstalledData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, data := range []string{"", "relative-data", filepath.Join(base, config.DataDirName)} {
+	for _, data := range []string{"", "relative-data", paths.DefaultUserDataDirUnder(base)} {
 		t.Setenv(paths.EnvUserData, data)
 		if err := prepareIsolatedDesktop(); err == nil {
 			t.Fatalf("accepted non-isolated data directory: %q", data)
@@ -96,8 +96,8 @@ func TestIsolatedDesktopDoesNotConsumeSharedAcceptanceHook(t *testing.T) {
 func TestPortableDesktopKeepsIsolationWithoutHidingWindow(t *testing.T) {
 	portableTestEnvironment(t)
 	t.Setenv("WHALEISLE_ISOLATED_VISIBLE", "")
-	portableDesktopRoot = t.TempDir()
-	t.Setenv(paths.EnvUserData, filepath.Join(portableDesktopRoot, "data"))
+	launcherctl.SetPortableDesktopRoot(t.TempDir())
+	t.Setenv(paths.EnvUserData, filepath.Join(launcherctl.PortableDesktopRoot(), "data"))
 	if !isolatedDesktopRun() || isolatedDesktopHidden() {
 		t.Fatal("portable double-click must be isolated and visible")
 	}
@@ -115,9 +115,8 @@ func TestPortableDesktopKeepsIsolationWithoutHidingWindow(t *testing.T) {
 }
 
 func TestIsolatedDesktopVisibilityEnvironmentCombinations(t *testing.T) {
-	previousRoot := portableDesktopRoot
-	portableDesktopRoot = ""
-	t.Cleanup(func() { portableDesktopRoot = previousRoot })
+	previousRoot := launcherctl.SetPortableDesktopRoot("")
+	t.Cleanup(func() { launcherctl.SetPortableDesktopRoot(previousRoot) })
 	for _, tc := range []struct {
 		name, isolated, visible  string
 		wantIsolated, wantHidden bool
@@ -146,7 +145,7 @@ func TestIsolatedDesktopVisibilityEnvironmentCombinations(t *testing.T) {
 
 func TestIsolatedDesktopVisibleFlagKeepsPortableIsolation(t *testing.T) {
 	portableTestEnvironment(t)
-	portableDesktopRoot = t.TempDir()
+	launcherctl.SetPortableDesktopRoot(t.TempDir())
 	for _, isolated := range []string{"", "1"} {
 		t.Setenv("WHALEISLE_ISOLATED", isolated)
 		t.Setenv("WHALEISLE_ISOLATED_VISIBLE", "1")

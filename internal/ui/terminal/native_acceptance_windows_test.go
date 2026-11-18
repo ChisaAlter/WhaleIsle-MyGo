@@ -207,6 +207,13 @@ func TestRealHostTerminalLifecycle(t *testing.T) {
 	// A second pane displaying the same retained process takes input control,
 	// while the first remains an output-only view. No second shell is created.
 	secondStore := store.Occurrence("side", "", session)
+	secondOwner := secondStore.Snapshot(session).Owner
+	secondStore.Refresh(secondOwner, session)
+	wait("second pane lists existing terminal", func(v hostterminal.View) bool {
+		other := secondStore.Snapshot(session)
+		return !other.Busy && len(other.Items) == 1
+	})
+	secondStore.Connect(secondOwner, session, id)
 	secondView := &HostState{}
 	defer secondView.drop()
 	secondTester := ui.NewTester(func(c *ui.Context) { HostView(c, secondView, secondStore, session, "light", false) }, 800, 420)

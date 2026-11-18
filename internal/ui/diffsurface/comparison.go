@@ -7,16 +7,17 @@ import (
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
 )
 
 type comparisonResult struct {
-	text string
-	err  error
+	text     string
+	err      error
+	prepared *preparedPatchDoc
 }
 type comparisonRequest struct {
 	root, path, baseRef string
+	gen                 uint64
 	cancel              context.CancelFunc
 	done                chan comparisonResult
 }
@@ -31,10 +32,32 @@ func (w *Workbench) CancelComparison() {
 }
 
 func beginComparison(m Model, path string) {
+	beginComparisonForce(m, path, false)
+}
+
+func beginComparisonForce(m Model, path string, force bool) {
 	w := m.Workbench
+	if w == nil {
+		return
+	}
+	gen := w.bindRoot(m.WorkspaceRoot)
+	if !force && w.comparison != nil &&
+		w.comparison.root == m.WorkspaceRoot &&
+		w.comparison.path == path &&
+		w.comparison.baseRef == w.BaseRef &&
+		(w.comparison.gen == 0 || w.comparison.gen == gen) {
+		return
+	}
 	w.CancelComparison()
 	ctx, cancel := context.WithCancel(context.Background())
-	request := &comparisonRequest{root: m.WorkspaceRoot, path: path, baseRef: w.BaseRef, cancel: cancel, done: make(chan comparisonResult, 1)}
+	request := &comparisonRequest{
+		root:    m.WorkspaceRoot,
+		path:    path,
+		baseRef: w.BaseRef,
+		gen:     gen,
+		cancel:  cancel,
+		done:    make(chan comparisonResult, 1),
+	}
 	w.comparison = request
 	if m.Text != nil {
 		*m.Text = ""
@@ -42,11 +65,21 @@ func beginComparison(m Model, path string) {
 	if m.ErrMsg != nil {
 		*m.ErrMsg = ""
 	}
+	loader := w.loader
 	invalidate := w.invalidate
+	viewSplit, viewWrap := w.View.Split, w.View.Wrap
+	ops := gitOps
 	go func() {
-		text, err := git.CompareBranch(ctx, request.root, request.path, request.baseRef)
-		request.done <- comparisonResult{text: text, err: err}
-		if invalidate != nil {
+		defer cancel()
+		text, err := ops.compareBranch(ctx, request.root, request.path, request.baseRef)
+		var prepared *preparedPatchDoc
+		if err == nil && strings.TrimSpace(text) != "" {
+			prepared = prebuildPatchDocument(text, viewSplit, viewWrap)
+		}
+		request.done <- comparisonResult{text: text, err: err, prepared: prepared}
+		if loader != nil {
+			loader.notify()
+		} else if invalidate != nil {
 			invalidate()
 		}
 	}()
@@ -62,7 +95,7 @@ func finishComparison(m Model) {
 	if m.PathFilter != nil {
 		path = *m.PathFilter
 	}
-	if request.root != m.WorkspaceRoot || request.root != w.Root || request.baseRef != w.BaseRef || request.path != path {
+	if request.root != m.WorkspaceRoot || request.root != w.Root || request.baseRef != w.BaseRef || request.path != path || (request.gen != 0 && request.gen != w.currentGen()) {
 		w.CancelComparison()
 		return
 	}
@@ -71,6 +104,9 @@ func finishComparison(m Model) {
 		w.CancelComparison()
 		if m.Text != nil {
 			*m.Text = result.text
+		}
+		if result.prepared != nil {
+			w.View.applyPrepared(result.prepared)
 		}
 		errMsg := ""
 		if result.err != nil {
@@ -96,12 +132,7 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 		if ui.Button(c, label).Clicked() {
 			w.CompareOpen = !w.CompareOpen
 			if w.CompareOpen {
-				branches, err := git.Branches(w.Root)
-				w.CompareBranches = branches
-				w.CompareError = ""
-				if err != nil {
-					w.CompareError = err.Error()
-				}
+				w.requestCompareBranches(false)
 			}
 		}
 		if w.BaseRef != "" && widgets.Button(c, colors, word("返回工作区差异", "Worktree changes"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
@@ -127,19 +158,23 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 	needle := strings.ToLower(strings.TrimSpace(w.CompareQuery))
 	ui.Scroll(c).Height(110).FillWidth().Children(func() {
 		ui.Column(c).Gap(2).Children(func() {
-			for _, branch := range w.CompareBranches {
-				b := branch
-				if !strings.Contains(strings.ToLower(b.Name), needle) {
-					continue
-				}
-				if ui.Button(c, b.Name).FontSize(11).Clicked() {
-					w.BaseRef = b.Name
-					w.Staged = false
-					w.CompareOpen = false
-					if m.PathFilter != nil {
-						*m.PathFilter = ""
+			if len(w.CompareBranches) == 0 && w.isCompareBranchesLoading() {
+				ui.Text(c, word("正在加载分支列表…", "Loading branches…")).FontSize(11).TextColor(muted)
+			} else {
+				for _, branch := range w.CompareBranches {
+					b := branch
+					if !strings.Contains(strings.ToLower(b.Name), needle) {
+						continue
 					}
-					refresh(m)
+					if ui.Button(c, b.Name).FontSize(11).Clicked() {
+						w.BaseRef = b.Name
+						w.Staged = false
+						w.CompareOpen = false
+						if m.PathFilter != nil {
+							*m.PathFilter = ""
+						}
+						refreshWithForce(m, true)
+					}
 				}
 			}
 		})

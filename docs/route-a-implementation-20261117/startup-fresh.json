@@ -1,0 +1,264 @@
+{
+  "schema": 1,
+  "executable": "C:\\Users\\48818\\AppData\\Local\\Temp\\whaleisle-build-76584f59edcc41c4b30c0bc4892951a6\\whaleisle.exe",
+  "hidden": true,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 24.279
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 26.789
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 43.52
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 52.383
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 235.703
+    },
+    {
+      "stage": "harness.start_requested",
+      "kind": "mark",
+      "atMs": 246.556
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 252.971,
+      "detail": "starting"
+    },
+    {
+      "stage": "runtime.warmup.gate",
+      "kind": "mark",
+      "atMs": 256.744,
+      "detail": "cold=false probeUs=108"
+    },
+    {
+      "stage": "host.port_selected",
+      "kind": "mark",
+      "atMs": 256.744,
+      "detail": "3181"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 257.415,
+      "durMs": 97.993,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 256.744,
+      "durMs": 104.52699999999999
+    },
+    {
+      "stage": "runtime.read_capabilities",
+      "kind": "span",
+      "atMs": 256.744,
+      "durMs": 104.52699999999999
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 594.788,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 594.282,
+      "durMs": 1.0330000000000155
+    },
+    {
+      "stage": "runtime.validate.current_host",
+      "kind": "span",
+      "atMs": 594.282,
+      "durMs": 1.0330000000000155
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 595.844,
+      "detail": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate",
+      "kind": "span",
+      "atMs": 594.282,
+      "durMs": 1.5620000000000118
+    },
+    {
+      "stage": "profile.disabled_plugins",
+      "kind": "span",
+      "atMs": 595.844
+    },
+    {
+      "stage": "profile.links",
+      "kind": "span",
+      "atMs": 595.844,
+      "durMs": 57.96399999999994
+    },
+    {
+      "stage": "profile.overlays",
+      "kind": "span",
+      "atMs": 653.808,
+      "durMs": 21.59299999999996
+    },
+    {
+      "stage": "runtime.profile_prepare",
+      "kind": "span",
+      "atMs": 595.844,
+      "durMs": 79.5569999999999
+    },
+    {
+      "stage": "host.plan",
+      "kind": "span",
+      "atMs": 594.282,
+      "durMs": 87.67699999999991
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 681.959,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.spawned",
+      "kind": "mark",
+      "atMs": 688.259,
+      "detail": "3676"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 688.259,
+      "detail": "starting"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7439.123,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 7540.622,
+      "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7540.622,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 7687.343,
+      "detail": "(node:3676) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7687.343,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 7687.343,
+      "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7687.869,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.readyline",
+      "kind": "mark",
+      "atMs": 7923.891
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 7923.891,
+      "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 7923.891,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.handshake",
+      "kind": "span",
+      "atMs": 7923.891,
+      "durMs": 520.5249999999996
+    },
+    {
+      "stage": "host.ready",
+      "kind": "mark",
+      "atMs": 8444.416
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 8444.416,
+      "detail": "ready"
+    },
+    {
+      "stage": "boot.outcome_recorded",
+      "kind": "mark",
+      "atMs": 8444.416
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 8444.416,
+      "detail": "ready"
+    },
+    {
+      "stage": "stores.opened",
+      "kind": "mark",
+      "atMs": 8467.654
+    },
+    {
+      "stage": "workspace.ready",
+      "kind": "mark",
+      "atMs": 10215.107
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 10215.107,
+      "detail": "ready"
+    }
+  ],
+  "idle": null,
+  "coverage": "sampled-startup",
+  "readiness": "workspace",
+  "runtime": {
+    "vendor": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\vendor",
+    "nodeDirectory": "C:\\AI\\WhaleIsle-MyGo\\runtime-rc4\\node"
+  },
+  "webViewCount": 0
+}

@@ -1,0 +1,5047 @@
+{
+  "schema": 1,
+  "executable": "C:\\AI\\WhaleIsle-MyGo\\bin\\route-a-quiet-update-0.2.0-candidate.exe",
+  "hidden": false,
+  "profile": "fresh-isolated",
+  "status": "passed",
+  "startup": [
+    {
+      "stage": "process.start",
+      "kind": "mark",
+      "atMs": 26.403
+    },
+    {
+      "stage": "shell.prepared",
+      "kind": "mark",
+      "atMs": 29.143
+    },
+    {
+      "stage": "app.when_ready",
+      "kind": "mark",
+      "atMs": 44.576
+    },
+    {
+      "stage": "config.loaded",
+      "kind": "mark",
+      "atMs": 52.938
+    },
+    {
+      "stage": "ui.first_view_built",
+      "kind": "mark",
+      "atMs": 282.502
+    },
+    {
+      "stage": "window.created",
+      "kind": "mark",
+      "atMs": 366.779
+    },
+    {
+      "stage": "harness.start_requested",
+      "kind": "mark",
+      "atMs": 375.355
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 381.146,
+      "detail": "starting"
+    },
+    {
+      "stage": "runtime.warmup.gate",
+      "kind": "mark",
+      "atMs": 384.32,
+      "detail": "cold=false probeUs=130"
+    },
+    {
+      "stage": "host.port_selected",
+      "kind": "mark",
+      "atMs": 384.842,
+      "detail": "3181"
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 385.366,
+      "durMs": 119.14300000000003,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 384.842,
+      "durMs": 125.99100000000004
+    },
+    {
+      "stage": "runtime.read_capabilities",
+      "kind": "span",
+      "atMs": 384.842,
+      "durMs": 127.14000000000004
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 831.335,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate.session_runtime",
+      "kind": "span",
+      "atMs": 830.806,
+      "durMs": 1.0599999999999454
+    },
+    {
+      "stage": "runtime.validate.current_host",
+      "kind": "span",
+      "atMs": 830.806,
+      "durMs": 1.0599999999999454
+    },
+    {
+      "stage": "runtime.verify.node",
+      "kind": "span",
+      "atMs": 832.394,
+      "detail": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node\\node.exe"
+    },
+    {
+      "stage": "runtime.validate",
+      "kind": "span",
+      "atMs": 830.301,
+      "durMs": 2.092999999999961
+    },
+    {
+      "stage": "profile.disabled_plugins",
+      "kind": "span",
+      "atMs": 832.394,
+      "durMs": 0.5199999999999818
+    },
+    {
+      "stage": "profile.links",
+      "kind": "span",
+      "atMs": 832.914,
+      "durMs": 102.36599999999999
+    },
+    {
+      "stage": "profile.overlays",
+      "kind": "span",
+      "atMs": 935.28,
+      "durMs": 41.54899999999998
+    },
+    {
+      "stage": "runtime.profile_prepare",
+      "kind": "span",
+      "atMs": 832.394,
+      "durMs": 144.43499999999995
+    },
+    {
+      "stage": "host.plan",
+      "kind": "span",
+      "atMs": 830.301,
+      "durMs": 178.98299999999995
+    },
+    {
+      "stage": "host.spawned",
+      "kind": "mark",
+      "atMs": 1021.291,
+      "detail": "25568"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 1021.291,
+      "detail": "starting"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 1025.511,
+      "detail": "starting"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 10022.102,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 10131.889,
+      "detail": "[dsh-usage-panel] boot: mode=projection services: sessionQuery=true sessionProjections=true sessionProjectionCache=true"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 10131.889,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 10289.13,
+      "detail": "(node:25568) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities."
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 10289.13,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 10289.13,
+      "detail": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 10290.71,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.readyline",
+      "kind": "mark",
+      "atMs": 10745.937
+    },
+    {
+      "stage": "host.log",
+      "kind": "log",
+      "atMs": 10746.481,
+      "detail": "dsh web: http://127.0.0.1:3181/?[redacted]"
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 10746.481,
+      "detail": "starting"
+    },
+    {
+      "stage": "host.auth.get_connection",
+      "kind": "mark",
+      "atMs": 10746.481
+    },
+    {
+      "stage": "host.auth.connect_start",
+      "kind": "mark",
+      "atMs": 10746.481
+    },
+    {
+      "stage": "host.auth.connect_done",
+      "kind": "mark",
+      "atMs": 10746.985
+    },
+    {
+      "stage": "host.auth.got_connection",
+      "kind": "mark",
+      "atMs": 10746.985
+    },
+    {
+      "stage": "host.auth.request_written",
+      "kind": "mark",
+      "atMs": 10747.539
+    },
+    {
+      "stage": "host.auth.first_response_byte",
+      "kind": "mark",
+      "atMs": 12251.024
+    },
+    {
+      "stage": "host.handshake",
+      "kind": "span",
+      "atMs": 10745.937,
+      "durMs": 1508.9159999999993
+    },
+    {
+      "stage": "host.ready",
+      "kind": "mark",
+      "atMs": 12254.853
+    },
+    {
+      "stage": "boot.status",
+      "kind": "mark",
+      "atMs": 12254.853,
+      "detail": "ready"
+    },
+    {
+      "stage": "boot.outcome_recorded",
+      "kind": "mark",
+      "atMs": 12254.853
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 12254.853,
+      "detail": "ready"
+    },
+    {
+      "stage": "connection.bootstrap_start",
+      "kind": "mark",
+      "atMs": 12283.272
+    },
+    {
+      "stage": "stores.opened",
+      "kind": "mark",
+      "atMs": 12294.813
+    },
+    {
+      "stage": "connection.carrier_connected",
+      "kind": "mark",
+      "atMs": 12669.345
+    },
+    {
+      "stage": "connection.events_ready",
+      "kind": "mark",
+      "atMs": 12684.268
+    },
+    {
+      "stage": "workspace.ready",
+      "kind": "mark",
+      "atMs": 12799.556
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 12799.556,
+      "detail": "ready"
+    },
+    {
+      "stage": "plugins.inventory_ready",
+      "kind": "mark",
+      "atMs": 13738.192
+    },
+    {
+      "stage": "trace.finish",
+      "kind": "mark",
+      "atMs": 13738.192,
+      "detail": "ready"
+    }
+  ],
+  "idle": {
+    "requestedSeconds": 120,
+    "observedSeconds": 120.8619609,
+    "samples": [
+      {
+        "elapsedSeconds": 0.2957695,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.84375,
+            "workingSetBytes": 425500672,
+            "privateBytes": 454811648,
+            "handles": 738,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10924032,
+            "privateBytes": 1794048,
+            "handles": 120,
+            "threads": 4
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.84375,
+            "workingSetBytes": 279597056,
+            "privateBytes": 297033728,
+            "handles": 277,
+            "threads": 16
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 1.562517,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.875,
+            "workingSetBytes": 428544000,
+            "privateBytes": 456511488,
+            "handles": 857,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.84375,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 277,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 2.857811,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 2.890625,
+            "workingSetBytes": 429637632,
+            "privateBytes": 457543680,
+            "handles": 857,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 4.1867386,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 857,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 5.4268885,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 857,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 6.6846848,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 7.9654417,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 9.2040256,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 10.8861688,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 12.3092583,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.046875,
+            "workingSetBytes": 468750336,
+            "privateBytes": 498987008,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.125,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 11.96875,
+            "workingSetBytes": 279560192,
+            "privateBytes": 296964096,
+            "handles": 280,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 13.7500135,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.078125,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.0,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 15.0767293,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.09375,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 16.4048842,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 17.674298,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 18.952369,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 20.2086826,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 21.4705922,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479948800,
+            "privateBytes": 511414272,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 22.7481855,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.140625,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 23.9598507,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.171875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 25.1969406,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.125,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 26.408576,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.140625,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.015625,
+            "workingSetBytes": 279625728,
+            "privateBytes": 296964096,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 27.6486784,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.140625,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.125,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 28.9160882,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.15625,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 30.1170984,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.15625,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 31.3773231,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.15625,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 32.6414846,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.15625,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 33.9637987,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.15625,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 35.2488485,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.15625,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 36.490279,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.171875,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 37.7419329,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.171875,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 38.9950496,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.171875,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 40.2873601,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.171875,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 41.5943844,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.171875,
+            "workingSetBytes": 279851008,
+            "privateBytes": 297066496,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 42.8615178,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 44.1204145,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479956992,
+            "privateBytes": 511422464,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45850624,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 45.3701212,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.171875,
+            "workingSetBytes": 479772672,
+            "privateBytes": 511430656,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45846528,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 46.6496437,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.1875,
+            "workingSetBytes": 484511744,
+            "privateBytes": 516767744,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45846528,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 47.9353354,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.1875,
+            "workingSetBytes": 485343232,
+            "privateBytes": 517562368,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45846528,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 49.2131511,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.1875,
+            "workingSetBytes": 485343232,
+            "privateBytes": 517562368,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45846528,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 50.457938,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.1875,
+            "workingSetBytes": 485351424,
+            "privateBytes": 517570560,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.1875,
+            "workingSetBytes": 45846528,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 51.7490187,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.203125,
+            "workingSetBytes": 488857600,
+            "privateBytes": 521314304,
+            "handles": 856,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45846528,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 275,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 53.0674533,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.203125,
+            "workingSetBytes": 488853504,
+            "privateBytes": 521314304,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45842432,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.28125,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 54.3621119,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 488853504,
+            "privateBytes": 521314304,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45842432,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.296875,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 55.5995198,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 488853504,
+            "privateBytes": 521314304,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45842432,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.296875,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 56.8320002,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 488853504,
+            "privateBytes": 521314304,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45842432,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.296875,
+            "workingSetBytes": 279920640,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 58.0757279,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 488853504,
+            "privateBytes": 521314304,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45842432,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 59.3273358,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 488861696,
+            "privateBytes": 521322496,
+            "handles": 855,
+            "threads": 84
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45842432,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 60.557782,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 61.7847682,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 63.0526856,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 64.3002461,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 65.5451248,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.40625,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 66.7881404,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.453125,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 68.0724335,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.203125,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.453125,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 69.3372813,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.46875,
+            "workingSetBytes": 280272896,
+            "privateBytes": 297332736,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 70.6241026,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.5,
+            "workingSetBytes": 280707072,
+            "privateBytes": 297824256,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 71.965731,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.5,
+            "workingSetBytes": 280707072,
+            "privateBytes": 297824256,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 73.3090625,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490618880,
+            "privateBytes": 521723904,
+            "handles": 855,
+            "threads": 83
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280711168,
+            "privateBytes": 297824256,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 74.5891369,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.234375,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280711168,
+            "privateBytes": 297824256,
+            "handles": 274,
+            "threads": 14
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 75.9130721,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 77.2156495,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 78.4955438,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 79.7767947,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 81.0565391,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 82.3468842,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 83.6161637,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.25,
+            "workingSetBytes": 490602496,
+            "privateBytes": 521691136,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 84.8851286,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 490950656,
+            "privateBytes": 521879552,
+            "handles": 854,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.546875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 273,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 86.1542471,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491417600,
+            "privateBytes": 522354688,
+            "handles": 854,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.5625,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 273,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 87.4746115,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491417600,
+            "privateBytes": 522354688,
+            "handles": 854,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.703125,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 273,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 88.8234117,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491417600,
+            "privateBytes": 522354688,
+            "handles": 854,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.71875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 273,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 90.1583907,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491417600,
+            "privateBytes": 522354688,
+            "handles": 854,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.71875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 273,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 91.5205321,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491417600,
+            "privateBytes": 522354688,
+            "handles": 853,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.71875,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 92.793647,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.734375,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 94.0808355,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.734375,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 95.4298887,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.734375,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 96.6968749,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.734375,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 97.9997426,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.734375,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 99.362739,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.78125,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 100.6629424,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.78125,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 101.927877,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.78125,
+            "workingSetBytes": 280694784,
+            "privateBytes": 297787392,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 103.2091657,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.875,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 104.5044431,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 105.764031,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 107.0236963,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.21875,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 108.3222713,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.296875,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.234375,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 109.6006198,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.234375,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 110.9189559,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.234375,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 112.20369,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.234375,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 113.4721549,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.234375,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 114.73187,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.234375,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 116.0022773,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.25,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.890625,
+            "workingSetBytes": 280698880,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 117.3161403,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.25,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.921875,
+            "workingSetBytes": 280956928,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 118.5803685,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.25,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 12.984375,
+            "workingSetBytes": 281022464,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 119.8703222,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.25,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 13.015625,
+            "workingSetBytes": 281022464,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      },
+      {
+        "elapsedSeconds": 121.1577304,
+        "processes": [
+          {
+            "pid": 42952,
+            "startedAt": "2026-11-18T00:34:55.7723200Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "desktop",
+            "cpuSeconds": 3.328125,
+            "workingSetBytes": 491442176,
+            "privateBytes": 522354688,
+            "handles": 852,
+            "threads": 82
+          },
+          {
+            "pid": 11344,
+            "startedAt": "2026-11-18T00:34:56.1978640Z",
+            "name": "route-a-quiet-update-0.2.0-candidate",
+            "role": "helper",
+            "cpuSeconds": 0.25,
+            "workingSetBytes": 45944832,
+            "privateBytes": 71778304,
+            "handles": 198,
+            "threads": 12
+          },
+          {
+            "pid": 24104,
+            "startedAt": "2026-11-18T00:34:56.8546650Z",
+            "name": "conhost",
+            "role": "helper",
+            "cpuSeconds": 0.03125,
+            "workingSetBytes": 10903552,
+            "privateBytes": 1757184,
+            "handles": 120,
+            "threads": 3
+          },
+          {
+            "pid": 25568,
+            "startedAt": "2026-11-18T00:34:56.8405500Z",
+            "name": "node",
+            "role": "host",
+            "cpuSeconds": 13.015625,
+            "workingSetBytes": 281022464,
+            "privateBytes": 298057728,
+            "handles": 272,
+            "threads": 13
+          }
+        ]
+      }
+    ],
+    "stableProcesses": [
+      {
+        "pid": 42952,
+        "name": "route-a-quiet-update-0.2.0-candidate",
+        "role": "desktop",
+        "observedSeconds": 120.8619609,
+        "cpuPercentOneCore": 0.40076712010387383,
+        "initialWorkingSetBytes": 425500672,
+        "finalWorkingSetBytes": 491442176,
+        "initialPrivateBytes": 454811648,
+        "finalPrivateBytes": 522354688,
+        "initialHandles": 738,
+        "finalHandles": 852,
+        "finalThreads": 82
+      },
+      {
+        "pid": 11344,
+        "name": "route-a-quiet-update-0.2.0-candidate",
+        "role": "helper",
+        "observedSeconds": 120.8619609,
+        "cpuPercentOneCore": 0.10342377293003195,
+        "initialWorkingSetBytes": 45850624,
+        "finalWorkingSetBytes": 45944832,
+        "initialPrivateBytes": 71778304,
+        "finalPrivateBytes": 71778304,
+        "initialHandles": 198,
+        "finalHandles": 198,
+        "finalThreads": 12
+      },
+      {
+        "pid": 24104,
+        "name": "conhost",
+        "role": "helper",
+        "observedSeconds": 120.8619609,
+        "cpuPercentOneCore": 0.0,
+        "initialWorkingSetBytes": 10924032,
+        "finalWorkingSetBytes": 10903552,
+        "initialPrivateBytes": 1794048,
+        "finalPrivateBytes": 1757184,
+        "initialHandles": 120,
+        "finalHandles": 120,
+        "finalThreads": 3
+      },
+      {
+        "pid": 25568,
+        "name": "node",
+        "role": "host",
+        "observedSeconds": 120.8619609,
+        "cpuPercentOneCore": 0.9695978712190495,
+        "initialWorkingSetBytes": 279597056,
+        "finalWorkingSetBytes": 281022464,
+        "initialPrivateBytes": 297033728,
+        "finalPrivateBytes": 298057728,
+        "initialHandles": 277,
+        "finalHandles": 272,
+        "finalThreads": 13
+      }
+    ],
+    "summaryScope": "processes alive for the entire observation; transient processes remain in samples"
+  },
+  "scheduledUpdatesSuppressed": false,
+  "warmupSeconds": 60,
+  "coverage": "sampled-startup",
+  "readiness": "workspace",
+  "runtime": {
+    "vendor": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\vendor",
+    "nodeDirectory": "C:\\Users\\48818\\AppData\\Local\\Programs\\WhaleIsle-MyGo\\runtime\\node"
+  },
+  "webViewCount": 0
+}

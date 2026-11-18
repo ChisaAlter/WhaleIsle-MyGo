@@ -5,10 +5,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -110,15 +113,74 @@ func setFileStatus(m Model, text string) {
 	}
 }
 
-// paintSourceArea uses the native editor's real rune selection. Highlight spans
-// decorate the original source; rendered Markdown never substitutes for it.
+const maxSourceRangeCacheEntries = 16
+
+type sourceRangeCacheKey struct {
+	path         string
+	draftVersion uint64
+	dark         bool
+	fontSize     float32
+	themeID      string
+	fontFamily   string
+}
+
+type sourceRangeCacheEntry struct {
+	key    sourceRangeCacheKey
+	text   string
+	ranges []ui.TextRange
+}
+
+var (
+	sourceRangeMu     sync.Mutex
+	sourceRangeOrder  []sourceRangeCacheKey
+	sourceRangeMap    = map[sourceRangeCacheKey]sourceRangeCacheEntry{}
+	sourceRangeHits   atomic.Int64
+	sourceRangeMisses atomic.Int64
+)
+
+func resetSourceRangeCacheForTest() {
+	sourceRangeMu.Lock()
+	clear(sourceRangeMap)
+	sourceRangeOrder = nil
+	sourceRangeMu.Unlock()
+	sourceRangeHits.Store(0)
+	sourceRangeMisses.Store(0)
+}
+
+func fnv64aString(s string) uint64 {
+	var h uint64 = 14695981039346656037
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 1099511628211
+	}
+	return h
+}
+
+func (t *FileTab) sourceVersionFor(text string) uint64 {
+	if t == nil {
+		return fnv64aString(text)
+	}
+	if t.sourceTextVer == 0 || t.sourceTextLast != text {
+		t.sourceTextVer++
+		t.sourceTextLast = text
+	}
+	if t.editBuffer != nil && text == t.Draft {
+		return t.sourceTextVer ^ (t.editBufferVersion << 32)
+	}
+	return t.sourceTextVer
+}
+
 func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly bool, key string, fg, muted ui.Color) {
 	ui.Column(c).Key(path + "/" + key).Fill().MinHeight(0).MinWidth(0).Children(func() {
+		t := selectedTab(m)
+		if readOnly && shouldVirtualizeReadOnlyPreview(t, *text) {
+			paintVirtualizedReadOnlySource(c, m, path, *text, t, key, fg, muted)
+			return
+		}
 		editor := sourceTextArea(c, m, text, readOnly, key, fg)
 		if !isMarkdown(path) && markdown.CanSourceHighlight(path, *text) {
-			editor.TextRanges(sourceRanges(path, *text, sourceStyle(m, fg, muted))...)
+			editor.TextRanges(sourceRangesFor(m, path, *text, sourceStyle(m, fg, muted))...)
 		}
-		t := selectedTab(m)
 		if t == nil {
 			return
 		}
@@ -128,12 +190,19 @@ func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly
 			editor.SetTextSelection(ranges[line].start, ranges[line].end).Focus()
 			t.revealLine = 0
 		}
+		if t.revealMatchPending {
+			editor.SetTextSelection(t.revealMatchStart, t.revealMatchEnd)
+			t.revealMatchPending = false
+		}
 		revealSourceCaret(c, m, editor, *text, key)
 		if editor.Focused() {
 			if editor.Shortcut(ui.Cmd, ui.KeyS) {
 				if err := requestSaveDraft(m); err != nil {
 					setFileStatus(m, err.Error())
 				}
+			}
+			if editor.Shortcut(ui.Cmd, ui.KeyF) {
+				triggerPreviewFind(m)
 			}
 			if editor.Composing() {
 				t.selectionText = ""
@@ -151,9 +220,62 @@ func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly
 	})
 }
 
+func sourceRangesFor(m Model, path, text string, style markdown.Style) []ui.TextRange {
+	th := theme.Resolve(m.ThemeID)
+	dark := th.Scheme == theme.SchemeDark || (th.Scheme == theme.SchemeSystem && m.SystemDark)
+	codeFont := theme.RenderPreferences().Code
+	draftVer := selectedTab(m).sourceVersionFor(text)
+	key := sourceRangeCacheKey{
+		path:         path,
+		draftVersion: draftVer,
+		dark:         dark,
+		fontSize:     codeFont.Size,
+		themeID:      m.ThemeID,
+		fontFamily:   codeFont.Family,
+	}
+	return cachedSourceRanges(key, text, style)
+}
+
 // The syntax highlighter normalizes trailing newlines. Only use its colors
 // when all other source bytes still match, and clamp spans to the source.
 func sourceRanges(path, text string, style markdown.Style) []ui.TextRange {
+	key := sourceRangeCacheKey{
+		path:         path,
+		draftVersion: fnv64aString(text),
+		dark:         int(style.FG.R)+int(style.FG.G)+int(style.FG.B) > 384,
+		fontSize:     style.FontSize,
+	}
+	return cachedSourceRanges(key, text, style)
+}
+
+func cachedSourceRanges(key sourceRangeCacheKey, text string, style markdown.Style) []ui.TextRange {
+	sourceRangeMu.Lock()
+	if entry, ok := sourceRangeMap[key]; ok && len(entry.text) == len(text) && entry.text == text {
+		sourceRangeHits.Add(1)
+		ranges := entry.ranges
+		sourceRangeMu.Unlock()
+		return ranges
+	}
+	sourceRangeMu.Unlock()
+
+	sourceRangeMisses.Add(1)
+	ranges := computeSourceRanges(key.path, text, style)
+
+	sourceRangeMu.Lock()
+	if _, exists := sourceRangeMap[key]; !exists {
+		sourceRangeOrder = append(sourceRangeOrder, key)
+		for len(sourceRangeOrder) > maxSourceRangeCacheEntries {
+			evict := sourceRangeOrder[0]
+			sourceRangeOrder = sourceRangeOrder[1:]
+			delete(sourceRangeMap, evict)
+		}
+	}
+	sourceRangeMap[key] = sourceRangeCacheEntry{key: key, text: text, ranges: ranges}
+	sourceRangeMu.Unlock()
+	return ranges
+}
+
+func computeSourceRanges(path, text string, style markdown.Style) []ui.TextRange {
 	spans := markdown.SourceSpans(path, text, style)
 	var joined strings.Builder
 	for _, span := range spans {

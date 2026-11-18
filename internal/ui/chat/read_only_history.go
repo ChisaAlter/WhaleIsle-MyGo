@@ -107,7 +107,7 @@ func ReadOnlyHistoryWithPreferences(c *ui.Context, scope string, messages []sess
 			}
 		}
 		for _, ref := range refs {
-			if path := DisplayImagePath(ref); path != "" {
+			if path, _ := cachedDisplayImagePath(ref, c.Services().Invalidate); path != "" {
 				galleryPaths[path] = session.AgentResourceRead{Path: path}
 			}
 		}
@@ -185,6 +185,9 @@ func ReadOnlyHistoryWithPreferences(c *ui.Context, scope string, messages []sess
 				case msg.Kind == session.MessageKindText && msg.Role == "assistant":
 					writeStyle := transcriptMarkdownStyle(st.FG, st.Muted, st.Field, st.Accent, theme.CurrentPreferences().Chat.Size, darkSurface(st.Muted))
 					writeStyle.ResolveFile = FileMentionResolver(messages, msg)
+					if writeStyle.ResolveFile != nil {
+						writeStyle.ResolveRevision = fileMentionRevision(messages, msg)
+					}
 					writeStyle.OnOpenFile = resource.OnOpenFile
 					markdown.View(c, body, writeStyle)
 					for _, ref := range readOnlyReferences(body) {

@@ -10,26 +10,25 @@ import (
 func TestProactivePanelPersistAndRetainDraftOnConflict(t *testing.T) {
 	dir := t.TempDir()
 	s := &mainState{}
+	svc := s.assistantService()
+	t.Cleanup(svc.SuspendAll)
 	s.openProactive(dir)
-	s.proactivePanel.title, s.proactivePanel.description = "检查当前候选", "保存明确的完成条件"
-	s.proactiveModel().OnAutonomy(3)
+	svc.SetProactiveDraft("检查当前候选", "保存明确的完成条件")
+	svc.ProactiveModel().OnAutonomy(3)
 	wait := func() {
 		t.Helper()
 		deadline := time.Now().Add(3 * time.Second)
 		for time.Now().Before(deadline) {
-			s.mu.Lock()
-			busy := s.proactivePanel.busy
-			s.mu.Unlock()
-			if !busy {
+			if !svc.ProactiveSnapshot().Busy {
 				return
 			}
 			time.Sleep(5 * time.Millisecond)
 		}
 		t.Fatal("native task write did not finish")
 	}
-	s.proactiveModel().OnCreate()
+	svc.ProactiveModel().OnCreate()
 	wait()
-	m := s.proactiveModel()
+	m := svc.ProactiveModel()
 	if m.Title != "" || len(m.State.Tasks) != 1 || m.Selected != m.State.Tasks[0].ID {
 		t.Fatal("native create did not consume saved draft", m)
 	}
@@ -43,12 +42,10 @@ func TestProactivePanelPersistAndRetainDraftOnConflict(t *testing.T) {
 	if _, err := other.Create(proactive.CreateInput{Title: "外部新增的任务"}); err != nil {
 		t.Fatal(err)
 	}
-	s.mu.Lock()
-	s.proactivePanel.title = "失败时保留的草稿"
-	s.mu.Unlock()
-	s.proactiveModel().OnCreate()
+	svc.SetProactiveDraft("失败时保留的草稿", "")
+	svc.ProactiveModel().OnCreate()
 	wait()
-	m = s.proactiveModel()
+	m = svc.ProactiveModel()
 	if m.Error == "" || m.Title != "失败时保留的草稿" || len(m.State.Tasks) != 1 {
 		t.Fatal("conflict erased draft or published unsaved state", m)
 	}

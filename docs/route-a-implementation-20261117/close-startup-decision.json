@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "source": "codex/route-a-system-optimization uncommitted candidate; fixed runtime-rc4/Node and same owned synthetic profile",
+  "comparison": "Baseline Go overlay changes only the desktop attach call from AttachHostForWorkspace to AttachHost; deferred candidate uses current source. One prewarm, one baseline warm, one deferred warm; no Node profiler.",
+  "before": {
+    "report": "close-startup-eager-warm.json",
+    "hostReadyMs": 5940.006,
+    "workspaceReadyMs": 6930.314,
+    "inventoryReadyMs": 6889.163,
+    "nodeSpawnToReadylineMs": 4853.013,
+    "bootstrapToCarrierMs": 935.844,
+    "hostToWorkspaceMs": 990.308,
+    "workspaceToInventoryMs": -41.15100000000075,
+    "hostToAllReadyMs": 990.308,
+    "webViewCount": 0,
+    "profile": "resumed-owned-isolated"
+  },
+  "after": {
+    "report": "close-startup-deferred-warm.json",
+    "hostReadyMs": 6721.205,
+    "workspaceReadyMs": 6947.012,
+    "inventoryReadyMs": 7698.625,
+    "nodeSpawnToReadylineMs": 5639.958,
+    "bootstrapToCarrierMs": 177.17399999999998,
+    "hostToWorkspaceMs": 225.8069999999998,
+    "workspaceToInventoryMs": 751.6130000000003,
+    "hostToAllReadyMs": 977.4200000000001,
+    "webViewCount": 0,
+    "profile": "resumed-owned-isolated"
+  },
+  "hostToWorkspaceReductionPercent": 77.19830598157343,
+  "productionBytes": 96435200,
+  "productDecision": "Retain workspace-priority inventory scheduling. It removes inventory competition with connection bootstrap without discarding work; explicit management/A2 can load before workspace and ordinary eager AttachHost remains unchanged.",
+  "limits": [
+    "One paired observation is not p95 or proof of total startup improvement.",
+    "Node startup differed between observations; total workspace times were effectively unchanged.",
+    "Complete inventory arrives after workspace rather than before. Both readiness times are reported.",
+    "Hidden process sampling is not visible input/frame acceptance or a complete process-start trace.",
+    "The 3 second total workspace target remains unmet."
+  ],
+  "unchangedHostFindings": {
+    "runtimeResolution": "CLI computes one resolution per boot; routing caches already follow generation changes.",
+    "repeatedManifestReads": {
+      "count": 335,
+      "totalMilliseconds": 40.3551
+    },
+    "clientModuleRegistryInclusiveMilliseconds": 274.899,
+    "decision": "Do not replace Host resolution, disable plugins, or change A2 composition for these small or contract-sensitive costs."
+  },
+  "validation": [
+    "close-startup-inventory-tests.log",
+    "close-startup-eager-warm.json",
+    "close-startup-deferred-warm.json"
+  ],
+  "cleanup": "Both executables used the same owned output path; profile, overlay and candidate removed by with-build-workspace finally."
+}

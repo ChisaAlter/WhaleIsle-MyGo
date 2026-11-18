@@ -1,6 +1,8 @@
 package openui
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/url"
 	"strconv"
@@ -9,11 +11,23 @@ import (
 	"unicode/utf8"
 )
 
-// IsOwnedViewer compares the actual document with this build's embedded runtime.
+// IsOwnedViewer compares the actual document with this build's runtime or the audited legacy hash.
 // A renderer's self-reported runtime name is never sufficient to enable actions.
 // Callers must separately disable actions for every explicit legacy override.
 func IsOwnedViewer(viewer string) bool {
-	return viewer != "" && (viewer == embeddedViewer || IsWhaleViewer(viewer))
+	if viewer == "" {
+		return false
+	}
+	if IsWhaleViewer(viewer) {
+		return true
+	}
+	sum := sha256.Sum256([]byte(viewer))
+	return hex.EncodeToString(sum[:]) == ViewerSHA256
+}
+
+// IsSupportedViewer reports whether viewer matches the supported runtime.
+func IsSupportedViewer(viewer string) bool {
+	return IsOwnedViewer(viewer)
 }
 
 // ValidateNativeAction checks the bounded typed data, not a user gesture proof.

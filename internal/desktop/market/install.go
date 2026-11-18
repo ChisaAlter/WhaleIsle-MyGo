@@ -18,8 +18,10 @@ import (
 // InstallOptions optionally overrides Node.js location (config nodeBin).
 type InstallOptions struct {
 	NodeBin             string
-	DshHome             string // optional confirmed import destination
-	ExpectedPackageName string // optional confirmed manifest package identity
+	DshHome             string               // optional confirmed import destination
+	ExpectedPackageName string               // optional confirmed manifest package identity
+	Capabilities        *PackageCapabilities // optional pre-probed package capabilities
+	AllowWebUIOnly      bool                 // only true when user explicitly opens A2 compat mode
 }
 
 // InstallGithubSpec runs dsh plugin add for github:owner/repo[#ref] in the web
@@ -43,6 +45,13 @@ func InstallSpecContext(ctx context.Context, spec string, allowBuilds []string, 
 	}
 	if opts.ExpectedPackageName != "" && installctrl.RegistryPluginName(opts.ExpectedPackageName+"@0.0.0") != opts.ExpectedPackageName {
 		return installctrl.Result{Spec: spec, Error: storelocale.T(storelocale.KeyStoreMarketExpectedPluginPackageNameIsInvalid)}
+	}
+	if opts.Capabilities != nil && opts.Capabilities.Kind == CapabilityWebUIOnly && !opts.AllowWebUIOnly {
+		msg := opts.Capabilities.Guidance
+		if msg == "" {
+			msg = "Web UI-only plugin requires the compatibility workbench; native headless install skipped."
+		}
+		return installctrl.Result{Spec: spec, Error: msg}
 	}
 	normalized := installctrl.NormalizeAllowBuilds(allowBuilds)
 	if normalized == nil {

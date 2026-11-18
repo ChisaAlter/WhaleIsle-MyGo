@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -74,19 +75,21 @@ func NewGatewayWithResponseFilter(origin, cookie string, handler func(http.Respo
 			p.Out.Host = target.Host
 			// Drop every incoming credential and forwarding hint. Only this pinned
 			// session reaches this pinned Host; redirects are never followed.
-			p.Out.Header.Del("Cookie")
-			p.Out.Header.Del("Authorization")
+			for _, k := range []string{"Cookie", "Authorization", "Proxy-Authorization", "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "Referer"} {
+				p.Out.Header.Del(k)
+			}
 			if cookie != "" {
 				p.Out.Header.Set("Cookie", cookie)
 			}
 			if p.In.Header.Get("Origin") != "" {
 				p.Out.Header.Set("Origin", g.origin)
 			}
-			p.Out.Header.Del("Referer")
 		},
 		ModifyResponse: func(r *http.Response) error {
 			r.Header.Del("Set-Cookie") // Host credentials stay in Go, including rotations.
 			r.Header.Set("Referrer-Policy", "no-referrer")
+			r.Header.Set("X-Content-Type-Options", "nosniff")
+			r.Header.Set("X-Frame-Options", "DENY")
 			if raw := r.Header.Get("Location"); raw != "" {
 				dest, err := r.Request.URL.Parse(raw)
 				if err != nil || dest.User != nil || dest.Scheme != target.Scheme || dest.Host != target.Host {
@@ -114,13 +117,15 @@ func NewGatewayWithResponseFilter(origin, cookie string, handler func(http.Respo
 			g.connections[c] = true
 		}
 	}, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Host != listener.Addr().String() || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != g.browserOrigin) || r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		if r.Host != listener.Addr().String() || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != g.browserOrigin) || !allowedFetchSite(r.Header.Get("Sec-Fetch-Site")) || strings.EqualFold(r.Method, http.MethodConnect) || !validUpgradeHeader(r) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 		if r.URL.Path == "/__whale_slot_auth" {
 			next, err := url.Parse(r.URL.Query().Get("next"))
-			if r.Method != "GET" || !sameSecret(r.URL.Query().Get("key"), g.token) || err != nil || next.IsAbs() || next.Host != "" || !strings.HasPrefix(next.Path, "/") || strings.HasPrefix(next.Path, "//") {
+			if r.Method != "GET" || hasUpgradeHeader(r) || !sameSecret(r.URL.Query().Get("key"), g.token) || err != nil || next.IsAbs() || next.Host != "" || !strings.HasPrefix(next.Path, "/") || strings.HasPrefix(next.Path, "//") {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
@@ -157,10 +162,73 @@ func NewGatewayWithResponseFilter(origin, cookie string, handler func(http.Respo
 			}
 			return
 		}
+		if blockedPluginProxyPath(r.URL) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})}
 	go func() { _ = g.server.Serve(listener) }()
 	return g, nil
+}
+
+func allowedFetchSite(site string) bool {
+	switch strings.ToLower(strings.TrimSpace(site)) {
+	case "", "same-origin", "none":
+		return true
+	default:
+		return false
+	}
+}
+
+func hasUpgradeHeader(r *http.Request) bool {
+	return len(r.Header.Values("Upgrade")) > 0
+}
+
+func validUpgradeHeader(r *http.Request) bool {
+	values := r.Header.Values("Upgrade")
+	if len(values) == 0 {
+		return true
+	}
+	if r.Method != http.MethodGet {
+		return false
+	}
+	seenWebSocket := false
+	for _, v := range values {
+		for _, part := range strings.Split(v, ",") {
+			token := strings.TrimSpace(part)
+			if token == "" || !strings.EqualFold(token, "websocket") {
+				return false
+			}
+			seenWebSocket = true
+		}
+	}
+	return seenWebSocket
+}
+
+func blockedPluginProxyPath(u *url.URL) bool {
+	if u == nil {
+		return true
+	}
+	check := func(raw string) bool {
+		if raw == "" {
+			return false
+		}
+		normalized := strings.ReplaceAll(raw, "\\", "/")
+		cleaned := strings.ToLower(path.Clean("/" + normalized))
+		return cleaned == "/dshd-platform" || strings.HasPrefix(cleaned, "/dshd-platform/") ||
+			cleaned == "/connect" || strings.HasPrefix(cleaned, "/connect/")
+	}
+	if check(u.Path) || check(u.EscapedPath()) || check(u.RawPath) {
+		return true
+	}
+	if escaped := u.EscapedPath(); strings.Contains(escaped, "%") {
+		unescaped, err := url.PathUnescape(escaped)
+		if err != nil || check(unescaped) {
+			return true
+		}
+	}
+	return false
 }
 func sameSecret(a, b string) bool {
 	return len(a) == len(b) && subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1

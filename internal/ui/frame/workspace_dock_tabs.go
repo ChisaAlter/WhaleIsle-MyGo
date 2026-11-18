@@ -173,11 +173,6 @@ func dockTabTitle(n *WorkspacePane) string {
 	switch n.Kind {
 	case "guide":
 		return paneLabel("开始", "Start")
-	case "plugin-native":
-		if n.PluginRightPaneLabel != "" {
-			return n.PluginRightPaneLabel
-		}
-		return paneLabel("插件面板", "Plugin panel")
 	case "custom-panels":
 		return paneLabel("自定义面板", "Custom Panels")
 	case "project-observer":
@@ -273,7 +268,10 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					if chip.DoubleClicked() && tab.Kind == "host-terminal" {
 						beginWorkspaceTerminalRename(m, tab)
 					} else if chip.Clicked() {
-						w.pending = func() { w.activateDockTab(tab.ID) }
+						w.pending = func() {
+							w.activateDockTab(tab.ID)
+							w.focusPending = tab.ID
+						}
 					}
 					if chip.Dragging() {
 						n.tabDragging = true

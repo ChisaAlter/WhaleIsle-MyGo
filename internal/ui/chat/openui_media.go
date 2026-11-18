@@ -139,7 +139,7 @@ func (m *openUIMedia) ExpirePaint() {
 		return
 	}
 	mygo.RunOnMain(func() {
-		if !m.current() || time.Since(m.painted) >= 300*time.Millisecond || !m.parent.IsVisible() || m.parent.IsMinimized() {
+		if !m.current() || (m.block != nil && m.block.isOffscreen()) || !m.parent.IsVisible() || m.parent.IsMinimized() {
 			m.suspend()
 		}
 	})

@@ -111,13 +111,20 @@ func (a *keychainAPI) add(account string, key []byte) error {
 	if len(key) != 32 {
 		return errors.New("credentials: invalid Keychain key length")
 	}
-	q, err := a.query(credentialKeychainService, account)
+	return a.addPassword(credentialKeychainService, account, key)
+}
+
+func (a *keychainAPI) addPassword(service, account string, password []byte) error {
+	if len(password) == 0 || len(password) > 4096 {
+		return errors.New("credentials: invalid Keychain password length")
+	}
+	q, err := a.query(service, account)
 	if err != nil {
 		return err
 	}
 	defer a.release(q)
-	data := a.dataCreate(nil, unsafe.SliceData(key), len(key))
-	runtime.KeepAlive(key)
+	data := a.dataCreate(nil, unsafe.SliceData(password), len(password))
+	runtime.KeepAlive(password)
 	if data == nil {
 		return errors.New("credentials: cannot allocate Keychain key data")
 	}

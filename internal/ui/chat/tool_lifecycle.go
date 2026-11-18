@@ -84,12 +84,7 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 				if gallery.TodoBaselines != nil {
 					childGallery.Todo = gallery.TodoBaselines[call.CallID]
 				}
-				native := func() { toolLifecycleCard(c, call, st, childGallery) }
-				if gallery.RenderSlot != nil {
-					gallery.RenderSlot(c, "toolview/body", call, native)
-				} else {
-					native()
-				}
+				toolLifecycleCard(c, call, st, childGallery)
 				if hasChildren {
 					children = ui.Column(c.Key("subcalls")).MinWidth(0).Shrink(0).Gap(4).
 						Margin(4, 0, bottom, 22).Padding(0, 0, 0, 8).

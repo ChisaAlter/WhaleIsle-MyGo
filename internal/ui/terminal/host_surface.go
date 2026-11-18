@@ -74,7 +74,10 @@ func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session
 		}
 		if h.terminal != nil {
 			h.terminal.SetReadOnly(!v.Writable)
-			myterm.View(c, h.terminal).FillWidth().Grow(1).MinWidth(0).MinHeight(0)
+			termView := myterm.View(c, h.terminal).FillWidth().Grow(1).MinWidth(0).MinHeight(0)
+			if actions.FocusTerminal && !h.manageOpen && !h.confirmClose {
+				termView.Focus()
+			}
 		} else {
 			ui.Column(c).Label("Terminal").FillWidth().Grow(1).MinWidth(0).MinHeight(0).Padding(20, 12).Gap(8).Children(func() {
 				message := terminalLabel("选择或新建一个终端", "Choose or create a terminal")

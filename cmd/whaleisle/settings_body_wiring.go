@@ -4,10 +4,8 @@ import (
 	"context"
 
 	"github.com/egoist/mygo/ui"
-	"strings"
 	"whaleisle/internal/config"
 	desktopcomponents "whaleisle/internal/desktop/components"
-	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	assiststore "whaleisle/internal/store/assistant"
@@ -59,9 +57,7 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		m.Desktop.Shortcuts = s.pageShortcutEditor()
 		m.Desktop.Preferences = s.themeFontEditor(true)
 		m.Desktop.Version = s.harnessVersionSnapshot()
-		s.mu.Lock()
-		m.Desktop.UpdateBusy = s.updateCheckPending || s.nativeReleases.busy
-		s.mu.Unlock()
+		m.Desktop.UpdateBusy = s.updaterCenter().FrameSnapshot().Busy
 		m.Desktop.AutoStartDesktop = &s.desktopDraft.autoStartDesktop
 	}
 	if m.AppearanceActive && m.Appearance != nil {
@@ -94,56 +90,30 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		}
 	}
 	if m.AboutActive && m.About != nil {
-		// About can be the first update entry after restart. Restore the same
-		// persisted owner before taking its display snapshot.
-		s.ensureNativeUpdateCenter()
+		u := s.updaterCenter()
+		s.mu.Lock()
+		aboutWin := s.win
+		s.mu.Unlock()
+		aboutRef := updaterWindow(aboutWin)
+		aboutSnap := u.AboutSnapshot(aboutRef)
 		m.About.HomePath = paths.DshHome()
 		m.About.OnRevealHome = func() error { return desktopcomponents.OpenInFileManager(paths.DshHome()) }
-		s.mu.Lock()
-		releases := s.nativeReleases
-		checking := s.updateCheckPending
-		win := s.win
-		s.mu.Unlock()
-		m.About.UpdateBusy = releases.busy || checking
-		m.About.UpdateStatus = strings.TrimSpace(releases.status)
-		if message := strings.TrimSpace(releases.err); message != "" && !strings.Contains(m.About.UpdateStatus, message) {
-			m.About.UpdateStatus = strings.TrimSpace(m.About.UpdateStatus + "\n" + message)
+		m.About.UpdateBusy = aboutSnap.UpdateBusy
+		m.About.UpdateStatus = aboutSnap.UpdateStatus
+		m.About.UpdatePhase = aboutSnap.UpdatePhase
+		m.About.UpdateVersion = aboutSnap.UpdateVersion
+		m.About.UpdatePercent = aboutSnap.UpdatePercent
+		m.About.OnDownloadUpdate = func() { u.OpenCenter(aboutRef) }
+		m.About.OnResumeUpdate = func() { u.OpenCenter(aboutRef) }
+		if aboutSnap.ActiveTag != "" {
+			m.About.OnResumeUpdate = func() { u.Resume(aboutRef) }
 		}
-		m.About.UpdatePhase = releases.phase
-		if checking && (m.About.UpdatePhase == "" || m.About.UpdatePhase == "idle") {
-			m.About.UpdatePhase = "checking"
-		}
-		if releases.installing {
-			m.About.UpdatePhase = "installing"
-		}
-		for _, row := range releases.rows {
-			if row.UnavailableReason == "" && !row.Prerelease && update.CompareVersions(row.Version, buildVersion) > 0 {
-				m.About.UpdateVersion = row.Version
-				if m.About.UpdatePhase == "" || m.About.UpdatePhase == "idle" {
-					m.About.UpdatePhase = "available"
-				}
-				break
-			}
-		}
-		if m.About.UpdateVersion == "" && releases.stagedTag != "" {
-			m.About.UpdateVersion = releases.stagedTag
-		}
-		if releases.total > 0 && releases.received >= 0 {
-			m.About.UpdatePercent = float64(releases.received) * 100 / float64(releases.total)
-		}
-		// Vendor readiness is established by the actual update center, not by
-		// a first About render. Let it choose the matching runtime package.
-		m.About.OnDownloadUpdate = func() { s.openNativeUpdateCenter(win) }
-		m.About.OnResumeUpdate = func() { s.openNativeUpdateCenter(win) }
-		if releases.active.Tag != "" {
-			m.About.OnResumeUpdate = func() { s.resumeNativeUpdate(win) }
-		}
-		if releases.staged.Path != "" || m.About.UpdatePhase == "ready" {
-			m.About.OnInstallUpdate = func() { s.startNativeStaged(win) }
+		if aboutSnap.StagedPath != "" || m.About.UpdatePhase == "ready" {
+			m.About.OnInstallUpdate = func() { u.StartStaged(aboutRef) }
 		} else {
-			m.About.OnInstallUpdate = func() { s.openNativeUpdateCenter(win) }
+			m.About.OnInstallUpdate = func() { u.OpenCenter(aboutRef) }
 		}
-		m.About.OnOpenUpdateCenter = func() { s.openNativeUpdateCenter(win) }
+		m.About.OnOpenUpdateCenter = func() { u.OpenCenter(aboutRef) }
 	}
 	if m.InterfaceActive && m.Interface != nil {
 		var cfg config.Config

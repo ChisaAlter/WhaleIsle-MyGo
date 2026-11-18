@@ -118,11 +118,15 @@ func readNumstat(counts map[string][2]int, out []byte, prefix string) {
 // countUntrackedLines counts a file HEAD does not know yet. A large or binary
 // file reports zero instead of guessing.
 func countUntrackedLines(root, path string) (int, int) {
-	info, err := os.Stat(filepath.Join(root, path))
-	if err != nil || info.IsDir() || info.Size() > 4<<20 {
+	if err := literalPath(path); err != nil {
 		return 0, 0
 	}
-	data, err := os.ReadFile(filepath.Join(root, path))
+	target := filepath.Join(root, filepath.FromSlash(path))
+	info, err := os.Lstat(target)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 4<<20 {
+		return 0, 0
+	}
+	data, err := os.ReadFile(target)
 	if err != nil || len(data) == 0 {
 		return 0, 0
 	}
@@ -161,6 +165,11 @@ func StagePaths(root string, paths ...string) (string, error) {
 			return "", err
 		}
 	}
+	release, err := acquireBackgroundWrite(root, WorktreeWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	return localCommand(root, "--literal-pathspecs", append([]string{"add", "--"}, paths...)...)
 }
 func UnstagePaths(root string, paths ...string) (string, error) {
@@ -172,6 +181,11 @@ func UnstagePaths(root string, paths ...string) (string, error) {
 			return "", err
 		}
 	}
+	release, err := acquireBackgroundWrite(root, WorktreeWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	if _, err := localCommand(root, "rev-parse", "--verify", "HEAD"); err != nil {
 		return localCommand(root, "--literal-pathspecs", append([]string{"rm", "--cached", "--"}, paths...)...)
 	}
@@ -193,6 +207,18 @@ func IndexReview(root string) (text, token string, err error) {
 
 // CommitReviewed refuses a changed index after the user reviewed its exact diff.
 func CommitReviewed(root, message, token string) (string, error) {
+	if strings.TrimSpace(message) == "" {
+		return "", ErrEmptyCommitMessage
+	}
+	release, err := acquireBackgroundWrite(root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	return commitReviewed(root, message, token)
+}
+
+func commitReviewed(root, message, token string) (string, error) {
 	if strings.TrimSpace(message) == "" {
 		return "", ErrEmptyCommitMessage
 	}

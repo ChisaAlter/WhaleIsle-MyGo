@@ -111,8 +111,6 @@ func (s *mainState) openVoiceSettings() {
 	controller := s.nativePluginController()
 	owner := controller.Snapshot().Owner
 	s.mu.Lock()
-	s.settingsOpen = false
-	s.settingsEmbeddedSection = ""
 	s.voiceDevices.detailsPending = true
 	s.voiceDevices.detailsOwner = owner
 	s.mu.Unlock()
@@ -127,7 +125,7 @@ func (s *mainState) finishVoiceDetailsNavigation() {
 		s.mu.Unlock()
 		return
 	}
-	visible := s.marketOpen && s.marketManager && !s.settingsOpen && !s.launcherOpen && !s.quitting
+	visible := s.marketOpen && s.marketManager && !s.settingsOpen && !s.maintenanceOpen && !s.quitting
 	owner := seat.detailsOwner
 	if !visible {
 		seat.detailsPending = false

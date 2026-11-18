@@ -1,234 +1,177 @@
 package boot
 
 import (
+	"image"
+	"math"
+	"sync"
+
 	"github.com/egoist/mygo/ui"
 )
 
-// The reference boot page is one .scene split at a 62% waterline (boot.css:110-207):
-// a sky of cloud and stars above it, the underwater band with the light entering
-// it and the drifting marine snow below it, and the abyss at the foot. One
-// painter draws every layer, so the page and the reveal curtain's frozen scene
-// cannot drift apart.
-//
-// The scene carries no palette of its own: each color is one of the page's theme
-// colors mixed with another (or with black or white), so the boot page follows the
-// theme's tokens instead of adding a second color system next to them.
-type sceneSpec struct {
-	background ui.Color
-	accent     ui.Color
-	ink        ui.Color
-	alert      ui.Color
-	dark       bool
-	// failed tints the waterline the way body[data-state="error"] does
-	// (boot.css:145-147).
-	failed bool
+const sceneHorizon = .62
+
+type sceneStop struct {
+	at    float32
+	color ui.Color
+}
+type scenePalette struct {
+	ink, muted, brand, alert, hairline, log, panel ui.Color
+	// toast and toastInk are the feedback surface's, dark in both schemes
+	// (dsh-webui-tokens.css:54-55,112).
+	toast, toastInk            ui.Color
+	underwater, falloff, abyss ui.Color
+	// underAlert is --boot-under-alert, the ticker's colour while the Host is
+	// down, darker than the alert it sits over sea (boot-tokens.css:13,52).
+	underAlert ui.Color
+	clouds     [3]ui.Color
+	stops      []sceneStop
 }
 
-// The scene's fixed points: .horizon sits at 62% and .abyss is the last 22%.
-const (
-	sceneHorizon = .62
-	sceneAbyss   = .22
-)
-
-// sceneTints are the strengths the scene mixes with, per scheme: a sunlit sea in
-// light and a deep one in dark (boot-tokens.css --boot-scene, --boot-falloff,
-// --boot-snow, --boot-abyss).
-type sceneTints struct {
-	sky, sea, depth, cloud, star, snow, falloff, abyss float32
+// The installed Whale Isle 0.3.15 boot-tokens.css has its own light and dark
+// sea palettes. Only the scheme comes from the workbench theme.
+var day = scenePalette{
+	ink: ui.RGB(24, 42, 54), muted: ui.RGB(96, 116, 128), brand: ui.RGB(24, 42, 54), alert: ui.RGB(198, 46, 36),
+	hairline: ui.RGBA(30, 60, 76, .38), log: ui.RGB(230, 244, 249), panel: ui.RGBA(248, 251, 253, .92),
+	toast: ui.RGB(53, 54, 56), toastInk: ui.RGB(255, 255, 255),
+	underAlert: ui.RGB(140, 30, 22),
+	underwater: ui.RGBA(96, 150, 176, .30), falloff: ui.RGBA(255, 255, 255, .5), abyss: ui.RGBA(40, 80, 105, .18),
+	clouds: [3]ui.Color{ui.RGBA(255, 240, 214, .7), ui.RGBA(182, 212, 228, .62), ui.RGBA(208, 228, 238, .6)},
+	stops:  []sceneStop{{0, ui.RGB(241, 246, 248)}, {.55, ui.RGB(229, 239, 243)}, {.62, ui.RGB(204, 227, 235)}, {.70, ui.RGB(160, 192, 210)}, {.85, ui.RGB(118, 160, 182)}, {1, ui.RGB(84, 128, 152)}},
+}
+var night = scenePalette{
+	ink: ui.RGB(234, 240, 244), muted: ui.RGB(118, 132, 144), brand: ui.RGBA(214, 226, 236, .68), alert: ui.RGB(255, 92, 80),
+	hairline: ui.RGBA(190, 224, 240, .4), log: ui.RGB(132, 194, 214), panel: ui.RGBA(8, 16, 26, .88),
+	toast: ui.RGB(67, 69, 74), toastInk: ui.RGB(255, 255, 255),
+	underAlert: ui.RGB(255, 140, 128),
+	underwater: ui.RGBA(14, 44, 66, .52), falloff: ui.RGBA(96, 170, 200, .16), abyss: ui.RGBA(1, 6, 12, .55),
+	clouds: [3]ui.Color{ui.RGBA(72, 112, 168, .22), ui.RGBA(116, 88, 154, .17), ui.RGBA(60, 120, 150, .16)},
+	stops:  []sceneStop{{0, ui.RGB(2, 4, 9)}, {.40, ui.RGB(4, 9, 17)}, {.55, ui.RGB(8, 18, 30)}, {.62, ui.RGB(12, 34, 48)}, {.78, ui.RGB(8, 24, 38)}, {1, ui.RGB(4, 13, 23)}},
 }
 
-func (s sceneSpec) tints() sceneTints {
-	if s.dark {
-		return sceneTints{sky: .16, sea: .12, depth: .82, cloud: .10, star: .55, snow: .5, falloff: .16, abyss: .55}
-	}
-	// The light scheme has no star fields at all: --boot-star-dust and
-	// --boot-star-bright are "none" there (boot-tokens.css:44-45); its clouds are
-	// pale tints over a near-white sky, and the painter's halo is a shape where the
-	// reference has a radial gradient, so they stay faint enough to read as tone.
-	return sceneTints{sky: .10, sea: .34, depth: .56, cloud: .05, star: 0, snow: .22, falloff: .34, abyss: .18}
-}
-
-// sceneInk is the contrast color the frozen scene mixes with when its caller does
-// not pass the theme's text color.
-func sceneInk(dark bool) ui.Color {
+func bootPalette(dark bool) *scenePalette {
 	if dark {
-		return ui.RGBA(255, 255, 255, 1)
+		return &night
 	}
-	return ui.RGBA(0, 0, 0, 1)
+	return &day
 }
 
-// bootBackdrop paints the scene without motion, for the reveal curtain's frozen
-// windows (boot-reveal.css:7-8). It takes the palette the page paints with, so
-// the slice the curtain shows is the page's own scene, not a look-alike.
-func bootBackdrop(bg, accent ui.Color, dark bool) func(*ui.Painter, ui.Rect) {
-	spec := sceneSpec{background: bg, accent: accent, ink: sceneInk(dark), dark: dark}
-	return func(p *ui.Painter, r ui.Rect) { paintScene(p, r, spec, false) }
+var dayScene = sync.OnceValue(func() *ui.Bitmap { return ui.NewBitmap(scenePixels(false)) })
+var nightScene = sync.OnceValue(func() *ui.Bitmap { return ui.NewBitmap(scenePixels(true)) })
+
+func ramp(stops []sceneStop, pos float32) ui.Color {
+	for i := 1; i < len(stops); i++ {
+		if pos <= stops[i].at {
+			return stops[i-1].color.Mix(stops[i].color, (pos-stops[i-1].at)/(stops[i].at-stops[i-1].at))
+		}
+	}
+	return stops[len(stops)-1].color
 }
 
-// bootScene paints the page's scene: the same layers, moving. The snow and the
-// twinkling stars ask for the next paint themselves, so the page keeps drawing
-// until something covers it; without motion it is the frozen scene.
-func bootScene(spec sceneSpec, motion bool) func(*ui.Painter, ui.Rect) {
+func ellipse(x, y, cx, cy, rx, ry float32) float32 {
+	dx, dy := (x-cx)/rx, (y-cy)/ry
+	return max(0, 1-float32(math.Sqrt(float64(dx*dx+dy*dy)))/.72)
+}
+
+// The atmosphere is low frequency. Rasterize only once per used scheme, then
+// stretch the immutable texture under the DIP-sized horizon and particles.
+func scenePixels(dark bool) *image.RGBA {
+	const w, h = 384, 384
+	p := bootPalette(dark)
+	out := image.NewRGBA(image.Rect(0, 0, w, h))
+	for row := range h {
+		y := (float32(row) + .5) / h
+		base := ramp(p.stops, y)
+		for col := range w {
+			x := (float32(col) + .5) / w
+			c := base
+			if y < sceneHorizon {
+				ySky := y / sceneHorizon
+				if dark {
+					band := max(0, 1-float32(math.Abs(float64(.84*(x-.5)+.16*(ySky-.5))))/.18)
+					c = ui.RGBA(160, 200, 228, .12*band).Over(c)
+				}
+				c = p.clouds[2].Alpha(ellipse(x, ySky, .52, .46, .34, .22)).Over(c)
+				c = p.clouds[1].Alpha(ellipse(x, ySky, .70, .14, .40, .30)).Over(c)
+				c = p.clouds[0].Alpha(ellipse(x, ySky, .26, .26, .48, .34)).Over(c)
+			} else {
+				ySea := (y - sceneHorizon) / (1 - sceneHorizon)
+				c = p.underwater.Alpha(max(0, 1-ySea/.62)).Over(c)
+				c = p.falloff.Alpha(ellipse(x, ySea, .5, 0, 1.2, .58)).Over(c)
+				c = p.abyss.Alpha(max(0, (y-.78)/.22)).Over(c)
+			}
+			o := row*out.Stride + col*4
+			out.Pix[o], out.Pix[o+1], out.Pix[o+2], out.Pix[o+3] = c.R, c.G, c.B, 255
+		}
+	}
+	return out
+}
+
+var starDust = [][2]float32{
+	{.15, .42}, {.22, .30}, {.33, .46}, {.40, .22}, {.47, .38}, {.52, .08}, {.66, .30}, {.74, .44}, {.88, .22}, {.05, .48},
+	{.08, .26}, {.36, .14}, {.61, .12}, {.79, .36}, {.96, .14}, {.13, .60}, {.31, .66}, {.44, .56}, {.60, .62}, {.77, .58},
+	{.95, .54}, {.19, .74}, {.37, .80}, {.55, .72}, {.70, .78}, {.85, .68}, {.03, .30}, {.97, .46}, {.11, .38}, {.25, .52},
+	{.42, .68}, {.49, .24}, {.57, .48}, {.64, .70}, {.72, .16}, {.83, .76}, {.91, .62}, {.17, .16}, {.29, .06}, {.45, .04}, {.69, .04},
+}
+var brightStars = [][2]float32{{.09, .20}, {.26, .10}, {.58, .16}, {.82, .12}, {.93, .34}, {.44, .08}}
+
+func bootScene(dark, failed, motion bool) func(*ui.Painter, ui.Rect) {
 	return func(p *ui.Painter, r ui.Rect) {
+		palette := bootPalette(dark)
+		if dark {
+			p.Image(nightScene(), r, ui.FillBox)
+		} else {
+			p.Image(dayScene(), r, ui.FillBox)
+		}
 		if motion {
 			p.AnimationFrame()
 		}
-		paintScene(p, r, spec, motion)
-	}
-}
-
-// paintScene paints the layers in the reference's order: sky, stars, waterline,
-// sea, surface light, snow, abyss.
-func paintScene(p *ui.Painter, r ui.Rect, s sceneSpec, motion bool) {
-	if r.W <= 0 || r.H <= 0 {
-		return
-	}
-	t := s.tints()
-	horizon := r.Y + r.H*sceneHorizon
-	sky := ui.Rect{X: r.X, Y: r.Y, W: r.W, H: max(0, horizon-r.Y)}
-	sea := ui.Rect{X: r.X, Y: horizon, W: r.W, H: max(0, r.H-(horizon-r.Y))}
-	// --boot-scene: the sky runs from the page's own background to a tinted
-	// waterline, and the sea keeps deepening to the foot of the page.
-	skyTop := s.background.Mix(s.accent, t.sky*.5)
-	skyHorizon := s.background.Mix(s.accent, t.sky)
-	seaBottom := s.background.Mix(ui.RGBA(0, 0, 0, 1), t.depth).Mix(s.accent, t.sea)
-	p.FillGradient(sky, ui.LinearGradient{From: skyTop, To: skyHorizon, Angle: 180}, 0)
-	p.FillGradient(sea, ui.LinearGradient{From: skyHorizon, To: seaBottom, Angle: 180}, 0)
-
-	paintSky(p, sky, s, t, motion)
-
-	// .horizon: one clean hairline between sky and sea, tinted with the alert
-	// color while the page reports a failure.
-	hairline := s.accent.Mix(s.ink, .55).Alpha(.34)
-	if s.failed {
-		hairline = s.alert.Alpha(.48)
-	}
-	p.Fill(ui.Rect{X: r.X, Y: horizon, W: r.W, H: 1}, hairline, 0)
-
-	if sea.H > 0 {
-		// .underwater::before: the light entering the water at the surface, a
-		// soft bloom clipped to the sea.
-		under := ui.RGBA(255, 255, 255, 1)
-		if s.dark {
-			under = s.accent.Mix(ui.RGBA(255, 255, 255, 1), .35)
+		horizon := r.Y + r.H*sceneHorizon
+		line := palette.hairline
+		if failed {
+			line = palette.alert.Alpha(.45)
 		}
-		p.Clip(sea, 0, func() {
-			cloud(p, ui.Rect{X: r.X + r.W*.08, Y: horizon, W: r.W * .84, H: max(sea.H*.12, 8)},
-				under.Alpha(t.falloff*.32), sea.H*.12)
-		})
-		paintSnow(p, sea, s, t, motion)
-	}
-
-	// .abyss: the foot of the scene goes dark in both schemes.
-	p.FillGradient(
-		ui.Rect{X: r.X, Y: r.Y + r.H*(1-sceneAbyss), W: r.W, H: r.H * sceneAbyss},
-		ui.LinearGradient{From: ui.RGBA(0, 0, 0, 0), To: ui.RGBA(0, 0, 0, 1).Alpha(t.abyss), Angle: 180},
-		0,
-	)
-}
-
-// paintSky paints .stars: the three cloud fields and, in the dark scheme, the two
-// star fields (boot-tokens.css --boot-nebula-*, --boot-star-dust, --boot-star-bright).
-func paintSky(p *ui.Painter, sky ui.Rect, s sceneSpec, t sceneTints, motion bool) {
-	if sky.W <= 0 || sky.H <= 0 {
-		return
-	}
-	// A warm cloud on the left, a cool one high on the right, a pale one between
-	// them (boot.css:116-124).
-	cloud(p, skyBox(sky, .26, .26, .62, .46), s.ink.Mix(s.background, .90).Alpha(t.cloud*.8), sky.H*.10)
-	cloud(p, skyBox(sky, .70, .14, .52, .40), s.accent.Mix(s.background, .88).Alpha(t.cloud), sky.H*.10)
-	cloud(p, skyBox(sky, .52, .46, .46, .30), s.accent.Mix(s.ink, .92).Alpha(t.cloud*.8), sky.H*.07)
-	if t.star <= 0 {
-		return
-	}
-	// Dust: a fixed lattice, so every paint of the page is the same sky.
-	dust := s.ink.Alpha(t.star * .5)
-	for i := 0; i < 46; i++ {
-		fx := float32((i*37)%100) / 100
-		fy := float32((i*53)%100) / 100
-		d := float32(1)
-		if i%4 == 0 {
-			d = 1.5
+		p.Fill(ui.Rect{X: r.X, Y: horizon, W: r.W, H: 1}, line, 0)
+		point := func(x, y, d float32, c ui.Color) { p.Fill(ui.Rect{X: x - d/2, Y: y - d/2, W: d, H: d}, c, d/2) }
+		if dark {
+			for i, s := range starDust {
+				d, a := float32(1), float32(.68)
+				if i < 15 {
+					d, a = 1.4, .85
+				}
+				point(r.X+r.W*s[0], r.Y+r.H*sceneHorizon*s[1], d, ui.RGBA(214, 232, 246, a))
+			}
+			alpha := float32(.75)
+			if motion {
+				alpha = .55 + .45*float32((1-math.Cos(float64(p.Now().UnixMilli()%11000)/11000*2*math.Pi))/2)
+			}
+			for i, s := range brightStars {
+				ink := ui.RGB(240, 248, 254)
+				if i == 5 {
+					ink = ui.RGB(255, 232, 200)
+				}
+				x, y := r.X+r.W*s[0], r.Y+r.H*sceneHorizon*s[1]
+				point(x, y, 3.2, ink.Alpha(alpha*.30))
+				point(x, y, 1.4, ink.Alpha(alpha))
+			}
 		}
-		p.Fill(ui.Rect{X: sky.X + sky.W*(.03+.94*fx), Y: sky.Y + sky.H*(.04+.90*fy), W: d, H: d},
-			dust.Alpha(.5+float32(i%5)*.1), d/2)
-	}
-	// Bright stars: the reference's six, twinkling on its 5.5s alternate
-	// (boot.css:127-132, twinkle).
-	bright := s.ink.Alpha(t.star * .85)
-	for _, star := range [][3]float32{{.09, .20, 1.0}, {.26, .10, 1.1}, {.58, .16, 1.0}, {.82, .12, 1.2}, {.93, .34, 1.0}, {.44, .08, .9}} {
-		alpha := float32(1)
-		if motion {
-			alpha = twinkle(p.Now().UnixMilli())
+		sea := r.H * (1 - sceneHorizon)
+		ink := ui.RGBA(60, 110, 135, .28)
+		if dark {
+			ink = ui.RGBA(175, 212, 230, .5)
 		}
-		d := star[2] * 1.8
-		p.Fill(ui.Rect{X: sky.X + sky.W*star[0] - d/2, Y: sky.Y + sky.H*star[1] - d/2, W: d, H: d},
-			bright.Alpha(alpha), d/2)
-	}
-}
-
-// skyBox is the box a cloud covers in r: fw and fh of its size, centred on (fx, fy).
-func skyBox(r ui.Rect, fx, fy, fw, fh float32) ui.Rect {
-	w, h := r.W*fw, r.H*fh
-	return ui.Rect{X: r.X + r.W*fx - w/2, Y: r.Y + r.H*fy - h/2, W: w, H: h}
-}
-
-// cloud paints a soft ellipse. The painter fills no radial gradient, and a flat
-// fill would end on a rounded rectangle's rim, so a cloud is a blurred silhouette:
-// a box smaller than the shape, blurred well past its edge, which paints as a soft
-// halo. That is what the reference's radial-gradient clouds and its surface light
-// read as (boot.css:116-124,171-177).
-func cloud(p *ui.Painter, box ui.Rect, color ui.Color, blur float32) {
-	if box.W <= 0 || box.H <= 0 || color.A == 0 {
-		return
-	}
-	core := ui.Rect{X: box.X + box.W*.22, Y: box.Y + box.H*.22, W: box.W * .56, H: box.H * .56}
-	p.Shadow(core, core.H*.5, 0, 0, max(blur, 1), 0, color)
-}
-
-// twinkle is the stars' alternate: 0.55 to 1 and back over 5.5s.
-func twinkle(ms int64) float32 {
-	const period = 5500
-	t := float32(ms%period) / period
-	if t > .5 {
-		t = 1 - t
-	}
-	return .55 + .9*t
-}
-
-// paintSnow is the marine snow: five particles drifting through the sea on the
-// reference's 14-21s cycles (boot.css:198-205, snow-fall).
-func paintSnow(p *ui.Painter, sea ui.Rect, s sceneSpec, t sceneTints, motion bool) {
-	if sea.H <= 0 {
-		return
-	}
-	color := s.ink.Alpha(t.snow)
-	lefts := [5]float32{.32, .41, .53, .62, .71}
-	periods := [5]int64{14000, 19000, 16000, 21000, 17000}
-	for i := range lefts {
-		size := float32(2)
-		if i == 1 || i == 3 {
-			size = 1.5
+		delays := [5]int64{0, 6000, 3000, 11000, 8000}
+		periods := [5]int64{14000, 19000, 16000, 21000, 17000}
+		for i, x := range [5]float32{.32, .41, .53, .62, .71} {
+			phase := float32(i+1) * .15
+			if motion {
+				phase = float32((p.Now().UnixMilli()+delays[i])%periods[i]) / float32(periods[i])
+			}
+			xDrift := (phase - .5) * 12
+			d := float32(2)
+			if i == 1 || i == 3 {
+				d = 1.5
+			}
+			point(r.X+r.W*x+xDrift, horizon+sea*(.08+.83*phase), d, ink.Alpha(min(1, phase/.12, (1-phase)/.12)))
 		}
-		// Without motion the particles stand where their fall would have them.
-		progress := float32(i) * .21
-		if motion {
-			progress = float32(p.Now().UnixMilli()%periods[i]) / float32(periods[i])
-		}
-		y := sea.Y + sea.H*(.02+.92*progress)
-		p.Fill(ui.Rect{X: sea.X + sea.W*lefts[i], Y: y, W: size, H: size},
-			color.Alpha(snowFade(progress)), size/2)
 	}
-}
-
-// snowFade is snow-fall's opacity: in over the first 12% of the fall, out over
-// the last 12% (boot.css:536-542).
-func snowFade(t float32) float32 {
-	if t < .12 {
-		return t / .12
-	}
-	if t > .88 {
-		return max(0, (1-t)/.12)
-	}
-	return 1
 }

@@ -15,6 +15,11 @@ var sidebarZhCatalog = map[string]string{
 	"toggle.collapse":   "收起侧边栏",
 	"tab.sessions":      "会话",
 	"panels.label":      "全局面板",
+	"panels.more":       "更多",
+	"panels.unpin":      "从左侧栏取消固定",
+	"panels.pin":        "固定到左侧栏",
+	"panels.browse":     "浏览更多插件",
+	"panels.create":     "创建你的插件",
 	"layout.toggle":     "展开／收起左侧栏",
 }
 
@@ -25,6 +30,11 @@ var sidebarEnCatalog = map[string]string{
 	"toggle.collapse":   "Collapse sidebar",
 	"tab.sessions":      "Sessions",
 	"panels.label":      "Global panels",
+	"panels.more":       "More",
+	"panels.unpin":      "Unpin from left sidebar",
+	"panels.pin":        "Pin to left sidebar",
+	"panels.browse":     "Browse other plugins",
+	"panels.create":     "Create your plugin",
 	"layout.toggle":     "Toggle left sidebar",
 }
 

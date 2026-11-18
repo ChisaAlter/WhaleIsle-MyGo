@@ -17,11 +17,14 @@ type childGalleryState struct {
 
 // Only already-loaded local cache paths owned by this resource snapshot enter
 // the gallery. Never resolve attachment IDs via the parent/global image loader.
-func childGalleryImages(reads map[string]session.AgentResourceRead) []string {
+func childGalleryImages(c *ui.Context, reads map[string]session.AgentResourceRead) []string {
 	refs := []string{}
+	invalidate := c.Services().Invalidate
 	for ref, r := range reads {
-		if !r.Busy && r.Error == "" && filepath.IsAbs(r.Path) && loadChatBitmap(r.Path) != nil {
-			refs = append(refs, ref)
+		if !r.Busy && r.Error == "" && filepath.IsAbs(r.Path) {
+			if bmp, _ := cachedChatBitmap(r.Path, invalidate); bmp != nil {
+				refs = append(refs, ref)
+			}
 		}
 	}
 	sort.Strings(refs)
@@ -32,7 +35,7 @@ func childImageGallery(c *ui.Context, state *childGalleryState, reads map[string
 	if !state.Open {
 		return
 	}
-	refs := childGalleryImages(reads)
+	refs := childGalleryImages(c, reads)
 	index := -1
 	for i, ref := range refs {
 		if ref == state.Ref {
@@ -70,7 +73,11 @@ func childImageGallery(c *ui.Context, state *childGalleryState, reads map[string
 				}
 			})
 			ui.Text(c, fmt.Sprintf("%d / %d · %s", index+1, len(refs), state.Ref)).Selectable()
-			bmp := loadChatBitmap(reads[state.Ref].Path)
+			bmp, pending := cachedChatBitmap(reads[state.Ref].Path, c.Services().Invalidate)
+			if pending {
+				ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12)
+				return
+			}
 			if bmp == nil {
 				state.Open = false
 				return

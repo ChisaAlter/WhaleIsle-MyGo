@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-17",
+  "beforeFreeGiB": 40.83855438232422,
+  "currentFreeGiB": 50.25230026245117,
+  "operations": [
+    "go clean -cache",
+    "npm cache clean --force",
+    "bun pm cache rm",
+    "pnpm 11 store prune",
+    "pnpm 10 store prune",
+    "Removed six classified inactive untracked Go test executables; see disk-cleanup-project-test-result.json",
+    "Removed 29 classified abandoned download-only codex-runtime install archives; see disk-cleanup-runtime-download-result.json"
+  ],
+  "blocked": [
+    {
+      "kind": "abandoned Go temporary builds",
+      "pathsFrom": "disk-cleanup-go-plan.json",
+      "bytes": 1115320650,
+      "reason": "exec policy blocked native recursive removal",
+      "removed": false
+    },
+    {
+      "path": "C:\\Users\\48818\\.gradle\\caches",
+      "bytes": 2705189552,
+      "reason": "exec policy blocked native recursive removal",
+      "removed": false
+    }
+  ],
+  "largeBuildStarted": true,
+  "requiredFreeGiB": 50,
+  "estimatedFullBuildAndInstallerAdditionalPeakGiB": 6,
+  "recommendedStartingFreeGiB": 56,
+  "modelsInvoked": 0,
+  "note": "Subsequent free-space check reached 57.16 GiB before full packaging; production desktop and targeted Go/visible QA completed with shared caches. Full package running through package.ps1 -CleanStage. Policy-denied Go/Gradle paths, installed runtimes and previous runtime recovery directories remain untouched. Free space also varies independently of cleanup and build activity.",
+  "projectTestExecutableBytesRemoved": 629757426,
+  "abandonedRuntimeDownloadBytesRemoved": 4197128859,
+  "freeGiBAfterLatestCleanup": 54.12491226196289
+}

@@ -246,11 +246,7 @@ func padLine(n, total int) string {
 // result disclosures) and whether that body already owns the copy action.
 func toolStructuredBody(c *ui.Context, kind ToolKind, info ToolCardInfo, st ToolCardStyle, key string, opts ToolImageGalleryOptions) (handled, ownsCopy bool) {
 	renderImages := func(native func()) {
-		if opts.RenderSlot != nil && opts.Call != nil && !opts.TextOnly {
-			opts.RenderSlot(c, "tool.call.images", opts.Call, native)
-		} else {
-			native()
-		}
+		native()
 	}
 	if info.ask != nil && !opts.TextOnly {
 		askQuestionCardView(c, *info.ask, st, key)

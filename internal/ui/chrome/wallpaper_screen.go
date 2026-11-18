@@ -5,6 +5,9 @@ import (
 	"image/color"
 	"image/draw"
 	"math"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
@@ -118,14 +121,25 @@ func menuFrostScreenBitmap() (*ui.Bitmap, ui.Rect, bool) {
 	return s.frostBmp, s.box, true
 }
 
-// decodedWallpaper keeps the decoded source so resizing the window does not
-// re-read and re-decode the file.
-func decodedWallpaper(path string) *image.RGBA {
-	s := &backgroundState
-	if s.decodedPath == path && s.decoded != nil {
-		return s.decoded
-	}
-	s.decodedPath, s.decoded = path, nil
+type decodedWallpaperEntry struct {
+	rgba     *image.RGBA
+	failedAt time.Time
+}
+
+var decodedWallpaperCache struct {
+	mu       sync.Mutex
+	entries  map[string]decodedWallpaperEntry
+	order    []string
+	inFlight map[string]bool
+}
+
+func decodedWallpaperInFlight(path string) bool {
+	decodedWallpaperCache.mu.Lock()
+	defer decodedWallpaperCache.mu.Unlock()
+	return decodedWallpaperCache.inFlight[path]
+}
+
+func decodeWallpaperRGBA(path string) *image.RGBA {
 	data, err := wallpaperImageBytes(path)
 	if err != nil {
 		return nil
@@ -137,8 +151,67 @@ func decodedWallpaper(path string) *image.RGBA {
 	b := img.Bounds()
 	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
 	draw.Draw(dst, dst.Bounds(), img, b.Min, draw.Src)
-	s.decoded = dst
 	return dst
+}
+
+// decodedWallpaper keeps a bounded LRU + negative cache and runs file I/O +
+// decode off the UI thread while preserving synchronous decode for inline data URLs.
+func decodedWallpaper(path string) *image.RGBA {
+	now := time.Now()
+	decodedWallpaperCache.mu.Lock()
+	if entry, ok := decodedWallpaperCache.entries[path]; ok {
+		if entry.rgba != nil {
+			decodedWallpaperCache.order = wallpaperTouchLRU(decodedWallpaperCache.order, path)
+			decodedWallpaperCache.mu.Unlock()
+			return entry.rgba
+		}
+		if now.Sub(entry.failedAt) < wallpaperNegativeTTL {
+			decodedWallpaperCache.order = wallpaperTouchLRU(decodedWallpaperCache.order, path)
+			decodedWallpaperCache.mu.Unlock()
+			return nil
+		}
+		delete(decodedWallpaperCache.entries, path)
+	}
+	if strings.HasPrefix(path, "data:") {
+		decodedWallpaperCache.mu.Unlock()
+		rgba := decodeWallpaperRGBA(path)
+		decodedWallpaperCache.mu.Lock()
+		if decodedWallpaperCache.entries == nil {
+			decodedWallpaperCache.entries = make(map[string]decodedWallpaperEntry, maxWallpaperCacheEntries)
+		}
+		entry := decodedWallpaperEntry{rgba: rgba}
+		if rgba == nil {
+			entry.failedAt = time.Now()
+		}
+		wallpaperStoreBounded(decodedWallpaperCache.entries, &decodedWallpaperCache.order, maxWallpaperCacheEntries, path, entry)
+		decodedWallpaperCache.mu.Unlock()
+		return rgba
+	}
+	if decodedWallpaperCache.inFlight[path] {
+		decodedWallpaperCache.mu.Unlock()
+		return nil
+	}
+	if decodedWallpaperCache.entries == nil {
+		decodedWallpaperCache.entries = make(map[string]decodedWallpaperEntry, maxWallpaperCacheEntries)
+	}
+	if decodedWallpaperCache.inFlight == nil {
+		decodedWallpaperCache.inFlight = make(map[string]bool)
+	}
+	decodedWallpaperCache.inFlight[path] = true
+	decodedWallpaperCache.mu.Unlock()
+
+	go func() {
+		rgba := decodeWallpaperRGBA(path)
+		decodedWallpaperCache.mu.Lock()
+		delete(decodedWallpaperCache.inFlight, path)
+		entry := decodedWallpaperEntry{rgba: rgba}
+		if rgba == nil {
+			entry.failedAt = time.Now()
+		}
+		wallpaperStoreBounded(decodedWallpaperCache.entries, &decodedWallpaperCache.order, maxWallpaperCacheEntries, path, entry)
+		decodedWallpaperCache.mu.Unlock()
+	}()
+	return nil
 }
 
 // coverFit scales src to cover w×h and centre-crops it, sampling bilinearly the

@@ -157,3 +157,11 @@ func (s *Store) WorkspaceNavigationPending() bool {
 	defer s.mu.Unlock()
 	return s.workspaceNavigation.view.Mode != ""
 }
+
+// SelectedIsAutoDefault reports whether SelectedID was chosen only by
+// RefreshList's empty-selection fallback rather than an explicit action.
+func (s *Store) SelectedIsAutoDefault() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.selectedID != "" && s.selectedAuto
+}

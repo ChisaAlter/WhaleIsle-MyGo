@@ -144,6 +144,22 @@ func workspaceFileResourceModel(source files.Model, state *WorkspaceFileState) f
 	source.Editing, source.EditViewMode, source.EditSplit = &state.Editing, &state.Mode, &state.Split
 	return source
 }
+func (s *WorkspaceFileState) activeTabPath(workspaceRoot string) string {
+	if s == nil || workspaceRoot == "" || s.Tabs.Workspaces == nil {
+		return ""
+	}
+	w := s.Tabs.Workspaces[filepath.Clean(workspaceRoot)]
+	if w == nil || w.Active == "" {
+		return ""
+	}
+	for _, tab := range w.Open {
+		if tab != nil && tab.Path == w.Active {
+			return tab.Path
+		}
+	}
+	return ""
+}
+
 func (s *WorkspaceFileState) capture(m Model) {
 	if m.FileTabs != nil {
 		s.Tabs = *m.FileTabs
@@ -152,7 +168,13 @@ func (s *WorkspaceFileState) capture(m Model) {
 		s.Expanded = *m.FileExpanded
 	}
 	if m.SelectedFile != nil {
-		s.Selected = *m.SelectedFile
+		if *m.SelectedFile != "" {
+			s.Selected = *m.SelectedFile
+		} else if s.activeTabPath(m.WorkspaceRoot) == "" {
+			s.Selected = ""
+		} else if s.Selected == "" {
+			s.Selected = s.activeTabPath(m.WorkspaceRoot)
+		}
 	}
 	if m.FileFilter != nil {
 		s.Filter = *m.FileFilter
@@ -285,26 +307,63 @@ func (w *WorkspacePanes) fileState(n *WorkspacePane, m Model) *WorkspaceFileStat
 
 // The old main-state fields are an adapter for existing open-file entry points.
 // They project only the focused pane; no two rendered panes share those fields.
+func isLegacyFileOwnerCandidate(n *WorkspacePane) bool {
+	return n != nil && (n.Kind == "files" || n.Kind == "plan") && (n.Files == nil || n.Files.ProjectTarget == nil)
+}
+
+func (w *WorkspacePanes) nonProjectActivePane() *WorkspacePane {
+	if w == nil || w.Root == nil {
+		return nil
+	}
+	active := w.Root.find(w.Active)
+	if active != nil && (active.Files == nil || active.Files.ProjectTarget == nil) {
+		return active
+	}
+	var fallback *WorkspacePane
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if fallback == nil && (n.Files == nil || n.Files.ProjectTarget == nil) {
+			fallback = n
+		}
+	})
+	return fallback
+}
+
+func (w *WorkspacePanes) legacyFileOwner() *WorkspacePane {
+	if w == nil || w.Root == nil {
+		return nil
+	}
+	if active := w.Root.find(w.Active); isLegacyFileOwnerCandidate(active) {
+		return active
+	}
+	if previous := w.Root.find(w.legacyFileID); isLegacyFileOwnerCandidate(previous) {
+		return previous
+	}
+	var fallback *WorkspacePane
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if fallback == nil && isLegacyFileOwnerCandidate(n) {
+			fallback = n
+		}
+	})
+	if fallback != nil {
+		return fallback
+	}
+	if previous := w.Root.find(w.legacyFileID); previous != nil && (previous.Files == nil || previous.Files.ProjectTarget == nil) {
+		return previous
+	}
+	return w.nonProjectActivePane()
+}
+
 func (w *WorkspacePanes) beginFileProjection(m Model) Model {
-	w.syncPluginRightPanes(m)
 	if previous := w.Root.find(w.legacyFileID); previous != nil && previous.Files != nil && previous.Files.ProjectTarget == nil {
 		previous.Files.capture(m)
 	}
-	active := w.Root.find(w.Active)
-	if active != nil && active.Files != nil && active.Files.ProjectTarget != nil {
-		active = nil
-		w.Root.eachResource(func(n *WorkspacePane) {
-			if active == nil && (n.Files == nil || n.Files.ProjectTarget == nil) {
-				active = n
-			}
-		})
-	}
-	if active != nil {
+	if diffPane := w.nonProjectActivePane(); diffPane != nil {
 		actual := w.Active
-		w.Active = active.ID
+		w.Active = diffPane.ID
 		w.beginDiffProjection(m)
 		w.Active = actual
 	}
+	active := w.legacyFileOwner()
 	hasFiles := false
 	w.Root.eachResource(func(n *WorkspacePane) { hasFiles = hasFiles || n.Files != nil })
 	var state *WorkspaceFileState
@@ -330,7 +389,10 @@ func (w *WorkspacePanes) beginFileProjection(m Model) Model {
 
 	if trailing := m.WorkspaceTrailing; trailing != nil {
 		m.WorkspaceTrailing = func(c *ui.Context, density string) {
-			owner := w.Root.find(w.legacyFileID)
+			owner := w.Root.find(w.legacyDiffID)
+			if owner == nil {
+				owner = w.Root.find(w.legacyFileID)
+			}
 			trailing(c, density)
 			// The caption's callbacks retain the main Workbench adapter. Collect
 			// their changes before a pane renders or the end-of-frame projection
@@ -490,8 +552,13 @@ func previewWorkspaceRelative(root, path string) (string, bool) {
 }
 
 func (w *WorkspacePanes) finishFileProjection(m Model) {
-	if n := w.Root.find(w.Active); n != nil && (n.Files == nil || n.Files.ProjectTarget == nil) {
+	if diffPane := w.nonProjectActivePane(); diffPane != nil {
+		actual := w.Active
+		w.Active = diffPane.ID
 		w.finishDiffProjection(m)
+		w.Active = actual
+	}
+	if n := w.legacyFileOwner(); n != nil {
 		w.fileState(n, m).publish(m)
 		w.legacyFileID = n.ID
 	}
@@ -504,8 +571,8 @@ func workspaceContentModel(m Model, n *WorkspacePane) Model {
 		state.Tabs.SyncPlanSession(m.Store.SelectedSessionID())
 	}
 	local := w.diffState(n).model(state.model(m))
-	if n.Kind == "diff" && !local.GitWorkbench.Loaded && *local.DiffPath != "" && *local.DiffText == "" {
-		*local.DiffText, *local.DiffErr = diffsurface.LoadDiff(m.WorkspaceRoot, *local.DiffPath)
+	if n.Kind == "diff" && *local.DiffPath != "" && *local.DiffText == "" && *local.DiffErr == "" {
+		diffsurface.EnsureDiffAsync(local.GitWorkbench, m.WorkspaceRoot, *local.DiffPath, local.DiffText, local.DiffErr, local.invalidate)
 	}
 	local.FileShortcuts = func() bool { return w.Active == n.ID }
 	if open := local.OnOpenDoc; open != nil {
@@ -614,6 +681,9 @@ func (w *WorkspacePanes) EndContentFrame() {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		// A refresh belongs only to the frame where its focused occurrence was
+		// requested. Hidden/replaced content must not replay it on a later open.
+		n.refreshPending = nil
 		if n.RemoteFiles != nil && !n.remoteFilesRendered {
 			n.RemoteFiles.Suspend()
 		}
@@ -650,6 +720,7 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		n.refreshPending = nil
 		if n.Inspector != nil {
 			n.Inspector.cancelInspectorNavigation()
 		}
@@ -675,6 +746,8 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 }
 
 func (n *WorkspacePane) disposeContent() {
+	n.refreshPending = nil
+	n.refreshResource = nil
 	if n.RemoteFiles != nil {
 		n.RemoteFiles.Suspend()
 	}

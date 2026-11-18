@@ -53,9 +53,11 @@ func (b *Controller) openMiniPlayer(t *Tab) {
 		return
 	}
 	b.CancelAction()
+	b.cancelTabReclaim(t)
 	if b.onMiniOpen != nil {
 		b.onMiniOpen()
 	}
+	b.setMiniTab(t)
 	b.mini = &browserMiniPlayer{tab: t, host: t.Host, geometry: b.miniGeometry, initialized: b.miniGeometry.Width > 0}
 	b.update()
 }
@@ -75,9 +77,17 @@ func (b *Controller) CloseMiniPlayer() {
 	if b.mini == nil {
 		return
 	}
+	tab := b.mini.tab
 	b.miniGeometry = b.mini.geometry
 	b.mini.host.SetVisible(false)
 	b.mini = nil
+	b.setMiniTab(nil)
+	if tab != nil && tab.Host != nil && (b.hidden || tab != b.current()) {
+		b.reclaimMu.Lock()
+		b.captureTabResumeStateLocked(tab)
+		b.reclaimMu.Unlock()
+		b.scheduleTabReclaim(tab)
+	}
 	b.update()
 }
 func (b *Controller) restoreMiniPlayer() {

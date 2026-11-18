@@ -65,3 +65,63 @@ func TestOfflinePluginFixture(t *testing.T) {
 		t.Fatalf("unrelated fields lost: %s", data)
 	}
 }
+
+func TestOfflinePluginsSetEnabledSaveDisabledFailureLeavesNoSplitState(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		initialBundles string
+		initialDis     []string
+		enable         bool
+		wantEnabled    bool
+	}{
+		{
+			name:           "disable fails",
+			initialBundles: `["@deepseek-ai/dsh-base","demo"]`,
+			initialDis:     nil,
+			enable:         false,
+			wantEnabled:    true,
+		},
+		{
+			name:           "enable fails",
+			initialBundles: `["@deepseek-ai/dsh-base"]`,
+			initialDis:     []string{"demo"},
+			enable:         true,
+			wantEnabled:    false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			profile := t.TempDir()
+			file := filepath.Join(profile, "package.json")
+			original := `{"dependencies":{"demo":"1.0.0","@deepseek-ai/dsh-base":"1"},"dsh":{"profile":{"bundles":` + tc.initialBundles + `}}}`
+			if err := os.WriteFile(file, []byte(original), 0600); err != nil {
+				t.Fatal(err)
+			}
+			disabled := slices.Clone(tc.initialDis)
+			saveErr := errors.New("synthetic config write failure")
+			p := OfflinePlugins{
+				ProfileDir:   profile,
+				LoadDisabled: func() []string { return slices.Clone(disabled) },
+				SaveDisabled: func([]string) error { return saveErr },
+			}
+			if err := p.SetEnabled("demo", tc.enable); !errors.Is(err, saveErr) {
+				t.Fatalf("expected save failure, got %v", err)
+			}
+			gotBytes, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(gotBytes) != original {
+				t.Fatalf("package.json mutated despite SaveDisabled failure:\ngot:  %s\nwant: %s", gotBytes, original)
+			}
+			rows, err := p.Inventory()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range rows {
+				if r.Name == "demo" && r.Enabled != tc.wantEnabled {
+					t.Fatalf("split state in Inventory: got enabled=%v, want %v", r.Enabled, tc.wantEnabled)
+				}
+			}
+		})
+	}
+}

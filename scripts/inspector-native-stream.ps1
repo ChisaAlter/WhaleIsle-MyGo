@@ -1,5 +1,16 @@
-param([int]$OwnerId,[string]$Step='open')
+param(
+    [Parameter(Mandatory=$true)][int]$OwnerId,
+    [string]$Step='open',
+    [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
+    [string]$EvidencePrefix = $env:WHALEISLE_EVIDENCE_PREFIX
+)
 $ErrorActionPreference='Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $FixturePath) { $FixturePath = Join-Path $projectRoot '.devdata\r104-inspector-fixture.exe' }
+if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+    throw "Fixture executable not found at $FixturePath. Pass -FixturePath or set WHALEISLE_FIXTURE_EXE."
+}
+$fixturePath = [IO.Path]::GetFullPath($FixturePath)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
@@ -23,7 +34,7 @@ public class InspectorR103 {
 '@
 [void][InspectorR103]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $process=Get-CimInstance Win32_Process -Filter ('ProcessId = '+$OwnerId)
-if($process.ExecutablePath -ne 'C:\AI\WhaleIsle-MyGo\.devdata\r104-inspector-fixture.exe'){throw 'Unexpected fixture owner'}
+if($null -eq $process -or $process.ExecutablePath -ne $fixturePath){throw 'Unexpected fixture owner'}
 $handle=(Get-Process -Id $OwnerId).MainWindowHandle
 [void][InspectorR103]::ShowWindow($handle,9)
 [void][InspectorR103]::SetForegroundWindow($handle)
@@ -58,7 +69,9 @@ if($records.Count -ne $wanted){throw ('Unexpected record count '+$records.Count+
 if($Step -in @('manual-fold','closed','cleared','settled','retired') -and ('blockType: reasoning '+[char]0xb7+' first second') -notin $names){throw 'Folded reasoning preview missing'}
 if($Step -eq 'settled' -and ('attempt:stream-a' -notin $records.key -or 'event:2' -notin $records.key)){throw 'Success must retain separate live and durable roots'}
 if($Step -eq 'retired' -and @($records.key|Where-Object{$_ -like 'attempt:*'}).Count -ne 0){throw 'Matching Step end did not retire live records'}
-$out='C:\AI\WhaleIsle-MyGo\docs\review-20261022\evidence\inspector-native-pass248-'+$Step
+$baseOut = if ($EvidencePrefix) { $EvidencePrefix } else { Join-Path $projectRoot 'docs\review-20261022\evidence\inspector-native-pass248' }
+$out = $baseOut + '-' + $Step
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $out) | Out-Null
 @{step=$Step;records=$records;names=$names;physicalScale=1.5}|ConvertTo-Json -Depth 7|Set-Content -Encoding UTF8 -LiteralPath ($out+'-state.json')
 $rect=New-Object InspectorR103+Rect;[void][InspectorR103]::GetWindowRect($handle,[ref]$rect)
 $bitmap=New-Object System.Drawing.Bitmap ($rect.R-$rect.L),($rect.B-$rect.T);$graphics=[System.Drawing.Graphics]::FromImage($bitmap);$dc=$graphics.GetHdc()

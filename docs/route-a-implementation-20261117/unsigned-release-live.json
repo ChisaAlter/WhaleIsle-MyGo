@@ -1,0 +1,6 @@
+{
+  "checks": [],
+  "installerExecuted": false,
+  "passed": false,
+  "scope": "actual unsigned NSIS final bytes -\u003e local TLS -\u003e default native updater -\u003e pause/reopen/resume -\u003e durable ready"
+}

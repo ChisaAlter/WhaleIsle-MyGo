@@ -1,17 +1,15 @@
 package session
 
 import (
-	"context"
 	"whaleisle/internal/dsh"
 )
 
 // Native registrations are compiled equivalents of the fixed original client
-// contributions. The Host graph declares their presence; it is never treated as
-// a receipt that an unrelated browser mounted React successfully.
+// contributions. OnEventsReady activates the built-in capability baseline
+// (or a one-shot pluginInventory/list snapshot) without any /plugins/events SSE watch.
 type nativeContributionState struct {
 	snapshot   dsh.NativeContributions
 	owner      *EventsOwner
-	cancel     context.CancelFunc
 	generation uint64
 	ports      [4]uint64
 	modelLabel uint64
@@ -60,52 +58,61 @@ func (s *Store) setNativeContributionsLocked(snapshot dsh.NativeContributions) {
 
 func (s *Store) resetNativeContributionsLocked() {
 	s.invalidateViewLocked()
-	if s.nativeContributions.cancel != nil {
-		s.nativeContributions.cancel()
-	}
 	s.nativeContributions = nativeContributionState{generation: s.nativeContributions.generation + 1}
 }
 
-// WatchNativeContributionsForEvents starts once for the authenticated, ready
-// event generation. Session navigation does not restart this process-level
-// registry; individual native actions still capture their session and Host.
+func (s *Store) ensureNativeContributionsLocked(owner *EventsOwner) bool {
+	if !s.eventsOwnerCurrentLocked(owner) || s.nativeContributions.owner == owner {
+		return false
+	}
+	s.nativeContributions.owner = owner
+	s.setNativeContributionsLocked(dsh.DefaultNativeContributions())
+	return true
+}
+
+// WatchNativeContributionsForEvents ensures native contributions are populated
+// once for the authenticated, ready event generation without opening /plugins/events.
+//
+// Deprecated: OnEventsReady activates native contributions directly; kept temporarily
+// until all main entrypoints remove redundant WatchNativeContributionsForEvents calls.
 func (s *Store) WatchNativeContributionsForEvents(owner *EventsOwner) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
-	if !s.eventsOwnerCurrentLocked(owner) || s.nativeContributions.owner == owner {
+	changed := s.ensureNativeContributionsLocked(owner)
+	s.mu.Unlock()
+	if changed {
+		s.fire()
+	}
+}
+
+// ResolveNativeContributionsForEvents optionally verifies native contributions via a
+// single one-shot pluginInventory/list RPC (no persistent SSE stream) for owner.
+func (s *Store) ResolveNativeContributionsForEvents(owner *EventsOwner) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if !s.eventsOwnerCurrentLocked(owner) {
 		s.mu.Unlock()
 		return
 	}
-	s.resetNativeContributionsLocked()
-	ctx, cancel := context.WithCancel(owner.ctx)
-	s.nativeContributions.owner, s.nativeContributions.cancel = owner, cancel
+	client, ctx := owner.client, owner.ctx
+	s.ensureNativeContributionsLocked(owner)
 	s.mu.Unlock()
 	go func() {
-		defer cancel()
-		err := owner.client.WatchNativeContributions(ctx, func(snapshot dsh.NativeContributions) {
-			s.mu.Lock()
-			if !s.eventsOwnerCurrentLocked(owner) || ctx.Err() != nil || s.nativeContributions.owner != owner {
-				s.mu.Unlock()
-				return
-			}
-			s.setNativeContributionsLocked(snapshot)
-			s.mu.Unlock()
-			s.fire()
-		})
+		snapshot, err := client.ResolveNativeContributions(ctx)
 		s.mu.Lock()
-		if s.nativeContributions.owner != owner {
+		if !s.eventsOwnerCurrentLocked(owner) || ctx.Err() != nil || s.nativeContributions.owner != owner {
 			s.mu.Unlock()
 			return
 		}
-		// Also revoke when this context has expired: a canceled stream cannot
-		// remain authority merely because no replacement graph has arrived.
-		s.setNativeContributionsLocked(dsh.NativeContributions{})
-		if err != nil && ctx.Err() == nil {
-			s.nativeContributions.snapshot.Error = err.Error()
+		if err != nil {
+			s.setNativeContributionsLocked(dsh.NativeContributions{Error: err.Error()})
+		} else {
+			s.setNativeContributionsLocked(snapshot)
 		}
-		s.nativeContributions.cancel = nil
 		s.mu.Unlock()
 		s.fire()
 	}()

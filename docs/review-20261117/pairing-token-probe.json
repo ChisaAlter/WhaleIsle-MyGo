@@ -1,0 +1,11 @@
+{
+  "fictionalConsumedTokenAccepted": true,
+  "deviceStoreActiveChecks": 0,
+  "statusCode": 200,
+  "response": {
+    "ok": true,
+    "result": {
+      "theme": "deepseek"
+    }
+  }
+}

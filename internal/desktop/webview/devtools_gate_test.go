@@ -64,7 +64,23 @@ func TestDevToolsGateReachesPages(t *testing.T) {
 		}
 	}
 	registerDevToolsPage(nil) // must not panic or add a page
+	registerDevToolsPage(page)
+	registerDevToolsPage(second)
 	if len(devToolsPages) != 2 {
-		t.Fatalf("pages = %d, want 2", len(devToolsPages))
+		t.Fatalf("pages after duplicate registration = %d, want 2", len(devToolsPages))
+	}
+
+	unregisterDevToolsPage(page)
+	unregisterDevToolsPage(nil)
+	if len(devToolsPages) != 1 {
+		t.Fatalf("pages after unregister = %d, want 1", len(devToolsPages))
+	}
+	callsBefore := page.calls
+	SetDevToolsShortcutAllowed(func() bool { return false })
+	if page.calls != callsBefore {
+		t.Fatalf("unregistered page still received gate update: calls %d -> %d", callsBefore, page.calls)
+	}
+	if second.value == nil || *second.value {
+		t.Fatalf("remaining page did not receive gate update: %v", second.value)
 	}
 }

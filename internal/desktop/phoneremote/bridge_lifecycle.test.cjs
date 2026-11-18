@@ -11,16 +11,16 @@ const bridge = fs.readFileSync(path.join(__dirname, 'bridge.cjs'), 'utf8');
 const deviceActions = fs.readFileSync(path.join(__dirname, 'device-actions.cjs'), 'utf8');
 const settle = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 
-function fixture({stopError = false} = {}) {
+function fixture({stopError = false, pairingUrl} = {}) {
   const input = new EventEmitter(), processStub = new EventEmitter();
   const events = [], exits = [], intervals = new Set(), reads = [], syncs = [];
   const deviceCalls = [];
-  let remote, constructorOptions, stops = 0, revocations = 0;
+  let remote, constructorOptions, stops = 0, revocations = 0, mountedShell = null;
   let deviceRelease;
   const devicePending = new Promise(resolve => { deviceRelease = resolve; });
-  const url = 'https://example.test/#offer=' + Buffer.from(JSON.stringify({
+  let currentUrl = pairingUrl !== undefined ? pairingUrl : ('https://example.test/#offer=' + Buffer.from(JSON.stringify({
     v: 2, authBootstrap: {expiresAtMs: Date.now() + 60_000},
-  })).toString('base64url');
+  })).toString('base64url'));
   class FakeRemote extends EventEmitter {
     constructor(options) { super(); remote = this; constructorOptions = options; this.daemon = null; }
     sync() {
@@ -30,7 +30,7 @@ function fixture({stopError = false} = {}) {
       return promise;
     }
     snapshot() {
-      return {listening: !!this.daemon, relayConnected: true, urls: [{pairingUrl: url}], devices: this.unbound ? [] : [{id: 'fictional-device', name: this.deviceName || 'Phone'}]};
+      return {listening: !!this.daemon, relayConnected: true, urls: [{pairingUrl: currentUrl}], devices: this.unbound ? [] : [{id: 'fictional-device', name: this.deviceName || 'Phone'}]};
     }
     async renameDevice(id, name) { deviceCalls.push('rename'); await devicePending; this.deviceName = name; }
     async rotateToken() { deviceCalls.push('rotate'); await devicePending; }
@@ -51,6 +51,7 @@ function fixture({stopError = false} = {}) {
   processStub.exit = code => exits.push(code);
   const context = {
     __MYGO_GIT_SOURCES__: {}, __MYGO_MOBILE_DRAFT_UI__: '', installMobileDraftUI() {},
+    __mygoShellRoutes: {mountShellRoutes(server, opts) { mountedShell = opts; }},
     loadOriginalGit: () => ({git: {setChangeRequestGenerator() {}}, authority: {}}),
     createGitGate: () => ({git: {}, configure() {}, revoke() { ++revocations; }}),
     process: processStub, console: {}, Buffer, URL,
@@ -72,6 +73,8 @@ function fixture({stopError = false} = {}) {
     releaseDevice: () => deviceRelease(),
     get remote() { return remote; }, get options() { return constructorOptions; },
     get stops() { return stops; }, get revocations() { return revocations; },
+    get mountedShell() { return mountedShell; },
+    setPairingUrl(next) { currentUrl = next; if (remote) remote.pairing = {url: next}; },
     send(command) { input.emit('line', JSON.stringify(command)); },
     tick() { for (const fn of intervals) fn(); },
     ready(index = 0) { remote.daemon = {}; remote.emit('listening'); syncs[index].resolve(); },
@@ -191,4 +194,70 @@ test('successful explicit start still emits the existing snapshot protocol', asy
   f.send({action: 'stop'}); await settle();
   assert.deepEqual(f.exits, [0]);
   assert.equal(f.events.at(-1).url, '');
+});
+
+test('offers keep expiry checks but never authorize retired HTTP shell routes', async () => {
+  const encodeOffer = (payload, scheme = 'https://example.test/#offer=') =>
+    scheme + Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const f = fixture();
+  f.remote.mobileWebServer = {};
+  start(f); await settle(); f.ready(); await settle();
+  f.tick();
+  assert.ok(f.mountedShell, 'shell routes should mount on remote.mobileWebServer');
+
+  const valid = encodeOffer({
+    v: 2,
+    authBootstrap: {expiresAtMs: Date.now() + 60_000, pairingToken: 'pair-valid-1'},
+  });
+  f.setPairingUrl(valid);
+  f.tick();
+  assert.equal(f.events.at(-1).url, valid);
+  assert.deepEqual(Array.from(f.mountedShell.tokens()), [], 'bootstrap token is never a business credential');
+
+  const invalidCases = [
+    ['expired', encodeOffer({v: 2, authBootstrap: {expiresAtMs: Date.now() - 1_000, pairingToken: 'pair-expired'}})],
+    ['missing expiresAtMs', encodeOffer({v: 2, authBootstrap: {pairingToken: 'pair-missing-exp'}})],
+    ['string expiresAtMs', encodeOffer({v: 2, authBootstrap: {expiresAtMs: String(Date.now() + 60_000), pairingToken: 'pair-str-exp'}})],
+    ['non-finite NaN', encodeOffer({v: 2, authBootstrap: {expiresAtMs: null, pairingToken: 'pair-null-exp'}})],
+    ['zero expiresAtMs', encodeOffer({v: 2, authBootstrap: {expiresAtMs: 0, pairingToken: 'pair-zero-exp'}})],
+    ['negative expiresAtMs', encodeOffer({v: 2, authBootstrap: {expiresAtMs: -5, pairingToken: 'pair-neg-exp'}})],
+    ['wrong version', encodeOffer({v: 1, authBootstrap: {expiresAtMs: Date.now() + 60_000, pairingToken: 'pair-v1'}})],
+    ['non-http protocol', encodeOffer({v: 2, authBootstrap: {expiresAtMs: Date.now() + 60_000, pairingToken: 'pair-js'}}, 'javascript:alert(1)#offer=')],
+    ['malformed base64 json', 'https://example.test/#offer=not-valid-json'],
+    ['oversized url', 'https://example.test/#offer=' + 'a'.repeat(8200)],
+  ];
+  for (const [label, badUrl] of invalidCases) {
+    f.setPairingUrl(badUrl);
+    f.tick();
+    assert.equal(f.events.at(-1).url, '', `usableURL must fail closed for ${label}`);
+    assert.deepEqual(Array.from(f.mountedShell.tokens()), [], `HTTP shell remains closed for ${label}`);
+  }
+  f.send({action: 'stop'}); await settle();
+});
+
+test('real HTTP shell rejects bootstrap and legacy bearer while the SPA stays available', async () => {
+  const http = require('node:http');
+  const routes = require('./shell_routes.cjs');
+  const f = fixture();
+  f.remote.mobileWebServer = {};
+  f.send({action:'start',config:{remoteEnabled:true,remoteMode:'lan',remoteToken:'fictional-old-token'}});
+  await settle(); f.ready(); await settle();
+  f.setPairingUrl('http://example.test/#offer='+Buffer.from(JSON.stringify({v:2,authBootstrap:{expiresAtMs:Date.now()+60000,pairingToken:'fictional-bootstrap'}})).toString('base64url'));
+  const server = http.createServer((_req,res)=>res.end('owned static SPA'));
+  routes.mountShellRoutes(server,f.mountedShell);
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try {
+    const base='http://127.0.0.1:'+server.address().port;
+    assert.equal(await (await fetch(base)).text(),'owned static SPA');
+    for(const token of ['fictional-bootstrap','fictional-old-token']) {
+      const response=await fetch(base+'/__remote__/shell/saveConfig',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:'{"patch":{"remoteEnabled":false}}'});
+      assert.equal(response.status,401);
+      assert.equal(await response.text(),'unauthorized');
+    }
+    assert.equal(f.events.some(e=>e.kind==='host-save-config'),false);
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve=>server.close(resolve));
+    f.send({action:'stop'});await settle();
+  }
 });

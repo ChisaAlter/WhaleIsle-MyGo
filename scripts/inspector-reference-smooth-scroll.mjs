@@ -1,39 +1,48 @@
 // Real installed InspectorChatRevealer / Chromium trajectory evidence; no bundle writes.
 // Launch the installed app separately with the exact .devdata-ref-r100 profile, then:
 // node scripts/inspector-reference-smooth-scroll.mjs 19444 http://127.0.0.1:3083/ <installed-client.js> docs/review-20261022/evidence/inspector-reference-pass251-smooth <owned-main-pid>
-import {readFileSync, writeFileSync} from 'node:fs';
+import {existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
-const ROOT = 'C:\\AI\\WhaleIsle-MyGo';
-const PROFILE = ROOT + '\\.devdata-ref-r100';
-const EXECUTABLE = 'C:\\软件\\Whale Isle\\Whale Isle.exe';
-const BUNDLE = 'C:\\软件\\Whale Isle\\resources\\vendor\\deepseek-harness\\packages\\experimental\\session-inspector\\lib\\client.js';
-const NODE = 'C:\\Users\\48818\\AppData\\Roaming\\Deepseek-Harness-Desktop\\dsh-home\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe';
-const [port, pageUrl, bundle, output, ownedPidArg] = process.argv.slice(2);
+const ROOT = path.resolve(process.env.WHALEISLE_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
+const PROFILE = path.resolve(process.env.WHALEISLE_REF_PROFILE || path.join(ROOT, '.devdata-ref-r100'));
+const EXECUTABLE = process.env.WHALEISLE_REF_EXECUTABLE ? path.resolve(process.env.WHALEISLE_REF_EXECUTABLE) : '';
+const REF_WORKSPACE = path.resolve(process.env.WHALEISLE_REF_WORKSPACE || path.join(ROOT, '.devdata-clean', 'workspace'));
+const EXPECTED_PORT = String(process.env.WHALEISLE_REF_PORT || '19444');
+const EXPECTED_URL = String(process.env.WHALEISLE_REF_URL || 'http://127.0.0.1:3083/');
+const [port, pageUrl, bundleArg, output, ownedPidArg] = process.argv.slice(2);
+const BUNDLE = path.resolve(process.env.WHALEISLE_REF_BUNDLE || bundleArg || path.join(ROOT, 'runtime/vendor/deepseek-harness/packages/experimental/session-inspector/lib/client.js'));
+const NODE = process.env.WHALEISLE_REF_NODE ? path.resolve(process.env.WHALEISLE_REF_NODE) : (existsSync(path.join(ROOT, 'runtime/node/node.exe')) ? path.join(ROOT, 'runtime/node/node.exe') : process.execPath);
+if (!existsSync(PROFILE)) throw Error(`Reference profile missing at ${PROFILE}. Set WHALEISLE_REF_PROFILE to an isolated reference profile directory.`);
+if (!EXECUTABLE || !existsSync(EXECUTABLE)) throw Error('Reference executable missing. Set WHALEISLE_REF_EXECUTABLE to the installed reference executable.');
+if (!existsSync(BUNDLE)) throw Error(`Reference session-inspector bundle missing at ${BUNDLE}. Pass <client.js> or set WHALEISLE_REF_BUNDLE.`);
 const ownedPid = Number(ownedPidArg);
 const samePath = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
-if (port !== '19444' || pageUrl !== 'http://127.0.0.1:3083/' || !samePath(bundle || '.', BUNDLE)) throw Error('Use the exact installed bundle and isolated 3083/19444 reference only');
+if (port !== EXPECTED_PORT || pageUrl !== EXPECTED_URL || !samePath(bundleArg || BUNDLE, BUNDLE)) throw Error(`Use the exact reference bundle and isolated ${EXPECTED_URL} / port ${EXPECTED_PORT}`);
 if (!Number.isSafeInteger(ownedPid) || ownedPid < 1 || [20012, 16008].includes(ownedPid)) throw Error('Specify the independently launched main PID');
-if (!samePath(process.cwd(), ROOT) || !samePath(process.execPath, NODE)) throw Error('Use the requested workspace and Node executable');
+if (!samePath(process.cwd(), ROOT) || !samePath(process.execPath, NODE)) throw Error(`Use workspace ${ROOT} and Node executable ${NODE}`);
 const outputPath = path.resolve(output || '.');
-const allowedDir = path.join(ROOT, 'docs', 'review-20261022', 'evidence');
+const allowedDir = path.resolve(process.env.WHALEISLE_EVIDENCE_DIR || path.join(ROOT, 'docs', 'review-20261022', 'evidence'));
 if (!samePath(path.dirname(outputPath), allowedDir) || !/^inspector-reference-pass251-smooth[\w-]*$/.test(path.basename(outputPath))) throw Error('Evidence output is outside the requested prefix');
 
 function ownershipSnapshot() {
   // This command reads identities/listeners only. It does not signal any process.
-  const command = `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [Console]::OutputEncoding; $all = @(Get-CimInstance Win32_Process); $ids = @(${ownedPid}); do { $more = @($all | Where-Object { $_.ParentProcessId -in $ids -and $_.ProcessId -notin $ids } | Select-Object -ExpandProperty ProcessId); $ids += $more } while ($more.Count); $ports = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 3080,3083,19444 } | Select-Object LocalAddress,LocalPort,OwningProcess); [pscustomobject]@{ ports=$ports; main=($all | Where-Object ProcessId -eq ${ownedPid} | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine); owned=@($all | Where-Object { $_.ProcessId -in $ids } | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine); protected=@($all | Where-Object { $_.ProcessId -in 20012,16008 } | Select-Object ProcessId,ParentProcessId,ExecutablePath) } | ConvertTo-Json -Depth 6 -Compress`;
-  const snapshot = JSON.parse(execFileSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command], {encoding: 'utf8', windowsHide: true, timeout: 10000}).replace(/^\uFEFF/, ''));
-  if (!snapshot.main || !samePath(snapshot.main.ExecutablePath, EXECUTABLE) || !snapshot.main.CommandLine.includes(`--user-data-dir="${PROFILE}"`) || !snapshot.main.CommandLine.includes('--remote-debugging-port=19444')) throw Error('Owned main process identity/profile/debugger mismatch');
+  const psCache = process.env.PSModuleAnalysisCachePath || path.join(process.env.LOCALAPPDATA || os.tmpdir(), 'Microsoft', 'Windows', 'PowerShell', 'ModuleAnalysisCache');
+  const command = `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [Console]::OutputEncoding; $all = @(Get-CimInstance Win32_Process); $ids = @(${ownedPid}); do { $more = @($all | Where-Object { $_.ParentProcessId -in $ids -and $_.ProcessId -notin $ids } | Select-Object -ExpandProperty ProcessId); $ids += $more } while ($more.Count); $ports = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 3080,3083,${Number(EXPECTED_PORT)} } | Select-Object LocalAddress,LocalPort,OwningProcess); [pscustomobject]@{ ports=$ports; main=($all | Where-Object ProcessId -eq ${ownedPid} | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine); owned=@($all | Where-Object { $_.ProcessId -in $ids } | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine); protected=@($all | Where-Object { $_.ProcessId -in 20012,16008 } | Select-Object ProcessId,ParentProcessId,ExecutablePath) } | ConvertTo-Json -Depth 6 -Compress`;
+  const snapshot = JSON.parse(execFileSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command], {encoding: 'utf8', env: {...process.env, PSModuleAnalysisCachePath: psCache}, windowsHide: true, timeout: 10000}).replace(/^\uFEFF/, ''));
+  if (!snapshot.main || !samePath(snapshot.main.ExecutablePath, EXECUTABLE) || !snapshot.main.CommandLine.includes(`--user-data-dir="${PROFILE}"`) || !snapshot.main.CommandLine.includes(`--remote-debugging-port=${EXPECTED_PORT}`)) throw Error('Owned main process identity/profile/debugger mismatch');
   const listening = p => snapshot.ports.filter(x => x.LocalPort === p);
   const ownedIds = new Set(snapshot.owned.map(x => x.ProcessId));
-  if (listening(19444).length !== 1 || listening(19444)[0].OwningProcess !== ownedPid || listening(3083).length !== 1 || !ownedIds.has(listening(3083)[0].OwningProcess)) throw Error('Isolated listener is not owned by the specified tree');
+  if (listening(Number(EXPECTED_PORT)).length !== 1 || listening(Number(EXPECTED_PORT))[0].OwningProcess !== ownedPid || listening(3083).length !== 1 || !ownedIds.has(listening(3083)[0].OwningProcess)) throw Error('Isolated listener is not owned by the specified tree');
   const backend = snapshot.owned.find(x => x.ProcessId === listening(3083)[0].OwningProcess);
   if (!backend.CommandLine.includes(PROFILE + '\\dsh-home\\profiles\\web\\') || !backend.CommandLine.includes('--port 3083')) throw Error('Backend profile/3083 command mismatch');
   if (listening(3080).length !== 1 || listening(3080)[0].OwningProcess !== 16008 || !snapshot.protected.some(x => x.ProcessId === 16008 && x.ParentProcessId === 20012)) throw Error('Protected original identities/listener changed; stop the probe');
   const config = JSON.parse(readFileSync(path.join(PROFILE, 'config.json'), 'utf8'));
-  if (config.port !== 3083 || config.workspace !== ROOT + '\\.devdata-clean\\workspace') throw Error('Reference profile configuration mismatch');
+  if (config.port !== 3083 || config.workspace !== REF_WORKSPACE) throw Error('Reference profile configuration mismatch');
   return snapshot;
 }
 

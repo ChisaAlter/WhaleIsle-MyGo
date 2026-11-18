@@ -10,6 +10,7 @@ func openNativeRecoveryProcess(pid int, executable string) (*nativeRecoveryProce
 	return nil, fmt.Errorf("independent native UI recovery is available on Windows")
 }
 func (*nativeRecoveryProcess) alive() bool { return false }
+func (*nativeRecoveryProcess) waitExit()   {}
 func (*nativeRecoveryProcess) close()      {}
 func (*nativeRecoveryProcess) stopTree(int) error {
 	return fmt.Errorf("native process recovery is unavailable on this platform")

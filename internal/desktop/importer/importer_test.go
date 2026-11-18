@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"whaleisle/internal/store/storelocale"
 )
 
 func TestImportReportEmpty(t *testing.T) {
@@ -85,7 +87,8 @@ func TestFormatReport(t *testing.T) {
 		IsDefaultElectronPath: true,
 		ConfigJSON:            true,
 	})
-	if !strings.Contains(text, "config.json: 有") || !strings.Contains(text, "Electron 默认") {
+	configLine := storelocale.T(storelocale.KeyStoreImporterReportConfig) + storelocale.T(storelocale.KeyStoreImporterReportFound)
+	if !strings.Contains(text, configLine) || !strings.Contains(text, "Electron 默认") {
 		t.Fatalf("FormatReport = %q", text)
 	}
 }

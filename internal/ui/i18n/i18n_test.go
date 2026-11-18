@@ -120,3 +120,17 @@ func TestTitlebarKeys(t *testing.T) {
 	}
 	SetLocale(DefaultLocale)
 }
+
+func TestSystemLocaleSpeaksOneCatalog(t *testing.T) {
+	locale := SystemLocale()
+	if locale != LocaleZH && locale != LocaleEN {
+		t.Fatalf("system locale %q is not a catalog language", locale)
+	}
+	SetLocale(locale)
+	for _, key := range []string{KeyDataLocationFallbackTitle, KeyDataLocationFallbackQuit, KeyFirstRunImportTitle, KeyFirstRunImportBody} {
+		if got := T(key); got == "" || got == key {
+			t.Fatalf("%s missing %q in system locale", locale, key)
+		}
+	}
+	SetLocale(DefaultLocale)
+}

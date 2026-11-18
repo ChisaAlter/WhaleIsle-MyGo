@@ -407,6 +407,13 @@ func (s *Store) ensureTrajectoryTimingCacheLocked() (map[float64]trajectoryParse
 		s.trajTimingParsed = parsed
 		s.trajTimingOps = ops
 		s.trajTimingAnchors = anchors
+		if len(s.trajTimingCache) > maxSessionDecodeCacheEntries {
+			keep := make(map[float64]bool, len(raws))
+			for seq := range raws {
+				keep[seq] = true
+			}
+			pruneSeqCache(s.trajTimingCache, maxSessionDecodeCacheEntries, keep)
+		}
 	}
 	return parsed, ops, anchors
 }

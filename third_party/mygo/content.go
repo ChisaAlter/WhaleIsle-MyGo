@@ -144,7 +144,9 @@ func pageGet[T any](w *Window, fn func(n platform.Window) T) T {
 // its user interface shows. It is safe from any goroutine; calls made
 // before the next frame make one frame. It does nothing for a web page.
 func (w *Window) Invalidate() {
+	recordTestInvalidateCall()
 	if w.content == nil || !w.invalidating.CompareAndSwap(false, true) {
+		recordTestInvalidateDropped()
 		return
 	}
 	postMain(func() {
@@ -173,9 +175,11 @@ func (w *Window) Update(fn func()) {
 // contentChanged asks the Content for a frame built anew, on the main
 // thread, after the app changed its state.
 func (w *Window) contentChanged() {
+	recordTestContentChanged()
 	switch {
 	case w.conn == nil || w.native == nil:
 	case w.conn.Changed != nil:
+		recordTestConnChanged()
 		w.conn.Changed()
 	default:
 		w.conn.Surface.RequestFrame()

@@ -1,0 +1,448 @@
+{
+  "totalSampleMs": 8643.153,
+  "profileWallMs": 8643.662,
+  "buckets": [
+    {
+      "name": "filesystem",
+      "ms": 2506.098,
+      "percent": 28.99518266077206
+    },
+    {
+      "name": "nodeModuleLoader",
+      "ms": 5514.415,
+      "percent": 63.800964763669
+    },
+    {
+      "name": "gc",
+      "ms": 158.314,
+      "percent": 1.8316695307835
+    },
+    {
+      "name": "appBoot",
+      "ms": 5296.738,
+      "percent": 61.282474115638124
+    },
+    {
+      "name": "loader",
+      "ms": 3768.362,
+      "percent": 43.59939017624703
+    },
+    {
+      "name": "clientModules",
+      "ms": 274.899,
+      "percent": 3.180540712399746
+    },
+    {
+      "name": "idle",
+      "ms": 28.169,
+      "percent": 0.3259111576527686
+    }
+  ],
+  "self": [
+    {
+      "frame": "compileSourceTextModule @ node:internal/modules/esm/utils:317",
+      "ms": 796.091,
+      "percent": 9.21065495427421
+    },
+    {
+      "frame": "lstat @ :0",
+      "ms": 577.086,
+      "percent": 6.676799542944571
+    },
+    {
+      "frame": "internalModuleStat @ :0",
+      "ms": 543.793,
+      "percent": 6.291604464250488
+    },
+    {
+      "frame": "readFileUtf8 @ :0",
+      "ms": 451.371,
+      "percent": 5.222295613649324
+    },
+    {
+      "frame": "wrapSafe @ node:internal/modules/cjs/loader:1819",
+      "ms": 441.037,
+      "percent": 5.102732764304878
+    },
+    {
+      "frame": "open @ :0",
+      "ms": 354.714,
+      "percent": 4.103988440329588
+    },
+    {
+      "frame": "stat @ :0",
+      "ms": 303.915,
+      "percent": 3.516251534596229
+    },
+    {
+      "frame": "readPackageJSON @ :0",
+      "ms": 215.853,
+      "percent": 2.497387238198838
+    },
+    {
+      "frame": "existsSync @ :0",
+      "ms": 187.443,
+      "percent": 2.168687746242604
+    },
+    {
+      "frame": "getPackageScopeConfig @ :0",
+      "ms": 183.767,
+      "percent": 2.126156970725845
+    },
+    {
+      "frame": "get @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/cordis/lib/index.js:1205",
+      "ms": 160.453,
+      "percent": 1.8564174439582406
+    },
+    {
+      "frame": "(garbage collector) @ :0",
+      "ms": 158.314,
+      "percent": 1.8316695307835
+    },
+    {
+      "frame": "realpathSync @ node:fs:2781",
+      "ms": 128.338,
+      "percent": 1.4848516507806815
+    },
+    {
+      "frame": "requireBuiltin @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/node_modules/.dsh-instances/a4522ec3ed8e56e0edc527cc/lib/index.js:571",
+      "ms": 122.366,
+      "percent": 1.415756495343771
+    },
+    {
+      "frame": "readlink @ :0",
+      "ms": 120.882,
+      "percent": 1.3985868351514776
+    },
+    {
+      "frame": "entries @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:142",
+      "ms": 109.668,
+      "percent": 1.268842516151224
+    },
+    {
+      "frame": "realpath @ :0",
+      "ms": 98.625,
+      "percent": 1.1410766418227236
+    },
+    {
+      "frame": "read @ :0",
+      "ms": 83.165,
+      "percent": 0.9622067317331997
+    },
+    {
+      "frame": "parse @ :0",
+      "ms": 79.638,
+      "percent": 0.9213998641467992
+    },
+    {
+      "frame": "compileForInternalLoader @ node:internal/bootstrap/realm:383",
+      "ms": 78.814,
+      "percent": 0.9118663061963614
+    },
+    {
+      "frame": "getPackageScopeConfig @ node:internal/modules/package_json_reader:222",
+      "ms": 77.257,
+      "percent": 0.8938520468167115
+    },
+    {
+      "frame": " @ file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/runtime/whale-ui/host.cjs:1",
+      "ms": 71.86,
+      "percent": 0.8314095562117204
+    },
+    {
+      "frame": "getPathFromURLWin32 @ node:internal/url:1490",
+      "ms": 65.094,
+      "percent": 0.75312793838082
+    },
+    {
+      "frame": "startsWithin @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1394",
+      "ms": 54.616,
+      "percent": 0.6318990303654234
+    },
+    {
+      "frame": "get @ node:internal/modules/package_json_reader:80",
+      "ms": 52.551,
+      "percent": 0.608007286229921
+    },
+    {
+      "frame": "normalizeString @ node:path:92",
+      "ms": 45.489,
+      "percent": 0.5263009922420672
+    },
+    {
+      "frame": "fs.readFileSync @ file:///C:/AI/WhaleIsle-MyGo/scripts/profile-host-startup.mjs:15",
+      "ms": 42.736,
+      "percent": 0.49444919001202453
+    },
+    {
+      "frame": "defaultLoadSync @ node:internal/modules/esm/load:136",
+      "ms": 42.128,
+      "percent": 0.48741472006801223
+    },
+    {
+      "frame": "init @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/node_modules/.dsh-instances/6a9e285fd7f6d1003e8bf167/v4/core/core.js:7",
+      "ms": 36.765,
+      "percent": 0.42536560442699556
+    },
+    {
+      "frame": "#getOrCreateModuleJobAfterResolve @ node:internal/modules/esm/loader:526",
+      "ms": 36.003,
+      "percent": 0.41654937729321695
+    }
+  ],
+  "inclusive": [
+    {
+      "frame": "(root) @ :0",
+      "ms": 8643.153,
+      "percent": 100
+    },
+    {
+      "frame": "composeError @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/cordis/lib/index.js:193",
+      "ms": 5002.093,
+      "percent": 57.87347510798432
+    },
+    {
+      "frame": " @ node:internal/modules/esm/loader:632",
+      "ms": 3711.295,
+      "percent": 42.939133438919804
+    },
+    {
+      "frame": "import @ node:internal/modules/esm/loader:631",
+      "ms": 3701.442,
+      "percent": 42.825135688330406
+    },
+    {
+      "frame": "tracePromise @ node:diagnostics_channel:360",
+      "ms": 3699.916,
+      "percent": 42.807480094359086
+    },
+    {
+      "frame": "getOrCreateModuleJob @ node:internal/modules/esm/loader:600",
+      "ms": 3697.209,
+      "percent": 42.776160505315595
+    },
+    {
+      "frame": "update @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:78",
+      "ms": 3502.7,
+      "percent": 40.52572018567761
+    },
+    {
+      "frame": "_init @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:450",
+      "ms": 3502.633,
+      "percent": 40.524945005601545
+    },
+    {
+      "frame": "create @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:58",
+      "ms": 3498.461,
+      "percent": 40.47667558355151
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:87",
+      "ms": 3498.143,
+      "percent": 40.47299637065316
+    },
+    {
+      "frame": "update @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:367",
+      "ms": 3422.172,
+      "percent": 39.59402315335619
+    },
+    {
+      "frame": "init @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:438",
+      "ms": 3414.757,
+      "percent": 39.50823270165413
+    },
+    {
+      "frame": "import @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:214",
+      "ms": 3413.221,
+      "percent": 39.49046140916399
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/loader/lib/index.js:216",
+      "ms": 3407.924,
+      "percent": 39.429175903747165
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/vendor/cordis/lib/index.js:895",
+      "ms": 3347.465,
+      "percent": 38.72967422883755
+    },
+    {
+      "frame": "Include @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:175",
+      "ms": 3273.432,
+      "percent": 37.87312338448712
+    },
+    {
+      "frame": "#getOrCreateModuleJobAfterResolve @ node:internal/modules/esm/loader:526",
+      "ms": 3240.528,
+      "percent": 37.49242897817498
+    },
+    {
+      "frame": "afterResolve @ node:internal/modules/esm/loader:610",
+      "ms": 3240.528,
+      "percent": 37.49242897817498
+    },
+    {
+      "frame": "link @ node:internal/modules/esm/module_job:377",
+      "ms": 2687.541,
+      "percent": 31.09445129572507
+    },
+    {
+      "frame": "ModuleJob @ node:internal/modules/esm/module_job:346",
+      "ms": 2687.541,
+      "percent": 31.09445129572507
+    },
+    {
+      "frame": "syncLink @ node:internal/modules/esm/module_job:260",
+      "ms": 2684.51,
+      "percent": 31.05938307467194
+    },
+    {
+      "frame": "#resolve @ node:internal/modules/esm/loader:679",
+      "ms": 2056.876,
+      "percent": 23.79775065881629
+    },
+    {
+      "frame": "wrapped @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1967",
+      "ms": 1951.799,
+      "percent": 22.58202533265349
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1952",
+      "ms": 1948.871,
+      "percent": 22.548148806344166
+    },
+    {
+      "frame": "adapted @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1890",
+      "ms": 1849.501,
+      "percent": 21.398452624869652
+    },
+    {
+      "frame": "resolveSync @ node:internal/modules/esm/loader:741",
+      "ms": 1835.546,
+      "percent": 21.236995341861935
+    },
+    {
+      "frame": "#resolveAndMaybeBlockOnLoaderThread @ node:internal/modules/esm/loader:720",
+      "ms": 1822.821,
+      "percent": 21.089768976668584
+    },
+    {
+      "frame": "#cachedDefaultResolve @ node:internal/modules/esm/loader:697",
+      "ms": 1819.726,
+      "percent": 21.053960285095034
+    },
+    {
+      "frame": "defaultResolve @ node:internal/modules/esm/resolve:961",
+      "ms": 1809.654,
+      "percent": 20.937428736943566
+    },
+    {
+      "frame": " @ file:///C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/lib/index.js:1963",
+      "ms": 1733.589,
+      "percent": 20.05736795356972
+    }
+  ],
+  "reads": {
+    "totalMilliseconds": 1030.2788000000053,
+    "totalBytes": 56298035,
+    "clientBundleMilliseconds": 55.02490000000108,
+    "clientBundleBytes": 15752103,
+    "clientBundleFiles": 93,
+    "top": [
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/service.js",
+        "calls": 1,
+        "milliseconds": 42.836599999999635,
+        "bytes": 155248
+      },
+      {
+        "path": "C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/deepseek-harness/packages/boot/app-boot/package.json",
+        "calls": 335,
+        "milliseconds": 40.35509999999505,
+        "bytes": 751740
+      },
+      {
+        "path": "C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/client/client.js",
+        "calls": 1,
+        "milliseconds": 35.012000000000626,
+        "bytes": 235932
+      },
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/domain.js",
+        "calls": 1,
+        "milliseconds": 32.84820000000036,
+        "bytes": 12653
+      },
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/requirements.js",
+        "calls": 1,
+        "milliseconds": 29.530000000000655,
+        "bytes": 55197
+      },
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/catalog-migration.js",
+        "calls": 1,
+        "milliseconds": 25.367299999999886,
+        "bytes": 12492
+      },
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/queue.js",
+        "calls": 1,
+        "milliseconds": 24.22310000000016,
+        "bytes": 12516
+      },
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/presets.js",
+        "calls": 1,
+        "milliseconds": 22.662999999999556,
+        "bytes": 27196
+      },
+      {
+        "path": "file:///C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/lib/lead.js",
+        "calls": 1,
+        "milliseconds": 19.957800000000134,
+        "bytes": 9377
+      },
+      {
+        "path": "C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/desktop-plugins/dsh-project/runtime/package.json",
+        "calls": 12,
+        "milliseconds": 19.136200000002873,
+        "bytes": 20292
+      },
+      {
+        "path": "C:/Users/48818/AppData/Local/Temp/whaleisle-build-c0d485c5549141a8985967d70890498c/host-profile/dsh-home/profiles/web/node_modules/whaleisle-desktop-plugin-views/package.json",
+        "calls": 4,
+        "milliseconds": 16.377399999999852,
+        "bytes": 1984
+      },
+      {
+        "path": "C:/AI/WhaleIsle-MyGo/runtime-rc4/vendor/dsh-im/package.json",
+        "calls": 54,
+        "milliseconds": 6.135000000001128,
+        "bytes": 148500
+      }
+    ]
+  },
+  "interpretation": {
+    "measurement": "One owned Node startup CPU profile; instrumentation adds overhead, percentages are diagnostic and overlapping inclusive costs must not be added",
+    "primaryCost": "Node resolution, module loading and compilation dominate; no evidence that disabling client modules would solve the startup budget",
+    "clientBundles": {
+      "files": 93,
+      "bytes": 15752103,
+      "readMilliseconds": 55.0249,
+      "registryInclusiveMilliseconds": 274.899,
+      "decision": "Keep current A2 module contract; not the startup bottleneck"
+    },
+    "afterReadyEvidence": "host-after-ready-profile-summary.json",
+    "afterReadyFinding": "pluginInventory/readPluginInventory 1553.292 ms and pluginManager/listBundles 536.702 ms within a 3241.224 ms readyline-to-workspace sample",
+    "action": "Market/plugin owner should share inventory read results and defer hidden catalog-only reads; preserve owner/revision and actual plugin-change invalidation",
+    "authFinding": "Connect completes in approximately 0.51 ms; delay is after request write, before first response byte. No explicit auth sleep exists in Host",
+    "sourceLocations": [
+      "internal/app/market/coordinator.go AttachHost starts independent inventory and market store refresh",
+      "internal/app/market/native_manager.go NativeEventHandler refreshes native controller on events-ready changed notification; successful controller snapshot starts another inventory refresh",
+      "internal/pluginmanager/controller.go Load reads Inventory then Bundles then Plugins",
+      "internal/store/market/store.go Refresh also reads registry/fastest/exemptions and Bundles"
+    ],
+    "candidateReclaimed": true
+  }
+}

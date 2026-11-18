@@ -153,6 +153,23 @@ func (s *gradientFrameCache) get(c gradientConfig, now time.Time) *gradientFrame
 // most one gradientFrameInterval later, which a slow ambient drift cannot show).
 // At most one such render is in flight, and a reset, a configuration change or
 // a synchronous get revokes it through the generation check.
+// frozen returns any cached frame matching c without advancing the animation
+// phase or spawning a background worker. When no matching frame exists yet it
+// populates the cache once via get.
+func (s *gradientFrameCache) frozen(c gradientConfig, now time.Time) *gradientFrame {
+	if _, ok := planGradient(c); !ok {
+		return nil
+	}
+	s.mu.Lock()
+	if s.configured && s.config == c && s.frame != nil {
+		frame := s.frame
+		s.mu.Unlock()
+		return frame
+	}
+	s.mu.Unlock()
+	return s.get(c, now)
+}
+
 func (s *gradientFrameCache) latest(c gradientConfig, now time.Time) *gradientFrame {
 	if _, ok := planGradient(c); !ok {
 		return nil

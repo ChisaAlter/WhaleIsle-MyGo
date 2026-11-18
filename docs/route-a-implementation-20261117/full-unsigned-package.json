@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "sourceBase": "11595831f43af4e401bdb613a2e744d6bfe2a5af",
+  "sourceDirty": true,
+  "version": "0.2.0",
+  "installer": "C:\\AI\\WhaleIsle-MyGo\\dist\\route-a-unsigned-current-0.2.0\\WhaleIsle-MyGo-Setup-0.2.0.exe",
+  "installerBytes": 254209032,
+  "installerMiB": 242.433,
+  "desktopBytes": 96433664,
+  "runtime": "complete supported rc.4 offline input, current default --slim",
+  "signingPolicy": "unsigned default",
+  "metadata": [
+    "SHA256SUMS.txt",
+    "WhaleIsle-MyGo-Setup-0.2.0.exe.blockmap.json"
+  ],
+  "stagingReclaimed": true,
+  "packageLog": "full-unsigned-package.log",
+  "installed": true,
+  "reason": "User authorized direct testing without a manual backup. Same final bytes upgraded normal MyGo 0.1.1 to 0.2.0, passed installed Host/workspace health, rejected a deny-delete-locked upgrade with original identity and runtime restored, then successfully reinstalled the same package and passed visible health/120s resource observation. See final-installer-install.json, final-installer-locked-upgrade.json, final-installer-retry.json and referenced health reports. Post-launch health-failure automatic rollback and performance budgets remain open."
+}

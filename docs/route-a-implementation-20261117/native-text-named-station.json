@@ -1,0 +1,15 @@
+{
+  "capture": "CapturePage Content scene rasterization, not an OS/GPU framebuffer",
+  "checks": [],
+  "clipboard": "private noninteractive Windows window station; real OLE write and CF_UNICODETEXT read",
+  "error": "create private window station: Access is denied.",
+  "hostStarted": false,
+  "input": "WindowDriver SurfaceEvent injection into a real hidden MyGo window",
+  "modelRequests": 0,
+  "pass": false,
+  "schemaVersion": 1,
+  "systemIMEExercised": false,
+  "userClipboardRead": false,
+  "userClipboardWritten": false,
+  "windowsShown": false
+}

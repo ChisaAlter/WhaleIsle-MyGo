@@ -40,10 +40,10 @@ func TestConversationFileDropIntake(t *testing.T) {
 	if calls != 1 {
 		t.Fatal("duplicate intake")
 	}
-	target.files = []string{path, root}
+	target.files = []string{path, "relative-file.txt"}
 	FileDropTarget(target, model)
 	if calls != 1 || draft.Error == "" {
-		t.Fatal("directory admitted")
+		t.Fatal("invalid native path representation admitted")
 	}
 	draft.Error = ""
 	draft.Preparing = 1

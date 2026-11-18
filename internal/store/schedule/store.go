@@ -285,18 +285,6 @@ func (s *Store) Delete(ctx context.Context, sessionID, id string) {
 	go func() { _ = s.DeleteChecked(ctx, sessionID, id) }()
 }
 
-func (s *Store) finish(err error, rows []Entry, catalogHint string) {
-	s.mu.Lock()
-	s.loading = false
-	s.err = err
-	if err == nil {
-		s.rows = rows
-	}
-	s.catalogHint = catalogHint
-	s.mu.Unlock()
-	s.fire()
-}
-
 func parseScheduleList(list api.ListResult4) []Entry {
 	out := make([]Entry, 0, len(list))
 	for _, raw := range list {

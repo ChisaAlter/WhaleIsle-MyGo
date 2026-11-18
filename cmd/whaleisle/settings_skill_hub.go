@@ -3,11 +3,17 @@ package main
 import (
 	"context"
 	"strings"
+	"time"
 
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
+)
+
+const (
+	skillHubSearchTimeout  = 30 * time.Second
+	skillHubInstallTimeout = 90 * time.Second
 )
 
 type settingsSkillHubState struct {
@@ -149,7 +155,7 @@ func (s *mainState) searchSettingsSkillHub(query string) {
 	hub.searching, hub.err, hub.confirm = true, "", nil
 	hub.epoch++
 	epoch, target := hub.epoch, hub.target
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(s.lifecycleContextLocked(), skillHubSearchTimeout)
 	hub.cancel = cancel
 	s.mu.Unlock()
 	s.updateSettingsSkillHubUI()
@@ -235,7 +241,7 @@ func (s *mainState) confirmSettingsSkillHubInstall() {
 	hub.installing, hub.err = true, ""
 	hub.epoch++
 	epoch := hub.epoch
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(s.lifecycleContextLocked(), skillHubInstallTimeout)
 	hub.cancel = cancel
 	s.mu.Unlock()
 	s.updateSettingsSkillHubUI()
@@ -279,7 +285,7 @@ func (s *mainState) confirmSettingsSkillHubInstall() {
 		}
 		s.mu.Unlock()
 		if current && err == nil {
-			source.RefreshSkills(context.Background())
+			source.RefreshSkills(s.lifecycleContext())
 		}
 		s.updateSettingsSkillHubUI()
 	}()

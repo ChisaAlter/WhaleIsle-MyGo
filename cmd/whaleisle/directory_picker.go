@@ -148,7 +148,7 @@ func (s *mainState) beginDirectoryScan(sessions *session.Store, win *mygo.Window
 		return nil
 	}
 	s.cancelDirectoryScanLocked()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(s.lifecycleContextLocked())
 	s.dirPickCancel = cancel
 	return &directoryScan{s, sessions, win, client, ctx, cancel, s.dirPickRequest, host, s.bootStatus.Generation}
 }
@@ -735,7 +735,13 @@ func (s *mainState) nativeDirectoryPicker(sessions *session.Store, win *mygo.Win
 			op.commit(func(_ *dirpick.BrowserState) { s.dirPickErr = directoryFailureText(err) })
 			return
 		}
-		if !directorypicker.SelectablePath(listing.Path) || win == nil || win.IsDestroyed() {
+		if !directorypicker.SelectablePath(listing.Path) {
+			op.commit(func(_ *dirpick.BrowserState) {
+				s.dirPickErr = directoryPickerText("无法选择该目录", "This directory cannot be selected")
+			})
+			return
+		}
+		if win == nil || win.IsDestroyed() {
 			return
 		}
 		queued = true
@@ -746,6 +752,15 @@ func (s *mainState) nativeDirectoryPicker(sessions *session.Store, win *mygo.Win
 				if onPick != nil {
 					onPick(mode, listing.Path)
 				}
+				return
+			}
+			if !op.commit(func(b *dirpick.BrowserState) { b.NativeBusy = false }) {
+				s.mu.Lock()
+				if s.dirPickOpen && s.dirPickRequest == op.request && s.bootStatus.Generation == op.boot {
+					s.dirPickBrowser.NativeBusy = false
+					s.dirPickBrowser.Revision++
+				}
+				s.mu.Unlock()
 			}
 		})
 	}()

@@ -38,7 +38,6 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 			}
 		}
 		ui.Icon(c, sidebarRailIcons["panel"]).Size(18, 18).TextColor(fg)
-		publicSidebarSlot(c, m, "sidebar.toggle.badge", "", nil)
 	})
 	ui.Box(c).Height(12).Shrink(0)
 	if m.OnCreate != nil {
@@ -56,30 +55,28 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 		}
 		for _, entry := range sidebarPanelRows(m) {
 			entry := entry
-			button := panel(entry.active, "sidebar-rail-panel:"+entry.rowKey(), entry.label, nil, entry.run)
-			button.Children(func() { publicPanelGlyph(c, m, entry, fg) })
+			button := panel(entry.active, "sidebar-rail-panel:builtin:"+entry.id, entry.label, nil, entry.run)
+			button.Children(func() { sidebarPanelIcon(c, entry.id, fg) })
 		}
 	})
 	ui.Box(c).Height(12).Shrink(0)
 	// WorkspaceBrowser keeps this region seat mounted; Add precedes Search in
 	// its pinned DOM. Both reuse the existing owner callbacks, without a new menu.
-	publicSidebarSlot(c, m, "sidebar.workspaces", "", func() {
-		ui.Column(c.Key("sidebar-rail-workspaces")).FillWidth().Grow(1).MinHeight(0).Gap(12).Children(func() {
-			if m.OnBrowseWorkspace != nil {
-				button("sidebar-rail-add", i18n.T(i18n.KeySidebarBrowseWorkspace), sidebarRailIcons["add"], m.OnToggle != nil, func() {
-					m.OnToggle()
-					m.OnBrowseWorkspace()
-				})
-			}
-			button("sidebar-rail-search", i18n.T(i18n.KeySidebarSearch), sidebarRailIcons["search"], m.OnToggle != nil && m.SearchQuery != nil, func() {
-				// Only this explicit search gesture requests focus on expansion.
-				// An unrelated layout/terminal change must not focus the input.
-				*m.SearchFocus = true
-				if m.WorkspaceMenuOpen != nil {
-					*m.WorkspaceMenuOpen = false
-				}
+	ui.Column(c.Key("sidebar-rail-workspaces")).FillWidth().Grow(1).MinHeight(0).Gap(12).Children(func() {
+		if m.OnBrowseWorkspace != nil {
+			button("sidebar-rail-add", i18n.T(i18n.KeySidebarBrowseWorkspace), sidebarRailIcons["add"], m.OnToggle != nil, func() {
 				m.OnToggle()
+				m.OnBrowseWorkspace()
 			})
+		}
+		button("sidebar-rail-search", i18n.T(i18n.KeySidebarSearch), sidebarRailIcons["search"], m.OnToggle != nil && m.SearchQuery != nil, func() {
+			// Only this explicit search gesture requests focus on expansion.
+			// An unrelated layout/terminal change must not focus the input.
+			*m.SearchFocus = true
+			if m.WorkspaceMenuOpen != nil {
+				*m.WorkspaceMenuOpen = false
+			}
+			m.OnToggle()
 		})
 	})
 }

@@ -14,7 +14,6 @@ import (
 
 // Model wires the card to the interaction store snapshot.
 type Model struct {
-	RenderSlot SlotRenderer
 	// Scope each mounted parent/child surface and its page shortcuts independently.
 	ScopeAgentID         string
 	DisablePageShortcuts bool
@@ -99,27 +98,17 @@ func interactionView(c *ui.Context, m Model) {
 			ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		questionHistory(c, snap.QuestionHistory, m.Store, colors, fg, muted, accent)
-		// The source publishes one active interaction per Agent. Child histories
-		// may show other native cards too, but they must not borrow that outlet
-		// (especially when anonymous reviews have identical question schemas).
-		slotOwners := make(map[string]bool)
 		for _, p := range snap.Pending {
-			var render SlotRenderer
-			card := snap.QuestionCards[p.EventID]
-			if !p.Continued && !card.Hidden && !card.PlanReviewHidden && !slotOwners[p.AgentID] {
-				slotOwners[p.AgentID] = true
-				render = m.RenderSlot
-			}
-			if pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, colors, fg, muted, accent, m.OnOpenPlanResource, render) {
+			if pendingCard(c, p, snap, m.Store, m.OnAutoAllowChanged, colors, fg, muted, accent, m.OnOpenPlanResource) {
 				focusedAgent, focusedEvent = p.AgentID, p.EventID
 			}
 		}
 	})
 }
 
-func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store CardStore, onAuto func(bool), colors theme.Colors, fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document), renderers ...SlotRenderer) bool {
+func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewState, store CardStore, onAuto func(bool), colors theme.Colors, fg, muted, accent ui.Color, onOpenPlan func(planpreview.Document)) bool {
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.PlanReview != nil {
-		planReviewCard(c, p, card, store, colors, fg, muted, accent, onOpenPlan, renderers...)
+		planReviewCard(c, p, card, store, colors, fg, muted, accent, onOpenPlan)
 		return false
 	}
 	if card, ok := snap.QuestionCards[p.EventID]; p.Event == interaction.EventUserQuestions && ok && card.Hidden {
@@ -174,27 +163,25 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			body.Children(func() {
 				ui.Text(c, p.Title).FillWidth().MinWidth(0).FontSize(15).FixedLineHeight(24).FontWeight(500).TextColor(fg)
 				approvalReason(c, p, muted)
-				renderInteractionSlot(c, p, "conversation.approval.detail", func() {
-					if p.ApprovalContext != "" {
-						ui.Text(c, p.ApprovalContext).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				if p.ApprovalContext != "" {
+					ui.Text(c, p.ApprovalContext).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				}
+				if command := approvalCommand(p.Args); command != "" {
+					// The command seat already carries the exact string, so the raw
+					// payload is not repeated as a second open block; the copy action
+					// under the command still yields it.
+					var copyInput func(ui.InputEvent) bool
+					if keys != nil {
+						copyInput = approvalHandler(keys, p, store, true)
 					}
-					if command := approvalCommand(p.Args); command != "" {
-						// The command seat already carries the exact string, so the raw
-						// payload is not repeated as a second open block; the copy action
-						// under the command still yields it.
-						var copyInput func(ui.InputEvent) bool
-						if keys != nil {
-							copyInput = approvalHandler(keys, p, store, true)
-						}
-						commandBlock(c, t, command, func(text string) { c.WriteClipboard(text) }, copyInput)
-					}
-					if p.CallID != "" {
-						ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					}
-					if approvalCommand(p.Args) == "" {
-						approvalArguments(c, p, store, keys, fg, muted, accent)
-					}
-				}, renderers...)
+					commandBlock(c, t, command, func(text string) { c.WriteClipboard(text) }, copyInput)
+				}
+				if p.CallID != "" {
+					ui.Text(c, i18n.T(i18n.KeyInteractionCallID)+": "+p.CallID).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				}
+				if approvalCommand(p.Args) == "" {
+					approvalArguments(c, p, store, keys, fg, muted, accent)
+				}
 			})
 		} else {
 			title := p.Title
@@ -243,7 +230,6 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 					}
 				}
 			default:
-				renderInteractionSlot(c, p, "conversation.approval.actions", func() {}, renderers...)
 				deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false)
 				deny.Children(func() {
 					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityApprovalReject))

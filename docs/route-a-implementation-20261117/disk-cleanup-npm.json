@@ -1,0 +1,6 @@
+{
+  "operation": "npm cache clean --force",
+  "path": "C:\\Users\\48818\\AppData\\Local\\npm-cache",
+  "beforeFreeGiB": 48.033817291259766,
+  "afterFreeGiB": 48.62483215332031
+}

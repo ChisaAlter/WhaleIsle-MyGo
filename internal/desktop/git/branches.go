@@ -126,6 +126,11 @@ func SwitchBranch(root, name string) (string, error) {
 }
 
 func SwitchBranchContext(ctx context.Context, root, name string) (string, error) {
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	if err := checkBranchNameContext(ctx, root, name); err != nil {
 		return "", err
 	}
@@ -159,6 +164,11 @@ func CreateBranch(root, name string) (string, error) {
 }
 
 func CreateBranchContext(ctx context.Context, root, name string) (string, error) {
+	ctx, release, err := AcquireWrite(ctx, root, ReferenceWrite)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	if err := checkBranchNameContext(ctx, root, name); err != nil {
 		return "", err
 	}

@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"image"
 	"math"
+	"time"
 	"whaleisle/internal/desktop/wallpapers"
 )
 
@@ -160,6 +161,9 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 			backgroundSamplingBitmap(path, p)
 			bmp := backgroundScreenBitmap(path, p, w, h)
 			if bmp == nil {
+				if decodedWallpaperInFlight(path) {
+					painter.After(25 * time.Millisecond)
+				}
 				return
 			}
 			// The bitmap is already the window's pixel size: FillBox keeps the
@@ -178,15 +182,27 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	if p.Effect != "gradient" {
 		return func(*ui.Painter, ui.Rect) {}
 	}
+	var startedAt time.Time
 	return func(painter *ui.Painter, r ui.Rect) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
+		now := painter.Now()
 		config := gradientConfiguration(p, float64(r.W), float64(r.H), painter.Theme().Dark, reduced)
-		// latest never renders a phase advance on this thread (6-12 ms of CPU, most
-		// of a 60 Hz frame); the finished frame is picked up by the next paint.
-		if frame := ambientGradientFrames.latest(config, painter.Now()); frame != nil {
+		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now)
+		var frame *gradientFrame
+		if freeze {
+			frame = ambientGradientFrames.frozen(config, now)
+		} else {
+			// latest never renders a phase advance on this thread (6-12 ms of CPU, most
+			// of a 60 Hz frame); the finished frame is picked up by the next paint.
+			frame = ambientGradientFrames.latest(config, now)
+		}
+		if frame != nil {
 			painter.Image(frame.bitmap, r, ui.FillBox)
 			publishGradientBackdrop(frame, r)
 		}
-		if !reduced {
+		if !reduced && !freeze {
 			// The phase only changes every gradientFrameInterval, so repainting at
 			// the display rate (AnimationFrame) painted the same frame twice for
 			// every new one, and kept the window repainting at 60 Hz while idle.

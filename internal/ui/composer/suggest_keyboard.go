@@ -34,7 +34,7 @@ func suggestionState(m Model, client *DraftClient) *SuggestionState {
 }
 
 func activeSuggestion(m Model, client *DraftClient) (SuggestKind, string, TokenRange, bool, bool) {
-	if m.Draft == nil {
+	if m.Draft == nil || client != nil && client.composing() {
 		return SuggestNone, "", TokenRange{}, false, false
 	}
 	draft := *m.Draft

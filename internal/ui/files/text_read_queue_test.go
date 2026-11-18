@@ -123,11 +123,16 @@ func TestTextReadQueueCancelCloseAndFailure(t *testing.T) {
 
 func TestTextReadReconcilePreservesDraftAndWriteAuthority(t *testing.T) {
 	dirty := textReadState{preview: "baseline", draft: "unsaved"}
-	// An explicit complete local refresh adopts the full external baseline and
-	// keeps the exact draft. Passive watchers do not call reconcileTextRead.
+	// When a dirty draft rereads changed disk text (V2 != V1), keep the original
+	// baseline, store V2 separately as a conflict, and block automatic saves.
 	got := reconcileTextRead(dirty, textReadResult{text: "changed"})
-	if got.preview != "changed" || got.draft != dirty.draft || got.blocked || got.truncated || got.remote {
-		t.Fatalf("complete explicit refresh did not retain draft/adopt baseline: %+v", got)
+	if got.preview != "baseline" || got.draft != dirty.draft || !got.blocked || !got.hasConflict || got.conflictContent != "changed" || got.truncated || got.remote {
+		t.Fatalf("dirty reread of changed disk text corrupted baseline or unblocked write: %+v", got)
+	}
+	// If a subsequent reread confirms disk matches baseline V1 again, clear the conflict.
+	got = reconcileTextRead(got, textReadResult{text: "baseline"})
+	if got.preview != "baseline" || got.draft != dirty.draft || got.blocked || got.hasConflict || got.conflictContent != "" {
+		t.Fatalf("matching reread did not clear resolved conflict: %+v", got)
 	}
 	for _, result := range []textReadResult{{text: "prefix", truncated: true}, {err: errors.New("failed")}} {
 		got := reconcileTextRead(dirty, result)
@@ -136,8 +141,12 @@ func TestTextReadReconcilePreservesDraftAndWriteAuthority(t *testing.T) {
 		}
 	}
 	got = reconcileTextRead(dirty, textReadResult{text: "baseline", remote: true})
-	if !got.remote || got.preview != dirty.preview || got.draft != dirty.draft {
+	if !got.remote || got.preview != dirty.preview || got.draft != dirty.draft || got.hasConflict {
 		t.Fatalf("remote completion established local authority: %+v", got)
+	}
+	got = reconcileTextRead(dirty, textReadResult{text: "remote-v2", remote: true})
+	if !got.remote || got.preview != dirty.preview || got.draft != dirty.draft || !got.blocked || !got.hasConflict || got.conflictContent != "remote-v2" {
+		t.Fatalf("remote external edit did not record conflict safely: %+v", got)
 	}
 	clean := textReadState{preview: "old", draft: "old", truncated: true}
 	got = reconcileTextRead(clean, textReadResult{text: "prefix", truncated: true})

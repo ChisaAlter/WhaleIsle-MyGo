@@ -152,7 +152,7 @@ func TestPluginSlotFixture(t *testing.T) {
 const nodeFixture = `
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 let exported,paint,changed,selected=[],settings=[],disposed=false;
-const entries={main:[{options:{key:'custom-view',registrant:'fixture',label:'Custom view'}}], 'settings.section':[], 'sidebar.page':[], 'sidebar.nav.tab':[], 'settings.remote.tab':[]};
+const entries={main:[{registrant:'fixture',options:{key:'custom-view',label:'Custom view'}}], 'settings.section':[], 'sidebar.page':[], 'sidebar.nav.tab':[], 'settings.remote.tab':[]};
 const react={createElement(){return null},useState(v){return [v,()=>{}]},useEffect(){},useSyncExternalStore(){return 0}};
 let buttons=[],cards=[];const document={documentElement:{},querySelectorAll(selector){return selector==='[data-plugin-item]'?cards:buttons}};
 const context={URL,URLSearchParams,location:{search:'?desktopPlugin=fixture'},document,console,queueMicrotask,MutationObserver:class{observe(){} disconnect(){}},setTimeout,clearTimeout,window:{__ModuleLoader__:{load(row){exported=row.factory(id=>react)}}}};
@@ -163,29 +163,39 @@ assert.deepEqual(selected,['custom-view']);assert.equal(typeof paint,'function')
 changed('main');assert.deepEqual(selected,['custom-view']);
 entries.main=[];changed('main');
 ctx.dispose();assert.equal(disposed,true);
-context.location.search='?desktopPlugin=fixture';entries['settings.section']=[{options:{id:'plugin-settings',registrant:'fixture'}}];
+context.location.search='?desktopPlugin=fixture';entries['settings.section']=[{registrant:'fixture',options:{id:'plugin-settings'}}];
 exported.apply(ctx);assert.deepEqual(settings,['plugin-settings']);ctx.dispose();
-entries['settings.section']=[];entries['settings.remote.tab']=[{options:{id:'channels',registrant:'fixture'}}];
+entries['settings.section']=[];entries['settings.remote.tab']=[{registrant:'fixture',options:{id:'channels'}}];
 let clicks=0;buttons=[{getAttribute(name){return name==='data-dsh-settings-remote-tab'?'channels':null},click(){clicks++}}];
 exported.apply(ctx);assert.equal(settings.at(-1),'remote');assert.equal(clicks,1);ctx.dispose();
-entries['settings.remote.tab']=[];entries['sidebar.page']=[{options:{key:'bots',registrant:'fixture'}}];entries['sidebar.nav.tab']=[{options:{id:'bots',label:()=> 'Bots'}}];
+entries['settings.remote.tab']=[];entries['sidebar.page']=[{registrant:'fixture',options:{key:'bots'}}];entries['sidebar.nav.tab']=[{options:{id:'bots',label:()=> 'Bots'}}];
 buttons=[{getAttribute(name){return name==='aria-label'?'Bots':null},hasAttribute(){return false},click(){clicks++}}];
 exported.apply(ctx);assert.equal(clicks,2);ctx.dispose();
-entries['sidebar.page']=[];entries['settings.section']=[{options:{id:'general',registrant:'host',children:{'settings.general.item':{}}}}];entries['settings.general.item']=[{options:{id:'custom',registrant:'fixture'}}];
+entries['sidebar.page']=[];entries['settings.section']=[{registrant:'host',options:{id:'general'},children:{'settings.general.item':{}}}];entries['settings.general.item']=[{registrant:'fixture',options:{id:'custom'}}];
 exported.apply(ctx);assert.equal(settings.at(-1),'general');ctx.dispose();
 entries['settings.section']=[];entries['settings.general.item']=[];
-entries.main=[{options:{key:'plugins',registrant:'manager',children:{'plugins.bundle.config':{},'plugins.row.config':{},'plugins.item':{}}}}];
-entries['plugins.bundle.config']=[{options:{key:'fixture-bundle',registrant:'fixture'}}];
+entries.main=[{registrant:'manager',options:{key:'plugins'},children:{'plugins.bundle.config':{},'plugins.row.config':{},'plugins.item':{}}}];
+entries['plugins.bundle.config']=[{registrant:'fixture',options:{key:'fixture-bundle'}}];
 const openedBundles=[];ctx.pluginNavigation={openBundle(name){openedBundles.push(name)}};
 exported.apply(ctx);assert.deepEqual(openedBundles,['fixture-bundle']);changed('plugins.bundle.config');assert.equal(openedBundles.length,1);ctx.dispose();
-entries['plugins.bundle.config']=[];entries['plugins.row.config']=[{options:{key:'fixture-bundle#worker',registrant:'fixture'}}];
+entries['plugins.bundle.config']=[];entries['plugins.row.config']=[{registrant:'fixture',options:{key:'fixture-bundle#worker'}}];
 exported.apply(ctx);assert.equal(openedBundles.at(-1),'fixture-bundle');ctx.dispose();
-entries['plugins.row.config']=[];entries['plugins.item']=[{options:{id:'official-settings',registrant:'fixture',label:'Official settings'}}];
+entries['plugins.row.config']=[];entries['plugins.item']=[{registrant:'fixture',options:{id:'official-settings',label:'Official settings'}}];
 cards=[{getAttribute(){return 'official-settings'},querySelectorAll(){return [{click(){clicks++}}]}}];
 exported.apply(ctx);assert.equal(selected.at(-1),'plugins');assert.equal(clicks,3);
 entries['plugins.item']=[];changed('plugins.item');assert.equal(clicks,3);ctx.dispose();
-entries.main=[{options:{key:'custom-owner',registrant:'host',children:{'custom.settings':{}}}}];
-entries['custom.settings']=[{options:{id:'contribution',registrant:'fixture'}}];
+entries.main=[{registrant:'host',options:{key:'custom-owner'},children:{'custom.settings':{}}}];
+entries['custom.settings']=[{registrant:'fixture',options:{id:'contribution'}}];
 exported.apply(ctx);assert.equal(selected.at(-1),'custom-owner');ctx.dispose();
+entries['custom.settings']=[];
+entries.main=[{registrant:'fixture',options:{key:'qa-panel'}}];
+entries['sidebar.panellist']=[{registrant:'fixture',options:{id:'qa-panel',label:'QA Panel'}}];
+const viewsBefore=selected.length;
+exported.apply(ctx);assert.equal(selected.length,viewsBefore+1);assert.equal(selected.at(-1),'qa-panel');ctx.dispose();
+// rc.4 stores registrant/children at entry level. A stale options stamp must
+// not claim another entry; children still lead to their original owner panel.
+entries.main=[{registrant:'other',options:{key:'foreign',registrant:'fixture'}}];
+const selectedBeforeForeign=selected.length;
+exported.apply(ctx);assert.equal(selected.length,selectedBeforeForeign);ctx.dispose();
 console.log('main/settings/plugin configuration owners, single activation and disposal passed');
 `

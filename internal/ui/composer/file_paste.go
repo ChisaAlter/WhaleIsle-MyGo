@@ -2,8 +2,6 @@ package composer
 
 import (
 	"errors"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -35,14 +33,14 @@ func setFileIntakeError(m Model, text string) {
 	}
 }
 
-// Validate the whole drop/paste before invoking the existing session-owned
-// intake. Explicit folder references use their separate picker/reference path.
+// Validate only the native path representation here. The session-owned intake
+// checks the file system off the UI thread before applying the complete batch.
 func intakeTransferredFiles(m Model, paths []string) {
 	if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
 		setFileIntakeError(m, "请等待附件准备完成 / Wait for attachment preparation")
 		return
 	}
-	files, err := regularTransferFiles(paths)
+	files, err := normalizedTransferPaths(paths)
 	if err != nil {
 		setFileIntakeError(m, err.Error())
 		return
@@ -54,7 +52,7 @@ func intakeTransferredFiles(m Model, paths []string) {
 	}
 }
 
-func regularTransferFiles(paths []string) ([]string, error) {
+func normalizedTransferPaths(paths []string) ([]string, error) {
 	if len(paths) > 128 {
 		return nil, errors.New("一次最多粘贴或拖入128个文件 / At most 128 files per paste or drop")
 	}
@@ -65,13 +63,6 @@ func regularTransferFiles(paths []string) ([]string, error) {
 			return nil, errors.New("文件路径无效 / Invalid file path")
 		}
 		path = filepath.Clean(path)
-		info, err := os.Stat(path)
-		if err != nil {
-			return nil, fmt.Errorf("无法读取文件 %s / File unavailable", filepath.Base(path))
-		}
-		if !info.Mode().IsRegular() {
-			return nil, errors.New("粘贴或拖入仅接受文件；文件夹请使用显式引用入口 / Paste or drop accepts files only; use the folder reference picker")
-		}
 		if !seen[path] {
 			seen[path] = true
 			files = append(files, path)

@@ -103,13 +103,40 @@ func classicScriptMIME(raw string) bool {
 }
 
 func (a *ResourceAPI) htmlScript(ctx context.Context, e Event) APIResponse {
+	for k, v := range e.Query {
+		if k != "src" && k != "integrity" {
+			return apiError(e, 400, "unsupported OpenUI script parameter")
+		}
+		if len(v) > MaxEventBytes {
+			return apiError(e, 400, "OpenUI script parameter exceeds event budget")
+		}
+	}
+	src := e.Query["src"]
+	if strings.TrimSpace(src) == "" {
+		return apiError(e, 400, "HTML script request requires a non-empty src")
+	}
 	integrity, err := parseScriptIntegrity(e.Query["integrity"])
 	if err != nil {
 		return apiError(e, 400, err.Error())
 	}
-	resource, failure := readPublicResource(ctx, e)
+	parsed, urlErr := publicImageURL(src)
+	if urlErr != nil {
+		status := 400
+		if errors.Is(urlErr, errNonPublicImageAddress) {
+			status = 403
+		}
+		return apiError(e, status, urlErr.Error())
+	}
+	if parsed.Scheme != "https" {
+		return apiError(e, 400, "HTML script requires a public HTTPS URL")
+	}
+	resource, failure := readPublicResourceWithScheme(ctx, e, true)
 	if failure != nil {
 		return *failure
+	}
+	finalURL, finalErr := publicImageURL(resource.source)
+	if finalErr != nil || finalURL.Scheme != "https" {
+		return apiError(e, 403, "HTML script source must remain a public HTTPS URL")
 	}
 	// MIME and UTF-8 checks do not prove script semantics or execute its code.
 	// JSON/HTML/octet-stream responses and legacy character sets are rejected.

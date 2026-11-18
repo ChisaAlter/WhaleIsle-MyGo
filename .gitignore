@@ -6,6 +6,7 @@
 # (sources are copied from the reference snapshot, see reference/README.md)
 runtime/
 /runtime-rc4/
+/runtime-0.2.2-rc2/
 
 # Read-only snapshot of the original Electron app (regenerate per reference/README.md)
 reference/electron/
@@ -37,3 +38,14 @@ pet-render-assets/
 /terminal-runtime.json
 
 /bin/
+
+# Agent-local settings and tool caches: machine-specific, never shared.
+.qwen/
+internal/desktop/phoneremote/.wrangler/
+
+# Measurement profiles and their derived dumps; regenerate from the run logs.
+*.cpuprofile
+*.cpuprofile.reads.json
+*.pprof
+*.mem
+*.cpu

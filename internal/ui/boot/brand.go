@@ -4,9 +4,6 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-
-	"whaleisle/internal/product"
-	"whaleisle/internal/ui/theme"
 )
 
 // The reference brand block (boot.html:22, boot.css:222-268) is a serif
@@ -33,6 +30,19 @@ const (
 	brandMarkTracking = .12
 	brandSubSize      = float32(8)
 	brandSubTracking  = .32
+	// brandMarkLine is .brand small's line box: line-height 1.5 over the smaller
+	// font a small element takes (5/6 of the brand size), so 55 DIP at 44 and
+	// 42.5 at 34 (boot.css:238-247). The 鲸屿 row sits in it.
+	brandMarkLine = 1.25
+	// brandMarkStrut is the font size of .brand small itself, 5/6 of the brand's
+	// (the UA's font-size: smaller). The native page lays the 10.5 DIP .tag-mark
+	// inline in that element's line box, so the mark sits on the strut baseline:
+	// 39.76 DIP into the 55 DIP box at 44, 30.73 into 42.5 at 34 (boot.css:
+	// 224-247). The engine has no inline baseline and centres a fixed-height line
+	// on the text's own metrics, which would lift the mark 8.1 DIP at 44 and 5.3
+	// at 34; the mark element therefore carries the strut's size and the span
+	// keeps 10.5.
+	brandMarkStrut = 5.0 / 6
 )
 
 // brandFont is the reference brand's serif stack: Didot on macOS, Bodoni MT and
@@ -42,38 +52,28 @@ const brandFont = "Didot, Bodoni MT, Playfair Display, Georgia, Times New Roman,
 // brandShine is the sheen's color, --boot-shine: white in both schemes.
 var brandShine = ui.RGBA(255, 255, 255, 1)
 
-// brandMark identifies the Go desktop underneath the full product wordmark.
-var brandMark = "Go"
-
 // bootBrand paints .brand: the wordmark with its sheen, the mark and the harness
 // line, centred over the sky.
-func bootBrand(c *ui.Context, short bool, fg, muted ui.Color, dark bool) {
+func bootBrand(c *ui.Context, short bool, palette *scenePalette) {
 	size, line := brandSize, brandLine
 	if short {
 		size, line = brandShortSize, brandShortLine
 	}
-	// --boot-brand-base is the ink in light and the same ink at 68% in dark
-	// (boot-tokens.css:36,80).
-	base := fg
-	if dark {
-		base = fg.Alpha(.68)
-	}
 	ui.Column(c).Key("boot-brand").AlignItems(ui.Center).Children(func() {
-		// Fit the longer product name to a compact boot window as well.
-		width, _ := c.Size()
-		span := ui.Span{Text: product.Name, Font: brandFont, Size: size, LetterSpacing: size * brandTracking}
-		if measured, _ := c.MeasureText(0, span); measured > 0 && measured > width-48 {
-			size *= max(1, width-48) / measured
-		}
-		wordmark(c, product.Name, size, line, base)
-		// .tag-mark, then .brand-sub in the code face's tracked capitals.
-		ui.Text(c, brandMark).FontSize(theme.InterfaceSize(brandMarkSize)).
-			LetterSpacing(theme.InterfaceSize(brandMarkSize)*brandMarkTracking).
-			TextColor(fg).Margin(11, 0, 0, 0)
-		ui.Text(c, "BASED ON DEEPSEEK HARNESS").Font(theme.RenderPreferences().Code.Family).
-			FontSize(theme.InterfaceSize(brandSubSize)).
-			LetterSpacing(theme.InterfaceSize(brandSubSize)*brandSubTracking).
-			TextColor(muted).Margin(6, 0, 0, 0)
+		wordmark(c, "Whale Isle", size, line, palette.brand)
+		// .tag-mark, then .brand-sub in the code face's tracked capitals. The
+		// mark keeps the small element's 1.5 line box, which is what sets the
+		// block's vertical rhythm, and rides the strut baseline the native page
+		// gives that box: the element takes .brand small's size for the line and
+		// the span keeps the mark's 10.5 DIP, which is 39.76/30.73 DIP into the
+		// 55/42.5 DIP box at 44/34 instead of the engine's centred 31.68/25.43
+		// (boot.css:224-268).
+		ui.RichText(c, ui.Span{Text: "鲸屿 · MyGo", Size: brandMarkSize, LetterSpacing: brandMarkSize * brandMarkTracking}).
+			Font(bootCodeFont).FontSize(size*brandMarkStrut).
+			FixedLineHeight(size*brandMarkLine).TextColor(palette.ink).Margin(11, 0, 0, 0)
+		ui.Text(c, "BASED ON DEEPSEEK HARNESS").Font(bootCodeFont).
+			FontSize(brandSubSize).LetterSpacing(brandSubSize*brandSubTracking).FixedLineHeight(12).
+			TextColor(palette.muted).Margin(6, 0, 0, 0)
 	})
 }
 
@@ -90,7 +90,7 @@ func wordmark(c *ui.Context, text string, size, line float32, base ui.Color) {
 		// A face the system does not have still reserves room for the word.
 		w = size * 5.5
 	}
-	mark := ui.Box(c).Key("boot-wordmark").Width(w).Height(h).Shrink(0)
+	mark := ui.Box(c).Key("boot-wordmark").Width(w).Height(line).Shrink(0)
 	mark.Label(text)
 	sweep := float32(-1)
 	if !c.Preferences().ReduceMotion {
@@ -102,14 +102,15 @@ func wordmark(c *ui.Context, text string, size, line float32, base ui.Color) {
 	shine := span
 	shine.Color = brandShine
 	mark.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.RichText(r.X, r.Y, 0, span)
+		y := r.Y + (r.H-h)/2
+		p.RichText(r.X, y, 0, span)
 		if sweep < 0 {
 			return
 		}
 		band := max(r.W*.45, 28)
 		x := r.X + r.W + band - (r.W+2*band)*sweep
 		p.Clip(ui.Rect{X: x, Y: r.Y, W: band, H: r.H}, 0, func() {
-			p.RichText(r.X, r.Y, 0, shine)
+			p.RichText(r.X, y, 0, shine)
 		})
 	})
 }

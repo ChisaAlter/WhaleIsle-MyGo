@@ -325,9 +325,6 @@ func bodyFontSizePreference(c *ui.Context, e *theme.Editor, fg, muted ui.Color) 
 	if e == nil {
 		return
 	}
-	if !settingsItemBefore(c, "general-font-settings") {
-		return
-	}
 	group := ui.Column(c.Key("general-font-settings")).FillWidth().MinWidth(0).Gap(0)
 	open := ui.Local(group, "expanded", func() bool { return false })
 	if settingsSearchReveal(c, "general-font-settings") {
@@ -361,9 +358,6 @@ func themeEditorFeedback(c *ui.Context, e *theme.Editor) {
 }
 
 func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) {
-	if !settingsItemBefore(c, key) {
-		return
-	}
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
 	settingsSearchTarget(c, key, title, row)
 	row.Children(func() {

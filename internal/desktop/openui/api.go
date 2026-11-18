@@ -32,12 +32,22 @@ func ValidateAPIResponse(r APIResponse, instance string) error {
 }
 
 func validateAPIRequest(e Event) error {
-	if e.RequestID == "" || e.Query == nil {
+	if e.RequestID == "" || len(e.RequestID) > MaxEventBytes || e.Query == nil {
 		return errors.New("invalid OpenUI API request")
+	}
+	totalQueryBytes := 0
+	for k, v := range e.Query {
+		totalQueryBytes += len(k) + len(v)
+		if len(k) > MaxEventBytes || len(v) > MaxEventBytes || totalQueryBytes > MaxEventBytes {
+			return errors.New("OpenUI API parameter exceeds event budget")
+		}
 	}
 	key := ""
 	switch e.Path {
 	case "/api/html-script":
+		if strings.TrimSpace(e.Query["src"]) == "" {
+			return errors.New("OpenUI script request requires a non-empty src")
+		}
 		for k := range e.Query {
 			if k != "src" && k != "integrity" {
 				return errors.New("unsupported OpenUI script parameter")

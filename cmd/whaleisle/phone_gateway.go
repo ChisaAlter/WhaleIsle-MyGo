@@ -21,7 +21,7 @@ func (s *mainState) clearLegacyRelayToken(value string) error {
 		return err
 	}
 	creds.RemoteRelayToken = ""
-	if err = credentials.Save(paths.UserDataDir(), creds); err != nil {
+	if err = credentials.SaveSharedProfile(paths.UserDataDir(), creds); err != nil {
 		return err
 	}
 	s.mu.Lock()
@@ -38,21 +38,17 @@ func (s *mainState) savePhoneGateway(expected, p config.RemoteGatewayPreferences
 	if err := s.cfgStore.SaveRemoteGateway(expected, p); err != nil {
 		return err
 	}
-	// The old Git grant must not survive a topology change. Refresh serializes
-	// lifecycle changes through phoneOp and reads the latest committed config.
-	s.revokePhoneGit()
-	s.mu.Lock()
-	s.phoneActionMsg = i18n.T(i18n.KeyCmdGatewaySettingsSavedApplying)
-	s.mu.Unlock()
-	go func() {
-		s.stopPhoneRuntime()
-		s.refreshPhoneRemote()
-		s.mu.Lock()
-		win := s.win
-		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
-		}
-	}()
+	s.applySavedPhoneGateway()
+	return nil
+}
+
+func (s *mainState) savePhoneEnabled(enabled bool) error {
+	if s.cfgStore == nil {
+		return errors.New(i18n.T(i18n.KeyCmdRemoteConfigUnavailable))
+	}
+	if err := s.cfgStore.Update(func(c *config.Config) { c.RemoteEnabled = enabled }); err != nil {
+		return err
+	}
+	s.applySavedPhoneGateway()
 	return nil
 }

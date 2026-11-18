@@ -16,9 +16,9 @@ func webviewTestLocale(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(old) })
 }
 
-// TestViewOpensTheHostOnce proves the panel entry loads the real WebView2
-// chrome strip instead of stopping on a description of what could be built.
-func TestViewOpensTheHostOnce(t *testing.T) {
+// TestViewDoesNotAutoOpenHostAndRequiresExplicitClick proves the panel entry renders
+// the WebView2 launch controls without implicitly launching a host window until clicked.
+func TestViewDoesNotAutoOpenHostAndRequiresExplicitClick(t *testing.T) {
 	webviewTestLocale(t)
 	opened, browser := 0, 0
 	m := Model{
@@ -28,8 +28,8 @@ func TestViewOpensTheHostOnce(t *testing.T) {
 		OnOpenBrowser: func() { browser++ },
 	}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 900, 600)
-	if opened != 1 {
-		t.Fatalf("host opens = %d, want 1", opened)
+	if opened != 0 {
+		t.Fatalf("implicit auto-open fired: host opens = %d, want 0", opened)
 	}
 	if browser != 0 {
 		t.Fatalf("browser opens = %d, want 0", browser)
@@ -42,6 +42,12 @@ func TestViewOpensTheHostOnce(t *testing.T) {
 		if strings.Contains(texts, banned) {
 			t.Fatalf("developer placeholder %q is still rendered:\n%s", banned, texts)
 		}
+	}
+	if err := tt.Click(i18n.T(i18n.KeyWebViewOpenHost)); err != nil {
+		t.Fatal(err)
+	}
+	if opened != 1 {
+		t.Fatalf("explicit click host opens = %d, want 1", opened)
 	}
 }
 

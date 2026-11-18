@@ -1,18 +1,16 @@
 package harness
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/desktop/pluginslots"
-	"whaleisle/internal/desktop/pluginui"
 )
 
 const (
 	sessionSearchOverlayFile = "desktop-session-search.patch.yml"
-	marketOverlayFile        = "desktop-dsh-market.patch.yml"
-	marketPackage            = "@deepseek-ai/dsh-client-ui-settings-market"
-	marketInsertID           = "ui-settings-market"
+	routeAOverlayFile        = "desktop-route-a.patch.yml"
 )
 
 func extraOverlays(o PrepareOptions) ([]string, error) {
@@ -20,11 +18,25 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	nativePatch, err := pluginui.Prepare(o.ProfileDir)
+	routeAPatch, err := writeRouteAHostOverlay(o)
 	if err != nil {
 		return nil, err
 	}
-	out := []string{viewPatch, nativePatch}
+	out := []string{viewPatch, routeAPatch}
+	skillPatch, err := writeSkillImportOverlay(o)
+	if err != nil {
+		return nil, err
+	}
+	if skillPatch != "" {
+		out = append(out, skillPatch)
+	}
+	mcpPatch, err := writeMCPImportOverlay(o)
+	if err != nil {
+		return nil, err
+	}
+	if mcpPatch != "" {
+		out = append(out, mcpPatch)
+	}
 	proactivePatch, err := writeProactiveOverlay(o)
 	if err != nil {
 		return nil, err
@@ -39,13 +51,6 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 			out = append(out, p)
 		}
 	}
-	p, err := writeMarketOverlay(o)
-	if err != nil {
-		return nil, err
-	}
-	if p != "" {
-		out = append(out, p)
-	}
 	office, err := EnsureOfficeOverlay(o)
 	if err != nil {
 		return nil, err
@@ -53,7 +58,88 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 	if office != "" {
 		out = append(out, office)
 	}
+	extra, err := writeEnvOverlay(o)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, extra...)
 	return out, nil
+}
+
+func writeRouteAHostOverlay(o PrepareOptions) (string, error) {
+	lines := []string{
+		"# Desktop-managed Route A overlay passed via --patch.",
+		"# Disables background @deepseek-ai/dsh-client-hmr 500ms disk polling while",
+		"# retaining client module metadata for on-demand compat views.",
+		"- id: client-hmr",
+		"  disabled: true",
+	}
+
+	if o.HarnessRoot != "" {
+		hasLibreOffice := hasPackageJSON(o.HarnessRoot, "node_modules/@deepseek-ai/libreoffice-kit/package.json") ||
+			hasPackageJSON(o.HarnessRoot, "apps/cli/node_modules/@deepseek-ai/libreoffice-kit/package.json")
+		if !hasLibreOffice {
+			lines = append(lines,
+				"- id: office-to-pdf",
+				"  disabled: true",
+			)
+		}
+
+		hasSherpaOnnx := hasPackageJSON(o.HarnessRoot, "node_modules/sherpa-onnx-node/package.json") ||
+			hasPackageJSON(o.HarnessRoot, "packages/experimental/speech-to-text-sensevoice/node_modules/sherpa-onnx-node/package.json")
+		if !hasSherpaOnnx {
+			lines = append(lines,
+				"- id: speech-to-text-sensevoice",
+				"  disabled: true",
+			)
+		}
+	}
+
+	lines = append(lines, "")
+	contents := strings.Join(lines, "\n")
+	return writeRawOverlay(o.ProfileDir, "route-a", routeAOverlayFile, contents)
+}
+
+func hasPackageJSON(root, rel string) bool {
+	p := filepath.Join(root, filepath.FromSlash(rel))
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
+}
+
+// EnvExtraOverlay is a development/QA hook: it names a directory holding one
+// complete client plugin package (package.json + index.js + client.js + a
+// *.patch.yml insert). The package is linked into the profile's node_modules
+// and its patch joins the launch overlays, so the Host loads a real
+// third-party plugin through the ordinary loader.
+const EnvExtraOverlay = "WHALEISLE_EXTRA_OVERLAY"
+
+func writeEnvOverlay(o PrepareOptions) ([]string, error) {
+	dir := strings.TrimSpace(os.Getenv(EnvExtraOverlay))
+	if dir == "" {
+		return nil, nil
+	}
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("%s: %q is not a plugin directory", EnvExtraOverlay, dir)
+	}
+	link := filepath.Join(o.ProfileDir, "node_modules", filepath.Base(dir))
+	if _, err := EnsureDirectoryLink(dir, link); err != nil {
+		return nil, err
+	}
+	var patches []string
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".patch.yml") {
+			patches = append(patches, filepath.Join(dir, entry.Name()))
+		}
+	}
+	if len(patches) == 0 {
+		return nil, fmt.Errorf("%s: %q has no *.patch.yml insert", EnvExtraOverlay, dir)
+	}
+	return patches, nil
 }
 
 func writeSessionSearchOverlay(o PrepareOptions) (string, error) {
@@ -76,38 +162,6 @@ func writeSessionSearchOverlay(o PrepareOptions) (string, error) {
 	return writeRawOverlay(o.ProfileDir, "session-search", sessionSearchOverlayFile, contents)
 }
 
-func writeMarketOverlay(o PrepareOptions) (string, error) {
-	if o.HarnessRoot != "" {
-		source := resolveMarketSource(o.HarnessRoot)
-		if source != "" {
-			link := filepath.Join(o.ProfileDir, "node_modules", "@deepseek-ai", "dsh-client-ui-settings-market")
-			if _, err := EnsureDirectoryLink(source, link); err != nil {
-				return "", err
-			}
-		}
-	}
-	p := DesktopPlugin{
-		Package:     marketPackage,
-		InsertID:    marketInsertID,
-		OverlayFile: marketOverlayFile,
-		OverlayDir:  "dsh-market",
-	}
-	return writeInsertOverlay(o.ProfileDir, p)
-}
-
-func resolveMarketSource(harnessRoot string) string {
-	candidates := []string{
-		filepath.Join(harnessRoot, "packages", "client", "ui-settings-market"),
-		filepath.Join(harnessRoot, "node_modules", "@deepseek-ai", "dsh-client-ui-settings-market"),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(filepath.Join(c, "package.json")); err == nil {
-			return c
-		}
-	}
-	return ""
-}
-
 func writeRawOverlay(profileDir, overlayDir, filename, contents string) (string, error) {
 	dir := filepath.Join(profileDir, "desktop-plugins", overlayDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -117,12 +171,7 @@ func writeRawOverlay(profileDir, overlayDir, filename, contents string) (string,
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == contents {
 		return path, nil
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, []byte(contents), 0o644); err != nil {
-		return "", err
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	if err := writeFileAtomic(path, []byte(contents), 0o644); err != nil {
 		return "", err
 	}
 	return path, nil

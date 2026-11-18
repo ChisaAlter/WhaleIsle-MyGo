@@ -100,6 +100,7 @@ const (
 	uiaRootObjectID  = -25
 	objidClient      = -4
 	eventObjectFocus = 0x8005
+	eOutOfMemory     = 0x8007000E
 
 	uiaRuntimeIDProperty        = 30000
 	uiaControlTypeProperty      = 30003
@@ -210,7 +211,12 @@ type uiaTree struct {
 
 func (e *uiaElement) ptr(i int) uintptr { return uintptr(unsafe.Pointer(&e.ifaces[i])) }
 
-func uiaOf(this uintptr) *uiaElement { return (*uiaIface)(native(this)).e }
+func uiaOf(this uintptr) *uiaElement {
+	if this == 0 {
+		return nil
+	}
+	return (*uiaIface)(native(this)).e
+}
 
 func newUIAElement(t *uiaTree) *uiaElement {
 	e := &uiaElement{refs: 1, tree: t}
@@ -645,7 +651,7 @@ func initUIA() {
 	vtbl := func(methods ...uintptr) []uintptr { return append(slices.Clone(unknown), methods...) }
 	live := func(this uintptr) (*uiaElement, uintptr) {
 		e := uiaOf(this)
-		if e.dead {
+		if e == nil || e.dead {
 			return nil, uiaElementNotAvailable
 		}
 		return e, sOK
@@ -677,8 +683,12 @@ func initUIA() {
 			return sOK
 		}),
 		cb(func(this, p uintptr) uintptr { // get_HostRawElementProvider
-			e := uiaOf(this)
-			if e.root && !e.dead {
+			e, hr := live(this)
+			if e == nil {
+				out(p, nil, 0)
+				return hr
+			}
+			if e.root {
 				r, _, _ := procUiaHostProviderFromHwnd.Call(e.tree.s.hwnd, p)
 				return r
 			}
@@ -734,6 +744,9 @@ func initUIA() {
 				return sOK
 			}
 			sa, _, _ := procSafeArrayCreateVector.Call(vtI4, 0, uintptr(len(id)))
+			if sa == 0 {
+				return eOutOfMemory
+			}
 			for i := range id {
 				index := int32(i)
 				procSafeArrayPutElement.Call(sa, uintptr(unsafe.Pointer(&index)), uintptr(unsafe.Pointer(&id[i])))
@@ -816,7 +829,12 @@ func initUIA() {
 	uiaVtbls[ifaceToggle] = vtbl(
 		cb(press),
 		cb(func(this, p uintptr) uintptr { // get_ToggleState
-			*(*int32)(native(p)) = toggleState(uiaOf(this).n)
+			e, hr := live(this)
+			if e == nil {
+				*(*int32)(native(p)) = 0
+				return hr
+			}
+			*(*int32)(native(p)) = toggleState(e.n)
 			return sOK
 		}),
 	)
@@ -834,7 +852,12 @@ func initUIA() {
 		selectItem,
 		cb(func(this uintptr) uintptr { return uiaInvalidOperation }), // RemoveFromSelection
 		cb(func(this, p uintptr) uintptr { // get_IsSelected
-			setBool(p, selected(uiaOf(this)))
+			e, hr := live(this)
+			if e == nil {
+				setBool(p, false)
+				return hr
+			}
+			setBool(p, selected(e))
 			return sOK
 		}),
 		cb(func(this, p uintptr) uintptr { // get_SelectionContainer
@@ -855,6 +878,9 @@ func initUIA() {
 			}
 			chosen := e.chosen()
 			sa, _, _ := procSafeArrayCreateVector.Call(vtUnknown, 0, uintptr(len(chosen)))
+			if sa == 0 {
+				return eOutOfMemory
+			}
 			for i, d := range chosen {
 				index := int32(i)
 				procSafeArrayPutElement.Call(sa, uintptr(unsafe.Pointer(&index)), d.ptr(ifaceSimple))
@@ -872,6 +898,11 @@ func initUIA() {
 			return sOK
 		}),
 		cb(func(this, p uintptr) uintptr { // get_IsSelectionRequired
+			e, hr := live(this)
+			if e == nil {
+				setBool(p, false)
+				return hr
+			}
 			setBool(p, false)
 			return sOK
 		}),
@@ -889,7 +920,12 @@ func initUIA() {
 
 	rangeOf := func(get func(n platform.AccessNode) float64) uintptr {
 		return cb(func(this, p uintptr) uintptr {
-			setFloat(p, get(uiaOf(this).n))
+			e, hr := live(this)
+			if e == nil {
+				setFloat(p, 0)
+				return hr
+			}
+			setFloat(p, get(e.n))
 			return sOK
 		})
 	}
@@ -897,7 +933,12 @@ func initUIA() {
 		setValue,
 		rangeOf(rangeValue),
 		cb(func(this, p uintptr) uintptr { // get_IsReadOnly
-			setBool(p, uiaOf(this).n.Actions&platform.ActionIncrement == 0)
+			e, hr := live(this)
+			if e == nil {
+				setBool(p, false)
+				return hr
+			}
+			setBool(p, e.n.Actions&platform.ActionIncrement == 0)
 			return sOK
 		}),
 		rangeOf(func(n platform.AccessNode) float64 { return n.Max }),
@@ -918,11 +959,21 @@ func initUIA() {
 			return e.act(platform.AccessSetValue, wstr(s))
 		}),
 		cb(func(this, p uintptr) uintptr { // get_Value
-			*(*uintptr)(native(p)) = bstr(uiaOf(this).n.Value)
+			e, hr := live(this)
+			if e == nil {
+				*(*uintptr)(native(p)) = 0
+				return hr
+			}
+			*(*uintptr)(native(p)) = bstr(e.n.Value)
 			return sOK
 		}),
 		cb(func(this, p uintptr) uintptr { // get_IsReadOnly
-			setBool(p, uiaOf(this).n.Actions&platform.ActionSetValue == 0)
+			e, hr := live(this)
+			if e == nil {
+				setBool(p, false)
+				return hr
+			}
+			setBool(p, e.n.Actions&platform.ActionSetValue == 0)
 			return sOK
 		}),
 	)
@@ -947,7 +998,12 @@ func initUIA() {
 		expand(true),
 		expand(false),
 		cb(func(this, p uintptr) uintptr { // get_ExpandCollapseState
-			*(*int32)(native(p)) = expandState(uiaOf(this).n)
+			e, hr := live(this)
+			if e == nil {
+				*(*int32)(native(p)) = 0
+				return hr
+			}
+			*(*int32)(native(p)) = expandState(e.n)
 			return sOK
 		}),
 	)

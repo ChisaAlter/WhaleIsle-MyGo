@@ -50,9 +50,6 @@ func (s *Store) followCurrentLocked(ctx context.Context, sessionID string, gener
 
 func (s *Store) clearHistoryErrorLocked() {
 	s.invalidateViewLocked()
-	if s.historyError != "" && s.lastAction == s.historyError {
-		s.lastAction = ""
-	}
 	s.historyError = ""
 }
 
@@ -65,34 +62,76 @@ func (s *Store) reportFollowError(ctx context.Context, sessionID string, generat
 		s.mu.Unlock()
 		return
 	}
-	s.lastAction = prefix + err.Error()
 	s.historyLoading = false
-	s.historyError = s.lastAction
+	s.historyReconnecting = false
+	s.historyError = prefix + err.Error()
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 
+func (s *Store) markFollowReconnecting(ctx context.Context, sessionID string, generation uint64) bool {
+	s.mu.Lock()
+	if !s.followCurrentLocked(ctx, sessionID, generation) {
+		s.mu.Unlock()
+		return false
+	}
+	changed := !s.historyReconnecting || s.historyError != "" || s.historyLoading
+	s.historyReconnecting = true
+	s.historyLoading = false
+	s.clearHistoryErrorLocked()
+	s.invalidateViewLocked()
+	s.mu.Unlock()
+	if changed {
+		s.fire()
+	}
+	return true
+}
+
 func (s *Store) runFollow(ctx context.Context, mux *dsh.Mux, sessionID string, generation uint64) {
-	for s.runFollowConnection(ctx, mux, sessionID, generation) {
+	backoff := 100 * time.Millisecond
+	for {
+		restart, progressed := s.runFollowAttempt(ctx, mux, sessionID, generation)
+		if !restart {
+			return
+		}
+		if progressed {
+			backoff = 100 * time.Millisecond
+		}
+		timer := time.NewTimer(backoff)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case <-time.After(100 * time.Millisecond):
+		case <-timer.C:
+		}
+		if !progressed && backoff < 2*time.Second {
+			backoff *= 2
+			if backoff > 2*time.Second {
+				backoff = 2 * time.Second
+			}
 		}
 	}
 }
 
 func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID string, generation uint64) bool {
+	restart, _ := s.runFollowAttempt(ctx, mux, sessionID, generation)
+	return restart
+}
+
+func (s *Store) runFollowAttempt(ctx context.Context, mux *dsh.Mux, sessionID string, generation uint64) (bool, bool) {
 	s.mu.Lock()
 	current := s.followCurrentLocked(ctx, sessionID, generation)
 	s.mu.Unlock()
 	if !current {
-		return false
+		return false, false
 	}
 	if err := mux.Dial(ctx); err != nil {
+		if errors.Is(err, dsh.ErrCarrierLost) {
+			return s.markFollowReconnecting(ctx, sessionID, generation), false
+		}
 		s.reportFollowError(ctx, sessionID, generation, "follow dial: ", err)
-		return false
+		return false, false
 	}
 	payload := map[string]any{"args": map[string]any{"request": map[string]any{
 		"address": sessionAddressJSON(sessionID), "assistantStream": true,
@@ -101,14 +140,17 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 	}}}
 	stream, err := mux.Open(ctx, "session/follow", payload)
 	if err != nil {
+		if errors.Is(err, dsh.ErrCarrierLost) {
+			return s.markFollowReconnecting(ctx, sessionID, generation), false
+		}
 		s.reportFollowError(ctx, sessionID, generation, "follow open: ", err)
-		return false
+		return false, false
 	}
 	defer stream.Cancel()
 	s.mu.Lock()
 	if !s.followCurrentLocked(ctx, sessionID, generation) {
 		s.mu.Unlock()
-		return false
+		return false, false
 	}
 	s.mu.Unlock()
 	opened, cursorKnown := false, false
@@ -116,14 +158,17 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 	for {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
-			// The original journal treats an accepted follow's unexplained end
-			// as carrier loss. Business error frames remain terminal; the main
-			// mux owner separately restores physical socket loss.
+			// Clean logical stream EOF restarts silently for the active selection.
 			if errors.Is(err, dsh.ErrStreamEnd) && opened {
 				s.mu.Lock()
 				current := s.followCurrentLocked(ctx, sessionID, generation)
 				s.mu.Unlock()
-				return current
+				return current, true
+			}
+			// Physical mux loss preserves loaded transcript and enters reconnecting
+			// wait instead of flashing a terminal error or giving up.
+			if errors.Is(err, dsh.ErrCarrierLost) {
+				return s.markFollowReconnecting(ctx, sessionID, generation), opened
 			}
 			if !errors.Is(err, dsh.ErrStreamEnd) {
 				s.reportFollowError(ctx, sessionID, generation, "follow: ", err)
@@ -135,7 +180,7 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 					s.reportFollowError(ctx, sessionID, generation, "follow: ", errors.New("history stream ended before snapshot"))
 				}
 			}
-			return false
+			return false, opened
 		}
 		var frame struct {
 			Type   string   `json:"type"`
@@ -151,11 +196,11 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 			if *frame.Event.Seq != cursor+1 {
 				// Never fold an event over a hole. Reopening obtains the atomic
 				// durable window and assistant baseline from the Host.
-				return true
+				return true, opened
 			}
 		}
 		if !s.applyFollowFrameForTarget(ctx, sessionID, generation, raw) {
-			return false
+			return false, opened
 		}
 		if frame.Type == "snapshot" {
 			opened = true
@@ -169,7 +214,7 @@ func (s *Store) runFollowConnection(ctx context.Context, mux *dsh.Mux, sessionID
 		restart := s.followCurrentLocked(ctx, sessionID, generation) && s.assistantStream.rebaseline
 		s.mu.Unlock()
 		if restart {
-			return true
+			return true, opened
 		}
 	}
 }
@@ -338,15 +383,86 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 		}
 		snap := parsed.snap
 		s.historyLoading = false
+		s.historyReconnecting = false
 		s.historyReady = true
 		s.clearHistoryErrorLocked()
+		expectedBinding := fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
+		sameSession := s.selectedID != "" && len(s.messages) > 0 && s.planHistoryBinding == expectedBinding
+		snapMinSeq, snapHasSeq := snapshotMinPersistenceSeq(snap.Records)
+		prevMinSeq := oldestPersistenceSeq(s.messages)
+		prevMaxSeq := maxPersistenceSeq(s.messages)
+		keepPrefix := sameSession && snapHasSeq && prevMinSeq > 0 && prevMinSeq < snapMinSeq && snapMinSeq <= prevMaxSeq+1
+		hasGap := sameSession && snapHasSeq && prevMinSeq > 0 && prevMaxSeq > 0 && snapMinSeq > prevMaxSeq+1
+
+		var (
+			prefixMsgs     []Message
+			prefixWorkflow map[float64]json.RawMessage
+			prefixTraj     map[float64]json.RawMessage
+			prefixAnchors  map[float64]float64
+			prefixInsp     map[float64]json.RawMessage
+			prefixSettled  map[float64]string
+			prefixHasMore  bool
+		)
+		if keepPrefix {
+			prefixHasMore = s.historyHasMore
+			for _, m := range s.messages {
+				if m.Seq > 0 && m.Seq < snapMinSeq {
+					prefixMsgs = append(prefixMsgs, m)
+				}
+			}
+			for seq, raw := range s.workflowBoundaries {
+				if seq < snapMinSeq {
+					if prefixWorkflow == nil {
+						prefixWorkflow = map[float64]json.RawMessage{}
+					}
+					prefixWorkflow[seq] = raw
+				}
+			}
+			for seq, raw := range s.trajectoryBoundaries {
+				if seq < snapMinSeq {
+					if prefixTraj == nil {
+						prefixTraj = map[float64]json.RawMessage{}
+					}
+					prefixTraj[seq] = raw
+				}
+			}
+			for seq, anchor := range s.systemPromptAnchors {
+				if seq < snapMinSeq {
+					if prefixAnchors == nil {
+						prefixAnchors = map[float64]float64{}
+					}
+					prefixAnchors[seq] = anchor
+				}
+			}
+			if s.inspector.client == s.client && s.inspector.session == s.selectedID && s.inspector.generation == s.followGeneration {
+				for seq, raw := range s.inspector.events {
+					if seq < snapMinSeq {
+						if prefixInsp == nil {
+							prefixInsp = map[float64]json.RawMessage{}
+						}
+						prefixInsp[seq] = raw
+					}
+				}
+				for seq, root := range s.inspector.settledRoots {
+					if seq < snapMinSeq {
+						if prefixSettled == nil {
+							prefixSettled = map[float64]string{}
+						}
+						prefixSettled[seq] = root
+					}
+				}
+			}
+		} else {
+			s.clearPerSessionDecodeCachesLocked()
+		}
+
 		if snap.Projections != nil {
 			s.applySessionPresentationValuesLocked(s.selectedID, "sequenced", snap.Projections.AsOfSeq, snap.Projections.Values)
 			s.applySessionSubagentIdentityValuesLocked(s.selectedID, "sequenced", snap.Projections.AsOfSeq, snap.Projections.Values)
 			s.applyCostBaselineLocked(s.selectedID, snap.Projections.AsOfSeq, snap.Projections.Values)
 		}
 		s.resetInspectorLocked()
-		s.planHistoryBinding = fmt.Sprintf("%p\x00%s", s.client, s.selectedID)
+		s.planHistoryBinding = expectedBinding
 		s.turnFilesHistoryBinding = turnFileHistoryBinding(s.client, s.selectedID)
 		s.messages = nil
 		s.workflowBoundaries = nil
@@ -367,6 +483,53 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 				s.publishAssistantDurableRecordLocked(rec)
 			}
 		}
+		if keepPrefix && len(prefixMsgs) > 0 {
+			for seq, raw := range prefixWorkflow {
+				if s.workflowBoundaries == nil {
+					s.workflowBoundaries = map[float64]json.RawMessage{}
+				}
+				if _, exists := s.workflowBoundaries[seq]; !exists {
+					s.workflowBoundaries[seq] = raw
+				}
+			}
+			for seq, raw := range prefixTraj {
+				if s.trajectoryBoundaries == nil {
+					s.trajectoryBoundaries = map[float64]json.RawMessage{}
+				}
+				if _, exists := s.trajectoryBoundaries[seq]; !exists {
+					s.trajectoryBoundaries[seq] = raw
+				}
+			}
+			for seq, anchor := range prefixAnchors {
+				if s.systemPromptAnchors == nil {
+					s.systemPromptAnchors = map[float64]float64{}
+				}
+				if _, exists := s.systemPromptAnchors[seq]; !exists {
+					s.systemPromptAnchors[seq] = anchor
+				}
+			}
+			for seq, raw := range prefixInsp {
+				if _, exists := s.inspector.events[seq]; !exists {
+					s.inspector.events[seq] = raw
+					s.inspector.rawBytes += len(raw)
+				}
+			}
+			for seq, root := range prefixSettled {
+				if s.inspector.settledRoots == nil {
+					s.inspector.settledRoots = map[float64]string{}
+				}
+				if _, exists := s.inspector.settledRoots[seq]; !exists {
+					s.inspector.settledRoots[seq] = root
+				}
+			}
+			s.pruneInspectorEventsLocked()
+			for _, m := range prefixMsgs {
+				if m.Seq > 0 {
+					s.noteHistoryBaseLocked(m.Seq)
+				}
+			}
+			s.messages = append(prefixMsgs, s.messages...)
+		}
 		s.pruneInspectorSettlementsLocked()
 		s.restoreAssistantStreamLocked(snap.AssistantStream)
 		if snap.Projections != nil {
@@ -382,10 +545,18 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 		if snap.Cursor != nil {
 			s.bumpHistoryThroughSeq(*snap.Cursor)
 		}
-		if snap.HasMore != nil {
+		if keepPrefix && len(prefixMsgs) > 0 {
+			s.historyHasMore = prefixHasMore
+		} else if snap.HasMore != nil {
 			s.historyHasMore = *snap.HasMore
+			if hasGap {
+				s.historyHasMore = true
+			}
 		} else {
 			s.syncHistoryHasMoreAfterSnapshotLocked()
+			if hasGap {
+				s.historyHasMore = true
+			}
 		}
 		return true
 	case "event":
@@ -398,6 +569,21 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 	default:
 		return false
 	}
+}
+
+func snapshotMinPersistenceSeq(records []followSnapshotRecord) (float64, bool) {
+	var minSeq float64
+	found := false
+	for _, rec := range records {
+		if rec.Type != "event" || !rec.seqOK || rec.seq <= 0 {
+			continue
+		}
+		if !found || rec.seq < minSeq {
+			minSeq = rec.seq
+			found = true
+		}
+	}
+	return minSeq, found
 }
 
 func (s *Store) applyPersistenceEvent(raw json.RawMessage) {

@@ -56,14 +56,7 @@ func transcriptProcess(msg session.Message) bool {
 	return msg.Kind == session.MessageKindThinking || msg.Kind == session.MessageKindTool || msg.Kind == session.MessageKindCompaction || msg.Kind == session.MessageKindCommand || msg.Role == "assistant" && msg.Kind == session.MessageKindText
 }
 
-// projectTranscript changes presentation only. Journal rows and accounting stay
-// intact, and stopped/running turns or intervening user input remain visible.
-func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[string]transcriptControl) {
-	mode := m.Preferences.TranscriptView
-	if mode == "" {
-		mode = "standard"
-	}
-	turns := map[float64]*transcriptTurn{}
+func transcriptMessageTurnKeys(msgs []session.Message) ([]float64, []float64, []bool) {
 	keys := make([]float64, len(msgs))
 	known := make([]bool, len(msgs))
 	steps := make([]float64, len(msgs))
@@ -76,11 +69,30 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 		}
 	}
 	for i, msg := range msgs {
-		turn, step, ok := keys[i], steps[i], known[i]
-		if !ok && msg.TurnSeq > 0 {
-			turn, ok = byStart[msg.TurnSeq]
-			keys[i], known[i] = turn, ok
+		if !known[i] && msg.TurnSeq > 0 {
+			if turn, ok := byStart[msg.TurnSeq]; ok {
+				keys[i], known[i] = turn, true
+			}
 		}
+	}
+	return keys, steps, known
+}
+
+// projectTranscript changes presentation only. Journal rows and accounting stay
+// intact, and stopped/running turns or intervening user input remain visible.
+func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[string]transcriptControl) {
+	return projectTranscriptWithLastInput(msgs, m, false, 0)
+}
+
+func projectTranscriptWithLastInput(msgs []session.Message, m Model, hasLastInput bool, overrideLastInput float64) ([]session.Message, map[string]transcriptControl) {
+	mode := m.Preferences.TranscriptView
+	if mode == "" {
+		mode = "standard"
+	}
+	turns := map[float64]*transcriptTurn{}
+	keys, steps, known := transcriptMessageTurnKeys(msgs)
+	for i, msg := range msgs {
+		turn, step, ok := keys[i], steps[i], known[i]
 		if !ok {
 			continue
 		}
@@ -130,10 +142,12 @@ func projectTranscript(msgs []session.Message, m Model) ([]session.Message, map[
 	out := make([]session.Message, 0, len(msgs))
 	controls := map[string]transcriptControl{}
 	scope := m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID
-	lastInput := float64(0)
-	for _, msg := range msgs {
-		if msg.Role == "user" && msg.Kind == session.MessageKindText {
-			lastInput = max(lastInput, msg.Seq)
+	lastInput := overrideLastInput
+	if !hasLastInput {
+		for _, msg := range msgs {
+			if msg.Role == "user" && msg.Kind == session.MessageKindText {
+				lastInput = max(lastInput, msg.Seq)
+			}
 		}
 	}
 	settled := func(t *transcriptTurn) bool {

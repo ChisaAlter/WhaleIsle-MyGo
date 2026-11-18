@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,7 +26,8 @@ func TestIsDocumentUpdatedEmit(t *testing.T) {
 }
 
 func TestOpenSettingsDocument(t *testing.T) {
-	var opened bool
+	var mu sync.Mutex
+	opened := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var env struct {
 			RPCID string `json:"rpcId"`
@@ -33,7 +35,9 @@ func TestOpenSettingsDocument(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&env)
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/settings/openSettingsDocument"):
+			mu.Lock()
 			opened = true
+			mu.Unlock()
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"type": "server-response", "rpcId": env.RPCID,
 				"result": map[string]any{"ok": true, "value": map[string]any{}},
@@ -60,10 +64,16 @@ func TestOpenSettingsDocument(t *testing.T) {
 	st.OpenSettingsDocument(context.Background())
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if opened && st.Snapshot().LastAction == "settings document opened" {
+		mu.Lock()
+		ready := opened && st.Snapshot().LastAction == "settings document opened"
+		mu.Unlock()
+		if ready {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("opened=%v action=%q", opened, st.Snapshot().LastAction)
+	mu.Lock()
+	seen, action := opened, st.Snapshot().LastAction
+	mu.Unlock()
+	t.Fatalf("opened=%v action=%q", seen, action)
 }

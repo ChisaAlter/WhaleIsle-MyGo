@@ -5,20 +5,20 @@ const asset=n=>readFileSync(new URL('../internal/desktop/pet/assets/'+n,import.m
 async function fixture({neural=false,rigFails=false,neuralFails=false,sheet=false,lateClose=false,neuralRunFails=false,sleeping=false}={}) {
  const trace=[], raf=new Map(),timers=new Map(),events=new Map(),nodes=new Map();let id=0;
  const ctx=new Proxy({canvas:{width:780,height:984},createImageData:()=>({data:new Uint8ClampedArray(512*512*4)}),getImageData:()=>({data:new Uint8ClampedArray(512*512*4)})},{get:(t,k)=>k in t?t[k]:(...a)=>trace.push([k,...a])});
- const node=n=>{if(!nodes.has(n))nodes.set(n,{style:{setProperty(){}},addEventListener(){},removeAttribute(){},setAttribute(){},replaceChildren(){},getContext:()=>ctx});return nodes.get(n);};
+ const node=n=>{if(!nodes.has(n))nodes.set(n,{style:{setProperty(){}},addEventListener(){},removeAttribute(){},setAttribute(){},replaceChildren(){},append(){},getContext:()=>ctx});return nodes.get(n);};
  const window={addEventListener:(n,f)=>events.set(n,f)};
  class Observer {observe(){}disconnect(){}}
- const scope={window,ResizeObserver:Observer,MutationObserver:Observer,Float32Array,Uint8ClampedArray,Set,Map,Math,Error,Number,Object,URL,Promise,Date,performance:{now:()=>1000},location:{href:'https://pet.local/index.html'},requestAnimationFrame:f=>{raf.set(++id,f);return id;},cancelAnimationFrame:i=>raf.delete(i),setTimeout:(f,ms)=>{timers.set(++id,{f,ms});return id;},clearTimeout:i=>timers.delete(i),setInterval:(f,ms)=>{timers.set(++id,{f,ms});return id;},clearInterval:i=>timers.delete(i)};
- scope.document={hidden:false,body:{dataset:{behavior:'{}',neural:String(neural),rig:'true',sleeping:String(sleeping)}},documentElement:node('html'),getElementById:node,querySelector:q=>q==='.task'?node('task'):null,addEventListener(){},removeEventListener(){},createElement:t=>({...node('new-'+t),remove(){}}),head:{appendChild(tag){trace.push(['script',tag.src]);queueMicrotask(()=>{if(['pet-rig.js','tha4.js'].includes(tag.src))vm.runInContext(asset(tag.src),context);tag.onload?.();});}}};
+ const scope={window,ResizeObserver:Observer,MutationObserver:Observer,Float32Array,Uint8ClampedArray,Set,Map,Math,Error,Number,Object,URL,Promise,Date,matchMedia:()=>({matches:false,addEventListener(){}}),performance:{now:()=>1000},location:{href:'https://pet.local/index.html'},requestAnimationFrame:f=>{raf.set(++id,f);return id;},cancelAnimationFrame:i=>raf.delete(i),setTimeout:(f,ms)=>{timers.set(++id,{f,ms});return id;},clearTimeout:i=>timers.delete(i),setInterval:(f,ms)=>{timers.set(++id,{f,ms});return id;},clearInterval:i=>timers.delete(i)};
+ scope.document={hidden:false,body:{dataset:{behavior:'{}',neural:String(neural),rig:'true',sleeping:String(sleeping)},append(){}},documentElement:node('html'),getElementById:node,querySelector:q=>q==='.task'?node('task'):null,addEventListener(){},removeEventListener(){},createElement:t=>({...node('new-'+t),remove(){}}),head:{appendChild(tag){trace.push(['script',tag.src]);queueMicrotask(()=>{if(['pet-rig.js','tha4.js'].includes(tag.src))vm.runInContext(asset(tag.src),context);tag.onload?.();});}}};
  scope.fetch=async url=>{trace.push(['fetch',url]);if(lateClose)events.get('pagehide')?.();return {ok:!rigFails,json:async()=>JSON.parse(asset('rig/manifest.json'))};};
- scope.Image=class{set src(src){this.name=src;this.naturalWidth=src.includes('character')?512:src==='sprite.webp'?1536:502;this.naturalHeight=src.includes('character')?512:src==='sprite.webp'?208:695;trace.push(['image',src]);queueMicrotask(()=>src==='sprite.webp'&&!sheet?this.onerror?.():this.onload?.());}};
- window.WhalePetCareAnimation={create:()=>({update(){},pose(){},close(){}})};
+ scope.Image=class{set src(src){this.name=src;this.naturalWidth=src.includes('character')?512:src==='sprite.webp'?1536:502;this.naturalHeight=src.includes('character')?512:src==='sprite.webp'?1872:695;trace.push(['image',src]);queueMicrotask(()=>src==='sprite.webp'&&!sheet?this.onerror?.():this.onload?.());}};
+ window.WhalePetCareAnimation={create:()=>({update(){},frame(){return null;},present(){},pose(){},close(){}})};
  window.WhalePetInteraction={create:()=>({pose(p){p.fill(0);},renderState:()=>({state:'eat'}),close(){}})};
  window.WhalePetBehavior={create:()=>({powerSaving:()=>false,close(){}})};
  let runCount=0;
  const pixels=new Float32Array(512*512*4);pixels.fill(255,512*512*3);
  scope.ort={env:{wasm:{}},Tensor:class{constructor(type,data,dims){Object.assign(this,{type,data,dims});}dispose(){}},InferenceSession:{create:async(_,o)=>{trace.push(['provider',o.executionProviders[0]]);if(neuralFails)throw Error('no provider');return {run:async()=>{if(neuralRunFails&&++runCount>1)throw Error('frame failure');return {rgba_f:{dims:[1,4,512,512],data:pixels,dispose(){}}};},release:async()=>trace.push(['release'])};}}};
- const context=vm.createContext(scope);vm.runInContext(asset('pet-super-resolution.js'),context);await vm.runInContext(asset('pet-runtime.js'),context);
+ const context=vm.createContext(scope);vm.runInContext(asset('pet-super-resolution.js'),context);vm.runInContext(asset('pet-sprite.js'),context);await vm.runInContext(asset('pet-runtime.js'),context);
  for(let i=0;i<10;i++)await Promise.resolve();
  return {scope,trace,raf,timers,events};
 }

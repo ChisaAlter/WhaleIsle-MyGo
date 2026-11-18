@@ -126,13 +126,32 @@ func (p *profile) close() error {
 	name, err := windows.UTF16PtrFromString(p.name)
 	if err == nil {
 		hr, _, _ := deleteProfileProc.Call(uintptr(unsafe.Pointer(name)))
+		hr = finishProfileDeletion(hr, func() uintptr {
+			next, _, _ := deleteProfileProc.Call(uintptr(unsafe.Pointer(name)))
+			return next
+		})
 		err = hresult("DeleteAppContainerProfile", hr)
+		if err != nil {
+			err = fmt.Errorf("%w; retained profile %s at %s", err, p.name, p.folder)
+		}
 	}
 	if p.sid != nil {
 		_ = windows.FreeSid(p.sid)
 		p.sid = nil
 	}
 	return err
+}
+
+// Windows may remove part of the profile and report a sharing violation even
+// after the job is empty and its handles are closed. DeleteAppContainerProfile
+// explicitly requires another call to finish an incomplete deletion. The real
+// WebView2 teardown reproduces this as ERROR_SHARING_VIOLATION followed by S_OK
+// immediately; do not sleep, retry access errors, or hide a second failure.
+func finishProfileDeletion(first uintptr, complete func() uintptr) uintptr {
+	if uint32(first) == 0x80070020 {
+		return complete()
+	}
+	return first
 }
 
 // The Windows network-isolation implementation depends on these services.
@@ -379,10 +398,48 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 		inputWrite.Close()
 		outputRead.Close()
 		errorRead.Close()
+		// TerminateJobObject only initiates process termination. A job PID list
+		// can become empty before the process exit signals cover outstanding I/O.
+		// Pin current members and wait for those signals before deleting their UDF.
+		var members []windows.Handle
+		pids, observeErr := jobPIDs(job)
+		for _, pid := range pids {
+			if pid == process.ProcessId {
+				continue
+			}
+			handle, openErr := windows.OpenProcess(windows.SYNCHRONIZE|windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+			if openErr == windows.ERROR_INVALID_PARAMETER {
+				continue // Already exited before it could be pinned.
+			}
+			if openErr != nil {
+				observeErr = errors.Join(observeErr, openErr)
+				continue
+			}
+			if verifyErr := verifyInJob(handle, job); verifyErr != nil {
+				windows.CloseHandle(handle)
+				observeErr = errors.Join(observeErr, verifyErr)
+				continue
+			}
+			members = append(members, handle)
+		}
 		terminateErr := windows.TerminateJobObject(job, 1)
 		// Keep the job handle alive until every member has exited. If cleanup
 		// cannot be observed, retain profile data instead of deleting live UDFs.
 		deadline := time.Now().Add(5 * time.Second)
+		for _, handle := range append(members, process.Process) {
+			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				observeErr = errors.Join(observeErr, errors.New("preview process exit deadline expired"))
+				break
+			}
+			result, waitErr := windows.WaitForSingleObject(handle, uint32((remaining+time.Millisecond-1)/time.Millisecond))
+			if waitErr != nil || result != windows.WAIT_OBJECT_0 {
+				observeErr = errors.Join(observeErr, fmt.Errorf("preview process exit was not observed: result=%d error=%v", result, waitErr))
+			}
+		}
+		for _, handle := range members {
+			windows.CloseHandle(handle)
+		}
 		empty := false
 		for time.Now().Before(deadline) {
 			pids, queryErr := jobPIDs(job)
@@ -394,10 +451,10 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (_ *Session, e
 		}
 		windows.CloseHandle(process.Process)
 		windows.CloseHandle(job)
-		if !empty {
+		if !empty || observeErr != nil {
 			_ = windows.FreeSid(p.sid)
 			p.sid = nil
-			return errors.New("preview job exit was not observed; profile retained")
+			return errors.Join(terminateErr, observeErr, fmt.Errorf("preview job exit was not observed; retained profile %s at %s", p.name, p.folder))
 		}
 		return errors.Join(terminateErr, p.close())
 	}

@@ -1,0 +1,7 @@
+{
+  "tags": ["release"],
+  "trimpath": true,
+  "ldflags": ["-s", "-w"],
+  "windowsGUI": true,
+  "forbiddenSymbols": ["TestClick", "TestAccessibility", "DriveWindow", "WindowDriver", "NewTester", "testCountersEnabled", "testFrameCountersEnabled"]
+}

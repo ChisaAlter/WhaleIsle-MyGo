@@ -1,0 +1,8 @@
+---
+description: Project technical baseline, read-only upstream boundary, build storage and temporary artifact ownership
+alwaysApply: true
+---
+
+Follow [project AGENTS.md](../../AGENTS.md) across all work in this repository:
+1. Technical baseline: read the corresponding sections of [ARCHITECTURE.md](../../ARCHITECTURE.md) and terminology in [GLOSSARY.md](../../GLOSSARY.md) before core workflow, module, DSH/Host, plugin/custom-space, UI, performance, data, or release-compatibility work; treat `C:/AI/Deepseek-Harness-Desktop` as read-only reference; preserve existing workspace modifications and user data; advance migrations per task authorization.
+2. Build storage and disk constraints: before installing dependencies, copying runtimes, building, packaging, verifying, or cleaning outputs, follow the build-storage section in [project AGENTS.md](../../AGENTS.md) — reuse shared user caches, enforce the 50 GiB C: free-space floor before large operations, require creator `try/finally`/`defer`/`t.Cleanup` teardown for owned temporary workspaces, and obey junction-safe cleanup boundaries.

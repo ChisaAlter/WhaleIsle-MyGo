@@ -1,0 +1,14 @@
+{
+  "sourceBranch": "codex/route-a-system-optimization",
+  "sourceBase": "11595831f43af4e401bdb613a2e744d6bfe2a5af",
+  "workingTree": "uncommitted implementation",
+  "version": "0.2.0",
+  "bytes": 96427008,
+  "MiB": 91.96,
+  "tags": "release",
+  "trimpath": true,
+  "stripped": true,
+  "windowsResources": true,
+  "includesFinalFileRefreshFix": true,
+  "installed": false
+}

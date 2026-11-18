@@ -16,10 +16,7 @@ func (s *mainState) applicationCommandActions(c *ui.Context) map[string]func() {
 		"window.zoomOut":    func() { c.SetZoomFactor(c.ZoomFactor() - 0.1) },
 		"window.actualSize": func() { c.SetZoomFactor(1) },
 		"window.fullscreen": func() {
-			s.mu.Lock()
-			win := mygo.FocusedWindow()
-			s.mu.Unlock()
-			if win != nil {
+			if win := mygo.FocusedWindow(); win != nil {
 				win.ToggleFullScreen()
 			}
 		},

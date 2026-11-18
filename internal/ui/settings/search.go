@@ -65,7 +65,7 @@ func searchEntries(m Model) []searchEntry {
 		row(SectionGeneral, "显示代码工作视图", "Show coding view", "开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."),
 		row(SectionGeneral, "快捷键", "Shortcuts", "查看和编辑当前可用的快捷键和输入操作", "View and edit the available shortcuts and input actions"),
 		row(SectionGeneral, "关闭窗口时", "When closing the window", "点标题栏关闭时：最小化到托盘，或退出并停止本机 Harness 服务。", "The title-bar close button can hide the app in the tray, or quit and stop the local Harness service."),
-		row(SectionGeneral, "启动时", "On launch", "直接打开桌面端，或先打开启动器再手动启动桌面端。", "Open the desktop directly, or open the launcher first and start the desktop manually."),
+		row(SectionGeneral, "启动时", "On launch", "选择自动启动 Host，或在工作台手动启动。", "Start Host automatically or from the workbench."),
 		row(SectionGeneral, "性能与用量", "Performance and usage", "选择性能与用量信息展示的详细程度", "Choose how detailed the performance and usage information is"),
 		row(SectionGeneral, "在使用官方模型 API 时上传 Session Log", "Upload Session Log when using the official model API", "帮助改进 DeepSeek 模型与产品", "Help improve DeepSeek models and products"),
 		row(SectionGeneral, "Harness 自动恢复", "Harness auto-recovery", "Harness 进程意外退出后自动重启，最多重试有限次数。", "Restart the Harness automatically after an unexpected exit, with a bounded number of retries."),
@@ -169,42 +169,7 @@ func searchEntries(m Model) []searchEntry {
 			entries = append(entries, searchEntry{section: contribution.ID, title: field.Title, detail: field.Description, target: field.Target, reveal: field.Reveal, open: contribution.OnSelect})
 		}
 	}
-	if m.PublicContributions.Entries != nil {
-		for _, page := range primaryNavigation(m, snap) {
-			slot := "settings." + string(page.id) + ".item"
-			if page.id == SectionUsageStats {
-				slot = "settings.usage.item"
-			}
-			for _, contribution := range m.PublicContributions.Entries(slot, "") {
-				if contribution.Native {
-					continue
-				}
-				title, detail := settingsContributionSearchText(contribution.Nodes)
-				if label := strings.TrimSpace(contribution.Label); label != "" {
-					if title != "" {
-						detail = strings.TrimSpace(title + " · " + detail)
-					}
-					title = label
-				}
-				if title != "" {
-					entries = append(entries, searchEntry{section: page.id, title: title, detail: detail, target: "public-settings-item-" + contribution.Handle, open: page.onSelect})
-				}
-			}
-		}
-	}
-	filtered := entries[:0]
-	for _, entry := range entries {
-		slot := "settings." + string(entry.section) + ".item"
-		if entry.section == SectionUsageStats {
-			slot = "settings.usage.item"
-		}
-		id := settingsSearchEntryBuiltinID(entry, slot)
-		if id != "" && !m.PublicContributions.NativeWinner(slot, "", id) {
-			continue
-		}
-		filtered = append(filtered, entry)
-	}
-	return filtered
+	return entries
 }
 
 // settingsSearchMatches matches every word across the title, description and

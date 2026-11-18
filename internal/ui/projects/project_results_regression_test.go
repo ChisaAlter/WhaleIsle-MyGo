@@ -3,6 +3,9 @@ package projects
 import (
 	"encoding/json"
 	"fmt"
+	"image/png"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -50,6 +53,53 @@ func TestProjectPublishedPageUsesMeasuredSlotWidthAndHeightLimits(t *testing.T) 
 				t.Fatalf("page height clamp=%v want=%v", surface.heights, tc.want)
 			}
 		})
+	}
+}
+
+func TestProjectPublishedPageOpensOnlyAfterExplicitAction(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	opened, closes := 0, 0
+	active := false
+	page := projectflow.DeliveryPageReference{CallID: "explicit", Title: "Published result", Height: 120}
+	m := Model{VisualPage: func(string, projectflow.DeliveryPageReference, int) VisualPagePreview {
+		if active {
+			return VisualPagePreview{Available: true, Opened: true, Close: func() { active = false; closes++ }}
+		}
+		return VisualPagePreview{Available: true, Open: func() { active = true; opened++ }}
+	}}
+	tt := ui.NewTester(func(c *ui.Context) { renderVisualPages(c, m, "request:A", []projectflow.DeliveryPageReference{page}) }, 800, 600)
+	tt.Frame()
+	if opened != 0 || !tt.HasText("Open interactive page") {
+		t.Fatal("default page did not expose explicit open")
+	}
+	if dir := os.Getenv("SURFACES_GALLERY_DIR"); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		file, err := os.Create(filepath.Join(dir, "project-page-explicit-open.png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = png.Encode(file, tt.Image()); err != nil {
+			_ = file.Close()
+			t.Fatal(err)
+		}
+		if err = file.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tt.Click("Open interactive page"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != 1 || !active {
+		t.Fatal("explicit open did not reach its owner")
+	}
+	if err := tt.Click("Close page preview"); err != nil {
+		t.Fatal(err)
+	}
+	if active || closes != 1 {
+		t.Fatal("explicit close did not release its owner")
 	}
 }
 

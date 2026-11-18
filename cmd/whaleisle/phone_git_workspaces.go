@@ -83,12 +83,7 @@ func (s *mainState) phoneGitWorkspaceCatalog() (string, []remoteui.PhoneGitWorks
 	if !snap.WorkspaceReady {
 		return "", nil
 	}
-	s.mu.Lock()
-	var projects []projectflow.Project
-	if s.projectFlow.client == client && s.projectFlow.loaded && s.projectFlow.listing.Available {
-		projects = append(projects, s.projectFlow.listing.Projects...)
-	}
-	s.mu.Unlock()
+	projects, _ := s.projectManager().LoadedProjects(client)
 	return fmt.Sprintf("%p:%d:%d", client, live.Generation, snap.ComposerHostGeneration), phoneGitRegisteredRoots(snap.Workspaces, projects)
 }
 

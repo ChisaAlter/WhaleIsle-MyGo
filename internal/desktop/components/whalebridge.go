@@ -9,6 +9,7 @@ package components
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -133,10 +134,7 @@ func NewWhaleBridgeService(opts ServiceOptions) *WhaleBridgeService {
 	if arch == "" {
 		arch = runtime.GOARCH
 	}
-	client := opts.HTTPClient
-	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
-	}
+	client := bridgeHardenedHTTPClient(opts.HTTPClient, 30*time.Second)
 	s := &WhaleBridgeService{
 		root: root, dshHome: dsh, devPackage: strings.TrimSpace(opts.DevPackage),
 		route: normalizeRoute(opts.Route), client: client, platform: platform,
@@ -415,32 +413,41 @@ func readManifest(path string) (WhaleBridgeManifest, error) {
 }
 
 func writeJSONAtomic(path string, value any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := path + fmt.Sprintf(".%d.tmp", os.Getpid())
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o600); err != nil {
-		return err
+	return writeFileAtomicRetry(path, append(b, '\n'), 0o600)
+}
+
+type operationLockPayload struct {
+	PID       int    `json:"pid"`
+	Token     string `json:"token"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func readOperationLockPayload(path string) (operationLockPayload, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return operationLockPayload{}, err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		// os.Rename cannot replace an existing file on Windows. Remove only
-		// the destination we just attempted to replace, then retry the rename;
-		// callers still get the original error when the replacement fails.
-		if runtime.GOOS == "windows" {
-			if removeErr := os.Remove(path); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
-				if retryErr := os.Rename(tmp, path); retryErr == nil {
-					return nil
-				}
-			}
-		}
-		_ = os.Remove(tmp)
-		return err
+	var p operationLockPayload
+	if json.Unmarshal(b, &p) == nil && p.PID > 0 {
+		return p, nil
 	}
-	return nil
+	var pid int
+	if _, scanErr := fmt.Sscan(strings.TrimSpace(string(b)), &pid); scanErr == nil && pid > 0 {
+		return operationLockPayload{PID: pid}, nil
+	}
+	return operationLockPayload{}, errors.New("unrecognized operation lock contents")
+}
+
+func randomLockToken() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+	}
+	return hex.EncodeToString(raw[:])
 }
 
 // acquireOperationLock prevents two launcher processes from switching the
@@ -450,17 +457,80 @@ func (s *WhaleBridgeService) acquireOperationLock() (func(), error) {
 	if err := os.MkdirAll(s.root, 0o755); err != nil {
 		return nil, err
 	}
-	path := filepath.Join(s.root, "operation.lock")
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		if errors.Is(err, os.ErrExist) {
-			return nil, errors.New("WhaleBridge operation busy")
-		}
+	if _, err := lstatNotReparse(s.root); err != nil {
 		return nil, err
 	}
-	_, _ = io.WriteString(f, fmt.Sprintf("%d\n", os.Getpid()))
-	_ = f.Close()
-	return func() { _ = os.Remove(path) }, nil
+	path := filepath.Join(s.root, "operation.lock")
+	payload := operationLockPayload{
+		PID:       os.Getpid(),
+		Token:     randomLockToken(),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	encoded = append(encoded, '\n')
+
+	for attempt := 0; attempt < 3; attempt++ {
+		if existingInfo, lerr := os.Lstat(path); lerr == nil && isReparseOrSymlink(existingInfo) {
+			return nil, errors.New("WhaleBridge operation lock is an unsafe symlink or junction")
+		}
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			_, writeErr := f.Write(encoded)
+			syncErr := f.Sync()
+			closeErr := f.Close()
+			if writeErr != nil || syncErr != nil || closeErr != nil {
+				_ = os.Remove(path)
+				if writeErr != nil {
+					return nil, writeErr
+				}
+				if syncErr != nil {
+					return nil, syncErr
+				}
+				return nil, closeErr
+			}
+			return func() {
+				if cur, curErr := readOperationLockPayload(path); curErr == nil && cur.Token == payload.Token {
+					_ = os.Remove(path)
+				}
+			}, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return nil, err
+		}
+		info, statErr := os.Lstat(path)
+		if statErr != nil {
+			continue
+		}
+		if isReparseOrSymlink(info) {
+			return nil, errors.New("WhaleBridge operation lock is an unsafe symlink or junction")
+		}
+		cur, parseErr := readOperationLockPayload(path)
+		if parseErr != nil {
+			// Give a concurrent creator a moment to finish writing PID metadata.
+			if time.Since(info.ModTime()) < 5*time.Second {
+				time.Sleep(50 * time.Millisecond)
+				cur, parseErr = readOperationLockPayload(path)
+			}
+		}
+		stale := false
+		if parseErr == nil {
+			if cur.PID != os.Getpid() && !genericPIDAlive(cur.PID) {
+				stale = true
+			}
+		} else if time.Since(info.ModTime()) > 5*time.Second {
+			stale = true
+		}
+		if !stale {
+			return nil, errors.New("WhaleBridge operation busy")
+		}
+		if removeErr := os.Remove(path); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return nil, errors.New("WhaleBridge operation busy")
+		}
+	}
+	return nil, errors.New("WhaleBridge operation busy")
 }
 
 func (s *WhaleBridgeService) row(cat *WhaleBridgeCatalog) Row {
@@ -586,10 +656,53 @@ func (s *WhaleBridgeService) Rollback(ctx context.Context, onProgress func(Progr
 	if rec == nil || rec.Previous == "" {
 		return Row{}, errors.New("no WhaleBridge version to roll back")
 	}
-	if _, err := os.Stat(filepath.Join(s.root, "versions", rec.Previous, whaleBridgeAsset)); err != nil {
-		return Row{}, fmt.Errorf("rollback payload missing: %w", err)
+	if !validComponentVersionSegment(rec.Previous) {
+		return Row{}, errors.New("invalid WhaleBridge rollback version")
+	}
+	if err := s.verifyInstalledVersionPayload(rec.Previous); err != nil {
+		return Row{}, fmt.Errorf("rollback verification failed: %w", err)
 	}
 	return s.switchVersion(ctx, rec.Version, rec.Previous, rec.Previous, onProgress)
+}
+
+func (s *WhaleBridgeService) verifyInstalledVersionPayload(version string) error {
+	if !validComponentVersionSegment(version) {
+		return errors.New("invalid WhaleBridge version")
+	}
+	versionsDir := filepath.Join(s.root, "versions")
+	if info, err := lstatNotReparse(versionsDir); err != nil || !info.IsDir() {
+		return errors.New("WhaleBridge versions directory missing or unsafe")
+	}
+	dir := filepath.Join(versionsDir, version)
+	if info, err := lstatNotReparse(dir); err != nil || !info.IsDir() {
+		return errors.New("WhaleBridge version directory missing or unsafe")
+	}
+	manifestPath := filepath.Join(dir, whaleBridgeManifest)
+	mInfo, err := lstatNotReparse(manifestPath)
+	if err != nil || !mInfo.Mode().IsRegular() {
+		return errors.New("WhaleBridge version manifest missing or unsafe")
+	}
+	b, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return err
+	}
+	var m WhaleBridgeManifest
+	if err := json.Unmarshal(b, &m); err != nil {
+		return fmt.Errorf("invalid WhaleBridge manifest JSON: %w", err)
+	}
+	if m.ID != whaleBridgeID || m.Version != version {
+		return errors.New("WhaleBridge manifest identity or version mismatch")
+	}
+	p, ok := m.Platforms["win32-x64"]
+	if !ok || p.Size <= 0 || !digestPattern.MatchString(strings.ToLower(p.SHA256)) || (p.Asset != "" && p.Asset != whaleBridgeAsset) {
+		return errors.New("WhaleBridge manifest platform metadata invalid")
+	}
+	binPath := filepath.Join(dir, whaleBridgeAsset)
+	bInfo, err := lstatNotReparse(binPath)
+	if err != nil || !bInfo.Mode().IsRegular() {
+		return errors.New("WhaleBridge binary missing or unsafe")
+	}
+	return verifyFile(binPath, p.Size, p.SHA256)
 }
 
 func (s *WhaleBridgeService) switchVersion(ctx context.Context, oldVersion, newVersion, oldPrevious string, onProgress func(Progress)) (Row, error) {
@@ -637,18 +750,40 @@ func (s *WhaleBridgeService) Uninstall(ctx context.Context, removeData bool, onP
 			return Row{}, err
 		}
 	}
-	staged := filepath.Join(s.root, fmt.Sprintf(".uninstall-%d", os.Getpid()))
-	versions := filepath.Join(s.root, "versions")
-	if err := os.Rename(versions, staged); err != nil && !errors.Is(err, os.ErrNotExist) {
+	staged, err := os.MkdirTemp(s.root, ".uninstall-")
+	if err != nil {
 		return Row{}, err
+	}
+	stagedVersions := filepath.Join(staged, "versions")
+	versions := filepath.Join(s.root, "versions")
+	hasVersions := false
+	if _, statErr := os.Lstat(versions); statErr == nil {
+		if err := os.Rename(versions, stagedVersions); err != nil {
+			_ = os.RemoveAll(staged)
+			return Row{}, err
+		}
+		hasVersions = true
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		_ = os.RemoveAll(staged)
+		return Row{}, statErr
 	}
 	if err := os.Remove(filepath.Join(s.root, "installed.json")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		_ = os.Rename(staged, versions)
+		if hasVersions {
+			_ = os.Rename(stagedVersions, versions)
+		}
+		_ = os.RemoveAll(staged)
 		return Row{}, err
 	}
-	if err := s.disconnect(ctx, staged, rec.Version); err != nil {
+	disconnectRoot := staged
+	if hasVersions {
+		disconnectRoot = stagedVersions
+	}
+	if err := s.disconnect(ctx, disconnectRoot, rec.Version); err != nil {
 		_ = writeJSONAtomic(filepath.Join(s.root, "installed.json"), *rec)
-		_ = os.Rename(staged, versions)
+		if hasVersions {
+			_ = os.Rename(stagedVersions, versions)
+		}
+		_ = os.RemoveAll(staged)
 		return Row{}, err
 	}
 	_ = os.RemoveAll(staged)
@@ -800,6 +935,17 @@ func readLogTail(path string) string {
 	return text
 }
 
+func disconnectComponentRoot(root string) string {
+	componentRoot := root
+	base := filepath.Base(root)
+	if base == "versions" && strings.HasPrefix(filepath.Base(filepath.Dir(root)), ".uninstall-") {
+		componentRoot = filepath.Dir(filepath.Dir(root))
+	} else if strings.HasPrefix(base, ".uninstall-") {
+		componentRoot = filepath.Dir(root)
+	}
+	return componentRoot
+}
+
 func disconnectWhalebridge(ctx context.Context, root, version string) error {
 	if version == "" {
 		return nil
@@ -818,10 +964,7 @@ func disconnectWhalebridge(ctx context.Context, root, version string) error {
 			return err
 		}
 	}
-	componentRoot := root
-	if strings.HasPrefix(filepath.Base(root), ".uninstall-") {
-		componentRoot = filepath.Dir(root)
-	}
+	componentRoot := disconnectComponentRoot(root)
 	dshHome := filepath.Join(filepath.Dir(filepath.Dir(componentRoot)), "dsh-home")
 	if ctx == nil {
 		ctx = context.Background()
@@ -829,9 +972,9 @@ func disconnectWhalebridge(ctx context.Context, root, version string) error {
 	cmd := exec.CommandContext(ctx, exe, "whalebridge-disconnect")
 	processutil.Background(cmd)
 	cmd.Dir = filepath.Dir(exe)
-	cmd.Env = append(os.Environ(),
+	cmd.Env = sanitizeComponentEnv(os.Environ(),
 		"LAUNCHER_COMPONENT_ID="+whaleBridgeID,
-		"LAUNCHER_COMPONENT_DATA_DIR="+filepath.Join(root, "data"),
+		"LAUNCHER_COMPONENT_DATA_DIR="+filepath.Join(componentRoot, "data"),
 		"WHALEBRIDGE_DSH_HOME="+dshHome,
 		"MAGPIE_ADDR=127.0.0.1:3427",
 	)

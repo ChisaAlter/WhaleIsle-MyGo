@@ -2,6 +2,7 @@ package pluginmanager
 
 import (
 	"context"
+	"encoding/json"
 	"whaleisle/internal/dsh/api"
 )
 
@@ -123,4 +124,27 @@ func (c Client) Exempt(ctx context.Context, pkg, runtime string) (Change, error)
 		AcceptRisk bool   `json:"acceptRisk"`
 	}{pkg, runtime, true, true}, &v)
 	return v, e
+}
+
+// CreateMCPServer imports without replacing a concurrently created server.
+func (c Client) CreateMCPServer(ctx context.Context, spec json.RawMessage) error {
+	return c.Caller.Call(ctx, "mygoMCP/import", map[string]any{"request": api.McpServerUpsertRequest{Spec: spec}}, nil)
+}
+
+func (c Client) MCPServers(ctx context.Context) (api.McpServerSnapshot, error) {
+	var result api.McpServerSnapshot
+	err := c.Caller.Call(ctx, "mcpServers/list", nil, &result)
+	return result, err
+}
+
+// CreateSkill installs a parsed local SKILL.md into the Host skill inventory without requiring a dsh.bundle.
+func (c Client) CreateSkill(ctx context.Context, skill LocalSkillManifest) error {
+	return c.Caller.Call(ctx, "skillInventory/create", map[string]any{"request": api.SkillInventoryCreateRequest{
+		Name:           skill.Name,
+		Description:    skill.Description,
+		Content:        skill.Content,
+		Root:           "user-dsh",
+		ModelInvocable: skill.ModelInvocable,
+		UserInvocable:  skill.UserInvocable,
+	}}, nil)
 }

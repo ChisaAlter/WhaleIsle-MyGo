@@ -8,10 +8,15 @@ param(
     [string]$OutputRoot = $env:WHALEISLE_PACKAGE_OUTPUT,
     [string]$RuntimeRoot,
     [switch]$StageOnly,
-    [string]$GoExecutable = 'go'
+    # Opt in: preserve the installer/metadata, reclaim only this run's payload.
+    [switch]$CleanStage,
+    [string]$GoExecutable = 'go',
+    [string]$SigningScript = $env:WHALEISLE_SIGNING_SCRIPT,
+    [switch]$RequireSignature = (([string]$env:WHALEISLE_UPDATE_REQUIRE_SIGNATURE).Trim() -notin @('', '0', 'false', 'no'))
 )
 
 $ErrorActionPreference = 'Stop'
+if ($StageOnly -and $CleanStage) { throw 'StageOnly retains its payload; use CleanStage only when building an installer.' }
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
@@ -35,17 +40,8 @@ if (Test-Path -LiteralPath $Stage) {
 New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 
 Write-Host "Building whaleisle.exe (buildVersion=$Version) -> $ExeOut"
-$ldflags = "-s -w -X main.buildVersion=$Version"
-if ((& $GoExecutable env GOOS).Trim() -eq 'windows') {
-    $ldflags += ' -H windowsgui'
-    # Plain go build links .syso in the main package: icon, manifest and
-    # version info (mygo build embeds the same resources). Without them the
-    # installed exe and its shortcuts show no icon.
-    & $GoExecutable tool mygo winres -pkg cmd/whaleisle -arch ((& $GoExecutable env GOARCH).Trim()) -version $Version
-    if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
-}
-& $GoExecutable build -ldflags $ldflags -o $ExeOut ./cmd/whaleisle
-if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
+$BuildRelease = Join-Path $PSScriptRoot 'build-release.ps1'
+& $BuildRelease -Package 'cmd/whaleisle' -Output $ExeOut -Version $Version -GoExecutable $GoExecutable
 
 # Package the separate helper, but never run it during build/staging.
 # Its presence does not enable scripts: the product requires an explicit
@@ -55,17 +51,10 @@ $PreviewArch = (& $GoExecutable env GOARCH).Trim()
 if ($PreviewOS -eq 'windows') {
     if ($PreviewArch -notin @('amd64', 'arm64')) { throw 'Interactive preview helper supports Windows amd64/arm64 only.' }
     $PreviewOut = Join-Path $Stage 'whaleisle-preview.exe'
-    & $GoExecutable tool mygo winres -pkg cmd/whaleisle-preview -arch $PreviewArch -version $Version
-    if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
-    & $GoExecutable build -ldflags "-s -w -H windowsgui" -o $PreviewOut ./cmd/whaleisle-preview
-    if ($LASTEXITCODE -ne 0) { throw "Preview helper build failed (exit $LASTEXITCODE)" }
+    & $BuildRelease -Package 'cmd/whaleisle-preview' -Output $PreviewOut -Version $Version -GoExecutable $GoExecutable
     $IntegrationOut = Join-Path $Stage 'whaleisle-integration.exe'
-    & $GoExecutable tool mygo winres -pkg cmd/whaleisle-integration -arch $PreviewArch -version $Version
-    if ($LASTEXITCODE -ne 0) { throw 'Windows resource generation failed' }
-    & $GoExecutable build -ldflags '-s -w -H windowsgui' -o $IntegrationOut ./cmd/whaleisle-integration
-    if ($LASTEXITCODE -ne 0) { throw "Integration cleanup helper build failed (exit $LASTEXITCODE)" }
+    & $BuildRelease -Package 'cmd/whaleisle-integration' -Output $IntegrationOut -Version $Version -GoExecutable $GoExecutable
 }
-Remove-Item -Path "$ProjectRoot\cmd\*\mygo_windows_*.syso" -Force -ErrorAction SilentlyContinue
 
 $ResSrc = Join-Path $ProjectRoot 'resources'
 $ResDst = Join-Path $Stage 'resources'
@@ -92,17 +81,20 @@ $TerminalArch = (& $GoExecutable env GOARCH).Trim()
 & $GoExecutable run ./tools/stage-terminal -target "$TerminalOS-$TerminalArch" -out $Stage
 if ($LASTEXITCODE -ne 0) { throw 'Native terminal runtime staging failed; set WHALEISLE_TERMINAL_LIBRARY to the pinned official library.' }
 
-# Every package includes the fixed THA4 assets, even shell-only development packages.
-# Keep the input outside dist/whaleisle: that directory is recreated above.
-$PetAssets = $env:WHALEISLE_PET_RENDER_ASSETS
-if (-not $PetAssets) { $PetAssets = Join-Path $ProjectRoot 'runtime\pet-render-assets' }
-if (Test-Path $PetAssets -PathType Container) {
-    & node (Join-Path $PSScriptRoot 'pet-render-assets.mjs') $PetAssets $Stage
-    if ($LASTEXITCODE -ne 0) { throw 'THA4 resource staging failed; run scripts/restore-pet-render-assets.ps1 or set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.' }
-} elseif ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') {
-    Write-Host 'Note: verified THA4 assets unavailable; shell-only package skips runtime pet staging.'
+# Route A (decision 3A): default excludes bundled pet-render-assets, bundle only when explicitly requested.
+if ($env:WHALEISLE_INCLUDE_PET_ASSETS -eq '1') {
+    $PetAssets = $env:WHALEISLE_PET_RENDER_ASSETS
+    if (-not $PetAssets) { $PetAssets = Join-Path $ProjectRoot 'runtime\pet-render-assets' }
+    if (Test-Path $PetAssets -PathType Container) {
+        & node (Join-Path $PSScriptRoot 'pet-render-assets.mjs') $PetAssets $Stage
+        if ($LASTEXITCODE -ne 0) { throw 'THA4 resource staging failed; run scripts/restore-pet-render-assets.ps1 or set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.' }
+    } elseif ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') {
+        Write-Host 'Note: verified THA4 assets unavailable; shell-only package skips runtime pet staging.'
+    } else {
+        throw 'THA4 resource staging failed; run scripts/restore-pet-render-assets.ps1 (pinned URLs/sizes/SHA256 from internal/desktop/pet/assets/render-manifest.json) or set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.'
+    }
 } else {
-    throw 'THA4 resource staging failed; run scripts/restore-pet-render-assets.ps1 (pinned URLs/sizes/SHA256 from internal/desktop/pet/assets/render-manifest.json) or set WHALEISLE_PET_RENDER_ASSETS to the fixed manifest resource directory.'
+    Write-Host 'Note: Route A default excludes bundled pet-render-assets (set WHALEISLE_INCLUDE_PET_ASSETS=1 to bundle).'
 }
 
 # Host runtime is required unless explicitly producing a shell-only development package.
@@ -110,7 +102,12 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     # Refuse incomplete phone runtime before copying or writing .runtime-staged.
     $VendorSrc = $env:WHALEISLE_VENDOR
     if ($RuntimeRoot) { $VendorSrc = Join-Path ([System.IO.Path]::GetFullPath($RuntimeRoot)) 'vendor' }
-    if (-not $VendorSrc) { $VendorSrc = Join-Path $ProjectRoot 'runtime\vendor' }
+    if (-not $VendorSrc) {
+        $VendorSrc = Join-Path $ProjectRoot 'runtime-0.2.2-rc2\vendor'
+        if (-not (Test-Path -LiteralPath $VendorSrc -PathType Container)) {
+            throw 'Stage the 0.2.2-rc.2 Host with build-harness.ps1 or explicitly select an alternate runtime with -RuntimeRoot.'
+        }
+    }
     if (Test-Path (Join-Path $VendorSrc 'current-host-build.json')) {
         & node (Join-Path $PSScriptRoot 'current-host.mjs') verify $VendorSrc
         if ($LASTEXITCODE -ne 0) { throw 'Selected current Host artifacts failed verification' }
@@ -132,7 +129,11 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
             & node (Join-Path $PSScriptRoot 'session-runtime-complete.mjs') verify (Split-Path -Parent $VendorSrc)
             if ($LASTEXITCODE -ne 0) { throw 'rc.4 packaging requires the complete phone, retained dshbot and desktop main plugin assembly.' }
         }
-        & node (Join-Path $PSScriptRoot 'session-runtime.mjs') release (Split-Path -Parent $VendorSrc) (Join-Path $Stage 'runtime')
+        $releaseArgs = @((Split-Path -Parent $VendorSrc), (Join-Path $Stage 'runtime'))
+        if ($env:WHALEISLE_INCLUDE_HEAVY_OPTIONAL -ne '1') {
+            $releaseArgs += '--slim'
+        }
+        & node (Join-Path $PSScriptRoot 'session-runtime.mjs') release @releaseArgs
         if ($LASTEXITCODE -ne 0) { throw 'Complete runtime staging or actual mobile native ABI validation failed.' }
         $LinksHelper = Join-Path $Stage 'runtime\runtime-links.exe'
         & $GoExecutable build -ldflags '-s -w -H windowsgui' -o $LinksHelper ./scripts/session-runtime-links
@@ -156,10 +157,13 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         if (-not $NodeSrc) { $NodeSrc = Join-Path (Split-Path -Parent $VendorSrc) 'node' }
     }
     if (-not $NodeSrc) {
+        $pathNode = Get-Command node -ErrorAction SilentlyContinue
         $NodeSrc = @(
-            'C:\AI\tools\node-v24.21.0-win-x64',
-            (Join-Path $ProjectRoot '.toolchain\node')
-        ) | Where-Object { Test-Path (Join-Path $_ 'node.exe') -PathType Leaf } | Select-Object -First 1
+            (Join-Path $ProjectRoot 'runtime-rc4\node'),
+            (Join-Path $ProjectRoot 'runtime\node'),
+            (Join-Path $ProjectRoot '.toolchain\node'),
+            $(if ($pathNode) { Split-Path -Parent $pathNode.Source })
+        ) | Where-Object { $_ -and (Test-Path (Join-Path $_ 'node.exe') -PathType Leaf) } | Select-Object -First 1
     }
     if (-not $NodeSrc -or -not (Test-Path (Join-Path $NodeSrc 'node.exe') -PathType Leaf)) {
         throw 'Host Node runtime missing; WHALEISLE_NODE_DIR must contain node.exe. Use WHALEISLE_PACKAGE_SKIP_RUNTIME=1 only for a shell-only development package.'
@@ -184,7 +188,7 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
         & $StagedNode (Join-Path $PSScriptRoot 'session-runtime.mjs') verify $VendorDst
         if ($LASTEXITCODE -ne 0) { throw 'Packaged Host session runtime failed final verification.' }
     }
-    & node (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
+    & $StagedNode (Join-Path $PSScriptRoot 'mobile-runtime.mjs') verify (Join-Path $Stage 'runtime\vendor\dshd-remote')
     if ($LASTEXITCODE -ne 0) { throw 'Packaged mobile runtime verification failed' }
     # The original installed distribution may contain no optional sample catalog.
     # An explicit selection or an existing catalog still receives full validation.
@@ -192,10 +196,10 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     $SamplesSrc = $env:WHALEISLE_COMPONENT_SAMPLES
     if (-not $SamplesSrc) { $SamplesSrc = Join-Path (Split-Path -Parent $VendorSrc) 'components\samples' }
     $SamplesDst = Join-Path $Stage 'runtime\components\samples'
-    & node (Join-Path $PSScriptRoot 'session-runtime-samples.mjs') $SamplesSrc $SamplesDst $SamplesExplicit.ToString().ToLowerInvariant()
+    & $StagedNode (Join-Path $PSScriptRoot 'session-runtime-samples.mjs') $SamplesSrc $SamplesDst $SamplesExplicit.ToString().ToLowerInvariant()
     if ($LASTEXITCODE -ne 0) { throw 'Bundled component staging failed; the selected components/samples must contain valid real payloads.' }
     if ($SessionInput) {
-        & node (Join-Path $PSScriptRoot 'session-runtime-nsis.mjs') $Stage (Join-Path $DistRoot 'runtime-files.nsh')
+        & $StagedNode (Join-Path $PSScriptRoot 'session-runtime-nsis.mjs') $Stage (Join-Path $DistRoot 'runtime-files.nsh')
         if ($LASTEXITCODE -ne 0) { throw 'Verified physical runtime include generation failed.' }
     }
     # Both desktop Node and the separately verified phone runtime are now staged.
@@ -217,9 +221,9 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 - `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
 - `whaleisle/resources/licenses/fonts/` - Inter and Source Serif 4 OFL notices and native font provenance
-- `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`)
+- `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`; default `--slim` excludes `@deepseek-ai/libreoffice-kit` and `sherpa-onnx`, set `WHALEISLE_INCLUDE_HEAVY_OPTIONAL=1` to retain full optional packages)
 - `whaleisle/runtime/node/node.exe` - required Host Node from `WHALEISLE_NODE_DIR` or a known local Node distribution
-- `whaleisle/pet-render-assets/` - required manifest-verified THA4 resources and provenance from `WHALEISLE_PET_RENDER_ASSETS` (default `runtime/pet-render-assets`)
+- `whaleisle/pet-render-assets/` - THA4 pet render resources (default excluded under Route A decision 3A; set `WHALEISLE_INCLUDE_PET_ASSETS=1` to bundle)
 
 ## Next steps (NSIS / MyGo packager)
 
@@ -227,7 +231,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 2. Select that exact runtime for packaging: `scripts/package.ps1 -RuntimeRoot <fresh-runtime> -OutputRoot <fresh-output>`. Existing rc.2 inputs remain available through the original defaults.
 3. `mygo.json` `identifier` is **`ai.deepseek.harness.gui.mygo`** (independent side-by-side install under `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo` while sharing `%APPDATA%\Deepseek-Harness-Desktop` userData).
 4. NSIS script: `scripts/nsis/whaleisle.nsi` installs exe, resources, and optional `runtime/` trees.
-5. Sign the setup executable before release.
+5. Windows releases are unsigned by default. Finalize emits SHA-256 and blockmap metadata from the final installer bytes. Optional -RequireSignature, WHALEISLE_UPDATE_REQUIRE_SIGNATURE, an expected publisher or a supplied WHALEISLE_SIGNING_SCRIPT enforces the requested signature before metadata is emitted. Hashes verify file integrity; an unsigned package has no verified platform publisher.
 
 ## Application identifier
 
@@ -252,8 +256,10 @@ $MakensisCmd = Get-Command makensis -ErrorAction SilentlyContinue
 if ($MakensisCmd) {
     $MakensisPath = $MakensisCmd.Source
 } else {
-    $LocalMakensis = Join-Path $ProjectRoot '.toolchain\nsis\makensis.exe'
-    if (Test-Path $LocalMakensis) { $MakensisPath = $LocalMakensis }
+    $NsisCandidates = @()
+    if ($env:LOCALAPPDATA) { $NsisCandidates += (Join-Path $env:LOCALAPPDATA 'mygo\nsis-3.13\Bin\makensis.exe') }
+    $NsisCandidates += (Join-Path $ProjectRoot '.toolchain\nsis\makensis.exe')
+    $MakensisPath = $NsisCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 }
 if ($MakensisPath -and (Test-Path $Nsi)) {
     $Setup = Join-Path $DistRoot ("WhaleIsle-MyGo-Setup-{0}.exe" -f $Version)
@@ -263,6 +269,7 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
         $NsisArguments = @("/DVERSION=$Version", "/DSTAGE_DIR=$Stage", "/DSETUP_OUT=$Setup")
         if ($SessionInput) { $NsisArguments += "/DRUNTIME_INCLUDE=$(Join-Path $DistRoot 'runtime-files.nsh')" }
         if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -eq '1') { $NsisArguments += '/DSHELL_ONLY=1' }
+        if ($env:WHALEISLE_INCLUDE_PET_ASSETS -eq '1') { $NsisArguments += '/DINCLUDE_PET_ASSETS=1' }
         & $MakensisPath @NsisArguments (Split-Path -Leaf $Nsi)
     } finally {
         Pop-Location
@@ -275,44 +282,18 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
     }
     if (Test-Path $Setup) {
         Write-Host "Installer: $Setup"
-		# Emit the same offset/size/SHA256 blockmap consumed by the MyGo
-		# incremental updater. The setup remains the signed release artifact;
-		# this sidecar is metadata only and is safe to regenerate after signing.
-		$blockSize = 65536
-		$setupBytes = [System.IO.File]::ReadAllBytes($Setup)
-		$blocks = @()
-		for ($offset = 0; $offset -lt $setupBytes.Length; $offset += $blockSize) {
-			$size = [Math]::Min($blockSize, $setupBytes.Length - $offset)
-			$hash = [System.Security.Cryptography.SHA256]::Create()
-			try {
-				$digest = $hash.ComputeHash($setupBytes, $offset, $size)
-			} finally {
-				$hash.Dispose()
-			}
-			$blocks += [ordered]@{
-				offset = [int64]$offset
-				size = [int64]$size
-				sha256 = ([BitConverter]::ToString($digest) -replace '-', '').ToLowerInvariant()
-			}
-		}
-		$blockmapPath = "${Setup}.blockmap.json"
-		$blockmap = [ordered]@{ fileSize = [int64]$setupBytes.Length; blocks = $blocks } |
-			ConvertTo-Json -Depth 4
-		[System.IO.File]::WriteAllText($blockmapPath, $blockmap + "`n")
-		$sumHash = [System.Security.Cryptography.SHA256]::Create()
-		try {
-			$sumBytes = $sumHash.ComputeHash([System.IO.File]::ReadAllBytes($Setup))
-		} finally {
-			$sumHash.Dispose()
-		}
-		$sum = ([BitConverter]::ToString($sumBytes) -replace '-', '').ToLowerInvariant()
-		$sumPath = Join-Path $DistRoot 'SHA256SUMS.txt'
-		[System.IO.File]::WriteAllText($sumPath, "$sum  $(Split-Path -Leaf $Setup)`n")
-		Write-Host "Wrote blockmap: $blockmapPath"
-		Write-Host "Wrote SHA256 manifest: $sumPath"
+        $developmentBuild = $Version -match '^0\.0\.0(?:-|$)'
+        & (Join-Path $PSScriptRoot 'finalize-windows-release.ps1') -Installer $Setup -SigningScript $SigningScript -RequireSignature:$RequireSignature -Development:$developmentBuild
+        if ($CleanStage) {
+            & node (Join-Path $PSScriptRoot 'build-storage.mjs') package-stage $Stage $DistRoot
+            if ($LASTEXITCODE -ne 0) { throw "Installer is ready at $Setup; package stage cleanup failed at $Stage" }
+            Write-Host "Reclaimed package stage; installer and update metadata retained -> $Setup"
+        }
     }
 } else {
     Write-Host "Note: makensis not on PATH; NSIS script at scripts/nsis/whaleisle.nsi (run after staging)"
+    if ($CleanStage) { throw "CleanStage requires a successful installer build; staging retained at $Stage" }
 }
 
-Write-Host "package.ps1: done -> $Stage"
+if ($CleanStage) { Write-Host "package.ps1: done -> $Setup" }
+else { Write-Host "package.ps1: done -> $Stage" }

@@ -83,7 +83,7 @@ func (s *Server) desktopEmpty() bool {
 	// The existing install callback is also the spec-based /desktop/plugin
 	// operation, so keep that route reachable when only legacy installation is
 	// wired. Other desktop operations still report their individual boundary.
-	return s.opts.Install == nil && d.State == nil && d.ListMarketplace == nil && d.ApplyConfig == nil &&
+	return !s.hasInstallHandler() && d.State == nil && d.ListMarketplace == nil && d.ApplyConfig == nil &&
 		d.PetSettings == nil && d.ApplyPetSettings == nil && d.InstallCatalog == nil &&
 		d.RemovePlugin == nil && d.DisablePlugins == nil && d.EnablePlugin == nil && d.Proactive == nil
 }
@@ -219,13 +219,16 @@ func (s *Server) handleDesktopPlugin(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			result = s.opts.Desktop.InstallCatalog(r.Context(), id, InstallOpts{AllowBuilds: normalized})
+			ctx, cancel := s.installContext(r.Context())
+			result = s.opts.Desktop.InstallCatalog(ctx, id, InstallOpts{AllowBuilds: normalized})
+			cancel()
 		} else {
-			install := s.opts.Install
-			if install == nil {
+			if !s.hasInstallHandler() {
 				result = Result{OK: false, Spec: spec, Error: "install handler not configured"}
 			} else {
-				result = install(spec, InstallOpts{AllowBuilds: normalized})
+				ctx, cancel := s.installContext(r.Context())
+				result, _ = s.runInstall(ctx, spec, InstallOpts{AllowBuilds: normalized})
+				cancel()
 			}
 		}
 		result = normalizeResult(result, specOrID(spec, id))
@@ -237,6 +240,12 @@ func (s *Server) handleDesktopPlugin(w http.ResponseWriter, r *http.Request) {
 			"error":            result.Error,
 			"log":              result.Log,
 			"restarting":       result.OK && !result.NeedsAllowBuilds,
+		}
+		if result.RolledBack {
+			body["rolledBack"] = true
+		}
+		if result.RollbackError != "" {
+			body["rollbackError"] = result.RollbackError
 		}
 		writeJSON(w, http.StatusOK, body)
 		if result.OK && !result.NeedsAllowBuilds {

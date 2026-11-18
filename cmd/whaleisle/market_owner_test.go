@@ -14,20 +14,23 @@ func TestMarketRenderedOwnerCannotActAfterReconnect(t *testing.T) {
 			client := &dsh.Client{}
 			store := marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "personal.json"))
 			store.Attach(client, nil)
-			s := &mainState{dshClient: client, market: store}
-			owner := s.captureMarketOwner(store)
+			s := &mainState{}
+			coord := s.marketCoordinator()
+			coord.SetClient(client)
+			coord.SetStore(store)
+			owner := coord.CaptureOwner(store)
 			switch reconnect {
 			case "same-client":
 				store.Detach()
 				store.Attach(client, nil)
 			case "other-client":
-				s.dshClient = &dsh.Client{}
+				coord.SetClient(&dsh.Client{})
 			case "other-store":
-				s.market = marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "other.json"))
+				coord.SetStore(marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "other.json")))
 			}
 			for _, install := range []bool{false, true} {
-				op, _ := s.beginMarketAttemptForOwner("fixture-plugin", nil, install, &owner)
-				if op != nil || s.marketWorker != nil || s.marketInstallBusy {
+				op, _ := coord.BeginAttemptForOwner("fixture-plugin", nil, install, &owner)
+				if op != nil || coord.IsBusy() {
 					t.Fatal("stale rendered action acquired a new Host worker")
 				}
 			}
@@ -39,11 +42,14 @@ func TestMarketRenderedCurrentOwnerCanBegin(t *testing.T) {
 	client := &dsh.Client{}
 	store := marketstore.NewWithPersonalPath(filepath.Join(t.TempDir(), "personal.json"))
 	store.Attach(client, nil)
-	s := &mainState{dshClient: client, market: store}
-	owner := s.captureMarketOwner(store)
-	op, _ := s.beginMarketAttemptForOwner("", nil, false, &owner)
-	if op == nil || op.client != client || op.store != store {
+	s := &mainState{}
+	coord := s.marketCoordinator()
+	coord.SetClient(client)
+	coord.SetStore(store)
+	owner := coord.CaptureOwner(store)
+	op, _ := coord.BeginAttemptForOwner("", nil, false, &owner)
+	if op == nil || op.Client != client || op.Store != store {
 		t.Fatal("current rendered action did not retain its Host")
 	}
-	op.cancel()
+	op.Cancel()
 }

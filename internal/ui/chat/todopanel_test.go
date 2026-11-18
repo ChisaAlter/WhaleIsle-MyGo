@@ -92,6 +92,7 @@ func TestQueueDockInlineEditUnsupportedAndNotices(t *testing.T) {
 	}
 
 	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	if got := normalizeConversationNotice("session_in_use"); got != "当前会话已被占用，可能是其他正在运行的 DSH 导致的（如其他 dsh web、桌面端），请退出其他正在运行的 DSH 后重试。" {
 		t.Fatalf("sessionInUseNotice zh = %q", got)
 	}
@@ -100,5 +101,18 @@ func TestQueueDockInlineEditUnsupportedAndNotices(t *testing.T) {
 	}
 	if got := normalizeConversationNotice("read_only"); got != "只读子会话，无法发送消息" {
 		t.Fatalf("readOnlyChildNotice zh = %q", got)
+	}
+	if got := normalizeConversationNotice(`create workspace session: session/conflict: session "s1" belongs to "C:/a", not "C:\a"`); got != `创建工作区会话失败：会话目录冲突：session "s1" belongs to "C:/a", not "C:\a"` {
+		t.Fatalf("conflict notice zh = %q", got)
+	}
+	if got := normalizeConversationNotice("Connect a Host to choose a registered workspace"); got != "请先连接 Host 以选择已注册的工作区" {
+		t.Fatalf("connect host notice zh = %q", got)
+	}
+	if got := normalizeConversationNotice("Workspace registration removed; files are unchanged"); got != "已移除工作区注册，本地文件未受影响" {
+		t.Fatalf("workspace removed notice zh = %q", got)
+	}
+	i18n.SetLocale("en")
+	if got := normalizeConversationNotice(`create workspace session: session/conflict: details`); got != `create workspace session: session/conflict: details` {
+		t.Fatalf("conflict notice en = %q", got)
 	}
 }

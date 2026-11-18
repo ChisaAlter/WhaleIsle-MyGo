@@ -52,7 +52,7 @@ func awaitAutosave(t *testing.T, done <-chan struct{}) {
 
 func awaitFileTextRead(t *testing.T, m Model, done <-chan struct{}) {
 	t.Helper()
-	for selectedTab(m) != nil && selectedTab(m).readBlocked {
+	for selectedTab(m) != nil && selectedTab(m).readLoading {
 		select {
 		case <-done:
 			syncTextRead(m)
@@ -123,16 +123,24 @@ func TestAutosaveConflictRecoveryAndBindingChange(t *testing.T) {
 	}
 	awaitAutosave(t, done)
 	syncSaveResults(m)
-	if *m.Preview != "external" || *m.EditDraft != "draft" || !strings.Contains(*m.EditStatus, "changed") {
-		t.Fatalf("conflict corrupted baseline/draft: %q %q %q", *m.Preview, *m.EditDraft, *m.EditStatus)
+	tab := selectedTab(m)
+	if *m.Preview != "original-a" || *m.EditDraft != "draft" || !strings.Contains(*m.EditStatus, "changed") || tab == nil || !tab.hasConflict || tab.conflictContent != "external" || !tab.externalChanged || !tab.readBlocked {
+		t.Fatalf("conflict corrupted baseline/draft or dropped conflict state: %q %q %q tab=%+v", *m.Preview, *m.EditDraft, *m.EditStatus, tab)
+	}
+	if err := PreflightDirtyForClose(m); err == nil {
+		t.Fatal("close preflight allowed unresolved external conflict")
 	}
 	if closeTab(m, "a.txt", false) {
 		t.Fatal("dirty close bypassed")
 	}
 	reloadSelectedFile(m)
 	awaitFileTextRead(t, m, done)
-	if *m.Preview != "external" || *m.EditDraft != "draft" {
-		t.Fatal("reload overwrote conflict draft")
+	if *m.Preview != "original-a" || *m.EditDraft != "draft" || !tab.hasConflict || tab.conflictContent != "external" || !tab.externalChanged || !tab.readBlocked {
+		t.Fatalf("reload corrupted baseline/draft or cleared conflict guard: preview=%q draft=%q tab=%+v", *m.Preview, *m.EditDraft, tab)
+	}
+	observeAutosave(m)
+	if tab.save != nil && tab.save.Snapshot().Pending {
+		t.Fatal("autosave armed over unresolved conflict")
 	}
 	data, err := m.Tabs.Export()
 	if err != nil {

@@ -40,15 +40,19 @@ type DesktopAccess struct {
 	OnSetAutoStartDesktop  func(bool) (bool, error)
 	OnSetRestartPreference func(string, string) (config.RestartPreferences, error)
 	// RestartPolicy is the committed snapshot, separate from the editable draft.
-	RestartPolicy     *config.RestartPreferences
-	Fields            DesktopFields
-	OnSave            func()
-	OnDetectElectron  func()
-	OnCheckUpdates    func()
-	UpdateBusy        bool
-	OnBrowseWorkspace func()
-	LastAction        string
-	Err               string
+	RestartPolicy *config.RestartPreferences
+	Fields        DesktopFields
+	// DataLocation is the 数据位置 block: current directory, change, open and
+	// restore default. Nil hides it, as in the headless fixtures.
+	DataLocation                                                                   *DataLocationAccess
+	OnSave                                                                         func()
+	OnDetectElectron                                                               func()
+	OnCheckUpdates                                                                 func()
+	UpdateBusy                                                                     bool
+	OnBrowseWorkspace                                                              func()
+	OnOpenComponents, OnOpenImport, OnOpenHostDiagnostics, OnOpenUpdatePreferences func()
+	LastAction                                                                     string
+	Err                                                                            string
 }
 
 func hasDesktopDiagnostics(d *DesktopAccess) bool {
@@ -110,8 +114,8 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 	}
 	if d.AutoStartDesktop != nil {
-		bodyPreferenceRow(c, "general-autostart", providerCopy("启动时", "On launch"), providerCopy("是：直接打开桌面端，启动器可从托盘右键「打开启动器」进入。\n否：先打开启动器，再手动启动桌面端。", "Yes: open the desktop directly; the launcher stays reachable from the tray menu.\nNo: open the launcher first and start the desktop manually."), fg, muted, func() {
-			options := []string{providerCopy("直接启动桌面端", "Start desktop directly"), providerCopy("先打开启动器", "Open launcher first")}
+		bodyPreferenceRow(c, "general-autostart", providerCopy("启动时", "On launch"), providerCopy("自动启动时，主窗口先显示加载页；关闭后，在工作台手动启动 Host。", "With automatic start on, the main window shows the loading page first. Otherwise, start Host from the workbench."), fg, muted, func() {
+			options := []string{providerCopy("自动启动 Host", "Start Host automatically"), providerCopy("手动启动 Host", "Start Host manually")}
 			choice := options[1]
 			if *d.AutoStartDesktop {
 				choice = options[0]
@@ -120,14 +124,32 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			desktopImmediateBool(c, control, d.AutoStartDesktop, &choice, options[0], d.OnSetAutoStartDesktop)
 		})
 	}
+	dataLocationRow(c, d.DataLocation, fg, muted)
 	bodyHostPreference(c, d.Host, "ui-chat", "performanceUsage", providerCopy("性能与用量", "Performance and usage"), providerCopy("选择性能与用量信息展示的详细程度", "Choose how detailed the performance and usage information is"), fg, muted)
 	bodyHostPreference(c, d.Host, "session-log-deepseek", "enabled", providerCopy("在使用官方模型 API 时上传 Session Log", "Upload Session Log when using the official model API"), providerCopy("帮助改进 DeepSeek 模型与产品", "Help improve DeepSeek models and products"), fg, muted)
-	if d.Version != "" && settingsItemBefore(c, "general-version") {
+	if d.Version != "" {
 		// CurrentVersionRow is one full-width line, not a Setting-Cell's
 		// fixed-width selector column: long build versions must remain readable.
 		ui.Text(c.Key("general-version"), providerCopy("Harness 版本：", "Harness version: ")+d.Version).FillWidth().MinWidth(0).Padding(16, 0).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).Tooltip(d.Version).TextColor(fg)
 	}
 	harnessAutoRecoveryRow(c, d, fg, muted)
+	for _, action := range []struct {
+		id, label string
+		run       func()
+	}{
+		{"components", providerCopy("组件管理", "Components"), d.OnOpenComponents},
+		{"import", providerCopy("导入数据", "Import data"), d.OnOpenImport},
+		{"host-diagnostics", providerCopy("启动诊断", "Startup diagnostics"), d.OnOpenHostDiagnostics},
+		{"update-preferences", providerCopy("更新偏好与卸载", "Update preferences and uninstall"), d.OnOpenUpdatePreferences},
+	} {
+		if action.run != nil {
+			bodyPreferenceRow(c, action.id, action.label, "", fg, muted, func() {
+				if ui.Button(c, providerCopy("打开", "Open")).Label(action.label).Clicked() {
+					action.run()
+				}
+			})
+		}
+	}
 }
 
 // desktopDiagnostics is the developer-facing remainder of the old General

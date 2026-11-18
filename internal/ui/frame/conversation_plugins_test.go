@@ -4,114 +4,50 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/pluginui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-func TestConversationPluginsExplicitMenuAndOriginalActionsRemainReachable(t *testing.T) {
+func TestConversationMoreMenuOnlyOffersCurrentSessionActions(t *testing.T) {
 	i18n.SetLocale("en")
 	defer i18n.SetLocale(i18n.DefaultLocale)
-	active := false
-	opened, closed, launcher := 0, 0, 0
-	tt := ui.NewTester(func(c *ui.Context) {
-		conversationMoreMenu(c, Model{SessionPluginsActive: active, OnOpenSessionPlugins: func() { opened++; active = true }, OnCloseSessionPlugins: func() { closed++; active = false }, OnOpenLauncher: func() { launcher++ }}, session.ViewState{SelectedID: "s"}, c.Theme().Text)
-	}, 400, 100)
-	if tt.HasText(i18n.T(i18n.KeyCmdSessionPluginTitle)) {
-		t.Fatal("plugin label is a persistent header button")
+	store := session.New()
+	store.Select("s")
+	var downloaded string
+	more := Model{
+		Store: store, HideChatViewTabs: true,
+		OnOpenMarket:          func() { t.Fatal("global market action ran") },
+		OnCreatePluginDraft:   func(string) { t.Fatal("global create action ran") },
+		OnOpenDesktopSettings: func() { t.Fatal("global settings action ran") },
+		OnDownloadSessionLog:  func(id string) { downloaded = id },
 	}
-	for _, label := range []string{i18n.T(i18n.KeyCmdSessionPluginTitle), "Turn off Session plugins", i18n.T(i18n.KeyLauncherOpen)} {
-		if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
+	selected := "s"
+	tt := ui.NewTester(func(c *ui.Context) {
+		conversationMoreMenu(c, more, session.ViewState{SelectedID: selected}, c.Theme().Text)
+	}, 400, 140)
+	if err := tt.Click("More actions"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Download session log"); err != nil {
+		t.Fatal(err)
+	}
+	if downloaded != "s" {
+		t.Fatalf("downloaded = %q", downloaded)
+	}
+	for _, label := range []string{"Chat", "Trajectory", "Browse other plugins", "Create your plugin", "Desktop settings"} {
+		if err := tt.Click("More actions"); err != nil {
 			t.Fatal(err)
 		}
-		if err := tt.ChooseMenuItem(label); err != nil {
-			t.Fatal(err)
+		if err := tt.ChooseMenuItem(label); err == nil {
+			t.Fatalf("unexpected global menu item %q", label)
 		}
+		tt.Key(0, ui.KeyEscape)
 	}
-	if opened != 1 || closed != 1 || launcher != 1 || active {
-		t.Fatalf("open/close/original=%d/%d/%d active=%v", opened, closed, launcher, active)
-	}
-}
-
-func TestConversationMoreMenuFoldedViewsAndEntryCustomizationActions(t *testing.T) {
-	i18n.SetLocale("en")
-	defer i18n.SetLocale(i18n.DefaultLocale)
-	tab := ""
-	marketCalls := 0
-	var custom, builtin string
-	var draftRegion string
-	tt := ui.NewTester(func(c *ui.Context) {
-		conversationMoreMenu(c, Model{
-			HideChatViewTabs:                true,
-			ChatPaneTab:                     &tab,
-			OnOpenMarket:                    func() { marketCalls++ },
-			OnCreatePluginDraft:             func(region string) { draftRegion = region },
-			ConversationViews:               []pluginui.ConversationView{{Handle: "owner:report", ID: "report", Label: "Report"}},
-			OnSelectConversationView:        func(handle string) { custom = handle },
-			OnSelectBuiltinConversationView: func(id string) { builtin = id },
-		}, session.ViewState{}, c.Theme().Text)
-	}, 400, 100)
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Trajectory"); err != nil {
-		t.Fatal(err)
-	}
-	if tab != "trajectory" {
-		t.Fatalf("tab=%q want trajectory", tab)
-	}
-	if builtin != "trajectory" {
-		t.Fatalf("source owner not selected: %q", builtin)
-	}
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("✓ Trajectory"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Chat"); err != nil {
-		t.Fatal(err)
-	}
-	if tab != "chat" {
-		t.Fatalf("tab=%q want chat", tab)
-	}
-	if builtin != "chat" {
-		t.Fatalf("source owner not reset: %q", builtin)
-	}
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Report"); err != nil {
-		t.Fatal(err)
-	}
-	if custom != "owner:report" || tab != "plugin:owner:report" {
-		t.Fatalf("folded custom view missed owner %q/%q", custom, tab)
-	}
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Browse other plugins"); err != nil {
-		t.Fatal(err)
-	}
-	if marketCalls != 1 {
-		t.Fatalf("marketCalls=%d want 1", marketCalls)
-	}
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Create your plugin"); err != nil {
-		t.Fatal(err)
-	}
-	if draftRegion != "conversation" {
-		t.Fatalf("draftRegion=%q want conversation", draftRegion)
+	selected = ""
+	tt.Frame()
+	if _, ok := tt.Find("More actions"); ok {
+		t.Fatal("more menu with no selected session")
 	}
 }
 
