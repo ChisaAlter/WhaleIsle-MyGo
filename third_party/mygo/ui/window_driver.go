@@ -149,9 +149,27 @@ func (d *WindowDriver) Hover(s string) error {
 
 // ClickAt clicks at (x, y) in DIPs on the live window.
 func (d *WindowDriver) ClickAt(x, y float32) {
+	d.ClickAtWith(0, x, y)
+}
+
+// ClickAtWith clicks with modifiers, including Shift to extend a selection.
+func (d *WindowDriver) ClickAtWith(mods Modifiers, x, y float32) {
 	d.send(platform.SurfaceEvent{Kind: platform.PointerMove, X: float64(x), Y: float64(y)})
-	d.send(platform.SurfaceEvent{Kind: platform.PointerDown, X: float64(x), Y: float64(y)})
-	d.send(platform.SurfaceEvent{Kind: platform.PointerUp, X: float64(x), Y: float64(y)})
+	d.send(platform.SurfaceEvent{Kind: platform.PointerDown, X: float64(x), Y: float64(y), Mods: platform.Modifiers(mods)})
+	d.send(platform.SurfaceEvent{Kind: platform.PointerUp, X: float64(x), Y: float64(y), Mods: platform.Modifiers(mods)})
+}
+
+// SelectablePoint returns the live layout position of a rune offset in a
+// mounted selectable paragraph. It does not construct an offscreen paragraph.
+// Callers must ensure the returned point is inside the visible content area.
+func (d *WindowDriver) SelectablePoint(text string, at int) (x, y float32, ok bool) {
+	for _, s := range d.h.rt.texts {
+		if s.editor.source == text {
+			cx, cy, h := s.editor.layout.Caret(at)
+			return s.x + s.editor.originX + cx, s.y + s.editor.originY + cy + h/2, true
+		}
+	}
+	return 0, 0, false
 }
 
 // Click clicks the center of the element showing text or labeled s on the live window.
@@ -173,6 +191,13 @@ func (d *WindowDriver) Scroll(x, y, dx, dy float32) {
 func (d *WindowDriver) Key(mods Modifiers, key Key) {
 	d.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Key: platform.Key(key), Mods: platform.Modifiers(mods)})
 	d.send(platform.SurfaceEvent{Kind: platform.KeyReleased, Key: platform.Key(key), Mods: platform.Modifiers(mods)})
+}
+
+// PhysicalKey sends one physical press/release through the live native-input
+// resolver. It never injects OS keyboard input into another window.
+func (d *WindowDriver) PhysicalKey(code string, key Key, mods Modifiers) {
+	d.send(platform.SurfaceEvent{Kind: platform.KeyPressed, Code: code, Key: platform.Key(key), Mods: platform.Modifiers(mods)})
+	d.send(platform.SurfaceEvent{Kind: platform.KeyReleased, Code: code, Key: platform.Key(key), Mods: platform.Modifiers(mods)})
 }
 
 // Type types text into the focused text input on the live window.

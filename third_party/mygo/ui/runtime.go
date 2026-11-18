@@ -66,6 +66,7 @@ type engine struct {
 	arena           *elementOwner
 	handleChecks    bool
 	inputObservers  []func(InputEvent)
+	lastInputAt     time.Time
 	keyCaptures     []func(InputEvent) bool
 	afterInputs     []inputAction
 	inputs          []*node

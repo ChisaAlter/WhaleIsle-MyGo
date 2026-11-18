@@ -45,6 +45,11 @@ type ListState struct {
 	// follows its item, and the list keeps its place and its choice when
 	// rows are added or removed above them, as when older messages load.
 	Key func(row int) any
+	// TextSource supplies the logical selectable paragraphs of every row without
+	// building its UI. Set it for a selectable virtual list so Copy and Select All
+	// include rows that have never entered the viewport. Nested selectable cards
+	// keep their own scope and do not use this list-wide source.
+	TextSource ListTextSource
 	// FollowEnd starts the list at its end, and keeps the end in view as
 	// rows are added or grow while it shows it, as a chat or a log does:
 	// scrolling away from the end stops following it, and scrolling back

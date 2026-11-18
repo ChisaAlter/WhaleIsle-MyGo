@@ -33,6 +33,7 @@ func TestTextSelectionVirtualListScrollPreservesCrossRowAndPrependedSelection(t 
 	}
 	var list ListState
 	list.Key = func(i int) any { return items[i].key }
+	list.TextSource = ListTextSource{Paragraphs: func(i int) []string { return []string{items[i].text} }}
 	highlight := RGB(170, 205, 250)
 
 	tt := coreNewTester(func(c *context) {
@@ -84,9 +85,10 @@ func TestTextSelectionVirtualListScrollPreservesCrossRowAndPrependedSelection(t 
 		wantParts = append(wantParts, items[i].text)
 	}
 	wantParts = append(wantParts, items[10].text[:6])
-	// Note: intermediate rows 1..7 weren't visited because we jumped directly via ScrollTo(8);
-	// verify at least mounted rows 8..10 plus visited anchor row 0 are never corrupted, and
-	// scroll sequentially to verify full offscreen cache capture across all scrolled rows.
+	if got, want := tt.Clipboard(), strings.Join(wantParts, "\n"); got != want {
+		t.Fatalf("first copy after jumping over unseen rows = %q, want %q", got, want)
+	}
+	// Revisiting rows cannot change the logical selection or its clipboard text.
 	list.ScrollTo(0, Start)
 	tt.Frame()
 	if tt.rt.selection.scope == 0 {

@@ -28,8 +28,9 @@ type textCacheRowKey struct {
 }
 
 type cachedParagraph struct {
-	id   uint64
-	text string
+	id      uint64
+	ordinal int
+	text    string
 }
 
 const maxCachedSelectionRows = 2048
@@ -37,14 +38,15 @@ const maxCachedSelectionRows = 2048
 // textSelectionLogic holds reference-typed logical state outside the comparable
 // textSelection struct so structural equality checks in read-only queries remain intact.
 type textSelectionLogic struct {
-	anchorKey     any
-	caretKey      any
-	startKeys     [2]any
-	orderedRev    bool
-	snapshots     map[uint64]string
-	selTexts      map[uint64]string
-	rowParagraphs map[textCacheRowKey][]cachedParagraph
-	rowOrder      []textCacheRowKey
+	anchorKey      any
+	caretKey       any
+	startKeys      [2]any
+	orderedRev     bool
+	snapshots      map[uint64]string
+	selTexts       map[uint64]string
+	rowParagraphs  map[textCacheRowKey][]cachedParagraph
+	rowOrder       []textCacheRowKey
+	sourceRevision uint64
 }
 
 // textSelection is one selection across the paragraphs of a container.
@@ -455,6 +457,9 @@ func (rt *engine) textSelectionCommand(s *state, name string) bool {
 	}
 	switch name {
 	case "selectAll":
+		if rt.selectAllListText(s.textScope) {
+			break
+		}
 		var first, last *state
 		for _, p := range rt.texts {
 			if p.textScope == s.textScope {
@@ -472,8 +477,18 @@ func (rt *engine) textSelectionCommand(s *state, name string) bool {
 		if rt.selection.scope != s.textScope {
 			break
 		}
+		if !rt.reconcileSelectionEndpoints() {
+			rt.selection = textSelection{}
+			break
+		}
 		start, startMeta, end, endMeta, ok := rt.orderedLogicalSelection()
 		if !ok || !rt.selectionLogicalNonCollapsed(start, startMeta, end, endMeta) {
+			break
+		}
+		if ls, source := rt.selectionTextSource(s.textScope, startMeta.listID); source && startMeta.listID == endMeta.listID {
+			if text, valid := rt.copyListText(ls, start, startMeta, end, endMeta); valid {
+				rt.host.writeClipboard(text)
+			}
 			break
 		}
 		if first, last := rt.textPointIndex(start), rt.textPointIndex(end); first >= 0 && last >= 0 {
@@ -500,7 +515,9 @@ func (rt *engine) textSelectionCommand(s *state, name string) bool {
 			rt.host.writeClipboard(out.String())
 			break
 		}
-		rt.host.writeClipboard(rt.copyVirtualizedSelection(s.textScope, start, startMeta, end, endMeta))
+		if text, complete := rt.copyVirtualizedSelection(s.textScope, start, startMeta, end, endMeta); complete {
+			rt.host.writeClipboard(text)
+		}
 	}
 	return true // other editing commands cannot change selectable text
 }
@@ -742,6 +759,10 @@ func (rt *engine) selectionPointAlive(pt textPoint, meta textPointMeta, key any)
 	if !ok {
 		return false
 	}
+	if ls.TextSource.Paragraphs != nil && rt.selection.scope == meta.listID {
+		row, found := resolveListKey(ls, meta.rowIndex, key)
+		return found && meta.inRow >= 0 && meta.inRow < len(ls.TextSource.Paragraphs(row))
+	}
 	if _, rowMounted := ls.rows[meta.rowID]; rowMounted {
 		return false
 	}
@@ -790,6 +811,9 @@ func (rt *engine) captureSelectionEndpoints() {
 	} else if t.anchorMeta.listID != 0 && t.anchorMeta.listID == t.caretMeta.listID {
 		d := compareMetaPoints(t.anchor, t.anchorMeta, t.caret, t.caretMeta, logic.orderedRev)
 		logic.orderedRev = d > 0
+	}
+	if ls, ok := rt.selectionTextSource(t.scope, t.anchorMeta.listID); ok {
+		logic.sourceRevision = ls.TextSource.Revision
 	}
 }
 
@@ -841,6 +865,9 @@ func (rt *engine) reconcileSelectionEndpoints() bool {
 	origAnchorID, origCaretID := t.anchor.id, t.caret.id
 	rebound := map[uint64]*state{}
 	reconcileOne := func(pt *textPoint, origOtherID uint64, meta *textPointMeta, keyPtr *any) bool {
+		if ls, ok := rt.selectionTextSource(t.scope, meta.listID); ok {
+			return rt.reconcileListTextPoint(ls, pt, meta, *keyPtr)
+		}
 		if idx := rt.textPointIndex(*pt); idx >= 0 {
 			s := rt.texts[idx]
 			if !rt.selectionStateActive(s.id) {
@@ -914,6 +941,9 @@ func (rt *engine) reconcileSelectionEndpoints() bool {
 				}
 			}
 		}
+	}
+	if ls, ok := rt.selectionTextSource(t.scope, t.anchorMeta.listID); ok {
+		logic.sourceRevision = ls.TextSource.Revision
 	}
 	return true
 }
@@ -1060,10 +1090,10 @@ func (rt *engine) paragraphSliceInLogicalRange(s *state, start textPoint, startM
 		return 0, 0, false
 	}
 	from, to = 0, s.editor.buf.n
-	if cmpStart == 0 && s.id == start.id {
+	if cmpStart == 0 {
 		from = min(start.at, to)
 	}
-	if cmpEnd == 0 && s.id == end.id {
+	if cmpEnd == 0 {
 		to = min(end.at, to)
 	}
 	return from, to, true
@@ -1096,6 +1126,14 @@ func compareRowOrder(pMeta, targetMeta textPointMeta, pID, targetID uint64) int 
 func (rt *engine) cacheMountedSelectedRows(start textPoint, startMeta textPointMeta, end textPoint, endMeta textPointMeta) {
 	logic := rt.ensureSelectionLogic()
 	clear(logic.selTexts)
+	_, hasSource := rt.selectionTextSource(rt.selection.scope, startMeta.listID)
+	if hasSource {
+		for id := range logic.snapshots {
+			if id != rt.selection.anchor.id && id != rt.selection.caret.id && id != rt.selection.start[0].id && id != rt.selection.start[1].id {
+				delete(logic.snapshots, id)
+			}
+		}
+	}
 	for _, s := range rt.texts {
 		if s.textScope != rt.selection.scope || !rt.selectionStateActive(s.id) || s.editor == nil {
 			continue
@@ -1104,9 +1142,17 @@ func (rt *engine) cacheMountedSelectedRows(start textPoint, startMeta textPointM
 		if !hit {
 			continue
 		}
-		logic.snapshots[s.id] = s.editor.source
+		endpoint := s.id == rt.selection.anchor.id || s.id == rt.selection.caret.id || s.id == rt.selection.start[0].id || s.id == rt.selection.start[1].id
+		if !hasSource || endpoint {
+			logic.snapshots[s.id] = s.editor.source
+		}
 		if to > from {
-			logic.selTexts[s.id] = s.editor.buf.slice(from, to)
+			if !hasSource || endpoint {
+				logic.selTexts[s.id] = s.editor.buf.slice(from, to)
+			}
+		}
+		if hasSource {
+			continue
 		}
 		meta, _, inList := rt.paragraphRowMeta(s)
 		if !inList {
@@ -1126,34 +1172,35 @@ func (rt *engine) cacheMountedSelectedRows(start textPoint, startMeta textPointM
 		}
 		rowList := logic.rowParagraphs[rk]
 		if meta.inRow == len(rowList) {
-			logic.rowParagraphs[rk] = append(rowList, cachedParagraph{id: s.id, text: s.editor.source})
+			logic.rowParagraphs[rk] = append(rowList, cachedParagraph{id: s.id, ordinal: meta.inRow, text: s.editor.source})
 		} else {
 			updated := false
 			for i := range rowList {
 				if rowList[i].id == s.id {
 					rowList[i].text = s.editor.source
+					rowList[i].ordinal = meta.inRow
 					updated = true
 					break
 				}
 			}
 			if !updated {
-				logic.rowParagraphs[rk] = append(rowList, cachedParagraph{id: s.id, text: s.editor.source})
+				logic.rowParagraphs[rk] = append(rowList, cachedParagraph{id: s.id, ordinal: meta.inRow, text: s.editor.source})
 			}
 		}
 	}
 }
 
-func (rt *engine) copyVirtualizedSelection(scope uint64, start textPoint, startMeta textPointMeta, end textPoint, endMeta textPointMeta) string {
+func (rt *engine) copyVirtualizedSelection(scope uint64, start textPoint, startMeta textPointMeta, end textPoint, endMeta textPointMeta) (string, bool) {
 	ls, ok := rt.listAlive(startMeta.listID)
 	if !ok || startMeta.listID != endMeta.listID {
-		return ""
+		return "", false
 	}
 	logic := rt.selection.logic
 	var out strings.Builder
 	wrote := false
 	for r := startMeta.rowIndex; r <= endMeta.rowIndex; r++ {
 		if r < 0 || r >= ls.frame.n {
-			break
+			return "", false
 		}
 		var key any = r
 		if ls.Key != nil {
@@ -1168,6 +1215,9 @@ func (rt *engine) copyVirtualizedSelection(scope uint64, start textPoint, startM
 		}
 		if len(mounted) > 0 {
 			for idx, p := range mounted {
+				if r == startMeta.rowIndex && idx < startMeta.inRow || r == endMeta.rowIndex && idx > endMeta.inRow {
+					continue
+				}
 				from, to := 0, p.editor.buf.n
 				if r == startMeta.rowIndex && (p.id == start.id || idx == startMeta.inRow) {
 					from = min(start.at, to)
@@ -1186,10 +1236,19 @@ func (rt *engine) copyVirtualizedSelection(scope uint64, start textPoint, startM
 			continue
 		}
 		if logic == nil {
-			continue
+			return "", false
 		}
 		cached := logic.rowParagraphs[textCacheRowKey{listID: startMeta.listID, rowID: rowID}]
-		for idx, cp := range cached {
+		if len(cached) == 0 {
+			// Legacy lists without a logical text source can only copy ranges
+			// whose full text was observed. Never publish a partial clipboard.
+			return "", false
+		}
+		for _, cp := range cached {
+			idx := cp.ordinal
+			if r == startMeta.rowIndex && idx < startMeta.inRow || r == endMeta.rowIndex && idx > endMeta.inRow {
+				continue
+			}
 			runes := []rune(cp.text)
 			from, to := 0, len(runes)
 			if r == startMeta.rowIndex && (cp.id == start.id || idx == startMeta.inRow) {
@@ -1207,7 +1266,7 @@ func (rt *engine) copyVirtualizedSelection(scope uint64, start textPoint, startM
 			wrote = true
 		}
 	}
-	return out.String()
+	return out.String(), true
 }
 
 func (rt *engine) adjustEndpointOffsets(id uint64, oldA, oldB, newA, newB int) {

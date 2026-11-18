@@ -1397,6 +1397,11 @@ either.
   replaced on each build and released when the window closes. `KeepFocus`
   leaves the existing keyboard focus in place when an element takes a pointer
   press, as a nonmodal transparent picker does.
+  `Context.LastInputTime` reads the window's latest actual pointer movement,
+  pointer button/scroll, keyboard/composition or focus event. It starts at zero;
+  paint, layout, resize, background updates and stationary pointer notifications
+  do not advance it. Ambient animation idle leases use this timestamp rather
+  than treating their own rebuilds as user activity.
 - **Input taken as it comes.** An element with `HandleInput` gets its
   input on the main thread as the backend reports it, before the frame
   (`ui/handler.go`): keys (with their releases, which ui otherwise

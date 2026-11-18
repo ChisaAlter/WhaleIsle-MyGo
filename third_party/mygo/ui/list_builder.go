@@ -54,6 +54,26 @@ func (e Element) Selection(selection Selector) Element {
 	}
 	return e
 }
+
+// SelectionText supplies a virtual list's complete logical text. Paragraphs
+// returns only the row's selectable text, in the same order as Rows builds it;
+// gutters, buttons, hidden content and nested selection scopes are excluded.
+// Return nil for a row with no selectable text, and []string{""} for an empty
+// selectable paragraph. The callback reads the current immutable view model and
+// must not perform I/O or build UI. Change revision when that model changes.
+// Offsets are rune indices, just like Text and RichText selection offsets.
+func (e Element) SelectionText(revision uint64, paragraphs func(row int) []string) Element {
+	if n := e.node(); n != nil {
+		source := ListTextSource{Revision: revision, Paragraphs: paragraphs}
+		if spec, ok := n.st.valueBinding.(*listSpec); ok {
+			spec.state.TextSource = source
+		} else if n.st.list != nil {
+			n.st.list.TextSource = source
+		}
+	}
+	return e
+}
+
 func (e Element) Rows(row func(ListRow)) Element {
 	n := e.node()
 	if n == nil {
