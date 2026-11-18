@@ -3,6 +3,7 @@ package interaction
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -21,6 +22,13 @@ type questionAnswerItem = api.SessionListValueItemsItemProjectionsValuesUserQues
 // it reached the Host. The store records the marker rather than a sentence so
 // the UI can localize it; nothing may present progress that nothing can finish.
 const QuestionDeliveryStopped = "question.delivery.stopped"
+
+// questionReplyQueuedCode is the Host's answer to an answer it already holds.
+// `answer()` throws it instead of steering a second user message, so the reply
+// is queued for admission rather than lost, and the fold keeps the Host from
+// applying two. It is the one RPC failure that reports delivery: treat it as
+// accepted, never as a retryable failure.
+const questionReplyQueuedCode = "REPLY_QUEUED"
 
 type projectedQuestion struct {
 	CallID    string             `json:"callId"`
@@ -328,7 +336,8 @@ func (s *Store) resolveContinuedQuestions(eventID string, answer userQuestionsAn
 }
 
 // submitQuestionAnswer is exclusive with the live waterfall and preserves failed
-// submissions for explicit retry. Success is fenced immediately until inbox echo.
+// submissions for explicit retry. A delivery the Host reports is fenced
+// immediately until inbox echo, including the reply it already holds queued.
 func (s *Store) submitQuestionAnswer(ctx context.Context, agentID, callID string, answer api.AskUserQuestionAnswer) {
 	s.submitQuestionAnswerBound(ctx, agentID, callID, answer, nil, nil)
 }
@@ -397,6 +406,10 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		if err == nil {
 			err = client.Call(ctx, "userQuestions/answer", map[string]any{"agentId": agentID, "callId": callID, "answer": answer}, &accepted)
 		}
+		queued := dshErrorCode(err) == questionReplyQueuedCode
+		if queued {
+			err = nil
+		}
 		// A queue/discard pair may never have been painted. Read the current
 		// producer inbox as well as its observations before interpreting this
 		// receipt, so a still-queued answer is not mistaken for a discard.
@@ -430,7 +443,7 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 			if p != nil {
 				p.Sending, p.Error = false, err.Error()
 			}
-		} else if !accepted {
+		} else if !accepted && !queued {
 			// A negative RPC result is not an answered projection. Keep the
 			// draft and visible failure until the Host's projection settles it.
 			if p != nil {
@@ -441,11 +454,28 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 			// response arrives. Preserve the attempt's observed queue history,
 			// so the late receipt cannot suppress the now-answerable call.
 			projection.submitted[callID] = submittedQuestion{queuedSeen: attempt.queuedSeen || projection.queued[callID], asOfSeq: asOfSeq, queueBaseline: attempt.queueBaseline}
-			projection.status = "submitted"
+			if queued {
+				// The reply waits for the agent to admit it, so the notice may
+				// not read as a confirmation that the agent has it.
+				projection.status = "queued"
+			} else {
+				projection.status = "submitted"
+			}
 			s.dropPending(id)
 			s.reconcileProjectedQuestionsLocked(agentID)
 		}
 		s.mu.Unlock()
 		s.fire()
 	}()
+}
+
+// dshErrorCode names the Host's own failure code. Anything the transport
+// itself synthesized carries none, which is what separates a Host refusal the
+// caller can interpret from a channel that never reached it.
+func dshErrorCode(err error) string {
+	var hostErr *dsh.Error
+	if errors.As(err, &hostErr) {
+		return hostErr.Code
+	}
+	return ""
 }

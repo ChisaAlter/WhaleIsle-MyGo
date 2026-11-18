@@ -270,6 +270,11 @@ func questionStatusText(status string) string {
 			return "补充回答已提交。"
 		}
 		return "Late answer submitted."
+	case "queued":
+		if zh {
+			return "回答已排队，等主机接收后才会生效；不需要再次提交。"
+		}
+		return "Your answer is queued; it takes effect once the host takes it up. No need to send it again."
 	case "waiting", "ask.waiting":
 		if zh {
 			return "等待回答"

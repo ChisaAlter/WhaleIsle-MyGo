@@ -35,6 +35,14 @@ cannot be retracted by local cancellation. Delivery failures preserve the draft
 and require an explicit valid retry; late completion from an older scoped result
 cannot settle a newer response.
 
+`REPLY_QUEUED` is the one Host refusal that reports delivery: `userQuestions/answer`
+throws it when a reply for that call already waits for the agent to admit it
+(`packages/interaction/user-questions`: `answer()` refuses a second queued reply,
+and settlement is a fold over the session log). The store therefore fences the
+call exactly as an accepted answer — no error, no retry, no editable card — and
+the strip says the answer is queued and takes effect once the host takes it up.
+Every other code still preserves the draft and its retry.
+
 No new Host subscription, credential channel or authority registry was added.
 Ordinary main-chat submissions and existing Host-controlled timed-question
 behavior are unchanged.
