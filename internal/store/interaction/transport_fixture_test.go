@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -99,12 +100,19 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	go func() {
 		done <- client.FollowEvents(ctx, mux, dsh.EventsFuncs{Waterfall: s.HandleWaterfall, Cancel: s.OnCancel, Result: s.OnResult})
 	}()
+	// The deadline here has two orders of magnitude of headroom on an idle
+	// machine, so a timeout means the expected state never arrived rather than
+	// arrived slowly. Report the step and every goroutine instead of only the
+	// deadline, so an occurrence on CI names what was blocked.
+	steps := 0
 	wait := func(check func() bool) {
 		t.Helper()
+		steps++
 		for !check() {
 			select {
 			case <-ctx.Done():
-				t.Fatal("fixture timed out")
+				buf := make([]byte, 1<<20)
+				t.Fatalf("fixture timed out at step %d\n%s", steps, buf[:runtime.Stack(buf, true)])
 			case <-time.After(time.Millisecond):
 			}
 		}

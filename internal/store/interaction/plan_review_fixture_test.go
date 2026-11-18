@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -152,12 +153,19 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	recovered.ReopenPlanReview(id)
 	recovered.ApprovePlanReview(id)
 	recovered.ApprovePlanReview(id)
+	// The deadline has roughly a hundred times the headroom of a passing run on
+	// an idle machine, so a timeout means the expected state never arrived
+	// rather than arrived slowly. Report the step and every goroutine instead of
+	// only the deadline, so an occurrence on CI names what was blocked.
+	steps := 0
 	wait := func(check func() bool) {
 		t.Helper()
+		steps++
 		deadline := time.Now().Add(2 * time.Second)
 		for !check() {
 			if time.Now().After(deadline) {
-				t.Fatal("fixture timed out")
+				buf := make([]byte, 1<<20)
+				t.Fatalf("fixture timed out at step %d\n%s", steps, buf[:runtime.Stack(buf, true)])
 			}
 			time.Sleep(time.Millisecond)
 		}
