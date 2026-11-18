@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
@@ -119,6 +119,12 @@ func TestPlanReviewContractFixture(t *testing.T) {
 
 	var mu sync.Mutex
 	var calls []map[string]json.RawMessage
+	// Every delivery fails until the test has seen the failed state and asked for
+	// the retry. Keying the failure off the attempt count let a later delivery
+	// succeed while the first step was still waiting, which made the awaited
+	// state unreachable rather than late.
+	var failDelivery atomic.Bool
+	failDelivery.Store(true)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]json.RawMessage
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -127,9 +133,8 @@ func TestPlanReviewContractFixture(t *testing.T) {
 		}
 		mu.Lock()
 		calls = append(calls, body)
-		count := len(calls)
 		mu.Unlock()
-		if count == 1 {
+		if failDelivery.Load() {
 			http.Error(w, "fixture temporary failure", 503)
 			return
 		}
@@ -156,16 +161,12 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	recovered.ApprovePlanReview(id)
 	// Every wait here settles in 1-2ms; twenty samples under deliberate
 	// starvation (four pinned CPUs, two competing spinners, -race, two packages
-	// at once) peaked at 6.7ms. Five seconds is therefore over seven hundred
-	// times the slowest observed wait. The budget exists to fail a prompt that
-	// never settles, not to time a fast one: a genuine block does not clear at
-	// five seconds, while a few seconds of CI scheduler starvation does, and the
-	// dump below names which one happened.
-	// The goroutine dump alone was not enough to explain a timeout: an
-	// occurrence on CI showed an otherwise idle process, with no sender left
-	// and no lock held, which means the awaited state could not arrive at any
-	// price rather than arrive late. Print the state the step is waiting on so
-	// that trip names its own cause.
+	// at once) peaked at 6.7ms. The wait itself is driven by the store's refresh
+	// hook, so a slow runner cannot fail it; the shared ceiling exists only to end
+	// a wedged test and is far past anything these steps need, so a failure here
+	// means the state never arrived rather than arrived late.
+	// The dump names which one happened: it prints the pending state, the number
+	// of delivery attempts the server saw, and every goroutine.
 	steps := 0
 	state := func() string {
 		snap := recovered.SnapshotForAgent("A")
@@ -178,19 +179,19 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	wait := func(check func() bool) {
 		t.Helper()
 		steps++
-		deadline := time.Now().Add(5 * time.Second)
-		for !check() {
-			if time.Now().After(deadline) {
-				buf := make([]byte, 1<<20)
-				t.Fatalf("fixture timed out at step %d (%s)\n%s", steps, state(), buf[:runtime.Stack(buf, true)])
-			}
-			time.Sleep(time.Millisecond)
-		}
+		awaitState(t, recovered, func() string {
+			mu.Lock()
+			attempts := len(calls)
+			mu.Unlock()
+			buf := make([]byte, 1<<20)
+			return fmt.Sprintf("step %d (%s, delivery attempts=%d)\n%s", steps, state(), attempts, buf[:runtime.Stack(buf, true)])
+		}, check)
 	}
 	wait(func() bool {
 		p := recovered.SnapshotForAgent("A").Pending
 		return len(p) == 1 && !p[0].Sending && p[0].Error != ""
 	})
+	failDelivery.Store(false)
 	recovered.Retry(id)
 	wait(func() bool { return recovered.SnapshotForAgent("A").QuestionStatus == "submitted" })
 	recovered.SyncProjectedQuestions("A", face, inbox, 10, 10)

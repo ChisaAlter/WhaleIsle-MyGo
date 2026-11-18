@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"whaleisle/internal/dsh"
 )
@@ -15,16 +14,6 @@ import (
 var continuedFixture = json.RawMessage(`{"active":[{"callId":"call-1","state":"continued","questions":[{"id":"q","question":"Pick","options":[{"label":"A"},{"label":"B"}]}]}],"settled":[]}`)
 var emptyInboxFixture = json.RawMessage(`{"next-step":[],"next-turn":[]}`)
 
-func awaitQuestionFixture(t *testing.T, condition func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for !condition() {
-		if time.Now().After(deadline) {
-			t.Fatal("question condition not reached")
-		}
-		time.Sleep(time.Millisecond)
-	}
-}
 func TestContinuedQuestionsRestoreAndRequireInbox(t *testing.T) {
 	s := New()
 	s.SyncProjectedQuestions("A", continuedFixture, nil)
