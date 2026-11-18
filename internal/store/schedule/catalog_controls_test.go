@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -38,9 +37,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 			Method  string `json:"method"`
 			Payload struct {
 				Args struct {
-					Request struct {
-						SessionID string `json:"sessionId"`
-					} `json:"request"`
+					Request map[string]json.RawMessage `json:"request"`
 				} `json:"args"`
 			} `json:"payload"`
 		}
@@ -63,10 +60,13 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 			result = map[string]any{"ok": false, "error": map[string]any{"code": "unsupported", "message": "catalog unavailable"}}
 		}
 		if body.Method == "schedule/list" {
-			if !failAll.Load() && body.Payload.Args.Request.SessionID != "selected" {
-				t.Errorf("wrong fallback owner: %q", body.Payload.Args.Request.SessionID)
+			if !failAll.Load() {
+				if _, sent := body.Payload.Args.Request["sessionId"]; sent {
+					t.Errorf("schedule/list still sends a Session id: %s", body.Payload.Args.Request["sessionId"])
+				}
 			}
-			result["value"] = []json.RawMessage{json.RawMessage(strings.Replace(newRecord, `,"sessionId":"owner","status":"active"`, "", 1))}
+			item := json.RawMessage(strings.Replace(newRecord, `"sessionId":"owner"`, `"sessionId":"selected"`, 1))
+			result["value"] = map[string]any{"items": []json.RawMessage{item}, "shown": 1, "total": 1, "limit": 500, "offset": 0}
 		} else if body.Method != "schedule/catalog" {
 			t.Errorf("unexpected RPC %s", body.Method)
 		}
@@ -203,7 +203,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 		catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList+1 {
 		t.Fatalf("failed fallback relabeled retained selected-Session data: %+v catalog=%d list=%d", failedPartial, catalogs.Load()-beforeCatalog, lists.Load()-beforeList)
 	}
-	rows := parseScheduleList(api.ListResult4{json.RawMessage(newRecord), json.RawMessage(strings.ReplaceAll(strings.ReplaceAll(oldRecord, `"active"`, `"inactive"`), `"job"`, `"ended"`))})
+	rows := parseScheduleList([]json.RawMessage{json.RawMessage(newRecord), json.RawMessage(strings.ReplaceAll(strings.ReplaceAll(oldRecord, `"active"`, `"inactive"`), `"job"`, `"ended"`))})
 	if got := FilterEntries(rows, "check UPDATES", "active"); len(got) != 1 || got[0].ID != "job" {
 		t.Fatalf("filter: %+v", got)
 	}

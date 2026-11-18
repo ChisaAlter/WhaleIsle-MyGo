@@ -119,3 +119,42 @@ func TestVendorDirPrefersPairedRC4AndFallsBackToRuntime(t *testing.T) {
 		t.Fatalf("with WHALEISLE_NODE_DIR set, got %q, want %q", got, want)
 	}
 }
+
+func TestVendorDirPrefersPairedRuntime022OverRC4(t *testing.T) {
+	base := t.TempDir()
+	t.Chdir(base)
+	t.Setenv(EnvVendor, "")
+	t.Setenv(EnvNodeDir, "")
+
+	rcHarness := filepath.Join(base, "runtime", "vendor", "deepseek-harness")
+	rc4Harness := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
+	rc4Node := filepath.Join(base, "runtime-rc4", "node", bundledNodeFilename())
+	rt022Harness := filepath.Join(base, "runtime-0.2.2-rc2", "vendor", "deepseek-harness")
+	rt022Node := filepath.Join(base, "runtime-0.2.2-rc2", "node", bundledNodeFilename())
+	for _, dir := range []string{rcHarness, rc4Harness, filepath.Dir(rc4Node), rt022Harness} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(rc4Node, []byte("node"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A newer vendor tree without its own bundled Node must not be selected.
+	if got, want := VendorDir(), filepath.Join(base, "runtime-rc4", "vendor"); got != want {
+		t.Fatalf("incomplete 0.2.2 runtime selected %q, want %q", got, want)
+	}
+	if err := os.MkdirAll(filepath.Dir(rt022Node), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(rt022Node, []byte("node"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := VendorDir(), filepath.Join(base, "runtime-0.2.2-rc2", "vendor"); got != want {
+		t.Fatalf("paired 0.2.2 got %q, want %q", got, want)
+	}
+	// Explicit WHALEISLE_NODE_DIR still keeps runtime/vendor ahead of any switch.
+	t.Setenv(EnvNodeDir, filepath.Join(base, "custom-node"))
+	if got, want := VendorDir(), filepath.Join(base, "runtime", "vendor"); got != want {
+		t.Fatalf("with WHALEISLE_NODE_DIR set, got %q, want %q", got, want)
+	}
+}

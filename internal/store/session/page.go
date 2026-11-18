@@ -119,12 +119,12 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 	beforeSeq := before
 	req := api.SessionPageRequest{
 		Address:     sessionAddressJSON(sessionID),
-		ThroughSeq:  through,
+		ThroughSeq:  &through,
 		BeforeSeq:   &beforeSeq,
 		MaxMessages: &maxMsg,
-		TurnWindow:  &api.SessionFollowRequestTurnWindow{MinMessages: 50, MinTurns: 2},
+		TurnWindow:  &api.SessionPageRequestTurnWindow{MinMessages: 50, MinTurns: 2},
 	}
-	var out api.SessionPage
+	var out api.SessionEventsPage
 	err := client.Call(ctx, "session/page", map[string]any{"request": req}, &out)
 	if err == nil {
 		err = validateHistoryPage(out.Records, through, before)
@@ -170,7 +170,7 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 // The Host history is dense. Match RemoteJournalStream.prepend's page and
 // join checks before publishing anything, rather than presenting a page with
 // a missing interval as a successful older-history load.
-func validateHistoryPage(records []api.SessionPageRecordsItem, through, before float64) error {
+func validateHistoryPage(records []api.SessionEventsPageRecordsItem, through, before float64) error {
 	var acceptedTail float64
 	accepted := false
 	for i, record := range records {
@@ -191,7 +191,7 @@ func validateHistoryPage(records []api.SessionPageRecordsItem, through, before f
 	return nil
 }
 
-func (s *Store) prependPageRecordsLocked(records []api.SessionPageRecordsItem) {
+func (s *Store) prependPageRecordsLocked(records []api.SessionEventsPageRecordsItem) {
 	s.invalidateViewLocked()
 	if len(records) == 0 {
 		return

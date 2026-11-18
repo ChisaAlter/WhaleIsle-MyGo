@@ -370,12 +370,8 @@ func resolveNodeForVendor(configured, vendorDir string) (string, error) {
 	}
 	if strings.TrimSpace(os.Getenv(paths.EnvVendor)) == "" {
 		for _, base := range bases {
-			harnessDir := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
-			candidate := filepath.Join(base, "runtime-rc4", "node", name)
-			if hInfo, err := os.Stat(harnessDir); err == nil && hInfo.IsDir() {
-				if st, err := os.Stat(candidate); err == nil && st.Mode().IsRegular() {
-					return candidate, nil
-				}
+			if dir := paths.BundledHostRuntimeDir(base); dir != "" {
+				return filepath.Join(base, dir, "node", name), nil
 			}
 		}
 	}

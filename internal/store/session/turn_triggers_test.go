@@ -69,7 +69,7 @@ func contextTriggerPrepend(t *testing.T, s *Store, events ...json.RawMessage) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var page api.SessionPage
+	var page api.SessionEventsPage
 	if err := json.Unmarshal(raw, &page); err != nil {
 		t.Fatal(err)
 	}

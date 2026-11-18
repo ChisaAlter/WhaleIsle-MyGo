@@ -4,12 +4,11 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 )
 
 func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
-	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "custom — alpha", ModelLabels: []string{"custom — alpha", "account — beta", "official — gamma", "custom — delta", "official — deepseek-chat"}, ModelChoices: map[string]api.ModelCatalogDefault{
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "custom — alpha", ModelLabels: []string{"custom — alpha", "account — beta", "official — gamma", "custom — delta", "official — deepseek-chat"}, ModelChoices: map[string]session.ModelSelection{
 		"custom — alpha": {Provider: "custom", Model: "alpha"}, "account — beta": {Provider: "deepseek-account", Model: "beta"}, "official — gamma": {Provider: "deepseek-official", Model: "gamma"}, "custom — delta": {Provider: "custom", Model: "delta"}, "official — deepseek-chat": {Provider: "deepseek-official", Model: "deepseek-chat"},
 	}}
 	chosen := ""
@@ -45,7 +44,7 @@ func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
 
 func TestGroupedModelPickerOrderRankingAndSmallCatalog(t *testing.T) {
 	labels := []string{"z", "official", "account", "a", "b", "c"}
-	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, ModelLabels: labels, ModelChoices: map[string]api.ModelCatalogDefault{
+	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, ModelLabels: labels, ModelChoices: map[string]session.ModelSelection{
 		"z": {Provider: "custom"}, "official": {Provider: "deepseek-official"}, "account": {Provider: "deepseek-account"}, "a": {Provider: "custom"}, "b": {Provider: "custom"}, "c": {Provider: "custom"},
 	}, ModelCatalogChoices: []session.ModelCatalogChoice{
 		{Label: "z", Name: "deepseek-chat", Provider: "custom"}, {Label: "a", Name: "dsc-prefixed", Provider: "custom"}, {Label: "b", Name: "deepseek-chat", Provider: "custom"}, {Label: "c", Name: "unrelated", Provider: "custom"},

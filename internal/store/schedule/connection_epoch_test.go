@@ -27,14 +27,18 @@ func TestScheduleRepliesCannotCrossReattachedClientEpoch(t *testing.T) {
 					RPCID   string `json:"rpcId"`
 					Payload struct {
 						Args struct {
-							Request struct{ ID, SessionID string } `json:"request"`
+							Request struct{ ID, Action string } `json:"request"`
 						} `json:"args"`
 					} `json:"payload"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 					return nil, err
 				}
-				if r.URL.Path != "/api/schedule/"+operation || request.Payload.Args.Request.ID != "task" || request.Payload.Args.Request.SessionID != "owner" {
+				wantMethod := operation
+				if wantMethod == "update" || wantMethod == "delete" {
+					wantMethod = "edit"
+				}
+				if r.URL.Path != "/api/schedule/"+wantMethod || request.Payload.Args.Request.ID != "task" || (wantMethod == "edit" && request.Payload.Args.Request.Action != operation) {
 					t.Errorf("unexpected schedule request: %s %+v", r.URL.Path, request.Payload.Args.Request)
 					return nil, errors.New("unexpected request")
 				}

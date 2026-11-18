@@ -25,15 +25,18 @@ func TestCapturedOwnerUpdateFailureThenSuccess(t *testing.T) {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		value := any([]any{})
-		if strings.HasSuffix(r.URL.Path, "schedule/update") {
+		if strings.HasSuffix(r.URL.Path, "schedule/edit") {
 			req := body.Payload.Args.Request
-			if string(req["sessionId"]) != `"owner"` {
-				t.Errorf("wrong target %s", req["sessionId"])
+			if string(req["action"]) != `"update"` || string(req["id"]) != `"task"` {
+				t.Errorf("wrong edit envelope action=%s id=%s", req["action"], req["id"])
 			}
-			var expected map[string]json.RawMessage
-			_ = json.Unmarshal(req["expected"], &expected)
-			if expected["status"] != nil || expected["sessionId"] != nil || string(expected["title"]) != `"Before"` {
-				t.Errorf("expected snapshot %s", req["expected"])
+			if string(req["expectedUpdatedAt"]) != "null" {
+				t.Errorf("expected no baseline for a record without updatedAt: %s", req["expectedUpdatedAt"])
+			}
+			var patch map[string]json.RawMessage
+			_ = json.Unmarshal(req["patch"], &patch)
+			if string(patch["title"]) != `"After"` || patch["sessionId"] != nil {
+				t.Errorf("wrong patch %s", req["patch"])
 			}
 			if calls.Add(1) == 1 {
 				value = map[string]any{"id": "task", "updated": false, "code": "schedule_conflict"}

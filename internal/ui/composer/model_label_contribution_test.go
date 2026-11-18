@@ -5,7 +5,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 )
 
@@ -14,7 +13,7 @@ func modelLabelFixture() session.ViewState {
 		SelectedID: "label-session", SelectedModel: "official opaque key",
 		NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true, ModelLabel1017: true},
 		ModelLabels:         []string{"official opaque key", "account opaque key", "custom opaque key", "small opaque key", "other opaque key"},
-		ModelChoices: map[string]api.ModelCatalogDefault{
+		ModelChoices: map[string]session.ModelSelection{
 			"official opaque key": {Provider: "deepseek-official", Model: "deepseek-flash"},
 			"account opaque key":  {Provider: "deepseek-account", Model: "deepseek-flash"},
 			"custom opaque key":   {Provider: "custom", Model: "deepseek-flash"},

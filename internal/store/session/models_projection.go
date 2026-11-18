@@ -3,8 +3,6 @@ package session
 import (
 	"bytes"
 	"encoding/json"
-
-	"whaleisle/internal/dsh/api"
 )
 
 // ModelCatalogChoice carries display metadata only; Label still resolves through ModelChoices.
@@ -15,11 +13,11 @@ type modelProjectionState struct {
 	Generation uint64
 	Seq        float64
 	Present    bool
-	Next       *api.ModelCatalogDefault
+	Next       *modelSelection
 }
 
 type modelSelectionState struct {
-	Default        api.ModelCatalogDefault
+	Default        modelSelection
 	CatalogReady   bool
 	CatalogRequest uint64
 	CatalogWarning string
@@ -39,7 +37,7 @@ func (s *Store) resetModelSelectionLocked() {
 func (s *Store) resetModelCatalogLocked() {
 	s.invalidateViewLocked()
 	s.modelOptions = nil
-	s.modelState.Default = api.ModelCatalogDefault{}
+	s.modelState.Default = modelSelection{}
 	s.modelState.CatalogReady = false
 	s.modelState.CatalogWarning = ""
 	s.modelState.CatalogRequest++
@@ -55,10 +53,10 @@ func (s *Store) modelSelectionAvailableLocked() bool {
 	return s.selectedID != ""
 }
 
-func (s *Store) currentModelSelectionLocked() (api.ModelCatalogDefault, bool) {
+func (s *Store) currentModelSelectionLocked() (modelSelection, bool) {
 	p := s.modelState.Projection
 	if s.selectedID == "" || p.SessionID != s.selectedID || p.Generation != s.followGeneration || !p.Present {
-		return api.ModelCatalogDefault{}, false
+		return modelSelection{}, false
 	}
 	if p.Next != nil {
 		return cloneModelSelection(*p.Next), true
@@ -66,7 +64,7 @@ func (s *Store) currentModelSelectionLocked() (api.ModelCatalogDefault, bool) {
 	if s.modelState.CatalogReady && s.modelState.Default.Provider != "" && s.modelState.Default.Model != "" {
 		return cloneModelSelection(s.modelState.Default), true
 	}
-	return api.ModelCatalogDefault{}, false
+	return modelSelection{}, false
 }
 
 func (s *Store) snapshotModelsLocked(st *ViewState) {
@@ -92,11 +90,11 @@ func (s *Store) snapshotModelsLocked(st *ViewState) {
 	if !s.modelSelectionAvailableLocked() {
 		return
 	}
-	st.ModelChoices = make(map[string]api.ModelCatalogDefault, len(s.modelOptions))
+	st.ModelChoices = make(map[string]modelSelection, len(s.modelOptions))
 	for _, o := range s.modelOptions {
 		st.ModelLabels = append(st.ModelLabels, o.Label)
 		st.ModelCatalogChoices = append(st.ModelCatalogChoices, ModelCatalogChoice{Label: o.Label, Name: o.Name, Provider: o.Provider, ProviderName: o.ProviderName})
-		choice := api.ModelCatalogDefault{Provider: o.Provider, Model: o.Model}
+		choice := modelSelection{Provider: o.Provider, Model: o.Model}
 		if o.Provider == selection.Provider && o.Model == selection.Model {
 			choice.ReasoningEffort = effectiveModelEffort(selection, s.modelOptions)
 		} else if o.Reasoning != nil {
@@ -105,7 +103,7 @@ func (s *Store) snapshotModelsLocked(st *ViewState) {
 		st.ModelChoices[o.Label] = cloneModelSelection(choice)
 	}
 	if opt, ok := modelOptionForSelection(selection, s.modelOptions); ok {
-		st.ModelEffortChoices = make(map[string]api.ModelCatalogDefault)
+		st.ModelEffortChoices = make(map[string]modelSelection)
 		for _, e := range modelEffortOptions(opt) {
 			st.ModelEffortLabels = append(st.ModelEffortLabels, e.Label)
 			choice := cloneModelSelection(selection)
@@ -148,7 +146,7 @@ func (s *Store) applyModelProjectionLocked(raw json.RawMessage, seq float64) {
 		}
 		next.Present = true
 		if string(bytes.TrimSpace(value.Next)) != "null" {
-			var selection api.ModelCatalogDefault
+			var selection modelSelection
 			if json.Unmarshal(value.Next, &selection) != nil || selection.Provider == "" || selection.Model == "" {
 				return
 			}
@@ -177,14 +175,14 @@ func (s *Store) applyModelControlLocked(raw json.RawMessage) {
 func (s *Store) applyModelSelectionEventLocked(raw json.RawMessage) bool {
 	s.invalidateViewLocked()
 	var event struct {
-		Seq  float64                 `json:"seq"`
-		Data api.ModelCatalogDefault `json:"data"`
+		Seq  float64        `json:"seq"`
+		Data modelSelection `json:"data"`
 	}
 	if json.Unmarshal(raw, &event) != nil || event.Data.Provider == "" || event.Data.Model == "" {
 		return false
 	}
 	value, _ := json.Marshal(struct {
-		Next api.ModelCatalogDefault `json:"next"`
+		Next modelSelection `json:"next"`
 	}{event.Data})
 	s.applyModelProjectionLocked(value, event.Seq)
 	return true

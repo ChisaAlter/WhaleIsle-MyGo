@@ -177,13 +177,13 @@ func exerciseProactive(ctx context.Context, client *dsh.Client, model *modelFixt
 	}
 	pass("proactive-schedule-durable-child", "actual desktop timer created a separate task/Session, model completed, and the fired receipt survived reopen")
 	// Inspect actual persisted source IDs rather than only the local task record.
-	var page api.SessionPage
+	var page api.SessionEventsPage
 	address, _ := json.Marshal(map[string]string{"kind": "session", "sessionId": continued.Execution.SessionID})
 	if err := client.Call(ctx, "session/projections", map[string]any{"request": map[string]string{"sessionId": continued.Execution.SessionID}}, &projection); err != nil {
 		return err
 	}
 	max := float64(500)
-	if err := client.Call(ctx, "session/page", map[string]any{"request": api.SessionPageRequest{Address: address, ThroughSeq: projection.AsOfSeq, MaxMessages: &max}}, &page); err != nil {
+	if err := client.Call(ctx, "session/page", map[string]any{"request": api.SessionPageRequest{Address: address, ThroughSeq: &projection.AsOfSeq, MaxMessages: &max}}, &page); err != nil {
 		return err
 	}
 	count := map[string]int{}

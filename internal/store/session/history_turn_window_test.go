@@ -17,10 +17,10 @@ import (
 // One new synthetic fixture for ordinary single-page turn-aligned history.
 // No real Host, model, session, or old test suite is started.
 func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
-	var records []api.SessionPageRecordsItem
-	records = append(records, api.SessionPageRecordsItem{Type: "event", Event: api.SessionPageRecordsItemEvent{Type: "turn/start", Seq: 120, Data: json.RawMessage(`{"turn":2}`)}})
+	var records []api.SessionEventsPageRecordsItem
+	records = append(records, api.SessionEventsPageRecordsItem{Type: "event", Event: api.SessionEventsPageRecordsItemEvent{Type: "turn/start", Seq: 120, Data: json.RawMessage(`{"turn":2}`)}})
 	for seq := 121; seq <= 180; seq++ {
-		records = append(records, api.SessionPageRecordsItem{Type: "event", Event: api.SessionPageRecordsItemEvent{Type: "user/message", Seq: float64(seq), Data: json.RawMessage(`{"turn":2,"source":{"kind":"user"},"content":[{"type":"text","text":"older page"}]}`)}})
+		records = append(records, api.SessionEventsPageRecordsItem{Type: "event", Event: api.SessionEventsPageRecordsItemEvent{Type: "user/message", Seq: float64(seq), Data: json.RawMessage(`{"turn":2,"source":{"kind":"user"},"content":[{"type":"text","text":"older page"}]}`)}})
 	}
 	records = denseHistoryFixture(records, 480)
 	makeStore := func(client *dsh.Client) *Store {
@@ -74,7 +74,7 @@ func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
 				close(entered)
 			}
 			<-release
-			rpcOK(w, in.RPCID, api.SessionPage{Records: records, HasMore: true})
+			rpcOK(w, in.RPCID, api.SessionEventsPage{Records: records, HasMore: true})
 		}))
 		defer srv.Close()
 		s := makeStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})
@@ -89,7 +89,7 @@ func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
 		close(release)
 		waitIdle(t, s)
 		q := <-requests
-		if string(q.Address) != `{"kind":"session","sessionId":"main"}` || q.ThroughSeq != 500 || q.BeforeSeq == nil || *q.BeforeSeq != 480 || q.MaxMessages == nil || *q.MaxMessages != 500 || q.TurnWindow == nil || q.TurnWindow.MinMessages != 50 || q.TurnWindow.MinTurns != 2 {
+		if string(q.Address) != `{"kind":"session","sessionId":"main"}` || q.ThroughSeq == nil || *q.ThroughSeq != 500 || q.BeforeSeq == nil || *q.BeforeSeq != 480 || q.MaxMessages == nil || *q.MaxMessages != 500 || q.TurnWindow == nil || q.TurnWindow.MinMessages != 50 || q.TurnWindow.MinTurns != 2 {
 			t.Fatalf("wrong original wire: %+v", q)
 		}
 		if calls.Load() != 1 {
@@ -110,7 +110,7 @@ func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
 				http.Error(w, "synthetic temporary failure", http.StatusServiceUnavailable)
 				return
 			}
-			rpcOK(w, in.RPCID, api.SessionPage{Records: records, HasMore: false})
+			rpcOK(w, in.RPCID, api.SessionEventsPage{Records: records, HasMore: false})
 		}))
 		defer srv.Close()
 		s := makeStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})
@@ -136,7 +136,7 @@ func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
 				calls.Add(1)
 				close(entered)
 				<-release
-				rpcOK(w, in.RPCID, api.SessionPage{Records: records, HasMore: false})
+				rpcOK(w, in.RPCID, api.SessionEventsPage{Records: records, HasMore: false})
 			}))
 			defer srv.Close()
 			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}

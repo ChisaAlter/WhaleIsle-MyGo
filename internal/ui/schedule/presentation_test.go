@@ -75,18 +75,29 @@ func newScheduleUIFixture(t *testing.T) *scheduleUIFixture {
 		case "schedule/catalog":
 			value = f.rows
 		case "schedule/list":
-			value = f.rows
+			items := make([]any, 0, len(f.rows))
+			for _, row := range f.rows {
+				items = append(items, row)
+			}
+			value = map[string]any{"items": items, "shown": len(items), "total": len(items), "limit": 500, "offset": 0}
 		case "schedule/history":
-			f.historyOwners = append(f.historyOwners, string(request["sessionId"]))
+			f.historyOwners = append(f.historyOwners, string(request["id"]))
 			value = map[string]any{"id": "first", "records": []map[string]any{{"messageId": "receipt-first", "scheduledAt": "2026-12-01T01:00:00Z", "deliveredAt": "2026-12-01T01:00:01Z", "prompt": "Saved instruction from the exact owning session"}}}
-		case "schedule/update":
+		case "schedule/edit":
 			f.writes = append(f.writes, request)
+			if string(request["action"]) == `"delete"` {
+				value = map[string]any{"id": "first", "deleted": true}
+				f.rows = f.rows[1:]
+				break
+			}
+			var patch map[string]json.RawMessage
+			_ = json.Unmarshal(request["patch"], &patch)
 			for _, row := range f.rows {
 				if string(request["id"]) != fmt.Sprintf("%q", row["id"]) {
 					continue
 				}
 				for _, field := range []string{"title", "prompt"} {
-					if raw := request[field]; len(raw) > 0 {
+					if raw := patch[field]; len(raw) > 0 {
 						var text string
 						_ = json.Unmarshal(raw, &text)
 						row[field] = text
@@ -219,7 +230,7 @@ func TestScheduleCatalogDetailGeometryAndLazyRecords(t *testing.T) {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if len(f.historyOwners) != 1 || f.historyOwners[0] != `"owner-first"` {
+	if len(f.historyOwners) != 1 || f.historyOwners[0] != `"first"` {
 		t.Fatalf("history ownership: %v", f.historyOwners)
 	}
 }
@@ -347,7 +358,7 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	f.wait(t, func() bool { f.mu.Lock(); defer f.mu.Unlock(); return len(f.writes) > 0 })
 	tt.Frame()
 	f.mu.Lock()
-	if len(f.writes) != 1 || string(f.writes[0]["sessionId"]) != `"owner-first"` || string(f.writes[0]["id"]) != `"first"` {
+	if len(f.writes) != 1 || string(f.writes[0]["action"]) != `"update"` || string(f.writes[0]["id"]) != `"first"` || !strings.Contains(string(f.writes[0]["patch"]), `"Updated morning"`) {
 		t.Fatalf("save owner: %v", f.writes)
 	}
 	f.mu.Unlock()
@@ -386,7 +397,7 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	tt.Frame()
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if len(f.writes) != 2 || string(f.writes[1]["sessionId"]) != `"owner-first"` {
+	if len(f.writes) != 2 || string(f.writes[1]["action"]) != `"delete"` || string(f.writes[1]["id"]) != `"first"` {
 		t.Fatalf("delete owner: %v", f.writes)
 	}
 	if _, ok := tt.Find("Task details"); ok {

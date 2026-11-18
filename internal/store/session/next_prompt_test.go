@@ -18,7 +18,7 @@ func TestNextPromptManagedPresentationListControlAndClear(t *testing.T) {
 	s.selectedID = "a"
 	managed := json.RawMessage(`{"sessionListMetadata":{"blank":false,"presentation":{"owner":"plugin","title":"Owned","composer":"managed"}}}`)
 	ordinary := json.RawMessage(`{"sessionListMetadata":{"blank":false}}`)
-	rows := []api.SessionListValueItemsItem{{SessionId: "a", AgentAvailable: true, Projections: &api.SessionListValueItemsItemProjections{Kind: "cached", AsOfSeq: 1, Values: managed}}, {SessionId: "b", AgentAvailable: true}}
+	rows := []api.SessionListValueItemsItem{{SessionId: "a", AgentAvailable: true, Projections: &api.SessionListValueItemsItemProjections{Kind: "cached", AsOfSeq: 1, Values: projectionValues(t, string(managed))}}, {SessionId: "b", AgentAvailable: true}}
 	s.client = &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://presentation.invalid"}, HTTP: &http.Client{Transport: composerRegressionTransport(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/api/session/list" {
 			return nil, fmt.Errorf("unexpected method %s", r.URL.Path)

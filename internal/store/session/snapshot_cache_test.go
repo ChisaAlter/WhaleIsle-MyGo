@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/dsh/events"
 	"whaleisle/internal/workflowrun"
 )
@@ -212,7 +211,7 @@ func TestSnapshotCloneViewMatchesIndependentDeepCopy(t *testing.T) {
 	usage := 3.0
 	effort := "high"
 	in.TurnUsage = map[float64]TurnUsage{1: {CacheRead: &usage, Routes: []string{"a", "b"}}}
-	in.ModelSelection = &api.ModelCatalogDefault{ReasoningEffort: &effort}
+	in.ModelSelection = &modelSelection{ReasoningEffort: &effort}
 	in.Messages = append(in.Messages, Message{
 		Raw: json.RawMessage(`{"type":"test"}`), ContentBlock: json.RawMessage(`{"type":"text"}`),
 		Files: []string{"first"}, Tool: &ToolCallView{Children: []*ToolCallView{{Events: []Message{{Raw: json.RawMessage(`{"type":"nested"}`)}}}}},

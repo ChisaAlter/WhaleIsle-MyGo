@@ -3,12 +3,11 @@ package usage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
-	"whaleisle/internal/accountlogin"
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/dsh/api"
 )
 
 // BonusFeedback describes acknowledgement of a displayed server-authored notice.
@@ -25,33 +24,18 @@ func readAccountBonuses(ctx context.Context, client *dsh.Client, status string) 
 	return bonuses, err
 }
 
+// errAccountBonusesUnavailable records a contract the pinned runtime no longer
+// exposes. The rc.4 Host answered account/getUnnotifiedBonuses and
+// account/ackBonusNotified; the pinned 0.2.2 Host replaced both with the
+// account notification endpoints, and moving this view onto them is a separate
+// change. Reporting the gap keeps the bonus list empty instead of inventing one.
+var errAccountBonusesUnavailable = errors.New("account bonuses are unavailable: the pinned Host runtime replaced the bonus endpoints with account notifications")
+
 func readAccountBonusBatch(ctx context.Context, client *dsh.Client, status string) (string, []Bonus, error) {
 	if status != "credential-stored" {
 		return "", nil, nil
 	}
-	meta := accountlogin.ClientMetadata()
-	var batch api.GetUnnotifiedBonusesResult
-	if err := client.Call(ctx, "account/getUnnotifiedBonuses", map[string]any{"client": meta}, &batch); err != nil {
-		return "", nil, err
-	}
-	var bonuses []Bonus
-	for _, b := range batch.Bonuses {
-		if expires, err := time.Parse(time.RFC3339, b.ExpiresAt); err == nil && !expires.After(time.Now()) {
-			continue
-		}
-		bonuses = append(bonuses, Bonus{
-			AccountID: batch.AccountId,
-			OrderID:   b.OrderId,
-			Title:     b.Title,
-			Metadata:  BonusMetadata{b.Campaign, b.Amount, b.Currency, b.GrantedAt},
-			Campaign:  bonusMetadataText(b.Campaign),
-			Amount:    bonusMetadataText(b.Amount),
-			Currency:  bonusMetadataText(b.Currency),
-			Message:   b.Message,
-			ExpiresAt: b.ExpiresAt,
-		})
-	}
-	return batch.AccountId, bonuses, nil
+	return "", nil, errAccountBonusesUnavailable
 }
 
 func bonusMetadataText(raw json.RawMessage) string {
@@ -256,18 +240,11 @@ func (s *Store) queueBonusAcknowledgement(accountID, orderID string) {
 }
 
 // One queue belongs to one account lifecycle. Transport failures back off like
-// the original account client; server false is settled, not a retryable error.
+// One queue belongs to one account lifecycle. The pinned runtime no longer
+// carries the acknowledgement endpoint, so a queued notice settles with the
+// reported gap rather than a transport retry: retrying a removed contract would
+// only repeat the same answer.
 func (s *Store) runBonusAcknowledgements(ctx context.Context, client *dsh.Client, generation uint64) {
-	s.mu.Lock()
-	initial, maximum := s.bonusRetryDelay, s.bonusRetryMaximum
-	s.mu.Unlock()
-	if initial <= 0 {
-		initial = time.Second
-	}
-	if maximum <= 0 {
-		maximum = time.Minute
-	}
-	delay := initial
 	for {
 		s.mu.Lock()
 		lifecycle := &s.bonusNotices
@@ -281,54 +258,10 @@ func (s *Store) runBonusAcknowledgements(ctx context.Context, client *dsh.Client
 			return
 		}
 		order := lifecycle.pending[0]
-		s.bonusFeedback = BonusFeedback{AccountID: order.accountID, OrderID: order.orderID, State: "pending"}
+		s.bonusFeedback = BonusFeedback{AccountID: order.accountID, OrderID: order.orderID, State: "failed", Error: errAccountBonusesUnavailable.Error()}
+		lifecycle.settled[order.orderID] = true
+		lifecycle.pending = lifecycle.pending[1:]
 		s.mu.Unlock()
 		s.fire()
-		meta := accountlogin.ClientMetadata()
-		var acknowledged api.AckBonusNotifiedResult
-		callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		err := client.Call(callCtx, "account/ackBonusNotified", map[string]any{
-			"accountId": order.accountID,
-			"orderId":   order.orderID,
-			"client":    meta,
-		}, &acknowledged)
-		cancel()
-		s.mu.Lock()
-		lifecycle = &s.bonusNotices
-		if ctx.Err() != nil || s.client != client || lifecycle.generation != generation {
-			s.mu.Unlock()
-			return
-		}
-		switch {
-		case err != nil:
-			s.bonusFeedback.State = "failed"
-			s.bonusFeedback.Error = err.Error()
-		case !acknowledged:
-			s.bonusFeedback.State = "refused"
-		default:
-			s.bonusFeedback.State = "acknowledged"
-		}
-		if err == nil {
-			lifecycle.settled[order.orderID] = true
-			lifecycle.pending = lifecycle.pending[1:]
-		}
-		s.mu.Unlock()
-		s.fire()
-		if err != nil {
-			timer := time.NewTimer(delay)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-			}
-			if delay >= maximum/2 {
-				delay = maximum
-			} else {
-				delay *= 2
-			}
-		} else {
-			delay = initial
-		}
 	}
 }

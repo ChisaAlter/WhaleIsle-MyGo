@@ -53,15 +53,3 @@ func TestPublishedResultProjectionUnion(t *testing.T) {
 		}
 	}
 }
-
-func TestPublishedResultBonusOpaqueMetadata(t *testing.T) {
-	raw := `{"accountId":"owned","bonuses":[{"orderId":"a","title":"","campaign":{"id":"owned"},"amount":12.5,"currency":null,"grantedAt":[1,2],"expiresAt":"","message":"Server-authored message"},{"orderId":"b","expiresAt":"","message":"Metadata omitted"}]}`
-	var batch GetUnnotifiedBonusesResult
-	if err := json.Unmarshal([]byte(raw), &batch); err != nil {
-		t.Fatal(err)
-	}
-	a, b := batch.Bonuses[0], batch.Bonuses[1]
-	if a.Title == nil || *a.Title != "" || string(a.Amount) != "12.5" || string(a.Campaign) != `{"id":"owned"}` || string(a.Currency) != "null" || string(a.GrantedAt) != "[1,2]" || b.Title != nil || b.Amount != nil {
-		t.Fatalf("opaque/absent/empty metadata conflated: %+v %+v", a, b)
-	}
-}

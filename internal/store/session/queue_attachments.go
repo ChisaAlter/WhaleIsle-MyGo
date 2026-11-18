@@ -80,7 +80,7 @@ func (s *Store) QueueImageLoader(sessionID, scope string) func(context.Context, 
 			return "", fmt.Errorf("queue image owner changed")
 		}
 		var out api.SessionAttachmentValue
-		err := client.Call(ctx, "session/attachment", map[string]any{"request": api.SessionAttachmentRequest{SessionId: sessionID, AttachmentId: id}}, &out)
+		err := client.Call(ctx, "session/attachment", map[string]any{"request": api.SessionAttachmentRequest{SessionId: sessionID, Attachment: api.SessionAttachmentRequestAttachment{AttachmentId: id}}}, &out)
 		if err != nil {
 			return "", err
 		}

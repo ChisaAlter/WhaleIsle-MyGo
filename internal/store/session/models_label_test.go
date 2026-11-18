@@ -2,8 +2,6 @@ package session
 
 import (
 	"testing"
-
-	"whaleisle/internal/dsh/api"
 )
 
 // TestLabelForSelectionUsesTheNativeSlash keeps the composer's model seat in the
@@ -12,7 +10,7 @@ import (
 // fallback used when the catalogue has no matching option must not pad the
 // separator.
 func TestLabelForSelectionUsesTheNativeSlash(t *testing.T) {
-	sel := api.ModelCatalogDefault{Provider: "deepseek-official", Model: "deepseek-flash"}
+	sel := modelSelection{Provider: "deepseek-official", Model: "deepseek-flash"}
 	if got := labelForSelection(sel, nil); got != "deepseek-official/deepseek-flash" {
 		t.Fatalf("label=%q", got)
 	}

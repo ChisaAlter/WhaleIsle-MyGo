@@ -12,8 +12,8 @@ import (
 // out of every surface, and each surface shows its own localized placeholder
 // (the sidebar's row and the conversation title band own theirs).
 func titleForItem(it api.SessionListValueItemsItem) string {
-	if it.Projections != nil && len(it.Projections.Values) > 0 {
-		if t := titleFromProjections(it.Projections.Values); t != "" {
+	if it.Projections != nil && len(projectionsRaw(it.Projections.Values)) > 0 {
+		if t := titleFromProjections(projectionsRaw(it.Projections.Values)); t != "" {
 			return t
 		}
 	}

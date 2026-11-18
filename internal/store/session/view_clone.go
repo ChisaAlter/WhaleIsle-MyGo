@@ -749,18 +749,18 @@ func cloneCommandView(in *CommandView) *CommandView {
 	return &out
 }
 
-func cloneModelChoiceMap(in map[string]api.ModelCatalogDefault) map[string]api.ModelCatalogDefault {
+func cloneModelChoiceMap(in map[string]modelSelection) map[string]modelSelection {
 	if in == nil {
 		return nil
 	}
-	out := make(map[string]api.ModelCatalogDefault, len(in))
+	out := make(map[string]modelSelection, len(in))
 	for key, choice := range in {
 		out[key] = cloneModelSelection(choice)
 	}
 	return out
 }
 
-func cloneModelSelectionPtr(in *api.ModelCatalogDefault) *api.ModelCatalogDefault {
+func cloneModelSelectionPtr(in *modelSelection) *modelSelection {
 	if in == nil {
 		return nil
 	}

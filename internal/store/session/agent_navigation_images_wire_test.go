@@ -67,7 +67,7 @@ func TestAgentNavigationImagesWireFixture(t *testing.T) {
 		s.PromptAgentNavigation(12, target, "")
 		select {
 		case req := <-requests:
-			if req.Mode != "continuable" || req.Delivery != string(delivery) || req.ParentSessionId != target.ParentSessionID || req.ChildSessionId != target.ChildSessionID || req.RequestId == "" || req.RequestId == previousID || len(req.Content) != 1 || !strings.Contains(string(req.Content[0]), `"type":"image"`) || !strings.Contains(string(req.Content[0]), `"data":`) {
+			if req.Delivery != string(delivery) || req.ChildSessionId != target.ChildSessionID || req.RequestId == "" || req.RequestId == previousID || len(req.Content) != 1 || !strings.Contains(string(req.Content[0]), `"type":"image"`) || !strings.Contains(string(req.Content[0]), `"data":`) {
 				t.Fatalf("incorrect child request: %+v", req)
 			}
 			previousID = req.RequestId

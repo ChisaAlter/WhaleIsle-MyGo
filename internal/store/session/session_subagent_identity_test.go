@@ -18,7 +18,7 @@ import (
 func TestSubagentIdentityListControlSparseAndHostReset(t *testing.T) {
 	s := New()
 	s.applySessionSubagentIdentityControlLocked(json.RawMessage(`{"type":"baseline","value":{"projections":{"child":{"asOfSeq":10,"values":{"subagent":{"mode":"continuable","label":"Owned child","seq":3}}},"later":{"asOfSeq":4,"values":{"subagent":{"mode":"one-shot","seq":2}}}}}}`))
-	rows := []api.SessionListValueItemsItem{{SessionId: "child", Running: true, Projections: &api.SessionListValueItemsItemProjections{Kind: "cached", AsOfSeq: 9999, Values: json.RawMessage(`{"subagent":{"mode":"one-shot","seq":1}}`)}}}
+	rows := []api.SessionListValueItemsItem{{SessionId: "child", Running: true, Projections: &api.SessionListValueItemsItemProjections{Kind: "cached", AsOfSeq: 9999, Values: projectionValues(t, `{"subagent":{"mode":"one-shot","seq":1}}`)}}}
 	s.client = &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://identity-fixture.invalid"}, HTTP: &http.Client{Transport: composerRegressionTransport(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/api/session/list" {
 			return nil, fmt.Errorf("unexpected fixture method %s", r.URL.Path)

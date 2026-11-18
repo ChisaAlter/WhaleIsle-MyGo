@@ -182,10 +182,10 @@ type ViewState struct {
 	MessageRatings map[string]string
 	// FeedbackBusyID is the message id with an in-flight messageFeedback/put (or "").
 	FeedbackBusyID          string
-	ModelChoices            map[string]api.ModelCatalogDefault
+	ModelChoices            map[string]modelSelection
 	ModelCatalogChoices     []ModelCatalogChoice
-	ModelEffortChoices      map[string]api.ModelCatalogDefault
-	ModelSelection          *api.ModelCatalogDefault
+	ModelEffortChoices      map[string]modelSelection
+	ModelSelection          *modelSelection
 	ModelSelectionKnown     bool
 	ModelSelectionBusy      bool
 	ModelEffortLabels       []string
@@ -1592,9 +1592,9 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 	s.reconcileSidebarStatusesLocked(s.items)
 	for _, row := range out.Items {
 		if row.Projections != nil {
-			s.applySubagentCatalogValuesLocked(row.SessionId, row.Projections.Values)
+			s.applySubagentCatalogValuesLocked(row.SessionId, projectionsRaw(row.Projections.Values))
 			if row.Projections.Kind == "" || row.Projections.Kind == "sequenced" {
-				s.applyQuestionValuesForSessionLocked(row.SessionId, row.Projections.Values, row.Projections.AsOfSeq)
+				s.applyQuestionValuesForSessionLocked(row.SessionId, projectionsRaw(row.Projections.Values), row.Projections.AsOfSeq)
 			}
 		}
 	}
@@ -1736,7 +1736,7 @@ func (s *Store) SetPresentation(ctx context.Context, sessionID, title string) {
 	go func() {
 		req := api.SessionPresentationRequest{
 			SessionId: sessionID,
-			Presentation: api.SessionPresentationRequestPresentation{
+			Presentation: api.SessionListValueItemsItemProjectionsValuesSessionListMetadataPresentation{
 				Owner: "whaleisle",
 				Title: title,
 			},
@@ -1920,19 +1920,16 @@ func (s *Store) PromptChild(ctx context.Context, parentID, childID, text string)
 	}
 	s.mu.Lock()
 	client := s.client
-	mode := string(NormalizePromptMode(string(s.promptMode)))
 	s.mu.Unlock()
 	if client == nil {
 		return
 	}
 	go func() {
 		req := api.SubagentPromptRequest{
-			RequestId:       newRequestID(),
-			ParentSessionId: parentID,
-			ChildSessionId:  childID,
-			Mode:            mode,
-			Delivery:        "session",
-			Content:         PromptContentBlocks(text),
+			RequestId:      newRequestID(),
+			ChildSessionId: childID,
+			Delivery:       "session",
+			Content:        PromptContentBlocks(text),
 		}
 		var out api.SubagentPromptReceipt
 		err := client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &out)

@@ -28,7 +28,7 @@ func TestLateSaveCannotReachReopenedOrDetachedDetail(t *testing.T) {
 						return nil, err
 					}
 					var value any = []any{}
-					if strings.HasSuffix(r.URL.Path, "schedule/update") {
+					if strings.HasSuffix(r.URL.Path, "schedule/edit") {
 						close(started)
 						<-release
 						value = map[string]any{"id": row.ID, "updated": true, "record": row.Raw}

@@ -14,7 +14,7 @@ func TestRenderOfficePDF(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		if r.URL.Path != "/api/officeToPdf/render" {
+		if r.URL.Path != "/api/officeKit/render" {
 			// Select may kick off follow/goals/skills; ignore.
 			rpcOK(w, body["rpcId"], map[string]any{})
 			return

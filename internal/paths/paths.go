@@ -65,9 +65,8 @@ func PidFile() string {
 const EnvVendor = "WHALEISLE_VENDOR"
 
 // EnvNodeDir, when set, overrides the bundled Node runtime directory. When both
-// WHALEISLE_VENDOR and WHALEISLE_NODE_DIR are unset and a complete rc.4 runtime
-// (runtime-rc4/vendor + runtime-rc4/node/node[.exe]) exists, VendorDir prefers
-// it over runtime/vendor.
+// WHALEISLE_VENDOR and WHALEISLE_NODE_DIR are unset and a complete pinned runtime
+// (see pinnedHostRuntimeDirs) exists, VendorDir prefers it over runtime/vendor.
 const EnvNodeDir = "WHALEISLE_NODE_DIR"
 
 func bundledNodeFilename() string {
@@ -77,9 +76,15 @@ func bundledNodeFilename() string {
 	return "node"
 }
 
-func rc4CandidatePairReady(base string) bool {
-	harnessDir := filepath.Join(base, "runtime-rc4", "vendor", "deepseek-harness")
-	nodePath := filepath.Join(base, "runtime-rc4", "node", bundledNodeFilename())
+// pinnedHostRuntimeDirs lists the complete bundled Host runtimes a source tree
+// may carry, newest pin first. A candidate counts only when its vendor tree and
+// its own bundled Node are both present: the Host refuses a Node that is not the
+// one it was staged with, so pairing is the point, not a convenience.
+var pinnedHostRuntimeDirs = [...]string{"runtime-0.2.2-rc2", "runtime-rc4"}
+
+func hostRuntimePairReady(base, dir string) bool {
+	harnessDir := filepath.Join(base, dir, "vendor", "deepseek-harness")
+	nodePath := filepath.Join(base, dir, "node", bundledNodeFilename())
 	hInfo, err := os.Stat(harnessDir)
 	if err != nil || !hInfo.IsDir() {
 		return false
@@ -88,11 +93,22 @@ func rc4CandidatePairReady(base string) bool {
 	return err == nil && nInfo.Mode().IsRegular()
 }
 
+// BundledHostRuntimeDir names the first complete pinned Host runtime under base,
+// in pinnedHostRuntimeDirs order, or "" when none is complete. Vendor selection
+// and Node selection both use it so they can never pair mismatched trees.
+func BundledHostRuntimeDir(base string) string {
+	for _, dir := range pinnedHostRuntimeDirs {
+		if hostRuntimePairReady(base, dir) {
+			return dir
+		}
+	}
+	return ""
+}
+
 // VendorDir returns the directory of vendored harness + desktop plugins
-// (preferring runtime-rc4/vendor when unoverridden and paired with its bundled
-// Node, falling back to runtime/vendor). Override with WHALEISLE_VENDOR;
-// otherwise use a selected macOS Host component, then look next to the
-// executable and working directory.
+// (preferring a complete pinned runtime when unoverridden, falling back to
+// runtime/vendor). Override with WHALEISLE_VENDOR; otherwise use a selected
+// macOS Host component, then look next to the executable and working directory.
 func VendorDir() string {
 	if override := os.Getenv(EnvVendor); override != "" {
 		return override
@@ -113,8 +129,8 @@ func VendorDir() string {
 	}
 	if strings.TrimSpace(os.Getenv(EnvNodeDir)) == "" {
 		for _, base := range bases {
-			if rc4CandidatePairReady(base) {
-				return filepath.Join(base, "runtime-rc4", "vendor")
+			if dir := BundledHostRuntimeDir(base); dir != "" {
+				return filepath.Join(base, dir, "vendor")
 			}
 		}
 	}

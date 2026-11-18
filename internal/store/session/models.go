@@ -22,11 +22,24 @@ type ModelOption struct {
 	Reasoning    *api.ModelCatalogGroupsItemModelsItemReasoning
 }
 
+// modelSelection is the Host record for one provider/model choice. The pinned
+// 0.2.2 runtime names this same shape after the projection that carries it, so the
+// generated identifier is long; one alias keeps the selection code readable.
+type modelSelection = api.SessionListValueItemsItemProjectionsValuesModelSelectionLastUsed
+
+// ModelSelection is the Host record for one provider/model choice, exported for
+// callers that build or inspect a selection outside this package.
+type ModelSelection = modelSelection
+
+// goalBlockedReason is the Host record explaining a blocked goal; the pinned
+// runtime names it after the projection that carries it.
+type goalBlockedReason = api.SessionListValueItemsItemProjectionsValuesGoalGoalBlockedReason
+
 type modelRoute struct{ provider, model string }
 
 func modelChoiceKey(provider, model string) modelRoute { return modelRoute{provider, model} }
 
-func cloneModelSelection(v api.ModelCatalogDefault) api.ModelCatalogDefault {
+func cloneModelSelection(v modelSelection) modelSelection {
 	if v.ReasoningEffort != nil {
 		effort := *v.ReasoningEffort
 		v.ReasoningEffort = &effort
@@ -85,7 +98,7 @@ func flattenModelCatalog(cat api.ModelCatalog) []ModelOption {
 	return out
 }
 
-func modelOptionForSelection(sel api.ModelCatalogDefault, options []ModelOption) (ModelOption, bool) {
+func modelOptionForSelection(sel modelSelection, options []ModelOption) (ModelOption, bool) {
 	for _, o := range options {
 		if o.Provider == sel.Provider && o.Model == sel.Model {
 			return o, true
@@ -94,7 +107,7 @@ func modelOptionForSelection(sel api.ModelCatalogDefault, options []ModelOption)
 	return ModelOption{}, false
 }
 
-func labelForSelection(sel api.ModelCatalogDefault, options []ModelOption) string {
+func labelForSelection(sel modelSelection, options []ModelOption) string {
 	if o, ok := modelOptionForSelection(sel, options); ok {
 		return o.Label
 	}
@@ -157,7 +170,7 @@ func modelEffortOptions(opt ModelOption) []modelEffortOption {
 	return out
 }
 
-func effectiveModelEffort(sel api.ModelCatalogDefault, options []ModelOption) *string {
+func effectiveModelEffort(sel modelSelection, options []ModelOption) *string {
 	if sel.ReasoningEffort != nil {
 		return sel.ReasoningEffort
 	}
@@ -167,7 +180,7 @@ func effectiveModelEffort(sel api.ModelCatalogDefault, options []ModelOption) *s
 	return nil
 }
 
-func sameModelSelection(a, b api.ModelCatalogDefault, options []ModelOption) bool {
+func sameModelSelection(a, b modelSelection, options []ModelOption) bool {
 	if a.Provider != b.Provider || a.Model != b.Model {
 		return false
 	}
@@ -301,7 +314,7 @@ func (s *Store) SelectModelForSessionID(ctx context.Context, sessionID, label st
 		s.mu.Unlock()
 		return
 	}
-	selection := api.ModelCatalogDefault{Provider: opt.Provider, Model: opt.Model}
+	selection := modelSelection{Provider: opt.Provider, Model: opt.Model}
 	if known && current.Provider == opt.Provider && current.Model == opt.Model {
 		// Re-selecting a route must not silently reset its adapter-owned effort.
 		selection.ReasoningEffort = effectiveModelEffort(current, s.modelOptions)
@@ -339,20 +352,20 @@ func (s *Store) SelectModelEffortForSessionID(ctx context.Context, sessionID, la
 
 // SelectModelSelectionForSessionID sends only the Host's existing request fields.
 // The UI stays on committed projection state until the Host confirms the change.
-func (s *Store) SelectModelSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault) {
+func (s *Store) SelectModelSelectionForSessionID(ctx context.Context, sessionID string, selection modelSelection) {
 	s.selectModelSelectionForSessionID(ctx, sessionID, selection, false)
 }
 
 // Effort picks are also bound to the model route shown when the menu was built.
-func (s *Store) SelectModelEffortSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault) {
+func (s *Store) SelectModelEffortSelectionForSessionID(ctx context.Context, sessionID string, selection modelSelection) {
 	s.selectModelSelectionForSessionID(ctx, sessionID, selection, true)
 }
 
-func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID string, selection api.ModelCatalogDefault, effortOnly bool) {
+func (s *Store) selectModelSelectionForSessionID(ctx context.Context, sessionID string, selection modelSelection, effortOnly bool) {
 	s.selectModelSelectionWithReceipt(ctx, sessionID, selection, effortOnly, nil, nil)
 }
 
-func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID string, selection api.ModelCatalogDefault, effortOnly bool, owner *NativeCommandOwner, completed func(error)) {
+func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID string, selection modelSelection, effortOnly bool, owner *NativeCommandOwner, completed func(error)) {
 	finish := func(err error) {
 		if completed != nil {
 			completed(err)

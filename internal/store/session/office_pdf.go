@@ -19,7 +19,7 @@ type OfficePDFDocument struct {
 	Generation   string
 }
 
-// RenderOfficePDF returns the source identity reported by officeToPdf/render.
+// RenderOfficePDF returns the source identity reported by officeKit/render.
 // Preview callers must use RenderOfficePDFBytesForSession for the PDF content.
 func (s *Store) RenderOfficePDF(ctx context.Context, relPath string) (string, error) {
 	s.mu.Lock()
@@ -79,9 +79,9 @@ func (s *Store) renderOfficePDFForSession(ctx context.Context, sessionID, path s
 	}
 	// Preserve the provider-generation probe. Render carries its own generation
 	// and remains authoritative when the Host has no cached generation response.
-	var gen api.OfficeToPdfGeneration
-	_ = client.Call(ctx, "officeToPdf/generation", map[string]any{}, &gen)
-	err := client.Call(ctx, "officeToPdf/render", map[string]any{
+	var gen api.OfficeKitGeneration
+	_ = client.Call(ctx, "officeKit/generation", map[string]any{}, &gen)
+	err := client.Call(ctx, "officeKit/render", map[string]any{
 		"workspaceFileScopeId": sessionID,
 		"path":                 path,
 		"priority":             "foreground",
@@ -90,7 +90,7 @@ func (s *Store) renderOfficePDFForSession(ctx context.Context, sessionID, path s
 		return out, err
 	}
 	if strings.TrimSpace(out.AbsolutePath) == "" {
-		return out, fmt.Errorf("officeToPdf/render: empty source absolutePath")
+		return out, fmt.Errorf("officeKit/render: empty source absolutePath")
 	}
 	return out, nil
 }

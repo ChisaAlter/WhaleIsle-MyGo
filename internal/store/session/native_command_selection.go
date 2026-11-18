@@ -21,7 +21,7 @@ type NativeCommandOwner struct {
 type NativeCommandOption struct {
 	ID, Label, CatalogLabel, Group, GroupLabel, Detail, Badge string
 	Active, Confirmation                                      bool
-	Model                                                     *api.ModelCatalogDefault
+	Model                                                     *modelSelection
 	Failure                                                   string
 }
 
@@ -116,7 +116,7 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 		sort.SliceStable(cat.Groups, func(i, j int) bool { return priority(cat.Groups[i].Id) < priority(cat.Groups[j].Id) })
 		for _, g := range cat.Groups {
 			for _, m := range g.Models {
-				selection := api.ModelCatalogDefault{Provider: g.Id, Model: m.Id}
+				selection := modelSelection{Provider: g.Id, Model: m.Id}
 				if m.Reasoning != nil {
 					selection.ReasoningEffort = m.Reasoning.DefaultEffort
 				}
@@ -164,7 +164,7 @@ func (s *Store) LoadNativeCommandOptions(ctx context.Context, o NativeCommandOwn
 
 // SelectNativeCommandModel returns a receipt only after the captured Host has
 // confirmed its projection. A retired registration cannot clear a new draft.
-func (s *Store) SelectNativeCommandModel(ctx context.Context, o NativeCommandOwner, selection api.ModelCatalogDefault) error {
+func (s *Store) SelectNativeCommandModel(ctx context.Context, o NativeCommandOwner, selection modelSelection) error {
 	done := make(chan error, 1)
 	s.selectModelSelectionWithReceipt(ctx, o.SessionID, selection, false, &o, func(err error) { done <- err })
 	select {

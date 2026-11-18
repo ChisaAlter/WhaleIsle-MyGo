@@ -339,7 +339,7 @@ func (s *Store) historyJumpOwnedLocked(client *dsh.Client, id string, generation
 }
 
 func (s *Store) runHistoryTurnJump(ctx context.Context, client *dsh.Client, id string, generation, request, pageRequest uint64, through, before, target float64) {
-	var pages [][]api.SessionPageRecordsItem
+	var pages [][]api.SessionEventsPageRecordsItem
 	hasMore := true
 	var resultErr error
 	for hasMore && before > target && ctx.Err() == nil {
@@ -352,8 +352,8 @@ func (s *Store) runHistoryTurnJump(ctx context.Context, client *dsh.Client, id s
 		}
 		maxMessages := float64(500)
 		cursor := before
-		req := api.SessionPageRequest{Address: sessionAddressJSON(id), ThroughSeq: through, BeforeSeq: &cursor, MaxMessages: &maxMessages, TurnWindow: &api.SessionFollowRequestTurnWindow{MinMessages: 200, MinTurns: 2}}
-		var out api.SessionPage
+		req := api.SessionPageRequest{Address: sessionAddressJSON(id), ThroughSeq: &through, BeforeSeq: &cursor, MaxMessages: &maxMessages, TurnWindow: &api.SessionPageRequestTurnWindow{MinMessages: 200, MinTurns: 2}}
+		var out api.SessionEventsPage
 		pageCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		resultErr = client.Call(pageCtx, "session/page", map[string]any{"request": req}, &out)
 		cancel()
@@ -364,7 +364,7 @@ func (s *Store) runHistoryTurnJump(ctx context.Context, client *dsh.Client, id s
 			break
 		}
 		next := before
-		var accepted []api.SessionPageRecordsItem
+		var accepted []api.SessionEventsPageRecordsItem
 		for _, rec := range out.Records {
 			if rec.Type != "event" || !historySafeNumber(rec.Event.Seq) || rec.Event.Seq >= before || rec.Event.Seq > through {
 				continue

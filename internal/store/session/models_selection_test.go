@@ -146,7 +146,7 @@ func TestModelRefreshDoesNotOverwriteSessionSelection(t *testing.T) {
 func TestModelSelectionWireFailureRetryAndEffort(t *testing.T) {
 	var attempts atomic.Int32
 	requests := make(chan map[string]any, 8)
-	var selected api.ModelCatalogDefault
+	var selected modelSelection
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, req := modelTestRequest(r)
 		if req["sessionId"] != "current" {
@@ -165,7 +165,7 @@ func TestModelSelectionWireFailureRetryAndEffort(t *testing.T) {
 				return
 			}
 			raw, _ := json.Marshal(req)
-			selected = api.ModelCatalogDefault{}
+			selected = modelSelection{}
 			json.Unmarshal(raw, &selected)
 			modelTestReply(w, id, api.SessionSelectModelValue{Selected: selected})
 		case "/api/session/projections":
@@ -234,7 +234,7 @@ func TestModelSelectionStaleResponseCannotCrossSessionGeneration(t *testing.T) {
 		}
 		close(started)
 		<-release
-		modelTestReply(w, id, api.SessionSelectModelValue{Selected: api.ModelCatalogDefault{Provider: "p", Model: "m2"}})
+		modelTestReply(w, id, api.SessionSelectModelValue{Selected: modelSelection{Provider: "p", Model: "m2"}})
 		close(finished)
 	}))
 	defer srv.Close()
