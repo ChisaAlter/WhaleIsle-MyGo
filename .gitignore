@@ -40,7 +40,13 @@ pet-render-assets/
 
 # Agent-local settings and tool caches: machine-specific, never shared.
 .qwen/
+.claude/
+.codex/
 internal/desktop/phoneremote/.wrangler/
+
+# Editor state, never shared.
+.vscode/
+.idea/
 
 # Measurement profiles and their derived dumps; regenerate from the run logs.
 *.cpuprofile
@@ -48,3 +54,14 @@ internal/desktop/phoneremote/.wrangler/
 *.pprof
 *.mem
 *.cpu
+
+# Node dependencies and coverage output; regenerate with the tooling scripts.
+node_modules/
+/coverage/
+*.test
+
+# OS and temporary droppings. The DS_Store under third_party testdata is a
+# fixture the dmg parser test reads, so it stays tracked.
+.DS_Store
+*.tmp
+!third_party/mygo/cmd/mygo/testdata/dmg.DS_Store
