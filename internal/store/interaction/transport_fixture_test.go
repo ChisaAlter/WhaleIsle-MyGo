@@ -94,16 +94,19 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	defer mux.Close()
 	s := New()
 	s.AttachClient(client, mux)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
 		done <- client.FollowEvents(ctx, mux, dsh.EventsFuncs{Waterfall: s.HandleWaterfall, Cancel: s.OnCancel, Result: s.OnResult})
 	}()
-	// The deadline here has two orders of magnitude of headroom on an idle
-	// machine, so a timeout means the expected state never arrived rather than
-	// arrived slowly. Report the step and every goroutine instead of only the
-	// deadline, so an occurrence on CI names what was blocked.
+	// This context bounds every wait below. Each settles in 1-3ms; a hundred and
+	// ten samples under the same starvation runs as the plan-review fixture
+	// peaked at 4.2ms, so six seconds is over a thousand times the slowest
+	// observed wait. The budget exists to fail a frame stream that stopped, not
+	// to time one that is fast: a genuine block does not clear at six seconds,
+	// while a few seconds of CI scheduler starvation does, and the dump below
+	// names which one happened.
 	steps := 0
 	wait := func(check func() bool) {
 		t.Helper()

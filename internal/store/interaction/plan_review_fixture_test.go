@@ -153,15 +153,18 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	recovered.ReopenPlanReview(id)
 	recovered.ApprovePlanReview(id)
 	recovered.ApprovePlanReview(id)
-	// The deadline has roughly a hundred times the headroom of a passing run on
-	// an idle machine, so a timeout means the expected state never arrived
-	// rather than arrived slowly. Report the step and every goroutine instead of
-	// only the deadline, so an occurrence on CI names what was blocked.
+	// Every wait here settles in 1-2ms; twenty samples under deliberate
+	// starvation (four pinned CPUs, two competing spinners, -race, two packages
+	// at once) peaked at 6.7ms. Five seconds is therefore over seven hundred
+	// times the slowest observed wait. The budget exists to fail a prompt that
+	// never settles, not to time a fast one: a genuine block does not clear at
+	// five seconds, while a few seconds of CI scheduler starvation does, and the
+	// dump below names which one happened.
 	steps := 0
 	wait := func(check func() bool) {
 		t.Helper()
 		steps++
-		deadline := time.Now().Add(2 * time.Second)
+		deadline := time.Now().Add(5 * time.Second)
 		for !check() {
 			if time.Now().After(deadline) {
 				buf := make([]byte, 1<<20)
