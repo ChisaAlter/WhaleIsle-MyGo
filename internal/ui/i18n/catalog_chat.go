@@ -293,8 +293,8 @@ const (
 	KeyChatTurnRailLabel    = "chat.turn_rail.label"
 	KeyChatTurnRailJump     = "chat.turn_rail.jump"
 	KeyChatTurnRailJumpLoad = "chat.turn_rail.jump_load"
-	KeyChatTurnRailTurn  = "chat.turn_rail.turn"
-	KeyChatTurnRailEmpty = "chat.turn_rail.empty"
+	KeyChatTurnRailTurn     = "chat.turn_rail.turn"
+	KeyChatTurnRailEmpty    = "chat.turn_rail.empty"
 
 	// Queue dock.
 	KeyChatQueueTitle        = "chat.queue.title"
