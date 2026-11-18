@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/chrome"
@@ -39,7 +40,7 @@ func visibilityIdentity(v pluginrpc.DshbotBotItem) string {
 func botVisibilityReviewText(host string, cmd pluginrpc.DshbotVisibilityCommand) string {
 	target, err := pluginrpc.DshbotVisibilityTarget(cmd)
 	if err != nil {
-		return err.Error()
+		return errcopy.Sentence(err)
 	}
 	keys := []string{}
 	for k := range target.Profile {

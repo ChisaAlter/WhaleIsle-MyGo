@@ -11,6 +11,7 @@ import (
 	"time"
 	_ "time/tzdata"
 	"unicode/utf16"
+	"whaleisle/internal/errcopy"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -326,7 +327,7 @@ func (p *Panel) saveDraft(m Model, d *taskDraft) {
 	p.statusDismissed, p.statusLocal = false, err != nil
 	p.statusDraft = d.draftKey()
 	if err != nil {
-		p.status = err.Error()
+		p.status = errcopy.Sentence(err)
 	}
 	p.mu.Unlock()
 	if err != nil {

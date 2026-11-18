@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
@@ -266,7 +267,7 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 			if widgets.Button(c, colors, label("测试连接", "Test connection"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
 				if err := m.Machines.TestDraft(e.Draft); err != nil {
-					e.Error = err.Error()
+					e.Error = errcopy.Sentence(err)
 				} else {
 					e.Error = ""
 				}
@@ -278,7 +279,7 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 			}
 			if widgets.Button(c, colors, label("保存", "Save"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(s.Busy || problem != "").Clicked() {
 				if err := m.Machines.Save(e.Draft); err != nil {
-					e.Error = err.Error()
+					e.Error = errcopy.Sentence(err)
 				} else {
 					e.Error = ""
 					e.Saving = true

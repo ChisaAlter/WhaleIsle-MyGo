@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/i18n"
@@ -535,7 +536,7 @@ func (w *Workbench) finishReload() {
 	w.Loaded = true
 	w.Repository = res.repo
 	if res.err != nil {
-		w.Status = res.err.Error()
+		w.Status = errcopy.Sentence(res.err)
 		w.Changes = nil
 	} else {
 		w.Changes = res.changes
@@ -543,13 +544,13 @@ func (w *Workbench) finishReload() {
 			w.Commit.LargeFiles = res.largeFiles
 			w.Commit.ScanError = ""
 			if res.scanErr != nil {
-				w.Commit.ScanError = res.scanErr.Error()
+				w.Commit.ScanError = errcopy.Sentence(res.scanErr)
 			}
 		} else if len(res.largeFiles) > 0 || res.scanErr != nil {
 			s := w.commitState()
 			s.LargeFiles = res.largeFiles
 			if res.scanErr != nil {
-				s.ScanError = res.scanErr.Error()
+				s.ScanError = errcopy.Sentence(res.scanErr)
 			}
 		}
 	}
@@ -657,7 +658,7 @@ func (w *Workbench) finishCompareBranches() {
 	w.CompareBranches = res.branches
 	w.CompareError = ""
 	if res.err != nil {
-		w.CompareError = res.err.Error()
+		w.CompareError = errcopy.Sentence(res.err)
 	}
 }
 
@@ -666,7 +667,7 @@ func formatDiffOutcome(out string, err error, mapNotRepo bool) (text, errMsg str
 		if mapNotRepo && errors.Is(err, git.ErrNotRepo) {
 			return "", i18n.T(i18n.KeyDiffNotRepo)
 		}
-		return "", strings.TrimSpace(err.Error())
+		return "", errcopy.Sentence(err)
 	}
 	if strings.TrimSpace(out) == "" {
 		return "", i18n.T(i18n.KeyDiffEmpty)
@@ -1013,7 +1014,7 @@ func (w *Workbench) finishDiscardPrepare(m Model) {
 	l.mu.Unlock()
 
 	if res.err != nil {
-		w.Status = res.err.Error()
+		w.Status = errcopy.Sentence(res.err)
 		w.Discard = nil
 		return
 	}
@@ -1093,7 +1094,7 @@ func (w *Workbench) finishPublishPrepare(m Model) {
 	l.mu.Unlock()
 
 	if res.err != nil {
-		w.Status = res.err.Error()
+		w.Status = errcopy.Sentence(res.err)
 		return
 	}
 	w.ReviewedPublish = res.input

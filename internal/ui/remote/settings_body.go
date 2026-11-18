@@ -3,6 +3,7 @@ package remote
 import (
 	"strconv"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 
@@ -186,7 +187,7 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 	busy := m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy
 	save := func(next config.RemoteGatewayPreferences) {
 		if err := m.OnSaveGateway(current, next); err != nil {
-			e.Error = err.Error()
+			e.Error = errcopy.Sentence(err)
 			return
 		}
 		e.Error = ""
@@ -308,7 +309,7 @@ func gatewayRefreshRow(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui.Co
 				widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: busy})
 			if refresh.Clicked() {
 				if err := m.OnRotateToken(); err != nil {
-					e.Error = err.Error()
+					e.Error = errcopy.Sentence(err)
 				} else {
 					e.Error = ""
 				}
@@ -362,7 +363,7 @@ func gatewayLegacySection(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui
 					widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall})
 				if clear.Clicked() {
 					if err := m.OnSetRelayToken(""); err != nil {
-						e.Error = err.Error()
+						e.Error = errcopy.Sentence(err)
 					} else {
 						e.Error = ""
 					}

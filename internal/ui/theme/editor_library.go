@@ -1,6 +1,10 @@
 package theme
 
-import "reflect"
+import (
+	"reflect"
+
+	"whaleisle/internal/errcopy"
+)
 
 func (e *Editor) SelectThemeHalf(dark bool, id string) {
 	next, draft := e.writeBaseline(), e.Draft.Clone()
@@ -65,7 +69,7 @@ func (e *Editor) ImportLibraryFamily(raw string) bool {
 	next, draft := e.writeBaseline(), e.Draft.Clone()
 	family, err := next.ImportFamily(raw)
 	if err != nil {
-		e.Status = err.Error()
+		e.Status = errcopy.Sentence(err)
 		return false
 	}
 	// The draft may own an ID not in the persisted library yet.

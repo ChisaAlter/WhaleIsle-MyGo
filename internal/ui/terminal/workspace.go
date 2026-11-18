@@ -3,6 +3,7 @@ package terminal
 import (
 	"errors"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 
 	myterm "github.com/egoist/mygo/plugins/terminal"
@@ -92,7 +93,7 @@ func (p *Panel) createPane(dark, split, vertical bool) error {
 	pane := &terminalPane{id: p.nextID}
 	term, err := openNativeTerminal(p.cwd, dark, p.linkActivator(pane))
 	if err != nil {
-		p.notice = err.Error()
+		p.notice = errcopy.Sentence(err)
 		if len(p.panes) == 0 {
 			p.Err = err
 		}
@@ -200,11 +201,11 @@ func (p *Panel) linkActivator(pane *terminalPane) func(string) bool {
 			return true
 		}
 		if p.onOpenTarget == nil {
-			p.notice = "Terminal target opener is unavailable"
+			p.notice = terminalLabel("此终端没有可用的打开方式。", "Nothing is set up to open terminal targets here.")
 			return true
 		}
 		if err := p.onOpenTarget(target); err != nil {
-			p.notice = err.Error()
+			p.notice = errcopy.Sentence(err)
 		} else {
 			p.notice = ""
 		}

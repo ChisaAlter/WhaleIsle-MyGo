@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
@@ -304,7 +305,7 @@ func View(c *ui.Context, m Model) {
 		if len(p.panes) == 0 {
 			message := terminalLabel("终端已关闭。", "Terminal closed.")
 			if p.Err != nil {
-				message = p.Err.Error()
+				message = errcopy.Sentence(p.Err)
 			}
 			ui.Text(c, message).FontSize(12).TextColor(muted).Padding(8, 12, 8, 12)
 			return
@@ -321,7 +322,7 @@ func View(c *ui.Context, m Model) {
 				}
 				ui.Column(c).Key(shell.id).Fill().Grow(1).MinWidth(0).MinHeight(0).Padding(4, 8, 8, 8).Children(func() {
 					if shell.err != nil {
-						ui.Text(c, shell.err.Error()).FontSize(12).TextColor(muted)
+						ui.Text(c, errcopy.Sentence(shell.err)).FontSize(12).TextColor(muted)
 						return
 					}
 					if shell.term == nil {
@@ -366,7 +367,7 @@ func View(c *ui.Context, m Model) {
 								}
 								if widgets.Button(c, colors, terminalLabel("加入对话", "Add to chat"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(m.OnAddToChat == nil || !m.CanAddToChat).Clicked() {
 									if err := m.OnAddToChat(fragment); err != nil {
-										p.notice = err.Error()
+										p.notice = errcopy.Sentence(err)
 									} else {
 										p.notice = terminalLabel("已加入对话草稿", "Added to the chat draft")
 										shell.term.ClearSelection()

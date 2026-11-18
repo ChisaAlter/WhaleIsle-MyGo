@@ -5,6 +5,7 @@ import (
 	"path"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
@@ -597,7 +598,7 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 					if historical {
 						actions.OpenAssignment(work)
 					} else if err := actions.OpenCurrent(work); err != nil {
-						c.AddToast(ui.Toast{ID: "project-member-open", Description: err.Error(), Type: "error", Timeout: -1})
+						c.AddToast(ui.Toast{ID: "project-member-open", Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
 					}
 				}
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().Children(func() {

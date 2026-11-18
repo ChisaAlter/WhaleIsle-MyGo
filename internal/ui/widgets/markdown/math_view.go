@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/go-text/typesetting/segmenter"
@@ -159,7 +160,7 @@ func mathAtoms(spans []ui.Span, st Style, targets map[int]string, offset int, im
 				label = "Equation kept as TeX: per-view rendering budget reached"
 			}
 			if image.err != nil {
-				label = "Equation kept as TeX: " + image.err.Error()
+				label = "Equation kept as TeX: " + errcopy.Sentence(image.err)
 			}
 			start := len(atoms)
 			atoms = appendTextAtoms(atoms, span, st, "", width)

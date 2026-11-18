@@ -3,6 +3,7 @@ package frame
 import (
 	"encoding/json"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
 )
@@ -37,7 +38,7 @@ type inspectorLoadedLocationData struct {
 func inspectorObjectJSON(value any) (json.RawMessage, string) {
 	raw, err := json.Marshal(value)
 	if err != nil {
-		return nil, err.Error()
+		return nil, errcopy.Sentence(err)
 	}
 	return raw, ""
 }

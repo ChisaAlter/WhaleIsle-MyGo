@@ -3,6 +3,7 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -90,7 +91,7 @@ func conversationTeamAction(c *ui.Context, m Model, snap session.ViewState, comp
 				}
 				model.OnOpenMember = func(id string) {
 					if err := openTeamMember(m, snap, id, false, func(message string) { state.NavigationError = message }); err != nil {
-						state.NavigationError = err.Error()
+						state.NavigationError = errcopy.Sentence(err)
 						return
 					}
 					state.NavigationError = ""

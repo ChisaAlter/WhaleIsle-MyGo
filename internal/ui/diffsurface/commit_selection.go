@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -119,7 +120,7 @@ func finishCommitPreparation(m Model) {
 		task.cancel()
 		s.Task = nil
 		if result.err != nil {
-			w.Status = result.err.Error()
+			w.Status = errcopy.Sentence(result.err)
 			return
 		}
 		s.Plan = &result.plan

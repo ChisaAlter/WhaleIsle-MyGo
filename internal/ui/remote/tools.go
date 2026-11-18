@@ -3,6 +3,7 @@ package remote
 import (
 	"fmt"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 
@@ -145,7 +146,7 @@ func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color
 				if widgets.Button(c, colors, label("导入", "Import"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy).Clicked() {
 					d, err := entry.Draft()
 					if err != nil {
-						e.ForwardError = err.Error()
+						e.ForwardError = errcopy.Sentence(err)
 					} else {
 						e.Open, e.Draft, e.Error = true, d, ""
 						e.ForwardError = ""
@@ -220,7 +221,7 @@ func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color)
 					d.AutoStart = false
 				}
 				if err := m.Machines.DefineForward(d); err != nil {
-					e.ForwardError = err.Error()
+					e.ForwardError = errcopy.Sentence(err)
 				} else {
 					e.ForwardError = ""
 					e.Forward = remotestore.ForwardDraft{}

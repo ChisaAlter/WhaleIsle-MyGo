@@ -8,6 +8,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/desktop/webview"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -139,7 +140,7 @@ func finishRemotePreparation(m Model) {
 		task.cancel()
 		s.Task = nil
 		if r.err != nil {
-			w.Status = r.err.Error()
+			w.Status = errcopy.Sentence(r.err)
 			return
 		}
 		s.Plan = &r.plan
@@ -239,9 +240,9 @@ func paintGitFollowups(c *ui.Context, m Model, fg, muted ui.Color) {
 	case "open_pr":
 		if widgets.Button(c, colors, word("查看 PR", "View PR"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			if !git.ValidPullRequestURLForHost(r.PR.URL, r.PR.Host, r.PR.Repository) {
-				w.Status = "Unexpected PR URL"
+				w.Status = word("PR 地址不符合预期。", "The PR address is not the expected one.")
 			} else if e := webview.OpenExternal(r.PR.URL); e != nil {
-				w.Status = e.Error()
+				w.Status = errcopy.Sentence(e)
 			}
 		}
 	case "check_pr":

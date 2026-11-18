@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
@@ -288,7 +289,7 @@ func fileTreeRow(c *ui.Context, m Model, s remotestore.FileSnapshot, item remote
 
 func copyRemoteTreePath(editor *FileEditor, text, path string) {
 	if err := mygo.Clipboard.Write(transfer.TextData(text), mygo.ClipboardOptions{}); err != nil {
-		editor.CopyError = err.Error()
+		editor.CopyError = errcopy.Sentence(err)
 		return
 	}
 	editor.CopyError, editor.CopiedPath = "", path

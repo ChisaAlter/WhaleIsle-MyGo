@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"time"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -39,7 +40,7 @@ func historicalProcessView(c *ui.Context, m Model) {
 		ui.Text(c, fmt.Sprintf("delegation: %s\nmessage: %s\nrun: %s\nrequest: %s · revision %d\nscope: %s · phase: %s\n%s\nLead: %s\nmember: %s", d.Ref, d.MessageID, d.RunID, d.RequestID, d.RequestRevision, d.Scope, d.Phase, time.UnixMilli(int64(d.CreatedAt)).Format(time.RFC3339), b.CoordinatorSessionID, b.WorkerSessionID)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
 		_, err := b.Address()
 		if err != nil {
-			ui.Text(c, err.Error()).FontSize(fonttheme.InterfaceSize(12)).Selectable()
+			ui.Text(c, errcopy.Sentence(err)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
 		}
 		ui.Text(c, tr("打开过程只观察原成员 Session；不会激活会话、发送输入或重启旧 run。", "Opening process only observes the original member Session; it does not activate it, send input or restart an old run.")).FontSize(fonttheme.InterfaceSize(12))
 		if ui.Button(c, tr("打开并定位原过程", "Open and locate original process")).Disabled(m.Busy || err != nil).Clicked() {

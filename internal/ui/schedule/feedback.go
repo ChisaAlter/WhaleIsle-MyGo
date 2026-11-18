@@ -3,6 +3,7 @@ package schedule
 import (
 	"fmt"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
@@ -77,7 +78,7 @@ func (p *Panel) detailFeedback(c *ui.Context, m Model, d *taskDraft, colors them
 			if err == nil {
 				p.status, p.actionFailed = "", false
 			} else {
-				p.status = err.Error()
+				p.status = errcopy.Sentence(err)
 			}
 			p.statusDraft = d.draftKey()
 		}

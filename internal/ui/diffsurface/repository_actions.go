@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -64,7 +65,7 @@ func startGitOperation(w *Workbench, label string, staging bool, run func(contex
 			if details != "" {
 				details += "\n"
 			}
-			details += result.err.Error()
+			details += result.err.Error() // verbatim-diagnostics: the progress panel shows the failure word for word
 		}
 		if details != "" {
 			progress.SetDetails(details)
@@ -114,7 +115,7 @@ func finishGitOperation(m Model) {
 			if w.Status != "" {
 				w.Status += "\n"
 			}
-			w.Status += result.err.Error()
+			w.Status += errcopy.Sentence(result.err)
 		}
 		if w.Status == "" {
 			w.Status = word("操作已完成", "Action finished")

@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strconv"
 	"whaleisle/internal/config"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -52,7 +53,7 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	if widgets.Button(c, colors, label("保存并重新连接", "Save and reconnect"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Disabled(m.PhoneRuntime.Status == "starting" || m.PhoneRuntime.DeviceAction.Busy).Clicked() {
 		if err := m.OnSaveGateway(e.Expected, e.Draft); err != nil {
-			e.Error = err.Error()
+			e.Error = errcopy.Sentence(err)
 		} else {
 			e.Open = false
 			e.Error = ""

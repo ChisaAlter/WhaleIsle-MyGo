@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -91,7 +92,7 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 				ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Gap(8).Padding(4, 14, 8, 14).Children(func() {
 					if ui.Button(c, paneLabel("持续观察", "Keep observing")).Clicked() {
 						if err := openProjectTeamSidebar(m, model); err != nil {
-							state.NavigationError = err.Error()
+							state.NavigationError = errcopy.Sentence(err)
 						} else {
 							state.SetFloating(false)
 							open = false

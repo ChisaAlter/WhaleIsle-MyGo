@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
@@ -128,7 +129,7 @@ func channelCredentials(c *ui.Context, m Model, v imonboard.View, page *channelP
 			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 				if ui.Button(c, channelText("复制 Manifest", "Copy Manifest")).Disabled(blocked).Clicked() {
 					if err := mygo.Clipboard.Write(transfer.TextData(slackAppManifest), mygo.ClipboardOptions{}); err != nil {
-						page.copyError = err.Error()
+						page.copyError = errcopy.Sentence(err)
 						page.copyNotice = ""
 					} else {
 						page.copyError = ""

@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
 	"strings"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -64,7 +65,7 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 	disabled := action.Busy || !m.RemoteEnabled || !s.Listening
 	run := func(operation, id, name string) {
 		if err := m.OnPhoneDeviceAction(operation, id, name); err != nil {
-			e.Error = err.Error()
+			e.Error = errcopy.Sentence(err)
 			return
 		}
 		e.Error = ""
@@ -118,7 +119,7 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			if widgets.Button(c, colors, label("复制长期链接", "Copy reusable link"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 				if err := mygo.Clipboard.Write(transfer.TextData(s.PairingLinkURL), mygo.ClipboardOptions{}); err != nil {
-					e.Error = err.Error()
+					e.Error = errcopy.Sentence(err)
 				} else {
 					e.Error = ""
 				}

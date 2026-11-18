@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"strings"
 	"sync"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -510,7 +511,7 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 			}
 			if head.Clicked() && m.OnOpenFile != nil {
 				if err := m.OnOpenFile(f.Path); err != nil && m.Workbench != nil {
-					m.Workbench.Status = err.Error()
+					m.Workbench.Status = errcopy.Sentence(err)
 				}
 			}
 			paintPatchFileActions(c, m, f.Path)

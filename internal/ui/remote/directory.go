@@ -3,6 +3,7 @@ package remote
 import (
 	"github.com/egoist/mygo/ui"
 	"strings"
+	"whaleisle/internal/errcopy"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -236,7 +237,7 @@ func directoryCreate(c *ui.Context, m Model, d remotestore.DirectorySnapshot, di
 			create := func() {
 				if !disabled && d.CanChoose() && strings.TrimSpace(name) != "" {
 					if err := m.Machines.CreateDirectory(name); err != nil {
-						m.Machines.SetDirectoryCreateError(err.Error())
+						m.Machines.SetDirectoryCreateError(errcopy.Sentence(err))
 					}
 				}
 			}

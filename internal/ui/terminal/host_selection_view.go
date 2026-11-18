@@ -1,9 +1,10 @@
 package terminal
 
 import (
-	"whaleisle/internal/ui/widgets"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/hostterminal"
+	"whaleisle/internal/ui/widgets"
 )
 
 func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v hostterminal.View, session string, actions HostActions) {
@@ -21,7 +22,7 @@ func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v
 	}
 	run := func(action func(string) error) {
 		if err := ApplyHostSelection(text, valid, action); err != nil {
-			h.selectionNotice = err.Error()
+			h.selectionNotice = errcopy.Sentence(err)
 		} else {
 			h.selectionNotice = terminalLabel("选区操作已提交", "Selection action requested")
 		}
