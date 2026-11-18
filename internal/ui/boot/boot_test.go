@@ -191,26 +191,30 @@ func TestRuntimeFailureTitle(t *testing.T) {
 	}
 }
 
-func TestFailureTextCopy(t *testing.T) {
+// TestFailureDockNamesTheFailure pins what the page prints for the startup
+// failures a person actually hits: the exit code and the system kill. The
+// sentences live in internal/errcopy, and this is the screen-level check that
+// they reach it and the raw text does not.
+func TestFailureDockNamesTheFailure(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	for _, tc := range []struct{ raw, want string }{
-		{"dsh web exited: exit status 1", "桌面运行时已退出（退出码 1），可重试或到日志里查看原因。"},
 		{"dsh web exited: exit status 137", "桌面运行时已退出（退出码 137），可重试或到日志里查看原因。"},
 		{"dsh web exited: signal: killed", "桌面运行时被系统结束，可重试或到日志里查看原因。"},
 		{"dsh web exited", "桌面运行时已退出，可重试或到日志里查看原因。"},
-		{"Error: Cannot find module 'dsh-web'", "找不到需要的文件或位置。请确认它仍然存在后重试；详情见日志。"},
 		{"EACCES: permission denied", "没有权限访问所需资源，请检查安全软件拦截或系统权限后重试；详情见日志。"},
 		{"spawn dsh ENOENT", "桌面运行时文件缺失，请重新安装桌面端。"},
 	} {
-		if got := failureText(errors.New(tc.raw)); got != tc.want {
-			t.Errorf("failureText(%q) = %q, want %q", tc.raw, got, tc.want)
+		raw := tc.raw
+		tt := ui.NewTester(func(c *ui.Context) {
+			View(c, Model{Status: harness.Status{State: harness.Failed, Err: errors.New(raw)}, OnRetry: func() {}})
+		}, 1440, 920)
+		tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+		if !tt.HasText(tc.want) {
+			t.Fatalf("%q did not reach the dock: %q", raw, tt.Texts())
 		}
-	}
-	// Never the raw message as the primary copy, whatever its shape.
-	for _, raw := range []string{"dsh web exited: exit status 1", "signal: killed", "Error: Cannot find module 'dsh-web'", "spawn dsh ENOENT", "ERR_SOME_INTERNAL_TOKEN"} {
-		if got := failureText(errors.New(raw)); strings.Contains(got, raw) || got == "" {
-			t.Errorf("failureText(%q) = %q", raw, got)
+		if tt.HasText(raw) {
+			t.Fatalf("raw %q reached the page copy", raw)
 		}
 	}
 }

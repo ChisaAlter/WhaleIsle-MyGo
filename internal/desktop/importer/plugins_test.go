@@ -40,14 +40,14 @@ func TestPluginImportSelectionAndSpecs(t *testing.T) {
 	for _, row := range cat.Plugins {
 		rows[row.ID] = row
 	}
-	if row := rows["fixture-git"]; row.Unsupported || row.Conflict || row.Spec != "github:fixture/plugin#v1" || !row.Selected {
+	if row := rows["fixture-git"]; !row.Blocker.Importable() || row.Conflict || row.Spec != "github:fixture/plugin#v1" || !row.Selected {
 		t.Fatalf("GitHub row: %+v", row)
 	}
-	if row := rows["@fixture/npm"]; row.Unsupported || row.Spec != "^1.2.3" || !row.Selected {
+	if row := rows["@fixture/npm"]; !row.Blocker.Importable() || row.Spec != "^1.2.3" || !row.Selected {
 		t.Fatalf("npm row: %+v", row)
 	}
 	for _, name := range []string{"@deepseek-ai/dsh-base", "dshmarket", "fixture-local", "fixture-tar", "fixture-tag"} {
-		if !rows[name].Unsupported || rows[name].Selected {
+		if rows[name].Blocker.Importable() || rows[name].Selected {
 			t.Fatalf("unsafe row selected: %+v", rows[name])
 		}
 	}

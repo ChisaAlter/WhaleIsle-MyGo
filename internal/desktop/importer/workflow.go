@@ -50,7 +50,7 @@ func Confirmation(c Catalog, s ApplySelection) string {
 		for _, id := range group.ids {
 			action := storelocale.T(storelocale.KeyStoreImporterSkippedMissingOrUnsupported)
 			for _, row := range group.rows {
-				if row.ID == id && !row.Unsupported {
+				if row.ID == id && row.Blocker.Importable() {
 					action = storelocale.T(storelocale.KeyStoreImporterAdd)
 					if row.Conflict {
 						action = storelocale.T(storelocale.KeyStoreImporterSkipAndKeep)
@@ -71,7 +71,7 @@ func Confirmation(c Catalog, s ApplySelection) string {
 			}
 			spec := PluginReinstallSpec(row.ID, row.Spec)
 			action := storelocale.T(storelocale.KeyStoreImporterDownloadAndInstallAgain)
-			if row.Unsupported || spec == "" {
+			if !row.Blocker.Importable() || spec == "" {
 				action = storelocale.T(storelocale.KeyStoreImporterSkippedUnsupported)
 			}
 			if row.Conflict && !s.Overwrite {

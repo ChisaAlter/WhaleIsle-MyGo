@@ -112,7 +112,9 @@ jobs:
             ./internal/store/usage \
             ./internal/errcopy \
             ./internal/ui/browserpreview \
+            ./internal/ui/i18n \
             ./internal/ui/interaction \
+            ./internal/ui/launcher \
             ./internal/ui/layoutstability \
             ./internal/jobflow \
             ./internal/workflowrun

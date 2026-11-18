@@ -6,6 +6,7 @@ package errcopy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -28,35 +29,45 @@ const (
 	CauseConflict
 	CauseNotFound
 	CauseExited
+	CauseRuntimeExited
+	CauseKilled
 	CausePageStopped
 	CauseRevertConflict
 )
 
 const (
-	keySeparator      = "errcopy.separator"
-	keyUnknown        = "errcopy.unknown"
-	keyCancelled      = "errcopy.cancelled"
-	keyTimeout        = "errcopy.timeout"
-	keyNetwork        = "errcopy.network"
-	keyDiskFull       = "errcopy.disk_full"
-	keyReadOnly       = "errcopy.read_only"
-	keyPermission     = "errcopy.permission"
-	keyConflict       = "errcopy.conflict"
-	keyNotFound       = "errcopy.not_found"
-	keyExited         = "errcopy.exited"
-	keyRuntimeMissing = "errcopy.runtime_missing"
-	keyPortInUse      = "errcopy.port_in_use"
-	keyPageStopped    = "errcopy.page_stopped"
-	keyRevertConflict = "errcopy.revert_conflict"
+	keySeparator       = "errcopy.separator"
+	keyUnknown         = "errcopy.unknown"
+	keyCancelled       = "errcopy.cancelled"
+	keyTimeout         = "errcopy.timeout"
+	keyNetwork         = "errcopy.network"
+	keyDiskFull        = "errcopy.disk_full"
+	keyReadOnly        = "errcopy.read_only"
+	keyPermission      = "errcopy.permission"
+	keyConflict        = "errcopy.conflict"
+	keyNotFound        = "errcopy.not_found"
+	keyExited          = "errcopy.exited"
+	keyRuntimeExited   = "errcopy.runtime_exited"
+	keyRuntimeExitCode = "errcopy.runtime_exit_code"
+	keyKilled          = "errcopy.killed"
+	keyRuntimeMissing  = "errcopy.runtime_missing"
+	keyPortInUse       = "errcopy.port_in_use"
+	keyPageStopped     = "errcopy.page_stopped"
+	keyRevertConflict  = "errcopy.revert_conflict"
 )
 
 // causes is ordered: an earlier family claims a message that a later pattern
 // would also match, so the more specific explanation wins.
 //
-// The runtime-missing, port, permission and process-exit entries exist so that
-// internal/ui/boot can delegate here and delete its own table: their sentences
-// are the ones the boot page prints. Keep the two in step until boot stops
-// carrying a copy.
+// The runtime-missing, port and process-exit entries cover the startup page's
+// failures, which used to keep a table of their own and had drifted from this
+// one. This table is the product's only classifier; the page prints these
+// sentences.
+//
+// A runtime exit is its own family: the supervised desktop process dying is a
+// different problem from a command that returned non-zero, and only the former
+// earns "restart the app". The runtime's wrapper ("dsh web exited") is what
+// tells them apart.
 var causes = []struct {
 	cause   Cause
 	pattern *regexp.Regexp
@@ -73,8 +84,16 @@ var causes = []struct {
 	{CauseNotFound, regexp.MustCompile(`(?i)no such file|cannot find|not found|does not exist|\benoent\b`)},
 	{CauseRevertConflict, regexp.MustCompile(`(?i)revert_conflict`)},
 	{CausePageStopped, regexp.MustCompile(`(?i)render-process-gone|renderer (?:stopped|crashed)|page (?:crashed|stopped expecting)`)},
+	{CauseKilled, regexp.MustCompile(`(?i)signal:\s*killed`)},
+	{CauseRuntimeExited, regexp.MustCompile(`(?i)dsh web exited|dsh 进程结束`)},
 	{CauseExited, regexp.MustCompile(`(?i)exit status|exited with|process exited|signal:`)},
 }
+
+// exitCode is the code the desktop runtime reported when it exited. It is
+// quoted inside a written sentence, so a person reads why startup stopped
+// without reading the transport's "exit status N" line. Only a runtime exit
+// names the code: any other command's status belongs in the log.
+var exitCode = regexp.MustCompile(`(?i)exit status\s+(\d+)`)
 
 func init() {
 	i18n.Register(keySeparator, "：", ": ")
@@ -106,8 +125,17 @@ func init() {
 		"找不到需要的文件或位置。请确认它仍然存在后重试；详情见日志。",
 		"The file or location is missing. Confirm it still exists and try again; the log has the details.")
 	i18n.Register(keyExited,
-		"桌面运行时进程已退出，请重启应用；若从启动器打开，可回启动器排查；详情见日志。",
-		"The desktop runtime exited. Restart the app, or check the launcher if that is where you started it; the log has the details.")
+		"有一步操作没有完成就退出了，请重试；若仍然失败，请查看日志。",
+		"A step exited before it finished. Retry, or check the log if it keeps failing.")
+	i18n.Register(keyRuntimeExited,
+		"桌面运行时已退出，可重试或到日志里查看原因。",
+		"The desktop runtime exited; retry, or check the log for the cause.")
+	i18n.Register(keyRuntimeExitCode,
+		"桌面运行时已退出（退出码 %s），可重试或到日志里查看原因。",
+		"The desktop runtime exited (code %s); retry, or check the log for the cause.")
+	i18n.Register(keyKilled,
+		"桌面运行时被系统结束，可重试或到日志里查看原因。",
+		"The desktop runtime was stopped by the system; retry, or check the log for the cause.")
 	i18n.Register(keyRuntimeMissing,
 		"桌面运行时文件缺失，请重新安装桌面端。",
 		"A desktop runtime file is missing; reinstall the desktop app.")
@@ -159,7 +187,13 @@ func SentenceText(raw string) string {
 	if strings.TrimSpace(raw) == "" {
 		return ""
 	}
-	return i18n.T(keyFor(classifyText(raw)))
+	cause := classifyText(raw)
+	if cause == CauseRuntimeExited {
+		if match := exitCode.FindStringSubmatch(raw); match != nil {
+			return fmt.Sprintf(i18n.T(keyRuntimeExitCode), match[1])
+		}
+	}
+	return i18n.T(keyFor(cause))
 }
 
 // Under puts the caller's own description of what stopped in front of the
@@ -197,6 +231,10 @@ func keyFor(cause Cause) string {
 		return keyNotFound
 	case CauseExited:
 		return keyExited
+	case CauseRuntimeExited:
+		return keyRuntimeExited
+	case CauseKilled:
+		return keyKilled
 	case CauseRuntimeMissing:
 		return keyRuntimeMissing
 	case CausePortInUse:

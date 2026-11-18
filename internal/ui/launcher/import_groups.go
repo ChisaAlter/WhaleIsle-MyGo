@@ -38,7 +38,7 @@ func importSessionGroups(c *ui.Context, items []importer.CatalogItem) {
 		}
 		selected, eligible := 0, 0
 		for _, row := range rows {
-			if !row.Unsupported {
+			if row.Blocker.Importable() {
 				eligible++
 				if row.Selected {
 					selected++
@@ -53,7 +53,7 @@ func importSessionGroups(c *ui.Context, items []importer.CatalogItem) {
 				check := importGroupCheckbox(c, &all, selected > 0 && selected < eligible, fmt.Sprintf("%s  %d/%d", label, selected, len(rows))).Grow(1).MinWidth(0).Disabled(eligible == 0)
 				if check.Changed() {
 					for _, row := range rows {
-						if !row.Unsupported {
+						if row.Blocker.Importable() {
 							row.Selected = all
 						}
 					}
@@ -75,18 +75,37 @@ func importSessionGroups(c *ui.Context, items []importer.CatalogItem) {
 				if row.Conflict {
 					label += i18n.T(i18n.KeyLauncherImportConflict)
 				}
-				if row.Unsupported {
+				if !row.Blocker.Importable() {
 					label += i18n.T(i18n.KeyLauncherImportUnsupported)
-					if row.UnsupportedReason != "" {
-						label += " · " + row.UnsupportedReason
+					if why := sessionBlockedText(row.Blocker); why != "" {
+						label += " · " + why
 					}
 				}
-				if ui.Checkbox(c.Key("session-"+row.Rel+"-"+row.ID), &row.Selected, label).FillWidth().MinWidth(0).Padding(6, 12).FontSize(theme.InterfaceSize(12)).Disabled(row.Unsupported).Changed() {
+				if ui.Checkbox(c.Key("session-"+row.Rel+"-"+row.ID), &row.Selected, label).FillWidth().MinWidth(0).Padding(6, 12).FontSize(theme.InterfaceSize(12)).Disabled(!row.Blocker.Importable()).Changed() {
 					c.Invalidate()
 				}
 			}
 		})
 	}
+}
+
+// sessionBlockedText is what a session row says when it cannot be imported.
+// The importer classifies; the sentence and its next step live here, in both
+// languages, so no scanner's message reaches the row. A row the scanner refused
+// for its own reasons keeps only the (unsupported) marker.
+func sessionBlockedText(blocker importer.Blocker) string {
+	switch blocker {
+	case importer.BlockedMixedEncoding:
+		return releaseText("这个会话同时有普通日志和压缩日志，无法确定该导入哪一份；请先在桌面端打开这个会话并保存一次，再回来重试。",
+			"This session has both plaintext and compressed logs, so there is no single copy to import. Open the session in the desktop app and save it once, then try again.")
+	case importer.BlockedLegacyDatabase:
+		return releaseText("这是旧版 SQLite 会话库，当前版本无法读取；请先在桌面端完成会话迁移，再回来重试。",
+			"This is a legacy SQLite session database that this version cannot read. Finish the session migration in the desktop app, then try again.")
+	case importer.BlockedUnreadable:
+		return releaseText("读不到这个会话目录，请检查文件夹权限后重试；原因见日志。",
+			"This session folder could not be read. Check its permissions and try again; the log has the cause.")
+	}
+	return ""
 }
 
 func importGroupCheckbox(c *ui.Context, checked *bool, mixed bool, label string) ui.Element {

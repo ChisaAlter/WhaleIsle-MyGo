@@ -130,8 +130,8 @@ func scanPlugins(src, dst string) []CatalogItem {
 				}
 				out = append(out, CatalogItem{
 					ID: entry.Name(), Label: entry.Name(), Abs: filepath.Join(dir, entry.Name()),
-					Conflict:    entryExists(filepath.Join(dst, sub, entry.Name()), true),
-					Unsupported: true, Group: "local-spec",
+					Conflict: entryExists(filepath.Join(dst, sub, entry.Name()), true),
+					Blocker:  BlockedRejected, Group: "local-spec",
 				})
 			}
 		}
@@ -152,6 +152,10 @@ func scanPlugins(src, dst string) []CatalogItem {
 		_ = json.Unmarshal(deps[name], &spec)
 		spec = strings.TrimSpace(spec)
 		reason := pluginSkipReason(name, spec)
+		blocker := Supported
+		if reason != "" {
+			blocker = BlockedRejected
+		}
 		conflict, err := pluginInstalled(dst, name)
 		// A broken destination manifest must never imply that overwrite is safe.
 		if err != nil {
@@ -159,7 +163,7 @@ func scanPlugins(src, dst string) []CatalogItem {
 		}
 		out = append(out, CatalogItem{
 			ID: name, Label: name, Spec: spec, Group: reason,
-			Unsupported: reason != "", Conflict: conflict,
+			Blocker: blocker, Conflict: conflict,
 		})
 	}
 	return out

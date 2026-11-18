@@ -83,8 +83,10 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 	var journal []string
 	defer func() {
 		if resultErr != nil {
-			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Credentials: append([]CredentialResult(nil), credentialRows...), Message: fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterImportIncompleteCopiedDInstalledDPlugi), copied, installed, failed, skipped, resultErr), Journal: append([]string(nil), journal...)}
-			result.Journal = append(result.Journal, result.Message)
+			// The status line gets a written sentence; the failure's own words go
+			// to the journal, which is the detail a person opens on purpose.
+			result = ApplyResult{Copied: copied, Skipped: skipped, Installed: installed, Failed: failed, Plugins: append([]PluginResult(nil), plugins...), Credentials: append([]CredentialResult(nil), credentialRows...), Message: fmt.Sprintf(storelocale.T(storelocale.KeyStoreImporterImportIncompleteItemsKept), copied, installed, failed, skipped), Journal: append([]string(nil), journal...)}
+			result.Journal = append(result.Journal, result.Message, resultErr.Error())
 		}
 	}()
 	note := func(line string) {
@@ -103,13 +105,16 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			return ApplyResult{}, err
 		}
 		it, ok := byRel[rel]
-		if !ok || it.Unsupported {
+		if !ok || !it.Blocker.Importable() {
 			skipped++
 			note(storelocale.T(storelocale.KeyStoreImporterSkippedSession) + rel)
 			continue
 		}
-		if unsupported, mixed, reason := sessionEncoding(it.Abs); unsupported || mixed {
-			return ApplyResult{}, fmt.Errorf("session %s: %s", rel, reason)
+		if blocker, readErr := sessionEncoding(it.Abs); !blocker.Importable() {
+			if readErr == nil {
+				readErr = errors.New(blocker.String())
+			}
+			return ApplyResult{}, fmt.Errorf("session %s: %w", rel, readErr)
 		}
 		dst := filepath.Join(cat.DestHome, "sessions", filepath.FromSlash(rel))
 		if it.Conflict && !sel.Overwrite {
@@ -244,7 +249,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 			return ApplyResult{}, err
 		}
 		it, ok := byPreset[id]
-		if !ok || it.Unsupported {
+		if !ok || !it.Blocker.Importable() {
 			skipped++
 			note(storelocale.T(storelocale.KeyStoreImporterSkippedPreset) + id)
 			continue
@@ -301,7 +306,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 		record := PluginResult{Name: id, Status: "skipped"}
 		spec := PluginReinstallSpec(row.ID, row.Spec)
 		switch {
-		case !exists || row.Unsupported || pluginSkipReason(row.ID, row.Spec) != "" || spec == "":
+		case !exists || !row.Blocker.Importable() || pluginSkipReason(row.ID, row.Spec) != "" || spec == "":
 			record.Reason = "unsupported"
 		default:
 			conflict, err := pluginInstalled(cat.DestHome, id)
@@ -368,7 +373,7 @@ func ApplyCatalogWithPlugins(ctx context.Context, cat Catalog, sel ApplySelectio
 func SelectionFromCatalog(cat Catalog, importAttachments, overwrite bool) ApplySelection {
 	sel := ApplySelection{ImportAttachments: importAttachments, Overwrite: overwrite}
 	for _, it := range cat.Sessions {
-		if it.Selected && !it.Unsupported {
+		if it.Selected && it.Blocker.Importable() {
 			sel.SelectedRels = append(sel.SelectedRels, it.Rel)
 		}
 	}
@@ -378,7 +383,7 @@ func SelectionFromCatalog(cat Catalog, importAttachments, overwrite bool) ApplyS
 		}
 	}
 	for _, it := range cat.Plugins {
-		if it.Selected && !it.Unsupported {
+		if it.Selected && it.Blocker.Importable() {
 			sel.SelectedPluginIDs = append(sel.SelectedPluginIDs, it.ID)
 		}
 	}
@@ -393,7 +398,7 @@ func SelectionFromCatalog(cat Catalog, importAttachments, overwrite bool) ApplyS
 		}
 	}
 	for _, it := range cat.Presets {
-		if it.Selected && !it.Unsupported {
+		if it.Selected && it.Blocker.Importable() {
 			sel.SelectedPresetIDs = append(sel.SelectedPresetIDs, it.ID)
 		}
 	}

@@ -25,8 +25,13 @@ func TestGitStatusLineExplainsAFailureWithoutGitWording(t *testing.T) {
 	if !strings.HasPrefix(got, "Git 失败：") {
 		t.Fatalf("strip does not name the failed action: %q", got)
 	}
-	if !strings.Contains(got, "运行时进程已退出") {
+	if !strings.Contains(got, "没有完成就退出") {
 		t.Fatalf("strip does not explain the cause: %q", got)
+	}
+	// A command returning non-zero is not the desktop runtime dying; sending
+	// someone to restart the app over a failed git call is the wrong next step.
+	if strings.Contains(got, "桌面运行时") {
+		t.Fatalf("strip blames the desktop runtime for a git failure: %q", got)
 	}
 	for _, raw := range []string{"fatal:", "exit status", "parent directories"} {
 		if strings.Contains(got, raw) {

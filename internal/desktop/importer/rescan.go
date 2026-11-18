@@ -51,7 +51,7 @@ func mergeCatalogSelections(cat *Catalog, previous Catalog, keepNew bool) {
 			row := &(*rows)[i]
 			value, exists := selected[row.ID+"\x00"+row.Rel]
 			if !keepNew || exists {
-				row.Selected = !row.Unsupported && value
+				row.Selected = row.Blocker.Importable() && value
 			}
 		}
 	}
