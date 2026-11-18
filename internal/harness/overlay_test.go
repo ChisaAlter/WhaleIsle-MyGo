@@ -30,8 +30,8 @@ func TestPrepareWritesOverlaysAndJunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(patches) != 8 { // 4 builtin + remote + plugin views + route-a + proactive
-		t.Fatalf("got %d patches, want 8: %v", len(patches), patches)
+	if len(patches) != 9 { // 4 builtin + remote + plugin views + route-a + proactive + host-safety
+		t.Fatalf("got %d patches, want 9: %v", len(patches), patches)
 	}
 	joined := strings.Join(patches, "\n")
 	if strings.Contains(joined, "desktop-dsh-market.patch.yml") || strings.Contains(joined, "pluginui") {
@@ -48,6 +48,12 @@ func TestPrepareWritesOverlaysAndJunctions(t *testing.T) {
 		if strings.HasSuffix(p, routeAOverlayFile) {
 			if !strings.Contains(string(data), "- id: client-hmr") || !strings.Contains(string(data), "disabled: true") {
 				t.Fatalf("route-a overlay unexpected body: %s", data)
+			}
+			continue
+		}
+		if strings.HasSuffix(p, hostSafetyOverlayFile) {
+			if !strings.Contains(string(data), "- id: fs-observation-policy") || !strings.Contains(string(data), "disabled: false") {
+				t.Fatalf("host-safety overlay unexpected body: %s", data)
 			}
 			continue
 		}
@@ -82,12 +88,15 @@ func TestPrepareOptionalPlugins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(patches) != 9 { // 4 builtin + dshbot + whale + plugin views + route-a + proactive, no remote
-		t.Fatalf("got %d patches, want 9", len(patches))
+	if len(patches) != 10 { // 4 builtin + dshbot + whale + plugin views + route-a + proactive + host-safety, no remote
+		t.Fatalf("got %d patches, want 10", len(patches))
 	}
 	joined := strings.Join(patches, "\n")
 	if !strings.Contains(joined, "desktop-dshbot.patch.yml") || !strings.Contains(joined, "desktop-dsh-whale.patch.yml") {
 		t.Fatalf("missing optional overlays: %s", joined)
+	}
+	if !strings.Contains(joined, hostSafetyOverlayFile) {
+		t.Fatalf("missing host-safety overlay: %s", joined)
 	}
 	if strings.Contains(joined, "desktop-dsh-remote.patch.yml") {
 		t.Fatal("remote should be off")

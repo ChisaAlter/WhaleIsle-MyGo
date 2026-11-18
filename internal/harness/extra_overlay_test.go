@@ -150,3 +150,35 @@ func TestRouteAOverlaySlimmedRuntimeDisablesMissingPlugins(t *testing.T) {
 		t.Fatalf("client-hmr must always be disabled:\n%s", text)
 	}
 }
+
+func TestHostSafetyOverlayMountsObservationPolicy(t *testing.T) {
+	vendor := t.TempDir()
+	profile := t.TempDir()
+	for _, name := range []string{"dsh-task-control", "dsh-platform-session", "dsh-usage-panel", "dsh-im"} {
+		dir := filepath.Join(vendor, name)
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"`+name+`"}`), 0o644)
+	}
+	patches, err := Prepare(PrepareOptions{VendorDir: vendor, ProfileDir: profile, RemoteSet: true, Remote: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(patches, "\n"), hostSafetyOverlayFile) {
+		t.Fatalf("missing host-safety overlay: %v", patches)
+	}
+	data, err := os.ReadFile(filepath.Join(profile, "desktop-plugins", "host-safety", hostSafetyOverlayFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "- id: fs-observation-policy") || !strings.Contains(body, "disabled: false") {
+		t.Fatalf("overlay body: %s", body)
+	}
+	recovery, err := Prepare(PrepareOptions{VendorDir: vendor, ProfileDir: t.TempDir(), SkipUserPlugins: true, RemoteSet: true, Remote: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(recovery, "\n"), hostSafetyOverlayFile) {
+		t.Fatalf("recovery start must still mount the observation policy: %v", recovery)
+	}
+}

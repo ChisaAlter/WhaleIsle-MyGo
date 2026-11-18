@@ -11,9 +11,14 @@ import (
 const (
 	sessionSearchOverlayFile = "desktop-session-search.patch.yml"
 	routeAOverlayFile        = "desktop-route-a.patch.yml"
+	hostSafetyOverlayFile    = "desktop-host-safety.patch.yml"
 )
 
 func extraOverlays(o PrepareOptions) ([]string, error) {
+	safetyPatch, err := writeHostSafetyOverlay(o)
+	if err != nil {
+		return nil, err
+	}
 	viewPatch, err := pluginslots.Prepare(o.ProfileDir)
 	if err != nil {
 		return nil, err
@@ -22,7 +27,7 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := []string{viewPatch, routeAPatch}
+	out := []string{safetyPatch, viewPatch, routeAPatch}
 	skillPatch, err := writeSkillImportOverlay(o)
 	if err != nil {
 		return nil, err
@@ -98,6 +103,25 @@ func writeRouteAHostOverlay(o PrepareOptions) (string, error) {
 	lines = append(lines, "")
 	contents := strings.Join(lines, "\n")
 	return writeRawOverlay(o.ProfileDir, "route-a", routeAOverlayFile, contents)
+}
+
+// writeHostSafetyOverlay mounts the filesystem observation policy the bundled
+// composition disables. Upstream 0.2.2 disables it in its own base bundle, which
+// leaves a write free to replace a file the session never read and an edit free
+// to land on a file that changed since it was read; this row is MyGo's recorded
+// deviation from the desktop composition.
+func writeHostSafetyOverlay(o PrepareOptions) (string, error) {
+	contents := strings.Join([]string{
+		"# Desktop-managed overlay passed to every start via --patch.",
+		"# Mounts @deepseek-ai/dsh-fs-observation-policy, which the bundled",
+		"# composition disables: without it a write overwrites a file the session",
+		"# never read and an edit lands on a file that changed since it was read.",
+		"# Regenerated on every start; do not edit.",
+		"- id: fs-observation-policy",
+		"  disabled: false",
+		"",
+	}, "\n")
+	return writeRawOverlay(o.ProfileDir, "host-safety", hostSafetyOverlayFile, contents)
 }
 
 func hasPackageJSON(root, rel string) bool {

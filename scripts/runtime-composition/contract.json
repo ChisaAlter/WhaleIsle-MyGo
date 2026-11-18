@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "file": "packages/bundle/base/cordis.patch.yml",
-  "note": "The Host composition a staged runtime must carry, per harness version. src/shared/harness-desktop-forks.js in the 本体 desktop is the authority for these rows, and every supported staging path copies an installed 本体 graph verbatim, so each sha256 below is 本体's file rather than a value MyGo chooses. Update an entry only together with the restage that produced it.",
+  "note": "The Host composition a staged runtime must carry, per harness version. src/shared/harness-desktop-forks.js in the 本体 desktop is the authority for these rows, and every supported staging path copies an installed 本体 graph verbatim, so each sha256 below is 本体's file rather than a value MyGo chooses. Update an entry only together with the restage that produced it. README.md in this directory explains the fields, the update procedure, and the two decisions this contract must not silently reverse (apply_patch stays off; the fs-observation-policy row is mounted back in an overlay, so the contract stays byte-identical to the desktop while the effective composition is not).",
   "versions": {
     "0.2.1-rc.2": {
       "harnessPin": {
