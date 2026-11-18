@@ -38,9 +38,17 @@ func WhaleNotices() string {
 }
 
 func IsWhaleViewer(viewer string) bool { return viewer != "" && viewer == whaleViewer }
+
+// whaleViewerSHA256 is the provenance digest of the owned viewer bytes. The
+// asset is embedded byte-for-byte, so a checkout must never rewrite its line
+// endings: .gitattributes marks the viewer tree -text for that reason, and a
+// worktree materialized before that rule keeps its converted bytes while git
+// status still reports a clean tree.
+const whaleViewerSHA256 = "331a36e6c801f9902464f5a9f2e8a91006aade0e488831f502b17b0caa63284d"
+
 func LoadWhaleViewer() (string, error) {
 	sum := sha256.Sum256([]byte(whaleViewer))
-	if hex.EncodeToString(sum[:]) != "331a36e6c801f9902464f5a9f2e8a91006aade0e488831f502b17b0caa63284d" {
+	if hex.EncodeToString(sum[:]) != whaleViewerSHA256 {
 		return "", errors.New("Whale UI viewer provenance mismatch")
 	}
 	return whaleViewer, nil
