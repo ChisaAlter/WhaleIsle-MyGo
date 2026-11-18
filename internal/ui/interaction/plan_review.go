@@ -57,7 +57,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 			}
 		})
 		if pending.Error != "" {
-			ui.Text(c, pending.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, questionErrorText(pending.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		ui.Row(c).FillWidth().Shrink(0).Padding(8, 16, 12, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
 			if widgets.Button(c, colors, planpreview.Text("要求修改", "Request changes"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: pending.Sending}).Clicked() {

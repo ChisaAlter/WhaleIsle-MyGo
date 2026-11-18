@@ -17,6 +17,11 @@ import (
 // readable and the wire shape in a single place.
 type questionAnswerItem = api.SessionListValueItemsItemProjectionsValuesUserQuestionsSettledItemAnswersItem
 
+// QuestionDeliveryStopped marks an answer whose delivery channel closed before
+// it reached the Host. The store records the marker rather than a sentence so
+// the UI can localize it; nothing may present progress that nothing can finish.
+const QuestionDeliveryStopped = "question.delivery.stopped"
+
 type projectedQuestion struct {
 	CallID    string             `json:"callId"`
 	State     string             `json:"state"`
@@ -401,7 +406,12 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		s.mu.Lock()
 		attempt := s.questionRecovery.inFlight[id]
 		if s.client != client || s.questionRecovery.epoch != epoch || attempt.token != token {
+			// A superseded attempt must not leave the card claiming progress.
+			// With no attempt left in flight nothing else can finish this send,
+			// so report it instead of spinning; a newer attempt owns the flag.
+			s.releaseStalledAnswerLocked(id)
 			s.mu.Unlock()
+			s.fire()
 			return
 		}
 		delete(s.questionRecovery.inFlight, id)
