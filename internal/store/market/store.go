@@ -54,6 +54,8 @@ type ViewState struct {
 type Store struct {
 	mu               sync.Mutex
 	client           *dsh.Client
+	inventoryCaller  pluginmanager.Caller
+	inventoryVersion uint64
 	generation       uint64
 	refreshID        uint64
 	completedRefresh uint64
@@ -98,11 +100,44 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.rows = nil
 	s.inventoryLoaded = false
 	s.loading = false
+	s.hasListRPC = false
 	s.client = client
+	s.inventoryCaller = nil
+	s.inventoryVersion = 0
 	s.notify = notify
 	s.err = nil
 	s.mu.Unlock()
 }
+
+// SetInventoryCaller shares Host inventory with the native manager. Independent
+// Store users keep the existing direct-client behavior when no source is set.
+func (s *Store) SetInventoryCaller(caller pluginmanager.Caller) {
+	s.mu.Lock()
+	s.inventoryCaller = caller
+	s.mu.Unlock()
+}
+
+// EnsureInventory is the visible market's demand boundary; a failed read stays
+// visible until an explicit Refresh rather than retrying on every frame.
+func (s *Store) EnsureInventory(ctx context.Context) {
+	s.mu.Lock()
+	stale := false
+	if source, ok := s.inventoryCaller.(interface{ InventoryVersion() uint64 }); ok {
+		stale = s.inventoryVersion != source.InventoryVersion()
+	}
+	needed := s.client != nil && (!s.inventoryLoaded || stale) && !s.loading && (s.err == nil || stale)
+	s.mu.Unlock()
+	if needed {
+		s.refresh(ctx, false)
+	}
+}
+
+// RefreshShared reads the generation its owner invalidated for a write/event.
+func (s *Store) RefreshShared(ctx context.Context) { s.refresh(ctx, false) }
+
+// InventoryRequested includes initial errors so real events can recover them
+// while unused market catalogs stay unloaded.
+func (s *Store) InventoryRequested() bool { s.mu.Lock(); defer s.mu.Unlock(); return s.hasListRPC }
 
 // Detach clears the client when harness stops.
 func (s *Store) Detach() {
@@ -115,6 +150,7 @@ func (s *Store) Detach() {
 	s.completedRefresh++
 	s.clearConfirmationLocked()
 	s.client = nil
+	s.inventoryCaller = nil
 	s.inventoryLoaded = false
 	s.loading = false
 	s.hasListRPC = false
@@ -156,15 +192,33 @@ func (s *Store) Snapshot() ViewState {
 
 // Refresh probes pluginManager/* registry entries and calls listPlugins when present.
 func (s *Store) Refresh(ctx context.Context) {
+	s.refresh(ctx, true)
+}
+
+func (s *Store) refresh(ctx context.Context, invalidate bool) {
 	methods := api.PluginManagerMethods()
 	listMethod := api.ListPluginsMethod()
 	hasRPC := listMethod != ""
 
 	s.mu.Lock()
 	client := s.client
+	inventoryCaller := s.inventoryCaller
+	if inventoryCaller == nil && client != nil {
+		inventoryCaller = client
+	}
 	if client == nil {
 		s.mu.Unlock()
 		return
+	}
+	if !invalidate && s.loading {
+		s.mu.Unlock()
+		return
+	}
+	if source, ok := inventoryCaller.(interface{ InvalidateInventory() }); ok && invalidate {
+		source.InvalidateInventory()
+	}
+	if source, ok := inventoryCaller.(interface{ InventoryVersion() uint64 }); ok {
+		s.inventoryVersion = source.InventoryVersion()
 	}
 	if s.updates.cancel != nil {
 		s.updates.cancel()
@@ -219,13 +273,13 @@ func (s *Store) Refresh(ctx context.Context) {
 			}
 		}
 		var bundles api.ListBundlesResult
-		if err := client.Call(ctx, "pluginManager/listBundles", map[string]any{}, &bundles); err == nil {
+		if err := inventoryCaller.Call(ctx, "pluginManager/listBundles", map[string]any{}, &bundles); err == nil {
 			rows := entriesFromBundles(bundles)
 			s.finishRefresh(client, generation, refreshID, nil, rows, "", regNote, exNote)
 			return
 		}
 		var raw json.RawMessage
-		if err := client.Call(ctx, "pluginManager/listPlugins", nil, &raw); err != nil {
+		if err := inventoryCaller.Call(ctx, "pluginManager/listPlugins", nil, &raw); err != nil {
 			s.finishRefresh(client, generation, refreshID, err, nil, "", regNote, exNote)
 			return
 		}
@@ -486,4 +540,8 @@ func valueOrEmpty(v *string) string {
 func (s *Store) RuntimeToken() uint64 { s.mu.Lock(); defer s.mu.Unlock(); return s.generation }
 
 // CompletedRefreshID increments whenever a host attach, detach, or Refresh completes.
-func (s *Store) CompletedRefreshID() uint64 { s.mu.Lock(); defer s.mu.Unlock(); return s.completedRefresh }
+func (s *Store) CompletedRefreshID() uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.completedRefresh
+}

@@ -48,18 +48,50 @@ func (c *Coordinator) NativeController() *manager.Controller {
 
 // BindNativePluginManagerCaller binds an explicit RPC Caller under transport client.
 func (c *Coordinator) BindNativePluginManagerCaller(client *dsh.Client, caller manager.Caller) {
+	c.bindNativePluginManagerCaller(client, caller, false)
+}
+
+func (c *Coordinator) bindNativePluginManagerCaller(client *dsh.Client, caller manager.Caller, deferred bool) {
 	ctrl := c.NativeController()
+	c.mu.Lock()
+	oldSource := c.inventorySource
+	c.inventorySource = nil
+	c.pluginEventsReady = false
+	c.inventoryDeferred = deferred && caller != nil
+	c.inventoryTraceReady = false
+	c.mu.Unlock()
+	if oldSource != nil {
+		oldSource.Close()
+	}
 	notify := func() { c.updateUI() }
+	var source *manager.HostInventory
+	var inventoryHost uint64
+	if caller != nil {
+		source = manager.NewHostInventory(caller, func(method string) { c.acceptInventory(source, inventoryHost, method) })
+	}
+	c.mu.Lock()
+	c.inventorySource = source
+	store := c.store
+	c.mu.Unlock()
+	c.AttachInventory(client)
+	inventoryHost = c.pluginInventory.Snapshot().Host
 	if caller == nil {
 		ctrl.Detach()
 		ctrl.SetNotify(notify)
 	} else {
-		ctrl.Attach(caller, notify)
+		ctrl.Attach(source, notify)
 	}
 	c.mu.Lock()
 	c.nativePlugins.client = client
 	c.nativePlugins.owner = ctrl.Snapshot().Owner
 	c.mu.Unlock()
+	if store != nil {
+		if source == nil {
+			store.SetInventoryCaller(nil)
+		} else {
+			store.SetInventoryCaller(source)
+		}
+	}
 }
 
 // BindNativePluginManager attaches or detaches client on the native plugin manager.
@@ -86,9 +118,7 @@ func (c *Coordinator) NativeEventHandler(client *dsh.Client) func(dsh.EventsEmit
 		}
 		switch emit.Event {
 		case "plugin-manager/changed":
-			if ctrl.Snapshot().Status != "idle" {
-				ctrl.Refresh(context.Background())
-			}
+			c.refreshChangedInventory()
 			ctrl.BundlesChanged(owner)
 		case "plugin-market/changed":
 			ctrl.SourcesChanged(owner)
@@ -110,6 +140,77 @@ func (c *Coordinator) NativeEventHandler(client *dsh.Client) func(dsh.EventsEmit
 			}
 		}
 	}
+}
+
+// HostEventsReady distinguishes initial event subscription from a reconnect
+// gap. Initial readiness is not a plugin mutation and must not force either the
+// full market catalog or a deferred desktop inventory to load.
+func (c *Coordinator) HostEventsReady(client *dsh.Client) {
+	c.mu.Lock()
+	if client == nil || c.nativePlugins.client != client {
+		c.mu.Unlock()
+		return
+	}
+	reconnect := c.pluginEventsReady
+	c.pluginEventsReady = true
+	deferred := c.inventoryDeferred
+	ctrl, owner := c.nativePlugins.controller, c.nativePlugins.owner
+	c.mu.Unlock()
+	if reconnect {
+		c.refreshChangedInventory()
+	} else if !deferred {
+		c.ensureInventory()
+	}
+	if ctrl != nil {
+		ctrl.SourcesChanged(owner)
+	}
+}
+
+func (c *Coordinator) refreshChangedInventory() {
+	c.mu.Lock()
+	source := c.inventorySource
+	ctrl := c.nativePlugins.controller
+	store := c.store
+	deferred := c.inventoryDeferred
+	c.mu.Unlock()
+	if source != nil {
+		source.InvalidateInventory()
+	}
+	if !deferred {
+		c.ensureInventory()
+	}
+	if ctrl != nil && ctrl.Snapshot().Status != "idle" {
+		go ctrl.Load(context.Background())
+	}
+	if store != nil && store.InventoryRequested() {
+		store.RefreshShared(c.lifecycleContext())
+	}
+}
+
+// PrepareInstalledPlugin is called by explicit A2 open. The pure state query
+// remains free of work; initial full catalog loading belongs to this action.
+func (c *Coordinator) PrepareInstalledPlugin() {
+	ctrl := c.NativeController()
+	if ctrl.Snapshot().Status == "error" {
+		ctrl.Refresh(c.lifecycleContext())
+	} else {
+		ctrl.Ensure()
+	}
+}
+
+// InstalledPluginState returns a completed Host inventory view without
+// starting work. Callers can compare Owner/Revision to their open-panel lease.
+func (c *Coordinator) InstalledPluginState(name string) manager.InstalledPluginState {
+	if c == nil {
+		return manager.InstalledPluginState{}
+	}
+	c.mu.Lock()
+	ctrl := c.nativePlugins.controller
+	c.mu.Unlock()
+	if ctrl == nil {
+		return manager.InstalledPluginState{}
+	}
+	return ctrl.InstalledPlugin(name)
 }
 
 // ObserveFormSubject tracks whether the native plugin manager form changed subject.

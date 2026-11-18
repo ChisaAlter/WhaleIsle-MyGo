@@ -33,11 +33,12 @@ type Snapshot struct {
 	Presets                            []Preset
 }
 type Controller struct {
-	mu          sync.Mutex
-	call        Caller
-	hostContext context.Context
-	cancel      context.CancelFunc
-	state       Snapshot
+	mu               sync.Mutex
+	call             Caller
+	hostContext      context.Context
+	cancel           context.CancelFunc
+	state            Snapshot
+	acceptedRevision uint64
 }
 
 // Attach invalidates both in-flight reads and UI callbacks from the prior Host.
@@ -50,6 +51,7 @@ func (c *Controller) Attach(call Caller) {
 	c.hostContext, c.cancel = context.WithCancel(context.Background())
 	c.call = call
 	c.state = Snapshot{Host: c.state.Host + 1, Connected: call != nil}
+	c.acceptedRevision = 0
 }
 func cloneRows(rows []Row) []Row {
 	out := append([]Row(nil), rows...)
@@ -69,6 +71,23 @@ func (c *Controller) Snapshot() Snapshot {
 		s.Presets[i].Rows = cloneRows(s.Presets[i].Rows)
 	}
 	return s
+}
+
+// Accept projects the completed shared Host read without starting another RPC.
+// The captured Host owner rejects a publication from a retired attachment.
+func (c *Controller) Accept(host, revision uint64, wire api.PluginInventorySnapshot) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state.Host != host || !c.state.Connected || c.acceptedRevision >= revision {
+		return
+	}
+	c.state.Global, c.state.Presets = normalize(wire)
+	c.acceptedRevision = revision
+	c.state.Revision++
+	c.state.Ready = true
+	c.state.Busy = false
+	c.state.Err = ""
+	c.state.SelectedID = selectedPreset(c.state.Presets, c.state.SelectedID)
 }
 func (c *Controller) SetQuery(host uint64, query string) {
 	c.mu.Lock()

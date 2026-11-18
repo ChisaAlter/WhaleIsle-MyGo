@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
+
+	"whaleisle/internal/startuptrace"
 )
 
 // cookiePrefix names the browser-session cookie dsh web sets.
@@ -35,6 +38,17 @@ func Redeem(ctx context.Context, client *http.Client, readyURL string) (Endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, readyURL, nil)
 	if err != nil {
 		return Endpoint{}, err
+	}
+	if startuptrace.Enabled() {
+		trace := &httptrace.ClientTrace{
+			GetConn:              func(string) { startuptrace.Mark("host.auth.get_connection") },
+			ConnectStart:         func(string, string) { startuptrace.Mark("host.auth.connect_start") },
+			ConnectDone:          func(string, string, error) { startuptrace.Mark("host.auth.connect_done") },
+			GotConn:              func(httptrace.GotConnInfo) { startuptrace.Mark("host.auth.got_connection") },
+			WroteRequest:         func(httptrace.WroteRequestInfo) { startuptrace.Mark("host.auth.request_written") },
+			GotFirstResponseByte: func() { startuptrace.Mark("host.auth.first_response_byte") },
+		}
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 	}
 	res, err := noRedirect.Do(req)
 	if err != nil {

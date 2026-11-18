@@ -2,6 +2,7 @@ package pluginmanager
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,12 +84,14 @@ func TestInstallUnblocksLocalMCPAndSkillWithoutBundle(t *testing.T) {
 	for _, tc := range []struct {
 		name, spec, wantRPC string
 	}{
-		{"local-mcp", mcpDir, "mcpServers/upsert"},
-		{"local-skill", skillDir, "skillInventory/create"},
+		{"local-mcp", mcpDir, "mygoMCP/import"},
+		{"local-skill", skillDir, "mygoSkills/import"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var mu sync.Mutex
 			var calls []string
+			var installedMCP json.RawMessage
+			var installedSkill bool
 			done := make(chan struct{})
 			c := New()
 			defer c.Detach()
@@ -106,8 +109,36 @@ func TestInstallUnblocksLocalMCPAndSkillWithoutBundle(t *testing.T) {
 				case "pluginManager/inspect":
 					no := false
 					return reply(out, Inspection{Status: "refused", Problem: "not-a-bundle", Reason: "declares no dsh.bundle", Bundle: &no})
-				case "mcpServers/upsert", "skillInventory/create":
+				case "mygoMCP/capabilities":
+					return reply(out, map[string]any{"createOnly": true})
+				case "mygoMCP/import":
+					raw, _ := json.Marshal(args)
+					var envelope struct {
+						Request struct {
+							Spec json.RawMessage `json:"spec"`
+						} `json:"request"`
+					}
+					if json.Unmarshal(raw, &envelope) != nil || len(envelope.Request.Spec) == 0 {
+						t.Error("missing MCP request envelope")
+					}
+					installedMCP = envelope.Request.Spec
 					return nil
+				case "mcpServers/list":
+					if len(installedMCP) == 0 {
+						return reply(out, map[string]any{"servers": []any{}})
+					}
+					return reply(out, map[string]any{"servers": []any{map[string]any{"id": "demo", "spec": installedMCP}}})
+				case "skillInventory/list":
+					return reply(out, map[string]any{"skills": []any{}})
+				case "mygoSkills/capabilities":
+					return reply(out, map[string]bool{"importDirectory": true})
+				case "mygoSkills/import":
+					installedSkill = true
+					return nil
+				case "mygoSkills/status":
+					return reply(out, map[string]any{"installed": installedSkill, "detail": map[string]any{"name": "sample-skill", "content": "# Body\n", "modelInvocable": true, "userInvocable": true}})
+				case "skillInventory/get":
+					return reply(out, map[string]any{"name": "sample-skill", "content": "# Body\n", "modelInvocable": true, "userInvocable": true})
 				default:
 					t.Errorf("unexpected method %s", method)
 					return nil

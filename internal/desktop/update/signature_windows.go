@@ -53,6 +53,9 @@ func probeAuthenticode(ctx context.Context, path string) (SignatureInfo, error) 
 	psPath := strings.ReplaceAll(path, "'", "''")
 	script := fmt.Sprintf(`
 $ErrorActionPreference = 'Stop'
+# Go-launched Windows PowerShell can inherit PowerShell 7 module search paths.
+# Load its own built-in module, not an incompatible module found earlier there.
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
 $s = Get-AuthenticodeSignature -LiteralPath '%s'
 $pub = ''
 if ($null -ne $s.SignerCertificate) { $pub = [string]$s.SignerCertificate.Subject }

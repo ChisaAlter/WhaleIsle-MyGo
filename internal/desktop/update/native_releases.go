@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -440,11 +439,15 @@ func nativeSignatureRequired(publisher string) bool {
 		if v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes") {
 			return true
 		}
-		if v == "" && flag.Lookup("test.v") != nil {
-			return false
+		if v != "" {
+			// An unrecognized explicit policy must not silently disable checks.
+			return true
 		}
 	}
-	return true
+	// Windows releases intentionally ship without Authenticode. Exact size,
+	// SHA-256, release identity and HTTPS source checks remain mandatory.
+	// Other platform defaults and explicit signature policies stay unchanged.
+	return runtime.GOOS != "windows"
 }
 
 func StageNativeReleaseWithOptions(ctx context.Context, release NativeRelease, opt NativeStageOptions) (ApplyResult, error) {

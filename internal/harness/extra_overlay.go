@@ -23,6 +23,20 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 		return nil, err
 	}
 	out := []string{viewPatch, routeAPatch}
+	skillPatch, err := writeSkillImportOverlay(o)
+	if err != nil {
+		return nil, err
+	}
+	if skillPatch != "" {
+		out = append(out, skillPatch)
+	}
+	mcpPatch, err := writeMCPImportOverlay(o)
+	if err != nil {
+		return nil, err
+	}
+	if mcpPatch != "" {
+		out = append(out, mcpPatch)
+	}
 	proactivePatch, err := writeProactiveOverlay(o)
 	if err != nil {
 		return nil, err

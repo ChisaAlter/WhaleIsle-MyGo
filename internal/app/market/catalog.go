@@ -334,8 +334,9 @@ func (c *Coordinator) finishAttempt(op *Attempt, r marketResult, install bool) {
 
 	awaitingUpdateApproval := op.Target != nil && op.Target.UpdateVersion != "" &&
 		(len(r.pending) > 0 || len(r.incompatible) > 0 || (op.Method == "pluginManager/setVersionExemption" && r.accepted))
+	c.refreshChangedInventory()
 	if op.Store != nil && !awaitingUpdateApproval && !op.ContinueBatch {
-		op.Store.Refresh(c.lifecycleContext())
+		op.Store.RefreshShared(c.lifecycleContext())
 	}
 	c.updateUI()
 }

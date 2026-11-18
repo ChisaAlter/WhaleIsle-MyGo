@@ -38,7 +38,7 @@ type ShellEnvironment struct {
 	BuildVersion       string
 	DownloadRoute      string
 	Quitting           bool
-	LauncherOpen       bool
+	WorkbenchCanPrompt bool
 	LauncherStartBusy  bool
 	LauncherImportBusy bool
 	TaskRestartPending bool

@@ -217,8 +217,9 @@ func validateUpdateURL(raw string) error {
 	return err
 }
 
-// CompareVersions returns -1 if a<b, 0 if equal, 1 if a>b for dotted numeric
-// versions (non-numeric suffixes are stripped per segment).
+// CompareVersions orders release and prerelease versions using SemVer precedence.
+// The existing v prefix and short dotted versions remain accepted. Build metadata
+// does not affect precedence; legacy core segments keep their numeric prefix.
 func CompareVersions(a, b string) int {
 	as := versionParts(a)
 	bs := versionParts(b)
@@ -241,7 +242,72 @@ func CompareVersions(a, b string) int {
 			return 1
 		}
 	}
+	return comparePrerelease(versionPrerelease(a), versionPrerelease(b))
+}
+
+func versionPrerelease(v string) []string {
+	v = strings.TrimSpace(v)
+	v, _, _ = strings.Cut(v, "+")
+	_, prerelease, found := strings.Cut(v, "-")
+	if !found || prerelease == "" {
+		return nil
+	}
+	return strings.Split(prerelease, ".")
+}
+
+func comparePrerelease(a, b []string) int {
+	if len(a) == 0 && len(b) == 0 {
+		return 0
+	}
+	if len(a) == 0 {
+		return 1
+	}
+	if len(b) == 0 {
+		return -1
+	}
+	for i := 0; i < min(len(a), len(b)); i++ {
+		an, bn := numericVersionIdentifier(a[i]), numericVersionIdentifier(b[i])
+		if an && !bn {
+			return -1
+		}
+		if !an && bn {
+			return 1
+		}
+		av, bv := a[i], b[i]
+		if an {
+			// Compare decimal strings without an integer-width limit. Trimming
+			// leading zeroes also preserves accepted historical version inputs.
+			av, bv = strings.TrimLeft(av, "0"), strings.TrimLeft(bv, "0")
+			if len(av) < len(bv) {
+				return -1
+			}
+			if len(av) > len(bv) {
+				return 1
+			}
+		}
+		if order := strings.Compare(av, bv); order != 0 {
+			return order
+		}
+	}
+	if len(a) < len(b) {
+		return -1
+	}
+	if len(a) > len(b) {
+		return 1
+	}
 	return 0
+}
+
+func numericVersionIdentifier(v string) bool {
+	if v == "" {
+		return false
+	}
+	for _, ch := range v {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func versionParts(v string) []int {

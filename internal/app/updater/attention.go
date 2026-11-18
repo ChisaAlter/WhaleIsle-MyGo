@@ -232,7 +232,7 @@ func (c *Center) MaybeAskStartupUpdate(win WindowRef, snapshot ReleaseState, ven
 	}
 
 	c.watchAttentionWindow(win)
-	_, focused := c.bridge.WindowVisibility(win)
+	visible, focused := c.bridge.WindowVisibility(win)
 	env = c.env()
 	ownedWin, winKey = c.windowContext(win)
 
@@ -244,8 +244,8 @@ func (c *Center) MaybeAskStartupUpdate(win WindowRef, snapshot ReleaseState, ven
 	can := startuprec.CanPromptUpdate(
 		env.AskOnUpdate,
 		c.attention.tracker.Current(ticket),
-		focused,
-		env.LauncherOpen && !c.releases.ModalOpen,
+		visible && focused,
+		env.WorkbenchCanPrompt && !c.releases.ModalOpen,
 		env.LauncherStartBusy,
 		c.attention.tracker.Prompting(),
 		env.Quitting,
@@ -270,7 +270,7 @@ func (c *Center) MaybeAskStartupUpdate(win WindowRef, snapshot ReleaseState, ven
 		curOwned, curWinKey := c.windowContext(win)
 		visibleFocused := alive && vis && foc
 		c.mu.Lock()
-		stillCan := visibleFocused && curEnv.LauncherOpen && !c.releases.ModalOpen && c.attention.tracker.Prompting() && c.startupUpdateCurrentLocked(curEnv, curOwned, win, curWinKey, ticket)
+		stillCan := visibleFocused && curEnv.WorkbenchCanPrompt && !c.releases.ModalOpen && c.attention.tracker.Prompting() && c.startupUpdateCurrentLocked(curEnv, curOwned, win, curWinKey, ticket)
 		if !stillCan {
 			c.attention.tracker.CancelPrompt(ticket)
 		}
@@ -311,7 +311,7 @@ func (c *Center) finishStartupUpdatePrompt(win WindowRef, ticket startuprec.Upda
 	} else if c.attention.tracker.Current(ticket) {
 		c.attention.tracker.Clear()
 	}
-	allowed := current && resolved && review && visible && env.LauncherOpen
+	allowed := current && resolved && review && visible
 	if allowed {
 		c.releases.Selected = release.PackageKey()
 		c.attention.hold = true

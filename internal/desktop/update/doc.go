@@ -18,6 +18,12 @@
 //
 // Without a feed URL, CheckForUpdates returns StatusNotConfigured (no network).
 //
+// Native Windows releases are unsigned by default. Native staging requires
+// HTTPS, pinned MyGo release identity, SHA-256 and exact size. Set
+// WHALEISLE_UPDATE_REQUIRE_SIGNATURE=1 or WHALEISLE_UPDATE_PUBLISHER to opt into
+// platform-signature enforcement; unsigned integrity checks do not establish a
+// verified publisher. Other platform defaults remain unchanged.
+//
 // DownloadAndStageOpts verifies optional sha256/size, then optional Authenticode
 // on Windows (PowerShell Get-AuthenticodeSignature) via RequireSignature /
 // ExpectedPublisher. On non-Windows, Authenticode probes return SignatureSkipped

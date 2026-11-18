@@ -326,7 +326,7 @@ func (c *Center) PrepareLauncherModel(win WindowRef, vendorReady bool) LauncherS
 	out := LauncherSnapshot{
 		NeedsRefresh:     refresh,
 		Rows:             snapshot.Rows,
-		RouteUnavailable: make(map[string]string),
+		RouteUnavailable: c.RouteAvailability(),
 		Busy:             snapshot.Busy || refresh,
 		Installing:       snapshot.Installing,
 		Status:           snapshot.Status,
@@ -342,9 +342,6 @@ func (c *Center) PrepareLauncherModel(win WindowRef, vendorReady bool) LauncherS
 	}
 	if out.StagedTitle == "" {
 		out.StagedTitle = snapshot.StagedTag
-	}
-	if _, err := update.NativeCatalogURL("cnb"); err != nil {
-		out.RouteUnavailable["cnb"] = lifecycleText("CNB 尚未配置 鲸屿 MyGo 原生发布源，请使用 GitHub。", "CNB has no configured Whale Isle MyGo native release source. Use GitHub.")
 	}
 	for _, row := range snapshot.Rows {
 		if row.UnavailableReason == "" && (vendorReady || row.RuntimeIncluded) && !row.Prerelease && update.CompareVersions(row.Version, env.BuildVersion) > 0 {
@@ -690,6 +687,11 @@ func (c *Center) Download(win WindowRef, tag string, requireRuntime bool, expect
 				RequireRuntime: requireRuntime,
 				DestDir:        staging,
 				OnPhase: func(phase update.StagePhase) {
+					if phase == update.StageReady {
+						// The returned ApplyResult must be durably committed with
+						// ready; a progress phase alone has no installer identity.
+						return
+					}
 					c.mu.Lock()
 					c.releases.Phase = string(phase)
 					c.mu.Unlock()
@@ -715,78 +717,7 @@ func (c *Center) Download(win WindowRef, tag string, requireRuntime bool, expect
 			return ctx.Err()
 		}()
 
-		c.mu.Lock()
-		r := &c.releases
-		r.Busy, r.Cancel = false, nil
-		if len(rows) > 0 {
-			r.Rows, r.CatalogRoute = rows, route
-		}
-		var journal update.JournalState
-		journal.Phase = update.JournalPhaseDownloaded
-		journal.Version = selected.Version
-		if err != nil {
-			r.Err = err.Error()
-			r.Status = i18n.T(i18n.KeyCmdInstallationPreparationFailedTheCurren)
-			if errors.Is(err, context.Canceled) {
-				if r.PauseRequested {
-					r.Paused = true
-					r.Status = lifecycleText("下载已暂停，可继续。", "Download paused. You can resume it.")
-				} else {
-					r.Status = i18n.T(i18n.KeyCmdDownloadCancelledTheCurrentInstallatio)
-				}
-				r.Err = ""
-				journal = update.JournalState{}
-			} else {
-				if selected.Tag != "" {
-					r.Paused = true
-				}
-				journal = update.JournalState{Phase: update.JournalPhaseError, FailedOperation: "download", Message: err.Error()}
-			}
-		} else {
-			r.Staged, r.StagedTag = staged, selected.Tag
-			variant := i18n.T(i18n.KeyCmdDesktopOnly)
-			if selected.RuntimeIncluded {
-				variant = i18n.T(i18n.KeyCmdIncludesRuntime)
-			}
-			kind := i18n.T(i18n.KeyCmdFullPackage)
-			if selected.IsDelta() {
-				kind = i18n.T(i18n.KeyCmdDeltaReconstruction)
-			}
-			r.StagedTitle = selected.Tag + " · " + kind + " · " + variant
-			r.Status = i18n.T(i18n.KeyCmdInstallerDownloadedAndVerifiedChooseIn)
-			if selected.Platform == "darwin" {
-				r.Status = i18n.T(i18n.KeyCmdDiskImageDownloadedAndVerifiedChooseOp)
-			}
-			if selected.IsDelta() && !staged.UsedRange && staged.CopiedBlocks == 0 {
-				r.Status += i18n.T(i18n.KeyCmdTheSourceDidNotSupportRangesTheComple)
-			}
-			if strings.Contains(staged.Message, "native base cache unavailable:") {
-				r.Status += i18n.T(i18n.KeyCmdTheInstallerIsRetainedButCachingItFor)
-			}
-			r.Err = ""
-		}
-		discard := r.CancelRequested
-		discardDir := r.Staging
-		if discard {
-			r.Active = update.NativeRelease{}
-			r.Paused = false
-			r.Staging = ""
-			r.Received, r.Total = 0, 0
-			r.Staged = update.ApplyResult{}
-			r.StagedTag, r.StagedTitle = "", ""
-			r.Err = ""
-		}
-		r.Phase = settledNativeReleasePhase(*r, buildVer)
-		c.mu.Unlock()
-		if discard && discardDir != "" {
-			if err := DiscardNativePartial(userDataDir, discardDir); err != nil {
-				c.mu.Lock()
-				c.releases.Err = err.Error()
-				c.releases.Phase = "error"
-				c.mu.Unlock()
-			}
-		}
-		c.Persist()
+		journal := c.completeDownload(userDataDir, buildVer, route, rows, selected, staged, err)
 		if journal.Phase != "" {
 			c.RecordState(journal)
 		}
@@ -1084,4 +1015,25 @@ func settledNativeReleasePhase(r ReleaseState, buildVersion string) string {
 		}
 	}
 	return ""
+}
+
+func nativeStagedTitle(release update.NativeRelease) string {
+	variant := i18n.T(i18n.KeyCmdDesktopOnly)
+	if release.RuntimeIncluded {
+		variant = i18n.T(i18n.KeyCmdIncludesRuntime)
+	}
+	kind := i18n.T(i18n.KeyCmdFullPackage)
+	if release.IsDelta() {
+		kind = i18n.T(i18n.KeyCmdDeltaReconstruction)
+	}
+	return release.Tag + " · " + kind + " · " + variant
+}
+
+// RouteAvailability explains why a download source cannot be selected.
+func (c *Center) RouteAvailability() map[string]string {
+	unavailable := make(map[string]string)
+	if _, err := update.NativeCatalogURL("cnb"); err != nil {
+		unavailable["cnb"] = lifecycleText("CNB 尚未配置 鲸屿 MyGo 原生发布源，请使用 GitHub。", "CNB has no configured Whale Isle MyGo native release source. Use GitHub.")
+	}
+	return unavailable
 }

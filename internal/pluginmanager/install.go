@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strings"
 	"time"
@@ -272,6 +273,9 @@ func (a Actions) Inspect() {
 		automatic := false
 		if err == nil {
 			enrichInspectionCapabilities(spec, &inspection)
+			if inspection.Capabilities != nil && inspection.Capabilities.InstallError != "" {
+				err = errors.New(inspection.Capabilities.InstallError)
+			}
 		}
 		c.patch(a.owner, func(s *State) {
 			if c.installRead != read || s.Install.Spec != spec || s.Install.Registry != registry {
@@ -352,17 +356,12 @@ func enrichInspectionCapabilities(spec string, inspection *Inspection) {
 }
 
 func nativeCapabilityInstallReady(inspection *Inspection) bool {
-	if inspection == nil || inspection.Capabilities == nil {
+	if inspection == nil || inspection.Capabilities == nil || inspection.Capabilities.InstallError != "" {
 		return false
 	}
-	switch inspection.Capabilities.Kind {
-	case CapabilityMCP:
-		return len(inspection.Capabilities.MCPServerSpecs) > 0
-	case CapabilitySkill:
-		return len(inspection.Capabilities.LocalSkills) > 0
-	default:
-		return false
-	}
+	// A package can advertise a JS main entry alongside MCP/skills without
+	// declaring a Cordis bundle. The explicit local definitions own this path.
+	return !inspection.Capabilities.HasBundle && (len(inspection.Capabilities.MCPServerSpecs) > 0 || len(inspection.Capabilities.LocalSkills) > 0)
 }
 
 func isNonBundleCapabilityGuidance(inspection Inspection) bool {
@@ -392,7 +391,8 @@ func (a Actions) RequestInstall() {
 	}
 	id := requestID()
 	enabled := i.Enabled
-	if enabled == nil {
+	isNative := nativeCapabilityInstallReady(i.Inspection)
+	if enabled == nil && !isNative {
 		disabled := false
 		enabled = &disabled
 	}
@@ -404,10 +404,18 @@ func (a Actions) RequestInstall() {
 	remember := i.Enabled != nil && !i.TransientRegistry
 	choice := i.RegistrySelection
 	op := action{kind: "install", spec: i.Spec, target: i.Inspection.Name, owner: a.owner, revision: c.revision, options: options}
-	if i.Inspection.Capabilities != nil {
+	if isNative {
 		op.capabilityKind = i.Inspection.Capabilities.Kind
 		op.mcpSpecs = append([]json.RawMessage(nil), i.Inspection.Capabilities.MCPServerSpecs...)
 		op.localSkills = append([]LocalSkillManifest(nil), i.Inspection.Capabilities.LocalSkills...)
+	}
+	if nativeAction(op) {
+		if err := prepareNativeAction(&op); err != nil {
+			i.Error = err.Error()
+			c.mu.Unlock()
+			c.fire()
+			return
+		}
 	}
 	i.RequestID = id
 	i.Phase = "checking"
@@ -517,6 +525,19 @@ func (a Actions) cancelInstall(expectedID string) {
 		c.mu.Unlock()
 		return
 	}
+	if c.state.Owner == a.owner && c.nativeInstall != nil && c.nativeInstall.options.RequestID == i.RequestID && installPending(i.Phase) {
+		if c.nativeCancel != nil {
+			c.nativeCancel()
+			c.nativeCancel = nil
+		}
+		i.CancellationRequested = true
+		i.Phase = "unconfirmed"
+		i.Error = "Installation interrupted. Confirm the Host result before retrying."
+		c.state.Busy = false
+		c.mu.Unlock()
+		c.fire()
+		return
+	}
 	if c.state.Owner == a.owner && (i.Phase == "checking" || i.Phase == "failed" || i.Phase == "unknown") {
 		if c.inspectCancel != nil {
 			c.inspectCancel()
@@ -609,11 +630,26 @@ func (c *Controller) reconcileInstall(owner uint64, id string) {
 		return
 	}
 	client, ctx := Client{c.client}, c.life
+	var native *action
+	if c.nativeInstall != nil && c.nativeInstall.options.RequestID == id {
+		copy := *c.nativeInstall
+		native = &copy
+	}
 	c.state.Install.Recovering = true
 	c.mu.Unlock()
 	c.fire()
 	go func() {
-		result, err := client.WaitInstall(ctx, id)
+		var result *Change
+		var err error
+		if native != nil {
+			var confirmed Change
+			confirmed, err = client.reconcileNative(ctx, *native)
+			if err == nil {
+				result = &confirmed
+			}
+		} else {
+			result, err = client.WaitInstall(ctx, id)
+		}
 		settled := false
 		c.patch(owner, func(s *State) {
 			if s.Install.RequestID != id {

@@ -35,7 +35,8 @@ func (c *Coordinator) ObserveActivation(st harness.Status, actualStatus *harness
 	store := c.store
 	c.mu.Unlock()
 	if completed && store != nil {
-		store.Refresh(context.Background())
+		c.refreshChangedInventory()
+		store.RefreshShared(context.Background())
 	}
 }
 

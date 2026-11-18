@@ -2,10 +2,13 @@ package pluginmanager
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // CapabilityKind classifies what runtime surface a plugin or package targets.
@@ -22,9 +25,14 @@ const (
 
 // LocalSkillManifest holds a skill definition parsed from a local SKILL.md directory.
 type LocalSkillManifest struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Content     string `json:"content"`
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	Content        string `json:"content"`
+	Directory      string `json:"-"`
+	Markdown       string `json:"-"`
+	ImportMarkdown string `json:"-"`
+	ModelInvocable bool   `json:"modelInvocable"`
+	UserInvocable  bool   `json:"userInvocable"`
 }
 
 // PackageCapabilities describes host/client/MCP/Skill capabilities extracted from
@@ -34,6 +42,8 @@ type PackageCapabilities struct {
 	NativeCompatible    bool                 `json:"nativeCompatible"`
 	CompatibilityLabel  string               `json:"compatibilityLabel,omitempty"`
 	Guidance            string               `json:"guidance,omitempty"`
+	Evidence            string               `json:"evidence,omitempty"`
+	InstallError        string               `json:"installError,omitempty"`
 	HasHostContribution bool                 `json:"hasHostContribution,omitempty"`
 	HasWebClient        bool                 `json:"hasWebClient,omitempty"`
 	HasBundle           bool                 `json:"hasBundle,omitempty"`
@@ -211,6 +221,9 @@ func inspectExports(raw json.RawMessage) (hasClient, hasRoot bool) {
 }
 
 func finalizeCapabilities(caps *PackageCapabilities) {
+	if caps.Evidence == "" {
+		caps.Evidence = "manifest"
+	}
 	switch {
 	case caps.HasHostContribution && caps.HasWebClient:
 		caps.Kind = CapabilityHybrid
@@ -236,8 +249,11 @@ func finalizeCapabilities(caps *PackageCapabilities) {
 // InspectLocalPackage inspects a local directory for package.json, SKILL.md, and .mcp.json.
 func InspectLocalPackage(dir string) (PackageCapabilities, error) {
 	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
+	if err != nil {
 		return PackageCapabilities{}, err
+	}
+	if !info.IsDir() {
+		return PackageCapabilities{}, fmt.Errorf("plugin source is not a directory")
 	}
 	var pkgRaw []byte
 	if raw, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil && len(raw) <= 2<<20 {
@@ -245,16 +261,20 @@ func InspectLocalPackage(dir string) (PackageCapabilities, error) {
 	}
 	var mcpSpecs []json.RawMessage
 	var mcpNames []string
+	var mcpError string
 	hasMCPFile := false
 	for _, candidate := range []string{".mcp.json", "mcp.json"} {
 		if raw, err := os.ReadFile(filepath.Join(dir, candidate)); err == nil && len(raw) <= 2<<20 {
 			hasMCPFile = true
 			names, specs := extractMCPServersFromConfigFile(raw)
+			if len(names) == 0 || len(specs) != len(names) {
+				mcpError = "MCP configuration contains an invalid server definition: " + candidate
+			}
 			mcpNames = mergeUniqueStrings(mcpNames, names)
 			mcpSpecs = append(mcpSpecs, specs...)
 		}
 	}
-	skills := discoverLocalSkills(dir)
+	skills, skillErr := discoverLocalSkills(dir)
 	hasSkillMD := len(skills) > 0
 	caps := ClassifyPackageManifestJSON(pkgRaw, hasSkillMD, hasMCPFile)
 	caps.MCPServers = mergeUniqueStrings(caps.MCPServers, mcpNames)
@@ -263,6 +283,10 @@ func InspectLocalPackage(dir string) (PackageCapabilities, error) {
 		caps.SkillNames = mergeUniqueStrings(caps.SkillNames, []string{sk.Name})
 	}
 	caps.LocalSkills = skills
+	caps.InstallError = mcpError
+	if skillErr != nil {
+		caps.InstallError = skillErr.Error()
+	}
 	return caps, nil
 }
 
@@ -272,6 +296,7 @@ func InferCapabilityFromCatalogMetadata(category, id, pkgName, description strin
 	cat := strings.ToLower(strings.TrimSpace(category))
 	lower := strings.ToLower(id + " " + pkgName + " " + description)
 	var caps PackageCapabilities
+	caps.Evidence = "catalog"
 	switch {
 	case cat == "skill" || cat == "skills":
 		caps.Kind = CapabilitySkill
@@ -294,18 +319,27 @@ func InferCapabilityFromCatalogMetadata(category, id, pkgName, description strin
 	return caps
 }
 
-func discoverLocalSkills(dir string) []LocalSkillManifest {
+func discoverLocalSkills(dir string) ([]LocalSkillManifest, error) {
 	var out []LocalSkillManifest
+	var inspectErr error
 	addSkill := func(path, fallbackName string) {
 		raw, err := os.ReadFile(path)
-		if err != nil || len(raw) > 1<<20 {
+		if err != nil {
+			inspectErr = err
 			return
 		}
-		text := strings.TrimSpace(string(raw))
-		if text == "" {
+		if len(raw) > 1<<20 {
+			inspectErr = fmt.Errorf("SKILL.md exceeds 1 MiB: %s", path)
 			return
 		}
-		name, desc := parseSkillFrontmatter(text)
+		text := string(raw)
+		meta, body, err := skillMarkdown(text)
+		if err != nil {
+			inspectErr = fmt.Errorf("SKILL.md: %w", err)
+			return
+		}
+		name, _ := meta["name"].(string)
+		desc, _ := meta["description"].(string)
 		if name == "" {
 			name = fallbackName
 		}
@@ -315,7 +349,23 @@ func discoverLocalSkills(dir string) []LocalSkillManifest {
 		if desc == "" {
 			desc = name
 		}
-		out = append(out, LocalSkillManifest{Name: name, Description: desc, Content: text})
+		modelDisabled, _ := meta["disable-model-invocation"].(bool)
+		userInvocable := true
+		if value, ok := meta["user-invocable"].(bool); ok {
+			userInvocable = value
+		}
+		if meta["name"] == nil || meta["description"] == nil {
+			meta["name"], meta["description"] = name, desc
+			frontmatter, encodeErr := yaml.Marshal(meta)
+			if encodeErr != nil {
+				inspectErr = encodeErr
+				return
+			}
+			// The source remains unchanged; only absent identity metadata is
+			// supplied to the import request so resource paths stay relative.
+			text = "---\n" + string(frontmatter) + "---\n" + body
+		}
+		out = append(out, LocalSkillManifest{Name: name, Description: desc, Content: body, Directory: filepath.Dir(path), Markdown: string(raw), ImportMarkdown: text, ModelInvocable: !modelDisabled, UserInvocable: userInvocable})
 	}
 	if _, err := os.Stat(filepath.Join(dir, "SKILL.md")); err == nil {
 		addSkill(filepath.Join(dir, "SKILL.md"), filepath.Base(dir))
@@ -331,27 +381,40 @@ func discoverLocalSkills(dir string) []LocalSkillManifest {
 			}
 		}
 	}
-	return out
+	return out, inspectErr
 }
 
-func parseSkillFrontmatter(content string) (name, description string) {
-	if !strings.HasPrefix(content, "---") {
-		return "", ""
+func skillMarkdown(content string) (map[string]any, string, error) {
+	firstLineEnd := strings.IndexByte(content, '\n')
+	if firstLineEnd < 0 || strings.TrimSuffix(content[:firstLineEnd], "\r") != "---" {
+		return map[string]any{}, content, nil
 	}
-	rest := content[3:]
-	end := strings.Index(rest, "\n---")
-	if end < 0 {
-		return "", ""
-	}
-	for _, line := range strings.Split(rest[:end], "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "name:") {
-			name = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "name:")), `"'`)
-		} else if strings.HasPrefix(line, "description:") {
-			description = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "description:")), `"'`)
+	start := firstLineEnd + 1
+	for lineStart := start; lineStart <= len(content); {
+		lineEnd := len(content)
+		if next := strings.IndexByte(content[lineStart:], '\n'); next >= 0 {
+			lineEnd = lineStart + next
 		}
+		if strings.TrimSuffix(content[lineStart:lineEnd], "\r") == "---" {
+			var meta map[string]any
+			if err := yaml.Unmarshal([]byte(content[start:lineStart]), &meta); err != nil {
+				return nil, "", err
+			}
+			if meta == nil {
+				meta = map[string]any{}
+			}
+			bodyStart := lineEnd
+			if bodyStart < len(content) {
+				bodyStart++
+			}
+			return meta, content[bodyStart:], nil
+		}
+		if lineEnd == len(content) {
+			break
+		}
+		lineStart = lineEnd + 1
 	}
-	return name, description
+	return nil, "", fmt.Errorf("unterminated frontmatter")
 }
 
 func extractMCPServersFromConfigFile(raw []byte) ([]string, []json.RawMessage) {

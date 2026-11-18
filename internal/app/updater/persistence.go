@@ -194,11 +194,20 @@ func (c *Center) Persist() {
 	userDataDir := c.userDataDir()
 	c.mu.Lock()
 	r := c.releases
+	c.mu.Unlock()
+	if err := writeNativeUpdateRecord(userDataDir, nativeUpdateRecord(r)); err != nil {
+		c.mu.Lock()
+		c.releases.Err = lifecycleText("保存更新状态失败：", "Could not save update state: ") + err.Error()
+		c.mu.Unlock()
+	}
+}
+
+func nativeUpdateRecord(r ReleaseState) NativeUpdateRecord {
 	route := r.Route
 	if r.Active.DownloadRoute != "" {
 		route = r.Active.DownloadRoute
 	}
-	record := NativeUpdateRecord{
+	return NativeUpdateRecord{
 		Version:          1,
 		Route:            route,
 		Phase:            r.Phase,
@@ -212,12 +221,6 @@ func (c *Center) Persist() {
 		Staged:           r.Staged,
 		StagedTag:        r.StagedTag,
 		StagedTitle:      r.StagedTitle,
-	}
-	c.mu.Unlock()
-	if err := writeNativeUpdateRecord(userDataDir, record); err != nil {
-		c.mu.Lock()
-		c.releases.Err = lifecycleText("保存更新状态失败：", "Could not save update state: ") + err.Error()
-		c.mu.Unlock()
 	}
 }
 
@@ -255,6 +258,10 @@ func writeNativeUpdateRecord(userDataDir string, record NativeUpdateRecord) erro
 	name := f.Name()
 	defer os.Remove(name)
 	if _, err = f.Write(raw); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
 		f.Close()
 		return err
 	}

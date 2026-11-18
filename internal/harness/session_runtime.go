@@ -45,6 +45,8 @@ func sessionRuntimeProfile(version string) (string, sessionRuntimeSafety, bool) 
 		return sessionRuntimeHarnessCommit, rc2SessionRuntimeSafety, true
 	case "0.2.1-rc.4":
 		return sessionRuntimeRC4Commit, rc4SessionRuntimeSafety, true
+	case "0.2.2-rc.2":
+		return "ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c", rc4SessionRuntimeSafety, true
 	default:
 		return "", sessionRuntimeSafety{}, false
 	}
@@ -110,7 +112,11 @@ func validateStagedSessionRuntimeWithReader(vendorDir string, read sessionRuntim
 	if err := validateSessionRuntimeNode(vendorDir, filepath.Join(filepath.Dir(vendorDir), "node", "node.exe")); err != nil {
 		return err
 	}
-	for _, required := range desktopSessionEventTypes {
+	requiredTypes := desktopSessionEventTypes
+	if manifest.CLIVersion == "0.2.2-rc.2" {
+		requiredTypes = append(append([]string(nil), requiredTypes...), "team/mode", "subagent/catalog", "assistant/attempt")
+	}
+	for _, required := range requiredTypes {
 		found := false
 		for _, event := range manifest.RequiredEventTypes {
 			found = found || event == required

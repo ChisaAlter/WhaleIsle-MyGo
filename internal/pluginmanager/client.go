@@ -126,19 +126,25 @@ func (c Client) Exempt(ctx context.Context, pkg, runtime string) (Change, error)
 	return v, e
 }
 
-// UpsertMCPServer registers an extracted MCP server config on Host without requiring a dsh.bundle.
-func (c Client) UpsertMCPServer(ctx context.Context, spec json.RawMessage) error {
-	return c.Caller.Call(ctx, "mcpServers/upsert", api.McpServerUpsertRequest{Spec: spec}, nil)
+// CreateMCPServer imports without replacing a concurrently created server.
+func (c Client) CreateMCPServer(ctx context.Context, spec json.RawMessage) error {
+	return c.Caller.Call(ctx, "mygoMCP/import", map[string]any{"request": api.McpServerUpsertRequest{Spec: spec}}, nil)
+}
+
+func (c Client) MCPServers(ctx context.Context) (api.McpServerSnapshot, error) {
+	var result api.McpServerSnapshot
+	err := c.Caller.Call(ctx, "mcpServers/list", nil, &result)
+	return result, err
 }
 
 // CreateSkill installs a parsed local SKILL.md into the Host skill inventory without requiring a dsh.bundle.
 func (c Client) CreateSkill(ctx context.Context, skill LocalSkillManifest) error {
-	return c.Caller.Call(ctx, "skillInventory/create", api.SkillInventoryCreateRequest{
+	return c.Caller.Call(ctx, "skillInventory/create", map[string]any{"request": api.SkillInventoryCreateRequest{
 		Name:           skill.Name,
 		Description:    skill.Description,
 		Content:        skill.Content,
-		Root:           "user",
-		ModelInvocable: true,
-		UserInvocable:  true,
-	}, nil)
+		Root:           "user-dsh",
+		ModelInvocable: skill.ModelInvocable,
+		UserInvocable:  skill.UserInvocable,
+	}}, nil)
 }

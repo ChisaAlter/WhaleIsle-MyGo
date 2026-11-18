@@ -170,6 +170,9 @@ func TestNativeAutomaticDownloadRetiresAfterIndependentUpgrade(t *testing.T) {
 				rec, err := c.ReadRecord()
 				snap := c.ReleaseSnapshot()
 				if !snap.Busy && err == nil && rec.Phase == "ready" {
+					if rec.Staged.Path == "" || rec.StagedTag != release.Tag || rec.Staged.SHA256 != release.SHA256 || rec.Staged.Size != release.Size {
+						t.Fatalf("ready published without a complete durable installer identity: %+v", rec)
+					}
 					record = rec
 					break
 				}
@@ -189,6 +192,105 @@ func TestNativeAutomaticDownloadRetiresAfterIndependentUpgrade(t *testing.T) {
 				t.Fatal("automatic download survived an independent upgrade to the same version")
 			}
 		})
+	}
+}
+
+func TestNativeDownloadCompletionPublishesAfterPersistence(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(paths.EnvUserData, dir)
+	release := updateCenterFixture()
+	c := NewCenterForTest(nil, "1.2.2", "github")
+	c.RestoreReleaseState(ReleaseState{Busy: true, Phase: "verifying", Active: release, ExplicitVersion: true})
+	staged := desktopupdate.ApplyResult{Path: filepath.Join(nativeReleaseStagingDir(dir, release), "fixture.exe"), SHA256: release.SHA256, Size: release.Size}
+	c.diskMu.Lock()
+	done := make(chan struct{})
+	go func() {
+		c.completeDownload(dir, "1.2.2", "github", nil, release, staged, nil)
+		close(done)
+	}()
+	// While persistence is unavailable, polling every UI surface must still
+	// see an in-flight update rather than an installable in-memory result.
+	snap := c.ReleaseSnapshot()
+	tray := c.TraySnapshot()
+	if !snap.Busy || snap.Phase == "ready" || snap.Staged.Path != "" || tray.UpdateReady {
+		c.diskMu.Unlock()
+		t.Fatal("download became ready before its record could be committed")
+	}
+	c.diskMu.Unlock()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("download completion did not finish")
+	}
+	snap = c.ReleaseSnapshot()
+	record, err := c.ReadRecord()
+	if err != nil || snap.Busy || snap.Phase != "ready" || record.Phase != "ready" || record.Staged.Path != staged.Path || record.StagedTag != release.Tag || !record.ExplicitVersion {
+		t.Fatalf("published completion and record disagree: state=%+v record=%+v err=%v", snap, record, err)
+	}
+}
+
+func TestNativeDownloadCompletionPersistenceFailureRetainsBytesWithoutInstall(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(paths.EnvUserData, dir)
+	release := updateCenterFixture()
+	staging := nativeReleaseStagingDir(dir, release)
+	if err := os.MkdirAll(staging, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	installer := filepath.Join(staging, "fixture.exe")
+	if err := os.WriteFile(installer, []byte("verified fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A directory in place of the journal deterministically refuses atomic
+	// promotion on Windows and Unix without changing user filesystem rights.
+	if err := os.Mkdir(filepath.Join(dir, "updates", "update-center.json"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	c := NewCenterForTest(nil, "1.2.2", "github")
+	c.RestoreReleaseState(ReleaseState{Busy: true, Phase: "verifying", Active: release, Staging: staging})
+	journal := c.completeDownload(dir, "1.2.2", "github", nil, release, desktopupdate.ApplyResult{Path: installer, Size: release.Size, SHA256: release.SHA256}, nil)
+	snap := c.ReleaseSnapshot()
+	if snap.Busy || snap.Phase != "error" || snap.Err == "" || !snap.Paused || snap.Staged.Path != "" || c.TraySnapshot().UpdateReady || journal.Phase != desktopupdate.JournalPhaseError {
+		t.Fatalf("uncommitted installer was offered: %+v journal=%+v", snap, journal)
+	}
+	if _, err := os.Stat(installer); err != nil {
+		t.Fatalf("verified download was lost instead of being kept for resume: %v", err)
+	}
+}
+
+func TestNativeDownloadCompletionHonorsAcceptedCancel(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(paths.EnvUserData, dir)
+	release := updateCenterFixture()
+	staging := nativeReleaseStagingDir(dir, release)
+	if err := os.MkdirAll(staging, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	installer := filepath.Join(staging, "fixture.exe")
+	if err := os.WriteFile(installer, []byte("inert fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := NewCenterForTest(nil, "1.2.2", "github")
+	c.RestoreReleaseState(ReleaseState{Busy: true, Phase: "verifying", Active: release, Staging: staging})
+	c.Cancel(nil)
+	c.completeDownload(dir, "1.2.2", "github", nil, release, desktopupdate.ApplyResult{Path: installer}, nil)
+	snap := c.ReleaseSnapshot()
+	record, err := c.ReadRecord()
+	if err != nil || snap.Busy || snap.Active.Tag != "" || snap.Staged.Path != "" || record.Active.Tag != "" || record.Staged.Path != "" {
+		t.Fatalf("accepted cancellation became a ready installer: state=%+v record=%+v err=%v", snap, record, err)
+	}
+	if _, err := os.Stat(staging); !os.IsNotExist(err) {
+		t.Fatalf("cancelled owned partial was retained: %v", err)
+	}
+}
+
+func TestAboutOffersFinalReleaseToSameCorePrerelease(t *testing.T) {
+	release := updateCenterFixture()
+	c := NewCenterForTest(nil, release.Version+"-rc.1", "github")
+	c.RestoreReleaseState(ReleaseState{CenterLoaded: true, Rows: []desktopupdate.NativeRelease{release}})
+	snap := c.AboutSnapshot(nil)
+	if snap.UpdateVersion != release.Version || snap.UpdatePhase != "available" {
+		t.Fatalf("final release was hidden from prerelease installation: %+v", snap)
 	}
 }
 

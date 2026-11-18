@@ -176,7 +176,7 @@ func TestPublisherRDNStrictMatching(t *testing.T) {
 	}
 }
 
-func TestNativeReleasesRejectDowngradeAndRequireSignatureByDefault(t *testing.T) {
+func TestNativeReleasesRejectDowngradeAndHonorSignaturePolicy(t *testing.T) {
 	rows := []NativeRelease{
 		{Feed: Feed{Version: "1.2.1", URL: "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v1.2.1/setup.exe", SHA256: strings.Repeat("a", 64), Size: 16}, Tag: "v1.2.1", Platform: runtime.GOOS, Arch: runtime.GOARCH, Format: "nsis", DownloadRoute: "github"},
 		{Feed: Feed{Version: "1.2.2", URL: "https://github.com/ChisaAlter/WhaleIsle-MyGo/releases/download/v1.2.2/setup.exe", SHA256: strings.Repeat("b", 64), Size: 16}, Tag: "v1.2.2", Platform: runtime.GOOS, Arch: runtime.GOARCH, Format: "nsis", DownloadRoute: "github"},
@@ -204,15 +204,28 @@ func TestNativeReleasesRejectDowngradeAndRequireSignatureByDefault(t *testing.T)
 		t.Fatalf("expected downgrade rejection error, got %v", err)
 	}
 
-	// Default signature policy checks: unset fails closed; explicit "0"/"false" opts out; publisher always enforces.
+	// Windows unsigned releases are normal production artifacts. Other platform
+	// defaults remain strict; explicit policy and publisher constraints still win.
 	t.Setenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE", "1")
 	_ = os.Unsetenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE")
-	if !nativeSignatureRequired("") {
-		t.Fatal("expected signature required by default when env var unset")
+	if got := nativeSignatureRequired(""); got != (runtime.GOOS != "windows") {
+		t.Fatalf("unexpected platform default: %v", got)
 	}
-	t.Setenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE", "0")
-	if nativeSignatureRequired("") {
-		t.Fatal("expected explicit WHALEISLE_UPDATE_REQUIRE_SIGNATURE=0 to opt out")
+	for _, raw := range []string{"0", "false", "no"} {
+		t.Setenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE", raw)
+		if nativeSignatureRequired("") {
+			t.Fatalf("explicit opt-out %q ignored", raw)
+		}
+	}
+	for _, raw := range []string{"1", "true", "yes", "invalid"} {
+		t.Setenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE", raw)
+		if !nativeSignatureRequired("") {
+			t.Fatalf("explicit strict policy %q ignored", raw)
+		}
+	}
+	t.Setenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE", "")
+	if got := nativeSignatureRequired(""); got != (runtime.GOOS != "windows") {
+		t.Fatal("empty policy differs between tests and production")
 	}
 	t.Setenv("WHALEISLE_UPDATE_REQUIRE_SIGNATURE", "0")
 	if !nativeSignatureRequired("WhaleIsle") {

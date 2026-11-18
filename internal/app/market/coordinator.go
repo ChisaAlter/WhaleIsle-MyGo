@@ -101,8 +101,14 @@ type Coordinator struct {
 	profileDir     string
 	sidebarPlugins bgProbe[[]manager.SidebarPluginEntry]
 
-	nativePlugins   nativePluginBinding
-	pluginInventory plugininventory.Controller
+	nativePlugins           nativePluginBinding
+	pluginInventory         plugininventory.Controller
+	inventoryRefreshRunning bool
+	inventoryRefreshPending bool
+	inventorySource         *manager.HostInventory
+	pluginEventsReady       bool
+	inventoryDeferred       bool
+	inventoryTraceReady     bool
 }
 
 // NewCoordinator constructs a marketplace Coordinator attached to optional HostDeps.
@@ -141,6 +147,17 @@ func (c *Coordinator) SetClient(client *dsh.Client) {
 // AttachHost binds a connected DSH client and managed profile directory to the
 // market store, plugin inventory, and native plugin manager.
 func (c *Coordinator) AttachHost(client *dsh.Client, managedProfileDir string, onRefresh func()) {
+	c.attachHost(client, managedProfileDir, onRefresh, false)
+}
+
+// AttachHostForWorkspace keeps the default desktop's inventory read behind its
+// core workspace initialization. Explicit manager/settings/A2 consumers still
+// read immediately through the same HostInventory owner.
+func (c *Coordinator) AttachHostForWorkspace(client *dsh.Client, managedProfileDir string, onRefresh func()) {
+	c.attachHost(client, managedProfileDir, onRefresh, true)
+}
+
+func (c *Coordinator) attachHost(client *dsh.Client, managedProfileDir string, onRefresh func(), deferred bool) {
 	store := c.EnsureStore()
 	c.mu.Lock()
 	c.client = client
@@ -149,12 +166,32 @@ func (c *Coordinator) AttachHost(client *dsh.Client, managedProfileDir string, o
 	c.sidebarPlugins.clear()
 	store.SetUpdateProfileDir(managedProfileDir)
 	store.Attach(client, onRefresh)
-	c.AttachInventory(client)
-	c.BindNativePluginManager(client)
-	if client != nil {
-		c.RefreshInventory()
-		store.Refresh(context.Background())
+	if client == nil {
+		c.BindNativePluginManager(nil)
+	} else {
+		c.bindNativePluginManagerCaller(client, client, deferred)
 	}
+	if client != nil && !deferred {
+		c.ensureInventory()
+	}
+}
+
+// WorkspaceReady releases only the current transport's startup deferral. It
+// does not gate user-driven inventory reads if workspace initialization fails.
+func (c *Coordinator) WorkspaceReady(client *dsh.Client) bool {
+	c.mu.Lock()
+	if client == nil || c.nativePlugins.client != client {
+		c.mu.Unlock()
+		return false
+	}
+	if !c.inventoryDeferred {
+		c.mu.Unlock()
+		return true
+	}
+	c.inventoryDeferred = false
+	c.mu.Unlock()
+	c.ensureInventory()
+	return true
 }
 
 // DetachHost invalidates in-flight attempts and disconnects Host transports from
@@ -171,7 +208,6 @@ func (c *Coordinator) DetachHost() {
 		store.SetUpdateProfileDir("")
 		store.Detach()
 	}
-	c.AttachInventory(nil)
 	c.BindNativePluginManager(nil)
 }
 
@@ -324,6 +360,15 @@ func (c *Coordinator) TryAcquireRepairSlot() (release func(), ok bool) {
 
 // InstalledPluginLabels returns non-empty plugin labels currently in the store snapshot.
 func (c *Coordinator) InstalledPluginLabels() []string {
+	if bundles, ok := c.installedBundles(context.Background(), false); ok {
+		out := make([]string, 0, len(bundles))
+		for _, bundle := range bundles {
+			if bundle.Name != "" {
+				out = append(out, bundle.Name)
+			}
+		}
+		return out
+	}
 	st := c.Store()
 	if st == nil {
 		return nil
@@ -339,6 +384,17 @@ func (c *Coordinator) InstalledPluginLabels() []string {
 
 // ListPluginsForInstallControl serves desktop install-control plugin listing queries.
 func (c *Coordinator) ListPluginsForInstallControl(ctx context.Context, refresh bool, query string) []map[string]any {
+	if bundles, ok := c.installedBundles(ctx, refresh); ok {
+		q := strings.ToLower(strings.TrimSpace(query))
+		out := make([]map[string]any, 0, len(bundles))
+		for _, bundle := range bundles {
+			if q != "" && !strings.Contains(strings.ToLower(bundle.Name+" "+bundle.Description), q) {
+				continue
+			}
+			out = append(out, map[string]any{"id": bundle.Name, "name": bundle.Name, "summary": bundle.Description})
+		}
+		return out
+	}
 	st := c.Store()
 	if st == nil {
 		return []map[string]any{}
@@ -356,6 +412,23 @@ func (c *Coordinator) ListPluginsForInstallControl(ctx context.Context, refresh 
 		plugins = append(plugins, map[string]any{"id": row.Label, "name": row.Label, "summary": row.Detail})
 	}
 	return plugins
+}
+
+func (c *Coordinator) installedBundles(ctx context.Context, refresh bool) ([]manager.Bundle, bool) {
+	c.mu.Lock()
+	source := c.inventorySource
+	c.mu.Unlock()
+	if source == nil {
+		return nil, false
+	}
+	if refresh {
+		source.InvalidateInventory()
+	}
+	var bundles []manager.Bundle
+	if err := source.Call(ctx, "pluginManager/listBundles", nil, &bundles); err != nil {
+		return nil, false
+	}
+	return bundles, true
 }
 
 func (c *Coordinator) hostEnv() HostEnvSnapshot {
