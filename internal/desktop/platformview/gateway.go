@@ -23,6 +23,7 @@ import (
 type Gateway struct {
 	origin, key, cookieName, bridgeToken string
 	session                              Session
+	listener                             net.Listener
 	server                               *http.Server
 	transport                            *http.Transport
 	cancel                               context.CancelFunc
@@ -140,6 +141,7 @@ func New(session Session, metadata ClientMetadata) (*Gateway, error) {
 		}
 		proxy.ServeHTTP(w, r)
 	})}
+	g.listener = listener
 	go func() { _ = g.server.Serve(listener) }()
 	return g, nil
 }
@@ -160,7 +162,15 @@ func (g *Gateway) Close() {
 	if g == nil {
 		return
 	}
-	g.once.Do(func() { g.cancel(); _ = g.server.Close(); g.transport.CloseIdleConnections() })
+	g.once.Do(func() {
+		g.cancel()
+		_ = g.server.Close()
+		// Closed separately: Serve registers the listener with the server only
+		// once its goroutine runs, so a Close that wins that race would leave a
+		// socket accepting traffic on a cancelled lease.
+		_ = g.listener.Close()
+		g.transport.CloseIdleConnections()
+	})
 }
 func (g *Gateway) Preload(locale string) string {
 	if strings.HasPrefix(strings.ToLower(locale), "zh") {
