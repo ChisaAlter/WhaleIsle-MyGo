@@ -199,14 +199,25 @@ func TestLockDecouplingNeverHoldsManagerMutexInHostDeps(t *testing.T) {
 	var mgr *Manager
 	var singleThreadCheck atomic.Bool
 	singleThreadCheck.Store(true)
+	// A host dependency must never run with Manager.mu held. A bare TryLock
+	// cannot decide that: it also fails while another goroutine holds the mutex,
+	// which the refresh loop does while a model call runs, and then the failure
+	// names whichever dependency happened to coincide. hostDepUnderLockOnly
+	// attributes the hold to the calling goroutine before anything is reported.
+	violations := make(chan string, 1)
 	assertUnlocked := func(name string) {
 		if mgr == nil || !singleThreadCheck.Load() {
 			return
 		}
-		if !mgr.mu.TryLock() {
-			t.Fatalf("%s invoked while Manager.mu was held", name)
+		if !hostDepUnderLockOnly(mgr) {
+			return
 		}
-		mgr.mu.Unlock()
+		// The dependency runs on whichever goroutine called it, so record the
+		// violation here and fail from the test goroutine.
+		select {
+		case violations <- name:
+		default:
+		}
 	}
 
 	mgr = NewManager(HostDeps{
@@ -263,6 +274,11 @@ func TestLockDecouplingNeverHoldsManagerMutexInHostDeps(t *testing.T) {
 	_ = mgr.OrdinaryTeamModel("win")
 	_ = mgr.TeamModel("win", client, "p1")
 	_ = mgr.DirectoryActions("win")
+	select {
+	case name := <-violations:
+		t.Fatalf("%s invoked while Manager.mu was held", name)
+	default:
+	}
 
 	// Phase 2: Multi-goroutine stress verifying hostMu -> Manager.mu DAG ordering has zero deadlocks or races.
 	singleThreadCheck.Store(false)
@@ -340,5 +356,57 @@ func TestLoadedProjectsAndSuspendLifecycle(t *testing.T) {
 	case <-ctx.Done():
 	default:
 		t.Fatal("Suspend did not cancel active process/refresh context")
+	}
+}
+
+// foreignHoldGrace bounds how long another goroutine may keep Manager.mu before
+// the hold is attributed to the caller. Every critical section in this package
+// publishes state and leaves the host dependencies outside the lock, so a
+// foreign hold lasts microseconds; a lock the caller holds itself cannot clear
+// while the caller is the one waiting on it.
+const foreignHoldGrace = 250 * time.Millisecond
+
+// hostDepUnderLockOnly reports whether the calling goroutine holds m.mu.
+// TryLock alone cannot answer that: it fails for every holder, so a background
+// refresh would be blamed on the model call that happened to run beside it.
+// Waiting out a foreign critical section separates the two cases: only a lock
+// this goroutine took stays taken for the whole grace period.
+func hostDepUnderLockOnly(m *Manager) bool {
+	if m.mu.TryLock() {
+		m.mu.Unlock()
+		return false
+	}
+	deadline := time.Now().Add(foreignHoldGrace)
+	for time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+		if m.mu.TryLock() {
+			m.mu.Unlock()
+			return false
+		}
+	}
+	return true
+}
+
+func TestHostDepUnderLockOnlySeesSelfHeldLock(t *testing.T) {
+	m := NewManager(HostDeps{})
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !hostDepUnderLockOnly(m) {
+		t.Fatal("guard misses a lock the calling goroutine holds")
+	}
+}
+
+func TestHostDepUnderLockOnlyIgnoresForeignHolder(t *testing.T) {
+	m := NewManager(HostDeps{})
+	held := make(chan struct{})
+	go func() {
+		m.mu.Lock()
+		close(held)
+		time.Sleep(20 * time.Millisecond)
+		m.mu.Unlock()
+	}()
+	<-held
+	if hostDepUnderLockOnly(m) {
+		t.Fatal("guard blamed the caller for another goroutine's hold")
 	}
 }
