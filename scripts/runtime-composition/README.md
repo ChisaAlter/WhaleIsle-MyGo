@@ -16,6 +16,11 @@ over the pin, and every recorded variant. `upstream/` holds the pinned upstream
 compositions, hash-verified against the contract, so a failure can name the rows
 a stage lacks without a desktop checkout or network access.
 
+The composition a start actually runs is that file plus MyGo's own `--patch`
+overlays under `internal/harness`. The contract covers the staged file; the one
+deliberate departure from the desktop composition lives in an overlay and is
+recorded under Recorded decisions.
+
 ## Checking a stage
 
 ```
@@ -59,15 +64,19 @@ The 0.2.2 line added an `apply_patch` tool and defaults it off:
 (`packages/fs/tool-fs/lib/index.js:2012-2017`), and the composition row only
 restates that default. The desktop's own users therefore do not have the tool,
 and enabling it here would make MyGo the only Host on this surface that differs
-from the one we are matching. Do not "fix" the row to `true` without a product decision to
-diverge; if that decision is ever taken, it belongs in this section with the
-reason.
+from the one we are matching. Do not "fix" the row to `true` without a product
+decision to diverge; if that decision is ever taken, it belongs in this section
+with the reason.
 
-### `fs-observation-policy` stays disabled
+### `fs-observation-policy` is mounted back
 
-Upstream 0.2.2 disables the policy in its own base bundle; 0.2.1 mounted it. This
-is a real behaviour change, not a mount-order detail, and it is inherited by every
-Host on this composition, the desktop's included:
+Upstream 0.2.2 disables the policy in its own base bundle; 0.2.1 mounted it. The
+staged composition stays byte-identical to the desktop's, and MyGo mounts the row
+again in a `--patch` overlay every start passes: `internal/harness/extra_overlay.go`
+writes `desktop-host-safety.patch.yml` into the profile and the launcher appends
+it to the patch list, so the effective composition is the desktop's file plus
+this one row. That overlay is the only place MyGo deliberately departs from the
+desktop composition, and it exists because the guard is real:
 
 - The policy is the only thing that supplies the guard. It registers the
   `fs/write-intent`, `fs/edit-intent` and `fs/delete-intent` listeners over a
@@ -84,15 +93,30 @@ Host on this composition, the desktop's included:
   write, `editText` checks `if (expected && ...)` (`:926`) and `requireFile`
   does the same for patch, delete and move (`:1019`). With no intent, a write
   overwrites the file on disk unconditionally, and the "cannot overwrite existing
-  ... without reading it first" error (`FS_NOT_OBSERVED`) is unreachable because
-  it sits inside the `createIfAbsent` branch. An edit still requires the literal
-  `old_string` to match, so a concurrent change is caught only when the text no
-  longer matches; write is the path with no check at all.
+  ... without reading it first" error is unreachable because it sits inside the
+  `createIfAbsent` branch. An edit still requires its literal `old_string` to
+  match, so a concurrent change is caught only when the text moved; write is the
+  path with no check at all.
 - `tool-fs` offers no replacement option: its `Config` has tool toggles and read
   limits only (`packages/fs/tool-fs/lib/index.js:2012-2022`).
+- Composed profiles show it directly: the 0.2.1-rc.2 profile mounts the row, the
+  0.2.2-rc.2 profile carries `disabled: true`, and with the overlay the effective
+  row is `disabled: false` again.
 
-So this is a genuine loss of edit safety relative to 0.2.1, and keeping parity
-with the desktop means keeping it. MyGo can re-enable the row in its own staging
-if the product decides to; this section is the place that records that decision
-with its evidence, so the next reader does not rediscover it as a defect or
-"fix" it by accident.
+Proof, from a real Host rather than a unit test: `tools/core-host-check
+-prompt-flow` starts the staged Host against its owned loopback model in an
+isolated profile and drives prompts through the ordinary session path. Two checks
+cover the guard and both pass:
+
+- `write-without-read-refused` — a `write` to `qa-unread.txt`, a file the session
+  never read, is answered `cannot modify "…": file has not been read — read the
+  file, then retry`.
+- `stale-edit-refused` — an `edit` computed from a read that the file has since
+  outrun is refused.
+
+Flip the overlay row to `disabled: true` and the same flow stops at `Host
+accepted a write call for a file the session never read`. The checks are not
+vacuous: that failure is what a Host on the plain desktop composition does.
+
+Do not remove the row, and do not reduce it to parity with the desktop: write is
+the unprotected path, and losing it costs a user their file.

@@ -32,7 +32,68 @@ const (
 	toolPrompt    = "QA_TOOL: read qa-note.txt using the file read tool, then report its result."
 	waitPrompt    = "QA_WAIT: stream until the real session is stopped."
 	nextPrompt    = "QA_NEXT: complete a fresh turn after the stop."
+
+	writeGuardPrompt = "QA_WRITE_GUARD: overwrite qa-unread.txt with the write tool."
+	staleEditPrompt  = "QA_EDIT_STALE: read qa-stale.txt, then edit its first line."
+	unreadFileText   = "QA_UNREAD_ORIGINAL: a file this session never read.\n"
+	staleFileMarker  = "QA_STALE_ORIGINAL"
+	staleFileText    = staleFileMarker + ": the line the session read first.\n"
+	staleEditText    = "QA_STALE_EDITED: the line the session asked to write.\n"
+	staleChangeText  = "QA_STALE_CHANGED: this line appeared after the read.\n"
 )
+
+// fixtureTool is one tool advertisement the loopback model answers against.
+type fixtureTool struct {
+	Name        string `json:"name"`
+	InputSchema struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	} `json:"input_schema"`
+}
+
+// pathArgs builds arguments from the tool's own schema so the call validates.
+func (t fixtureTool) pathArgs(path string, extra map[string]string) map[string]any {
+	out := map[string]any{}
+	for key := range t.InputSchema.Properties {
+		switch strings.ToLower(key) {
+		case "path", "file_path", "filepath", "filename":
+			out[key] = path
+		case "offset":
+			out[key] = 1
+		case "limit":
+			out[key] = 100
+		}
+	}
+	for name, value := range extra {
+		for key := range t.InputSchema.Properties {
+			if strings.ToLower(key) == name {
+				out[key] = value
+			}
+		}
+	}
+	return out
+}
+
+// pickTool returns the first advertised tool whose lowercased name matches.
+func pickTool(tools []fixtureTool, match func(string) bool) (fixtureTool, bool) {
+	for _, tool := range tools {
+		if match(strings.ToLower(tool.Name)) {
+			return tool, true
+		}
+	}
+	return fixtureTool{}, false
+}
+
+func readToolName(name string) bool {
+	return name == "read" || strings.Contains(name, "read_file") || strings.Contains(name, "fileread") || strings.Contains(name, "fs_read")
+}
+
+func writeToolName(name string) bool {
+	return name == "write" || strings.Contains(name, "write_file") || strings.Contains(name, "fs_write")
+}
+
+func editToolName(name string) bool {
+	return name == "edit" || strings.Contains(name, "edit_file") || strings.Contains(name, "fs_edit")
+}
 
 // modelFixture implements only the deterministic Messages responses used by
 // this opt-in check. It neither imports a model SDK nor forwards HTTP requests.
@@ -44,6 +105,13 @@ type modelFixture struct {
 	requests, canceled   int
 	readTool             string
 	toolResult           bool
+	writeTool            string
+	writeRefused         bool
+	writeGuard           bool
+	editTool             string
+	staleRefused         bool
+	staleEdit            bool
+	staleStep            int
 	taskWait             bool
 	taskWaiting          bool
 	taskInputMismatch    bool
@@ -70,12 +138,7 @@ func newModelFixture(root, workspace string) (*modelFixture, error) {
 				Role    string          `json:"role"`
 				Content json.RawMessage `json:"content"`
 			} `json:"messages"`
-			Tools []struct {
-				Name        string `json:"name"`
-				InputSchema struct {
-					Properties map[string]json.RawMessage `json:"properties"`
-				} `json:"input_schema"`
-			} `json:"tools"`
+			Tools []fixtureTool `json:"tools"`
 		}
 		if req.Method != "POST" {
 			http.Error(w, "owned model accepts POST only", 405)
@@ -143,6 +206,12 @@ func newModelFixture(root, workspace string) (*modelFixture, error) {
 			return
 		}
 		if emitProactiveTool(last, id, workspace, event) {
+			return
+		}
+		if f.emitWriteGuard(body.Tools, last, workspace, id, event) {
+			return
+		}
+		if f.emitStaleEdit(body.Tools, last, workspace, id, event) {
 			return
 		}
 		if strings.Contains(last, "QA_TOOL") && !strings.Contains(last, "tool_result") {
@@ -221,6 +290,147 @@ func newModelFixture(root, workspace string) (*modelFixture, error) {
 	})
 	go f.server.Serve(l)
 	return f, nil
+}
+
+// streamText completes one assistant turn with text only.
+func (f *modelFixture) streamText(text string, event func(string, map[string]any)) {
+	event("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "text", "text": ""}})
+	event("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "text_delta", "text": text}})
+	event("content_block_stop", map[string]any{"index": 0})
+	event("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "end_turn", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 18}})
+	event("message_stop", map[string]any{})
+}
+
+// streamTool completes one assistant turn asking for a single tool call.
+func (f *modelFixture) streamTool(id int, name string, args map[string]any, event func(string, map[string]any)) {
+	raw, _ := json.Marshal(args)
+	event("content_block_start", map[string]any{"index": 0, "content_block": map[string]any{"type": "tool_use", "id": fmt.Sprintf("owned-tool-%d", id), "name": name, "input": map[string]any{}}})
+	event("content_block_delta", map[string]any{"index": 0, "delta": map[string]any{"type": "input_json_delta", "partial_json": string(raw)}})
+	event("content_block_stop", map[string]any{"index": 0})
+	event("message_delta", map[string]any{"delta": map[string]any{"stop_reason": "tool_use", "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 20}})
+	event("message_stop", map[string]any{})
+}
+
+func refusedMessage(content string) bool {
+	return strings.Contains(content, "FS_NOT_OBSERVED") ||
+		strings.Contains(content, "FS_STALE_VERSION") ||
+		strings.Contains(content, "has not been read") ||
+		strings.Contains(content, "without reading it first") ||
+		strings.Contains(content, "changed since it was read")
+}
+
+// emitWriteGuard asks for a write to a file this session never read, then reports
+// whether the Host refused the overwrite.
+func (f *modelFixture) emitWriteGuard(tools []fixtureTool, last, workspace string, id int, event func(string, map[string]any)) bool {
+	if strings.Contains(last, "QA_WRITE_GUARD") {
+		f.mu.Lock()
+		f.writeGuard = true
+		f.mu.Unlock()
+	}
+	f.mu.Lock()
+	active := f.writeGuard
+	f.mu.Unlock()
+	if !active {
+		return false
+	}
+	target := filepath.Join(workspace, "qa-unread.txt")
+	if strings.Contains(last, "tool_result") {
+		refused := refusedMessage(last)
+		f.mu.Lock()
+		f.writeRefused = refused
+		f.writeGuard = false
+		f.mu.Unlock()
+		f.record(map[string]any{"kind": "write-guard", "id": id, "refused": refused, "content": last})
+		if refused {
+			f.streamText("QA_WRITE_GUARD_OK: the Host refused a write with no prior read.", event)
+		} else {
+			f.streamText("QA_WRITE_GUARD_MISSING: the Host overwrote a file this session never read.", event)
+		}
+		return true
+	}
+	tool, ok := pickTool(tools, writeToolName)
+	if !ok {
+		f.mu.Lock()
+		f.writeGuard = false
+		f.mu.Unlock()
+		f.streamText("QA_WRITE_GUARD_MISSING: the Host advertised no write tool.", event)
+		return true
+	}
+	args := tool.pathArgs(target, map[string]string{"content": "overwritten by the owned model"})
+	f.mu.Lock()
+	f.writeTool = tool.Name
+	f.mu.Unlock()
+	f.record(map[string]any{"kind": "write-guard-call", "id": id, "name": tool.Name, "arguments": args})
+	f.streamTool(id, tool.Name, args, event)
+	return true
+}
+
+// emitStaleEdit reads a file, changes it behind the session's back, then asks for
+// an edit computed from that read.
+func (f *modelFixture) emitStaleEdit(tools []fixtureTool, last, workspace string, id int, event func(string, map[string]any)) bool {
+	if strings.Contains(last, "QA_EDIT_STALE") {
+		f.mu.Lock()
+		f.staleEdit = true
+		f.mu.Unlock()
+	}
+	f.mu.Lock()
+	active, step := f.staleEdit, f.staleStep
+	f.mu.Unlock()
+	if !active {
+		return false
+	}
+	target := filepath.Join(workspace, "qa-stale.txt")
+	finish := func(refused bool, marker string) bool {
+		f.mu.Lock()
+		f.staleRefused = refused
+		f.staleEdit = false
+		f.staleStep = 0
+		f.mu.Unlock()
+		f.record(map[string]any{"kind": "stale-edit", "id": id, "refused": refused, "content": last})
+		f.streamText(marker, event)
+		return true
+	}
+	switch step {
+	case 0:
+		tool, ok := pickTool(tools, readToolName)
+		if !ok {
+			return finish(false, "QA_EDIT_STALE_MISSING: the Host advertised no read tool.")
+		}
+		args := tool.pathArgs(target, nil)
+		f.mu.Lock()
+		f.staleStep = 1
+		f.mu.Unlock()
+		f.record(map[string]any{"kind": "stale-edit-read", "id": id, "name": tool.Name, "arguments": args})
+		f.streamTool(id, tool.Name, args, event)
+		return true
+	case 1:
+		if refusedMessage(last) {
+			return finish(false, "QA_EDIT_STALE_MISSING: the owned read was refused.")
+		}
+		if !strings.Contains(last, staleFileMarker) {
+			return finish(false, "QA_EDIT_STALE_MISSING: the owned read returned no file content.")
+		}
+		if err := os.WriteFile(target, []byte(staleChangeText), 0o600); err != nil {
+			return finish(false, "QA_EDIT_STALE_MISSING: the owned model could not change the file.")
+		}
+		tool, ok := pickTool(tools, editToolName)
+		if !ok {
+			return finish(false, "QA_EDIT_STALE_MISSING: the Host advertised no edit tool.")
+		}
+		args := tool.pathArgs(target, map[string]string{"old_string": strings.TrimSuffix(staleFileText, "\n"), "new_string": strings.TrimSuffix(staleEditText, "\n")})
+		f.mu.Lock()
+		f.editTool = tool.Name
+		f.staleStep = 2
+		f.mu.Unlock()
+		f.record(map[string]any{"kind": "stale-edit-call", "id": id, "name": tool.Name, "arguments": args})
+		f.streamTool(id, tool.Name, args, event)
+		return true
+	default:
+		if refusedMessage(last) {
+			return finish(true, "QA_EDIT_STALE_OK: the Host refused an edit computed from a stale read.")
+		}
+		return finish(false, "QA_EDIT_STALE_MISSING: the Host applied an edit computed from a stale read.")
+	}
 }
 
 func (f *modelFixture) record(value any) {
@@ -329,6 +539,12 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 		return errors.New("owned workspace repository resolved outside its exact workspace")
 	}
 	if err = os.WriteFile(filepath.Join(workspace, "qa-note.txt"), []byte(ownedFileText), 0600); err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(workspace, "qa-unread.txt"), []byte(unreadFileText), 0600); err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(workspace, "qa-stale.txt"), []byte(staleFileText), 0600); err != nil {
 		return err
 	}
 	model, err := newModelFixture(root, workspace)
@@ -609,6 +825,32 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 		return err
 	}
 	pass("actual-file-tool-roundtrip", "real Host "+toolName+" tool read owned qa-note.txt; successful result reached provider and persisted Store projection")
+	if err = send(writeGuardPrompt, "QA_WRITE_GUARD"); err != nil {
+		return err
+	}
+	model.mu.Lock()
+	writeRefused, writeTool := model.writeRefused, model.writeTool
+	model.mu.Unlock()
+	if !writeRefused {
+		return fmt.Errorf("Host accepted a %s call for a file the session never read", writeTool)
+	}
+	if err = save("write-guard"); err != nil {
+		return err
+	}
+	pass("write-without-read-refused", "real Host "+writeTool+" tool refused an overwrite of owned qa-unread.txt; fs-observation-policy is mounted")
+	if err = send(staleEditPrompt, "QA_EDIT_STALE"); err != nil {
+		return err
+	}
+	model.mu.Lock()
+	staleRefused, editTool := model.staleRefused, model.editTool
+	model.mu.Unlock()
+	if !staleRefused {
+		return fmt.Errorf("Host accepted a %s call computed from a stale read", editTool)
+	}
+	if err = save("stale-edit"); err != nil {
+		return err
+	}
+	pass("stale-edit-refused", "real Host "+editTool+" tool refused an edit after owned qa-stale.txt changed underneath the session")
 	if err = store.SubmitComposer(ctx, id, waitPrompt, nil, 0); err != nil {
 		return err
 	}
@@ -653,13 +895,13 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 		return fmt.Errorf("restart owned Host: %w", err)
 	}
 	store.Select(id)
-	for _, marker := range []string{"QA_REPLY_OK", "QA_TOOL_OK", "QA_WAIT_STREAM", "QA_NEXT_OK"} {
+	for _, marker := range []string{"QA_REPLY_OK", "QA_TOOL_OK", "QA_WRITE_GUARD_OK", "QA_EDIT_STALE_OK", "QA_WAIT_STREAM", "QA_NEXT_OK"} {
 		if err = waitText(marker, true); err != nil {
 			return fmt.Errorf("restored history missing %s: %w", marker, err)
 		}
 	}
 	restored := store.Snapshot()
-	for _, prompt := range []string{helloPrompt, toolPrompt, waitPrompt, nextPrompt} {
+	for _, prompt := range []string{helloPrompt, toolPrompt, writeGuardPrompt, staleEditPrompt, waitPrompt, nextPrompt} {
 		found := false
 		for _, m := range restored.Messages {
 			if m.Role == "user" && m.Body == prompt && m.Seq > 0 {
@@ -677,6 +919,6 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 	if err = save("restored-history"); err != nil {
 		return err
 	}
-	pass("history-after-real-host-restart", "fresh Go Store restored the same session, four durable user prompts, all replies/stopped text and the successful file-tool result")
+	pass("history-after-real-host-restart", "fresh Go Store restored the same session, six durable user prompts, all replies/stopped text and the successful file-tool result")
 	return nil
 }
