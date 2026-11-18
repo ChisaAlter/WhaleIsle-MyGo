@@ -10,16 +10,6 @@
       "sha256": "dfb1a766e9526d9f64ddcb58f9dffcdf42ec5fca3e9fa3e0b095d1ea2ffb010d"
     },
     {
-      "name": "viewer.js",
-      "bytes": 2205992,
-      "sha256": "22b8db37660b92cbd8fc61d888a748ec6e03dae29aecd849ebf77e16b33c6aa3"
-    },
-    {
-      "name": "viewer.css",
-      "bytes": 750,
-      "sha256": "ee50101f1cfdf7a0dd6d531d63db6f6df183344e72cccda48b13e23107b5a8b9"
-    },
-    {
       "name": "THIRD-PARTY-NOTICES.txt",
       "bytes": 180388,
       "sha256": "fe1b3b61e3cb59928e02528749b13098861f089643cca3287ceace8240c4db49"

@@ -17,6 +17,10 @@
   },
   "excludedDynamicModule": "main/config.js: ambient model generation is not enabled by the mobile Git bridge",
   "localChanges": {
-    "main/git-exec.js": "2026-11-17: a timeout requests process-tree termination but waits for child close before completing, retaining repository write ownership while Git or hooks exit. Original snapshot digests above remain source provenance."
+    "main/git-exec.js": "2026-11-17: a timeout requests process-tree termination but waits for child close before completing, retaining repository write ownership while Git or hooks exit. 2026-11-18: write acceptance is serialized across the bridge so overlapping edits cannot interleave (e87758cb). Original snapshot digests above remain source provenance.",
+    "main/git.js": "2026-10-15..2026-11-16: edited in-tree after the source snapshot; see 03853eb4, 2a897a1d, 5764c60d and 1bc304bd. The digest above is the snapshot's, not this file's.",
+    "main/workspace-authority.js": "2026-10-15..2026-11-16: edited in-tree after the source snapshot; see 03853eb4 and 1bc304bd. The digest above is the snapshot's, not this file's.",
+    "main/git-diff.js": "2026-10-15..2026-10-18: edited in-tree after the source snapshot; see 03853eb4, 522be9d1 and 9abd5c8c. The digest above is the snapshot's, not this file's.",
+    "main/git-trace2.js": "2026-10-15..2026-10-18: edited in-tree after the source snapshot; see 03853eb4 and 73fc9b6f. The digest above is the snapshot's, not this file's."
   }
 }
