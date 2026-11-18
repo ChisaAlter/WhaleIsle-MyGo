@@ -23,9 +23,9 @@ func TestNamespaceSubObjectUnknownFieldPreservation(t *testing.T) {
 			"futureNested": map[string]any{"mirror": "fast"},
 		},
 		"goWallpaperBackground": map[string]any{
-			"glassOpacity":    80,
-			"futureBgTopKey":  "keep-bg",
-			"wallpaperCrop":   map[string]any{"aspect": 1.5, "zoom": 1, "x": 0.5, "y": 0.5, "cropExtra": 9},
+			"glassOpacity":     80,
+			"futureBgTopKey":   "keep-bg",
+			"wallpaperCrop":    map[string]any{"aspect": 1.5, "zoom": 1, "x": 0.5, "y": 0.5, "cropExtra": 9},
 			"wallpaperSources": []any{map[string]any{"id": "src-1", "kind": "custom", "name": "Old", "sourceExtra": true}},
 			"wallpaperFavorites": []any{
 				map[string]any{"id": "fav-1", "sourceId": "src-1", "title": "T1", "thumbUrl": "t", "imageUrl": "i", "favExtra": "keep-fav"},

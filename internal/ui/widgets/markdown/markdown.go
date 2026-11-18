@@ -79,15 +79,15 @@ type Style struct {
 	// results change for the same markdown source. Zero preserves default behavior.
 	ResolveRevision uint64
 	OnOpenFile      func(string)
-	codeSpanAt  func(int, string)
-	fileSpanAt  func(int, string)
-	blockAt     func(int, int, ast.Node)
-	maths       map[int]mathFormula
-	urlSpanAt   func(int, string)
-	urlTargets  map[int]string
-	lineHeight  float32
-	textWeight  int
-	docInlines  map[ast.Node]cachedDocumentInlines
+	codeSpanAt      func(int, string)
+	fileSpanAt      func(int, string)
+	blockAt         func(int, int, ast.Node)
+	maths           map[int]mathFormula
+	urlSpanAt       func(int, string)
+	urlTargets      map[int]string
+	lineHeight      float32
+	textWeight      int
+	docInlines      map[ast.Node]cachedDocumentInlines
 }
 
 func segmentText(seg text.Segment, src string) string {

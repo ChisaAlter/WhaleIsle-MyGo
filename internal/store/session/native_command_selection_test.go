@@ -347,7 +347,9 @@ func TestNativeModelLateReceiptCannotSurviveSameGraphWithdrawalABA(t *testing.T)
 	}
 	s.OnEventsReady(nextEvents)
 	s.ResolveNativeContributionsForEvents(nextEvents)
-	restored := waitModelSnapshot(t, s, func(v ViewState) bool { return v.NativeContributions.Known && v.NativeContributions.Revision != "native-default" })
+	restored := waitModelSnapshot(t, s, func(v ViewState) bool {
+		return v.NativeContributions.Known && v.NativeContributions.Revision != "native-default"
+	})
 	if restored.NativeContributionsGeneration == o.RegistrationGeneration {
 		t.Fatal("real withdrawal/recovery producer reused its registration generation")
 	}

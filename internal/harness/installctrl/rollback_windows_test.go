@@ -61,9 +61,9 @@ func TestRollbackWithWindowsJunctionsAndDanglingLinks(t *testing.T) {
 	}
 
 	for rel, wantTarget := range map[string]string{
-		filepath.Join("node_modules", "pkg-a"):        pkgADir,
+		filepath.Join("node_modules", "pkg-a"):           pkgADir,
 		filepath.Join("node_modules", "@scope", "pkg-b"): scopedDir,
-		filepath.Join("node_modules", "dangling-pkg"): danglingTarget,
+		filepath.Join("node_modules", "dangling-pkg"):    danglingTarget,
 	} {
 		snapPath := filepath.Join(snap.Dir, rel)
 		st, err := os.Lstat(snapPath)

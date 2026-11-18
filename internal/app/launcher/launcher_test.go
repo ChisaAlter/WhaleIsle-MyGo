@@ -79,7 +79,7 @@ func TestIsolatedDesktopGuardsAndVisibilityCombinations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, data := range []string{"", "relative", filepath.Join(base, config.DataDirName)} {
+	for _, data := range []string{"", "relative", paths.DefaultUserDataDirUnder(base)} {
 		t.Setenv(paths.EnvUserData, data)
 		if err := PrepareIsolatedDesktop(&fakePathSetter{}); err == nil {
 			t.Fatalf("accepted non-isolated data dir: %q", data)

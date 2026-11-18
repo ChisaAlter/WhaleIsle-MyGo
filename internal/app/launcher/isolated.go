@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
@@ -59,7 +58,7 @@ func ValidateIsolatedUserDataDir(data, userConfigBase string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve isolated %s directory: %w", paths.EnvUserData, err)
 	}
-	installedDir, err := ResolveCanonicalPath(filepath.Join(userConfigBase, config.DataDirName))
+	installedDir, err := ResolveCanonicalPath(paths.DefaultUserDataDirUnder(userConfigBase))
 	if err != nil {
 		return "", fmt.Errorf("resolve installed data directory: %w", err)
 	}

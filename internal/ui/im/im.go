@@ -17,19 +17,19 @@ import (
 
 // Model wires the IM panel to store and harness status.
 type Model struct {
-	Embedded         bool
-	Store            *imstore.Store
-	ThemeID          string
-	SystemDark       bool
-	HarnessReady     bool
-	MuxConnected     bool
-	PluginDisabled   bool
-	Draft            *string
-	OnClose          func()
-	OnRefresh        func()
-	OnOpenPluginWeb  func()
-	OnEnablePlugin   func()
-	OnSend           func(channelID, text string)
+	Embedded        bool
+	Store           *imstore.Store
+	ThemeID         string
+	SystemDark      bool
+	HarnessReady    bool
+	MuxConnected    bool
+	PluginDisabled  bool
+	Draft           *string
+	OnClose         func()
+	OnRefresh       func()
+	OnOpenPluginWeb func()
+	OnEnablePlugin  func()
+	OnSend          func(channelID, text string)
 }
 
 // View paints the IM panel with channel list, local history, and composer.

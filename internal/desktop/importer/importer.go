@@ -40,7 +40,7 @@ func ElectronUserDataDir() string {
 		wd, _ := os.Getwd()
 		return filepath.Join(wd, ".whaleisle")
 	}
-	return filepath.Join(base, config.DataDirName)
+	return filepath.Join(base, config.ElectronDataDirName)
 }
 
 // ImportReport inspects userData without reading file contents.
@@ -104,20 +104,22 @@ func FormatReport(r Report) string {
 	} else {
 		b.WriteString(storelocale.T(storelocale.KeyStoreImporterDirectoryExistsN))
 	}
-	b.WriteString("config.json: ")
-	b.WriteString(yesNo(r.ConfigJSON))
-	b.WriteString("\ncredentials.json: ")
-	b.WriteString(yesNo(r.CredentialsJSON))
-	b.WriteString("\ndsh-home: ")
-	b.WriteString(yesNo(r.DshHome))
+	b.WriteString(storelocale.T(storelocale.KeyStoreImporterReportConfig))
+	b.WriteString(foundText(r.ConfigJSON))
+	b.WriteString("\n")
+	b.WriteString(storelocale.T(storelocale.KeyStoreImporterReportCredentials))
+	b.WriteString(foundText(r.CredentialsJSON))
+	b.WriteString("\n")
+	b.WriteString(storelocale.T(storelocale.KeyStoreImporterReportSessions))
+	b.WriteString(foundText(r.DshHome))
 	return b.String()
 }
 
-func yesNo(ok bool) string {
+func foundText(ok bool) string {
 	if ok {
-		return "有"
+		return storelocale.T(storelocale.KeyStoreImporterReportFound)
 	}
-	return "无"
+	return storelocale.T(storelocale.KeyStoreImporterReportMissing)
 }
 
 func entryExists(path string, wantDir bool) bool {

@@ -23,10 +23,10 @@ import (
 type Gateway struct {
 	origin, key, cookieName, bridgeToken string
 	session                              Session
-	server                  *http.Server
-	transport               *http.Transport
-	cancel                  context.CancelFunc
-	once                    sync.Once
+	server                               *http.Server
+	transport                            *http.Transport
+	cancel                               context.CancelFunc
+	once                                 sync.Once
 }
 type ClientMetadata struct {
 	Version, Locale, Platform string

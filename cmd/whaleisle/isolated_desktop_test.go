@@ -11,7 +11,6 @@ import (
 	"github.com/egoist/mygo"
 
 	launcherctl "whaleisle/internal/app/launcher"
-	"whaleisle/internal/config"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 )
@@ -35,7 +34,7 @@ func TestIsolatedDesktopRequiresExplicitNonInstalledData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, data := range []string{"", "relative-data", filepath.Join(base, config.DataDirName)} {
+	for _, data := range []string{"", "relative-data", paths.DefaultUserDataDirUnder(base)} {
 		t.Setenv(paths.EnvUserData, data)
 		if err := prepareIsolatedDesktop(); err == nil {
 			t.Fatalf("accepted non-isolated data directory: %q", data)

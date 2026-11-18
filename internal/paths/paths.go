@@ -1,6 +1,7 @@
 // Package paths resolves the file system locations MyGo鲸屿 uses:
-// the user data directory it shares with the Electron shell, the dsh home
-// inside it, and the runtime directory holding the pid file.
+// the user data directory (its own by default, or wherever the user recorded
+// through the data-location record), the dsh home inside it, and the runtime
+// directory holding the pid file.
 //
 // Path lookup may read a managed runtime selection or probe candidate files;
 // it never starts a runtime or changes the selection. Tests override user data with
@@ -12,8 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"whaleisle/internal/config"
 )
 
 // EnvUserData, when set, overrides the user data directory. Tests use it
@@ -21,23 +20,19 @@ import (
 const EnvUserData = "WHALEISLE_USER_DATA"
 
 // UserDataDir returns the user data directory: the WHALEISLE_USER_DATA
-// override when set, else the Electron shell's directory under the user's
-// configuration directory (%AppData%\Deepseek-Harness-Desktop on Windows).
-// It does not create the directory; see EnsureUserData.
+// override when set, else the location recorded by the user, else this
+// build's default (%AppData%\WhaleIsle-MyGo\data on Windows). A record that
+// cannot be read, or that names a directory which is no longer there, falls
+// back to the default and logs why. It does not create the directory; see
+// EnsureUserData.
 func UserDataDir() string {
-	if override := os.Getenv(EnvUserData); override != "" {
+	if override := strings.TrimSpace(os.Getenv(EnvUserData)); override != "" {
 		return override
 	}
-	base, err := os.UserConfigDir()
-	if err != nil {
-		// os.UserConfigDir fails only when neither the platform's
-		// well-known variable nor the home directory resolves; fall
-		// back to a directory under the executable's own name so the
-		// app still has somewhere to write.
-		wd, _ := os.Getwd()
-		return filepath.Join(wd, ".whaleisle")
+	if stored := StoredDataDir(); stored != "" {
+		return stored
 	}
-	return filepath.Join(base, config.DataDirName)
+	return DefaultUserDataDir()
 }
 
 // DefaultWorkspace is the first-run project folder when config.workspace is empty.

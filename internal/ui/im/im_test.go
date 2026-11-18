@@ -20,12 +20,12 @@ func TestViewIMLabels(t *testing.T) {
 	draft := ""
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{
-			Store:            store,
-			ThemeID:          "deepseek",
-			HarnessReady:     true,
-			MuxConnected:     true,
-			Draft:            &draft,
-			OnOpenPluginWeb:  func() {},
+			Store:           store,
+			ThemeID:         "deepseek",
+			HarnessReady:    true,
+			MuxConnected:    true,
+			Draft:           &draft,
+			OnOpenPluginWeb: func() {},
 		})
 	}, 800, 600)
 

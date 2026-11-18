@@ -34,6 +34,15 @@ const (
 	// font a small element takes (5/6 of the brand size), so 55 DIP at 44 and
 	// 42.5 at 34 (boot.css:238-247). The 鲸屿 row sits in it.
 	brandMarkLine = 1.25
+	// brandMarkStrut is the font size of .brand small itself, 5/6 of the brand's
+	// (the UA's font-size: smaller). The native page lays the 10.5 DIP .tag-mark
+	// inline in that element's line box, so the mark sits on the strut baseline:
+	// 39.76 DIP into the 55 DIP box at 44, 30.73 into 42.5 at 34 (boot.css:
+	// 224-247). The engine has no inline baseline and centres a fixed-height line
+	// on the text's own metrics, which would lift the mark 8.1 DIP at 44 and 5.3
+	// at 34; the mark element therefore carries the strut's size and the span
+	// keeps 10.5.
+	brandMarkStrut = 5.0 / 6
 )
 
 // brandFont is the reference brand's serif stack: Didot on macOS, Bodoni MT and
@@ -54,10 +63,14 @@ func bootBrand(c *ui.Context, short bool, palette *scenePalette) {
 		wordmark(c, "Whale Isle", size, line, palette.brand)
 		// .tag-mark, then .brand-sub in the code face's tracked capitals. The
 		// mark keeps the small element's 1.5 line box, which is what sets the
-		// block's vertical rhythm (boot.css:238-268).
-		ui.Text(c, "鲸屿 · MyGo").Font(bootCodeFont).FontSize(brandMarkSize).
-			LetterSpacing(brandMarkSize*brandMarkTracking).FixedLineHeight(size*brandMarkLine).
-			TextColor(palette.ink).Margin(11, 0, 0, 0)
+		// block's vertical rhythm, and rides the strut baseline the native page
+		// gives that box: the element takes .brand small's size for the line and
+		// the span keeps the mark's 10.5 DIP, which is 39.76/30.73 DIP into the
+		// 55/42.5 DIP box at 44/34 instead of the engine's centred 31.68/25.43
+		// (boot.css:224-268).
+		ui.RichText(c, ui.Span{Text: "鲸屿 · MyGo", Size: brandMarkSize, LetterSpacing: brandMarkSize * brandMarkTracking}).
+			Font(bootCodeFont).FontSize(size*brandMarkStrut).
+			FixedLineHeight(size*brandMarkLine).TextColor(palette.ink).Margin(11, 0, 0, 0)
 		ui.Text(c, "BASED ON DEEPSEEK HARNESS").Font(bootCodeFont).
 			FontSize(brandSubSize).LetterSpacing(brandSubSize*brandSubTracking).FixedLineHeight(12).
 			TextColor(palette.muted).Margin(6, 0, 0, 0)

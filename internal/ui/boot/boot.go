@@ -52,7 +52,7 @@ const (
 // workbench has opened. Cold startup owns the full-page View instead.
 func WorkbenchStatus(c *ui.Context, m Model, starting bool, message, configureLabel string) {
 	if message == "" {
-		message = statusLine(m.Status)
+		message = StatusLine(m.Status)
 	}
 	if m.Status.State == harness.Stopped && !starting && !m.Status.RecoveryCancelled {
 		message = bootText("Host 尚未启动", "Host is not running")
@@ -64,6 +64,10 @@ func WorkbenchStatus(c *ui.Context, m Model, starting bool, message, configureLa
 			label := i18n.T(KeyRetry)
 			if m.Status.State == harness.Stopped && !m.Status.RecoveryCancelled {
 				label = bootText("启动 Host", "Start Host")
+			} else if m.Status.State == harness.Failed && m.Status.RuntimeFailure {
+				// A post-ready exit takes the boot page's leading action; the
+				// workbench keeps its session instead of swapping in the page.
+				label = bootText("立即重启", "Restart now")
 			}
 			if ui.Button(c, label).Clicked() {
 				m.OnRetry()
@@ -123,8 +127,8 @@ func View(c *ui.Context, m Model) {
 	})
 }
 
-// bootCore is .core: the brand block, the status line, the failure copy and the
-// actions. Its foot is padded by 26vh so the block sits over the sky and the
+// bootCore is .core: the brand block, the status line, the failure detail and
+// the actions. Its foot is padded by 26vh so the block sits over the sky and the
 // horizon crosses below it instead of through it (boot.css:207-217); a short
 // window keeps 20vh and 34 DIP letters (boot.css:453-459).
 func bootCore(c *ui.Context, m Model, palette *scenePalette) {
@@ -161,16 +165,6 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 					statusDots(c, statusColor)
 				}
 			})
-			if m.Status.State == harness.Failed && m.StatusText == "" {
-				// .failure: 12/18 in the code face and the alert color, the causes
-				// a person can act on; the message itself stays in the drawer
-				// (boot.css:344-357, boot.js:211-262).
-				if cause := failureText(m.Status.Err); cause != "" {
-					ui.Text(c, cause).Font(theme.RenderPreferences().Code.Family).
-						FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
-						TextColor(palette.alert).TextAlign(ui.Center).MaxLines(3).Margin(6, 0, 0, 0)
-				}
-			}
 
 			if !bootActionsVisible(m.Status) && !m.Status.RecoveryScheduled && !m.Declined {
 				return
@@ -183,7 +177,7 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 				if bootActionsVisible(m.Status) || m.Declined {
 					if m.OnRetry != nil {
 						disabled := m.Status.RecoveryActive && !m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled
-						bootAction(c, i18n.T(KeyRetry), true, disabled, palette, m.OnRetry)
+						bootAction(c, retryLabel(m.Status), true, disabled, palette, m.OnRetry)
 					}
 				}
 				if m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled && m.OnCancelRecovery != nil {
@@ -196,6 +190,40 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 					bootAction(c, bootText("下载日志", "Download log"), false, false, palette, m.OnExport)
 				}
 			})
+
+			bootFailureDock(c, m, palette)
+		})
+	})
+}
+
+// bootFailureDock is the shell's failure detail. The installed page takes
+// .failure out of .core and mounts it in a feedback progress surface titled
+// 启动详情 (native boot.js:16-18), whose placement pass seats it in the free band
+// below the actions rather than under the status line (feedback.js:133-190).
+// That surface is the toast layer's: dark in both schemes (dsh-webui-tokens.css:
+// 54-55,112), 16 DIP corners and padding, and the page's 14/22 copy rather than
+// .failure's code face (feedback.css:72-79,137-156,180). Its slot hangs off the
+// core column's foot, so the brand block above keeps the page's own seat instead
+// of being pushed up by the pane.
+func bootFailureDock(c *ui.Context, m Model, palette *scenePalette) {
+	if m.Status.State != harness.Failed || m.StatusText != "" {
+		return
+	}
+	cause := failureText(m.Status.Err)
+	if cause == "" {
+		return
+	}
+	window, _ := c.Size()
+	ui.Column(c).Key("boot-failure-dock-slot").Absolute().TopPercent(100).Left(0).Right(0).
+		AlignItems(ui.Center).Margin(8, 0, 0, 0).Children(func() {
+		// The pane spans min(640, main - 48) of the window's column; the
+		// native page floats it outside .core at that width.
+		ui.Column(c).Key("boot-failure-dock").Label(bootText("启动详情", "Startup details")).
+			Width(min(640, max(0, window-48))).Background(palette.toast).Radius(16).
+			Padding(16).Children(func() {
+			// .failure keeps its cause-and-next-step copy; the raw message
+			// stayed in the log drawer for both pages (native boot.js:220-240).
+			ui.Text(c, cause).FontSize(14).FixedLineHeight(22).TextColor(palette.toastInk).MinWidth(0)
 		})
 	})
 }
@@ -212,16 +240,22 @@ var failureCauses = []struct {
 		"启动所需端口被其他程序占用，请关闭占用程序后重试。", "Another program holds the port this start needs; close it and retry."},
 	{regexp.MustCompile(`(?i)EACCES|permission denied|EPERM`),
 		"没有权限访问所需资源，请检查安全软件拦截或重新安装。", "Access to a required resource was denied; check security software, or reinstall."},
-	{regexp.MustCompile(`(?i)dsh 进程结束|exit(?:ed)?\s+(?:with|code)`),
-		"桌面运行时进程已退出，可重试或回启动器排查。", "The desktop runtime exited; retry, or check the launcher."},
 }
 
-// bareToken matches a message that is only a technical token, which is not
-// user copy (boot.js:234).
-var bareToken = regexp.MustCompile(`^[A-Za-z][\w./:-]*$`)
+// exitStatus is the code dsh reported when its process exited, named in the
+// copy instead of repeating the English "exit status 1" line.
+var exitStatus = regexp.MustCompile(`(?i)exit status\s+(\d+)`)
 
-// failureText is .failure's line: a cause a person can act on, with the log as
-// the detail (boot.css:344-357, boot.js:211-236).
+// signalKilled and runtimeExited cover the other ways dsh reports a dead Host:
+// a signal, or the supervisor's own dsh web exited / dsh 进程结束 wrappers.
+var (
+	signalKilled  = regexp.MustCompile(`(?i)signal:\s*killed`)
+	runtimeExited = regexp.MustCompile(`(?i)dsh web exited|dsh 进程结束`)
+)
+
+// failureText is .failure's line: localized copy that names what happened and
+// what to do next. The raw message never becomes the primary sentence — it
+// stays in the log drawer, where the status line points (boot.js:211-236).
 func failureText(err error) string {
 	if err == nil {
 		return ""
@@ -230,15 +264,25 @@ func failureText(err error) string {
 	if raw == "" {
 		return ""
 	}
+	if m := exitStatus.FindStringSubmatch(raw); m != nil {
+		return bootText("桌面运行时已退出（退出码 "+m[1]+"），可重试或到日志里查看原因。",
+			"The desktop runtime exited (code "+m[1]+"); retry, or check the log for the cause.")
+	}
+	if signalKilled.MatchString(raw) {
+		return bootText("桌面运行时被系统结束，可重试或到日志里查看原因。",
+			"The desktop runtime was stopped by the system; retry, or check the log for the cause.")
+	}
+	if runtimeExited.MatchString(raw) {
+		return bootText("桌面运行时已退出，可重试或到日志里查看原因。",
+			"The desktop runtime exited; retry, or check the log for the cause.")
+	}
 	for _, cause := range failureCauses {
 		if cause.pattern.MatchString(raw) {
 			return bootText(cause.zh, cause.en) + bootText("（详情见下方日志）", " (see the log below)")
 		}
 	}
-	if !bareToken.MatchString(raw) {
-		return raw
-	}
-	return bootText("启动失败，请下载日志后回启动器排查。", "Startup failed; download the log and check the launcher.")
+	return bootText("桌面端没能正常启动，可重试；原因见下方日志。",
+		"The desktop app could not start. Retry, or check the log for the cause.")
 }
 
 // bootDrawerLines is the log the drawer lists: the failure message joins it
@@ -339,6 +383,15 @@ func pluginProgressLine(st harness.Status) string {
 	return ""
 }
 
+// retryLabel is .actions' leading pill: 重试 for a start failure, 立即重启 for a
+// Host that exited after it was ready (native boot.js:257-259).
+func retryLabel(st harness.Status) string {
+	if st.RuntimeFailure {
+		return bootText("立即重启", "Restart now")
+	}
+	return i18n.T(KeyRetry)
+}
+
 // statusTitle is .status's own text: the state's label, or the recovery
 // sentence the native shell adds. The message behind a failure is not part of
 // it (boot.js:245-262).
@@ -355,17 +408,28 @@ func statusTitle(st harness.Status) string {
 	case harness.Ready:
 		return i18n.T(KeyReady)
 	case harness.Failed:
-		return i18n.T(KeyFailed)
+		// A Host that exited after it was ready is 意外退出; a cold start that
+		// never became ready is a start failure (native boot.js:253-254).
+		if st.RuntimeFailure {
+			return bootText("桌面端意外退出", "Desktop exited unexpectedly")
+		}
+		return bootText("桌面端启动失败", "Desktop startup failed")
 	default:
 		return i18n.T(KeyStopped)
 	}
 }
 
-// statusLine is the workbench's host strip, which has no drawer under it and so
-// keeps the message a failure came with beside its title.
-func statusLine(st harness.Status) string {
-	if !st.RecoveryCancelled && st.State == harness.Failed && st.Err != nil {
-		return i18n.T(KeyFailed) + ": " + st.Err.Error()
+// StatusLine is the sentence the workbench's host strip shows: the status title,
+// or for a failed Host localized copy that names the next step. The raw error
+// stays in the logs and never becomes the strip's primary sentence. Exported for
+// the launcher's own banner, which shows the same line over the workbench.
+func StatusLine(st harness.Status) string {
+	if !st.RecoveryCancelled && st.State == harness.Failed {
+		if st.RuntimeFailure {
+			return bootText("桌面端意外退出，可立即重启；原因见日志。",
+				"The desktop app exited unexpectedly. Restart now, or check the log.")
+		}
+		return bootText("启动失败，可重试；原因见日志。", "Startup failed. Retry, or check the log for the cause.")
 	}
 	return statusTitle(st)
 }

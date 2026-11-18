@@ -306,6 +306,7 @@ func TestSaveReplaceFromDraftsInvalidFailsClosed(t *testing.T) {
 
 func TestSyncViewTabsPatchesConversation(t *testing.T) {
 	var updateHits atomic.Int32
+	var mu sync.Mutex
 	var patched map[string]any
 	schema := json.RawMessage(`{
 	  "uid": 2,
@@ -334,7 +335,9 @@ func TestSyncViewTabsPatchesConversation(t *testing.T) {
 		case strings.HasSuffix(r.URL.Path, "/settings/update"):
 			updateHits.Add(1)
 			args := body["payload"].(map[string]any)["args"].(map[string]any)
+			mu.Lock()
 			patched = args["patch"].(map[string]any)
+			mu.Unlock()
 			rpcOK(w, body["rpcId"], map[string]any{
 				"ns":           "conversation",
 				"schema":       schema,
@@ -364,8 +367,11 @@ func TestSyncViewTabsPatchesConversation(t *testing.T) {
 	deadline = time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		if updateHits.Load() > 0 {
-			if patched["viewTabs"] != false {
-				t.Fatalf("patch = %#v", patched)
+			mu.Lock()
+			patch := patched
+			mu.Unlock()
+			if patch["viewTabs"] != false {
+				t.Fatalf("patch = %#v", patch)
 			}
 			return
 		}

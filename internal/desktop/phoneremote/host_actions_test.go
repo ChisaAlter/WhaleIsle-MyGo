@@ -189,7 +189,10 @@ func TestHostActionsRejectRevokedChildAndInvalidIdentity(t *testing.T) {
 	r.child = active
 	var calls atomic.Int32
 	r.SetHostActions(HostActions{
-		SaveConfig:   func(map[string]any) (map[string]any, error) { calls.Add(1); return map[string]any{"theme": "deepseek"}, nil },
+		SaveConfig: func(map[string]any) (map[string]any, error) {
+			calls.Add(1)
+			return map[string]any{"theme": "deepseek"}, nil
+		},
 		OpenSettings: func(string) bool { calls.Add(1); return true },
 	})
 	for _, kind := range []string{"host-save-config", "host-open-settings"} {

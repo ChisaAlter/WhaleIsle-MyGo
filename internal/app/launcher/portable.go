@@ -100,7 +100,7 @@ func PreparePortableDesktopAt(executable string) error {
 	if err != nil {
 		return err
 	}
-	if samePortablePath(userData, filepath.Join(base, config.DataDirName)) {
+	if samePortablePath(userData, paths.DefaultUserDataDirUnder(base)) || samePortablePath(userData, filepath.Join(base, config.ElectronDataDirName)) {
 		return fmt.Errorf("portable package cannot use the installed application's data directory")
 	}
 	for _, path := range []string{manifestPath, filepath.Join(root, "runtime"), vendor, node, pnpm, cli} {

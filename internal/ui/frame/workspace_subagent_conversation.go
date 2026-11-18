@@ -187,7 +187,7 @@ func mainSubagentConversationBody(c *ui.Context, m Model) bool {
 		agents.View(c, agents.Model{
 			ChatPreferences: m.ChatPreferences, Store: navigation, Snapshot: renderSnapshot(m), ChatOnly: true, MainConversation: true,
 			ChildDraft: m.ChildDraft,
-			BusyEnter:             m.ChildBusyEnter,
+			BusyEnter:  m.ChildBusyEnter,
 			ComposerOverride: func(ctx *ui.Context, address session.AgentSessionAddress) bool {
 				return projects.ConversationComposer(ctx, m.Projects, address.ChildSessionID, address.ParentSessionID)
 			},

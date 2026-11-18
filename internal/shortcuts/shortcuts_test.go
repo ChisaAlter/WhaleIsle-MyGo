@@ -2,10 +2,14 @@ package shortcuts
 
 import (
 	"errors"
+	"runtime"
 	"testing"
 )
 
 func TestDSK10RegistryValidationAndSearch(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("binding validation uses the desktop keymap; the fallback grammar rejects the Mod+B/Mod+W defaults")
+	}
 	if len(Commands()) < 7 {
 		t.Fatal("expected the native registry plus the tools alternate")
 	}
@@ -45,6 +49,9 @@ func TestDSK10RegistryValidationAndSearch(t *testing.T) {
 }
 
 func TestDSK10EditorDraftCommitFailureAndReset(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("binding validation uses the desktop keymap; the fallback grammar rejects the Mod+B/Mod+W defaults")
+	}
 	fail := true
 	writes := 0
 	e := NewEditor(nil, nil, func(v map[string]string) error {

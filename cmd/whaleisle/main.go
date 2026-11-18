@@ -73,6 +73,7 @@ import (
 	settingsstore "whaleisle/internal/store/settings"
 	usagestore "whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/assistant"
+	"whaleisle/internal/ui/boot"
 	browserpreviewui "whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
@@ -154,21 +155,50 @@ type mainState struct {
 	win                   *mygo.Window
 	taskRestartPending    bool
 	quitting              bool
-	phonePopupOpen        bool
-	phoneRuntime          *phoneremote.Runtime
-	phoneDeviceEditor     remoteui.PhoneDeviceEditor
-	phoneGatewayEditor    remoteui.GatewayEditor
-	phoneGitSession       string
-	phoneGitRoot          string
-	phoneGitWorkspaces    phoneGitWorkspaceScope
-	phoneOp               sync.Mutex
-	phoneStopResume       context.CancelFunc
-	phoneIntent           uint64
-	closeToTray           bool
-	desktopTray           *mygo.Tray
-	trayHideNotice        trayHideNotice
-	trayHideNotification  *mygo.Notification
-	welcomeWin            *welcomeWindow
+	// relaunchPending makes the quit path restart the application instead of
+	// exiting: a data-location change only takes effect in a new process.
+	relaunchPending bool
+	// dataLocationErr and dataLocationAction are the last outcome the
+	// 数据位置 row shows; both are locale text, not codes.
+	dataLocationErr       string
+	dataLocationAction    string
+	dataLocationImporting bool
+	// pendingDataLocation is a recorded data directory that was not there at
+	// startup. It is named to the user before anything is written into the
+	// default directory the process fell back to.
+	pendingDataLocation           string
+	pendingDataLocationUnreadable bool
+	// legacyImport is the planned copy of the original Whale Isle profile,
+	// built once because planning it walks the legacy profile.
+	legacyImport      importer.FirstRunPlan
+	legacyImportOK    bool
+	legacyImportKnown bool
+	// previousImport is the planned copy from the location this profile
+	// replaced, cached for the same reason.
+	previousImport      importer.FirstRunPlan
+	previousImportOK    bool
+	previousImportKnown bool
+	// releaseProfile holds the desktop profile lock when startup could not
+	// claim it before the first window (a pending data-location warning).
+	releaseProfile func()
+	// profileClaimDeferred records that the profile lock still has to be
+	// claimed inside WhenReady.
+	profileClaimDeferred bool
+	phonePopupOpen       bool
+	phoneRuntime         *phoneremote.Runtime
+	phoneDeviceEditor    remoteui.PhoneDeviceEditor
+	phoneGatewayEditor   remoteui.GatewayEditor
+	phoneGitSession      string
+	phoneGitRoot         string
+	phoneGitWorkspaces   phoneGitWorkspaceScope
+	phoneOp              sync.Mutex
+	phoneStopResume      context.CancelFunc
+	phoneIntent          uint64
+	closeToTray          bool
+	desktopTray          *mygo.Tray
+	trayHideNotice       trayHideNotice
+	trayHideNotification *mygo.Notification
+	welcomeWin           *welcomeWindow
 	// whaleBridgeWin is the single embedded WhaleBridge management window
 	// (port of reference/electron/src/main/whalebridge-window.js).
 	whaleBridgeWin         *whaleBridgeWindow
@@ -1788,9 +1818,9 @@ func connectionBanner(st harness.Status, muxReady, muxLost bool) string {
 		// fall through to mux checks
 	case harness.Failed:
 		if st.Err != nil {
-			return i18n.T(i18n.KeyBootFailed) + ": " + st.Err.Error()
+			log.Print("[boot] failed: ", st.Err)
 		}
-		return i18n.T(i18n.KeyBootFailed)
+		return boot.StatusLine(st)
 	case harness.Starting:
 		return i18n.T(i18n.KeyBootStarting)
 	default:
@@ -1851,14 +1881,29 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--managed-launcher-stop" {
 		return
 	}
-	releaseProfile, err := claimDesktopProfile()
-	if err != nil {
-		// Dialog.Message cannot run before App.Run; the failure must stay a
-		// logged early exit instead of panicking on the error path.
-		log.Println("desktop profile:", err)
-		return
+	// A record that names a missing directory, or that cannot be read at all,
+	// falls back to the default. Nothing may be written there until the user
+	// has seen that: the profile lock would create the directory, so claiming
+	// it is postponed to the first window, which asks before EnsureUserData.
+	// A run whose directory comes from WHALEISLE_USER_DATA or isolated mode
+	// never reads the installed application's record, so it must not warn
+	// about one either: that build has no way to fix it and its dialog quits.
+	if issue, ok := paths.RecordedDataLocationIssue(); ok && state.dataLocationEditable() {
+		state.mu.Lock()
+		state.pendingDataLocation = issue.Path
+		state.pendingDataLocationUnreadable = issue.Unreadable
+		state.profileClaimDeferred = true
+		state.mu.Unlock()
+	} else {
+		releaseProfile, claimErr := claimDesktopProfile()
+		if claimErr != nil {
+			// Dialog.Message cannot run before App.Run; the failure must stay a
+			// logged early exit instead of panicking on the error path.
+			log.Println("desktop profile:", claimErr)
+			return
+		}
+		defer releaseProfile()
 	}
-	defer releaseProfile()
 	mygo.App.OnOpenURL(func(rawURL string) {
 		if t, ok := deeplink.Parse(rawURL); ok {
 			state.applyDeeplink(t)
@@ -1893,6 +1938,20 @@ func main() {
 
 	mygo.App.WhenReady(func() {
 		startuptrace.Mark("app.when_ready")
+		// The startup questions below run before config.json is read, so the
+		// stored locale is not known yet: the system's own UI language speaks
+		// for the app until the config is open, which then restores the
+		// user's stored preference.
+		i18n.SetLocale(i18n.SystemLocale())
+		// Nothing below may create the data directory before the user has
+		// answered about a recorded location that is missing.
+		if !state.resolvePendingDataLocation() {
+			return
+		}
+		if !state.claimDeferredProfile() {
+			return
+		}
+		state.offerFirstRunImport()
 		if err := paths.EnsureUserData(); err != nil {
 			log.Println("userdata:", err)
 		}
@@ -1916,7 +1975,10 @@ func main() {
 
 		cfgStore, err := config.Open(userData)
 		if err != nil {
-			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Type: mygo.MessageWarning, Title: i18n.T(i18n.KeyCmdConfigurationLoadFailed), Message: err.Error() + "\n\nThe original file is preserved. Back up and repair config.json, then restart. / 原文件已保留，请备份并修复 config.json 后重启。"})
+			// The parse failure itself is for the log; the dialog names the
+			// file and what to do about it.
+			log.Println("config:", err)
+			_, _ = mygo.Dialog.Message(mygo.MessageOptions{Type: mygo.MessageWarning, Title: i18n.T(i18n.KeyCmdConfigurationLoadFailed), Message: fmt.Sprintf(i18n.T(i18n.KeyConfigLoadFailedBody), filepath.Join(userData, config.FileName))})
 			mygo.App.Quit()
 			return
 		}
@@ -3745,6 +3807,7 @@ func mainView(c *ui.Context) {
 						Fields:                desktopFields,
 						LastAction:            desktopAction,
 						Err:                   desktopErr,
+						DataLocation:          state.dataLocationAccess(win),
 						OnSetCloseToTray:      state.setCloseToTrayPreference,
 						OnSetAutoStartDesktop: state.setAutoStartDesktopPreference,
 						OnSave: func() {

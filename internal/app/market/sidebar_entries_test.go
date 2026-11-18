@@ -18,7 +18,7 @@ type stubHostDeps struct {
 	invalidated atomic.Int32
 }
 
-func (s *stubHostDeps) Env() HostEnvSnapshot       { return HostEnvSnapshot{} }
+func (s *stubHostDeps) Env() HostEnvSnapshot              { return HostEnvSnapshot{} }
 func (s *stubHostDeps) LifecycleContext() context.Context { return context.Background() }
 func (s *stubHostDeps) GoPluginInstallRegistry() (*config.PluginInstallRegistry, error) {
 	return nil, nil

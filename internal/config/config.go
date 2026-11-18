@@ -33,9 +33,19 @@ import (
 	"whaleisle/internal/petgrowth"
 )
 
-// DataDirName is the user data directory name shared with the Electron
-// shell, so sessions in dsh-home stay where existing installs keep them.
-const DataDirName = "Deepseek-Harness-Desktop"
+// ElectronDataDirName is the user data directory name the Electron shell
+// uses: the shared directory existing installs keep their sessions in. It is
+// no longer MyGo's default; first-run import reads it as the legacy source.
+const ElectronDataDirName = "Deepseek-Harness-Desktop"
+
+// AppDirName is MyGo's own configuration root under the user's config
+// directory. It holds the data-location record, not the user data itself.
+const AppDirName = "WhaleIsle-MyGo"
+
+// DefaultDataDirName is the data directory inside AppDirName that MyGo uses
+// when no location is recorded. Keeping it a child of AppDirName is what
+// leaves the data-location record outside the data directory it names.
+const DefaultDataDirName = "data"
 
 // FileName is the configuration file inside the data directory.
 const FileName = "config.json"

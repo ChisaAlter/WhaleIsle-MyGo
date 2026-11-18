@@ -128,6 +128,13 @@ func (s *mainState) hostStatusModel(win *mygo.Window, st harness.Status, sup *ha
 	activity := s.launcherController().StartupActivity()
 	starting := !st.RecoveryCancelled && (st.State == harness.Starting || activity.Busy || activity.Preparing)
 	message, _, _ := strings.Cut(activity.Error, "\n")
+	if (st.State == harness.Starting && st.Err == nil) || (st.State == harness.Failed && st.Err != nil) {
+		// The supervisor speaks for the Host: a start in progress, or a failure
+		// boot.StatusLine names with its next step. The launcher's error is the
+		// same event or a stale one from the previous attempt, and never the
+		// strip's copy — the raw text stays in the logs.
+		message = ""
+	}
 	if importBusy {
 		message = lifecycleText("正在导入数据。导入完成后可启动 Host。", "Importing data. You can start Host when the import finishes.")
 	} else if importPending {

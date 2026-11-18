@@ -40,8 +40,11 @@ type DesktopAccess struct {
 	OnSetAutoStartDesktop  func(bool) (bool, error)
 	OnSetRestartPreference func(string, string) (config.RestartPreferences, error)
 	// RestartPolicy is the committed snapshot, separate from the editable draft.
-	RestartPolicy                                                                  *config.RestartPreferences
-	Fields                                                                         DesktopFields
+	RestartPolicy *config.RestartPreferences
+	Fields        DesktopFields
+	// DataLocation is the 数据位置 block: current directory, change, open and
+	// restore default. Nil hides it, as in the headless fixtures.
+	DataLocation                                                                   *DataLocationAccess
 	OnSave                                                                         func()
 	OnDetectElectron                                                               func()
 	OnCheckUpdates                                                                 func()
@@ -121,6 +124,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			desktopImmediateBool(c, control, d.AutoStartDesktop, &choice, options[0], d.OnSetAutoStartDesktop)
 		})
 	}
+	dataLocationRow(c, d.DataLocation, fg, muted)
 	bodyHostPreference(c, d.Host, "ui-chat", "performanceUsage", providerCopy("性能与用量", "Performance and usage"), providerCopy("选择性能与用量信息展示的详细程度", "Choose how detailed the performance and usage information is"), fg, muted)
 	bodyHostPreference(c, d.Host, "session-log-deepseek", "enabled", providerCopy("在使用官方模型 API 时上传 Session Log", "Upload Session Log when using the official model API"), providerCopy("帮助改进 DeepSeek 模型与产品", "Help improve DeepSeek models and products"), fg, muted)
 	if d.Version != "" {

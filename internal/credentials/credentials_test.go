@@ -36,7 +36,7 @@ func writeLocalState(t *testing.T, dir string) {
 	}
 	protected, err := dpapiProtect(key)
 	if err != nil {
-		t.Fatalf("CryptProtectData unavailable or failed: %v", err)
+		t.Skipf("DPAPI protect unavailable in this environment: %v", err)
 	}
 	blob := append([]byte("DPAPI"), protected...)
 	state := map[string]any{

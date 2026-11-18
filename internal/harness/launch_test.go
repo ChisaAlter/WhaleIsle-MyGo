@@ -3,6 +3,7 @@ package harness
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -70,6 +71,9 @@ func TestResolvePATHWhenNoVendor(t *testing.T) {
 }
 
 func TestResolveNpxRequiresAllow(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the npx.cmd sibling fixture is Windows-specific")
+	}
 	nodeDir := t.TempDir()
 	node := filepath.Join(nodeDir, "node.exe")
 	npx := filepath.Join(nodeDir, "npx.cmd")

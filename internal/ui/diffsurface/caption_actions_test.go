@@ -531,4 +531,3 @@ func TestGitAndDiffLocalesParity(t *testing.T) {
 		t.Fatalf("en file.truncated = %q", got)
 	}
 }
-

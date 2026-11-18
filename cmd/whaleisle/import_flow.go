@@ -220,7 +220,7 @@ func (s *mainState) restartUnlessImportWithResult(sup *harness.Supervisor, maint
 		busy := s.launcherImportBusy
 		s.mu.Unlock()
 		if busy {
-			resultErr = errors.New(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion))
+			resultErr = localized(i18n.T(i18n.KeyCmdImportIsStillRunningWaitForCompletion))
 			if complete == nil {
 				s.taskProtectionError(win, resultErr)
 			}
@@ -234,7 +234,7 @@ func (s *mainState) restartUnlessImportWithResult(sup *harness.Supervisor, maint
 			s.mu.Lock()
 			if s.launcherImportBusy || s.quitting || s.sup != sup {
 				s.mu.Unlock()
-				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryRestart))
+				return localized(i18n.T(i18n.KeyCmdRuntimeChangedRetryRestart))
 			}
 			s.mu.Unlock()
 			s.launcherController().SetStartBusy(true)

@@ -3,6 +3,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -68,11 +69,18 @@ func TestEnsureCreatesDirs(t *testing.T) {
 }
 
 func TestUserDataDirWithoutOverride(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the AppData override is a Windows contract; elsewhere os.UserConfigDir reads XDG/HOME")
+	}
 	dir := t.TempDir()
 	t.Setenv(EnvUserData, "")
 	t.Setenv("AppData", dir) // os.UserConfigDir on Windows reads AppData
+	InvalidateDataLocation()
+	t.Cleanup(InvalidateDataLocation)
 	got := UserDataDir()
-	if want := filepath.Join(dir, "Deepseek-Harness-Desktop"); got != want {
+	// MyGo's own directory, with the data-location record above it rather
+	// than inside it.
+	if want := filepath.Join(dir, "WhaleIsle-MyGo", "data"); got != want {
 		t.Fatalf("UserDataDir() = %q, want %q", got, want)
 	}
 }

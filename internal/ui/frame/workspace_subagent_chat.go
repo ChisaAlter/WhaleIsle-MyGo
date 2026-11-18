@@ -107,7 +107,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 	agents.View(c, agents.Model{
 		ChatPreferences: m.ChatPreferences, Store: navigation, Snapshot: navigation.RenderSnapshot(), ChatOnly: true,
 		ChildDraft: m.ChildDraft,
-		BusyEnter:             m.ChildBusyEnter,
+		BusyEnter:  m.ChildBusyEnter,
 		ComposerOverride: func(ctx *ui.Context, address session.AgentSessionAddress) bool {
 			return projects.ConversationComposer(ctx, m.Projects, address.ChildSessionID, address.ParentSessionID)
 		},

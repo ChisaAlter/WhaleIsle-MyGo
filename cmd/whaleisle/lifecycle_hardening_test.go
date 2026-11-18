@@ -20,6 +20,7 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -58,7 +59,7 @@ func TestSkillHubTimeoutAndLifecycleCancellation(t *testing.T) {
 func TestIsolatedDesktopRejectsJunctionToInstalledDataDir(t *testing.T) {
 	root := t.TempDir()
 	userConfigBase := filepath.Join(root, "AppData")
-	installed := filepath.Join(userConfigBase, config.DataDirName)
+	installed := paths.DefaultUserDataDirUnder(userConfigBase)
 	if err := os.MkdirAll(installed, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func TestIsolatedDesktopRejectsJunctionToInstalledDataDir(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Remove(linkParent) })
 
-	aliasedInstalledChild := filepath.Join(linkParent, config.DataDirName, "sub")
+	aliasedInstalledChild := filepath.Join(paths.DefaultUserDataDirUnder(userConfigBase), "sub")
 	resolvedChild, err := launcherctl.ResolveCanonicalPath(aliasedInstalledChild)
 	if err != nil {
 		t.Fatalf("ResolveCanonicalPath failed: %v", err)
@@ -114,7 +115,7 @@ func TestIsolatedDesktopRejectsJunctionToInstalledDataDir(t *testing.T) {
 	if !strings.EqualFold(resolvedChild, subInstalled) {
 		t.Fatalf("expected canonical child %q, got %q", subInstalled, resolvedChild)
 	}
-	aliasedInstalled := filepath.Join(linkParent, config.DataDirName)
+	aliasedInstalled := paths.DefaultUserDataDirUnder(userConfigBase)
 	if _, err := launcherctl.ValidateIsolatedUserDataDir(aliasedInstalled, userConfigBase); err == nil {
 		t.Fatalf("expected alias via parent junction %q to be rejected", aliasedInstalled)
 	}

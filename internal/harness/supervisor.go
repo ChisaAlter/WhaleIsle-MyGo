@@ -54,6 +54,10 @@ type Status struct {
 	Endpoint   Endpoint
 	// Err explains a Failed state.
 	Err error
+	// RuntimeFailure marks a Failed status whose process had already reached
+	// Ready before it exited, the native snapshot's failure.phase="runtime";
+	// the boot page titles it 桌面端意外退出 rather than 桌面端启动失败.
+	RuntimeFailure bool
 	// Source names the launcher of the current or last attempt.
 	Source string
 	// Attempt counts automatic restarts since the last stable Ready period.
@@ -836,10 +840,13 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	if s.status.State == Ready && !s.readyAt.IsZero() && time.Since(s.readyAt) >= restartStablePeriod {
 		s.attempt = 0
 	}
+	// A ready process that failed was a running Host; anything before Ready is
+	// a start failure, which is how the native snapshot names its phase.
+	runtime := s.status.State == Ready
 	s.readyAt = time.Time{}
 	s.cmd, s.exited = nil, nil
 	if s.recoveryCancelled {
-		s.setLocked(Status{State: Failed, Err: err, Source: source})
+		s.setLocked(Status{State: Failed, Err: err, Source: source, RuntimeFailure: runtime})
 		s.mu.Unlock()
 		return
 	}
@@ -855,7 +862,7 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 				return
 			}
 			if saveErr != nil {
-				s.setLocked(Status{State: Failed, Err: fmt.Errorf("plugin recovery could not be saved: %w", saveErr), Source: source})
+				s.setLocked(Status{State: Failed, Err: fmt.Errorf("plugin recovery could not be saved: %w", saveErr), Source: source, RuntimeFailure: runtime})
 				s.mu.Unlock()
 				return
 			}
@@ -874,7 +881,7 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	}
 	delay, retry := policy.retryDelay(s.attempt)
 	if !retry {
-		s.setLocked(Status{State: Failed, Err: err, Source: source})
+		s.setLocked(Status{State: Failed, Err: err, Source: source, RuntimeFailure: runtime})
 		s.mu.Unlock()
 		return
 	}

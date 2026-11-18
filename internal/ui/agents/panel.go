@@ -19,29 +19,29 @@ import (
 
 // Model drives the agents / subagent team list for the active session.
 type Model struct {
-	ChatPreferences       settings.ChatPreferences
-	BusyEnter             string
-	ComposerOverride      func(*ui.Context, session.AgentSessionAddress) bool
-	ChildDraft            func(binding string, address session.AgentSessionAddress) *composer.DraftState
-	MainConversation      bool
-	OnOpenConversation    func(uint64, session.AgentSessionAddress)
-	Interactions          *interaction.Store
-	OnOpenPlanResource    func(planpreview.Document)
-	ChatOnly              bool
-	OnOpenChat            func(uint64, session.AgentSessionAddress)
-	Store                 *session.Store
-	Manager               *session.AgentPresetManager
-	Snapshot              session.ViewState
-	ThemeID               string
-	SystemDark            bool
-	PromptDraft           *string // draft for subagents/prompt to the selected child
-	OnSelect              func(sessionID string)
-	OnStop                func(sessionID string) // session/cancel for a running child
-	OnInterrupt           func(parentID, childID string)
-	OnPrompt              func(parentID, childID, text string)
-	OnOpenURL             func(string)
-	OnOpenDocument        func(uint64, session.AgentSessionAddress, string)
-	OnClose               func()
+	ChatPreferences    settings.ChatPreferences
+	BusyEnter          string
+	ComposerOverride   func(*ui.Context, session.AgentSessionAddress) bool
+	ChildDraft         func(binding string, address session.AgentSessionAddress) *composer.DraftState
+	MainConversation   bool
+	OnOpenConversation func(uint64, session.AgentSessionAddress)
+	Interactions       *interaction.Store
+	OnOpenPlanResource func(planpreview.Document)
+	ChatOnly           bool
+	OnOpenChat         func(uint64, session.AgentSessionAddress)
+	Store              *session.Store
+	Manager            *session.AgentPresetManager
+	Snapshot           session.ViewState
+	ThemeID            string
+	SystemDark         bool
+	PromptDraft        *string // draft for subagents/prompt to the selected child
+	OnSelect           func(sessionID string)
+	OnStop             func(sessionID string) // session/cancel for a running child
+	OnInterrupt        func(parentID, childID string)
+	OnPrompt           func(parentID, childID, text string)
+	OnOpenURL          func(string)
+	OnOpenDocument     func(uint64, session.AgentSessionAddress, string)
+	OnClose            func()
 }
 
 // View paints child sessions of the selected root (ParentID tree).

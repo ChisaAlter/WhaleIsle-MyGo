@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"whaleisle/internal/config"
+	"whaleisle/internal/paths"
 )
 
 const anime4kFallbackScript = "// optional anime4k.js sidecar unavailable; falling back to native resolution\n"
@@ -164,14 +164,7 @@ func anime4KCandidateLocations() []fileLocation {
 }
 
 func anime4KUserDataDir() string {
-	if override := strings.TrimSpace(os.Getenv("WHALEISLE_USER_DATA")); override != "" {
-		return override
-	}
-	base, err := os.UserConfigDir()
-	if err != nil || base == "" {
-		return ""
-	}
-	return filepath.Join(base, config.DataDirName)
+	return paths.UserDataDir()
 }
 
 func readVerifiedAnime4K(dir, name string, wantSize int64, wantSHA string, lfSize int64, lfSHA string) ([]byte, bool) {

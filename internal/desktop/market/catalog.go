@@ -72,6 +72,7 @@ func ApplyCapabilityProfile(item *CatalogItem, caps PackageCapabilities) {
 	item.NativeCompatibilityLabel = caps.CompatibilityLabel
 	item.Capabilities = caps
 }
+
 type Category struct {
 	ID, Label string
 	Count     int

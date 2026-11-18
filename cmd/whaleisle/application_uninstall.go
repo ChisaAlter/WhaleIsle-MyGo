@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"runtime"
 	"whaleisle/internal/ui/i18n"
 
@@ -67,7 +66,7 @@ func (s *mainState) uninstallCurrentApplication(win *mygo.Window) {
 			changed := s.launcherImportBusy || s.quitting || s.sup != sup
 			s.mu.Unlock()
 			if changed {
-				return errors.New(i18n.T(i18n.KeyCmdRuntimeChangedRetryUninstall))
+				return localized(i18n.T(i18n.KeyCmdRuntimeChangedRetryUninstall))
 			}
 			if err := appuninstall.Start(plan); err != nil {
 				return err

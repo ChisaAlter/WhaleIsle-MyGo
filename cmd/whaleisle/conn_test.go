@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/boot"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -23,5 +26,12 @@ func TestConnectionBanner(t *testing.T) {
 	}
 	if got := connectionBanner(harness.Status{State: harness.Starting}, false, false); got != i18n.T(i18n.KeyBootStarting) {
 		t.Fatalf("harness starting: got %q", got)
+	}
+	failed := harness.Status{State: harness.Failed, Err: errors.New("dsh web exited: exit status 1")}
+	if got := connectionBanner(failed, false, false); got != boot.StatusLine(failed) {
+		t.Fatalf("failed: got %q", got)
+	}
+	if got := connectionBanner(failed, false, false); strings.Contains(got, failed.Err.Error()) {
+		t.Fatalf("raw error reached the banner: %q", got)
 	}
 }

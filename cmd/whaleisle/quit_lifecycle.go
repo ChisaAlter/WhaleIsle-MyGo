@@ -49,13 +49,22 @@ func (s *mainState) requestQuitProtected(win *mygo.Window, sup *harness.Supervis
 
 // A repeated approved caller may find cleanup already in progress. The owner
 // will request the final quit after it finishes; no caller closes windows early.
+//
+// A data-location change asks for a relaunch instead of an exit, so the next
+// process opens the recorded directory through its own startup path.
 func (s *mainState) quitAfterCleanup() {
 	s.mu.Lock()
 	finished := s.quitCleanupFinished
+	relaunch := s.relaunchPending
 	s.mu.Unlock()
-	if finished {
-		mygo.App.Quit()
+	if !finished {
+		return
 	}
+	if relaunch {
+		mygo.App.Relaunch()
+		return
+	}
+	mygo.App.Quit()
 }
 
 func (s *mainState) lifecycleContextLocked() context.Context {
@@ -127,7 +136,14 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	s.stopWithClosingOverlay(win, sup)
 	s.mu.Lock()
 	s.quitCleanupFinished = true
+	// The profile lock is normally held by main's defer; startup that had to
+	// warn about the data location claims it later, so release it here.
+	release := s.releaseProfile
+	s.releaseProfile = nil
 	s.mu.Unlock()
+	if release != nil {
+		release()
+	}
 }
 
 // closingOverlayPaintBudget bounds one closing-layer paint. It is the native

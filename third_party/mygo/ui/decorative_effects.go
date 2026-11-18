@@ -84,6 +84,7 @@ func (s *decorationState) clearPointer() {
 	s.pendingPress = false
 	s.lastTime = time.Time{}
 }
+
 const maxQueuedSplashPresses = 64
 
 func (s *decorationState) pointerDown(x, y float32) {

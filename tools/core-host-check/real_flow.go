@@ -82,7 +82,7 @@ func isolateRealEnvironment(root, stage, home string) error {
 		"DSH_HOME": home, "HOME": owned, "USERPROFILE": owned,
 		"APPDATA": filepath.Join(owned, "AppData", "Roaming"), "LOCALAPPDATA": localAppData,
 		"PSModuleAnalysisCachePath": filepath.Join(localAppData, "Microsoft", "Windows", "PowerShell", "ModuleAnalysisCache"),
-		"TEMP": filepath.Join(root, "temp"), "TMP": filepath.Join(root, "temp"),
+		"TEMP":                      filepath.Join(root, "temp"), "TMP": filepath.Join(root, "temp"),
 		"DEEPSEEK_API_KEY": "qa-real-flow-no-secret", "DEEPSEEK_BASE_URL": "https://api.deepseek.com/anthropic",
 		"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 	} {

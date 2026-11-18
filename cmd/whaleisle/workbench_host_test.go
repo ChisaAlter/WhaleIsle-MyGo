@@ -23,10 +23,15 @@ func TestHostFailureKeepsWorkbenchMounted(t *testing.T) {
 			HostStatus: func(c *ui.Context) { s.workbenchHostStatus(c, nil, st, nil, nil) },
 		})
 	}, 1440, 900)
-	for _, label := range []string{"New session", "workspace unavailable", "Export log"} {
+	// The strip names the failure in localized copy; the raw message stays in
+	// the logs, so the workbench never prints "workspace unavailable" itself.
+	for _, label := range []string{"New session", "Startup failed. Retry, or check the log for the cause.", "Export log"} {
 		if !tt.HasText(label) {
 			t.Fatalf("workbench lost %q with Host unavailable", label)
 		}
+	}
+	if tt.HasText("workspace unavailable") {
+		t.Fatal("raw Host error reached the workbench strip")
 	}
 	if err := tt.Click("Startup diagnostics"); err != nil {
 		t.Fatal(err)
@@ -36,7 +41,7 @@ func TestHostFailureKeepsWorkbenchMounted(t *testing.T) {
 	}
 	st = harness.Status{State: harness.Ready}
 	tt.Frame()
-	if tt.HasText("workspace unavailable") || tt.HasText("Retry") || !tt.HasText("New session") {
+	if tt.HasText("Startup failed. Retry, or check the log for the cause.") || tt.HasText("Retry") || !tt.HasText("New session") {
 		t.Fatal("healthy workbench retained startup controls or lost navigation")
 	}
 }

@@ -39,7 +39,7 @@ Whale Isle MyGo turns [DeepSeek Harness](https://github.com/deepseek-ai/deepseek
 | Change code together with a model | Read and write files, search repositories and run commands right in the conversation; privileged actions ask you first |
 | Hand a task to an AI team | **Project**: state the goal, let the coordinator and members work in parallel, and step in only when a decision is needed |
 | See results without leaving the window | Workspace files, Git diffs, a built-in terminal, branches, commits and web previews next to the chat |
-| Run alongside the original Whale Isle | Installs into its own directory without overwriting [Whale Isle](https://github.com/ChisaAlter/WhaleIsle), while sharing your local sessions and model setup by default |
+| Run alongside the original Whale Isle | Installs into its own directory without overwriting [Whale Isle](https://github.com/ChisaAlter/WhaleIsle); on first run it can copy the original's sessions and model setup into MyGo's own data directory |
 
 ## Download
 
@@ -115,7 +115,7 @@ Common shortcuts: `Ctrl+N` new session · `Ctrl+B` left sidebar · `Ctrl+\` righ
 
 - **Does it cost money?** The app is free and open source (MIT); your configured model provider charges for API usage.
 - **Will it conflict with the original Whale Isle?** No. Whale Isle MyGo installs to `%LOCALAPPDATA%\Programs\WhaleIsle-MyGo` with its own app ID, shortcuts and update channel. Both editions can stay installed and even run at the same time.
-- **Where is my data stored?** By default it shares `%APPDATA%\Deepseek-Harness-Desktop` on Windows (`~/Library/Application Support/Deepseek-Harness-Desktop` on macOS) so your sessions and settings carry over seamlessly. To import skills, MCP servers or settings from the official `~/.dsh` CLI, use the **Import** tab on the start page.
+- **Where is my data stored?** By default in MyGo's own `%APPDATA%\WhaleIsle-MyGo\data` on Windows (`~/Library/Application Support/WhaleIsle-MyGo/data` on macOS), not in the original Whale Isle profile. On the first launch of an empty directory, data found in the original `%APPDATA%\Deepseek-Harness-Desktop` is offered as a copy: it is copied, never moved or deleted, and if you skip it you can run it later from **Settings → General → Data location → Import from Whale Isle…**. The chosen location is recorded in `%APPDATA%\WhaleIsle-MyGo\data-location.json` — deliberately outside the data directory it names — and can be changed to another disk with the native folder picker under **Settings → General → Data location**; the change takes effect after a restart and the old directory is left alone. The `WHALEISLE_USER_DATA` environment variable takes precedence over everything for tests and isolated runs. To import skills, MCP servers or settings from the official `~/.dsh` CLI, use the **Import** tab on the start page.
 - **How do I upgrade?** Click **Check for updates** on the start page or in **Settings → About** to download, verify and install new releases. Downloads can be paused and resumed.
 
 ## Run from source
