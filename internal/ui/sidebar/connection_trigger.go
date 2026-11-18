@@ -186,9 +186,9 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 	if dark {
 		fill = ui.RGB(39, 36, 31)
 	}
-	label, action := sidebarConnectionCopy("连接异常，刷新重试", "Disconnected"), sidebarConnectionCopy("连接异常，点击立即重连", "Disconnected, reconnect now")
+	label, action := workspaceText("连接异常，刷新重试", "Disconnected"), workspaceText("连接异常，点击立即重连", "Disconnected, reconnect now")
 	if status == "connecting" {
-		label, action = sidebarConnectionCopy("重新连接中", "Reconnecting"), sidebarConnectionCopy("连接中断，正在重试，点击立即重连", "Reconnecting, reconnect now")
+		label, action = workspaceText("重新连接中", "Reconnecting"), workspaceText("连接中断，正在重试，点击立即重连", "Reconnecting, reconnect now")
 	}
 	if m.ConnectionError != "" {
 		label += "\n" + m.ConnectionError
@@ -199,7 +199,7 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 		if dark {
 			fill = ui.RGB(35, 60, 44)
 		}
-		ui.Box(c).Size(36, 36).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(sidebarConnectionCopy("连接成功", "Connected")).Tooltip(sidebarConnectionCopy("连接成功", "Connected")).Center().Children(func() { ui.Icon(c, connectionCheck).Size(14, 14).TextColor(ink) })
+		ui.Box(c).Size(36, 36).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(workspaceText("连接成功", "Connected")).Tooltip(workspaceText("连接成功", "Connected")).Center().Children(func() { ui.Icon(c, connectionCheck).Size(14, 14).TextColor(ink) })
 		return
 	}
 	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Center().Background(fill).Border(1, ink.Alpha(.2)).Label(action).Tooltip(label).Disabled(m.OnReconnect == nil)
@@ -249,7 +249,7 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 // The sidebar is a status projection, not the update center. Only actual
 // updater changes should wake the workbench, including during a slow check.
 func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors) {
-	labels := map[string]string{"checking": sidebarConnectionCopy("正在检查更新…", "Checking for updates…"), "available": sidebarConnectionCopy("有可用更新", "Update available"), "downloading": sidebarConnectionCopy("正在下载更新…", "Downloading update…"), "verifying": sidebarConnectionCopy("正在校验更新…", "Verifying update…"), "installing": sidebarConnectionCopy("正在准备重启…", "Preparing to restart…"), "ready": sidebarConnectionCopy("安装并重启", "Install and Restart"), "error": sidebarConnectionCopy("重试更新", "Retry update")}
+	labels := map[string]string{"checking": workspaceText("正在检查更新…", "Checking for updates…"), "available": workspaceText("有可用更新", "Update available"), "downloading": workspaceText("正在下载更新…", "Downloading update…"), "verifying": workspaceText("正在校验更新…", "Verifying update…"), "installing": workspaceText("正在准备重启…", "Preparing to restart…"), "ready": workspaceText("安装并重启", "Install and Restart"), "error": workspaceText("重试更新", "Retry update")}
 	label := labels[phase]
 	if label == "" {
 		return
@@ -278,11 +278,4 @@ func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors
 	if !busy && button.Clicked() && m.OnOpenDesktopUpdate != nil {
 		m.OnOpenDesktopUpdate()
 	}
-}
-
-func sidebarConnectionCopy(zh, en string) string {
-	if i18n.Locale() == "zh" {
-		return zh
-	}
-	return en
 }

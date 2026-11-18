@@ -86,7 +86,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 					if s.Progress.Step == "credit" {
 						name = "onboarding-recharge"
 					}
-					if i18n.Locale() == "zh" {
+					if i18n.Locale() == i18n.LocaleZH {
 						name += "-zh"
 					}
 					if systemDark {
