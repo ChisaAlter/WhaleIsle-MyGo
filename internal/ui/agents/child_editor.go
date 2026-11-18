@@ -46,9 +46,14 @@ func childEditor(c *ui.Context, m Model, v session.AgentNavigationView, bounds .
 		f.pending = false
 	}
 	draft.Sending = v.ActionBusy
+	if v.ImagesPreparing {
+		draft.Preparing = 1
+	} else {
+		draft.Preparing = 0
+	}
 	stopModel := childStopModel(m, v, draft)
 	childSnapshot := stopModel.Snapshot
-	add := func(paths []string) { m.Store.AddAgentNavigationImages(v.Token, v.Address, paths, nil) }
+	add := func(paths []string) { m.Store.AddAgentNavigationImagesAsync(v.Token, v.Address, paths, nil) }
 	paste := func(explicit bool) {
 		raw := mygo.Clipboard.ReadImage()
 		if len(raw) == 0 {
@@ -57,12 +62,10 @@ func childEditor(c *ui.Context, m Model, v session.AgentNavigationView, bounds .
 			}
 			return
 		}
-		path, err := clipboardimage.StorePNG(filepath.Join(paths.UserDataDir(), "cache", "attachments"), raw)
-		if err != nil {
-			draft.Error = err.Error()
-			return
-		}
-		add([]string{path})
+		m.Store.PrepareAgentNavigationImagesAsync(v.Token, v.Address, func() ([]string, error) {
+			path, err := clipboardimage.StorePNG(filepath.Join(paths.UserDataDir(), "cache", "attachments"), raw)
+			return []string{path}, err
+		})
 	}
 	owner.Children(func() {
 		composer.ChildEditor(c, composer.ChildEditorModel{
@@ -82,7 +85,7 @@ func childEditor(c *ui.Context, m Model, v session.AgentNavigationView, bounds .
 			OnRemoveImage: func(path string) { m.Store.RemoveAgentNavigationImage(v.Token, v.Address, path) },
 			OnPickImages: func() {
 				selected, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: agentText("向子代理添加图片", "Add images for child"), Multiple: true, Filters: []mygo.FileFilter{{Name: "Images", Extensions: []string{"png", "jpg", "jpeg", "gif", "webp"}}}})
-				m.Store.AddAgentNavigationImages(v.Token, v.Address, selected, err)
+				m.Store.AddAgentNavigationImagesAsync(v.Token, v.Address, selected, err)
 			},
 			OnSend: func(text string) { m.Store.PromptAgentNavigationExplicit(v.Token, v.Address, text) },
 			OnOpenReference: func(path string) {

@@ -681,6 +681,9 @@ func (w *WorkspacePanes) EndContentFrame() {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		// A refresh belongs only to the frame where its focused occurrence was
+		// requested. Hidden/replaced content must not replay it on a later open.
+		n.refreshPending = nil
 		if n.RemoteFiles != nil && !n.remoteFilesRendered {
 			n.RemoteFiles.Suspend()
 		}
@@ -717,6 +720,7 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 		route.Pane.releaseAgentPane()
 	}
 	w.Root.eachResource(func(n *WorkspacePane) {
+		n.refreshPending = nil
 		if n.Inspector != nil {
 			n.Inspector.cancelInspectorNavigation()
 		}
@@ -742,6 +746,8 @@ func (w *WorkspacePanes) pauseContent(retainReads bool) {
 }
 
 func (n *WorkspacePane) disposeContent() {
+	n.refreshPending = nil
+	n.refreshResource = nil
 	if n.RemoteFiles != nil {
 		n.RemoteFiles.Suspend()
 	}

@@ -9,65 +9,45 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
-func TestConversationMoreMenuFoldedViewsAndEntryCustomizationActions(t *testing.T) {
+func TestConversationMoreMenuOnlyOffersCurrentSessionActions(t *testing.T) {
 	i18n.SetLocale("en")
 	defer i18n.SetLocale(i18n.DefaultLocale)
-	tab := ""
-	marketCalls := 0
-	var draftRegion string
+	store := session.New()
+	store.Select("s")
+	var downloaded string
+	more := Model{
+		Store: store, HideChatViewTabs: true,
+		OnOpenMarket:          func() { t.Fatal("global market action ran") },
+		OnCreatePluginDraft:   func(string) { t.Fatal("global create action ran") },
+		OnOpenDesktopSettings: func() { t.Fatal("global settings action ran") },
+		OnDownloadSessionLog:  func(id string) { downloaded = id },
+	}
+	selected := "s"
 	tt := ui.NewTester(func(c *ui.Context) {
-		conversationMoreMenu(c, Model{
-			HideChatViewTabs:    true,
-			ChatPaneTab:         &tab,
-			OnOpenMarket:        func() { marketCalls++ },
-			OnCreatePluginDraft: func(region string) { draftRegion = region },
-		}, session.ViewState{}, c.Theme().Text)
-	}, 400, 100)
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
+		conversationMoreMenu(c, more, session.ViewState{SelectedID: selected}, c.Theme().Text)
+	}, 400, 140)
+	if err := tt.Click("More actions"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Trajectory"); err != nil {
+	if err := tt.ChooseMenuItem("Download session log"); err != nil {
 		t.Fatal(err)
 	}
-	if tab != "trajectory" {
-		t.Fatalf("tab=%q want trajectory", tab)
+	if downloaded != "s" {
+		t.Fatalf("downloaded = %q", downloaded)
 	}
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
+	for _, label := range []string{"Chat", "Trajectory", "Browse other plugins", "Create your plugin", "Desktop settings"} {
+		if err := tt.Click("More actions"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tt.ChooseMenuItem(label); err == nil {
+			t.Fatalf("unexpected global menu item %q", label)
+		}
+		tt.Key(0, ui.KeyEscape)
 	}
-	if err := tt.ChooseMenuItem("✓ Trajectory"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Chat"); err != nil {
-		t.Fatal(err)
-	}
-	if tab != "chat" {
-		t.Fatalf("tab=%q want chat", tab)
-	}
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Browse other plugins"); err != nil {
-		t.Fatal(err)
-	}
-	if marketCalls != 1 {
-		t.Fatalf("marketCalls=%d want 1", marketCalls)
-	}
-
-	if err := tt.Click(i18n.T(i18n.KeyLauncherOpen)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem("Create your plugin"); err != nil {
-		t.Fatal(err)
-	}
-	if draftRegion != "conversation" {
-		t.Fatalf("draftRegion=%q want conversation", draftRegion)
+	selected = ""
+	tt.Frame()
+	if _, ok := tt.Find("More actions"); ok {
+		t.Fatal("more menu with no selected session")
 	}
 }
 

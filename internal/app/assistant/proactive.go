@@ -466,6 +466,7 @@ func (s *Service) ProactiveModel() assistantui.ProactiveModel {
 		s.open = false
 		s.conversationGeneration++
 		s.mu.Unlock()
+		host.RevealMainConversation()
 		sessions.Select(id)
 		s.RefreshWhaleSettingsUI()
 	}

@@ -285,6 +285,7 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 				s.draft = ""
 			}
 			s.mu.Unlock()
+			host.RevealMainConversation()
 			staged := false
 			if text != "" {
 				staged = host.StageSessionDraft(sid, text)

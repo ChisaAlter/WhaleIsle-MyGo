@@ -22,7 +22,7 @@ func TestConversationHeader400KeepsLongTitleAndEveryUtilityInside(t *testing.T) 
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
 			conversationHeaderTitleRow(c, Model{Store: session.New(), Sizes: &sizes,
-				OnOpenLauncher: callback("more"), OnOpenAgents: callback("agents"), OnToggleTools: callback("tools"),
+				OnDownloadSessionLog: func(string) {}, OnOpenAgents: callback("agents"), OnToggleTools: callback("tools"),
 				OnOpenHostTerminal: callback("host"), OnToggleTerminal: callback("terminal"), OnOpenSettings: callback("settings")}, snap, theme.Resolve("deepseek.light").Light)
 		})
 	}, 400, 100)
@@ -38,7 +38,7 @@ func TestConversationHeader400KeepsLongTitleAndEveryUtilityInside(t *testing.T) 
 		t.Fatal("compact preset text did not collapse")
 	}
 	for _, tc := range []struct{ label, call string }{
-		{i18n.T(i18n.KeyLauncherOpen), "more"}, {i18n.T(i18n.KeyFrameCaptionAgents), "agents"},
+		{paneLabel("更多操作", "More actions"), ""}, {i18n.T(i18n.KeyFrameCaptionAgents), "agents"},
 		{i18n.T(i18n.KeyFrameCaptionProjectDocs), "tools"}, {termui.HostTitle(), "host"},
 		{i18n.T(i18n.KeyTerminalTitle), "terminal"}, {i18n.T(i18n.KeySettingsOpen), "settings"},
 	} {
@@ -48,6 +48,9 @@ func TestConversationHeader400KeepsLongTitleAndEveryUtilityInside(t *testing.T) 
 		}
 		if title.X+title.W > r.X {
 			t.Fatalf("ancestry=%+v overlaps %q=%+v", title, tc.label, r)
+		}
+		if tc.call == "" {
+			continue // The menu action itself is exercised with a selected session.
 		}
 		if err := tt.Click(tc.label); err != nil {
 			t.Fatal(err)

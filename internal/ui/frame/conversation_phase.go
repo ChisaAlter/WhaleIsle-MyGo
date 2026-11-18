@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
@@ -94,14 +95,17 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 	if snap.HistoryError == "" {
 		return
 	}
-	ui.Row(c).Key("conversation-history-error").FillWidth().AlignItems(ui.Center).Gap(8).Padding(8, 16).Children(func() {
-		// LastAction can contain this same transport error; its shell rendering
-		// already supplies the text, while this row preserves an explicit retry.
-		if !strings.Contains(snap.LastAction, snap.HistoryError) {
-			ui.Text(c, snap.HistoryError).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0)
-		}
-		if ui.Button(c, i18n.T(i18n.KeyCommandCatalogRetry)).Key("conversation-history-retry").Label("Retry conversation history").Disabled(snap.HistoryLoading).Clicked() {
+	message := paneLabel("无法加载此会话历史", "Could not load this conversation history")
+	if strings.Contains(snap.HistoryError, "not marked ignorable") || strings.Contains(snap.HistoryError, "requires a supported versioned catalog fact") {
+		message = paneLabel("当前 Host 无法读取此会话的格式", "This Host cannot read the format of this conversation")
+	}
+	ui.Row(c).Key("conversation-history-error").FillWidth().Wrap().AlignItems(ui.Center).Gap(8).Padding(8, 16).Children(func() {
+		ui.Text(c, message).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0)
+		if ui.Button(c, paneLabel("重试加载对话", "Retry conversation history")).Key("conversation-history-retry").Disabled(snap.HistoryLoading).Clicked() {
 			m.Store.FollowSelected(context.Background())
+		}
+		if ui.Button(c, paneLabel("复制错误详情", "Copy error details")).Key("conversation-history-copy-error").Clicked() {
+			mygo.Clipboard.WriteText(snap.HistoryError)
 		}
 	})
 }

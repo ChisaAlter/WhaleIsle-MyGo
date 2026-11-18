@@ -61,11 +61,10 @@ func TestBlankCaptionPreservesOriginalLeadingAndCornerOnly(t *testing.T) {
 			t.Fatalf("blank caption retained %s", label)
 		}
 	}
-	// Running remains a header lifecycle fact even though the native empty-body
-	// layout still uses the hero, and the existing plugin action stays reachable.
+	// Running can reopen the header, but does not create a session action.
 	snap.Items[0].Running = true
 	tt.Frame()
-	if _, ok := tt.Find("更多操作"); !ok && !tt.HasText("More actions") {
-		t.Fatal("running hero lost its explicit plugin menu")
+	if _, ok := tt.Find(paneLabel("更多操作", "More actions")); ok {
+		t.Fatal("running hero displayed an action menu with no session actions")
 	}
 }

@@ -183,18 +183,18 @@ type Model struct {
 	ChildBusyEnter         string
 	RightOverlayReserve    float32
 	SVGImages              *svgimage.Owner
-	OpenUIParent                    uintptr
-	OpenUIWindow                    *mygo.Window
-	CustomPanelContent              func(*ui.Context)
-	OnOpenDocumentViewer            func(string) (files.DocumentSurface, error)
-	GroupRoom                       bool
-	GroupMembers                    []session.GroupMember
-	OnReplyGroupThread              func(string)
-	DisableDeveloperTools           bool
-	DeveloperToolsPending           bool
-	TitlebarPreferences             settings.TitlebarPreferences
-	WorkspaceTrailing               func(*ui.Context, string)
-	WorkspacePage                   bool
+	OpenUIParent           uintptr
+	OpenUIWindow           *mygo.Window
+	CustomPanelContent     func(*ui.Context)
+	OnOpenDocumentViewer   func(string) (files.DocumentSurface, error)
+	GroupRoom              bool
+	GroupMembers           []session.GroupMember
+	OnReplyGroupThread     func(string)
+	DisableDeveloperTools  bool
+	DeveloperToolsPending  bool
+	TitlebarPreferences    settings.TitlebarPreferences
+	WorkspaceTrailing      func(*ui.Context, string)
+	WorkspacePage          bool
 	// ActivePanel is the visible global route, or empty for a conversation.
 	ActivePanel             string
 	WorkspaceOpenInApp      *WorkspaceOpenInAppState
@@ -375,7 +375,7 @@ type Model struct {
 	OnOpenWhaleSettings              func()
 	OnNewHostTerminal                func()
 	OnPreviewDeliverablePresentation func(string, string) error
-	OnOpenLauncher                   func()
+	OnOpenDesktopSettings            func()
 	OnContactAccount                 func()
 	OnOpenSettings                   func()
 	OnVoiceSettings                  func()
@@ -394,6 +394,7 @@ type Model struct {
 	CanAddSelectionToChat bool
 
 	ConnectionBanner string
+	HostStatus       func(*ui.Context)
 	ConnectionReady  bool
 	// AssistantName is the published Whale display name snapshot for the
 	// sidebar panel row; empty falls back to the localized assistant label.
@@ -678,35 +679,35 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		onCreatePlugin = func() { m.OnCreatePluginDraft("leftbar") }
 	}
 	sidebar.View(c, sidebar.Model{
-		ActivePanel:        activePanel,
-		NewSessionShortcut: newSessionShortcut,
-		MenuShortcutLabels:       menuShortcutLabels,
-		PendingStatuses:          sidebarPendingStatuses(m),
-		Batch:                    m.Store.SessionBatch(),
-		OnBatchEdit:              m.Store.EditSessionBatch,
-		OnBatchRequest:           m.Store.RequestSessionBatch,
-		OnBatchConfirm:           func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
-		OnBatchCancel:            m.Store.CancelSessionBatch,
-		HideArchivedList:         m.HideArchivedList,
-		Account:                  resolveNavigationAccount(m),
-		Schedules:                schedules,
-		Projects:                 projectModel,
-		Collapsed:                m.Sizes.sidebarCollapsed(),
-		ViewportW:                m.ViewportW,
-		ViewportH:                m.ViewportH,
-		OnToggle:                 m.Sizes.ToggleSidebar,
-		Snapshot:                 snap,
-		ThemeID:                  m.ThemeID,
-		SystemDark:               m.SystemDark,
-		SearchQuery:              m.SessionSearch,
-		SearchFocus:              m.SessionSearchFocus,
-		WorkspaceLabel:           m.Store.WorkspaceCwd(),
-		RenameSessionID:          rename.SessionID,
-		RenameDraft:              &rename.Draft,
-		RenameBusy:               rename.Busy,
-		RenameError:              rename.Error,
-		OnRenameDraftChanged:     m.Store.EditSessionRename,
-		OnSelect:                 selectSession,
+		ActivePanel:          activePanel,
+		NewSessionShortcut:   newSessionShortcut,
+		MenuShortcutLabels:   menuShortcutLabels,
+		PendingStatuses:      sidebarPendingStatuses(m),
+		Batch:                m.Store.SessionBatch(),
+		OnBatchEdit:          m.Store.EditSessionBatch,
+		OnBatchRequest:       m.Store.RequestSessionBatch,
+		OnBatchConfirm:       func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
+		OnBatchCancel:        m.Store.CancelSessionBatch,
+		HideArchivedList:     m.HideArchivedList,
+		Account:              resolveNavigationAccount(m),
+		Schedules:            schedules,
+		Projects:             projectModel,
+		Collapsed:            m.Sizes.sidebarCollapsed(),
+		ViewportW:            m.ViewportW,
+		ViewportH:            m.ViewportH,
+		OnToggle:             m.Sizes.ToggleSidebar,
+		Snapshot:             snap,
+		ThemeID:              m.ThemeID,
+		SystemDark:           m.SystemDark,
+		SearchQuery:          m.SessionSearch,
+		SearchFocus:          m.SessionSearchFocus,
+		WorkspaceLabel:       m.Store.WorkspaceCwd(),
+		RenameSessionID:      rename.SessionID,
+		RenameDraft:          &rename.Draft,
+		RenameBusy:           rename.Busy,
+		RenameError:          rename.Error,
+		OnRenameDraftChanged: m.Store.EditSessionRename,
+		OnSelect:             selectSession,
 		OnRefresh: func() {
 			m.Store.RefreshList(context.Background())
 		},
@@ -717,7 +718,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnCreatePlugin:        onCreatePlugin,
 		OnOpenSchedule:        m.OnOpenSchedule,
 		OnOpenAssistant:       m.OnOpenAssistant,
-		OnOpenLauncher:        m.OnOpenLauncher,
+		OnOpenDesktopSettings: m.OnOpenDesktopSettings,
 		OnOpenSettings:        m.OnOpenSettings,
 		ConnectionReady:       m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
 		AssistantName:           m.AssistantName,
@@ -1108,6 +1109,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 				if m.ConversationPreferences.ComposerResize && m.ComposerResize != nil && m.ComposerResize.Width > 0 {
 					composerOuterW = min(m.ComposerResize.Width+32, contentViewportW)
 				}
+				if m.HostStatus != nil {
+					m.HostStatus(c)
+				}
 				chat.StatusView(c, chat.Model{
 					Snapshot: snap, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
 					ConnectionBanner: m.ConnectionBanner, OnReconnect: m.OnReconnect,
@@ -1396,7 +1400,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								region.Children(func() {
 									paint := func() {
 										interui.View(c, interui.Model{Snapshot: viewSnap, ScopeAgentID: snap.SelectedID,
-											ThemeID:    m.ThemeID, SystemDark: m.SystemDark, Store: m.Interactions,
+											ThemeID: m.ThemeID, SystemDark: m.SystemDark, Store: m.Interactions,
 											OnAutoAllowChanged: m.OnAutoAllowChanged, OnOpenPlanResource: m.OnOpenPlanResource}, *residentCard)
 									}
 									paint()
@@ -1588,19 +1592,19 @@ func rightPane(c *ui.Context, m Model) {
 				navigation = m.AgentNavigationStore
 			}
 			agents.ViewWithJobs(c, agents.Model{
-				ChatPreferences:       m.ChatPreferences,
-				OnOpenChat:            subagentChatOpener(m),
-				OnOpenConversation:    subagentConversationOpener(m),
-				Interactions:          m.Interactions,
-				OnOpenPlanResource:    m.OnOpenPlanResource,
-				Store:                 navigation,
-				Manager:               m.AgentPresetManager,
-				Snapshot:              renderSnapshot(m),
-				ThemeID:               m.ThemeID,
-				SystemDark:            m.SystemDark,
-				PromptDraft:           m.AgentsPromptDraft,
-				ChildDraft:            m.ChildDraft,
-				BusyEnter:             m.ChildBusyEnter,
+				ChatPreferences:    m.ChatPreferences,
+				OnOpenChat:         subagentChatOpener(m),
+				OnOpenConversation: subagentConversationOpener(m),
+				Interactions:       m.Interactions,
+				OnOpenPlanResource: m.OnOpenPlanResource,
+				Store:              navigation,
+				Manager:            m.AgentPresetManager,
+				Snapshot:           renderSnapshot(m),
+				ThemeID:            m.ThemeID,
+				SystemDark:         m.SystemDark,
+				PromptDraft:        m.AgentsPromptDraft,
+				ChildDraft:         m.ChildDraft,
+				BusyEnter:          m.ChildBusyEnter,
 				ComposerOverride: func(c *ui.Context, address session.AgentSessionAddress) bool {
 					return projects.ConversationComposer(c, m.Projects, address.ChildSessionID, address.ParentSessionID)
 				},

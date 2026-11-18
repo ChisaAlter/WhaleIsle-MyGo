@@ -243,6 +243,9 @@ func projectObserverHeader(c *ui.Context, m Model) {
 				}
 			})
 			o.FloatingOpen = open
+			if !open && !o.Pinned && m.Projects.CloseObserver != nil {
+				m.Projects.CloseObserver(o)
+			}
 		})
 		return
 	}

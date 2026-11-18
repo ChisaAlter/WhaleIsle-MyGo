@@ -197,3 +197,27 @@ func (b *Controller) tabHostSnapshot(t *Tab) (host *desktop.Host, reclaimed bool
 	b.reclaimMu.Unlock()
 	return host, reclaimed
 }
+
+// Suspend leaves the standalone browser route. Tab/source descriptors and
+// drafts remain, while hidden hosts are reclaimed immediately. An explicitly
+// detached mini-player keeps its existing independent lifetime.
+func (b *Controller) Suspend() {
+	if b == nil {
+		return
+	}
+	b.Hide()
+	for _, t := range b.Tabs {
+		b.reclaimMu.Lock()
+		if t == nil || t.Host == nil || b.miniTab == t {
+			b.reclaimMu.Unlock()
+			continue
+		}
+		if t.hideTimer != nil {
+			t.hideTimer.Stop()
+			t.hideTimer = nil
+		}
+		host, gen := t.Host, t.hideGen
+		b.reclaimMu.Unlock()
+		b.reclaimHiddenTab(t, host, gen)
+	}
+}

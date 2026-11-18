@@ -575,6 +575,7 @@ func (s *Service) WhaleTasksModel(ep harness.Endpoint) assistantui.WhaleTasksMod
 			}
 			sessions := host.Sessions()
 			s.SetOpen(false)
+			host.RevealMainConversation()
 			s.whaleTasks.Suspend()
 			if sessions != nil {
 				sessions.Select(id)

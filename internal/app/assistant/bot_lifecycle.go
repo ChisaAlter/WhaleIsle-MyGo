@@ -305,6 +305,7 @@ func (s *Service) openCreatedBot(ep harness.Endpoint, client *dsh.Client, curren
 					s.assistantRoomEditor.Suspend()
 					s.assistantRoomRuntime.Suspend()
 					s.SetOpen(false)
+					host.RevealMainConversation()
 				} else {
 					s.mu.Lock()
 					s.pluginDetail = label + i18n.T(i18n.KeyCmdBotOpenBindingExpired)
@@ -752,6 +753,7 @@ func (s *Service) openDuplicateBot(ep harness.Endpoint, client *dsh.Client, curr
 					s.assistantRoomEditor.Suspend()
 					s.assistantRoomRuntime.Suspend()
 					s.SetOpen(false)
+					host.RevealMainConversation()
 				} else {
 					s.mu.Lock()
 					s.pluginDetail = label + i18n.T(i18n.KeyCmdBotOpenBindingExpired)

@@ -489,28 +489,28 @@ func capabilityGuidanceText(kind desktopmarket.CapabilityKind, rawGuidance strin
 	switch kind {
 	case desktopmarket.CapabilityWebUIOnly:
 		return marketText(
-			"此插件仅提供 Web UI 面板（无原生 Host 入口）；如需使用请切换或开启完整兼容工作台。",
-			"Web UI-only plugin (no native Host entry); open via the compatibility workbench when needed.",
+			"清单声明 Web UI 面板；在兼容工作台中打开后确认实际页面。",
+			"Manifest declares a Web UI; open the compatibility workbench to resolve its live panels.",
 		)
 	case desktopmarket.CapabilityHybrid:
 		return marketText(
-			"Host 核心能力可原生运行；可选浏览器界面需通过完整兼容工作台打开。",
-			"Host features run natively; optional browser panels require the compatibility workbench.",
+			"清单声明 Host 与 Web 能力；后端状态以 Host 为准，页面在兼容工作台中解析。",
+			"Host features run natively when enabled; the manifest's optional panels resolve in the compatibility workbench.",
 		)
 	case desktopmarket.CapabilityMCP:
 		return marketText(
-			"MCP 服务扩展：可直接接入原生工具通道，无需浏览器运行时。",
-			"MCP server package: runs natively without a browser panel.",
+			"清单声明 MCP 服务；配置、连接与工具状态在 MCP 设置中确认。",
+			"Declared MCP server; confirm configuration, connection and tools in MCP Settings.",
 		)
 	case desktopmarket.CapabilitySkill:
 		return marketText(
-			"Skill 技能包：可直接用于原生技能工作流，无需浏览器运行时。",
-			"Skill package: runs natively via Skill workflows without a browser panel.",
+			"清单声明 Skill 技能；安装后在技能列表确认内容和调用权限。",
+			"Declared Skill package; confirm installed content and invocation settings in Skills.",
 		)
 	case desktopmarket.CapabilityPureHost:
 		return marketText(
-			"纯原生 Host 扩展，无需 WebView2 或兼容工作台。",
-			"Pure native Host extension; runs directly without WebView2.",
+			"清单声明后端能力，无需 WebView2；实际启用与健康状态以 Host 为准。",
+			"Manifest declares Host capabilities without WebView2; the Host reports enabled and health state.",
 		)
 	default:
 		return strings.TrimSpace(rawGuidance)

@@ -152,19 +152,19 @@ type Model struct {
 	OnRefresh            func()
 	OnCreate             func()
 	// ActivePanel is the built-in route or live NativeView handle; empty means conversation.
-	ActivePanel        string
-	NewSessionShortcut string
-	MenuShortcutLabels map[string]string
-	OnNoDirectory      func()
-	OnOpenMarket       func()
-	PluginEntries      []PluginEntry
-	OnOpenPlugin       func(string)
-	OnCreatePlugin     func()
-	OnOpenSchedule     func()
-	OnOpenAssistant    func()
-	OnOpenLauncher     func()
-	OnContactAccount   func()
-	OnOpenSettings     func()
+	ActivePanel           string
+	NewSessionShortcut    string
+	MenuShortcutLabels    map[string]string
+	OnNoDirectory         func()
+	OnOpenMarket          func()
+	PluginEntries         []PluginEntry
+	OnOpenPlugin          func(string)
+	OnCreatePlugin        func()
+	OnOpenSchedule        func()
+	OnOpenAssistant       func()
+	OnOpenDesktopSettings func()
+	OnContactAccount      func()
+	OnOpenSettings        func()
 	// OnBrowseWorkspace opens the folder picker (SidebarRoot ☰ / workspace row).
 	OnBrowseWorkspace func()
 	// OnRevealWorkspace opens the current workspace in the OS file manager.
@@ -539,7 +539,7 @@ func View(c *ui.Context, m Model) {
 			// The footer's top edge drags the window, like the logo row does.
 			ui.Box(c).Key("sidebar-footer-drag").FillWidth().Height(6).DragWindow()
 			// The launcher is not a sidebar row in the installed build: the header's
-			// ellipsis opens it (conversation-more -> OnOpenLauncher), so the tree stays
+			// ellipsis opens it (conversation-more), so the tree stays
 			// to workspaces and sessions.
 
 			// SidebarRoot.footArea: one account seat for both signed-in and
@@ -553,7 +553,7 @@ func View(c *ui.Context, m Model) {
 					bottomOffset = 8
 				}
 				ui.Box(c).Key("sidebar-footer-update-seat").Size(36, 36).Absolute().Right(2).Bottom(bottomOffset).Children(func() {
-					desktopUpdateSeat(c, m, updatePhase, colors, false)
+					desktopUpdateSeat(c, m, updatePhase, colors)
 				})
 			}
 		})

@@ -195,6 +195,7 @@ func (s *Service) BuildPanelModel(opts PanelBuildOptions) (assistantui.Model, Fr
 			s.open = false
 			s.draft = assistantDraft
 			s.mu.Unlock()
+			host.RevealMainConversation()
 			if win != nil {
 				host.WindowUpdate(win, func() {})
 			}

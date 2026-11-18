@@ -183,17 +183,18 @@ func TestConversationSettlingAndFailureUseSharedStatus(t *testing.T) {
 	saveConversationEvidence(t, tt, "conversation-settling")
 	snap.HistoryLoading = false
 	snap.HistoryError = "follow failed"
+	failure := paneLabel("无法加载此会话历史", "Could not load this conversation history")
 	tt.Frame()
-	if tt.HasText(i18n.T(i18n.KeyChatHeroSlogan)) || !tt.HasText("follow failed") {
+	if tt.HasText(i18n.T(i18n.KeyChatHeroSlogan)) || !tt.HasText(failure) || tt.HasText("follow failed") {
 		t.Fatal("unknown failed history appeared blank or lost its error")
 	}
-	if _, ok := tt.Find("Retry conversation history"); !ok {
+	if _, ok := tt.Find(paneLabel("重试加载对话", "Retry conversation history")); !ok {
 		t.Fatal("history retry unavailable")
 	}
 	saveConversationEvidence(t, tt, "conversation-follow-error")
 	snap.SelectedSummaryBlank = true
 	tt.Frame()
-	if !tt.HasText(i18n.T(i18n.KeyChatHeroSlogan)) || !tt.HasText("follow failed") {
+	if !tt.HasText(i18n.T(i18n.KeyChatHeroSlogan)) || !tt.HasText(failure) {
 		t.Fatal("authoritative blank exception lost hero or common error")
 	}
 }

@@ -317,6 +317,7 @@ func (s *Service) openCreatedRoom(ep harness.Endpoint, client *dsh.Client, curre
 				sessions.Select(sid)
 				s.assistantRoomCreator.Suspend()
 				s.SetOpen(false)
+				host.RevealMainConversation()
 				go func() {
 					sessions.FollowSelected(context.Background())
 					sessions.RefreshList(context.Background())
@@ -581,6 +582,7 @@ func (s *Service) RoomRuntimeModel(ep harness.Endpoint, id string) assistantui.R
 						s.assistantRoomEditor.Suspend()
 						reader.Suspend()
 						s.SetOpen(false)
+						host.RevealMainConversation()
 					}
 					s.UpdateAssistantTasks()
 				})

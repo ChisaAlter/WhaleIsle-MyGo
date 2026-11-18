@@ -23,7 +23,7 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 	actions["market.open"] = m.OnOpenMarket
 	actions["schedule.open"] = m.OnOpenSchedule
 	actions["assistant.open"] = m.OnOpenAssistant
-	actions["launcher.open"] = m.OnOpenLauncher
+	actions["launcher.open"] = m.OnOpenDesktopSettings
 	actions["workspace.files"] = m.OnOpenWorkspaceFiles
 	actions["session.search"] = func() {
 		if m.Sizes != nil && m.Sizes.sidebarPreference() <= 0 {

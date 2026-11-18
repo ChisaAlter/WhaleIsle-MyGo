@@ -193,3 +193,52 @@ func TestControllerResumeFailureClearsReclaimedAndRestoredTabStaysLazy(t *testin
 		t.Fatalf("expected resumeURL preserved for manual refresh retry, got %q", failed.resumeURL)
 	}
 }
+
+func TestControllerSuspendImmediatelyReleasesHostsAndRetainsTabs(t *testing.T) {
+	b := NewController(nil)
+	t.Cleanup(b.Close)
+	b.hideTTL = time.Hour
+	closes := 0
+	b.closeHostFn = func(*desktop.Host) error { closes++; return nil }
+	var resumed desktop.HostOptions
+	b.newHostFn = func(opts desktop.HostOptions) (*desktop.Host, error) {
+		resumed = opts
+		return &desktop.Host{}, nil
+	}
+	firstHost, secondHost := &desktop.Host{}, &desktop.Host{}
+	first := &Tab{ID: 1, Host: firstHost, Draft: "https://example.com/a", workspace: browserWorkspace{key: "workspace-a"}}
+	second := &Tab{ID: 2, Host: secondHost, Draft: "https://example.com/b"}
+	b.Tabs, b.Active = []*Tab{first, second}, 0
+	b.Suspend()
+	if closes != 2 || len(b.Tabs) != 2 || first.Host != nil || second.Host != nil || !first.reclaimed || first.hideTimer != nil || second.hideTimer != nil {
+		t.Fatalf("route exit retained native hosts or discarded tabs: closes=%d tabs=%d", closes, len(b.Tabs))
+	}
+	if first.Draft != "https://example.com/a" || second.Draft != "https://example.com/b" {
+		t.Fatal("route exit discarded tab drafts")
+	}
+	staleGeneration := first.hideGen
+	b.Select(0)
+	if first.Host == nil || resumed.URL != "https://example.com/a" || resumed.BrowserPartition != "workspace-a" {
+		t.Fatal("explicit return failed to recreate the selected tab")
+	}
+	b.reclaimHiddenTab(first, firstHost, staleGeneration)
+	if closes != 2 || first.Host == nil {
+		t.Fatal("a stale hidden-tab timer closed the newly resumed page")
+	}
+}
+
+func TestControllerSuspendKeepsExplicitMiniPlayerLease(t *testing.T) {
+	b := NewController(nil)
+	t.Cleanup(b.Close)
+	closes := 0
+	b.closeHostFn = func(*desktop.Host) error { closes++; return nil }
+	host := &desktop.Host{}
+	tab := &Tab{ID: 1, Host: host, Draft: "https://example.com/video"}
+	b.Tabs, b.Active = []*Tab{tab}, 0
+	b.mini = &browserMiniPlayer{tab: tab, host: host}
+	b.setMiniTab(tab)
+	b.Suspend()
+	if tab.Host != host || tab.reclaimed || closes != 0 {
+		t.Fatal("leaving the browser revoked its explicitly detached mini-player")
+	}
+}

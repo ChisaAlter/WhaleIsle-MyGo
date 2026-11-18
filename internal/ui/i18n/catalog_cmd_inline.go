@@ -60,7 +60,7 @@ func init() {
 	Register(KeyCmdComponentConfirmationChanged, "确认期间运行环境已改变，请重新检查组件并确认", "The runtime changed during confirmation; inspect the component and confirm again")
 	Register(KeyCmdComponentLifecycleBusy, "其他生命周期操作正在进行，已保留现有实例和已校验版本", "Another lifecycle action is running; the existing instance and verified version were retained")
 	Register(KeyCmdRuntimeChangedRetry, "运行环境已改变，请重新操作", "The runtime changed; retry the action")
-	Register(KeyCmdComponentTaskProtectionIncomplete, "操作未执行或任务保护未完成；请查看启动器提示后重试", "The action did not run or task protection did not finish; check the launcher notice and retry")
+	Register(KeyCmdComponentTaskProtectionIncomplete, "未更改组件。请先处理任务保护提示，再重试。", "The component did not change. Respond to the task protection prompt before retrying.")
 	Register(KeyCmdComponentConfirmationUnavailable, "无法显示组件操作确认；未更改组件", "Component confirmation is unavailable; the component was not changed")
 	Register(KeyCmdHostSelectionBusy, "其他生命周期操作正在进行，请稍后选择 Host", "Another lifecycle action is running; select the Host later")
 	Register(KeyCmdHostExternalOverride, "请先在启动设置中清空显式 dshBin/nodeBin，并移除 WHALEISLE_VENDOR 覆盖；现有外部运行时未更改", "Clear explicit dshBin/nodeBin in startup settings and remove the WHALEISLE_VENDOR override first; the external runtime was not changed")

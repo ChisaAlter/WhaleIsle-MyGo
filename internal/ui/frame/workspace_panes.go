@@ -36,6 +36,7 @@ type WorkspacePanes struct {
 
 type WorkspacePane struct {
 	refreshResource                    func()
+	refreshPending                     *workspacePageRefresh
 	ProjectTeam                        *WorkspaceProjectTeamState  `json:"projectTeam,omitempty"`
 	OrdinaryTeam                       *WorkspaceOrdinaryTeamState `json:"ordinaryTeam,omitempty"`
 	terminalFresh                      bool

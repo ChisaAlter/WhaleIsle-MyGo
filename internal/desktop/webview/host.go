@@ -95,23 +95,26 @@ type Host struct {
 	onClosed              func()
 	onShortcutCloseWindow func(*mygo.Window, func() bool)
 
-	gateway         *pluginslots.Gateway
-	mu              sync.Mutex
-	parent          *mygo.Window
-	win             *mygo.Window
-	topInset        int
-	url             string
-	offResize       func()
-	offMove         func()
-	navigationEpoch uint64
-	capturePending  bool
-	loading         bool
-	stopped         bool
-	err             string
-	title           string
-	changed         func()
-	failure         func(PageFailure)
-	failureEpoch    uint64
+	gateway          *pluginslots.Gateway
+	mu               sync.Mutex
+	parent           *mygo.Window
+	win              *mygo.Window
+	topInset         int
+	url              string
+	offResize        func()
+	offMove          func()
+	offParentShow    func()
+	offParentHide    func()
+	visibleRequested bool
+	navigationEpoch  uint64
+	capturePending   bool
+	loading          bool
+	stopped          bool
+	err              string
+	title            string
+	changed          func()
+	failure          func(PageFailure)
+	failureEpoch     uint64
 }
 
 // NewHost creates a hidden frameless child WebView2 window. Call
@@ -401,6 +404,8 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 	h.offResize = opts.Parent.OnResize(func() {
 		h.SyncBounds()
 	})
+	h.offParentShow = opts.Parent.OnShow(h.syncVisibility)
+	h.offParentHide = opts.Parent.OnHide(h.syncVisibility)
 	child.OnClose(func(e *mygo.CloseEvent) {
 		e.PreventDefault()
 		if gateway != nil || localPreview || opts.TransientProfile {
@@ -515,11 +520,19 @@ func (h *Host) SetVisible(visible bool) {
 		return
 	}
 	h.mu.Lock()
-	win := h.win
+	h.visibleRequested = visible
+	h.mu.Unlock()
+	h.syncVisibility()
+}
+
+func (h *Host) syncVisibility() {
+	h.mu.Lock()
+	win, parent, visible := h.win, h.parent, h.visibleRequested
 	h.mu.Unlock()
 	if win == nil || win.IsDestroyed() {
 		return
 	}
+	visible = visible && parent != nil && !parent.IsDestroyed() && parent.IsVisible()
 	if visible {
 		h.SyncBounds()
 		if !win.IsVisible() {
@@ -588,6 +601,8 @@ func (h *Host) Close() error {
 	off := h.offResize
 	offMove := h.offMove
 	h.offMove = nil
+	offShow, offHide := h.offParentShow, h.offParentHide
+	h.offParentShow, h.offParentHide = nil, nil
 	win := h.win
 	h.offResize = nil
 	h.win = nil
@@ -613,6 +628,12 @@ func (h *Host) Close() error {
 	}
 	if offMove != nil {
 		offMove()
+	}
+	if offShow != nil {
+		offShow()
+	}
+	if offHide != nil {
+		offHide()
 	}
 	if off != nil {
 		off()

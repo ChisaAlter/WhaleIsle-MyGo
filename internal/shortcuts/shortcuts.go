@@ -41,7 +41,7 @@ var commands = []Command{
 	{"market.open", "打开市场", "Open marketplace", "Mod+Shift+M"},
 	{"schedule.open", "打开日程", "Open schedules", "Mod+Shift+D"},
 	{"assistant.open", "打开助手", "Open assistant", "Mod+Shift+G"},
-	{"launcher.open", "打开启动器", "Open launcher", "Mod+Shift+L"},
+	{"launcher.open", "打开桌面设置", "Open desktop settings", "Mod+Shift+L"},
 	{"harness.restart", "重启 Harness", "Restart Harness", "Mod+Alt+F5"},
 	{"window.refresh", "重新绘制界面", "Refresh native interface", "Mod+F5"},
 	{"settings.mcp", "打开 MCP 设置", "Open MCP settings", ""},
