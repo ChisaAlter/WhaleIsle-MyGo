@@ -16,11 +16,11 @@ func startupCauseText(d startuprec.Diagnostics) string {
 	case "port-in-use":
 		return releaseText("端口已占用：更换端口或确认占用进程。", "The port is already in use; choose another port or identify the owner.")
 	case "missing-node":
-		return releaseText("缺少 Node 运行环境：在版本页选择含运行环境的发布。", "Node runtime is missing; choose a release with runtime on the Versions page.")
+		return releaseText("缺少 Node 运行环境：在更新中心选择含运行环境的发布。", "Node runtime is missing; choose a release with runtime on the Update center.")
 	case "session-cache":
 		return releaseText("会话缓存结构不兼容：保留原文件后修复；不会自动删除会话数据。", "Session cache schema mismatch: preserve the original data before repair. No session data is deleted automatically.")
 	case "runtime":
-		return releaseText("证据指向内置运行时损坏；跳过用户插件无法修复。请在版本页选择匹配的运行环境。", "Evidence points to built-in runtime damage. Skipping user plugins cannot repair it; choose a matching runtime on the Versions page.")
+		return releaseText("证据指向内置运行时损坏；跳过用户插件无法修复。请在更新中心选择匹配的运行环境。", "Evidence points to built-in runtime damage. Skipping user plugins cannot repair it; choose a matching runtime on the Update center.")
 	case "plugins":
 		return releaseText("本次启动证据指向以下插件；仅已验证、可禁用的库存条目允许针对性修复。", "This startup implicates the plugins below. Only verified, mutable inventory entries can be repaired selectively.")
 	default:
@@ -30,7 +30,9 @@ func startupCauseText(d startuprec.Diagnostics) string {
 func startupDiagnosticsPanel(c *ui.Context, m Model) {
 	d := m.StartupDiagnostics
 	ui.Column(c).FillWidth().Gap(6).Padding(10, 0, 10, 0).Children(func() {
-		ui.Text(c, releaseText("启动诊断", "Startup diagnostics")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary)
+		if m.StartError != "" {
+			ui.Text(c, m.StartError).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(13)).TextColor(colPrimary)
+		}
 		ui.Text(c, startupCauseText(d)).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
 		for _, e := range d.Evidence {
 			label := e.Name
@@ -50,8 +52,8 @@ func startupDiagnosticsPanel(c *ui.Context, m Model) {
 			if primaryBtn(c, releaseText("禁用可疑插件并重试", "Disable suspects and retry")).Disabled(!d.CanRepair || m.StartupRepairBusy).Clicked() && m.OnRepairStartupSuspects != nil {
 				m.OnRepairStartupSuspects()
 			}
-			if (d.Kind == "runtime" || d.Kind == "missing-node") && ghostSmall(c, releaseText("选择修复版本", "Choose repair release")).Clicked() && m.OnTab != nil {
-				m.OnTab(TabVersions)
+			if (d.Kind == "runtime" || d.Kind == "missing-node") && ghostSmall(c, releaseText("选择修复版本", "Choose repair release")).Clicked() && m.OnChooseRepairRelease != nil {
+				m.OnChooseRepairRelease()
 			}
 		})
 		if len(d.RepairNames) > 0 {

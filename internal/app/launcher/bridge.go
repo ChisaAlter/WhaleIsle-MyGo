@@ -18,7 +18,6 @@ type HostEnv struct {
 	BuildVersion       string
 	DownloadRoute      string
 	Quitting           bool
-	LauncherOpen       bool
 	LauncherImportBusy bool
 	TaskRestartPending bool
 	HostStarting       bool

@@ -36,44 +36,6 @@ func (f *fakePathSetter) SetUserDataPath(p string) { f.userData = p }
 func (f *fakePathSetter) SetCachePath(p string)    { f.cache = p }
 func (f *fakePathSetter) SetLogsPath(p string)     { f.logs = p }
 
-type fakeLauncherStage struct {
-	haveLauncher    bool
-	mainShown       bool
-	mainVisible     bool
-	quitting        bool
-	windowAvailable bool
-	created         int
-	closed          int
-	shows           int
-	events          []string
-}
-
-func (f *fakeLauncherStage) LauncherOpen() bool { return f.haveLauncher }
-func (f *fakeLauncherStage) ShowLauncher() bool {
-	if !f.windowAvailable {
-		return false
-	}
-	if !f.haveLauncher {
-		f.haveLauncher = true
-		f.created++
-	}
-	f.shows++
-	f.events = append(f.events, "show-launcher")
-	return true
-}
-func (f *fakeLauncherStage) CloseLauncher() {
-	f.haveLauncher = false
-	f.closed++
-	f.events = append(f.events, "close-launcher")
-}
-func (f *fakeLauncherStage) ShowMain() {
-	f.mainShown = true
-	f.mainVisible = true
-	f.events = append(f.events, "show-main")
-}
-func (f *fakeLauncherStage) MainVisible() bool { return f.mainVisible }
-func (f *fakeLauncherStage) Quitting() bool    { return f.quitting }
-
 type stubSelectionDeps struct {
 	envMu sync.Mutex
 	env   HostEnv
@@ -103,63 +65,6 @@ func (s *stubSelectionDeps) ObserveBridgeAlerts()           {}
 func (s *stubSelectionDeps) RefuseHostAction()              {}
 func (s *stubSelectionDeps) UpdateWindow(WindowRef, func()) {}
 func (s *stubSelectionDeps) InvalidateSurface(WindowRef)    {}
-
-func TestFirstWindowGatesColdStart(t *testing.T) {
-	for _, tc := range []struct {
-		name                                   string
-		isolated, hidden, background, settings bool
-		want                                   bool
-	}{
-		{"cold foreground start", false, false, false, false, true},
-		{"isolated desktop keeps the panel", true, false, false, false, false},
-		{"login start keeps the main window", false, true, false, false, false},
-		{"background never creates it", false, false, true, false, false},
-		{"settings route needs the main window", false, false, false, true, false},
-	} {
-		if got := FirstWindow(tc.isolated, tc.hidden, tc.background, tc.settings); got != tc.want {
-			t.Fatalf("%s: got %v want %v", tc.name, got, tc.want)
-		}
-	}
-}
-
-func TestLauncherStageLifecycle(t *testing.T) {
-	prev := SetPortableDesktopRoot("")
-	t.Cleanup(func() { SetPortableDesktopRoot(prev) })
-	t.Setenv("WHALEISLE_ISOLATED", "")
-
-	stage := &fakeLauncherStage{windowAvailable: true}
-	res := ApplyStage(stage, true)
-	if !res.LauncherShown || res.MainShown || res.LauncherClosed {
-		t.Fatalf("cold start result = %+v", res)
-	}
-	for i := 0; i < 3; i++ {
-		again := ApplyStage(stage, true)
-		if again.LauncherShown || again.MainShown || again.LauncherClosed {
-			t.Fatalf("repeat %d created work: %+v", i, again)
-		}
-	}
-	res2 := ApplyStage(stage, false)
-	if !res2.LauncherClosed || !res2.MainShown {
-		t.Fatalf("hand-off = %+v", res2)
-	}
-	if again := ApplyStage(stage, false); again.LauncherClosed || again.MainShown {
-		t.Fatalf("second hand-off = %+v", again)
-	}
-
-	fallback := &fakeLauncherStage{windowAvailable: false}
-	res3 := ApplyStage(fallback, true)
-	if !res3.MainShown || res3.LauncherShown || fallback.created != 0 {
-		t.Fatalf("fallback = %+v", res3)
-	}
-
-	quitting := &fakeLauncherStage{windowAvailable: true, quitting: true}
-	if r := ApplyStage(quitting, true); r.MainShown {
-		t.Fatalf("quit showed main window: %+v", r)
-	}
-	if r := ApplyStage(quitting, false); !r.LauncherClosed || r.MainShown {
-		t.Fatalf("quit close = %+v", r)
-	}
-}
 
 func TestIsolatedDesktopGuardsAndVisibilityCombinations(t *testing.T) {
 	prev := SetPortableDesktopRoot("")

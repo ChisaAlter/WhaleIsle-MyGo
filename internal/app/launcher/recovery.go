@@ -51,6 +51,11 @@ func (c *Controller) ColdStartupAllowed(cfg config.Config, importReady bool) boo
 		}
 		if cfg.SkipUserPlugins {
 			c.note = i18n.T(i18n.KeyCmdSkipUserPluginsRecoveryIsSavedStartIn)
+			// The skip is the whole reason here: the recovery sentence would
+			// claim a failure that did not happen.
+			if !failed {
+				c.startErr = c.note
+			}
 		}
 	}
 	return startuprec.ShouldAutoStart(cfg.Workspace, cfg.AutoStartDesktop, importReady, failed, cfg.SkipUserPlugins)

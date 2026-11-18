@@ -47,6 +47,9 @@ func TestMonitorZeroHzIdleAndImmediateServiceWake(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, func() bool { return calls.Load() == 2 })
+	// Production owns one monitor. Retire the source-only instance before
+	// exercising notification delivery, otherwise it can claim the same notice.
+	m.Close()
 
 	// RetryNotice wakes Monitor immediately to deliver pending notifications.
 	task := resultTask(t, s, dir)

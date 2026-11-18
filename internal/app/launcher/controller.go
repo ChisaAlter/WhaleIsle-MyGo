@@ -357,6 +357,19 @@ func (c *Controller) EndPreparationOnly() {
 	c.mu.Unlock()
 }
 
+type StartupActivity struct {
+	Busy, Preparing bool
+	Error           string
+}
+
+// StartupActivity is the small workbench projection; it does not load any
+// maintenance inventory or seed preference drafts.
+func (c *Controller) StartupActivity() StartupActivity {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return StartupActivity{Busy: c.startBusy, Preparing: c.startPreparing, Error: c.startErr}
+}
+
 // ObserveBootStatus updates startBusy/startFailed/startErr from a supervisor status transition.
 func (c *Controller) ObserveBootStatus(prev harness.State, st harness.Status) {
 	c.mu.Lock()

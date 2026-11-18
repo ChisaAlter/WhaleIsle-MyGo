@@ -27,8 +27,8 @@ func TestDesktopBehaviourSelectsFollowTheStoredBooleans(t *testing.T) {
 	if !tt.HasText("Minimize to tray") {
 		t.Fatalf("close=true did not select the tray option: %v", tt.Texts())
 	}
-	if !tt.HasText("Open launcher first") {
-		t.Fatalf("autostart=false did not select the launcher option: %v", tt.Texts())
+	if !tt.HasText("Start Host manually") {
+		t.Fatalf("autostart=false did not select manual Host start: %v", tt.Texts())
 	}
 
 	closeToTray, autoStart = false, true
@@ -36,7 +36,7 @@ func TestDesktopBehaviourSelectsFollowTheStoredBooleans(t *testing.T) {
 	if !tt.HasText("Quit") {
 		t.Fatalf("close=false did not select the quit option: %v", tt.Texts())
 	}
-	if !tt.HasText("Start desktop directly") {
+	if !tt.HasText("Start Host automatically") {
 		t.Fatalf("autostart=true did not select the desktop option: %v", tt.Texts())
 	}
 }

@@ -4,11 +4,9 @@ package launcherctl
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"sync"
 
-	"golang.org/x/sys/windows"
+	"whaleisle/internal/credentials"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/i18n"
 )
@@ -26,15 +24,7 @@ func ClaimDesktopProfile() (func(), error) {
 
 // ClaimDesktopProfileAt exclusively locks <profile>/lockfile without truncating it.
 func ClaimDesktopProfileAt(profile string) (func(), error) {
-	if err := os.MkdirAll(profile, 0o700); err != nil {
-		return nil, err
-	}
-	name, err := windows.UTF16PtrFromString(filepath.Join(profile, "lockfile"))
-	if err != nil {
-		return nil, err
-	}
-	h, err := windows.CreateFile(name, windows.GENERIC_READ|windows.GENERIC_WRITE,
-		0, nil, windows.OPEN_ALWAYS, windows.FILE_ATTRIBUTE_NORMAL, 0)
+	release, err := credentials.ClaimDesktopProfileWriter(profile)
 	if err != nil {
 		msg := "此共享数据目录正由另一个鲸屿 MyGo / 鲸屿桌面占用，或无法取得独占访问。请先关闭其他桌面实例，或使用独立数据目录。"
 		if i18n.Locale() == i18n.LocaleEN {
@@ -42,6 +32,5 @@ func ClaimDesktopProfileAt(profile string) (func(), error) {
 		}
 		return nil, fmt.Errorf("%s: %w", msg, err)
 	}
-	var once sync.Once
-	return func() { once.Do(func() { _ = windows.CloseHandle(h) }) }, nil
+	return release, nil
 }

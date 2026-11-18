@@ -37,9 +37,9 @@ func TestDesktopImmediatePreferencesSaveIndependentlyAndRollback(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) { desktopPane(c, Model{Desktop: desktop}, c.Theme().Text, c.Theme().TextMuted) }, 900, 1300)
 	choose := func(label, option string) {
 		t.Helper()
-		current := "Open launcher first"
+		current := "Start Host manually"
 		if autoStart {
-			current = "Start desktop directly"
+			current = "Start Host automatically"
 		}
 		if label == "When closing the window" {
 			current = "Quit"
@@ -58,7 +58,7 @@ func TestDesktopImmediatePreferencesSaveIndependentlyAndRollback(t *testing.T) {
 	if closeToTray || autoStart || closeCalls != 1 || startCalls != 0 || formSaves != 0 {
 		t.Fatal("close selection did not save only its own field")
 	}
-	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Start desktop directly")
+	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Start Host automatically")
 	if closeToTray || !autoStart || closeCalls != 1 || startCalls != 1 || formSaves != 0 {
 		t.Fatal("startup selection submitted the form or changed close behavior")
 	}
@@ -67,8 +67,8 @@ func TestDesktopImmediatePreferencesSaveIndependentlyAndRollback(t *testing.T) {
 	if closeToTray || closeCalls != 2 || !tt.HasText("Quit") || !tt.HasText(failure.Error()) {
 		t.Fatal("failed close save did not restore accepted choice and show error")
 	}
-	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Open launcher first")
-	if !autoStart || startCalls != 2 || !tt.HasText("Start desktop directly") {
+	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Start Host manually")
+	if !autoStart || startCalls != 2 || !tt.HasText("Start Host automatically") {
 		t.Fatal("failed startup save did not restore accepted choice")
 	}
 	failure = nil
@@ -96,7 +96,7 @@ func TestDesktopImmediatePreferencesWithoutFormSave(t *testing.T) {
 			OnSetAutoStartDesktop: func(next bool) (bool, error) { calls++; return next, nil },
 		}}, c.Theme().Text, c.Theme().TextMuted)
 	}, 900, 1300)
-	for _, choice := range []struct{ label, option string }{{"Minimize to tray", "Quit"}, {"Open launcher first", "Start desktop directly"}} {
+	for _, choice := range []struct{ label, option string }{{"Minimize to tray", "Quit"}, {"Start Host manually", "Start Host automatically"}} {
 		if err := tt.Click(choice.label); err != nil {
 			t.Fatal(err)
 		}

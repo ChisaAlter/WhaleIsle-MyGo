@@ -6,8 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/harness"
 )
 
 // The reference page's foot is .ticker (boot.css:432-501): one line of the
@@ -27,28 +26,45 @@ const (
 )
 
 // bootTicker paints the newest log line and the count of lines collected.
-func bootTicker(c *ui.Context, logs []string, under ui.Color, openLog ...func()) {
-	line := i18n.T(KeyWaiting)
-	if len(logs) > 0 {
-		line = logs[len(logs)-1]
+func bootTicker(c *ui.Context, m Model, palette *scenePalette, openLog ...func()) {
+	// The line multiplexes action feedback, the state's hint and the newest log
+	// entry, and shows nothing when all three are empty (boot.js:44,57-63).
+	line := ""
+	lineColor := palette.log
+	switch {
+	case m.Status.State == harness.Failed && m.StatusText == "":
+		line = bootText("可立即重启，或根据日志调整配置。", "Restart now, or adjust the configuration from the log.")
+	case len(m.Logs) > 0:
+		line = m.Logs[len(m.Logs)-1]
+		// .ticker-line.important: a log line that explains a failure is the one
+		// place the foot turns to the alert colour (boot.css:442-444).
+		if importantBootLog.MatchString(line) {
+			lineColor = palette.underAlert
+		}
 	}
-	font := theme.RenderPreferences().Code.Family
-	size := theme.InterfaceSize(11.5)
-	ui.Row(c).Key("boot-ticker").FillWidth().Shrink(0).Justify(ui.Center).
+	// The dot alone carries the failure colour; the hint line keeps the foot's
+	// own ink (boot.css:432-434,442-444).
+	dotColor := palette.log
+	if m.Status.State == harness.Failed {
+		dotColor = palette.underAlert
+	}
+	const size = 11.5
+	ui.Row(c).Key("boot-ticker").Absolute().Left(0).Right(0).Bottom(0).Justify(ui.Center).
 		Padding(0, tickerInsetX, tickerInsetBottom, tickerInsetX).Children(func() {
-		button := ui.Button(c, "").Key("boot-ticker-inner").Background(ui.Transparent).BorderWidth(0).Padding(4).Label(bootText("查看全部启动日志", "Show all startup logs")).Width(tickerWidth).MaxWidthPercent(100).
+		button := ui.Button(c, "").Key("boot-ticker-inner").Background(ui.Transparent).BorderWidth(0).Padding(4, 14).Label(bootText("全部日志", "All logs")).MaxWidth(tickerWidth).MaxWidthPercent(100).
 			Gap(10).AlignItems(ui.Center).Children(func() {
 			dot := ui.Box(c).Key("boot-ticker-dot").Size(5, 5).Radius(2.5).Shrink(0)
 			alpha := float32(1)
 			if !c.Preferences().ReduceMotion {
 				alpha = 1 - .65*dot.Loop("boot-ticker-pulse", tickerPulse, ui.Bounce(ui.EaseInOut))
 			}
-			dot.Background(under.Alpha(alpha))
-			ui.Text(c, line).Font(font).FontSize(size).FixedLineHeight(theme.InterfaceSize(18)).
-				TextColor(under).MinWidth(0).Grow(1).SingleLine().Ellipsis("…")
+			dot.Background(dotColor.Alpha(alpha))
+			ui.Text(c, line).Font(bootCodeFont).FontSize(size).FixedLineHeight(18).
+				TextColor(lineColor).MinWidth(0).SingleLine().Ellipsis("…")
 			// L 00: the count the drawer's title repeats (boot.js updateLogCount).
-			ui.Text(c, fmt.Sprintf("L %02d", len(logs))).Font(font).FontSize(size).
-				FixedLineHeight(theme.InterfaceSize(18)).TextColor(under.Alpha(.6)).Shrink(0).NoWrap()
+			ui.Text(c, fmt.Sprintf("L %02d", len(m.Logs))).Font(bootCodeFont).FontSize(size).
+				LetterSpacing(size * .08).FixedLineHeight(18).TextColor(palette.log.Alpha(.6)).Shrink(0).NoWrap()
+			ui.Text(c, bootText("全部日志", "All logs")).FontSize(size).TextColor(palette.log.Alpha(.55)).Shrink(0).NoWrap()
 		})
 		if button.Clicked() && len(openLog) > 0 && openLog[0] != nil {
 			openLog[0]()
