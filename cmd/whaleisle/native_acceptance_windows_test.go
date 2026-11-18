@@ -117,7 +117,9 @@ func TestMain(m *testing.M) {
 	if len(os.Args) == 3 && os.Args[1] == nativeRecoveryFlag {
 		os.Exit(0)
 	}
-	if reconnect := os.Getenv("WHALEISLE_ACCEPTANCE_RECONNECT_OUTPUT"); reconnect != "" {
+	if a2 := os.Getenv("WHALEISLE_ACCEPTANCE_A2_OUTPUT"); a2 != "" {
+		nativeAcceptanceError = runNativeA2Desktop(a2)
+	} else if reconnect := os.Getenv("WHALEISLE_ACCEPTANCE_RECONNECT_OUTPUT"); reconnect != "" {
 		nativeAcceptanceError = runNativeReconnectDesktop(reconnect)
 	} else if os.Getenv("WHALEISLE_ACCEPTANCE_OUTPUT") != "" {
 		nativeAcceptanceError = runNativeCoreRecoveryDesktop()

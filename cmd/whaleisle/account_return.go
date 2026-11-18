@@ -153,13 +153,14 @@ func (s *mainState) returnFromAccountPage() {
 	}
 	s.accountReturn.embedded = ""
 	if source == "settings" {
+		s.setMainRouteLocked(routeSettings)
 		s.settingsEmbeddedSection = ""
-		s.settingsOpen = true
 		s.settingsAccountActive = true
 	} else if source == "usage" {
-		s.usageOpen = true
+		s.setMainRouteLocked(routeUsage)
 	}
 	s.mu.Unlock()
+	s.syncMainRouteResources()
 	if source != "" {
 		s.refreshReturnedAccount()
 	}

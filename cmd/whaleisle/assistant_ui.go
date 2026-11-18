@@ -237,7 +237,7 @@ func (d mainAssistantDeps) asstHostDeps() assistantctl.HostDeps {
 		OtherSurfaceBlocking: func() bool {
 			d.s.mu.Lock()
 			defer d.s.mu.Unlock()
-			return d.s.launcherOpen || d.s.settingsOpen || d.s.usageOpen || d.s.imOpen || d.s.marketOpen || d.s.scheduleOpen || d.s.remoteOpen || d.s.webviewOpen || d.s.browserPreviewOpen
+			return d.s.maintenanceOpen || d.s.settingsOpen || d.s.usageOpen || d.s.imOpen || d.s.marketOpen || d.s.scheduleOpen || d.s.remoteOpen || d.s.webviewOpen || d.s.browserPreviewOpen
 		},
 		PetSettingsActive: func() bool {
 			d.s.mu.Lock()
@@ -275,10 +275,7 @@ func (d mainAssistantDeps) asstHostDeps() assistantctl.HostDeps {
 		NotifyUser:            func(win any, text string) { w, _ := win.(*mygo.Window); d.s.notifyUser(w, text) },
 		OpenWebViewHostPlugin: d.s.openWebViewHostPlugin,
 		MarkWebViewOpen: func() {
-			d.s.mu.Lock()
-			d.s.webviewOpen = true
-			d.s.browserPreviewOpen = false
-			d.s.mu.Unlock()
+			d.s.navigateMainRoute(routeWebView)
 		},
 		RevealMainConversation: d.s.revealMainConversation,
 		SelectMainPanel:        d.s.selectMainPanel,

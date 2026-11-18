@@ -12,7 +12,7 @@ import (
 func (s *mainState) creatorTaskNavigationCurrent(source *session.Store) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.win != nil && !s.win.IsDestroyed() && s.sessions == source && s.settingsOpen && s.settingsAgentPresetsActive && !s.quitting && !s.launcherOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen
+	return s.win != nil && !s.win.IsDestroyed() && s.sessions == source && s.settingsOpen && s.settingsAgentPresetsActive && !s.quitting && !s.maintenanceOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen
 }
 
 // Called only by UI-thread entry points and the post-render observer.
@@ -100,13 +100,10 @@ func (s *mainState) openCreatorTask(creator *session.CreatorTask, source *sessio
 		return
 	}
 	s.mu.Lock()
-	s.settingsOpen = false
 	s.settingsAgentPresetsActive = false
-	s.marketOpen = false
-	s.scheduleOpen = false
-	s.toolsMenuOpen = false
+	s.setMainRouteLocked(routeConversation)
 	s.mu.Unlock()
-	s.assistantService().SetOpen(false)
+	s.syncMainRouteResources()
 	creator.ObserveVisible(false)
 }
 

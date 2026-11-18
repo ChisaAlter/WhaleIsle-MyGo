@@ -19,13 +19,7 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 	if err == nil || err == taskcontrol.ErrCancelled {
 		return
 	}
-	s.mu.Lock()
-	s.launcherOpen = true
-	s.mu.Unlock()
-	s.launcherController().SetStartError(false, true, i18n.T(i18n.KeyCmdActionDidNotCompleteTheWindowWasKept)+err.Error())
-	if win != nil {
-		win.Update(func() {})
-	}
+	s.notifyUser(win, i18n.T(i18n.KeyCmdActionDidNotCompleteTheWindowWasKept)+err.Error())
 }
 
 func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
@@ -239,7 +233,7 @@ func (s *mainState) quitProtected(win *mygo.Window, sup *harness.Supervisor) boo
 	})
 }
 
-// stopProtected is the launcher's explicit Stop entry. Keep the window and
+// stopProtected is the explicit Host Stop action. Keep the window and
 // running Host intact until the same admission checks used by restart succeed.
 func (s *mainState) stopProtected(win *mygo.Window, sup *harness.Supervisor) {
 	if sup == nil {

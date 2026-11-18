@@ -17,12 +17,16 @@ func (s *mainState) prepareComposerFile(win *mygo.Window, sessions *session.Stor
 	if err != nil {
 		return
 	}
-	prepareComposerAttachment(owner, d, index, retry, func(fn func()) { win.Update(fn) })
+	prepareComposerAttachmentContext(s.lifecycleContext(), owner, d, index, retry, func(fn func()) { win.Update(fn) })
 }
 
 // Both native and plugin retries retain the target captured at admission.
 // post owns UI progress/completion; no worker mutates a resident draft directly.
 func prepareComposerAttachment(owner *session.ComposerTarget, d *composer.DraftState, index int, retry bool, post func(func())) bool {
+	return prepareComposerAttachmentContext(context.Background(), owner, d, index, retry, post)
+}
+
+func prepareComposerAttachmentContext(parent context.Context, owner *session.ComposerTarget, d *composer.DraftState, index int, retry bool, post func(func())) bool {
 	if owner == nil || d == nil || post == nil || !owner.Current() {
 		return false
 	}
@@ -30,12 +34,17 @@ func prepareComposerAttachment(owner *session.ComposerTarget, d *composer.DraftS
 	if !ok {
 		return false
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
 	d.SetAttachmentCancel(a, cancel)
 	go func() {
 		defer cancel()
-		prepared, err := owner.PrepareAttachmentProgress(ctx, a, func(sent, total int64) {
-			post(func() { d.UpdateAttachmentProgress(a, sent, total) })
+		var prepared session.ComposerAttachment
+		err := withComposerFileWorker(ctx, func() error {
+			var err error
+			prepared, err = owner.PrepareAttachmentProgress(ctx, a, func(sent, total int64) {
+				post(func() { d.UpdateAttachmentProgress(a, sent, total) })
+			})
+			return err
 		})
 		post(func() {
 			d.CompleteAttachmentPreparation(index, a, prepared, err)

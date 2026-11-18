@@ -59,7 +59,7 @@ func TestApplicationMenuTemplateMatchesNative(t *testing.T) {
 	if menu.ItemByID("edit") != nil || menu.ItemByID("app") != nil {
 		t.Fatalf("non-native top-level rows: %v", menuRows(menu.Items()))
 	}
-	wantFile := "workspace.add,launcher.open,workspace.reveal,-,settings.open,market.open,settings.mcp,settings.skills,-,app.quit"
+	wantFile := "workspace.add,workspace.reveal,-,settings.open,market.open,settings.mcp,settings.skills,-,app.quit"
 	if got := strings.Join(menuRows(menu.ItemByID("file").Submenu), ","); got != wantFile {
 		t.Fatalf("File = %s, want %s", got, wantFile)
 	}
@@ -92,7 +92,6 @@ func TestApplicationMenuTemplateMatchesNative(t *testing.T) {
 func TestApplicationMenuLabelsMatchNative(t *testing.T) {
 	cases := []struct{ id, zh, en string }{
 		{"workspace.add", "打开工作区…", "Open workspace…"},
-		{"launcher.open", "打开启动器", "Open launcher"},
 		{"workspace.reveal", "在资源管理器中打开工作区", "Open workspace in explorer"},
 		{"settings.open", "设置…", "Settings…"},
 		{"market.open", "插件市场…", "Marketplace…"},
@@ -166,7 +165,7 @@ func TestApplicationMenuKeycapsFollowTheRevision(t *testing.T) {
 	}
 	// Rows the native template gives no accelerator never show one, even when a
 	// page binding exists: the menu is not the accelerator owner.
-	for _, id := range []string{"launcher.open", "workspace.reveal", "settings.mcp", "settings.skills", "help.web", "help.sdk", "settings.about", "app.quit"} {
+	for _, id := range []string{"workspace.reveal", "settings.mcp", "settings.skills", "help.web", "help.sdk", "settings.about", "app.quit"} {
 		if got := keycapOf(t, menu, id); got != "" {
 			t.Fatalf("%s shows %q, want no keycap", id, got)
 		}

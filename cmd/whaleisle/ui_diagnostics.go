@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"whaleisle/internal/startuptrace"
 	"whaleisle/internal/store/session"
 )
 
@@ -25,11 +26,12 @@ import (
 //	WHALEISLE_UI_SAMPLE        sample goroutine 1's stack into a file
 //	   _SAMPLE_MS sampling interval in milliseconds (default 250)
 var (
-	uiDiagFrames      atomic.Int64
-	uiDiagLastFrameNs atomic.Int64
-	uiDiagSlowFrames  atomic.Int64
-	uiDiagRefreshHits atomic.Int64
-	uiDiagRefreshNil  atomic.Int64
+	uiDiagFrames         atomic.Int64
+	uiDiagLastFrameNs    atomic.Int64
+	uiDiagSlowFrames     atomic.Int64
+	uiDiagRefreshHits    atomic.Int64
+	uiDiagRefreshNil     atomic.Int64
+	uiDiagWorkspaceReady atomic.Bool
 )
 
 func uiDiagSeconds(name string, fallback int) int {
@@ -128,11 +130,44 @@ func startUIDiagnostics() {
 // recordViewFrame records one mainView build for the sampler. It is deferred
 // first in mainView so it covers the whole build, overlay included.
 func recordViewFrame(start time.Time) {
-	uiDiagFrames.Add(1)
+	if uiDiagFrames.Add(1) == 1 {
+		// This ends the first native view build, before engine layout/paint.
+		// Keep that name precise: it is not a visible/presented frame latency.
+		startuptrace.Mark("ui.first_view_built")
+	}
 	took := time.Since(start)
 	uiDiagLastFrameNs.Store(int64(took))
 	if took > 16*time.Millisecond {
 		uiDiagSlowFrames.Add(1)
+	}
+}
+
+// recordStartupWorkspaceReady completes the startup trace only after the
+// current store can operate on the workspace. Host readiness is a separate
+// earlier milestone. Called by the existing store-change callback; no polling.
+func (s *mainState) recordStartupWorkspaceReady(sessions *session.Store) {
+	if sessions == nil {
+		return
+	}
+	s.mu.Lock()
+	current := s.sessions == sessions && s.dshMuxReady
+	loading := s.coldLoading
+	s.mu.Unlock()
+	if !current || (!loading && (!startuptrace.Enabled() || uiDiagWorkspaceReady.Load())) {
+		return
+	}
+	snapshot := sessions.Snapshot()
+	ready := snapshot.ClientReady && snapshot.WorkspaceReady && !snapshot.ListLoading && snapshot.ListErr == "" && snapshot.WorkspaceError == ""
+	if loading && (ready || snapshot.WorkspaceError != "" || snapshot.ListErr != "") {
+		s.mu.Lock()
+		if s.sessions == sessions && s.dshMuxReady {
+			s.coldLoading = false
+		}
+		s.mu.Unlock()
+	}
+	if ready && startuptrace.Enabled() && uiDiagWorkspaceReady.CompareAndSwap(false, true) {
+		startuptrace.Mark("workspace.ready")
+		startuptrace.Finish("ready")
 	}
 }
 

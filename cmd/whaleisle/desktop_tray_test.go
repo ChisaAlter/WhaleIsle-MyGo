@@ -16,7 +16,7 @@ func TestDesktopTrayMenuDispatchAndSnapshot(t *testing.T) {
 	var calls []string
 	record := func(s string) func() { return func() { calls = append(calls, s) } }
 	m := buildDesktopTrayMenu(desktopTrayActions{
-		open: record("open"), launcher: record("launcher"), settings: record("settings"), market: record("market"), restart: record("restart"), quit: record("quit"),
+		open: record("open"), settings: record("settings"), market: record("market"), restart: record("restart"), quit: record("quit"),
 		pet: func(enabled bool) {
 			if !enabled {
 				t.Fatal("checkbox did not pass explicit desired state")
@@ -25,7 +25,7 @@ func TestDesktopTrayMenuDispatchAndSnapshot(t *testing.T) {
 		},
 		canRestart: true, canTogglePet: true,
 	})
-	for _, id := range []string{"open", "launcher", "settings", "market", "restart", "pet", "quit"} {
+	for _, id := range []string{"open", "settings", "market", "restart", "pet", "quit"} {
 		item := m.ItemByID(id)
 		if item == nil || item.Click == nil || item.Disabled {
 			t.Fatalf("missing real action: %s", id)
@@ -38,7 +38,7 @@ func TestDesktopTrayMenuDispatchAndSnapshot(t *testing.T) {
 		}
 		item.Click(item, nil)
 	}
-	if !reflect.DeepEqual(calls, []string{"open", "launcher", "settings", "market", "restart", "pet", "quit"}) {
+	if !reflect.DeepEqual(calls, []string{"open", "settings", "market", "restart", "pet", "quit"}) {
 		t.Fatal(calls)
 	}
 	disabled := buildDesktopTrayMenu(desktopTrayActions{petEnabled: true})
@@ -117,13 +117,13 @@ func TestDesktopTrayRoutesClearHiddenPanelConflicts(t *testing.T) {
 		if s.imOpen || s.remoteOpen || s.toolsMenuOpen || s.webviewOpen || s.browserPreviewOpen || s.assistantService().Open() {
 			t.Fatalf("hidden route masks %s", action)
 		}
-		if (action == deeplink.ActionLauncher) != s.launcherOpen || (action == deeplink.ActionSettings) != s.settingsOpen || (action == deeplink.ActionMarket) != s.marketOpen {
+		if s.maintenanceOpen || (action == deeplink.ActionSettings || action == deeplink.ActionLauncher) != s.settingsOpen || (action == deeplink.ActionMarket) != s.marketOpen {
 			t.Fatalf("wrong target: %s", action)
 		}
 	}
 	s := &mainState{quitting: true}
 	s.openDesktopTrayPage(deeplink.ActionLauncher)
-	if s.launcherOpen {
+	if s.settingsOpen || s.maintenanceOpen {
 		t.Fatal("navigation reopened during final quit")
 	}
 }

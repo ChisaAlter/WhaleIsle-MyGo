@@ -73,9 +73,7 @@ func (s *mainState) openScheduleSession(row schedstore.Entry) {
 	s.revokePhoneGit()
 	sessions.Select(row.SessionID)
 	sessions.FollowSelected(context.Background())
-	s.mu.Lock()
-	s.scheduleOpen = false
-	s.mu.Unlock()
+	s.navigateMainRoute(routeConversation)
 	if win != nil {
 		win.Update(func() {})
 	}

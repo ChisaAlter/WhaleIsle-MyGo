@@ -55,11 +55,7 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 				sessions.SetLastAction(fmt.Sprintf(i18n.T(i18n.KeyCmdImageSnapshotFailed), err.Error()))
 				return
 			}
-			s.closeWebViewHost()
-			s.mu.Lock()
-			s.browserPreviewOpen = true
-			s.webviewOpen = false
-			s.mu.Unlock()
+			s.navigateMainRoute(routeBrowser)
 			if s.browserController == nil {
 				s.browserController = s.newBrowserController(win)
 			}

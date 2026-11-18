@@ -4,7 +4,7 @@ import "testing"
 
 func TestGlobalSessionNavigationRevealsConversation(t *testing.T) {
 	s := &mainState{
-		launcherOpen: true, settingsOpen: true, usageOpen: true, imOpen: true,
+		maintenanceOpen: true, settingsOpen: true, usageOpen: true, imOpen: true,
 		remoteOpen: true, webviewOpen: true, browserPreviewOpen: true,
 		marketOpen: true, scheduleOpen: true, toolsMenuOpen: true,
 		settingsEmbeddedSection: "models",
@@ -13,7 +13,7 @@ func TestGlobalSessionNavigationRevealsConversation(t *testing.T) {
 	s.launcherController().ResetWorkspaceDraft("unsaved workspace")
 	s.marketCoordinator().SetInstallSpec("unsaved package")
 	s.revealMainConversation()
-	if s.launcherOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen || s.marketOpen || s.scheduleOpen || s.assistantService().Open() || s.toolsMenuOpen || s.settingsEmbeddedSection != "" {
+	if s.maintenanceOpen || s.settingsOpen || s.usageOpen || s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen || s.marketOpen || s.scheduleOpen || s.assistantService().Open() || s.toolsMenuOpen || s.settingsEmbeddedSection != "" {
 		t.Fatal("exclusive page still masks the globally selected conversation")
 	}
 	if s.launcherController().PanelState(nil, "").Drafts.Workspace != "unsaved workspace" || s.marketCoordinator().ViewSnapshot().InstallSpec != "unsaved package" {

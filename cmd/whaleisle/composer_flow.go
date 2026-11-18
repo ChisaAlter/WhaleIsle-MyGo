@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
-	"path/filepath"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -44,34 +44,6 @@ func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
 			d.RetireBinding()
 		}
 	}
-}
-
-func (s *mainState) addComposerFiles(win *mygo.Window, sessions *session.Store, id string, d *composer.DraftState, paths []string) {
-	if d == nil || d.Sending {
-		return
-	}
-	if sessions != nil {
-		if err := validateComposerImageIntake(d.Attachments, paths, sessions.ComposerImageLimits(id)); err != nil {
-			d.Error = err.Error()
-			return
-		}
-	}
-	cwd, local := s.nativeComposerFileScope(sessions, id, d)
-	uploads, err := insertNativeComposerFiles(d, cwd, paths, local)
-	if err != nil {
-		d.Error = err.Error()
-		return
-	}
-	for _, path := range uploads {
-		if strings.TrimSpace(path) == "" {
-			continue
-		}
-		a := session.ComposerAttachment{Path: path, Name: filepath.Base(path)}
-		index := len(d.Attachments)
-		d.Attachments = append(d.Attachments, a)
-		s.prepareComposerFile(win, sessions, id, d, index, false)
-	}
-	d.Error = ""
 }
 
 func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
@@ -187,6 +159,21 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		if target == "" {
 			target, err = owner.CreateSession(ctx, cwd)
 		}
+		requestID := ""
+		var flightID uint64
+		if err == nil {
+			requestID = owner.BeginSubmission(text, attachments)
+			if requestID == "" {
+				err = errors.New(i18n.T(i18n.KeyCmdComposerHostChanged))
+			} else {
+				var draftSnapshot json.RawMessage
+				mygo.RunOnMain(func() {
+					flightID = d.BeginExclusiveSubmission(requestID, target, inputText, attachments, editSeq)
+					draftSnapshot = d.SaveDraft()
+				})
+				err = owner.StageSubmissionDraft(requestID, inputText, sourceID, draftSnapshot)
+			}
+		}
 		if err == nil {
 			for i := range attachments {
 				attachments[i], err = owner.PrepareAttachment(ctx, attachments[i])
@@ -196,55 +183,44 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 			}
 		}
 		if err == nil {
-			requestID := ""
-			if groupReply {
-				requestID = owner.BeginSubmission(text, attachments)
-			}
+			owner.UpdateSubmissionAttachments(requestID, attachments)
 			err = owner.Submit(ctx, text, attachments, editSeq, requestID)
+		} else if requestID != "" {
+			err = owner.AbandonSubmission(requestID, err)
 		}
 		win.Update(func() {
 			s.mu.Lock()
-			current := s.composerDrafts[id] == d
+			current := s.composerDrafts[sourceID] == d
 			quitting := s.quitting
 			s.mu.Unlock()
-			d.Sending = false
 			if quitting || !current {
 				return
 			}
-			d.TargetID = target
 			if err != nil {
+				d.TargetID = target
+				if flightID != 0 {
+					d.CompleteDetachedSend(flightID, attachments, err)
+				} else {
+					d.Sending = false
+				}
+				if errors.Is(err, session.ErrSubmissionUnconfirmed) {
+					return
+				}
 				if errors.Is(err, context.DeadlineExceeded) {
 					d.Error = i18n.T(i18n.KeyCmdComposerSendTimeout)
 				} else {
 					d.Error = err.Error()
 				}
-				d.Attachments = attachments
+				if flightID == 0 {
+					d.Attachments = attachments
+				}
+				sessions.AcknowledgeSubmissionOutcome(requestID)
 				return
 			}
-			if editSeq > 0 {
-				d.EndEdit()
-				return
+			if flightID != 0 {
+				d.AwaitDetachedSubmission(flightID, attachments)
 			}
-			// Typing while sending is allowed. Never erase newer edits.
-			if d.Text == inputText {
-				d.Text = ""
-			}
-			if groupReply {
-				d.GroupReply = nil
-			}
-			d.Attachments = nil
-			d.Error = ""
-			d.TargetID = ""
-			d.Client.ClearHistory()
-			if id == "" && sessions.SelectedSessionID() == "" {
-				s.mu.Lock()
-				s.composerDrafts[target] = d
-				delete(s.composerDrafts, "")
-				s.mu.Unlock()
-				sessions.Select(target)
-				sessions.RefreshList(s.lifecycleContext())
-				sessions.FollowSelected(s.lifecycleContext())
-			}
+			s.reconcileComposerSubmissions(sessions)
 		})
 	}()
 }

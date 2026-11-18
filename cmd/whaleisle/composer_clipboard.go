@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"github.com/egoist/mygo"
 	"os"
 	"path/filepath"
@@ -24,22 +26,34 @@ func (s *mainState) pasteComposerImage(win *mygo.Window, sessions *session.Store
 		}
 		return
 	}
-	s.mu.Lock()
+	s.dshMu.Lock()
 	host := s.dshClient
-	s.mu.Unlock()
+	s.dshMu.Unlock()
 	seq := d.EditSeq
 	d.Preparing++
+	ctx := s.lifecycleContext()
 	go func() {
-		path, err := clipboardimage.StorePNG(filepath.Join(paths.UserDataDir(), "cache", "attachments"), raw)
+		var path string
+		err := withComposerFileWorker(ctx, func() error {
+			var err error
+			path, err = clipboardimage.StorePNG(filepath.Join(paths.UserDataDir(), "cache", "attachments"), raw)
+			return err
+		})
+		if err == nil {
+			err = ctx.Err()
+		}
 		win.Update(func() {
 			d.Preparing--
 			s.mu.Lock()
 			current := s.composerDrafts[id]
-			sameStore := s.sessions == sessions && s.dshClient == host
+			sameStore := s.sessions == sessions && !s.quitting
 			s.mu.Unlock()
-			if !sameStore || !composer.PasteStillCurrent(d, current, id, sessions.SelectedSessionID(), seq) {
+			s.dshMu.Lock()
+			sameStore = sameStore && s.dshClient == host
+			s.dshMu.Unlock()
+			if !sameStore || !composer.PasteStillCurrent(d, current, id, id, seq) || errors.Is(err, context.Canceled) {
 				if path != "" {
-					_ = os.Remove(path)
+					go os.Remove(path)
 				}
 				return
 			}

@@ -60,7 +60,6 @@ import (
 	"whaleisle/internal/recovery"
 	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/shortcuts"
-	"whaleisle/internal/startuprec"
 	"whaleisle/internal/startuptrace"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
@@ -74,7 +73,6 @@ import (
 	settingsstore "whaleisle/internal/store/settings"
 	usagestore "whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/assistant"
-	"whaleisle/internal/ui/boot"
 	browserpreviewui "whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
@@ -85,7 +83,6 @@ import (
 	"whaleisle/internal/ui/frame"
 	"whaleisle/internal/ui/i18n"
 	imui "whaleisle/internal/ui/im"
-	"whaleisle/internal/ui/launcher"
 	marketui "whaleisle/internal/ui/market"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/projects"
@@ -101,10 +98,16 @@ import (
 )
 
 type mainState struct {
-	remoteWorkspaceLease  atomic.Uint64
-	childComposerBindings map[string]string
-	fileOpenWithOwner     fileOpenWithOwner
-	fileOpenWithState     files.OpenWithState
+	mainRoute                   mainRoute
+	mainRouteEpoch              uint64
+	mainRouteApplied            uint64
+	pluginViewInventoryHost     uint64
+	pluginViewInventoryRevision uint64
+	pluginDraftCreator          *pluginDraftCreation
+	remoteWorkspaceLease        atomic.Uint64
+	childComposerBindings       map[string]string
+	fileOpenWithOwner           fileOpenWithOwner
+	fileOpenWithState           files.OpenWithState
 	// pendingToast holds at most one message for the next painted frame; see
 	// notifyUser. It is never read from background timers.
 	pendingToast            string
@@ -159,6 +162,8 @@ type mainState struct {
 	phoneGitRoot          string
 	phoneGitWorkspaces    phoneGitWorkspaceScope
 	phoneOp               sync.Mutex
+	phoneStopResume       context.CancelFunc
+	phoneIntent           uint64
 	closeToTray           bool
 	desktopTray           *mygo.Tray
 	trayHideNotice        trayHideNotice
@@ -189,6 +194,12 @@ type mainState struct {
 	sup                     *harness.Supervisor
 	bootStatus              harness.Status
 	bootLogs                []string
+	coldLoading             bool // first automatic launch, until the workbench can open
+	// coldStartSkipped records that the automatic start was declined (a failed
+	// recovery record, a skip-user-plugins recovery, a waiting import) while the
+	// window still opens on the startup page, which carries the reason and the
+	// retry and diagnostics actions instead of dropping into the workbench.
+	coldStartSkipped bool
 	// crashReportGeneration is the failed supervisor generation that already
 	// wrote a host crash report, so one failure writes one file.
 	crashReportGeneration int
@@ -322,22 +333,16 @@ type mainState struct {
 	lastWebViewOrigin            string
 	pluginViewResumeAfterRestart bool
 	pluginViewHostGeneration     int
-	launcherOpen                 bool
-	// launcherWin is the separate 1060x660 launcher window (G04). Nil keeps the
-	// in-window launcher panel: isolated/QA desktops, --background, --settings,
-	// headless tests and a failed window creation all stay on that fallback.
-	launcherWin *launcherWindow
-	// launcherWindowAllowed is decided once at startup: only a cold foreground
-	// start hides the main window behind a separate launcher window.
-	launcherWindowAllowed bool
-	toolsMenuOpen         bool
-	filesPaneOpen         bool // Electron tools → files/diff right dock
-	launcherImport        string
-	launcherImportJournal []string
-	launcherImportBusy    bool
-	launcherImportCancel  context.CancelFunc
-	lifecycleCtx          context.Context
-	lifecycleCancel       context.CancelFunc
+	maintenanceOpen              bool
+	toolsMenuOpen                bool
+	filesPaneOpen                bool // Electron tools → files/diff right dock
+	launcherImport               string
+	launcherImportJournal        []string
+	launcherImportBusy           bool
+	importRecoveryPending        bool
+	launcherImportCancel         context.CancelFunc
+	lifecycleCtx                 context.Context
+	lifecycleCancel              context.CancelFunc
 	// phoneBootStarted gates the once-per-session phone gateway start when the
 	// harness first becomes ready; phoneBootStartAction is nil in production
 	// (the real start) and replaced by a counter in tests.
@@ -581,15 +586,6 @@ type desktopConfigDraft struct {
 	seeded                    bool
 }
 
-type credentialsDraft struct {
-	apiKey           string
-	baseURL          string
-	githubToken      string
-	remoteToken      string
-	remoteRelayToken string
-	seeded           bool
-}
-
 func (s *mainState) settingsDraftPtr(ns, field, seed string) *string {
 	for i := range s.settingsDrafts {
 		if s.settingsDrafts[i].ns == ns && s.settingsDrafts[i].field == field {
@@ -650,44 +646,6 @@ func (s *mainState) seedDesktopDraft() {
 	s.desktopSaveErr = ""
 }
 
-// saveCredentials persists credential changes. REQUIRES: s.mu held.
-func (s *mainState) saveCredentials() {
-	dir := paths.UserDataDir()
-	existing, err := credentials.Load(dir)
-	if err != nil {
-		s.credsSaveErr = err.Error()
-		s.credsLastAction = ""
-		return
-	}
-	existing.APIKey = strings.TrimSpace(s.credsDraft.apiKey)
-	existing.BaseURL = strings.TrimSpace(s.credsDraft.baseURL)
-	existing.GithubToken = strings.TrimSpace(s.credsDraft.githubToken)
-	existing.RemoteToken = strings.TrimSpace(s.credsDraft.remoteToken)
-	existing.RemoteRelayToken = strings.TrimSpace(s.credsDraft.remoteRelayToken)
-	if err := credentials.Save(dir, existing); err != nil {
-		s.credsSaveErr = err.Error()
-		s.credsLastAction = ""
-		return
-	}
-	s.credsSaveErr = ""
-	s.credsLastAction = i18n.T(i18n.KeySettingsCredSaved)
-	s.applyRemoteCredentials(existing)
-	client := s.dshClient
-	if client != nil {
-		go func(key string) {
-			if err := settingsstore.SyncAPIKeyToHarness(context.Background(), client, key); err != nil {
-				s.mu.Lock()
-				s.credsLastAction = err.Error()
-				s.mu.Unlock()
-				return
-			}
-			s.mu.Lock()
-			s.credsLastAction = i18n.T(i18n.KeySettingsCredSaved) + " · credentials/set"
-			s.mu.Unlock()
-		}(existing.APIKey)
-	}
-}
-
 func (s *mainState) applyRemoteCredentials(creds credentials.Credentials) {
 	s.hasRemoteToken = strings.TrimSpace(creds.RemoteToken) != ""
 	s.hasRemoteRelayToken = strings.TrimSpace(creds.RemoteRelayToken) != ""
@@ -695,76 +653,6 @@ func (s *mainState) applyRemoteCredentials(creds credentials.Credentials) {
 	s.remoteRelayToken = strings.TrimSpace(creds.RemoteRelayToken)
 	s.remoteDeviceCount = len(creds.RemoteDevices)
 	s.remoteDeviceNames = phoneremote.DeviceNames(creds.RemoteDevices)
-}
-
-func (s *mainState) phoneRuntimeManager() *phoneremote.Runtime {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.phoneRuntime == nil {
-		s.phoneRuntime = phoneremote.NewRuntime()
-		s.phoneRuntime.SetGitAuthorizer(s.authorizePhoneGit)
-		s.phoneRuntime.SetGitReviewer(s.reviewPhonePullRequest)
-		s.phoneRuntime.SetHostActions(phoneremote.HostActions{OpenSettings: s.openPhoneSettingsSection, SaveConfig: s.savePhoneConfigPatch})
-	}
-	return s.phoneRuntime
-}
-func (s *mainState) stopPhoneRuntime() {
-	s.revokePhoneGit()
-	s.phoneOp.Lock()
-	defer s.phoneOp.Unlock()
-	s.phoneRuntimeManager().Stop()
-}
-func (s *mainState) refreshPhoneRemote() (msg string) {
-	s.phoneOp.Lock()
-	defer s.phoneOp.Unlock()
-	defer func() {
-		s.mu.Lock()
-		s.phoneActionMsg = msg
-		s.mu.Unlock()
-	}()
-	manager := s.phoneRuntimeManager()
-	if s.cfgStore == nil {
-		return i18n.T(i18n.KeyCmdRemoteConfigUnavailable)
-	}
-	cfg := s.cfgStore.Get()
-	s.mu.Lock()
-	ep := s.bootStatus.Endpoint
-	quitting := s.quitting
-	creds := remoteRuntimeCredentials{Local: s.remoteToken, Relay: s.remoteRelayToken}
-	s.mu.Unlock()
-	if quitting {
-		return "offline"
-	}
-	if !cfg.RemoteEnabled {
-		manager.Stop()
-		return "disabled"
-	}
-	gitRoots := s.phoneGitRoots()
-	cfgForRemote := cfg
-	cfgForRemote.RemotePort = effectiveGoRemotePort(cfg)
-	runtimeConfig := buildRemoteRuntimeConfig(cfgForRemote, creds, gitRoots, ep.Origin, ep.Cookie)
-	if manager.Snapshot().Status == "starting" {
-		return "starting"
-	}
-	if manager.Snapshot().Listening {
-		manager.Refresh(runtimeConfig)
-	} else {
-		manager.Start(paths.UserDataDir(), paths.VendorDir(), runtimeConfig)
-	}
-	snapshot := manager.Snapshot()
-	s.writePhoneDiag(snapshot)
-	s.startPhoneDiagSampler(manager)
-	msg = snapshot.Status
-	if snapshot.Message != "" {
-		msg += ": " + snapshot.Message
-	}
-	return msg
-}
-func (s *mainState) phoneConnectURL() string {
-	if s.cfgStore == nil || !s.cfgStore.Get().RemoteEnabled {
-		return ""
-	}
-	return s.phoneRuntimeManager().Snapshot().PairingURL
 }
 
 func (s *mainState) saveDesktopConfig() {
@@ -881,13 +769,7 @@ func (s *mainState) settingsBoolPtr(ns, field, seed string) *bool {
 func (s *mainState) showMainWindow() {
 	s.mu.Lock()
 	win := s.win
-	lw := s.launcherWin
-	open := s.launcherOpen
 	s.mu.Unlock()
-	if open && !lw.destroyed() && (win == nil || !win.IsVisible()) {
-		lw.show()
-		return
-	}
 	if win == nil {
 		return
 	}
@@ -897,37 +779,18 @@ func (s *mainState) showMainWindow() {
 }
 
 func (s *mainState) applyDeeplink(t deeplink.Target) {
-	s.assistantService().SuspendViews()
-	closeAssistant := false
+	if t.Action == deeplink.ActionLauncher {
+		t.Action, t.Section = deeplink.ActionSettings, "desktop"
+	}
+	if t.Action != deeplink.ActionOpen {
+		s.assistantService().SuspendViews()
+	}
 	s.mu.Lock()
 	s.pendingDeeplink = t
-	// Session and Agents links navigate to the conversation workspace. Tool
-	// pages return before that workspace is painted, so retire their routes.
-	// A plain Open link continues to raise the current page without navigating.
-	if t.Action == deeplink.ActionSession || t.Action == deeplink.ActionAgents {
-		s.imOpen, s.remoteOpen, s.marketOpen = false, false, false
-		s.webviewOpen, s.browserPreviewOpen = false, false
-		s.toolsMenuOpen = false
-		closeAssistant = true
-	}
 	switch t.Action {
-	case deeplink.ActionLauncher:
-		s.launcherOpen = true
-		s.settingsOpen = false
-		s.usageOpen = false
-		s.scheduleOpen = false
-		s.webviewOpen = false
-		s.browserPreviewOpen = false
-		closeAssistant = true
 	case deeplink.ActionSettings:
+		s.setMainRouteLocked(routeSettings)
 		s.settingsEmbeddedSection = ""
-		s.settingsOpen = true
-		s.launcherOpen = false
-		s.usageOpen = false
-		s.scheduleOpen = false
-		s.webviewOpen = false
-		s.browserPreviewOpen = false
-		closeAssistant = true
 		s.settingsCredentialsActive = false
 		s.settingsDesktopActive = false
 		s.settingsAccountActive = false
@@ -981,52 +844,19 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 			s.seedDesktopDraft()
 		}
 	case deeplink.ActionUsage:
-		s.usageOpen = true
-		s.launcherOpen = false
-		s.settingsOpen = false
-		s.scheduleOpen = false
-		s.marketOpen = false
-		s.webviewOpen = false
-		s.browserPreviewOpen = false
-		closeAssistant = true
+		s.setMainRouteLocked(routeUsage)
 	case deeplink.ActionMarket:
-		s.marketOpen = true
-		s.marketManager = false
-		s.launcherOpen = false
-		s.settingsOpen = false
-		s.usageOpen = false
-		s.scheduleOpen = false
-		s.webviewOpen = false
-		s.browserPreviewOpen = false
-		closeAssistant = true
+		s.setMainRouteLocked(routeMarket)
 	case deeplink.ActionSchedule:
-		s.scheduleOpen = true
-		s.launcherOpen = false
-		s.settingsOpen = false
-		s.usageOpen = false
-		s.marketOpen = false
-		s.webviewOpen = false
-		s.browserPreviewOpen = false
-		closeAssistant = true
+		s.setMainRouteLocked(routeSchedule)
 	case deeplink.ActionAgents:
+		s.setMainRouteLocked(routeConversation)
 		s.filesPaneOpen = true
 		s.rightPaneTab = "agents"
-		s.launcherOpen = false
-		s.settingsOpen = false
-		s.usageOpen = false
-		s.scheduleOpen = false
-		s.marketOpen = false
 	case deeplink.ActionAuth:
+		s.setMainRouteLocked(routeSettings)
 		// OAuth return from account/startSignIn (callbackOrigin whaleisle://auth).
 		s.settingsEmbeddedSection = ""
-		s.settingsOpen = true
-		s.launcherOpen = false
-		s.usageOpen = false
-		s.scheduleOpen = false
-		s.marketOpen = false
-		s.webviewOpen = false
-		s.browserPreviewOpen = false
-		closeAssistant = true
 		s.settingsCredentialsActive = false
 		s.settingsDesktopActive = false
 		s.settingsAccountActive = true
@@ -1041,34 +871,20 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 		s.settingsAgentPresetsActive = false
 		s.settingsAboutActive = false
 	case deeplink.ActionSession:
+		s.setMainRouteLocked(routeConversation)
 		if s.sessions != nil && t.SessionID != "" {
 			s.revokePhoneGit()
 			s.sessions.Select(t.SessionID)
 		}
-		s.launcherOpen = false
-		s.settingsOpen = false
-		s.usageOpen = false
-		s.scheduleOpen = false
 	case deeplink.ActionOpen:
-		s.launcherOpen = false
+		// Raise the current destination without changing its route.
 	}
 	win := s.win
 	usage := s.usage
 	sessions := s.sessions
 	s.mu.Unlock()
-	if closeAssistant {
-		s.assistantService().SetOpen(false)
-	}
-	if t.Action == deeplink.ActionLauncher {
-		// The launcher deep link opens/reuses the one launcher window
-		// (index.js:340-348); the panel fallback still needs the main window.
-		s.syncLauncherStage()
-	} else {
-		// Every other route lands on the main window; an open launcher window
-		// would mask it.
-		s.closeLauncherWindow()
-		s.showMainWindow()
-	}
+	s.syncMainRouteResources()
+	s.showMainWindow()
 	if t.Action == deeplink.ActionAuth && usage != nil {
 		sid := ""
 		if sessions != nil {
@@ -1083,20 +899,7 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 }
 
 func (s *mainState) closeWebViewHost() {
-	s.closeAccountPlatform()
-	s.mu.Lock()
-	host := s.webviewHost
-	if host != nil {
-		s.lastWebViewURL = host.URL()
-	}
-	s.webviewHost = nil
-	s.pluginViewResumeAfterRestart = false
-	s.webviewHostErr = ""
-	s.activePluginViewLabel = ""
-	s.mu.Unlock()
-	if host != nil {
-		_ = host.Close()
-	}
+	s.closeMainWebView()
 }
 
 func (s *mainState) syncHarnessFromConfig() {
@@ -1170,119 +973,15 @@ func (s *mainState) openWebViewHost(origin string) {
 }
 
 func (s *mainState) openWebViewHostPlugin(origin, pluginID string) {
-	s.mu.Lock()
-	s.lastWebViewOrigin = origin
-	s.mu.Unlock()
-	s.openWebViewURL(desktopwebview.SlotURL(origin, pluginID, nil))
+	s.openMainWebViewPlugin(origin, pluginID)
 }
 
 func (s *mainState) showBrowserPreview(rawURL string) {
-	s.mu.Lock()
-	s.browserPreviewOpen = true
-	s.webviewOpen = false
-	win := s.win
-	s.mu.Unlock()
-	s.closeWebViewHost()
-	if s.browserController == nil {
-		s.browserController = s.newBrowserController(win)
-	}
-	if strings.TrimSpace(rawURL) != "" {
-		s.browserController.Navigate(rawURL)
-	}
-	if win != nil {
-		win.Update(func() {})
-	}
+	s.showMainBrowser(rawURL)
 }
 
 func (s *mainState) openWebViewURL(browse string) {
-	s.closeAccountPlatform()
-	s.mu.Lock()
-	s.accountReturn.embedded = ""
-	win := s.win
-	existing := s.webviewHost
-	ep := s.bootStatus.Endpoint
-	hostGeneration := s.bootStatus.Generation
-	s.mu.Unlock()
-	if win == nil {
-		return
-	}
-	browse = strings.TrimSpace(browse)
-	if browse == "" {
-		s.mu.Lock()
-		s.webviewHostErr = i18n.T(i18n.KeyCmdURLUnavailable)
-		s.mu.Unlock()
-		return
-	}
-	sessionOrigin, sessionCookie := "", ""
-	if desktopwebview.IsHostURL(browse, ep.Origin) {
-		sessionOrigin, sessionCookie = ep.Origin, ep.Cookie
-	}
-	if existing != nil && existing.Alive() && existing.MatchesSession(sessionOrigin, sessionCookie) {
-		if err := existing.Navigate(browse); err != nil {
-			s.mu.Lock()
-			s.webviewHostErr = err.Error()
-			s.mu.Unlock()
-			return
-		}
-		existing.SetVisible(true)
-		s.mu.Lock()
-		s.lastWebViewURL = browse
-		s.pluginViewResumeAfterRestart = false
-		s.webviewHostErr = ""
-		s.mu.Unlock()
-		return
-	}
-	if existing != nil {
-		_ = existing.Close()
-	}
-	s.mu.Lock()
-	browserPanel := s.browserPreviewOpen
-	pluginTitle := strings.TrimSpace(s.activePluginViewLabel)
-	s.mu.Unlock()
-	panelH := webviewui.PanelChromeHeight
-	hostTitle := i18n.T(i18n.KeyWebViewTitle)
-	if browserPanel {
-		panelH = browserpreviewui.PanelChromeHeight
-		hostTitle = i18n.T(i18n.KeyBrowserPreviewTitle)
-	} else if pluginTitle != "" {
-		hostTitle = pluginTitle
-	}
-	inset := chrome.TitleBarHeight + panelH
-	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
-		Untrusted:             true,
-		SessionOrigin:         sessionOrigin,
-		ShortcutPreferences:   s.pageShortcutPreferences(),
-		OnShortcutCloseWindow: s.queueProductShortcutClose,
-		SessionCookie:         sessionCookie,
-		OnChange:              func() { win.Update(func() {}) },
-		OnFailure:             s.onEmbeddedPageFailure,
-		Parent:                win,
-		URL:                   browse,
-		Title:                 hostTitle,
-		TopInset:              inset,
-		// Native media policy: the loopback Harness session may ask for the
-		// microphone, the camera is refused, notifications follow the shell gate.
-		PermissionPolicy: desktopwebview.PermissionPolicy{
-			SessionHost:          strings.TrimSpace(sessionOrigin) != "",
-			NotificationsAllowed: systemNotificationsSupported,
-		}.Decide,
-	})
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err != nil {
-		s.webviewHost = nil
-		s.webviewHostErr = err.Error()
-		// A hosted document that never came up is this shell's nearest
-		// web-boot surface (MyGo has no boot web process): keep a diagnostic.
-		go state.recordWebBootFailure(err.Error())
-		return
-	}
-	s.webviewHost = host
-	s.pluginViewResumeAfterRestart = false
-	s.pluginViewHostGeneration = hostGeneration
-	s.lastWebViewURL = browse
-	s.webviewHostErr = ""
-	host.SetVisible(true)
+	s.openMainWebViewURL(browse)
 }
 
 const terminalMinBottom = float32(40)
@@ -1452,61 +1151,49 @@ func (s *mainState) pollAcceptOpenHook() bool {
 	if cmd == "" {
 		return false
 	}
-	s.launcherController().MarkComponentsStale()
-	switch cmd {
-	case "launcher", "l-home":
-		s.launcherController().SetTab(launcher.TabHome)
-	case "l-set", "launcher-settings":
-		s.launcherController().SetTab(launcher.TabSettings)
-	case "l-comp", "launcher-components":
-		s.launcherController().SetTab(launcher.TabComponents)
-	case "l-ver", "launcher-versions":
-		s.launcherController().SetTab(launcher.TabVersions)
-	case "l-imp", "launcher-import":
-		s.launcherController().SetTab(launcher.TabImport)
-	case "l-plug", "launcher-plugins":
-		s.launcherController().SetTab(launcher.TabPlugins)
-	default:
-		if sid, ok := strings.CutPrefix(cmd, "session:"); ok && strings.TrimSpace(sid) != "" {
-			s.launcherController().RetireStartupSelection()
-		}
+	if cmd == "l-ver" || cmd == "launcher-versions" {
+		s.mu.Lock()
+		win := s.win
+		s.mu.Unlock()
+		s.openNativeUpdateCenter(win)
+		return true
 	}
-	s.assistantService().SetOpen(cmd == "assist" || cmd == "assistant")
+	if sid, ok := strings.CutPrefix(cmd, "session:"); ok && strings.TrimSpace(sid) != "" {
+		s.launcherController().RetireStartupSelection()
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.launcherOpen = false
-	s.toolsMenuOpen = false
-	s.settingsOpen = false
-	s.usageOpen = false
-	s.imOpen = false
-	s.marketOpen = false
-	s.scheduleOpen = false
-	s.remoteOpen = false
-	s.webviewOpen = false
-	s.browserPreviewOpen = false
+	defer func() { s.mu.Unlock(); s.syncMainRouteResources() }()
+	s.setMainRouteLocked(routeConversation)
 	switch cmd {
 	case "market":
-		s.marketOpen = true
+		s.setMainRouteLocked(routeMarket)
 	case "usage":
-		s.usageOpen = true
+		s.setMainRouteLocked(routeUsage)
 	case "assist", "assistant":
+		s.setMainRouteLocked(routeAssistant)
 	case "schedule", "sched":
-		s.scheduleOpen = true
+		s.setMainRouteLocked(routeSchedule)
 	case "im":
-		s.imOpen = true
+		s.setMainRouteLocked(routeIM)
 	case "remote":
-		s.remoteOpen = true
+		s.setMainRouteLocked(routeRemote)
 	case "browser":
-		s.browserPreviewOpen = true
+		s.setMainRouteLocked(routeBrowser)
 	case "webview":
-		s.webviewOpen = true
-	case "settings", "s-desk":
+		s.setMainRouteLocked(routeWebView)
+	case "settings", "s-desk", "launcher", "l-home":
 		s.settingsEmbeddedSection = ""
-		s.settingsOpen = true
+		s.setMainRouteLocked(routeSettings)
 		s.settingsDesktopActive = true
 		s.seedDesktopDraft()
-	case "launcher", "l-home", "l-set", "launcher-settings", "l-comp", "launcher-components", "l-ver", "launcher-versions", "l-imp", "launcher-import", "l-plug", "launcher-plugins":
-		s.launcherOpen = true
+	case "components", "l-comp", "launcher-components":
+		s.setMainRouteLocked(routeComponents)
+	case "import", "l-imp", "launcher-import":
+		s.setMainRouteLocked(routeImport)
+	case "startup-diagnostics", "l-plug", "launcher-plugins":
+		s.setMainRouteLocked(routeStartupDiagnostics)
+	case "update-preferences", "l-set", "launcher-settings":
+		s.setMainRouteLocked(routeUpdatePreferences)
 	case "desktop", "d-main":
 		// all overlays already cleared
 	case "term", "terminal":
@@ -1600,10 +1287,6 @@ func (s *mainState) watchAcceptOpenHook() {
 					if w != nil {
 						w.Update(func() {})
 					}
-					// A route may hand the window to the launcher or back to the
-					// desktop; the move is its own main-thread task, never a nested
-					// content update.
-					mygo.RunOnMain(func() { s.syncLauncherStage() })
 				}
 			}
 		}
@@ -1625,6 +1308,11 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		st = actual
 	}
 	prev := s.bootStatus.State
+	// A start that begins clears the declined mark: the page is then showing a
+	// running start, not a skipped one.
+	if st.State == harness.Starting {
+		s.coldStartSkipped = false
+	}
 	// The actual supervisor generation/state check above rejects late snapshots.
 	if s.bootStatus.Generation != st.Generation || s.bootStatus.State != st.State || s.bootStatus.Endpoint != st.Endpoint {
 		s.remoteWorkspaceLease.Add(1)
@@ -1654,7 +1342,6 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	}
 	logs := append([]string(nil), s.bootLogs...)
 	win := s.win
-	lw := s.launcherWin
 	s.mu.Unlock()
 
 	var startLogs []string
@@ -1662,35 +1349,14 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		startLogs = sup.CurrentStartLogs()
 	}
 	l := s.launcherController()
-	persistenceFailed := l.RecordStartupStatus(st, startLogs, buildVersion)
+	l.RecordStartupStatus(st, startLogs, buildVersion)
 	l.ObserveBootStatus(prev, st)
-	updateHold := s.updaterCenter().Hold()
 
 	startPhone := false
 	s.mu.Lock()
 	if s.bootStatus.Generation == st.Generation && s.bootStatus.State == st.State {
-		switch st.State {
-		case harness.Starting:
-			if !st.RecoveryActive && !st.RecoveryCancelled {
-				s.launcherOpen = true
-			}
-		case harness.Ready:
-			quitLauncher := true
-			if s.cfgStore != nil {
-				quitLauncher = s.cfgStore.Get().QuitAfterStart
-			}
-			if st.RecoveryCancelled {
-				// Cancellation keeps the current page, including an explicitly opened launcher.
-			} else if startuprec.ShouldCloseLauncher(true, quitLauncher, st.Recovery, persistenceFailed || updateHold) {
-				s.launcherOpen = false
-			} else {
-				s.launcherOpen = true
-			}
+		if st.State == harness.Ready {
 			startPhone = s.claimPhoneBootStartLocked()
-		case harness.Failed:
-			if !st.RecoveryCancelled {
-				s.launcherOpen = true
-			}
 		}
 	}
 	s.mu.Unlock()
@@ -1713,16 +1379,9 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	s.syncPluginViewHost(st)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
-	if !lw.destroyed() {
-		lw.win.Update(func() {})
-	}
 	if win != nil {
 		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray(); s.refreshStartupUpdateAttention(win) })
 	}
-	// Window moves run as their own main-thread task, never inside a content
-	// update: creating or destroying a native window from a paint callback
-	// re-enters the message loop and wedges it.
-	mygo.RunOnMain(func() { s.syncLauncherStage() })
 }
 
 // claimPhoneBootStartLocked decides the once-per-session phone gateway start
@@ -1818,8 +1477,18 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	var refreshQueued atomic.Bool
 	var viewTabsHydrated atomic.Bool
+	var inventoryReleased atomic.Bool
 	refresh := func() {
 		uiDiagRefreshHits.Add(1)
+		s.recordStartupWorkspaceReady(sessions)
+		if !inventoryReleased.Load() {
+			v := sessions.Snapshot()
+			if (v.ClientReady && v.WorkspaceReady && !v.ListLoading) || v.WorkspaceError != "" || v.ListErr != "" {
+				if s.marketCoordinator().WorkspaceReady(client) {
+					inventoryReleased.Store(true)
+				}
+			}
+		}
 		s.noteNativeUIActivity()
 		s.cancelComposerVoiceIfStale()
 		s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
@@ -1827,6 +1496,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 			if refreshQueued.CompareAndSwap(false, true) {
 				win.Update(func() {
 					refreshQueued.Store(false)
+					s.reconcileComposerSubmissions(sessions)
 					s.refreshPetTask()
 					s.maybeStartupBlankSession(win, sessions)
 				})
@@ -1848,7 +1518,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	usageStore.LoadBilling(context.Background())
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
-	s.marketCoordinator().AttachHost(client, s.managedMarketProfile(st), refresh)
+	s.marketCoordinator().AttachHostForWorkspace(client, s.managedMarketProfile(st), refresh)
 	schedStore.Attach(client, refresh)
 	go func() {
 		_ = settingsstore.ReportProductEvent(context.Background(), client, api.ProductEvent(
@@ -1881,6 +1551,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshMu.Unlock()
 	s.hostTerminals.Bind(client, mux, false, refresh)
 	sessions.AttachMux(mux)
+	s.bindSubmissionRecovery(ctx, sessions)
 	if s.usage != nil {
 		s.usage.AttachMux(mux)
 	}
@@ -1996,7 +1667,9 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 	connection := s.newConnectionAttemptState(ctx, client, mux, refresh)
 	stopNetwork := connection.watchNetwork(ctx)
 	defer stopNetwork()
+	startuptrace.Mark("connection.bootstrap_start")
 	_ = dsh.MaintainMuxFromBootstrap(ctx, mux, client, func(ctx context.Context) error {
+		startuptrace.Mark("connection.carrier_connected")
 		if !connection.begin(ctx) {
 			return context.Canceled
 		}
@@ -2025,8 +1698,8 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 			err := client.FollowEvents(ctx, mux, dsh.EventsFuncs{
 				Ready: func(_ dsh.EventsReady) {
 					connection.ready(ctx, func() {
-						pluginEvent(dsh.EventsEmit{Event: "plugin-manager/changed"})
-						pluginEvent(dsh.EventsEmit{Event: "plugin-market/changed"})
+						startuptrace.Mark("connection.events_ready")
+						s.marketCoordinator().HostEventsReady(client)
 						if schedStore != nil {
 							schedStore.OnEventsReady(scheduleEventsOwner)
 						}
@@ -2285,7 +1958,7 @@ func main() {
 			state.mu.Lock()
 			state.applyRemoteCredentials(creds)
 			// Electron welcome-window gate: a profile without a stored API key
-			// sees the welcome window before the launcher/boot flow.
+			// sees the welcome window before the workbench opens.
 			state.credsMissing = strings.TrimSpace(creds.APIKey) == ""
 			_, markerErr := os.Stat(filepath.Join(userData, welcomeMarker))
 			state.welcomeDone = markerErr == nil
@@ -2299,14 +1972,6 @@ func main() {
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
 		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
-		// The reference shell never creates the main window while the launcher
-		// owns the stage (window.js:900-952); MyGo creates it hidden and shows a
-		// separate 1060x660 launcher window instead. Isolated/QA desktops, login
-		// starts, --background and --settings keep the single-window panel path.
-		launcherFirst := launcherFirstWindow(isolatedDesktopRun(), hidden, background, slices.Contains(os.Args, "--settings"))
-		if os.Getenv("WHALEISLE_FORCE_MAIN") != "" {
-			launcherFirst = false
-		}
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
@@ -2316,6 +1981,7 @@ func main() {
 			bgColor = "rgba(0,0,0,0)"
 		}
 		state.mu.Lock()
+		state.coldLoading = cfg.AutoStartDesktop && strings.TrimSpace(cfg.Workspace) != ""
 		state.layout = frame.DefaultLayout()
 		if cfg.SidebarWidth >= 264 {
 			state.layout.Sidebar = cfg.SidebarWidth
@@ -2348,7 +2014,7 @@ func main() {
 			MinWidth:       winMinWidth,
 			MinHeight:      winMinHeight,
 			StateKey:       stateKey,
-			Hidden:         hidden || background || launcherFirst,
+			Hidden:         hidden || background,
 			TitleBarStyle:  mygo.TitleBarHidden,
 			TitleBarHeight: int(chrome.EffectiveTitleBarHeight()),
 			// The native shell builds an application menu for accelerators but
@@ -2360,8 +2026,7 @@ func main() {
 			// 32x32 buttons, so the buttons occupy y=12..44
 			// (harness-chrome-inject.js:12,89,96-97). Top is the plate's own
 			// inset, not a centred 8: the caption band paints its titles at y=12
-			// and the launcher window already draws the same plate at 12
-			// (launcher_window.go:69, launcher.css:21).
+			// and the onboarding window uses the same 12 DIP inset.
 			WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 12, Right: 8, CornerRadius: 8, GlyphSize: 12},
 			WindowsFrameCornerRadius: 20,
 			Transparent:              true,
@@ -2392,7 +2057,7 @@ func main() {
 		state.desktopPet.OnAutoRefreshGrowth = state.autoRefreshPetGrowth
 		state.desktopPet.OnFeedTokens = state.feedPetTokens
 		state.desktopPet.SetReady(!isolatedDesktopRun())
-		// A main-window recreation (launcher -> desktop, or a recovery reload)
+		// A main-window recreation (for example, a recovery reload)
 		// closes the companion through OnClosed below; re-arm it when the new
 		// window is shown so an enabled pet comes back instead of staying
 		// closed for the rest of the session.
@@ -2508,7 +2173,6 @@ func main() {
 
 		state.mu.Lock()
 		state.win = win
-		state.launcherWindowAllowed = launcherFirst
 		state.layout = frame.DefaultLayout()
 		if cfg.SidebarWidth >= 264 {
 			state.layout.Sidebar = cfg.SidebarWidth
@@ -2558,13 +2222,11 @@ func main() {
 			state.startWhaleBridgeAlerts(win)
 		}
 
-		// Electron welcome-window.js: a profile without any credential sees the
-		// welcome window first; launcher and boot continue after it completes or
-		// is skipped. Everyone else enters the launcher.js flow right away.
+		// First-run account onboarding is separate from Host startup.
 		if state.welcomeRequired() && !hidden && !background {
 			state.openWelcomeWindow(win, cfg)
 		} else {
-			state.beginLauncherBoot(cfg, win)
+			state.beginWorkbenchBoot(cfg, win)
 		}
 	})
 
@@ -2608,7 +2270,7 @@ func (s *mainState) defaultDeferredColdStoreOps(ops *deferredColdStoreOps) defer
 		resolved.openDshbotRoster = dshbotstore.Open
 	}
 	if resolved.loadSSHTunnel == nil {
-		resolved.loadSSHTunnel = sshremote.LoadTunnelConfig
+		resolved.loadSSHTunnel = sshremote.LoadSharedProfileTunnelConfig
 	}
 	return resolved
 }
@@ -2899,9 +2561,6 @@ func startHarness(cfg config.Config) {
 		},
 	})
 	if strings.TrimSpace(cfg.Workspace) == "" {
-		state.mu.Lock()
-		state.launcherOpen = true
-		state.mu.Unlock()
 		state.launcherController().SetStartError(false, true, i18n.T(i18n.KeyLauncherNoWorkspace))
 		state.refreshBoot(harness.Status{
 			State: harness.Failed,
@@ -2940,27 +2599,18 @@ func startHarness(cfg config.Config) {
 	}
 }
 
-func (s *mainState) finishLauncherPreparation(win *mygo.Window) {
+func (s *mainState) finishBootPreparation(win *mygo.Window) {
 	s.launcherController().EndPreparationOnly()
 	if win != nil {
 		win.Update(func() {})
 	}
 }
 
-// beginLauncherBoot is the Electron launcher.js entry: show the launcher first;
-// auto-start the desktop only when the workspace is set AND autoStartDesktop is
-// enabled (default true). The welcome window calls it once after completion or
-// skip, so the ordinary flow runs exactly once on either path.
-func (s *mainState) beginLauncherBoot(cfg config.Config, win *mygo.Window) {
-	s.mu.Lock()
-	s.launcherOpen = true
-	s.mu.Unlock()
+// beginWorkbenchBoot prepares automatic Host startup without changing the user's route.
+func (s *mainState) beginWorkbenchBoot(cfg config.Config, win *mygo.Window) {
 	s.launcherController().BeginBootPreparation()
-	// launcher.js opens the launcher before any start decision. UI thread only:
-	// the startup callback and the welcome window's completion both run there.
-	s.syncLauncherStage()
 	go func() {
-		defer s.finishLauncherPreparation(win)
+		defer s.finishBootPreparation(win)
 		canStartAfterRecovery := s.recoverImportBeforeStart()
 		if s.coldStartupAllowed(cfg, canStartAfterRecovery) {
 			s.mu.Lock()
@@ -2971,6 +2621,15 @@ func (s *mainState) beginLauncherBoot(cfg config.Config, win *mygo.Window) {
 			}
 			s.launcherController().MarkColdStartBusy()
 			startHarness(cfg)
+		} else {
+			// The page stays. A declined automatic start is still the opening
+			// state of a cold launch: it names the reason and offers retry and
+			// diagnostics, instead of dropping the user into a workbench with a
+			// status strip. Only when the window shows the Host starting does
+			// the page hand over (recordStartupWorkspaceReady).
+			s.mu.Lock()
+			s.coldStartSkipped = true
+			s.mu.Unlock()
 		}
 	}()
 }
@@ -3264,49 +2923,19 @@ func (s *mainState) applyImportCatalog(win *mygo.Window, sourceHome string) {
 	s.requestImportCatalog(win, sourceHome, "")
 }
 
-func (s *mainState) startCreatorPluginDraft(win *mygo.Window, sessions *session.Store, region string) {
-	prompt := resumeText("创建一个 DSH 会话视图插件。", "Create a DSH conversation view plugin.")
-	switch region {
-	case "leftbar":
-		prompt = resumeText("创建一个带左侧栏入口的 DSH 插件。", "Create a DSH plugin with a left sidebar entry.")
-	case "rightbar":
-		prompt = resumeText("创建一个带右侧栏入口的 DSH 插件。", "Create a DSH plugin with a right sidebar entry.")
-	}
-	sid := ""
-	if sessions != nil {
-		sid = sessions.SelectedSessionID()
-	}
-	s.mu.Lock()
-	s.agentPresetPick = "cordis"
-	draft := s.composerDraftLocked(sid)
-	if strings.TrimSpace(draft.Text) == "" {
-		draft.Text = prompt
-	} else {
-		draft.Text = strings.TrimRight(draft.Text, "\n") + "\n\n" + prompt
-	}
-	draft.Client.Sync()
-	s.marketOpen = false
-	s.scheduleOpen = false
-	s.settingsOpen = false
-	s.launcherOpen = false
-	s.mu.Unlock()
-	s.assistantService().SetOpen(false)
-	if sessions != nil {
-		sessions.SelectAgentPresetIDForSession(context.Background(), sid, "cordis")
-	}
-	if win != nil {
-		win.Update(func() {})
-	}
-}
-
 func mainView(c *ui.Context) {
+	state.syncMainRouteResources()
+	defer state.beginProjectPresentationFrame()()
 	// Recorded first so the deferred call runs after every layer, and the
 	// opt-in sampler sees the whole build.
 	viewStarted := time.Now()
 	state.noteNativeUIActivity()
 	defer recordViewFrame(viewStarted)
+	if state.paintColdLoading(c) {
+		return
+	}
 	// Registered first so it runs last: the closing layer must sit above chat,
-	// dialogs, settings and the launcher on every return path below. It takes
+	// dialogs, settings and maintenance on every return path below. It takes
 	// the palette this frame resolved below, so it cannot disagree with the
 	// window it covers.
 	var closingColors theme.Colors
@@ -3395,7 +3024,7 @@ func mainView(c *ui.Context) {
 	if !state.settingsLaunchHandled {
 		state.settingsLaunchHandled = true
 		if slices.Contains(os.Args, "--settings") {
-			state.settingsOpen = true
+			state.setMainRouteLocked(routeSettings)
 			state.settingsDesktopActive = true
 			state.seedDesktopDraft()
 			// syncHostAppearance loads settings through EnsureLoaded outside state.mu.
@@ -3419,7 +3048,8 @@ func mainView(c *ui.Context) {
 	nodeBin := ""
 	webviewOpen := state.webviewOpen
 	browserPreviewOpen := state.browserPreviewOpen
-	launcherOpen := state.launcherOpen && state.launcherWin.destroyed()
+	maintenanceOpen := state.maintenanceOpen
+	mainDestination := state.mainRoute
 	toolsMenuOpen := state.toolsMenuOpen
 	cfgHideArchivedList := false
 	cfgRemoteWorkspace := false
@@ -3601,7 +3231,7 @@ func mainView(c *ui.Context) {
 			imStore.Onboarding.Hide()
 		}
 	}()
-	if !imOpen || launcherOpen || settingsOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen || usageOpen {
+	if !imOpen || maintenanceOpen || settingsOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen || usageOpen {
 		state.hideOfficeSettings()
 	}
 	// Global native pages return before frame.View. Retire old bindings and
@@ -3630,7 +3260,7 @@ func mainView(c *ui.Context) {
 	layout.Workspace.BeginContentFrame(fileBindingID, workspaceRoot)
 	defer func() { layout.Workspace.EndContentFrame() }()
 	fileTabs.Bind(fileBindingID, workspaceRoot)
-	if sessions == nil || launcherOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
+	if sessions == nil || maintenanceOpen || usageOpen || imOpen || marketOpen || scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen {
 		state.hostTerminalUI.Observe(&state.hostTerminals, "", false)
 		fileTabs.CancelPlanRead()
 		if sessions != nil {
@@ -3770,23 +3400,9 @@ func mainView(c *ui.Context) {
 		if darkCanvas && flatCanvas {
 			p.Fill(r, canvasFill, 0)
 		}
-	}).Draw(state.wallpaperPainter(wallpaperPath, !launcherOpen, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
-		if launcherOpen {
-			// One launcher model, two surfaces: the separate 1060x660 launcher
-			// window and this in-window fallback panel (launcher_window.go).
-			state.launcherPanel(c, win, launcherPanelHost{
-				ThemeID:    themeID,
-				Version:    buildVersion,
-				Status:     st,
-				Logs:       logs,
-				Workspace:  workspaceRoot,
-				Supervisor: sup,
-				Sessions:   sessions != nil,
-			})
-			return
-		}
+	}).Draw(state.wallpaperPainter(wallpaperPath, true, c.Preferences().ReduceMotion)).DrawOver(chrome.WindowFramePainter(win, systemDark)).Children(func() {
 		// Exclusive panels (settings/market/…) must not keep desktop title actions.
-		desktopChromeLocked := usageOpen || imOpen || marketOpen ||
+		desktopChromeLocked := maintenanceOpen || usageOpen || imOpen || marketOpen ||
 			scheduleOpen || remoteOpen || webviewOpen || browserPreviewOpen || assistantOpen
 		sharedNativeCaption := runtime.GOOS == "windows" && st.State == harness.Ready &&
 			!usageOpen && !imOpen && !remoteOpen && !webviewOpen && !browserPreviewOpen
@@ -3826,23 +3442,14 @@ func mainView(c *ui.Context) {
 		})
 		// In-window tools menu (UIA-clickable). Replaces native Popup which automation cannot invoke reliably.
 		if toolsMenuOpen && !desktopChromeLocked && st.State == harness.Ready {
-			openAsst := false
-			openTool := func(apply func()) {
-				openAsst = false
+			openTool := func(route mainRoute, apply func()) {
 				state.mu.Lock()
-				state.launcherOpen = false
-				state.toolsMenuOpen = false
-				state.settingsOpen = false
-				state.usageOpen = false
-				state.imOpen = false
-				state.marketOpen = false
-				state.scheduleOpen = false
-				state.remoteOpen = false
-				state.webviewOpen = false
-				state.browserPreviewOpen = false
-				apply()
+				state.setMainRouteLocked(route)
+				if apply != nil {
+					apply()
+				}
 				state.mu.Unlock()
-				asstSvc.SetOpen(openAsst)
+				state.syncMainRouteResources()
 				if win != nil {
 					win.Update(func() {})
 				}
@@ -3857,29 +3464,28 @@ func mainView(c *ui.Context) {
 				}
 				toolBtn(i18n.T(i18n.KeyBrowserPreviewOpen), func() {
 					state.showBrowserPreview(browserPreviewDraft)
-					openTool(func() { state.browserPreviewOpen = true })
 				})
 				toolBtn(i18n.T(i18n.KeyAssistantOpen), func() {
-					openTool(func() { openAsst = true })
+					openTool(routeAssistant, nil)
 				})
 				toolBtn(i18n.T(i18n.KeyWebViewOpen), func() {
-					openTool(func() { state.webviewOpen = true })
+					openTool(routeWebView, nil)
 				})
 				if cfgRemoteWorkspace {
 					toolBtn(i18n.T(i18n.KeyRemoteOpen), func() {
-						openTool(func() { state.remoteOpen = true })
+						openTool(routeRemote, nil)
 					})
 				}
 				if marketStore != nil {
 					toolBtn(i18n.T(i18n.KeyMarketOpen), func() {
-						openTool(func() { state.marketOpen = true })
+						openTool(routeMarket, nil)
 						marketStore.Refresh(context.Background())
 						marketStore.EnsureCatalog(i18n.Locale())
 					})
 				}
 				if schedStore != nil {
 					toolBtn(i18n.T(i18n.KeyScheduleOpen), func() {
-						openTool(func() { state.scheduleOpen = true })
+						openTool(routeSchedule, nil)
 						sid := ""
 						if sessions != nil {
 							sid = sessions.SelectedSessionID()
@@ -3889,8 +3495,7 @@ func mainView(c *ui.Context) {
 				}
 				if imStore != nil {
 					toolBtn(i18n.T(i18n.KeyIMOpen), func() {
-						openTool(func() {
-							state.imOpen = true
+						openTool(routeIM, func() {
 							state.imDraft = imStore.Snapshot().Draft
 						})
 						imStore.Refresh(context.Background())
@@ -3898,7 +3503,7 @@ func mainView(c *ui.Context) {
 				}
 				if usageStore != nil {
 					toolBtn(i18n.T(i18n.KeyUsageOpen), func() {
-						openTool(func() { state.usageOpen = true })
+						openTool(routeUsage, nil)
 						sid := ""
 						if sessions != nil {
 							sid = sessions.SelectedSessionID()
@@ -3907,13 +3512,13 @@ func mainView(c *ui.Context) {
 					})
 				}
 				toolBtn(i18n.T(i18n.KeyFilesTitle), func() {
-					openTool(func() {
+					openTool(routeConversation, func() {
 						state.filesPaneOpen = true
 						state.rightPaneTab = "files"
 					})
 				})
 				toolBtn(i18n.T(i18n.KeyAgentsTitle), func() {
-					openTool(func() {
+					openTool(routeConversation, func() {
 						state.filesPaneOpen = true
 						state.rightPaneTab = "agents"
 					})
@@ -4173,9 +3778,11 @@ func mainView(c *ui.Context) {
 						OnDetectElectron: func() {
 							state.showElectronImportReport(win)
 						},
-						OnCheckUpdates: func() {
-							state.showUpdateCheck(win)
-						},
+						OnCheckUpdates:          func() { state.showUpdateCheck(win) },
+						OnOpenComponents:        func() { state.navigateMainRoute(routeComponents) },
+						OnOpenImport:            func() { state.navigateMainRoute(routeImport) },
+						OnOpenHostDiagnostics:   func() { state.navigateMainRoute(routeStartupDiagnostics) },
+						OnOpenUpdatePreferences: func() { state.navigateMainRoute(routeUpdatePreferences) },
 					}
 				}
 				accountSection := &settings.AccountAccess{}
@@ -4301,6 +3908,9 @@ func mainView(c *ui.Context) {
 				credentialsSection := &settings.CredentialsAccess{}
 				if credsActive && !embeddedActive {
 					credentialsSection = &settings.CredentialsAccess{
+						Ready:       state.credentialsLoaded,
+						CanSave:     state.credentialsCanSave,
+						OnReload:    state.retryCredentialsLoad,
 						Fields:      credFields,
 						ShowSecrets: &state.credsShowSecrets,
 						LastAction:  credsAction,
@@ -4511,6 +4121,7 @@ func mainView(c *ui.Context) {
 				if pluginsActive && !embeddedActive {
 					marketViewState := marketstore.ViewState{}
 					if marketStore != nil {
+						marketStore.EnsureInventory(context.Background())
 						marketViewState = marketStore.Snapshot()
 					}
 					pluginRows := make([]settings.PluginRow, 0, len(marketViewState.Rows))
@@ -4550,7 +4161,7 @@ func mainView(c *ui.Context) {
 						OnOpenManager: state.openNativePluginManager,
 						OnOpenMarket: func() {
 							state.mu.Lock()
-							state.settingsOpen = false
+							state.setMainRouteLocked(routeMarket)
 							state.settingsDesktopActive = false
 							state.settingsAccountActive = false
 							state.settingsCredentialsActive = false
@@ -4566,9 +4177,6 @@ func mainView(c *ui.Context) {
 							state.settingsAgentPresetsActive = false
 							// MyGo uses its native market. The Host market requires Electron's
 							// shell IPC and cannot register in the untrusted WebView.
-							state.marketOpen = true
-							state.webviewOpen = false
-							state.browserPreviewOpen = false
 							state.mu.Unlock()
 							if marketStore != nil {
 								marketStore.Refresh(context.Background())
@@ -4698,7 +4306,7 @@ func mainView(c *ui.Context) {
 							}
 							skillDraft.Text = draft + "/" + name + " "
 							skillDraft.Client.Sync()
-							state.settingsOpen = false
+							state.setMainRouteLocked(routeConversation)
 							state.mu.Unlock()
 							if win != nil {
 								win.Update(func() {})
@@ -4973,7 +4581,7 @@ func mainView(c *ui.Context) {
 						state.settingsAgentPresetsActive = false
 						state.mu.Unlock()
 						if marketStore != nil {
-							marketStore.Refresh(context.Background())
+							marketStore.RefreshShared(context.Background())
 						}
 						if win != nil {
 							win.Update(func() {})
@@ -5053,7 +4661,7 @@ func mainView(c *ui.Context) {
 					},
 					OnClose: func() {
 						state.mu.Lock()
-						state.settingsOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.settingsDesktopActive = false
 						state.settingsAccountActive = false
 						state.settingsCredentialsActive = false
@@ -5073,7 +4681,9 @@ func mainView(c *ui.Context) {
 						state.settingsRevealSecrets = false
 						state.desktopSaveErr = ""
 						state.desktopLastAction = ""
-						state.credsDraft.seeded = false
+						state.credsDraft = credentialsDraft{}
+						state.credsSeedGen++
+						state.credsSeedLoading = false
 						state.credsSaveErr = ""
 						state.credsLastAction = ""
 						state.credsShowSecrets = false
@@ -5153,11 +4763,16 @@ func mainView(c *ui.Context) {
 			}
 		}
 		paintMainContent = func(embeddedSection settings.SectionID) {
+			if mainDestination.isMaintenance() {
+				state.maintenancePanel(c, win, mainDestination)
+				return
+			}
 			if acceptPanelOK && embeddedSection == "" && marketOpen && marketManager {
 				state.pluginManagerView(c, themeID)
 				return
 			}
 			if ((acceptPanelOK && embeddedSection == "" && marketOpen) || embeddedSection == settings.SectionMarket) && marketStore != nil {
+				marketStore.EnsureInventory(context.Background())
 				marketStore.SetNotify(func() {
 					if win != nil {
 						win.Update(func() {})
@@ -5198,8 +4813,7 @@ func mainView(c *ui.Context) {
 					Incompatible:     marketSnap.Incompatible,
 					OnClose: func() {
 						state.mu.Lock()
-						state.marketOpen = false
-						state.scheduleOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
@@ -5337,7 +4951,7 @@ func mainView(c *ui.Context) {
 					},
 					OnClose: func() {
 						state.mu.Lock()
-						state.scheduleOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
@@ -5381,7 +4995,7 @@ func mainView(c *ui.Context) {
 							return
 						}
 						state.mu.Lock()
-						state.imOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.imDraft = imDraft
 						state.mu.Unlock()
 						if win != nil {
@@ -5396,9 +5010,6 @@ func mainView(c *ui.Context) {
 					},
 					OnOpenPluginWeb: func() {
 						state.openWebViewHostPlugin(st.Endpoint.Origin, desktopwebview.PluginIM)
-						state.mu.Lock()
-						state.webviewOpen = true
-						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
 						}
@@ -5480,7 +5091,7 @@ func mainView(c *ui.Context) {
 				}
 				state.browserController.View(c, themeID, mygo.Theme.IsDark(), func() {
 					state.mu.Lock()
-					state.browserPreviewOpen = false
+					state.setMainRouteLocked(routeConversation)
 					state.mu.Unlock()
 					if win != nil {
 						win.Update(func() {})
@@ -5525,10 +5136,9 @@ func mainView(c *ui.Context) {
 					OnClose: func() {
 						state.closeWebViewHost()
 						state.mu.Lock()
-						state.webviewOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.activePluginViewLabel = ""
 						state.mu.Unlock()
-						asstSvc.SetOpen(false)
 						state.returnFromAccountPage()
 						if win != nil {
 							win.Update(func() {})
@@ -5626,7 +5236,7 @@ func mainView(c *ui.Context) {
 						sessions.Select(id)
 						sessions.FollowSelected(context.Background())
 						state.mu.Lock()
-						state.usageOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
@@ -5637,7 +5247,7 @@ func mainView(c *ui.Context) {
 					SystemDark: mygo.Theme.IsDark(),
 					OnClose: func() {
 						state.mu.Lock()
-						state.usageOpen = false
+						state.setMainRouteLocked(routeConversation)
 						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
@@ -5678,9 +5288,7 @@ func mainView(c *ui.Context) {
 				ui.Text(c, i18n.T(i18n.KeySettingsLoading)).FillWidth().TextColor(c.Theme().TextMuted)
 				return
 			}
-			// Electron keeps the desk rail+chat chrome visible while harness boots
-			// or fails; exclusive boot.View hid the entire left rail and blocked
-			// pixel acceptance. Paint the dialogue shell whenever we have a store.
+			// The workbench remains available before Host connection and after failure.
 			if sessions == nil {
 				state.mu.Lock()
 				if state.sessions == nil {
@@ -5698,35 +5306,11 @@ func mainView(c *ui.Context) {
 				state.mu.Unlock()
 				// Body under the title bar must Grow into remaining height (not Fill%).
 				ui.Column(c).Grow(1).MinHeight(0).Children(func() {
-					boot.RecoveryControl(c, boot.Model{
-						Status: st, Logs: logs, ThemeID: themeID, SystemDark: mygo.Theme.IsDark(),
-						OnConfigure: func() {
-							state.mu.Lock()
-							state.launcherOpen = true
-							state.mu.Unlock()
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						OnExport: func() {
-							if _, err := harness.ExportBootLogsDialog(win, buildVersion, st, logs, i18n.T(i18n.KeyBootExport)); err != nil {
-								log.Println("export log:", err)
-							}
-						},
-						OnCancelRecovery: func() {
-							if sup != nil {
-								sup.CancelRecovery()
-							}
-						},
-						OnRetry: func() {
-							if sup != nil {
-								state.restartUnlessImport(sup)
-							}
-						},
-					})
 					state.mu.Lock()
 					connBanner := connectionBanner(st, state.dshMuxReady, state.dshMuxLost)
-					if st.State == harness.Ready {
+					if st.State != harness.Ready {
+						connBanner = "" // The workbench Host status owns startup and recovery.
+					} else {
 						if unavailable := connectionUnavailableMessage(state.dshBootstrapError, state.dshNetworkOffline, state.dshMuxLost); unavailable != "" {
 							connBanner = unavailable
 						}
@@ -5748,6 +5332,7 @@ func mainView(c *ui.Context) {
 					draft = activeDraft.Text
 					state.composerTextInput = activeDraft.Client
 					state.mu.Unlock()
+					state.bindComposerFileIntake(win, sessions, snap.SelectedID, activeDraft)
 					if snap.SelectedModel != "" && modelPick != snap.SelectedModel {
 						modelPick = snap.SelectedModel
 					}
@@ -5983,7 +5568,12 @@ func mainView(c *ui.Context) {
 							}
 						},
 						ConnectionBanner: connBanner,
-						OnReconnect:      state.requestConnectionReconnect,
+						HostStatus: func(c *ui.Context) {
+							if mainDestination == routeConversation {
+								state.workbenchHostStatus(c, win, st, sup, logs)
+							}
+						},
+						OnReconnect: state.requestConnectionReconnect,
 						SessionCost: costui.Model{Billing: func() usagestore.BillingView {
 							if usageStore != nil {
 								return usageStore.Billing()
@@ -5994,7 +5584,7 @@ func mainView(c *ui.Context) {
 								usageStore.RequestBillingEditor()
 							}
 							state.mu.Lock()
-							state.usageOpen = true
+							state.setMainRouteLocked(routeUsage)
 							state.mu.Unlock()
 						}},
 						UsageJobsToday: usageJobsToday,
@@ -6005,16 +5595,8 @@ func mainView(c *ui.Context) {
 								return
 							}
 							state.mu.Lock()
-							state.usageOpen = true
-							state.imOpen = false
-							state.settingsOpen = false
-							state.webviewOpen = false
-							state.browserPreviewOpen = false
-							state.remoteOpen = false
-							state.marketOpen = false
-							state.scheduleOpen = false
+							state.setMainRouteLocked(routeUsage)
 							state.mu.Unlock()
-							asstSvc.SetOpen(false)
 							sid := ""
 							if sessions != nil {
 								sid = sessions.SelectedSessionID()
@@ -6049,38 +5631,40 @@ func mainView(c *ui.Context) {
 								win.Update(func() {})
 							}
 						},
-						OnAttachComposerFiles: func(paths []string) { state.addComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths) },
-						OnRetryComposerFile:   func(index int) { state.prepareComposerFile(win, sessions, snap.SelectedID, activeDraft, index, true) },
-						OnPasteComposerImage:  func(explicit bool) { state.pasteComposerImage(win, sessions, snap.SelectedID, activeDraft, explicit) },
-						EditMessageSeq:        &editMessageSeq,
-						FeedbackCommentMsgID:  &feedbackCommentMsgID,
-						FeedbackCommentDraft:  &feedbackCommentDraft,
-						ModelPick:             &modelPick,
-						PermissionPick:        &permissionPick,
-						AgentPresetPick:       &agentPresetPick,
-						ThinkingExpanded:      &thinkingExpanded,
-						RenameSessionID:       &renameSessionID,
-						RenameDraft:           &renameDraft,
-						SessionSearch:         &sessionSearch,
-						WorkspaceRoot:         workspaceRoot,
-						FileExpanded:          &fileExpanded,
-						SelectedFile:          &selectedFile,
-						FileFilter:            &fileFilter,
-						FilePreview:           &filePreview,
-						FilePreviewErr:        &filePreviewErr,
-						FilePreviewList:       &filePreviewList,
-						FileEditing:           &fileEditing,
-						FileEditDraft:         &fileEditDraft,
-						FileTabs:              &fileTabs,
-						FileBindingID:         fileBindingID,
-						GitWorkbench:          &gitWorkbench,
-						FileEditStatus:        &fileEditStatus,
-						FileEditViewMode:      &fileEditViewMode,
-						FileEditSplit:         &fileEditSplit,
-						FilePaneWidth:         &filePaneWidth,
-						RightPaneOpen:         filesPaneOpen,
-						RightPaneTab:          &rightPaneTab,
-						AgentsPromptDraft:     &agentsPromptDraft,
+						OnAttachComposerFiles: func(paths []string) {
+							state.addTransferredComposerFiles(win, sessions, snap.SelectedID, activeDraft, paths)
+						},
+						OnRetryComposerFile:  func(index int) { state.prepareComposerFile(win, sessions, snap.SelectedID, activeDraft, index, true) },
+						OnPasteComposerImage: func(explicit bool) { state.pasteComposerImage(win, sessions, snap.SelectedID, activeDraft, explicit) },
+						EditMessageSeq:       &editMessageSeq,
+						FeedbackCommentMsgID: &feedbackCommentMsgID,
+						FeedbackCommentDraft: &feedbackCommentDraft,
+						ModelPick:            &modelPick,
+						PermissionPick:       &permissionPick,
+						AgentPresetPick:      &agentPresetPick,
+						ThinkingExpanded:     &thinkingExpanded,
+						RenameSessionID:      &renameSessionID,
+						RenameDraft:          &renameDraft,
+						SessionSearch:        &sessionSearch,
+						WorkspaceRoot:        workspaceRoot,
+						FileExpanded:         &fileExpanded,
+						SelectedFile:         &selectedFile,
+						FileFilter:           &fileFilter,
+						FilePreview:          &filePreview,
+						FilePreviewErr:       &filePreviewErr,
+						FilePreviewList:      &filePreviewList,
+						FileEditing:          &fileEditing,
+						FileEditDraft:        &fileEditDraft,
+						FileTabs:             &fileTabs,
+						FileBindingID:        fileBindingID,
+						GitWorkbench:         &gitWorkbench,
+						FileEditStatus:       &fileEditStatus,
+						FileEditViewMode:     &fileEditViewMode,
+						FileEditSplit:        &fileEditSplit,
+						FilePaneWidth:        &filePaneWidth,
+						RightPaneOpen:        filesPaneOpen,
+						RightPaneTab:         &rightPaneTab,
+						AgentsPromptDraft:    &agentsPromptDraft,
 						OnOpenAgentPaneDocument: func(paneID string, owner *session.Store, token uint64, address session.AgentSessionAddress, path string) {
 							state.openAgentPaneDocument(paneID, owner, token, address, path)
 						},
@@ -6149,7 +5733,7 @@ func mainView(c *ui.Context) {
 						OnDeleteSkill: func(name string) {
 							state.mu.Lock()
 							state.settingsEmbeddedSection = ""
-							state.settingsOpen = true
+							state.setMainRouteLocked(routeSettings)
 							state.settingsSkillsActive = true
 							state.settingsDesktopActive = false
 							state.settingsAccountActive = false
@@ -6481,12 +6065,8 @@ func mainView(c *ui.Context) {
 						},
 						OnOpenMarket: func() {
 							state.mu.Lock()
-							state.marketOpen = true
-							state.scheduleOpen = false
-							state.settingsOpen = false
-							state.launcherOpen = false
+							state.setMainRouteLocked(routeMarket)
 							state.mu.Unlock()
-							asstSvc.SetOpen(false)
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -6496,17 +6076,12 @@ func mainView(c *ui.Context) {
 							state.openInstalledPluginViewWithLabel(id, state.sidebarPluginLabel(id))
 						},
 						OnCreatePluginDraft: func(region string) {
-							agentPresetPick = "cordis"
 							state.startCreatorPluginDraft(win, sessions, region)
 						},
 						OnOpenSchedule: func() {
 							state.mu.Lock()
-							state.scheduleOpen = true
-							state.marketOpen = false
-							state.settingsOpen = false
-							state.launcherOpen = false
+							state.setMainRouteLocked(routeSchedule)
 							state.mu.Unlock()
-							asstSvc.SetOpen(false)
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -6514,34 +6089,14 @@ func mainView(c *ui.Context) {
 						OnOpenAssistant: func() {
 							state.openWhaleFromSidebar(win)
 						},
-						OnOpenLauncher: func() {
-							state.mu.Lock()
-							state.launcherOpen = true
-							state.toolsMenuOpen = false
-							state.settingsOpen = false
-							state.mu.Unlock()
-							state.launcherController().SetTab(launcher.TabHome)
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
+						OnOpenDesktopSettings:   state.openWorkbenchSettings,
 						ConnectionReady:         connReady,
 						AssistantName:           assistantNavName,
 						DesktopUpdateInstalling: updateInstalling,
 						DesktopUpdatePhase:      updatePhase,
 						DesktopUpdateDetail:     updateDetail,
-						OnOpenDesktopUpdate: func() {
-							state.mu.Lock()
-							state.launcherOpen = true
-							state.toolsMenuOpen = false
-							state.settingsOpen = false
-							state.mu.Unlock()
-							state.launcherController().SetTab(launcher.TabVersions)
-							if win != nil {
-								win.Update(func() {})
-							}
-						},
-						OnContactAccount: state.contactAccountSupport,
+						OnOpenDesktopUpdate:     func() { state.openNativeUpdateCenter(win) },
+						OnContactAccount:        state.contactAccountSupport,
 						Account: sidebar.Account{
 							Name:                strings.TrimSpace(accountUsage.Name),
 							Detail:              strings.TrimSpace(accountUsage.Email),
@@ -6883,40 +6438,7 @@ func mainView(c *ui.Context) {
 				})
 				return
 			}
-			boot.View(c, boot.Model{
-				OnCancelRecovery: func() {
-					if sup != nil {
-						sup.CancelRecovery()
-					}
-				},
-				OnConfigure: func() {
-					state.mu.Lock()
-					state.launcherOpen = true
-					state.mu.Unlock()
-					if win != nil {
-						win.Update(func() {})
-					}
-				},
-				Status:     st,
-				Logs:       logs,
-				ThemeID:    themeID,
-				SystemDark: mygo.Theme.IsDark(),
-				OnRetry: func() {
-					if sup != nil {
-						state.restartUnlessImport(sup)
-					}
-				},
-				OnExport: func() {
-					path, err := harness.ExportBootLogsDialog(win, buildVersion, st, logs, i18n.T(i18n.KeyBootExport))
-					if err != nil {
-						log.Println("export log:", err)
-						return
-					}
-					if path != "" {
-						log.Println(i18n.T(i18n.KeyBootExportSaved), path)
-					}
-				},
-			})
+
 		}
 		navAccountUsage := usagestore.ViewState{}
 		if state.usage != nil {

@@ -20,6 +20,10 @@ import (
 // This exercises real HTTP and the launcher event simulation. It does not
 // certify Windows input or the native window's update queue.
 func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
+	checkLabel := "检查更新"
+	if i18n.Locale() == i18n.LocaleEN {
+		checkLabel = "Check for updates"
+	}
 	for _, status := range []int{http.StatusOK, http.StatusServiceUnavailable} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			var requests atomic.Int32
@@ -41,21 +45,23 @@ func TestLauncherUpdateCheckDoesNotHoldInput(t *testing.T) {
 			s.launcherController().SetUpdateAvailableForTest(true)
 			dispatched := make(chan error, 1)
 			go func() {
-				tab := ""
+				left := false
 				tt := ui.NewTester(func(c *ui.Context) {
-					launcher.View(c, launcher.Model{VendorReady: true, ActiveTab: launcher.TabHome,
-						OnCheckUpdate: func() { s.checkLauncherUpdate(nil) },
-						OnTab:         func(id string) { tab = id },
+					if ui.Button(c, "Back to workbench").Clicked() {
+						left = true
+					}
+					launcher.UpdateCenter(c, launcher.Model{VendorReady: true,
+						OnRefreshReleases: func() { s.checkLauncherUpdate(nil) },
 					})
 				}, 1200, 800)
-				for _, label := range []string{i18n.T(i18n.KeyLauncherCheckUpdate), i18n.T(i18n.KeyLauncherCheckUpdate), i18n.T(i18n.KeyLauncherTabComponents)} {
+				for _, label := range []string{checkLabel, checkLabel, "Back to workbench"} {
 					if err := tt.Click(label); err != nil {
 						dispatched <- err
 						return
 					}
 				}
-				if tab != launcher.TabComponents {
-					dispatched <- fmt.Errorf("pending check prevented rail callback: %q", tab)
+				if !left {
+					dispatched <- fmt.Errorf("pending check prevented navigation")
 					return
 				}
 				dispatched <- nil

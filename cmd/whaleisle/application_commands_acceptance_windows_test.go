@@ -73,7 +73,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 			defer s.processApplicationMenu(c)
 			ui.Button(c, "Owned main command scope").Width(220).Height(32)
 		}, 600, 300)
-		for _, id := range []string{"file", "run", "view", "help", "workspace.add", "launcher.open", "workspace.reveal", "settings.open", "market.open", "harness.restart", "window.refresh", "window.actualSize", "window.zoomIn", "window.zoomOut", "window.fullscreen", "window.inspector", "help.web", "help.sdk", "app.quit"} {
+		for _, id := range []string{"file", "run", "view", "help", "workspace.add", "workspace.reveal", "settings.open", "market.open", "harness.restart", "window.refresh", "window.actualSize", "window.zoomIn", "window.zoomOut", "window.fullscreen", "window.inspector", "help.web", "help.sdk", "app.quit"} {
 			item := menu.ItemByID(id)
 			if item == nil {
 				t.Fatalf("missing menu identity %s", id)
@@ -85,7 +85,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		if menu.ItemByID("window.inspector").Role != mygo.RoleToggleDevTools {
 			t.Fatal("native role identity changed")
 		}
-		for _, id := range []string{"launcher.open", "settings.open", "market.open", "settings.mcp", "settings.skills", "settings.about"} {
+		for _, id := range []string{"settings.open", "market.open", "settings.mcp", "settings.skills", "settings.about"} {
 			s.imOpen, s.remoteOpen, s.webviewOpen, s.browserPreviewOpen = true, true, true, true
 			s.assistantService().SetOpen(true)
 			item := menu.ItemByID(id)
@@ -101,16 +101,12 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 				t.Fatalf("hidden route masks %s", id)
 			}
 			switch id {
-			case "launcher.open":
-				if !s.launcherOpen || s.settingsOpen || s.marketOpen || s.imOpen || s.remoteOpen {
-					t.Fatal("launcher route")
-				}
 			case "market.open":
-				if !s.marketOpen || s.settingsOpen || s.launcherOpen || s.imOpen || s.remoteOpen {
+				if !s.marketOpen || s.settingsOpen || s.maintenanceOpen || s.imOpen || s.remoteOpen {
 					t.Fatal("market route")
 				}
 			default:
-				if !s.settingsOpen || s.launcherOpen || s.marketOpen {
+				if !s.settingsOpen || s.maintenanceOpen || s.marketOpen {
 					t.Fatalf("settings route %s", id)
 				}
 				if id == "settings.mcp" && !s.settingsMCPActive || id == "settings.skills" && !s.settingsSkillsActive || id == "shortcuts.open" && !s.settingsInterfaceActive || id == "settings.about" && !s.settingsAboutActive {
@@ -157,7 +153,7 @@ func TestFunctionalOwnedAppCommands(t *testing.T) {
 		if !strings.Contains(menu.ItemByID("settings.open").Label, "Mod+Alt+F7") {
 			t.Fatal("menu keycap did not follow the accepted revision")
 		}
-		if strings.Contains(menu.ItemByID("settings.mcp").Label, "Mod+") || strings.Contains(menu.ItemByID("launcher.open").Label, "Mod+") {
+		if strings.Contains(menu.ItemByID("settings.mcp").Label, "Mod+") || menu.ItemByID("launcher.open") != nil {
 			t.Fatal("a native row without an accelerator showed one")
 		}
 		before, _ := cfg.ShortcutDocument()

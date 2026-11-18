@@ -23,7 +23,7 @@ type composerVoiceOperation struct {
 func (s *mainState) voiceCurrent(op *composerVoiceOperation) bool {
 	asstOpen := s.assistantService().Open()
 	s.mu.Lock()
-	visible := !s.launcherOpen && !s.settingsOpen && !s.usageOpen && !s.scheduleOpen && !s.imOpen && !s.marketOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen && !asstOpen
+	visible := !s.maintenanceOpen && !s.settingsOpen && !s.usageOpen && !s.scheduleOpen && !s.imOpen && !s.marketOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen && !asstOpen
 	current := visible && s.voice == op && !s.quitting && s.win == op.win && s.sessions == op.sessions && s.composerDrafts[op.id] == op.draft && s.bootStatus.Generation == op.generation && s.bootStatus.State == harness.Ready && s.dshMuxReady
 	s.mu.Unlock()
 	if !current {

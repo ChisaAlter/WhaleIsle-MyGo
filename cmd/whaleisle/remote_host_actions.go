@@ -152,5 +152,13 @@ func (s *mainState) savePhoneConfigPatch(patch map[string]any) (map[string]any, 
 	if err := s.cfgStore.UpdateChecked(func(c *config.Config) error { return applyRemoteConfigPatch(c, patch) }); err != nil {
 		return nil, err
 	}
-	return redactedRemoteConfig(s.cfgStore.Get()), nil
+	result := redactedRemoteConfig(s.cfgStore.Get())
+	for key := range patch {
+		if strings.HasPrefix(key, "remote") {
+			s.applySavedPhoneGateway()
+			result["gatewayState"] = "applying"
+			break
+		}
+	}
+	return result, nil
 }

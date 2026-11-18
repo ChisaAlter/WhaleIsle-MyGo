@@ -82,6 +82,10 @@ func (s *mainState) bindProjectModel(win *mygo.Window, m *frame.Model) {
 	m.Projects = s.projectManager().BindModel(projectWindowRef(win), m.ThemeID, m.SystemDark)
 }
 
+func (s *mainState) beginProjectPresentationFrame() func() {
+	return s.projectManager().BeginPresentationFrame()
+}
+
 func (s *mainState) bindProjectNativeConsumers(win *mygo.Window, m *projects.Model) {
 	s.projectManager().BindNativeConsumers(projectWindowRef(win), m)
 }
@@ -141,7 +145,7 @@ func (d mainProjectDeps) hostDeps() projectctl.HostDeps {
 			st := d.s.bootStatus
 			sup := d.s.sup
 			quitting := d.s.quitting
-			overlay := d.s.launcherOpen || d.s.settingsOpen || d.s.closingOverlay
+			overlay := d.s.maintenanceOpen || d.s.settingsOpen || d.s.closingOverlay
 			importBusy := d.s.launcherImportBusy
 			tunnel := d.s.sshTunnel
 			d.s.mu.Unlock()

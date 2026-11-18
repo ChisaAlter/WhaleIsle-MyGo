@@ -61,19 +61,11 @@ func (s *mainState) openPetSession(id string) {
 // authenticated Whale ensure result before changing the visible conversation.
 func (s *mainState) activatePetConversation(sessions *session.Store, id string) {
 	s.mu.Lock()
-	s.launcherOpen = false
-	s.settingsOpen = false
-	s.usageOpen = false
-	s.scheduleOpen = false
-	s.imOpen = false
-	s.marketOpen = false
-	s.remoteOpen = false
-	s.webviewOpen = false
-	s.browserPreviewOpen = false
+	s.setMainRouteLocked(routeConversation)
 	s.chatPaneTab = "chat"
 	win := s.win
 	s.mu.Unlock()
-	s.assistantService().SetOpen(false)
+	s.syncMainRouteResources()
 	sessions.Select(id)
 	s.showMainWindow()
 	if win != nil {

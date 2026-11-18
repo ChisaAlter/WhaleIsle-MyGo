@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/desktop/workspacefs"
@@ -56,11 +57,10 @@ func findFileResourcePane(w *frame.WorkspacePanes, rel string) *frame.WorkspaceP
 	return pane
 }
 
-// markFileTabDirty writes a real draft at all three levels of the same value:
-// the FileTab a native edit produces, the pane's edit state, and the mainState
-// mirror. All three are synced by capture/publish every frame, so a partial
-// write is clobbered by the next projection; a consistent write survives.
-func markFileTabDirty(state *mainState, pane *frame.WorkspacePane, rel, root, draft string) bool {
+// seedRecoveredFileDraft supplies a recovered unsaved document to its actual
+// pane owner. The ordinary frame projection publishes it; this fixture does
+// not claim to exercise the edit menu or native text entry.
+func seedRecoveredFileDraft(pane *frame.WorkspacePane, rel, root, draft string) bool {
 	if pane == nil || pane.Files == nil {
 		return false
 	}
@@ -78,9 +78,6 @@ func markFileTabDirty(state *mainState, pane *frame.WorkspacePane, rel, root, dr
 	}
 	tab.Editing, tab.Draft = true, draft
 	pane.Files.Editing, pane.Files.Draft = true, draft
-	state.mu.Lock()
-	state.fileEditing, state.fileEditDraft = true, draft
-	state.mu.Unlock()
 	return true
 }
 
@@ -96,7 +93,11 @@ func TestMain(m *testing.M) {
 	if len(os.Args) == 3 && os.Args[1] == nativeRecoveryFlag {
 		os.Exit(m.Run())
 	}
-	composerFlowError = runComposerFlowQA()
+	if os.Getenv("WHALEISLE_COMPOSER_QA_SCENARIO") == "submission-recovery" {
+		composerFlowError = runSubmissionRecoveryAcceptance()
+	} else {
+		composerFlowError = runComposerFlowQA()
+	}
 	os.Exit(m.Run())
 }
 
@@ -254,6 +255,9 @@ func newQAModel() (*qaModel, error) {
 
 func runComposerFlowQA() error {
 	workspace, out := os.Getenv("WHALEISLE_COMPOSER_QA_WORKSPACE"), os.Getenv("WHALEISLE_COMPOSER_QA_OUT")
+	scenario := os.Getenv("WHALEISLE_COMPOSER_QA_SCENARIO")
+	draftConflictOnly := scenario == "draft-conflict"
+	workSurfacesOnly := scenario == "work-surfaces" || draftConflictOnly
 	data := os.Getenv(paths.EnvUserData)
 	if !isolatedDesktopRun() || !filepath.IsAbs(data) || !filepath.IsAbs(workspace) || !filepath.IsAbs(out) {
 		return fmt.Errorf("explicit owned composer QA environment required")
@@ -382,7 +386,9 @@ func runComposerFlowQA() error {
 			return
 		}
 		state.revealMainConversation()
-		win.ShowInactive()
+		if !isolatedDesktopHidden() {
+			win.ShowInactive()
+		}
 		if _, err := win.CapturePage(); err != nil {
 			finish(err)
 			return
@@ -441,249 +447,288 @@ func runComposerFlowQA() error {
 		}
 		id2 := sessions.Snapshot().SelectedID
 		mark("create-two-sessions", id1 != "" && id2 != "" && id1 != id2, fmt.Sprintf("id1=%s id2=%s createdSignalSampled=%v", id1, id2, seenActions["session created"]))
-		// --- draft + attachment survives switching ---
-		state.mu.Lock()
-		d1 := state.composerDraftLocked(id1)
-		d1.Text = "QA draft A"
-		d1.Attachments = []session.ComposerAttachment{{Path: notePath, Name: "qa-note.txt"}}
-		state.mu.Unlock()
-		sessions.Select(id1)
-		time.Sleep(300 * time.Millisecond)
-		sessions.Select(id2)
-		time.Sleep(300 * time.Millisecond)
-		state.mu.Lock()
-		state.composerDraftLocked(id2).Text = "QA draft B"
-		state.mu.Unlock()
-		sessions.Select(id1)
-		if err := waitStore(deadline, "reselect id1", func() (bool, error) {
-			return sessions.Snapshot().SelectedID == id1, nil
-		}); err != nil {
-			finish(err)
-			return
-		}
-		state.mu.Lock()
-		gotA, gotB := state.composerDrafts[id1], state.composerDrafts[id2]
-		state.mu.Unlock()
-		switchOK := gotA != nil && gotA.Text == "QA draft A" && len(gotA.Attachments) == 1 && gotB != nil && gotB.Text == "QA draft B"
-		mark("draft-attachment-switch", switchOK, fmt.Sprintf("A=%q att=%d B=%q", gotA.Text, len(gotA.Attachments), gotB.Text))
-		if !switchOK {
-			finish(fmt.Errorf("draft/attachment lost across session switch"))
-			return
-		}
-		// --- real send with attachment; type while in flight ---
-		state.mu.Lock()
-		d1 = state.composerDraftLocked(id1)
-		d1.Text = "QA_HELLO first send"
-		gen := sessions.Snapshot().ComposerHostGeneration
-		state.mu.Unlock()
-		state.submitComposer(win, sessions, d1, id1, workspace, 0, false, gen)
-		time.Sleep(150 * time.Millisecond)
-		state.mu.Lock()
-		if d := state.composerDrafts[id1]; d != nil {
-			d.Text = "typed while sending"
-		}
-		state.mu.Unlock()
-		var userCount, replyCount int
-		if err := waitStore(deadline, "first turn completes", func() (bool, error) {
-			v := sessions.Snapshot()
-			if v.SelectedID != id1 {
-				return false, nil
-			}
-			userCount, replyCount = 0, 0
-			for _, m := range v.Messages {
-				if m.Role == "user" && strings.Contains(m.Body, "QA_HELLO first send") {
-					userCount++
-				}
-				if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") {
-					replyCount++
-				}
-			}
-			return userCount >= 1 && replyCount >= 1 && !v.PromptBusy, nil
-		}); err != nil {
-			v := sessions.Snapshot()
+		if !workSurfacesOnly {
+			// --- draft + attachment survives switching ---
 			state.mu.Lock()
-			dd := state.composerDrafts[id1]
-			dErr, dSending, dText, dAtt := "", false, "", 0
-			if dd != nil {
-				dErr, dSending, dText = dd.Error, dd.Sending, dd.Text
-				dAtt = len(dd.Attachments)
+			d1 := state.composerDraftLocked(id1)
+			d1.Text = "QA draft A"
+			d1.Attachments = []session.ComposerAttachment{{Path: notePath, Name: "qa-note.txt"}}
+			state.mu.Unlock()
+			sessions.Select(id1)
+			time.Sleep(300 * time.Millisecond)
+			sessions.Select(id2)
+			time.Sleep(300 * time.Millisecond)
+			state.mu.Lock()
+			state.composerDraftLocked(id2).Text = "QA draft B"
+			state.mu.Unlock()
+			sessions.Select(id1)
+			if err := waitStore(deadline, "reselect id1", func() (bool, error) {
+				return sessions.Snapshot().SelectedID == id1, nil
+			}); err != nil {
+				finish(err)
+				return
+			}
+			state.mu.Lock()
+			gotA, gotB := state.composerDrafts[id1], state.composerDrafts[id2]
+			state.mu.Unlock()
+			switchOK := gotA != nil && gotA.Text == "QA draft A" && len(gotA.Attachments) == 1 && gotB != nil && gotB.Text == "QA draft B"
+			mark("draft-attachment-switch", switchOK, fmt.Sprintf("A=%q att=%d B=%q", gotA.Text, len(gotA.Attachments), gotB.Text))
+			if !switchOK {
+				finish(fmt.Errorf("draft/attachment lost across session switch"))
+				return
+			}
+			// --- real send with attachment; type while in flight ---
+			state.mu.Lock()
+			d1 = state.composerDraftLocked(id1)
+			d1.Text = "QA_HELLO first send"
+			gen := sessions.Snapshot().ComposerHostGeneration
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, d1, id1, workspace, 0, false, gen)
+			// The originating transcript is deliberately detached before admission
+			// completes. Confirmation belongs to the request, not this selection.
+			sessions.Select(id2)
+			time.Sleep(150 * time.Millisecond)
+			state.mu.Lock()
+			if d := state.composerDrafts[id1]; d != nil {
+				d.Text = "typed while sending"
 			}
 			state.mu.Unlock()
-			finish(fmt.Errorf("first turn never completed: %w (last=%q busy=%v send=%v derr=%q dtext=%q att=%d msgs=%d sel=%s)", err, v.LastAction, v.PromptBusy, dSending, dErr, dText, dAtt, len(v.Messages), v.SelectedID))
-			return
-		}
-		state.mu.Lock()
-		midEdit := state.composerDrafts[id1].Text
-		state.mu.Unlock()
-		mark("send-with-attachment-mid-edit", userCount == 1 && replyCount >= 1 && midEdit == "typed while sending",
-			fmt.Sprintf("user=%d reply=%d draft=%q", userCount, replyCount, midEdit))
-		// --- stop after send ---
-		sessions.Select(id2)
-		if err := waitStore(deadline, "select id2", func() (bool, error) {
-			return sessions.Snapshot().SelectedID == id2 && sessions.Snapshot().HistoryReady, nil
-		}); err != nil {
-			finish(err)
-			return
-		}
-		state.mu.Lock()
-		d2 := state.composerDraftLocked(id2)
-		d2.Text = "QA_WAIT stream until stopped"
-		gen = sessions.Snapshot().ComposerHostGeneration
-		state.mu.Unlock()
-		state.submitComposer(win, sessions, d2, id2, workspace, 0, false, gen)
-		if err := waitStore(deadline, "wait turn running", func() (bool, error) {
-			v := sessions.Snapshot()
-			if v.SelectedID != id2 {
-				return false, nil
+			if err := waitStore(time.Now().Add(25*time.Second), "background attachment handoff", func() (bool, error) {
+				state.mu.Lock()
+				d := state.composerDrafts[id1]
+				pending := d != nil && len(d.PendingSubmissionFlights()) > 0
+				state.mu.Unlock()
+				return sessions.SelectedSessionID() == id2 && !pending, nil
+			}); err != nil {
+				var pendingCount int
+				var draftError, phase string
+				mygo.RunOnMain(func() {
+					state.mu.Lock()
+					defer state.mu.Unlock()
+					if d := state.composerDrafts[id1]; d != nil {
+						pendingCount, draftError = len(d.PendingSubmissionFlights()), d.Error
+					}
+					if state.resumeStore != nil {
+						var recovery session.SubmissionRecovery
+						if json.Unmarshal(state.resumeStore.Snapshot().Submissions, &recovery) == nil {
+							for _, record := range recovery.Records {
+								if record.SessionID == id1 {
+									phase = record.Phase
+								}
+							}
+						}
+					}
+				})
+				finish(fmt.Errorf("%w (selected=%s expected=%s pending=%d phase=%s draftError=%q)", err, sessions.SelectedSessionID(), id2, pendingCount, phase, draftError))
+				return
 			}
-			for _, it := range v.Items {
-				if it.SessionID == id2 && it.Running {
-					return true, nil
-				}
-			}
-			return v.PromptBusy, nil
-		}); err != nil {
-			v := sessions.Snapshot()
-			finish(fmt.Errorf("wait turn never started: %w (sel=%s busy=%v last=%s draft=%q sending=%v err=%q)", err, v.SelectedID, v.PromptBusy, v.LastAction, d2.Text, d2.Sending, d2.Error))
-			return
-		}
-		time.Sleep(300 * time.Millisecond)
-		sessions.CancelRunning(ctx)
-		if err := waitStore(deadline, "cancel accepted", func() (bool, error) {
-			watch()
-			v := sessions.Snapshot()
-			for _, it := range v.Items {
-				if it.SessionID == id2 && it.Running {
+			mark("attachment-confirmation-after-switch", true, "A confirmed without its visible transcript; B remained selected")
+			sessions.Select(id1)
+			var userCount, replyCount int
+			if err := waitStore(deadline, "first turn completes", func() (bool, error) {
+				v := sessions.Snapshot()
+				if v.SelectedID != id1 {
 					return false, nil
 				}
-			}
-			return !v.PromptBusy, nil
-		}); err != nil {
-			finish(fmt.Errorf("cancel never accepted: %w (last=%s)", err, sessions.Snapshot().LastAction))
-			return
-		}
-		mark("stop-after-send", true, fmt.Sprintf("session/cancel accepted while streaming (signalSampled=%v)", seenActions["cancel accepted"]))
-		// --- stale edit rejection keeps draft; retry succeeds ---
-		state.mu.Lock()
-		d2 = state.composerDrafts[id2]
-		if d2 == nil {
-			d2 = state.composerDraftLocked(id2)
-		}
-		d2.EditSeq = 999
-		d2.Text = "stale edit attempt"
-		state.mu.Unlock()
-		state.submitComposer(win, sessions, d2, id2, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
-		time.Sleep(400 * time.Millisecond)
-		staleOK := d2.Error != "" && d2.Text == "stale edit attempt"
-		mark("stale-edit-rejected-draft-kept", staleOK, fmt.Sprintf("err=%q text=%q", d2.Error, d2.Text))
-		state.mu.Lock()
-		d2.EditSeq = 0
-		d2.Error = ""
-		d2.Text = "QA_HELLO retry after rejection"
-		state.mu.Unlock()
-		state.submitComposer(win, sessions, d2, id2, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
-		if err := waitStore(deadline, "retry completes", func() (bool, error) {
-			v := sessions.Snapshot()
-			if v.SelectedID != id2 {
-				return false, nil
-			}
-			for _, m := range v.Messages {
-				if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") && !strings.Contains(m.Body, "QA_WAIT") {
-					return !v.PromptBusy, nil
-				}
-			}
-			return false, nil
-		}); err != nil {
-			v := sessions.Snapshot()
-			var tails []string
-			for i, m := range v.Messages {
-				if i < len(v.Messages)-4 {
-					continue
-				}
-				b := m.Body
-				if len(b) > 60 {
-					b = b[:60]
-				}
-				tails = append(tails, fmt.Sprintf("%s:%q", m.Role, b))
-			}
-			running := 0
-			for _, it := range v.Items {
-				if it.Running {
-					running++
-				}
-			}
-			finish(fmt.Errorf("retry never completed: %w (sel=%s busy=%v running=%d last=%q send=%v derr=%q msgs=%v)", err, v.SelectedID, v.PromptBusy, running, v.LastAction, d2.Sending, d2.Error, tails))
-			return
-		}
-		mark("retry-after-rejection", true, "second submit accepted and replied")
-		// --- one-time approval on a gated tool call ---
-		sessions.Select(id1)
-		state.mu.Lock()
-		dA := state.composerDraftLocked(id1)
-		dA.EditSeq = 0
-		dA.Error = ""
-		dA.Text = "QA_APPROVE run gated tool"
-		state.mu.Unlock()
-		state.submitComposer(win, sessions, dA, id1, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
-		approvalSeen := ""
-		var approveErr error
-		approveDeadline := time.Now().Add(40 * time.Second)
-		for time.Now().Before(approveDeadline) {
-			if approvalSeen == "" {
-				for _, p := range state.interactions.Snapshot().Pending {
-					if p.Event == "approval/request" {
-						approvalSeen = p.EventID
-						break
+				userCount, replyCount = 0, 0
+				for _, m := range v.Messages {
+					if m.Role == "user" && strings.Contains(m.Body, "QA_HELLO first send") {
+						userCount++
+					}
+					if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") {
+						replyCount++
 					}
 				}
-			}
-			v := sessions.Snapshot()
-			for _, m := range v.Messages {
-				if m.Role == "assistant" && strings.Contains(m.Body, "QA_NO_GATED_TOOL") {
-					approveErr = fmt.Errorf("session advertised no exec/write-class tool")
+				return userCount >= 1 && replyCount >= 1 && !v.PromptBusy, nil
+			}); err != nil {
+				v := sessions.Snapshot()
+				state.mu.Lock()
+				dd := state.composerDrafts[id1]
+				dErr, dSending, dText, dAtt := "", false, "", 0
+				if dd != nil {
+					dErr, dSending, dText = dd.Error, dd.Sending, dd.Text
+					dAtt = len(dd.Attachments)
 				}
-				if m.Role == "assistant" && strings.Contains(m.Body, "QA_APPROVED_OK") {
-					approveErr = fmt.Errorf("tool completed without an approval request")
+				state.mu.Unlock()
+				finish(fmt.Errorf("first turn never completed: %w (last=%q busy=%v send=%v derr=%q dtext=%q att=%d msgs=%d sel=%s)", err, v.LastAction, v.PromptBusy, dSending, dErr, dText, dAtt, len(v.Messages), v.SelectedID))
+				return
+			}
+			state.mu.Lock()
+			midEdit := state.composerDrafts[id1].Text
+			state.mu.Unlock()
+			mark("send-with-attachment-mid-edit", userCount == 1 && replyCount >= 1 && midEdit == "typed while sending",
+				fmt.Sprintf("user=%d reply=%d draft=%q", userCount, replyCount, midEdit))
+			// --- stop after send ---
+			sessions.Select(id2)
+			if err := waitStore(deadline, "select id2", func() (bool, error) {
+				return sessions.Snapshot().SelectedID == id2 && sessions.Snapshot().HistoryReady, nil
+			}); err != nil {
+				finish(err)
+				return
+			}
+			state.mu.Lock()
+			d2 := state.composerDraftLocked(id2)
+			d2.Text = "QA_WAIT stream until stopped"
+			gen = sessions.Snapshot().ComposerHostGeneration
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, d2, id2, workspace, 0, false, gen)
+			if err := waitStore(deadline, "wait turn running", func() (bool, error) {
+				v := sessions.Snapshot()
+				if v.SelectedID != id2 {
+					return false, nil
 				}
-			}
-			if approveErr != nil {
-				break
-			}
-			if approvalSeen != "" {
-				break
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-		toolUsed, _ := model.gatedTool.Load().(string)
-		allTools, _ := model.toolNames.Load().(string)
-		switch {
-		case approveErr != nil:
-			mark("one-time-approval", false, fmt.Sprintf("inconclusive: %s (tool=%q advertised=[%s])", approveErr.Error(), toolUsed, allTools))
-		case approvalSeen == "":
-			mark("one-time-approval", false, "no approval/request reached the interaction store within 40s")
-		default:
-			state.interactions.ResolveAllow(approvalSeen)
-			if err := waitStore(deadline, "approval accepted tool completes", func() (bool, error) {
-				for _, m := range sessions.Snapshot().Messages {
-					if m.Role == "assistant" && strings.Contains(m.Body, "QA_APPROVED_OK") {
+				for _, it := range v.Items {
+					if it.SessionID == id2 && it.Running {
 						return true, nil
+					}
+				}
+				return v.PromptBusy, nil
+			}); err != nil {
+				v := sessions.Snapshot()
+				finish(fmt.Errorf("wait turn never started: %w (sel=%s busy=%v last=%s draft=%q sending=%v err=%q)", err, v.SelectedID, v.PromptBusy, v.LastAction, d2.Text, d2.Sending, d2.Error))
+				return
+			}
+			time.Sleep(300 * time.Millisecond)
+			sessions.CancelRunning(ctx)
+			if err := waitStore(deadline, "cancel accepted", func() (bool, error) {
+				watch()
+				v := sessions.Snapshot()
+				for _, it := range v.Items {
+					if it.SessionID == id2 && it.Running {
+						return false, nil
+					}
+				}
+				return !v.PromptBusy, nil
+			}); err != nil {
+				finish(fmt.Errorf("cancel never accepted: %w (last=%s)", err, sessions.Snapshot().LastAction))
+				return
+			}
+			mark("stop-after-send", true, fmt.Sprintf("session/cancel accepted while streaming (signalSampled=%v)", seenActions["cancel accepted"]))
+			// --- stale edit rejection keeps draft; retry succeeds ---
+			state.mu.Lock()
+			d2 = state.composerDrafts[id2]
+			if d2 == nil {
+				d2 = state.composerDraftLocked(id2)
+			}
+			d2.EditSeq = 999
+			d2.Text = "stale edit attempt"
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, d2, id2, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+			time.Sleep(400 * time.Millisecond)
+			staleOK := d2.Error != "" && d2.Text == "stale edit attempt"
+			mark("stale-edit-rejected-draft-kept", staleOK, fmt.Sprintf("err=%q text=%q", d2.Error, d2.Text))
+			state.mu.Lock()
+			d2.EditSeq = 0
+			d2.Error = ""
+			d2.Text = "QA_HELLO retry after rejection"
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, d2, id2, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+			if err := waitStore(deadline, "retry completes", func() (bool, error) {
+				v := sessions.Snapshot()
+				if v.SelectedID != id2 {
+					return false, nil
+				}
+				for _, m := range v.Messages {
+					if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") && !strings.Contains(m.Body, "QA_WAIT") {
+						return !v.PromptBusy, nil
 					}
 				}
 				return false, nil
 			}); err != nil {
-				finish(fmt.Errorf("approval resolved but tool never completed: %w", err))
+				v := sessions.Snapshot()
+				var tails []string
+				for i, m := range v.Messages {
+					if i < len(v.Messages)-4 {
+						continue
+					}
+					b := m.Body
+					if len(b) > 60 {
+						b = b[:60]
+					}
+					tails = append(tails, fmt.Sprintf("%s:%q", m.Role, b))
+				}
+				running := 0
+				for _, it := range v.Items {
+					if it.Running {
+						running++
+					}
+				}
+				finish(fmt.Errorf("retry never completed: %w (sel=%s busy=%v running=%d last=%q send=%v derr=%q msgs=%v)", err, v.SelectedID, v.PromptBusy, running, v.LastAction, d2.Sending, d2.Error, tails))
 				return
 			}
-			cleared := true
-			for _, p := range state.interactions.Snapshot().Pending {
-				if p.EventID == approvalSeen {
-					cleared = false
+			mark("retry-after-rejection", true, "second submit accepted and replied")
+			// --- one-time approval on a gated tool call ---
+			sessions.Select(id1)
+			state.mu.Lock()
+			dA := state.composerDraftLocked(id1)
+			dA.EditSeq = 0
+			dA.Error = ""
+			dA.Text = "QA_APPROVE run gated tool"
+			state.mu.Unlock()
+			state.submitComposer(win, sessions, dA, id1, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+			approvalSeen := ""
+			var approveErr error
+			approveDeadline := time.Now().Add(40 * time.Second)
+			for time.Now().Before(approveDeadline) {
+				if approvalSeen == "" {
+					for _, p := range state.interactions.Snapshot().Pending {
+						if p.Event == "approval/request" {
+							approvalSeen = p.EventID
+							break
+						}
+					}
 				}
+				v := sessions.Snapshot()
+				for _, m := range v.Messages {
+					if m.Role == "assistant" && strings.Contains(m.Body, "QA_NO_GATED_TOOL") {
+						approveErr = fmt.Errorf("session advertised no exec/write-class tool")
+					}
+					if m.Role == "assistant" && strings.Contains(m.Body, "QA_APPROVED_OK") {
+						approveErr = fmt.Errorf("tool completed without an approval request")
+					}
+				}
+				if approveErr != nil {
+					break
+				}
+				if approvalSeen != "" {
+					break
+				}
+				time.Sleep(200 * time.Millisecond)
 			}
-			mark("one-time-approval", cleared, fmt.Sprintf("pending approval %s resolved once; tool result returned; pending cleared=%v", approvalSeen, cleared))
+			toolUsed, _ := model.gatedTool.Load().(string)
+			allTools, _ := model.toolNames.Load().(string)
+			switch {
+			case approveErr != nil:
+				mark("one-time-approval", false, fmt.Sprintf("inconclusive: %s (tool=%q advertised=[%s])", approveErr.Error(), toolUsed, allTools))
+			case approvalSeen == "":
+				mark("one-time-approval", false, "no approval/request reached the interaction store within 40s")
+			default:
+				state.interactions.ResolveAllow(approvalSeen)
+				if err := waitStore(deadline, "approval accepted tool completes", func() (bool, error) {
+					for _, m := range sessions.Snapshot().Messages {
+						if m.Role == "assistant" && strings.Contains(m.Body, "QA_APPROVED_OK") {
+							return true, nil
+						}
+					}
+					return false, nil
+				}); err != nil {
+					finish(fmt.Errorf("approval resolved but tool never completed: %w", err))
+					return
+				}
+				cleared := true
+				for _, p := range state.interactions.Snapshot().Pending {
+					if p.EventID == approvalSeen {
+						cleared = false
+					}
+				}
+				mark("one-time-approval", cleared, fmt.Sprintf("pending approval %s resolved once; tool result returned; pending cleared=%v", approvalSeen, cleared))
+			}
 		}
 		// --- optional sustained-stream workload for frame-cost sampling ---
-		if n, _ := strconv.Atoi(os.Getenv("WHALEISLE_COMPOSER_QA_WORKLOAD")); n > 0 {
+		if n, _ := strconv.Atoi(os.Getenv("WHALEISLE_COMPOSER_QA_WORKLOAD")); n > 0 || workSurfacesOnly {
+			if workSurfacesOnly {
+				n = 0
+			}
 			// Nudge: invalidate the window directly so a flat frame counter
 			// can be attributed to either the store→refresh link or the
 			// paint pipeline itself.
@@ -756,7 +801,23 @@ func runComposerFlowQA() error {
 			}
 			var reqCount, paintCount int64
 			mygo.RunOnMain(func() { reqCount, paintCount = mygo.TestFrameCounters() })
-			mark("workload-streams", true, fmt.Sprintf("%d long turns; visible=%v min=%v holdFrames(interaction=%v,sizeBurst=%v) frames=%d→%d | base[%s] mid[%s] end[req=%d paint=%d]", n, visible, minimized, interaction, sizeBurst, framesBefore, framesAfter, baseSnap, midSnap, reqCount, paintCount))
+			if n > 0 {
+				mark("workload-streams", true, fmt.Sprintf("%d long turns; visible=%v min=%v holdFrames(interaction=%v,sizeBurst=%v) frames=%d→%d | base[%s] mid[%s] end[req=%d paint=%d]", n, visible, minimized, interaction, sizeBurst, framesBefore, framesAfter, baseSnap, midSnap, reqCount, paintCount))
+			}
+			// Hidden windows deliberately do not paint on invalidation. These
+			// work surfaces consume async results during render, so drive that
+			// same render explicitly without presenting a window to the user.
+			var driver *ui.WindowDriver
+			mygo.RunOnMain(func() { driver = ui.DriveWindow(win) })
+			if driver == nil {
+				finish(errors.New("live window has no UI runtime"))
+				return
+			}
+			workSurfaceFrame := func() error {
+				mygo.RunOnMain(func() { driver.Frame() })
+				return nil
+			}
+			_ = workSurfaceFrame()
 			// --- file + diff work surface (batch 3 scope) ---
 			// Drive the same dock entry a tree/reference click uses: the pane's
 			// WorkspaceFileState owns the tab; the async workspacefs read
@@ -801,6 +862,9 @@ func runComposerFlowQA() error {
 				if oerr != nil {
 					mark("file-open-preview", false, oerr.Error())
 				} else if err := waitStore(fd, "workspace file preview loads", func() (bool, error) {
+					if err := workSurfaceFrame(); err != nil {
+						return false, err
+					}
 					state.mu.Lock()
 					prev, perr := state.filePreview, state.filePreviewErr
 					state.mu.Unlock()
@@ -816,30 +880,34 @@ func runComposerFlowQA() error {
 			case <-time.After(30 * time.Second):
 				mark("file-open-preview", false, "OpenFileResource did not run on the UI thread")
 			}
-			// Modify the tracked file after the baseline commit, then route the
-			// dock to the diff pane: its workbench runs git.DiffHEAD during
-			// render and publishes the text through the same adapter.
-			if werr := os.WriteFile(notePath, []byte("qa owned attachment bytes\nqa diff probe line\n"), 0o600); werr != nil {
-				mark("diff-surface-load", false, werr.Error())
-			} else {
-				win.Update(func() {
-					state.mu.Lock()
-					state.filesPaneOpen, state.rightPaneTab = true, "diff"
-					state.mu.Unlock()
-				})
-				if err := waitStore(fd, "diff surface loads git output", func() (bool, error) {
-					win.Invalidate()
-					state.mu.Lock()
-					text, derr := state.diffText, state.diffErr
-					state.mu.Unlock()
-					if derr != "" {
-						return false, errors.New(derr)
-					}
-					return strings.Contains(text, "qa diff probe line"), nil
-				}); err != nil {
-					mark("diff-surface-load", false, err.Error())
+			if !draftConflictOnly {
+				// Modify the tracked file after the baseline commit, then route the
+				// dock to the diff pane: its workbench runs git.DiffHEAD during
+				// render and publishes the text through the same adapter.
+				if werr := os.WriteFile(notePath, []byte("qa owned attachment bytes\nqa diff probe line\n"), 0o600); werr != nil {
+					mark("diff-surface-load", false, werr.Error())
 				} else {
-					mark("diff-surface-load", true, "git.DiffHEAD output reached diff surface")
+					win.Update(func() {
+						state.mu.Lock()
+						state.filesPaneOpen, state.rightPaneTab = true, "diff"
+						state.mu.Unlock()
+					})
+					if err := waitStore(fd, "diff surface loads git output", func() (bool, error) {
+						if err := workSurfaceFrame(); err != nil {
+							return false, err
+						}
+						state.mu.Lock()
+						text, derr := state.diffText, state.diffErr
+						state.mu.Unlock()
+						if derr != "" {
+							return false, errors.New(derr)
+						}
+						return strings.Contains(text, "qa diff probe line"), nil
+					}); err != nil {
+						mark("diff-surface-load", false, err.Error())
+					} else {
+						mark("diff-surface-load", true, "git.DiffHEAD output reached diff surface")
+					}
 				}
 			}
 			// Dirty draft lifecycle: drive the pane's WorkspaceFileState — the
@@ -847,11 +915,32 @@ func runComposerFlowQA() error {
 			// is the authoritative owner of Editing/Draft (tab.Dirty() compares
 			// tab.Draft != tab.Preview). Mirrors are published downstream.
 			dirtyDone := make(chan bool, 1)
-			win.Update(func() {
+			mygo.RunOnMain(func() {
 				state.mu.Lock()
 				state.filesPaneOpen, state.rightPaneTab = true, "files"
+				workspacePanes := state.layout.Workspace
 				state.mu.Unlock()
-				dirtyDone <- markFileTabDirty(&state, findFileResourcePane(state.layout.Workspace, "qa-note.txt"), "qa-note.txt", snap3.SelectedCwd, "qa local edit draft\n")
+				if workspacePanes == nil {
+					dirtyDone <- false
+					return
+				}
+				_, _ = workspacePanes.OpenFileResource(files.Model{BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap3.SelectedID),
+					SessionID: snap3.SelectedID, WorkspaceRoot: snap3.SelectedCwd, Tabs: &state.fileTabs}, "qa-note.txt")
+				driver.Frame()
+				pane := findFileResourcePane(workspacePanes, "qa-note.txt")
+				if pane == nil || workspacePanes.Active != pane.ID {
+					dirtyDone <- false
+					return
+				}
+				seeded := seedRecoveredFileDraft(pane, "qa-note.txt", snap3.SelectedCwd, "qa local edit draft\n")
+				if seeded {
+					// Use the same recovery projection entry as a restored pane;
+					// do not splice its tab set into another pane's adapter.
+					state.mu.Lock()
+					workspacePanes.PublishSessionProjection(state.workspaceProjectionLocked())
+					state.mu.Unlock()
+				}
+				dirtyDone <- seeded
 			})
 			fd2 := time.Now().Add(45 * time.Second)
 			select {
@@ -859,7 +948,9 @@ func runComposerFlowQA() error {
 				if !injected {
 					mark("file-edit-switch-return", false, "no open FileTab for qa-note.txt on the files pane")
 				} else if err := waitStore(fd2, "file draft published from pane state", func() (bool, error) {
-					win.Invalidate()
+					if err := workSurfaceFrame(); err != nil {
+						return false, err
+					}
 					state.mu.Lock()
 					e, d := state.fileEditing, state.fileEditDraft
 					state.mu.Unlock()
@@ -868,6 +959,10 @@ func runComposerFlowQA() error {
 					mark("file-edit-switch-return", false, err.Error())
 				} else {
 					win.Update(func() { state.mu.Lock(); state.rightPaneTab = "diff"; state.mu.Unlock() })
+					if err := workSurfaceFrame(); err != nil {
+						finish(err)
+						return
+					}
 					time.Sleep(500 * time.Millisecond)
 					// The "files" route selects the browser pane, not the open
 					// file: selectKind skips resource-owning files panes. The
@@ -906,7 +1001,9 @@ func runComposerFlowQA() error {
 						if rerr != "" {
 							mark("file-edit-switch-return", false, rerr)
 						} else if err := waitStore(fd2b, "file edit draft survives pane switching", func() (bool, error) {
-							win.Invalidate()
+							if err := workSurfaceFrame(); err != nil {
+								return false, err
+							}
 							dirty := false
 							if pane := findFileResourcePane(state.layout.Workspace, "qa-note.txt"); pane != nil && pane.Files != nil {
 								paneFound = true
@@ -936,13 +1033,9 @@ func runComposerFlowQA() error {
 			case <-time.After(20 * time.Second):
 				mark("file-edit-switch-return", false, "draft injection did not run on the UI thread")
 			}
-			// External modification while dirty: two real product paths surface
-			// the conflict — the resource observer ("loaded content kept") and
-			// the explicit file-selection reread ("disk content reread; draft
-			// kept"). Both preserve the draft; only the explicit reread adopts
-			// the new disk baseline, so preview is recorded as detail, not
-			// asserted. The invariant: conflict surfaced, draft kept, and the
-			// external disk content is never implicitly overwritten by a save.
+			// Refresh a dirty file after a real external write. The conflict UI
+			// must retain the original save baseline and local draft separately
+			// from the new disk version, without implicitly overwriting the file.
 			if werr := os.WriteFile(notePath, []byte("external disk change\n"), 0o600); werr != nil {
 				mark("external-edit-conflict", false, werr.Error())
 			} else {
@@ -958,49 +1051,23 @@ func runComposerFlowQA() error {
 							BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap4.SelectedID), SessionID: snap4.SelectedID, WorkspaceRoot: snap4.SelectedCwd,
 							Tabs: &state.fileTabs,
 						}
-						// syncTextRead only consumes the queued read while the
-						// owning pane renders, so reactivate the file tab first.
+						// Consume activation before starting the read. A hidden
+						// pane's Pause must not own this new refresh operation.
 						_, _ = workspacePanes.OpenFileResource(fm2, "qa-note.txt")
 					}
+					driver.Frame()
 					pane := findFileResourcePane(workspacePanes, "qa-note.txt")
 					if pane == nil || pane.Files == nil {
 						reloadDone <- "no files pane"
 						return
 					}
-					pf := pane.Files
-					// OpenPresentedPath is the product's file-selection gesture:
-					// selectTab restores s.Selected (which capture can blank during
-					// route projections) and a blocked tab re-reads on activation,
-					// sharing ReloadSelectedFile's draft/conflict handling.
-					handled, perr := files.OpenPresentedPath(files.Model{
-						BindingID: fmt.Sprintf("%p\x00%s", qaClient, snap4.SelectedID), SessionID: snap4.SelectedID, WorkspaceRoot: snap4.SelectedCwd,
-						Tabs: &pf.Tabs, SelectedFile: &pf.Selected,
-						Preview: &pf.Preview, PreviewErr: &pf.Error,
-						Editing: &pf.Editing, EditDraft: &pf.Draft,
-						EditStatus: &pf.Status, StatNote: &pf.Stat,
-						ReadTextPageContext: func(ctx context.Context, rel string, offset int64) (workspacefs.TextPage, error) {
-							return workspacefs.ReadRemoteTextPage(ctx, qaClient, snap4.SelectedID, rel, offset)
-						},
-						ReadRemoteContext: func(ctx context.Context, rel string) (string, error) {
-							return workspacefs.ReadRemoteText(ctx, qaClient, rel, workspacefs.DefaultMaxReadBytes)
-						},
-						StatRemoteContext: func(ctx context.Context, rel string) string {
-							return workspacePreviewStat(ctx, qaClient, snap4.SelectedID, rel)
-						},
-					}, "qa-note.txt")
-					if perr == nil && !handled {
-						perr = errors.New("OpenPresentedPath left qa-note.txt unhandled")
-					}
-					state.mu.Lock()
-					state.fileTabs = pf.Tabs
-					state.selectedFile = pf.Selected
-					state.filePreview, state.filePreviewErr = pf.Preview, pf.Error
-					state.fileEditing, state.fileEditDraft, state.fileEditStatus = pf.Editing, pf.Draft, pf.Status
-					state.mu.Unlock()
-					if perr != nil {
-						reloadDone <- perr.Error()
+					// The page command resolves focusedResource and invokes the
+					// renderer's actual fileModel, including its read owner.
+					if err := driver.Click("File preview toolbar"); err != nil {
+						reloadDone <- err.Error()
 						return
 					}
+					driver.PhysicalKey("KeyR", ui.KeyR, ui.Cmd)
 					reloadDone <- ""
 				})
 				select {
@@ -1011,7 +1078,9 @@ func runComposerFlowQA() error {
 						lastSt, lastD, lastP := "", "", ""
 						tabPrev, tabDraft, tabStatus, tabErr := "", "", "", ""
 						if err := waitStore(time.Now().Add(45*time.Second), "external edit conflict keeps draft", func() (bool, error) {
-							win.Invalidate()
+							if err := workSurfaceFrame(); err != nil {
+								return false, err
+							}
 							state.mu.Lock()
 							lastSt, lastD, lastP = state.fileEditStatus, state.fileEditDraft, state.filePreview
 							state.mu.Unlock()
@@ -1024,7 +1093,11 @@ func runComposerFlowQA() error {
 									}
 								}
 							}
-							if strings.Contains(lastSt, "草稿") || strings.Contains(strings.ToLower(lastSt), "draft") {
+							var visibleConflict bool
+							mygo.RunOnMain(func() {
+								visibleConflict = driver.HasText("外部修改与未保存草稿冲突") || driver.HasText("External edit conflicts with unsaved draft")
+							})
+							if visibleConflict && (strings.Contains(lastSt, "草稿") || strings.Contains(strings.ToLower(lastSt), "draft")) {
 								return strings.Contains(lastD, "qa local edit draft"), nil
 							}
 							return false, nil
@@ -1033,136 +1106,151 @@ func runComposerFlowQA() error {
 						} else if disk, _ := os.ReadFile(notePath); !strings.Contains(string(disk), "external disk change") {
 							mark("external-edit-conflict", false, "conflict path implicitly overwrote the external disk change")
 						} else {
-							path := "observer kept loaded content"
-							if strings.Contains(lastP, "external disk change") || strings.Contains(tabPrev, "external disk change") {
-								path = "explicit reread adopted disk baseline"
+							if lastP != "qa owned attachment bytes\n" && draftConflictOnly || tabPrev != lastP {
+								mark("external-edit-conflict", false, fmt.Sprintf("refresh replaced original save baseline: preview=%q tab=%q", lastP, tabPrev))
+							} else {
+								mark("external-edit-conflict", true, "visible conflict after physical page refresh; original save baseline and local draft kept; external disk change not overwritten")
 							}
-							mark("external-edit-conflict", true, fmt.Sprintf("conflict surfaced (%s); dirty draft kept; external disk change not overwritten", path))
 						}
 					}
 				case <-time.After(30 * time.Second):
 					mark("external-edit-conflict", false, "ReloadSelectedFile did not run on the UI thread")
 				}
 			}
-			// Staged-vs-unstaged reflection at the same git layer the workbench
-			// calls; the per-change stage menu is render-internal and stays a
-			// declared gap until a UI driver reaches it.
-			if out, gerr := exec.Command("git", "-C", workspace, "add", "qa-note.txt").CombinedOutput(); gerr != nil {
-				mark("diff-stage-reflect", false, fmt.Sprintf("git add: %v %s", gerr, out))
-			} else {
-				changes, cerr := git.Changes(workspace)
-				staged := false
-				for _, ch := range changes {
-					if ch.Path == "qa-note.txt" && ch.Staged() {
-						staged = true
-					}
-				}
-				scoped, derr := git.DiffScope(workspace, "", true)
-				headCount, _ := exec.Command("git", "-C", workspace, "rev-list", "--count", "HEAD").Output()
-				ok := cerr == nil && derr == nil && staged && strings.Contains(scoped, "external disk change") && strings.TrimSpace(string(headCount)) == "1"
-				mark("diff-stage-reflect", ok, fmt.Sprintf("staged=%v scopedHasContent=%v commits=%s (no implicit commit)", staged, strings.Contains(scoped, "external disk change"), strings.TrimSpace(string(headCount))))
-			}
-			// Terminal drawer: restartTerminal is the real open gesture (it
-			// sets terminalVisible + layout.Bottom itself); ensureTerminal is
-			// only the already-open refresh path. The panel must survive the
-			// dock route switching back to files.
-			termDone := make(chan bool, 1)
-			win.Update(func() {
-				state.restartTerminal(snap3.SelectedCwd, mygo.Theme.IsDark())
-				state.mu.Lock()
-				termDone <- state.terminalPanel != nil
-				state.mu.Unlock()
-			})
-			select {
-			case hasPanel := <-termDone:
-				if !hasPanel {
-					mark("terminal-route", false, "restartTerminal produced no panel")
+			if !draftConflictOnly {
+				// Staged-vs-unstaged reflection at the same git layer the workbench
+				// calls; the per-change stage menu is render-internal and stays a
+				// declared gap until a UI driver reaches it.
+				if out, gerr := exec.Command("git", "-C", workspace, "add", "qa-note.txt").CombinedOutput(); gerr != nil {
+					mark("diff-stage-reflect", false, fmt.Sprintf("git add: %v %s", gerr, out))
 				} else {
-					time.Sleep(800 * time.Millisecond)
-					win.Update(func() {
-						state.mu.Lock()
-						state.filesPaneOpen, state.rightPaneTab = true, "files"
-						termDone <- state.terminalPanel != nil
-						state.mu.Unlock()
-					})
-					select {
-					case alive := <-termDone:
-						mark("terminal-route", alive, "terminal panel mounted on workspace root; routed back to files")
-					case <-time.After(20 * time.Second):
-						mark("terminal-route", false, "route-back did not run on the UI thread")
+					changes, cerr := git.Changes(workspace)
+					staged := false
+					for _, ch := range changes {
+						if ch.Path == "qa-note.txt" && ch.Staged() {
+							staged = true
+						}
 					}
+					scoped, derr := git.DiffScope(workspace, "", true)
+					headCount, _ := exec.Command("git", "-C", workspace, "rev-list", "--count", "HEAD").Output()
+					ok := cerr == nil && derr == nil && staged && strings.Contains(scoped, "external disk change") && strings.TrimSpace(string(headCount)) == "1"
+					mark("diff-stage-reflect", ok, fmt.Sprintf("staged=%v scopedHasContent=%v commits=%s (no implicit commit)", staged, strings.Contains(scoped, "external disk change"), strings.TrimSpace(string(headCount))))
 				}
-			case <-time.After(20 * time.Second):
-				mark("terminal-route", false, "restartTerminal did not run on the UI thread")
-			}
-			win.Update(func() {
-				state.mu.Lock()
-				state.filesPaneOpen = false
-				state.mu.Unlock()
-			})
-			{
-				// "Create your plugin" seeds the draft and the cordis preset
-				// without sending: identical to the source whenDraftExists
-				// append semantics.
-				before := model.requests.Load()
-				sid := sessions.SelectedSessionID()
-				// Called off the UI thread: the function schedules its own
-				// win.Update; nesting it inside one would deadlock.
-				state.startCreatorPluginDraft(win, sessions, "leftbar")
-				if err := waitStore(time.Now().Add(20*time.Second), "creator draft seeded", func() (bool, error) {
+				// Terminal drawer: restartTerminal is the real open gesture (it
+				// sets terminalVisible + layout.Bottom itself); ensureTerminal is
+				// only the already-open refresh path. The panel must survive the
+				// dock route switching back to files.
+				termDone := make(chan bool, 1)
+				win.Update(func() {
+					state.restartTerminal(snap3.SelectedCwd, mygo.Theme.IsDark())
 					state.mu.Lock()
-					defer state.mu.Unlock()
-					d := state.composerDrafts[sid]
-					return d != nil && strings.Contains(d.Text, "带左侧栏入口") && state.agentPresetPick == "cordis", nil
-				}); err != nil {
-					mark("extension-panel-creator", false, fmt.Sprintf("%v (preset=%q)", err, state.agentPresetPick))
-				} else {
-					time.Sleep(500 * time.Millisecond)
-					mark("extension-panel-creator", model.requests.Load() == before, fmt.Sprintf("draft seeded; sent requests unchanged=%v", model.requests.Load() == before))
+					termDone <- state.terminalPanel != nil
+					state.mu.Unlock()
+				})
+				select {
+				case hasPanel := <-termDone:
+					if !hasPanel {
+						mark("terminal-route", false, "restartTerminal produced no panel")
+					} else {
+						time.Sleep(800 * time.Millisecond)
+						win.Update(func() {
+							state.mu.Lock()
+							state.filesPaneOpen, state.rightPaneTab = true, "files"
+							termDone <- state.terminalPanel != nil
+							state.mu.Unlock()
+						})
+						select {
+						case alive := <-termDone:
+							mark("terminal-route", alive, "terminal panel mounted on workspace root; routed back to files")
+						case <-time.After(20 * time.Second):
+							mark("terminal-route", false, "route-back did not run on the UI thread")
+						}
+					}
+				case <-time.After(20 * time.Second):
+					mark("terminal-route", false, "restartTerminal did not run on the UI thread")
 				}
-			}
-			// Real input path: set the composer text through UI Automation's
-			// ValuePattern, the channel assistive technology uses. Restore a
-			// minimized window first: UIA and focus need a presentable surface.
-			if win.IsMinimized() {
-				win.Restore()
-				time.Sleep(500 * time.Millisecond)
-			}
-			var uiaOK bool
-			mygo.RunOnMain(func() { uiaOK = mygo.TestAccessibilityPerform(hwnd, "Composer draft", "value", "UIA typed text") })
-			if uiaOK {
+				win.Update(func() {
+					state.mu.Lock()
+					state.filesPaneOpen = false
+					state.mu.Unlock()
+				})
+				if !workSurfacesOnly {
+					// Creator owns a confirmed fresh cordis conversation. The
+					// original conversation and draft survive; preparation never sends.
+					before := model.requests.Load()
+					sourceID := sessions.SelectedSessionID()
+					state.mu.Lock()
+					originalDraft := string(state.composerDraftLocked(sourceID).SaveDraft())
+					state.mu.Unlock()
+					// Called off the UI thread: the function schedules its own
+					// win.Update; nesting it inside one would deadlock.
+					state.startCreatorPluginDraft(win, sessions, "leftbar")
+					if err := waitStore(time.Now().Add(20*time.Second), "creator draft seeded", func() (bool, error) {
+						targetID := sessions.SelectedSessionID()
+						state.mu.Lock()
+						defer state.mu.Unlock()
+						d := state.composerDrafts[targetID]
+						if string(state.composerDraftLocked(sourceID).SaveDraft()) != originalDraft {
+							return false, fmt.Errorf("Creator changed the original conversation draft")
+						}
+						return targetID != "" && targetID != sourceID && d != nil && strings.Contains(d.Text, "带左侧栏入口") && state.agentPresetPick == "cordis", nil
+					}); err != nil {
+						mark("extension-panel-creator", false, fmt.Sprintf("%v (preset=%q)", err, state.agentPresetPick))
+					} else {
+						time.Sleep(500 * time.Millisecond)
+						mark("extension-panel-creator", model.requests.Load() == before, fmt.Sprintf("draft seeded; sent requests unchanged=%v", model.requests.Load() == before))
+					}
+				}
+				// Creator now selects its confirmed fresh target. The following
+				// existing input checks explicitly return to their original owner.
+				sessions.Select(id1)
+				if err := workSurfaceFrame(); err != nil {
+					finish(err)
+					return
+				}
+				// Real input path: set the composer text through UI Automation's
+				// ValuePattern, the channel assistive technology uses. Restore a
+				// minimized window first: UIA and focus need a presentable surface.
+				if win.IsMinimized() {
+					win.Restore()
+					time.Sleep(500 * time.Millisecond)
+				}
+				var uiaOK bool
+				mygo.RunOnMain(func() { uiaOK = mygo.TestAccessibilityPerform(hwnd, "Composer draft", "value", "UIA typed text") })
+				if uiaOK {
+					time.Sleep(400 * time.Millisecond)
+					state.mu.Lock()
+					got := ""
+					if d := state.composerDrafts[id1]; d != nil {
+						got = d.Text
+					}
+					state.mu.Unlock()
+					mark("real-input-uia-setvalue", got == "UIA typed text", fmt.Sprintf("perform=%v draft=%q", uiaOK, got))
+				} else {
+					mark("real-input-uia-setvalue", false, "Composer draft element not performable")
+				}
+				// Unicode text delivery through the real wndproc: WM_CHAR is the
+				// channel committed IME strings and typed text arrive on. Focus the
+				// composer through UIA, then send CJK code units.
+				var focusOK, sentOK bool
+				mygo.RunOnMain(func() {
+					focusOK = mygo.TestAccessibilityPerform(hwnd, "Composer draft", "focus", "")
+					sentOK = true
+					for _, r := range "你好" {
+						if !mygo.TestSendChar(hwnd, r) {
+							sentOK = false
+						}
+					}
+				})
 				time.Sleep(400 * time.Millisecond)
 				state.mu.Lock()
-				got := ""
+				draftAfterChars := ""
 				if d := state.composerDrafts[id1]; d != nil {
-					got = d.Text
+					draftAfterChars = d.Text
 				}
 				state.mu.Unlock()
-				mark("real-input-uia-setvalue", got == "UIA typed text", fmt.Sprintf("perform=%v draft=%q", uiaOK, got))
-			} else {
-				mark("real-input-uia-setvalue", false, "Composer draft element not performable")
+				mark("real-input-unichar", sentOK && strings.Contains(draftAfterChars, "你好"), fmt.Sprintf("focus=%v sent=%v draft=%q", focusOK, sentOK, draftAfterChars))
 			}
-			// Unicode text delivery through the real wndproc: WM_CHAR is the
-			// channel committed IME strings and typed text arrive on. Focus the
-			// composer through UIA, then send CJK code units.
-			var focusOK, sentOK bool
-			mygo.RunOnMain(func() {
-				focusOK = mygo.TestAccessibilityPerform(hwnd, "Composer draft", "focus", "")
-				sentOK = true
-				for _, r := range "你好" {
-					if !mygo.TestSendChar(hwnd, r) {
-						sentOK = false
-					}
-				}
-			})
-			time.Sleep(400 * time.Millisecond)
-			state.mu.Lock()
-			draftAfterChars := ""
-			if d := state.composerDrafts[id1]; d != nil {
-				draftAfterChars = d.Text
-			}
-			state.mu.Unlock()
-			mark("real-input-unichar", sentOK && strings.Contains(draftAfterChars, "你好"), fmt.Sprintf("focus=%v sent=%v draft=%q", focusOK, sentOK, draftAfterChars))
 		}
 		failed := false
 		for _, st := range steps {

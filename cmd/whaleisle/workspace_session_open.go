@@ -110,7 +110,7 @@ func (op *workspaceSessionOpen) current() bool {
 	current := !s.quitting && s.sessions == op.store && s.win == op.win &&
 		s.bootStatus.Generation == op.bootGeneration && s.workspaceSessionOpen.generation == op.generation &&
 		panelGen == op.panelGeneration && !s.marketOpen && !s.scheduleOpen && !asstOpen &&
-		!s.settingsOpen && !s.launcherOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen &&
+		!s.settingsOpen && !s.maintenanceOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen &&
 		s.composerDrafts[op.sourceID] == op.sourceDraft
 	if current {
 		d := op.sourceDraft

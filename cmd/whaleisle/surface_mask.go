@@ -2,7 +2,7 @@ package main
 
 type mainExclusiveSurfaceState struct {
 	quitting           bool
-	launcherOpen       bool
+	maintenanceOpen    bool
 	settingsOpen       bool
 	closingOverlay     bool
 	confirmOpen        bool
@@ -22,7 +22,7 @@ func (s *mainState) exclusiveSurfaceMaskLocked(assistantOpen ...bool) mainExclus
 	asstOpen := len(assistantOpen) > 0 && assistantOpen[0]
 	return mainExclusiveSurfaceState{
 		quitting:           s.quitting,
-		launcherOpen:       s.launcherOpen,
+		maintenanceOpen:    s.maintenanceOpen,
 		settingsOpen:       s.settingsOpen,
 		closingOverlay:     s.closingOverlay,
 		confirmOpen:        s.confirmAsk != nil,
@@ -47,7 +47,11 @@ func (s *mainState) exclusiveSurfaceMask() mainExclusiveSurfaceState {
 }
 
 func (m mainExclusiveSurfaceState) modalMasked() bool {
-	return m.quitting || m.launcherOpen || m.settingsOpen || m.closingOverlay || m.confirmOpen || m.dirPickOpen
+	return m.quitting || m.maintenanceOpen || m.settingsOpen || m.closingOverlay || m.confirmOpen || m.dirPickOpen
+}
+
+func (m mainExclusiveSurfaceState) transientModalMasked() bool {
+	return m.quitting || m.closingOverlay || m.confirmOpen || m.dirPickOpen
 }
 
 func (m mainExclusiveSurfaceState) shellOverlayMasked() bool {

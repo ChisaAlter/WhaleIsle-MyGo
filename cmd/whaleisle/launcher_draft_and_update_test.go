@@ -9,10 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
-	"whaleisle/internal/ui/launcher"
 )
 
 func TestLauncherInstallUpdateNonBlockingAndReentrancy(t *testing.T) {
@@ -66,35 +64,4 @@ func TestLauncherInstallUpdateNonBlockingAndReentrancy(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for async launcher install update probe to settle")
-}
-
-func TestLauncherWorkspaceDraftPanelNoPointerRaceAndPreservesGeneration(t *testing.T) {
-	t.Setenv(paths.EnvUserData, t.TempDir())
-	t.Setenv("DSH_HOME", t.TempDir())
-	s := &mainState{}
-	s.launcherController().ResetWorkspaceDraft("/initial/workspace")
-	_ = ui.NewTester(func(c *ui.Context) {
-		// Simulate a background update winning during frame build before commit.
-		s.launcherController().ResetWorkspaceDraft("/newer/workspace")
-		launcher.View(c, launcher.Model{VendorReady: true, ActiveTab: launcher.TabHome})
-	}, 900, 600)
-
-	drafts := s.launcherController().PanelState(nil, "").Drafts
-	if drafts.Workspace != "/newer/workspace" || drafts.WorkspaceGen != 2 {
-		t.Fatalf("unexpected workspace draft state: %q (gen=%d)", drafts.Workspace, drafts.WorkspaceGen)
-	}
-
-	// Drive real launcherPanel with frame-local TextInput pointer and no cfgStore disk access.
-	_ = ui.NewTester(func(c *ui.Context) {
-		s.launcherPanel(c, nil, launcherPanelHost{
-			Workspace: "/host/workspace",
-			Version:   "0.0.1",
-			ThemeID:   "light",
-		})
-	}, 1060, 660)
-
-	after := s.launcherController().PanelState(nil, "").Drafts.Workspace
-	if after != "/newer/workspace" {
-		t.Fatalf("launcherPanel overwrote user workspace draft with host seed: %q", after)
-	}
 }

@@ -29,7 +29,13 @@ func (s *mainState) ensureNativeUpdateCenterAsync(w *mygo.Window) {
 	s.updaterCenter().EnsureLoadedAsync(updaterWindow(w))
 }
 func (s *mainState) startNativeUpdateCenter(w *mygo.Window) {
-	s.updaterCenter().StartBackground(updaterWindow(w))
+	u := s.updaterCenter()
+	go func() {
+		binJS := filepath.Join(paths.VendorDir(), "deepseek-harness", "apps", "cli", "lib", "bin.js")
+		info, err := os.Stat(binJS)
+		u.SetVendorReady(err == nil && !info.IsDir())
+		u.StartBackground(updaterWindow(w))
+	}()
 }
 func (s *mainState) stopNativeUpdateCenter() { s.updaterCenter().StopBackground() }
 func (s *mainState) openNativeUpdateCenter(w *mygo.Window) {
@@ -83,7 +89,7 @@ func (s *mainState) withNativeReleases(win *mygo.Window, m launcher.Model) launc
 	} else if snap.UpdateAvailable {
 		m.UpdateStatus = ""
 	}
-	return s.withApplicationUninstall(win, s.withStartupDiagnostics(s.withWhaleBridgeAlerts(m)))
+	return m
 }
 
 func (s *mainState) syncNativeUpdateModal(c *ui.Context, owner *mygo.Window) {

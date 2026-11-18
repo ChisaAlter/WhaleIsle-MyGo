@@ -50,9 +50,9 @@ func (s *mainState) openWorkspaceDocumentSource(sessions *session.Store, source 
 	panes := s.layout.Workspace
 	s.filesPaneOpen = true
 	s.rightPaneTab = "browser"
-	s.browserPreviewOpen, s.webviewOpen = false, false
+	s.setMainRouteLocked(routeConversation)
 	s.mu.Unlock()
-	s.closeWebViewHost()
+	s.syncMainRouteResources()
 	panes.OpenDocument(source, func() *browserpreviewui.Controller { return s.newBrowserController(win) }, floating...)
 	win.Update(func() {})
 	return true

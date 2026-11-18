@@ -10,7 +10,6 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/frame"
-	"whaleisle/internal/ui/launcher"
 )
 
 func connectionUnavailableMessage(bootstrapError string, offline, lost bool) string {
@@ -23,65 +22,28 @@ func connectionUnavailableMessage(bootstrapError string, offline, lost bool) str
 	return ""
 }
 
-// Main panel selection changes visibility only. The marketplace, scheduler,
-// assistant and per-session composer stores remain alive with their drafts.
+// Main panel selection preserves marketplace, scheduler, assistant and
+// per-session composer drafts while retiring the previous page's surface.
 func (s *mainState) selectMainPanel(panel string) {
+	s.navigateMainRoute(panelMainRoute(panel))
 	s.mu.Lock()
-	s.marketOpen = panel == "market" || panel == "plugins"
-	s.marketManager = panel == "plugins"
-	s.scheduleOpen = panel == "schedule"
-	s.toolsMenuOpen = false
-	wasWebview := s.webviewOpen
-	s.webviewOpen = false
-	win := s.win
 	set := s.settings
 	s.mu.Unlock()
-	if wasWebview {
-		s.closeWebViewHost()
-	}
-	s.assistantService().SetOpen(panel == "assistant")
-	retireStaleInlineVisualPages()
 	if panel == "plugins" && set != nil {
 		set.RefreshDescribe(context.Background())
-	}
-	if win != nil {
-		win.Update(func() {})
 	}
 }
 
 // Package management is a distinct destination from the featured marketplace.
 // Reuse the normal exclusive-page transition while retaining page drafts.
 func (s *mainState) openNativePluginManager() {
-	s.revealMainConversation()
 	s.selectMainPanel("plugins")
 }
 
 // Global session actions reveal the conversation even from exclusive pages.
-// Only route flags change: drafts and each page's live stores remain resident.
+// Drafts and each page's stores remain resident; presentation resources do not.
 func (s *mainState) revealMainConversation() {
-	s.mu.Lock()
-	s.launcherOpen = false
-	s.settingsOpen = false
-	s.settingsEmbeddedSection = ""
-	s.usageOpen = false
-	s.imOpen = false
-	s.remoteOpen = false
-	wasWebview := s.webviewOpen
-	s.webviewOpen = false
-	s.browserPreviewOpen = false
-	s.marketOpen = false
-	s.scheduleOpen = false
-	s.toolsMenuOpen = false
-	win := s.win
-	s.mu.Unlock()
-	if wasWebview {
-		s.closeWebViewHost()
-	}
-	s.assistantService().SetOpen(false)
-	retireStaleInlineVisualPages()
-	if win != nil {
-		win.Update(func() {})
-	}
+	s.navigateMainRoute(routeConversation)
 }
 
 // withMainNavigation is the stable parent of both chat and the three native
@@ -185,24 +147,18 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	m.OnOpenSchedule = func() { s.selectMainPanel("schedule") }
 	m.OnOpenAssistant = func() { s.openWhaleFromSidebar(win) }
 	s.gateAssistantNavigation(&m)
-	m.OnOpenLauncher = func() {
-		s.selectMainPanel("")
-		s.mu.Lock()
-		s.launcherOpen = true
-		s.mu.Unlock()
-		s.launcherController().SetTab(launcher.TabHome)
-	}
-	openLauncher := m.OnOpenLauncher
-	m.OnOpenDesktopUpdate = func() { openLauncher(); s.launcherController().SetTab(launcher.TabVersions) }
+	m.OnOpenDesktopSettings = s.openWorkbenchSettings
+	m.OnOpenDesktopUpdate = func() { s.openNativeUpdateCenter(win) }
 	m.Account.OnOpen = s.openAccountSettings
 	m.OnOpenSettings = func() {
 		s.mu.Lock()
+		s.setMainRouteLocked(routeSettings)
 		s.settingsEmbeddedSection = ""
-		s.settingsOpen = true
 		s.settingsDesktopActive = true
 		s.seedDesktopDraft()
 		settings := s.settings
 		s.mu.Unlock()
+		s.syncMainRouteResources()
 		if settings != nil {
 			settings.RefreshDescribe(context.Background())
 		}

@@ -278,7 +278,7 @@ func (s *mainState) commitGitWorkbenchIfChanged(start, cur diffsurface.Workbench
 // outside s.mu and the UI frame so disk/keyring I/O never stalls painting.
 // REQUIRES: s.mu held.
 func (s *mainState) ensureCredentialsDraftSeededLocked() {
-	if s.credsDraft.seeded || s.credsSeedLoading {
+	if s.credsDraft.seeded || s.credsDraft.loadFailed || s.credsSeedLoading {
 		return
 	}
 	s.credsSeedGen++
@@ -304,7 +304,7 @@ func (s *mainState) loadCredentialsDraftAsync(ctx context.Context, gen uint64, d
 		s.mu.Unlock()
 		return
 	}
-	creds, err := credentials.Load(dir)
+	editor, err := credentials.OpenSharedProfile(dir)
 	s.mu.Lock()
 	if s.credsSeedGen != gen {
 		s.mu.Unlock()
@@ -317,17 +317,10 @@ func (s *mainState) loadCredentialsDraftAsync(ctx context.Context, gen uint64, d
 	}
 	if err != nil {
 		s.credsSaveErr = err.Error()
-		s.credsDraft.seeded = true
+		s.credsDraft.loadFailed = true
 	} else {
-		s.credsDraft = credentialsDraft{
-			apiKey:           creds.APIKey,
-			baseURL:          creds.BaseURL,
-			githubToken:      creds.GithubToken,
-			remoteToken:      creds.RemoteToken,
-			remoteRelayToken: creds.RemoteRelayToken,
-			seeded:           true,
-		}
-		s.credsSaveErr = ""
+		s.credsDraft = credentialDraftFromEditor(editor)
+		s.credsSaveErr = s.credsDraft.writeAccessErr
 	}
 	win := s.win
 	s.mu.Unlock()

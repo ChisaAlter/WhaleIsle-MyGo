@@ -22,7 +22,7 @@ func pluginCreatorText(zh, en string) string {
 func (s *mainState) pluginCreatorNavigationCurrent(source *session.Store) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.sessions == source && s.win != nil && !s.win.IsDestroyed() && s.marketOpen && s.marketManager && !s.projectWindowHidden && !s.quitting && !s.settingsOpen && !s.launcherOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen
+	return s.sessions == source && s.win != nil && !s.win.IsDestroyed() && s.marketOpen && s.marketManager && !s.projectWindowHidden && !s.quitting && !s.settingsOpen && !s.maintenanceOpen && !s.usageOpen && !s.imOpen && !s.remoteOpen && !s.webviewOpen && !s.browserPreviewOpen
 }
 
 func (s *mainState) pluginCreatorVisible(source *session.Store) bool {

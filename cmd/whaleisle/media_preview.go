@@ -68,11 +68,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 				sessions.SetLastAction(message)
 				return
 			}
-			s.closeWebViewHost()
-			s.mu.Lock()
-			s.browserPreviewOpen = true
-			s.webviewOpen = false
-			s.mu.Unlock()
+			s.navigateMainRoute(routeBrowser)
 			if s.browserController == nil {
 				s.browserController = s.newBrowserController(win)
 			}

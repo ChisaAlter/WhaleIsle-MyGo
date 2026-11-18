@@ -1,8 +1,7 @@
 //go:build windows
 
 // whaleisle-integration is a small windowsgui installation helper. It does not
-// launch the desktop or Host and is executed from the installer's own embedded
-// copy, never an installed old executable.
+// uses the installer's own embedded copy, never an installed old executable.
 package main
 
 import (
@@ -11,9 +10,16 @@ import (
 	"strings"
 
 	"whaleisle/internal/desktop/notifications"
+	"whaleisle/internal/installhealth"
 )
 
 func main() {
+	if len(os.Args) == 4 && os.Args[1] == "--check-installation" {
+		if err := installhealth.Check(os.Args[2], os.Args[3]); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) != 3 || os.Args[1] != "--remove-owned-notifications" {
 		os.Exit(2)
 	}

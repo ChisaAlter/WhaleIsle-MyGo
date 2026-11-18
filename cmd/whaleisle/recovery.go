@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/recovery"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/i18n"
 )
@@ -223,7 +224,55 @@ func (s *mainState) captureResumeOwnedLocked() (recovery.State, error) {
 // Question drafts have their own serialized writer. A combined UI checkpoint
 // may never overwrite a newer question write with an earlier captured field.
 func applyResumeOwned(v *recovery.State, next recovery.State) {
-	v.Workspace, v.SelectedSession, v.Layout, v.Drafts, v.Files = next.Workspace, next.SelectedSession, next.Layout, next.Drafts, next.Files
+	previousDrafts := v.Drafts
+	v.Workspace, v.SelectedSession, v.Layout, v.Files = next.Workspace, next.SelectedSession, next.Layout, next.Files
+	v.Drafts = make(map[string]json.RawMessage, len(next.Drafts))
+	for key, raw := range next.Drafts {
+		v.Drafts[key] = raw
+	}
+	// Keep terminal request identities until the same committed UI checkpoint
+	// no longer contains their detached snapshot. This makes retirement atomic
+	// with UI recovery and keeps the journal bounded by unresolved operations.
+	var pending session.SubmissionRecovery
+	if len(v.Submissions) == 0 || json.Unmarshal(v.Submissions, &pending) != nil {
+		return
+	}
+	active := make(map[string]bool)
+	sequences := make(map[string]uint64)
+	for key, raw := range next.Drafts {
+		var draft struct {
+			Sends        []struct{ RequestID string }
+			SendSequence uint64
+		}
+		if json.Unmarshal(raw, &draft) == nil {
+			sequences[key] = draft.SendSequence
+			for _, send := range draft.Sends {
+				active[send.RequestID] = true
+			}
+		}
+	}
+	for id, record := range pending.Records {
+		sequence := sequences[record.DraftKey]
+		if _, present := next.Drafts[record.DraftKey]; !present && record.DraftKey == "" {
+			// A confirmed first send moves the scratch composer to its newly
+			// created session, retaining the same submission sequence.
+			sequence = sequences[record.SessionID]
+		}
+		if record.DraftSequence > 0 && sequence < record.DraftSequence {
+			// A deferred pre-send checkpoint must not overwrite the atomic
+			// request/draft record or retire its newer terminal tombstone.
+			if prior, ok := previousDrafts[record.DraftKey]; ok {
+				v.Drafts[record.DraftKey] = prior
+			}
+			continue
+		}
+		if !active[id] && (record.Phase == "confirmed" || record.Phase == "failed") {
+			delete(pending.Records, id)
+		}
+	}
+	if raw, err := json.Marshal(pending); err == nil {
+		v.Submissions = raw
+	}
 }
 
 // A normal quit must not silently discard an unsaved editor/composer. Default

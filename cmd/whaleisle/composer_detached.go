@@ -12,10 +12,8 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
-// detachedSendTimeout bounds a detached send's staging pipeline (attachment
-// prepare, submit dispatch, submission retirement). Every stage is a local-RPC
-// call that should complete in seconds; two minutes is already generous and
-// converts a silently stuck send into a surfaced draft-preserving failure.
+// detachedSendTimeout bounds preparation and the admission RPC. Durable
+// confirmation belongs to Session and has no page/staging deadline.
 const detachedSendTimeout = 2 * time.Minute
 
 func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftState, id string, owner *session.ComposerTarget) {
@@ -29,16 +27,19 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 		d.CompleteDetachedSend(flight.ID, flight.Attachments, errors.New(i18n.T(i18n.KeyCmdComposerHostChanged)))
 		return
 	}
+	d.BindDetachedSubmission(flight.ID, requestID, owner.SessionID)
+	draftSnapshot := d.SaveDraft()
 	go func() {
-		// Bound the whole staging pipeline: prepare/submit/retire are local-RPC
-		// calls that should finish in seconds. An unbounded Background here
-		// turned a stuck RPC into a silent infinite in-flight send (qa19/qa22).
+		// Bound local preparation/admission, never the accepted business task.
 		ctx, cancel := context.WithTimeout(s.lifecycleContext(), detachedSendTimeout)
 		defer cancel()
 		log.Printf("qa-flight %d: begin (attachments=%d)", flight.ID, len(flight.Attachments))
 		attachments := append([]session.ComposerAttachment(nil), flight.Attachments...)
-		var err error
+		err := owner.StageSubmissionDraft(requestID, flight.Text, id, draftSnapshot)
 		for i := range attachments {
+			if err != nil {
+				break
+			}
 			attachments[i], err = owner.PrepareAttachment(ctx, attachments[i])
 			log.Printf("qa-flight %d: prepare %d -> err=%v", flight.ID, i, err)
 			if err != nil {
@@ -49,10 +50,9 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 			owner.UpdateSubmissionAttachments(requestID, attachments)
 			err = owner.Submit(ctx, flight.Text, attachments, 0, requestID)
 			log.Printf("qa-flight %d: submit -> err=%v", flight.ID, err)
-			if err == nil && len(attachments) > 0 {
-				err = owner.AwaitSubmissionRetirement(ctx, requestID)
-				log.Printf("qa-flight %d: retire -> err=%v", flight.ID, err)
-			}
+			// The Session owns confirmation after dispatch. RPC acceptance frees
+			// the input, but this snapshot remains until durable handoff; a page
+			// switch or staging deadline is never a reason to restore it for retry.
 		} else {
 			stageErr := err
 			err = owner.AbandonSubmission(requestID, stageErr)
@@ -63,7 +63,7 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 				err = stageErr
 			}
 		}
-		if errors.Is(err, context.DeadlineExceeded) {
+		if errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, session.ErrSubmissionUnconfirmed) {
 			err = errors.New(i18n.T(i18n.KeyCmdComposerSendTimeout))
 		}
 		win.Update(func() {
@@ -71,8 +71,16 @@ func (s *mainState) submitDetachedComposer(win *mygo.Window, d *composer.DraftSt
 			current := s.composerDrafts[id] == d
 			s.mu.Unlock()
 			if current {
-				d.CompleteDetachedSend(flight.ID, attachments, err)
+				if err == nil {
+					d.AwaitDetachedSubmission(flight.ID, attachments)
+				} else {
+					d.CompleteDetachedSend(flight.ID, attachments, err)
+				}
 			}
+			s.mu.Lock()
+			sessions := s.sessions
+			s.mu.Unlock()
+			s.reconcileComposerSubmissions(sessions)
 		})
 	}()
 }

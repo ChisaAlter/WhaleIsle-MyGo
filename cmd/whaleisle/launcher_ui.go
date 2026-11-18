@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -19,7 +17,6 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/launcher"
-	"whaleisle/internal/ui/theme"
 )
 
 func isolatedDesktopRun() bool    { return launcherctl.IsolatedDesktopRun() }
@@ -35,10 +32,6 @@ func desktopSystemIntegration(apply func() error) error {
 	return launcherctl.DesktopSystemIntegration(apply)
 }
 func desktopComponentRoots() []string { return launcherctl.DesktopComponentRoots() }
-func launcherFirstWindow(isolated, hidden, background, settings bool) bool {
-	return launcherctl.FirstWindow(isolated, hidden, background, settings)
-}
-
 func (s *mainState) openStartupRecovery(dir string, cfg *config.Store) {
 	s.launcherController().OpenStartupRecovery(dir, cfg, buildVersion)
 }
@@ -103,50 +96,12 @@ func (s *mainState) withStartupDiagnostics(m launcher.Model) launcher.Model {
 	return m
 }
 
-func launcherWindowOptions(cfg config.Config) mygo.WindowOptions {
-	return mygo.WindowOptions{
-		Title:                    i18n.T(i18n.KeyAppName),
-		Width:                    launcherctl.WindowWidth,
-		Height:                   launcherctl.WindowHeight,
-		MinWidth:                 launcherctl.WindowMinWidth,
-		MinHeight:                launcherctl.WindowMinHeight,
-		StateKey:                 "launcher",
-		Hidden:                   true,
-		TitleBarStyle:            mygo.TitleBarHidden,
-		TitleBarHeight:           launcherctl.CaptionHeight,
-		AutoHideMenuBar:          true,
-		WindowsCaptionButtons:    &mygo.WindowsCaptionButtonOptions{Width: 32, Height: 32, Top: 12, Right: 8, CornerRadius: 8, GlyphSize: 12},
-		WindowsFrameCornerRadius: 20,
-		Transparent:              true,
-		BackgroundColor:          theme.Resolve(cfg.Theme).BackgroundColor(),
-	}
-}
-
-type launcherWindow struct{ win *mygo.Window }
-
-func (lw *launcherWindow) destroyed() bool {
-	return lw == nil || lw.win == nil || lw.win.IsDestroyed()
-}
-
-func (lw *launcherWindow) show() {
-	if lw.destroyed() {
-		return
-	}
-	if lw.win.IsMinimized() {
-		lw.win.Restore()
-	}
-	lw.win.Show()
-	lw.win.Focus()
-}
-
 type launcherPanelHost struct {
 	ThemeID    string
 	Version    string
 	Status     harness.Status
-	Logs       []string
 	Workspace  string
 	Supervisor *harness.Supervisor
-	Sessions   bool
 }
 
 func (s *mainState) launcherPanelHostSnapshot() launcherPanelHost {
@@ -155,9 +110,7 @@ func (s *mainState) launcherPanelHostSnapshot() launcherPanelHost {
 		ThemeID:    s.themeID,
 		Version:    buildVersion,
 		Status:     s.bootStatus,
-		Logs:       append([]string(nil), s.bootLogs...),
 		Supervisor: s.sup,
-		Sessions:   s.sessions != nil,
 	}
 	cfgStore := s.cfgStore
 	s.mu.Unlock()
@@ -167,164 +120,18 @@ func (s *mainState) launcherPanelHostSnapshot() launcherPanelHost {
 	return host
 }
 
-type shellLauncherStage struct{ s *mainState }
-
-func (st shellLauncherStage) LauncherOpen() bool {
-	st.s.mu.Lock()
-	lw := st.s.launcherWin
-	st.s.mu.Unlock()
-	return !lw.destroyed()
-}
-
-func (st shellLauncherStage) ShowLauncher() bool {
-	st.s.mu.Lock()
-	allowed := st.s.launcherWindowAllowed
-	st.s.mu.Unlock()
-	if !allowed {
-		return false
-	}
-	lw := st.s.ensureLauncherWindow()
-	if lw == nil {
-		return false
-	}
-	lw.show()
-	return true
-}
-
-func (st shellLauncherStage) CloseLauncher() { st.s.closeLauncherWindow() }
-func (st shellLauncherStage) ShowMain()      { st.s.showMainWindow() }
-
-func (st shellLauncherStage) MainVisible() bool {
-	st.s.mu.Lock()
-	win := st.s.win
-	st.s.mu.Unlock()
-	return win != nil && !win.IsDestroyed() && win.IsVisible()
-}
-
-func (st shellLauncherStage) Quitting() bool {
-	st.s.mu.Lock()
-	defer st.s.mu.Unlock()
-	return st.s.quitting
-}
-
-func (s *mainState) syncLauncherStage() launcherctl.StageResult {
-	s.mu.Lock()
-	open := s.launcherOpen
-	s.mu.Unlock()
-	return launcherctl.ApplyStage(shellLauncherStage{s: s}, open)
-}
-
-func (s *mainState) launcherStageHasWindow() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.launcherWindowAllowed
-}
-
-func (s *mainState) ensureLauncherWindow() *launcherWindow {
-	s.mu.Lock()
-	existing := s.launcherWin
-	cfgStore := s.cfgStore
-	s.mu.Unlock()
-	if !existing.destroyed() {
-		return existing
-	}
-	cfg := config.Config{}
-	if cfgStore != nil {
-		cfg = cfgStore.Get()
-	}
-	lw := &launcherWindow{}
-	opts := launcherWindowOptions(cfg)
-	opts.Content = ui.View(func(c *ui.Context) { s.launcherWindowBody(c, lw) })
-	win := mygo.NewWindow(opts)
-	if win == nil || win.IsDestroyed() {
-		return nil
-	}
-	lw.win = win
-	applyWindowIcon(win)
-	win.OnClose(func(e *mygo.CloseEvent) { s.launcherWindowCloseRequested(e) })
-	win.OnClosed(func() { s.launcherWindowClosed(lw) })
-	s.mu.Lock()
-	if other := s.launcherWin; !other.destroyed() {
-		s.mu.Unlock()
-		win.Destroy()
-		return other
-	}
-	s.launcherWin = lw
-	s.mu.Unlock()
-	return lw
-}
-
-func (s *mainState) closeLauncherWindow() {
-	s.mu.Lock()
-	lw := s.launcherWin
-	s.launcherWin = nil
-	s.mu.Unlock()
-	if lw == nil {
-		return
-	}
-	win := lw.win
-	s.cancelImportCatalogScanOwner(win)
-	lw.win = nil
-	if win != nil && !win.IsDestroyed() {
-		win.Destroy()
-	}
-}
-
-func (s *mainState) launcherWindowClosed(lw *launcherWindow) {
-	s.cancelImportCatalogScanOwner(lw.win)
-	s.mu.Lock()
-	if s.launcherWin == lw {
-		s.launcherWin = nil
-	}
-	s.mu.Unlock()
-}
-
-func (s *mainState) launcherWindowCloseRequested(e *mygo.CloseEvent) {
-	s.mu.Lock()
-	quitting := s.quitting
-	win, sup := s.win, s.sup
-	s.mu.Unlock()
-	if quitting {
-		return
-	}
-	if win != nil && !win.IsDestroyed() && win.IsVisible() {
-		return
-	}
-	e.PreventDefault()
-	s.requestQuitProtected(win, sup)
-}
-
-func (s *mainState) launcherWindowBody(c *ui.Context, lw *launcherWindow) {
-	defer s.processApplicationMenuFor(c, lw.win)
-	defer s.syncConfirmAskFor(c, lw.win)
-	defer s.syncNativeUpdateModal(c, lw.win)
-	s.registerApplicationCommands(c)
-	s.syncApplicationMenu(c)
-	ui.Column(c).Fill().Children(func() {
-		s.launcherPanel(c, lw.win, s.launcherPanelHostSnapshot())
-	})
-}
-
-func (s *mainState) launcherSurfaceInvalidator(self *mygo.Window) func() {
-	s.mu.Lock()
-	lw := s.launcherWin
-	s.mu.Unlock()
-	var ln *mygo.Window
-	if !lw.destroyed() {
-		ln = lw.win
-	}
+func (s *mainState) launcherSurfaceInvalidator(win *mygo.Window) func() {
 	return func() {
-		if self != nil {
-			self.Invalidate()
+		if win != nil {
+			win.Invalidate()
+		} else {
+			s.invalidateMainWindow()
 		}
-		if ln != nil && ln != self {
-			ln.Invalidate()
-		}
-		s.invalidateMainWindow()
 	}
 }
 
-func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcherPanelHost) {
+func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route mainRoute) {
+	host := s.launcherPanelHostSnapshot()
 	l := s.launcherController()
 	s.mu.Lock()
 	cfgStore := s.cfgStore
@@ -332,7 +139,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 	launcherImportJournal := append([]string(nil), s.launcherImportJournal...)
 	launcherImportBusy := s.launcherImportBusy
 	launcherImportScanBusy := s.launcherImportScan.busy
-	launcherRuntimeBusy := s.taskRestartPending || s.quitRequestPending || s.quitting
+
 	importCategories := s.launcherImportCategories
 	importCatalog := s.launcherImportCatalog
 	s.mu.Unlock()
@@ -354,7 +161,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 	vendorReady := l.VendorReady(binJS, s.launcherSurfaceInvalidator(win))
 
 	panelSnap := l.PanelState(cfgPtr, host.Workspace)
-	if !panelSnap.ComponentsFresh {
+	if route == routeComponents && !panelSnap.ComponentsFresh {
 		l.RefreshComponents()
 	}
 	componentActivity := s.launcherComponentActivitySnapshot()
@@ -384,25 +191,15 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 		})
 	}
 
-	deskRunning := host.Status.State == harness.Ready || (host.Status.State == harness.Starting && host.Sessions)
-	launcher.View(c, s.withNativeReleases(win, launcher.Model{
-		ThemeID:         host.ThemeID,
-		SystemDark:      mygo.App.IsReady() && mygo.Theme.IsDark(),
-		Version:         host.Version,
-		Workspace:       wsDraft,
-		WorkspacePtr:    &wsDraft,
-		VendorReady:     vendorReady,
-		LauncherPackage: isLauncherPackage(),
-		DesktopRunning:  deskRunning,
-		StartBusy:       panelSnap.StartBusy,
-		RuntimeBusy:     launcherRuntimeBusy,
-		StartFailed:     panelSnap.StartFailed,
-		StartError:      panelSnap.StartErr,
-		BootLogs:        host.Logs,
-		PluginLoad:      host.Status.PluginLoad,
-		ActiveTab:       panelSnap.Tab,
-		ImportSummary:   launcherImport,
-		ImportScanBusy:  launcherImportScanBusy,
+	m := launcher.Model{
+		ThemeID:        host.ThemeID,
+		SystemDark:     mygo.App.IsReady() && mygo.Theme.IsDark(),
+		Version:        host.Version,
+		VendorReady:    vendorReady,
+		StartBusy:      panelSnap.StartBusy,
+		StartError:     panelSnap.StartErr,
+		ImportSummary:  launcherImport,
+		ImportScanBusy: launcherImportScanBusy,
 		OnCancelImportScan: func() {
 			s.cancelImportCatalogScan()
 			s.launcherSurfaceInvalidator(win)()
@@ -414,12 +211,8 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 		SkipUserPlugins:      skipUserPlugins,
 		PluginRecoveryReason: pluginRecoveryReason,
 		StatusNote:           panelSnap.Note,
-		QuitAfterStart:       &quitVal,
-		CloseToTray:          &trayVal,
-		AutoStartDesktop:     &autoVal,
 		AskOnUpdate:          &askVal,
 		DownloadRoute:        &routeVal,
-		RoutePopOpen:         &routePopVal,
 		ImportOverwrite:      &importOverwriteVal,
 		ImportAttachments:    &importAttachVal,
 		ImportCategories:     importCategories,
@@ -509,9 +302,6 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 			}
 			saved := l.PanelState(nil, "").Drafts
 			err := cfgStore.Update(func(c *config.Config) {
-				c.QuitAfterStart = saved.QuitAfterStart
-				c.CloseToTray = saved.CloseToTray
-				c.AutoStartDesktop = saved.AutoStartDesktop
 				c.AskOnUpdate = saved.AskOnUpdate
 				c.DownloadRoute = saved.DownloadRoute
 			})
@@ -519,78 +309,16 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 				l.SetPrefsError(err.Error())
 			} else {
 				l.SetPrefsError("")
-				s.mu.Lock()
-				s.closeToTray = saved.CloseToTray
-				s.mu.Unlock()
 			}
 			if win != nil {
 				win.Update(func() {})
 			}
 		},
-		OnTab: func(tab string) {
-			l.SetTab(tab)
-			if win != nil {
-				win.Update(func() {})
-			}
-		},
-		OnClose: func() {
-			s.mu.Lock()
-			s.launcherOpen = false
-			s.mu.Unlock()
-			s.syncLauncherStage()
-			if win != nil {
-				win.Update(func() {})
-			}
-		},
-		OnStop: func() {
-			s.mu.Lock()
-			sup := s.sup
-			s.mu.Unlock()
-			s.stopProtected(win, sup)
-		},
-		OnStart: func() {
-			commitLauncherDrafts()
-			ws, startDraftGen, ok := l.TryBeginStart()
-			if !ok {
-				return
-			}
-			s.updaterCenter().SetHold(false)
-			go func() {
-				if cfgStore == nil {
-					l.FinishStartPreparation(true, i18n.T(i18n.KeyCmdConfigStoreNotReady), "", startDraftGen)
-					if win != nil {
-						win.Update(func() {})
-					}
-					return
-				}
-				if ws == "" {
-					ws = paths.DefaultWorkspace()
-				}
-				if err := os.MkdirAll(ws, 0o755); err != nil {
-					l.FinishStartPreparation(true, err.Error(), "", startDraftGen)
-					if win != nil {
-						win.Update(func() {})
-					}
-					return
-				}
-				if err := cfgStore.Update(func(c *config.Config) { c.Workspace = ws }); err != nil {
-					l.FinishStartPreparation(true, err.Error(), "", startDraftGen)
-					if win != nil {
-						win.Update(func() {})
-					}
-					return
-				}
-				l.FinishStartPreparation(false, "", ws, startDraftGen)
-				s.mu.Lock()
-				s.launcherOpen = true
-				s.mu.Unlock()
-				startHarness(cfgStore.Get())
-				if win != nil {
-					win.Update(func() {})
-				}
-			}()
-		},
-		OnScanImport: func() { s.rescanImportCatalog(win, "") },
+		OnClose:               func() { s.navigateMainRoute(routeConversation) },
+		OnStop:                func() { s.stopProtected(win, host.Supervisor) },
+		OnStart:               func() { s.startWorkbenchHost(win, host.Supervisor) },
+		OnChooseRepairRelease: func() { s.openNativeUpdateCenter(win) },
+		OnScanImport:          func() { s.rescanImportCatalog(win, "") },
 		OnPickImportSource: func() {
 			picked, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeyLauncherImportPickSourceTitle), Directory: true})
 			if err == nil && len(picked) > 0 {
@@ -621,25 +349,6 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 				cancel()
 			}
 		},
-		OnInstallUpdate: func() { s.installLauncherUpdate(win, host.Version) },
-		OnCheckUpdate:   func() { s.checkLauncherUpdate(win) },
-		OnOpenSettings: func() {
-			s.mu.Lock()
-			s.launcherOpen = false
-			s.settingsEmbeddedSection = ""
-			s.settingsOpen = true
-			s.settingsDesktopActive = true
-			s.seedDesktopDraft()
-			st := s.settings
-			s.mu.Unlock()
-			if st != nil {
-				st.RefreshDescribe(context.Background())
-			}
-			s.syncLauncherStage()
-			if win != nil {
-				win.Update(func() {})
-			}
-		},
 		OnEnableSkipUserPlugins: func() {
 			if cfgStore == nil {
 				s.refuseHostAction()
@@ -649,7 +358,7 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 				m["skipUserPlugins"] = true
 				m["appVersion"] = ""
 				if _, ok := m["reason"]; !ok {
-					m["reason"] = "launcher"
+					m["reason"] = "startup-diagnostics"
 				}
 			})
 			if err != nil {
@@ -686,18 +395,30 @@ func (s *mainState) launcherPanel(c *ui.Context, win *mygo.Window, host launcher
 		},
 		OnRestartHarness: func() {
 			s.syncHarnessFromConfig()
-			if host.Supervisor != nil {
-				s.restartUnlessImport(host.Supervisor)
-			}
+			s.startWorkbenchHost(win, host.Supervisor)
 			l.SetNote(i18n.T(i18n.KeyLauncherRestartHarness))
 			if win != nil {
 				win.Update(func() {})
 			}
 		},
-	}))
+	}
+	var page launcher.MaintenancePage
+	switch route {
+	case routeComponents:
+		page = launcher.MaintenanceComponents
+		m = s.withWhaleBridgeAlerts(m)
+	case routeImport:
+		page = launcher.MaintenanceImport
+	case routeStartupDiagnostics:
+		page = launcher.MaintenanceDiagnostics
+		m = s.withStartupDiagnostics(m)
+	case routeUpdatePreferences:
+		page = launcher.MaintenancePreferences
+		m.RouteUnavailable = s.updaterCenter().RouteAvailability()
+		m = s.withApplicationUninstall(win, m)
+	}
+	launcher.Maintenance(c, page, m)
 	commitLauncherDrafts()
 }
 
 var launcherVendorProbe backgroundProbe[bool]
-
-var _ = time.Second

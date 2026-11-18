@@ -29,14 +29,10 @@ func TestMainWindowCaptionPlateSitsAtTop12(t *testing.T) {
 	}
 }
 
-// TestSiblingCaptionPlatesShareTop12 keeps the other two custom-caption surfaces
-// on the main window's plate. The welcome window (600x700, frame:false like
-// welcome-window.js:36) still declared Top 8, which put its close glyph 4 DIP
-// above the launcher's and the main window's; a single 12-DIP inset is the
-// batch-B rule, so both must stay 32x32 at top 12.
-func TestSiblingCaptionPlatesShareTop12(t *testing.T) {
+// First-run onboarding retains the same native caption geometry as the workbench.
+func TestWelcomeCaptionPlateSharesTop12(t *testing.T) {
 	platePattern := regexp.MustCompile(`WindowsCaptionButtons:\s*&mygo\.WindowsCaptionButtonOptions\{[^}]*\}`)
-	for _, file := range []string{"welcome_window.go", "launcher_ui.go"} {
+	for _, file := range []string{"welcome_window.go"} {
 		body, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)

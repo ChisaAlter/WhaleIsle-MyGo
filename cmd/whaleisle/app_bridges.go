@@ -82,7 +82,7 @@ func (b mainUpdaterBridge) Environment() updater.ShellEnvironment {
 		BuildVersion:       buildVersion,
 		DownloadRoute:      route,
 		Quitting:           b.s.quitting,
-		LauncherOpen:       b.s.launcherOpen,
+		WorkbenchCanPrompt: !b.s.settingsOpen && !b.s.maintenanceOpen && b.s.welcomeWin == nil && b.s.confirmAsk == nil,
 		LauncherStartBusy:  startBusy,
 		LauncherImportBusy: b.s.launcherImportBusy,
 		TaskRestartPending: b.s.taskRestartPending,
@@ -137,7 +137,7 @@ func (b mainUpdaterBridge) OwnedWindow(win updater.WindowRef) bool {
 	}
 	b.s.mu.Lock()
 	defer b.s.mu.Unlock()
-	return b.s.win == w || (b.s.launcherWin != nil && b.s.launcherWin.win == w) || (b.s.whaleBridgeWin != nil && b.s.whaleBridgeWin.win == w)
+	return b.s.win == w || (b.s.whaleBridgeWin != nil && b.s.whaleBridgeWin.win == w)
 }
 
 func (b mainUpdaterBridge) WindowAlive(win updater.WindowRef) bool {
@@ -171,16 +171,9 @@ func (b mainUpdaterBridge) DialogOwner(preferred updater.WindowRef) updater.Wind
 
 func (b mainUpdaterBridge) PrimaryWindows() (updater.WindowRef, updater.WindowRef) {
 	b.s.mu.Lock()
-	m, lw := b.s.win, b.s.launcherWin
+	m := b.s.win
 	b.s.mu.Unlock()
-	var mainRef, launcherRef updater.WindowRef
-	if m != nil {
-		mainRef = m
-	}
-	if !lw.destroyed() && lw.win != nil {
-		launcherRef = lw.win
-	}
-	return mainRef, launcherRef
+	return updaterWindow(m), nil
 }
 
 func (b mainUpdaterBridge) RunOnMain(fn func()) { mygo.RunOnMain(fn) }
@@ -422,7 +415,7 @@ func (d mainLauncherDeps) Env() launcherctl.HostEnv {
 		startLogs = d.s.sup.CurrentStartLogs()
 	}
 	exclusive := d.s.marketOpen || d.s.scheduleOpen || asstOpen || d.s.settingsOpen ||
-		d.s.launcherOpen || d.s.usageOpen || d.s.imOpen || d.s.remoteOpen || d.s.webviewOpen || d.s.browserPreviewOpen
+		d.s.maintenanceOpen || d.s.usageOpen || d.s.imOpen || d.s.remoteOpen || d.s.webviewOpen || d.s.browserPreviewOpen
 	occupiedDraft := false
 	for _, draft := range d.s.composerDrafts {
 		if workspaceSessionDraftOccupied(draft) || workspaceSessionDraftRevision(draft) != 0 {
@@ -438,7 +431,6 @@ func (d mainLauncherDeps) Env() launcherctl.HostEnv {
 		BuildVersion:       buildVersion,
 		DownloadRoute:      route,
 		Quitting:           d.s.quitting,
-		LauncherOpen:       d.s.launcherOpen,
 		LauncherImportBusy: d.s.launcherImportBusy,
 		TaskRestartPending: d.s.taskRestartPending,
 		HostStarting:       d.s.bootStatus.State == harness.Starting,
