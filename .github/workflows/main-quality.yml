@@ -155,6 +155,46 @@ jobs:
             ./internal/ui/chat \
             ./internal/ui/composer
 
+  windows-native-packages:
+    name: Windows native packages
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test the native desktop packages
+        shell: bash
+        # These assert Windows behaviour directly: the preview helper is an
+        # AppContainer process with its own window, sshremote drives a Windows
+        # tunnel, importer walks an Electron profile layout, and voicecapture
+        # binds the capture API. previewprocess and voicecapture were until now
+        # only compiled (preview-native-build.yml runs go build,
+        # voice-native-build.yml runs go test -c), so this is the first job that
+        # executes their tests at all.
+        # internal/ui/frame belongs here for the same reason: it asserts the
+        # desktop shortcut model. On the fallback (non-desktop) grammar
+        # TestDSK10ReboundCommandsKeepInputOwnership fails at
+        # shortcut_preferences_test.go:80 because page.close binds Mod+W, which
+        # that grammar reserves for system and text-editing actions. The
+        # shortcuts package's own tests already skip under the fallback grammar
+        # for exactly these Mod+B/Mod+W defaults, so this is a known platform
+        # boundary rather than a defect introduced by running it.
+        run: |
+          go test -count=1 \
+            ./internal/ui/frame \
+            ./internal/desktop/previewprocess \
+            ./internal/desktop/sshremote \
+            ./internal/desktop/importer \
+            ./internal/desktop/voicecapture
+
   entry-and-git:
     name: Entry point and git packages
     runs-on: ubuntu-latest
