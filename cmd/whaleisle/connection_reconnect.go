@@ -8,6 +8,7 @@ import (
 
 	"whaleisle/internal/desktop/networkstatus"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/harness"
 )
 
 // requestConnectionReconnect retries only the existing authenticated Mux. It
@@ -29,6 +30,17 @@ func (s *mainState) requestConnectionReconnect() {
 	if win != nil {
 		win.Update(func() {})
 	}
+}
+
+// connectionFailureSentence names why the connection failed. A Host the
+// supervisor reports failed speaks for itself: the mux error is that failure's
+// symptom, while the supervisor's error carries the reason and the exit code a
+// person needs to retry or report the bug.
+func connectionFailureSentence(err error, st harness.Status) string {
+	if st.State == harness.Failed && st.Err != nil {
+		return errcopy.Sentence(st.Err)
+	}
+	return errcopy.Sentence(err)
 }
 
 // connectionAttemptState serializes the application's existing $events
@@ -127,7 +139,7 @@ func (a *connectionAttemptState) bootstrap(err error) {
 	a.state.dshMuxLost = err != nil || a.state.dshNetworkOffline
 	a.state.dshBootstrapError = ""
 	if err != nil {
-		a.state.dshBootstrapError = errcopy.Sentence(err)
+		a.state.dshBootstrapError = connectionFailureSentence(err, a.state.bootStatus)
 	}
 	a.state.mu.Unlock()
 	a.state.dshMu.Unlock()

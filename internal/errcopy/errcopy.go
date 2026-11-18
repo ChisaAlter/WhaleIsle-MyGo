@@ -74,8 +74,11 @@ var causes = []struct {
 	cause   Cause
 	pattern *regexp.Regexp
 }{
-	{CauseRuntimeMissing, regexp.MustCompile(`(?i)spawn\s+\S+\s+ENOENT`)},
-	{CausePortInUse, regexp.MustCompile(`(?i)EADDRINUSE|address already in use`)},
+	// Two programs name these failures, so each family covers both spellings:
+	// Go's exec/syscall errors, and the platform's own message when it is the one
+	// reporting (Windows winsock has no errno in the text).
+	{CauseRuntimeMissing, regexp.MustCompile(`(?i)spawn\s+\S+\s+ENOENT|executable file not found|exec: "\S+": not found`)},
+	{CausePortInUse, regexp.MustCompile(`(?i)EADDRINUSE|address already in use|only one usage of each socket address`)},
 	// A provider route without a credential is the one failure a person fixes in
 	// Settings, so it claims its own family ahead of the generic ones: the Host
 	// names it after the route ("no API key for provider route \"deepseek-official\"")
@@ -84,7 +87,7 @@ var causes = []struct {
 	{CauseMissingCredential, regexp.MustCompile(`(?i)no api key|missing api key|api key is not (?:set|configured)|no api credential|credentials? (?:are )?not configured|missing_credential|missing_api_key|no_api_key|未配置\s*api\s*key|api\s*key\s*未配置`)},
 	{CauseCancelled, regexp.MustCompile(`(?i)context canceled|operation was canceled|cancelled by the caller`)},
 	{CauseTimeout, regexp.MustCompile(`(?i)deadline exceeded|timed out|timeout`)},
-	{CauseNetwork, regexp.MustCompile(`(?i)connection refused|connection reset|no such host|network is unreachable|network is down|dial tcp|broken pipe|tls handshake|unexpected eof`)},
+	{CauseNetwork, regexp.MustCompile(`(?i)connection refused|connection reset|no such host|network is unreachable|network is down|dial tcp|broken pipe|tls handshake|unexpected eof|actively refused|connection attempt failed|wsarecv|wsaconnect|remote host closed`)},
 	{CauseDiskFull, regexp.MustCompile(`(?i)no space left|disk is full|not enough space`)},
 	{CauseReadOnly, regexp.MustCompile(`(?i)read-only file system|read only file system|write-protected`)},
 	{CausePermission, regexp.MustCompile(`(?i)access is denied|permission denied|access denied|operation not permitted|\beacces\b|\beperm\b`)},
@@ -93,7 +96,10 @@ var causes = []struct {
 	{CauseRevertConflict, regexp.MustCompile(`(?i)revert_conflict`)},
 	{CausePageStopped, regexp.MustCompile(`(?i)render-process-gone|renderer (?:stopped|crashed)|page (?:crashed|stopped expecting)`)},
 	{CauseKilled, regexp.MustCompile(`(?i)signal:\s*killed`)},
-	{CauseRuntimeExited, regexp.MustCompile(`(?i)dsh web exited|dsh 进程结束`)},
+	// A runtime that is gone shows up as its own exit, and — while another layer
+	// is the one reporting — as the carrier to it dying. The exit sentence is the
+	// honest next step for both; only a live Host's network failure is different.
+	{CauseRuntimeExited, regexp.MustCompile(`(?i)dsh web exited|dsh 进程结束|carrier lost|dsh mux: closed|dsh mux: not connected|host bootstrap (?:unavailable|could not be loaded)|invalid host boot document`)},
 	{CauseExited, regexp.MustCompile(`(?i)exit status|exited with|process exited|signal:`)},
 }
 
