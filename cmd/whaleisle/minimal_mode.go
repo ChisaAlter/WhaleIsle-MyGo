@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"errors"
+	"log"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -30,16 +31,15 @@ func applyMinimalMode(on bool) {
 	ui.SetReduceMotion(on)
 }
 
-// minimalModeUnavailable is the refusal a switch reports before the profile's
-// settings are open; it says what to do rather than naming the field.
-func minimalModeUnavailable() error {
-	return fmt.Errorf("%s", minimalModeText("设置尚未就绪，请稍后再试。", "Settings are not ready yet. Try again in a moment."))
-}
+// errMinimalModeUnavailable is the refusal before the profile's settings are
+// open. It stays technical on purpose: the carrier paints the shared
+// classifier's sentence (internal/errcopy) and logs this text.
+var errMinimalModeUnavailable = errors.New("minimal mode: the settings store is not open yet")
 
 // setMinimalMode persists the switch and paints the result.
 func (s *mainState) setMinimalMode(on bool) error {
 	if s.cfgStore == nil {
-		return minimalModeUnavailable()
+		return errMinimalModeUnavailable
 	}
 	if err := s.cfgStore.Update(func(c *config.Config) { c.MinimalMode = on }); err != nil {
 		return err
@@ -138,13 +138,20 @@ func (s *mainState) snoozeMinimalModeOffer() {
 		return
 	}
 	until := time.Now().Add(minimalModeSnooze).UTC().Format(time.RFC3339)
-	_ = s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSnoozedUntil = until })
+	if err := s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSnoozedUntil = until }); err != nil {
+		// The offer was on screen, so the deferral is the user's answer: a
+		// failed write has to be visible in the log rather than silently
+		// dropping it and asking again on the next launch.
+		log.Printf("minimal mode: defer the startup offer: %v", err)
+	}
 }
 
 func (s *mainState) stopMinimalModeOffers() {
 	if s.cfgStore == nil {
 		return
 	}
-	_ = s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSuggestionsOff = true })
+	if err := s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSuggestionsOff = true }); err != nil {
+		log.Printf("minimal mode: stop the startup offer: %v", err)
+	}
 	s.invalidateAppearance()
 }
