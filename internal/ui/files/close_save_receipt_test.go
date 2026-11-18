@@ -42,10 +42,10 @@ func closeReport(t *testing.T, draft string) (Model, *FileTab) {
 // only the revision comparison can tell that the save was not yet reported.
 func TestCloseTabSettlingDefersUnappliedReceipt(t *testing.T) {
 	cases := []struct {
-		name                    string
-		running, pending        bool
-		queueRevision, applied  uint64
-		want                    bool
+		name                   string
+		running, pending       bool
+		queueRevision, applied uint64
+		want                   bool
 	}{
 		{name: "receipt landed after the read", queueRevision: 1, applied: 0, want: true},
 		{name: "write in flight", running: true, queueRevision: 1, applied: 1, want: true},
