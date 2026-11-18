@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
@@ -460,7 +461,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 		})
 		if !inert && button.Clicked() {
 			if err := m.OnOpenMember(member.ID); err != nil {
-				m.State.NavigationError, m.State.FailedMember = err.Error(), member.ID
+				m.State.NavigationError, m.State.FailedMember = errcopy.Sentence(err), member.ID
 			} else {
 				m.State.NavigationError, m.State.FailedMember = "", ""
 			}

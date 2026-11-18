@@ -52,7 +52,7 @@ func DrawGitProgress(c *ui.Context, p *git.Progress, fg, muted ui.Color, onDismi
 			if s.Done && !s.Failed && s.ActionURL != "" && ui.Button(c, word("打开仓库", "Open repository")).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
 				if target, err := git.RepositoryWebURL(s.ActionURL); err == nil {
 					if err = webview.OpenExternal(target); err != nil {
-						p.SetDetails(details + "\n" + err.Error())
+						p.SetDetails(details + "\n" + err.Error()) // verbatim-diagnostics: this panel exists to show the failure word for word
 					}
 				}
 			}

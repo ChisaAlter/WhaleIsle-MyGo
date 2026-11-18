@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"time"
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -84,7 +85,7 @@ func finishPRGeneration(m Model) {
 		task.cancel()
 		s.Generation = nil
 		if result.err != nil {
-			s.GenerationError = result.err.Error()
+			s.GenerationError = errcopy.Sentence(result.err)
 			return
 		}
 		s.Generated = &result.content

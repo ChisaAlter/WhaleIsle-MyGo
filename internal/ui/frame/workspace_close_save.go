@@ -3,6 +3,7 @@ package frame
 import (
 	"errors"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
@@ -86,7 +87,7 @@ func workspacePaneClosePrompt(c *ui.Context, m Model) {
 		var err error
 		pending, err = workspacePaneCloseSaveStatus(n, fileModel)
 		if err != nil && w.closeError == "" {
-			w.closeError = err.Error()
+			w.closeError = errcopy.Sentence(err)
 		}
 		if !pending {
 			w.closeSaving = ""
@@ -112,7 +113,7 @@ func workspacePaneClosePrompt(c *ui.Context, m Model) {
 			pending, err = startWorkspacePaneCloseSave(n, fileModel)
 			w.closeError = ""
 			if err != nil {
-				w.closeError = err.Error()
+				w.closeError = errcopy.Sentence(err)
 			}
 			if pending {
 				w.closeSaving = n.ID

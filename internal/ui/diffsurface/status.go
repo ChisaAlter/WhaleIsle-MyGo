@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"context"
 	"time"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/git"
 )
@@ -67,7 +68,7 @@ func (w *Workbench) finishRepositoryStatus() {
 	case result := <-request.done:
 		w.repositoryStatusRequest = nil
 		if result.err != nil {
-			w.RepositoryStatusError = result.err.Error()
+			w.RepositoryStatusError = errcopy.Sentence(result.err)
 		} else {
 			w.RepositoryStatus = &result.status
 		}

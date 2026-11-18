@@ -164,7 +164,7 @@ func OpenSelectionTarget(selection, cwd string, actions SelectionTargetActions) 
 		}
 	}
 	if open == nil {
-		return errors.New("Terminal target opener is unavailable")
+		return errors.New(terminalLabel("此终端没有可用的打开方式。", "Nothing is set up to open terminal targets here."))
 	}
 	if !actions.Valid() {
 		return stale

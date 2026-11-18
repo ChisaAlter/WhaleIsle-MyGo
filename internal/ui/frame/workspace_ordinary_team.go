@@ -3,6 +3,7 @@ package frame
 import (
 	"errors"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -23,7 +24,7 @@ func ordinaryTeamResourceEntry(m Model) workspaceResourceEntry {
 			}
 		}
 		if err := openOrdinaryTeamSidebar(m); err != nil && m.Sizes != nil && m.Sizes.Workspace != nil {
-			m.Sizes.Workspace.message = err.Error()
+			m.Sizes.Workspace.message = errcopy.Sentence(err)
 		}
 	}}
 }
@@ -98,7 +99,7 @@ func workspaceOrdinaryTeam(c *ui.Context, m Model) {
 				}
 			}
 			if err := openTeamMember(m, snap, id, true, fail); err != nil {
-				fail(err.Error())
+				fail(errcopy.Sentence(err))
 			}
 		}
 		projects.OrdinaryTeamView(c, model)

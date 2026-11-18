@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -64,7 +65,7 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 			}
 			state.loading = false
 			if err != nil {
-				state.err = err.Error()
+				state.err = errcopy.Sentence(err)
 			} else if picked != "" {
 				state.open = false
 				state.confirm = picked

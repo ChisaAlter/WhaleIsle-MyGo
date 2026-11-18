@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
 
@@ -283,7 +284,7 @@ func TestPass6RemoteRefreshRotatesThePairingCode(t *testing.T) {
 	if err := tt.Click(i18n.T(KeyPass6RemoteRefreshAction)); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("fixture rotation failed") {
+	if !tt.HasText(errcopy.Sentence(errors.New("fixture rotation failed"))) || tt.HasText("fixture rotation failed") {
 		t.Fatalf("rotation failure missing: %v", tt.Texts())
 	}
 }

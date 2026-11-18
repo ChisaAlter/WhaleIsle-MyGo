@@ -4,6 +4,7 @@ package diffsurface
 import (
 	"errors"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
@@ -48,7 +49,7 @@ func LoadDiff(root, relPath string) (text, errMsg string) {
 		if errors.Is(err, git.ErrNotRepo) {
 			return "", i18n.T(i18n.KeyDiffNotRepo)
 		}
-		return "", strings.TrimSpace(err.Error())
+		return "", errcopy.Sentence(err)
 	}
 	if strings.TrimSpace(out) == "" {
 		return "", i18n.T(i18n.KeyDiffEmpty)

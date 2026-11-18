@@ -3,6 +3,7 @@ package frame
 import (
 	"encoding/json"
 	"fmt"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -259,7 +260,7 @@ func (w *WorkspacePanes) close(id string) bool {
 		}
 		n.terminalCloseRequest = nil
 		if err != nil {
-			w.message = paneLabel("终端未确认关闭，请重试：", "Terminal close was not confirmed; retry: ") + err.Error()
+			w.message = errcopy.Under(paneLabel("终端未确认关闭，请重试：", "Terminal close was not confirmed; retry: "), err)
 			return false
 		}
 		w.message = ""

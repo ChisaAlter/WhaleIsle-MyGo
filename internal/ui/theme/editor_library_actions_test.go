@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"whaleisle/internal/errcopy"
 )
 
 func TestDeleteFamilyKeepsOtherDraftAndFallsBackOnlyAddressedHalf(t *testing.T) {
@@ -46,7 +47,7 @@ func TestDeleteFamilyFailureKeepsSelectedFamilyAndPreview(t *testing.T) {
 	if e.DeleteFamily(f.ID) {
 		t.Fatal("delete reported success")
 	}
-	if e.Selected != f.ID || !e.Preview || !reflect.DeepEqual(e.Draft, before) || !reflect.DeepEqual(e.Saved, prefs) || e.Status != "write failed" {
+	if e.Selected != f.ID || !e.Preview || !reflect.DeepEqual(e.Draft, before) || !reflect.DeepEqual(e.Saved, prefs) || e.Status != errcopy.Sentence(fmt.Errorf("write failed")) {
 		t.Fatal("failed delete changed editor")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -79,7 +80,7 @@ func (w *Workbench) finishBranchList() {
 	case result := <-request.done:
 		w.branchesRequest = nil
 		if result.err != nil {
-			w.BranchStatus = word("分支列表加载失败。", "Failed to load branches.") + " " + result.err.Error()
+			w.BranchStatus = errcopy.Under(word("分支列表加载失败。", "Failed to load branches."), result.err)
 		} else {
 			w.Branches = result.branches
 		}

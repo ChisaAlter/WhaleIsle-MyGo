@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"context"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -110,7 +111,7 @@ func finishComparison(m Model) {
 		}
 		errMsg := ""
 		if result.err != nil {
-			errMsg = result.err.Error()
+			errMsg = errcopy.Sentence(result.err)
 		} else if result.text == "" {
 			errMsg = i18n.T(i18n.KeyDiffEmpty)
 		}

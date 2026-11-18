@@ -3,6 +3,7 @@ package projects
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -62,7 +63,7 @@ func documentsView(c *ui.Context, m Model) {
 				}
 				ui.Text(c, fmt.Sprintf("%d bytes", entry.Size)).FontSize(fonttheme.InterfaceSize(12))
 				if readErr != nil {
-					ui.Text(c, readErr.Error()).FontSize(fonttheme.InterfaceSize(12))
+					ui.Text(c, errcopy.Sentence(readErr)).FontSize(fonttheme.InterfaceSize(12))
 				}
 			}
 		})

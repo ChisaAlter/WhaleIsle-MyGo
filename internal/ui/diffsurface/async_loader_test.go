@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/git"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -51,7 +52,7 @@ func TestStageWriteSurvivesNavigationAndKeepsItsResult(t *testing.T) {
 		finishGitOperation(Model{WorkspaceRoot: w.Root, Workbench: w})
 		return w.Operation == nil
 	}, nil)
-	if !strings.Contains(w.Status, "first stage result") || !strings.Contains(w.Status, root) {
+	if !strings.Contains(w.Status, errcopy.Sentence(errors.New("first stage result"))) || strings.Contains(w.Status, "first stage result") || !strings.Contains(w.Status, root) {
 		t.Fatalf("lost write result or target: %q", w.Status)
 	}
 }

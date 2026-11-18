@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"fmt"
+	"whaleisle/internal/errcopy"
 
 	myterm "github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -80,7 +81,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		r := v.Render
 		if r.Snapshot && h.terminal == nil {
 			if err := prepareNativeRuntime(); err != nil {
-				h.renderError = err.Error()
+				h.renderError = errcopy.Sentence(err)
 				store.RenderFailed(v.Attachment, err)
 			} else {
 				scrollback := -1
@@ -97,11 +98,11 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 						return true
 					}
 					if actions.OpenTarget == nil {
-						h.selectionNotice = "Terminal target opener is unavailable"
+						h.selectionNotice = terminalLabel("此终端没有可用的打开方式。", "Nothing is set up to open terminal targets here.")
 						return true
 					}
 					if err := actions.OpenTarget(target, store.Snapshot(session).Info.Cwd); err != nil {
-						h.selectionNotice = err.Error()
+						h.selectionNotice = errcopy.Sentence(err)
 					} else {
 						h.selectionNotice = ""
 					}
@@ -110,7 +111,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 				var err error
 				h.terminal, err = myterm.New(opts)
 				if err != nil {
-					h.renderError = err.Error()
+					h.renderError = errcopy.Sentence(err)
 					store.RenderFailed(v.Attachment, err)
 				}
 			}

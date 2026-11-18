@@ -2,6 +2,7 @@ package remote
 
 import (
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
@@ -54,7 +55,7 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 			err = m.Files.Remove(a.Path)
 		}
 		if err != nil {
-			a.Error = err.Error()
+			a.Error = errcopy.Sentence(err)
 		} else {
 			a.Error, a.Submitted = "", true
 		}

@@ -2,6 +2,7 @@ package theme
 
 import (
 	"reflect"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -30,7 +31,7 @@ func NewEditor(p Preferences, save func(Preferences) error) *Editor {
 }
 func (e *Editor) ApplyPreview() {
 	if err := e.Draft.Validate(); err != nil {
-		e.Status = err.Error()
+		e.Status = errcopy.Sentence(err)
 		return
 	}
 	SetPreferences(e.Draft)
@@ -47,14 +48,14 @@ func (e *Editor) Cancel() {
 }
 func (e *Editor) Save() {
 	if err := e.Draft.Validate(); err != nil {
-		e.Status = err.Error()
+		e.Status = errcopy.Sentence(err)
 		return
 	}
 	if e.OnSave == nil {
 		return
 	}
 	if err := e.OnSave(e.Draft.Clone()); err != nil {
-		e.Status = err.Error()
+		e.Status = errcopy.Sentence(err)
 		return
 	}
 	pending := e.Pending != nil && e.Pending()

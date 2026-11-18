@@ -3,6 +3,7 @@ package terminal
 import (
 	myterm "github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 )
 
 // A changed Host/session, pane, process, or selected text gets a different
@@ -47,7 +48,7 @@ func paintSelectionTarget(c *ui.Context, m Model, key terminalSelectionKey) {
 		return
 	}
 	if err := m.OnOpenTarget(key.text); err != nil {
-		p.notice = err.Error()
+		p.notice = errcopy.Sentence(err)
 	} else {
 		p.notice = terminalLabel("已打开所选目标", "Opened selected target")
 	}

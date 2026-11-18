@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"whaleisle/internal/errcopy"
 )
 
 // GeneralFontFamily restores an uncommitted General input after navigation,
@@ -158,14 +159,14 @@ func (e *Editor) SaveFontFamily(role, family string) bool {
 
 func (e *Editor) saveFontField(next, draft Preferences) bool {
 	if err := next.Validate(); err != nil {
-		e.Status = err.Error()
+		e.Status = errcopy.Sentence(err)
 		return false
 	}
 	if e.OnSave == nil {
 		return false
 	}
 	if err := e.OnSave(next.Clone()); err != nil {
-		e.Status = err.Error()
+		e.Status = errcopy.Sentence(err)
 		return false
 	}
 	pending := e.Pending != nil && e.Pending()
