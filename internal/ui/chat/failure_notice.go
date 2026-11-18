@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -33,12 +34,16 @@ func terminalFailure(msg session.Message) (turnFailure, bool) {
 }
 
 // splitTurnFailure reads the legacy system-message suffix. Durable turn errors
-// carry a separate code and do not pass through this compatibility path.
+// carry a separate code and do not pass through this compatibility path. The
+// body is the Host's transport text, so it takes the same sentence as a durable
+// failure rather than reaching the row.
 func splitTurnFailure(body string) (text, code string) {
+	body = strings.TrimSpace(body)
 	if index := strings.LastIndex(body, " MISSING_"); index >= 0 {
-		return strings.TrimSpace(body[:index]), strings.TrimSpace(body[index+1:])
+		code = strings.TrimSpace(body[index+1:])
+		return errcopy.SentenceFor(code, body[:index]), code
 	}
-	return strings.TrimSpace(body), ""
+	return errcopy.SentenceText(body), ""
 }
 
 // paintTurnFailure matches the reference's persistent, nonexpandable error row:

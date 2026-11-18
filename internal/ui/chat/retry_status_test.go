@@ -5,13 +5,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
 func TestChatStatusRestoration(t *testing.T) {
 	for _, tc := range []struct{ reason, kind, detail string }{
 		{`{"kind":"max-tokens"}`, "truncated", "token 上限"},
-		{`{"kind":"error","error":{"message":"upstream timeout","code":"TIMEOUT"}}`, "failed", "upstream timeout [TIMEOUT]"},
+		{`{"kind":"error","error":{"message":"upstream timeout","code":"TIMEOUT"}}`, "failed", errcopy.SentenceText("upstream timeout") + " [TIMEOUT]"},
 		{`{"kind":"aborted","reason":{"kind":"hook","reason":"deepseek-account/signed-out"}}`, "stopped", "ACCOUNT_SIGNED_OUT"},
 	} {
 		msg := session.Message{Raw: json.RawMessage(`{"data":{"reason":` + tc.reason + `}}`)}

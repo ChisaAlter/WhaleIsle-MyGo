@@ -41,6 +41,9 @@ func TestClassifyCoversEveryFamily(t *testing.T) {
 		{"runtime wrapper", errors.New("dsh web exited"), CauseRuntimeExited},
 		{"command exit", errors.New("exit status 128"), CauseExited},
 		{"system kill", errors.New("dsh web exited: signal: killed"), CauseKilled},
+		{"provider without a key", errors.New(`llm-deepseek: no API key for provider route "deepseek-official"`), CauseMissingCredential},
+		{"provider without a key, other route", errors.New(`llm-openai: no API key for provider route "openai"`), CauseMissingCredential},
+		{"bare missing key", errors.New("missing API key"), CauseMissingCredential},
 		{"unmatched", errors.New("revision mismatch"), CauseUnknown},
 	}
 	for _, tc := range tests {
@@ -189,5 +192,79 @@ func TestSentenceTextPassesNoRawCopy(t *testing.T) {
 	got := SentenceText(raw)
 	if strings.Contains(got, "C:\\locked.txt") || !strings.Contains(got, "权限") {
 		t.Fatalf("SentenceText(%q) = %q", raw, got)
+	}
+}
+
+// TestMissingCredentialIsOneSentenceForEveryRoute pins the family the Host
+// reports per provider route: the sentence names the cause and the place to fix
+// it, and never the route, the environment variable or the transport's wording.
+func TestMissingCredentialIsOneSentenceForEveryRoute(t *testing.T) {
+	shapes := []struct{ code, raw string }{
+		{"MISSING_CREDENTIAL", `llm-deepseek: no API key for provider route "deepseek-official"; store DEEPSEEK_API_KEY through the credentials service (the web Models page writes it), or export DEEPSEEK_API_KEY in the launching environment`},
+		{"", `llm-deepseek: no API key for provider route "deepseek-official"`},
+		{"", `llm-openai: no API key for provider route "openai-responses"`},
+		{"MISSING_API_KEY", `llm-moonshot: no API key for provider route "moonshot"`},
+		{"", "missing api key"},
+		{"", "API key is not configured"},
+		{"", "未配置 API Key"},
+		{"MISSING_CREDENTIAL", ""},
+	}
+	withLocale(t, i18n.LocaleZH)
+	for _, shape := range shapes {
+		got := SentenceFor(shape.code, shape.raw)
+		if got != i18n.T(keyNoCredential) {
+			t.Fatalf("SentenceFor(%q, %q) = %q", shape.code, shape.raw, got)
+		}
+		if err := ClassifyCode(shape.code, shape.raw); err != CauseMissingCredential {
+			t.Fatalf("ClassifyCode(%q, %q) = %v", shape.code, shape.raw, err)
+		}
+	}
+	withLocale(t, i18n.LocaleEN)
+	got := SentenceFor("MISSING_CREDENTIAL", `llm-deepseek: no API key for provider route "deepseek-official"`)
+	if !strings.Contains(got, "Settings → Models") || strings.Contains(got, "deepseek") {
+		t.Fatalf("en sentence = %q", got)
+	}
+}
+
+// TestProviderEnvelopeNeverReachesCopy is the guard behind the copy rule: any
+// failure the Host names after a provider route is copy, whatever the route or
+// whether this build knows the cause. A surface can therefore hand the
+// classifier a transport string and print the result.
+func TestProviderEnvelopeNeverReachesCopy(t *testing.T) {
+	envelopes := []string{
+		`llm-deepseek: no API key for provider route "deepseek-official"`,
+		`llm-openai: no API key for provider route "openai"`,
+		`llm-anthropic: upstream 529 overloaded`,
+		`llm-google: request rejected: model not available in this region`,
+		`llm-deepseek: usage limit reached for this account`,
+		`llm-x: unknown provider route`,
+	}
+	leaks := []string{"llm-", "provider route", "_API_KEY", "API_KEY", "route \""}
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		withLocale(t, locale)
+		for _, raw := range envelopes {
+			if !ProviderEnvelope(raw) {
+				t.Fatalf("%q was not read as a provider envelope", raw)
+			}
+			got := SentenceText(raw)
+			if got == "" || got == raw {
+				t.Fatalf("%s: SentenceText(%q) = %q, want a sentence", locale, raw, got)
+			}
+			for _, leak := range leaks {
+				if strings.Contains(got, leak) {
+					t.Fatalf("%s: SentenceText(%q) = %q leaked %q", locale, raw, got, leak)
+				}
+			}
+		}
+	}
+}
+
+// TestProviderEnvelopeIsNarrow keeps the guard off copy a person wrote or a
+// message that only mentions a provider.
+func TestProviderEnvelopeIsNarrow(t *testing.T) {
+	for _, text := range []string{"会话命名", "Fix the llm-deepseek retry", "llm-deepseek", "DeepSeek 官方", ""} {
+		if ProviderEnvelope(text) {
+			t.Fatalf("%q read as a provider envelope", text)
+		}
 	}
 }

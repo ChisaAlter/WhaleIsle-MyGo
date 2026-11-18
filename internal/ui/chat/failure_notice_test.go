@@ -7,22 +7,25 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-func TestTerminalFailureUsesStableCodeAndKeepsUncodedReason(t *testing.T) {
+func TestTerminalFailureUsesStableCodeAndSpeaksASentence(t *testing.T) {
+	providerReason := `llm-deepseek: no API key for provider route "deepseek-official"; store DEEPSEEK_API_KEY through the credentials service (the web Models page writes it), or export DEEPSEEK_API_KEY in the launching environment`
 	for _, tc := range []struct {
 		code, raw, want string
 	}{
-		{"", "llm-deepseek: no API key for provider route deepseek-official", "llm-deepseek: no API key for provider route deepseek-official"},
+		{"", providerReason, errcopy.SentenceText(providerReason)},
+		{"MISSING_CREDENTIAL", providerReason, errcopy.SentenceFor("MISSING_CREDENTIAL", providerReason)},
 		{"AUTH", "credential fragment must not reach Chat", i18n.T(i18n.KeyChatRetryAuthFailed)},
 		{"ACCOUNT_SIGNED_OUT", "raw sign-out", i18n.T(i18n.KeyChatRetrySignedOut)},
 		{"ACCOUNT_SIGN_IN_REQUIRED", "raw sign-in", i18n.T(i18n.KeyChatRetrySignIn)},
 		{"QUOTA", "raw quota", i18n.T(i18n.KeyChatRetryQuota)},
 		{"ACCOUNT_QUOTA", "raw account quota", i18n.T(i18n.KeyChatRetryQuota)},
-		{"TIMEOUT", "upstream timeout", "upstream timeout"},
+		{"", "revision mismatch", errcopy.SentenceText("revision mismatch")},
 	} {
 		raw, _ := json.Marshal(map[string]any{"data": map[string]any{"reason": map[string]any{"kind": "error", "error": map[string]any{"message": tc.raw, "code": tc.code}}}})
 		msg := session.Message{Raw: raw}
@@ -30,21 +33,22 @@ func TestTerminalFailureUsesStableCodeAndKeepsUncodedReason(t *testing.T) {
 		if !ok || got.Message != tc.want || got.Code != tc.code {
 			t.Fatalf("failure %q = %+v, %v", tc.code, got, ok)
 		}
-		if string(msg.Raw) != string(raw) || !strings.Contains(string(msg.Raw), tc.raw) {
+		if string(msg.Raw) != string(raw) {
 			t.Fatal("presentation changed retained failure")
 		}
 	}
 }
 
 func TestTurnFailureIsInlineWithoutExtraActions(t *testing.T) {
-	raw := "llm-deepseek: no API key for provider route deepseek-official"
+	raw, _ := json.Marshal(map[string]any{"message": `llm-deepseek: no API key for provider route deepseek-official`, "code": "MISSING_CREDENTIAL"})
+	message, code := displayFailure(raw)
 	for _, width := range []int{280, 760} {
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).FillWidth().Padding(12).Children(func() {
-				paintTurnFailure(c, turnFailure{Message: raw, Code: "MISSING_CREDENTIAL"}, theme.Resolve("deepseek.light").Light)
+				paintTurnFailure(c, turnFailure{Message: message, Code: code}, theme.Resolve("deepseek.light").Light)
 			})
 		}, width, 320)
-		for _, want := range []string{i18n.T(i18n.KeyChatRunFailed), raw, "MISSING_CREDENTIAL"} {
+		for _, want := range []string{i18n.T(i18n.KeyChatRunFailed), message, "MISSING_CREDENTIAL"} {
 			if !tt.HasText(want) {
 				t.Fatalf("width %d lost %q: %q", width, want, tt.Texts())
 			}
@@ -83,5 +87,8 @@ func TestSplitTurnFailureKeepsLegacyHostCode(t *testing.T) {
 	text, code := splitTurnFailure("llm-deepseek: no API key for provider route x MISSING_API_KEY")
 	if strings.Contains(text, "MISSING_API_KEY") || code != "MISSING_API_KEY" {
 		t.Fatalf("legacy failure = %q %q", text, code)
+	}
+	if text != errcopy.SentenceFor("MISSING_API_KEY", "llm-deepseek: no API key for provider route x") {
+		t.Fatalf("legacy failure kept the transport text: %q", text)
 	}
 }
