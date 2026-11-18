@@ -587,37 +587,65 @@ func clampSidebarWidth(w float32) float32 {
 	return w
 }
 
+// externalAccounts remembers the account a session store showed last. The shell
+// owns the store's lifetime and calls ForgetExternalAccount where it installs a
+// replacement, so this memory cannot hold a store the window no longer uses.
 var externalAccounts sync.Map
+
+// RememberExternalAccount records the account a store's shell showed.
+func RememberExternalAccount(store *session.Store, account sidebar.Account) {
+	if store == nil {
+		return
+	}
+	externalAccounts.Store(store, account)
+}
+
+// RememberedExternalAccount returns the account recorded for a store.
+func RememberedExternalAccount(store *session.Store) (sidebar.Account, bool) {
+	if store == nil {
+		return sidebar.Account{}, false
+	}
+	value, ok := externalAccounts.Load(store)
+	if !ok {
+		return sidebar.Account{}, false
+	}
+	account, ok := value.(sidebar.Account)
+	return account, ok
+}
+
+// ForgetExternalAccount drops the memory a retired store owned.
+func ForgetExternalAccount(store *session.Store) {
+	if store == nil {
+		return
+	}
+	externalAccounts.Delete(store)
+}
 
 func syncExternalAccount(c *ui.Context, m Model) {
 	if !m.ExternalNavigation || m.Store == nil {
 		return
 	}
-	prev, ok := externalAccounts.Load(m.Store)
-	externalAccounts.Store(m.Store, m.Account)
-	if !ok {
+	prev, known := RememberedExternalAccount(m.Store)
+	RememberExternalAccount(m.Store, m.Account)
+	if !known {
 		if m.Account.Name != "" || m.Account.SignedIn {
 			c.Invalidate()
 		}
 		return
 	}
-	if old, ok := prev.(sidebar.Account); ok {
-		if old.Name != m.Account.Name || old.Detail != m.Account.Detail || old.SignedIn != m.Account.SignedIn || old.Busy != m.Account.Busy {
-			c.Invalidate()
-		}
+	if prev.Name != m.Account.Name || prev.Detail != m.Account.Detail || prev.SignedIn != m.Account.SignedIn || prev.Busy != m.Account.Busy {
+		c.Invalidate()
 	}
 }
 
 func resolveNavigationAccount(m Model) sidebar.Account {
 	account := m.Account
 	if account.Name == "" && !account.SignedIn && m.Store != nil {
-		if v, ok := externalAccounts.Load(m.Store); ok {
-			if ext, ok := v.(sidebar.Account); ok {
-				onOpen := account.OnOpen
-				account = ext
-				if account.OnOpen == nil {
-					account.OnOpen = onOpen
-				}
+		if ext, ok := RememberedExternalAccount(m.Store); ok {
+			onOpen := account.OnOpen
+			account = ext
+			if account.OnOpen == nil {
+				account.OnOpen = onOpen
 			}
 		}
 	}

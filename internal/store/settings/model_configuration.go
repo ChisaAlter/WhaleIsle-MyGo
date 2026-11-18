@@ -222,7 +222,7 @@ func (s *Store) RegisteredProviders() (api.ListProvidersResult, bool) {
 func (s *Store) ProviderPageOwner() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return fmt.Sprintf("%p/%d/%d", s.client, s.generation, providerPage(s))
+	return fmt.Sprintf("%p/%d/%d", s.client, s.generation, s.providerPageLocked())
 }
 
 func (s *Store) AccountModelsAvailable() (available, known bool) {

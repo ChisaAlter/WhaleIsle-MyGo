@@ -1476,7 +1476,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.settingsProviderDiscovery.Attach(client)
 	s.mu.Lock()
 	if s.sessions == nil {
-		s.sessions = session.New()
+		s.replaceSessionsLocked(session.New())
 	}
 	if s.interactions == nil {
 		s.interactions = interaction.New()
@@ -3719,7 +3719,7 @@ func mainView(c *ui.Context) {
 		if sessions == nil {
 			state.mu.Lock()
 			if state.sessions == nil {
-				state.sessions = session.New()
+				state.replaceSessionsLocked(session.New())
 			}
 			sessions = state.sessions
 			state.mu.Unlock()
@@ -5376,7 +5376,7 @@ func mainView(c *ui.Context) {
 			if sessions == nil {
 				state.mu.Lock()
 				if state.sessions == nil {
-					state.sessions = session.New()
+					state.replaceSessionsLocked(session.New())
 				}
 				sessions = state.sessions
 				state.mu.Unlock()

@@ -58,7 +58,7 @@ func (s *Store) BindNamespace(namespace string) *NamespaceBinding {
 	return &NamespaceBinding{store: s, namespace: namespace, generation: s.generation, client: s.client, owner: fmt.Sprintf("%p/%d/%s", s.client, s.generation, namespace)}
 }
 func (b *NamespaceBinding) currentLocked() bool {
-	return b.store.generation == b.generation && b.store.client == b.client && b.store.findNamespaceLocked(b.namespace) != nil && (b.providerDraft == nil || b.providerDraft.page == providerPage(b.store))
+	return b.store.generation == b.generation && b.store.client == b.client && b.store.findNamespaceLocked(b.namespace) != nil && (b.providerDraft == nil || b.providerDraft.page == b.store.providerPageLocked())
 }
 func (b *NamespaceBinding) Snapshot() ViewState {
 	if b.providerDraft != nil {

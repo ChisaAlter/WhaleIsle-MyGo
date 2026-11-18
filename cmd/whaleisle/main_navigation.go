@@ -86,7 +86,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	}
 	if m.Store == nil {
 		if s.sessions == nil {
-			s.sessions = session.New()
+			s.replaceSessionsLocked(session.New())
 		}
 		m.Store = s.sessions
 	}
