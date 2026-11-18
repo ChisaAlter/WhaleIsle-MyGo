@@ -147,6 +147,7 @@ func navigationGroups(m Model, snap store.ViewState) []navigationGroup {
 	add(&agents, SectionMarket, "BrowseOutline", m.OnOpenMarket != nil, m.OnOpenMarket)
 	add(&features, SectionFeatures, "PersonalizationOutline", m.Features != nil, m.OnSelectFeatures)
 	add(&features, SectionVoice, "MicrophoneOutline", m.OnSelectVoice != nil, m.OnSelectVoice)
+	add(&features, SectionDeepSeekAPIs, "CodeOutline", m.OnSelectDeepSeekAPIs != nil, m.OnSelectDeepSeekAPIs)
 	add(&features, SectionPet, "SettingsOutline", m.Pet != nil, selectNamespace("pet"))
 	selectRemote := m.OnOpenRemote
 	if selectRemote == nil {

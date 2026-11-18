@@ -4693,6 +4693,15 @@ func mainView(c *ui.Context) {
 							win.Update(func() {})
 						}
 					},
+					OnSelectDeepSeekAPIs: func() {
+						state.mu.Lock()
+						state.settingsEmbeddedSection = settings.SectionDeepSeekAPIs
+						state.mu.Unlock()
+						state.refreshDeepSeekAPIs()
+						if win != nil {
+							win.Update(func() {})
+						}
+					},
 					OnSelectNamespace: func(ns string) {
 						state.mu.Lock()
 						if ns == "remote-workspace" {
@@ -5106,6 +5115,10 @@ func mainView(c *ui.Context) {
 			}
 			if embeddedSection == settings.SectionVoice {
 				state.renderVoiceInputSection(c)
+				return
+			}
+			if embeddedSection == settings.SectionDeepSeekAPIs {
+				state.renderDeepSeekAPIsSection(c)
 				return
 			}
 			if (acceptPanelOK && embeddedSection == "" && remoteOpen) || embeddedSection == settings.SectionRemote || embeddedSection == settings.SectionRemoteWorkspace {

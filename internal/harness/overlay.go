@@ -26,6 +26,9 @@ type DesktopPlugin struct {
 	ModuleLink string
 	// Required fails Prepare when the vendor copy is missing.
 	Required bool
+	// LinkOnly mounts the package without an insert row: the Host composition
+	// already carries the row, and a second insert would mount it twice.
+	LinkOnly bool
 }
 
 // PrepareOptions selects which optional desktop plugins to mount.
@@ -88,6 +91,15 @@ func builtinPlugins() []DesktopPlugin {
 			OverlayDir:  "dsh-im",
 			ModuleLink:  filepath.Join("@xmanrui", "dsh-im"),
 			Required:    true,
+		},
+		{
+			// The Host composition carries this row behind
+			// DSHD_DEEPSEEK_TOOLS_ENABLED, so only the profile junction belongs
+			// here. An absent vendor copy leaves the gate inert instead of
+			// failing the start.
+			VendorName: "dsh-deepseek-tools",
+			ModuleLink: "dsh-deepseek-tools",
+			LinkOnly:   true,
 		},
 	}
 }
@@ -196,6 +208,9 @@ func Prepare(o PrepareOptions) ([]string, error) {
 	defer endOverlays()
 	var patches []string
 	for _, p := range plugins {
+		if p.LinkOnly {
+			continue
+		}
 		source := filepath.Join(o.VendorDir, p.VendorName)
 		if _, err := os.Stat(filepath.Join(source, "package.json")); err != nil {
 			continue

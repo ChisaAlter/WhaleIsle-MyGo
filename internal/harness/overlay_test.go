@@ -136,3 +136,35 @@ func TestPrepareACPRequiresCompleteT3Package(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The DeepSeek application API package is mounted by the Host composition, so
+// Prepare only publishes the profile junction and never writes a second row.
+func TestPrepareLinksDeepSeekToolsWithoutAnInsertRow(t *testing.T) {
+	vendor, profile := t.TempDir(), t.TempDir()
+	for _, name := range []string{"dsh-task-control", "dsh-platform-session", "dsh-usage-panel", "dsh-im", "dsh-deepseek-tools"} {
+		dir := filepath.Join(vendor, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		pkg := name
+		if name == "dsh-im" {
+			pkg = "@xmanrui/dsh-im"
+		}
+		if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"`+pkg+`"}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	patches, err := Prepare(PrepareOptions{VendorDir: vendor, ProfileDir: profile, RemoteSet: true, Remote: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(profile, "node_modules", "dsh-deepseek-tools", "package.json")); err != nil {
+		t.Fatalf("profile junction missing: %v", err)
+	}
+	for _, patch := range patches {
+		body, err := os.ReadFile(patch)
+		if err == nil && strings.Contains(string(body), "dsh-deepseek-tools") {
+			t.Fatalf("Prepare wrote a composition row it does not own: %s", patch)
+		}
+	}
+}

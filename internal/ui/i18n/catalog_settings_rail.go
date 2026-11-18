@@ -14,6 +14,7 @@ const (
 	KeySettingsSectionConversation = "settings.section.conversation"
 	KeySettingsSectionFeatures     = "settings.section.features"
 	KeySettingsSectionVoice        = "settings.section.voice"
+	KeySettingsSectionDeepSeek     = "settings.section.deepseek-apis"
 )
 
 func init() {
@@ -28,4 +29,5 @@ func init() {
 	Register(KeySettingsSectionConversation, "对话", "Conversation")
 	Register(KeySettingsSectionFeatures, "内置功能", "Built-in features")
 	Register(KeySettingsSectionVoice, "语音输入", "Voice input")
+	Register(KeySettingsSectionDeepSeek, "DeepSeek 应用接口", "DeepSeek app APIs")
 }

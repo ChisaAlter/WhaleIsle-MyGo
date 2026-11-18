@@ -18,7 +18,7 @@ func fullRailModel() Model {
 		Appearance: &AppearanceAccess{}, Interface: &InterfaceAccess{}, Conversation: &ConversationAccess{},
 		Models: &ModelsAccess{}, AgentPresets: &AgentPresetsAccess{}, Skills: &SkillsAccess{}, MCP: &MCPAccess{}, Plugins: &PluginsAccess{},
 		Features: &FeaturesAccess{}, Pet: new(pet.Companion), About: &AboutAccess{},
-		OnOpenMarket: func() {}, OnOpenRemote: func() {}, OnOpenUsage: func() {}, OnSelectVoice: func() {},
+		OnOpenMarket: func() {}, OnOpenRemote: func() {}, OnOpenUsage: func() {}, OnSelectVoice: func() {}, OnSelectDeepSeekAPIs: func() {},
 		OnClose: func() {},
 	}
 }
@@ -35,7 +35,7 @@ func TestSettingsRailIsGroupedLikeTheInstalledBuild(t *testing.T) {
 		{"账户", []SectionID{SectionUsageStats}},
 		{"通用", []SectionID{SectionGeneral, SectionAppearance, SectionInterface, SectionConversation}},
 		{"智能体", []SectionID{SectionModels, SectionAgentPresets, SectionSkills, SectionMCP, SectionPlugins, SectionMarket}},
-		{"功能", []SectionID{SectionFeatures, SectionVoice, SectionPet, SectionRemote}},
+		{"功能", []SectionID{SectionFeatures, SectionVoice, SectionDeepSeekAPIs, SectionPet, SectionRemote}},
 		{"其他", []SectionID{SectionAbout}},
 	}
 	groups := navigationGroups(fullRailModel(), store.ViewState{})
