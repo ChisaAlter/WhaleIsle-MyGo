@@ -101,6 +101,7 @@ func builtinPlugins() []DesktopPlugin {
 			// id would mount the plugin twice. An absent vendor copy leaves the
 			// gate inert instead of failing the start.
 			VendorName:  "dsh-deepseek-tools",
+			Package:     "dsh-deepseek-tools",
 			InsertID:    "dsh-deepseek-tools",
 			OverlayFile: "desktop-deepseek-tools.patch.yml",
 			OverlayDir:  "dsh-deepseek-tools",

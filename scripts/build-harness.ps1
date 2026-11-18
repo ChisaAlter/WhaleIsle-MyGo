@@ -66,6 +66,13 @@ if ($RuntimeSourceResources) {
     }
     if ($LASTEXITCODE -ne 0) { throw 'Compatible Host staging failed; the original runtime and session files were not changed.' }
     Assert-HostComposition $RuntimeDestination $StageNode
+    # The staged tree has to carry the tracked third-party plugins too: the mount
+    # row resolves by package name, so a stage without them boots and silently
+    # lacks the tools. -WithoutPaidAPIs names the build that wants exactly that.
+    $thirdParty = @((Join-Path $PSScriptRoot 'stage-third-party-plugins.mjs'), (Join-Path $RuntimeDestination 'vendor'))
+    if ($WithoutPaidAPIs) { $thirdParty += '--without=dsh-deepseek-tools' }
+    & $StageNode @thirdParty
+    if ($LASTEXITCODE -ne 0) { throw 'Third-party desktop plugin staging failed; staged files retained.' }
     if ($AcpSource) {
         & $StageNode (Join-Path $PSScriptRoot 'session-runtime-acp.mjs') $AcpSource $RuntimeDestination
         if ($LASTEXITCODE -ne 0) { throw 'ACP package snapshot failed; staged files retained.' }

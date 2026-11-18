@@ -182,6 +182,9 @@ func TestPrepareMountsDeepSeekToolsBehindItsFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("overlay row missing: %v", err)
 	}
+	if !strings.Contains(string(body), `name: "dsh-deepseek-tools"`) {
+		t.Fatalf("row does not name the package it mounts: %s", body)
+	}
 	if !strings.Contains(string(body), `process.env.DSHD_DEEPSEEK_TOOLS_ENABLED !== '1'`) {
 		t.Fatalf("row is not gated: %s", body)
 	}
