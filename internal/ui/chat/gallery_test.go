@@ -227,11 +227,11 @@ func TestTranscriptGalleryToolKinds(t *testing.T) {
 				Web: &session.WebResult{Kind: "search", Truncated: false, Sources: []session.WebSource{
 					{URL: "https://www.example.com/go/gofmt", Title: "gofmt rewrites files in place", Snippet: "gofmt -w rewrites every file, which turns CRLF into LF and shows up as a whole-file diff.", PublishedAt: "2026-02-11"},
 					{URL: "https://docs.example.org/text", Title: "Text normalization", Snippet: "Normalize line endings before comparing generated files."},
-					}}}}}
+				}}}}}
 	todo := session.Message{ID: "k3", Role: "assistant", Kind: session.MessageKindTool, Seq: 15, EventTime: 1700000220000,
 		Tool: &session.ToolCallView{CallID: "call-todo", Name: "todo", State: "ok",
 			Arguments: `{"todos":[]}`,
-			Result: result(16, "- [x] 修好表格列宽\n- [~] 复核工具行画廊\n- [ ] 补 terminalBlock 深色截图\n- 收尾更新 README")}}
+			Result:    result(16, "- [x] 修好表格列宽\n- [~] 复核工具行画廊\n- [ ] 补 terminalBlock 深色截图\n- 收尾更新 README")}}
 	expanded := map[string]bool{"k1|tool:call-grep": true, "k2|tool:call-web": true, "k3|tool:call-todo": true}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Gap(12).Children(func() {
