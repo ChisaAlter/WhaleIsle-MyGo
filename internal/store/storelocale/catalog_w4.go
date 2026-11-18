@@ -4,7 +4,7 @@ package storelocale
 
 const (
 	KeyStoreImporterNothingSelectedNothingWasWritten            = "store.importer.nothing_selected_nothing_was_written"
-	KeyStoreImporterImportIncompleteCopiedDInstalledDPlugi      = "store.importer.import_incomplete_copied_d_installed_d_plugi"
+	KeyStoreImporterImportIncompleteItemsKept                   = "store.importer.import_incomplete_items_kept"
 	KeyStoreImporterSkippedSession                              = "store.importer.skipped_session"
 	KeyStoreImporterSkippedSessionConflict                      = "store.importer.skipped_session_conflict"
 	KeyStoreImporterSkippedConflictFoundBeforeWriting           = "store.importer.skipped_conflict_found_before_writing"
@@ -95,7 +95,7 @@ const (
 
 func init() {
 	register(KeyStoreImporterNothingSelectedNothingWasWritten, "未选择任何项，未写入。", "Nothing selected; nothing was written.")
-	register(KeyStoreImporterImportIncompleteCopiedDInstalledDPlugi, "导入未完成：已复制 %d 项，安装插件 %d 项，失败 %d 项，跳过 %d 项；已完成项保留。%v", "Import incomplete: copied %d, installed %d plugins, failed %d, skipped %d; finished items are kept. %v")
+	register(KeyStoreImporterImportIncompleteItemsKept, "导入未完成：已复制 %d 项，安装插件 %d 项，失败 %d 项，跳过 %d 项；已完成项保留，原因见日志。", "Import incomplete: copied %d, installed %d plugins, failed %d, skipped %d; finished items are kept. The log has the cause.")
 	register(KeyStoreImporterSkippedSession, "跳过会话 ", "Skipped session ")
 	register(KeyStoreImporterSkippedSessionConflict, "跳过会话（冲突） ", "Skipped session (conflict) ")
 	register(KeyStoreImporterSkippedConflictFoundBeforeWriting, "跳过（写入前发现冲突） ", "Skipped (conflict found before writing) ")

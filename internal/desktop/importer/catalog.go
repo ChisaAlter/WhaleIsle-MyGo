@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,17 +33,52 @@ type Catalog struct {
 
 // CatalogItem is one selectable row (sessions use Rel as ID; skills use prefix:name).
 type CatalogItem struct {
-	ID                string
-	Label             string
-	Group             string // sessions: cwd; skills: source prefix
-	Rel               string
-	Abs               string
-	Spec              string // plugins: original dependency spec, never a local copy source
-	Conflict          bool
-	Unsupported       bool
-	MixedEncoding     bool
-	UnsupportedReason string
-	Selected          bool // UI default: true when importable
+	ID       string
+	Label    string
+	Group    string // sessions: cwd; skills: source prefix
+	Rel      string
+	Abs      string
+	Spec     string // plugins: original dependency spec, never a local copy source
+	Conflict bool
+	Blocker  Blocker
+	Selected bool // UI default: true when importable
+}
+
+// Blocker says why a row cannot be imported. Supported is the zero value; every
+// other value is a category the launcher turns into a sentence in the reader's
+// language, so a row never carries the scanner's own words to the screen.
+type Blocker int
+
+const (
+	Supported Blocker = iota
+	// BlockedUnreadable: the session directory could not be read at all.
+	BlockedUnreadable
+	// BlockedMixedEncoding: the same session holds plaintext and compressed logs.
+	BlockedMixedEncoding
+	// BlockedLegacyDatabase: a SQLite-era session directory this build cannot read.
+	BlockedLegacyDatabase
+	// BlockedRejected: the item's own scanner refused it.
+	BlockedRejected
+)
+
+// Importable reports whether the row can be copied.
+func (b Blocker) Importable() bool { return b == Supported }
+
+// String names the blocker for the log and for an error a caller wraps with
+// errcopy. The launcher translates the category instead of using this.
+func (b Blocker) String() string {
+	switch b {
+	case BlockedUnreadable:
+		return "the session directory could not be read"
+	case BlockedMixedEncoding:
+		return "the session holds both plaintext and compressed logs"
+	case BlockedLegacyDatabase:
+		return "the session is a legacy SQLite database"
+	case BlockedRejected:
+		return "the item's scanner rejected it"
+	default:
+		return "importable"
+	}
 }
 
 var presetIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -135,13 +171,13 @@ func BuildCatalogContext(ctx context.Context, sourceHome, destHome string) (Cata
 
 	// Default-select importable items (Electron: all choosable rows checked).
 	for i := range cat.Sessions {
-		cat.Sessions[i].Selected = !cat.Sessions[i].Unsupported
+		cat.Sessions[i].Selected = cat.Sessions[i].Blocker.Importable()
 	}
 	for i := range cat.Skills {
 		cat.Skills[i].Selected = true
 	}
 	for i := range cat.Plugins {
-		cat.Plugins[i].Selected = !cat.Plugins[i].Unsupported
+		cat.Plugins[i].Selected = cat.Plugins[i].Blocker.Importable()
 	}
 	for i := range cat.MCP {
 		cat.MCP[i].Selected = true
@@ -150,7 +186,7 @@ func BuildCatalogContext(ctx context.Context, sourceHome, destHome string) (Cata
 		cat.Settings[i].Selected = true
 	}
 	for i := range cat.Presets {
-		cat.Presets[i].Selected = !cat.Presets[i].Unsupported
+		cat.Presets[i].Selected = cat.Presets[i].Blocker.Importable()
 	}
 	return cat, nil
 }
@@ -237,7 +273,7 @@ func (c Catalog) CategoryCounts() map[string][2]int {
 	count := func(items []CatalogItem) [2]int {
 		sel := 0
 		for _, it := range items {
-			if it.Selected && !it.Unsupported {
+			if it.Selected && it.Blocker.Importable() {
 				sel++
 			}
 		}
@@ -302,11 +338,16 @@ func scanSessionsContext(ctx context.Context, src, dst string) ([]CatalogItem, e
 		if group == "" {
 			group = storelocale.T(storelocale.KeyStoreImporterNoWorkspace)
 		}
-		unsupported, mixed, reason := sessionEncoding(abs)
+		blocker, readErr := sessionEncoding(abs)
+		if readErr != nil {
+			// The row carries a category and the launcher writes the sentence;
+			// the scanner's own words are worth the log and nothing else.
+			log.Printf("import catalog: session %s: %v", abs, readErr)
+		}
 		conflict := entryExists(filepath.Join(dstRoot, filepath.FromSlash(rel)), true)
 		out = append(out, CatalogItem{
 			ID: id, Label: label, Group: group, Rel: rel, Abs: abs,
-			Conflict: conflict, Unsupported: unsupported || mixed, MixedEncoding: mixed, UnsupportedReason: reason,
+			Conflict: conflict, Blocker: blocker,
 		})
 	}
 	return out, ctx.Err()
@@ -477,14 +518,17 @@ func hasSessionLog(dir string) bool {
 }
 
 func sessionUnsupported(dir string) bool {
-	unsupported, _, _ := sessionEncoding(dir)
-	return unsupported
+	blocker, _ := sessionEncoding(dir)
+	return !blocker.Importable()
 }
 
-func sessionEncoding(dir string) (unsupported, mixed bool, reason string) {
+// sessionEncoding classifies a session directory without deciding what to say
+// about it. The launcher owns the sentence; a directory that could not be read
+// also returns the OS error so the caller can put it in the log.
+func sessionEncoding(dir string) (Blocker, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return true, false, err.Error()
+		return BlockedUnreadable, err
 	}
 	hasPlain, hasCompressed, hasDB := false, false, false
 	for _, e := range entries {
@@ -498,12 +542,12 @@ func sessionEncoding(dir string) (unsupported, mixed bool, reason string) {
 		}
 	}
 	if hasPlain && hasCompressed {
-		return false, true, "同一会话同时包含普通与压缩日志，不能导入 / Mixed plaintext and compressed session logs"
+		return BlockedMixedEncoding, nil
 	}
 	if hasDB && !hasPlain && !hasCompressed {
-		return true, false, "旧 SQLite 会话库不支持导入 / Legacy SQLite session database is unsupported"
+		return BlockedLegacyDatabase, nil
 	}
-	return false, false, ""
+	return Supported, nil
 }
 
 func scanSkills(src, dst string) ([]CatalogItem, []string) {
@@ -628,11 +672,14 @@ func scanPresets(src, dst string) []CatalogItem {
 			continue
 		}
 		abs := filepath.Join(dir, e.Name())
-		broken := !entryExists(filepath.Join(abs, "agent.cordis.yml"), false)
+		broken := Supported
+		if !entryExists(filepath.Join(abs, "agent.cordis.yml"), false) {
+			broken = BlockedRejected
+		}
 		out = append(out, CatalogItem{
 			ID: e.Name(), Label: e.Name(), Abs: abs,
-			Unsupported: broken,
-			Conflict:    entryExists(filepath.Join(dst, ".agent-presets", e.Name()), true),
+			Blocker:  broken,
+			Conflict: entryExists(filepath.Join(dst, ".agent-presets", e.Name()), true),
 		})
 	}
 	return out

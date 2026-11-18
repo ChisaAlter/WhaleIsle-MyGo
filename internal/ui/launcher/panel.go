@@ -577,7 +577,7 @@ func importPanel(c *ui.Context, m Model) {
 				if ghostSmall(c, i18n.T(i18n.KeyLauncherImportSelectAll)).Clicked() && m.ImportCatalog != nil {
 					if items := m.ImportCatalog.ItemsFor(importCatActive); items != nil {
 						for i := range *items {
-							if !(*items)[i].Unsupported {
+							if (*items)[i].Blocker.Importable() {
 								(*items)[i].Selected = true
 							}
 						}
@@ -637,10 +637,10 @@ func importPanel(c *ui.Context, m Model) {
 								if it.Conflict {
 									label += i18n.T(i18n.KeyLauncherImportConflict)
 								}
-								if it.Unsupported {
+								if !it.Blocker.Importable() {
 									label += i18n.T(i18n.KeyLauncherImportUnsupported)
 								}
-								if ui.Checkbox(c, &it.Selected, label).FontSize(theme.InterfaceSize(12)).FillWidth().MinWidth(0).Disabled(it.Unsupported).Changed() {
+								if ui.Checkbox(c, &it.Selected, label).FontSize(theme.InterfaceSize(12)).FillWidth().MinWidth(0).Disabled(!it.Blocker.Importable()).Changed() {
 									c.Invalidate()
 								}
 

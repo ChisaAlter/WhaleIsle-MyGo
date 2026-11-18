@@ -141,8 +141,8 @@ func run(stage, base, native string, r *report) error {
 	}
 	rels := []string{}
 	for _, item := range cat.Sessions {
-		if item.Unsupported {
-			return errors.New("v4 fixture unsupported by import catalog")
+		if !item.Blocker.Importable() {
+			return fmt.Errorf("v4 fixture unsupported by import catalog: %s", item.Blocker)
 		}
 		rels = append(rels, item.Rel)
 	}

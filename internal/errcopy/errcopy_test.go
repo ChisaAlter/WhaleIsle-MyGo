@@ -37,7 +37,10 @@ func TestClassifyCoversEveryFamily(t *testing.T) {
 		{"permission", errors.New("open C:\\a.txt: Access is denied."), CausePermission},
 		{"conflict", errors.New("File changed on disk. Draft kept. Save again to write the draft over the current file."), CauseConflict},
 		{"missing", errors.New("open /tmp/none: no such file or directory"), CauseNotFound},
-		{"process exit", errors.New("dsh web exited: exit status 1"), CauseExited},
+		{"runtime exit", errors.New("dsh web exited: exit status 1"), CauseRuntimeExited},
+		{"runtime wrapper", errors.New("dsh web exited"), CauseRuntimeExited},
+		{"command exit", errors.New("exit status 128"), CauseExited},
+		{"system kill", errors.New("dsh web exited: signal: killed"), CauseKilled},
 		{"unmatched", errors.New("revision mismatch"), CauseUnknown},
 	}
 	for _, tc := range tests {
@@ -67,7 +70,7 @@ func TestSentenceNeverLeaksTheRawText(t *testing.T) {
 		{"permission", errors.New("open C:\\a.txt: Access is denied."), "权限", "C:\\a.txt"},
 		{"conflict", errors.New("File changed on disk. Draft kept."), "草稿已保留", "File changed on disk"},
 		{"missing", errors.New("open /tmp/none: no such file or directory"), "找不到", "/tmp/none"},
-		{"process exit", errors.New("dsh web exited: exit status 1"), "运行时进程已退出", "exit status"},
+		{"process exit", errors.New("dsh web exited: exit status 1"), "运行时已退出", "exit status"},
 		{"unmatched", errors.New("revision mismatch"), "操作没有完成", "revision mismatch"},
 	}
 	withLocale(t, i18n.LocaleZH)
@@ -81,6 +84,56 @@ func TestSentenceNeverLeaksTheRawText(t *testing.T) {
 				t.Fatalf("Sentence(%q) = %q, leaked raw %q", tc.err, got, tc.rawPart)
 			}
 		})
+	}
+}
+
+// TestExitCodeNamesTheCodeInPlace covers the startup page's one cause the
+// generic exit sentence cannot say: which code the process returned. The code
+// is interpolated from the failure's own text and never quoted as the raw
+// "exit status N" line.
+func TestExitCodeNamesTheCodeInPlace(t *testing.T) {
+	withLocale(t, i18n.LocaleZH)
+	for _, tc := range []struct{ raw, want string }{
+		{"dsh web exited: exit status 1", "桌面运行时已退出（退出码 1），可重试或到日志里查看原因。"},
+		{"dsh web exited: exit status 137", "桌面运行时已退出（退出码 137），可重试或到日志里查看原因。"},
+	} {
+		got := SentenceText(tc.raw)
+		if got != tc.want {
+			t.Errorf("SentenceText(%q) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+	// No code in the text: the family's own sentence, not a placeholder.
+	if got := SentenceText("dsh web exited"); got != i18n.T(keyRuntimeExited) {
+		t.Errorf("codeless runtime exit = %q", got)
+	}
+	// A command that returned non-zero is not the desktop runtime: its status
+	// stays in the log, and the sentence must not claim the app exited.
+	for _, raw := range []string{"exit status 128", "git: exit status 128"} {
+		got := SentenceText(raw)
+		if strings.Contains(got, "退出码") || got != i18n.T(keyExited) {
+			t.Errorf("command exit %q took the runtime sentence: %q", raw, got)
+		}
+	}
+	if got := SentenceText("open /tmp/a: no such file or directory"); strings.Contains(got, "退出码") {
+		t.Errorf("a non-exit failure took the exit sentence: %q", got)
+	}
+}
+
+// TestSystemKillIsItsOwnSentence keeps a killed process from reading as a
+// plain exit: the person's next step differs when the OS stopped it.
+func TestSystemKillIsItsOwnSentence(t *testing.T) {
+	withLocale(t, i18n.LocaleZH)
+	for _, raw := range []string{"dsh web exited: signal: killed", "signal: killed"} {
+		got := SentenceText(raw)
+		if !strings.Contains(got, "被系统结束") {
+			t.Errorf("SentenceText(%q) = %q, want the system-kill sentence", raw, got)
+		}
+		if strings.Contains(got, "killed") {
+			t.Errorf("SentenceText(%q) = %q leaked the raw signal", raw, got)
+		}
+	}
+	if got := Classify(errors.New("dsh web exited: signal: killed")); got != CauseKilled {
+		t.Fatalf("Classify(killed) = %v, want CauseKilled", got)
 	}
 }
 

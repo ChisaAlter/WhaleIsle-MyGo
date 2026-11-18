@@ -8,8 +8,9 @@ import (
 )
 
 // carrierScan names a package and the fields, labels and text calls this shell
-// paints. A line that matches both a carrier and .Error() shows a person the
-// transport's own words, which is what internal/errcopy exists to prevent.
+// paints. A line that matches both a carrier and a raw failure source shows a
+// person the transport's own words, which is what internal/errcopy exists to
+// prevent.
 //
 // The 5b surfaces are small and varied: several of them have no shared carrier
 // to hang a local guard on, and ten copies of the same walk would be ten places
@@ -30,7 +31,20 @@ var carrierScan = []struct {
 	{"../assistant", regexp.MustCompile(`return err\.Error|ReviewText`)},
 	{"../widgets/markdown", regexp.MustCompile(`label = `)},
 	{"../svgimage", regexp.MustCompile(`message = |p[.]Text[(]`)},
+	// The import wizard paints a session row's reason itself, so the launcher
+	// owes every row a sentence rather than a string from below.
+	{"../launcher", regexp.MustCompile(`label|ui\.Text\(c, |releaseText`)},
+	// The importer is the row's model: it classifies a session it cannot copy
+	// and hands over a category. Text put on an item here has no reader but
+	// the screen, so it must not come from a failure.
+	{"../../desktop/importer", regexp.MustCompile(`Label:|Group:|Reason:|Detail:|Message:`)},
 }
+
+// rawFailure is every field or call that carries a failure's own words. A
+// painted line may match it only when the words never reach the screen: .Error()
+// is the transport's, and the two import-catalog fields are the shape this scan
+// was added for, where a scanner's message became a checkbox's second half.
+var rawFailure = regexp.MustCompile(`\.Error\(\)|UnsupportedReason|UnsupportedDetail`)
 
 // verbatimDiagnostics marks the one carrier whose job is to show the failure
 // word for word: the progress panel that offers "copy full error". A person
@@ -55,7 +69,7 @@ func TestPaintedCarriersNeverTakeARawError(t *testing.T) {
 			}
 			scanned++
 			for index, line := range strings.Split(string(source), "\n") {
-				if !strings.Contains(line, ".Error()") || !scan.carrier.MatchString(line) {
+				if !rawFailure.MatchString(line) || !scan.carrier.MatchString(line) {
 					continue
 				}
 				if strings.HasPrefix(strings.TrimSpace(line), "if ") {
@@ -64,7 +78,8 @@ func TestPaintedCarriersNeverTakeARawError(t *testing.T) {
 				if strings.Contains(line, verbatimDiagnostics) {
 					continue
 				}
-				t.Errorf("%s/%s:%d paints a raw error: %s", scan.dir, name, index+1, strings.TrimSpace(line))
+				t.Errorf("%s/%s:%d paints a raw error: %s\n  use internal/errcopy.Sentence for the sentence, or translate a classified category, and keep the raw text for the log",
+					scan.dir, name, index+1, strings.TrimSpace(line))
 			}
 		}
 	}

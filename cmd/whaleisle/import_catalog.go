@@ -94,7 +94,7 @@ func (s *mainState) requestImportCatalog(win *mygo.Window, source, extraRoot str
 				if previous == nil {
 					hasAtt := false
 					for _, row := range cat.Sessions {
-						if cat.HasAttachments && !row.Unsupported {
+						if cat.HasAttachments && row.Blocker.Importable() {
 							hasAtt = true
 							break
 						}

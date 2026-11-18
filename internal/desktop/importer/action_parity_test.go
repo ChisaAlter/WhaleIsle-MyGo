@@ -95,10 +95,17 @@ func TestCatalogRejectsSQLiteOnlyAndMixedSessionLogs(t *testing.T) {
 	if len(cat.Sessions) != 2 {
 		t.Fatalf("unsupported directories omitted: %+v", cat.Sessions)
 	}
+	kinds := map[string]Blocker{}
 	for _, row := range cat.Sessions {
-		if !row.Unsupported || row.Selected || row.UnsupportedReason == "" {
+		if row.Blocker.Importable() || row.Selected {
 			t.Fatalf("unsafe session selectable: %+v", row)
 		}
+		kinds[row.Rel] = row.Blocker
+	}
+	// The row carries the category the launcher translates, not the scanner's
+	// words: the two are different failures and read differently on screen.
+	if kinds[filepath.Join("sqlite")] != BlockedLegacyDatabase || kinds[filepath.Join("mixed")] != BlockedMixedEncoding {
+		t.Fatalf("session rows misclassified: %+v", kinds)
 	}
 	put(t, source, "sessions/ordinary/session.v3.jsonl", "{}\n")
 	cat, err = BuildCatalog(source, dest)

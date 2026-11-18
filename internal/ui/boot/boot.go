@@ -210,7 +210,7 @@ func bootFailureDock(c *ui.Context, m Model, palette *scenePalette) {
 	if m.Status.State != harness.Failed || m.StatusText != "" {
 		return
 	}
-	cause := failureText(m.Status.Err)
+	cause := errcopy.Sentence(m.Status.Err)
 	if cause == "" {
 		return
 	}
@@ -227,46 +227,6 @@ func bootFailureDock(c *ui.Context, m Model, palette *scenePalette) {
 			ui.Text(c, cause).FontSize(14).FixedLineHeight(22).TextColor(palette.toastInk).MinWidth(0)
 		})
 	})
-}
-
-// exitStatus is the code dsh reported when its process exited, named in the
-// copy instead of repeating the English "exit status 1" line.
-var exitStatus = regexp.MustCompile(`(?i)exit status\s+(\d+)`)
-
-// signalKilled and runtimeExited cover the other ways dsh reports a dead Host:
-// a signal, or the supervisor's own dsh web exited / dsh 进程结束 wrappers.
-var (
-	signalKilled  = regexp.MustCompile(`(?i)signal:\s*killed`)
-	runtimeExited = regexp.MustCompile(`(?i)dsh web exited|dsh 进程结束`)
-)
-
-// failureText is .failure's line: localized copy that names what happened and
-// what to do next. The raw message never becomes the primary sentence — it
-// stays in the log drawer, where the status line points (boot.js:211-236).
-func failureText(err error) string {
-	if err == nil {
-		return ""
-	}
-	raw := strings.TrimSpace(err.Error())
-	if raw == "" {
-		return ""
-	}
-	if m := exitStatus.FindStringSubmatch(raw); m != nil {
-		return bootText("桌面运行时已退出（退出码 "+m[1]+"），可重试或到日志里查看原因。",
-			"The desktop runtime exited (code "+m[1]+"); retry, or check the log for the cause.")
-	}
-	if signalKilled.MatchString(raw) {
-		return bootText("桌面运行时被系统结束，可重试或到日志里查看原因。",
-			"The desktop runtime was stopped by the system; retry, or check the log for the cause.")
-	}
-	if runtimeExited.MatchString(raw) {
-		return bootText("桌面运行时已退出，可重试或到日志里查看原因。",
-			"The desktop runtime exited; retry, or check the log for the cause.")
-	}
-	// Everything else is a cause internal/errcopy already names. It owns the
-	// cause table and its sentences, so the startup screen cannot drift from the
-	// rest of the shell; the drawer below still carries the raw message.
-	return errcopy.Sentence(err)
 }
 
 // bootDrawerLines is the log the drawer lists: the failure message joins it
