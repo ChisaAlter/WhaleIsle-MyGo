@@ -113,6 +113,7 @@ jobs:
             ./internal/errcopy \
             ./internal/ui/browserpreview \
             ./internal/ui/interaction \
+            ./internal/ui/layoutstability \
             ./internal/jobflow \
             ./internal/workflowrun
       - name: Test build storage contracts
@@ -153,6 +154,32 @@ jobs:
             ./internal/ui/files \
             ./internal/ui/chat \
             ./internal/ui/composer
+
+  entry-and-git:
+    name: Entry point and git packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test entry point and git packages
+        shell: bash
+        # No -race here on purpose: ./cmd/whaleisle is 87s and
+        # ./internal/desktop/git is 205s on a loaded machine, so under the race
+        # detector they would dominate wall time for little gain. Their value is
+        # that the program still compiles and its behaviour still holds.
+        run: |
+          go test -count=1 \
+            ./cmd/whaleisle \
+            ./internal/desktop/git
 
   cross-build:
     name: Cross-build ${{ matrix.goos }}/${{ matrix.goarch }}
