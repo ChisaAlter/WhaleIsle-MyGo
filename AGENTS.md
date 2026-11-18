@@ -1,6 +1,6 @@
 # 项目技术基线
 
-进行核心工作流、模块拆分、DSH/Host 升级、插件与自定义空间、界面呈现、性能、数据或发布兼容相关工作前，先阅读 [ARCHITECTURE.md](ARCHITECTURE.md) 的对应章节；领域术语见 [GLOSSARY.md](GLOSSARY.md)。删除或回收仓库内文件前，先读 [CLEANUP.md](CLEANUP.md)：判定规则与已核实的保留项都在那里。
+进行核心工作流、模块拆分、DSH/Host 升级、插件与自定义空间、界面呈现、性能、数据或发布兼容相关工作前，先阅读 [ARCHITECTURE.md](ARCHITECTURE.md) 的对应章节；领域术语见 [GLOSSARY.md](GLOSSARY.md)。删除或回收仓库内文件前，先读 [CLEANUP.md](CLEANUP.md)：判定规则与已核实的保留项都在那里。修改任何用户可见的失败文案前，先读 [docs/error-copy.md](docs/error-copy.md)：原始错误不进界面，守卫的位置与新增 carrier 的方法都在那里。
 
 以该文档作为后续技术路线依据。旧计划和历史验收记录用于追溯，不覆盖现行路线，也不证明当前候选已验证。实现任务同时遵守适用的执行与验收约束。
 
