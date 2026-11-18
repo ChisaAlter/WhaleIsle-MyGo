@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
@@ -125,6 +126,14 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	// state unreachable rather than late.
 	var failDelivery atomic.Bool
 	failDelivery.Store(true)
+	// The duplicate approve below is only a duplicate while the first delivery is
+	// still in flight. When the failure lands before the second call runs, the
+	// store is right to accept that call as a retry of a finished attempt, so it
+	// sends again and the explicit retry sends a third time. Holding the first
+	// delivery open until the test has issued the duplicate makes the fence under
+	// test the store's, instead of the runner's speed.
+	firstInFlight := make(chan struct{})
+	releaseFirst := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]json.RawMessage
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -133,7 +142,12 @@ func TestPlanReviewContractFixture(t *testing.T) {
 		}
 		mu.Lock()
 		calls = append(calls, body)
+		first := len(calls) == 1
 		mu.Unlock()
+		if first {
+			close(firstInFlight)
+			<-releaseFirst
+		}
 		if failDelivery.Load() {
 			http.Error(w, "fixture temporary failure", 503)
 			return
@@ -158,7 +172,13 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	}
 	recovered.ReopenPlanReview(id)
 	recovered.ApprovePlanReview(id)
+	select {
+	case <-firstInFlight:
+	case <-time.After(stateCeiling):
+		t.Fatalf("first approval never reached the server within %s, which is a stuck detector rather than a timeout budget", stateCeiling)
+	}
 	recovered.ApprovePlanReview(id)
+	close(releaseFirst)
 	// Every wait here settles in 1-2ms; twenty samples under deliberate
 	// starvation (four pinned CPUs, two competing spinners, -race, two packages
 	// at once) peaked at 6.7ms. The wait itself is driven by the store's refresh
