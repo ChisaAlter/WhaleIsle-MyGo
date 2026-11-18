@@ -3,6 +3,7 @@ package composer
 import (
 	"context"
 	"sync/atomic"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
@@ -82,8 +83,8 @@ func (d *DraftState) CompleteAttachmentPreparation(_ int, original, prepared ses
 			continue
 		}
 		if err != nil {
-			d.Attachments[i].PrepareError = err.Error()
-			d.Error = err.Error()
+			d.Attachments[i].PrepareError = errcopy.Sentence(err)
+			d.Error = errcopy.Sentence(err)
 			return
 		}
 		prepared.PreparationID = original.PreparationID

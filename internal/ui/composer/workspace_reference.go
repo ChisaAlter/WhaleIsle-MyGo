@@ -3,6 +3,7 @@ package composer
 import (
 	"errors"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/filelink"
 )
 
@@ -36,7 +37,7 @@ func InsertWorkspaceReference(d *DraftState, ref filelink.Reference, binding, se
 func wireWorkspaceReferenceDrop(area ui.Element, m Model) {
 	if ref, ok := ui.Drop[filelink.Reference](area); ok && m.OnWorkspaceReference != nil {
 		if err := m.OnWorkspaceReference(ref); err != nil && m.State != nil {
-			m.State.Error = err.Error()
+			m.State.Error = errcopy.Sentence(err)
 		}
 	}
 }

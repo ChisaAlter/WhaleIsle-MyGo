@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -486,7 +487,7 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 			if card.Clicked() && enabled && preview != nil {
 				*previewError = ""
 				if err := preview(target); err != nil {
-					*previewError = err.Error()
+					*previewError = errcopy.Sentence(err)
 					*previewErrorAt = c.Now()
 				}
 			}

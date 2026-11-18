@@ -3,14 +3,16 @@ package files
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 )
 
 func TestB26PageFailureAndReadOnlyEOF(t *testing.T) {
 	tab := &FileTab{Preview: "first", Draft: "first", Truncated: true, textPaged: true, textPage: workspacefs.TextPage{Next: 6}}
 	applyNextTextPage(Model{}, tab, textReadResult{err: errors.New("offline")})
-	if tab.Preview != "first" || tab.textPage.Next != 6 || tab.Status != "offline" {
+	if tab.Preview != "first" || tab.textPage.Next != 6 || tab.Status != errcopy.Sentence(errors.New("offline")) || strings.Contains(tab.Status, "offline") {
 		t.Fatal("failure discarded prefix/cursor")
 	}
 	applyNextTextPage(Model{}, tab, textReadResult{page: &workspacefs.TextPage{Text: "second", Separator: "\n", Next: 8, EOF: true}})

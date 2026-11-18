@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -297,7 +298,7 @@ func (p *nativeCommandPopup) poll(d *DraftState) bool {
 		p.reveal = true
 		p.active = -1
 		if r.err != nil {
-			p.errorText = r.err.Error()
+			p.errorText = errcopy.Sentence(r.err)
 		}
 		r.loaded = false
 	}
@@ -305,7 +306,7 @@ func (p *nativeCommandPopup) poll(d *DraftState) bool {
 		p.busy = false
 		r.done = false
 		if r.err != nil {
-			p.errorText = r.err.Error()
+			p.errorText = errcopy.Sentence(r.err)
 			p.confirmation = nil
 			p.acknowledged = false
 			return false

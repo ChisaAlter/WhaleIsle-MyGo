@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"sort"
 	"strings"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -57,7 +58,7 @@ func slashMenuItems(m Model, query string) []suggestItem {
 	catalog, err := nativeSlashCatalog(m)
 	if err != nil {
 		if m.State != nil {
-			m.State.Error = err.Error()
+			m.State.Error = errcopy.Sentence(err)
 		}
 		return nil
 	}

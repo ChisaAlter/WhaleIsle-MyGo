@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
@@ -63,7 +64,7 @@ func (d *DraftState) CompleteFileIntake(op *FileIntake, err error) bool {
 		op.cancel = nil
 	}
 	if err != nil {
-		op.Error = err.Error()
+		op.Error = errcopy.Sentence(err)
 		op.Ready = false
 		return false
 	}

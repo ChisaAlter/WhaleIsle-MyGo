@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 )
 
@@ -34,7 +35,7 @@ func paintChildAttachments(c *ui.Context, v ChildEditorModel, muted ui.Color) {
 				})
 				if display := seat.result; display != nil {
 					if display.err != nil {
-						preview.Tooltip(display.err.Error())
+						preview.Tooltip(errcopy.Sentence(display.err))
 					}
 					if display.bitmap != nil && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
 						seat.open = true

@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"time"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -78,7 +79,7 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 				state.pending = false
 				state.action = ""
 				if err != nil {
-					state.error = err.Error()
+					state.error = errcopy.Sentence(err)
 				} else if action == "edit" {
 					state.editing = false
 				}

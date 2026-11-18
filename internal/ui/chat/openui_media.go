@@ -14,6 +14,7 @@ import (
 	"whaleisle/internal/desktop/openui"
 	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/desktop/webview"
+	"whaleisle/internal/errcopy"
 )
 
 // All fields other than b's own mutex-protected fields are UI-thread owned.
@@ -169,8 +170,7 @@ func (m *openUIMedia) report(err error) {
 		return
 	}
 	m.block.mu.Lock()
-	changed := m.block.err != err.Error()
-	m.block.err = err.Error()
+	changed := m.block.fail(err)
 	m.block.mu.Unlock()
 	if changed {
 		m.invalidate()
@@ -278,7 +278,7 @@ func (m *openUIMedia) presentHost(seat *openUIMediaSeat, bounds, clip mygo.Recta
 		}
 		host, err := webview.NewYouTubeHost(m.parent, seat.request.VideoID, title, m.invalidate, m.invalidate)
 		if err != nil {
-			seat.failed = err.Error()
+			seat.failed = errcopy.Sentence(err)
 			return "", err
 		}
 		seat.host = host
@@ -289,7 +289,7 @@ func (m *openUIMedia) presentHost(seat *openUIMediaSeat, bounds, clip mygo.Recta
 	}
 	shown, err := seat.host.PresentMedia(bounds, clip, m.holes)
 	if err != nil {
-		seat.failed = err.Error()
+		seat.failed = errcopy.Sentence(err)
 		m.closeSeat(seat)
 		return "", err
 	}

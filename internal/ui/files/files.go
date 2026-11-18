@@ -13,6 +13,7 @@ import (
 
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/filelink"
@@ -742,7 +743,7 @@ func LoadPreviewRemote(readRemote func(rel string) (string, error), rel string) 
 	}
 	body, err := readRemote(rel)
 	if err != nil {
-		return "", err.Error()
+		return "", errcopy.Sentence(err)
 	}
 	return body, ""
 }
@@ -762,7 +763,7 @@ func loadPreview(root, rel string) (text, errMsg string, truncated bool) {
 	} // No client-side path resolution or binary text read.
 	full, err := workspacefs.JoinRoot(root, rel)
 	if err != nil {
-		return "", err.Error(), false
+		return "", errcopy.Sentence(err), false
 	}
 	if isPreviewImage(rel) {
 		return "", "", false // Decoded separately; never offer binary image bytes for editing.
@@ -781,7 +782,7 @@ func loadPreview(root, rel string) (text, errMsg string, truncated bool) {
 		}
 		hint := i18n.T(i18n.KeyFilesXLSXHint)
 		if xerr != nil {
-			hint = hint + " (" + xerr.Error() + ")"
+			hint = errcopy.Under(hint, xerr)
 		}
 		return "", hint, false
 	case workspacefs.DocOther:
@@ -795,9 +796,9 @@ func loadPreview(root, rel string) (text, errMsg string, truncated bool) {
 		case errors.Is(err, workspacefs.ErrBinary):
 			return "", i18n.T(i18n.KeyFilesBinary), false
 		case errors.Is(err, workspacefs.ErrNotFile):
-			return "", err.Error(), false
+			return "", errcopy.Sentence(err), false
 		default:
-			return "", err.Error(), false
+			return "", errcopy.Sentence(err), false
 		}
 	}
 	return res.Text, "", res.Truncated

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/transfer"
 )
@@ -42,7 +43,7 @@ func intakeTransferredFiles(m Model, paths []string) {
 	}
 	files, err := normalizedTransferPaths(paths)
 	if err != nil {
-		setFileIntakeError(m, err.Error())
+		setFileIntakeError(m, errcopy.Sentence(err))
 		return
 	}
 	if m.OnAttachFiles != nil {

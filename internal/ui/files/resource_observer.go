@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -229,7 +230,7 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 		}
 		tab.Status = label("源文件已在外部更改；草稿和已加载内容已保留。", "Source changed externally; draft and loaded content were kept.")
 		if r.err != nil {
-			tab.Status += " " + r.err.Error()
+			tab.Status += " " + errcopy.Sentence(r.err)
 		}
 		restore(m, tab)
 		return
@@ -237,7 +238,7 @@ func applyResourceObservation(m Model, tab *FileTab, r textReadResult) {
 	if r.err != nil {
 		tab.readBlocked = true
 		pauseSave(tab)
-		tab.Status = label("源文件无法重新读取；当前内容已保留：", "Source could not be reread; current content kept: ") + r.err.Error()
+		tab.Status = errcopy.Under(label("源文件无法重新读取；当前内容已保留", "Source could not be reread; current content kept"), r.err)
 		restore(m, tab)
 		return
 	}

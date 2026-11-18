@@ -14,6 +14,7 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/workspacefs"
@@ -91,7 +92,7 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 		return
 	}
 	if preview.err != nil {
-		ui.Text(c, preview.err.Error()).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(8, 12, 8, 12)
+		ui.Text(c, errcopy.Sentence(preview.err)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(8, 12, 8, 12)
 		ui.Text(c, label("可用“外部打开”查看此图片；不会自动启动其他应用。", "Use Open external to view this image. No other app is opened automatically.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(4, 12, 4, 12)
 		return
 	}
@@ -101,7 +102,7 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 		w, h := preview.svg.Size()
 		note = fmt.Sprintf("%.0f × %.0f", w, h)
 		if err := preview.svg.Error(); err != nil {
-			ui.Text(c, err.Error()).FontSize(12).TextColor(muted).FillWidth()
+			ui.Text(c, errcopy.Sentence(err)).FontSize(12).TextColor(muted).FillWidth()
 		}
 	}
 	if note != "" {

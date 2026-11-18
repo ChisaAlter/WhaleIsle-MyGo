@@ -135,7 +135,7 @@ func TestDeliveryPreviewAsyncFailureIsNotSuccess(t *testing.T) {
 		t.Fatal("local workbook preview invoked the Host reader")
 	default:
 	}
-	if !strings.Contains(*m.PreviewErr, "zip: not a valid zip file") || !selectedTab(m).readBlocked || selectedTab(m).readLoading {
+	if *m.PreviewErr == "" || strings.Contains(*m.PreviewErr, "zip: not a valid zip file") || !selectedTab(m).readBlocked || selectedTab(m).readLoading {
 		t.Fatalf("accepted local read did not publish terminal parse failure: %q", *m.PreviewErr)
 	}
 	tester := ui.NewTester(func(c *ui.Context) {

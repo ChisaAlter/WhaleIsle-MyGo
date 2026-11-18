@@ -2,7 +2,9 @@ package files
 
 import (
 	"errors"
+	"log"
 	"path/filepath"
+	"whaleisle/internal/errcopy"
 )
 
 // dirtyTabsForClose validates the same captured draft and root ownership for
@@ -31,7 +33,8 @@ func dirtyTabsForClose(m Model) ([]*FileTab, error) {
 	}
 	for _, tab := range dirty {
 		if err := checkSavePermission(m, tab, true); err != nil {
-			return nil, errors.New(tab.Path + ": " + err.Error())
+			log.Printf("close save %s: %v", tab.Path, err)
+			return nil, errors.New(errcopy.Sentence(err))
 		}
 	}
 	return dirty, nil
@@ -54,7 +57,8 @@ func SaveDirtyForClose(m Model) (pending bool, err error) {
 	}
 	for _, tab := range dirty {
 		if err := prepareSaveQueue(m, tab, true); err != nil {
-			return false, errors.New(tab.Path + ": " + err.Error())
+			log.Printf("close save %s: %v", tab.Path, err)
+			return false, errors.New(errcopy.Sentence(err))
 		}
 	}
 	m.Tabs.closeSaving = true

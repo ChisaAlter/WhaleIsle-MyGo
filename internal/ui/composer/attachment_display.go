@@ -17,6 +17,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/imagepreview"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -34,7 +35,7 @@ func firstError(prepare string, v *attachmentDisplay) string {
 		return prepare
 	}
 	if v != nil && v.err != nil {
-		return v.err.Error()
+		return errcopy.Sentence(v.err)
 	}
 	return ""
 }
@@ -276,7 +277,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							}
 						})
 						if v != nil && v.err != nil {
-							preview.Tooltip(v.err.Error())
+							preview.Tooltip(errcopy.Sentence(v.err))
 						}
 						if v != nil && (v.bitmap != nil || v.svg != nil) && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
 							seat.open = true
@@ -299,7 +300,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 								meta = i18n.T(i18n.KeyComposerAttachmentFailed)
 							} else if v != nil && v.err != nil {
 								meta = i18n.T(i18n.KeyComposerAttachmentUnavailable)
-								body.Tooltip(v.err.Error())
+								body.Tooltip(errcopy.Sentence(v.err))
 							} else if v != nil && a.Upload.ReceiptId != "" {
 								meta = fmt.Sprintf("%s · %d bytes", strings.ToUpper(strings.TrimPrefix(filepath.Ext(label), ".")), v.bytes)
 							}

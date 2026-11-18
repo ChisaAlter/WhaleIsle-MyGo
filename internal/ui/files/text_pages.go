@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"time"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -80,7 +81,7 @@ func applyNextTextPage(m Model, tab *FileTab, result textReadResult) {
 			tab.pendingLine.reset()
 			tab.revealLine = 0
 		}
-		tab.Status = result.err.Error()
+		tab.Status = errcopy.Sentence(result.err)
 		restore(m, tab)
 		return
 	}
