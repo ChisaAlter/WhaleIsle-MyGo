@@ -490,12 +490,17 @@ func (c *Controller) revertRequestOwned(win any, state *requestRevertState, key 
 				return
 			}
 			f.busy = false
-			if _, current := c.revertCardLocked(state, key, nowSnap.Client); !current {
+			// The accepted revert belongs to this operation generation, not to
+			// the observer that happened to present its confirmation.
+			if f.requestProjectID != projectID {
 				return
 			}
 			if err != nil {
 				f.requestRevertError = err.Error()
 				state.errors[key] = err.Error()
+				if !f.visible() {
+					f.err = err.Error()
+				}
 				if committed {
 					delete(f.requestCards, requestCardKey(projectID, requestID))
 					if f.requestCard != nil && f.requestCard.ID == requestID {
@@ -653,6 +658,7 @@ func (c *Controller) runRequestWorkAction(win any, state *requestRevertState, ke
 	}
 	f.busy = true
 	f.err = ""
+	f.generation++
 	generation, navigation := f.generation, f.navigation
 	c.mgr.mu.Unlock()
 
@@ -718,11 +724,31 @@ func (c *Controller) runRequestWorkAction(win any, state *requestRevertState, ke
 			nowSnap := c.mgr.hostSnapshot()
 			c.mgr.mu.Lock()
 			f := &c.flow
-			if f.client != client || nowSnap.Client != client || f.generation != generation || f.navigation != navigation {
+			if f.client != client || nowSnap.Client != client || f.generation != generation {
 				c.mgr.mu.Unlock()
 				return
 			}
 			f.busy = false
+			// Stop is a business action. Its result must retire its admission
+			// and update the Project snapshot even after the observer closes.
+			if action == "stop" {
+				if err != nil {
+					f.err = err.Error()
+				} else {
+					f.team = &overview
+					for i := range f.listing.Projects {
+						if f.listing.Projects[i].ID == card.ProjectID {
+							f.listing.Projects[i] = overview.Project
+						}
+					}
+				}
+				c.mgr.mu.Unlock()
+				return
+			}
+			if f.navigation != navigation {
+				c.mgr.mu.Unlock()
+				return
+			}
 			sourceValid := func(f *flowState, currentClient *dsh.Client) bool {
 				cached, ok := c.revertCardLocked(state, key, currentClient)
 				if !ok {
@@ -759,13 +785,6 @@ func (c *Controller) runRequestWorkAction(win any, state *requestRevertState, ke
 					History:     projectflow.ReportHistory{Items: []projectflow.Report{report}, Total: 1},
 					ListCursors: []string{""},
 					WorkCursors: []string{""},
-				}
-			case "stop":
-				f.team = &overview
-				for i := range f.listing.Projects {
-					if f.listing.Projects[i].ID == card.ProjectID {
-						f.listing.Projects[i] = overview.Project
-					}
 				}
 			}
 			c.mgr.mu.Unlock()
@@ -865,7 +884,7 @@ func (c *Controller) loadRequirementCatalog(win any, o *projects.ObserverState, 
 	c.mgr.mu.Lock()
 	f := &c.flow
 	client := snap.Client
-	if win == nil || o == nil || client == nil || f.client != client || f.busy || !f.listing.Available || o.Host == "" {
+	if win == nil || o == nil || client == nil || f.client != client || f.busy || !f.visible() || !f.listing.Available || o.Host == "" {
 		c.mgr.mu.Unlock()
 		return
 	}
@@ -902,13 +921,14 @@ func (c *Controller) loadRequirementCatalog(win any, o *projects.ObserverState, 
 		cursors = []string{""}
 	}
 	f.requestProjectID = o.ProjectID
-	f.busy = true
+	ctx, cancel := context.WithTimeout(lc, 30*time.Second)
+	op := c.beginReadLocked(cancel)
+	f.catalogRead = op
 	f.err = ""
 	generation, navigation := f.generation, f.navigation
 	c.mgr.mu.Unlock()
 
 	go func() {
-		ctx, cancel := context.WithTimeout(lc, 30*time.Second)
 		defer cancel()
 		rpc := projectRPC(client)
 		page, err := rpc.Requests(ctx, o.ProjectID, kind, cursors[len(cursors)-1])
@@ -927,10 +947,9 @@ func (c *Controller) loadRequirementCatalog(win any, o *projects.ObserverState, 
 			c.mgr.mu.Lock()
 			defer c.mgr.mu.Unlock()
 			f := &c.flow
-			if f.client != client || nowSnap.Client != client || f.generation != generation || f.navigation != navigation || f.requestProjectID != o.ProjectID {
+			if !c.finishReadLocked(op) || f.client != client || nowSnap.Client != client || f.generation != generation || f.navigation != navigation || f.requestProjectID != o.ProjectID || !f.visible() {
 				return
 			}
-			f.busy = false
 			if err != nil {
 				o.CatalogErrors[kind] = err.Error()
 				f.err = err.Error()

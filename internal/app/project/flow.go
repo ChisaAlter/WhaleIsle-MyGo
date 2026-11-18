@@ -27,6 +27,7 @@ func (c *Controller) Model(win any) projects.Model {
 				observer.disposeLocked()
 			}
 			c.mgr.observers = make(map[*projects.ObserverState]*Controller)
+			c.mgr.observerReadings = nil
 		}
 		c.closeMaterialCollectionLocked()
 		c.closeHistoricalLocked()
@@ -34,6 +35,9 @@ func (c *Controller) Model(win any) projects.Model {
 		c.closeDeliveriesLocked()
 		c.closeDocumentsLocked()
 		c.closeVisualResultsLocked()
+		if f.catalogRead != nil {
+			c.finishReadLocked(f.catalogRead)
+		}
 		c.stopRefreshLocked()
 		c.stopProcessLocked()
 		expanded := f.expanded

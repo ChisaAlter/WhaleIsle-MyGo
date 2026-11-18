@@ -21,6 +21,7 @@ type activityState struct {
 type deliveryState struct {
 	browser *projectflow.DeliveryBrowser
 	cancel  context.CancelFunc
+	read    *readOperation
 }
 
 type documentState struct {
@@ -222,7 +223,10 @@ func (c *Controller) runActivity(win any, a *activityState, view uint64, action,
 func (c *Controller) closeDeliveriesLocked() {
 	f := &c.flow
 	if d := f.deliveries; d != nil {
-		if d.cancel != nil {
+		if d.read != nil {
+			c.finishReadLocked(d.read)
+			d.read, d.cancel = nil, nil
+		} else if d.cancel != nil {
 			d.cancel()
 			d.cancel = nil
 			f.busy = false
@@ -291,11 +295,12 @@ func (c *Controller) openDeliveryFile(win any, d *deliveryState, file projectflo
 		return
 	}
 	token, generation, navigation := d.browser.NavigationToken(), f.generation, f.navigation
-	f.busy = true
+	ctx, cancel := context.WithTimeout(lc, 30*time.Second)
+	op := c.beginReadLocked(cancel)
+	d.read, d.cancel = op, cancel
 	c.mgr.mu.Unlock()
 
 	go func() {
-		ctx, cancel := context.WithTimeout(lc, 30*time.Second)
 		defer cancel()
 		rpc := projectRPC(client)
 		resolved, err := rpc.ResolveArtifact(ctx, bSnap.Scope.ProjectID, file)
@@ -303,11 +308,14 @@ func (c *Controller) openDeliveryFile(win any, d *deliveryState, file projectflo
 			nowSnap := c.mgr.hostSnapshot()
 			c.mgr.mu.Lock()
 			f := &c.flow
-			if f.deliveries != d || nowSnap.Client != client || f.client != client || f.generation != generation || f.navigation != navigation || d.browser.NavigationToken() != token {
+			completed := c.finishReadLocked(op)
+			if d.read == op {
+				d.read, d.cancel = nil, nil
+			}
+			if !completed || f.deliveries != d || nowSnap.Client != client || f.client != client || f.generation != generation || f.navigation != navigation || d.browser.NavigationToken() != token {
 				c.mgr.mu.Unlock()
 				return
 			}
-			f.busy = false
 			if err != nil {
 				f.err = err.Error()
 				c.mgr.mu.Unlock()
@@ -369,7 +377,10 @@ func (c *Controller) runDeliveries(win any, d *deliveryState, action, arg string
 		return
 	}
 	if action == "back-list" || action == "back-report" {
-		if d.cancel != nil {
+		if d.read != nil {
+			c.finishReadLocked(d.read)
+			d.read, d.cancel = nil, nil
+		} else if d.cancel != nil {
 			d.cancel()
 			d.cancel = nil
 			f.busy = false
@@ -403,8 +414,8 @@ func (c *Controller) runDeliveries(win any, d *deliveryState, action, arg string
 		return
 	}
 	ctx, cancel := context.WithTimeout(lc, 30*time.Second)
-	d.cancel = cancel
-	f.busy = true
+	op := c.beginReadLocked(cancel)
+	d.read, d.cancel = op, cancel
 	generation, navigation := f.generation, f.navigation
 	c.mgr.mu.Unlock()
 
@@ -424,7 +435,11 @@ func (c *Controller) runDeliveries(win any, d *deliveryState, action, arg string
 			c.mgr.mu.Lock()
 			defer c.mgr.mu.Unlock()
 			f := &c.flow
-			if f.deliveries != d || f.client != client || nowSnap.Client != client || !d.browser.Pending(req) {
+			completed := c.finishReadLocked(op)
+			if d.read == op {
+				d.read, d.cancel = nil, nil
+			}
+			if !completed || f.deliveries != d || f.client != client || nowSnap.Client != client || !d.browser.Pending(req) {
 				return
 			}
 			if f.generation != generation || f.navigation != navigation || !f.visible() {
@@ -436,8 +451,6 @@ func (c *Controller) runDeliveries(win any, d *deliveryState, action, arg string
 			} else {
 				d.browser.CompletePage(req, page, loadErr)
 			}
-			d.cancel = nil
-			f.busy = false
 		})
 	}()
 }

@@ -32,6 +32,7 @@ type Model struct {
 	SystemDark                                                           bool
 	OnProjectDirectoryFor                                                func(string)
 	ObserverModel                                                        func(*ObserverState) Model
+	CloseObserver                                                        func(*ObserverState)
 	ObserverHost                                                         string
 	OnObserverSection                                                    func(string, string)
 	OnObserver                                                           func(string)

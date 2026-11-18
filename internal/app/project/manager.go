@@ -123,14 +123,17 @@ type HostDeps struct {
 // Manager coordinates all Project, observer, team, requirement, delivery, and visual preview controllers.
 // Lock invariant: Manager.mu is strictly a leaf lock and is never held across HostDeps callbacks, RPCs, or file I/O.
 type Manager struct {
-	mu           sync.Mutex
-	deps         HostDeps
-	primary      *Controller
-	observers    map[*projects.ObserverState]*Controller
-	ordinaryTeam *ordinaryTeamState
-	projectTeams map[string]*projectTeamState
-	preference   projectpreference.Controller
-	windowHidden bool
+	mu                sync.Mutex
+	deps              HostDeps
+	primary           *Controller
+	observers         map[*projects.ObserverState]*Controller
+	observerReadings  map[observerIdentity]*observerReadingState
+	ordinaryTeam      *ordinaryTeamState
+	projectTeams      map[string]*projectTeamState
+	preference        projectpreference.Controller
+	windowHidden      bool
+	presentationFrame uint64
+	primaryPresented  uint64
 }
 
 // Controller owns one Project navigation/presentation scope (either the primary sidebar or an observer).
@@ -138,6 +141,7 @@ type Controller struct {
 	mgr       *Manager
 	isPrimary bool
 	flow      flowState
+	presented uint64
 }
 
 type flowState struct {
@@ -193,6 +197,8 @@ type flowState struct {
 	generation                 uint64
 	observerSection            string
 	observerOpen               bool
+	readOperation              *readOperation
+	catalogRead                *readOperation
 }
 
 func (f *flowState) visible() bool { return f.expanded || f.observerOpen }
@@ -224,6 +230,21 @@ func (m *Manager) observerLocked(o *projects.ObserverState, client *dsh.Client) 
 		m.observers = make(map[*projects.ObserverState]*Controller)
 	}
 	c := m.observers[o]
+	if c == nil && o != nil {
+		// A header-local state may be recreated while an accepted action still
+		// owns the hidden controller. Reattach that owner instead of admitting a
+		// second action against a fresh, apparently idle controller.
+		for previous, pending := range m.observers {
+			if previous != nil && pending.flow.client == client && !pending.flow.observerOpen && readingIdentity(previous, client) == readingIdentity(o, client) {
+				c = pending
+				o.RestoreReading(previous.Reading())
+				previous.DetachReads()
+				delete(m.observers, previous)
+				m.observers[o] = c
+				break
+			}
+		}
+	}
 	if c == nil {
 		listing := m.primary.flow.listing
 		listing.Projects = append([]projectflow.Project(nil), listing.Projects...)
@@ -242,8 +263,16 @@ func (m *Manager) observerLocked(o *projects.ObserverState, client *dsh.Client) 
 				observerSection: section,
 			},
 		}
+		if o != nil {
+			if saved := m.observerReadings[readingIdentity(o, client)]; saved != nil {
+				saved.restore(&c.flow)
+				o.RestoreReading(saved.reading)
+			}
+		}
 		m.observers[o] = c
 	}
+	c.flow.observerOpen = true
+	c.presented = m.presentationFrame
 	return c
 }
 
@@ -252,6 +281,9 @@ func (m *Manager) BindModel(win any, themeID string, systemDark bool) projects.M
 	if cfg := m.configStore(); cfg != nil && !MountEnabled(cfg.Get(), DevelopmentOverride()) {
 		return projects.Model{}
 	}
+	m.mu.Lock()
+	m.primaryPresented = m.presentationFrame
+	m.mu.Unlock()
 	model := m.primary.Model(win)
 	m.bindTeamModel(win, &model)
 	model.ThemeID, model.SystemDark = themeID, systemDark
@@ -259,6 +291,7 @@ func (m *Manager) BindModel(win any, themeID string, systemDark bool) projects.M
 	// Opening an observer does not make the sidebar own its controller lifetime.
 	model.OnObserver = nil
 	model.OnObserverSection = nil
+	model.CloseObserver = m.CloseObserver
 	observerThemeID, observerSystemDark := themeID, systemDark
 	model.ObserverModel = func(o *projects.ObserverState) projects.Model {
 		snap := m.hostSnapshot()
@@ -300,8 +333,12 @@ func (m *Manager) SetWindowHidden(hidden bool) {
 	m.windowHidden = hidden
 	if hidden {
 		m.primary.stopRefreshLocked()
+		m.primary.stopProcessLocked()
+		m.primary.closeVisualPagesLocked()
 		for _, c := range m.observers {
 			c.stopRefreshLocked()
+			c.stopProcessLocked()
+			c.closeVisualPagesLocked()
 		}
 	}
 	m.mu.Unlock()
@@ -328,6 +365,8 @@ func (m *Manager) Close() {
 	for _, c := range m.observers {
 		c.disposeLocked()
 	}
+	m.observers = nil
+	m.observerReadings = nil
 	m.mu.Unlock()
 }
 
@@ -339,14 +378,8 @@ func (c *Controller) Dispose() {
 }
 
 func (c *Controller) disposeLocked() {
-	c.stopProcessLocked()
-	c.stopRefreshLocked()
-	c.closeHistoricalLocked()
-	c.closeActivityLocked()
-	c.closeDeliveriesLocked()
-	c.closeDocumentsLocked()
-	c.closeMaterialCollectionLocked()
-	c.closeVisualResultsLocked()
+	c.closeObservationLocked()
+	c.flow.requestCards = nil
 	c.flow.generation++
 	c.flow.client = nil
 }

@@ -48,6 +48,8 @@ type visualPage struct {
 	html              string
 	width             int
 	dark              bool
+	opened            bool
+	presented         uint64
 }
 
 type visualResultsState struct {
@@ -56,6 +58,12 @@ type visualResultsState struct {
 
 func (c *Controller) closeVisualResultsLocked() {
 	c.flow.requestCards = nil
+	c.closeVisualPagesLocked()
+}
+
+// Presentation ending releases renderers without invalidating authoritative
+// cards. Host/navigation changes separately revoke those publication grants.
+func (c *Controller) closeVisualPagesLocked() {
 	if v := c.flow.visualResults; v != nil {
 		for _, page := range v.pages {
 			if page.cancel != nil {
@@ -188,14 +196,12 @@ func (c *Controller) bindVisualResults(win any, m *projects.Model) {
 		state := f.visualResults
 		page := state.pages[owner]
 		if page == nil {
-			ctx, cancel := context.WithCancel(lc)
-			page = &visualPage{state: projects.VisualPagePreview{Available: true, Loading: true}, ctx: ctx, cancel: cancel, width: width, dark: dark}
+			page = &visualPage{state: projects.VisualPagePreview{Available: true}, width: width, dark: dark}
 			state.pages[owner] = page
-			go c.loadVisualPage(ctx, win, state, owner, page)
 		} else if page.width != width || page.dark != dark {
 			widthChanged := page.width != width
 			page.width, page.dark = width, dark
-			if page.html != "" {
+			if page.opened && page.html != "" {
 				if page.state.InteractiveError != "" {
 					c.startVisualCaptureLocked(win, state, owner, page)
 				} else if widthChanged && (runtime.GOOS != "windows" || page.handle == nil) {
@@ -205,21 +211,55 @@ func (c *Controller) bindVisualResults(win any, m *projects.Model) {
 				}
 			}
 		}
+		page.presented = c.mgr.presentationFrame
 		snapshot := page.state
-		snapshot.Retry = func() {
+		start := func() {
 			retireSnap := c.mgr.hostSnapshot()
 			c.mgr.mu.Lock()
-			if c.flow.visualResults == state && state.pages[owner] == page && (page.state.Error != "" || page.state.InteractiveError != "") && c.visualOwnerCurrentLocked(owner, retireSnap.Client) {
+			if c.flow.visualResults == state && state.pages[owner] == page && (!page.opened || page.state.Error != "" || page.state.InteractiveError != "") && c.visualOwnerCurrentLocked(owner, retireSnap.Client) {
 				if page.cancel != nil {
 					page.cancel()
 				}
-				delete(state.pages, owner)
+				ctx, cancel := context.WithCancel(lc)
+				next := &visualPage{state: projects.VisualPagePreview{Available: true, Opened: true, Loading: true}, ctx: ctx, cancel: cancel, width: page.width, dark: page.dark, opened: true, presented: c.mgr.presentationFrame}
+				state.pages[owner] = next
+				go c.loadVisualPage(ctx, win, state, owner, next)
 			}
 			c.mgr.mu.Unlock()
 			c.mgr.updateWindow(win, func() {})
 		}
+		if page.opened {
+			snapshot.Retry = start
+			snapshot.Close = func() {
+				c.mgr.mu.Lock()
+				if c.flow.visualResults == state && state.pages[owner] == page {
+					if page.cancel != nil {
+						page.cancel()
+					}
+					delete(state.pages, owner)
+				}
+				c.mgr.mu.Unlock()
+				c.mgr.updateWindow(win, func() {})
+			}
+		} else {
+			snapshot.Open = start
+		}
 		c.mgr.mu.Unlock()
 		return snapshot
+	}
+}
+
+func (c *Controller) retireUnpresentedVisualsLocked(frame uint64) {
+	if c.flow.visualResults == nil {
+		return
+	}
+	for owner, page := range c.flow.visualResults.pages {
+		if page.presented != frame {
+			if page.cancel != nil {
+				page.cancel()
+			}
+			delete(c.flow.visualResults.pages, owner)
+		}
 	}
 }
 

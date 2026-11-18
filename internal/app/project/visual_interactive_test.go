@@ -142,6 +142,70 @@ func setupVisualController(t *testing.T, client *dsh.Client, htmlBytes int, deps
 	return mgr, c, card.Delivery.Pages[0]
 }
 
+func openPublishedVisual(t *testing.T, model projects.Model, source string, ref projectflow.DeliveryPageReference, width int) {
+	t.Helper()
+	preview := model.VisualPage(source, ref, width)
+	if preview.Open == nil || preview.Loading || preview.Surface != nil {
+		t.Fatal("published page was not waiting for an explicit open")
+	}
+	preview.Open()
+}
+
+func TestVisualPageRequiresExplicitOpenAndClosesWithoutReopening(t *testing.T) {
+	const html = "<html><body>owned</body></html>"
+	_, client := visualServerFixture(t, html)
+	surface := newMockVisualSurface(200)
+	var opened atomic.Int32
+	mgr, c, ref := setupVisualController(t, client, len(html), HostDeps{
+		NewVisualSurface: func(context.Context, any, VisualSurfaceOptions) (VisualSurface, error) {
+			opened.Add(1)
+			return surface, nil
+		},
+	})
+	defer mgr.Close()
+	var model projects.Model
+	c.bindVisualResults("win", &model)
+	for range 5 {
+		_ = model.VisualPage("request:A", ref, 400)
+	}
+	if opened.Load() != 0 {
+		t.Fatal("reading page state launched a browser")
+	}
+	mgr.mu.Lock()
+	startedByRead := false
+	for _, page := range c.flow.visualResults.pages {
+		if page.ctx != nil || page.opened || page.html != "" {
+			startedByRead = true
+		}
+	}
+	mgr.mu.Unlock()
+	if startedByRead {
+		t.Fatal("default page began reading HTML")
+	}
+	openPublishedVisual(t, model, "request:A", ref, 400)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		p := model.VisualPage("request:A", ref, 400)
+		if p.Surface != nil {
+			if p.Close == nil {
+				t.Fatal("opened page has no close action")
+			}
+			p.Close()
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	select {
+	case <-surface.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("explicit close retained its browser")
+	}
+	p := model.VisualPage("request:A", ref, 400)
+	if opened.Load() != 1 || p.Open == nil || p.Opened || p.Surface != nil {
+		t.Fatal("closed page silently reopened")
+	}
+}
+
 func TestVisualInteractive250msLoopStopsOnCloseAndOnlyInvalidatesOnHeightOrReady(t *testing.T) {
 	const html = "<html><body>ok</body></html>"
 	_, client := visualServerFixture(t, html)
@@ -162,7 +226,7 @@ func TestVisualInteractive250msLoopStopsOnCloseAndOnlyInvalidatesOnHeightOrReady
 
 	var model projects.Model
 	c.bindVisualResults("win", &model)
-	_ = model.VisualPage("request:A", ref, 400)
+	openPublishedVisual(t, model, "request:A", ref, 400)
 
 	select {
 	case <-surfaceOpened:
@@ -260,7 +324,7 @@ func TestVisualInteractiveFallbackToStaticCaptureOnUnexpectedClose(t *testing.T)
 
 	var model projects.Model
 	c.bindVisualResults("win", &model)
-	_ = model.VisualPage("request:A", ref, 400)
+	openPublishedVisual(t, model, "request:A", ref, 400)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -310,7 +374,7 @@ func TestVisualInteractiveRetireOnExpireHook(t *testing.T) {
 
 	var model projects.Model
 	c.bindVisualResults("win", &model)
-	_ = model.VisualPage("request:A", ref, 400)
+	openPublishedVisual(t, model, "request:A", ref, 400)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
