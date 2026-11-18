@@ -301,7 +301,7 @@ func withPreviewPath(m Model, rel, full string, action func(string)) {
 		var err error
 		full, err = workspacefs.JoinRoot(m.WorkspaceRoot, rel)
 		if err != nil {
-			setFileStatus(m, err.Error())
+			setFileError(m, err)
 			return
 		}
 	}

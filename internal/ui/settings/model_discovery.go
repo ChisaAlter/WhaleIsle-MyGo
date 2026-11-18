@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/providerdiscovery"
+	"whaleisle/internal/errcopy"
 	store "whaleisle/internal/store/settings"
 )
 
@@ -15,6 +16,20 @@ type modelProbeState struct {
 	message, query string
 	candidates     []providerdiscovery.Candidate
 	stop           func()
+}
+
+// discoveryMessage translates the provider controller's own sentences. An
+// error the table does not know would otherwise surface as raw English, so it
+// gets the shell's cause-and-next-step copy instead.
+func discoveryMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	raw := err.Error()
+	if message := providerdiscovery.Message(raw); message != raw {
+		return message
+	}
+	return errcopy.Sentence(err)
 }
 
 func (p *modelProbeState) cancel() {
@@ -68,7 +83,7 @@ func modelListDiscovery(c *ui.Context, m Model, s store.ViewState, scope string,
 				}
 				state.busy, state.stop = false, nil
 				if err != nil {
-					state.message = providerdiscovery.Message(err.Error())
+					state.message = discoveryMessage(err)
 					return
 				}
 				for i := range candidates {

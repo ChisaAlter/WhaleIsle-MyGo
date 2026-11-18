@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/desktop/acp"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -264,7 +265,7 @@ func acpAgentEditor(c *ui.Context, a *ACPAccess, agent acp.Agent, call func(stri
 			}
 			var models []json.RawMessage
 			if err := json.Unmarshal([]byte(d.Models), &models); err != nil {
-				d.Error = err.Error()
+				d.Error = errcopy.Sentence(err)
 				return nil
 			}
 			d.Error = ""

@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strconv"
 	"whaleisle/internal/config"
+	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -70,7 +71,7 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 		}
 		*failure = ""
 		if err != nil {
-			*failure = err.Error()
+			*failure = errcopy.Sentence(err)
 			c.AddToast(ui.Toast{ID: "harness-recovery-save", Title: *failure, Type: "error"})
 		}
 	}

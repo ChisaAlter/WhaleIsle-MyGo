@@ -141,14 +141,14 @@ func (b *Controller) startBrowserRecording(t *Tab) {
 				if errors.Is(err, context.Canceled) {
 					t.ActionMessage = browserChromeLabel("录制已取消，未导出", "Recording cancelled; nothing exported")
 				} else {
-					t.Error = browserChromeLabel("录制失败，未导出：", "Recording failed; nothing exported: ") + err.Error()
+					t.fail(browserChromeLabel("录制失败，未导出", "Recording failed; nothing exported"), err)
 				}
 				return
 			}
 			r.artifact = &result
 			r.phase = "ready"
 			if saveErr != nil {
-				t.Error = browserChromeLabel("视频保存失败：", "Recording could not be saved: ") + saveErr.Error()
+				t.fail(browserChromeLabel("视频保存失败", "Recording could not be saved"), saveErr)
 				t.ActionMessage = fmt.Sprintf(browserChromeLabel("视频已编码（%.1f MiB），可导出到其他位置。", "Video encoded (%.1f MiB); export it to another location."), float64(len(result.Data))/(1024*1024))
 				return
 			}
@@ -187,7 +187,7 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 			}
 			if err != nil {
 				r.phase = "ready"
-				r.tab.Error = err.Error()
+				r.tab.fail("", err)
 				return
 			}
 			if path == "" {
@@ -207,7 +207,7 @@ func (b *Controller) exportBrowserRecording(r *browserRecording) {
 					}
 					if err != nil {
 						r.phase = "ready"
-						r.tab.Error = browserChromeLabel("视频未导出：", "Video was not exported: ") + err.Error()
+						r.tab.fail(browserChromeLabel("视频未导出", "Video was not exported"), err)
 						return
 					}
 					b.recording = nil

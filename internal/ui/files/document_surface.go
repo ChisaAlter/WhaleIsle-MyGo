@@ -122,7 +122,7 @@ func paintDocumentViewerChoices(c *ui.Context, m Model, tab *FileTab) {
 		if tab.document.surface == nil || !tab.document.surface.Alive() {
 			surface, err := m.OpenDocumentViewer(tab.Path)
 			if err != nil {
-				setFileStatus(m, err.Error())
+				setFileError(m, err)
 				return
 			}
 			tab.document.surface = surface

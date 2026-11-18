@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -62,7 +63,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 					})
 					if button.Clicked() && a.OnSetTheme != nil {
 						if err := a.OnSetTheme(mode.id); err != nil {
-							*schemeError = err.Error()
+							*schemeError = errcopy.Sentence(err)
 						} else {
 							*a.Theme, *schemeError = mode.id, ""
 						}

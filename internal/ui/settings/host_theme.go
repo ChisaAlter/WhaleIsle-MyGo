@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/errcopy"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
 )
@@ -71,7 +72,7 @@ func (h *HostThemeBinding) Snapshot() HostThemeState {
 	value, err := readHostSettingsCached(rawValue)
 	if err != nil {
 		result.Ready = false
-		result.Error = err.Error()
+		result.Error = errcopy.Sentence(err)
 		return result
 	}
 	result.Preferences, result.Background, result.Revision = value.Preferences(), hostThemeBackground(value, fields), revision

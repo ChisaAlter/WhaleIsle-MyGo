@@ -2,6 +2,7 @@ package files
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -113,6 +115,15 @@ func setFileStatus(m Model, text string) {
 	}
 }
 
+// setFileError answers a preview action that failed in copy a person can act
+// on; the raw error stays in the log.
+func setFileError(m Model, err error) {
+	if err != nil {
+		log.Printf("files preview: %v", err)
+	}
+	setFileStatus(m, errcopy.Sentence(err))
+}
+
 const maxSourceRangeCacheEntries = 16
 
 type sourceRangeCacheKey struct {
@@ -198,7 +209,7 @@ func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly
 		if editor.Focused() {
 			if editor.Shortcut(ui.Cmd, ui.KeyS) {
 				if err := requestSaveDraft(m); err != nil {
-					setFileStatus(m, err.Error())
+					setFileError(m, err)
 				}
 			}
 			if editor.Shortcut(ui.Cmd, ui.KeyF) {

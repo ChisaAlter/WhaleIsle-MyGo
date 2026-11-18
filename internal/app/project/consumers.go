@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/store/session"
@@ -79,7 +80,7 @@ func (m *Manager) BindNativeConsumers(win any, model *projects.Model) {
 			return
 		}
 		if _, relErr := m.TargetRelative(target); relErr != nil {
-			sessions.SetLastAction(relErr.Error())
+			sessions.SetLastAction(errcopy.Sentence(relErr))
 			return
 		}
 		checkPath := func(path string) error {
@@ -112,7 +113,7 @@ func (m *Manager) BindNativeConsumers(win any, model *projects.Model) {
 			CheckPath:      checkPath,
 		})
 		if err != nil {
-			sessions.SetLastAction(err.Error())
+			sessions.SetLastAction(errcopy.Sentence(err))
 			return
 		}
 		m.invalidateWindow(win)

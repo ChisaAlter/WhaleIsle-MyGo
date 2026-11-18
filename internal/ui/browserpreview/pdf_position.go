@@ -130,7 +130,7 @@ func (b *Controller) setPDFPosition(t *Tab, p PDFReadingPosition) {
 	t.pdfPosition = &p
 	if err := t.Host.Navigate(t.pdfViewerURL(t.Document.ViewerURL())); err != nil {
 		t.pdfPosition = previous
-		t.Error = err.Error()
+		t.fail("", err)
 		return
 	}
 	t.pdfPageDraft = strconv.Itoa(p.Page)

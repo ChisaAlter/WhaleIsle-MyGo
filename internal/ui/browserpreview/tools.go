@@ -104,9 +104,9 @@ func (b *Controller) startBrowserTool(t *Tab, kind, scheme string) {
 			}
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					t.Error = err.Error()
+					t.fail("", err)
 					if kind == "site-data" {
-						t.Error = browserChromeLabel("五类站点数据清理未确认完成，可能已部分生效；不会自动重试：", "Completion of the five-category site-data clear was not confirmed; it may be partially applied and will not retry automatically: ") + err.Error()
+						t.fail(browserChromeLabel("五类站点数据清理未确认完成，可能已部分生效；不会自动重试", "Completion of the five-category site-data clear was not confirmed; it may be partially applied and will not retry automatically"), err)
 					}
 				}
 				return
@@ -143,7 +143,7 @@ func (b *Controller) changeBrowserZoom(t *Tab, zoom float64) {
 	}
 	b.CancelAction()
 	if err := t.Host.SetBrowserZoom(zoom); err != nil {
-		t.Error = err.Error()
+		t.fail("", err)
 		return
 	}
 	t.Error = ""
@@ -198,7 +198,7 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 		if ui.Button(c, "↵").Size(28, 28).Label(browserPreviewText("viewportDimensions")).Disabled(disabled).Clicked() || submitted {
 			w, h, err := s.dimensions(s.WidthDraft, s.HeightDraft)
 			if err != nil {
-				t.Error = err.Error()
+				t.fail("", err)
 			} else {
 				b.updateBrowserDevice(t, w, h, "")
 			}

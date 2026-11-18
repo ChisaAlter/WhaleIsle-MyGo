@@ -51,7 +51,7 @@ func revealTreePath(m Model, path string) {
 	}
 	full, err := workspacefs.JoinRoot(m.WorkspaceRoot, path)
 	if err != nil {
-		setFileStatus(m, err.Error())
+		setFileError(m, err)
 		return
 	}
 	m.OnReveal(full)
@@ -120,7 +120,7 @@ func paintTreeReferenceButton(c *ui.Context, m Model, row ui.Element, path strin
 	}
 	if button.Clicked() {
 		if err := m.OnReferenceFile(workspaceReference(m, path)); err != nil {
-			setFileStatus(m, err.Error())
+			setFileError(m, err)
 		} else {
 			setFileStatus(m, label("文件引用已插入对话草稿", "File reference inserted into chat draft"))
 		}

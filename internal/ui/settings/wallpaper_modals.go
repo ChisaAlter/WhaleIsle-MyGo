@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -423,7 +424,7 @@ func wallpaperSourceEditModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 			}
 			if source.Kind == "catalog" {
 				if _, err := wallpapers.URL(source.URL); err != nil {
-					g.sourceError = err.Error()
+					g.sourceError = errcopy.Sentence(err)
 					return
 				}
 			} else {

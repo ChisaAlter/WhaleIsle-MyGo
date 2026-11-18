@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 	"whaleisle/internal/credentials"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -32,7 +33,8 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(old)
 	checks, homes, reads := 0, 0, 0
-	a := &AboutAccess{AppName: "Fixture", Version: "1.2.3", Loading: true, UpdateBusy: true, HomeBusy: true, Err: "synthetic metadata error", UpdateStatus: "synthetic update pending", HomePath: "fixture-runtime", OnCheckUpdates: func() { checks++ }, OnRevealHome: func() error { homes++; return errors.New("synthetic reveal denied") }, ReadCredentialStorage: func() credentials.StorageStatus { reads++; return credentials.StorageStatus{Mode: "unknown"} }, OnOpenLink: func(string) error { return errors.New("synthetic link denied") }}
+	revealRaw := "open C:/fixture-runtime: Access is denied."
+	a := &AboutAccess{AppName: "Fixture", Version: "1.2.3", Loading: true, UpdateBusy: true, HomeBusy: true, Err: "synthetic metadata error", UpdateStatus: "synthetic update pending", HomePath: "fixture-runtime", OnCheckUpdates: func() { checks++ }, OnRevealHome: func() error { homes++; return errors.New(revealRaw) }, ReadCredentialStorage: func() credentials.StorageStatus { reads++; return credentials.StorageStatus{Mode: "unknown"} }, OnOpenLink: func(string) error { return errors.New("synthetic link denied") }}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Padding(16).Children(func() { aboutPane(c, Model{About: a}, c.Theme().Text, c.Theme().TextMuted) })
 	}, 620, 1000)
@@ -66,20 +68,22 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)
 	}
-	if homes != 1 || !tt.HasText("synthetic reveal denied") {
-		t.Fatal("reveal error hidden")
+	revealErr := errcopy.Sentence(errors.New(revealRaw))
+	if homes != 1 || !tt.HasText(revealErr) || tt.HasText(revealRaw) {
+		t.Fatal("reveal error hidden or shown raw")
 	}
 	if err := tt.Click(i18n.T(KeyPass4GitHubReleases)); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("synthetic link denied") {
-		t.Fatal("link error hidden")
+	linkErr := errcopy.Sentence(errors.New("synthetic link denied"))
+	if !tt.HasText(linkErr) || tt.HasText("synthetic link denied") {
+		t.Fatal("link error hidden or shown raw")
 	}
 	a.OnRevealHome = func() error { homes++; return nil }
 	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)
 	}
-	if tt.HasText("synthetic reveal denied") {
+	if tt.HasText(revealErr) || tt.HasText(revealRaw) {
 		t.Fatal("successful retry retained stale reveal error")
 	}
 }

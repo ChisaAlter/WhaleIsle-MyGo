@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -64,7 +65,7 @@ func TestDesktopImmediatePreferencesSaveIndependentlyAndRollback(t *testing.T) {
 	}
 	failure = errors.New("synthetic config write failure")
 	choose("When closing the window", "Minimize to tray")
-	if closeToTray || closeCalls != 2 || !tt.HasText("Quit") || !tt.HasText(failure.Error()) {
+	if closeToTray || closeCalls != 2 || !tt.HasText("Quit") || !tt.HasText(errcopy.Sentence(failure)) || tt.HasText(failure.Error()) {
 		t.Fatal("failed close save did not restore accepted choice and show error")
 	}
 	choose(i18n.T(i18n.KeySettingsInterfaceAutoStart), "Start Host manually")
@@ -140,7 +141,7 @@ func TestLanguageSelectionCommitsIndependentlyAndRestoresOnFailure(t *testing.T)
 	if err := tt.Click("中文"); err != nil {
 		t.Fatal(err)
 	}
-	if locale != "en" || calls != 2 || formSaves != 0 || !tt.HasText(failure.Error()) {
+	if locale != "en" || calls != 2 || formSaves != 0 || !tt.HasText(errcopy.Sentence(failure)) || tt.HasText(failure.Error()) {
 		t.Fatal("failed language save did not restore accepted locale and show failure")
 	}
 }

@@ -104,11 +104,14 @@ func TestCardsKeepIndependentRevisionAndConflictOwnership(t *testing.T) {
 		}
 	}
 	undoA, undoB := m.RequestRevert(a.ID, a.Revision), m.RequestRevert(b.ID, b.Revision)
-	if !undoA.Known || !undoA.Allowed || undoA.Error != state.errors[key] || undoB.Error != "" {
+	if !undoA.Known || !undoA.Allowed || undoA.Error != viewError(state.errors[key]) || undoB.Error != "" {
 		t.Fatalf("conflict crossed card boundaries: A=%+v B=%+v", undoA, undoB)
 	}
 	if m.RequestRevert(a.ID, a.Revision+1).Known || m.RequestCardActions(a.ID, a.Revision+1).Known {
 		t.Fatal("an undisplayed/unread revision was granted authority")
+	}
+	if strings.Contains(undoA.Error, "revert_conflict") || !strings.Contains(undoA.Error, "刷新") {
+		t.Fatalf("undo copy leaked the raw conflict: %q", undoA.Error)
 	}
 	for _, mutable := range []bool{false, true} {
 		mgr.mu.Lock()

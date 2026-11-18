@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
@@ -717,7 +718,7 @@ func (c *Controller) runMaterialCollection(win any, d *materialCollectionState, 
 			d.cancel = nil
 			f.busy = false
 			if err != nil {
-				d.snapshot.Error = err.Error()
+				d.snapshot.Error = errcopy.Sentence(err)
 				return
 			}
 			d.snapshot.Requests, d.snapshot.Cursors, d.snapshot.Loaded = page, cursors, true

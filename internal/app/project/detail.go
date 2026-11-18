@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/i18n"
 )
@@ -267,7 +268,7 @@ func (c *Controller) watchProcess(win any, id string) {
 			}
 			next.Live = false
 			if err != nil {
-				next.Error = err.Error()
+				next.Error = errcopy.Sentence(err)
 			}
 			f.process = &next
 		})
@@ -387,7 +388,7 @@ func (c *Controller) refreshSnapshot(ctx context.Context, win any, r *refreshLoo
 		// Keep separate live-refresh feedback so a read never clears an unsent
 		// draft error or a completed mutation's follow-up notice.
 		if listErr != nil {
-			f.refreshNote = i18n.T(i18n.KeyCmdAutomaticRefreshFailedShowingPreviousS) + listErr.Error()
+			f.refreshNote = errcopy.Under(i18n.T(i18n.KeyCmdAutomaticRefreshFailedShowingPreviousS), listErr)
 			return
 		}
 		f.listing = listing
@@ -407,7 +408,7 @@ func (c *Controller) refreshSnapshot(ctx context.Context, win any, r *refreshLoo
 			return
 		}
 		if teamErr != nil {
-			f.refreshNote = i18n.T(i18n.KeyCmdTeamRefreshFailedShowingPreviousState) + teamErr.Error()
+			f.refreshNote = errcopy.Under(i18n.T(i18n.KeyCmdTeamRefreshFailedShowingPreviousState), teamErr)
 			return
 		}
 		if overview.WorkPage.CurrentCursor != nil && *overview.WorkPage.CurrentCursor == cursor && len(cursors) > 0 {
@@ -418,7 +419,7 @@ func (c *Controller) refreshSnapshot(ctx context.Context, win any, r *refreshLoo
 			return
 		}
 		if detailErr != nil {
-			f.refreshNote = i18n.T(i18n.KeyCmdMemberDetailRefreshFailed) + detailErr.Error()
+			f.refreshNote = errcopy.Under(i18n.T(i18n.KeyCmdMemberDetailRefreshFailed), detailErr)
 			return
 		}
 		// A successor delegation is a new run. Release the previous observer rather

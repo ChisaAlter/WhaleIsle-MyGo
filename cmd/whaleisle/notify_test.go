@@ -39,14 +39,23 @@ func TestSaveDesktopConfigAnswersWhenTheHostIsMissing(t *testing.T) {
 	}
 }
 
-// TestSaveFailedToastKeepsTheHostReason makes sure failures name the action and
-// keep the Host's wording instead of swallowing the error.
-func TestSaveFailedToastKeepsTheHostReason(t *testing.T) {
-	got := saveFailedToast("保存标题", errors.New("revision mismatch"))
-	if !strings.Contains(got, "保存标题") || !strings.Contains(got, "revision mismatch") {
-		t.Fatalf("failure copy = %q", got)
+// TestSaveFailedToastNamesTheCauseWithoutTheHostReason pins the copy rule: the
+// action and an actionable cause reach the toast, the Host's own wording does not.
+func TestSaveFailedToastNamesTheCauseWithoutTheHostReason(t *testing.T) {
+	zhForTest(t)
+	got := saveFailedToast("保存标题", errors.New(`open C:\notes.md: Access is denied.`))
+	if !strings.Contains(got, "保存标题失败") {
+		t.Fatalf("toast does not name the action: %q", got)
 	}
-	if bare := saveFailedToast("保存标题", nil); !strings.Contains(bare, "失败") {
+	if !strings.Contains(got, "权限") {
+		t.Fatalf("toast does not explain the cause: %q", got)
+	}
+	for _, raw := range []string{"Access is denied", `C:\notes.md`} {
+		if strings.Contains(got, raw) {
+			t.Fatalf("toast leaked %q: %q", raw, got)
+		}
+	}
+	if bare := saveFailedToast("保存标题", nil); bare != "保存标题失败" {
 		t.Fatalf("bare failure copy = %q", bare)
 	}
 }

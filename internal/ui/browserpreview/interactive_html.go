@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/desktop/previewprocess"
+	"whaleisle/internal/errcopy"
 )
 
 type interactivePreview struct {
@@ -159,7 +160,7 @@ func (b *Controller) startInteractiveHTML(t *Tab, dark bool) {
 					return
 				}
 				t.interactive = nil
-				t.ActionMessage = browserChromeLabel("交互预览未启动，静态快照已保留：", "Interactive preview did not start; static snapshot retained: ") + err.Error()
+				t.ActionMessage = errcopy.Under(browserChromeLabel("交互预览未启动，静态快照已保留", "Interactive preview did not start; static snapshot retained"), err)
 				return
 			}
 			if !b.ownsInteractiveHTML(t, op) {

@@ -174,7 +174,7 @@ func (b *Controller) resumeReclaimedTab(t *Tab) {
 		OnFailure:        b.pageFailure(t),
 	})
 	if err != nil {
-		t.Error = err.Error()
+		t.fail("", err)
 		b.update()
 		return
 	}

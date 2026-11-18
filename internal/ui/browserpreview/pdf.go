@@ -26,7 +26,7 @@ func (b *Controller) openPDFTab(t *Tab, doc *pdfpreview.Document) error {
 		if t.source != nil {
 			t.Document = nil
 		}
-		t.Error = err.Error()
+		t.fail("", err)
 	} else {
 		t.Host = h
 		if b.current() == t {

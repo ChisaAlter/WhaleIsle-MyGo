@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	desktopwebview "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/errcopy"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -155,7 +156,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 				if ui.Button(c, providerCopy("搜索与抓取接口指南", "Search & Fetch guide")).Clicked() {
 					target := providerCopy("https://api-docs.deepseek.com/zh-cn/guides/search", "https://api-docs.deepseek.com/guides/search")
 					if err := desktopwebview.OpenExternal(target); err != nil {
-						c.AddToast(ui.Toast{ID: "web-search-guide", Title: err.Error(), Type: "error"})
+						c.AddToast(ui.Toast{ID: "web-search-guide", Title: errcopy.Sentence(err), Type: "error"})
 					}
 				}
 			}

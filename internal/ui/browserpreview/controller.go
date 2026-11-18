@@ -133,7 +133,7 @@ func (b *Controller) Navigate(raw string) {
 	b.cancelTabReclaim(t)
 	workspace, scopeErr := b.browserWorkspace()
 	if scopeErr != nil {
-		t.Error = scopeErr.Error()
+		t.fail("", scopeErr)
 		b.update()
 		return
 	}
@@ -161,14 +161,14 @@ func (b *Controller) Navigate(raw string) {
 			// submitting it again must not append a duplicate history entry.
 			t.Host.Reload()
 		} else if err := t.Host.Navigate(normalized); err != nil {
-			t.Error = err.Error()
+			t.fail("", err)
 		}
 		b.showHost(t.Host)
 		return
 	}
 	h, err := b.createHost(desktop.HostOptions{Parent: b.parent, URL: normalized, Title: "Browser", BrowserProfile: true, BrowserPartition: t.workspace.key, TopInset: chrome.TitleBarHeight + BrowserChromeHeight, Untrusted: true, OnChange: b.update, OnFocus: b.focus, OnFailure: b.pageFailure(t)})
 	if err != nil {
-		t.Error = err.Error()
+		t.fail("", err)
 		b.update()
 		return
 	}

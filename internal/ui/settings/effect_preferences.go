@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
@@ -384,7 +385,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		}
 		*draft = effectDraft{Style: normalized, Presets: presets, CustomTyping: typingCustomSeed(normalized)}
 		if normalizeErr != nil {
-			draft.Err = normalizeErr.Error()
+			draft.Err = errcopy.Sentence(normalizeErr)
 		}
 		*open = true
 	}
@@ -464,7 +465,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					if ui.Select(c, &draft.Selected, names).FillWidth().Label("effect-preset-selection").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Changed() {
 						if value, ok := draft.Presets[draft.Selected]; ok {
 							if normalized, err := normalizeEffect(value, typing); err != nil {
-								draft.Err = err.Error()
+								draft.Err = errcopy.Sentence(err)
 							} else {
 								draft.Style = normalized
 								draft.Err = ""
@@ -484,7 +485,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 							} else if _, exists := draft.Presets[name]; !exists && len(draft.Presets) >= 5 {
 								draft.Err = providerCopy("最多保存 5 个预设。", "Save up to 5 presets.")
 							} else if normalized, err := normalizeEffect(draft.Style, typing); err != nil {
-								draft.Err = err.Error()
+								draft.Err = errcopy.Sentence(err)
 							} else {
 								draft.Presets[name] = normalized
 								draft.Selected = name
@@ -500,7 +501,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 						if ui.Button(c, providerCopy("复制配置 JSON", "Copy configuration JSON")).Clicked() {
 							if text, err := effectEnvelope(draft.Style, draft.Presets, typing); err != nil {
-								draft.Err = err.Error()
+								draft.Err = errcopy.Sentence(err)
 							} else {
 								c.WriteClipboard(text)
 								draft.Err = ""
@@ -508,7 +509,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						}
 						if ui.Button(c, providerCopy("从剪贴板导入", "Import from clipboard")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
 							if imported, err := parseEffectEnvelope(c.ReadClipboard(), typing); err != nil {
-								draft.Err = err.Error()
+								draft.Err = errcopy.Sentence(err)
 							} else {
 								*draft = imported
 							}
@@ -532,7 +533,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 					if ui.Button(c, providerCopy("保存并应用", "Save and apply")).Label("save-" + enabledKey + "-configuration").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
 						normalized, err := normalizeEffect(draft.Style, typing)
 						if err != nil {
-							draft.Err = err.Error()
+							draft.Err = errcopy.Sentence(err)
 							return
 						}
 						style, _ := json.Marshal(normalized)
@@ -540,7 +541,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						draft.Pending = map[string]string{styleKey: string(style)}
 						if presetsFound && a.OnPatch != nil {
 							if _, err := effectEnvelope(normalized, draft.Presets, typing); err != nil {
-								draft.Err = err.Error()
+								draft.Err = errcopy.Sentence(err)
 								draft.Pending = nil
 								return
 							}

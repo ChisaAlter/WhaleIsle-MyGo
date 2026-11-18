@@ -26,7 +26,7 @@ func (b *Controller) browserToolsMenu(menu *ui.Menu, t *Tab, state desktop.State
 	if menu.Item(browserChromeLabel("强制刷新", "Force reload")).Disabled(disabled).Chosen() {
 		b.CancelAction()
 		if err := t.Host.HardReloadBrowser(); err != nil {
-			t.Error = err.Error()
+			t.fail("", err)
 		}
 	}
 	label, _, _ := browserDevToolsCopy(runtime.GOOS)

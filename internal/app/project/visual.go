@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/projectflow"
@@ -298,7 +299,7 @@ func (c *Controller) loadVisualPage(lifetime context.Context, win any, state *vi
 		}
 		if err != nil {
 			page.state.Loading = false
-			page.state.Error = err.Error()
+			page.state.Error = errcopy.Sentence(err)
 			return
 		}
 		page.html = html
@@ -362,7 +363,7 @@ func (c *Controller) startVisualCaptureLocked(win any, state *visualResultsState
 			}
 			page.state.Loading = false
 			if err != nil {
-				page.state.Error = err.Error()
+				page.state.Error = errcopy.Sentence(err)
 				return
 			}
 			page.state.Bitmap = decoded.Bitmap
@@ -497,7 +498,7 @@ func (c *Controller) startVisualInteractiveLocked(win any, state *visualResultsS
 				return
 			}
 			page.handle, page.state.Surface = nil, nil
-			page.state.InteractiveError = err.Error()
+			page.state.InteractiveError = errcopy.Sentence(err)
 			// This is an explicit fallback: the UI labels the PNG as static,
 			// never reports a failed interactive helper as an active surface.
 			c.startVisualCaptureLocked(win, state, owner, page)

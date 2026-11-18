@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -33,7 +34,7 @@ func (g *WallpaperEditor) changePreference(change func(*wallpapers.Preferences))
 		return false
 	}
 	if err := g.Save(next); err != nil {
-		g.Status = err.Error()
+		g.Status = errcopy.Sentence(err)
 		g.failure = g.Status
 		return false
 	}

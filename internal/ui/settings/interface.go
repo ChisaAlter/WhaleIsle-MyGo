@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/shortcuts"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
@@ -167,6 +168,6 @@ func setInterfaceAccepted(c *ui.Context, value *bool, next bool, write func(bool
 	accepted, err := write(next)
 	*value = accepted
 	if err != nil {
-		c.AddToast(ui.Toast{Title: err.Error()})
+		c.AddToast(ui.Toast{Title: errcopy.Sentence(err)})
 	}
 }

@@ -10,6 +10,7 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -174,7 +175,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if button.Clicked() {
 			*linkError = ""
 			if err := a.OnOpenLink(link.URL); err != nil {
-				*linkError = err.Error()
+				*linkError = errcopy.Sentence(err)
 			}
 		}
 	}
@@ -203,7 +204,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						folder.AlignSelf(ui.Start)
 						if folder.Clicked() {
 							if err := a.OnRevealHome(); err != nil {
-								*revealResult = err.Error()
+								*revealResult = errcopy.Sentence(err)
 							} else {
 								*revealResult = ""
 							}
@@ -253,7 +254,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					}
 					if action.reveal != nil {
 						if err := action.reveal(); err != nil {
-							*revealResult = err.Error()
+							*revealResult = errcopy.Sentence(err)
 						} else {
 							*revealResult = ""
 						}

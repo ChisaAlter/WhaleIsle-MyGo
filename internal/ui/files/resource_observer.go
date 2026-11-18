@@ -257,14 +257,14 @@ func paintResourceRefreshControls(c *ui.Context, m Model) {
 			if !tab.conflictTruncated {
 				if widgets.Button(c, colors, label("应用磁盘版本", "Use disk version"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					if err := applyConflictDiskVersion(m); err != nil {
-						setFileStatus(m, err.Error())
+						setFileError(m, err)
 					}
 				}
 			}
 			if m.OnSaveEdit != nil && !tab.Remote && tab.deliverySource == nil && !isTablePreviewPath(tab.Path) {
 				if widgets.Button(c, colors, label("用草稿覆盖磁盘", "Overwrite disk with draft"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
 					if err := overwriteDiskWithDraft(m); err != nil {
-						setFileStatus(m, err.Error())
+						setFileError(m, err)
 					}
 				}
 			}
