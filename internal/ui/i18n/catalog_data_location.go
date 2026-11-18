@@ -35,7 +35,6 @@ const (
 	KeyDataLocationConfirmAction      = "data_location.confirm.action"
 	KeyDataLocationImport             = "data_location.import"
 	KeyDataLocationImportPrevious     = "data_location.import.previous"
-	KeyDataLocationImportChecking     = "data_location.import.checking"
 	KeyDataLocationImportRunning      = "data_location.import.running"
 	KeyDataLocationImportSummary      = "data_location.import.summary"
 	KeyDataLocationImportFailed       = "data_location.import.failed"
@@ -118,7 +117,6 @@ func init() {
 	Register(KeyDataLocationConfirmAction, "更改并重启", "Change and restart")
 	Register(KeyDataLocationImport, "从原版鲸屿导入…", "Import from Whale Isle…")
 	Register(KeyDataLocationImportPrevious, "从上一个位置导入…", "Import from the previous location…")
-	Register(KeyDataLocationImportChecking, "正在检查可导入的数据…", "Checking for importable data…")
 	Register(KeyDataLocationImportRunning, "正在导入数据…", "Importing data…")
 	Register(KeyDataLocationImportSummary,
 		"已导入 %d 项，跳过 %d 项，失败 %d 项。原数据仍保留在原位置。",
