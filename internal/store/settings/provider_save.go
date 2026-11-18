@@ -69,8 +69,10 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	s.saving = false
-	if err == nil && (out.Ns != ns.NS || !namespaceWriteLanded(out, patch, ops)) {
-		err = fmt.Errorf("Host did not accept the staged %s values; drafts retained", ns.NS)
+	if err != nil {
+		err = &writeRefusal{raw: fmt.Sprintf("%s %s: %v", method, ns.NS, err)}
+	} else if out.Ns != ns.NS || !namespaceWriteLanded(out, patch, ops) {
+		err = &writeRefusal{raw: fmt.Sprintf("%s %s: the receipt reports namespace %q at revision %v without the submitted values", method, ns.NS, out.Ns, out.Revision)}
 	}
 	if err != nil {
 		s.err, s.lastAction = err, err.Error()

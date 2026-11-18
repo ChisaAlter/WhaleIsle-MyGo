@@ -25,6 +25,7 @@ func TestHostThemeAsyncReceiptsPreserveDraftAndRetry(t *testing.T) {
 	previous := theme.CurrentPreferences()
 	t.Cleanup(func() { theme.SetPreferences(previous) })
 	synctest.Test(t, func(t *testing.T) {
+		user := map[string]any{}
 		values := map[string]any{"fontSize": float64(14), "fontSizeCode": float64(13), "fontFamilySans": "", "fontFamilyCode": "", "fontFamilyComposer": "", "fontFamilyTerminal": ""}
 		revision := float64(7)
 		schema := json.RawMessage(`{"uid":2,"refs":{"1":{"type":"number"},"2":{"type":"object","dict":{"fontSize":1,"fontSizeCode":1}}}}`)
@@ -37,7 +38,7 @@ func TestHostThemeAsyncReceiptsPreserveDraftAndRetry(t *testing.T) {
 				return nil, err
 			}
 			out := func() map[string]any {
-				return map[string]any{"ns": "ui-theme", "revision": revision, "schema": schema, "value": values, "base": values, "user": map[string]any{}, "secrets": []any{}}
+				return map[string]any{"ns": "ui-theme", "revision": revision, "schema": schema, "value": values, "base": values, "user": user, "secrets": []any{}}
 			}
 			var value any
 			switch body["method"] {
@@ -60,6 +61,7 @@ func TestHostThemeAsyncReceiptsPreserveDraftAndRetry(t *testing.T) {
 						t.Fatal(path)
 					}
 					values[path[0].(string)] = op["value"]
+					user[path[0].(string)] = op["value"]
 				}
 				revision++
 				value = out()

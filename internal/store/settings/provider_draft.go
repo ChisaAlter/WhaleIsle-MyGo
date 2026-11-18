@@ -19,6 +19,7 @@ type providerDraft struct {
 	dirty, resets map[string]bool
 	busy          bool
 	err           string
+	errDetail     string
 	path          []string
 	paths         map[string][]string
 }
@@ -63,6 +64,7 @@ func (b *NamespaceBinding) providerSnapshot() ViewState {
 	st.Writable = s.writable
 	st.Saving = d.busy
 	st.Err = d.err
+	st.ErrDetail = d.errDetail
 	st.Dirty = len(d.dirty) > 0
 	st.Resets = copyFlags(d.resets)
 	st.Drafts = copyDrafts(d.drafts)
@@ -121,7 +123,7 @@ func (b *NamespaceBinding) setProviderDraft(key, value string, reset bool) {
 			}
 			d.drafts[key] = value
 			d.dirty[key] = true
-			d.err = ""
+			d.err, d.errDetail = "", ""
 			break
 		}
 	}
@@ -142,7 +144,7 @@ func (b *NamespaceBinding) discardProviderDraft() {
 	d.dirty = map[string]bool{}
 	d.resets = map[string]bool{}
 	d.paths = map[string][]string{}
-	d.err = ""
+	d.err, d.errDetail = "", ""
 	for _, f := range ns.Fields {
 		d.drafts[f.Key] = ValueDraft(ns.Value, f.Key, f.Kind)
 	}
@@ -213,7 +215,7 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 		err = validateJSONSecretPaths(ns, ops)
 	}
 	if err != nil {
-		d.err = err.Error()
+		d.err, d.errDetail = err.Error(), ""
 		s.mu.Unlock()
 		s.fire()
 		return api.SettingsNamespaceView{}, err
@@ -244,11 +246,13 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	d.busy = false
-	if err == nil && (out.Ns != ns.NS || !namespaceWriteLanded(out, patch, ops)) {
-		err = fmt.Errorf("Host did not accept the staged %s values; drafts retained", ns.NS)
+	if err != nil {
+		err = &writeRefusal{raw: fmt.Sprintf("%s %s: %v", method, ns.NS, err)}
+	} else if out.Ns != ns.NS || !namespaceWriteLanded(out, patch, ops) {
+		err = &writeRefusal{raw: fmt.Sprintf("%s %s: the receipt reports namespace %q at revision %v without the submitted values", method, ns.NS, out.Ns, out.Revision)}
 	}
 	if err != nil {
-		d.err = err.Error()
+		d.err, d.errDetail = err.Error(), writeRefusalDetail(err)
 	} else {
 		if current := s.findNamespaceLocked(ns.NS); current != nil {
 			current.Revision = out.Revision
