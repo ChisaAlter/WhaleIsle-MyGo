@@ -50,9 +50,6 @@ func (s *Store) followCurrentLocked(ctx context.Context, sessionID string, gener
 
 func (s *Store) clearHistoryErrorLocked() {
 	s.invalidateViewLocked()
-	if s.historyError != "" && s.lastAction == s.historyError {
-		s.lastAction = ""
-	}
 	s.historyError = ""
 }
 
@@ -65,10 +62,9 @@ func (s *Store) reportFollowError(ctx context.Context, sessionID string, generat
 		s.mu.Unlock()
 		return
 	}
-	s.lastAction = prefix + err.Error()
 	s.historyLoading = false
 	s.historyReconnecting = false
-	s.historyError = s.lastAction
+	s.historyError = prefix + err.Error()
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()

@@ -13,12 +13,19 @@ type PendingSubmission struct {
 	RequestID, SessionID, Text, Placement string
 	Attachments                           []ComposerAttachment
 	Accepted                              bool
+	Unconfirmed                           bool
 	Order                                 uint64
 }
 type composerPending struct {
 	PendingSubmission
-	target  *ComposerTarget
-	receipt *composerInboxReceipt
+	target        *ComposerTarget
+	receipt       *composerInboxReceipt
+	dispatched    bool
+	recovered     bool
+	recoveryText  *string
+	draftKey      string
+	draftSequence uint64
+	draftSnapshot json.RawMessage
 }
 
 type composerInboxReceipt struct {
@@ -47,7 +54,7 @@ func (t *ComposerTarget) BeginSubmission(text string, attachments []ComposerAtta
 		return ""
 	}
 	id := newRequestID()
-	if len(attachments) > 0 {
+	{
 		if t.retirements == nil {
 			t.retirements = make(map[string]*composerRetirement)
 		}
@@ -74,6 +81,10 @@ func (t *ComposerTarget) BeginSubmission(text string, attachments []ComposerAtta
 		s.composerPending = make(map[string]*composerPending)
 	}
 	s.composerPending[id] = &composerPending{PendingSubmission: PendingSubmission{RequestID: id, SessionID: t.SessionID, Text: text, Placement: placement, Attachments: append([]ComposerAttachment(nil), attachments...), Order: s.composerOrder}, target: t}
+	if s.submissionTracked == nil {
+		s.submissionTracked = make(map[string]*composerPending)
+	}
+	s.submissionTracked[id] = s.composerPending[id]
 	// Slash candidates first go through command adjudication. Recognized
 	// commands never enter the prompt sink; unknown spellings mark this edge
 	// in Submit immediately before their real session/prompt admission.
@@ -103,7 +114,11 @@ func (t *ComposerTarget) retireCommandSubmission(id string) {
 	s := t.store
 	s.mu.Lock()
 	if p := s.composerPending[id]; p != nil && p.target == t {
-		t.settleRetirementLocked(id, nil)
+		p.Placement = "command"
+		if s.composerObserved == nil {
+			s.composerObserved = make(map[string]composerObserved)
+		}
+		s.composerObserved[id] = composerObserved{target: t, placement: "command"}
 		delete(s.composerPending, id)
 	}
 	s.mu.Unlock()
@@ -113,24 +128,43 @@ func (t *ComposerTarget) retireCommandSubmission(id string) {
 func (t *ComposerTarget) finishSubmission(id string, err error) error {
 	s := t.store
 	s.mu.Lock()
+	var terminal *composerPending
+	dispatchAttempted := t.dispatched[id]
+	if p := s.submissionTracked[id]; p != nil && p.target == t {
+		copy := *p
+		terminal = &copy
+	}
 	if s.composerAdmissions[id] == t {
 		delete(s.composerAdmissions, id)
 	}
 	if !t.currentLocked() {
-		err = errors.New("Host changed; draft retained, retry on the current Host")
+		if dispatchAttempted {
+			err = unconfirmedSubmission(errors.New("Host changed"))
+		} else {
+			err = errors.New("Host changed; draft retained, retry on the current Host")
+		}
 	}
 	observed, seen := s.composerObserved[id]
-	if seen && observed.target == t && t.currentLocked() {
+	if seen && observed.target == t && observed.placement != "command" && t.currentLocked() {
 		err = nil
 	}
 	if p := s.composerPending[id]; p != nil && p.target == t {
-		if err != nil {
+		if errors.Is(err, ErrSubmissionUnconfirmed) {
+			p.Unconfirmed = true
+		} else if err != nil {
 			t.settleRetirementLocked(id, err)
 			delete(s.composerPending, id)
 		} else {
 			p.Accepted = true
 		}
 	}
+	if p := s.submissionTracked[id]; p != nil && p.target == t && p.Placement == "command" && errors.Is(err, ErrSubmissionUnconfirmed) {
+		p.Unconfirmed = true
+	}
+	if seen && observed.target == t && observed.placement == "command" && !errors.Is(err, ErrSubmissionUnconfirmed) {
+		t.settleRetirementLocked(id, err)
+	}
+	s.startSubmissionWatchesLocked()
 	if t.currentLocked() && s.selectedID == t.SessionID && s.followGeneration == t.followGeneration {
 		if err != nil {
 			s.lastAction = err.Error()
@@ -139,6 +173,15 @@ func (t *ComposerTarget) finishSubmission(id string, err error) error {
 		}
 	}
 	s.mu.Unlock()
+	if terminal != nil && !errors.Is(err, ErrSubmissionUnconfirmed) && (seen && observed.target == t || err != nil) {
+		if saveErr := s.persistSubmissionOutcome(terminal, err); saveErr != nil {
+			if dispatchAttempted {
+				err = unconfirmedSubmission(saveErr)
+			} else {
+				err = saveErr
+			}
+		}
+	}
 	s.fire()
 	return err
 }
@@ -151,9 +194,12 @@ func (s *Store) composerPromptBusyLocked() bool {
 	return false
 }
 func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool) {
+	s.observeComposerRequestForSessionLocked(s.selectedID, id, seq, inbox)
+}
+func (s *Store) observeComposerRequestForSessionLocked(sessionID, id string, seq float64, inbox bool) {
 	s.invalidateViewLocked()
 	p := s.composerPending[id]
-	if p == nil || p.SessionID != s.selectedID || !p.target.currentLocked() || inbox && p.Placement != "queued" {
+	if p == nil || p.SessionID != sessionID || !p.target.currentLocked() || inbox && p.Placement != "queued" {
 		return
 	}
 	if s.composerObserved == nil {
@@ -162,7 +208,7 @@ func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool)
 	s.composerObserved[id] = composerObserved{target: p.target, seq: seq, placement: p.Placement}
 	p.target.settleRetirementLocked(id, nil)
 	delete(s.composerPending, id)
-	if !inbox && p.Placement != "queued" {
+	if sessionID == s.selectedID && !inbox && p.Placement != "queued" {
 		kept := s.planBoard.Queue[:0]
 		for _, q := range s.planBoard.Queue {
 			if q.RequestID != id {
@@ -173,6 +219,9 @@ func (s *Store) observeComposerRequestLocked(id string, seq float64, inbox bool)
 	}
 }
 func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
+	return s.observeComposerEventForSessionLocked(s.selectedID, raw)
+}
+func (s *Store) observeComposerEventForSessionLocked(sessionID string, raw json.RawMessage) (changed bool) {
 	s.invalidateViewLocked()
 	var e struct {
 		Type string  `json:"type"`
@@ -193,13 +242,13 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 		return false
 	}
 	if e.Type == "user/message" && e.Data.Source.Kind == "user" && e.Data.Source.RPCID != "" {
-		s.observeComposerRequestLocked(e.Data.Source.RPCID, e.Seq, false)
+		s.observeComposerRequestForSessionLocked(sessionID, e.Data.Source.RPCID, e.Seq, false)
 		return true
 	}
 	if e.Type == "agent/inbox/spliced" {
 		for id, p := range s.composerPending {
 			r := p.receipt
-			if p.SessionID != s.selectedID || !p.target.currentLocked() || r == nil || r.target != e.Data.Target || r.index < 0 || r.seq >= e.Seq {
+			if p.SessionID != sessionID || !p.target.currentLocked() || r == nil || r.target != e.Data.Target || r.index < 0 || r.seq >= e.Seq {
 				continue
 			}
 			removed := r.index >= e.Data.Start && r.index < e.Data.Start+e.Data.RemovedCount
@@ -216,13 +265,20 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 				r.index += len(e.Data.Inserted) - e.Data.RemovedCount
 			}
 		}
-		s.observeComposerInboxInsertionsLocked(e.Data.Target, e.Data.Inserted, e.Data.Start, e.Seq)
+		s.observeComposerInboxInsertionsForSessionLocked(sessionID, e.Data.Target, e.Data.Inserted, e.Data.Start, e.Seq)
+		if e.Data.Target == "next-turn" {
+			for _, msg := range e.Data.Inserted {
+				if msg.Source.Kind == "user" {
+					s.observeComposerRequestForSessionLocked(sessionID, msg.Source.RPCID, e.Seq, true)
+				}
+			}
+		}
 		return
 	}
 	if e.Type == "request/context" || e.Type == "turn/end" {
 		for id, p := range s.composerPending {
 			r := p.receipt
-			if p.SessionID == s.selectedID && p.target.currentLocked() && r != nil && r.index < 0 && r.seq < e.Seq {
+			if p.SessionID == sessionID && p.target.currentLocked() && r != nil && r.index < 0 && r.seq < e.Seq {
 				// Admitted messages already retired through user/message above.
 				// Only a consumed, unadmitted occurrence can fail this handoff.
 				p.target.settleRetirementLocked(id, errors.New("message was not admitted; draft and attachments retained"))
@@ -235,13 +291,16 @@ func (s *Store) observeComposerEventLocked(raw json.RawMessage) (changed bool) {
 }
 
 func (s *Store) observeComposerInboxInsertionsLocked(target string, messages []composerInboxMessage, start int, seq float64) {
+	s.observeComposerInboxInsertionsForSessionLocked(s.selectedID, target, messages, start, seq)
+}
+func (s *Store) observeComposerInboxInsertionsForSessionLocked(sessionID, target string, messages []composerInboxMessage, start int, seq float64) {
 	s.invalidateViewLocked()
 	for index, message := range messages {
 		if message.Source.Kind != "user" || message.Source.RPCID == "" {
 			continue
 		}
 		p := s.composerPending[message.Source.RPCID]
-		if p == nil || p.SessionID != s.selectedID || !p.target.currentLocked() || p.Placement == "queued" || p.receipt != nil && p.receipt.seq > seq {
+		if p == nil || p.SessionID != sessionID || !p.target.currentLocked() || p.Placement == "queued" || p.receipt != nil && p.receipt.seq > seq {
 			continue
 		}
 		p.receipt = &composerInboxReceipt{target: target, seq: seq, index: start + index}
@@ -266,7 +325,7 @@ func samePendingSubmissions(a, b []PendingSubmission) bool {
 	for i := range a {
 		if a[i].RequestID != b[i].RequestID || a[i].SessionID != b[i].SessionID ||
 			a[i].Text != b[i].Text || a[i].Placement != b[i].Placement ||
-			a[i].Accepted != b[i].Accepted || a[i].Order != b[i].Order ||
+			a[i].Accepted != b[i].Accepted || a[i].Unconfirmed != b[i].Unconfirmed || a[i].Order != b[i].Order ||
 			len(a[i].Attachments) != len(b[i].Attachments) {
 			return false
 		}
@@ -313,13 +372,15 @@ func (s *Store) projectComposerSubmissionsLocked(view *ViewState) bool {
 }
 func (s *Store) resetComposerHostLocked() {
 	s.invalidateViewLocked()
+	s.stopSubmissionWatchesLocked()
 	for id, p := range s.composerPending {
-		p.target.settleRetirementLocked(id, errors.New("Host changed; send outcome unconfirmed, check the conversation before retrying"))
+		p.target.settleRetirementLocked(id, unconfirmedSubmission(errors.New("Host changed")))
 	}
 	s.promptMode, s.promptModeExplicit = PromptModeQueue, false
 	s.composerRosterClient = nil
 	s.composerHostGeneration++
 	s.composerPending = nil
+	s.submissionTracked = nil
 	s.composerObserved = nil
 	s.composerAdmissions = nil
 	s.promptAttempted = nil
@@ -338,8 +399,11 @@ func (s *Store) markPromptAttemptedLocked(sessionID string) {
 // An accepted-but-unobserved admission is still a barrier to editing the older
 // turn, even after its RPC has settled. Normal new messages remain admissible.
 func (s *Store) composerPendingForSelectedLocked() bool {
+	return s.composerOtherPendingForSelectedLocked("")
+}
+func (s *Store) composerOtherPendingForSelectedLocked(exclude string) bool {
 	for _, p := range s.composerPending {
-		if p.SessionID == s.selectedID && p.target.currentLocked() {
+		if p.RequestID != exclude && p.SessionID == s.selectedID && p.target.currentLocked() {
 			return true
 		}
 	}

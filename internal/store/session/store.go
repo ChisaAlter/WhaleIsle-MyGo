@@ -290,6 +290,7 @@ type Store struct {
 	durableStepIndices         map[string][]int
 	durableHasEdits            bool
 	durableCacheValid          bool
+	trajectoryMessageCache     *trajectoryMessageCache
 	boundariesVerifiedRev      uint64
 	historyVerifiedRev         uint64
 	historyValid               bool
@@ -318,6 +319,7 @@ type Store struct {
 	viewCacheRev              uint64
 	viewCache                 ViewState
 	viewCacheValid            bool
+	viewCacheFrameClaimed     bool
 	snapshotBuilds            uint64
 	snapshotHits              uint64
 	workflowBoundaries        map[float64]json.RawMessage
@@ -338,6 +340,11 @@ type Store struct {
 	composerPending           map[string]*composerPending
 	composerObserved          map[string]composerObserved
 	composerAdmissions        map[string]*ComposerTarget
+	submissionPersistence     *submissionPersistence
+	submissionContext         context.Context
+	submissionWatches         map[string]*submissionWatch
+	submissionOutcomes        map[string]error
+	submissionTracked         map[string]*composerPending
 	workspacePreferences      workspacePreferenceBinding
 	rename                    SessionRenameView
 	renameEpoch               uint64
@@ -1212,7 +1219,7 @@ func (s *Store) ensureViewCacheLocked() {
 	if !msgProjChanged && !boundariesChanged && s.viewCacheValid {
 		st.TrajectoryMessages = s.viewCache.TrajectoryMessages
 	} else {
-		st.TrajectoryMessages = s.trajectoryJournalMessagesLocked()
+		st.TrajectoryMessages = s.trajectoryMessagesViewLocked(historyChanged)
 	}
 	if !boundariesChanged && s.viewCacheValid && s.trajHeadersCache != nil {
 		st.TrajectoryRequestHeaders = s.viewCache.TrajectoryRequestHeaders
@@ -1308,6 +1315,9 @@ func (s *Store) ensureViewCacheLocked() {
 	st.projection = s.projectionKeyLocked()
 	st.historyProjection = s.historyProjectionKeyLocked(msgProjChanged || inlinePendingChanged)
 	st.rosterProjection = s.rosterProjectionKeyLocked(rosterChanged)
+	// A state-only revision can reuse the old message arrays. Its first frame
+	// must not claim them again while a handle from the old revision owns them.
+	s.viewCacheFrameClaimed = s.viewCacheFrameClaimed && !msgProjChanged
 	s.viewCache = cloneStoreViewCache(st)
 	s.viewCacheRev = s.viewRev
 	s.viewCacheValid = true
@@ -1349,7 +1359,15 @@ func (f *FrameSnapshot) Snapshot() ViewState {
 		return f.view
 	}
 	s.ensureViewCacheLocked()
-	f.view = cloneFramePassView(s.viewCache)
+	if !s.viewCacheFrameClaimed {
+		// The first read-only pass can use the already frozen projection. Other
+		// handles receive independent top-level message arrays; no subsequent
+		// revision writes into either projection's backing storage.
+		f.view = s.viewCache
+		s.viewCacheFrameClaimed = true
+	} else {
+		f.view = cloneFramePassView(s.viewCache)
+	}
 	f.rev = s.viewRev
 	f.valid = true
 	return f.view

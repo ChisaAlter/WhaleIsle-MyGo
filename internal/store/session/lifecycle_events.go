@@ -76,6 +76,7 @@ func (s *Store) OnEventsReady(owner *EventsOwner) {
 		return
 	}
 	s.ensureNativeContributionsLocked(owner)
+	s.resumeSubmissionWatchesLocked()
 	client, generation := s.beginListRefreshLocked()
 	refreshSkills := s.skillRefreshOnEventsReady
 	skillsOwner := workspaceSelectedOwner{client: client, hostGeneration: owner.generation, composerGeneration: s.composerHostGeneration,

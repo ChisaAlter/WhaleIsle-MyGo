@@ -68,6 +68,7 @@ func (s *Store) clearPerSessionDecodeCachesLocked() {
 	s.trajHeadersCache = nil
 	s.trajRequestsCache = nil
 	s.trajHadLiveAttempt = false
+	s.trajectoryMessageCache = nil
 	s.trajTimingRev = 0
 	s.trajTimingCache = nil
 	s.trajTimingParsed = nil

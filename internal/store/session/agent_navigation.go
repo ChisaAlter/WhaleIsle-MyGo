@@ -52,7 +52,8 @@ type AgentNavigationView struct {
 	ParentAvailabilityKnown, ParentAvailable       bool
 	RootCountsKnown                                bool
 	RootChildren, RootRunning, RootActivityUnknown int
-	PromptImages                                   []string               // local image draft scoped to this navigation owner
+	PromptImages                                   []string // local image draft scoped to this navigation owner
+	ImagesPreparing                                bool
 	catalog                                        agentNavigationCatalog // Host-computed whole value and its watermark
 	Resources                                      map[string]AgentResourceRead
 	TurnFiles                                      TurnFilesSnapshot
@@ -74,6 +75,7 @@ type agentNavigationState struct {
 	notifyPending bool // coalesce live repaint requests until the pane reads
 	actionCancel  context.CancelFunc
 	actionEpoch   uint64
+	imageEpoch    uint64
 	view          AgentNavigationView
 	parents       []AgentNavigationView
 	binding       string
@@ -221,6 +223,7 @@ func (s *Store) BackAgentNavigation(token uint64) {
 	v.Token = n.view.Token + 1
 	v.Busy = false
 	v.ActionBusy = false
+	v.ImagesPreparing = false
 	if n.actionCancel != nil {
 		n.actionCancel()
 		n.actionCancel = nil
@@ -446,7 +449,7 @@ type childPromptGesture struct {
 func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddress, text string, prompt, retainedPrompt bool, gesture ...childPromptGesture) {
 	s.mu.Lock()
 	n := &s.agentNavigation
-	if len(addresses) == 0 || n.view.ActionBusy || n.view.Busy {
+	if len(addresses) == 0 || n.view.ActionBusy || n.view.Busy || prompt && n.view.ImagesPreparing {
 		s.mu.Unlock()
 		return
 	}

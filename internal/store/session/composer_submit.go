@@ -38,6 +38,7 @@ type ComposerTarget struct {
 	epoch, followGeneration       uint64
 	mode                          PromptMode
 	retirements                   map[string]*composerRetirement
+	dispatched                    map[string]bool
 }
 
 func (s *Store) CaptureComposerTarget(id string) (*ComposerTarget, error) {
@@ -270,8 +271,22 @@ func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []
 			if len(parts) > 0 && (command.Input == nil || command.Input.Attachments == nil || !*command.Input.Attachments) {
 				return fmt.Errorf("/%s does not accept attachments", command.Name)
 			}
+			if err = t.recordSubmission(requestID, "dispatching", nil); err != nil {
+				return err
+			}
+			s.mu.Lock()
+			if t.dispatched == nil {
+				t.dispatched = make(map[string]bool)
+			}
+			t.dispatched[requestID] = true
+			s.mu.Unlock()
 			err = executeCommand(ctx, t.client, id, line, parts)
 			if err != nil {
+				var rejected *dsh.Error
+				var failed *commandExecutionError
+				if !errors.As(err, &rejected) && !errors.As(err, &failed) {
+					return unconfirmedSubmission(err)
+				}
 				return err
 			}
 			return t.check(ctx)
@@ -290,7 +305,7 @@ func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []
 		s.mu.Unlock()
 		return errors.New("Host changed; draft retained")
 	}
-	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.composerPromptBusyLocked() || s.composerPendingForSelectedLocked() || s.turnStartMs > 0}, editSeq)) {
+	if editSeq > 0 && (s.selectedID != id || !CanEditMessage(ViewState{SelectedID: id, Messages: projectMessageEdits(s.messages), PromptBusy: s.promptBusy || s.composerPromptBusyLocked() || s.composerOtherPendingForSelectedLocked(requestID) || s.turnStartMs > 0}, editSeq)) {
 		s.mu.Unlock()
 		return errors.New("the edited message is no longer the latest idle user turn")
 	}
@@ -300,13 +315,38 @@ func (t *ComposerTarget) Submit(ctx context.Context, text string, attachments []
 	s.composerAdmissions[requestID] = t
 	s.markPromptAttemptedLocked(id)
 	s.mu.Unlock()
+	if err = t.recordSubmission(requestID, "dispatching", nil); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	if t.dispatched == nil {
+		t.dispatched = make(map[string]bool)
+	}
+	t.dispatched[requestID] = true
+	if p := s.submissionTracked[requestID]; p != nil && p.target == t {
+		p.dispatched = true
+	}
+	s.mu.Unlock()
 	s.fire()
 	var result struct {
 		Accepted bool `json:"accepted"`
 	}
 	err = t.client.Call(ctx, "session/prompt", map[string]any{"request": req}, &result)
+	if err != nil {
+		var rejected *dsh.Error
+		if !errors.As(err, &rejected) {
+			// A missing/malformed response cannot establish that the Host did
+			// not accept the user action. Never turn it into a retryable draft.
+			err = unconfirmedSubmission(err)
+		}
+	}
 	if err == nil && !result.Accepted {
 		err = errors.New("prompt was not accepted; draft retained")
+	}
+	if err == nil {
+		if saveErr := t.recordSubmission(requestID, "accepted", nil); saveErr != nil {
+			err = unconfirmedSubmission(saveErr)
+		}
 	}
 	return err
 }

@@ -50,6 +50,8 @@ type State struct {
 	// QuestionDrafts is an opaque, explicit Host-profile-owned answer draft
 	// envelope. Loading it cannot recreate a Host interaction or submit an answer.
 	QuestionDrafts json.RawMessage `json:"questionDrafts,omitempty"`
+	// Submissions owns dispatch identities independently of UI checkpoint timing.
+	Submissions json.RawMessage `json:"submissions,omitempty"`
 }
 
 type Store struct {
@@ -107,6 +109,7 @@ func clone(s State) State {
 	}
 	s.Files = append(json.RawMessage(nil), s.Files...)
 	s.QuestionDrafts = append(json.RawMessage(nil), s.QuestionDrafts...)
+	s.Submissions = append(json.RawMessage(nil), s.Submissions...)
 	return s
 }
 func (s *Store) Snapshot() State { s.mu.Lock(); defer s.mu.Unlock(); return clone(s.data) }

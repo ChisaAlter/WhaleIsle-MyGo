@@ -20,6 +20,17 @@ func (t *ComposerTarget) settleRetirementLocked(id string, err error) {
 	}
 	r.settled, r.err = true, err
 	close(r.done)
+	if t.store.submissionPersistence != nil && !errors.Is(err, ErrSubmissionUnconfirmed) {
+		if p := t.store.submissionTracked[id]; p != nil && p.target == t {
+			copy := *p
+			copy.Attachments = append([]ComposerAttachment(nil), p.Attachments...)
+			go func() {
+				if saveErr := t.store.persistSubmissionOutcome(&copy, err); saveErr != nil {
+					t.store.SetLastAction(saveErr.Error())
+				}
+			}()
+		}
+	}
 }
 
 // A durably deleted Session cannot be reopened to complete these handoffs.
@@ -33,7 +44,7 @@ func (s *Store) retireDeletedSessionSubmissionsLocked(sessionID string) bool {
 		if pending.SessionID != sessionID || !pending.target.currentLocked() {
 			continue
 		}
-		pending.target.settleRetirementLocked(id, errors.New("session deleted; send outcome unconfirmed, draft and attachments retained; check the conversation before retrying"))
+		pending.target.settleRetirementLocked(id, unconfirmedSubmission(errors.New("session deleted")))
 		delete(s.composerPending, id)
 		retired = true
 	}
@@ -59,6 +70,6 @@ func (t *ComposerTarget) AwaitSubmissionRetirement(ctx context.Context, id strin
 		s.mu.Unlock()
 		return err
 	case <-ctx.Done():
-		return ctx.Err()
+		return unconfirmedSubmission(ctx.Err())
 	}
 }
