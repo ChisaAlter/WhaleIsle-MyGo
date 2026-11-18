@@ -87,16 +87,18 @@ func (h *capabilitiesUIFixture) Call(ctx context.Context, method string, args, o
 		}
 		for _, op := range a["ops"].([]map[string]any) {
 			path := op["path"].([]string)
-			node := h.namespace["value"].(map[string]any)
-			for _, key := range path[:len(path)-1] {
-				child, _ := node[key].(map[string]any)
-				if child == nil {
-					child = map[string]any{}
-					node[key] = child
+			for _, layer := range []map[string]any{h.namespace["value"].(map[string]any), h.namespace["user"].(map[string]any)} {
+				node := layer
+				for _, key := range path[:len(path)-1] {
+					child, _ := node[key].(map[string]any)
+					if child == nil {
+						child = map[string]any{}
+						node[key] = child
+					}
+					node = child
 				}
-				node = child
+				node[path[len(path)-1]] = op["value"]
 			}
-			node[path[len(path)-1]] = op["value"]
 		}
 		h.namespace["revision"] = h.namespace["revision"].(float64) + 1
 		h.writes = append(h.writes, method)

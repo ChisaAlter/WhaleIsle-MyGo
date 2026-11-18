@@ -170,7 +170,15 @@ func modelNamespaceEditor(c *ui.Context, m Model, namespace string, onCancel fun
 	}
 	container.Children(func() {
 		if m.Models.configurationCreateOnly && keyError != "" {
-			ui.Text(c, keyError).FillWidth().TextColor(c.Theme().Danger)
+			sentence, details := providerCreateFailure(snap, keyError)
+			ui.Text(c, sentence).FillWidth().TextColor(c.Theme().Danger)
+			if len(details) > 0 {
+				modelDisclosure(c, "model-create-failure/"+binding.Owner(), providerCopy("详情", "Details"), func() {
+					for _, line := range details {
+						ui.Text(c, line).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					}
+				})
+			}
 			if *createKey == "" && m.ReferencedCredentials != nil && m.ReferencedCredentials.OnRefresh != nil && ui.Button(c, providerCopy("刷新密钥状态", "Refresh key status")).Disabled(snap.Saving).Clicked() {
 				m.ReferencedCredentials.OnRefresh()
 			}

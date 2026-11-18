@@ -21,7 +21,7 @@ func TestThemeQueueCASAndNewerDraftSurviveOldReceipt(t *testing.T) {
 			requests <- args
 			<-gate
 			w := httptest.NewRecorder()
-			rpcOK(w, body["rpcId"], map[string]any{"ns": "ui-theme", "revision": 8, "value": map[string]any{"fontSize": 16, "fontSizeCode": 13}, "base": map[string]any{}, "user": map[string]any{}, "secrets": []any{}})
+			rpcOK(w, body["rpcId"], map[string]any{"ns": "ui-theme", "revision": 8, "value": map[string]any{"fontSize": 16, "fontSizeCode": 13}, "base": map[string]any{}, "user": map[string]any{"fontSize": 16}, "secrets": []any{}})
 			return w.Result(), nil
 		})}}
 		s := New()

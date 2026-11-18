@@ -154,6 +154,8 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 			current = s.findNamespaceLocked(w.ns.NS)
 			if err == nil && current == nil {
 				err = fmt.Errorf("Settings section %s is no longer available; drafts retained", w.ns.NS)
+			} else if err != nil {
+				err = &writeRefusal{raw: fmt.Sprintf("%s %s: %v", method, w.ns.NS, err)}
 			}
 			if err != nil {
 				s.saving, s.err, s.lastAction = false, err, err.Error()
@@ -170,7 +172,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 			current.SecretPaths = configuredSecretPaths(out.Secrets)
 			if !namespaceWriteLanded(out, w.patch, w.ops) {
 				s.saving = false
-				s.err = fmt.Errorf("Host did not accept the staged %s values; drafts retained", w.ns.NS)
+				s.err = &writeRefusal{raw: fmt.Sprintf("%s %s: the receipt reports namespace %q at revision %v without the submitted values", method, w.ns.NS, out.Ns, out.Revision)}
 				s.lastAction = s.err.Error()
 				s.mu.Unlock()
 				s.fire()

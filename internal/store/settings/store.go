@@ -39,6 +39,7 @@ type ViewState struct {
 	PreferenceErrors   map[string]string
 	Writable           bool
 	Err                string
+	ErrDetail          string // unlocalized text behind Err: the log and details only, never the sentence
 	LastAction         string
 	Namespaces         []Namespace
 	SelectedNS         string
@@ -377,6 +378,7 @@ func (s *Store) snapshotLocked() ViewState {
 		Saving:             s.saving || s.themeWriteInFlightLocked(s.selectedNS),
 		Writable:           s.writable,
 		Err:                errStr,
+		ErrDetail:          writeRefusalDetail(s.err),
 		LastAction:         s.lastAction,
 		SelectedNS:         s.selectedNS,
 		Drafts:             map[string]string{},
