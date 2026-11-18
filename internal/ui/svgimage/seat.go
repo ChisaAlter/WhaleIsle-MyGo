@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/desktop/previewprocess"
+	"whaleisle/internal/ui/i18n"
 )
 
 // Owner is supplied by the native window controller. ID binds window, Host and
@@ -283,7 +284,7 @@ func (s *Seat) PaintClipped(p *ui.Painter, r ui.Rect, fit ui.Fit, radius float32
 		}
 		message := "SVG…"
 		if err != nil {
-			message = err.Error()
+			message = i18n.T(i18n.KeySvgImageUnavailable)
 		}
 		p.Clip(r, 0, func() { p.Text(r.X+4, r.Y+4, message, 12, p.Theme().TextMuted) })
 		return
