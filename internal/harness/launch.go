@@ -427,7 +427,8 @@ func childEnv(o LaunchOptions) []string {
 	env := make([]string, 0, len(os.Environ())+4)
 	for _, kv := range os.Environ() {
 		key, _, _ := strings.Cut(kv, "=")
-		if o.DesktopDefaults && (strings.EqualFold(key, "DSHD_WHALE_UI_ENABLED") || strings.EqualFold(key, "DSHD_WHALE_UI_HOST")) {
+		if o.DesktopDefaults && (strings.EqualFold(key, "DSHD_WHALE_UI_ENABLED") || strings.EqualFold(key, "DSHD_WHALE_UI_HOST") ||
+			strings.EqualFold(key, "DSHD_DEEPSEEK_TOOLS_ENABLED")) {
 			continue
 		}
 		switch strings.ToUpper(key) {
@@ -446,7 +447,9 @@ func childEnv(o LaunchOptions) []string {
 	}
 	env = append(env, "npm_config_yes=true", "npm_config_update_notifier=false")
 	if o.DesktopDefaults && o.WhaleUIHost != "" {
-		env = append(env, "DSHD_WHALE_UI_ENABLED=1", "DSHD_WHALE_UI_HOST="+o.WhaleUIHost)
+		// The DeepSeek application API rows sit in the Host composition behind
+		// this gate; a bare `dsh web` start leaves them unmounted.
+		env = append(env, "DSHD_WHALE_UI_ENABLED=1", "DSHD_WHALE_UI_HOST="+o.WhaleUIHost, "DSHD_DEEPSEEK_TOOLS_ENABLED=1")
 	}
 	env = append(env, o.ExtraEnv...)
 	return env

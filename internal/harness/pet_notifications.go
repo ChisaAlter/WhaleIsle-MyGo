@@ -59,7 +59,7 @@ func (s *Supervisor) petStickerRootLocked() string {
 			continue
 		}
 		raw, err := os.ReadFile(patch)
-		if err != nil || string(raw) != overlayYAML("dsh-whale", "dsh-whale") {
+		if err != nil || string(raw) != overlayYAML(DesktopPlugin{InsertID: "dsh-whale", Package: "dsh-whale"}) {
 			continue
 		}
 		profile := filepath.Dir(filepath.Dir(filepath.Dir(patch)))

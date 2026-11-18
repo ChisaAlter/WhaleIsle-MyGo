@@ -93,6 +93,11 @@ type Store struct {
 	visionErr                 string
 	permissionDefaults        PermissionDefaults
 	webSearchKey              *WebSearchCredential
+	deepSeekKeyRef            string
+	deepSeekKeyConfigured     bool
+	deepSeekKeyWritable       bool
+	deepSeekKeyLoading        bool
+	deepSeekKeyErr            string
 	themeBinding              *ThemeBinding
 	instructionsWrite         *instructionsWrite
 	preferenceWrites          map[string]*preferenceWriteQueue

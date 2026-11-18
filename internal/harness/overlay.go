@@ -26,6 +26,10 @@ type DesktopPlugin struct {
 	ModuleLink string
 	// Required fails Prepare when the vendor copy is missing.
 	Required bool
+	// GateEnv, when set, is the environment variable that must equal "1" for
+	// the insert to be enabled: the row exists in every start, but the gate
+	// decides whether the plugin mounts.
+	GateEnv string
 }
 
 // PrepareOptions selects which optional desktop plugins to mount.
@@ -88,6 +92,20 @@ func builtinPlugins() []DesktopPlugin {
 			OverlayDir:  "dsh-im",
 			ModuleLink:  filepath.Join("@xmanrui", "dsh-im"),
 			Required:    true,
+		},
+		{
+			// Gated on the same flag launch.go sets, like 本体's base-bundle row.
+			// The row arrives through --patch because MyGo's composition file is
+			// the staged runtime tree, which no PR can edit; do not move it into
+			// packages/bundle/base/cordis.patch.yml as well — two inserts of one
+			// id would mount the plugin twice. An absent vendor copy leaves the
+			// gate inert instead of failing the start.
+			VendorName:  "dsh-deepseek-tools",
+			InsertID:    "dsh-deepseek-tools",
+			OverlayFile: "desktop-deepseek-tools.patch.yml",
+			OverlayDir:  "dsh-deepseek-tools",
+			ModuleLink:  "dsh-deepseek-tools",
+			GateEnv:     "DSHD_DEEPSEEK_TOOLS_ENABLED",
 		},
 	}
 }
@@ -225,7 +243,7 @@ func writeInsertOverlay(profileDir string, p DesktopPlugin) (string, error) {
 		return "", err
 	}
 	path := filepath.Join(dir, p.OverlayFile)
-	contents := overlayYAML(p.InsertID, p.Package)
+	contents := overlayYAML(p)
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == contents {
 		return path, nil
 	}
@@ -265,17 +283,24 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-func overlayYAML(insertID, packageName string) string {
+func overlayYAML(p DesktopPlugin) string {
 	var b strings.Builder
 	b.WriteString("# Desktop-managed overlay passed to EVERY start via --patch.\n")
 	b.WriteString("# Regenerated on every start; do not edit.\n")
 	b.WriteString("- insert:\n")
 	b.WriteString("    - id: ")
-	b.WriteString(insertID)
+	b.WriteString(p.InsertID)
 	b.WriteByte('\n')
 	b.WriteString("      name: ")
-	b.WriteString(quoteYAMLString(packageName))
+	b.WriteString(quoteYAMLString(p.Package))
 	b.WriteByte('\n')
+	if p.GateEnv != "" {
+		// The row exists in every start; this expression decides whether the
+		// plugin mounts, so a plain `dsh web` start never loads it.
+		b.WriteString("      disabled: !!js \"process.env.")
+		b.WriteString(p.GateEnv)
+		b.WriteString(" !== '1'\"\n")
+	}
 	b.WriteByte('\n')
 	return b.String()
 }

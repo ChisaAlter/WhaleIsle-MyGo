@@ -95,9 +95,16 @@ func TestPrepareOptionalPlugins(t *testing.T) {
 }
 
 func TestOverlayYAMLQuotesScopedName(t *testing.T) {
-	got := overlayYAML("xmanrui-dsh-im", "@xmanrui/dsh-im")
+	got := overlayYAML(DesktopPlugin{InsertID: "xmanrui-dsh-im", Package: "@xmanrui/dsh-im"})
 	if !strings.Contains(got, `name: "@xmanrui/dsh-im"`) {
 		t.Fatalf("got %q", got)
+	}
+	if strings.Contains(got, "disabled:") {
+		t.Fatalf("an ungated plugin must not carry a gate: %q", got)
+	}
+	gated := overlayYAML(DesktopPlugin{InsertID: "dsh-deepseek-tools", Package: "dsh-deepseek-tools", GateEnv: "DSHD_DEEPSEEK_TOOLS_ENABLED"})
+	if !strings.Contains(gated, `disabled: !!js "process.env.DSHD_DEEPSEEK_TOOLS_ENABLED !== '1'"`) {
+		t.Fatalf("gate row = %q", gated)
 	}
 }
 
@@ -134,5 +141,48 @@ func TestPrepareACPRequiresCompleteT3Package(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(profile, "node_modules", "dsh-acp-agents", "lib", "vendor", "t3.cjs")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The DeepSeek application API row arrives through --patch, gated on the flag
+// launch.go sets, and the profile junction resolves the package it names.
+func TestPrepareMountsDeepSeekToolsBehindItsFlag(t *testing.T) {
+	vendor, profile := t.TempDir(), t.TempDir()
+	for _, name := range []string{"dsh-task-control", "dsh-platform-session", "dsh-usage-panel", "dsh-im", "dsh-deepseek-tools"} {
+		dir := filepath.Join(vendor, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		pkg := name
+		if name == "dsh-im" {
+			pkg = "@xmanrui/dsh-im"
+		}
+		if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"`+pkg+`"}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	patches, err := Prepare(PrepareOptions{VendorDir: vendor, ProfileDir: profile, RemoteSet: true, Remote: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(profile, "node_modules", "dsh-deepseek-tools", "package.json")); err != nil {
+		t.Fatalf("profile junction missing: %v", err)
+	}
+	row := filepath.Join(profile, "desktop-plugins", "dsh-deepseek-tools", "desktop-deepseek-tools.patch.yml")
+	body, err := os.ReadFile(row)
+	if err != nil {
+		t.Fatalf("overlay row missing: %v", err)
+	}
+	if !strings.Contains(string(body), `process.env.DSHD_DEEPSEEK_TOOLS_ENABLED !== '1'`) {
+		t.Fatalf("row is not gated: %s", body)
+	}
+	found := false
+	for _, patch := range patches {
+		if patch == row {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("gated row not among the launch patches: %v", patches)
 	}
 }

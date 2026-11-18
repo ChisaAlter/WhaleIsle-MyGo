@@ -156,3 +156,24 @@ func TestResolveNodePrefersPairedRuntime022OverRC4(t *testing.T) {
 		t.Fatalf("resolveNode(\"\") = %q, %v; want %q", got, err, rt022Node)
 	}
 }
+
+// The DeepSeek application API rows are gated on this flag, so the desktop start
+// must set it and must never inherit someone else's value.
+func TestDesktopStartGatesDeepSeekApplicationTools(t *testing.T) {
+	t.Setenv("DSHD_DEEPSEEK_TOOLS_ENABLED", "0")
+	home := t.TempDir()
+	validator, err := prepareWhaleUIHost(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desktop := strings.Join(childEnv(LaunchOptions{DesktopDefaults: true, WhaleUIHost: validator}), "\n")
+	if !strings.Contains(desktop, "DSHD_DEEPSEEK_TOOLS_ENABLED=1") {
+		t.Fatalf("desktop start does not enable the DeepSeek tools gate: %s", desktop)
+	}
+	if strings.Count(desktop, "DSHD_DEEPSEEK_TOOLS_ENABLED=") != 1 {
+		t.Fatalf("inherited gate survived the desktop start: %s", desktop)
+	}
+	if external := strings.Join(childEnv(LaunchOptions{Host: "127.0.0.1"}), "\n"); !strings.Contains(external, "DSHD_DEEPSEEK_TOOLS_ENABLED=0") {
+		t.Fatal("a plain dsh start lost the caller's own gate value")
+	}
+}

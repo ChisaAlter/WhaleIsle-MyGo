@@ -17,6 +17,7 @@ const (
 	SectionConversation    SectionID = "conversation"
 	SectionFeatures        SectionID = "features"
 	SectionVoice           SectionID = "voice"
+	SectionDeepSeekAPIs    SectionID = "deepseek-apis"
 	SectionModels          SectionID = "models"
 	SectionPlugins         SectionID = "plugins"
 	SectionSkills          SectionID = "skills"
