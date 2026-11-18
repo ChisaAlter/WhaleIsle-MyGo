@@ -3,6 +3,7 @@ package sshremote
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
+	"whaleisle/internal/credentials"
 	"whaleisle/internal/paths"
 )
 
@@ -131,6 +133,17 @@ func ConfigPath(userData string) string {
 // credentials storage and migrating any legacy plaintext secrets on disk. Missing
 // files yield defaults without creating directories or files.
 func LoadTunnelConfig(userData string) (TunnelConfig, error) {
+	return loadTunnelConfig(userData, false)
+}
+
+// LoadSharedProfileTunnelConfig reads the desktop's shared credentials. Legacy
+// plaintext remains readable when shared writing is unavailable; migration is
+// deferred without altering either file or discarding the loaded credentials.
+func LoadSharedProfileTunnelConfig(userData string) (TunnelConfig, error) {
+	return loadTunnelConfig(userData, true)
+}
+
+func loadTunnelConfig(userData string, shared bool) (TunnelConfig, error) {
 	cfg := TunnelConfig{Port: 22, User: "root"}
 	path := ConfigPath(userData)
 	data, err := os.ReadFile(path)
@@ -155,7 +168,10 @@ func LoadTunnelConfig(userData string) (TunnelConfig, error) {
 		return cfg, err
 	}
 	if !legacy.empty() {
-		if err := writeSSHTunnelSecrets(userData, legacy); err != nil {
+		if err := writeSSHTunnelProfileSecrets(userData, legacy, shared); err != nil {
+			if shared && errors.Is(err, credentials.ErrSharedProfileWriteUnavailable) {
+				return cfg, nil
+			}
 			return cfg, err
 		}
 		if err := writeSanitizedTunnelFile(path, cfg); err != nil {
@@ -175,6 +191,16 @@ func LoadTunnelConfig(userData string) (TunnelConfig, error) {
 // SaveTunnelConfig writes ssh-tunnel.json atomically without plaintext secrets,
 // persisting password and passphrase in encrypted credentials storage.
 func SaveTunnelConfig(userData string, cfg TunnelConfig) error {
+	return saveTunnelConfig(userData, cfg, false)
+}
+
+// SaveSharedProfileTunnelConfig requires the common desktop write lease before
+// saving secrets. On refusal the existing tunnel file is also left unchanged.
+func SaveSharedProfileTunnelConfig(userData string, cfg TunnelConfig) error {
+	return saveTunnelConfig(userData, cfg, true)
+}
+
+func saveTunnelConfig(userData string, cfg TunnelConfig, shared bool) error {
 	if cfg.Port <= 0 {
 		cfg.Port = 22
 	}
@@ -187,7 +213,7 @@ func SaveTunnelConfig(userData string, cfg TunnelConfig) error {
 		return err
 	}
 	if !sec.empty() || bucket.Tunnel != nil {
-		if err := writeSSHTunnelSecrets(userData, sec); err != nil {
+		if err := writeSSHTunnelProfileSecrets(userData, sec, shared); err != nil {
 			return err
 		}
 	}
@@ -195,7 +221,11 @@ func SaveTunnelConfig(userData string, cfg TunnelConfig) error {
 }
 
 func writeSSHTunnelSecrets(userData string, sec tunnelSecrets) error {
-	return updateSSHSecrets(userData, func(obj map[string]json.RawMessage) error {
+	return writeSSHTunnelProfileSecrets(userData, sec, false)
+}
+
+func writeSSHTunnelProfileSecrets(userData string, sec tunnelSecrets, shared bool) error {
+	return updateSSHProfileSecrets(userData, shared, func(obj map[string]json.RawMessage) error {
 		if sec.empty() {
 			delete(obj, "tunnel")
 			return nil

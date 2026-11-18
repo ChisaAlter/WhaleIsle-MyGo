@@ -46,7 +46,7 @@ func InspectStorage(dir string) StorageStatus {
 			} else {
 				s.Backend = "Windows DPAPI + AES-256-GCM (safeStorage-v1)"
 				if runtime.GOOS == "darwin" {
-					s.Backend = "Legacy macOS Keychain + AES-128-CBC (safeStorage-v1)"
+					s.Backend = "macOS Keychain + Electron safeStorage (AES-128-CBC)"
 					s.SupportedPlatform = credentialOS.supported
 				}
 			}

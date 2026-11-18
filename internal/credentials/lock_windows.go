@@ -12,6 +12,14 @@ const (
 	stillActive                    = 259
 )
 
+// Lock release can briefly deny CREATE_NEW while a Windows handle or a
+// delete disposition still owns the name. Access denial is not proof of a
+// stale lock: only wait within the existing contention budget and retain the
+// original error if it persists.
+func lockCreationContended(err error) bool {
+	return errors.Is(err, syscall.ERROR_ACCESS_DENIED) || errors.Is(err, syscall.Errno(32))
+}
+
 func isProcessAlive(pid int) bool {
 	if pid <= 0 {
 		return false

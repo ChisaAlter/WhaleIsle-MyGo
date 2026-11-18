@@ -7,6 +7,8 @@ import (
 	"syscall"
 )
 
+func lockCreationContended(error) bool { return false }
+
 func isProcessAlive(pid int) bool {
 	if pid <= 0 {
 		return false

@@ -17,6 +17,14 @@ import (
 
 const lockFileName = ".credentials.lock"
 
+// ErrSharedProfileBusy leaves the edit recoverable while another desktop owns
+// Chromium's Windows profile lock. It never prevents read-only profile use.
+var ErrSharedProfileBusy = errors.New("共享凭据正由另一个桌面使用，请关闭原版桌面后重试保存；本页编辑已保留。 / Shared credentials are in use by another desktop. Close that desktop and retry saving; your edits are retained")
+
+// ErrSharedProfileWriteUnavailable means this platform has no verified write
+// lease shared with Electron. Closing a peer alone cannot establish that lease.
+var ErrSharedProfileWriteUnavailable = errors.New("当前平台尚不支持安全写入与鲸屿原版共享的凭据。请在原版中保存后重新读取；本页编辑已保留。 / Safe shared credential writes are not available on this platform. Save in the original desktop, then reload here; your edits are retained")
+
 var (
 	dirMutexes         sync.Map // cleaned dir path -> *sync.Mutex
 	lockAcquireTimeout = 1500 * time.Millisecond
@@ -43,6 +51,12 @@ func dirLock(dir string) *sync.Mutex {
 // exists (or createDir is true), acquires the cross-process .credentials.lock
 // with bounded backoff retry and stale lock cleanup.
 func withDirLock(dir string, createDir bool, fn func() error) error {
+	return withProfileDirLock(dir, createDir, false, fn)
+}
+
+// shared marks the desktop profile, whose file may also be written by Electron.
+// Private stores retain their existing participating-writer lock contract.
+func withProfileDirLock(dir string, createDir, shared bool, fn func() error) error {
 	mu := dirLock(dir)
 	mu.Lock()
 	defer mu.Unlock()
@@ -57,9 +71,23 @@ func withDirLock(dir string, createDir bool, fn func() error) error {
 			return fn()
 		}
 	} else {
+		if shared {
+			if err := sharedProfileWriteSupport(); err != nil {
+				return err
+			}
+		}
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
+		acquire := acquirePrivateProfileWrite
+		if shared {
+			acquire = acquireProfileWrite
+		}
+		releaseProfile, err := acquire(dir)
+		if err != nil {
+			return err
+		}
+		defer releaseProfile()
 	}
 
 	release, err := acquireCredentialsLock(dir)
@@ -106,16 +134,20 @@ func acquireCredentialsLock(dir string) (func(), error) {
 				}
 			}, nil
 		}
-		if !errors.Is(err, fs.ErrExist) {
+		exists := errors.Is(err, fs.ErrExist)
+		if !exists && !lockCreationContended(err) {
 			return nil, fmt.Errorf("credentials: acquire lock: %w", err)
 		}
 
-		if removed := tryCleanupStaleLock(lockPath); removed {
+		if exists && tryCleanupStaleLock(lockPath) {
 			continue
 		}
 
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
+			if !exists {
+				return nil, fmt.Errorf("credentials: acquire lock: %w", err)
+			}
 			return nil, fmt.Errorf("credentials: lock busy (%s)", lockPath)
 		}
 		wait := jitteredDuration(backoff)

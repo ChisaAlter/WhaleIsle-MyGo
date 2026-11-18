@@ -71,7 +71,13 @@ import (
 type nativeKeychain struct{}
 
 func platformCredentialProvider() credentialProvider {
-	return credentialProvider{KeychainEnvelopeVersion, "macOS Keychain + AES-256-GCM", true, func(dir string, create bool) ([]byte, error) { return keychainKey(nativeKeychain{}, dir, create) }}
+	return credentialProvider{
+		version:   KeychainEnvelopeVersion,
+		backend:   "macOS Keychain + Electron safeStorage",
+		supported: true,
+		key:       func(dir string, create bool) ([]byte, error) { return keychainKey(nativeKeychain{}, dir, create) },
+		seal:      macSafeStorageSeal,
+	}
 }
 
 func keychainStatus(status C.OSStatus) error {

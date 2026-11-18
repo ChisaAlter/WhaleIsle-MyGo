@@ -65,7 +65,15 @@ func loadSSHSecrets(dir string) (sshSecretBucket, bool, error) {
 }
 
 func updateSSHSecrets(dir string, mutate func(obj map[string]json.RawMessage) error) error {
-	return credentials.UpdateNamespace(dir, sshSecretsNamespace, func(existing json.RawMessage) (json.RawMessage, error) {
+	return updateSSHProfileSecrets(dir, false, mutate)
+}
+
+func updateSSHProfileSecrets(dir string, shared bool, mutate func(obj map[string]json.RawMessage) error) error {
+	update := credentials.UpdateNamespace
+	if shared {
+		update = credentials.UpdateSharedProfileNamespace
+	}
+	return update(dir, sshSecretsNamespace, func(existing json.RawMessage) (json.RawMessage, error) {
 		obj := map[string]json.RawMessage{}
 		if len(existing) > 0 {
 			_ = json.Unmarshal(existing, &obj)

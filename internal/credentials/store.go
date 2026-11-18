@@ -76,20 +76,42 @@ type Store struct {
 	creds    Credentials
 	raw      map[string]json.RawMessage
 	baseline fileBaseline
+	shared   bool
 }
 
-// Open loads credentials.json from dir into a baseline-tracked Store. Missing
-// files yield an empty Store without creating files or directories.
+// Open loads a private credentials store with participating-writer locking.
+// Desktop callers sharing with Electron must use OpenSharedProfile instead.
+// Missing files yield an empty Store without creating files or directories.
 func Open(dir string) (*Store, error) {
+	return openStore(dir, false)
+}
+
+// OpenSharedProfile reads the desktop profile without requiring write access.
+// Every subsequent Store write must acquire the platform's shared write lease.
+func OpenSharedProfile(dir string) (*Store, error) {
+	return openStore(dir, true)
+}
+
+func openStore(dir string, shared bool) (*Store, error) {
 	s := &Store{
-		dir:  dir,
-		path: filepath.Join(dir, FileName),
-		raw:  map[string]json.RawMessage{},
+		dir:    dir,
+		path:   filepath.Join(dir, FileName),
+		raw:    map[string]json.RawMessage{},
+		shared: shared,
 	}
 	if err := s.Reload(); err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// WriteAccessError reports a known platform limitation without touching the
+// filesystem. A nil result still requires the real lease at commit time.
+func (s *Store) WriteAccessError() error {
+	if s.shared {
+		return sharedProfileWriteSupport()
+	}
+	return nil
 }
 
 // Reload refreshes the Store snapshot, preserved unmodeled JSON fields, and
@@ -173,7 +195,7 @@ func (s *Store) UpdateChecked(fn func(*Credentials) error) error {
 	defer func() {
 		clearRawMap(committedRaw)
 	}()
-	err := withDirLock(s.dir, true, func() error {
+	err := withProfileDirLock(s.dir, true, s.shared, func() error {
 		diskRaw, create, diskBaseline, readErr := readExistingRawForSave(s.dir)
 		if readErr != nil {
 			return readErr
@@ -257,12 +279,23 @@ func LoadNamespace(dir, key string, out any) (bool, error) {
 
 // UpdateNamespace atomically updates a single namespace key inside encrypted
 // credentials.json while preserving all sibling credential and unknown fields.
-// Returning nil or empty bytes deletes the namespace key.
+// Returning nil or empty bytes deletes the namespace key. Shared desktop
+// profiles must use UpdateSharedProfileNamespace instead.
 func UpdateNamespace(dir, key string, fn func(existing json.RawMessage) (json.RawMessage, error)) error {
+	return updateNamespace(dir, key, false, fn)
+}
+
+// UpdateSharedProfileNamespace preserves the encrypted namespace contract and
+// additionally requires write ownership of the desktop's shared profile.
+func UpdateSharedProfileNamespace(dir, key string, fn func(existing json.RawMessage) (json.RawMessage, error)) error {
+	return updateNamespace(dir, key, true, fn)
+}
+
+func updateNamespace(dir, key string, shared bool, fn func(existing json.RawMessage) (json.RawMessage, error)) error {
 	if key == "" {
 		return errors.New("credentials: namespace key required")
 	}
-	return withDirLock(dir, true, func() error {
+	return withProfileDirLock(dir, true, shared, func() error {
 		raw, create, baseline, err := readExistingRawForSave(dir)
 		if err != nil {
 			return err
