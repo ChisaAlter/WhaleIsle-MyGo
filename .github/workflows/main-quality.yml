@@ -156,6 +156,15 @@ jobs:
             ./internal/ui/files \
             ./internal/ui/chat \
             ./internal/ui/composer
+      - name: Test the native directory picker
+        shell: bash
+        # The Linux entry job excludes this test because native mode needs a
+        # picker backend that only exists on Windows and macOS. Its config-merge
+        # half still has to be covered in CI, so it runs here by name.
+        run: |
+          go test -count=1 \
+            -run '^TestDirectoryPickerNativeModeAndWorkspacePersistMergeExternalConfigEdit$' \
+            ./cmd/whaleisle
 
   windows-native-packages:
     name: Windows native packages
