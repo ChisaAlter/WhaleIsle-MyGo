@@ -63,8 +63,7 @@ func resolveWriteIdentity(ctx context.Context, root string) (writeIdentity, erro
 	if err != nil {
 		return writeIdentity{}, err
 	}
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--path-format=absolute", "--absolute-git-dir", "--git-common-dir")
-	configureGitProcess(cmd)
+	cmd := gitCommand(ctx, "git", "rev-parse", "--path-format=absolute", "--absolute-git-dir", "--git-common-dir")
 	cmd.Dir, cmd.Env = abs, gitChildEnv()
 	out, err := cmd.Output()
 	if err != nil {

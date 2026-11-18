@@ -21,6 +21,23 @@ var ErrEmptyCommitMessage = errors.New("git: empty commit message")
 // DefaultCommandTimeout bounds fetch/pull/push when no deadline is passed.
 const DefaultCommandTimeout = 2 * time.Minute
 
+// commandPipeGrace bounds how long Wait drains the output pipes once the
+// child has exited or its context is done. Git finishes writing before it
+// exits, so only a descendant that inherited the pipe needs the grace.
+const commandPipeGrace = 2 * time.Second
+
+// gitCommand is the single place a git child is constructed. Killing the
+// process on the context is not enough by itself: a descendant that inherited
+// the output pipe keeps CombinedOutput blocked after the deadline, which the
+// user sees as an operation that never times out. WaitDelay closes those pipes
+// so the wait cannot outlive the context.
+func gitCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = commandPipeGrace
+	configureGitProcess(cmd)
+	return cmd
+}
+
 // Snapshot is branch name plus whether the work tree has local changes.
 type Snapshot struct {
 	Branch string
@@ -41,8 +58,7 @@ func execRunner(dir, name string, args ...string) ([]byte, error) {
 }
 
 func combinedExecRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	configureGitProcess(cmd)
+	cmd := gitCommand(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = gitChildEnv()
 	return observedCombinedOutput(ctx, cmd)
@@ -186,8 +202,7 @@ func Diff(workspaceRoot string, paths ...string) (string, error) {
 }
 
 func combinedDiffRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	configureGitProcess(cmd)
+	cmd := gitCommand(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = gitChildEnv()
 	out, err := cmd.CombinedOutput()
