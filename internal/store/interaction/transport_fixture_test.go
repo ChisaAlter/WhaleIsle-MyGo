@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -93,18 +94,28 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	defer mux.Close()
 	s := New()
 	s.AttachClient(client, mux)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
 		done <- client.FollowEvents(ctx, mux, dsh.EventsFuncs{Waterfall: s.HandleWaterfall, Cancel: s.OnCancel, Result: s.OnResult})
 	}()
+	// This context bounds every wait below. Each settles in 1-3ms; a hundred and
+	// ten samples under the same starvation runs as the plan-review fixture
+	// peaked at 4.2ms, so six seconds is over a thousand times the slowest
+	// observed wait. The budget exists to fail a frame stream that stopped, not
+	// to time one that is fast: a genuine block does not clear at six seconds,
+	// while a few seconds of CI scheduler starvation does, and the dump below
+	// names which one happened.
+	steps := 0
 	wait := func(check func() bool) {
 		t.Helper()
+		steps++
 		for !check() {
 			select {
 			case <-ctx.Done():
-				t.Fatal("fixture timed out")
+				buf := make([]byte, 1<<20)
+				t.Fatalf("fixture timed out at step %d\n%s", steps, buf[:runtime.Stack(buf, true)])
 			case <-time.After(time.Millisecond):
 			}
 		}

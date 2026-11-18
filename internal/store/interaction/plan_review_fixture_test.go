@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -152,12 +153,22 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	recovered.ReopenPlanReview(id)
 	recovered.ApprovePlanReview(id)
 	recovered.ApprovePlanReview(id)
+	// Every wait here settles in 1-2ms; twenty samples under deliberate
+	// starvation (four pinned CPUs, two competing spinners, -race, two packages
+	// at once) peaked at 6.7ms. Five seconds is therefore over seven hundred
+	// times the slowest observed wait. The budget exists to fail a prompt that
+	// never settles, not to time a fast one: a genuine block does not clear at
+	// five seconds, while a few seconds of CI scheduler starvation does, and the
+	// dump below names which one happened.
+	steps := 0
 	wait := func(check func() bool) {
 		t.Helper()
-		deadline := time.Now().Add(2 * time.Second)
+		steps++
+		deadline := time.Now().Add(5 * time.Second)
 		for !check() {
 			if time.Now().After(deadline) {
-				t.Fatal("fixture timed out")
+				buf := make([]byte, 1<<20)
+				t.Fatalf("fixture timed out at step %d\n%s", steps, buf[:runtime.Stack(buf, true)])
 			}
 			time.Sleep(time.Millisecond)
 		}
