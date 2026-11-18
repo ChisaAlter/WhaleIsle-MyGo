@@ -108,41 +108,22 @@ go test ./internal/ui/settings/ ./cmd/whaleisle/ -run "TestMinimalModeRendersOff
 - 包测试：`internal/ui/settings` 16.7s、`internal/ui/frame` 13.1s、`internal/config` 9.2s、`internal/renderpolicy`、`internal/startupsuggest`、`cmd/whaleisle` 整包 27.7s —— 全绿。
 - 新增测试覆盖：开关真点往返（回调 + 页面状态）、建议开关可恢复、8 行覆盖提示、观察器 5 种场景（慢 / 快 / 单次爆发 / 后台 / 休眠跳变）、闸门与 7 天 snooze（含坏时间被清）、投影不改存储、`desktopGlassMaterial` 与 `chrome.BackdropActive()` 在极简开/关下的实际绘制路径。
 
-## 6. 一等观察：默认 toast look 在本渲染 harness 中不进帧
+## 6. 已更正：静态视图渲染的边界（toast 观察的结论）
 
-这条独立于极简模式，建议单开一项核。
+> 本节原先把「默认 toast look 在我用的渲染 harness 里不进帧」写成了对应用的怀疑，这个推论是错的，已由 boot lane 在真实窗口上推翻。测量保留，推论撤回，并记下规则。
 
-**实验**（400×300 视图，`ui.NewTester`，时钟推进 0 / 500ms / 2s 三帧，比较 `tt.Image().Pix` 的 SHA-256）：
+**测量（仍然成立，只是它描述的是 harness）**：400×300 视图，`ui.NewTester`，时钟推进 0 / 500ms / 2s 三帧，比较 `tt.Image().Pix` 的 SHA-256：
 
 | 视图 | 帧 1 / 2 / 3 | 标签树 |
 | --- | --- | --- |
 | 视图内 `c.AddToast(ui.Toast{ID:"probe", Title:"Probe toast title", Timeout:-1, Action:"Do it"})` | `954366b8de34af36` 三帧完全相同 | 含 `Probe toast title`、`Do it` |
 | 同上，但视图调用 `ui.ToastViewportBase` 并画一张有色卡片 | `ad610e773bad02b2` 三帧相同，且与上行不同 | 含 `Probe toast title` |
 
-即：toast 的标签在元素树里（`tt.Texts()` 可见），但默认 look（`runtime.go:422` 的 `rt.buildToasts` → `toast.go:475`）没有产生任何像素；视图自己放 `ToastViewportBase` 时立即可见。
+**已推翻的部分**：toast 在应用里是可见的。boot lane 在真实窗口上用确定性失败取证：同一条 toast 矩形在失败前有 0 个像素，失败后有 172,151 个接近主题反色的近乎白色像素加 4,608 个墨色像素。代码路径也不需要应用侧挂载：`c.AddToast` 只是登记并请求一帧（`third_party/mygo/ui/toast.go:134`），引擎每帧在视图之后无条件挂载并绘制 viewport（`third_party/mygo/ui/runtime.go:416-422`、`toast.go:240`）；另外 toast 入场前 160ms 从透明度 0 开始（`toast.go:16`），冻结的时钟看到的本来就是空帧。
 
-**影响面**：`internal` + `cmd` 下非测试的 `c.AddToast` / `c.Toast` 调用 44 处，分布在 36 个文件：
+**规则（本次要沉淀的）**：静态视图渲染只证明视图自己的元素树，不证明引擎在视图之后挂载的覆盖层（toast、菜单覆盖层、`c.overlay` 对话框）。不要用一张静态视图渲染去断定某个界面在应用里不可见。
 
-```
-3 internal/ui/chat/feedback_dialog.go     2 internal/ui/dirpick/panel.go
-3 cmd/whaleisle/main.go                   2 cmd/whaleisle/account_status_notices.go
-2 internal/ui/settings/wallpaper_immediate.go
-2 internal/ui/settings/desktop.go
-1 each: internal/ui/widgets/notice.go, internal/ui/usage/pricing.go,
-  internal/ui/settings/{wallpaper_background,vision,theme_font_preferences,
-  served_plugin_body,preference_notices,interface_project,interface,
-  harness_restart,body_preferences,body_preference_errors,account_signout,
-  account}.go, internal/ui/projects/{task_cards,observer,materials,hero}.go,
-  internal/ui/launcher/panel.go, internal/ui/im/office.go,
-  internal/ui/frame/{conversation_open_in_app,changes_review_native,archive_undo}.go,
-  internal/ui/files/preview_toolbar.go, internal/ui/assistant/whale_tasks.go,
-  cmd/whaleisle/{schedule_delete_notice,resume_checkpoint,notify,
-  account_resident,account_quota_notice}.go
-```
-
-完整清单：`grep -rn "\.AddToast(\|c\.Toast(" --include=*.go internal cmd | grep -v _test`
-
-**未判定**：默认 look 是「未构建进根」还是「构建了但绘制为空/透明」，以及真实窗口路径（非 headless）是否同样不可见。需要带窗口的运行验证，本 lane 的 harness 无法证伪。本 lane 因此没有把建议做成 toast，而是主窗口内共享模态面卡片（`cmd/whaleisle/minimal_mode_offer.go:46`），这条路径在同一 harness 里有像素证据。
+**对代码的影响**：无。建议卡保持主窗口内共享模态面卡片（`cmd/whaleisle/minimal_mode_offer.go:46`），但理由不再与 toast 可见性有关：它是一次性的、必须等到答案的三角提问，不设自动过期，这正是共享模态面的形状，而不是 toast 的「单个动作 + 定时消失」。36 个文件、44 处既有 `c.AddToast` 调用一律不受影响，调查期间列的调用点清单已无意义，撤掉。
 
 ## 7. 未验证项
 
