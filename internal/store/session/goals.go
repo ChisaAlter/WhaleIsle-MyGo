@@ -125,15 +125,15 @@ func (s *Store) RefreshGoal(ctx context.Context) {
 }
 
 func (s *Store) runRefreshGoal(ctx context.Context, client *dsh.Client, sessionID string, generation uint64) {
-	s.runRefreshGoalForOwner(ctx, client, sessionID, generation, nil)
+	s.runRefreshGoalForOwner(ctx, client, sessionID, generation, 0, nil)
 }
 
 // A newly selected workspace session owns its initial goal read by Host and
 // selection generation as well as by client pointer. A reconnect can reuse the
 // same client; neither the old read nor its result belongs to the new Host.
-func (s *Store) runRefreshGoalForOwner(ctx context.Context, client *dsh.Client, sessionID string, generation uint64, owner *workspaceSelectedOwner) {
+func (s *Store) runRefreshGoalForOwner(ctx context.Context, client *dsh.Client, sessionID string, generation, eventsGeneration uint64, owner *workspaceSelectedOwner) {
 	s.mu.Lock()
-	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || (owner != nil && !owner.currentLocked(s)) {
+	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || s.eventsSupersededLocked(eventsGeneration) || (owner != nil && !owner.currentLocked(s)) {
 		s.mu.Unlock()
 		return
 	}
@@ -143,7 +143,7 @@ func (s *Store) runRefreshGoalForOwner(ctx context.Context, client *dsh.Client, 
 	var out api.GoalView
 	err := client.Call(ctx, "goals/get", map[string]any{"agentId": sessionID}, &out)
 	s.mu.Lock()
-	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || (owner != nil && !owner.currentLocked(s)) || s.planBoard.goalReadToken != token {
+	if !s.sessionResultCurrentLocked(ctx, client, sessionID, generation) || s.eventsSupersededLocked(eventsGeneration) || (owner != nil && !owner.currentLocked(s)) || s.planBoard.goalReadToken != token {
 		s.mu.Unlock()
 		return
 	}

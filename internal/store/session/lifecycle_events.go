@@ -162,7 +162,7 @@ func (s *Store) OnEmit(owner *EventsOwner, emit dsh.EventsEmit) {
 		refreshSkills()
 	}
 	if refreshGoal {
-		go s.runRefreshGoal(owner.ctx, owner.client, sessionID, generation)
+		go s.runRefreshGoalForOwner(owner.ctx, owner.client, sessionID, generation, owner.generation, nil)
 	}
 }
 
@@ -380,4 +380,10 @@ func (s *Store) invalidateFollowLocked() {
 
 func (s *Store) sessionResultCurrentLocked(ctx context.Context, client *dsh.Client, sessionID string, generation uint64) bool {
 	return s.client == client && s.followCurrentLocked(ctx, sessionID, generation)
+}
+
+// eventsSupersededLocked reports a continuation whose events authority is gone.
+// Zero means the caller is not tied to an events generation.
+func (s *Store) eventsSupersededLocked(eventsGeneration uint64) bool {
+	return eventsGeneration != 0 && s.eventsGeneration != eventsGeneration
 }

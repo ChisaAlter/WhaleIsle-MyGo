@@ -497,7 +497,7 @@ func (t *WorkspaceSessionTarget) Select(id string) bool {
 		go s.runFollow(followCtx, mux, id, generation)
 		s.WatchControl(ctx)
 	}
-	go s.runRefreshGoalForOwner(ctx, client, id, generation, &owner)
+	go s.runRefreshGoalForOwner(ctx, client, id, generation, 0, &owner)
 	s.refreshProjectionsForOwner(ctx, &owner)
 	s.refreshSkillsForOwner(ctx, &owner)
 	s.refreshFeedbackForOwner(ctx, &owner)
