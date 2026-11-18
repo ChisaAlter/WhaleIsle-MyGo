@@ -47,10 +47,7 @@ type Model struct {
 }
 
 func copyText(zh, en string) string {
-	if strings.HasPrefix(i18n.Locale(), "zh") {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 func View(c *ui.Context, m Model) {

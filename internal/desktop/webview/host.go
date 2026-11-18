@@ -14,6 +14,7 @@ import (
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/pluginslots"
 	"whaleisle/internal/shortcutprefs"
+	"whaleisle/internal/ui/i18n"
 )
 
 // HostOptions configure a borderless WebView2 child window.
@@ -829,7 +830,7 @@ func (h *Host) SetAccountLocale(locale string) {
 		return
 	}
 	value := "en_US"
-	if strings.HasPrefix(strings.ToLower(locale), "zh") {
+	if i18n.Language(locale) == "zh" {
 		value = "zh_CN"
 	}
 	h.pageAction(func(p *mygo.Page) {

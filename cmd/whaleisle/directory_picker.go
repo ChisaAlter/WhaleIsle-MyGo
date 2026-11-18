@@ -768,10 +768,7 @@ func (s *mainState) nativeDirectoryPicker(sessions *session.Store, win *mygo.Win
 }
 
 func directoryPickerText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 func (s *mainState) mergeDirectoryPickerUI(request uint64, before, edited dirpick.BrowserState) {

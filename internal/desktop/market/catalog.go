@@ -16,6 +16,7 @@ import (
 	"time"
 	"whaleisle/internal/pluginmanager"
 	"whaleisle/internal/store/storelocale"
+	"whaleisle/internal/ui/i18n"
 )
 
 type CapabilityKind = pluginmanager.CapabilityKind
@@ -152,7 +153,7 @@ func publicBody(ctx context.Context, c *http.Client, address, accept string, lim
 	return b, nil
 }
 func localized(m map[string]string, locale string) string {
-	if strings.HasPrefix(strings.ToLower(locale), "zh") {
+	if i18n.Language(locale) == "zh" {
 		if m["zh"] != "" {
 			return m["zh"]
 		}
@@ -221,7 +222,7 @@ func decodeCatalog(raw []byte, locale string) (Catalog, error) {
 		return out, errors.New("catalog has no readable entries")
 	}
 	all := "All"
-	if strings.HasPrefix(locale, "zh") {
+	if i18n.Language(locale) == "zh" {
 		all = storelocale.T(storelocale.KeyStoreMarketAll)
 	}
 	out.Categories = []Category{{ID: "all", Label: all, Count: len(out.Items)}}

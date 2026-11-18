@@ -455,8 +455,5 @@ func currentWorkspace(cfgStore *config.Store) string {
 }
 
 func localizedText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }

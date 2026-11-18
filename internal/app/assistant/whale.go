@@ -19,10 +19,7 @@ import (
 const whaleNavRefetch = 30 * time.Second
 
 func whaleTaskText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 func (s *Service) cachedWhaleDigestLocked(client *dsh.Client, ep harness.Endpoint, generation int) string {

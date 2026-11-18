@@ -54,8 +54,5 @@ func PreviewStatusView(c *ui.Context, status string, style Style) {
 
 // Text selects the active UI locale for the small standalone plan surface.
 func Text(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }

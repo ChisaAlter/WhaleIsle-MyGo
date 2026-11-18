@@ -14,10 +14,7 @@ import (
 )
 
 func scheduleText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 // The catalog and detail use the original TaskManagerPage.module.css geometry.

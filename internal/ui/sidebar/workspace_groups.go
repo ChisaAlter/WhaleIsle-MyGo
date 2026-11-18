@@ -17,10 +17,7 @@ func sidebarPaginationToggle(c *ui.Context, key, label, accessible string, muted
 }
 
 func workspaceText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 func workspaceViewOptions(c *ui.Context, m Model) {
 	workspaceViewOptionsMenu(c, m, nil)

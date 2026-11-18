@@ -460,7 +460,7 @@ func (c *Coordinator) invalidateUI() {
 }
 
 func marketMessage(zh, en string) string {
-	if strings.HasPrefix(i18n.Locale(), "zh") {
+	if i18n.Speaks("zh") {
 		return zh
 	}
 	return en

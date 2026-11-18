@@ -53,10 +53,7 @@ type Workbench struct {
 }
 
 func word(zh, en string) string {
-	if i18n.Locale() == "en" {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 func refreshWorkbench(m Model) {
 	if m.Workbench != nil {

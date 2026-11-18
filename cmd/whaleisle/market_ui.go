@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -149,7 +148,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 				return
 			}
 			title := en
-			if strings.HasPrefix(i18n.Locale(), "zh") {
+			if i18n.Speaks("zh") {
 				title = zh
 			}
 			contributions = append(contributions, managerui.Contribution{Kind: "item", Key: key, Title: title, Order: order, Render: func(c *ui.Context, _ manager.Subject) {

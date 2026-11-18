@@ -143,10 +143,7 @@ func compactCount(value float64) string {
 }
 
 func costText(zh, en string) string {
-	if strings.HasPrefix(i18n.Locale(), "zh") {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 func money(r cost.Result) string {

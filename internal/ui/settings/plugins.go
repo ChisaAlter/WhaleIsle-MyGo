@@ -142,10 +142,7 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 }
 
 func pluginsText(zh, en string) string {
-	if strings.HasPrefix(i18n.Locale(), "zh") {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 // builtinPluginGrid is the built-in plugin list as the installed build shows it: a

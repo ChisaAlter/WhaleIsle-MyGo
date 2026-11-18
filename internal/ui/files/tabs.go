@@ -114,10 +114,7 @@ func (t *FileTab) Dirty() bool {
 	return t.Draft != t.Preview
 }
 func label(zh, en string) string {
-	if i18n.Locale() == "en" {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 func tabsFor(m Model) *WorkspaceTabs {
 	if m.Tabs == nil {

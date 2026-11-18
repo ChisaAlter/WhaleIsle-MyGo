@@ -3,7 +3,6 @@ package assistant
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
-	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/chrome"
@@ -52,7 +51,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			return
 		}
 		label := "会话："
-		if !strings.HasPrefix(i18n.Locale(), "zh") {
+		if !i18n.Speaks("zh") {
 			label = "Session: "
 		}
 		ui.Text(c, label+s.Server.SessionID).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()

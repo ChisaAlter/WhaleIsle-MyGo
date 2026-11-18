@@ -21,10 +21,7 @@ type WhaleTasksModel struct {
 }
 
 func whaleTaskCopy(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleZH {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 func whaleTaskState(state string) string {
 	zh := map[string]string{"queued": "等待执行", "running": "整理中", "needs_user": "需要补充信息", "stopping": "正在停止", "cancelled": "已停止", "completed": "已完成", "failed": "失败", "interrupted": "重启后待继续", "unknown": "结果待核对", "pending": "待投递", "sending": "投递中", "sent": "已投递"}

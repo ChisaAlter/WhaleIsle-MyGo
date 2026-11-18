@@ -8,7 +8,7 @@ import (
 )
 
 func browserChromeLabel(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN || strings.HasPrefix(strings.ToLower(strings.TrimSpace(i18n.Locale())), "en") {
+	if i18n.Speaks("en") {
 		return en
 	}
 	return zh
@@ -423,7 +423,7 @@ var documentPreviewPDFEnCatalog = map[string]string{
 }
 
 func browserCatalogLookup(zhMap, enMap map[string]string, key string) string {
-	if i18n.Locale() == i18n.LocaleEN || strings.HasPrefix(strings.ToLower(strings.TrimSpace(i18n.Locale())), "en") {
+	if i18n.Speaks("en") {
 		if v, ok := enMap[key]; ok {
 			return v
 		}

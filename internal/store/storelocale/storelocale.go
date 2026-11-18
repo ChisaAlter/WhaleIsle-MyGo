@@ -18,6 +18,10 @@ func T(key string) string { return ui18n.T(key) }
 // on the language instead of using a full sentence per locale.
 func Locale() string { return ui18n.Locale() }
 
+// Pick returns the Chinese string when the active catalog speaks Chinese and the
+// English one otherwise, for copy this layer chooses per language.
+func Pick(zh, en string) string { return ui18n.Pick(zh, en) }
+
 // register adds one key to the shared catalog. Generated key files call it from
 // init; registration is init-only for the same reason i18n.Register is.
 func register(key, zh, en string) { ui18n.Register(key, zh, en) }

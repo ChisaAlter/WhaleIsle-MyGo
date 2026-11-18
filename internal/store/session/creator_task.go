@@ -132,10 +132,7 @@ func creatorAvailable(roster api.AgentPresetRoster) bool {
 }
 
 func creatorRecoveryText(zh, en string) string {
-	if storelocale.Locale() == "en" {
-		return en
-	}
-	return zh
+	return storelocale.Pick(zh, en)
 }
 func (c *CreatorTask) complete(id, phase, message string) {
 	c.mu.Lock()

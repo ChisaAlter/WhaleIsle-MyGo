@@ -87,10 +87,7 @@ type ShellBridge interface {
 }
 
 func lifecycleText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 func (c *Center) env() ShellEnvironment {

@@ -52,10 +52,7 @@ func (s *userFileReferenceState) open(path string, start func(string, func(error
 }
 
 func referenceCopy(en, zh string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 
 var userSessionReference = regexp.MustCompile(`^@\[([^\]\n]+)\]\(dsh-session:[^)\s]+\)`)

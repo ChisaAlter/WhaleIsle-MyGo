@@ -77,10 +77,7 @@ type WorkspacePane struct {
 }
 
 func paneLabel(zh, en string) string {
-	if i18n.Locale() == "en" {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }
 func (w *WorkspacePanes) leaf(kind string) *WorkspacePane {
 	w.Next++

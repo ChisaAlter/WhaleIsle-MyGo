@@ -187,8 +187,5 @@ func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *
 }
 
 func trajectoryText(zh, en string) string {
-	if i18n.Locale() == i18n.LocaleEN {
-		return en
-	}
-	return zh
+	return i18n.Pick(zh, en)
 }

@@ -53,7 +53,7 @@ func searchEntries(m Model) []searchEntry {
 		}
 	}
 	locale := func(m Model) string {
-		if m.Desktop != nil && m.Desktop.Fields.Locale != nil && *m.Desktop.Fields.Locale == "en" || i18n.Locale() == "en" {
+		if m.Desktop != nil && m.Desktop.Fields.Locale != nil && i18n.Language(*m.Desktop.Fields.Locale) == "en" || i18n.Speaks("en") {
 			return "English"
 		}
 		return "中文"

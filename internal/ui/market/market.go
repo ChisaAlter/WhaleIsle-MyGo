@@ -210,10 +210,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func marketText(zh, en string) string {
-	if strings.HasPrefix(i18n.Locale(), "zh") {
-		return zh
-	}
-	return en
+	return i18n.Pick(zh, en)
 }
 
 // marketHistoryRow is one install-history receipt: the plugin and result lead,
