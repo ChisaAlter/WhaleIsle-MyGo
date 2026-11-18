@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/theme"
 )
@@ -79,7 +80,7 @@ func minimalModePane(c *ui.Context, m *MinimalModeAccess, fg, muted ui.Color) {
 			enabled := *m.Enabled
 			if settingsPreferenceSwitch(c, &enabled, settingsSwitchInput).Label(minimalModeSwitchLabel(enabled)).Disabled(m.OnToggle == nil).Changed() && m.OnToggle != nil {
 				if err := m.OnToggle(enabled); err != nil {
-					*failure = err.Error()
+					*failure = errcopy.Sentence(err)
 				} else {
 					*m.Enabled, *failure = enabled, ""
 				}
@@ -92,7 +93,7 @@ func minimalModePane(c *ui.Context, m *MinimalModeAccess, fg, muted ui.Color) {
 		bodyPreferenceRow(c, "appearance-minimal-suggestions", providerCopy("启动卡顿时提示", "Suggest on slow startup"), minimalSuggestionDescription(), fg, muted, func() {
 			if settingsPreferenceSwitch(c, &suggestions, settingsSwitchInput).Label(minimalSuggestionSwitchLabel(suggestions)).Disabled(m.OnToggleSuggestions == nil).Changed() && m.OnToggleSuggestions != nil {
 				if err := m.OnToggleSuggestions(suggestions); err != nil {
-					*failure = err.Error()
+					*failure = errcopy.Sentence(err)
 				} else {
 					*m.Suggestions, *failure = suggestions, ""
 				}
