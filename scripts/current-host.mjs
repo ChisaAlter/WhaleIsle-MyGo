@@ -7,6 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {applyReadinessGuard, inspectReadinessGuard} from './current-host-readiness.mjs';
 import {verifyStagedSessionRuntime} from './session-runtime.mjs';
+import {stageThirdPartyPlugins} from './stage-third-party-plugins.mjs';
 export const commit = '90465b67ec16765631d54c195af19d9ff3c3a770';
 // New pins are opt-in: existing 904 builds and callers retain their selection.
 export const supportedCommits = Object.freeze([commit, 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195']);
@@ -94,6 +95,9 @@ export function stage(work,legacyVendor,target) {
  // Keep customized desktop/mobile packages. Never replace their source checkout.
  for(const n of fs.readdirSync(legacyVendor)) if(!['deepseek-harness','dsh-project',manifestName,'desktop-source','visual-readiness-patch.json'].includes(n)) fs.cpSync(path.join(legacyVendor,n),path.join(target,n),{recursive:true,verbatimSymlinks:true});
  for(const n of ['deepseek-harness','dsh-project','desktop-source',manifestName,'visual-readiness-patch.json']) fs.cpSync(path.join(work,n),path.join(target,n),{recursive:true,verbatimSymlinks:true});
+ // Tracked third-party plugins the desktop ships: the row resolves by package
+ // name, so a stage without them boots and silently lacks the tools.
+ stageThirdPartyPlugins({projectRoot:path.dirname(path.dirname(fileURLToPath(import.meta.url))), vendorDir:target, without:process.env.WHALEISLE_WITHOUT_PAID_APIS==='1'?['dsh-deepseek-tools']:[]});
  verify(target);
  return {vendorDir:target,sourceCommit:manifest.sourceCommit,requiresBridgeVerification:true};
 }
