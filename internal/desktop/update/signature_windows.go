@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -69,7 +68,7 @@ Write-Output ('PUBLISHER=' + $pub)
 	} else {
 		psTempDir = os.TempDir()
 	}
-	cmd := exec.CommandContext(ctx, "powershell.exe",
+	cmd := processutil.CommandContext(ctx, "powershell.exe",
 		"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
 		"-Command", script)
 	cmd.Env = isolatedPowerShellEnv(os.Environ(), psTempDir)

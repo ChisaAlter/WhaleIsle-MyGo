@@ -8,9 +8,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
-	"os/exec"
 	"sync"
 	"time"
+
+	"whaleisle/internal/processutil"
 )
 
 // Legacy WebView is a deprecated single-process compatibility renderer, not a
@@ -42,7 +43,7 @@ func openPlatform(ctx context.Context, opt Options, doc Document) (*Session, err
 	}
 	nonce := hex.EncodeToString(random[:])
 	lifetime, cancel := context.WithTimeout(ctx, 30*time.Minute)
-	cmd := exec.CommandContext(lifetime, opt.HelperPath, "--legacy-sandbox-helper-v1", nonce)
+	cmd := processutil.CommandContext(lifetime, opt.HelperPath, "--legacy-sandbox-helper-v1", nonce)
 	// No DYLD, proxy, credential, shared profile, HOME or application overrides.
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=en_US.UTF-8"}
 	cmd.Stderr = os.Stderr

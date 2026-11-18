@@ -10,10 +10,10 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 	"whaleisle/internal/petgrowth"
+	"whaleisle/internal/processutil"
 )
 
 //go:embed watch.cjs
@@ -39,7 +39,7 @@ func Run(ctx context.Context, node, home, stickerRoot string, acknowledgements <
 	if node == "" || !filepath.IsAbs(home) {
 		return errors.New("pet event source unavailable")
 	}
-	cmd := exec.CommandContext(ctx, node, "--max-old-space-size=256", "-e", script, "--", "--pet-event-worker", home, stickerRoot, petgrowth.MagpieUsageFile())
+	cmd := processutil.CommandContext(ctx, node, "--max-old-space-size=256", "-e", script, "--", "--pet-event-worker", home, stickerRoot, petgrowth.MagpieUsageFile())
 	hideScanner(cmd)
 	cmd.Env = []string{}
 	for _, key := range []string{"SystemRoot", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG"} {

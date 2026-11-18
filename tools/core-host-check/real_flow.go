@@ -8,7 +8,6 @@ import (
 	"errors"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/processutil"
 )
 
 //go:embed real_guard.cjs
@@ -145,10 +145,10 @@ func runRealModelFlow(stage, base, secret, ledger string, real, preflight bool, 
 	}
 	gitCtx, gitCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer gitCancel()
-	if err := exec.CommandContext(gitCtx, "git", "init", "--quiet", "--template=", workspace).Run(); err != nil {
+	if err := processutil.CommandContext(gitCtx, "git", "init", "--quiet", "--template=", workspace).Run(); err != nil {
 		return realFlowFailure("owned-git-init-failed")
 	}
-	actual, err := exec.CommandContext(gitCtx, "git", "-C", workspace, "rev-parse", "--show-toplevel").Output()
+	actual, err := processutil.CommandContext(gitCtx, "git", "-C", workspace, "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return realFlowFailure("owned-git-verification-failed")
 	}
