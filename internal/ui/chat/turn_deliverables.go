@@ -318,7 +318,8 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 									ensure(selected, "diff")
 								}
 								ui.PopoverBase(c, rowBtn, &showHover, func(panel ui.Element) {
-									panel.Width(620).MaxHeight(360).Padding(10).Radius(8).Border(1, st.Border).Background(st.Field).Children(func() {
+									panel = chrome.PopoverReveal(c, panel.Width(620).MaxHeight(360).Padding(10).Radius(8).Border(1, st.Border).Background(st.Field))
+									panel.Children(func() {
 										ui.Text(c, file.Display).FontSize(12).TextColor(st.FG)
 										ui.Scroll(c).MaxHeight(310).Children(func() {
 											if comparison.Diff != nil && comparison.Diff.Kind == "text" {

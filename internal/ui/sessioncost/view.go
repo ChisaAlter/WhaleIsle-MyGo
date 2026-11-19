@@ -14,6 +14,7 @@ import (
 	cost "whaleisle/internal/store/sessioncost"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/store/usage"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -353,7 +354,8 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		wasOpen := m.State.Open
 		ui.PopoverBase(c, trigger, &m.State.Open, func(panel ui.Element) {
 			w, _ := c.Size()
-			panel.AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 8, 0).Width(max(0, min(480, w-24))).MaxHeight(360).Radius(12).Background(c.Theme().Background).Border(.5, c.Theme().Border).Padding(16).Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .12)).Children(func() {
+			panel = chrome.PopoverReveal(c, panel.AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 8, 0).Width(max(0, min(480, w-24))).MaxHeight(360).Radius(12).Background(c.Theme().Background).Border(.5, c.Theme().Border).Padding(16).Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .12)))
+			panel.Children(func() {
 				ui.Scroll(c).FillWidth().MaxHeight(328).Children(func() {
 					ui.Column(c).FillWidth().Gap(4).Children(func() {
 						ui.Text(c, costText("会话累计费用", "Session cost")+" · "+money(r)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)

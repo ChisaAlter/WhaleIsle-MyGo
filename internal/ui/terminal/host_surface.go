@@ -162,7 +162,7 @@ func hostManagement(c *ui.Context, h *HostState, store *hostterminal.Store, sess
 	bg := chrome.Color(colors.BG)
 	dark := bg.R < 128 && bg.G < 128 && bg.B < 128
 	ui.PopoverBase(c.Key("host-terminal-management"), anchor, &h.manageOpen, func(panel ui.Element) {
-		panel = chrome.MenuSurface(panel.Width(max(float32(0), min(float32(360), width-16))).MaxHeight(maxHeight).Padding(12), chrome.MenuBaseFill(colors, dark), chrome.MenuBorderColor(colors, dark), 16)
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(float32(0), min(float32(360), width-16))).MaxHeight(maxHeight).Padding(12), chrome.MenuBaseFill(colors, dark), chrome.MenuBorderColor(colors, dark), 16))
 		panel.Children(func() {
 			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(float32(0), maxHeight-24)).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
