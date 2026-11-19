@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/i18n"
 )
@@ -12,12 +10,16 @@ type accountStatusNoticeState struct {
 	seen  usage.NoticeState
 }
 
-// Always drawn at the application root, independently of the Settings panel.
-func (s *mainState) syncAccountStatusNotices(c *ui.Context) {
+// syncAccountStatusNotices writes the account's own state where the person is
+// working: the conversation's status line. A signed-out account or a model that
+// needs a sign-in is a state of the account, not a bar over the page, and each
+// sentence names the next step. The Account page carries the same state with the
+// button that acts on it.
+func (s *mainState) syncAccountStatusNotices() {
 	s.mu.Lock()
-	store := s.usage
+	store, sessions := s.usage, s.sessions
 	s.mu.Unlock()
-	if store == nil {
+	if store == nil || sessions == nil {
 		return
 	}
 	notices := store.Notices()
@@ -30,27 +32,9 @@ func (s *mainState) syncAccountStatusNotices(c *ui.Context) {
 	state.seen = notices
 	s.mu.Unlock()
 	if notices.Expired > previous.Expired {
-		c.AddToast(s.accountStatusToast(store, notices, "account-session-expired", i18n.T(i18n.KeyCmdYouHaveSignedOutOfYourAccountPleaseL)))
+		sessions.SetLastAction(i18n.T(i18n.KeyCmdYouHaveSignedOutOfYourAccountPleaseL))
 	}
 	if notices.SignInRequired > previous.SignInRequired {
-		c.AddToast(s.accountStatusToast(store, notices, "account-model-sign-in-required", i18n.T(i18n.KeyCmdModelUnavailablePleaseSignInAndTryAga)))
+		sessions.SetLastAction(i18n.T(i18n.KeyCmdModelUnavailablePleaseSignInAndTryAga))
 	}
-}
-
-// The action only navigates to the existing account controls. It never starts
-// authentication, and a replaced account or Host cannot use an old notice.
-func (s *mainState) accountStatusToast(store *usage.Store, notices usage.NoticeState, id, description string) ui.Toast {
-	s.mu.Lock()
-	client, generation := s.dshClient, s.bootStatus.Generation
-	s.mu.Unlock()
-	return ui.Toast{ID: id, Description: description, Action: i18n.T(i18n.KeyCmdSignIn), OnAction: func() {
-		s.mu.Lock()
-		current := !s.quitting && s.usage == store && s.dshClient == client && s.bootStatus.Generation == generation
-		s.mu.Unlock()
-		if !current || store.Notices() != notices {
-			return
-		}
-		s.selectMainPanel("")
-		s.applyDeeplink(deeplink.Target{Action: deeplink.ActionSettings, Section: "account"})
-	}}
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,12 +62,14 @@ func TestAddProviderStaysAvailableWhileACardIsOpen(t *testing.T) {
 	}
 }
 
-// A failed model-catalog read is a toast and a corner retry button: it must not
-// insert a line (or a full-width button) that moves the rest of the page.
-func TestModelsCatalogFailureDoesNotMoveThePage(t *testing.T) {
+// A failed model-catalog read is written into the page: the sentence and its
+// retry sit in one row above the provider cards, and the cards move down to make
+// room. Nothing floats over the content.
+func TestModelsCatalogFailureIsInThePage(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	schema := json.RawMessage(`{"uid":1,"refs":{"1":{"type":"object","dict":{"baseURL":2}},"2":{"type":"string"}}}`)
+	var catalogReads atomic.Int32
 	s := store.New()
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1:1"}, HTTP: &http.Client{Transport: galleryTransport(func(r *http.Request) (*http.Response, error) {
 		var req map[string]any
@@ -74,6 +77,7 @@ func TestModelsCatalogFailureDoesNotMoveThePage(t *testing.T) {
 		result := map[string]any{"ok": true, "value": map[string]any{"writable": true, "namespaces": []map[string]any{{"ns": "llm-deepseek", "revision": 1, "schema": schema, "value": map[string]any{}}}}}
 		switch req["method"] {
 		case "session/modelCatalog":
+			catalogReads.Add(1)
 			result = map[string]any{"ok": false, "error": map[string]any{"message": "DeepSeek: Invalid URL"}}
 		case "llm/listConfigurableProviders", "llm/listProviders":
 			result = map[string]any{"ok": true, "value": []any{}}
@@ -113,20 +117,30 @@ func TestModelsCatalogFailureDoesNotMoveThePage(t *testing.T) {
 	}
 	tt.Frame()
 	tt.Frame()
-	if _, _, message := s.ModelConfigurationCatalog(); message == "" {
+	_, _, message := s.ModelConfigurationCatalog()
+	if message == "" {
 		t.Fatal("fixture did not fail the catalog read")
 	}
+	if !tt.HasText(message) {
+		t.Fatalf("the catalog failure is not in the page: %v", tt.Texts())
+	}
 	after, ok := tt.Find(add)
-	if !ok || after.Y != before.Y {
-		t.Fatalf("a catalog failure moved the page: add provider row %v -> %v (%v)", before, after, tt.Texts())
+	if !ok || after.Y <= before.Y {
+		t.Fatalf("the failure is not in the page's flow: add provider row %v -> %v (%v)", before, after, tt.Texts())
 	}
 	retry, ok := tt.Find("Retry")
-	if !ok || retry.Y > 4 || retry.X+retry.W < 770 {
-		t.Fatalf("retry is not the page's corner button: %v ok=%v", retry, ok)
+	if !ok || retry.Y >= after.Y {
+		t.Fatalf("the retry is not written with the failure above the cards: %v ok=%v (%v)", retry, ok, tt.Texts())
 	}
-	for _, old := range []string{"Retry providers", "Retry model availability"} {
-		if tt.HasText(old) {
-			t.Fatalf("in-flow %q is back", old)
-		}
+	reads := catalogReads.Load()
+	if err := tt.Click("Retry"); err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(time.Second); catalogReads.Load() == reads && time.Now().Before(deadline); {
+		time.Sleep(time.Millisecond)
+		tt.Frame()
+	}
+	if catalogReads.Load() == reads {
+		t.Fatal("the in-page retry did not read the catalog again")
 	}
 }

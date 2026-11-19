@@ -20,7 +20,6 @@ type BrowserState struct {
 	PathHadFocus                         bool
 	ScrolledChild, ScrolledCrumb         string
 	ScanWindow                           uint64
-	FailureToast, CreateToast            string
 	Revision                             uint64
 	Remote                               bool
 	UseNative, NativeBusy, NativeOpened  bool
@@ -65,12 +64,6 @@ func (s *BrowserState) MergeUI(before, edited BrowserState) {
 	}
 	if before.ScrolledCrumb != edited.ScrolledCrumb && s.Current() != nil && s.Current().Path == edited.ScrolledCrumb {
 		s.ScrolledCrumb = edited.ScrolledCrumb
-	}
-	if before.FailureToast != edited.FailureToast && s.FailureToast == before.FailureToast {
-		s.FailureToast = edited.FailureToast
-	}
-	if before.CreateToast != edited.CreateToast && s.CreateToast == before.CreateToast {
-		s.CreateToast = edited.CreateToast
 	}
 }
 

@@ -146,8 +146,11 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 		return writes.Load() == 2 && !snap.Loading && snap.Described && snap.Err == "" && len(snap.PreferencePending) == 0 && snap.PreferenceErrors["ui-conversation.viewTabs"] != ""
 	})
 	tt.Frame()
-	if !tt.HasText("synthetic ordinary switch refusal") || strings.Count(strings.Join(tt.Announcements(), "\n"), "synthetic ordinary switch refusal") != 1 {
-		t.Fatal("an explicit retry with the same refusal was silently deduplicated")
+	if !tt.HasText("synthetic ordinary switch refusal") {
+		t.Fatal("an explicit retry lost the refusal from the page", tt.Texts())
+	}
+	if got := strings.Count(strings.Join(tt.Announcements(), "\n"), "synthetic ordinary switch refusal"); got != 1 {
+		t.Fatalf("an explicit retry with the same refusal announced it %d times, want 1", got)
 	}
 	refuse.Store(false)
 	toggle()

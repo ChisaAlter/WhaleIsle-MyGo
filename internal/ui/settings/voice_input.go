@@ -85,7 +85,7 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 			})
 			c.Services().Invalidate()
 		}
-		settingsNotice(c, "voice_input:89", "error", state.Error != "", func() string { return state.Error })
+		settingsAlert(c, "voice_input:89", state.Error != "", func() string { return state.Error })
 	})
 }
 

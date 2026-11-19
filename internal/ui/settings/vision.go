@@ -17,17 +17,11 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 		return
 	}
 	s := a.Snapshot
-	// A state holder only: out of the flow, so it does not add a gap slot above the card.
-	errorSeat := ui.Box(c.Key("vision-errors")).Absolute().Size(0, 0).PassThrough()
-	seen := ui.Local(errorSeat, "error", func() string { return "" })
 	failure := s.Err
 	if failure == "" {
 		failure = s.CatalogErr
 	}
-	if failure != "" && failure != *seen {
-		c.AddToast(ui.Toast{ID: "vision-save-error", Description: failure})
-	}
-	*seen = failure
+	settingsAlert(c, "vision-save-error", failure != "", func() string { return failure })
 	dark := c.Theme().Dark
 	colors := fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark)
 	// 0.3.13: a bordered 16 DIP card holding the label, the pill select and the

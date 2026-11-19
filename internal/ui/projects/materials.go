@@ -59,15 +59,7 @@ func materialBody(c *ui.Context, m Model, root ui.Element) {
 	default:
 		ui.Text(c, tr("长期习惯与偏好，例如回复风格和常用命令。保存不会发送消息或启动工作。", "Persistent preferences such as response style and common commands. Saving does not send a message or start work.")).FontSize(theme.InterfaceSize(13))
 	}
-	notice := ui.Local(root, "material-error:"+d.ProjectID+"/"+d.Path, func() string { return "" })
-	if *notice != d.Error {
-		*notice = d.Error
-		if d.Error == "" {
-			c.CloseToast("project-material-error")
-		} else {
-			c.AddToast(ui.Toast{ID: "project-material-error", Description: d.Error, Type: "error", Timeout: -1})
-		}
-	}
+	widgets.Alert(c, widgets.AlertOptions{ID: "project-material/" + d.ProjectID + "/" + d.Path, Message: d.Error})
 	if !m.MaterialMutable {
 		ui.Text(c, tr("此项目为只读；恢复已归档项目后可继续编辑。", "This Project is read-only; restore it before editing.")).FontSize(theme.InterfaceSize(12))
 	}

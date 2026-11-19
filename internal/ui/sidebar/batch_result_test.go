@@ -87,10 +87,11 @@ func batchResultFixture(token uint64, results ...session.SessionBatchResult) Mod
 	return Model{Collapsed: true, ThemeID: "deepseek.light", ConnectionEpoch: 3, Snapshot: session.ViewState{WorkspaceLayout: session.WorkspaceLayoutState{HostGeneration: 4}}, Batch: session.SessionBatch{Enabled: true, Token: token, Kind: "archive", Attempted: len(results), Results: results}}
 }
 
-func TestBatchResultRootToastRetainsAllErrorsAndDismissesOnlyResults(t *testing.T) {
+func TestBatchResultFailureStaysInTheSidebarFlowWithItsDetail(t *testing.T) {
 	i18n.SetLocale("en")
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := batchResultFixture(9, session.SessionBatchResult{SessionBatchTarget: session.SessionBatchTarget{ID: "a", Title: "A"}}, session.SessionBatchResult{SessionBatchTarget: session.SessionBatchTarget{ID: "b", Title: "B"}, Error: "Host refused running session"}, session.SessionBatchResult{SessionBatchTarget: session.SessionBatchTarget{ID: "c", Title: "C"}, Error: strings.Repeat("detail ", 30) + "last error word"})
+	m.Collapsed = false
 	m.Batch.Selected = map[string]string{"b": "B", "c": "C"}
 	dismissed := 0
 	m.OnBatchEdit = func(action string, _ []session.SessionBatchTarget) {
@@ -101,35 +102,46 @@ func TestBatchResultRootToastRetainsAllErrorsAndDismissesOnlyResults(t *testing.
 		m.Batch.Results = nil
 	}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 600)
-	if !tt.HasText("Archived 1 sessions；2 sessions unfinished") || !tt.HasText("B: Host refused running session") || !tt.HasText("last error word") {
-		t.Fatalf("root result dropped summary or full wire errors: %q", tt.Texts())
+	summary := "Archived 1 sessions；2 sessions unfinished"
+	rect, ok := tt.Find(summary)
+	if !ok {
+		t.Fatalf("the failed batch has no receipt in the sidebar: %q", tt.Texts())
 	}
-	if _, ok := tt.Find("Batch failure b"); !ok {
-		t.Fatal("first failure has no addressable detail")
+	if rect.W < 700 {
+		t.Fatalf("receipt is a %.0f-wide card, not a row of the sidebar", rect.W)
 	}
-	if _, ok := tt.Find("Batch failure c"); !ok {
-		t.Fatal("last failure has no addressable detail")
+	if tt.HasText("Host refused running session") || tt.HasText("last error word") {
+		t.Fatalf("the Host's own error text stands in the receipt's sentence: %q", tt.Texts())
+	}
+	if err := tt.Click("Details"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("B: Host refused running session") || !tt.HasText("last error word") {
+		t.Fatalf("the detail disclosure dropped a failed row: %q", tt.Texts())
 	}
 	tt.SetTime(time.Now().Add(time.Hour))
-	if !tt.HasText("Batch operation results") || dismissed != 0 {
-		t.Fatal("failure toast expired before acknowledgement")
+	tt.Frame()
+	if !tt.HasText(summary) || dismissed != 0 {
+		t.Fatal("the failure receipt expired before the reader closed it")
 	}
 	if err := tt.Click("Dismiss results"); err != nil {
 		t.Fatal(err)
 	}
 	if dismissed != 1 || len(m.Batch.Selected) != 2 || len(m.Batch.Results) != 0 {
-		t.Fatal("dismiss changed failed selection or did not clear result")
+		t.Fatal("dismiss changed the failed selection or did not clear the result")
 	}
 	tt.Frame()
-	if tt.HasText("Batch operation results") {
-		t.Fatal("dismissed result reopened")
+	if tt.HasText(summary) {
+		t.Fatal("dismissed receipt reopened")
 	}
 }
 
-func TestBatchResultSuccessExpiresOnceWithoutClearingReplacementOrBusyBatch(t *testing.T) {
+func TestBatchResultSuccessIsAnAnnouncementNotAPageCard(t *testing.T) {
 	i18n.SetLocale("en")
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := batchResultFixture(10, session.SessionBatchResult{SessionBatchTarget: session.SessionBatchTarget{ID: "a", Title: "A"}})
+	base := batchResultFixture(10)
+	m.Collapsed, base.Collapsed = false, false
 	dismissed := 0
 	m.OnBatchEdit = func(action string, _ []session.SessionBatchTarget) {
 		if action != "dismiss" {
@@ -139,35 +151,44 @@ func TestBatchResultSuccessExpiresOnceWithoutClearingReplacementOrBusyBatch(t *t
 		m.Batch.Results = nil
 	}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 600)
-	if !tt.HasText("Archived 1 sessions") {
-		t.Fatal("completed batch success absent")
+	if !announced(tt.Announcements(), "Archived 1 sessions") {
+		t.Fatal("the completed batch was never announced")
 	}
-	tt.SetTime(time.Now().Add(time.Second))
+	quiet := ui.NewTester(func(c *ui.Context) { View(c, base) }, 800, 600)
+	for _, anchor := range []string{"Plugins", "Scheduled tasks"} {
+		with, okWith := tt.Find(anchor)
+		without, okWithout := quiet.Find(anchor)
+		if !okWith || !okWithout || with.W == 0 || with != without {
+			t.Fatalf("%q moved when a completed batch landed: %+v / %+v", anchor, with, without)
+		}
+	}
+	tt.SetTime(time.Now().Add(time.Hour))
+	tt.Frame()
 	if dismissed != 0 {
-		t.Fatal("success was dismissed before source hold elapsed")
+		t.Fatal("a success asked the model to dismiss the batch")
 	}
 	m.Batch.Token = 11
 	m.Batch.Kind = "delete"
 	m.Batch.Busy = true
 	m.Batch.Results = []session.SessionBatchResult{{SessionBatchTarget: session.SessionBatchTarget{ID: "partial", Title: "Partial"}}}
 	tt.Frame()
-	tt.SetTime(time.Now().Add(10 * time.Second))
-	if dismissed != 0 || tt.HasText("Batch operation results") {
-		t.Fatal("old success wake cleared replacement or announced partial busy results")
+	if tt.HasText("Partial") || announced(tt.Announcements(), "Deleted 1 sessions") {
+		t.Fatal("a busy batch announced its partial results")
 	}
 	m.Batch.Busy = false
 	tt.Frame()
-	if !tt.HasText("Deleted 1 sessions") {
-		t.Fatal("replacement batch did not announce completion")
+	if !announced(tt.Announcements(), "Deleted 1 sessions") {
+		t.Fatal("the replacement batch did not announce its completion")
 	}
-	tt.SetTime(time.Now().Add(14 * time.Second))
-	if dismissed != 1 || tt.HasText("Batch operation results") {
-		t.Fatal("completed success did not auto-expire exactly once")
+}
+
+func announced(list []string, s string) bool {
+	for _, item := range list {
+		if strings.Contains(item, s) {
+			return true
+		}
 	}
-	tt.Frame()
-	if dismissed != 1 {
-		t.Fatal("result expiry was repeated")
-	}
+	return false
 }
 
 func TestBatchResultOwnerScopeHostAndTokenRetireStaleFeedback(t *testing.T) {
@@ -175,34 +196,34 @@ func TestBatchResultOwnerScopeHostAndTokenRetireStaleFeedback(t *testing.T) {
 	b := session.SessionBatch{Token: 1, Results: result}
 	base := batchResultOwner{Token: 1, Host: 2, Connection: 3, Scope: session.NewSessionBatchScope(true, "workspace", "default", "")}
 	var n batchResultNotice
-	if !n.observe(base, b, time.Now()) {
+	if !n.observe(base, b) {
 		t.Fatal("initial completed failure did not show")
 	}
 	next := base
 	next.Scope.Query = "different"
-	if n.observe(next, b, time.Now()) {
+	if n.observe(next, b) {
 		t.Fatal("visible result replayed after browser scope change")
 	}
 	b.Token = 2
 	next.Token = 2
-	if !n.observe(next, b, time.Now()) {
+	if !n.observe(next, b) {
 		t.Fatal("new token did not reset dismissed scope")
 	}
 	next.Host++
 	next.Connection++
-	if n.observe(next, b, time.Now()) {
+	if n.observe(next, b) {
 		t.Fatal("old operation receipt replayed under a different Host")
 	}
 	b.Token++
 	next.Token = b.Token
 	b.Busy = true
-	if n.observe(next, b, time.Now()) {
+	if n.observe(next, b) {
 		t.Fatal("new Host partial results announced while busy")
 	}
 	next.Scope.Query = "during run"
-	n.observe(next, b, time.Now())
+	n.observe(next, b)
 	b.Busy = false
-	if !n.observe(next, b, time.Now()) {
+	if !n.observe(next, b) {
 		t.Fatal("scope switch during confirmed operation suppressed its final result")
 	}
 }

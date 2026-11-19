@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type BotObjectiveModel struct {
@@ -70,7 +70,7 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_objective:73", "", s.Notice != "", func() string { return s.Notice })
+		widgets.Notice(c, "bot_objective:73", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning2)+warning).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}

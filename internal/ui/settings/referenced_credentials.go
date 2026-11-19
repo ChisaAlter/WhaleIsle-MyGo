@@ -42,8 +42,8 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
 	}
-	settingsNotice(c, "referenced_credentials:44", "error", s.Err != "", func() string { return s.Err })
-	settingsNotice(c, "referenced_credentials:47", "", s.LastAction != "", func() string { return settingsActionText(s.LastAction) })
+	settingsAlert(c, "referenced_credentials:44", s.Err != "", func() string { return s.Err })
+	settingsNotice(c, "referenced_credentials:47", s.LastAction != "", func() string { return settingsActionText(s.LastAction) })
 	if (!a.formOwned || !s.Ready || s.Err != "") && ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || a.locked || a.formOwned && s.Draft != "" || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
 	}

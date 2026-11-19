@@ -49,22 +49,22 @@ func (g *WallpaperEditor) changePreference(change func(*wallpapers.Preferences))
 	if !reflect.DeepEqual(draft.Sources, previous.Sources) {
 		g.Prefs.Sources = draft.Sources
 	}
-	g.Status = ""
+	g.Status, g.failure = "", ""
 	return true
 }
 
 func wallpaperChange(c *ui.Context, g *WallpaperEditor, change func(*wallpapers.Preferences)) bool {
 	if !g.changePreference(change) {
-		c.AddToast(ui.Toast{ID: "appearance-preference", Title: g.Status, Type: "error"})
+		g.failure = g.Status
 		return false
 	}
 	return true
 }
 
-func wallpaperColorsValid(c *ui.Context, colors []string) bool {
+func wallpaperColorsValid(g *WallpaperEditor, colors []string) bool {
 	for _, color := range colors {
 		if color != "" && !effectHex(color) {
-			c.AddToast(ui.Toast{ID: "appearance-color", Title: providerCopy("颜色请使用 #RRGGBB，或留空继承主题。", "Use #RRGGBB colors, or leave blank to inherit the theme."), Type: "error"})
+			g.failure = providerCopy("颜色请使用 #RRGGBB，或留空继承主题。", "Use #RRGGBB colors, or leave blank to inherit the theme.")
 			return false
 		}
 	}

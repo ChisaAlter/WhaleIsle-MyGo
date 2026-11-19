@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Requirements retain one reading state while moving between the header and Sidebar.
@@ -194,12 +195,8 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(0, 12, 12, 12).Children(func() { observerRequests(c, m, o, p) })
 		})
 		if m.Error != "" {
-			noticeKey := "project-requirements-error:" + o.ProjectID
-			notice := ui.Local(root, "error", func() string { return "" })
-			if *notice != m.Error {
-				*notice = m.Error
-				c.AddToast(ui.Toast{ID: noticeKey, Description: m.Error, Type: "error", Timeout: -1, Action: tr("重试", "Retry"), OnAction: func() { o.RefreshCatalog() }})
-			}
+			widgets.Alert(c, widgets.AlertOptions{ID: "project-requirements/" + o.ProjectID, Message: m.Error,
+				Action: tr("重试", "Retry"), OnAction: func() { o.RefreshCatalog() }})
 		}
 		_ = colors
 	})

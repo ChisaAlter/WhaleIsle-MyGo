@@ -585,7 +585,9 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 		for _, work := range card.Work {
 			work := work
 			historical := work.Current != nil && !*work.Current
-			ui.Column(c.Key("request-work/"+work.WorkstreamID+"/"+work.DelegationRef)).FillWidth().MinWidth(0).Gap(5).Padding(8, 0).Children(func() {
+			workColumn := ui.Column(c.Key("request-work/"+work.WorkstreamID+"/"+work.DelegationRef)).FillWidth().MinWidth(0).Gap(5).Padding(8, 0)
+			memberFailure := ui.Local(workColumn, "member-open-error", func() string { return "" })
+			workColumn.Children(func() {
 				button := ui.Button(c, "").Label(work.Title + " · " + tr("查看过程", "View process")).FillWidth().MinWidth(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(work.WorkerSessionID == "" || m.Busy || !current || historical && actions.OpenAssignment == nil || !historical && actions.OpenCurrent == nil)
 				button.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
@@ -598,9 +600,10 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 					if historical {
 						actions.OpenAssignment(work)
 					} else if err := actions.OpenCurrent(work); err != nil {
-						c.AddToast(ui.Toast{ID: "project-member-open", Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
+						*memberFailure = errcopy.Sentence(err)
 					}
 				}
+				widgets.Alert(c, widgets.AlertOptions{ID: "project-member-open", Message: *memberFailure})
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().Children(func() {
 					if work.ReportID != "" && ui.Button(c, tr("查看成果", "View result")).Height(28).Disabled(m.Busy || !current || actions.WorkAction == nil).Clicked() {
 						actions.WorkAction("report", work)

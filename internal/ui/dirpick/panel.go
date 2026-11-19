@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type Model struct {
@@ -28,7 +29,10 @@ type Model struct {
 	OnEditPath, OnSubmitPath                    func(string)
 }
 
-type browseRecoveryFocus struct{ path, action ui.Handle }
+type browseRecoveryFocus struct {
+	path       ui.Handle
+	retryFocus bool
+}
 
 // Header and footer never scroll; the Miller panes split evenly above 256 DIP.
 func View(c *ui.Context, m Model) {
@@ -71,6 +75,10 @@ func View(c *ui.Context, m Model) {
 			bar.Children(func() {
 				if s.PathDraft != nil {
 					input := ui.TextInputBase(c.Key("directory-path-input"), s.PathDraft).Label(dirText("编辑路径", "Edit path")).FillWidth().Height(22).FontSize(theme.InterfaceSize(13)).TextColor(fg).Disabled(inert).AutoFocus().Bind(&recoveryFocus.path)
+					if recoveryFocus.retryFocus {
+						input.Focus()
+						recoveryFocus.retryFocus = false
+					}
 					if s.FocusPath {
 						input.Focus()
 						s.FocusPath = false
@@ -216,11 +224,21 @@ func View(c *ui.Context, m Model) {
 				m.OnPick(s.TargetPath())
 			}
 		})
+		if m.Err != "" && s.FolderDraft == nil {
+			widgets.Alert(c, widgets.AlertOptions{ID: "directory-browse-error", Message: m.Err,
+				Action: dirText("重试", "Retry"), OnAction: func() {
+					recoveryFocus.retryFocus = true
+					if m.OnRetry != nil {
+						m.OnRetry()
+					}
+				},
+				Dismiss: dirText("关闭", "Dismiss"), OnDismiss: m.OnDismissError})
+		}
 	})
 	if !s.UseNative && s.PathDraft != nil && s.FolderDraft == nil {
 		// A newly mounted input can own native focus before this frame's
 		// ancestor chain is committed. It is still inside this card.
-		if root.FocusWithin() || pathFocused || recoveryFocus.action.Focused(c) {
+		if root.FocusWithin() || pathFocused {
 			s.PathHadFocus = true
 		} else if s.PathHadFocus && !requestedPathFocus && m.OnCancelPath != nil {
 			m.OnCancelPath()
@@ -229,15 +247,6 @@ func View(c *ui.Context, m Model) {
 		s.PathHadFocus = false
 	}
 	createDialog(c, m)
-	if m.Err != "" && s.FolderDraft == nil && s.FailureToast != m.Err {
-		c.AddToast(ui.Toast{ID: "directory-browse-error", Description: m.Err, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), ActionHandle: &recoveryFocus.action,
-			ActionReturnFocus: &recoveryFocus.path, ActionOnEscape: m.OnCancelPath,
-			OnAction: m.OnRetry, OnClose: m.OnDismissError})
-		s.FailureToast = m.Err
-	} else if m.Err == "" && s.FailureToast != "" {
-		c.CloseToast("directory-browse-error")
-		s.FailureToast = ""
-	}
 }
 
 var nativeFolderArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v11H3z"/><path d="M3 13h18"/></svg>`))
@@ -304,8 +313,6 @@ func folderIcon(c *ui.Context, color ui.Color, open bool) {
 func createDialog(c *ui.Context, m Model) {
 	s := m.State
 	if s.FolderDraft == nil {
-		c.CloseToast("directory-create-error")
-		s.CreateToast = ""
 		return
 	}
 	open := true
@@ -318,6 +325,11 @@ func createDialog(c *ui.Context, m Model) {
 				ui.Text(c, dirText("新建文件夹", "New folder")).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				name := s.TargetName(dirText("\u4e3b\u76ee\u5f55", "Home"))
 				ui.Text(c, dirText("\u5728\"", "New folder in \"")+name+dirText("\"\u4e2d\u65b0\u5efa\u6587\u4ef6\u5939", "\"")).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.Muted))
+				if s.CreateError != "" {
+					widgets.Alert(c, widgets.AlertOptions{ID: "directory-create-error", Message: s.CreateError,
+						Action: dirText("重试", "Retry"), OnAction: m.OnRetryCreate,
+						Dismiss: dirText("关闭", "Dismiss"), OnDismiss: m.OnDismissCreateError})
+				}
 				input := ui.TextInput(c.Key("directory-folder-name"), s.FolderDraft).Label(dirText("文件夹名称", "Folder name")).Placeholder(dirText("未命名文件夹", "Untitled folder")).FillWidth().Height(44).Padding(7, 14).Radius(12).FontSize(theme.InterfaceSize(14)).Disabled(s.Creating).AutoFocus()
 				ui.Row(c).FillWidth().Gap(8).Margin(8, 0, 0, 0).Justify(ui.End).Children(func() {
 					if ui.Button(c, dirText("取消", "Cancel")).Disabled(s.Creating).Clicked() {
@@ -335,13 +347,6 @@ func createDialog(c *ui.Context, m Model) {
 	if !open && !s.Creating {
 		s.FolderDraft = nil
 		s.CreateError = ""
-	}
-	if s.CreateError != "" && s.CreateToast != s.CreateError {
-		c.AddToast(ui.Toast{ID: "directory-create-error", Description: s.CreateError, Type: "error", Timeout: -1, Action: dirText("重试", "Retry"), OnAction: m.OnRetryCreate, OnClose: m.OnDismissCreateError})
-		s.CreateToast = s.CreateError
-	} else if s.CreateError == "" && s.CreateToast != "" {
-		c.CloseToast("directory-create-error")
-		s.CreateToast = ""
 	}
 }
 

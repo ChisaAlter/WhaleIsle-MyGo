@@ -15,6 +15,7 @@ import (
 	"whaleisle/internal/ui/i18n"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // ConversationSessionHeader: titleCluster (crumbs + actions), utilities, corner.
@@ -175,26 +176,6 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 	root := ui.Row(c.Key("schedule-header:" + snap.Origin + ":" + sessionID)).Shrink(0)
 	state := ui.Local(root, "schedule-menu", func() *scheduleHeaderState { return &scheduleHeaderState{} })
 	local := *state
-	failure := ui.Local(root, "schedule-catalog-failure", func() struct {
-		key       string
-		dismissed bool
-	} {
-		return struct {
-			key       string
-			dismissed bool
-		}{}
-	})
-	failureKey := fmt.Sprintf("%d/%s", snap.CatalogRequest, snap.Err)
-	if failure.key != failureKey {
-		failure.key, failure.dismissed = failureKey, false
-	}
-	if snap.Err != "" && !failure.dismissed {
-		headerNotice(c, "schedule-catalog-failure", snap.Err, colors, 24, []headerNoticeAction{{label: archiveText("重试", "Retry schedules"), disabled: snap.Loading || m.ScheduleStore == nil, run: func() {
-			if m.ScheduleStore != nil {
-				m.ScheduleStore.Refresh(context.Background(), sessionID)
-			}
-		}}}, func() { failure.dismissed = true })
-	}
 	if len(rows) == 0 && snap.Err == "" {
 		root.Size(0, 0)
 		return
@@ -208,11 +189,17 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 			label = fmt.Sprintf(archiveText("%d 个定时任务", "%d scheduled tasks"), len(rows))
 		}
 		anchor := ui.Button(c.Key("conversation-schedule"), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent)
+		if snap.Err != "" {
+			anchor.Tooltip(archiveText("定时任务读取失败", "Scheduled tasks could not be read"))
+		}
 		anchor.Children(func() {
 			if snap.Loading {
 				ui.Spinner(c).Size(16, 16).TextColor(muted)
 			} else {
 				ui.Icon(c, conversationHeaderIcons["ClockOutline"]).Size(16, 16).TextColor(muted)
+			}
+			if snap.Err != "" && !snap.Loading {
+				ui.Box(c).Label("Scheduled tasks failed").Size(6, 6).Radius(3).Absolute().Top(3).Right(3).Background(chrome.Color(colors.Danger))
 			}
 		})
 		if anchor.Clicked() {
@@ -231,6 +218,21 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 			panel.Children(func() {
 				ui.Scroll(c.Key("schedule-header-list")).Label("Scheduled tasks list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(414), h-146))).Children(func() {
 					ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+						if snap.Err != "" {
+							ui.Box(c).FillWidth().MinWidth(0).Padding(6).Children(func() {
+								widgets.Alert(c, widgets.AlertOptions{
+									ID:      "schedule-catalog",
+									Message: archiveText("没能读取这个对话的定时任务，请重试。", "This conversation's scheduled tasks could not be read. Try again."),
+									Detail:  snap.Err,
+									Action:  archiveText("重试", "Retry schedules"),
+									OnAction: func() {
+										if m.ScheduleStore != nil {
+											m.ScheduleStore.Refresh(context.Background(), sessionID)
+										}
+									},
+								})
+							})
+						}
 						if snap.Loading {
 							ui.Row(c).Label("Loading scheduled tasks").Padding(10, 12).Gap(6).Children(func() {
 								ui.Spinner(c).Size(14, 14)

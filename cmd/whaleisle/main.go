@@ -112,35 +112,32 @@ type mainState struct {
 	childComposerBindings       map[string]string
 	fileOpenWithOwner           fileOpenWithOwner
 	fileOpenWithState           files.OpenWithState
-	// pendingToast holds at most one message for the next painted frame; see
-	// notifyUser. It is never read from background timers.
-	pendingToast            string
-	sessionLogDownloads     map[sessionLogExportKey]*sessionLogExportOperation
-	voiceDevices            *composerVoiceDevices
-	workspaceOpenInApp      *frame.WorkspaceOpenInAppState
-	initCtrlMu              sync.Mutex
-	updaterCtl              *updater.Center
-	marketCtl               *marketctl.Coordinator
-	launcherCtl             *launcherctl.Controller
-	assistantCtl            *assistantctl.Service
-	projectCtl              *projectctl.Manager
-	svgImages               *nativeSVGImages
-	svgImagesPaused         bool
-	customPanels            customPanelState
-	applicationMenu         *desktopApplicationMenu
-	wallpaperControls       *settings.WallpaperEditor
-	wallpaperVisible        bool
-	commandSearchFocus      bool
-	appearanceEditor        *theme.Editor
-	appearanceVisible       bool
-	shortcutEditor          *shortcuts.Editor
-	shortcutPreferences     *shortcutprefs.Store
-	shortcutRevision        string
-	shortcutEditorSeq       uint64
-	wallpaperChoicesCache   []string
-	wallpaperChoicesReady   bool
-	wallpaperChoicesLoading bool
-	wallpaperChoicesGen     uint64
+	sessionLogDownloads         map[sessionLogExportKey]*sessionLogExportOperation
+	voiceDevices                *composerVoiceDevices
+	workspaceOpenInApp          *frame.WorkspaceOpenInAppState
+	initCtrlMu                  sync.Mutex
+	updaterCtl                  *updater.Center
+	marketCtl                   *marketctl.Coordinator
+	launcherCtl                 *launcherctl.Controller
+	assistantCtl                *assistantctl.Service
+	projectCtl                  *projectctl.Manager
+	svgImages                   *nativeSVGImages
+	svgImagesPaused             bool
+	customPanels                customPanelState
+	applicationMenu             *desktopApplicationMenu
+	wallpaperControls           *settings.WallpaperEditor
+	wallpaperVisible            bool
+	commandSearchFocus          bool
+	appearanceEditor            *theme.Editor
+	appearanceVisible           bool
+	shortcutEditor              *shortcuts.Editor
+	shortcutPreferences         *shortcutprefs.Store
+	shortcutRevision            string
+	shortcutEditorSeq           uint64
+	wallpaperChoicesCache       []string
+	wallpaperChoicesReady       bool
+	wallpaperChoicesLoading     bool
+	wallpaperChoicesGen         uint64
 	// shortcutBindingsCache holds the accepted bindings for this state; see
 	// pageShortcutBindings.
 	shortcutBindingsMu    sync.Mutex
@@ -3031,7 +3028,6 @@ func mainView(c *ui.Context) {
 	// DrawOver geometry before the final exact-Host placement is flushed.
 	// The first-run 预览版说明 layer is intentionally not part of this build:
 	// users asked for the blocking notice to be removed.
-	consumePendingToast(c)
 	sessionViews := state.beginSessionFrameViews()
 	defer state.endSessionFrameViews(sessionViews)
 	state.syncHostAppearance()
@@ -3055,10 +3051,10 @@ func mainView(c *ui.Context) {
 	composerRendered := false
 	composerSessionID := ""
 	defer func() { state.observeComposerEdit(composerRendered, composerSessionID) }()
-	defer state.syncAccountStatusNotices(c)
+	defer state.syncAccountStatusNotices()
 	defer state.syncAccountQuotaNotice(c)
 	defer state.syncResidentAccount(c)
-	defer state.syncScheduleDeleteNotice(c)
+	defer state.syncScheduleDeleteNotice()
 	defer func() { state.syncConfirmAsk(c, closingColors) }()
 	defer state.syncNativeUpdateModal(c, state.win)
 	state.beginWallpaperFrame()
@@ -4974,12 +4970,14 @@ func mainView(c *ui.Context) {
 						go func() {
 							text, err := scheduler.History(context.Background(), sid, id)
 							state.mu.Lock()
-							if err != nil {
-								state.pendingToast = saveFailedToast(i18n.T(i18n.KeyCmdReadTaskHistory), err)
-							} else {
+							if err == nil {
 								state.scheduleHistoryText = text
 							}
 							state.mu.Unlock()
+							if err != nil {
+								state.notifyUser(win, saveFailedToast(i18n.T(i18n.KeyCmdReadTaskHistory), err))
+								return
+							}
 							if win != nil {
 								win.Update(func() {})
 							}
@@ -5260,6 +5258,7 @@ func mainView(c *ui.Context) {
 				return
 			}
 			if (acceptPanelOK && embeddedSection == "" && usageOpen && usageStore != nil) || embeddedSection == settings.SectionUsageStats {
+				exportFailure := ui.Local(c.Root(), "usage-export-failure", func() string { return "" })
 				sid := ""
 				if sessions != nil {
 					sid = sessions.SelectedSessionID()
@@ -5277,13 +5276,13 @@ func mainView(c *ui.Context) {
 				usageui.View(c, usageui.Model{
 					Preferences: usagePreferences,
 					Embedded:    embeddedSection == settings.SectionUsageStats,
-					ActionError: accountActionError,
+					ActionError: firstNonEmptyString(accountActionError, *exportFailure),
 					Store:       usageStore,
 					OnExportStats: func(format string) {
-						c.CloseToast("usage-export-error")
+						*exportFailure = ""
 						data, err := usageStore.ExportStats(format)
 						if err != nil {
-							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
+							*exportFailure = errcopy.Sentence(err)
 							return
 						}
 						ext := "csv"
@@ -5292,14 +5291,14 @@ func mainView(c *ui.Context) {
 						}
 						path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: win, Title: i18n.T(i18n.KeyCmdUsageExportStatistics), DefaultPath: "usage-" + format + "." + ext})
 						if err != nil {
-							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
+							*exportFailure = errcopy.Sentence(err)
 							return
 						}
 						if path == "" {
 							return
 						}
 						if err = os.WriteFile(path, data, 0600); err != nil {
-							c.AddToast(ui.Toast{ID: "usage-export-error", Title: i18n.T(i18n.KeyCmdUsageExportErrorTitle), Description: errcopy.Sentence(err), Type: "error", Timeout: -1})
+							*exportFailure = errcopy.Sentence(err)
 						}
 					},
 					OnOpenSession: func(id string) {
@@ -6574,4 +6573,15 @@ func mainView(c *ui.Context) {
 
 func trayIcon() []byte {
 	return trayIconCached()
+}
+
+// firstNonEmptyString is the line the usage page writes above its cards: the
+// failure that came last takes the place of the one that came before it.
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

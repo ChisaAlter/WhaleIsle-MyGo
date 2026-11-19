@@ -59,7 +59,7 @@ func providerCredentialField(c *ui.Context, a *ReferencedCredentialsAccess, name
 				modelHint(c, hint, tone)
 			}
 		})
-		settingsNotice(c, "provider-key/"+row.ID, "error", s.Err != "", func() string { return s.Err })
+		settingsAlert(c, "provider-key/"+row.ID, s.Err != "", func() string { return s.Err })
 		if row.Configured && a.OnClear != nil {
 			label := providerCopy("清除已保存密钥…", "Clear saved key…")
 			if s.ClearPending {

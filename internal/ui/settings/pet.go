@@ -125,7 +125,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 					compact:  true,
 				}, fg, muted)
 				if access := a.AssistantPreference; access != nil {
-					settingsNotice(c, "pet:125", "error", access.State.Error != "", func() string { return access.State.Error })
+					settingsAlert(c, "pet:125", access.State.Error != "", func() string { return access.State.Error })
 					if access.State.RestartCancelled {
 						ui.Text(c, providerCopy("已取消切换，保留原设置。", "Change cancelled; the previous setting is retained.")).FillWidth().TextColor(muted)
 					}

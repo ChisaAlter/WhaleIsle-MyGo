@@ -242,6 +242,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					}
 				})
 			})
+			componentStatusDetail(c, row)
 			// launcher-components.js renderHomeRows keeps stop and settings
 			// reachable from the home card while an installed component runs.
 			if row.State == "running" {
@@ -365,6 +366,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 				})
 			})
 		})
+		componentStatusDetail(c, row)
 	})
 }
 
@@ -922,16 +924,20 @@ func joinPlugins(names []string) string {
 	return out
 }
 
-// Installed launcher-components.js stateBadge uses a status toast when a
-// message exists; the status remains a plain pill otherwise.
+// componentStatusBadge draws the state pill. A row with a message carries it in
+// componentStatusDetail, in the row that says so, instead of a toast over the
+// launcher.
 func componentStatusBadge(c *ui.Context, row components.Row, label string) {
+	ui.Row(c).Background(colNavActive).Padding(1, 8).Radius(999).Children(func() {
+		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+	})
+}
+
+// componentStatusDetail is the row's own status message: why the component is
+// not running, or what the last action did. It sits under the row it describes.
+func componentStatusDetail(c *ui.Context, row components.Row) {
 	if row.Message == "" {
-		ui.Row(c).Background(colNavActive).Padding(1, 8).Radius(999).Children(func() {
-			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-		})
 		return
 	}
-	if ui.Button(c, label).Background(colNavActive).BorderWidth(0).Padding(1, 8).Radius(999).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Label(row.Name + releaseText("状态，查看详情", " status; show details")).Tooltip(releaseText("查看状态详情", "Show status details")).Clicked() {
-		c.AddToast(ui.Toast{ID: "component-status-" + row.ID, Title: row.Name + releaseText("状态", " status"), Description: row.Message})
-	}
+	ui.Text(c, row.Message).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Selectable()
 }

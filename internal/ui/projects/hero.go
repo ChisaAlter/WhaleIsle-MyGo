@@ -2,12 +2,12 @@ package projects
 
 import (
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // HeroOption is the installed New Session Project option: a small action in
@@ -26,7 +26,6 @@ func HeroOption(c *ui.Context, m Model, snap session.ViewState) {
 		hint = directoryRefusalText(m.HeroDirectoryReason)
 	}
 	row := ui.Row(c).Key("project-hero-option").Gap(6).AlignItems(ui.Center).Tooltip(hint)
-	lastError := ui.Local(row, "create-error", func() string { return "" })
 	row.Children(func() {
 		button := ui.Button(c, "").Label("Project").Tooltip(hint).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy || m.HeroDirectoryReason != "")
 		button.Children(func() {
@@ -39,10 +38,7 @@ func HeroOption(c *ui.Context, m Model, snap session.ViewState) {
 			m.OnCreateFromDraft()
 		}
 	})
-	if m.HeroError != "" && *lastError != m.HeroError {
-		c.AddToast(ui.Toast{ID: "project-hero-create-error", Description: m.HeroError, Type: "error", Timeout: 6 * time.Second})
-	}
-	*lastError = m.HeroError
+	widgets.Alert(c, widgets.AlertOptions{ID: "project-hero-create", Message: m.HeroError})
 }
 
 func sameHeroDirectory(a, b string) bool {

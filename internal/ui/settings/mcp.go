@@ -78,8 +78,8 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPStubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPSchemaHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	settingsNotice(c, "mcp:82", "error", a.Err != "", func() string { return a.Err })
-	settingsNotice(c, "mcp:85", "", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
+	settingsAlert(c, "mcp:82", a.Err != "", func() string { return a.Err })
+	settingsNotice(c, "mcp:85", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 	if a.HealthRefreshFailed {
 		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Refresh reconnects failed managed servers and reloads the list.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	}

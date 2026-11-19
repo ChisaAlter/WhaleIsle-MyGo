@@ -259,8 +259,13 @@ func (s *mainState) closeResumeCheckpoint() {
 // mainView defers this until all visible editors and pane projections finish.
 // Throttle capture, debounce writes and fingerprint unchanged snapshots: native
 // paint/animation frames never cause a full disk write per rendered frame.
+//
+// Nothing is captured while the startup page covers the shell: the person cannot
+// have authored anything there, the resume file already holds what it would
+// write, and a failed probe on that page can only report a failure nobody asked
+// for over a page that is already saying why startup stopped.
 func (s *mainState) resumeCheckpointForOwnerLocked() *resumeCheckpoint {
-	if s.resumeStore == nil || s.resumeError != "" || s.quitting {
+	if s.resumeStore == nil || s.resumeError != "" || s.quitting || s.coldLoading {
 		return nil
 	}
 	checkpoint := s.resumeCheckpoint
@@ -318,10 +323,25 @@ func (s *mainState) syncResumeCheckpoint(c *ui.Context) {
 	}
 	checkpoint.mu.Unlock()
 	if show {
-		c.AddToast(ui.Toast{ID: "resume-checkpoint-error", Type: "error", Timeout: -1,
-			Title:       i18n.T(i18n.KeyCmdResumeStateWasNotSaved),
-			Description: errcopy.Sentence(err), Action: i18n.T(i18n.KeyCmdRetry), OnAction: checkpoint.retry})
-	} else if err == nil {
-		c.CloseToast("resume-checkpoint-error")
+		s.reportResumeCheckpointFailure(err)
 	}
+}
+
+// reportResumeCheckpointFailure writes a failed capture where the person works:
+// the conversation's own status line, which stays until a later capture
+// succeeds or another action speaks. A failed save is never a toast over the
+// page, and the raw error still reaches the log the sentence points at.
+func (s *mainState) reportResumeCheckpointFailure(err error) {
+	if err == nil {
+		return
+	}
+	sentence := errcopy.Under(i18n.T(i18n.KeyCmdResumeStateWasNotSaved), err)
+	s.mu.Lock()
+	s.bootLogs = append(s.bootLogs, sentence+" ["+err.Error()+"]") // raw-ok: the exported boot log, never copy
+	sessions := s.sessions
+	s.mu.Unlock()
+	if sessions == nil {
+		return
+	}
+	sessions.SetLastAction(sentence)
 }

@@ -2,13 +2,13 @@
 package custompanel
 
 import (
-	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	panel "whaleisle/internal/store/custompanel"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type Editor struct {
@@ -57,7 +57,7 @@ func View(c *ui.Context, m Model) {
 			if e.Error != "" {
 				ui.Text(c, e.Error).TextColor(chrome.Color(colors.Accent)).Selectable()
 			}
-			widgets.Notice(c, "panel:60", "", e.Notice != "", func() string { return e.Notice })
+			widgets.Notice(c, "panel:60", e.Notice != "", func() string { return e.Notice })
 			if !m.Available {
 				return
 			}

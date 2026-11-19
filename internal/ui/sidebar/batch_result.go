@@ -3,16 +3,12 @@ package sidebar
 import (
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
-
-// The installed Toast defaults to 3000ms; failed batches explicitly hold forever.
-const batchResultHold = 3 * time.Second
 
 type batchResultOwner struct {
 	Token, Host, Connection uint64
@@ -22,7 +18,6 @@ type batchResultOwner struct {
 type batchResultNotice struct {
 	Owner                                 batchResultOwner
 	Bound, Dismissed, Observed, Announced bool
-	Started                               time.Time
 }
 
 func batchResultCurrentOwner(m Model) batchResultOwner {
@@ -31,7 +26,7 @@ func batchResultCurrentOwner(m Model) batchResultOwner {
 
 // Repaint wakes never hold a callback into a later batch. A same-token scope
 // transition retires an existing result instead of announcing it in a new tree.
-func (n *batchResultNotice) observe(owner batchResultOwner, b session.SessionBatch, now time.Time) bool {
+func (n *batchResultNotice) observe(owner batchResultOwner, b session.SessionBatch) bool {
 	if !n.Bound || n.Owner.Token != owner.Token {
 		*n = batchResultNotice{Owner: owner, Bound: true}
 	} else if n.Owner.Host != owner.Host || n.Owner.Connection != owner.Connection {
@@ -48,10 +43,7 @@ func (n *batchResultNotice) observe(owner batchResultOwner, b session.SessionBat
 	if n.Dismissed {
 		return false
 	}
-	if !n.Observed {
-		n.Observed = true
-		n.Started = now
-	}
+	n.Observed = true
 	return true
 }
 
@@ -75,16 +67,30 @@ func batchResultSummary(b session.SessionBatch) (string, []session.SessionBatchR
 	return text, failures
 }
 
-// batchResultToast is mounted at the sidebar root so results survive search,
-// archive disclosure and rail layout. Only a completed receipt becomes a toast.
-func batchResultToast(c *ui.Context, m Model) {
-	anchor := ui.Box(c.Key("batch-result-owner")).Absolute().Size(0, 0).PassThrough()
+// batchResultReceipt reports a finished batch: a success is an acknowledgement
+// and stays a toast, while a batch with failures draws its receipt in the
+// sidebar's own flow above the footer, where it survives search, archive
+// disclosure and the rail, and keeps the failed rows readable until the reader
+// closes it.
+func batchResultReceipt(c *ui.Context, m Model) {
+	if m.Collapsed {
+		return
+	}
+	anchor := ui.Box(c.Key("batch-result-owner")).Size(0, 0).Shrink(0).PassThrough()
 	notice := ui.Local(anchor, "notice", func() batchResultNotice { return batchResultNotice{} })
 	owner := batchResultCurrentOwner(m)
-	if !notice.observe(owner, m.Batch, c.Now()) {
+	if !notice.observe(owner, m.Batch) {
 		return
 	}
 	summary, failures := batchResultSummary(m.Batch)
+	if !notice.Announced {
+		c.Announce(summary)
+		notice.Announced = true
+	}
+	if len(failures) == 0 {
+		widgets.Notice(c, "batch-result", true, func() string { return summary })
+		return
+	}
 	dismiss := func() {
 		if notice.Owner != owner || m.Batch.Busy || m.Batch.Confirming || batchResultCurrentOwner(m) != owner {
 			return
@@ -94,50 +100,25 @@ func batchResultToast(c *ui.Context, m Model) {
 			m.OnBatchEdit("dismiss", nil)
 		}
 	}
-	if len(failures) == 0 {
-		remaining := batchResultHold - c.Now().Sub(notice.Started)
-		if remaining <= 0 {
-			dismiss()
-			return
-		}
-		c.After(remaining)
-	}
-	if !notice.Announced {
-		c.Announce(summary)
-		notice.Announced = true
-	}
-	ui.Overlay(c.Key(struct {
-		Name  string
-		Owner batchResultOwner
-	}{"batch-result-toast", owner}), func() {
-		ui.Column(c).Absolute().Top(120).Left(24).Right(24).AlignItems(ui.Center).PassThrough().Children(func() {
-			toast := ui.Column(c).Label("Batch operation results").Role(ui.RoleStatus).Width(560).MaxWidthPercent(100).MaxHeightPercent(80).Gap(8).Padding(12, 16).Radius(12).
-				Background(c.Theme().Background).Border(.5, c.Theme().Border).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .2))
-			toast.Children(func() {
-				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Children(func() {
-					ink := c.Theme().Success
-					if len(failures) > 0 {
-						ink = c.Theme().Text
-					}
-					ui.Text(c, summary).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(ink)
-					if ui.Button(c.Key("batch-result-dismiss"), workspaceText("关闭结果", "Dismiss results")).Height(28).Padding(4, 8).Clicked() {
-						dismiss()
-					}
-				})
-				if len(failures) > 0 {
-					ui.Scroll(c).Label("Batch failure details").FillWidth().Height(168).MinHeight(0).Children(func() {
-						for _, failure := range failures {
-							title := strings.TrimSpace(failure.Title)
-							if title == "" {
-								title = failure.ID
-							}
-							ui.Box(c.Key("batch-failure-" + failure.ID)).Label("Batch failure " + failure.ID).FillWidth().Children(func() {
-								ui.Text(c, title+": "+failure.Error).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(c.Theme().Text)
-							})
-						}
-					})
-				}
-			})
-		})
+	widgets.Alert(c, widgets.AlertOptions{
+		ID:        "batch-result",
+		Message:   summary,
+		Detail:    batchFailureDetail(failures),
+		Dismiss:   workspaceText("关闭结果", "Dismiss results"),
+		OnDismiss: dismiss,
 	})
+}
+
+// batchFailureDetail is what the reader opens the receipt to see: which rows the
+// Host refused and its own words for why, never the receipt's sentence.
+func batchFailureDetail(failures []session.SessionBatchResult) string {
+	lines := make([]string, 0, len(failures))
+	for _, failure := range failures {
+		title := strings.TrimSpace(failure.Title)
+		if title == "" {
+			title = failure.ID
+		}
+		lines = append(lines, title+": "+failure.Error)
+	}
+	return strings.Join(lines, "\n")
 }

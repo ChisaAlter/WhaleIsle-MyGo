@@ -103,24 +103,4 @@ func TestCursorAuditSidebar(t *testing.T) {
 		}
 		assertAllPointer(t, "collapsed_rail", m)
 	})
-
-	t.Run("action_toast_buttons", func(t *testing.T) {
-		q := ""
-		m := Model{
-			ThemeID:     "deepseek.light",
-			ViewportW:   280,
-			ViewportH:   864,
-			Snapshot:    baseSnapshot,
-			SearchQuery: &q,
-			SearchFocus: &searchFocus,
-			ActionToast: &RowActionToastState{
-				Kind:      "archived",
-				OnUndo:    noop,
-				OnViewAll: noop,
-				OnDismiss: noop,
-			},
-			OnOpenSettings: noop,
-		}
-		assertAllPointer(t, "action_toast_buttons", m)
-	})
 }

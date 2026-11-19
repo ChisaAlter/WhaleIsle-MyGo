@@ -180,7 +180,7 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	})
 
 	// Progress is a toast: a line here would push the session list down while the batch runs.
-	widgets.Notice(c, "sidebar-batch", "", b.Busy, func() string {
+	widgets.Notice(c, "sidebar-batch", b.Busy, func() string {
 		return fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))
 	})
 

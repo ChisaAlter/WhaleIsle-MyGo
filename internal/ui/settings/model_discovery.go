@@ -99,7 +99,7 @@ func modelListDiscovery(c *ui.Context, m Model, s store.ViewState, scope string,
 			state.cancel()
 		}
 	})
-	settingsNotice(c, "model-fetch/"+scope, "", state.message != "", func() string { return state.message })
+	settingsNotice(c, "model-fetch/"+scope, state.message != "", func() string { return state.message })
 	if len(state.candidates) == 0 {
 		return
 	}

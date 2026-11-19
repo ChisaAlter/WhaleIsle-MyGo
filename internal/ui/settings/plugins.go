@@ -69,7 +69,7 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if !a.ClientReady {
 		ui.Text(c, pluginsText("运行时未连接，请连接后管理插件。", "Runtime disconnected. Connect to manage plugins.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	settingsNotice(c, "plugins:79", "", a.OperationMessage != "", func() string { return a.OperationMessage })
+	settingsNotice(c, "plugins:79", a.OperationMessage != "", func() string { return a.OperationMessage })
 	if a.Activation.Pending {
 		message := pluginsText("插件变更已保存，等待重启生效。", "Plugin changes are saved and await a runtime restart.")
 		if a.Activation.Failed {
@@ -88,8 +88,8 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if !a.HasListRPC {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsNoRPC)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	settingsNotice(c, "plugins:100", "error", a.Err != "", func() string { return a.Err })
-	settingsNotice(c, "plugins:103", "", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
+	settingsAlert(c, "plugins:100", a.Err != "", func() string { return a.Err })
+	settingsNotice(c, "plugins:103", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 	if len(a.Rows) == 0 && !a.Loading {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	} else {

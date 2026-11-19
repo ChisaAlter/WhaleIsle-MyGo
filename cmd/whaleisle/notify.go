@@ -10,13 +10,15 @@ import (
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
 )
 
-// notifyUser queues a one-shot toast for the next painted frame. User actions
-// that cannot run because this Host has no store yet call this instead of
-// returning silently, so the click is always answered somewhere visible.
-// Background timers must not call it: they are not the user asking.
+// notifyUser answers a user action that cannot run, or reports what it did, in
+// the conversation's status line: the shell's own inline status, which stays
+// until another action speaks. It never queues a toast, so a refusal cannot
+// appear as a bar over the content the person is reading.
+//
+// Before the shell owns a session store there is no status line to write to, so
+// the message joins the startup log the diagnostics export carries.
 func (s *mainState) notifyUser(win *mygo.Window, text string) {
 	if s == nil {
 		return
@@ -26,25 +28,18 @@ func (s *mainState) notifyUser(win *mygo.Window, text string) {
 		return
 	}
 	s.mu.Lock()
-	s.pendingToast = text
+	sessions := s.sessions
+	if sessions == nil {
+		s.bootLogs = append(s.bootLogs, text)
+	}
 	s.mu.Unlock()
+	if sessions != nil {
+		sessions.SetLastAction(text)
+		return
+	}
 	if win != nil {
 		win.Update(func() {})
 	}
-}
-
-// takePendingToast returns the queued toast exactly once. mainView calls it at
-// the start of every frame, so a burst of clicks shows the latest message and
-// nothing repeats on the following frames.
-func (s *mainState) takePendingToast() string {
-	if s == nil {
-		return ""
-	}
-	s.mu.Lock()
-	text := s.pendingToast
-	s.pendingToast = ""
-	s.mu.Unlock()
-	return text
 }
 
 // refuseHostAction answers a user click that cannot run because this Host has
@@ -70,21 +65,11 @@ func (s *mainState) revealInFileManager(win *mygo.Window, path string) {
 }
 
 // saveFailedToast names the action that failed and the cause a person can act
-// on. The Host's own wording goes to the log, never into the toast.
+// on. The Host's own wording goes to the log, never into the sentence the page
+// shows.
 func saveFailedToast(action string, err error) string {
 	if err != nil {
 		log.Printf("%s: %v", action, err)
 	}
 	return errcopy.Under(action+i18n.T(i18n.KeyCmdFailed), err)
-}
-
-// consumePendingToast paints the queued message once, before anything else in
-// the frame draws.
-func consumePendingToast(c *ui.Context) {
-	if c == nil {
-		return
-	}
-	if text := state.takePendingToast(); text != "" {
-		c.Toast(text)
-	}
 }

@@ -38,12 +38,9 @@ func (s *mainState) syncResidentAccount(c *ui.Context) {
 			Id: account.AttemptID, Phase: account.AttemptPhase, AuthorizeUrl: &account.AuthorizeURL, ErrorCode: &code,
 		}}, s.openAccountAuthorizationBrowser)
 	}
+	// The sign-in dialog and the Account page both carry a failed attempt's own
+	// words, so nothing about it floats over the content the person is reading.
 	login := s.accountLogin.Snapshot()
-	reported := ui.Local(c.Root(), "resident-account-login-error", func() string { return "" })
-	if login.Error != "" && *reported != login.Error {
-		c.AddToast(ui.Toast{ID: "account-signin-error", Description: login.Error})
-	}
-	*reported = login.Error
 	review := s.accountSignOut.Snapshot()
 	colors := theme.Resolve(themeID).Active(mygo.Theme.IsDark())
 	if store != nil {

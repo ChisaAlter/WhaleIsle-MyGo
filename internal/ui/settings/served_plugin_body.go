@@ -135,6 +135,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 			_, apiAvailable := states["web-deepseek-api"]
 			useAPI := switchAvailable && apiAvailable && web.Drafts["searchProvider"] == "deepseek-search-api"
 			if switchAvailable && apiAvailable {
+				guideFailure := ui.Local(c.Root(), "settings-web-search-guide", func() string { return "" })
 				bodyPreferenceRow(c, "web-api-switch", providerCopy("使用 Search/Fetch API", "Use Search/Fetch API"), providerCopy("同时切换搜索和抓取服务。", "Switches search and fetch providers together."), fg, muted, func() {
 					if ui.Switch(c, &useAPI).Label("Search / Fetch API").Disabled(disabled || invalid || web.Err != "").Changed() {
 						b := m.Store.BindNamespace("web")
@@ -155,10 +156,12 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 				})
 				if ui.Button(c, providerCopy("搜索与抓取接口指南", "Search & Fetch guide")).Clicked() {
 					target := providerCopy("https://api-docs.deepseek.com/zh-cn/guides/search", "https://api-docs.deepseek.com/guides/search")
+					*guideFailure = ""
 					if err := desktopwebview.OpenExternal(target); err != nil {
-						c.AddToast(ui.Toast{ID: "web-search-guide", Title: errcopy.Sentence(err), Type: "error"})
+						*guideFailure = errcopy.Sentence(err)
 					}
 				}
+				settingsAlert(c, "web-search-guide", *guideFailure != "", func() string { return *guideFailure })
 			}
 			ns := "web-search-deepseek"
 			if useAPI {

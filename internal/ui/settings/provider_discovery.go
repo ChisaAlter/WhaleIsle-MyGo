@@ -31,8 +31,8 @@ func providerDiscoveryPane(c *ui.Context, a *ProviderDiscoveryAccess, fg, muted 
 		ui.Text(c, providerCopy("请先连接 Host。", "Connect to a Host first.")).TextColor(muted)
 		return
 	}
-	settingsNotice(c, "provider_discovery:35", "error", s.Err != "", func() string { return providerdiscovery.Message(s.Err) })
-	settingsNotice(c, "provider_discovery:38", "", s.LastAction != "", func() string { return providerdiscovery.Message(s.LastAction) })
+	settingsAlert(c, "provider_discovery:35", s.Err != "", func() string { return providerdiscovery.Message(s.Err) })
+	settingsNotice(c, "provider_discovery:38", s.LastAction != "", func() string { return providerdiscovery.Message(s.LastAction) })
 	if ui.Button(c, providerCopy("刷新供应商", "Refresh providers")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || s.Dirty || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
 	}

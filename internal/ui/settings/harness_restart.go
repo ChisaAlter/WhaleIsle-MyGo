@@ -72,7 +72,6 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 		*failure = ""
 		if err != nil {
 			*failure = errcopy.Sentence(err)
-			c.AddToast(ui.Toast{ID: "harness-recovery-save", Title: *failure, Type: "error"})
 		}
 	}
 	seconds := providerCopy(" 秒", " s")
@@ -99,6 +98,7 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 			})
 		})
 	})
+	settingsAlert(c, "harness-recovery", *failure != "", func() string { return *failure })
 }
 
 func restartPicker(c *ui.Context, key, label string, value *string, options []restartOption, disabled bool, changed func(), muted ui.Color) {

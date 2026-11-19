@@ -419,6 +419,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 				})
 			})
 		})
+		bodyPreferenceFieldAlert(c, a, "ui-conversation", enabledKey)
 	})
 	if !*open {
 		return

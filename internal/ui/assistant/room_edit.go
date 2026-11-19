@@ -69,7 +69,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "room_edit:72", "", s.Notice != "", func() string { return s.Notice })
+		widgets.Notice(c, "room_edit:72", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}
