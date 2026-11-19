@@ -40,7 +40,8 @@ param(
     [string]$NodeDir = $env:WHALEISLE_NODE_DIR,
     [switch]$UnifiedShortcuts,
     [switch]$BuildOnly,
-    [switch]$WithoutPaidAPIs
+    [switch]$WithoutPaidAPIs,
+    [switch]$NoProxy
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'env.ps1')
@@ -50,12 +51,16 @@ $ErrorActionPreference = 'Stop'
 # harness bump is one merge there, not a new staging round. Desktop plugins and
 # the mobile bridge are not harness source; -DesktopResources names the installed
 # desktop they still come from.
-function Invoke-HarnessForkStage([string]$ForkWork, [string]$Tag, [string]$Destination, [string]$NodeExe, [string]$Resources, [string]$Legacy) {
+function Invoke-HarnessForkStage([string]$ForkWork, [string]$Tag, [string]$Destination, [string]$NodeExe, [string]$Resources, [string]$Legacy, [switch]$NoProxy) {
     $ForkScripts = Join-Path $PSScriptRoot 'harness-fork'
     $ProjectRoot = Split-Path -Parent $PSScriptRoot
     if (-not $ForkWork) { $ForkWork = Join-Path $ProjectRoot '.harness-fork' }
+    # This machine's HTTPS_PROXY may be a proxy that cannot reach codeload, so the
+    # operator picks: pass -NoProxy to download directly, or let the proxy be used
+    # and hear which one failed. Never fall back on its own.
     $Network = @()
-    if ($env:HTTPS_PROXY) { $Network = @('--proxy', $env:HTTPS_PROXY) }
+    if ($NoProxy) { $Network = @('--no-proxy') }
+    elseif ($env:HTTPS_PROXY) { $Network = @('--proxy', $env:HTTPS_PROXY) }
     & node (Join-Path $ForkScripts 'fork.mjs') materialize --work $ForkWork @Network
     if ($LASTEXITCODE -ne 0) { throw 'Replaying the harness fork failed; the harness-fork message above names the step that failed (download, archive, or the recorded tree). Nothing was staged.' }
     $Tree = Join-Path $ForkWork 'tree'
@@ -88,7 +93,7 @@ function Invoke-HarnessForkStage([string]$ForkWork, [string]$Tag, [string]$Desti
 
 if ($SourceMode -eq 'fork') {
     if ($RuntimeSourceResources) { throw 'fork stages the harness from source; pass the installed desktop plugins with -DesktopResources instead of -RuntimeSourceResources.' }
-    Invoke-HarnessForkStage -ForkWork $HarnessForkWork -Tag $HarnessForkTag -Destination $RuntimeDestination -NodeExe $(if ($NodeDir) { Join-Path $NodeDir 'node.exe' } else { $null }) -Resources $DesktopResources -Legacy $LegacyVendor
+    Invoke-HarnessForkStage -ForkWork $HarnessForkWork -Tag $HarnessForkTag -Destination $RuntimeDestination -NodeExe $(if ($NodeDir) { Join-Path $NodeDir 'node.exe' } else { $null }) -Resources $DesktopResources -Legacy $LegacyVendor -NoProxy:$NoProxy
     return
 }
 if ($RuntimeSourceResources) {

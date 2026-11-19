@@ -80,7 +80,10 @@ needs `-DesktopResources <installed desktop>`.
    resolves mechanical conflicts by policy — `pnpm-lock.yaml` is never merged, it
    is regenerated — and leaves the rest in the worktree with a list. Conflicts in
    `packages/client/ui-*` are 本体's slot API against upstream's, and each one is
-   a product decision rather than a merge trick.
+   a product decision rather than a merge trick. If this host routes HTTPS
+   through a proxy that cannot reach codeload, this first step fails and names
+   that proxy: pass `--no-proxy` (through `build-harness.ps1`, `-NoProxy`) to
+   download directly. Nothing bypasses the proxy on its own.
 2. **Resolve the conflicts.** Never resolve by dropping a package 本体 carries:
    `runtime-fork-audit.mjs --expect=pin.json` fails the stage when the carry no
    longer matches the pin's package list, which is the audit list this contract's

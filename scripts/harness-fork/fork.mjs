@@ -160,14 +160,29 @@ export function ensureWork(work = defaultWork) {
   return {work, repo};
 }
 
-function download(url, destination, {proxy}) {
+/** The proxy curl would use on its own, so a failed download can name it instead of the record. */
+function environmentProxy(environment) {
+  for (const name of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy', 'ALL_PROXY', 'all_proxy']) {
+    if (environment[name]) return {name, value: environment[name]};
+  }
+  return null;
+}
+
+export function download(url, destination, options = {}) {
+  const runner = options.runner ?? run;
+  const environment = options.environment ?? process.env;
   fs.mkdirSync(path.dirname(destination), {recursive: true});
   const args = ['-fsSL', '--retry', '3', '--retry-delay', '2'];
-  if (proxy) args.push('--proxy', proxy);
-  const result = run('curl', [...args, '-o', destination, url]);
+  if (options.noProxy) args.push('--noproxy', '*');
+  else if (options.proxy) args.push('--proxy', options.proxy);
+  const result = runner('curl', [...args, '-o', destination, url]);
   if (result.error) throw new Error(`curl is required to fetch ${url}: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`Fetching ${url} failed: ${(result.stderr || `curl exited ${result.status}`).trim()}. Pass --proxy <url> when this network needs one.`);
-  return destination;
+  if (result.status === 0) return destination;
+  const detail = (result.stderr || `curl exited ${result.status}`).trim();
+  if (options.noProxy) throw new Error(`Fetching ${url} directly failed: ${detail}. This network may need --proxy <url>.`);
+  const used = options.proxy ? {name: '--proxy', value: options.proxy} : environmentProxy(environment);
+  if (used) throw new Error(`Fetching ${url} failed: ${detail}. That request went through the proxy at ${used.value} (${used.name}); if it cannot reach this host, retry with --no-proxy to download directly.`);
+  throw new Error(`Fetching ${url} failed: ${detail}. Pass --proxy <url> when this network needs one.`);
 }
 
 /** Resolve a tag to its commit through the public API, so no clone of the upstream repository is needed. */
@@ -184,12 +199,12 @@ export function remoteTagSha(repoUrl, ref, options = {}) {
   }
 }
 
-async function importUpstreamTag({work, repo, pin, entry, proxy, fetch, log}) {
+async function importUpstreamTag({work, repo, pin, entry, proxy, noProxy, fetch, log}) {
   const ref = `refs/harness/upstream/${entry.ref}`;
   const existing = revParse(repo, ref);
   if (existing && (!entry.tree || treeOf(repo, existing) === entry.tree)) return existing;
   const sha = entry.sha || remoteTagSha(pin.upstream.repo, entry.ref, {proxy});
-  const archive = fetch(`https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/${sha}`, path.join(work, 'downloads', `${entry.ref}.tar.gz`), {proxy});
+  const archive = fetch(`https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/${sha}`, path.join(work, 'downloads', `${entry.ref}.tar.gz`), {proxy, noProxy});
   const {tree} = await importArchiveTree({archive, repo, strip: 1, expectTree: entry.tree, label: entry.ref, work, log});
   const previous = pin.upstream.tags.slice(0, pin.upstream.tags.indexOf(entry)).pop();
   const parent = previous ? revParse(repo, `refs/harness/upstream/${previous.ref}`) : null;
@@ -201,12 +216,12 @@ async function importUpstreamTag({work, repo, pin, entry, proxy, fetch, log}) {
   return commit;
 }
 
-async function importCarry({work, repo, pin, proxy, fetch, log}) {
+async function importCarry({work, repo, pin, proxy, noProxy, fetch, log}) {
   const existing = revParse(repo, 'refs/harness/carry');
   if (existing && treeOf(repo, existing) === pin.carry.tree) return existing;
   const base = revParse(repo, `refs/harness/upstream/${pin.carry.base}`);
   if (!base) throw new Error(`The carry's base tag ${pin.carry.base} has not been imported; pin.upstream.tags must list it before the carry.`);
-  const archive = fetch(`https://codeload.github.com/${pin.carry.repo.replace(/^https:\/\/github\.com\//, '')}/tar.gz/${pin.carry.commit}`, path.join(work, 'downloads', `carry-${pin.carry.commit.slice(0, 10)}.tar.gz`), {proxy});
+  const archive = fetch(`https://codeload.github.com/${pin.carry.repo.replace(/^https:\/\/github\.com\//, '')}/tar.gz/${pin.carry.commit}`, path.join(work, 'downloads', `carry-${pin.carry.commit.slice(0, 10)}.tar.gz`), {proxy, noProxy});
   const {tree} = await importArchiveTree({archive, repo, strip: 1, prefix: `${pin.carry.path}/`, expectTree: pin.carry.tree, label: 'carry', work, log});
   const {commit} = commitReplay({
     repo, tree, ref: 'refs/harness/carry', parents: [base],
@@ -257,16 +272,16 @@ function replayBump({repo, pin, bump, head}) {
  * exist with the recorded tree are reused, and nothing is downloaded twice.
  * @returns {{work: string, repo: string, head: string, tree: string}}
  */
-export async function materialize({work = defaultWork, proxy, pin: pinPath = pinFile, fetch = download, log = () => {}} = {}) {
+export async function materialize({work = defaultWork, proxy, noProxy = false, pin: pinPath = pinFile, fetch = download, log = () => {}} = {}) {
   const pin = loadPin(pinPath);
   const repo = ensureWork(work).repo;
   let upstreamTip = null;
   for (const entry of pin.upstream.tags) {
-    upstreamTip = await importUpstreamTag({work, repo, pin, entry, proxy, fetch, log});
+    upstreamTip = await importUpstreamTag({work, repo, pin, entry, proxy, noProxy, fetch, log});
     log(`upstream ${entry.ref} -> ${upstreamTip.slice(0, 10)}`);
   }
   git(['update-ref', 'refs/heads/upstream', upstreamTip], {cwd: repo});
-  let head = await importCarry({work, repo, pin, proxy, fetch, log});
+  let head = await importCarry({work, repo, pin, proxy, noProxy, fetch, log});
   log(`carry -> ${head.slice(0, 10)}`);
   for (const bump of pin.bumps) {
     head = replayBump({repo, pin, bump, head});
@@ -285,11 +300,11 @@ export async function materialize({work = defaultWork, proxy, pin: pinPath = pin
 }
 
 /** Import one new tag and merge it, leaving conflicts for the operator to resolve. */
-export async function bump(ref, {work = defaultWork, proxy, log = () => {}} = {}) {
+export async function bump(ref, {work = defaultWork, proxy, noProxy = false, log = () => {}} = {}) {
   const pin = loadPin();
   if (!pin.upstream.tags.some(tag => tag.ref === ref)) {
     const sha = remoteTagSha(pin.upstream.repo, ref, {proxy});
-    const archive = download(`https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/${sha}`, path.join(work, 'downloads', `${ref}.tar.gz`), {proxy});
+    const archive = download(`https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/${sha}`, path.join(work, 'downloads', `${ref}.tar.gz`), {proxy, noProxy});
     const repo = ensureWork(work).repo;
     const {tree: measured} = await importArchiveTree({archive, repo, strip: 1, label: ref, work, log});
     pin.upstream.tags.push({ref, sha, tree: measured});
@@ -298,8 +313,8 @@ export async function bump(ref, {work = defaultWork, proxy, log = () => {}} = {}
   }
   const {repo} = ensureWork(work);
   const current = revParse(repo, 'refs/heads/mygo');
-  if (!current) await materialize({work, proxy, log});
-  const tagCommit = await importUpstreamTag({work, repo, pin: loadPin(), entry: tagEntry(loadPin(), ref), proxy});
+  if (!current) await materialize({work, proxy, noProxy, log});
+  const tagCommit = await importUpstreamTag({work, repo, pin: loadPin(), entry: tagEntry(loadPin(), ref), proxy, noProxy});
   git(['checkout', '-f', 'mygo'], {cwd: repo});
   const merge = git(['merge', '--no-ff', '--no-commit', tagCommit], {cwd: repo, allow: true});
   const conflicted = stdout(git(['diff', '--name-only', '--diff-filter=U'], {cwd: repo}))
@@ -383,6 +398,7 @@ async function main(argv) {
   }
   if (flags.has('work')) options.work = path.resolve(flags.get('work'));
   if (flags.has('proxy')) options.proxy = flags.get('proxy');
+  if (flags.has('no-proxy')) options.noProxy = true;
   if (command === 'materialize') {
     const result = await materialize(options);
     console.log(JSON.stringify({repo: result.repo, head: result.head, tree: result.tree}, null, 2));
@@ -404,7 +420,7 @@ async function main(argv) {
     if (missing.length || unrecorded.length) process.exitCode = 1;
     return;
   }
-  throw new Error('Usage: fork.mjs materialize [--work <dir>] [--proxy <url>] | bump <tag> [--proxy <url>] | record <tag> --why <decision> | audit');
+  throw new Error('Usage: fork.mjs materialize [--work <dir>] [--proxy <url> | --no-proxy] | bump <tag> [--proxy <url> | --no-proxy] | record <tag> --why <decision> | audit');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
