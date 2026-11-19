@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"strings"
+	"sync"
 
 	"whaleisle/internal/markdownsyntax"
 
@@ -42,7 +43,23 @@ func (n *blockMath) Dump(source []byte, level int) { ast.DumpHelper(n, source, l
 
 func newMarkdown() goldmark.Markdown { return markdownGrammar(false) }
 
+// markdownGrammar returns the grammar a parse uses, one per kind, built once.
+// A grammar carries a parser and the extensions it sorts once on the first
+// parse: building one per call allocates a whole markdown implementation for
+// every row drawn, which is a transcript row's cost on every frame.
 func markdownGrammar(streaming bool) goldmark.Markdown {
+	if streaming {
+		return streamingGrammar()
+	}
+	return documentGrammar()
+}
+
+var (
+	documentGrammar  = sync.OnceValue(func() goldmark.Markdown { return newGrammar(false) })
+	streamingGrammar = sync.OnceValue(func() goldmark.Markdown { return newGrammar(true) })
+)
+
+func newGrammar(streaming bool) goldmark.Markdown {
 	md := goldmark.New(goldmark.WithParser(parser.NewParser(
 		parser.WithBlockParsers(positionedBlockParsers()...),
 		parser.WithInlineParsers(parser.DefaultInlineParsers()...),
