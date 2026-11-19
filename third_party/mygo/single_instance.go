@@ -213,6 +213,19 @@ const staleSocketGrace = time.Minute
 // at once.
 const staleSocketDialTimeout = 500 * time.Millisecond
 
+// socketSweep reports one pass over the directory that holds the socket files.
+// The launch log carries it, so one run answers whether the stale files a
+// crashed profile left behind are gone, without anyone counting files by hand.
+type socketSweep struct {
+	// Examined counts files named like this package's sockets that belong to
+	// another instance or key; this instance's own file is never a candidate.
+	Examined int
+	// Removed counts files no instance answered for.
+	Removed int
+	// InUse counts files a live instance accepted the probe on.
+	InUse int
+}
+
 // sweepStaleSockets removes the socket files in dir that no instance answers
 // for. A key's owner removes its own file on a clean quit; an unclean exit
 // leaves it for good, and because a key covers one profile, a machine that
@@ -221,12 +234,13 @@ const staleSocketDialTimeout = 500 * time.Millisecond
 // A file that accepts a connection has an owner and stays. The probe writes
 // nothing and closes at once, so a live owner reads an empty line, rejects it
 // as a command line, and runs no handlers.
-func sweepStaleSockets(dir, own string, grace time.Duration) int {
+func sweepStaleSockets(dir, own string, grace time.Duration) socketSweep {
+	var sweep socketSweep
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return 0
+		log.Printf("mygo: single-instance sockets in %s: %v", dir, err)
+		return sweep
 	}
-	removed := 0
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !socketFileName.MatchString(name) {
@@ -237,11 +251,16 @@ func sweepStaleSockets(dir, own string, grace time.Duration) int {
 			continue
 		}
 		observed, err := entry.Info()
-		if err != nil || time.Since(observed.ModTime()) < grace {
+		if err != nil {
+			continue
+		}
+		sweep.Examined++
+		if time.Since(observed.ModTime()) < grace {
 			continue
 		}
 		if conn, err := net.DialTimeout("unix", path, staleSocketDialTimeout); err == nil {
 			conn.Close()
+			sweep.InUse++
 			continue
 		}
 		// Remove only the file that was probed: another instance may have
@@ -251,13 +270,11 @@ func sweepStaleSockets(dir, own string, grace time.Duration) int {
 			continue
 		}
 		if os.Remove(path) == nil {
-			removed++
+			sweep.Removed++
 		}
 	}
-	if removed > 0 {
-		log.Printf("mygo: removed %d stale single-instance sockets from %s", removed, dir)
-	}
-	return removed
+	log.Printf("mygo: single-instance sockets in %s: examined %d, removed %d, in use %d", dir, sweep.Examined, sweep.Removed, sweep.InUse)
+	return sweep
 }
 
 // singleInstanceSocket returns a short per-user socket path; Unix socket
