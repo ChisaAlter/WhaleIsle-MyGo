@@ -204,8 +204,12 @@ function importCarry({work, repo, pin, carrySource, proxy}) {
 
 /** A merge with the fork's side winning every conflict: the baseline a resolution patch is a delta from. */
 export function baselineMerge({repo, ours, theirs}) {
-  const result = git(['merge-tree', '--write-tree', '-X', 'ours', ours, theirs], {cwd: repo});
-  return result.stdout.split('\n')[0].trim();
+  try {
+    return stdout(git(['merge-tree', '--write-tree', '-X', 'ours', ours, theirs], {cwd: repo})).split('\n')[0].trim();
+  } catch (error) {
+    if (!/unknown switch `X'/.test(error.message)) throw error;
+    throw new Error(`This git's merge-tree does not take -X, so there is no "our side wins" baseline to record a resolution against; git 2.56 has it and 2.39 does not. Bump on a newer git rather than resolving against a different baseline.`);
+  }
 }
 
 function applyBaseline({repo, work, tree, patch, label}) {

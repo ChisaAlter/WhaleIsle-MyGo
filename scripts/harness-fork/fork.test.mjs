@@ -65,6 +65,7 @@ test('bump tags are ordered the way they merge', () => {
 test('a recorded resolution replays to the same tree git merged', t => {
   const root = tmp(t, 'harness-fork-resolution-');
   git(root, 'init', '-q', '-b', 'main');
+  for (const [key, value] of [['user.name', 'harness-fork'], ['user.email', 'harness-fork@invalid']]) git(root, 'config', key, value);
   write(root, 'file.txt', 'base\n');
   write(root, 'other.txt', 'untouched\n');
   git(root, 'add', '-A');
