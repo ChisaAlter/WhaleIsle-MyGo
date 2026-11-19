@@ -64,11 +64,20 @@ const (
 type frameStats struct {
 	threshold   time.Duration
 	start, last time.Time
+	lastCycles  uint64
+	lastTid     uint32
 	laps        [phases]time.Duration
-	passes      int
-	samples     [stats]metrics.Sample
-	before      [stats]float64
-	layouts     uint64 // the text system's, before the frame
+	// cycles is what the thread used in each phase, where the system counts
+	// cycles: finer than the monotonic clock, which steps in half milliseconds
+	// on some machines.
+	cycles [phases]uint64
+	// delta is what the process did during the frame, for the trace: the
+	// allocations it made and the garbage collections it ran.
+	delta   [stats]float64
+	passes  int
+	samples [stats]metrics.Sample
+	before  [stats]float64
+	layouts uint64 // the text system's, before the frame
 }
 
 func newFrameStats(threshold time.Duration) *frameStats {
@@ -106,9 +115,10 @@ func (f *frameStats) begin(rt *engine) {
 		return
 	}
 	f.before, f.layouts = f.read(), rt.text.LayoutsMade()
-	f.laps, f.passes = [phases]time.Duration{}, 0
+	f.laps, f.cycles, f.passes = [phases]time.Duration{}, [phases]uint64{}, 0
 	f.start = time.Now()
 	f.last = f.start
+	f.lastCycles, f.lastTid = readThreadCycles()
 }
 
 // lap ends a part of the frame.
@@ -119,6 +129,11 @@ func (f *frameStats) lap(phase int) {
 	now := time.Now()
 	f.laps[phase] += now.Sub(f.last)
 	f.last = now
+	n, tid := readThreadCycles()
+	if tid != 0 && tid == f.lastTid && n >= f.lastCycles {
+		f.cycles[phase] += n - f.lastCycles
+	}
+	f.lastCycles, f.lastTid = n, tid
 }
 
 // end logs the frame if it took longer than the threshold.
@@ -127,6 +142,13 @@ func (f *frameStats) end(rt *engine) {
 		return
 	}
 	total := time.Since(f.start)
+	if frameTrace != nil {
+		after := f.read()
+		for i := range after {
+			f.delta[i] = after[i] - f.before[i]
+		}
+	}
+	frameTrace.frame(rt, f, total)
 	if total < f.threshold {
 		return
 	}

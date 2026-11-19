@@ -195,6 +195,10 @@ func TestMain(m *testing.M) {
 		}
 		return
 	}
+	if os.Getenv("INSPECTOR_NATIVE_FIXTURE_SCENARIO") == "frameprobe" {
+		runFrameProbeFixture()
+		return
+	}
 	view := ui.View(func(c *ui.Context) {
 		theme.ApplyInterface(c)
 		if advance != nil && c.Shortcut(0, ui.KeyF8) {
