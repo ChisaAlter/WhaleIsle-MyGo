@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { applyReleaseSlim, heavyPackagesToSlim, criticalPackagesToPreserve } from './session-runtime.mjs';
+import { applyReleaseSlim, assertCapabilities, capabilityPairs, criticalPackagesToPreserve, optionalNativeEnginesToSlim } from './session-runtime.mjs';
 import { emitRuntimeInclude } from './session-runtime-nsis.mjs';
 import { inventoryGraph } from './session-runtime-graph.mjs';
 
@@ -12,150 +12,150 @@ function linkDirectory(target, link) {
   fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
 }
 
-test('applyReleaseSlim accurately identifies and strips 4 heavy packages while preserving critical instances', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-slim-test-'));
-  try {
-    const stage = path.join(root, 'stage');
-    const vendor = path.join(stage, 'runtime/vendor');
-    const harness = path.join(vendor, 'deepseek-harness');
-    const dshInstances = path.join(harness, 'node_modules/.dsh-instances');
+function capabilityNames() {
+  const office = capabilityPairs.find(pair => pair.capability === 'office-to-pdf');
+  const speech = capabilityPairs.find(pair => pair.capability === 'speech-to-text-sensevoice');
+  return {
+    officeLoader: office.loader,
+    officeWasm: office.engines.find(engine => !engine.optionalNative).name,
+    officeNative: office.engines.find(engine => engine.optionalNative).name,
+    speechLoader: speech.loader,
+    speechEngine: speech.engines[0].name,
+  };
+}
 
-    // Setup instances
-    const instLibre = path.join(dshInstances, 'inst-libre-root');
-    const instLibreWin = path.join(dshInstances, 'inst-libre-win');
-    const instSherpa = path.join(dshInstances, 'inst-sherpa-node');
-    const instSherpaWin = path.join(dshInstances, 'inst-sherpa-win');
-    const instSharp = path.join(dshInstances, 'inst-sharp-win');
-    const instRegular = path.join(dshInstances, 'inst-regular');
-
-    for (const [dir, name] of [
-      [instLibre, '@deepseek-ai/libreoffice-kit'],
-      [instLibreWin, '@deepseek-ai/libreoffice-kit-win32-x64'],
-      [instSherpa, 'sherpa-onnx-node'],
-      [instSherpaWin, 'sherpa-onnx-win-x64'],
-      [instSharp, '@img/sharp-win32-x64'],
-      [instRegular, 'regular-utility'],
-    ]) {
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, version: '1.0.0' }));
-      fs.writeFileSync(path.join(dir, 'index.js'), `// ${name}`);
+// One instance store per package, linked the way a staged Host links them.
+function stageVendor(root, names, { optional = {}, addons = [], assets = {}, extraLinks = [] } = {}) {
+  const stage = path.join(root, 'stage');
+  const vendor = path.join(stage, 'runtime/vendor');
+  const harness = path.join(vendor, 'deepseek-harness');
+  const instances = path.join(harness, 'node_modules/.dsh-instances');
+  const links = [];
+  const ids = new Map();
+  names.forEach((name, position) => {
+    const id = `inst-${position + 1}`;
+    ids.set(name, id);
+    const dir = path.join(instances, id);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, optionalDependencies: optional[name] }));
+    if (addons.includes(name)) fs.writeFileSync(path.join(dir, 'sherpa-onnx.node'), '// native addon');
+    if (assets[name]) {
+      fs.mkdirSync(path.dirname(path.join(dir, assets[name])), { recursive: true });
+      fs.writeFileSync(path.join(dir, assets[name]), '// engine asset');
     }
+    linkDirectory(dir, path.join(harness, 'node_modules', name));
+    links.push({ path: `node_modules/${name}`, target: `node_modules/.dsh-instances/${id}` });
+  });
+  for (const link of extraLinks) links.push(link);
+  fs.writeFileSync(path.join(harness, '.dsh-runtime-links.json'), JSON.stringify({ version: 1, links }, null, 2));
+  fs.writeFileSync(path.join(vendor, 'host-session-runtime.json'), JSON.stringify({ schemaVersion: 1, relocatedLinks: links.length }, null, 2));
+  return { stage, vendor, harness, instances, ids };
+}
 
-    // Setup links
-    const linkLibre = path.join(harness, 'node_modules/@deepseek-ai/libreoffice-kit');
-    const linkLibreWin = path.join(harness, 'node_modules/@deepseek-ai/libreoffice-kit-win32-x64');
-    const linkSherpa = path.join(harness, 'node_modules/sherpa-onnx-node');
-    const linkSherpaWin = path.join(harness, 'node_modules/sherpa-onnx-win-x64');
-    const linkSharp = path.join(harness, 'node_modules/@img/sharp-win32-x64');
-    const linkRegular = path.join(harness, 'node_modules/regular-utility');
+function instanceIdOf(instances, position) {
+  return fs.readdirSync(instances).sort()[position];
+}
 
-    linkDirectory(instLibre, linkLibre);
-    linkDirectory(instLibreWin, linkLibreWin);
-    linkDirectory(instSherpa, linkSherpa);
-    linkDirectory(instSherpaWin, linkSherpaWin);
-    linkDirectory(instSharp, linkSharp);
-    linkDirectory(instRegular, linkRegular);
-
-    const initialLinks = [
-      { path: 'node_modules/@deepseek-ai/libreoffice-kit', target: 'node_modules/.dsh-instances/inst-libre-root' },
-      { path: 'node_modules/@deepseek-ai/libreoffice-kit-win32-x64', target: 'node_modules/.dsh-instances/inst-libre-win' },
-      { path: 'node_modules/sherpa-onnx-node', target: 'node_modules/.dsh-instances/inst-sherpa-node' },
-      { path: 'node_modules/sherpa-onnx-win-x64', target: 'node_modules/.dsh-instances/inst-sherpa-win' },
-      { path: 'node_modules/@img/sharp-win32-x64', target: 'node_modules/.dsh-instances/inst-sharp-win' },
-      { path: 'node_modules/regular-utility', target: 'node_modules/.dsh-instances/inst-regular' },
-    ];
-
-    fs.writeFileSync(path.join(harness, '.dsh-runtime-links.json'), JSON.stringify({ version: 1, links: initialLinks }, null, 2));
-    fs.writeFileSync(path.join(vendor, 'host-session-runtime.json'), JSON.stringify({ schemaVersion: 1, relocatedLinks: 6 }, null, 2));
+test('slim keeps every capability loader with a working engine and the installer carries both halves', async () => {
+  const names = capabilityNames();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-slim-capability-'));
+  try {
+    const { stage, vendor, harness, ids } = stageVendor(root, [
+      names.officeLoader, names.officeWasm, names.officeNative,
+      names.speechLoader, names.speechEngine,
+      '@img/sharp-win32-x64', 'regular-utility',
+    ], {
+      optional: { [names.officeLoader]: { [names.officeNative]: '*' } },
+      addons: [names.speechEngine],
+      assets: { [names.officeWasm]: 'assets/dsoffice.wasm' },
+    });
 
     const result = await applyReleaseSlim(vendor);
 
-    // Verify 4 heavy packages removed
-    assert.equal(result.removedPackages.length, 4);
-    for (const p of heavyPackagesToSlim) {
-      assert.ok(result.removedPackages.includes(p));
+    assert.deepEqual(optionalNativeEnginesToSlim, [names.officeNative]);
+    assert.deepEqual(result.removedPackages, [names.officeNative]);
+    for (const kept of [names.officeLoader, names.officeWasm, names.speechLoader, names.speechEngine]) {
+      assert.ok(fs.existsSync(path.join(harness, 'node_modules', kept)), `slim removed required package ${kept}`);
     }
-    assert.equal(result.removedInstances.length, 4);
-    assert.equal(result.removedLinks, 4);
-    assert.equal(result.remainingLinks, 2);
+    assert.equal(fs.existsSync(path.join(harness, 'node_modules', names.officeNative)), false);
 
-    // Verify filesystem state
-    assert.equal(fs.existsSync(instLibre), false);
-    assert.equal(fs.existsSync(instLibreWin), false);
-    assert.equal(fs.existsSync(instSherpa), false);
-    assert.equal(fs.existsSync(instSherpaWin), false);
-    assert.equal(fs.existsSync(instSharp), true);
-    assert.equal(fs.existsSync(instRegular), true);
+    const report = await assertCapabilities(vendor);
+    assert.ok(report.capabilities.every(capability => capability.complete), JSON.stringify(report, null, 2));
 
-    // Verify links on disk
-    assert.equal(fs.existsSync(linkLibre), false);
-    assert.equal(fs.existsSync(linkLibreWin), false);
-    assert.equal(fs.existsSync(linkSherpa), false);
-    assert.equal(fs.existsSync(linkSherpaWin), false);
-    assert.equal(fs.existsSync(linkSharp), true);
-    assert.equal(fs.existsSync(linkRegular), true);
-
-    // Verify link manifest updated
-    const updatedManifest = JSON.parse(fs.readFileSync(path.join(harness, '.dsh-runtime-links.json'), 'utf8'));
-    assert.equal(updatedManifest.links.length, 2);
-    assert.equal(updatedManifest.links[0].target, 'node_modules/.dsh-instances/inst-sharp-win');
-    assert.equal(updatedManifest.links[1].target, 'node_modules/.dsh-instances/inst-regular');
-
-    // Verify host manifest updated
-    const updatedHost = JSON.parse(fs.readFileSync(path.join(vendor, 'host-session-runtime.json'), 'utf8'));
-    assert.equal(updatedHost.relocatedLinks, 2);
-
-    // Write runtime-graph.json and verify emitRuntimeInclude works cleanly
     const graph = inventoryGraph(vendor, ['runtime-graph.json']);
-    const closure = { schemaVersion: 1, files: graph.files, links: graph.links };
-    fs.writeFileSync(path.join(vendor, 'runtime-graph.json'), JSON.stringify(closure, null, 2));
+    fs.writeFileSync(path.join(vendor, 'runtime-graph.json'), JSON.stringify({ schemaVersion: 1, files: graph.files, links: graph.links }, null, 2));
+    const nshFile = path.join(root, 'capability-runtime.nsh');
+    emitRuntimeInclude(stage, nshFile);
+    const nsh = fs.readFileSync(nshFile, 'utf8');
+    for (const kept of [names.officeLoader, names.officeWasm, names.speechLoader, names.speechEngine]) {
+      assert.ok(nsh.includes(ids.get(kept)), `installer must carry the instance carrying ${kept}`);
+    }
+    assert.equal(nsh.includes(ids.get(names.officeNative)), false, 'installer must not carry the slimmed native engine');
 
-    const nshFile = path.join(root, 'slim-runtime.nsh');
-    const nsisResult = emitRuntimeInclude(stage, nshFile);
-    assert.ok(nsisResult.files > 0);
-    assert.equal(nsisResult.links, 2);
-
-    const nshContent = fs.readFileSync(nshFile, 'utf8');
-    assert.ok(!nshContent.includes('libreoffice-kit'));
-    assert.ok(!nshContent.includes('sherpa-onnx'));
-    assert.ok(nshContent.includes('inst-sharp-win'));
-    assert.ok(nshContent.includes('inst-regular'));
+    // A loader whose engine never made it into the stage is what this gate exists for.
+    const broken = stageVendor(path.join(root, 'broken'), [names.officeLoader, names.officeWasm, names.speechLoader], {
+      assets: { [names.officeWasm]: 'assets/dsoffice.wasm' },
+    });
+    await assert.rejects(
+      assertCapabilities(broken.vendor),
+      error => error.message.includes('speech-to-text-sensevoice') && error.message.includes(`${names.speechEngine} missing`),
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('applyReleaseSlim rejects when retained instance depends on removed package', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-slim-dep-'));
+test('slim still refuses a retained instance that hard-depends on a removed engine', async () => {
+  const names = capabilityNames();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-slim-required-dep-'));
   try {
-    const stage = path.join(root, 'stage');
-    const vendor = path.join(stage, 'runtime/vendor');
-    const harness = path.join(vendor, 'deepseek-harness');
-    const dshInstances = path.join(harness, 'node_modules/.dsh-instances');
+    const { vendor, harness, instances } = stageVendor(root, [names.officeNative, 'regular-utility']);
+    const nativeId = instanceIdOf(instances, 0);
+    const regularId = instanceIdOf(instances, 1);
+    const manifestPath = path.join(harness, '.dsh-runtime-links.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.links.push({ path: `node_modules/.dsh-instances/${regularId}/node_modules/${names.officeNative}`, target: `node_modules/.dsh-instances/${nativeId}` });
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-    const instLibre = path.join(dshInstances, 'inst-libre-root');
-    const instRegular = path.join(dshInstances, 'inst-regular');
-
-    for (const [dir, name] of [
-      [instLibre, '@deepseek-ai/libreoffice-kit'],
-      [instRegular, 'regular-utility'],
-    ]) {
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, version: '1.0.0' }));
-    }
-
-    const initialLinks = [
-      { path: 'node_modules/@deepseek-ai/libreoffice-kit', target: 'node_modules/.dsh-instances/inst-libre-root' },
-      { path: 'node_modules/.dsh-instances/inst-regular/node_modules/dep', target: 'node_modules/.dsh-instances/inst-libre-root' },
-    ];
-
-    fs.writeFileSync(path.join(harness, '.dsh-runtime-links.json'), JSON.stringify({ version: 1, links: initialLinks }, null, 2));
-
-    await assert.rejects(
-      applyReleaseSlim(vendor),
-      /Safety violation: retained instance inst-regular depends on removed target/
-    );
+    await assert.rejects(applyReleaseSlim(vendor), /retained instance .* depends on removed target/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('slim prunes an optional native engine a retained loader may fall back from', async () => {
+  const names = capabilityNames();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-slim-optional-dep-'));
+  try {
+    const { vendor, harness, instances } = stageVendor(root, [names.officeLoader, names.officeNative], {
+      optional: { [names.officeLoader]: { [names.officeNative]: '*' } },
+    });
+    const loaderId = instanceIdOf(instances, 0);
+    const nativeId = instanceIdOf(instances, 1);
+    const manifestPath = path.join(harness, '.dsh-runtime-links.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.links.push({ path: `node_modules/.dsh-instances/${loaderId}/node_modules/${names.officeNative}`, target: `node_modules/.dsh-instances/${nativeId}` });
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = await applyReleaseSlim(vendor);
+    assert.deepEqual(result.removedPackages, [names.officeNative]);
+    assert.equal(fs.existsSync(path.join(harness, 'node_modules', names.officeLoader)), true);
+    const updated = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    assert.ok(updated.links.every(link => !link.target.includes(nativeId)), JSON.stringify(updated.links));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('no capability package may be listed for slimming', () => {
+  const preserved = new Set(criticalPackagesToPreserve);
+  for (const pair of capabilityPairs) {
+    assert.ok(preserved.has(pair.loader), `${pair.loader} must be preserved`);
+    for (const engine of pair.engines.filter(candidate => !candidate.optionalNative)) {
+      assert.ok(preserved.has(engine.name), `${engine.name} must be preserved`);
+    }
+  }
+  for (const slimmed of optionalNativeEnginesToSlim) {
+    assert.equal(preserved.has(slimmed), false, `${slimmed} is both slimmed and preserved`);
   }
 });
