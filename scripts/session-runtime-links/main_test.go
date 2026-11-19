@@ -123,8 +123,16 @@ func TestRuntimeLinksChangedFileAndStaleJunction(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "package/index.js"), []byte("tamper"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := operate("restore", root); err == nil {
-		t.Fatal("changed physical file accepted")
+	if err := operate("verify", root); err == nil {
+		t.Fatal("changed physical file accepted by verify")
+	}
+	// Restore replays links for a tree the installer just wrote; it checks
+	// structure, not every payload digest, so the content gate stays verify's.
+	if err := operate("restore", root); err != nil {
+		t.Fatalf("restore re-read payload content: %v", err)
+	}
+	if err := operate("detach", root); err != nil {
+		t.Fatal(err)
 	}
 	root, _ = fixtureGraph(t)
 	if err := operate("restore", root); err != nil {
@@ -136,5 +144,43 @@ func TestRuntimeLinksChangedFileAndStaleJunction(t *testing.T) {
 	}
 	if err := operate("detach", moved); err == nil {
 		t.Fatal("stale absolute junction accepted")
+	}
+}
+
+func TestRuntimeLinksTraceRecordsEntryAndOutcome(t *testing.T) {
+	root, _ := fixtureGraph(t)
+	trace := filepath.Join(t.TempDir(), "runtime-links.log")
+	if code := run([]string{"runtime-links.exe", "restore", root, trace}); code != 0 {
+		t.Fatalf("restore exit %d", code)
+	}
+	recorded, err := os.ReadFile(trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{"restore entry " + root, "restore done " + root} {
+		if !strings.Contains(string(recorded), expected) {
+			t.Fatalf("trace lacks %q: %s", expected, recorded)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "package/index.js"), []byte("tamper"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if code := run([]string{"runtime-links.exe", "verify", root, trace}); code != 1 {
+		t.Fatalf("verify exit %d, want 1", code)
+	}
+	recorded, err = os.ReadFile(trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(recorded), "verify failed "+root+": runtime file changed: package/index.js") {
+		t.Fatalf("trace lacks the refusal: %s", recorded)
+	}
+}
+
+func TestRuntimeLinksRejectsUnexpectedArgumentCount(t *testing.T) {
+	for _, args := range [][]string{{"runtime-links.exe"}, {"runtime-links.exe", "restore"}, {"runtime-links.exe", "restore", "root", "trace", "extra"}} {
+		if code := run(args); code != 2 {
+			t.Fatalf("%v exit %d, want 2", args, code)
+		}
 	}
 }

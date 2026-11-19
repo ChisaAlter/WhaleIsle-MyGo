@@ -28,6 +28,33 @@ A failed detachment compensates earlier successful removals; a failed restoratio
 removes aliases created by that call.
 All removals unlink the alias itself, never recursively follow its target.
 
+The replay is part of promotion, not an optional repair. A stage that carries a
+link graph without `runtime-links.exe` now stops the compile: an installer built
+from it would ship every payload file, create no link, and report nothing. The
+install-time guard still reads the graph on the promoted root's extended-length
+path, which a compiled fixture shows it resolves. Promotion treats a missing
+graph as failure, while the rollback, upgrade-detach and uninstall paths keep
+treating it as nothing to replay, because a partially cleaned tree
+legitimately has none.
+
+An upgrade repairs a previous installation whose graph is intact and whose links
+are absent: it replays that tree, re-verifies, and only then detaches and moves
+it. Installations promoted before this replay existed are therefore recovered by
+the next install instead of being refused.
+
+Restore checks structure, not payload content: every alias parent, physical
+target and reparse tag, without hashing the files the installer has just written
+from its own verified include. That content pass was the one part of promotion
+whose work grew with payload size, and it ran to completion before the first
+link existed. `verify` keeps the content check and is what the upgrade and
+uninstall paths run.
+
+Every replay writes `<command> entry <root>` before validating and `<command>
+done <root>` or `<command> failed <root>: <error>` after. The installer appends
+the guard result and helper exit code to `%LOCALAPPDATA%\mygo\runtime-links.log`
+and to the installer log, so a silent install leaves evidence of whether the
+helper started and how it ended.
+
 Validation on Windows used seven actual helper fixtures, including a locked
 second junction to exercise compensation, an AF_UNIX reparse point with an
 unknown tag, cyclic directory aliases, hardlink aliases, stale absolute targets,
@@ -36,8 +63,12 @@ missing aliases, changed/external targets and modified old physical files.
 installers under a fresh temporary root: install, forced post-promotion rollback,
 upgrade, unknown-junction refusal, then uninstall. It asserts payload bytes remain
 on refused removal and that installed/retired owned directories disappear after
-successful removal. It uses an isolated application identity and never writes
-product registration, shortcuts, production profile or the installed application.
+successful removal. It also detaches the installed links and installs again, modelling the
+unreplayed installation this transaction once produced, and requires that
+second install to restore them. It uses an isolated application identity and
+never writes product registration, shortcuts, production profile or the
+installed application. The Windows gate runs it on every push, so an installer
+that stops replaying links fails CI instead of a release.
 
 Evidence from this session is in `tmp/release-chain-closeout-3-utf8.log` for the
 seven helper and Go resource tests, and

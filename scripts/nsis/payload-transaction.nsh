@@ -579,7 +579,7 @@ Function wiRollback
     Return
   ${EndIf}
   ${If} $wiNewMoved == "1"
-    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" detach
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" detach 0
     ${If} $wiError != 0
       StrCpy $wiRecoveryStopped "1"
       SetErrorLevel 2
@@ -618,7 +618,7 @@ Function wiRollback
     StrCpy $wiOldMoved ""
   ${EndIf}
   ${If} $wiOldLinksDetached == "1"
-    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore 0
     ${If} $wiError != 0
       StrCpy $wiRecoveryStopped "1"
       SetErrorLevel 2
@@ -821,12 +821,22 @@ Function wiPromote
   ClearErrors
   System::Call 'kernel32::GetFileAttributesW(w "$wiFinalFS") i.r0'
   ${If} $0 != -1
-    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" verify
+    ; An installation promoted before aliases were replayed keeps an intact
+    ; graph with no links. Replay it before the strict check so an upgrade
+    ; repairs that tree instead of refusing it, and so only a tree whose bytes
+    ; or targets really changed is still rejected.
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" verify 0
+    ${If} $wiError != 0
+      !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore 0
+      ${If} $wiError == 0
+        !insertmacro WI_RunRuntimeLinks "$wiFinalFS" verify 0
+      ${EndIf}
+    ${EndIf}
     ${If} $wiError != 0
       SetErrorLevel 2
       Abort "The previous runtime files or dependencies changed. The previous installation was retained."
     ${EndIf}
-    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" detach
+    !insertmacro WI_RunRuntimeLinks "$wiFinalFS" detach 0
     ${If} $wiError != 0
       SetErrorLevel 2
       Abort "The previous runtime dependency graph changed. No installation files were moved or removed."
@@ -847,7 +857,7 @@ Function wiPromote
     Abort "Cannot promote the staged application. The previous installation will be restored."
   ${EndIf}
   StrCpy $wiNewMoved "1"
-  !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore
+  !insertmacro WI_RunRuntimeLinks "$wiFinalFS" restore 1
   ${If} $wiError != 0
     SetErrorLevel 2
     Abort "The new runtime dependencies could not be verified or restored. The previous installation will be restored."

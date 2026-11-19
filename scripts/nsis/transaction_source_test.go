@@ -164,3 +164,62 @@ func TestUpgradeRequiresNativeIdentityAndRejectsElectron(t *testing.T) {
 		t.Fatal("Electron executable still grants upgrade ownership")
 	}
 }
+
+// An installer compiled from a stage that declares dependency links but carries
+// no replayer installs a runtime whose package names never resolve, and reports
+// nothing. The stage state is a compile-time fact, so it is refused at build.
+func TestStagedRuntimeLinksCannotCompileWithoutTheirReplayer(t *testing.T) {
+	links := transactionSource(t, "runtime-links.nsh")
+	requireSourceOrder(t, links, `!ifndef SHELL_ONLY`,
+		`!if /FileExists "${STAGE_DIR}\runtime\vendor\runtime-graph.json"`,
+		`!if /FileExists "${STAGE_DIR}\runtime\runtime-links.exe"`,
+		"!else", "!error", "!endif")
+	if strings.Count(links, "!error") != 1 {
+		t.Fatal("only the missing replayer may stop a compile")
+	}
+}
+
+// A replay that runs must say so. The trace is the only evidence a silent
+// install leaves, and it has to carry the guard result and the helper exit code.
+func TestRuntimeLinkReplayRecordsItsGuardAndExit(t *testing.T) {
+	links := transactionSource(t, "runtime-links.nsh")
+	for _, name := range []string{"WI_RunRuntimeLinks", "WI_RunUninstallRuntimeLinks"} {
+		macro := sourceRegion(t, links, "!macro "+name+" ", "!macroend")
+		requireSourceOrder(t, macro, `"${Root}\runtime\vendor\runtime-graph.json"`,
+			`ExecWait '"$PLUGINSDIR\runtime-links.exe" ${Command} "${Root}\runtime\vendor"`,
+			`"$LOCALAPPDATA\mygo\runtime-links.log"`, "$R9", "StrCpy $wiError 1")
+		if !strings.Contains(macro, "WI_TraceRuntimeLinks") {
+			t.Fatalf("%s leaves no trace of its guard and exit code", name)
+		}
+	}
+}
+
+// Promotion must fail when the payload it just renamed carries no graph, and an
+// upgrade must repair a tree promoted before replay existed instead of refusing
+// every installation that predates the fix.
+func TestPromotionRequiresItsGraphAndRepairsThePreviousTree(t *testing.T) {
+	helper := transactionSource(t, "payload-transaction.nsh")
+	promote := sourceRegion(t, helper, "Function wiPromote", "FunctionEnd")
+	requireSourceOrder(t, promote, `WI_RunRuntimeLinks "$wiFinalFS" verify 0`,
+		`WI_RunRuntimeLinks "$wiFinalFS" restore 0`, `WI_RunRuntimeLinks "$wiFinalFS" verify 0`,
+		`WI_RunRuntimeLinks "$wiFinalFS" detach 0`, `Rename "$wiStageFS" "$wiFinalFS"`,
+		`WI_RunRuntimeLinks "$wiFinalFS" restore 1`,
+		"The new runtime dependencies could not be verified or restored")
+	links := transactionSource(t, "runtime-links.nsh")
+	macro := sourceRegion(t, links, "!macro WI_RunRuntimeLinks ", "!macroend")
+	requireSourceOrder(t, macro, "!if ${Required} == 1", "StrCpy $wiError 1", "!else")
+}
+
+func TestEveryReplayCallSiteStatesWhetherItsGraphIsRequired(t *testing.T) {
+	for _, name := range []string{"payload-transaction.nsh", "runtime-links.nsh"} {
+		for _, line := range strings.Split(transactionSource(t, name), "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "!insertmacro WI_RunRuntimeLinks ") {
+				continue
+			}
+			if last := line[len(line)-1]; last != '0' && last != '1' {
+				t.Fatalf("replay call site does not state its requirement: %s", line)
+			}
+		}
+	}
+}
