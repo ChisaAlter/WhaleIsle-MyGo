@@ -113,6 +113,9 @@ func composerPlaceholder(m Model) string {
 	if composerParentOffline(m) {
 		return ParentOfflinePlaceholder()
 	}
+	if m.HostPlaceholder != "" && m.Inert {
+		return m.HostPlaceholder
+	}
 	if m.Inert {
 		return WorkspacePlaceholder()
 	}

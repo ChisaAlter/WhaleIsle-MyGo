@@ -24,6 +24,46 @@ import (
 const nativeRecoveryFlag = "--native-ui-recovery-watchdog"
 const nativeUIHangAfter = 20 * time.Second
 
+// recoveryWindowOptions is the watchdog window's fixed shape. Hidden is the part
+// that matters for the operator: a window created visible is raised with Show(),
+// which calls SetForegroundWindow, so a surface raised by a hung desktop took the
+// foreground from whatever the operator had moved to after the desktop stopped
+// answering. The window is raised by raiseRecoverySurface once its content is
+// attached.
+//
+// AlwaysOnTop stays. The window belongs to a desktop whose own window may be the
+// one in front, so without it the window could be created behind the frozen UI and
+// never seen, and this is the only surface that can still repaint and offer a way
+// out. What the operator gets from it is a window they did not raise; that is the
+// deliberate limit of the design, and it no longer touches the foreground.
+func recoveryWindowOptions(title string) mygo.WindowOptions {
+	return mygo.WindowOptions{
+		Title:           title,
+		Width:           640,
+		Height:          420,
+		MinWidth:        380,
+		MinHeight:       300,
+		AlwaysOnTop:     true,
+		Hidden:          true,
+		TitleBarStyle:   mygo.TitleBarHidden,
+		TitleBarHeight:  48,
+		AutoHideMenuBar: true,
+	}
+}
+
+// recoverySurface is the one thing the watchdog asks of its window's platform
+// surface: to appear. It cannot Show (which activates) or Focus (which takes the
+// foreground); those calls are unreachable from here by type.
+type recoverySurface interface {
+	ShowInactive()
+}
+
+// raiseRecoverySurface puts the watchdog window on screen without activating it.
+// The operator brings it forward by clicking it, and its buttons work from there.
+func raiseRecoverySurface(surface recoverySurface) {
+	surface.ShowInactive()
+}
+
 type nativeRecoveryMessage struct {
 	Kind                         string
 	PID                          int
@@ -222,7 +262,8 @@ func handleNativeRecoveryProcess() bool {
 						return
 					}
 					mu.Unlock()
-					created := mygo.NewWindow(mygo.WindowOptions{Title: lifecycleText("界面未响应", "Interface not responding"), Width: 640, Height: 420, MinWidth: 380, MinHeight: 300, AlwaysOnTop: true, TitleBarStyle: mygo.TitleBarHidden, TitleBarHeight: 48, AutoHideMenuBar: true, Content: ui.View(func(c *ui.Context) {
+					opts := recoveryWindowOptions(lifecycleText("界面未响应", "Interface not responding"))
+					opts.Content = ui.View(func(c *ui.Context) {
 						mu.Lock()
 						path, problem, ask, busy, targetStopped := diagnostic, failure, recovering, recovering || restarting, stopped
 						mu.Unlock()
@@ -325,7 +366,8 @@ func handleNativeRecoveryProcess() bool {
 								}()
 							}})
 						}
-					})})
+					})
+					created := mygo.NewWindow(opts)
 					mu.Lock()
 					win = created
 					mu.Unlock()
@@ -341,7 +383,7 @@ func handleNativeRecoveryProcess() bool {
 							mygo.App.Quit()
 						}
 					})
-					created.Focus()
+					raiseRecoverySurface(created)
 				})
 			}
 		}()

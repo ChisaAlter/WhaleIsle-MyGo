@@ -25,7 +25,7 @@ func TestTerminalFailureUsesStableCodeAndSpeaksASentence(t *testing.T) {
 		{"ACCOUNT_SIGN_IN_REQUIRED", "raw sign-in", i18n.T(i18n.KeyChatRetrySignIn)},
 		{"QUOTA", "raw quota", i18n.T(i18n.KeyChatRetryQuota)},
 		{"ACCOUNT_QUOTA", "raw account quota", i18n.T(i18n.KeyChatRetryQuota)},
-		{"", "revision mismatch", errcopy.SentenceText("revision mismatch")},
+		{"", "revision mismatch", i18n.T(i18n.KeyChatTurnUnfinished)},
 	} {
 		raw, _ := json.Marshal(map[string]any{"data": map[string]any{"reason": map[string]any{"kind": "error", "error": map[string]any{"message": tc.raw, "code": tc.code}}}})
 		msg := session.Message{Raw: raw}
@@ -90,5 +90,46 @@ func TestSplitTurnFailureKeepsLegacyHostCode(t *testing.T) {
 	}
 	if text != errcopy.SentenceFor("MISSING_API_KEY", "llm-deepseek: no API key for provider route x") {
 		t.Fatalf("legacy failure kept the transport text: %q", text)
+	}
+}
+
+// TestTurnFailureQuotesTheStatusOnce keeps a Host HTTP failure from painting a
+// bare HTTP_404 chip beside a sentence that already carries the number, and
+// makes the sentence name the turn, the service and the next step.
+func TestTurnFailureQuotesTheStatusOnce(t *testing.T) {
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		i18n.SetLocale(locale)
+		t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+		raw, _ := json.Marshal(map[string]any{"message": `deepseek chat completion failed`, "code": "HTTP_404"})
+		message, code := displayFailure(raw)
+		if !strings.Contains(message, "404") {
+			t.Fatalf("%s: displayFailure = %q", locale, message)
+		}
+		if strings.Contains(message, "HTTP_") {
+			t.Fatalf("%s: sentence kept the transport spelling: %q", locale, message)
+		}
+		tt := ui.NewTester(func(c *ui.Context) {
+			ui.Column(c).FillWidth().Padding(12).Children(func() {
+				paintTurnFailure(c, turnFailure{Message: message, Code: code}, theme.Resolve("deepseek.light").Light)
+			})
+		}, 760, 320)
+		if tt.HasText("HTTP_404") {
+			t.Fatalf("%s: painted the raw status chip: %q", locale, tt.Texts())
+		}
+		if !tt.HasText("404") {
+			t.Fatalf("%s: lost the status from the sentence: %q", locale, tt.Texts())
+		}
+	}
+}
+
+// TestUnclassifiedTurnFailureKeepsItsSubject keeps the one family the classifier
+// cannot explain from reading as "an operation did not finish".
+func TestUnclassifiedTurnFailureKeepsItsSubject(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	raw, _ := json.Marshal(map[string]any{"message": "revision mismatch", "code": ""})
+	message, _ := displayFailure(raw)
+	if !strings.HasPrefix(message, "本轮") || strings.Contains(message, "操作没有完成") {
+		t.Fatalf("unclassified turn failure = %q", message)
 	}
 }

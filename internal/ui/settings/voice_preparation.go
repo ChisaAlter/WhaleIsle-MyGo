@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets"
 )
 
 func voiceText(zh, en string) string {
@@ -57,15 +58,25 @@ func VoicePreparationView(c *ui.Context, store *session.Store, microphone *voice
 	}
 	owner, state := store.BindSpeechSettings()
 	ui.Column(c.Key("voice-preparation:" + owner.Key())).FillWidth().Gap(12).Children(func() {
-		for _, message := range []string{state.ConnectionError, state.Error} {
-			if message != "" {
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, message).FontSize(12).TextColor(c.Theme().Text).Grow(1).MinWidth(0)
-					if state.Error == message && ui.Button(c, voiceText("关闭提示", "Dismiss")).Clicked() {
-						owner.DismissError()
-					}
-				})
+		for _, failure := range []struct {
+			id, raw, message, dismiss string
+		}{
+			{
+				id:      "connection",
+				raw:     state.ConnectionError,
+				message: voiceText("语音服务没有响应。点「重新连接语音服务」再试；仍然连不上就稍后再试，详情见日志。", "The speech service is not responding. Press Reconnect speech service to try again; if it still fails, try later, and check the log for details."),
+			},
+			{
+				id:      "settings",
+				raw:     state.Error,
+				message: voiceText("语音设置没有生效。请重试；仍然失败可查看日志。", "The speech setting did not take effect. Try again; if it keeps failing, check the log."),
+				dismiss: voiceText("关闭提示", "Dismiss"),
+			},
+		} {
+			if failure.raw == "" {
+				continue
 			}
+			voiceFailureLine(c, failure.id, failure.raw, failure.message, failure.dismiss, owner)
 		}
 		if !state.Connected && ui.Button(c, voiceText("重新连接语音服务", "Reconnect speech service")).Clicked() {
 			owner.Retry()
@@ -136,6 +147,19 @@ func voiceStep(kind string) string {
 		return voiceText(label[0], label[1])
 	}
 	return kind
+}
+
+// voiceFailureLine shows the failure where the control is: widgets.Alert carries
+// the sentence with the next step, and the transport's own text stays behind its
+// 详情 disclosure. The envelope names an RPC method and a gateway code, which is
+// what a bug report needs and never what a person reading the page needs.
+func voiceFailureLine(c *ui.Context, id, raw, message, dismiss string, owner *session.SpeechSettingsOwner) {
+	options := widgets.AlertOptions{ID: "voice/" + id, Message: message, Detail: raw}
+	if dismiss != "" {
+		options.Dismiss = dismiss
+		options.OnDismiss = owner.DismissError
+	}
+	widgets.Alert(c, options)
 }
 
 func voiceStepStatus(status string) string {

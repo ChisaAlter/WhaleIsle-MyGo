@@ -34,7 +34,10 @@ func (s *mainState) setupDesktopTray() {
 	tray, err := mygo.NewTray(options)
 	if err != nil {
 		log.Println("tray:", err)
-		s.showMainWindow() // also undo hidden login startup when the tray failed
+		// Undo a hidden login startup, but without activation: this runs during
+		// a launch the operator may not have started, and taking the foreground
+		// there is the same defect as any other self-raising surface.
+		s.revealMainWindow()
 		return
 	}
 	s.mu.Lock()

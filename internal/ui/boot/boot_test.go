@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/harness"
+	"whaleisle/internal/hoststate"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -28,14 +29,21 @@ func TestPluginProgressLine(t *testing.T) {
 	}
 }
 
+// TestStatusLine pins the strip's sentence to the state machine's own copy:
+// a stopped service must say it is stopped and offer the start, never a bare
+// state name and never the transport's words.
 func TestStatusLine(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
-	if got := StatusLine(harness.Status{State: harness.Starting}); got != i18n.T(i18n.KeyBootStarting) {
+	if got := StatusLine(harness.Status{State: harness.Starting}); got != hoststate.Of(harness.Status{State: harness.Starting}).Line {
 		t.Fatalf("starting = %q", got)
 	}
-	if got := StatusLine(harness.Status{State: harness.Stopped}); got != i18n.T(i18n.KeyBootStopped) {
-		t.Fatalf("stopped = %q", got)
+	stopped := StatusLine(harness.Status{State: harness.Stopped})
+	if stopped != hoststate.Of(harness.Status{State: harness.Stopped}).Line {
+		t.Fatalf("stopped = %q", stopped)
+	}
+	if !strings.Contains(stopped, "启动") {
+		t.Fatalf("a stopped Host does not name the start: %q", stopped)
 	}
 }
 
@@ -102,7 +110,7 @@ func TestWorkbenchCancelRecoveryThenRetry(t *testing.T) {
 			m.OnRetry = func() { retried++ }
 			m.OnExport = func() { exported++ }
 		}
-		WorkbenchStatus(c, m, !st.RecoveryCancelled, "", "")
+		WorkbenchStatus(c, m, "", "")
 	}, 800, 180)
 	if tt.HasText(i18n.T(i18n.KeyBootRetry)) {
 		t.Fatal("scheduled recovery must not offer a competing manual retry")
@@ -209,7 +217,7 @@ func TestFailureDockNamesTheFailure(t *testing.T) {
 		{"dsh web exited: signal: killed", "桌面运行时被系统结束，可重试或到日志里查看原因。"},
 		{"dsh web exited", "桌面运行时已退出，可重试或到日志里查看原因。"},
 		{"EACCES: permission denied", "没有权限访问所需资源，请检查安全软件拦截或系统权限后重试；详情见日志。"},
-		{"spawn dsh ENOENT", "桌面运行时文件缺失，请重新安装桌面端。"},
+		{"spawn dsh ENOENT", "桌面运行时文件缺失，请重新安装桌面端后重试；详情见日志。"},
 	} {
 		raw := tc.raw
 		tt := ui.NewTester(func(c *ui.Context) {
@@ -229,7 +237,9 @@ func TestWorkbenchFailureLines(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	raw := errors.New("dsh web exited: exit status 1")
-	if got := StatusLine(harness.Status{State: harness.Failed, Err: raw}); got != "启动失败，可重试；原因见日志。" {
+	// A start failure names the cause the detail dock shows, so the same failure
+	// does not read two different ways one line apart.
+	if got := StatusLine(harness.Status{State: harness.Failed, Err: raw}); got != "桌面运行时已退出（退出码 1），可重试或到日志里查看原因。" {
 		t.Fatalf("start failure line = %q", got)
 	}
 	if got := StatusLine(harness.Status{State: harness.Failed, Err: raw, RuntimeFailure: true}); got != "桌面端意外退出，可立即重启；原因见日志。" {

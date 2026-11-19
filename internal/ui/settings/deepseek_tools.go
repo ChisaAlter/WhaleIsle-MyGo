@@ -102,8 +102,8 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 			"Ends with /v1/tools; do not append an operation such as /tts. A custom gateway must serve the same endpoints."),
 		s.BaseURL)
 	textField("apiKeyEnv", providerCopy("凭据引用", "Credential reference"),
-		providerCopy("默认复用 DEEPSEEK_API_KEY。改这里只影响这三个接口，不动对话模型的密钥。",
-			"Reuses DEEPSEEK_API_KEY by default. Changing it affects only these three APIs, not the chat model's key."),
+		providerCopy("默认复用对话模型的密钥。改这里只影响这三个接口，不动对话模型的密钥。",
+			"Reuses the chat model's key by default. Changing this affects only these three APIs, not the chat model's key."),
 		s.APIKeyEnv)
 
 	ui.Column(c.Key("deepseek-tools/api-key")).FillWidth().MinWidth(0).Gap(6).Children(func() {

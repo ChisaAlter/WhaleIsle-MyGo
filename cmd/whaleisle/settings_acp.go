@@ -44,6 +44,32 @@ func (s *mainState) acpSettingsAccess() *settings.ACPAccess {
 		OnSelect: func(id string) { s.mu.Lock(); s.acpPanel.selected = id; s.mu.Unlock(); s.refreshWhaleSettingsUI() },
 		OnAction: s.runACP}
 }
+
+// acpActionLead names the action a person just took, so a page failure reads as
+// "refreshing the agent registry did not finish" instead of "an operation".
+func acpActionLead(method string) string {
+	switch method {
+	case "catalog":
+		return resumeText("刷新 Agent 目录", "Refreshing the agent registry")
+	case "agent/registry-search":
+		return resumeText("搜索 Agent 目录", "Searching the agent registry")
+	case "agent/save":
+		return resumeText("保存 Agent 设置", "Saving the agent setting")
+	case "agent/toggle":
+		return resumeText("切换 Agent 开关", "Changing the agent switch")
+	case "agent/delete":
+		return resumeText("删除 Agent", "Deleting the agent")
+	case "agent/test":
+		return resumeText("测试 Agent", "Testing the agent")
+	case "agent/create-account":
+		return resumeText("创建 Agent 账号", "Creating the agent account")
+	case "sessions/stop":
+		return resumeText("停止 Agent 会话", "Stopping the agent session")
+	default:
+		return resumeText("更新 Agent 设置", "Updating the agent setting")
+	}
+}
+
 func (s *mainState) runACP(method string, payload map[string]any) {
 	// UI drafts stay editable between frames; an in-flight request owns its
 	// arguments, including nested credential/environment maps.
@@ -96,7 +122,7 @@ func (s *mainState) runACP(method string, payload map[string]any) {
 		s.acpPanel.loaded = true
 		s.acpPanel.cancel = nil
 		if err != nil {
-			s.acpPanel.error = errcopy.Sentence(err)
+			s.acpPanel.error = errcopy.Under(acpActionLead(method), err)
 		} else {
 			if method == "agent/registry-search" {
 				s.acpPanel.registry = registry

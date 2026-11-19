@@ -30,6 +30,9 @@ func TestDerivedPaths(t *testing.T) {
 	if got, want := PidFile(), filepath.Join(dir, "runtime", "whaleisle.pid"); got != want {
 		t.Fatalf("PidFile() = %q, want %q", got, want)
 	}
+	if got, want := HostRecordFile(), filepath.Join(dir, "runtime", "host-process.json"); got != want {
+		t.Fatalf("HostRecordFile() = %q, want %q", got, want)
+	}
 	if got, want := WebProfileDir(), filepath.Join(dir, "dsh-home", "profiles", "web"); got != want {
 		t.Fatalf("WebProfileDir() = %q, want %q", got, want)
 	}

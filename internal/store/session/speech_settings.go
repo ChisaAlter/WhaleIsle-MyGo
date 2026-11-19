@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 )
@@ -102,6 +103,7 @@ func (o *SpeechSettingsOwner) run(key, endpoint string, args map[string]any) {
 		}
 		delete(s.speechReadiness.operations, key)
 		if err != nil {
+			log.Printf("speech: %s failed: %s", endpoint, err)
 			s.speechReadiness.view.Error = err.Error()
 		}
 		s.mu.Unlock()
@@ -178,6 +180,9 @@ func (s *Store) failSpeechReadiness(ctx context.Context, mux *dsh.Mux, generatio
 	}
 	r.view.Connected = false
 	if err != nil {
+		// The page shows a sentence; this line is where the gateway's own words
+		// survive for a bug report.
+		log.Printf("speech: readiness failed: %s", err)
 		r.view.ConnectionError = fmt.Sprint(err)
 	}
 	s.mu.Unlock()

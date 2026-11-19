@@ -39,7 +39,14 @@ func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, mut
 		return
 	}
 	if !m.Snapshot.WorkspaceReady {
-		ui.Text(c, workspaceText("连接后显示会话", "Connect to load sessions")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
+		// An empty list names the state that is actually holding it: a service
+		// that has not started says so, and the workspace copy only speaks for
+		// a running service that has no workspace selected yet.
+		line := m.HostNote
+		if line == "" {
+			line = workspaceText("连接后显示会话", "Connect to load sessions")
+		}
+		ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 		return
 	}
 	if len(visibleWorkspaceGroups(m, items)) > 0 || len(archivedSectionItems(m)) > 0 {

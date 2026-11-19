@@ -60,6 +60,13 @@ func PidFile() string {
 	return filepath.Join(RuntimeDir(), "whaleisle.pid")
 }
 
+// HostRecordFile returns the file that names the Host process this profile's
+// shell started, so the next shell can reap one left behind. It sits beside the
+// pid file because both describe a process, not user data.
+func HostRecordFile() string {
+	return filepath.Join(RuntimeDir(), "host-process.json")
+}
+
 // EnvVendor, when set, overrides the vendored runtime directory that holds
 // deepseek-harness and the desktop plugin packages.
 const EnvVendor = "WHALEISLE_VENDOR"

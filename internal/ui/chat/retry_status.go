@@ -38,7 +38,11 @@ func displayFailure(raw json.RawMessage) (message, code string) {
 		// provider route and often naming an environment variable. The code
 		// names the cause; the classifier owns the sentence and the next step,
 		// and the raw text stays in the retained event the inspector shows.
-		message = errcopy.SentenceFor(code, message)
+		if _, rejected := errcopy.HTTPStatus(code, message); !rejected && errcopy.ClassifyCode(code, message) == errcopy.CauseUnknown {
+			message = i18n.T(i18n.KeyChatTurnUnfinished)
+		} else {
+			message = errcopy.SentenceFor(code, message)
+		}
 	}
 	if normalized := normalizeConversationNotice(message); normalized != "" && normalized != message {
 		message = normalized

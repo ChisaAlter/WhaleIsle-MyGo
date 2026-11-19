@@ -23,24 +23,28 @@ import (
 
 // Model is composer state for one frame.
 type Model struct {
-	SVGImages                 *svgimage.Owner
-	GroupMembers              []session.GroupMember
-	NextPrompt                session.NextPromptSuggestion
-	OnAcceptNextPrompt        func() string
-	ComposerBeam              bool
-	ComposerBeamStyle         json.RawMessage
-	TypingFx                  bool
-	TypingFxStyle             json.RawMessage
-	ResizeEnabled             bool
-	Resize                    *ResizeState
-	ResizeMaxWidth            float32
-	OnResizeEnd               func(axis string, value float32)
-	Snapshot                  session.ViewState
-	ThemeID                   string
-	SystemDark                bool
-	WorkspaceRoot             string
-	WorkspacePickerAnchor     *ui.Handle
-	Inert                     bool   // no Session or no owning workspace: the card opens the workspace picker
+	SVGImages             *svgimage.Owner
+	GroupMembers          []session.GroupMember
+	NextPrompt            session.NextPromptSuggestion
+	OnAcceptNextPrompt    func() string
+	ComposerBeam          bool
+	ComposerBeamStyle     json.RawMessage
+	TypingFx              bool
+	TypingFxStyle         json.RawMessage
+	ResizeEnabled         bool
+	Resize                *ResizeState
+	ResizeMaxWidth        float32
+	OnResizeEnd           func(axis string, value float32)
+	Snapshot              session.ViewState
+	ThemeID               string
+	SystemDark            bool
+	WorkspaceRoot         string
+	WorkspacePickerAnchor *ui.Handle
+	Inert                 bool // no Session or no owning workspace: the card opens the workspace picker
+	// HostPlaceholder replaces the inert card's workspace copy while the local
+	// service is not ready (internal/hoststate): the blocker is the service, not
+	// a workspace the person has yet to choose.
+	HostPlaceholder           string
 	Disabled                  bool   // session composer unavailable
 	ParentOffline             bool   // continuable child session whose parent session is offline
 	Placeholder               string // explicit placeholder override

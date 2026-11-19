@@ -30,7 +30,16 @@ func TestClassifyCoversEveryFamily(t *testing.T) {
 		{"deadline by sentinel", context.DeadlineExceeded, CauseTimeout},
 		{"timeout by text", errors.New("read tcp 127.0.0.1:1->127.0.0.1:2: i/o timeout"), CauseTimeout},
 		{"runtime missing", errors.New("spawn dsh.exe ENOENT"), CauseRuntimeMissing},
+		{"runtime without its bundled node", errors.New("selected Host runtime is missing its bundled Node: /r/node/node"), CauseRuntimeMissing},
+		{"harness never staged", errors.New("vendored harness not found; set WHALEISLE_VENDOR or run scripts/build-harness.ps1"), CauseRuntimeMissing},
+		{"harness staged but not built", errors.New("vendored harness not built (missing /r/apps/web/dist/index.html); run scripts/build-harness.ps1"), CauseRuntimeMissing},
+		{"node absent", errors.New("Node.js 22.19+ is required to run DeepSeek Harness; install it or set nodeBin"), CauseRuntimeMissing},
+		{"runtime provenance", errors.New("compatible Host runtime has unsupported provenance or visual-readiness patch"), CauseRuntimeMismatch},
+		{"session reader older than the schema", errors.New("Host session reader is older than the shared desktop session schema (missing session.created): /r; stage a complete supported runtime with scripts/session-runtime.mjs; session files were not changed"), CauseRuntimeMismatch},
+		{"artifact changed under the app", errors.New("compatible Host runtime artifact changed: /r/apps/cli/lib/bin.js"), CauseRuntimeMismatch},
+		{"node paired with the wrong runtime", errors.New("selected Node differs from the verified Host session runtime; use its matching bundled Node"), CauseRuntimeMismatch},
 		{"port in use", errors.New("listen tcp 127.0.0.1:8787: bind: address already in use"), CausePortInUse},
+		{"port range exhausted", errors.New("no free port in 3080-3129 on 127.0.0.1"), CausePortInUse},
 		{"network", errors.New("dial tcp 127.0.0.1:8080: connect: connection refused"), CauseNetwork},
 		{"disk full", errors.New("write /tmp/a: no space left on device"), CauseDiskFull},
 		{"read only", errors.New("open /mnt/a: read-only file system"), CauseReadOnly},
@@ -65,6 +74,10 @@ func TestSentenceNeverLeaksTheRawText(t *testing.T) {
 		rawPart string
 	}{
 		{"runtime missing", errors.New("spawn dsh.exe ENOENT"), "重新安装", "dsh.exe"},
+		{"runtime without its bundled node", errors.New("selected Host runtime is missing its bundled Node: C:\\r\\node\\node.exe"), "重新安装", "node.exe"},
+		{"harness never staged", errors.New("vendored harness not found; set WHALEISLE_VENDOR or run scripts/build-harness.ps1"), "重新安装", "WHALEISLE_VENDOR"},
+		{"runtime version mismatch", errors.New("compatible Host runtime has unsupported provenance or visual-readiness patch"), "不匹配", "compatible Host runtime"},
+		{"port range exhausted", errors.New("no free port in 3080-3129 on 127.0.0.1"), "端口", "3080"},
 		{"port in use", errors.New("bind: address already in use"), "端口", "address already in use"},
 		{"network", errors.New("dial tcp 10.0.0.1:443: connect: connection refused"), "网络", "dial tcp"},
 		{"timeout", errors.New("Post https://api: context deadline exceeded"), "超时", "https://api"},
@@ -266,5 +279,67 @@ func TestProviderEnvelopeIsNarrow(t *testing.T) {
 		if ProviderEnvelope(text) {
 			t.Fatalf("%q read as a provider envelope", text)
 		}
+	}
+}
+
+// TestUnderNamesAnUnknownAction keeps the one case the classifier cannot explain
+// from reading as "an operation failed": the lead is the subject, and the
+// sentence still ends with the next step.
+func TestUnderNamesAnUnknownAction(t *testing.T) {
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		withLocale(t, locale)
+		got := Under("刷新 Agent 目录", errors.New("revision mismatch"))
+		if !strings.Contains(got, "刷新 Agent 目录") || strings.Contains(got, "revision mismatch") {
+			t.Fatalf("%s: Under(unclassified) = %q", locale, got)
+		}
+		if strings.Contains(got, "操作") || strings.Contains(got, "operation did not finish") {
+			t.Fatalf("%s: Under(unclassified) = %q kept the subjectless sentence", locale, got)
+		}
+		want := "没有完成。请重试；若仍然失败，请查看日志。"
+		if locale == i18n.LocaleEN {
+			want = "did not finish. Try again; if it keeps failing, check the log."
+		}
+		if !strings.HasSuffix(got, want) {
+			t.Fatalf("%s: Under(unclassified) = %q, want the tail %q", locale, got, want)
+		}
+		if got := UnderText("保存设置", "revision mismatch"); !strings.Contains(got, "保存设置") {
+			t.Fatalf("%s: UnderText(unclassified) = %q", locale, got)
+		}
+	}
+	withLocale(t, i18n.LocaleZH)
+	if got := Under("保存设置", errors.New("dial tcp: connection refused")); !strings.HasPrefix(got, "保存设置：") {
+		t.Fatalf("a classified failure keeps the separator: %q", got)
+	}
+}
+
+// TestHTTPRejectionNamesTheStatusAndTheStep pins the family a Host reports as a
+// code: the status is quoted inside the sentence, and a credential rejection or
+// a rate limit each says what to do differently.
+func TestHTTPRejectionNamesTheStatusAndTheStep(t *testing.T) {
+	withLocale(t, i18n.LocaleZH)
+	for _, tc := range []struct {
+		code, raw, want string
+	}{
+		{"HTTP_401", "", "检查 API Key"},
+		{"", "bad request: HTTP 403", "检查 API Key"},
+		{"HTTP_429", "", "限流"},
+		{"HTTP_502", "", "模型服务这次出错了"},
+		{"HTTP_404", "", "模型名称与地址"},
+	} {
+		got := SentenceFor(tc.code, tc.raw)
+		if !strings.Contains(got, tc.want) {
+			t.Errorf("SentenceFor(%q, %q) = %q, want %q", tc.code, tc.raw, got, tc.want)
+		}
+		if status, ok := HTTPStatus(tc.code, tc.raw); !ok || !strings.Contains(got, status) {
+			t.Errorf("SentenceFor(%q, %q) = %q dropped the status", tc.code, tc.raw, got)
+		}
+		for _, leak := range []string{"HTTP_", "HTTP 4"} {
+			if strings.Contains(got, leak) {
+				t.Errorf("SentenceFor(%q, %q) = %q leaked %q", tc.code, tc.raw, got, leak)
+			}
+		}
+	}
+	if _, ok := HTTPStatus("MISSING_CREDENTIAL", "no api key"); ok {
+		t.Fatal("a credential code read as an HTTP status")
 	}
 }

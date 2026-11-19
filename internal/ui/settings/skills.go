@@ -316,7 +316,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if *createOpen && a.Create == nil {
 			bodyDialogFooterWidth(c, createOpen, providerCopy("添加技能", "Add skill"), 720, func() {
 				if a.OnSelectRoot != nil {
-					ui.Text(c, "Create / install target").FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+					ui.Text(c, providerCopy("创建或安装到", "Create or install into")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 					ui.Row(c).Gap(8).Wrap().Children(func() {
 						userLabel, projectLabel := "User skills", "Project skills"
 						if a.TargetRoot == "project-dsh" {
@@ -332,9 +332,9 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 						}
 					})
 					if a.TargetRoot == "project-dsh" && a.ProjectCwd != "" {
-						ui.Text(c, "Project directory: "+a.ProjectCwd).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+						ui.Text(c, providerCopy("项目目录：", "Project directory: ")+a.ProjectCwd).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 					} else if a.ProjectCwd == "" {
-						ui.Text(c, "Select a workspace directory before creating or installing project skills.").FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+						ui.Text(c, providerCopy("先选择一个工作区目录，才能创建或安装项目技能。", "Select a workspace directory before creating or installing project skills.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 					}
 				}
 				if a.CreateName != nil && a.OnCreate != nil {

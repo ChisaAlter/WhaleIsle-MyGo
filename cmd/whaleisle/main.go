@@ -57,6 +57,7 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/harness/installctrl"
+	"whaleisle/internal/hoststate"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	"whaleisle/internal/recovery"
@@ -240,6 +241,10 @@ type mainState struct {
 	// window still opens on the startup page, which carries the reason and the
 	// retry and diagnostics actions instead of dropping into the workbench.
 	coldStartSkipped bool
+	// coldStartNeedsWorkspace marks the declined start whose reason is the
+	// workspace itself, so the page asks for the folder the first run needs
+	// instead of offering a retry that would decline the same way.
+	coldStartNeedsWorkspace bool
 	// crashReportGeneration is the failed supervisor generation that already
 	// wrote a host crash report, so one failure writes one file.
 	crashReportGeneration int
@@ -840,6 +845,9 @@ func (s *mainState) settingsBoolPtr(ns, field, seed string) *bool {
 	return &s.settingsDrafts[len(s.settingsDrafts)-1].boolV
 }
 
+// showMainWindow brings the window forward for an action the person at this
+// machine took: a tray click, a menu item, a notification they clicked, a
+// deeplink they opened, or a second launch they started.
 func (s *mainState) showMainWindow() {
 	s.mu.Lock()
 	win := s.win
@@ -847,12 +855,40 @@ func (s *mainState) showMainWindow() {
 	if win == nil {
 		return
 	}
+	// The person asked for the window, so it may activate from here on. Before
+	// this call the launch was unasked for and the window could only appear
+	// (SetInactiveOnly at creation), which is what keeps a background start from
+	// moving the foreground out from under the person using the machine.
+	win.SetInactiveOnly(false)
 	win.Show()
 	win.Restore()
 	win.Focus()
 }
 
+// revealMainWindow puts the window on screen without taking the foreground, for
+// the surfaces no action at this machine asked for: the fallback when the tray
+// could not be created during a launch the operator did not start, and a phone
+// that navigated the desktop. ShowInactive also brings a minimized window back,
+// so the app stays reachable from the taskbar while whatever the operator is
+// working in keeps the foreground.
+func (s *mainState) revealMainWindow() {
+	s.mu.Lock()
+	win := s.win
+	s.mu.Unlock()
+	if win == nil {
+		return
+	}
+	win.ShowInactive()
+}
+
 func (s *mainState) applyDeeplink(t deeplink.Target) {
+	s.applyDeeplinkReveal(t, true)
+}
+
+// applyDeeplinkReveal is applyDeeplink with the choice of what the navigation may
+// do to the operator's foreground: a destination the person at this machine
+// picked comes forward, and one a phone picked only appears.
+func (s *mainState) applyDeeplinkReveal(t deeplink.Target, activate bool) {
 	if t.Action == deeplink.ActionLauncher {
 		t.Action, t.Section = deeplink.ActionSettings, "desktop"
 	}
@@ -958,7 +994,11 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 	sessions := s.sessions
 	s.mu.Unlock()
 	s.syncMainRouteResources()
-	s.showMainWindow()
+	if activate {
+		s.showMainWindow()
+	} else {
+		s.revealMainWindow()
+	}
 	if t.Action == deeplink.ActionAuth && usage != nil {
 		sid := ""
 		if sessions != nil {
@@ -2050,6 +2090,12 @@ func main() {
 			return !mygo.App.IsPackaged() || cfgStore.Get().OpenDevTools
 		})
 		state.openStartupRecovery(userData, cfgStore)
+		// A value left over from an older build names a Host this app was not
+		// built against; correcting it here keeps a fallback launch honest
+		// without asking the operator what that field means.
+		if err := cfgStore.ReconcileHostVersion(launcherctl.ReadHarnessVersion()); err != nil {
+			log.Println("host version:", err)
+		}
 		cfg := cfgStore.Get()
 		state.hostTerminals.ConfigureShellPreference(cfg.HostTerminalShell, func(path string) error {
 			return cfgStore.Update(func(c *config.Config) { c.HostTerminalShell = path })
@@ -2089,7 +2135,12 @@ func main() {
 		}
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
-		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
+		// --background is the only launch that shows the window with
+		// ShowInactive; creating it visible calls the activating Show(). An
+		// isolated QA run needs the same thing, and it is also the run that
+		// skips the desktop system integration (URL scheme, autostart, tray),
+		// so the flag must not be dropped there.
+		background := slices.Contains(os.Args, "--background")
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
@@ -2099,7 +2150,11 @@ func main() {
 			bgColor = "rgba(0,0,0,0)"
 		}
 		state.mu.Lock()
-		state.coldLoading = cfg.AutoStartDesktop && strings.TrimSpace(cfg.Workspace) != ""
+		// A cold launch with automatic start owns its opening even before a
+		// workspace exists: the page then says so and asks for the folder,
+		// instead of dropping the person into a workbench whose service is not
+		// running and whose every surface would blame the workspace.
+		state.coldLoading = cfg.AutoStartDesktop
 		state.layout = frame.DefaultLayout()
 		if cfg.SidebarWidth >= 264 {
 			state.layout.Sidebar = cfg.SidebarWidth
@@ -2154,6 +2209,11 @@ func main() {
 		// Native content paints the accepted appearance; DirectComposition keeps
 		// the outer silhouette transparent without adding a caption content row.
 		win := mygo.NewWindow(winOpts)
+		// An unasked-for launch may show this window, never take the foreground:
+		// every raising call on it becomes ShowInactive until an action at this
+		// machine asks for it (showMainWindow). The flag lives on the window, so a
+		// raising path added later is covered without being audited.
+		win.SetInactiveOnly(background || isolatedDesktopRun())
 		frame.SetDisplayWindow(win)
 		startuptrace.Mark("window.created")
 		// Native window.js:185 gives the Windows window a 48 DIP icon.
@@ -2633,6 +2693,10 @@ func startHarness(cfg config.Config) {
 	sup = harness.New(harness.Options{
 		Install:           installSrv,
 		ReadLaunchPatches: readProjectPatches,
+		// The record names this launch's Host, so the next launch can end one
+		// this shell never got to stop instead of starting a second service
+		// beside it.
+		RecordPath: paths.HostRecordFile(),
 		Launch: harness.LaunchOptions{
 			Host: host,
 			Port: port,
@@ -2717,6 +2781,17 @@ func startHarness(cfg config.Config) {
 	}
 }
 
+// workspaceUsable reports whether a saved workspace can be opened: an empty or
+// vanished path is the first start's job, not a failure.
+func workspaceUsable(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 func (s *mainState) finishBootPreparation(win *mygo.Window) {
 	s.launcherController().EndPreparationOnly()
 	if win != nil {
@@ -2741,12 +2816,13 @@ func (s *mainState) beginWorkbenchBoot(cfg config.Config, win *mygo.Window) {
 			startHarness(cfg)
 		} else {
 			// The page stays. A declined automatic start is still the opening
-			// state of a cold launch: it names the reason and offers retry and
-			// diagnostics, instead of dropping the user into a workbench with a
-			// status strip. Only when the window shows the Host starting does
-			// the page hand over (recordStartupWorkspaceReady).
+			// state of a cold launch: it names the reason and offers the action
+			// that resolves it, instead of dropping the user into a workbench
+			// with a status strip. Only when the window shows the Host starting
+			// does the page hand over (recordStartupWorkspaceReady).
 			s.mu.Lock()
 			s.coldStartSkipped = true
+			s.coldStartNeedsWorkspace = !workspaceUsable(cfg.Workspace)
 			s.mu.Unlock()
 		}
 	}()
@@ -5621,8 +5697,14 @@ func mainView(c *ui.Context) {
 					// One settings copy per build: the frame model only reads it, and each
 					// Snapshot copies every namespace's documents.
 					settingsView := currentSettingsView()
+					// One report for every surface that speaks about a service that
+					// is not ready: the strip, the sidebar's empty list and the
+					// composer cannot disagree about why there are no sessions.
+					hostReport := hoststate.Of(st)
 					frameModel := frame.Model{
 						SVGImages:             svgImages,
+						HostNote:              hostReport.Note,
+						HostPlaceholder:       hostReport.Placeholder,
 						ChildBusyEnter:        setStore.BusyEnterFor(fileClient),
 						ChildDraft:            state.childComposerDraft,
 						OnQueryReferences:     state.boundReferenceQuery(sessions, snap),

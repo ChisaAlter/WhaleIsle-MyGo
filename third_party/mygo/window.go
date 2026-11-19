@@ -198,10 +198,11 @@ type Window struct {
 	secret string
 
 	// native is only accessed on the main thread; nil once destroyed.
-	native    platform.Window
-	destroyed atomic.Bool
-	shown     bool
-	readyShow bool
+	native       platform.Window
+	destroyed    atomic.Bool
+	shown        bool
+	readyShow    bool
+	inactiveOnly atomic.Bool
 	// background is the BackgroundColor, if any. Main thread only.
 	background *background
 	// hiddenTitleBar is a TitleBarStyle that hides the title bar: the pages
@@ -652,6 +653,15 @@ func (w *Window) destroy() {
 	}
 }
 
+// SetInactiveOnly keeps this window from taking the foreground: Show, Focus and
+// Restore stop activating it. A launch nobody at this machine asked for may put
+// a window on screen; it may not move the pointer's target out from under the
+// person using the computer.
+func (w *Window) SetInactiveOnly(v bool) { w.inactiveOnly.Store(v) }
+
+// IsInactiveOnly reports whether the window is barred from activating itself.
+func (w *Window) IsInactiveOnly() bool { return w.inactiveOnly.Load() }
+
 // Show shows and focuses the window.
 func (w *Window) Show() {
 	onMain(func() {
@@ -659,7 +669,11 @@ func (w *Window) Show() {
 			return
 		}
 		visible := w.native.IsVisible()
-		w.native.Show()
+		if w.inactiveOnly.Load() {
+			w.native.ShowInactive()
+		} else {
+			w.native.Show()
+		}
 		w.shown = true
 		if !visible {
 			fire(&w.onShow)
@@ -697,7 +711,12 @@ func (w *Window) Hide() {
 func (w *Window) IsVisible() bool { return get(w, platform.Window.IsVisible) }
 
 // Focus focuses the window.
-func (w *Window) Focus() { w.do(platform.Window.Focus) }
+func (w *Window) Focus() {
+	if w.inactiveOnly.Load() {
+		return
+	}
+	w.do(platform.Window.Focus)
+}
 
 // Blur removes focus from the window.
 func (w *Window) Blur() { w.do(platform.Window.Blur) }
@@ -732,7 +751,13 @@ func (w *Window) ToggleMaximize() {
 func (w *Window) IsMaximized() bool { return get(w, platform.Window.IsMaximized) }
 
 // Restore restores a minimized window.
-func (w *Window) Restore() { w.do(platform.Window.Restore) }
+func (w *Window) Restore() {
+	if w.inactiveOnly.Load() {
+		w.ShowInactive()
+		return
+	}
+	w.do(platform.Window.Restore)
+}
 
 // SetFullScreen enters or leaves full screen.
 func (w *Window) SetFullScreen(v bool) {

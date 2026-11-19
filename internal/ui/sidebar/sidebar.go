@@ -89,13 +89,17 @@ type Model struct {
 	// AssistantName is the published Whale display name snapshot; empty falls
 	// back to the localized assistant label. Populated by the Host-side
 	// settings observer, never read from disk here.
-	AssistantName               string
-	ConnectionError             string
-	DesktopUpdateInstalling     bool
-	DesktopUpdatePhase          string
-	DesktopUpdateDetail         string
-	OnOpenDesktopUpdate         func()
-	ConnectionConnecting        bool
+	AssistantName           string
+	ConnectionError         string
+	DesktopUpdateInstalling bool
+	DesktopUpdatePhase      string
+	DesktopUpdateDetail     string
+	OnOpenDesktopUpdate     func()
+	ConnectionConnecting    bool
+	// HostNote is what the empty session list says while the local service is
+	// not ready (internal/hoststate). It outranks the workspace copy: with no
+	// service there are no sessions to connect to yet.
+	HostNote                    string
 	ConnectionEpoch             uint64
 	OnReconnect                 func()
 	PendingStatuses             map[string]string

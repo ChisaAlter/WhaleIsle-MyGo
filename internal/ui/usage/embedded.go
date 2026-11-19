@@ -38,7 +38,8 @@ func embeddedView(c *ui.Context, m Model) {
 						}
 						if overview := m.Store.Stats().Overview; overview != nil {
 							label, source := usageSourceLabel(overview)
-							ui.Text(c, label).FillWidth().TextColor(fg).Tooltip(source)
+							ui.Text(c, label).FillWidth().TextColor(fg)
+							usageSourceLine(c, source, muted)
 						}
 					})
 				}
@@ -77,6 +78,35 @@ func embeddedView(c *ui.Context, m Model) {
 		}
 		statsView(c, m, fg, muted, accent, field)
 	})
+}
+
+// usageSourceLine says where the totals came from in words a person can read,
+// and keeps the log file's own path behind a details disclosure: the path is how
+// a person points support at the record, not the answer to "what am I looking at".
+func usageSourceLine(c *ui.Context, source string, muted ui.Color) {
+	text := usageText("统计来源：本机网关用量记录", "Source: this machine's gateway usage log")
+	if source == "" {
+		text = usageText("统计来源：会话日志", "Source: session logs")
+	}
+	row := ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center)
+	open := ui.Local(row, "usage-source-details", func() bool { return false })
+	row.Children(func() {
+		ui.Text(c, text).TextColor(muted).FontSize(theme.InterfaceSize(11)).Grow(1).MinWidth(0)
+		if source == "" {
+			return
+		}
+		marker := "▸ "
+		if *open {
+			marker = "▾ "
+		}
+		if ui.Button(c, marker+usageText("详情", "Details")).Role(ui.RoleDisclosure).Expanded(*open).
+			FontSize(theme.InterfaceSize(11)).Shrink(0).Clicked() {
+			*open = !*open
+		}
+	})
+	if source != "" && *open {
+		ui.Text(c, usageText("用量记录文件：", "Usage log file: ")+source).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
+	}
 }
 
 func usageSourceLabel(o *usagestore.Overview) (string, string) {

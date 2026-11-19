@@ -105,7 +105,8 @@ func View(c *ui.Context, m Model) {
 			}
 			if overview := m.Store.Stats().Overview; overview != nil {
 				label, source := usageSourceLabel(overview)
-				ui.Text(c, label).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted).Tooltip(source)
+				ui.Text(c, label).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				usageSourceLine(c, source, muted)
 			}
 		})
 		ui.Box(c).Fill().Height(1).Background(border)

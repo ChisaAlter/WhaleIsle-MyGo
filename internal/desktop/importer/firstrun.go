@@ -133,10 +133,13 @@ func HasLegacyData(source string) bool {
 	return report.ConfigJSON || report.CredentialsJSON || anyCategory(report.CategoryFound)
 }
 
-// FirstRunOffer plans the manual copy that Settings offers: the same migration
-// as a first run, planned whenever the source still has data, because running
-// it again only keeps what the destination already holds.
+// The marker records an answer to the launch prompt, not a refusal of the
+// import: 导入 leaves nothing to offer, while 跳过 and 关闭 keep the import as
+// an action a person can take later from the data-location block.
 func FirstRunOffer(dest, source string) (FirstRunPlan, bool) {
+	if FirstRunStatus(filepath.Clean(strings.TrimSpace(dest))) == FirstRunDone {
+		return FirstRunPlan{}, false
+	}
 	if !HasLegacyData(source) {
 		return FirstRunPlan{}, false
 	}

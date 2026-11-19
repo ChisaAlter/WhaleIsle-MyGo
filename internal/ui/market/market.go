@@ -282,9 +282,25 @@ func marketHistoryAction(action string) string {
 }
 
 func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
-	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCatalogSource), "Catalog source: ")+d.Catalog.Source+" · "+marketText(i18n.T(i18n.KeyW4MarketUpdated), "updated: ")+d.Catalog.Updated).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-	if !d.Catalog.FetchedAt.IsZero() {
-		ui.Text(c, d.Catalog.FetchedAt.Format("2006-01-02 15:04 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	// A catalog that has never been fetched is loading, not empty: printing the
+	// count and the two source fields from a zero value reads as "0 plugins from
+	// nowhere", which is a different statement from "we are still reading".
+	loaded := !d.Catalog.FetchedAt.IsZero()
+	if !loaded && d.Loading {
+		ui.Text(c, marketText("正在加载插件目录…", "Loading the plugin catalog…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	} else {
+		source := strings.TrimSpace(d.Catalog.Source)
+		if source == "" {
+			source = marketText("未知", "unknown")
+		}
+		updated := strings.TrimSpace(d.Catalog.Updated)
+		if updated == "" {
+			updated = "—"
+		}
+		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketCatalogSource), "Catalog source: ")+source+" · "+marketText(i18n.T(i18n.KeyW4MarketUpdated), "updated: ")+updated).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		if !d.Catalog.FetchedAt.IsZero() {
+			ui.Text(c, d.Catalog.FetchedAt.Format("2006-01-02 15:04 MST")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+		}
 	}
 	if d.Catalog.Warning != "" {
 		ui.Text(c, d.Catalog.Warning).FontSize(theme.InterfaceSize(11)).TextColor(accent)
@@ -357,7 +373,9 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 			m.Store.SetNativeCompatibleOnly(false)
 		}
 	})
-	ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketDPlugins), "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	if loaded || d.Total > 0 {
+		ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketDPlugins), "%d plugins"), d.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	}
 	catalogCards(c, m, d, inventory, fg, muted, field, border, accent)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		if len(d.Rows) < d.Total && ui.Button(c, marketText("显示更多", "Show more")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
