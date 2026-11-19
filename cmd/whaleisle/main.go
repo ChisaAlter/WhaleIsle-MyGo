@@ -850,6 +850,11 @@ func (s *mainState) showMainWindow() {
 	if win == nil {
 		return
 	}
+	// The person asked for the window, so it may activate from here on. Before
+	// this call the launch was unasked for and the window could only appear
+	// (SetInactiveOnly at creation), which is what keeps a background start from
+	// moving the foreground out from under the person using the machine.
+	win.SetInactiveOnly(false)
 	win.Show()
 	win.Restore()
 	win.Focus()
@@ -2119,7 +2124,12 @@ func main() {
 		}
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
-		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
+		// --background is the only launch that shows the window with
+		// ShowInactive; creating it visible calls the activating Show(). An
+		// isolated QA run needs the same thing, and it is also the run that
+		// skips the desktop system integration (URL scheme, autostart, tray),
+		// so the flag must not be dropped there.
+		background := slices.Contains(os.Args, "--background")
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
@@ -2184,6 +2194,11 @@ func main() {
 		// Native content paints the accepted appearance; DirectComposition keeps
 		// the outer silhouette transparent without adding a caption content row.
 		win := mygo.NewWindow(winOpts)
+		// An unasked-for launch may show this window, never take the foreground:
+		// every raising call on it becomes ShowInactive until an action at this
+		// machine asks for it (showMainWindow). The flag lives on the window, so a
+		// raising path added later is covered without being audited.
+		win.SetInactiveOnly(background || isolatedDesktopRun())
 		frame.SetDisplayWindow(win)
 		startuptrace.Mark("window.created")
 		// Native window.js:185 gives the Windows window a 48 DIP icon.

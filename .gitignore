@@ -65,3 +65,8 @@ node_modules/
 .DS_Store
 *.tmp
 !third_party/mygo/cmd/mygo/testdata/dmg.DS_Store
+
+# Real-machine run output from tools/polite (snapshots, evidence blocks). Each
+# run names its own directory and the evidence belongs in the lane report, not
+# in the tree.
+qa-evidence/
