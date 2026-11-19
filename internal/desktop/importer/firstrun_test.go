@@ -314,3 +314,102 @@ func TestDismissedOfferIsItsOwnOutcome(t *testing.T) {
 		t.Fatal("the dismissal marker made the destination count as populated")
 	}
 }
+
+// TestSettingsOfferHonoursTheRecordedOutcome is the AYA-28 follow-up: the
+// marker was written by the first-run dialog and read by nobody in Settings, so
+// a profile that had answered 导入 was still offered the import. The record now
+// decides both places: the launch prompt for every answer, and the Settings
+// action for a completed one.
+func TestSettingsOfferHonoursTheRecordedOutcome(t *testing.T) {
+	source, dest := firstRunFixture(t)
+	if _, offered := FirstRunOffer(dest, source); !offered {
+		t.Fatal("an unanswered profile was not offered the import")
+	}
+	for _, answer := range []struct {
+		name string
+		run  func(string) error
+	}{
+		{"skipped", SkipFirstRun},
+		{"dismissed", DismissFirstRun},
+	} {
+		if err := answer.run(dest); err != nil {
+			t.Fatalf("%s: %v", answer.name, err)
+		}
+		if _, offered := DetectFirstRun(dest, source); offered {
+			t.Fatalf("a %s offer came back on the next launch", answer.name)
+		}
+		if _, offered := FirstRunOffer(dest, source); !offered {
+			t.Fatalf("Settings lost the import after a %s answer", answer.name)
+		}
+	}
+	if err := writeFirstRunMarker(dest, firstRunMarker{Status: FirstRunPartial}); err != nil {
+		t.Fatal(err)
+	}
+	if _, offered := FirstRunOffer(dest, source); !offered {
+		t.Fatal("Settings stopped offering an import that stopped halfway")
+	}
+	if err := writeFirstRunMarker(dest, firstRunMarker{Status: FirstRunDone}); err != nil {
+		t.Fatal(err)
+	}
+	if _, offered := FirstRunOffer(dest, source); offered {
+		t.Fatal("Settings offered the import again after it completed")
+	}
+}
+
+// TestRecordedMarkerBytesDecideBothOffers feeds the read side the exact marker
+// documents the earlier launches recorded, so the decision this change adds is
+// proven against real files rather than a constructed status string.
+func TestRecordedMarkerBytesDecideBothOffers(t *testing.T) {
+	source, dest := firstRunFixture(t)
+	for _, recorded := range []struct {
+		status          string
+		body            string
+		prompt, setting bool
+	}{
+		{"done", `{
+  "status": "done",
+  "at": "2026-11-19T03:40:39Z",
+  "copied": 6,
+  "skipped": 0,
+  "failed": 0
+}
+`, false, false},
+		{"skipped", `{
+  "status": "skipped",
+  "at": "2026-11-19T03:40:59Z",
+  "copied": 0,
+  "skipped": 0,
+  "failed": 0
+}
+`, false, true},
+		{"dismissed", `{
+  "status": "dismissed",
+  "at": "2026-11-19T03:36:50Z",
+  "copied": 0,
+  "skipped": 0,
+  "failed": 0
+}
+`, false, true},
+		{"partial", `{
+  "status": "partial",
+  "at": "2026-11-19T03:41:00Z",
+  "copied": 2,
+  "skipped": 0,
+  "failed": 1
+}
+`, true, true},
+	} {
+		if err := os.MkdirAll(dest, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(FirstRunMarkerPath(dest), []byte(recorded.body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, offered := DetectFirstRun(dest, source); offered != recorded.prompt {
+			t.Fatalf("%s marker: launch offer = %v, want %v", recorded.status, offered, recorded.prompt)
+		}
+		if _, offered := FirstRunOffer(dest, source); offered != recorded.setting {
+			t.Fatalf("%s marker: settings offer = %v, want %v", recorded.status, offered, recorded.setting)
+		}
+	}
+}
