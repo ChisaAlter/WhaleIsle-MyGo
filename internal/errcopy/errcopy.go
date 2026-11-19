@@ -56,6 +56,10 @@ const (
 	keyPageStopped     = "errcopy.page_stopped"
 	keyRevertConflict  = "errcopy.revert_conflict"
 	keyNoCredential    = "errcopy.no_credential"
+	keyRejectedRequest = "errcopy.rejected_request"
+	keyRejectedAuth    = "errcopy.rejected_auth"
+	keyRejectedRate    = "errcopy.rejected_rate"
+	keyRejectedServer  = "errcopy.rejected_server"
 )
 
 // causes is ordered: an earlier family claims a message that a later pattern
@@ -165,6 +169,22 @@ func init() {
 	i18n.Register(keyNoCredential,
 		"未配置模型凭据。请在 设置 → 模型 里填写 API Key 后重试。",
 		"No model credentials are set. Add an API key in Settings → Models, then try again.")
+	// A rejection is the service answering, not the network failing: the status
+	// is the one fact a person needs, and it is quoted inside the sentence so the
+	// row never shows a bare HTTP_404 chip. A credential rejection, a rate limit
+	// and a service fault each need a different next step.
+	i18n.Register(keyRejectedRequest,
+		"模型服务拒绝了这次请求（%s）。请检查模型名称与地址，或重试；连续失败可查看日志。",
+		"The model service rejected this request (%s). Check the model name and address, or retry; if it keeps failing, check the log.")
+	i18n.Register(keyRejectedAuth,
+		"模型服务拒绝了这次请求（%s）：凭据无效或没有权限。请在 设置 → 模型 里检查 API Key 后重试。",
+		"The model service rejected this request (%s): the credential is invalid or lacks permission. Check the API key in Settings → Models, then try again.")
+	i18n.Register(keyRejectedRate,
+		"模型服务拒绝了这次请求（%s）：请求太多，已被限流。请稍后重试；连续失败可查看日志。",
+		"The model service rejected this request (%s): too many requests, so it was rate limited. Try again later; check the log if it keeps failing.")
+	i18n.Register(keyRejectedServer,
+		"模型服务这次出错了（%s）。请稍后重试；连续失败可查看日志。",
+		"The model service failed this request (%s). Try again later; check the log if it keeps failing.")
 }
 
 // codeCauses maps the Host's stable failure codes onto causes, so one cause does
@@ -244,6 +264,9 @@ func SentenceFor(code, raw string) string {
 	if cause, ok := codeCauses[strings.ToUpper(strings.TrimSpace(code))]; ok {
 		return sentenceFor(cause, raw)
 	}
+	if status, ok := HTTPStatus(code, raw); ok {
+		return rejectedSentence(status)
+	}
 	if strings.TrimSpace(raw) == "" {
 		return ""
 	}
@@ -259,10 +282,48 @@ func sentenceFor(cause Cause, raw string) string {
 	return i18n.T(keyFor(cause))
 }
 
+// httpStatus is the status a Host writes into a failure code or message:
+// HTTP_404, HTTP 429. It is a code, not a sentence, so a surface that shows the
+// status quotes it inside one.
+var httpStatus = regexp.MustCompile(`(?i)\bHTTP[_ ](\d{3})\b`)
+
+// HTTPStatus reports the status a failure carries, preferring the stable code
+// over the message, so a caller can tell a rejection from a transport failure.
+func HTTPStatus(code, raw string) (string, bool) {
+	for _, text := range []string{code, raw} {
+		if match := httpStatus.FindStringSubmatch(text); match != nil {
+			return match[1], true
+		}
+	}
+	return "", false
+}
+
+// rejectedSentence picks the next step the status calls for.
+func rejectedSentence(status string) string {
+	switch {
+	case status == "401" || status == "403":
+		return fmt.Sprintf(i18n.T(keyRejectedAuth), status)
+	case status == "429":
+		return fmt.Sprintf(i18n.T(keyRejectedRate), status)
+	case strings.HasPrefix(status, "5"):
+		return fmt.Sprintf(i18n.T(keyRejectedServer), status)
+	default:
+		return fmt.Sprintf(i18n.T(keyRejectedRequest), status)
+	}
+}
+
 // Under puts the caller's own description of what stopped in front of the
 // cause, so a person sees which action failed as well as why.
 func Under(lead string, err error) string {
 	lead = strings.TrimRight(strings.TrimSpace(lead), ":：")
+	if err == nil {
+		return lead
+	}
+	// An unclassified failure has nothing to name, so the caller's action is the
+	// subject of the sentence rather than a prefix on "an operation failed".
+	if classifyText(err.Error()) == CauseUnknown {
+		return underUnknown(lead, err)
+	}
 	sentence := Sentence(err)
 	switch {
 	case lead == "":
@@ -272,6 +333,22 @@ func Under(lead string, err error) string {
 	default:
 		return lead + i18n.T(keySeparator) + sentence
 	}
+}
+
+// UnderText is Under for a carrier that only kept the message.
+func UnderText(lead, raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return strings.TrimRight(strings.TrimSpace(lead), ":：")
+	}
+	return Under(lead, errors.New(raw))
+}
+
+func underUnknown(lead string, err error) string {
+	if lead == "" {
+		return Sentence(err)
+	}
+	return i18n.Pick(lead+"没有完成。请重试；若仍然失败，请查看日志。",
+		lead+" did not finish. Try again; if it keeps failing, check the log.")
 }
 
 func keyFor(cause Cause) string {

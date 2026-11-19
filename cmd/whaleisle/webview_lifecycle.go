@@ -7,10 +7,22 @@ import (
 
 	desktopwebview "whaleisle/internal/desktop/webview"
 	manager "whaleisle/internal/pluginmanager"
+	"whaleisle/internal/product"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	webviewui "whaleisle/internal/ui/webview"
 )
+
+// panelWindowTitle is the caption of a hosted plugin or Harness panel: this
+// product's identity, then the panel's name. The page itself belongs to another
+// product and its <title> says so, which is why the host pins this title
+// (HostOptions.PinTitle) instead of following the page.
+func panelWindowTitle(label string) string {
+	if strings.TrimSpace(label) == "" {
+		label = i18n.T(i18n.KeyWebViewTitle)
+	}
+	return product.Name + " — " + strings.TrimSpace(label)
+}
 
 // A surface is detached under the shell lock, then revoked and destroyed
 // outside it. Window callbacks must never reenter a held mainState mutex.
@@ -142,14 +154,12 @@ func (s *mainState) openMainWebViewURL(browse string) {
 		s.mu.Unlock()
 		_ = existing.Close()
 	}
-	if label == "" {
-		label = i18n.T(i18n.KeyWebViewTitle)
-	}
+	label = panelWindowTitle(label)
 	host, err := desktopwebview.NewHost(desktopwebview.HostOptions{
 		Untrusted: true, SessionOrigin: sessionOrigin, SessionCookie: sessionCookie,
 		ShortcutPreferences: s.pageShortcutPreferences(), OnShortcutCloseWindow: s.queueProductShortcutClose,
 		OnChange: func() { win.Update(func() {}) }, OnFailure: s.onEmbeddedPageFailure,
-		Parent: win, URL: browse, Title: label, TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,
+		Parent: win, URL: browse, Title: label, PinTitle: true, TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,
 		PermissionPolicy: desktopwebview.PermissionPolicy{
 			SessionHost: strings.TrimSpace(sessionOrigin) != "", NotificationsAllowed: systemNotificationsSupported,
 		}.Decide,

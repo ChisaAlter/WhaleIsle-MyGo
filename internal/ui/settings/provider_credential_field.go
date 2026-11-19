@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -29,10 +28,7 @@ func providerCredentialField(c *ui.Context, a *ReferencedCredentialsAccess, name
 			return
 		}
 		names, present := providerCredentialEnv(a, row)
-		help := ""
-		if len(names) > 0 {
-			help = fmt.Sprintf(providerCopy("优先使用已保存的凭据。此处显示的环境后备按以下顺序排列：%s。来源依次为启动环境、$cwd/.env、$DSH_HOME/.env。", "Saved credentials are used first. Environment fallbacks shown here, in order: %s. Sources are launch environment, $cwd/.env, then $DSH_HOME/.env."), strings.Join(names, " / "))
-		}
+		help := providerCredentialHelp(names)
 		value := s.Draft
 		placeholder := providerCopy("输入 API 密钥", "Enter an API key")
 		if row.Configured {
@@ -40,7 +36,7 @@ func providerCredentialField(c *ui.Context, a *ReferencedCredentialsAccess, name
 		} else if len(names) > 0 {
 			placeholder = ""
 			if !present {
-				placeholder = fmt.Sprintf(i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder), names[0])
+				placeholder = i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder)
 			}
 		}
 		ui.Column(c.Key("provider-key/" + row.ID)).FillWidth().MinWidth(0).Gap(8).Children(func() {
@@ -74,6 +70,19 @@ func providerCredentialField(c *ui.Context, a *ReferencedCredentialsAccess, name
 		}
 		return
 	}
+}
+
+// providerCredentialHelp answers what the field does in one sentence, then puts
+// the variable names behind the ? disclosure: a person who supplies the key
+// through the launching environment needs the names, and nobody reads a list of
+// names as the answer to "what is this field".
+func providerCredentialHelp(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	return providerCopy("优先使用已保存的凭据；没有时按本机环境变量和 .env 文件补齐。", "Saved credentials are used first; otherwise this machine's environment variables and .env files fill in.") +
+		"\n\n" + providerCopy("详情：按此顺序读取 ", "Details: read in this order ") + strings.Join(names, " / ") +
+		providerCopy("；来源依次为启动环境、当前目录的 .env 和用户目录的 .env。", "; sources are the launching environment, then .env in the working directory, then .env in the home directory.") // detail-ok: ? help tooltip
 }
 
 // providerCredentialEnv lists the environment variables this route reads its key

@@ -13,6 +13,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"whaleisle/internal/desktop/pluginslots"
+	"whaleisle/internal/product"
 	"whaleisle/internal/shortcutprefs"
 	"whaleisle/internal/ui/i18n"
 )
@@ -60,8 +61,16 @@ type HostOptions struct {
 	Parent *mygo.Window
 	// URL is loaded on create (http/https only).
 	URL string
-	// Title shown in the OS window list (frameless chrome is hidden).
+	// Title shown in the OS window list (frameless chrome is hidden). An empty
+	// title becomes the product's own name: an unnamed window in the Alt-Tab and
+	// taskbar list is worse than a generic one.
 	Title string
+	// PinTitle keeps the window's title ours. A hosted page renames the window
+	// from its <title> by default (mygo window.go, TitleChanged), and the page
+	// this shell loads for a plugin or the Harness is the upstream product's page:
+	// its title says Whale Isle, which is not this product's identity. The page's
+	// own title still reaches the panel chrome through State().Title.
+	PinTitle bool
 	// TopInset DIPs reserved above the webview (main title bar + panel chrome).
 	TopInset int
 	// TrustedOrigins passed to PageOptions (defaults to the URL origin).
@@ -69,6 +78,16 @@ type HostOptions struct {
 	// PermissionPolicy narrows what this page may use; nil keeps the engine
 	// default, and a transient profile always denies everything.
 	PermissionPolicy func(mygo.PermissionRequest) bool
+}
+
+// windowTitle is the caption a hosted page window carries. A page can no longer
+// rename it (PinTitle), and a caller that names no page still gets a caption: an
+// empty label in the taskbar and Alt-Tab list is worse than a generic one.
+func windowTitle(title string) string {
+	if trimmed := strings.TrimSpace(title); trimmed != "" {
+		return trimmed
+	}
+	return product.Name
 }
 
 // Host is a MyGo URL window (WebView2 on Windows) owned by the main window.
@@ -114,6 +133,7 @@ type Host struct {
 	err              string
 	title            string
 	changed          func()
+	pinTitle         bool
 	failure          func(PageFailure)
 	failureEpoch     uint64
 }
@@ -214,10 +234,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 	if opts.TopInset < 0 {
 		opts.TopInset = 0
 	}
-	title := strings.TrimSpace(opts.Title)
-	if title == "" {
-		title = "Plugin Web"
-	}
+	title := windowTitle(opts.Title)
 	var gateway *pluginslots.Gateway
 	pageURL := raw
 	if opts.SessionOrigin != "" {
@@ -245,7 +262,7 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 		}
 	}
 
-	h := &Host{initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
+	h := &Host{pinTitle: opts.PinTitle, initialHTML: initialHTML, initialBaseURL: pageURL, transient: opts.TransientProfile, displayURL: opts.DisplayURL, allowNavigation: opts.AllowNavigation, localPDFViewerURL: opts.LocalPDFViewerURL, localPDFURL: opts.LocalPDFURL, localHTMLURL: opts.LocalHTMLURL, localMediaURL: opts.LocalMediaURL, onClosed: opts.OnClosed, gateway: gateway, parent: opts.Parent, topInset: opts.TopInset, url: raw, changed: opts.OnChange, loading: true}
 	h.browserProfile = opts.BrowserProfile
 	h.failure = opts.OnFailure
 	h.onShortcutCloseWindow = opts.OnShortcutCloseWindow
@@ -365,7 +382,16 @@ func newHost(opts HostOptions, initialHTML string) (*Host, error) {
 			_ = h.Close()
 		}
 	})
-	pg.OnPageTitleUpdated(func(e *mygo.TitleEvent) { h.mu.Lock(); h.title = e.Title; h.mu.Unlock(); h.notify() })
+	pg.OnPageTitleUpdated(func(e *mygo.TitleEvent) {
+		h.mu.Lock()
+		h.title = e.Title
+		h.mu.Unlock()
+		if h.pinTitle {
+			// The page title names the page, not this product.
+			e.PreventDefault()
+		}
+		h.notify()
+	})
 	if opts.Untrusted {
 		pg.SetWindowOpenHandler(func(req mygo.WindowOpenRequest) *mygo.WindowOptions {
 			if opts.TransientProfile {

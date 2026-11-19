@@ -20,7 +20,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 	limit := ui.Local(section, "archive-visible-limit", func() int { return archiveSessionPageBase })
 	section.Transition(workspaceArchiveSectionMotion(c, section, m.Snapshot)).Children(func() {
 		label := i18n.T(i18n.KeySidebarArchivedSection)
-		header := ui.ButtonBase(c.Key("workspace-archive-disclosure")).Label(label).
+		header := ui.ButtonBase(c.Key("workspace-archive-disclosure")).Label(workspaceText("已归档分组", "Archived group")).
 			Role(ui.RoleDisclosure).Expanded(*m.archiveExpanded).
 			FillWidth().Height(34).Padding(0, 8).Gap(6).Radius(12).
 			BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Cursor(ui.CursorPointer)
@@ -32,7 +32,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 				ui.Icon(c, workspaceChevronArtwork).Size(14, 14).TextColor(ink).
 					Rotate(groupChevronAngle(c, header, !*m.archiveExpanded))
 			})
-			ui.Text(c, label).Label("Archive section title").FontSize(theme.InterfaceSize(12)).FontWeight(500).
+			ui.Text(c, label).Label(label).FontSize(theme.InterfaceSize(12)).FontWeight(500).
 				FixedLineHeight(theme.InterfaceSize(18)).TextColor(ink).Grow(1).MinWidth(0).SingleLine()
 		})
 		if header.Clicked() {

@@ -58,7 +58,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeySettingsMCPTitle)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
-			ui.Text(c, providerCopy("管理本机 MCP 服务器。受管条目写入 $DSH_HOME/mcp-servers.yaml；HTTP 服务器可在本页登录后在对话里使用工具。组成配置条目只读。", "Manage the MCP servers on this machine. Managed entries are written to $DSH_HOME/mcp-servers.yaml; HTTP servers can sign in on this page and then be used in conversations. Composition entries are read-only.")).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
+			ui.Text(c, providerCopy("管理本机 MCP 服务器。受管条目保存在应用数据目录的 mcp-servers.yaml；HTTP 服务器可在本页登录，之后就能在对话里使用它的工具。组成配置条目只读。", "Manage the MCP servers on this machine. Managed entries are saved in mcp-servers.yaml in the app data directory. Sign in on an HTTP server here to use its tools in conversations. Composition entries are read-only.")).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
 		})
 		ui.Row(c).Gap(8).Shrink(0).AlignItems(ui.Center).Children(func() {
 			addLabel := mcpCatalogText("添加服务器", "Add MCP server")

@@ -363,7 +363,7 @@ func modelAPIKeyField(c *ui.Context, binding *store.NamespaceBinding, snap store
 		modelFieldLabel(c, i18n.T(i18n.KeySettingsModelsAPIKey))
 		placeholder := ""
 		if len(envNames) > 0 && !envPresent {
-			placeholder = fmt.Sprintf(i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder), envNames[0])
+			placeholder = i18n.T(i18n.KeySettingsModelsAPIKeyPlaceholder)
 		}
 		if apiKeyInput(c, field.Key, &value, placeholder, disabled) {
 			binding.SetDraft(field.Key, value)

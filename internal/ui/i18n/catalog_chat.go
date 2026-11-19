@@ -319,6 +319,9 @@ const (
 
 	// Attachment cards.
 	KeyChatAttachmentFile = "chat.attachment.file"
+	// A failure the classifier cannot name is still this turn's: the sentence
+	// keeps the subject and the next step instead of saying "an operation".
+	KeyChatTurnUnfinished = "chat.turn.unfinished"
 	// Shared row actions.
 	KeyChatRowExpand   = "chat.row.expand"
 	KeyChatRowCollapse = "chat.row.collapse"
@@ -638,6 +641,8 @@ func init() {
 	Register(KeyChatTodoPending, "待办", "Pending")
 	Register(KeyChatTodoEmpty, "没有待办项", "No todo items")
 	Register(KeyChatAttachmentFile, "文件", "File")
+	Register(KeyChatTurnUnfinished, "本轮没有跑完。请重试；如果反复失败，请查看日志。",
+		"This turn did not finish. Retry; if it keeps failing, check the log.")
 
 	// Shared row actions.
 	Register(KeyChatRowExpand, "展开", "Expand")

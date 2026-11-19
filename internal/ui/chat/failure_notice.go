@@ -54,7 +54,13 @@ func paintTurnFailure(c *ui.Context, failure turnFailure, palette theme.Colors) 
 		title = i18n.T(i18n.KeyChatAccountStopped)
 	}
 	size := secondaryChatSize()
-	label := strings.TrimSpace(title + " " + failure.Message + " " + failure.Code)
+	code := failure.Code
+	if _, known := errcopy.HTTPStatus(failure.Code, ""); known {
+		// The status is quoted inside the sentence; a bare HTTP_404 chip next to
+		// it is the transport's spelling, not a second fact.
+		code = ""
+	}
+	label := strings.TrimSpace(title + " " + failure.Message + " " + code)
 	ui.Row(c).FillWidth().MinWidth(0).Padding(2, 0, 2, 0).Gap(8).AlignItems(ui.Start).
 		Role(ui.RoleStatus).Label(label).Children(func() {
 		ui.Box(c).Margin(5, 0, 0, 0).Shrink(0).Children(func() {
@@ -65,8 +71,8 @@ func paintTurnFailure(c *ui.Context, failure turnFailure, palette theme.Colors) 
 			ui.Span{Text: failure.Message, Color: chrome.Color(palette.Secondary)},
 		).Font(theme.RenderPreferences().Chat.Family).FontSize(size).FixedLineHeight(size + 7).
 			Grow(1).MinWidth(0).Selectable()
-		if failure.Code != "" {
-			ui.Text(c, failure.Code).Font(theme.RenderPreferences().Code.Family).FontSize(11).
+		if code != "" {
+			ui.Text(c, code).Font(theme.RenderPreferences().Code.Family).FontSize(11).
 				FixedLineHeight(16).TextColor(chrome.Color(palette.Muted)).Shrink(0)
 		}
 	})
