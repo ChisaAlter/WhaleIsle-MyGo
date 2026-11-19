@@ -122,3 +122,170 @@ func isRawFailure(expr ast.Expr) bool {
 	}
 	return false
 }
+
+// errcopyNames are the classifiers that turn a failure into the sentence a
+// person reads. A surface that calls one has the error in hand, so it also has
+// the text 详情 should show.
+var errcopyNames = map[string]bool{
+	"Sentence":     true,
+	"SentenceText": true,
+	"SentenceFor":  true,
+}
+
+// classifiedSeats are the names that mean the surface already has the cause in
+// hand: a field a store classified before the page drew it, and the sentence half
+// of a settingsRefusal, whose other half is the detail. Showing one of these with
+// an empty detail has dropped the cause on purpose or by accident.
+var classifiedSeats = map[string]bool{"Status": true, "sentence": true}
+
+// DroppedCause reports a settings surface that showed a classified failure as
+// its sentence and passed nothing to 详情. The person reads what happened but
+// cannot open the cause, and whoever they report it to has nothing to point at.
+func DroppedCause(rel, src string) []string {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, rel, src, 0)
+	if err != nil {
+		return nil
+	}
+	classified := map[string]bool{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		assign, ok := n.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, rhs := range assign.Rhs {
+			if i >= len(assign.Lhs) || !isClassification(rhs) {
+				continue
+			}
+			if name := seatName(assign.Lhs[i]); name != "" {
+				classified[name] = true
+			}
+		}
+		return true
+	})
+	var found []string
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		name := calleeName(call)
+		if name != "settingsAlert" && name != "settingsFailureLine" {
+			return true
+		}
+		if len(call.Args) < 2 {
+			return true
+		}
+		detail := call.Args[len(call.Args)-1]
+		if !isEmptyString(detail) {
+			return true
+		}
+		sentence := seatName(call.Args[len(call.Args)-2])
+		if !classified[sentence] && !classifiedSeats[sentence] {
+			return true
+		}
+		where := rel + ":" + strconv.Itoa(fset.Position(call.Pos()).Line)
+		found = append(found, where+": "+name+" shows the sentence "+sentence+" and passes nothing to 详情; "+
+			"keep the error and pass its own text as the last argument so the cause opens under the sentence")
+		return true
+	})
+	return found
+}
+
+// isClassification reports whether expr is a call to an errcopy classifier.
+func isClassification(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	return ok && pkg.Name == "errcopy" && errcopyNames[sel.Sel.Name]
+}
+
+// seatName is the name a surface keeps a sentence under: failure, *failure,
+// state.Err, or editor.Status.
+func seatName(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.StarExpr:
+		return seatName(e.X)
+	case *ast.SelectorExpr:
+		return e.Sel.Name
+	case *ast.ParenExpr:
+		return seatName(e.X)
+	}
+	return ""
+}
+
+// isEmptyString reports whether expr is the empty string literal.
+func isEmptyString(expr ast.Expr) bool {
+	lit, ok := expr.(*ast.BasicLit)
+	return ok && lit.Kind == token.STRING && lit.Value == `""`
+}
+
+// UntranslatedStatus reports a theme editor status written in code rather than
+// in the interface language. A status is the message a person reads when the
+// editor refuses or fails, so a literal here is copy that never gets translated.
+func UntranslatedStatus(rel, src string) []string {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, rel, src, 0)
+	if err != nil {
+		return nil
+	}
+	var found []string
+	ast.Inspect(file, func(n ast.Node) bool {
+		assign, ok := n.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, rhs := range assign.Rhs {
+			if i >= len(assign.Lhs) || seatName(assign.Lhs[i]) != "Status" {
+				continue
+			}
+			if !writesCopyInCode(rhs) {
+				continue
+			}
+			where := rel + ":" + strconv.Itoa(fset.Position(assign.Pos()).Line)
+			found = append(found, where+": Status is written in code; "+
+				"register the sentence with i18n and set it with i18n.T, or refuse the preference through invalid() so the words are translated")
+		}
+		return true
+	})
+	return found
+}
+
+// writesCopyInCode reports whether expr builds a sentence from a string literal
+// with words in it.
+func writesCopyInCode(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		return e.Kind == token.STRING && hasCopyWords(e.Value)
+	case *ast.CallExpr:
+		if calleeName(e) != "Sprintf" || len(e.Args) == 0 {
+			return false
+		}
+		lit, ok := e.Args[0].(*ast.BasicLit)
+		return ok && lit.Kind == token.STRING && hasCopyWords(lit.Value)
+	}
+	return false
+}
+
+// hasCopyWords reports whether a Go string literal carries words: ASCII
+// letters or CJK characters. A key, an ID or a format of punctuation alone has
+// none, so a literal with them is copy that never reaches the translator.
+func hasCopyWords(lit string) bool {
+	for _, r := range lit {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+			return true
+		case r >= 0x4E00 && r <= 0x9FFF, r >= 0x3400 && r <= 0x4DBF:
+			return true
+		}
+	}
+	return false
+}

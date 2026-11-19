@@ -5,7 +5,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strconv"
 	"whaleisle/internal/config"
-	"whaleisle/internal/errcopy"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -60,7 +59,7 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 	disabled := d.RestartPolicy == nil || d.OnSetRestartPreference == nil
 	anchor := ui.Column(c.Key("harness-auto-recovery")).FillWidth().MinWidth(0).Gap(0)
 	settingsSearchTarget(c, "harness-auto-recovery", providerCopy("Harness 自动恢复", "Harness auto-recovery"), anchor)
-	failure := ui.Local(anchor, "save-error", func() string { return "" })
+	failure := ui.Local(anchor, "save-error", func() settingsRefusal { return settingsRefusal{} })
 	save := func(key, value string) {
 		accepted, err := d.OnSetRestartPreference(key, value)
 		*f.HarnessAutoRestart = accepted.AutoRestart
@@ -69,10 +68,7 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 		if d.RestartPolicy != nil {
 			*d.RestartPolicy = accepted
 		}
-		*failure = ""
-		if err != nil {
-			*failure = errcopy.Sentence(err)
-		}
+		failure.refuse(err)
 	}
 	seconds := providerCopy(" 秒", " s")
 	attempts := make([]restartOption, 0, 3)
@@ -98,7 +94,7 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 			})
 		})
 	})
-	settingsAlert(c, "harness-recovery", *failure != "", *failure, "")
+	settingsAlert(c, "harness-recovery", failure.failed(), failure.sentence, failure.detail)
 }
 
 func restartPicker(c *ui.Context, key, label string, value *string, options []restartOption, disabled bool, changed func(), muted ui.Color) {

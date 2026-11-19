@@ -162,7 +162,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}
 		return credentials.StorageStatus{Mode: "unknown"}
 	})
-	linkError := ui.Local(anchor, "error", func() string { return "" })
+	linkError := ui.Local(anchor, "error", func() settingsRefusal { return settingsRefusal{} })
 	revealResult := ui.Local(anchor, "home-result", func() string { return "" })
 	meta := func(text string) {
 		ui.Text(c, text).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
@@ -173,9 +173,9 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			button.Underline()
 		}
 		if button.Clicked() {
-			*linkError = ""
+			linkError.refuse(nil)
 			if err := a.OnOpenLink(link.URL); err != nil {
-				*linkError = errcopy.Sentence(err)
+				linkError.refuse(err)
 			}
 		}
 	}
@@ -218,7 +218,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 			link(links[1])
 		})
-		settingsAlert(c, "about:154", *linkError != "", *linkError, "")
+		settingsAlert(c, "about:154", linkError.failed(), linkError.sentence, linkError.detail)
 		settingsNotice(c, "about:157", a.Status != "", func() string { return a.Status })
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
 			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

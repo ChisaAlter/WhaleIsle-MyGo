@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
 
-	"whaleisle/internal/errcopy"
 	"whaleisle/internal/shortcuts"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
@@ -96,7 +95,7 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	a := m.Interface
 	// A switch that could not be written leaves its failure here, so the page
 	// shows it above the row it belongs to instead of a toast over the content.
-	failure := ui.Local(c.Root(), "interface-write-failure", func() string { return "" })
+	failure := ui.Local(c.Root(), "interface-write-failure", func() settingsRefusal { return settingsRefusal{} })
 	bodyHostState(c, a.Host, muted)
 	viewTabsNS, viewTabsField, hostViewTabs := interfaceViewTabsField(a.Host)
 	localViewTabs := InterfaceViewTabsFallbackAllowed(a.Host)
@@ -162,20 +161,16 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	})
-	settingsAlert(c, "interface-write", *failure != "", *failure, "")
+	settingsAlert(c, "interface-write", failure.failed(), failure.sentence, failure.detail)
 }
 
 // setInterfaceAccepted applies a switch's write and records its failure in the
 // page's seat, so the page draws the reason where the control was.
-func setInterfaceAccepted(c *ui.Context, failure *string, value *bool, next bool, write func(bool) (bool, error)) {
+func setInterfaceAccepted(c *ui.Context, failure *settingsRefusal, value *bool, next bool, write func(bool) (bool, error)) {
 	if value == nil || write == nil {
 		return
 	}
 	accepted, err := write(next)
 	*value = accepted
-	if err != nil {
-		*failure = errcopy.Sentence(err)
-		return
-	}
-	*failure = ""
+	failure.refuse(err)
 }

@@ -1,7 +1,9 @@
 package theme
 
 import (
+	"errors"
 	"reflect"
+
 	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/ui/i18n"
@@ -12,6 +14,7 @@ type Editor struct {
 	Saved             Preferences
 	Selected          string
 	Status            string
+	StatusDetail      string
 	Preview           bool
 	OnSave            func(Preferences) error
 	OnImport          func() (string, error)
@@ -31,7 +34,7 @@ func NewEditor(p Preferences, save func(Preferences) error) *Editor {
 }
 func (e *Editor) ApplyPreview() {
 	if err := e.Draft.Validate(); err != nil {
-		e.Status = errcopy.Sentence(err)
+		e.failStatus(err)
 		return
 	}
 	SetPreferences(e.Draft)
@@ -48,14 +51,14 @@ func (e *Editor) Cancel() {
 }
 func (e *Editor) Save() {
 	if err := e.Draft.Validate(); err != nil {
-		e.Status = errcopy.Sentence(err)
+		e.failStatus(err)
 		return
 	}
 	if e.OnSave == nil {
 		return
 	}
 	if err := e.OnSave(e.Draft.Clone()); err != nil {
-		e.Status = errcopy.Sentence(err)
+		e.failStatus(err)
 		return
 	}
 	pending := e.Pending != nil && e.Pending()
@@ -163,4 +166,16 @@ func (e *Editor) DeleteSelected() {
 			return
 		}
 	}
+}
+
+// failStatus writes a failed theme action: errcopy names the cause in the
+// interface language, and the store's own text stays behind 详情. A preference
+// the editor refuses before saving already carries its own sentence.
+func (e *Editor) failStatus(err error) {
+	var refused ValidationError
+	if errors.As(err, &refused) {
+		e.Status, e.StatusDetail = refused.Sentence, ""
+		return
+	}
+	e.Status, e.StatusDetail = errcopy.Sentence(err), err.Error()
 }

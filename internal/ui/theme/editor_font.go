@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
-	"whaleisle/internal/errcopy"
+
+	"whaleisle/internal/ui/i18n"
 )
 
 // GeneralFontFamily restores an uncommitted General input after navigation,
@@ -80,7 +81,7 @@ func (e *Editor) SaveFontSize(role string, size float32) bool {
 		hi = 22
 	}
 	if size < lo || size > hi || size != float32(int(size)) {
-		e.Status = fmt.Sprintf("Font size must be an integer from %.0f to %.0f", lo, hi)
+		e.Status, e.StatusDetail = fmt.Sprintf(i18n.T(i18n.KeyThemeFontSizeInteger), fmt.Sprintf("%.0f", lo), fmt.Sprintf("%.0f", hi)), ""
 		return false
 	}
 	next, draft := e.writeBaseline(), e.Draft.Clone()
@@ -159,14 +160,14 @@ func (e *Editor) SaveFontFamily(role, family string) bool {
 
 func (e *Editor) saveFontField(next, draft Preferences) bool {
 	if err := next.Validate(); err != nil {
-		e.Status = errcopy.Sentence(err)
+		e.failStatus(err)
 		return false
 	}
 	if e.OnSave == nil {
 		return false
 	}
 	if err := e.OnSave(next.Clone()); err != nil {
-		e.Status = errcopy.Sentence(err)
+		e.failStatus(err)
 		return false
 	}
 	pending := e.Pending != nil && e.Pending()
@@ -179,9 +180,9 @@ func (e *Editor) saveFontField(next, draft Preferences) bool {
 	e.Draft, e.Preview = draft, false
 	SetPreferences(next)
 	RefreshWindows()
-	e.Status = "已保存 / Saved"
+	e.Status, e.StatusDetail = i18n.T(i18n.KeyThemeEditorSaved), ""
 	if pending {
-		e.Status = "正在保存… / Saving…"
+		e.Status = i18n.T(i18n.KeyThemeEditorSaving)
 	}
 	return true
 }
