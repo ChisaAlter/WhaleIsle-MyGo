@@ -65,7 +65,7 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 		ui.Text(c, pluginsText("运行时未连接。", "Runtime disconnected.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
 	if s.Err != "" {
-		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		settingsFailureLine(c, "plugins:inventory", providerCopy("没能读取插件实例，请重试。", "The plugin inventory could not be read. Try again."), s.Err)
 		if s.Ready {
 			ui.Text(c, pluginsText("刷新失败，以下保留本次 Host 上次成功读取的实例。", "Refresh failed. Showing the last successful inventory from this Host.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

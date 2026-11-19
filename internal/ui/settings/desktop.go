@@ -70,7 +70,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	d := m.Desktop
 	bodyHostState(c, d.Host, muted)
-	settingsAlert(c, "desktop:61", d.Err != "", func() string { return d.Err })
+	settingsAlert(c, "desktop:61", d.Err != "", providerCopy("没能读取桌面设置，请重试。", "Desktop settings could not be read. Try again."), d.Err)
 	settingsNotice(c, "desktop:64", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
 	// 0.3.13 General: language, coding view, shortcuts, close, launch,
 	// performance, session log, Harness version and auto-recovery. The
@@ -100,7 +100,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			}
 		})
-		settingsAlert(c, "desktop-locale", *localeFailure != "", func() string { return *localeFailure })
+		settingsAlert(c, "desktop-locale", *localeFailure != "", *localeFailure, "")
 	}
 	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("显示代码工作视图", "Show coding view"), providerCopy("开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."), fg, muted)
 	if d.Shortcuts != nil {
@@ -229,7 +229,7 @@ func desktopImmediateBool(c *ui.Context, control ui.Element, value *bool, choice
 			}
 		}
 	}
-	settingsAlert(c, "desktop:206", *failure != "", func() string { return *failure })
+	settingsAlert(c, "desktop:206", *failure != "", *failure, "")
 }
 
 func desktopRow(c *ui.Context, label string, body func(), fg, muted ui.Color) {

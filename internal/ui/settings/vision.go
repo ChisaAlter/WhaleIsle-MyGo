@@ -21,7 +21,7 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 	if failure == "" {
 		failure = s.CatalogErr
 	}
-	settingsAlert(c, "vision-save-error", failure != "", func() string { return failure })
+	settingsAlert(c, "vision-save-error", failure != "", providerCopy("没能读取视觉模型，请重试。", "Image models could not be read. Try again."), failure)
 	dark := c.Theme().Dark
 	colors := fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark)
 	// 0.3.13: a bordered 16 DIP card holding the label, the pill select and the

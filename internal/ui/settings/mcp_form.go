@@ -113,7 +113,7 @@ func mcpFormEditor(c *ui.Context, a *MCPFormAccess, busy bool, editingID string,
 			}
 		})
 		if a.Error != "" {
-			ui.Text(c, a.Error).FillWidth().Selectable().TextColor(c.Theme().Danger)
+			settingsFailureLine(c, "mcp:form", providerCopy("没能保存这个 MCP 服务，请重试。", "The MCP server was not saved. Try again."), a.Error)
 		}
 		if a.Draft != nil {
 			mcpFormEditorContent(c, a, busy, editingID, fg, muted)

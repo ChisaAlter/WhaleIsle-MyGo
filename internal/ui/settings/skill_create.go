@@ -73,7 +73,7 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 		ui.Checkbox(c, &draft.ModelInvocable, providerCopy("模型可调用", "Model invocable")).Disabled(create.Busy)
 		ui.Checkbox(c, &draft.UserInvocable, providerCopy("用户可调用", "User invocable")).Disabled(create.Busy)
 		if create.Error != "" {
-			ui.Text(c, create.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			settingsFailureLine(c, "skill:create", providerCopy("没能创建这个技能，请重试。", "The skill could not be created. Try again."), create.Error)
 		}
 		validation = ui.Local(nameLabel, "skill-create-validation", func() string { return "" })
 		if *validation != "" {

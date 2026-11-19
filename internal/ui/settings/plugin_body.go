@@ -30,7 +30,7 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	disabled := !snap.ClientReady || !snap.Writable || snap.Loading || snap.Saving
 	ui.Column(c.Key("plugin-namespace-" + namespace)).FillWidth().MinWidth(0).Gap(14).Children(func() {
-		settingsAlert(c, "plugin_body:34", snap.Err != "", func() string { return snap.Err })
+		settingsAlert(c, "plugin_body:34", snap.Err != "", providerCopy("没能读取插件详情，请重试。", "Plugin details could not be read. Try again."), snap.Err)
 		settingsNotice(c, "plugin_body:37", snap.LastAction != "", func() string { return settingsActionText(snap.LastAction) })
 		for _, field := range ns.Fields {
 			f := field

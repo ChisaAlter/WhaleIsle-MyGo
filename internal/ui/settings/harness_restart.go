@@ -98,7 +98,7 @@ func harnessAutoRecoveryRow(c *ui.Context, d *DesktopAccess, fg, muted ui.Color)
 			})
 		})
 	})
-	settingsAlert(c, "harness-recovery", *failure != "", func() string { return *failure })
+	settingsAlert(c, "harness-recovery", *failure != "", *failure, "")
 }
 
 func restartPicker(c *ui.Context, key, label string, value *string, options []restartOption, disabled bool, changed func(), muted ui.Color) {

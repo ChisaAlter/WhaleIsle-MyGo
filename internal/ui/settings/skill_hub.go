@@ -31,7 +31,7 @@ func skillHubDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 	}
 	bodyDialogFooterWidth(c, &open, title, 760, func() {
 		if hub.Error != "" {
-			ui.Text(c, hub.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			settingsAuthoredFailure(c, hub.Error)
 		}
 		if hit := hub.Confirming; hit != nil {
 			ui.Text(c, providerCopy("请核对技能的公开来源和安装范围。", "Review the public source and installation scope before continuing.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

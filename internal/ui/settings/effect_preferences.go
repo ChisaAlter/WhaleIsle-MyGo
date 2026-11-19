@@ -419,7 +419,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 				})
 			})
 		})
-		bodyPreferenceFieldAlert(c, a, "ui-conversation", enabledKey)
+		bodyPreferenceFieldAlert(c, a, "ui-conversation", enabledKey, title)
 	})
 	if !*open {
 		return
@@ -524,7 +524,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 				}) // Feedback stays in a reserved footer slot; saving never moves the controls.
 				ui.Box(c).FillWidth().Height(24).Padding(0, 24).Children(func() {
 					if draft.Err != "" {
-						ui.Text(c, draft.Err).FillWidth().TextColor(fg)
+						settingsFailureLine(c, "appearance-effect-"+enabledKey, preferenceFailureCopy(title), draft.Err)
 					}
 				})
 				ui.Row(c).FillWidth().Padding(12, 24).Wrap().Gap(8).Children(func() {

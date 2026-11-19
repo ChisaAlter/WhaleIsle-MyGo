@@ -201,7 +201,7 @@ func modelNamespaceEditor(c *ui.Context, m Model, namespace string, onCancel fun
 			}
 			referencedCredentialsPane(c, credentials, namespace, fg, muted)
 		}
-		settingsAlert(c, "model_body:184", snap.Err != "", func() string { return snap.Err })
+		settingsAlert(c, "model_body:184", snap.Err != "", providerCopy("没能读取模型详情，请重试。", "Model details could not be read. Try again."), snap.Err)
 		if !snap.Writable {
 			modelHint(c, providerCopy("此供应商设置为只读。", "Provider settings are read-only."), "")
 		}

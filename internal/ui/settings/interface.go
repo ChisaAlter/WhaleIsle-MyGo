@@ -162,7 +162,7 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	})
-	settingsAlert(c, "interface-write", *failure != "", func() string { return *failure })
+	settingsAlert(c, "interface-write", *failure != "", *failure, "")
 }
 
 // setInterfaceAccepted applies a switch's write and records its failure in the

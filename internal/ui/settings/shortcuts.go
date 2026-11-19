@@ -384,7 +384,7 @@ func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.
 				ui.Text(c, issue).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger).MaxWidth(220)
 			}
 			if e.Err != "" && e.Recording == "" {
-				ui.Text(c, e.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger).MaxWidth(220)
+				settingsFailureLine(c, "shortcut:save", providerCopy("没能保存这个快捷键，请重试。", "This shortcut was not saved. Try again."), e.Err)
 			}
 		})
 	})
@@ -466,7 +466,7 @@ func shortcutResetConfirmation(c *ui.Context, e *shortcuts.Editor, p shortcutPal
 			ui.Text(c, providerCopy("将恢复当前平台的默认快捷键。你修改或移除的快捷键都会恢复，其他平台不受影响。", "Restore the default shortcuts for this platform. All modified or removed shortcuts will be restored. Other platforms are unaffected.")).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.muted)
 			ui.Box(c).FillWidth().Height(36).Children(func() {
 				if e.Err != "" {
-					ui.Text(c, e.Err).FillWidth().TextColor(c.Theme().Danger).FontSize(fonttheme.InterfaceSize(12))
+					settingsFailureLine(c, "shortcut:restore", providerCopy("没能恢复默认快捷键，请重试。", "The default shortcuts could not be restored. Try again."), e.Err)
 				}
 			})
 			ui.Row(c).Gap(8).Children(func() {

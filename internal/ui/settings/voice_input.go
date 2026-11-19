@@ -85,7 +85,7 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 			})
 			c.Services().Invalidate()
 		}
-		settingsAlert(c, "voice_input:89", state.Error != "", func() string { return state.Error })
+		settingsAlert(c, "voice_input:89", state.Error != "", providerCopy("没能保存语音输入设置，请重试。", "The voice input setting was not saved. Try again."), state.Error)
 	})
 }
 

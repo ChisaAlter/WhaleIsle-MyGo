@@ -78,7 +78,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPStubHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsMCPSchemaHint)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	settingsAlert(c, "mcp:82", a.Err != "", func() string { return a.Err })
+	settingsAlert(c, "mcp:82", a.Err != "", providerCopy("没能读取 MCP 服务器，请重试。", "MCP servers could not be read. Try again."), a.Err)
 	settingsNotice(c, "mcp:85", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 	if a.HealthRefreshFailed {
 		ui.Text(c, mcpCatalogText("自动刷新失败，保留上次状态；可点击刷新重试读取。", "Automatic refresh failed; showing the previous state. Refresh reconnects failed managed servers and reloads the list.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
@@ -122,7 +122,7 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, a.DeletingID).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 			ui.Text(c, mcpCatalogText("此操作会移除服务器配置。", "This removes the server configuration.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			if a.Err != "" {
-				ui.Text(c, a.Err).FillWidth().Selectable().TextColor(c.Theme().Danger)
+				settingsFailureLine(c, "mcp:remove", providerCopy("没能删除这个 MCP 服务，请重试。", "The MCP server could not be removed. Try again."), a.Err)
 			}
 		}, func() {
 			if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {

@@ -48,7 +48,7 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 		return out
 	}
 	click(i18n.T(KeyPass4ModeExplanation) + " · standard")
-	if !tt.Focused("Mode details") || tt.Focused(i18n.T(KeyPass4ModeExplanation) + " · standard") {
+	if !tt.Focused("Mode details") || tt.Focused(i18n.T(KeyPass4ModeExplanation)+" · standard") {
 		t.Fatal("opening guide did not focus its selected tab")
 	}
 	initialExplanation := positions("Explanation")
@@ -77,7 +77,7 @@ func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T)
 		t.Fatal("returning to usage lost its own scroll")
 	}
 	tt.Key(0, ui.KeyEscape)
-	if tt.HasText("Fixture guide") || !tt.Focused(i18n.T(KeyPass4ModeExplanation) + " · standard") {
+	if tt.HasText("Fixture guide") || !tt.Focused(i18n.T(KeyPass4ModeExplanation)+" · standard") {
 		t.Fatal("Escape did not close only the guide and restore its opening action")
 	}
 	click("How to use · standard")
@@ -152,8 +152,11 @@ func TestPresetConfigurationSingleClickModalAndReturnFocus(t *testing.T) {
 	state.Busy = false
 	state.Error = "fixture refusal"
 	tt.Frame()
-	if !tt.HasText("fixture refusal") {
+	if !tt.HasText("The agent preset declaration could not be read. Try again.") {
 		t.Fatal("read failure vanished")
+	}
+	if !detailHolds(t, tt, "fixture refusal") {
+		t.Fatalf("the read failure did not keep the declaration's words behind 详情: %v", tt.Texts())
 	}
 	if err := tt.Click("Retry"); err != nil {
 		t.Fatal(err)

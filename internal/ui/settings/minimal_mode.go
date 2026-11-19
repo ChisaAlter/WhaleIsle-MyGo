@@ -86,7 +86,7 @@ func minimalModePane(c *ui.Context, m *MinimalModeAccess, fg, muted ui.Color) {
 				}
 			}
 		})
-		settingsAlert(c, "appearance-minimal-mode:error", *failure != "", func() string { return *failure })
+		settingsAlert(c, "appearance-minimal-mode:error", *failure != "", *failure, "")
 	})
 	if m.Suggestions != nil {
 		suggestions := *m.Suggestions

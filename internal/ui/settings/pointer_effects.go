@@ -75,7 +75,7 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			})
 		}
 		if g.failure != "" {
-			settingsAlert(c, "appearance-dialog", true, func() string { return g.failure })
+			settingsAlert(c, "appearance-dialog", true, providerCopy("没能保存指针效果，请重试。", "The pointer effect was not saved. Try again."), g.failure)
 		}
 	}, func() {
 		if ui.Button(c, providerCopy("恢复指针默认", "Reset pointer effects")).Disabled(g.Save == nil || busy).Clicked() {
