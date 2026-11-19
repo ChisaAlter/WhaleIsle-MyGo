@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -142,4 +143,59 @@ func TestSilentListenerNeverClaimsTheLock(t *testing.T) {
 		singleInstance.locked = false
 		singleInstance.Unlock()
 	})
+}
+
+// TestSweepStaleSocketsRemovesOnlyUnownedFiles is the AYA-30 accumulation: the
+// socket of a key whose owner died stays forever, because only its owner ever
+// unlinks it. The sweep has to remove those and nothing else.
+func TestSweepStaleSocketsRemovesOnlyUnownedFiles(t *testing.T) {
+	dir := unixSocketDir(t)
+	uid := strconv.Itoa(os.Getuid())
+	socket := func(tag string) string { return filepath.Join(dir, "mygo-"+uid+"-"+tag+".sock") }
+	live, stale, own := socket("aaaaaaaaaaaa"), socket("bbbbbbbbbbbb"), socket("cccccccccccc")
+
+	liveListener := listenUnix(t, live)
+	defer liveListener.Close()
+	ownListener := listenUnix(t, own)
+	defer ownListener.Close()
+	// An unclean exit: the file stays, and nobody answers it any more.
+	dead := listenUnix(t, stale)
+	dead.SetUnlinkOnClose(false)
+	if err := dead.Close(); err != nil {
+		t.Fatal(err)
+	}
+	foreign := filepath.Join(dir, "not-a-mygo-socket.sock")
+	if err := os.WriteFile(foreign, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if removed := sweepStaleSockets(dir, own, 0); removed != 1 {
+		t.Fatalf("sweep removed %d files, want only the stale one", removed)
+	}
+	for _, kept := range []string{live, own, foreign} {
+		if _, err := os.Lstat(kept); err != nil {
+			t.Fatalf("sweep removed %s, which it does not own: %v", filepath.Base(kept), err)
+		}
+	}
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("the stale socket survived the sweep: %v", err)
+	}
+}
+
+// TestSweepStaleSocketsSparesAFreshFile keeps the sweep away from a socket a
+// launch may be binding right now: only files older than the grace are probed.
+func TestSweepStaleSocketsSparesAFreshFile(t *testing.T) {
+	dir := unixSocketDir(t)
+	path := filepath.Join(dir, "mygo-"+strconv.Itoa(os.Getuid())+"-dddddddddddd.sock")
+	ln := listenUnix(t, path)
+	ln.SetUnlinkOnClose(false)
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if removed := sweepStaleSockets(dir, "", time.Minute); removed != 0 {
+		t.Fatalf("sweep removed %d fresh files", removed)
+	}
+	if _, err := os.Lstat(path); err != nil {
+		t.Fatalf("a fresh socket file was removed: %v", err)
+	}
 }
