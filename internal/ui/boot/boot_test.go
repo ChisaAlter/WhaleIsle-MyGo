@@ -254,3 +254,31 @@ func TestWorkbenchFailureLines(t *testing.T) {
 		}
 	}
 }
+
+// TestFixedTextMetricsCountGlyphs pins what the seat fixture relies on: the
+// engine it switches to is a fixed metric, not a switched-off one. A rune keeps
+// its width whatever face is asked for, and the width follows the rune count, so
+// a composition that grew a row or a margin still moves the wordmark.
+func TestFixedTextMetricsCountGlyphs(t *testing.T) {
+	var latin, otherFace, twice, cjk float32
+	tt := ui.NewTester(func(c *ui.Context) {
+		latin, _ = c.MeasureText(0, ui.Span{Text: "abcd", Font: "Inter", Size: 20})
+		otherFace, _ = c.MeasureText(0, ui.Span{Text: "abcd", Font: "No Such Family", Size: 20})
+		twice, _ = c.MeasureText(0, ui.Span{Text: "abcdefgh", Font: "Inter", Size: 20})
+		cjk, _ = c.MeasureText(0, ui.Span{Text: "鲸屿", Font: "Inter", Size: 20})
+		ui.Text(c, "x")
+	}, 400, 200)
+	tt.UseFixedTextMetrics()
+	if latin <= 0 || twice <= 0 {
+		t.Fatalf("the fixed engine measured nothing: %v / %v", latin, twice)
+	}
+	if otherFace != latin {
+		t.Fatalf("a face changed the fixed width: %v against %v", otherFace, latin)
+	}
+	if twice != 2*latin {
+		t.Fatalf("width %v does not follow the rune count from %v", twice, latin)
+	}
+	if cjk != latin/2 {
+		t.Fatalf("two CJK runes measured %v, want the same half em as four latin ones from %v", cjk, latin)
+	}
+}
