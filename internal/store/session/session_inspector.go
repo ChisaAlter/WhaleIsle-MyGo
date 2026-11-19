@@ -18,12 +18,17 @@ const (
 // Inspector retains only the existing, authorized Session window. It never
 // reads Host files, creates another subscription, or uploads log contents.
 type sessionInspectorState struct {
-	client        *dsh.Client
-	session       string
-	generation    uint64
-	open          bool
-	rawBytes      int
-	events        map[float64]json.RawMessage
+	client     *dsh.Client
+	session    string
+	generation uint64
+	open       bool
+	rawBytes   int
+	events     map[float64]json.RawMessage
+	// seqs holds every seq in events, ascending. Pruning evicts the oldest
+	// events, so keeping their order here means a captured event does not sort
+	// the whole window: the pane retains a few thousand events and a session
+	// captures them one at a time.
+	seqs          []float64
 	contextWaking map[float64]bool
 	settledRoots  map[float64]string
 }
@@ -67,27 +72,45 @@ func (s *Store) inspectorLimitsLocked() (maxEvents, maxBytes int) {
 	return inspectorClosedMaxEvents, inspectorClosedMaxBytes
 }
 
+// noteInspectorEventLocked files a captured seq in order. The window is bounded
+// at a few thousand entries, so the shift costs less than sorting the window on
+// every capture.
+func (s *Store) noteInspectorEventLocked(seq float64) {
+	at := sort.SearchFloat64s(s.inspector.seqs, seq)
+	if at < len(s.inspector.seqs) && s.inspector.seqs[at] == seq {
+		return
+	}
+	s.inspector.seqs = append(s.inspector.seqs, 0)
+	copy(s.inspector.seqs[at+1:], s.inspector.seqs[at:])
+	s.inspector.seqs[at] = seq
+}
+
 func (s *Store) pruneInspectorEventsLocked() bool {
 	maxEvents, maxBytes := s.inspectorLimitsLocked()
 	if len(s.inspector.events) <= maxEvents && s.inspector.rawBytes <= maxBytes {
 		return false
 	}
-	seqs := make([]float64, 0, len(s.inspector.events))
-	for seq := range s.inspector.events {
-		seqs = append(seqs, seq)
-	}
-	sort.Float64s(seqs)
 	evicted := false
-	for _, seq := range seqs {
+	keep := 0
+	for keep < len(s.inspector.seqs) {
 		if len(s.inspector.events) <= maxEvents && s.inspector.rawBytes <= maxBytes {
 			break
 		}
-		s.inspector.rawBytes -= len(s.inspector.events[seq])
+		seq := s.inspector.seqs[keep]
+		keep++
+		raw, exists := s.inspector.events[seq]
+		if !exists {
+			continue
+		}
+		s.inspector.rawBytes -= len(raw)
 		if s.inspector.rawBytes < 0 {
 			s.inspector.rawBytes = 0
 		}
 		delete(s.inspector.events, seq)
 		evicted = true
+	}
+	if keep > 0 {
+		s.inspector.seqs = append(s.inspector.seqs[:0], s.inspector.seqs[keep:]...)
 	}
 	if evicted {
 		s.pruneInspectorSettlementsLocked()
@@ -122,14 +145,19 @@ func (s *Store) captureInspectorEventWithHeadLocked(raw json.RawMessage, typ str
 	if s.inspector.events == nil || s.inspector.client != s.client || s.inspector.session != s.selectedID || s.inspector.generation != s.followGeneration {
 		s.resetInspectorLocked()
 	}
-	if old, existed := s.inspector.events[seq]; existed {
-		if string(old) == string(raw) {
+	_, existed := s.inspector.events[seq]
+	if existed {
+		if old := s.inspector.events[seq]; string(old) == string(raw) {
 			return false
+		} else {
+			s.inspector.rawBytes -= len(old)
 		}
-		s.inspector.rawBytes -= len(old)
 	}
 	// Follow/page hand us immutable decoded event bytes. Retain within bounded
 	// sliding window without duplicating payload; snapshots copy before exposing it.
+	if !existed {
+		s.noteInspectorEventLocked(seq)
+	}
 	s.inspector.events[seq] = raw
 	s.inspector.rawBytes += len(raw)
 	s.inspector.contextWaking = nil
@@ -315,11 +343,7 @@ func (s *Store) InspectorSnapshot() InspectorSnapshot {
 	out := InspectorSnapshot{Binding: fmt.Sprintf("%p/%s/%d", s.client, s.selectedID, s.followGeneration), SessionID: s.selectedID}
 	if s.inspector.client == s.client && s.inspector.session == s.selectedID && s.inspector.generation == s.followGeneration {
 		s.pruneInspectorSettlementsLocked()
-		seqs := make([]float64, 0, len(s.inspector.events))
-		for seq := range s.inspector.events {
-			seqs = append(seqs, seq)
-		}
-		sort.Float64s(seqs)
+		seqs := s.inspector.seqs
 		turn, step := "", ""
 		active := s.assistantStream.active
 		if active == nil {

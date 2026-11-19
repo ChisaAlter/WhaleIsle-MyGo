@@ -510,6 +510,7 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 			}
 			for seq, raw := range prefixInsp {
 				if _, exists := s.inspector.events[seq]; !exists {
+					s.noteInspectorEventLocked(seq)
 					s.inspector.events[seq] = raw
 					s.inspector.rawBytes += len(raw)
 				}
