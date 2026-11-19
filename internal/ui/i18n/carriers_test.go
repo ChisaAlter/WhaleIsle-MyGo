@@ -38,6 +38,10 @@ var carrierScan = []struct {
 	// and hands over a category. Text put on an item here has no reader but
 	// the screen, so it must not come from a failure.
 	{"../../desktop/importer", regexp.MustCompile(`Label:|Group:|Reason:|Detail:|Message:`)},
+	// boot is where a second classifier grew last time, and no CI job runs its
+	// tests: the page's status line and its failure pane come from a failed
+	// start, so this walk is the only thing watching them.
+	{"../boot", regexp.MustCompile(`ui\.Text\(c, |StatusText = |Label\(`)},
 	// The chat speaks a turn's failure and the sidebar speaks a Session's title,
 	// and both take strings the Host wrote: the same walk keeps a new surface
 	// from painting the transport's own text.
@@ -75,9 +79,6 @@ func TestPaintedCarriersNeverTakeARawError(t *testing.T) {
 			scanned++
 			for index, line := range strings.Split(string(source), "\n") {
 				if !rawFailure.MatchString(line) || !scan.carrier.MatchString(line) {
-					continue
-				}
-				if strings.HasPrefix(strings.TrimSpace(line), "if ") {
 					continue
 				}
 				if strings.Contains(line, verbatimDiagnostics) {
