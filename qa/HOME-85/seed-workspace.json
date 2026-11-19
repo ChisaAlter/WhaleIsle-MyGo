@@ -1,0 +1,8 @@
+{
+  "locale": "zh",
+  "autoStartDesktop": true,
+  "workspace": "C:\\AI\\WhaleIsle-MyGo-live\\qa\\HOME-85\\workspace",
+  "host": "127.0.0.1",
+  "port": 3080,
+  "theme": "deepseek"
+}

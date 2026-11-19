@@ -40,6 +40,18 @@ function Invoke-PoliteOps {
 }
 ```
 
+A lane that must reach a state the first frame cannot have, or that tests a restart, seeds the throwaway profile instead of clicking the product into that state:
+
+```powershell
+# a profile whose config.json already names a workspace, a port or a runtime
+.\tools\polite\run.ps1 -Exe .\dist\polite\whaleisle.exe -Ops .\qa\my-lane-ops.ps1 -SeedConfig .\qa\my-lane-config.json
+
+# the second launch of a restart: the first one's profile, kept on purpose
+.\tools\polite\run.ps1 -Exe .\dist\polite\whaleisle.exe -Ops .\qa\my-lane-ops.ps1 -ProfilePath "$env:TEMP\mygo-polite-1a2b3c4d5e6f"
+```
+
+`-SeedConfig` copies one file to `<profile>\config.json` before the app reads its configuration. `-ProfilePath` reopens a profile a previous run left behind, and such a profile is never deleted at close, because that state is the thing under test. Both only ever address a directory under the Windows temp directory; the operator's own data directory is refused by path, not by convention. Neither one touches a guard: the foreground check, the 界面未响应 tripwire, the one-instance rule and the close-by-own-pid all still apply, and a run that trips one is still void.
+
 Rules that are not negotiable in an ops file:
 
 - One `Invoke-PoliteStep` wraps **one** action, so the foreground is sampled on both sides of it.
