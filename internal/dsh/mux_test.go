@@ -339,3 +339,84 @@ func TestMuxConcurrentRecvAndCancel(t *testing.T) {
 		<-done
 	}
 }
+
+func TestMuxCancelSurvivesStreamContextCancel(t *testing.T) {
+	cancels := make(chan string, 4)
+	paused := make(chan struct{})
+	resume := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.CloseNow()
+		c.SetReadLimit(64 << 20)
+		for range 2 {
+			var open ClientFrame
+			if err := wsjson.Read(r.Context(), c, &open); err != nil {
+				return
+			}
+		}
+		close(paused)
+		<-resume
+		for {
+			var f ClientFrame
+			if err := wsjson.Read(r.Context(), c, &f); err != nil {
+				return
+			}
+			if f.Type == FrameCancel {
+				select {
+				case cancels <- f.StreamID:
+				default:
+				}
+			}
+		}
+	}))
+	defer srv.Close()
+
+	mux := &Mux{Endpoint: Endpoint{Origin: srv.URL}}
+	if err := mux.Dial(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer mux.Close()
+
+	watch, err := mux.Open(context.Background(), "account/watch", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	follow, err := mux.Open(context.Background(), "job/follow", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-paused
+
+	// A write that is still in flight when its stream context is cancelled is the
+	// shape that used to take the whole carrier down: the library keeps the
+	// context armed for the length of the write and closes the socket when it ends.
+	followCtx, followCancel := context.WithCancel(context.Background())
+	defer followCancel()
+	big := map[string]any{"blob": strings.Repeat("x", 4<<20)}
+	writeDone := make(chan error, 1)
+	go func() { writeDone <- follow.SendItem(followCtx, big) }()
+	time.Sleep(100 * time.Millisecond)
+	followCancel()
+	time.Sleep(200 * time.Millisecond)
+	close(resume)
+
+	if err := <-writeDone; err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendItem with a cancelled context = %v", err)
+	}
+
+	watch.Cancel()
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case id := <-cancels:
+			if id == watch.id {
+				return
+			}
+		case <-deadline:
+			t.Fatal("sibling cancel frame never reached the Host: one stream's cancelled context took the shared carrier down")
+		}
+	}
+}

@@ -21,6 +21,9 @@ var ErrStreamEnd = errors.New("dsh mux: stream end")
 // ErrCarrierLost means the physical mux socket died.
 var ErrCarrierLost = errors.New("dsh mux: carrier lost")
 
+// carrierWriteTimeout caps one frame write on the shared socket.
+const carrierWriteTimeout = 10 * time.Second
+
 // Mux is one physical WebSocket that carries many logical Remote streams.
 // WebSocket Ping/Pong is handled by the underlying library (server pings every 2s).
 type Mux struct {
@@ -459,7 +462,13 @@ func (m *Mux) send(ctx context.Context, conn *websocket.Conn, frame ClientFrame)
 	}
 	m.writeMu.Lock()
 	defer m.writeMu.Unlock()
-	return wsjson.Write(ctx, conn, frame)
+	// A frame write must never inherit the cancelling context of one stream:
+	// the websocket library closes the whole connection when a write's context
+	// ends, which would kill every other stream on this carrier, their pending
+	// cancel frames included.
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), carrierWriteTimeout)
+	defer cancel()
+	return wsjson.Write(writeCtx, conn, frame)
 }
 
 func muxURL(origin string) (string, error) {
