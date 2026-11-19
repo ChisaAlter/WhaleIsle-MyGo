@@ -284,6 +284,16 @@ func (e *uiaElement) supports(i int) bool {
 			n.Role == platform.RoleColorWell
 	case ifaceExpandCollapse:
 		// A menu button expands into its menu, as WinUI's DropDownButton.
+		//
+		// The five roles below are the same five ifaceInvoke refuses above, so
+		// for a pop-up button, a tree item, a menu button, a combo box and a
+		// disclosure this pattern is the only gesture a client has to open
+		// them: the action arrives in ui's node.st.expand, and a widget that
+		// does not read it cannot be opened without a pointer. That pairing is
+		// the invariant, and nothing in the type system holds it — the guard is
+		// TestEveryExpandableControlAnswersTheExpandPattern in
+		// third_party/mygo/ui/access_expandable_test.go, which fails for any
+		// widget that reports expandable without answering the action.
 		return n.Role == platform.RolePopUpButton || n.Role == platform.RoleTreeItem || n.Role == platform.RoleMenuButton ||
 			n.Role == platform.RoleComboBox || n.Role == platform.RoleDisclosure
 	}
