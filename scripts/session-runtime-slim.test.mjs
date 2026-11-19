@@ -147,6 +147,41 @@ test('slim prunes an optional native engine a retained loader may fall back from
   }
 });
 
+// The platform engine packages as the loaders' own published manifests declare
+// them: @deepseek-ai/libreoffice-kit 0.2.3 and sherpa-onnx-node ^1.13.8
+// optionalDependencies. A name no manifest declares is one the installer's module
+// graph never holds, so slimming it prunes nothing.
+const publishedEnginePackages = {
+  '@deepseek-ai/libreoffice-kit': [
+    '@deepseek-ai/libreoffice-kit-wasm',
+    '@deepseek-ai/libreoffice-kit-darwin-arm64',
+    '@deepseek-ai/libreoffice-kit-darwin-x64',
+    '@deepseek-ai/libreoffice-kit-win32-arm64',
+    '@deepseek-ai/libreoffice-kit-win32-x64',
+    '@deepseek-ai/libreoffice-kit-linux-x64-glibc',
+    '@deepseek-ai/libreoffice-kit-linux-arm64-glibc',
+  ],
+  'sherpa-onnx-node': [
+    'sherpa-onnx-darwin-arm64',
+    'sherpa-onnx-darwin-x64',
+    'sherpa-onnx-linux-x64',
+    'sherpa-onnx-linux-arm64',
+    'sherpa-onnx-win-x64',
+    'sherpa-onnx-win-ia32',
+  ],
+};
+
+test('every engine package slim names is one its loader publishes', () => {
+  for (const pair of capabilityPairs) {
+    const published = publishedEnginePackages[pair.loader];
+    assert.ok(published, `no published manifest pinned for ${pair.loader}`);
+    for (const engine of pair.engines) {
+      assert.ok(published.includes(engine.name),
+        `${pair.loader} publishes no ${engine.name}; slim would find no installed package under that name and ship it anyway`);
+    }
+  }
+});
+
 test('no capability package may be listed for slimming', () => {
   const preserved = new Set(criticalPackagesToPreserve);
   for (const pair of capabilityPairs) {
