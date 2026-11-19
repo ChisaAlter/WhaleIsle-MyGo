@@ -132,3 +132,26 @@ func TestParentOfflineBlocksSendWhileKeepingStopAndOccupiedNotice(t *testing.T) 
 		t.Fatalf("ChildEditor did not translate session/writer-held notice: %v", childTT.Texts())
 	}
 }
+
+// TestHostPlaceholderOutranksTheWorkspaceCopy is the third surface of the dead
+// page: with the local service down, the disabled card must not tell the person
+// to choose a workspace, because choosing one cannot help.
+func TestHostPlaceholderOutranksTheWorkspaceCopy(t *testing.T) {
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	for _, locale := range []string{i18n.LocaleZH, i18n.LocaleEN} {
+		i18n.SetLocale(locale)
+		note := "本地服务没有运行"
+		if got := composerPlaceholder(Model{Inert: true, Hero: true, HostPlaceholder: note}); got != note {
+			t.Fatalf("locale %s host placeholder=%q want %q", locale, got, note)
+		}
+		// An enabled card belongs to a session, not to the service: the service
+		// copy is the inert card's answer only.
+		if got := composerPlaceholder(Model{Hero: true, HostPlaceholder: note}); got == note {
+			t.Fatalf("locale %s the host copy reached an enabled card", locale)
+		}
+		// Without a service note the workspace copy is still the answer.
+		if got := composerPlaceholder(Model{Inert: true, Hero: true}); got != WorkspacePlaceholder() {
+			t.Fatalf("locale %s default inert placeholder=%q want %q", locale, got, WorkspacePlaceholder())
+		}
+	}
+}

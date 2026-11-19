@@ -397,6 +397,11 @@ type Model struct {
 	ConnectionBanner string
 	HostStatus       func(*ui.Context)
 	ConnectionReady  bool
+	// HostNote and HostPlaceholder are the sidebar's empty-session line and the
+	// composer's placeholder while the local service is not ready
+	// (internal/hoststate). Empty keeps each surface's own default.
+	HostNote        string
+	HostPlaceholder string
 	// AssistantName is the published Whale display name snapshot for the
 	// sidebar panel row; empty falls back to the localized assistant label.
 	AssistantName                           string
@@ -750,6 +755,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnOpenDesktopSettings: m.OnOpenDesktopSettings,
 		OnOpenSettings:        m.OnOpenSettings,
 		ConnectionReady:       m.ConnectionReady, ConnectionConnecting: m.ConnectionConnecting, ConnectionEpoch: m.ConnectionEpoch,
+		HostNote:                m.HostNote,
 		AssistantName:           m.AssistantName,
 		ConnectionError:         m.ConnectionError,
 		OnReconnect:             m.OnReconnect,
@@ -936,6 +942,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						SystemDark:           m.SystemDark,
 						WorkspaceRoot:        m.WorkspaceRoot,
 						Inert:                composer.RequiresWorkspace(snap, hero),
+						HostPlaceholder:      m.HostPlaceholder,
 						OnRequestWorkspace:   m.OnPickHeroWorkspace,
 						Draft:                m.Draft,
 						State:                m.ComposerState,

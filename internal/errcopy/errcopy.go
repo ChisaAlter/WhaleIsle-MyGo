@@ -20,6 +20,7 @@ const (
 	CauseUnknown Cause = iota
 	CauseCancelled
 	CauseRuntimeMissing
+	CauseRuntimeMismatch
 	CausePortInUse
 	CauseTimeout
 	CauseNetwork
@@ -52,6 +53,7 @@ const (
 	keyRuntimeExitCode = "errcopy.runtime_exit_code"
 	keyKilled          = "errcopy.killed"
 	keyRuntimeMissing  = "errcopy.runtime_missing"
+	keyRuntimeMismatch = "errcopy.runtime_mismatch"
 	keyPortInUse       = "errcopy.port_in_use"
 	keyPageStopped     = "errcopy.page_stopped"
 	keyRevertConflict  = "errcopy.revert_conflict"
@@ -81,8 +83,12 @@ var causes = []struct {
 	// Two programs name these failures, so each family covers both spellings:
 	// Go's exec/syscall errors, and the platform's own message when it is the one
 	// reporting (Windows winsock has no errno in the text).
-	{CauseRuntimeMissing, regexp.MustCompile(`(?i)spawn\s+\S+\s+ENOENT|executable file not found|exec: "\S+": not found`)},
-	{CausePortInUse, regexp.MustCompile(`(?i)EADDRINUSE|address already in use|only one usage of each socket address`)},
+	{CauseRuntimeMissing, regexp.MustCompile(`(?i)spawn\s+\S+\s+ENOENT|executable file not found|exec: "\S+": not found|vendored harness (?:not found|not built|missing)|Host runtime is missing|missing its bundled Node|Node\.js [0-9][0-9.+]* is required`)},
+	// A runtime that is present but not the one this app was built against is a
+	// different problem with a different next step: reinstalling, not repairing
+	// a path. Both the provenance receipt and the session reader report it.
+	{CauseRuntimeMismatch, regexp.MustCompile(`(?i)compatible Host runtime|Host session reader is |cannot verify the built Host session event registry|differs from the verified Host session runtime`)},
+	{CausePortInUse, regexp.MustCompile(`(?i)EADDRINUSE|address already in use|only one usage of each socket address|no free port in `)},
 	// A provider route without a credential is the one failure a person fixes in
 	// Settings, so it claims its own family ahead of the generic ones: the Host
 	// names it after the route ("no API key for provider route \"deepseek-official\"")
@@ -155,8 +161,11 @@ func init() {
 		"桌面运行时被系统结束，可重试或到日志里查看原因。",
 		"The desktop runtime was stopped by the system; retry, or check the log for the cause.")
 	i18n.Register(keyRuntimeMissing,
-		"桌面运行时文件缺失，请重新安装桌面端。",
-		"A desktop runtime file is missing; reinstall the desktop app.")
+		"桌面运行时文件缺失，请重新安装桌面端后重试；详情见日志。",
+		"A desktop runtime file is missing. Reinstall the desktop app, then try again; the log has the details.")
+	i18n.Register(keyRuntimeMismatch,
+		"桌面运行时与当前版本不匹配，请重新安装桌面端后重试；详情见日志。",
+		"The desktop runtime does not match this app version. Reinstall the desktop app, then try again; the log has the details.")
 	i18n.Register(keyRevertConflict,
 		"这项改动在读取后又发生了变化，请刷新后再试。",
 		"This change moved again after it was read. Refresh, then try again.")
@@ -377,6 +386,8 @@ func keyFor(cause Cause) string {
 		return keyKilled
 	case CauseRuntimeMissing:
 		return keyRuntimeMissing
+	case CauseRuntimeMismatch:
+		return keyRuntimeMismatch
 	case CausePortInUse:
 		return keyPortInUse
 	case CausePageStopped:
