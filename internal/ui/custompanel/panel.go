@@ -17,7 +17,7 @@ type Editor struct {
 	EditingID    string
 	Template     bool
 	Preview      *panel.Definition
-	Error        string
+	Failure      Failure
 	Notice       string
 }
 type Model struct {
@@ -54,8 +54,8 @@ func View(c *ui.Context, m Model) {
 			} else {
 				ui.Text(c, m.BotLabel).TextColor(muted)
 			}
-			if e.Error != "" {
-				ui.Text(c, e.Error).TextColor(chrome.Color(colors.Accent)).Selectable()
+			if e.Failure.Sentence != "" {
+				widgets.Alert(c, widgets.AlertOptions{ID: "panel:58", Message: e.Failure.Sentence, Detail: e.Failure.Detail})
 			}
 			widgets.Notice(c, "panel:60", e.Notice != "", func() string { return e.Notice })
 			if !m.Available {

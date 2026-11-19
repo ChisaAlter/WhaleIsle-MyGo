@@ -61,49 +61,49 @@ func Parse(raw string) (Definition, error) {
 		raw = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(raw, "```json\n"), "```"))
 	}
 	if len(raw) > 256*1024 {
-		return Definition{}, fmt.Errorf("Panel JSON exceeds 256 KiB")
+		return Definition{}, refuse(ProblemTooLarge, "panel JSON exceeds 256 KiB")
 	}
 	var d Definition
 	dec := json.NewDecoder(strings.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&d); err != nil {
-		return d, err
+		return d, refuse(ProblemJSON, "%s", err)
 	}
 	var extra any
 	if err := dec.Decode(&extra); err != io.EOF {
-		return d, fmt.Errorf("Expected one Panel JSON object")
+		return d, refuse(ProblemTrailingContent, "expected one Panel JSON object")
 	}
 	return d, Validate(d)
 }
 func Validate(d Definition) error {
 	if strings.TrimSpace(d.Title) == "" {
-		return fmt.Errorf("Panel title is required")
+		return refuse(ProblemMissingTitle, "panel title is required")
 	}
 	if d.Width < 240 || d.Width > 1600 || d.Height < 120 || d.Height > 1600 || d.Columns < 1 || d.Columns > 4 {
-		return fmt.Errorf("Panel width 240–1600, height 120–1600, columns 1–4 required")
+		return refuse(ProblemSize, "panel width 240-1600, height 120-1600, columns 1-4 required")
 	}
 	if len(d.Widgets) == 0 || len(d.Widgets) > 64 {
-		return fmt.Errorf("Panel needs 1–64 widgets")
+		return refuse(ProblemWidgetCount, "panel needs 1-64 widgets")
 	}
 	seen := map[string]bool{}
 	for _, w := range d.Widgets {
 		if w.ID == "" || seen[w.ID] {
-			return fmt.Errorf("Widget IDs must be nonempty and unique")
+			return refuse(ProblemWidgetID, "widget IDs must be nonempty and unique")
 		}
 		seen[w.ID] = true
 		switch w.Kind {
 		case "text", "input", "checkbox", "progress", "select", "action":
 		default:
-			return fmt.Errorf("Unsupported widget kind %q", w.Kind)
+			return refuse(ProblemWidgetKind, "unsupported widget kind %q", w.Kind)
 		}
 		if w.FontSize != 0 && (w.FontSize < 10 || w.FontSize > 32) {
-			return fmt.Errorf("Font size must be 10–32")
+			return refuse(ProblemFontSize, "font size must be 10-32")
 		}
 		if w.Kind == "progress" && (w.Value < 0 || w.Value > 1) {
-			return fmt.Errorf("Progress must be 0–1")
+			return refuse(ProblemProgressRange, "progress must be 0-1")
 		}
 		if w.Kind == "select" && len(w.Options) == 0 {
-			return fmt.Errorf("Select requires options")
+			return refuse(ProblemSelectOptions, "select requires options")
 		}
 	}
 	return nil
@@ -121,7 +121,7 @@ func Open(userData string) (*Store, error) {
 		return nil, err
 	}
 	if s.data.Version != 1 {
-		return nil, fmt.Errorf("Unsupported Panel library version")
+		return nil, refuse(ProblemLibraryVersion, "unsupported panel library version %d", s.data.Version)
 	}
 	for _, d := range s.data.Library {
 		if err = Validate(d); err != nil {
@@ -180,7 +180,7 @@ func (s *Store) commit(d document) error {
 }
 func validScope(scope Scope) error {
 	if scope.Host == "" || scope.Bot == "" {
-		return fmt.Errorf("Open a canonical Bot conversation first")
+		return refuse(ProblemScope, "open a canonical Bot conversation first")
 	}
 	return nil
 }
@@ -211,7 +211,7 @@ func (s *Store) Add(scope Scope, id string) error {
 	d := clone(s.data)
 	for _, i := range d.Instances {
 		if i.Scope == scope && i.Definition.ID == id {
-			return fmt.Errorf("This Bot already has this Panel")
+			return refuse(ProblemAlreadyAdded, "this Bot already has this panel")
 		}
 	}
 	for _, def := range d.Library {
@@ -220,7 +220,7 @@ func (s *Store) Add(scope Scope, id string) error {
 			return s.commit(d)
 		}
 	}
-	return fmt.Errorf("Panel template not found")
+	return refuse(ProblemTemplateMissing, "panel template not found %q", id)
 }
 func (s *Store) Update(scope Scope, instance Instance) error {
 	if err := Validate(instance.Definition); err != nil {
@@ -236,7 +236,7 @@ func (s *Store) Update(scope Scope, instance Instance) error {
 			return s.commit(d)
 		}
 	}
-	return fmt.Errorf("Panel instance not found")
+	return refuse(ProblemInstanceMissing, "panel instance not found %q", instance.Definition.ID)
 }
 
 // SaveTemplate is an explicit snapshot replacement; existing Bot copies never change.
@@ -253,7 +253,7 @@ func (s *Store) SaveTemplate(def Definition) error {
 			return s.commit(d)
 		}
 	}
-	return fmt.Errorf("Panel template not found")
+	return refuse(ProblemTemplateMissing, "panel template not found %q", def.ID)
 }
 func (s *Store) Move(scope Scope, id string, delta int) error {
 	s.mu.Lock()
@@ -287,7 +287,7 @@ func (s *Store) Remove(scope Scope, id string) error {
 			return s.commit(d)
 		}
 	}
-	return fmt.Errorf("Panel instance not found")
+	return refuse(ProblemInstanceMissing, "panel instance not found %q", id)
 }
 
 const Example = `{"title":"Daily dashboard","width":420,"height":320,"columns":1,"widgets":[{"id":"heading","kind":"text","text":"My daily plan","fontSize":18},{"id":"notes","kind":"input","label":"Notes","text":""},{"id":"done","kind":"checkbox","label":"Complete"}]}`
