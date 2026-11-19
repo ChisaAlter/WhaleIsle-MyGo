@@ -22,7 +22,7 @@ func modelBaseURLField(c *ui.Context, binding *store.NamespaceBinding, snap stor
 	}
 	deepseek := strings.HasPrefix(snap.SelectedNS, "llm-deepseek")
 	if placeholder == "" && deepseek {
-		placeholder = providerCopy("https://api.deepseek.com/anthropic（默认使用环境 DEEPSEEK_BASE_URL）", "https://api.deepseek.com/anthropic (defaults to the DEEPSEEK_BASE_URL environment)")
+		placeholder = providerCopy("https://api.deepseek.com/anthropic（留空使用此默认地址，可由启动环境覆盖）", "https://api.deepseek.com/anthropic (the default when empty; the launching environment can override it)")
 	}
 	label := configurationLabel(f.Key)
 	ui.Column(c.Key("model-scalar/" + f.Key)).FillWidth().MinWidth(0).Gap(8).Children(func() {

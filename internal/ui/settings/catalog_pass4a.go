@@ -21,7 +21,7 @@ const (
 func init() {
 	i18n.Register(KeyPass4ABuiltinHint, "查看内置部署的插件列表", "Inspect the plugins this deployment ships.")
 	i18n.Register(KeyPass4ABuiltinLoading, "正在读取内置插件", "Loading built-in plugins")
-	i18n.Register(KeyPass4AMCPHintManaged, "受管条目会写入 $DSH_HOME/mcp-servers.yaml。", "Managed entries are written to $DSH_HOME/mcp-servers.yaml.")
+	i18n.Register(KeyPass4AMCPHintManaged, "受管条目会写入应用数据目录的 mcp-servers.yaml。", "Managed entries are written to mcp-servers.yaml in the app data directory.")
 	i18n.Register(KeyPass4AMCPHintHTTP, "HTTP 服务器可在本页登录后于对话里使用工具。", "Sign in on an HTTP server here to use its tools in chat.")
 	i18n.Register(KeyPass4AMCPHintComposition, "组成配置条目只读。", "Composition entries are read-only.")
 	i18n.Register(KeyPass4AMCPEmptyPrimary, "还没有 MCP 服务器。", "No MCP servers yet.")

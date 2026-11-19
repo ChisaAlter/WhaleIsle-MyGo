@@ -55,16 +55,13 @@ func TestSidebarSectionTypographyPaintMatchesInstalledRoles(t *testing.T) {
 				weight       int
 			}{
 				{i18n.T(i18n.KeySidebarWorkspaceSection), workspaceSize, 20, 400},
-				{"Archive section title", 12, 18, 500},
+				{i18n.T(i18n.KeySidebarArchivedSection), 12, 18, 500},
 			} {
 				bounds, ok := actual.Find(text.label)
 				if !ok {
 					t.Fatalf("missing section text %q: %q", text.label, actual.Texts())
 				}
 				referenceLabel := text.label
-				if referenceLabel == "Archive section title" {
-					referenceLabel = i18n.T(i18n.KeySidebarArchivedSection)
-				}
 				reference := ui.NewTester(func(c *ui.Context) {
 					theme.ApplyInterface(c)
 					ui.Column(c).Fill().Background(chrome.Color(colors.Sidebar)).Children(func() {

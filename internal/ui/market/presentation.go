@@ -104,7 +104,7 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 }
 
 func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
-	if len(d.Rows) == 0 && !d.Loading && d.Err == "" {
+	if len(d.Rows) == 0 && !d.Loading && d.Err == "" && !d.Catalog.FetchedAt.IsZero() {
 		message := marketText(i18n.T(i18n.KeyW4MarketNoPluginsYet), "No plugins available.")
 		if d.Query != "" || d.Category != "all" && d.Category != "" || d.Period != "all" || d.Tab == "favorites" {
 			message = marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")

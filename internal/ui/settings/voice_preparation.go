@@ -57,15 +57,26 @@ func VoicePreparationView(c *ui.Context, store *session.Store, microphone *voice
 	}
 	owner, state := store.BindSpeechSettings()
 	ui.Column(c.Key("voice-preparation:" + owner.Key())).FillWidth().Gap(12).Children(func() {
-		for _, message := range []string{state.ConnectionError, state.Error} {
-			if message != "" {
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, message).FontSize(12).TextColor(c.Theme().Text).Grow(1).MinWidth(0)
-					if state.Error == message && ui.Button(c, voiceText("关闭提示", "Dismiss")).Clicked() {
-						owner.DismissError()
-					}
-				})
+		for _, failure := range []struct {
+			raw, sentence, advice string
+			dismissable           bool
+		}{
+			{
+				raw:      state.ConnectionError,
+				sentence: voiceText("语音服务没有响应。", "The speech service is not responding."),
+				advice:   voiceText("点「重新连接语音服务」再试；仍然连不上就稍后再试，详情见日志。", "Press Reconnect speech service to try again; if it still fails, try later, and check the log for details."),
+			},
+			{
+				raw:         state.Error,
+				sentence:    voiceText("语音设置没有生效。", "The speech setting did not take effect."),
+				advice:      voiceText("请重试；仍然失败可查看日志。", "Try again; if it keeps failing, check the log."),
+				dismissable: true,
+			},
+		} {
+			if failure.raw == "" {
+				continue
 			}
+			voiceFailureLine(c, failure.raw, failure.sentence, failure.advice, failure.dismissable, owner)
 		}
 		if !state.Connected && ui.Button(c, voiceText("重新连接语音服务", "Reconnect speech service")).Clicked() {
 			owner.Retry()
@@ -136,6 +147,37 @@ func voiceStep(kind string) string {
 		return voiceText(label[0], label[1])
 	}
 	return kind
+}
+
+// voiceFailureLine speaks the failure as a sentence with the next step, and keeps
+// the transport's own text one disclosure away: the envelope names an RPC method
+// and a gateway code, which is what a bug report needs and never what a person
+// reading the page needs.
+func voiceFailureLine(c *ui.Context, raw, sentence, advice string, dismissable bool, owner *session.SpeechSettingsOwner) {
+	column := ui.Column(c).FillWidth().MinWidth(0).Gap(2)
+	details := ui.Local(column, "voice-failure-details", func() bool { return false })
+	column.Children(func() {
+		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+				ui.Text(c, sentence).FontSize(12).FontWeight(500).TextColor(c.Theme().Text).FillWidth()
+				ui.Text(c, advice).FontSize(11).TextColor(c.Theme().TextMuted).FillWidth()
+				marker := "▸ "
+				if *details {
+					marker = "▾ "
+				}
+				if ui.Button(c, marker+voiceText("详情", "Details")).Role(ui.RoleDisclosure).Expanded(*details).
+					FontSize(11).AlignSelf(ui.Start).Clicked() {
+					*details = !*details
+				}
+				if *details {
+					ui.Text(c, raw).FontSize(11).TextColor(c.Theme().TextMuted).Selectable().FillWidth() // detail-ok: the Details disclosure
+				}
+			})
+			if dismissable && ui.Button(c, voiceText("关闭提示", "Dismiss")).Clicked() {
+				owner.DismissError()
+			}
+		})
+	})
 }
 
 func voiceStepStatus(status string) string {

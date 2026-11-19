@@ -1256,7 +1256,7 @@ func init() {
 	Register(KeySettingsWhaleUnavailable, "正在读取鲸鱼娘设置…", "Loading Whale settings…")
 	Register(KeySettingsWhaleCancel, "取消", "Cancel")
 	Register(KeySettingsModelsAPIKey, "API 密钥", "API key")
-	Register(KeySettingsModelsAPIKeyPlaceholder, "留空使用环境认证（%s）", "Leave blank to use environment auth (%s)")
+	Register(KeySettingsModelsAPIKeyPlaceholder, "留空使用环境认证", "Leave blank to use environment auth")
 	Register(KeySettingsModelsEnvHint, "未检测到环境变量。请填写 API 密钥，或设置环境变量 %s。", "No environment variable detected. Fill in the API key, or set %s.")
 	Register(KeySettingsModelsCustomize, "自定义设置", "Custom settings")
 	Register(KeySettingsModelsAddProvider, "+ 添加模型提供商", "+ Add provider")
