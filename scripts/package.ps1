@@ -150,6 +150,11 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     } else {
         throw 'Required runtime/vendor is missing.'
     }
+    # A capability the package ships must arrive complete: its loader package plus
+    # the engine that loader runs. Slimming one half leaves a plugin the Host mounts
+    # and that fails the moment a user enables it.
+    & node (Join-Path $PSScriptRoot 'session-runtime.mjs') capabilities (Join-Path $Stage 'runtime\vendor')
+    if ($LASTEXITCODE -ne 0) { throw 'Packaged runtime cannot run a capability it ships. office-to-pdf needs @deepseek-ai/libreoffice-kit with its WASM or native engine; speech-to-text-sensevoice needs sherpa-onnx-node with its platform package.' }
     # An explicitly selected input must not silently fall back to another Node.
     $NodeSrc = $env:WHALEISLE_NODE_DIR
     $SessionManifestPath = Join-Path $VendorSrc 'host-session-runtime.json'
@@ -223,7 +228,7 @@ This folder holds **staging artifacts** only. `scripts/package.ps1` does not dow
 - `whaleisle/ghostty-vt.dll` - verified native terminal ABI, with `.LICENSE` and `terminal-runtime.json` provenance
 - `whaleisle/resources/` - copied from repo `resources/` when present (e.g. tray icon)
 - `whaleisle/resources/licenses/fonts/` - Inter and Source Serif 4 OFL notices and native font provenance
-- `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`; default `--slim` excludes `@deepseek-ai/libreoffice-kit` and `sherpa-onnx`, set `WHALEISLE_INCLUDE_HEAVY_OPTIONAL=1` to retain full optional packages)
+- `whaleisle/runtime/vendor/` - vendored harness when `runtime/vendor` exists (skip with `WHALEISLE_PACKAGE_SKIP_RUNTIME=1`; default `--slim` drops only the optional native LibreOffice engine and keeps every capability loader with a working engine, so `office-to-pdf` and `speech-to-text-sensevoice` stay runnable; set `WHALEISLE_INCLUDE_HEAVY_OPTIONAL=1` to retain the native engine too. Packaging refuses a stage whose loader/engine pair is incomplete.)
 - `whaleisle/runtime/node/node.exe` - required Host Node from `WHALEISLE_NODE_DIR` or a known local Node distribution
 - `whaleisle/pet-render-assets/` - THA4 pet render resources (default excluded under Route A decision 3A; set `WHALEISLE_INCLUDE_PET_ASSETS=1` to bundle)
 

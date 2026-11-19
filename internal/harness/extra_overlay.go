@@ -71,6 +71,10 @@ func extraOverlays(o PrepareOptions) ([]string, error) {
 	return out, nil
 }
 
+// writeRouteAHostOverlay never disables a plugin the released package claims to
+// support. A start that silently turns office-to-pdf or speech-to-text-sensevoice
+// off because a loader is missing would ship a capability the package pays for
+// and cannot run; the packaging step asserts both plugin/engine pairs instead.
 func writeRouteAHostOverlay(o PrepareOptions) (string, error) {
 	lines := []string{
 		"# Desktop-managed Route A overlay passed via --patch.",
@@ -78,29 +82,8 @@ func writeRouteAHostOverlay(o PrepareOptions) (string, error) {
 		"# retaining client module metadata for on-demand compat views.",
 		"- id: client-hmr",
 		"  disabled: true",
+		"",
 	}
-
-	if o.HarnessRoot != "" {
-		hasLibreOffice := hasPackageJSON(o.HarnessRoot, "node_modules/@deepseek-ai/libreoffice-kit/package.json") ||
-			hasPackageJSON(o.HarnessRoot, "apps/cli/node_modules/@deepseek-ai/libreoffice-kit/package.json")
-		if !hasLibreOffice {
-			lines = append(lines,
-				"- id: office-to-pdf",
-				"  disabled: true",
-			)
-		}
-
-		hasSherpaOnnx := hasPackageJSON(o.HarnessRoot, "node_modules/sherpa-onnx-node/package.json") ||
-			hasPackageJSON(o.HarnessRoot, "packages/experimental/speech-to-text-sensevoice/node_modules/sherpa-onnx-node/package.json")
-		if !hasSherpaOnnx {
-			lines = append(lines,
-				"- id: speech-to-text-sensevoice",
-				"  disabled: true",
-			)
-		}
-	}
-
-	lines = append(lines, "")
 	contents := strings.Join(lines, "\n")
 	return writeRawOverlay(o.ProfileDir, "route-a", routeAOverlayFile, contents)
 }
@@ -122,12 +105,6 @@ func writeHostSafetyOverlay(o PrepareOptions) (string, error) {
 		"",
 	}, "\n")
 	return writeRawOverlay(o.ProfileDir, "host-safety", hostSafetyOverlayFile, contents)
-}
-
-func hasPackageJSON(root, rel string) bool {
-	p := filepath.Join(root, filepath.FromSlash(rel))
-	info, err := os.Stat(p)
-	return err == nil && !info.IsDir()
 }
 
 // EnvExtraOverlay is a development/QA hook: it names a directory holding one

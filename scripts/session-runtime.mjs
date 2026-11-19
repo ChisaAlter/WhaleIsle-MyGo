@@ -268,15 +268,37 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
   return verifyStagedSessionRuntime(vendor);
 }
 
-export const heavyPackagesToSlim = Object.freeze([
-  '@deepseek-ai/libreoffice-kit',
-  '@deepseek-ai/libreoffice-kit-win32-x64',
-  'sherpa-onnx-node',
-  'sherpa-onnx-win-x64',
-]);
+// A capability ships a loader package plus the engine that loader runs. Slimming
+// either half leaves a plugin the Host mounts and cannot run: office-to-pdf keeps
+// a 127.8 MB WASM engine whose 300 KB loader was stripped, and Sherpa keeps 17 JS
+// files with no native addon to load. Both halves are required; only the optional
+// per-platform native office engine may go, because the kit falls back to WASM
+// when its native package is absent.
+function platformPackageTag() {
+  const family = process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'darwin' : 'linux';
+  return `${family}-${process.arch}`;
+}
+
+export const capabilityPairs = Object.freeze([Object.freeze({
+  capability: 'office-to-pdf',
+  loader: '@deepseek-ai/libreoffice-kit',
+  engines: Object.freeze([
+    Object.freeze({name: '@deepseek-ai/libreoffice-kit-wasm', asset: 'assets/dsoffice.wasm', optionalNative: false}),
+    Object.freeze({name: `@deepseek-ai/libreoffice-kit-${platformPackageTag()}`, asset: null, optionalNative: true}),
+  ]),
+}), Object.freeze({
+  capability: 'speech-to-text-sensevoice',
+  loader: 'sherpa-onnx-node',
+  engines: Object.freeze([Object.freeze({name: `sherpa-onnx-${platformPackageTag()}`, asset: 'addon', optionalNative: false})]),
+})]);
+
+export const optionalNativeEnginesToSlim = Object.freeze(capabilityPairs
+  .flatMap(pair => pair.engines.filter(engine => engine.optionalNative).map(engine => engine.name)));
 
 export const criticalPackagesToPreserve = Object.freeze([
   '@img/sharp-win32-x64',
+  ...capabilityPairs.map(pair => pair.loader),
+  ...capabilityPairs.flatMap(pair => pair.engines.filter(engine => !engine.optionalNative).map(engine => engine.name)),
 ]);
 
 export async function applyReleaseSlim(vendorDir) {
@@ -294,6 +316,7 @@ export async function applyReleaseSlim(vendorDir) {
   }
 
   const packageToInstances = new Map();
+  const instancePackages = new Map();
   for (const entry of instanceEntries) {
     if (!entry.isDirectory()) continue;
     const instanceId = entry.name;
@@ -320,6 +343,7 @@ export async function applyReleaseSlim(vendorDir) {
     }
 
     const pkgNames = await collectPackageNames(instancePath);
+    instancePackages.set(instanceId, new Set(pkgNames));
     for (const name of pkgNames) {
       if (!packageToInstances.has(name)) packageToInstances.set(name, new Set());
       packageToInstances.get(name).add(instanceId);
@@ -328,7 +352,7 @@ export async function applyReleaseSlim(vendorDir) {
 
   const instancesToRemove = new Set();
   const identifiedPackages = [];
-  for (const pkgName of heavyPackagesToSlim) {
+  for (const pkgName of optionalNativeEnginesToSlim) {
     const ids = packageToInstances.get(pkgName);
     if (ids) {
       for (const id of ids) instancesToRemove.add(id);
@@ -363,12 +387,32 @@ export async function applyReleaseSlim(vendorDir) {
       return false;
     };
 
-    // Verify no retained instance depends on removed instances
+    // Verify no retained instance depends on removed instances. A dependency a
+    // retained package declares optional is the one exception: the LibreOffice kit
+    // documents that it selects WASM when its native engine package is absent, so
+    // pruning that link is the supported configuration rather than a broken graph.
+    const declaredOptional = new Map();
+    const optionalDependenciesOf = async ownerId => {
+      if (!declaredOptional.has(ownerId)) {
+        let names = new Set();
+        try {
+          const parsed = JSON.parse(await fs.readFile(path.join(dshInstancesDir, ownerId, 'package.json'), 'utf8'));
+          names = new Set(Object.keys(parsed.optionalDependencies ?? {}));
+        } catch {}
+        declaredOptional.set(ownerId, names);
+      }
+      return declaredOptional.get(ownerId);
+    };
+
     for (const link of linkManifest.links) {
       const match = link.path.match(/^node_modules\/\.dsh-instances\/([^/]+)/);
       const ownerId = match ? match[1] : null;
       if (ownerId && !instancesToRemove.has(ownerId) && isInstanceRemoved(link.target)) {
-        throw new Error(`Safety violation: retained instance ${ownerId} depends on removed target: ${link.target}`);
+        const optional = await optionalDependenciesOf(ownerId);
+        const targetNames = [...(instancePackages.get(link.target.match(/^node_modules\/\.dsh-instances\/([^/]+)/)?.[1]) ?? [])];
+        if (!(targetNames.length > 0 && targetNames.every(name => optional.has(name)))) {
+          throw new Error(`Safety violation: retained instance ${ownerId} depends on removed target: ${link.target}`);
+        }
       }
     }
 
@@ -424,6 +468,100 @@ export async function applyReleaseSlim(vendorDir) {
   return { removedPackages: identifiedPackages, removedInstances: [...instancesToRemove], removedLinks: 0 };
 }
 
+async function packageNameAt(dir) {
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf8'));
+    return typeof parsed.name === 'string' ? parsed.name : null;
+  } catch { return null; }
+}
+
+async function indexNodeModules(installed, nodeModules) {
+  let entries;
+  try { entries = await fs.readdir(nodeModules, { withFileTypes: true }); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; return; }
+  const dirs = [];
+  for (const entry of entries) {
+    if (!(entry.isDirectory() || entry.isSymbolicLink()) || entry.name === '.dsh-instances') continue;
+    if (entry.name.startsWith('@')) {
+      try {
+        for (const inner of await fs.readdir(path.join(nodeModules, entry.name), { withFileTypes: true })) {
+          if (inner.isDirectory() || inner.isSymbolicLink()) dirs.push(path.join(nodeModules, entry.name, inner.name));
+        }
+      } catch {}
+    } else dirs.push(path.join(nodeModules, entry.name));
+  }
+  for (const dir of dirs) {
+    const name = await packageNameAt(dir);
+    if (name) installed.set(name, [...(installed.get(name) ?? []), dir]);
+  }
+}
+
+// Every package the Host can require from either its top-level tree or one of the
+// instance stores the link manifest points at. Resolution order is the Host's, so
+// presence here is what the plugin sees at run time.
+export async function indexHarnessPackages(harnessRoot) {
+  const installed = new Map();
+  for (const nodeModules of [path.join(harnessRoot, 'node_modules'), path.join(harnessRoot, 'apps/cli/node_modules')]) {
+    await indexNodeModules(installed, nodeModules);
+    let instances;
+    try { instances = await fs.readdir(path.join(nodeModules, '.dsh-instances'), { withFileTypes: true }); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; continue; }
+    for (const entry of instances) {
+      if (!entry.isDirectory()) continue;
+      const dir = path.join(nodeModules, '.dsh-instances', entry.name);
+      const name = await packageNameAt(dir);
+      if (name) installed.set(name, [...(installed.get(name) ?? []), dir]);
+      await indexNodeModules(installed, path.join(dir, 'node_modules'));
+    }
+  }
+  return installed;
+}
+
+async function engineAssetsPresent(dir, asset) {
+  if (asset === null) return true;
+  if (asset === 'addon') {
+    try { return (await fs.readdir(dir)).some(name => name.endsWith('.node')); } catch { return false; }
+  }
+  try { await fs.stat(path.join(dir, asset)); return true; } catch { return false; }
+}
+
+export async function inspectCapabilities(vendorDir) {
+  const root = await fs.realpath(path.resolve(vendorDir));
+  const harnessRoot = path.join(root, 'deepseek-harness');
+  const installed = await indexHarnessPackages(harnessRoot);
+  const capabilities = [];
+  for (const pair of capabilityPairs) {
+    const engines = [];
+    for (const engine of pair.engines) {
+      const usable = [];
+      for (const dir of installed.get(engine.name) ?? []) {
+        if (await engineAssetsPresent(dir, engine.asset)) usable.push(dir);
+      }
+      engines.push({ name: engine.name, optionalNative: engine.optionalNative, dirs: usable });
+    }
+    const loaderDirs = installed.get(pair.loader) ?? [];
+    capabilities.push({
+      capability: pair.capability, loader: pair.loader, loaderDirs, engines,
+      complete: loaderDirs.length > 0 && engines.some(engine => engine.dirs.length > 0),
+    });
+  }
+  return { harnessRoot, capabilities };
+}
+
+// Refuse a stage whose plugin/engine pair is incomplete. A plugin that needs a
+// loader and cannot find one must never reach an installer: the Host mounts it,
+// the user enables it, and the capability fails at the moment it is used.
+export async function assertCapabilities(vendorDir) {
+  const report = await inspectCapabilities(vendorDir);
+  const broken = report.capabilities.filter(capability => !capability.complete);
+  if (broken.length === 0) return report;
+  const detail = broken.map(capability => [
+    `${capability.capability}: loader ${capability.loader} ${capability.loaderDirs.length ? 'present' : 'missing'}`,
+    `engines ${capability.engines.map(engine => `${engine.name} ${engine.dirs.length ? 'present' : 'missing'}`).join(', ')}`,
+  ].join(', ')).join(' | ');
+  throw new Error(`Packaged runtime cannot run a capability it ships (${detail})`);
+}
+
 // Package from a verified stage into a fresh directory. Existing source bytes
 // and selection remain untouched; only this independent copy receives records.
 export async function stageReleaseRuntime(stageRoot, freshDest, {slim = false} = {}) {
@@ -456,6 +594,7 @@ export async function stageReleaseRuntime(stageRoot, freshDest, {slim = false} =
   if (slim) {
     await applyReleaseSlim(vendor);
   }
+  await assertCapabilities(vendor);
   const graph = inventoryGraph(vendor, ['runtime-graph.json', 'dshd-remote/debug.log']);
   const closure = {schemaVersion: 1, files: graph.files, links: graph.links};
   await fs.writeFile(path.join(vendor, 'runtime-graph.json'), JSON.stringify(closure, null, 2) + '\n', {flag: 'wx'});
@@ -514,15 +653,24 @@ export async function verifyStagedSessionRuntime(vendorDir) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const slim = args.includes('--slim');
-  const positional = args.filter(a => a !== '--slim');
-  const [command, source, destination, ...extra] = positional;
+  const [command, source, destination, ...extra] = args.filter(a => a !== '--slim');
+  const usage = 'Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | capabilities <vendorDir> | stage <resources> <fresh runtimeDir> | clone <stageRoot> <fresh runtimeDir> | release <stageRoot> <fresh runtimeDir> [--slim]';
+  const takesDirectory = command === 'inspect' || command === 'verify' || command === 'capabilities';
   try {
-    if (!source || extra.length || (command === 'inspect' || command === 'verify' ? destination !== undefined : !['stage', 'clone', 'release'].includes(command) || !destination)) {
-      throw new Error('Usage: session-runtime.mjs inspect <harnessRoot> | verify <vendorDir> | stage <resources> <fresh runtimeDir> | clone <stageRoot> <fresh runtimeDir> | release <stageRoot> <fresh runtimeDir> [--slim]');
+    if (!source || extra.length || (takesDirectory ? destination !== undefined : !['stage', 'clone', 'release'].includes(command) || !destination)) {
+      throw new Error(usage);
     }
-    console.log(JSON.stringify(command === 'inspect' ? await inspectSessionRuntime(source)
-      : command === 'verify' ? await verifyStagedSessionRuntime(source)
-      : command === 'clone' ? await cloneStagedSessionRuntime(source, destination) : command === 'release' ? await stageReleaseRuntime(source, destination, {slim}) : await stageSessionRuntime(source, destination), null, 2));
+    if (command === 'inspect') {
+      console.log(JSON.stringify(await inspectSessionRuntime(source), null, 2));
+    } else if (command === 'capabilities') {
+      const report = await assertCapabilities(source);
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log(JSON.stringify(command === 'verify' ? await verifyStagedSessionRuntime(source)
+        : command === 'clone' ? await cloneStagedSessionRuntime(source, destination)
+        : command === 'release' ? await stageReleaseRuntime(source, destination, {slim})
+        : await stageSessionRuntime(source, destination), null, 2));
+    }
   } catch (error) {
     console.error(`Session runtime: ${error.message}`);
     process.exitCode = 1;
