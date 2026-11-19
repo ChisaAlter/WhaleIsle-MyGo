@@ -34,7 +34,13 @@ func coreCollapsibleBase(c *context, open *bool) collapsibleParts {
 	tr.widget, tr.role = "Collapsible", RoleDisclosure
 	*valueBinding[*bool](tr) = open
 	tr.onValueInput(toggleInput)
-	tr.expanded = *open
+	tr.afterInput(func() {
+		if want, asked := tr.accessExpand(); asked && *open != want {
+			*open = want
+			c.rt.consumed = true
+		}
+	})
+	tr.expandable, tr.expanded = true, *open
 	p := tr.Animate("open", b2f(*open), 200*time.Millisecond)
 	return collapsibleParts{Trigger: tr, c: c, open: open, progress: p}
 }

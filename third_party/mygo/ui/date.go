@@ -23,7 +23,14 @@ func coreDateInput(c *context, date *time.Time) *node {
 			*open = !*open
 			*cursor = *date
 		}
-		b.expanded = *open
+		// The calendar opens from the expand pattern: a pop-up button is
+		// offered that and no invoke.
+		if want, asked := b.accessExpand(); asked {
+			*open = want
+			*cursor = *date
+			c.rt.consumed = true
+		}
+		b.expandable, b.expanded = true, *open
 	})
 	b.Children(func() {
 		coreText(c, date.Format("2006-01-02")).SingleLine().FontFeatures("tnum")

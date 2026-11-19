@@ -293,9 +293,8 @@ func coreSelectBase[T comparable](c *context, selected *T) *selectParts[T] {
 		// Assistive technology opens and closes a select through its expand
 		// pattern: a pop-up button exposes no invoke one, so this is the only
 		// way a screen reader has to show the options.
-		if e := b.st; e.expand != 0 {
-			open(e.expand > 0)
-			e.expand = 0
+		if want, asked := b.accessExpand(); asked {
+			open(want)
 		}
 		n := len(*s.values)
 		move := func(i int) {
@@ -323,7 +322,7 @@ func coreSelectBase[T comparable](c *context, selected *T) *selectParts[T] {
 			}
 		}
 	})
-	b.expanded = *s.open
+	b.expandable, b.expanded = true, *s.open
 	return s
 }
 
