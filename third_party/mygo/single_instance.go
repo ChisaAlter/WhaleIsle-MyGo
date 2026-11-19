@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"sync"
 	"syscall"
@@ -113,6 +114,12 @@ func (a *Application) RequestSingleInstanceLock() bool {
 			singleInstance.socket, _ = os.Stat(path)
 			singleInstance.listener, singleInstance.path, singleInstance.locked = ln, path, true
 			go acceptSecondInstances(ln)
+			// Every key leaves its file behind when its owner dies without
+			// releasing the lock, and a key is per profile: an isolated or
+			// test profile gets a fresh name each time. Nothing else ever
+			// names those files again, so they are swept here, out of the
+			// launch's way.
+			go sweepStaleSockets(filepath.Dir(path), path, staleSocketGrace)
 			a.OnQuit(releaseSingleInstanceLock)
 			return true
 		}
@@ -189,6 +196,68 @@ func singleInstanceKey(name string) string {
 		return info.Identifier + "\n" + name
 	}
 	return name
+}
+
+// socketFileName matches the files singleInstanceSocket creates, so the sweep
+// never looks at anything else in the runtime directory.
+// Windows has no user id and os.Getuid reports -1, so the id is negative there.
+var socketFileName = regexp.MustCompile(`^mygo--?[0-9]+-[0-9a-f]{12}\.sock$`)
+
+// staleSocketGrace keeps the sweep away from a socket another instance is
+// binding right now: a file that young may be a launch in progress, and a
+// socket left by a crash is older than any launch.
+const staleSocketGrace = time.Minute
+
+// staleSocketDialTimeout bounds the probe that decides whether a socket still
+// has an owner. A file without a listener refuses at once; a live one accepts
+// at once.
+const staleSocketDialTimeout = 500 * time.Millisecond
+
+// sweepStaleSockets removes the socket files in dir that no instance answers
+// for. A key's owner removes its own file on a clean quit; an unclean exit
+// leaves it for good, and because a key covers one profile, a machine that
+// runs isolated profiles collects one file per profile that ever crashed.
+//
+// A file that accepts a connection has an owner and stays. The probe writes
+// nothing and closes at once, so a live owner reads an empty line, rejects it
+// as a command line, and runs no handlers.
+func sweepStaleSockets(dir, own string, grace time.Duration) int {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+	removed := 0
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !socketFileName.MatchString(name) {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		if path == own {
+			continue
+		}
+		observed, err := entry.Info()
+		if err != nil || time.Since(observed.ModTime()) < grace {
+			continue
+		}
+		if conn, err := net.DialTimeout("unix", path, staleSocketDialTimeout); err == nil {
+			conn.Close()
+			continue
+		}
+		// Remove only the file that was probed: another instance may have
+		// replaced it since the dial.
+		current, err := os.Lstat(path)
+		if err != nil || !os.SameFile(observed, current) {
+			continue
+		}
+		if os.Remove(path) == nil {
+			removed++
+		}
+	}
+	if removed > 0 {
+		log.Printf("mygo: removed %d stale single-instance sockets from %s", removed, dir)
+	}
+	return removed
 }
 
 // singleInstanceSocket returns a short per-user socket path; Unix socket
