@@ -131,3 +131,15 @@ guess only because applying it to the previous pin reproduces the previous entry
 recorded sha256 byte for byte, which is the check to run before recording a new
 one. Re-record the entry with the restage that ships the version; until then
 `verify` refuses any stage whose file differs from the derived one.
+
+### A derived version names the packages only a 本体 vendor carries
+
+`staging.desktopPackages` is the machine-readable half of a derived entry: the
+composition rows mount packages by name, and 本体's vendored harness is a fork,
+so a stage that copies the upstream tag alone mounts rows it cannot load. `verify`
+refuses such a stage, naming each package it lacks — which is the reminder, not a
+comment. The list is deliberately what MyGo's own rows and readiness gate require,
+not the whole fork: `node scripts/runtime-fork-audit.mjs <upstream-tree>
+<desktop-harness-root>` exits non-zero with every package the vendor carries over
+that tag (23 package directories for 本体 main against `dsh-v0.2.2-rc.2`), which
+is also the answer to "can this version be staged from upstream at all".

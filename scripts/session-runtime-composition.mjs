@@ -96,7 +96,10 @@ export async function verifyComposition(target, options = {}) {
   const pin = await upstreamText(entry);
   const acceptable = [{sha256: entry.sha256, why: entry.desktop.reference}, ...(entry.alternates ?? [])];
   const matched = acceptable.find(candidate => candidate.sha256 === observed);
-  if (matched) return {root, filename, version, sha256: observed, ...size, expected: matched.why, alternate: matched !== acceptable[0]};
+  if (matched) {
+    await assertDesktopPackages(root, entry);
+    return {root, filename, version, sha256: observed, ...size, expected: matched.why, alternate: matched !== acceptable[0]};
+  }
 
   const stagedRows = rows(text);
   const pinRows = rows(pin);
@@ -116,6 +119,31 @@ export async function verifyComposition(target, options = {}) {
     `rows added over the ${entry.harnessPin.ref} pin: ${[...stagedRows.keys()].filter(id => !pinRows.has(id)).join(', ') || 'none'}`,
   ].filter(Boolean).join('\n  ');
   throw new Error(`Host composition does not match the tracked contract.\n  file      : ${filename}\n  harness   : ${version}\n  observed  : ${observed.slice(0, 16)} (${size.bytes} bytes, ${size.lines} lines)\n  expected  : ${entry.sha256.slice(0, 16)} — ${entry.desktop.reference}${(entry.alternates ?? []).map(alt => `\n  also ok   : ${alt.sha256.slice(0, 16)} — ${alt.why}`).join('')}\n  ${details}\nA staged tree this wrong came from a source that is not the vendored 本体 graph: restage with scripts/build-harness.ps1 -RuntimeSourceResources <installed 本体> (or -SourceMode current from the pinned 本体 source) and rerun this check. Never edit ${contract.file} inside a stage.`);
+}
+
+/**
+ * The desktop rows mount by package name, so a stage that carries the composed
+ * file but not the packages it names boots and silently lacks them. 本体's
+ * vendored harness is a fork: entries recorded ahead of a 本体 release declare
+ * the packages only that fork has, and the upstream tag cannot supply them.
+ */
+async function assertDesktopPackages(root, entry) {
+  const required = entry.staging?.desktopPackages ?? [];
+  const missing = [];
+  for (const relative of required) {
+    const stat = await fs.stat(path.join(root, relative)).catch(() => null);
+    if (!stat?.isDirectory()) missing.push(relative);
+  }
+  if (!missing.length) return;
+  throw new Error([
+    'Host composition names a package this stage does not carry.',
+    `  version : ${entry.harnessPin.ref}`,
+    `  missing : ${missing.join(', ')}`,
+    '  本体 vendors these on top of the upstream tag, so a stage composed from the tag alone',
+    '  mounts rows it cannot load. Stage from the 本体 vendor that carries them',
+    '  (scripts/build-harness.ps1 -RuntimeSourceResources <installed 本体>).',
+    '  scripts/runtime-fork-audit.mjs names every such package for a desktop vendor and a tag.',
+  ].join('\n'));
 }
 
 export async function diffComposition(left, right, options = {}) {

@@ -83,6 +83,14 @@
         "renamedRows": {"agent-team": "native-agent-team"}
       },
       "sha256": "3876227e1c1d0fb55610977e2504f2a459dd334a5ce8ee59c78f4b37005173bb",
+      "staging": {
+        "desktopPackages": [
+          "packages/client/ui-visual-replies",
+          "packages/llm/llm-vision-fallback",
+          "packages/mcp/mcp-servers-file"
+        ],
+        "why": "本体's vendored harness is a fork: upstream dsh-v0.2.2-rc.5 ships none of these three, and MyGo's stage verifies ui-visual-replies byte for byte. scripts/runtime-fork-audit.mjs counts the whole fork (23 package directories on 本体 main against the rc.2 tag); this list is only what MyGo's own composition rows and readiness gate require, so verify refuses a stage that claims this version without them."
+      },
       "alternates": []
     }
   }
