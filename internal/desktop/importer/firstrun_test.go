@@ -290,3 +290,27 @@ func TestFirstRunPlanningReadsNoSessionLog(t *testing.T) {
 		t.Fatalf("the packed session was not copied: %v", err)
 	}
 }
+
+// TestDismissedOfferIsItsOwnOutcome covers AYA-28: closing the first-run
+// dialog used to be recorded as a skip, so a dismissal was indistinguishable
+// from a decision. It is recorded on its own, the first-run dialog does not
+// come back, and Settings still offers the import.
+func TestDismissedOfferIsItsOwnOutcome(t *testing.T) {
+	source, dest := firstRunFixture(t)
+	if err := DismissFirstRun(dest); err != nil {
+		t.Fatalf("DismissFirstRun: %v", err)
+	}
+	if got := FirstRunStatus(dest); got != FirstRunDismissed {
+		t.Fatalf("status = %q, want %q", got, FirstRunDismissed)
+	}
+	if _, offered := DetectFirstRun(dest, source); offered {
+		t.Fatal("a dismissed offer came back on the next launch")
+	}
+	if _, offered := FirstRunOffer(dest, source); !offered {
+		t.Fatal("Settings lost the import offer after a dismissal")
+	}
+	// The marker is not one of the artifacts that make a profile used.
+	if !isEmptyProfile(dest) {
+		t.Fatal("the dismissal marker made the destination count as populated")
+	}
+}

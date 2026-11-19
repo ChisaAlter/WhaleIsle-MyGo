@@ -49,3 +49,19 @@ func TestMessageBeforeShowCurrentAndDefault(t *testing.T) {
 		}
 	})
 }
+
+// TestMessageNoForegroundReachesBackend: a dialog the app opens on its own
+// must be able to stay behind the active application, so the option has to
+// survive the trip to the platform.
+func TestMessageNoForegroundReachesBackend(t *testing.T) {
+	onMain(func() {
+		previous := fb.LastMessageOptions
+		defer func() { fb.LastMessageOptions = previous }()
+		if _, err := Dialog.Message(MessageOptions{Buttons: []string{"Import", "Skip"}, NoForeground: true}); err != nil {
+			t.Fatal(err)
+		}
+		if fb.LastMessageOptions == nil || !fb.LastMessageOptions.NoForeground {
+			t.Fatalf("NoForeground did not reach the backend: %+v", fb.LastMessageOptions)
+		}
+	})
+}
