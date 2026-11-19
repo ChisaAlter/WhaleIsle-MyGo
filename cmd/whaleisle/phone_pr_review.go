@@ -49,7 +49,10 @@ func (s *mainState) reviewPhonePullRequest(ctx context.Context, root string) (ma
 		if childCtx.Err() != nil {
 			return
 		}
-		q.win = mygo.NewWindow(mygo.WindowOptions{Title: i18n.T(i18n.KeyCmdPhonePrReview), Width: 660, Height: 720, MinWidth: 520, MinHeight: 520, Parent: parent, Content: ui.View(q.view)})
+		// Hidden and shown without activation: the phone asked for this window,
+		// and the operator's foreground window is not the phone's to take. The
+		// flash asks for attention in the taskbar instead.
+		q.win = mygo.NewWindow(mygo.WindowOptions{Title: i18n.T(i18n.KeyCmdPhonePrReview), Width: 660, Height: 720, MinWidth: 520, MinHeight: 520, Parent: parent, Hidden: true, Content: ui.View(q.view)})
 		if q.win == nil || q.win.IsDestroyed() {
 			q.finish(phonePRResult{err: errors.New("Could not open desktop PR review")})
 			return
@@ -57,7 +60,8 @@ func (s *mainState) reviewPhonePullRequest(ctx context.Context, root string) (ma
 		q.win.OnClosed(func() {
 			q.finish(phonePRResult{err: errors.New("Desktop PR review cancelled; retry remaining action on phone")})
 		})
-		q.win.Focus()
+		q.win.ShowInactive()
+		q.win.FlashFrame(true)
 	})
 	for {
 		select {

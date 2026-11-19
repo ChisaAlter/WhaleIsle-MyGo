@@ -122,8 +122,9 @@ func redactedRemoteConfig(c config.Config) map[string]any {
 }
 
 // openPhoneSettingsSection opens the desktop settings page through the same
-// deeplink path whaleisle://settings uses. The bridge reader is not the UI
-// goroutine, so the work is dispatched to main and bounded.
+// deeplink path whaleisle://settings uses, without activation: the phone asked
+// for this page, not the person sitting at this desktop. The bridge reader is
+// not the UI goroutine, so the work is dispatched to main and bounded.
 func (s *mainState) openPhoneSettingsSection(section string) bool {
 	done := make(chan bool, 1)
 	mygo.RunOnMain(func() {
@@ -134,7 +135,7 @@ func (s *mainState) openPhoneSettingsSection(section string) bool {
 			done <- false
 			return
 		}
-		s.applyDeeplink(deeplink.Target{Action: deeplink.ActionSettings, Section: strings.TrimSpace(section)})
+		s.applyDeeplinkReveal(deeplink.Target{Action: deeplink.ActionSettings, Section: strings.TrimSpace(section)}, false)
 		done <- true
 	})
 	select {
