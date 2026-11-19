@@ -1,11 +1,14 @@
 package mygo
 
 import (
+	"bytes"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -169,8 +172,17 @@ func TestSweepStaleSocketsRemovesOnlyUnownedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if removed := sweepStaleSockets(dir, own, 0); removed != 1 {
-		t.Fatalf("sweep removed %d files, want only the stale one", removed)
+	var logged bytes.Buffer
+	previous, flags := log.Writer(), log.Flags()
+	log.SetOutput(&logged)
+	log.SetFlags(0)
+	t.Cleanup(func() { log.SetOutput(previous); log.SetFlags(flags) })
+
+	if sweep := sweepStaleSockets(dir, own, 0); sweep.Removed != 1 || sweep.Examined != 2 || sweep.InUse != 1 {
+		t.Fatalf("sweep = %+v, want one removed out of two examined with one in use", sweep)
+	}
+	if line := logged.String(); !strings.Contains(line, "examined 2, removed 1, in use 1") {
+		t.Fatalf("the launch log does not report the sweep: %q", line)
 	}
 	for _, kept := range []string{live, own, foreign} {
 		if _, err := os.Lstat(kept); err != nil {
@@ -192,8 +204,8 @@ func TestSweepStaleSocketsSparesAFreshFile(t *testing.T) {
 	if err := ln.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if removed := sweepStaleSockets(dir, "", time.Minute); removed != 0 {
-		t.Fatalf("sweep removed %d fresh files", removed)
+	if sweep := sweepStaleSockets(dir, "", time.Minute); sweep.Removed != 0 || sweep.InUse != 0 {
+		t.Fatalf("sweep = %+v, want a fresh file left alone", sweep)
 	}
 	if _, err := os.Lstat(path); err != nil {
 		t.Fatalf("a fresh socket file was removed: %v", err)
