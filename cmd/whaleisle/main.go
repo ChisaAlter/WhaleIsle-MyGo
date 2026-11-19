@@ -2119,7 +2119,12 @@ func main() {
 		}
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
-		background := !isolatedDesktopRun() && slices.Contains(os.Args, "--background")
+		// --background is the only launch that shows the window with
+		// ShowInactive; creating it visible calls the activating Show(). An
+		// isolated QA run needs the same thing, and it is also the run that
+		// skips the desktop system integration (URL scheme, autostart, tray),
+		// so the flag must not be dropped there.
+		background := slices.Contains(os.Args, "--background")
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
