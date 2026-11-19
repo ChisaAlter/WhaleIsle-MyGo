@@ -126,8 +126,16 @@ func comboboxBase(c *context, text *string, first bool) *comboboxParts {
 				p.choose((*p.values)[h])
 			}
 		}
+		// A combo box exposes the expand pattern and no invoke one, so this
+		// is how assistive technology opens the options.
+		if want, asked := in.accessExpand(); asked {
+			if want {
+				rt.focusOn(in.st)
+			}
+			open(want, false, -1)
+		}
 	})
-	in.expanded = *p.open
+	in.expandable, in.expanded = true, *p.open
 	return p
 }
 

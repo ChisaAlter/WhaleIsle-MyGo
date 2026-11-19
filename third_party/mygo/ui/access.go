@@ -117,6 +117,21 @@ func (e *node) Mixed() *node {
 	return e
 }
 
+// accessExpand is the state an expansion asks for by assistive technology, and
+// whether it asked. The roles the surface gives the expand pattern to — a
+// disclosure, a combo box, a pop-up button, a tree item — are also the roles it
+// withholds an invoke pattern from, so this is the only gesture a client has to
+// open them: a widget that advertises itself expandable and ignores this cannot
+// be opened without a pointer.
+func (e *node) accessExpand() (open bool, asked bool) {
+	if e.st.expand == 0 {
+		return false, false
+	}
+	open = e.st.expand > 0
+	e.st.expand = 0
+	return open, true
+}
+
 // Expanded tells assistive technology whether what the element opens
 // shows, as the popup of a button or the section below a header.
 func (e *node) Expanded(open bool) *node {
