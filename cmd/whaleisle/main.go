@@ -2182,12 +2182,12 @@ func main() {
 		}
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
-			Title:          i18n.T(i18n.KeyAppName),
-			Width:          winWidth,
-			Height:         winHeight,
-			MinWidth:       winMinWidth,
-			MinHeight:      winMinHeight,
-			StateKey:       stateKey,
+			Title:     i18n.T(i18n.KeyAppName),
+			Width:     winWidth,
+			Height:    winHeight,
+			MinWidth:  winMinWidth,
+			MinHeight: winMinHeight,
+			StateKey:  stateKey,
 			// A launch nobody asked for must not be raisable even by a program that
 			// calls SetForegroundWindow from outside, so its window is created
 			// non-activatable. A click or an app-initiated reveal clears that.
