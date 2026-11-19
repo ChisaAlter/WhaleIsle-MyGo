@@ -1931,6 +1931,7 @@ func main() {
 	startuptrace.Mark("process.start")
 	startUIDiagnostics()
 	startEditorProbe()
+	startRaiseTrace()
 	// WHALEISLE_STACK_DUMP is a diagnostic hook: after a few seconds it writes
 	// every goroutine's stack to the named file, so a wedged UI thread can be
 	// inspected from a headless run. Unset in normal operation.
@@ -2187,6 +2188,10 @@ func main() {
 			MinWidth:       winMinWidth,
 			MinHeight:      winMinHeight,
 			StateKey:       stateKey,
+			// A launch nobody asked for must not be raisable even by a program that
+			// calls SetForegroundWindow from outside, so its window is created
+			// non-activatable. A click or an app-initiated reveal clears that.
+			NonActivatable: windowNonActivatable(background, isolatedDesktopRun()),
 			Hidden:         hidden || background,
 			TitleBarStyle:  mygo.TitleBarHidden,
 			TitleBarHeight: int(chrome.EffectiveTitleBarHeight()),

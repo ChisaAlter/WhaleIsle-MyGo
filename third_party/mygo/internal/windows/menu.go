@@ -366,6 +366,7 @@ func (b *Backend) PopupMenu(m *platform.Menu, pw platform.Window, pos *platform.
 func (b *Backend) trackPopup(menu, owner uintptr, pt point) uint16 {
 	// The owner must be in the foreground, or the menu does not close
 	// when the user clicks elsewhere.
+	traceRaise("menu.trackPopup", owner)
 	procSetForegroundWindow.Call(owner)
 	cmd, _, _ := procTrackPopupMenuEx.Call(menu, tpmReturnCmd|tpmRightButton, uintptr(pt.X), uintptr(pt.Y), owner, 0)
 	postMessage(owner, 0, 0, 0) // WM_NULL, as the documentation asks

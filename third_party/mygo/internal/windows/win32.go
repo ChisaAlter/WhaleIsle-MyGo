@@ -117,6 +117,7 @@ var (
 	procGetForegroundWindow           = user32.NewProc("GetForegroundWindow")
 	procNotifyWinEvent                = user32.NewProc("NotifyWinEvent")
 	procSetFocus                      = user32.NewProc("SetFocus")
+	procGetAncestor                   = user32.NewProc("GetAncestor")
 	procEnableWindow                  = user32.NewProc("EnableWindow")
 	procGetWindowPlacement            = user32.NewProc("GetWindowPlacement")
 	procSetWindowPlacement            = user32.NewProc("SetWindowPlacement")
@@ -236,6 +237,7 @@ const (
 	wmDestroy           = 0x0002
 	wmMove              = 0x0003
 	wmSize              = 0x0005
+	wmMouseActivate     = 0x0021
 	wmActivate          = 0x0006
 	wmSetFocus          = 0x0007
 	wmClose             = 0x0010
@@ -306,6 +308,8 @@ const (
 	gwlStyle   = -16
 	gwlExStyle = -20
 
+	gaRoot = 2
+
 	swHide           = 0
 	swShowNormal     = 1
 	swShowMinimized  = 2
@@ -331,7 +335,10 @@ const (
 	sizeMinimized = 1
 	sizeMaximized = 2
 
-	waInactive = 0
+	waInactive    = 0
+	maActivate    = 3
+	waActive      = 1
+	waClickActive = 2
 
 	htClient      = 1
 	htCaption     = 2

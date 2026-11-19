@@ -366,7 +366,12 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		}
 		w.h.Moved()
 		return 0, true
+	case wmMouseActivate:
+		return w.onMouseActivate(), true
 	case wmActivate:
+		if how := activationCause(loword(wp)); how != "" {
+			traceRaise(how, w.hwnd)
+		}
 		if w.caption != nil {
 			w.caption.activate(loword(wp) != waInactive)
 		}
@@ -378,6 +383,7 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		return 0, false
 	case wmSetFocus:
 		if w.surface != nil {
+			traceRaise("window.onWMSetFocus", w.surface.hwnd)
 			procSetFocus.Call(w.surface.hwnd)
 		} else {
 			w.focusWebView()
@@ -805,6 +811,7 @@ func (w *window) Show() {
 	} else {
 		procShowWindow.Call(w.hwnd, swShow)
 	}
+	traceRaise("window.show", w.hwnd)
 	procSetForegroundWindow.Call(w.hwnd)
 }
 
@@ -819,6 +826,31 @@ func (w *window) ShowInactive() {
 }
 func (w *window) Hide() { procShowWindow.Call(w.hwnd, swHide) }
 
+// SetActivatable makes a window created non-activatable activatable, or the
+// reverse. A launch nobody at this machine asked for creates its window with
+// WS_EX_NOACTIVATE so that no program can raise it, including one that calls
+// SetForegroundWindow from outside; the two ways a person can ask for the window
+// — clicking it, and the app revealing it from a tray, deeplink or notification
+// action — clear the style before that ask is served.
+func (w *window) SetActivatable(v bool) {
+	ex := windowLong(w.hwnd, gwlExStyle)
+	if v {
+		if ex&wsExNoActivate != 0 {
+			setWindowLong(w.hwnd, gwlExStyle, ex&^wsExNoActivate)
+		}
+		return
+	}
+	setWindowLong(w.hwnd, gwlExStyle, ex|wsExNoActivate)
+}
+
+// onMouseActivate answers a click on this window. A person clicked it, so the
+// window becomes activatable and Windows activates it as usual; refusing here
+// would present a window that ignores the hand using the mouse.
+func (w *window) onMouseActivate() uintptr {
+	w.SetActivatable(true)
+	return maActivate
+}
+
 func (w *window) IsVisible() bool {
 	r, _, _ := procIsWindowVisible.Call(w.hwnd)
 	return r != 0
@@ -828,6 +860,7 @@ func (w *window) Focus() {
 	if w.IsMinimized() {
 		procShowWindow.Call(w.hwnd, swRestore)
 	}
+	traceRaise("window.focus", w.hwnd)
 	procSetForegroundWindow.Call(w.hwnd)
 	w.focusWebView()
 }
@@ -836,6 +869,7 @@ func (w *window) Blur() {
 	const gwHwndNext = 2
 	next, _, _ := procGetNextWindow.Call(w.hwnd, gwHwndNext)
 	if next != 0 {
+		traceRaise("window.blurToNext", next)
 		procSetForegroundWindow.Call(next)
 	}
 }
