@@ -93,9 +93,11 @@ func (s *mainState) claimDeferredProfile() bool {
 
 // offerFirstRunImport asks once whether the original Whale Isle profile should
 // be copied into MyGo's own directory. Copying never moves or deletes source
-// data, the answer is remembered in the destination, and a failed import is
-// offered again on the next launch because only a completed run writes the
-// marker.
+// data, and each way out records its own outcome in the destination: a
+// completed run, a deliberate 跳过, and a window closed without an answer are
+// different markers. A failed import stays partial and is offered again on the
+// next launch. Settings offers the same import whether or not an answer was
+// recorded.
 func (s *mainState) offerFirstRunImport() {
 	if isolatedDesktopRun() || slices.Contains(os.Args, "--background") {
 		return
@@ -111,12 +113,26 @@ func (s *mainState) offerFirstRunImport() {
 		Message:       fmt.Sprintf(i18n.T(i18n.KeyFirstRunImportBody), plan.Source, plan.Dest),
 		Buttons:       []string{i18n.T(i18n.KeyFirstRunImportAccept), i18n.T(i18n.KeyFirstRunImportSkip)},
 		DefaultButton: 0,
-		CancelButton:  1,
+		// The offer must not pull the focus away from what the person is doing:
+		// a launch that steals a click reads as the app misbehaving.
+		NoForeground: true,
+		// No cancel button: closing the window (or pressing Escape) must not
+		// land on 跳过, which made a dismissal indistinguishable from a
+		// decision. Windows' task dialog reports a dismissal as this
+		// index instead of the skip button.
+		CancelButton: -1,
 	})
 	if err != nil {
 		// A dialog that could not be shown is not an answer: leave the offer
-		// standing for the next launch instead of recording a skip.
+		// standing for the next launch instead of recording an outcome.
 		log.Println("first-run import: asking:", err)
+		return
+	}
+	if answer.Button < 0 {
+		if err := importer.DismissFirstRun(dest); err != nil {
+			log.Println("first-run import: recording the dismissal:", err)
+		}
+		s.invalidateLegacyImport()
 		return
 	}
 	if answer.Button != 0 {

@@ -212,6 +212,7 @@ const (
 	tdfVerificationFlagChecked  = 0x0100
 	tdfPositionRelativeToWindow = 0x1000
 	tdfSizeToContent            = 0x01000000
+	tdfNoSetForeground          = 0x00010000
 	tdWarningIcon               = 0xFFFF
 	tdErrorIcon                 = 0xFFFE
 	tdInformationIcon           = 0xFFFD
@@ -261,6 +262,9 @@ func (b *Backend) messageBox(owner uintptr, o *platform.MessageBoxOptions) platf
 		verification = u16(o.CheckboxLabel)
 	}
 	flags := uint32(tdfAllowDialogCancellation | tdfSizeToContent)
+	if o.NoForeground {
+		flags |= tdfNoSetForeground
+	}
 	if owner != 0 {
 		flags |= tdfPositionRelativeToWindow
 	}

@@ -58,6 +58,8 @@ type Backend struct {
 	OpenResult    []string
 	SaveResult    string
 	MessageResult platform.MessageBoxResult
+	// LastMessageOptions is what the last message box was shown with.
+	LastMessageOptions *platform.MessageBoxOptions
 	// NotificationError, when set, is what showing a notification fails
 	// with.
 	NotificationError error
@@ -662,7 +664,8 @@ func (d dialogs) ShowOpenDialog(_ platform.Window, _ *platform.OpenDialogOptions
 func (d dialogs) ShowSaveDialog(_ platform.Window, _ *platform.SaveDialogOptions, cb func(string, error)) {
 	cb(d.b.SaveResult, nil)
 }
-func (d dialogs) ShowMessageBox(_ platform.Window, _ *platform.MessageBoxOptions, cb func(platform.MessageBoxResult, error)) {
+func (d dialogs) ShowMessageBox(_ platform.Window, o *platform.MessageBoxOptions, cb func(platform.MessageBoxResult, error)) {
+	d.b.LastMessageOptions = o
 	cb(d.b.MessageResult, nil)
 }
 

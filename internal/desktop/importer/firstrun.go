@@ -33,6 +33,10 @@ const FirstRunMarkerName = "first-run-import.json"
 const (
 	FirstRunDone    = "done"
 	FirstRunSkipped = "skipped"
+	// FirstRunDismissed marks an offer closed with the window frame rather than
+	// answered: the first-run dialog does not return, and the same import stays
+	// available from the data-location settings.
+	FirstRunDismissed = "dismissed"
 	// FirstRunPartial marks an import that stopped before it finished, so the
 	// next launch offers to complete it instead of treating the destination as
 	// a profile the user already chose.
@@ -82,7 +86,7 @@ func FirstRunStatus(dest string) string {
 		return ""
 	}
 	switch marker.Status {
-	case FirstRunDone, FirstRunSkipped, FirstRunPartial:
+	case FirstRunDone, FirstRunSkipped, FirstRunDismissed, FirstRunPartial:
 		return marker.Status
 	}
 	return ""
@@ -95,7 +99,7 @@ func FirstRunStatus(dest string) string {
 func DetectFirstRun(dest, source string) (FirstRunPlan, bool) {
 	clean := filepath.Clean(strings.TrimSpace(dest))
 	switch FirstRunStatus(clean) {
-	case FirstRunDone, FirstRunSkipped:
+	case FirstRunDone, FirstRunSkipped, FirstRunDismissed:
 		return FirstRunPlan{}, false
 	case FirstRunPartial:
 		// A stopped import is finished from where it ended; the destination
@@ -191,6 +195,16 @@ func SkipFirstRun(dest string) error {
 		return ErrNotDirectory
 	}
 	return writeFirstRunMarker(dest, firstRunMarker{Status: FirstRunSkipped, At: time.Now().UTC().Format(time.RFC3339)})
+}
+
+// DismissFirstRun records that the offer was closed without an answer. It is
+// its own outcome: the first-run dialog does not come back, and Settings offers
+// the same import from its data-location block, which reads no marker.
+func DismissFirstRun(dest string) error {
+	if strings.TrimSpace(dest) == "" {
+		return ErrNotDirectory
+	}
+	return writeFirstRunMarker(dest, firstRunMarker{Status: FirstRunDismissed, At: time.Now().UTC().Format(time.RFC3339)})
 }
 
 // RunFirstRun copies the plan into MyGo's directory. It is re-entrant: every

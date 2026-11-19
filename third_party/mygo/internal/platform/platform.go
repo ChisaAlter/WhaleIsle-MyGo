@@ -579,6 +579,7 @@ type MessageBoxOptions struct {
 	CancelID        int
 	CheckboxLabel   string
 	CheckboxChecked bool
+	NoForeground    bool
 }
 
 // MessageBoxResult is the outcome of a message box.

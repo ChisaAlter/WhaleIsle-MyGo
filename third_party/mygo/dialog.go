@@ -85,7 +85,13 @@ type MessageOptions struct {
 	DefaultButton int
 	// CancelButton is the index of the button activated with Escape. When
 	// zero, the first button labeled "Cancel" or "No" is used.
-	CancelButton    int
+	CancelButton int
+	// NoForeground shows the dialog without moving the focus away from the
+	// application the person is using. An offer the app makes on its own
+	// startup sets it, so a launch never pulls a click or a keystroke into
+	// itself. Windows honours it; the other backends show dialogs of their
+	// own that stay behind the active application.
+	NoForeground    bool
 	CheckboxLabel   string
 	CheckboxChecked bool
 	// BeforeShow runs on the main thread immediately before showing the dialog.
@@ -208,6 +214,7 @@ func (DialogModule) Message(opts MessageOptions) (MessageResult, error) {
 		Buttons:         buttons,
 		DefaultID:       opts.DefaultButton,
 		CancelID:        cancel,
+		NoForeground:    opts.NoForeground,
 		CheckboxLabel:   opts.CheckboxLabel,
 		CheckboxChecked: opts.CheckboxChecked,
 	}
