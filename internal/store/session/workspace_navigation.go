@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -298,7 +299,11 @@ func (s *Store) RegisterWorkspace(ctx context.Context, token uint64, path string
 			s.workspaceNavigation.cancel = nil
 			s.invalidateViewLocked()
 		}
+		failure := err
 		s.mu.Unlock()
+		if failure != nil {
+			log.Printf("workspace: create %q: %v", path, failure)
+		}
 		s.fire()
 		if err == nil && committed != nil {
 			committed(row)

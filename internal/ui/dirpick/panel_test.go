@@ -363,3 +363,25 @@ func TestFailedPathRetryRetainsFocusButOutsideAndEscapeCancel(t *testing.T) {
 		})
 	}
 }
+
+func TestEditPathSubmitsTheTypedDraftOnEnter(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(i18n.DefaultLocale)
+	s := fixtureBrowser()
+	draft := ""
+	s.PathDraft, s.FocusPath = &draft, true
+	var submitted []string
+	m := Model{State: &s,
+		OnEditPath:   func(value string) { s.PathDraft = &value },
+		OnSubmitPath: func(value string) { submitted = append(submitted, value) },
+	}
+	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 680, 500)
+	if err := tt.Click("Edit path"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("/home/other")
+	tt.Key(0, ui.KeyEnter)
+	if len(submitted) != 1 || submitted[0] != "/home/other" {
+		t.Fatalf("Enter did not submit the typed path: %v", submitted)
+	}
+}

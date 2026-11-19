@@ -587,7 +587,7 @@ func TestDirectoryBrowserCreateFailureRetryRawNameAndLanding(t *testing.T) {
 	s.createDirectoryPicker(sessions, nil, "/", name)
 	awaitDirectoryPicker(t, func() bool { s.mu.Lock(); defer s.mu.Unlock(); return !s.dirPickBrowser.Creating })
 	s.mu.Lock()
-	failed := s.dirPickBrowser.FolderDraft != nil && *s.dirPickBrowser.FolderDraft == name && s.dirPickBrowser.CreateError == "the folder could not be created" && s.dirPickErr == ""
+	failed := s.dirPickBrowser.FolderDraft != nil && *s.dirPickBrowser.FolderDraft == name && s.dirPickBrowser.CreateError != "" && s.dirPickBrowser.CreateError != "the folder could not be created" && s.dirPickErr == ""
 	s.mu.Unlock()
 	if !failed {
 		t.Fatal("create failure lost raw draft, Host message or nested ownership")

@@ -66,6 +66,26 @@ func text(zh, en string) string {
 	return i18n.Pick(zh, en)
 }
 
+// registrationFailureText names the cause and the next step. The store carries
+// the Host's own wording, which is raw and English; that copy stays in the log.
+func registrationFailureText(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	lower := strings.ToLower(raw)
+	switch {
+	case strings.Contains(lower, "workspace list is ready"), strings.Contains(lower, "no dsh client"), strings.Contains(lower, "connect a host"):
+		return text("Host 尚未就绪，请先启动 Host，再选择工作区。", "The Host is not ready yet. Start it, then choose the workspace.")
+	case strings.Contains(lower, "incomplete workspace"):
+		return text("Host 没有返回完整的工作区信息，请重试。", "The Host did not return a complete workspace. Try again.")
+	case strings.Contains(lower, "no longer registered"):
+		return text("该工作区已不在列表中，请重新选择。", "That workspace is no longer listed. Choose another one.")
+	case strings.Contains(lower, "config"), strings.Contains(lower, "persist"), strings.Contains(lower, "save"):
+		return text("无法保存工作区设置，请检查配置目录是否可写后重试。", "The workspace setting could not be saved. Check that the config folder is writable and try again.")
+	}
+	return text("添加工作区没有完成，请重试。", "Adding the workspace did not finish. Try again.")
+}
+
 func View(c *ui.Context, m Model) {
 	if m.Store == nil || !m.Store.WorkspaceNavigationPending() {
 		return
@@ -98,7 +118,7 @@ func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNaviga
 				ui.Text(c, i18n.T(i18n.KeyWSFolderErrorTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(chrome.Color(colors.Muted))
 			}
 			ui.Text(c, request.Draft).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(14))
-			ui.Text(c, request.Error).FillWidth().MinHeight(40).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
+			ui.Text(c, registrationFailureText(request.Error)).FillWidth().MinHeight(40).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				cancelBtn := ui.Button(c, text("取消", "Cancel")).Disabled(request.Busy)
 				if !request.Busy {
