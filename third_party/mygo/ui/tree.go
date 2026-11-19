@@ -88,6 +88,15 @@ func coreTreeItem(c *context, label string, open *bool, children func()) *node {
 			focus(parent)
 		}
 	}
+	if item.Clicked() {
+		// A press — the pointer's, or the one the selection pattern sends to
+		// choose a part — makes this the current node, which is a tree's
+		// selection.
+		focus(item.id)
+	}
+	// Assistive technology asks which node is current with the selection-item
+	// pattern, whose IsSelected reads this.
+	item.checked = 1 + int8(b2f(rt.focused == item.id))
 	if s := item.st; branch && s.expand != 0 {
 		// Assistive technology opening or closing it.
 		*open = s.expand > 0
