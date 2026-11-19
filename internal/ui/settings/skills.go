@@ -124,7 +124,7 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 		})
 		settingsNotice(c, "skills:127", a.Notice != "", func() string { return a.Notice })
-		settingsAlert(c, "skills:130", a.Err != "", func() string { return a.Err })
+		settingsAlert(c, "skills:130", a.Err != "", providerCopy("没能读取技能列表，请重试。", "Skills could not be read. Try again."), a.Err)
 		settingsNotice(c, "skills:133", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 		if a.DetailPreview != "" && !a.EditWritable {
 			ui.Text(c, a.DetailPreview).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -503,7 +503,9 @@ func skillCompactRow(c *ui.Context, a *SkillsAccess, row SkillRow, fg, muted ui.
 			})
 		})
 		if row.Error != "" {
-			ui.Text(c, row.Error).FillWidth().Padding(0, 8, 8, 8).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			ui.Box(c).FillWidth().Padding(0, 8, 8, 8).Children(func() {
+				settingsFailureLine(c, "skill:row/"+row.Name, providerCopy("这个技能没能加载，请重试。", "This skill could not be loaded. Try again."), row.Error)
+			})
 		}
 		ui.Box(c).FillWidth().Height(.667).Background(fonttheme.Color(colors.BorderL1))
 	})

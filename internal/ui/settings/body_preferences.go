@@ -217,7 +217,7 @@ func bodyHostState(c *ui.Context, a *BodySettingsAccess, muted ui.Color) {
 			break
 		}
 	}
-	settingsAlert(c, "settings-preference-error", failure != "", func() string { return failure })
+	settingsAlert(c, "settings-preference-error", failure != "", providerCopy("没能保存这个设置，请重试。", "This setting was not saved. Try again."), failure)
 }
 
 func bodyHostValue(a *BodySettingsAccess, namespace, key string) (store.Field, string, bool) {
@@ -389,7 +389,7 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 		}
 	})
 	settingsSearchTarget(c, namespace+"."+key, title, row)
-	bodyPreferenceFieldAlert(c, a, namespace, key)
+	bodyPreferenceFieldAlert(c, a, namespace, key, title)
 	return true
 }
 

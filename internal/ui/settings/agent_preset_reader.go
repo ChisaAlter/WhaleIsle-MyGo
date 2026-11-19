@@ -65,7 +65,7 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 			return
 		}
 		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+			settingsFailureLine(c, "agent-preset-reader", providerCopy("没能读取 Agent 预设声明，请重试。", "The agent preset declaration could not be read. Try again."), s.Error)
 			if ui.Button(c, providerCopy("重试", "Retry")).Disabled(a.OnRead == nil).Clicked() && a.OnRead != nil {
 				a.OnRead(s.Ticket)
 			}

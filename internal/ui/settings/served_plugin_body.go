@@ -74,7 +74,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 	ui.Column(c.Key("served-card/" + bindings[0].Owner())).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		for _, state := range states {
 			if state.Err != "" {
-				ui.Text(c, state.Err).FillWidth().TextColor(c.Theme().Danger)
+				settingsFailureLine(c, "served-plugin:read", providerCopy("没能读取这个插件的设置，请重试。", "This plugin's settings could not be read. Try again."), state.Err)
 				break
 			}
 		}
@@ -161,7 +161,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 						*guideFailure = errcopy.Sentence(err)
 					}
 				}
-				settingsAlert(c, "web-search-guide", *guideFailure != "", func() string { return *guideFailure })
+				settingsAlert(c, "web-search-guide", *guideFailure != "", *guideFailure, "")
 			}
 			ns := "web-search-deepseek"
 			if useAPI {
@@ -182,7 +182,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 					}
 					ui.Text(c, status).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					if keyState.Error != "" {
-						ui.Text(c, keyState.Error).FillWidth().TextColor(c.Theme().Danger)
+						settingsFailureLine(c, "served-plugin:key", providerCopy("没能读取这个密钥的状态，请重试。", "The key's status could not be read. Try again."), keyState.Error)
 					}
 					if ui.Button(c, providerCopy("刷新密钥状态", "Refresh key status")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(keyState.Loading || disabled).Clicked() {
 						credential.Refresh(context.Background())

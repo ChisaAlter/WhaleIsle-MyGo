@@ -105,7 +105,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Warning).Tooltip(p.Error)
 		}
 		if a != nil && a.Err != "" {
-			ui.Text(c, a.Err).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
+			settingsFailureLine(c, "pet:read", providerCopy("没能读取桌面形象设置，请重试。", "The desktop character settings could not be read. Try again."), a.Err)
 		}
 		if *tab == 0 {
 			if a != nil && a.AssistantAvailable {
@@ -125,7 +125,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 					compact:  true,
 				}, fg, muted)
 				if access := a.AssistantPreference; access != nil {
-					settingsAlert(c, "pet:125", access.State.Error != "", func() string { return access.State.Error })
+					settingsAlert(c, "pet:125", access.State.Error != "", providerCopy("没能保存宠物设置，请重试。", "The pet setting was not saved. Try again."), access.State.Error)
 					if access.State.RestartCancelled {
 						ui.Text(c, providerCopy("已取消切换，保留原设置。", "Change cancelled; the previous setting is retained.")).FillWidth().TextColor(muted)
 					}

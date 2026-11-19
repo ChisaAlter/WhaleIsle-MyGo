@@ -33,7 +33,7 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 			ui.Text(c, providerCopy("当前 Host 未提供可用 cordis；无法创建 Creator 任务", "cordis is missing, hidden or broken")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}
 		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
+			settingsFailureLine(c, "creator-task", providerCopy("没能创建 Creator 任务，请重试。", "The Creator task could not be created. Try again."), s.Error)
 		}
 		if s.Review || s.Attempted {
 			ui.Text(c, fmt.Sprintf("Host: %s\nWorkspace: %s\nSession: %s\nPreset: cordis · %s", s.Host, s.Cwd, s.SessionID, s.Phase)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()

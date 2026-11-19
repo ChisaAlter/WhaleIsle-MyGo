@@ -60,7 +60,7 @@ func acpSettings(c *ui.Context, a *ACPAccess, fg, muted ui.Color) {
 			return
 		}
 		if a.Error != "" {
-			ui.Text(c, a.Error).TextColor(muted).Selectable()
+			settingsAuthoredFailure(c, a.Error)
 		}
 		if a.Status != "" {
 			ui.Text(c, a.Status).TextColor(muted)
@@ -248,7 +248,7 @@ func acpAgentEditor(c *ui.Context, a *ACPAccess, agent acp.Agent, call func(stri
 			}
 		}
 		if d.Error != "" {
-			ui.Text(c, d.Error).TextColor(muted)
+			settingsAuthoredFailure(c, d.Error)
 		}
 		payload := func() map[string]any {
 			if agent.ID == "" {

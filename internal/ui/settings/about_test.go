@@ -41,8 +41,11 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	if err := tt.Click("Application data and diagnostics"); err != nil {
 		t.Fatal(err)
 	}
-	if checks != 0 || reads != 1 || !tt.HasText("synthetic metadata error") || !tt.HasText("synthetic update pending") {
+	if checks != 0 || reads != 1 || !tt.HasText("Update information could not be read. Check the connection and retry.") || !tt.HasText("synthetic update pending") {
 		t.Fatal("initial metadata/check/error receipts missing")
+	}
+	if !detailHolds(t, tt, "synthetic metadata error") {
+		t.Fatalf("the read failure's own words are not behind 详情: %v", tt.Texts())
 	}
 	if err := tt.Click(i18n.T(KeyPass4OpenRuntime)); err != nil {
 		t.Fatal(err)

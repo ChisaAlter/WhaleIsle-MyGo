@@ -121,7 +121,7 @@ func TestModelsCatalogFailureIsInThePage(t *testing.T) {
 	if message == "" {
 		t.Fatal("fixture did not fail the catalog read")
 	}
-	if !tt.HasText(message) {
+	if !tt.HasText("The model directory could not be read. Try again.") {
 		t.Fatalf("the catalog failure is not in the page: %v", tt.Texts())
 	}
 	after, ok := tt.Find(add)
@@ -131,6 +131,9 @@ func TestModelsCatalogFailureIsInThePage(t *testing.T) {
 	retry, ok := tt.Find("Retry")
 	if !ok || retry.Y >= after.Y {
 		t.Fatalf("the retry is not written with the failure above the cards: %v ok=%v (%v)", retry, ok, tt.Texts())
+	}
+	if !detailHolds(t, tt, message) {
+		t.Fatalf("the catalog failure did not keep the store's words behind 详情: %v", tt.Texts())
 	}
 	reads := catalogReads.Load()
 	if err := tt.Click("Retry"); err != nil {

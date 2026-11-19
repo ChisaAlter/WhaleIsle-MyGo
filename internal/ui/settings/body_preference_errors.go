@@ -29,6 +29,12 @@ func preferenceErrorNotices(c *ui.Context) *bodyPreferenceErrorNotices {
 	})
 }
 
+// preferenceFailureCopy names the setting that was refused, so the sentence a
+// person reads tells them which control failed and what to do about it.
+func preferenceFailureCopy(title string) string {
+	return fmt.Sprintf(providerCopy("「%s」没能保存，请重试。", "“%s” could not be saved. Try again."), title)
+}
+
 func preferenceErrorKey(a *BodySettingsAccess, namespace, field string) string {
 	return fmt.Sprintf("%d/%s.%s", a.Owner, namespace, field)
 }
@@ -66,9 +72,11 @@ func bodyPreferenceFieldError(c *ui.Context, a *BodySettingsAccess, namespace, f
 }
 
 // bodyPreferenceFieldAlert shows a row's refusal under that row, where the
-// control that was refused sits. It announces the sentence once, so a screen
-// reader hears a new refusal without the page floating a toast over the content.
-func bodyPreferenceFieldAlert(c *ui.Context, a *BodySettingsAccess, namespace, field string) {
+// control that was refused sits. The sentence names the setting, so a person
+// knows which one failed, and the store's own words sit behind 详情. It
+// announces the sentence once, so a screen reader hears a new refusal without
+// the page floating a toast over the content.
+func bodyPreferenceFieldAlert(c *ui.Context, a *BodySettingsAccess, namespace, field, title string) {
 	notices := preferenceErrorNotices(c)
 	if notices.closed || !a.Snapshot.ClientReady {
 		return
@@ -92,12 +100,13 @@ func bodyPreferenceFieldAlert(c *ui.Context, a *BodySettingsAccess, namespace, f
 	} else {
 		row.stale = ""
 	}
+	sentence, detail := settingsFailure("settings/"+key, preferenceFailureCopy(title), failure)
 	if !row.announced && !a.Snapshot.PreferencePending[namespace+"."+field] {
 		row.announced = true
 		if notices.announced[failure] != notices.frame {
 			notices.announced[failure] = notices.frame
-			c.Announce(failure)
+			c.Announce(sentence)
 		}
 	}
-	widgets.Alert(c, widgets.AlertOptions{ID: "settings/" + key, Message: failure})
+	widgets.Alert(c, widgets.AlertOptions{ID: "settings/" + key, Message: sentence, Detail: detail})
 }

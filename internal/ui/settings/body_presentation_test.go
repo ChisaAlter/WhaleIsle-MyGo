@@ -156,8 +156,19 @@ func TestSettingsBodySourcePagesAndStates(t *testing.T) {
 				if len(tt.Texts()) == 0 {
 					t.Fatal("body rendered no content")
 				}
-				if state == "error" && !tt.HasText("Synthetic settings save failed") {
-					t.Fatal("body hides save error")
+				if state == "error" {
+					want := "This setting was not saved. Try again."
+					if page == "pet" {
+						want = "The desktop character settings could not be read. Try again."
+					} else if page == "about" {
+						want = "Update information could not be read. Check the connection and retry."
+					}
+					if !tt.HasText(want) {
+						t.Fatalf("body hides save error: %v", tt.Texts())
+					}
+					if !detailHolds(t, tt, h.Snapshot.Err) {
+						t.Fatalf("body dropped the store's words instead of keeping them behind 详情: %v", tt.Texts())
+					}
 				}
 				if page == "general" && tt.HasText(i18n.T(i18n.KeySettingsDesktopWorkspace)) {
 					t.Fatal("technical runtime controls escaped the disclosure")
@@ -308,8 +319,11 @@ func TestEffectEditorAtomicSaveRetainsFailureAndChangesHost(t *testing.T) {
 			h.Snapshot.PreferencePending = nil
 			h.Snapshot.PreferenceErrors = map[string]string{"ui-conversation." + key + "Style": "Synthetic effect save failure"}
 			tt.Frame()
-			if !tt.HasText("Synthetic effect save failure") || !tt.HasText("Save and apply") {
+			if !tt.HasText("could not be saved") || !tt.HasText("Save and apply") {
 				t.Fatal("failed save discarded the editor draft")
+			}
+			if !detailHolds(t, tt, "Synthetic effect save failure") {
+				t.Fatalf("the failed save did not keep the Host's words behind 详情: %v", tt.Texts())
 			}
 			saveBodySnapshot(t, tt, "settings-effect-"+key+"-failed-save.png")
 			h.Snapshot.PreferenceErrors = nil

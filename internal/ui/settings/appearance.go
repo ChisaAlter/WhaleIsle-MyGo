@@ -74,7 +74,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		}
-		settingsAlert(c, "appearance:72", *schemeError != "", func() string { return *schemeError })
+		settingsAlert(c, "appearance:72", *schemeError != "", *schemeError, "")
 	})
 	themeLibraryPane(c, a.Preferences, theme.Resolve(m.ThemeID).Active(m.SystemDark), fg, muted)
 	if a.Background != nil {

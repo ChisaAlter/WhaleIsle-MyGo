@@ -42,7 +42,7 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 		}
 	})
 	if s.Err != "" {
-		ui.Text(c, s.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		settingsFailureLine(c, "mcp:import", providerCopy("没能解析这份 MCP 配置，请检查内容后重试。", "The MCP configuration could not be parsed. Check it and try again."), s.Err)
 	}
 	settingsNotice(c, "mcp_import:48", s.Notice != "", func() string { return s.Notice })
 	if !s.Ready {
@@ -60,7 +60,7 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 			a.OnSelect(choice)
 		}
 		if row.Err != "" {
-			ui.Text(c, row.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+			settingsFailureLine(c, "mcp:import-row/"+row.ID, providerCopy("这一行没能导入，请检查后重试。", "This row could not be imported. Check it and try again."), row.Err)
 		}
 	}
 	if s.Selected < 0 || s.Selected >= len(s.Candidates) {

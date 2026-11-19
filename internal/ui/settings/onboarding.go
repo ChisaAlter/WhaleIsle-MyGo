@@ -225,7 +225,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 					}
 				}
 				if s.Error != "" {
-					ui.Text(c, s.Error).FillWidth().TextColor(c.Theme().Danger)
+					settingsFailureLine(c, "onboarding:error", providerCopy("设置没能完成，请重试。", "Setup could not finish. Try again."), s.Error)
 					if ui.Button(c, providerCopy("重试", "Retry")).Disabled(busy).Clicked() {
 						controller.Retry()
 					}

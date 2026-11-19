@@ -88,7 +88,7 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 	if !a.HasListRPC {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsNoRPC)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	settingsAlert(c, "plugins:100", a.Err != "", func() string { return a.Err })
+	settingsAlert(c, "plugins:100", a.Err != "", providerCopy("没能读取插件列表，请重试。", "Plugins could not be read. Try again."), a.Err)
 	settingsNotice(c, "plugins:103", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 	if len(a.Rows) == 0 && !a.Loading {
 		ui.Text(c, i18n.T(i18n.KeySettingsPluginsEmpty)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

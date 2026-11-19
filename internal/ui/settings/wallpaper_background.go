@@ -535,7 +535,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	}
 	wallpaperModals(c, g, fg, muted)
 	if g.failure != "" {
-		settingsAlert(c, "appearance-preference", true, func() string { return g.failure })
+		settingsAlert(c, "appearance-preference", true, providerCopy("没能保存外观设置，请重试。", "The appearance setting was not saved. Try again."), g.failure)
 	}
 	if !g.galleryOpen && g.filterKey != "" {
 		g.retire()

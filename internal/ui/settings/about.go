@@ -184,7 +184,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		// desktop version. Only local diagnostics belong in the disclosure.
 		ui.Text(c, i18n.T(KeyPass4AboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
-		settingsAlert(c, "about:118", a.Err != "", func() string { return a.Err })
+		settingsAlert(c, "about:118", a.Err != "", providerCopy("没能读取更新信息，请检查网络后重试。", "Update information could not be read. Check the connection and retry."), a.Err)
 		links := aboutLinks()
 		ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
@@ -218,7 +218,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 			link(links[1])
 		})
-		settingsAlert(c, "about:154", *linkError != "", func() string { return *linkError })
+		settingsAlert(c, "about:154", *linkError != "", *linkError, "")
 		settingsNotice(c, "about:157", a.Status != "", func() string { return a.Status })
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
 			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

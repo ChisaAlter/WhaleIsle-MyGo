@@ -86,6 +86,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 		View(c, Model{Store: s, InterfaceActive: true, Interface: &InterfaceAccess{Host: host}, Conversation: &ConversationAccess{Host: host}})
 	}, 1000, 900)
 	const label = "Conversation and trajectory tabs"
+	sentence := preferenceFailureCopy(label)
 	toggle := func() {
 		t.Helper()
 		for range 30 {
@@ -121,7 +122,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 	})
 	_ = tt.Announcements()
 	tt.Frame()
-	if !tt.HasText("synthetic ordinary switch refusal") || !accepted.Load() {
+	if !tt.HasText(sentence) || !accepted.Load() {
 		t.Fatal("describe swallowed refusal or failed value replaced accepted state", tt.Texts())
 	}
 	tt.SetTime(time.Now().Add(time.Second))
@@ -131,13 +132,19 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 		t.Fatalf("failure changed row layout: before=%+v after=%+v", before, after)
 	}
 	announcements := strings.Join(tt.Announcements(), "\n")
-	if strings.Count(announcements, "synthetic ordinary switch refusal") != 1 {
+	if strings.Count(announcements, sentence) != 1 {
 		t.Fatal("refusal did not announce exactly once", announcements)
+	}
+	if strings.Contains(announcements, "synthetic ordinary switch refusal") {
+		t.Fatal("the refusal announced the store's raw words", announcements)
+	}
+	if !detailHolds(t, tt, "synthetic ordinary switch refusal") {
+		t.Fatalf("the refusal dropped the store's words instead of keeping them behind 详情: %v", tt.Texts())
 	}
 	for range 3 {
 		tt.Frame()
 	}
-	if strings.Contains(strings.Join(tt.Announcements(), "\n"), "synthetic ordinary switch refusal") {
+	if strings.Contains(strings.Join(tt.Announcements(), "\n"), sentence) {
 		t.Fatal("refusal was reissued every frame")
 	}
 	toggle() // An explicit retry may return the identical refusal before a paint.
@@ -146,10 +153,10 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 		return writes.Load() == 2 && !snap.Loading && snap.Described && snap.Err == "" && len(snap.PreferencePending) == 0 && snap.PreferenceErrors["ui-conversation.viewTabs"] != ""
 	})
 	tt.Frame()
-	if !tt.HasText("synthetic ordinary switch refusal") {
+	if !tt.HasText(sentence) {
 		t.Fatal("an explicit retry lost the refusal from the page", tt.Texts())
 	}
-	if got := strings.Count(strings.Join(tt.Announcements(), "\n"), "synthetic ordinary switch refusal"); got != 1 {
+	if got := strings.Count(strings.Join(tt.Announcements(), "\n"), sentence); got != 1 {
 		t.Fatalf("an explicit retry with the same refusal announced it %d times, want 1", got)
 	}
 	refuse.Store(false)
@@ -159,7 +166,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 		return len(snap.PreferencePending) == 0 && snap.PreferenceErrors["ui-conversation.viewTabs"] == "" && writes.Load() == 3
 	})
 	tt.Frame()
-	if accepted.Load() || tt.HasText("synthetic ordinary switch refusal") || writes.Load() != 3 {
+	if accepted.Load() || tt.HasText(sentence) || writes.Load() != 3 {
 		t.Fatal("explicit retry did not accept only the current field and clear its refusal")
 	}
 }
@@ -180,12 +187,12 @@ func TestOrdinaryPreferenceErrorsBelongToVisibleFieldsAndHost(t *testing.T) {
 		}
 		ModalView(c, Model{Store: store.New(), InterfaceActive: page == SectionInterface, ConversationActive: page == SectionConversation, Interface: &InterfaceAccess{Host: h}, Conversation: &ConversationAccess{Host: h}, OnClose: func() { open = false }})
 	}, 1200, 900)
-	if !tt.HasText("owned interface refusal") || tt.HasText("other page refusal") {
+	if !detailHolds(t, tt, "owned interface refusal") || tt.HasText("other page refusal") {
 		t.Fatal("interface displayed another page's field error", tt.Texts())
 	}
 	page = SectionConversation
 	tt.Frame()
-	if tt.HasText("owned interface refusal") || !tt.HasText("other page refusal") {
+	if tt.HasText("owned interface refusal") || !detailHolds(t, tt, "other page refusal") {
 		t.Fatal("page switch retained an unmounted field's toast", tt.Texts())
 	}
 	h.Owner++
@@ -197,7 +204,7 @@ func TestOrdinaryPreferenceErrorsBelongToVisibleFieldsAndHost(t *testing.T) {
 	}
 	h.Snapshot.PreferenceErrors = map[string]string{"ui-chat.transcriptView": "new Host refusal"}
 	tt.Frame()
-	if !tt.HasText("new Host refusal") {
+	if !detailHolds(t, tt, "new Host refusal") {
 		t.Fatal("replacement Host could not present its own refusal")
 	}
 	if err := tt.Click(i18n.T(i18n.KeySettingsBack)); err != nil {
@@ -209,7 +216,7 @@ func TestOrdinaryPreferenceErrorsBelongToVisibleFieldsAndHost(t *testing.T) {
 	}
 	open = true
 	tt.Frame()
-	if !tt.HasText("new Host refusal") {
+	if !detailHolds(t, tt, "new Host refusal") {
 		t.Fatal("reopened consumer did not read its retained failure")
 	}
 	open = false // The shell shortcut/deeplink boundary bypasses OnClose.
@@ -225,7 +232,7 @@ func TestUsagePreferenceRefusalsDoNotReadOtherFields(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() { UsagePreferences(c, h, c.Theme().Text, c.Theme().TextMuted) })
 	}, 800, 600)
-	if !tt.HasText("usage field refusal") || tt.HasText("unrelated interface refusal") {
+	if !detailHolds(t, tt, "usage field refusal") || tt.HasText("unrelated interface refusal") {
 		t.Fatal("usage preferences aggregated unrelated field failures")
 	}
 	h.Owner++
@@ -256,7 +263,7 @@ func TestSpecialPreferenceRowsOwnTheirOrdinaryFieldErrors(t *testing.T) {
 				}
 				View(c, m)
 			}, 1000, 1000)
-			if !tt.HasText("owned special-row refusal") || tt.HasText("unrelated interface refusal") {
+			if !detailHolds(t, tt, "owned special-row refusal") || tt.HasText("unrelated interface refusal") {
 				t.Fatal("special row failed to own its ordinary field refusal", tt.Texts())
 			}
 		})

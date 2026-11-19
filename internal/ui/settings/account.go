@@ -58,12 +58,11 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	// The page owns its failures: a failed read or a failed sign-out sits above
 	// the account card with the next step, and clears when the store reports a
 	// clean state again.
-	settingsAlert(c, "account-errors", a.Err != "" || a.SignOut.Error != "", func() string {
-		if a.Err != "" {
-			return a.Err
-		}
-		return signOutError(a.SignOut.Error)
-	})
+	if a.Err != "" {
+		settingsAlert(c, "account-errors", true, providerCopy("没能读取账户信息，请检查网络后重试。", "The account could not be read. Check the connection and retry."), a.Err)
+	} else if a.SignOut.Error != "" {
+		settingsAlert(c, "account-errors", true, signOutError(a.SignOut.Error), "")
+	}
 	if a.Status != "credential-stored" {
 		ui.Column(c).FillWidth().Gap(16).Padding(40, 0).Children(func() {
 			ui.Text(c, providerCopy("当前未登录 DeepSeek 账号", "You are not signed in to DeepSeek")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)

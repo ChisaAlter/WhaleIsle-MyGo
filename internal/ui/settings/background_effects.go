@@ -83,7 +83,7 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 			})
 		}
 		if g.failure != "" {
-			settingsAlert(c, "appearance-dialog", true, func() string { return g.failure })
+			settingsAlert(c, "appearance-dialog", true, providerCopy("没能保存外观设置，请重试。", "The appearance setting was not saved. Try again."), g.failure)
 		}
 	}, func() {
 		if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(g.Save == nil || busy).Clicked() {
