@@ -309,3 +309,19 @@ jobs:
           node scripts/installer-branding-fixture.mjs
           node scripts/package-release-inputs-fixture.mjs
           node --test scripts/session-runtime-slim.test.mjs scripts/session-runtime-composition.test.mjs scripts/runtime-fork-audit.test.mjs scripts/stage-third-party-plugins.test.mjs internal/harness/proactive-tools.test.mjs
+      # The installer replays the runtime's directory links at promotion time.
+      # A release that installs the payload without them ships capabilities the
+      # user cannot reach and reports nothing, so the real installer is built and
+      # run here instead of only on a developer machine.
+      - name: Run the runtime link transaction fixture
+        shell: pwsh
+        run: |
+          choco install nsis --no-progress -y
+          $candidates = @(
+            (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')
+          )
+          $makensis = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $makensis) { throw 'NSIS is unavailable after installation.' }
+          $env:PATH = (Split-Path -Parent $makensis) + ';' + $env:PATH
+          ./scripts/nsis-runtime-links-fixture.ps1

@@ -38,6 +38,11 @@ $graph = [ordered]@{schemaVersion=1;files=$files;links=[ordered]@{'one/node_modu
 $helper = Join-Path $stage 'runtime\runtime-links.exe'
 & go build -ldflags '-s -w -H windowsgui' -o $helper ./scripts/session-runtime-links
 if ($LASTEXITCODE -ne 0) { throw 'Helper build failed' }
+# Every non-shell-only installer embeds the installation health probe, so the
+# stage must carry one for the transaction to compile at all.
+$health = Join-Path $stage 'whaleisle-integration.exe'
+& go build -ldflags '-s -w -H windowsgui' -o $health ./cmd/whaleisle-integration
+if ($LASTEXITCODE -ne 0) { throw 'Installation health helper build failed' }
 $include = Join-Path $PSScriptRoot 'nsis'
 function Build-Fixture([string]$Name,[bool]$Fail) {
     $out=Join-Path $fixtureRoot ($Name+'.exe')
@@ -120,6 +125,19 @@ if ((Run-HiddenExecutable $helper @('verify',('"'+(Join-Path $installed 'runtime
 if ((Get-FileHash (Join-Path $installed 'runtime\vendor\one\index.js') -Algorithm SHA256).Hash -ne $before) { throw 'Rollback changed original bytes' }
 if ((Run-HiddenExecutable $normal @('/S',('/D='+$installed))) -ne 0) { throw 'Fixture upgrade failed' }
 if ((Run-HiddenExecutable $helper @('verify',('"'+(Join-Path $installed 'runtime\vendor')+'"'))) -ne 0) { throw 'Upgrade graph failed verification' }
+# 0.2.2 shipped exactly this state: an installed runtime graph whose links were
+# never replayed. The next install has to repair it rather than refuse it.
+$installedVendor=Join-Path $installed 'runtime\vendor'
+if ((Run-HiddenExecutable $helper @('detach',('"'+$installedVendor+'"'))) -ne 0) { throw 'Cannot detach the installed links to model an unreplayed installation' }
+if (Test-Path -LiteralPath (Join-Path $installedVendor 'one\node_modules\two')) { throw 'Detach left an installed link behind' }
+if ((Run-HiddenExecutable $normal @('/S',('/D='+$installed))) -ne 0) { throw 'Upgrade over an installation without links failed' }
+if ((Run-HiddenExecutable $helper @('verify',('"'+$installedVendor+'"'))) -ne 0) { throw 'Upgrade did not restore the missing links' }
+$trace=Join-Path $env:LOCALAPPDATA 'mygo\runtime-links.log'
+if (-not (Test-Path -LiteralPath $trace)) { throw 'The installer recorded no runtime link trace' }
+$traced=Get-Content -LiteralPath $trace -Raw
+foreach($expected in @('restore entry','restore done','runtime links restore: exit=0')){
+    if (-not $traced.Contains($expected)) { throw "Runtime link trace lacks '$expected'" }
+}
 $uninstall=Join-Path $fixtureRoot 'fixture-uninstall.exe'
 Copy-Item -LiteralPath (Join-Path $installed 'Uninstall.exe') -Destination $uninstall
 # Run the management copy outside the renamed payload; _?= keeps it synchronous.
@@ -130,7 +148,9 @@ if ($uninstallCode -eq 0) { throw 'Unknown runtime junction was accepted by the 
 if (-not (Test-Path -LiteralPath (Join-Path $installed 'runtime\vendor\one\index.js'))) { throw 'Rejected uninstall changed owned payload bytes' }
 # Remove only the exact junction created above, never recurse into its target.
 $unknownItem=Get-Item -LiteralPath $unknown
-if ($unknownItem.LinkType -ne 'Junction' -or $unknownItem.Target[0] -ne (Join-Path $installed 'runtime\vendor\two')) { throw 'Unexpected test junction target' }
+$expectedTarget=[IO.Path]::GetFullPath((Join-Path $installed 'runtime\vendor\two')).TrimEnd('\')
+$actualTargets=@($unknownItem.Target) | ForEach-Object { [IO.Path]::GetFullPath(($_ -replace '^\\\\\?\\','')).TrimEnd('\') }
+if ($unknownItem.LinkType -ne 'Junction' -or $actualTargets -notcontains $expectedTarget) { throw "Unexpected test junction target: $($unknownItem.LinkType) $($actualTargets -join ',')" }
 [IO.Directory]::Delete($unknown)
 $uninstallCode=Run-HiddenExecutable $uninstall @('/S',('_?='+$installed))
 if ($uninstallCode -ne 0) { throw "Fixture uninstall failed: exit=$uninstallCode root=$fixtureRoot" }

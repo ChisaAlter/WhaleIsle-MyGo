@@ -307,7 +307,13 @@ func operate(command, root string) error {
 	if err != nil {
 		return err
 	}
-	if err = preflight(root, g, command == "verify" || command == "restore" || command == "check", command == "verify"); err != nil {
+	// Restore runs against the tree the installer has just written from its own
+	// verified include, and it must create the missing links before they exist.
+	// Checking every payload digest there made the step cost the whole 1.1 GB
+	// before the first link appeared, which is the one part of promotion whose
+	// work grows with payload size. Structure is checked for every command;
+	// content is verified by verify, which the upgrade and uninstall paths run.
+	if err = preflight(root, g, command == "verify", command == "verify"); err != nil {
 		return err
 	}
 	if command == "verify" || command == "check" {
@@ -390,11 +396,39 @@ func operate(command, root string) error {
 	return nil
 }
 func main() {
-	if len(os.Args) != 3 {
-		os.Exit(2)
+	os.Exit(run(os.Args))
+}
+
+// The installer runs this helper from $PLUGINSDIR during a silent install, where
+// a failed exit and a helper that never started look identical from outside.
+// The optional fourth argument is that trace file: the entry line proves the
+// process ran, and the outcome line records why it stopped.
+func run(args []string) int {
+	if len(args) != 3 && len(args) != 4 {
+		return 2
 	}
-	if err := operate(os.Args[1], os.Args[2]); err != nil {
+	trace := ""
+	if len(args) == 4 {
+		trace = args[3]
+	}
+	appendTrace(trace, fmt.Sprintf("%s entry %s", args[1], args[2]))
+	if err := operate(args[1], args[2]); err != nil {
+		appendTrace(trace, fmt.Sprintf("%s failed %s: %v", args[1], args[2], err))
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+	appendTrace(trace, fmt.Sprintf("%s done %s", args[1], args[2]))
+	return 0
+}
+
+func appendTrace(filename, line string) {
+	if filename == "" {
+		return
+	}
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = file.WriteString(line + "\n")
 }
