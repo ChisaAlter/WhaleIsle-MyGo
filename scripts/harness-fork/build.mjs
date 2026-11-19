@@ -24,6 +24,7 @@ function run(command, args, options = {}) {
     env: {...process.env, ...options.env},
     stdio: options.quiet ? 'pipe' : 'inherit',
     encoding: 'utf8',
+    shell: options.shell ?? false,
     windowsHide: true,
   });
   if (result.error) throw result.error;
@@ -32,6 +33,16 @@ function run(command, args, options = {}) {
     throw new Error(`${command} ${args.join(' ')} failed in ${options.cwd} (exit ${result.status})${detail ? `:\n${detail}` : ''}`);
   }
   return result;
+}
+
+/**
+ * npm is a shell shim on Windows, so spawning it without a shell is ENOENT there.
+ * Running the CLI through the node that carries it works on every host.
+ */
+function runNpm(args, options) {
+  const cli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  if (fs.existsSync(cli)) return run(process.execPath, [cli, ...args], options);
+  return run(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {...options, shell: process.platform === 'win32'});
 }
 
 /** The exact pnpm the tree pins, installed under the fork's own directory so the user's toolchain is untouched. */
@@ -44,7 +55,7 @@ export function pinnedPnpm(tree, {work, log = () => {}}) {
   if (entry) return entry;
   fs.mkdirSync(tools, {recursive: true});
   log(`installing pnpm ${wanted} for this tree`);
-  run('npm', ['install', '--prefix', tools, '--ignore-scripts', '--no-audit', '--no-fund', `pnpm@${wanted}`], {quiet: true});
+  runNpm(['install', '--prefix', tools, '--ignore-scripts', '--no-audit', '--no-fund', `pnpm@${wanted}`], {quiet: true});
   const installed = ['pnpm.cjs', 'pnpm.mjs'].map(name => path.join(tools, 'node_modules', 'pnpm', 'bin', name)).find(candidate => fs.existsSync(candidate));
   if (!installed) throw new Error(`pnpm@${wanted} installed without a CLI entry under ${tools}`);
   return installed;

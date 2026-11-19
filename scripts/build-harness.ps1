@@ -57,7 +57,7 @@ function Invoke-HarnessForkStage([string]$ForkWork, [string]$Tag, [string]$Desti
     $Network = @()
     if ($env:HTTPS_PROXY) { $Network = @('--proxy', $env:HTTPS_PROXY) }
     & node (Join-Path $ForkScripts 'fork.mjs') materialize --work $ForkWork @Network
-    if ($LASTEXITCODE -ne 0) { throw 'Replaying the harness fork failed. The pin and its recorded resolutions are the only inputs, so this means the record drifted; do not stage over it.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Replaying the harness fork failed; the harness-fork message above names the step that failed (download, archive, or the recorded tree). Nothing was staged.' }
     $Tree = Join-Path $ForkWork 'tree'
     $Pin = Get-Content -LiteralPath (Join-Path $ForkScripts 'pin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $Tag) { $Tag = $Pin.bumps[-1].ref }
