@@ -103,24 +103,58 @@ func FileMentionResolver(messages []session.Message, closing session.Message) fu
 }
 
 func buildMentionResolver(messages []session.Message, closing session.Message) func(string) string {
-	if closing.Role != "assistant" || closing.Streaming {
-		return nil
+	return mentionResolverFrom(groupMentionFacts(messages), closing)
+}
+
+// buildMentionProjectedResolver answers from the events one projection holds, so
+// the rows of that projection share a single grouping of them.
+func buildMentionProjectedResolver(key session.ProjectionKey, messages []session.Message, closing session.Message) func(string) string {
+	return mentionResolverFrom(mentionFactsFor(key, messages), closing)
+}
+
+// mentionFactsMemo keeps the last projection's events grouped by turn. Every
+// visible row asks for its own closing message, and each answer needs the facts
+// of one turn: walking and copying the whole journal per row costs a long
+// session tens of megabytes in the frame it opens.
+var mentionFactsMemo struct {
+	mu     sync.Mutex
+	key    session.ProjectionKey
+	byTurn map[float64][]mentionEvent
+	ready  bool
+}
+
+func mentionFactsFor(key session.ProjectionKey, messages []session.Message) map[float64][]mentionEvent {
+	if !key.Valid() {
+		return groupMentionFacts(messages)
 	}
-	owner, ok := decodeMentionEvent(closing)
-	if !ok || owner.Type != "assistant/message" || owner.Data.Turn == nil || owner.Seq <= 0 || owner.Data.Interrupted {
-		return nil
+	mentionFactsMemo.mu.Lock()
+	if mentionFactsMemo.ready && mentionFactsMemo.key == key {
+		byTurn := mentionFactsMemo.byTurn
+		mentionFactsMemo.mu.Unlock()
+		return byTurn
 	}
+	mentionFactsMemo.mu.Unlock()
+	byTurn := groupMentionFacts(messages)
+	mentionFactsMemo.mu.Lock()
+	if !mentionFactsMemo.ready || mentionFactsMemo.key != key {
+		mentionFactsMemo.key, mentionFactsMemo.byTurn, mentionFactsMemo.ready = key, byTurn, true
+	}
+	mentionFactsMemo.mu.Unlock()
+	return byTurn
+}
+
+// groupMentionFacts reads the journal once and files each event under the turn
+// that owns it. A tool dispatch without a turn of its own belongs to the turn
+// open when it arrives, which is the same cursor each row used to keep.
+func groupMentionFacts(messages []session.Message) map[float64][]mentionEvent {
 	var events []mentionEvent
 	for _, m := range messages {
-		if m.Seq > 0 && m.Seq > owner.Seq {
-			continue
-		}
-		if e, ok := decodeMentionEvent(m); ok && e.Seq > 0 && e.Seq <= owner.Seq {
+		if e, ok := decodeMentionEvent(m); ok && e.Seq > 0 {
 			events = append(events, e)
 		}
 	}
 	sort.SliceStable(events, func(i, j int) bool { return events[i].Seq < events[j].Seq })
-	var facts []mentionEvent
+	byTurn := map[float64][]mentionEvent{}
 	var currentTurn *float64
 	for _, e := range events {
 		// ConversationLocationIndex updates its cursor from explicit Turn/Step
@@ -132,11 +166,32 @@ func buildMentionResolver(messages []session.Message, closing session.Message) f
 		if e.Type == "tool/ptc-dispatch" && turn == nil && !e.sessionLevel {
 			turn = currentTurn
 		}
-		if turn != nil && *turn == *owner.Data.Turn {
-			facts = append(facts, e)
+		if turn != nil {
+			byTurn[*turn] = append(byTurn[*turn], e)
 		}
 		if e.Type == "turn/end" && currentTurn != nil && e.Data.Turn != nil && *currentTurn == *e.Data.Turn {
 			currentTurn = nil
+		}
+	}
+	return byTurn
+}
+
+func mentionResolverFrom(byTurn map[float64][]mentionEvent, closing session.Message) func(string) string {
+	if closing.Role != "assistant" || closing.Streaming {
+		return nil
+	}
+	owner, ok := decodeMentionEvent(closing)
+	if !ok || owner.Type != "assistant/message" || owner.Data.Turn == nil || owner.Seq <= 0 || owner.Data.Interrupted {
+		return nil
+	}
+	// A turn's events are in seq order, and an answer can only mention what it
+	// could already read: the first event past the closing message ends it.
+	facts := byTurn[*owner.Data.Turn]
+	preceding := facts
+	for i, e := range facts {
+		if e.Seq > owner.Seq {
+			preceding = facts[:i]
+			break
 		}
 	}
 	paths := map[string]map[string]bool{}
@@ -159,7 +214,7 @@ func buildMentionResolver(messages []session.Message, closing session.Message) f
 		seq  float64
 	}
 	calls := map[string]call{}
-	for _, e := range facts {
+	for _, e := range preceding {
 		if e.Type == "tool/call" && e.Data.CallID != "" {
 			p := mutationMentionPath(e.Data.Name, rootMentionArguments(e.Data.Arguments))
 			// Duplicate call IDs are not enough authority to choose one file.
@@ -169,7 +224,7 @@ func buildMentionResolver(messages []session.Message, closing session.Message) f
 			calls[e.Data.CallID] = call{p, e.Seq}
 		}
 	}
-	for _, e := range facts {
+	for _, e := range preceding {
 		switch e.Type {
 		case "deliverables/presented":
 			for _, f := range e.Data.Files {
