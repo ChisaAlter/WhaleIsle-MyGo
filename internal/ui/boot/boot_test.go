@@ -51,6 +51,11 @@ func TestLoadingPageComposition(t *testing.T) {
 				View(c, Model{Dark: tc.dark, Status: harness.Status{State: harness.Starting}, Logs: []string{"正在加载本地组件"}})
 			}, 1440, 920)
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			for _, key := range []string{"Whale Isle", "鲸屿 · MyGo", "BASED ON DEEPSEEK HARNESS", "启动中"} {
+				if r, ok := tt.Find(key); ok {
+					t.Logf("%s %-26q %+v", tc.name, key, r)
+				}
+			}
 			mark, ok := tt.Find("Whale Isle")
 			if !ok || mark.Y < 240 || mark.Y > 300 || mark.X+mark.W/2 < 718 || mark.X+mark.W/2 > 722 {
 				t.Fatalf("wordmark outside reference seat: %+v", mark)
