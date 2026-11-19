@@ -535,8 +535,7 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 	}
 	wallpaperModals(c, g, fg, muted)
 	if g.failure != "" {
-		c.AddToast(ui.Toast{ID: "appearance-preference", Title: g.failure, Type: "error"})
-		g.failure = ""
+		settingsAlert(c, "appearance-preference", true, func() string { return g.failure })
 	}
 	if !g.galleryOpen && g.filterKey != "" {
 		g.retire()

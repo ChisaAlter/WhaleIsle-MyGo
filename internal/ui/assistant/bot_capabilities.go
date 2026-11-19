@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"whaleisle/internal/ui/widgets"
 	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo/ui"
@@ -11,6 +10,7 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botCapabilityAcknowledgement() string {
@@ -55,7 +55,7 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_capabilities:58", "", s.Notice != "", func() string { return s.Notice })
+		widgets.Notice(c, "bot_capabilities:58", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}

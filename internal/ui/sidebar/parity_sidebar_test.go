@@ -88,22 +88,13 @@ func TestParitySidebarSessionsExpandAndCollapse(t *testing.T) {
 	}
 }
 
-func TestParitySidebarWorkspaceRevealAndRevealFailed(t *testing.T) {
+func TestParitySidebarWorkspaceRevealCopy(t *testing.T) {
 	for _, tc := range []struct {
 		locale     string
 		wantReveal string
-		wantFailed string
 	}{
-		{
-			locale:     "zh",
-			wantReveal: "在 Finder 中打开工作区",
-			wantFailed: "无法打开工作区文件夹，请确认目录仍存在后重试",
-		},
-		{
-			locale:     "en",
-			wantReveal: "Open workspace in Finder",
-			wantFailed: "Could not open the workspace folder. Check that it still exists and try again.",
-		},
+		{locale: "zh", wantReveal: "在 Finder 中打开工作区"},
+		{locale: "en", wantReveal: "Open workspace in Finder"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			i18n.SetLocale(tc.locale)
@@ -111,37 +102,6 @@ func TestParitySidebarWorkspaceRevealAndRevealFailed(t *testing.T) {
 
 			if got := i18n.T(i18n.KeyWSWorkspaceReveal); got != tc.wantReveal {
 				t.Fatalf("KeyWSWorkspaceReveal = %q, want %q", got, tc.wantReveal)
-			}
-			if got := i18n.T(i18n.KeyWSWorkspaceRevealFailed); got != tc.wantFailed {
-				t.Fatalf("KeyWSWorkspaceRevealFailed = %q, want %q", got, tc.wantFailed)
-			}
-
-			dismissed := false
-			m := Model{
-				ThemeID:   "deepseek.light",
-				ViewportW: 280,
-				ViewportH: 864,
-				Snapshot: session.ViewState{
-					WorkspaceReady: true,
-					Items:          []session.Item{{SessionID: "s1", Title: "Demo", Cwd: "/demo"}},
-					Workspaces:     []session.WorkspaceRow{{WorkspaceID: "ws1", Title: "Demo", Path: "/demo", SessionIDs: []string{"s1"}}},
-				},
-				OnRevealWorkspacePath: func(string, string) {},
-				ActionToast: &RowActionToastState{
-					Kind:      "reveal-failed",
-					OnDismiss: func() { dismissed = true },
-				},
-			}
-			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 280, 864)
-			tt.Frame()
-			if !tt.HasText(tc.wantFailed) {
-				t.Fatalf("expected reveal-failed toast %q in %v", tc.wantFailed, tt.Texts())
-			}
-			if err := tt.Click("×"); err != nil {
-				t.Fatalf("click dismiss button failed: %v", err)
-			}
-			if !dismissed {
-				t.Fatalf("expected toast dismiss callback to fire")
 			}
 		})
 	}
@@ -327,48 +287,6 @@ func TestParitySidebarDeleteSessionDialogAndErrorCodes(t *testing.T) {
 	}
 	if confirmedID != "arch-1" {
 		t.Fatalf("expected delete confirm callback with arch-1, got %q", confirmedID)
-	}
-}
-
-func TestParitySidebarRowActionToasts(t *testing.T) {
-	i18n.SetLocale("zh")
-	defer i18n.SetLocale(i18n.DefaultLocale)
-
-	kinds := []struct {
-		kind    string
-		message string
-		want    string
-	}{
-		{kind: "archived", want: "会话已归档，可"},
-		{kind: "stopped-archived", want: "已停止并归档，可"},
-		{kind: "fork-requires-open", want: "请先打开原会话完成迁移，再创建分支"},
-		{kind: "session-id-copied", want: "Session ID 已复制"},
-		{kind: "session-id-copy-failed", want: "复制失败，请重试"},
-		{kind: "pin-failed", want: "置顶失败，请稍后重试"},
-		{kind: "unpin-failed", want: "取消置顶失败，请稍后重试"},
-		{kind: "create-failed", message: "磁盘已满", want: "新建会话失败：磁盘已满"},
-		{kind: "archived-not-openable", want: "已归档对话暂时无法查看，请取消归档后查看"},
-	}
-
-	for _, tc := range kinds {
-		m := Model{
-			ThemeID:   "deepseek.light",
-			ViewportW: 420,
-			ViewportH: 640,
-			ActionToast: &RowActionToastState{
-				Kind:         tc.kind,
-				Message:      tc.message,
-				OnUndo:       func() {},
-				OnViewAll:    func() {},
-				OnOpenSource: func() {},
-				OnDismiss:    func() {},
-			},
-		}
-		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 420, 640)
-		tt.Frame()
-		if !tt.HasText(tc.want) {
-			t.Fatalf("toast kind %q missing %q in %v", tc.kind, tc.want, tt.Texts())
-		}
 	}
 }
 

@@ -27,14 +27,13 @@ func (s *mainState) dismissAccountQuotaPage() {
 	}
 }
 
-func (s *mainState) closeAccountQuotaToast(c *ui.Context) {
+// closeAccountQuotaNotice forgets the notice this seat already reported, so the
+// next one speaks again. The sentence it wrote stays in the conversation's
+// status line, where a failure belongs, instead of a bar over the page.
+func (s *mainState) closeAccountQuotaNotice() {
 	s.mu.Lock()
-	shown := s.accountQuotaNotice.toast != 0
 	s.accountQuotaNotice.toast = 0
 	s.mu.Unlock()
-	if shown {
-		c.CloseToast("account-quota-notice")
-	}
 }
 
 func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
@@ -58,7 +57,6 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 	}
 	if state.signedIn && !signedIn {
 		id := state.id
-		shown := state.toast != 0
 		if state.opened {
 			s.accountReturn.external = false
 			s.accountReturn.leftWindow = false
@@ -66,9 +64,6 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 		*state = accountQuotaNoticeState{}
 		s.mu.Unlock()
 		sessions.DismissQuotaNotice(id)
-		if shown {
-			c.CloseToast("account-quota-notice")
-		}
 		return
 	}
 	state.signedIn = signedIn
@@ -77,7 +72,7 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 	platformOpen := s.accountReturn.external || s.accountReturn.embedded != ""
 	s.mu.Unlock()
 	if notice.ID == 0 {
-		s.closeAccountQuotaToast(c)
+		s.closeAccountQuotaNotice()
 		return
 	}
 	// Keep the account claim alive during initial loading, like AccountQuotaNotice.
@@ -89,11 +84,12 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 			s.mu.Lock()
 			s.accountQuotaNotice.toast = notice.ID
 			s.mu.Unlock()
-			c.AddToast(ui.Toast{ID: "account-quota-notice", Description: i18n.T(i18n.KeyCmdRequestQuotaExhausted), OnClose: func() { sessions.DismissQuotaNotice(notice.ID) }})
+			sessions.SetLastAction(i18n.T(i18n.KeyCmdRequestQuotaExhausted))
+			sessions.DismissQuotaNotice(notice.ID)
 		}
 		return
 	}
-	s.closeAccountQuotaToast(c)
+	s.closeAccountQuotaNotice()
 	if opened || platformOpen {
 		return
 	}

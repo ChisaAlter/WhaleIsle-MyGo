@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/agents"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func jobsHeader(c *ui.Context, m Model) {
@@ -41,7 +42,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	if len(s.Rows) == 0 {
 		label = archiveText("后台任务读取失败", "Background jobs need a fresh read")
 	}
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	muted := chrome.Color(colors.Muted)
 	headerInk := muted
 	if colors.Secondary != "" {
 		headerInk = chrome.Color(colors.Secondary)
@@ -94,11 +95,14 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 						})
 					}
 					if s.Error != "" {
-						ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(8).Children(func() {
-							ui.Text(c, s.Error).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0)
-							if retry := ui.Button(c, archiveText("重新读取任务", "Retry jobs")).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).AlignSelf(ui.Start).Cursor(ui.CursorPointer).Disabled(s.Loading); retry.Clicked() {
-								controller.Retry(s.Generation)
-							}
+						ui.Box(c).FillWidth().MinWidth(0).Padding(8).Children(func() {
+							widgets.Alert(c, widgets.AlertOptions{
+								ID:       "jobs-roster",
+								Message:  archiveText("没能读取后台任务，请重试。", "Background jobs could not be read. Try again."),
+								Detail:   s.Error,
+								Action:   archiveText("重新读取任务", "Retry jobs"),
+								OnAction: func() { controller.Retry(s.Generation) },
+							})
 						})
 					}
 					if len(live) > 0 {
@@ -270,14 +274,29 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				}
 			}
 		})
-		if s.Kill.JobID == job.ID && (s.Kill.Phase == "armed" || s.Kill.Error != "") {
-			message := s.Kill.Error
-			actions := []headerNoticeAction{}
-			if s.Kill.Phase == "armed" {
-				message = archiveText("再次点击确认停止", "Click again to confirm")
-				actions = append(actions, headerNoticeAction{label: archiveText("确认停止", "Confirm stop"), run: func() { controller.ConfirmKill(s.Generation, job.ID) }})
-			}
-			headerNotice(c, "job-kill-notice:"+job.ID, message, colors, 104, actions, func() { controller.CancelKill(s.Generation) })
+		if s.Kill.JobID == job.ID && s.Kill.Phase == "armed" {
+			ui.Row(c.Key("job-kill-confirm-"+job.ID)).FillWidth().MinWidth(0).Gap(6).Padding(0, 8, 4, 8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, archiveText("再次点击确认停止", "Click again to confirm stop")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1).MinWidth(0)
+				if ui.Button(c, archiveText("确认停止", "Confirm stop")).Label("Confirm stop job "+job.ID).Height(24).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+					controller.ConfirmKill(s.Generation, job.ID)
+				}
+				if ui.Button(c, archiveText("取消", "Cancel")).Label("Cancel stop job "+job.ID).Height(24).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+					controller.CancelKill(s.Generation)
+				}
+			})
+		}
+		if s.Kill.JobID == job.ID && s.Kill.Phase != "armed" && s.Kill.Error != "" {
+			ui.Box(c).FillWidth().MinWidth(0).Padding(0, 8, 4, 8).Children(func() {
+				widgets.Alert(c, widgets.AlertOptions{
+					ID:        "job-kill:" + job.ID,
+					Message:   archiveText("没能停止这条任务，请重试。", "This task could not be stopped. Try again."),
+					Detail:    s.Kill.Error,
+					Action:    archiveText("重试停止", "Retry stop"),
+					OnAction:  func() { controller.ArmKill(s.Generation, job.ID) },
+					Dismiss:   archiveText("关闭", "Dismiss"),
+					OnDismiss: func() { controller.CancelKill(s.Generation) },
+				})
+			})
 		}
 		if s.SelectedID == job.ID {
 			jobOutputView(c, controller, s, job, colors)
@@ -323,7 +342,15 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 			ui.Text(c, archiveText("……较早的输出已丢弃……", "… earlier output dropped …")).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
 		}
 		if o.Error != "" && !notice.dismissed {
-			headerNotice(c, "job-output-notice:"+job.ID, o.Error, colors, 24, []headerNoticeAction{{label: archiveText("重试输出", "Retry output"), run: func() { controller.RetryOutput(s.Generation) }}}, func() { notice.dismissed = true })
+			widgets.Alert(c, widgets.AlertOptions{
+				ID:        "job-output:" + job.ID,
+				Message:   archiveText("这条任务的输出没能读到，可以再试一次。", "This task's output could not be read. Try again."),
+				Detail:    o.Error,
+				Action:    archiveText("重试输出", "Retry output"),
+				OnAction:  func() { controller.RetryOutput(s.Generation) },
+				Dismiss:   archiveText("关闭", "Dismiss"),
+				OnDismiss: func() { notice.dismissed = true },
+			})
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			ui.Text(c, job.Label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0)

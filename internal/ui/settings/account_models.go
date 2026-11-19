@@ -147,7 +147,7 @@ func editedAccountOverrides(before, after []any, original map[string]any) map[st
 func configurationAccountModels(c *ui.Context, m Model, s store.ViewState, ns store.Namespace, fg, muted ui.Color) {
 	m.Store.EnsureModelConfigurationCatalog(context.Background())
 	catalog, loading, message := m.Store.ConfigurationModels("deepseek-account")
-	settingsNotice(c, "account_models:151", "", message != "", func() string { return message })
+	settingsNotice(c, "account_models:151", message != "", func() string { return message })
 	if modelLinkPill(c, providerCopy("刷新账户模型目录", "Refresh account model catalog"), loading || s.Saving).AlignSelf(ui.Start).Clicked() {
 		m.Store.RefreshModelConfigurationCatalog(context.Background())
 	}

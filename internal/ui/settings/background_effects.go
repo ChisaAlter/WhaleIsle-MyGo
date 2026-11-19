@@ -82,8 +82,8 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 				}
 			})
 		}
-		if g.Status != "" {
-			ui.Text(c, g.Status).FillWidth().TextColor(c.Theme().Danger)
+		if g.failure != "" {
+			settingsAlert(c, "appearance-dialog", true, func() string { return g.failure })
 		}
 	}, func() {
 		if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(g.Save == nil || busy).Clicked() {
@@ -93,7 +93,7 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 			*open = false
 		}
 		if ui.PrimaryButton(c, providerCopy("保存", "Save")).Disabled(g.Save == nil || busy).Clicked() {
-			if !wallpaperColorsValid(c, draft.Colors[:]) {
+			if !wallpaperColorsValid(g, draft.Colors[:]) {
 				return
 			}
 			if wallpaperChange(c, g, func(p *wallpapers.Preferences) {

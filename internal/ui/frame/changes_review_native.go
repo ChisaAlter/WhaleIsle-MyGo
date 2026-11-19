@@ -8,7 +8,10 @@ import (
 	"whaleisle/internal/store/session"
 )
 
-func changesReviewNativeMenu(c *ui.Context, target session.TurnFileTarget, snapshot session.TurnFilesSnapshot, enabled bool, ensure func(session.TurnFileTarget, string) session.TurnFileResult, run func(session.TurnFileTarget, string)) {
+// changesReviewNativeMenu draws the Host file-actions button and its menu. It
+// returns the failure the last action reported, for the pane to write beside
+// the diff: a failure is never a toast.
+func changesReviewNativeMenu(c *ui.Context, target session.TurnFileTarget, snapshot session.TurnFilesSnapshot, enabled bool, ensure func(session.TurnFileTarget, string) session.TurnFileResult, run func(session.TurnFileTarget, string)) string {
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
 	enabled = enabled && !state.NativeUnavailable
 	apps := session.TurnFileResult{}
@@ -23,8 +26,8 @@ func changesReviewNativeMenu(c *ui.Context, target session.TurnFileTarget, snaps
 		message = paneLabel("已交给 Host：", "Handed to Host: ") + state.Action
 		kind = "success"
 	}
-	if message != "" && message != *last {
-		c.AddToast(ui.Toast{ID: "changes-review-host", Title: message, Type: kind, Timeout: 5 * time.Second})
+	if kind == "success" && message != "" && message != *last {
+		c.AddToast(ui.Toast{ID: "changes-review-host", Title: message, Type: "success", Timeout: 5 * time.Second})
 	}
 	*last = message
 	button.Menu(func(menu *ui.Menu) {
@@ -65,4 +68,5 @@ func changesReviewNativeMenu(c *ui.Context, target session.TurnFileTarget, snaps
 			menu.Item(state.Error).Disabled(true)
 		}
 	})
+	return state.Error
 }

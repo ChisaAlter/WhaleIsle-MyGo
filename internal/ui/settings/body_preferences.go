@@ -204,30 +204,20 @@ func bodyHostState(c *ui.Context, a *BodySettingsAccess, muted ui.Color) {
 	}
 	s := a.Snapshot
 	// A line inserted while the Host connects, or is read-only, would shift every row below it.
-	settingsNotice(c, "host-state", "", !s.ClientReady || !s.Writable, func() string {
+	settingsNotice(c, "host-state", !s.ClientReady || !s.Writable, func() string {
 		if !s.ClientReady {
 			return providerCopy("Host 未连接；保留上次设置。", "Host disconnected; showing retained settings.")
 		}
 		return providerCopy("此 Host 的设置为只读。", "Settings on this Host are read-only.")
 	})
-	anchor := ui.Box(c.Key("preference-error-notice")).Absolute().Size(0, 0).PassThrough()
-	previous := ui.Local(anchor, "error", func() string { return "" })
 	failure := s.Err
 	for _, fieldError := range s.PreferenceErrors {
 		if failure != "" && failure == fieldError {
 			failure = "" // Its mounted field owns this refusal, not the whole page.
-			c.CloseToast("settings-preference-error")
 			break
 		}
 	}
-	if failure == "" {
-		*previous = ""
-	} else {
-		if *previous != failure {
-			c.AddToast(ui.Toast{ID: "settings-preference-error", Title: failure})
-			*previous = failure
-		}
-	}
+	settingsAlert(c, "settings-preference-error", failure != "", func() string { return failure })
 }
 
 func bodyHostValue(a *BodySettingsAccess, namespace, key string) (store.Field, string, bool) {
@@ -399,6 +389,7 @@ func bodyHostPreference(c *ui.Context, a *BodySettingsAccess, namespace, key, ti
 		}
 	})
 	settingsSearchTarget(c, namespace+"."+key, title, row)
+	bodyPreferenceFieldAlert(c, a, namespace, key)
 	return true
 }
 

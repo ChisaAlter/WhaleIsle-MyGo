@@ -292,7 +292,7 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 		if hadPick {
 			c.Services().Invalidate()
 		}
-		widgets.Notice(c, "session_inspector_pane:294", "", p.navigation.Notice != "", func() string { return p.navigation.Notice })
+		widgets.Notice(c, "session_inspector_pane:294", p.navigation.Notice != "", func() string { return p.navigation.Notice })
 		body := ui.Column(c).Grow(1).MinHeight(0).FillWidth()
 		body.Children(func() {
 			available := root.Bounds().H

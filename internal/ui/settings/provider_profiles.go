@@ -22,7 +22,7 @@ func providerProfilesPane(c *ui.Context, a *ProviderProfilesAccess, fg, muted ui
 	}
 	s := a.Snapshot
 
-	settingsNotice(c, "provider_profiles:29", "error", s.Err != "", func() string { return s.Err })
+	settingsAlert(c, "provider_profiles:29", s.Err != "", func() string { return s.Err })
 	if s.Pending != nil {
 		r := s.Pending
 		open := true

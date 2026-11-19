@@ -74,8 +74,8 @@ func agentPresetsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		acpSettings(c, a.ACP, fg, muted)
 		ui.Text(c, i18n.T(KeyPass4PresetsTitle)).FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(KeyPass4PresetsHint)).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(17.3)).TextColor(muted)
-		settingsNotice(c, "agent_presets:77", "error", snap.Err != "", func() string { return snap.Err })
-		settingsNotice(c, "agent_presets:84", "", snap.Status != "", func() string { return snap.Status })
+		settingsAlert(c, "agent_presets:77", snap.Err != "", func() string { return snap.Err })
+		settingsNotice(c, "agent_presets:84", snap.Status != "", func() string { return snap.Status })
 
 		defaultLabel := snap.DefaultID
 		for _, row := range snap.Rows {

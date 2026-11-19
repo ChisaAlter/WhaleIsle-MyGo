@@ -92,4 +92,5 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsLimit)).FillWidth().TextColor(fg)
 		}
 	})
+	bodyPreferenceFieldAlert(c, a, store.CustomInstructionsNamespace, store.CustomInstructionsField)
 }

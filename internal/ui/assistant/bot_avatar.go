@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/avatarimage"
@@ -9,6 +8,7 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botAvatarAcknowledgement() string {
@@ -40,7 +40,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_avatar:43", "", s.Notice != "", func() string { return s.Notice })
+		widgets.Notice(c, "bot_avatar:43", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

@@ -94,6 +94,9 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Interface
+	// A switch that could not be written leaves its failure here, so the page
+	// shows it above the row it belongs to instead of a toast over the content.
+	failure := ui.Local(c.Root(), "interface-write-failure", func() string { return "" })
 	bodyHostState(c, a.Host, muted)
 	viewTabsNS, viewTabsField, hostViewTabs := interfaceViewTabsField(a.Host)
 	localViewTabs := InterfaceViewTabsFallbackAllowed(a.Host)
@@ -138,13 +141,13 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, providerCopy("会话视图标签：此 Host 的设置类型不受支持。", "Conversation view tabs: this Host's field type is unsupported.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	bodyLocalToggle(c, "interface-archive", providerCopy("显示底部归档管理区", "Show the archive manager"), providerCopy("选择“隐藏已归档”时，在侧栏底部显示可折叠的“已归档”管理区。关闭后仍可从视图选项查看全部或仅归档会话，并取消归档或删除。", "When archived sessions are hidden, show a collapsible Archived area at the bottom of the sidebar. When off, you can still view all or only archived sessions from the view options and unarchive or delete them."), a.ShowArchivedList, a.OnSetShowArchivedList == nil, fg, muted, func(next bool) {
-		setInterfaceAccepted(c, a.ShowArchivedList, next, a.OnSetShowArchivedList)
+		setInterfaceAccepted(c, failure, a.ShowArchivedList, next, a.OnSetShowArchivedList)
 	})
 	bodyDisclosure(c, "interface-local-preferences", providerCopy("本地偏好", "Local preferences"), func() {
 		if localViewTabs && a.ShowViewTabs != nil {
 			desktopRow(c, i18n.T(i18n.KeySettingsInterfaceViewTabs), func() {
 				if ui.Switch(c, a.ShowViewTabs).Label(i18n.T(i18n.KeySettingsInterfaceViewTabs)).Disabled(a.OnSetViewTabs == nil).Changed() {
-					setInterfaceAccepted(c, a.ShowViewTabs, *a.ShowViewTabs, a.OnSetViewTabs)
+					setInterfaceAccepted(c, failure, a.ShowViewTabs, *a.ShowViewTabs, a.OnSetViewTabs)
 				}
 			}, fg, muted)
 			ui.Text(c, i18n.T(i18n.KeySettingsInterfaceViewTabsDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
@@ -154,20 +157,25 @@ func interfacePane(c *ui.Context, m Model, fg, muted ui.Color) {
 				return
 			}
 			if ui.Switch(c, a.AutoAllowTools).Label(i18n.T(i18n.KeySettingsInterfaceAutoAllow)).Disabled(a.OnSetAutoAllowTools == nil).Changed() {
-				setInterfaceAccepted(c, a.AutoAllowTools, *a.AutoAllowTools, a.OnSetAutoAllowTools)
+				setInterfaceAccepted(c, failure, a.AutoAllowTools, *a.AutoAllowTools, a.OnSetAutoAllowTools)
 			}
 		}, fg, muted)
 		ui.Text(c, i18n.T(i18n.KeySettingsInterfaceAutoAllowDesc)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	})
+	settingsAlert(c, "interface-write", *failure != "", func() string { return *failure })
 }
 
-func setInterfaceAccepted(c *ui.Context, value *bool, next bool, write func(bool) (bool, error)) {
+// setInterfaceAccepted applies a switch's write and records its failure in the
+// page's seat, so the page draws the reason where the control was.
+func setInterfaceAccepted(c *ui.Context, failure *string, value *bool, next bool, write func(bool) (bool, error)) {
 	if value == nil || write == nil {
 		return
 	}
 	accepted, err := write(next)
 	*value = accepted
 	if err != nil {
-		c.AddToast(ui.Toast{Title: errcopy.Sentence(err)})
+		*failure = errcopy.Sentence(err)
+		return
 	}
+	*failure = ""
 }

@@ -8,6 +8,7 @@ import (
 	officestore "whaleisle/internal/store/office"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func officeSettingsView(c *ui.Context, m Model) {
@@ -18,14 +19,12 @@ func officeSettingsView(c *ui.Context, m Model) {
 	blocked := v.Busy || !v.Available || m.PluginDisabled || !m.HarnessReady
 	page := ui.Column(c.Key(fmt.Sprintf("office-%d", v.Scope))).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent)
 	feedback := ui.Local(page, "feedback", func() string { return "" })
-	message, kind := v.Notice, "success"
-	if v.Error != "" {
-		message, kind = v.Error, "error"
+	if v.Notice != "" && v.Notice != *feedback {
+		c.AddToast(ui.Toast{ID: fmt.Sprintf("office-%d", v.Scope), Title: v.Notice, Type: "success", Timeout: 7 * time.Second})
 	}
-	if message != "" && message != *feedback {
-		c.AddToast(ui.Toast{ID: fmt.Sprintf("office-%d", v.Scope), Title: message, Type: kind, Timeout: 7 * time.Second})
+	if v.Notice != "" {
+		*feedback = v.Notice
 	}
-	*feedback = message
 	page.Children(func() {
 		ui.Row(c).Height(44).Shrink(0).Padding(6, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "AI Office").FontSize(theme.InterfaceSize(15)).Bold().Grow(1).MinWidth(0).TextColor(fg)
@@ -51,6 +50,12 @@ func officeSettingsView(c *ui.Context, m Model) {
 			})
 		})
 		ui.Box(c).FillWidth().Height(0.5).Background(border)
+		if v.Error != "" {
+			ui.Box(c).FillWidth().Shrink(0).Padding(12, 12, 0, 12).Children(func() {
+				widgets.Alert(c, widgets.AlertOptions{ID: "office/" + fmt.Sprint(v.Scope), Message: v.Error,
+					Action: "重试", OnAction: func() { s.Refresh(context.Background()) }})
+			})
+		}
 		scroll := ui.Scroll(c).Grow(1).MinHeight(0).MinWidth(0).Padding(16)
 		width := scroll.Bounds().W
 		if width <= 0 {

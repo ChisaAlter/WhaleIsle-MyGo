@@ -55,12 +55,15 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.Account
-	errorSeat := ui.Box(c.Key("account-errors"))
-	seen := ui.Local(errorSeat, "last-error", func() string { return "" })
-	if a.Err != "" && a.Err != *seen {
-		c.AddToast(ui.Toast{ID: "account-read-error", Description: a.Err})
-	}
-	*seen = a.Err
+	// The page owns its failures: a failed read or a failed sign-out sits above
+	// the account card with the next step, and clears when the store reports a
+	// clean state again.
+	settingsAlert(c, "account-errors", a.Err != "" || a.SignOut.Error != "", func() string {
+		if a.Err != "" {
+			return a.Err
+		}
+		return signOutError(a.SignOut.Error)
+	})
 	if a.Status != "credential-stored" {
 		ui.Column(c).FillWidth().Gap(16).Padding(40, 0).Children(func() {
 			ui.Text(c, providerCopy("当前未登录 DeepSeek 账号", "You are not signed in to DeepSeek")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)

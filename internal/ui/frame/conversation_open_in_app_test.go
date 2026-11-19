@@ -170,9 +170,9 @@ func TestWorkspaceOpenInAppCacheBusyChoiceAndSaveFailure(t *testing.T) {
 	mounted = false
 	tt.Frame()
 	state.mu.Lock()
-	cache, view, toast := len(state.apps), state.viewPath, state.toastID
+	cache, view, reported := len(state.apps), state.viewPath, state.failure
 	state.mu.Unlock()
-	if cache != 2 || view != "" || toast != "" {
+	if cache != 2 || view != "" || reported != "" {
 		t.Fatal("unmount retained feedback or discarded catalog")
 	}
 	for range 3 {

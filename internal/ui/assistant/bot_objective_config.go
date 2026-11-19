@@ -1,13 +1,13 @@
 package assistant
 
 import (
-	"whaleisle/internal/ui/widgets"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 func botObjectiveConfigAcknowledgement() string {
@@ -38,7 +38,7 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_objective_config:41", "", s.Notice != "", func() string { return s.Notice })
+		widgets.Notice(c, "bot_objective_config:41", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}

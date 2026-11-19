@@ -123,9 +123,9 @@ func skillsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		})
-		settingsNotice(c, "skills:127", "", a.Notice != "", func() string { return a.Notice })
-		settingsNotice(c, "skills:130", "error", a.Err != "", func() string { return a.Err })
-		settingsNotice(c, "skills:133", "", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
+		settingsNotice(c, "skills:127", a.Notice != "", func() string { return a.Notice })
+		settingsAlert(c, "skills:130", a.Err != "", func() string { return a.Err })
+		settingsNotice(c, "skills:133", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 		if a.DetailPreview != "" && !a.EditWritable {
 			ui.Text(c, a.DetailPreview).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

@@ -51,7 +51,7 @@ func remotePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	root.Children(func() {
 		ui.Text(c, settingsVendorLocale("dsh-client-ui-settings-remote", "heading")).FillWidth().FontSize(theme.InterfaceSize(18)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, settingsVendorLocale("dsh-client-ui-settings-remote", "intro")).FillWidth().FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(19.5)).TextColor(muted)
-		settingsNotice(c, "remote-pane-err", "error", r.Err != "", func() string { return r.Err })
+		settingsAlert(c, "remote-pane-err", r.Err != "", func() string { return r.Err })
 
 		mode := strings.TrimSpace(r.Mode)
 		if mode == "" {

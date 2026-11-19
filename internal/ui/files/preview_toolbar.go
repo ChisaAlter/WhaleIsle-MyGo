@@ -161,7 +161,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 			}
 		}
 	})
-	paintPreviewFeedback(c, m, path, row)
+	previewFailure := paintPreviewFeedback(c, m, path, row)
 	row.Children(func() {
 		if desktop {
 			paintDesktopFileCrumbs(c, m, path, muted)
@@ -231,6 +231,9 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 	if *jump && previewSupportsLineNavigation(m, path) {
 		paintPreviewLineNavigation(c, m, jump)
 	}
+	if previewFailure != "" {
+		widgets.Alert(c, widgets.AlertOptions{ID: "file-preview/" + path, Message: previewFailure})
+	}
 }
 
 func previewSaveCaption(m Model) (string, bool) {
@@ -261,7 +264,9 @@ func feedbackEntry(editStatus string, state workspacefs.SaveSnapshot) (text, kin
 	return text, kind
 }
 
-func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element) {
+// paintPreviewFeedback keeps an acknowledgement a toast and hands a failed save
+// back to the pane, which writes it under its own toolbar.
+func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element) string {
 	last := ui.Local(owner, "preview-feedback", func() string { return "" })
 	status, kind := "", "info"
 	if m.EditStatus != nil {
@@ -274,9 +279,14 @@ func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element)
 		status = ""
 	}
 	if status != "" && status != *last {
-		c.AddToast(ui.Toast{ID: fmt.Sprintf("file-feedback-%s", path), Title: status, Type: kind, Timeout: 5 * time.Second})
+		if kind == "error" {
+			*last = status
+			return status
+		}
+		c.AddToast(ui.Toast{ID: fmt.Sprintf("file-feedback-%s", path), Title: status, Type: "success", Timeout: 5 * time.Second})
 	}
 	*last = status
+	return ""
 }
 
 func paintDesktopFileCrumbs(c *ui.Context, m Model, path string, muted ui.Color) {

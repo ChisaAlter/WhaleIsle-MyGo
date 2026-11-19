@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type workspaceApplication struct {
@@ -36,8 +37,6 @@ type WorkspaceOpenInAppState struct {
 	viewPath     string
 	viewEpoch    uint64
 	failure      string
-	toastID      string
-	retiredToast string
 }
 
 func NewWorkspaceOpenInAppState(choice string, save func(string) error) *WorkspaceOpenInAppState {
@@ -141,9 +140,6 @@ func (s *WorkspaceOpenInAppState) loadIcon(source *session.OpenInAppSource, key 
 func (s *WorkspaceOpenInAppState) retireViewLocked() {
 	s.viewEpoch++
 	s.viewPath, s.failure = "", ""
-	if s.toastID != "" {
-		s.retiredToast, s.toastID = s.toastID, ""
-	}
 }
 
 // FinishFrame only retires feedback owned by an unmounted initiating control.
@@ -157,12 +153,7 @@ func (s *WorkspaceOpenInAppState) FinishFrame(c *ui.Context) {
 		s.retireViewLocked()
 	}
 	s.rendered = false
-	toast := s.retiredToast
-	s.retiredToast = ""
 	s.mu.Unlock()
-	if toast != "" {
-		c.CloseToast(toast)
-	}
 }
 
 func (s *WorkspaceOpenInAppState) Close() {
@@ -289,15 +280,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 		}
 	}
 	busy, failure := s.busy, s.failure
-	s.failure = ""
-	if failure != "" {
-		s.toastID = fmt.Sprintf("workspace-open-in-app:%p:%d", s, s.viewEpoch)
-	}
-	toastID := s.toastID
 	s.mu.Unlock()
-	if failure != "" {
-		c.AddToast(ui.Toast{ID: toastID, Title: failure, Type: "error", Timeout: -1})
-	}
 	ink, border := chrome.Color(colors.FG), c.Theme().Border
 	root := ui.Row(c.Key("workspace-open-in-app:"+snap.SelectedCwd)).Height(27).Shrink(0).Radius(8).Clip().Border(.5, border).AlignItems(ui.Center)
 	root.Children(func() {
@@ -376,6 +359,9 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 			s.launch(snap.SelectedID, snap.SelectedCwd, id, true)
 		}
 	})
+	if failure != "" {
+		widgets.Alert(c, widgets.AlertOptions{ID: "workspace-open-in-app", Message: failure})
+	}
 }
 
 func workspaceApplicationIcon(c *ui.Context, app workspaceApplication, size float32, ink ui.Color) {

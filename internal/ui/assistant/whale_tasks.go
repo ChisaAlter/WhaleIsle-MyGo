@@ -40,7 +40,7 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 	root := ui.Column(c.Key("whale-background-tasks")).FillWidth().MinWidth(0).Gap(10)
 	lastNotice := ui.Local(root, "last-notice", func() string { return "" })
 	if s.Notice != "" && *lastNotice != s.Notice {
-		c.AddToast(ui.Toast{ID: "whale-background-task-notice", Description: s.Notice, Timeout: 4 * time.Second})
+		c.AddToast(ui.Toast{ID: "whale-background-task-notice", Description: s.Notice, Type: "success", Timeout: 4 * time.Second})
 	}
 	*lastNotice = s.Notice
 	root.Children(func() {

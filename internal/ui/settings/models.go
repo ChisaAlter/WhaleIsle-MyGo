@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/dsh/api"
 	store "whaleisle/internal/store/settings"
 	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // ModelsAccess is the dedicated Models settings page (session/modelCatalog).
@@ -64,8 +65,8 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	page.Children(func() {
 		ui.Text(c, providerCopy("模型", "Models")).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 		ui.Text(c, providerCopy("填入各提供商的 API 密钥即可使用其模型。", "Enter your API keys to use models from the following providers.")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
-		settingsNotice(c, "models:63", "error", a.Err != "", func() string { return a.Err })
-		settingsNotice(c, "models:66", "", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
+		settingsAlert(c, "models:63", a.Err != "", func() string { return a.Err })
+		settingsNotice(c, "models:66", a.LastAction != "", func() string { return settingsActionText(a.LastAction) })
 		providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 		if m.Store != nil {
 			m.Store.EnsureProviderDirectory(context.Background())
@@ -73,17 +74,30 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			_, directoryLoading, directoryError := m.Store.ConfigurableProviders()
 			rows, anyUsable, readinessKnown := modelProviderDirectory(m)
 			_, catalogLoading, catalogError := m.Store.ModelConfigurationCatalog()
-			// A failed load is a toast and a 28 DIP retry button in the page's
-			// corner, as in the reference, not a line that pushes the cards down.
-			settingsNotice(c, "models-directory", "error", directoryError != "", func() string { return directoryError })
-			settingsNotice(c, "models-catalog", "error", catalogError != "", func() string { return catalogError })
-			if (directoryError != "" || catalogError != "") && modelsRetryCorner(c, directoryLoading || catalogLoading || state.Loading || state.Saving) {
-				if directoryError != "" {
-					m.Store.RefreshProviderDirectory(context.Background())
-				}
-				if catalogError != "" {
-					m.Store.RefreshModelConfigurationCatalog(context.Background())
-				}
+			// A failed load is written into the page where its cards would be:
+			// the reason and its retry sit together, and the cards move down.
+			loadFailure := directoryError
+			if loadFailure == "" {
+				loadFailure = catalogError
+			}
+			if loadFailure != "" {
+				busy := directoryLoading || catalogLoading || state.Loading || state.Saving
+				widgets.Alert(c, widgets.AlertOptions{
+					ID:      "settings/models-load",
+					Message: loadFailure,
+					Action:  providerCopy("重试", "Retry"),
+					OnAction: func() {
+						if busy {
+							return
+						}
+						if directoryError != "" {
+							m.Store.RefreshProviderDirectory(context.Background())
+						}
+						if catalogError != "" {
+							m.Store.RefreshModelConfigurationCatalog(context.Background())
+						}
+					},
+				})
 			}
 			needsSetup := func(row modelProviderRow) bool {
 				return !anyUsable && readinessKnown && row.entry.Provider != "deepseek-account" && len(row.entry.SettingsPath) == 0 && !row.keyConfigured && !(*dismissedSetup)[row.entry.Provider]
@@ -200,22 +214,6 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			a.FooterExtras(c)
 		}
 	})
-}
-
-// modelsRetryCorner is the reference's 28 DIP refresh button in the page's top
-// right corner, offered while the provider directory or the model catalog failed
-// to load. It is out of the flow, so it moves nothing.
-func modelsRetryCorner(c *ui.Context, disabled bool) bool {
-	label := providerCopy("重试", "Retry")
-	button := ui.Button(c.Key("models-retry"), "").Label(label).Tooltip(label).Absolute().Top(0).Right(0).Size(28, 28).Shrink(0).Padding(0).Radius(14).
-		Border(.667, fonttheme.Color(modelColors(c).BorderL3)).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	button.Children(func() {
-		ui.Icon(c, bodyIcon("refresh")).Size(16, 16).TextColor(c.Theme().Text).PassThrough()
-	})
-	return button.Clicked()
 }
 
 func modelProviderTitle(namespace string) string {

@@ -82,15 +82,13 @@ func pricingEditor(c *ui.Context, m Model, fg, muted, accent ui.Color, save func
 	v := m.Store.Billing()
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Text(c, usageText("每百万 Token 单价（人民币）", "Price per million tokens (CNY)")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
-	seen := ui.Local(c.Root(), "billing-editor-feedback", func() string { return "" })
-	feedback := v.Err
-	if feedback == "" {
-		feedback = v.Notice
+	// The editor owns its own outcome: a failed save is drawn above the prices it
+	// refused, and a saved change is an acknowledgement line, not a floating bar.
+	if v.Err != "" {
+		widgets.Alert(c, widgets.AlertOptions{ID: "billing-editor-failure", Message: v.Err})
+	} else if v.Notice != "" {
+		ui.Text(c, v.Notice).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}
-	if feedback != "" && feedback != *seen {
-		c.AddToast(ui.Toast{ID: "billing-editor-feedback", Description: feedback})
-	}
-	*seen = feedback
 	if !v.Loaded {
 		label := usageText("读取价格", "Load prices")
 		if v.Busy {
@@ -123,7 +121,6 @@ func pricingEditor(c *ui.Context, m Model, fg, muted, accent ui.Color, save func
 		}
 	}
 	commit := func(close bool) {
-		*seen = ""
 		if key != "" {
 			staged := *draft
 			if staged.Flat {

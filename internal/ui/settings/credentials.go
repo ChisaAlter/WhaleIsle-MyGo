@@ -37,8 +37,8 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	d := m.Credentials
 	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	settingsNotice(c, "credentials:38", "error", d.Err != "", func() string { return d.Err })
-	settingsNotice(c, "credentials:41", "", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
+	settingsAlert(c, "credentials:38", d.Err != "", func() string { return d.Err })
+	settingsNotice(c, "credentials:41", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
 	if d.Ready != nil && !d.Ready() {
 		if d.Err == "" {
 			ui.Text(c, providerCopy("正在读取凭据…", "Loading credentials…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)

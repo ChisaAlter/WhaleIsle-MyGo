@@ -172,7 +172,6 @@ type Model struct {
 	OnRevealWorkspacePath func(id, path string)
 	ArchiveConfirm        *ArchiveConfirmState
 	DeleteConfirm         *DeleteConfirmState
-	ActionToast           *RowActionToastState
 	// OnRenameWorkspace calls workspace/rename when a workspace id is known.
 	OnRenameWorkspace func(title string)
 	// OnDeleteWorkspace calls workspace/delete when a workspace id is known.
@@ -532,6 +531,7 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 		}
+		batchResultReceipt(c, m)
 		// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
 		// SidebarRoot.footArea: footer.action then settings (always pinned), and the
 		// account seat at the very bottom.
@@ -563,8 +563,6 @@ func View(c *ui.Context, m Model) {
 	sessionArchiveConfirmDialog(c, m)
 	sessionDeleteConfirmDialog(c, m)
 	batchDialog(c, m)
-	batchResultToast(c, m)
-	rowActionToastView(c, m)
 }
 
 func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, border ui.Color) {

@@ -21,7 +21,7 @@ func permissionDefaultField(c *ui.Context, m Model, s store.ViewState, f store.F
 	ui.Text(c, providerCopy("权限", "Permission")).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
 	ui.Text(c, providerCopy("选择新会话的默认权限模式", "Choose the default permission mode for new sessions")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 	defaults := s.PermissionDefaults
-	settingsNotice(c, "permission_defaults:25", "error", defaults.Err != "", func() string { return defaults.Err })
+	settingsAlert(c, "permission_defaults:25", defaults.Err != "", func() string { return defaults.Err })
 	if permissionDefaultUnavailable(s) {
 		ui.Text(c, providerCopy("默认权限目录尚不可用。", "Default permission catalog is unavailable.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		if ui.Button(c, providerCopy("刷新目录", "Refresh catalog")).Disabled(s.Loading || s.Saving).Clicked() {
@@ -119,7 +119,8 @@ func generalPermissionPreference(c *ui.Context, a *BodySettingsAccess, fg, muted
 				}
 			}
 		})
-		settingsNotice(c, "permission_defaults:128", "error", defaults.Err != "", func() string { return defaults.Err })
+		settingsAlert(c, "permission_defaults:128", defaults.Err != "", func() string { return defaults.Err })
+		bodyPreferenceFieldAlert(c, a, "permission", "defaultPreset")
 	})
 	if bodyHostFieldDisabled(a, "permission", "defaultPreset") {
 		*confirming, *acknowledged = false, false

@@ -346,16 +346,11 @@ func bodyFontSizePreference(c *ui.Context, e *theme.Editor, fg, muted ui.Color) 
 }
 
 func themeEditorFeedback(c *ui.Context, e *theme.Editor) {
-	previous := ui.Local(c.Root(), "theme-preference-notice", func() string { return "" })
-	if *previous == e.Status {
-		return
-	}
-	*previous = e.Status
 	switch e.Status {
 	case "", "已保存 / Saved", "正在保存… / Saving…", i18n.T(i18n.KeyThemeEditorSaved), i18n.T(i18n.KeyThemeEditorSaving), i18n.T(i18n.KeyThemeEditorPreview), i18n.T(i18n.KeyThemeEditorRestored):
 		return
 	}
-	c.AddToast(ui.Toast{ID: "theme-preference-error", Title: e.Status, Type: "error"})
+	settingsAlert(c, "theme-preference-error", true, func() string { return e.Status })
 }
 
 func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, control func()) {

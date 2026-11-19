@@ -41,5 +41,5 @@ func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v
 			}
 		}
 	})
-	widgets.Notice(c, "host_selection_view:43", "", h.selectionNotice != "", func() string { return h.selectionNotice })
+	widgets.Notice(c, "host_selection_view:43", h.selectionNotice != "", func() string { return h.selectionNotice })
 }

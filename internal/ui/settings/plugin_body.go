@@ -30,8 +30,8 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	disabled := !snap.ClientReady || !snap.Writable || snap.Loading || snap.Saving
 	ui.Column(c.Key("plugin-namespace-" + namespace)).FillWidth().MinWidth(0).Gap(14).Children(func() {
-		settingsNotice(c, "plugin_body:34", "error", snap.Err != "", func() string { return snap.Err })
-		settingsNotice(c, "plugin_body:37", "", snap.LastAction != "", func() string { return settingsActionText(snap.LastAction) })
+		settingsAlert(c, "plugin_body:34", snap.Err != "", func() string { return snap.Err })
+		settingsNotice(c, "plugin_body:37", snap.LastAction != "", func() string { return settingsActionText(snap.LastAction) })
 		for _, field := range ns.Fields {
 			f := field
 			ui.Column(c.Key(f.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {

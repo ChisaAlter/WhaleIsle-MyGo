@@ -70,11 +70,9 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 }
 
 // AccountSignOutDialog is owned by the resident account surface, not Settings.
+// A failed sign-out is drawn inside the dialog while it is open and in the
+// Account page's own alert once it closes, so the failure never floats over the
+// content the person is reading.
 func AccountSignOutDialog(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
-	seen := ui.Local(c.Root(), "account-signout-error", func() string { return "" })
-	if !a.SignOut.Open && a.SignOut.Error != "" && *seen != a.SignOut.Error {
-		c.AddToast(ui.Toast{ID: "account-signout-error", Description: signOutError(a.SignOut.Error)})
-	}
-	*seen = a.SignOut.Error
 	accountSignOutPane(c, a, fg, muted)
 }

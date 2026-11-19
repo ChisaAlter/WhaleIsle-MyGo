@@ -72,7 +72,7 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_duplicate:75", "", s.Notice != "", func() string { return s.Notice })
+		widgets.Notice(c, "bot_duplicate:75", s.Notice != "", func() string { return s.Notice })
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

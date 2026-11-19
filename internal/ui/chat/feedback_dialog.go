@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 var feedbackCategories = []string{"task-result", "instruction-following", "product-interaction", "service-stability", "resource-cost", "security-privacy-permission", "other"}
@@ -78,31 +79,11 @@ func messageFeedbackDialog(c *ui.Context, m Model) {
 		c.AddToast(ui.Toast{ID: "message-feedback-recorded", Title: feedbackText("recorded"), Type: "success", Timeout: 3 * time.Second})
 		notice.acknowledgement = v.Acknowledgement
 	}
-	if v.Error == "" && notice.failure != "" {
-		c.CloseToast("message-feedback-failure")
-		notice.failure = ""
-	}
 	if v.EditorID == "" {
-		if notice.failure != "" {
-			c.CloseToast("message-feedback-failure")
-		}
-		notice.failure = ""
 		return
 	}
-	if v.Error != "" && v.Error != notice.failure {
-		text := feedbackText("error")
-		if strings.Contains(v.Error, "version-conflict") {
-			text = feedbackText("conflict")
-		}
-		if strings.Contains(v.Error, "note-too-large") {
-			text = feedbackText("noteTooLarge")
-		}
-		c.AddToast(ui.Toast{ID: "message-feedback-failure", Title: text, Type: "error", Timeout: 6 * time.Second})
-		notice.failure = v.Error
-	} else if v.Error == "" {
-		notice.failure = ""
-	}
-	feedbackDialogView(c, m.ThemeID, m.SystemDark, v.Note, v.Category, v.BusyID != "" || v.Loading,
+	failure := feedbackFailureText(v.Error)
+	feedbackDialogView(c, m.ThemeID, m.SystemDark, v.Note, v.Category, failure, v.BusyID != "" || v.Loading,
 		m.FeedbackStore.EditFeedback, func() { m.FeedbackStore.SubmitFeedback(context.Background()) }, m.FeedbackStore.CancelFeedback)
 }
 
@@ -113,17 +94,11 @@ func SessionFeedbackDialog(c *ui.Context, store *session.Store, themeID string, 
 	if !v.Open || v.SessionID != store.SelectedSessionID() {
 		return
 	}
-	seat := ui.Box(c.Key("session-feedback:"+v.SessionID)).Absolute().Size(0, 0)
-	failure := ui.Local(seat, "error", func() string { return "" })
-	if v.Error != "" && *failure != v.Error {
-		c.AddToast(ui.Toast{ID: "session-feedback-failure", Title: feedbackText("error"), Type: "error", Timeout: 6 * time.Second})
-	}
-	*failure = v.Error
-	feedbackDialogView(c.Key("session-feedback"), themeID, systemDark, v.Text, v.Category, v.Busy,
+	feedbackDialogView(c.Key("session-feedback"), themeID, systemDark, v.Text, v.Category, feedbackFailureText(v.Error), v.Busy,
 		store.EditSessionFeedback, func() { store.SubmitSessionFeedback(context.Background()) }, store.CancelSessionFeedback)
 }
 
-func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, category string, busy bool, edit func(string, string), submit, dismiss func()) {
+func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, category, failure string, busy bool, edit func(string, string), submit, dismiss func()) {
 	colors := theme.Resolve(themeID).Active(systemDark)
 	resolved := theme.Resolve(themeID)
 	dark := resolved.Scheme == theme.SchemeDark || (resolved.Scheme == theme.SchemeSystem && systemDark)
@@ -180,6 +155,11 @@ func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, ca
 						FontSize(14).FixedLineHeight(22).Radius(16).Border(.5, stroke).Background(chrome.Color(colors.Field)).TextColor(fg).ReadOnly(busy).OnChange(func() { edit(draft, category) })
 				})
 			})
+			if failure != "" {
+				ui.Row(c).FillWidth().Shrink(0).Padding(0, 24, 12, 24).Children(func() {
+					widgets.Alert(c, widgets.AlertOptions{ID: "feedback-failure", Message: failure})
+				})
+			}
 			ui.Row(c).FillWidth().Shrink(0).Padding(0, 24).Children(func() {
 				label := feedbackText("submit")
 				if busy {
@@ -197,16 +177,22 @@ func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, ca
 }
 
 func feedbackStatusErrorText(v session.FeedbackView) string {
-	if v.Error == "" {
-		return ""
-	}
-	if !v.Ready {
+	if !v.Ready && v.Error != "" {
 		return feedbackText("load")
 	}
-	if strings.Contains(v.Error, "version-conflict") {
+	return feedbackFailureText(v.Error)
+}
+
+// feedbackFailureText is the sentence a refused feedback write shows in its own
+// dialog, where the submit button sits.
+func feedbackFailureText(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	if strings.Contains(raw, "version-conflict") {
 		return feedbackText("conflict")
 	}
-	if strings.Contains(v.Error, "note-too-large") {
+	if strings.Contains(raw, "note-too-large") {
 		return feedbackText("noteTooLarge")
 	}
 	return feedbackText("error")

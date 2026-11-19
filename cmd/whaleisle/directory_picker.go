@@ -256,7 +256,6 @@ func (s *mainState) scanDirectoryPicker(sessions *session.Store, win *mygo.Windo
 		s.dirPickLoading = true
 		if kind != "preview" {
 			s.dirPickErr = ""
-			b.FailureToast = ""
 			s.dirPickPath = path
 		}
 		if kind == "navigate" {
@@ -465,7 +464,6 @@ func (s *mainState) createDirectoryPicker(sessions *session.Store, win *mygo.Win
 	op.commit(func(b *dirpick.BrowserState) {
 		b.Creating = true
 		b.CreateError = ""
-		b.CreateToast = ""
 		b.FolderDraft = &name
 	})
 	go func() {
@@ -717,7 +715,7 @@ func (s *mainState) nativeDirectoryPicker(sessions *session.Store, win *mygo.Win
 	if !directorypicker.SelectablePath(initial) {
 		initial = ""
 	}
-	if !op.commit(func(b *dirpick.BrowserState) { b.NativeBusy = true; b.FailureToast = ""; s.dirPickErr = "" }) {
+	if !op.commit(func(b *dirpick.BrowserState) { b.NativeBusy = true; s.dirPickErr = "" }) {
 		op.finish()
 		return
 	}

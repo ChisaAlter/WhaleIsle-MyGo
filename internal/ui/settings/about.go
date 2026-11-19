@@ -184,7 +184,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		// desktop version. Only local diagnostics belong in the disclosure.
 		ui.Text(c, i18n.T(KeyPass4AboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
 		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
-		settingsNotice(c, "about:118", "error", a.Err != "", func() string { return a.Err })
+		settingsAlert(c, "about:118", a.Err != "", func() string { return a.Err })
 		links := aboutLinks()
 		ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
@@ -218,8 +218,8 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			})
 			link(links[1])
 		})
-		settingsNotice(c, "about:154", "error", *linkError != "", func() string { return *linkError })
-		settingsNotice(c, "about:157", "", a.Status != "", func() string { return a.Status })
+		settingsAlert(c, "about:154", *linkError != "", func() string { return *linkError })
+		settingsNotice(c, "about:157", a.Status != "", func() string { return a.Status })
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
 			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			for _, row := range []struct{ id, label, value string }{{"about-detail-id", i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {"about-detail-user-data", i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {"about-detail-vendor", i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {

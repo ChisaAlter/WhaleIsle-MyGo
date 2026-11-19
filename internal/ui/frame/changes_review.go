@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 	"whaleisle/internal/ui/widgets/diff"
 )
 
@@ -164,6 +165,7 @@ func changesReviewPane(c *ui.Context, m Model) {
 		r.Target.Index = 0
 	}
 	target := r.Target
+	nativeMenuError := ""
 	ui.Row(c).Height(36).Shrink(0).MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
 		file := files[r.Target.Index]
 		selector := ui.Button(c, "").Grow(1).MinWidth(0).Height(28).Padding(0, 4).Gap(6).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Label(paneLabel("选择要查看的文件", "Choose file")).Tooltip(fmt.Sprintf("%s\n%s · %s · event %d\n%s", file.Display, r.Host, r.SessionID, r.Target.Seq, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")))
@@ -220,14 +222,24 @@ func changesReviewPane(c *ui.Context, m Model) {
 				m.OnOpenDeliverable(path)
 			}
 		}
-		changesReviewNativeMenu(c, r.Target, snapshot.TurnFiles, host.Host != nil && host.Host.Available, ensure, run)
+		nativeMenuError = changesReviewNativeMenu(c, r.Target, snapshot.TurnFiles, host.Host != nil && host.Host.Available, ensure, run)
 	})
 	target = r.Target
 	if host.Error != "" {
-		ui.Text(c, host.Error)
-		if ui.Button(c, paneLabel("重试 Host 信息", "Retry Host info")).Clicked() {
-			run(base, "host")
-		}
+		widgets.Alert(c, widgets.AlertOptions{
+			ID:       "changes-review-host",
+			Message:  paneLabel("没能读取 Host 的文件信息，可以再试一次。", "Host file information could not be read. Try again."),
+			Detail:   host.Error,
+			Action:   paneLabel("重试 Host 信息", "Retry Host info"),
+			OnAction: func() { run(base, "host") },
+		})
+	}
+	if nativeMenuError != "" {
+		widgets.Alert(c, widgets.AlertOptions{
+			ID:      "changes-review-native",
+			Message: paneLabel("Host 文件操作没有完成，请再试一次。", "The Host file action did not finish. Try it again."),
+			Detail:  nativeMenuError,
+		})
 	}
 	result := ensure(target, "diff")
 	if !status(result, target, "diff") || result.Diff == nil {

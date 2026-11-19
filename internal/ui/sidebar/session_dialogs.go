@@ -43,16 +43,6 @@ type DeleteConfirmState struct {
 	OnCancel  func()
 }
 
-// RowActionToastState describes a row-level feedback toast (e.g. reveal failed, archived with undo/filter, fork migration).
-type RowActionToastState struct {
-	Kind         string // "reveal-failed", "archived", "stopped-archived", "fork-requires-open", "session-id-copied", "session-id-copy-failed", "pin-failed", "unpin-failed", "create-failed", "archived-not-openable"
-	Message      string
-	OnUndo       func()
-	OnViewAll    func()
-	OnOpenSource func()
-	OnDismiss    func()
-}
-
 // FormatSessionDeleteError maps a Host session deletion error code to its localized message.
 func FormatSessionDeleteError(codeOrErr string) string {
 	return workspacepicker.FormatSessionDeleteError(codeOrErr)
@@ -203,73 +193,4 @@ func sessionDeleteConfirmDialog(c *ui.Context, m Model) {
 	if !open && !s.Busy && s.OnCancel != nil {
 		s.OnCancel()
 	}
-}
-
-func rowActionToastView(c *ui.Context, m Model) {
-	if m.ActionToast == nil || m.ActionToast.Kind == "" {
-		return
-	}
-	t := *m.ActionToast
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, border := chrome.Color(colors.FG), chrome.Color(colors.Border)
-	ui.Overlay(c.Key("sidebar-action-toast:"+t.Kind), func() {
-		card := ui.Row(c.Key("sidebar-action-toast-card")).Absolute().Bottom(60).Left(16).Padding(10, 14).Gap(8).Radius(12).AlignItems(ui.Center).Background(chrome.Color(colors.Field)).Border(0.5, border)
-		card.Children(func() {
-			switch t.Kind {
-			case "reveal-failed":
-				ui.Text(c, i18n.T(i18n.KeyWSWorkspaceRevealFailed)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			case "archived", "stopped-archived":
-				prefixKey := i18n.KeyWSToastArchived
-				if t.Kind == "stopped-archived" {
-					prefixKey = i18n.KeyWSToastStoppedAndArchived
-				}
-				ui.Text(c, i18n.T(prefixKey)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-				if t.OnUndo != nil {
-					undoBtn := ui.Button(c, i18n.T(i18n.KeyWSToastArchivedUndo)).Height(24).Padding(0, 8).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer)
-					if undoBtn.Clicked() {
-						t.OnUndo()
-					}
-				}
-				if t.OnUndo != nil && t.OnViewAll != nil {
-					ui.Text(c, i18n.T(i18n.KeyWSToastArchivedOr)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-				}
-				if t.OnViewAll != nil {
-					filterBtn := ui.Button(c, i18n.T(i18n.KeyWSToastArchivedFilter)).Height(24).Padding(0, 8).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer)
-					if filterBtn.Clicked() {
-						t.OnViewAll()
-					}
-				}
-			case "fork-requires-open":
-				ui.Text(c, i18n.T(i18n.KeyWSToastForkRequiresOpen)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-				if t.OnOpenSource != nil {
-					openBtn := ui.Button(c, i18n.T(i18n.KeyWSToastOpenForkSource)).Height(24).Padding(0, 8).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer)
-					if openBtn.Clicked() {
-						t.OnOpenSource()
-					}
-				}
-			case "session-id-copied":
-				ui.Text(c, i18n.T(i18n.KeyWSToastSessionIdCopied)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			case "session-id-copy-failed":
-				ui.Text(c, i18n.T(i18n.KeyWSToastSessionIdCopyFailed)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			case "pin-failed":
-				ui.Text(c, i18n.T(i18n.KeyWSToastPinFailed)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			case "unpin-failed":
-				ui.Text(c, i18n.T(i18n.KeyWSToastUnpinFailed)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			case "create-failed":
-				ui.Text(c, i18n.WSf(i18n.KeyWSToastCreateFailed, "message", t.Message)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			case "archived-not-openable":
-				ui.Text(c, i18n.T(i18n.KeyWSToastArchivedNotOpenable)).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-			default:
-				if t.Message != "" {
-					ui.Text(c, t.Message).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-				}
-			}
-			if t.OnDismiss != nil {
-				dismissBtn := ui.Button(c, "×").Height(24).Padding(0, 6).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer)
-				if dismissBtn.Clicked() {
-					t.OnDismiss()
-				}
-			}
-		})
-	})
 }

@@ -18,11 +18,13 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/recovery"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/files"
 	"whaleisle/internal/ui/frame"
+	"whaleisle/internal/ui/i18n"
 )
 
 type checkpointTestClock struct {
@@ -505,5 +507,50 @@ func TestRestoreResumeSelectionOverridesRefreshListAutoDefault(t *testing.T) {
 	s.restoreResumeSelection()
 	if got := store.Snapshot().SelectedID; got != "auto-first" {
 		t.Fatalf("restoreResumeSelection overwrote explicit user selection: sel=%q", got)
+	}
+}
+
+// The startup page covers the shell, so a capture there writes only what the
+// resume file already holds. A failure would land as a bar over the page that is
+// already saying why startup stopped, which is the case a person reported.
+func TestResumeCheckpointStaysQuietWhileTheStartupPageIsUp(t *testing.T) {
+	s, q, _, _ := checkpointFixture(t)
+	s.mu.Lock()
+	s.coldLoading = true
+	blocked := s.resumeCheckpointForOwnerLocked()
+	s.coldLoading = false
+	live := s.resumeCheckpointForOwnerLocked()
+	s.mu.Unlock()
+	if blocked != nil {
+		t.Fatal("the startup page started a resume capture")
+	}
+	if live != q {
+		t.Fatal("the workbench did not resume capturing once startup finished")
+	}
+}
+
+// A capture that fails after the workbench is up is written in the conversation's
+// status line, and its raw text goes to the exported log. Nothing floating is
+// created for it.
+func TestResumeCheckpointFailureIsWrittenInTheStatusLine(t *testing.T) {
+	locale := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(locale) })
+	s, _, _, _ := checkpointFixture(t)
+	s.sessions = session.New()
+	raw := errors.New("open C:/data/session.json: The system cannot find the file specified.")
+	s.reportResumeCheckpointFailure(raw)
+	sentence := errcopy.Under(i18n.T(i18n.KeyCmdResumeStateWasNotSaved), raw)
+	if got := s.sessions.Snapshot().LastAction; got != sentence {
+		t.Fatalf("status line %q, want %q", got, sentence)
+	}
+	if !strings.Contains(sentence, i18n.T(i18n.KeyCmdResumeStateWasNotSaved)) {
+		t.Fatalf("the status line does not say what was not saved: %q", sentence)
+	}
+	s.mu.Lock()
+	logs := strings.Join(s.bootLogs, "\n")
+	s.mu.Unlock()
+	if !strings.Contains(logs, raw.Error()) {
+		t.Fatalf("the exported log lost the raw failure: %q", logs)
 	}
 }

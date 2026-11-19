@@ -2,12 +2,14 @@ package widgets
 
 import "github.com/egoist/mygo/ui"
 
-// Notice reports the outcome of an action (a saved/copied acknowledgement, a failure) as a
-// toast. A line that is inserted into the layout when the outcome arrives, and pulled out
-// again when it clears, moves everything below it; the layout stays put and the toast
-// carries the news. text is only evaluated while show holds, so it may dereference what
-// show guards. tone is "error", "success" or "".
-func Notice(c *ui.Context, id, tone string, show bool, text func() string) {
+// Notice reports the outcome of an action that succeeded — a saved or copied
+// acknowledgement — as a toast, so a line inserted into the layout and pulled
+// out again does not move everything below it. text is only evaluated while show
+// holds, so it may dereference what show guards.
+//
+// Failures do not come through here: an error is never a toast, so a failed
+// action draws widgets.Alert where it happened.
+func Notice(c *ui.Context, id string, show bool, text func() string) {
 	anchor := ui.Box(c.Key("notice/"+id)).Absolute().Size(0, 0).PassThrough()
 	shown := ui.Local(anchor, "text", func() string { return "" })
 	toast := "notice-" + id
@@ -27,7 +29,7 @@ func Notice(c *ui.Context, id, tone string, show bool, text func() string) {
 		return
 	}
 	if *shown != message {
-		c.AddToast(ui.Toast{ID: toast, Title: message, Type: tone})
+		c.AddToast(ui.Toast{ID: toast, Title: message, Type: "success"})
 		*shown = message
 	}
 }
