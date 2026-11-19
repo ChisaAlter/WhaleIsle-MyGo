@@ -228,6 +228,16 @@ func (t *Tester) SetPreferences(p Preferences) {
 // Frame renders another frame, as when the view's state changed.
 func (t *Tester) Frame() { t.h.requested.Store(true); t.settle() }
 
+// UseFixedTextMetrics makes this tester lay text out with the engine that needs
+// no fonts, so a measured composition reads the same on every machine instead of
+// following the faces the host resolves. It pins the process's text system, which
+// a Tester shares with the rest of its package's tests, so call it from the test
+// that measures and do not expect other tests in the package to see fonts after.
+func (t *Tester) UseFixedTextMetrics() {
+	t.rt.text.UseFixedMetrics()
+	t.settle()
+}
+
 // SetTime renders a frame at a fixed time, without waiting for a wall clock.
 // Subsequent frames keep this time until SetTime is called again. This changes
 // only this in-memory tester; native windows retain their display frame clock.
