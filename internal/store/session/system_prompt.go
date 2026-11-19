@@ -138,6 +138,28 @@ type positionedPrompt struct {
 // Historical cards are immutable; positional replacements only alter the prompt
 // supplied to later request headers, using inherited surface order rather than
 // the replacement event's chronological sequence.
+type promptEventCacheEntry struct {
+	raw   json.RawMessage
+	event systemPromptEvent
+	ok    bool
+}
+
+// promptEventLocked decodes one boundary once per revision. The pane read and
+// the system-prompt rows read the same boundaries, and decoding them twice
+// costs the frame a session opens with a second pass over every event.
+func (s *Store) promptEventLocked(seq float64, raw json.RawMessage) (systemPromptEvent, bool) {
+	if s.promptEventCache == nil {
+		s.promptEventCache = map[float64]promptEventCacheEntry{}
+	}
+	if entry, cached := s.promptEventCache[seq]; cached && bytes.Equal(entry.raw, raw) {
+		return entry.event, entry.ok
+	}
+	var event systemPromptEvent
+	ok := unmarshalSystemPromptEvent(raw, &event) == nil
+	s.promptEventCache[seq] = promptEventCacheEntry{raw: raw, event: event, ok: ok}
+	return event, ok
+}
+
 func (s *Store) projectSystemPromptsLocked(messages []Message) []Message {
 	rows := s.systemPromptRowsCache
 	if rows == nil || !s.boundariesVerifiedLocked() {

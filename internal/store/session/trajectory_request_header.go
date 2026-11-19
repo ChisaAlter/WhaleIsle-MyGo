@@ -1,7 +1,6 @@
 package session
 
 import (
-	"encoding/json"
 	"sort"
 	"strings"
 	"whaleisle/internal/dsh/events"
@@ -37,15 +36,17 @@ func sanitizeRequestInspectionHeader(h *RequestInspectionHeader) *RequestInspect
 }
 func (s *Store) trajectoryRequestHeadersLocked() []TrajectoryRequestHeader {
 	result := []TrajectoryRequestHeader{}
-	for _, raw := range s.trajectoryBoundaries {
+	for seq, raw := range s.trajectoryBoundaries {
 		if typ, ok := peekEventType(raw); ok && typ != "request/header" {
 			continue
 		}
-		var ev systemPromptEvent
-		if json.Unmarshal(raw, &ev) != nil || ev.Type != "request/header" || ev.Data.Header == nil {
+		ev, ok := s.promptEventLocked(seq, raw)
+		if !ok || ev.Type != "request/header" || ev.Data.Header == nil {
 			continue
 		}
-		result = append(result, TrajectoryRequestHeader{Seq: ev.Seq, Reason: ev.Data.Reason, Header: *ev.Data.Header})
+		// The decode is shared with the system-prompt rows, so the header handed
+		// out is a copy: a caller that edits a schema must not edit the cache.
+		result = append(result, cloneTrajectoryRequestHeader(TrajectoryRequestHeader{Seq: ev.Seq, Reason: ev.Data.Reason, Header: *ev.Data.Header}, true))
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Seq < result[j].Seq })
 	return result

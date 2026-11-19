@@ -469,6 +469,7 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 		s.trajectoryBoundaries = nil
 		s.systemPromptAnchors = nil
 		s.systemPromptRowsCache = nil
+		s.promptEventCache = nil
 		s.retryRowsCache = nil
 		s.durableTimedCache = nil
 		s.resetAssistantStreamLocked()
