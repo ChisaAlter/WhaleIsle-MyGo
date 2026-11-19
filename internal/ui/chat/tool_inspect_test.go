@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"testing"
+	"time"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -31,7 +32,7 @@ func TestToolInspectActionDispatchesRealCallID(t *testing.T) {
 	if err := tt.Click(toolRowTitle("same name")); err != nil {
 		t.Fatal(err)
 	}
-	tt.Frame()
+	tt.SetTime(time.Now().Add(time.Second))
 	tt.Click(i18n.T(i18n.KeyChatToolInspect))
 	if opened != "sub-opaque" {
 		t.Fatalf("inspect target %q", opened)
