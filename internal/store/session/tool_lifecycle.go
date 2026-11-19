@@ -268,20 +268,66 @@ func readToolLifecyclePart(msg Message) (toolLifecyclePart, bool) {
 	return part, true
 }
 
+// coordinateMemo keeps the turn and step every message the projection decoded
+// already read, so the chat asks once instead of parsing the same raw again for
+// a coordinate pair the store had in hand.
+var coordinateMemo = struct {
+	mu       sync.Mutex
+	m        map[toolLifecycleMemoKey]coordinateMemoEntry
+	rawBytes int
+}{
+	m: make(map[toolLifecycleMemoKey]coordinateMemoEntry),
+}
+
+type coordinateMemoEntry struct {
+	raw          string
+	turn, step   float64
+	known, valid bool
+}
+
+// RememberCoordinates files the coordinates of one decoded event. The
+// projection calls it for every message it parses; the entry is keyed by the
+// bytes it describes, so a rewritten message is decoded again.
+func RememberCoordinates(seq float64, raw json.RawMessage, turn, step float64, known bool) {
+	if len(raw) == 0 || math.IsNaN(seq) || len(raw) > toolLifecycleMemoByteLimit {
+		return
+	}
+	key := toolLifecycleMemoKey{seq: seq, rawLen: len(raw)}
+	entry := coordinateMemoEntry{raw: string(raw), turn: turn, step: step, known: known, valid: true}
+	coordinateMemo.mu.Lock()
+	previous, replacing := coordinateMemo.m[key]
+	retained := coordinateMemo.rawBytes - len(previous.raw)
+	if (!replacing && len(coordinateMemo.m) >= toolLifecycleMemoLimit) || retained+len(entry.raw) > toolLifecycleMemoByteLimit {
+		coordinateMemo.m = make(map[toolLifecycleMemoKey]coordinateMemoEntry)
+		retained = 0
+	}
+	coordinateMemo.m[key] = entry
+	coordinateMemo.rawBytes = retained + len(entry.raw)
+	coordinateMemo.mu.Unlock()
+}
+
 // LookupCachedCoordinates returns turn/step coordinates when raw is already
-// memoized by the tool lifecycle cache, avoiding a second JSON unmarshal in chat.
+// memoized by the projection or the tool lifecycle cache, avoiding a second
+// JSON unmarshal in chat.
 func LookupCachedCoordinates(seq float64, raw json.RawMessage) (turn, step float64, known, cached bool) {
 	if len(raw) == 0 || math.IsNaN(seq) || len(raw) > toolLifecycleMemoByteLimit {
 		return 0, 0, false, false
 	}
 	key := toolLifecycleMemoKey{seq: seq, rawLen: len(raw)}
+	coordinateMemo.mu.Lock()
+	entry, exists := coordinateMemo.m[key]
+	if exists && bytes.Equal([]byte(entry.raw), raw) {
+		coordinateMemo.mu.Unlock()
+		return entry.turn, entry.step, entry.known, entry.valid
+	}
+	coordinateMemo.mu.Unlock()
 	toolLifecycleMemo.mu.Lock()
-	entry, exists := toolLifecycleMemo.m[key]
-	if !exists || !bytes.Equal([]byte(entry.raw), raw) {
+	lifecycle, exists := toolLifecycleMemo.m[key]
+	if !exists || !bytes.Equal([]byte(lifecycle.raw), raw) {
 		toolLifecycleMemo.mu.Unlock()
 		return 0, 0, false, false
 	}
-	part := entry.part
+	part := lifecycle.part
 	toolLifecycleMemo.mu.Unlock()
 	if !part.jsonValid {
 		return 0, 0, false, true
