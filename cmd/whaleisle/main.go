@@ -1945,6 +1945,9 @@ func main() {
 		}()
 	}
 	mygo.App.SetName(product.Name)
+	// A theme switch reaches the window over the interface's transition
+	// duration instead of in one frame.
+	theme.EnablePaletteReveal()
 	if err := preparePortableDesktop(); err != nil {
 		log.Println("portable desktop:", err)
 		return
@@ -3125,6 +3128,7 @@ func (s *mainState) applyImportCatalog(win *mygo.Window, sourceHome string) {
 }
 
 func mainView(c *ui.Context) {
+	theme.RevealFrame(c)
 	state.syncMainRouteResources()
 	defer state.beginProjectPresentationFrame()()
 	// Recorded first so the deferred call runs after every layer, and the

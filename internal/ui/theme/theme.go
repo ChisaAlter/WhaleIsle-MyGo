@@ -265,14 +265,14 @@ func (t Theme) BackgroundColor() string {
 func (t Theme) Active(systemDark bool) Colors {
 	switch t.Scheme {
 	case SchemeDark:
-		return t.Dark
+		return shownPalette(t.Dark)
 	case SchemeLight:
-		return t.Light
+		return shownPalette(t.Light)
 	default:
 		if systemDark {
-			return t.Dark
+			return shownPalette(t.Dark)
 		}
-		return t.Light
+		return shownPalette(t.Light)
 	}
 }
 
