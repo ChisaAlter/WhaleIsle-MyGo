@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "note": "The harness fork MyGo builds from. Each upstream tag is imported as one commit on refs/harness/upstream/<ref>; 本体's vendored tree is one commit on refs/harness/carry; each bump is one merge whose human resolution lives in resolution/<ref>.patch. scripts/harness-fork/fork.mjs replays this record into a git worktree, and scripts/harness-fork/stage.mjs builds and stages a runtime from it. Every tree hash below is checked during the replay, so a tag whose tarball no longer matches, or a resolution that no longer applies, fails before a build starts. Update this file only together with the resolution patch that produced the new tree.",
+  "upstream": {
+    "repo": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "tags": [
+      {
+        "ref": "dsh-v0.2.2-rc.2",
+        "sha": "ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c",
+        "tree": "3c4b8825db42206bec763295ce901af11d29ba61"
+      },
+      {
+        "ref": "dsh-v0.2.2-rc.5",
+        "sha": "9c2670d3bce5275e0d1610272958121af87787bb",
+        "tree": "6ec0fcdcaf38bdf8ffa6675e30b036dc104a1ece"
+      }
+    ]
+  },
+  "carry": {
+    "repo": "https://github.com/ChisaAlter/WhaleIsle",
+    "commit": "3d11e1acaa21813946e0c8cd253fd0098834ed08",
+    "path": "vendor/deepseek-harness",
+    "base": "dsh-v0.2.2-rc.2",
+    "packages": [
+      "client/ui-agents-panel",
+      "client/ui-codex-sidebar",
+      "client/ui-diff",
+      "client/ui-files",
+      "client/ui-git",
+      "client/ui-message-edit",
+      "client/ui-preview",
+      "client/ui-settings-market",
+      "client/ui-settings-mcp",
+      "client/ui-settings-remote",
+      "client/ui-settings-skills",
+      "client/ui-surfaces",
+      "client/ui-titlebar",
+      "client/ui-user-terminal",
+      "client/ui-visual-replies",
+      "experimental/agent-team",
+      "experimental/agent-team-profile",
+      "experimental/client-ui-agent-team",
+      "experimental/tool-agent-team",
+      "host/mcp-servers",
+      "host/skill-inventory",
+      "llm/llm-vision-fallback",
+      "mcp/mcp-servers-file"
+    ],
+    "why": "本体 vendors 23 package directories the upstream tag never had, plus file-level patches inside upstream packages and its own composed packages/bundle/base/cordis.patch.yml. runtime-fork-audit.mjs counts the package half against the base tag; this list is the record a bump is checked against, so a merge that silently drops one fails the stage instead of shipping a Host missing the row it mounts.",
+    "tree": "2a8c68cb7bf1ade30060f2e398731aacf7db2597"
+  },
+  "bumps": [
+    {
+      "ref": "dsh-v0.2.2-rc.5",
+      "resolution": "resolution/dsh-v0.2.2-rc.5.patch",
+      "why": "Keep 本体's client UI (slot catalog and its occupants) over upstream's rewritten slot API; take upstream's version bump, generated module graph and additive dependency rows; regenerate pnpm-lock.yaml; two adapter seams the build found (EmptyWorkspaceOwnerProps.onPickNoDirectory relaxed to optional, WorkspacePickerInput re-exported) so upstream's new deepseek-chat-import package compiles against 本体's contract.",
+      "tree": "fff2c21f826a44b6ed307df19ba66669ad7f544f"
+    }
+  ]
+}

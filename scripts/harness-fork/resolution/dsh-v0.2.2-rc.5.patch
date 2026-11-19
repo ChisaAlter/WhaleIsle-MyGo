@@ -1,0 +1,1550 @@
+diff --git a/apps/cli/package.json b/apps/cli/package.json
+index 75e609c3..0be40256 100644
+--- a/apps/cli/package.json
++++ b/apps/cli/package.json
+@@ -118,7 +118,8 @@
+     "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
+     "@deepseek-ai/dsh-personalized-recommendations": "workspace:*",
+     "@deepseek-ai/dsh-experimental-forge-bundle": "workspace:*",
+-    "@deepseek-ai/dsh-experimental-agent-team-profile": "workspace:*"
++    "@deepseek-ai/dsh-experimental-agent-team-profile": "workspace:*",
++    "@deepseek-ai/dsh-deepseek-chat-import": "workspace:*"
+   },
+   "devDependencies": {
+     "@deepseek-ai/dsh-skill-badge": "workspace:*",
+diff --git a/docs/module-graph.md b/docs/module-graph.md
+index 331f3404..e33203e8 100644
+--- a/docs/module-graph.md
++++ b/docs/module-graph.md
+@@ -40,7 +40,6 @@ flowchart TD
+     pkg_llm_deepseek_api_key["llm-deepseek-api-key"]
+     pkg_llm_pi_ai["llm-pi-ai"]
+     pkg_llm_retry["llm-retry"]
+-    pkg_llm_vision_fallback["llm-vision-fallback"]
+     pkg_plugin_package_inventory_deepseek["plugin-package-inventory-deepseek"]
+     pkg_token_meter["token-meter"]
+   end
+@@ -163,7 +162,6 @@ flowchart TD
+     pkg_client_ui_account_notifications["client-ui-account-notifications"]
+     pkg_client_ui_agent_preset["client-ui-agent-preset"]
+     pkg_client_ui_agent_team["client-ui-agent-team"]
+-    pkg_client_ui_agents_panel["client-ui-agents-panel"]
+     pkg_client_ui_approval["client-ui-approval"]
+     pkg_client_ui_attachment["client-ui-attachment"]
+     pkg_client_ui_brand_official["client-ui-brand-official"]
+@@ -172,20 +170,16 @@ flowchart TD
+     pkg_client_ui_context_menu["client-ui-context-menu"]
+     pkg_client_ui_conversation["client-ui-conversation"]
+     pkg_client_ui_deliverables["client-ui-deliverables"]
+-    pkg_client_ui_diff["client-ui-diff"]
+     pkg_client_ui_directory_picker_browse["client-ui-directory-picker-browse"]
+     pkg_client_ui_directory_picker_native["client-ui-directory-picker-native"]
+     pkg_client_ui_dockkit["client-ui-dockkit"]
+     pkg_client_ui_entry_customization["client-ui-entry-customization"]
+     pkg_client_ui_file_actions["client-ui-file-actions"]
+     pkg_client_ui_file_drag["client-ui-file-drag"]
+-    pkg_client_ui_files["client-ui-files"]
+-    pkg_client_ui_git["client-ui-git"]
+     pkg_client_ui_goal["client-ui-goal"]
+     pkg_client_ui_input_trigger["client-ui-input-trigger"]
+     pkg_client_ui_jobs["client-ui-jobs"]
+     pkg_client_ui_layout["client-ui-layout"]
+-    pkg_client_ui_message_edit["client-ui-message-edit"]
+     pkg_client_ui_message_feedback["client-ui-message-feedback"]
+     pkg_client_ui_model_selection["client-ui-model-selection"]
+     pkg_client_ui_open_in_app["client-ui-open-in-app"]
+@@ -193,7 +187,6 @@ flowchart TD
+     pkg_client_ui_plan["client-ui-plan"]
+     pkg_client_ui_plugin_manager["client-ui-plugin-manager"]
+     pkg_client_ui_plugin_market["client-ui-plugin-market"]
+-    pkg_client_ui_preview["client-ui-preview"]
+     pkg_client_ui_primitives["client-ui-primitives"]
+     pkg_client_ui_reference["client-ui-reference"]
+     pkg_client_ui_renderer["client-ui-renderer"]
+@@ -204,15 +197,11 @@ flowchart TD
+     pkg_client_ui_settings_account["client-ui-settings-account"]
+     pkg_client_ui_settings_agent_loop["client-ui-settings-agent-loop"]
+     pkg_client_ui_settings_general["client-ui-settings-general"]
+-    pkg_client_ui_settings_market["client-ui-settings-market"]
+-    pkg_client_ui_settings_mcp["client-ui-settings-mcp"]
+     pkg_client_ui_settings_models["client-ui-settings-models"]
+     pkg_client_ui_settings_plugin_inventory["client-ui-settings-plugin-inventory"]
+     pkg_client_ui_settings_plugins["client-ui-settings-plugins"]
+-    pkg_client_ui_settings_remote["client-ui-settings-remote"]
+     pkg_client_ui_settings_session_log["client-ui-settings-session-log"]
+     pkg_client_ui_settings_shell["client-ui-settings-shell"]
+-    pkg_client_ui_settings_skills["client-ui-settings-skills"]
+     pkg_client_ui_settings_subagent["client-ui-settings-subagent"]
+     pkg_client_ui_settings_web_search["client-ui-settings-web-search"]
+     pkg_client_ui_shortcuts["client-ui-shortcuts"]
+@@ -225,14 +214,10 @@ flowchart TD
+     pkg_client_ui_skill["client-ui-skill"]
+     pkg_client_ui_slots["client-ui-slots"]
+     pkg_client_ui_subagent["client-ui-subagent"]
+-    pkg_client_ui_surfaces["client-ui-surfaces"]
+     pkg_client_ui_theme["client-ui-theme"]
+-    pkg_client_ui_titlebar["client-ui-titlebar"]
+     pkg_client_ui_tool["client-ui-tool"]
+     pkg_client_ui_trajectory["client-ui-trajectory"]
+     pkg_client_ui_user_questions["client-ui-user-questions"]
+-    pkg_client_ui_user_terminal["client-ui-user-terminal"]
+-    pkg_client_ui_visual_replies["client-ui-visual-replies"]
+     pkg_client_ui_workflow_run["client-ui-workflow-run"]
+     pkg_client_ui_workspace["client-ui-workspace"]
+     pkg_client_web["client-web"]
+@@ -279,8 +264,7 @@ flowchart TD
+     pkg_creation_recommendations["creation-recommendations"]
+     pkg_cua["cua"]
+     pkg_cua_bundle["cua-bundle"]
+-    pkg_experimental_agent_team["experimental-agent-team"]
+-    pkg_experimental_agent_team_profile["experimental-agent-team-profile"]
++    pkg_deepseek_chat_import["deepseek-chat-import"]
+     pkg_experimental_api_speech_to_text["experimental-api-speech-to-text"]
+     pkg_experimental_auto_review["experimental-auto-review"]
+     pkg_experimental_badge_skill_bundle["experimental-badge-skill-bundle"]
+@@ -289,7 +273,6 @@ flowchart TD
+     pkg_experimental_browser_use_runtime["experimental-browser-use-runtime"]
+     pkg_experimental_browser_use_stagehand_native["experimental-browser-use-stagehand-native"]
+     pkg_experimental_claude_code_mods["experimental-claude-code-mods"]
+-    pkg_experimental_client_ui_agent_team["experimental-client-ui-agent-team"]
+     pkg_experimental_client_ui_claude_code_mods["experimental-client-ui-claude-code-mods"]
+     pkg_experimental_client_ui_cot_translation["experimental-client-ui-cot-translation"]
+     pkg_experimental_client_ui_forge["experimental-client-ui-forge"]
+@@ -317,7 +300,6 @@ flowchart TD
+     pkg_experimental_speech_to_text_sensevoice["experimental-speech-to-text-sensevoice"]
+     pkg_experimental_subagent_oar["experimental-subagent-oar"]
+     pkg_experimental_terminal_bundle["experimental-terminal-bundle"]
+-    pkg_experimental_tool_agent_team["experimental-tool-agent-team"]
+     pkg_experimental_tool_subagent_oar["experimental-tool-subagent-oar"]
+     pkg_experimental_tool_worktree["experimental-tool-worktree"]
+     pkg_experimental_translator["experimental-translator"]
+@@ -359,11 +341,9 @@ flowchart TD
+     pkg_host_directory_picker_browse["host-directory-picker-browse"]
+     pkg_host_directory_picker_native["host-directory-picker-native"]
+     pkg_host_frontend_static["host-frontend-static"]
+-    pkg_host_mcp_servers["host-mcp-servers"]
+     pkg_host_open_in_app["host-open-in-app"]
+     pkg_host_plugin_inventory["host-plugin-inventory"]
+     pkg_host_product_telemetry_otel["host-product-telemetry-otel"]
+-    pkg_host_skill_inventory["host-skill-inventory"]
+     pkg_host_webserver["host-webserver"]
+   end
+   subgraph group_identity["packages/identity"]
+@@ -390,7 +370,6 @@ flowchart TD
+     pkg_mcp_client["mcp-client"]
+     pkg_mcp_manager["mcp-manager"]
+     pkg_mcp_resources["mcp-resources"]
+-    pkg_mcp_servers_file["mcp-servers-file"]
+   end
+   subgraph group_preset["packages/preset"]
+     pkg_agent_preset["agent-preset"]
+@@ -517,7 +496,6 @@ flowchart TD
+   pkg_app_boot --> pkg_launch_environment
+   pkg_browser_use --> pkg_brand
+   pkg_client_connection --> pkg_scope
+-  pkg_client_ui_conversation --> pkg_timeout
+   pkg_computer_use --> pkg_brand
+   pkg_credentials_local --> pkg_atomic_write
+   pkg_credentials_local --> pkg_credentials
+@@ -583,11 +561,6 @@ flowchart TD
+   pkg_otel --> pkg_session
+   pkg_session_snapshot --> pkg_http_proxy
+   pkg_session_snapshot --> pkg_session
+-  pkg_llm_vision_fallback --> pkg_llm
+-  pkg_llm_vision_fallback --> pkg_session
+-  pkg_llm_vision_fallback --> pkg_settings
+-  pkg_llm_vision_fallback --> pkg_timeout
+-  pkg_llm_vision_fallback --> pkg_util_values
+   pkg_fs --> pkg_brand
+   pkg_fs --> pkg_llm
+   pkg_fs --> pkg_sandbox
+@@ -613,10 +586,6 @@ flowchart TD
+   pkg_plugin_recommendations --> pkg_typert_protocol
+   pkg_skill_badge --> pkg_skill
+   pkg_host_product_telemetry_otel --> pkg_otel
+-  pkg_host_skill_inventory --> pkg_home_paths
+-  pkg_host_skill_inventory --> pkg_session
+-  pkg_host_skill_inventory --> pkg_skill
+-  pkg_host_skill_inventory --> pkg_typert_protocol
+   pkg_persona --> pkg_system_prompt
+   pkg_ptc_runtime --> pkg_sandbox
+   pkg_sandbox_local --> pkg_llm
+@@ -953,9 +922,6 @@ flowchart TD
+   pkg_plan_mode --> pkg_system_prompt
+   pkg_plan_mode --> pkg_tools
+   pkg_plan_mode --> pkg_user_questions
+-  pkg_client_ui_visual_replies --> pkg_attachment
+-  pkg_client_ui_visual_replies --> pkg_fs
+-  pkg_client_ui_visual_replies --> pkg_tools
+   pkg_command_compact --> pkg_commands
+   pkg_command_compact --> pkg_compaction
+   pkg_compaction_image_offload --> pkg_agent
+@@ -1354,9 +1320,6 @@ flowchart TD
+   pkg_mcp_manager --> pkg_tools
+   pkg_mcp_manager --> pkg_typert_protocol
+   pkg_mcp_manager --> pkg_util_values
+-  pkg_mcp_servers_file --> pkg_atomic_write
+-  pkg_mcp_servers_file --> pkg_home_paths
+-  pkg_mcp_servers_file --> pkg_mcp_client
+   pkg_goal_round_driver --> pkg_agent
+   pkg_goal_round_driver --> pkg_goal
+   pkg_goal_round_driver --> pkg_llm
+@@ -1470,12 +1433,6 @@ flowchart TD
+   pkg_tool_office --> pkg_subagent
+   pkg_tool_office --> pkg_tools
+   pkg_tool_office --> pkg_working_directory
+-  pkg_experimental_agent_team --> pkg_agent
+-  pkg_experimental_agent_team --> pkg_llm
+-  pkg_experimental_agent_team --> pkg_session
+-  pkg_experimental_agent_team --> pkg_session_persistence
+-  pkg_experimental_agent_team --> pkg_session_projection
+-  pkg_experimental_agent_team --> pkg_subagent
+   pkg_experimental_client_ui_forge --> pkg_experimental_forge
+   pkg_experimental_client_ui_forge --> pkg_experimental_worktree
+   pkg_experimental_client_ui_forge --> pkg_fs
+@@ -1502,8 +1459,6 @@ flowchart TD
+   pkg_tool_ralph --> pkg_system_prompt
+   pkg_tool_ralph --> pkg_tools
+   pkg_tool_ralph --> pkg_workflow
+-  pkg_host_mcp_servers --> pkg_mcp_servers_file
+-  pkg_host_mcp_servers --> pkg_typert_protocol
+   pkg_sdk_protocol --> pkg_commands
+   pkg_sdk_protocol --> pkg_llm
+   pkg_sdk_protocol --> pkg_session
+@@ -1526,11 +1481,6 @@ flowchart TD
+   pkg_workflow_ptc --> pkg_tools
+   pkg_workflow_ptc --> pkg_workflow
+   pkg_workflow_ptc --> pkg_working_directory
+-  pkg_experimental_tool_agent_team --> pkg_agent
+-  pkg_experimental_tool_agent_team --> pkg_experimental_agent_team
+-  pkg_experimental_tool_agent_team --> pkg_session
+-  pkg_experimental_tool_agent_team --> pkg_system_prompt
+-  pkg_experimental_tool_agent_team --> pkg_tools
+   pkg_schedule --> pkg_agent
+   pkg_schedule --> pkg_api_session_controller
+   pkg_schedule --> pkg_brand
+@@ -1648,28 +1598,24 @@ flowchart TD
+ | [`client-ui-account-notifications`](../packages/client/ui-account-notifications) | `client` | — |
+ | [`client-ui-agent-preset`](../packages/client/ui-agent-preset) | `client` | — |
+ | [`client-ui-agent-team`](../packages/client/ui-agent-team) | `client` | — |
+-| [`client-ui-agents-panel`](../packages/client/ui-agents-panel) | `client` | — |
+ | [`client-ui-approval`](../packages/client/ui-approval) | `client` | — |
+ | [`client-ui-attachment`](../packages/client/ui-attachment) | `client` | — |
+ | [`client-ui-brand-official`](../packages/client/ui-brand-official) | `client` | — |
+ | [`client-ui-chat`](../packages/client/ui-chat) | `client` | — |
+ | [`client-ui-commands`](../packages/client/ui-commands) | `client` | — |
+ | [`client-ui-context-menu`](../packages/client/ui-context-menu) | `client` | — |
++| [`client-ui-conversation`](../packages/client/ui-conversation) | `client` | — |
+ | [`client-ui-deliverables`](../packages/client/ui-deliverables) | `client` | — |
+-| [`client-ui-diff`](../packages/client/ui-diff) | `client` | — |
+ | [`client-ui-directory-picker-browse`](../packages/client/ui-directory-picker-browse) | `client` | — |
+ | [`client-ui-directory-picker-native`](../packages/client/ui-directory-picker-native) | `client` | — |
+ | [`client-ui-dockkit`](../packages/client/ui-dockkit) | `client` | — |
+ | [`client-ui-entry-customization`](../packages/client/ui-entry-customization) | `client` | — |
+ | [`client-ui-file-actions`](../packages/client/ui-file-actions) | `client` | — |
+ | [`client-ui-file-drag`](../packages/client/ui-file-drag) | `client` | — |
+-| [`client-ui-files`](../packages/client/ui-files) | `client` | — |
+-| [`client-ui-git`](../packages/client/ui-git) | `client` | — |
+ | [`client-ui-goal`](../packages/client/ui-goal) | `client` | — |
+ | [`client-ui-input-trigger`](../packages/client/ui-input-trigger) | `client` | — |
+ | [`client-ui-jobs`](../packages/client/ui-jobs) | `client` | — |
+ | [`client-ui-layout`](../packages/client/ui-layout) | `client` | — |
+-| [`client-ui-message-edit`](../packages/client/ui-message-edit) | `client` | — |
+ | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | `client` | — |
+ | [`client-ui-model-selection`](../packages/client/ui-model-selection) | `client` | — |
+ | [`client-ui-open-in-app`](../packages/client/ui-open-in-app) | `client` | — |
+@@ -1677,7 +1623,6 @@ flowchart TD
+ | [`client-ui-plan`](../packages/client/ui-plan) | `client` | — |
+ | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | `client` | — |
+ | [`client-ui-plugin-market`](../packages/client/ui-plugin-market) | `client` | — |
+-| [`client-ui-preview`](../packages/client/ui-preview) | `client` | — |
+ | [`client-ui-primitives`](../packages/client/ui-primitives) | `client` | — |
+ | [`client-ui-reference`](../packages/client/ui-reference) | `client` | — |
+ | [`client-ui-renderer`](../packages/client/ui-renderer) | `client` | — |
+@@ -1688,15 +1633,11 @@ flowchart TD
+ | [`client-ui-settings-account`](../packages/client/ui-settings-account) | `client` | — |
+ | [`client-ui-settings-agent-loop`](../packages/client/ui-settings-agent-loop) | `client` | — |
+ | [`client-ui-settings-general`](../packages/client/ui-settings-general) | `client` | — |
+-| [`client-ui-settings-market`](../packages/client/ui-settings-market) | `client` | — |
+-| [`client-ui-settings-mcp`](../packages/client/ui-settings-mcp) | `client` | — |
+ | [`client-ui-settings-models`](../packages/client/ui-settings-models) | `client` | — |
+ | [`client-ui-settings-plugin-inventory`](../packages/client/ui-settings-plugin-inventory) | `client` | — |
+ | [`client-ui-settings-plugins`](../packages/client/ui-settings-plugins) | `client` | — |
+-| [`client-ui-settings-remote`](../packages/client/ui-settings-remote) | `client` | — |
+ | [`client-ui-settings-session-log`](../packages/client/ui-settings-session-log) | `client` | — |
+ | [`client-ui-settings-shell`](../packages/client/ui-settings-shell) | `client` | — |
+-| [`client-ui-settings-skills`](../packages/client/ui-settings-skills) | `client` | — |
+ | [`client-ui-settings-subagent`](../packages/client/ui-settings-subagent) | `client` | — |
+ | [`client-ui-settings-web-search`](../packages/client/ui-settings-web-search) | `client` | — |
+ | [`client-ui-shortcuts`](../packages/client/ui-shortcuts) | `client` | — |
+@@ -1709,13 +1650,10 @@ flowchart TD
+ | [`client-ui-skill`](../packages/client/ui-skill) | `client` | — |
+ | [`client-ui-slots`](../packages/client/ui-slots) | `client` | — |
+ | [`client-ui-subagent`](../packages/client/ui-subagent) | `client` | — |
+-| [`client-ui-surfaces`](../packages/client/ui-surfaces) | `client` | — |
+ | [`client-ui-theme`](../packages/client/ui-theme) | `client` | — |
+-| [`client-ui-titlebar`](../packages/client/ui-titlebar) | `client` | — |
+ | [`client-ui-tool`](../packages/client/ui-tool) | `client` | — |
+ | [`client-ui-trajectory`](../packages/client/ui-trajectory) | `client` | — |
+ | [`client-ui-user-questions`](../packages/client/ui-user-questions) | `client` | — |
+-| [`client-ui-user-terminal`](../packages/client/ui-user-terminal) | `client` | — |
+ | [`client-ui-workflow-run`](../packages/client/ui-workflow-run) | `client` | — |
+ | [`client-ui-workspace`](../packages/client/ui-workspace) | `client` | — |
+ | [`client-web`](../packages/client/web) | `client` | — |
+@@ -1725,9 +1663,7 @@ flowchart TD
+ | [`client-ui-creation-recommendations`](../packages/experimental/client-ui-creation-recommendations) | `experimental` | — |
+ | [`client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | `experimental` | — |
+ | [`cua-bundle`](../packages/experimental/cua-bundle) | `experimental` | — |
+-| [`experimental-agent-team-profile`](../packages/experimental/agent-team-profile) | `experimental` | — |
+ | [`experimental-badge-skill-bundle`](../packages/experimental/badge-skill-bundle) | `experimental` | — |
+-| [`experimental-client-ui-agent-team`](../packages/experimental/client-ui-agent-team) | `experimental` | — |
+ | [`experimental-client-ui-claude-code-mods`](../packages/experimental/client-ui-claude-code-mods) | `experimental` | — |
+ | [`experimental-client-ui-stats`](../packages/experimental/client-ui-stats) | `experimental` | — |
+ | [`experimental-client-ui-voice-input`](../packages/experimental/client-ui-voice-input) | `experimental` | — |
+@@ -1772,7 +1708,6 @@ flowchart TD
+ | [`app-boot`](../packages/boot/app-boot) | `boot` | [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
+ | [`browser-use`](../packages/browser-use/browser-use) | `browser-use` | [`brand`](../packages/util/brand) |
+ | [`client-connection`](../packages/client/connection) | `client` | [`scope`](../packages/core/scope) |
+-| [`client-ui-conversation`](../packages/client/ui-conversation) | `client` | [`timeout`](../packages/util/timeout) |
+ | [`computer-use`](../packages/computer-use/computer-use) | `computer-use` | [`brand`](../packages/util/brand) |
+ | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
+ | [`experimental-liveshare`](../packages/experimental/liveshare) | `experimental` | [`scope`](../packages/core/scope) |
+@@ -1808,7 +1743,6 @@ flowchart TD
+ | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+ | [`otel`](../packages/telemetry/otel) | `telemetry` | [`session`](../packages/core/session) |
+ | [`session-snapshot`](../packages/test-support/session-snapshot) | `test-support` | [`http-proxy`](../packages/util/http-proxy), [`session`](../packages/core/session) |
+-| [`llm-vision-fallback`](../packages/llm/llm-vision-fallback) | `llm` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`settings`](../packages/settings/settings), [`timeout`](../packages/util/timeout), [`util-values`](../packages/util/values) |
+ | [`fs`](../packages/fs/fs) | `fs` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox) |
+ | [`skill-office`](../packages/skill/skill-office) | `skill` | [`skill`](../packages/skill/skill) |
+ | [`web-fetch-http`](../packages/web/web-fetch-http) | `web` | [`timeout`](../packages/util/timeout), [`web`](../packages/web/web) |
+@@ -1821,7 +1755,6 @@ flowchart TD
+ | [`plugin-recommendations`](../packages/experimental/plugin-recommendations) | `experimental` | [`llm`](../packages/llm/llm), [`skill`](../packages/skill/skill), [`typert-protocol`](../packages/typert/protocol) |
+ | [`skill-badge`](../packages/experimental/skill-badge) | `experimental` | [`skill`](../packages/skill/skill) |
+ | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel) | `host` | [`otel`](../packages/telemetry/otel) |
+-| [`host-skill-inventory`](../packages/host/skill-inventory) | `host` | [`home-paths`](../packages/util/home-paths), [`session`](../packages/core/session), [`skill`](../packages/skill/skill), [`typert-protocol`](../packages/typert/protocol) |
+ | [`persona`](../packages/preset/persona) | `preset` | [`system-prompt`](../packages/core/system-prompt) |
+ | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime) | `ptc-runtime` | [`sandbox`](../packages/sandbox/sandbox) |
+ | [`sandbox-local`](../packages/sandbox/sandbox-local) | `sandbox` | [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session) |
+@@ -1895,7 +1828,6 @@ flowchart TD
+ | [`web-deepseek-api`](../packages/web/web-deepseek-api) | `web` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`deepseek-account`](../packages/credentials/deepseek-account), [`launch-environment`](../packages/util/launch-environment), [`llm`](../packages/llm/llm), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-deepseek-account`](../packages/llm/llm-deepseek-account), [`llm-deepseek-api-key`](../packages/llm/llm-deepseek-api-key), [`session`](../packages/core/session), [`web`](../packages/web/web) |
+ | [`tool-todo`](../packages/todo/tool-todo) | `todo` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`tools`](../packages/core/tools) |
+ | [`plan-mode`](../packages/plan/plan-mode) | `plan` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
+-| [`client-ui-visual-replies`](../packages/client/ui-visual-replies) | `client` | [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`tools`](../packages/core/tools) |
+ | [`command-compact`](../packages/compaction/command-compact) | `compaction` | [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction) |
+ | [`compaction-image-offload`](../packages/compaction/compaction-image-offload) | `compaction` | [`agent`](../packages/core/agent), [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
+ | [`agent-instructions`](../packages/context/agent-instructions) | `context` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+@@ -1965,7 +1897,6 @@ flowchart TD
+ | [`tool-session-query`](../packages/experimental/tool-session-query) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
+ | [`webhook-github`](../packages/experimental/webhook-github) | `experimental` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`session`](../packages/core/session), [`webhook`](../packages/experimental/webhook) |
+ | [`mcp-manager`](../packages/mcp/mcp-manager) | `mcp` | [`mcp-client`](../packages/mcp/mcp-client), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
+-| [`mcp-servers-file`](../packages/mcp/mcp-servers-file) | `mcp` | [`atomic-write`](../packages/util/atomic-write), [`home-paths`](../packages/util/home-paths), [`mcp-client`](../packages/mcp/mcp-client) |
+ | [`goal-round-driver`](../packages/goal/goal-round-driver) | `goal` | [`agent`](../packages/core/agent), [`goal`](../packages/goal/goal), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
+ | [`subagent-acp`](../packages/subagent/subagent-acp) | `subagent` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+ | [`subagent-claude-code`](../packages/subagent/subagent-claude-code) | `subagent` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+@@ -1980,18 +1911,15 @@ flowchart TD
+ | [`compaction-basic`](../packages/compaction/compaction-basic) | `compaction` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction), [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`token-meter`](../packages/llm/token-meter) |
+ | [`session-reference`](../packages/context/session-reference) | `context` | [`agent`](../packages/core/agent), [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`session-projection-cache`](../packages/session/session-projection-cache), [`session-query`](../packages/session-query/session-query), [`session-title`](../packages/session/session-title), [`spill`](../packages/spill/spill), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
+ | [`tool-office`](../packages/document/tool-office) | `document` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`office-kit`](../packages/document/office-kit), [`skill`](../packages/skill/skill), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+-| [`experimental-agent-team`](../packages/experimental/agent-team) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`subagent`](../packages/subagent/subagent) |
+ | [`experimental-client-ui-forge`](../packages/experimental/client-ui-forge) | `experimental` | [`experimental-forge`](../packages/experimental/forge), [`experimental-worktree`](../packages/experimental/worktree), [`fs`](../packages/fs/fs), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
+ | [`experimental-subagent-oar`](../packages/experimental/subagent-oar) | `experimental` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess) |
+ | [`experimental-tool-subagent-oar`](../packages/experimental/tool-subagent-oar) | `experimental` | [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools) |
+ | [`experimental-tool-worktree`](../packages/experimental/tool-worktree) | `experimental` | [`experimental-worktree`](../packages/experimental/worktree), [`tools`](../packages/core/tools) |
+ | [`hooks-claude-code`](../packages/experimental/hooks-claude-code) | `experimental` | [`agent`](../packages/core/agent), [`hook-protocol`](../packages/experimental/hook-protocol), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+ | [`tool-ralph`](../packages/experimental/tool-ralph) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
+-| [`host-mcp-servers`](../packages/host/mcp-servers) | `host` | [`mcp-servers-file`](../packages/mcp/mcp-servers-file), [`typert-protocol`](../packages/typert/protocol) |
+ | [`sdk-protocol`](../packages/sdk/protocol) | `sdk` | [`commands`](../packages/interaction/commands), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`user-questions`](../packages/interaction/user-questions) |
+ | [`agent-team`](../packages/team/agent-team) | `team` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`subagent`](../packages/subagent/subagent), [`typert-protocol`](../packages/typert/protocol) |
+ | [`workflow-ptc`](../packages/workflow/workflow-ptc) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow), [`working-directory`](../packages/session/working-directory) |
+-| [`experimental-tool-agent-team`](../packages/experimental/tool-agent-team) | `experimental` | [`agent`](../packages/core/agent), [`experimental-agent-team`](../packages/experimental/agent-team), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
+ | [`schedule`](../packages/schedule/schedule) | `schedule` | [`agent`](../packages/core/agent), [`api-session-controller`](../packages/api/session-controller), [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`storage-domain`](../packages/storage/storage-domain), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-time`](../packages/util/time), [`workspace`](../packages/workspace/workspace) |
+ | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
+ | [`tool-agent-team`](../packages/team/tool-agent-team) | `team` | [`agent`](../packages/core/agent), [`agent-team`](../packages/team/agent-team), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
+diff --git a/docs/module-graph.zh.md b/docs/module-graph.zh.md
+index 937f7986..548b3d02 100644
+--- a/docs/module-graph.zh.md
++++ b/docs/module-graph.zh.md
+@@ -42,7 +42,6 @@ flowchart TD
+     pkg_llm_deepseek_api_key["llm-deepseek-api-key"]
+     pkg_llm_pi_ai["llm-pi-ai"]
+     pkg_llm_retry["llm-retry"]
+-    pkg_llm_vision_fallback["llm-vision-fallback"]
+     pkg_plugin_package_inventory_deepseek["plugin-package-inventory-deepseek"]
+     pkg_token_meter["token-meter"]
+   end
+@@ -165,7 +164,6 @@ flowchart TD
+     pkg_client_ui_account_notifications["client-ui-account-notifications"]
+     pkg_client_ui_agent_preset["client-ui-agent-preset"]
+     pkg_client_ui_agent_team["client-ui-agent-team"]
+-    pkg_client_ui_agents_panel["client-ui-agents-panel"]
+     pkg_client_ui_approval["client-ui-approval"]
+     pkg_client_ui_attachment["client-ui-attachment"]
+     pkg_client_ui_brand_official["client-ui-brand-official"]
+@@ -174,20 +172,16 @@ flowchart TD
+     pkg_client_ui_context_menu["client-ui-context-menu"]
+     pkg_client_ui_conversation["client-ui-conversation"]
+     pkg_client_ui_deliverables["client-ui-deliverables"]
+-    pkg_client_ui_diff["client-ui-diff"]
+     pkg_client_ui_directory_picker_browse["client-ui-directory-picker-browse"]
+     pkg_client_ui_directory_picker_native["client-ui-directory-picker-native"]
+     pkg_client_ui_dockkit["client-ui-dockkit"]
+     pkg_client_ui_entry_customization["client-ui-entry-customization"]
+     pkg_client_ui_file_actions["client-ui-file-actions"]
+     pkg_client_ui_file_drag["client-ui-file-drag"]
+-    pkg_client_ui_files["client-ui-files"]
+-    pkg_client_ui_git["client-ui-git"]
+     pkg_client_ui_goal["client-ui-goal"]
+     pkg_client_ui_input_trigger["client-ui-input-trigger"]
+     pkg_client_ui_jobs["client-ui-jobs"]
+     pkg_client_ui_layout["client-ui-layout"]
+-    pkg_client_ui_message_edit["client-ui-message-edit"]
+     pkg_client_ui_message_feedback["client-ui-message-feedback"]
+     pkg_client_ui_model_selection["client-ui-model-selection"]
+     pkg_client_ui_open_in_app["client-ui-open-in-app"]
+@@ -195,7 +189,6 @@ flowchart TD
+     pkg_client_ui_plan["client-ui-plan"]
+     pkg_client_ui_plugin_manager["client-ui-plugin-manager"]
+     pkg_client_ui_plugin_market["client-ui-plugin-market"]
+-    pkg_client_ui_preview["client-ui-preview"]
+     pkg_client_ui_primitives["client-ui-primitives"]
+     pkg_client_ui_reference["client-ui-reference"]
+     pkg_client_ui_renderer["client-ui-renderer"]
+@@ -206,15 +199,11 @@ flowchart TD
+     pkg_client_ui_settings_account["client-ui-settings-account"]
+     pkg_client_ui_settings_agent_loop["client-ui-settings-agent-loop"]
+     pkg_client_ui_settings_general["client-ui-settings-general"]
+-    pkg_client_ui_settings_market["client-ui-settings-market"]
+-    pkg_client_ui_settings_mcp["client-ui-settings-mcp"]
+     pkg_client_ui_settings_models["client-ui-settings-models"]
+     pkg_client_ui_settings_plugin_inventory["client-ui-settings-plugin-inventory"]
+     pkg_client_ui_settings_plugins["client-ui-settings-plugins"]
+-    pkg_client_ui_settings_remote["client-ui-settings-remote"]
+     pkg_client_ui_settings_session_log["client-ui-settings-session-log"]
+     pkg_client_ui_settings_shell["client-ui-settings-shell"]
+-    pkg_client_ui_settings_skills["client-ui-settings-skills"]
+     pkg_client_ui_settings_subagent["client-ui-settings-subagent"]
+     pkg_client_ui_settings_web_search["client-ui-settings-web-search"]
+     pkg_client_ui_shortcuts["client-ui-shortcuts"]
+@@ -227,14 +216,10 @@ flowchart TD
+     pkg_client_ui_skill["client-ui-skill"]
+     pkg_client_ui_slots["client-ui-slots"]
+     pkg_client_ui_subagent["client-ui-subagent"]
+-    pkg_client_ui_surfaces["client-ui-surfaces"]
+     pkg_client_ui_theme["client-ui-theme"]
+-    pkg_client_ui_titlebar["client-ui-titlebar"]
+     pkg_client_ui_tool["client-ui-tool"]
+     pkg_client_ui_trajectory["client-ui-trajectory"]
+     pkg_client_ui_user_questions["client-ui-user-questions"]
+-    pkg_client_ui_user_terminal["client-ui-user-terminal"]
+-    pkg_client_ui_visual_replies["client-ui-visual-replies"]
+     pkg_client_ui_workflow_run["client-ui-workflow-run"]
+     pkg_client_ui_workspace["client-ui-workspace"]
+     pkg_client_web["client-web"]
+@@ -281,8 +266,7 @@ flowchart TD
+     pkg_creation_recommendations["creation-recommendations"]
+     pkg_cua["cua"]
+     pkg_cua_bundle["cua-bundle"]
+-    pkg_experimental_agent_team["experimental-agent-team"]
+-    pkg_experimental_agent_team_profile["experimental-agent-team-profile"]
++    pkg_deepseek_chat_import["deepseek-chat-import"]
+     pkg_experimental_api_speech_to_text["experimental-api-speech-to-text"]
+     pkg_experimental_auto_review["experimental-auto-review"]
+     pkg_experimental_badge_skill_bundle["experimental-badge-skill-bundle"]
+@@ -291,7 +275,6 @@ flowchart TD
+     pkg_experimental_browser_use_runtime["experimental-browser-use-runtime"]
+     pkg_experimental_browser_use_stagehand_native["experimental-browser-use-stagehand-native"]
+     pkg_experimental_claude_code_mods["experimental-claude-code-mods"]
+-    pkg_experimental_client_ui_agent_team["experimental-client-ui-agent-team"]
+     pkg_experimental_client_ui_claude_code_mods["experimental-client-ui-claude-code-mods"]
+     pkg_experimental_client_ui_cot_translation["experimental-client-ui-cot-translation"]
+     pkg_experimental_client_ui_forge["experimental-client-ui-forge"]
+@@ -319,7 +302,6 @@ flowchart TD
+     pkg_experimental_speech_to_text_sensevoice["experimental-speech-to-text-sensevoice"]
+     pkg_experimental_subagent_oar["experimental-subagent-oar"]
+     pkg_experimental_terminal_bundle["experimental-terminal-bundle"]
+-    pkg_experimental_tool_agent_team["experimental-tool-agent-team"]
+     pkg_experimental_tool_subagent_oar["experimental-tool-subagent-oar"]
+     pkg_experimental_tool_worktree["experimental-tool-worktree"]
+     pkg_experimental_translator["experimental-translator"]
+@@ -361,11 +343,9 @@ flowchart TD
+     pkg_host_directory_picker_browse["host-directory-picker-browse"]
+     pkg_host_directory_picker_native["host-directory-picker-native"]
+     pkg_host_frontend_static["host-frontend-static"]
+-    pkg_host_mcp_servers["host-mcp-servers"]
+     pkg_host_open_in_app["host-open-in-app"]
+     pkg_host_plugin_inventory["host-plugin-inventory"]
+     pkg_host_product_telemetry_otel["host-product-telemetry-otel"]
+-    pkg_host_skill_inventory["host-skill-inventory"]
+     pkg_host_webserver["host-webserver"]
+   end
+   subgraph group_identity["packages/identity"]
+@@ -392,7 +372,6 @@ flowchart TD
+     pkg_mcp_client["mcp-client"]
+     pkg_mcp_manager["mcp-manager"]
+     pkg_mcp_resources["mcp-resources"]
+-    pkg_mcp_servers_file["mcp-servers-file"]
+   end
+   subgraph group_preset["packages/preset"]
+     pkg_agent_preset["agent-preset"]
+@@ -519,7 +498,6 @@ flowchart TD
+   pkg_app_boot --> pkg_launch_environment
+   pkg_browser_use --> pkg_brand
+   pkg_client_connection --> pkg_scope
+-  pkg_client_ui_conversation --> pkg_timeout
+   pkg_computer_use --> pkg_brand
+   pkg_credentials_local --> pkg_atomic_write
+   pkg_credentials_local --> pkg_credentials
+@@ -585,11 +563,6 @@ flowchart TD
+   pkg_otel --> pkg_session
+   pkg_session_snapshot --> pkg_http_proxy
+   pkg_session_snapshot --> pkg_session
+-  pkg_llm_vision_fallback --> pkg_llm
+-  pkg_llm_vision_fallback --> pkg_session
+-  pkg_llm_vision_fallback --> pkg_settings
+-  pkg_llm_vision_fallback --> pkg_timeout
+-  pkg_llm_vision_fallback --> pkg_util_values
+   pkg_fs --> pkg_brand
+   pkg_fs --> pkg_llm
+   pkg_fs --> pkg_sandbox
+@@ -615,10 +588,6 @@ flowchart TD
+   pkg_plugin_recommendations --> pkg_typert_protocol
+   pkg_skill_badge --> pkg_skill
+   pkg_host_product_telemetry_otel --> pkg_otel
+-  pkg_host_skill_inventory --> pkg_home_paths
+-  pkg_host_skill_inventory --> pkg_session
+-  pkg_host_skill_inventory --> pkg_skill
+-  pkg_host_skill_inventory --> pkg_typert_protocol
+   pkg_persona --> pkg_system_prompt
+   pkg_ptc_runtime --> pkg_sandbox
+   pkg_sandbox_local --> pkg_llm
+@@ -955,9 +924,6 @@ flowchart TD
+   pkg_plan_mode --> pkg_system_prompt
+   pkg_plan_mode --> pkg_tools
+   pkg_plan_mode --> pkg_user_questions
+-  pkg_client_ui_visual_replies --> pkg_attachment
+-  pkg_client_ui_visual_replies --> pkg_fs
+-  pkg_client_ui_visual_replies --> pkg_tools
+   pkg_command_compact --> pkg_commands
+   pkg_command_compact --> pkg_compaction
+   pkg_compaction_image_offload --> pkg_agent
+@@ -1356,9 +1322,6 @@ flowchart TD
+   pkg_mcp_manager --> pkg_tools
+   pkg_mcp_manager --> pkg_typert_protocol
+   pkg_mcp_manager --> pkg_util_values
+-  pkg_mcp_servers_file --> pkg_atomic_write
+-  pkg_mcp_servers_file --> pkg_home_paths
+-  pkg_mcp_servers_file --> pkg_mcp_client
+   pkg_goal_round_driver --> pkg_agent
+   pkg_goal_round_driver --> pkg_goal
+   pkg_goal_round_driver --> pkg_llm
+@@ -1472,12 +1435,6 @@ flowchart TD
+   pkg_tool_office --> pkg_subagent
+   pkg_tool_office --> pkg_tools
+   pkg_tool_office --> pkg_working_directory
+-  pkg_experimental_agent_team --> pkg_agent
+-  pkg_experimental_agent_team --> pkg_llm
+-  pkg_experimental_agent_team --> pkg_session
+-  pkg_experimental_agent_team --> pkg_session_persistence
+-  pkg_experimental_agent_team --> pkg_session_projection
+-  pkg_experimental_agent_team --> pkg_subagent
+   pkg_experimental_client_ui_forge --> pkg_experimental_forge
+   pkg_experimental_client_ui_forge --> pkg_experimental_worktree
+   pkg_experimental_client_ui_forge --> pkg_fs
+@@ -1504,8 +1461,6 @@ flowchart TD
+   pkg_tool_ralph --> pkg_system_prompt
+   pkg_tool_ralph --> pkg_tools
+   pkg_tool_ralph --> pkg_workflow
+-  pkg_host_mcp_servers --> pkg_mcp_servers_file
+-  pkg_host_mcp_servers --> pkg_typert_protocol
+   pkg_sdk_protocol --> pkg_commands
+   pkg_sdk_protocol --> pkg_llm
+   pkg_sdk_protocol --> pkg_session
+@@ -1528,11 +1483,6 @@ flowchart TD
+   pkg_workflow_ptc --> pkg_tools
+   pkg_workflow_ptc --> pkg_workflow
+   pkg_workflow_ptc --> pkg_working_directory
+-  pkg_experimental_tool_agent_team --> pkg_agent
+-  pkg_experimental_tool_agent_team --> pkg_experimental_agent_team
+-  pkg_experimental_tool_agent_team --> pkg_session
+-  pkg_experimental_tool_agent_team --> pkg_system_prompt
+-  pkg_experimental_tool_agent_team --> pkg_tools
+   pkg_schedule --> pkg_agent
+   pkg_schedule --> pkg_api_session_controller
+   pkg_schedule --> pkg_brand
+@@ -1650,28 +1600,24 @@ flowchart TD
+ | [`client-ui-account-notifications`](../packages/client/ui-account-notifications) | `client` | — |
+ | [`client-ui-agent-preset`](../packages/client/ui-agent-preset) | `client` | — |
+ | [`client-ui-agent-team`](../packages/client/ui-agent-team) | `client` | — |
+-| [`client-ui-agents-panel`](../packages/client/ui-agents-panel) | `client` | — |
+ | [`client-ui-approval`](../packages/client/ui-approval) | `client` | — |
+ | [`client-ui-attachment`](../packages/client/ui-attachment) | `client` | — |
+ | [`client-ui-brand-official`](../packages/client/ui-brand-official) | `client` | — |
+ | [`client-ui-chat`](../packages/client/ui-chat) | `client` | — |
+ | [`client-ui-commands`](../packages/client/ui-commands) | `client` | — |
+ | [`client-ui-context-menu`](../packages/client/ui-context-menu) | `client` | — |
++| [`client-ui-conversation`](../packages/client/ui-conversation) | `client` | — |
+ | [`client-ui-deliverables`](../packages/client/ui-deliverables) | `client` | — |
+-| [`client-ui-diff`](../packages/client/ui-diff) | `client` | — |
+ | [`client-ui-directory-picker-browse`](../packages/client/ui-directory-picker-browse) | `client` | — |
+ | [`client-ui-directory-picker-native`](../packages/client/ui-directory-picker-native) | `client` | — |
+ | [`client-ui-dockkit`](../packages/client/ui-dockkit) | `client` | — |
+ | [`client-ui-entry-customization`](../packages/client/ui-entry-customization) | `client` | — |
+ | [`client-ui-file-actions`](../packages/client/ui-file-actions) | `client` | — |
+ | [`client-ui-file-drag`](../packages/client/ui-file-drag) | `client` | — |
+-| [`client-ui-files`](../packages/client/ui-files) | `client` | — |
+-| [`client-ui-git`](../packages/client/ui-git) | `client` | — |
+ | [`client-ui-goal`](../packages/client/ui-goal) | `client` | — |
+ | [`client-ui-input-trigger`](../packages/client/ui-input-trigger) | `client` | — |
+ | [`client-ui-jobs`](../packages/client/ui-jobs) | `client` | — |
+ | [`client-ui-layout`](../packages/client/ui-layout) | `client` | — |
+-| [`client-ui-message-edit`](../packages/client/ui-message-edit) | `client` | — |
+ | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | `client` | — |
+ | [`client-ui-model-selection`](../packages/client/ui-model-selection) | `client` | — |
+ | [`client-ui-open-in-app`](../packages/client/ui-open-in-app) | `client` | — |
+@@ -1679,7 +1625,6 @@ flowchart TD
+ | [`client-ui-plan`](../packages/client/ui-plan) | `client` | — |
+ | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | `client` | — |
+ | [`client-ui-plugin-market`](../packages/client/ui-plugin-market) | `client` | — |
+-| [`client-ui-preview`](../packages/client/ui-preview) | `client` | — |
+ | [`client-ui-primitives`](../packages/client/ui-primitives) | `client` | — |
+ | [`client-ui-reference`](../packages/client/ui-reference) | `client` | — |
+ | [`client-ui-renderer`](../packages/client/ui-renderer) | `client` | — |
+@@ -1690,15 +1635,11 @@ flowchart TD
+ | [`client-ui-settings-account`](../packages/client/ui-settings-account) | `client` | — |
+ | [`client-ui-settings-agent-loop`](../packages/client/ui-settings-agent-loop) | `client` | — |
+ | [`client-ui-settings-general`](../packages/client/ui-settings-general) | `client` | — |
+-| [`client-ui-settings-market`](../packages/client/ui-settings-market) | `client` | — |
+-| [`client-ui-settings-mcp`](../packages/client/ui-settings-mcp) | `client` | — |
+ | [`client-ui-settings-models`](../packages/client/ui-settings-models) | `client` | — |
+ | [`client-ui-settings-plugin-inventory`](../packages/client/ui-settings-plugin-inventory) | `client` | — |
+ | [`client-ui-settings-plugins`](../packages/client/ui-settings-plugins) | `client` | — |
+-| [`client-ui-settings-remote`](../packages/client/ui-settings-remote) | `client` | — |
+ | [`client-ui-settings-session-log`](../packages/client/ui-settings-session-log) | `client` | — |
+ | [`client-ui-settings-shell`](../packages/client/ui-settings-shell) | `client` | — |
+-| [`client-ui-settings-skills`](../packages/client/ui-settings-skills) | `client` | — |
+ | [`client-ui-settings-subagent`](../packages/client/ui-settings-subagent) | `client` | — |
+ | [`client-ui-settings-web-search`](../packages/client/ui-settings-web-search) | `client` | — |
+ | [`client-ui-shortcuts`](../packages/client/ui-shortcuts) | `client` | — |
+@@ -1711,13 +1652,10 @@ flowchart TD
+ | [`client-ui-skill`](../packages/client/ui-skill) | `client` | — |
+ | [`client-ui-slots`](../packages/client/ui-slots) | `client` | — |
+ | [`client-ui-subagent`](../packages/client/ui-subagent) | `client` | — |
+-| [`client-ui-surfaces`](../packages/client/ui-surfaces) | `client` | — |
+ | [`client-ui-theme`](../packages/client/ui-theme) | `client` | — |
+-| [`client-ui-titlebar`](../packages/client/ui-titlebar) | `client` | — |
+ | [`client-ui-tool`](../packages/client/ui-tool) | `client` | — |
+ | [`client-ui-trajectory`](../packages/client/ui-trajectory) | `client` | — |
+ | [`client-ui-user-questions`](../packages/client/ui-user-questions) | `client` | — |
+-| [`client-ui-user-terminal`](../packages/client/ui-user-terminal) | `client` | — |
+ | [`client-ui-workflow-run`](../packages/client/ui-workflow-run) | `client` | — |
+ | [`client-ui-workspace`](../packages/client/ui-workspace) | `client` | — |
+ | [`client-web`](../packages/client/web) | `client` | — |
+@@ -1727,9 +1665,7 @@ flowchart TD
+ | [`client-ui-creation-recommendations`](../packages/experimental/client-ui-creation-recommendations) | `experimental` | — |
+ | [`client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | `experimental` | — |
+ | [`cua-bundle`](../packages/experimental/cua-bundle) | `experimental` | — |
+-| [`experimental-agent-team-profile`](../packages/experimental/agent-team-profile) | `experimental` | — |
+ | [`experimental-badge-skill-bundle`](../packages/experimental/badge-skill-bundle) | `experimental` | — |
+-| [`experimental-client-ui-agent-team`](../packages/experimental/client-ui-agent-team) | `experimental` | — |
+ | [`experimental-client-ui-claude-code-mods`](../packages/experimental/client-ui-claude-code-mods) | `experimental` | — |
+ | [`experimental-client-ui-stats`](../packages/experimental/client-ui-stats) | `experimental` | — |
+ | [`experimental-client-ui-voice-input`](../packages/experimental/client-ui-voice-input) | `experimental` | — |
+@@ -1774,7 +1710,6 @@ flowchart TD
+ | [`app-boot`](../packages/boot/app-boot) | `boot` | [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
+ | [`browser-use`](../packages/browser-use/browser-use) | `browser-use` | [`brand`](../packages/util/brand) |
+ | [`client-connection`](../packages/client/connection) | `client` | [`scope`](../packages/core/scope) |
+-| [`client-ui-conversation`](../packages/client/ui-conversation) | `client` | [`timeout`](../packages/util/timeout) |
+ | [`computer-use`](../packages/computer-use/computer-use) | `computer-use` | [`brand`](../packages/util/brand) |
+ | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
+ | [`experimental-liveshare`](../packages/experimental/liveshare) | `experimental` | [`scope`](../packages/core/scope) |
+@@ -1810,7 +1745,6 @@ flowchart TD
+ | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+ | [`otel`](../packages/telemetry/otel) | `telemetry` | [`session`](../packages/core/session) |
+ | [`session-snapshot`](../packages/test-support/session-snapshot) | `test-support` | [`http-proxy`](../packages/util/http-proxy), [`session`](../packages/core/session) |
+-| [`llm-vision-fallback`](../packages/llm/llm-vision-fallback) | `llm` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`settings`](../packages/settings/settings), [`timeout`](../packages/util/timeout), [`util-values`](../packages/util/values) |
+ | [`fs`](../packages/fs/fs) | `fs` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox) |
+ | [`skill-office`](../packages/skill/skill-office) | `skill` | [`skill`](../packages/skill/skill) |
+ | [`web-fetch-http`](../packages/web/web-fetch-http) | `web` | [`timeout`](../packages/util/timeout), [`web`](../packages/web/web) |
+@@ -1823,7 +1757,6 @@ flowchart TD
+ | [`plugin-recommendations`](../packages/experimental/plugin-recommendations) | `experimental` | [`llm`](../packages/llm/llm), [`skill`](../packages/skill/skill), [`typert-protocol`](../packages/typert/protocol) |
+ | [`skill-badge`](../packages/experimental/skill-badge) | `experimental` | [`skill`](../packages/skill/skill) |
+ | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel) | `host` | [`otel`](../packages/telemetry/otel) |
+-| [`host-skill-inventory`](../packages/host/skill-inventory) | `host` | [`home-paths`](../packages/util/home-paths), [`session`](../packages/core/session), [`skill`](../packages/skill/skill), [`typert-protocol`](../packages/typert/protocol) |
+ | [`persona`](../packages/preset/persona) | `preset` | [`system-prompt`](../packages/core/system-prompt) |
+ | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime) | `ptc-runtime` | [`sandbox`](../packages/sandbox/sandbox) |
+ | [`sandbox-local`](../packages/sandbox/sandbox-local) | `sandbox` | [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session) |
+@@ -1897,7 +1830,6 @@ flowchart TD
+ | [`web-deepseek-api`](../packages/web/web-deepseek-api) | `web` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`deepseek-account`](../packages/credentials/deepseek-account), [`launch-environment`](../packages/util/launch-environment), [`llm`](../packages/llm/llm), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-deepseek-account`](../packages/llm/llm-deepseek-account), [`llm-deepseek-api-key`](../packages/llm/llm-deepseek-api-key), [`session`](../packages/core/session), [`web`](../packages/web/web) |
+ | [`tool-todo`](../packages/todo/tool-todo) | `todo` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`tools`](../packages/core/tools) |
+ | [`plan-mode`](../packages/plan/plan-mode) | `plan` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
+-| [`client-ui-visual-replies`](../packages/client/ui-visual-replies) | `client` | [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`tools`](../packages/core/tools) |
+ | [`command-compact`](../packages/compaction/command-compact) | `compaction` | [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction) |
+ | [`compaction-image-offload`](../packages/compaction/compaction-image-offload) | `compaction` | [`agent`](../packages/core/agent), [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
+ | [`agent-instructions`](../packages/context/agent-instructions) | `context` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+@@ -1967,7 +1899,6 @@ flowchart TD
+ | [`tool-session-query`](../packages/experimental/tool-session-query) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
+ | [`webhook-github`](../packages/experimental/webhook-github) | `experimental` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`session`](../packages/core/session), [`webhook`](../packages/experimental/webhook) |
+ | [`mcp-manager`](../packages/mcp/mcp-manager) | `mcp` | [`mcp-client`](../packages/mcp/mcp-client), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
+-| [`mcp-servers-file`](../packages/mcp/mcp-servers-file) | `mcp` | [`atomic-write`](../packages/util/atomic-write), [`home-paths`](../packages/util/home-paths), [`mcp-client`](../packages/mcp/mcp-client) |
+ | [`goal-round-driver`](../packages/goal/goal-round-driver) | `goal` | [`agent`](../packages/core/agent), [`goal`](../packages/goal/goal), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
+ | [`subagent-acp`](../packages/subagent/subagent-acp) | `subagent` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+ | [`subagent-claude-code`](../packages/subagent/subagent-claude-code) | `subagent` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+@@ -1982,18 +1913,15 @@ flowchart TD
+ | [`compaction-basic`](../packages/compaction/compaction-basic) | `compaction` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction), [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`token-meter`](../packages/llm/token-meter) |
+ | [`session-reference`](../packages/context/session-reference) | `context` | [`agent`](../packages/core/agent), [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`session-projection-cache`](../packages/session/session-projection-cache), [`session-query`](../packages/session-query/session-query), [`session-title`](../packages/session/session-title), [`spill`](../packages/spill/spill), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
+ | [`tool-office`](../packages/document/tool-office) | `document` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`office-kit`](../packages/document/office-kit), [`skill`](../packages/skill/skill), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+-| [`experimental-agent-team`](../packages/experimental/agent-team) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`subagent`](../packages/subagent/subagent) |
+ | [`experimental-client-ui-forge`](../packages/experimental/client-ui-forge) | `experimental` | [`experimental-forge`](../packages/experimental/forge), [`experimental-worktree`](../packages/experimental/worktree), [`fs`](../packages/fs/fs), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
+ | [`experimental-subagent-oar`](../packages/experimental/subagent-oar) | `experimental` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess) |
+ | [`experimental-tool-subagent-oar`](../packages/experimental/tool-subagent-oar) | `experimental` | [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools) |
+ | [`experimental-tool-worktree`](../packages/experimental/tool-worktree) | `experimental` | [`experimental-worktree`](../packages/experimental/worktree), [`tools`](../packages/core/tools) |
+ | [`hooks-claude-code`](../packages/experimental/hooks-claude-code) | `experimental` | [`agent`](../packages/core/agent), [`hook-protocol`](../packages/experimental/hook-protocol), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+ | [`tool-ralph`](../packages/experimental/tool-ralph) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
+-| [`host-mcp-servers`](../packages/host/mcp-servers) | `host` | [`mcp-servers-file`](../packages/mcp/mcp-servers-file), [`typert-protocol`](../packages/typert/protocol) |
+ | [`sdk-protocol`](../packages/sdk/protocol) | `sdk` | [`commands`](../packages/interaction/commands), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`user-questions`](../packages/interaction/user-questions) |
+ | [`agent-team`](../packages/team/agent-team) | `team` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`subagent`](../packages/subagent/subagent), [`typert-protocol`](../packages/typert/protocol) |
+ | [`workflow-ptc`](../packages/workflow/workflow-ptc) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow), [`working-directory`](../packages/session/working-directory) |
+-| [`experimental-tool-agent-team`](../packages/experimental/tool-agent-team) | `experimental` | [`agent`](../packages/core/agent), [`experimental-agent-team`](../packages/experimental/agent-team), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
+ | [`schedule`](../packages/schedule/schedule) | `schedule` | [`agent`](../packages/core/agent), [`api-session-controller`](../packages/api/session-controller), [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`storage-domain`](../packages/storage/storage-domain), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-time`](../packages/util/time), [`workspace`](../packages/workspace/workspace) |
+ | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
+ | [`tool-agent-team`](../packages/team/tool-agent-team) | `team` | [`agent`](../packages/core/agent), [`agent-team`](../packages/team/agent-team), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
+diff --git a/packages/client/ui-brand-official/package.json b/packages/client/ui-brand-official/package.json
+index e9650a25..b5b5d59a 100644
+--- a/packages/client/ui-brand-official/package.json
++++ b/packages/client/ui-brand-official/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "@deepseek-ai/dsh-client-ui-brand-official",
+-  "description": "Whale Isle brand occupants for the Web client's sidebar and conversation hero slots",
+-  "version": "0.2.2-rc.2",
++  "description": "Official DeepSeek Harness brand artwork and click-triggered home background",
++  "version": "0.2.2-rc.5",
+   "publishConfig": {
+     "access": "public"
+   },
+@@ -30,7 +30,6 @@
+   "dsh": {
+     "client": {
+       "inject": [
+-        "@deepseek-ai/dsh-client-ui-conversation",
+         "@deepseek-ai/dsh-client-ui-renderer",
+         "@deepseek-ai/dsh-client-ui-sidebar",
+         "@deepseek-ai/dsh-client-ui-conversation"
+@@ -47,7 +46,6 @@
+     "@deepseek-ai/cordis": "workspace:~"
+   },
+   "devDependencies": {
+-    "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
+     "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
+     "@deepseek-ai/dsh-client-ui-renderer": "workspace:*",
+     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:*",
+diff --git a/packages/client/ui-conversation/src/client/contract/slots.ts b/packages/client/ui-conversation/src/client/contract/slots.ts
+index 1762111e..52895578 100644
+--- a/packages/client/ui-conversation/src/client/contract/slots.ts
++++ b/packages/client/ui-conversation/src/client/contract/slots.ts
+@@ -805,7 +805,7 @@ export interface EmptyWorkspaceOwnerProps {
+   /** True when the current or pending target is a no-directory Session. */
+   noDirectorySelected?: boolean | undefined
+   onPick: (workspaceId: WorkspaceId) => void
+-  /** Adopt a Session that is not a Workspace member (Host scratch cwd). */
+-  onPickNoDirectory: () => void
++  /** Adopt a Session that is not a Workspace member (Host scratch cwd). Optional: a picker surface without that action omits it. */
++  onPickNoDirectory?: (() => void) | undefined
+   onClose: () => void
+ }
+diff --git a/packages/client/ui-directory-picker-browse/src/client/index.ts b/packages/client/ui-directory-picker-browse/src/client/index.ts
+index 0b732a71..93268814 100644
+--- a/packages/client/ui-directory-picker-browse/src/client/index.ts
++++ b/packages/client/ui-directory-picker-browse/src/client/index.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Browser half of the browse directory-picker backend: fills ui-workspace's
+- * three directory-flow holes with the in-app Select Workspace Directory dialog
++ * two directory-flow holes with the in-app Select Workspace Directory dialog
+  * (figma `Harness` 813-23126 family), driving the node half's
+  * `directoryPicker/list`/`directoryPicker/createDirectory` primitives.
+  * Each flow entry also declares a `.remote` child hole so a remote-workspace
+@@ -32,8 +32,8 @@ export const inject = ['slots', 'uiWorkspace', 'locale']
+ 
+ /**
+  * Client plugin body: register the dialog's dictionaries and the browse flow
+- * into all three directory-flow holes through `slots.inject()` because the
+- * ui-workspace declarations may activate later or be replaced.
++ * into both directory-flow holes through `slots.inject()` because the
++ * ui-workspace entries may activate later or replace their declarations.
+  * @param ctx - client root context.
+  */
+ export function apply(ctx: ClientContext): void {
+diff --git a/packages/client/ui-directory-picker-browse/tests/client-flow.client.spec.tsx b/packages/client/ui-directory-picker-browse/tests/client-flow.client.spec.tsx
+index 375b8263..bc69e7a9 100644
+--- a/packages/client/ui-directory-picker-browse/tests/client-flow.client.spec.tsx
++++ b/packages/client/ui-directory-picker-browse/tests/client-flow.client.spec.tsx
+@@ -111,7 +111,7 @@ describe('directory-picker-browse client half', () => {
+     expect(inject).toEqual(['slots', 'uiWorkspace', 'locale'])
+   })
+ 
+-  it('fills all three directory-flow holes for declarations before or after apply, and leaves with its fiber', async () => {
++  it('fills both directory-flow holes for declarations before or after apply, and leaves with its fiber', async () => {
+     const before = await bench()
+     before.declare()
+     const fiber = before.ctx.plugin({ inject: [...inject], apply })
+@@ -182,14 +182,15 @@ describe('directory-picker-browse client half', () => {
+     process.on('uncaughtException', onUnhandled)
+     try {
+       // The rival subscribes first, so synchronous declaration notifications
+-      // let it occupy the set before this provider's waiting injection runs.
+-      b.slots.inject(HOLES[0], () => b.slots.inject(HOLES[1], () => b.slots.inject(HOLES[2], function* () {
+-        for (const hole of HOLES) yield b.slots.register({ name: hole } as never, () => null)
+-      })))
++      // let it occupy the pair before this provider's waiting injection runs.
++      b.slots.inject(HOLES[0], () => b.slots.inject(HOLES[1], function* () {
++        yield b.slots.register({ name: HOLES[0] } as never, () => null)
++        yield b.slots.register({ name: HOLES[1] } as never, () => null)
++      }))
+       await b.ctx.plugin({ inject: [...inject], apply }).await()
+       b.declare()
+       await new Promise(resolve => setTimeout(resolve, 20))
+-      // The rival keeps every hole; this provider rolled back wholesale and
++      // The rival keeps both holes; this provider rolled back wholesale and
+       // surfaced the conflict on the fail-loud channel — no partial mix.
+       for (const hole of HOLES) expect(b.slots.entries(hole)).toHaveLength(1)
+       expect(rejections.map(String).join('\n')).toContain('already has a registration')
+diff --git a/packages/client/ui-settings-web-search/README.md b/packages/client/ui-settings-web-search/README.md
+index c7b8d99f..b65a7edf 100644
+--- a/packages/client/ui-settings-web-search/README.md
++++ b/packages/client/ui-settings-web-search/README.md
+@@ -25,7 +25,7 @@ Open **Plugins** in the sidebar and select **Web search and fetch** in the Offic
+ <a id="use-this-package"></a>
+ ## Use this package
+ 
+-The **Web search and fetch** card in the Official group opens the page. It has a **Web search provider** section and a **Web fetch provider** section, each with a provider menu directly under its title. A menu lists every provider the Host registers, including providers that plugins register, so a newly installed provider needs no change to this page; [Add another provider](../../web/web/README.md#adding-a-provider) shows how to mount one in a profile. The official ones come first while registered: the Search menu lists **DeepSeek Search API** (`deepseek-search-api`) followed by **DeepSeek server-side search** (`deepseek-official`), and the Fetch menu lists **Direct fetch** (`http`) and then **DeepSeek Fetch API** (`deepseek-fetch-api`); every other provider follows in registration order and shows its registered title or id. The shipped composition selects no Search provider and Direct fetch for Fetch, and a selection stored in settings or composed by the deployment still applies; opening the page writes nothing. Each menu has no label of its own; its accessible name is its section title followed by the selected provider, such as **Web search provider Automatic**. A selected id the Host does not register appears as an extra **(not loaded)** entry and stays selected. While the deployment composes no provider for a capability, its menu starts with **Automatic**, which clears the stored selection so the Host chooses again. Under automatic Search selection the section states the Host's choice: DeepSeek server-side search, which has no per-search charge, for a conversation on a DeepSeek model and DeepSeek Search API for other models ([provider selection](../../web/web/README.md#provider-selection)), followed by the DeepSeek Search & Fetch guide link, which states the Search API's charges; it shows no provider panel, so the settings of either provider are edited after selecting it. Selecting the deployment's composed provider clears the stored selection instead of writing a copy. When the provider list cannot be read, each section says its menu may be incomplete and offers **Retry**; the menus keep the last list read, or only the selected ids before any list arrives. Under each menu, the section shows the `description` the selected provider registered, in the active language, as plain text; a provider that registers none, or a selected id the Host does not register, shows no description. The official providers' descriptions state each one's credentials, charges, model calls, reachable addresses, and content limits, and Direct fetch's ends by suggesting DeepSeek Fetch API as plain text. A plugin provider's section adds, after its description, that it is configured in that plugin's own settings.
++The **Web search and fetch** card in the Official group opens the page. It has a **Web search provider** section and a **Web fetch provider** section, each with a provider menu directly under its title. A menu lists every provider the Host registers, including providers that plugins register, so a newly installed provider needs no change to this page; [Add another provider](../../web/web/README.md#adding-a-provider) shows how to mount one in a profile. The official ones come first while registered: the Search menu lists **DeepSeek Search API** (`deepseek-search-api`) followed by **DeepSeek (legacy)** (`deepseek-official`), and the Fetch menu lists **Direct fetch** (`http`) and then **DeepSeek Fetch API** (`deepseek-fetch-api`); every other provider follows in registration order and shows its registered title or id. The shipped composition selects DeepSeek Search API for Search and Direct fetch for Fetch, and a selection stored in settings or composed by the deployment still applies; opening the page writes nothing. Each menu has no label of its own; its accessible name is its section title followed by the selected provider, such as **Web search provider DeepSeek Search API**. A selected id the Host does not register appears as an extra **(not loaded)** entry and stays selected. While the deployment composes no provider for a capability, its menu starts with **Automatic**, which clears the stored selection so the Host chooses again. Selecting the deployment's composed provider clears the stored selection instead of writing a copy. When the provider list cannot be read, each section says its menu may be incomplete and offers **Retry**; the menus keep the last list read, or only the selected ids before any list arrives. Under each menu, the section shows the `description` the selected provider registered, in the active language, as plain text; a provider that registers none, or a selected id the Host does not register, shows no description. The official providers' descriptions state each one's credentials, charges, model calls, reachable addresses, and content limits, and Direct fetch's ends by suggesting DeepSeek Fetch API as plain text. A plugin provider's section adds, after its description, that it is configured in that plugin's own settings.
+ 
+ **Use the new Web Search API** defaults off, so search keeps using Messages and fetch keeps using local HTTP. Its hint links to the DeepSeek search and fetch guide for the new API's features and billing. Saving it on selects the DeepSeek Search and Fetch APIs together; saving it off clears both selections back to the deployment's defaults, or stores Messages search with local HTTP fetch when the deployment composes the APIs. The switch appears only while the Host also serves the `web` and `web-deepseek-api` namespaces. With the switch on, the page shows **Results per search** (an integer from 1 through 50, default 10) in place of the Messages-only **Max searches per request**, and invalid result counts block saving. The switch is disabled while an invalid edit or a failed save is staged, so a field it would hide stays visible. Each mode keeps its own API base when switching. The **Messages API base URL** and **Search / Fetch API base URL** labels identify the active protocol; their hints name the required prefix and appended operation path. One save writes the provider settings before the selection and the credential last, so a refused section leaves the switch and key drafts unsaved. The Messages key remains editable and saveable when the Host serves only `web-search-deepseek`. See [web-search-deepseek](../../web/web-search-deepseek/README.md#use-this-package) and [web-deepseek-api](../../web/web-deepseek-api/README.md#use-this-package) for API behavior.
+ 
+@@ -68,7 +68,7 @@ None; this package neither assembles nor sends a provider request.
+ 
+ <a id="known-limitations-and-deferred-work"></a>
+ 
+-- **Automatic selection reads only the deployment composition** — a menu offers it when the composition layer sets no provider for that capability. While automatic selection applies, the Host's `DSH_WEB_SEARCH_PROVIDER` or `DSH_WEB_FETCH_PROVIDER` environment variable picks the provider instead, and the page does not show that choice. Without either, automatic Fetch selection with more than one usable registered provider makes each operation fail with `WEB_PROVIDER_AMBIGUOUS`, and so does automatic Search selection when the Host does not register the DeepSeek provider it prefers for the conversation's model. The line under automatic Search selection is fixed copy that describes the Host with both DeepSeek search providers registered.
++- **Automatic selection reads only the deployment composition** — a menu offers it when the composition layer sets no provider for that capability. While automatic selection applies, the Host's `DSH_WEB_SEARCH_PROVIDER` or `DSH_WEB_FETCH_PROVIDER` environment variable picks the provider instead, and the page does not show that choice. Without either, automatic selection with more than one usable registered provider makes each operation fail with `WEB_PROVIDER_AMBIGUOUS`.
+ 
+ - **Billing availability is not shown** — the page does not report that the selected billing has no signed-in account or no configured key; reading sign-in state needs the account remote, and the key reference of the DeepSeek API-key model provider is not visible to this page. An unavailable billing withholds the web tool from the model.
+ 
+diff --git a/packages/client/ui-sidebar/src/client/SidebarRoot.module.css b/packages/client/ui-sidebar/src/client/SidebarRoot.module.css
+index fa87819b..52040b06 100644
+--- a/packages/client/ui-sidebar/src/client/SidebarRoot.module.css
++++ b/packages/client/ui-sidebar/src/client/SidebarRoot.module.css
+@@ -83,7 +83,7 @@
+   padding: 0;
+ }
+ 
+-:global([data-windows-titlebar]) .root:not(.collapsed) .newSessionRow {
++:global([data-windows-titlebar]) .root:not(.collapsed) .newSession {
+   margin-top: 6px;
+ }
+ 
+@@ -154,12 +154,7 @@
+    rail right edge over the remaining 150ms of the AppFrame track transition.
+    The bottom-pinned settings seat shares their opacity timeline but stays
+    horizontally fixed. Only a live collapse gets .railIn; a cold collapsed
+-   render stays static.
+-   The New Session row renders its content through the `sidebar.session.action`
+-   HOC slot, whose `display: contents` outlet anchor sits between the row and
+-   its content. The shell's New-session button and the occupant's own controls
+-   are that anchor's children, so the fade targets them through the anchor; the
+-   boxless anchor itself cannot carry an animation. */
++   render stays static. */
+ .railIn .iconButton,
+ .railIn .newSession,
+ .railIn .tabList,
+@@ -460,29 +455,19 @@
+   white-space: nowrap;
+ }
+ 
+-/* New session fills the row; the session-action HOC layer renders it, then the occupant's controls. */
+-.newSessionRow {
+-  flex: none;
+-  display: flex;
+-  align-items: center;
+-  gap: 6px;
+-  margin: 0 calc(var(--dsh-sidebar-paint-inset) + 1px);
+-}
+-
+ /* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
+    corners); collapsed it renders as the rail's plain icon control. */
+ .newSession {
+   container-type: inline-size;
+   position: relative;
+-  flex: 1 1 auto;
+-  min-width: 0;
++  flex: none;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: 0;
+   height: 38px;
+   padding: 8px 12px;
+-  margin: 0;
++  margin: 0 calc(var(--dsh-sidebar-paint-inset) + 1px);
+   box-sizing: border-box;
+   border: 0.5px solid var(--dsw-alias-border-l3);
+   border-radius: var(--dsw-radius-md);
+@@ -514,20 +499,12 @@
+   }
+ }
+ 
+-/* The rail stacks the occupant's controls under the New session icon. */
+-.collapsed .newSessionRow {
+-  flex-direction: column;
+-  align-items: flex-start;
+-  gap: 4px;
+-  margin: 0 0 12px;
+-}
+-
+ .collapsed .newSession {
+-  flex: none;
++  align-self: flex-start;
+   width: 36px;
+   height: 36px;
+   padding: 0;
+-  margin: 0;
++  margin: 0 0 12px;
+   gap: 0;
+   border-color: transparent;
+   background: transparent;
+diff --git a/packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap b/packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap
+index 3f354aa3..d2e21d82 100644
+--- a/packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap
++++ b/packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap
+@@ -60,33 +60,22 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded
+       data-dsh-sidebar-new="true"
+       type="button"
+     >
+-      <div
+-        data-slot="sidebar.session.action"
+-        style="display: contents;"
++      <span
++        class="newSessionLabelMask"
+       >
+-        <button
+-          aria-label="New session"
+-          class="newSession"
+-          type="button"
++        <span
++          class="newSessionContent"
+         >
+-          <span
+-            class="newSessionLabelMask"
+-          >
+-            <span
+-              class="newSessionContent"
+-            >
+-              <svg
+-                aria-hidden="true"
+-                data-content="6e5e38f3"
+-                data-icon="dsw-icon-new-chat-outline-regular"
+-                height="16"
+-                width="16"
+-              />
+-            </span>
+-          </span>
+-        </button>
+-      </div>
+-    </div>
++          <svg
++            aria-hidden="true"
++            data-content="6e5e38f3"
++            data-icon="dsw-icon-new-chat-outline-regular"
++            height="16"
++            width="16"
++          />
++        </span>
++      </span>
++    </button>
+     <div
+       class="scrollRegion"
+     >
+@@ -227,38 +216,27 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded
+       data-dsh-sidebar-new="true"
+       type="button"
+     >
+-      <div
+-        data-slot="sidebar.session.action"
+-        style="display: contents;"
++      <span
++        class="newSessionLabelMask"
+       >
+-        <button
+-          aria-label="New session"
+-          class="newSession"
+-          type="button"
++        <span
++          class="newSessionContent"
+         >
++          <svg
++            aria-hidden="true"
++            data-content="532cf99a"
++            data-icon="dsw-icon-new-chat-outline-medium"
++            height="14"
++            width="14"
++          />
+           <span
+-            class="newSessionLabelMask"
++            class="newSessionLabel wide"
+           >
+-            <span
+-              class="newSessionContent"
+-            >
+-              <svg
+-                aria-hidden="true"
+-                data-content="532cf99a"
+-                data-icon="dsw-icon-new-chat-outline-medium"
+-                height="14"
+-                width="14"
+-              />
+-              <span
+-                class="newSessionLabel wide"
+-              >
+-                New Session
+-              </span>
+-            </span>
++            New Session
+           </span>
+-        </button>
+-      </div>
+-    </div>
++        </span>
++      </span>
++    </button>
+     <div
+       class="scrollRegion"
+     >
+@@ -364,33 +342,22 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
+       data-dsh-sidebar-new="true"
+       type="button"
+     >
+-      <div
+-        data-slot="sidebar.session.action"
+-        style="display: contents;"
++      <span
++        class="newSessionLabelMask"
+       >
+-        <button
+-          aria-label="New session"
+-          class="newSession"
+-          type="button"
++        <span
++          class="newSessionContent"
+         >
+-          <span
+-            class="newSessionLabelMask"
+-          >
+-            <span
+-              class="newSessionContent"
+-            >
+-              <svg
+-                aria-hidden="true"
+-                data-content="6e5e38f3"
+-                data-icon="dsw-icon-new-chat-outline-regular"
+-                height="18"
+-                width="18"
+-              />
+-            </span>
+-          </span>
+-        </button>
+-      </div>
+-    </div>
++          <svg
++            aria-hidden="true"
++            data-content="6e5e38f3"
++            data-icon="dsw-icon-new-chat-outline-regular"
++            height="18"
++            width="18"
++          />
++        </span>
++      </span>
++    </button>
+     <div
+       class="scrollRegion"
+     >
+@@ -531,38 +498,27 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
+       data-dsh-sidebar-new="true"
+       type="button"
+     >
+-      <div
+-        data-slot="sidebar.session.action"
+-        style="display: contents;"
++      <span
++        class="newSessionLabelMask"
+       >
+-        <button
+-          aria-label="New session"
+-          class="newSession"
+-          type="button"
++        <span
++          class="newSessionContent"
+         >
++          <svg
++            aria-hidden="true"
++            data-content="532cf99a"
++            data-icon="dsw-icon-new-chat-outline-medium"
++            height="14"
++            width="14"
++          />
+           <span
+-            class="newSessionLabelMask"
++            class="newSessionLabel wide"
+           >
+-            <span
+-              class="newSessionContent"
+-            >
+-              <svg
+-                aria-hidden="true"
+-                data-content="532cf99a"
+-                data-icon="dsw-icon-new-chat-outline-medium"
+-                height="14"
+-                width="14"
+-              />
+-              <span
+-                class="newSessionLabel wide"
+-              >
+-                New Session
+-              </span>
+-            </span>
++            New Session
+           </span>
+-        </button>
+-      </div>
+-    </div>
++        </span>
++      </span>
++    </button>
+     <div
+       class="scrollRegion"
+     >
+@@ -704,38 +660,27 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
+       data-dsh-sidebar-new="true"
+       type="button"
+     >
+-      <div
+-        data-slot="sidebar.session.action"
+-        style="display: contents;"
++      <span
++        class="newSessionLabelMask"
+       >
+-        <button
+-          aria-label="新建会话"
+-          class="newSession"
+-          type="button"
++        <span
++          class="newSessionContent"
+         >
++          <svg
++            aria-hidden="true"
++            data-content="532cf99a"
++            data-icon="dsw-icon-new-chat-outline-medium"
++            height="14"
++            width="14"
++          />
+           <span
+-            class="newSessionLabelMask"
++            class="newSessionLabel wide"
+           >
+-            <span
+-              class="newSessionContent"
+-            >
+-              <svg
+-                aria-hidden="true"
+-                data-content="532cf99a"
+-                data-icon="dsw-icon-new-chat-outline-medium"
+-                height="14"
+-                width="14"
+-              />
+-              <span
+-                class="newSessionLabel wide"
+-              >
+-                新会话
+-              </span>
+-            </span>
++            新会话
+           </span>
+-        </button>
+-      </div>
+-    </div>
++        </span>
++      </span>
++    </button>
+     <div
+       class="scrollRegion"
+     >
+diff --git a/packages/client/ui-sidebar/tests/sidebar-styles.client.spec.ts b/packages/client/ui-sidebar/tests/sidebar-styles.client.spec.ts
+index 19ebe232..10ea3033 100644
+--- a/packages/client/ui-sidebar/tests/sidebar-styles.client.spec.ts
++++ b/packages/client/ui-sidebar/tests/sidebar-styles.client.spec.ts
+@@ -1,7 +1,6 @@
+ /** Sidebar shell style contracts shared with its slot-owned controls. */
+ import { readFileSync } from 'node:fs'
+ import { fileURLToPath } from 'node:url'
+-import { JSDOM } from 'jsdom'
+ import { describe, expect, it } from 'vitest'
+ 
+ const css = readFileSync(fileURLToPath(new URL('../src/client/SidebarRoot.module.css', import.meta.url)), 'utf8')
+@@ -26,28 +25,6 @@ function declarations(selector: string): Map<string, string> | undefined {
+   return undefined
+ }
+ 
+-/**
+- * Every declared selector, including those inside at-rule blocks.
+- * @returns the selector text of each comma-separated part.
+- */
+-function declaredSelectors(): string[] {
+-  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, ' ')
+-  return [...withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+-    .flatMap(([, selectorList = '']) => selectorList.split(',').map(value => value.trim()))
+-}
+-
+-/** Declarations of the reduced-motion block, which disables every rail animation. */
+-function reducedMotion(): string {
+-  return css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*)\n\}/u)?.[1] ?? ''
+-}
+-
+-/** The renderer's `display: contents` anchor for the sidebar session action HOC slot. */
+-const SLOT_ANCHOR = ":global([data-slot='sidebar.session.action'])"
+-/** The shell's New-session button and the occupant's controls: the anchor's children, each matched once. */
+-const ROW_CONTENT = `.railIn .newSessionRow > ${SLOT_ANCHOR} > *`
+-/** The rail rule as a plain selector a DOM can match, with the CSS-module escape removed. */
+-const ROW_CONTENT_SELECTOR = ROW_CONTENT.replace(SLOT_ANCHOR, "[data-slot='sidebar.session.action']")
+-
+ describe('SidebarRoot.module.css', () => {
+   it('uses a compact expanded navigation gap without shrinking the collapsed rail spacing', () => {
+     expect(declarations('.panelList')?.get('gap')).toBe('2px')
+@@ -111,18 +88,16 @@ describe('SidebarRoot.module.css', () => {
+   it('keeps the reviewed expanded spacing separate from rail and caption controls', () => {
+     expect(declarations('.logoRow')?.get('padding')).toBe('8px 0 8px 8px')
+     expect(declarations('.logoRow')?.get('margin-bottom')).toBe('0')
+-    expect(declarations('.newSessionRow')?.get('margin')).toBe('0 calc(var(--dsh-sidebar-paint-inset) + 1px)')
+-    expect(declarations('.newSession')?.get('margin')).toBe('0')
++    expect(declarations('.newSession')?.get('margin')).toBe('0 calc(var(--dsh-sidebar-paint-inset) + 1px)')
+     expect(declarations('.newSessionContent')?.get('justify-content')).toBe('center')
+     expect(declarations(":global(html[data-platform='darwin']:not([data-fullscreen])) .root:not(.collapsed) > .topStrip > .toggle")?.get('transform')).toBe('translateX(4px)')
+     expect(css).not.toContain(':not(.fading)')
+-    expect(declarations(':global([data-windows-titlebar]) .root:not(.collapsed) .newSessionRow')?.get('margin-top')).toBe('6px')
+-    expect(declarations(':global([data-windows-titlebar]) .root:not(.collapsed) .newSessionRow')?.has('margin-left')).toBe(false)
++    expect(declarations(':global([data-windows-titlebar]) .root:not(.collapsed) .newSession')?.has('margin-left')).toBe(false)
+     expect(declarations('.topStrip')?.get('height')).toBe('52px')
+     expect(declarations('.root.collapsed')?.get('padding')).toBe('18px 10px 6px')
+   })
+ 
+-  it('moves the upper controls while the settings seat only fades', () => {
++  it('moves the four upper controls while the settings seat only fades', () => {
+     const animation = 'rail-in 150ms var(--ds-ease-in-out) backwards'
+     for (const selector of [
+       '.railIn .iconButton',
+@@ -141,48 +116,9 @@ describe('SidebarRoot.module.css', () => {
+     expect(css).toMatch(/@keyframes rail-fade-in\s*\{\s*from\s*\{\s*opacity: 0;\s*}\s*}/)
+   })
+ 
+-  it('fades the New Session row through its slot anchor without reaching into either button', () => {
+-    // The row renders its content through the HOC slot, so the renderer's
+-    // display:contents anchor is the row's only child; the shell's New-session
+-    // button and the occupant's own controls are the anchor's children.
+-    expect(declarations(ROW_CONTENT)?.get('animation')).toBe('rail-in 150ms var(--ds-ease-in-out) backwards')
+-    expect(reducedMotion()).toContain(ROW_CONTENT)
+-    for (const selector of declaredSelectors()) {
+-      if (!selector.includes('.newSessionRow')) continue
+-      // A bare star under the row matches the boxless anchor, so nothing animates.
+-      expect(selector).not.toMatch(/\.newSessionRow\s*>\s*\*/u)
+-      // A second bare star step also matches .newSessionLabelMask and
+-      // .newSessionShortcut inside the button, which would run rail-in twice on it.
+-      expect(selector).not.toMatch(/>\s*\*\s*>\s*\*/u)
+-      expect(selector).not.toContain('.newSessionLabelMask')
+-      expect(selector).not.toContain('.newSessionShortcut')
+-    }
+-  })
+-
+-  it('matches exactly the two buttons the slot anchor holds', () => {
+-    // The renderer's outlet anchor is a display:contents div; the shell's
+-    // New-session button and the occupant's control are its element children.
+-    const { document } = new JSDOM(`
+-      <div class="railIn">
+-        <div class="newSessionRow">
+-          <div data-slot="sidebar.session.action" style="display: contents">
+-            <button class="newSession">
+-              <span class="newSessionLabelMask"><span class="newSessionContent"></span></span>
+-              <span class="newSessionShortcut"></span>
+-            </button>
+-            <button class="trigger"></button>
+-          </div>
+-        </div>
+-      </div>`).window
+-    const matched = [...document.querySelectorAll<HTMLElement>(ROW_CONTENT_SELECTOR)]
+-    expect(matched.map(element => element.className)).toEqual(['newSession', 'trigger'])
+-    // A bare child step matches only the boxless anchor, so nothing would animate.
+-    expect(document.querySelectorAll('.railIn .newSessionRow > *')).toHaveLength(1)
+-  })
+-
+   it('gives shell rail controls the same base anchor for their shared translation', () => {
+     expect(declarations('.collapsed .logoRow')?.get('justify-content')).toBe('flex-start')
+-    expect(declarations('.collapsed .newSessionRow')?.get('align-items')).toBe('flex-start')
++    expect(declarations('.collapsed .newSession')?.get('align-self')).toBe('flex-start')
+     expect(declarations('.collapsed .newSession')?.get('width')).toBe('36px')
+   })
+ 
+diff --git a/packages/client/ui-workspace/src/client/WorkspacePicker.tsx b/packages/client/ui-workspace/src/client/WorkspacePicker.tsx
+index b9cb9a9b..81715af7 100644
+--- a/packages/client/ui-workspace/src/client/WorkspacePicker.tsx
++++ b/packages/client/ui-workspace/src/client/WorkspacePicker.tsx
+@@ -2,14 +2,13 @@
+  * Workspace pick/add flow. WorkspacePickFlow is the reusable core (menu +
+  * path error dialog) consumed directly by WorkspaceBrowser (same package) and
+  * wrapped by WorkspacePicker for the conversation empty-state slot
+- * registration and by WorkspacePickerFactory for the `workspace.picker`
+- * Factory. Directory picking itself lives in the composed flow package's
++ * registration. Directory picking itself lives in the composed flow package's
+  * slot occupant (see the contract module doc): this core only opens the flow,
+  * adopts the picked path, and owns the error surface. Adding a workspace has
+  * exactly one route — pick a host directory, new or existing — because the
+  * occupant's own create-folder affordance already covers creating one.
+  */
+-import type { ReactElement, ReactNode, RefObject } from 'react'
++import type { ReactNode, RefObject } from 'react'
+ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+ import {
+   Button, IconFolderCloseRegular, IconNewChatOutlineRegular, IconPlusOutlineRegular, Menu, Modal, StateDot, Toast, type MenuEntry,
+@@ -19,7 +18,7 @@ import type {
+ } from '@deepseek-ai/dsh-api-workspace-controller/client'
+ import { workspaceDisplayTitle } from '@deepseek-ai/dsh-api-workspace-controller/default-workspace'
+ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
+-import type { DirectoryFlowOwnerProps, WorkspacePickerFactoryProps, WorkspacePickerProps } from './contract/slots.ts'
++import type { DirectoryFlowOwnerProps, WorkspacePickerProps } from './contract/slots.ts'
+ import { distinguishingPathSuffixes } from './path-suffix.ts'
+ import css from './WorkspacePicker.module.css'
+ import type { WorkspaceDirectoryAction } from './navigation.ts'
+@@ -290,8 +289,10 @@ export function WorkspacePickFlow({
+ }
+ 
+ /**
+- * The flow inputs both picker surfaces forward unchanged; each surface
+- * supplies only the render function of its own directory-flow hole.
++ * The conversation empty-state registration: adapts the owner share to the
++ * core flow (all state and semantics live in the flow / the owner).
++ * @param props - empty-state slot props (owner share + injected creation callback).
++ * @returns the flow element.
+  */
+ export function WorkspacePicker({
+   open,
+@@ -326,25 +327,3 @@ export function WorkspacePicker({
+     />
+   )
+ }
+-
+-/**
+- * The conversation empty-state registration: adapts the owner share to the
+- * core flow (all state and semantics live in the flow / the owner).
+- * @param props - empty-state slot props (owner share + injected creation callback).
+- * @returns the flow element.
+- */
+-export function WorkspacePicker(props: WorkspacePickerProps) {
+-  const { renderSlot } = props
+-  return surfaceFlow(props, owner => renderSlot('conversation.hero.workspace.directoryFlow', owner))
+-}
+-
+-/**
+- * The `workspace.picker` Factory definition: the same flow for another
+- * plugin's surface, under the Factory's own directory-flow hole.
+- * @param props - caller input, injected creation share, and the locale seat.
+- * @returns the flow element.
+- */
+-export function WorkspacePickerFactory(props: WorkspacePickerFactoryProps) {
+-  const { renderSlot } = props
+-  return surfaceFlow(props, owner => renderSlot('workspace.picker.directoryFlow', owner))
+-}
+diff --git a/packages/client/ui-workspace/src/client/index.ts b/packages/client/ui-workspace/src/client/index.ts
+index 4569e537..2fd1f80d 100644
+--- a/packages/client/ui-workspace/src/client/index.ts
++++ b/packages/client/ui-workspace/src/client/index.ts
+@@ -5,11 +5,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
+  * Workspace plugin, browser half. Two registrations: WorkspaceBrowser fills
+  * the sidebar shell's `sidebar.workspaces` hole (the whole browsing region),
+  * and WorkspacePicker fills the conversation hero's picker hole
+- * (`conversation.hero.workspace` — both hero forms). The `workspace.picker`
+- * Component Factory renders the same picker for other plugins. All three read
+- * real Host Workspaces through the global useWorkspaces hook, and each
+- * declares its own `single` directory-flow child hole for the composed picker
+- * package's client half. WorkspaceBrowser additionally declares the two Session row
++ * (`conversation.hero.workspace` — both hero forms). Both read real Host
++ * Workspaces through the global useWorkspaces hook, and each declares its
++ * own `single` directory-flow child hole for the composed picker package's
++ * client half. WorkspaceBrowser additionally declares the two Session row
+  * action lists. Built-in Session menu actions contribute structured data to
+  * ctx.contextMenus, while external React entries retain the legacy Slot. Dialogs and
+  * the row-action notice register in `shell.overlay` (see the contract module doc). It also declares two
+@@ -43,7 +42,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+ // Type-only: pulls the Session root standard-hook merge.
+ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+ import {
+-  type ArchiveSessionInjected, type DirectoryFlowSlotName, type ForkSessionInjected, menuOpenStateFactory, type PinSessionInjected,
++  type ArchiveSessionInjected, type ForkSessionInjected, menuOpenStateFactory, type PinSessionInjected,
+   type SessionArchiveConfirmInjected, type SessionArchiveConfirmRequest,
+   type RenameSessionInjected, type RowToast, type RowToastInjected, type RowToastState, type SessionRenameDialogInjected,
+   type SessionDeleteRequest, type WorkspaceActionRequest, type SessionIdInjected, type WorkspaceBrowserInjected, type WorkspacePickerInjected,
+@@ -179,7 +178,7 @@ export function apply(ctx: Context): void {
+ 
+   // Stable per-surface occupancy sources (the renderer's hook cache keys by
+   // source identity): true while the surface's directory-flow hole is filled.
+-  const flowSource = (hole: DirectoryFlowSlotName): HostObservable<boolean> => ({
++  const flowSource = (hole: 'sidebar.workspaces.directoryFlow' | 'conversation.hero.workspace.directoryFlow'): HostObservable<boolean> => ({
+     getSnapshot: () => ctx.slots.entries(hole).length > 0,
+     subscribe: listener => ctx.slots.subscribe(hole, listener),
+   })
+@@ -189,7 +188,6 @@ export function apply(ctx: Context): void {
+     subscribe: listener => ctx.on('connection/reset', listener),
+   }
+   const pickerFlowSource = flowSource('conversation.hero.workspace.directoryFlow')
+-  const factoryFlowSource = flowSource('workspace.picker.directoryFlow')
+   const openSession: WorkspaceBrowserInjected['open'] = (sessionId) => {
+     uiWorkspace.openSession(sessionId)
+   }
+@@ -438,7 +436,7 @@ export function apply(ctx: Context): void {
+       workspaceShortcuts: shortcutControls.state, shortcuts: ctx.shortcuts.catalog,
+       sessionNavigation: uiWorkspace.sessionNavigation, directoryActions: uiWorkspace.directoryActions },
+   })
+-  const pickerInjected = (directoryFlow: HostObservable<boolean>) => (): WorkspacePickerInjected => ({
++  const pickerInjected = (): WorkspacePickerInjected => ({
+     createWorkspace: input => workspaces.create(input),
+     hooks: { directoryFlow: pickerFlowSource, directoryActions: uiWorkspace.directoryActions },
+   })
+@@ -506,7 +504,7 @@ export function apply(ctx: Context): void {
+     {
+       name: 'conversation.hero.workspace',
+       children: { 'conversation.hero.workspace.directoryFlow': { kind: 'single', scope: 'root' } },
+-      inject: pickerInjected(pickerFlowSource),
++      inject: pickerInjected,
+       locale: NS,
+     },
+     WorkspacePicker,
+diff --git a/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts b/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts
+index 6d7bee7a..a3595d5c 100644
+--- a/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts
++++ b/packages/extensions/cordis-client-runner/src/client/slot-catalog.ts
+@@ -7225,41 +7225,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
+     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'tool.view.cordis\', () => ctx.slots.register(\n      { name: \'tool.view.cordis\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+     source: 'packages/extensions/ui-cordis/src/client/slots.ts:31',
+   },
+-  {
+-    key: 'workspace.picker.directoryFlow',
+-    kind: 'single',
+-    scope: 'root',
+-    summary: 'Directory-flow hole under every `workspace.picker` Factory occurrence (declared by the Factory definition).',
+-    doc: 'Directory-flow hole under every `workspace.picker` Factory occurrence\n(declared by the Factory definition). A directory-picker package\nregisters the same occupant here as in the other two directory-flow\nholes; while this hole is empty, Factory occurrences offer no\n"Add workspace…" entry.',
+-    registerOptions: [],
+-    ownerProps: [
+-      '/**\n * Owner share of the directory-flow holes: the complete conversation between\n * the trigger surface and the picking interaction. The occupant reads `open`\n * to run/render its interaction and reports exactly one outcome per open.\n */\nexport interface DirectoryFlowOwnerProps {\n  /** True while a picking interaction is requested; flipping back to false withdraws the request. */\n  open: boolean\n  /** True while the owner adopts a picked path (`createWorkspace` in flight); occupants disable their commit affordances. */\n  busy: boolean\n  /** The operator picked a directory (absolute host path); the owner adopts it. */\n  onPicked: (path: string) => void\n  /** The operator dismissed the interaction; the owner just closes the flow. */\n  onCancel: () => void\n  /** The interaction itself failed (chooser missing, listing denied); the owner shows its error surface. */\n  onError: (message: string) => void\n}',
+-    ],
+-    ownerPropsReferences: [],
+-    standardProps: [
+-      'useRemoteAccess: (action: RemoteEndpoint) => boolean',
+-      'useResource: UseResource',
+-      'useContextMenu: UseContextMenu',
+-      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+-      'usePanelInfo: UsePanelInfo',
+-      'useSessions: UseSessions',
+-      'useSessionStatus: UseSessionStatus',
+-      'useSessionRetainInfo: UseSessionRetainInfo',
+-      'useSessionAccess: (sessionId: SessionId, action: RemoteEndpoint) => boolean',
+-      'useWorkspaceAccess: (workspaceId: WorkspaceId, action: RemoteEndpoint) => boolean',
+-    ],
+-    keyDomain: '',
+-    hookContext: '',
+-    slotInject: '',
+-    declaredBy: 'factory \'workspace.picker\' (client-ui-workspace), so it exists while that definition is registered',
+-    occupants: [
+-      'client-ui-directory-picker-browse BrowseDirectoryFlow',
+-      'client-ui-directory-picker-native NativeDirectoryFlow',
+-    ],
+-    replaceRisk: 'shadows-shipped-ui',
+-    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'workspace.picker.directoryFlow\', () => ctx.slots.register(\n      { name: \'workspace.picker.directoryFlow\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+-    source: 'packages/client/ui-workspace/src/client/contract/slots.ts:151',
+-  },
+   {
+     key: 'workspace.toast',
+     kind: 'keyed',
+diff --git a/packages/session-query/session-log-export/README.i18n.yaml b/packages/session-query/session-log-export/README.i18n.yaml
+index 8b10c02a..b4cbc029 100644
+--- a/packages/session-query/session-log-export/README.i18n.yaml
++++ b/packages/session-query/session-log-export/README.i18n.yaml
+@@ -39,8 +39,8 @@
+   en: 44be1f1d1903d12a
+   zh: c8f1eb5b92b71a30
+ /deepseek-ai-dsh-session-log-export/use-this-package/failures:
+-  en: 355facfc072eb15d
+-  zh: bd7686d16d933eae
++  en: e92a382bebfe99e3
++  zh: 671178b06808bfb9
+ /deepseek-ai-dsh-session-log-export/understand-the-implementation:
+   en: 7cb82a6851405f95
+   zh: b8c525170d19dc6c
+diff --git a/packages/session-query/session-log-export/README.zh.md b/packages/session-query/session-log-export/README.zh.md
+index 69e9b231..01df0787 100644
+--- a/packages/session-query/session-log-export/README.zh.md
++++ b/packages/session-query/session-log-export/README.zh.md
+@@ -84,7 +84,7 @@ Web bundle 将本包与 Connection、`dsh-commands`、`dsh-client-ui-commands`
+ 
+ ### 失败
+ 
+-当 ZIP 流式传输开始前的预检失败时——例如 Host 端点不可达或配置错误——弹窗显示准备阶段错误。浏览器接受 GET 后发生的子会话读取失败，或除「对象不存在」以外的附件读取失败，由浏览器下载管理器报告，不通过弹窗报告。Markdown 准备失败显示重试 Session 读取的浮层；剪贴板写入失败显示单独的检查剪贴板权限浮层。二者都不会为不完整或缺失的记录报告成功，也不会显示进行中的浮层。
++当 ZIP 流式传输开始前的预检失败时——例如 Host 端点不可达或配置错误——弹窗显示准备阶段错误。浏览器接受 GET 后发生的子会话或附件读取失败由浏览器下载管理器报告，不通过弹窗报告。Markdown 准备失败显示重试 Session 读取的浮层；剪贴板写入失败显示单独的检查剪贴板权限浮层。二者都不会为不完整或缺失的记录报告成功，也不会显示进行中的浮层。
+ 
+ -----
+ 
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index f48d5280..1fecf071 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -344,6 +344,9 @@ importers:
+       '@deepseek-ai/dsh-cua-bundle':
+         specifier: workspace:*
+         version: link:../../packages/experimental/cua-bundle
++      '@deepseek-ai/dsh-deepseek-chat-import':
++        specifier: workspace:*
++        version: link:../../packages/experimental/deepseek-chat-import
+       '@deepseek-ai/dsh-experimental-agent-team-profile':
+         specifier: workspace:*
+         version: link:../../packages/experimental/agent-team-profile
+@@ -21997,10 +22000,12 @@ packages:
+ 
+   '@modelcontextprotocol/server-everything@2026.8.31':
+     resolution: {integrity: sha512-5U3OZh8Xq0Li4nA26l6uNvV9/1suMDuWSn+NjLZIhzinhMY6N3A4DCrxVecBGPf2PsNFKTEv5krxGPRwzxc7jQ==}
++    deprecated: 'Date-based versions are no longer published. This package has resumed semantic versioning at 1.0.0: install the latest version.'
+     hasBin: true
+ 
+   '@modelcontextprotocol/server-filesystem@2026.8.31':
+     resolution: {integrity: sha512-kKaFkyAh6oipvc9+EAbJ552JafnMnOq5nzmzWkp1jJdBhTAAGpmIpWihUG1+rfNhmEFM98gUZDdCHCDD4v6a7Q==}
++    deprecated: 'Date-based versions are no longer published. This package has resumed semantic versioning at 1.0.0: install the latest version.'
+     hasBin: true
+ 
+   '@modelcontextprotocol/server@2.2.0':
+@@ -22971,6 +22976,9 @@ packages:
+   '@smithy/core@3.35.0':
+     resolution: {integrity: sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A==}
+     engines: {node: '>=18.0.0'}
++    deprecated: |-
++      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
++        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
+ 
+   '@smithy/credential-provider-imds@4.5.2':
+     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
+diff --git a/scripts/package-dependency-policy.ts b/scripts/package-dependency-policy.ts
+index 348a0348..97540b15 100644
+--- a/scripts/package-dependency-policy.ts
++++ b/scripts/package-dependency-policy.ts
+@@ -106,6 +106,8 @@ const PEER_REQUIRED_HOST_EXPORTS = {
+   // Readers recognize a deadline's TimeoutReason only by `instanceof` against their own copy.
+   '@deepseek-ai/dsh-timeout': ['deadline'],
+   '@deepseek-ai/dsh-tools': ['defineTool'],
++  // Imported web tool results must render exactly like the installed web tools' results and cards.
++  '@deepseek-ai/dsh-tool-web': ['fetchMetaFromValue', 'formatFetchOutput', 'formatSearchOutput', 'searchMetaFromValue'],
+ } as const satisfies HostDependencyExports
+ 
+ /** Exact import specifier to reviewed runtime exports. */
