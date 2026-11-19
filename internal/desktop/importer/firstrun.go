@@ -133,10 +133,15 @@ func HasLegacyData(source string) bool {
 	return report.ConfigJSON || report.CredentialsJSON || anyCategory(report.CategoryFound)
 }
 
-// FirstRunOffer plans the manual copy that Settings offers: the same migration
-// as a first run, planned whenever the source still has data, because running
-// it again only keeps what the destination already holds.
+// FirstRunOffer plans the manual copy that Settings offers. It honours the
+// recorded outcome: a completed import leaves the legacy profile imported and
+// nothing to offer, while a skipped or dismissed one keeps the action, because
+// the marker records an answer to the launch prompt and not a refusal of the
+// import. Running it again only keeps what the destination already holds.
 func FirstRunOffer(dest, source string) (FirstRunPlan, bool) {
+	if FirstRunStatus(filepath.Clean(strings.TrimSpace(dest))) == FirstRunDone {
+		return FirstRunPlan{}, false
+	}
 	if !HasLegacyData(source) {
 		return FirstRunPlan{}, false
 	}
