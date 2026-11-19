@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"testing"
 	"time"
@@ -42,6 +44,9 @@ func TestFrameProbe(t *testing.T) {
 	if os.Getenv("WHALEISLE_FRAME_PROBE") == "" {
 		t.Skip("frame probe not requested: set WHALEISLE_FRAME_PROBE=1")
 	}
+	if openProfile != "" {
+		runtime.MemProfileRate = 4096
+	}
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())
 	repeat := 1
@@ -61,6 +66,30 @@ func TestFrameProbe(t *testing.T) {
 	}
 	if report := session.ViewTraceReport(); report != "" {
 		t.Logf("who advanced the snapshot revision:\n%s", report)
+	}
+}
+
+// openProfile names a pair of heap profiles to write either side of the open
+// frame, so that one run says what that frame allocated and where: go tool
+// pprof -sample_index=alloc_space -diff_base=open.before open.after.
+var openProfile = os.Getenv("WHALEISLE_FRAME_PROBE_OPEN_PROFILE")
+
+// openCPU names a prefix to write a CPU profile of each run's open frame to.
+// The frames are 50 ms apart and 50 ms long, so one profile holds a handful of
+// samples; pprof merges the files a run leaves behind:
+// go tool pprof open-cpu.*.prof
+var openCPU = os.Getenv("WHALEISLE_FRAME_PROBE_OPEN_CPU")
+var openRun int
+
+// writeAllocProfile writes the allocator's profile to path.
+func writeAllocProfile(path string) {
+	file, err := os.Create(path)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	if err := pprof.Lookup("allocs").WriteTo(file, 0); err != nil {
+		panic(err)
 	}
 }
 
@@ -100,7 +129,29 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 	// later, the open of each run lands under the previous run's last mark.
 	mark("open")
 	model := newFrameProbeModel()
-	tester := ui.NewTester(model.viewFunc(false), model.width, model.height)
+	var tester *ui.Tester
+	open := func() {
+		tester = ui.NewTester(model.viewFunc(false), model.width, model.height)
+	}
+	if openCPU != "" {
+		file, err := os.Create(fmt.Sprintf("%s.%d.prof", openCPU, openRun))
+		if err != nil {
+			panic(err)
+		}
+		if err := pprof.StartCPUProfile(file); err != nil {
+			panic(err)
+		}
+		open()
+		pprof.StopCPUProfile()
+		file.Close()
+	} else if openProfile != "" {
+		writeAllocProfile(openProfile + ".before")
+		open()
+		writeAllocProfile(openProfile + ".after")
+	} else {
+		open()
+	}
+	openRun++
 	frame := func() {
 		now = now.Add(budget)
 		tester.SetTime(now)
@@ -116,6 +167,15 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 		t.Fatal("the store's messages did not reach the view")
 	}
 	t.Logf("messages in store: %d", len(model.view().Messages))
+
+	if want("open") {
+		// The open frame is the one ui.NewTester drew above: it is where the
+		// store projects the view and the chat projects its messages, and it
+		// is the only frame a long session pays for once.
+		builds, hits := model.store.SnapshotStats()
+		t.Logf("open: store projections=%d cache hits=%d", builds, hits)
+		dump(tester, "open")
+	}
 
 	if want("scroll") {
 		mark("scroll")
