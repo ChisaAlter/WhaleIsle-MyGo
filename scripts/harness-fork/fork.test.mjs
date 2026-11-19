@@ -7,7 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {auditFork} from '../runtime-fork-audit.mjs';
 import {assembleInstanceGraph, compositionSeeds, dependencyEntries, verifyInstanceGraph} from './graph.mjs';
-import {baselineMerge, directory as forkDirectory, isUnowned, loadPin, tagEntry} from './fork.mjs';
+import {baselineMerge, configureScratchRepo, directory as forkDirectory, isUnowned, loadPin, tagEntry} from './fork.mjs';
 
 const tmp = (t, prefix) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -65,7 +65,7 @@ test('bump tags are ordered the way they merge', () => {
 test('a recorded resolution replays to the same tree git merged', t => {
   const root = tmp(t, 'harness-fork-resolution-');
   git(root, 'init', '-q', '-b', 'main');
-  for (const [key, value] of [['user.name', 'harness-fork'], ['user.email', 'harness-fork@invalid']]) git(root, 'config', key, value);
+  configureScratchRepo(root);
   write(root, 'file.txt', 'base\n');
   write(root, 'other.txt', 'untouched\n');
   git(root, 'add', '-A');

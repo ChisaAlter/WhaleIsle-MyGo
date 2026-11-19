@@ -105,19 +105,28 @@ function assertSymlinks({repo, source, env}) {
   if (broken.length) throw new Error(`The source tree has ${broken.length} symbolic link(s) this platform stored as files (${broken.slice(0, 3).join(', ')}); enable symlink support or the fork would differ from the tag.`);
 }
 
+/**
+ * A scratch repo must not inherit the machine's line endings, symlink settings or
+ * identity: the fork is compared by tree hash, and a checkout that rewrites LF to
+ * CRLF is a different tree.
+ */
+export function configureScratchRepo(repo) {
+  for (const [key, value] of [
+    ['core.autocrlf', 'false'], ['core.symlinks', 'true'], ['commit.gpgsign', 'false'],
+    ['gc.auto', '0'], ['fetch.recurseSubmodules', 'false'],
+  ]) git(['config', key, value], {cwd: repo});
+  for (const [key, value] of [['user.name', 'harness-fork'], ['user.email', 'harness-fork@invalid']]) {
+    if (!stdout(git(['config', '--get', key], {cwd: repo, allow: true}))) git(['config', key, value], {cwd: repo});
+  }
+}
+
 export function ensureWork(work = defaultWork) {
   const repo = path.join(work, 'tree');
   fs.mkdirSync(work, {recursive: true});
   if (!fs.existsSync(path.join(repo, '.git'))) {
     fs.mkdirSync(repo, {recursive: true});
     git(['init', '-q', '-b', 'mygo'], {cwd: repo});
-    for (const [key, value] of [
-      ['core.autocrlf', 'false'], ['core.symlinks', 'true'], ['commit.gpgsign', 'false'],
-      ['gc.auto', '0'], ['fetch.recurseSubmodules', 'false'],
-    ]) git(['config', key, value], {cwd: repo});
-    for (const [key, value] of [['user.name', 'harness-fork'], ['user.email', 'harness-fork@invalid']]) {
-      if (!stdout(git(['config', '--get', key], {cwd: repo, allow: true}))) git(['config', key, value], {cwd: repo});
-    }
+    configureScratchRepo(repo);
   }
   return {work, repo};
 }
