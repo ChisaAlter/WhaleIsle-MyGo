@@ -31,7 +31,7 @@ func configurationProtocolLabel(id string) string {
 // configurationCreateHint is the first unmet requirement of the create card in
 // the reference's words ("" when the card is ready or the blocking field already
 // says what is wrong beside itself).
-func configurationCreateHint(route, endpoint string, rows []any, taken bool, keyBad bool) string {
+func configurationCreateHint(route, endpoint, protocol string, rows []any, taken bool, keyBad bool) string {
 	switch {
 	case route == "" || !configurationRoutePattern.MatchString(route) || taken:
 		return ""
@@ -41,6 +41,8 @@ func configurationCreateHint(route, endpoint string, rows []any, taken bool, key
 		return ""
 	case endpoint == "":
 		return providerCopy("自定义模型 API 需要填写 API 地址。", "A custom provider needs a base URL.")
+	case protocol == "":
+		return providerCopy("选择 API 协议：它决定请求按哪种格式发出。", "Choose the API protocol: it decides the format requests are sent in.")
 	}
 	if message := configurationModelError(rows); message != "" {
 		return message
@@ -54,6 +56,38 @@ func configurationCreateHint(route, endpoint string, rows []any, taken bool, key
 func configurationHTTPURL(endpoint string) bool {
 	u, err := url.Parse(endpoint)
 	return err == nil && u.Host != "" && (u.Scheme == "http" || u.Scheme == "https")
+}
+
+// configurationProtocolChoices is the API protocol field as it shows: a leading
+// placeholder and then every protocol the Host offers, with the chosen one
+// selected, or the placeholder while nothing is chosen yet.
+//
+// There is deliberately no default. The protocol decides how every request is
+// addressed, so a guess is a provider that saves, is listed, and then fails
+// every turn — which is exactly what a default produced. Asking costs one
+// deliberate choice.
+func configurationProtocolChoices(protocol string, protocols []string) (labels []string, selected string) {
+	selected = providerCopy("请选择协议…", "Choose a protocol…")
+	labels = make([]string, 0, len(protocols)+1)
+	labels = append(labels, selected)
+	for _, id := range protocols {
+		labels = append(labels, configurationProtocolLabel(id))
+		if id == protocol {
+			selected = configurationProtocolLabel(id)
+		}
+	}
+	return labels, selected
+}
+
+// configurationProtocolChoice is the protocol id of the chosen label, or "" for
+// the placeholder: the form must never write a protocol the reader did not pick.
+func configurationProtocolChoice(selected string, protocols []string) string {
+	for _, id := range protocols {
+		if selected != "" && configurationProtocolLabel(id) == selected {
+			return id
+		}
+	}
+	return ""
 }
 
 // configurationCreateProvider is the reference's "自定义模型 API" card: Provider
@@ -74,9 +108,6 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 		}
 	}
 	protocol := configurationText(draft["api"])
-	if protocol == "" && len(protocols) > 0 {
-		protocol = protocols[0]
-	}
 	route := strings.TrimSpace(configurationText(draft["route"]))
 	endpoint := strings.TrimSpace(configurationText(draft["baseURL"]))
 	rows := configurationRows(draft["models"])
@@ -132,22 +163,12 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 		}
 		ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			modelFieldLabel(c, providerCopy("API 协议", "API protocol"))
-			labels := make([]string, len(protocols))
-			selected := ""
-			for i, id := range protocols {
-				labels[i] = configurationProtocolLabel(id)
-				if id == protocol {
-					selected = labels[i]
-				}
-			}
+			labels, selected := configurationProtocolChoices(protocol, protocols)
 			if ui.Select(c, &selected, labels).Label(providerCopy("API 协议", "API protocol")).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).Disabled(disabled).Changed() {
-				for i, label := range labels {
-					if label == selected {
-						draft["api"] = protocols[i]
-						save()
-					}
-				}
+				draft["api"] = configurationProtocolChoice(selected, protocols)
+				save()
 			}
+			modelHint(c, providerCopy("协议决定请求的格式；选错时提供商会建好，但每次请求都会失败，之后仍可在这里改回来。探测模型还要求该地址提供模型列表。", "The protocol decides how requests are sent: a wrong choice still saves the provider, and then every turn fails. You can change it here later. Discovering models also needs that address to serve a model list."), "")
 		})
 		if m.Models != nil && createOnly && m.Models.configurationOnCreate != nil && m.Models.configurationCreateKey != nil {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
@@ -172,7 +193,7 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 				label = providerCopy("添加到草稿", "Add to draft")
 			}
 			create := modelPill(c, label, true, false, !s.ClientReady || s.Loading || disabled || !ready)
-			if hint := configurationCreateHint(route, endpoint, rows, taken, keyBad); hint != "" && !ready {
+			if hint := configurationCreateHint(route, endpoint, protocol, rows, taken, keyBad); hint != "" && !ready {
 				create.Tooltip(hint)
 			}
 			if create.Clicked() {

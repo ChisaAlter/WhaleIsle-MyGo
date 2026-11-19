@@ -244,6 +244,7 @@ type selectParts[T comparable] struct {
 	highlight *int
 	values    *[]T
 	next      []T
+	items     []*node
 	pointer   *[2]float32
 }
 
@@ -289,13 +290,20 @@ func coreSelectBase[T comparable](c *context, selected *T) *selectParts[T] {
 		if b.Clicked() {
 			open(!*s.open)
 		}
+		// Assistive technology opens and closes a select through its expand
+		// pattern: a pop-up button exposes no invoke one, so this is the only
+		// way a screen reader has to show the options.
+		if e := b.st; e.expand != 0 {
+			open(e.expand > 0)
+			e.expand = 0
+		}
 		n := len(*s.values)
 		move := func(i int) {
 			*s.highlight = max(0, min(i, n-1))
 			c.rt.consumed = true
 		}
 		if !*s.open {
-			if b.Shortcut(0, KeyDown) || b.Shortcut(0, KeyUp) {
+			if b.Shortcut(0, KeyDown) || b.Shortcut(0, KeyUp) || b.Shortcut(0, KeyEnter) || b.Shortcut(0, KeySpace) {
 				open(true)
 			}
 		} else if n > 0 {
@@ -354,9 +362,16 @@ func (s *selectParts[T]) Popup(fn func(panel *node)) *node {
 	b := s.Trigger
 	return popover(s.c, b, s.open, true, func(panel *node) {
 		panel.MinWidth(b.Bounds().W)
-		s.next = s.next[:0]
+		// The options are a list choosing one of them, as the palette a
+		// combobox opens: without the choice and their own roles, assistive
+		// technology has no way to read them or to choose one.
+		panel.choosesItems = true
+		s.next, s.items = s.next[:0], s.items[:0]
 		fn(panel)
 		*s.values = append((*s.values)[:0], s.next...)
+		for i, item := range s.items {
+			item.setPos, item.setSize = i+1, len(s.next)
+		}
 	})
 }
 
@@ -367,8 +382,9 @@ func (s *selectParts[T]) Item(value T) *node {
 	c := s.c
 	i := len(s.next)
 	s.next = append(s.next, value)
-	item := coreRow(c)
-	item.flags |= flagClickable | flagHover
+	item := coreRow(c).Role(RoleListItem)
+	item.flags |= flagClickable | flagHover | flagChoosable
+	s.items = append(s.items, item)
 	if *s.highlight < 0 && value == *s.selected {
 		*s.highlight = i
 	}
