@@ -843,6 +843,9 @@ func (s *mainState) settingsBoolPtr(ns, field, seed string) *bool {
 	return &s.settingsDrafts[len(s.settingsDrafts)-1].boolV
 }
 
+// showMainWindow brings the window forward for an action the person at this
+// machine took: a tray click, a menu item, a notification they clicked, a
+// deeplink they opened, or a second launch they started.
 func (s *mainState) showMainWindow() {
 	s.mu.Lock()
 	win := s.win
@@ -855,7 +858,30 @@ func (s *mainState) showMainWindow() {
 	win.Focus()
 }
 
+// revealMainWindow puts the window on screen without taking the foreground, for
+// the surfaces no action at this machine asked for: the fallback when the tray
+// could not be created during a launch the operator did not start, and a phone
+// that navigated the desktop. ShowInactive also brings a minimized window back,
+// so the app stays reachable from the taskbar while whatever the operator is
+// working in keeps the foreground.
+func (s *mainState) revealMainWindow() {
+	s.mu.Lock()
+	win := s.win
+	s.mu.Unlock()
+	if win == nil {
+		return
+	}
+	win.ShowInactive()
+}
+
 func (s *mainState) applyDeeplink(t deeplink.Target) {
+	s.applyDeeplinkReveal(t, true)
+}
+
+// applyDeeplinkReveal is applyDeeplink with the choice of what the navigation may
+// do to the operator's foreground: a destination the person at this machine
+// picked comes forward, and one a phone picked only appears.
+func (s *mainState) applyDeeplinkReveal(t deeplink.Target, activate bool) {
 	if t.Action == deeplink.ActionLauncher {
 		t.Action, t.Section = deeplink.ActionSettings, "desktop"
 	}
@@ -961,7 +987,11 @@ func (s *mainState) applyDeeplink(t deeplink.Target) {
 	sessions := s.sessions
 	s.mu.Unlock()
 	s.syncMainRouteResources()
-	s.showMainWindow()
+	if activate {
+		s.showMainWindow()
+	} else {
+		s.revealMainWindow()
+	}
 	if t.Action == deeplink.ActionAuth && usage != nil {
 		sid := ""
 		if sessions != nil {
