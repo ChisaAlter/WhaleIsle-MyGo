@@ -16,7 +16,7 @@ var copySurfaces = []string{"../settings", "../sidebar", "../usage", "../market"
 
 // renderedCall matches the calls that put a string in front of a person: a body
 // of text, a control label, a help string, or a catalog entry.
-var renderedCall = regexp.MustCompile(`ui\.(?:Text|RichText|Button|ButtonBase)\(|\.(?:Label|Description|Placeholder|Tooltip)\(|(?:providerCopy|marketText|usageText|voiceText|settingsText|directoryPickerText|lifecycleText)\(|i18n\.Register\(|Register\(`)
+var renderedCall = regexp.MustCompile(`ui\.(?:Text|RichText|Button|ButtonBase)\(|\.(?:Label|Description|Placeholder|Tooltip)\(|(?:providerCopy|marketText|usageText|voiceText|settingsText|directoryPickerText|lifecycleText)\(|i18n\.Register\(|Register\(|widgets\.Alert\(|\bMessage:`)
 
 // rawInternal is a string the transport, the environment or the file system
 // wrote. None of it is copy: a gateway envelope, an internal variable, a status

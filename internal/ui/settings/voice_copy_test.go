@@ -12,16 +12,15 @@ import (
 const gatewayEnvelope = "gateway/invocation-unavailable: typert gateway: speech/follow: no active Remote method exports this endpoint"
 
 // TestVoiceFailureSpeaksASentenceAndKeepsTheEnvelopeInDetails covers the voice
-// page's failure line: the sentence names the service and the next step, and the
-// envelope is one disclosure away instead of being the sentence.
+// page's failure row: the sentence names the service and the next step, and the
+// envelope is one disclosure away instead of being the sentence. The row is
+// widgets.Alert, so the copy rides the product's single failure surface.
 func TestVoiceFailureSpeaksASentenceAndKeepsTheEnvelopeInDetails(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
-		tt := c
 		ui.Column(c).FillWidth().Padding(12).Gap(12).Children(func() {
-			voiceFailureLine(tt, gatewayEnvelope,
-				voiceText("语音服务没有响应。", "The speech service is not responding."),
-				voiceText("点「重新连接语音服务」再试；仍然连不上就稍后再试，详情见日志。", "Press Reconnect speech service to try again; if it still fails, try later, and check the log for details."),
-				false, nil)
+			voiceFailureLine(c, "connection", gatewayEnvelope,
+				voiceText("语音服务没有响应。点「重新连接语音服务」再试；仍然连不上就稍后再试，详情见日志。", "The speech service is not responding. Press Reconnect speech service to try again; if it still fails, try later, and check the log for details."),
+				"", nil)
 		})
 	}, 700, 260)
 
@@ -38,7 +37,7 @@ func TestVoiceFailureSpeaksASentenceAndKeepsTheEnvelopeInDetails(t *testing.T) {
 	if !strings.Contains(shown, "详情") {
 		t.Fatalf("no details affordance holds the envelope: %q", shown)
 	}
-	if err := tt.Click("▸ 详情"); err != nil {
+	if err := tt.Click("详情"); err != nil {
 		t.Fatalf("details control: %v", err)
 	}
 	opened := strings.Join(tt.Texts(), "\n")

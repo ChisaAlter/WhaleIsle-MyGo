@@ -274,12 +274,6 @@ func SentenceFor(code, raw string) string {
 }
 
 func sentenceFor(cause Cause, raw string) string {
-	if cause == CauseMissingCredential {
-		return i18n.T(keyNoCredential)
-	}
-	if status, ok := HTTPStatus("", raw); ok {
-		return rejectedSentence(status)
-	}
 	if cause == CauseRuntimeExited {
 		if match := exitCode.FindStringSubmatch(raw); match != nil {
 			return fmt.Sprintf(i18n.T(keyRuntimeExitCode), match[1])
