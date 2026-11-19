@@ -71,11 +71,12 @@ const fixture = (t, overrides = {}) => {
   return { root, contract, version };
 };
 
-const stage = (t, body, { version = '9.9.9', pin = null } = {}) => {
+const stage = (t, body, { version = '9.9.9', pin = null, packages = [] } = {}) => {
   const runtime = scratch(t);
   const harness = path.join(runtime, 'vendor', 'deepseek-harness');
   const composition = path.join(harness, ...path.posix.dirname(compositionFile).split('/'));
   fs.mkdirSync(composition, { recursive: true });
+  for (const name of packages) fs.mkdirSync(path.join(harness, ...name.split('/')), { recursive: true });
   fs.writeFileSync(path.join(harness, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-root', version }));
   fs.writeFileSync(path.join(composition, path.basename(compositionFile)), body);
   if (pin) fs.writeFileSync(path.join(runtime, 'vendor', 'harness-upstream.json'), JSON.stringify(pin));
@@ -139,6 +140,25 @@ test('verify names CRLF line endings as the difference', async t => {
   await rejectsWith(verifyComposition(stage(t, crlf), { contract }), 'uses CRLF line endings');
 });
 
+test('verify accepts a stage carrying every package a derived version declares', async t => {
+  const { contract } = fixture(t, { version: { staging: { desktopPackages: ['packages/mcp/mcp-servers-file'] } } });
+  const result = await verifyComposition(stage(t, stagedBody, { packages: ['packages/mcp/mcp-servers-file'] }), { contract });
+  assert.equal(result.version, '9.9.9');
+});
+
+test('verify names a declared package the stage lacks instead of accepting its composition', async t => {
+  const { contract } = fixture(t, {
+    version: { staging: { desktopPackages: ['packages/mcp/mcp-servers-file', 'packages/client/ui-visual-replies'] } },
+  });
+  const runtime = stage(t, stagedBody, { packages: ['packages/mcp/mcp-servers-file'] });
+  await rejectsWith(verifyComposition(runtime, { contract }), 'names a package this stage does not carry');
+  await assert.rejects(verifyComposition(runtime, { contract }), error => {
+    assert.ok(error.message.includes('packages/client/ui-visual-replies'), error.message);
+    assert.ok(!error.message.includes('missing : packages/mcp'), error.message);
+    return true;
+  });
+});
+
 test('verify refuses a harness version with no recorded contract', async t => {
   const { contract } = fixture(t);
   await rejectsWith(verifyComposition(stage(t, stagedBody, { version: '8.8.8' }), { contract }), 'has no composition contract');
@@ -175,6 +195,11 @@ test('the shipped contract pins the upstream files it carries', async () => {
     assert.match(entry.harnessPin.sha, /^[a-f0-9]{40}$/, `${version} harness pin`);
     const filename = path.join(path.dirname(fileURLToPath(import.meta.url)), 'runtime-composition', entry.upstream.file);
     assert.equal(hash(fs.readFileSync(filename, 'utf8')), entry.upstream.sha256, `${version} upstream copy`);
+    if (entry.desktop.reference.startsWith('derived from')) {
+      assert.ok(entry.staging?.desktopPackages?.length, `${version} is derived and must declare the packages only a 本体 vendor carries`);
+      for (const relative of entry.staging.desktopPackages) assert.match(relative, /^packages\/[^/]+\/[^/]+$/, `${version} staging package`);
+      assert.ok(entry.staging.why?.length > 40, `${version} staging reason`);
+    }
     for (const alternate of entry.alternates) {
       assert.match(alternate.sha256, /^[a-f0-9]{64}$/, `${version} alternate`);
       assert.ok(alternate.why.length > 20, `${version} alternate reason`);
