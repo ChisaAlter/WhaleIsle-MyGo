@@ -850,6 +850,11 @@ func (s *mainState) showMainWindow() {
 	if win == nil {
 		return
 	}
+	// The person asked for the window, so it may activate from here on. Before
+	// this call the launch was unasked for and the window could only appear
+	// (SetInactiveOnly at creation), which is what keeps a background start from
+	// moving the foreground out from under the person using the machine.
+	win.SetInactiveOnly(false)
 	win.Show()
 	win.Restore()
 	win.Focus()
@@ -2189,6 +2194,11 @@ func main() {
 		// Native content paints the accepted appearance; DirectComposition keeps
 		// the outer silhouette transparent without adding a caption content row.
 		win := mygo.NewWindow(winOpts)
+		// An unasked-for launch may show this window, never take the foreground:
+		// every raising call on it becomes ShowInactive until an action at this
+		// machine asks for it (showMainWindow). The flag lives on the window, so a
+		// raising path added later is covered without being audited.
+		win.SetInactiveOnly(background || isolatedDesktopRun())
 		frame.SetDisplayWindow(win)
 		startuptrace.Mark("window.created")
 		// Native window.js:185 gives the Windows window a 48 DIP icon.
