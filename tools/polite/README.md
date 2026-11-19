@@ -149,3 +149,7 @@ Each entry carries the call name, the window it targets, the foreground window a
 ## The evidence file is the record; the console is a convenience
 
 Every run writes its evidence block to `run-evidence-<stamp>.txt` in the evidence directory as well as printing it. Two runs in this harness's history lost their numbers to a caller whose shell mangled the output — one to a broken pipe, one to a PowerShell precedence bug inside the printer. A run costs the operator their focus, so its numbers must survive whatever the caller does with stdout.
+
+## The forced kill is AYA-48, not the harness
+
+When a run reports `pid exited: True (graceful=False forced=True)`, the harness sent `WM_CLOSE`, waited its budget, and then killed its own pid. That is the harness refusing to leave a process behind, not the harness being heavy-handed: the app does not quit on `WM_CLOSE` within that budget while its workbench is not yet ready, and the underlying defect is tracked as AYA-48 (HOME-84 owns it). One control run had no modal up at all — only the main window on an initialised profile — and still needed the forced kill, so the first-run import modal is not the cause. Do not "fix" the close path here; a harness that waits longer just hides the same defect slower.
