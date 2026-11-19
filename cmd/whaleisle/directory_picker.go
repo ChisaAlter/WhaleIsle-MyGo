@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"runtime"
 	"strings"
 	"time"
@@ -42,6 +43,7 @@ func (s *mainState) openDirectoryPicker(sessions *session.Store, win *mygo.Windo
 	s.dirPickBrowser = dirpick.BrowserState{UseNative: useNative}
 	s.dirPickNewName, s.dirPickErr = "", ""
 	s.mu.Unlock()
+	log.Printf("directory picker: open mode=%s native=%v hostGeneration=%d", mode, useNative, host)
 	if useNative {
 		updateDirectoryWindow(win)
 	} else {
@@ -203,6 +205,13 @@ func (op *directoryScan) finish() {
 func (op *directoryScan) list(path string) (api.DirectoryListing, error) {
 	var window uint64
 	op.commit(func(b *dirpick.BrowserState) { b.SlowScan = false; b.ScanWindow++; window = b.ScanWindow })
+	// First-run workspace choice runs before the Host: nothing else can
+	// enumerate the disk yet, and refusing here left the browser with no level.
+	if op.client == nil {
+		listing, err := directorypicker.LocalList(path)
+		log.Printf("directory picker: local list %q: %v", path, err)
+		return listing, err
+	}
 	go func() {
 		timer := time.NewTimer(300 * time.Millisecond)
 		defer timer.Stop()
@@ -217,9 +226,6 @@ func (op *directoryScan) list(path string) (api.DirectoryListing, error) {
 		}
 	}()
 	var listing api.DirectoryListing
-	if op.client == nil {
-		return listing, session.ErrNoClient
-	}
 	if !op.current() {
 		return listing, context.Canceled
 	}
@@ -467,7 +473,7 @@ func (s *mainState) createDirectoryPicker(sessions *session.Store, win *mygo.Win
 		var created api.CreateDirectoryResult
 		var err error
 		if op.client == nil {
-			err = session.ErrNoClient
+			created, err = directorypicker.LocalCreateDirectory(parent, name)
 		} else if op.current() {
 			// workspace-controller/src/directory-picker.ts validates the single
 			// segment; DirectoryBrowser forwards its original whitespace.
@@ -724,14 +730,21 @@ func (s *mainState) nativeDirectoryPicker(sessions *session.Store, win *mygo.Win
 			}
 		}()
 		result, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: directoryPickerText("选择工作目录", "Select Workspace Directory"), Directory: true, DefaultPath: initial})
+		log.Printf("directory picker: native dialog returned %v err=%v", result, err)
 		if err != nil {
 			op.commit(func(_ *dirpick.BrowserState) { s.dirPickErr = directoryFailureText(err) })
 			return
 		}
-		if len(result) == 0 || !op.current() {
+		if len(result) == 0 {
+			log.Printf("directory picker: native dialog cancelled")
+			return
+		}
+		if !op.current() {
+			log.Printf("directory picker: native result %q dropped: scan no longer current", result[0])
 			return
 		}
 		listing, err := op.list(result[0])
+		log.Printf("directory picker: native listing %q -> %q err=%v", result[0], listing.Path, err)
 		if err != nil {
 			op.commit(func(_ *dirpick.BrowserState) { s.dirPickErr = directoryFailureText(err) })
 			return
@@ -779,10 +792,21 @@ func (s *mainState) mergeDirectoryPickerUI(request uint64, before, edited dirpic
 	}
 }
 
+// directoryFailureText is the sentence the browser shows. The raw failure goes
+// to the log: this dialog is the only way to choose a first workspace, so the
+// reader gets a cause they can act on and never a transport string.
 func directoryFailureText(err error) string {
-	var remote *dsh.Error
-	if errors.As(err, &remote) && remote.Message != "" {
-		return remote.Message
+	log.Printf("directory picker: %v", err)
+	var browse *directorypicker.Error
+	if errors.As(err, &browse) {
+		switch browse.Kind {
+		case directorypicker.KindExists:
+			return directoryPickerText("同名文件夹已存在，请换一个名称。", "A folder with that name already exists. Choose another name.")
+		case directorypicker.KindCreateFailed:
+			return directoryPickerText("无法创建文件夹，请换一个位置或名称后重试。", "The folder could not be created. Try another location or name.")
+		default:
+			return directoryPickerText("无法读取该文件夹，请换一个位置，或检查它是否仍然存在。", "That folder cannot be read. Choose another one, or check that it still exists.")
+		}
 	}
 	return errcopy.Sentence(err)
 }

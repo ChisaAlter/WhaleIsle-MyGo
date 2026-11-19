@@ -121,8 +121,11 @@ func TestRegistrationFailureHasIndependentRetryWithoutHeroAnchor(t *testing.T) {
 	var retriedToken uint64
 	model := Model{Store: session.New(), OnRegister: func(token uint64, path string) { retriedToken, retried = token, path }, OnBrowse: func() {}}
 	tt := ui.NewTester(func(c *ui.Context) { registrationDialog(c, model, request, theme.Resolve("system").Light) }, 600, 420)
-	if !tt.HasText(request.Error) || !tt.HasText(request.Draft) {
+	if !tt.HasText("Adding the workspace did not finish. Try again.") || !tt.HasText(request.Draft) {
 		t.Fatal("registration target and failure were invisible without an anchor")
+	}
+	if tt.HasText(request.Error) {
+		t.Fatal("raw Host wording reached the dialog")
 	}
 	if err := tt.Click("Retry"); err != nil {
 		t.Fatal(err)

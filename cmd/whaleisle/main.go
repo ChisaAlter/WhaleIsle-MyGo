@@ -51,6 +51,7 @@ import (
 	"whaleisle/internal/desktop/taskguard"
 	desktopwebview "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/errcopy"
@@ -791,7 +792,41 @@ func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store
 	if sessions == nil {
 		return
 	}
+	// A first workspace is chosen before any Host exists: workspace/create is
+	// unreachable, and the Host reads config.workspace when it launches. Saving
+	// it here is what lets the choice start the Host instead of dead-ending.
+	if !sessions.Snapshot().WorkspaceReady {
+		s.adoptFirstWorkspace(win, sessions, ws)
+		return
+	}
 	s.registerWorkspacePath(win, sessions, ws)
+}
+
+// adoptFirstWorkspace persists the workspace for a Host that has not started
+// yet, then asks the supervisor to start it under that path.
+func (s *mainState) adoptFirstWorkspace(win *mygo.Window, sessions *session.Store, path string) {
+	real, err := directorypicker.UsableDirectory(path)
+	if err != nil {
+		log.Printf("workspace: refuse %q: %v", path, err)
+		s.notifyUser(win, directoryPickerText("无法使用该文件夹，请换一个位置后重试。", "That folder cannot be used. Choose another one and try again."))
+		return
+	}
+	s.mu.Lock()
+	store := s.cfgStore
+	s.mu.Unlock()
+	if store == nil {
+		log.Printf("workspace: no config store for %q", real)
+		s.notifyUser(win, directoryPickerText("设置尚未就绪，请稍后重试。", "Settings are not ready yet. Try again in a moment."))
+		return
+	}
+	if err := store.Update(func(c *config.Config) { c.Workspace = real }); err != nil {
+		log.Printf("workspace: save %q: %v", real, err)
+		s.notifyUser(win, directoryPickerText("无法保存工作区，请检查配置目录是否可写后重试。", "The workspace could not be saved. Check that the config folder is writable and try again."))
+		return
+	}
+	log.Printf("workspace: adopted %q before Host start", real)
+	sessions.SetWorkspaceCwd(real)
+	s.startWorkbenchHost(win, nil)
 }
 
 func (s *mainState) settingsBoolPtr(ns, field, seed string) *bool {
@@ -1971,6 +2006,9 @@ func main() {
 			log.Println("userdata:", err)
 		}
 		userData := paths.UserDataDir()
+		if err := startAppLog(userData); err != nil {
+			log.Println("app log:", err)
+		}
 		state.mu.Lock()
 		state.coldStoresDir = userData
 		state.mu.Unlock()

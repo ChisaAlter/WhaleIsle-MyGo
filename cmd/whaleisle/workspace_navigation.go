@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -98,9 +99,16 @@ func (s *mainState) registerWorkspacePath(win *mygo.Window, sessions *session.St
 	sessions.OpenWorkspacePicker()
 	request := sessions.Snapshot().WorkspaceNavigation
 	if request == nil || request.Mode != "pick" || request.Busy {
+		if request == nil {
+			log.Printf("workspace: register %q dropped: no pick request (Host not connected)", path)
+		} else {
+			log.Printf("workspace: register %q dropped: mode=%s busy=%v", path, request.Mode, request.Busy)
+		}
 		return
 	}
+	log.Printf("workspace: register %q (token %d)", path, request.Token)
 	sessions.RegisterWorkspace(context.Background(), request.Token, path, s.persistRegisteredWorkspace, func(row session.WorkspaceRow) {
+		log.Printf("workspace: registered %q as %q", row.Path, row.WorkspaceID)
 		s.finishWorkspaceAdoption(win, sessions, row, adoption)
 	})
 }
