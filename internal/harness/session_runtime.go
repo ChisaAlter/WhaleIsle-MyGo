@@ -19,6 +19,7 @@ import (
 const sessionRuntimeManifestName = "host-session-runtime.json"
 const sessionRuntimeHarnessCommit = "687f282e8625c6b8d11ff58211a90524be2e4317"
 const sessionRuntimeRC4Commit = "504a01a9578abc2c6f1fb896b1dc322c9fe24f66"
+const sessionRuntimeRC5Commit = "9c2670d3bce5275e0d1610272958121af87787bb"
 
 type sessionRuntimeSafety struct {
 	ID           string `json:"id"`
@@ -49,6 +50,8 @@ func sessionRuntimeProfile(version string) (string, sessionRuntimeSafety, bool) 
 		return sessionRuntimeRC4Commit, rc4SessionRuntimeSafety, true
 	case "0.2.2-rc.2":
 		return "ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c", rc4SessionRuntimeSafety, true
+	case "0.2.2-rc.5":
+		return sessionRuntimeRC5Commit, rc4SessionRuntimeSafety, true
 	default:
 		return "", sessionRuntimeSafety{}, false
 	}
@@ -115,7 +118,7 @@ func validateStagedSessionRuntimeWithReader(vendorDir string, read sessionRuntim
 		return err
 	}
 	requiredTypes := desktopSessionEventTypes
-	if manifest.CLIVersion == "0.2.2-rc.2" {
+	if strings.HasPrefix(manifest.CLIVersion, "0.2.2-") {
 		requiredTypes = append(append([]string(nil), requiredTypes...), "team/mode", "subagent/catalog", "assistant/attempt")
 	}
 	for _, required := range requiredTypes {

@@ -103,9 +103,14 @@ if ($env:WHALEISLE_PACKAGE_SKIP_RUNTIME -ne '1') {
     $VendorSrc = $env:WHALEISLE_VENDOR
     if ($RuntimeRoot) { $VendorSrc = Join-Path ([System.IO.Path]::GetFullPath($RuntimeRoot)) 'vendor' }
     if (-not $VendorSrc) {
-        $VendorSrc = Join-Path $ProjectRoot 'runtime-0.2.2-rc2\vendor'
-        if (-not (Test-Path -LiteralPath $VendorSrc -PathType Container)) {
-            throw 'Stage the 0.2.2-rc.2 Host with build-harness.ps1 or explicitly select an alternate runtime with -RuntimeRoot.'
+        # Newest staged 0.2.2 runtime wins; rc.2 stays the fallback so a machine
+        # that has only the older stage keeps packaging.
+        foreach ($name in @('runtime-0.2.2-rc5', 'runtime-0.2.2-rc2')) {
+            $candidate = Join-Path $ProjectRoot $name
+            if (Test-Path -LiteralPath (Join-Path $candidate 'vendor') -PathType Container) { $VendorSrc = Join-Path $candidate 'vendor'; break }
+        }
+        if (-not $VendorSrc) {
+            throw 'Stage a 0.2.2 Host with build-harness.ps1 or explicitly select an alternate runtime with -RuntimeRoot.'
         }
     }
     if (Test-Path (Join-Path $VendorSrc 'current-host-build.json')) {

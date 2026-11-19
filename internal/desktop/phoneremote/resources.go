@@ -161,7 +161,7 @@ func verifyPackagedMobileResources(root string) (string, error) {
 		return "", nil
 	}
 	var m mobileResourceManifest
-	if err := json.Unmarshal(raw, &m); err != nil || m.Format != 3 || (m.Profile != "installed-rc2" && m.Profile != "installed-rc4" && m.Profile != "installed-0.2.2-rc.2") || m.Files == nil || m.Links == nil {
+	if err := json.Unmarshal(raw, &m); err != nil || m.Format != 3 || (m.Profile != "installed-rc2" && m.Profile != "installed-rc4" && m.Profile != "installed-0.2.2-rc.2" && m.Profile != "installed-0.2.2-rc.5") || m.Files == nil || m.Links == nil {
 		return "", fmt.Errorf("unsupported packaged mobile manifest")
 	}
 	platform, arch := runtime.GOOS, runtime.GOARCH
@@ -255,8 +255,8 @@ func verifyPackagedMobileResources(root string) (string, error) {
 	peer := filepath.Join(vendor, "deepseek-harness")
 	if m.Profile != "installed-rc2" {
 		version := "0.2.1-rc.4"
-		if m.Profile == "installed-0.2.2-rc.2" {
-			version = "0.2.2-rc.2"
+		if m.Profile == "installed-0.2.2-rc.2" || m.Profile == "installed-0.2.2-rc.5" {
+			version = strings.TrimPrefix(m.Profile, "installed-")
 		}
 		identity, err := os.ReadFile(filepath.Join(peer, "package.json"))
 		var host struct{ Version string }

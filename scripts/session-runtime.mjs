@@ -31,10 +31,16 @@ const supportedHarnessPins = Object.freeze([{
 }, {
   repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
   ref: 'dsh-v0.2.2-rc.2', sha: 'ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c', npm: '0.2.2-rc.2',
+}, {
+  repo: 'https://github.com/deepseek-ai/deepseek-harness.git',
+  ref: 'dsh-v0.2.2-rc.5', sha: '9c2670d3bce5275e0d1610272958121af87787bb', npm: '0.2.2-rc.5',
 }]);
 const sharedDesktopAdmissionTypes = ['team/mode', 'subagent/catalog', 'assistant/attempt'];
 function admissionTypesFor(version) {
-  return version === '0.2.2-rc.2' ? [...sessionAdmissionTypes, ...sharedDesktopAdmissionTypes] : sessionAdmissionTypes;
+  // rc.3 through rc.5 changed no Session source (packages/core/session and
+  // session-persistence differ only in package.json), so the whole 0.2.2 line
+  // carries the same versioned catalog facts.
+  return version.startsWith('0.2.2-') ? [...sessionAdmissionTypes, ...sharedDesktopAdmissionTypes] : sessionAdmissionTypes;
 }
 function supportedPin(version, pin) {
   return supportedHarnessPins.find(candidate => candidate.npm === version &&
@@ -587,7 +593,7 @@ export async function stageReleaseRuntime(stageRoot, freshDest, {slim = false} =
     if (original.split(before).length !== 2) throw Error('Installed mobile manager has no unique supported Harness fallback');
     const patched = original.replace(before, after);
     await fs.writeFile(manager, patched);
-    await fs.writeFile(path.join(mobile, 'source-provenance.json'), JSON.stringify({schemaVersion: 1, profile: metadata.cliVersion === '0.2.1-rc.4' ? 'installed-rc4' : 'installed-rc2', sourceRoot: path.join(source, 'vendor/dshd-remote'), managerRelocation: {path: 'src/main/dshd-remote.js', baseSHA256: crypto.createHash('sha256').update(original).digest('hex'), outputSHA256: crypto.createHash('sha256').update(patched).digest('hex'), reason: 'Use the same verified Host graph as the desktop rather than an absent nested source-build copy.'}}, null, 2) + '\n', {flag: 'wx'});
+    await fs.writeFile(path.join(mobile, 'source-provenance.json'), JSON.stringify({schemaVersion: 1, profile: metadata.cliVersion === '0.2.1-rc.4' ? 'installed-rc4' : 'installed-' + metadata.cliVersion, sourceRoot: path.join(source, 'vendor/dshd-remote'), managerRelocation: {path: 'src/main/dshd-remote.js', baseSHA256: crypto.createHash('sha256').update(original).digest('hex'), outputSHA256: crypto.createHash('sha256').update(patched).digest('hex'), reason: 'Use the same verified Host graph as the desktop rather than an absent nested source-build copy.'}}, null, 2) + '\n', {flag: 'wx'});
     recordInstalled(mobile);
   }
   verifyMobile(mobile);

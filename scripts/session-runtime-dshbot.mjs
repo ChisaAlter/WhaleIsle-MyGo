@@ -8,7 +8,7 @@ import {verifyStagedSessionRuntime} from './session-runtime.mjs';
 export async function carryDshbot(sourceVendor, targetStage) {
   const targetVendor = path.join(fs.realpathSync(targetStage), 'vendor');
   const host = await verifyStagedSessionRuntime(targetVendor);
-  if (!['0.2.1-rc.4', '0.2.2-rc.2'].includes(host.cliVersion)) throw Error('dshbot carry-forward requires a supported target');
+  if (!(host.cliVersion === '0.2.1-rc.4' || host.cliVersion.startsWith('0.2.2-rc.'))) throw Error('dshbot carry-forward requires a supported target');
   const source = fs.realpathSync(path.join(sourceVendor, 'dshbot'));
   const manifest = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
   if (manifest.name !== 'dshbot' || manifest.version !== '0.2.0') throw Error('Unsupported source dshbot package');
