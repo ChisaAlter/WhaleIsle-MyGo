@@ -3,6 +3,10 @@
 One live assertion of the startup page's copy. Dot-sourced by tools/polite/run.ps1
 as -Ops; the scenario comes from $env:POLITE_SCENARIO and the text it expects from
 the table below, so the Chinese never travels through a command line.
+
+The assertion itself lives in Test-PoliteWindowText, which takes the lines a tree
+produced instead of a session. qa/HOME-85/test-assert.ps1 exercises that function
+with no window, so a row that cannot fail cannot look like a pass.
 #>
 $script:PoliteExpectations = @{
     'no-workspace-zh' = @{
@@ -13,9 +17,12 @@ $script:PoliteExpectations = @{
         Want  = @('No workspace is selected yet', 'Choose folder')
         Avoid = @('Host is not running', 'Connect to load sessions')
     }
+    # The first frame either still shows the start in progress or has already
+    # handed over to the workbench; both are the same state machine telling the
+    # truth, so either sentence satisfies the row.
     'starting-zh' = @{
-        Want  = @('正在启动本地服务', '正在打开工作区')
-        Avoid = @('Host 尚未启动', '本地服务没有运行')
+        WantAny = @('正在启动本地服务', '正在打开工作区')
+        Avoid   = @('Host 尚未启动', '本地服务没有运行')
     }
     'missing-runtime-zh' = @{
         Want  = @('桌面运行时文件缺失')
@@ -30,6 +37,43 @@ $script:PoliteExpectations = @{
         Avoid = @('Host 尚未启动', '操作没有完成')
     }
     'any' = @{ Want = @(); Avoid = @() }
+}
+
+function Resolve-PoliteExpectation {
+    param([Parameter(Mandatory)][string]$Scenario)
+    if (-not $script:PoliteExpectations.ContainsKey($Scenario)) {
+        throw "no expectation table for scenario '$Scenario'"
+    }
+    $script:PoliteExpectations[$Scenario]
+}
+
+# Test-PoliteWindowText is the whole claim a copy row makes: the window says what
+# the scenario expects, and does not say the thing it must never say again.
+function Test-PoliteWindowText {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Lines,
+        [Parameter(Mandatory)][string]$Scenario
+    )
+    $expect = Resolve-PoliteExpectation -Scenario $Scenario
+    $joined = $Lines -join "`n"
+    foreach ($want in @($expect.Want | Where-Object { $_ })) {
+        if (-not $joined.Contains($want)) {
+            throw "[$Scenario] the window does not say '$want'"
+        }
+    }
+    $anyOf = @($expect.WantAny | Where-Object { $_ })
+    if ($anyOf.Count -gt 0) {
+        $satisfied = @($anyOf | Where-Object { $joined.Contains($_) })
+        if ($satisfied.Count -eq 0) {
+            throw "[$Scenario] the window says none of: $($anyOf -join ' | ')"
+        }
+    }
+    foreach ($avoid in @($expect.Avoid | Where-Object { $_ })) {
+        if ($joined.Contains($avoid)) {
+            throw "[$Scenario] the window still says '$avoid'"
+        }
+    }
+    $Lines
 }
 
 function Get-PoliteNodeLines {
@@ -57,26 +101,11 @@ function Invoke-PoliteOps {
 
     $scenario = 'any'
     if ($env:POLITE_SCENARIO) { $scenario = $env:POLITE_SCENARIO }
-    if (-not $script:PoliteExpectations.ContainsKey($scenario)) {
-        throw "no expectation table for scenario '$scenario'"
-    }
-    $expect = $script:PoliteExpectations[$scenario]
     $lines = Get-PoliteNodeLines -Snapshot $shot
-    $joined = $lines -join "`n"
     Write-Host "--- window text ($scenario, $($shot.ref_count) refs) ---"
     foreach ($line in $lines) { Write-Host $line }
     Write-Host '--- end window text ---'
 
-    foreach ($want in @($expect.Want)) {
-        if (-not $joined.Contains($want)) {
-            throw "[$scenario] the window does not say '$want'"
-        }
-        Write-Host "[$scenario] says '$want'"
-    }
-    foreach ($avoid in @($expect.Avoid)) {
-        if ($joined.Contains($avoid)) {
-            throw "[$scenario] the window still says '$avoid'"
-        }
-    }
+    Test-PoliteWindowText -Lines $lines -Scenario $scenario | Out-Null
     Write-Host "[$scenario] ok"
 }
