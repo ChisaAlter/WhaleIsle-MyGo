@@ -11,6 +11,7 @@ import (
 
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/hoststate"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -30,6 +31,10 @@ type Model struct {
 	// stays the window's content and offers the retry and diagnostics actions,
 	// where a running start would show only its status.
 	Declined bool
+	// ActionLabel replaces the leading action's label when the shell knows a
+	// more specific step than starting or retrying the Host, such as choosing
+	// the folder a first start needs.
+	ActionLabel string
 }
 
 const bootCodeFont = "Consolas, Menlo, monospace"
@@ -51,24 +56,20 @@ const (
 
 // WorkbenchStatus handles an explicitly stopped Host or a failure after the
 // workbench has opened. Cold startup owns the full-page View instead.
-func WorkbenchStatus(c *ui.Context, m Model, starting bool, message, configureLabel string) {
+func WorkbenchStatus(c *ui.Context, m Model, message, configureLabel string) {
+	report := hoststate.Of(m.Status)
 	if message == "" {
-		message = StatusLine(m.Status)
-	}
-	if m.Status.State == harness.Stopped && !starting && !m.Status.RecoveryCancelled {
-		message = bootText("Host 尚未启动", "Host is not running")
+		message = report.Line
 	}
 	ui.Row(c).Key("workbench-host-status").FillWidth().Padding(8, 16).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 		ui.Text(c, message).FontSize(theme.InterfaceSize(12)).Grow(1).MinWidth(0)
 		cancelRecoveryAction(c, m)
 		if m.OnRetry != nil {
+			// A stopped service never reads as a plain retry: the strip's action
+			// is the one the report names for this state.
 			label := i18n.T(KeyRetry)
-			if m.Status.State == harness.Stopped && !m.Status.RecoveryCancelled {
-				label = bootText("启动 Host", "Start Host")
-			} else if m.Status.State == harness.Failed && m.Status.RuntimeFailure {
-				// A post-ready exit takes the boot page's leading action; the
-				// workbench keeps its session instead of swapping in the page.
-				label = bootText("立即重启", "Restart now")
+			if report.Action != "" {
+				label = report.Action
 			}
 			if ui.Button(c, label).Clicked() {
 				m.OnRetry()
@@ -178,7 +179,11 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 				if bootActionsVisible(m.Status) || m.Declined {
 					if m.OnRetry != nil {
 						disabled := m.Status.RecoveryActive && !m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled
-						bootAction(c, retryLabel(m.Status), true, disabled, palette, m.OnRetry)
+						label := retryLabel(m.Status)
+						if m.ActionLabel != "" {
+							label = m.ActionLabel
+						}
+						bootAction(c, label, true, disabled, palette, m.OnRetry)
 					}
 				}
 				if m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled && m.OnCancelRecovery != nil {
@@ -363,17 +368,13 @@ func statusTitle(st harness.Status) string {
 	}
 }
 
-// StatusLine is the sentence the workbench's host strip shows: the status title,
-// or for a failed Host localized copy that names the next step. The raw error
-// stays in the logs and never becomes the strip's primary sentence. Exported for
-// the launcher's own banner, which shows the same line over the workbench.
+// StatusLine is the sentence the workbench's host strip shows: the state's
+// sentence from internal/hoststate, which names what happened and the next step.
+// The raw error stays in the logs and never becomes the strip's primary
+// sentence. Exported for the launcher's own banner over the workbench.
 func StatusLine(st harness.Status) string {
-	if !st.RecoveryCancelled && st.State == harness.Failed {
-		if st.RuntimeFailure {
-			return bootText("桌面端意外退出，可立即重启；原因见日志。",
-				"The desktop app exited unexpectedly. Restart now, or check the log.")
-		}
-		return bootText("启动失败，可重试；原因见日志。", "Startup failed. Retry, or check the log for the cause.")
+	if line := hoststate.Of(st).Line; line != "" {
+		return line
 	}
 	return statusTitle(st)
 }

@@ -101,6 +101,9 @@ type Options struct {
 	// OnPluginRecovery must persist the marker before a skipped-plugin retry.
 	// Called outside the supervisor lock so callers may inspect Supervisor state safely.
 	OnPluginRecovery func(reason string, logs []string) error
+	// RecordPath is where the started Host is recorded, so a later shell can reap
+	// one this shell could not stop. Empty keeps no record.
+	RecordPath string
 	// Install is the loopback install control server; started with the supervisor
 	// and its env is injected into each harness child.
 	Install *installctrl.Server
@@ -365,6 +368,10 @@ func (s *Supervisor) Stop() {
 	}
 	s.recoveryActive, s.recoveryQueued, s.recoveryCancelled = false, false, false
 	s.setLocked(Status{State: Stopped})
+	recordPID := 0
+	if cmd != nil && cmd.Process != nil {
+		recordPID = cmd.Process.Pid
+	}
 	var notifyDone <-chan struct{}
 	if w := s.notify; w != nil {
 		w.seal()
@@ -378,6 +385,7 @@ func (s *Supervisor) Stop() {
 	}
 	if cmd != nil {
 		stopChild(cmd, exited)
+		RemoveHostRecord(s.opts.RecordPath, recordPID)
 		s.mu.Lock()
 		s.stoppingChildren--
 		s.mu.Unlock()
@@ -565,6 +573,7 @@ func (s *Supervisor) run(gen int) {
 	// staging, and stops as soon as the Host reports its ready URL. Read-only.
 	warm := warmRuntimeTree(launch.VendorDir)
 	defer warm.Stop()
+	s.reapOrphan(gen)
 	port, err := freePort(launch.Host, launch.Port, launch.ReservedPorts)
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err})
@@ -638,6 +647,7 @@ func (s *Supervisor) run(gen int) {
 	s.cmd, s.exited = cmd, exited
 	s.mu.Unlock()
 	startuptrace.Mark("host.spawned", strconv.Itoa(cmd.Process.Pid))
+	s.recordHost(cmd.Process.Pid, port, plan.Command, gen)
 
 	ready := make(chan string, 1)
 	scanDone := make(chan struct{})
@@ -844,11 +854,18 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	// a start failure, which is how the native snapshot names its phase.
 	runtime := s.status.State == Ready
 	s.readyAt = time.Time{}
+	failedPID := 0
+	if s.cmd != nil && s.cmd.Process != nil {
+		failedPID = s.cmd.Process.Pid
+	}
 	s.cmd, s.exited = nil, nil
 	if s.recoveryCancelled {
 		s.setLocked(Status{State: Failed, Err: err, Source: source, RuntimeFailure: runtime})
 		s.mu.Unlock()
 		return
+	}
+	if failedPID > 0 {
+		RemoveHostRecord(s.opts.RecordPath, failedPID)
 	}
 	blob := err.Error() + "\n" + strings.Join(s.startLogs, "\n")
 	if !s.opts.Launch.SkipUserPlugins && !s.skippedOnce && looksLikePluginTreeFailure(blob) {

@@ -57,6 +57,7 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/harness/installctrl"
+	"whaleisle/internal/hoststate"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/product"
 	"whaleisle/internal/recovery"
@@ -240,6 +241,10 @@ type mainState struct {
 	// window still opens on the startup page, which carries the reason and the
 	// retry and diagnostics actions instead of dropping into the workbench.
 	coldStartSkipped bool
+	// coldStartNeedsWorkspace marks the declined start whose reason is the
+	// workspace itself, so the page asks for the folder the first run needs
+	// instead of offering a retry that would decline the same way.
+	coldStartNeedsWorkspace bool
 	// crashReportGeneration is the failed supervisor generation that already
 	// wrote a host crash report, so one failure writes one file.
 	crashReportGeneration int
@@ -2080,6 +2085,12 @@ func main() {
 			return !mygo.App.IsPackaged() || cfgStore.Get().OpenDevTools
 		})
 		state.openStartupRecovery(userData, cfgStore)
+		// A value left over from an older build names a Host this app was not
+		// built against; correcting it here keeps a fallback launch honest
+		// without asking the operator what that field means.
+		if err := cfgStore.ReconcileHostVersion(launcherctl.ReadHarnessVersion()); err != nil {
+			log.Println("host version:", err)
+		}
 		cfg := cfgStore.Get()
 		state.hostTerminals.ConfigureShellPreference(cfg.HostTerminalShell, func(path string) error {
 			return cfgStore.Update(func(c *config.Config) { c.HostTerminalShell = path })
@@ -2129,7 +2140,11 @@ func main() {
 			bgColor = "rgba(0,0,0,0)"
 		}
 		state.mu.Lock()
-		state.coldLoading = cfg.AutoStartDesktop && strings.TrimSpace(cfg.Workspace) != ""
+		// A cold launch with automatic start owns its opening even before a
+		// workspace exists: the page then says so and asks for the folder,
+		// instead of dropping the person into a workbench whose service is not
+		// running and whose every surface would blame the workspace.
+		state.coldLoading = cfg.AutoStartDesktop
 		state.layout = frame.DefaultLayout()
 		if cfg.SidebarWidth >= 264 {
 			state.layout.Sidebar = cfg.SidebarWidth
@@ -2663,6 +2678,10 @@ func startHarness(cfg config.Config) {
 	sup = harness.New(harness.Options{
 		Install:           installSrv,
 		ReadLaunchPatches: readProjectPatches,
+		// The record names this launch's Host, so the next launch can end one
+		// this shell never got to stop instead of starting a second service
+		// beside it.
+		RecordPath: paths.HostRecordFile(),
 		Launch: harness.LaunchOptions{
 			Host: host,
 			Port: port,
@@ -2747,6 +2766,17 @@ func startHarness(cfg config.Config) {
 	}
 }
 
+// workspaceUsable reports whether a saved workspace can be opened: an empty or
+// vanished path is the first start's job, not a failure.
+func workspaceUsable(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 func (s *mainState) finishBootPreparation(win *mygo.Window) {
 	s.launcherController().EndPreparationOnly()
 	if win != nil {
@@ -2771,12 +2801,13 @@ func (s *mainState) beginWorkbenchBoot(cfg config.Config, win *mygo.Window) {
 			startHarness(cfg)
 		} else {
 			// The page stays. A declined automatic start is still the opening
-			// state of a cold launch: it names the reason and offers retry and
-			// diagnostics, instead of dropping the user into a workbench with a
-			// status strip. Only when the window shows the Host starting does
-			// the page hand over (recordStartupWorkspaceReady).
+			// state of a cold launch: it names the reason and offers the action
+			// that resolves it, instead of dropping the user into a workbench
+			// with a status strip. Only when the window shows the Host starting
+			// does the page hand over (recordStartupWorkspaceReady).
 			s.mu.Lock()
 			s.coldStartSkipped = true
+			s.coldStartNeedsWorkspace = !workspaceUsable(cfg.Workspace)
 			s.mu.Unlock()
 		}
 	}()
@@ -5651,8 +5682,14 @@ func mainView(c *ui.Context) {
 					// One settings copy per build: the frame model only reads it, and each
 					// Snapshot copies every namespace's documents.
 					settingsView := currentSettingsView()
+					// One report for every surface that speaks about a service that
+					// is not ready: the strip, the sidebar's empty list and the
+					// composer cannot disagree about why there are no sessions.
+					hostReport := hoststate.Of(st)
 					frameModel := frame.Model{
 						SVGImages:             svgImages,
+						HostNote:              hostReport.Note,
+						HostPlaceholder:       hostReport.Placeholder,
 						ChildBusyEnter:        setStore.BusyEnterFor(fileClient),
 						ChildDraft:            state.childComposerDraft,
 						OnQueryReferences:     state.boundReferenceQuery(sessions, snap),

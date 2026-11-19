@@ -47,6 +47,10 @@ var carrierScan = []struct {
 	// from painting the transport's own text.
 	{"../chat", regexp.MustCompile(`ui\.Text\(c, |ui\.Span\{Text:|Label\(`)},
 	{"../sidebar", regexp.MustCompile(`ui\.Text\(c, |Label\(|Description\(`)},
+	// hoststate is the copy every surface reads while the local service is not
+	// ready: the sentence itself is the product, so nothing below it may leak a
+	// failure's own words into it.
+	{"../../hoststate", regexp.MustCompile(`Line:|Note:|Placeholder:|Action:|ui\.Text\(c, `)},
 }
 
 // rawFailure is every field or call that carries a failure's own words. A

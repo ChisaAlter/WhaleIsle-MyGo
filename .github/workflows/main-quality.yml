@@ -111,6 +111,7 @@ jobs:
             ./internal/store/settings \
             ./internal/store/usage \
             ./internal/errcopy \
+            ./internal/hoststate \
             ./internal/ui/browserpreview \
             ./internal/ui/i18n \
             ./internal/ui/interaction \
