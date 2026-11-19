@@ -5,7 +5,6 @@ import (
 	"whaleisle/internal/ui/theme"
 
 	"whaleisle/internal/config"
-	"whaleisle/internal/errcopy"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/i18n"
 )
@@ -78,7 +77,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	if d.Fields.Locale != nil {
 		// The reference labels this row simply "语言" and keeps the
 		// explanation in the select's own label.
-		localeFailure := ui.Local(c.Root(), "desktop-locale-failure", func() string { return "" })
+		localeFailure := ui.Local(c.Root(), "desktop-locale-failure", func() settingsRefusal { return settingsRefusal{} })
 		bodyPreferenceRow(c, "general-language", providerCopy("语言", "Language"), "", fg, muted, func() {
 			lang := "中文"
 			if i18n.Language(*d.Fields.Locale) == "en" {
@@ -93,14 +92,11 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				if d.OnSetLocale != nil {
 					accepted, err := d.OnSetLocale(*d.Fields.Locale)
 					*d.Fields.Locale = accepted
-					*localeFailure = ""
-					if err != nil {
-						*localeFailure = errcopy.Sentence(err)
-					}
+					localeFailure.refuse(err)
 				}
 			}
 		})
-		settingsAlert(c, "desktop-locale", *localeFailure != "", *localeFailure, "")
+		settingsAlert(c, "desktop-locale", localeFailure.failed(), localeFailure.sentence, localeFailure.detail)
 	}
 	bodyHostPreference(c, d.Host, "ui-settings", "enabled", providerCopy("显示代码工作视图", "Show coding view"), providerCopy("开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换", "Show trajectory, this turn's code diff, and the Agent preset switch for new conversations."), fg, muted)
 	if d.Shortcuts != nil {
@@ -213,7 +209,7 @@ func desktopDiagnostics(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 // desktopImmediateBool keeps independent selectors separate from the local
 // runtime form. A nil setter retains the handcrafted form's explicit-save path.
 func desktopImmediateBool(c *ui.Context, control ui.Element, value *bool, choice *string, trueChoice string, save func(bool) (bool, error)) {
-	failure := ui.Local(control, "immediate-save-error", func() string { return "" })
+	failure := ui.Local(control, "immediate-save-error", func() settingsRefusal { return settingsRefusal{} })
 	if control.Changed() {
 		next := *choice == trueChoice
 		if save == nil {
@@ -221,15 +217,13 @@ func desktopImmediateBool(c *ui.Context, control ui.Element, value *bool, choice
 		} else {
 			accepted, err := save(next)
 			*value = accepted
-			*failure = ""
-			if err != nil {
-				*failure = errcopy.Sentence(err)
-			} else if accepted != next {
-				*failure = providerCopy("设置未能保存，请重试。", "The setting was not saved; retry.")
+			failure.refuse(err)
+			if err == nil && accepted != next {
+				failure.say(providerCopy("设置未能保存，请重试。", "The setting was not saved; retry."))
 			}
 		}
 	}
-	settingsAlert(c, "desktop:206", *failure != "", *failure, "")
+	settingsAlert(c, "desktop:206", failure.failed(), failure.sentence, failure.detail)
 }
 
 func desktopRow(c *ui.Context, label string, body func(), fg, muted ui.Color) {

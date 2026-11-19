@@ -3016,6 +3016,15 @@ const (
 	KeyThemeEditorRestored = "theme.editor.restored"
 	KeyThemeEditorSaved    = "theme.editor.saved"
 	KeyThemeEditorSaving   = "theme.editor.saving"
+
+	KeyThemeFontSizeRange     = "theme.validate.font_size_range"
+	KeyThemeFontSizeInteger   = "theme.validate.font_size_integer"
+	KeyThemeNameRequired      = "theme.validate.name_required"
+	KeyThemeSkinUnsupported   = "theme.validate.skin_unsupported"
+	KeyThemeWallpaperFormat   = "theme.validate.wallpaper_format"
+	KeyThemeContrastRange     = "theme.validate.contrast_range"
+	KeyThemeColorFormatSyntax = "theme.validate.color_format"
+	KeyThemeSelectionRequired = "theme.validate.selection_required"
 )
 
 func init() {
@@ -3031,4 +3040,14 @@ func init() {
 	Register(KeyThemeEditorRestored, "已恢复", "Restored")
 	Register(KeyThemeEditorSaved, "已保存", "Saved")
 	Register(KeyThemeEditorSaving, "正在保存…", "Saving…")
+	// A preference the editor refuses before saving. Each names the constraint
+	// and the form it takes, so the message is the instruction, not a report.
+	Register(KeyThemeFontSizeRange, "字号需在 8–48 之间", "Font size must be 8–48")
+	Register(KeyThemeFontSizeInteger, "字号必须是 %s 到 %s 之间的整数", "Font size must be an integer from %s to %s")
+	Register(KeyThemeNameRequired, "自定义主题需要唯一的 ID 和名称", "A custom theme needs a unique ID and name")
+	Register(KeyThemeSkinUnsupported, "这个主题的皮肤类型不受支持", "This theme's skin type is not supported")
+	Register(KeyThemeWallpaperFormat, "主题壁纸必须是 PNG、JPEG、GIF 或 WebP 图片", "A theme wallpaper must be a PNG, JPEG, GIF or WebP image")
+	Register(KeyThemeContrastRange, "对比度需在 0–100 之间", "Contrast must be 0–100")
+	Register(KeyThemeColorFormatSyntax, "颜色需写成 #RRGGBB", "Write each color as #RRGGBB")
+	Register(KeyThemeSelectionRequired, "请选择已有的主题", "Select an existing theme")
 }

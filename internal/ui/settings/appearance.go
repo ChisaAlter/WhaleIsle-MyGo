@@ -3,7 +3,6 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -42,7 +41,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	minimalModePane(c, a.Minimal, fg, muted)
 	scheme := ui.Column(c.Key("appearance-scheme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
 	settingsSearchTarget(c, "appearance-scheme", providerCopy("颜色模式", "Color scheme"), scheme)
-	schemeError := ui.Local(scheme, "error", func() string { return "" })
+	schemeError := ui.Local(scheme, "error", func() settingsRefusal { return settingsRefusal{} })
 	scheme.Children(func() {
 		ui.Text(c, providerCopy("颜色模式", "Color scheme")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 		ui.Text(c, providerCopy("选择浅色、深色或跟随系统。", "Choose light, dark, or follow the system.")).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
@@ -66,15 +65,16 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 					})
 					if button.Clicked() && a.OnSetTheme != nil {
 						if err := a.OnSetTheme(mode.id); err != nil {
-							*schemeError = errcopy.Sentence(err)
+							schemeError.refuse(err)
 						} else {
-							*a.Theme, *schemeError = mode.id, ""
+							*a.Theme = mode.id
+							schemeError.refuse(nil)
 						}
 					}
 				}
 			})
 		}
-		settingsAlert(c, "appearance:72", *schemeError != "", *schemeError, "")
+		settingsAlert(c, "appearance:72", schemeError.failed(), schemeError.sentence, schemeError.detail)
 	})
 	themeLibraryPane(c, a.Preferences, theme.Resolve(m.ThemeID).Active(m.SystemDark), fg, muted)
 	if a.Background != nil {

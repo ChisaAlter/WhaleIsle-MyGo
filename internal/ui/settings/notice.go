@@ -3,6 +3,8 @@ package settings
 import (
 	"strings"
 
+	"whaleisle/internal/errcopy"
+
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/widgets"
@@ -52,6 +54,32 @@ func settingsAlert(c *ui.Context, id string, show bool, sentence, text string) {
 	}
 	widgets.Alert(c, widgets.AlertOptions{ID: "settings/" + id, Message: message, Detail: detail})
 }
+
+// settingsRefusal is one refused write as a surface keeps it: the sentence a
+// person reads, and the store's own words for the 详情 disclosure. A surface
+// that keeps only the sentence throws the cause away, which is why every failed
+// write goes through refuse().
+type settingsRefusal struct {
+	sentence string
+	detail   string
+}
+
+// refuse records err: errcopy names the cause in the interface language, and
+// err.Error() stays behind 详情.
+func (r *settingsRefusal) refuse(err error) {
+	if err == nil {
+		*r = settingsRefusal{}
+		return
+	}
+	r.sentence, r.detail = errcopy.Sentence(err), err.Error()
+}
+
+// say records a sentence the view wrote itself, with nothing to disclose.
+func (r *settingsRefusal) say(sentence string) {
+	r.sentence, r.detail = sentence, ""
+}
+
+func (r settingsRefusal) failed() bool { return r.sentence != "" }
 
 // settingsFailureLine is settingsAlert for a failure with a line of its own: a
 // row, a form footer or a dialog body. The sentence stays on one line and the

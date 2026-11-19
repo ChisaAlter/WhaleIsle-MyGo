@@ -19,8 +19,34 @@ import (
 // surface instead of adding an exception below.
 var allowlist = map[string]string{}
 
-// scanned is the tree the rule covers: the settings surfaces.
-const scanned = "internal/ui/settings"
+// scannedTrees are the trees the rules cover, each with the rule that reads it.
+// A settings surface answers both questions: is the sentence the store's own
+// text, and did the cause it classified survive as the detail. The theme editor
+// carries statuses a person reads, so its copy is checked for translation.
+var scannedTrees = []struct {
+	tree string
+	rule func(rel, src string) []string
+	fix  string
+}{
+	{
+		tree: "internal/ui/settings",
+		rule: Violations,
+		fix: "Fix: write what failed and what to do next, and pass the raw text to settingsAlert's fifth argument " +
+			"or AlertOptions.Detail (internal/ui/widgets/alert.go), or to the boot log.",
+	},
+	{
+		tree: "internal/ui/settings",
+		rule: DroppedCause,
+		fix: "Fix: keep the error beside the sentence and pass its own text as the last argument, " +
+			"so 详情 opens the cause instead of nothing.",
+	},
+	{
+		tree: "internal/ui/theme",
+		rule: UntranslatedStatus,
+		fix: "Fix: register the sentence with i18n and set it with i18n.T, or refuse the preference through invalid() " +
+			"so the words are translated.",
+	},
+}
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
@@ -42,36 +68,36 @@ func repoRoot(t *testing.T) string {
 
 func TestNoRawFailureSentence(t *testing.T) {
 	root := repoRoot(t)
-	tree := filepath.Join(root, scanned)
-	var found []string
-	walkErr := filepath.Walk(tree, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+	for _, scan := range scannedTrees {
+		var found []string
+		walkErr := filepath.Walk(filepath.Join(root, scan.tree), func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return nil
+			}
+			rel = filepath.ToSlash(rel)
+			if _, allowed := allowlist[rel]; allowed {
+				return nil
+			}
+			src, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil
+			}
+			found = append(found, scan.rule(rel, string(src))...)
 			return nil
+		})
+		if walkErr != nil {
+			t.Fatal(walkErr)
 		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return nil
+		if len(found) == 0 {
+			continue
 		}
-		rel = filepath.ToSlash(rel)
-		if _, allowed := allowlist[rel]; allowed {
-			return nil
-		}
-		src, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		found = append(found, Violations(rel, string(src))...)
-		return nil
-	})
-	if walkErr != nil {
-		t.Fatal(walkErr)
-	}
-	if len(found) > 0 {
 		sort.Strings(found)
-		t.Fatalf("a settings failure is shown in the product's words: %d site(s) put the store's own text in the sentence.\n"+
-			"Fix: write what failed and what to do next, and pass the raw text to settingsAlert's fifth argument "+
-			"or AlertOptions.Detail (internal/ui/widgets/alert.go), or to the boot log.\n%s",
-			len(found), strings.Join(found, "\n"))
+		t.Fatalf("%s: %d site(s) show a failure without saying what happened, keeping the cause, or speaking the interface language.\n%s\n%s",
+			scan.tree, len(found), scan.fix, strings.Join(found, "\n"))
 	}
 }
 
@@ -129,6 +155,77 @@ func TestGuardCatchesEachRawSentenceShape(t *testing.T) {
 		"func draw(c *ui.Context, sentence, detail string) {\n\tui.Text(c, sentence)\n}\n",
 	} {
 		if found := Violations("probe.go", header+clean); len(found) != 0 {
+			t.Fatalf("clean site was refused: %q\n%s", found, clean)
+		}
+	}
+}
+
+// A classified sentence with nowhere to open is the same defect one step later:
+// the person reads what happened but cannot show anyone the cause.
+func TestGuardCatchesADroppedCause(t *testing.T) {
+	const header = "package probe\n"
+	cases := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "alert sentence classified in place, empty detail",
+			body: "func draw(c *ui.Context, err error) {\n\tsentence := errcopy.Sentence(err)\n\tsettingsAlert(c, \"probe\", err != nil, sentence, \"\")\n}\n",
+		},
+		{
+			name: "failure line seat classified into a pointer, empty detail",
+			body: "func draw(c *ui.Context, err error) {\n\tfailure := ui.Local(c.Root(), \"probe\", func() string { return \"\" })\n\tif err != nil {\n\t\t*failure = errcopy.Sentence(err)\n\t}\n\tsettingsFailureLine(c, \"probe\", *failure, \"\")\n}\n",
+		},
+		{
+			name: "theme status drawn as the sentence, empty detail",
+			body: "func draw(c *ui.Context, e *theme.Editor) {\n\tsettingsAlert(c, \"probe\", e.Status != \"\", e.Status, \"\")\n}\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			found := DroppedCause("probe.go", header+tc.body)
+			if len(found) != 1 || !strings.Contains(found[0], "passes nothing to 详情") {
+				t.Fatalf("DroppedCause = %q, want one finding naming the empty detail", found)
+			}
+		})
+	}
+	for _, clean := range []string{
+		"func draw(c *ui.Context, err error) {\n\tsentence := errcopy.Sentence(err)\n\tsettingsAlert(c, \"probe\", err != nil, sentence, err.Error())\n}\n",
+		"func draw(c *ui.Context, failure settingsRefusal) {\n\tsettingsAlert(c, \"probe\", failure.failed(), failure.sentence, failure.detail)\n}\n",
+		"func draw(c *ui.Context, e *theme.Editor) {\n\tsettingsAlert(c, \"probe\", e.Status != \"\", e.Status, e.StatusDetail)\n}\n",
+	} {
+		if found := DroppedCause("probe.go", header+clean); len(found) != 0 {
+			t.Fatalf("clean site was refused: %q\n%s", found, clean)
+		}
+	}
+}
+
+// A validator's status is the message a person reads, so it takes the same
+// route as every other sentence: registered copy, not a literal.
+func TestGuardCatchesStatusCopyWrittenInCode(t *testing.T) {
+	const header = "package theme\n"
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{name: "english literal", body: "func (e *Editor) Save() {\n\te.Status = \"Font size must be an integer\"\n}\n"},
+		{name: "bilingual literal", body: "func (e *Editor) Save() {\n\te.Status = \"已保存 / Saved\"\n}\n"},
+		{name: "chinese literal", body: "func (e *Editor) Save() {\n\te.Status = \"字号需在 8–48 之间\"\n}\n"},
+		{name: "formatted literal", body: "func (e *Editor) Save(lo, hi float32) {\n\te.Status = fmt.Sprintf(\"Font size must be an integer from %.0f to %.0f\", lo, hi)\n}\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			found := UntranslatedStatus("probe.go", header+tc.body)
+			if len(found) != 1 || !strings.Contains(found[0], "Status is written in code") {
+				t.Fatalf("UntranslatedStatus = %q, want one finding", found)
+			}
+		})
+	}
+	for _, clean := range []string{
+		"func (e *Editor) Save() {\n\te.Status = i18n.T(i18n.KeyThemeEditorSaved)\n}\n",
+		"func (e *Editor) Save() {\n\te.Status, e.StatusDetail = i18n.T(i18n.KeyThemeEditorSaved), \"\"\n}\n",
+		"func (e *Editor) Save(err error) {\n\te.failStatus(err)\n}\n",
+	} {
+		if found := UntranslatedStatus("probe.go", header+clean); len(found) != 0 {
 			t.Fatalf("clean site was refused: %q\n%s", found, clean)
 		}
 	}

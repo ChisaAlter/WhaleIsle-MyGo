@@ -5,7 +5,24 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"whaleisle/internal/ui/i18n"
 )
+
+// ValidationError is a preference the editor refuses before it saves anything.
+// Its sentence is written for a person in the interface language, so it is the
+// message itself rather than something to put behind 详情.
+type ValidationError struct{ Sentence string }
+
+func (e ValidationError) Error() string { return e.Sentence }
+
+func invalid(key string, args ...any) error {
+	sentence := i18n.T(key)
+	if len(args) > 0 {
+		sentence = fmt.Sprintf(sentence, args...)
+	}
+	return ValidationError{Sentence: sentence}
+}
 
 // FontPreference uses MyGo's native font-family fallback list and DIP size.
 type FontPreference struct {
@@ -101,7 +118,7 @@ func (p Preferences) Normalized() Preferences {
 func (p Preferences) Validate() error {
 	for _, f := range []FontPreference{p.Interface, p.Chat, p.Code, p.Composer, p.Terminal} {
 		if f.Size < 8 || f.Size > 48 {
-			return fmt.Errorf("字号需在 8–48 / Font size must be 8–48")
+			return invalid(i18n.KeyThemeFontSizeRange)
 		}
 	}
 	seen := map[string]bool{}
@@ -110,22 +127,22 @@ func (p Preferences) Validate() error {
 	}
 	for _, f := range p.Custom {
 		if strings.TrimSpace(f.ID) == "" || strings.TrimSpace(f.Name) == "" || seen[f.ID] {
-			return fmt.Errorf("自定义主题名称和唯一 ID 必填 / Unique theme ID and name required")
+			return invalid(i18n.KeyThemeNameRequired)
 		}
 		seen[f.ID] = true
 		if f.Skin != "" && f.Skin != SkinDefault && f.Skin != SkinCodex && f.Skin != SkinClaude {
-			return fmt.Errorf("Unknown theme skin %q", f.Skin)
+			return invalid(i18n.KeyThemeSkinUnsupported)
 		}
 		if f.Wallpaper != "" && !validFamilyWallpaper(f.Wallpaper) {
-			return fmt.Errorf("Theme wallpaper must be a PNG, JPEG, GIF or WebP image data URL")
+			return invalid(i18n.KeyThemeWallpaperFormat)
 		}
 		for _, s := range []Seed{f.Light, f.Dark} {
 			if s.ContrastValue() < 0 || s.ContrastValue() > 100 {
-				return fmt.Errorf("Contrast must be between 0 and 100")
+				return invalid(i18n.KeyThemeContrastRange)
 			}
 			for _, c := range []string{s.Background, s.Foreground, s.Accent} {
 				if len(c) != 7 || c[0] != '#' {
-					return fmt.Errorf("颜色格式为 #RRGGBB / Use #RRGGBB")
+					return invalid(i18n.KeyThemeColorFormatSyntax)
 				}
 				if _, err := strconv.ParseUint(c[1:], 16, 24); err != nil {
 					return err
@@ -134,7 +151,7 @@ func (p Preferences) Validate() error {
 		}
 	}
 	if !seen[p.Light] || !seen[p.Dark] {
-		return fmt.Errorf("请选择已有主题 / Select an existing theme")
+		return invalid(i18n.KeyThemeSelectionRequired)
 	}
 	return nil
 }

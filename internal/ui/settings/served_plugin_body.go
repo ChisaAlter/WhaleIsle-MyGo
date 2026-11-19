@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	desktopwebview "whaleisle/internal/desktop/webview"
-	"whaleisle/internal/errcopy"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -135,7 +134,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 			_, apiAvailable := states["web-deepseek-api"]
 			useAPI := switchAvailable && apiAvailable && web.Drafts["searchProvider"] == "deepseek-search-api"
 			if switchAvailable && apiAvailable {
-				guideFailure := ui.Local(c.Root(), "settings-web-search-guide", func() string { return "" })
+				guideFailure := ui.Local(c.Root(), "settings-web-search-guide", func() settingsRefusal { return settingsRefusal{} })
 				bodyPreferenceRow(c, "web-api-switch", providerCopy("使用 Search/Fetch API", "Use Search/Fetch API"), providerCopy("同时切换搜索和抓取服务。", "Switches search and fetch providers together."), fg, muted, func() {
 					if ui.Switch(c, &useAPI).Label("Search / Fetch API").Disabled(disabled || invalid || web.Err != "").Changed() {
 						b := m.Store.BindNamespace("web")
@@ -156,12 +155,12 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 				})
 				if ui.Button(c, providerCopy("搜索与抓取接口指南", "Search & Fetch guide")).Clicked() {
 					target := providerCopy("https://api-docs.deepseek.com/zh-cn/guides/search", "https://api-docs.deepseek.com/guides/search")
-					*guideFailure = ""
+					guideFailure.refuse(nil)
 					if err := desktopwebview.OpenExternal(target); err != nil {
-						*guideFailure = errcopy.Sentence(err)
+						guideFailure.refuse(err)
 					}
 				}
-				settingsAlert(c, "web-search-guide", *guideFailure != "", *guideFailure, "")
+				settingsAlert(c, "web-search-guide", guideFailure.failed(), guideFailure.sentence, guideFailure.detail)
 			}
 			ns := "web-search-deepseek"
 			if useAPI {

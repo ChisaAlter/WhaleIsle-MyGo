@@ -3,7 +3,6 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/errcopy"
 	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/ui/theme"
 )
@@ -70,7 +69,7 @@ func minimalModePane(c *ui.Context, m *MinimalModeAccess, fg, muted ui.Color) {
 	}
 	block := ui.Column(c.Key("appearance-minimal-mode")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
 	settingsSearchTarget(c, "appearance-minimal-mode", providerCopy("极简模式", "Minimal mode"), block)
-	failure := ui.Local(block, "error", func() string { return "" })
+	failure := ui.Local(block, "error", func() settingsRefusal { return settingsRefusal{} })
 	block.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
@@ -80,22 +79,24 @@ func minimalModePane(c *ui.Context, m *MinimalModeAccess, fg, muted ui.Color) {
 			enabled := *m.Enabled
 			if settingsPreferenceSwitch(c, &enabled, settingsSwitchInput).Label(minimalModeSwitchLabel(enabled)).Disabled(m.OnToggle == nil).Changed() && m.OnToggle != nil {
 				if err := m.OnToggle(enabled); err != nil {
-					*failure = errcopy.Sentence(err)
+					failure.refuse(err)
 				} else {
-					*m.Enabled, *failure = enabled, ""
+					*m.Enabled = enabled
+					failure.refuse(nil)
 				}
 			}
 		})
-		settingsAlert(c, "appearance-minimal-mode:error", *failure != "", *failure, "")
+		settingsAlert(c, "appearance-minimal-mode:error", failure.failed(), failure.sentence, failure.detail)
 	})
 	if m.Suggestions != nil {
 		suggestions := *m.Suggestions
 		bodyPreferenceRow(c, "appearance-minimal-suggestions", providerCopy("启动卡顿时提示", "Suggest on slow startup"), minimalSuggestionDescription(), fg, muted, func() {
 			if settingsPreferenceSwitch(c, &suggestions, settingsSwitchInput).Label(minimalSuggestionSwitchLabel(suggestions)).Disabled(m.OnToggleSuggestions == nil).Changed() && m.OnToggleSuggestions != nil {
 				if err := m.OnToggleSuggestions(suggestions); err != nil {
-					*failure = errcopy.Sentence(err)
+					failure.refuse(err)
 				} else {
-					*m.Suggestions, *failure = suggestions, ""
+					*m.Suggestions = suggestions
+					failure.refuse(nil)
 				}
 			}
 		})
