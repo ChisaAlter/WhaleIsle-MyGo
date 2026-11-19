@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/testwait"
 )
 
 // The only added fixture tests the two review boundaries, without re-running
@@ -74,25 +76,42 @@ func TestCreatorTaskEntryNavigationFenceFixture(t *testing.T) {
 	if !c.Open(state.Ticket, false) {
 		t.Fatal("explicit retained-target open rejected")
 	}
+	// The store opens both captured readers from c.Open above. Only the old
+	// Host's sockets can deliver their open frames, and this test does not own
+	// its handlers, so the wait names no producer and its failure says that
+	// instead of leaving a timeout for the next reader to explain.
+	var got []dsh.ClientFrame
 	endpoints := map[string]bool{}
-	for range 2 {
-		select {
-		case frame := <-opened:
-			endpoints[frame.Endpoint] = true
-			if frame.Endpoint == "session/follow" {
-				var payload struct {
-					Args struct {
-						Request struct {
-							Address struct{ Kind, SessionID string } `json:"address"`
-						} `json:"request"`
-					} `json:"args"`
-				}
-				if json.Unmarshal(frame.Payload, &payload) != nil || payload.Args.Request.Address.SessionID != state.SessionID {
-					t.Fatal("wrong captured target", string(frame.Payload))
-				}
+	testwait.Until(t, testwait.Wait{
+		What: "both captured readers to open their streams",
+		State: func() string {
+			return fmt.Sprintf("frames=%d endpoints=%v", len(got), endpoints)
+		},
+		Budget: 3 * time.Second,
+	}, func() bool {
+		for {
+			select {
+			case frame := <-opened:
+				got = append(got, frame)
+				endpoints[frame.Endpoint] = true
+			default:
+				return len(got) >= 2
 			}
-		case <-time.After(3 * time.Second):
-			t.Fatal("missing captured readers")
+		}
+	})
+	for _, frame := range got {
+		if frame.Endpoint != "session/follow" {
+			continue
+		}
+		var payload struct {
+			Args struct {
+				Request struct {
+					Address struct{ Kind, SessionID string } `json:"address"`
+				} `json:"request"`
+			} `json:"args"`
+		}
+		if json.Unmarshal(frame.Payload, &payload) != nil || payload.Args.Request.Address.SessionID != state.SessionID {
+			t.Fatal("wrong captured target", string(frame.Payload))
 		}
 	}
 	if !endpoints["session/follow"] || !endpoints["session/control"] {

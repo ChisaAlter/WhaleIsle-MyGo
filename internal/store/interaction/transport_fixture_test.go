@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/testwait"
 )
 
 // This fixture talks only to an in-process fake gateway. No Host or tool runs.
@@ -97,22 +97,18 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	s.AttachClient(client, mux)
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	done := make(chan error, 1)
+	pumpExited := make(chan struct{})
+	var pumpErr error
 	go func() {
-		done <- client.FollowEvents(ctx, mux, dsh.EventsFuncs{Waterfall: s.HandleWaterfall, Cancel: s.OnCancel, Result: s.OnResult})
+		pumpErr = client.FollowEvents(ctx, mux, dsh.EventsFuncs{Waterfall: s.HandleWaterfall, Cancel: s.OnCancel, Result: s.OnResult})
+		close(pumpExited)
 	}()
-	// This context bounds every wait below. Each settles in 1-3ms; a hundred and
-	// ten samples under the same starvation runs as the plan-review fixture
-	// peaked at 4.2ms, so six seconds is over a thousand times the slowest
-	// observed wait. The budget exists to fail a frame stream that stopped, not
-	// to time one that is fast: a genuine block does not clear at six seconds,
-	// while a few seconds of CI scheduler starvation does, and the dump below
-	// names which one happened.
-	// The goroutine dump alone was not enough to explain a timeout: an
-	// occurrence on CI showed an otherwise idle process, with no reader left and
-	// no lock held, which means the awaited state could not arrive at any price
-	// rather than arrive late. Report the state the step waits on as well.
-	steps := 0
+	// Every step below settles in 1-3ms; a hundred and ten samples under the
+	// same starvation runs as the plan-review fixture peaked at 4.2ms. The
+	// budget is a stuck detector, and the pump is the producer that only it can
+	// explain: when it returns, no budget would help, so the failure says that
+	// instead of reporting a timeout the next reader has to explain.
+	pump := &testwait.Producer{Name: "the events pump", Done: pumpExited, Err: func() error { return pumpErr }}
 	state := func() string {
 		snap := s.Snapshot()
 		out := fmt.Sprintf("pending=%d status=%q", len(snap.Pending), snap.QuestionStatus)
@@ -121,44 +117,29 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		}
 		return out
 	}
-	wait := func(check func() bool) {
+	wait := func(what string, check func() bool) {
 		t.Helper()
-		steps++
-		for !check() {
-			select {
-			case err := <-done:
-				// The pump is the only thing that can deliver the answer this
-				// step waits for. If it returned, no budget would help, so say
-				// that instead of reporting a timeout the next reader has to
-				// explain.
-				buf := make([]byte, 1<<20)
-				t.Fatalf("events pump exited at step %d (%s): %v\n%s", steps, state(), err, buf[:runtime.Stack(buf, true)])
-			case <-ctx.Done():
-				buf := make([]byte, 1<<20)
-				t.Fatalf("fixture timed out at step %d (%s)\n%s", steps, state(), buf[:runtime.Stack(buf, true)])
-			case <-time.After(time.Millisecond):
-			}
-		}
+		testwait.Until(t, testwait.Wait{What: what, Producer: pump, State: state, Budget: 6 * time.Second}, check)
 	}
 	frames <- `{"type":"ready","clientId":"client-A","host":{"home":"fixture"}}`
 	frames <- `{"type":"waterfall","event":"user-questions/request","eventId":"q","agentId":"A","request":{"wait":{"callId":"call-q"},"questions":[{"id":"choice","options":[{"label":"Yes"}]}]}}`
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"cancel-me","agentId":"B","request":{"toolName":"fixture"}}`
-	wait(func() bool { return len(s.Snapshot().Pending) == 2 })
+	wait("the two pending requests", func() bool { return len(s.Snapshot().Pending) == 2 })
 	if len(s.SnapshotForAgent("A").Pending) != 1 || len(s.SnapshotForAgent("B").Pending) != 1 || len(s.SnapshotForAgent("").Pending) != 0 {
 		t.Fatal("conversation ownership lost")
 	}
 	// Cancellation must arrive while a different prompt still waits for input.
 	frames <- `{"type":"cancel","eventId":"cancel-me"}`
-	wait(func() bool { return len(s.SnapshotForAgent("B").Pending) == 0 })
+	wait("the cancelled approval to leave the pending list", func() bool { return len(s.SnapshotForAgent("B").Pending) == 0 })
 	s.SetQuestionCustom("q", "choice", "custom answer")
 	s.ResolveQuestions("q")
 	s.ResolveQuestions("q")
-	wait(func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].Error != "" })
+	wait("the failed delivery to be reported on its question", func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].Error != "" })
 	if len(s.Snapshot().QuestionCards["q"].Rows) != 1 || !s.QuestionsCanSubmit("q") {
 		t.Fatal("failed delivery discarded draft")
 	}
 	s.Retry("q")
-	wait(func() bool {
+	wait("the retry to be sent with no error on the row", func() bool {
 		mu.Lock()
 		count := len(posts)
 		mu.Unlock()
@@ -167,7 +148,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	})
 	// HTTP receipt alone cannot prove that the Host admitted the answer.
 	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"call-q"}]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
-	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
 	mu.Lock()
 	got := append([]dsh.EventResult(nil), posts...)
 	mu.Unlock()
@@ -182,9 +163,9 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatalf("answer %#v", answer)
 	}
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"deny","agentId":"A","request":{"toolName":"fixture"}}`
-	wait(func() bool { return len(s.Snapshot().Pending) == 1 })
+	wait("one pending request", func() bool { return len(s.Snapshot().Pending) == 1 })
 	s.ResolveDeny("deny")
-	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
 	mu.Lock()
 	last := posts[len(posts)-1]
 	mu.Unlock()
@@ -192,12 +173,12 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatalf("denial or permission changed: %#v", last)
 	}
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"allow","agentId":"A","request":{"toolName":"fixture","displayReason":{"en":"localized reason"}}}`
-	wait(func() bool { return len(s.Snapshot().Pending) == 1 })
+	wait("one pending request", func() bool { return len(s.Snapshot().Pending) == 1 })
 	if s.Snapshot().Pending[0].Detail != "localized reason" {
 		t.Fatal("localized approval reason lost")
 	}
 	s.ResolveAllow("allow")
-	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
 	mu.Lock()
 	last = posts[len(posts)-1]
 	mu.Unlock()
@@ -205,7 +186,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatalf("allow %#v", last)
 	}
 	frames <- `{"type":"waterfall","event":"user-questions/request","eventId":"timed","agentId":"A","request":{"wait":{"callId":"timed-call","timed":true},"questions":[{"id":"q","question":"Timed"}]}}`
-	wait(func() bool { mu.Lock(); defer mu.Unlock(); return posts[len(posts)-1].EventID == "timed" })
+	wait("the timed-out answer to reach the Host", func() bool { mu.Lock(); defer mu.Unlock(); return posts[len(posts)-1].EventID == "timed" })
 	mu.Lock()
 	last = posts[len(posts)-1]
 	mu.Unlock()
@@ -220,11 +201,14 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatal("Host continuation did not retain the timed-out question")
 	}
 	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"timed-call"}]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
-	wait(func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
 	cancel()
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("event loop did not stop")
-	}
+	testwait.Until(t, testwait.Wait{What: "the events pump to stop after cancel", Budget: time.Second}, func() bool {
+		select {
+		case <-pumpExited:
+			return true
+		default:
+			return false
+		}
+	})
 }
