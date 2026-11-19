@@ -274,9 +274,20 @@ export async function cloneStagedSessionRuntime(stageRoot, freshDest) {
 // files with no native addon to load. Both halves are required; only the optional
 // per-platform native office engine may go, because the kit falls back to WASM
 // when its native package is absent.
-function platformPackageTag() {
-  const family = process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'darwin' : 'linux';
-  return `${family}-${process.arch}`;
+// The two loaders publish their platform engines under different names, and each
+// name here is the one its own resolver looks for: the office kit asks for
+// libreoffice-kit-<platform>-<arch> with process.platform (win32-64, plus a glibc
+// suffix on Linux), Sherpa's releases spell Windows "win". One shared tag matched
+// neither manifest, so slim found no installed package, pruned nothing, and the
+// installer still carried the 192 MB native office engine beside the WASM one.
+function officeNativePackage() {
+  const target = process.platform === 'linux' ? `linux-${process.arch}-glibc` : `${process.platform}-${process.arch}`;
+  return `@deepseek-ai/libreoffice-kit-${target}`;
+}
+
+function sherpaEnginePackage() {
+  const family = process.platform === 'win32' ? 'win' : process.platform;
+  return `sherpa-onnx-${family}-${process.arch}`;
 }
 
 export const capabilityPairs = Object.freeze([Object.freeze({
@@ -284,12 +295,12 @@ export const capabilityPairs = Object.freeze([Object.freeze({
   loader: '@deepseek-ai/libreoffice-kit',
   engines: Object.freeze([
     Object.freeze({name: '@deepseek-ai/libreoffice-kit-wasm', asset: 'assets/dsoffice.wasm', optionalNative: false}),
-    Object.freeze({name: `@deepseek-ai/libreoffice-kit-${platformPackageTag()}`, asset: null, optionalNative: true}),
+    Object.freeze({name: officeNativePackage(), asset: null, optionalNative: true}),
   ]),
 }), Object.freeze({
   capability: 'speech-to-text-sensevoice',
   loader: 'sherpa-onnx-node',
-  engines: Object.freeze([Object.freeze({name: `sherpa-onnx-${platformPackageTag()}`, asset: 'addon', optionalNative: false})]),
+  engines: Object.freeze([Object.freeze({name: sherpaEnginePackage(), asset: 'addon', optionalNative: false})]),
 })]);
 
 export const optionalNativeEnginesToSlim = Object.freeze(capabilityPairs
