@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -18,9 +17,9 @@ import (
 )
 
 type customPanelState struct {
-	Store     *panel.Store
-	OpenError string
-	Editors   map[panel.Scope]*panelui.Editor
+	Store       *panel.Store
+	OpenFailure panelui.Failure
+	Editors     map[panel.Scope]*panelui.Editor
 }
 
 func (s *mainState) openCustomPanels(userData string) {
@@ -29,7 +28,7 @@ func (s *mainState) openCustomPanels(userData string) {
 	defer s.mu.Unlock()
 	s.customPanels.Store = store
 	if err != nil {
-		s.customPanels.OpenError = errcopy.Sentence(err)
+		s.customPanels.OpenFailure = panelui.Word(err)
 	}
 }
 func customPanelBotScope(hostScope, origin, sid string, roster dshbotstore.Snapshot) (panel.Scope, string) {
@@ -70,7 +69,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 		scope, label := s.currentCustomPanelScope(sid)
 		s.mu.Lock()
 		store := s.customPanels.Store
-		openErr := s.customPanels.OpenError
+		openFailure := s.customPanels.OpenFailure
 		if s.customPanels.Editors == nil {
 			s.customPanels.Editors = map[panel.Scope]*panelui.Editor{}
 		}
@@ -96,16 +95,16 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			return sameClient && sameEndpoint && scope.Bot != "" && now == scope
 		}
 		report := func(err error, notice string) {
-			editor.Error = ""
+			editor.Failure = panelui.Failure{}
 			editor.Notice = ""
 			if err != nil {
-				editor.Error = errcopy.Sentence(err)
+				editor.Failure = panelui.Word(err)
 			} else {
 				editor.Notice = notice
 			}
 		}
-		if openErr != "" {
-			editor.Error = i18n.T(i18n.KeyCmdPanelLibraryPrefix) + openErr
+		if openFailure.Sentence != "" {
+			editor.Failure = panelui.Failure{Sentence: i18n.T(i18n.KeyCmdPanelLibraryPrefix) + openFailure.Sentence, Detail: openFailure.Detail}
 		}
 		available := store != nil && scope.Bot != ""
 		snapshot := panel.Snapshot{}
@@ -120,7 +119,8 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			draft := s.composerDraftLocked(sid)
 			if draft.Text != "" || len(draft.Attachments) != 0 || draft.Sending || draft.Preparing > 0 || draft.EditSeq != 0 {
 				s.mu.Unlock()
-				report(errors.New(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftFirst)), "")
+				editor.Failure = panelui.Words(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftFirst))
+				editor.Notice = ""
 				return
 			}
 			draft.Text = text
@@ -137,7 +137,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			editor.EditingID = d.ID
 			editor.Template = template
 			editor.Preview = nil
-			editor.Error = ""
+			editor.Failure = panelui.Failure{}
 			editor.Notice = ""
 		}
 		model := panelui.Model{ThemeID: themeID, SystemDark: mygo.Theme.IsDark(), BotLabel: label, Available: available, State: snapshot, Editor: editor, OnPrompt: prepare}
@@ -150,7 +150,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			editor.EditingID = ""
 			editor.Template = false
 			editor.Preview = nil
-			editor.Error = ""
+			editor.Failure = panelui.Failure{}
 			editor.Notice = ""
 		}
 		model.OnEdit = edit

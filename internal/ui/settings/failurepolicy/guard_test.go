@@ -46,6 +46,18 @@ var scannedTrees = []struct {
 		fix: "Fix: register the sentence with i18n and set it with i18n.T, or refuse the preference through invalid() " +
 			"so the words are translated.",
 	},
+	{
+		tree: "internal/ui/custompanel",
+		rule: Violations,
+		fix: "Fix: draw the sentence the view wrote and pass the cause to AlertOptions.Detail, " +
+			"so a refused panel shows what happened and opens its cause.",
+	},
+	{
+		tree: "internal/store/custompanel",
+		rule: StoreCopy,
+		fix: "Fix: name the problem with a Problem constant and pass the store's own text to refuse(); " +
+			"the sentence belongs to internal/ui/custompanel, where it is translated.",
+	},
 }
 
 func repoRoot(t *testing.T) string {
@@ -228,5 +240,91 @@ func TestGuardCatchesStatusCopyWrittenInCode(t *testing.T) {
 		if found := UntranslatedStatus("probe.go", header+clean); len(found) != 0 {
 			t.Fatalf("clean site was refused: %q\n%s", found, clean)
 		}
+	}
+}
+
+// A store that words its own refusals puts copy in the wrong layer: the
+// sentence has to be translated, and the store cannot know the interface
+// language. Moving the sentence back in has to be what turns this red.
+func TestGuardCatchesStoreCopy(t *testing.T) {
+	const header = "package custompanel\n"
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{name: "errors.New literal", body: "func Validate() error {\n\treturn errors.New(\"Panel title is required\")\n}\n"},
+		{name: "fmt.Errorf literal", body: "func Validate() error {\n\treturn fmt.Errorf(\"Panel needs 1–64 widgets\")\n}\n"},
+		{name: "fmt.Errorf with a format", body: "func Validate(kind string) error {\n\treturn fmt.Errorf(\"Unsupported widget kind %q\", kind)\n}\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			found := StoreCopy("probe.go", header+tc.body)
+			if len(found) != 1 || !strings.Contains(found[0], "words a refusal itself") {
+				t.Fatalf("StoreCopy = %q, want one finding", found)
+			}
+		})
+	}
+	for _, clean := range []string{
+		"func Validate() error {\n\treturn refuse(ProblemMissingTitle, \"panel title is required\")\n}\n",
+		"func Validate(err error) error {\n\treturn refuse(ProblemJSON, \"%s\", err)\n}\n",
+		"func Load(path string) ([]byte, error) {\n\treturn os.ReadFile(path)\n}\n",
+	} {
+		if found := StoreCopy("probe.go", header+clean); len(found) != 0 {
+			t.Fatalf("clean site was refused: %q\n%s", found, clean)
+		}
+	}
+}
+
+// Every problem the store can name needs a sentence, or a precise refusal
+// quietly becomes the generic failure line again.
+func TestEveryStoreProblemHasASentence(t *testing.T) {
+	root := repoRoot(t)
+	read := func(rel string) string {
+		t.Helper()
+		src, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(src)
+	}
+	store := read("internal/store/custompanel/refusal.go")
+	view := read("internal/ui/custompanel/failure.go")
+	if found := UnnamedProblems(store, view); len(found) != 0 {
+		t.Fatalf("the panel store can name a problem the view cannot word:\n%s", strings.Join(found, "\n"))
+	}
+	unnamed := strings.Replace(view, "panel.ProblemFontSize:", "panel.ProblemUnknown:", 1)
+	if unnamed == view {
+		t.Fatal("the probe did not change the view map")
+	}
+	if found := UnnamedProblems(store, unnamed); len(found) != 1 || !strings.Contains(found[0], "ProblemFontSize has no sentence") {
+		t.Fatalf("a problem without copy was not reported: %q", found)
+	}
+}
+
+// The cause and the sentence are different jobs. Drawing the cause as the
+// message puts the evidence back where the copy belongs.
+func TestGuardCatchesTheCauseDrawnAsTheMessage(t *testing.T) {
+	const header = "package probe\n"
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "alert message is the cause",
+			body: "func draw(c *ui.Context, failure Failure) {\n\twidgets.Alert(c, widgets.AlertOptions{ID: \"probe\", Message: failure.Detail})\n}\n",
+			want: "Alert Message is the cause",
+		},
+		{
+			name: "alert sentence is the cause",
+			body: "func draw(c *ui.Context, failure Failure) {\n\tsettingsAlert(c, \"probe\", failure.failed(), failure.detail, \"\")\n}\n",
+			want: "settingsAlert draws the cause as its message",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			found := Violations("probe.go", header+tc.body)
+			if len(found) != 1 || !strings.Contains(found[0], tc.want) {
+				t.Fatalf("Violations = %q, want one naming %q", found, tc.want)
+			}
+		})
 	}
 }

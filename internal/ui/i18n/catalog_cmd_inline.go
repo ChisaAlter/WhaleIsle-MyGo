@@ -141,6 +141,21 @@ const (
 	KeyCmdTerminalPathUnavailable          = "cmd.inline.terminal_path_unavailable"
 	KeyCmdPanelLibraryPrefix               = "cmd.inline.panel_library_prefix"
 	KeyCmdPanelInstanceMissing             = "cmd.inline.panel_instance_missing"
+	KeyCmdPanelJSONInvalid                 = "cmd.inline.panel_json_invalid"
+	KeyCmdPanelTooLarge                    = "cmd.inline.panel_too_large"
+	KeyCmdPanelTrailingContent             = "cmd.inline.panel_trailing_content"
+	KeyCmdPanelTitleRequired               = "cmd.inline.panel_title_required"
+	KeyCmdPanelSizeOutOfRange              = "cmd.inline.panel_size_out_of_range"
+	KeyCmdPanelWidgetCount                 = "cmd.inline.panel_widget_count"
+	KeyCmdPanelWidgetID                    = "cmd.inline.panel_widget_id"
+	KeyCmdPanelWidgetKind                  = "cmd.inline.panel_widget_kind"
+	KeyCmdPanelFontSize                    = "cmd.inline.panel_font_size"
+	KeyCmdPanelProgressRange               = "cmd.inline.panel_progress_range"
+	KeyCmdPanelSelectOptions               = "cmd.inline.panel_select_options"
+	KeyCmdPanelLibraryVersion              = "cmd.inline.panel_library_version"
+	KeyCmdPanelScopeMissing                = "cmd.inline.panel_scope_missing"
+	KeyCmdPanelAlreadyAdded                = "cmd.inline.panel_already_added"
+	KeyCmdPanelTemplateMissing             = "cmd.inline.panel_template_missing"
 	KeyCmdVisualRepliesHostStopped         = "cmd.inline.visual_replies_host_stopped"
 	KeyCmdVisualRepliesHostMismatch        = "cmd.inline.visual_replies_host_mismatch"
 	KeyCmdVisualRepliesHostChanged         = "cmd.inline.visual_replies_host_changed"
@@ -235,6 +250,21 @@ func init() {
 	Register(KeyCmdTerminalPathUnavailable, "路径不可用或位于此终端的本地工作区之外", "Path is unavailable or outside this terminal's local workspace")
 	Register(KeyCmdPanelLibraryPrefix, "面板库：", "Panel library: ")
 	Register(KeyCmdPanelInstanceMissing, "面板实例已不存在", "Panel instance no longer exists")
+	Register(KeyCmdPanelJSONInvalid, "面板定义不是有效的 JSON", "The panel definition is not valid JSON")
+	Register(KeyCmdPanelTooLarge, "面板定义超过 256 KiB", "The panel definition is larger than 256 KiB")
+	Register(KeyCmdPanelTrailingContent, "面板定义后面还有多余内容", "The panel definition has extra content after it")
+	Register(KeyCmdPanelTitleRequired, "面板需要一个标题", "A panel needs a title")
+	Register(KeyCmdPanelSizeOutOfRange, "面板宽度需在 240–1600、高度 120–1600、列数 1–4 之间", "Panel width must be 240–1600, height 120–1600, and columns 1–4")
+	Register(KeyCmdPanelWidgetCount, "面板需要 1–64 个控件", "A panel needs 1–64 widgets")
+	Register(KeyCmdPanelWidgetID, "每个控件都需要唯一且非空的 ID", "Every widget needs a unique, non-empty ID")
+	Register(KeyCmdPanelWidgetKind, "这个控件类型不受支持", "This widget kind is not supported")
+	Register(KeyCmdPanelFontSize, "控件字号需在 10–32 之间", "Widget font size must be 10–32")
+	Register(KeyCmdPanelProgressRange, "进度控件的值需在 0–1 之间", "A progress widget's value must be 0–1")
+	Register(KeyCmdPanelSelectOptions, "下拉控件需要至少一个选项", "A select widget needs at least one option")
+	Register(KeyCmdPanelLibraryVersion, "面板库版本不受支持", "This panel library version is not supported")
+	Register(KeyCmdPanelScopeMissing, "先打开一个 Bot 会话", "Open a Bot conversation first")
+	Register(KeyCmdPanelAlreadyAdded, "这个 Bot 已经有了这个面板", "This Bot already has this panel")
+	Register(KeyCmdPanelTemplateMissing, "面板模板已不存在", "The panel template no longer exists")
 	Register(KeyCmdVisualRepliesHostStopped, "HTML 可视化回复不可用：本机桌面 Host 未运行", "HTML visual replies unavailable: the local desktop Host is not running")
 	Register(KeyCmdVisualRepliesHostMismatch, "HTML 可视化回复不可用：此设置连接不是当前运行的本机桌面 Host", "HTML visual replies unavailable: this settings connection is not the running local desktop Host")
 	Register(KeyCmdVisualRepliesHostChanged, "HTML 可视化回复的 Host 在运行时验证期间已改变", "HTML visual replies Host changed during runtime verification")

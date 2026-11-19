@@ -61,10 +61,18 @@ func Violations(rel, src string) []string {
 				found = append(found, where+": settingsAlert sentence is the store's own failure text; "+
 					"write what failed and what to do next, and pass the raw text as the fifth argument")
 			}
+			if isCauseText(call.Args[sentenceArg]) {
+				found = append(found, where+": settingsAlert draws the cause as its message; "+
+					"write what failed and what to do next, and put the cause behind 详情")
+			}
 		case "Alert":
 			if message := compositeField(call, "Message"); message != nil && isRawFailure(message) {
 				found = append(found, where+": Alert Message is the store's own failure text; "+
 					"write what failed and what to do next, and put the raw text in Detail")
+			}
+			if message := compositeField(call, "Message"); message != nil && isCauseText(message) {
+				found = append(found, where+": Alert Message is the cause; "+
+					"write what failed and what to do next, and put the cause in Detail")
 			}
 		case "Text":
 			if len(call.Args) > 1 && isRawFailure(call.Args[1]) {
@@ -286,6 +294,132 @@ func hasCopyWords(lit string) bool {
 		case r >= 0x4E00 && r <= 0x9FFF, r >= 0x3400 && r <= 0x4DBF:
 			return true
 		}
+	}
+	return false
+}
+
+// StoreCopy reports a store that words a refusal itself. The store names the
+// problem; the sentence is copy in the interface language and belongs to the
+// surface that draws it, so a literal here is a sentence in the wrong layer.
+func StoreCopy(rel, src string) []string {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, rel, src, 0)
+	if err != nil {
+		return nil
+	}
+	var found []string
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			return true
+		}
+		where := rel + ":" + strconv.Itoa(fset.Position(call.Pos()).Line)
+		switch calleeName(call) {
+		case "New":
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok && toString(sel.X) == "errors" && isWordy(call.Args[0]) {
+				found = append(found, where+": the store words a refusal itself; "+
+					"name the problem with a Problem constant and pass the store's own text to refuse() so the surface writes the sentence")
+			}
+		case "Errorf":
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok && toString(sel.X) == "fmt" && isWordy(call.Args[0]) {
+				found = append(found, where+": the store words a refusal itself; "+
+					"name the problem with a Problem constant and pass the store's own text to refuse() so the surface writes the sentence")
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// isWordy reports whether expr is a string literal carrying words: the marker
+// that the literal is a sentence, not a key or a format of punctuation.
+func isWordy(expr ast.Expr) bool {
+	lit, ok := expr.(*ast.BasicLit)
+	return ok && lit.Kind == token.STRING && hasCopyWords(lit.Value)
+}
+
+func toString(expr ast.Expr) string {
+	if ident, ok := expr.(*ast.Ident); ok {
+		return ident.Name
+	}
+	return ""
+}
+
+// UnnamedProblems reports a Problem the store can name that the panel view has
+// no sentence for. A missing key would not leak anything; it would quietly turn
+// a precise refusal back into the generic failure sentence.
+func UnnamedProblems(storeSrc, viewSrc string) []string {
+	named := problemConstants(storeSrc)
+	if len(named) == 0 {
+		return nil
+	}
+	worded := map[string]bool{}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "view.go", viewSrc, 0)
+	if err != nil {
+		return nil
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		lit, ok := n.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		for _, elt := range lit.Elts {
+			kv, ok := elt.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			if sel, ok := kv.Key.(*ast.SelectorExpr); ok {
+				worded[sel.Sel.Name] = true
+			}
+		}
+		return true
+	})
+	var found []string
+	for _, name := range named {
+		if !worded[name] {
+			found = append(found, "internal/store/custompanel: "+name+
+				" has no sentence in internal/ui/custompanel; register one and add it to problemKeys, or the panel falls back to the generic failure line")
+		}
+	}
+	return found
+}
+
+// problemConstants lists the constants the store declares with the Problem type.
+func problemConstants(src string) []string {
+	file, err := parser.ParseFile(token.NewFileSet(), "store.go", src, 0)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	ast.Inspect(file, func(n ast.Node) bool {
+		spec, ok := n.(*ast.ValueSpec)
+		if !ok {
+			return true
+		}
+		if ident, ok := spec.Type.(*ast.Ident); !ok || ident.Name != "Problem" {
+			return true
+		}
+		for _, name := range spec.Names {
+			names = append(names, name.Name)
+		}
+		return true
+	})
+	return names
+}
+
+// causeSeats are the names a surface keeps a cause under, for the 详情
+// disclosure. Drawing one as the message turns the evidence back into the
+// sentence: the person reads the store's words and nothing says what to do.
+var causeSeats = map[string]bool{"Detail": true, "detail": true}
+
+// isCauseText reports whether expr reads a failure's cause rather than its sentence.
+func isCauseText(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.SelectorExpr:
+		return causeSeats[e.Sel.Name]
+	case *ast.ParenExpr:
+		return isCauseText(e.X)
 	}
 	return false
 }
