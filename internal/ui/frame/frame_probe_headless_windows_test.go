@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,13 +59,17 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 	budget := time.Second / 165
 	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
 	model := newFrameProbeModel()
-	tester := ui.NewTester(model.view(false), model.width, model.height)
+	tester := ui.NewTester(model.viewFunc(false), model.width, model.height)
 	mark := func(name string) { ui.FrameTraceMark(prefix + name) }
 	frame := func() {
 		now = now.Add(budget)
 		tester.SetTime(now)
 		tester.Frame()
 	}
+	if !tester.HasText(fmt.Sprintf("Probe answer %d", messages)) {
+		t.Fatal("the store's messages did not reach the view")
+	}
+	t.Logf("messages in store: %d", len(model.view().Messages))
 	frames := func(n int) {
 		for i := 0; i < n; i++ {
 			frame()
@@ -98,14 +103,16 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 	t.Logf("scroll %.1f up to %.1f, down to %.1f", start, up, down)
 
 	mark("stream")
-	before := len(model.messages[len(model.messages)-1].Body)
 	for i := 0; i < 120; i++ {
 		model.appendStreamToken()
 		frame()
 	}
-	after := len(model.messages[len(model.messages)-1].Body)
-	if after <= before {
-		t.Fatalf("streaming added no text: %d to %d", before, after)
+	if after := model.streamedText(); len(after) == 0 {
+		t.Fatal("streaming applied no text")
+	}
+	last := model.view().Messages
+	if !strings.Contains(last[len(last)-1].Body, "token") {
+		t.Fatal("the streamed text did not reach the store's last message")
 	}
 
 	mark("expand_open")
@@ -121,10 +128,16 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 
 	// The picker's popup is the proof: its options paint over the view only
 	// while it is open, which the frame's pixels show and the text tree does
-	// not.
-	pixels := func() []byte {
+	// not. The buffers are reused so the check itself allocates nothing.
+	var closed, opened, after []byte
+	pixels := func(dst *[]byte) {
 		pix := tester.Image().Pix
-		return append([]byte(nil), pix...)
+		if cap(*dst) < len(pix) {
+			*dst = make([]byte, len(pix))
+		} else {
+			*dst = (*dst)[:len(pix)]
+		}
+		copy(*dst, pix)
 	}
 	changed := func(a, b []byte) int {
 		n := 0
@@ -145,11 +158,11 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 	}
 	pickerClick := func() { tester.ClickAt(float32(model.width-pickerX), 14) }
 	neutral()
-	closed := pixels()
+	pixels(&closed)
 	mark("picker_open")
 	pickerClick()
 	frames(30)
-	opened := pixels()
+	pixels(&opened)
 	if changed(closed, opened) < 1000 {
 		t.Fatalf("the picker opened nothing: %d pixels changed", changed(closed, opened))
 	}
@@ -157,7 +170,8 @@ func runFrameProbeOnce(t *testing.T, prefix string) {
 	pickerClick()
 	frames(30)
 	neutral()
-	if n, back := changed(opened, pixels()), changed(closed, pixels()); back > 0 && n < 1000 {
+	pixels(&after)
+	if n, back := changed(opened, after), changed(closed, after); back > 0 && n < 1000 {
 		t.Fatalf("the picker did not close: %d of its %d pixels went away", n, back)
 	}
 
