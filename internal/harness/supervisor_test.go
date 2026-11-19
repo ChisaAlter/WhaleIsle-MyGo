@@ -24,6 +24,13 @@ func TestMain(m *testing.M) {
 	case "serve", "flap":
 		fakeDsh()
 		return
+	case "leak":
+		startStdoutLeaker()
+		fakeDsh()
+		return
+	case "leaker":
+		time.Sleep(time.Hour)
+		return
 	case "crash":
 		fmt.Println("boom")
 		os.Exit(3)

@@ -33,7 +33,19 @@ func (s *mainState) taskProtectionError(win *mygo.Window, err error) {
 	s.notifyUser(win, i18n.T(i18n.KeyProtectedActionFailed))
 }
 
+// quitSkipsConfirmation reports whether a close request can proceed without an
+// answer. A Host that cannot be inspected says nothing about running work, and
+// a close that waits for a dialog the window may never show is the defect this
+// path exists to avoid. Local sessions are still known, so they keep the warning.
+func quitSkipsConfirmation(operation string, i taskcontrol.Inspection, localRunning int) bool {
+	return operation == "quit" && !i.OK && localRunning == 0
+}
+
 func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, operation string, i taskcontrol.Inspection) (bool, error) {
+	if quitSkipsConfirmation(operation, i, s.localTaskRunningCount()) {
+		log.Printf("quit: Host task inspection unavailable (%s); closing without confirmation", i.Unknown)
+		return true, nil
+	}
 	s.mu.Lock()
 	hasWindow := s.win != nil
 	s.mu.Unlock()
@@ -55,7 +67,10 @@ func (s *mainState) confirmHostTasks(ctx context.Context, win *mygo.Window, oper
 		lines = append(lines, i18n.T(i18n.KeyCmdThisStopsTheHostRuntimeTheDesktopAppl))
 	}
 	if i.Unknown != "" {
-		lines = append(lines, i18n.T(i18n.KeyCmdHostTaskProtectionIsUnavailableBackgro), i.Unknown)
+		// The transport's own words stay in the log: a dialog body never shows a
+		// raw technical string.
+		log.Printf("task protection: %s", i.Unknown)
+		lines = append(lines, i18n.T(i18n.KeyCmdHostTaskProtectionIsUnavailableBackgro))
 	}
 	lines = append(lines, taskInspectionSummary(i))
 	missing := []string{}

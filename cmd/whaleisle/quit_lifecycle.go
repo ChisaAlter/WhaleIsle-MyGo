@@ -94,6 +94,10 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 		return
 	}
 	s.quitting = true
+	// The closing layer is marked before the teardown that can take seconds
+	// (tray, webviews, Host child). The next frame then tells the user the close
+	// was received instead of leaving the window looking deaf.
+	s.closingOverlay = true
 	win := s.win
 	cancelPreparation := s.launcherStartCancel
 	cancelLifecycle := s.lifecycleCancel
