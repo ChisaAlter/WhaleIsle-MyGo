@@ -13,6 +13,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/testwait"
 )
 
 func TestInvalidateFollowClearsDecodeCachesAndBoundsPerSessionSize(t *testing.T) {
@@ -129,7 +130,6 @@ func TestAttachmentCacheBoundedEviction(t *testing.T) {
 
 func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *testing.T) {
 	var attempt atomic.Int32
-	reconnectingObserved := make(chan struct{})
 	releaseSecond := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := websocket.Accept(w, r, nil)
@@ -176,22 +176,26 @@ func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go s.runFollow(ctx, mux, "sess-reconnect", s.followGeneration)
+	followExited := make(chan struct{})
+	go func() {
+		defer close(followExited)
+		s.runFollow(ctx, mux, "sess-reconnect", s.followGeneration)
+	}()
+	follow := &testwait.Producer{Name: "the follow loop", Done: followExited}
 
-	// Wait for first snapshot (seq 10..11) and carrier-lost transition.
-	deadline := time.Now().Add(3 * time.Second)
-	for {
+	// The first snapshot (seq 10..11) arrives with the carrier-lost transition.
+	testwait.Until(t, testwait.Wait{
+		What:     "HistoryReconnecting after the first snapshot and the carrier loss",
+		Producer: follow,
+		State: func() string {
+			st := s.Snapshot()
+			return fmt.Sprintf("ready=%v reconnecting=%v error=%q messages=%d", st.HistoryReady, st.HistoryReconnecting, st.HistoryError, len(st.Messages))
+		},
+		Budget: 3 * time.Second,
+	}, func() bool {
 		st := s.Snapshot()
-		if st.HistoryReady && st.HistoryReconnecting {
-			close(reconnectingObserved)
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("did not enter HistoryReconnecting state cleanly: %+v", st)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	<-reconnectingObserved
+		return st.HistoryReady && st.HistoryReconnecting
+	})
 
 	mid := s.Snapshot()
 	if mid.HistoryError != "" || len(mid.Messages) != 2 || !mid.HistoryReady {
@@ -209,24 +213,26 @@ func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *
 	s.mu.Unlock()
 
 	close(releaseSecond)
-	deadline = time.Now().Add(3 * time.Second)
-	for {
+	testwait.Until(t, testwait.Wait{
+		What:     "the reconnect snapshot to merge into the earlier pages",
+		Producer: follow,
+		State: func() string {
+			st := s.Snapshot()
+			return fmt.Sprintf("reconnecting=%v error=%q hasMore=%v messages=%+v", st.HistoryReconnecting, st.HistoryError, st.HistoryHasMore, st.Messages)
+		},
+		Budget: 3 * time.Second,
+	}, func() bool {
 		st := s.Snapshot()
-		if !st.HistoryReconnecting && len(st.Messages) == 5 && st.Messages[4].Seq == 12 {
-			if st.HistoryError != "" {
-				t.Fatalf("unexpected historyError after reconnect: %q", st.HistoryError)
-			}
-			if st.HistoryHasMore {
-				t.Fatal("reconnect snapshot clobbered pre-existing HistoryHasMore=false paging depth")
-			}
-			if st.Messages[0].Seq != 8 || st.Messages[1].Seq != 9 || st.Messages[2].Seq != 10 || st.Messages[3].Seq != 11 {
-				t.Fatalf("unexpected merged transcript order: %+v", st.Messages)
-			}
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("reconnect snapshot did not merge cleanly: reconnecting=%v msgs=%+v", st.HistoryReconnecting, st.Messages)
-		}
-		time.Sleep(5 * time.Millisecond)
+		return !st.HistoryReconnecting && len(st.Messages) == 5 && st.Messages[4].Seq == 12
+	})
+	merged := s.Snapshot()
+	if merged.HistoryError != "" {
+		t.Fatalf("unexpected historyError after reconnect: %q", merged.HistoryError)
+	}
+	if merged.HistoryHasMore {
+		t.Fatal("reconnect snapshot clobbered pre-existing HistoryHasMore=false paging depth")
+	}
+	if merged.Messages[0].Seq != 8 || merged.Messages[1].Seq != 9 || merged.Messages[2].Seq != 10 || merged.Messages[3].Seq != 11 {
+		t.Fatalf("unexpected merged transcript order: %+v", merged.Messages)
 	}
 }
