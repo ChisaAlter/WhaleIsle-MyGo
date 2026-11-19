@@ -59,6 +59,12 @@ func TestLoadingPageComposition(t *testing.T) {
 				View(c, Model{Dark: tc.dark, Status: harness.Status{State: harness.Starting}, Logs: []string{"正在加载本地组件"}})
 			}, 1440, 920)
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			// The seat is the reference page's own: 44/54 letters over the sky,
+			// measured from the type scale, not from a face. Pin the metrics so
+			// the numbers describe that composition: a host resolving a brand
+			// serif it lacks, or a CJK fallback for 鲸屿, wraps these rows and
+			// moves the block by half their height.
+			tt.UseFixedTextMetrics()
 			mark, ok := tt.Find("Whale Isle")
 			if !ok || mark.Y < 240 || mark.Y > 300 || mark.X+mark.W/2 < 718 || mark.X+mark.W/2 > 722 {
 				t.Fatalf("wordmark outside reference seat: %+v", mark)
