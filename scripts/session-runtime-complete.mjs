@@ -53,7 +53,7 @@ export async function stageCompleteRuntime(resources, destination, desktopSource
 export async function stageInstalledRuntime(resources, destination, legacyVendor) {
   for (const input of [resources, legacyVendor]) fs.realpathSync(input);
   const sourceHost = read(path.join(resources, 'vendor/deepseek-harness/package.json'));
-  if (sourceHost.version !== '0.2.2-rc.2') throw Error('Expected installed 0.2.2-rc.2 resources');
+  if (!sourceHost.version.startsWith('0.2.2-rc.')) throw Error('Expected installed 0.2.2-rc resources');
   const host = await stageSessionRuntime(resources, destination);
   const mobile = await completeInstalledMobile(resources, destination);
   const dshbot = await carryDshbot(legacyVendor, destination);

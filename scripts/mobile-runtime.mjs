@@ -30,7 +30,7 @@ export const required = [
 ];
 const assetPin = JSON.parse(fs.readFileSync(new URL('./mobile-runtime-assets.json', import.meta.url))).sileroVad;
 const nodeRelative = platform => platform === 'win32' ? 'node.exe' : 'bin/node';
-const installedHostVersions = {'installed-rc2': '0.2.1-rc.2', 'installed-rc4': '0.2.1-rc.4', 'installed-0.2.2-rc.2': '0.2.2-rc.2'};
+const installedHostVersions = {'installed-rc2': '0.2.1-rc.2', 'installed-rc4': '0.2.1-rc.4', 'installed-0.2.2-rc.2': '0.2.2-rc.2', 'installed-0.2.2-rc.5': '0.2.2-rc.5'};
 const platformRequired = platform => required.map(f => f === 'node/node.exe' ? `node/${nodeRelative(platform)}` : f);
 function supportedPlatform(platform) { if (!['win32','linux','darwin'].includes(platform)) throw new Error(`Unsupported mobile build platform: ${platform}`); }
 const sha = p => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');

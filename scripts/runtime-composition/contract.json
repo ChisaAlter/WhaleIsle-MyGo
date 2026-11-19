@@ -66,6 +66,24 @@
           "why": "本体 4b837c75f96 vendored this harness before its dsh-deepseek-tools plugin existed, so that source omits the row"
         }
       ]
+    },
+    "0.2.2-rc.5": {
+      "harnessPin": {
+        "ref": "dsh-v0.2.2-rc.5",
+        "sha": "9c2670d3bce5275e0d1610272958121af87787bb"
+      },
+      "upstream": {
+        "file": "upstream/dsh-v0.2.2-rc.5.cordis.patch.yml",
+        "sha256": "1a7a094e659c2d775709d0ebcee4d78f8e06fb351096af50bbeef59b5b763aa2"
+      },
+      "desktop": {
+        "reference": "derived from 本体 334a3db3de6 — no 本体 release vendors dsh-v0.2.2-rc.5, so this row is that release's five composition deltas applied to the rc.5 pin; re-record it with the restage that ships rc.5",
+        "rows": ["mcp-servers-file", "llm-vision-fallback", "dsh-deepseek-tools"],
+        "configs": ["preparedSessionCacheSize: 1"],
+        "renamedRows": {"agent-team": "native-agent-team"}
+      },
+      "sha256": "3876227e1c1d0fb55610977e2504f2a459dd334a5ce8ee59c78f4b37005173bb",
+      "alternates": []
     }
   }
 }

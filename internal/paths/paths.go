@@ -87,7 +87,7 @@ func bundledNodeFilename() string {
 // may carry, newest pin first. A candidate counts only when its vendor tree and
 // its own bundled Node are both present: the Host refuses a Node that is not the
 // one it was staged with, so pairing is the point, not a convenience.
-var pinnedHostRuntimeDirs = [...]string{"runtime-0.2.2-rc2", "runtime-rc4"}
+var pinnedHostRuntimeDirs = [...]string{"runtime-0.2.2-rc5", "runtime-0.2.2-rc2", "runtime-rc4"}
 
 func hostRuntimePairReady(base, dir string) bool {
 	harnessDir := filepath.Join(base, dir, "vendor", "deepseek-harness")

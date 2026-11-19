@@ -120,3 +120,14 @@ vacuous: that failure is what a Host on the plain desktop composition does.
 
 Do not remove the row, and do not reduce it to parity with the desktop: write is
 the unprotected path, and losing it costs a user their file.
+
+### A version ahead of the desktop is recorded as derived
+
+MyGo stages a 本体 graph verbatim, so a harness version 本体 has not synced has no
+desktop file to hash. Its entry still names the pin and the rows 本体 adds, and
+`desktop.reference` starts with `derived from`: the previous entry's row deltas
+applied to the new pin's upstream file. That derivation is a rule rather than a
+guess only because applying it to the previous pin reproduces the previous entry's
+recorded sha256 byte for byte, which is the check to run before recording a new
+one. Re-record the entry with the restage that ships the version; until then
+`verify` refuses any stage whose file differs from the derived one.

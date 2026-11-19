@@ -51,14 +51,14 @@ if ($RuntimeSourceResources) {
     if (-not (Test-Path -LiteralPath $StageNode -PathType Leaf)) { throw 'The selected original resources directory has no bundled Node runtime.' }
     $InstalledHost = Get-Content -LiteralPath (Join-Path $RuntimeSourceResources 'vendor\deepseek-harness\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $RuntimeDestination) {
-        $DestinationName = if ($InstalledHost.version -eq '0.2.2-rc.2') { 'runtime-0.2.2-rc2' } else { 'runtime' }
+        $DestinationName = if ($InstalledHost.version -match '^0\.2\.2-rc\.\d+$') { 'runtime-' + ($InstalledHost.version -replace '\.', '') } else { 'runtime' }
         $RuntimeDestination = Join-Path (Split-Path -Parent $PSScriptRoot) $DestinationName
     }
     if ($InstalledHost.version -eq '0.2.1-rc.4') {
         if (-not $DesktopSourceRoot) { throw 'DesktopSourceRoot is required for rc.4 main task/IM plugins.' }
         if (-not $LegacyVendor) { $LegacyVendor = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime\vendor' }
         & $StageNode (Join-Path $PSScriptRoot 'session-runtime-complete.mjs') stage $RuntimeSourceResources $RuntimeDestination $DesktopSourceRoot $DesktopSourceRevision $LegacyVendor
-    } elseif ($InstalledHost.version -eq '0.2.2-rc.2') {
+    } elseif ($InstalledHost.version -match '^0\.2\.2-rc\.\d+$') {
         if (-not $LegacyVendor) { $LegacyVendor = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime\vendor' }
         & $StageNode (Join-Path $PSScriptRoot 'session-runtime-complete.mjs') stage-installed $RuntimeSourceResources $RuntimeDestination $LegacyVendor
     } else {
