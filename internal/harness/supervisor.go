@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -118,6 +119,18 @@ const maxNotifyQueue = 64
 // stopGrace is how long dsh gets between SIGTERM and SIGKILL on Unix. Windows
 // force-ends the tree on the first terminate, so Stop does not wait there.
 const stopGrace = 5 * time.Second
+
+// stopExitBudget bounds the wait for the child's reaper after the tree kill. The
+// window's close request must finish whatever the Host's children do.
+const stopExitBudget = 2 * time.Second
+
+// stopDrainGrace is how long the Host's already-written output may keep the
+// drain alive once the process itself is gone.
+const stopDrainGrace = 2 * time.Second
+
+// notifyDrainBudget bounds the wait for the status listener when shutdown ends
+// the supervisor. A listener that never returns must not hold the window open.
+const notifyDrainBudget = time.Second
 
 // restartStablePeriod prevents a short-lived Ready state from replenishing the
 // restart budget. Healthy hosts earn a fresh budget after one minute online.
@@ -384,29 +397,52 @@ func (s *Supervisor) Stop() {
 		install.Stop()
 	}
 	if cmd != nil {
-		stopChild(cmd, exited)
-		RemoveHostRecord(s.opts.RecordPath, recordPID)
+		stopped := stopChild(cmd, exited)
+		if stopped {
+			RemoveHostRecord(s.opts.RecordPath, recordPID)
+		}
 		s.mu.Lock()
 		s.stoppingChildren--
 		s.mu.Unlock()
 	}
-	if notifyDone != nil {
-		<-notifyDone
+	if !waitExit(notifyDone, notifyDrainBudget) {
+		log.Printf("harness: a status listener did not return within %s; continuing shutdown", notifyDrainBudget)
+	}
+}
+
+// waitExit reports whether the child's reaper saw the process go before budget
+// expired. A nil channel means there is no child to wait for.
+func waitExit(exited <-chan struct{}, budget time.Duration) bool {
+	if exited == nil {
+		return true
+	}
+	timer := time.NewTimer(budget)
+	defer timer.Stop()
+	select {
+	case <-exited:
+		return true
+	case <-timer.C:
+		return false
 	}
 }
 
 // The caller retains this exact child until its wait goroutine confirms exit.
-func stopChild(cmd *exec.Cmd, exited <-chan struct{}) {
+// Every wait is bounded: a Host that never reports exit must cost the window a
+// fixed delay and a log line, not the close itself.
+func stopChild(cmd *exec.Cmd, exited <-chan struct{}) bool {
 	if cmd == nil {
-		return
+		return true
 	}
 	_ = terminate(cmd, false)
-	select {
-	case <-exited:
-	case <-time.After(stopGrace):
-		_ = terminate(cmd, true)
-		<-exited
+	if waitExit(exited, stopGrace) {
+		return true
 	}
+	_ = terminate(cmd, true)
+	if waitExit(exited, stopExitBudget) {
+		return true
+	}
+	log.Printf("harness: Host %d did not report exit within %s after a forced stop; leaving its record for the next launch", cmd.Process.Pid, stopExitBudget)
+	return false
 }
 
 // nextGenLocked invalidates every goroutine of earlier attempts.
@@ -624,12 +660,18 @@ func (s *Supervisor) run(gen int) {
 		}
 	}
 	detach(cmd)
-	out, err := cmd.StdoutPipe()
+	// The pipe is owned here, not by exec: the Host starts long-lived daemons
+	// (MCP servers, the phone bridge) that inherit fd 1, so the write end can
+	// stay open long after the Host is gone. Owning the read end lets shutdown
+	// close it and stop waiting on a writer nothing will ever close, while the
+	// Host's own lines still drain in full.
+	out, writeOut, err := os.Pipe()
 	if err != nil {
 		s.set(gen, Status{State: Failed, Err: err, Source: plan.Source})
 		return
 	}
-	cmd.Stderr = cmd.Stdout
+	cmd.Stdout = writeOut
+	cmd.Stderr = writeOut
 	exited := make(chan struct{})
 	s.mu.Lock()
 	// Starting and assigning ownership are atomic with cancellation. A cancelled
@@ -637,13 +679,17 @@ func (s *Supervisor) run(gen int) {
 	if s.gen != gen {
 		s.mu.Unlock()
 		_ = out.Close()
+		_ = writeOut.Close()
 		return
 	}
 	if err := cmd.Start(); err != nil {
 		s.mu.Unlock()
+		_ = out.Close()
+		_ = writeOut.Close()
 		s.set(gen, Status{State: Failed, Err: err, Source: plan.Source})
 		return
 	}
+	_ = writeOut.Close()
 	s.cmd, s.exited = cmd, exited
 	s.mu.Unlock()
 	startuptrace.Mark("host.spawned", strconv.Itoa(cmd.Process.Pid))
@@ -657,10 +703,19 @@ func (s *Supervisor) run(gen int) {
 	}()
 	var waitErr error
 	go func() {
-		// Drain StdoutPipe before calling cmd.Wait so trailing logs are never truncated.
-		<-scanDone
+		// Reap the Host beside the drain instead of after it. Waiting for stdout
+		// EOF first made a pipe inherited by a surviving daemon the owner of the
+		// exit path: the child was dead, the shell waited forever, and the window
+		// never closed. The grace keeps trailing lines when the pipe does close
+		// with the Host.
 		waitErr = cmd.Wait()
 		close(exited)
+		select {
+		case <-scanDone:
+		case <-time.After(stopDrainGrace):
+			s.log("Host output pipe still open after exit; closing it", gen)
+		}
+		_ = out.Close()
 	}()
 
 	timer := time.NewTimer(s.opts.ReadyTimeout)
@@ -684,7 +739,7 @@ func (s *Supervisor) run(gen int) {
 			if err != nil {
 				s.log("auth: "+redactScanLine(err.Error(), tokens), gen)
 				_ = terminate(cmd, true)
-				<-exited
+				waitExit(exited, stopExitBudget)
 				s.fail(gen, err, plan.Source)
 				return
 			}
@@ -704,7 +759,7 @@ func (s *Supervisor) run(gen int) {
 			return
 		case <-timer.C:
 			_ = terminate(cmd, true)
-			<-exited
+			waitExit(exited, stopExitBudget)
 			s.fail(gen, fmt.Errorf("dsh web did not become ready within %s", s.opts.ReadyTimeout), plan.Source)
 			return
 		case <-probeC:
