@@ -130,3 +130,22 @@ That fix was not enough on its own. Measured on `origin/main` with the flag hono
 ## Why the rival guard is not "refuse on any electron"
 
 Taking that rule literally would forbid testing whenever the operator has the reference desktop open, which is most of the time: five `electron.exe` from `C:\AI\Deepseek-Harness-Desktop` were running the first time this guard fired. A guard that always refuses gets commented out by the next person under time pressure, and then nothing protects the machine. So the guard names the conflict — a process that belongs to a WhaleIsle-MyGo tree — and lists a foreign `electron` as ignored in the evidence. Do not tighten it back without solving that problem first.
+
+## What the harness records about a raise, and the one field it used to miss
+
+A stolen-foreground report is only actionable when it names the window that took it. Run 7 raised a title-less window of our own pid, and the log could not say whether that was a menu popup, a surface child, or a fresh backend window — the class and the owner chain are what separate those. Every step now records `ForegroundClass`, `ForegroundChain` (the window plus its parents and owners, four deep, each with its class) and the stolen window's child windows. Those three fields are the difference between "our app took the foreground" and "`surface_access.SetFocus` took it".
+
+## Tracing where a raise comes from
+
+The launcher's `--background`/inactive-only fix covers `mygo.Window`'s `Show`, `Focus`, `Restore` and `Maximize`. A raise that does not appear in that trace comes from below it, in `internal/windows`, and a run with `MYGO_TRACE_FILE` set records every call there that asks the shell to activate or focus a window:
+
+```
+$env:MYGO_TRACE_FILE = 'C:\AI\WhaleIsle-MyGo-polite\qa-evidence\polite-selftest\raise-trace.log'
+.\tools\polite\run.ps1 -Exe .\dist\polite\whaleisle.exe -Ops .\qa-evidence\polite-selftest\toggle-ops.ps1 -EvidenceDir .\qa-evidence\polite-selftest -KeepProfile
+```
+
+Each entry carries the call name, the window it targets, the foreground window at that moment, and both window chains, so the entry after the thief shows the foreground already moved. The hook is dev-only: `RaiseTrace` is in `scripts/release-build.json`'s `forbiddenSymbols`, and a release build contains no symbol by that name (`go build -tags release` then `go tool nm | grep -c RaiseTrace` gives 0, while the dev binary carries four). The no-op `traceRaise` stub the release tag compiles in holds no callback and cannot be installed.
+
+## The evidence file is the record; the console is a convenience
+
+Every run writes its evidence block to `run-evidence-<stamp>.txt` in the evidence directory as well as printing it. Two runs in this harness's history lost their numbers to a caller whose shell mangled the output — one to a broken pipe, one to a PowerShell precedence bug inside the printer. A run costs the operator their focus, so its numbers must survive whatever the caller does with stdout.
