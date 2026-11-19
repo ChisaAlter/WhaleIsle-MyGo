@@ -458,6 +458,7 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		case wmMButtonDown, wmMButtonDblClk:
 			button = 2
 		}
+		traceRaise("surface.focusOnButtonDown", hwnd)
 		procSetFocus.Call(hwnd)
 		if s.buttons == 0 {
 			procSetCapture.Call(hwnd)

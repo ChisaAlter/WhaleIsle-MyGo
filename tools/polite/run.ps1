@@ -62,6 +62,9 @@ public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
+[DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint command);
+[DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr parent, EnumWindowsProc callback, IntPtr lParam);
 '@ | Out-Null
 }
 
@@ -113,6 +116,51 @@ function Get-ForegroundWindowInfo {
     $handle = [PoliteDesktop.Native]::GetForegroundWindow()
     $info = Get-WindowDescription -Handle $handle
     $info
+}
+
+# A raise is only actionable once the window that took the foreground is named.
+# The class alone separates a menu popup from a surface child from a fresh window,
+# and the owner/parent chain says which client window opened it.
+# When a window of our own pid takes the foreground, the next question is
+# whether it belongs to the app's UI or is a window the shell made alongside it.
+# Every top-level window the pid owns answers that, and the stolen window's chain
+# then shows whether it descends from the main window or stands alone.
+function Get-OwnWindowInventory {
+    param([int]$OwnerPid)
+    Initialize-PoliteInterop
+    $items = New-Object System.Collections.ArrayList
+    foreach ($window in (Get-TopLevelWindows | Where-Object { $_.OwnerPid -eq $OwnerPid })) {
+        $items.Add(('top {0}[{1}]"{2}" visible={3}' -f $window.Hwnd, $window.Class, $window.Title, [PoliteDesktop.Native]::IsWindowVisible($window.Handle))) | Out-Null
+    }
+    $items.ToArray()
+}
+
+function Get-WindowChain {
+    param([IntPtr]$Handle, [int]$Depth = 4)
+    Initialize-PoliteInterop
+    $parts = New-Object System.Collections.ArrayList
+    $current = $Handle
+    for ($i = 0; $i -lt $Depth -and $current -ne [IntPtr]::Zero; $i++) {
+        $description = Get-WindowDescription -Handle $current
+        $parts.Add(('{0}[{1}]"{2}"' -f $description.Hwnd, $description.Class, $description.Title)) | Out-Null
+        $parent = [PoliteDesktop.Native]::GetParent($current)
+        if ($parent -eq [IntPtr]::Zero) { $parent = [PoliteDesktop.Native]::GetWindow($current, 4) }
+        $current = $parent
+    }
+    $parts -join ' <- '
+}
+
+function Get-ChildWindows {
+    param([IntPtr]$Handle)
+    Initialize-PoliteInterop
+    $children = New-Object System.Collections.ArrayList
+    $callback = [PoliteDesktop.Native+EnumWindowsProc] {
+        param([IntPtr]$child, [IntPtr]$state)
+        $children.Add((Get-WindowDescription -Handle $child)) | Out-Null
+        return $true
+    }
+    [void][PoliteDesktop.Native]::EnumChildWindows($Handle, $callback, [IntPtr]::Zero)
+    $children.ToArray()
 }
 
 function Get-TopLevelWindows {
@@ -484,6 +532,15 @@ function Get-PoliteNodeState {
 # modal or a menu raises a window on the operator's screen. Preference order is
 # "cannot change anything" first, and running out of candidates is a recorded
 # failure, never a fallback to physical input.
+function Test-PoliteNodeUsable {
+    param([Parameter(Mandatory)]$Node)
+    if ($null -ne $Node.enabled -and -not $Node.enabled) { return $false }
+    foreach ($state in @('disabled', 'unavailable', 'offscreen')) {
+        if (Get-PoliteNodeState -Node $Node -State $state) { return $false }
+    }
+    return $true
+}
+
 function Find-PoliteHarmlessTarget {
     param([Parameter(Mandatory)]$Snapshot)
     $nodes = Get-PoliteNodes -Snapshot $Snapshot
@@ -493,6 +550,7 @@ function Find-PoliteHarmlessTarget {
 
     foreach ($node in $nodes) {
         if (-not $node.ref_id) { continue }
+        if (-not (Test-PoliteNodeUsable -Node $node)) { continue }
         $role = ([string]$node.role).ToLower()
         $value = [string]$node.value
         if (($textRoles -contains $role) -and [string]::IsNullOrEmpty($value)) {
@@ -501,6 +559,7 @@ function Find-PoliteHarmlessTarget {
     }
     foreach ($node in $nodes) {
         if (-not $node.ref_id) { continue }
+        if (-not (Test-PoliteNodeUsable -Node $node)) { continue }
         $role = ([string]$node.role).ToLower()
         if (($checkRoles -contains $role) -and -not (Get-PoliteNodeState -Node $node -State 'checked')) {
             return @{ Ref = $node.ref_id; Action = 'uncheck'; Name = [string]$node.name; Why = "unchecked ${role}: uncheck is idempotent" }
@@ -508,6 +567,7 @@ function Find-PoliteHarmlessTarget {
     }
     foreach ($node in $nodes) {
         if (-not $node.ref_id) { continue }
+        if (-not (Test-PoliteNodeUsable -Node $node)) { continue }
         $role = ([string]$node.role).ToLower()
         if (($navRoles -contains $role) -and (Get-PoliteNodeState -Node $node -State 'selected')) {
             return @{ Ref = $node.ref_id; Action = 'click'; Name = [string]$node.name; Why = "already selected ${role}: click re-selects the same route" }
@@ -515,6 +575,7 @@ function Find-PoliteHarmlessTarget {
     }
     foreach ($node in $nodes) {
         if (-not $node.ref_id) { continue }
+        if (-not (Test-PoliteNodeUsable -Node $node)) { continue }
         $role = ([string]$node.role).ToLower()
         if (($textRoles -contains $role) -and -not [string]::IsNullOrEmpty([string]$node.value)) {
             return @{ Ref = $node.ref_id; Action = 'set-value'; Name = [string]$node.name; Value = [string]$node.value; Why = "writes a ${role} back to the value it already holds" }
@@ -548,41 +609,75 @@ function Invoke-PoliteStep {
 
     $ownerPid = $Session.Pid
     $owned = $false
+    $wasOurs = $false
     if ($stolen) {
         $owned = ($after.OwnerPid -eq $Session.Pid)
         if (-not $owned -and $after.OwnerPid -gt 0) {
             $owned = @(Get-OwnedDescendant -ParentPid $Session.Pid -ExePath $Session.Exe | Where-Object { $_.Id -eq $after.OwnerPid }).Count -gt 0
         }
     }
+    # A window of ours moving focus between its own child windows is not the
+    # theft this harness exists to catch: the operator already had the app in
+    # front, so they lost nothing. Only a step that takes the foreground from a
+    # window that is not ours is a politeness failure. Without this distinction a
+    # run started while the operator was looking at the app reports a steal for
+    # every click that lands inside it.
+    if ($owned -and $before.OwnerPid -gt 0) {
+        $wasOurs = ($before.OwnerPid -eq $Session.Pid)
+    }
 
     $actionErrorText = ''
     if ($actionError) { $actionErrorText = "$actionError" }
+    # What the driver says it delivered is part of the evidence: the same click
+    # that moves the operator's foreground is either a confirmed semantic call or
+    # an unverified delivery, and those two strings accuse different things.
+    $deliveryText = ''
+    $stepsText = ''
+    if ($result -and $result.data) {
+        $disposition = $result.data.disposition
+        if ($disposition) {
+            $deliveryText = "$($disposition.delivery)"
+            if ($disposition.retry) { $deliveryText += " retry=$($disposition.retry)" }
+        }
+        if ($result.data.steps) {
+            $stepsText = (@($result.data.steps | ForEach-Object { '{0}/{1}/{2}' -f $_.label, $_.mechanism, $_.outcome }) -join '; ')
+        }
+    }
 
     $StepResult = [pscustomobject]@{
         Name             = $Name
         ForegroundBefore = $before.Hwnd
         ForegroundAfter  = $after.Hwnd
         ForegroundTitle  = $after.Title
+        ForegroundClass  = $after.Class
+        ForegroundChain  = $(if ($stolen) { Get-WindowChain -Handle $after.Handle } else { '' })
+        ForegroundChildren = $(if ($stolen) { @(Get-ChildWindows -Handle $after.Handle | ForEach-Object { '{0}[{1}]"{2}"' -f $_.Hwnd, $_.Class, $_.Title }) } else { @() })
+        OwnWindows       = $(if ($stolen -and $owned) { @(Get-OwnWindowInventory -OwnerPid $Session.Pid) } else { @() })
         ForegroundPid    = $after.OwnerPid
         ForegroundOwned  = $owned
-        FocusStolen      = ($stolen -and $owned)
+        FocusStolen      = ($stolen -and $owned -and -not $wasOurs)
+        InternalMove     = ($stolen -and $owned -and $wasOurs)
         ExternalChange   = ($stolen -and -not $owned)
         HangWindow       = ($hangAfter.Count -gt 0)
         ActionError      = $actionErrorText
+        ActionDelivery   = $deliveryText
+        ActionSteps      = $stepsText
+        ActionTrace      = $(if ($result -and $result.PolitenessTrace) { $result.PolitenessTrace } else { '' })
     }
     $Session.Steps = @($Session.Steps) + $StepResult
     $verdict = 'unchanged'
-    if ($stolen -and $owned) { $verdict = 'STOLEN' }
+    if ($stolen -and $owned -and $wasOurs) { $verdict = 'internal-move' }
+    elseif ($stolen -and $owned) { $verdict = 'STOLEN' }
     elseif ($stolen) { $verdict = 'external' }
     $ownerText = ''
-    if ($stolen) { $ownerText = " (pid $($after.OwnerPid) $($after.ProcessName) '$($after.Title)')" }
+    if ($stolen) { $ownerText = " (pid $($after.OwnerPid) $($after.ProcessName) class '$($after.Class)' title '$($after.Title)')" }
     Write-Host ("step {0,-24}: {1} -> {2} {3}{4}" -f $Name, $before.Hwnd, $after.Hwnd, $verdict, $ownerText)
 
     if ($hangAfter.Count -gt 0) {
         throw "probe too heavy: step '$Name' raised 界面未响应 ('$($hangAfter[0].Title)'). Stopping."
     }
-    if ($stolen -and $owned) {
-        throw "focus stolen during step '$Name': foreground went $($before.Hwnd) -> $($after.Hwnd) owned by our own process tree ('$($after.Title)'). Stopping."
+    if ($stolen -and $owned -and -not $wasOurs) {
+        throw "focus stolen during step '$Name': foreground went $($before.Hwnd) -> $($after.Hwnd), a window of our own process tree (class '$($after.Class)' title '$($after.Title)', chain $($StepResult.ForegroundChain)). Stopping."
     }
     if ($stolen) {
         # Someone else's window — the operator switching apps, usually. Nothing we
@@ -609,7 +704,23 @@ function Invoke-PoliteAction {
         'set-value' { @('set-value', $Ref, $Value) }
         default { throw "unsupported polite action '$Action'" }
     }
+    # The driver's own reliability trace is the only record of what it did inside
+    # a step, and it refuses a path that is not a private user file, so the trace
+    # is written under a directory this harness locks down first.
+    $tracePath = $null
+    if ($Session -and $Session.EvidenceDir -and $Action -eq 'click') {
+        $traceDir = Join-Path $env:USERPROFILE '.capyworkad-trace'
+        New-Item -ItemType Directory -Path $traceDir -Force | Out-Null
+        & icacls.exe $traceDir /inheritance:r /grant:r ("$($env:USERNAME):(OI)(CI)F") | Out-Null
+        $tracePath = Join-Path $traceDir ('click-' + [guid]::NewGuid().ToString('n').Substring(0, 8) + '.jsonl')
+        $arguments = $arguments + @('--trace', $tracePath)
+    }
     $envelope = Invoke-AgentDesktop -Arguments $arguments -AllowFailure
+    if ($tracePath -and (Test-Path -LiteralPath $tracePath)) {
+        $copy = Join-Path $Session.EvidenceDir ('driver-trace-' + (Get-Date).ToString('HHmmss') + '.jsonl')
+        Copy-Item -LiteralPath $tracePath -Destination $copy -Force
+        $envelope | Add-Member -NotePropertyName PolitenessTrace -NotePropertyValue $copy -Force
+    }
     if (-not $envelope.ok) {
         $code = 'unknown'
         $delivery = ''
@@ -727,12 +838,21 @@ function Show-PoliteEvidence {
     $lines.Add("foreground before: $($Session.ForegroundBefore.Hwnd) '$($Session.ForegroundBefore.Title)' (pid $($Session.ForegroundBefore.OwnerPid) $($Session.ForegroundBefore.ProcessName))")
     foreach ($step in @($Session.Steps)) {
         $verdict = 'unchanged'
-        if ($step.FocusStolen) { $verdict = 'STOLEN' }
+        if ($step.InternalMove) { $verdict = "internal-move '$($step.ForegroundClass)'" }
+        elseif ($step.FocusStolen) { $verdict = "STOLEN class '$($step.ForegroundClass)' title '$($step.ForegroundTitle)'" }
         elseif ($step.ExternalChange) { $verdict = "external pid $($step.ForegroundPid) '$($step.ForegroundTitle)'" }
         $note = ''
         if ($step.ActionError) { $note = " action-error: $($step.ActionError)" }
+        if ($step.ActionDelivery) { $note += " delivery: $($step.ActionDelivery)" }
+        if ($step.ActionSteps) { $note += " steps: $($step.ActionSteps)" }
+        if ($step.ActionTrace) { $note += " driver-trace: $($step.ActionTrace)" }
         $stepLine = "step {0,-24}: {1} -> {2} {3}{4}" -f $step.Name, $step.ForegroundBefore, $step.ForegroundAfter, $verdict, $note
         $lines.Add($stepLine)
+        if ($step.FocusStolen) {
+            $lines.Add("  chain            : $($step.ForegroundChain)")
+            foreach ($child in @($step.ForegroundChildren)) { $lines.Add("  child            : $child") }
+            foreach ($own in @($step.OwnWindows)) { $lines.Add("  own window       : $own") }
+        }
     }
     $final = Get-ForegroundWindowInfo
     $lines.Add("foreground after : $($final.Hwnd) '$($final.Title)' (pid $($final.OwnerPid) $($final.ProcessName))")
@@ -748,7 +868,16 @@ function Show-PoliteEvidence {
         $lines.Add("foreign electron : $($foreign -join ', ') — not a MyGo process, ignored")
     }
     $lines.Add("watchdog window  : $hangText")
-    $lines -join "`n"
+    $text = $lines -join "`n"
+    # A run's evidence is worth more than the console that printed it: one shell
+    # mistake in the caller's pipeline lost a whole run's step log, so the block
+    # is always written beside the other evidence as well.
+    if ($Session.EvidenceDir) {
+        $stamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
+        $path = Join-Path $Session.EvidenceDir "run-evidence-$stamp.txt"
+        try { Set-Content -LiteralPath $path -Value $text -Encoding UTF8 } catch { }
+    }
+    $text
 }
 
 function Test-PoliteSession {

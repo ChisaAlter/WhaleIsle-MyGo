@@ -84,6 +84,12 @@ type WindowOptions struct {
 	// Hidden creates the window without showing it. Call Show, typically
 	// from OnReadyToShow, to avoid a blank window while the page loads.
 	Hidden bool
+	// NonActivatable creates the window with WS_EX_NOACTIVATE, so the shell
+	// cannot put it in front: not a program calling SetForegroundWindow from
+	// outside, and not the window itself. A click on the window still activates
+	// it, because the person at the machine asked. SetInactiveOnly controls the
+	// same style at run time.
+	NonActivatable bool
 	// Frameless removes the title bar and window chrome. Mark draggable
 	// areas with the CSS `--app-region: drag`.
 	Frameless bool
@@ -490,7 +496,7 @@ func (w *Window) platformOptions(o *WindowOptions) *platform.WindowOptions {
 		Minimizable:              !o.DisableMinimize,
 		Maximizable:              !o.DisableMaximize,
 		Closable:                 !o.DisableClose,
-		Focusable:                true,
+		Focusable:                !o.NonActivatable,
 		Fullscreenable:           !o.DisableFullScreen,
 		AlwaysOnTop:              o.AlwaysOnTop,
 		FullScreen:               o.FullScreen,
@@ -657,7 +663,21 @@ func (w *Window) destroy() {
 // Restore stop activating it. A launch nobody at this machine asked for may put
 // a window on screen; it may not move the pointer's target out from under the
 // person using the computer.
-func (w *Window) SetInactiveOnly(v bool) { w.inactiveOnly.Store(v) }
+func (w *Window) SetInactiveOnly(v bool) {
+	w.inactiveOnly.Store(v)
+	onMain(func() {
+		if a, ok := w.native.(activatableWindow); ok {
+			a.SetActivatable(!v)
+		}
+	})
+}
+
+// activatableWindow is a platform window that can be made non-activatable at run
+// time. Windows exposes that as WS_EX_NOACTIVATE, which is what stops a program
+// we did not ask for from bringing this window to the front.
+type activatableWindow interface {
+	SetActivatable(bool)
+}
 
 // IsInactiveOnly reports whether the window is barred from activating itself.
 func (w *Window) IsInactiveOnly() bool { return w.inactiveOnly.Load() }
@@ -669,6 +689,7 @@ func (w *Window) Show() {
 			return
 		}
 		visible := w.native.IsVisible()
+		traceRaise("Show", w.inactiveOnly.Load())
 		if w.inactiveOnly.Load() {
 			w.native.ShowInactive()
 		} else {
@@ -712,6 +733,7 @@ func (w *Window) IsVisible() bool { return get(w, platform.Window.IsVisible) }
 
 // Focus focuses the window.
 func (w *Window) Focus() {
+	traceRaise("Focus", w.inactiveOnly.Load())
 	if w.inactiveOnly.Load() {
 		return
 	}
@@ -731,7 +753,10 @@ func (w *Window) Minimize() { w.do(platform.Window.Minimize) }
 func (w *Window) IsMinimized() bool { return get(w, platform.Window.IsMinimized) }
 
 // Maximize maximizes the window.
-func (w *Window) Maximize() { w.do(platform.Window.Maximize) }
+func (w *Window) Maximize() {
+	traceRaise("Maximize", w.inactiveOnly.Load())
+	w.do(platform.Window.Maximize)
+}
 
 // Unmaximize restores a maximized window.
 func (w *Window) Unmaximize() { w.do(platform.Window.Unmaximize) }
@@ -752,6 +777,7 @@ func (w *Window) IsMaximized() bool { return get(w, platform.Window.IsMaximized)
 
 // Restore restores a minimized window.
 func (w *Window) Restore() {
+	traceRaise("Restore", w.inactiveOnly.Load())
 	if w.inactiveOnly.Load() {
 		w.ShowInactive()
 		return

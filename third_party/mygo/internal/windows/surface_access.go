@@ -774,7 +774,7 @@ func initUIA() {
 			if e == nil {
 				return hr
 			}
-			procSetFocus.Call(e.tree.s.hwnd)
+			applyClientFocus(e.tree.s.hwnd)
 			if e.root || e.n.Actions&platform.ActionFocus == 0 {
 				return sOK
 			}
