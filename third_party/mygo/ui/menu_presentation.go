@@ -44,11 +44,12 @@ func (shown *shownMenu) pointerLeaveDue(c *context, inside bool) bool {
 	return false
 }
 
-// menuRow creates the row of a menu item: at least menuRowHeight high,
-// padded by 6 and 8 and rounded by menuRowRadius, its content 6 apart, and
-// a disabled item's at menuDisabled opacity.
-func menuRow(c *context, item *platform.MenuItem) *node {
-	row := coreButtonBase(c).Justify(Start).MinHeight(menuRowHeight).Padding(6, 8).Gap(6).Radius(menuRowRadius).
+// menuRow creates the row of a menu item on shown's row geometry: at least
+// menuRowHeight high, padded by 6 and 8 and rounded by menuRowRadius, its
+// content 6 apart, and a disabled item's at menuDisabled opacity.
+func menuRow(c *context, shown *shownMenu, item *platform.MenuItem) *node {
+	rows := shown.rows.or(defaultMenuRows)
+	row := coreButtonBase(c).Justify(Start).MinHeight(rows.MinHeight).Padding(rows.PadV, rows.PadH).Gap(rows.Gap).Radius(menuRowRadius).
 		BorderWidth(0).Background(Color{}).TextColor(c.theme.Text).Role(RoleMenuItem)
 	if !item.Enabled {
 		// The painter dims a disabled element by disabledFactor; this makes up
@@ -92,15 +93,16 @@ func menuHoverFill(c *context, danger bool) Color {
 func menuItemContent(c *context, shown *shownMenu, item *platform.MenuItem) {
 	t := c.theme
 	st := t.menuStyle()
+	rows := shown.rows.or(defaultMenuRows)
 	style := shown.presentation[item.ID]
 	ink, iconInk := t.Text, st.Icon
 	if style.danger {
 		ink, iconInk = t.Danger, t.Danger
 	}
 	if style.icon != nil {
-		coreIcon(c, style.icon).Size(14, 14).Shrink(0).TextColor(iconInk)
+		coreIcon(c, style.icon).Size(rows.IconSize, rows.IconSize).Shrink(0).TextColor(iconInk)
 	}
-	coreText(c, item.Label).Grow(1).MinWidth(0).SingleLine().FontSize(13).FixedLineHeight(20).TextColor(ink)
+	coreText(c, item.Label).Grow(1).MinWidth(0).SingleLine().FontSize(rows.FontSize).FixedLineHeight(rows.LineHeight).TextColor(ink)
 	shortcut := item.Accelerator
 	if style.shortcutSet {
 		shortcut = style.shortcutLabel
