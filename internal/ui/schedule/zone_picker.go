@@ -155,7 +155,7 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 		state.locale, state.stored = i18n.Locale(), d.Zone
 	}
 	ui.PopoverBase(c.Key("schedule-zone-menu"), trigger, &state.open, func(panel ui.Element) {
-		panel = chrome.MenuSurface(panel.Width(360).MaxWidthPercent(100).Padding(4).Gap(4), c.Theme().Surface, c.Theme().Border, 16)
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(360).MaxWidthPercent(100).Padding(4).Gap(4), c.Theme().Surface, c.Theme().Border, 16))
 		if panel.OverlayShortcut(0, ui.KeyEscape) {
 			state.open, state.query = false, ""
 			trigger.Focus()

@@ -18,6 +18,10 @@ import (
 const (
 	toolRowBlockMaxHeight = 220
 	toolRowSummaryRunes   = 120
+	// toolRowRevealDuration is how long a tool row takes to open or close.
+	// The height and the body's opacity move together, so one duration and
+	// one easing cover both directions.
+	toolRowRevealDuration = 200 * time.Millisecond
 )
 
 func toolKindTitle(kind ToolKind) string {
@@ -147,8 +151,9 @@ func collapseSpace(text string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-// paintToolRow holds the exiting body's layout for200ms, while the toolkit
-// retains an inert paint copy. Disclosure changes opacity rather than height.
+// paintToolRow reveals the body by the height it measured, so the rows below
+// follow it in both directions. One value moves the height and the opacity, so
+// opening and closing take the same time and neither arrives in one frame.
 func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, shared *map[string]bool, expandable bool, body func(bool)) {
 	root := ui.Column(c).FillWidth().MinWidth(0).Gap(0).Font(theme.RenderPreferences().Chat.Family)
 	open := false
@@ -179,25 +184,34 @@ func paintToolRow(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string
 			}
 		}
 		presence := ui.Local(root, "tool-presence", func() contextPresence { return contextPresence{} })
-		if presence.open != open {
-			presence.open = open
-			if !open {
-				presence.until = c.Now().Add(200 * time.Millisecond)
-			}
+		revealed := float32(0)
+		if open {
+			revealed = 1
 		}
-		if !open {
-			if !c.Preferences().ReduceMotion && c.Now().Before(presence.until) {
-				ui.Box(c).Key("tool-exit-space").FillWidth().Height(presence.height).PassThrough()
-				c.After(presence.until.Sub(c.Now()))
-			}
+		reveal := root.AnimateWith("tool-reveal", revealed, toolRowRevealDuration, contextFadeEase)
+		if !open && reveal <= 0 {
 			return
 		}
-		panel := ui.Column(c).Key("tool-body").FillWidth().MinWidth(0).
-			Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Ease: contextFadeEase, Colors: true,
-				Enter: &ui.Motion{Opacity: 0}, Exit: &ui.Motion{Opacity: 0}})
-		panel.ObserveLayout(func(r ui.Rect) { presence.height = r.H })
 		ownerHovered := root.Hovered()
-		panel.Children(func() { body(ownerHovered) })
+		if reveal >= 1 {
+			// Fully open: the body takes its own height, and the row keeps
+			// the height it measured for the next reveal.
+			panel := ui.Column(c).Key("tool-body").FillWidth().MinWidth(0)
+			panel.ObserveLayout(func(r ui.Rect) { presence.height = r.H })
+			panel.Children(func() { body(ownerHovered) })
+			return
+		}
+		// Opening or closing: the space the body takes is the part of the
+		// height it last measured that the reveal has reached, and the body
+		// keeps its own layout clipped inside it, so the rows below follow
+		// the space rather than jumping when it appears or goes.
+		box := ui.Box(c).Key("tool-body").FillWidth().MinWidth(0).
+			Height(presence.height * reveal).Clip().Opacity(reveal)
+		box.Children(func() {
+			panel := ui.Column(c).FillWidth().MinWidth(0)
+			panel.ObserveLayout(func(r ui.Rect) { presence.height = r.H })
+			panel.Children(func() { body(ownerHovered) })
+		})
 	})
 }
 

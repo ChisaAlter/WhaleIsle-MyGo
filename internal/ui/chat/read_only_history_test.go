@@ -109,6 +109,7 @@ func TestAgentReadOnlyRichHistoryFixture(t *testing.T) {
 	if !tt.HasText("Read content card") || !tt.HasText("recorded-line-01") {
 		t.Fatalf("child lost typed read card: %q", tt.Texts())
 	}
+	tt.SetTime(time.Now().Add(time.Second))
 	if err := tt.Click("Copy"); err != nil {
 		t.Fatal(err)
 	}

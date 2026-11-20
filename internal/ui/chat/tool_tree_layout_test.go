@@ -100,7 +100,7 @@ func TestToolTreeExpandParentPreservesChildrenAndSiblingSpacing(t *testing.T) {
 	before := toolTreeBoxes(n)
 	root := before["opaque:root"]
 	tt.ClickAt(root.X+12, root.Y+12)
-	tt.Frame()
+	tt.SetTime(time.Unix(7300, 0).Add(250 * time.Millisecond))
 	if !(*expanded)["tool:opaque:root|tool:opaque:root"] {
 		t.Fatal("root disclosure did not open")
 	}
@@ -116,8 +116,9 @@ func TestToolTreeExpandParentPreservesChildrenAndSiblingSpacing(t *testing.T) {
 	toolTreeExport(t, tt, after, "expanded-root")
 	tt.ClickAt(root.X+12, root.Y+12)
 	tt.Frame()
-	// The original keeps the inert exiting body in flow for200ms.
-	tt.SetTime(time.Unix(7300, 0).Add(250 * time.Millisecond))
+	// The closing reveal clips the body away over the same 200 ms the opening
+	// took, so the nested rows keep their place while it goes.
+	tt.SetTime(time.Unix(7300, 0).Add(350 * time.Millisecond))
 	for id, box := range toolTreeBoxes(n) {
 		if box != before[id] {
 			t.Fatalf("closing parent hid or repositioned child: %s %+v want %+v", id, box, before[id])
@@ -175,7 +176,7 @@ func TestToolTreeSiblingInsertKeepsOwnDisclosureState(t *testing.T) {
 	tt.Frame()
 	child := toolTreeBoxes(n)["unrelated-child"]
 	tt.ClickAt(child.X+12, child.Y+12)
-	tt.Frame()
+	tt.SetTime(time.Unix(7300, 0).Add(250 * time.Millisecond))
 	before := toolTreeBoxes(n)
 	if before["unrelated-child"].H <= 54 {
 		t.Fatal("child body did not open")

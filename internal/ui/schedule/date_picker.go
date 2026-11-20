@@ -45,7 +45,7 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 		}
 	}
 	ui.PopoverBase(c.Key("schedule-date-popup"), trigger, &state.calendarOpen, func(panel ui.Element) {
-		panel = chrome.MenuSurface(panel.Width(232).MaxWidthPercent(100).Padding(8).Gap(4).Role(ui.RoleDialog).Label(label).Margin(4, 0, 0, 0), c.Theme().Background, ui.Transparent, 16)
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(232).MaxWidthPercent(100).Padding(8).Gap(4).Role(ui.RoleDialog).Label(label).Margin(4, 0, 0, 0), c.Theme().Background, ui.Transparent, 16))
 		if panel.OverlayShortcut(0, ui.KeyEscape) {
 			state.calendarOpen = false
 			trigger.Focus()

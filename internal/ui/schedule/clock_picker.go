@@ -78,7 +78,7 @@ func clockPicker(c *ui.Context, state *scheduleClockPicker, clock string, second
 		state.focus, state.reveal = state.open, state.open
 	}
 	ui.PopoverBase(c.Key("schedule-clock-popup"), trigger, &state.open, func(panel ui.Element) {
-		panel = chrome.MenuSurface(panel.Width(float32(columns*52+(columns-1)*2+6)).MaxWidthPercent(100).Padding(3).Role(ui.RoleDialog).Label(label).Margin(4, 0, 0, 0), c.Theme().Background, ui.Transparent, 16)
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(float32(columns*52+(columns-1)*2+6)).MaxWidthPercent(100).Padding(3).Role(ui.RoleDialog).Label(label).Margin(4, 0, 0, 0), c.Theme().Background, ui.Transparent, 16))
 		if panel.OverlayShortcut(0, ui.KeyEscape) {
 			state.open = false
 			trigger.Focus()

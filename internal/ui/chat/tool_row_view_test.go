@@ -73,14 +73,19 @@ func TestToolRowViewGenericIOGeometryKeyboardAndCopyOwnership(t *testing.T) {
 			}
 			toolRowExport(t, tt, fmt.Sprintf("open-dark-%v", dark))
 			tt.Key(0, ui.KeySpace)
-			if (*expanded)["row"] || tt.HasText("argument") && tt.HasText("result") {
+			if (*expanded)["row"] {
 				t.Fatal("Space failed to close the body")
 			}
+			// The closing reveal keeps the body in its space for as long as
+			// the opening took, then takes the space too.
 			flow, _ = tt.Find("following flow")
-			toolTreeNear(t, "closing hold keeps flow", flow.Y-20, 114.5)
+			toolTreeNear(t, "closing reveal keeps flow", flow.Y-20, 114.5)
 			tt.SetTime(time.Unix(7800, 0).Add(500 * time.Millisecond))
+			if tt.HasText("argument") && tt.HasText("result") {
+				t.Fatal("body stayed after the closing reveal")
+			}
 			flow, _ = tt.Find("following flow")
-			toolTreeNear(t, "after closing hold", flow.Y-20, 24)
+			toolTreeNear(t, "after closing reveal", flow.Y-20, 24)
 			tt.Key(0, ui.KeyEnter)
 			if !(*expanded)["row"] {
 				t.Fatal("Enter failed to reopen")
@@ -118,11 +123,11 @@ func TestToolRowViewIndependentScrollAndFontAxis(t *testing.T) {
 	tt, expanded := toolRowViewFixture(t, &info, 640, false)
 	(*expanded)["row"] = true
 	tt.Frame()
+	tt.SetTime(time.Unix(7800, 0).Add(250 * time.Millisecond))
 	input, _ := tt.Find("IN")
 	output, _ := tt.Find("OUT")
 	toolTreeNear(t, "input capped outer", input.H, 174)
 	toolTreeNear(t, "short output independent", output.H, 40)
-	tt.SetTime(time.Unix(7800, 0).Add(250 * time.Millisecond))
 	before, _ := tt.Find("short output")
 	textBefore, _ := tt.Find(info.Arguments)
 	tt.Move(input.X+100, input.Y+50)
