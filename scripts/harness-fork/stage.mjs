@@ -11,6 +11,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {loadPin, tagEntry, directory as forkDirectory} from './fork.mjs';
+import {carryPluginCompatibility} from './plugin-compat.mjs';
 import {assembleInstanceGraph, compositionSeeds, verifyInstanceGraph} from './graph.mjs';
 import {stageSessionRuntime, verifyStagedSessionRuntime} from '../session-runtime.mjs';
 import {verifyComposition, loadContract} from '../session-runtime-composition.mjs';
@@ -53,6 +54,8 @@ export async function stageFork({fork, tag, dest, node, desktopResources, work =
     const carried = fs.readdirSync(resourcesVendor).filter(name => !desktopRecords.has(name));
     for (const name of carried) fs.cpSync(path.join(resourcesVendor, name), path.join(vendor, name), {recursive: true, verbatimSymlinks: true});
     log(`desktop plugins carried from ${resourcesVendor}: ${carried.length} entries`);
+    const widened = carryPluginCompatibility(vendor, carried, version);
+    log(`plugin compatibility for ${version}: ${widened.length === 0 ? 'every carried plugin already names it' : widened.join('; ')}`);
   }
 
   const nodeTarget = path.join(source, 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node.exe');

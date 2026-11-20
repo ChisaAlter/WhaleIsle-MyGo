@@ -4,6 +4,7 @@ package installhealth
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +26,28 @@ func TestReadyRequiresActualWorkspaceAndInventory(t *testing.T) {
 	}
 	if !ready(r) {
 		t.Fatal("complete boot was not accepted")
+	}
+}
+
+func TestDisabledPluginRowsAreNamedAndDeduplicated(t *testing.T) {
+	r := startuptrace.Report{}
+	for _, stage := range []string{"window.created", "host.ready", "workspace.ready", "plugins.inventory_ready"} {
+		r.Events = append(r.Events, startuptrace.Event{Stage: stage, Kind: "mark"})
+	}
+	if !ready(r) {
+		t.Fatal("complete boot was not accepted")
+	}
+	if rows := disabledPluginRows(r); len(rows) != 0 {
+		t.Fatalf("a clean boot named disabled rows: %v", rows)
+	}
+	r.Events = append(r.Events,
+		startuptrace.Event{Kind: "log", Stage: "host.log", Detail: `dsh: disabling profile plugin row "dsh-whale": Plugin dsh-whale@0.1.0 is incompatible with dsh 0.2.2-rc.5: requirements {"@deepseek-ai/dsh-agent":"0.2.2-rc.2"}.`},
+		startuptrace.Event{Kind: "log", Stage: "host.log", Detail: `dsh: disabling profile plugin row "dsh-remote": Plugin dsh-remote@0.8.21 is incompatible with dsh 0.2.2-rc.5.`},
+		startuptrace.Event{Kind: "log", Stage: "host.log", Detail: `dsh: disabling profile plugin row "dsh-whale": repeated for the same row.`},
+		startuptrace.Event{Kind: "log", Stage: "host.log", Detail: `dsh: mounted 12 plugin rows`},
+	)
+	if rows := disabledPluginRows(r); strings.Join(rows, ",") != "dsh-whale,dsh-remote" {
+		t.Fatalf("disabled rows: %v", rows)
 	}
 }
 
@@ -150,7 +173,7 @@ func main(){if len(os.Args)==1 {c:=exec.Command(os.Args[0],"child");if c.Start()
 	if raw, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("hanging candidate build: %v: %s", err, raw)
 	}
-	if err = Check(candidate, output); err == nil || !strings.Contains(err.Error(), "within 90 seconds") {
+	if err = Check(candidate, output); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("within %d seconds", int(healthDeadline.Seconds()))) {
 		t.Fatalf("expected actual health deadline, got %v", err)
 	}
 	raw, err := os.ReadFile(output)

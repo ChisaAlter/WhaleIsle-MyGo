@@ -22,6 +22,14 @@ import (
 	"whaleisle/internal/startuptrace"
 )
 
+// healthDeadline bounds a cold candidate's boot. A genuine incompatibility fails
+// as soon as the Host logs the row it disabled, so this budget only covers the
+// slow-but-correct path: the first start after an install pays for a Defender
+// scan over a freshly written vendor tree. 90 seconds timed out at random on a
+// cold machine and the same tree reached its inventory in 21 seconds once warm,
+// so the deadline is wider than the work it measures rather than tuned to it.
+const healthDeadline = 180 * time.Second
+
 type result struct {
 	Schema          int                  `json:"schema"`
 	Installation    string               `json:"installation"`
@@ -130,7 +138,7 @@ func Check(installation, reportPath string) (failure error) {
 		safeToRemove = exitErr == nil
 		failure = errors.Join(failure, exitErr)
 	}()
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(healthDeadline)
 	for time.Now().Before(deadline) {
 		status, err := windows.WaitForSingleObject(process, 0)
 		if err != nil {
@@ -143,6 +151,11 @@ func Check(installation, reportPath string) (failure error) {
 			var report startuptrace.Report
 			if json.Unmarshal(raw, &report) == nil {
 				r.Startup = &report
+				// A disabled row never reaches the inventory mark, so waiting for
+				// the deadline would report the symptom and hide the plugin.
+				if rows := disabledPluginRows(report); len(rows) > 0 {
+					return fmt.Errorf("candidate disabled profile plugin row(s) %s: their dsh requirements do not admit this runtime", strings.Join(rows, ", "))
+				}
 				if ready(report) {
 					return nil
 				}
@@ -150,7 +163,7 @@ func Check(installation, reportPath string) (failure error) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return errors.New("candidate did not confirm native window, Host, workspace and plugin inventory within 90 seconds")
+	return fmt.Errorf("candidate did not confirm native window, Host, workspace and plugin inventory within %d seconds", int(healthDeadline.Seconds()))
 }
 
 func ready(r startuptrace.Report) bool {
@@ -161,6 +174,37 @@ func ready(r startuptrace.Report) bool {
 		}
 	}
 	return stages["window.created"] && stages["host.ready"] && stages["workspace.ready"] && stages["plugins.inventory_ready"]
+}
+
+// disabledPluginRows names the profile plugin rows the Host refused to mount. A
+// row whose dsh requirements exclude the Host's version is disabled with a log
+// line, and the boot never reaches the inventory mark, so the gate must name the
+// plugin instead of reporting only that the inventory never became ready.
+func disabledPluginRows(report startuptrace.Report) []string {
+	const marker = "disabling profile plugin row "
+	var rows []string
+	seen := map[string]bool{}
+	for _, event := range report.Events {
+		index := strings.Index(event.Detail, marker)
+		if index == -1 {
+			continue
+		}
+		name := event.Detail[index+len(marker):]
+		if strings.HasPrefix(name, `"`) {
+			name = name[1:]
+			if end := strings.Index(name, `"`); end != -1 {
+				name = name[:end]
+			}
+		}
+		if colon := strings.Index(name, ":"); colon != -1 {
+			name = name[:colon]
+		}
+		if name = strings.TrimSpace(name); name != "" && !seen[name] {
+			seen[name] = true
+			rows = append(rows, name)
+		}
+	}
+	return rows
 }
 
 func environment(installation, profile, trace string) []uint16 {

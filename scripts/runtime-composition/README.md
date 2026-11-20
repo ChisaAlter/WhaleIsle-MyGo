@@ -109,7 +109,10 @@ The bump's cost is therefore one merge plus one build, and the parts that need a
 person are the slot-API conflicts and the seams the build finds. Everything else
 — the tag's tree, the carry, the resolution — is pinned, so a later bump starts
 from the tree that was actually reviewed rather than from whatever the desktop
-last installed.
+last installed. The desktop plugins the stage carries are the exception the bump
+cannot merge: their dsh compatibility declarations are 本体's, and the stage
+widens them for the version it ships. That widening is recorded, not silent —
+see "Carried plugin compatibility is widened at the stage".
 
 ## Recorded decisions
 
@@ -199,3 +202,63 @@ not the whole fork: `node scripts/runtime-fork-audit.mjs <upstream-tree>
 <desktop-harness-root>` exits non-zero with every package the vendor carries over
 that tag (23 package directories for 本体 main against `dsh-v0.2.2-rc.2`), which
 is also the answer to "can this version be staged from upstream at all".
+
+### Carried plugin compatibility is widened at the stage
+
+The desktop plugins are copied from 本体's vendor tree, so each one's
+`peerDependencies` declares the dsh versions 本体 supports. The Host reads those
+declarations on boot and disables a row whose ranges exclude its own version
+(`packages/boot/app-boot/src/plugin-compatibility.ts`), printing the reason into
+the Host log:
+
+```
+dsh: disabling profile plugin row "dsh-whale": Plugin dsh-whale@0.1.0 is
+incompatible with dsh 0.2.2-rc.5: requirements {"@deepseek-ai/dsh-agent":
+"^0.1.5-rc.2 || 0.2.1-alpha.1 || … || 0.2.2-rc.2"}
+```
+
+A disabled row is not a cosmetic warning. The installer's health gate
+(`internal/installhealth`) waits for the Host to reach its inventory, and a Host
+that dropped the rows it was told to mount never gets there: the rc.5 payload
+failed installation on Ayase with a 90-second gate timeout and a rollback, and
+the only place the cause appeared was that Host log line. A stage that carries
+these plugins therefore has to make the declarations admit the version it ships.
+
+The gate now needs both halves of that failure to stay distinguishable. It fails
+the moment the Host logs a row it disabled, naming the rows, so an incompatibility
+is reported in seconds instead of at the deadline. The deadline itself is wider
+than the work it measures — `healthDeadline` is 180 seconds — because the
+slow-but-correct path is real: the same candidate tree timed out at 90 seconds on
+its first, cold start (a Defender scan over the freshly written vendor tree) and
+reached its inventory in 21 seconds once warm. The report keeps every mark's
+millisecond timestamp, so a slow run still shows where the time went.
+
+`CARRIED_COMPATIBILITY` in `scripts/harness-fork/plugin-compat.mjs` is the
+record. Each row names one carried plugin and the exact peer requirements the
+stage widens; the carry applies them while it copies the plugins into a stage's
+vendor directory, so the next bump widens to the new version without anyone
+editing a manifest by hand. At `dsh-v0.2.2-rc.5` the table is:
+
+| plugin | requirements widened to `0.2.2-rc.5` |
+| --- | --- |
+| `dsh-whale@0.1.0` | `dsh-agent`, `dsh-session`, `dsh-settings`, `dsh-system-prompt` |
+| `dsh-remote@0.8.21` | `dsh-commands`, `dsh-host-webserver`, `dsh-system-prompt` |
+| `dshbot@0.2.0` | `dsh-agent`, `dsh-llm`, `dsh-scope`, `dsh-session`, `dsh-settings`, `dsh-subagent`, `dsh-system-prompt`, `dsh-tools` |
+
+Two guards keep the table honest rather than decorative:
+
+- A carried plugin whose requirement needs widening but has no row stops the
+  stage. An unrecorded assertion never reaches a payload, so a bump that adds a
+  plugin or a peer fails where the decision is made instead of shipping a row
+  the Host will disable.
+- A plugin that declares `engines.dsh` is refused rather than widened. The Host
+  reads that field alone and ignores the peers, so widening peers would change
+  nothing while looking like it did.
+
+What the widening asserts is only what the boot gate proves: the plugin mounts
+and the Host reaches its inventory. The evidence for rc.5 is
+`whaleisle-integration.exe --check-installation <tree> <json>` reporting
+`passed: true` on a stage carrying these plugins — not the table, and not a
+green CI run. The `dependencies` block in each manifest is left untouched; the
+Host's compatibility check reads `peerDependencies` only, and these packages
+resolve from the runtime's own vendor tree rather than from an install.
