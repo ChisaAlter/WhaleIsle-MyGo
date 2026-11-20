@@ -110,6 +110,7 @@ func (t *Tester) Frame()                                       {}
 func (t *Tester) SetTime(now time.Time)                        {}
 func (t *Tester) NativeTextInputClient() TextInputClient       { return nil }
 func (t *Tester) Image() *image.RGBA                           { return nil }
+func (t *Tester) Pixels() []byte                               { return nil }
 func (t *Tester) Find(s string) (Rect, bool)                   { return Rect{}, false }
 func (t *Tester) FindAll(s string) []Rect                      { return nil }
 func (t *Tester) Texts() []string                              { return nil }

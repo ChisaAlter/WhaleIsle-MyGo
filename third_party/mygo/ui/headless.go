@@ -269,8 +269,14 @@ func (c *testerTextInputClient) IndexForPoint(p Point) (int, bool) {
 	return c.TextInputClient.IndexForPoint(float64(p.X), float64(p.Y))
 }
 
-// Image returns the last frame.
+// Image returns the last frame, in premultiplied RGBA, as a fresh copy.
 func (t *Tester) Image() *image.RGBA { return t.h.image() }
+
+// Pixels returns the last frame's pixels in the renderer's own order, without
+// copying, valid until the next frame. A measurement that walks a frame reads
+// these: Image copies, and a copy the size of the window lands in whatever
+// frame the caller is timing.
+func (t *Tester) Pixels() []byte { return t.h.img.Image.Pix }
 
 // Find returns the box of the first element showing text s, or labeled s.
 func (t *Tester) Find(s string) (Rect, bool) {

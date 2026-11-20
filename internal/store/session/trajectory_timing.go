@@ -355,6 +355,17 @@ func (s *Store) ensureTrajectoryTimingCacheLocked() (map[float64]trajectoryParse
 				}
 				s.trajTimingCache[seq] = trajectoryTimingCacheEntry{raw: string(raw), parsed: p, firstToken: cachedFirstToken}
 			}
+			// The chat asks for this event's coordinates when it draws the row:
+			// file them while the projection holds the parse.
+			if e.Data.Turn != nil {
+				step := float64(0)
+				if e.Data.Step != nil {
+					step = promptCoordinate(e.Data.Step)
+				}
+				RememberCoordinates(seq, raw, *e.Data.Turn, step, true)
+			} else {
+				RememberCoordinates(seq, raw, 0, 0, false)
+			}
 			if e.Type == "session/end-seed" {
 				parsed[seq] = p
 				latest, latestSeq := "", float64(-1)

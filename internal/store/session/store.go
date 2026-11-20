@@ -281,6 +281,7 @@ type Store struct {
 	trajTimingAnchors          map[string]json.RawMessage
 	assistantMsgCache          map[float64]assistantMsgCacheEntry
 	systemPromptRowsCache      []Message
+	promptEventCache           map[float64]promptEventCacheEntry
 	retryRowsCache             []Message
 	durableTimedCache          []Message
 	durableUnmappedCompactions []Message
@@ -1057,11 +1058,13 @@ func (s *Store) ensureViewCacheLocked() {
 		s.trajHeadersCache = nil
 		s.trajRequestsCache = nil
 		s.systemPromptRowsCache = nil
+		s.promptEventCache = nil
 		s.retryRowsCache = nil
 	}
 	if historyChanged {
 		s.trajJournalCache = nil
 		s.trajRequestsCache = nil
+		s.promptEventCache = nil
 		s.trajTimingParsed = nil
 		s.trajTimingOps = nil
 		s.trajTimingAnchors = nil

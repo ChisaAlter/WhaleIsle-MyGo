@@ -999,7 +999,7 @@ func projectedFileMentionResolver(snap session.ViewState, closing session.Messag
 		}
 	}
 	cp.mu.Unlock()
-	fn := buildMentionResolver(snap.Messages, closing)
+	fn := buildMentionProjectedResolver(snap.HistoryProjectionKey(), snap.Messages, closing)
 	cp.mu.Lock()
 	if r := &cp.revision; r.matches(snap) {
 		if r.mentions == nil {
