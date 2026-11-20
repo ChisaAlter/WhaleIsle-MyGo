@@ -442,7 +442,8 @@ func View(c *ui.Context, m Model) {
 					if skinLayout.Skin == theme.SkinCodex {
 						row.Padding(6, 8).MinHeight(32)
 					}
-					row = row.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
+					// SidebarRoot.module.css .panelRow:hover swaps the fill with no
+					// transition; no colors transition here either.
 					row.Children(func() {
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 							if drawIcon != nil {
