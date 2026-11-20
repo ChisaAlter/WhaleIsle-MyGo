@@ -721,8 +721,6 @@ func (rt *engine) keptAlive(s *state) bool {
 	return false
 }
 
-// requestFrame asks the host for a frame built anew, unless one is being
-// built. It comes in place of one Painter.After has due.
 // overlayExitPending tells whether an element of the overlay layer has gone
 // but is still leaving as an exit copy: the layer stays in the frame for it
 // even when no overlay is built, as a copy needs its parent in the tree.
@@ -738,6 +736,8 @@ func (rt *engine) overlayExitPending() bool {
 	return false
 }
 
+// requestFrame asks the host for a frame built anew, unless one is being
+// built. It comes in place of one Painter.After has due.
 func (rt *engine) requestFrame() {
 	if rt.inFrame {
 		return
