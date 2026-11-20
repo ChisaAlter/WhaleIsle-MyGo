@@ -60,7 +60,6 @@ func TestComposerCarriersNeverTakeARawError(t *testing.T) {
 			if strings.HasPrefix(strings.TrimSpace(line), "if ") {
 				continue
 			}
-
 			t.Errorf("%s:%d paints a raw error: %s", name, index+1, strings.TrimSpace(line))
 		}
 	}
