@@ -14,6 +14,7 @@ import {loadPin, tagEntry, directory as forkDirectory} from './fork.mjs';
 import {assembleInstanceGraph, compositionSeeds, verifyInstanceGraph} from './graph.mjs';
 import {stageSessionRuntime, verifyStagedSessionRuntime} from '../session-runtime.mjs';
 import {verifyComposition, loadContract} from '../session-runtime-composition.mjs';
+import {extractTo} from './archive.mjs';
 
 const scripts = path.resolve(forkDirectory, '..');
 const projectRoot = path.resolve(scripts, '..');
@@ -74,10 +75,11 @@ export async function gates({dest, fork = path.join(forkWork, 'tree')}) {
   const base = path.join(forkWork, 'audit', baseRef);
   if (!fs.existsSync(path.join(base, 'packages'))) {
     fs.mkdirSync(base, {recursive: true});
-    const archive = spawnSync('git', ['-C', path.join(forkWork, 'tree'), 'archive', `refs/harness/upstream/${baseRef}`, 'packages'], {windowsHide: true, maxBuffer: 512 * 1024 * 1024});
-    if (archive.status !== 0) throw new Error(`Cannot read the ${baseRef} package tree to audit the carry: ${(archive.error?.message ?? archive.stderr?.toString() ?? '').trim()}`);
-    const unpack = spawnSync('tar', ['-x', '-C', base], {input: archive.stdout, windowsHide: true});
-    if (unpack.status !== 0) throw new Error(`Unpacking the ${baseRef} package tree failed: ${unpack.stderr.toString().trim()}`);
+    const archive = path.join(forkWork, 'audit', `${baseRef}.tar`);
+    const archived = spawnSync('git', ['-C', path.join(forkWork, 'tree'), 'archive', '--format=tar', `--output=${archive}`, `refs/harness/upstream/${baseRef}`, 'packages'], {windowsHide: true});
+    if (archived.status !== 0) throw new Error(`Cannot read the ${baseRef} package tree to audit the carry: ${(archived.error?.message ?? archived.stderr?.toString() ?? '').trim()}`);
+    await extractTo({archive, destination: base});
+    fs.rmSync(archive, {force: true});
   }
   const audit = spawnSync(process.execPath, [
     path.join(scripts, 'runtime-fork-audit.mjs'), base, fork, `--expect=${path.join(forkDirectory, 'pin.json')}`,
