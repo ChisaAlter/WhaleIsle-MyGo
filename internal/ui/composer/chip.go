@@ -78,10 +78,12 @@ func chevron(c *ui.Context, open bool) ui.Element {
 	st := ui.Local(icon, "chevron-open", func() struct {
 		open  bool
 		since time.Time
-	} { return struct {
-		open  bool
-		since time.Time
-	}{open: open} })
+	} {
+		return struct {
+			open  bool
+			since time.Time
+		}{open: open}
+	})
 	angle := float32(0)
 	if open {
 		angle = 180
