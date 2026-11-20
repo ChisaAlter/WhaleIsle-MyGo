@@ -4123,27 +4123,34 @@ func mainView(c *ui.Context) {
 							state.dshMu.Unlock()
 							if client == nil {
 								state.mu.Lock()
-								state.credsHarnessNote = "credentials/describe: no client"
+								state.credsHarnessNote = i18n.T(i18n.KeySettingsCredDescribeUnavailable)
 								state.mu.Unlock()
 								return
 							}
 							go func() {
-								desc, err := settingsstore.DescribeCredentials(context.Background(), client, []string{
-									settingsstore.CredRefAPIKey, settingsstore.CredRefGithubToken,
-								})
+								refs := []string{settingsstore.CredRefAPIKey, settingsstore.CredRefGithubToken}
+								desc, err := settingsstore.DescribeCredentials(context.Background(), client, refs)
 								state.mu.Lock()
 								if err != nil {
 									state.credsHarnessNote = errcopy.Sentence(err)
 								} else {
-									parts := make([]string, 0, len(desc))
-									for ref, v := range desc {
-										flag := "off"
-										if v.Configured {
-											flag = "on"
-										}
-										parts = append(parts, ref+"="+flag)
+									labels := map[string]string{
+										settingsstore.CredRefAPIKey:      i18n.T(i18n.KeySettingsCredAPIKey),
+										settingsstore.CredRefGithubToken: i18n.T(i18n.KeySettingsCredGithub),
 									}
-									state.credsHarnessNote = "credentials/describe: " + strings.Join(parts, ", ")
+									parts := make([]string, 0, len(refs))
+									for _, ref := range refs {
+										flag := i18n.T(i18n.KeySettingsCredNotConfigured)
+										if desc[ref].Configured {
+											flag = i18n.T(i18n.KeySettingsCredConfigured)
+										}
+										label := labels[ref]
+										if label == "" {
+											label = ref
+										}
+										parts = append(parts, fmt.Sprintf(i18n.T(i18n.KeySettingsCredDescribeItem), label, flag))
+									}
+									state.credsHarnessNote = strings.Join(parts, " · ")
 								}
 								state.mu.Unlock()
 								if win != nil {
