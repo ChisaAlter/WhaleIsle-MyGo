@@ -61,7 +61,9 @@ var messages = func() int {
 	return 30
 }()
 
-func newFrameProbeModel() *frameProbeModel {
+// newFrameProbeStore returns one session holding the probe's transcript: the
+// fixture's turn with its tool call and result, then answers.
+func newFrameProbeStore() *session.Store {
 	store := session.New()
 	store.Select("fixture")
 	apply := func(frame string) {
@@ -89,10 +91,37 @@ func newFrameProbeModel() *frameProbeModel {
 		apply(fmt.Sprintf(`{"type":"step/end","seq":%d,"data":{"turn":%d,"step":0}}`, base+3, i))
 		apply(fmt.Sprintf(`{"type":"turn/end","seq":%d,"data":{"turn":%d}}`, base+4, i))
 	}
+	return store
+}
+
+func newFrameProbeModel() *frameProbeModel {
+	store := newFrameProbeStore()
 	return &frameProbeModel{
 		store: store, frame: store.BeginFrame(), expanded: map[string]bool{}, picker: "deepseek",
 		width: 1280, height: 720, list: &ui.ListState{FollowEnd: true}, scroll: &ui.ScrollState{},
 	}
+}
+
+// openSession replaces the session with a fresh copy of the probe's transcript,
+// as picking one in the list does, and dropSession leaves the view with none. A
+// window shows the pair: what a person waits for when they open a session is
+// the frame after the click, and the trace of that frame starts at the mark the
+// click sets.
+func (m *frameProbeModel) openSession() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.store = newFrameProbeStore()
+	m.frame = m.store.BeginFrame()
+	m.list, m.scroll = &ui.ListState{FollowEnd: true}, &ui.ScrollState{}
+}
+
+func (m *frameProbeModel) dropSession() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.store = session.New()
+	m.store.Select("fixture")
+	m.frame = m.store.BeginFrame()
+	m.list, m.scroll = &ui.ListState{FollowEnd: true}, &ui.ScrollState{}
 }
 
 // view returns the snapshot the view draws, as the render pass reads it.
@@ -240,6 +269,12 @@ func (m *frameProbeModel) viewFunc(keys bool) func(c *ui.Context) {
 			case c.Shortcut(0, ui.KeyF7):
 				ui.FrameTraceMark("stream_stop")
 				m.stopStreaming()
+			case c.Shortcut(0, ui.KeyF8):
+				ui.FrameTraceMark("open_click")
+				m.openSession()
+			case c.Shortcut(0, ui.KeyF9):
+				ui.FrameTraceMark("open_drop")
+				m.dropSession()
 			}
 		}
 		ui.Row(c).Fill().Background(chrome.Color(palette.BG)).Children(func() {
@@ -275,6 +310,8 @@ const pickerX = 120
 //	F5 switch the palette
 //	F6 mark the start of a resize        (the probe resizes the window)
 //	F7 stop streaming
+//	F8 open the session                  (the probe drops it first with F9)
+//	F9 drop the session, leaving the view empty
 func runFrameProbeFixture() {
 	i18n.SetLocale(i18n.LocaleEN)
 	theme.SetPreferences(theme.Defaults())

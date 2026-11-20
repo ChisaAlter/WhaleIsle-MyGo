@@ -13,7 +13,7 @@
 #   go test -tags inspectorfixture -c -o .devdata/frameprobe-fixture.exe ./internal/ui/frame
 param(
     [ValidateSet('run','display')][string]$Action = 'run',
-    [ValidateSet('scroll','stream','expand','picker','theme','resize','all')][string]$Interaction = 'all',
+    [ValidateSet('scroll','stream','expand','picker','theme','resize','open','all')][string]$Interaction = 'all',
     [string]$FixturePath = $env:WHALEISLE_FIXTURE_EXE,
     [string]$OutDir = '',
     [int]$Repeat = 1
@@ -35,6 +35,7 @@ public class MyGoFrameProbe {
  [DllImport("user32.dll")] static extern IntPtr FindWindowEx(IntPtr p, IntPtr a, string c, string t);
  [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr h, ref POINT p);
  [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr h, out RECT r);
+ [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr h, System.Text.StringBuilder s, int n);
  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowW(string c, string t);
  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
  [DllImport("user32.dll")] static extern bool SetThreadDpiAwarenessContext(IntPtr c);
@@ -56,6 +57,8 @@ public class MyGoFrameProbe {
  public static void Dpi() { SetThreadDpiAwarenessContext(new IntPtr(-4)); }
  public static IntPtr Surface(IntPtr h) { return FindWindowEx(h, IntPtr.Zero, "MyGoSurface", null); }
  public static string TitleOf(string title) { return FindWindowW(null, title) == IntPtr.Zero ? "" : title; }
+ // TextOf returns a window's own title, whichever window it is.
+ public static string TextOf(IntPtr h) { var t = new System.Text.StringBuilder(512); GetWindowTextW(h, t, 512); return t.ToString(); }
  // WindowOf returns the window with this title that belongs to pid. A hidden
  // window has no MainWindowHandle until it is shown, so it is found by title
  // and checked against the process that owns it.
@@ -133,12 +136,22 @@ $fixturePath = [IO.Path]::GetFullPath($FixturePath)
 if (-not (Test-Path -LiteralPath $fixturePath -PathType Leaf)) {
     throw "Fixture executable not found at $fixturePath. Build it: go test -tags inspectorfixture -c -o .devdata/frameprobe-fixture.exe ./internal/ui/frame"
 }
-$interactions = if ($Interaction -eq 'all') { @('scroll', 'stream', 'expand', 'picker', 'theme', 'resize') } else { @($Interaction) }
+$interactions = if ($Interaction -eq 'all') { @('scroll', 'stream', 'expand', 'picker', 'theme', 'resize', 'open') } else { @($Interaction) }
 
 function Assert-NoFocusTheft([IntPtr]$hwnd, [IntPtr]$before, [string]$step) {
     $fg = [MyGoFrameProbe]::GetForegroundWindow()
     if ($fg -eq $hwnd) {
         throw "focus stolen after $step (foreground=$fg, before=$before)"
+    }
+    # The fixture is a console executable: started without -WindowStyle Hidden
+    # the console host opens a terminal window titled after the executable, and
+    # that window takes the focus, which the check above cannot see because it
+    # compares only against the fixture's own window.
+    if ($fg -ne $before) {
+        $text = [MyGoFrameProbe]::TextOf($fg)
+        if ($text -and $text.Contains($fixturePath)) {
+            throw "the fixture console took the focus after $step (foreground=$fg, title=$text, before=$before)"
+        }
     }
 }
 
@@ -154,7 +167,9 @@ for ($round = 1; $round -le $Repeat; $round++) {
         $env:INSPECTOR_NATIVE_FIXTURE_SCENARIO = 'frameprobe'
         $env:INSPECTOR_NATIVE_FIXTURE_OUTPUT = $prefix
         $env:MYGO_FRAME_TRACE = $trace
-        $process = Start-Process -FilePath $fixturePath -PassThru
+        # Hidden keeps the console of the fixture from opening a terminal window
+        # that would take the operator's focus as the process starts.
+        $process = Start-Process -FilePath $fixturePath -WindowStyle Hidden -PassThru
         $hwnd = [IntPtr]::Zero
         for ($i = 0; $i -lt 300; $i++) {
             Start-Sleep -Milliseconds 100
@@ -205,6 +220,26 @@ for ($round = 1; $round -le $Repeat; $round++) {
                     [MyGoFrameProbe]::Key($hwnd, 0x74); Start-Sleep -Milliseconds 600
                     [MyGoFrameProbe]::Key($hwnd, 0x74)
                 }
+                'open' {
+                    # F9 empties the view, then the click that opens the session is
+                    # stamped against the wall clock the frame trace writes: the
+                    # frame named open_click is the one the person waits for.
+                    [MyGoFrameProbe]::Key($hwnd, 0x78)
+                    Start-Sleep -Milliseconds 500
+                    $epoch = [DateTime]::new(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
+                    $postNs = [long](($([DateTime]::UtcNow).Ticks - $epoch.Ticks) * 100)
+                    [MyGoFrameProbe]::Key($hwnd, 0x77)
+                    Start-Sleep -Milliseconds 300
+                    # The trace flushes at most every 50ms, and only when a frame
+                    # or a mark is written: one mark after the click carries the
+                    # opened frame's row to disk before the probe kills the
+                    # process, which is what leaves the trace incomplete.
+                    [MyGoFrameProbe]::Key($hwnd, 0x70)
+                    Start-Sleep -Milliseconds 300
+                    # Written after the click: a file write between the stamp
+                    # and the post would count against the input's own delay.
+                    Set-Content -LiteralPath ($prefix + '-post.txt') -Value $postNs
+                }
                 'resize' {
                     [MyGoFrameProbe]::Key($hwnd, 0x75); Start-Sleep -Milliseconds 600
                     [MyGoFrameProbe]::Key($hwnd, 0x75); Start-Sleep -Milliseconds 600
@@ -224,7 +259,9 @@ for ($round = 1; $round -le $Repeat; $round++) {
             if (Test-Path -LiteralPath $trace) {
                 $frames = (Get-Content -LiteralPath $trace | Measure-Object).Count - 1
             }
-            "{0}: frames={1} trace={2} foreground_before={3} foreground_after={4} exited={5} unresponsive_window={6}" -f $name, $frames, $trace, $foregroundBefore, ([MyGoFrameProbe]::GetForegroundWindow()), ($null -eq $still), $(if ($unresponsive) { $unresponsive } else { 'none' })
+            $latency = ''
+            if ($name -eq 'open') { $latency = " post_ns=$postNs" }
+            ("{0}: frames={1} trace={2} foreground_before={3} foreground_after={4} exited={5} unresponsive_window={6}{7}" -f $name, $frames, $trace, $foregroundBefore, ([MyGoFrameProbe]::GetForegroundWindow()), ($null -eq $still), $(if ($unresponsive) { $unresponsive } else { 'none' }), $latency)
         }
     }
 }
