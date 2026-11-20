@@ -199,6 +199,10 @@ func (s *surface) Native() platform.SurfaceNative {
 // content: it has one, and no redirection bitmap to cover it.
 func (s *surface) ShowsMaterial() bool { return s.w.noRedirect && s.w.materialApplied }
 
+// DropBackdrop drops the color the window holds until its first frame, which
+// that frame covers.
+func (s *surface) DropBackdrop() { s.w.DropBackdrop() }
+
 func (s *surface) freeComp() {
 	if s.comp != nil {
 		s.comp.free()

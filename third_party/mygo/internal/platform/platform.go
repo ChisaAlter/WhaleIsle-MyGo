@@ -227,6 +227,11 @@ type WindowOptions struct {
 	// BackgroundColor is painted before the page renders; nil keeps the
 	// platform default.
 	BackgroundColor *Color
+	// BackdropColor fills a window that has no redirection bitmap (Windows)
+	// until its first frame. Such a window paints nothing of its own before
+	// then, so what the system puts behind it shows for as long as the first
+	// frame takes. Nil leaves that to the system.
+	BackdropColor *Color
 	// TitleBarStyle is "default", "hidden" or "hiddenInset". A hidden title
 	// bar gives the page the whole window, under the window controls:
 	// AppKit's traffic lights on macOS, and on Linux and Windows controls
