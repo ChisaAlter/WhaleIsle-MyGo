@@ -22,19 +22,19 @@ func TestThemeGridStaysInsideThePane(t *testing.T) {
 	const width = 760
 	const inset = 16.0
 	for _, family := range families {
-		light, ok := tt.Find(family.Name + " light")
+		light, ok := tt.Find(family.LocalizedName() + " light")
 		if !ok {
-			t.Fatalf("missing light half for %q", family.Name)
+			t.Fatalf("missing light half for %q", family.LocalizedName())
 		}
-		dark, ok := tt.Find(family.Name + " dark")
+		dark, ok := tt.Find(family.LocalizedName() + " dark")
 		if !ok {
-			t.Fatalf("missing dark half for %q", family.Name)
+			t.Fatalf("missing dark half for %q", family.LocalizedName())
 		}
 		if light.X < inset || dark.X+dark.W > width-inset+0.5 {
-			t.Fatalf("theme card %q escapes pane: light=%+v dark=%+v width=%d", family.Name, light, dark, width)
+			t.Fatalf("theme card %q escapes pane: light=%+v dark=%+v width=%d", family.LocalizedName(), light, dark, width)
 		}
 		if light.W <= 0 || dark.W <= 0 {
-			t.Fatalf("theme card %q has no width: light=%+v dark=%+v", family.Name, light, dark)
+			t.Fatalf("theme card %q has no width: light=%+v dark=%+v", family.LocalizedName(), light, dark)
 		}
 	}
 }
@@ -67,10 +67,10 @@ func TestThemeGridUsesSourceTracksAndPreviewGeometry(t *testing.T) {
 				}
 			}
 			families := e.Draft.Families()
-			first := find("Theme card " + families[0].Name)
+			first := find("Theme card " + families[0].LocalizedName())
 			for index, f := range families {
-				card := find("Theme card " + f.Name)
-				light, dark := find(f.Name+" light"), find(f.Name+" dark")
+				card := find("Theme card " + f.LocalizedName())
+				light, dark := find(f.LocalizedName()+" light"), find(f.LocalizedName()+" dark")
 				close("light height", light.H, 88)
 				close("dark height", dark.H, 88)
 				close("half widths", light.W, dark.W)
@@ -82,11 +82,11 @@ func TestThemeGridUsesSourceTracksAndPreviewGeometry(t *testing.T) {
 				if index == tc.columns {
 					close("grid row gap", card.Y, first.Y+first.H+14)
 				}
-				footer := find("Theme footer " + f.Name)
+				footer := find("Theme footer " + f.LocalizedName())
 				close("footer height", footer.H, 54.5)
 				close("footer starts below preview", footer.Y, light.Y+88)
 				for _, scheme := range []string{"light", "dark"} {
-					dot := find("Theme accent " + f.Name + " " + scheme)
+					dot := find("Theme accent " + f.LocalizedName() + " " + scheme)
 					close("accent width", dot.W, 16)
 					close("accent height", dot.H, 16)
 				}

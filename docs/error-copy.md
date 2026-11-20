@@ -13,8 +13,8 @@
 | 守卫 | 覆盖 | 失败条件 |
 | --- | --- | --- |
 | `internal/ui/files/carrier_guard_test.go` | 文件面板 | 命中本包 carrier 正则且含 `.Error()` |
-| `internal/ui/chat/copy_test.go` | 对话面 | 同上；`ErrSubmissionUnconfirmed` 例外 |
-| `internal/ui/composer/copy_test.go` | 输入区 | 同上；同上例外 |
+| `internal/ui/chat/copy_test.go` | 对话面 | 同上 |
+| `internal/ui/composer/copy_test.go` | 输入区 | 同上 |
 | `internal/ui/i18n/carriers_test.go` | 见下表 | 按包一条 carrier 正则 |
 | `cmd/whaleisle/carriers_test.go` | 命令层 | 任何非比较、非标记的 `.Error()` |
 

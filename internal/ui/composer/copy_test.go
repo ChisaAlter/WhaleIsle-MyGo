@@ -60,11 +60,7 @@ func TestComposerCarriersNeverTakeARawError(t *testing.T) {
 			if strings.HasPrefix(strings.TrimSpace(line), "if ") {
 				continue
 			}
-			// The submission-unconfirmed sentinel carries a written sentence, not
-			// a transport error; storing it verbatim is the intended copy.
-			if strings.Contains(line, "ErrSubmissionUnconfirmed") {
-				continue
-			}
+
 			t.Errorf("%s:%d paints a raw error: %s", name, index+1, strings.TrimSpace(line))
 		}
 	}
