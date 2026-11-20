@@ -488,6 +488,9 @@ func coreDialogBaseOptions(c *context, open *bool, options DialogOptions, fn fun
 			}
 		}
 		back.noPointerCursor = true
+		if exit := dialogExit(); exit.Duration > 0 && !options.NoExit {
+			back.Transition(ElementTransition{Duration: exit.Duration, ExitDuration: exit.Duration, Ease: exit.Ease, Exit: &Motion{Opacity: 0}})
+		}
 		back.Children(func() {
 			panel = coreBox(c).Role(RoleDialog)
 			panel.flags |= flagClickable
