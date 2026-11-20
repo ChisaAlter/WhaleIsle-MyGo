@@ -224,6 +224,15 @@ failed installation on Ayase with a 90-second gate timeout and a rollback, and
 the only place the cause appeared was that Host log line. A stage that carries
 these plugins therefore has to make the declarations admit the version it ships.
 
+The gate now needs both halves of that failure to stay distinguishable. It fails
+the moment the Host logs a row it disabled, naming the rows, so an incompatibility
+is reported in seconds instead of at the deadline. The deadline itself is wider
+than the work it measures — `healthDeadline` is 180 seconds — because the
+slow-but-correct path is real: the same candidate tree timed out at 90 seconds on
+its first, cold start (a Defender scan over the freshly written vendor tree) and
+reached its inventory in 21 seconds once warm. The report keeps every mark's
+millisecond timestamp, so a slow run still shows where the time went.
+
 `CARRIED_COMPATIBILITY` in `scripts/harness-fork/plugin-compat.mjs` is the
 record. Each row names one carried plugin and the exact peer requirements the
 stage widens; the carry applies them while it copies the plugins into a stage's

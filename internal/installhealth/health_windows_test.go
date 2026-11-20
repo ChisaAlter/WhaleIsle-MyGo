@@ -4,6 +4,7 @@ package installhealth
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -172,7 +173,7 @@ func main(){if len(os.Args)==1 {c:=exec.Command(os.Args[0],"child");if c.Start()
 	if raw, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("hanging candidate build: %v: %s", err, raw)
 	}
-	if err = Check(candidate, output); err == nil || !strings.Contains(err.Error(), "within 90 seconds") {
+	if err = Check(candidate, output); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("within %d seconds", int(healthDeadline.Seconds()))) {
 		t.Fatalf("expected actual health deadline, got %v", err)
 	}
 	raw, err := os.ReadFile(output)

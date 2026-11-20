@@ -22,6 +22,14 @@ import (
 	"whaleisle/internal/startuptrace"
 )
 
+// healthDeadline bounds a cold candidate's boot. A genuine incompatibility fails
+// as soon as the Host logs the row it disabled, so this budget only covers the
+// slow-but-correct path: the first start after an install pays for a Defender
+// scan over a freshly written vendor tree. 90 seconds timed out at random on a
+// cold machine and the same tree reached its inventory in 21 seconds once warm,
+// so the deadline is wider than the work it measures rather than tuned to it.
+const healthDeadline = 180 * time.Second
+
 type result struct {
 	Schema          int                  `json:"schema"`
 	Installation    string               `json:"installation"`
@@ -130,7 +138,7 @@ func Check(installation, reportPath string) (failure error) {
 		safeToRemove = exitErr == nil
 		failure = errors.Join(failure, exitErr)
 	}()
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(healthDeadline)
 	for time.Now().Before(deadline) {
 		status, err := windows.WaitForSingleObject(process, 0)
 		if err != nil {
@@ -155,7 +163,7 @@ func Check(installation, reportPath string) (failure error) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return errors.New("candidate did not confirm native window, Host, workspace and plugin inventory within 90 seconds")
+	return fmt.Errorf("candidate did not confirm native window, Host, workspace and plugin inventory within %d seconds", int(healthDeadline.Seconds()))
 }
 
 func ready(r startuptrace.Report) bool {
