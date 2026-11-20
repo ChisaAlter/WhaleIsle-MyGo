@@ -3,7 +3,6 @@
 package windows
 
 import (
-	"os"
 	"testing"
 )
 
@@ -42,36 +41,48 @@ func newBackgroundWindow(t *testing.T) uintptr {
 	return hwnd
 }
 
+// The real system, unmodified: whatever the shell has in front, a request against
+// a window that is not it must leave the foreground handle alone.
 func TestClientFocusLeavesABackgroundWindowWhereItIs(t *testing.T) {
 	hwnd := newBackgroundWindow(t)
 	if focusOnForegroundWindow(hwnd) {
 		t.Skip("fixture window came up in front; the machine has no stable foreground")
 	}
-	foregroundBefore, _, _ := procGetForegroundWindow.Call()
+	foregroundBefore := shellForeground()
 	if applyClientFocus(hwnd) {
 		t.Fatal("a background window moved the keyboard focus into itself")
 	}
-	foregroundAfter, _, _ := procGetForegroundWindow.Call()
-	if foregroundAfter != foregroundBefore {
+	if foregroundAfter := shellForeground(); foregroundAfter != foregroundBefore {
 		t.Fatalf("foreground changed %#x -> %#x while answering a background SetFocus", foregroundBefore, foregroundAfter)
 	}
 }
 
-func TestClientFocusMovesFocusWhenTheWindowIsAlreadyInFront(t *testing.T) {
-	if os.Getenv("MYGO_FOCUS_FOREGROUND_TEST") != "1" {
-		t.Skip("set MYGO_FOCUS_FOREGROUND_TEST=1: this test takes the foreground from whoever is using the machine")
+// Both branches of the policy, with the two system inputs answered by the test
+// instead of by the desktop: a background window is refused and never asked to
+// take focus, and the same call on a window the shell has in front moves focus.
+func TestClientFocusPolicyDecidesWithoutTouchingTheDesktop(t *testing.T) {
+	savedForeground, savedFocus := shellForeground, setKeyboardFocus
+	t.Cleanup(func() {
+		shellForeground, setKeyboardFocus = savedForeground, savedFocus
+	})
+
+	hwnd := newBackgroundWindow(t)
+	var moved []uintptr
+	setKeyboardFocus = func(target uintptr) { moved = append(moved, target) }
+
+	shellForeground = func() uintptr { return hwnd + 0x1000 }
+	if applyClientFocus(hwnd) {
+		t.Fatal("a background client was allowed to move the keyboard focus")
 	}
-	hwnd := createWindow(0, "STATIC", "mygo focus fixture", wsPopup, 0, 0, 200, 100, 0)
-	if hwnd == 0 {
-		t.Fatal("cannot create the fixture window")
+	if len(moved) != 0 {
+		t.Fatalf("a background client asked the shell to move focus to %#x", moved[0])
 	}
-	t.Cleanup(func() { procDestroyWindow.Call(hwnd) })
-	procShowWindow.Call(hwnd, swShow)
-	procSetForegroundWindow.Call(hwnd)
-	if !focusOnForegroundWindow(hwnd) {
-		t.Skip("the shell refused to put the fixture in front")
-	}
+
+	shellForeground = func() uintptr { return hwnd }
 	if !applyClientFocus(hwnd) {
-		t.Fatal("an element of the foreground window was refused focus")
+		t.Fatal("a client of the foreground window was refused focus")
+	}
+	if len(moved) != 1 || moved[0] != hwnd {
+		t.Fatalf("the foreground branch moved focus to %#x (calls: %d), want %#x once", moved, len(moved), hwnd)
 	}
 }
