@@ -116,3 +116,27 @@ func TestGhostButtonDrawsOnlyItsLabel(t *testing.T) {
 		}
 	}
 }
+
+// The corner follows the family's radius tokens: --dsw-radius-md is 12 under
+// the default family and 8 under the official one (builtin_official.go).
+func TestButtonRadiusFollowsFamily(t *testing.T) {
+	old := theme.CurrentPreferences()
+	t.Cleanup(func() { theme.SetPreferences(old) })
+	radiusAt := func(p theme.Preferences) float32 {
+		theme.SetPreferences(p)
+		var radius float32
+		ui.NewTester(func(c *ui.Context) {
+			radius = buttonRadius(c, ButtonMedium)
+			ui.Box(c)
+		}, 10, 10)
+		return radius
+	}
+	if got := radiusAt(theme.Defaults()); got != theme.DefaultRadii.MD {
+		t.Fatalf("default button radius %v, want %v", got, theme.DefaultRadii.MD)
+	}
+	p := theme.Defaults()
+	p.Light, p.Dark = "codex", "codex"
+	if got := radiusAt(p); got != 8 {
+		t.Fatalf("official-family button radius %v, want 8", got)
+	}
+}
