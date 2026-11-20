@@ -21,6 +21,10 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PS = join(REPO, 'scripts', 'ui-compare', 'native.ps1');
 const VIEW = { w: 1280, h: 800 };
 const WAIT_MS = 5000;
+// One workspace directory, same display name on both sides: the web client
+// labels its cwd workspace "默认工作区" and the native sidebar shows the
+// configured directory's basename.
+const WS_DIR_NAME = '默认工作区';
 
 const args = process.argv.slice(2);
 const arg = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
@@ -71,10 +75,14 @@ const rows = [];
 let fatal = null;
 
 try {
-  // ---- Host #2 (original side) ----
+  // ---- Host #2 (original side). Its cwd IS its workspace (the Host uses the
+  // child cwd; the web client's initializeDefault labels it 默认工作区), so it
+  // is pointed at the same directory the native profile gets. ----
+  const wsDir = join(tmp, WS_DIR_NAME);
+  mkdirSync(wsDir, { recursive: true });
   const port = await freePort();
   host2 = tracked(spawn(NODE, [HOST_BIN, 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'],
-    { env: { ...process.env, DSH_HOME: join(tmp, 'host2-home') }, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
+    { env: { ...process.env, DSH_HOME: join(tmp, 'host2-home') }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
   host2.stdout.setEncoding('utf8');
   host2.stdout.on('data', (d) => { const m = /dsh web:\s*(https?:\/\/\S+)/.exec(d); if (m && !readyUrl) readyUrl = m[1]; });
@@ -87,7 +95,6 @@ try {
   console.log('[build] whaleisle.exe ...');
   const b = spawnSync('go', ['build', '-o', join(tmp, 'whaleisle.exe'), './cmd/whaleisle'], { cwd: REPO, encoding: 'utf8', timeout: 600000 });
   if (b.status !== 0) throw new Error('go build: ' + (b.stderr || '').slice(0, 400));
-  mkdirSync(join(tmp, 'ws'), { recursive: true });
   const cfgPath = join(tmp, 'data', 'config.json');
   const launchNative = () => tracked(spawn(join(tmp, 'whaleisle.exe'), [], {
     env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log') },
@@ -108,7 +115,7 @@ try {
     `Get-CimInstance Win32_Process | Where-Object {$_.ExecutablePath -like '*wi-ui-compare-${runId}*'} | ForEach-Object {Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}`], { timeout: 20000 });
   await sleep(1500);
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8').replace(/^﻿/, ''));
-  cfg.workspace = join(tmp, 'ws');
+  cfg.workspace = wsDir;
   writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
   nativeProc = launchNative();
 
@@ -184,66 +191,147 @@ try {
   console.log('[web] title:', await evalJs('document.title'));
 
   // ---- helpers over both sides ----
-  const webClick = (sel) => evalJs(`(()=>{const e=[...document.querySelectorAll(${JSON.stringify(sel)})].find(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0});if(!e)return false;const r=e.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;const ev=(t)=>e.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y,button:0}));ev('mousedown');ev('mouseup');e.click();return true})()`);
+  // A web spec: {selector?, text?, within?, upTo?, index?} — scope = within
+  // (default document), candidates match selector (default all visible),
+  // narrowed to elements whose own text nodes equal text, indexed, then
+  // optionally lifted to the closest upTo ancestor.
+  const webFinder = (spec, body) => `(()=>{
+    const vis=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+    const scope=${spec.within ? `document.querySelector(${JSON.stringify(spec.within)})||document` : 'document'};
+    let els=[...scope.querySelectorAll(${JSON.stringify(spec.selector || '*')})].filter(vis);
+    ${spec.text ? `els=els.filter(e=>{let t='';for(const n of e.childNodes)if(n.nodeType===3)t+=n.textContent;return t.trim()===${JSON.stringify(spec.text)}});` : ''}
+    let e=els[${spec.index || 0}];if(!e)return null;
+    ${spec.upTo ? `e=e.closest(${JSON.stringify(spec.upTo)})||e;` : ''}
+    ${body}
+  })()`;
+  const webClick = (spec) => evalJs(webFinder(spec, `const r=e.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;const ev=(t)=>e.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y,button:0}));ev('mousedown');ev('mouseup');e.click();return true`));
   const webKey = (key) => evalJs(`document.activeElement && document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true}))`);
-  const webMetric = (sel) => evalJs(`(()=>{const e=[...document.querySelectorAll(${JSON.stringify(sel)})].find(e=>{const r=e.getBoundingClientRect();return r.width>0||r.height>0});if(!e)return null;const r=e.getBoundingClientRect();const cs=getComputedStyle(e);return {x:+r.x.toFixed(2),y:+r.y.toFixed(2),w:+r.width.toFixed(2),h:+r.height.toFixed(2),padding:cs.padding,radius:cs.borderRadius,fontSize:cs.fontSize,lineHeight:cs.lineHeight,fontWeight:cs.fontWeight}})()`);
+  const webPresent = (spec) => evalJs(webFinder(spec, 'return true'));
+  const webMetric = (spec) => evalJs(webFinder(spec, `const r=e.getBoundingClientRect();const cs=getComputedStyle(e);return {x:+r.x.toFixed(2),y:+r.y.toFixed(2),w:+r.width.toFixed(2),h:+r.height.toFixed(2),padding:cs.padding,radius:cs.borderRadius,fontSize:cs.fontSize,lineHeight:cs.lineHeight,fontWeight:cs.fontWeight}`));
   const nativeRect = (spec) => {
     const f = find(spec.name, spec.type || '', spec.index || 0);
     if (f.count <= (spec.index || 0)) return null;
     const r = f.hits[spec.index || 0].rect;
     return { x: +((r.x - client.clientX) / scale).toFixed(2), y: +((r.y - client.clientY) / scale).toFixed(2), w: +(r.w / scale).toFixed(2), h: +(r.h / scale).toFixed(2) };
   };
+  const nativePresent = (spec) => find(spec.name, spec.type || '', spec.index || 0).count > (spec.index || 0);
 
   const report = { run: runId, scale, scenarios: [] };
 
-  for (const sc of lm0.surfaces[surface].scenarios) {
-    // setup + steps, web first then native
-    for (const s of (sc.web?.setup || [])) {
-      if (s.dismiss) { const ok = await webClick(s.dismiss); if (!ok && !s.optional) throw new Error(`web setup dismiss ${s.dismiss} missing`); }
+  // Setup dismiss steps are verified: the `gone` element must be absent after
+  // the dismiss, otherwise the scenario reports ERROR rather than a landmark
+  // FAIL. `optional` only excuses a target that never appeared.
+  // Dismiss is a verified loop, not a single click: a chain of first-run
+  // dialogs can appear one after another (预览版说明, then 开始使用), and the
+  // wrong button (e.g. 登录, also _primary) must never be clicked. Candidates
+  // are tried in order while the `gone` element is present, until it stays
+  // gone for a quiet period.
+  async function webSetup(s) {
+    if (!s.dismiss) return null;
+    const gone = typeof s.gone === 'object' ? s.gone : { selector: s.gone || s.dismiss };
+    const candidates = (Array.isArray(s.dismiss) ? s.dismiss : [s.dismiss])
+      .map(d => typeof d === 'object' ? d : { selector: d });
+    const t0 = Date.now();
+    let quietSince = 0, sawTarget = false;
+    while (Date.now() - t0 < WAIT_MS * 2) {
+      if (!(await webPresent(gone))) {
+        if (!quietSince) { quietSince = Date.now(); }
+        else if (Date.now() - quietSince > 800) {
+          return !sawTarget && !s.optional ? `web setup: dismiss target ${JSON.stringify(gone)} never appeared` : null;
+        }
+        await sleep(200);
+        continue;
+      }
+      sawTarget = true;
+      quietSince = 0;
+      for (const c of candidates) { if (await webClick(c)) break; }
       await sleep(400);
     }
-    for (const s of (sc.web?.steps || [])) {
-      if (s.click && !(await webClick(s.click))) throw new Error(`web step click ${s.click} missing`);
-      if (s.key) await webKey(s.key);
-      await sleep(500);
+    if (!sawTarget && s.optional) return null;
+    if (!sawTarget) return `web setup: dismiss target ${JSON.stringify(gone)} never appeared`;
+    return `web setup: ${JSON.stringify(gone)} still present after dismiss`;
+  }
+  async function nativeSetup(s) {
+    if (!s.dismiss) return null;
+    const gone = s.gone || s.dismiss;
+    if (!nativePresent(gone)) {
+      return s.optional ? null : `native setup: dismiss target ${JSON.stringify(gone)} never appeared`;
     }
-    for (const s of (sc.native?.steps || [])) {
-      const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : null;
-      if (cmd) { const r = act(cmd, s[cmd]); if (!r.ok) throw new Error(`native ${cmd} ${s[cmd].name}: ${r.error}`); }
-      await sleep(500);
+    act('invoke', s.dismiss);
+    const t0 = Date.now();
+    while (Date.now() - t0 < WAIT_MS) { if (!nativePresent(gone)) return null; await sleep(250); }
+    return `native setup: ${JSON.stringify(gone)} still present after dismiss`;
+  }
+
+  for (const sc of lm0.surfaces[surface].scenarios) {
+    // setup first, then steps; web before native
+    let scError = null;
+    for (const s of (sc.web?.setup || [])) { scError = scError || await webSetup(s, sc); await sleep(300); }
+    for (const s of (sc.native?.setup || [])) { scError = scError || await nativeSetup(s); await sleep(300); }
+    if (!scError) {
+      for (const s of (sc.web?.steps || [])) {
+        if (s.click && !(await webClick(typeof s.click === 'object' ? s.click : { selector: s.click }))) scError = `web step: ${JSON.stringify(s.click)} not found`;
+        if (s.key) await webKey(s.key);
+        await sleep(500);
+      }
+      for (const s of (sc.native?.steps || [])) {
+        const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : null;
+        if (cmd) { const r = act(cmd, s[cmd]); if (!r.ok) scError = `native step ${cmd} ${s[cmd].name}: ${r.error}`; }
+        await sleep(500);
+      }
     }
-    // bounded wait for every landmark on both sides
+
     const lms = [];
-    for (const lm of sc.landmarks) {
-      const t0 = Date.now();
-      let web = null, nat = null;
-      while (Date.now() - t0 < WAIT_MS) {
-        if (!web) web = await webMetric(lm.web.selector);
-        if (!nat) nat = nativeRect(lm.native);
-        if (web && nat) break;
-        await sleep(250);
-      }
-      const tol = lm.tolerance ?? 1;
-      const entry = { key: lm.key, web, native: nat, delta: {}, pass: false, missing: [] };
-      if (!web) entry.missing.push('web');
-      if (!nat) entry.missing.push('native');
-      if (web && nat) {
-        entry.pass = true;
-        for (const f of lm.assert || []) {
-          entry.delta[f] = +(nat[f] - web[f]).toFixed(2);
-          if (Math.abs(entry.delta[f]) > tol) entry.pass = false;
+    const byKey = new Map();
+    if (scError) {
+      lms.push({ key: sc.id, status: 'ERROR', error: scError, web: null, native: null, delta: {}, missing: [] });
+      rows.push({ sc: sc.id, key: sc.id, status: 'ERROR', error: scError });
+      summary.ok = false;
+    } else {
+      for (const lm of sc.landmarks) {
+        const t0 = Date.now();
+        let web = null, nat = null;
+        while (Date.now() - t0 < WAIT_MS) {
+          if (!web) web = await webMetric(lm.web);
+          if (!nat) nat = nativeRect(lm.native);
+          if (web && nat) break;
+          await sleep(250);
         }
+        const tol = lm.tolerance ?? 1;
+        const entry = { key: lm.key, web, native: nat, delta: {}, pass: true, missing: [] };
+        if (!web) entry.missing.push('web');
+        if (!nat) entry.missing.push('native');
+        if (web && nat) {
+          const prev = lms.filter(e => e.web && e.native).pop();
+          const parent = lm.parent ? byKey.get(lm.parent) : null;
+          for (const f of lm.assert || []) {
+            let d = null;
+            if (f === 'dy-prev') {
+              if (prev) d = +((nat.y - (prev.native.y + prev.native.h)) - (web.y - (prev.web.y + prev.web.h))).toFixed(2);
+            } else if (f === 'dx-parent-left') {
+              if (parent && parent.web && parent.native) d = +((nat.x - parent.native.x) - (web.x - parent.web.x)).toFixed(2);
+            } else {
+              d = +(nat[f] - web[f]).toFixed(2);
+            }
+            entry.delta[f] = d;
+            if (d !== null && Math.abs(d) > tol) entry.pass = false;
+          }
+        } else {
+          entry.pass = false;
+        }
+        if (!entry.pass) summary.ok = false;
+        entry.status = entry.pass ? 'PASS' : entry.missing.length ? 'MISS' : 'FAIL';
+        lms.push(entry);
+        byKey.set(lm.key, entry);
+        rows.push({ sc: sc.id, ...entry });
       }
-      if (!entry.pass) summary.ok = false;
-      lms.push(entry);
-      rows.push({ sc: sc.id, ...entry });
     }
     // screenshots
     const shot = await cdp('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(outDir, `${sc.id}-web.png`), Buffer.from(shot.data, 'base64'));
     ps1('capture', ['-Out', join(outDir, `${sc.id}-native.png`)]);
-    summary.scenarios.push({ id: sc.id, landmarks: lms });
-    report.scenarios.push({ id: sc.id, landmarks: lms, webPng: `${sc.id}-web.png`, nativePng: `${sc.id}-native.png` });
+    summary.scenarios.push({ id: sc.id, landmarks: lms, ...(scError ? { error: scError } : {}) });
+    report.scenarios.push({ id: sc.id, landmarks: lms, error: scError, webPng: `${sc.id}-web.png`, nativePng: `${sc.id}-native.png` });
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
@@ -260,12 +348,14 @@ try {
       }).join('');
       html += `<div class="pane"><img src="${side === 'web' ? sc.webPng : sc.nativePng}" style="display:block"><svg style="position:absolute;inset:0" width="${VIEW.w * scale}" height="${VIEW.h * scale}">${rects}</svg><div>${side}</div></div>`;
     }
-    html += `</div><table><tr><th>key</th><th>web x,y,w,h</th><th>native x,y,w,h</th><th>Δx Δy Δw Δh</th><th>web radius/pad/font</th><th></th></tr>`;
+    html += `</div>`;
+    if (sc.error) html += `<p><b>ERROR:</b> ${sc.error}</p>`;
+    html += `<table><tr><th>key</th><th>web x,y,w,h</th><th>native x,y,w,h</th><th>deltas</th><th>web radius/pad/font</th><th></th></tr>`;
     for (const m of sc.landmarks) {
       const f = (r) => r ? `${r.x}, ${r.y}, ${r.w}, ${r.h}` : '—';
-      const d = Object.keys(m.delta).length ? ['x', 'y', 'w', 'h'].map(k => m.delta[k] ?? '·').join(' ') : '—';
+      const d = Object.keys(m.delta).length ? Object.entries(m.delta).map(([k, v]) => `${k} ${v === null ? 'n/a' : (v > 0 ? '+' : '') + v}`).join(' ') : '—';
       const ref = m.web ? `${m.web.radius} / ${m.web.padding} / ${m.web.fontSize} ${m.web.fontWeight}` : '—';
-      html += `<tr><td>${m.key}</td><td>${f(m.web)}</td><td>${f(m.native)}</td><td>${d}</td><td>${ref}</td><td>${m.pass ? 'PASS' : m.missing.length ? 'MISS ' + m.missing.join('+') : 'FAIL'}</td></tr>`;
+      html += `<tr><td>${m.key}</td><td>${f(m.web)}</td><td>${f(m.native)}</td><td>${d}</td><td>${ref}</td><td>${m.status || (m.pass ? 'PASS' : 'MISS')}</td></tr>`;
     }
     html += '</table>';
   }
@@ -274,9 +364,10 @@ try {
   // ---- stdout table ----
   console.log('\nkey                          | web (x,y,w,h)      | native (x,y,w,h)   | delta            | result');
   for (const r of rows) {
+    if (r.status === 'ERROR') { console.log(`${r.key.padEnd(28)} | ERROR: ${r.error}`); continue; }
     const f = (v) => v ? `${v.x},${v.y},${v.w},${v.h}`.padEnd(18) : '—                 ';
-    const d = Object.keys(r.delta).length ? ['x', 'y', 'w', 'h'].map(k => (r.delta[k] > 0 ? '+' : '') + (r.delta[k] ?? 0)).join(',') : '—';
-    console.log(`${r.key.padEnd(28)} | ${f(r.web)} | ${f(r.native)} | ${d.padEnd(16)} | ${r.pass ? 'PASS' : r.missing.length ? 'MISS' : 'FAIL'}`);
+    const d = Object.keys(r.delta).length ? Object.entries(r.delta).map(([k, v]) => k + '=' + (v === null ? 'n/a' : (v > 0 ? '+' : '') + v)).join(',') : '—';
+    console.log(`${r.key.padEnd(28)} | ${f(r.web)} | ${f(r.native)} | ${d.padEnd(16)} | ${r.status}`);
   }
   console.log('\nreport:', join('tmp', 'ui-compare', runId, 'report.html'));
 } catch (e) {

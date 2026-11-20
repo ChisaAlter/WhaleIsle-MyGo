@@ -1,36 +1,117 @@
 {
-  "version": 1,
+  "version": 2,
   "surfaces": {
     "workbench": {
       "scenarios": [
         {
           "id": "empty-workbench",
-          "web": { "setup": [{ "dismiss": "div[class*=_dialog] button[class*=_primary]", "optional": true }], "steps": [] },
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  { "selector": "[role=dialog] button[aria-label='关闭']" },
+                  { "selector": "[role=dialog] button[class*=_primary]" }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": []
+          },
           "native": { "steps": [] },
           "landmarks": [
             {
+              "key": "sidebar.brand",
+              "web": { "selector": "button[class*=_brand]" },
+              "native": { "name": "鲸屿 MyGo", "type": "Button" },
+              "assert": ["w", "h"]
+            },
+            {
               "key": "sidebar.new-chat",
-              "web": { "selector": "button[class*=newSession]" },
+              "web": { "selector": "button[class*=_newSession]" },
               "native": { "name": "新会话", "type": "Button", "index": 0 },
-              "assert": ["x", "y", "w", "h"]
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.nav-plugins",
+              "web": { "selector": "button[aria-label='插件']" },
+              "native": { "name": "插件", "type": "Button" },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.nav-automations",
+              "web": { "selector": "button[aria-label='自动化任务']" },
+              "native": { "name": "自动化任务", "type": "Button" },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.workspace-header",
+              "web": { "selector": "span[class*=_sectionLabel]", "text": "工作区" },
+              "native": { "name": "工作区", "type": "Text" },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.workspace-row",
+              "web": { "within": "div[role=tree]", "text": "默认工作区", "upTo": "[role=treeitem]" },
+              "native": { "name": "默认工作区", "type": "Button" },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.session-row",
+              "web": { "within": "div[role=tree]", "text": "新会话", "upTo": "[role=treeitem]" },
+              "native": { "name": "新会话", "type": "Button", "index": 1 },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.archive-row",
+              "web": { "within": "div[role=tree]", "text": "已归档", "upTo": "[role=treeitem]" },
+              "native": { "name": "已归档分组", "type": "Button" },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "sidebar.settings-entry",
+              "web": { "selector": "button[aria-label='账号菜单']" },
+              "native": { "name": "账号菜单", "type": "Button" },
+              "assert": ["h", "dy-prev"]
+            },
+            {
+              "key": "hero.title",
+              "web": { "text": "探索未至之鲸" },
+              "native": { "name": "探索未至之鲸", "type": "Text" },
+              "assert": ["h"]
             },
             {
               "key": "composer.card",
               "web": { "selector": "div[class*=_card]" },
-              "native": { "name": "Composer card", "type": "Group", "index": 0 },
+              "native": { "name": "Composer card", "type": "Group" },
               "assert": ["x", "y", "w", "h"]
             },
             {
-              "key": "sidebar.account",
-              "web": { "selector": "button[aria-label='账号菜单']" },
-              "native": { "name": "账号菜单", "type": "Button", "index": 0 },
-              "assert": ["x", "y", "w", "h"]
+              "key": "composer.editor",
+              "web": { "selector": "[role=textbox]" },
+              "native": { "name": "Composer draft", "type": "Edit" },
+              "parent": "composer.card",
+              "assert": ["h", "dx-parent-left"]
+            },
+            {
+              "key": "composer.send",
+              "web": { "selector": "button[aria-label='发送消息']" },
+              "native": { "name": "发送消息", "type": "Button" },
+              "parent": "composer.card",
+              "assert": ["w", "h"]
+            },
+            {
+              "key": "composer.model-label",
+              "web": { "selector": "button[aria-label^='选择模型']" },
+              "native": { "name": "deepseek-official/deepseek-flash", "type": "Button" },
+              "parent": "composer.card",
+              "assert": ["h", "dx-parent-left"]
             }
           ]
         },
         {
           "id": "account-menu-open",
-          "web": { "steps": [{ "click": "button[aria-label='账号菜单']" }] },
+          "web": { "steps": [{ "click": { "selector": "button[aria-label='账号菜单']" } }] },
           "native": { "steps": [{ "expand": { "name": "账号菜单", "type": "Button" } }] },
           "landmarks": [
             {
