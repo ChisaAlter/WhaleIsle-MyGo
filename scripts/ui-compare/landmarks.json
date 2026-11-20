@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "surfaces": {
+    "workbench": {
+      "scenarios": [
+        {
+          "id": "empty-workbench",
+          "web": { "setup": [{ "dismiss": "div[class*=_dialog] button[class*=_primary]", "optional": true }], "steps": [] },
+          "native": { "steps": [] },
+          "landmarks": [
+            {
+              "key": "sidebar.new-chat",
+              "web": { "selector": "button[class*=newSession]" },
+              "native": { "name": "新会话", "type": "Button", "index": 0 },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "composer.card",
+              "web": { "selector": "div[class*=_card]" },
+              "native": { "name": "Composer card", "type": "Group", "index": 0 },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "sidebar.account",
+              "web": { "selector": "button[aria-label='账号菜单']" },
+              "native": { "name": "账号菜单", "type": "Button", "index": 0 },
+              "assert": ["x", "y", "w", "h"]
+            }
+          ]
+        },
+        {
+          "id": "account-menu-open",
+          "web": { "steps": [{ "click": "button[aria-label='账号菜单']" }] },
+          "native": { "steps": [{ "expand": { "name": "账号菜单", "type": "Button" } }] },
+          "landmarks": [
+            {
+              "key": "account-menu.panel",
+              "web": { "selector": "[role=menu]" },
+              "native": { "name": "", "type": "Menu", "index": 0 },
+              "assert": ["w", "h"]
+            },
+            {
+              "key": "account-menu.first-item",
+              "web": { "selector": "[role=menu] [role=menuitem]" },
+              "native": { "name": "", "type": "MenuItem", "index": 0 },
+              "assert": ["w", "h"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
