@@ -55,6 +55,59 @@ A harness pin bump, or a desktop release that changes its composition, fails
    as an `alternates` entry with the reason, instead of loosening the check.
 4. Run the checker against every stage on the machine and the desktop checkout.
 
+## Bumping the harness from the source fork
+
+Every staging path above starts from a tree 本体 or the desktop already built and
+copied. `scripts/harness-fork/` replaces that with a recorded git history MyGo
+builds from, so a harness bump is one merge and one build instead of a restage of
+compiled artifacts.
+
+`scripts/harness-fork/pin.json` is the record: each upstream tag as a commit on
+`refs/harness/upstream/<ref>`, 本体's vendored tree as one commit on
+`refs/harness/carry`, and every bump as one merge whose human resolution lives in
+`scripts/harness-fork/resolution/<ref>.patch`. Every tree hash in the pin is
+checked while the record replays, so a tarball that no longer matches its tag, or
+a resolution that no longer applies, fails before a build starts. `fork.mjs
+materialize` replays the record into `.harness-fork/tree`; `stage.mjs` builds,
+stages and gates a runtime from it; `build-harness.ps1 -SourceMode fork` runs
+both. Desktop plugins and the mobile bridge are not the fork's, so that mode
+needs `-DesktopResources <installed desktop>`.
+
+### The bump
+
+1. **Merge the upstream tag.** `node scripts/harness-fork/fork.mjs bump <ref>`
+   downloads the tag, imports it as a commit and merges it into the fork. It
+   resolves mechanical conflicts by policy — `pnpm-lock.yaml` is never merged, it
+   is regenerated — and leaves the rest in the worktree with a list. Conflicts in
+   `packages/client/ui-*` are 本体's slot API against upstream's, and each one is
+   a product decision rather than a merge trick.
+2. **Resolve the conflicts.** Never resolve by dropping a package 本体 carries:
+   `runtime-fork-audit.mjs --expect=pin.json` fails the stage when the carry no
+   longer matches the pin's package list, which is the audit list this contract's
+   `staging.desktopPackages` is a subset of. A resolution that deletes a fork
+   package is a decision to stop shipping that feature, not a merge.
+3. **Rebuild and record.** `fork.mjs record <ref> --why "<the decision>"` stores
+   the resolution patch and the tree it produced, then `build-harness.ps1
+   -SourceMode fork -HarnessForkTag <ref>` replays the record, builds, stages and
+   runs the gates. A textually clean merge is not a clean build: upstream's new
+   packages can reference types 本体's contract changed, and each such seam is a
+   one-line adapter in the same resolution patch. Budget for that — rc.5 needed
+   two, both surfaced by upstream's new `deepseek-chat-import`: a required owner
+   prop relaxed to optional in 本体's `ui-conversation` contract, and a type
+   export 本体 had renamed in `ui-workspace`.
+4. **Record the contract entry only when the bump ships a release.** A bump onto
+   a tag 本体 already vendors needs no new entry: the contract already names that
+   version and `verify` passing is the proof. A bump to a version no 本体 release
+   vendors needs a derived entry, recorded as "Updating the contract" says,
+   together with the restage that ships it. Pre-recording an entry for a version
+   that is not shipping only makes the next bump's failure ambiguous.
+
+The bump's cost is therefore one merge plus one build, and the parts that need a
+person are the slot-API conflicts and the seams the build finds. Everything else
+— the tag's tree, the carry, the resolution — is pinned, so a later bump starts
+from the tree that was actually reviewed rather than from whatever the desktop
+last installed.
+
 ## Recorded decisions
 
 ### `apply_patch` stays off

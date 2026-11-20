@@ -7,6 +7,10 @@
 runtime/
 /runtime-*/
 
+# The harness fork worktree scripts/harness-fork/fork.mjs replays from pin.json:
+# a git checkout, its downloaded tarballs, and the node_modules a build leaves.
+/.harness-fork/
+
 # Read-only snapshot of the original Electron app (regenerate per reference/README.md)
 reference/electron/
 

@@ -16,6 +16,12 @@
 # on top of the pin, so every stage is verified against
 # scripts/runtime-composition/contract.json and refused when it came from any
 # other source.
+#
+# -SourceMode fork builds the Host from the recorded harness fork
+# (scripts/harness-fork/pin.json) instead of copying an installed graph, so a
+# harness bump is one merge plus one build. It needs no desktop source checkout;
+# -DesktopResources still supplies the desktop plugins and mobile bridge, which
+# are not harness source. See scripts/runtime-composition/README.md.
 
 param(
     [string]$RuntimeSourceResources,
@@ -24,7 +30,10 @@ param(
     [string]$DesktopSourceRevision = 'c9d805a7de0e0b7b80d5768cd30ab489275d1b3b',
     [string]$LegacyVendor,
     [string]$AcpSource,
-    [ValidateSet('custom', 'current')][string]$SourceMode = 'custom',
+    [ValidateSet('custom', 'current', 'fork')][string]$SourceMode = 'custom',
+    [string]$HarnessForkTag,
+    [string]$HarnessForkWork,
+    [string]$DesktopResources,
     [string]$CurrentSourceRoot = $env:WHALEISLE_CURRENT_ELECTRON_SOURCE,
     [ValidateSet('90465b67ec16765631d54c195af19d9ff3c3a770', 'e9f584be6d3b491ce777bb6823f30bc2bbc6f195')]
     [string]$SourceCommit = '90465b67ec16765631d54c195af19d9ff3c3a770',
@@ -36,15 +45,52 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'env.ps1')
 
-# Every staging path below copies a source graph verbatim, so the mounted rows a
-# Host ends up with depend on which source it came from. The composition that
-# desktop app vendors for a harness version is the contract; refuse anything
-# else instead of shipping a Host whose rows silently differ.
-function Assert-HostComposition([string]$RuntimeRoot, [string]$NodeExe = 'node') {
-    & $NodeExe (Join-Path $PSScriptRoot 'session-runtime-composition.mjs') verify $RuntimeRoot
-    if ($LASTEXITCODE -ne 0) { throw 'Staged Host composition does not match scripts/runtime-composition/contract.json. Restage from the desktop source that contract names; never edit the composed file inside a stage.' }
+# -SourceMode fork: the harness comes from the recorded fork source tree
+# (scripts/harness-fork/pin.json) instead of a copy of an installed graph, so a
+# harness bump is one merge there, not a new staging round. Desktop plugins and
+# the mobile bridge are not harness source; -DesktopResources names the installed
+# desktop they still come from.
+function Invoke-HarnessForkStage([string]$ForkWork, [string]$Tag, [string]$Destination, [string]$NodeExe, [string]$Resources, [string]$Legacy) {
+    $ForkScripts = Join-Path $PSScriptRoot 'harness-fork'
+    $ProjectRoot = Split-Path -Parent $PSScriptRoot
+    if (-not $ForkWork) { $ForkWork = Join-Path $ProjectRoot '.harness-fork' }
+    $Network = @()
+    if ($env:HTTPS_PROXY) { $Network = @('--proxy', $env:HTTPS_PROXY) }
+    & node (Join-Path $ForkScripts 'fork.mjs') materialize --work $ForkWork @Network
+    if ($LASTEXITCODE -ne 0) { throw 'Replaying the harness fork failed. The pin and its recorded resolutions are the only inputs, so this means the record drifted; do not stage over it.' }
+    $Tree = Join-Path $ForkWork 'tree'
+    $Pin = Get-Content -LiteralPath (Join-Path $ForkScripts 'pin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $Tag) { $Tag = $Pin.bumps[-1].ref }
+    $Entry = $Pin.upstream.tags | Where-Object { $_.ref -eq $Tag } | Select-Object -First 1
+    if (-not $Entry) { throw "Tag $Tag is not in scripts/harness-fork/pin.json. Add it with: node scripts/harness-fork/fork.mjs bump $Tag" }
+    & node (Join-Path $ForkScripts 'build.mjs') $Tree --commit $Entry.sha --work $ForkWork
+    if ($LASTEXITCODE -ne 0) { throw 'build:official failed on the fork source tree; no runtime was staged.' }
+    $Version = (Get-Content -LiteralPath (Join-Path $Tree 'apps\cli\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    if ($Entry.ref -ne ('dsh-v' + $Version)) { throw "The built tree reports $Version but the pin stages $($Entry.ref); the fork records another harness version." }
+    if (-not $Destination) { $Destination = Join-Path $ProjectRoot ('runtime-' + ($Version -replace '\.', '')) }
+    $Stage = @((Join-Path $ForkScripts 'stage.mjs'), 'stage', $Tree, '--dest', $Destination, '--work', $ForkWork)
+    if ($NodeExe) { $Stage += @('--node', $NodeExe) }
+    if ($Resources) { $Stage += @('--desktop-resources', $Resources) }
+    & node @Stage
+    if ($LASTEXITCODE -ne 0) { throw 'Staging the fork build failed; the staged directory was left for diagnosis.' }
+    $thirdParty = @((Join-Path $PSScriptRoot 'stage-third-party-plugins.mjs'), (Join-Path $Destination 'vendor'))
+    if ($WithoutPaidAPIs) { $thirdParty += '--without=dsh-deepseek-tools' }
+    & node @thirdParty
+    if ($LASTEXITCODE -ne 0) { throw 'Third-party desktop plugin staging failed; staged files retained.' }
+    if ($Resources) {
+        $Complete = @((Join-Path $ForkScripts 'stage.mjs'), 'complete', $Destination, '--desktop-resources', $Resources)
+        if ($Legacy) { $Complete += @('--legacy-vendor', $Legacy) }
+        & node @Complete
+        if ($LASTEXITCODE -ne 0) { throw 'Completing the stage with the installed desktop plugins failed; the stage keeps the files it already verified.' }
+    }
+    Write-Host "Staged $Destination from the harness fork ($($Entry.ref))."
 }
 
+if ($SourceMode -eq 'fork') {
+    if ($RuntimeSourceResources) { throw 'fork stages the harness from source; pass the installed desktop plugins with -DesktopResources instead of -RuntimeSourceResources.' }
+    Invoke-HarnessForkStage -ForkWork $HarnessForkWork -Tag $HarnessForkTag -Destination $RuntimeDestination -NodeExe $(if ($NodeDir) { Join-Path $NodeDir 'node.exe' } else { $null }) -Resources $DesktopResources -Legacy $LegacyVendor
+    return
+}
 if ($RuntimeSourceResources) {
     if ($SourceMode -ne 'custom') { throw 'RuntimeSourceResources and current source build are separate inputs.' }
     $StageNode = Join-Path $RuntimeSourceResources 'runtime\primary-runtime\dependencies\node\bin\node.exe'
