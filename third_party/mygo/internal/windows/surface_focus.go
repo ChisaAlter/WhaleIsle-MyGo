@@ -21,15 +21,28 @@ func applyClientFocus(hwnd uintptr) bool {
 		return false
 	}
 	traceRaise("surface_access.SetFocus", hwnd)
-	procSetFocus.Call(hwnd)
+	setKeyboardFocus(hwnd)
 	return true
 }
+
+// shellForeground and setKeyboardFocus are the only two things this policy asks
+// of the system, and they are variables so both branches can be proven without a
+// real window in front. The test that used to cover the second branch put a
+// fixture window in the foreground, which takes the machine's focus away from
+// whoever is using it: a policy about not stealing focus cannot be verified by
+// stealing it.
+var (
+	shellForeground = func() uintptr {
+		hwnd, _, _ := procGetForegroundWindow.Call()
+		return hwnd
+	}
+	setKeyboardFocus = func(hwnd uintptr) { procSetFocus.Call(hwnd) }
+)
 
 // focusOnForegroundWindow reports whether hwnd belongs to the window the shell
 // currently has in front.
 func focusOnForegroundWindow(hwnd uintptr) bool {
-	foreground, _, _ := procGetForegroundWindow.Call()
-	return focusFollowsForeground(hwnd, foreground)
+	return focusFollowsForeground(hwnd, shellForeground())
 }
 
 func focusFollowsForeground(hwnd, foreground uintptr) bool {
