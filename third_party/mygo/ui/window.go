@@ -252,6 +252,9 @@ func (h *windowHost) ready() {
 		return
 	}
 	h.shown = true
+	if d, ok := h.conn.Surface.(interface{ DropBackdrop() }); ok {
+		d.DropBackdrop()
+	}
 	if h.conn.Ready != nil && h.conn.Post != nil {
 		h.conn.Post(h.conn.Ready)
 	}

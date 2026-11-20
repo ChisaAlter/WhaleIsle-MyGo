@@ -207,6 +207,9 @@ func (b *Backend) loseComposition(err error) {
 			s.comp.free()
 		}
 	}
+	for _, w := range b.windows {
+		w.DropBackdrop()
+	}
 	if b.comp != nil {
 		b.comp.free()
 		b.comp = nil

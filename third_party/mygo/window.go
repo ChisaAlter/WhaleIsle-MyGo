@@ -147,6 +147,15 @@ type WindowOptions struct {
 	// "#rgba", "rgb(30 30 30)", or "light-dark(#f5f5f7, #1e1e1e)" for a
 	// page that follows the light or dark appearance.
 	BackgroundColor string
+	// WindowsBackdropColor is the color a Windows window holds before its
+	// first frame. A window with a frame radius or a material has no
+	// redirection bitmap, and paints nothing at all until then: what the
+	// system puts behind it shows instead, which is not the color its
+	// content starts with. Set it to that color, when the content starts on
+	// one flat color, to appear in it. CSS syntax, as BackgroundColor;
+	// BackgroundColor when unset and opaque, which a window with a
+	// transparent background passes by design.
+	WindowsBackdropColor string
 	// Vibrancy puts a translucent, blurred material behind a transparent
 	// page, or behind native UI where it draws no background (macOS and
 	// Windows 11 22H2), e.g. VibrancySidebar; ui.Context.Vibrancy tells
@@ -435,6 +444,17 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	w.resetPage()
 	popts := w.platformOptions(&opts)
 	popts.BackgroundColor = w.backgroundColor()
+	if opts.WindowsBackdropColor != "" {
+		bd, err := backgroundOption(opts.WindowsBackdropColor)
+		if err != nil {
+			panic(err)
+		}
+		c := bd.light
+		if bd.dark != c && backend().Theme().IsDark() {
+			c = bd.dark
+		}
+		popts.BackdropColor = &c
+	}
 	popts.Surface = opts.Content != nil
 	if opts.Transparent {
 		// Backends keep transparent windows clear; so do theme changes.

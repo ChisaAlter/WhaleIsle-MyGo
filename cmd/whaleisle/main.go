@@ -2152,9 +2152,15 @@ func main() {
 		bgColor := th.BackgroundColor()
 		endTheme()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
+		// The color the first frame starts on, for the window to hold while it
+		// has no frame to show yet: the masked canvas the view paints under
+		// everything else, or the window's own background color when that is
+		// opaque.
+		startupColor := bgColor
 		if flatDarkWindow {
 			// The desktop must show through the glass, so the window itself stays
 			// transparent (native dark + glassOpacity model).
+			startupColor = maskedCanvasHex(th.Active(mygo.Theme.IsDark()).BG)
 			bgColor = "rgba(0,0,0,0)"
 		}
 		endSeed := startuptrace.Begin("boot.state_seed")
@@ -2218,6 +2224,7 @@ func main() {
 			WindowsFrameCornerRadius: 20,
 			Transparent:              true,
 			BackgroundColor:          bgColor,
+			WindowsBackdropColor:     startupColor,
 			Content:                  ui.View(mainView),
 		}
 		// Native content paints the accepted appearance; DirectComposition keeps

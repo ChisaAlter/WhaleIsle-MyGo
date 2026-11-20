@@ -67,8 +67,9 @@ type window struct {
 	}
 	icons [2]uintptr // small and big, from SetIcon
 	// surface shows the content MyGo draws, in place of the webview.
-	surface *surface
-	saved   struct {
+	surface  *surface
+	backdrop *backdrop
+	saved    struct {
 		style, exStyle uintptr
 		placement      windowPlacement
 	}
@@ -214,6 +215,7 @@ func (b *Backend) NewWindow(o *platform.WindowOptions, h platform.WindowHandler)
 		procDestroyWindow.Call(w.hwnd)
 		return nil, err
 	}
+	w.showBackdrop()
 	return w, nil
 }
 
@@ -353,6 +355,7 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		if !w.reframing { // SetFullScreen lays the window out once it is done
 			w.sized(wp)
 		}
+		w.sizeBackdrop()
 		return 0, true
 	case wmEnterSizeMove:
 		w.beginInteraction()
@@ -651,6 +654,7 @@ func (w *window) cleanup() {
 		procDeleteObject.Call(w.bgBrush)
 		w.bgBrush = 0
 	}
+	w.DropBackdrop()
 	w.freeIcons()
 	delete(w.b.windows, w.hwnd)
 }
