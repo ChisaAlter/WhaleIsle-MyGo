@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"math"
 	"slices"
 	"sync"
 	"time"
@@ -320,8 +321,14 @@ func newRuntime(view func(*context), h host) *engine {
 	rt.arena = &elementOwner{rt: rt}
 	rt.public = &Context{rt: rt, services: Services{owner: rt.owner}}
 	rt.handleChecks = developmentHandles
-	if frameStatsOn {
-		rt.stats = newFrameStats(frameStatsThreshold)
+	if frameStatsOn || frameTrace != nil {
+		// A trace measures every frame but logs none of them: MYGO_FRAME_STATS
+		// still decides which frames reach the log.
+		threshold := frameStatsThreshold
+		if !frameStatsOn {
+			threshold = math.MaxInt64
+		}
+		rt.stats = newFrameStats(threshold)
 	}
 	return rt
 }
