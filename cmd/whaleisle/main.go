@@ -2156,7 +2156,7 @@ func main() {
 		if flatDarkWindow {
 			// The desktop must show through the glass, so the window itself stays
 			// transparent (native dark + glassOpacity model).
-			startupColor = maskedCanvasHex(bgColor)
+			startupColor = maskedCanvasHex(th.Active(mygo.Theme.IsDark()).BG)
 			bgColor = "rgba(0,0,0,0)"
 		}
 		state.mu.Lock()

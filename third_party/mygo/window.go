@@ -445,9 +445,13 @@ func newWindow(opts WindowOptions, bg *background, native uintptr) *Window {
 	popts := w.platformOptions(&opts)
 	popts.BackgroundColor = w.backgroundColor()
 	if opts.WindowsBackdropColor != "" {
-		c, err := parseColor(opts.WindowsBackdropColor)
+		bd, err := backgroundOption(opts.WindowsBackdropColor)
 		if err != nil {
 			panic(err)
+		}
+		c := bd.light
+		if bd.dark != c && backend().Theme().IsDark() {
+			c = bd.dark
 		}
 		popts.BackdropColor = &c
 	}
