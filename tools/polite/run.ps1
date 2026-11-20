@@ -32,7 +32,14 @@ param(
     [Alias('StartupTimeoutSec')][int]$CliStartupTimeoutSec = 90,
     [Alias('SnapshotTimeoutMs')][int]$CliSnapshotTimeoutMs = 6000,
     [Alias('EvidenceDir')][string]$CliEvidenceDir,
-    [Alias('KeepProfile')][switch]$CliKeepProfile
+    [Alias('KeepProfile')][switch]$CliKeepProfile,
+    # A lane that must reach a state the first frame cannot have (a configured
+    # workspace, a broken runtime, a port already held) seeds the throwaway
+    # profile before the launch instead of driving the app there through menus.
+    [Alias('SeedConfig')][string]$CliSeedConfig,
+    # Restart-style lanes (an orphan left by a killed shell) need the second
+    # launch to open the same profile the first one left behind.
+    [Alias('ProfilePath')][string]$CliProfilePath
 )
 
 $script:PoliteLoadedAsLibrary = ($MyInvocation.InvocationName -eq '.')
@@ -372,12 +379,39 @@ function New-PoliteProfile {
     $path
 }
 
+# A reused profile is how a lane tests a restart: the first launch leaves state
+# in <profile> and the second must find it. It must still be a throwaway under
+# the Windows temp directory, never the operator's own data directory.
+function Assert-PoliteProfilePath {
+    param([Parameter(Mandatory)][string]$Path)
+    $full = [IO.Path]::GetFullPath($Path)
+    $temp = [IO.Path]::GetFullPath((Get-PoliteWindowsTemp))
+    if (-not $full.StartsWith($temp, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "refusing profile '$full': a polite run only ever uses a directory under $temp"
+    }
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) {
+        throw "no profile directory at $full"
+    }
+    $full
+}
+
+# The seed is written before the app reads its configuration, so a lane reaches
+# a state the first frame cannot have without clicking through the product.
+function Copy-PoliteSeedConfig {
+    param([Parameter(Mandatory)][string]$ProfilePath, [Parameter(Mandatory)][string]$SeedFile)
+    $source = [IO.Path]::GetFullPath($SeedFile)
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "no seed config at $source" }
+    Copy-Item -LiteralPath $source -Destination (Join-Path $ProfilePath 'config.json') -Force
+}
+
 function Start-PoliteInstance {
     param(
         [string]$ExePath,
         [int]$StartupTimeoutSec = 90,
         [int]$SnapshotTimeoutMs = 6000,
-        $ForegroundBaseline
+        $ForegroundBaseline,
+        [string]$SeedConfig,
+        [string]$ProfilePath
     )
     Initialize-PoliteInterop
     $ExePath = Resolve-PoliteExe -ExePath $ExePath
@@ -401,13 +435,24 @@ function Start-PoliteInstance {
         CloseEvidence     = $null
         SnapshotTimeoutMs = $SnapshotTimeoutMs
         EvidenceDir       = $EvidenceDir
+        SeedConfig        = ''
+        ReusedProfile     = $false
     }
 
     try {
         if ($ForegroundBaseline) { $session.ForegroundBefore = $ForegroundBaseline } else { $session.ForegroundBefore = Get-ForegroundWindowInfo }
         Assert-NoRivalInstance -ExePath $ExePath
 
-        $session.Profile = New-PoliteProfile
+        if ($ProfilePath) {
+            $session.Profile = Assert-PoliteProfilePath -Path $ProfilePath
+            $session.ReusedProfile = $true
+        } else {
+            $session.Profile = New-PoliteProfile
+        }
+        if ($SeedConfig) {
+            Copy-PoliteSeedConfig -ProfilePath $session.Profile -SeedFile $SeedConfig
+            $session.SeedConfig = [IO.Path]::GetFullPath($SeedConfig)
+        }
         $saved = @{
             TEMP                     = $env:TEMP
             TMP                      = $env:TMP
@@ -805,7 +850,8 @@ function Close-PoliteInstance {
             $Session.CloseEvidence = $evidence
         }
     } finally {
-        if ($Session -and $Session.Profile -and -not $KeepProfile -and (Test-Path -LiteralPath $Session.Profile)) {
+        $keep = $KeepProfile -or ($Session -and $Session.PSObject.Properties['ReusedProfile'] -and $Session.ReusedProfile)
+        if ($Session -and $Session.Profile -and -not $keep -and (Test-Path -LiteralPath $Session.Profile)) {
             Remove-Item -LiteralPath $Session.Profile -Recurse -Force -ErrorAction SilentlyContinue
         }
         Exit-PoliteHarnessLock
@@ -831,6 +877,12 @@ function Show-PoliteEvidence {
         $lines.Add("os command line  : $($Session.FirstWindowCommandLine)")
     }
     $lines.Add("profile          : $($Session.Profile)")
+    if ($Session.PSObject.Properties['SeedConfig'] -and $Session.SeedConfig) {
+        $lines.Add("profile seed     : $($Session.SeedConfig)")
+    }
+    if ($Session.PSObject.Properties['ReusedProfile'] -and $Session.ReusedProfile) {
+        $lines.Add("profile reused   : yes")
+    }
     $startedText = "$($Session.StartTime)"
     if ($Session.StartTime -is [datetime]) { $startedText = $Session.StartTime.ToString('o') }
     $lines.Add("app pid          : $($Session.Pid) started $startedText")
@@ -907,12 +959,14 @@ function Invoke-PoliteRun {
         [int]$StartupTimeoutSec = 90,
         [int]$SnapshotTimeoutMs = 6000,
         [string]$EvidenceDirectory,
-        [switch]$KeepProfile
+        [switch]$KeepProfile,
+        [string]$SeedConfig,
+        [string]$ProfilePath
     )
     $session = $null
     $failure = $null
     try {
-        $session = Start-PoliteInstance -ExePath $ExePath -StartupTimeoutSec $StartupTimeoutSec -SnapshotTimeoutMs $SnapshotTimeoutMs
+        $session = Start-PoliteInstance -ExePath $ExePath -StartupTimeoutSec $StartupTimeoutSec -SnapshotTimeoutMs $SnapshotTimeoutMs -SeedConfig $SeedConfig -ProfilePath $ProfilePath
         Assert-PoliteSessionShape -Session $session
         $session.EvidenceDir = $EvidenceDirectory
         $actions = 0
@@ -961,7 +1015,8 @@ function Invoke-PoliteRun {
 function Invoke-PoliteRunCli {
     try {
         $session = Invoke-PoliteRun -ExePath $CliExe -OpsPath $CliOps -TargetRef $CliTargetRef -TargetActionName $CliTargetAction `
-            -StartupTimeoutSec $CliStartupTimeoutSec -SnapshotTimeoutMs $CliSnapshotTimeoutMs -EvidenceDirectory $CliEvidenceDir -KeepProfile:$CliKeepProfile
+            -StartupTimeoutSec $CliStartupTimeoutSec -SnapshotTimeoutMs $CliSnapshotTimeoutMs -EvidenceDirectory $CliEvidenceDir -KeepProfile:$CliKeepProfile `
+            -SeedConfig $CliSeedConfig -ProfilePath $CliProfilePath
         $verdict = Test-PoliteSession -Session $session
         if ($verdict.Passed) { Write-Host 'RESULT: PASS'; return 0 }
         Write-Host 'RESULT: FAIL'
