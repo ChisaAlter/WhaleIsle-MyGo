@@ -15,6 +15,7 @@ function Invoke-Checked([string]$Exe, [string[]]$Arguments) {
 }
 
 $repo = (Get-Item -LiteralPath $Worktree).FullName
+if ($repo.Length -gt 3) { $repo = $repo.TrimEnd('\', '/') } # accept a trailing \ or / on -Worktree, keep drive roots intact
 $top = [string](Invoke-Checked 'git' @('-C', $repo, 'rev-parse', '--show-toplevel'))
 if ([IO.Path]::GetFullPath($top) -ine $repo) { throw 'Use the root of a MyGo worktree.' }
 $scripts = Join-Path $repo 'scripts'
@@ -23,7 +24,10 @@ if (-not (Test-Path -LiteralPath $packager -PathType Leaf)) { throw 'This worktr
 
 # Repository-local .git/config is shared by Git linked worktrees, not by unrelated projects.
 $paths = @(& git -C $repo config --local --get-all mygo.sharedRuntimeRoot)
-if ($LASTEXITCODE -ne 0 -or $paths.Count -ne 1 -or -not [IO.Path]::IsPathFullyQualified($paths[0])) { throw 'Set one absolute mygo.sharedRuntimeRoot in the MyGo repository-local Git config.' }
+# IsPathFullyQualified is .NET Core only; on Windows PowerShell 5.1 accept a
+# drive-absolute (C:\…) or UNC (\\server\share…) root and nothing else.
+$rootIsAbsolute = $paths.Count -eq 1 -and ($paths[0] -match '^[A-Za-z]:[\\/]' -or $paths[0] -match '^\\\\[^\\/]+[\\/][^\\/]+')
+if ($LASTEXITCODE -ne 0 -or $paths.Count -ne 1 -or -not $rootIsAbsolute) { throw 'Set one absolute mygo.sharedRuntimeRoot in the MyGo repository-local Git config.' }
 $runtime = (Get-Item -LiteralPath $paths[0]).FullName
 $vendor = Join-Path $runtime 'vendor'
 $node = Join-Path $runtime 'node\node.exe'
