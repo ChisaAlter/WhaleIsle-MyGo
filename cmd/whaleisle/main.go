@@ -2134,9 +2134,11 @@ func main() {
 		applyMinimalMode(cfg.MinimalMode)
 		state.minimalSuggestion = startupsuggest.New()
 
+		endOpenAtLogin := startuptrace.Begin("boot.open_at_login")
 		if err := desktopSystemIntegration(func() error { return mygo.App.SetOpenAtLogin(cfg.OpenAtLogin) }); err != nil {
 			log.Println("openAtLogin:", err)
 		}
+		endOpenAtLogin()
 
 		hidden := isolatedDesktopHidden() || !isolatedDesktopRun() && mygo.App.WasOpenedAtLogin() && cfg.CloseToTray
 		// --background is the only launch that shows the window with
@@ -2145,14 +2147,17 @@ func main() {
 		// skips the desktop system integration (URL scheme, autostart, tray),
 		// so the flag must not be dropped there.
 		background := slices.Contains(os.Args, "--background")
+		endTheme := startuptrace.Begin("boot.theme")
 		th := theme.Resolve(cfg.Theme)
 		bgColor := th.BackgroundColor()
+		endTheme()
 		flatDarkWindow := flatDarkCanvasPreview(cfgStore, cfg, th)
 		if flatDarkWindow {
 			// The desktop must show through the glass, so the window itself stays
 			// transparent (native dark + glassOpacity model).
 			bgColor = "rgba(0,0,0,0)"
 		}
+		endSeed := startuptrace.Begin("boot.state_seed")
 		state.mu.Lock()
 		// A cold launch with automatic start owns its opening even before a
 		// workspace exists: the page then says so and asks for the folder,
@@ -2183,6 +2188,7 @@ func main() {
 		if isolatedDesktopRun() {
 			stateKey = ""
 		}
+		endSeed()
 		winWidth, winHeight, winMinWidth, winMinHeight := mainWindowSize()
 		winOpts := mygo.WindowOptions{
 			Title:     i18n.T(i18n.KeyAppName),
@@ -2216,7 +2222,9 @@ func main() {
 		}
 		// Native content paints the accepted appearance; DirectComposition keeps
 		// the outer silhouette transparent without adding a caption content row.
+		endWindow := startuptrace.Begin("boot.window_new")
 		win := mygo.NewWindow(winOpts)
+		endWindow()
 		// An unasked-for launch may show this window, never take the foreground:
 		// every raising call on it becomes ShowInactive until an action at this
 		// machine asks for it (showMainWindow). The flag lives on the window, so a
