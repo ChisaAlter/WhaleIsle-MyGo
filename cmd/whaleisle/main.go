@@ -3320,9 +3320,9 @@ func mainView(c *ui.Context) {
 	renameDraft := state.renameDraft
 	sessionSearch := state.sessionSearch
 	gitBranch := state.gitBranch
-	gitDirty := state.gitDirty
-	gitRepositoryStatus := state.gitRepositoryStatus
-	gitMsg := state.gitMsg
+	var gitDirty bool
+	var gitRepositoryStatus *desktopgit.RepositoryStatus
+	var gitMsg string
 	gitProgress := state.gitProgress
 	gitBusy := state.gitBusy
 	gitCommitOpen := state.gitCommitOpen
@@ -3335,7 +3335,7 @@ func mainView(c *ui.Context) {
 	}
 	gitCommitGenerating, gitCommitGenErr := state.gitCommitGenerationStateLocked()
 	gitPROpen := state.gitPROpen
-	gitPRReport := state.gitPRReport
+	var gitPRReport desktopgit.PRReport
 	gitPRBusy := state.gitPRBusy
 	fileTabs := state.fileTabs
 	gitWorkbench := state.gitWorkbench
@@ -5849,7 +5849,7 @@ func mainView(c *ui.Context) {
 						Draft:                   &activeDraft.Text,
 						ComposerState:           activeDraft,
 						OnSubmitComposerGesture: func(accelerated bool) {
-							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, editMessageSeq, accelerated, snap.ComposerHostGeneration)
+							state.submitComposer(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, accelerated, snap.ComposerHostGeneration)
 						},
 						OnNativeCommandAction: func(owner composer.NativeCommandOwner, name string) bool {
 							return state.nativeComposerCommandAction(win, sessions, activeDraft, snap.SelectedID, workspaceRoot, owner, name)

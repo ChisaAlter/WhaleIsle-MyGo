@@ -269,7 +269,7 @@ func (d mainAssistantDeps) asstHostDeps() assistantctl.HostDeps {
 			d.s.mu.Lock()
 			draft := d.s.composerDraftLocked(sid)
 			d.s.mu.Unlock()
-			d.s.submitComposer(w, sessions, draft, sid, cwd, 0, false, hostGen)
+			d.s.submitComposer(w, sessions, draft, sid, cwd, false, hostGen)
 		},
 		RevokePhoneGit:        d.s.revokePhoneGit,
 		NotifyUser:            func(win any, text string) { w, _ := win.(*mygo.Window); d.s.notifyUser(w, text) },

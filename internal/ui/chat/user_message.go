@@ -212,10 +212,6 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, colors theme.C
 						tip = messageEditText("busy")
 					} else if !editAllowed {
 						tip = messageEditText("unsupported")
-					} else if false {
-						tip = i18n.T(i18n.KeyChatEditRunning)
-					} else if !editAllowed {
-						tip = i18n.T(i18n.KeyChatEditUnsupported)
 					}
 					button := messageAction(c, messageIconEditOutline, i18n.T(i18n.KeyChatEdit), false, muted).Tooltip(tip).Description(tip)
 					if !editAllowed {

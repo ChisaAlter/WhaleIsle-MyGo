@@ -294,7 +294,7 @@ func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, prog
 		b.lastViewSeq = currentChatViewSeq()
 		b.lastPaint = time.Now()
 		b.mu.Unlock()
-		go runOpenUI(ctx, b, id, program, appearance, invalidate)
+		go runOpenUI(ctx, b, id, appearance, invalidate)
 	}
 	box.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyChatIsolated)).FontSize(12)
@@ -444,7 +444,7 @@ func newOpenUIContext() (context.Context, context.CancelFunc) {
 	return context.WithCancel(context.Background())
 }
 
-func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance string, invalidate func()) {
+func runOpenUI(ctx context.Context, b *openUIBlock, id, appearance string, invalidate func()) {
 	defer invalidate()
 	b.mu.Lock()
 	stop := b.cancel
@@ -486,7 +486,7 @@ func runOpenUI(ctx context.Context, b *openUIBlock, id, program, appearance stri
 	}
 	b.mu.Lock()
 	valid := b.valid
-	program = b.program
+	program := b.program
 	streaming, inline := b.streaming, b.inline
 	parent, revision := b.parent, b.revision
 	language, locale, variables, panel := b.language, b.locale, b.variables, b.panel

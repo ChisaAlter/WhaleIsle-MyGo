@@ -215,7 +215,7 @@ func (c *Center) MaybeAskStartupUpdate(win WindowRef, snapshot ReleaseState, ven
 		return
 	}
 	env := c.env()
-	ownedWin, winKey := c.windowContext(win)
+	ownedWin, _ := c.windowContext(win)
 
 	c.mu.Lock()
 	currentWindow := (ownedWin || (c.releases.ModalTemporary && c.releases.ModalOwner == win)) && !env.Quitting
@@ -234,7 +234,7 @@ func (c *Center) MaybeAskStartupUpdate(win WindowRef, snapshot ReleaseState, ven
 	c.watchAttentionWindow(win)
 	visible, focused := c.bridge.WindowVisibility(win)
 	env = c.env()
-	ownedWin, winKey = c.windowContext(win)
+	ownedWin, winKey := c.windowContext(win)
 
 	c.mu.Lock()
 	c.attention.vendorReady = vendorReady

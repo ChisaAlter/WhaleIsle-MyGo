@@ -150,7 +150,7 @@ func resolve(base, relative string) string {
 }
 func List(ctx context.Context, q Query) Result {
 	page := max(1, q.Page)
-	urls := []string{}
+	var urls []string
 	archive := false
 	switch q.Source.Kind {
 	case "bing":
