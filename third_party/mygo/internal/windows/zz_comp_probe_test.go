@@ -11,18 +11,18 @@ import (
 )
 
 // TestCompositionProbe answers two questions about the DirectComposition
-// device a cold start spends 238-282ms on, and nothing else:
+// device a cold start spends 238-282ms on, and nothing else. Run it from
+// third_party/mygo with MYGO_COMP_PROBE set:
 //
-//	cd third_party/mygo
 //	MYGO_COMP_PROBE=1 go test -count=1 -run TestCompositionProbe -v ./internal/windows
 //
-//  1. Is that time the work of the call, or the price of the first call in a
-//     process? It makes the device several times here, the first cold and the
-//     rest after a pause, which shows both the warm price and the one-time one.
-//  2. Can the device be made on a worker thread and used from another? A
-//     creation that could run beside the boot would have to be, so the probe
-//     makes one there and has this thread check it, commit it, and give it a
-//     composition target for a window.
+// The first question is whether that time is the work of the call or the price
+// of the first call in a process: the probe makes the device several times
+// here, the first cold and the rest after a pause, which shows both the warm
+// price and the one-time one. The second is whether the device can be made on
+// a worker thread and used from another: the probe makes one there, then has
+// this thread check it, commit it, and give it a composition target for a
+// window.
 func TestCompositionProbe(t *testing.T) {
 	if os.Getenv("MYGO_COMP_PROBE") == "" {
 		t.Skip("composition probe not requested: set MYGO_COMP_PROBE=1")
