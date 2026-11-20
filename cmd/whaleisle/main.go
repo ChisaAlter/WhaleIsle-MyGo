@@ -2155,7 +2155,10 @@ func main() {
 		// The color the first frame starts on, for the window to hold while it
 		// has no frame to show yet: the masked canvas the view paints under
 		// everything else, or the window's own background color when that is
-		// opaque.
+		// opaque. A wallpaper or gradient canvas has no single color to hold,
+		// and its average is wrong for most images — a muddy mid-tone that
+		// draws more attention than the system backdrop, which at least reads
+		// as the system rather than as a defect. Those keep the system's.
 		startupColor := bgColor
 		if flatDarkWindow {
 			// The desktop must show through the glass, so the window itself stays
