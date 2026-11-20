@@ -36,6 +36,7 @@ public class MyGoFrameProbe {
  [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr h, ref POINT p);
  [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr h, out RECT r);
  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowW(string c, string t);
+ [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
  [DllImport("user32.dll")] static extern bool SetThreadDpiAwarenessContext(IntPtr c);
  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool EnumDisplaySettingsW(string dev, int mode, ref DEVMODE dm);
  [DllImport("dwmapi.dll")] public static extern int DwmFlush();
@@ -55,6 +56,15 @@ public class MyGoFrameProbe {
  public static void Dpi() { SetThreadDpiAwarenessContext(new IntPtr(-4)); }
  public static IntPtr Surface(IntPtr h) { return FindWindowEx(h, IntPtr.Zero, "MyGoSurface", null); }
  public static string TitleOf(string title) { return FindWindowW(null, title) == IntPtr.Zero ? "" : title; }
+ // WindowOf returns the window with this title that belongs to pid. A hidden
+ // window has no MainWindowHandle until it is shown, so it is found by title
+ // and checked against the process that owns it.
+ public static IntPtr WindowOf(int pid, string title) {
+  var h = FindWindowW(null, title);
+  if (h == IntPtr.Zero) { return IntPtr.Zero; }
+  uint owner; GetWindowThreadProcessId(h, out owner);
+  return owner == (uint)pid ? h : IntPtr.Zero;
+ }
  public static POINT OriginOf(IntPtr h) {
   var s = Surface(h); if (s == IntPtr.Zero) s = h;
   var p = new POINT { X = 0, Y = 0 }; ClientToScreen(s, ref p); return p;
@@ -150,6 +160,8 @@ for ($round = 1; $round -le $Repeat; $round++) {
             Start-Sleep -Milliseconds 100
             $process.Refresh()
             if ($process.MainWindowHandle -ne [IntPtr]::Zero) { $hwnd = $process.MainWindowHandle; break }
+            $found = [MyGoFrameProbe]::WindowOf($process.Id, 'MyGo frame probe fixture')
+            if ($found -ne [IntPtr]::Zero) { $hwnd = $found; break }
         }
         if ($hwnd -eq [IntPtr]::Zero) { Stop-Process -Id $process.Id -Force; throw "no window for $name" }
         [void][MyGoFrameProbe]::ShowWindow($hwnd, 4)

@@ -286,7 +286,12 @@ func runFrameProbeFixture() {
 		}
 	}
 	mygo.App.WhenReady(func() {
-		win = mygo.NewWindow(mygo.WindowOptions{Title: "MyGo frame probe fixture", Width: model.width, Height: model.height, UseContentSize: true, Content: ui.View(model.viewFunc(true)), Frameless: true, BackgroundColor: "#ffffff"})
+		// Hidden, then shown without activation: the default show calls
+		// SetForegroundWindow, which takes the operator's focus away from
+		// whatever they are doing. The probe drives this window with posted
+		// messages only, so it never needs to be the foreground window.
+		win = mygo.NewWindow(mygo.WindowOptions{Title: "MyGo frame probe fixture", Width: model.width, Height: model.height, UseContentSize: true, Content: ui.View(model.viewFunc(true)), Frameless: true, BackgroundColor: "#ffffff", Hidden: true})
+		win.OnReadyToShow(func() { win.ShowInactive() })
 	})
 	if err := mygo.App.Run(); err != nil {
 		panic(err)
