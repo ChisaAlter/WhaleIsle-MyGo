@@ -36,16 +36,16 @@ func TestWorkspaceProductDropUsesVisibleTreeEndAndKeepsActions(t *testing.T) {
 	}, 300, 360)
 	// Source is a root workspace. Crossing its parent's descendant rows must
 	// target the complete parent, never try to reparent Source under Child.
-	src, _ := tt.Find("Source")
+	src, _ := workspaceTitleSeat(tt, "Source")
 	child, _ := tt.Find("Child session")
-	parent, _ := tt.Find("Parent")
-	last, _ := tt.Find("Last")
+	parent, _ := workspaceTitleSeat(tt, "Parent")
+	last, _ := workspaceTitleSeat(tt, "Last")
 	tt.Press(src.X+8, src.Y+src.H/2)
 	tt.Move(src.X+16, src.Y+src.H/2)
 	tt.Move(child.X+5, child.Y+child.H-2)
-	p2, _ := tt.Find("Parent")
+	p2, _ := workspaceTitleSeat(tt, "Parent")
 	ch2, _ := tt.Find("Child session")
-	l2, _ := tt.Find("Last")
+	l2, _ := workspaceTitleSeat(tt, "Last")
 	if parent != p2 || child != ch2 || last != l2 {
 		t.Fatal("product marker consumed vertical space")
 	}
@@ -100,8 +100,8 @@ func TestWorkspaceProductDropUsesVisibleTreeEndAndKeepsActions(t *testing.T) {
 	if tt.HasText("Child") || tt.HasText("Child session") || tt.HasText("Parent session") {
 		t.Fatal("closing parent retained hidden rows")
 	}
-	p3, _ := tt.Find("Parent")
-	l3, _ := tt.Find("Last")
+	p3, _ := workspaceTitleSeat(tt, "Parent")
+	l3, _ := workspaceTitleSeat(tt, "Last")
 	if l3.Y-p3.Y != 38 {
 		t.Fatalf("collapsed product pitch %v", l3.Y-p3.Y)
 	}
