@@ -95,6 +95,7 @@ func TestGhostButtonHasNoFace(t *testing.T) {
 		t.Fatalf("ghost face = %v, want the page %v", got, want)
 	}
 }
+
 // Nothing outside the label paints for a ghost button: no frame, no fill.
 func TestGhostButtonDrawsOnlyItsLabel(t *testing.T) {
 	colors := theme.Resolve(theme.IDDeepseekLight).Light

@@ -16,19 +16,19 @@ func TestSourceSpansGo(t *testing.T) {
 
 func TestLanguageFromPath(t *testing.T) {
 	cases := map[string]string{
-		"main.go":           "go",
-		`C:\src\app.py`:     "python",
-		"lib/index.ts":      "typescript",
-		"a.tsx":             "tsx",
-		"script.js":         "javascript",
-		"README.md":         "markdown",
-		"config.yml":        "yaml",
-		"main.rs":           "rust",
-		"util.hpp":          "cpp",
-		"run.ps1":           "powershell",
-		"data.csv":          "csv",
-		"noext":             "",
-		"UPPER.GO":          "go",
+		"main.go":       "go",
+		`C:\src\app.py`: "python",
+		"lib/index.ts":  "typescript",
+		"a.tsx":         "tsx",
+		"script.js":     "javascript",
+		"README.md":     "markdown",
+		"config.yml":    "yaml",
+		"main.rs":       "rust",
+		"util.hpp":      "cpp",
+		"run.ps1":       "powershell",
+		"data.csv":      "csv",
+		"noext":         "",
+		"UPPER.GO":      "go",
 	}
 	for path, want := range cases {
 		if got := LanguageFromPath(path); got != want {

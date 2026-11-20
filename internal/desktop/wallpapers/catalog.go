@@ -1,7 +1,6 @@
 // Package wallpapers implements the original e9 wallpaper catalog contracts.
 package wallpapers
 
-
 import (
 	"context"
 	"encoding/json"

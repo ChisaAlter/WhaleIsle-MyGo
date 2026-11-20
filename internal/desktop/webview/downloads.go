@@ -16,8 +16,8 @@ import (
 // engine's own default (filepath.Base) keeps characters Windows rejects, so a
 // harness page download could fail or land under a name the OS rewrites.
 const (
-	defaultDownloadName    = "download"
-	maxDownloadNameChars   = 180
+	defaultDownloadName  = "download"
+	maxDownloadNameChars = 180
 )
 
 // windowsDeviceNames are the DOS device names Windows refuses as plain files.

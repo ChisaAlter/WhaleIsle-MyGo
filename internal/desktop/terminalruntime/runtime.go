@@ -2,7 +2,6 @@
 // by the checked-in MyGo binding. It never downloads or loads executable code.
 package terminalruntime
 
-
 import (
 	"crypto/sha256"
 	_ "embed"
