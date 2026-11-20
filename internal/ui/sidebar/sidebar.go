@@ -386,7 +386,7 @@ func View(c *ui.Context, m Model) {
 			if !c.Preferences().ReduceMotion {
 				rail.Transition(ui.ElementTransition{
 					Duration: 150 * time.Millisecond,
-					Ease:     ui.EaseOut,
+					Ease:     ui.EaseInOut,
 					Position: true,
 					Enter:    &ui.Motion{X: 49, Opacity: 0},
 				})
