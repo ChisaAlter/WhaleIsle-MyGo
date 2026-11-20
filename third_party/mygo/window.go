@@ -154,7 +154,10 @@ type WindowOptions struct {
 	// content starts with. Set it to that color, when the content starts on
 	// one flat color, to appear in it. CSS syntax, as BackgroundColor;
 	// BackgroundColor when unset and opaque, which a window with a
-	// transparent background passes by design.
+	// transparent background passes by design. Content that starts on an
+	// image has no such color: leave it unset rather than pass the image's
+	// average, which is a muddy mid-tone for most images and reads worse
+	// than the system's own backdrop.
 	WindowsBackdropColor string
 	// Vibrancy puts a translucent, blurred material behind a transparent
 	// page, or behind native UI where it draws no background (macOS and
