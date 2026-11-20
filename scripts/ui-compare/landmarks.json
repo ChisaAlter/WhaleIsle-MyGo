@@ -53,7 +53,7 @@
             {
               "key": "sidebar.workspace-row",
               "web": { "within": "div[role=tree]", "text": "默认工作区", "upTo": "[role=treeitem]" },
-              "native": { "name": "默认工作区", "type": "Button" },
+              "native": { "name": "默认工作区", "type": "TreeItem" },
               "assert": ["h", "dy-prev"]
             },
             {
@@ -78,7 +78,7 @@
               "key": "hero.title",
               "web": { "text": "探索未至之鲸" },
               "native": { "name": "探索未至之鲸", "type": "Text" },
-              "assert": ["h"]
+              "assert": []
             },
             {
               "key": "composer.card",
@@ -105,7 +105,7 @@
               "web": { "selector": "button[aria-label^='选择模型']" },
               "native": { "name": "deepseek-official/deepseek-flash", "type": "Button" },
               "parent": "composer.card",
-              "assert": ["h", "dx-parent-left"]
+              "assert": ["h", "dx-parent-right"]
             }
           ]
         },

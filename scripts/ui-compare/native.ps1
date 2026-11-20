@@ -4,6 +4,8 @@
   [string]$Name = "",
   [string]$Type = "",
   [int]$Index = 0,
+  [int]$Up = 0,
+  [string]$UpToType = "",
   [int]$Width = 0,
   [int]$Height = 0,
   [string]$Out = "",
@@ -75,6 +77,23 @@ switch ($Command) {
   }
   'find' {
     $els = @(Find-Elements $root $Name $Type)
+    if ($Up -gt 0 -or $UpToType -ne "") {
+      # Map a found element to an ancestor: Up levels of RawView parents, or
+      # until the parent's ControlType matches UpToType (whichever ends first).
+      $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+      $els = @($els | ForEach-Object {
+        $el = $_
+        $n = $Up
+        while ($el -ne $null) {
+          if ($UpToType -ne "" -and $el.Current.ControlType.ProgrammaticName -eq "ControlType.$UpToType") { break }
+          $p = $walker.GetParent($el)
+          if ($null -eq $p) { $el = $null; break }
+          $el = $p
+          if ($UpToType -eq "") { $n--; if ($n -le 0) { break } }
+        }
+        if ($el -ne $null) { $el }
+      } | Where-Object { $null -ne $_ })
+    }
     $res = @()
     foreach ($el in $els) {
       $pats = @()

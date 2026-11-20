@@ -52,7 +52,12 @@ function ps1(command, extra = []) {
   if (r.status !== 0) throw new Error(`native.ps1 ${command}: ${r.stderr || r.stdout}`);
   return JSON.parse(r.stdout.replace(/^﻿/, ''));
 }
-const find = (name, type, index = 0) => ps1('find', ['-Name', name, '-Type', type, '-Index', String(index)]);
+const find = (name, type, index = 0, spec = {}) => {
+  const extra = ['-Name', name, '-Type', type, '-Index', String(index)];
+  if (spec.up) extra.push('-Up', String(spec.up));
+  if (spec.upToType) extra.push('-UpToType', spec.upToType);
+  return ps1('find', extra);
+};
 const act = (cmd, spec) => ps1(cmd, ['-Name', spec.name, '-Type', spec.type || '', '-Index', String(spec.index || 0)]);
 
 let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0;
@@ -209,12 +214,12 @@ try {
   const webPresent = (spec) => evalJs(webFinder(spec, 'return true'));
   const webMetric = (spec) => evalJs(webFinder(spec, `const r=e.getBoundingClientRect();const cs=getComputedStyle(e);return {x:+r.x.toFixed(2),y:+r.y.toFixed(2),w:+r.width.toFixed(2),h:+r.height.toFixed(2),padding:cs.padding,radius:cs.borderRadius,fontSize:cs.fontSize,lineHeight:cs.lineHeight,fontWeight:cs.fontWeight}`));
   const nativeRect = (spec) => {
-    const f = find(spec.name, spec.type || '', spec.index || 0);
+    const f = find(spec.name, spec.type || '', spec.index || 0, spec);
     if (f.count <= (spec.index || 0)) return null;
     const r = f.hits[spec.index || 0].rect;
     return { x: +((r.x - client.clientX) / scale).toFixed(2), y: +((r.y - client.clientY) / scale).toFixed(2), w: +(r.w / scale).toFixed(2), h: +(r.h / scale).toFixed(2) };
   };
-  const nativePresent = (spec) => find(spec.name, spec.type || '', spec.index || 0).count > (spec.index || 0);
+  const nativePresent = (spec) => find(spec.name, spec.type || '', spec.index || 0, spec).count > (spec.index || 0);
 
   const report = { run: runId, scale, scenarios: [] };
 
@@ -310,6 +315,8 @@ try {
               if (prev) d = +((nat.y - (prev.native.y + prev.native.h)) - (web.y - (prev.web.y + prev.web.h))).toFixed(2);
             } else if (f === 'dx-parent-left') {
               if (parent && parent.web && parent.native) d = +((nat.x - parent.native.x) - (web.x - parent.web.x)).toFixed(2);
+            } else if (f === 'dx-parent-right') {
+              if (parent && parent.web && parent.native) d = +(((parent.native.x + parent.native.w) - (nat.x + nat.w)) - ((parent.web.x + parent.web.w) - (web.x + web.w))).toFixed(2);
             } else {
               d = +(nat[f] - web[f]).toFixed(2);
             }
