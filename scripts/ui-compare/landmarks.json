@@ -3023,7 +3023,7 @@
         "selector": "[data-approval-key] [class*=_strip]"
        },
        "native": {
-        "name": "等待审批"
+        "name": "Approval strip"
        },
        "assert": [
         "x",
@@ -3101,7 +3101,7 @@
         "upTo": "button"
        },
        "native": {
-        "name": "允许",
+        "name": "允许一次",
         "type": "Button"
        },
        "assert": [
@@ -3314,8 +3314,9 @@
         "upTo": "button"
        },
        "native": {
-        "name": "下一步",
-        "type": "Button"
+        "name": "下一题",
+        "type": "Button",
+        "index": 1
        },
        "assert": [
         "x",
