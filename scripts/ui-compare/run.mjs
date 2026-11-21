@@ -14,11 +14,12 @@ import { join } from 'node:path';
 import http from 'node:http';
 
 const REPO = process.cwd();
+const TOOL_DIR = new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const RUNTIME = join(REPO, 'runtime-rc4');
 const NODE = join(RUNTIME, 'node', 'node.exe');
 const HOST_BIN = join(RUNTIME, 'vendor', 'deepseek-harness', 'apps', 'cli', 'lib', 'bin.js');
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const PS = join(REPO, 'scripts', 'ui-compare', 'native.ps1');
+const PS = join(TOOL_DIR, 'native.ps1');
 const VIEW = { w: 1280, h: 800 };
 const WAIT_MS = 5000;
 // One workspace directory, same display name on both sides: the web client
@@ -30,7 +31,7 @@ const args = process.argv.slice(2);
 const arg = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 const surface = arg('surface', 'workbench');
 const keepOpen = args.includes('--keep-open');
-const landmarksPath = arg('landmarks', join(REPO, 'scripts', 'ui-compare', 'landmarks.json'));
+const landmarksPath = arg('landmarks', join(TOOL_DIR, 'landmarks.json'));
 
 const runId = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const tmp = join(process.env.LOCALAPPDATA, 'Temp', 'wi-ui-compare-' + runId);
@@ -102,9 +103,9 @@ try {
   const nativeHome = join(tmp, 'data', 'dsh-home');
   const host2Home = join(tmp, 'host2-home');
   if (surfaceSpec.fixture) {
-    const fx = join(REPO, 'scripts', 'ui-compare', surfaceSpec.fixture);
+    const fx = join(TOOL_DIR, surfaceSpec.fixture);
     for (const home of [host2Home, nativeHome]) {
-      const s = spawnSync(NODE, [join(REPO, 'scripts', 'ui-compare', 'seed-chat.mjs'),
+      const s = spawnSync(NODE, [join(TOOL_DIR, 'seed-chat.mjs'),
         join(RUNTIME, 'vendor', 'deepseek-harness'), home, wsDir, fx], { encoding: 'utf8' });
       if (s.status !== 0) throw new Error(`seed-chat ${home}: ${(s.stderr || s.stdout || '').slice(0, 400)}`);
       console.log('[seed]', (s.stdout || '').trim());

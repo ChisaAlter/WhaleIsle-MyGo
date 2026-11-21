@@ -365,6 +365,21 @@
               ]
             },
             {
+              "key": "chat.scroll",
+              "web": {
+                "selector": "[data-conversation-scroll]"
+              },
+              "native": {
+                "type": "List"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
               "key": "chat.user-bubble",
               "web": {
                 "selector": "[data-dsh-message-bubble]"
@@ -515,14 +530,32 @@
               "key": "chat.code-card",
               "web": {
                 "within": "[data-conversation-scroll]",
-                "selector": "pre"
+                "selector": "[class*=md-code-block]"
               },
               "native": {
-                "namePrefix": "const surface",
-                "type": "Text"
+                "name": "Code block",
+                "type": "Group"
               },
               "assert": [
+                "w",
+                "h",
                 "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.code-toolbar",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "[data-code-block-banner]"
+              },
+              "native": {
+                "name": "Code block banner",
+                "type": "Group"
+              },
+              "parent": "chat.code-card",
+              "assert": [
+                "h",
+                "dx-parent-left"
               ]
             },
             {
@@ -566,6 +599,11 @@
                 "click": {
                   "selector": "button[data-process-activity=\"thinking\"]"
                 }
+              },
+              {
+                "click": {
+                  "selector": "[data-chat-group-part=\"reasoning\"] [data-disclosure-row]"
+                }
               }
             ]
           },
@@ -601,16 +639,30 @@
               ]
             },
             {
+              "key": "chat.thinking-member",
+              "web": {
+                "within": "[data-step-process-body]",
+                "selector": "[data-chat-group-part=\"reasoning\"] [data-disclosure-row]"
+              },
+              "native": {
+                "namePrefix": "思考",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
               "key": "chat.thinking-body",
               "web": {
                 "within": "[data-conversation-scroll]",
-                "selector": "[data-step-process-body] p, [data-step-process-body] div",
+                "selector": "[data-step-process-body] [data-chat-group-part=\"reasoning\"] p",
                 "index": 0
               },
               "native": {
                 "namePrefix": "推理过程备忘",
-                "type": "Text",
-                "index": 1
+                "type": "Text"
               },
               "assert": [
                 "h",
