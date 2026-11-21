@@ -46,13 +46,23 @@ type ButtonSpec struct {
 	Leading func(*ui.Context)
 }
 
+// buttonRadius is the corner of spec's size from the frame's radius tokens:
+// --dsw-radius-md at md, --dsw-radius-sm at sm (Button.module.css).
+func buttonRadius(c *ui.Context, size ButtonSize) float32 {
+	if size == ButtonSmall {
+		return theme.ContextRadii(c).SM
+	}
+	return theme.ContextRadii(c).MD
+}
+
 // Button creates the shell's standard button. It uses ButtonBase so the look is
 // the harness recipe instead of MyGo's theme face: md 36 DIP, 14px/22 text,
 // radius 12, 0 14 padding; sm 28 DIP, 12px/18, radius 8, 0 10 padding.
 func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) ui.Element {
-	height, padX, radius, fontSize, lineHeight := float32(36), float32(14), float32(12), float32(14), float32(22)
+	height, padX, fontSize, lineHeight := float32(36), float32(14), float32(14), float32(22)
+	radius := buttonRadius(c, spec.Size)
 	if spec.Size == ButtonSmall {
-		height, padX, radius, fontSize, lineHeight = 28, 10, 8, 12, 18
+		height, padX, fontSize, lineHeight = 28, 10, 12, 18
 	}
 	base, hover, pressed := ui.Transparent, theme.Color(colors.Hover), theme.Color(colors.Pressed)
 	fg := theme.Color(colors.FG)
