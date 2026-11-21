@@ -48,7 +48,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 				state = widgets.StateRunning
 			}
 			widgets.StateDot(c, state)
-			ui.Text(c, planpreview.Text("计划待审", "Plan review")).FontSize(14).FixedLineHeight(20).TextColor(c.Theme().Warning).Grow(1)
+			ui.Text(c, planpreview.Text("计划待审", "Plan review")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).TextColor(c.Theme().Warning).Grow(1)
 			if card.PlanReviewHidden {
 				if widgets.Button(c, colors, planpreview.Text("返回审批", "Return to review"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					store.ReopenPlanReview(pending.EventID)
@@ -66,7 +66,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 				}
 				link.Children(func() {
 					ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, planpreview.Text("查看全文", "View full plan")).FontSize(14).FixedLineHeight(20).TextColor(ink)
+						ui.Text(c, planpreview.Text("查看全文", "View full plan")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).TextColor(ink)
 						ui.Icon(c, planReviewChevron).Size(14, 14).TextColor(ink).Role(ui.RoleNone)
 					})
 				})
