@@ -181,7 +181,7 @@ func TestScheduleCatalogDetailGeometryAndLazyRecords(t *testing.T) {
 	p, m := f.panel()
 	tt := ui.NewTester(func(c *ui.Context) { p.View(c, m) }, 1280, 720)
 	content, ok := tt.Find("Task catalog content")
-	if !ok || content.W != 960 || content.X != 160 || content.Y != 0 {
+	if !ok || content.W != 1056 || content.X != 112 || content.Y != 0 {
 		t.Fatalf("catalog frame: %+v %v", content, ok)
 	}
 	saveScheduleSnapshot(t, tt, "catalog")

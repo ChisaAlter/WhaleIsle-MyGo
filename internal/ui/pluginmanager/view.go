@@ -186,7 +186,7 @@ func artwork(c *ui.Context, ink, border ui.Color, owner *svgimage.Owner, source 
 	artworkSized(c, ink, border, 48, 36, owner, source...)
 }
 func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owner *svgimage.Owner, source ...string) {
-	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(10)
+	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(16)
 	shown := false
 	if len(source) > 0 && source[0] != "" {
 		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, source[0], size, size, owner) })
@@ -274,19 +274,30 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 	}
 	anchor.Children(func() {
 		if len(basic) > 0 {
-			ui.Column(c).FillWidth().Gap(10).Children(func() {
+			// PluginManagerPage.module.css: .group gap 8, .cards gap 2, .card
+			// margin 0 -8px radius xl — the whole card is the .cardOpen click
+			// target and its hover surface reaches 8px past the content.
+			ui.Column(c).FillWidth().Gap(8).Children(func() {
 				groupTitle(c, copyText("内置插件配置", "Built-in plugin settings"), muted)
-				for _, item := range basic {
-					ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
-						artwork(c, muted, border, m.SVGImages, itemArtwork(item.Key))
-						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-							if ui.Button(c, item.Title).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
-								a.OpenItem(item.Key)
-							}
-							ui.Text(c, item.Summary).FillWidth().MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
+				ui.Column(c).FillWidth().Gap(2).Children(func() {
+					for _, item := range basic {
+						card := ui.Button(c.Key("plugin-item-"+item.Key), "").Label("Plugin item "+item.Title).FillWidth().MinWidth(0).Gap(14).Padding(8).Margin(0, -8).Radius(20).
+							BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Start).Cursor(ui.CursorPointer)
+						if card.Hovered() {
+							card = card.Background(c.Theme().SurfaceHover)
+						}
+						if card.Clicked() {
+							a.OpenItem(item.Key)
+						}
+						card.Children(func() {
+							artwork(c, muted, border, m.SVGImages, itemArtwork(item.Key))
+							ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+								ui.Text(c, item.Title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
+								ui.Text(c, item.Summary).FillWidth().MaxLines(1).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+							})
 						})
-					})
-				}
+					}
+				})
 			})
 		}
 		if len(official) > 0 || offersMore {
@@ -326,7 +337,7 @@ func groupCount(label string, count int) string {
 }
 
 func groupTitle(c *ui.Context, title string, ink ui.Color) {
-	ui.Text(c, title).Role(ui.RoleHeading).Level(3).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(ink)
+	ui.Text(c, title).Role(ui.RoleHeading).Level(3).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(500).TextColor(ink)
 }
 
 func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
