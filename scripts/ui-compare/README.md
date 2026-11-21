@@ -135,3 +135,30 @@ differences and are simply not mapped as landmarks.
 - Only processes the run started are stopped (tracked PIDs plus a
   command-line sweep for the run id); the temp root is removed unless
   `--keep-open`, which prints how to stop them.
+
+## rest surface (plugins / schedules / agents / trajectory)
+
+`rest` seeds the files workspace + chat fixture, then exercises the shared
+main-panel and right-pane surfaces. Recorded classifications:
+
+- **(b) plugins tabs** — native shows 已安装/发现 tab strip; the web plugin
+  page has no tab control (the string is absent from the DOM), so
+  `plugins.group-title`/`plugins.card-1` sit ~+85 DIP lower natively.
+- **(b) plugins add cluster** — native header carries 选择添加方式 + 返回
+  buttons the web page lacks (`plugins.add` x −66.66); h +4 is the web's
+  page-specific 32px control vs the shared 36 DIP medium button.
+- **(a, recorded) plugins.card-1** — web renders `li[data-plugin-item]` as a
+  65.33 DIP card (title+description+meta); native built-in rows are compact
+  18.67 DIP single-line buttons. Structural rework deferred to a follow-up.
+- **(b) agents pane** — y −71.67/h +71.67 is the merged-caption dock offset;
+  native pane also carries 智能体团队 + Agent 预设管理 sections above the
+  shared empty state (`agents.empty-title` y +69). x/w match.
+- **(b) trajectory** — native ledger is shorter because the conversation
+  body reserves the composer dock; native adds hint/time-range rows above
+  the ledger (`traj.ledger` y +80, h −249). Ledger x/w match.
+- **(c) label widths** — native semantic labels fill their row, so Text
+  landmark `w`/`x` deltas on title/desc/empty rows are rect-shape
+  artifacts; asserts keep x/y/h only where meaningful.
+- **(a, recorded) sched.new** — the web 新建 button measures 32px (page
+  control, between the shared _sm 28/_md 36 sizes); native keeps the
+  shared small token. h −4, x offset derives from right-edge anchoring.

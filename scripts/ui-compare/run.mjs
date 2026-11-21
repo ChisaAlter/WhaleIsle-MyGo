@@ -21,7 +21,7 @@ const HOST_BIN = join(RUNTIME, 'vendor', 'deepseek-harness', 'apps', 'cli', 'lib
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PS = join(TOOL_DIR, 'native.ps1');
 const VIEW = { w: 1280, h: 800 };
-const WAIT_MS = 5000;
+const WAIT_MS = 10000;
 // One workspace directory, same display name on both sides: the web client
 // labels its cwd workspace "默认工作区" and the native sidebar shows the
 // configured directory's basename.
@@ -372,7 +372,7 @@ try {
         if (scError) break;
       }
       for (const s of (sc.native?.steps || [])) {
-        const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : null;
+        const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : s.select ? 'select' : null;
         // Poll for the step target the way expects do: first-run dialogs and
         // lazy lists can cost the target a few frames.
         if (cmd && !(await nativeExpect(s[cmd]))) scError = `native step ${cmd} ${s[cmd].name}: target absent`;

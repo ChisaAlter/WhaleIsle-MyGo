@@ -1717,49 +1717,106 @@
           "web": {
             "steps": [
               {
-                "click": { "selector": "[data-item-path='src/app.ts']" },
-                "expect": { "selector": "[data-file-preview]" }
+                "click": {
+                  "selector": "[data-item-path='src/app.ts']"
+                },
+                "expect": {
+                  "selector": "[data-file-preview]"
+                }
               }
             ]
           },
           "native": {
             "steps": [
               {
-                "invoke": { "name": "File src/app.ts" },
-                "expect": { "name": "File preview toolbar" }
+                "invoke": {
+                  "name": "File src/app.ts"
+                },
+                "expect": {
+                  "name": "File preview toolbar"
+                }
               }
             ]
           },
           "landmarks": [
             {
               "key": "preview.panel",
-              "web": { "selector": "[data-file-preview]" },
-              "native": { "name": "文件预览" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "selector": "[data-file-preview]"
+              },
+              "native": {
+                "name": "文件预览"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             },
             {
               "key": "preview.toolbar",
-              "web": { "within": "[data-file-preview]", "selector": "[class*=toolbar]" },
-              "native": { "name": "File preview toolbar" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "within": "[data-file-preview]",
+                "selector": "[class*=toolbar]"
+              },
+              "native": {
+                "name": "File preview toolbar"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             },
             {
               "key": "preview.crumbs",
-              "web": { "selector": "[data-file-breadcrumbs]" },
-              "native": { "name": "File breadcrumbs" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "selector": "[data-file-breadcrumbs]"
+              },
+              "native": {
+                "name": "File breadcrumbs"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             },
             {
               "key": "preview.body",
-              "web": { "within": "[data-file-preview]", "selector": "textarea" },
-              "native": { "name": "文件内容", "type": "Edit" },
-              "assert": ["x", "y", "w", "h", "dy-prev"]
+              "web": {
+                "within": "[data-file-preview]",
+                "selector": "textarea"
+              },
+              "native": {
+                "name": "文件内容",
+                "type": "Edit"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "preview.tab",
-              "web": { "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']" },
-              "native": { "name": "app.ts", "type": "Button" },
-              "assert": ["x", "y", "h"]
+              "web": {
+                "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
+              },
+              "native": {
+                "name": "app.ts",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h"
+              ]
             }
           ]
         },
@@ -1770,59 +1827,130 @@
           "web": {
             "steps": [
               {
-                "click": { "selector": "[data-dockkit-tab-title]", "index": 0, "upTo": "[role=tab]" },
-                "expect": { "selector": "[data-file-tree]" }
+                "click": {
+                  "selector": "[data-dockkit-tab-title]",
+                  "index": 0,
+                  "upTo": "[role=tab]"
+                },
+                "expect": {
+                  "selector": "[data-file-tree]"
+                }
               },
               {
-                "click": { "selector": "[data-item-path='README.md']" },
-                "expect": { "selector": "[data-file-preview]" }
+                "click": {
+                  "selector": "[data-item-path='README.md']"
+                },
+                "expect": {
+                  "selector": "[data-file-preview]"
+                }
               },
               {
-                "click": { "within": "[data-file-preview]", "text": ["渲染", "Rendered"] },
-                "expect": { "selector": "[data-file-preview] h1, [data-file-preview] h2, [data-file-preview] h3" }
+                "click": {
+                  "within": "[data-file-preview]",
+                  "text": [
+                    "渲染",
+                    "Rendered"
+                  ]
+                },
+                "expect": {
+                  "selector": "[data-file-preview] h1, [data-file-preview] h2, [data-file-preview] h3"
+                }
               }
             ]
           },
           "native": {
             "steps": [
               {
-                "invoke": { "name": "文件", "type": "Button" },
-                "expect": { "name": "File README.md" }
+                "invoke": {
+                  "name": "文件",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "File README.md"
+                }
               },
               {
-                "invoke": { "name": "File README.md" },
-                "expect": { "name": "File preview toolbar" }
+                "invoke": {
+                  "name": "File README.md"
+                },
+                "expect": {
+                  "name": "File preview toolbar"
+                }
               },
               {
-                "invoke": { "name": "渲染" },
-                "expect": { "namePrefix": "Fixture Notes", "type": "Text" }
+                "invoke": {
+                  "name": "渲染"
+                },
+                "expect": {
+                  "namePrefix": "Fixture Notes",
+                  "type": "Text"
+                }
               }
             ]
           },
           "landmarks": [
             {
               "key": "md.flow",
-              "web": { "within": "[data-file-preview]", "selector": "[class*=markdown]" },
-              "native": { "name": "Markdown 内容" },
-              "assert": ["x", "y", "w"]
+              "web": {
+                "within": "[data-file-preview]",
+                "selector": "[class*=markdown]"
+              },
+              "native": {
+                "name": "Markdown 内容"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w"
+              ]
             },
             {
               "key": "md.prose",
-              "web": { "within": "[data-file-preview]", "selector": "h1" },
-              "native": { "type": "Text", "namePrefix": "Fixture Notes" },
-              "assert": ["x", "y"]
+              "web": {
+                "within": "[data-file-preview]",
+                "selector": "h1"
+              },
+              "native": {
+                "type": "Text",
+                "namePrefix": "Fixture Notes"
+              },
+              "assert": [
+                "x",
+                "y"
+              ]
             },
             {
               "key": "md.code-card",
-              "web": { "within": "[data-file-preview]", "selector": "[class*=md-code-block]" },
-              "native": { "name": "Code block" },
-              "assert": ["x", "y", "w", "h", "dy-prev"]
+              "web": {
+                "within": "[data-file-preview]",
+                "selector": "[class*=md-code-block]"
+              },
+              "native": {
+                "name": "Code block"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "md.code-banner",
-              "web": { "selector": "[data-code-block-banner]" },
-              "native": { "name": "Code block banner" },
-              "assert": ["x", "y", "w", "h", "dy-prev"]
+              "web": {
+                "selector": "[data-code-block-banner]"
+              },
+              "native": {
+                "name": "Code block banner"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
             }
           ]
         },
@@ -1833,73 +1961,157 @@
           "web": {
             "steps": [
               {
-                "click": { "selector": "[data-dockkit-add-tab]" },
-                "expect": { "selector": "[data-sidebar-right-guide-entry='diff']" }
+                "click": {
+                  "selector": "[data-dockkit-add-tab]"
+                },
+                "expect": {
+                  "selector": "[data-sidebar-right-guide-entry='diff']"
+                }
               },
               {
-                "click": { "selector": "[data-sidebar-right-guide-entry='diff']" },
-                "expect": { "selector": "[data-diff-panel]" }
+                "click": {
+                  "selector": "[data-sidebar-right-guide-entry='diff']"
+                },
+                "expect": {
+                  "selector": "[data-diff-panel]"
+                }
               },
               {
-                "click": { "within": "[data-diff-panel]", "text": "全部展开" },
-                "expect": { "selector": "[data-diff-line]" }
+                "click": {
+                  "within": "[data-diff-panel]",
+                  "text": "全部展开"
+                },
+                "expect": {
+                  "selector": "[data-diff-line]"
+                }
               }
             ]
           },
           "native": {
             "steps": [
               {
-                "invoke": { "name": "新标签页", "type": "Button" },
-                "expect": { "name": "Diff", "type": "Button" }
+                "invoke": {
+                  "name": "新标签页",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Diff",
+                  "type": "Button"
+                }
               },
               {
-                "invoke": { "name": "Diff", "type": "Button" },
-                "expect": { "name": "工作区差异" }
+                "invoke": {
+                  "name": "Diff",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "工作区差异"
+                }
               }
             ]
           },
           "landmarks": [
             {
               "key": "diff.panel",
-              "web": { "selector": "[data-diff-panel]" },
-              "native": { "name": "工作区差异" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "selector": "[data-diff-panel]"
+              },
+              "native": {
+                "name": "工作区差异"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             },
             {
               "key": "diff.file-header",
-              "web": { "within": "[data-diff-panel]", "selector": "[data-disclosure-row]", "index": 0 },
-              "native": { "name": "Diff file src/app.ts" },
-              "assert": ["y", "h"]
+              "web": {
+                "within": "[data-diff-panel]",
+                "selector": "[data-disclosure-row]",
+                "index": 0
+              },
+              "native": {
+                "name": "Diff file src/app.ts"
+              },
+              "assert": [
+                "y",
+                "h"
+              ]
             },
             {
               "key": "diff.hunk-header",
-              "web": { "selector": "[data-diff-hunk-header]" },
-              "native": { "name": "Diff hunk header" },
-              "assert": ["y", "h", "dy-prev"]
+              "web": {
+                "selector": "[data-diff-hunk-header]"
+              },
+              "native": {
+                "name": "Diff hunk header"
+              },
+              "assert": [
+                "y",
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "diff.line-del",
-              "web": { "selector": "[data-diff-line='del']", "index": 0 },
-              "native": { "name": "Diff line del" },
-              "assert": ["y", "h", "dy-prev"]
+              "web": {
+                "selector": "[data-diff-line='del']",
+                "index": 0
+              },
+              "native": {
+                "name": "Diff line del"
+              },
+              "assert": [
+                "y",
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "diff.line-add",
-              "web": { "selector": "[data-diff-line='add']", "index": 0 },
-              "native": { "name": "Diff line add" },
-              "assert": ["y", "h", "dy-prev"]
+              "web": {
+                "selector": "[data-diff-line='add']",
+                "index": 0
+              },
+              "native": {
+                "name": "Diff line add"
+              },
+              "assert": [
+                "y",
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "diff.line-context",
-              "web": { "selector": "[data-diff-line='context']", "index": 0 },
-              "native": { "name": "Diff line context" },
-              "assert": ["y", "h", "dy-prev"]
+              "web": {
+                "selector": "[data-diff-line='context']",
+                "index": 0
+              },
+              "native": {
+                "name": "Diff line context"
+              },
+              "assert": [
+                "y",
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "diff.gutter",
-              "web": { "selector": "[data-diff-line] [class*=num],[data-diff-line] [class*=gutter]", "index": 0 },
-              "native": { "namePrefix": "Diff gutter" },
-              "assert": ["w"]
+              "web": {
+                "selector": "[data-diff-line] [class*=num],[data-diff-line] [class*=gutter]",
+                "index": 0
+              },
+              "native": {
+                "namePrefix": "Diff gutter"
+              },
+              "assert": [
+                "w"
+              ]
             }
           ]
         },
@@ -1910,43 +2122,798 @@
           "web": {
             "steps": [
               {
-                "click": { "selector": "[data-dockkit-add-tab]" },
-                "expect": { "selector": "[data-sidebar-right-guide-entry='terminal']" }
+                "click": {
+                  "selector": "[data-dockkit-add-tab]"
+                },
+                "expect": {
+                  "selector": "[data-sidebar-right-guide-entry='terminal']"
+                }
               },
               {
-                "click": { "selector": "[data-sidebar-right-guide-entry='terminal']" },
-                "expect": { "selector": "[data-sidebar-terminal]" }
+                "click": {
+                  "selector": "[data-sidebar-right-guide-entry='terminal']"
+                },
+                "expect": {
+                  "selector": "[data-sidebar-terminal]"
+                }
               }
             ]
           },
           "native": {
             "steps": [
               {
-                "invoke": { "name": "新标签页", "type": "Button" },
-                "expect": { "namePrefix": "Host", "type": "Button" }
+                "invoke": {
+                  "name": "新标签页",
+                  "type": "Button"
+                },
+                "expect": {
+                  "namePrefix": "Host",
+                  "type": "Button"
+                }
               },
               {
-                "invoke": { "namePrefix": "Host", "type": "Button" },
-                "expect": { "name": "Terminal", "type": "Group" }
+                "invoke": {
+                  "namePrefix": "Host",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Terminal",
+                  "type": "Group"
+                }
               }
             ]
           },
           "landmarks": [
             {
               "key": "terminal.panel",
-              "web": { "selector": "[data-sidebar-terminal]" },
-              "native": { "name": "Terminal", "type": "Group" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "selector": "[data-sidebar-terminal]"
+              },
+              "native": {
+                "name": "Terminal",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             },
             {
               "key": "terminal.tab",
-              "web": { "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']" },
-              "native": { "name": "cmd.exe", "type": "Button" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
+              },
+              "native": {
+                "name": "cmd.exe",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             }
           ]
         }
       ],
+      "fixture": "fixtures/chat-basic.json",
+      "webShell": true
+    },
+    "rest": {
+      "scenarios": [
+        {
+          "id": "rest-guide",
+          "domDump": "body",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "within": "div[role=tree]",
+                  "text": [
+                    "奇偶校验基准会话",
+                    "未命名"
+                  ],
+                  "upTo": "[role=treeitem]"
+                },
+                "expect": {
+                  "selector": "button[aria-label='打开右侧边栏'],button[aria-label='收起右侧边栏']"
+                }
+              },
+              {
+                "click": {
+                  "selector": "button[aria-label='打开右侧边栏']"
+                },
+                "expect": {
+                  "selector": "[data-sidebar-right-panel]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "奇偶校验基准会话",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "切换右侧栏",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "切换右侧栏",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "文件",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "rest.boot",
+              "probe": true,
+              "web": {
+                "selector": "button[class*=_brand]"
+              },
+              "native": {
+                "name": "鲸屿 MyGo",
+                "type": "Button"
+              }
+            }
+          ]
+        },
+        {
+          "id": "rest-plugins",
+          "domDump": "body",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-dsh-panel=plugins]"
+                },
+                "expect": {
+                  "selector": "[data-plugin-panel]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "invoke": {
+                  "name": "插件",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "添加插件",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "plugins.title",
+              "web": {
+                "within": "[data-plugin-panel] header",
+                "text": "插件"
+              },
+              "native": {
+                "name": "插件",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h"
+              ]
+            },
+            {
+              "key": "plugins.desc",
+              "web": {
+                "within": "[data-plugin-panel]",
+                "text": "安装、启用和配置插件"
+              },
+              "native": {
+                "name": "安装、启用和配置插件",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.add",
+              "web": {
+                "within": "[data-plugin-panel] header",
+                "text": "添加插件",
+                "upTo": "button"
+              },
+              "native": {
+                "name": "添加插件",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "plugins.group-title",
+              "web": {
+                "within": "[data-plugin-group='basic']",
+                "text": "内置插件配置"
+              },
+              "native": {
+                "name": "内置插件配置",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.card-1",
+              "web": {
+                "selector": "[data-plugin-item='subagent']"
+              },
+              "native": {
+                "name": "子代理",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rest-schedules",
+          "domDump": "body",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-dsh-panel=schedules]"
+                },
+                "expect": {
+                  "selector": "[data-testid=task-manager-page]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "invoke": {
+                  "name": "自动化任务",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "新建",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "sched.page",
+              "web": {
+                "selector": "[data-testid='task-manager-page']"
+              },
+              "native": {
+                "name": "Automation tasks page"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "sched.title",
+              "web": {
+                "within": "[data-testid='task-manager-page']",
+                "text": "自动化任务"
+              },
+              "native": {
+                "name": "自动化任务",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h"
+              ]
+            },
+            {
+              "key": "sched.new",
+              "web": {
+                "within": "[data-testid='task-manager-page']",
+                "text": "新建",
+                "upTo": "button"
+              },
+              "native": {
+                "name": "新建",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h"
+              ]
+            },
+            {
+              "key": "sched.filter-all",
+              "web": {
+                "within": "[data-testid='task-manager-page']",
+                "text": "全部",
+                "upTo": "button"
+              },
+              "native": {
+                "name": "全部",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "sched.search",
+              "web": {
+                "within": "[data-testid='task-manager-page']",
+                "selector": "input"
+              },
+              "native": {
+                "name": "Search tasks",
+                "type": "Edit"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "sched.empty",
+              "web": {
+                "within": "[data-testid='task-manager-page']",
+                "text": "还没有自动化任务，在会话中创建的任务会显示在这里"
+              },
+              "native": {
+                "namePrefix": "还没有自动化任务",
+                "type": "Text"
+              },
+              "assert": [
+                "y",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "sched.empty-action",
+              "web": {
+                "within": "[data-testid='task-manager-page']",
+                "text": "新建自动化任务",
+                "upTo": "button"
+              },
+              "native": {
+                "name": "新建自动化任务",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rest-agents",
+          "domDump": "body",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              },
+              {
+                "dismiss": [
+                  {
+                    "selector": "button[aria-label='打开右侧边栏']"
+                  }
+                ],
+                "gone": "button[aria-label='打开右侧边栏']",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "within": "div[role=tree]",
+                  "text": [
+                    "奇偶校验基准会话",
+                    "未命名"
+                  ],
+                  "upTo": "[role=treeitem]"
+                },
+                "expect": {
+                  "selector": "[role=tab]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-sidebar-right-guide-entry='agents']"
+                },
+                "expect": {
+                  "selector": "[data-sidebar-right-panel] [role=status],[data-sidebar-right-panel] ul,[data-sidebar-right-panel] section"
+                }
+              }
+            ]
+          },
+          "native": {
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              },
+              {
+                "dismiss": {
+                  "name": "展开右侧栏",
+                  "type": "Button"
+                },
+                "gone": {
+                  "name": "展开右侧栏",
+                  "type": "Button"
+                },
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "奇偶校验基准会话",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "切换右侧栏",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "智能体",
+                  "type": "Button"
+                },
+                "expect": {
+                  "namePrefix": "还没有子代理",
+                  "type": "Text"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "agents.pane",
+              "web": {
+                "selector": "[data-agents-panel]"
+              },
+              "native": {
+                "name": "Workspace resource dock"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "agents.empty-title",
+              "web": {
+                "within": "[data-agents-empty]",
+                "text": "还没有子代理"
+              },
+              "native": {
+                "name": "还没有子代理",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "agents.empty-body",
+              "web": {
+                "within": "[data-agents-empty]",
+                "text": "当前会话生成子代理后，会显示在这里。"
+              },
+              "native": {
+                "name": "当前会话生成子代理后，会显示在这里。",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "w",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rest-trajectory",
+          "domDump": "body",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "within": "div[role=tree]",
+                  "text": [
+                    "奇偶校验基准会话",
+                    "未命名"
+                  ],
+                  "upTo": "[role=treeitem]"
+                },
+                "expect": {
+                  "selector": "[role=tab]"
+                }
+              },
+              {
+                "click": {
+                  "text": "轨迹",
+                  "upTo": "[role=tab]"
+                },
+                "expect": {
+                  "selector": "[role=toolbar][aria-label='轨迹工具栏']"
+                }
+              }
+            ]
+          },
+          "native": {
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "奇偶校验基准会话",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "切换右侧栏",
+                  "type": "Button"
+                }
+              },
+              {
+                "select": {
+                  "name": "轨迹",
+                  "type": "TabItem"
+                },
+                "expect": {
+                  "name": "轨迹时间线",
+                  "type": "Text"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "traj.toolbar",
+              "web": {
+                "selector": "[role=toolbar][aria-label='轨迹工具栏']"
+              },
+              "native": {
+                "name": "时长",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y"
+              ]
+            },
+            {
+              "key": "traj.timeline-label",
+              "web": {
+                "selector": "section[aria-label='轨迹时间线']"
+              },
+              "native": {
+                "name": "轨迹时间线",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "traj.ledger",
+              "web": {
+                "selector": "[data-trajectory-scroll]"
+              },
+              "native": {
+                "name": "Trajectory ledger"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        }
+      ],
+      "workspace": "seed-files.mjs",
       "fixture": "fixtures/chat-basic.json",
       "webShell": true
     }

@@ -111,7 +111,7 @@ switch ($Command) {
     }
     [pscustomobject]@{ count=$els.Count; index=$Index; hits=$res } | ConvertTo-Json -Depth 4
   }
-  { $_ -in 'invoke','expand','collapse' } {
+  { $_ -in 'invoke','expand','collapse','select' } {
     $els = @(Find-Elements $root $Name $Type $Prefix)
     if ($els.Count -le $Index) { [pscustomobject]@{ ok=$false; error="no match: $Name/$Type[$Index] ($($els.Count) hits)" } | ConvertTo-Json; break }
     $el = $els[$Index]
@@ -120,6 +120,7 @@ switch ($Command) {
         'invoke'   { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
         'expand'   { $el.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() }
         'collapse' { $el.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse() }
+        'select'   { $el.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
       }
       [pscustomobject]@{ ok=$true; action=$Command; name=$Name; index=$Index } | ConvertTo-Json
     } catch {
