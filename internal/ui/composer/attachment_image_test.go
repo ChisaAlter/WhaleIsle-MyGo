@@ -98,6 +98,10 @@ func TestAttachmentOriginalGIFAdvancesAndDismisses(t *testing.T) {
 	}
 	seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
 	tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 600, 400)
+	// The dialog's enter reveal reads the tester clock while the GIF's
+	// advance reads wall time: pin the clock past it so the panel is opaque
+	// and the first frame still shows.
+	tt.SetTime(time.Now().Add(300 * time.Millisecond))
 	count := func(red bool) int {
 		n := 0
 		img := tt.Image()

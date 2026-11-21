@@ -7,6 +7,10 @@ package ui
 type DialogOptions struct {
 	DismissDisabled bool
 	OnDismiss       func()
+	// NoExit removes this dialog at once when it closes, whatever
+	// SetDialogExit configured — for a dialog whose panel hosts a native
+	// child surface, which a fading copy of the frame before cannot move.
+	NoExit bool
 }
 
 func DialogBaseWithOptions(c *Context, open *bool, options DialogOptions, fn func(backdrop Element, panel Element)) Element {

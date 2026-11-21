@@ -124,8 +124,8 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		nav.Active = 0
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = menuSurface(c, panel.Padding(4).Gap(0).MinWidth(144).MaxWidth(360).
-			AttachTo(trigger, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(4, 0, 0, 0), colors)
+		panel = chrome.PopoverReveal(c, menuSurface(c, panel.Padding(4).Gap(0).MinWidth(144).MaxWidth(360).
+			AttachTo(trigger, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(4, 0, 0, 0), colors))
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
 			nav.ScrollActive = true
