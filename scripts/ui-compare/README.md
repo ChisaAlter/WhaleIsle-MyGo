@@ -147,9 +147,12 @@ main-panel and right-pane surfaces. Recorded classifications:
 - **(b) plugins add cluster** — native header carries 选择添加方式 + 返回
   buttons the web page lacks (`plugins.add` x −66.66); h +4 is the web's
   page-specific 32px control vs the shared 36 DIP medium button.
-- **(a, recorded) plugins.card-1** — web renders `li[data-plugin-item]` as a
-  65.33 DIP card (title+description+meta); native built-in rows are compact
-  18.67 DIP single-line buttons. Structural rework deferred to a follow-up.
+- **plugins.card-1** — rebuilt to the .card/.cardHead/.cardMain recipe
+  (padding 8, gap 14, 48px lg-radius icon, 14/20 title, 13/18 one-line desc,
+  xl-radius margin-bleed card). Residual w -12.66: 8 DIP of the margin-bleed
+  clamps against MyGo's stretch-width cap (a negative margin shifts x but
+  cannot widen a FillWidth child) plus ~3.34 column-width residual — a (c)
+  layout-engine limitation; h -1.33 is sub-px.
 - **(c) agents pane** — y −71.67/h +71.67 is the merged-caption dock offset;
   native pane also carries 智能体团队 + Agent 预设管理 sections above the
   shared empty state (`agents.empty-title` y +69). x/w match.
