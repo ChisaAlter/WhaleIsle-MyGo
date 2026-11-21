@@ -31,6 +31,10 @@ type Style struct {
 	// DocumentLayout uses the original MarkdownText block typography and margins.
 	// Existing conversation renderers retain their current layout unless opted in.
 	DocumentLayout bool
+	// Compact mirrors the Original MarkdownText `.compact` variant used for
+	// reasoning bodies: secondary size and leading, 4px block margins, 2px list
+	// spacing and body-size headings. It only takes effect with DocumentLayout.
+	Compact bool
 	// Market's later-loaded .readme h3 rule overrides only these two metrics.
 	// Zero keeps the shared Markdown heading; explicit values are absolute DIPs.
 	DocumentH3FontSize   float32
@@ -51,6 +55,12 @@ type Style struct {
 	LineNumbers bool
 	// CodeBanner is the code-card header fill; zero derives a muted tint.
 	CodeBanner ui.Color
+	// PlainCodeBanner renders the Original's no-toolbarLabels variant instead
+	// of the shared CodeToolbar: a 36px banner row (9/14 inset) with a text
+	// copy action and no wrap seat, plus a uniform 16px body inset. The file
+	// preview's MarkdownText passes no toolbarLabels; surfaces that localize
+	// the wrap/code labels keep the 42px toolbar card.
+	PlainCodeBanner bool
 	// ToolCodeToolbar uses distinct language, action and hover tokens; zero
 	// retains the existing markdown preset for callers without this toolbar.
 	ToolCodeLanguage ui.Color

@@ -12,7 +12,7 @@ import (
 // surfaces: document block ladder, localized code toolbar and the Original
 // blockquote inset. Keeping it in one place stops a second surface from
 // drifting back to the flat span run.
-func transcriptMarkdownStyle(fg, muted, field, accent ui.Color, size float32, dark bool) markdown.Style {
+func transcriptMarkdownStyle(fg, muted, field, accent, hover ui.Color, size float32, dark bool) markdown.Style {
 	wrapLabel, noWrapLabel := i18n.T(i18n.KeyMarkdownWrap), i18n.T(i18n.KeyMarkdownNoWrap)
 	return markdown.Style{
 		DocumentLayout: true,
@@ -24,6 +24,7 @@ func transcriptMarkdownStyle(fg, muted, field, accent ui.Color, size float32, da
 		Accent:         accent,
 		Dark:           dark,
 		QuoteInset:     14,
+		ToolCodeHover:  hover,
 		CopyLabel:      i18n.T(i18n.KeyMarkdownCopyCode),
 		CopiedLabel:    i18n.T(i18n.KeyMarkdownCopied),
 		WrapLabel:      wrapLabel,

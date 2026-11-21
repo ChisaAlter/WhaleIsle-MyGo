@@ -37,6 +37,9 @@ func coreCollapsibleBase(c *context, open *bool) collapsibleParts {
 	tr.afterInput(func() {
 		if want, asked := tr.accessExpand(); asked && *open != want {
 			*open = want
+			// The change is input like a click: consumers observing
+			// Changed (a disclosure's OnToggle, for one) must hear it.
+			tr.st.markChanged()
 			c.rt.consumed = true
 		}
 	})

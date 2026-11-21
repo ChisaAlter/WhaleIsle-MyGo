@@ -372,7 +372,7 @@ func trajectoryProgramAvailable(source session.Message) bool {
 	return name == "run_code"
 }
 func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all []trajRow, tab string, selected *string, fg, muted, field, accent ui.Color) (bool, string) {
-	style := transcriptMarkdownStyle(fg, muted, field, accent, 13, darkSurface(muted))
+	style := transcriptMarkdownStyle(fg, muted, field, accent, ui.Color{}, 13, darkSurface(muted))
 	renderedImages := map[string]bool{}
 	style.RenderImage = func(ctx *ui.Context, ref, alt string) bool {
 		renderedImages[ref] = true

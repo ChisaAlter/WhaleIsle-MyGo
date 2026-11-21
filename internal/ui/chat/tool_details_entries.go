@@ -71,7 +71,7 @@ func toolDetailsCode(c *ui.Context, code toolDetailCode, st ToolCardStyle, ink t
 func toolDetailsMarkdown(c *ui.Context, text string, st ToolCardStyle, ink toolDetailsPalette) {
 	column := ui.Column(c.Key("prose")).FillWidth().MinWidth(0).Margin(8, 0, 0, 0)
 	column.Children(func() {
-		markdown.View(c, text, transcriptMarkdownStyle(ink.secondary, ink.tertiary, ink.background, st.Accent, 13, darkSurface(st.FG)))
+		markdown.View(c, text, transcriptMarkdownStyle(ink.secondary, ink.tertiary, ink.background, st.Accent, chrome.Color(st.Colors.Hover), 13, darkSurface(st.FG)))
 	})
 }
 

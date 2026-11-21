@@ -1856,7 +1856,9 @@ func composerTelemetryDock(c *ui.Context, snap session.ViewState, m costui.Model
 	if !hasSpeed && !hasCache {
 		return false
 	}
-	ui.Column(c).Key("composer-dock").Label("Composer dock").FillWidth().MinHeight(24).Padding(0, 8, 4, 8).Gap(4).AlignItems(ui.Center).Children(func() {
+	// InputBar .dock keeps its 24px stat row 4px under the card and 4px above
+	// the window edge; the region's own 4 DIP bottom pad ends the strip.
+	ui.Column(c).Key("composer-dock").Label("Composer dock").FillWidth().MinHeight(28).Padding(4, 8, 0, 8).Gap(4).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).Key("composer-dock-stats").FillWidth().Justify(ui.Center).AlignItems(ui.Center).Gap(12).Children(func() {
 			if hasSpeed {
 				ui.Row(c).AlignItems(ui.Center).Gap(6).Padding(1, 8).Children(func() {

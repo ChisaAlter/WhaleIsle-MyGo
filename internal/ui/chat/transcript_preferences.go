@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 const transcriptControlKind session.MessageKind = "transcript-control"
@@ -282,21 +285,31 @@ func processCategory(kind ToolKind, done bool) string {
 
 // transcriptControlView renders the turn-process / process-group disclosure
 // matching TurnProcessNodeView.module.css: flush-left muted label + 14x14 trailing chevron.
-func transcriptControlView(c *ui.Context, control transcriptControl, m Model, muted ui.Color) {
-	ui.Row(c).FillWidth().MinWidth(0).MinHeight(24).AlignItems(ui.Center).Children(func() {
+// transcriptControlView paints the whole-turn fold row, matching the
+// Original's TurnProcessNodeView: a full-width borderless 33px row whose
+// tertiary label eases to secondary on hover over 100ms, and whose 14px
+// chevron rotates 180deg over the same 100ms ease rather than swapping
+// glyphs. Height, font size and line height ride the chat content font
+// delta; the Original's padding-bottom is 8.
+func transcriptControlView(c *ui.Context, control transcriptControl, m Model, colors theme.Colors) {
+	delta := theme.RenderPreferences().Chat.Size - 14
+	muted, secondary := chrome.Color(colors.Muted), chrome.Color(colors.Secondary)
+	if strings.HasPrefix(control.key, "transcript-group:") {
+		transcriptGroupView(c, control, m, muted, secondary, delta)
+		return
+	}
+	ui.Row(c).FillWidth().MinWidth(0).MinHeight(33 + delta).AlignItems(ui.Center).Children(func() {
 		btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).
-			Height(24).Padding(0, 4, 0, 0).Gap(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center)
-		textColor := muted
+			FillWidth().MinWidth(0).Height(33+delta).Padding(0, 0, 8, 0).Gap(4).BorderWidth(0).
+			Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
+		target := float32(0)
 		if btn.Hovered() {
-			textColor = c.Theme().Text
+			target = 1
 		}
+		textColor := muted.Mix(secondary, btn.AnimateWith("transcript-hover", target, 100*time.Millisecond, contextColorEase))
 		btn.Children(func() {
-			ui.Text(c, control.label).FontSize(13).FixedLineHeight(24).TextColor(textColor).SingleLine().PassThrough()
-			chev := todoChevronDown
-			if control.open {
-				chev = todoChevronUp
-			}
-			ui.Icon(c, chev).Size(14, 14).TextColor(textColor).PassThrough()
+			ui.Text(c, control.label).FontSize(14 + delta).TextColor(textColor).SingleLine().PassThrough()
+			transcriptFoldChevron(c, control.open, textColor)
 		})
 		if btn.Clicked() {
 			workflowToggle(m.ThinkingExpanded, control.key, false)
@@ -308,4 +321,75 @@ func transcriptControlView(c *ui.Context, control transcriptControl, m Model, mu
 			}
 		}
 	})
+}
+
+// transcriptFoldChevron paints the fold row's marker: one glyph rotates
+// 180deg over 100ms ease-in-out while the row opens (the Original's
+// .chevron transition), or flips immediately under reduced motion.
+func transcriptFoldChevron(c *ui.Context, open bool, color ui.Color) {
+	chev := ui.Icon(c, todoChevronDown).Size(14, 14).TextColor(color).PassThrough()
+	st := ui.Local(chev, "fold-open", func() struct {
+		open  bool
+		since time.Time
+	} {
+		return struct {
+			open  bool
+			since time.Time
+		}{open: open}
+	})
+	angle := float32(0)
+	if open {
+		angle = 180
+	}
+	if st.open != open {
+		st.open, st.since = open, c.Now()
+	}
+	if !st.since.IsZero() && !c.Preferences().ReduceMotion {
+		if t := float32(c.Now().Sub(st.since)) / float32(100*time.Millisecond); t < 1 {
+			p := ui.EaseInOut(t) * 180
+			if open {
+				angle = p
+			} else {
+				angle = 180 - p
+			}
+			c.After(16 * time.Millisecond)
+		}
+	}
+	if angle != 0 {
+		chev.Rotate(angle)
+	}
+}
+
+// transcriptGroupView paints a second-level process-group row, matching the
+// Original's ChatGroupSeat `.title`: a compact content-width row — 16px leading
+// box, 6px gap, content-size label on a 24px line — whose tertiary color eases
+// to secondary on hover over 100ms. The activity icon and chevron share the
+// leading box and cross-fade over the same 100ms like the Original's
+// activityIcon/chevron pair: the chevron appears when the row opens, hovers or
+// takes focus; expanded rows also keep an 8px bottom padding. Metrics ride
+// the chat content font delta.
+func transcriptGroupView(c *ui.Context, control transcriptControl, m Model, muted, secondary ui.Color, delta float32) {
+	bottom := float32(0)
+	if control.open {
+		bottom = 8
+	}
+	btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).MinWidth(0).AlignSelf(ui.Start).
+		Padding(0, 0, bottom, 0).Gap(6).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
+	textColor := muted.Mix(secondary, btn.AnimateWith("group-hover", boolFloat(btn.Hovered()), 100*time.Millisecond, contextColorEase))
+	leadingSize, glyph := float32(16)+delta, float32(14)+delta
+	btn.Children(func() {
+		lead := ui.Box(c).Size(leadingSize, leadingSize).Shrink(0)
+		fade := lead.AnimateWith("group-chev", boolFloat(btn.Hovered() || control.open), 100*time.Millisecond, contextColorEase)
+		lead.Children(func() {
+			ui.Icon(c, disclosureIconData).Absolute().Size(glyph, glyph).Left((leadingSize - glyph) / 2).Top((leadingSize - glyph) / 2).TextColor(textColor).Opacity(1 - fade).PassThrough()
+			chev := ui.Icon(c, toolIconChevronDown).Absolute().Size(glyph, glyph).Left((leadingSize - glyph) / 2).Top((leadingSize - glyph) / 2).TextColor(textColor).Opacity(fade).PassThrough()
+			if control.open {
+				chev.Rotate(180)
+			}
+		})
+		ui.Text(c, control.label).FontSize(14 + delta).TextColor(textColor).SingleLine().PassThrough()
+	})
+	if btn.Clicked() {
+		workflowToggle(m.ThinkingExpanded, control.key, false)
+	}
 }

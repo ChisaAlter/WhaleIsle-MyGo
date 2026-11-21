@@ -320,7 +320,7 @@ func viewStreamingDocument(c *ui.Context, source string, st Style) {
 		var previous ast.Node
 		var previousBottom float32
 		for _, block := range blocks {
-			top, bottom := documentMargins(block.node)
+			top, bottom := documentMargins(block.node, st)
 			gap := max(previousBottom, top)
 			if previous == nil {
 				gap = 0
