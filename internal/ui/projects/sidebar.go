@@ -79,7 +79,7 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.Loaded && m.Listing.Available && !m.Busy && len(visible) == 0 {
 			if !m.History && m.SearchQuery == "" {
-				add := ui.Button(c, "").Label(tr("添加 Project…", "Add Project…")).FillWidth().MinWidth(0).Padding(12).Margin(4, 0).Radius(12).Border(1, chrome.Color(colors.Border)).Background(ui.Transparent)
+				add := ui.Button(c, "").Label(tr("添加 Project…", "Add Project…")).FillWidth().MinWidth(0).Padding(12).Margin(4, 0).Radius(theme.ContextRadii(c).MD).Border(1, chrome.Color(colors.Border)).Background(ui.Transparent)
 				add.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
 						ui.Box(c).Size(28, 28).Radius(8).Background(chrome.Color(colors.Pressed)).AlignItems(ui.Center).Justify(ui.Center).Children(func() { projectIcon(c, "add", 16, fg, false) })
@@ -109,7 +109,7 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 		fg = chrome.Color(colors.Caption)
 		muted = fg
 	}
-	row := ui.Row(c).FillWidth().MinWidth(0).MinHeight(36).Padding(0, 4, 0, 8).Gap(4).Radius(12).AlignItems(ui.Center)
+	row := ui.Row(c).FillWidth().MinWidth(0).MinHeight(36).Padding(0, 4, 0, 8).Gap(4).Radius(theme.ContextRadii(c).MD).AlignItems(ui.Center)
 	selected := p.CoordinatorSessionID != "" && p.CoordinatorSessionID == m.SelectedSession
 	if selected {
 		row.Background(chrome.Color(colors.Pressed))

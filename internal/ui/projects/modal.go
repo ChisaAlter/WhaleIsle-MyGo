@@ -175,7 +175,7 @@ func projectModals(c *ui.Context, m Model) {
 		width, height := c.Size()
 		ui.DialogBase(c, &open, func(back, panel ui.Element) {
 			chrome.DialogReveal(c, back, panel)
-			panel.Label(route.title).Width(min(760, max(1, width-32))).MaxHeight(min(height*.8, max(1, height-48))).MinHeight(0).Padding(0, 0, 24, 0).Radius(28).Clip().Background(chrome.Color(colors.Field)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+			panel.Label(route.title).Width(min(760, max(1, width-32))).MaxHeight(min(height*.8, max(1, height-48))).MinHeight(0).Padding(0, 0, 24, 0).Radius(theme.ContextRadii(c).Panel).Clip().Background(chrome.Color(colors.Field)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
 				projectModalHeader(c, m, route.title, close, materialRoute && m.Busy, memory.LastRoute != route.key)
 				if m.Error != "" {
 					ui.Text(c, m.Error).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).Padding(0, 24, 8, 24).Shrink(0)
@@ -295,9 +295,9 @@ func materialTransitionDialog(c *ui.Context, m Model, state *projectPresentation
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.DialogBase(c, &open, func(back, panel ui.Element) {
 		chrome.DialogReveal(c, back, panel)
-		panel.Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Radius(28).
+		panel.Width(380).MaxWidthPercent(94).Padding(0, 0, 24, 0).Radius(theme.ContextRadii(c).Panel).
 			Background(chrome.Color(colors.Field)).
-			Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).Children(func() {
+			Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, theme.ContextRadii(c).Panel)).Children(func() {
 			cancel := func() { state.PendingClose = false; state.PendingMaterial = ""; state.Saving = false }
 			projectModalHeader(c, m, tr("未保存的更改", "Unsaved changes"), cancel, m.Busy, false)
 			ui.Text(c, tr("保存或放弃当前材料的更改后继续。", "Save or discard this material's changes before continuing.")).FontSize(theme.InterfaceSize(14)).Padding(0, 24, 16, 24)
