@@ -439,7 +439,7 @@ func remoteGatewaySegmented(c *ui.Context, key string, labels []string, active i
 		for index, caption := range labels {
 			i, text := index, caption
 			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).
-				Width((gatewayControlWidth(key) - 8) / 2).Height(height).Padding(0).Radius(8).
+				Width((gatewayControlWidth(key) - 8) / 2).Height(height).Padding(0).Radius(theme.ContextRadii(c).SM).
 				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
 			if disabled {
 				segment = segment.Disabled(true).Opacity(0.5)

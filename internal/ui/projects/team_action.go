@@ -404,7 +404,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 	card := ui.Column(c.Key("project-member-card:" + member.ID)).FillWidth().MinWidth(0)
 	cardHovered := card.Hovered()
 	card.Children(func() {
-		button := ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(8).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+		button := ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
 		if !inert {
 			button.Tooltip(tr("查看工作过程", "View work history")).Cursor(ui.CursorPointer)
 		} else {

@@ -43,7 +43,7 @@ func SettingsView(c *ui.Context, m Model) {
 				if id != "office" {
 					title = imonboard.PlatformByID(id).Label
 				}
-				button := ui.Button(c.Key("channel-"+id), "").Label(title).MinWidth(0).Height(48).Padding(8, 12).Border(1, chrome.Color(colors.Border)).Radius(12).Role(ui.RoleTab)
+				button := ui.Button(c.Key("channel-"+id), "").Label(title).MinWidth(0).Height(48).Padding(8, 12).Border(1, chrome.Color(colors.Border)).Radius(theme.ContextRadii(c).MD).Role(ui.RoleTab)
 				if narrow {
 					buttonWidth := max(float32(0), (width-8)/2)
 					if windowWidth <= 560 {

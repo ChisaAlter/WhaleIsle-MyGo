@@ -806,7 +806,7 @@ func settingsPanel(c *ui.Context, m Model) {
 						bg = colSegActive
 						fg = colPrimary
 					}
-					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(12).
+					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(theme.ContextRadii(c).MD).
 						Background(bg).BorderWidth(0).TextColor(fg).FontSize(theme.InterfaceSize(12))
 					if b.Clicked() && m.DownloadRoute != nil {
 						*m.DownloadRoute = id

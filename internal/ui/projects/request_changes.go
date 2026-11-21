@@ -98,7 +98,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 		back.Padding(24)
 		// Modal.module.css: a 380px card, 28px panel corners, and a separate
 		// padded content region and footer separated by 20px.
-		panel.Width(380).MaxWidth(max(1, viewportWidth-48)).Padding(0, 0, 24, 0).Gap(20).Radius(28).Clip().Background(surface).Shadow(0, 0, 0, .5, elevationStroke).Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04)).Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).Children(func() {
+		panel.Width(380).MaxWidth(max(1, viewportWidth-48)).Padding(0, 0, 24, 0).Gap(20).Radius(theme.ContextRadii(c).Panel).Clip().Background(surface).Shadow(0, 0, 0, .5, elevationStroke).Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04)).Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).Children(func() {
 			title := tr("撤销此要求的改动？", "Revert this requirement’s changes?")
 			body := tr("此要求改动的文件将恢复到开始开发前的状态，其他文件不受影响。如文件在交付后又被修改，将不执行撤销。", "Files changed by this requirement return to their state before development started; other files are untouched. If they changed again after delivery, nothing is reverted.")
 			if conflict {
@@ -109,7 +109,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 			ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, title).FontSize(16).FixedLineHeight(24).FontWeight(500).TextColor(chrome.Color(colors.FG)).Grow(1).MinWidth(0)
-					button := ui.Button(c.Key("revert-close"), "").Label(tr("取消", "Cancel")).Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy)
+					button := ui.Button(c.Key("revert-close"), "").Label(tr("取消", "Cancel")).Width(28).Height(28).Padding(0).Radius(theme.ContextRadii(c).SM).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy)
 					if m.Busy {
 						button.Opacity(.4)
 					} else if button.Hovered() {
@@ -137,7 +137,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 			})
 			stale := ask.Revision != card.Revision || !revert.Known
 			styleAction := func(button ui.Element, filled, disabled bool) ui.Element {
-				button.Height(36).Padding(0, 14).Radius(12).FontSize(14).FixedLineHeight(22).Disabled(disabled)
+				button.Height(36).Padding(0, 14).Radius(theme.ContextRadii(c).MD).FontSize(14).FixedLineHeight(22).Disabled(disabled)
 				if disabled {
 					button.Opacity(.4)
 				}
