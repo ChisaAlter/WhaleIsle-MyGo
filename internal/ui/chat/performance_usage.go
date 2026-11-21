@@ -156,7 +156,7 @@ func usageDetailLine(c *ui.Context, muted ui.Color, label, value string) {
 		// The Original's details grid column is minmax(76px, auto).
 		ui.Text(c, label).FontSize(12).FixedLineHeight(18).TextColor(muted).MinWidth(76)
 		if value != "" {
-			ui.Text(c, value).FontSize(12).FixedLineHeight(18).TextColor(c.Theme().Text).Grow(1).TextAlign(ui.End)
+			ui.Text(c, value).FontSize(12).FixedLineHeight(18).TextColor(c.Theme().Text).Grow(1).MinWidth(0).TextAlign(ui.End)
 		} else {
 			ui.Box(c).Grow(1)
 		}
