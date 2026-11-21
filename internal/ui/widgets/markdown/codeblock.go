@@ -24,6 +24,17 @@ const (
 	codeCopiedDelay   = time.Second
 )
 
+// Plain-banner geometry from the Original CodeBlock sheet used when the owner
+// passes no toolbar labels: a 36px .banner row (9/14 inset around the 11/18
+// infostring and text copy action) and a uniform 16px pre inset that always
+// wraps.
+const (
+	codeBannerH     = 36
+	codeBannerPadX  = 14
+	codeBannerPadY  = 9
+	codePlainBodyPx = 16
+)
+
 // codeCardRadius follows the card's --dsw-radius-lg corner, which the theme
 // families set between 10 and 12px.
 func codeCardRadius(dark bool) float32 {
@@ -67,32 +78,50 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 	copied := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
 	highlight := ui.Local(root, "highlight", func() codeHighlightCache { return codeHighlightCache{} })
 	root.Children(func() {
-		ui.Row(c).FillWidth().Height(codeHeaderH).Unselectable().Background(codeBanner(st)).Label("Code block banner").
-			Padding(10, 18, 8, 22).Gap(12).AlignItems(ui.Center).Children(func() {
-			label := language
-			if label == "" {
-				label = codeLabel(st)
-			}
-			ui.Text(c, label).FontSize(size).TextColor(st.Muted).Font(font).FixedLineHeight(18).SingleLine().Grow(1).MinWidth(0)
-			ui.Row(c).Gap(4).Shrink(0).AlignItems(ui.Center).Children(func() {
-				// The wrap seat reports the action it performs: wrapped → "preserve
-				// columns", unwrapped → "wrap lines" (Original CodeToolbar).
-				wrapText, noWrapText := codeWrapLabels(st)
-				wrapIcon, wrapLabel := codeIconWrap, wrapText
-				if *wrap {
-					wrapIcon, wrapLabel = codeIconNoWrap, noWrapText
-				}
-				codeToolbarButton(c, wrapIcon, wrapLabel, st, func() { *wrap = !*wrap })
+		if st.PlainCodeBanner {
+			// Original CodeBlock .banner: infostring stays empty for plain
+			// fences, the text copy action inherits the banner's 11/18 font.
+			ui.Row(c).FillWidth().Height(codeBannerH).Unselectable().Background(codeBanner(st)).Label("Code block banner").
+				Padding(codeBannerPadY, codeBannerPadX, codeBannerPadY, codeBannerPadX).Gap(12).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, language).FontSize(size).TextColor(st.FG).Font(font).FixedLineHeight(18).SingleLine().Grow(1).MinWidth(0)
+				bannerLabel := codeCopyLabel(st)
 				if time.Now().Before(*copied) {
-					codeToolbarButton(c, codeIconCheck, codeCopiedLabel(st), st, nil)
-				} else {
-					codeToolbarButton(c, codeIconCopy, codeCopyLabel(st), st, func() {
-						c.WriteClipboard(clipboardCode)
-						*copied = time.Now().Add(codeCopiedDelay)
-					})
+					bannerLabel = codeCopiedLabel(st)
+				}
+				if ui.Button(c, bannerLabel).Label(bannerLabel).FontSize(size).FixedLineHeight(18).TextColor(st.FG).
+					Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Shrink(0).Clicked() {
+					c.WriteClipboard(clipboardCode)
+					*copied = time.Now().Add(codeCopiedDelay)
 				}
 			})
-		})
+		} else {
+			ui.Row(c).FillWidth().Height(codeHeaderH).Unselectable().Background(codeBanner(st)).Label("Code block banner").
+				Padding(10, 18, 8, 22).Gap(12).AlignItems(ui.Center).Children(func() {
+				label := language
+				if label == "" {
+					label = codeLabel(st)
+				}
+				ui.Text(c, label).FontSize(size).TextColor(st.Muted).Font(font).FixedLineHeight(18).SingleLine().Grow(1).MinWidth(0)
+				ui.Row(c).Gap(4).Shrink(0).AlignItems(ui.Center).Children(func() {
+					// The wrap seat reports the action it performs: wrapped → "preserve
+					// columns", unwrapped → "wrap lines" (Original CodeToolbar).
+					wrapText, noWrapText := codeWrapLabels(st)
+					wrapIcon, wrapLabel := codeIconWrap, wrapText
+					if *wrap {
+						wrapIcon, wrapLabel = codeIconNoWrap, noWrapText
+					}
+					codeToolbarButton(c, wrapIcon, wrapLabel, st, func() { *wrap = !*wrap })
+					if time.Now().Before(*copied) {
+						codeToolbarButton(c, codeIconCheck, codeCopiedLabel(st), st, nil)
+					} else {
+						codeToolbarButton(c, codeIconCopy, codeCopyLabel(st), st, func() {
+							c.WriteClipboard(clipboardCode)
+							*copied = time.Now().Add(codeCopiedDelay)
+						})
+					}
+				})
+			})
+		}
 		// A trailing newline would paint one empty line box; the clipboard keeps
 		// the exact source, the card shows its lines.
 		spans := highlight.update(language, code, st)
@@ -100,7 +129,10 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 		paint := func(el ui.Element) ui.Element {
 			return el.Font(font).FontSize(size).FixedLineHeight(lineHeight).TextColor(st.FG).Selectable()
 		}
-		if *wrap {
+		if st.PlainCodeBanner {
+			// The plain .block pre wraps unconditionally at a 16px inset.
+			paint(ui.RichText(c, spans...).FillWidth().MinWidth(0)).Padding(codePlainBodyPx, codePlainBodyPx, codePlainBodyPx, codePlainBodyPx)
+		} else if *wrap {
 			paint(ui.RichText(c, spans...).FillWidth().MinWidth(0)).Padding(codeBodyPadTop, codeBodyPadX, codeBodyPadBottom, codeBodyPadX)
 		} else {
 			ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
