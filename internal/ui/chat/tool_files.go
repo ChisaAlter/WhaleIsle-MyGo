@@ -9,8 +9,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/widgets/diff"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets/diff"
 )
 
 // Tool file cards consume the first-party read/edit/write wire schemas only.

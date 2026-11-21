@@ -293,7 +293,7 @@ func (d mainProjectDeps) hostDeps() projectctl.HostDeps {
 			d.s.mu.Unlock()
 			draft.Client.Sync()
 			snap := sessions.Snapshot()
-			d.s.submitComposer(w, sessions, draft, sessionID, snap.ScratchCwd, 0, false, snap.ComposerHostGeneration)
+			d.s.submitComposer(w, sessions, draft, sessionID, snap.ScratchCwd, false, snap.ComposerHostGeneration)
 			return nil
 		},
 		OccupiedDraftSessionIDs: func() []string {

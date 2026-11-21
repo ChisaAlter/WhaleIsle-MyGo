@@ -11,10 +11,10 @@ func TestFriendlyTerminalTitleNamesTheShell(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	cases := map[string]string{
 		`C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe`: "PowerShell",
-		`C:\Windows\System32\cmd.exe`:                                "Command Prompt",
-		`/bin/bash`:                                                  "Bash",
-		`C:\WINDOWS\System32\wsl.exe`:                                "WSL",
-		"Terminal":                                                   "Terminal",
+		`C:\Windows\System32\cmd.exe`:                               "Command Prompt",
+		`/bin/bash`:                                                 "Bash",
+		`C:\WINDOWS\System32\wsl.exe`:                               "WSL",
+		"Terminal":                                                  "Terminal",
 	}
 	for title, want := range cases {
 		if got := friendlyTerminalTitle(title); got != want {

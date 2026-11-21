@@ -98,7 +98,7 @@ func (s *mainState) retryCredentialsLoad() {
 				s.credsDraft.writeAccessErr = fresh.writeAccessErr
 				s.credsDraft.conflicted, s.credsDraft.loadFailed = false, false
 				s.credsSaveErr = s.credsDraft.writeAccessErr
-				s.credsLastAction = "已读取最新凭据并保留本页编辑。 / Latest credentials loaded; local edits retained."
+				s.credsLastAction = i18n.T(i18n.KeyCmdCredentialsReloadedRetained)
 			}
 		}
 		win := s.win
@@ -153,7 +153,7 @@ func (s *mainState) saveCredentials() {
 		if err != nil {
 			if errors.Is(err, credentials.ErrConflict) {
 				s.credsDraft.conflicted = true
-				s.credsSaveErr = "凭据已在其他窗口更改，编辑内容已保留。请重新读取文件、核对后保存。 / Credentials changed in another window. Reload the file, review your retained edits, then save."
+				s.credsSaveErr = i18n.T(i18n.KeyCmdCredentialsConflictReload)
 			} else {
 				s.credsSaveErr = errcopy.Sentence(err)
 			}

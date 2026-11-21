@@ -483,7 +483,7 @@ func runComposerFlowQA() error {
 			d1.Text = "QA_HELLO first send"
 			gen := sessions.Snapshot().ComposerHostGeneration
 			state.mu.Unlock()
-			state.submitComposer(win, sessions, d1, id1, workspace, 0, false, gen)
+			state.submitComposer(win, sessions, d1, id1, workspace, false, gen)
 			// The originating transcript is deliberately detached before admission
 			// completes. Confirmation belongs to the request, not this selection.
 			sessions.Select(id2)
@@ -571,7 +571,7 @@ func runComposerFlowQA() error {
 			d2.Text = "QA_WAIT stream until stopped"
 			gen = sessions.Snapshot().ComposerHostGeneration
 			state.mu.Unlock()
-			state.submitComposer(win, sessions, d2, id2, workspace, 0, false, gen)
+			state.submitComposer(win, sessions, d2, id2, workspace, false, gen)
 			if err := waitStore(deadline, "wait turn running", func() (bool, error) {
 				v := sessions.Snapshot()
 				if v.SelectedID != id2 {
@@ -613,7 +613,7 @@ func runComposerFlowQA() error {
 			d2.EditSeq = 999
 			d2.Text = "stale edit attempt"
 			state.mu.Unlock()
-			state.submitComposer(win, sessions, d2, id2, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+			state.submitComposer(win, sessions, d2, id2, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 			time.Sleep(400 * time.Millisecond)
 			staleOK := d2.Error != "" && d2.Text == "stale edit attempt"
 			mark("stale-edit-rejected-draft-kept", staleOK, fmt.Sprintf("err=%q text=%q", d2.Error, d2.Text))
@@ -622,7 +622,7 @@ func runComposerFlowQA() error {
 			d2.Error = ""
 			d2.Text = "QA_HELLO retry after rejection"
 			state.mu.Unlock()
-			state.submitComposer(win, sessions, d2, id2, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+			state.submitComposer(win, sessions, d2, id2, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 			if err := waitStore(deadline, "retry completes", func() (bool, error) {
 				v := sessions.Snapshot()
 				if v.SelectedID != id2 {
@@ -665,7 +665,7 @@ func runComposerFlowQA() error {
 			dA.Error = ""
 			dA.Text = "QA_APPROVE run gated tool"
 			state.mu.Unlock()
-			state.submitComposer(win, sessions, dA, id1, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+			state.submitComposer(win, sessions, dA, id1, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 			approvalSeen := ""
 			var approveErr error
 			approveDeadline := time.Now().Add(40 * time.Second)
@@ -756,7 +756,7 @@ func runComposerFlowQA() error {
 				d := state.composerDraftLocked(id1)
 				d.Text = fmt.Sprintf("QA_LONG stream turn %d", turn+1)
 				state.mu.Unlock()
-				state.submitComposer(win, sessions, d, id1, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+				state.submitComposer(win, sessions, d, id1, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 				if turn == n-1 {
 					time.Sleep(1500 * time.Millisecond)
 					midSnap = snap()

@@ -61,7 +61,7 @@ func (s *mainState) beginComposerFileIntake(win *mygo.Window, sessions *session.
 		return
 	}
 	if len(paths) > 128 {
-		d.Error = "一次最多添加128个文件 / At most 128 files per intake"
+		d.Error = i18n.T(i18n.KeyCmdComposerIntakeTooMany)
 		return
 	}
 	cwd, local := s.nativeComposerFileScope(sessions, id, d)

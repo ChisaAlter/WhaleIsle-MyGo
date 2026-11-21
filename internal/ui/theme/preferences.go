@@ -53,6 +53,43 @@ type Family struct {
 	Skin      string `json:"skin,omitempty"`
 	Wallpaper string `json:"wallpaper,omitempty"`
 }
+
+// builtinFamilyNamesEN pairs each localized built-in family ID with its
+// English display name. It is code, not data: the stored Family keeps one
+// Name field so the Host-authoritative settings schema stays unchanged.
+var builtinFamilyNamesEN = map[string]string{
+	"midnight": "Midnight",
+	"celadon":  "Celadon",
+	"violet":   "Violet",
+	"amber":    "Amber",
+	"paper":    "Paper",
+	"contrast": "Contrast",
+}
+
+func builtinFamilyName(id string) string {
+	for _, f := range library {
+		if f.ID == id {
+			return f.Name
+		}
+	}
+	return ""
+}
+
+// LocalizedName renders the family name in the active locale. A library
+// family whose ID and Name still match the built-in entry picks between the
+// Chinese name and its built-in English one; anything else keeps the legacy
+// behavior of splitting a stored "zh / en" name or showing Name as stored.
+func (f Family) LocalizedName() string {
+	name := f.Name
+	if en, ok := builtinFamilyNamesEN[f.ID]; ok && name == builtinFamilyName(f.ID) {
+		return i18n.Pick(name, en)
+	}
+	if zh, en, ok := strings.Cut(name, " / "); ok {
+		return i18n.Pick(zh, en)
+	}
+	return name
+}
+
 type Preferences struct {
 	Light     string         `json:"light"`
 	Dark      string         `json:"dark"`
@@ -171,12 +208,12 @@ func buildLibrary() []Family {
 		{ID: "deepseek", Name: "DeepSeek", Light: seed("#ffffff", "#0f1115", "#4176e6", 46), Dark: seed("#151517", "#f5f5f5", "#6ea8ff", 41)},
 		codexBuiltinFamily(),
 		claudeBuiltinFamily(),
-		{ID: "midnight", Name: "午夜 / Midnight", Light: seed("#f3f6fb", "#1a1f2b", "#3b6fd4", 44), Dark: seed("#0b0d12", "#e8eef9", "#6ea8ff", 48)},
-		{ID: "celadon", Name: "青瓷 / Celadon", Light: seed("#f3faf7", "#10211c", "#0f766e", 44), Dark: seed("#071411", "#e7f6f1", "#3dd6b5", 50)},
-		{ID: "violet", Name: "暮紫 / Violet", Light: seed("#f7f3fc", "#1c1524", "#7c3aed", 46), Dark: seed("#120e18", "#f3eefc", "#c4a1ff", 50)},
-		{ID: "amber", Name: "琥珀 / Amber", Light: seed("#fbf6ee", "#1c1915", "#b45309", 48), Dark: seed("#14100b", "#f6efe4", "#e2b15c", 52)},
-		{ID: "paper", Name: "宣纸 / Paper", Light: seed("#f3efe6", "#1c1915", "#0f766e", 50), Dark: seed("#1a1712", "#f6efe4", "#5eead4", 48)},
-		{ID: "contrast", Name: "对比 / Contrast", Light: seed("#ffffff", "#050505", "#111111", 68), Dark: seed("#050505", "#f5f5f5", "#ffffff", 64)},
+		{ID: "midnight", Name: "午夜", Light: seed("#f3f6fb", "#1a1f2b", "#3b6fd4", 44), Dark: seed("#0b0d12", "#e8eef9", "#6ea8ff", 48)},
+		{ID: "celadon", Name: "青瓷", Light: seed("#f3faf7", "#10211c", "#0f766e", 44), Dark: seed("#071411", "#e7f6f1", "#3dd6b5", 50)},
+		{ID: "violet", Name: "暮紫", Light: seed("#f7f3fc", "#1c1524", "#7c3aed", 46), Dark: seed("#120e18", "#f3eefc", "#c4a1ff", 50)},
+		{ID: "amber", Name: "琥珀", Light: seed("#fbf6ee", "#1c1915", "#b45309", 48), Dark: seed("#14100b", "#f6efe4", "#e2b15c", 52)},
+		{ID: "paper", Name: "宣纸", Light: seed("#f3efe6", "#1c1915", "#0f766e", 50), Dark: seed("#1a1712", "#f6efe4", "#5eead4", 48)},
+		{ID: "contrast", Name: "对比", Light: seed("#ffffff", "#050505", "#111111", 68), Dark: seed("#050505", "#f5f5f5", "#ffffff", 64)},
 	}
 }
 func (p Preferences) Families() []Family { return append(Library(), p.Custom...) }

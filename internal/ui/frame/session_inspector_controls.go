@@ -86,7 +86,7 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 		}
 		ui.PopoverBase(c, anchor, &p.filterOpen, func(panel ui.Element) {
 			width, height := c.Size()
-			panel = chrome.PopoverReveal(c, panel.Width(290).MaxWidth(width-24).MaxHeight(height-24).Margin(4, 0, 0, 0).Padding(10).Radius(6).Background(c.Theme().Surface).Border(.5, c.Theme().Border).FontSize(11).FontWeight(400))
+			chrome.PopoverReveal(c, panel.Width(290).MaxWidth(width-24).MaxHeight(height-24).Margin(4, 0, 0, 0).Padding(10).Radius(6).Background(c.Theme().Surface).Border(.5, c.Theme().Border).FontSize(11).FontWeight(400))
 			ui.Column(c).FillWidth().Children(func() {
 				input := ui.TextInputBase(c, &p.draft).FillWidth().Label("Inspector type query").Placeholder(paneLabel("输入类型片段，如 delta", "Type a fragment, e.g. delta")).AutoFocus().Padding(5, 6).Border(.5, c.Theme().Border).Radius(4).Background(ui.Transparent).FontSize(11)
 				if p.filterQuery != p.draft {

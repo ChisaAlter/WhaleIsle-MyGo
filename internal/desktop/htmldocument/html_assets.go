@@ -86,7 +86,9 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 			}
 			return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeResourcesWereSkippedBecauseOfT))
 		}
-		loadCSS = func(string, string, int) (string, error) { return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeResourcesWereSkippedBecauseOfT)) }
+		loadCSS = func(string, string, int) (string, error) {
+			return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentRelativeResourcesWereSkippedBecauseOfT))
+		}
 	}
 	z := xhtml.NewTokenizer(strings.NewReader(source))
 	var out strings.Builder
@@ -176,7 +178,9 @@ func prepareResourceGraph(g *resourceGraph, relative, source string, valid func(
 				switch {
 				case key == "style":
 					// @import is invalid in a style declaration; never use it to read files.
-					css, err := inlineCSS(a.Val, relative, 0, func(string, string, int) (string, error) { return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheStyleAttributeDoesNotSupportImport)) }, loadURL, g.warn)
+					css, err := inlineCSS(a.Val, relative, 0, func(string, string, int) (string, error) {
+						return "", errors.New(storelocale.T(storelocale.KeyStoreHtmldocumentTheStyleAttributeDoesNotSupportImport))
+					}, loadURL, g.warn)
 					if err != nil {
 						g.warn(storelocale.T(storelocale.KeyStoreHtmldocumentInlineStyleCouldNotBeParsed))
 						continue

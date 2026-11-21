@@ -200,21 +200,21 @@ func (v *attachmentDisplaySeat) load(a session.ComposerAttachment, full bool, no
 func attachmentDisplayStatus(d *DraftState, i int) string {
 	a := d.Attachments[i]
 	if a.PrepareError != "" {
-		return "失败 / Failed"
+		return i18n.T(i18n.KeyComposerAttachmentFailedStatus)
 	}
 	if d.AttachmentPreparing(i) {
 		if a.TotalBytes > 0 {
 			return fmt.Sprintf("%d%% · %d / %d bytes", 100*a.SentBytes/a.TotalBytes, a.SentBytes, a.TotalBytes)
 		}
-		return "上传中 / Uploading"
+		return i18n.T(i18n.KeyComposerAttachmentUploadingStatus)
 	}
 	if d.Sending {
-		return "发送中 / Sending"
+		return i18n.T(i18n.KeyComposerAttachmentSendingStatus)
 	}
 	if a.ImageData != "" || a.Upload.ReceiptId != "" {
-		return "就绪 / Ready"
+		return i18n.T(i18n.KeyComposerAttachmentReadyStatus)
 	}
-	return "待上传 / Pending"
+	return i18n.T(i18n.KeyComposerAttachmentPendingStatus)
 }
 
 // Draft files share the original 64-DIP rail: files are 240 wide and images 64.
@@ -373,12 +373,12 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 				if ui.Button(c, "1:1 / Fit").Clicked() {
 					seat.originalSize = !seat.originalSize
 				}
-				if ui.Button(c, "关闭预览 / Close preview").Clicked() {
+				if ui.Button(c, i18n.T(i18n.KeyComposerAttachmentClosePreview)).Clicked() {
 					seat.open = false
 				}
 			})
 			if seat.full.result == nil {
-				ui.Text(c, "加载原图 / Loading original…")
+				ui.Text(c, i18n.T(i18n.KeyComposerAttachmentLoadingOriginal))
 				return
 			}
 			v := seat.full.result
@@ -400,7 +400,7 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 				return
 			}
 			if v.bitmap == nil {
-				ui.Text(c, "原图预览不可用 / Original preview unavailable")
+				ui.Text(c, i18n.T(i18n.KeyComposerAttachmentOriginalUnavailable))
 				return
 			}
 			v.animate(c)

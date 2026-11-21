@@ -19,9 +19,9 @@ type QuestionRowView struct {
 	// Recommended mirrors OptionLabels: an option whose label carries the
 	// Host's "(recommended)" suffix. The suffix stays in the label so answers
 	// round-trip unchanged; the UI shows the badge instead of the words.
-	Recommended        []bool
-	MultiSelect        bool
-	Skipped            bool
+	Recommended []bool
+	MultiSelect bool
+	Skipped     bool
 }
 
 // QuestionCardView is parsed user-questions/request payload for UI.

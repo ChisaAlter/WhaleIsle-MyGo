@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -211,46 +212,5 @@ func readStatePID(path string) bool {
 }
 
 func compareVersions(a, b string) int {
-	pa := versionParts(a)
-	pb := versionParts(b)
-	n := len(pa)
-	if len(pb) > n {
-		n = len(pb)
-	}
-	for i := 0; i < n; i++ {
-		var x, y int
-		if i < len(pa) {
-			x = pa[i]
-		}
-		if i < len(pb) {
-			y = pb[i]
-		}
-		if x < y {
-			return -1
-		}
-		if x > y {
-			return 1
-		}
-	}
-	return 0
-}
-
-func versionParts(s string) []int {
-	s = strings.TrimPrefix(strings.TrimSpace(s), "v")
-	if s == "" {
-		return nil
-	}
-	bits := strings.Split(s, ".")
-	out := make([]int, len(bits))
-	for i, b := range bits {
-		n := 0
-		for _, ch := range b {
-			if ch < '0' || ch > '9' {
-				break
-			}
-			n = n*10 + int(ch-'0')
-		}
-		out[i] = n
-	}
-	return out
+	return update.CompareVersions(a, b)
 }

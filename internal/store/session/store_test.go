@@ -25,10 +25,10 @@ func TestRefreshListPopulatesItems(t *testing.T) {
 				"ok": true,
 				"value": map[string]any{
 					"items": []map[string]any{{
-						"sessionId":     "sess-1",
-						"updatedAt":     1.0,
-						"running":       false,
-						"blank":         true,
+						"sessionId":      "sess-1",
+						"updatedAt":      1.0,
+						"running":        false,
+						"blank":          true,
 						"agentAvailable": true,
 					}},
 				},
@@ -61,7 +61,7 @@ func TestRefreshListPopulatesItems(t *testing.T) {
 		t.Fatal("timeout waiting for list refresh")
 	}
 
- snap := st.Snapshot()
+	snap := st.Snapshot()
 	if len(snap.Items) != 1 || snap.Items[0].SessionID != "sess-1" {
 		t.Fatalf("items = %+v", snap.Items)
 	}

@@ -44,20 +44,20 @@ var (
 )
 
 type window struct {
-	beforeInput  func(platform.KeyInput) bool
+	beforeInput     func(platform.KeyInput) bool
 	devToolsEnabled *bool
-	b            *Backend
-	h            platform.WindowHandler
-	opts         *platform.WindowOptions
-	win          id
-	view         id // the content view: holds the web view and a docked inspector
-	web          id
-	blankStore   id // owned nonpersistent blank encoder store
-	browserStore id // owned persistent Browser partition, never default
-	delegate     id
-	ucc          id
-	effect       id
-	parent       *window
+	b               *Backend
+	h               platform.WindowHandler
+	opts            *platform.WindowOptions
+	win             id
+	view            id // the content view: holds the web view and a docked inspector
+	web             id
+	blankStore      id // owned nonpersistent blank encoder store
+	browserStore    id // owned persistent Browser partition, never default
+	delegate        id
+	ucc             id
+	effect          id
+	parent          *window
 
 	lastMouseDown id
 	dropped       []string         // DroppedFiles

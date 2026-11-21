@@ -230,6 +230,10 @@ const (
 	KeySettingsCredRemote                 = "settings.cred.remote"
 	KeySettingsCredRelay                  = "settings.cred.relay"
 	KeySettingsCredSaved                  = "settings.cred.saved"
+	KeySettingsCredConfigured             = "settings.cred.configured"
+	KeySettingsCredNotConfigured          = "settings.cred.not_configured"
+	KeySettingsCredDescribeItem           = "settings.cred.describe_item"
+	KeySettingsCredDescribeUnavailable    = "settings.cred.describe_unavailable"
 	KeySettingsDesktopWallpaper           = "settings.desktop.wallpaper"
 	KeySettingsDesktopWallpaperNone       = "settings.desktop.wallpaper_none"
 	KeyLauncherOpen                       = "launcher.open"
@@ -1357,6 +1361,10 @@ var zhCN = map[string]string{
 	KeySettingsCredRemote:                 "Remote Token",
 	KeySettingsCredRelay:                  "Remote Relay Token",
 	KeySettingsCredSaved:                  "凭据已保存",
+	KeySettingsCredConfigured:             "已配置",
+	KeySettingsCredNotConfigured:          "未配置",
+	KeySettingsCredDescribeItem:           "%s：%s",
+	KeySettingsCredDescribeUnavailable:    "凭据状态暂不可读：Host 未连接。",
 	KeySettingsDesktopWallpaper:           "壁纸",
 	KeySettingsDesktopWallpaperNone:       "（无）",
 	KeyLauncherOpen:                       "启动器",
@@ -2316,6 +2324,10 @@ var en = map[string]string{
 	KeySettingsCredRemote:                 "Remote Token",
 	KeySettingsCredRelay:                  "Remote Relay Token",
 	KeySettingsCredSaved:                  "Credentials saved",
+	KeySettingsCredConfigured:             "Configured",
+	KeySettingsCredNotConfigured:          "Not configured",
+	KeySettingsCredDescribeItem:           "%s: %s",
+	KeySettingsCredDescribeUnavailable:    "Credential status unavailable: the Host is not connected.",
 	KeySettingsDesktopWallpaper:           "Wallpaper",
 	KeySettingsDesktopWallpaperNone:       "(none)",
 	KeyLauncherOpen:                       "Launcher",

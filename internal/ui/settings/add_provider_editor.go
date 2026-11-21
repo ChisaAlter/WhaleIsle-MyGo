@@ -64,7 +64,7 @@ func modelAddProviderEditor(c *ui.Context, m Model, a *ModelsAccess, editing *st
 					}
 				}
 				if *mode == "custom" {
-					modelHint(c, providerCopy("连接中转站、自部署服务或其他兼容 OpenAI / Anthropic 协议的接口，需填写 API 地址、协议和模型。", "Connect a relay, a self-hosted server, or any other OpenAI- or Anthropic-compatible endpoint by its base URL, protocol, and models."), "")
+					modelHint(c, providerCopy("连接中转站、自部署服务或其他兼容 OpenAI/Anthropic 协议的接口，需填写 API 地址、协议和模型。", "Connect a relay, a self-hosted server, or any other OpenAI- or Anthropic-compatible endpoint by its base URL, protocol, and models."), "")
 				} else {
 					modelHint(c, providerCopy("从内置目录中选择 OpenAI、Anthropic、Kimi 等提供商，填入其 API 密钥即可使用。", "Pick OpenAI, Anthropic, Kimi, or another provider from the built-in catalog and enter its API key."), "")
 				}
