@@ -159,13 +159,13 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 		}
 		div.Draw(func(p *ui.Painter, r ui.Rect) {
 			color := c.Theme().Border
-			if held || (handle.Valid() && handle.Hovered()) {
+			if held || handle.Hovered() {
 				color = c.Theme().Accent
 			}
 			p.Fill(r, color, 0)
 		})
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
-			if div.Valid() && div.FocusVisible() {
+			if div.FocusVisible() {
 				p.FocusRing(r, [4]float32{})
 			}
 		})
@@ -286,13 +286,13 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 		}
 		div.Draw(func(p *ui.Painter, r ui.Rect) {
 			color := c.Theme().Border
-			if held || (handle.Valid() && handle.Hovered()) {
+			if held || handle.Hovered() {
 				color = c.Theme().Accent
 			}
 			p.Fill(r, color, 0)
 		})
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
-			if div.Valid() && div.FocusVisible() {
+			if div.FocusVisible() {
 				p.FocusRing(r, [4]float32{})
 			}
 		})

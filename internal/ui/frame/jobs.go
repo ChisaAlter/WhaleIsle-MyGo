@@ -421,7 +421,7 @@ func headerPopupInset(c *ui.Context, panel, anchor ui.Element, width, viewport, 
 	target := max(margin, min(box.X, viewport-margin-width))
 	panel.Left(target - base)
 	panel.DrawOver(func(_ *ui.Painter, _ ui.Rect) {
-		if anchor.Valid() && anchor.Bounds() != box {
+		if anchor.Bounds() != box {
 			c.Services().Invalidate()
 		}
 	})

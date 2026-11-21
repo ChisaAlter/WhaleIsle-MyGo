@@ -147,7 +147,7 @@ func DisclosureRow(c *ui.Context, o DisclosureRowOptions) ui.Element {
 		})
 		row.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			// Inside the line, where a scrolling transcript cannot clip it.
-			if row.Valid() && row.FocusVisible() {
+			if row.FocusVisible() {
 				p.Stroke(ui.Rect{X: r.X + 1, Y: r.Y + 2, W: r.W - 2, H: r.H - 4}, t.Focus, 4, 2)
 			}
 		})

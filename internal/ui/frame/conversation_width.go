@@ -143,7 +143,7 @@ func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, con
 			s.endConversationWidth(g.origin, false)
 		}
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
-			if !handle.Valid() || (!handle.Hovered() && g.side != side && !handle.FocusVisible()) {
+			if !handle.Hovered() && g.side != side && !handle.FocusVisible() {
 				return
 			}
 			_, y, over := handle.PointerPosition()
@@ -152,7 +152,7 @@ func paintConversationWidthControls(c *ui.Context, m Model, body ui.Element, con
 			}
 			y = max(float32(12), min(r.H-12, y))
 			p.Fill(ui.Rect{X: r.X + (r.W-2)/2, Y: r.Y + y - 12, W: 2, H: 24}, c.Theme().Accent, 1)
-			if handle.Valid() && handle.FocusVisible() {
+			if handle.FocusVisible() {
 				p.FocusRing(r, [4]float32{})
 			}
 		})

@@ -46,7 +46,7 @@ func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchSt
 		p.Fill(track, theme.Color(colors.BorderL3).Mix(active, position), 10)
 		knob := ui.Rect{X: track.X + 2 + position*16, Y: track.Y + 2, W: 16, H: 16}
 		p.Fill(knob, offThumb.Mix(thumb, position), 8)
-		if switcher.Valid() && switcher.FocusVisible() && !switcher.IsDisabled() {
+		if switcher.FocusVisible() && !switcher.IsDisabled() {
 			p.Stroke(ui.Rect{X: track.X - 4, Y: track.Y - 4, W: track.W + 8, H: track.H + 8}, theme.Color(colors.Accent), 14, 2)
 		}
 	})

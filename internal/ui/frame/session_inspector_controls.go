@@ -221,11 +221,11 @@ func inspectorDetailsDivider(c *ui.Context, p *SessionInspectorPaneState, availa
 	p.dragInspectorDetails(dy, available, held)
 	rail.Draw(func(painter *ui.Painter, r ui.Rect) {
 		color := c.Theme().Border
-		if held || (rail.Valid() && rail.Hovered()) {
+		if held || rail.Hovered() {
 			color = c.Theme().Accent
 		}
 		painter.Fill(r, color, 0)
-		if rail.Valid() && rail.FocusVisible() {
+		if rail.FocusVisible() {
 			painter.FocusRing(r, [4]float32{})
 		}
 	})
