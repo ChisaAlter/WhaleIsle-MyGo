@@ -254,6 +254,7 @@ func paintVirtualizedReadOnlySource(c *ui.Context, m Model, path, text string, t
 			Padding(6, 8, 6, 8).
 			Selectable()
 		// PageShortcut deliberately leaves focused selectable text alone.
+		list.Label(label("文件内容", "File content"))
 		// Find in this document is owned by this list, so it remains available
 		// after clicking or copying source without widening page shortcuts.
 		if list.Shortcut(ui.Cmd, ui.KeyF) {

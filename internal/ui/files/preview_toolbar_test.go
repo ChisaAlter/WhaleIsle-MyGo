@@ -53,9 +53,23 @@ func TestPreviewToolbarLiteralSingleRowAndBranches(t *testing.T) {
 			if !ok || header.H != want || body.Y != header.Y+want {
 				t.Fatalf("branch=%v width=%v header=%+v body=%+v", desktop, width, header, body)
 			}
-			floating, ok := tt.Find("Preview in separate window")
-			if !ok || floating.W != 28 || floating.H != 28 || floating.X+floating.W > width {
-				t.Fatalf("floating displaced: %+v", floating)
+			if desktop {
+				opt, ok := tt.Find("File options")
+				if !ok || opt.W != 28 || opt.H != 28 || opt.X+opt.W > width {
+					t.Fatalf("options displaced: %+v", opt)
+				}
+				if err := tt.Click("File options"); err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Contains(tt.Menu(), "Preview in separate window") {
+					t.Fatalf("options menu lost the floating action: %v", tt.Menu())
+				}
+				tt.CloseMenu()
+			} else {
+				floating, ok := tt.Find("Preview in separate window")
+				if !ok || floating.W != 28 || floating.H != 28 || floating.X+floating.W > width {
+					t.Fatalf("floating displaced: %+v", floating)
+				}
 			}
 			for _, caption := range []string{"Copy absolute path", "Copy relative path", "Copy draft", "Choose viewer", "Go to line", "Auto-refresh this file"} {
 				if _, ok := tt.Find(caption); ok {
@@ -113,7 +127,7 @@ func TestPreviewToolbarContextKeepsDraftWrapAndNavigation(t *testing.T) {
 	m, tab := toolbarFixture(t)
 	tab.Draft, tab.Editing = "draft\nsecond\nthird", true
 	tt := toolbarTester(&m, 676)
-	if err := tt.Click("Toggle word wrap"); err != nil {
+	if err := tt.Click("Wrap lines"); err != nil {
 		t.Fatal(err)
 	}
 	if !previewPreferences(m).WordWrap || tab.Draft != "draft\nsecond\nthird" {

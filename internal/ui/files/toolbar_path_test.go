@@ -55,7 +55,14 @@ func TestToolbarNarrowActionsRemainVisible(t *testing.T) {
 		}
 		tt.CloseMenu()
 	}
-	if rect, ok := tt.Find("Preview in separate window"); !ok || rect.X < 0 || rect.X+rect.W > 361 {
-		t.Fatalf("floating action displaced: %+v", rect)
+	if rect, ok := tt.Find("File options"); !ok || rect.X < 0 || rect.X+rect.W > 361 {
+		t.Fatalf("options action displaced: %+v", rect)
 	}
+	if err := tt.Click("File options"); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(tt.Menu(), "Preview in separate window") {
+		t.Fatalf("options menu lost the floating action: %v", tt.Menu())
+	}
+	tt.CloseMenu()
 }

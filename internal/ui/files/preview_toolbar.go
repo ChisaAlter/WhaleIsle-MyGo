@@ -181,11 +181,9 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 				if isMarkdown(path) {
 					paintPreviewMarkdownToggle(c, m)
 				}
-				icon := previewWrapIcon
-				if previewPreferences(m).WordWrap {
-					icon = previewNowrapIcon
-				}
-				if previewTool(c, "preview-wrap", label("切换自动换行", "Toggle word wrap"), icon, muted).Clicked() {
+				// FilePreview.tsx draws the wrap toggle as a ghost sm text
+				// button (aria-pressed carries the state, no extra paint).
+				if previewTextTool(c, label("自动换行", "Wrap lines")).Clicked() {
 					togglePreviewWrap(m)
 				}
 			}
@@ -199,7 +197,7 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 				togglePreviewWrap(m)
 			}
 		}
-		if m.Tabs != nil {
+		if m.Tabs != nil && !desktop {
 			if previewTool(c, "preview-floating", label("独立窗口预览", "Preview in separate window"), previewFloatingIcon, muted).Clicked() {
 				activateFloatingPreview(m, path)
 			}
@@ -208,14 +206,19 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 			paintPreviewSelectionActions(c, m, path)
 			if previewEditable(m, path) || previewDirty(m) {
 				caption, busy := previewSaveCaption(m)
-				if previewTextTool(c, caption).Width(86).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
+				if previewTextTool(c, caption).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
 					Disabled(busy || explicitSaveDisabled(m)).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
 						setFileError(m, err)
 					}
 				}
 			}
+			// The original's toolbar ends at the save button; MyGo's extra
+			// preview actions stay discoverable on one visible options button.
 			previewTool(c, "preview-options", label("文件选项", "File options"), previewMoreIcon, muted).Menu(func(menu *ui.Menu) {
+				if m.Tabs != nil && menu.Item(label("独立窗口预览", "Preview in separate window")).Chosen() {
+					activateFloatingPreview(m, path)
+				}
 				treeFileMenu(m, path)(menu)
 				if previewSupportsLineNavigation(m, path) && menu.Item(label("跳转到行…", "Go to line…")).Chosen() {
 					*jump = true
@@ -304,7 +307,7 @@ func paintDesktopFileCrumbs(c *ui.Context, m Model, path string, muted ui.Color)
 			if index == len(parts)-1 {
 				ink = c.Theme().Text
 			}
-			ui.Text(c, part).FontSize(12).TextColor(ink).SingleLine().MaxWidth(120).Shrink(0).Tooltip(part)
+			ui.Text(c, part).FontSize(12).FixedLineHeight(18).TextColor(ink).SingleLine().MaxWidth(120).Shrink(0).Tooltip(part)
 		}
 	})
 }

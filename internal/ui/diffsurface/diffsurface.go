@@ -112,7 +112,7 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	accent := chrome.Color(colors.Accent)
 
-	ui.Column(c).Fill().MinWidth(0).Background(field).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).Background(field).Label(word("工作区差异", "Diff panel")).Children(func() {
 		ui.Row(c).MinHeight(36).Padding(8, 12, 8, 12).Gap(8).FillWidth().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if strings.TrimSpace(m.WorkspaceRoot) != "" && m.Text != nil && strings.TrimSpace(*m.Text) != "" {
@@ -171,7 +171,7 @@ func View(c *ui.Context, m Model) {
 		}
 
 		paintPatchFiles(c, m, text, diff.Style{
-			FontSize: 12,
+			FontSize: 11,
 			FG:       fg,
 			Add:      ui.RGB(0x22, 0xc5, 0x5e),
 			Del:      ui.RGB(0xef, 0x44, 0x44),

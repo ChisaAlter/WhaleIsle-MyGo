@@ -111,7 +111,9 @@ func TestNativeFileTreeReferenceAndContextMenuKeepPathIdentity(t *testing.T) {
 	row, _ := tt.Find("File " + path)
 	tt.Move(row.X+20, row.Y+14)
 	button, ok := tt.Find("Reference file " + path)
-	if !ok || button.X+button.W > row.X+row.W || button.W != 20 || button.H != 20 {
+	// The li seats the 20px mention action + gap beside the flex:1 row, so the
+	// action must stay within the row lane plus that 24 DIP accessory seat.
+	if !ok || button.X < row.X || button.X+button.W > row.X+row.W+24 || button.W != 20 || button.H != 20 {
 		t.Fatalf("long file name displaced reference action: %+v row=%+v", button, row)
 	}
 	if err := tt.Click("Reference file " + path); err != nil {
