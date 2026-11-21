@@ -150,7 +150,7 @@ main-panel and right-pane surfaces. Recorded classifications:
 - **(a, recorded) plugins.card-1** — web renders `li[data-plugin-item]` as a
   65.33 DIP card (title+description+meta); native built-in rows are compact
   18.67 DIP single-line buttons. Structural rework deferred to a follow-up.
-- **(b) agents pane** — y −71.67/h +71.67 is the merged-caption dock offset;
+- **(c) agents pane** — y −71.67/h +71.67 is the merged-caption dock offset;
   native pane also carries 智能体团队 + Agent 预设管理 sections above the
   shared empty state (`agents.empty-title` y +69). x/w match.
 - **(b) trajectory** — native ledger is shorter because the conversation

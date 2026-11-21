@@ -2434,7 +2434,7 @@
                 "selector": "[data-plugin-item='subagent']"
               },
               "native": {
-                "name": "子代理",
+                "name": "Plugin item 子代理",
                 "type": "Button"
               },
               "assert": [
