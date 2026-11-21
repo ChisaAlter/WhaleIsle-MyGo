@@ -192,9 +192,10 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			if q, ok := snap.QuestionCards[p.EventID]; ok && q.Index >= 0 && q.Index < len(q.Rows) {
 				row := q.Rows[q.Index]
 				if row.Header != "" && row.Question != "" {
-					// Padding sits on the row so the text bounds match the
-					// Original's content box for comparison.
-					ui.Row(c).FillWidth().Padding(14, 24, 0, 24).Shrink(0).Children(func() {
+					// The Original's .header carries padding-top 20; padding
+					// sits on the row so the text bounds match the content
+					// box for comparison.
+					ui.Row(c).FillWidth().Padding(20, 24, 0, 24).Shrink(0).Children(func() {
 						ui.Text(c, row.Header).FontSize(11).FixedLineHeight(16).TextColor(muted)
 					})
 				}
@@ -204,8 +205,9 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 					title = row.Header
 				}
 			}
-			ui.Row(c).FillWidth().Padding(20, 24, 0, 24).Shrink(0).Children(func() {
-				ui.Text(c, title).FillWidth().MinWidth(0).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg)
+			// .questionTitle { margin: 5px 24px 0 } in the Original.
+			ui.Row(c).FillWidth().Padding(5, 24, 0, 24).Shrink(0).Children(func() {
+				ui.Text(c, title).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg)
 			})
 			if q, ok := snap.QuestionCards[p.EventID]; ok {
 				questionWaitStatus(c, p, q, store, colors, muted)
