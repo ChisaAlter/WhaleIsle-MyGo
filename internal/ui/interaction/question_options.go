@@ -27,7 +27,7 @@ var (
 // questionPagerButton is one 28 DIP chevron seat of the wizard pager.
 func questionPagerButton(c *ui.Context, icon *ui.SVG, label string, enabled bool) ui.Element {
 	t := c.Theme()
-	button := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).Radius(8).
+	button := ui.Button(c, "").Label(label).Tooltip(label).Width(24).Height(24).Radius(6).
 		Background(ui.Transparent).Border(0.5, t.Border).Padding(0, 0, 0, 0)
 	button.Children(func() {
 		ui.Icon(c, icon).Width(14).Height(14).TextColor(t.TextMuted)

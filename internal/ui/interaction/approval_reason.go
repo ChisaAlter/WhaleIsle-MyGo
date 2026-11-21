@@ -65,11 +65,6 @@ func approvalReason(c *ui.Context, p interaction.Pending, muted ui.Color) {
 	if esc != "" && esc != text {
 		ui.Box(c).Size(0, 0).PassThrough().Label(esc)
 	}
-	if original := p.ApprovalOriginalReason; original != "" && original != text {
-		label := "Original reason: "
-		if i18n.Locale() == i18n.LocaleZH {
-			label = "原始理由："
-		}
-		questionText(c, label+original, 11, muted)
-	}
+	// The Original's ApprovalCard renders only the resolved display reason;
+	// the raw original reason stays in the pending payload, never in copy.
 }

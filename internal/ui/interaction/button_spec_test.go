@@ -29,16 +29,17 @@ func approvalGallery(t *testing.T) (*ui.Tester, theme.Colors) {
 	return tt, theme.Resolve("deepseek.light").Light
 }
 
-// The card's decisions must be the harness buttons: 28 DIP small faces, the
-// confirming one filled with the primary token.
+// The card's decisions must be the harness buttons: 36 DIP medium faces
+// matching the Original's 36px card buttons; the confirming one uses the
+// primary token.
 func TestApprovalCardUsesHarnessButtonRecipes(t *testing.T) {
 	tt, colors := approvalGallery(t)
 	allow, ok := tt.Find(i18n.T(i18n.KeyInteractionAllow))
 	if !ok {
 		t.Fatalf("allow button missing: %q", tt.Texts())
 	}
-	if allow.H != 28 {
-		t.Fatalf("allow height = %v, want the 28 DIP small button", allow.H)
+	if allow.H != 36 {
+		t.Fatalf("allow height = %v, want the 36 DIP medium button", allow.H)
 	}
 	img := tt.Image()
 	// Sample inside the rounded face, clear of the 8 DIP corner radius.
@@ -51,8 +52,8 @@ func TestApprovalCardUsesHarnessButtonRecipes(t *testing.T) {
 	if !ok {
 		t.Fatalf("deny button missing: %q", tt.Texts())
 	}
-	if deny.H != 28 {
-		t.Fatalf("deny height = %v, want the 28 DIP small button", deny.H)
+	if deny.H != 36 {
+		t.Fatalf("deny height = %v, want the 36 DIP medium button", deny.H)
 	}
 	if deny.Y != allow.Y {
 		t.Fatalf("deny/allow baseline drifted: %v vs %v", deny.Y, allow.Y)
@@ -79,17 +80,22 @@ func TestQuestionCardButtonRecipes(t *testing.T) {
 		if !ok {
 			t.Fatalf("%q missing: %q", label, tt.Texts())
 		}
-		if button.H != 28 {
-			t.Fatalf("%q height = %v, want 28 DIP", label, button.H)
+		if button.H != 36 {
+			t.Fatalf("%q height = %v, want 36 DIP", label, button.H)
 		}
 	}
 	// The primary submit sits on the same baseline row as skip.
-	submit, ok := tt.Find(i18n.T(i18n.KeyChatQuestionStep))
-	if !ok {
-		t.Fatalf("submit missing: %q", tt.Texts())
+	// The pager's icon button shares the 下一题 name with the primary action;
+	// pick the 36 DIP match (the pager seat is 24 DIP).
+	submits := tt.FindAll(i18n.T(i18n.KeyChatQuestionStep))
+	found := false
+	for _, r := range submits {
+		if r.H == 36 {
+			found = true
+		}
 	}
-	if submit.H != 28 {
-		t.Fatalf("submit height = %v, want 28 DIP", submit.H)
+	if !found {
+		t.Fatalf("36 DIP submit missing among %v", submits)
 	}
 }
 

@@ -53,7 +53,7 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 				store.NavigateQuestion(p.AgentID, p.EventID, index-1)
 				flow.feedback = ""
 			}
-			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(muted)
+			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(14)).FixedLineHeight(24).FontWeight(500).TextColor(muted)
 			if next := questionPagerButton(c, questionPagerNext, i18n.T(i18n.KeyChatQuestionNext), !p.Sending && index+1 < len(card.Rows)); next.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index+1)
 				flow.feedback = ""

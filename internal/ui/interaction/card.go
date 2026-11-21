@@ -145,6 +145,8 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	if approval {
 		keys = ui.Local(card, "approval-keys", func() approvalKeys { return approvalKeys{} })
 		card.Focusable().Label("Approval details: " + p.EventID).HandleInput(approvalHandler(keys, p, store, false))
+	} else if p.Event == interaction.EventUserQuestions {
+		card.Label("Question card")
 	}
 	card.Children(func() {
 		if approval {
@@ -188,7 +190,11 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			if q, ok := snap.QuestionCards[p.EventID]; ok && q.Index >= 0 && q.Index < len(q.Rows) {
 				row := q.Rows[q.Index]
 				if row.Header != "" && row.Question != "" {
-					ui.Text(c, row.Header).FontSize(11).FixedLineHeight(16).TextColor(muted).Padding(14, 24, 0, 24).Shrink(0)
+					// Padding sits on the row so the text bounds match the
+					// Original's content box for comparison.
+					ui.Row(c).FillWidth().Padding(14, 24, 0, 24).Shrink(0).Children(func() {
+						ui.Text(c, row.Header).FontSize(11).FixedLineHeight(16).TextColor(muted)
+					})
 				}
 				if row.Question != "" {
 					title = row.Question
@@ -196,7 +202,9 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 					title = row.Header
 				}
 			}
-			ui.Text(c, title).FillWidth().MinWidth(0).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg).Shrink(0).Padding(20, 24, 0, 24)
+			ui.Row(c).FillWidth().Padding(20, 24, 0, 24).Shrink(0).Children(func() {
+				ui.Text(c, title).FillWidth().MinWidth(0).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg)
+			})
 			if q, ok := snap.QuestionCards[p.EventID]; ok {
 				questionWaitStatus(c, p, q, store, colors, muted)
 				focused = questionsBody(c, p, q, store, colors, fg, muted)
@@ -207,11 +215,11 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 		}
 		ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
 			if p.Sending {
-				widgets.Button(c, colors, i18n.T(i18n.KeyInteractionContinue), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: true})
+				widgets.Button(c, colors, i18n.T(i18n.KeyInteractionContinue), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: true})
 				return
 			}
 			if p.Error != "" {
-				if retry := widgets.Button(c, colors, i18n.T(i18n.KeyBootRetry), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}); retry.Clicked() {
+				if retry := widgets.Button(c, colors, i18n.T(i18n.KeyBootRetry), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}); retry.Clicked() {
 					store.Retry(p.EventID)
 				}
 				if p.Event != interaction.EventUserQuestions {
