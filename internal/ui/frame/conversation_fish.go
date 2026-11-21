@@ -1,6 +1,8 @@
 package frame
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
 )
@@ -12,9 +14,44 @@ var conversationFishSVG = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/
 func conversationHeroFish(c *ui.Context, ink ui.Color) {
 	// Installed EmptyHero passes size=34 to the official slot. Its span is a
 	// square alpha-mask of whale-isle-head.png, in the headline's current ink.
-	if bitmap := chrome.HeroBrandMark(ink); bitmap != nil {
-		ui.Image(c, bitmap).Key("conversation-hero-fish").Label("Conversation hero fish").Size(34, 34).Shrink(0).Fit(ui.Contain)
-		return
+	// HeroShell.module.css .fishHitbox:hover .fish swims 1.6s ease-in-out
+	// (rotate -4deg at 35%, +1.6deg at 70%) while the pointer rests on it,
+	// skipped under prefers-reduced-motion.
+	hit := ui.Box(c.Key("conversation-hero-fish-hitbox")).Label("Conversation hero fish").Size(34, 34).Shrink(0).Center()
+	swim := hit.Hovered() && !c.Preferences().ReduceMotion
+	if swim {
+		c.After(16 * time.Millisecond)
 	}
-	ui.Icon(c, conversationFishSVG).Key("conversation-hero-fish").Label("Conversation hero fish").Width(34).Height(34 * 17.04 / 23.16).TextColor(ink)
+	hit.Children(func() {
+		mark := ui.Box(c).Shrink(0).Center()
+		if swim {
+			mark.Rotate(heroFishSwimAngle(c.Now()))
+		}
+		mark.Children(func() {
+			if bitmap := chrome.HeroBrandMark(ink); bitmap != nil {
+				ui.Image(c, bitmap).Key("conversation-hero-fish").Size(34, 34).Shrink(0).Fit(ui.Contain)
+				return
+			}
+			ui.Icon(c, conversationFishSVG).Key("conversation-hero-fish").Width(34).Height(34 * 17.04 / 23.16).TextColor(ink)
+		})
+	})
+}
+
+// heroFishSwimAngle returns the rotation of the source hero-fish-swim
+// keyframes at t: rotate -4deg at 35% and +1.6deg at 70% of the 1.6s cycle,
+// eased in and out of each segment. The keyframes' sub-DIP translates are
+// dropped; the pivot is the element centre, close to the source's 50% 60%.
+func heroFishSwimAngle(now time.Time) float32 {
+	const period = 1600 * time.Millisecond
+	x := float32(now.UnixNano()%int64(period)) / float32(period)
+	type key struct{ at, deg float32 }
+	keys := [4]key{{0, 0}, {.35, -4}, {.7, 1.6}, {1, 0}}
+	for i := 1; i < len(keys); i++ {
+		if x <= keys[i].at {
+			f := (x - keys[i-1].at) / (keys[i].at - keys[i-1].at)
+			f = f * f * (3 - 2*f)
+			return keys[i-1].deg + (keys[i].deg-keys[i-1].deg)*f
+		}
+	}
+	return 0
 }

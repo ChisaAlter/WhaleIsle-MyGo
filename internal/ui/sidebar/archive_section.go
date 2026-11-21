@@ -16,7 +16,10 @@ const archiveSessionPageBase = 30
 // here nor changing the surrounding browser may reuse a workspace disclosure.
 // Expansion remains local to the sidebar; it never writes workspace preferences.
 func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui.Color) {
-	section := ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(2).Shrink(0)
+	// WorkspaceBrowser.module.css `.groupSection + .groupSection` separates
+	// sibling sections by 4 DIP; the parent column's 2-DIP row gap leaves 2
+	// to the section's own top margin.
+	section := ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(2).Margin(2, 0, 0, 0).Shrink(0)
 	limit := ui.Local(section, "archive-visible-limit", func() int { return archiveSessionPageBase })
 	section.Transition(workspaceArchiveSectionMotion(c, section, m.Snapshot)).Children(func() {
 		label := i18n.T(i18n.KeySidebarArchivedSection)

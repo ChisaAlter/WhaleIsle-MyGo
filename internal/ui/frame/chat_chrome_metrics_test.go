@@ -34,7 +34,7 @@ func chatChromeTester(t *testing.T) *ui.Tester {
 // TestSidebarChromeMatchesTheNativePage pins the sidebar controls measured from
 // the installed harness page at 1440x920: the new-session button is 252x38 at
 // (14,70), the collapse control is the 28x28 seat at (240,22), and the page rows
-// sit 40 apart inside the 256-DIP list with their label inset at x=46.
+// sit 38 apart inside the 256-DIP list with their label inset at x=46.
 func TestSidebarChromeMatchesTheNativePage(t *testing.T) {
 	tt := chatChromeTester(t)
 	defer i18n.SetLocale(i18n.DefaultLocale)
@@ -70,8 +70,8 @@ func TestSidebarChromeMatchesTheNativePage(t *testing.T) {
 	if market.H != 22 {
 		t.Fatalf("插件 label height=%.1f, want the native 22-DIP line box", market.H)
 	}
-	if pitch := schedule.Y - market.Y; pitch < 39.5 || pitch > 40.5 {
-		t.Fatalf("page row pitch=%.1f, want 40", pitch)
+	if pitch := schedule.Y - market.Y; pitch < 37.5 || pitch > 38.5 {
+		t.Fatalf("page row pitch=%.1f, want 38", pitch)
 	}
 	// The workspace toolbar's trailing icon sits at the native x=240, 28x28.
 	options, ok := tt.Find("视图选项")

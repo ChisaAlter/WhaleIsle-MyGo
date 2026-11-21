@@ -86,8 +86,8 @@ func TestNavigationLabelKeepsTheNativeBaseline(t *testing.T) {
 		t.Fatalf("navigation baseline deviation %.2f DIP, want 0", deviation)
 	}
 	schedule := chatChromeSeatFind(t, tt, i18n.T(i18n.KeySidebarSchedule))
-	if pitch := schedule.Y - market.Y; pitch != 40 {
-		t.Fatalf("page row pitch %.2f, want the native 40", pitch)
+	if pitch := schedule.Y - market.Y; pitch != 38 {
+		t.Fatalf("page row pitch %.2f, want the installed page's 38", pitch)
 	}
 }
 

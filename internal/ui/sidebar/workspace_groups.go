@@ -130,7 +130,10 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 					if g.Kind == "other" {
 						title = workspaceText("其他会话", "Other sessions")
 					}
-					header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(8)
+					// The 34-DIP header carries the group's accessible name and
+					// treeitem role, as the source's [role=treeitem] row does;
+					// its inner buttons keep their own names for the actions.
+					header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).Role(ui.RoleTreeItem).Label(title).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(8)
 					if header.Hovered() || header.FocusWithin() || header.MenuOpen() {
 						header.Background(selectedBackground(colors))
 					}

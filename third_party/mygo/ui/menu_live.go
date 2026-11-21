@@ -48,6 +48,7 @@ func (e *node) rebuildLiveMenu(build func(*Menu)) {
 	p.menu, p.labels, p.keys, p.commands = pm, run.labels, run.keys, run.commands
 	p.presentation, p.closeOnPointerLeave, p.live = run.presentation, run.closeOnPointerLeave, run.live
 	p.above, p.alignEnd = run.above, run.alignEnd
+	p.rows = run.rows
 	rt.menu.index, rt.menu.submenu, rt.menu.hover = -1, -1, -1
 	for i, item := range pm.Items {
 		identity := menuLiveIdentity(p, i)

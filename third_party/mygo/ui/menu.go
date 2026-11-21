@@ -121,6 +121,7 @@ func (e *node) buildMenu(button bool, build func(m *Menu)) {
 			mr.pending.keys = run.keys
 			mr.pending.closeOnPointerLeave = run.closeOnPointerLeave
 			mr.pending.above, mr.pending.alignEnd = run.above, run.alignEnd
+			mr.pending.rows = run.rows
 			if run.closeOnPointerLeave {
 				e.flags |= flagHover
 			}
@@ -171,6 +172,8 @@ type menuRun struct {
 	// above opens the menu above its button, and alignEnd lines up its
 	// right edge with the button's (OpenAbove, AlignEnd).
 	above, alignEnd bool
+	// rows is the item row geometry of Rows, or the shared metrics.
+	rows MenuRows
 }
 
 // CloseOnPointerLeave closes this menu 200ms after the pointer leaves its
@@ -197,6 +200,14 @@ func (m *Menu) OpenAbove(on bool) {
 func (m *Menu) AlignEnd(on bool) {
 	if m.run.collect {
 		m.run.alignEnd = on
+	}
+}
+
+// Rows makes the menu's item rows use the geometry of rows instead of the
+// shared menu metrics; its zero fields keep the shared values.
+func (m *Menu) Rows(rows MenuRows) {
+	if m.run.collect {
+		m.run.rows = rows
 	}
 }
 
@@ -410,6 +421,8 @@ type shownMenu struct {
 	// alignEnd are its Menu's OpenAbove and AlignEnd.
 	anchor          Rect
 	above, alignEnd bool
+	// rows is its Menu's Rows geometry, or the shared metrics.
+	rows MenuRows
 	// openedAt is when the overlay first showed, which it rises from.
 	openedAt time.Time
 	// text is the text the menu opened on, which takes its commands.
@@ -744,7 +757,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 				if p.live {
 					c.nextKey, c.keySet = "menu-live-"+menuLiveIdentity(p, i), true
 				}
-				row := menuRow(c, item)
+				row := menuRow(c, p, item)
 				row.Children(func() { menuItemContent(c, p, item) })
 				rows = append(rows, menuRowNode{i, row, item})
 			}
@@ -824,7 +837,7 @@ func (rt *engine) buildMenuOverlay(c *context) {
 					if p.live {
 						c.nextKey, c.keySet = "menu-live-"+menuLiveItemIdentity(p, item), true
 					}
-					row := menuRow(c, item)
+					row := menuRow(c, p, item)
 					if item.Enabled && row.Hovered() {
 						row.Background(menuHoverFill(c, p.presentation[item.ID].danger))
 					}

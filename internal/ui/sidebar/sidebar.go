@@ -386,7 +386,7 @@ func View(c *ui.Context, m Model) {
 			if !c.Preferences().ReduceMotion {
 				rail.Transition(ui.ElementTransition{
 					Duration: 150 * time.Millisecond,
-					Ease:     ui.EaseOut,
+					Ease:     ui.EaseInOut,
 					Position: true,
 					Enter:    &ui.Motion{X: 49, Opacity: 0},
 				})
@@ -427,10 +427,11 @@ func View(c *ui.Context, m Model) {
 					ui.Box(c).Height(12)
 				}
 			}
-			// SidebarRoot.panelList: 36-high rows with a 4-DIP gap, so the
-			// pitch is 40, inset 2 inside the 256-DIP list (native buttons sit at
-			// x=14, 252 wide, with 插件 at y=120 and 自动化任务 at y=160).
-			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, 2, 8, 2).Gap(4).Children(func() {
+			// SidebarRoot.panelList: 36-high rows with the source's 2-DIP gap,
+			// so the pitch is 38, inset 2 inside the 256-DIP list (native
+			// buttons sit at x=14, 252 wide, with 插件 at y=120 and 自动化任务
+			// at y=158, matching the installed page).
+			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, 2, 8, 2).Gap(2).Children(func() {
 				nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
 					row := ui.Button(c.Key("sidebar-panel-"+key), "").FillWidth().Height(skinLayout.NavHeight).Radius(12).
 						Selected(m.ActivePanel == id).Background(ui.Transparent).TextColor(fg).BorderWidth(0).
@@ -441,7 +442,8 @@ func View(c *ui.Context, m Model) {
 					if skinLayout.Skin == theme.SkinCodex {
 						row.Padding(6, 8).MinHeight(32)
 					}
-					row = row.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
+					// SidebarRoot.module.css .panelRow:hover swaps the fill with no
+					// transition; no colors transition here either.
 					row.Children(func() {
 						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 							if drawIcon != nil {
@@ -487,8 +489,11 @@ func View(c *ui.Context, m Model) {
 			if m.WorkspaceMenuOpen != nil {
 				menuOpen = m.WorkspaceMenuOpen
 			}
-			// SidebarRoot.regionArea (flex:1): workspace browser + real session tree.
-			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(6).Padding(8, 0, 0, 0).Children(func() {
+			// SidebarRoot.regionArea (flex:1): workspace browser + real session
+			// tree. The section header sits 4 DIP above the tree rows, as the
+			// installed 36-DIP sectionHeader does with its zero bottom gap, and
+			// the region's top inset keeps the label on the source's 250 line.
+			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Padding(2.67, 0, 0, 0).Children(func() {
 				// WorkspaceBrowser.sectionHeader and Rows.tasksSection use the
 				// source tertiary token, independent of other rail readability ink.
 				sectionInk := chrome.Color(colors.Muted)
@@ -539,7 +544,10 @@ func View(c *ui.Context, m Model) {
 		// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
 		// SidebarRoot.footArea: footer.action then settings (always pinned), and the
 		// account seat at the very bottom.
-		ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(8, 0, 4, 0).Gap(2).Shrink(0).Children(func() {
+		// The installed page keeps 14 DIP under the bottom-pinned settings
+		// trigger (6 root padding + the frame/footer inset); the root's 6 and
+		// the footer's 8 match it.
+		ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(8, 0, 8, 0).Gap(2).Shrink(0).Children(func() {
 			// The footer's top edge drags the window, like the logo row does.
 			ui.Box(c).Key("sidebar-footer-drag").FillWidth().Height(6).DragWindow()
 			// The launcher is not a sidebar row in the installed build: the header's
