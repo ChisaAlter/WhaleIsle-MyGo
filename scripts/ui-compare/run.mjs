@@ -75,7 +75,7 @@ if (!surfaceSpec) throw new Error(`unknown surface ${surface}; have ${Object.key
 // launch envs can carry DEEPSEEK_BASE_URL/DEEPSEEK_API_KEY into their own
 // child env only — nothing is written to any profile; the pid joins the
 // tracked set and dies with the rest of the run.
-let mockBase = '';
+let mockProc = null, mockBase = '';
 if (surfaceSpec.mock) {
   mockProc = tracked(spawn(process.execPath, [join(TOOL_DIR, 'mock.mjs'), '--log', join(outDir, 'mock.jsonl')], { stdio: ['ignore', 'pipe', 'inherit'] }), 'mock');
   mockProc.stdout.setEncoding('utf8');
@@ -88,7 +88,7 @@ if (surfaceSpec.mock) {
 }
 const modelEnv = mockBase ? { DEEPSEEK_BASE_URL: mockBase + '/v1', DEEPSEEK_API_KEY: 'mock-key' } : {};
 
-let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0, mockProc = null;
+let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0;
 const cdpPending = new Map();
 const cdp = (method, params = {}) => new Promise((res, rej) => {
   const id = ++cdpSeq;
