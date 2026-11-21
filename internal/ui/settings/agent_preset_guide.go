@@ -351,7 +351,7 @@ PTC 是 Programmatic Tool Calling，即通过程序调用工具。当前内置�
 // border or fill, and the primary text colour on hover.
 func presetTextAction(c *ui.Context, label, id string, trigger *ui.Handle, muted, fg ui.Color) bool {
 	ink := muted
-	button := ui.Button(c, "").Label(label + " · " + id).Height(36).Padding(0, 6).Radius(12).
+	button := ui.Button(c, "").Label(label+" · "+id).Height(36).Padding(0, 6).Radius(12).
 		BorderWidth(0).Background(ui.Transparent).TextColor(ink)
 	if button.Hovered() {
 		ink = fg

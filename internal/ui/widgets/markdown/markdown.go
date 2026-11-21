@@ -31,6 +31,10 @@ type Style struct {
 	// DocumentLayout uses the original MarkdownText block typography and margins.
 	// Existing conversation renderers retain their current layout unless opted in.
 	DocumentLayout bool
+	// Compact mirrors the Original MarkdownText `.compact` variant used for
+	// reasoning bodies: secondary size and leading, 4px block margins, 2px list
+	// spacing and body-size headings. It only takes effect with DocumentLayout.
+	Compact bool
 	// Market's later-loaded .readme h3 rule overrides only these two metrics.
 	// Zero keeps the shared Markdown heading; explicit values are absolute DIPs.
 	DocumentH3FontSize   float32
@@ -51,6 +55,12 @@ type Style struct {
 	LineNumbers bool
 	// CodeBanner is the code-card header fill; zero derives a muted tint.
 	CodeBanner ui.Color
+	// PlainCodeBanner renders the Original's no-toolbarLabels variant instead
+	// of the shared CodeToolbar: a 36px banner row (9/14 inset) with a text
+	// copy action and no wrap seat, plus a uniform 16px body inset. The file
+	// preview's MarkdownText passes no toolbarLabels; surfaces that localize
+	// the wrap/code labels keep the 42px toolbar card.
+	PlainCodeBanner bool
 	// ToolCodeToolbar uses distinct language, action and hover tokens; zero
 	// retains the existing markdown preset for callers without this toolbar.
 	ToolCodeLanguage ui.Color
@@ -625,7 +635,7 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 			*out = append(*out, ui.Span{Text: "\n", Size: st.FontSize})
 		case *ast.HTMLBlock:
 			if st.LiteralHTML {
-				appendPlainSpan(string(node.Text([]byte(src))), st, out)
+				appendPlainSpan(string(htmlBlockLiteral(node, []byte(src))), st, out)
 			}
 		default:
 			if n, ok := child.(ast.Node); ok {
@@ -636,6 +646,16 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 }
 
 type spanMutator func(*ui.Span)
+
+// htmlBlockLiteral expands the deprecated HTMLBlock.Text: the block's lines
+// plus the line that closed it, verbatim from the source.
+func htmlBlockLiteral(node *ast.HTMLBlock, src []byte) []byte {
+	literal := node.Lines().Value(src)
+	if node.HasClosure() {
+		literal = append(literal, node.ClosureLine.Value(src)...)
+	}
+	return literal
+}
 
 func walkInlines(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...spanMutator) {
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
@@ -777,7 +797,7 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 		}
 	case *ast.RawHTML:
 		if st.LiteralHTML {
-			appendPlainSpan(string(node.Text([]byte(src))), st, out, mutators...)
+			appendPlainSpan(string(node.Segments.Value([]byte(src))), st, out, mutators...)
 		}
 	default:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {

@@ -1,4 +1,4 @@
-﻿package fake
+package fake
 
 // SetDevToolsEnabled records the runtime inspector switch for tests.
 func (w *Window) SetDevToolsEnabled(enabled bool) {

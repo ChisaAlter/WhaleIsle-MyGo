@@ -440,7 +440,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		} else if m.Preview != nil {
 			canHL = markdown.CanSourceHighlight(sel, *m.Preview)
 		}
-		mode := resolveEditViewMode(m, canHL && editing)
+		var mode EditViewMode
 
 		paintPreviewToolbar(c, m, sel, muted, border)
 		if paintDocumentSurface(c, m) {
@@ -650,6 +650,11 @@ func sourceStyle(m Model, fg, muted ui.Color) markdown.Style {
 		Muted:    muted,
 		CodeBG:   chrome.Color(colors.Field),
 		Accent:   chrome.Color(colors.Accent),
+		// The Original FilePreview passes no toolbarLabels, so its fences use
+		// the plain .banner recipe (36px header, text copy action, 16px inset).
+		PlainCodeBanner: true,
+		CopyLabel:       FilesLocale("preview.copy"),
+		CopiedLabel:     FilesLocale("preview.copied"),
 	}
 }
 

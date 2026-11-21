@@ -1,6 +1,6 @@
 # Verify the Windows preview ownership regression with an explicitly pinned
 # Go toolchain. Logs are local evidence, not executable/browser profile data.
-param([string]$Toolchain = 'go1.27.2')
+param([string]$Toolchain = 'go1.27.4')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $module = Join-Path $root 'third_party/mygo'

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/transfer"
 )
@@ -18,7 +19,7 @@ func pasteNativeFiles(m Model, readFiles func() ([]string, error)) bool {
 		return false
 	}
 	if err != nil {
-		setFileIntakeError(m, "无法读取剪贴板文件 / Unable to read clipboard files")
+		setFileIntakeError(m, i18n.T(i18n.KeyComposerFilePasteReadFailed))
 		return true
 	}
 	if len(paths) == 0 {
@@ -38,12 +39,19 @@ func setFileIntakeError(m Model, text string) {
 // checks the file system off the UI thread before applying the complete batch.
 func intakeTransferredFiles(m Model, paths []string) {
 	if m.State != nil && (m.State.Sending || m.State.Preparing > 0) {
-		setFileIntakeError(m, "请等待附件准备完成 / Wait for attachment preparation")
+		setFileIntakeError(m, i18n.T(i18n.KeyComposerFileIntakeWaitPreparing))
 		return
 	}
 	files, err := normalizedTransferPaths(paths)
 	if err != nil {
-		setFileIntakeError(m, errcopy.Sentence(err))
+		switch {
+		case errors.Is(err, errTooManyIntakeFiles):
+			setFileIntakeError(m, i18n.T(i18n.KeyComposerFileIntakeTooMany))
+		case errors.Is(err, errInvalidIntakePath):
+			setFileIntakeError(m, i18n.T(i18n.KeyComposerFileIntakeInvalidPath))
+		default:
+			setFileIntakeError(m, errcopy.Sentence(err))
+		}
 		return
 	}
 	if m.OnAttachFiles != nil {
@@ -53,15 +61,22 @@ func intakeTransferredFiles(m Model, paths []string) {
 	}
 }
 
+// Intake validation failures name their cause for the log; the intake surface
+// translates each sentinel into the localized sentence the person reads.
+var (
+	errTooManyIntakeFiles = errors.New("composer intake: more than 128 files")
+	errInvalidIntakePath  = errors.New("composer intake: invalid file path")
+)
+
 func normalizedTransferPaths(paths []string) ([]string, error) {
 	if len(paths) > 128 {
-		return nil, errors.New("一次最多粘贴或拖入128个文件 / At most 128 files per paste or drop")
+		return nil, errTooManyIntakeFiles
 	}
 	files := make([]string, 0, len(paths))
 	seen := map[string]bool{}
 	for _, path := range paths {
 		if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
-			return nil, errors.New("文件路径无效 / Invalid file path")
+			return nil, errInvalidIntakePath
 		}
 		path = filepath.Clean(path)
 		if !seen[path] {

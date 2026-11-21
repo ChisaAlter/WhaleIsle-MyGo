@@ -20,7 +20,10 @@ func viewDocument(c *ui.Context, source string, st Style) {
 	viewStreamingDocument(c, source, st)
 }
 
-func documentMargins(node ast.Node) (top, bottom float32) {
+func documentMargins(node ast.Node, st Style) (top, bottom float32) {
+	if st.Compact {
+		return compactMargins(node)
+	}
 	switch node := node.(type) {
 	case *ast.Heading:
 		if node.Level <= 3 {
@@ -44,13 +47,31 @@ func documentMargins(node ast.Node) (top, bottom float32) {
 	case *ast.Blockquote:
 		top = 16
 		if child := node.FirstChild(); child != nil {
-			first, _ := documentMargins(child)
+			first, _ := documentMargins(child, st)
 			top = max(top, first)
 		}
 		if child := node.LastChild(); child != nil {
-			_, bottom = documentMargins(child)
+			_, bottom = documentMargins(child, st)
 		}
 		return top, bottom
+	default:
+		return 16, 16
+	}
+}
+
+// compactMargins is the Original MarkdownText `.compact` margin ladder:
+// paragraphs, lists and quotes sit 4px apart, headings take 8/4 and the rule
+// 8. Code and table cards keep the shared card margin.
+func compactMargins(node ast.Node) (top, bottom float32) {
+	switch node.(type) {
+	case *ast.Heading:
+		return 8, 4
+	case *ast.TextBlock:
+		return 0, 0
+	case *ast.Paragraph, *ast.List, *ast.Blockquote:
+		return 4, 4
+	case *ast.ThematicBreak:
+		return 8, 8
 	default:
 		return 16, 16
 	}
@@ -61,9 +82,9 @@ func viewDocumentBlocks(c *ui.Context, parent ast.Node, source string, st Style,
 		var previous ast.Node
 		var previousBottom float32
 		for node := parent.FirstChild(); node != nil; node = node.NextSibling() {
-			top, bottom := documentMargins(node)
+			top, bottom := documentMargins(node, st)
 			gap := max(previousBottom, top)
-			if previous == nil && outerCollapsed {
+			if previous == nil && (outerCollapsed || st.Compact) {
 				gap = 0
 			}
 			if heading, ok := previous.(*ast.Heading); ok && heading.Level >= 4 {
@@ -86,7 +107,10 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 	switch node := node.(type) {
 	case *ast.Heading:
 		delta := st.FontSize - 14
-		if node.Level <= 3 {
+		if st.Compact {
+			// .compact headings keep the body size and only gain weight.
+			st.textWeight = 600
+		} else if node.Level <= 3 {
 			st.FontSize = []float32{21, 19, 18}[node.Level-1] + delta
 			st.lineHeight = []float32{30, 28, 26}[node.Level-1] + delta
 			st.textWeight = 700
@@ -122,6 +146,9 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 			top := float32(0)
 			if item.PreviousSibling() != nil {
 				top = 6 // li:not(:first-child)
+				if st.Compact {
+					top = 2 // .compact li:not(:first-child)
+				}
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Gap(0).Padding(top, 0, 0, 0).AlignItems(ui.Start).Children(func() {
 				ui.Text(c, marker).Width(18).NoWrap().FontSize(st.FontSize).FixedLineHeight(BodyLineHeight(st)).TextColor(st.Muted)
@@ -149,7 +176,7 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 		viewSpans(c, st, spans, nil, 0)
 	case *ast.HTMLBlock:
 		if st.LiteralHTML {
-			styledRichText(c, []ui.Span{{Text: string(node.Text([]byte(source)))}}, st)
+			styledRichText(c, []ui.Span{{Text: string(htmlBlockLiteral(node, []byte(source)))}}, st)
 		}
 	case *ast.ThematicBreak:
 		border := st.RuleBorder

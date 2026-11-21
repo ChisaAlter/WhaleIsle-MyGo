@@ -221,17 +221,30 @@ func conversationView(c *ui.Context, m Model) {
 					// vertically only there: process rows sit 6 apart, an answer 12,
 					// a turn header 16. A standalone surface keeps its own 16 DIP side
 					// inset because no column provides one.
-					padT, padB := messageSpacing(msg)
+					var prev session.Message
+					if messageIndex > 0 {
+						prev = msgs[messageIndex-1]
+					}
+					padT, padB := messageSpacing(msg, prev)
+					if padB < 0 && (!transcriptControls[msg.ID].open) {
+						padB = 0
+					}
 					padL, padR := float32(16), float32(16)
 					if m.FullColumnViewport {
 						padL, padR = 0, 0
+					}
+					if msg.Kind == session.MessageKindThinking || msg.Kind == session.MessageKindTool {
+						// ChatGroupSeat .body reserves a stable scrollbar gutter
+						// (~4.67 DIP) beside its members; mirror the reservation on
+						// the right edge of process rows.
+						padR = max(padR, 4.67)
 					}
 					isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 					messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill()
 					inspectorChatRowGeometry(row.Context, m, msg, messageRoot, padT, padR, padB, padL)
 					messageRoot.Children(func() {
 						if control, ok := transcriptControls[msg.ID]; ok {
-							transcriptControlView(row.Context, control, m, muted)
+							transcriptControlView(row.Context, control, m, colors)
 							return
 						}
 						if msg.Kind == session.MessageKindQuestionReply {
@@ -430,7 +443,7 @@ func conversationView(c *ui.Context, m Model) {
 									Muted:    muted,
 								})
 							} else if body != "" {
-								md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), theme.CurrentPreferences().Chat.Size, dark)
+								md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, dark)
 								md.TableHeader = chrome.Color(colors.Sidebar)
 								md.Streaming = msg.Streaming
 								md.OnOpenURL = m.OnOpenCitationURL
@@ -570,8 +583,11 @@ func displayableAction(text string) string {
 
 // messageSpacing grades the vertical rhythm of one transcript row. The side
 // gutter is the column's job; this only owns the block gap above and below, as
-// the Original flow does (process rows 6, an answer 12, a turn header 16).
-func messageSpacing(msg session.Message) (top, bottom float32) {
+// the Original flow does (process rows 4, an answer 12, a turn header 16).
+// The prev argument is the row's transcript predecessor, needed because the
+// Original's step-process gap depends on the pair: a step title sits 12 DIP
+// under a response, 4 under another process row and 16 under the turn control.
+func messageSpacing(msg, prev session.Message) (top, bottom float32) {
 	switch {
 	case msg.Role == "user":
 		return 16, 2
@@ -581,6 +597,25 @@ func messageSpacing(msg session.Message) (top, bottom float32) {
 		// Context snapshots and compaction rows read as quiet disclosure lines,
 		// not as separate full-weight transcript entries; keep their rhythm tight.
 		return 4, 0
+	case msg.Kind == transcriptControlKind:
+		if strings.HasPrefix(msg.ID, "transcript-group:") {
+			// The group title's own 8 DIP bottom pad is inside the row; the
+			// Original's step-process body starts its first member flush, so
+			// the message-level bottom pad pays back the member's 6 DIP top pad.
+			top = 12
+			switch {
+			case prev.Role == "assistant" && prev.Kind == session.MessageKindText:
+				// A step after the response takes the response's 12 DIP
+				// neighbour gap, so its own 4 DIP bottom pad is repaid here.
+				top = 8
+			case prev.Kind == session.MessageKindThinking || prev.Kind == session.MessageKindTool || strings.HasPrefix(prev.ID, "transcript-group:"):
+				// Step rows sit 4 apart; members end flush with their step.
+				top = 4
+			}
+			return top, -6
+		}
+		// TurnProcessNodeView rows sit in a 16 DIP flow gap on both sides.
+		return 14, 4
 	case msg.Kind == session.MessageKindThinking, msg.Kind == session.MessageKindTool:
 		return 6, 0
 	case msg.Role == "assistant" && msg.Kind == session.MessageKindText:

@@ -56,7 +56,11 @@ func regSet(root uintptr, path, name, value string) error {
 	}
 	defer procRegCloseKey.Call(key)
 	data := u16(value)
-	size := (len(syscall.StringToUTF16(value))) * 2 // with the terminating NUL
+	encoded, err := syscall.UTF16FromString(value)
+	if err != nil {
+		return fmt.Errorf("mygo: cannot encode registry value %s\\%s: %w", path, name, err)
+	}
+	size := len(encoded) * 2 // with the terminating NUL
 	if r, _, _ := procRegSetValueExW.Call(key, uintptr(unsafe.Pointer(u16(name))), 0, regSz, uintptr(unsafe.Pointer(data)), uintptr(size)); r != 0 {
 		return fmt.Errorf("mygo: cannot write registry value %s\\%s: %w", path, name, syscall.Errno(r))
 	}

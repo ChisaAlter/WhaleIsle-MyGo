@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 func TestQuestionReplyDisclosureCopyAndSessionIsolation(t *testing.T) {
@@ -26,7 +26,7 @@ func TestQuestionReplyDisclosureCopyAndSessionIsolation(t *testing.T) {
 		}
 	}
 	tt.Click("Copy question reply reply")
-	if tt.Clipboard() != "Header — Pick\n" + i18n.T(i18n.KeyChatQuestionAnswer) + ": Yes, custom" {
+	if tt.Clipboard() != "Header — Pick\n"+i18n.T(i18n.KeyChatQuestionAnswer)+": Yes, custom" {
 		t.Fatal(tt.Clipboard())
 	}
 	scope = "two"

@@ -1,4 +1,4 @@
-﻿package fake
+package fake
 
 import "testing"
 

@@ -5,12 +5,13 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
-	"whaleisle/internal/ui/i18n"
 )
 
-func groupThreadsView(c *ui.Context, m Model) {	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+func groupThreadsView(c *ui.Context, m Model) {
+	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
 	threads := session.ProjectGroupThreads(m.Snapshot.Messages, m.GroupMembers)
@@ -88,7 +89,7 @@ func groupThreadsView(c *ui.Context, m Model) {	palette := theme.Resolve(m.Theme
 										ui.Text(c, "📎 "+name).TextColor(muted)
 									}
 								} else if message.Text != "" {
-									markdown.ViewInteractive(c, message.Text, transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), theme.CurrentPreferences().Chat.Size, darkSurface(muted)), m.OnOpenCitationURL)
+									markdown.ViewInteractive(c, message.Text, transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, darkSurface(muted)), m.OnOpenCitationURL)
 								}
 							})
 						}

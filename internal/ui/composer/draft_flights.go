@@ -7,6 +7,7 @@ import (
 	"strings"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 // DraftFlight owns one detached editor snapshot. UI updates settle by its ID,
@@ -59,9 +60,9 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 		if f.Exclusive {
 			d.Sending = true
 		}
-		// The sentinel's own sentence tells a person not to resend; it is copy,
-		// not a transport error, so it is stored verbatim.
-		f.Error = session.ErrSubmissionUnconfirmed.Error()
+		// The sentinel carries a written sentence, not a transport error; the
+		// draft stores its localized rendering as display copy.
+		f.Error = unconfirmedCopy()
 		f.Attachments = append([]session.ComposerAttachment(nil), attachments...)
 		d.flights[id] = f
 		d.Error = f.Error
@@ -81,7 +82,7 @@ func (d *DraftState) CompleteDetachedSend(id uint64, attachments []session.Compo
 		if f.Exclusive && f.EditSeq == 0 {
 			d.GroupReply = nil
 		}
-		if d.Error == f.Error || d.Error == session.ErrSubmissionUnconfirmed.Error() {
+		if d.Error == f.Error || isUnconfirmedCopy(d.Error) {
 			d.Error = ""
 		}
 		return
@@ -195,7 +196,7 @@ type savedComposerSend struct {
 func (d *DraftState) recoverySends() []savedComposerSend {
 	entries := make(map[uint64]DraftFlight)
 	for id, f := range d.flights {
-		f.Error = "发送结果未确认，请先查看会话 / Send outcome unconfirmed; check the conversation before retrying"
+		f.Error = unconfirmedCopy()
 		entries[id] = f
 	}
 	if !d.failedRestoredMatches() {
@@ -231,7 +232,7 @@ func (d *DraftState) restoreRecoverySends(entries []savedComposerSend) {
 				d.Text, d.Attachments = "", nil
 				d.Client.ClearHistory()
 			}
-			d.Error = session.ErrSubmissionUnconfirmed.Error()
+			d.Error = unconfirmedCopy()
 			continue
 		}
 		if d.failedSends == nil {
@@ -311,6 +312,23 @@ func (d *DraftState) RestoreSubmissionFlight(record session.SubmissionRecord) {
 	}
 	d.flightSeq++
 	d.flights[d.flightSeq] = DraftFlight{ID: d.flightSeq, RequestID: record.RequestID, SessionID: record.SessionID,
-		Text: record.Text, Attachments: append([]session.ComposerAttachment(nil), record.Attachments...), Error: session.ErrSubmissionUnconfirmed.Error()}
-	d.Error = session.ErrSubmissionUnconfirmed.Error()
+		Text: record.Text, Attachments: append([]session.ComposerAttachment(nil), record.Attachments...), Error: unconfirmedCopy()}
+	d.Error = unconfirmedCopy()
+}
+
+// unconfirmedCopy is the displayed sentence for the submission-unconfirmed
+// sentinel, rendered in the active locale.
+func unconfirmedCopy() string {
+	return i18n.T(i18n.KeyComposerSubmissionUnconfirmed)
+}
+
+// isUnconfirmedCopy reports whether s is the submission-unconfirmed display
+// sentence in any form a draft may hold: the catalog's zh or en rendering, or
+// the older bilingual sentinel text stored before the copy was localized.
+func isUnconfirmedCopy(s string) bool {
+	if s == session.ErrSubmissionUnconfirmed.Error() {
+		return true
+	}
+	return s == i18n.Lookup(i18n.LocaleZH, i18n.KeyComposerSubmissionUnconfirmed) ||
+		s == i18n.Lookup(i18n.LocaleEN, i18n.KeyComposerSubmissionUnconfirmed)
 }

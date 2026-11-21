@@ -67,7 +67,7 @@ func officeSettingsView(c *ui.Context, m Model) {
 		}
 		scroll.Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(16).Padding(18).Radius(16).Border(0.5, border).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(16).Padding(18).Radius(theme.ContextRadii(c).LG).Border(0.5, border).AlignItems(ui.Center).Children(func() {
 					ui.Column(c).Grow(1).MinWidth(0).Gap(6).Children(func() {
 						ui.Text(c, "AI Office Connector").FontSize(theme.InterfaceSize(17)).Bold().TextColor(fg)
 						ui.Text(c, "让当前 Host 主动接入 Office，接收任务并回传执行结果。").FontSize(theme.InterfaceSize(12)).TextColor(muted)

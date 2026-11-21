@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/i18n"
 )
 
 func TestAttachmentDisplaySnapshotAndStatus(t *testing.T) {
@@ -27,16 +28,16 @@ func TestAttachmentDisplaySnapshotAndStatus(t *testing.T) {
 	}
 	d := NewDraftState("")
 	d.Attachments = []session.ComposerAttachment{{Path: path}}
-	if attachmentDisplayStatus(d, 0) != "待上传 / Pending" {
+	if attachmentDisplayStatus(d, 0) != i18n.T(i18n.KeyComposerAttachmentPendingStatus) {
 		t.Fatal("pending status")
 	}
 	a, _ := d.BeginAttachmentPreparation(0, false)
-	if attachmentDisplayStatus(d, 0) != "上传中 / Uploading" {
+	if attachmentDisplayStatus(d, 0) != i18n.T(i18n.KeyComposerAttachmentUploadingStatus) {
 		t.Fatal("upload status")
 	}
 	a.ImageData = "ready"
 	d.CompleteAttachmentPreparation(0, a, a, nil)
-	if attachmentDisplayStatus(d, 0) != "就绪 / Ready" {
+	if attachmentDisplayStatus(d, 0) != i18n.T(i18n.KeyComposerAttachmentReadyStatus) {
 		t.Fatal("ready status")
 	}
 }
@@ -64,12 +65,12 @@ func TestAttachmentDisplayRailRemovalAndPreview(t *testing.T) {
 		time.Sleep(time.Millisecond * 5)
 		tt.Move(0, 0)
 	}
-	if _, ok := tt.Find("关闭预览 / Close preview"); !ok {
+	if _, ok := tt.Find(i18n.T(i18n.KeyComposerAttachmentClosePreview)); !ok {
 		t.Fatal("preview missing")
 	}
 	tt.Key(0, ui.KeyEscape)
 	tt.Move(0, 0)
-	if _, ok := tt.Find("关闭预览 / Close preview"); ok {
+	if _, ok := tt.Find(i18n.T(i18n.KeyComposerAttachmentClosePreview)); ok {
 		t.Fatal("Escape did not dismiss preview")
 	}
 	_, ok := tt.Find("Remove attachment photo.png")

@@ -300,10 +300,10 @@ func segmentedRow(c *ui.Context, key string, labels []string, active int, disabl
 		for index, caption := range labels {
 			i, text := index, caption
 			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).
-				Width(width).Height(height).Padding(0).Radius(8).
+				Width(width).Height(height).Padding(0).Radius(fonttheme.ContextRadii(c).SM).
 				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
 			if disabled {
-				segment = segment.Disabled(true).Opacity(0.5)
+				segment = segment.Disabled(true).Opacity(.4)
 			}
 			labelColor := c.Theme().Text
 			if i == active {

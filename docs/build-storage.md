@@ -27,6 +27,17 @@ go build ./cmd/whaleisle ./cmd/whaleisle-preview
 
 ## 安装包保留，打包副本按需回收
 
+在本机的多个 MyGo 工作树上验证同一套 Host 时，先用 `package-shared-local.ps1 -Verify` 读取并验证仓库共用的 runtime：
+
+```powershell
+.\scripts\package-shared-local.ps1 -Verify
+.\scripts\package-shared-local.ps1 -OutputRoot .\dist\release-candidate -PeakGiB 4
+```
+
+从其他工作树调用主工作树的脚本时，用 `-Worktree` 指定要编译的检出。仓库本地 Git 配置 `mygo.sharedRuntimeRoot` 将同一个现有 runtime 提供给所有关联工作树。只为确认过 Host revision、插件组成和平台 ABI 的 runtime 设置此项；它是构建输入，不是应用 profile、验收输出或待删副本。更换版本或退役承载目录前，先更新共享指向。
+
+`-OutputRoot` 选新目录或空目录。`-PeakGiB` 是 C 盘上的总新增峰值估算，含编译缓存、临时目录、展开的载荷和安装包；示例中的 `4` 不是固定上限。预计低于 50 GiB 余量时，该入口在构建前退出。通过后复用已选 runtime，并在最终安装包和更新文件生成后回收本轮 staging。需要保留展开目录验收、需要隔离 runtime 或为另一个卷打包时，走原有入口：
+
 ```powershell
 .\scripts\package.ps1 -OutputRoot .\dist\release-candidate -CleanStage
 ```

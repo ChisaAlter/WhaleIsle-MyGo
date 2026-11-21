@@ -395,7 +395,7 @@ func componentManagement(c *ui.Context, m Model, row components.Row, busy bool) 
 		*open = !*open
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, panel.MinWidth(168).Background(colField).Border(1, colBorderL2).Radius(12).Padding(8).Gap(4).
+		chrome.PopoverReveal(c, panel.MinWidth(168).Background(colField).Border(1, colBorderL2).Radius(12).Padding(8).Gap(4).
 			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0))
 		ui.Text(c, fmt.Sprintf(releaseText("当前 v%s", "Current v%s"), row.InstalledVersion)).
 			FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(6, 10)
@@ -806,7 +806,7 @@ func settingsPanel(c *ui.Context, m Model) {
 						bg = colSegActive
 						fg = colPrimary
 					}
-					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(12).
+					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(theme.ContextRadii(c).MD).
 						Background(bg).BorderWidth(0).TextColor(fg).FontSize(theme.InterfaceSize(12))
 					if b.Clicked() && m.DownloadRoute != nil {
 						*m.DownloadRoute = id

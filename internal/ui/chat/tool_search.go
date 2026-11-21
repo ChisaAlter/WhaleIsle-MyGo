@@ -31,7 +31,7 @@ func toolSearchCard(c *ui.Context, m *toolSearchModel, st ToolCardStyle, key str
 	labels := markdown.SearchLabels{
 		PathsSummary:   toolSearchPathsSummary,
 		MatchesSummary: toolSearchMatchesSummary,
-		Copy: i18n.T(i18n.KeyChatToolCopy), Copied: i18n.T(i18n.KeyToolReadCopied), NoResults: i18n.T(i18n.KeyToolSearchEmpty), Collapse: i18n.T(i18n.KeyChatRowCollapse), CollapseAria: toolSearchCollapseAriaLabel(),
+		Copy:           i18n.T(i18n.KeyChatToolCopy), Copied: i18n.T(i18n.KeyToolReadCopied), NoResults: i18n.T(i18n.KeyToolSearchEmpty), Collapse: i18n.T(i18n.KeyChatRowCollapse), CollapseAria: toolSearchCollapseAriaLabel(),
 		Expand: toolSearchExpandRestLabel, ExpandAria: toolSearchExpandAriaLabel,
 	}
 	markdown.ToolSearchBlock(c.Key("tool-search:"+key), data, 8, style, labels).Margin(4, 0, 4, 4).Label(i18n.T(i18n.KeyToolSearchCard))

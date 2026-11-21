@@ -512,6 +512,8 @@ const (
 	KeyMiscCustompanelPreview                           = "misc.custompanel.preview"
 	KeyMiscCustompanelSave                              = "misc.custompanel.save"
 	KeyMiscCustompanelThisBotSPanels                    = "misc.custompanel.this_bot_s_panels"
+	KeyMiscCustompanelEditLibraryTemplate               = "misc.custompanel.edit_library_template"
+	KeyMiscCustompanelPreviewOnly                       = "misc.custompanel.preview_only"
 	KeyMiscCustompanelEdit                              = "misc.custompanel.edit"
 	KeyMiscCustompanelRemove                            = "misc.custompanel.remove"
 	KeyMiscCustompanelUpdateLibraryTemplate             = "misc.custompanel.update_library_template"
@@ -1028,6 +1030,8 @@ func init() {
 	Register(KeyMiscCustompanelPreview, "预览", "Preview")
 	Register(KeyMiscCustompanelSave, "保存", "Save")
 	Register(KeyMiscCustompanelThisBotSPanels, "本 Bot 的面板", "This Bot's Panels")
+	Register(KeyMiscCustompanelEditLibraryTemplate, "编辑库模板（已有副本不变）", "Edit template for future copies")
+	Register(KeyMiscCustompanelPreviewOnly, "预览（不运行操作）", "Preview")
 	Register(KeyMiscCustompanelEdit, "编辑", "Edit")
 	Register(KeyMiscCustompanelRemove, "移除", "Remove")
 	Register(KeyMiscCustompanelUpdateLibraryTemplate, "用此副本更新库模板", "Update library template")

@@ -124,7 +124,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 									borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
 									borderWidth = 1
 								}
-								button := ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Radius(8).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+								button := ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
 								if !inert {
 									button.Tooltip(tr("打开成员会话", "Open member conversation")).Cursor(ui.CursorPointer)
 								} else {

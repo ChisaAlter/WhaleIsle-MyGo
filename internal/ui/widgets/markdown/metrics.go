@@ -15,8 +15,15 @@ const (
 	codeLineHigh = 19
 )
 
-// BodyLineHeight is the base 24px leading at the 14px default body size.
+// BodyLineHeight is the base 24px leading at the 14px default body size; the
+// .compact variant runs the secondary 20px leading at its 13px size.
 func BodyLineHeight(st Style) float32 {
+	if st.Compact {
+		if st.FontSize <= 0 {
+			return 20
+		}
+		return st.FontSize + 7
+	}
 	if st.FontSize <= 0 {
 		return 24
 	}
@@ -36,8 +43,11 @@ func CodeSize(st Style) float32 {
 }
 
 // InlineCodeSize is the inline-code size: one step under the body, 12px at the
-// 14px default.
+// 14px default. The .compact variant keeps inline code at the body size.
 func InlineCodeSize(st Style) float32 {
+	if st.Compact {
+		return st.FontSize
+	}
 	size := st.FontSize - inlineDelta
 	if st.FontSize <= 0 || size < minCodeSize {
 		return minCodeSize
@@ -87,6 +97,9 @@ func quoteBorderColor(st Style) ui.Color {
 // quoteInset is the blockquote text inset. The conversation passes the Original
 // 14px; other document surfaces keep their 16px baseline.
 func quoteInset(st Style) float32 {
+	if st.Compact {
+		return 8 // .compact blockquote
+	}
 	if st.QuoteInset > 0 {
 		return st.QuoteInset
 	}

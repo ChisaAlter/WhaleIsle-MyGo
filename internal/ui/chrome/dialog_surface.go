@@ -34,7 +34,7 @@ type DialogSurfaceBox struct {
 // centered place, so its header, search row and footer reach the glass edges.
 func DialogSurfaceSized(c *ui.Context, backdrop, panel ui.Element, t *ui.Theme, box DialogSurfaceBox) ui.Element {
 	if box.Radius <= 0 {
-		box.Radius = 28
+		box.Radius = theme.ContextRadii(c).Panel
 	}
 	return dialogSurface(c, backdrop, panel, t.Background, t.Border, box)
 }

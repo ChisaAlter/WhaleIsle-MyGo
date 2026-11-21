@@ -30,20 +30,31 @@ func detailGutter(width float32) float32 {
 }
 
 func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, colors theme.Colors, width float32) {
+	winW, _ := c.Size()
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.Scroll(c.Key("schedule-catalog-scroll")).Label("Task catalog scroll").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.Center).Children(func() {
-			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(960).MinWidth(0).Padding(0, scheduleGutter(width), 48).Children(func() {
+			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(1056).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
 				ui.Row(c.Key("schedule-heading")).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 24).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
 					if m.OnNewTask != nil {
-						newTask := widgets.Button(c, colors, scheduleText("新建", "New"), widgets.ButtonSpec{
-							Variant:  widgets.ButtonPrimary,
-							Size:     widgets.ButtonSmall,
-							Disabled: !snap.ClientReady,
-							Leading: func(c *ui.Context) {
-								ui.Icon(c, scheduleIcons["plus"]).Size(13, 13).TextColor(chrome.Color(colors.ButtonFG))
-							},
+						// TaskManagerPage.module.css .newButton: a 32px capsule,
+						// 13px/20 label on 0 12 padding — a page-local control, not
+						// one of the shared button sizes.
+						newTask := ui.ButtonBase(c.Key("schedule-new")).Label(scheduleText("新建", "New")).Height(32).Padding(0, 12).Gap(4).Radius(16).
+							FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).
+							Background(theme.Color(colors.BrandPrimary)).TextColor(theme.Color(colors.ButtonFG)).
+							BorderWidth(0).Disabled(!snap.ClientReady).Cursor(ui.CursorPointer).Shrink(0).
+							Transition(widgets.HoverTransition())
+						if !snap.ClientReady {
+							newTask = newTask.Opacity(0.4)
+						}
+						if snap.ClientReady && (newTask.Hovered() || newTask.Pressed()) {
+							newTask = newTask.Background(theme.Color(colors.BrandPrimaryHover))
+						}
+						newTask.Children(func() {
+							ui.Icon(c, scheduleIcons["plus"]).Size(13, 13).TextColor(chrome.Color(colors.ButtonFG))
+							ui.Text(c, scheduleText("新建", "New")).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(theme.Color(colors.ButtonFG))
 						})
 						if newTask.Clicked() {
 							m.OnNewTask()
@@ -63,7 +74,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 				})
 				ui.Row(c.Key("schedule-search-field")).FillWidth().MinWidth(0).Height(36).Padding(0, 10).Gap(6).Border(.5, chrome.Color(colors.Border)).Radius(12).Background(chrome.Color(colors.Field)).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, scheduleIcons["search"]).Size(14, 14).TextColor(muted).Shrink(0)
-					ui.TextInputBase(c.Key("schedule-search"), &p.query).Label("Search tasks").Placeholder(scheduleText("搜索自动化任务", "Search automation tasks")).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg)
+					ui.TextInputBase(c.Key("schedule-search"), &p.query).Label("Search tasks").Placeholder(scheduleText("搜索自动化任务", "Search automation tasks")).Grow(1).MinWidth(0).Height(24).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 					if p.query != "" && scheduleIconButton(c, "schedule-search-clear", "Clear search", "close", muted).Clicked() {
 						p.query = ""
 					}
@@ -82,14 +93,11 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 					if p.statusFilter == "inactive" && strings.TrimSpace(p.query) == "" {
 						label = scheduleText("没有已结束的自动化任务", "No inactive automation tasks")
 					}
-					scheduleEmpty(c, label, colors)
-					if m.OnNewTask != nil {
-						ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-							if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("新建自动化任务", "New automation task"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: !snap.ClientReady}).Clicked() {
-								m.OnNewTask()
-							}
-						})
-					}
+					scheduleEmpty(c, label, colors, func(c *ui.Context) {
+						if m.OnNewTask != nil && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("新建自动化任务", "New automation task"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !snap.ClientReady}).Clicked() {
+							m.OnNewTask()
+						}
+					})
 				}
 				ui.Column(c.Key("schedule-catalog-rows")).FillWidth().MinWidth(0).Gap(2).Children(func() {
 					for _, entry := range rows {
@@ -130,10 +138,15 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 	})
 }
 
-func scheduleEmpty(c *ui.Context, text string, colors theme.Colors) {
+func scheduleEmpty(c *ui.Context, text string, colors theme.Colors, action ...func(*ui.Context)) {
 	ui.Column(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Padding(48, 20).Gap(12).Children(func() {
 		ui.Icon(c, scheduleIcons["clock"]).Size(24, 24).TextColor(chrome.Color(colors.Caption))
 		ui.Text(c, text).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0).TextAlign(ui.Center)
+		for _, build := range action {
+			// .emptyAction lands 24px under the last empty line on top of the column's
+			// own 12px gap (the 16px rule plus the line's descender space).
+			ui.Box(c).Margin(12, 0, 0, 0).Children(func() { build(c) })
+		}
 	})
 }
 

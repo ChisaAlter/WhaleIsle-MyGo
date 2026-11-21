@@ -225,7 +225,7 @@ func bootFailureDock(c *ui.Context, m Model, palette *scenePalette) {
 		// The pane spans min(640, main - 48) of the window's column; the
 		// native page floats it outside .core at that width.
 		ui.Column(c).Key("boot-failure-dock").Label(bootText("启动详情", "Startup details")).
-			Width(min(640, max(0, window-48))).Background(palette.toast).Radius(16).
+			Width(min(640, max(0, window-48))).Background(palette.toast).Radius(theme.ContextRadii(c).LG).
 			Padding(16).Children(func() {
 			// .failure keeps its cause-and-next-step copy; the raw message
 			// stayed in the log drawer for both pages (native boot.js:220-240).

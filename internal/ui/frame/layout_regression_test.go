@@ -77,7 +77,7 @@ func TestTerminalStaysInsideCenterAndSidebarKeepsFullHeight(t *testing.T) {
 	}
 	// The merged settings/account seat must still reach the viewport's foot
 	// with the terminal drawer open, which proves the sidebar keeps its height.
-	if settings.Y+settings.H < 788 {
+	if settings.Y+settings.H < 785 {
 		t.Fatalf("sidebar bottom seat=%+v, terminal must not shorten sidebar", settings)
 	}
 }

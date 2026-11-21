@@ -50,7 +50,7 @@ func settingsPreferenceSelectRadius(c *ui.Context, value *string, options []stri
 // the extra trailing inset. TrackScroll publishes the settled layout extent;
 // one invalidation applies/removes a gutter without guessing content height.
 func settingsOptionsScroll(c *ui.Context, key string, gap float32, background ui.Color) ui.Element {
-	pane := ui.Scroll(c.Key(key)).Grow(1).MinWidth(0).MinHeight(0).Background(background).Gap(gap)
+	pane := ui.Scroll(c.Key(key)).Grow(1).MinWidth(0).MinHeight(0).Background(background).Gap(gap).Label(providerCopy("设置内容", "Settings content"))
 	type optionsState struct {
 		scroll ui.ScrollState
 		gutter bool
@@ -92,7 +92,7 @@ func bodyHeading(c *ui.Context, title, hint string, fg, muted ui.Color) {
 func bodyPreferenceRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, controls func()) ui.Element {
 	gear := takeRowGear()
 	help := takeRowHelp()
-	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
+	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0).Label(title)
 	settingsSearchTarget(c, key, title, row)
 	width := row.Bounds().W
 	horizontal := width >= 420 && !appearanceChoiceRow(key)

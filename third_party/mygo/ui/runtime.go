@@ -430,6 +430,10 @@ func (rt *engine) runFrame() {
 		rt.buildMenuOverlay(&rt.c)
 		if ov := rt.c.overlay; ov != nil {
 			rt.c.root.add(ov)
+		} else if rt.overlayExitPending() {
+			// An overlay element is still leaving as an exit copy; the
+			// layer stays for it though nothing builds an overlay now.
+			rt.c.root.add(rt.c.overlayRoot())
 		}
 		if rt.insp.open {
 			rt.buildInspector(&rt.c, appW, w, h)
@@ -713,6 +717,21 @@ func (rt *engine) keptAlive(s *state) bool {
 			return false
 		}
 		s = rt.states[s.page]
+	}
+	return false
+}
+
+// overlayExitPending tells whether an element of the overlay layer has gone
+// but is still leaving as an exit copy: the layer stays in the frame for it
+// even when no overlay is built, as a copy needs its parent in the tree.
+func (rt *engine) overlayExitPending() bool {
+	if rt.preferences().ReduceMotion {
+		return false
+	}
+	for _, r := range rt.trans {
+		if r.t.Exit != nil && r.parent == overlayID {
+			return true
+		}
 	}
 	return false
 }
