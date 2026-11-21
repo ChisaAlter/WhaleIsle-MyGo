@@ -9,7 +9,7 @@
 // process memory; the temp root is removed in finally unless --keep-open.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync, symlinkSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync, symlinkSync, openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import http from 'node:http';
 
@@ -44,6 +44,17 @@ const tmp = join(process.env.LOCALAPPDATA, 'Temp', 'wi-ui-compare-' + runId);
 const outDir = join(REPO, 'tmp', 'ui-compare', runId);
 mkdirSync(tmp, { recursive: true });
 mkdirSync(outDir, { recursive: true });
+// Go panics land on stderr; discarding it made native exits look silent.
+const nativeOutLog = join(outDir, 'native-stdout.log');
+const nativeErrLog = join(outDir, 'native-stderr.log');
+const nativeOutFd = openSync(nativeOutLog, 'a');
+const nativeErrFd = openSync(nativeErrLog, 'a');
+const nativeErrTail = () => {
+  try {
+    const text = readFileSync(nativeErrLog, 'utf8').trimEnd();
+    return text ? text.split('\n').slice(-40).join('\n') : '';
+  } catch { return ''; }
+};
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const pids = []; // every pid this script started
@@ -177,7 +188,7 @@ try {
   const cfgPath = join(tmp, 'data', 'config.json');
   const launchNative = () => tracked(spawn(join(tmp, 'whaleisle.exe'), [], {
     env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), WHALEISLE_VENDOR: join(RUNTIME_REAL, 'vendor'), WHALEISLE_NODE_DIR: join(RUNTIME_REAL, 'node'), ...modelEnv },
-    cwd: REPO, stdio: ['ignore', 'ignore', 'ignore'],
+    cwd: REPO, stdio: ['ignore', nativeOutFd, nativeErrFd],
   }), 'whaleisle');
   // Phase 1: let the app write its default config, then patch the workspace
   // in and relaunch — the shell only auto-starts its Host once a workspace
@@ -516,6 +527,10 @@ try {
     const lms = [];
     const byKey = new Map();
     if (scError) {
+      if (!winPid()) {
+        const tail = nativeErrTail();
+        if (tail) scError += `\nnative window gone; native-stderr.log tail:\n${tail}`;
+      }
       lms.push({ key: sc.id, status: 'ERROR', error: scError, web: null, native: null, delta: {}, missing: [] });
       rows.push({ sc: sc.id, key: sc.id, status: 'ERROR', error: scError });
       summary.ok = false;
@@ -620,6 +635,7 @@ try {
   console.error('ERROR:', e.message);
 } finally {
   if (ws) try { ws.close(); } catch {}
+  try { closeSync(nativeOutFd); closeSync(nativeErrFd); } catch {}
   if (keepOpen) {
     console.log('[keep-open] PIDs left running:', pids.map(p => `${p.tag}=${p.pid}`).join(' '));
     console.log('[keep-open] stop with: powershell -c "Stop-Process -Id ' + pids.map(p => p.pid).join(',') + '"');
