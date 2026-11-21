@@ -3498,6 +3498,146 @@
        ]
       }
      ]
+    },
+    {
+     "id": "cards-usage-page",
+     "domDump": "[data-slot='settings.section']",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[aria-label='新建会话']"
+        },
+        "expect": {
+         "selector": "[role=textbox]"
+        }
+       },
+       {
+        "prompt": "[ui-compare:usage] report the token usage",
+        "expect": {
+         "within": "[data-conversation-scroll]",
+         "text": "用量 84 tok"
+        }
+       },
+       {
+        "click": {
+         "selector": "button[aria-label='账号菜单']"
+        },
+        "expect": {
+         "selector": "[role=menu]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[role=menu] [role=menuitem]",
+         "index": 0
+        },
+        "expect": {
+         "selector": "[role=dialog]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-dsh-settings-section='usage-stats']"
+        },
+        "expect": {
+         "selector": "[data-dsh-settings-section='usage-stats'][aria-current]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "新会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "Composer draft"
+        }
+       },
+       {
+        "setvalue": {
+         "name": "Composer draft",
+         "type": "Edit",
+         "text": "[ui-compare:usage] report the token usage"
+        }
+       },
+       {
+        "invoke": {
+         "name": "发送消息",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "本轮用量"
+        }
+       },
+       {
+        "expand": {
+         "name": "账号菜单",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "",
+         "type": "Menu"
+        }
+       },
+       {
+        "invoke": {
+         "name": "设置",
+         "type": "MenuItem"
+        },
+        "expect": {
+         "name": "设置",
+         "type": "Text"
+        }
+       },
+       {
+        "invoke": {
+         "name": "用量与费用",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "用量统计"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "usage-page.title",
+       "web": {
+        "within": "[data-slot='settings.section']",
+        "text": "用量统计"
+       },
+       "native": {
+        "name": "用量统计"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "usage-page.frame",
+       "web": {
+        "selector": "[data-slot='settings.section']"
+       },
+       "native": {
+        "name": "用量统计",
+        "upToType": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      }
+     ]
     }
    ]
   }
