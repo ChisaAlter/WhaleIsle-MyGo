@@ -153,7 +153,8 @@ func formatExactTokens(value float64) string {
 // dt/dd pair), kept on one line so the numbers align right.
 func usageDetailLine(c *ui.Context, muted ui.Color, label, value string) {
 	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-		ui.Text(c, label).FontSize(12).FixedLineHeight(18).TextColor(muted)
+		// The Original's details grid column is minmax(76px, auto).
+		ui.Text(c, label).FontSize(12).FixedLineHeight(18).TextColor(muted).MinWidth(76)
 		if value != "" {
 			ui.Text(c, value).FontSize(12).FixedLineHeight(18).TextColor(c.Theme().Text).Grow(1).TextAlign(ui.End)
 		} else {
