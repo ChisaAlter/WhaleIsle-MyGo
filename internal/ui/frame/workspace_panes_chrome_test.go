@@ -38,12 +38,12 @@ func TestWorkspacePaneChromeHeightAndNarrowActions(t *testing.T) {
 	for _, width := range []int{300, 420, 800} {
 		tt, _, _ := paneChromeFixture(width)
 		header, ok := tt.Find("Workspace pane header")
-		if !ok || header.H != 38 {
+		if !ok || header.H != 48 {
 			t.Fatalf("width=%d header=%+v", width, header)
 		}
 		body, _ := tt.Find("Pane body")
-		if body.Y != 38 {
-			t.Fatalf("width=%d body starts at %v, want 38", width, body.Y)
+		if body.Y != 48 {
+			t.Fatalf("width=%d body starts at %v, want 48", width, body.Y)
 		}
 		for _, label := range []string{paneLabel("面板操作", "Pane actions"), paneLabel("全屏", "Maximize pane"), paneLabel("关闭", "Close")} {
 			r, ok := tt.Find(label)
