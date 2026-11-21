@@ -193,6 +193,11 @@ try {
   // Wait for the workbench: window pid + its first landmark.
   const firstNative = surfaceSpec.scenarios[0].landmarks[0].native;
   const bootDeadline = Date.now() + 240000;
+  // Phase 1 is killed the moment config.json lands, so the relaunch can
+  // land on the crash-recovery gate (上次启动未完整恢复) instead of the
+  // workbench. Dismiss it from the boot wait — one retry is enough, and a
+  // genuine boot failure still hits the deadline unchanged.
+  let recoveryRetried = false;
   for (;;) {
     await sleep(1500);
     if (!nativePid) nativePid = winPid();
@@ -200,6 +205,11 @@ try {
       try {
         const f = find(firstNative.name, firstNative.type, firstNative.index || 0, firstNative);
         if (f.count > (firstNative.index || 0)) break;
+        if (!recoveryRetried && find('重试', 'Button', 0, {}).count > 0) {
+          recoveryRetried = true;
+          console.log('[native] crash-recovery gate dismissed (重试)');
+          act('invoke', { name: '重试', type: 'Button' });
+        }
       } catch { /* window not up yet */ }
     }
     if (Date.now() > bootDeadline) throw new Error('native workbench did not appear in 240 s');
