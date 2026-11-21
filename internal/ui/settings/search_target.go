@@ -20,6 +20,7 @@ type settingsSearchJump struct {
 	FilterQuery                 string
 	HighlightedKey              string
 	HighlightedTitle            string
+	HitFill                     ui.Color
 }
 
 func settingsSearchJumpState(c *ui.Context) *settingsSearchJump {
@@ -98,6 +99,26 @@ func settingsSearchHighlighted(c *ui.Context, target string) bool {
 	return target != "" && (jump.HighlightedKey == target || jump.HighlightedTitle == target)
 }
 
+// settingsHitDuration is the original's settingsHit animation length; its
+// keyframe holds the accent through 40% and eases out over the rest.
+const (
+	settingsHitDuration = 1600 * time.Millisecond
+	settingsHitHold     = 640 * time.Millisecond
+)
+
+// settingsHitAlpha is the fill's strength along the settingsHit keyframe: 1
+// through the 40% hold, then the ease-out ramp to transparent.
+func settingsHitAlpha(now, start time.Time, reduced bool) float32 {
+	if reduced {
+		return 1
+	}
+	elapsed := now.Sub(start)
+	if elapsed <= settingsHitHold {
+		return 1
+	}
+	return 1 - ui.EaseOut(min(1, float32(elapsed-settingsHitHold)/float32(settingsHitDuration-settingsHitHold)))
+}
+
 // Called by the real row, after any owning disclosure/modal has been revealed.
 // ScrollIntoView registers against this frame's settled layout, not an old y.
 func settingsSearchTarget(c *ui.Context, key, title string, row ui.Element) {
@@ -110,22 +131,42 @@ func settingsSearchTarget(c *ui.Context, key, title string, row ui.Element) {
 	if jumpMatch && jump.Pending {
 		row.ScrollIntoView()
 		jump.Pending = false
-		jump.HighlightUntil = c.Now().Add(1600 * time.Millisecond)
+		jump.HighlightUntil = c.Now().Add(settingsHitDuration)
 	}
-	if filterMatch || (jumpMatch && c.Now().Before(jump.HighlightUntil)) {
-		if jump.HighlightedKey == "" || jumpMatch {
-			jump.HighlightedKey = key
-			jump.HighlightedTitle = title
+	hitting := jumpMatch && c.Now().Before(jump.HighlightUntil)
+	if !filterMatch && !hitting {
+		return
+	}
+	if jump.HighlightedKey == "" || jumpMatch {
+		jump.HighlightedKey = key
+		jump.HighlightedTitle = title
+	}
+	if hitting {
+		// The original's settingsHit keyframe: the nav-item-active-accent fill
+		// holds through 40% of its 1.6 s ease-out run, then fades out. Reduced
+		// motion keeps the static fill, as its @media rule does.
+		fill := jump.HitFill
+		if fill == (ui.Color{}) {
+			fill = c.Theme().Accent.Alpha(.14)
 		}
-		row.Background(c.Theme().Accent.Alpha(.14)).Radius(8)
+		reduced := c.Preferences().ReduceMotion
+		start := jump.HighlightUntil.Add(-settingsHitDuration)
+		row.Background(fill.Alpha(settingsHitAlpha(c.Now(), start, reduced))).Radius(8)
 		row.DrawOver(func(p *ui.Painter, bounds ui.Rect) {
-			p.Stroke(bounds, c.Theme().Accent.Alpha(.55), 1, 8)
-			p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y + 4, W: 3, H: max(0, bounds.H-8)}, c.Theme().Accent, 1.5)
-			if jumpMatch && c.Now().Before(jump.HighlightUntil) {
+			if reduced {
+				p.After(jump.HighlightUntil.Sub(c.Now()))
+			} else {
 				p.After(50 * time.Millisecond)
 			}
 		})
+		return
 	}
+	// A filter match (the rail search's own marking) keeps the accent outline.
+	row.Background(c.Theme().Accent.Alpha(.14)).Radius(8)
+	row.DrawOver(func(p *ui.Painter, bounds ui.Rect) {
+		p.Stroke(bounds, c.Theme().Accent.Alpha(.55), 1, 8)
+		p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y + 4, W: 3, H: max(0, bounds.H-8)}, c.Theme().Accent, 1.5)
+	})
 }
 
 func searchRowTarget(section SectionID, zh, title string) string {
