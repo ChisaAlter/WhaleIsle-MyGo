@@ -81,7 +81,7 @@ if (surfaceSpec.mock) {
   mockProc.stdout.setEncoding('utf8');
   const mockPort = await new Promise((res, rej) => {
     const t = setTimeout(() => rej(new Error('mock.mjs emitted no PORT')), 20000);
-    mockProc.stdout.on('data', (d) => { const m = /PORT=(d+)/.exec(d); if (m) { clearTimeout(t); res(+m[1]); } });
+    mockProc.stdout.on('data', (d) => { const m = /PORT=(\d+)/.exec(d); if (m) { clearTimeout(t); res(+m[1]); } });
   });
   mockBase = `http://127.0.0.1:${mockPort}`;
   console.log('[mock]', mockBase);
