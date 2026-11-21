@@ -31,6 +31,10 @@ type Style struct {
 	// DocumentLayout uses the original MarkdownText block typography and margins.
 	// Existing conversation renderers retain their current layout unless opted in.
 	DocumentLayout bool
+	// Compact mirrors the Original MarkdownText `.compact` variant used for
+	// reasoning bodies: secondary size and leading, 4px block margins, 2px list
+	// spacing and body-size headings. It only takes effect with DocumentLayout.
+	Compact bool
 	// Market's later-loaded .readme h3 rule overrides only these two metrics.
 	// Zero keeps the shared Markdown heading; explicit values are absolute DIPs.
 	DocumentH3FontSize   float32
