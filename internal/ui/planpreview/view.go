@@ -17,7 +17,7 @@ type Style struct{ FG, Muted, Accent, Field, Border ui.Color }
 // Only disclosure state is UI-local; document contents always come from the
 // current session snapshot or exact pending request, never a global cache.
 func View(c *ui.Context, key, title, source string, initiallyOpen bool, style Style) {
-	box := ui.Column(c.Key(key)).FillWidth().Gap(6).Padding(10).Background(style.Field).Border(1, style.Border).Radius(8)
+	box := ui.Column(c.Key(key)).FillWidth().Gap(6).Padding(10).Background(style.Field).Border(1, style.Border).Radius(8).Label("Plan card")
 	open := ui.Local(box, "plan-document-open", func() bool { return initiallyOpen })
 	box.Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
