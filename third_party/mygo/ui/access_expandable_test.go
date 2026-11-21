@@ -103,3 +103,32 @@ func nodeByID(t *testing.T, tt *Tester, id uint64) platform.AccessNode {
 	t.Fatalf("element %d left the tree", id)
 	return platform.AccessNode{}
 }
+
+// An assistive-technology toggle is input like a click: Changed must deliver
+// it. A consumer that applies its open state through a Changed hook — the
+// disclosure row's OnToggle — otherwise never learns the row opened: the
+// bound local flips, nothing reports it, and the next frame rebuilds the row
+// closed from the stale model. That is what kept UIA Expand() a no-op on the
+// chat's disclosure members.
+func TestCollapsibleExpandPatternReportsChanged(t *testing.T) {
+	var open, heard bool
+	tt := coreNewTester(func(c *context) {
+		p := coreCollapsibleBase(c, &open)
+		if p.Trigger.Changed() {
+			heard = true
+		}
+		p.Trigger.Children(func() { coreText(c, "Details") })
+		p.Panel(func() { coreText(c, "panel") })
+	}, 420, 420)
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessibilityOn})
+	trigger := expandableNode(t, tt)
+
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessAction, ID: trigger.ID, Action: platform.AccessExpand})
+	tt.Frame()
+	if !open {
+		t.Fatal("collapsible did not open from the expand pattern")
+	}
+	if !heard {
+		t.Fatal("collapsible's expand-pattern toggle was not reported through Changed")
+	}
+}
