@@ -1222,9 +1222,9 @@
             {
               "key": "plugins.desc",
               "web": {
-                "within": "[data-slot='settings.section']",
+                "within": "[role=dialog] [data-slot='settings.section']",
                 "selector": "p",
-                "index": 0
+                "text": "查看内置部署的插件列表"
               },
               "native": {
                 "name": "查看内置部署的插件列表",
