@@ -33,18 +33,22 @@ func viewExplorer(c *ui.Context, m Model) {
 			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 			return
 		}
-		// FilesPanel.module.css `.toolbar`: the search field grows beside one
-		// 28px refresh control, inset 8/12/0. The original surfaces the extra
-		// tree actions through item context menus, so they live on this
-		// control's context menu here.
+		// FilesPanel.module.css `.toolbar`: the search field grows beside the
+		// 28px refresh control, inset 8/12/0. MyGo keeps its extra tree
+		// actions on a visible options button beside it — a desktop product
+		// difference, not a hidden gesture.
 		ui.Row(c).FillWidth().Shrink(0).Padding(8, 12, 0, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			if m.Filter != nil {
 				ui.TextInput(c, m.Filter).Grow(1).MinWidth(0).Height(33).Radius(12).Border(0.5, chrome.Color(colors.Border)).FontSize(theme.InterfaceSize(12)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter))
 			} else {
 				ui.Box(c).Grow(1).MinWidth(0)
 			}
-			refresh := previewTool(c, "tree-refresh", label("刷新文件树", "Refresh files"), previewReloadIcon, muted).Disabled(m.Tabs == nil)
-			refresh.ContextMenu(func(menu *ui.Menu) {
+			if previewTool(c, "tree-refresh", label("刷新文件树", "Refresh files"), previewReloadIcon, muted).Disabled(m.Tabs == nil).Clicked() {
+				m.Tabs.Tree.Refresh()
+				m.Tabs.Search.Cancel()
+				m.Tabs.explorerError = ""
+			}
+			previewTool(c, "tree-options", label("文件树选项", "Files options"), previewChevronIcon, muted).Menu(func(menu *ui.Menu) {
 				if menu.Item(label("复制工作区路径", "Copy workspace path")).Chosen() {
 					mygo.Clipboard.WriteText(root)
 				}
@@ -58,11 +62,6 @@ func viewExplorer(c *ui.Context, m Model) {
 					}
 				}
 			})
-			if refresh.Clicked() {
-				m.Tabs.Tree.Refresh()
-				m.Tabs.Search.Cancel()
-				m.Tabs.explorerError = ""
-			}
 		})
 		filter := ""
 		if m.Filter != nil {

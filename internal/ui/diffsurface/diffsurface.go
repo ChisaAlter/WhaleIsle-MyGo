@@ -171,7 +171,7 @@ func View(c *ui.Context, m Model) {
 		}
 
 		paintPatchFiles(c, m, text, diff.Style{
-			FontSize: 12,
+			FontSize: 11,
 			FG:       fg,
 			Add:      ui.RGB(0x22, 0xc5, 0x5e),
 			Del:      ui.RGB(0xef, 0x44, 0x44),

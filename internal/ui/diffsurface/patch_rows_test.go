@@ -22,10 +22,10 @@ func TestUnifiedLinesSplitsPairedRows(t *testing.T) {
 	if lines[0].Kind != diffLineHunk {
 		t.Fatalf("first line is not the hunk header: %+v", lines[0])
 	}
-	if lines[1].Kind != diffLineDel || lines[1].Text != "old line" || lines[1].Number != 1 {
+	if lines[1].Kind != diffLineDel || lines[1].Text != "old line" || lines[1].OldNumber != 1 || lines[1].NewNumber != 0 {
 		t.Fatalf("removed line not split out: %+v", lines[1])
 	}
-	if lines[2].Kind != diffLineAdd || lines[2].Text != "new line" || lines[2].Number != 1 {
+	if lines[2].Kind != diffLineAdd || lines[2].Text != "new line" || lines[2].NewNumber != 1 || lines[2].OldNumber != 0 {
 		t.Fatalf("added line not split out: %+v", lines[2])
 	}
 	if lines[3].Kind != diffLineContext || lines[3].Text != "context" {

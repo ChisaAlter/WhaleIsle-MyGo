@@ -220,9 +220,9 @@ func TestPatchViewCopyIncludesUnvisitedLogicalRows(t *testing.T) {
 	tt.ClickAt(r.X+4, r.Y+r.H/2)
 	tt.Key(ui.Cmd, ui.KeyA)
 	tt.Key(ui.Cmd, ui.KeyC)
-	// File metadata is rendered as selectable patch text. Only the native file
-	// header, hunk controls and number/sign gutters are unselectable.
-	want := []string{"diff --git a/pkg/file_00.go b/pkg/file_00.go", "--- a/pkg/file_00.go", "+++ b/pkg/file_00.go", "package pkg"}
+	// The original's ReviewDiff drops the git file-header noise, so the
+	// selectable copy holds the rendered logical rows only.
+	want := []string{"package pkg"}
 	for i := 0; i < 1000; i++ {
 		want = append(want, fmt.Sprintf("var row_00_%04d = %d", i, i))
 	}

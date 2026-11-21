@@ -185,7 +185,7 @@ func measurePatchFilesMetrics(files []patchFile, counter *int) {
 		}
 		f.splitColW = splitColumnWidth(f.Rows)
 		f.uniLines = unifiedLines(f.Rows)
-		f.uniMinW = unifiedMinWidth(f.Rows) + diffNumberWidth + diffSignWidth + 28
+		f.uniMinW = unifiedMinWidth(f.Rows) + (2*3.5+1.2)*diffMetricFontSize + diffHunksIndent + 16
 		f.metricsReady = true
 	}
 }
@@ -264,7 +264,7 @@ func buildPatchItemsFromFiles(files []patchFile, split, wrap bool, closed map[st
 			}
 			f.splitColW = splitColumnWidth(f.Rows)
 			f.uniLines = unifiedLines(f.Rows)
-			f.uniMinW = unifiedMinWidth(f.Rows) + diffNumberWidth + diffSignWidth + 28
+			f.uniMinW = unifiedMinWidth(f.Rows) + (2*3.5+1.2)*diffMetricFontSize + diffHunksIndent + 16
 			f.metricsReady = true
 		}
 		items = append(items, patchListItem{
@@ -306,6 +306,9 @@ func buildPatchItemsFromFiles(files []patchFile, split, wrap bool, closed map[st
 							line:      diffLine{Kind: diffLineHunk, Text: r.Meta, Hunk: hunk},
 							fileMinW:  colMinW,
 						})
+						continue
+					}
+					if diffNoiseMeta(r.Meta) {
 						continue
 					}
 					items = append(items, patchListItem{
@@ -405,16 +408,16 @@ func paintVirtualizedPatchList(c *ui.Context, m Model, view *patchViewState, sou
 			SelectionText(view.layoutSeq, textRows).
 			Fill().
 			MinHeight(0).
-			Gap(1).
-			Padding(8, 8, 8, 8).
+			Gap(0).
+			Padding(8, 12, 16, 12).
 			Selectable().
 			Rows(func(row ui.ListRow) {
 				paintPatchListItem(row.Context, m, view, items[row.Index], st, 0)
 			})
 		return
 	}
-	listW := max(view.viewportW, maxRowW+16)
-	rowMinW := max(listW-16, 0)
+	listW := max(view.viewportW, maxRowW+24)
+	rowMinW := max(listW-24, 0)
 	inv := c.Services().Invalidate
 	ui.ScrollHorizontal(c).Fill().MinHeight(0).ObserveLayout(func(box ui.Rect) {
 		if box.W > 0 && box.W != view.viewportW {
@@ -430,8 +433,8 @@ func paintVirtualizedPatchList(c *ui.Context, m Model, view *patchViewState, sou
 			Width(listW).
 			FillHeight().
 			MinHeight(0).
-			Gap(1).
-			Padding(8, 8, 8, 8).
+			Gap(0).
+			Padding(8, 12, 16, 12).
 			Selectable().
 			Rows(func(row ui.ListRow) {
 				paintPatchListItem(row.Context, m, view, items[row.Index], st, rowMinW)
@@ -469,7 +472,7 @@ func paintRecordedPatchFiles(c *ui.Context, source string, split, wrap bool, st 
 	}
 	m := Model{Workbench: w}
 	if wrap {
-		ui.Column(c).FillWidth().MinWidth(0).Gap(1).Padding(8, 8, 8, 8).Selectable().Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(0).Padding(8, 12, 16, 12).Selectable().Children(func() {
 			for _, item := range items {
 				paintPatchListItem(c, m, &w.View, item, st, 0)
 			}
@@ -477,7 +480,7 @@ func paintRecordedPatchFiles(c *ui.Context, source string, split, wrap bool, st 
 		return
 	}
 	ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-		ui.Column(c).MinWidth(maxRowW+16).Gap(1).Padding(8, 8, 8, 8).Selectable().Children(func() {
+		ui.Column(c).MinWidth(maxRowW+24).Gap(0).Padding(8, 12, 16, 12).Selectable().Children(func() {
 			for _, item := range items {
 				paintPatchListItem(c, m, &w.View, item, st, maxRowW)
 			}
@@ -492,20 +495,20 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 		open := !view.Closed[f.Path]
 		topPad := float32(0)
 		if item.fileIndex > 0 {
-			topPad = 6
+			topPad = 8
 		}
 		title := f.Path
 		if title == "" {
 			title = word("差异内容", "Diff contents")
 		}
-		header := ui.Row(c).MinWidth(0).Gap(6).Padding(topPad, 0, 2, 0).AlignItems(ui.Center).Unselectable().Label("Diff file " + title)
-		if !view.Wrap && view.viewportW > 16 {
-			header.Width(view.viewportW - 16)
+		header := ui.Row(c).MinWidth(0).Gap(6).Padding(topPad, 0, 0, 0).AlignItems(ui.Center).Unselectable().Label("Diff file " + title)
+		if !view.Wrap && view.viewportW > 24 {
+			header.Width(view.viewportW - 24)
 		} else {
 			header.FillWidth()
 		}
 		header.Children(func() {
-			head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(28).Radius(6).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
+			head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(24).Radius(6).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
 			if head.Hovered() && m.OnOpenFile != nil && safePatchPath(f.Path) {
 				head.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
 			}
@@ -544,7 +547,7 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 		if !view.Wrap {
 			minWidth = item.fileMinW
 		}
-		ui.Row(c).FillWidth().Gap(8).Padding(0, 8, 4, 8).Unselectable().Children(func() {
+		ui.Row(c).FillWidth().Gap(8).Margin(8, 0, 0, diffHunksIndent).Padding(0, 8, 4, 8).Unselectable().Children(func() {
 			ui.Text(c, i18n.T(i18n.KeySurfacesDiffBefore)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
 			ui.Text(c, i18n.T(i18n.KeySurfacesDiffAfter)).Grow(1).MinWidth(minWidth).FontSize(fonttheme.InterfaceSize(11)).TextColor(st.Muted)
 		})
@@ -555,7 +558,7 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 			collapsed: view.foldedHunks(fPath),
 			onToggle:  func(index int) { view.toggleHunk(fPath, index) },
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Unselectable().Label("Diff hunk header").Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Margin(8, 0, 0, diffHunksIndent).Unselectable().Label("Diff hunk header").Children(func() {
 			paintHunkHeader(c, item.line.Text, item.hunk, st, fold)
 		})
 
@@ -579,7 +582,7 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 			minWidth = item.fileMinW
 		}
 		r := item.splitRow
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
+		ui.Row(c).FillWidth().Gap(8).Margin(0, 0, 0, diffHunksIndent).Children(func() {
 			paintSplitCell(c, r.Old, r.OldNumber, view.Wrap, minWidth, st)
 			paintSplitCell(c, r.New, r.NewNumber, view.Wrap, minWidth, st)
 		})
