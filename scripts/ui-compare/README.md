@@ -165,3 +165,49 @@ main-panel and right-pane surfaces. Recorded classifications:
 - **(a, recorded) sched.new** — the web 新建 button measures 32px (page
   control, between the shared _sm 28/_md 36 sizes); native keeps the
   shared small token. h −4, x offset derives from right-edge anchoring.
+
+## cards surface (approval / question / usage / plan)
+
+The `cards` surface drives a live turn on both sides against `mock.mjs`, a
+dependency-free Messages-compatible model server the run starts on
+127.0.0.1:0. `DEEPSEEK_BASE_URL`/`DEEPSEEK_API_KEY` are injected into the two
+launch environments only (never written to a profile): the isolated native
+profile inherits them through `internal/harness/launch.go`'s child env,
+host2 through its spawn env. Behavior is keyed by the `[ui-compare:<name>]`
+marker in the request's user messages — auxiliary calls (session title,
+conversation reference) get a fixed short reply regardless of order — and
+every request lands in `<run>/mock.jsonl`. The web composer is driven with
+trusted CDP input: real click, `Input.insertText` for plain prompts,
+per-character key events (`type`) and named keys (`press`) for slash-command
+claims, which `insertText` would bypass.
+
+The `usagePanel: true` scenario flag makes host2 compose
+`vendor/dsh-usage-panel/cordis.patch.yml` (`--patch` is a launcher flag and
+must precede the web args) plus a `profiles/web/node_modules/dsh-usage-panel`
+junction so the insert row resolves — the same pair the native Host carries
+through `internal/harness/overlay.go` (`ModuleLink` + generated
+`desktop-usage-panel.patch.yml`) on every start. Both sides then read the
+same local gateway ledger, so the usage page is deterministic.
+
+Recorded classifications:
+
+- **(b) card column width** — the native transcript column is ~62 DIP wider
+  and centred on the same axis, so full-width rows show x −31/w +62 and
+  right-aligned actions x +31; every in-card `dy-prev`/height matches.
+- **(b) card y offsets** — approval +32 / question +14 / plan +10 reflect
+  the transcript content above the card, not card geometry.
+- **(b) plan artifact card** — the original's `[data-plan-card]` renders
+  only in the completed turn's tail (`PlanCards`/`usePlans`), so it is
+  absent while the review is pending; the native transcript shows its
+  artifact card immediately (MISS on the web side by design).
+- **(b) usage-page frame** — `PASS`: the embedded native settings page and
+  the original's settings dialog measure the same 612×698 options viewport.
+- **(c) text-box widths** — `usage-page.title` w +40.67, `plan.discuss`
+  w −4.66, `card.headline`/`card.command` w +4 are text-extent and shaping
+  differences; h and position match.
+- **Known product finding** — invoking the native settings page's `返回`
+  button through UIA InvokePattern makes `whaleisle.exe` exit silently (no
+  panic in `whaleisle.log`, no WER record); reproduce three times. The
+  scenario therefore runs `cards-usage-page` last and does not navigate
+  back. Whether a real click or keyboard path also exits needs manual
+  confirmation — report if seen in real use.

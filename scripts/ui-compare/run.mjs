@@ -9,7 +9,7 @@
 // process memory; the temp root is removed in finally unless --keep-open.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import http from 'node:http';
 
@@ -147,10 +147,19 @@ try {
   // composes it through its own desktop-usage-panel overlay, so host2 needs
   // the vendor bundle patch only when a scenario actually opens the page.
   const port = await freePort();
-  const webArgv = [HOST_BIN, 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'];
+  // --patch is a launcher flag: it must precede the web app's own args.
+  const webArgv = [HOST_BIN, 'web'];
   if (surfaceSpec.scenarios.some(sc => sc.usagePanel)) {
     webArgv.push('--patch', join(RUNTIME, 'vendor', 'dsh-usage-panel', 'cordis.patch.yml'));
+    // The insert row names the package; the profile resolves it through its
+    // own node_modules, exactly like the desktop's ModuleLink junction under
+    // profiles/web. Stage the same link before boot or the row cannot resolve.
+    const profileModules = join(host2Home, 'profiles', 'web', 'node_modules');
+    mkdirSync(profileModules, { recursive: true });
+    const usageLink = join(profileModules, 'dsh-usage-panel');
+    if (!existsSync(usageLink)) symlinkSync(join(RUNTIME, 'vendor', 'dsh-usage-panel'), usageLink, 'junction');
   }
+  webArgv.push('--host', '127.0.0.1', '--port', String(port), '--no-open');
   host2 = tracked(spawn(NODE, webArgv,
     { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
@@ -319,7 +328,14 @@ try {
     ${spec.upTo ? `e=e.closest(${JSON.stringify(spec.upTo)})||e;` : ''}
     ${body}
   })()`;
-  const webClick = (spec) => evalJs(webFinder(spec, `const r=e.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;const ev=(t)=>e.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y,button:0}));ev('mousedown');ev('mouseup');e.click();return true`));
+  const webClick = (spec) => spec.real
+    ? evalJs(webFinder(spec, `const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`))
+        .then(async r => { if (!r) return null;
+          await cdp("Page.bringToFront");
+          await cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: r.x, y: r.y, button: "left", clickCount: 1 });
+          await cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: r.x, y: r.y, button: "left", clickCount: 1 });
+          return true })
+    : evalJs(webFinder(spec, `const r=e.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;const ev=(t)=>e.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y,button:0}));ev('mousedown');ev('mouseup');e.click();return true`));
   const webKey = (key) => evalJs(`document.activeElement && document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true}))`);
   const webPresent = (spec) => evalJs(webFinder(spec, 'return true'));
   const webMetric = (spec) => evalJs(webFinder(spec, `const r=e.getBoundingClientRect();const cs=getComputedStyle(e);return {x:+r.x.toFixed(2),y:+r.y.toFixed(2),w:+r.width.toFixed(2),h:+r.height.toFixed(2),padding:cs.padding,radius:cs.borderRadius,fontSize:cs.fontSize,lineHeight:cs.lineHeight,fontWeight:cs.fontWeight}`));
@@ -415,7 +431,7 @@ try {
         // prompt: focus the ProseMirror composer with a real click, insert
         // the text through CDP trusted input, then submit with Enter. The
         // contenteditable ignores untrusted execCommand/insertText paths.
-        if (s.prompt && !scError) {
+        if ((s.prompt || s.type) && !scError) {
           const t0 = Date.now();
           let rect = null;
           while (Date.now() - t0 < WAIT_MS) {
@@ -429,11 +445,41 @@ try {
             await cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
             await cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
             await sleep(300);
-            await cdp("Input.insertText", { text: s.prompt });
-            await sleep(300);
+          }
+          // prompt: insertText + Enter. type: per-character trusted key
+          // events — Input.insertText bypasses the composer's input-trigger
+          // tracking, so slash-command claims (e.g. /plan) need real chars.
+          if (rect && s.prompt) {
+            // insertText is dropped silently when the click did not move DOM
+            // focus into the textbox; verify the text landed, re-clicking and
+            // retrying until it does, before submitting.
+            let typed = false;
+            for (let a = 0; a < 6 && !typed; a++) {
+              await cdp("Input.insertText", { text: s.prompt });
+              await sleep(300);
+              typed = await evalJs(`(()=>{const e=document.querySelector("[role=textbox]");return !!e && e.innerText.includes(${JSON.stringify(s.prompt.slice(-8))})})()`);
+              if (!typed) {
+                await cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+                await cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+                await sleep(300);
+              }
+            }
+            if (!typed) scError = `web step: composer rejected prompt text`;
             await cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
             await cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
           }
+          if (rect && s.type) {
+            for (const ch of [...s.type]) {
+              await cdp("Input.dispatchKeyEvent", { type: "keyDown", key: ch, text: ch, unmodifiedText: ch });
+              await cdp("Input.dispatchKeyEvent", { type: "keyUp", key: ch });
+              await sleep(30);
+            }
+          }
+        }
+        if (s.press && !scError) {
+          const vk = { Enter: 13, Escape: 27, Tab: 9, Backspace: 8 }[s.press] || 0;
+          await cdp("Input.dispatchKeyEvent", { type: "keyDown", key: s.press, code: s.press, windowsVirtualKeyCode: vk });
+          await cdp("Input.dispatchKeyEvent", { type: "keyUp", key: s.press, code: s.press, windowsVirtualKeyCode: vk });
         }
         await sleep(500);
         // Steps are verified in order: an expect spec must be present before

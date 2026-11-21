@@ -2929,6 +2929,11 @@
               {
                 "dismiss": [
                   {
+                    "within": "[role=dialog]",
+                    "text": "关闭",
+                    "upTo": "button"
+                  },
+                  {
                     "selector": "[role=dialog] button[aria-label='关闭']"
                   },
                   {
@@ -2937,6 +2942,12 @@
                   {
                     "within": "[role=dialog]",
                     "text": "继续"
+                  },
+                  {
+                    "selector": "[data-dsh-settings-close]"
+                  },
+                  {
+                    "selector": "[data-conversation-scroll]"
                   }
                 ],
                 "gone": "[role=dialog]",
@@ -3131,6 +3142,35 @@
                 "expect": {
                   "selector": "[data-question-key]"
                 }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "within": "[role=dialog]",
+                    "text": "关闭",
+                    "upTo": "button"
+                  },
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  },
+                  {
+                    "selector": "[data-dsh-settings-close]"
+                  },
+                  {
+                    "selector": "[data-conversation-scroll]"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
               }
             ]
           },
@@ -3390,6 +3430,35 @@
                   "selector": "[data-turn-usage-details]"
                 }
               }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "within": "[role=dialog]",
+                    "text": "关闭",
+                    "upTo": "button"
+                  },
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  },
+                  {
+                    "selector": "[data-dsh-settings-close]"
+                  },
+                  {
+                    "selector": "[data-conversation-scroll]"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
             ]
           },
           "native": {
@@ -3533,147 +3602,6 @@
           ]
         },
         {
-          "id": "cards-usage-page",
-          "domDump": "[data-slot='settings.section']",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[aria-label='新建会话']"
-                },
-                "expect": {
-                  "selector": "[role=textbox]"
-                }
-              },
-              {
-                "prompt": "[ui-compare:usage] report the token usage",
-                "expect": {
-                  "within": "[data-conversation-scroll]",
-                  "text": "用量 84 tok"
-                }
-              },
-              {
-                "click": {
-                  "selector": "button[aria-label='账号菜单']"
-                },
-                "expect": {
-                  "selector": "[role=menu]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[role=menu] [role=menuitem]",
-                  "index": 0
-                },
-                "expect": {
-                  "selector": "[role=dialog]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-dsh-settings-section='usage-stats']"
-                },
-                "expect": {
-                  "selector": "[data-dsh-settings-section='usage-stats'][aria-current]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "新会话",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "Composer draft"
-                }
-              },
-              {
-                "setvalue": {
-                  "name": "Composer draft",
-                  "type": "Edit",
-                  "text": "[ui-compare:usage] report the token usage"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "发送消息",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "本轮用量"
-                }
-              },
-              {
-                "expand": {
-                  "name": "账号菜单",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "",
-                  "type": "Menu"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "设置",
-                  "type": "MenuItem"
-                },
-                "expect": {
-                  "name": "设置",
-                  "type": "Text"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "用量与费用",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "用量统计"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "usage-page.title",
-              "web": {
-                "within": "[data-slot='settings.section']",
-                "text": "用量统计"
-              },
-              "native": {
-                "name": "用量统计"
-              },
-              "assert": [
-                "x",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "usage-page.frame",
-              "web": {
-                "selector": "[data-slot='settings.section']"
-              },
-              "native": {
-                "name": "用量统计",
-                "upToType": "Group"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            }
-          ],
-          "usagePanel": true
-        },
-        {
           "id": "cards-plan",
           "domDump": "[data-plan-review-key]",
           "nativeDump": true,
@@ -3688,9 +3616,28 @@
                 }
               },
               {
-                "prompt": "/plan",
+                "prompt": "warm up the session",
                 "expect": {
-                  "selector": "button[aria-label='计划模式已开启，按下关闭']"
+                  "within": "[data-conversation-scroll]",
+                  "text": "mock reply ok"
+                }
+              },
+              {
+                "click": {
+                  "selector": "button[aria-label='添加文件或调用指令']"
+                },
+                "expect": {
+                  "selector": "[role=listbox]"
+                }
+              },
+              {
+                "click": {
+                  "within": "[role=listbox]",
+                  "text": "进入或退出计划模式",
+                  "upTo": "[role=option]"
+                },
+                "expect": {
+                  "selector": "[data-composer-command=\"plan\"]"
                 }
               },
               {
@@ -3698,6 +3645,35 @@
                 "expect": {
                   "selector": "[data-plan-review-key]"
                 }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "within": "[role=dialog]",
+                    "text": "关闭",
+                    "upTo": "button"
+                  },
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  },
+                  {
+                    "selector": "[data-dsh-settings-close]"
+                  },
+                  {
+                    "selector": "[data-conversation-scroll]"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
               }
             ]
           },
@@ -3716,7 +3692,7 @@
                 "setvalue": {
                   "name": "Composer draft",
                   "type": "Edit",
-                  "text": "/plan"
+                  "text": "warm up the session"
                 }
               },
               {
@@ -3725,14 +3701,14 @@
                   "type": "Button"
                 },
                 "expect": {
-                  "name": "计划模式已开启，按下关闭"
+                  "name": "mock reply ok"
                 }
               },
               {
                 "setvalue": {
                   "name": "Composer draft",
                   "type": "Edit",
-                  "text": "[ui-compare:plan] draft the rollout plan"
+                  "text": "/plan [ui-compare:plan] draft the rollout plan"
                 }
               },
               {
@@ -3741,7 +3717,7 @@
                   "type": "Button"
                 },
                 "expect": {
-                  "namePrefix": "Approve this plan"
+                  "name": "计划待审"
                 }
               }
             ]
@@ -3753,7 +3729,7 @@
                 "selector": "[data-plan-review-key] section"
               },
               "native": {
-                "namePrefix": "Approve this plan",
+                "name": "Approve this plan and leave plan mode?",
                 "type": "Group"
               },
               "assert": [
@@ -3780,13 +3756,14 @@
               ]
             },
             {
-              "key": "plan.header",
+              "key": "plan.previewLink",
               "web": {
                 "within": "[data-plan-review-key]",
-                "text": "计划待审"
+                "text": "查看全文"
               },
               "native": {
-                "name": "计划待审"
+                "name": "在侧边栏打开计划",
+                "type": "Button"
               },
               "assert": [
                 "x",
@@ -3800,7 +3777,8 @@
                 "selector": "[data-plan-review-key] [class*=_summary] h3"
               },
               "native": {
-                "name": "Ship plan mode UI"
+                "name": "Ship plan mode UI",
+                "index": 1
               },
               "assert": [
                 "x",
@@ -3860,8 +3838,196 @@
                 "w",
                 "h"
               ]
+            },
+            {
+              "key": "plan.card",
+              "web": {
+                "selector": "[data-plan-card]"
+              },
+              "native": {
+                "name": "Plan card",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             }
           ]
+        },
+        {
+          "id": "cards-usage-page",
+          "domDump": "[data-slot='settings.section']",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[aria-label='新建会话']"
+                },
+                "expect": {
+                  "selector": "[role=textbox]"
+                }
+              },
+              {
+                "prompt": "[ui-compare:usage] report the token usage",
+                "expect": {
+                  "within": "[data-conversation-scroll]",
+                  "text": "用量 84 tok"
+                }
+              },
+              {
+                "click": {
+                  "selector": "button[aria-label='账号菜单']"
+                },
+                "expect": {
+                  "selector": "[role=menu]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[role=menu] [role=menuitem]",
+                  "index": 0
+                },
+                "expect": {
+                  "selector": "[role=dialog]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-dsh-settings-section='usage-stats']"
+                },
+                "expect": {
+                  "selector": "[data-dsh-settings-section='usage-stats'][aria-current]"
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "within": "[role=dialog]",
+                    "text": "关闭",
+                    "upTo": "button"
+                  },
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  },
+                  {
+                    "selector": "[data-dsh-settings-close]"
+                  },
+                  {
+                    "selector": "[data-conversation-scroll]"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "新会话",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Composer draft"
+                }
+              },
+              {
+                "setvalue": {
+                  "name": "Composer draft",
+                  "type": "Edit",
+                  "text": "[ui-compare:usage] report the token usage"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "发送消息",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "本轮用量"
+                }
+              },
+              {
+                "expand": {
+                  "name": "账号菜单",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "",
+                  "type": "Menu"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "设置",
+                  "type": "MenuItem"
+                },
+                "expect": {
+                  "name": "设置",
+                  "type": "Text"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "用量与费用",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "用量与费用",
+                  "type": "Text"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "usage-page.title",
+              "web": {
+                "within": ".dsw-ust-root",
+                "text": "用量与费用"
+              },
+              "native": {
+                "name": "用量与费用",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "usage-page.frame",
+              "web": {
+                "selector": "[class*='_options']"
+              },
+              "native": {
+                "name": "设置内容",
+                "type": "Pane"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            }
+          ],
+          "usagePanel": true
         }
       ]
     }

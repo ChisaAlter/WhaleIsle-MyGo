@@ -83,11 +83,18 @@ function choose(body) {
       if (c && c.type === 'tool_result') return 'final';
     }
   }
-  const last = messages[messages.length - 1];
-  const text = [].concat(last?.content || []).map(c => (c && c.type === 'text' ? c.text : '') || '').join('\n');
-  const m = /\[ui-compare:([a-z-]+)\]/.exec(text);
-  if (m && SCENARIOS[m[1]]) return m[1];
-  return 'aux';
+  // The scenario marker can sit in a steered user message that is not the
+  // last message of the request (plan-mode context follows it). Scan every
+  // message, but skip auxiliary calls that merely embed prior user text —
+  // title and conversation-reference generations carry it inside JSON.
+  let behavior = 'aux';
+  for (const m of messages) {
+    const text = [].concat(m?.content || []).map(c => (c && c.type === 'text' ? c.text : '') || '').join('\n');
+    if (text.startsWith('Conversation reference data') || text.startsWith('Generate the session title')) continue;
+    const hit = /\[ui-compare:([a-z-]+)\]/.exec(text);
+    if (hit && SCENARIOS[hit[1]]) behavior = hit[1];
+  }
+  return behavior;
 }
 
 const server = createServer((req, res) => {
