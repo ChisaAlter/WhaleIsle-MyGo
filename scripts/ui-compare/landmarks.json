@@ -3422,9 +3422,7 @@
         "selector": "[data-turn-usage-details]"
        },
        "native": {
-        "name": "未缓存输入",
-        "type": "Text",
-        "upToType": "Pane"
+        "name": "Turn usage details"
        },
        "assert": [
         "x",
