@@ -186,7 +186,7 @@ func artwork(c *ui.Context, ink, border ui.Color, owner *svgimage.Owner, source 
 	artworkSized(c, ink, border, 48, 36, owner, source...)
 }
 func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owner *svgimage.Owner, source ...string) {
-	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(10)
+	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(16)
 	shown := false
 	if len(source) > 0 && source[0] != "" {
 		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, source[0], size, size, owner) })
