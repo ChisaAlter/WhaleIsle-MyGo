@@ -2,6 +2,7 @@
   [Parameter(Mandatory=$true)][int]$ProcId,
   [Parameter(Mandatory=$true)][string]$Command,   # dump|find|invoke|expand|collapse|setclient|capture
   [string]$Name = "",
+  [string]$Prefix = "",
   [string]$Type = "",
   [int]$Index = 0,
   [int]$Up = 0,
@@ -42,14 +43,19 @@ if ($hwnd -eq [IntPtr]::Zero) { throw "pid $ProcId has no main window" }
 function Rect-Of($r) {
   [pscustomobject]@{ x=[math]::Round($r.X,1); y=[math]::Round($r.Y,1); w=[math]::Round($r.Width,1); h=[math]::Round($r.Height,1) }
 }
-function Find-Elements($root, $name, $type) {
+function Find-Elements($root, $name, $type, $prefix) {
   $cond = [System.Windows.Automation.Condition]::TrueCondition
   $out = @()
-  $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+  try {
+    $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+  } catch {
+    return @()
+  }
   foreach ($el in $all) {
     try {
       $n = $el.Current.Name
       if ($name -ne "" -and $n -ne $name) { continue }
+      if ($prefix -ne "" -and -not $n.StartsWith($prefix)) { continue }
       if ($type -ne "" -and $el.Current.ControlType.ProgrammaticName -ne "ControlType.$type") { continue }
       $out += $el
     } catch {}
@@ -76,7 +82,7 @@ switch ($Command) {
     Walk $root 0 | ConvertTo-Json -Depth 4
   }
   'find' {
-    $els = @(Find-Elements $root $Name $Type)
+    $els = @(Find-Elements $root $Name $Type $Prefix)
     if ($Up -gt 0 -or $UpToType -ne "") {
       # Map a found element to an ancestor: Up levels of RawView parents, or
       # until the parent's ControlType matches UpToType (whichever ends first).
@@ -103,7 +109,7 @@ switch ($Command) {
     [pscustomobject]@{ count=$els.Count; index=$Index; hits=$res } | ConvertTo-Json -Depth 4
   }
   { $_ -in 'invoke','expand','collapse' } {
-    $els = @(Find-Elements $root $Name $Type)
+    $els = @(Find-Elements $root $Name $Type $Prefix)
     if ($els.Count -le $Index) { [pscustomobject]@{ ok=$false; error="no match: $Name/$Type[$Index] ($($els.Count) hits)" } | ConvertTo-Json; break }
     $el = $els[$Index]
     try {

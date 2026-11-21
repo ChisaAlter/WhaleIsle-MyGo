@@ -1,0 +1,19 @@
+{
+  "id": "ui-compare-chat-basic",
+  "title": "奇偶校验基准会话",
+  "user": "请核对这条静态历史的渲染几何。\n这一行是用户消息的第二行。",
+  "thinking": "推理过程备忘：基准项清单就绪。\n\n需要覆盖标题、段落、列表、行内代码和围栏代码块，再配两条已完成的工具调用。逐项核对后给出结论。",
+  "markdown": "# 基准结论\n\n正文段落覆盖普通文字，并包含一段 `inline_code` 行内代码示例。\n\n- 第一项列表内容\n- 第二项列表内容\n- 第三项列表内容\n\n```ts\nconst surface = 'chat-basic';\nconsole.log(surface);\n```",
+  "tools": [
+    {
+      "name": "read_file",
+      "arguments": { "path": "src/preview.txt" },
+      "result": "alpha\nbeta\ngamma"
+    },
+    {
+      "name": "bash",
+      "arguments": { "command": "printf 'one\\ntwo\\n'", "description": "print two lines" },
+      "result": "one\ntwo"
+    }
+  ]
+}

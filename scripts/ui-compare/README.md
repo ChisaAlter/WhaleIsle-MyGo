@@ -6,7 +6,7 @@ measures the same landmarks in DIP on both, screenshots both at the same pixel
 size, and reports deltas.
 
 ```
-node scripts/ui-compare/run.mjs [--surface workbench] [--landmarks <path>] [--keep-open]
+node scripts/ui-compare/run.mjs [--surface workbench|chat] [--landmarks <path>] [--keep-open]
 ```
 
 Outputs land in `tmp/ui-compare/<run-id>/` (gitignored): `summary.json`,
@@ -84,8 +84,14 @@ differences and are simply not mapped as landmarks.
   not styles); they are reported as reference values, not asserted.
 - Fonts rasterize differently across the two renderers — pixel diffing the
   PNGs is informational only; the asserted numbers are geometry.
-- Content-dependent views (real conversations, repos) need identical fixtures
-  on both sides — v1 covers the empty workbench.
+- Content-dependent views need identical fixtures on both sides. The `chat`
+  surface covers this: `seed-chat.mjs` writes the static fixture
+  (`fixtures/chat-basic.json`) as a real `session.v4.jsonl.zstd` log into
+  BOTH DSH homes (the isolated native profile's and host2's `DSH_HOME`)
+  before either side launches, and both sides open that seeded session — no
+  model calls, no credentials. Member-level disclosure rows can only be
+  measured expanded if the product exposes a working UIA ExpandCollapse
+  action on them.
 - `--theme official` is intentionally absent: the native side is seedable via
   `goAppearance` in config.json, but the web side's theme lives in the Host
   settings store and switching it through the real client path (settings API

@@ -9,8 +9,16 @@
             "setup": [
               {
                 "dismiss": [
-                  { "selector": "[role=dialog] button[aria-label='关闭']" },
-                  { "selector": "[role=dialog] button[class*=_primary]" }
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
                 ],
                 "gone": "[role=dialog]",
                 "optional": true
@@ -18,113 +26,668 @@
             ],
             "steps": []
           },
-          "native": { "steps": [] },
+          "native": {
+            "steps": []
+          },
           "landmarks": [
             {
               "key": "sidebar.brand",
-              "web": { "selector": "button[class*=_brand]" },
-              "native": { "name": "鲸屿 MyGo", "type": "Button" },
-              "assert": ["w", "h"]
+              "web": {
+                "selector": "button[class*=_brand]"
+              },
+              "native": {
+                "name": "鲸屿 MyGo",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
             },
             {
               "key": "sidebar.new-chat",
-              "web": { "selector": "button[class*=_newSession]" },
-              "native": { "name": "新会话", "type": "Button", "index": 0 },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "selector": "button[class*=_newSession]"
+              },
+              "native": {
+                "name": "新会话",
+                "type": "Button",
+                "index": 0
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.nav-plugins",
-              "web": { "selector": "button[aria-label='插件']" },
-              "native": { "name": "插件", "type": "Button" },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "selector": "button[aria-label='插件']"
+              },
+              "native": {
+                "name": "插件",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.nav-automations",
-              "web": { "selector": "button[aria-label='自动化任务']" },
-              "native": { "name": "自动化任务", "type": "Button" },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "selector": "button[aria-label='自动化任务']"
+              },
+              "native": {
+                "name": "自动化任务",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.workspace-header",
-              "web": { "selector": "span[class*=_sectionLabel]", "text": "工作区" },
-              "native": { "name": "工作区", "type": "Text" },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "selector": "span[class*=_sectionLabel]",
+                "text": "工作区"
+              },
+              "native": {
+                "name": "工作区",
+                "type": "Text"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.workspace-row",
-              "web": { "within": "div[role=tree]", "text": "默认工作区", "upTo": "[role=treeitem]" },
-              "native": { "name": "默认工作区", "type": "TreeItem" },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "within": "div[role=tree]",
+                "text": "默认工作区",
+                "upTo": "[role=treeitem]"
+              },
+              "native": {
+                "name": "默认工作区",
+                "type": "TreeItem"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.session-row",
-              "web": { "within": "div[role=tree]", "text": "新会话", "upTo": "[role=treeitem]" },
-              "native": { "name": "新会话", "type": "Button", "index": 1 },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "within": "div[role=tree]",
+                "text": "新会话",
+                "upTo": "[role=treeitem]"
+              },
+              "native": {
+                "name": "新会话",
+                "type": "Button",
+                "index": 1
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.archive-row",
-              "web": { "within": "div[role=tree]", "text": "已归档", "upTo": "[role=treeitem]" },
-              "native": { "name": "已归档分组", "type": "Button" },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "within": "div[role=tree]",
+                "text": "已归档",
+                "upTo": "[role=treeitem]"
+              },
+              "native": {
+                "name": "已归档分组",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "sidebar.settings-entry",
-              "web": { "selector": "button[aria-label='账号菜单']" },
-              "native": { "name": "账号菜单", "type": "Button" },
-              "assert": ["h", "dy-prev"]
+              "web": {
+                "selector": "button[aria-label='账号菜单']"
+              },
+              "native": {
+                "name": "账号菜单",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
             },
             {
               "key": "hero.title",
-              "web": { "text": "探索未至之鲸" },
-              "native": { "name": "探索未至之鲸", "type": "Text" },
+              "web": {
+                "text": "探索未至之鲸"
+              },
+              "native": {
+                "name": "探索未至之鲸",
+                "type": "Text"
+              },
               "assert": []
             },
             {
               "key": "composer.card",
-              "web": { "selector": "div[class*=_card]" },
-              "native": { "name": "Composer card", "type": "Group" },
-              "assert": ["x", "y", "w", "h"]
+              "web": {
+                "selector": "[role=textbox]",
+                "upTo": "div[class*=_card]"
+              },
+              "native": {
+                "name": "Composer card",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
             },
             {
               "key": "composer.editor",
-              "web": { "selector": "[role=textbox]" },
-              "native": { "name": "Composer draft", "type": "Edit" },
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
               "parent": "composer.card",
-              "assert": ["h", "dx-parent-left"]
+              "assert": [
+                "h",
+                "dx-parent-left"
+              ]
             },
             {
               "key": "composer.send",
-              "web": { "selector": "button[aria-label='发送消息']" },
-              "native": { "name": "发送消息", "type": "Button" },
+              "web": {
+                "selector": "button[aria-label='发送消息']"
+              },
+              "native": {
+                "name": "发送消息",
+                "type": "Button"
+              },
               "parent": "composer.card",
-              "assert": ["w", "h"]
+              "assert": [
+                "w",
+                "h"
+              ]
             },
             {
               "key": "composer.model-label",
-              "web": { "selector": "button[aria-label^='选择模型']" },
-              "native": { "name": "deepseek-official/deepseek-flash", "type": "Button" },
+              "web": {
+                "selector": "button[aria-label^='选择模型']"
+              },
+              "native": {
+                "name": "deepseek-official/deepseek-flash",
+                "type": "Button"
+              },
               "parent": "composer.card",
-              "assert": ["h", "dx-parent-right"]
+              "assert": [
+                "h",
+                "dx-parent-right"
+              ]
             }
           ]
         },
         {
           "id": "account-menu-open",
-          "web": { "steps": [{ "click": { "selector": "button[aria-label='账号菜单']" } }] },
-          "native": { "steps": [{ "expand": { "name": "账号菜单", "type": "Button" } }] },
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[aria-label='账号菜单']"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "expand": {
+                  "name": "账号菜单",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
           "landmarks": [
             {
               "key": "account-menu.panel",
-              "web": { "selector": "[role=menu]" },
-              "native": { "name": "", "type": "Menu", "index": 0 },
-              "assert": ["w", "h"]
+              "web": {
+                "selector": "[role=menu]"
+              },
+              "native": {
+                "name": "",
+                "type": "Menu",
+                "index": 0
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
             },
             {
               "key": "account-menu.first-item",
-              "web": { "selector": "[role=menu] [role=menuitem]" },
-              "native": { "name": "", "type": "MenuItem", "index": 0 },
-              "assert": ["w", "h"]
+              "web": {
+                "selector": "[role=menu] [role=menuitem]"
+              },
+              "native": {
+                "name": "",
+                "type": "MenuItem",
+                "index": 0
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "chat": {
+      "fixture": "fixtures/chat-basic.json",
+      "scenarios": [
+        {
+          "id": "chat-open",
+          "domDump": "[data-conversation-scroll]",
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "within": "div[role=tree]",
+                  "text": [
+                    "奇偶校验基准会话",
+                    "未命名"
+                  ],
+                  "upTo": "[role=treeitem]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "奇偶校验基准会话",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "sidebar.fixture-session",
+              "web": {
+                "within": "div[role=tree]",
+                "text": [
+                  "奇偶校验基准会话",
+                  "未命名"
+                ],
+                "upTo": "[role=treeitem]"
+              },
+              "native": {
+                "namePrefix": "奇偶校验基准会话",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "chat.user-bubble",
+              "web": {
+                "selector": "[data-dsh-message-bubble]"
+              },
+              "native": {
+                "name": "User message bubble"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "chat.fold-row",
+              "web": {
+                "selector": "button[data-turn-process]"
+              },
+              "native": {
+                "namePrefix": "已完成",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "composer.card",
+              "web": {
+                "selector": "[role=textbox]",
+                "upTo": "div[class$=_card]"
+              },
+              "native": {
+                "name": "Composer card",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "chat-turn-expanded",
+          "domDump": "[data-conversation-scroll]",
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-turn-process]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "已完成",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "chat.fold-row",
+              "web": {
+                "selector": "button[data-turn-process]"
+              },
+              "native": {
+                "namePrefix": "已完成，用时",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "chat.thinking-row",
+              "web": {
+                "selector": "button[data-process-activity=\"thinking\"]"
+              },
+              "native": {
+                "namePrefix": "已完成分析",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.heading",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "h1"
+              },
+              "native": {
+                "name": "基准结论",
+                "type": "Text"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.paragraph",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "p"
+              },
+              "native": {
+                "namePrefix": "正文段落覆盖",
+                "type": "Text"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.list-item",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "li"
+              },
+              "native": {
+                "name": "第一项列表内容",
+                "type": "Text"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.code-card",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "pre"
+              },
+              "native": {
+                "namePrefix": "const surface",
+                "type": "Text"
+              },
+              "assert": [
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.tools-row",
+              "web": {
+                "selector": "button[data-process-activity=\"tools\"]"
+              },
+              "native": {
+                "namePrefix": "已读取文件",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "composer.card",
+              "web": {
+                "selector": "[role=textbox]",
+                "upTo": "div[class$=_card]"
+              },
+              "native": {
+                "name": "Composer card",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "chat-thinking-expanded",
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-process-activity=\"thinking\"]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "已完成分析",
+                  "type": "Button"
+                }
+              },
+              {
+                "expand": {
+                  "namePrefix": "思考",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "chat.thinking-row",
+              "web": {
+                "selector": "button[data-process-activity=\"thinking\"]"
+              },
+              "native": {
+                "namePrefix": "已完成分析",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "chat.thinking-body",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "[data-step-process-body] p, [data-step-process-body] div",
+                "index": 0
+              },
+              "native": {
+                "namePrefix": "推理过程备忘",
+                "type": "Text",
+                "index": 1
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "chat-tool-expanded",
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-process-activity=\"tools\"]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "已读取文件",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "chat.tools-row",
+              "web": {
+                "selector": "button[data-process-activity=\"tools\"]"
+              },
+              "native": {
+                "namePrefix": "已读取文件",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "chat.tool-read",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "[data-chat-flow-kind=\"tool-call\"]",
+                "index": 0
+              },
+              "native": {
+                "namePrefix": "工具调用",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "chat.tool-bash",
+              "web": {
+                "within": "[data-conversation-scroll]",
+                "selector": "[data-chat-flow-kind=\"tool-call\"]",
+                "index": 1
+              },
+              "native": {
+                "namePrefix": "运行命令",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dy-prev"
+              ]
             }
           ]
         }

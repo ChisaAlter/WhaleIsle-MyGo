@@ -53,12 +53,21 @@ function ps1(command, extra = []) {
   return JSON.parse(r.stdout.replace(/^﻿/, ''));
 }
 const find = (name, type, index = 0, spec = {}) => {
-  const extra = ['-Name', name, '-Type', type, '-Index', String(index)];
+  const extra = ['-Name', name || '', '-Type', type || '', '-Index', String(index)];
+  if (spec.namePrefix) extra.push('-Prefix', spec.namePrefix);
   if (spec.up) extra.push('-Up', String(spec.up));
   if (spec.upToType) extra.push('-UpToType', spec.upToType);
   return ps1('find', extra);
 };
-const act = (cmd, spec) => ps1(cmd, ['-Name', spec.name, '-Type', spec.type || '', '-Index', String(spec.index || 0)]);
+const act = (cmd, spec) => {
+  const extra = ['-Name', spec.name || '', '-Type', spec.type || '', '-Index', String(spec.index || 0)];
+  if (spec.namePrefix) extra.push('-Prefix', spec.namePrefix);
+  return ps1(cmd, extra);
+};
+
+const lm0 = JSON.parse(readFileSync(landmarksPath, 'utf8'));
+const surfaceSpec = lm0.surfaces[surface];
+if (!surfaceSpec) throw new Error(`unknown surface ${surface}; have ${Object.keys(lm0.surfaces).join(', ')}`);
 
 let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0;
 const cdpPending = new Map();
@@ -85,9 +94,25 @@ try {
   // is pointed at the same directory the native profile gets. ----
   const wsDir = join(tmp, WS_DIR_NAME);
   mkdirSync(wsDir, { recursive: true });
+
+  // A surface may seed a static session history into BOTH Hosts' DSH homes
+  // before either launches (native: <profile>/dsh-home; web: host2's
+  // DSH_HOME). Sessions land under sessions/<projectKey(wsDir)>/, so both
+  // sidebars list the same fixture under the same workspace.
+  const nativeHome = join(tmp, 'data', 'dsh-home');
+  const host2Home = join(tmp, 'host2-home');
+  if (surfaceSpec.fixture) {
+    const fx = join(REPO, 'scripts', 'ui-compare', surfaceSpec.fixture);
+    for (const home of [host2Home, nativeHome]) {
+      const s = spawnSync(NODE, [join(REPO, 'scripts', 'ui-compare', 'seed-chat.mjs'),
+        join(RUNTIME, 'vendor', 'deepseek-harness'), home, wsDir, fx], { encoding: 'utf8' });
+      if (s.status !== 0) throw new Error(`seed-chat ${home}: ${(s.stderr || s.stdout || '').slice(0, 400)}`);
+      console.log('[seed]', (s.stdout || '').trim());
+    }
+  }
   const port = await freePort();
   host2 = tracked(spawn(NODE, [HOST_BIN, 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'],
-    { env: { ...process.env, DSH_HOME: join(tmp, 'host2-home') }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
+    { env: { ...process.env, DSH_HOME: host2Home }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
   host2.stdout.setEncoding('utf8');
   host2.stdout.on('data', (d) => { const m = /dsh web:\s*(https?:\/\/\S+)/.exec(d); if (m && !readyUrl) readyUrl = m[1]; });
@@ -135,15 +160,14 @@ try {
   };
 
   // Wait for the workbench: window pid + its first landmark.
-  const lm0 = JSON.parse(readFileSync(landmarksPath, 'utf8'));
-  const firstNative = lm0.surfaces[surface].scenarios[0].landmarks[0].native;
+  const firstNative = surfaceSpec.scenarios[0].landmarks[0].native;
   const bootDeadline = Date.now() + 240000;
   for (;;) {
     await sleep(1500);
     if (!nativePid) nativePid = winPid();
     if (nativePid) {
       try {
-        const f = find(firstNative.name, firstNative.type, firstNative.index || 0);
+        const f = find(firstNative.name, firstNative.type, firstNative.index || 0, firstNative);
         if (f.count > (firstNative.index || 0)) break;
       } catch { /* window not up yet */ }
     }
@@ -201,10 +225,14 @@ try {
   // narrowed to elements whose own text nodes equal text, indexed, then
   // optionally lifted to the closest upTo ancestor.
   const webFinder = (spec, body) => `(()=>{
-    const vis=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
-    const scope=${spec.within ? `document.querySelector(${JSON.stringify(spec.within)})||document` : 'document'};
+    const vis=e=>{const r=e.getBoundingClientRect();if(!(r.width>0&&r.height>0))return false;
+      for(let n=e;n;n=n.parentElement){const cs=getComputedStyle(n);
+        if(cs.display==='none'||cs.visibility==='hidden'||cs.contentVisibility==='hidden')return false;
+        if(n.hidden===true||n.hidden==='')return false}
+      return true};
+    const scope=${spec.within ? `document.querySelectorAll(${JSON.stringify(spec.within)})[${spec.withinIndex||0}]||document` : 'document'};
     let els=[...scope.querySelectorAll(${JSON.stringify(spec.selector || '*')})].filter(vis);
-    ${spec.text ? `els=els.filter(e=>{let t='';for(const n of e.childNodes)if(n.nodeType===3)t+=n.textContent;return t.trim()===${JSON.stringify(spec.text)}});` : ''}
+    ${spec.text ? `els=els.filter(e=>{let t='';for(const n of e.childNodes)if(n.nodeType===3)t+=n.textContent;t=t.trim();return ${JSON.stringify([].concat(spec.text))}.includes(t)});` : ''}
     let e=els[${spec.index || 0}];if(!e)return null;
     ${spec.upTo ? `e=e.closest(${JSON.stringify(spec.upTo)})||e;` : ''}
     ${body}
@@ -238,7 +266,7 @@ try {
       .map(d => typeof d === 'object' ? d : { selector: d });
     const t0 = Date.now();
     let quietSince = 0, sawTarget = false;
-    while (Date.now() - t0 < WAIT_MS * 2) {
+    while (Date.now() - t0 < WAIT_MS * 4) {
       if (!(await webPresent(gone))) {
         if (!quietSince) { quietSince = Date.now(); }
         else if (Date.now() - quietSince > 800) {
@@ -268,7 +296,7 @@ try {
     return `native setup: ${JSON.stringify(gone)} still present after dismiss`;
   }
 
-  for (const sc of lm0.surfaces[surface].scenarios) {
+  for (const sc of surfaceSpec.scenarios) {
     // setup first, then steps; web before native
     let scError = null;
     for (const s of (sc.web?.setup || [])) { scError = scError || await webSetup(s, sc); await sleep(300); }
@@ -333,9 +361,13 @@ try {
         rows.push({ sc: sc.id, ...entry });
       }
     }
-    // screenshots
+    // screenshots (+ optional web DOM dump for landmark discovery)
     const shot = await cdp('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(outDir, `${sc.id}-web.png`), Buffer.from(shot.data, 'base64'));
+    if (sc.domDump) {
+      const htmlDump = await evalJs(`(document.querySelector(${JSON.stringify(sc.domDump)})||document.body).outerHTML`);
+      writeFileSync(join(outDir, `${sc.id}-dom.html`), htmlDump);
+    }
     ps1('capture', ['-Out', join(outDir, `${sc.id}-native.png`)]);
     summary.scenarios.push({ id: sc.id, landmarks: lms, ...(scError ? { error: scError } : {}) });
     report.scenarios.push({ id: sc.id, landmarks: lms, error: scError, webPng: `${sc.id}-web.png`, nativePng: `${sc.id}-native.png` });
