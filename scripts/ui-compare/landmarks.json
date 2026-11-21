@@ -3170,9 +3170,8 @@
         "selector": "[data-question-key] section"
        },
        "native": {
-        "name": "Question content",
-        "type": "Pane",
-        "upToType": "Group"
+        "name": "Question card",
+        "type": "Group"
        },
        "assert": [
         "x",
