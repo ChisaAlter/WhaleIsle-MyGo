@@ -12,14 +12,14 @@ import (
 // struct declarations. Complex unions / tuples / never degrade to
 // json.RawMessage, matching tools/gen-api.
 type typeMapper struct {
-	nodes   []SchemaNode
-	prefix  string // root type name, used to namespace nested types
-	used    map[string]bool
-	names   map[int]string // object/map node index -> declared Go name
-	inProg  map[int]bool
-	defs    []string
+	nodes    []SchemaNode
+	prefix   string // root type name, used to namespace nested types
+	used     map[string]bool
+	names    map[int]string // object/map node index -> declared Go name
+	inProg   map[int]bool
+	defs     []string
 	needJSON bool
-	rootDoc string
+	rootDoc  string
 }
 
 func newTypeMapper(nodes []SchemaNode, prefix, rootDoc string) *typeMapper {

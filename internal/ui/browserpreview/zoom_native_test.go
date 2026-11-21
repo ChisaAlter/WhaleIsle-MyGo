@@ -1,4 +1,4 @@
-﻿package browserpreview
+package browserpreview
 
 import "testing"
 

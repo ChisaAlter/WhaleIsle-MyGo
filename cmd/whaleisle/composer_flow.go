@@ -47,7 +47,7 @@ func (s *mainState) observeComposerEdit(rendered bool, sessionID string) {
 	}
 }
 
-func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, editSeq float64, accelerated bool, hostGeneration uint64) {
+func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d *composer.DraftState, id, cwd string, accelerated bool, hostGeneration uint64) {
 	if d.Sending || d.Preparing > 0 {
 		log.Printf("composer submit dropped: busy sending=%v preparing=%d id=%s", d.Sending, d.Preparing, id)
 		return
@@ -102,7 +102,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		}
 		return
 	}
-	editSeq = d.EditSeq
+	editSeq := d.EditSeq
 	if editSeq > 0 && !d.EditAllowed(sessions.Snapshot()) {
 		d.Error = i18n.T(i18n.KeyChatEditStale)
 		return

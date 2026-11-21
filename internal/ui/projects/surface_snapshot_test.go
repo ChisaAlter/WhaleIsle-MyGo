@@ -32,18 +32,18 @@ func TestProjectObserverSurfaceSnapshot(t *testing.T) {
 	project.Activity.Running = 1
 	project.Activity.Queued = 1
 	base := Model{
-		ThemeID:            "deepseek.light",
-		Listing:            projectflow.Listing{Available: true, Projects: []projectflow.Project{project}},
-		SelectedSession:    "session-lead",
-		ObserverHost:       "fixture-host",
-		RequestProjectID:   "project-fixture",
-		RequestKind:        "current",
-		RequestLoaded:      true,
-		RequestPageNumber:  1,
-		RequestPage:        projectflow.RequestPage{Total: 2},
-		ObserverModel:      func(*ObserverState) Model { return Model{} },
-		OnObserver:         func(string) {},
-		OnRequestActivity:  func() {},
+		ThemeID:           "deepseek.light",
+		Listing:           projectflow.Listing{Available: true, Projects: []projectflow.Project{project}},
+		SelectedSession:   "session-lead",
+		ObserverHost:      "fixture-host",
+		RequestProjectID:  "project-fixture",
+		RequestKind:       "current",
+		RequestLoaded:     true,
+		RequestPageNumber: 1,
+		RequestPage:       projectflow.RequestPage{Total: 2},
+		ObserverModel:     func(*ObserverState) Model { return Model{} },
+		OnObserver:        func(string) {},
+		OnRequestActivity: func() {},
 	}
 	base.RequestPage.Items = []projectflow.RequestCard{
 		{ID: "request-live", ProjectID: "project-fixture", Title: "Row layout for settings", Status: "running", GoalPreview: "Move every setting onto one row."},

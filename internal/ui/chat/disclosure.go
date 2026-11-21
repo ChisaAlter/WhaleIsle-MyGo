@@ -82,11 +82,11 @@ type disclosureRow struct {
 	Trailing   string
 	// KeepSummary keeps the line readable while open, as tool rows do.
 	KeepSummary bool
-	Status     rowStatus
-	Open       bool
-	Expandable bool
-	Running    bool
-	OnToggle   func()
+	Status      rowStatus
+	Open        bool
+	Expandable  bool
+	Running     bool
+	OnToggle    func()
 }
 
 func paintDisclosureRow(c *ui.Context, d disclosureRow, st disclosureStyle) {
@@ -96,15 +96,15 @@ func paintDisclosureRow(c *ui.Context, d disclosureRow, st disclosureStyle) {
 	}
 	summaryColor := st.Muted
 	options := widgets.DisclosureRowOptions{
-		Icon:         d.Icon,
-		Title:        d.Title,
-		Summary:      d.Summary,
-		Size:         st.size(),
-		Color:        titleColor,
-		SummaryColor: summaryColor,
+		Icon:                d.Icon,
+		Title:               d.Title,
+		Summary:             d.Summary,
+		Size:                st.size(),
+		Color:               titleColor,
+		SummaryColor:        summaryColor,
 		KeepSummaryWhenOpen: d.KeepSummary,
-		Running:      d.Running,
-		OnToggle:     func(bool) { d.OnToggle() },
+		Running:             d.Running,
+		OnToggle:            func(bool) { d.OnToggle() },
 	}
 	if d.Status != statusNone {
 		options.Status = statusLabel(d.Status)

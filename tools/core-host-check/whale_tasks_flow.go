@@ -145,11 +145,10 @@ func exerciseWhaleTasks(ctx context.Context, client *dsh.Client, store *session.
 	if err = await(ctx, func() (bool, error) { model.mu.Lock(); defer model.mu.Unlock(); return model.taskWaiting, nil }); err != nil {
 		return err
 	}
-	client, store, err = restart()
+	client, _, err = restart()
 	if err != nil {
 		return err
 	}
-	_ = store
 	rpc = &pluginrpc.Client{BaseURL: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTPClient: client.HTTP}
 	third, err = wait(third.ID, "interrupted")
 	if err != nil {
