@@ -744,6 +744,534 @@
           ]
         }
       ]
+    },
+    "settings": {
+      "scenarios": [
+        {
+          "id": "settings-general",
+          "domDump": "[role=dialog]",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[aria-label='账号菜单']"
+                },
+                "expect": {
+                  "selector": "[role=menu]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[role=menu] [role=menuitem]",
+                  "index": 0
+                },
+                "expect": {
+                  "selector": "[role=dialog]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "expand": {
+                  "name": "账号菜单",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "",
+                  "type": "Menu"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "设置",
+                  "type": "MenuItem"
+                },
+                "expect": {
+                  "name": "设置",
+                  "type": "Text"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "sidebar.settings-entry",
+              "probe": true,
+              "web": {
+                "selector": "button[aria-label='账号菜单']"
+              },
+              "native": {
+                "name": "账号菜单",
+                "type": "Button"
+              }
+            },
+            {
+              "key": "settings.panel",
+              "web": {
+                "selector": "[role=dialog]"
+              },
+              "native": {
+                "name": "设置",
+                "type": "Pane"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "settings.nav",
+              "web": {
+                "selector": "[role=dialog] nav"
+              },
+              "native": {
+                "name": "设置导航",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "settings.nav-title",
+              "web": {
+                "selector": "[role=dialog] nav > div:first-child"
+              },
+              "native": {
+                "name": "设置",
+                "type": "Text",
+                "index": 0
+              },
+              "assert": [
+                "h"
+              ]
+            },
+            {
+              "key": "settings.search",
+              "web": {
+                "selector": "[role=dialog] nav > div:nth-of-type(2)"
+              },
+              "native": {
+                "name": "搜索设置",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "settings.nav-group-label",
+              "web": {
+                "within": "[role=dialog] nav",
+                "selector": "[role=group] > div:first-child",
+                "text": "通用"
+              },
+              "native": {
+                "name": "通用",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "settings.nav-cell-general",
+              "web": {
+                "selector": "[data-dsh-settings-section='general']"
+              },
+              "native": {
+                "name": "通用设置",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "settings.nav-cell-appearance",
+              "web": {
+                "selector": "[data-dsh-settings-section='appearance']"
+              },
+              "native": {
+                "name": "外观",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "settings.nav-cell-models",
+              "web": {
+                "selector": "[data-dsh-settings-section='models']"
+              },
+              "native": {
+                "name": "模型",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "settings.nav-cell-plugins",
+              "web": {
+                "selector": "[data-dsh-settings-section='plugins']"
+              },
+              "native": {
+                "name": "内置插件",
+                "type": "Button"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "settings.header",
+              "web": {
+                "selector": "[role=dialog] nav + div > div:nth-of-type(1)"
+              },
+              "native": {
+                "name": "设置页头",
+                "type": "Group"
+              },
+              "parent": "settings.panel",
+              "assert": [
+                "h",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "settings.close",
+              "web": {
+                "selector": "[data-dsh-settings-close]"
+              },
+              "native": {
+                "name": "返回",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "settings.options",
+              "web": {
+                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+              },
+              "native": {
+                "name": "设置内容",
+                "type": "Pane"
+              },
+              "parent": "settings.panel",
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "settings.row-language",
+              "web": {
+                "selector": "[data-slot='settings.general.item'] > :first-child",
+                "index": 0
+              },
+              "native": {
+                "name": "语言",
+                "type": "Group"
+              },
+              "parent": "settings.options",
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "settings.select-language",
+              "web": {
+                "selector": "[data-slot='settings.general.item'] button[aria-haspopup='menu']"
+              },
+              "native": {
+                "name": "语言",
+                "type": "ComboBox"
+              },
+              "parent": "settings.row-language",
+              "assert": [
+                "w",
+                "h",
+                "dx-parent-right"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "settings-models",
+          "domDump": "[role=dialog]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "[data-dsh-settings-section='models']"
+                },
+                "expect": {
+                  "selector": "[data-dsh-settings-section='models'][aria-current]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "模型",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "settings.options",
+              "web": {
+                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+              },
+              "native": {
+                "name": "设置内容",
+                "type": "Pane"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "models.heading",
+              "web": {
+                "selector": "[data-slot='settings.section'] h2",
+                "index": 0
+              },
+              "native": {
+                "name": "模型",
+                "type": "Text",
+                "index": 0
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "models.provider-card",
+              "web": {
+                "selector": "li:has([data-slot='settings.models.provider-card'])",
+                "index": 0
+              },
+              "native": {
+                "name": "DeepSeek 账号",
+                "type": "Group"
+              },
+              "parent": "settings.options",
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "models.key-input",
+              "web": {
+                "selector": "input[aria-label='API 密钥']",
+                "upTo": "div"
+              },
+              "native": {
+                "name": "API Key",
+                "type": "Edit"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dx-parent-left"
+              ],
+              "parent": "models.provider-card"
+            },
+            {
+              "key": "models.edit-button",
+              "web": {
+                "selector": "button[aria-label^='编辑 DeepSeek 账号']"
+              },
+              "native": {
+                "name": "编辑 DeepSeek 账号",
+                "type": "Button"
+              },
+              "assert": [
+                "w",
+                "h"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "settings-plugins",
+          "domDump": "[role=dialog]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "[data-dsh-settings-section='plugins']"
+                },
+                "expect": {
+                  "selector": "[data-dsh-settings-section='plugins'][aria-current]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "内置插件",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "settings.options",
+              "web": {
+                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+              },
+              "native": {
+                "name": "设置内容",
+                "type": "Pane"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "plugins.heading",
+              "web": {
+                "selector": "[data-slot='settings.section'] h2",
+                "index": 0
+              },
+              "native": {
+                "name": "内置插件",
+                "type": "Text",
+                "index": 0
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.search",
+              "web": {
+                "selector": "input[aria-label='搜索插件']"
+              },
+              "native": {
+                "name": "搜索插件",
+                "type": "Group"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.card-1",
+              "web": {
+                "selector": "li[data-plugin-entry]",
+                "index": 0
+              },
+              "native": {
+                "name": "智能体角色设定",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.card-2",
+              "web": {
+                "selector": "li[data-plugin-entry]",
+                "index": 1
+              },
+              "native": {
+                "name": "工作区指令加载",
+                "type": "Group"
+              },
+              "assert": [
+                "w",
+                "h",
+                "dx-parent-left"
+              ],
+              "parent": "plugins.card-1"
+            }
+          ]
+        }
+      ]
     }
   }
 }

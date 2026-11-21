@@ -6,7 +6,7 @@ measures the same landmarks in DIP on both, screenshots both at the same pixel
 size, and reports deltas.
 
 ```
-node scripts/ui-compare/run.mjs [--surface workbench|chat] [--landmarks <path>] [--keep-open]
+node scripts/ui-compare/run.mjs [--surface workbench|chat|settings] [--landmarks <path>] [--keep-open]
 ```
 
 Outputs land in `tmp/ui-compare/<run-id>/` (gitignored): `summary.json`,
@@ -26,6 +26,23 @@ client area, within `tolerance` (default 1 DIP):
   instead of cascading down a stack.
 - `dx-parent-left` — left inset from a named container landmark
   (`"parent": "<key>"`).
+- `dx-parent-right` — right inset from the parent's right edge.
+
+A landmark may carry `"probe": true` when it exists only to prove the
+workbench is up before steps run (e.g. a sidebar button that a modal then
+covers); probes are found but never measured.
+
+## Steps are ordered and verified
+
+Scenarios list `web.steps`/`native.steps` in order; each step may carry an
+`expect` spec (`{"name": "...", "type": "...", "within": {...}}`) that must
+resolve to a visible element before the next step runs — a failed
+expectation aborts the scenario as `ERROR` before landmarks are measured.
+The `settings` surface uses this to click the rail cells
+(`[data-dsh-settings-section]` / the native nav Buttons) so each scenario
+lands on a verified page. `nativeDump: true` on a scenario also writes the
+native UIA tree to `<scenario>-uia.json`; `domDump` writes the web DOM for
+the same purpose.
 
 The web side's computed `border-radius`, `padding`, `font-size`,
 `line-height` and `font-weight` are recorded as reference values — UIA cannot
@@ -96,8 +113,10 @@ differences and are simply not mapped as landmarks.
   `goAppearance` in config.json, but the web side's theme lives in the Host
   settings store and switching it through the real client path (settings API
   or settings UI) is not wired yet.
-- Settings page is not a scenario: on both sides it needs two steps (open the
-  account menu, then its settings item), not the one the schema budgets.
+- The `settings` surface opens the modal via the real entry on both sides
+  (account menu → settings). Its rail is not compared group-for-group: the
+  native rail carries extra groups (`账户`, `功能`) that the installed web
+  build does not, so only the shared cells and per-cell rhythm are mapped.
 - Only processes the run started are stopped (tracked PIDs plus a
   command-line sweep for the run id); the temp root is removed unless
   `--keep-open`, which prints how to stop them.
