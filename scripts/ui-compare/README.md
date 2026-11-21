@@ -125,7 +125,12 @@ differences and are simply not mapped as landmarks.
   right-pane dock sits ~23 DIP higher on native because the pane docks
   directly under the 48 DIP merged caption band the web build does not
   carry — every in-pane `dy-prev`/row height is the asserted signal, not
-  absolute `y`. The terminal scenario measures only the panel frame/tab:
+  absolute `y`. Native-only affordances stay visible and are recorded as
+  product differences: the files-toolbar `文件树选项` button (a ~36 DIP
+  toolbar-width delta) and the preview toolbar's `文件选项` menu. The
+  `md.code-card`/`md.code-banner` rhythm deltas resolve on the product
+  branch `feat/parity-chat` (PR #117, 42 DIP banner) — do not duplicate
+  that fix here. The terminal scenario measures only the panel frame/tab:
   the terminal content is a native child surface UIA cannot inspect.
 - Only processes the run started are stopped (tracked PIDs plus a
   command-line sweep for the run id); the temp root is removed unless
