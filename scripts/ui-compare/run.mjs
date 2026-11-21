@@ -70,7 +70,25 @@ const lm0 = JSON.parse(readFileSync(landmarksPath, 'utf8'));
 const surfaceSpec = lm0.surfaces[surface];
 if (!surfaceSpec) throw new Error(`unknown surface ${surface}; have ${Object.keys(lm0.surfaces).join(', ')}`);
 
-let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0;
+// A surface may declare "mock": a dependency-free Messages-compatible model
+// server (mock.mjs) on 127.0.0.1:0. It is started BEFORE either Host so both
+// launch envs can carry DEEPSEEK_BASE_URL/DEEPSEEK_API_KEY into their own
+// child env only — nothing is written to any profile; the pid joins the
+// tracked set and dies with the rest of the run.
+let mockBase = '';
+if (surfaceSpec.mock) {
+  mockProc = tracked(spawn(process.execPath, [join(TOOL_DIR, 'mock.mjs'), '--log', join(outDir, 'mock.jsonl')], { stdio: ['ignore', 'pipe', 'inherit'] }), 'mock');
+  mockProc.stdout.setEncoding('utf8');
+  const mockPort = await new Promise((res, rej) => {
+    const t = setTimeout(() => rej(new Error('mock.mjs emitted no PORT')), 20000);
+    mockProc.stdout.on('data', (d) => { const m = /PORT=(d+)/.exec(d); if (m) { clearTimeout(t); res(+m[1]); } });
+  });
+  mockBase = `http://127.0.0.1:${mockPort}`;
+  console.log('[mock]', mockBase);
+}
+const modelEnv = mockBase ? { DEEPSEEK_BASE_URL: mockBase + '/v1', DEEPSEEK_API_KEY: 'mock-key' } : {};
+
+let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0, mockProc = null;
 const cdpPending = new Map();
 const cdp = (method, params = {}) => new Promise((res, rej) => {
   const id = ++cdpSeq;
@@ -121,7 +139,7 @@ try {
   }
   const port = await freePort();
   host2 = tracked(spawn(NODE, [HOST_BIN, 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'],
-    { env: { ...process.env, DSH_HOME: host2Home }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
+    { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
   host2.stdout.setEncoding('utf8');
   host2.stdout.on('data', (d) => { const m = /dsh web:\s*(https?:\/\/\S+)/.exec(d); if (m && !readyUrl) readyUrl = m[1]; });
@@ -136,7 +154,7 @@ try {
   if (b.status !== 0) throw new Error('go build: ' + (b.stderr || '').slice(0, 400));
   const cfgPath = join(tmp, 'data', 'config.json');
   const launchNative = () => tracked(spawn(join(tmp, 'whaleisle.exe'), [], {
-    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log') },
+    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), ...modelEnv },
     cwd: REPO, stdio: ['ignore', 'ignore', 'ignore'],
   }), 'whaleisle');
   // Phase 1: let the app write its default config, then patch the workspace
@@ -365,6 +383,29 @@ try {
       for (const s of (sc.web?.steps || [])) {
         if (s.click && !(await webClick(typeof s.click === 'object' ? s.click : { selector: s.click }))) scError = `web step: ${JSON.stringify(s.click)} not found`;
         if (s.key) await webKey(s.key);
+        // prompt: focus the ProseMirror composer with a real click, insert
+        // the text through CDP trusted input, then submit with Enter. The
+        // contenteditable ignores untrusted execCommand/insertText paths.
+        if (s.prompt && !scError) {
+          const t0 = Date.now();
+          let rect = null;
+          while (Date.now() - t0 < WAIT_MS) {
+            rect = await evalJs(`(()=>{const e=document.querySelector("[role=textbox]");if(!e)return null;const r=e.getBoundingClientRect();return r.width>0?{x:r.x+r.width/2,y:r.y+r.height/2}:null})()`);
+            if (rect) break;
+            await sleep(250);
+          }
+          if (!rect) scError = `web step: composer [role=textbox] absent`;
+          else {
+            await cdp("Page.bringToFront");
+            await cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+            await cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+            await sleep(300);
+            await cdp("Input.insertText", { text: s.prompt });
+            await sleep(300);
+            await cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
+            await cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
+          }
+        }
         await sleep(500);
         // Steps are verified in order: an expect spec must be present before
         // the next step runs, else the scenario is an ERROR, not a FAIL.
@@ -372,6 +413,12 @@ try {
         if (scError) break;
       }
       for (const s of (sc.native?.steps || [])) {
+        if (s.setvalue && !scError) {
+          let r = ps1('setvalue', ['-Name', s.setvalue.name || '', '-Type', s.setvalue.type || '', '-Index', String(s.setvalue.index || 0), '-Text', s.setvalue.text || '']);
+          const t0 = Date.now();
+          while (!r.ok && /no match/.test(r.error || '') && Date.now() - t0 < WAIT_MS) { await sleep(300); r = ps1('setvalue', ['-Name', s.setvalue.name || '', '-Type', s.setvalue.type || '', '-Index', String(s.setvalue.index || 0), '-Text', s.setvalue.text || '']); }
+          if (!r.ok) scError = `native step setvalue ${s.setvalue.name}: ${r.error}`;
+        }
         const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : s.select ? 'select' : null;
         // Poll for the step target the way expects do: first-run dialogs and
         // lazy lists can cost the target a few frames.

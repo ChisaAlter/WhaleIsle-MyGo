@@ -1,6 +1,6 @@
 ﻿param(
   [Parameter(Mandatory=$true)][int]$ProcId,
-  [Parameter(Mandatory=$true)][string]$Command,   # dump|find|invoke|expand|collapse|setclient|capture
+  [Parameter(Mandatory=$true)][string]$Command,   # dump|find|invoke|expand|collapse|select|setvalue|setclient|capture
   [string]$Name = "",
   [string]$Prefix = "",
   [string]$Type = "",
@@ -10,7 +10,8 @@
   [int]$Width = 0,
   [int]$Height = 0,
   [string]$Out = "",
-  [int]$Depth = 8
+  [int]$Depth = 8,
+  [string]$Text = ""
 )
 # UIA helper for scripts/ui-compare/run.mjs. All output is JSON on stdout
 # (UTF-8). Every rect is physical pixels; the caller divides by scale.
@@ -110,6 +111,17 @@ switch ($Command) {
       $res += [pscustomobject]@{ name=$el.Current.Name; type=$el.Current.ControlType.ProgrammaticName; rect=(Rect-Of $el.Current.BoundingRectangle); patterns=$pats; enabled=$el.Current.IsEnabled }
     }
     [pscustomobject]@{ count=$els.Count; index=$Index; hits=$res } | ConvertTo-Json -Depth 4
+  }
+  'setvalue' {
+    $els = @(Find-Elements $root $Name $Type $Prefix)
+    if ($els.Count -le $Index) { [pscustomobject]@{ ok=$false; error="no match: $Name/$Type[$Index] ($($els.Count) hits)" } | ConvertTo-Json; break }
+    $el = $els[$Index]
+    try {
+      $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Text)
+      [pscustomobject]@{ ok=$true; action='setvalue'; name=$Name; index=$Index } | ConvertTo-Json
+    } catch {
+      [pscustomobject]@{ ok=$false; error=$_.Exception.Message; name=$Name; index=$Index } | ConvertTo-Json
+    }
   }
   { $_ -in 'invoke','expand','collapse','select' } {
     $els = @(Find-Elements $root $Name $Type $Prefix)

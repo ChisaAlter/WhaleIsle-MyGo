@@ -1,2921 +1,3517 @@
 {
-  "version": 2,
-  "surfaces": {
-    "workbench": {
-      "scenarios": [
-        {
-          "id": "empty-workbench",
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": []
-          },
-          "native": {
-            "steps": []
-          },
-          "landmarks": [
-            {
-              "key": "sidebar.brand",
-              "web": {
-                "selector": "button[class*=_brand]"
-              },
-              "native": {
-                "name": "鲸屿 MyGo",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "sidebar.new-chat",
-              "web": {
-                "selector": "button[class*=_newSession]"
-              },
-              "native": {
-                "name": "新会话",
-                "type": "Button",
-                "index": 0
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.nav-plugins",
-              "web": {
-                "selector": "button[aria-label='插件']"
-              },
-              "native": {
-                "name": "插件",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.nav-automations",
-              "web": {
-                "selector": "button[aria-label='自动化任务']"
-              },
-              "native": {
-                "name": "自动化任务",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.workspace-header",
-              "web": {
-                "selector": "span[class*=_sectionLabel]",
-                "text": "工作区"
-              },
-              "native": {
-                "name": "工作区",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.workspace-row",
-              "web": {
-                "within": "div[role=tree]",
-                "text": "默认工作区",
-                "upTo": "[role=treeitem]"
-              },
-              "native": {
-                "name": "默认工作区",
-                "type": "TreeItem"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.session-row",
-              "web": {
-                "within": "div[role=tree]",
-                "text": "新会话",
-                "upTo": "[role=treeitem]"
-              },
-              "native": {
-                "name": "新会话",
-                "type": "Button",
-                "index": 1
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.archive-row",
-              "web": {
-                "within": "div[role=tree]",
-                "text": "已归档",
-                "upTo": "[role=treeitem]"
-              },
-              "native": {
-                "name": "已归档分组",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sidebar.settings-entry",
-              "web": {
-                "selector": "button[aria-label='账号菜单']"
-              },
-              "native": {
-                "name": "账号菜单",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "hero.title",
-              "web": {
-                "text": "探索未至之鲸"
-              },
-              "native": {
-                "name": "探索未至之鲸",
-                "type": "Text"
-              },
-              "assert": []
-            },
-            {
-              "key": "composer.card",
-              "web": {
-                "selector": "[role=textbox]",
-                "upTo": "div[class*=_card]"
-              },
-              "native": {
-                "name": "Composer card",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "composer.editor",
-              "web": {
-                "selector": "[role=textbox]"
-              },
-              "native": {
-                "name": "Composer draft",
-                "type": "Edit"
-              },
-              "parent": "composer.card",
-              "assert": [
-                "h",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "composer.send",
-              "web": {
-                "selector": "button[aria-label='发送消息']"
-              },
-              "native": {
-                "name": "发送消息",
-                "type": "Button"
-              },
-              "parent": "composer.card",
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "composer.model-label",
-              "web": {
-                "selector": "button[aria-label^='选择模型']"
-              },
-              "native": {
-                "name": "deepseek-official/deepseek-flash",
-                "type": "Button"
-              },
-              "parent": "composer.card",
-              "assert": [
-                "h",
-                "dx-parent-right"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "account-menu-open",
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[aria-label='账号菜单']"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "expand": {
-                  "name": "账号菜单",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "account-menu.panel",
-              "web": {
-                "selector": "[role=menu]"
-              },
-              "native": {
-                "name": "",
-                "type": "Menu",
-                "index": 0
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "account-menu.first-item",
-              "web": {
-                "selector": "[role=menu] [role=menuitem]"
-              },
-              "native": {
-                "name": "",
-                "type": "MenuItem",
-                "index": 0
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "chat": {
-      "fixture": "fixtures/chat-basic.json",
-      "scenarios": [
-        {
-          "id": "chat-open",
-          "domDump": "[data-conversation-scroll]",
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "within": "div[role=tree]",
-                  "text": [
-                    "奇偶校验基准会话",
-                    "未命名"
-                  ],
-                  "upTo": "[role=treeitem]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "奇偶校验基准会话",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "sidebar.fixture-session",
-              "web": {
-                "within": "div[role=tree]",
-                "text": [
-                  "奇偶校验基准会话",
-                  "未命名"
-                ],
-                "upTo": "[role=treeitem]"
-              },
-              "native": {
-                "namePrefix": "奇偶校验基准会话",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "chat.scroll",
-              "web": {
-                "selector": "[data-conversation-scroll]"
-              },
-              "native": {
-                "type": "List"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "chat.user-bubble",
-              "web": {
-                "selector": "[data-dsh-message-bubble]"
-              },
-              "native": {
-                "name": "User message bubble"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "chat.fold-row",
-              "web": {
-                "selector": "button[data-turn-process]"
-              },
-              "native": {
-                "namePrefix": "已完成",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "composer.card",
-              "web": {
-                "selector": "[role=textbox]",
-                "upTo": "div[class$=_card]"
-              },
-              "native": {
-                "name": "Composer card",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "chat-turn-expanded",
-          "domDump": "[data-conversation-scroll]",
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[data-turn-process]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "已完成",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "chat.fold-row",
-              "web": {
-                "selector": "button[data-turn-process]"
-              },
-              "native": {
-                "namePrefix": "已完成，用时",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "chat.thinking-row",
-              "web": {
-                "selector": "button[data-process-activity=\"thinking\"]"
-              },
-              "native": {
-                "namePrefix": "已完成分析",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.heading",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "h1"
-              },
-              "native": {
-                "name": "基准结论",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.paragraph",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "p"
-              },
-              "native": {
-                "namePrefix": "正文段落覆盖",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.list-item",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "li"
-              },
-              "native": {
-                "name": "第一项列表内容",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.code-card",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "[class*=md-code-block]"
-              },
-              "native": {
-                "name": "Code block",
-                "type": "Group"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.code-toolbar",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "[data-code-block-banner]"
-              },
-              "native": {
-                "name": "Code block banner",
-                "type": "Group"
-              },
-              "parent": "chat.code-card",
-              "assert": [
-                "h",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "chat.tools-row",
-              "web": {
-                "selector": "button[data-process-activity=\"tools\"]"
-              },
-              "native": {
-                "namePrefix": "已读取文件",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "composer.card",
-              "web": {
-                "selector": "[role=textbox]",
-                "upTo": "div[class$=_card]"
-              },
-              "native": {
-                "name": "Composer card",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "w",
-                "h"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "chat-thinking-expanded",
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[data-process-activity=\"thinking\"]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-chat-group-part=\"reasoning\"] [data-disclosure-row]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "已完成分析",
-                  "type": "Button"
-                }
-              },
-              {
-                "expand": {
-                  "namePrefix": "思考",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "chat.thinking-row",
-              "web": {
-                "selector": "button[data-process-activity=\"thinking\"]"
-              },
-              "native": {
-                "namePrefix": "已完成分析",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "chat.thinking-member",
-              "web": {
-                "within": "[data-step-process-body]",
-                "selector": "[data-chat-group-part=\"reasoning\"] [data-disclosure-row]"
-              },
-              "native": {
-                "namePrefix": "思考",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.thinking-body",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "[data-step-process-body] [data-chat-group-part=\"reasoning\"] p",
-                "index": 0
-              },
-              "native": {
-                "namePrefix": "推理过程备忘",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "chat-tool-expanded",
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[data-process-activity=\"tools\"]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "已读取文件",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "chat.tools-row",
-              "web": {
-                "selector": "button[data-process-activity=\"tools\"]"
-              },
-              "native": {
-                "namePrefix": "已读取文件",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "chat.tool-read",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "[data-chat-flow-kind=\"tool-call\"]",
-                "index": 0
-              },
-              "native": {
-                "namePrefix": "工具调用",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "chat.tool-bash",
-              "web": {
-                "within": "[data-conversation-scroll]",
-                "selector": "[data-chat-flow-kind=\"tool-call\"]",
-                "index": 1
-              },
-              "native": {
-                "namePrefix": "运行命令",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "settings": {
-      "scenarios": [
-        {
-          "id": "settings-general",
-          "domDump": "[role=dialog]",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[aria-label='账号菜单']"
-                },
-                "expect": {
-                  "selector": "[role=menu]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[role=menu] [role=menuitem]",
-                  "index": 0
-                },
-                "expect": {
-                  "selector": "[role=dialog]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "expand": {
-                  "name": "账号菜单",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "",
-                  "type": "Menu"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "设置",
-                  "type": "MenuItem"
-                },
-                "expect": {
-                  "name": "设置",
-                  "type": "Text"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "sidebar.settings-entry",
-              "probe": true,
-              "web": {
-                "selector": "button[aria-label='账号菜单']"
-              },
-              "native": {
-                "name": "账号菜单",
-                "type": "Button"
-              }
-            },
-            {
-              "key": "settings.panel",
-              "web": {
-                "selector": "[role=dialog]"
-              },
-              "native": {
-                "name": "设置",
-                "type": "Pane"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "settings.nav",
-              "web": {
-                "selector": "[role=dialog] nav"
-              },
-              "native": {
-                "name": "设置导航",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "settings.nav-title",
-              "web": {
-                "selector": "[role=dialog] nav > div:first-child"
-              },
-              "native": {
-                "name": "设置",
-                "type": "Text",
-                "index": 0
-              },
-              "assert": [
-                "h"
-              ]
-            },
-            {
-              "key": "settings.search",
-              "web": {
-                "selector": "[role=dialog] nav > div:nth-of-type(2)"
-              },
-              "native": {
-                "name": "搜索设置",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "settings.nav-group-label",
-              "web": {
-                "within": "[role=dialog] nav",
-                "selector": "[role=group] > div:first-child",
-                "text": "通用"
-              },
-              "native": {
-                "name": "通用",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "settings.nav-cell-general",
-              "web": {
-                "selector": "[data-dsh-settings-section='general']"
-              },
-              "native": {
-                "name": "通用设置",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "settings.nav-cell-appearance",
-              "web": {
-                "selector": "[data-dsh-settings-section='appearance']"
-              },
-              "native": {
-                "name": "外观",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "settings.nav-cell-models",
-              "web": {
-                "selector": "[data-dsh-settings-section='models']"
-              },
-              "native": {
-                "name": "模型",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "settings.nav-cell-plugins",
-              "web": {
-                "selector": "[data-dsh-settings-section='plugins']"
-              },
-              "native": {
-                "name": "内置插件",
-                "type": "Button"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "settings.header",
-              "web": {
-                "selector": "[role=dialog] nav + div > div:nth-of-type(1)"
-              },
-              "native": {
-                "name": "设置页头",
-                "type": "Group"
-              },
-              "parent": "settings.panel",
-              "assert": [
-                "h",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "settings.close",
-              "web": {
-                "selector": "[data-dsh-settings-close]"
-              },
-              "native": {
-                "name": "返回",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "settings.options",
-              "web": {
-                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
-              },
-              "native": {
-                "name": "设置内容",
-                "type": "Pane"
-              },
-              "parent": "settings.panel",
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "settings.row-language",
-              "web": {
-                "selector": "[data-slot='settings.general.item'] > :first-child",
-                "index": 0
-              },
-              "native": {
-                "name": "语言",
-                "type": "Group"
-              },
-              "parent": "settings.options",
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "settings.select-language",
-              "web": {
-                "selector": "[data-slot='settings.general.item'] button[aria-haspopup='menu']"
-              },
-              "native": {
-                "name": "语言",
-                "type": "ComboBox"
-              },
-              "parent": "settings.row-language",
-              "assert": [
-                "w",
-                "h",
-                "dx-parent-right"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "settings-models",
-          "domDump": "[role=dialog]",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-dsh-settings-section='models']"
-                },
-                "expect": {
-                  "selector": "[data-dsh-settings-section='models'][aria-current]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "模型",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "settings.options",
-              "web": {
-                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
-              },
-              "native": {
-                "name": "设置内容",
-                "type": "Pane"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "models.heading",
-              "web": {
-                "selector": "[data-slot='settings.section'] h2",
-                "index": 0
-              },
-              "native": {
-                "name": "模型",
-                "type": "Text",
-                "index": 0
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "models.provider-card",
-              "web": {
-                "selector": "li:has([data-slot='settings.models.provider-card'])",
-                "index": 0
-              },
-              "native": {
-                "name": "DeepSeek 账号",
-                "type": "Group"
-              },
-              "parent": "settings.options",
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "models.key-input",
-              "web": {
-                "selector": "input[aria-label='API 密钥']",
-                "upTo": "div"
-              },
-              "native": {
-                "name": "API Key",
-                "type": "Edit"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dx-parent-left"
-              ],
-              "parent": "models.provider-card"
-            },
-            {
-              "key": "models.edit-button",
-              "web": {
-                "selector": "button[aria-label^='编辑 DeepSeek 账号']"
-              },
-              "native": {
-                "name": "编辑 DeepSeek 账号",
-                "type": "Button"
-              },
-              "assert": [
-                "w",
-                "h"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "settings-plugins",
-          "domDump": "[role=dialog]",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-dsh-settings-section='plugins']"
-                },
-                "expect": {
-                  "selector": "[data-dsh-settings-section='plugins'][aria-current]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "内置插件",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "settings.options",
-              "web": {
-                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
-              },
-              "native": {
-                "name": "设置内容",
-                "type": "Pane"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "plugins.heading",
-              "web": {
-                "selector": "[data-slot='settings.section'] h2",
-                "index": 0
-              },
-              "native": {
-                "name": "内置插件",
-                "type": "Text",
-                "index": 0
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.desc",
-              "web": {
-                "within": "[role=dialog] [data-slot='settings.section']",
-                "selector": "p",
-                "text": "查看内置部署的插件列表"
-              },
-              "native": {
-                "name": "查看内置部署的插件列表",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.group-title",
-              "web": {
-                "selector": "[class*=groupTitleRow]",
-                "index": 0
-              },
-              "native": {
-                "name": "会话插件",
-                "type": "Group"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.group-sub",
-              "web": {
-                "selector": "[class*=groupSub]",
-                "index": 0
-              },
-              "native": {
-                "name": "由 Agent 预设按会话组成",
-                "type": "Text"
-              },
-              "assert": [
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.search",
-              "web": {
-                "selector": "input[aria-label='搜索插件']"
-              },
-              "native": {
-                "name": "搜索插件",
-                "type": "Group"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.card-1",
-              "web": {
-                "selector": "li[data-plugin-entry]",
-                "index": 0
-              },
-              "native": {
-                "name": "智能体角色设定",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.card-2",
-              "web": {
-                "selector": "li[data-plugin-entry]",
-                "index": 1
-              },
-              "native": {
-                "name": "工作区指令加载",
-                "type": "Group"
-              },
-              "assert": [
-                "w",
-                "h",
-                "dx-parent-left"
-              ],
-              "parent": "plugins.card-1"
-            }
-          ]
-        },
-        {
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-dsh-settings-section='models']"
-                },
-                "expect": {
-                  "selector": "[data-dsh-settings-section='models'][aria-current]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-dsh-settings-section='general']"
-                },
-                "expect": {
-                  "selector": "[data-slot='settings.general.item'] > :first-child"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "模型",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "模型",
-                  "type": "Text"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "通用设置",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "语言",
-                  "type": "Group"
-                }
-              }
-            ],
-            "nativeDump": true
-          },
-          "landmarks": [
-            {
-              "key": "settings.options",
-              "web": {
-                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
-              },
-              "native": {
-                "name": "设置内容",
-                "type": "Pane"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "settings.row-language",
-              "web": {
-                "selector": "[data-slot='settings.general.item'] > :first-child",
-                "index": 0
-              },
-              "native": {
-                "name": "语言",
-                "type": "Group"
-              },
-              "parent": "settings.options",
-              "assert": [
-                "x",
-                "y",
-                "h",
-                "dx-parent-left"
-              ]
-            }
-          ],
-          "id": "settings-section-swap"
-        }
-      ]
-    },
-    "files": {
-      "workspace": "seed-files.mjs",
-      "scenarios": [
-        {
-          "id": "files-panel",
-          "domDump": "[data-sidebar-right-panel]",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "within": "div[role=tree]",
-                  "text": [
-                    "奇偶校验基准会话",
-                    "未命名"
-                  ],
-                  "upTo": "[role=treeitem]"
-                },
-                "expect": {
-                  "selector": "button[aria-label='打开右侧边栏'],button[aria-label='收起右侧边栏']"
-                }
-              },
-              {
-                "click": {
-                  "selector": "button[aria-label='打开右侧边栏']"
-                },
-                "expect": {
-                  "selector": "[data-sidebar-right-open]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-sidebar-right-guide-entry='files']"
-                },
-                "expect": {
-                  "selector": "[data-file-tree]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-item-path='src']"
-                },
-                "expect": {
-                  "selector": "[data-item-path='src/app.ts']"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-item-path='src/util']"
-                },
-                "expect": {
-                  "selector": "[data-item-path='src/util/strings.ts']"
-                }
-              }
-            ]
-          },
-          "native": {
-            "setup": [
-              {
-                "dismiss": {
-                  "name": "暂不开启"
-                },
-                "gone": {
-                  "name": "开启极简模式"
-                },
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "奇偶校验基准会话",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "切换右侧栏",
-                  "type": "Button"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "切换右侧栏",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "文件",
-                  "type": "Button"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "文件",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "File README.md"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "Folder src"
-                },
-                "expect": {
-                  "name": "File src/app.ts"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "Folder src/util"
-                },
-                "expect": {
-                  "name": "File src/util/strings.ts"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "files.toggle-probe",
-              "probe": true,
-              "web": {
-                "selector": "button[aria-label='打开右侧边栏']"
-              },
-              "native": {
-                "name": "切换右侧栏",
-                "type": "Button"
-              }
-            },
-            {
-              "key": "files.panel",
-              "web": {
-                "selector": "[data-files-panel]"
-              },
-              "native": {
-                "name": "文件面板"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "files.tab",
-              "web": {
-                "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
-              },
-              "native": {
-                "name": "文件",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "files.search",
-              "web": {
-                "selector": "*:has(> input[aria-label='搜索文件'])"
-              },
-              "native": {
-                "name": "筛选文件…",
-                "type": "Edit"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "files.tree",
-              "web": {
-                "selector": "[data-file-tree]"
-              },
-              "native": {
-                "name": "文件树"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w"
-              ]
-            },
-            {
-              "key": "files.row-dir",
-              "web": {
-                "selector": "[data-item-path='docs']"
-              },
-              "native": {
-                "name": "Folder docs"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "files.row-dir-src",
-              "web": {
-                "selector": "[data-item-path='src']"
-              },
-              "native": {
-                "name": "Folder src"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "files.row-nested",
-              "web": {
-                "selector": "[data-item-path='src/app.ts']"
-              },
-              "native": {
-                "name": "File src/app.ts"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "files.row-dir-util",
-              "web": {
-                "selector": "[data-item-path='src/util']"
-              },
-              "native": {
-                "name": "Folder src/util"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "files.row-deep",
-              "web": {
-                "selector": "[data-item-path='src/util/strings.ts']"
-              },
-              "native": {
-                "name": "File src/util/strings.ts"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev",
-                "dx-parent-left"
-              ]
-            },
-            {
-              "key": "files.row-file",
-              "web": {
-                "selector": "[data-item-path='README.md']"
-              },
-              "native": {
-                "name": "File README.md"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "files-preview",
-          "domDump": "[data-sidebar-right-panel]",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-item-path='src/app.ts']"
-                },
-                "expect": {
-                  "selector": "[data-file-preview]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "File src/app.ts"
-                },
-                "expect": {
-                  "name": "File preview toolbar"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "preview.panel",
-              "web": {
-                "selector": "[data-file-preview]"
-              },
-              "native": {
-                "name": "文件预览"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "preview.toolbar",
-              "web": {
-                "within": "[data-file-preview]",
-                "selector": "[class*=toolbar]"
-              },
-              "native": {
-                "name": "File preview toolbar"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "preview.crumbs",
-              "web": {
-                "selector": "[data-file-breadcrumbs]"
-              },
-              "native": {
-                "name": "File breadcrumbs"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "preview.body",
-              "web": {
-                "within": "[data-file-preview]",
-                "selector": "textarea"
-              },
-              "native": {
-                "name": "文件内容",
-                "type": "Edit"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "preview.tab",
-              "web": {
-                "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
-              },
-              "native": {
-                "name": "app.ts",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "h"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "files-markdown",
-          "domDump": "[data-sidebar-right-panel]",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-dockkit-tab-title]",
-                  "index": 0,
-                  "upTo": "[role=tab]"
-                },
-                "expect": {
-                  "selector": "[data-file-tree]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-item-path='README.md']"
-                },
-                "expect": {
-                  "selector": "[data-file-preview]"
-                }
-              },
-              {
-                "click": {
-                  "within": "[data-file-preview]",
-                  "text": [
-                    "渲染",
-                    "Rendered"
-                  ]
-                },
-                "expect": {
-                  "selector": "[data-file-preview] h1, [data-file-preview] h2, [data-file-preview] h3"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "文件",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "File README.md"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "File README.md"
-                },
-                "expect": {
-                  "name": "File preview toolbar"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "渲染"
-                },
-                "expect": {
-                  "namePrefix": "Fixture Notes",
-                  "type": "Text"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "md.flow",
-              "web": {
-                "within": "[data-file-preview]",
-                "selector": "[class*=markdown]"
-              },
-              "native": {
-                "name": "Markdown 内容"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w"
-              ]
-            },
-            {
-              "key": "md.prose",
-              "web": {
-                "within": "[data-file-preview]",
-                "selector": "h1"
-              },
-              "native": {
-                "type": "Text",
-                "namePrefix": "Fixture Notes"
-              },
-              "assert": [
-                "x",
-                "y"
-              ]
-            },
-            {
-              "key": "md.code-card",
-              "web": {
-                "within": "[data-file-preview]",
-                "selector": "[class*=md-code-block]"
-              },
-              "native": {
-                "name": "Code block"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "md.code-banner",
-              "web": {
-                "selector": "[data-code-block-banner]"
-              },
-              "native": {
-                "name": "Code block banner"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "diff-worktree",
-          "domDump": "[data-sidebar-right-panel]",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-dockkit-add-tab]"
-                },
-                "expect": {
-                  "selector": "[data-sidebar-right-guide-entry='diff']"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-sidebar-right-guide-entry='diff']"
-                },
-                "expect": {
-                  "selector": "[data-diff-panel]"
-                }
-              },
-              {
-                "click": {
-                  "within": "[data-diff-panel]",
-                  "text": "全部展开"
-                },
-                "expect": {
-                  "selector": "[data-diff-line]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "新标签页",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "Diff",
-                  "type": "Button"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "Diff",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "工作区差异"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "diff.panel",
-              "web": {
-                "selector": "[data-diff-panel]"
-              },
-              "native": {
-                "name": "工作区差异"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "diff.file-header",
-              "web": {
-                "within": "[data-diff-panel]",
-                "selector": "[data-disclosure-row]",
-                "index": 0
-              },
-              "native": {
-                "name": "Diff file src/app.ts"
-              },
-              "assert": [
-                "y",
-                "h"
-              ]
-            },
-            {
-              "key": "diff.hunk-header",
-              "web": {
-                "selector": "[data-diff-hunk-header]"
-              },
-              "native": {
-                "name": "Diff hunk header"
-              },
-              "assert": [
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "diff.line-del",
-              "web": {
-                "selector": "[data-diff-line='del']",
-                "index": 0
-              },
-              "native": {
-                "name": "Diff line del"
-              },
-              "assert": [
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "diff.line-add",
-              "web": {
-                "selector": "[data-diff-line='add']",
-                "index": 0
-              },
-              "native": {
-                "name": "Diff line add"
-              },
-              "assert": [
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "diff.line-context",
-              "web": {
-                "selector": "[data-diff-line='context']",
-                "index": 0
-              },
-              "native": {
-                "name": "Diff line context"
-              },
-              "assert": [
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "diff.gutter",
-              "web": {
-                "selector": "[data-diff-line] [class*=num],[data-diff-line] [class*=gutter]",
-                "index": 0
-              },
-              "native": {
-                "namePrefix": "Diff gutter"
-              },
-              "assert": [
-                "w"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "terminal-panel",
-          "domDump": "[data-sidebar-right-panel]",
-          "nativeDump": true,
-          "web": {
-            "steps": [
-              {
-                "click": {
-                  "selector": "[data-dockkit-add-tab]"
-                },
-                "expect": {
-                  "selector": "[data-sidebar-right-guide-entry='terminal']"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-sidebar-right-guide-entry='terminal']"
-                },
-                "expect": {
-                  "selector": "[data-sidebar-terminal]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "steps": [
-              {
-                "invoke": {
-                  "name": "新标签页",
-                  "type": "Button"
-                },
-                "expect": {
-                  "namePrefix": "Host",
-                  "type": "Button"
-                }
-              },
-              {
-                "invoke": {
-                  "namePrefix": "Host",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "Terminal",
-                  "type": "Group"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "terminal.panel",
-              "web": {
-                "selector": "[data-sidebar-terminal]"
-              },
-              "native": {
-                "name": "Terminal",
-                "type": "Group"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "terminal.tab",
-              "web": {
-                "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
-              },
-              "native": {
-                "name": "cmd.exe",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            }
-          ]
-        }
+ "version": 2,
+ "surfaces": {
+  "workbench": {
+   "scenarios": [
+    {
+     "id": "empty-workbench",
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
       ],
-      "fixture": "fixtures/chat-basic.json",
-      "webShell": true
+      "steps": []
+     },
+     "native": {
+      "steps": []
+     },
+     "landmarks": [
+      {
+       "key": "sidebar.brand",
+       "web": {
+        "selector": "button[class*=_brand]"
+       },
+       "native": {
+        "name": "鲸屿 MyGo",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "sidebar.new-chat",
+       "web": {
+        "selector": "button[class*=_newSession]"
+       },
+       "native": {
+        "name": "新会话",
+        "type": "Button",
+        "index": 0
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.nav-plugins",
+       "web": {
+        "selector": "button[aria-label='插件']"
+       },
+       "native": {
+        "name": "插件",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.nav-automations",
+       "web": {
+        "selector": "button[aria-label='自动化任务']"
+       },
+       "native": {
+        "name": "自动化任务",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.workspace-header",
+       "web": {
+        "selector": "span[class*=_sectionLabel]",
+        "text": "工作区"
+       },
+       "native": {
+        "name": "工作区",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.workspace-row",
+       "web": {
+        "within": "div[role=tree]",
+        "text": "默认工作区",
+        "upTo": "[role=treeitem]"
+       },
+       "native": {
+        "name": "默认工作区",
+        "type": "TreeItem"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.session-row",
+       "web": {
+        "within": "div[role=tree]",
+        "text": "新会话",
+        "upTo": "[role=treeitem]"
+       },
+       "native": {
+        "name": "新会话",
+        "type": "Button",
+        "index": 1
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.archive-row",
+       "web": {
+        "within": "div[role=tree]",
+        "text": "已归档",
+        "upTo": "[role=treeitem]"
+       },
+       "native": {
+        "name": "已归档分组",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sidebar.settings-entry",
+       "web": {
+        "selector": "button[aria-label='账号菜单']"
+       },
+       "native": {
+        "name": "账号菜单",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "hero.title",
+       "web": {
+        "text": "探索未至之鲸"
+       },
+       "native": {
+        "name": "探索未至之鲸",
+        "type": "Text"
+       },
+       "assert": []
+      },
+      {
+       "key": "composer.card",
+       "web": {
+        "selector": "[role=textbox]",
+        "upTo": "div[class*=_card]"
+       },
+       "native": {
+        "name": "Composer card",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "composer.editor",
+       "web": {
+        "selector": "[role=textbox]"
+       },
+       "native": {
+        "name": "Composer draft",
+        "type": "Edit"
+       },
+       "parent": "composer.card",
+       "assert": [
+        "h",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "composer.send",
+       "web": {
+        "selector": "button[aria-label='发送消息']"
+       },
+       "native": {
+        "name": "发送消息",
+        "type": "Button"
+       },
+       "parent": "composer.card",
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "composer.model-label",
+       "web": {
+        "selector": "button[aria-label^='选择模型']"
+       },
+       "native": {
+        "name": "deepseek-official/deepseek-flash",
+        "type": "Button"
+       },
+       "parent": "composer.card",
+       "assert": [
+        "h",
+        "dx-parent-right"
+       ]
+      }
+     ]
     },
-    "rest": {
-      "scenarios": [
-        {
-          "id": "rest-guide",
-          "domDump": "body",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "within": "div[role=tree]",
-                  "text": [
-                    "奇偶校验基准会话",
-                    "未命名"
-                  ],
-                  "upTo": "[role=treeitem]"
-                },
-                "expect": {
-                  "selector": "button[aria-label='打开右侧边栏'],button[aria-label='收起右侧边栏']"
-                }
-              },
-              {
-                "click": {
-                  "selector": "button[aria-label='打开右侧边栏']"
-                },
-                "expect": {
-                  "selector": "[data-sidebar-right-panel]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "setup": [
-              {
-                "dismiss": {
-                  "name": "暂不开启"
-                },
-                "gone": {
-                  "name": "开启极简模式"
-                },
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "奇偶校验基准会话",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "切换右侧栏",
-                  "type": "Button"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "切换右侧栏",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "文件",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "rest.boot",
-              "probe": true,
-              "web": {
-                "selector": "button[class*=_brand]"
-              },
-              "native": {
-                "name": "鲸屿 MyGo",
-                "type": "Button"
-              }
-            }
-          ]
-        },
-        {
-          "id": "rest-plugins",
-          "domDump": "body",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[data-dsh-panel=plugins]"
-                },
-                "expect": {
-                  "selector": "[data-plugin-panel]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "setup": [
-              {
-                "dismiss": {
-                  "name": "暂不开启"
-                },
-                "gone": {
-                  "name": "开启极简模式"
-                },
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "invoke": {
-                  "name": "插件",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "添加插件",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "plugins.title",
-              "web": {
-                "within": "[data-plugin-panel] header",
-                "text": "插件"
-              },
-              "native": {
-                "name": "插件",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "h"
-              ]
-            },
-            {
-              "key": "plugins.desc",
-              "web": {
-                "within": "[data-plugin-panel]",
-                "text": "安装、启用和配置插件"
-              },
-              "native": {
-                "name": "安装、启用和配置插件",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.add",
-              "web": {
-                "within": "[data-plugin-panel] header",
-                "text": "添加插件",
-                "upTo": "button"
-              },
-              "native": {
-                "name": "添加插件",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "plugins.group-title",
-              "web": {
-                "within": "[data-plugin-group='basic']",
-                "text": "内置插件配置"
-              },
-              "native": {
-                "name": "内置插件配置",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "plugins.card-1",
-              "web": {
-                "selector": "[data-plugin-item='subagent']"
-              },
-              "native": {
-                "name": "Plugin item 子代理",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "rest-schedules",
-          "domDump": "body",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "selector": "button[data-dsh-panel=schedules]"
-                },
-                "expect": {
-                  "selector": "[data-testid=task-manager-page]"
-                }
-              }
-            ]
-          },
-          "native": {
-            "setup": [
-              {
-                "dismiss": {
-                  "name": "暂不开启"
-                },
-                "gone": {
-                  "name": "开启极简模式"
-                },
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "invoke": {
-                  "name": "自动化任务",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "新建",
-                  "type": "Button"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "sched.page",
-              "web": {
-                "selector": "[data-testid='task-manager-page']"
-              },
-              "native": {
-                "name": "Automation tasks page"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "sched.title",
-              "web": {
-                "within": "[data-testid='task-manager-page']",
-                "text": "自动化任务"
-              },
-              "native": {
-                "name": "自动化任务",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "h"
-              ]
-            },
-            {
-              "key": "sched.new",
-              "web": {
-                "within": "[data-testid='task-manager-page']",
-                "text": "新建",
-                "upTo": "button"
-              },
-              "native": {
-                "name": "新建",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "h"
-              ]
-            },
-            {
-              "key": "sched.filter-all",
-              "web": {
-                "within": "[data-testid='task-manager-page']",
-                "text": "全部",
-                "upTo": "button"
-              },
-              "native": {
-                "name": "全部",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sched.search",
-              "web": {
-                "within": "[data-testid='task-manager-page']",
-                "selector": "input"
-              },
-              "native": {
-                "name": "Search tasks",
-                "type": "Edit"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sched.empty",
-              "web": {
-                "within": "[data-testid='task-manager-page']",
-                "text": "还没有自动化任务，在会话中创建的任务会显示在这里"
-              },
-              "native": {
-                "namePrefix": "还没有自动化任务",
-                "type": "Text"
-              },
-              "assert": [
-                "y",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "sched.empty-action",
-              "web": {
-                "within": "[data-testid='task-manager-page']",
-                "text": "新建自动化任务",
-                "upTo": "button"
-              },
-              "native": {
-                "name": "新建自动化任务",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "rest-agents",
-          "domDump": "body",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              },
-              {
-                "dismiss": [
-                  {
-                    "selector": "button[aria-label='打开右侧边栏']"
-                  }
-                ],
-                "gone": "button[aria-label='打开右侧边栏']",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "within": "div[role=tree]",
-                  "text": [
-                    "奇偶校验基准会话",
-                    "未命名"
-                  ],
-                  "upTo": "[role=treeitem]"
-                },
-                "expect": {
-                  "selector": "[role=tab]"
-                }
-              },
-              {
-                "click": {
-                  "selector": "[data-sidebar-right-guide-entry='agents']"
-                },
-                "expect": {
-                  "selector": "[data-sidebar-right-panel] [role=status],[data-sidebar-right-panel] ul,[data-sidebar-right-panel] section"
-                }
-              }
-            ]
-          },
-          "native": {
-            "setup": [
-              {
-                "dismiss": {
-                  "name": "暂不开启"
-                },
-                "gone": {
-                  "name": "开启极简模式"
-                },
-                "optional": true
-              },
-              {
-                "dismiss": {
-                  "name": "展开右侧栏",
-                  "type": "Button"
-                },
-                "gone": {
-                  "name": "展开右侧栏",
-                  "type": "Button"
-                },
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "奇偶校验基准会话",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "切换右侧栏",
-                  "type": "Button"
-                }
-              },
-              {
-                "invoke": {
-                  "name": "智能体",
-                  "type": "Button"
-                },
-                "expect": {
-                  "namePrefix": "还没有子代理",
-                  "type": "Text"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "agents.pane",
-              "web": {
-                "selector": "[data-agents-panel]"
-              },
-              "native": {
-                "name": "Workspace resource dock"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "agents.empty-title",
-              "web": {
-                "within": "[data-agents-empty]",
-                "text": "还没有子代理"
-              },
-              "native": {
-                "name": "还没有子代理",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h"
-              ]
-            },
-            {
-              "key": "agents.empty-body",
-              "web": {
-                "within": "[data-agents-empty]",
-                "text": "当前会话生成子代理后，会显示在这里。"
-              },
-              "native": {
-                "name": "当前会话生成子代理后，会显示在这里。",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "w",
-                "dy-prev"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "rest-trajectory",
-          "domDump": "body",
-          "nativeDump": true,
-          "web": {
-            "setup": [
-              {
-                "dismiss": [
-                  {
-                    "selector": "[role=dialog] button[aria-label='关闭']"
-                  },
-                  {
-                    "selector": "[role=dialog] button[class*=_primary]"
-                  },
-                  {
-                    "within": "[role=dialog]",
-                    "text": "继续"
-                  }
-                ],
-                "gone": "[role=dialog]",
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "click": {
-                  "within": "div[role=tree]",
-                  "text": [
-                    "奇偶校验基准会话",
-                    "未命名"
-                  ],
-                  "upTo": "[role=treeitem]"
-                },
-                "expect": {
-                  "selector": "[role=tab]"
-                }
-              },
-              {
-                "click": {
-                  "text": "轨迹",
-                  "upTo": "[role=tab]"
-                },
-                "expect": {
-                  "selector": "[role=toolbar][aria-label='轨迹工具栏']"
-                }
-              }
-            ]
-          },
-          "native": {
-            "setup": [
-              {
-                "dismiss": {
-                  "name": "暂不开启"
-                },
-                "gone": {
-                  "name": "开启极简模式"
-                },
-                "optional": true
-              }
-            ],
-            "steps": [
-              {
-                "invoke": {
-                  "namePrefix": "奇偶校验基准会话",
-                  "type": "Button"
-                },
-                "expect": {
-                  "name": "切换右侧栏",
-                  "type": "Button"
-                }
-              },
-              {
-                "select": {
-                  "name": "轨迹",
-                  "type": "TabItem"
-                },
-                "expect": {
-                  "name": "轨迹时间线",
-                  "type": "Text"
-                }
-              }
-            ]
-          },
-          "landmarks": [
-            {
-              "key": "traj.toolbar",
-              "web": {
-                "selector": "[role=toolbar][aria-label='轨迹工具栏']"
-              },
-              "native": {
-                "name": "时长",
-                "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y"
-              ]
-            },
-            {
-              "key": "traj.timeline-label",
-              "web": {
-                "selector": "section[aria-label='轨迹时间线']"
-              },
-              "native": {
-                "name": "轨迹时间线",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "traj.ledger",
-              "web": {
-                "selector": "[data-trajectory-scroll]"
-              },
-              "native": {
-                "name": "Trajectory ledger"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            }
-          ]
+    {
+     "id": "account-menu-open",
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[aria-label='账号菜单']"
         }
-      ],
-      "workspace": "seed-files.mjs",
-      "fixture": "fixtures/chat-basic.json",
-      "webShell": true
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "expand": {
+         "name": "账号菜单",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "account-menu.panel",
+       "web": {
+        "selector": "[role=menu]"
+       },
+       "native": {
+        "name": "",
+        "type": "Menu",
+        "index": 0
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "account-menu.first-item",
+       "web": {
+        "selector": "[role=menu] [role=menuitem]"
+       },
+       "native": {
+        "name": "",
+        "type": "MenuItem",
+        "index": 0
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      }
+     ]
     }
+   ]
+  },
+  "chat": {
+   "fixture": "fixtures/chat-basic.json",
+   "scenarios": [
+    {
+     "id": "chat-open",
+     "domDump": "[data-conversation-scroll]",
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "within": "div[role=tree]",
+         "text": [
+          "奇偶校验基准会话",
+          "未命名"
+         ],
+         "upTo": "[role=treeitem]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "奇偶校验基准会话",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "sidebar.fixture-session",
+       "web": {
+        "within": "div[role=tree]",
+        "text": [
+         "奇偶校验基准会话",
+         "未命名"
+        ],
+        "upTo": "[role=treeitem]"
+       },
+       "native": {
+        "namePrefix": "奇偶校验基准会话",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "chat.scroll",
+       "web": {
+        "selector": "[data-conversation-scroll]"
+       },
+       "native": {
+        "type": "List"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "chat.user-bubble",
+       "web": {
+        "selector": "[data-dsh-message-bubble]"
+       },
+       "native": {
+        "name": "User message bubble"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "chat.fold-row",
+       "web": {
+        "selector": "button[data-turn-process]"
+       },
+       "native": {
+        "namePrefix": "已完成",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "composer.card",
+       "web": {
+        "selector": "[role=textbox]",
+        "upTo": "div[class$=_card]"
+       },
+       "native": {
+        "name": "Composer card",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "chat-turn-expanded",
+     "domDump": "[data-conversation-scroll]",
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[data-turn-process]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "已完成",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "chat.fold-row",
+       "web": {
+        "selector": "button[data-turn-process]"
+       },
+       "native": {
+        "namePrefix": "已完成，用时",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "chat.thinking-row",
+       "web": {
+        "selector": "button[data-process-activity=\"thinking\"]"
+       },
+       "native": {
+        "namePrefix": "已完成分析",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.heading",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "h1"
+       },
+       "native": {
+        "name": "基准结论",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.paragraph",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "p"
+       },
+       "native": {
+        "namePrefix": "正文段落覆盖",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.list-item",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "li"
+       },
+       "native": {
+        "name": "第一项列表内容",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.code-card",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "[class*=md-code-block]"
+       },
+       "native": {
+        "name": "Code block",
+        "type": "Group"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.code-toolbar",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "[data-code-block-banner]"
+       },
+       "native": {
+        "name": "Code block banner",
+        "type": "Group"
+       },
+       "parent": "chat.code-card",
+       "assert": [
+        "h",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "chat.tools-row",
+       "web": {
+        "selector": "button[data-process-activity=\"tools\"]"
+       },
+       "native": {
+        "namePrefix": "已读取文件",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "composer.card",
+       "web": {
+        "selector": "[role=textbox]",
+        "upTo": "div[class$=_card]"
+       },
+       "native": {
+        "name": "Composer card",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "chat-thinking-expanded",
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[data-process-activity=\"thinking\"]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-chat-group-part=\"reasoning\"] [data-disclosure-row]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "已完成分析",
+         "type": "Button"
+        }
+       },
+       {
+        "expand": {
+         "namePrefix": "思考",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "chat.thinking-row",
+       "web": {
+        "selector": "button[data-process-activity=\"thinking\"]"
+       },
+       "native": {
+        "namePrefix": "已完成分析",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "chat.thinking-member",
+       "web": {
+        "within": "[data-step-process-body]",
+        "selector": "[data-chat-group-part=\"reasoning\"] [data-disclosure-row]"
+       },
+       "native": {
+        "namePrefix": "思考",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.thinking-body",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "[data-step-process-body] [data-chat-group-part=\"reasoning\"] p",
+        "index": 0
+       },
+       "native": {
+        "namePrefix": "推理过程备忘",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "chat-tool-expanded",
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[data-process-activity=\"tools\"]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "已读取文件",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "chat.tools-row",
+       "web": {
+        "selector": "button[data-process-activity=\"tools\"]"
+       },
+       "native": {
+        "namePrefix": "已读取文件",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "chat.tool-read",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "[data-chat-flow-kind=\"tool-call\"]",
+        "index": 0
+       },
+       "native": {
+        "namePrefix": "工具调用",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "chat.tool-bash",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "selector": "[data-chat-flow-kind=\"tool-call\"]",
+        "index": 1
+       },
+       "native": {
+        "namePrefix": "运行命令",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "settings": {
+   "scenarios": [
+    {
+     "id": "settings-general",
+     "domDump": "[role=dialog]",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "selector": "button[aria-label='账号菜单']"
+        },
+        "expect": {
+         "selector": "[role=menu]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[role=menu] [role=menuitem]",
+         "index": 0
+        },
+        "expect": {
+         "selector": "[role=dialog]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "expand": {
+         "name": "账号菜单",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "",
+         "type": "Menu"
+        }
+       },
+       {
+        "invoke": {
+         "name": "设置",
+         "type": "MenuItem"
+        },
+        "expect": {
+         "name": "设置",
+         "type": "Text"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "sidebar.settings-entry",
+       "probe": true,
+       "web": {
+        "selector": "button[aria-label='账号菜单']"
+       },
+       "native": {
+        "name": "账号菜单",
+        "type": "Button"
+       }
+      },
+      {
+       "key": "settings.panel",
+       "web": {
+        "selector": "[role=dialog]"
+       },
+       "native": {
+        "name": "设置",
+        "type": "Pane"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "settings.nav",
+       "web": {
+        "selector": "[role=dialog] nav"
+       },
+       "native": {
+        "name": "设置导航",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "settings.nav-title",
+       "web": {
+        "selector": "[role=dialog] nav > div:first-child"
+       },
+       "native": {
+        "name": "设置",
+        "type": "Text",
+        "index": 0
+       },
+       "assert": [
+        "h"
+       ]
+      },
+      {
+       "key": "settings.search",
+       "web": {
+        "selector": "[role=dialog] nav > div:nth-of-type(2)"
+       },
+       "native": {
+        "name": "搜索设置",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "settings.nav-group-label",
+       "web": {
+        "within": "[role=dialog] nav",
+        "selector": "[role=group] > div:first-child",
+        "text": "通用"
+       },
+       "native": {
+        "name": "通用",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "settings.nav-cell-general",
+       "web": {
+        "selector": "[data-dsh-settings-section='general']"
+       },
+       "native": {
+        "name": "通用设置",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "settings.nav-cell-appearance",
+       "web": {
+        "selector": "[data-dsh-settings-section='appearance']"
+       },
+       "native": {
+        "name": "外观",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "settings.nav-cell-models",
+       "web": {
+        "selector": "[data-dsh-settings-section='models']"
+       },
+       "native": {
+        "name": "模型",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "settings.nav-cell-plugins",
+       "web": {
+        "selector": "[data-dsh-settings-section='plugins']"
+       },
+       "native": {
+        "name": "内置插件",
+        "type": "Button"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "settings.header",
+       "web": {
+        "selector": "[role=dialog] nav + div > div:nth-of-type(1)"
+       },
+       "native": {
+        "name": "设置页头",
+        "type": "Group"
+       },
+       "parent": "settings.panel",
+       "assert": [
+        "h",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "settings.close",
+       "web": {
+        "selector": "[data-dsh-settings-close]"
+       },
+       "native": {
+        "name": "返回",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "settings.options",
+       "web": {
+        "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+       },
+       "native": {
+        "name": "设置内容",
+        "type": "Pane"
+       },
+       "parent": "settings.panel",
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "settings.row-language",
+       "web": {
+        "selector": "[data-slot='settings.general.item'] > :first-child",
+        "index": 0
+       },
+       "native": {
+        "name": "语言",
+        "type": "Group"
+       },
+       "parent": "settings.options",
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "settings.select-language",
+       "web": {
+        "selector": "[data-slot='settings.general.item'] button[aria-haspopup='menu']"
+       },
+       "native": {
+        "name": "语言",
+        "type": "ComboBox"
+       },
+       "parent": "settings.row-language",
+       "assert": [
+        "w",
+        "h",
+        "dx-parent-right"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "settings-models",
+     "domDump": "[role=dialog]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-dsh-settings-section='models']"
+        },
+        "expect": {
+         "selector": "[data-dsh-settings-section='models'][aria-current]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "模型",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "settings.options",
+       "web": {
+        "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+       },
+       "native": {
+        "name": "设置内容",
+        "type": "Pane"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "models.heading",
+       "web": {
+        "selector": "[data-slot='settings.section'] h2",
+        "index": 0
+       },
+       "native": {
+        "name": "模型",
+        "type": "Text",
+        "index": 0
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "models.provider-card",
+       "web": {
+        "selector": "li:has([data-slot='settings.models.provider-card'])",
+        "index": 0
+       },
+       "native": {
+        "name": "DeepSeek 账号",
+        "type": "Group"
+       },
+       "parent": "settings.options",
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "models.key-input",
+       "web": {
+        "selector": "input[aria-label='API 密钥']",
+        "upTo": "div"
+       },
+       "native": {
+        "name": "API Key",
+        "type": "Edit"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dx-parent-left"
+       ],
+       "parent": "models.provider-card"
+      },
+      {
+       "key": "models.edit-button",
+       "web": {
+        "selector": "button[aria-label^='编辑 DeepSeek 账号']"
+       },
+       "native": {
+        "name": "编辑 DeepSeek 账号",
+        "type": "Button"
+       },
+       "assert": [
+        "w",
+        "h"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "settings-plugins",
+     "domDump": "[role=dialog]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-dsh-settings-section='plugins']"
+        },
+        "expect": {
+         "selector": "[data-dsh-settings-section='plugins'][aria-current]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "内置插件",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "settings.options",
+       "web": {
+        "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+       },
+       "native": {
+        "name": "设置内容",
+        "type": "Pane"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "plugins.heading",
+       "web": {
+        "selector": "[data-slot='settings.section'] h2",
+        "index": 0
+       },
+       "native": {
+        "name": "内置插件",
+        "type": "Text",
+        "index": 0
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.desc",
+       "web": {
+        "within": "[role=dialog] [data-slot='settings.section']",
+        "selector": "p",
+        "text": "查看内置部署的插件列表"
+       },
+       "native": {
+        "name": "查看内置部署的插件列表",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.group-title",
+       "web": {
+        "selector": "[class*=groupTitleRow]",
+        "index": 0
+       },
+       "native": {
+        "name": "会话插件",
+        "type": "Group"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.group-sub",
+       "web": {
+        "selector": "[class*=groupSub]",
+        "index": 0
+       },
+       "native": {
+        "name": "由 Agent 预设按会话组成",
+        "type": "Text"
+       },
+       "assert": [
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.search",
+       "web": {
+        "selector": "input[aria-label='搜索插件']"
+       },
+       "native": {
+        "name": "搜索插件",
+        "type": "Group"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.card-1",
+       "web": {
+        "selector": "li[data-plugin-entry]",
+        "index": 0
+       },
+       "native": {
+        "name": "智能体角色设定",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.card-2",
+       "web": {
+        "selector": "li[data-plugin-entry]",
+        "index": 1
+       },
+       "native": {
+        "name": "工作区指令加载",
+        "type": "Group"
+       },
+       "assert": [
+        "w",
+        "h",
+        "dx-parent-left"
+       ],
+       "parent": "plugins.card-1"
+      }
+     ]
+    },
+    {
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-dsh-settings-section='models']"
+        },
+        "expect": {
+         "selector": "[data-dsh-settings-section='models'][aria-current]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-dsh-settings-section='general']"
+        },
+        "expect": {
+         "selector": "[data-slot='settings.general.item'] > :first-child"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "模型",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "模型",
+         "type": "Text"
+        }
+       },
+       {
+        "invoke": {
+         "name": "通用设置",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "语言",
+         "type": "Group"
+        }
+       }
+      ],
+      "nativeDump": true
+     },
+     "landmarks": [
+      {
+       "key": "settings.options",
+       "web": {
+        "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+       },
+       "native": {
+        "name": "设置内容",
+        "type": "Pane"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "settings.row-language",
+       "web": {
+        "selector": "[data-slot='settings.general.item'] > :first-child",
+        "index": 0
+       },
+       "native": {
+        "name": "语言",
+        "type": "Group"
+       },
+       "parent": "settings.options",
+       "assert": [
+        "x",
+        "y",
+        "h",
+        "dx-parent-left"
+       ]
+      }
+     ],
+     "id": "settings-section-swap"
+    }
+   ]
+  },
+  "files": {
+   "workspace": "seed-files.mjs",
+   "scenarios": [
+    {
+     "id": "files-panel",
+     "domDump": "[data-sidebar-right-panel]",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "within": "div[role=tree]",
+         "text": [
+          "奇偶校验基准会话",
+          "未命名"
+         ],
+         "upTo": "[role=treeitem]"
+        },
+        "expect": {
+         "selector": "button[aria-label='打开右侧边栏'],button[aria-label='收起右侧边栏']"
+        }
+       },
+       {
+        "click": {
+         "selector": "button[aria-label='打开右侧边栏']"
+        },
+        "expect": {
+         "selector": "[data-sidebar-right-open]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-sidebar-right-guide-entry='files']"
+        },
+        "expect": {
+         "selector": "[data-file-tree]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-item-path='src']"
+        },
+        "expect": {
+         "selector": "[data-item-path='src/app.ts']"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-item-path='src/util']"
+        },
+        "expect": {
+         "selector": "[data-item-path='src/util/strings.ts']"
+        }
+       }
+      ]
+     },
+     "native": {
+      "setup": [
+       {
+        "dismiss": {
+         "name": "暂不开启"
+        },
+        "gone": {
+         "name": "开启极简模式"
+        },
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "奇偶校验基准会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "切换右侧栏",
+         "type": "Button"
+        }
+       },
+       {
+        "invoke": {
+         "name": "切换右侧栏",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "文件",
+         "type": "Button"
+        }
+       },
+       {
+        "invoke": {
+         "name": "文件",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "File README.md"
+        }
+       },
+       {
+        "invoke": {
+         "name": "Folder src"
+        },
+        "expect": {
+         "name": "File src/app.ts"
+        }
+       },
+       {
+        "invoke": {
+         "name": "Folder src/util"
+        },
+        "expect": {
+         "name": "File src/util/strings.ts"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "files.toggle-probe",
+       "probe": true,
+       "web": {
+        "selector": "button[aria-label='打开右侧边栏']"
+       },
+       "native": {
+        "name": "切换右侧栏",
+        "type": "Button"
+       }
+      },
+      {
+       "key": "files.panel",
+       "web": {
+        "selector": "[data-files-panel]"
+       },
+       "native": {
+        "name": "文件面板"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "files.tab",
+       "web": {
+        "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
+       },
+       "native": {
+        "name": "文件",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "files.search",
+       "web": {
+        "selector": "*:has(> input[aria-label='搜索文件'])"
+       },
+       "native": {
+        "name": "筛选文件…",
+        "type": "Edit"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "files.tree",
+       "web": {
+        "selector": "[data-file-tree]"
+       },
+       "native": {
+        "name": "文件树"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w"
+       ]
+      },
+      {
+       "key": "files.row-dir",
+       "web": {
+        "selector": "[data-item-path='docs']"
+       },
+       "native": {
+        "name": "Folder docs"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "files.row-dir-src",
+       "web": {
+        "selector": "[data-item-path='src']"
+       },
+       "native": {
+        "name": "Folder src"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "files.row-nested",
+       "web": {
+        "selector": "[data-item-path='src/app.ts']"
+       },
+       "native": {
+        "name": "File src/app.ts"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "files.row-dir-util",
+       "web": {
+        "selector": "[data-item-path='src/util']"
+       },
+       "native": {
+        "name": "Folder src/util"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "files.row-deep",
+       "web": {
+        "selector": "[data-item-path='src/util/strings.ts']"
+       },
+       "native": {
+        "name": "File src/util/strings.ts"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev",
+        "dx-parent-left"
+       ]
+      },
+      {
+       "key": "files.row-file",
+       "web": {
+        "selector": "[data-item-path='README.md']"
+       },
+       "native": {
+        "name": "File README.md"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "files-preview",
+     "domDump": "[data-sidebar-right-panel]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-item-path='src/app.ts']"
+        },
+        "expect": {
+         "selector": "[data-file-preview]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "File src/app.ts"
+        },
+        "expect": {
+         "name": "File preview toolbar"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "preview.panel",
+       "web": {
+        "selector": "[data-file-preview]"
+       },
+       "native": {
+        "name": "文件预览"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "preview.toolbar",
+       "web": {
+        "within": "[data-file-preview]",
+        "selector": "[class*=toolbar]"
+       },
+       "native": {
+        "name": "File preview toolbar"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "preview.crumbs",
+       "web": {
+        "selector": "[data-file-breadcrumbs]"
+       },
+       "native": {
+        "name": "File breadcrumbs"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "preview.body",
+       "web": {
+        "within": "[data-file-preview]",
+        "selector": "textarea"
+       },
+       "native": {
+        "name": "文件内容",
+        "type": "Edit"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "preview.tab",
+       "web": {
+        "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
+       },
+       "native": {
+        "name": "app.ts",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "h"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "files-markdown",
+     "domDump": "[data-sidebar-right-panel]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-dockkit-tab-title]",
+         "index": 0,
+         "upTo": "[role=tab]"
+        },
+        "expect": {
+         "selector": "[data-file-tree]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-item-path='README.md']"
+        },
+        "expect": {
+         "selector": "[data-file-preview]"
+        }
+       },
+       {
+        "click": {
+         "within": "[data-file-preview]",
+         "text": [
+          "渲染",
+          "Rendered"
+         ]
+        },
+        "expect": {
+         "selector": "[data-file-preview] h1, [data-file-preview] h2, [data-file-preview] h3"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "文件",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "File README.md"
+        }
+       },
+       {
+        "invoke": {
+         "name": "File README.md"
+        },
+        "expect": {
+         "name": "File preview toolbar"
+        }
+       },
+       {
+        "invoke": {
+         "name": "渲染"
+        },
+        "expect": {
+         "namePrefix": "Fixture Notes",
+         "type": "Text"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "md.flow",
+       "web": {
+        "within": "[data-file-preview]",
+        "selector": "[class*=markdown]"
+       },
+       "native": {
+        "name": "Markdown 内容"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w"
+       ]
+      },
+      {
+       "key": "md.prose",
+       "web": {
+        "within": "[data-file-preview]",
+        "selector": "h1"
+       },
+       "native": {
+        "type": "Text",
+        "namePrefix": "Fixture Notes"
+       },
+       "assert": [
+        "x",
+        "y"
+       ]
+      },
+      {
+       "key": "md.code-card",
+       "web": {
+        "within": "[data-file-preview]",
+        "selector": "[class*=md-code-block]"
+       },
+       "native": {
+        "name": "Code block"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "md.code-banner",
+       "web": {
+        "selector": "[data-code-block-banner]"
+       },
+       "native": {
+        "name": "Code block banner"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "diff-worktree",
+     "domDump": "[data-sidebar-right-panel]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-dockkit-add-tab]"
+        },
+        "expect": {
+         "selector": "[data-sidebar-right-guide-entry='diff']"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-sidebar-right-guide-entry='diff']"
+        },
+        "expect": {
+         "selector": "[data-diff-panel]"
+        }
+       },
+       {
+        "click": {
+         "within": "[data-diff-panel]",
+         "text": "全部展开"
+        },
+        "expect": {
+         "selector": "[data-diff-line]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "新标签页",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "Diff",
+         "type": "Button"
+        }
+       },
+       {
+        "invoke": {
+         "name": "Diff",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "工作区差异"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "diff.panel",
+       "web": {
+        "selector": "[data-diff-panel]"
+       },
+       "native": {
+        "name": "工作区差异"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "diff.file-header",
+       "web": {
+        "within": "[data-diff-panel]",
+        "selector": "[data-disclosure-row]",
+        "index": 0
+       },
+       "native": {
+        "name": "Diff file src/app.ts"
+       },
+       "assert": [
+        "y",
+        "h"
+       ]
+      },
+      {
+       "key": "diff.hunk-header",
+       "web": {
+        "selector": "[data-diff-hunk-header]"
+       },
+       "native": {
+        "name": "Diff hunk header"
+       },
+       "assert": [
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "diff.line-del",
+       "web": {
+        "selector": "[data-diff-line='del']",
+        "index": 0
+       },
+       "native": {
+        "name": "Diff line del"
+       },
+       "assert": [
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "diff.line-add",
+       "web": {
+        "selector": "[data-diff-line='add']",
+        "index": 0
+       },
+       "native": {
+        "name": "Diff line add"
+       },
+       "assert": [
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "diff.line-context",
+       "web": {
+        "selector": "[data-diff-line='context']",
+        "index": 0
+       },
+       "native": {
+        "name": "Diff line context"
+       },
+       "assert": [
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "diff.gutter",
+       "web": {
+        "selector": "[data-diff-line] [class*=num],[data-diff-line] [class*=gutter]",
+        "index": 0
+       },
+       "native": {
+        "namePrefix": "Diff gutter"
+       },
+       "assert": [
+        "w"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "terminal-panel",
+     "domDump": "[data-sidebar-right-panel]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "[data-dockkit-add-tab]"
+        },
+        "expect": {
+         "selector": "[data-sidebar-right-guide-entry='terminal']"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-sidebar-right-guide-entry='terminal']"
+        },
+        "expect": {
+         "selector": "[data-sidebar-terminal]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "新标签页",
+         "type": "Button"
+        },
+        "expect": {
+         "namePrefix": "Host",
+         "type": "Button"
+        }
+       },
+       {
+        "invoke": {
+         "namePrefix": "Host",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "Terminal",
+         "type": "Group"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "terminal.panel",
+       "web": {
+        "selector": "[data-sidebar-terminal]"
+       },
+       "native": {
+        "name": "Terminal",
+        "type": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "terminal.tab",
+       "web": {
+        "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
+       },
+       "native": {
+        "name": "cmd.exe",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      }
+     ]
+    }
+   ],
+   "fixture": "fixtures/chat-basic.json",
+   "webShell": true
+  },
+  "rest": {
+   "scenarios": [
+    {
+     "id": "rest-guide",
+     "domDump": "body",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "within": "div[role=tree]",
+         "text": [
+          "奇偶校验基准会话",
+          "未命名"
+         ],
+         "upTo": "[role=treeitem]"
+        },
+        "expect": {
+         "selector": "button[aria-label='打开右侧边栏'],button[aria-label='收起右侧边栏']"
+        }
+       },
+       {
+        "click": {
+         "selector": "button[aria-label='打开右侧边栏']"
+        },
+        "expect": {
+         "selector": "[data-sidebar-right-panel]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "setup": [
+       {
+        "dismiss": {
+         "name": "暂不开启"
+        },
+        "gone": {
+         "name": "开启极简模式"
+        },
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "奇偶校验基准会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "切换右侧栏",
+         "type": "Button"
+        }
+       },
+       {
+        "invoke": {
+         "name": "切换右侧栏",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "文件",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "rest.boot",
+       "probe": true,
+       "web": {
+        "selector": "button[class*=_brand]"
+       },
+       "native": {
+        "name": "鲸屿 MyGo",
+        "type": "Button"
+       }
+      }
+     ]
+    },
+    {
+     "id": "rest-plugins",
+     "domDump": "body",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "selector": "button[data-dsh-panel=plugins]"
+        },
+        "expect": {
+         "selector": "[data-plugin-panel]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "setup": [
+       {
+        "dismiss": {
+         "name": "暂不开启"
+        },
+        "gone": {
+         "name": "开启极简模式"
+        },
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "invoke": {
+         "name": "插件",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "添加插件",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "plugins.title",
+       "web": {
+        "within": "[data-plugin-panel] header",
+        "text": "插件"
+       },
+       "native": {
+        "name": "插件",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "y",
+        "h"
+       ]
+      },
+      {
+       "key": "plugins.desc",
+       "web": {
+        "within": "[data-plugin-panel]",
+        "text": "安装、启用和配置插件"
+       },
+       "native": {
+        "name": "安装、启用和配置插件",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.add",
+       "web": {
+        "within": "[data-plugin-panel] header",
+        "text": "添加插件",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "添加插件",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "plugins.group-title",
+       "web": {
+        "within": "[data-plugin-group='basic']",
+        "text": "内置插件配置"
+       },
+       "native": {
+        "name": "内置插件配置",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "plugins.card-1",
+       "web": {
+        "selector": "[data-plugin-item='subagent']"
+       },
+       "native": {
+        "name": "Plugin item 子代理",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "rest-schedules",
+     "domDump": "body",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "selector": "button[data-dsh-panel=schedules]"
+        },
+        "expect": {
+         "selector": "[data-testid=task-manager-page]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "setup": [
+       {
+        "dismiss": {
+         "name": "暂不开启"
+        },
+        "gone": {
+         "name": "开启极简模式"
+        },
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "invoke": {
+         "name": "自动化任务",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "新建",
+         "type": "Button"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "sched.page",
+       "web": {
+        "selector": "[data-testid='task-manager-page']"
+       },
+       "native": {
+        "name": "Automation tasks page"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "sched.title",
+       "web": {
+        "within": "[data-testid='task-manager-page']",
+        "text": "自动化任务"
+       },
+       "native": {
+        "name": "自动化任务",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "y",
+        "h"
+       ]
+      },
+      {
+       "key": "sched.new",
+       "web": {
+        "within": "[data-testid='task-manager-page']",
+        "text": "新建",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "新建",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "h"
+       ]
+      },
+      {
+       "key": "sched.filter-all",
+       "web": {
+        "within": "[data-testid='task-manager-page']",
+        "text": "全部",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "全部",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sched.search",
+       "web": {
+        "within": "[data-testid='task-manager-page']",
+        "selector": "input"
+       },
+       "native": {
+        "name": "Search tasks",
+        "type": "Edit"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sched.empty",
+       "web": {
+        "within": "[data-testid='task-manager-page']",
+        "text": "还没有自动化任务，在会话中创建的任务会显示在这里"
+       },
+       "native": {
+        "namePrefix": "还没有自动化任务",
+        "type": "Text"
+       },
+       "assert": [
+        "y",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "sched.empty-action",
+       "web": {
+        "within": "[data-testid='task-manager-page']",
+        "text": "新建自动化任务",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "新建自动化任务",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "rest-agents",
+     "domDump": "body",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       },
+       {
+        "dismiss": [
+         {
+          "selector": "button[aria-label='打开右侧边栏']"
+         }
+        ],
+        "gone": "button[aria-label='打开右侧边栏']",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "within": "div[role=tree]",
+         "text": [
+          "奇偶校验基准会话",
+          "未命名"
+         ],
+         "upTo": "[role=treeitem]"
+        },
+        "expect": {
+         "selector": "[role=tab]"
+        }
+       },
+       {
+        "click": {
+         "selector": "[data-sidebar-right-guide-entry='agents']"
+        },
+        "expect": {
+         "selector": "[data-sidebar-right-panel] [role=status],[data-sidebar-right-panel] ul,[data-sidebar-right-panel] section"
+        }
+       }
+      ]
+     },
+     "native": {
+      "setup": [
+       {
+        "dismiss": {
+         "name": "暂不开启"
+        },
+        "gone": {
+         "name": "开启极简模式"
+        },
+        "optional": true
+       },
+       {
+        "dismiss": {
+         "name": "展开右侧栏",
+         "type": "Button"
+        },
+        "gone": {
+         "name": "展开右侧栏",
+         "type": "Button"
+        },
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "奇偶校验基准会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "切换右侧栏",
+         "type": "Button"
+        }
+       },
+       {
+        "invoke": {
+         "name": "智能体",
+         "type": "Button"
+        },
+        "expect": {
+         "namePrefix": "还没有子代理",
+         "type": "Text"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "agents.pane",
+       "web": {
+        "selector": "[data-agents-panel]"
+       },
+       "native": {
+        "name": "Workspace resource dock"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "agents.empty-title",
+       "web": {
+        "within": "[data-agents-empty]",
+        "text": "还没有子代理"
+       },
+       "native": {
+        "name": "还没有子代理",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "agents.empty-body",
+       "web": {
+        "within": "[data-agents-empty]",
+        "text": "当前会话生成子代理后，会显示在这里。"
+       },
+       "native": {
+        "name": "当前会话生成子代理后，会显示在这里。",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "w",
+        "dy-prev"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "rest-trajectory",
+     "domDump": "body",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "within": "div[role=tree]",
+         "text": [
+          "奇偶校验基准会话",
+          "未命名"
+         ],
+         "upTo": "[role=treeitem]"
+        },
+        "expect": {
+         "selector": "[role=tab]"
+        }
+       },
+       {
+        "click": {
+         "text": "轨迹",
+         "upTo": "[role=tab]"
+        },
+        "expect": {
+         "selector": "[role=toolbar][aria-label='轨迹工具栏']"
+        }
+       }
+      ]
+     },
+     "native": {
+      "setup": [
+       {
+        "dismiss": {
+         "name": "暂不开启"
+        },
+        "gone": {
+         "name": "开启极简模式"
+        },
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "invoke": {
+         "namePrefix": "奇偶校验基准会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "切换右侧栏",
+         "type": "Button"
+        }
+       },
+       {
+        "select": {
+         "name": "轨迹",
+         "type": "TabItem"
+        },
+        "expect": {
+         "name": "轨迹时间线",
+         "type": "Text"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "traj.toolbar",
+       "web": {
+        "selector": "[role=toolbar][aria-label='轨迹工具栏']"
+       },
+       "native": {
+        "name": "时长",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y"
+       ]
+      },
+      {
+       "key": "traj.timeline-label",
+       "web": {
+        "selector": "section[aria-label='轨迹时间线']"
+       },
+       "native": {
+        "name": "轨迹时间线",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "traj.ledger",
+       "web": {
+        "selector": "[data-trajectory-scroll]"
+       },
+       "native": {
+        "name": "Trajectory ledger"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    }
+   ],
+   "workspace": "seed-files.mjs",
+   "fixture": "fixtures/chat-basic.json",
+   "webShell": true
+  },
+  "cards": {
+   "mock": true,
+   "scenarios": [
+    {
+     "id": "cards-approval",
+     "domDump": "[data-approval-key]",
+     "nativeDump": true,
+     "web": {
+      "setup": [
+       {
+        "dismiss": [
+         {
+          "selector": "[role=dialog] button[aria-label='关闭']"
+         },
+         {
+          "selector": "[role=dialog] button[class*=_primary]"
+         },
+         {
+          "within": "[role=dialog]",
+          "text": "继续"
+         }
+        ],
+        "gone": "[role=dialog]",
+        "optional": true
+       }
+      ],
+      "steps": [
+       {
+        "click": {
+         "selector": "button[aria-label='新建会话']"
+        },
+        "expect": {
+         "selector": "[role=textbox]"
+        }
+       },
+       {
+        "prompt": "[ui-compare:approval] run this command",
+        "expect": {
+         "selector": "[data-approval-key]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "新会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "Composer draft"
+        }
+       },
+       {
+        "setvalue": {
+         "name": "Composer draft",
+         "type": "Edit",
+         "text": "[ui-compare:approval] run this command"
+        }
+       },
+       {
+        "invoke": {
+         "name": "发送消息",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "等待审批"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "card.frame",
+       "web": {
+        "selector": "[data-approval-key] > div"
+       },
+       "native": {
+        "name": "审批详情"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "card.strip",
+       "web": {
+        "selector": "[data-approval-key] [class*=_strip]"
+       },
+       "native": {
+        "name": "等待审批"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "card.body",
+       "web": {
+        "selector": "[data-approval-key] [data-approval-scroll]"
+       },
+       "native": {
+        "name": "审批详情",
+        "index": 1
+       },
+       "assert": [
+        "x",
+        "w",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.headline",
+       "web": {
+        "selector": "[data-approval-key] [class*=_headline]"
+       },
+       "native": {
+        "namePrefix": "允许本次操作"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.command",
+       "web": {
+        "selector": "[data-approval-key] [class*=_command]"
+       },
+       "native": {
+        "name": "echo hi"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.actions",
+       "web": {
+        "selector": "[data-approval-key] [class*=_actionRow]"
+       },
+       "native": {
+        "name": "拒绝",
+        "type": "Button",
+        "upToType": "Group"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.reject",
+       "web": {
+        "within": "[data-approval-key]",
+        "text": "拒绝",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "拒绝",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "card.allow",
+       "web": {
+        "within": "[data-approval-key]",
+        "text": [
+         "允许一次",
+         "允许"
+        ],
+        "upTo": "button"
+       },
+       "native": {
+        "name": [
+         "允许一次",
+         "允许"
+        ],
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "cards-question",
+     "domDump": "[data-question-key]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[aria-label='新建会话']"
+        },
+        "expect": {
+         "selector": "[role=textbox]"
+        }
+       },
+       {
+        "prompt": "[ui-compare:question] answer the questions",
+        "expect": {
+         "selector": "[data-question-key]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "新会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "Composer draft"
+        }
+       },
+       {
+        "setvalue": {
+         "name": "Composer draft",
+         "type": "Edit",
+         "text": "[ui-compare:question] answer the questions"
+        }
+       },
+       {
+        "invoke": {
+         "name": "发送消息",
+         "type": "Button"
+        },
+        "expect": {
+         "namePrefix": "Pick a color"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "card.frame",
+       "web": {
+        "selector": "[data-question-key] div[class*=_card]"
+       },
+       "native": {
+        "namePrefix": "等待你的操作",
+        "upToType": "Group"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "card.header",
+       "web": {
+        "selector": "[data-question-key] [class*=_eyebrow]"
+       },
+       "native": {
+        "namePrefix": "等待你的操作"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "card.title",
+       "web": {
+        "selector": "[data-question-key] [class*=_title]"
+       },
+       "native": {
+        "name": "Choice"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.question",
+       "web": {
+        "selector": "[data-question-key] [class*=_questionTitle]"
+       },
+       "native": {
+        "name": "Pick a color?"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.option-1",
+       "web": {
+        "selector": "[data-question-key] [data-option-row]",
+        "index": 0
+       },
+       "native": {
+        "name": "Option Red"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.option-2",
+       "web": {
+        "selector": "[data-question-key] [data-option-row]",
+        "index": 1
+       },
+       "native": {
+        "name": "Option Blue"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.option-3",
+       "web": {
+        "selector": "[data-question-key] [data-option-row]",
+        "index": 2
+       },
+       "native": {
+        "name": "Option Green"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.footer",
+       "web": {
+        "selector": "[data-question-key] [class*=_footerActions]"
+       },
+       "native": {
+        "name": "跳过",
+        "type": "Button",
+        "upToType": "Group"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.skip",
+       "web": {
+        "within": "[data-question-key]",
+        "text": "跳过",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "跳过",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "card.submit",
+       "web": {
+        "within": "[data-question-key]",
+        "text": "提交",
+        "upTo": "button"
+       },
+       "native": {
+        "name": "提交",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "cards-usage",
+     "domDump": "[data-conversation-scroll]",
+     "nativeDump": true,
+     "web": {
+      "steps": [
+       {
+        "click": {
+         "selector": "button[aria-label='新建会话']"
+        },
+        "expect": {
+         "selector": "[role=textbox]"
+        }
+       },
+       {
+        "prompt": "[ui-compare:usage] report the token usage",
+        "expect": {
+         "within": "[data-conversation-scroll]",
+         "text": "本轮用量"
+        }
+       },
+       {
+        "click": {
+         "within": "[data-conversation-scroll]",
+         "text": "本轮用量"
+        },
+        "expect": {
+         "selector": "[data-turn-usage-details]"
+        }
+       }
+      ]
+     },
+     "native": {
+      "steps": [
+       {
+        "invoke": {
+         "name": "新会话",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "Composer draft"
+        }
+       },
+       {
+        "setvalue": {
+         "name": "Composer draft",
+         "type": "Edit",
+         "text": "[ui-compare:usage] report the token usage"
+        }
+       },
+       {
+        "invoke": {
+         "name": "发送消息",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "本轮用量"
+        }
+       },
+       {
+        "invoke": {
+         "name": "本轮用量",
+         "type": "Button"
+        },
+        "expect": {
+         "name": "未缓存输入"
+        }
+       }
+      ]
+     },
+     "landmarks": [
+      {
+       "key": "usage.pill",
+       "web": {
+        "within": "[data-conversation-scroll]",
+        "text": "本轮用量"
+       },
+       "native": {
+        "name": "本轮用量",
+        "type": "Button"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h"
+       ]
+      },
+      {
+       "key": "usage.details",
+       "web": {
+        "selector": "[data-turn-usage-details]"
+       },
+       "native": {
+        "name": "未缓存输入",
+        "upToType": "Pane"
+       },
+       "assert": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "usage.input",
+       "web": {
+        "within": "[data-turn-usage-details]",
+        "text": "未缓存输入"
+       },
+       "native": {
+        "name": "未缓存输入"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "usage.cache-read",
+       "web": {
+        "within": "[data-turn-usage-details]",
+        "text": "缓存读取"
+       },
+       "native": {
+        "name": "缓存读取"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "usage.cache-write",
+       "web": {
+        "within": "[data-turn-usage-details]",
+        "text": "缓存写入"
+       },
+       "native": {
+        "name": "缓存写入"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "usage.output",
+       "web": {
+        "within": "[data-turn-usage-details]",
+        "text": "输出"
+       },
+       "native": {
+        "name": "输出",
+        "type": "Text"
+       },
+       "assert": [
+        "x",
+        "w",
+        "h",
+        "dy-prev"
+       ]
+      }
+     ]
+    }
+   ]
   }
+ }
 }
