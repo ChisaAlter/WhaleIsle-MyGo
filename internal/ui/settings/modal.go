@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -28,6 +29,7 @@ func ModalView(c *ui.Context, m Model) {
 		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
 		chrome.RevealMask(backdrop, mask, progress)
 		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
+			Role(ui.RoleDialog).Label(i18n.T(i18n.KeySettingsTitle)).
 			Radius(28).Clip().Opacity(progress).Draw(chrome.SettingsPanelGlass(settingsPanelBase(colors, dark), chrome.Color(colors.BG), mask.Alpha(progress), 28)).
 			Children(func() { View(c, m) })
 		chrome.MenuElevation(panel)

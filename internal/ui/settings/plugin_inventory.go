@@ -79,9 +79,9 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 	// Agent preset under a collapsible header that carries the preset select.
 	query := s.Query
 	ui.Row(c.Key("plugin-search")).FillWidth().MinWidth(0).Height(36).Shrink(0).Padding(0, 12).Gap(8).Radius(12).AlignItems(ui.Center).
-		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Children(func() {
+		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Label(pluginsText("搜索插件", "Search plugins")).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
-		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(34).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(13)).Label("Plugin search").Placeholder(pluginsText("搜索插件", "Search plugins")).Changed() && a.OnQuery != nil {
+		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(34).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(13)).Label(pluginsText("搜索插件", "Search plugins")).Placeholder(pluginsText("搜索插件", "Search plugins")).Changed() && a.OnQuery != nil {
 			a.OnQuery(query)
 		}
 	})
@@ -217,7 +217,7 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 	if r.Phase == "failed" || r.MetadataError != "" {
 		stroke = c.Theme().Danger
 	}
-	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip()
+	card := ui.Column(c.Key("inventory-card-"+r.Key)).MinWidth(0).Border(.667, stroke).Radius(20).Background(modelWell(c).Alpha(.8)).Clip().Label(r.Title)
 	if width > 520 {
 		card.Width((width - 10) / 2)
 	} else {

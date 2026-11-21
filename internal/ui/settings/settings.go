@@ -138,7 +138,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
-	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Label(providerCopy("设置页头", "Settings header")).Children(func() {
 		ui.Box(c).Grow(1).MinWidth(0)
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
@@ -303,7 +303,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	searching := strings.TrimSpace(*query) != ""
 	selectedBG, selectedFG := settingsSelectedRailColors(m)
 	groups := navigationGroups(m, snap)
-	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
+	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Label(providerCopy("设置导航", "Settings navigation")).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
 		settingsRailSearch(c, m, snap, query, fg, muted, border)
 		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
@@ -321,7 +321,6 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 						}
 						label := navigationLabel(m, entry.id)
 						button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(36).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(7, 16, 7, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
-						button = button.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 						button.Children(func() {
 							ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(ink)
 							weight := 400
@@ -351,7 +350,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 // pill with a hairline border, the magnifier at +10, the text from +32 and a
 // clear button once there is text.
 func settingsRailSearch(c *ui.Context, m Model, snap settings.ViewState, query *string, fg, muted, border ui.Color) {
-	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Children(func() {
+	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Label(i18n.T(i18n.KeySettingsNavSearch)).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
 		input := ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch)).OnSubmit(func() {
 			ids := map[SectionID]bool{}
