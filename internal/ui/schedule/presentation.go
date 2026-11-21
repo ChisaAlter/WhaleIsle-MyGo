@@ -46,6 +46,9 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 							Background(theme.Color(colors.BrandPrimary)).TextColor(theme.Color(colors.ButtonFG)).
 							BorderWidth(0).Disabled(!snap.ClientReady).Cursor(ui.CursorPointer).Shrink(0).
 							Transition(widgets.HoverTransition())
+						if !snap.ClientReady {
+							newTask = newTask.Opacity(0.4)
+						}
 						if snap.ClientReady && (newTask.Hovered() || newTask.Pressed()) {
 							newTask = newTask.Background(theme.Color(colors.BrandPrimaryHover))
 						}
