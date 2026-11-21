@@ -3007,7 +3007,8 @@
         "selector": "[data-approval-key] > div"
        },
        "native": {
-        "name": "审批详情"
+        "namePrefix": "Approval details:",
+        "type": "Group"
        },
        "assert": [
         "x",
@@ -3026,8 +3027,6 @@
        },
        "assert": [
         "x",
-        "y",
-        "w",
         "h"
        ]
       },
@@ -3038,11 +3037,12 @@
        },
        "native": {
         "name": "审批详情",
-        "index": 1
+        "type": "Pane"
        },
        "assert": [
         "x",
         "w",
+        "h",
         "dy-prev"
        ]
       },
@@ -3057,8 +3057,7 @@
        "assert": [
         "x",
         "w",
-        "h",
-        "dy-prev"
+        "h"
        ]
       },
       {
@@ -3068,23 +3067,6 @@
        },
        "native": {
         "name": "echo hi"
-       },
-       "assert": [
-        "x",
-        "w",
-        "h",
-        "dy-prev"
-       ]
-      },
-      {
-       "key": "card.actions",
-       "web": {
-        "selector": "[data-approval-key] [class*=_actionRow]"
-       },
-       "native": {
-        "name": "拒绝",
-        "type": "Button",
-        "upToType": "Group"
        },
        "assert": [
         "x",
@@ -3106,6 +3088,7 @@
        },
        "assert": [
         "x",
+        "y",
         "w",
         "h"
        ]
@@ -3114,17 +3097,11 @@
        "key": "card.allow",
        "web": {
         "within": "[data-approval-key]",
-        "text": [
-         "允许一次",
-         "允许"
-        ],
+        "text": "允许一次",
         "upTo": "button"
        },
        "native": {
-        "name": [
-         "允许一次",
-         "允许"
-        ],
+        "name": "允许",
         "type": "Button"
        },
        "assert": [
@@ -3181,7 +3158,7 @@
          "type": "Button"
         },
         "expect": {
-         "namePrefix": "Pick a color"
+         "name": "Choice"
         }
        }
       ]
@@ -3190,10 +3167,11 @@
       {
        "key": "card.frame",
        "web": {
-        "selector": "[data-question-key] div[class*=_card]"
+        "selector": "[data-question-key] section"
        },
        "native": {
-        "namePrefix": "等待你的操作",
+        "name": "Question content",
+        "type": "Pane",
         "upToType": "Group"
        },
        "assert": [
@@ -3204,12 +3182,12 @@
        ]
       },
       {
-       "key": "card.header",
+       "key": "card.eyebrow",
        "web": {
         "selector": "[data-question-key] [class*=_eyebrow]"
        },
        "native": {
-        "namePrefix": "等待你的操作"
+        "name": "Choice"
        },
        "assert": [
         "x",
@@ -3221,22 +3199,7 @@
       {
        "key": "card.title",
        "web": {
-        "selector": "[data-question-key] [class*=_title]"
-       },
-       "native": {
-        "name": "Choice"
-       },
-       "assert": [
-        "x",
-        "w",
-        "h",
-        "dy-prev"
-       ]
-      },
-      {
-       "key": "card.question",
-       "web": {
-        "selector": "[data-question-key] [class*=_questionTitle]"
+        "selector": "[data-question-key] h2"
        },
        "native": {
         "name": "Pick a color?"
@@ -3251,7 +3214,7 @@
       {
        "key": "card.option-1",
        "web": {
-        "selector": "[data-question-key] [data-option-row]",
+        "selector": "[data-question-key] button[role=radio]",
         "index": 0
        },
        "native": {
@@ -3268,7 +3231,7 @@
       {
        "key": "card.option-2",
        "web": {
-        "selector": "[data-question-key] [data-option-row]",
+        "selector": "[data-question-key] button[role=radio]",
         "index": 1
        },
        "native": {
@@ -3284,7 +3247,7 @@
       {
        "key": "card.option-3",
        "web": {
-        "selector": "[data-question-key] [data-option-row]",
+        "selector": "[data-question-key] button[role=radio]",
         "index": 2
        },
        "native": {
@@ -3298,18 +3261,31 @@
        ]
       },
       {
-       "key": "card.footer",
+       "key": "card.custom",
        "web": {
-        "selector": "[data-question-key] [class*=_footerActions]"
+        "selector": "[data-question-key] [class*=_customRow]"
        },
        "native": {
-        "name": "跳过",
-        "type": "Button",
-        "upToType": "Group"
+        "namePrefix": "Question answer:"
        },
        "assert": [
         "x",
         "w",
+        "h",
+        "dy-prev"
+       ]
+      },
+      {
+       "key": "card.pager",
+       "web": {
+        "selector": "[data-question-key] [class*=_progress]"
+       },
+       "native": {
+        "name": "1 / 2"
+       },
+       "assert": [
+        "x",
+        "y",
         "h",
         "dy-prev"
        ]
@@ -3322,7 +3298,7 @@
         "upTo": "button"
        },
        "native": {
-        "name": "跳过",
+        "namePrefix": "跳过",
         "type": "Button"
        },
        "assert": [
@@ -3332,14 +3308,14 @@
        ]
       },
       {
-       "key": "card.submit",
+       "key": "card.next",
        "web": {
         "within": "[data-question-key]",
-        "text": "提交",
+        "text": "下一题",
         "upTo": "button"
        },
        "native": {
-        "name": "提交",
+        "name": "下一步",
         "type": "Button"
        },
        "assert": [
@@ -3368,13 +3344,14 @@
         "prompt": "[ui-compare:usage] report the token usage",
         "expect": {
          "within": "[data-conversation-scroll]",
-         "text": "本轮用量"
+         "text": "用量 84 tok"
         }
        },
        {
         "click": {
          "within": "[data-conversation-scroll]",
-         "text": "本轮用量"
+         "text": "用量 84 tok",
+         "upTo": "button"
         },
         "expect": {
          "selector": "[data-turn-usage-details]"
@@ -3425,7 +3402,8 @@
        "key": "usage.pill",
        "web": {
         "within": "[data-conversation-scroll]",
-        "text": "本轮用量"
+        "text": "用量 84 tok",
+        "upTo": "button"
        },
        "native": {
         "name": "本轮用量",
@@ -3445,6 +3423,7 @@
        },
        "native": {
         "name": "未缓存输入",
+        "type": "Text",
         "upToType": "Pane"
        },
        "assert": [
