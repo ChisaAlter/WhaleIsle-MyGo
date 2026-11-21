@@ -189,59 +189,76 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 			})
 		} else {
 			title := p.Title
-			if q, ok := snap.QuestionCards[p.EventID]; ok && q.Index >= 0 && q.Index < len(q.Rows) {
-				row := q.Rows[q.Index]
-				if row.Header != "" && row.Question != "" {
-					// The Original's .header carries padding-top 20; padding
-					// sits on the row so the text bounds match the content
-					// box for comparison.
-					ui.Row(c).FillWidth().Padding(20, 24, 0, 24).Shrink(0).Children(func() {
-						ui.Text(c, row.Header).FontSize(11).FixedLineHeight(16).TextColor(muted)
-					})
-				}
+			q, hasCard := snap.QuestionCards[p.EventID]
+			var flow *questionEditorFlow
+			if hasCard && len(q.Rows) > 0 {
+				index := min(max(q.Index, 0), len(q.Rows)-1)
+				row := q.Rows[index]
 				if row.Question != "" {
 					title = row.Question
 				} else if row.Header != "" {
 					title = row.Header
 				}
+				flow = ui.Local(card, "question-editor-flow:"+p.EventID, func() questionEditorFlow { return questionEditorFlow{} })
+				// The Original's .header (QuestionComposer.module.css:80-90):
+				// padding 20px 16px 0 24px, heading block left and the icon
+				// actions pinned right. Collapsed it gains padding-bottom 14
+				// and keeps the title in the block (.cardMinimized .header).
+				bottom := float32(0)
+				if flow.minimized {
+					bottom = 14
+				}
+				ui.Row(c).FillWidth().Shrink(0).Padding(20, 24, bottom, 16).Gap(16).Children(func() {
+					if row.Header != "" || flow.minimized {
+						ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
+							titleTop := float32(0)
+							if row.Header != "" {
+								// .eyebrow { margin-bottom: 5px }
+								ui.Text(c, row.Header).FontSize(11).FixedLineHeight(16).TextColor(muted)
+								titleTop = 5
+							}
+							if flow.minimized {
+								ui.Text(c, title).Padding(titleTop, 0, 0, 0).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg)
+							}
+						})
+					} else {
+						ui.Box(c).Grow(1).MinWidth(0)
+					}
+					questionHeaderActions(c, p, store, flow, colors)
+				})
 			}
-			// .questionTitle { margin: 5px 24px 0 } in the Original.
-			ui.Row(c).FillWidth().Padding(5, 24, 0, 24).Shrink(0).Children(func() {
-				ui.Text(c, title).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg)
-			})
-			if q, ok := snap.QuestionCards[p.EventID]; ok {
+			if flow == nil || !flow.minimized {
+				// .questionTitle { margin: 5px 24px 0 } in the Original.
+				ui.Row(c).FillWidth().Padding(5, 24, 0, 24).Shrink(0).Children(func() {
+					ui.Text(c, title).FontSize(16).FixedLineHeight(22).FontWeight(500).TextColor(fg)
+				})
+			}
+			if hasCard {
 				questionWaitStatus(c, p, q, store, colors, muted)
-				focused = questionsBody(c, p, q, store, colors, fg, muted)
+				if flow != nil {
+					focused = questionsBody(c, p, q, store, colors, fg, muted, flow)
+				}
 			}
 		}
 		if p.Error != "" {
 			ui.Text(c, questionErrorText(p.Error)).FontSize(theme.InterfaceSize(12)).TextColor(t.Danger)
 		}
-		ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
-			if p.Sending {
-				widgets.Button(c, colors, i18n.T(i18n.KeyInteractionContinue), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: true})
-				return
-			}
-			if p.Error != "" {
-				if retry := widgets.Button(c, colors, i18n.T(i18n.KeyBootRetry), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}); retry.Clicked() {
-					store.Retry(p.EventID)
-				}
-				if p.Event != interaction.EventUserQuestions {
+		// Question affordances moved into the header icon seats of the
+		// Original's .headerActions; question cards keep no footer row at all.
+		if p.Event != interaction.EventUserQuestions || p.Sending || p.Error != "" {
+			ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
+				if p.Sending {
+					widgets.Button(c, colors, i18n.T(i18n.KeyInteractionContinue), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: true})
 					return
 				}
-			}
-			switch p.Event {
-			case interaction.EventUserQuestions:
-				if hide := interactionGhostButton(c, colors, i18n.T(i18n.KeyChatQuestionHide), false).Tooltip(questionStatusText("nav.close")); hide.Clicked() {
-					store.HideQuestion(p.EventID)
-				}
-
-				if !p.Continued {
-					if deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false).Tooltip(questionStatusText("nav.cancel")); deny.Clicked() {
-						store.ResolveDeny(p.EventID)
+				if p.Error != "" {
+					if retry := widgets.Button(c, colors, i18n.T(i18n.KeyBootRetry), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}); retry.Clicked() {
+						store.Retry(p.EventID)
+					}
+					if p.Event == interaction.EventUserQuestions {
+						return
 					}
 				}
-			default:
 				deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false)
 				deny.Children(func() {
 					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityApprovalReject))
@@ -257,8 +274,8 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				if deny.Clicked() {
 					store.ResolveDeny(p.EventID)
 				}
-			}
-		})
+			})
+		}
 	})
 
 	return focused

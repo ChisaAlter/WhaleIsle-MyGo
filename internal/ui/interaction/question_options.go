@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // The question options are selectable cards, not bare checkboxes: a 20 DIP
@@ -22,19 +23,34 @@ var questionOptionCheckIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.
 var (
 	questionPagerPrev = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.4 5.4 8 10 12.6"/></svg>`))
 	questionPagerNext = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.4 10.6 8 6 12.6"/></svg>`))
+	// Header affordances share the same 16px grid as the pager chevrons:
+	// IconChevronDown/UpOutlineRegular for minimize, IconCloseOutlineRegular
+	// for the single dismiss seat (QuestionComposer.tsx:511-528).
+	questionChevronDown = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 6 8 10.6 12.6 6"/></svg>`))
+	questionChevronUp   = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 10 8 5.4 12.6 10"/></svg>`))
+	questionCloseIcon   = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 4.4l7.2 7.2M11.6 4.4l-7.2 7.2"/></svg>`))
+	// Native-only draft recap seat: a plain list glyph, no Original counterpart.
+	questionReviewIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.6h10M3 8h10M3 11.4h6.4"/></svg>`))
 )
 
-// questionPagerButton is one 28 DIP chevron seat of the wizard pager.
-func questionPagerButton(c *ui.Context, icon *ui.SVG, label string, enabled bool) ui.Element {
+// questionIconButton is the Original's .iconButton recipe
+// (QuestionComposer.module.css:200-225): a 24 DIP round seat, borderless and
+// transparent until hover lifts the interactive-bg fill and the glyph reads
+// label-primary. The module declares no transition on it, so none is added.
+func questionIconButton(c *ui.Context, icon *ui.SVG, label, tooltip string, enabled bool, colors theme.Colors) ui.Element {
 	t := c.Theme()
-	button := ui.Button(c, "").Label(label).Tooltip(label).Width(24).Height(24).Radius(6).
-		Background(ui.Transparent).Border(0.5, t.Border).Padding(0, 0, 0, 0)
-	button.Children(func() {
-		ui.Icon(c, icon).Width(14).Height(14).TextColor(t.TextMuted)
-	})
+	button := ui.Button(c, "").Label(label).Tooltip(tooltip).Width(24).Height(24).Radius(12).
+		Background(ui.Transparent).BorderWidth(0).Padding(0, 0, 0, 0)
+	iconColor := t.TextMuted
 	if !enabled {
 		button.Disabled(true).Opacity(.4)
+	} else if button.Pressed() || button.Hovered() {
+		button.Background(theme.Color(colors.Hover))
+		iconColor = t.Text
 	}
+	button.Children(func() {
+		ui.Icon(c, icon).Width(14).Height(14).TextColor(iconColor)
+	})
 	return button
 }
 

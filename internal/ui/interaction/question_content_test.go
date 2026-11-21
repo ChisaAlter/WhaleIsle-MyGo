@@ -154,7 +154,7 @@ func TestQuestionContentLongBodyScrollKeepsFooterReachable(t *testing.T) {
 	if os.Getenv("CHAT_GALLERY_DIR") != "" {
 		writeInteractionGallery(t, interactionGalleryDir(t), "question-body-scroll-600.png", tt)
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatQuestionMinimize)); err != nil {
+	if err := tt.Click(questionStatusText("nav.minimize")); err != nil {
 		t.Fatal(err)
 	}
 	_, hasHeader := tt.Find("Heading")

@@ -60,28 +60,34 @@ func TestApprovalCardUsesHarnessButtonRecipes(t *testing.T) {
 	}
 }
 
-// The question card's submit is primary, skip/hide are quiet ghost faces.
+// The question card's submit is primary, skip is a quiet ghost face, and the
+// header carries the Original's 24 DIP .iconButton affordances: minimize and
+// one dismiss seat (nav.close while the Host named the call).
 func TestQuestionCardButtonRecipes(t *testing.T) {
 	store := galleryStore(t, dsh.EventsWaterfall{
 		AgentID: "A", EventID: "questions-spec", Event: interaction.EventUserQuestions,
-		Request: json.RawMessage(`{"questions":[{"id":"q","question":"Pick one","options":[{"label":"A"}]},{"id":"q2","question":"Next"}]}`),
+		Request: json.RawMessage(`{"callId":"call-q","questions":[{"id":"q","question":"Pick one","options":[{"label":"A"}]},{"id":"q2","question":"Next"}]}`),
 	})
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Children(func() {
 			View(c, Model{Store: store, Snapshot: store.SnapshotForAgent("A"), ScopeAgentID: "A", ThemeID: "deepseek.light"})
 		})
 	}, 800, 600)
+	if skip, ok := tt.Find(i18n.T(i18n.KeyChatQuestionSkip)); !ok {
+		t.Fatalf("skip missing: %q", tt.Texts())
+	} else if skip.H != 36 {
+		t.Fatalf("skip height = %v, want 36 DIP", skip.H)
+	}
 	for _, label := range []string{
-		i18n.T(i18n.KeyChatQuestionSkip),
-		i18n.T(i18n.KeyChatQuestionHide),
-		i18n.T(i18n.KeyInteractionDeny),
+		questionStatusText("nav.minimize"),
+		questionStatusText("nav.close"),
 	} {
 		button, ok := tt.Find(label)
 		if !ok {
 			t.Fatalf("%q missing: %q", label, tt.Texts())
 		}
-		if button.H != 36 {
-			t.Fatalf("%q height = %v, want 36 DIP", label, button.H)
+		if button.W != 24 || button.H != 24 {
+			t.Fatalf("%q seat = %vx%v, want the 24 DIP icon button", label, button.W, button.H)
 		}
 	}
 	// The primary submit sits on the same baseline row as skip.

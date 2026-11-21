@@ -37,7 +37,7 @@ func TestQuestionWizardPagerMinimizeSummaryAndReopen(t *testing.T) {
 	if _, ok := tt.Find("Question answer: Last"); !ok {
 		t.Fatal("next editor missing")
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatQuestionMinimize)); err != nil {
+	if err := tt.Click(questionStatusText("nav.minimize")); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := tt.Find("Question answer: Last"); ok {
@@ -46,7 +46,7 @@ func TestQuestionWizardPagerMinimizeSummaryAndReopen(t *testing.T) {
 	if _, ok := tt.Find(i18n.T(i18n.KeyChatQuestionPrev)); ok {
 		t.Fatal("minimize did not remove footer")
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatQuestionExpand)); err != nil {
+	if err := tt.Click(questionStatusText("nav.maximize")); err != nil {
 		t.Fatal(err)
 	}
 	if tt.Focused("Question answer: Last") {
@@ -64,7 +64,7 @@ func TestQuestionWizardPagerMinimizeSummaryAndReopen(t *testing.T) {
 	if _, ok := tt.Find("Question answer: First"); !ok {
 		t.Fatal("summary could not navigate back")
 	}
-	if err := tt.Click(i18n.T(i18n.KeyChatQuestionHide)); err != nil {
+	if err := tt.Click(questionStatusText("nav.close")); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click(i18n.T(i18n.KeyChatQuestionReopen)); err != nil {
@@ -106,7 +106,7 @@ func TestQuestionWizardSingleChoiceAdvancesAndFinalSkipSends(t *testing.T) {
 	}
 	before := s.SnapshotForAgent("A").QuestionCards["e"].Index
 	_ = tt.Click(i18n.T(i18n.KeyChatQuestionPrev))
-	_ = tt.Click(i18n.T(i18n.KeyChatQuestionMinimize))
+	_ = tt.Click(questionStatusText("nav.minimize"))
 	if s.SnapshotForAgent("A").QuestionCards["e"].Index != before {
 		t.Fatal("Sending navigation changed page")
 	}
