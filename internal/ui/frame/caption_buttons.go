@@ -94,7 +94,7 @@ func drawCaptionButtons(c *ui.Context, ink ui.Color, w captionWindowActions) {
 			Label(name).Tooltip(name)
 		button.Draw(func(p *ui.Painter, r ui.Rect) {
 			tone := ink
-			if button.Hovered() {
+			if button.Valid() && button.Hovered() {
 				p.Fill(r, fill, 8)
 				tone = hoverInk
 			}

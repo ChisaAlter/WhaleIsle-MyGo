@@ -207,7 +207,7 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 			drag.active = false
 		}
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
-			if div.FocusVisible() {
+			if div.Valid() && div.FocusVisible() {
 				p.FocusRing(r, [4]float32{})
 			}
 		})

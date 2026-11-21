@@ -89,7 +89,7 @@ func paintResizeHandles(c *ui.Context, m Model, card ui.Element, muted ui.Color)
 			}
 		}
 		handle.Draw(func(p *ui.Painter, r ui.Rect) {
-			if !handle.Hovered() && s.dragging != axis {
+			if !(handle.Valid() && handle.Hovered()) && s.dragging != axis {
 				return
 			}
 			grip := ui.Rect{X: r.X + 3, Y: r.Y + r.H/2 - 12, W: 2, H: 24}

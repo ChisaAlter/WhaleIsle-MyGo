@@ -47,7 +47,7 @@ func Switch(c *ui.Context, on *bool) ui.Element {
 		p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-switchThumb)/2, W: switchThumb, H: switchThumb}, face, switchThumb/2)
 	})
 	sw.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if sw.FocusVisible() {
+		if sw.Valid() && sw.FocusVisible() {
 			ring := r.H + 2
 			p.FocusRing(ui.Rect{X: r.X - 1, Y: r.Y - 1, W: r.W + 2, H: r.H + 2}, [4]float32{ring / 2, ring / 2, ring / 2, ring / 2})
 		}

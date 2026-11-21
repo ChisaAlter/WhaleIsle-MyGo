@@ -109,7 +109,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// Request another frame only when that geometry changes, never on a timer.
 	row.DrawOver(func(_ *ui.Painter, bounds ui.Rect) {
 		width := float32(0)
-		if m.WorkspaceTrailing != nil {
+		if m.WorkspaceTrailing != nil && trailing.Valid() {
 			width = trailing.Bounds().W
 		}
 		if measure.trailing != width || measure.height != bounds.H {

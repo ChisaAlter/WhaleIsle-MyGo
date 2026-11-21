@@ -160,7 +160,7 @@ func confirmDialogButton(c *ui.Context, label string, filled, danger bool) ui.El
 		}
 	})
 	button.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if button.FocusVisible() {
+		if button.Valid() && button.FocusVisible() {
 			p.FocusRing(r, [4]float32{radius, radius, radius, radius})
 		}
 	})

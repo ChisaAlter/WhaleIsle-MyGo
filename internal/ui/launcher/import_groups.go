@@ -127,7 +127,7 @@ func importGroupCheckbox(c *ui.Context, checked *bool, mixed bool, label string)
 				p.Line(r.X+4, r.Y+8, r.X+7, r.Y+11, 2, colPrimaryFg)
 				p.Line(r.X+7, r.Y+11, r.X+12, r.Y+5, 2, colPrimaryFg)
 			}
-			if row.FocusVisible() {
+			if row.Valid() && row.FocusVisible() {
 				p.FocusRing(r, [4]float32{4, 4, 4, 4})
 			}
 		})

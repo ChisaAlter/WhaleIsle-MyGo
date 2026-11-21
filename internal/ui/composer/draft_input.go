@@ -104,7 +104,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			p.Clip(r, 0, func() { client.paintProjectedText(p, r, textInk) })
 		}
 		if !inputDisabled {
-			client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
+			client.paintTyping(p, r, fg, c.Theme().Accent, box.Valid() && box.Focused())
 		}
 	})
 	box.Children(func() {
