@@ -523,8 +523,14 @@ func ghostOf(e *node) *node {
 	g.activeDescendant, g.nameFrom, g.field, g.form = nil, nil, nil, nil
 	g.followX, g.colFit, g.gridFit = nil, nil, nil
 	g.inputFn, g.ghosts = nil, false
+	// The copy shows the frame before: the callbacks of the app's state —
+	// input, escape routing, value commits and layout observers — do not
+	// run for it. Its paint callbacks still run so it looks as it did.
+	g.regionEscape, g.valueInput = nil, nil
+	g.observeLayout, g.offsetAfterLayout = nil, nil
 	g.tl, g.nmeasure, g.leafOK = nil, 0, false
 	g.flags = g.flags&^(flagModal|flagPage|flagFocusTarget) | flagInert
+	g.ghost = true
 	for c := e.first; c != nil; c = c.next {
 		if c.leaving == 0 {
 			g.add(ghostOf(c))

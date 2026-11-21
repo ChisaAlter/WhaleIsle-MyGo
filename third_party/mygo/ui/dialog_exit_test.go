@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -196,4 +198,84 @@ func TestDialogExitReopenDropsGhost(t *testing.T) {
 	if panels != 1 {
 		t.Fatalf("reopened dialog shows %d panels", panels)
 	}
+}
+
+// TestDialogExitGhostPaintsPastExpiredElements guards the crash an
+// application met at settings close: the exit ghost repaints the Draw
+// and DrawOver closures built a frame before, whose captured elements
+// expired with that frame. On a ghost those queries must read absent —
+// the copy refers to no other element — so the paint does not panic.
+func TestDialogExitGhostPaintsPastExpiredElements(t *testing.T) {
+	SetDialogExit(DialogExit{Duration: 100 * time.Millisecond, Ease: Linear})
+	t.Cleanup(func() { SetDialogExit(DialogExit{}) })
+	open := true
+	ghostPainted := 0
+	now := time.Unix(1_000_000, 0)
+	tt := NewTester(func(c *Context) {
+		DialogBase(c, &open, func(backdrop, panel Element) {
+			panel.Children(func() {
+				el := Box(c).Size(40, 20)
+				el.Draw(func(p *Painter, r Rect) {
+					if !el.Valid() {
+						ghostPainted++
+					}
+					_ = el.FocusVisible()
+					_ = el.Hovered()
+					_ = el.Pressed()
+					_ = el.Focused()
+					_ = el.Bounds()
+					p.Fill(r, RGBA(0, 0, 0, .5), 0)
+				})
+				el.DrawOver(func(p *Painter, r Rect) {
+					_ = el.FocusVisible()
+					_ = el.Hovered()
+				})
+			})
+		})
+	}, 400, 300)
+	tt.rt.clock = func() time.Time { return now }
+	tt.Frame()
+	open = false
+	now = now.Add(40 * time.Millisecond)
+	tt.Frame()
+	g := exitGhost(tt)
+	if g == nil {
+		t.Fatal("the closed dialog left no exit ghost")
+	}
+	if !g.ghost {
+		t.Fatal("the exit copy is not marked as a ghost")
+	}
+	if ghostPainted == 0 {
+		t.Fatal("the ghost's Draw did not run")
+	}
+	now = now.Add(150 * time.Millisecond)
+	tt.Frame()
+	if exitGhost(tt) != nil {
+		t.Fatal("the exit ghost is still there after the exit")
+	}
+	if tt.h.requested.Load() {
+		t.Fatal("the runtime still asks for frames after the exit")
+	}
+}
+
+// TestExpiredElementQueryStillPanicsOnLiveElements keeps the diagnostic
+// the ghost suspends: a stale element queried from a live paint callback
+// still panics, so the misuse stays loud outside exit painting.
+func TestExpiredElementQueryStillPanicsOnLiveElements(t *testing.T) {
+	var stale Element
+	first := true
+	defer func() {
+		r := recover()
+		if r == nil || !strings.Contains(fmt.Sprint(r), "element from pass") {
+			t.Fatalf("expected the expired-element panic, got %v", r)
+		}
+	}()
+	tt := NewTester(func(c *Context) {
+		cur := Box(c).Size(10, 10)
+		if first {
+			stale, first = cur, false
+		}
+		cur.Draw(func(p *Painter, r Rect) { _ = stale.FocusVisible() })
+	}, 100, 100)
+	tt.Frame()
 }
