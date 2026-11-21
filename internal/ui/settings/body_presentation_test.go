@@ -196,7 +196,13 @@ func TestSettingsPreferenceRowsReflowLongCopy(t *testing.T) {
 	if wide.W <= 0 || wide.W >= 140 || math.Abs(float64(wide.X+wide.W-596)) > .1 {
 		t.Fatalf("intrinsic selector should be positive and flush-right: %v", wide)
 	}
-	title, titleOK := tt.Find("Long preference title that must wrap without escaping its settings column")
+	// The row is a labeled group now and registers before its copy: the first
+	// inner match is the title text itself.
+	titles := tt.FindAll("Long preference title that must wrap without escaping its settings column")
+	title, titleOK := ui.Rect{}, len(titles) >= 2
+	if titleOK {
+		title = titles[1]
+	}
 	if !titleOK || title.H <= 22 || title.X+title.W+48+8 > wide.X+.1 {
 		t.Fatalf("long copy did not wrap in its source text column: %+v control=%+v", title, wide)
 	}
@@ -222,10 +228,11 @@ func TestBodyTextDraftsStayWithHostAndAdoptAcknowledgedValues(t *testing.T) {
 	}, 340, 350)
 	focusCaption := func() {
 		t.Helper()
-		r, ok := tt.Find("Caption")
-		if !ok {
+		rs := tt.FindAll("Caption")
+		if len(rs) < 2 {
 			t.Fatal("caption label missing")
 		}
+		r := rs[1] // first inner match after the labeled row group
 		// The source row stacks its input below the title at this width.
 		tt.ClickAt(r.X+30, r.Y+r.H+24)
 	}

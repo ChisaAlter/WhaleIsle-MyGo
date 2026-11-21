@@ -51,7 +51,8 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	a := m.Plugins
 	ui.Text(c, i18n.T(i18n.KeySettingsSectionPlugins)).FontSize(fonttheme.InterfaceSize(16)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
-	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(muted)
+	// The source's .intro copy is 13px on the normal line box (~17.3 DIP).
+	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(17.3)).TextColor(muted)
 	pluginSettingsTabs(c, a, fg, muted)
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
 		if ui.Button(c, pluginsText("管理插件包", "Manage plugin packages")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenManager == nil).Clicked() && a.OnOpenManager != nil {

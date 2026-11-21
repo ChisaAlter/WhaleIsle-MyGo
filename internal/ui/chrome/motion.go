@@ -22,6 +22,11 @@ const (
 	OverlayExitDuration = 100 * time.Millisecond
 	// PopoverDuration is how long a menu or a floating card takes.
 	PopoverDuration = 160 * time.Millisecond
+	// SwapDuration is how long keyed content takes to fade in: the design
+	// system's swap token rides the fast 100 ms transition duration
+	// (--ds-motion-duration-swap = --ds-transition-duration-fast;
+	// ui-theme/src/styles/base.css:16,21).
+	SwapDuration = 100 * time.Millisecond
 )
 
 // How far a surface rises as it appears, in DIPs, and how much smaller it is

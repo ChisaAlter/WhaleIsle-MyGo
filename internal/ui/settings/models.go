@@ -140,7 +140,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 							modelNamespaceEditor(c, body, namespace.NS, func() { (*dismissedSetup)[entry.Provider] = true; *editing = "" })
 						})
 					}
-					providerCard := ui.Column(c.Key("model-provider-" + entry.Provider)).FillWidth().MinWidth(0).Gap(8)
+					providerCard := ui.Column(c.Key("model-provider-" + entry.Provider)).FillWidth().MinWidth(0).Gap(8).Label(title)
 					providerCard.Children(func() {
 						if open && *setupOpen == entry.Provider {
 							// First run: the setup card IS the provider's presence on the page.
