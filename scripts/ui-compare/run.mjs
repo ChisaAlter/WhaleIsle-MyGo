@@ -9,13 +9,19 @@
 // process memory; the temp root is removed in finally unless --keep-open.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import http from 'node:http';
 
 const REPO = process.cwd();
 const TOOL_DIR = new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const RUNTIME = join(REPO, 'runtime-rc4');
+// A worktree may carry runtime-rc4 as a directory junction to the shared
+// checkout: Node and Chrome resolve it transparently, but the native shell
+// EvalSymlinks each plugin source while mounting profile junctions and
+// fails on a path that itself traverses a junction. Feed the shell the
+// real location through the documented vendor/node env overrides instead.
+const RUNTIME_REAL = realpathSync(RUNTIME);
 const NODE = join(RUNTIME, 'node', 'node.exe');
 const HOST_BIN = join(RUNTIME, 'vendor', 'deepseek-harness', 'apps', 'cli', 'lib', 'bin.js');
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -154,7 +160,7 @@ try {
   if (b.status !== 0) throw new Error('go build: ' + (b.stderr || '').slice(0, 400));
   const cfgPath = join(tmp, 'data', 'config.json');
   const launchNative = () => tracked(spawn(join(tmp, 'whaleisle.exe'), [], {
-    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), ...modelEnv },
+    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), WHALEISLE_VENDOR: join(RUNTIME_REAL, 'vendor'), WHALEISLE_NODE_DIR: join(RUNTIME_REAL, 'node'), ...modelEnv },
     cwd: REPO, stdio: ['ignore', 'ignore', 'ignore'],
   }), 'whaleisle');
   // Phase 1: let the app write its default config, then patch the workspace
