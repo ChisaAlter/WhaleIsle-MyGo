@@ -221,7 +221,11 @@ func conversationView(c *ui.Context, m Model) {
 					// vertically only there: process rows sit 6 apart, an answer 12,
 					// a turn header 16. A standalone surface keeps its own 16 DIP side
 					// inset because no column provides one.
-					padT, padB := messageSpacing(msg)
+					var prev session.Message
+					if messageIndex > 0 {
+						prev = msgs[messageIndex-1]
+					}
+					padT, padB := messageSpacing(msg, prev)
 					if padB < 0 && (!transcriptControls[msg.ID].open) {
 						padB = 0
 					}
@@ -579,8 +583,11 @@ func displayableAction(text string) string {
 
 // messageSpacing grades the vertical rhythm of one transcript row. The side
 // gutter is the column's job; this only owns the block gap above and below, as
-// the Original flow does (process rows 6, an answer 12, a turn header 16).
-func messageSpacing(msg session.Message) (top, bottom float32) {
+// the Original flow does (process rows 4, an answer 12, a turn header 16).
+// The prev argument is the row's transcript predecessor, needed because the
+// Original's step-process gap depends on the pair: a step title sits 12 DIP
+// under a response, 4 under another process row and 16 under the turn control.
+func messageSpacing(msg, prev session.Message) (top, bottom float32) {
 	switch {
 	case msg.Role == "user":
 		return 16, 2
@@ -595,7 +602,17 @@ func messageSpacing(msg session.Message) (top, bottom float32) {
 			// The group title's own 8 DIP bottom pad is inside the row; the
 			// Original's step-process body starts its first member flush, so
 			// the message-level bottom pad pays back the member's 6 DIP top pad.
-			return 12, -6
+			top = 12
+			switch {
+			case prev.Role == "assistant" && prev.Kind == session.MessageKindText:
+				// A step after the response takes the response's 12 DIP
+				// neighbour gap, so its own 4 DIP bottom pad is repaid here.
+				top = 8
+			case prev.Kind == session.MessageKindThinking || prev.Kind == session.MessageKindTool || strings.HasPrefix(prev.ID, "transcript-group:"):
+				// Step rows sit 4 apart; members end flush with their step.
+				top = 4
+			}
+			return top, -6
 		}
 		// TurnProcessNodeView rows sit in a 16 DIP flow gap on both sides.
 		return 14, 4
