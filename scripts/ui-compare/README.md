@@ -6,7 +6,7 @@ measures the same landmarks in DIP on both, screenshots both at the same pixel
 size, and reports deltas.
 
 ```
-node scripts/ui-compare/run.mjs [--surface workbench|chat|settings] [--landmarks <path>] [--keep-open]
+node scripts/ui-compare/run.mjs [--surface workbench|chat|settings|files] [--landmarks <path>] [--keep-open]
 ```
 
 Outputs land in `tmp/ui-compare/<run-id>/` (gitignored): `summary.json`,
@@ -117,6 +117,16 @@ differences and are simply not mapped as landmarks.
   (account menu → settings). Its rail is not compared group-for-group: the
   native rail carries extra groups (`账户`, `功能`) that the installed web
   build does not, so only the shared cells and per-cell rhythm are mapped.
+- The `files` surface seeds a workspace tree (`seed-files.mjs`: `README.md`,
+  `src/app.ts`, `src/util/strings.ts`, `docs/notes.txt`, a git repo with one
+  `core.autocrlf=false` commit plus an uncommitted `src/app.ts` edit) into
+  the temp root before either Host launches, so the tree, file preview,
+  markdown preview, and working-tree diff are identical on both sides. The
+  right-pane dock sits ~23 DIP higher on native because the pane docks
+  directly under the 48 DIP merged caption band the web build does not
+  carry — every in-pane `dy-prev`/row height is the asserted signal, not
+  absolute `y`. The terminal scenario measures only the panel frame/tab:
+  the terminal content is a native child surface UIA cannot inspect.
 - Only processes the run started are stopped (tracked PIDs plus a
   command-line sweep for the run id); the temp root is removed unless
   `--keep-open`, which prints how to stop them.

@@ -1402,6 +1402,553 @@
           "id": "settings-section-swap"
         }
       ]
+    },
+    "files": {
+      "workspace": "seed-files.mjs",
+      "scenarios": [
+        {
+          "id": "files-panel",
+          "domDump": "[data-sidebar-right-panel]",
+          "nativeDump": true,
+          "web": {
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "click": {
+                  "within": "div[role=tree]",
+                  "text": [
+                    "奇偶校验基准会话",
+                    "未命名"
+                  ],
+                  "upTo": "[role=treeitem]"
+                },
+                "expect": {
+                  "selector": "button[aria-label='打开右侧边栏'],button[aria-label='收起右侧边栏']"
+                }
+              },
+              {
+                "click": {
+                  "selector": "button[aria-label='打开右侧边栏']"
+                },
+                "expect": {
+                  "selector": "[data-sidebar-right-open]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-sidebar-right-guide-entry='files']"
+                },
+                "expect": {
+                  "selector": "[data-file-tree]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-item-path='src']"
+                },
+                "expect": {
+                  "selector": "[data-item-path='src/app.ts']"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-item-path='src/util']"
+                },
+                "expect": {
+                  "selector": "[data-item-path='src/util/strings.ts']"
+                }
+              }
+            ]
+          },
+          "native": {
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ],
+            "steps": [
+              {
+                "invoke": {
+                  "namePrefix": "奇偶校验基准会话",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "切换右侧栏",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "切换右侧栏",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "文件",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "文件",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "File README.md"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "Folder src"
+                },
+                "expect": {
+                  "name": "File src/app.ts"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "Folder src/util"
+                },
+                "expect": {
+                  "name": "File src/util/strings.ts"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "files.toggle-probe",
+              "probe": true,
+              "web": {
+                "selector": "button[aria-label='打开右侧边栏']"
+              },
+              "native": {
+                "name": "切换右侧栏",
+                "type": "Button"
+              }
+            },
+            {
+              "key": "files.panel",
+              "web": {
+                "selector": "[data-files-panel]"
+              },
+              "native": {
+                "name": "文件面板"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "files.tab",
+              "web": {
+                "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']"
+              },
+              "native": {
+                "name": "文件",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "files.search",
+              "web": {
+                "selector": "*:has(> input[aria-label='搜索文件'])"
+              },
+              "native": {
+                "name": "筛选文件…",
+                "type": "Edit"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "files.tree",
+              "web": {
+                "selector": "[data-file-tree]"
+              },
+              "native": {
+                "name": "文件树"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w"
+              ]
+            },
+            {
+              "key": "files.row-dir",
+              "web": {
+                "selector": "[data-item-path='docs']"
+              },
+              "native": {
+                "name": "Folder docs"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "files.row-dir-src",
+              "web": {
+                "selector": "[data-item-path='src']"
+              },
+              "native": {
+                "name": "Folder src"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "files.row-nested",
+              "web": {
+                "selector": "[data-item-path='src/app.ts']"
+              },
+              "native": {
+                "name": "File src/app.ts"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "files.row-dir-util",
+              "web": {
+                "selector": "[data-item-path='src/util']"
+              },
+              "native": {
+                "name": "Folder src/util"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "files.row-deep",
+              "web": {
+                "selector": "[data-item-path='src/util/strings.ts']"
+              },
+              "native": {
+                "name": "File src/util/strings.ts"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev",
+                "dx-parent-left"
+              ]
+            },
+            {
+              "key": "files.row-file",
+              "web": {
+                "selector": "[data-item-path='README.md']"
+              },
+              "native": {
+                "name": "File README.md"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "files-preview",
+          "domDump": "[data-sidebar-right-panel]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": { "selector": "[data-item-path='src/app.ts']" },
+                "expect": { "selector": "[data-file-preview]" }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": { "name": "File src/app.ts" },
+                "expect": { "name": "File preview toolbar" }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "preview.panel",
+              "web": { "selector": "[data-file-preview]" },
+              "native": { "name": "文件预览" },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "preview.toolbar",
+              "web": { "within": "[data-file-preview]", "selector": "[class*=toolbar]" },
+              "native": { "name": "File preview toolbar" },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "preview.crumbs",
+              "web": { "selector": "[data-file-breadcrumbs]" },
+              "native": { "name": "File breadcrumbs" },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "preview.body",
+              "web": { "within": "[data-file-preview]", "selector": "textarea" },
+              "native": { "name": "文件内容", "type": "Edit" },
+              "assert": ["x", "y", "w", "h", "dy-prev"]
+            },
+            {
+              "key": "preview.tab",
+              "web": { "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']" },
+              "native": { "name": "app.ts", "type": "Button" },
+              "assert": ["x", "y", "h"]
+            }
+          ]
+        },
+        {
+          "id": "files-markdown",
+          "domDump": "[data-sidebar-right-panel]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": { "selector": "[data-dockkit-tab-title]", "index": 0, "upTo": "[role=tab]" },
+                "expect": { "selector": "[data-file-tree]" }
+              },
+              {
+                "click": { "selector": "[data-item-path='README.md']" },
+                "expect": { "selector": "[data-file-preview]" }
+              },
+              {
+                "click": { "within": "[data-file-preview]", "text": ["渲染", "Rendered"] },
+                "expect": { "selector": "[data-file-preview] h1, [data-file-preview] h2, [data-file-preview] h3" }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": { "name": "文件", "type": "Button" },
+                "expect": { "name": "File README.md" }
+              },
+              {
+                "invoke": { "name": "File README.md" },
+                "expect": { "name": "File preview toolbar" }
+              },
+              {
+                "invoke": { "name": "渲染" },
+                "expect": { "namePrefix": "Fixture Notes", "type": "Text" }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "md.flow",
+              "web": { "within": "[data-file-preview]", "selector": "[class*=markdown]" },
+              "native": { "name": "Markdown 内容" },
+              "assert": ["x", "y", "w"]
+            },
+            {
+              "key": "md.prose",
+              "web": { "within": "[data-file-preview]", "selector": "h1" },
+              "native": { "type": "Text", "namePrefix": "Fixture Notes" },
+              "assert": ["x", "y"]
+            },
+            {
+              "key": "md.code-card",
+              "web": { "within": "[data-file-preview]", "selector": "[class*=md-code-block]" },
+              "native": { "name": "Code block" },
+              "assert": ["x", "y", "w", "h", "dy-prev"]
+            },
+            {
+              "key": "md.code-banner",
+              "web": { "selector": "[data-code-block-banner]" },
+              "native": { "name": "Code block banner" },
+              "assert": ["x", "y", "w", "h", "dy-prev"]
+            }
+          ]
+        },
+        {
+          "id": "diff-worktree",
+          "domDump": "[data-sidebar-right-panel]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": { "selector": "[data-dockkit-add-tab]" },
+                "expect": { "selector": "[data-sidebar-right-guide-entry='diff']" }
+              },
+              {
+                "click": { "selector": "[data-sidebar-right-guide-entry='diff']" },
+                "expect": { "selector": "[data-diff-panel]" }
+              },
+              {
+                "click": { "within": "[data-diff-panel]", "text": "全部展开" },
+                "expect": { "selector": "[data-diff-line]" }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": { "name": "新标签页", "type": "Button" },
+                "expect": { "name": "Diff", "type": "Button" }
+              },
+              {
+                "invoke": { "name": "Diff", "type": "Button" },
+                "expect": { "name": "工作区差异" }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "diff.panel",
+              "web": { "selector": "[data-diff-panel]" },
+              "native": { "name": "工作区差异" },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "diff.file-header",
+              "web": { "within": "[data-diff-panel]", "selector": "[data-disclosure-row]", "index": 0 },
+              "native": { "name": "Diff file src/app.ts" },
+              "assert": ["y", "h"]
+            },
+            {
+              "key": "diff.hunk-header",
+              "web": { "selector": "[data-diff-hunk-header]" },
+              "native": { "name": "Diff hunk header" },
+              "assert": ["y", "h", "dy-prev"]
+            },
+            {
+              "key": "diff.line-del",
+              "web": { "selector": "[data-diff-line='del']", "index": 0 },
+              "native": { "name": "Diff line del" },
+              "assert": ["y", "h", "dy-prev"]
+            },
+            {
+              "key": "diff.line-add",
+              "web": { "selector": "[data-diff-line='add']", "index": 0 },
+              "native": { "name": "Diff line add" },
+              "assert": ["y", "h", "dy-prev"]
+            },
+            {
+              "key": "diff.line-context",
+              "web": { "selector": "[data-diff-line='context']", "index": 0 },
+              "native": { "name": "Diff line context" },
+              "assert": ["y", "h", "dy-prev"]
+            },
+            {
+              "key": "diff.gutter",
+              "web": { "selector": "[data-diff-line] [class*=num],[data-diff-line] [class*=gutter]", "index": 0 },
+              "native": { "namePrefix": "Diff gutter" },
+              "assert": ["w"]
+            }
+          ]
+        },
+        {
+          "id": "terminal-panel",
+          "domDump": "[data-sidebar-right-panel]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": { "selector": "[data-dockkit-add-tab]" },
+                "expect": { "selector": "[data-sidebar-right-guide-entry='terminal']" }
+              },
+              {
+                "click": { "selector": "[data-sidebar-right-guide-entry='terminal']" },
+                "expect": { "selector": "[data-sidebar-terminal]" }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": { "name": "新标签页", "type": "Button" },
+                "expect": { "namePrefix": "Host", "type": "Button" }
+              },
+              {
+                "invoke": { "namePrefix": "Host", "type": "Button" },
+                "expect": { "name": "Terminal", "type": "Group" }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "terminal.panel",
+              "web": { "selector": "[data-sidebar-terminal]" },
+              "native": { "name": "Terminal", "type": "Group" },
+              "assert": ["x", "y", "w", "h"]
+            },
+            {
+              "key": "terminal.tab",
+              "web": { "selector": "[data-sidebar-right-panel] [role=tab][aria-selected='true']" },
+              "native": { "name": "cmd.exe", "type": "Button" },
+              "assert": ["x", "y", "w", "h"]
+            }
+          ]
+        }
+      ],
+      "fixture": "fixtures/chat-basic.json",
+      "webShell": true
     }
   }
 }

@@ -96,6 +96,14 @@ try {
   const wsDir = join(tmp, WS_DIR_NAME);
   mkdirSync(wsDir, { recursive: true });
 
+  // A surface may seed workspace content (file trees, a git repo) into the
+  // shared directory before either Host launches.
+  if (surfaceSpec.workspace) {
+    const s = spawnSync(NODE, [join(TOOL_DIR, surfaceSpec.workspace), wsDir], { encoding: 'utf8' });
+    if (s.status !== 0) throw new Error(`workspace seed: ${(s.stderr || s.stdout || '').slice(0, 400)}`);
+    console.log((s.stdout || '').trim());
+  }
+
   // A surface may seed a static session history into BOTH Hosts' DSH homes
   // before either launches (native: <profile>/dsh-home; web: host2's
   // DSH_HOME). Sessions land under sessions/<projectKey(wsDir)>/, so both
@@ -147,6 +155,10 @@ try {
   await sleep(1500);
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8').replace(/^﻿/, ''));
   cfg.workspace = wsDir;
+  // The startup-slowness offer can surface mid-scenario (its observer needs
+  // real frames) and covers the pane under test; the dismiss loop only runs
+  // during setup, so suppress the offer in the isolated profile outright.
+  cfg.goMinimalModeSuggestionsOff = true;
   writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
   nativeProc = launchNative();
 
@@ -220,6 +232,28 @@ try {
   await sleep(4500);
   console.log('[web] title:', await evalJs('document.title'));
 
+  // A surface may declare webShell: the seeded workspace's files-shell.json is
+  // installed as window.shell — the preload IPC the desktop app provides, fed
+  // with the fixture's real listing/content/git data (seed-files.mjs). The
+  // served client's desktop pages read window.shell lazily, so installing it
+  // here, before any step opens a tab, is enough.
+  if (surfaceSpec.webShell) {
+    const payload = JSON.parse(readFileSync(join(tmp, 'files-shell.json'), 'utf8'));
+    await evalJs(`(()=>{const p=${JSON.stringify(payload)};
+      window.shell={
+        listDir:async(cwd,rel)=>({ok:true,entries:p.tree[(rel??'').replace(/^[\\\\/]+|[\\\\/]+$/g,'')]??[]}),
+        readFile:async(cwd,rel)=>(rel in p.texts?{ok:true,text:p.texts[rel]}:{ok:false,message:'not found'}),
+        readFileMedia:async()=>({ok:false,message:'no media'}),
+        writeFile:async()=>({ok:true}),
+        listEditors:async()=>[],
+        gitStatus:async()=>({ok:true}),
+        gitDiff:async()=>p.diff,
+        gitStatusEntries:async()=>({ok:true,entries:p.entries}),
+        gitBranchList:async()=>({ok:true,branches:p.branches,defaultRef:p.defaultRef}),
+      };return true})()`);
+    console.log('[web] window.shell bridge installed');
+  }
+
   // ---- helpers over both sides ----
   // A web spec: {selector?, text?, within?, upTo?, index?} — scope = within
   // (default document), candidates match selector (default all visible),
@@ -231,7 +265,7 @@ try {
         if(cs.display==='none'||cs.visibility==='hidden'||cs.contentVisibility==='hidden')return false;
         if(n.hidden===true||n.hidden==='')return false}
       return true};
-    const scope=${spec.within ? `document.querySelectorAll(${JSON.stringify(spec.within)})[${spec.withinIndex||0}]||document` : 'document'};
+    const scope=${spec.within ? `[...document.querySelectorAll(${JSON.stringify(spec.within)})].filter(vis)[${spec.withinIndex||0}]||document` : 'document'};
     let els=[...scope.querySelectorAll(${JSON.stringify(spec.selector || '*')})].filter(vis);
     ${spec.text ? `els=els.filter(e=>{let t='';for(const n of e.childNodes)if(n.nodeType===3)t+=n.textContent;t=t.trim();return ${JSON.stringify([].concat(spec.text))}.includes(t)});` : ''}
     let e=els[${spec.index || 0}];if(!e)return null;
@@ -288,12 +322,25 @@ try {
   async function nativeSetup(s) {
     if (!s.dismiss) return null;
     const gone = s.gone || s.dismiss;
-    if (!nativePresent(gone)) {
-      return s.optional ? null : `native setup: dismiss target ${JSON.stringify(gone)} never appeared`;
-    }
-    act('invoke', s.dismiss);
+    // Same verified loop as webSetup: first-run prompts can arrive seconds
+    // after the workbench is up, so watch for the target, dismiss each time
+    // it appears, and settle on a quiet period.
     const t0 = Date.now();
-    while (Date.now() - t0 < WAIT_MS) { if (!nativePresent(gone)) return null; await sleep(250); }
+    let quietSince = 0, sawTarget = false;
+    while (Date.now() - t0 < WAIT_MS * 4) {
+      if (!nativePresent(gone)) {
+        if (!quietSince) { quietSince = Date.now(); }
+        else if (Date.now() - quietSince > 3500) {
+          return !sawTarget && !s.optional ? `native setup: dismiss target ${JSON.stringify(gone)} never appeared` : null;
+        }
+        await sleep(200);
+        continue;
+      }
+      sawTarget = true;
+      quietSince = 0;
+      act('invoke', s.dismiss);
+      await sleep(400);
+    }
     return `native setup: ${JSON.stringify(gone)} still present after dismiss`;
   }
 
@@ -326,7 +373,18 @@ try {
       }
       for (const s of (sc.native?.steps || [])) {
         const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : null;
-        if (cmd) { const r = act(cmd, s[cmd]); if (!r.ok) scError = `native step ${cmd} ${s[cmd].name}: ${r.error}`; }
+        // Poll for the step target the way expects do: first-run dialogs and
+        // lazy lists can cost the target a few frames.
+        if (cmd && !(await nativeExpect(s[cmd]))) scError = `native step ${cmd} ${s[cmd].name}: target absent`;
+        // The act runs in a second process; a re-render between the presence
+        // poll and the action can drop the element for one spawn, so retry on
+        // "no match" the same way the poll does.
+        if (cmd && !scError) {
+          let r = act(cmd, s[cmd]);
+          const t0 = Date.now();
+          while (!r.ok && /no match/.test(r.error || '') && Date.now() - t0 < WAIT_MS) { await sleep(300); r = act(cmd, s[cmd]); }
+          if (!r.ok) scError = `native step ${cmd} ${s[cmd].name}: ${r.error}`;
+        }
         await sleep(500);
         if (s.expect && !scError && !(await nativeExpect(s.expect))) scError = `native step expect: ${JSON.stringify(s.expect)} absent`;
         if (scError) break;
@@ -391,7 +449,8 @@ try {
       writeFileSync(join(outDir, `${sc.id}-dom.html`), htmlDump);
     }
     if (sc.nativeDump) {
-      try { writeFileSync(join(outDir, `${sc.id}-uia.json`), JSON.stringify(ps1('dump'))); } catch {}
+      try { writeFileSync(join(outDir, `${sc.id}-uia.json`), JSON.stringify(ps1('dump', ['-Depth', String(sc.nativeDumpDepth || 8)]))); }
+      catch (e) { writeFileSync(join(outDir, `${sc.id}-uia.error.txt`), String(e)); }
     }
     ps1('capture', ['-Out', join(outDir, `${sc.id}-native.png`)]);
     summary.scenarios.push({ id: sc.id, landmarks: lms, ...(scError ? { error: scError } : {}) });

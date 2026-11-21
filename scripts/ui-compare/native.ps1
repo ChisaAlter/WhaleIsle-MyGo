@@ -41,7 +41,10 @@ $hwnd = $proc.MainWindowHandle
 if ($hwnd -eq [IntPtr]::Zero) { throw "pid $ProcId has no main window" }
 
 function Rect-Of($r) {
-  [pscustomobject]@{ x=[math]::Round($r.X,1); y=[math]::Round($r.Y,1); w=[math]::Round($r.Width,1); h=[math]::Round($r.Height,1) }
+  $vals = @($r.X, $r.Y, $r.Width, $r.Height) | ForEach-Object {
+    if ([double]::IsInfinity($_) -or [double]::IsNaN($_)) { $null } else { [math]::Round($_,1) }
+  }
+  [pscustomobject]@{ x=$vals[0]; y=$vals[1]; w=$vals[2]; h=$vals[3] }
 }
 function Find-Elements($root, $name, $type, $prefix) {
   $cond = [System.Windows.Automation.Condition]::TrueCondition
