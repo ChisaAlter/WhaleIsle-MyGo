@@ -78,7 +78,7 @@ func View(c *ui.Context, m Model) {
 			if e.EditingID != "" {
 				mode = i18n.T(i18n.KeyMiscCustompanelEditThisBotSCopy)
 				if e.Template {
-					mode = "编辑库模板（已有副本不变）/ Edit template for future copies"
+					mode = i18n.T(i18n.KeyMiscCustompanelEditLibraryTemplate)
 				}
 			}
 			ui.Text(c, mode).FontSize(11).TextColor(muted)
@@ -92,7 +92,7 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 			if e.Preview != nil {
-				ui.Text(c, "预览（不运行操作）/ Preview").TextColor(muted)
+				ui.Text(c, i18n.T(i18n.KeyMiscCustompanelPreviewOnly)).TextColor(muted)
 				render(c.Key("preview"), panel.Instance{Definition: *e.Preview, State: map[string]string{}}, nil, nil, fg, border)
 			}
 			ui.Text(c, i18n.T(i18n.KeyMiscCustompanelThisBotSPanels)).Bold().TextColor(fg)

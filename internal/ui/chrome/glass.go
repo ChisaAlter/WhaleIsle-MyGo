@@ -375,7 +375,7 @@ func MenuRow(c *ui.Context, colors theme.Colors) ui.Element {
 
 // MenuRowColors is MenuRow for callers that only hold ui.Theme colors.
 func MenuRowColors(c *ui.Context, hover, pressed ui.Color) ui.Element {
-	row := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Gap(6).Radius(12).BorderWidth(0).
+	row := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Gap(6).Radius(theme.ContextRadii(c).MD).BorderWidth(0).
 		Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
 	row = row.Transition(ui.ElementTransition{Duration: PopoverDuration, Colors: true})
 	if row.Pressed() {

@@ -40,7 +40,7 @@ type window struct {
 	productComposing bool
 	productDown      map[uint16]bool
 	beforeInput      func(platform.KeyInput) bool
-	devToolsEnabled *bool
+	devToolsEnabled  *bool
 	b                *Backend
 	id               int
 	h                platform.WindowHandler

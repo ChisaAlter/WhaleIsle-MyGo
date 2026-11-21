@@ -3,7 +3,7 @@
 # explicitly isolated GOPATH/GOMODCACHE/GOCACHE/GOTMPDIR/PSModuleAnalysisCachePath
 # supplied by the caller.
 # Go owns and removes its ordinary temporary build directories under system TEMP.
-$env:GOTOOLCHAIN = 'go1.27.2+auto'
+$env:GOTOOLCHAIN = 'go1.27.4+auto'
 $env:CGO_ENABLED = '0'
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 if ($env:GOTMPDIR) { New-Item -ItemType Directory -Force $env:GOTMPDIR | Out-Null }

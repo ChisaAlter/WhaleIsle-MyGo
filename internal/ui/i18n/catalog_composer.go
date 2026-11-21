@@ -84,6 +84,20 @@ const (
 	KeyComposerAttachmentUnavailable   = "composer.attachment.unavailable"
 	KeyComposerAttachmentImage         = "composer.attachment.image"
 
+	KeyComposerAttachmentFailedStatus        = "composer.attachment.failed_status"
+	KeyComposerAttachmentUploadingStatus     = "composer.attachment.uploading_status"
+	KeyComposerAttachmentSendingStatus       = "composer.attachment.sending_status"
+	KeyComposerAttachmentReadyStatus         = "composer.attachment.ready_status"
+	KeyComposerAttachmentPendingStatus       = "composer.attachment.pending_status"
+	KeyComposerAttachmentClosePreview        = "composer.attachment.close_preview"
+	KeyComposerAttachmentLoadingOriginal     = "composer.attachment.loading_original"
+	KeyComposerAttachmentOriginalUnavailable = "composer.attachment.original_unavailable"
+	KeyComposerSubmissionUnconfirmed         = "composer.submission_unconfirmed"
+	KeyComposerFilePasteReadFailed           = "composer.file_paste.read_failed"
+	KeyComposerFileIntakeWaitPreparing       = "composer.file_intake.wait_preparing"
+	KeyComposerFileIntakeTooMany             = "composer.file_intake.too_many"
+	KeyComposerFileIntakeInvalidPath         = "composer.file_intake.invalid_path"
+
 	KeyComposerVoiceStop            = "composer.voice.stop"
 	KeyComposerVoiceInsert          = "composer.voice.insert"
 	KeyComposerVoiceRetry           = "composer.voice.retry"
@@ -176,6 +190,19 @@ func init() {
 	Register(KeyComposerAttachmentFailed, "上传失败，点击重试", "Upload failed, retry")
 	Register(KeyComposerAttachmentUnavailable, "文件不可用", "File unavailable")
 	Register(KeyComposerAttachmentImage, "图片", "Image")
+	Register(KeyComposerAttachmentFailedStatus, "失败", "Failed")
+	Register(KeyComposerAttachmentUploadingStatus, "上传中", "Uploading")
+	Register(KeyComposerAttachmentSendingStatus, "发送中", "Sending")
+	Register(KeyComposerAttachmentReadyStatus, "就绪", "Ready")
+	Register(KeyComposerAttachmentPendingStatus, "待上传", "Pending")
+	Register(KeyComposerAttachmentClosePreview, "关闭预览", "Close preview")
+	Register(KeyComposerAttachmentLoadingOriginal, "加载原图", "Loading original…")
+	Register(KeyComposerAttachmentOriginalUnavailable, "原图预览不可用", "Original preview unavailable")
+	Register(KeyComposerSubmissionUnconfirmed, "发送结果待确认，请查看会话；不要重复发送。", "Send outcome unconfirmed; check the conversation before resending.")
+	Register(KeyComposerFilePasteReadFailed, "无法读取剪贴板文件", "Unable to read clipboard files")
+	Register(KeyComposerFileIntakeWaitPreparing, "请等待附件准备完成", "Wait for attachment preparation")
+	Register(KeyComposerFileIntakeTooMany, "一次最多粘贴或拖入128个文件", "At most 128 files per paste or drop")
+	Register(KeyComposerFileIntakeInvalidPath, "文件路径无效", "Invalid file path")
 	Register(KeyComposerVoiceStop, "停止并转写", "Stop recording")
 	Register(KeyComposerVoiceInsert, "插入转写", "Insert transcript")
 	Register(KeyComposerVoiceRetry, "重试录音", "Retry recording")

@@ -10,14 +10,14 @@ import (
 )
 
 type genPackage struct {
-	root       string
-	srcPath    string
-	parsed     *parsedFile
-	tf         *typertFile
-	goName     string // e.g. dsh_llm (file name base and idempotency key)
-	prefix     string // e.g. DshLlm (exported identifier prefix)
-	shortName  string // e.g. dsh-llm
-	rendered   []byte
+	root      string
+	srcPath   string
+	parsed    *parsedFile
+	tf        *typertFile
+	goName    string // e.g. dsh_llm (file name base and idempotency key)
+	prefix    string // e.g. DshLlm (exported identifier prefix)
+	shortName string // e.g. dsh-llm
+	rendered  []byte
 }
 
 // goPackageNames derives the sanitized Go name base and exported prefix for

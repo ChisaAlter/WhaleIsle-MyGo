@@ -1,4 +1,4 @@
-﻿package webview
+package webview
 
 import (
 	"testing"
@@ -11,10 +11,10 @@ func TestDevToolsShortcutGating(t *testing.T) {
 		packaged, openDevTools bool
 		want                   bool
 	}{
-		{false, false, true},  // development always allows it
-		{false, true, true},   // ... and the setting changes nothing there
-		{true, false, false},  // packaged without the setting is blocked
-		{true, true, true},    // packaged with the explicit setting is allowed
+		{false, false, true}, // development always allows it
+		{false, true, true},  // ... and the setting changes nothing there
+		{true, false, false}, // packaged without the setting is blocked
+		{true, true, true},   // packaged with the explicit setting is allowed
 	}
 	for _, c := range cases {
 		if got := DevToolsShortcutAllowed(c.packaged, c.openDevTools); got != c.want {

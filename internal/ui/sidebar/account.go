@@ -250,6 +250,12 @@ func accountInitial(name string) string {
 
 func accountMenu(a Account, open func()) func(*ui.Menu) {
 	return func(menu *ui.Menu) {
+		if accountSignedOut(a) {
+			// AccountMenu.module.css .signedOutMenu [role='menuitem']: taller
+			// rows than the shared menu metrics — 40 min height, 8/10 padding,
+			// gap 8, 14-on-22 labels and 16 icons.
+			menu.Rows(ui.MenuRows{MinHeight: 40, PadV: 8, PadH: 10, Gap: 8, FontSize: theme.InterfaceSize(14), LineHeight: theme.InterfaceSize(22), IconSize: 16})
+		}
 		if open != nil && menu.Item(i18n.T(i18n.KeySettingsOpen)).Key("account:settings").Chosen() {
 			open()
 		}

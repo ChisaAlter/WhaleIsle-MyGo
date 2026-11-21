@@ -10,9 +10,24 @@ import (
 	"whaleisle/internal/ui/i18n"
 )
 
+// workspaceTitleSeat finds the title button's seat when the treeitem header
+// row carries the same accessible name as the button inside it. Find returns
+// the row; the seat is the 32-DIP match among FindAll's results.
+func workspaceTitleSeat(tt *ui.Tester, title string) (ui.Rect, bool) {
+	var last ui.Rect
+	ok := false
+	for _, r := range tt.FindAll(title) {
+		last, ok = r, true
+		if r.H == 32 {
+			return r, true
+		}
+	}
+	return last, ok
+}
+
 func sidebarDragBetween(tt *ui.Tester, source, target string, after bool) {
-	s, _ := tt.Find(source)
-	d, _ := tt.Find(target)
+	s, _ := workspaceTitleSeat(tt, source)
+	d, _ := workspaceTitleSeat(tt, target)
 	y := d.Y + 3
 	if after {
 		y = d.Y + d.H - 3
@@ -137,9 +152,9 @@ func TestCompactWorkspaceGeometryFlatScratchAndTree(t *testing.T) {
 				}
 				return
 			}
-			p, _ := tt.Find("Parent")
-			last, _ := tt.Find("Last")
-			scratch, _ := tt.Find("No working directory")
+			p, _ := workspaceTitleSeat(tt, "Parent")
+			last, _ := workspaceTitleSeat(tt, "Last")
+			scratch, _ := workspaceTitleSeat(tt, "No working directory")
 			if p.H != 32 {
 				t.Fatalf("header title seat %+v", p)
 			}
@@ -152,7 +167,7 @@ func TestCompactWorkspaceGeometryFlatScratchAndTree(t *testing.T) {
 				}
 			} else {
 				a, _ := tt.Find("Parent session")
-				child, _ := tt.Find("Child")
+				child, _ := workspaceTitleSeat(tt, "Child")
 				b, _ := tt.Find("Child session")
 				if a.Y-p.Y != 35 || child.Y-p.Y != 72 || b.Y-a.Y != 72 || last.Y-child.Y != 72 {
 					t.Fatalf("group geometry p=%+v a=%+v child=%+v b=%+v last=%+v", p, a, child, b, last)

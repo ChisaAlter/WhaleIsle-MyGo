@@ -138,7 +138,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
-	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Label(providerCopy("设置页头", "Settings header")).Children(func() {
 		ui.Box(c).Grow(1).MinWidth(0)
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
@@ -277,6 +277,14 @@ func settingsSelectedRailColors(m Model) (fill, ink ui.Color) {
 	return fill, chrome.Color(colors.FG)
 }
 
+// railCellFocusRing paints .navCell:focus-visible's ring — a 2 DIP outline
+// inset 3 (its -2 offset plus its width), keyboard focus only.
+func railCellFocusRing(c *ui.Context, cell ui.Element, ink ui.Color) {
+	if cell.FocusVisible() {
+		ui.Box(c).Absolute().Top(3).Right(3).Bottom(3).Left(3).Border(2, ink).Radius(9).PassThrough()
+	}
+}
+
 func effectiveActiveSection(c *ui.Context, m Model, snap settings.ViewState) SectionID {
 	base := activeSection(m, snap)
 	if m.ActiveSection != "" && m.SectionContent != nil {
@@ -302,8 +310,10 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	active := effectiveActiveSection(c, m, snap)
 	searching := strings.TrimSpace(*query) != ""
 	selectedBG, selectedFG := settingsSelectedRailColors(m)
+	// The search hit pulse fills with the same nav-item-active-accent wash.
+	settingsSearchJumpState(c).HitFill = selectedBG
 	groups := navigationGroups(m, snap)
-	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Children(func() {
+	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Label(providerCopy("设置导航", "Settings navigation")).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
 		settingsRailSearch(c, m, snap, query, fg, muted, border)
 		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
@@ -321,8 +331,8 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 						}
 						label := navigationLabel(m, entry.id)
 						button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(36).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(7, 16, 7, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
-						button = button.Transition(ui.ElementTransition{Duration: chrome.PopoverDuration, Colors: true})
 						button.Children(func() {
+							railCellFocusRing(c, button, fg)
 							ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(ink)
 							weight := 400
 							if selected {
@@ -351,7 +361,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 // pill with a hairline border, the magnifier at +10, the text from +32 and a
 // clear button once there is text.
 func settingsRailSearch(c *ui.Context, m Model, snap settings.ViewState, query *string, fg, muted, border ui.Color) {
-	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Children(func() {
+	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Label(i18n.T(i18n.KeySettingsNavSearch)).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
 		input := ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch)).OnSubmit(func() {
 			ids := map[SectionID]bool{}
@@ -393,6 +403,8 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		gap = 0
 	} else if active == SectionAppearance {
 		gap = 28
+	} else if active == SectionPlugins {
+		gap = 12
 	}
 	searching := strings.TrimSpace(*query) != ""
 	scrollKey := "settings-options-" + string(active)
@@ -400,10 +412,11 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 		scrollKey = "settings-options-search"
 	}
 	pane := settingsOptionsScroll(c, scrollKey, gap, paneBG)
-	// A section switch fades the page in over the popover token. The pane is
-	// keyed by its section, so each switch builds a new element whose lifetime is
-	// one opening, and Reveal runs the enter by hand.
-	pane.Opacity(chrome.Reveal(c, pane, chrome.PopoverDuration))
+	// A section switch fades the page in over the swap token — the original's
+	// dsh-motion-swap-in keyframe is an opacity-only 100 ms ease-in-out. The
+	// pane is keyed by its section, so each switch builds a new element whose
+	// lifetime is one opening, and Reveal runs the enter by hand.
+	pane.Opacity(chrome.Reveal(c, pane, chrome.SwapDuration))
 	pane.Children(func() {
 		if searching {
 			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)

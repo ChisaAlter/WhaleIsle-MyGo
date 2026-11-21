@@ -56,7 +56,7 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, palette
 						if len(values) > 0 {
 							answer = strings.Join(values, ", ")
 						}
-						ui.Text(c, i18n.T(i18n.KeyChatQuestionAnswer) + ": "+answer).FontSize(12).TextColor(fg).Selectable()
+						ui.Text(c, i18n.T(i18n.KeyChatQuestionAnswer)+": "+answer).FontSize(12).TextColor(fg).Selectable()
 					}
 				})
 			})

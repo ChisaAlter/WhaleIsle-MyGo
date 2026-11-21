@@ -212,6 +212,10 @@ const (
 	KeyCmdComposerUnsafeFilePath           = "cmd.inline.composer_unsafe_file_path"
 	KeyCmdComposerFinishComposition        = "cmd.inline.composer_finish_composition"
 	KeyCmdComposerSelectConversation       = "cmd.inline.composer_select_conversation"
+	KeyCmdComposerIntakeTooMany            = "cmd.inline.composer_intake_too_many"
+	KeyCmdComposerIntakeFilesOnly          = "cmd.inline.composer_intake_files_only"
+	KeyCmdCredentialsReloadedRetained      = "cmd.inline.credentials_reloaded_retained"
+	KeyCmdCredentialsConflictReload        = "cmd.inline.credentials_conflict_reload"
 )
 
 func init() {
@@ -321,6 +325,10 @@ func init() {
 	Register(KeyCmdComposerUnsafeFilePath, "无法安全插入此文件路径", "this file path cannot be inserted safely")
 	Register(KeyCmdComposerFinishComposition, "请完成文本输入，再添加文件", "finish text composition before adding files")
 	Register(KeyCmdComposerSelectConversation, "请先选择会话，再向其草稿添加文本", "select a conversation before adding text to its draft")
+	Register(KeyCmdComposerIntakeTooMany, "一次最多添加128个文件", "At most 128 files per intake")
+	Register(KeyCmdComposerIntakeFilesOnly, "粘贴或拖入仅接受文件；文件夹请使用显式引用入口", "Paste or drop accepts files only; use the folder reference picker")
+	Register(KeyCmdCredentialsReloadedRetained, "已读取最新凭据并保留本页编辑。", "Latest credentials loaded; local edits retained.")
+	Register(KeyCmdCredentialsConflictReload, "凭据已在其他窗口更改，编辑内容已保留。请重新读取文件、核对后保存。", "Credentials changed in another window. Reload the file, review your retained edits, then save.")
 }
 
 const (

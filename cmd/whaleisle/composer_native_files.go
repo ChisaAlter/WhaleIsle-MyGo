@@ -81,7 +81,7 @@ func inspectComposerFiles(ctx context.Context, paths []string, regularOnly bool)
 			return nil, err
 		}
 		if regularOnly && !info.Mode().IsRegular() {
-			return nil, errors.New("粘贴或拖入仅接受文件；文件夹请使用显式引用入口 / Paste or drop accepts files only; use the folder reference picker")
+			return nil, errors.New(i18n.T(i18n.KeyCmdComposerIntakeFilesOnly))
 		}
 		if !info.IsDir() && !info.Mode().IsRegular() {
 			return nil, errors.New(i18n.T(i18n.KeyCmdComposerRegularFileDirectory))

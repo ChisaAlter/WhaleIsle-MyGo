@@ -2,14 +2,16 @@ package widgets
 
 import (
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/theme"
 )
 
 // The metrics of a ConfirmDialog: a 400 DIP panel with rounded corners, a
-// raised shadow and the buttons along its bottom edge.
+// raised shadow and the buttons along its bottom edge. The corners are the
+// theme's --dsw-radius-panel for the dialog and --dsw-radius-sm for the
+// buttons (ui-primitives Modal.module.css, Button.module.css).
 const (
-	confirmDialogWidth  = 400
-	confirmDialogRadius = 28
-	confirmButtonRadius = 8
+	confirmDialogWidth = 400
 )
 
 // ConfirmDialogOptions describes a ConfirmDialog.
@@ -78,7 +80,7 @@ func ConfirmDialog(c *ui.Context, o ConfirmDialogOptions) bool {
 		RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, mask))
 		panel.Width(confirmDialogWidth).MaxWidthPercent(92).
 			Padding(24, 24, 20, 24).Gap(14).
-			Radius(confirmDialogRadius).Background(t.Background).Border(0.5, t.Border).
+			Radius(theme.ContextRadii(c).Panel).Background(t.Background).Border(0.5, t.Border).
 			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.24))
 		if name != "" {
 			panel.Label(name)
@@ -122,7 +124,8 @@ func ConfirmDialog(c *ui.Context, o ConfirmDialogOptions) bool {
 // out, or a filled one that goes ahead, in the danger color when danger.
 func confirmDialogButton(c *ui.Context, label string, filled, danger bool) ui.Element {
 	t := c.Theme()
-	button := ui.ButtonBase(c).Padding(7, 14).Radius(confirmButtonRadius).Shrink(0).FocusRing(false).Label(label)
+	radius := theme.ContextRadii(c).SM
+	button := ui.ButtonBase(c).Padding(7, 14).Radius(radius).Shrink(0).FocusRing(false).Label(label)
 	fill, hover, pressed := t.Surface, t.SurfaceHover, t.SurfacePressed
 	text, border := t.Text, t.Border
 	if filled {
@@ -151,14 +154,14 @@ func confirmDialogButton(c *ui.Context, label string, filled, danger bool) ui.El
 	hoverShare, pressShare := min(max(state, 0), 1), min(max(state-1, 0), 1)
 	button.Draw(func(p *ui.Painter, r ui.Rect) {
 		face := fill.Mix(hover, hoverShare).Mix(pressed, pressShare)
-		p.Fill(r, face, confirmButtonRadius)
+		p.Fill(r, face, radius)
 		if border.A > 0 {
-			p.Stroke(r, border, confirmButtonRadius, 1)
+			p.Stroke(r, border, radius, 1)
 		}
 	})
 	button.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if button.FocusVisible() {
-			p.FocusRing(r, [4]float32{confirmButtonRadius, confirmButtonRadius, confirmButtonRadius, confirmButtonRadius})
+			p.FocusRing(r, [4]float32{radius, radius, radius, radius})
 		}
 	})
 	button.Children(func() {

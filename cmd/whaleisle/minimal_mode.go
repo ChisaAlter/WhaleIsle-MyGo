@@ -9,8 +9,10 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/renderpolicy"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
+	"whaleisle/internal/ui/widgets"
 )
 
 // minimalModeText localizes copy that belongs to the running shell rather than
@@ -26,6 +28,10 @@ func minimalModeText(zh, en string) string {
 func applyMinimalMode(on bool) {
 	renderpolicy.SetMinimal(on)
 	ui.SetReduceMotion(on)
+	// The design system's overlay-out: closing dialogs fade over the fast
+	// token. Setting it next to the motion policy keeps it in force from
+	// the first frame; less motion still removes a dialog at once.
+	ui.SetDialogExit(ui.DialogExit{Duration: chrome.OverlayExitDuration, Ease: widgets.DesignEase})
 }
 
 // errMinimalModeUnavailable is the refusal before the profile's settings are

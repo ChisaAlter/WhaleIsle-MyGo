@@ -27,6 +27,46 @@ const (
 	disabledFactor = 0.48 // what the painter dims a disabled element by
 )
 
+// MenuRows is the geometry of a menu's item rows in DIPs: minimum height,
+// vertical and inline padding, the content gap, the label's font size and
+// line height, and the icon edge. The zero value falls back field by field
+// to the shared product metrics, so a Menu keeps them unless its caller
+// opts into a variant — like the installed signed-out account menu, whose
+// rows are 40 high padded 8 by 10 with 14-on-22 labels and 16 icons.
+type MenuRows struct {
+	MinHeight, PadV, PadH, Gap, FontSize, LineHeight, IconSize float32
+}
+
+// defaultMenuRows are the shared menu row metrics of menuRow and
+// menuItemContent.
+var defaultMenuRows = MenuRows{MinHeight: menuRowHeight, PadV: 6, PadH: 8, Gap: 6, FontSize: 13, LineHeight: 20, IconSize: 14}
+
+// or fills r's zero fields from the shared metrics.
+func (r MenuRows) or(d MenuRows) MenuRows {
+	if r.MinHeight == 0 {
+		r.MinHeight = d.MinHeight
+	}
+	if r.PadV == 0 {
+		r.PadV = d.PadV
+	}
+	if r.PadH == 0 {
+		r.PadH = d.PadH
+	}
+	if r.Gap == 0 {
+		r.Gap = d.Gap
+	}
+	if r.FontSize == 0 {
+		r.FontSize = d.FontSize
+	}
+	if r.LineHeight == 0 {
+		r.LineHeight = d.LineHeight
+	}
+	if r.IconSize == 0 {
+		r.IconSize = d.IconSize
+	}
+	return r
+}
+
 // menuRiseTime is how long a menu takes to rise into place as it opens. Its
 // opacity does not fade.
 const menuRiseTime = 160 * time.Millisecond

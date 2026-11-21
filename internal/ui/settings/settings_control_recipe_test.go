@@ -96,6 +96,15 @@ func TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors(t *testing.T
 	}
 }
 
+// titleRect picks the title text out of the same-named row group and its
+// labeled controls: the row registers first, the title copy right after it.
+func titleRect(rs []ui.Rect) ui.Rect {
+	if len(rs) < 2 {
+		return ui.Rect{}
+	}
+	return rs[1]
+}
+
 func TestSettingsSwitchHostSourceStylesPreserveCallbacks(t *testing.T) {
 	host := bodyFixtureHost()
 	calls := []string{}
@@ -109,8 +118,8 @@ func TestSettingsSwitchHostSourceStylesPreserveCallbacks(t *testing.T) {
 			bodyHostPreference(c, host, "ui-git", "titlebarGit", "Git switch", "", c.Theme().Text, c.Theme().TextMuted)
 		})
 	}, 600, 300)
-	coding, _ := tt.Find("Coding switch")
-	git, _ := tt.Find("Git switch")
+	coding := titleRect(tt.FindAll("Coding switch"))
+	git := titleRect(tt.FindAll("Git switch"))
 	// Titles now own only their intrinsic text width; switch geometry itself is
 	// pinned by TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors.
 	if coding.W <= 0 || git.W <= 0 || coding.H != 22 || git.H != 22 || coding.Y >= git.Y {

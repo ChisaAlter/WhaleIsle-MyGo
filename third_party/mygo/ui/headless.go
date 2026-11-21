@@ -288,6 +288,18 @@ func (t *Tester) Find(s string) (Rect, bool) {
 	return Rect{}, false
 }
 
+// FindAll returns the boxes of every element showing text s or labeled s, in
+// paint order, as WindowDriver.FindAll does for live windows.
+func (t *Tester) FindAll(s string) []Rect {
+	var out []Rect
+	for _, n := range t.rt.labels {
+		if n.text == s {
+			out = append(out, n.r)
+		}
+	}
+	return out
+}
+
 // Texts returns the texts of the last frame, in order.
 func (t *Tester) Texts() []string {
 	var out []string

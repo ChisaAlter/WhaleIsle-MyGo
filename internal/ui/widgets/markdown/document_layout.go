@@ -176,7 +176,7 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 		viewSpans(c, st, spans, nil, 0)
 	case *ast.HTMLBlock:
 		if st.LiteralHTML {
-			styledRichText(c, []ui.Span{{Text: string(node.Text([]byte(source)))}}, st)
+			styledRichText(c, []ui.Span{{Text: string(htmlBlockLiteral(node, []byte(source)))}}, st)
 		}
 	case *ast.ThematicBreak:
 		border := st.RuleBorder

@@ -13,9 +13,9 @@ func TestWorkspaceRowActionsGiveRestingTitleFullWidthAndPreserveTargets(t *testi
 	var created []string
 	var generations []uint64
 	m.OnCreateWorkspaceSession = func(g uint64, id string) { generations = append(generations, g); created = append(created, id) }
-	rest, _ := tt.Find(m.Snapshot.Workspaces[0].Title)
+	rest, _ := workspaceTitleSeat(tt, m.Snapshot.Workspaces[0].Title)
 	moveWorkspaceTitle(t, tt, m.Snapshot.Workspaces[0].Title)
-	hover, _ := tt.Find(m.Snapshot.Workspaces[0].Title)
+	hover, _ := workspaceTitleSeat(tt, m.Snapshot.Workspaces[0].Title)
 	more, moreOK := tt.Find(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), "Workspace A full title"))
 	create, createOK := tt.Find(fmt.Sprintf(workspaceText("在“%s”中新建会话", "New session in “%s”"), "Workspace A full title"))
 	if !moreOK || !createOK || more.W != 16 || more.H != 16 || create.W != 16 || create.H != 16 || more.X+more.W+15 != create.X {
@@ -36,7 +36,7 @@ func TestWorkspaceRowActionsGiveRestingTitleFullWidthAndPreserveTargets(t *testi
 		t.Fatal(err)
 	}
 	tt.Move(730, 330)
-	open, _ := tt.Find(m.Snapshot.Workspaces[0].Title)
+	open, _ := workspaceTitleSeat(tt, m.Snapshot.Workspaces[0].Title)
 	if open.W != hover.W {
 		t.Fatalf("menu-open action lane changed: hover=%+v open=%+v", hover, open)
 	}
@@ -82,7 +82,7 @@ func TestWorkspaceHoverAbsentCreatedAtAndScratchNeverInventCards(t *testing.T) {
 	}
 	// This keeps the normal workspace group and its title geometry present;
 	// it suppresses only the card, with no invented creation time.
-	if r, ok := tt.Find(m.Snapshot.Workspaces[0].Title); !ok || r.H != 32 {
+	if r, ok := workspaceTitleSeat(tt, m.Snapshot.Workspaces[0].Title); !ok || r.H != 32 {
 		t.Fatalf("ordinary title lost: %+v", r)
 	}
 }

@@ -8,8 +8,8 @@ import (
 var (
 	ignoredBuildScriptsRE = regexp.MustCompile(`(?i)ignored build scripts:\s*([^\n]+)`)
 	gitHostedPrepareRE    = regexp.MustCompile(`git-hosted package "([^"]+)" needs to execute build scripts`)
-	allowBuildsKeyRE        = regexp.MustCompile(`["'](@?[\w.-]+(?:[/.][\w.-]+)*)["']\s*:\s*(?:true|false)`)
-	indentedNameRE          = regexp.MustCompile(`(?m)^\s{2,}([@a-z0-9._/-]+(?:\/[a-z0-9._-]+)?)\s*$`)
+	allowBuildsKeyRE      = regexp.MustCompile(`["'](@?[\w.-]+(?:[/.][\w.-]+)*)["']\s*:\s*(?:true|false)`)
+	indentedNameRE        = regexp.MustCompile(`(?m)^\s{2,}([@a-z0-9._/-]+(?:\/[a-z0-9._-]+)?)\s*$`)
 )
 
 // ParseAllowBuilds extracts pnpm allow-build package keys from install log output.

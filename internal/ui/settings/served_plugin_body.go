@@ -19,7 +19,7 @@ func ServedPluginBody(c *ui.Context, m Model, key string) bool {
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	names := []string{}
+	var names []string
 	switch key {
 	case "subagent":
 		names = []string{"subagent-model-selection-settings", "subagent"}
