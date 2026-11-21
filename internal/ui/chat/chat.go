@@ -231,7 +231,7 @@ func conversationView(c *ui.Context, m Model) {
 					inspectorChatRowGeometry(row.Context, m, msg, messageRoot, padT, padR, padB, padL)
 					messageRoot.Children(func() {
 						if control, ok := transcriptControls[msg.ID]; ok {
-							transcriptControlView(row.Context, control, m, muted)
+							transcriptControlView(row.Context, control, m, colors)
 							return
 						}
 						if msg.Kind == session.MessageKindQuestionReply {

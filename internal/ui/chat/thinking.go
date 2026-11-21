@@ -69,17 +69,16 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 		if !open || strings.TrimSpace(body) == "" {
 			return
 		}
-		bodyIndent := max(float32(22), 22+theme.CurrentPreferences().Chat.Size-14)
-		ui.Column(c).Key("thinking-body").FillWidth().MinWidth(0).Padding(4, 0, 4, bodyIndent).
+		ui.Column(c).Key("thinking-body").FillWidth().MinWidth(0).Padding(4, 0, 4, 0).
 			Transition(ui.ElementTransition{Duration: 180 * time.Millisecond, Ease: contextFadeEase, Colors: true,
 				Enter: &ui.Motion{Opacity: 0, Y: -4}, Exit: &ui.Motion{Opacity: 0, Y: -4}}).
 			Children(func() {
-			if st.Body != nil {
-				st.Body(c)
-			} else {
-				markdown.View(c, body, transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, size, darkSurface(st.Muted)))
-			}
-		})
+				if st.Body != nil {
+					st.Body(c)
+				} else {
+					markdown.View(c, body, transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, size, darkSurface(st.Muted)))
+				}
+			})
 	})
 }
 
