@@ -1220,6 +1220,52 @@
               ]
             },
             {
+              "key": "plugins.desc",
+              "web": {
+                "within": "[data-slot='settings.section']",
+                "selector": "p",
+                "index": 0
+              },
+              "native": {
+                "name": "查看内置部署的插件列表",
+                "type": "Text"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.group-title",
+              "web": {
+                "selector": "[class*=groupTitleRow]",
+                "index": 0
+              },
+              "native": {
+                "name": "会话插件",
+                "type": "Group"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plugins.group-sub",
+              "web": {
+                "selector": "[class*=groupSub]",
+                "index": 0
+              },
+              "native": {
+                "name": "由 Agent 预设按会话组成",
+                "type": "Text"
+              },
+              "assert": [
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
               "key": "plugins.search",
               "web": {
                 "selector": "input[aria-label='搜索插件']"
@@ -1270,6 +1316,90 @@
               "parent": "plugins.card-1"
             }
           ]
+        },
+        {
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "[data-dsh-settings-section='models']"
+                },
+                "expect": {
+                  "selector": "[data-dsh-settings-section='models'][aria-current]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-dsh-settings-section='general']"
+                },
+                "expect": {
+                  "selector": "[data-slot='settings.general.item'] > :first-child"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "模型",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "模型",
+                  "type": "Text"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "通用设置",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "语言",
+                  "type": "Group"
+                }
+              }
+            ],
+            "nativeDump": true
+          },
+          "landmarks": [
+            {
+              "key": "settings.options",
+              "web": {
+                "selector": "[role=dialog] nav + div > div:nth-of-type(2)"
+              },
+              "native": {
+                "name": "设置内容",
+                "type": "Pane"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "settings.row-language",
+              "web": {
+                "selector": "[data-slot='settings.general.item'] > :first-child",
+                "index": 0
+              },
+              "native": {
+                "name": "语言",
+                "type": "Group"
+              },
+              "parent": "settings.options",
+              "assert": [
+                "x",
+                "y",
+                "h",
+                "dx-parent-left"
+              ]
+            }
+          ],
+          "id": "settings-section-swap"
         }
       ]
     }

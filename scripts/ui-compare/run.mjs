@@ -303,20 +303,32 @@ try {
     for (const s of (sc.web?.setup || [])) { scError = scError || await webSetup(s, sc); await sleep(300); }
     for (const s of (sc.native?.setup || [])) { scError = scError || await nativeSetup(s); await sleep(300); }
     if (!scError) {
+      // An expect polls until the target appears: a section swap or lazy page
+      // can take longer than a single 500 ms tick to re-mount its content.
+      const webExpect = async (spec) => {
+        const t0 = Date.now();
+        while (Date.now() - t0 < WAIT_MS) { if (await webPresent(spec)) return true; await sleep(250); }
+        return false;
+      };
+      const nativeExpect = async (spec) => {
+        const t0 = Date.now();
+        while (Date.now() - t0 < WAIT_MS) { if (nativePresent(spec)) return true; await sleep(250); }
+        return false;
+      };
       for (const s of (sc.web?.steps || [])) {
         if (s.click && !(await webClick(typeof s.click === 'object' ? s.click : { selector: s.click }))) scError = `web step: ${JSON.stringify(s.click)} not found`;
         if (s.key) await webKey(s.key);
         await sleep(500);
         // Steps are verified in order: an expect spec must be present before
         // the next step runs, else the scenario is an ERROR, not a FAIL.
-        if (s.expect && !scError && !(await webPresent(s.expect))) scError = `web step expect: ${JSON.stringify(s.expect)} absent`;
+        if (s.expect && !scError && !(await webExpect(s.expect))) scError = `web step expect: ${JSON.stringify(s.expect)} absent`;
         if (scError) break;
       }
       for (const s of (sc.native?.steps || [])) {
         const cmd = s.invoke ? 'invoke' : s.expand ? 'expand' : s.collapse ? 'collapse' : null;
         if (cmd) { const r = act(cmd, s[cmd]); if (!r.ok) scError = `native step ${cmd} ${s[cmd].name}: ${r.error}`; }
         await sleep(500);
-        if (s.expect && !scError && !nativePresent(s.expect)) scError = `native step expect: ${JSON.stringify(s.expect)} absent`;
+        if (s.expect && !scError && !(await nativeExpect(s.expect))) scError = `native step expect: ${JSON.stringify(s.expect)} absent`;
         if (scError) break;
       }
     }
