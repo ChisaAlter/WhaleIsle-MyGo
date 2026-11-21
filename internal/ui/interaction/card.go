@@ -150,7 +150,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 	}
 	card.Children(func() {
 		if approval {
-			ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Background(t.Warning.Alpha(.12)).Children(func() {
+			ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Background(t.Warning.Alpha(.12)).Label("Approval strip").Children(func() {
 				state := widgets.StateWarning
 				if p.Sending {
 					state = widgets.StateRunning
@@ -163,8 +163,10 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				body.MaxHeight(336)
 			}
 			body.Children(func() {
-				ui.Text(c, p.Title).FillWidth().MinWidth(0).FontSize(15).FixedLineHeight(24).FontWeight(500).TextColor(fg)
-				approvalReason(c, p, muted)
+				// The Original's .heading renders the display reason itself
+				// as the 15px/24 headline; the tool name is not a separate
+				// line in the card.
+				approvalReason(c, p, fg)
 				if p.ApprovalContext != "" {
 					ui.Text(c, p.ApprovalContext).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}

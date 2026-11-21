@@ -30,6 +30,11 @@ func interactionCardSeat(c *ui.Context, key string, warn bool, tint ui.Color) ui
 	} else {
 		_, height := c.Size()
 		card.MaxHeight(min(float32(520), height*.6)).Padding(0, 0, 10, 0)
+		// The Original caps the question card at the chat content width —
+		// the composer width minus its side insets — and centers it.
+		if width := residentComposerBounds.W - 32; width > 0 {
+			card.MaxWidth(width).AlignSelf(ui.Center)
+		}
 	}
 	return card
 }

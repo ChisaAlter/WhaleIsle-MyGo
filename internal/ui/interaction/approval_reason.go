@@ -53,14 +53,14 @@ func approvalEscalationText(p interaction.Pending) string {
 	return i18n.ChatParityf(i18n.KeyParityApprovalEscalation, "toolName", toolName)
 }
 
-func approvalReason(c *ui.Context, p interaction.Pending, muted ui.Color) {
+func approvalReason(c *ui.Context, p interaction.Pending, fg ui.Color) {
 	esc := approvalEscalationText(p)
 	text := approvalReasonText(p)
 	if text == "" && strings.TrimSpace(p.ApprovalDisplayReason) == "" && strings.TrimSpace(p.ApprovalOriginalReason) == "" {
 		text = esc
 	}
 	if text != "" {
-		questionText(c, text, 12, muted)
+		ui.Text(c, text).FillWidth().MinWidth(0).FontSize(15).FixedLineHeight(24).FontWeight(500).TextColor(fg)
 	}
 	if esc != "" && esc != text {
 		ui.Box(c).Size(0, 0).PassThrough().Label(esc)
