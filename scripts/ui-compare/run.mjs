@@ -143,8 +143,15 @@ try {
       console.log('[seed]', (s.stdout || '').trim());
     }
   }
+  // dsh-usage-panel is not in the stock web profile; the native desktop
+  // composes it through its own desktop-usage-panel overlay, so host2 needs
+  // the vendor bundle patch only when a scenario actually opens the page.
   const port = await freePort();
-  host2 = tracked(spawn(NODE, [HOST_BIN, 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'],
+  const webArgv = [HOST_BIN, 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'];
+  if (surfaceSpec.scenarios.some(sc => sc.usagePanel)) {
+    webArgv.push('--patch', join(RUNTIME, 'vendor', 'dsh-usage-panel', 'cordis.patch.yml'));
+  }
+  host2 = tracked(spawn(NODE, webArgv,
     { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
   host2.stdout.setEncoding('utf8');

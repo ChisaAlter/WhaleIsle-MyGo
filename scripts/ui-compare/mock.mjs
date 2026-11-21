@@ -65,6 +65,12 @@ const SCENARIOS = {
     ],
   }),
   usage: () => text('ui-compare usage turn complete'),
+  // /plan arms plan mode through the real composer on both sides first; the
+  // exit_plan_mode call then goes through the shared review waterfall, so the
+  // pending plan-review card is what the scenarios compare.
+  plan: () => toolUse('exit_plan_mode', {
+    plan: '# Ship plan mode UI\n\nSettle the plan-review card against the original.\n\n## Steps\n- Enter plan mode\n- Draft `exit_plan_mode` payload\n- Render the review card',
+  }),
 };
 const AUX = () => text('mock reply ok');
 const FINAL = () => text('Done.');

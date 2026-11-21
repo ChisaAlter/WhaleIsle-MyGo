@@ -3196,6 +3196,39 @@
               ]
             },
             {
+              "key": "card.minimize",
+              "web": {
+                "selector": "[data-question-key] button[aria-label='收起问题卡片']"
+              },
+              "native": {
+                "name": "收起问题卡片",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "card.dismiss",
+              "web": {
+                "selector": "[data-question-key] button[aria-label='收起问题面板，可从工具调用重新打开']"
+              },
+              "native": {
+                "name": "收起问题面板，可从工具调用重新打开",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
               "key": "card.title",
               "web": {
                 "selector": "[data-question-key] h2"
@@ -3633,6 +3666,197 @@
               "assert": [
                 "x",
                 "y",
+                "w",
+                "h"
+              ]
+            }
+          ],
+          "usagePanel": true
+        },
+        {
+          "id": "cards-plan",
+          "domDump": "[data-plan-review-key]",
+          "nativeDump": true,
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[aria-label='新建会话']"
+                },
+                "expect": {
+                  "selector": "[role=textbox]"
+                }
+              },
+              {
+                "prompt": "/plan",
+                "expect": {
+                  "selector": "button[aria-label='计划模式已开启，按下关闭']"
+                }
+              },
+              {
+                "prompt": "[ui-compare:plan] draft the rollout plan",
+                "expect": {
+                  "selector": "[data-plan-review-key]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "新会话",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Composer draft"
+                }
+              },
+              {
+                "setvalue": {
+                  "name": "Composer draft",
+                  "type": "Edit",
+                  "text": "/plan"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "发送消息",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "计划模式已开启，按下关闭"
+                }
+              },
+              {
+                "setvalue": {
+                  "name": "Composer draft",
+                  "type": "Edit",
+                  "text": "[ui-compare:plan] draft the rollout plan"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "发送消息",
+                  "type": "Button"
+                },
+                "expect": {
+                  "namePrefix": "Approve this plan"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "plan.frame",
+              "web": {
+                "selector": "[data-plan-review-key] section"
+              },
+              "native": {
+                "namePrefix": "Approve this plan",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "plan.strip",
+              "web": {
+                "selector": "[data-plan-review-key] [class*=_strip]"
+              },
+              "native": {
+                "name": "Plan review strip",
+                "type": "Group"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "plan.header",
+              "web": {
+                "within": "[data-plan-review-key]",
+                "text": "计划待审"
+              },
+              "native": {
+                "name": "计划待审"
+              },
+              "assert": [
+                "x",
+                "y",
+                "h"
+              ]
+            },
+            {
+              "key": "plan.title",
+              "web": {
+                "selector": "[data-plan-review-key] [class*=_summary] h3"
+              },
+              "native": {
+                "name": "Ship plan mode UI"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plan.description",
+              "web": {
+                "selector": "[data-plan-review-key] [class*=_description]"
+              },
+              "native": {
+                "name": "Settle the plan-review card against the original."
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plan.discuss",
+              "web": {
+                "within": "[data-plan-review-key]",
+                "text": "要求修改",
+                "upTo": "button"
+              },
+              "native": {
+                "name": "要求修改",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "plan.approve",
+              "web": {
+                "within": "[data-plan-review-key]",
+                "text": "同意执行",
+                "upTo": "button"
+              },
+              "native": {
+                "name": "同意执行",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
                 "w",
                 "h"
               ]
