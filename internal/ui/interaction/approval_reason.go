@@ -59,12 +59,16 @@ func approvalReason(c *ui.Context, p interaction.Pending, fg ui.Color) {
 	if text == "" && strings.TrimSpace(p.ApprovalDisplayReason) == "" && strings.TrimSpace(p.ApprovalOriginalReason) == "" {
 		text = esc
 	}
-	if text != "" {
-		ui.Text(c, text).FillWidth().MinWidth(0).FontSize(15).FixedLineHeight(24).FontWeight(500).TextColor(fg)
-	}
-	if esc != "" && esc != text {
-		ui.Box(c).Size(0, 0).PassThrough().Label(esc)
-	}
+	ui.Row(c).FillWidth().Shrink(0).Children(func() {
+		if text != "" {
+			ui.Text(c, text).FillWidth().MinWidth(0).FontSize(15).FixedLineHeight(24).FontWeight(500).TextColor(fg)
+		}
+		// Kept inside the headline row so the accessibility label does not
+		// take a flex-gap slot of its own.
+		if esc != "" && esc != text {
+			ui.Box(c).Size(0, 0).PassThrough().Label(esc)
+		}
+	})
 	// The Original's ApprovalCard renders only the resolved display reason;
 	// the raw original reason stays in the pending payload, never in copy.
 }
