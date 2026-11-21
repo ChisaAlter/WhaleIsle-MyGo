@@ -1,6 +1,6 @@
 module whaleisle
 
-go 1.27.2
+go 1.27.4
 
 tool github.com/egoist/mygo/cmd/mygo
 
@@ -10,7 +10,6 @@ require (
 	github.com/extrame/goyymmdd v0.0.0-20210114090516-7cc815f00d1a // indirect
 	github.com/extrame/ole2 v0.0.0-20160812065207-d69429661ad7 // indirect
 	github.com/go-text/typesetting-utils v0.0.0-20260922124329-7d4869a3934e // indirect
-	golang.org/x/sys v0.48.0 // indirect
 )
 
 replace github.com/egoist/mygo => ./third_party/mygo
@@ -29,9 +28,10 @@ require (
 	github.com/tdewolff/parse/v2 v2.7.21
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/yuin/goldmark v1.7.8
-	golang.org/x/crypto v0.45.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/image v0.46.0
-	golang.org/x/net v0.47.0
+	golang.org/x/net v0.57.0
+	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
 )

@@ -1,4 +1,4 @@
-﻿package settings
+package settings
 
 import "github.com/egoist/mygo/ui"
 

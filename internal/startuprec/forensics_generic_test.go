@@ -1,4 +1,4 @@
-﻿package startuprec
+package startuprec
 
 import "testing"
 

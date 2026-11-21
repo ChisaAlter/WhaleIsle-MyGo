@@ -329,7 +329,7 @@ func extractHostBundleWithLimits(ctx context.Context, archive, destination strin
 			if err := root.MkdirAll(target, 0755); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if header.Size < 0 || header.Size > maxFileBytes || header.Size > maxTotalBytes-totalBytes {
 				return errors.New("host package entry exceeds size limit")
 			}

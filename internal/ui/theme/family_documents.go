@@ -38,7 +38,7 @@ func (p Preferences) UniqueFamilyID(base string) string {
 func (p Preferences) DuplicateFamily(f Family) Family {
 	f.Light, f.Dark = f.Light.Clone(), f.Dark.Clone()
 	f.ID = p.UniqueFamilyID(f.ID + "-copy")
-	f.Name += " Copy"
+	f.Name = f.LocalizedName() + " Copy"
 	return f
 }
 

@@ -164,6 +164,10 @@ func (s Shortcut) MigrateLegacy(backupRoot string) (string, error) {
 	if err := os.Rename(legacy, backup); err != nil {
 		return "", err
 	}
-	shortcutShell32.NewProc("SHChangeNotify").Call(4, 0x2005, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(legacy))), 0)
+	legacyPtr, err := syscall.UTF16PtrFromString(legacy)
+	if err != nil {
+		return "", err
+	}
+	shortcutShell32.NewProc("SHChangeNotify").Call(4, 0x2005, uintptr(unsafe.Pointer(legacyPtr)), 0)
 	return backup, nil
 }

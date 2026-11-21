@@ -91,7 +91,6 @@ func validateWorkspaceRestore(w *WorkspacePanes) error {
 		keep := docked
 		if len(keep) == 0 {
 			keep = []*WorkspacePane{floating[0]}
-			floating = floating[1:]
 		}
 		if len(keep) > 2 {
 			keep = keep[:2]

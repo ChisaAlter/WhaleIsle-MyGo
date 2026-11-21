@@ -70,7 +70,9 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 				}
 				if expanded {
 					open := true
-					ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+					// NoExit: the seat presents a native helper surface at
+					// window coordinates, which a fading exit copy cannot move.
+					ui.DialogBaseWithOptions(c, &open, ui.DialogOptions{NoExit: true}, func(backdrop, panel ui.Element) {
 						chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 960, 12).Children(func() {
 							ui.Row(c).FillWidth().Children(func() {
 								ui.Text(c, p.Title).Grow(1).TextColor(fg)
@@ -163,7 +165,9 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	// Preserve the inline layout while moving the same child to the dialog seat.
 	ui.Box(c).FillWidth().Height(height)
 	open := true
-	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+	// NoExit: the seat presents a native helper surface at window coordinates,
+	// which a fading exit copy cannot move.
+	ui.DialogBaseWithOptions(c, &open, ui.DialogOptions{NoExit: true}, func(backdrop, panel ui.Element) {
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 960, 12).Children(func() {
 			ui.Row(c).FillWidth().Children(func() {
 				ui.Text(c, p.Title).Grow(1).TextColor(fg)

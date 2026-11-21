@@ -432,7 +432,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		} else if m.Preview != nil {
 			canHL = markdown.CanSourceHighlight(sel, *m.Preview)
 		}
-		mode := resolveEditViewMode(m, canHL && editing)
+		var mode EditViewMode
 
 		paintPreviewToolbar(c, m, sel, muted, border)
 		if paintDocumentSurface(c, m) {

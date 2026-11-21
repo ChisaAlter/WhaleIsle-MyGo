@@ -216,8 +216,8 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 			}
 		}
 		ui.PopoverBase(c, trigger, &state.Open, func(panel ui.Element) {
-			panel = menuSurface(c, panel.Padding(4).Gap(0).MinWidth(240).MaxWidth(420).
-				AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0), colors)
+			panel = chrome.PopoverReveal(c, menuSurface(c, panel.Padding(4).Gap(0).MinWidth(240).MaxWidth(420).
+				AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0), colors))
 			pane := ui.Column(c.Key("model-pane:" + state.Pane)).MinWidth(232).MaxWidth(412).Gap(0)
 			// HandleInput is delivered only to the focused control itself. A
 			// subtree shortcut owns Escape from both menu buttons and search,

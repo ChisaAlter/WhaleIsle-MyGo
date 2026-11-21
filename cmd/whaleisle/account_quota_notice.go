@@ -99,7 +99,7 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 	colors := theme.Resolve(themeID).Active(mygo.Theme.IsDark())
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, .4))
+		chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
 		panel.Width(460).MaxWidthPercent(92).Padding(20).Radius(14).Background(chrome.Color(colors.BG)).Children(func() {
 			ui.Column(c).Gap(12).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyCmdNoBalanceAvailable)).Bold().FontSize(16).TextColor(chrome.Color(colors.FG))

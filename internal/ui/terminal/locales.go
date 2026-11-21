@@ -76,8 +76,8 @@ var sidebarTerminalEnCatalog = map[string]string{
 // userTerminalZhCatalog and userTerminalEnCatalog mirror
 // @deepseek-ai/dsh-client-ui-user-terminal/lib/types/client/locales.js.
 var userTerminalZhCatalog = map[string]string{
-	"empty.title":                 "暂无终端会话",
-	"empty.unavailable":           "请先打开可访问的项目会话，再启动终端。",
+	"empty.title":                  "暂无终端会话",
+	"empty.unavailable":            "请先打开可访问的项目会话，再启动终端。",
 	"action.splitHorizontal":       "左右分屏",
 	"action.splitHorizontal.limit": "左右分屏（每组最多 4 个）",
 	"action.splitVertical":         "上下分屏",
@@ -101,8 +101,8 @@ var userTerminalZhCatalog = map[string]string{
 }
 
 var userTerminalEnCatalog = map[string]string{
-	"empty.title":                 "No terminal sessions yet",
-	"empty.unavailable":           "Open an accessible project session before starting a terminal.",
+	"empty.title":                  "No terminal sessions yet",
+	"empty.unavailable":            "Open an accessible project session before starting a terminal.",
 	"action.splitHorizontal":       "Split left/right",
 	"action.splitHorizontal.limit": "Split left/right (max 4 per group)",
 	"action.splitVertical":         "Split top/bottom",

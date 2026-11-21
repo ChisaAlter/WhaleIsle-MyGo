@@ -406,7 +406,7 @@ func run(stage, base, native string, r *report) error {
 	if err = start(); err != nil {
 		return err
 	}
-	store, mux, client = attach(endpoint)
+	store, mux, _ = attach(endpoint)
 	store.SetWorkspaceCwd(workspace)
 	store.FollowWorkspace(ctx)
 	if err = refresh(); err != nil {
