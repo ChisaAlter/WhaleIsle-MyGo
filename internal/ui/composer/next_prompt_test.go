@@ -26,7 +26,9 @@ func TestNextPromptEligibilityAndAcceptanceGates(t *testing.T) {
 		{"model-popup", func(m *Model) { m.State.ModelCommand = ModelCommandState{Open: true, SessionID: "a"} }},
 		{"running", func(m *Model) { m.Snapshot.Items[0].Running = true }},
 		{"subagent", func(m *Model) { m.Snapshot.Items[0].Origin = "subagent" }},
-		{"subagent-identity", func(m *Model) { m.Snapshot.Items[0].SubagentIdentity = &session.SessionSubagentIdentity{Mode: "continuable"} }},
+		{"subagent-identity", func(m *Model) {
+			m.Snapshot.Items[0].SubagentIdentity = &session.SessionSubagentIdentity{Mode: "continuable"}
+		}},
 		{"parent-offline", func(m *Model) { m.ParentOffline = true }},
 		{"draft-attachment", func(m *Model) { m.State.Attachments = []session.ComposerAttachment{{Path: "kept.txt"}} }},
 		{"inert", func(m *Model) { m.Inert = true }},

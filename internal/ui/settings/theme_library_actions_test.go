@@ -39,7 +39,7 @@ func libraryActionsFixture(t *testing.T, width int, writable bool) (*theme.Edito
 
 func TestThemeLibraryHalvesKeepIndependentSelectionAndResolvedMode(t *testing.T) {
 	e, tt, _ := libraryActionsFixture(t, 760, true)
-	if err := tt.Click(e.Draft.Family("midnight").Name + " dark"); err != nil {
+	if err := tt.Click(e.Draft.Family("midnight").LocalizedName() + " dark"); err != nil {
 		t.Fatal(err)
 	}
 	if e.Saved.Light != "deepseek" || e.Saved.Dark != "midnight" {
@@ -87,7 +87,7 @@ func TestThemeLibraryDuplicateUsesAddressedFamilyAndCancelRestores(t *testing.T)
 	e, tt, writes := libraryActionsFixture(t, 760, true)
 	before := e.Saved.Clone()
 	source := e.Draft.Family("midnight")
-	if err := tt.Click("Duplicate theme " + source.Name); err != nil {
+	if err := tt.Click("Duplicate theme " + source.LocalizedName()); err != nil {
 		t.Fatal(err)
 	}
 	copy := e.Draft.Family(e.Selected)
@@ -109,7 +109,7 @@ func TestThemeLibraryCustomActionsAddressFamilyWithoutPickingHalf(t *testing.T) 
 	e, tt, writes := libraryActionsFixture(t, 760, true)
 	before := e.Saved.Clone()
 	family := e.Draft.Family("custom-c")
-	if err := tt.Click("Export theme " + family.Name); err != nil {
+	if err := tt.Click("Export theme " + family.LocalizedName()); err != nil {
 		t.Fatal(err)
 	}
 	var exported theme.Family
@@ -122,7 +122,7 @@ func TestThemeLibraryCustomActionsAddressFamilyWithoutPickingHalf(t *testing.T) 
 	if *writes != 0 || e.Selected != "" || !reflect.DeepEqual(e.Draft, before) {
 		t.Fatal("export selected or wrote theme")
 	}
-	if err := tt.Click("Edit theme " + family.Name); err != nil {
+	if err := tt.Click("Edit theme " + family.LocalizedName()); err != nil {
 		t.Fatal(err)
 	}
 	if e.Selected != family.ID || *writes != 0 || e.Saved.Light != before.Light || e.Saved.Dark != before.Dark {
@@ -131,7 +131,7 @@ func TestThemeLibraryCustomActionsAddressFamilyWithoutPickingHalf(t *testing.T) 
 	if err := tt.Click("Cancel"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("Delete theme " + family.Name); err != nil {
+	if err := tt.Click("Delete theme " + family.LocalizedName()); err != nil {
 		t.Fatal(err)
 	}
 	if len(e.Saved.Custom) != 0 || *writes != 1 || e.Saved.Light != before.Light || e.Saved.Dark != before.Dark {
@@ -142,9 +142,9 @@ func TestThemeLibraryCustomActionsAddressFamilyWithoutPickingHalf(t *testing.T) 
 func TestThemeLibraryNarrowActionsAndReadOnlyExport(t *testing.T) {
 	e, tt, writes := libraryActionsFixture(t, 390, false)
 	for _, f := range e.Draft.Families() {
-		labels := []string{f.Name + " light", f.Name + " dark", "Duplicate theme " + f.Name}
+		labels := []string{f.LocalizedName() + " light", f.LocalizedName() + " dark", "Duplicate theme " + f.LocalizedName()}
 		if f.ID == "custom-c" {
-			labels = append(labels, "Edit theme "+f.Name, "Export theme "+f.Name, "Delete theme "+f.Name)
+			labels = append(labels, "Edit theme "+f.LocalizedName(), "Export theme "+f.LocalizedName(), "Delete theme "+f.LocalizedName())
 		}
 		for _, label := range labels {
 			r, ok := tt.Find(label)

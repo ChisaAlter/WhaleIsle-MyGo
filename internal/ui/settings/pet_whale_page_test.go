@@ -30,11 +30,11 @@ func whaleFixture() *whale.Catalog {
 }
 
 type whaleRecorder struct {
-	patches  []whale.Patch
-	memory   []string
-	clears   int
-	toggles  []string
-	loads    int
+	patches []whale.Patch
+	memory  []string
+	clears  int
+	toggles []string
+	loads   int
 }
 
 func (r *whaleRecorder) access(catalog *whale.Catalog) *PetSettingsAccess {

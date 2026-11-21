@@ -85,7 +85,7 @@ func childAutoImages(c *ui.Context, msg session.Message, opts ReadOnlyResourceOp
 			if read.Path != "" {
 				ImageInlineView(c, read.Path, st.FG, st.Muted, func(string) { gallery.Ref = ref; gallery.Open = true; gallery.ActualSize = false })
 			} else if read.Busy {
-				ui.Text(c, i18n.T(i18n.KeyChatImageLoading) + ": "+ref).FontSize(11)
+				ui.Text(c, i18n.T(i18n.KeyChatImageLoading)+": "+ref).FontSize(11)
 			} else {
 				readOnlyResourceLink(c, ref, opts, st)
 			}

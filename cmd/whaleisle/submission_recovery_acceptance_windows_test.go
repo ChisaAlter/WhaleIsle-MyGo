@@ -598,7 +598,7 @@ func runSubmissionRecoveryDesktop(phase string) (failure error) {
 				draft := state.composerDraftLocked(expected.A)
 				draft.Text = text
 				state.mu.Unlock()
-				state.submitComposer(win, sessions, draft, expected.A, workspace, 0, false, sessions.Snapshot().ComposerHostGeneration)
+				state.submitComposer(win, sessions, draft, expected.A, workspace, false, sessions.Snapshot().ComposerHostGeneration)
 				sessions.Select(expected.B)
 				state.mu.Lock()
 				draft.Text = newDraft

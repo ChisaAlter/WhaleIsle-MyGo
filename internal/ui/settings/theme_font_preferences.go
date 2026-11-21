@@ -65,7 +65,7 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 				currentDark := e.Draft.Dark == family.ID
 				radius := themeLibraryRadius(e.Draft, c.Theme().Dark)
 				border := chrome.Color(colors.BorderL1)
-				card := ui.Column(c.Key("theme-card-"+family.ID)).Label("Theme card "+family.Name).MinWidth(0).Gap(0).Radius(radius).Clip().Border(.5, border).Background(themeLibrarySurface(colors, c.Theme().Dark))
+				card := ui.Column(c.Key("theme-card-"+family.ID)).Label("Theme card "+family.LocalizedName()).MinWidth(0).Gap(0).Radius(radius).Clip().Border(.5, border).Background(themeLibrarySurface(colors, c.Theme().Dark))
 				hovered := card.Hovered()
 				if hovered {
 					card.Border(.5, chrome.Color(colors.Border)).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .08))
@@ -80,9 +80,9 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 							e.SelectThemeHalf(true, family.ID)
 						})
 					})
-					ui.Row(c.Key("theme-foot-"+family.ID)).Label("Theme footer "+family.Name).FillWidth().MinWidth(0).MinHeight(54.5).Wrap().Gap(8).Padding(19, 12, 8, 12).AlignItems(ui.Center).
+					ui.Row(c.Key("theme-foot-"+family.ID)).Label("Theme footer "+family.LocalizedName()).FillWidth().MinWidth(0).MinHeight(54.5).Wrap().Gap(8).Padding(19, 12, 8, 12).AlignItems(ui.Center).
 						BorderWidth(.5, 0, 0, 0).BorderColor(border).Children(func() {
-						ui.Text(c, themeFamilyTitle(family.Name)).Grow(1).MinWidth(0).SingleLine().Tooltip(family.Name).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
+						ui.Text(c, family.LocalizedName()).Grow(1).MinWidth(0).SingleLine().Tooltip(family.LocalizedName()).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg)
 						actions := ui.Row(c).Gap(2)
 						if !actionsVisible {
 							actions.Opacity(0)
@@ -117,20 +117,9 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 	themeEditorFeedback(c, e)
 }
 
-func themeFamilyTitle(name string) string {
-	parts := strings.SplitN(name, " / ", 2)
-	if len(parts) != 2 {
-		return name
-	}
-	if i18n.Locale() == "en" {
-		return parts[1]
-	}
-	return parts[0]
-}
-
 func themeFamilyAction(c *ui.Context, family theme.Family, action, label, glyph string, disabled bool) bool {
 	button := ui.Button(c.Key("theme-"+action+"-"+family.ID), glyph).
-		Label(label+" "+family.Name).Tooltip(label).Size(24, 24).Padding(0).
+		Label(label+" "+family.LocalizedName()).Tooltip(label).Size(24, 24).Padding(0).
 		Background(ui.Transparent).BorderWidth(0).Radius(6).TextColor(c.Theme().TextMuted).Disabled(disabled)
 	if button.Hovered() && !disabled {
 		button.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
@@ -191,7 +180,7 @@ func themeLibrarySurface(colors theme.Colors, dark bool) ui.Color {
 func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, scheme string, current, disabled bool, colors theme.Colors, radius float32, onPick func()) {
 	ink := chrome.Color(seed.Foreground)
 	brand := themeLibraryBrand(colors, c.Theme().Dark)
-	root := ui.ButtonBase(c.Key("theme-half-"+family.ID+"-"+scheme)).Label(family.Name+" "+scheme).
+	root := ui.ButtonBase(c.Key("theme-half-"+family.ID+"-"+scheme)).Label(family.LocalizedName()+" "+scheme).
 		Basis(0).Grow(1).MinWidth(0).Height(88).Padding(10, 12).BorderWidth(0).
 		Selected(current).Background(chrome.Color(seed.Background)).TextColor(ink).
 		AlignItems(ui.Stretch).FocusRing(false).Disabled(disabled)
@@ -206,7 +195,7 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 	root.Children(func() {
 		ui.Column(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Justify(ui.SpaceBetween).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Gap(8).Children(func() {
-				ui.Box(c).Label("Theme accent "+family.Name+" "+scheme).Size(16, 16).Shrink(0).Radius(8).
+				ui.Box(c).Label("Theme accent "+family.LocalizedName()+" "+scheme).Size(16, 16).Shrink(0).Radius(8).
 					Background(chrome.Color(seed.Accent)).Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, .18))
 				ui.Column(c).Gap(4).Children(func() {
 					ui.Box(c).Size(44, 5).Shrink(0).Radius(3).Background(ink.Alpha(.45))
@@ -217,7 +206,7 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 			ui.Row(c).MinWidth(0).Gap(6).AlignItems(ui.Center).Opacity(.75).Children(func() {
 				ui.Text(c, switchText).SingleLine().FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(11)).TextColor(ink)
 				if (scheme == "dark") == c.Theme().Dark {
-					ui.Text(c, providerCopy("当前模式", "Current mode")).Label("Theme current mode "+family.Name+" "+scheme).
+					ui.Text(c, providerCopy("当前模式", "Current mode")).Label("Theme current mode "+family.LocalizedName()+" "+scheme).
 						SingleLine().Padding(1, 5).Border(1, ink).Radius(999).FontSize(theme.InterfaceSize(10)).
 						FixedLineHeight(theme.InterfaceSize(14)).TextColor(ink).Opacity(.85)
 				}

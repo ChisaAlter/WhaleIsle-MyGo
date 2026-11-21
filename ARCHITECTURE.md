@@ -250,7 +250,7 @@ Windows Project 新建托管 worktree 使用 `compact-v1` 物理布局：`%USERP
 
 运行时升级采用候选验证、显式选择与可恢复交接，记录 Node、Host 与插件输入。运行任务的升级/退出继续受现有任务保护；失败保留可用版本，不通过清空 profile 恢复。
 
-Windows完整安装在新目录就位后、写入新注册及退休旧载荷之前，由安装器内嵌的 `whaleisle-integration --check-installation` 检查新候选。检查使用新建合成profile及候选自带Node/vendor，必须取得原生窗口、Host、工作区和插件库存就绪；90秒未就绪或进程提前退出即沿现有事务恢复旧目录。探针进程在创建时加入独占Job，整个进程树退出后才回收合成profile并返回结果；诊断保存到 `%LOCALAPPDATA%/mygo/installation-health.json`。该检查不读取真实账号或运行用户任务，不承诺某个真实profile的业务数据迁移已通过。显式shell-only开发包仍不启动其未携带的Host。
+Windows完整安装在新目录就位后、写入新注册及退休旧载荷之前，由安装器内嵌的 `whaleisle-integration --check-installation` 检查新候选。检查使用新建合成profile及候选自带Node/vendor，必须取得原生窗口、Host、工作区和插件库存就绪；180秒未就绪或进程提前退出即沿现有事务恢复旧目录。探针进程在创建时加入独占Job，整个进程树退出后才回收合成profile并返回结果；诊断保存到 `%LOCALAPPDATA%/mygo/installation-health.json`。该检查不读取真实账号或运行用户任务，不承诺某个真实profile的业务数据迁移已通过。显式shell-only开发包仍不启动其未携带的Host。
 
 ## 10. 路线 A 实施顺序与交付批次
 

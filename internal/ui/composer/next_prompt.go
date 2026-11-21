@@ -83,7 +83,7 @@ func paintNextPrompt(c *ui.Context, m Model, ink ui.Color) bool {
 	button := ui.Button(c, "").Label(NextPromptAcceptLabel(m.NextPrompt.Text)).
 		Tooltip(NextPromptTooltip(m.NextPrompt.Text)).FillWidth().Padding(0).Background(ui.Transparent).BorderWidth(0)
 	button.Children(func() {
-		ui.Row(c).Label("采纳下一条消息建议 / Accept next prompt").FillWidth().Gap(6).AlignItems(ui.Center).PassThrough().Children(func() {
+		ui.Row(c).Label(composerText("采纳下一条消息建议", "Accept next prompt")).FillWidth().Gap(6).AlignItems(ui.Center).PassThrough().Children(func() {
 			ui.Text(c, m.NextPrompt.Text).Grow(1).MinWidth(0).SingleLine().FontSize(14).FixedLineHeight(22).TextColor(ink).PassThrough()
 			ui.Box(c).Label(hint).Tooltip(hint).Shrink(0).Padding(0, 4).Radius(4).Border(0.5, c.Theme().Border).PassThrough().Children(func() {
 				ui.Text(c, "Tab").FontSize(12).FixedLineHeight(18).TextColor(ink).PassThrough()

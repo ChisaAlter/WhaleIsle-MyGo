@@ -33,11 +33,11 @@ func TestThemeGridShowsEveryFamilyWithBothHalves(t *testing.T) {
 		t.Fatal("fixture has no theme families")
 	}
 	for _, family := range families {
-		if !tt.HasText(family.Name) {
-			t.Fatalf("theme grid dropped %q: %v", family.Name, tt.Texts())
+		if !tt.HasText(family.LocalizedName()) {
+			t.Fatalf("theme grid dropped %q: %v", family.LocalizedName(), tt.Texts())
 		}
-		if !tt.HasText(family.Name+" light") || !tt.HasText(family.Name+" dark") {
-			t.Fatalf("theme card %q lost a preview half", family.Name)
+		if !tt.HasText(family.LocalizedName()+" light") || !tt.HasText(family.LocalizedName()+" dark") {
+			t.Fatalf("theme card %q lost a preview half", family.LocalizedName())
 		}
 	}
 	if !tt.HasText(i18n.T(i18n.KeySurfacesSettingsReset)) && !tt.HasText("Create theme") {
@@ -51,13 +51,13 @@ func TestThemeHalfPicksThatScheme(t *testing.T) {
 	editor, tt := themeGridFixture(t)
 	families := editor.Draft.Families()
 	target := families[len(families)-1].ID
-	if err := tt.Click(families[len(families)-1].Name + " dark"); err != nil {
+	if err := tt.Click(families[len(families)-1].LocalizedName() + " dark"); err != nil {
 		t.Fatalf("dark preview is not clickable: %v", err)
 	}
 	if editor.Draft.Dark != target {
 		t.Fatalf("dark preview selected %q, want %q", editor.Draft.Dark, target)
 	}
-	if err := tt.Click(families[0].Name + " light"); err != nil {
+	if err := tt.Click(families[0].LocalizedName() + " light"); err != nil {
 		t.Fatalf("light preview is not clickable: %v", err)
 	}
 	if editor.Draft.Light != families[0].ID {
@@ -67,14 +67,20 @@ func TestThemeHalfPicksThatScheme(t *testing.T) {
 
 func TestThemeFamilyTitleUsesOneLocale(t *testing.T) {
 	i18n.SetLocale("zh")
-	if got := themeFamilyTitle("午夜 / Midnight"); got != "午夜" {
+	if got := (theme.Family{ID: "midnight", Name: "午夜"}).LocalizedName(); got != "午夜" {
 		t.Fatalf("zh title = %q", got)
 	}
+	if got := (theme.Family{Name: "午夜 / Midnight"}).LocalizedName(); got != "午夜" {
+		t.Fatalf("zh legacy title = %q", got)
+	}
 	i18n.SetLocale(i18n.LocaleEN)
-	if got := themeFamilyTitle("午夜 / Midnight"); got != "Midnight" {
+	if got := (theme.Family{ID: "midnight", Name: "午夜"}).LocalizedName(); got != "Midnight" {
 		t.Fatalf("en title = %q", got)
 	}
-	if got := themeFamilyTitle("DeepSeek"); got != "DeepSeek" {
+	if got := (theme.Family{Name: "午夜 / Midnight"}).LocalizedName(); got != "Midnight" {
+		t.Fatalf("en legacy title = %q", got)
+	}
+	if got := (theme.Family{Name: "DeepSeek"}).LocalizedName(); got != "DeepSeek" {
 		t.Fatalf("plain title = %q", got)
 	}
 	i18n.SetLocale(i18n.DefaultLocale)

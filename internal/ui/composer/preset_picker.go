@@ -88,10 +88,10 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		} else {
 			text := ui.Text(c, display).Grow(1).MinWidth(0).SingleLine()
 			if opt.FontSize > 0 {
-				text = text.FontSize(opt.FontSize)
+				text.FontSize(opt.FontSize)
 			}
 			if opt.Weight > 0 {
-				text = text.FontWeight(opt.Weight)
+				text.FontWeight(opt.Weight)
 			}
 		}
 		chevron(c, *open)

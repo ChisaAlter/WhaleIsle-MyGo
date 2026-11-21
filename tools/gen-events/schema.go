@@ -8,19 +8,19 @@ import (
 // Inventory is the machine-readable persistence schema inventory
 // (docs/persistence-schema.json, formatVersion 1|2).
 type Inventory struct {
-	FormatVersion int             `json:"formatVersion"`
+	FormatVersion int               `json:"formatVersion"`
 	Roots         []PersistenceRoot `json:"roots"`
 	Types         []json.RawMessage `json:"types"` // retained for parse checks; unused by emit
 }
 
 // PersistenceRoot is one independently tracked persistent record vocabulary.
 type PersistenceRoot struct {
-	Key     string           `json:"key"`
-	Kind    string           `json:"kind"` // header | envelope | event
-	Event   string           `json:"event,omitempty"`
-	Surface bool             `json:"surface,omitempty"`
-	Digest  string           `json:"digest"`
-	Schema  CanonicalSchema  `json:"schema"`
+	Key     string          `json:"key"`
+	Kind    string          `json:"kind"` // header | envelope | event
+	Event   string          `json:"event,omitempty"`
+	Surface bool            `json:"surface,omitempty"`
+	Digest  string          `json:"digest"`
+	Schema  CanonicalSchema `json:"schema"`
 }
 
 // CanonicalSchema is a self-contained minimized type graph.

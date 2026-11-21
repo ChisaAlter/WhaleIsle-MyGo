@@ -20,7 +20,7 @@ func TestBotRoutinePanelRequiresExplicitReview(t *testing.T) {
 		}, OnConfirm: func() { confirmed++ }, OnDismiss: func() { state.Review = nil }}}
 		routineControlBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(160, 160, 160), ui.RGB(20, 20, 20), ui.RGB(80, 80, 80), ui.RGB(80, 130, 220))
 	}, 1100, 3000)
-	if !tt.HasText(i18n.T(i18n.KeyMiscAssistantPrompt) + "Fixture objective") || !tt.HasText("Fixture run failure") {
+	if !tt.HasText(i18n.T(i18n.KeyMiscAssistantPrompt)+"Fixture objective") || !tt.HasText("Fixture run failure") {
 		t.Fatal(tt.Texts())
 	}
 	if confirmed != 0 {

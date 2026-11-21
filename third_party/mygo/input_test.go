@@ -1,4 +1,4 @@
-﻿package mygo
+package mygo
 
 import (
 	"testing"
