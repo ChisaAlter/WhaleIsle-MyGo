@@ -218,7 +218,13 @@ try {
         }
       } catch { /* window not up yet */ }
     }
-    if (Date.now() > bootDeadline) throw new Error('native workbench did not appear in 240 s');
+    if (Date.now() > bootDeadline) {
+      // Keep boot evidence: the shell sits on a named failure page (e.g.
+      // desktop start failed) and last-desktop-start.json carries the error.
+      try { writeFileSync(join(outDir, 'boot-timeout-dump.json'), JSON.stringify(ps1('dump', ['-Depth', '4']))); } catch {}
+      try { writeFileSync(join(outDir, 'last-desktop-start.json'), readFileSync(join(tmp, 'data', 'last-desktop-start.json'), 'utf8')); } catch {}
+      throw new Error('native workbench did not appear in 240 s');
+    }
   }
   console.log(`[native] window pid ${nativePid}; workbench up`);
   // The shell's own Host is its child (exe lives in runtime-rc4, not the temp
