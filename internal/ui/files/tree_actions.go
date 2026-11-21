@@ -2,6 +2,7 @@ package files
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -95,26 +96,28 @@ func treeFileMenu(m Model, path string) func(*ui.Menu) {
 }
 
 func paintTreeTwist(c *ui.Context, expanded bool, ink ui.Color) {
-	ui.Box(c).Width(12).Height(12).Draw(func(p *ui.Painter, r ui.Rect) {
+	twist := ui.Box(c).Width(12).Height(12).Draw(func(p *ui.Painter, r ui.Rect) {
 		path := &ui.Path{}
-		if expanded {
-			path.MoveTo(r.X+3, r.Y+4)
-			path.LineTo(r.X+6, r.Y+7)
-			path.LineTo(r.X+9, r.Y+4)
-		} else {
-			path.MoveTo(r.X+4, r.Y+3)
-			path.LineTo(r.X+7, r.Y+6)
-			path.LineTo(r.X+4, r.Y+9)
-		}
+		path.MoveTo(r.X+4, r.Y+3)
+		path.LineTo(r.X+7, r.Y+6)
+		path.LineTo(r.X+4, r.Y+9)
 		p.StrokePath(path, 1.2, ink)
 	})
+	// FileTree.module.css: the one chevron rotates 90deg on open under the
+	// fast ease-in-out transform transition.
+	target := float32(0)
+	if expanded {
+		target = 1
+	}
+	turn := twist.AnimateWith("turn", target, 100*time.Millisecond, ui.EaseInOut)
+	twist.Rotate(90 * turn)
 }
 
 func paintTreeReferenceButton(c *ui.Context, m Model, row ui.Element, path string, muted ui.Color) {
 	if m.OnReferenceFile == nil {
 		return
 	}
-	button := ui.Button(c.Key("tree-reference"), "@").Label("Reference file " + path).Tooltip(label("引用此文件到对话", "Reference file in chat")).Width(20).Height(20).Radius(6).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(12).Disabled(!m.CanAddToChat)
+	button := ui.Button(c.Key("tree-reference"), "@").Label("Reference file "+path).Tooltip(label("引用此文件到对话", "Reference file in chat")).Width(20).Height(20).Margin(0, 4, 0, 0).Radius(8).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(12).Disabled(!m.CanAddToChat)
 	if !row.Hovered() && !row.FocusWithin() && !button.Focused() {
 		button.Opacity(0)
 	}

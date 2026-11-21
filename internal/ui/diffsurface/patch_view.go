@@ -380,7 +380,7 @@ func buildPatchItemsFromFiles(files []patchFile, split, wrap bool, closed map[st
 // paintPatchFiles paints every file of a patch using ui.List row virtualization.
 func paintPatchFiles(c *ui.Context, m Model, source string, st diff.Style) {
 	if m.Workbench == nil {
-		host := ui.Column(c).Fill().MinHeight(0)
+		host := ui.Column(c).Fill().MinHeight(0).Label("Diff panel")
 		view := ui.Local(host, "diffsurface-standalone-patch-view", func() patchViewState { return patchViewState{} })
 		host.Children(func() {
 			paintVirtualizedPatchList(c, m, view, source, st)
@@ -494,17 +494,17 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 		if item.fileIndex > 0 {
 			topPad = 6
 		}
-		header := ui.Row(c).MinWidth(0).Gap(6).Padding(topPad, 0, 2, 0).AlignItems(ui.Center).Unselectable()
+		title := f.Path
+		if title == "" {
+			title = word("差异内容", "Diff contents")
+		}
+		header := ui.Row(c).MinWidth(0).Gap(6).Padding(topPad, 0, 2, 0).AlignItems(ui.Center).Unselectable().Label("Diff file " + title)
 		if !view.Wrap && view.viewportW > 16 {
 			header.Width(view.viewportW - 16)
 		} else {
 			header.FillWidth()
 		}
 		header.Children(func() {
-			title := f.Path
-			if title == "" {
-				title = word("差异内容", "Diff contents")
-			}
 			head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(28).Radius(6).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
 			if head.Hovered() && m.OnOpenFile != nil && safePatchPath(f.Path) {
 				head.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
@@ -555,7 +555,7 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 			collapsed: view.foldedHunks(fPath),
 			onToggle:  func(index int) { view.toggleHunk(fPath, index) },
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Unselectable().Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Unselectable().Label("Diff hunk header").Children(func() {
 			paintHunkHeader(c, item.line.Text, item.hunk, st, fold)
 		})
 

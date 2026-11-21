@@ -128,7 +128,7 @@ func paintWorkbench(c *ui.Context, m Model, fg, muted ui.Color) {
 		w.bindRoot(m.WorkspaceRoot)
 	}
 	w.finishAsync(m)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(4, 12, 4, 12).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(4, 12, 4, 12).Label(word("工作区差异", "Diff panel")).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
 			paintDiffScope(c, m)
 			if widgets.Button(c, colors, word("比较分支…", "Compare branch…"), widgets.ButtonSpec{Variant: widgets.ButtonToolbar, Size: widgets.ButtonSmall}).Disabled(!w.Repository || w.Operation != nil).Clicked() {

@@ -248,7 +248,7 @@ func View(c *ui.Context, m Model) {
 		paintPlanTabs(c, m)
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
-				input := ui.TextInput(c, m.Filter).FillWidth().Height(28).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(12.5)).Placeholder(i18n.T(i18n.KeyFilesFilter))
+				input := ui.TextInput(c, m.Filter).FillWidth().Height(28).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(12.5)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter))
 				if !input.Composing() && input.Shortcut(0, ui.KeyEscape) {
 					*m.Filter = ""
 				}
@@ -275,7 +275,9 @@ func View(c *ui.Context, m Model) {
 		}
 		ui.SplitVertical(c, split, func() {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
-				ui.Column(c).Padding(4, 4, 4, 4).Gap(1).Fill().Children(func() {
+				// .body in the original's FilesPanel.module.css: rows sit flush,
+				// inset 8/12/16 inside the scroll.
+				ui.Column(c).Margin(8, 12, 16, 12).Label(label("文件树", "File tree")).Children(func() {
 					name := filepath.Base(root)
 					ui.Text(c, name).FontSize(theme.InterfaceSize(12)).Bold().TextColor(muted).Padding(4, 8, 4, 8)
 					if filter != "" {
@@ -306,7 +308,7 @@ func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accen
 		return
 	}
 	for _, path := range state.Paths {
-		row := ui.Row(c).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Radius(6).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
+		row := ui.Row(c).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Radius(8).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
 		if m.SelectedFile != nil && *m.SelectedFile == path {
 			row.Background(accent.Alpha(0.12))
 		}
@@ -369,9 +371,10 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 }
 
 func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
-	pad := float32(8 + depth*12)
 	expanded := isExpanded(m, rel)
-	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("Folder "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).Radius(6).AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
+	// The original indents by the nested ul's padding-left, so the row itself
+	// narrows with depth; its inner padding stays 8.
+	row := ui.Row(c).Key(workspaceReference(m, rel)).Label("Folder "+rel).Focusable().Margin(0, 0, 0, float32(depth*12)).Padding(0, 8).Gap(6).MinWidth(0).Height(28).Radius(8).AlignItems(ui.Center).ContextMenu(treeDirectoryMenu(m, rel))
 	if row.Hovered() || row.FocusWithin() {
 		row.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
 	}
@@ -387,29 +390,34 @@ func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acce
 }
 
 func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {
-	pad := float32(8 + depth*12)
 	selected := m.SelectedFile != nil && *m.SelectedFile == rel
-	row := ui.Row(c).Key(treeFileRowKey(m, rel)).Label("File "+rel).Focusable().Padding(0, 8, 0, pad).Gap(6).FillWidth().MinWidth(0).Height(28).Radius(6).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
-	if selected {
-		row.Background(accent.Alpha(0.12))
-	} else if row.Hovered() || row.FocusWithin() {
-		row.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
-	}
-	row.Children(func() {
-		ui.Box(c).Width(12)
-		paintTreeEntryIcon(c, false, muted)
-		ui.Text(c, name).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-		paintTreeReferenceButton(c, m, row, rel, muted)
+	// The original's .item li lays the row button (flex: 1) and the 20px
+	// mention button side by side; the row narrows by that accessory's seat,
+	// and the li itself indents by the nested ul's padding-left.
+	wrap := ui.Row(c).MinWidth(0).Margin(0, 0, 0, float32(depth*12)).AlignItems(ui.Center)
+	wrap.Children(func() {
+		row := ui.Row(c).Key(treeFileRowKey(m, rel)).Label("File "+rel).Focusable().Padding(0, 8).Gap(6).Grow(1).MinWidth(0).Height(28).Radius(8).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, rel)).Drag(workspaceReference(m, rel))
+		if selected {
+			row.Background(accent.Alpha(0.12))
+		} else if row.Hovered() || row.FocusWithin() {
+			row.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
+		}
+		row.Children(func() {
+			ui.Box(c).Width(12)
+			paintTreeEntryIcon(c, false, muted)
+			ui.Text(c, name).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+		})
+		if row.Clicked() {
+			openTreeFile(m, rel)
+		}
+		paintTreeReferenceButton(c, m, wrap, rel, muted)
 	})
-	if row.Clicked() {
-		openTreeFile(m, rel)
-	}
 	_ = muted
 }
 
 func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
+	ui.Column(c).Fill().MinHeight(0).Background(field).Label(label("文件预览", "File preview")).Children(func() {
 		ui.Box(c).FillWidth().Height(0.5).Background(border)
 		if !m.ResourceOnly {
 			paintTabs(c, m, fg, muted)
@@ -477,7 +485,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		if tab := selectedTab(m); tab != nil && tab.RenderedMarkdown && isMarkdown(sel) {
 			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
-				ui.Column(c).Padding(8, 12, 8, 12).FillWidth().Children(func() {
+				ui.Column(c).Padding(12, 16, 16, 16).FillWidth().Label(label("Markdown 内容", "Markdown content")).Children(func() {
 					paintMarkdownResource(c, m, fg, muted)
 				})
 			})

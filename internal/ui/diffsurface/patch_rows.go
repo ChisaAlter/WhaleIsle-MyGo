@@ -160,6 +160,22 @@ func paintUnifiedRows(c *ui.Context, rows []patchRow, st diff.Style, wrap bool, 
 	})
 }
 
+// diffLineKindLabel is the accessible name a rendered patch row reports,
+// matching the original's data-diff-line values.
+func diffLineKindLabel(kind diffLineKind) string {
+	switch kind {
+	case diffLineAdd:
+		return "add"
+	case diffLineDel:
+		return "del"
+	case diffLineHunk:
+		return "hunk"
+	case diffLineMeta:
+		return "meta"
+	}
+	return "context"
+}
+
 // paintDiffGutter paints one line's number and change marker outside the
 // horizontal scroller.
 func paintDiffGutter(c *ui.Context, line diffLine, st diff.Style) {
@@ -172,7 +188,7 @@ func paintDiffGutter(c *ui.Context, line diffLine, st diff.Style) {
 	case diffLineDel:
 		color, tint, sign = st.Del, st.Del.Alpha(.08), "-"
 	}
-	row := ui.Row(c).Width(diffNumberWidth + diffSignWidth).Height(diffLineBox(line.Kind)).Gap(0).AlignItems(ui.Center)
+	row := ui.Row(c).Width(diffNumberWidth + diffSignWidth).Height(diffLineBox(line.Kind)).Gap(0).AlignItems(ui.Center).Label("Diff gutter " + diffLineKindLabel(line.Kind))
 	if tint.A > 0 {
 		row.Background(tint)
 	}
@@ -206,7 +222,7 @@ func paintDiffText(c *ui.Context, line diffLine, st diff.Style, fold hunkFold) {
 	case diffLineMeta:
 		color = st.File
 	}
-	row := ui.Row(c).FillWidth().Height(diffLineBox(line.Kind)).MinWidth(0).Padding(0, 8).AlignItems(ui.Center)
+	row := ui.Row(c).FillWidth().Height(diffLineBox(line.Kind)).MinWidth(0).Padding(0, 8).AlignItems(ui.Center).Label("Diff line " + diffLineKindLabel(line.Kind))
 	if tint.A > 0 {
 		row.Background(tint)
 	}
@@ -277,7 +293,7 @@ func paintDiffLine(c *ui.Context, line diffLine, st diff.Style, minWidth float32
 	case diffLineDel:
 		color, tint, sign = st.Del, st.Del.Alpha(.08), "-"
 	}
-	row := ui.Row(c).FillWidth().MinWidth(minWidth).Height(diffRowHeight).Gap(6).Padding(0, 8).AlignItems(ui.Center)
+	row := ui.Row(c).FillWidth().MinWidth(minWidth).Height(diffRowHeight).Gap(6).Padding(0, 8).AlignItems(ui.Center).Label("Diff line " + diffLineKindLabel(line.Kind))
 	if tint.A > 0 {
 		row.Background(tint)
 	}
@@ -286,7 +302,7 @@ func paintDiffLine(c *ui.Context, line diffLine, st diff.Style, minWidth float32
 		if line.Number > 0 {
 			number = strconv.Itoa(line.Number)
 		}
-		ui.Text(c, number).Width(diffNumberWidth).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End).Unselectable()
+		ui.Text(c, number).Width(diffNumberWidth).Shrink(0).Font("monospace").FontSize(st.FontSize - 1).TextColor(st.Muted).TextAlign(ui.End).Unselectable().Label("Diff gutter")
 		ui.Text(c, sign).Width(diffSignWidth).Shrink(0).Font("monospace").FontSize(st.FontSize).TextColor(color).TextAlign(ui.Center).Unselectable()
 		text := ui.Text(c, line.Text).Font("monospace").FontSize(st.FontSize).TextColor(color).Grow(1).MinWidth(0)
 		if !wrap {

@@ -182,7 +182,9 @@ func (t *FileTab) sourceVersionFor(text string) uint64 {
 }
 
 func paintSourceArea(c *ui.Context, m Model, path string, text *string, readOnly bool, key string, fg, muted ui.Color) {
-	ui.Column(c).Key(path + "/" + key).Fill().MinHeight(0).MinWidth(0).Children(func() {
+	// FilePreview.module.css .body: the preview content inset is 12/16/16
+	// around the textarea, so the source column carries the same padding.
+	ui.Column(c).Key(path+"/"+key).Fill().MinHeight(0).MinWidth(0).Padding(12, 16, 16, 16).Children(func() {
 		t := selectedTab(m)
 		if readOnly && shouldVirtualizeReadOnlyPreview(t, *text) {
 			paintVirtualizedReadOnlySource(c, m, path, *text, t, key, fg, muted)

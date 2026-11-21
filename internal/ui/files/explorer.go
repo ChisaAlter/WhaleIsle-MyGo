@@ -28,27 +28,26 @@ func viewExplorer(c *ui.Context, m Model) {
 		m.Tabs.Tree.EnsureHostOnly(m.BindingID, root, m.HostOnly)
 		m.Tabs.Tree.Observe(m.WatchRemoteContext, !tabsFor(m).AutoRefreshDisabled)
 	}
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent).Label(label("文件面板", "Files panel")).Children(func() {
 		if root == "" {
 			ui.Text(c, i18n.T(i18n.KeyFilesNoWorkspace)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(12)
 			return
 		}
-		ui.Row(c).FillWidth().MinWidth(0).Height(40).Shrink(0).Padding(6, 12).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, root).Key(m.BindingID + "\x00" + root).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(root).
-				ContextMenu(func(menu *ui.Menu) {
-					if menu.Item(label("复制工作区路径", "Copy workspace path")).Chosen() {
-						mygo.Clipboard.WriteText(root)
-					}
-					if m.OnReveal != nil && menu.Item(label("在文件管理器中显示", "Show in folder")).Chosen() {
-						m.OnReveal(root)
-					}
-				})
-			if previewTool(c, "tree-refresh", label("刷新文件树", "Refresh files"), previewReloadIcon, muted).Disabled(m.Tabs == nil).Clicked() {
-				m.Tabs.Tree.Refresh()
-				m.Tabs.Search.Cancel()
-				m.Tabs.explorerError = ""
+		// FilesPanel.module.css `.toolbar`: the search field grows beside one
+		// 28px refresh control, inset 8/12/0. The original surfaces the extra
+		// tree actions through item context menus, so they live on this
+		// control's context menu here.
+		ui.Row(c).FillWidth().Shrink(0).Padding(8, 12, 0, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+			if m.Filter != nil {
+				ui.TextInput(c, m.Filter).Grow(1).MinWidth(0).Height(33).Radius(12).Border(0.5, chrome.Color(colors.Border)).FontSize(theme.InterfaceSize(12)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter))
+			} else {
+				ui.Box(c).Grow(1).MinWidth(0)
 			}
-			previewTool(c, "tree-options", label("文件树选项", "Files options"), previewChevronIcon, muted).Menu(func(menu *ui.Menu) {
+			refresh := previewTool(c, "tree-refresh", label("刷新文件树", "Refresh files"), previewReloadIcon, muted).Disabled(m.Tabs == nil)
+			refresh.ContextMenu(func(menu *ui.Menu) {
+				if menu.Item(label("复制工作区路径", "Copy workspace path")).Chosen() {
+					mygo.Clipboard.WriteText(root)
+				}
 				if m.OnReveal != nil && menu.Item(label("在文件管理器中显示", "Show in folder")).Chosen() {
 					m.OnReveal(root)
 				}
@@ -59,10 +58,14 @@ func viewExplorer(c *ui.Context, m Model) {
 					}
 				}
 			})
+			if refresh.Clicked() {
+				m.Tabs.Tree.Refresh()
+				m.Tabs.Search.Cancel()
+				m.Tabs.explorerError = ""
+			}
 		})
 		filter := ""
 		if m.Filter != nil {
-			ui.TextInput(c, m.Filter).FillWidth().Height(28).Margin(0, 12, 6, 12).Radius(6).Border(0.5, chrome.Color(colors.Border)).FontSize(theme.InterfaceSize(12)).Placeholder(i18n.T(i18n.KeyFilesFilter))
 			filter = strings.TrimSpace(*m.Filter)
 		}
 		if m.Tabs != nil && m.Tabs.explorerError != "" {
@@ -72,7 +75,10 @@ func viewExplorer(c *ui.Context, m Model) {
 			m.Tabs.Search.EnsureHostOnly(m.BindingID, root, filter, m.ListRemoteContext, c.Invalidate, m.HostOnly)
 		}
 		ui.Scroll(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(4).Gap(1).Children(func() {
+			// FilesPanel.module.css `.body` pads the scroll content 8/12/16 and
+			// `.list[data-file-tree]` itself carries the rows, so the tree's
+			// semantic box is the padded column, not the scroll viewport.
+			ui.Column(c).MinWidth(0).Margin(8, 12, 16, 12).Label(label("文件树", "File tree")).Children(func() {
 				if filter != "" {
 					paintFiltered(c, m, root, filter, fg, muted, chrome.Color(colors.Accent))
 				} else {

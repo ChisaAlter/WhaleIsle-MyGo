@@ -224,11 +224,13 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 	group := w.Root.dockGroup(n.ID)
 	tabs := group.dockTabs()
 	n.tabDragging = false
-	header := ui.Row(c.Key("workspace-pane-header")).Label("Workspace pane header").FillWidth().MinWidth(0).Height(38).
-		Padding(10, 6, 0, 10).Gap(4).AlignItems(ui.Center)
+	// The original's right pane rides a 48px strip with its tabs centered
+	// (SidebarRight.module.css `.panel [data-dockkit-strip]`).
+	header := ui.Row(c.Key("workspace-pane-header")).Label("Workspace pane header").FillWidth().MinWidth(0).Height(48).
+		Padding(0, 6, 0, 10).Gap(4).AlignItems(ui.Center)
 	n.stripWidth = header.Bounds().W
 	header.Children(func() {
-		tabRun := ui.ScrollHorizontal(c.Key("workspace-pane-tabs")).Grow(1).MinWidth(0).Height(28)
+		tabRun := ui.ScrollHorizontal(c.Key("workspace-pane-tabs")).Grow(1).MinWidth(0).Height(24)
 		n.tabRunWidth = tabRun.Bounds().W
 		tabRun.Children(func() {
 			ui.Row(c).Gap(4).Children(func() {
@@ -244,7 +246,10 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					} else {
 						chip = ui.Button(c.Key("resource-tab:"+tab.ID), "").Drag(workspaceTabDrag{ID: tab.ID}).ContextMenu(workspacePaneMenu(m, tab))
 					}
-					chip.Label(title).Tooltip(title).Height(28).MinWidth(80).MaxWidth(170).Padding(0, 10).Radius(6).BorderWidth(0).Background(ui.Transparent)
+					// `.panel [data-dockkit-tab]`: 24px chips, 12px type; the kit's
+					// `.tab` is content-box, so the 80px content floor and 144px
+					// content cap land at 100/164 with the 10px side padding.
+					chip.Label(title).Tooltip(title).Height(24).MinWidth(100).MaxWidth(164).Padding(0, 10).Radius(8).BorderWidth(0).Background(ui.Transparent)
 					if tab.Files != nil && tab.Files.ResourcePath != "" {
 						chip.Tooltip(tab.Files.ResourcePath)
 					}
@@ -253,7 +258,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					}
 					chip.Children(func() {
 						if !editing || !termui.HostTitleEditor(c, terminal, sid) {
-							ui.Text(c, title).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(13))
+							ui.Text(c, title).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(12))
 						}
 					})
 					if editing {
@@ -289,7 +294,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						w.pending = func() { w.openGuide(n.ID) }
 					}
 				}
-				end := ui.Box(c.Key("resource-tab-end")).Width(10).Height(28)
+				end := ui.Box(c.Key("resource-tab-end")).Width(10).Height(24)
 				if _, over := ui.DragOver[workspaceTabDrag](end); over {
 					end.Background(c.Theme().Accent)
 				}
