@@ -67,19 +67,15 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 				})
 			}
 			if m.Error != "" || m.Team == nil && !m.Loading {
-				ui.Column(c).FillWidth().Gap(6).Padding(4).Children(func() {
-					message := m.Error
-					if message == "" {
-						message = tr("Team 暂不可用", "Team is unavailable")
-					}
-					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						widgets.StateDot(c, widgets.StateWarning)
-						ui.Text(c, message).FontSize(theme.InterfaceSize(12)).TextColor(fg).Selectable()
-					})
-					if m.OnRefresh != nil && ui.Button(c, tr("重试", "Retry")).Cursor(ui.CursorPointer).Disabled(m.Loading).Clicked() {
-						m.OnRefresh()
-					}
-				})
+				message := m.Error
+				if message == "" {
+					message = tr("Team 暂不可用", "Team is unavailable")
+				}
+				alert := widgets.AlertOptions{ID: "ordinary-team", Message: message}
+				if m.OnRefresh != nil && !m.Loading {
+					alert.Action, alert.OnAction = tr("重试", "Retry"), m.OnRefresh
+				}
+				widgets.Alert(c, alert)
 			}
 			if m.Team == nil {
 				return

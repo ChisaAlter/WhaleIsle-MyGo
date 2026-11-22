@@ -128,15 +128,14 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 					if s.NavigationError != "" {
 						message = s.NavigationError
 					}
-					ui.Column(c).FillWidth().Gap(5).Children(func() {
-						ui.Text(c, message).TextColor(chrome.Color(colors.Danger)).FontSize(theme.InterfaceSize(12)).Selectable()
-						if m.Error != "" && m.OnRefresh != nil && ui.Button(c, tr("重试", "Retry")).Cursor(ui.CursorPointer).Disabled(m.Loading).Clicked() {
-							m.OnRefresh()
-						}
-						if s.NavigationError != "" && ui.Button(c, tr("关闭提示", "Dismiss notice")).Cursor(ui.CursorPointer).Clicked() {
-							s.NavigationError = ""
-						}
-					})
+					alert := widgets.AlertOptions{ID: "project-team", Message: message}
+					if m.Error != "" && m.OnRefresh != nil && !m.Loading {
+						alert.Action, alert.OnAction = tr("重试", "Retry"), m.OnRefresh
+					}
+					if s.NavigationError != "" {
+						alert.Dismiss, alert.OnDismiss = tr("关闭提示", "Dismiss notice"), func() { s.NavigationError = "" }
+					}
+					widgets.Alert(c, alert)
 				}
 				if m.Overview == nil || m.Overview.Team == nil {
 					if !m.Loading && m.Error == "" {
