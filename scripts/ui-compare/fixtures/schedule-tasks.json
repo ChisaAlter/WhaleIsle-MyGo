@@ -1,0 +1,35 @@
+{
+  "tasks": [
+    {
+      "id": "ui-compare-task-weekly",
+      "record": {
+        "id": "ui-compare-task-weekly",
+        "kind": "weekly",
+        "title": "每周报告汇总",
+        "prompt": "汇总本周工作并生成周报",
+        "time": "09:30:00.000",
+        "timeZone": "Asia/Shanghai",
+        "weekdays": [
+          3
+        ],
+        "scheduledAt": "2026-11-18T01:30:00.000Z"
+      },
+      "status": "active",
+      "sessionId": "session-ui-compare-schedule"
+    },
+    {
+      "id": "ui-compare-task-daily-paused",
+      "record": {
+        "id": "ui-compare-task-daily-paused",
+        "kind": "daily",
+        "title": "每日站会提醒",
+        "prompt": "提醒参加每日站会",
+        "time": "09:30:00.000",
+        "timeZone": "Asia/Shanghai",
+        "scheduledAt": "2026-11-20T01:30:00.000Z"
+      },
+      "status": "active",
+      "sessionId": "session-ui-compare-schedule"
+    }
+  ]
+}

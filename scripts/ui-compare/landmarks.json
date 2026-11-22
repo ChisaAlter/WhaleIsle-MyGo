@@ -4030,6 +4030,859 @@
           "usagePanel": true
         }
       ]
+    },
+    "market": {
+      "mock": true,
+      "scenarios": [
+        {
+          "id": "market-discover",
+          "marketIndex": true,
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-dsh-panel=plugins]"
+                },
+                "expect": {
+                  "selector": "[data-plugin-panel]"
+                }
+              },
+              {
+                "click": {
+                  "within": "[data-plugin-panel]",
+                  "selector": "button",
+                  "text": "发现"
+                },
+                "expect": {
+                  "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]",
+                  "timeout": 30000
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "插件",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "发现",
+                  "type": "TabItem"
+                }
+              },
+              {
+                "expect": {
+                  "name": "安装 阿尔法插件",
+                  "type": "Button",
+                  "timeout": 30000
+                },
+                "select": {
+                  "name": "发现",
+                  "type": "TabItem"
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "boot.composer",
+              "probe": true,
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
+              "assert": []
+            },
+            {
+              "key": "market.tabs",
+              "web": {
+                "selector": "[class*=pageTabList]"
+              },
+              "native": {
+                "name": "插件视图",
+                "type": "Tab"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "market.card-1",
+              "web": {
+                "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]"
+              },
+              "native": {
+                "type": "Group",
+                "namePrefix": "Market entry"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "market.title-1",
+              "web": {
+                "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"] button[class*=cardOpen]"
+              },
+              "native": {
+                "name": "查看 阿尔法插件",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "market.desc-1",
+              "web": {
+                "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"] [class*=description]"
+              },
+              "native": {
+                "name": "第一个确定性示例插件。",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "market.install-1",
+              "web": {
+                "selector": "button[aria-label=\"安装 阿尔法插件\"]"
+              },
+              "native": {
+                "name": "安装 阿尔法插件",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "market.card-3",
+              "web": {
+                "selector": "[data-market-entry=\"@ui-compare/plugin-gamma\"]"
+              },
+              "native": {
+                "type": "Group",
+                "namePrefix": "Market entry",
+                "index": 2
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "market.blocked",
+              "web": {
+                "selector": "button[aria-label=\"安装 伽马插件\"]"
+              },
+              "native": {
+                "name": "安装 伽马插件",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "market.search",
+              "web": {
+                "selector": "[data-plugin-panel] [class*=search]"
+              },
+              "native": {
+                "name": "搜索插件",
+                "type": "Edit"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "schedules": {
+      "scheduleFixture": "fixtures/schedule-tasks.json",
+      "scenarios": [
+        {
+          "id": "schedule-list",
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-dsh-panel=schedules]"
+                },
+                "expect": {
+                  "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) > button"
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "自动化任务",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Open task: 每日站会提醒",
+                  "type": "Button"
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "boot.composer",
+              "probe": true,
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
+              "assert": []
+            },
+            {
+              "key": "schedlist.heading",
+              "web": {
+                "selector": "[data-testid=task-manager-page] [class*=pageHeading] h1"
+              },
+              "native": {
+                "name": "自动化任务",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "schedlist.create",
+              "web": {
+                "selector": "[data-testid=task-manager-page] button[class*=newButton]"
+              },
+              "native": {
+                "name": "新建",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "schedlist.filter-all",
+              "web": {
+                "selector": "[data-testid=task-manager-page] [class*=filterTabs] > button",
+                "text": "全部"
+              },
+              "native": {
+                "name": "全部",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "schedlist.filter-active",
+              "web": {
+                "selector": "[data-testid=task-manager-page] [class*=filterTabs] > button",
+                "text": "已开启"
+              },
+              "native": {
+                "name": "已开启",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "schedlist.row-1",
+              "web": {
+                "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(1) > button"
+              },
+              "native": {
+                "name": "Open task: 每周报告汇总",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "schedlist.row-2",
+              "web": {
+                "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) > button"
+              },
+              "native": {
+                "name": "Open task: 每日站会提醒",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "schedule-detail",
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-dsh-panel=schedules]"
+                },
+                "expect": {
+                  "selector": "[data-testid=task-manager-page]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) > button"
+                },
+                "expect": {
+                  "selector": "aside[class*=detail]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "自动化任务",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Open task: 每日站会提醒",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "Open task: 每日站会提醒",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "规则",
+                  "type": "Button"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "scheddetail.tab-rule",
+              "web": {
+                "selector": "[role=tablist][aria-label] > button",
+                "text": "规则"
+              },
+              "native": {
+                "name": "规则",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "scheddetail.tab-records",
+              "web": {
+                "selector": "[role=tablist][aria-label] > button",
+                "text": "任务运行记录"
+              },
+              "native": {
+                "name": "任务运行记录",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "scheddetail.more",
+              "web": {
+                "selector": "button[aria-label=\"自动化任务操作\"]"
+              },
+              "native": {
+                "name": "Automation task actions",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "scheddetail.close",
+              "web": {
+                "selector": "button[aria-label=\"关闭详情\"]"
+              },
+              "native": {
+                "name": "Close details",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "schedule-delete",
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[data-dsh-panel=schedules]"
+                },
+                "expect": {
+                  "selector": "[data-testid=task-manager-page]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) > button"
+                },
+                "expect": {
+                  "selector": "aside[class*=detail]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "button[aria-label=\"自动化任务操作\"]"
+                },
+                "expect": {
+                  "selector": "[role=menuitem]",
+                  "index": 0
+                }
+              },
+              {
+                "click": {
+                  "selector": "[role=menuitem]",
+                  "index": 0
+                },
+                "expect": {
+                  "selector": "[class*=confirmDialog]"
+                }
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "invoke": {
+                  "name": "自动化任务",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Open task: 每日站会提醒",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "Open task: 每日站会提醒",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "Automation task actions",
+                  "type": "Button"
+                }
+              },
+              {
+                "expect": {
+                  "name": "删除任务",
+                  "type": "MenuItem"
+                },
+                "expand": {
+                  "name": "Automation task actions",
+                  "type": "Button"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "删除任务",
+                  "type": "MenuItem"
+                },
+                "expect": {
+                  "name": "Delete this task?",
+                  "type": "Pane"
+                }
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "scheddelete.dialog",
+              "web": {
+                "selector": "[class*=confirmDialog]"
+              },
+              "native": {
+                "name": "Delete this task?",
+                "type": "Pane"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "scheddelete.title",
+              "web": {
+                "within": "[class*=confirmDialog]",
+                "text": "删除此任务？"
+              },
+              "native": {
+                "name": "删除此任务？",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "scheddelete.cancel",
+              "web": {
+                "selector": "[class*=confirmActions] button",
+                "text": "取消"
+              },
+              "native": {
+                "name": "Cancel task deletion",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "scheddelete.confirm",
+              "web": {
+                "selector": "[class*=confirmActions] button",
+                "text": "确认删除"
+              },
+              "native": {
+                "name": "确认删除",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "usage": {
+      "scenarios": [
+        {
+          "id": "usage-empty",
+          "usagePanel": true,
+          "web": {
+            "steps": [
+              {
+                "click": {
+                  "selector": "button[aria-label='账号菜单']"
+                },
+                "expect": {
+                  "selector": "[role=menu]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[role=menu] [role=menuitem]",
+                  "index": 0
+                },
+                "expect": {
+                  "selector": "[role=dialog]"
+                }
+              },
+              {
+                "click": {
+                  "selector": "[data-dsh-settings-section='usage-stats']"
+                },
+                "expect": {
+                  "selector": "[data-dsh-settings-section='usage-stats'][aria-current]"
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
+            ]
+          },
+          "native": {
+            "steps": [
+              {
+                "expand": {
+                  "name": "账号菜单",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "",
+                  "type": "Menu"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "设置",
+                  "type": "MenuItem"
+                },
+                "expect": {
+                  "name": "设置",
+                  "type": "Text"
+                }
+              },
+              {
+                "invoke": {
+                  "name": "用量与费用",
+                  "type": "Button"
+                },
+                "expect": {
+                  "name": "用量与费用",
+                  "type": "Text"
+                }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
+              }
+            ]
+          },
+          "landmarks": [
+            {
+              "key": "boot.composer",
+              "probe": true,
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
+              "assert": []
+            },
+            {
+              "key": "usageempty.title",
+              "web": {
+                "within": ".dsw-ust-root",
+                "text": "用量与费用"
+              },
+              "native": {
+                "name": "用量与费用",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "usageempty.empty",
+              "web": {
+                "selector": ".dsw-ust-empty-title"
+              },
+              "native": {
+                "name": "暂无统计数据",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "usageempty.hint",
+              "web": {
+                "within": ".dsw-ust-empty",
+                "text": "开始使用 DeepSeek Harness 后，这里会展示 Token 消耗情况"
+              },
+              "native": {
+                "name": "开始使用 DeepSeek Harness 后，这里会展示 Token 消耗情况",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            }
+          ]
+        }
+      ]
     }
   }
 }

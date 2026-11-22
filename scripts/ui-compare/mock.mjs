@@ -21,6 +21,45 @@ const args = process.argv.slice(2);
 const logPath = args[args.indexOf('--log') + 1];
 mkdirSync(dirname(logPath), { recursive: true });
 
+// The same server also publishes the offline plugin-market index used by the
+// market surface: the Host's dsh-plugin-market service fetches
+// DSHD_PLUGIN_MARKET_INDEX over plain http, so a fixed document is enough for
+// both clients (no registry, no network).
+const MARKET_INDEX = {
+  format: 1,
+  title: { en: 'UI Compare Market', zh: '界面比对示例市场' },
+  description: { en: 'Deterministic index for ui-compare', zh: '界面比对的确定性索引' },
+  metadata: {
+    categories: { tools: { title: { en: 'Tools', zh: '工具' } } },
+    labels: { official: { title: { en: 'Official', zh: '官方' } } },
+    sortKeys: {},
+  },
+  plugins: [
+    {
+      name: '@ui-compare/plugin-alpha',
+      title: { en: 'Alpha Plugin', zh: '阿尔法插件' },
+      description: { en: 'First deterministic sample plugin.', zh: '第一个确定性示例插件。' },
+      author: 'UI Compare',
+      metadata: { category: 'tools', keywords: ['sample'], labels: ['official'], sortKeys: {} },
+      versions: [{ version: '1.0.0', publishTimestamp: 1762358400, source: { type: 'npm' }, engines: {} }],
+    },
+    {
+      name: '@ui-compare/plugin-beta',
+      title: { en: 'Beta Plugin', zh: '贝塔插件' },
+      description: { en: 'Second deterministic sample plugin.', zh: '第二个确定性示例插件。' },
+      metadata: { keywords: [], labels: [], sortKeys: {} },
+      versions: [{ version: '0.2.1', publishTimestamp: 1762963200, source: { type: 'npm' }, engines: {} }],
+    },
+    {
+      name: '@ui-compare/plugin-gamma',
+      title: { en: 'Gamma Plugin', zh: '伽马插件' },
+      description: { en: 'Incompatible sample plugin.', zh: '不兼容的示例插件。' },
+      metadata: { keywords: [], labels: [], sortKeys: {} },
+      versions: [{ version: '3.0.0', publishTimestamp: 1762963200, source: { type: 'npm' }, engines: { dsh: '>=99.0.0' } }],
+    },
+  ],
+};
+
 const FIXED_USAGE = { input: 41, cacheRead: 12, cacheWrite: 8, output: 23 };
 const sse = (res, payload) => res.write(`event: ${payload.type}\ndata: ${JSON.stringify(payload)}\n\n`);
 
@@ -98,6 +137,12 @@ function choose(body) {
 }
 
 const server = createServer((req, res) => {
+  if (req.method === 'GET' && (req.url.split('?')[0].replace(/\/+$/, '') === '/market-index.json')) {
+    appendFileSync(logPath, JSON.stringify({ ts: new Date().toISOString(), behavior: 'market-index' }) + '\n');
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(MARKET_INDEX) + '\n');
+    return;
+  }
   if (req.method !== 'POST' || !req.url.replace(/\/+$/, '').endsWith('/v1/messages')) {
     res.writeHead(404); res.end(); return;
   }

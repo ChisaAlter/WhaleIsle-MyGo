@@ -104,6 +104,11 @@ if (surfaceSpec.mock) {
   console.log('[mock]', mockBase);
 }
 const modelEnv = mockBase ? { DEEPSEEK_BASE_URL: mockBase + '/v1', DEEPSEEK_API_KEY: 'mock-key' } : {};
+// A scenario may point both Hosts' plugin-market service at the mock's
+// offline index (the plugin-market-bundle patch reads
+// DSHD_PLUGIN_MARKET_INDEX into config.indexes). Requires mock: true.
+const marketEnv = mockBase && surfaceSpec.scenarios.some(sc => sc.marketIndex)
+  ? { DSHD_PLUGIN_MARKET_INDEX: mockBase + '/market-index.json' } : {};
 
 let nativePid = 0, chromeProc = null, host2 = null, nativeProc = null, ws = null, cdpPort = 0, cdpSeq = 0;
 const cdpPending = new Map();
@@ -154,6 +159,17 @@ try {
       console.log('[seed]', (s.stdout || '').trim());
     }
   }
+  // A surface may seed Host schedule tasks into BOTH DSH homes before either
+  // launches — the same Host-persisted state both clients read via
+  // schedule/catalog (the single-unit document storages/schedule.json).
+  if (surfaceSpec.scheduleFixture) {
+    const fx = join(TOOL_DIR, surfaceSpec.scheduleFixture);
+    for (const home of [host2Home, nativeHome]) {
+      const s = spawnSync(NODE, [join(TOOL_DIR, 'seed-schedule.mjs'), home, fx], { encoding: 'utf8' });
+      if (s.status !== 0) throw new Error(`seed-schedule ${home}: ${(s.stderr || s.stdout || '').slice(0, 400)}`);
+      console.log('[seed]', (s.stdout || '').trim());
+    }
+  }
   // dsh-usage-panel is not in the stock web profile; the native desktop
   // composes it through its own desktop-usage-panel overlay, so host2 needs
   // the vendor bundle patch only when a scenario actually opens the page.
@@ -171,8 +187,12 @@ try {
     if (!existsSync(usageLink)) symlinkSync(join(RUNTIME, 'vendor', 'dsh-usage-panel'), usageLink, 'junction');
   }
   webArgv.push('--host', '127.0.0.1', '--port', String(port), '--no-open');
+  // MAGPIE_USAGE_FILE overrides the machine-level gateway ledger
+  // (~/.config/magpie/usage.jsonl) that dsh-usage-panel prefers over session
+  // logs: an absent file inside the temp root keeps both sides on logs.
+  const usageEnv = { MAGPIE_USAGE_FILE: join(tmp, 'magpie-usage.jsonl') };
   host2 = tracked(spawn(NODE, webArgv,
-    { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
+    { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv, ...marketEnv, ...usageEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
   host2.stdout.setEncoding('utf8');
   host2.stdout.on('data', (d) => { const m = /dsh web:\s*(https?:\/\/\S+)/.exec(d); if (m && !readyUrl) readyUrl = m[1]; });
@@ -187,7 +207,7 @@ try {
   if (b.status !== 0) throw new Error('go build: ' + (b.stderr || '').slice(0, 400));
   const cfgPath = join(tmp, 'data', 'config.json');
   const launchNative = () => tracked(spawn(join(tmp, 'whaleisle.exe'), [], {
-    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), WHALEISLE_VENDOR: join(RUNTIME_REAL, 'vendor'), WHALEISLE_NODE_DIR: join(RUNTIME_REAL, 'node'), ...modelEnv },
+    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), WHALEISLE_VENDOR: join(RUNTIME_REAL, 'vendor'), WHALEISLE_NODE_DIR: join(RUNTIME_REAL, 'node'), ...modelEnv, ...marketEnv, ...usageEnv },
     cwd: REPO, stdio: ['ignore', nativeOutFd, nativeErrFd],
   }), 'whaleisle');
   // Phase 1: let the app write its default config, then patch the workspace
@@ -428,12 +448,14 @@ try {
       // can take longer than a single 500 ms tick to re-mount its content.
       const webExpect = async (spec) => {
         const t0 = Date.now();
-        while (Date.now() - t0 < WAIT_MS) { if (await webPresent(spec)) return true; await sleep(250); }
+        const ms = spec.timeout || WAIT_MS;
+        while (Date.now() - t0 < ms) { if (await webPresent(spec)) return true; await sleep(250); }
         return false;
       };
       const nativeExpect = async (spec) => {
         const t0 = Date.now();
-        while (Date.now() - t0 < WAIT_MS) { if (nativePresent(spec)) return true; await sleep(250); }
+        const ms = spec.timeout || WAIT_MS;
+        while (Date.now() - t0 < ms) { if (nativePresent(spec)) return true; await sleep(250); }
         return false;
       };
       for (const s of (sc.web?.steps || [])) {
