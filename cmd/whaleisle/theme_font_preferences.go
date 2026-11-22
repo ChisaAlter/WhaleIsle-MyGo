@@ -141,9 +141,20 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	t.Background = chrome.Color(colors.BG)
 	t.Text = chrome.Color(colors.FG)
 	t.TextMuted = chrome.Color(colors.Muted)
-	t.Surface = chrome.Color(colors.Field)
-	t.SurfaceHover = chrome.Color(colors.Hover)
-	t.SurfacePressed = chrome.Color(colors.Pressed)
+	t.Surface = chrome.FrostInset(colors, dark, chrome.Color(colors.Field))
+	if chrome.BackdropActive() {
+		// Default controls (buttons, inputs, selects, toggle tracks) paint
+		// theme surfaces: keep them translucent like every FrostInset, and
+		// layer the hover and pressed washes over it so the states stay
+		// distinct. This runs each frame, so the theme follows the
+		// backdrop turning on or off.
+		hover, pressed := chrome.Color(colors.Hover), chrome.Color(colors.Pressed)
+		t.SurfaceHover = hover.Over(hover)
+		t.SurfacePressed = pressed.Over(hover)
+	} else {
+		t.SurfaceHover = chrome.Color(colors.Hover)
+		t.SurfacePressed = chrome.Color(colors.Pressed)
+	}
 	t.Border = chrome.Color(colors.Border)
 	t.Accent = chrome.Color(colors.Accent)
 	t.AccentHover = chrome.Color(colors.ButtonInfoHover)
