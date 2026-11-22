@@ -4128,6 +4128,22 @@
               "assert": []
             },
             {
+              "key": "market.tabs",
+              "web": {
+                "selector": "[class*=pageTabList]"
+              },
+              "native": {
+                "name": "插件视图",
+                "type": "Tab"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
               "key": "market.card-1",
               "web": {
                 "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]"
