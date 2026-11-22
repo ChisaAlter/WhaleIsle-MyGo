@@ -187,8 +187,12 @@ try {
     if (!existsSync(usageLink)) symlinkSync(join(RUNTIME, 'vendor', 'dsh-usage-panel'), usageLink, 'junction');
   }
   webArgv.push('--host', '127.0.0.1', '--port', String(port), '--no-open');
+  // MAGPIE_USAGE_FILE overrides the machine-level gateway ledger
+  // (~/.config/magpie/usage.jsonl) that dsh-usage-panel prefers over session
+  // logs: an absent file inside the temp root keeps both sides on logs.
+  const usageEnv = { MAGPIE_USAGE_FILE: join(tmp, 'magpie-usage.jsonl') };
   host2 = tracked(spawn(NODE, webArgv,
-    { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv, ...marketEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
+    { env: { ...process.env, DSH_HOME: host2Home, ...modelEnv, ...marketEnv, ...usageEnv }, cwd: wsDir, stdio: ['ignore', 'pipe', 'ignore'] }), 'host2');
   let readyUrl = '';
   host2.stdout.setEncoding('utf8');
   host2.stdout.on('data', (d) => { const m = /dsh web:\s*(https?:\/\/\S+)/.exec(d); if (m && !readyUrl) readyUrl = m[1]; });
@@ -203,7 +207,7 @@ try {
   if (b.status !== 0) throw new Error('go build: ' + (b.stderr || '').slice(0, 400));
   const cfgPath = join(tmp, 'data', 'config.json');
   const launchNative = () => tracked(spawn(join(tmp, 'whaleisle.exe'), [], {
-    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), WHALEISLE_VENDOR: join(RUNTIME_REAL, 'vendor'), WHALEISLE_NODE_DIR: join(RUNTIME_REAL, 'node'), ...modelEnv, ...marketEnv },
+    env: { ...process.env, WHALEISLE_ISOLATED: '1', WHALEISLE_ISOLATED_VISIBLE: '1', WHALEISLE_USER_DATA: join(tmp, 'data'), WHALEISLE_LOG_FILE: join(tmp, 'whaleisle.log'), WHALEISLE_VENDOR: join(RUNTIME_REAL, 'vendor'), WHALEISLE_NODE_DIR: join(RUNTIME_REAL, 'node'), ...modelEnv, ...marketEnv, ...usageEnv },
     cwd: REPO, stdio: ['ignore', nativeOutFd, nativeErrFd],
   }), 'whaleisle');
   // Phase 1: let the app write its default config, then patch the workspace

@@ -4848,7 +4848,7 @@
             {
               "key": "usageempty.empty",
               "web": {
-                "selector": ".dsw-ust-empty"
+                "selector": ".dsw-ust-empty-title"
               },
               "native": {
                 "name": "暂无统计数据",
