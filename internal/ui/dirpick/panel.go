@@ -45,7 +45,7 @@ func View(c *ui.Context, m Model) {
 	inert := m.Busy || s.NativeBusy || s.FolderDraft != nil
 	requestedPathFocus := false
 	pathFocused := false
-	root := ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(chrome.Color(colors.Field)).Radius(28)
+	root := chrome.FrostSurface(ui.Column(c).Fill().MinWidth(0).MinHeight(0), colors, m.SystemDark, chrome.Color(colors.Field), 28)
 	recoveryFocus := ui.Local(root, "browse-recovery-focus", func() browseRecoveryFocus { return browseRecoveryFocus{} })
 	if !s.UseNative && s.PathDraft != nil && s.FolderDraft == nil && m.OnCancelPath != nil {
 		root.OnShortcut(0, ui.KeyEscape, m.OnCancelPath)
@@ -184,7 +184,7 @@ func View(c *ui.Context, m Model) {
 				ui.Text(c, dirText("\u6587\u4ef6\u5939\u8fc7\u591a\uff0c\u4ec5\u663e\u793a\u5f00\u5934\u90e8\u5206\u3002", "Too many folders to list; only the beginning is shown.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Shrink(0).Padding(4, 120, 4, 4)
 			}
 			if m.Loading && s.SlowScan {
-				ui.Text(c, dirText("\u52a0\u8f7d\u4e2d\u2026", "Loading\u2026")).Absolute().Right(16).Bottom(8).Padding(2, 8).Background(chrome.Color(colors.Field)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				ui.Text(c, dirText("\u52a0\u8f7d\u4e2d\u2026", "Loading\u2026")).Absolute().Right(16).Bottom(8).Padding(2, 8).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
 		})
 		ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(border)
@@ -320,7 +320,7 @@ func createDialog(c *ui.Context, m Model) {
 	w, h := c.Size()
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
-		panel.Key("directory-create-dialog").Width(min(float32(380), max(float32(0), w-48))).MaxHeight(max(float32(0), h-48)).Padding(22, 24, 20).Radius(28).Background(chrome.Color(colors.Field)).Draw(chrome.Glass(chrome.Color(colors.Field), chrome.MaterialPanel, 28)).Children(func() {
+		chrome.FrostSurface(panel.Key("directory-create-dialog").Width(min(float32(380), max(float32(0), w-48))).MaxHeight(max(float32(0), h-48)).Padding(22, 24, 20), colors, m.SystemDark, chrome.Color(colors.Field), 28).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 				ui.Text(c, dirText("新建文件夹", "New folder")).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				name := s.TargetName(dirText("\u4e3b\u76ee\u5f55", "Home"))

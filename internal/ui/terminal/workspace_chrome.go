@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
 )
 
 // Original ui-primitives regular artwork used by TerminalWorkspace's ActionBar.
@@ -22,7 +24,7 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 	if compact {
 		size, glyph = 22, 12
 	}
-	bar := ui.Row(c).Height(size).Shrink(0).Gap(0).Border(0.5, c.Theme().Border).Radius(6).Background(c.Theme().Surface)
+	bar := chrome.FrostSurface(ui.Row(c).Height(size).Shrink(0).Gap(0), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().Surface, 6).Border(0.5, c.Theme().Border)
 	bar.Children(func() {
 		tool := func(caption string, icon *ui.SVG, disabled bool) bool {
 			button := ui.Button(c, "").Label(caption).Tooltip(caption).Width(size).Height(size).Shrink(0).Padding(0).Radius(0).BorderWidth(0).Disabled(disabled).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)

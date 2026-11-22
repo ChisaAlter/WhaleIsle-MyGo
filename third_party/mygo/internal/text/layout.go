@@ -102,6 +102,13 @@ type Span struct {
 	Italic        bool
 	LetterSpacing float32
 	Features      string
+	// PadX is space shaped into the text at each of the span's ends, in
+	// DIPs, like the horizontal padding of a CSS inline element: it keeps
+	// the span's glyphs PadX from the text around them and line breaking
+	// gives it room. It carries no runes of the text: hit-testing and
+	// carets map it to the runes at the span's edges, and a wrapped line
+	// never begins with a pad.
+	PadX float32
 }
 
 // style returns the style of the span's runes in a text of style base.
@@ -148,6 +155,7 @@ func EncodeSpans(spans []Span) string {
 		}
 		b = binary.LittleEndian.AppendUint32(b, math.Float32bits(sp.LetterSpacing))
 		str(sp.Features)
+		b = binary.LittleEndian.AppendUint32(b, math.Float32bits(sp.PadX))
 	}
 	return string(b)
 }
@@ -196,6 +204,7 @@ func decodeSpans(s string) []Span {
 		}
 		sp.LetterSpacing = f32()
 		sp.Features = str()
+		sp.PadX = f32()
 		if b == nil {
 			break
 		}
@@ -686,11 +695,12 @@ func (s *System) layout(p Params) *cached {
 	spans := decodeSpans(p.Spans)
 	c := &cached{layout: Layout{Params: p, Runes: runes}}
 	l := &c.layout
+	shaped, shapedSpans, pads := injectSpanPads(runes, spans)
 	l.Lines = c.line[:0]
 	y := float32(0)
-	for start := 0; start <= len(runes); {
+	for start := 0; start <= len(shaped); {
 		end := start
-		for end < len(runes) && runes[end] != '\n' {
+		for end < len(shaped) && shaped[end] != '\n' {
 			end++
 		}
 		maxLines := 0
@@ -698,13 +708,14 @@ func (s *System) layout(p Params) *cached {
 			maxLines = p.MaxLines - len(l.Lines)
 		}
 		var truncated bool
-		l.Lines, truncated = s.paragraph(l.Lines, p, spans, runes, start, end, maxLines, end < len(runes), m, &y)
+		l.Lines, truncated = s.paragraph(l.Lines, p, shapedSpans, shaped, start, end, maxLines, end < len(shaped), m, &y)
 		if truncated {
 			l.Truncated = true
 			break
 		}
 		start = end + 1
 	}
+	uninjectSpanPads(l, pads)
 	for _, line := range l.Lines {
 		l.Width = max(l.Width, line.Width)
 	}
@@ -954,6 +965,150 @@ func line(p Params, text []rune, sl shapedLine, offset int, rtl bool, m lineMetr
 	*y += line.Height
 	*buf = starts
 	return line
+}
+
+// A padSite is the padding injectSpanPads shaped at one edge of a padded
+// span: em is the index, in the text the engine shaped, of the em space
+// carrying the pad's width and wj of the word joiner gluing a leading pad
+// to the span's first glyph, or -1 for a trailing pad, which a line break
+// may follow. orig is the rune index, in the laid-out text, the pad's
+// glyphs report: the span's first rune for its leading pad, its last for
+// its trailing one, so the pads group with the span and cover no rune.
+type padSite struct {
+	em, wj, orig int
+	padx         float32
+}
+
+const (
+	padSpace  = '　' // em space: at least PadX wide at any sane font size
+	padJoiner = '⁠' // word joiner: a line never breaks before or after it
+)
+
+// injectSpanPads inserts each padded span's edge padding into the text the
+// engine shapes, because engines have no pad advance of their own: an em
+// space carries the width, a word joiner glues a leading pad to the span's
+// first glyph so a wrapped line never starts with a dangling pad, and a
+// trailing pad stays with the last glyph since lines do not break before
+// whitespace. It returns the text and spans to shape, with the pads'
+// places for uninjectSpanPads.
+func injectSpanPads(text []rune, spans []Span) ([]rune, []Span, []padSite) {
+	padded := false
+	for _, sp := range spans {
+		padded = padded || sp.PadX > 0
+	}
+	if !padded {
+		return text, spans, nil
+	}
+	var out []rune
+	var sites []padSite
+	outSpans := make([]Span, len(spans))
+	pos := 0
+	for i, sp := range spans {
+		start, end := pos, min(max(sp.End, pos), len(text))
+		shift := len(out) - pos
+		if sp.PadX <= 0 || end == pos {
+			out = append(out, text[pos:end]...)
+			pos = end
+			outSpans[i] = sp
+			outSpans[i].End = end + shift
+			continue
+		}
+		em := len(out)
+		out = append(out, padSpace, padJoiner)
+		out = append(out, text[pos:end]...)
+		pos = end
+		trail := len(out)
+		out = append(out, padSpace)
+		outSpans[i] = sp
+		outSpans[i].End = len(out)
+		sites = append(sites,
+			padSite{em: em, wj: em + 1, orig: start, padx: sp.PadX},
+			padSite{em: trail, wj: -1, orig: end - 1, padx: sp.PadX})
+	}
+	out = append(out, text[pos:]...)
+	return out, outSpans, sites
+}
+
+// uninjectSpanPads folds the pads injectSpanPads shaped into the text back
+// to the laid-out text's indexes: an em space's glyph keeps only the pad's
+// width, the glyphs the engine laid out after it move into the room that
+// frees, joiner glyphs lose any advance they got, every pad glyph reports
+// the span edge it pads and covers no rune, and line edges and clusters
+// count runes of the laid-out text again.
+func uninjectSpanPads(l *Layout, sites []padSite) {
+	if len(sites) == 0 {
+		return
+	}
+	injected := make([]int, 0, len(sites)*2)
+	at := make(map[int]padSite, len(sites)*2)
+	for _, s := range sites {
+		at[s.em] = s
+		injected = append(injected, s.em)
+		if s.wj >= 0 {
+			at[s.wj] = s
+			injected = append(injected, s.wj)
+		}
+	}
+	slices.Sort(injected)
+	orig := func(shaped int) int {
+		i, _ := slices.BinarySearch(injected, shaped)
+		return shaped - i
+	}
+	for li := range l.Lines {
+		line := &l.Lines[li]
+		line.Start = orig(line.Start)
+		line.End = orig(line.End)
+		for i := range line.Glyphs {
+			g := &line.Glyphs[i]
+			s, pad := at[g.Cluster]
+			if !pad {
+				// A cluster's rune count may span injected runes that
+				// shaped no glyph of their own.
+				hi, _ := slices.BinarySearch(injected, g.Cluster+g.Runes)
+				lo, _ := slices.BinarySearch(injected, g.Cluster)
+				g.Runes -= hi - lo
+				g.Cluster = orig(g.Cluster)
+				continue
+			}
+			right := g.X + g.Advance
+			if g.Cluster == s.em && g.Advance != s.padx {
+				delta := g.Advance - s.padx
+				g.Advance = s.padx
+				shiftAfterPad(line, i, g.X, right, delta)
+			} else if g.Cluster != s.em && g.Advance != 0 {
+				shiftAfterPad(line, i, g.X, right, g.Advance)
+				g.Advance = 0
+			}
+			g.Runes = 0
+			g.Cluster = s.orig
+		}
+		line.Width = 0
+		for _, g := range line.Glyphs {
+			line.Width += g.Advance
+		}
+		line.Width = max(line.Width, 0)
+	}
+}
+
+// shiftAfterPad moves the glyphs a pad left room for back to the text: in
+// a left-to-right line everything at or past the pad's right edge comes
+// delta closer, in a right-to-left one the pad and everything left of it
+// move delta that way.
+func shiftAfterPad(line *Line, pad int, left, right, delta float32) {
+	if line.RTL {
+		line.Glyphs[pad].X += delta
+		for j := range line.Glyphs {
+			if j != pad && line.Glyphs[j].X < left {
+				line.Glyphs[j].X += delta
+			}
+		}
+		return
+	}
+	for j := range line.Glyphs {
+		if j != pad && line.Glyphs[j].X >= right-0.001 {
+			line.Glyphs[j].X -= delta
+		}
+	}
 }
 
 // ellipsis ends text cut short, unless Params.Ellipsis gives another.

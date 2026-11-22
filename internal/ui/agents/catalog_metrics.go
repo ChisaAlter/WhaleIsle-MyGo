@@ -7,6 +7,7 @@ import (
 	"strings"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -91,8 +92,9 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	nowMs := float64(c.Now().UnixMilli())
 	if len(v.Rows) == 0 && !v.Busy {
 		ui.Column(c).FillWidth().MinHeight(160).Padding(16).AlignItems(ui.Center).Justify(ui.Center).Gap(4).Children(func() {
+			ui.Icon(c, composer.PresetAgentIcon).Size(20, 20).TextColor(muted).Unselectable()
 			ui.Text(c, AgentsPanelLocale("empty.title")).FontSize(theme.InterfaceSize(14)).FontWeight(500).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
-			ui.Text(c, AgentsPanelLocale("empty.body")).MaxWidth(220).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+			ui.Text(c, AgentsPanelLocale("empty.body")).MaxWidth(220).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).TextAlign(ui.Center)
 		})
 	}
 	var buttons []ui.Element
@@ -107,7 +109,7 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	for _, row := range v.Rows {
 		row := row
 		disabled := v.Busy || !row.CanOpen()
-		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).BorderWidth(0).Background(chrome.Color(colors.Field)).Disabled(disabled)
+		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).BorderWidth(0).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Disabled(disabled)
 		if !disabled {
 			button.Cursor(ui.CursorPointer)
 			if button.Hovered() {

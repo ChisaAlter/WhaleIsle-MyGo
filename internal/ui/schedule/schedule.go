@@ -127,7 +127,7 @@ func View(c *ui.Context, m Model) {
 			if m.EditID != nil && m.EditTitle != nil && strings.TrimSpace(*m.EditID) != "" {
 				ui.Text(c, i18n.T(i18n.KeyScheduleEditTitle)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.TextInput(c, m.EditTitle).Grow(1).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10)
+					ui.TextInput(c, m.EditTitle).Grow(1).Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(colors, m.SystemDark, field)).Padding(0, 10)
 					if m.OnSaveTitle != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSaveTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 						m.OnSaveTitle(*m.EditID, *m.EditTitle)
 					}
@@ -135,7 +135,7 @@ func View(c *ui.Context, m Model) {
 				if m.EditPrompt != nil {
 					ui.Text(c, i18n.T(i18n.KeyScheduleEditPrompt)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.TextInput(c, m.EditPrompt).Grow(1).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10)
+						ui.TextInput(c, m.EditPrompt).Grow(1).Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(colors, m.SystemDark, field)).Padding(0, 10)
 						if m.OnSavePrompt != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSavePrompt)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
 							m.OnSavePrompt(*m.EditID, *m.EditPrompt)
 						}

@@ -555,7 +555,7 @@ func (s *mainState) directoryPickerView(c *ui.Context, win *mygo.Window, session
 	colors := theme.Resolve(themeID).Active(systemDark)
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
-		panel.Key("directory-picker-dialog").Column().Width(min(float32(680), max(float32(0), w-48))).Height(min(float32(500), max(float32(0), h-48))).MinWidth(0).MinHeight(0).Padding(0).Radius(theme.ContextRadii(c).Panel).Background(chrome.Color(colors.Field)).Children(func() {
+		chrome.FrostSurface(panel.Key("directory-picker-dialog").Column().Width(min(float32(680), max(float32(0), w-48))).Height(min(float32(500), max(float32(0), h-48))).MinWidth(0).MinHeight(0).Padding(0), colors, systemDark, chrome.Color(colors.Field), theme.ContextRadii(c).Panel).Children(func() {
 			s.mu.Lock()
 			remote, cfgStore := s.remoteMachines, s.cfgStore
 			s.mu.Unlock()

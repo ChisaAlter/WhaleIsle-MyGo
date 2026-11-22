@@ -85,7 +85,7 @@ func View(c *ui.Context, m Model) {
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Grow(1).MinHeight(0), colors, m.SystemDark, bg, 0).Children(func() {
 		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyAssistantTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAssistantBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
@@ -283,7 +283,7 @@ func composeBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 	ui.Column(c).Gap(6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyAssistantComposeTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantOpenTheCanonicalChatToSendFollowR)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ui.TextArea(c, m.Draft).Lines(2, 4).Radius(12).Border(.5, border).Background(field).Padding(10, 12).FontSize(theme.InterfaceSize(13)).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
+		chrome.FrostSurface(ui.TextArea(c, m.Draft).Lines(2, 4).Border(.5, border), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field, 12).Padding(10, 12).FontSize(theme.InterfaceSize(13)).Placeholder(i18n.T(i18n.KeyAssistantComposePlaceholder))
 		available := m.HarnessReady && m.WhaleEnabled
 		if assiststore.NormalizeMode(m.Mode) == assiststore.ModeDshbot {
 			available = m.HarnessReady && m.DshbotEnabled && m.DshbotSelectedID != ""

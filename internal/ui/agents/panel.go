@@ -31,17 +31,20 @@ type Model struct {
 	OnOpenChat         func(uint64, session.AgentSessionAddress)
 	Store              *session.Store
 	Manager            *session.AgentPresetManager
-	Snapshot           session.ViewState
-	ThemeID            string
-	SystemDark         bool
-	PromptDraft        *string // draft for subagents/prompt to the selected child
-	OnSelect           func(sessionID string)
-	OnStop             func(sessionID string) // session/cancel for a running child
-	OnInterrupt        func(parentID, childID string)
-	OnPrompt           func(parentID, childID, text string)
-	OnOpenURL          func(string)
-	OnOpenDocument     func(uint64, session.AgentSessionAddress, string)
-	OnClose            func()
+	// PresetManagerOpen shows the preset manager when the pane's ⋯ menu turns
+	// it on; nil keeps it hidden, like the original surface does.
+	PresetManagerOpen *bool
+	Snapshot          session.ViewState
+	ThemeID           string
+	SystemDark        bool
+	PromptDraft       *string // draft for subagents/prompt to the selected child
+	OnSelect          func(sessionID string)
+	OnStop            func(sessionID string) // session/cancel for a running child
+	OnInterrupt       func(parentID, childID string)
+	OnPrompt          func(parentID, childID, text string)
+	OnOpenURL         func(string)
+	OnOpenDocument    func(uint64, session.AgentSessionAddress, string)
+	OnClose           func()
 }
 
 // View paints child sessions of the selected root (ParentID tree).
@@ -78,7 +81,7 @@ func View(c *ui.Context, m Model) {
 		}
 	}
 
-	ui.Column(c).Fill().MinHeight(0).Background(field).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0), colors, m.SystemDark, field, 0).Children(func() {
 		ui.Row(c).FillWidth().MinHeight(36).Padding(8, 12, 8, 12).AlignItems(ui.Center).Gap(8).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyAgentsTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
 			runningN := 0
@@ -105,7 +108,7 @@ func View(c *ui.Context, m Model) {
 			}
 		})
 		ui.Box(c).FillWidth().Height(0.5).Background(border)
-		if m.Manager != nil {
+		if m.Manager != nil && m.PresetManagerOpen != nil && *m.PresetManagerOpen {
 			presetManagerView(c, m.Manager, fg, muted)
 		}
 		ui.Column(c).FillWidth().Padding(10, 12, 10, 12).Gap(8).Children(func() {

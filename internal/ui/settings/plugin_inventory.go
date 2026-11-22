@@ -9,6 +9,7 @@ import (
 
 	"whaleisle/internal/desktop/plugininventory"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -264,7 +265,7 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 			ui.Text(c, pluginsText("元数据错误：", "Metadata error: ")+r.MetadataError).FillWidth().Padding(0, 16, 10, 16).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger)
 		}
 		if open {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(10, 16, 12, 16).Gap(6).Background(c.Theme().Surface).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Padding(10, 16, 12, 16).Gap(6).Background(chrome.FrostInset(fonttheme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface)).Children(func() {
 				ui.Text(c, pluginsText("模块：", "Module: ")+r.Module).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				entryID := r.EntryID
 				if entryID == "" {

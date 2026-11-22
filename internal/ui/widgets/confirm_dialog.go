@@ -78,9 +78,9 @@ func ConfirmDialog(c *ui.Context, o ConfirmDialogOptions) bool {
 		// mask at the theme's depth and the panel at the same progress, so a
 		// destructive confirmation is not the one surface that snaps on.
 		RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, mask))
-		panel.Width(confirmDialogWidth).MaxWidthPercent(92).
+		FrostSurface(panel.Width(confirmDialogWidth).MaxWidthPercent(92).
 			Padding(24, 24, 20, 24).Gap(14).
-			Radius(theme.ContextRadii(c).Panel).Background(t.Background).Border(0.5, t.Border).
+			Border(0.5, t.Border), theme.ResolveWithSystem(theme.IDSystem, t.Dark).Active(t.Dark), t.Dark, t.Background, theme.ContextRadii(c).Panel).
 			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.24))
 		if name != "" {
 			panel.Label(name)

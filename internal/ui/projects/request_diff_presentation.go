@@ -63,7 +63,7 @@ func renderRequestChangeScope(c *ui.Context, m Model, scope projectflow.RequestC
 				requestDiffCounts(c, added, removed, 20, st)
 			})
 			for i, file := range files {
-				renderRequestDiffFile(c, file, i < 3, st, panel, chrome.Color(colors.Border), borderL1, chrome.Color(colors.Hover))
+				renderRequestDiffFile(c, file, i < 3, st, chrome.FrostInset(colors, dark, panel), chrome.Color(colors.Border), borderL1, chrome.Color(colors.Hover))
 			}
 		}
 		if scope.Truncated {

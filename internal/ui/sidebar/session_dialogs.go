@@ -95,12 +95,12 @@ func sessionArchiveConfirmDialog(c *ui.Context, m Model) {
 	open := true
 	ui.DialogBase(c.Key("session-archive-confirm-modal"), &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
-		panel.Width(420).MaxWidthPercent(94).Padding(24).Gap(16).Radius(24).Background(chrome.Color(colors.Field)).Border(0.5, border).Children(func() {
+		chrome.FrostSurface(panel.Width(420).MaxWidthPercent(94).Padding(24).Gap(16), colors, m.SystemDark, chrome.Color(colors.Field), 24).Border(0.5, border).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyWSArchiveConfirmTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
 			ui.Text(c, i18n.WSf(i18n.KeyWSArchiveConfirmDesc, "title", title)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
 			lines := FormatArchiveConfirmActivityLines(s)
 			if len(lines) > 0 {
-				ui.Column(c).FillWidth().Gap(6).Padding(10, 12).Radius(12).Background(chrome.Color(colors.BG)).Border(0.5, border).Children(func() {
+				ui.Column(c).FillWidth().Gap(6).Padding(10, 12).Radius(12).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.BG))).Border(0.5, border).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyWSArchiveConfirmActivity)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(fg)
 					for _, line := range lines {
 						ui.Text(c, line).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
@@ -156,7 +156,7 @@ func sessionDeleteConfirmDialog(c *ui.Context, m Model) {
 	open := true
 	ui.DialogBase(c.Key("session-delete-confirm-modal"), &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
-		panel.Width(400).MaxWidthPercent(94).Padding(24).Gap(16).Radius(24).Background(chrome.Color(colors.Field)).Border(0.5, border).Children(func() {
+		chrome.FrostSurface(panel.Width(400).MaxWidthPercent(94).Padding(24).Gap(16), colors, m.SystemDark, chrome.Color(colors.Field), 24).Border(0.5, border).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyWSDeleteSessionTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
 			ui.Text(c, i18n.WSf(i18n.KeyWSDeleteSessionDesc, "name", title)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
 			errMsg := strings.TrimSpace(s.Error)

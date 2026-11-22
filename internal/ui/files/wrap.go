@@ -100,7 +100,9 @@ func sourceTextArea(c *ui.Context, m Model, text *string, readOnly bool, key str
 		} else {
 			editor = ui.TextArea(c, text)
 		}
-		editor.Width(width).Shrink(0).FillHeight().MinHeight(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.RenderPreferences().Code.Size).TextColor(fg).Padding(8, 8, 8, 8).ReadOnly(readOnly).Label(label("文件内容", "File content"))
+		// FilePreview.module.css .code/.editor: the source paints straight on
+		// the pane — no box, no border — at a 1.5 code leading (12/18).
+		editor.Width(width).Shrink(0).FillHeight().MinHeight(0).Font(theme.RenderPreferences().Code.Family).FontSize(theme.RenderPreferences().Code.Size).TextColor(fg).Padding(0).Background(ui.Transparent).BorderWidth(0).Radius(0).LineHeight(1.5).ReadOnly(readOnly).Label(label("文件内容", "File content"))
 		if !wrap {
 			editor.NoWrap()
 		}

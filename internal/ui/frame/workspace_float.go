@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"sort"
+	"whaleisle/internal/ui/chrome"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
@@ -175,7 +176,7 @@ func workspaceFloating(c *ui.Context, m Model) {
 		f := n.Float
 		ui.Overlay(c, func() {
 			visible := boundedFloat(*f, viewportWidth, viewportHeight)
-			panel := ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Background(c.Theme().Background).Border(1, c.Theme().Border).Clip().FocusBind(&w.focusedResource, n.ID)
+			panel := chrome.FrostSurface(ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Border(1, c.Theme().Border).Clip(), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background, 0).FocusBind(&w.focusedResource, n.ID)
 			n.paneBoxFocused = panel.Focused()
 			panel.Children(func() {
 				ui.Row(c).FillWidth().Height(38).Gap(4).Padding(4).Children(func() {

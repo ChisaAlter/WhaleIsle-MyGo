@@ -1,6 +1,13 @@
 package markdown
 
-import "github.com/egoist/mygo/ui"
+import (
+	"strconv"
+	"strings"
+
+	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/theme"
+)
 
 // Metric ladder from the Original markdown sheet (gradient-shadow-text.css):
 // body 14/24, inline code 12/19, fenced code 11/19, headings 21/30 · 19/28 ·
@@ -76,14 +83,60 @@ func codeBodyFill(st Style) ui.Color {
 
 // codeBanner resolves the code-card header fill. The Original banner is
 // --dsw-alias-markdown-code-block-banner, a muted tint over the body surface.
+// codeBanner keeps an explicit CodeBanner fill when a caller sets one; the
+// Original's default is a card of one surface — --dsw-alias-markdown-code-block
+// and -banner share a token in the standard family — so the banner row paints
+// nothing of its own.
 func codeBanner(st Style) ui.Color {
-	if st.CodeBanner.A != 0 {
-		return st.CodeBanner
+	return st.CodeBanner
+}
+
+// InlineCodeBase resolves the inline-code chip fill: the skin's
+// --dsw-alias-markdown-inline-code token, or the design-platform value the
+// standard family ships (a translucent wash, so it sits right on any backdrop
+// even without a frost wrapper). Exported for callers that pass the result
+// through chrome.FrostInset when their token would be opaque.
+func InlineCodeBase(dark bool) ui.Color {
+	fallback := "rgba(38, 49, 72, 0.06)"
+	if dark {
+		fallback = "rgba(255, 255, 255, 0.08)"
 	}
-	if st.Muted.A != 0 {
-		return st.Muted.Alpha(.10)
+	return theme.Color(theme.SkinSemanticToken("", dark, "--dsw-alias-markdown-inline-code", fallback))
+}
+
+func inlineCodeFill(st Style) ui.Color {
+	if st.InlineCodeBG.A != 0 {
+		return st.InlineCodeBG
 	}
-	return ui.Transparent
+	return InlineCodeBase(st.Dark)
+}
+
+// inlineCodeBorder is the chip's 0.5px --dsw-alias-border-l1 stroke.
+func inlineCodeBorder(st Style) ui.Color {
+	fallback := "rgba(0, 0, 0, 0.04)"
+	if st.Dark {
+		fallback = "rgba(255, 255, 255, 0.06)"
+	}
+	return theme.Color(theme.SkinSemanticToken("", st.Dark, "--dsw-alias-border-l1", fallback))
+}
+
+// inlineCodeRadius follows the chip's --dsw-radius-sm corner, 6px in the
+// standard family.
+func inlineCodeRadius(st Style) float32 {
+	raw := theme.SkinSemanticToken("", st.Dark, "--dsw-radius-sm", "6px")
+	if v, err := strconv.ParseFloat(strings.TrimSuffix(raw, "px"), 32); err == nil && v > 0 {
+		return float32(v)
+	}
+	return 6
+}
+
+// inlineCodeInsetY centers the chip's 19px code line inside the body's
+// 24px leading; the compact variant's inline code already fills its line.
+func inlineCodeInsetY(st Style) float32 {
+	if inset := (BodyLineHeight(st) - (InlineCodeSize(st) + 7)) / 2; inset > 0 {
+		return inset
+	}
+	return 0
 }
 
 // tableHeaderFill resolves the table header fill.

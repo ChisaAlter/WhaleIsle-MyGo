@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -46,7 +47,7 @@ func CommandCardView(c *ui.Context, msg session.Message, m Model, st ToolCardSty
 		expanded = (*m.ThinkingExpanded)[key]
 	}
 	hasDetails := strings.TrimSpace(command.Args) != "" || (command.Text != "" && command.Text != summary)
-	ui.Column(c).Fill().Gap(6).Padding(8, 10).Background(st.Field).Border(1, st.Border).Radius(6).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Fill().Gap(6).Padding(8, 10).Border(1, st.Border), st.Colors, c.Theme().Dark, st.Field, 6).Children(func() {
 		ui.Row(c).Fill().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, title).FontSize(12).Bold().TextColor(st.FG)
 			ui.Text(c, summary).FontSize(12).TextColor(color).Grow(1)

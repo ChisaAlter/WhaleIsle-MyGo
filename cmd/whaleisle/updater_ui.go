@@ -125,8 +125,8 @@ func (s *mainState) syncNativeUpdateModal(c *ui.Context, owner *mygo.Window) {
 				break
 			}
 		}
-		panel.Width(min(600, max(0, w-48))).MaxHeight(max(0, h-48)).MinHeight(0).
-			Background(chrome.Color(colors.BG)).Border(1, chrome.Color(colors.Border)).Radius(16).Clip().Children(func() {
+		chrome.FrostSurface(panel.Width(min(600, max(0, w-48))).MaxHeight(max(0, h-48)).MinHeight(0).
+			Border(1, chrome.Color(colors.Border)).Clip(), colors, dark, chrome.Color(colors.BG), 16).Children(func() {
 			ui.Row(c).FillWidth().Shrink(0).Padding(20, 24).AlignItems(ui.Center).Gap(12).Children(func() {
 				ui.Text(c, lifecycleText("更新中心", "Update center")).FontSize(18).FontWeight(600).TextColor(chrome.Color(colors.FG)).Grow(1)
 				if ui.Button(c, "×").Size(28, 28).Label(lifecycleText("关闭", "Close")).AutoFocus().Clicked() {

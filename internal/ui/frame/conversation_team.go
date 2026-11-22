@@ -73,7 +73,7 @@ func conversationTeamAction(c *ui.Context, m Model, snap session.ViewState, comp
 		open := state.FloatingOpen
 		ui.PopoverBase(c.Key("conversation-team-popover"), anchor, &open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, width, w, 16)
-			panel = chrome.PopoverReveal(c, panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Radius(12).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.BG)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+			panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Border(.5, chrome.Color(colors.Border)), colors, m.SystemDark, chrome.Color(colors.BG), 12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
 			panel.Children(func() {
 				model.ThemeID, model.SystemDark = m.ThemeID, m.SystemDark
 				model.Columns = 1

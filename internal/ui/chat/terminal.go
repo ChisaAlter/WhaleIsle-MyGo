@@ -267,10 +267,15 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 }
 
 func terminalPillBackground(st ToolCardStyle) ui.Color {
-	if darkSurface(st.Muted) {
-		return ui.RGB(44, 44, 46)
+	dark := darkSurface(st.Muted)
+	base := ui.RGB(255, 255, 255)
+	if dark {
+		base = ui.RGB(44, 44, 46)
 	}
-	return ui.RGB(255, 255, 255)
+	if st.Colors.FG == "" {
+		return base
+	}
+	return chrome.FrostInset(st.Colors, dark, base)
 }
 
 func terminalRunStateSize(m *toolTerminalModel) float32 {

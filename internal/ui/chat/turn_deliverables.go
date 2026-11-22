@@ -318,7 +318,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 									ensure(selected, "diff")
 								}
 								ui.PopoverBase(c, rowBtn, &showHover, func(panel ui.Element) {
-									panel = chrome.PopoverReveal(c, panel.Width(620).MaxHeight(360).Padding(10).Radius(8).Border(1, st.Border).Background(st.Field))
+									panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Width(620).MaxHeight(360).Padding(10).Border(1, st.Border), st.Colors, c.Theme().Dark, st.Field, 8))
 									panel.Children(func() {
 										ui.Text(c, file.Display).FontSize(12).TextColor(st.FG)
 										ui.Scroll(c).MaxHeight(310).Children(func() {
@@ -449,13 +449,13 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 		run(target, "applications")
 	}
 	owner.Children(func() {
-		cardRow := ui.Row(c).FillWidth().MinWidth(0).Height(60).Radius(16).Background(pal.fill).BorderWidth(0).AlignItems(ui.Center).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
+		cardRow := chrome.FrostSurface(ui.Row(c).FillWidth().MinWidth(0).Height(60).BorderWidth(0).AlignItems(ui.Center).Clip(), st.Colors, c.Theme().Dark, pal.fill, 16).DrawOver(func(p *ui.Painter, r ui.Rect) {
 			if pal.borderL1.A > 0 && r.W > 0 && r.H > 0 {
 				p.Stroke(r, pal.borderL1, 16, 0.5)
 			}
 		})
 		if cardRow.Hovered() {
-			cardRow.Background(pal.fillHover)
+			cardRow.Background(chrome.FrostInset(st.Colors, c.Theme().Dark, pal.fillHover))
 		}
 		cardRow.Children(func() {
 			label := historyNavigationText("预览 ", "Preview ") + name
@@ -463,10 +463,10 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 				Padding(8, 10).Gap(10).Radius(16).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
 				Disabled(!enabled || preview == nil)
 			if card.Hovered() {
-				cardRow.Background(pal.fillHover)
+				cardRow.Background(chrome.FrostInset(st.Colors, c.Theme().Dark, pal.fillHover))
 			}
 			card.Children(func() {
-				ui.Box(c).Size(38, 38).Radius(8).Background(pal.tileBg).Border(0.5, pal.borderL2).Shrink(0).Center().PassThrough().Children(func() {
+				ui.Box(c).Size(38, 38).Radius(8).Background(chrome.FrostInset(st.Colors, c.Theme().Dark, pal.tileBg)).Border(0.5, pal.borderL2).Shrink(0).Center().PassThrough().Children(func() {
 					paintDeliverableFileTileBadge(c, name, st.Accent, 24)
 				})
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).PassThrough().Children(func() {

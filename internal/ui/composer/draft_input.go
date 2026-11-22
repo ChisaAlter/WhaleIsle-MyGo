@@ -58,7 +58,10 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 		minH = 52
 	}
 	inputDisabled := m.Inert || m.Disabled || composerParentOffline(m)
-	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(inputDisabled)
+	box := ui.Box(c.Key("composer-draft-input")).FillWidth().Role(ui.RoleTextField).Label("Composer draft").Disabled(inputDisabled).
+		// The original composer textarea draws no ring of its own; the card
+		// carries any focus treatment.
+		FocusRing(false)
 	client.syncStop(m, box.Focused())
 	// Previous-frame width is available before sizing. On a first mount/resize,
 	// the draw pass updates wrapping once and requests the matching height frame.

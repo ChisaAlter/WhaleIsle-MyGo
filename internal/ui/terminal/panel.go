@@ -357,7 +357,7 @@ func View(c *ui.Context, m Model) {
 					if fragment := FormatSelection(selection); shell.id == p.active && fragment != "" {
 						bounds := surface.Bounds()
 						ui.Overlay(c, func() {
-							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(6).Background(c.Theme().Surface).Children(func() {
+							ui.Row(c).Absolute().Left(max(bounds.X+8, bounds.X+bounds.W-340)).Top(max(bounds.Y, bounds.Y+bounds.H-34)).Gap(0).Padding(0, 4).Height(26).Border(0.5, border).Radius(6).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface)).Children(func() {
 								if widgets.Button(c, colors, terminalLabel("复制", "Copy"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 									mygo.Clipboard.WriteText(selection)
 								}

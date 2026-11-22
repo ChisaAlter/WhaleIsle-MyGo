@@ -128,15 +128,14 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 					if s.NavigationError != "" {
 						message = s.NavigationError
 					}
-					ui.Column(c).FillWidth().Gap(5).Children(func() {
-						ui.Text(c, message).TextColor(chrome.Color(colors.Danger)).FontSize(theme.InterfaceSize(12)).Selectable()
-						if m.Error != "" && m.OnRefresh != nil && ui.Button(c, tr("重试", "Retry")).Cursor(ui.CursorPointer).Disabled(m.Loading).Clicked() {
-							m.OnRefresh()
-						}
-						if s.NavigationError != "" && ui.Button(c, tr("关闭提示", "Dismiss notice")).Cursor(ui.CursorPointer).Clicked() {
-							s.NavigationError = ""
-						}
-					})
+					alert := widgets.AlertOptions{ID: "project-team", Message: message}
+					if m.Error != "" && m.OnRefresh != nil && !m.Loading {
+						alert.Action, alert.OnAction = tr("重试", "Retry"), m.OnRefresh
+					}
+					if s.NavigationError != "" {
+						alert.Dismiss, alert.OnDismiss = tr("关闭提示", "Dismiss notice"), func() { s.NavigationError = "" }
+					}
+					widgets.Alert(c, alert)
 				}
 				if m.Overview == nil || m.Overview.Team == nil {
 					if !m.Loading && m.Error == "" {
@@ -404,7 +403,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 	card := ui.Column(c.Key("project-member-card:" + member.ID)).FillWidth().MinWidth(0)
 	cardHovered := card.Hovered()
 	card.Children(func() {
-		button := ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+		button := chrome.FrostSurface(ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
 		if !inert {
 			button.Tooltip(tr("查看工作过程", "View work history")).Cursor(ui.CursorPointer)
 		} else {
@@ -472,7 +471,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTask, labels map[string]string) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.Field)).Children(func() {
+	chrome.FrostSurface(ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13), colors, m.SystemDark, chrome.Color(colors.Field), 9).Border(.5, chrome.Color(colors.Border)).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Start).Children(func() {
 			ui.Text(c, task.Subject).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).Children(func() {

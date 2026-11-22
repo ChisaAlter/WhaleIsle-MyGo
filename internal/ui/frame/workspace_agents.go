@@ -10,6 +10,7 @@ type WorkspaceAgentState struct {
 	Manager    *session.AgentPresetManager
 	Binding    string
 	Prompt     string
+	PresetOpen bool
 	rendered   bool
 }
 
@@ -39,6 +40,7 @@ func (w *WorkspacePanes) agentPaneModel(m Model, n *WorkspacePane) Model {
 	m.AgentNavigationStore = a.Navigation
 	m.AgentsPromptDraft = &a.Prompt
 	m.AgentPresetManager = a.Manager
+	m.AgentsPresetManagerOpen = &a.PresetOpen
 	open := m.OnOpenAgentPaneDocument
 	navigation := a.Navigation
 	m.OnOpenAgentDocument = nil

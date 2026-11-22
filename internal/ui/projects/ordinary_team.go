@@ -67,19 +67,15 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 				})
 			}
 			if m.Error != "" || m.Team == nil && !m.Loading {
-				ui.Column(c).FillWidth().Gap(6).Padding(4).Children(func() {
-					message := m.Error
-					if message == "" {
-						message = tr("Team 暂不可用", "Team is unavailable")
-					}
-					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						widgets.StateDot(c, widgets.StateWarning)
-						ui.Text(c, message).FontSize(theme.InterfaceSize(12)).TextColor(fg).Selectable()
-					})
-					if m.OnRefresh != nil && ui.Button(c, tr("重试", "Retry")).Cursor(ui.CursorPointer).Disabled(m.Loading).Clicked() {
-						m.OnRefresh()
-					}
-				})
+				message := m.Error
+				if message == "" {
+					message = tr("Team 暂不可用", "Team is unavailable")
+				}
+				alert := widgets.AlertOptions{ID: "ordinary-team", Message: message}
+				if m.OnRefresh != nil && !m.Loading {
+					alert.Action, alert.OnAction = tr("重试", "Retry"), m.OnRefresh
+				}
+				widgets.Alert(c, alert)
 			}
 			if m.Team == nil {
 				return
@@ -124,7 +120,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 									borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
 									borderWidth = 1
 								}
-								button := ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+								button := chrome.FrostSurface(ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
 								if !inert {
 									button.Tooltip(tr("打开成员会话", "Open member conversation")).Cursor(ui.CursorPointer)
 								} else {
@@ -199,7 +195,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 						continue
 					}
 					task := task
-					row := ui.Column(c.Key("team-task:"+task.ID)).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.Field))
+					row := chrome.FrostSurface(ui.Column(c.Key("team-task:"+task.ID)).FillWidth().MinWidth(0).Gap(6).Padding(11, 13), colors, m.SystemDark, chrome.Color(colors.Field), 9).Border(.5, chrome.Color(colors.Border))
 					expanded := ui.Local(row, "expanded", func() bool { return false })
 					if m.State != nil {
 						*expanded = m.State.Expanded[task.ID]

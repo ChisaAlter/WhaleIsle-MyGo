@@ -65,7 +65,7 @@ func managementFilters(c *ui.Context, m Model) {
 			}
 			b := ui.Button(c, label).Height(28).Padding(0, 10).Radius(999).Border(.5, chrome.Color(colors.Border)).FontSize(fonttheme.InterfaceSize(12.5)).Selected(selected)
 			if selected {
-				b = b.Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.FG)).FontWeight(500)
+				b = chrome.FrostSurface(b, colors, m.SystemDark, chrome.Color(colors.Field), 999).TextColor(chrome.Color(colors.FG)).FontWeight(500)
 			}
 			if b.Clicked() {
 				m.Store.SetManagementFilter(f.id)

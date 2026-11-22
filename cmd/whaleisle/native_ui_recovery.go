@@ -17,8 +17,10 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/processutil"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
+	"whaleisle/internal/ui/theme"
 )
 
 const nativeRecoveryFlag = "--native-ui-recovery-watchdog"
@@ -267,7 +269,7 @@ func handleNativeRecoveryProcess() bool {
 						mu.Lock()
 						path, problem, ask, busy, targetStopped := diagnostic, failure, recovering, recovering || restarting, stopped
 						mu.Unlock()
-						ui.Column(c).Fill().Background(c.Theme().Background).Padding(48, 24, 24, 24).Gap(16).Children(func() {
+						chrome.FrostSurface(ui.Column(c).Fill().Padding(48, 24, 24, 24).Gap(16), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background, 0).Children(func() {
 							ui.Box(c).Absolute().Left(0).Top(0).Right(120).Height(48).DragWindow()
 							headline := lifecycleText("桌面界面已超过 20 秒未响应。", "The desktop interface has not responded for over 20 seconds.")
 							if targetStopped {

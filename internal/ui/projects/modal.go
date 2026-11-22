@@ -175,7 +175,7 @@ func projectModals(c *ui.Context, m Model) {
 		width, height := c.Size()
 		ui.DialogBase(c, &open, func(back, panel ui.Element) {
 			chrome.DialogReveal(c, back, panel)
-			panel.Label(route.title).Width(min(760, max(1, width-32))).MaxHeight(min(height*.8, max(1, height-48))).MinHeight(0).Padding(0, 0, 24, 0).Radius(theme.ContextRadii(c).Panel).Clip().Background(chrome.Color(colors.Field)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+			chrome.FrostSurface(panel.Label(route.title).Width(min(760, max(1, width-32))).MaxHeight(min(height*.8, max(1, height-48))).MinHeight(0).Padding(0, 0, 24, 0).Clip(), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).Panel).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
 				projectModalHeader(c, m, route.title, close, materialRoute && m.Busy, memory.LastRoute != route.key)
 				if m.Error != "" {
 					ui.Text(c, m.Error).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).Padding(0, 24, 8, 24).Shrink(0)

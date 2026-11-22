@@ -17,7 +17,7 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 	id := p.File.AttachmentID
 	state := m.VisualReply
 	active := state.SessionID == m.Snapshot.SelectedID && state.AttachmentID == id
-	ui.Column(c.Key("published-html-"+id)).FillWidth().Gap(6).Padding(10).Background(field).Border(1, border).Radius(6).Children(func() {
+	ui.Column(c.Key("published-html-"+id)).FillWidth().Gap(6).Padding(10).Background(chrome.FrostInset(palette, m.SystemDark, field)).Border(1, border).Radius(6).Children(func() {
 		ui.Text(c, p.Title).FontSize(13).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyChatVisualPublished)).FontSize(11).TextColor(muted)
 		ui.Row(c).Gap(6).Children(func() {

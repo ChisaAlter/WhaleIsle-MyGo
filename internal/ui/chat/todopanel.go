@@ -82,7 +82,7 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 
 	// TaskDock.module.css + TodoPanel.module.css: 32px side inset inside composerOuterW (W+64) so TodoPanel width equals W (680px).
 	ui.Column(c).FillWidth().Padding(0, 32, 5, 32).Children(func() {
-		card := ui.Column(c).FillWidth().Radius(12).Background(tipBG).
+		card := ui.Column(c).FillWidth().Radius(12).Background(chrome.FrostInset(colors, m.SystemDark, tipBG)).
 			Padding(6, 12, 6, 12).Gap(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
 			if border.A > 0 && r.W > 0 && r.H > 0 {
 				p.Stroke(r, border, 12, 0.5)

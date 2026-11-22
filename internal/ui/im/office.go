@@ -63,7 +63,7 @@ func officeSettingsView(c *ui.Context, m Model) {
 		}
 		narrow := width <= 680
 		card := func(key string, body func()) {
-			ui.Column(c.Key(key)).FillWidth().MinWidth(0).Padding(16).Gap(12).Radius(14).Border(0.5, border).Background(chrome.Color(colors.Field)).Children(body)
+			chrome.FrostSurface(ui.Column(c.Key(key)).FillWidth().MinWidth(0).Padding(16).Gap(12).Border(0.5, border), colors, m.SystemDark, chrome.Color(colors.Field), 14).Children(body)
 		}
 		scroll.Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(func() {
@@ -80,7 +80,7 @@ func officeSettingsView(c *ui.Context, m Model) {
 					if v.Busy {
 						pill = "正在读取…"
 					}
-					ui.Text(c, pill).MaxWidth(180).FontSize(theme.InterfaceSize(12)).TextColor(ink).Padding(6, 10).Radius(20).Background(chrome.Color(colors.ToolbarFill))
+					ui.Text(c, pill).MaxWidth(180).FontSize(theme.InterfaceSize(12)).TextColor(ink).Padding(6, 10).Radius(20).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.ToolbarFill)))
 				})
 				if !v.Loaded {
 					card("unavailable", func() {

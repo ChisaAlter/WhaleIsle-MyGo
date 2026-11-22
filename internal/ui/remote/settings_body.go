@@ -213,7 +213,7 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 
 	gatewaySettingRow(c, "gateway-relay", i18n.T(KeyPass6RemoteRelay), i18n.T(KeyPass6RemoteRelayHint), fg, muted, func() {
 		if ui.TextInput(c, &e.Draft.RelayEndpoint).Label(i18n.T(KeyPass6RemoteRelayLabel)).
-			FillWidth().Height(32).Radius(8).Background(theme.Color(colors.SelectorFill)).Border(.667, theme.Color(colors.Border)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Disabled(busy).Changed() {
+			FillWidth().Height(32).Radius(8).Background(chrome.FrostInset(colors, m.SystemDark, theme.Color(colors.SelectorFill))).Border(.667, theme.Color(colors.Border)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Disabled(busy).Changed() {
 			e.Open = true
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(func() {
@@ -265,7 +265,7 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 
 	gatewaySettingRow(c, "gateway-port", i18n.T(KeyPass6RemotePort), i18n.T(KeyPass6RemotePortHint), fg, muted, func() {
 		if ui.TextInput(c, &e.Draft.Port).Label(i18n.T(KeyPass6RemotePortLabel)).
-			FillWidth().Height(32).Radius(8).Background(theme.Color(colors.SelectorFill)).Border(.667, theme.Color(colors.Border)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Disabled(busy).Changed() {
+			FillWidth().Height(32).Radius(8).Background(chrome.FrostInset(colors, m.SystemDark, theme.Color(colors.SelectorFill))).Border(.667, theme.Color(colors.Border)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Disabled(busy).Changed() {
 			e.Open = true
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {

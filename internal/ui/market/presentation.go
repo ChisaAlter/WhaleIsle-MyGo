@@ -64,7 +64,7 @@ func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 			}
 			button := ui.Button(c.Key("market-tab-"+item.id), label).Role(ui.RoleTab).Height(28).Padding(0, 12).Radius(999).BorderWidth(0).FontSize(theme.InterfaceSize(12.5)).Background(ui.Transparent).TextColor(muted).Selected(active)
 			if active {
-				button.Background(field).TextColor(fg).FontWeight(500)
+				button.Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).TextColor(fg).FontWeight(500)
 			}
 			if button.Clicked() {
 				m.Store.SetTab(item.id)
@@ -85,7 +85,7 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 			active := category.ID == d.Category
 			button := ui.Button(c.Key("market-category-"+category.ID), fmt.Sprintf("%s %d", category.Label, category.Count)).Role(ui.RoleRadio).Checked(active).Height(28).Padding(0, 10).Radius(999).BorderWidth(0).FontSize(theme.InterfaceSize(12.5)).Background(ui.Transparent).TextColor(muted)
 			if active {
-				button.Background(field).TextColor(fg).FontWeight(500)
+				button.Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).TextColor(fg).FontWeight(500)
 			}
 			if button.Clicked() {
 				m.Store.SetCategory(category.ID)

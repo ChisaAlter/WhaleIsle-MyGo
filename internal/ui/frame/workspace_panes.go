@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/hostterminal"
+	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
@@ -606,6 +607,30 @@ func workspacePaneMenu(m Model, n *WorkspacePane) func(*ui.Menu) {
 	return func(menu *ui.Menu) {
 		if n.Kind == "host-terminal" {
 			workspaceTerminalResourceMenu(menu, m, n)
+			menu.Separator()
+		}
+		if n.Kind == "agents" {
+			// MyGo-only actions the original surface does not carry live here,
+			// matching the header buttons a single-child pane keeps.
+			if m.AgentPresetManager != nil && m.AgentsPresetManagerOpen != nil {
+				toggle := m.AgentsPresetManagerOpen
+				if menu.Item(paneLabel("Agent 预设管理", "Agent presets")).Chosen() {
+					*toggle = !*toggle
+				}
+			}
+			if m.AgentNavigationStore != nil && m.Store != nil {
+				navigation := m.AgentNavigationStore
+				view := navigation.AgentNavigationSnapshot()
+				var running []session.AgentSessionAddress
+				for _, row := range view.Rows {
+					if row.CanOpen() && row.Running {
+						running = append(running, row.Address)
+					}
+				}
+				if len(running) > 0 && menu.Item(i18n.T(i18n.KeyAgentsInterruptAll)).Chosen() {
+					m.Store.InterruptAgentNavigation(view.Token, running)
+				}
+			}
 			menu.Separator()
 		}
 		if menu.Item(paneLabel("选中面板", "Focus pane")).Chosen() {

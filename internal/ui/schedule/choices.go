@@ -1,6 +1,10 @@
 package schedule
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
+)
 
 type scheduleChoiceOption struct{ ID, Label string }
 
@@ -19,7 +23,7 @@ func scheduleChoice(c *ui.Context, key, label string, value *string, options []s
 		ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() { ui.Text(c, label).FontSize(14); ui.Box(c).Grow(1); scheduleValueFace(c, caption, false) })
 	})
 	parts.Popup(func(panel ui.Element) {
-		panel.Padding(4).Background(c.Theme().Surface).BorderWidth(0).Radius(16)
+		chrome.FrostSurface(panel.Padding(4).BorderWidth(0), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 16)
 		for _, option := range options {
 			row := parts.Item(option.ID).Label(option.Label).Padding(6, 10).Radius(6)
 			if row.Hovered() || row.FocusWithin() {

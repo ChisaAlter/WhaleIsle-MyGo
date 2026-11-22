@@ -103,7 +103,7 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 			w, _ := c.Size()
 			// stat-dialog.module.css .panel: width max-content within
 			// min(300)/max(440) bounds, anchored above the trigger's left.
-			chrome.PopoverReveal(c, panel.Role(ui.RoleDialog).AttachTo(trigger, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 8, 0).MinWidth(min(float32(300), max(float32(0), w-24))).MaxWidth(min(float32(440), max(float32(0), w-24))).MaxWidthPercent(96).Padding(16).Gap(6).Radius(16).Background(c.Theme().Surface).Border(.5, c.Theme().Border)).Children(func() {
+			chrome.PopoverReveal(c, chrome.FrostSurface(panel.Role(ui.RoleDialog).AttachTo(trigger, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 8, 0).MinWidth(min(float32(300), max(float32(0), w-24))).MaxWidth(min(float32(440), max(float32(0), w-24))).MaxWidthPercent(96).Padding(16).Gap(6), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().Surface, 16).Border(.5, c.Theme().Border)).Children(func() {
 				ui.Row(c).FillWidth().Gap(16).Children(func() {
 					ui.Icon(c, usageDatabaseIcon).Size(14, 14).TextColor(c.Theme().Text)
 					ui.Text(c, i18n.T(i18n.KeyChatUsageTitle)).FontSize(12).FontWeight(500).Grow(1)

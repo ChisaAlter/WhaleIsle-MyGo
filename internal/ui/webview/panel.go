@@ -39,7 +39,7 @@ func View(c *ui.Context, m Model) {
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
 
-	root := ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0).Background(bg)
+	root := chrome.FrostSurface(ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0), colors, m.SystemDark, bg, 0)
 	root.Children(func() {
 		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			title := strings.TrimSpace(m.Title)
@@ -75,7 +75,7 @@ func View(c *ui.Context, m Model) {
 
 		if m.HostActive {
 			// Body is covered by the WebView2 Host; keep a minimal native underlay.
-			ui.Box(c).Fill().MinHeight(0).Background(bg)
+			chrome.FrostSurface(ui.Box(c).Fill().MinHeight(0), colors, m.SystemDark, bg, 0)
 			return
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(16, 20, 16, 20).Gap(12).Children(func() {

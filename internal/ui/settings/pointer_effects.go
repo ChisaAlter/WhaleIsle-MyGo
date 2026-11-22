@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/theme"
 )
 
 func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
@@ -43,7 +44,7 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 		preview.CursorEnabled = true
 		config, _ := chrome.CursorEffectConfig(preview, c.Theme().Accent, c.Preferences().ReduceMotion)
 		g.pointerPreview.Configure(config)
-		ui.Box(c).Label(providerCopy("指针效果预览", "Pointer effect preview")).FillWidth().Height(180).Clip().Background(c.Theme().Surface).HandleInput(g.pointerPreview.Input).DrawOver(g.pointerPreview.Draw)
+		chrome.FrostSurface(ui.Box(c).Label(providerCopy("指针效果预览", "Pointer effect preview")).FillWidth().Height(180).Clip(), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 0).HandleInput(g.pointerPreview.Input).DrawOver(g.pointerPreview.Draw)
 		bodyPreferenceRow(c, "cursor-effect", providerCopy("指针效果", "Pointer effect"), "", fg, muted, func() {
 			appearanceChoiceCards(c, "cursor-kind-cards", &p.CursorEffect, [][2]string{{"trail", providerCopy("像素拖尾", "Pixel trail")}, {"splash", providerCopy("流体飞溅", "Fluid splash")}}, func(id string) []string {
 				if id == "trail" {

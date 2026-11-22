@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -18,7 +19,7 @@ const (
 )
 
 func interactionCardSeat(c *ui.Context, key string, warn bool, tint ui.Color) ui.Element {
-	card := ui.Column(c.Key(key)).FillWidth().MinWidth(0).MinHeight(0).Radius(interactionCardRadius).Clip().Gap(0).Background(c.Theme().Surface)
+	card := chrome.FrostSurface(ui.Column(c.Key(key)).FillWidth().MinWidth(0).MinHeight(0).Clip().Gap(0), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, interactionCardRadius)
 	if warn {
 		card.Border(1, c.Theme().Warning.Alpha(.45))
 		if residentComposerBounds.W > 0 {

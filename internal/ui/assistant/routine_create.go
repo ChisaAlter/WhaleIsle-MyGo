@@ -144,7 +144,7 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			}
 			for _, row := range s.Candidates {
 				row := row
-				ui.Column(c.Key("create-candidate-"+row.ID)).Background(field).Border(.5, border).Radius(12).Padding(10, 12).Gap(6).Children(func() {
+				chrome.FrostSurface(ui.Column(c.Key("create-candidate-"+row.ID)).Border(.5, border).Padding(10, 12).Gap(6), fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field, 12).Children(func() {
 					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantNewRecord), row.Name, row.ID, row.Prompt, row.Schedule, row.Timezone, row.Enabled)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 					if w.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantUseRecord)+row.ID).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 						w.OnAdopt(row.ID)

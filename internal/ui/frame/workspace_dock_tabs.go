@@ -193,7 +193,9 @@ func dockTabTitle(n *WorkspacePane) string {
 	case "diff":
 		return paneLabel("变更", "Changes")
 	case "agents":
-		return paneLabel("子代理", "Agents")
+		// ui-agents-panel's `type.label` — the directory also covers
+		// background jobs, so the original tab reads 代理, not 子代理.
+		return paneLabel("代理", "Agents")
 	case "browser":
 		return paneLabel("浏览器", "Browser")
 	case "host-terminal":
@@ -258,9 +260,25 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					if tab == n {
 						chip.Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
 					}
+					chipHovered := chip.Hovered()
 					chip.Children(func() {
 						if !editing || !termui.HostTitleEditor(c, terminal, sid) {
 							ui.Text(c, title).SingleLine().MinWidth(0).Grow(1).FontSize(theme.InterfaceSize(12))
+						}
+						// The original tab carries a ×; DockKit reveals it on the
+						// active or hovered chip like the files strip does.
+						if tab.Kind == "agents" && w.canCloseResource(tab) && (tab == n || chipHovered) {
+							closeLabel := paneLabel("关闭", "Close")
+							close := ui.Button(c.Key("resource-tab-close:"+tab.ID), "").Label(closeLabel).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
+							close.Children(func() {
+								ui.Icon(c, workspacePaneCloseIcon).Size(10, 10).TextColor(c.Theme().TextMuted).PassThrough()
+							})
+							if close.Hovered() {
+								close.Background(c.Theme().SurfacePressed)
+							}
+							if close.Clicked() {
+								workspacePaneClose(m, tab)
+							}
 						}
 					})
 					if editing {

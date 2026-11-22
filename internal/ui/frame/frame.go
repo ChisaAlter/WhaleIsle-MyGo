@@ -235,6 +235,7 @@ type Model struct {
 	// Event callbacks and asynchronous work must use Store.Snapshot instead.
 	FrameView               *session.FrameSnapshot
 	AgentPresetManager      *session.AgentPresetManager
+	AgentsPresetManagerOpen *bool
 	Interactions            *interaction.Store
 	OnAutoAllowChanged      func(on bool)
 	Sizes                   *LayoutSizes
@@ -1621,6 +1622,7 @@ func rightPane(c *ui.Context, m Model) {
 				OnOpenPlanResource: m.OnOpenPlanResource,
 				Store:              navigation,
 				Manager:            m.AgentPresetManager,
+				PresetManagerOpen:  m.AgentsPresetManagerOpen,
 				Snapshot:           renderSnapshot(m),
 				ThemeID:            m.ThemeID,
 				SystemDark:         m.SystemDark,

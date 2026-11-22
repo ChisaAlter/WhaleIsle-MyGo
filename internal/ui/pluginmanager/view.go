@@ -72,13 +72,13 @@ func View(c *ui.Context, m Model) {
 				// one rides the indicator look — radius md, layer-3 fill,
 				// .5 l3 stroke, primary 600 (ui-primitives
 				// SegmentedTabs.module.css .tabs/.tab/.indicator).
-				ui.Row(c).AlignSelf(ui.Start).MinWidth(240).Padding(4).Radius(theme.ContextRadii(c).LG).Background(chrome.Color(colors.Field)).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
+				chrome.FrostSurface(ui.Row(c).AlignSelf(ui.Start).MinWidth(240).Padding(4), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).LG).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
 						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(34).MinWidth(120).Padding(0, 12).
 							BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent).
 							FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20))
 						if s.Tab == tab.id {
-							b = b.Background(chrome.Color(colors.BG)).TextColor(fg).FontWeight(600).Border(.5, chrome.Color(colors.BorderL3))
+							b = b.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.BG))).TextColor(fg).FontWeight(600).Border(.5, chrome.Color(colors.BorderL3))
 						}
 						if b.Clicked() {
 							a.SelectTab(tab.id)
@@ -132,7 +132,7 @@ func View(c *ui.Context, m Model) {
 	}
 	if s.PreferenceError != "" {
 		ui.Overlay(c.Key("plugin-registry-preference-error"), func() {
-			ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(640).Padding(12).Gap(10).Role(ui.RoleStatus).Background(bg).Border(.5, border).Radius(theme.ContextRadii(c).LG).Children(func() {
+			chrome.FrostSurface(ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(640).Padding(12).Gap(10).Role(ui.RoleStatus), colors, m.SystemDark, bg, theme.ContextRadii(c).LG).Border(.5, border).Children(func() {
 				ui.Text(c, s.PreferenceError).Grow(1).MinWidth(0).TextColor(c.Theme().Danger)
 				if ui.Button(c, copyText("关闭", "Close")).Clicked() {
 					a.DismissPreferenceError()
@@ -928,8 +928,8 @@ func marketGhostButton(c *ui.Context, b ui.Element, colors theme.Colors) ui.Elem
 // fill, active flipped to the ghost-active fill with an inset 1px stroke
 // (ui-primitives Pill.module.css .pill/.active).
 func marketPill(c *ui.Context, label string, on bool, colors theme.Colors) ui.Element {
-	p := ui.Button(c, label).Height(24).Padding(0, 8).Radius(999).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
-		BorderWidth(0).Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.Secondary)).Checked(on)
+	p := chrome.FrostSurface(ui.Button(c, label).Height(24).Padding(0, 8).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
+		BorderWidth(0), colors, c.Theme().Dark, chrome.Color(colors.Field), 999).TextColor(chrome.Color(colors.Secondary)).Checked(on)
 	if on {
 		p = p.Background(chrome.Color(colors.Pressed)).TextColor(chrome.Color(colors.FG)).Border(1, chrome.Color(colors.BorderL3))
 	} else if p.Hovered() {

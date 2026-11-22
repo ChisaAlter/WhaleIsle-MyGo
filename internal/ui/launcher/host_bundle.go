@@ -6,13 +6,14 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/components"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
 func hostBundleCard(c *ui.Context, m Model, row components.Row, compact bool) {
 	pending := m.ComponentPending[row.ID]
 	busy := m.ComponentBusy || m.ImportBusy || m.StartBusy || pending != "" || m.HostRuntimeState == harness.Starting
-	ui.Column(c).FillWidth().Padding(12).Gap(8).Background(colSidebar).Border(1, colBorderL2).Radius(12).Children(func() {
+	chrome.FrostSurface(ui.Column(c).FillWidth().Padding(12).Gap(8).Border(1, colBorderL2), launcherColors, m.SystemDark, colSidebar, 12).Children(func() {
 		title := releaseText("Host 离线运行时", "Host offline runtime")
 		if row.InstalledVersion != "" {
 			title += " · v" + row.InstalledVersion

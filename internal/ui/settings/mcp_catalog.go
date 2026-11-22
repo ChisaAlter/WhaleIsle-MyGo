@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/mcpconfig"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -43,7 +44,7 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 			}
 			filtered := false
 			ui.Box(c).Width(88).Shrink(0).Clip().Children(func() {
-				filtered = ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(36).Radius(18).BorderWidth(0).Background(c.Theme().Surface).FontSize(fonttheme.InterfaceSize(14)).Changed()
+				filtered = chrome.FrostSurface(ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(36).BorderWidth(0), fonttheme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 18).FontSize(fonttheme.InterfaceSize(14)).Changed()
 			})
 			if filtered && a.OnFilter != nil {
 				for index, label := range labels {

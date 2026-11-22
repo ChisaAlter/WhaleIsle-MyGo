@@ -139,7 +139,8 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 						text, scroll = guide.Usage, &state.Usage
 					}
 					ui.Scroll(c.Key(state.Page)).TrackScroll(scroll).Grow(1).MinHeight(0).Focusable().Children(func() {
-						markdown.View(c.Key("preset-guide-content/"+state.Page), text, markdown.Style{DocumentLayout: true, FG: fg, Muted: muted, CodeBG: c.Theme().Surface, Accent: c.Theme().Accent, QuoteBorder: c.Theme().Border, RuleBorder: c.Theme().Border})
+						mdColors := fonttheme.Default().Active(c.Theme().Dark)
+						markdown.View(c.Key("preset-guide-content/"+state.Page), text, markdown.Style{DocumentLayout: true, FG: fg, Muted: muted, CodeBG: chrome.FrostInset(mdColors, c.Theme().Dark, c.Theme().Surface), InlineCodeBG: chrome.FrostInset(mdColors, c.Theme().Dark, markdown.InlineCodeBase(c.Theme().Dark)), Accent: c.Theme().Accent, QuoteBorder: c.Theme().Border, RuleBorder: c.Theme().Border})
 					})
 				})
 			})

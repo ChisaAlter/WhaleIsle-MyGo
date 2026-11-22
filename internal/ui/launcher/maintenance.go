@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -35,7 +36,7 @@ func Maintenance(c *ui.Context, page MaintenancePage, m Model) {
 	case MaintenancePreferences:
 		title, body = releaseText("更新偏好与卸载", "Update preferences and uninstall"), settingsPanel
 	}
-	ui.Column(c).Fill().MinWidth(0).Background(colBase).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Fill().MinWidth(0), launcherColors, m.SystemDark, colBase, 0).Children(func() {
 		ui.Row(c).FillWidth().Wrap().AlignItems(ui.Center).Gap(12).Padding(16, 24).
 			BorderWidth(0, 0, 1, 0).BorderColor(colBorderL2).Children(func() {
 			ui.Text(c, title).Grow(1).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(colPrimary)

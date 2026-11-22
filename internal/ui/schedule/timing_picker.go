@@ -13,7 +13,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 type timingPickerState struct {
@@ -267,7 +269,7 @@ func (p *Panel) timingEditorBody(c *ui.Context, d *taskDraft) {
 							if delta < 0 {
 								label = scheduleText("减少间隔", "Decrease interval")
 							}
-							button := ui.Button(c, "").Label(label).Size(17, 12).Padding(0).Radius(3).BorderWidth(0).Background(c.Theme().Surface)
+							button := ui.Button(c, "").Label(label).Size(17, 12).Padding(0).Radius(3).BorderWidth(0).Background(chrome.FrostInset(theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface))
 							button.Children(func() {
 								icon := ui.Icon(c, scheduleChevron).Size(9, 9)
 								if delta > 0 {

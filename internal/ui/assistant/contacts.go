@@ -49,7 +49,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		}
 		widgets.Notice(c, "contacts:50", s.Notice != "", func() string { return s.Notice })
 		query := s.Filters.Query
-		ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).OnChange(func() { change("query", query) })
+		chrome.FrostSurface(ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().Height(32).Border(.5, border), fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field, 8).Padding(0, 10).OnChange(func() { change("query", query) })
 		ui.Row(c).Gap(6).Wrap().Children(func() {
 			for _, opt := range []struct{ id, label string }{{"", i18n.T(i18n.KeyW4AssistantAll)}, {"bots", "Bot"}, {"rooms", i18n.T(i18n.KeyW4AssistantGroup)}} {
 				opt := opt
@@ -99,7 +99,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		if s.Pending != nil && !s.Busy {
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantACatalogOperationIsAwaitingVerification)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}
-		ui.Column(c.Key("contacts-section-editor")).Background(field).Border(.5, border).Radius(12).Padding(10, 12).Gap(6).Children(func() {
+		chrome.FrostSurface(ui.Column(c.Key("contacts-section-editor")).Border(.5, border).Padding(10, 12).Gap(6), fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field, 12).Children(func() {
 			label := i18n.T(i18n.KeyMiscAssistantNewSection)
 			if s.EditingSection != "" {
 				label = i18n.T(i18n.KeyMiscAssistantRenameSection)

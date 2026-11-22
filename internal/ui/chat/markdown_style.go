@@ -29,6 +29,9 @@ func transcriptMarkdownStyle(fg, muted, field, accent, hover ui.Color, size floa
 		CodeSurface: func(e ui.Element, radius float32) ui.Element {
 			return chrome.FrostSurface(e, theme.Default().Active(dark), dark, field, radius)
 		},
+		// Inline-code chips keep their token fill without a backdrop and take
+		// the same translucent wash nested frosted surfaces get when one paints.
+		InlineCodeBG:  chrome.FrostInset(theme.Default().Active(dark), dark, markdown.InlineCodeBase(dark)),
 		Dark:          dark,
 		QuoteInset:    14,
 		ToolCodeHover: hover,

@@ -354,7 +354,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		wasOpen := m.State.Open
 		ui.PopoverBase(c, trigger, &m.State.Open, func(panel ui.Element) {
 			w, _ := c.Size()
-			panel = chrome.PopoverReveal(c, panel.AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 8, 0).Width(max(0, min(480, w-24))).MaxHeight(360).Radius(12).Background(c.Theme().Background).Border(.5, c.Theme().Border).Padding(16).Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .12)))
+			panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.AttachTo(trigger, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, 8, 0).Width(max(0, min(480, w-24))).MaxHeight(360).Border(.5, c.Theme().Border).Padding(16), fonttheme.ResolveWithSystem(fonttheme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background, 12).Shadow(0, 6, 24, 0, ui.RGBA(0, 0, 0, .12)))
 			panel.Children(func() {
 				ui.Scroll(c).FillWidth().MaxHeight(328).Children(func() {
 					ui.Column(c).FillWidth().Gap(4).Children(func() {
