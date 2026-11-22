@@ -267,7 +267,8 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						}
 						// The original tab carries a ×; DockKit reveals it on the
 						// active or hovered chip like the files strip does.
-						if tab.Kind == "agents" && w.canCloseResource(tab) && (tab == n || chipHovered) {
+						fileTab := tab.Files != nil && tab.Files.ResourcePath != ""
+						if (tab.Kind == "agents" || fileTab) && w.canCloseResource(tab) && (tab == n || chipHovered) {
 							closeLabel := paneLabel("关闭", "Close")
 							close := ui.Button(c.Key("resource-tab-close:"+tab.ID), "").Label(closeLabel).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
 							close.Children(func() {

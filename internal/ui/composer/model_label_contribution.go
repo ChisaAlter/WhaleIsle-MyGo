@@ -244,7 +244,7 @@ func ModelLabel(c *ui.Context, s session.ViewState, label string, placement Mode
 			name = friendlyModelTriggerName(s, label)
 			modelFlipText(c, "trigger-name", name, color, fontSize)
 		} else {
-			ui.Text(c, name).MinWidth(0).SingleLine().
+			ui.Text(c, name).MinWidth(0).SingleLine().Ellipsis("…").
 				FontSize(fontSize).FontWeight(400).TextColor(color)
 		}
 		if modelLabel1017(s, label) {

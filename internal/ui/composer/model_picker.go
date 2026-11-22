@@ -61,9 +61,9 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 	if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
 		tooltip += " · " + effortDisplay
 	}
-	trigger := chip(c, colors, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
+	trigger := chip(c, colors, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).MaxWidthPercent(100).Disabled(m.Inert)
 	trigger.Children(func() {
-		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().FontSize(13).TextColor(secondary)
+		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(13).TextColor(secondary)
 		if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
 			binding := modelSelectBinding(m.Snapshot)
 			modelFlipText(c, "retained-effort:"+binding, effortDisplay, chrome.Color(colors.Caption), 13).Shrink(1000)

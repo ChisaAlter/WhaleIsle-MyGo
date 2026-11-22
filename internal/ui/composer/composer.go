@@ -522,8 +522,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			// of dropping beneath the row.
 			tools := ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert)
 			tools.Children(func() {
-				// Keep tools and trailing controls as separate wrap groups.
-				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
+				// Keep tools and trailing controls as separate groups; the tools
+				// keep their natural width so only the model chip shrinks.
+				ui.Row(c).Shrink(0).Gap(12).AlignItems(ui.Center).Children(func() {
 					secondary := muted
 					if colors.Secondary != "" {
 						secondary = chrome.Color(colors.Secondary)
