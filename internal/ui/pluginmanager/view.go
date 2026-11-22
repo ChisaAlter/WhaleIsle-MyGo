@@ -811,7 +811,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 		ui.Text(c, fmt.Sprintf(copyText("%d 个插件", "%d plugins"), d.Listing.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		for _, entry := range d.Listing.Entries {
 			e := entry
-			ui.Row(c.Key("discover-" + e.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Children(func() {
+			ui.Row(c.Key("discover-" + e.Name)).Label("Market entry " + e.Name).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Children(func() {
 				artwork(c, muted, border, m.SVGImages, e.Icon)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 					if ui.Button(c, e.Label(i18n.Locale())).Label(copyText("打开插件市场 ", "Open market ") + e.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
