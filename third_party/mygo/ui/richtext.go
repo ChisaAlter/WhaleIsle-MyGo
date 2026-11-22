@@ -29,13 +29,18 @@ type Span struct {
 	// Background highlights the span, as search results are.
 	Background Color
 	// BackgroundRadius rounds the highlight's corners, BackgroundBorder
-	// strokes it with a half-DIP line, BackgroundPadX extends it past the
-	// run's glyphs horizontally and BackgroundInsetY shrinks it from the
-	// line's top and bottom — a chip's padding and border. They only
-	// change what is painted: the run keeps its advance, and the glyphs
-	// of neighboring runs still draw on top.
+	// strokes it with a half-DIP line and BackgroundInsetY shrinks it
+	// from the line's top and bottom — a chip's border and inset. They
+	// only change what is painted: the run keeps its advance, and the
+	// glyphs of neighboring runs still draw on top.
 	BackgroundRadius float32
 	BackgroundBorder Color
+	// BackgroundPadX pads the highlight and the span's room horizontally
+	// by that many DIPs on each side, like an inline element's CSS
+	// padding: the space is shaped into the text, so it pushes the glyphs
+	// around the span apart and line breaking gives it room, and the
+	// background covers it. Carets and hit-testing map the space to the
+	// runes at the span's edges; a wrapped line never starts with a pad.
 	BackgroundPadX   float32
 	BackgroundInsetY float32
 	LetterSpacing    float32
@@ -164,7 +169,7 @@ func (sc *spanCache) update(spans []Span) {
 // spanStyle returns the style of a span ending at rune end, for its
 // layout.
 func spanStyle(s Span, end int) text.Span {
-	return text.Span{End: end, Family: s.Font, Size: s.Size, Weight: s.Weight, Italic: s.Italic, LetterSpacing: s.LetterSpacing, Features: s.Features}
+	return text.Span{End: end, Family: s.Font, Size: s.Size, Weight: s.Weight, Italic: s.Italic, LetterSpacing: s.LetterSpacing, Features: s.Features, PadX: s.BackgroundPadX}
 }
 
 // encodeSpans encodes the styles of spans for a layout.
@@ -329,8 +334,8 @@ func (sp *spanPaint) backgrounds(p *Painter, line *text.Line, x, y float32) {
 		if s.Background.A == 0 && s.BackgroundBorder.A == 0 {
 			return
 		}
-		r := Rect{x + x0 - s.BackgroundPadX, y + line.Y + s.BackgroundInsetY,
-			x1 - x0 + 2*s.BackgroundPadX, line.Height - 2*s.BackgroundInsetY}
+		r := Rect{x + x0, y + line.Y + s.BackgroundInsetY,
+			x1 - x0, line.Height - 2*s.BackgroundInsetY}
 		if s.Background.A > 0 {
 			p.Fill(r, s.Background, s.BackgroundRadius)
 		}
