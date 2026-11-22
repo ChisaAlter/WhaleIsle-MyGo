@@ -4321,6 +4321,74 @@
               "assert": []
             },
             {
+              "key": "schedlist.heading",
+              "web": {
+                "selector": "[data-testid=task-manager-page] [class*=pageHeading] h1"
+              },
+              "native": {
+                "name": "自动化任务",
+                "type": "Text"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "schedlist.create",
+              "web": {
+                "selector": "[data-testid=task-manager-page] button[class*=newButton]"
+              },
+              "native": {
+                "name": "新建",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ]
+            },
+            {
+              "key": "schedlist.filter-all",
+              "web": {
+                "selector": "[data-testid=task-manager-page] [class*=filterTabs] > button",
+                "text": "全部"
+              },
+              "native": {
+                "name": "全部",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
+              "key": "schedlist.filter-active",
+              "web": {
+                "selector": "[data-testid=task-manager-page] [class*=filterTabs] > button",
+                "text": "已开启"
+              },
+              "native": {
+                "name": "已开启",
+                "type": "Button"
+              },
+              "assert": [
+                "x",
+                "y",
+                "w",
+                "h",
+                "dy-prev"
+              ]
+            },
+            {
               "key": "schedlist.row-1",
               "web": {
                 "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(1) > button"
@@ -4338,40 +4406,6 @@
               ]
             },
             {
-              "key": "schedlist.title-1",
-              "web": {
-                "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(1) [class*=rowTitle]"
-              },
-              "native": {
-                "name": "每周报告汇总",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "schedlist.summary-1",
-              "web": {
-                "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(1) [class*=rowSummary]"
-              },
-              "native": {
-                "type": "Text",
-                "namePrefix": "每周周"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
               "key": "schedlist.row-2",
               "web": {
                 "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) > button"
@@ -4379,40 +4413,6 @@
               "native": {
                 "name": "Open task: 每日站会提醒",
                 "type": "Button"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "schedlist.title-2",
-              "web": {
-                "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) [class*=rowTitle]"
-              },
-              "native": {
-                "name": "每日站会提醒",
-                "type": "Text"
-              },
-              "assert": [
-                "x",
-                "y",
-                "w",
-                "h",
-                "dy-prev"
-              ]
-            },
-            {
-              "key": "schedlist.summary-2",
-              "web": {
-                "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) [class*=rowSummary]"
-              },
-              "native": {
-                "type": "Text",
-                "namePrefix": "每天 "
               },
               "assert": [
                 "x",
@@ -4529,7 +4529,7 @@
                 "selector": "button[aria-label=\"关闭详情\"]"
               },
               "native": {
-                "name": "Close task",
+                "name": "Close details",
                 "type": "Button"
               },
               "assert": [
@@ -4568,13 +4568,13 @@
                 },
                 "expect": {
                   "selector": "[role=menuitem]",
-                  "index": 1
+                  "index": 0
                 }
               },
               {
                 "click": {
                   "selector": "[role=menuitem]",
-                  "index": 1
+                  "index": 0
                 },
                 "expect": {
                   "selector": "[class*=confirmDialog]"
