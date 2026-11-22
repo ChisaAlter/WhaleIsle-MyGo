@@ -4087,13 +4087,13 @@
                 },
                 "expect": {
                   "name": "发现",
-                  "type": "Tab"
+                  "type": "TabItem"
                 }
               },
               {
                 "invoke": {
                   "name": "发现",
-                  "type": "Tab"
+                  "type": "TabItem"
                 },
                 "expect": {
                   "name": "安装",
