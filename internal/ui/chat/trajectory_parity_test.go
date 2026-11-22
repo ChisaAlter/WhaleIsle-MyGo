@@ -93,7 +93,7 @@ func TestTrajectoryParityLocalesAndViews(t *testing.T) {
 	}{
 		{
 			locale:         i18n.LocaleZH,
-			wantTimeline:   "总计 1000 ms",
+			wantTimeline:   "输入",
 			wantTotalDur:   "总时长",
 			wantGeneration: "生成",
 			wantTTFTDec:    "首 token 200 ms · 解码 800 ms",
@@ -107,7 +107,7 @@ func TestTrajectoryParityLocalesAndViews(t *testing.T) {
 		},
 		{
 			locale:         i18n.LocaleEN,
-			wantTimeline:   "Total 1000 ms",
+			wantTimeline:   "Input",
 			wantTotalDur:   "Total Duration",
 			wantGeneration: "Generation",
 			wantTTFTDec:    "TTFT 200 ms · Decoding 800 ms",

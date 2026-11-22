@@ -63,10 +63,11 @@ func TestTrajectoryViewportWheelAndSequenceRange(t *testing.T) {
 		rows[i] = trajRow{ID: string(rune('a' + i))}
 	}
 	s := trajectoryRangeState{sequence: true}
+	selected := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintTrajectoryRange(c, rows, &s, nil, ui.RGB(50, 80, 200), ui.RGB(80, 80, 80), ui.RGB(150, 150, 150))
+		paintTrajectoryLanes(c, rows, &selected, &s, nil, nil, trajTestPalette())
 	}, 800, 200)
-	r, ok := tt.Find("Trajectory time range")
+	r, ok := tt.Find("Trajectory timeline")
 	if !ok {
 		t.Fatal("missing range")
 	}
@@ -74,7 +75,7 @@ func TestTrajectoryViewportWheelAndSequenceRange(t *testing.T) {
 	if !s.viewport.active || s.viewport.end-s.viewport.start >= 10 {
 		t.Fatalf("wheel did not zoom %+v", s.viewport)
 	}
-	r, ok = tt.Find("Trajectory time range")
+	r, ok = tt.Find("Trajectory timeline")
 	if !ok {
 		t.Fatal("range lost after zoom")
 	}

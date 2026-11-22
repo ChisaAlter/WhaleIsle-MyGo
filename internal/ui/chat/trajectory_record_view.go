@@ -1,48 +1,89 @@
 package chat
 
 import (
-	"github.com/egoist/mygo/ui"
+	"fmt"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
-// Original TrajectoryTable uses one role column (84px in Chinese, 122px
-// otherwise) and one content column, with 30px single-line record rows.
-func paintTrajectoryRecord(c *ui.Context, row trajRow, fg, muted, accent ui.Color) {
+// paintTrajectoryRecord renders one TrajectoryTable row: the fixed event
+// gutter (turn rail + #n marker), a colored kindTag badge (icon + label),
+// then the title with muted inline detail and the `→ result` continuation
+// for tool calls (TrajectoryTable.tsx/TrajectoryCell.tsx).
+func paintTrajectoryRecord(c *ui.Context, row trajRow, p trajectoryPalette, turnStart bool) {
 	eventWidth := float32(84)
 	if i18n.Locale() == i18n.LocaleEN {
 		eventWidth = 122
 	}
+	kind := trajCellKind(row)
+	icon, ink, fill := trajKindBadge(p, kind)
 	ui.Row(c).FillWidth().Height(30).AlignItems(ui.Center).Children(func() {
-		ui.Box(c).Width(eventWidth).MinWidth(0).Padding(0, 8, 0, 8).Children(func() {
-			ui.Text(c, trajectoryRecordRole(row)).FontSize(theme.InterfaceSize(12)).TextColor(accent).SingleLine().FillWidth().MinWidth(0)
-		})
-		ui.Row(c).Grow(1).MinWidth(0).Padding(0, 8, 0, 8).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, trajectoryRecordPreview(row)).FontSize(theme.InterfaceSize(12)).TextColor(fg).SingleLine().Grow(1).MinWidth(0)
-			if row.Time != "" && row.Timing != nil {
-				ui.Text(c, row.Time).FontSize(theme.InterfaceSize(11)).TextColor(muted).SingleLine()
+		// Turn gutter — the original's .turn rail and .turnLabel.
+		ui.Box(c).Width(28).FillHeight().Children(func() {
+			if row.TurnKey != "" {
+				ui.Box(c).Absolute().Left(12).Top(2).Bottom(2).Width(2).Background(p.turnAccent)
+			}
+			if turnStart && row.TurnNumber > 0 {
+				ui.Text(c, fmt.Sprintf("#%d", row.TurnNumber)).FontSize(theme.InterfaceSize(10)).TextColor(p.caption).SingleLine().Absolute().Left(16).Top(8)
 			}
 		})
+		// .event column — 84px zh / 122px en — carries the kindTag chip.
+		ui.Box(c).Width(eventWidth).MinWidth(eventWidth).Children(func() {
+			ui.Row(c).Height(16).Padding(0, 4, 0, 4).Gap(3).Radius(4).Background(fill).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, icon).Width(11).Height(11).TextColor(ink)
+				ui.Text(c, trajKindTagLabel(kind)).FontSize(theme.InterfaceSize(10)).TextColor(ink).SingleLine()
+			})
+		})
+		ui.Box(c).Width(8)
+		title, detail := trajectoryRecordTitle(row, kind)
+		ui.Text(c, title).FontSize(theme.InterfaceSize(12)).TextColor(p.fg).SingleLine()
+		if detail != "" {
+			ui.Text(c, " "+detail).FontSize(theme.InterfaceSize(12)).TextColor(p.muted).SingleLine().Grow(1).MinWidth(0)
+		}
+		if row.Result != "" {
+			ui.Text(c, " → "+row.Result).FontSize(theme.InterfaceSize(12)).TextColor(p.muted).SingleLine().Grow(1).MinWidth(0)
+		}
+		if detail == "" && row.Result == "" {
+			ui.Box(c).Grow(1).MinWidth(0)
+		}
+		if row.Time != "" && row.Timing != nil && (kind == "message" || kind == "tool") {
+			ui.Text(c, row.Time).FontSize(theme.InterfaceSize(11)).TextColor(p.caption).SingleLine().Padding(0, 8, 0, 0)
+		}
 	})
 }
 
-func trajectoryRecordRole(row trajRow) string {
-	if row.Kind == trajectoryRequestKind {
-		return trajectoryText("请求", "Request")
-	}
-	if row.Kind == session.MessageKindText {
-		switch row.Role {
-		case "user":
-			return trajectoryText("用户", "User")
-		case "assistant":
-			return trajectoryText("助手", "Assistant")
-		case "system":
-			return trajectoryText("系统", "System")
+// trajectoryRecordTitle splits the row's display text into the bold-ish
+// lead and the muted inline detail the original paints side by side.
+func trajectoryRecordTitle(row trajRow, kind string) (string, string) {
+	switch kind {
+	case "tool":
+		name := ""
+		if row.Source.Tool != nil {
+			name = row.Source.Tool.Name
 		}
+		if name == "" {
+			fields := strings.Fields(row.Tools)
+			if len(fields) > 0 {
+				name = fields[0]
+			}
+		}
+		if name == "" {
+			name = trajectoryText("工具调用", "Tool call")
+		}
+		detail := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(row.Tools), name))
+		if detail == "" {
+			detail = row.Input
+		}
+		return name, detail
+	case "user", "system", "context":
+		return trajectoryRecordPreview(row), ""
+	default:
+		return trajectoryRecordPreview(row), ""
 	}
-	return kindLabelZH(row.Kind)
 }
 
 func trajectoryRecordPreview(row trajRow) string {

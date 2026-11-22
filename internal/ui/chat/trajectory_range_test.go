@@ -35,12 +35,22 @@ func TestTrajectoryRangeRecordedOverlapAndNoInventedTime(t *testing.T) {
 		t.Fatal("invalid coordinates accepted")
 	}
 }
+func trajTestPalette() trajectoryPalette {
+	return trajectoryPalette{
+		fg:      ui.RGB(20, 20, 20),
+		muted:   ui.RGB(80, 80, 80),
+		caption: ui.RGB(120, 120, 120),
+		accent:  ui.RGB(50, 80, 200),
+	}
+}
+
 func TestTrajectoryRangePointerDragEscapeAndReset(t *testing.T) {
 	s := trajectoryRangeState{}
+	selected := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintTrajectoryRange(c, rangeFixtureRows(), &s, nil, ui.RGB(50, 80, 200), ui.RGB(80, 80, 80), ui.RGB(150, 150, 150))
+		paintTrajectoryLanes(c, rangeFixtureRows(), &selected, &s, nil, nil, trajTestPalette())
 	}, 600, 200)
-	r, ok := tt.Find("Trajectory time range")
+	r, ok := tt.Find("Trajectory timeline")
 	if !ok {
 		t.Fatal("range input absent")
 	}

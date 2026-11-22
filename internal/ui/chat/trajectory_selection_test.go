@@ -8,10 +8,11 @@ import (
 
 func TestTrajectorySelectionMinimumClickRange(t *testing.T) {
 	s := trajectoryRangeState{}
+	selected0 := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintTrajectoryRange(c, rangeFixtureRows(), &s, nil, ui.RGB(50, 80, 200), ui.RGB(80, 80, 80), ui.RGB(150, 150, 150))
+		paintTrajectoryLanes(c, rangeFixtureRows(), &selected0, &s, nil, nil, trajTestPalette())
 	}, 800, 200)
-	r, _ := tt.Find("Trajectory time range")
+	r, _ := tt.Find("Trajectory timeline")
 	tt.Press(r.X+r.W*.4, r.Y+r.H/2)
 	tt.Release(r.X+r.W*.4, r.Y+r.H/2)
 	if !s.active || math.Abs(s.end-s.start-150) > 1e-5 {
@@ -48,7 +49,7 @@ func TestTrajectorySelectionClickSpanClearsRange(t *testing.T) {
 	s.selectRange(100, 400)
 	selected := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintTrajectoryOverview(c, buildRecordedTrajectoryTimeline(rangeFixtureRows()), &selected, ui.RGB(50, 80, 200), ui.RGB(80, 80, 80), ui.RGB(150, 150, 150), false, &s)
+		paintTrajectoryLanes(c, rangeFixtureRows(), &selected, &s, nil, nil, trajTestPalette())
 	}, 800, 200)
 	tt.Click("Trajectory span b")
 	if selected != "b" || s.active {

@@ -120,12 +120,16 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 		if known {
 			end += duration
 		}
+		// timeline.ts lane mapping: 0 输入 (input/context), 1 模型
+		// (message/compacted), 2 工具 (tool/subtool).
 		lane := 0
-		if row.Kind == session.MessageKindTool {
-			lane = 1
-		}
-		if row.Kind == session.MessageKindCompaction {
+		switch {
+		case row.Kind == session.MessageKindTool:
 			lane = 2
+		case row.Kind == session.MessageKindCompaction,
+			row.Kind == session.MessageKindThinking,
+			row.Role == "assistant":
+			lane = 1
 		}
 		if len(model.Spans) == 0 || start < model.Start {
 			model.Start = start
@@ -138,52 +142,108 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 	return model
 }
 
-func paintRecordedTrajectoryTimeline(c *ui.Context, rows []trajRow, selected *string, accent, muted, border ui.Color) {
-	paintTrajectoryOverview(c, buildRecordedTrajectoryTimeline(rows), selected, accent, muted, border, false)
-}
-
-func paintTrajectoryOverview(c *ui.Context, model trajectoryTimeline, selected *string, accent, muted, border ui.Color, sequence bool, ranges ...*trajectoryRangeState) {
-	if len(model.Spans) == 0 {
-		ui.Text(c, trajectoryText("无计时数据", "No timing data")).FontSize(11).TextColor(muted)
-		return
-	}
-	ui.Box(c).FillWidth().Height(38).Children(func() {
-		for _, span := range model.Spans {
-			if span.End < model.Start || span.Start > model.End {
-				continue
+// paintTrajectoryLanes renders the original compact lane chart
+// (TrajectoryTimeline.module.css): a 44px label gutter beside a 50px plot,
+// lanes 输入 / 模型 / 工具 at 14px pitch with 8px bars of min width 2,
+// colored by kind. The plot itself carries the drag-range / wheel-zoom /
+// Escape interaction the source renders on its overview.
+func paintTrajectoryLanes(c *ui.Context, rows []trajRow, selected *string, s *trajectoryRangeState, list *ui.ListState, ledger []trajRow, p trajectoryPalette) {
+	full := s.model(rows)
+	model := s.viewport.domain(full)
+	s.matches(rows)
+	lanes := []string{trajectoryText("输入", "Input"), trajectoryText("模型", "Model"), trajectoryText("工具", "Tool")}
+	ui.Row(c).FillWidth().Height(50).Children(func() {
+		ui.Box(c).Width(44).FillHeight().Children(func() {
+			for lane, name := range lanes {
+				ui.Text(c, name).FontSize(10).TextColor(p.caption).SingleLine().Absolute().Left(0).Top(float32(5 + lane*14))
 			}
-			left, width := float32(0), float32(0)
-			if model.End > model.Start {
-				left = float32((math.Max(span.Start, model.Start) - model.Start) / (model.End - model.Start) * 100)
-				width = float32((math.Min(span.End, model.End) - math.Max(span.Start, model.Start)) / (model.End - model.Start) * 100)
+		})
+		plot := ui.Box(c).Label("Trajectory timeline").Grow(1).FillHeight().Focusable().Bind(&s.handle)
+		plot.HandleInput(func(ev ui.InputEvent) bool {
+			// Span bars are plain buttons (no input handler); when a primary
+			// press lands on one, decline it so the engine's generic press
+			// path delivers the click to the button.
+			if ev.Kind == ui.InputPointerDown && ev.Button == 0 && trajSpanHitAt(model, ev.X, ev.Y, s.handle.Bounds(c).W) {
+				return false
 			}
-			row := span.Row
-			b := ui.Button(c, "").Label("Trajectory span " + row.ID).Absolute().LeftPercent(left).Top(float32(span.Lane * 12)).WidthPercent(width).Height(9).
-				Padding(0).BorderWidth(0).Radius(2).Background(trajKindColor(row.Kind, accent, muted, border)).
-				Tooltip(trajectoryTimingDetail(row)).Cursor(ui.CursorPointer)
-			if width == 0 {
-				b.Width(2)
-			} // Marker only; the label still explicitly says unknown/0 ms.
-			if b.Clicked() {
-				*selected = row.ID
-				if len(ranges) > 0 && ranges[0] != nil {
-					ranges[0].clear()
+			return s.plotInput(c, ev, full, model)
+		}).Draw(func(pt *ui.Painter, r ui.Rect) {
+			s.plotDraw(pt, r, model, p.accent)
+		}).Children(func() {
+			for _, span := range model.Spans {
+				if span.End < model.Start || span.Start > model.End {
+					continue
+				}
+				left, width := float32(0), float32(0)
+				if model.End > model.Start {
+					left = float32((math.Max(span.Start, model.Start) - model.Start) / (model.End - model.Start) * 100)
+					width = float32((math.Min(span.End, model.End) - math.Max(span.Start, model.Start)) / (model.End - model.Start) * 100)
+				}
+				row := span.Row
+				b := ui.Button(c, "").Label("Trajectory span " + row.ID).Absolute().LeftPercent(left).Top(float32(5 + span.Lane*14)).WidthPercent(width).Height(8).
+					Padding(0).BorderWidth(0).Radius(1).Background(trajTimelineColor(p, row, trajCellKind(row))).
+					Tooltip(trajectoryTimingDetail(row)).Cursor(ui.CursorPointer)
+				if width == 0 {
+					b.Width(2)
+				}
+				if b.Clicked() {
+					*selected = row.ID
+					s.clear()
 				}
 			}
-		}
+		})
 	})
-	durStr := fmt.Sprintf("%.0f ms", model.End-model.Start)
-	label := FormatTrajectoryTimelineTotal(durStr) + " · " + fmt.Sprintf(trajectoryText("已记录时间范围 %.0f ms", "Recorded time range %.0f ms"), model.End-model.Start)
-	if sequence {
-		label = FormatTrajectoryTimelineTotal(durStr) + " · " + fmt.Sprintf(trajectoryText("记录范围 %.1f–%.1f", "Record range %.1f–%.1f"), model.Start, model.End)
+	if s.active || s.viewport.active {
+		ui.Row(c).Padding(2, 0, 0, 44).Gap(8).Children(func() {
+			label := fmt.Sprintf(trajectoryText("已选 %.0f–%.0f ms · %d 项", "Selected %.0f–%.0f ms · %d records"), s.start-full.Start, s.end-full.Start, len(s.matches(rows)))
+			if s.sequence {
+				label = fmt.Sprintf(trajectoryText("已选 %.1f–%.1f · %d 项", "Selected %.1f–%.1f · %d records"), s.start, s.end, len(s.matches(rows)))
+			}
+			if !s.active {
+				label = trajectoryText("拖选时间范围以聚焦记录", "Drag a time range to focus records")
+			}
+			ui.Text(c, label).FontSize(11).TextColor(p.muted).Grow(1)
+			if s.viewport.active {
+				if ui.Button(c, trajectoryText("重置缩放", "Reset zoom")).FontSize(11).Height(18).BorderWidth(0).Background(ui.Transparent).TextColor(p.muted).Cursor(ui.CursorPointer).Clicked() {
+					s.viewport = trajectoryViewport{}
+				}
+			}
+			if s.active {
+				if ui.Button(c, trajectoryText("清除范围", "Clear range")).FontSize(11).Height(18).BorderWidth(0).Background(ui.Transparent).TextColor(p.muted).Cursor(ui.CursorPointer).Clicked() {
+					s.clear()
+				}
+			}
+		})
 	}
-	if model.Compressed {
-		label += trajectoryText(" · 空闲已压缩", " · idle gaps compressed")
+	s.afterPaint(rows, list, ledger)
+}
+
+// trajSpanHitAt reports whether plot-local (x, y) falls inside a rendered
+// span bar — same geometry as the Absolute span buttons above.
+func trajSpanHitAt(model trajectoryTimeline, x, y, width float32) bool {
+	lane := int((y - 5) / 14)
+	if lane < 0 || lane > 2 || y < 5 || y >= 5+float32(lane)*14+8 {
+		return false
 	}
-	if model.Unknown > 0 {
-		label += fmt.Sprintf(trajectoryText(" · %d 项耗时未知", " · %d durations unknown"), model.Unknown)
+	for _, span := range model.Spans {
+		if span.Lane != lane || span.End < model.Start || span.Start > model.End {
+			continue
+		}
+		left, w := float32(0), float32(0)
+		if model.End > model.Start {
+			left = float32((math.Max(span.Start, model.Start) - model.Start) / (model.End - model.Start) * 100)
+			w = float32((math.Min(span.End, model.End) - math.Max(span.Start, model.Start)) / (model.End - model.Start) * 100)
+		}
+		lx := left / 100 * width
+		wx := w / 100 * width
+		if wx <= 0 {
+			wx = 2
+		}
+		if x >= lx && x <= lx+wx {
+			return true
+		}
 	}
-	ui.Text(c, label).FontSize(11).TextColor(muted)
+	return false
 }
 
 func trajectoryText(zh, en string) string {
