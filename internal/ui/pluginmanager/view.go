@@ -676,180 +676,286 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 			}
 		}
 	}
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		labels := []string{}
-		ids := []string{}
-		selected := ""
-		for _, index := range d.Indexes {
-			label := index.Title.Resolve(i18n.Locale())
-			if label == "" {
-				label = index.URL
-				if parsed, err := url.Parse(index.URL); err == nil && parsed.Host != "" {
-					label = parsed.Host
-				}
-			}
-			labels = append(labels, label)
-			// Preserve duplicate localized titles as independent source choices.
-			for _, other := range d.Indexes {
-				if other.URL != index.URL && other.Title.Resolve(i18n.Locale()) == index.Title.Resolve(i18n.Locale()) {
-					label += " · " + index.URL
-					break
-				}
-			}
-			labels[len(labels)-1] = label
-			ids = append(ids, index.URL)
-			if index.URL == d.Selected {
-				selected = label
-			}
-		}
-		if len(labels) > 0 && ui.Select(c, &selected, labels).Width(240).MaxWidthPercent(100).Changed() {
-			for i, label := range labels {
-				if selected == label {
-					a.SelectIndex(ids[i])
-					break
-				}
-			}
-		}
-		query := d.TextDraft
-		if ui.TextInput(c, &query).Label(copyText("搜索插件", "Search plugins")).Placeholder(copyText("搜索插件", "Search plugins")).Grow(1).MinWidth(120).Changed() {
-			a.SearchText(query)
-		}
-		if ui.Button(c, copyText("刷新列表", "Refresh listing")).Disabled(d.Loading || d.Selected == "").Clicked() {
-			a.RefreshDiscover()
-		}
-		if ui.Button(c, copyText("索引源", "Index sources")).Clicked() {
-			a.ToggleSources()
-		}
-	})
-	if len(d.Indexes) == 0 {
-		ui.Text(c, copyText("尚未配置插件索引。添加一个源以浏览插件。", "No plugin indexes configured. Add a source to browse plugins.")).FillWidth().TextColor(muted)
-		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("添加索引源", "Add index source"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Clicked() {
-			a.ToggleSources()
-		}
-		return
-	}
-	if d.Loading && d.Listing == nil {
-		loadingRows(c, muted)
-	}
-	if d.Listing != nil {
-		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {
-			if ui.Button(c, copyText("全部", "All")).Checked(d.Query.Category == "").Clicked() {
-				q := d.Query
-				q.Category = ""
-				a.Search(q)
-			}
-			keys := declarationKeys(d.Listing.Metadata.Categories)
-			for _, id := range keys {
-				label := d.Listing.Metadata.Categories[id].Title.Resolve(i18n.Locale())
-				if ui.Button(c, label).Checked(d.Query.Category == id).Clicked() {
-					q := d.Query
-					q.Category = id
-					a.Search(q)
-				}
-			}
-		})
-		ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
-			sorts := []manager.MarketSort{{Kind: "index"}, {Kind: "published", Direction: "desc"}}
-			labels := []string{copyText("索引顺序", "Index order"), copyText("最新发布", "Newest published")}
-			if strings.TrimSpace(d.Query.Text) != "" {
-				sorts = append(sorts, manager.MarketSort{Kind: "relevance"})
-				labels = append(labels, copyText("相关性", "Relevance"))
-			}
-			for _, id := range declarationKeys(d.Listing.Metadata.SortKeys) {
-				meta := d.Listing.Metadata.SortKeys[id]
-				sorts = append(sorts, manager.MarketSort{Kind: "key", ID: id, Direction: meta.Order})
-				labels = append(labels, meta.Title.Resolve(i18n.Locale()))
-			}
-			selected := labels[0]
-			for i, sort := range sorts {
-				if sort == d.Query.Sort {
-					selected = labels[i]
-				}
-			}
-			if ui.Select(c, &selected, labels).Width(200).MaxWidthPercent(100).Changed() {
-				for i, label := range labels {
-					if selected == label {
-						q := d.Query
-						q.Sort = sorts[i]
-						a.Search(q)
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	// .section is its own column at gap 16; the page column gap does not
+	// apply inside it (DiscoverSection.module.css .section).
+	ui.Column(c).FillWidth().MinWidth(0).Gap(16).Children(func() {
+		// .toolbar: market menu, flex search, label filter, sort menu and the
+		// icon-only refresh share one centered row (gap 8).
+		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+			labels := []string{}
+			ids := []string{}
+			selected := ""
+			for _, index := range d.Indexes {
+				label := index.Title.Resolve(i18n.Locale())
+				if label == "" {
+					label = index.URL
+					if parsed, err := url.Parse(index.URL); err == nil && parsed.Host != "" {
+						label = parsed.Host
 					}
 				}
-			}
-			if d.Query.Sort.Kind == "published" || d.Query.Sort.Kind == "key" {
-				if ui.Button(c, copyText("切换升序/降序", "Reverse sort direction")).Clicked() {
-					q := d.Query
-					if q.Sort.Direction == "asc" {
-						q.Sort.Direction = "desc"
-					} else {
-						q.Sort.Direction = "asc"
-					}
-					a.Search(q)
-				}
-			}
-			for _, id := range declarationKeys(d.Listing.Metadata.Labels) {
-				selected := false
-				for _, v := range d.Query.Labels {
-					if v == id {
-						selected = true
+				labels = append(labels, label)
+				// Preserve duplicate localized titles as independent source choices.
+				for _, other := range d.Indexes {
+					if other.URL != index.URL && other.Title.Resolve(i18n.Locale()) == index.Title.Resolve(i18n.Locale()) {
+						label += " · " + index.URL
+						break
 					}
 				}
-				if ui.Button(c, d.Listing.Metadata.Labels[id].Title.Resolve(i18n.Locale())).Checked(selected).Clicked() {
-					q := d.Query
-					q.Labels = nil
-					for _, v := range d.Query.Labels {
-						if v != id {
-							q.Labels = append(q.Labels, v)
+				labels[len(labels)-1] = label
+				ids = append(ids, index.URL)
+				if index.URL == d.Selected {
+					selected = label
+				}
+			}
+			// .marketButton caps the ghost trigger at 240 and bleeds -8 left;
+			// source management is the menu footer, not a toolbar button.
+			marketGhostButton(c, ui.MenuButton(c, selected, func(menu *ui.Menu) {
+				for i, id := range ids {
+					if menu.Item(labels[i]).Checked(id == d.Selected).Chosen() {
+						a.SelectIndex(id)
+					}
+				}
+				menu.Separator()
+				if menu.Item(copyText("管理索引源…", "Manage index sources…")).Chosen() {
+					a.ToggleSources()
+				}
+			}), colors).MaxWidth(240).Margin(0, 0, 0, -8).FontWeight(500).
+				Label(fmt.Sprintf(copyText("切换插件市场，当前为 %s", "Switch plugin market, currently %s"), selected))
+			query := d.TextDraft
+			if ui.TextInput(c, &query).Label(copyText("搜索插件", "Search plugins")).Placeholder(copyText("搜索插件", "Search plugins")).Grow(1).MinWidth(120).Changed() {
+				a.SearchText(query)
+			}
+			if d.Listing != nil && len(d.Listing.Metadata.Labels) > 0 {
+				filter := copyText("标签", "Labels")
+				if len(d.Query.Labels) > 0 {
+					filter = fmt.Sprintf(copyText("标签 · %d", "Labels · %d"), len(d.Query.Labels))
+				}
+				marketGhostButton(c, ui.MenuButton(c, filter, func(menu *ui.Menu) {
+					for _, id := range declarationKeys(d.Listing.Metadata.Labels) {
+						lid := id
+						on := false
+						for _, v := range d.Query.Labels {
+							on = on || v == lid
+						}
+						if menu.Item(d.Listing.Metadata.Labels[lid].Title.Resolve(i18n.Locale())).Checked(on).Chosen() {
+							q := d.Query
+							q.Labels = nil
+							for _, v := range d.Query.Labels {
+								if v != lid {
+									q.Labels = append(q.Labels, v)
+								}
+							}
+							if !on {
+								q.Labels = append(q.Labels, lid)
+							}
+							a.Search(q)
 						}
 					}
-					if !selected {
-						q.Labels = append(q.Labels, id)
-					}
-					a.Search(q)
+				}), colors)
+			}
+			if d.Listing != nil {
+				sorts := []manager.MarketSort{{Kind: "index"}, {Kind: "published", Direction: "desc"}}
+				names := []string{copyText("默认顺序", "Default order"), copyText("发布时间", "Publish date")}
+				if strings.TrimSpace(d.Query.Text) != "" {
+					sorts = append([]manager.MarketSort{{Kind: "relevance"}}, sorts...)
+					names = append([]string{copyText("最佳匹配", "Best match")}, names...)
 				}
+				for _, id := range declarationKeys(d.Listing.Metadata.SortKeys) {
+					meta := d.Listing.Metadata.SortKeys[id]
+					sorts = append(sorts, manager.MarketSort{Kind: "key", ID: id, Direction: meta.Order})
+					names = append(names, meta.Title.Resolve(i18n.Locale()))
+				}
+				sortName := names[0]
+				for i, sort := range sorts {
+					if sort == d.Query.Sort {
+						sortName = names[i]
+					}
+				}
+				directed := d.Query.Sort.Kind == "published" || d.Query.Sort.Kind == "key"
+				marketGhostButton(c, ui.MenuButton(c, fmt.Sprintf(copyText("排序：%s", "Sort: %s"), sortName), func(menu *ui.Menu) {
+					for i := range sorts {
+						pick := sorts[i]
+						if menu.Item(names[i]).Checked(pick == d.Query.Sort).Chosen() {
+							q := d.Query
+							q.Sort = pick
+							a.Search(q)
+						}
+					}
+					if directed {
+						menu.Separator()
+						label := copyText("改为升序", "Switch to ascending")
+						if d.Query.Sort.Direction == "asc" {
+							label = copyText("改为降序", "Switch to descending")
+						}
+						if menu.Item(label).Chosen() {
+							q := d.Query
+							if q.Sort.Direction == "asc" {
+								q.Sort.Direction = "desc"
+							} else {
+								q.Sort.Direction = "asc"
+							}
+							a.Search(q)
+						}
+					}
+				}), colors)
+			}
+			// The refresh affordance is an icon-only ghost sm button under a
+			// tooltip; busy swaps the glyph for a state dot upstream.
+			refresh := ui.Button(c.Key("discover-refresh"), "").Label(copyText("刷新", "Refresh")).Tooltip(copyText("刷新", "Refresh")).
+				Size(28, 28).Padding(7).BorderWidth(0).Background(ui.Transparent).Radius(theme.ContextRadii(c).SM).
+				Disabled(d.Loading || d.Selected == "")
+			refresh.Children(func() { ui.Icon(c, marketRefreshIcon).Size(14, 14).TextColor(muted) })
+			if refresh.Clicked() {
+				a.RefreshDiscover()
 			}
 		})
-		ui.Text(c, fmt.Sprintf(copyText("%d 个插件", "%d plugins"), d.Listing.Total)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		for _, entry := range d.Listing.Entries {
-			e := entry
-			ui.Row(c.Key("discover-" + e.Name)).Label("Market entry " + e.Name).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Children(func() {
-				artwork(c, muted, border, m.SVGImages, e.Icon)
-				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					if ui.Button(c, e.Label(i18n.Locale())).Label(copyText("打开插件市场 ", "Open market ") + e.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
-						a.OpenEntry(e.Name)
+		if len(d.Indexes) == 0 {
+			ui.Text(c, copyText("尚未配置插件索引。添加一个源以浏览插件。", "No plugin indexes configured. Add a source to browse plugins.")).FillWidth().TextColor(muted)
+			if widgets.Button(c, colors, copyText("添加索引源", "Add index source"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium}).Clicked() {
+				a.ToggleSources()
+			}
+			return
+		}
+		if d.Loading && d.Listing == nil {
+			loadingRows(c, muted)
+		}
+		if d.Listing != nil {
+			// .categories is the pill row; the section itself carries no count.
+			if keys := declarationKeys(d.Listing.Metadata.Categories); len(keys) > 0 {
+				ui.Row(c).Label(copyText("分类", "Categories")).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
+					if marketPill(c, copyText("全部", "All"), d.Query.Category == "", colors).Clicked() {
+						q := d.Query
+						q.Category = ""
+						a.Search(q)
 					}
-					ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().MaxLines(2).FontSize(theme.InterfaceSize(13)).TextColor(muted)
-					meta := e.Author
-					if version := presentedVersion(e); version != nil {
-						meta = strings.TrimSpace(meta + " · " + version.Version + " · " + time.Unix(version.PublishTimestamp, 0).Local().Format("2006-01-02"))
-					}
-					ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					for _, id := range e.Metadata.Labels {
-						if label, ok := d.Listing.Metadata.Labels[id]; ok {
-							ui.Text(c, label.Title.Resolve(i18n.Locale())).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+					for _, id := range keys {
+						cid := id
+						label := d.Listing.Metadata.Categories[cid].Title.Resolve(i18n.Locale())
+						if marketPill(c, label, d.Query.Category == cid, colors).Clicked() {
+							q := d.Query
+							q.Category = cid
+							a.Search(q)
 						}
 					}
 				})
-				marketInstall(c, e, s, a)
+			}
+			// .cards stacks entries at gap 2.
+			ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
+				for _, entry := range d.Listing.Entries {
+					e := entry
+					// .card bleeds -8 past the section and sits under a hover
+					// wash; radius xl, 8 padding, 14 gap, children centered.
+					row := ui.Row(c.Key("discover-"+e.Name)).Label("Market entry "+e.Name).Margin(0, -8, 0, -8).
+						FillWidth().MinWidth(0).Gap(14).Padding(8).Radius(theme.ContextRadii(c).XL).AlignItems(ui.Center)
+					if row.Hovered() {
+						row = row.Background(chrome.Color(colors.Hover))
+					}
+					row.Children(func() {
+						artwork(c, muted, border, m.SVGImages, e.Icon)
+						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+							// .titleRow keeps the open affordance and its label
+							// capsules on one line.
+							ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
+								title := e.Label(i18n.Locale())
+								if ui.Button(c, title).Label(fmt.Sprintf(copyText("查看 %s", "View %s"), title)).
+									Shrink(0).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).
+									Background(ui.Transparent).TextColor(fg).
+									FontSize(theme.InterfaceSize(14)).FixedLineHeight(20).FontWeight(500).Clicked() {
+									a.OpenEntry(e.Name)
+								}
+								for _, id := range e.Metadata.Labels {
+									if label, ok := d.Listing.Metadata.Labels[id]; ok {
+										marketTag(c, label.Title.Resolve(i18n.Locale()), chrome.Color(colors.BorderL4), muted)
+									}
+								}
+							})
+							ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().MaxLines(1).FontSize(theme.InterfaceSize(13)).FixedLineHeight(18).TextColor(muted)
+							ui.Text(c, marketMeta(e)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted)
+						})
+						marketInstall(c, m, e, s, a)
+					})
+				}
 			})
-		}
-		if len(d.Listing.Entries) == 0 && !d.Loading {
-			query := d.Query
-			if d.Answered != nil {
-				query = *d.Answered
+			if len(d.Listing.Entries) == 0 && !d.Loading {
+				query := d.Query
+				if d.Answered != nil {
+					query = *d.Answered
+				}
+				message := copyText("没有符合条件的插件", "No plugins match.")
+				if strings.TrimSpace(query.Text) == "" && query.Category == "" && len(query.Labels) == 0 {
+					message = copyText("此索引没有插件", "This index lists no plugins.")
+				}
+				ui.Text(c, message).FillWidth().TextColor(muted)
 			}
-			message := copyText("没有匹配的插件。", "No matching plugins.")
-			if strings.TrimSpace(query.Text) == "" && query.Category == "" && len(query.Labels) == 0 {
-				message = copyText("此索引尚无插件。", "This index has no plugins.")
+			// .more centers an outline sm button under the list.
+			if d.Listing.NextOffset != nil {
+				ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
+					if widgets.Button(c, colors, copyText("显示更多", "Show more"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).
+						Disabled(d.Loading || d.MoreLoading || d.Error != "").Clicked() {
+						a.More()
+					}
+				})
 			}
-			ui.Text(c, message).FillWidth().TextColor(muted)
 		}
-		if d.Listing.NextOffset != nil && ui.Button(c, copyText("加载更多", "Show more")).Disabled(d.Loading || d.MoreLoading || d.Error != "").Clicked() {
-			a.More()
+		if d.Error != "" && d.Status != "error" {
+			errorRow(c, d.Error, a.RetryDiscover)
 		}
+	})
+}
+
+var marketRefreshIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke-width="1"><path d="M14.5001 8C14.5 9.28552 14.1188 10.5422 13.4045 11.611C12.6903 12.6799 11.6752 13.5129 10.4875 14.0049C9.29982 14.4968 7.99295 14.6255 6.73212 14.3747C5.4713 14.124 4.31314 13.505 3.4041 12.596C2.49514 11.687 1.87614 10.5288 1.62537 9.26798C1.37459 8.00716 1.50331 6.70028 1.99525 5.51261C2.48719 4.32494 3.32025 3.30981 4.3891 2.59557C5.45795 1.88134 6.71458 1.50008 8.0001 1.5C9.9001 1.5 11.7001 2.3 13.0001 3.6L14.5001 5.1" stroke="currentColor"/><path d="M14.4999 1.5V5.1H10.8999" stroke="currentColor"/></svg>`))
+
+// marketGhostButton is the toolbar's ghost sm trigger recipe: 28 DIP, 12px/18
+// text, radius sm, transparent until hovered (Button.module.css .sm/.ghost).
+func marketGhostButton(c *ui.Context, b ui.Element, colors theme.Colors) ui.Element {
+	b = b.Height(28).Padding(0, 10).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
+		Radius(theme.ContextRadii(c).SM).BorderWidth(0).Background(ui.Transparent)
+	if b.Hovered() {
+		b = b.Background(chrome.Color(colors.Hover))
 	}
-	if d.Error != "" && d.Status != "error" {
-		errorRow(c, d.Error, a.RetryDiscover)
+	return b
+}
+
+// marketPill is the category chip: 24 DIP capsule, 12px/18 text on the layer-2
+// fill, active flipped to the ghost-active fill with an inset 1px stroke
+// (ui-primitives Pill.module.css .pill/.active).
+func marketPill(c *ui.Context, label string, on bool, colors theme.Colors) ui.Element {
+	p := ui.Button(c, label).Height(24).Padding(0, 8).Radius(999).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
+		BorderWidth(0).Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.Secondary)).Checked(on)
+	if on {
+		p = p.Background(chrome.Color(colors.Pressed)).TextColor(chrome.Color(colors.FG)).Border(1, chrome.Color(colors.BorderL3))
+	} else if p.Hovered() {
+		p = p.Background(chrome.Color(colors.Hover))
 	}
+	return p
+}
+
+// marketTag is the read-only outline capsule beside a card title: 1px/8px
+// padding, 11px/17px weight-500 text under a 0.5 border-l4 stroke
+// (ui-primitives Tag.module.css .tag[data-tone='outline']).
+func marketTag(c *ui.Context, text string, border, ink ui.Color) {
+	ui.Row(c).Padding(1, 8).Radius(999).Border(0.5, border).Shrink(0).Children(func() {
+		ui.Text(c, text).FontSize(theme.InterfaceSize(11)).FixedLineHeight(17).FontWeight(500).TextColor(ink)
+	})
+}
+
+// marketMeta is "{version} · {author} · {date}" with the locale's medium date,
+// dropping the author slot when the index did not declare one
+// (ui-plugin-market locales entryMeta/entryMetaAuthor).
+func marketMeta(e manager.MarketEntry) string {
+	v := presentedVersion(e)
+	if v == nil {
+		return e.Author
+	}
+	stamp := time.Unix(v.PublishTimestamp, 0).Local().Format("Jan 2, 2006")
+	if i18n.Locale() == i18n.LocaleZH {
+		stamp = time.Unix(v.PublishTimestamp, 0).Local().Format("2006年1月2日")
+	}
+	if e.Author == "" {
+		return v.Version + " · " + stamp
+	}
+	return v.Version + " · " + e.Author + " · " + stamp
 }
 func sortedKeys[V any](values map[string]V) []string {
 	keys := make([]string, 0, len(values))
@@ -868,30 +974,39 @@ func declarationKeys(values map[string]manager.NamedMetadata) []string {
 	})
 	return keys
 }
-func marketInstall(c *ui.Context, e manager.MarketEntry, s manager.State, a manager.Actions) {
+
+// marketInstall is the cardEnd action (ui-plugin-market client.js EntryAction):
+// installed statuses reopen Installed via a ghost sm button, an installable
+// entry gets an outline sm 安装, and an incompatible entry keeps the same
+// 安装 face under .blocked — dimmed, inert, tooltip naming the running DSH.
+func marketInstall(c *ui.Context, m Model, e manager.MarketEntry, s manager.State, a manager.Actions) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	title := e.Label(i18n.Locale())
 	if e.Installation.Status != "not-installed" {
 		label := copyText("已安装", "Installed")
 		if e.Installation.Status == "update-available" {
-			label = copyText("可更新", "Update available")
+			label = copyText("有新版本", "Update available")
 		} else if e.Installation.Status == "provided" {
-			label = copyText("内置提供", "Provided")
+			label = copyText("随 DSH 提供", "Provided by DSH")
 		}
-		if ui.Button(c, label).Clicked() {
+		if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).
+			Label(fmt.Sprintf(copyText("在已安装中查看 %s", "View %s in Installed"), title)).Clicked() {
 			a.OpenPackage(e.Name)
 		}
 		return
 	}
-	version := e.DefaultVersion
-	if version == "" {
-		ui.Text(c, copyText("不兼容", "Incompatible")).FontSize(theme.InterfaceSize(11)).Padding(1, 6).Radius(4).Border(.5, c.Theme().TextMuted).TextColor(c.Theme().TextMuted)
+	version := presentedVersion(e)
+	spec := widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}
+	install := fmt.Sprintf(copyText("安装 %s", "Install %s"), title)
+	if version == nil || (!version.Compatibility.Compatible && !version.Compatibility.Exempted) {
+		blocked := widgets.Button(c, colors, copyText("安装", "Install"), spec).Disabled(true).Opacity(0.5).Label(install)
+		if version != nil && version.Compatibility.RuntimeVersion != "" {
+			blocked = blocked.Tooltip(fmt.Sprintf(copyText("没有与当前 DSH %s 兼容的版本", "No version is compatible with DSH %s"), version.Compatibility.RuntimeVersion))
+		}
 		return
 	}
-	label := copyText("安装", "Install")
-	if e.Installation.Status == "update-available" {
-		label = copyText("更新", "Update")
-	}
-	if ui.Button(c, label).Clicked() {
-		a.InstallVersion(e.Name, version)
+	if widgets.Button(c, colors, copyText("安装", "Install"), spec).Label(install).Clicked() {
+		a.InstallVersion(e.Name, version.Version)
 	}
 }
 func marketDetail(c *ui.Context, m Model, e manager.MarketEntry, s manager.State, a manager.Actions, fg, muted ui.Color) {
@@ -901,7 +1016,7 @@ func marketDetail(c *ui.Context, m Model, e manager.MarketEntry, s manager.State
 	ui.Text(c, e.Label(i18n.Locale())).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 	ui.Text(c, e.Name).FillWidth().Selectable().TextColor(muted)
 	ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().TextColor(fg)
-	marketInstall(c, e, s, a)
+	marketInstall(c, m, e, s, a)
 	ui.Text(c, e.Author).FillWidth().TextColor(muted)
 	detailLink(c, m, e.Homepage, muted)
 	if e.Repository != nil {

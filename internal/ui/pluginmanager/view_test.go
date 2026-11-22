@@ -211,7 +211,10 @@ func TestManagerDiscoverDetailsAndSourcesStaySeparate(t *testing.T) {
 	if err := tt.Click("Back to Discover"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("Index sources"); err != nil {
+	if err := tt.Click("Switch plugin market, currently Fixture market"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Manage index sources…"); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("https://fixture.invalid/index.json") || !tt.HasText("Add source") {
