@@ -2859,8 +2859,8 @@
                   "type": "TabItem"
                 },
                 "expect": {
-                  "name": "轨迹时间线",
-                  "type": "Text"
+                  "name": "Trajectory timeline",
+                  "type": "Group"
                 }
               }
             ]
@@ -2872,8 +2872,8 @@
                 "selector": "[role=toolbar][aria-label='轨迹工具栏']"
               },
               "native": {
-                "name": "时长",
-                "type": "Button"
+                "name": "Trajectory toolbar",
+                "type": "Group"
               },
               "assert": [
                 "x",
@@ -2886,8 +2886,8 @@
                 "selector": "section[aria-label='轨迹时间线']"
               },
               "native": {
-                "name": "轨迹时间线",
-                "type": "Text"
+                "name": "Trajectory timeline section",
+                "type": "Group"
               },
               "assert": [
                 "x",

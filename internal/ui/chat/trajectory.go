@@ -129,7 +129,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 		// transparent buttons; the search field is a single compact
 		// 0 1 164px slot with a leading 11px search icon.
 		palette := newTrajectoryPalette(m.ThemeID, m.SystemDark, colors)
-		ui.Row(c).FillWidth().Wrap().Padding(4, 6, 4, 6).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Label("Trajectory toolbar").FillWidth().Wrap().Padding(4, 6, 4, 6).Gap(8).AlignItems(ui.Center).Children(func() {
 			paintTrajToggle(c, i18n.T(i18n.KeyTrajDuration), *actualDur, muted, hover, fg, func() {
 				*actualDur = !*actualDur
 			})
@@ -151,7 +151,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 		// TrajectoryTimeline — three-lane compact chart with the original's
 		// drag-range focus overlay (TrajectoryTimeline.tsx renders drag
 		// ranges, click-sized focus, and Escape reset on the plot itself).
-		ui.Column(c).FillWidth().Padding(4, 6, 2, 6).Children(func() {
+		ui.Column(c).Label("Trajectory timeline section").FillWidth().Padding(0, 6, 2, 6).Children(func() {
 			paintTrajectoryLanes(c, allRows, selected, timeRange, m.List, rows, palette)
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)

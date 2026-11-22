@@ -73,6 +73,8 @@ func newTrajectoryPalette(themeID string, systemDark bool, colors theme.Colors) 
 // trajKind is the original TrajectoryCellKind the native message maps to.
 func trajCellKind(row trajRow) string {
 	switch row.Kind {
+	case session.MessageKindSystemPrompt:
+		return "system"
 	case session.MessageKindTool:
 		return "tool"
 	case session.MessageKindCompaction:
@@ -107,23 +109,6 @@ func trajKindBadge(p trajectoryPalette, kind string) (*ui.SVG, ui.Color, ui.Colo
 		return trajIconWrench, p.warnLabel, p.warnTertiary
 	}
 	return trajIconSparkle, p.assistantViolet, p.assistantVioletBG
-}
-
-// trajKindTagLabel is the 10px kindTag label shown in the wide variant.
-func trajKindTagLabel(kind string) string {
-	switch kind {
-	case "user":
-		return trajectoryText("用户", "User")
-	case "system":
-		return trajectoryText("系统", "System")
-	case "context":
-		return trajectoryText("请求", "Request")
-	case "compacted":
-		return trajectoryText("已压缩", "Compacted")
-	case "tool":
-		return trajectoryText("工具", "Tool")
-	}
-	return trajectoryText("助手", "Assistant")
 }
 
 // trajTimelineColor is the .span fill: user blue, context green, message

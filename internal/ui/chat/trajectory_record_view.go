@@ -31,16 +31,16 @@ func paintTrajectoryRecord(c *ui.Context, row trajRow, p trajectoryPalette, turn
 				ui.Text(c, fmt.Sprintf("#%d", row.TurnNumber)).FontSize(theme.InterfaceSize(10)).TextColor(p.caption).SingleLine().Absolute().Left(16).Top(8)
 			}
 		})
-		// .event column — 84px zh / 122px en — carries the kindTag chip.
+		// .event column — 84px zh / 122px en — carries the icon-only kindTag
+		// badge (the original renders the 16px tinted glyph, no label).
 		ui.Box(c).Width(eventWidth).MinWidth(eventWidth).Children(func() {
-			ui.Row(c).Height(16).Padding(0, 4, 0, 4).Gap(3).Radius(4).Background(fill).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, icon).Width(11).Height(11).TextColor(ink)
-				ui.Text(c, trajKindTagLabel(kind)).FontSize(theme.InterfaceSize(10)).TextColor(ink).SingleLine()
+			ui.Box(c).Width(16).Height(16).Radius(4).Background(fill).Children(func() {
+				ui.Icon(c, icon).Width(11).Height(11).TextColor(ink).Absolute().Left(2.5).Top(2.5)
 			})
 		})
 		ui.Box(c).Width(8)
 		title, detail := trajectoryRecordTitle(row, kind)
-		ui.Text(c, title).FontSize(theme.InterfaceSize(12)).TextColor(p.fg).SingleLine()
+		ui.Text(c, title).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(p.fg).SingleLine()
 		if detail != "" {
 			ui.Text(c, " "+detail).FontSize(theme.InterfaceSize(12)).TextColor(p.muted).SingleLine().Grow(1).MinWidth(0)
 		}
