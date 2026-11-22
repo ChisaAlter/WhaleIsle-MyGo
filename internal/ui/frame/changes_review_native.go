@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
-	"time"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/widgets"
 )
 
 // changesReviewNativeMenu draws the Host file-actions button and its menu. It
@@ -19,17 +19,16 @@ func changesReviewNativeMenu(c *ui.Context, target session.TurnFileTarget, snaps
 		apps = ensure(target, "applications")
 	}
 	button := reviewToolbarButton(c.Key(fmt.Sprintf("review-host-%s-%d-%v", snapshot.Scope.Binding, snapshot.Scope.Generation, target)), paneLabel("Host 文件操作", "Host file actions"), conversationHeaderIcons["EllipsisOutline"])
-	last := ui.Local(button, "native-feedback", func() string { return "" })
-	message := state.Error
-	kind := "error"
-	if message == "" && state.Ready && !state.Busy && !state.Unavailable && !state.NativeUnavailable {
-		message = paneLabel("已交给 Host：", "Handed to Host: ") + state.Action
-		kind = "success"
+	// A handed-to-Host outcome reads as a muted caption beside the button that
+	// caused it, fading after a few seconds; a failure stays on widgets.Alert
+	// where the caller writes it beside the diff.
+	outcome := ""
+	if state.Error == "" && state.Ready && !state.Busy && !state.Unavailable && !state.NativeUnavailable {
+		outcome = paneLabel("已交给 Host：", "Handed to Host: ") + state.Action
 	}
-	if kind == "success" && message != "" && message != *last {
-		c.AddToast(ui.Toast{ID: "changes-review-host", Title: message, Type: "success", Timeout: 5 * time.Second})
+	if widgets.AckLive(c, "changes-review-host", outcome, widgets.StatusDuration) {
+		ui.Text(c, outcome).FontSize(11).TextColor(c.Theme().TextMuted)
 	}
-	*last = message
 	button.Menu(func(menu *ui.Menu) {
 		for _, action := range []struct{ key, label string }{{"open", paneLabel("在 Host 打开", "Open on Host")}, {"reveal", paneLabel("在 Host 定位", "Reveal on Host")}} {
 			if menu.Item(action.label).Disabled(!enabled || state.Busy).Chosen() {

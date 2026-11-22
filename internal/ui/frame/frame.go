@@ -723,6 +723,8 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnBatchRequest:       m.Store.RequestSessionBatch,
 		OnBatchConfirm:       func(token uint64) { m.Store.ConfirmSessionBatch(context.Background(), token) },
 		OnBatchCancel:        m.Store.CancelSessionBatch,
+		ArchiveUndo:          m.Store.ArchiveUndoNotice(),
+		OnUndoArchive:        m.Store.UndoArchive,
 		HideArchivedList:     m.HideArchivedList,
 		Account:              resolveNavigationAccount(m),
 		Schedules:            schedules,

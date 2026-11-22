@@ -57,7 +57,7 @@ func View(c *ui.Context, m Model) {
 			if e.Failure.Sentence != "" {
 				widgets.Alert(c, widgets.AlertOptions{ID: "panel:58", Message: e.Failure.Sentence, Detail: e.Failure.Detail})
 			}
-			widgets.Notice(c, "panel:60", e.Notice != "", func() string { return e.Notice })
+			widgets.AckLine(c, "panel:60", e.Notice)
 			if !m.Available {
 				return
 			}

@@ -10,16 +10,16 @@ import (
 	"whaleisle/internal/ui/widgets"
 )
 
-// settingsNotice reports an acknowledgement ("saved", "opened") as a toast
-// instead of a line in the page; see widgets.Notice. Failures do not come
-// through here: an error is never a toast, so a failed write calls
+// settingsNotice reports an acknowledgement ("saved", "opened") as a muted
+// status line where the action happened; see widgets.AckLine. Failures do not
+// come through here: an error is never a toast, so a failed write calls
 // settingsAlert where its control was.
 func settingsNotice(c *ui.Context, id string, show bool, text func() string) {
-	if text == nil {
-		widgets.Notice(c, "settings/"+id, show, nil)
-		return
+	message := ""
+	if show && text != nil {
+		message = normalizeSettingsVendorNotice(id, text())
 	}
-	widgets.Notice(c, "settings/"+id, show, func() string { return normalizeSettingsVendorNotice(id, text()) })
+	widgets.AckLine(c, "settings/"+id, message)
 }
 
 // settingsFailure splits what a failed setting shows into the sentence a person

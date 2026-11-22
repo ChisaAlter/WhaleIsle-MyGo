@@ -1,11 +1,9 @@
 package files
 
 import (
-	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -267,26 +265,25 @@ func feedbackEntry(editStatus string, state workspacefs.SaveSnapshot) (text, kin
 	return text, kind
 }
 
-// paintPreviewFeedback keeps an acknowledgement a toast and hands a failed save
-// back to the pane, which writes it under its own toolbar.
+// paintPreviewFeedback hands a save's outcome back to the pane, which writes it
+// under its own toolbar; there is no floating acknowledgement.
 func paintPreviewFeedback(c *ui.Context, m Model, path string, owner ui.Element) string {
 	last := ui.Local(owner, "preview-feedback", func() string { return "" })
-	status, kind := "", "info"
+	status := ""
 	if m.EditStatus != nil {
 		status = *m.EditStatus
 	}
 	if tab := selectedTab(m); tab != nil && tab.save != nil {
-		status, kind = feedbackEntry(status, tab.save.Snapshot())
+		status, _ = feedbackEntry(status, tab.save.Snapshot())
 	}
 	if status == i18n.T(i18n.KeyFilesSaved) || status == label("正在保存…", "Saving…") {
 		status = ""
 	}
+	// Success and failure land in the pane's status line alike; the model
+	// clears the outcome on the next edit.
 	if status != "" && status != *last {
-		if kind == "error" {
-			*last = status
-			return status
-		}
-		c.AddToast(ui.Toast{ID: fmt.Sprintf("file-feedback-%s", path), Title: status, Type: "success", Timeout: 5 * time.Second})
+		*last = status
+		return status
 	}
 	*last = status
 	return ""

@@ -26,8 +26,13 @@ func interfaceProjectPreference(c *ui.Context, a *ProjectPreferenceAccess, fg, m
 		}
 	})
 	ui.Text(c, providerCopy("切换后会自动重启 Harness。", "Toggling restarts the Harness automatically.")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+	helpSeat := ui.Box(c.Key("interface-project-help-seat")).Absolute().Size(0, 0).PassThrough()
+	helpOpen := ui.Local(helpSeat, "open", func() bool { return false })
 	if ui.Button(c, providerCopy("Project 是什么", "What is Project?")).Key("interface-project-help").BorderWidth(0).Background(ui.Transparent).Clicked() {
-		c.AddToast(ui.Toast{ID: "interface-project-help", Type: "info", Title: providerCopy("Project 把一个本地目录变成长期项目。主对话协调需求清单与团队；开启后可在新会话首屏或工作区目录菜单创建 Project。关闭只是隐藏入口，已有 Project 的数据会保留。", "Project turns a local directory into a long-running project. Its lead coordinates requests and a team. When enabled, create one from New Session or a workspace menu. Turning it off only hides the entries; existing Project data is kept.")})
+		*helpOpen = !*helpOpen
+	}
+	if *helpOpen {
+		ui.Text(c, providerCopy("Project 把一个本地目录变成长期项目。主对话协调需求清单与团队；开启后可在新会话首屏或工作区目录菜单创建 Project。关闭只是隐藏入口，已有 Project 的数据会保留。", "Project turns a local directory into a long-running project. Its lead coordinates requests and a team. When enabled, create one from New Session or a workspace menu. Turning it off only hides the entries; existing Project data is kept.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth()
 	}
 	if state.Error != "" {
 		message := state.Error

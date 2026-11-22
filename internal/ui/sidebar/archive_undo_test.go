@@ -1,21 +1,22 @@
-package frame
+package sidebar
 
 import (
 	"context"
 	"encoding/json"
-	"github.com/egoist/mygo/ui"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
 
-func TestArchiveUndoToastDispatch(t *testing.T) {
+func TestArchiveUndoRowDispatch(t *testing.T) {
 	i18n.SetLocale("en")
 	defer i18n.SetLocale("zh")
 	var restores atomic.Int32
@@ -45,9 +46,11 @@ func TestArchiveUndoToastDispatch(t *testing.T) {
 	if s.Snapshot().LastAction != "session archived" {
 		t.Fatal("archive did not finish")
 	}
-	tt := ui.NewTester(func(c *ui.Context) { archiveUndoToast(c, Model{Store: s}) }, 600, 400)
+	tt := ui.NewTester(func(c *ui.Context) {
+		archiveUndoRow(c, Model{ArchiveUndo: s.ArchiveUndoNotice(), OnUndoArchive: s.UndoArchive})
+	}, 600, 400)
 	if !tt.HasText("Session archived") {
-		t.Fatal("archive toast missing")
+		t.Fatal("archive undo row missing")
 	}
 	if err := tt.Click("Undo archive"); err != nil {
 		t.Fatal(err)
@@ -57,6 +60,6 @@ func TestArchiveUndoToastDispatch(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	if restores.Load() != 1 {
-		t.Fatal("toast action did not call real restore")
+		t.Fatal("undo button did not call real restore")
 	}
 }

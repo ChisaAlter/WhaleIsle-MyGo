@@ -47,7 +47,7 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "contacts:50", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "contacts:50", s.Notice)
 		query := s.Filters.Query
 		chrome.FrostSurface(ui.TextInput(c.Key("contacts-search"), &query).Label(i18n.T(i18n.KeyMiscAssistantSearchContacts)).FillWidth().Height(32).Border(.5, border), fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field, 8).Padding(0, 10).OnChange(func() { change("query", query) })
 		ui.Row(c).Gap(6).Wrap().Children(func() {

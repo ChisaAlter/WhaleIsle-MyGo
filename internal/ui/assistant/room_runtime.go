@@ -44,7 +44,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 		if s.Error != "" {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRuntimeFailure)+s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "room_runtime:47", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "room_runtime:47", s.Notice)
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantCurrentRuntimeUnverifiedAnyPrevious)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}

@@ -71,7 +71,7 @@ func viewMachines(c *ui.Context, m Model) {
 				*e = MachineEditor{Open: true, Draft: remotestore.NewDraft()}
 			}
 		})
-		widgets.Notice(c, "machines:77", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "machines:77", s.Notice)
 		if s.Error != "" {
 			ui.Text(c, s.Error).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().Danger)
 		}

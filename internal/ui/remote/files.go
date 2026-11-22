@@ -61,7 +61,7 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 	if s.Error != "" {
 		ui.Text(c, s.Error).FillWidth().Selectable()
 	}
-	widgets.Notice(c, "files:65", s.Notice != "", func() string { return s.Notice })
+	widgets.AckLine(c, "files:65", s.Notice)
 	if !s.FileLoaded {
 		if s.Busy {
 			ui.Text(c, label("正在读取…", "Reading…"))

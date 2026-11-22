@@ -55,7 +55,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_route:58", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_route:58", s.Notice)
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
 		}

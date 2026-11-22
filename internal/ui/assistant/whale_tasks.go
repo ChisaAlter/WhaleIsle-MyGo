@@ -3,13 +3,13 @@ package assistant
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type WhaleTasksModel struct {
@@ -38,12 +38,8 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 	s := w.State
 	blocked := s.Busy || !m.HarnessReady || !m.WhaleEnabled
 	root := ui.Column(c.Key("whale-background-tasks")).FillWidth().MinWidth(0).Gap(10)
-	lastNotice := ui.Local(root, "last-notice", func() string { return "" })
-	if s.Notice != "" && *lastNotice != s.Notice {
-		c.AddToast(ui.Toast{ID: "whale-background-task-notice", Description: s.Notice, Type: "success", Timeout: 4 * time.Second})
-	}
-	*lastNotice = s.Notice
 	root.Children(func() {
+		widgets.AckLine(c, "whale-background-task-notice", s.Notice)
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, whaleTaskCopy("后台资料整理", "Background reading")).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(fg).Grow(1)
 			if ui.Button(c, whaleTaskCopy("刷新任务", "Refresh tasks")).Disabled(blocked).Clicked() {

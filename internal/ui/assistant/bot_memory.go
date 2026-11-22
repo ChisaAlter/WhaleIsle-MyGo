@@ -33,7 +33,7 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_memory:36", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_memory:36", s.Notice)
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeEditingOrRetrying)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

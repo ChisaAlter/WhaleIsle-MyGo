@@ -17,7 +17,6 @@ func archiveText(zh, en string) string {
 }
 
 func archiveConfirmation(c *ui.Context, m Model) {
-	archiveUndoToast(c, m)
 	request := m.Store.ArchiveConfirmation()
 	if request == nil {
 		return

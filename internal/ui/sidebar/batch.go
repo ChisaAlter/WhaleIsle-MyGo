@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -161,7 +160,13 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if !b.Enabled {
 		return
 	}
-	ui.Text(c, i18n.WSf(i18n.KeyWSSelectionCount, "n", strconv.Itoa(len(b.Selected)))).FontSize(theme.InterfaceSize(12)).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
+	// Progress shares the selection count's caption seat, so a running batch
+	// does not push the session list down.
+	count := i18n.WSf(i18n.KeyWSSelectionCount, "n", strconv.Itoa(len(b.Selected)))
+	if b.Busy {
+		count = fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))
+	}
+	ui.Text(c, count).FontSize(theme.InterfaceSize(12)).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
 	ui.Row(c).Gap(4).Children(func() {
 		if ui.Button(c, i18n.T(i18n.KeyWSSelectionAllVisible)).Disabled(locked).Clicked() {
 			m.OnBatchEdit("visible", VisibleBatchTargets(m))
@@ -177,11 +182,6 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 		if ui.Button(c, i18n.T(i18n.KeyWSSelectionDelete)).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
 			m.OnBatchRequest("delete")
 		}
-	})
-
-	// Progress is a toast: a line here would push the session list down while the batch runs.
-	widgets.Notice(c, "sidebar-batch", b.Busy, func() string {
-		return fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))
 	})
 
 }

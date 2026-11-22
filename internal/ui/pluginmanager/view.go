@@ -86,7 +86,7 @@ func View(c *ui.Context, m Model) {
 					}
 				})
 			}
-			widgets.Notice(c, "view:113", s.Notice != "", func() string { return s.Notice })
+			widgets.AckLine(c, "view:113", s.Notice)
 			if m.CreatorNotice != nil {
 				m.CreatorNotice(c)
 			}

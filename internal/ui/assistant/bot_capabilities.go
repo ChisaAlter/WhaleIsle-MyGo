@@ -55,7 +55,7 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_capabilities:58", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_capabilities:58", s.Notice)
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}

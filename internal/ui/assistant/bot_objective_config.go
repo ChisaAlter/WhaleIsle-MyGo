@@ -38,7 +38,7 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_objective_config:41", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_objective_config:41", s.Notice)
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}
