@@ -239,17 +239,17 @@ func TestPreviewToolbarLateMenuCannotMutateReplacementOwner(t *testing.T) {
 }
 func TestPreviewToolbarBlockedSaveAndViewerInitialization(t *testing.T) {
 	m, tab := toolbarFixture(t)
-	tab.Draft, tab.Editing, tab.readBlocked = "unsaved", true, true
+	tab.Draft, tab.Editing, tab.readLoading = "unsaved", true, true
 	writes := 0
 	m.OnSaveEdit = func(string, string) error { writes++; return nil }
 	tt := toolbarTester(&m, 676)
 	if err := tt.Click(i18n.T(i18n.KeyFilesSave)); err != nil {
 		t.Fatal(err)
 	}
-	if writes != 0 || tab.Draft != "unsaved" || tab.Preview != "saved" {
+	if writes != 0 || tab.save != nil || tab.Draft != "unsaved" || tab.Preview != "saved" {
 		t.Fatal("blocked save mutated file")
 	}
-	tab.Editing, tab.readBlocked = false, false
+	tab.Editing, tab.readLoading = false, false
 	m.SessionID = ""
 	opens := 0
 	m.OpenDocumentViewer = func(string) (DocumentSurface, error) { opens++; return &fixtureDocumentSurface{}, nil }

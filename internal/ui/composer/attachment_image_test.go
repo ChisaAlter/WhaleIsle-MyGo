@@ -91,43 +91,45 @@ func TestAttachmentGIFRejectsFrameAndCanvasBudgets(t *testing.T) {
 	}
 }
 func TestAttachmentOriginalGIFAdvancesAndDismisses(t *testing.T) {
-	a := attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))
-	v := readAttachmentDisplay(a, true)
-	if v.err != nil {
-		t.Fatal(v.err)
-	}
-	seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
-	tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 600, 400)
-	// The dialog's enter reveal reads the tester clock while the GIF's
-	// advance reads wall time: pin the clock past it so the panel is opaque
-	// and the first frame still shows.
-	tt.SetTime(time.Now().Add(300 * time.Millisecond))
-	count := func(red bool) int {
-		n := 0
-		img := tt.Image()
-		for y := 0; y < img.Bounds().Dy(); y++ {
-			for x := 0; x < img.Bounds().Dx(); x++ {
-				c := img.RGBAAt(x, y)
-				if red && c.R > 220 && c.G < 40 && c.B < 40 || !red && c.B > 220 && c.R < 40 && c.G < 40 {
-					n++
+	synctest.Test(t, func(t *testing.T) {
+		a := attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))
+		v := readAttachmentDisplay(a, true)
+		if v.err != nil {
+			t.Fatal(v.err)
+		}
+		seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
+		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 600, 400)
+		// The dialog's enter reveal reads the tester clock while the GIF's
+		// advance reads wall time: pin the clock past it so the panel is opaque
+		// and the first frame still shows.
+		tt.SetTime(time.Now().Add(300 * time.Millisecond))
+		count := func(red bool) int {
+			n := 0
+			img := tt.Image()
+			for y := 0; y < img.Bounds().Dy(); y++ {
+				for x := 0; x < img.Bounds().Dx(); x++ {
+					c := img.RGBAAt(x, y)
+					if red && c.R > 220 && c.G < 40 && c.B < 40 || !red && c.B > 220 && c.R < 40 && c.G < 40 {
+						n++
+					}
 				}
 			}
+			return n
 		}
-		return n
-	}
-	if count(true) == 0 {
-		t.Fatal("first GIF frame was not displayed")
-	}
-	time.Sleep(110 * time.Millisecond)
-	tt.Frame()
-	if count(false) == 0 {
-		t.Fatal("original preview did not advance to second GIF frame")
-	}
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
-	if seat.open || seat.full != nil {
-		t.Fatal("dismissed original retains full animation")
-	}
+		if count(true) == 0 {
+			t.Fatal("first GIF frame was not displayed")
+		}
+		time.Sleep(110 * time.Millisecond)
+		tt.Frame()
+		if count(false) == 0 {
+			t.Fatal("original preview did not advance to second GIF frame")
+		}
+		tt.Key(0, ui.KeyEscape)
+		tt.Frame()
+		if seat.open || seat.full != nil {
+			t.Fatal("dismissed original retains full animation")
+		}
+	})
 }
 
 func TestAttachmentGIFTimingAndThumbnailBudget(t *testing.T) {
