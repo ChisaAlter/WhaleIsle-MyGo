@@ -4092,7 +4092,7 @@
               },
               {
                 "expect": {
-                  "name": "安装",
+                  "name": "安装 阿尔法插件",
                   "type": "Button",
                   "timeout": 30000
                 },
