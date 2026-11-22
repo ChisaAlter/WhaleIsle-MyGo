@@ -127,7 +127,14 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	sessions, win := s.sessions, s.win
 	s.mu.Unlock()
 	ctrl := s.nativePluginController()
-	view := ctrl.Snapshot().View
+	snap := ctrl.Snapshot()
+	if snap.Connected {
+		// Gates the Installed/Discover SegmentedTabs the way the original
+		// gates on a plugins.tab slot contribution; the catalog itself
+		// still lazy-loads when the Discover tab opens.
+		ctrl.ProbeDiscover(context.Background(), snap.Owner)
+	}
+	view := snap.View
 	if s.marketCoordinator().ObserveFormSubject(view) && store != nil {
 		store.LeaveServedForms()
 	}
@@ -187,9 +194,6 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 		RenderConfiguration: func(c *ui.Context, subject manager.Subject) bool {
 			return subject.Kind == "bundle" && s.renderVoiceDeviceSettings(c, subject.Name)
 		},
-		OnClose:   func() { s.selectMainPanel("") },
 		OnOpenURL: func(raw string) { _ = mygo.Shell.OpenExternal(raw) },
 	})
 }
-
-var _ = context.Background

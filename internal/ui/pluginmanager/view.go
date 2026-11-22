@@ -37,7 +37,6 @@ type Model struct {
 	SystemDark              bool
 	Contributions           []Contribution
 	RenderConfiguration     func(*ui.Context, manager.Subject) bool
-	OnClose                 func()
 	OnOpenURL               func(string)
 	OnCreatePlugin          func()
 	OnOpenAddMenu           func()
@@ -66,25 +65,33 @@ func View(c *ui.Context, m Model) {
 			detail := s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
 			if !detail && s.View.Kind != "more" {
 				pageHeader(c, m, s, a, fg, muted)
-				// .pageTabList is a SegmentedTabs box: fit-content, min 240,
-				// 4px inset, radius lg on module-platform; each .tab is a
-				// 34px transparent button (14/20, secondary) and the selected
-				// one rides the indicator look — radius md, layer-3 fill,
-				// .5 l3 stroke, primary 600 (ui-primitives
-				// SegmentedTabs.module.css .tabs/.tab/.indicator).
-				chrome.FrostSurface(ui.Row(c).AlignSelf(ui.Start).MinWidth(240).Padding(4), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).LG).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
-					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
-						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(34).MinWidth(120).Padding(0, 12).
-							BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent).
-							FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20))
-						if s.Tab == tab.id {
-							b = b.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.BG))).TextColor(fg).FontWeight(600).Border(.5, chrome.Color(colors.BorderL3))
+				// The original mounts its SegmentedTabs row only while a
+				// plugins.tab slot contribution exists — the market client
+				// bundle (PluginManagerPage.tsx: tabs.length > 0). Native's
+				// equivalent is the Host answering pluginMarket/listIndexes,
+				// probed on page mount; the row also stays while the Discover
+				// tab itself is already active.
+				if s.Tab == "discover" || s.Discover.Probe == "ready" || s.Discover.Status == "ready" {
+					// .pageTabList is a SegmentedTabs box: fit-content, min 240,
+					// 4px inset, radius lg on module-platform; each .tab is a
+					// 34px transparent button (14/20, secondary) and the selected
+					// one rides the indicator look — radius md, layer-3 fill,
+					// .5 l3 stroke, primary 600 (ui-primitives
+					// SegmentedTabs.module.css .tabs/.tab/.indicator).
+					chrome.FrostSurface(ui.Row(c).AlignSelf(ui.Start).MinWidth(240).Padding(4), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).LG).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
+						for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
+							b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(34).MinWidth(120).Padding(0, 12).
+								BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent).
+								FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20))
+							if s.Tab == tab.id {
+								b = b.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.BG))).TextColor(fg).FontWeight(600).Border(.5, chrome.Color(colors.BorderL3))
+							}
+							if b.Clicked() {
+								a.SelectTab(tab.id)
+							}
 						}
-						if b.Clicked() {
-							a.SelectTab(tab.id)
-						}
-					}
-				})
+					})
+				}
 			}
 			widgets.AckLine(c, "view:113", s.Notice)
 			if m.CreatorNotice != nil {
@@ -160,7 +167,7 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 					m.Controller.Refresh(context.Background())
 				}
 				if s.Install.RequestID != "" {
-					spec = pluginToolbarSpec(widgets.ButtonPrimary)
+					spec := pluginToolbarSpec(widgets.ButtonPrimary)
 					spec.Disabled = !s.ManagementReady()
 					spec.Leading = pluginToolbarIcon(pluginPlusArtwork, theme.Color(colors.ButtonFG))
 					if widgets.Button(c, colors, copyText("查看安装任务", "View installation"), spec).Clicked() {
@@ -170,11 +177,8 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 					addPluginMenu(c, m, s, a)
 				}
 			}
-			if m.OnClose != nil {
-				if widgets.Button(c, colors, copyText("返回", "Back"), pluginToolbarSpec(widgets.ButtonOutline)).Clicked() {
-					m.OnClose()
-				}
-			}
+			// No back control: the original's toolbar ends at the add group and
+			// the panel exits through its session/sidebar rows.
 		})
 	})
 }
@@ -253,28 +257,12 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 	}
 
 	anchor := ui.Column(c).Key("plugins-installed").FillWidth().MinWidth(0).Gap(10)
-	query := ui.Local(anchor, "plugin-filter", func() string { return "" })
-	if len(packages) > 0 {
-		anchor.Children(func() {
-			ui.TextInput(c, query).FillWidth().Placeholder(copyText("按名称筛选插件", "Filter plugins by name"))
-		})
-	}
-	matches := func(p manager.Package) bool {
-		q := strings.ToLower(strings.TrimSpace(*query))
-		if q == "" {
-			return true
-		}
-		return strings.Contains(strings.ToLower(p.Name), q) || strings.Contains(strings.ToLower(p.Title(i18n.Locale())), q)
-	}
 
 	var bundles, official []manager.Package
 	offersMore := false
 	for _, p := range packages {
 		if p.Official {
 			offersMore = true
-		}
-		if !matches(p) {
-			continue
 		}
 		if p.Official {
 			if manager.Pinned(p) {

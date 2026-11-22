@@ -385,6 +385,11 @@ type InstallState struct {
 	WaitingForRegistry, DetailsOpen, MirrorRecovery      bool
 }
 type DiscoverState struct {
+	// Probe records the market-service availability check: "" until a plugins
+	// page mount probes pluginMarket/listIndexes, then "probing", "ready" or
+	// "missing". It mirrors the original's plugins.tab slot contribution that
+	// gates its SegmentedTabs row (PluginManagerPage.tsx: tabs.length > 0).
+	Probe                                         string
 	Status, Error, Selected, SelectedEntry, Draft string
 	SourceError                                   string
 	IndexesError                                  string

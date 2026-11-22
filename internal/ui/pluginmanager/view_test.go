@@ -296,6 +296,12 @@ func TestPluginPageDiscoverTabIsReachable(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := pageModel(t)
+	owner := m.Controller.Snapshot().Owner
+	// The tab row mounts only once the market service answered — the native
+	// stand-in for the original's plugins.tab slot contribution.
+	if err := m.Controller.LoadIndexes(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
 	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
 	if !tt.HasText("Discover") {
 		t.Fatalf("the discover tab is unreachable: %v", tt.Texts())

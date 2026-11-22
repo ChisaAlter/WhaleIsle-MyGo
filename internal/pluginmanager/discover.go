@@ -66,6 +66,46 @@ func (c *Controller) EnsureDiscover(owner uint64) {
 		go c.LoadIndexes(context.Background(), owner)
 	}
 }
+
+// ProbeDiscover answers whether the Host serves pluginMarket/listIndexes —
+// the native equivalent of the original's plugins.tab slot contribution that
+// gates its SegmentedTabs row (PluginManagerPage.tsx renders the row only
+// while tabs.length > 0). The catalog itself still lazy-loads through
+// EnsureDiscover when the tab opens, so a page mount stays one light RPC.
+func (c *Controller) ProbeDiscover(ctx context.Context, owner uint64) {
+	c.mu.Lock()
+	if c.state.Owner != owner || c.state.Discover.Probe != "" {
+		c.mu.Unlock()
+		return
+	}
+	c.state.Discover.Probe = "probing"
+	c.mu.Unlock()
+	go func() {
+		client, got, ctx, done, err := c.capture(ctx)
+		if err != nil {
+			done()
+			c.mu.Lock()
+			if c.state.Owner == owner {
+				c.state.Discover.Probe = ""
+			}
+			c.mu.Unlock()
+			c.fire()
+			return
+		}
+		defer done()
+		if got != owner {
+			return
+		}
+		_, callErr := client.Indexes(ctx)
+		c.patch(owner, func(s *State) {
+			if callErr != nil {
+				s.Discover.Probe = "missing"
+			} else {
+				s.Discover.Probe = "ready"
+			}
+		})
+	}()
+}
 func (a Actions) ReloadIndexes() { go a.c.LoadIndexes(context.Background(), a.owner) }
 func (c *Controller) SourcesChanged(owner uint64) {
 	s := c.Snapshot()
