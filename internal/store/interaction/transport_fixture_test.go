@@ -95,7 +95,10 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	defer mux.Close()
 	s := New()
 	s.AttachClient(client, mux)
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	// The pump lives for the scenario, not a wall-clock slice of it: a shared
+	// deadline would die mid-scenario under -race and every later wait would
+	// report a producer exit instead of its own stuck condition.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pumpExited := make(chan struct{})
 	var pumpErr error
