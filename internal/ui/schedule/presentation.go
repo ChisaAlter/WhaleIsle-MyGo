@@ -373,16 +373,30 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 	open := true
 	_, height := c.Size()
 	ui.DialogBase(c.Key("schedule-delete-dialog"), &open, func(backdrop, panel ui.Element) {
-		panel.Label("Delete this task?").Width(480).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(theme.ContextRadii(c).Panel).Padding(20).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Gap(16).Children(func() {
-				ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(chrome.Color(colors.FG))
-				ui.Scroll(c.Key("schedule-delete-content")).MinHeight(0).MaxHeight(max(float32(40), height-180)).FillWidth().Children(func() {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-						ui.Text(c, scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0)
-						ui.Text(c, row.Title).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
+		// ui-primitives Modal.module.css .dialog: min(380px,100%) wide, 20px
+		// between the content column and the footer, 24px below it. The header
+		// pads 22/14/12/24, the description and body share 24px side pads, and
+		// the body lands 20px under the description.
+		panel.Label("Delete this task?").Width(380).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(theme.ContextRadii(c).Panel).Padding(0, 0, 24).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
+				ui.Column(c.Key("schedule-delete-content")).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(chrome.Color(colors.FG))
+						ui.Box(c).Grow(1)
+						if scheduleIconButton(c, "schedule-delete-close", scheduleText("关闭删除确认", "Close deletion confirmation"), "close", chrome.Color(colors.Muted)).Clicked() {
+							open = false
+						}
+					})
+					ui.Scroll(c.Key("schedule-delete-scroll")).MinHeight(0).MaxHeight(max(float32(40), height-200)).FillWidth().Children(func() {
+						ui.Column(c).FillWidth().MinWidth(0).Padding(0, 24, 0).Children(func() {
+							ui.Text(c, scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
+							ui.Box(c).Height(20)
+							ui.Text(c, row.Prompt).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
+						})
 					})
 				})
-				ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
+				ui.Box(c).Height(20)
+				ui.Row(c).FillWidth().Padding(0, 24, 0).Justify(ui.End).Gap(8).Children(func() {
 					palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 					cancel := widgets.Button(c, palette, scheduleText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Busy}).Bind(&p.deleteCancel)
 					cancel.Label("Cancel task deletion")
