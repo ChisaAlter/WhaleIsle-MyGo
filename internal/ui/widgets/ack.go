@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/theme"
 )
 
 // AckDuration is how long a confirmation stays on its control or status seat
@@ -51,7 +53,7 @@ func AckLive(c *ui.Context, id, text string, d time.Duration) bool {
 // already reports failures, and the line reverts by itself.
 func AckLine(c *ui.Context, id, text string) {
 	if AckLive(c, id, text, StatusDuration) {
-		ui.Text(c, text).FillWidth().FontSize(12).TextColor(c.Theme().TextMuted)
+		ui.Text(c, text).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
 	}
 }
 
@@ -60,7 +62,7 @@ func AckLine(c *ui.Context, id, text string) {
 // "已保存" still re-arms while the label stays fixed.
 func AckLineKeyed(c *ui.Context, id, key, label string) {
 	if AckLive(c, id, key, StatusDuration) {
-		ui.Text(c, label).FillWidth().FontSize(12).TextColor(c.Theme().TextMuted)
+		ui.Text(c, label).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
 	}
 }
 
@@ -71,5 +73,5 @@ func StatusLine(c *ui.Context, text string) {
 	if text == "" {
 		return
 	}
-	ui.Text(c, text).FillWidth().FontSize(12).TextColor(c.Theme().TextMuted)
+	ui.Text(c, text).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
 }
