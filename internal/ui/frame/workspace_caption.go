@@ -127,7 +127,10 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	if m.SystemDark {
 		ink = ui.RGBA(255, 255, 255, 0.02)
 	}
-	if hero {
+	// The header's one hairline sits under the view tabs, not between the title
+	// row and them (ConversationRoot.module.css .header::after vs .tabs), and a
+	// blank header carries none at all (.headerBlank::after).
+	if hero || conversationTabsShown(m, snap) || conversationHeaderHidden(snap, hasPendingStopInteraction(m.Interactions, snap.SelectedID)) {
 		stroke = 0
 	}
 	if layout.Skin == theme.SkinClaude {
@@ -139,6 +142,19 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 		})
 	}
 	return max(workspaceCaptionHeight, row.Bounds().H)
+}
+
+// conversationTabsShown reports whether this frame also paints the 对话/轨迹
+// strip under the band — the same gate frame.go's chat column applies — so the
+// caption knows its bottom edge is not the header's hairline.
+func conversationTabsShown(m Model, snap session.ViewState) bool {
+	if snap.SelectedID == "" || m.HideChatViewTabs || conversationIsManaged(snap) ||
+		MainConversationChildActive(m) ||
+		conversationHeaderHidden(snap, hasSessionInteractions(m.Interactions, snap.SelectedID)) {
+		return false
+	}
+	ids, _ := conversationViewOptions(m)
+	return m.ChatPaneTab != nil && len(ids) > 1
 }
 
 // conversationViewTabs keeps pointer, arrow-key and accessibility navigation
@@ -184,10 +200,13 @@ func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact b
 	if m.Sizes != nil && m.Sizes.drawerMode() {
 		leftInset = 56
 	}
-	ui.ScrollHorizontal(c.Key("conversation-view-scroll")).FillWidth().MinWidth(0).Height(28).Shrink(0).Children(func() {
+	// The one header hairline is .header::after: a 0.5 DIP --dsw-alias-border-l3
+	// line at the strip's bottom edge, across the conversation column's full
+	// width — painting it on the tab list itself stops it at the tabs' width.
+	ui.ScrollHorizontal(c.Key("conversation-view-scroll")).FillWidth().MinWidth(0).Height(28).Shrink(0).
+		BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL3)).Children(func() {
 		tabs := ui.TabsBase(c.Key("conversation-view-tabs"), &selected, len(ids))
-		tabs.List.Label("Conversation views").MinWidth(0).Height(28).Shrink(0).AlignItems(ui.Start).Gap(36).Padding(0, 28, 0, leftInset).
-			BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.Border)).Children(func() {
+		tabs.List.Label("Conversation views").MinWidth(0).Height(28).Shrink(0).AlignItems(ui.Start).Gap(36).Padding(0, 28, 0, leftInset).Children(func() {
 			for index, id := range ids {
 				ink := chrome.Color(colors.Muted)
 				if selected == index {

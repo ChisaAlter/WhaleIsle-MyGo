@@ -241,10 +241,6 @@ type mainState struct {
 	// window still opens on the startup page, which carries the reason and the
 	// retry and diagnostics actions instead of dropping into the workbench.
 	coldStartSkipped bool
-	// coldStartNeedsWorkspace marks the declined start whose reason is the
-	// workspace itself, so the page asks for the folder the first run needs
-	// instead of offering a retry that would decline the same way.
-	coldStartNeedsWorkspace bool
 	// crashReportGeneration is the failed supervisor generation that already
 	// wrote a host crash report, so one failure writes one file.
 	crashReportGeneration int
@@ -2807,17 +2803,6 @@ func startHarness(cfg config.Config) {
 	}
 }
 
-// workspaceUsable reports whether a saved workspace can be opened: an empty or
-// vanished path is the first start's job, not a failure.
-func workspaceUsable(path string) bool {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return false
-	}
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
-}
-
 func (s *mainState) finishBootPreparation(win *mygo.Window) {
 	s.launcherController().EndPreparationOnly()
 	if win != nil {
@@ -2831,6 +2816,7 @@ func (s *mainState) beginWorkbenchBoot(cfg config.Config, win *mygo.Window) {
 	go func() {
 		defer s.finishBootPreparation(win)
 		canStartAfterRecovery := s.recoverImportBeforeStart()
+		cfg = s.ensureLaunchWorkspace(cfg)
 		if s.coldStartupAllowed(cfg, canStartAfterRecovery) {
 			s.mu.Lock()
 			quitting := s.quitting
@@ -2848,7 +2834,6 @@ func (s *mainState) beginWorkbenchBoot(cfg config.Config, win *mygo.Window) {
 			// does the page hand over (recordStartupWorkspaceReady).
 			s.mu.Lock()
 			s.coldStartSkipped = true
-			s.coldStartNeedsWorkspace = !workspaceUsable(cfg.Workspace)
 			s.mu.Unlock()
 		}
 	}()

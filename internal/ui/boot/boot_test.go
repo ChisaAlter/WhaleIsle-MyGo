@@ -87,11 +87,23 @@ func TestLoadingPageComposition(t *testing.T) {
 			if err := tt.Click("全部日志"); err != nil {
 				t.Fatal(err)
 			}
-			if _, ok := tt.Find("关闭日志"); !ok {
+			if _, ok := tt.Find("关闭"); !ok {
 				t.Fatal("logs did not open")
 			}
+			// The modal scope moves the focus into the drawer as it opens
+			// (arrangeFocus), to its first focusable — the close. That is a
+			// silent focus, not the ring's: focusVisible only follows the
+			// keyboard, which is why the sheet drops its own AutoFocus while
+			// Tab still works inside it (scope.go arrangeFocus, input.go).
+			if !tt.Focused("关闭") {
+				t.Fatal("the drawer's focus scope did not seat on the close")
+			}
+			tt.Key(0, ui.KeyTab)
+			if !tt.Focused("关闭") {
+				t.Fatal("Tab left the drawer's focus scope")
+			}
 			tt.Key(0, ui.KeyEscape)
-			if _, ok := tt.Find("关闭日志"); ok {
+			if _, ok := tt.Find("关闭"); ok {
 				t.Fatal("logs still open after Escape")
 			}
 		})
@@ -134,60 +146,48 @@ func TestWorkbenchCancelRecoveryThenRetry(t *testing.T) {
 	}
 }
 
-func TestFailureDetailDock(t *testing.T) {
+// TestFailureLine pins .failure's seat: an inline line inside .core under the
+// status and above the actions (boot.html:27-28), never a floating dock.
+func TestFailureLine(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	boom := errors.New("Error: Cannot find module 'dsh-web'")
-	for _, tc := range []struct {
-		name string
-		dark bool
-		want [3]uint32
-	}{
-		{"night", true, [3]uint32{67, 69, 74}},
-		{"day", false, [3]uint32{53, 54, 56}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			tt := ui.NewTester(func(c *ui.Context) {
-				View(c, Model{Dark: tc.dark, Status: harness.Status{State: harness.Failed, Err: boom},
-					Logs: []string{"正在加载本地组件"}, OnRetry: func() {}, OnExport: func() {}, OnConfigure: func() {}})
-			}, 1440, 920)
-			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
-			actions, ok := tt.Find("重试")
-			if !ok {
-				t.Fatal("no retry action")
-			}
-			dock, ok := tt.Find("启动详情")
-			if !ok {
-				t.Fatal("no failure detail dock")
-			}
-			// The native page seats .failure's pane in the free band below the
-			// actions (feedback.js placeStack), not under the status line.
-			if dock.Y != actions.Y+actions.H+8 {
-				t.Fatalf("dock %+v is not 8 DIP under the actions %+v", dock, actions)
-			}
-			if dock.W != 640 || dock.X+dock.W/2 != 720 {
-				t.Fatalf("dock not the 640 DIP centred pane: %+v", dock)
-			}
-			if !tt.HasText("找不到需要的文件或位置。请确认它仍然存在后重试；详情见日志。") {
-				t.Fatal("dock does not carry the localized failure copy")
-			}
-			if tt.HasText(boom.Error()) {
-				t.Fatal("raw error reached the page copy")
-			}
-			// Sample the left padding: the copy wraps, and a centred sample can land
-			// on a glyph rather than the surface this checks.
-			r, g, b, _ := tt.Image().At(int(dock.X+8), int(dock.Y+dock.H/2)).RGBA()
-			if got := [3]uint32{r >> 8, g >> 8, b >> 8}; got != tc.want {
-				t.Fatalf("dock surface %v, want %v", got, tc.want)
-			}
-			// The technical detail stays in the drawer the copy points at.
-			if err := tt.Click("全部日志"); err != nil {
-				t.Fatal(err)
-			}
-			if !tt.HasText(boom.Error()) {
-				t.Fatal("drawer lost the raw failure message")
-			}
-		})
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, Model{Status: harness.Status{State: harness.Failed, Err: boom},
+			Logs: []string{"正在加载本地组件"}, OnRetry: func() {}, OnExport: func() {}, OnConfigure: func() {}})
+	}, 1440, 920)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.UseFixedTextMetrics()
+	if _, ok := tt.Find("启动详情"); ok {
+		t.Fatal("the floating failure dock is still mounted")
+	}
+	status, ok := tt.Find("桌面端启动失败")
+	if !ok {
+		t.Fatal("no failure status line")
+	}
+	actions, ok := tt.Find("重试")
+	if !ok {
+		t.Fatal("no retry action")
+	}
+	line, ok := tt.Find("找不到需要的文件或位置。请确认它仍然存在后重试；详情见日志。")
+	if !ok {
+		t.Fatal("no inline failure line")
+	}
+	if line.Y <= status.Y || line.Y >= actions.Y {
+		t.Fatalf("failure line %+v is not between status %+v and actions %+v", line, status, actions)
+	}
+	if mid := line.X + line.W/2; mid < 700 || mid > 740 {
+		t.Fatalf("failure line not centred in the column: %+v", line)
+	}
+	if tt.HasText(boom.Error()) {
+		t.Fatal("raw error reached the page copy")
+	}
+	// The technical detail stays in the drawer the copy points at.
+	if err := tt.Click("全部日志"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText(boom.Error()) {
+		t.Fatal("drawer lost the raw failure message")
 	}
 }
 
@@ -211,7 +211,7 @@ func TestRuntimeFailureTitle(t *testing.T) {
 // failures a person actually hits: the exit code and the system kill. The
 // sentences live in internal/errcopy, and this is the screen-level check that
 // they reach it and the raw text does not.
-func TestFailureDockNamesTheFailure(t *testing.T) {
+func TestFailureLineNamesTheFailure(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	for _, tc := range []struct{ raw, want string }{
@@ -227,7 +227,7 @@ func TestFailureDockNamesTheFailure(t *testing.T) {
 		}, 1440, 920)
 		tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 		if !tt.HasText(tc.want) {
-			t.Fatalf("%q did not reach the dock: %q", raw, tt.Texts())
+			t.Fatalf("%q did not reach the page: %q", raw, tt.Texts())
 		}
 		if tt.HasText(raw) {
 			t.Fatalf("raw %q reached the page copy", raw)
@@ -239,7 +239,7 @@ func TestWorkbenchFailureLines(t *testing.T) {
 	i18n.SetLocale("zh")
 	defer i18n.SetLocale(i18n.DefaultLocale)
 	raw := errors.New("dsh web exited: exit status 1")
-	// A start failure names the cause the detail dock shows, so the same failure
+	// A start failure names the cause the inline line shows, so the same failure
 	// does not read two different ways one line apart.
 	if got := StatusLine(harness.Status{State: harness.Failed, Err: raw}); got != "桌面运行时已退出（退出码 1），可重试或到日志里查看原因。" {
 		t.Fatalf("start failure line = %q", got)

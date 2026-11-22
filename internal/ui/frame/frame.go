@@ -889,7 +889,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					enter.cancel()
 					return
 				}
-				if snap.SelectedID != "" && !m.HideChatViewTabs && !conversationIsManaged(snap) && !conversationHeaderHidden(snap, hasSessionInteractions(m.Interactions, snap.SelectedID)) {
+				if conversationTabsShown(m, snap) {
 					conversationViewTabs(c, m, colors, false)
 				}
 				conversationFileDrop(c, m, conversationArea, snap.SelectedID)

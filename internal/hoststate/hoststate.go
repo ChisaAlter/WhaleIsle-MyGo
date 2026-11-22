@@ -78,19 +78,6 @@ func Of(st harness.Status) Report {
 	}
 }
 
-// NeedWorkspace is the report for a cold launch that has no usable workspace
-// yet. The Host has not been asked to start, and no retry can change that: the
-// one action that moves it is choosing the folder the first start needs.
-func NeedWorkspace() Report {
-	return Report{
-		Phase:       NotStarted,
-		Line:        text("还没有选择工作区。选择要使用的文件夹后，本地服务会自动启动。", "No workspace is selected yet. Choose a folder and the local service starts on its own."),
-		Note:        text("选择工作区并启动本地服务后，会话会显示在这里", "Choose a workspace and start the local service to see sessions here"),
-		Placeholder: text("选择工作区后即可开始", "Choose a workspace to begin"),
-		Action:      text("选择工作区", "Choose folder"),
-	}
-}
-
 // PhaseOf names the state a supervisor status is in for the window.
 func PhaseOf(st harness.Status) Phase {
 	switch st.State {

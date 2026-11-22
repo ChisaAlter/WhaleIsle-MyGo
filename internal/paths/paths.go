@@ -35,11 +35,6 @@ func UserDataDir() string {
 	return DefaultUserDataDir()
 }
 
-// DefaultWorkspace is the first-run project folder when config.workspace is empty.
-func DefaultWorkspace() string {
-	return filepath.Join(UserDataDir(), "workspace")
-}
-
 // DshHome returns the dsh home directory inside the user data directory,
 // where dsh keeps its sessions and settings. It does not create it; see
 // EnsureDshHome.

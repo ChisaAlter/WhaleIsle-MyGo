@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/errcopy"
@@ -31,10 +33,6 @@ type Model struct {
 	// stays the window's content and offers the retry and diagnostics actions,
 	// where a running start would show only its status.
 	Declined bool
-	// ActionLabel replaces the leading action's label when the shell knows a
-	// more specific step than starting or retrying the Host, such as choosing
-	// the folder a first start needs.
-	ActionLabel string
 }
 
 const bootCodeFont = "Consolas, Menlo, monospace"
@@ -102,29 +100,76 @@ func View(c *ui.Context, m Model) {
 		bootTicker(c, m, palette, func() { *drawer = true })
 		ui.Row(c).Absolute().Top(0).Left(c.TitleBar().Left).Right(c.TitleBar().Right).Height(chrome.EffectiveTitleBarHeight()).DragWindow()
 		ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
-			// boot.css:596-604 fades the log drawer in (drawer-fade) and rises it
-			// 14 DIP (drawer-rise); the fade is the part the hand-run overlay
-			// token can play here.
-			chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .32))
-			backdrop.AlignItems(ui.End).Justify(ui.Center)
+			// .logdrawer is a full-window scrim that fades in over .18s
+			// (drawer-fade) and seats the panel bottom-centred; the backdrop is a
+			// column, so Justify's End is the bottom and AlignItems' Center is
+			// horizontal (boot.css:462-475).
+			scrim := chrome.Reveal(c, backdrop, 180*time.Millisecond)
+			chrome.RevealMask(backdrop, ui.RGBA(0, 0, 0, .32), scrim)
+			backdrop.Justify(ui.End).AlignItems(ui.Center)
+			// .logdrawer-panel: min(760px, w-96px) wide, at most 46% of the
+			// window tall, the hairline on every edge but the bottom, the 14 DIP
+			// top corners and the --boot-panel fill frosted by a 12 DIP scene
+			// blur; it rises 14 DIP over .24s (drawer-rise, boot.css:477-489,
+			// 596-604). A negative bottom margin paints it lower, as
+			// translateY does.
+			rise := chrome.Reveal(c, panel, 240*time.Millisecond)
 			w, h := c.Size()
-			panel.Width(max(0, min(760, w-96))).Height(min(h*.46, float32(max(1, len(lines)))*19+72)).Background(palette.panel).Border(1, palette.hairline).
-				Radius(14, 14, 0, 0).Clip().Padding(12, 18).Children(func() {
-				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {
-					ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(lines))).TextColor(palette.ink).Grow(1)
-					if ui.Button(c, "×").Size(28, 28).Label(bootText("关闭日志", "Close logs")).AutoFocus().Clicked() {
-						*drawer = false
-					}
-				})
-				ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-					ui.Column(c).Gap(4).Selectable().Children(func() {
-						paintBootLogLines(c, lines, palette.muted, palette.alert)
-						if len(lines) == 0 {
-							ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted)
+			// A Scroll has no intrinsic height: the panel's own height is the
+			// head plus the lines it lists, capped at the sheet's 46% — the
+			// panel's content height and its cap in one expression.
+			linesH := float32(max(1, len(lines))) * theme.InterfaceSize(19)
+			panel.Width(max(0, min(760, w-96))).Height(min(h*.46, 68+linesH)).
+				Margin(0, 0, (rise-1)*14, 0).Opacity(.4+.6*rise).
+				Radius(14, 14, 0, 0).Clip().BorderWidth(1, 1, 0, 1).BorderColor(palette.hairline).
+				// A Material replaces the background fill, so --boot-panel is a
+				// Draw over the 12 DIP scene blur, as MenuSurface stacks them;
+				// it starts inside the hairline and keeps the bottom square.
+				Background(ui.Transparent).Material(glass.Blur{Radius: 12}).
+				Draw(func(p *ui.Painter, r ui.Rect) {
+					fill := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 1}
+					p.Fill(fill, palette.panel, 13)
+					p.Fill(ui.Rect{X: fill.X, Y: fill.Y + fill.H - 13, W: fill.W, H: 13}, palette.panel, 0)
+				}).
+				Children(func() {
+					// .logdrawer-head: title, count and close on one row, with the
+					// hairline under it (boot.css:491-495, boot.html:45-48).
+					ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Padding(12, 18).
+						BorderWidth(0, 0, 1, 0).BorderColor(palette.hairline).Children(func() {
+						ui.Text(c, bootText("启动日志", "Startup logs")).FontSize(theme.InterfaceSize(12)).LetterSpacing(12 * .14).TextColor(palette.ink)
+						ui.Text(c, bootText(fmt.Sprintf("%d 行", len(lines)), fmt.Sprintf("%d lines", len(lines)))).
+							Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10.5)).TextColor(palette.muted)
+						ui.Box(c).Grow(1)
+						// No AutoFocus: the sheet's close does not take the
+						// focus when the drawer opens (boot.js leaves it on the
+						// page); Escape still dismisses through the backdrop's
+						// OverlayShortcut and Tab reaches it with the ring.
+						close := ui.ButtonBase(c).Label(bootText("关闭", "Close")).BorderWidth(0).Background(ui.Transparent).Padding(0, 4)
+						closeInk := palette.muted
+						if close.Hovered() {
+							closeInk = palette.ink
+						}
+						close.Children(func() {
+							ui.Text(c, "×").FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(closeInk)
+						})
+						if close.Clicked() {
+							*drawer = false
 						}
 					})
+					// .logdrawer-lines: the ordered list in the code face, 11.5/19,
+					// muted, the markers at 10px and important lines alerting; it is
+					// the part that scrolls (boot.css:497-511).
+					// The ol's 36 DIP left pad is the markers' gutter: the rows
+					// seat their markers in it and the lines start on its edge.
+					ui.Scroll(c).Grow(1).MinHeight(0).Padding(10, 18, 16, 16).Children(func() {
+						ui.Column(c).Gap(4).Selectable().Children(func() {
+							paintBootLogLines(c, lines, palette.muted, palette.alert)
+							if len(lines) == 0 {
+								ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted).Margin(0, 0, 0, 20)
+							}
+						})
+					})
 				})
-			})
 		})
 	})
 }
@@ -168,6 +213,15 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 				}
 			})
 
+			// .failure sits inside .core right under the status: 12/18 code,
+			// the alert color, wrapping anywhere within 38rem (boot.css:
+			// 298-311, boot.html:27).
+			if cause := bootFailureCause(m); cause != "" {
+				ui.Text(c, cause).Key("boot-failure").Margin(6, 0, 0, 0).MaxWidth(608).MinWidth(0).
+					Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).
+					TextColor(palette.alert).TextAlign(ui.Center)
+			}
+
 			if !bootActionsVisible(m.Status) && !m.Status.RecoveryScheduled && !m.Declined {
 				return
 			}
@@ -180,9 +234,6 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 					if m.OnRetry != nil {
 						disabled := m.Status.RecoveryActive && !m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled
 						label := retryLabel(m.Status)
-						if m.ActionLabel != "" {
-							label = m.ActionLabel
-						}
 						bootAction(c, label, true, disabled, palette, m.OnRetry)
 					}
 				}
@@ -197,41 +248,18 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 				}
 			})
 
-			bootFailureDock(c, m, palette)
 		})
 	})
 }
 
-// bootFailureDock is the shell's failure detail. The installed page takes
-// .failure out of .core and mounts it in a feedback progress surface titled
-// 启动详情 (native boot.js:16-18), whose placement pass seats it in the free band
-// below the actions rather than under the status line (feedback.js:133-190).
-// That surface is the toast layer's: dark in both schemes (dsh-webui-tokens.css:
-// 54-55,112), 16 DIP corners and padding, and the page's 14/22 copy rather than
-// .failure's code face (feedback.css:72-79,137-156,180). Its slot hangs off the
-// core column's foot, so the brand block above keeps the page's own seat instead
-// of being pushed up by the pane.
-func bootFailureDock(c *ui.Context, m Model, palette *scenePalette) {
+// bootFailureCause is the sentence .failure carries: the guard's copy for the
+// error, only while the page is failed and the status line is its own state's
+// (boot.js keeps the raw message for the log drawer, boot.css:298-306).
+func bootFailureCause(m Model) string {
 	if m.Status.State != harness.Failed || m.StatusText != "" {
-		return
+		return ""
 	}
-	cause := errcopy.Sentence(m.Status.Err)
-	if cause == "" {
-		return
-	}
-	window, _ := c.Size()
-	ui.Column(c).Key("boot-failure-dock-slot").Absolute().TopPercent(100).Left(0).Right(0).
-		AlignItems(ui.Center).Margin(8, 0, 0, 0).Children(func() {
-		// The pane spans min(640, main - 48) of the window's column; the
-		// native page floats it outside .core at that width.
-		ui.Column(c).Key("boot-failure-dock").Label(bootText("启动详情", "Startup details")).
-			Width(min(640, max(0, window-48))).Background(palette.toast).Radius(theme.ContextRadii(c).LG).
-			Padding(16).Children(func() {
-			// .failure keeps its cause-and-next-step copy; the raw message
-			// stayed in the log drawer for both pages (native boot.js:220-240).
-			ui.Text(c, cause).FontSize(14).FixedLineHeight(22).TextColor(palette.toastInk).MinWidth(0)
-		})
-	})
+	return errcopy.Sentence(m.Status.Err)
 }
 
 // bootDrawerLines is the log the drawer lists: the failure message joins it
@@ -407,8 +435,13 @@ func paintBootLogLines(c *ui.Context, logs []string, muted, alert ui.Color) {
 		if importantBootLog.MatchString(line) {
 			ink = alert
 		}
-		ui.Row(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).TextColor(muted.Alpha(.6)).Shrink(0).Unselectable()
+		// The ::marker anchors to the entry's first line like the ol's, so the
+		// row is top-aligned: a wrapped entry keeps its number at its head.
+		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
+			// It sits outside the line, right-aligned against it in the gutter
+			// the ol's left padding leaves (boot.css:497-511).
+			ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(muted).Width(18).TextAlign(ui.End).Shrink(0).Unselectable()
+			ui.Box(c).Width(2).Shrink(0)
 			ui.Text(c, line).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(11.5)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(ink).Selectable().MinWidth(0).Grow(1)
 		})
 	}
