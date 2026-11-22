@@ -276,10 +276,24 @@ func newSessionButton(c *ui.Context, m Model, colors theme.Colors, fg, border ui
 		btnBorder = border
 	}
 	btn := ui.Button(c.Key("sidebar-new-session"), "").Label(label).FillWidth().Height(38).Radius(12).
-		Margin(4, 2, 0, 2).MaxWidth(252).Background(btnFill).Border(0.5, btnBorder).
+		Margin(4, 2, 0, 2).MaxWidth(252).Border(0.5, btnBorder).
 		TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 12, 8, 12)
-	if btn.Hovered() {
-		btn.Background(btnHoverFill)
+	if chrome.BackdropActive() {
+		// The menu frost needs the wash inside the same Draw: a Background
+		// here would sit under the frosted patch and never show.
+		base := chrome.MenuBaseFill(colors, m.SystemDark)
+		hovered := btn.Hovered()
+		btn.Background(ui.Transparent).Draw(func(p *ui.Painter, r ui.Rect) {
+			chrome.DrawGlass(p, r, base, chrome.MaterialMenu, 12)
+			if hovered {
+				p.Fill(r, btnHoverFill, 12)
+			}
+		})
+	} else {
+		btn.Background(btnFill)
+		if btn.Hovered() {
+			btn.Background(btnHoverFill)
+		}
 	}
 	showShortcut := m.NewSessionShortcut != "" && (btn.Hovered() || btn.FocusVisible())
 	font := ui.Font{Family: c.Theme().Font, Size: theme.InterfaceSize(14), Weight: 500}

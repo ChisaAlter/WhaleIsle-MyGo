@@ -39,7 +39,7 @@ func viewExplorer(c *ui.Context, m Model) {
 		// difference, not a hidden gesture.
 		ui.Row(c).FillWidth().Shrink(0).Padding(8, 12, 0, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			if m.Filter != nil {
-				ui.TextInput(c, m.Filter).Grow(1).MinWidth(0).Height(33).Radius(12).Border(0.5, chrome.Color(colors.Border)).FontSize(theme.InterfaceSize(12)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter))
+				ui.TextInput(c, m.Filter).Grow(1).MinWidth(0).Height(33).Radius(12).Border(0.5, chrome.Color(colors.Border)).FontSize(theme.InterfaceSize(12)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter)).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
 			} else {
 				ui.Box(c).Grow(1).MinWidth(0)
 			}

@@ -126,7 +126,8 @@ func MaterialAlpha(m Material, p wallpapers.Preferences, dark bool) float32 {
 // materialFrost is how strongly a layer frosts the wallpaper under it, in DIPs
 // per sampled cell: 0 keeps the wallpaper as sharp as it is painted, a larger
 // cell averages it more. The harness only blurs menus (backdrop-filter:
-// blur(40px) saturate(150%)); sidebar, panel, canvas and terminal do not blur.
+// blur(40px) saturate(150%)); the terminal well frosts the same way by user
+// request, while sidebar, panel and canvas do not blur.
 type materialFrost struct {
 	cell     float32
 	saturate float32
@@ -134,7 +135,7 @@ type materialFrost struct {
 
 func frostOf(m Material) materialFrost {
 	switch m {
-	case MaterialMenu:
+	case MaterialMenu, MaterialTerminal:
 		return materialFrost{cell: 18, saturate: 1.5}
 	}
 	return materialFrost{cell: 0, saturate: 1}
@@ -364,6 +365,28 @@ func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Elem
 		}
 		p.Stroke(r, border, round, 0.5)
 	}))
+}
+
+// FrostSurface dresses e as a raised surface in the menu material while a
+// wallpaper or ambient gradient is painted: the menu's frosted backdrop and its
+// fixed fill (menuSolidityLight/Dark), no shadow, no live scene blur. With no
+// backdrop it keeps base, so no-wallpaper pixels do not change.
+func FrostSurface(e ui.Element, colors theme.Colors, dark bool, base ui.Color, radius float32) ui.Element {
+	if backgroundState.active {
+		return GlassSurface(e.Radius(radius), MenuBaseFill(colors, dark), MaterialMenu, radius)
+	}
+	return e.Radius(radius).Background(base)
+}
+
+// FrostInset is the fill for a surface nested inside a FrostSurface parent —
+// an input, a selected tab, a chip: over a live backdrop it is the translucent
+// hover wash so the parent's frost still shows through, never a second frosted
+// fill. With no backdrop it keeps base so no-wallpaper pixels do not change.
+func FrostInset(colors theme.Colors, dark bool, base ui.Color) ui.Color {
+	if backgroundState.active {
+		return Color(colors.Hover)
+	}
+	return base
 }
 
 // MenuRow is one selectable row of an app popover: no frame of its own, the

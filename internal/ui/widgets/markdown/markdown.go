@@ -48,6 +48,12 @@ type Style struct {
 	Muted      ui.Color
 	CodeBG     ui.Color
 	Accent     ui.Color
+	// CodeSurface, when set, dresses each code-card root instead of the opaque
+	// CodeBG fill — callers bind chrome.FrostSurface so the card frosts over a
+	// live backdrop and keeps CodeBG when there is none. Spans and same-tone
+	// inner fills then go transparent, so setting it is pixel-identical without
+	// a backdrop.
+	CodeSurface func(e ui.Element, radius float32) ui.Element
 	// Dark selects the dark syntax palette. A light palette on a dark
 	// transcript renders unreadable tokens; the Original follows the theme.
 	Dark bool

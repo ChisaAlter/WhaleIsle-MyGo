@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/ui/theme"
 )
 
 // TestMaterialAlphaKeepsTokenSolidity pins the solidity each layer gets from
@@ -470,6 +471,71 @@ func TestMenuSurfaceSharesTheWallpaper(t *testing.T) {
 	}
 }
 
+// TestFrostSurfaceWithoutBackdropKeepsBase: a frosted surface with no backdrop
+// behind it is exactly the plain Background it replaces — same fill, same
+// radius — so no-wallpaper pixels do not change.
+func TestFrostSurfaceWithoutBackdropKeepsBase(t *testing.T) {
+	colors := theme.Default().Light
+	base := ui.RGB(12, 34, 56)
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(250, 250, 250))
+		FrostSurface(ui.Box(c).Absolute().Left(10).Top(4).Width(20).Height(12), colors, false, base, 4)
+	}, 40, 24)
+	tt.Frame()
+	if got := tt.Image().RGBAAt(20, 10); got.R != base.R || got.G != base.G || got.B != base.B {
+		t.Fatalf("frost surface pixel = %v, want the caller's fill %v", got, base)
+	}
+	if got := tt.Image().RGBAAt(10, 4).R; got != 250 {
+		t.Fatalf("frost surface corner painted inside the radius: %d", got)
+	}
+}
+
+// TestFrostSurfaceSharesTheWallpaper: over a live backdrop the frosted surface
+// takes the menu's own fill at the menu's share, like MenuSurface minus the
+// elevation shadow.
+func TestFrostSurfaceSharesTheWallpaper(t *testing.T) {
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	const wall = 200
+	url := pngDataURL(t, color.RGBA{R: wall, G: wall, B: wall, A: 255}, 8, 8)
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	colors := theme.Default().Dark
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+		FrostSurface(ui.Box(c).Absolute().Left(10).Top(4).Width(30).Height(16), colors, true, ui.RGB(30, 30, 30), 4)
+	}, 50, 24)
+	tt.Frame()
+	under := float64(wall) * (1 - maskDark)
+	want := float64(MenuBaseFill(colors, true).R)*menuSolidityDark + under*(1-menuSolidityDark)
+	if got := float64(tt.Image().RGBAAt(25, 12).R); math.Abs(got-want) > 4 {
+		t.Fatalf("frost surface over the wallpaper = %.0f, want about %.0f", got, want)
+	}
+}
+
+// TestFrostInsetWashesOnlyOverABackdrop: nested surfaces keep their own fill
+// without a backdrop and switch to the hover wash over one.
+func TestFrostInsetWashesOnlyOverABackdrop(t *testing.T) {
+	colors := theme.Default().Light
+	base := ui.RGB(200, 210, 220)
+	if got := FrostInset(colors, false, base); got != base {
+		t.Fatalf("FrostInset without a backdrop = %v, want %v", got, base)
+	}
+	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	url := pngDataURL(t, color.RGBA{R: 200, G: 200, B: 200, A: 255}, 8, 8)
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	tt := ui.NewTester(func(c *ui.Context) {
+		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paint(p, r) })
+	}, 40, 20)
+	tt.Frame()
+	if got := FrostInset(colors, false, base); got != Color(colors.Hover) {
+		t.Fatalf("FrostInset over a backdrop = %v, want the hover wash %v", got, Color(colors.Hover))
+	}
+}
+
 func TestMenuShadowAndElevationPaint(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Box(c).Fill().Background(ui.RGB(255, 255, 255)).Draw(func(p *ui.Painter, r ui.Rect) {
@@ -542,11 +608,13 @@ func TestMetallicSheenPaintsOnlyWhileHovered(t *testing.T) {
 	}
 }
 
-func TestFrostOfBlursOnlyMenu(t *testing.T) {
-	if got := frostOf(MaterialMenu); got.cell != 18 || got.saturate != 1.5 {
-		t.Fatalf("frostOf(MaterialMenu) = %+v, want {cell:18 saturate:1.5}", got)
+func TestFrostOfBlursMenuAndTerminal(t *testing.T) {
+	for _, m := range []Material{MaterialMenu, MaterialTerminal} {
+		if got := frostOf(m); got.cell != 18 || got.saturate != 1.5 {
+			t.Fatalf("frostOf(%d) = %+v, want {cell:18 saturate:1.5}", m, got)
+		}
 	}
-	for _, m := range []Material{MaterialCanvas, MaterialSidebar, MaterialPanel, MaterialTerminal} {
+	for _, m := range []Material{MaterialCanvas, MaterialSidebar, MaterialPanel} {
 		if got := frostOf(m); got.cell != 0 || got.saturate != 1 {
 			t.Fatalf("frostOf(%d) = %+v, want {cell:0 saturate:1}", m, got)
 		}

@@ -90,7 +90,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 				}
 				themed := terminalTheme(colors, dark)
 				copyOwner, copyID, copyAttachment := v.Owner, v.ActiveID, v.Attachment
-				opts := myterm.Options{Conn: v.Attachment, ReadOnly: true, CanCopy: func() bool { return store.CanCopySelection(copyOwner, session, copyID, copyAttachment) }, Theme: themed, DarkTheme: themed, Scrollback: scrollback, Font: terminalFont(theme.RenderPreferences().Terminal)}
+				opts := myterm.Options{Conn: v.Attachment, ReadOnly: true, CanCopy: func() bool { return store.CanCopySelection(copyOwner, session, copyID, copyAttachment) }, Theme: themed, DarkTheme: themed, Scrollback: scrollback, Font: terminalFont(theme.RenderPreferences().Terminal), Transparent: true}
 				opts.LinkAt = TargetAt
 				opts.OnLinkActivate = func(target string) bool {
 					if !store.CanCopySelection(copyOwner, session, copyID, copyAttachment) {

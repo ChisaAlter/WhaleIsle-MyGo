@@ -45,7 +45,7 @@ func View(c *ui.Context, m Model) {
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(bg).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Grow(1).MinHeight(0), colors, m.SystemDark, bg, 0).Children(func() {
 		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
 			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyBrowserPreviewBack)).Clicked() {
@@ -105,7 +105,7 @@ func View(c *ui.Context, m Model) {
 		}
 
 		if m.HostActive {
-			ui.Box(c).Fill().MinHeight(0).Background(field)
+			chrome.FrostSurface(ui.Box(c).Fill().MinHeight(0), colors, m.SystemDark, field, 0)
 			return
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(16, 20, 16, 20).Gap(8).Children(func() {
