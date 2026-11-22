@@ -34,9 +34,10 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.Scroll(c.Key("schedule-catalog-scroll")).Label("Task catalog scroll").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.Center).Children(func() {
-			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(960).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
+			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(1056).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
 				ui.Row(c.Key("schedule-heading")).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 24).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
+					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).MinWidth(0)
+					ui.Box(c).Grow(1)
 					if m.OnNewTask != nil {
 						// TaskManagerPage.module.css .newButton: a 32px capsule,
 						// 13px/20 label on 0 12 padding — a page-local control, not
