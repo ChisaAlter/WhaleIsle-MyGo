@@ -148,21 +148,32 @@ func pageHeader(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 			ui.Text(c, copyText("插件", "Plugins")).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 			ui.Text(c, copyText("安装、启用和配置插件", "Install, enable, and configure plugins")).FontSize(theme.InterfaceSize(13)).TextColor(muted).Tooltip(copyText("在这里配置官方插件，安装和管理其他插件。内置插件列表及运行状态可在「设置 → 内置插件」中查看", "Inspect all built-in plugins and runtime states in Settings → Plugins."))
 		})
-		ui.Row(c).Wrap().Gap(12).Children(func() {
+		// .toolbar gap is 8/16 (row/column), the controls share the 32 DIP
+		// .addButton recipe (PluginManagerPage.module.css:213-223, 610-618).
+		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		ui.Row(c).Wrap().Gap(16).Children(func() {
 			if s.Tab == "installed" {
-				if ui.Button(c, copyText("刷新", "Refresh")).Disabled(s.Loading || s.Busy || !s.Connected).Clicked() {
+				spec := pluginToolbarSpec(widgets.ButtonOutline)
+				spec.Disabled = s.Loading || s.Busy || !s.Connected
+				spec.Leading = pluginToolbarIcon(pluginRefreshArtwork, fg)
+				if widgets.Button(c, colors, copyText("刷新", "Refresh"), spec).Clicked() {
 					m.Controller.Refresh(context.Background())
 				}
 				if s.Install.RequestID != "" {
-					if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), copyText("查看安装任务", "View installation"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !s.ManagementReady()}).Clicked() {
+					spec = pluginToolbarSpec(widgets.ButtonPrimary)
+					spec.Disabled = !s.ManagementReady()
+					spec.Leading = pluginToolbarIcon(pluginPlusArtwork, theme.Color(colors.ButtonFG))
+					if widgets.Button(c, colors, copyText("查看安装任务", "View installation"), spec).Clicked() {
 						a.OpenInstall()
 					}
 				} else {
 					addPluginMenu(c, m, s, a)
 				}
 			}
-			if m.OnClose != nil && ui.Button(c, copyText("返回", "Back")).Clicked() {
-				m.OnClose()
+			if m.OnClose != nil {
+				if widgets.Button(c, colors, copyText("返回", "Back"), pluginToolbarSpec(widgets.ButtonOutline)).Clicked() {
+					m.OnClose()
+				}
 			}
 		})
 	})

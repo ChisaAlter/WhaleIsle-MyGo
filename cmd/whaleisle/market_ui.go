@@ -137,7 +137,9 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 		for _, ns := range store.Snapshot().Namespaces {
 			served[ns.NS] = true
 		}
-		add := func(key, zh, en string, order int, namespaces ...string) {
+		// Titles and summaries are the original plugins.item registrations'
+		// label and the card's view:'summary' text (ui-settings-*/locales.ts).
+		add := func(key, zh, en, summaryZh, summaryEn string, order int, namespaces ...string) {
 			active := []string{}
 			for _, ns := range namespaces {
 				if served[ns] {
@@ -147,11 +149,11 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 			if len(active) == 0 {
 				return
 			}
-			title := en
+			title, summary := en, summaryEn
 			if i18n.Speaks("zh") {
-				title = zh
+				title, summary = zh, summaryZh
 			}
-			contributions = append(contributions, managerui.Contribution{Kind: "item", Key: key, Title: title, Order: order, Render: func(c *ui.Context, _ manager.Subject) {
+			contributions = append(contributions, managerui.Contribution{Kind: "item", Key: key, Title: title, Summary: summary, Order: order, Render: func(c *ui.Context, _ manager.Subject) {
 				if settings.ServedPluginBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: mygo.Theme.IsDark()}, key) {
 					return
 				}
@@ -160,15 +162,15 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 				}
 			}})
 		}
-		add("subagent", "子代理", "Subagents", 10, "subagent", "subagent-model-selection-settings")
+		add("subagent", "子智能体", "Subagent", "设置子智能体的递归层级、数量和模型。", "Set Subagent recursion depth, count, and models.", 10, "subagent", "subagent-model-selection-settings")
 		if served["web-search-deepseek"] {
-			add("web-search", "网页搜索", "Web search", 20, "web-search-deepseek", "web", "web-deepseek-api")
+			add("web-search", "网页搜索与获取", "Web search and fetch", "选择网页搜索与网页获取使用的提供方。", "Choose the providers web search and web fetch use.", 20, "web-search-deepseek", "web", "web-deepseek-api")
 		}
-		add("agent-loop", "代理循环", "Agent loop", 30, "agent-loop")
+		add("agent-loop", "Agent 循环", "Agent loop", "控制 Agent 派发工具调用的方式。", "Control how the Agent dispatches tool calls.", 30, "agent-loop")
 		if served["pwsh-sandbox"] {
-			add("shell", "终端", "Shell", 40, "pwsh-sandbox")
+			add("shell", "终端", "Shell", "限制每条命令最多能跑多久、最多输出多少内容。", "Limit how long each command may run and how much it may output.", 40, "pwsh-sandbox")
 		} else {
-			add("shell", "终端", "Shell", 40, "bash-sandbox")
+			add("shell", "终端", "Shell", "限制每条命令最多能跑多久、最多输出多少内容。", "Limit how long each command may run and how much it may output.", 40, "bash-sandbox")
 		}
 	}
 	managerui.View(c, managerui.Model{
