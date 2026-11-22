@@ -26,7 +26,12 @@ type ReadLabels struct {
 // margin. Unlike ToolCodeBlock, its banner does not stick and wrapping starts
 // disabled. Clipboard content includes every returned line, including folds.
 func ToolReadBlock(c *ui.Context, label, language string, lines []ReadLine, totalLines, maxLines int, st Style, labels ReadLabels) ui.Element {
-	root := ui.Column(c.Key("read-card")).MinWidth(0).Shrink(0).Radius(16).Background(st.CodeBG)
+	root := ui.Column(c.Key("read-card")).MinWidth(0).Shrink(0).Radius(16)
+	if st.CodeSurface != nil {
+		root = st.CodeSurface(root, 16)
+	} else {
+		root = root.Background(st.CodeBG)
+	}
 	wrap := ui.Local(root, "wrap", func() bool { return false })
 	expanded := ui.Local(root, "expanded", func() bool { return false })
 	copiedUntil := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })

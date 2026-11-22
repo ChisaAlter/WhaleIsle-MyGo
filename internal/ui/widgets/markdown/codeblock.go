@@ -73,7 +73,13 @@ func viewCodeBlock(c *ui.Context, node ast.Node, source string, st Style) {
 func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style) {
 	size := CodeSize(st)
 	font := theme.RenderPreferences().Code.Family
-	root := ui.Column(c).FillWidth().MinWidth(0).Background(st.CodeBG).Radius(codeCardRadius(st.Dark)).Clip().Label("Code block")
+	radius := codeCardRadius(st.Dark)
+	root := ui.Column(c).FillWidth().MinWidth(0).Radius(radius).Clip().Label("Code block")
+	if st.CodeSurface != nil {
+		root = st.CodeSurface(root, radius)
+	} else {
+		root = root.Background(st.CodeBG)
+	}
 	wrap := ui.Local(root, "wrap-code", func() bool { return st.CodeWrapDefault })
 	copied := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
 	highlight := ui.Local(root, "highlight", func() codeHighlightCache { return codeHighlightCache{} })

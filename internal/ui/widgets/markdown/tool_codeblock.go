@@ -18,7 +18,12 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 	if languageInk.A == 0 {
 		languageInk = st.Muted
 	}
-	root := ui.Column(c.Key("code-card")).MinWidth(0).Shrink(0).Background(st.CodeBG).Radius(16)
+	root := ui.Column(c.Key("code-card")).MinWidth(0).Shrink(0).Radius(16)
+	if st.CodeSurface != nil {
+		root = st.CodeSurface(root, 16)
+	} else {
+		root = root.Background(st.CodeBG)
+	}
 	wrap := ui.Local(root, "wrap-code", func() bool { return true })
 	copiedUntil := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
 	copied := c.Now().Before(*copiedUntil)

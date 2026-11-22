@@ -46,5 +46,5 @@ func (s *codeHighlightCache) update(language, code string, st Style) []ui.Span {
 		return s.spans
 	}
 	out := append([]ui.Span(nil), s.spans...)
-	return append(out, ui.Span{Text: code[len(s.checkpoint):], Size: CodeSize(st), Color: st.FG, Background: st.CodeBG, Font: theme.RenderPreferences().Code.Family})
+	return append(out, ui.Span{Text: code[len(s.checkpoint):], Size: CodeSize(st), Color: st.FG, Background: codeBodyFill(st), Font: theme.RenderPreferences().Code.Family})
 }

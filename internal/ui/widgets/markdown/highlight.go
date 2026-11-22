@@ -46,13 +46,13 @@ func codeSpans(lang, code string, st Style, options *chroma.TokeniseOptions, col
 		lexer = lexers.Analyse(code)
 	}
 	if lexer == nil {
-		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
+		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: codeBodyFill(st), Font: font}}, st)
 	}
 	lexer = chroma.Coalesce(lexer)
 	style := chromaPalette(st.Dark)
 	it, err := lexer.Tokenise(options, code)
 	if err != nil {
-		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
+		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: codeBodyFill(st), Font: font}}, st)
 	}
 	var out []ui.Span
 	for _, tok := range it.Tokens() {
@@ -67,12 +67,12 @@ func codeSpans(lang, code string, st Style, options *chroma.TokeniseOptions, col
 			Text:       tok.Value,
 			Size:       size,
 			Color:      ink,
-			Background: st.CodeBG,
+			Background: codeBodyFill(st),
 			Font:       font,
 		})
 	}
 	if len(out) == 0 {
-		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: st.CodeBG, Font: font}}, st)
+		return withLineNumbers([]ui.Span{{Text: code, Size: size, Background: codeBodyFill(st), Font: font}}, st)
 	}
 	return withLineNumbers(out, st)
 }
@@ -98,7 +98,7 @@ func withLineNumbers(spans []ui.Span, st Style) []ui.Span {
 	line := 1
 	prefix := func() {
 		number := padNumber(line, width)
-		out = append(out, ui.Span{Text: number + "  ", Size: size, Color: st.Muted.Alpha(.75), Background: st.CodeBG, Font: font})
+		out = append(out, ui.Span{Text: number + "  ", Size: size, Color: st.Muted.Alpha(.75), Background: codeBodyFill(st), Font: font})
 		line++
 	}
 	prefix()
@@ -106,7 +106,7 @@ func withLineNumbers(spans []ui.Span, st Style) []ui.Span {
 		parts := strings.Split(span.Text, "\n")
 		for index, part := range parts {
 			if index > 0 {
-				out = append(out, ui.Span{Text: "\n", Size: size, Background: st.CodeBG, Font: font})
+				out = append(out, ui.Span{Text: "\n", Size: size, Background: codeBodyFill(st), Font: font})
 				prefix()
 			}
 			if part == "" {

@@ -228,7 +228,9 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 		ui.Text(c, label("只读计划文档", "Read-only plan document")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 8)
 		ui.Scroll(c.Key("plan-body:" + address)).Grow(1).MinHeight(0).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Padding(12).Children(func() {
-				markdown.View(c, doc.Markdown, markdown.Style{FontSize: 14, FG: fg, Muted: muted, Accent: accent, CodeBG: chrome.Color(colors.Field)})
+				markdown.View(c, doc.Markdown, markdown.Style{FontSize: 14, FG: fg, Muted: muted, Accent: accent, CodeBG: chrome.Color(colors.Field), CodeSurface: func(e ui.Element, radius float32) ui.Element {
+					return chrome.FrostSurface(e, colors, m.SystemDark, chrome.Color(colors.Field), radius)
+				}})
 			})
 		})
 	})

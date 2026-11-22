@@ -3,6 +3,7 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 	"path"
+	"whaleisle/internal/ui/chrome"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
@@ -221,6 +222,7 @@ func dockTabTitle(n *WorkspacePane) string {
 // tab run shrinks; pane chrome remains reachable at the trailing edge.
 func workspaceDockTabStrip(c *ui.Context, m Model) {
 	n, w := m.workspacePane, m.Sizes.Workspace
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	group := w.Root.dockGroup(n.ID)
 	tabs := group.dockTabs()
 	n.tabDragging = false
@@ -254,7 +256,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						chip.Tooltip(tab.Files.ResourcePath)
 					}
 					if tab == n {
-						chip.Background(c.Theme().Surface)
+						chip.Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
 					}
 					chip.Children(func() {
 						if !editing || !termui.HostTitleEditor(c, terminal, sid) {

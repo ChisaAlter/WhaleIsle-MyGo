@@ -232,7 +232,6 @@ func View(c *ui.Context, m Model) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)
 	muted := chrome.Color(colors.Muted)
-	field := chrome.BackdropTerminal(chrome.Color(colors.Field))
 	border := chrome.Color(colors.Border)
 	p := m.Panel
 	if p != nil {
@@ -268,7 +267,7 @@ func View(c *ui.Context, m Model) {
 
 	selectionKey := captureSelectionKey(m, selection)
 
-	root := ui.Column(c).Fill().MinHeight(0).MinWidth(0).Background(field)
+	root := chrome.GlassSurface(ui.Column(c).Fill().MinHeight(0).MinWidth(0), chrome.Color(colors.Field), chrome.MaterialTerminal)
 	root.ContextMenu(func(menu *ui.Menu) {
 		if p != nil && menu.Item(i18n.T(i18n.KeyTerminalCopyCwd)).Disabled(p.cwd == "").Chosen() {
 			mygo.Clipboard.WriteText(p.currentDirectory())

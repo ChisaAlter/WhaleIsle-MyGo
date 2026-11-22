@@ -63,6 +63,17 @@ func codeLineHeight(st Style) float32 {
 	return codeLineHigh
 }
 
+// codeBodyFill is a fill that matches the code-card body: transparent when the
+// card frosts (CodeSurface set — the frosted root shows between glyphs and rows
+// instead of a second fill), else the CodeBG it always painted. Over a plain
+// CodeBG root the transparent result is pixel-identical.
+func codeBodyFill(st Style) ui.Color {
+	if st.CodeSurface != nil {
+		return ui.Transparent
+	}
+	return st.CodeBG
+}
+
 // codeBanner resolves the code-card header fill. The Original banner is
 // --dsw-alias-markdown-code-block-banner, a muted tint over the body surface.
 func codeBanner(st Style) ui.Color {

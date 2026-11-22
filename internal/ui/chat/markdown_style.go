@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -22,14 +23,20 @@ func transcriptMarkdownStyle(fg, muted, field, accent, hover ui.Color, size floa
 		Muted:          muted,
 		CodeBG:         field,
 		Accent:         accent,
-		Dark:           dark,
-		QuoteInset:     14,
-		ToolCodeHover:  hover,
-		CopyLabel:      i18n.T(i18n.KeyMarkdownCopyCode),
-		CopiedLabel:    i18n.T(i18n.KeyMarkdownCopied),
-		WrapLabel:      wrapLabel,
-		NoWrapLabel:    noWrapLabel,
-		CodeLabel:      i18n.T(i18n.KeyMarkdownCode),
+		// Code cards frost over a live backdrop; the resolved theme's colors
+		// only reach MenuBaseFill when no backdrop paints, so the default
+		// palette stands in where FrostSurface never reads it.
+		CodeSurface: func(e ui.Element, radius float32) ui.Element {
+			return chrome.FrostSurface(e, theme.Default().Active(dark), dark, field, radius)
+		},
+		Dark:          dark,
+		QuoteInset:    14,
+		ToolCodeHover: hover,
+		CopyLabel:     i18n.T(i18n.KeyMarkdownCopyCode),
+		CopiedLabel:   i18n.T(i18n.KeyMarkdownCopied),
+		WrapLabel:     wrapLabel,
+		NoWrapLabel:   noWrapLabel,
+		CodeLabel:     i18n.T(i18n.KeyMarkdownCode),
 	}
 }
 

@@ -383,7 +383,7 @@ func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, mu
 	hovered := chip.Hovered()
 	switch {
 	case active:
-		chip.Background(c.Theme().SurfaceHover)
+		chip.Background(chrome.FrostInset(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().SurfaceHover))
 	case hovered:
 		chip.Background(ui.RGBA(muted.R, muted.G, muted.B, .16))
 	}

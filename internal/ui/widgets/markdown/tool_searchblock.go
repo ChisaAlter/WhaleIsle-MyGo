@@ -117,7 +117,12 @@ func searchVisibleRows(rows []searchRow, maxLines int, expanded bool) (head, tai
 // ToolSearchBlock draws the installed paths/grouped-matches search preset. File
 // collapse and card fold are independent; clipboard text always covers all data.
 func ToolSearchBlock(c *ui.Context, data SearchData, maxLines int, st Style, labels SearchLabels) ui.Element {
-	root := ui.Column(c.Key("search-card")).MinWidth(0).Shrink(0).Radius(16).Background(st.CodeBG).Clip()
+	root := ui.Column(c.Key("search-card")).MinWidth(0).Shrink(0).Radius(16).Clip()
+	if st.CodeSurface != nil {
+		root = st.CodeSurface(root, 16)
+	} else {
+		root = root.Background(st.CodeBG)
+	}
 	expanded := ui.Local(root, "expanded", func() bool { return false })
 	collapsed := ui.Local(root, "files", func() map[int]bool { return map[int]bool{} })
 	copiedUntil := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
@@ -148,7 +153,7 @@ func ToolSearchBlock(c *ui.Context, data SearchData, maxLines int, st Style, lab
 	}
 	banner := st.CodeBanner
 	if banner.A == 0 {
-		banner = st.CodeBG
+		banner = codeBodyFill(st)
 	}
 	head, tail, hidden := searchVisibleRows(rows, maxLines, *expanded)
 	root.Children(func() {

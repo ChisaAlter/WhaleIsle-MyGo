@@ -22,7 +22,12 @@ type WebLabels struct{ NoResults, SourcesTruncated, HTTP, ContentTruncated strin
 // ToolWebBlock renders the installed search/fetch result preset without a copy
 // toolbar. Search citations scroll independently of the provider's Markdown answer.
 func ToolWebBlock(c *ui.Context, data WebData, st Style, labels WebLabels) ui.Element {
-	root := ui.Column(c.Key("web-card")).MinWidth(0).Shrink(0).Padding(12, 14, 12, 14).Radius(16).Background(st.CodeBG)
+	root := ui.Column(c.Key("web-card")).MinWidth(0).Shrink(0).Padding(12, 14, 12, 14).Radius(16)
+	if st.CodeSurface != nil {
+		root = st.CodeSurface(root, 16)
+	} else {
+		root = root.Background(st.CodeBG)
+	}
 	prefs := theme.RenderPreferences()
 	secondary := st.Muted
 	tertiary := st.ToolCodeLanguage

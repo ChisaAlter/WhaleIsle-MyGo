@@ -134,7 +134,7 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 			}
 			ui.Text(c, status).FillWidth().Height(18).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(12)).TextColor(ink).Tooltip(status)
 		})
-		canvas := ui.Box(c).Key("browser-device-canvas").FillWidth().Grow(1).MinWidth(0).MinHeight(0).Background(chrome.Color(colors.Field))
+		canvas := chrome.FrostSurface(ui.Box(c).Key("browser-device-canvas").FillWidth().Grow(1).MinWidth(0).MinHeight(0), colors, dark, chrome.Color(colors.Field), 0)
 		canvas.Children(func() {
 			if t.Host == nil {
 				b.browserPlaceholder(c, t, chrome.Color(colors.Muted))

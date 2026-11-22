@@ -52,7 +52,7 @@ func HostResourceMenu(menu *ui.Menu, h *HostState, store *hostterminal.Store, se
 // of permanent rows that competes with the terminal's viewport.
 func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session string, colors theme.Colors, v hostterminal.View, actions HostActions) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	surface := ui.Column(c).Fill().MinWidth(0).MinHeight(0).Gap(0).Background(chrome.Color(colors.BG))
+	surface := chrome.GlassSurface(ui.Column(c).Fill().MinWidth(0).MinHeight(0).Gap(0), chrome.Color(colors.BG), chrome.MaterialTerminal)
 	surface.ContextMenu(func(menu *ui.Menu) { HostResourceMenu(menu, h, store, session) })
 	surface.Children(func() {
 		anchor := ui.Box(c).Key("host-management-anchor").Absolute().Right(8).Top(0).Size(1, 1)

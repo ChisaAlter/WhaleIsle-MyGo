@@ -22,7 +22,12 @@ type DiffPalette struct{ Added, Deleted, AddedBG, DeletedBG ui.Color }
 // ToolDiffBlock draws the installed inline patch preset. Its owner derives exact
 // local patch rows and full clipboard text. The card starts folded and unwrapped.
 func ToolDiffBlock(c *ui.Context, language string, rows []DiffLine, clipboard string, maxLines int, st Style, palette DiffPalette, labels DiffLabels) ui.Element {
-	root := ui.Column(c.Key("diff-card")).MinWidth(0).Shrink(0).Radius(16).Background(st.CodeBG).Clip()
+	root := ui.Column(c.Key("diff-card")).MinWidth(0).Shrink(0).Radius(16).Clip()
+	if st.CodeSurface != nil {
+		root = st.CodeSurface(root, 16)
+	} else {
+		root = root.Background(st.CodeBG)
+	}
 	wrap := ui.Local(root, "wrap", func() bool { return false })
 	expanded := ui.Local(root, "expanded", func() bool { return false })
 	copiedUntil := ui.Local(root, "copied-until", func() time.Time { return time.Time{} })
