@@ -22,23 +22,23 @@ func paintTrajectoryRecord(c *ui.Context, row trajRow, p trajectoryPalette, turn
 	kind := trajCellKind(row)
 	icon, ink, fill := trajKindBadge(p, kind)
 	ui.Row(c).FillWidth().Height(30).AlignItems(ui.Center).Children(func() {
-		// Turn gutter — the original's .turn rail and .turnLabel.
-		ui.Box(c).Width(28).FillHeight().Children(func() {
+		// .event cell — eventColumn wide; 36px turn gutter on the left with
+		// the rail, the top-left #n turnLabel chip, and the icon-only
+		// kindTag badge right-aligned in the kindSlot.
+		ui.Box(c).Width(eventWidth).MinWidth(eventWidth).FillHeight().Children(func() {
 			if row.TurnKey != "" {
-				ui.Box(c).Absolute().Left(12).Top(2).Bottom(2).Width(2).Background(p.turnAccent)
+				ui.Box(c).Absolute().Left(13).Top(1).Bottom(1).Width(1).Background(p.turnAccent)
 			}
 			if turnStart && row.TurnNumber > 0 {
-				ui.Text(c, fmt.Sprintf("#%d", row.TurnNumber)).FontSize(theme.InterfaceSize(10)).TextColor(p.caption).SingleLine().Absolute().Left(16).Top(8)
+				ui.Row(c).Absolute().Left(0).Top(0).Height(10).Padding(1, 5, 1, 5).Background(p.modulePlatform).Radius(2).Children(func() {
+					ui.Text(c, fmt.Sprintf("#%d", row.TurnNumber)).FontSize(theme.InterfaceSize(8)).TextColor(p.caption).SingleLine()
+				})
 			}
-		})
-		// .event column — 84px zh / 122px en — carries the icon-only kindTag
-		// badge (the original renders the 16px tinted glyph, no label).
-		ui.Box(c).Width(eventWidth).MinWidth(eventWidth).Children(func() {
-			ui.Box(c).Width(16).Height(16).Radius(4).Background(fill).Children(func() {
+			ui.Box(c).Absolute().Right(4).Top(7).Width(16).Height(16).Radius(4).Background(fill).Children(func() {
 				ui.Icon(c, icon).Width(11).Height(11).TextColor(ink).Absolute().Left(2.5).Top(2.5)
 			})
 		})
-		ui.Box(c).Width(8)
+		ui.Box(c).Width(4)
 		title, detail := trajectoryRecordTitle(row, kind)
 		ui.Text(c, title).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(p.fg).SingleLine()
 		if detail != "" {
@@ -49,9 +49,6 @@ func paintTrajectoryRecord(c *ui.Context, row trajRow, p trajectoryPalette, turn
 		}
 		if detail == "" && row.Result == "" {
 			ui.Box(c).Grow(1).MinWidth(0)
-		}
-		if row.Time != "" && row.Timing != nil && (kind == "message" || kind == "tool") {
-			ui.Text(c, row.Time).FontSize(theme.InterfaceSize(11)).TextColor(p.caption).SingleLine().Padding(0, 8, 0, 0)
 		}
 	})
 }
