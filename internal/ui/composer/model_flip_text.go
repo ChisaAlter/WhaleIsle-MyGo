@@ -106,7 +106,7 @@ type modelFlipState struct {
 // is never an accessible element and cannot widen the trigger or its badge.
 func modelFlipText(c *ui.Context, key, value string, color ui.Color, fontSize float32) ui.Element {
 	font := ui.Font{Family: c.Theme().Font, Size: fontSize, Weight: 400}
-	label := ui.Text(c.Key(key), value).MinWidth(0).SingleLine().FixedLineHeight(20).
+	label := ui.Text(c.Key(key), value).MinWidth(0).SingleLine().Ellipsis("…").FixedLineHeight(20).
 		Font(font.Family).FontSize(font.Size).FontWeight(font.Weight).TextColor(color)
 	state := ui.Local(label, "model-flip", func() modelFlipState { return modelFlipState{} })
 	reduced := c.Preferences().ReduceMotion
