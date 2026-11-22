@@ -95,7 +95,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 						label = scheduleText("没有已结束的自动化任务", "No inactive automation tasks")
 					}
 					scheduleEmpty(c, label, colors, func(c *ui.Context) {
-						if m.OnNewTask != nil && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("新建自动化任务", "New automation task"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: !snap.ClientReady}).Clicked() {
+						if m.OnNewTask != nil && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("新建自动化任务", "New automation task"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium, Disabled: !snap.ClientReady}).Clicked() {
 							m.OnNewTask()
 						}
 					})
@@ -230,7 +230,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 						ui.TextInputBase(c.Key("schedule-task-name"), &d.Title).Label("Automation task name").FillWidth().MinWidth(0).Height(32).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg).Disabled(!editable)
 					}
 					ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, scheduleNextRun(d.row)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
+						ui.Text(c, scheduleDetailNextRun(d.row)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
 					})
 					ui.Box(c).Height(16)
 					if d.row.Status == "inactive" {
@@ -448,6 +448,19 @@ func scheduleNextRun(row schedstore.Entry) string {
 	// Saved delivery records use the rule zone separately in deliveryTime.
 	now := time.Now()
 	return scheduleText("下次计划时间：", "Next run: ") + scheduleAbsolute(at.In(time.Local)) + " (" + scheduleRelative(at, now) + ")"
+}
+
+// scheduleDetailNextRun is the detail header's `detail.nextRun` line; the list
+// rows use `list.nextPrefix` instead (ui-schedule task-manager-locales).
+func scheduleDetailNextRun(row schedstore.Entry) string {
+	if row.Status == "inactive" {
+		return scheduleText("已结束", "Inactive")
+	}
+	at, err := time.Parse(time.RFC3339Nano, row.ScheduledAt)
+	if err != nil {
+		return scheduleText("下次运行时间不可用", "Next run unavailable")
+	}
+	return scheduleText("下次运行 ", "Next run ") + scheduleAbsolute(at.In(time.Local)) + " (" + scheduleRelative(at, time.Now()) + ")"
 }
 
 func scheduleFrequency(row schedstore.Entry) string {

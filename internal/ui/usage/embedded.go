@@ -47,7 +47,7 @@ func embeddedView(c *ui.Context, m Model) {
 			if m.Store != nil {
 				ui.Row(c).Shrink(0).Gap(8).Children(func() {
 					exportDisabled := m.OnExportStats == nil
-					export := widgets.Button(c, colors, usageText("导出", "Export"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: exportDisabled})
+					export := widgets.Button(c, colors, usageText("导出", "Export"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: exportDisabled, Leading: usageLeadingIcon("export")})
 					if exportDisabled {
 						export.Tooltip(usageText("本版本还没有统计导出。", "Exporting statistics is not wired in this build"))
 					} else {
@@ -60,7 +60,7 @@ func embeddedView(c *ui.Context, m Model) {
 						})
 					}
 					pricingView(c, m, fg, muted, accent)
-					if widgets.Button(c, colors, usageText("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(m.Store.Stats().Loading).Clicked() {
+					if widgets.Button(c, colors, usageText("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Leading: usageLeadingIcon("refresh")}).Disabled(m.Store.Stats().Loading).Clicked() {
 						m.Store.RefreshStats(context.Background(), true)
 					}
 				})
