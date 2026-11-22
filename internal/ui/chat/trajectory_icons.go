@@ -25,18 +25,18 @@ var (
 // resolves through --dsw-alias-* names; SkinSemanticToken keeps each value
 // overridable by the active family seed.
 type trajectoryPalette struct {
-	fg, muted, secondary, caption ui.Color
-	accent, danger, hover         ui.Color
-	field, modulePlatform         ui.Color
-	layer2                        ui.Color
-	businessTertiary              ui.Color
-	warnLabel, warnTertiary       ui.Color
-	successTertiary               ui.Color
-	assistantViolet               ui.Color
-	assistantVioletBG             ui.Color
-	turnAccent                    ui.Color
-	borderL1                      ui.Color
-	dark                          bool
+	fg, muted, secondary, caption   ui.Color
+	accent, danger, hover           ui.Color
+	field, modulePlatform           ui.Color
+	layer2                          ui.Color
+	businessTertiary                ui.Color
+	warnLabel, warnTertiary         ui.Color
+	successPrimary, successTertiary ui.Color
+	assistantViolet                 ui.Color
+	assistantVioletBG               ui.Color
+	turnAccent                      ui.Color
+	borderL1                        ui.Color
+	dark                            bool
 }
 
 func newTrajectoryPalette(themeID string, systemDark bool, colors theme.Colors) trajectoryPalette {
@@ -56,9 +56,11 @@ func newTrajectoryPalette(themeID string, systemDark bool, colors theme.Colors) 
 		hover:             chrome.Color(colors.Hover),
 		field:             chrome.Color(colors.Field),
 		layer2:            chrome.Color(colors.SelectorFill),
+		modulePlatform:    token("--dsw-alias-bg-module-platform", "#f5f6f7"),
 		businessTertiary:  token("--dsw-alias-state-business-tertiary", "#e8effe"),
 		warnLabel:         token("--dsw-alias-state-warn-label", "#b35c00"),
 		warnTertiary:      token("--dsw-alias-state-warn-tertiary", "#fdf0e0"),
+		successPrimary:    token("--dsw-alias-state-success-primary", "#30a46c"),
 		successTertiary:   token("--dsw-alias-state-success-tertiary", "#e5f6ec"),
 		assistantViolet:   assistant,
 		assistantVioletBG: assistant.Alpha(.15),
@@ -121,6 +123,13 @@ func trajTimelineColor(p trajectoryPalette, row trajRow, kind string) ui.Color {
 	case "user":
 		return p.accent
 	case "context":
+		// Generation requests are violet on the model lane; context
+		// injections are the source's success-primary 68% mix on lane 0.
+		if row.Kind == trajectoryRequestKind {
+			return p.assistantViolet
+		}
+		return p.successPrimary.Mix(p.secondary, .32)
+	case "system":
 		return p.secondary
 	case "tool":
 		return p.warnLabel

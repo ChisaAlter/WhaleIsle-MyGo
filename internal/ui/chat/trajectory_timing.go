@@ -91,16 +91,25 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 	var model trajectoryTimeline
 	seen := make(map[string]bool)
 	for _, row := range rows {
-		if row.Kind == "trajectory-request" {
-			continue
-		}
 		t := row.Timing
 		if t == nil {
+			// User/context records are timestamp markers on lane 0, not
+			// operation durations (timeline.ts input lane).
+			if (row.Role == "user" || row.Role == "context") && row.EventTime > 0 && !math.IsNaN(row.EventTime) && !math.IsInf(row.EventTime, 0) {
+				if len(model.Spans) == 0 || row.EventTime < model.Start {
+					model.Start = row.EventTime
+				}
+				if row.EventTime > model.End {
+					model.End = row.EventTime
+				}
+				model.Spans = append(model.Spans, trajectorySpan{Row: row, Start: row.EventTime, End: row.EventTime, Lane: 0})
+				continue
+			}
 			if row.Role == "assistant" || row.Kind == session.MessageKindTool || row.Kind == session.MessageKindThinking || row.Kind == session.MessageKindCompaction {
 				model.Unknown++
 			}
 			continue
-		} // User/log timestamps are not operation durations.
+		}
 		if seen[t.OperationID] {
 			continue
 		}
@@ -120,17 +129,7 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 		if known {
 			end += duration
 		}
-		// timeline.ts lane mapping: 0 输入 (input/context), 1 模型
-		// (message/compacted), 2 工具 (tool/subtool).
-		lane := 0
-		switch {
-		case row.Kind == session.MessageKindTool:
-			lane = 2
-		case row.Kind == session.MessageKindCompaction,
-			row.Kind == session.MessageKindThinking,
-			row.Role == "assistant":
-			lane = 1
-		}
+		lane := trajectorySpanLane(row)
 		if len(model.Spans) == 0 || start < model.Start {
 			model.Start = start
 		}
@@ -140,6 +139,21 @@ func buildRecordedTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 		model.Spans = append(model.Spans, trajectorySpan{Row: row, Start: start, End: end, Lane: lane, DurationKnown: known})
 	}
 	return model
+}
+
+// trajectorySpanLane is timeline.ts laneFor: 0 输入 (input/context),
+// 1 模型 (request/message/compacted), 2 工具 (tool/subtool).
+func trajectorySpanLane(row trajRow) int {
+	switch {
+	case row.Kind == session.MessageKindTool:
+		return 2
+	case row.Kind == trajectoryRequestKind,
+		row.Kind == session.MessageKindCompaction,
+		row.Kind == session.MessageKindThinking,
+		row.Role == "assistant":
+		return 1
+	}
+	return 0
 }
 
 // paintTrajectoryLanes renders the original compact lane chart

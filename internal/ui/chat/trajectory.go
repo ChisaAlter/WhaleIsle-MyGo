@@ -46,7 +46,7 @@ type TrajectoryModel struct {
 var (
 	trajSearchFB   string
 	trajSelectedFB string
-	trajActualDur  = true
+	trajActualDur  = false // original dsh.trajectory.duration store defaults false (sequence view)
 	trajTurnsFold  bool
 	trajCallsFold  bool
 	trajDetailTab  = "overview"
@@ -98,7 +98,8 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 	root := ui.Column(c.Key("trajectory:" + m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
 	folds := ui.Local(root, "folds", func() trajectoryFoldState { return trajectoryFoldState{} })
 	allRows := trajectoryAllRows(trajectoryMessages(m.Snapshot), "")
-	rows := folds.rows(allRows, *search, *turnsFold, *callsFold)
+	ledgerRows := func() []trajRow { return trajectoryLedgerRows(folds.rows(allRows, *search, *turnsFold, *callsFold)) }
+	rows := ledgerRows()
 	resize := ui.Local(root, "detail-width", func() trajectoryResize { return trajectoryResize{} })
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
 	timeRange := ui.Local(root, "time-range", func() trajectoryRangeState { return trajectoryRangeState{} })
@@ -111,7 +112,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 	}
 	if *selected != "" && *revealed != *selected {
 		folds.reveal(allRows, *selected)
-		rows = folds.rows(allRows, *search, *turnsFold, *callsFold)
+		rows = ledgerRows()
 	}
 	if m.List != nil && *selected != "" && *revealed != *selected {
 		for index, row := range rows {
@@ -202,15 +203,20 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 							Padding(0).Radius(0).Cursor(ui.CursorPointer)
 						btn.Children(func() {
 							ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
-								if row.FoldKey != "" {
-									glyph := "▾"
-									if row.Folded {
-										glyph = "▸"
+								// Fixed-width disclosure slot on every row so
+								// badge and title keep one x across foldable
+								// and plain rows.
+								ui.Box(lr.Context).Width(20).FillHeight().Children(func() {
+									if row.FoldKey != "" {
+										glyph := "▾"
+										if row.Folded {
+											glyph = "▸"
+										}
+										if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(20).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
+											folds.toggle(row)
+										}
 									}
-									if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(20).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
-										folds.toggle(row)
-									}
-								}
+								})
 								ui.Column(lr.Context).Grow(1).MinWidth(0).Children(func() { paintTrajectoryRecord(lr.Context, row, palette, turnStart) })
 							})
 						})
@@ -491,12 +497,22 @@ func trajectoryAllRows(msgs []session.Message, query string) []trajRow {
 		row.TurnKey = groups[index]
 		if msg.Role == "user" && msg.Kind == session.MessageKindText && !seenTurns[row.TurnKey] {
 			seenTurns[row.TurnKey] = true
-			if number, ok := numbers[row.TurnKey]; ok {
-				row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), int(number))
-				row.TurnNumber = int(number)
+			number, ok := numbers[row.TurnKey]
+			if !ok {
+				number = float64(len(seenTurns))
 			}
+			row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), int(number))
+			row.TurnNumber = int(number)
 		}
 		out = append(out, row)
+	}
+	// The original renders records before the first user turn as a preamble
+	// section — no turn rail and no #n marker (TrajectoryTable between-turns).
+	for i := range out {
+		if out[i].Role == "user" && out[i].Kind == session.MessageKindText {
+			break
+		}
+		out[i].TurnKey = ""
 	}
 	out = mergeTrajectoryToolResults(out)
 	if q != "" {
@@ -508,6 +524,25 @@ func trajectoryAllRows(msgs []session.Message, query string) []trajRow {
 			}
 		}
 		out = filtered
+	}
+	return out
+}
+
+// trajectoryLedgerVisible reports whether a record renders as a ledger row.
+// Request boundaries are zero-height separators, reasoning folds into the
+// assistant record, and auxiliary status/event-typed records (turn/end,
+// session/title, step markers) are not rows.
+func trajectoryLedgerVisible(row trajRow) bool {
+	return row.Kind != trajectoryRequestKind && row.Kind != session.MessageKindThinking &&
+		row.Role != "status" && !strings.Contains(row.Role, "/")
+}
+
+func trajectoryLedgerRows(rows []trajRow) []trajRow {
+	out := make([]trajRow, 0, len(rows))
+	for _, row := range rows {
+		if trajectoryLedgerVisible(row) {
+			out = append(out, row)
+		}
 	}
 	return out
 }

@@ -76,7 +76,17 @@ func trajectoryRecordTitle(row trajRow, kind string) (string, string) {
 			detail = row.Input
 		}
 		return name, detail
-	case "user", "system", "context":
+	case "system", "context":
+		// The original titles the record, not the prompt text
+		// (layout.ts → layout.initialSystemPrompt / systemPromptUpdated).
+		if row.Kind == session.MessageKindSystemPrompt {
+			if row.Source.EventType == "system-prompt-update" {
+				return TrajectoryLocale("layout.systemPromptUpdated"), ""
+			}
+			return TrajectoryLocale("layout.initialSystemPrompt"), ""
+		}
+		return trajectoryRecordPreview(row), ""
+	case "user":
 		return trajectoryRecordPreview(row), ""
 	default:
 		return trajectoryRecordPreview(row), ""

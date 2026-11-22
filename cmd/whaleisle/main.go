@@ -2190,7 +2190,7 @@ func main() {
 		state.fileExpanded = map[string]bool{}
 		state.planBoardOpen = false
 		state.todoPanelCollapsed = true
-		state.trajActualDur = true
+		state.trajActualDur = false // dsh.trajectory.duration default (sequence view)
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
 		stateKey := "main"
@@ -2395,7 +2395,7 @@ func main() {
 		state.fileExpanded = map[string]bool{}
 		state.planBoardOpen = false // Electron chat shell keeps the plan board collapsed by default
 		state.todoPanelCollapsed = true
-		state.trajActualDur = true
+		state.trajActualDur = false // dsh.trajectory.duration default (sequence view)
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
 		state.watchAcceptOpenHook()
