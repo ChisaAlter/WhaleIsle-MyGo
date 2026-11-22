@@ -66,7 +66,10 @@ func View(c *ui.Context, m Model) {
 			detail := s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
 			if !detail && s.View.Kind != "more" {
 				pageHeader(c, m, s, a, fg, muted)
-				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 0, 0).Children(func() {
+				// The original packs tabs into its page bar 16 under the head
+				// and holds content another 16 + 32 below them; the column's
+				// flat 32 gap only supplies the trailing 32.
+				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 16, 0).Children(func() {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
 						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent)
 						if s.Tab == tab.id {
