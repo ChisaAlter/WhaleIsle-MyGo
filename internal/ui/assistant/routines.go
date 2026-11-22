@@ -106,7 +106,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "routines:109", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "routines:109", s.Notice)
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeMakingChanges)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

@@ -46,7 +46,7 @@ func botNotifyBlock(c *ui.Context, m BotNotifyModel, blocked bool, fg, muted, ac
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_notify:49", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_notify:49", s.Notice)
 		for _, warning := range s.Warnings {
 			ui.Text(c, "Host warning: "+warning).TextColor(accent).Selectable()
 		}

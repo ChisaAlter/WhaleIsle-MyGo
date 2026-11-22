@@ -88,7 +88,7 @@ func batchResultReceipt(c *ui.Context, m Model) {
 		notice.Announced = true
 	}
 	if len(failures) == 0 {
-		widgets.Notice(c, "batch-result", true, func() string { return summary })
+		widgets.AckLine(c, "batch-result", summary)
 		return
 	}
 	dismiss := func() {

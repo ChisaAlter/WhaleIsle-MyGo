@@ -50,7 +50,7 @@ func botTextProfileBlock(c *ui.Context, m BotTextProfileModel, blocked bool, fg,
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_text_profile:53", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_text_profile:53", s.Notice)
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
 		}

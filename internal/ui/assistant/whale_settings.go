@@ -42,7 +42,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "whale_settings:46", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "whale_settings:46", s.Notice)
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshBeforeEditingOrRetrying2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		}

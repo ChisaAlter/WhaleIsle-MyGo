@@ -99,17 +99,21 @@ type Model struct {
 	// HostNote is what the empty session list says while the local service is
 	// not ready (internal/hoststate). It outranks the workspace copy: with no
 	// service there are no sessions to connect to yet.
-	HostNote                    string
-	ConnectionEpoch             uint64
-	OnReconnect                 func()
-	PendingStatuses             map[string]string
-	sessionDrag                 *sessionDragContext
-	sessionHover                *sessionHoverState
-	Batch                       session.SessionBatch
-	OnBatchEdit                 func(string, []session.SessionBatchTarget)
-	OnBatchRequest              func(string)
-	OnBatchConfirm              func(uint64)
-	OnBatchCancel               func(uint64)
+	HostNote        string
+	ConnectionEpoch uint64
+	OnReconnect     func()
+	PendingStatuses map[string]string
+	sessionDrag     *sessionDragContext
+	sessionHover    *sessionHoverState
+	Batch           session.SessionBatch
+	OnBatchEdit     func(string, []session.SessionBatchTarget)
+	OnBatchRequest  func(string)
+	OnBatchConfirm  func(uint64)
+	OnBatchCancel   func(uint64)
+	// ArchiveUndo is the store's live undo offer after an archive; the sidebar
+	// renders it as a receipt row with a real undo button until it expires.
+	ArchiveUndo                 *session.ArchiveUndoNotice
+	OnUndoArchive               func(uint64)
 	Schedules                   schedstore.ViewState
 	OnRetryWorkspacePreferences func()
 	OnDropWorkspaceBefore       func(uint64, string, string)
@@ -555,6 +559,7 @@ func View(c *ui.Context, m Model) {
 			})
 		}
 		batchResultReceipt(c, m)
+		archiveUndoRow(c, m)
 		// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
 		// SidebarRoot.footArea: footer.action then settings (always pinned), and the
 		// account seat at the very bottom.

@@ -204,13 +204,15 @@ func bodyHostState(c *ui.Context, a *BodySettingsAccess, muted ui.Color) {
 		return
 	}
 	s := a.Snapshot
-	// A line inserted while the Host connects, or is read-only, would shift every row below it.
-	settingsNotice(c, "host-state", !s.ClientReady || !s.Writable, func() string {
-		if !s.ClientReady {
-			return providerCopy("Host 未连接；保留上次设置。", "Host disconnected; showing retained settings.")
-		}
-		return providerCopy("此 Host 的设置为只读。", "Settings on this Host are read-only.")
-	})
+	// A disconnected or read-only Host is a live condition, so it stays as a
+	// status line for as long as it holds rather than fading like an outcome.
+	hostState := ""
+	if !s.ClientReady {
+		hostState = providerCopy("Host 未连接；保留上次设置。", "Host disconnected; showing retained settings.")
+	} else if !s.Writable {
+		hostState = providerCopy("此 Host 的设置为只读。", "Settings on this Host are read-only.")
+	}
+	widgets.StatusLine(c, hostState)
 	failure := s.Err
 	for _, fieldError := range s.PreferenceErrors {
 		if failure != "" && failure == fieldError {

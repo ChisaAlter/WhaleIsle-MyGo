@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/egoist/mygo/ui"
-	"time"
 	officestore "whaleisle/internal/store/office"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -18,14 +17,8 @@ func officeSettingsView(c *ui.Context, m Model) {
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
 	blocked := v.Busy || !v.Available || m.PluginDisabled || !m.HarnessReady
 	page := ui.Column(c.Key(fmt.Sprintf("office-%d", v.Scope))).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent)
-	feedback := ui.Local(page, "feedback", func() string { return "" })
-	if v.Notice != "" && v.Notice != *feedback {
-		c.AddToast(ui.Toast{ID: fmt.Sprintf("office-%d", v.Scope), Title: v.Notice, Type: "success", Timeout: 7 * time.Second})
-	}
-	if v.Notice != "" {
-		*feedback = v.Notice
-	}
 	page.Children(func() {
+		widgets.AckLine(c, "office-notice", v.Notice)
 		ui.Row(c).Height(44).Shrink(0).Padding(6, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "AI Office").FontSize(theme.InterfaceSize(15)).Bold().Grow(1).MinWidth(0).TextColor(fg)
 			caption := "刷新状态"

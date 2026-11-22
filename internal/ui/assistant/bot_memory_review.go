@@ -43,7 +43,7 @@ func botMemoryReviewBlock(c *ui.Context, m BotMemoryReviewModel, blocked bool, f
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_memory_review:46", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_memory_review:46", s.Notice)
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning)+warning).TextColor(accent).Selectable()
 		}

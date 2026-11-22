@@ -68,7 +68,7 @@ func roomCreateView(c *ui.Context, m RoomCreateModel, blocked bool, fg, muted, f
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "room_create:71", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "room_create:71", s.Notice)
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadTheCurrentCatalogAndWriteAutho)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		} else if !s.Writable {

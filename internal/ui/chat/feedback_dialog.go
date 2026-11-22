@@ -2,8 +2,8 @@ package chat
 
 import (
 	"context"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -59,6 +59,7 @@ func feedbackText(key string) string {
 type feedbackDialogNotice struct {
 	failure         string
 	acknowledgement uint64
+	recorded        bool
 }
 
 type feedbackDialogKey struct {
@@ -76,9 +77,14 @@ func messageFeedbackDialog(c *ui.Context, m Model) {
 	// A retired overlay must not replay an acknowledgement when remounted.
 	notice := ui.Local(seat, "notice", func() feedbackDialogNotice { return feedbackDialogNotice{acknowledgement: v.Acknowledgement} })
 	if v.Acknowledgement > notice.acknowledgement {
-		c.AddToast(ui.Toast{ID: "message-feedback-recorded", Title: feedbackText("recorded"), Type: "success", Timeout: 3 * time.Second})
 		notice.acknowledgement = v.Acknowledgement
+		notice.recorded = true
 	}
+	key := ""
+	if notice.recorded {
+		key = strconv.FormatUint(v.Acknowledgement, 10)
+	}
+	widgets.AckLineKeyed(c, "message-feedback-recorded", key, feedbackText("recorded"))
 	if v.EditorID == "" {
 		return
 	}

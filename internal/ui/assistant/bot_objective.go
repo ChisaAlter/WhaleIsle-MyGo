@@ -70,7 +70,7 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_objective:73", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_objective:73", s.Notice)
 		for _, warning := range s.Warnings {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHostWarning2)+warning).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}

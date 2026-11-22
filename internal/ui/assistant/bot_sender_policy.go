@@ -75,7 +75,7 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_sender_policy:78", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_sender_policy:78", s.Notice)
 		for _, w := range s.Warnings {
 			ui.Text(c, "Host warning: "+w).TextColor(accent).Selectable()
 		}

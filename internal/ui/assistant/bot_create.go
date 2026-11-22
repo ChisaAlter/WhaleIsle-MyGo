@@ -63,7 +63,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		if s.Error != "" {
 			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "bot_create:66", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "bot_create:66", s.Notice)
 		if !s.Loaded {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantReadCurrentCatalogAndAuthorityFirst)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		} else if !s.Writable {

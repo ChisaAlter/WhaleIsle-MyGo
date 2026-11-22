@@ -23,7 +23,7 @@ func reportsView(c *ui.Context, m Model) {
 		}
 	}
 	ui.Text(c, tr("历史报告", "Recorded reports")+" · "+h.ProjectID).FontSize(fonttheme.InterfaceSize(14))
-	widgets.Notice(c, "history:26", h.Notice != "", func() string { return h.Notice })
+	widgets.AckLine(c, "history:26", h.Notice)
 	if h.Selected != nil {
 		r := h.Selected
 		if ui.Button(c, tr("返回报告列表", "Back to reports")).Disabled(m.Busy).Clicked() {

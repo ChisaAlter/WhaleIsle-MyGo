@@ -35,7 +35,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		if s.Error != "" {
 			ui.Text(c, s.Error).TextColor(accent).Selectable()
 		}
-		widgets.Notice(c, "whale_preferences:39", s.Notice != "", func() string { return s.Notice })
+		widgets.AckLine(c, "whale_preferences:39", s.Notice)
 		if s.Server.HomeDir == "" {
 			return
 		}
