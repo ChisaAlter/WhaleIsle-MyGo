@@ -4057,6 +4057,24 @@
                   "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]"
                 }
               }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
             ]
           },
           "native": {
@@ -4080,6 +4098,17 @@
                   "name": "安装",
                   "type": "Button"
                 }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
               }
             ]
           },
@@ -4233,6 +4262,24 @@
                   "selector": "[data-testid=task-manager-page] ul[class*=listRows] > li:nth-child(2) > button"
                 }
               }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
             ]
           },
           "native": {
@@ -4246,6 +4293,17 @@
                   "name": "Open task: 每日站会提醒",
                   "type": "Button"
                 }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
               }
             ]
           },
@@ -4675,6 +4733,24 @@
                   "selector": "[data-dsh-settings-section='usage-stats'][aria-current]"
                 }
               }
+            ],
+            "setup": [
+              {
+                "dismiss": [
+                  {
+                    "selector": "[role=dialog] button[aria-label='关闭']"
+                  },
+                  {
+                    "selector": "[role=dialog] button[class*=_primary]"
+                  },
+                  {
+                    "within": "[role=dialog]",
+                    "text": "继续"
+                  }
+                ],
+                "gone": "[role=dialog]",
+                "optional": true
+              }
             ]
           },
           "native": {
@@ -4708,6 +4784,17 @@
                   "name": "用量与费用",
                   "type": "Text"
                 }
+              }
+            ],
+            "setup": [
+              {
+                "dismiss": {
+                  "name": "暂不开启"
+                },
+                "gone": {
+                  "name": "开启极简模式"
+                },
+                "optional": true
               }
             ]
           },
