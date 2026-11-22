@@ -107,7 +107,7 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 		if spec.Leading != nil {
 			spec.Leading(c)
 		}
-		ui.Text(c, label).FontSize(fontSize).FixedLineHeight(lineHeight).FontWeight(500).TextColor(fg)
+		ui.Text(c, label).FontSize(fontSize).FixedLineHeight(lineHeight).FontWeight(500).TextColor(fg).SingleLine()
 	})
 	return b
 }

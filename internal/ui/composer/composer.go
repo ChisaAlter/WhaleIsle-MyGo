@@ -310,11 +310,11 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				if m.Inert || wsLabel == "" {
 					wsLabel = i18n.T(i18n.KeyChatHeroChooseWorkspace)
 				}
-				// Native rule (round205/round211): the workspace chip is a fixed 150
-				// DIP wide with 8 DIP side padding, a 16 DIP folder icon, a 4 DIP
-				// gap, and a trailing chevron; longer names truncate, shorter ones
-				// keep the width so the preset chip lands at the native x.
-				workspace := chip(c, colors, false, fg).Label("Composer workspace").Padding(0, 8, 0, 8).Width(150)
+				// HeroShell .workspace is inline-flex, content-sized to
+				// max-width min(100%,360px): folder + label + chevron with the
+				// chevron snug against the (ellipsized) label, never a fixed
+				// width that leaves a gap after a short name.
+				workspace := chip(c, colors, false, fg).Label("Composer workspace").Padding(0, 8, 0, 8).MaxWidth(360)
 				if m.WorkspacePickerAnchor != nil {
 					workspace.Bind(m.WorkspacePickerAnchor)
 				}
@@ -323,9 +323,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 				}
 				workspace.Children(func() {
 					ui.Icon(c, folderIcon).Size(16, 16).TextColor(muted).Shrink(0)
-					// Long names truncate inside the fixed 150-DIP chip instead of
-					// pushing the chevron or the preset chip.
-					ui.Text(c, wsLabel).FontSize(13).FontWeight(500).TextColor(fg).SingleLine().MaxLines(1).Shrink(1).Grow(1)
+					// Long names ellipsize inside the 360-DIP cap; short names
+					// keep the chevron next to the label (.workspaceLabel's
+					// text-overflow contract).
+					ui.Text(c, wsLabel).FontSize(13).FontWeight(500).TextColor(fg).SingleLine().MaxLines(1).Shrink(1).MinWidth(0)
 					chevron(c, false)
 				})
 				if workspace.Clicked() && m.OnPickHeroWorkspace != nil {
@@ -516,7 +517,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			infoHover := chrome.Color(colors.ButtonInfoHover)
 			infoPressed := infoHover.Mix(chrome.Color(colors.FG), 0.12)
 			onAccent := chrome.Color(colors.ButtonFG)
-			tools := ui.Row(c).FillWidth().Wrap().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert)
+			// InputBar keeps ONE toolbar row at every width: no Wrap, so the
+			// trailing group's shrinkable chip (model name) ellipsizes instead
+			// of dropping beneath the row.
+			tools := ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Padding(2, 8, 6, 8).Disabled(m.Inert)
 			tools.Children(func() {
 				// Keep tools and trailing controls as separate wrap groups.
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {

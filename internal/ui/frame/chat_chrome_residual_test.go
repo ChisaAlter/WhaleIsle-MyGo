@@ -111,8 +111,11 @@ func TestHeroStackHasADefinedNativeSeat(t *testing.T) {
 		if card.H != 114 || preset.H != 28 || card.Y-(preset.Y+preset.H) != 8 {
 			t.Fatalf("sourcecard/presetgeometry card=%+v preset=%+v", card, preset)
 		}
-		if got := headline.Y + (208+32)/2 - (body.Y + body.H/2); math.Abs(float64(got)) > .1 {
-			t.Fatalf("centered flex item offset=%.2f want0", got)
+		// EmptyHero centers inside scrollBody below the shared titlebar band;
+		// the caption overlays this chat column, so a fixed 48-DIP lead drops
+		// the centered item the same 24 DIP below the body's middle.
+		if got := headline.Y + (208+32)/2 - (body.Y + body.H/2); math.Abs(float64(got-24)) > .1 {
+			t.Fatalf("centered flex item offset=%.2f want24", got)
 		}
 	}
 }

@@ -30,7 +30,9 @@ func TestHeroStackKeepsTheNativeSeat(t *testing.T) {
 		close("card top", card.Y, preset.Y+preset.H+8)
 		close("card height", card.H, 114)
 		close("visual stack height", card.Y+card.H-head.Y, 208)
-		close("source flex center", head.Y+(208+32)/2, body.Y+body.H/2)
+		// The 48-DIP caption bias drops the centered item 24 below the body's
+		// middle, matching scrollBody below the shared titlebar band.
+		close("source flex center", head.Y+(208+32)/2, body.Y+body.H/2+24)
 		if previousTop != 0 {
 			close("height reflow", head.Y-previousTop, float32(920-864)/2)
 		}

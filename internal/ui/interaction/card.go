@@ -65,7 +65,9 @@ func interactionView(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	// Parent frame already constrains width to composerCardW; keep vertical pad only.
-	strip := ui.Column(c).Padding(8, 0, 0, 0).Gap(8)
+	// ApprovalPanel.module.css:7 pads the card 8px top AND bottom, so the seat
+	// keeps the composer dock's gap instead of landing flush on the window edge.
+	strip := ui.Column(c).Padding(8, 0, 8, 0).Gap(8)
 	_, _ = border, field
 	previous := ui.Local(strip, "page-approval-target", func() interaction.Pending { return interaction.Pending{} })
 	if !m.DisablePageShortcuts {
@@ -261,7 +263,7 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				}
 				deny := interactionOutlineButton(c, colors, i18n.T(i18n.KeyInteractionDeny), false)
 				deny.Children(func() {
-					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityApprovalReject))
+					ui.Box(c).Absolute().Fill().PassThrough().Label(i18n.T(i18n.KeyParityApprovalReject))
 				})
 				allow := interactionPrimaryButton(c, colors, i18n.T(i18n.KeyInteractionAllow), false)
 				if keys != nil {
