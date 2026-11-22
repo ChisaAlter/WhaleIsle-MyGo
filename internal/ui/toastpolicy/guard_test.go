@@ -10,10 +10,12 @@ import (
 	"testing"
 )
 
-// An error is never a floating toast over the content. A failure is shown where
-// it happened — the row, panel or dialog whose action failed carries the reason
-// and the next step (widgets.Alert), and the raw text goes to the log or the
-// alert's 详情 disclosure.
+// The product has no floating toast layer over the content. A confirmation is
+// shown where the action happened — on its own control, or as a status line in
+// the surface (widgets.AckLive/widgets.AckLine/widgets.StatusLine) — and a
+// failure carries the reason and the next step where it happened
+// (widgets.Alert). The framework's toast primitives stay in third_party/mygo;
+// this guard keeps every app use out of cmd/ and internal/.
 //
 // This list is empty on purpose. A site that cannot drop its toast is a design
 // decision, not an exception here: raise it with the Captain and change the
@@ -70,9 +72,11 @@ func TestNoErrorToast(t *testing.T) {
 	}
 	if len(found) > 0 {
 		sort.Strings(found)
-		t.Fatalf("an error is never a toast: %d site(s) put a failure in the floating layer.\n"+
-			"Fix: render widgets.Alert (internal/ui/widgets/alert.go) in the row, panel or dialog whose action failed, "+
-			"with the reason and the next step, and keep the raw text in the log or the alert's Detail.\n%s",
+		t.Fatalf("the product has no floating toast layer: %d site(s) use it.\n"+
+			"Fix: a confirmation goes on the control that caused it or as a status line "+
+			"(widgets.AckLive/widgets.AckLine/widgets.StatusLine in internal/ui/widgets/ack.go); "+
+			"a failure renders widgets.Alert (internal/ui/widgets/alert.go) in the row, panel or dialog "+
+			"whose action failed, with the reason and the next step.\n%s",
 			len(found), strings.Join(found, "\n"))
 	}
 }
@@ -87,25 +91,35 @@ func TestGuardCatchesEachToastShape(t *testing.T) {
 		body string
 		want string
 	}{
-		{"untyped", "c.AddToast(ui.Toast{ID: \"x\", Title: \"saved\"})\n", "AddToast with no Type"},
-		{"error kind", "c.AddToast(ui.Toast{ID: \"x\", Title: \"broke\", Type: \"error\"})\n", `"error" toast`},
-		{"warning kind", "c.AddToast(ui.Toast{ID: \"x\", Title: \"careful\", Type: \"warning\"})\n", `"warning" toast`},
-		{"computed kind", "c.AddToast(ui.Toast{ID: \"x\", Type: kind})\n", "computed Type"},
-		{"bare toast", "c.Toast(\"broke\")\n", "untyped floating bar"},
-		{"toast action", "c.ToastAction(\"broke\", \"Retry\", retry)\n", "untyped floating bar"},
+		{"untyped", "c.AddToast(ui.Toast{ID: \"x\", Title: \"saved\"})\n", "floating toast layer"},
+		{"error kind", "c.AddToast(ui.Toast{ID: \"x\", Title: \"broke\", Type: \"error\"})\n", "floating toast layer"},
+		{"success kind", "c.AddToast(ui.Toast{ID: \"x\", Title: \"saved\", Type: \"success\"})\n", "floating toast layer"},
+		{"info kind", "c.AddToast(ui.Toast{ID: \"x\", Title: \"why\", Type: \"info\"})\n", "floating toast layer"},
+		{"bare toast", "c.Toast(\"broke\")\n", "floating toast layer"},
+		{"toast action", "c.ToastAction(\"broke\", \"Retry\", retry)\n", "floating toast layer"},
+		{"notice helper", "widgets.Notice(c, \"copied\", ok, func() string { return \"copied\" })\n", "removed with the toast layer"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			found := violations("probe.go", header+tc.body+footer)
-			if len(found) != 1 || !strings.Contains(found[0], tc.want) {
-				t.Fatalf("violations = %q, want one naming %q", found, tc.want)
+			if len(found) == 0 {
+				t.Fatalf("no violations for %q", tc.body)
+			}
+			for _, line := range found {
+				if !strings.Contains(line, tc.want) {
+					t.Fatalf("violations = %q, want each naming %q", found, tc.want)
+				}
 			}
 		})
 	}
+	// AddToast's literal is flagged alongside the call.
+	if found := violations("probe.go", header+"c.AddToast(ui.Toast{ID: \"x\", Type: \"success\"})\n"+footer); len(found) != 2 {
+		t.Fatalf("violations = %q, want the call and the toast literal", found)
+	}
 	for _, body := range []string{
-		"c.AddToast(ui.Toast{ID: \"x\", Title: \"saved\", Type: \"success\"})\n",
-		"c.AddToast(ui.Toast{ID: \"x\", Title: \"why\", Type: \"info\"})\n",
-		"widgets.Notice(c, \"copied\", ok, func() string { return \"copied\" })\n",
+		"widgets.AckLine(c, \"saved\", s.Notice)\n",
+		"widgets.StatusLine(c, \"busy\")\n",
+		"widgets.AckLive(c, \"saved\", s.Notice, widgets.AckDuration)\n",
 	} {
 		if found := violations("probe.go", header+body+footer); len(found) != 0 {
 			t.Fatalf("%q was refused: %q", strings.TrimSpace(body), found)
