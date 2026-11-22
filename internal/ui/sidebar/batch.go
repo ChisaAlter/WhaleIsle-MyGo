@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 var batchChecklistIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M3.75 6.25C4.7165 6.25 5.5 5.4665 5.5 4.5C5.5 3.5335 4.7165 2.75 3.75 2.75C2.7835 2.75 2 3.5335 2 4.5C2 5.4665 2.7835 6.25 3.75 6.25Z"/><path d="M7.5 4.5H13.5"/><path d="M3.75 13.25C4.7165 13.25 5.5 12.4665 5.5 11.5C5.5 10.5335 4.7165 9.75 3.75 9.75C2.7835 9.75 2 10.5335 2 11.5C2 12.4665 2.7835 13.25 3.75 13.25Z"/><path d="M7.5 11.5H13.5"/></svg>`))
@@ -151,6 +152,12 @@ func batchToggle(c *ui.Context, m Model, fg ui.Color) {
 	}
 }
 
+// batchActionIcon draws the 14 DIP leading glyph a SessionSelectionToolbar
+// action carries before its label (SessionSelection.tsx renders size-14 icons).
+func batchActionIcon(icon *ui.SVG, ink ui.Color) func(*ui.Context) {
+	return func(c *ui.Context) { ui.Icon(c, icon).Size(14, 14).TextColor(ink) }
+}
+
 func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if m.OnBatchEdit == nil {
 		return
@@ -160,28 +167,43 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if !b.Enabled {
 		return
 	}
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	// Progress shares the selection count's caption seat, so a running batch
 	// does not push the session list down.
 	count := i18n.WSf(i18n.KeyWSSelectionCount, "n", strconv.Itoa(len(b.Selected)))
 	if b.Busy {
 		count = fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))
 	}
-	ui.Text(c, count).FontSize(theme.InterfaceSize(12)).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
-	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, i18n.T(i18n.KeyWSSelectionAllVisible)).Disabled(locked).Clicked() {
-			m.OnBatchEdit("visible", VisibleBatchTargets(m))
-		}
-		if ui.Button(c, i18n.T(i18n.KeyWSSelectionClear)).Disabled(locked || len(b.Selected) == 0).Clicked() {
-			m.OnBatchEdit("clear", nil)
-		}
+	none := len(b.Selected) == 0
+	dangerInk := chrome.Color(colors.Danger)
+	// --dsw-alias-interactive-bg-hover-danger is error-primary at 5% light and
+	// 15% dark (ui-theme design-platform.css); SessionSelection's .danger is a
+	// label-only tint, so the outline stays border-l3.
+	dangerHover := dangerInk.Alpha(.05)
+	if m.SystemDark {
+		dangerHover = dangerInk.Alpha(.15)
+	}
+	// SessionSelection.module.css .toolbar: an 8 DIP column under 4/4/12
+	// padding; .selectionLine carries the label-primary count and two ghost sm
+	// buttons with padding-inline 8, and .actions shares the row between two
+	// outline sm buttons at flex 1.
+	ui.Column(c).FillWidth().Gap(8).Padding(4, 4, 12, 4).Children(func() {
+		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, count).Grow(1).MinWidth(0).SingleLine().Padding(0, 0, 0, 4).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
+			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionAllVisible), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: locked, PadX: 8}).Clicked() {
+				m.OnBatchEdit("visible", VisibleBatchTargets(m))
+			}
+			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionClear), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: locked || none, PadX: 8}).Clicked() {
+				m.OnBatchEdit("clear", nil)
+			}
+		})
+		ui.Row(c).FillWidth().Gap(8).Children(func() {
+			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionArchive), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: locked || none, Leading: batchActionIcon(menuArchiveArtwork, fg)}).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
+				m.OnBatchRequest("archive")
+			}
+			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionDelete), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: locked || none, Ink: &dangerInk, HoverFill: &dangerHover, Leading: batchActionIcon(menuTrashArtwork, dangerInk)}).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
+				m.OnBatchRequest("delete")
+			}
+		})
 	})
-	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, i18n.T(i18n.KeyWSSelectionArchive)).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
-			m.OnBatchRequest("archive")
-		}
-		if ui.Button(c, i18n.T(i18n.KeyWSSelectionDelete)).Disabled(locked || len(b.Selected) == 0).Clicked() && m.OnBatchRequest != nil {
-			m.OnBatchRequest("delete")
-		}
-	})
-
 }

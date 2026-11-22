@@ -44,6 +44,17 @@ type ButtonSpec struct {
 	// Leading draws an optional glyph before the label, 16 DIP like the
 	// harness icon slot.
 	Leading func(*ui.Context)
+	// PadX, Height, FontSize and LineHeight override the size's metrics for
+	// surfaces that tune the shared recipe (the plugins toolbar's 32 DIP 13px
+	// .addButton, SessionSelection's padding-inline 8); zeros keep defaults.
+	PadX       float32
+	Height     float32
+	FontSize   float32
+	LineHeight float32
+	// Ink overrides the label color (e.g. error-primary on an outlined danger
+	// action); HoverFill overrides the hover/pressed wash.
+	Ink       *ui.Color
+	HoverFill *ui.Color
 }
 
 // buttonRadius is the corner of spec's size from the frame's radius tokens:
@@ -64,6 +75,18 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 	if spec.Size == ButtonSmall {
 		height, padX, fontSize, lineHeight = 28, 10, 12, 18
 	}
+	if spec.PadX > 0 {
+		padX = spec.PadX
+	}
+	if spec.Height > 0 {
+		height = spec.Height
+	}
+	if spec.FontSize > 0 {
+		fontSize = spec.FontSize
+	}
+	if spec.LineHeight > 0 {
+		lineHeight = spec.LineHeight
+	}
 	base, hover, pressed := ui.Transparent, theme.Color(colors.Hover), theme.Color(colors.Pressed)
 	fg := theme.Color(colors.FG)
 	border := ui.Color{}
@@ -81,6 +104,12 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 	case ButtonInfo:
 		base, hover, pressed = theme.Color(colors.ButtonInfoFill), theme.Color(colors.ButtonInfoHover), theme.Color(colors.ButtonInfoHover)
 		fg = theme.Color(colors.ButtonFG)
+	}
+	if spec.Ink != nil {
+		fg = *spec.Ink
+	}
+	if spec.HoverFill != nil {
+		hover, pressed = *spec.HoverFill, *spec.HoverFill
 	}
 	b := ui.ButtonBase(c).Label(label).Height(height).Padding(0, padX).Gap(4).
 		Radius(radius).FontSize(fontSize).FixedLineHeight(lineHeight).FontWeight(500).
