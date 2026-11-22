@@ -4085,6 +4085,18 @@
           },
           "landmarks": [
             {
+              "key": "boot.composer",
+              "probe": true,
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
+              "assert": []
+            },
+            {
               "key": "market.card-1",
               "web": {
                 "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]"
@@ -4238,6 +4250,18 @@
             ]
           },
           "landmarks": [
+            {
+              "key": "boot.composer",
+              "probe": true,
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
+              "assert": []
+            },
             {
               "key": "schedlist.row-1",
               "web": {
@@ -4688,6 +4712,18 @@
             ]
           },
           "landmarks": [
+            {
+              "key": "boot.composer",
+              "probe": true,
+              "web": {
+                "selector": "[role=textbox]"
+              },
+              "native": {
+                "name": "Composer draft",
+                "type": "Edit"
+              },
+              "assert": []
+            },
             {
               "key": "usageempty.title",
               "web": {
