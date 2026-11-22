@@ -34,7 +34,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	ui.Scroll(c.Key("schedule-catalog-scroll")).Label("Task catalog scroll").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.Center).Children(func() {
-			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(1056).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
+			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(960).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
 				ui.Row(c.Key("schedule-heading")).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 24).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
 					if m.OnNewTask != nil {
@@ -296,11 +296,14 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 		height = 37
 	}
 	ui.Row(c.Key("schedule-detail-strip")).Label("Task detail views").FillWidth().MinWidth(0).Height(height).Shrink(0).Padding(0, detailGutter(width)).Gap(12).Border(.5, chrome.Color(colors.Border)).BorderWidth(0, 0, .5, 0).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Grow(1).MinWidth(0).Gap(36).Children(func() {
+		// TaskManagerPage.module.css .detailTabs sits at the strip's bottom edge;
+		// each .detailTab is a 29px box (13px/16 label plus 13px padding below),
+		// its selected rule covering the strip's bottom border.
+		ui.Row(c).Grow(1).MinWidth(0).Height(height).Gap(36).AlignItems(ui.End).Children(func() {
 			var tabs []ui.Element
 			for _, option := range []struct{ id, zh, en string }{{"rule", "规则", "Rules"}, {"records", "任务运行记录", "Records"}} {
 				selected := p.detailTab == option.id || p.detailTab == "" && option.id == "rule"
-				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(height).Padding(0).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13))
+				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(29).Padding(0, 0, 13).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(16))
 				if selected {
 					button.TextColor(chrome.Color(colors.Accent)).FontWeight(500).Border(2, chrome.Color(colors.Accent)).BorderWidth(0, 0, 2, 0)
 				}
