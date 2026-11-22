@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/update"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -65,7 +66,7 @@ func updateCenter(c *ui.Context, m Model, fixedFooter bool) {
 			row := ui.Column(c.Key("release-"+r.PackageKey())).FillWidth().MinWidth(0).Border(1, colBorderL2).Radius(12).Clip()
 			expanded := ui.Local(row, "expanded", func() bool { return false })
 			row.Children(func() {
-				header := ui.Button(c, "").FillWidth().MinWidth(0).Background(colSidebar).BorderWidth(0).Padding(12).Label(r.Tag).Expanded(*expanded)
+				header := ui.Button(c, "").FillWidth().MinWidth(0).Background(chrome.FrostInset(launcherColors, m.SystemDark, colSidebar)).BorderWidth(0).Padding(12).Label(r.Tag).Expanded(*expanded)
 				header.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, r.Tag).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary)

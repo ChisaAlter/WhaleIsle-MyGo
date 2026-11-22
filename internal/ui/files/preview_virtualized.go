@@ -251,7 +251,7 @@ func paintVirtualizedReadOnlySource(c *ui.Context, m Model, path, text string, t
 			SelectionText(textRevision, func(i int) []string { return lines[i : i+1] }).
 			FillHeight().
 			MinHeight(0).
-			Padding(6, 8, 6, 8).
+			Padding(0).
 			Selectable()
 		// PageShortcut deliberately leaves focused selectable text alone.
 		list.Label(label("文件内容", "File content"))
@@ -283,13 +283,13 @@ func paintVirtualizedReadOnlySource(c *ui.Context, m Model, path, text string, t
 			rowEl.Children(func() {
 				ui.Text(rc, fmt.Sprintf("%d", idx+1)).
 					Width(gutterW).Shrink(0).
-					Font(codeFont.Family).FontSize(max(11, codeFont.Size-1)).
+					Font(codeFont.Family).FontSize(max(11, codeFont.Size-1)).FixedLineHeight(codeFont.Size * 3 / 2).
 					TextColor(muted).Unselectable()
 				var txt ui.Element
 				if len(baseSpans) > 0 {
-					txt = ui.RichText(rc, baseSpans...).Label(lineStr).Font(codeFont.Family).FontSize(codeFont.Size).TextColor(fg)
+					txt = ui.RichText(rc, baseSpans...).Label(lineStr).Font(codeFont.Family).FontSize(codeFont.Size).FixedLineHeight(codeFont.Size * 3 / 2).TextColor(fg)
 				} else {
-					txt = ui.Text(rc, lineStr).Font(codeFont.Family).FontSize(codeFont.Size).TextColor(fg)
+					txt = ui.Text(rc, lineStr).Font(codeFont.Family).FontSize(codeFont.Size).FixedLineHeight(codeFont.Size * 3 / 2).TextColor(fg)
 				}
 				if wrap {
 					txt.Grow(1).MinWidth(0)

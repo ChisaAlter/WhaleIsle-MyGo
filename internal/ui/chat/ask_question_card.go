@@ -220,8 +220,8 @@ func askQuestionCardView(c *ui.Context, card askQuestionCard, st ToolCardStyle, 
 		size = 14
 	}
 	line := size + 10
-	root := ui.Column(c.Key("ask-card:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
-		Border(toolCSSHalfBorder(c), borderInk).Radius(16).Background(background).Clip()
+	root := chrome.FrostSurface(ui.Column(c.Key("ask-card:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
+		Border(toolCSSHalfBorder(c), borderInk).Clip(), st.Colors, c.Theme().Dark, background, 16)
 	root.Children(func() {
 		ui.Scroll(c.Key("scroll")).FillWidth().MinWidth(0).MaxHeight(360).Children(func() {
 			list := ui.Column(c.Key("body")).FillWidth().MinWidth(0).Padding(16, 20).Gap(16)

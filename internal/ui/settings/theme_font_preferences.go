@@ -360,7 +360,7 @@ func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, 
 func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string, value, lo, hi float32, open *bool, fg, muted ui.Color) {
 	generalFontRow(c, "general-size-"+role, title, hint, fg, muted, func() {
 		ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(func() {
-			pill := ui.Row(c).Width(88).Height(36).Radius(12).Background(c.Theme().Surface).Center()
+			pill := chrome.FrostSurface(ui.Row(c).Width(88).Height(36), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Center()
 			pill.Children(func() {
 				ui.Text(c, fmt.Sprintf("%.0f", value)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontFeatures("tnum").TextColor(fg)
 				ui.Text(c, " px").FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted)

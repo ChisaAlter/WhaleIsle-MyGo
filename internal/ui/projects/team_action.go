@@ -404,7 +404,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 	card := ui.Column(c.Key("project-member-card:" + member.ID)).FillWidth().MinWidth(0)
 	cardHovered := card.Hovered()
 	card.Children(func() {
-		button := ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+		button := chrome.FrostSurface(ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
 		if !inert {
 			button.Tooltip(tr("查看工作过程", "View work history")).Cursor(ui.CursorPointer)
 		} else {
@@ -472,7 +472,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTask, labels map[string]string) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.Field)).Children(func() {
+	chrome.FrostSurface(ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13), colors, m.SystemDark, chrome.Color(colors.Field), 9).Border(.5, chrome.Color(colors.Border)).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Start).Children(func() {
 			ui.Text(c, task.Subject).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).Children(func() {

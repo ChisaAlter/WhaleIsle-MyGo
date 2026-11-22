@@ -48,7 +48,7 @@ func appearanceChoiceCards(c *ui.Context, key string, value *string, choices [][
 	ui.Row(c.Key(key)).FillWidth().Wrap().Gap(8).Children(func() {
 		for _, choice := range choices {
 			id, label := choice[0], choice[1]
-			button := ui.ButtonBase(c.Key(id)).Label(label).Width(104).MinHeight(68).Padding(10).Radius(12).Border(.5, c.Theme().Border).Background(c.Theme().Surface).Disabled(disabled)
+			button := chrome.FrostSurface(ui.ButtonBase(c.Key(id)).Label(label).Width(104).MinHeight(68).Padding(10), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border).Disabled(disabled)
 			if *value == id {
 				button.Border(2, c.Theme().Accent)
 			}
@@ -103,7 +103,7 @@ func settingsHelpPopover(c *ui.Context, key, label string, body func()) {
 	ui.PopoverBase(c, button, open, func(panel ui.Element) {
 		panelHovered = panel.Hovered() || panel.FocusWithin()
 		vw, vh := c.Size()
-		panel = chrome.PopoverReveal(c, panel.AttachTo(button, ui.AnchorRight, ui.AnchorLeft).Margin(0, 0, 0, 6).Width(min(float32(360), max(float32(0), vw-32))).MaxWidthPercent(90).MaxHeight(max(float32(0), vh-32)).Padding(16).Radius(12).Border(.5, c.Theme().Border).Background(c.Theme().Surface).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .16)))
+		panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.AttachTo(button, ui.AnchorRight, ui.AnchorLeft).Margin(0, 0, 0, 6).Width(min(float32(360), max(float32(0), vw-32))).MaxWidthPercent(90).MaxHeight(max(float32(0), vh-32)).Padding(16), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .16)))
 		panel.Children(func() {
 			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), vh-64)).Gap(10).Children(body)
 		})

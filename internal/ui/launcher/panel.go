@@ -227,7 +227,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 		if width <= 760 {
 			padding = 16
 		}
-		ui.Column(c.Key("home-component-"+row.ID)).MinWidth(0).Background(colSidebar).Border(1, colBorderL2).Radius(12).
+		chrome.FrostSurface(ui.Column(c.Key("home-component-"+row.ID)).MinWidth(0).Border(1, colBorderL2), launcherColors, m.SystemDark, colSidebar, 12).
 			Padding(padding).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Children(func() {
 				componentAvatar(c, row, 36)
@@ -395,7 +395,7 @@ func componentManagement(c *ui.Context, m Model, row components.Row, busy bool) 
 		*open = !*open
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		chrome.PopoverReveal(c, panel.MinWidth(168).Background(colField).Border(1, colBorderL2).Radius(12).Padding(8).Gap(4).
+		chrome.PopoverReveal(c, chrome.FrostSurface(panel.MinWidth(168).Border(1, colBorderL2), launcherColors, m.SystemDark, colField, 12).Padding(8).Gap(4).
 			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0))
 		ui.Text(c, fmt.Sprintf(releaseText("当前 v%s", "Current v%s"), row.InstalledVersion)).
 			FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(6, 10)
@@ -572,7 +572,7 @@ func importPanel(c *ui.Context, m Model) {
 			}
 		})
 
-		ui.Column(c).FillWidth().Background(colBase).Border(1, colBorderL2).Radius(12).
+		chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colBase, 12).
 			Padding(12, 12, 12, 12).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyLauncherImportByDir)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary).Grow(1)
@@ -712,7 +712,7 @@ func importPanel(c *ui.Context, m Model) {
 		}
 		ui.Text(c, scope).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
 		if len(m.ImportJournal) > 0 {
-			ui.Column(c).FillWidth().Background(colBase).Border(1, colBorderL2).
+			chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colBase, 12).
 				Radius(12).Padding(10, 12, 10, 12).Gap(4).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyLauncherImportLog)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(colPrimary).Grow(1)
@@ -738,7 +738,7 @@ func pluginsPanel(c *ui.Context, m Model) {
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
 		startupDiagnosticsPanel(c, m)
 		if !m.VendorReady {
-			ui.Column(c).FillWidth().Background(colSidebar).Border(1, colBorderL2).Radius(12).
+			chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colSidebar, 12).
 				Padding(14, 16, 14, 16).Gap(6).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntime)).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary)
 				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntimeDesc)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
@@ -758,7 +758,7 @@ func pluginsPanel(c *ui.Context, m Model) {
 				recoveryLine += " (" + r + ")"
 			}
 		}
-		ui.Column(c).FillWidth().Background(colField).Border(1, colBorderL2).Radius(12).
+		chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colField, 12).
 			Padding(14, 14, 14, 14).Gap(8).Children(func() {
 			kv(c, i18n.T(i18n.KeyLauncherSkipUserPlugins), recoveryLine)
 			canRestore := m.SkipUserPlugins
@@ -797,7 +797,7 @@ func settingsPanel(c *ui.Context, m Model) {
 				route = "github"
 			}
 			// Electron: white bordered capsule; selected chip is light grey-blue (not white-on-grey).
-			ui.Row(c).Background(colBase).Border(1, colBorderL2).Radius(14).
+			chrome.FrostSurface(ui.Row(c).Border(1, colBorderL2), launcherColors, m.SystemDark, colBase, 14).
 				Padding(2, 2, 2, 2).Gap(0).Children(func() {
 				seg := func(id, label string) {
 					bg := ui.Transparent

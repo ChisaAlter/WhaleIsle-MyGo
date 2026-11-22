@@ -46,8 +46,8 @@ func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette t
 	}
 	title := i18n.T(label)
 	muted, secondary := chrome.Color(palette.Muted), chrome.Color(palette.Secondary)
-	root := ui.Column(c.Key("turn-trigger:"+scope+":"+msg.ID)).FillWidth().MinWidth(0).
-		Border(.5, chrome.Color(palette.BorderL1)).Radius(20).Background(chrome.Color(palette.TriggerBG)).
+	root := chrome.FrostSurface(ui.Column(c.Key("turn-trigger:"+scope+":"+msg.ID)).FillWidth().MinWidth(0).
+		Border(.5, chrome.Color(palette.BorderL1)), palette, c.Theme().Dark, chrome.Color(palette.TriggerBG), 20).
 		Transition(ui.ElementTransition{Colors: true, Duration: 100 * time.Millisecond, Ease: contextColorEase})
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {

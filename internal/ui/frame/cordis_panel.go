@@ -124,9 +124,9 @@ func CordisPanelView(c *ui.Context, m CordisPanelModel) {
 			return
 		}
 
-		ui.Column(c.Key("cordis-panel-body")).
+		chrome.FrostSurface(ui.Column(c.Key("cordis-panel-body")).
 			Label(chat.CordisLocale("panel.plugins.aria")).
-			FillWidth().Padding(10, 12).Gap(8).Radius(10).Border(0.5, border).Background(chrome.Color(colors.BG)).
+			FillWidth().Padding(10, 12).Gap(8).Border(0.5, border), colors, m.SystemDark, chrome.Color(colors.BG), 10).
 			Children(func() {
 				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {
 					ui.Text(c, chat.CordisLocale("panel.title")).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
@@ -145,7 +145,7 @@ func CordisPanelView(c *ui.Context, m CordisPanelModel) {
 					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, chat.CordisLocale("panel.retryAvailable")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						if ui.Button(c.Key("cordis-retry-inventory"), chat.CordisLocale("action.retry")).
-							Height(24).Padding(0, 8).Radius(4).Border(0.5, border).Background(field).
+							Height(24).Padding(0, 8).Radius(4).Border(0.5, border).Background(chrome.FrostInset(colors, m.SystemDark, field)).
 							FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() && m.OnRetryInventory != nil {
 							m.OnRetryInventory()
 						}
@@ -168,7 +168,7 @@ func CordisPanelView(c *ui.Context, m CordisPanelModel) {
 					ui.Text(c, title).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(muted)
 					for _, item := range items {
 						row := item
-						ui.Column(c.Key("cordis-plugin:"+row.ID)).FillWidth().Padding(8, 10).Gap(4).Radius(8).Border(0.5, border).Background(field).Children(func() {
+						ui.Column(c.Key("cordis-plugin:"+row.ID)).FillWidth().Padding(8, 10).Gap(4).Radius(8).Border(0.5, border).Background(chrome.FrostInset(colors, m.SystemDark, field)).Children(func() {
 							ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(6).Children(func() {
 								name := strings.TrimSpace(row.Name)
 								if name == "" {
@@ -272,7 +272,7 @@ func CordisDefineCardView(c *ui.Context, m CordisDefineCardModel) {
 		a11y = chat.CordisLocale("a11y.stopped")
 	}
 
-	ui.Column(c.Key("cordis-define-card:"+m.Name)).Label(a11y).FillWidth().Padding(10, 12).Gap(6).Radius(8).Border(0.5, border).Background(field).Children(func() {
+	chrome.FrostSurface(ui.Column(c.Key("cordis-define-card:"+m.Name)).Label(a11y).FillWidth().Padding(10, 12).Gap(6).Border(0.5, border), colors, m.SystemDark, field, 8).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(6).Children(func() {
 			ui.Text(c, title).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(fg).Grow(1)
 			ui.Text(c, a11y).FontSize(theme.InterfaceSize(11)).TextColor(muted)

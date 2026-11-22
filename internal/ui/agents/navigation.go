@@ -23,7 +23,7 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 	v := m.Store.SyncAgentNavigation(snap.PlanHistoryBinding)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
-	root := ui.Column(c.Key(fmt.Sprintf("agents-navigation-root:%p:%d:%s:%s:%s", m.Store, v.Token, v.Address.ParentSessionID, v.Address.ChildSessionID, v.Address.Mode))).Fill().MinHeight(0).Background(chrome.Color(colors.Field))
+	root := chrome.FrostSurface(ui.Column(c.Key(fmt.Sprintf("agents-navigation-root:%p:%d:%s:%s:%s", m.Store, v.Token, v.Address.ParentSessionID, v.Address.ChildSessionID, v.Address.Mode))).Fill().MinHeight(0), colors, m.SystemDark, chrome.Color(colors.Field), 0)
 	if m.ChildDraft != nil && v.Address.Mode == "continuable" {
 		if draft := m.ChildDraft(snap.PlanHistoryBinding, v.Address); draft != nil && draft.Client != nil {
 			composer.BindStopRegion(root, draft.Client, childStopModel(m, v, draft), true)
@@ -34,46 +34,40 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 	read := m.Store.CaptureAgentAttachmentRead(v.Token, v.Address)
 	chat.WithAttachmentRead(read, func() {
 		root.Children(func() {
-			ui.Row(c).FillWidth().MinHeight(36).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-				title := i18n.T(i18n.KeyAgentsTitle)
-				if m.ChatOnly {
-					title = v.Title
-				}
-				ui.Text(c, title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
-				var running []session.AgentSessionAddress
-				if m.ChatOnly {
+			// The catalog seat paints like the original agents surface: no
+			// header chrome — the pane's tab and ⋯ menu carry close and the
+			// MyGo-only actions. A single-child pane keeps its title,
+			// interrupt and close.
+			if m.ChatOnly {
+				ui.Row(c).FillWidth().MinHeight(36).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, v.Title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
+					var running []session.AgentSessionAddress
 					for _, item := range snap.Items {
 						if item.SessionID == v.Address.ChildSessionID && item.Running {
 							running = append(running, v.Address)
 						}
 					}
-				}
-				for _, row := range v.Rows {
-					if !m.ChatOnly && row.CanOpen() && row.Running {
-						running = append(running, row.Address)
+					if len(running) > 0 && ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
+						Background(ui.RGBA(0xef, 0x44, 0x44, 0.1)).TextColor(ui.RGB(0xef, 0x44, 0x44)).
+						FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(v.ActionBusy || (v.RetainedReadOnly && !v.RetainedPromptAllowed)).Clicked() {
+						if v.RetainedReadOnly {
+							m.Store.InterruptRetainedAgentExplicit(v.Token, v.Address)
+						} else {
+							m.Store.InterruptAgentNavigation(v.Token, running)
+						}
 					}
-				}
-				interruptLabel := i18n.T(i18n.KeyAgentsInterruptAll)
-				if m.ChatOnly {
-					interruptLabel = i18n.T(i18n.KeyAgentsInterrupt)
-				}
-				if len(running) > 0 && ui.Button(c, interruptLabel).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
-					Background(ui.RGBA(0xef, 0x44, 0x44, 0.1)).TextColor(ui.RGB(0xef, 0x44, 0x44)).
-					FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(v.ActionBusy || (v.RetainedReadOnly && !(m.ChatOnly && v.RetainedPromptAllowed))).Clicked() {
-					if m.ChatOnly && v.RetainedReadOnly {
-						m.Store.InterruptRetainedAgentExplicit(v.Token, v.Address)
-					} else {
-						m.Store.InterruptAgentNavigation(v.Token, running)
+					if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAgentsClose)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+						m.Store.CloseAgentNavigation()
+						m.OnClose()
 					}
-				}
-				if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyAgentsClose)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
-					m.Store.CloseAgentNavigation()
-					m.OnClose()
-				}
-			})
-			ui.Box(c).FillWidth().Height(0.5).Background(border)
-			if m.Manager != nil {
+				})
+				ui.Box(c).FillWidth().Height(0.5).Background(border)
+			}
+			// Agent preset management stays a pane ⋯ action instead of a fixed
+			// block over the directory.
+			if m.Manager != nil && m.PresetManagerOpen != nil && *m.PresetManagerOpen {
 				presetManagerView(c, m.Manager, fg, muted)
+				ui.Box(c).FillWidth().Height(0.5).Background(border)
 			}
 			if v.SessionID == "" {
 				ui.Text(c, agentText("等待当前会话连接…", "Waiting for the current session…")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(10, 12)

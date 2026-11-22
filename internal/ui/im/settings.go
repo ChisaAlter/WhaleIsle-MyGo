@@ -55,7 +55,7 @@ func SettingsView(c *ui.Context, m Model) {
 				}
 				selected := v.Channel == id && !office.Open || id == "office" && office.Open
 				if selected {
-					button = button.Background(chrome.Color(colors.Field)).TextColor(fg)
+					button = button.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).TextColor(fg)
 				} else {
 					button = button.Background(ui.Transparent).TextColor(muted)
 				}

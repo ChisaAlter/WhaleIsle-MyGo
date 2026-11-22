@@ -4,7 +4,9 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // SidebarResponsive mirrors AppFrame's desktop 1024px breakpoint and the phone
@@ -252,7 +254,7 @@ func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), vi
 			// AppFrame .phoneMenu: the only way back into navigation once the
 			// drawer has left the grid.
 			open := ui.ButtonBase(c.Key("sidebar-drawer-open")).Absolute().Left(10).Top(10).Size(36, 36).
-				Radius(10).Padding(0).BorderWidth(0).Background(c.Theme().Surface).
+				Radius(10).Padding(0).BorderWidth(0).Background(chrome.FrostInset(theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface)).
 				Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, .14)).Center().
 				Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand))
 			open.Children(func() { ui.Icon(c, drawerMenuArtwork).Size(18, 18).TextColor(c.Theme().Text) })

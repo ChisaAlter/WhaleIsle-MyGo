@@ -150,7 +150,7 @@ func installRegistryToggle(c *ui.Context, i manager.InstallState, chosen string,
 	t := c.Theme()
 	open := i.RegistryOpen && i.Phase == "idle"
 	chip := ui.Button(c, "").Shrink(0).Height(28).Padding(0, 8, 0, 10).Gap(6).Radius(10).
-		Border(.5, t.Border).Background(t.Surface).AlignItems(ui.Center).Disabled(disabled).
+		Border(.5, t.Border).Background(chrome.FrostInset(theme.ResolveWithSystem(theme.IDSystem, t.Dark).Active(t.Dark), t.Dark, t.Surface)).AlignItems(ui.Center).Disabled(disabled).
 		Label(copyText("安装源", "Registry") + " " + chosen)
 	if open {
 		chip.Background(t.SurfaceHover)
@@ -187,8 +187,8 @@ func installGuidePanel(c *ui.Context, i manager.InstallState, a manager.Actions,
 	if !open {
 		return
 	}
-	ui.Column(c).FillWidth().Shrink(0).Gap(2).Padding(8, 14).Radius(16).
-		Border(.5, chrome.Color(colors.BorderL4)).Background(chrome.Color(colors.Field)).Children(func() {
+	chrome.FrostSurface(ui.Column(c).FillWidth().Shrink(0).Gap(2).Padding(8, 14), colors, c.Theme().Dark, chrome.Color(colors.Field), 16).
+		Border(.5, chrome.Color(colors.BorderL4)).Children(func() {
 		installGuideItem(c, i, a, colors)
 	})
 	if strings.TrimSpace(i.Spec) == "" && i.MirrorRecovery {
@@ -235,7 +235,7 @@ func installRegistryPanel(c *ui.Context, anchor ui.Element, i manager.InstallSta
 	shown := open
 	w, _ := c.Size()
 	ui.PopoverBase(c.Key("plugin-install-registry-options"), anchor, &open, func(panel ui.Element) {
-		chrome.PopoverReveal(c, panel.Width(max(0, min(float32(420), w-64))).Padding(12).Gap(6).Role(ui.RoleDialog).Label(copyText("安装源", "Installation registry")).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8)).Children(func() {
+		chrome.PopoverReveal(c, chrome.FrostSurface(panel.Width(max(0, min(float32(420), w-64))).Padding(12).Gap(6).Role(ui.RoleDialog).Label(copyText("安装源", "Installation registry")).Border(.5, c.Theme().Border), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background, 8)).Children(func() {
 			for _, registry := range manager.OfferedRegistries(i.RegistryInfo) {
 				selected := i.RegistrySelection.Kind != "custom" && (registry == nil && i.RegistrySelection.Registry == nil || registry != nil && i.RegistrySelection.Registry != nil && *registry == *i.RegistrySelection.Registry)
 				label := registryName(registry, resolved)

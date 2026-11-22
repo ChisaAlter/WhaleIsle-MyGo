@@ -309,7 +309,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		ui.Text(c, d.Err).TextColor(accent)
 	}
 	query := d.Query
-	ui.TextInput(c, &query).FillWidth().Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
+	ui.TextInput(c, &query).FillWidth().Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
 	catalogCategories(c, m, d, fg, muted, field, border)
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSort), "Sort")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -356,7 +356,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		if d.NativeCompatibleOnly {
 			nativePill.Border(.5, accent).Background(activeBg).TextColor(accent)
 		} else {
-			nativePill.Border(.5, border).Background(field).TextColor(muted)
+			nativePill.Border(.5, border).Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).TextColor(muted)
 		}
 		if nativePill.Clicked() && !d.NativeCompatibleOnly {
 			m.Store.SetNativeCompatibleOnly(true)
@@ -367,7 +367,7 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 		if !d.NativeCompatibleOnly {
 			allPill.Border(.5, accent).Background(activeBg).TextColor(accent)
 		} else {
-			allPill.Border(.5, border).Background(field).TextColor(muted)
+			allPill.Border(.5, border).Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).TextColor(muted)
 		}
 		if allPill.Clicked() && d.NativeCompatibleOnly {
 			m.Store.SetNativeCompatibleOnly(false)
@@ -453,7 +453,7 @@ func installSection(c *ui.Context, m Model, fg, muted, field, border, accent ui.
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			if m.InstallSpec != nil {
-				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Height(32).Radius(8).Border(.5, border).Background(field).Padding(0, 10).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder)).Disabled(m.InstallBusy || m.NeedsAllowBuilds)
+				ui.TextInput(c, m.InstallSpec).Grow(1).MinWidth(0).Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).Padding(0, 10).Placeholder(i18n.T(i18n.KeyMarketInstallPlaceholder)).Disabled(m.InstallBusy || m.NeedsAllowBuilds)
 			}
 			if !m.InstallBusy {
 				install := ui.Button(c, btnLabel).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Shrink(0).Disabled(spec == "" || !m.InstallReady || m.OnInstallSpec == nil)

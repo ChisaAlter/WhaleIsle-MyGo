@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -143,7 +144,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 		struct{ label, value string }{i18n.T(i18n.KeyRemoteMobileDevices), strconv.Itoa(snap.DeviceCount)},
 	)
 
-	ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(10, 12, 10, 12).Gap(8), colors, m.SystemDark, field, 8).Children(func() {
 		for _, row := range rows {
 			ui.Row(c).Gap(12).Children(func() {
 				ui.Text(c, row.label).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Width(160)
@@ -156,7 +157,7 @@ func viewPhoneSection(c *ui.Context, m Model, fg, muted, field, border, accent u
 
 	ui.Text(c, i18n.T(i18n.KeyRemotePhoneConnectURL)).FontSize(fonttheme.InterfaceSize(12)).Bold().TextColor(fg)
 	if snap.ConnectURL != "" {
-		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(6).Children(func() {
+		chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(10, 12, 10, 12).Gap(6), colors, m.SystemDark, field, 8).Children(func() {
 			ui.Text(c, snap.ConnectURL).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		})
 	} else {

@@ -54,6 +54,11 @@ type Style struct {
 	// inner fills then go transparent, so setting it is pixel-identical without
 	// a backdrop.
 	CodeSurface func(e ui.Element, radius float32) ui.Element
+	// InlineCodeBG fills inline-code chips; zero resolves the skin's
+	// --dsw-alias-markdown-inline-code token (InlineCodeBase). Callers wrap
+	// that base in chrome.FrostInset so an opaque token frosts over a live
+	// backdrop instead of boxing the text.
+	InlineCodeBG ui.Color
 	// Dark selects the dark syntax palette. A light palette on a dark
 	// transcript renders unreadable tokens; the Original follows the theme.
 	Dark bool
@@ -813,12 +818,19 @@ func appendInline(n ast.Node, src string, st Style, out *[]ui.Span, mutators ...
 }
 
 func codeSpan(text string, st Style) ui.Span {
+	// Original `.markdown :not(pre) > code`: a chip of the inline-code fill
+	// with a 0.5 border-l1 stroke, radius sm and a 5px inset either side,
+	// the code font one step under the body.
 	return ui.Span{
-		Text:       text,
-		Size:       InlineCodeSize(st),
-		Color:      st.FG,
-		Background: st.CodeBG,
-		Font:       theme.RenderPreferences().Code.Family,
+		Text:             text,
+		Size:             InlineCodeSize(st),
+		Color:            st.FG,
+		Background:       inlineCodeFill(st),
+		BackgroundRadius: inlineCodeRadius(st),
+		BackgroundBorder: inlineCodeBorder(st),
+		BackgroundPadX:   5,
+		BackgroundInsetY: inlineCodeInsetY(st),
+		Font:             theme.RenderPreferences().Code.Family,
 	}
 }
 

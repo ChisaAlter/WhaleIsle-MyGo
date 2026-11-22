@@ -47,9 +47,15 @@ func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Colo
 		mask = ui.RGBA(0, 0, 0, .5)
 	}
 	RevealMask(backdrop, mask, progress)
-	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip().Opacity(progress).
-		Background(bg).
-		Draw(Glass(bg, MaterialPanel, box.Radius))
+	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip().Opacity(progress)
+	if backgroundState.active {
+		// Raised dialogs frost like the shell's menus over a live backdrop;
+		// the colors are only consulted for the flat dark token, which the
+		// active path never reaches.
+		panel.Background(ui.Transparent).Draw(Glass(MenuBaseFill(theme.Colors{}, c.Theme().Dark), MaterialMenu, box.Radius))
+	} else {
+		panel.Background(bg).Draw(Glass(bg, MaterialPanel, box.Radius))
+	}
 	if box.Height > 0 {
 		panel.Height(box.Height).MaxHeightPercent(94)
 	}

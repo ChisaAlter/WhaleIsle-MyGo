@@ -9,7 +9,7 @@ import (
 // bodyCard follows the settings feature cards, independently of the navigation shell.
 func bodyCard(c *ui.Context, m Model, content func()) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(14, 16).Border(0.5, chrome.Color(colors.Border).Alpha(0.45)).Radius(12).Background(chrome.Color(colors.Field)).Children(content)
+	chrome.FrostSurface(ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(14, 16), colors, m.SystemDark, chrome.Color(colors.Field), 12).Border(0.5, chrome.Color(colors.Border).Alpha(0.45)).Children(content)
 }
 
 // bodyRosterRow keeps metadata above actions at narrow widths without a fixed label column.

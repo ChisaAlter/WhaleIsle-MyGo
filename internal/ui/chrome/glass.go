@@ -11,6 +11,7 @@ import (
 
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Material names one layer of the shell's glass. Each layer keeps the
@@ -382,6 +383,8 @@ func FrostSurface(e ui.Element, colors theme.Colors, dark bool, base ui.Color, r
 // an input, a selected tab, a chip: over a live backdrop it is the translucent
 // hover wash so the parent's frost still shows through, never a second frosted
 // fill. With no backdrop it keeps base so no-wallpaper pixels do not change.
+func init() { widgets.SurfaceDresser = FrostSurface }
+
 func FrostInset(colors theme.Colors, dark bool, base ui.Color) ui.Color {
 	if backgroundState.active {
 		return Color(colors.Hover)

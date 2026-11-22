@@ -124,7 +124,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 									borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
 									borderWidth = 1
 								}
-								button := ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Radius(theme.ContextRadii(c).SM).Border(borderWidth, borderColor).Background(chrome.Color(colors.Field))
+								button := chrome.FrostSurface(ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
 								if !inert {
 									button.Tooltip(tr("打开成员会话", "Open member conversation")).Cursor(ui.CursorPointer)
 								} else {
@@ -199,7 +199,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 						continue
 					}
 					task := task
-					row := ui.Column(c.Key("team-task:"+task.ID)).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Border(.5, chrome.Color(colors.Border)).Background(chrome.Color(colors.Field))
+					row := chrome.FrostSurface(ui.Column(c.Key("team-task:"+task.ID)).FillWidth().MinWidth(0).Gap(6).Padding(11, 13), colors, m.SystemDark, chrome.Color(colors.Field), 9).Border(.5, chrome.Color(colors.Border))
 					expanded := ui.Local(row, "expanded", func() bool { return false })
 					if m.State != nil {
 						*expanded = m.State.Expanded[task.ID]

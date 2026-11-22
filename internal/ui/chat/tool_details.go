@@ -42,8 +42,8 @@ func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, k
 		itemEnd = 88
 	}
 	font := theme.RenderPreferences().Interface.Family
-	card := ui.Column(c.Key("tool-details:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
-		Border(border, borderInk).Radius(16).Background(background).Clip().Selectable()
+	card := chrome.FrostSurface(ui.Column(c.Key("tool-details:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
+		Border(border, borderInk).Clip().Selectable(), st.Colors, c.Theme().Dark, background, 16)
 	card.Children(func() {
 		if model.Caption != "" {
 			end := float32(14)

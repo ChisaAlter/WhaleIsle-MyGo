@@ -109,7 +109,7 @@ func View(c *ui.Context, m Model) {
 					{i18n.T(i18n.KeyIMGeneratedRPC), rpcLabel(snap.HasIMRPC, len(snap.Methods))},
 					{i18n.T(i18n.KeyIMBridge), bridgeLabel(snap.BridgeMode)},
 				}
-				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
+				chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(10, 12, 10, 12).Gap(8), colors, m.SystemDark, field, 8).Children(func() {
 					for _, row := range rows {
 						ui.Row(c).Gap(12).Children(func() {
 							ui.Text(c, row.label).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(160)
@@ -152,8 +152,8 @@ func View(c *ui.Context, m Model) {
 							ui.Text(c, i18n.T(i18n.KeyIMListEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 						}
 					} else {
-						ui.Column(c).Fill().MinHeight(0).Background(field).Border(1, border).Radius(8).
-							Padding(8, 10, 8, 10).Gap(4).Children(func() {
+						chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0).Border(1, border).
+							Padding(8, 10, 8, 10).Gap(4), colors, m.SystemDark, field, 8).Children(func() {
 							for _, row := range snap.Rows {
 								entry := row
 								id := entry.ID
@@ -241,8 +241,8 @@ func View(c *ui.Context, m Model) {
 					} else if len(snap.Messages) == 0 {
 						ui.Text(c, i18n.T(i18n.KeyIMHistoryEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					} else {
-						ui.Column(c).Fill().MinHeight(0).Background(field).Border(1, border).Radius(8).
-							Padding(8, 10, 8, 10).Gap(6).Children(func() {
+						chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0).Border(1, border).
+							Padding(8, 10, 8, 10).Gap(6), colors, m.SystemDark, field, 8).Children(func() {
 							for _, msg := range snap.Messages {
 								entry := msg
 								prefix := i18n.T(i18n.KeyIMYou)

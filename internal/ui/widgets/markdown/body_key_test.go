@@ -134,10 +134,14 @@ func TestResolveRevisionInvalidatesCachedFileTargets(t *testing.T) {
 			rev++
 			tt.Frame()
 
-			box, ok = tt.Find("report.md")
-			if !ok {
+			// The resolved code chip keeps its exact text, so the body's
+			// aggregating parent matches Find first; the innermost match is
+			// the link element itself.
+			matches := tt.FindAll("report.md")
+			if len(matches) == 0 {
 				t.Fatalf("expected resolved link text; texts=%v", tt.Texts())
 			}
+			box = matches[len(matches)-1]
 			tt.ClickAt(box.X+box.W/2, box.Y+box.H/2)
 			if opened != "/workspace/report.md" {
 				t.Fatalf("expected resolved file click after ResolveRevision bump, got %q", opened)

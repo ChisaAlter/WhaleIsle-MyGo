@@ -231,7 +231,7 @@ func CaptionActivity(c *ui.Context, m Model) {
 	width, height := c.Size()
 	if w.Progress != nil {
 		ui.Overlay(c.Key("caption-branch-progress"), func() {
-			ui.Column(c).Absolute().Bottom(24).Right(24).Width(max(0, min(float32(440), width-48))).MaxHeight(max(0, height-80)).Padding(12).Gap(6).Background(c.Theme().Background).Border(.5, c.Theme().Border).Radius(8).Children(func() {
+			ui.Column(c).Absolute().Bottom(24).Right(24).Width(max(0, min(float32(440), width-48))).MaxHeight(max(0, height-80)).Padding(12).Gap(6).Background(chrome.FrostInset(fonttheme.ResolveWithSystem(fonttheme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background)).Border(.5, c.Theme().Border).Radius(8).Children(func() {
 				DrawGitProgress(c, w.Progress, c.Theme().Text, c.Theme().TextMuted, func() { w.Progress = nil })
 			})
 		})

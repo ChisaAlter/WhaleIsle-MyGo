@@ -62,7 +62,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 				})
 			})
 			parts.Popup(func(panel ui.Element) {
-				panel.MinWidth(120).Padding(3).Background(chrome.Color(colors.Field)).Border(.5, border).Radius(4)
+				chrome.FrostSurface(panel.MinWidth(120).Padding(3).Border(.5, border), colors, c.Theme().Dark, chrome.Color(colors.Field), 4)
 				for _, item := range []struct{ key, label string }{{"session-log", paneLabel("原始数据", "Raw Log")}, {"chat-node", paneLabel("对话分组", "Chat Group")}} {
 					option := parts.Item(item.key).Label(item.label).Padding(4, 6).Cursor(ui.CursorPointer)
 					if option.Highlighted() {
@@ -273,7 +273,7 @@ func inspectorCell(c *ui.Context, width float32) ui.Element {
 }
 
 func inspectorTableHeader(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, width float32, colors theme.Colors) {
-	ui.Row(c.Key("inspector-table-header")).Role(ui.RoleRow).Label("Inspector table header").FillWidth().Height(inspectorRowHeight).Shrink(0).FontWeight(700).Background(chrome.Color(colors.Field)).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1)).Children(func() {
+	ui.Row(c.Key("inspector-table-header")).Role(ui.RoleRow).Label("Inspector table header").FillWidth().Height(inspectorRowHeight).Shrink(0).FontWeight(700).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field))).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1)).Children(func() {
 		inspectorCell(c, 64).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, paneLabel("序号", "ID")).Tooltip(paneLabel("序号", "Index")) })
 		inspectorCell(c, 190).Role(ui.RoleColumnHeader).Gap(6).Children(func() { inspectorText(c, paneLabel("类型", "Type")); inspectorTypeFilter(c, p, rows) })
 		inspectorCell(c, 65).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, "T/S") })
@@ -299,7 +299,7 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 		container.Background(chrome.Color(colors.Hover))
 	}
 	if sticky {
-		container.Background(chrome.Color(colors.Field))
+		container.Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field)))
 		if p.selected == row.Key {
 			ink = chrome.Color(colors.Accent)
 		}

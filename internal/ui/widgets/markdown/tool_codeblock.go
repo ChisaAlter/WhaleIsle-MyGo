@@ -18,7 +18,7 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 	if languageInk.A == 0 {
 		languageInk = st.Muted
 	}
-	root := ui.Column(c.Key("code-card")).MinWidth(0).Shrink(0).Radius(16)
+	root := ui.Column(c.Key("code-card")).MinWidth(0).Shrink(0).Radius(16).Clip()
 	if st.CodeSurface != nil {
 		root = st.CodeSurface(root, 16)
 	} else {
@@ -54,8 +54,18 @@ func ToolCodeBlock(c *ui.Context, language, code string, st Style, scrollY float
 		if bounds.H > 0 {
 			top = min(top, max(float32(0), bounds.H-42))
 		}
-		ui.Row(c.Key("banner")).Absolute().Top(top).Left(0).Right(0).Height(42).Padding(10, 18, 8, 22).
-			Gap(12).AlignItems(ui.Center).Background(st.CodeBG).Radius(16, 16, 0, 0).Label(codeLabel(st)).Children(func() {
+		banner := ui.Row(c.Key("banner")).Absolute().Top(top).Left(0).Right(0).Height(42).Padding(10, 18, 8, 22).
+			Gap(12).AlignItems(ui.Center).Radius(16, 16, 0, 0).Label(codeLabel(st))
+		// The sticky banner keeps a fill so the scrolling source cannot show
+		// through: frosted like the card when the caller dresses surfaces —
+		// square corners are fine, the card's clip shapes the top — else the
+		// card fill it always painted.
+		if st.CodeSurface != nil {
+			banner = st.CodeSurface(banner, 0)
+		} else {
+			banner = banner.Background(st.CodeBG)
+		}
+		banner.Children(func() {
 			ui.Text(c, language).Font(font).FontSize(11).FixedLineHeight(18).TextColor(languageInk).NoWrap().Grow(1).MinWidth(0)
 			ui.Row(c).Gap(4).Shrink(0).Children(func() {
 				wrapLabel, unwrapLabel := codeWrapLabels(st)

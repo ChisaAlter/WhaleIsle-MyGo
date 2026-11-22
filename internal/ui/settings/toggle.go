@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -80,7 +81,7 @@ func settingsSegmented(c *ui.Context, key string, labels []string, active int, d
 				BorderWidth(0).Background(ui.Transparent).Disabled(disabled).
 				AlignItems(ui.Center).Justify(ui.Center)
 			if i == active {
-				segment.Background(c.Theme().Surface)
+				segment.Background(chrome.FrostInset(theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface))
 			}
 			segment.Children(func() {
 				ui.Text(c, caption).FontSize(13).TextColor(c.Theme().Text)

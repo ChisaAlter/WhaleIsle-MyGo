@@ -57,7 +57,7 @@ func effectBeamPaletteColors(raw json.RawMessage) []string {
 }
 
 func settingsEffectPreview(c *ui.Context, style json.RawMessage, typing bool) {
-	box := ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12).Radius(16).Background(c.Theme().Surface)
+	box := chrome.FrostSurface(ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 16)
 	if typing {
 		box.MinHeight(86).Children(func() {
 			ui.Text(c, providerCopy("输入特效", "Typing effects")).FontSize(14).Padding(16).TextColor(c.Theme().Text)

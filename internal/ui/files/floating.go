@@ -115,7 +115,7 @@ func (f *floatingPreview) view(c *ui.Context) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	border := chrome.Color(colors.Border)
 	m := Model{Tabs: &f.tabs, WorkspaceRoot: f.snapshot.Root, SelectedFile: &f.snapshot.Path, Preview: &f.snapshot.Text, EditDraft: &f.snapshot.Text, ThemeID: f.themeID, SystemDark: dark, ReadImageContext: f.readImage, notify: c.Invalidate}
-	ui.Column(c).Fill().MinHeight(0).Background(chrome.Color(colors.BG)).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0), colors, m.SystemDark, chrome.Color(colors.BG), 0).Children(func() {
 		ui.Row(c).FillWidth().MinHeight(36).AlignItems(ui.Center).Wrap().Gap(6).Padding(4, 12).
 			DrawOver(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 0.5, W: r.W, H: 0.5}, border, 0) }).
 			Children(func() {

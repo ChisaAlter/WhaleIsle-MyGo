@@ -55,7 +55,7 @@ func paintPresetIntroduction(c *ui.Context, m Model, caption string, fg ui.Color
 		}
 		ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) {
 			size := (0.5 + 0.5*iconProgress) * 16
-			p.Icon(presetAgentIcon, ui.Rect{X: r.X + (r.W-size)/2, Y: r.Y + (r.H-size)/2, W: size, H: size}, fg.Alpha(iconProgress))
+			p.Icon(PresetAgentIcon, ui.Rect{X: r.X + (r.W-size)/2, Y: r.Y + (r.H-size)/2, W: size, H: size}, fg.Alpha(iconProgress))
 		})
 		label := ui.Text(c, caption).Grow(1).MinWidth(0).SingleLine().Font(font.Family).FontSize(font.Size).FontWeight(font.Weight).TextColor(fg)
 		if animating {

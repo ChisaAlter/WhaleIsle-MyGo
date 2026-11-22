@@ -73,7 +73,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 						}
 					}
 				})
-				ui.Row(c.Key("schedule-search-field")).FillWidth().MinWidth(0).Height(36).Padding(0, 10).Gap(6).Border(.5, chrome.Color(colors.Border)).Radius(12).Background(chrome.Color(colors.Field)).AlignItems(ui.Center).Children(func() {
+				chrome.FrostSurface(ui.Row(c.Key("schedule-search-field")).FillWidth().MinWidth(0).Height(36).Padding(0, 10).Gap(6), colors, m.SystemDark, chrome.Color(colors.Field), 12).Border(.5, chrome.Color(colors.Border)).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, scheduleIcons["search"]).Size(14, 14).TextColor(muted).Shrink(0)
 					ui.TextInputBase(c.Key("schedule-search"), &p.query).Label("Search tasks").Placeholder(scheduleText("搜索自动化任务", "Search automation tasks")).Grow(1).MinWidth(0).Height(24).FontSize(theme.InterfaceSize(13)).TextColor(fg)
 					if p.query != "" && scheduleIconButton(c, "schedule-search-clear", "Clear search", "close", muted).Clicked() {
@@ -234,13 +234,13 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 					})
 					ui.Box(c).Height(16)
 					if d.row.Status == "inactive" {
-						promptCard := ui.Column(c).FillWidth().MinWidth(0).Padding(12).Radius(16).Background(chrome.Color(colors.Field))
+						promptCard := chrome.FrostSurface(ui.Column(c).FillWidth().MinWidth(0).Padding(12), colors, m.SystemDark, chrome.Color(colors.Field), 16)
 						// The prompt is the installed quiet field, not an elevated card.
 						promptCard.Children(func() {
 							ui.Text(c, d.Prompt).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(24)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
 						})
 					} else {
-						ui.TextArea(c.Key("schedule-task-instruction"), &d.Prompt).Label("Automation task instruction").FillWidth().MinWidth(0).Height(112).MaxHeight(160).Padding(12).BorderWidth(0).Radius(16).Background(chrome.Color(colors.Field)).FontSize(theme.InterfaceSize(14)).TextColor(fg).Disabled(!editable)
+						chrome.FrostSurface(ui.TextArea(c.Key("schedule-task-instruction"), &d.Prompt).Label("Automation task instruction").FillWidth().MinWidth(0).Height(112).MaxHeight(160).Padding(12).BorderWidth(0), colors, m.SystemDark, chrome.Color(colors.Field), 16).FontSize(theme.InterfaceSize(14)).TextColor(fg).Disabled(!editable)
 					}
 					ui.Box(c).Height(20)
 					ui.Text(c, scheduleText("运行时间", "Run time")).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(muted)
@@ -377,7 +377,7 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 		// between the content column and the footer, 24px below it. The header
 		// pads 22/14/12/24, the description and body share 24px side pads, and
 		// the body lands 20px under the description.
-		panel.Label("Delete this task?").Width(380).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(theme.ContextRadii(c).Panel).Padding(0, 0, 24).Children(func() {
+		chrome.FrostSurface(panel.Label("Delete this task?").Width(380).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)), colors, m.SystemDark, chrome.Color(colors.BG), theme.ContextRadii(c).Panel).Padding(0, 0, 24).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
 				ui.Column(c.Key("schedule-delete-content")).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).AlignItems(ui.Center).Children(func() {

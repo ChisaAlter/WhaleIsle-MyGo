@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
 // SettingsEffectPreview uses the shipped native painters and an isolated draft.
 // It has no session, submission, attachment, or Host callbacks.
 func SettingsEffectPreview(c *ui.Context, style json.RawMessage, typing bool) {
-	box := ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12).Radius(16).Background(c.Theme().Surface)
+	box := chrome.FrostSurface(ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 16)
 	reducedMotion := c.Preferences().ReduceMotion
 	if typing {
 		fx := typingEffects{enabled: true}

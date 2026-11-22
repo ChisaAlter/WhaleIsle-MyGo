@@ -136,7 +136,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 				*callsFold = !*callsFold
 			})
 			ui.Box(c).Grow(1).MinWidth(0)
-			ui.Row(c).Width(160).Height(22).Background(field).Border(1, border).Radius(6).
+			ui.Row(c).Width(160).Height(22).Background(chrome.FrostInset(colors, m.SystemDark, field)).Border(1, border).Radius(6).
 				Padding(0, 8, 0, 8).AlignItems(ui.Center).Children(func() {
 				ui.TextInput(c, search).FillWidth().Placeholder(i18n.T(i18n.KeyTrajSearch)).FontSize(theme.InterfaceSize(12))
 			})
@@ -161,7 +161,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 					}
 					ui.Row(c).FillWidth().Padding(4, 8, 4, 8).Children(func() {
 						if ui.Button(c, label).Cursor(ui.CursorPointer).Disabled(m.Snapshot.HistoryPageBusy).
-							FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(field).FillWidth().Clicked() {
+							FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(chrome.FrostInset(colors, m.SystemDark, field)).FillWidth().Clicked() {
 							m.OnLoadEarlier()
 						}
 					})
@@ -186,7 +186,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 					row := rows[lr.Index]
 					bg := ui.Transparent
 					if rangeMatches != nil && rangeMatches[row.ID] {
-						bg = field
+						bg = chrome.FrostInset(colors, m.SystemDark, field)
 					}
 					if *selected == row.ID {
 						bg = hover
@@ -237,7 +237,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 			if viewportWidth > 760 {
 				paintTrajectorySplitter(c, resize, paneWidth, width, border)
 			}
-			inspector := ui.Column(c).Key("trajectory-inspector").Label("Trajectory event inspector").Width(width).FillHeight().MinWidth(0).Background(chrome.Color(colors.BG)).Padding(8, 10, 8, 10).Gap(6)
+			inspector := chrome.FrostSurface(ui.Column(c).Key("trajectory-inspector").Label("Trajectory event inspector").Width(width).FillHeight().MinWidth(0), colors, m.SystemDark, chrome.Color(colors.BG), 0).Padding(8, 10, 8, 10).Gap(6)
 			if viewportWidth <= 760 {
 				inspector.Absolute().Right(0).Top(0).Bottom(0).Width(min(paneWidth*.92, 420))
 			}

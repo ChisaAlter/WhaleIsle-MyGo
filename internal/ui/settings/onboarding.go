@@ -48,7 +48,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(bg)
-		panel.WidthPercent(100).HeightPercent(100).MinWidth(0).Padding(40).Gap(20).Radius(0).Background(bg).Children(func() {
+		chrome.FrostSurface(panel.WidthPercent(100).HeightPercent(100).MinWidth(0).Padding(40).Gap(20), colors, systemDark, bg, 0).Children(func() {
 			if s.Loading {
 				ui.Column(c).Fill().Center().Children(func() { ui.Text(c, providerCopy("正在读取设置…", "Loading settings…")).TextColor(muted) })
 				return
@@ -150,7 +150,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 							if value == "development" {
 								label, hint = providerCopy("代码与开发", "Coding & development"), providerCopy("修改代码、调试问题、运行命令和管理项目文件等", "Edit code, debug issues, run commands, manage project files, and more")
 							}
-							ui.Column(c.Key(value)).Width(400).MaxWidthPercent(100).MinWidth(0).MinHeight(222).Padding(32).Gap(12).Radius(32).Background(chrome.Color(colors.Field)).Border(1, chrome.Color(colors.Border)).Children(func() {
+							chrome.FrostSurface(ui.Column(c.Key(value)).Width(400).MaxWidthPercent(100).MinWidth(0).MinHeight(222).Padding(32).Gap(12), colors, systemDark, chrome.Color(colors.Field), 32).Border(1, chrome.Color(colors.Border)).Children(func() {
 								onboardingIcon(c, map[string]string{"office": "office", "development": "code"}[value])
 								if ui.Checkbox(c, &selected, label).Disabled(busy).Changed() {
 									office, development := s.Progress.Purpose == "office" || s.Progress.Purpose == "both", s.Progress.Purpose == "development" || s.Progress.Purpose == "both"
@@ -185,7 +185,7 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 					focusTarget := ""
 					ui.Row(c).FillWidth().Wrap().Gap(12).Children(func() {
 						for _, option := range []struct{ value, zh, en, zhHint, enHint string }{{"compact", "聚焦结果", "Results only", "只看结果，保持界面简洁明了", "See just the results in a clean, simple interface"}, {"standard", "关键细节", "Key details", "结果优先，仅展示重要步骤和关键操作", "Focus on results, with only the most important steps and actions shown"}, {"detailed", "完整过程", "Full details", "查看完整工作过程，方便调试和排查问题", "See the full process for easier debugging and troubleshooting"}} {
-							ui.Column(c.Key(option.value)).Width(320).MaxWidthPercent(100).MinHeight(222).Padding(32).Gap(10).Radius(32).Background(chrome.Color(colors.Field)).Border(1, chrome.Color(colors.Border)).Children(func() {
+							chrome.FrostSurface(ui.Column(c.Key(option.value)).Width(320).MaxWidthPercent(100).MinHeight(222).Padding(32).Gap(10), colors, systemDark, chrome.Color(colors.Field), 32).Border(1, chrome.Color(colors.Border)).Children(func() {
 								onboardingIcon(c, option.value)
 								label := providerCopy(option.zh, option.en)
 								if s.Progress.Process == option.value {

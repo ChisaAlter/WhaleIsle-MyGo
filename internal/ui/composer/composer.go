@@ -353,7 +353,7 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					})
 				} else {
 					ui.Row(c).Label("Composer hero preset").Gap(4).AlignItems(ui.Center).Height(28).Padding(0, 8, 0, 8).Children(func() {
-						ui.Icon(c, presetAgentIcon).Size(16, 16).TextColor(fg)
+						ui.Icon(c, PresetAgentIcon).Size(16, 16).TextColor(fg)
 						ui.Text(c, presetLabel).FontSize(13).FontWeight(500).TextColor(fg)
 						ui.Text(c, "▾").FontSize(11).TextColor(muted)
 					})
@@ -421,9 +421,8 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 			}
 			if m.Editing {
 				// InputBar.editRow floats above the card and never moves its draft.
-				ui.Row(c.Key("composer-edit-status")).Label("Composer edit status").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).
-					Right(8).Bottom(8).MaxWidthPercent(100).Padding(4, 8).Gap(8).AlignItems(ui.Center).
-					Radius(8).Background(panel).Children(func() {
+				chrome.FrostSurface(ui.Row(c.Key("composer-edit-status")).Label("Composer edit status").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).
+					Right(8).Bottom(8).MaxWidthPercent(100).Padding(4, 8).Gap(8).AlignItems(ui.Center), colors, m.SystemDark, panel, 8).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyChatEditHint)).MinWidth(0).SingleLine().FontSize(12).FixedLineHeight(18).TextColor(muted)
 					if ui.Button(c, "×").Label(i18n.T(i18n.KeyQuitConfirmCancel)).Tooltip(i18n.T(i18n.KeyQuitConfirmCancel)).
 						Width(22).Height(22).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted).
@@ -784,7 +783,7 @@ func buildSuggestItemsWithQuote(m Model, kind SuggestKind, query string, quoted 
 
 func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, panel, border, fg, muted ui.Color) {
 	ui.Column(c).Gap(1).Padding(0, 0, 4, 0).Children(func() {
-		ui.Column(c).Background(panel).Border(1, border).Radius(6).Padding(2, 2, 2, 2).MaxHeight(280).Children(func() {
+		chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(2, 2, 2, 2).MaxHeight(280), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, panel, 6).Children(func() {
 			if m.SkillsFilter != nil {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Padding(2, 4, 2, 4).Children(func() {
 					ui.TextInput(c, m.SkillsFilter).Grow(1).Placeholder(i18n.T(i18n.KeyComposerSkillsFilter))
@@ -968,7 +967,7 @@ func paintChipEditPopup(c *ui.Context, m Model, panel, border, muted ui.Color) {
 	if ed == nil {
 		return
 	}
-	ui.Column(c).Background(panel).Border(1, border).Radius(6).Padding(6, 8, 6, 8).Gap(6).Children(func() {
+	chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(6, 8, 6, 8).Gap(6), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, panel, 6).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyComposerChipEdit)).FontSize(11).TextColor(muted)
 		ui.TextInput(c, &ed.Draft).Fill().Placeholder(i18n.T(i18n.KeyComposerChipEditPlaceholder))
 		ui.Row(c).Gap(8).Children(func() {

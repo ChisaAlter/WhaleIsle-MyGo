@@ -98,7 +98,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 		back.Padding(24)
 		// Modal.module.css: a 380px card, 28px panel corners, and a separate
 		// padded content region and footer separated by 20px.
-		panel.Width(380).MaxWidth(max(1, viewportWidth-48)).Padding(0, 0, 24, 0).Gap(20).Radius(theme.ContextRadii(c).Panel).Clip().Background(surface).Shadow(0, 0, 0, .5, elevationStroke).Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04)).Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).Children(func() {
+		chrome.FrostSurface(panel.Width(380).MaxWidth(max(1, viewportWidth-48)).Padding(0, 0, 24, 0).Gap(20).Clip(), colors, dark, surface, theme.ContextRadii(c).Panel).Shadow(0, 0, 0, .5, elevationStroke).Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .04)).Shadow(0, 0, 20, 0, ui.RGBA(0, 0, 0, .05)).Children(func() {
 			title := tr("撤销此要求的改动？", "Revert this requirement’s changes?")
 			body := tr("此要求改动的文件将恢复到开始开发前的状态，其他文件不受影响。如文件在交付后又被修改，将不执行撤销。", "Files changed by this requirement return to their state before development started; other files are untouched. If they changed again after delivery, nothing is reverted.")
 			if conflict {

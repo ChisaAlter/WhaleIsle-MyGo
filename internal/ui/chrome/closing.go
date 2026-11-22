@@ -73,9 +73,9 @@ func DrawClosingOverlay(c *ui.Context, m ClosingOverlay) {
 		layer.Children(func() {
 			// The reference card: min-width 240, 24 padding, 1px border, 24
 			// radius, 8 gap, and the two-layer 0 0 1px / 0 12px 32px shadow.
-			card := ui.Column(c.Key("closing-overlay-card")).
+			card := FrostSurface(ui.Column(c.Key("closing-overlay-card")).
 				MinWidth(ClosingCardMinWidth).Padding(ClosingCardPadding).Gap(ClosingCardGap).
-				AlignItems(ui.Center).Background(field).Radius(ClosingCardRadius).
+				AlignItems(ui.Center), colors, c.Theme().Dark, field, ClosingCardRadius).
 				Shadow(0, 0, 1, 0, ui.RGBA(0, 0, 0, .2)).
 				Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .08))
 			card.Children(func() {

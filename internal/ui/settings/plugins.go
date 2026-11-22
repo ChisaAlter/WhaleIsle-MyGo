@@ -7,6 +7,7 @@ import (
 	fonttheme "whaleisle/internal/ui/theme"
 
 	marketstore "whaleisle/internal/store/market"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -174,8 +175,8 @@ func builtinPluginGrid(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 			if plugin.ReadOnlyReason != "" {
 				detail = pluginReasonLabel(plugin.ReadOnlyReason)
 			}
-			card := ui.Column(c.Key("builtin-plugin/"+plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16).
-				Radius(12).Background(c.Theme().Surface).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
+			card := chrome.FrostSurface(ui.Column(c.Key("builtin-plugin/"+plugin.Name)).MinWidth(0).Height(60).Gap(2).Padding(12, 16),
+				fonttheme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .2)).Justify(ui.Center)
 			card.Children(func() {
 				ui.Text(c, plugin.Name).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg).SingleLine().Ellipsis("…")
 				if detail != "" {

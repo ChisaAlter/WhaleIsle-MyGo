@@ -135,7 +135,7 @@ func View(c *ui.Context, m Model) {
 				viewDirectory(c, m)
 				viewSessionFiles(c, m)
 
-				ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
+				chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(10, 12, 10, 12).Gap(8), colors, m.SystemDark, field, 8).Children(func() {
 					ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, i18n.T(i18n.KeyRemoteWorkspaceToggle)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(160)
 						workspaceStatus, workspaceColor := onOff(m.RemoteWorkspaceEnabled), fg
@@ -224,7 +224,7 @@ func View(c *ui.Context, m Model) {
 						{i18n.T(i18n.KeyRemoteSSHRelayToken), credLabel(sshSnap.HasRemoteRelayToken)},
 						{i18n.T(i18n.KeyRemoteSSHProbe), emptyDash(m.SSHProbeLine)},
 					}
-					ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(10, 12, 10, 12).Gap(8).Children(func() {
+					chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(10, 12, 10, 12).Gap(8), colors, m.SystemDark, field, 8).Children(func() {
 						for _, row := range sshRows {
 							ui.Row(c).Gap(12).Children(func() {
 								ui.Text(c, row.label).FontSize(theme.InterfaceSize(12)).TextColor(muted).Width(160)

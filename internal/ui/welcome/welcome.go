@@ -105,7 +105,7 @@ func View(c *ui.Context, m Model) {
 		page = PageSignIn
 	}
 
-	ui.Column(c).Fill().Background(bg).
+	chrome.FrostSurface(ui.Column(c).Fill(), colors, m.SystemDark, bg, 0).
 		Padding(rootPadV, rootPadH, rootPadV, rootPadH).Gap(rootGap).Children(func() {
 		// #root > .titlebar: an empty drag strip. The system caption buttons draw
 		// the close button; the logo and the product name belong to .brand below.

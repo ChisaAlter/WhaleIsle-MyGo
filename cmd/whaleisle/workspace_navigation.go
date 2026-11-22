@@ -175,7 +175,7 @@ func workspaceDeletionView(c *ui.Context, sessions *session.Store, themeID strin
 	colors := theme.Resolve(themeID).Active(systemDark)
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
-		panel.Key("session-deletion-result").Width(420).MaxWidthPercent(94).Padding(24).Gap(16).Radius(24).Background(chrome.Color(colors.Field)).Children(func() {
+		chrome.FrostSurface(panel.Key("session-deletion-result").Width(420).MaxWidthPercent(94).Padding(24).Gap(16), colors, systemDark, chrome.Color(colors.Field), 24).Children(func() {
 			ui.Text(c, text("永久删除会话", "Permanently delete session")).FontSize(theme.InterfaceSize(17)).FontWeight(500)
 			ui.Text(c, deletion.Title).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(14))
 			ui.Text(c, sessionDeleteErrorText(deletion.Error, text)).FillWidth().MinHeight(40).FontSize(theme.InterfaceSize(13))

@@ -448,7 +448,7 @@ func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 		}
 		if tab := selectedTab(m); tab != nil && tab.readLoading {
 			// A floating chip: a row in the flow would push the document down while it reads.
-			ui.Row(c).Absolute().Top(4).Right(12).Gap(8).AlignItems(ui.Center).Padding(2, 8).Radius(8).Background(c.Theme().Surface).Children(func() {
+			chrome.FrostSurface(ui.Row(c).Absolute().Top(4).Right(12).Gap(8).AlignItems(ui.Center).Padding(2, 8), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().Surface, 8).Children(func() {
 				ui.Text(c, label("正在读取…", "Reading file…")).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				if widgets.Button(c, colors, label("取消读取", "Cancel read"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 					m.Tabs.stopTextRead(false, false)
@@ -653,6 +653,7 @@ func sourceStyle(m Model, fg, muted ui.Color) markdown.Style {
 		CodeSurface: func(e ui.Element, radius float32) ui.Element {
 			return chrome.FrostSurface(e, colors, m.SystemDark, chrome.Color(colors.Field), radius)
 		},
+		InlineCodeBG: chrome.FrostInset(colors, m.SystemDark, markdown.InlineCodeBase(m.SystemDark)),
 		// The Original FilePreview passes no toolbarLabels, so its fences use
 		// the plain .banner recipe (36px header, text copy action, 16px inset).
 		PlainCodeBanner: true,

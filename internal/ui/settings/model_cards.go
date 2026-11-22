@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -18,10 +19,11 @@ func modelColors(c *ui.Context) theme.Colors {
 
 // modelWell is the raised layer: white in the light half, rgb(35, 35, 36) in the dark one.
 func modelWell(c *ui.Context) ui.Color {
+	base := ui.RGB(255, 255, 255)
 	if c.Theme().Dark {
-		return theme.Color(modelColors(c).Field)
+		base = theme.Color(modelColors(c).Field)
 	}
-	return ui.RGB(255, 255, 255)
+	return chrome.FrostInset(modelColors(c), c.Theme().Dark, base)
 }
 
 func modelInputBorder(c *ui.Context) ui.Color { return theme.Color(modelColors(c).BorderL4) }

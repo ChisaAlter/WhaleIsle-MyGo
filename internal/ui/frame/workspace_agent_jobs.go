@@ -34,7 +34,7 @@ func workspaceAgentJobs(c *ui.Context, m Model) {
 				}
 			}
 			for _, job := range s.Rows {
-				ui.Row(c.Key("agent-job:"+job.ID)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).Background(chrome.Color(colors.Field)).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c.Key("agent-job:"+job.ID)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, job.Label).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg).SingleLine().Ellipsis("…")
 					status := jobStatus(job.Status)
 					if job.Detail != "" {

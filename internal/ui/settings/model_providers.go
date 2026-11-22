@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	store "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -44,7 +45,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 		route := route
 		profile := ui.Column(c.Key("provider-profile/" + route)).FillWidth().MinWidth(0).Gap(12)
 		if !editor {
-			profile = profile.Gap(8).Padding(14, 16).Radius(12).Border(0.5, c.Theme().Border.Alpha(0.45)).Background(c.Theme().Surface)
+			profile = chrome.FrostSurface(profile.Gap(8).Padding(14, 16), fonttheme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().Surface, 12).Border(0.5, c.Theme().Border.Alpha(0.45))
 		}
 		profile.Children(func() {
 			entry, hasEntry := configurationProviderMetadata(m, ns.NS, []string{"providers", route})

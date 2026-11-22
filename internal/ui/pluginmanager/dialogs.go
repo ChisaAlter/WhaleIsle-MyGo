@@ -288,7 +288,7 @@ func sourcesDialog(c *ui.Context, m Model, s manager.State, a manager.Actions) {
 			})
 			if s.Discover.SourceError != "" && *dismissed != s.Discover.SourceErrorSequence {
 				ui.Overlay(c.Key("plugin-source-error-toast"), func() {
-					ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(560).Padding(12).Gap(10).Role(ui.RoleStatus).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(8).Children(func() {
+					chrome.FrostSurface(ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(560).Padding(12).Gap(10).Role(ui.RoleStatus), colors, c.Theme().Dark, chrome.Color(colors.BG), 8).Border(.5, chrome.Color(colors.Border)).Children(func() {
 						ui.Text(c, s.Discover.SourceError).Grow(1).MinWidth(0).TextColor(c.Theme().Danger)
 						if ui.Button(c, copyText("关闭", "Close")).Clicked() {
 							*dismissed = s.Discover.SourceErrorSequence

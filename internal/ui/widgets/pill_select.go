@@ -29,7 +29,7 @@ func PillSelect(c *ui.Context, colors theme.Colors, value *string, options []str
 		})
 	})
 	sel.Popup(func(panel ui.Element) {
-		panel.Padding(4).Radius(theme.ContextRadii(c).MD).Border(.5, c.Theme().Border).Background(c.Theme().Surface)
+		FrostSurface(panel.Padding(4).Border(.5, c.Theme().Border), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, theme.ContextRadii(c).MD)
 		for _, option := range options {
 			item := sel.Item(option).FillWidth().Height(36).Padding(7, 12).Radius(theme.ContextRadii(c).SM)
 			if item.Highlighted() || option == *value {

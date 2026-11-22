@@ -277,7 +277,7 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 	grid.Columns(max(1, int((width+12)/188))).Children(func() {
 		for _, item := range g.visible() {
 			item := item
-			card := ui.Column(c.Key(item.SourceID+"/"+item.ID)).MinWidth(0).Radius(12).Clip().Background(c.Theme().Surface).Border(.5, c.Theme().Border)
+			card := chrome.FrostSurface(ui.Column(c.Key(item.SourceID+"/"+item.ID)).MinWidth(0).Clip(), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border)
 			card.Children(func() {
 				image := ui.ButtonBase(c).Label(item.Title).FillWidth().Height(118).Padding(0).BorderWidth(0).Clip().Disabled(g.Busy)
 				image.Children(func() {

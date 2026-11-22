@@ -36,7 +36,7 @@ func workspaceResourceGuide(c *ui.Context, m Model) {
 					ui.Row(c).FillWidth().Gap(8).Children(func() {
 						for j := i; j < min(i+2, len(entries)); j++ {
 							entry := entries[j]
-							button := ui.Button(c.Key("resource-guide:"+entry.id), "").Label(entry.title).Tooltip(entry.description).Width((width - 8) / 2).Height((width - 8) / 2).MinWidth(0).Padding(12).Radius(8).BorderWidth(0).Background(chrome.Color(colors.Field)).Disabled(entry.disabled)
+							button := ui.Button(c.Key("resource-guide:"+entry.id), "").Label(entry.title).Tooltip(entry.description).Width((width - 8) / 2).Height((width - 8) / 2).MinWidth(0).Padding(12).Radius(8).BorderWidth(0).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Disabled(entry.disabled)
 							if !entry.disabled {
 								button.Cursor(ui.CursorPointer)
 							}

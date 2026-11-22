@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/widgets"
 )
@@ -25,7 +26,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 	if review == nil {
 		return
 	}
-	seat := ui.Column(c.Key("plan-review:" + pending.AgentID + ":" + pending.EventID)).Label(review.Question).FillWidth().MinWidth(0).Gap(0).Background(c.Theme().Surface).Radius(20).Clip()
+	seat := chrome.FrostSurface(ui.Column(c.Key("plan-review:"+pending.AgentID+":"+pending.EventID)).Label(review.Question).FillWidth().MinWidth(0).Gap(0).Clip(), colors, c.Theme().Dark, c.Theme().Surface, 20)
 	summary := ui.Local(seat, "plan-summary", func() planReviewSummary { return planReviewSummary{} })
 	summary.resolve(review.Plan)
 	openPlan := func() {

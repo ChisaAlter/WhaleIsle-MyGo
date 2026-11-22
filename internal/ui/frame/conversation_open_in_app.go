@@ -327,7 +327,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 		}
 		if !busy {
 			parts.Popup(func(panel ui.Element) {
-				panel.AttachTo(parts.Trigger, ui.AnchorBottomRight, ui.AnchorTopRight).MinWidth(180).MaxHeight(400).Padding(4).Radius(6).Border(.5, border).Background(chrome.Color(colors.BG))
+				chrome.FrostSurface(panel.AttachTo(parts.Trigger, ui.AnchorBottomRight, ui.AnchorTopRight).MinWidth(180).MaxHeight(400).Padding(4).Border(.5, border), colors, m.SystemDark, chrome.Color(colors.BG), 6)
 				ui.Scroll(c).FillWidth().MaxHeight(360).MinHeight(0).Children(func() {
 					for _, app := range apps {
 						app := app

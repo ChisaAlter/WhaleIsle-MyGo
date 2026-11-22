@@ -23,8 +23,8 @@ func toolIORows(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string) 
 		secondary = chrome.Color(st.Colors.Secondary)
 		caption = chrome.Color(st.Colors.Caption)
 	}
-	ui.Column(c.Key("tool-io:"+key)).MinWidth(0).Shrink(0).Margin(4, 0, 4, 4).Label(i18n.T(i18n.KeyToolRowIOGroup)).
-		Border(border, stroke).Radius(16).Background(background).Children(func() {
+	chrome.FrostSurface(ui.Column(c.Key("tool-io:"+key)).MinWidth(0).Shrink(0).Margin(4, 0, 4, 4).Label(i18n.T(i18n.KeyToolRowIOGroup)).
+		Border(border, stroke), st.Colors, c.Theme().Dark, background, 16).Children(func() {
 		section := func(label, value, suffix string, color ui.Color) {
 			font := theme.RenderPreferences().Code.Family
 			labelLayout := ui.ShapeText(label, ui.Font{Family: font, Size: 11}, 0)

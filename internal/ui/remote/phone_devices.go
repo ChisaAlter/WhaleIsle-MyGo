@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/transfer"
 	"strings"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -74,7 +75,7 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 	}
 	for _, device := range s.Devices {
 		device := device
-		ui.Column(c).Background(field).Border(1, border).Radius(8).Padding(8, 10, 8, 10).Gap(6).Children(func() {
+		chrome.FrostSurface(ui.Column(c).Border(1, border).Padding(8, 10, 8, 10).Gap(6), colors, m.SystemDark, field, 8).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, device.Name).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 				if widgets.Button(c, colors, label("重命名", "Rename"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {

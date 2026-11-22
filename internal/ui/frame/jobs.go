@@ -84,7 +84,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	w, h := viewportDIP(c)
 	ui.PopoverBase(c.Key("jobs-popover"), anchor, &open, func(panel ui.Element) {
 		headerPopupInset(c, panel, anchor, min(float32(500), max(float32(0), w-32)), w, 12)
-		panel = chrome.PopoverReveal(c, panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(5, 0, 0, 0).Padding(4).Background(chrome.Color(colors.BG)).Border(.5, chrome.Color(colors.Border)).Radius(12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+		panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(5, 0, 0, 0).Padding(4), colors, c.Theme().Dark, chrome.Color(colors.BG), 12).Border(.5, chrome.Color(colors.Border)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
 		panel.Children(func() {
 			ui.Scroll(c.Key("jobs-roster")).Label("Background jobs list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(472), h-148))).Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
@@ -200,7 +200,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 	ui.Column(c.Key("job-" + job.ID)).FillWidth().MinWidth(0).Children(func() {
 		line := ui.Row(c.Key("job-line-" + job.ID)).Label("Job row: " + job.ID).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center)
 		if live {
-			line.Padding(4, 8, 4, 2).Radius(8).Background(chrome.Color(colors.Field))
+			line.Padding(4, 8, 4, 2).Radius(8).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field)))
 		}
 		line.Children(func() {
 			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(4, 7).Radius(6).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(!job.Observable())
@@ -208,7 +208,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 					jobStateIndicator(c, job.Status)
 					if !live {
-						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, 5).Radius(4).Background(chrome.Color(colors.Field)).TextColor(muted).Shrink(0)
+						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, 5).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field))).TextColor(muted).Shrink(0)
 						ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
 						detail := job.Progress
 						if detail == "" {
@@ -230,7 +230,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 							}
 							ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(ink).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
 							ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-								ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).Padding(0, 5).Radius(4).Background(chrome.Color(colors.Sidebar)).TextColor(muted).Shrink(0)
+								ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).Padding(0, 5).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Sidebar))).TextColor(muted).Shrink(0)
 								detail := job.Progress
 								if detail == "" {
 									detail = job.Detail
@@ -244,7 +244,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 						})
 					}
 					if job.Observable() {
-						ui.Box(c).Size(20, 20).Shrink(0).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.Color(colors.BG)).Center().Children(func() {
+						ui.Box(c).Size(20, 20).Shrink(0).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.BG))).Center().Children(func() {
 							icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
 							if s.SelectedID == job.ID {
 								icon.Rotate(180)
@@ -257,7 +257,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				controller.Toggle(s.Generation, job.ID)
 			}
 			if job.Status == "running" {
-				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.Color(colors.BG)).Cursor(ui.CursorPointer).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
+				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.BG))).Cursor(ui.CursorPointer).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
 				stop.Children(func() {
 					if s.Kill.JobID == job.ID && s.Kill.Phase == "pending" {
 						ui.Spinner(c).Size(10, 10).TextColor(muted)

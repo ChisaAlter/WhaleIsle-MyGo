@@ -152,7 +152,7 @@ func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, ca
 					})
 					draft := note
 					ui.TextAreaBase(c.Key("feedback-detail"), &draft).Label(feedbackText("detail")).Placeholder(feedbackText("hint")).FillWidth().Lines(3, 12).MinHeight(116).MaxHeight(280).Margin(18, 0, 0, 0).Padding(12, 14).
-						FontSize(14).FixedLineHeight(22).Radius(16).Border(.5, stroke).Background(chrome.Color(colors.Field)).TextColor(fg).ReadOnly(busy).OnChange(func() { edit(draft, category) })
+						FontSize(14).FixedLineHeight(22).Radius(16).Border(.5, stroke).Background(chrome.FrostInset(colors, systemDark, chrome.Color(colors.Field))).TextColor(fg).ReadOnly(busy).OnChange(func() { edit(draft, category) })
 				})
 			})
 			if failure != "" {

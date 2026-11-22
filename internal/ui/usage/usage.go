@@ -175,7 +175,7 @@ func View(c *ui.Context, m Model) {
 				if len(snap.Recent) == 0 {
 					ui.Text(c, i18n.T(i18n.KeyUsageRecentEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				} else {
-					ui.Column(c).Fill().MinHeight(0).Background(field).Border(1, border).Radius(8).
+					chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0).Border(1, border), colors, m.SystemDark, field, 8).
 						Padding(8, 10, 8, 10).Gap(6).Children(func() {
 						for _, row := range snap.Recent {
 							entry := row

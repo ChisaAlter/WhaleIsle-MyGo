@@ -27,9 +27,19 @@ type Span struct {
 	DecorationColor     Color
 	DecorationThickness float32
 	// Background highlights the span, as search results are.
-	Background    Color
-	LetterSpacing float32
-	Features      string // as for Element.FontFeatures, comma separated
+	Background Color
+	// BackgroundRadius rounds the highlight's corners, BackgroundBorder
+	// strokes it with a half-DIP line, BackgroundPadX extends it past the
+	// run's glyphs horizontally and BackgroundInsetY shrinks it from the
+	// line's top and bottom — a chip's padding and border. They only
+	// change what is painted: the run keeps its advance, and the glyphs
+	// of neighboring runs still draw on top.
+	BackgroundRadius float32
+	BackgroundBorder Color
+	BackgroundPadX   float32
+	BackgroundInsetY float32
+	LetterSpacing    float32
+	Features         string // as for Element.FontFeatures, comma separated
 }
 
 // RichText creates a text whose spans differ in style, over the style of
@@ -135,7 +145,7 @@ func (sc *spanCache) update(spans []Span) {
 	paints := false
 	for i, s := range spans {
 		end += utf8.RuneCountInString(s.Text)
-		paints = paints || s.Color.A > 0 || s.Underline || s.WavyUnderline || s.Strikethrough || s.Background.A > 0
+		paints = paints || s.Color.A > 0 || s.Underline || s.WavyUnderline || s.Strikethrough || s.Background.A > 0 || s.BackgroundBorder.A > 0
 		same = same && sc.styles[i] == spanStyle(s, end)
 	}
 	sc.paints = paints
@@ -312,8 +322,20 @@ func (sp *spanPaint) runs(line *text.Line, fn func(k, i, j int, x0, x1 float32))
 // from the top-left of the text at (x, y), in DIPs.
 func (sp *spanPaint) backgrounds(p *Painter, line *text.Line, x, y float32) {
 	sp.runs(line, func(k, _, _ int, x0, x1 float32) {
-		if k >= 0 && sp.spans[k].Background.A > 0 {
-			p.Fill(Rect{x + x0, y + line.Y, x1 - x0, line.Height}, sp.spans[k].Background, 0)
+		if k < 0 {
+			return
+		}
+		s := &sp.spans[k]
+		if s.Background.A == 0 && s.BackgroundBorder.A == 0 {
+			return
+		}
+		r := Rect{x + x0 - s.BackgroundPadX, y + line.Y + s.BackgroundInsetY,
+			x1 - x0 + 2*s.BackgroundPadX, line.Height - 2*s.BackgroundInsetY}
+		if s.Background.A > 0 {
+			p.Fill(r, s.Background, s.BackgroundRadius)
+		}
+		if s.BackgroundBorder.A > 0 {
+			p.Stroke(r, s.BackgroundBorder, s.BackgroundRadius, 0.5)
 		}
 	})
 }

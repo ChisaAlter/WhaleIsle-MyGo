@@ -112,7 +112,7 @@ func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNaviga
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		chrome.DialogReveal(c, backdrop, panel)
-		panel.Key("workspace-registration").Width(440).MaxWidthPercent(94).Padding(24).Gap(16).Radius(24).Background(chrome.Color(colors.Field)).Children(func() {
+		chrome.FrostSurface(panel.Key("workspace-registration").Width(440).MaxWidthPercent(94).Padding(24).Gap(16), colors, m.SystemDark, chrome.Color(colors.Field), 24).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyWSWorkspaceAdd)).FontSize(theme.InterfaceSize(17)).FontWeight(500)
 			if request.Error != "" {
 				ui.Text(c, i18n.T(i18n.KeyWSFolderErrorTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(chrome.Color(colors.Muted))
