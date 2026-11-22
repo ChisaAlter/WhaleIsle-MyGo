@@ -11,33 +11,19 @@ import (
 	"whaleisle/internal/ui/widgets"
 )
 
-func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, fg, muted ui.Color) bool {
+// questionsBody paints everything below the Original's .header strip: the
+// draft recap, the option editor and the footer pager row. The header itself
+// (eyebrow, minimized title, icon actions) renders in pendingCard because the
+// Original seats it outside the scrollable body.
+func questionsBody(c *ui.Context, p interaction.Pending, card interaction.QuestionCardView, store CardStore, colors theme.Colors, fg, muted ui.Color, flow *questionEditorFlow) bool {
 	if len(card.Rows) == 0 {
 		return false
 	}
 	frame := ui.Column(c.Key("question-wizard:" + p.AgentID + ":" + p.EventID)).FillWidth().MinHeight(0).Shrink(1).Gap(6)
-	flow := ui.Local(frame, "question-editor-flow", func() questionEditorFlow { return questionEditorFlow{} })
 	index := min(max(card.Index, 0), len(card.Rows)-1)
 	row := card.Rows[index]
 	focused := false
 	frame.Children(func() {
-		ui.Row(c).FillWidth().Shrink(0).Gap(8).Wrap().Children(func() {
-			// The pager below owns the progress readout; the header keeps only the
-			// minimize/review affordances.
-			ui.Box(c).Grow(1).MinWidth(0)
-			label := i18n.T(i18n.KeyChatQuestionMinimize)
-			tooltip := questionStatusText("nav.minimize")
-			if flow.minimized {
-				label = i18n.T(i18n.KeyChatQuestionExpand)
-				tooltip = questionStatusText("nav.maximize")
-			}
-			if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Tooltip(tooltip).Clicked() {
-				flow.minimized = !flow.minimized
-			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeyChatQuestionReview), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: p.Sending}).Clicked() {
-				flow.summary = !flow.summary
-			}
-		})
 		if flow.summary {
 			ui.Scroll(c).FillWidth().MinHeight(0).Shrink(1).Children(func() { questionDraftSummary(c, p, card, store, colors, flow, muted) })
 		}
@@ -49,12 +35,12 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 			ui.Text(c, questionFeedback(flow.feedback)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		}
 		ui.Row(c).FillWidth().Shrink(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
-			if prev := questionPagerButton(c, questionPagerPrev, i18n.T(i18n.KeyChatQuestionPrev), !p.Sending && index > 0); prev.Clicked() {
+			if prev := questionIconButton(c, questionPagerPrev, i18n.T(i18n.KeyChatQuestionPrev), i18n.T(i18n.KeyChatQuestionPrev), !p.Sending && index > 0, colors); prev.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index-1)
 				flow.feedback = ""
 			}
-			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(muted)
-			if next := questionPagerButton(c, questionPagerNext, i18n.T(i18n.KeyChatQuestionNext), !p.Sending && index+1 < len(card.Rows)); next.Clicked() {
+			ui.Text(c, fmt.Sprintf("%d / %d", index+1, len(card.Rows))).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(muted)
+			if next := questionIconButton(c, questionPagerNext, i18n.T(i18n.KeyChatQuestionNext), i18n.T(i18n.KeyChatQuestionNext), !p.Sending && index+1 < len(card.Rows), colors); next.Clicked() {
 				store.NavigateQuestion(p.AgentID, p.EventID, index+1)
 				flow.feedback = ""
 			}
@@ -84,6 +70,41 @@ func questionsBody(c *ui.Context, p interaction.Pending, card interaction.Questi
 		})
 	})
 	return focused
+}
+
+// questionHeaderActions is the Original's .headerActions group
+// (QuestionComposer.module.css:59-65): 4 DIP gaps, pinned right. The Original
+// seats minimize and one dismiss icon — nav.close when the Host named the
+// call (the card reopens from its tool row), nav.cancel when it did not
+// (slots.ts:287). The draft-recap seat is a native-only extra leading the
+// pair so the shared order stays at the row's right edge.
+func questionHeaderActions(c *ui.Context, p interaction.Pending, store CardStore, flow *questionEditorFlow, colors theme.Colors) {
+	ui.Row(c).Shrink(0).Gap(4).AlignItems(ui.Center).Children(func() {
+		reviewLabel := i18n.T(i18n.KeyChatQuestionReview)
+		if review := questionIconButton(c, questionReviewIcon, reviewLabel, reviewLabel, !p.Sending, colors); review.Clicked() {
+			flow.summary = !flow.summary
+		}
+		minimizeLabel := questionStatusText("nav.minimize")
+		minimizeIcon := questionChevronDown
+		if flow.minimized {
+			minimizeLabel = questionStatusText("nav.maximize")
+			minimizeIcon = questionChevronUp
+		}
+		if toggle := questionIconButton(c, minimizeIcon, minimizeLabel, minimizeLabel, !p.Sending, colors); toggle.Clicked() {
+			flow.minimized = !flow.minimized
+		}
+		dismissLabel := questionStatusText("nav.close")
+		if p.CallID == "" {
+			dismissLabel = questionStatusText("nav.cancel")
+		}
+		if dismiss := questionIconButton(c, questionCloseIcon, dismissLabel, dismissLabel, !p.Sending, colors); dismiss.Clicked() {
+			if p.CallID == "" {
+				store.ResolveDeny(p.EventID)
+			} else {
+				store.HideQuestion(p.EventID)
+			}
+		}
+	})
 }
 
 func questionAnsweredCountText(rows []interaction.QuestionRowView) string {

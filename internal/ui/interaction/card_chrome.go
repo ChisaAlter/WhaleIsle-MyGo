@@ -30,6 +30,11 @@ func interactionCardSeat(c *ui.Context, key string, warn bool, tint ui.Color) ui
 	} else {
 		_, height := c.Size()
 		card.MaxHeight(min(float32(520), height*.6)).Padding(0, 0, 10, 0)
+		// The Original caps the question card at the chat content width —
+		// the composer width minus its side insets — and centers it.
+		if width := residentComposerBounds.W - 32; width > 0 {
+			card.MaxWidth(width).AlignSelf(ui.Center)
+		}
 	}
 	return card
 }
@@ -47,21 +52,22 @@ func interactionCardHeader(c *ui.Context, state widgets.State, label, trailing s
 }
 
 // interactionPrimaryButton is the card's confirming action, on the harness
-// primary recipe (sm: 28 DIP, 12px text).
+// primary recipe (md: 36 DIP, 14px text — the Original's card buttons use
+// the 36px _md size, not the 28px _sm).
 func interactionPrimaryButton(c *ui.Context, colors theme.Colors, label string, disabled bool) ui.Element {
-	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: disabled})
+	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: disabled})
 }
 
 // interactionGhostButton is the card's quiet action: no face until hovered.
 func interactionGhostButton(c *ui.Context, colors theme.Colors, label string, disabled bool) ui.Element {
-	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: disabled})
+	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: disabled})
 }
 
 // interactionOutlineButton is the card's refusing action: harness outline stroke
 // over the card surface. The primitive has no danger-text variant, so the
 // refusal reads through position and the label rather than a red hover.
 func interactionOutlineButton(c *ui.Context, colors theme.Colors, label string, disabled bool) ui.Element {
-	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: disabled})
+	return widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium, Disabled: disabled})
 }
 
 // approvalCommand extracts the command an approval is really about: a shell

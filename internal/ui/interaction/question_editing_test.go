@@ -24,7 +24,7 @@ func questionEditorFixture(t *testing.T, questions string) (*interaction.Store, 
 	})
 	outcome := make(chan dsh.EventResultOutcome, 1)
 	go func() {
-		out, _ := store.HandleWaterfall(dsh.EventsWaterfall{AgentID: "A", EventID: "e", Event: interaction.EventUserQuestions, Request: json.RawMessage(`{"questions":` + questions + `}`)})
+		out, _ := store.HandleWaterfall(dsh.EventsWaterfall{AgentID: "A", EventID: "e", Event: interaction.EventUserQuestions, Request: json.RawMessage(`{"callId":"call-q","questions":` + questions + `}`)})
 		outcome <- *out
 	}()
 	select {

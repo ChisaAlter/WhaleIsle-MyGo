@@ -230,7 +230,9 @@ func processGroupLabel(group []session.Message, running, details bool) string {
 			kind, _ := ClassifyToolName(current.Name)
 			label := processCategory(kind, false)
 			if details && strings.TrimSpace(current.Arguments) != "" {
-				label += " · " + thinkingPreview(current.Arguments, 120)
+				if detail := toolRunningDetail(current.Name, current.Arguments); detail != "" {
+					label += " · " + detail
+				}
 			}
 			return label
 		}
@@ -257,6 +259,55 @@ func processGroupLabel(group []session.Message, running, details bool) string {
 		label += " " + i18n.T(i18n.KeyChatProcessMore)
 	}
 	return label
+}
+
+// toolRunningDetail mirrors the Original's liveToolDetail
+// (ui-chat/src/client/conversation-nodes/process-activity.ts): the fold row
+// surfaces one semantic argument, never the raw JSON payload, so a running
+// ask_user_question call reads "等待你的操作 · Pick a color?" instead of
+// dumping the arguments object into user-visible copy.
+var liveToolDetailKeys = []string{
+	"title", "description", "objective", "task", "task_name", "name",
+	"question", "questions", "prompt", "message", "command", "cmd",
+	"queries", "query", "pattern", "url", "uri", "file_path", "path",
+	"target", "action", "status",
+}
+
+const liveToolDetailMaxChars = 160
+
+func toolRunningDetail(toolName, arguments string) string {
+	var payload map[string]any
+	if json.Unmarshal([]byte(strings.TrimSpace(arguments)), &payload) != nil {
+		return ""
+	}
+	for _, key := range liveToolDetailKeys {
+		value, ok := payload[key]
+		if !ok {
+			continue
+		}
+		text := ""
+		if key == "questions" {
+			list, _ := value.([]any)
+			for _, item := range list {
+				entry, _ := item.(map[string]any)
+				if q, ok := entry["question"].(string); ok && strings.TrimSpace(q) != "" {
+					text = q
+					break
+				}
+			}
+		} else if s, ok := value.(string); ok {
+			text = s
+		}
+		text = strings.Join(strings.Fields(text), " ")
+		if text == "" {
+			continue
+		}
+		if runes := []rune(text); len(runes) > liveToolDetailMaxChars {
+			text = string(runes[:liveToolDetailMaxChars]) + "…"
+		}
+		return text
+	}
+	return toolName
 }
 
 // processCategory returns the running or settled summary for one tool family.

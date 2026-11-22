@@ -53,23 +53,22 @@ func approvalEscalationText(p interaction.Pending) string {
 	return i18n.ChatParityf(i18n.KeyParityApprovalEscalation, "toolName", toolName)
 }
 
-func approvalReason(c *ui.Context, p interaction.Pending, muted ui.Color) {
+func approvalReason(c *ui.Context, p interaction.Pending, fg ui.Color) {
 	esc := approvalEscalationText(p)
 	text := approvalReasonText(p)
 	if text == "" && strings.TrimSpace(p.ApprovalDisplayReason) == "" && strings.TrimSpace(p.ApprovalOriginalReason) == "" {
 		text = esc
 	}
-	if text != "" {
-		questionText(c, text, 12, muted)
-	}
-	if esc != "" && esc != text {
-		ui.Box(c).Size(0, 0).PassThrough().Label(esc)
-	}
-	if original := p.ApprovalOriginalReason; original != "" && original != text {
-		label := "Original reason: "
-		if i18n.Locale() == i18n.LocaleZH {
-			label = "原始理由："
+	ui.Row(c).FillWidth().Shrink(0).Children(func() {
+		if text != "" {
+			ui.Text(c, text).FillWidth().MinWidth(0).FontSize(15).FixedLineHeight(24).FontWeight(500).TextColor(fg)
 		}
-		questionText(c, label+original, 11, muted)
-	}
+		// Kept inside the headline row so the accessibility label does not
+		// take a flex-gap slot of its own.
+		if esc != "" && esc != text {
+			ui.Box(c).Size(0, 0).PassThrough().Label(esc)
+		}
+	})
+	// The Original's ApprovalCard renders only the resolved display reason;
+	// the raw original reason stays in the pending payload, never in copy.
 }

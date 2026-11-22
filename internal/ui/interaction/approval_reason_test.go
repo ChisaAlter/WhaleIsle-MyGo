@@ -40,8 +40,8 @@ func TestApprovalReasonFollowsLocaleWithoutLosingOriginal(t *testing.T) {
 			View(c, Model{Store: store, Snapshot: store.SnapshotForAgent("A"), ScopeAgentID: "A", ThemeID: "deepseek.light"})
 		})
 	}, 600, 500)
-	if !tt.HasText("读取项目文件") || !tt.HasText("original host reason") {
-		t.Fatal("approval reason ignores Chinese locale or loses original host reason")
+	if !tt.HasText("读取项目文件") || tt.HasText("original host reason") {
+		t.Fatal("approval reason ignores Chinese locale or leaks the raw original reason")
 	}
 	pending := store.SnapshotForAgent("A").Pending[0]
 	if pending.ApprovalOriginalReason != "original host reason" || pending.ApprovalDisplayReason != `{"en":"Read project files","zh":"读取项目文件"}` {
@@ -49,7 +49,7 @@ func TestApprovalReasonFollowsLocaleWithoutLosingOriginal(t *testing.T) {
 	}
 	i18n.SetLocale("en")
 	tt.Frame()
-	if !tt.HasText("Read project files") || !tt.HasText("original host reason") || tt.HasText("读取项目文件") {
+	if !tt.HasText("Read project files") || tt.HasText("original host reason") || tt.HasText("读取项目文件") {
 		t.Fatal("pending approval reason did not follow locale change")
 	}
 	select {
