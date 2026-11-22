@@ -16,10 +16,7 @@ type sceneStop struct {
 }
 type scenePalette struct {
 	ink, muted, brand, alert, hairline, log, panel ui.Color
-	// toast and toastInk are the feedback surface's, dark in both schemes
-	// (dsh-webui-tokens.css:54-55,112).
-	toast, toastInk            ui.Color
-	underwater, falloff, abyss ui.Color
+	underwater, falloff, abyss                     ui.Color
 	// underAlert is --boot-under-alert, the ticker's colour while the Host is
 	// down, darker than the alert it sits over sea (boot-tokens.css:13,52).
 	underAlert ui.Color
@@ -32,7 +29,6 @@ type scenePalette struct {
 var day = scenePalette{
 	ink: ui.RGB(24, 42, 54), muted: ui.RGB(96, 116, 128), brand: ui.RGB(24, 42, 54), alert: ui.RGB(198, 46, 36),
 	hairline: ui.RGBA(30, 60, 76, .38), log: ui.RGB(230, 244, 249), panel: ui.RGBA(248, 251, 253, .92),
-	toast: ui.RGB(53, 54, 56), toastInk: ui.RGB(255, 255, 255),
 	underAlert: ui.RGB(140, 30, 22),
 	underwater: ui.RGBA(96, 150, 176, .30), falloff: ui.RGBA(255, 255, 255, .5), abyss: ui.RGBA(40, 80, 105, .18),
 	clouds: [3]ui.Color{ui.RGBA(255, 240, 214, .7), ui.RGBA(182, 212, 228, .62), ui.RGBA(208, 228, 238, .6)},
@@ -41,7 +37,6 @@ var day = scenePalette{
 var night = scenePalette{
 	ink: ui.RGB(234, 240, 244), muted: ui.RGB(118, 132, 144), brand: ui.RGBA(214, 226, 236, .68), alert: ui.RGB(255, 92, 80),
 	hairline: ui.RGBA(190, 224, 240, .4), log: ui.RGB(132, 194, 214), panel: ui.RGBA(8, 16, 26, .88),
-	toast: ui.RGB(67, 69, 74), toastInk: ui.RGB(255, 255, 255),
 	underAlert: ui.RGB(255, 140, 128),
 	underwater: ui.RGBA(14, 44, 66, .52), falloff: ui.RGBA(96, 170, 200, .16), abyss: ui.RGBA(1, 6, 12, .55),
 	clouds: [3]ui.Color{ui.RGBA(72, 112, 168, .22), ui.RGBA(116, 88, 154, .17), ui.RGBA(60, 120, 150, .16)},
