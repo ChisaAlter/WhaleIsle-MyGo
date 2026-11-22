@@ -66,7 +66,7 @@ func TestToolCodeHighlightUsesInstalledLightAndDarkTokens(t *testing.T) {
 	for _, tc := range []struct {
 		dark                         bool
 		keyword, stringColor, number string
-	}{{false, "#d6336c", "#2f9e44", "#1c7ed6"}, {true, "#faa2c1", "#69db7c", "#4dabf7"}} {
+	}{{false, "#d6336c", "#2b8a3e", "#1c7ed6"}, {true, "#faa2c1", "#8ce99a", "#4dabf7"}} {
 		spans := toolCodeSpans("typescript", "const label = 'text'; const n = 42;", Style{FG: ui.RGB(20, 20, 20), Dark: tc.dark})
 		foundKeyword, foundString, foundNumber := false, false, false
 		for _, span := range spans {

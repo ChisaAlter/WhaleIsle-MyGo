@@ -12,7 +12,7 @@ import (
 
 func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	trigger := widgets.Button(c.Key("usage-pricing/"+m.Store.StatisticsOwner()), colors, usageText("设置", "Settings"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall})
+	trigger := widgets.Button(c.Key("usage-pricing/"+m.Store.StatisticsOwner()), colors, usageText("设置", "Settings"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Leading: usageLeadingIcon("settings")})
 	open := ui.Local(trigger, "open", func() bool { return false })
 	submitted := ui.Local(trigger, "submitted", func() bool { return false })
 	requested := m.Store.TakeBillingEditorRequest()

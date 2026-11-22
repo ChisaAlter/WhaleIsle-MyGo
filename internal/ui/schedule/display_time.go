@@ -42,7 +42,7 @@ func scheduleRelative(at, now time.Time) string {
 		if difference > 0 {
 			return fmt.Sprintf(scheduleText("%.0f%s后", "in %.0f %s"), value, scheduleText(unit.zh, name))
 		}
-		return fmt.Sprintf(scheduleText("已过期 %.0f%s", "%.0f %s overdue"), value, scheduleText(unit.zh, name))
+		return fmt.Sprintf(scheduleText("已逾期 %.0f%s", "%.0f %s overdue"), value, scheduleText(unit.zh, name))
 	}
 	return ""
 }

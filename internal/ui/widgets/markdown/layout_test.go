@@ -97,9 +97,9 @@ func TestCodeBlockLineNumbersAndPaletteFollowTheme(t *testing.T) {
 	if CodeSize(st) != 11 {
 		t.Fatalf("code size %v, want the 11px markdown-code-block token", CodeSize(st))
 	}
-	dark := chromaPalette(true)
-	light := chromaPalette(false)
-	if dark == nil || light == nil || dark == light {
+	dark := newShikiPalette(true, ui.RGB(20, 20, 20))
+	light := newShikiPalette(false, ui.RGB(20, 20, 20))
+	if dark.keyword == light.keyword || dark.constant == light.constant {
 		t.Fatal("dark and light code palettes are not distinct")
 	}
 }

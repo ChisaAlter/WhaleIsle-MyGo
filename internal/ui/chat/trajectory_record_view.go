@@ -2,6 +2,8 @@ package chat
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -105,10 +107,36 @@ func trajectoryRecordPreview(row trajRow) string {
 	}
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
-			return strings.Join(strings.Fields(value), " ")
+			return trajectoryPlainText(value)
 		}
 	}
 	return ""
+}
+
+var trajectoryLinkRe = regexp.MustCompile(`!?\[([^\]]*)\]\([^)]*\)`)
+
+// trajectoryPlainText collapses preview markdown to the plain text the
+// original renders — headings, block markers, fences, emphasis/code ticks
+// and [text](url) links lose their syntax, underscores stay literal
+// (inline_code renders as inline_code).
+func trajectoryPlainText(value string) string {
+	value = strings.ReplaceAll(value, "```", "")
+	lines := make([]string, 0, 4)
+	for _, line := range strings.Split(value, "\n") {
+		line = strings.TrimSpace(strings.TrimLeft(line, "#"))
+		line = strings.TrimSpace(strings.TrimPrefix(line, ">"))
+		if len(line) > 2 && line[1] == ' ' && (line[0] == '-' || line[0] == '*' || line[0] == '+') {
+			line = strings.TrimSpace(line[2:])
+		} else if dot := strings.Index(line, ". "); dot > 0 && dot <= 3 {
+			if _, err := strconv.Atoi(line[:dot]); err == nil {
+				line = strings.TrimSpace(line[dot+2:])
+			}
+		}
+		lines = append(lines, line)
+	}
+	joined := trajectoryLinkRe.ReplaceAllString(strings.Join(lines, " "), "$1")
+	joined = strings.NewReplacer("**", "", "__", "", "~~", "", "`", "", "*", "").Replace(joined)
+	return strings.Join(strings.Fields(joined), " ")
 }
 
 // Wide-window inspector follows the source clamp and keeps at least280DIP
