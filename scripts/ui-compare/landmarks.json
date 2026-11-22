@@ -4091,14 +4091,14 @@
                 }
               },
               {
-                "invoke": {
-                  "name": "发现",
-                  "type": "TabItem"
-                },
                 "expect": {
                   "name": "安装",
                   "type": "Button",
                   "timeout": 30000
+                },
+                "select": {
+                  "name": "发现",
+                  "type": "TabItem"
                 }
               }
             ],
