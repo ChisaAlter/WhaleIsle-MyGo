@@ -72,7 +72,7 @@ func View(c *ui.Context, m Model) {
 				// one rides the indicator look — radius md, layer-3 fill,
 				// .5 l3 stroke, primary 600 (ui-primitives
 				// SegmentedTabs.module.css .tabs/.tab/.indicator).
-				ui.Row(c).Shrink(0).MinWidth(240).Padding(4).Radius(theme.ContextRadii(c).LG).Background(chrome.Color(colors.Field)).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
+				ui.Row(c).AlignSelf(ui.Start).MinWidth(240).Padding(4).Radius(theme.ContextRadii(c).LG).Background(chrome.Color(colors.Field)).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
 						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(34).MinWidth(120).Padding(0, 12).
 							BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent).
