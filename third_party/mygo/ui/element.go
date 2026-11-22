@@ -402,10 +402,13 @@ type node struct {
 	leafOK     bool
 	// leaving marks a copy of an element gone, which its exit transition
 	// animates (1 if it was in its parent's flow, 2 if absolute), and
-	// ghosts an element holding such copies. attach is where Attach puts
-	// the element, 0 for nowhere.
+	// ghosts an element holding such copies. ghost marks the copy itself
+	// and everything inside it, so painting it does not fault paint
+	// callbacks whose captured elements expired with the frame before.
+	// attach is where Attach puts the element, 0 for nowhere.
 	leaving uint8
 	ghosts  bool
+	ghost   bool
 	attach  attachment
 	// serial is the order the pass made the element in: of overlays, the
 	// one made last shows on top.

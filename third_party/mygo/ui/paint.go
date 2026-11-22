@@ -121,6 +121,14 @@ func (p *Painter) element(e *node) {
 }
 
 func (p *Painter) elementBody(e *node) {
+	if e.ghost && p.rt.handleChecks {
+		// A ghost is a copy of a frame before: elements its Draw and
+		// DrawOver closures captured are gone, and querying them must
+		// read absent rather than panic — the copy refers to no other
+		// element. Live elements keep the expired-handle diagnostic.
+		p.rt.handleChecks = false
+		defer func() { p.rt.handleChecks = true }()
+	}
 	if e.styleFn != nil {
 		e.styleFn(e)
 	}
