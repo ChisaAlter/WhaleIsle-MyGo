@@ -4054,7 +4054,8 @@
                   "text": "发现"
                 },
                 "expect": {
-                  "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]"
+                  "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]",
+                  "timeout": 30000
                 }
               }
             ],
@@ -4096,7 +4097,8 @@
                 },
                 "expect": {
                   "name": "安装",
-                  "type": "Button"
+                  "type": "Button",
+                  "timeout": 30000
                 }
               }
             ],

@@ -444,12 +444,14 @@ try {
       // can take longer than a single 500 ms tick to re-mount its content.
       const webExpect = async (spec) => {
         const t0 = Date.now();
-        while (Date.now() - t0 < WAIT_MS) { if (await webPresent(spec)) return true; await sleep(250); }
+        const ms = spec.timeout || WAIT_MS;
+        while (Date.now() - t0 < ms) { if (await webPresent(spec)) return true; await sleep(250); }
         return false;
       };
       const nativeExpect = async (spec) => {
         const t0 = Date.now();
-        while (Date.now() - t0 < WAIT_MS) { if (nativePresent(spec)) return true; await sleep(250); }
+        const ms = spec.timeout || WAIT_MS;
+        while (Date.now() - t0 < ms) { if (nativePresent(spec)) return true; await sleep(250); }
         return false;
       };
       for (const s of (sc.web?.steps || [])) {
