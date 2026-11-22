@@ -33,3 +33,19 @@ func TestComposerToolbarStaysOneRowWhenNarrow(t *testing.T) {
 		t.Fatalf("permission chip overlaps the model chip: permission=%+v model=%+v", permission, model)
 	}
 }
+
+// Without a catalog the model seat is a plain chip; it must shrink the same way.
+func TestComposerToolbarSeatShrinksWithoutCatalog(t *testing.T) {
+	m := permissionModelFixture()
+	m.Snapshot.ModelLabels = nil
+	m.Snapshot.SelectedModel = "ui-compare-fixture-with-a-long-route-name"
+	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 420)
+	model, okModel := tt.Find("ui-compare-fixture-with-a-long-route-name")
+	send, okSend := tt.Find(i18n.T(i18n.KeyComposerSend))
+	if !okModel || !okSend {
+		t.Fatalf("toolbar seats missing: model=%v send=%v", okModel, okSend)
+	}
+	if model.X+model.W > send.X {
+		t.Fatalf("model seat runs under the send button: model=%+v send=%+v", model, send)
+	}
+}

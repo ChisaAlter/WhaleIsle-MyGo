@@ -188,7 +188,7 @@ func paintGroupedModelCatalog(c *ui.Context, m Model, colors theme.Colors, heigh
 		if colors.Secondary != "" {
 			secondary = chrome.Color(colors.Secondary)
 		}
-		trigger := chip(c, colors, state.Open, secondary).Bind(triggerFocus).Label("Model catalog").Tooltip(caption + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).Disabled(m.Inert)
+		trigger := chip(c, colors, state.Open, secondary).Bind(triggerFocus).Label("Model catalog").Tooltip(caption + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).MaxWidthPercent(100).Disabled(m.Inert)
 		trigger.Children(func() {
 			if hasCurrentChoice {
 				ModelLabel(c, m.Snapshot, selectionLabel, ModelLabelTrigger, true, secondary, 13).Grow(1)
