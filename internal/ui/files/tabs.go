@@ -373,7 +373,13 @@ func paintTabs(c *ui.Context, m Model, fg, muted ui.Color) {
 
 // paintTabChip paints one 28px tab chip.
 func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, muted ui.Color) {
+	// The preview route displays a file through SelectedFile without the tab
+	// becoming Active; the original keeps the active tab's close control at
+	// rest either way.
 	active := w.Active == tab.Path
+	if !active && m.SelectedFile != nil && filepath.Clean(*m.SelectedFile) == filepath.Clean(tab.Path) {
+		active = true
+	}
 	dirty := tab.Dirty()
 	chip := ui.Row(c.Key("tab-"+tab.Path)).Gap(5).Height(28).MinWidth(80).MaxWidth(170).Radius(6).Padding(0, 8, 0, 10).AlignItems(ui.Center).Clip()
 	// The chip's face eases between resting, hovered and active over the fast

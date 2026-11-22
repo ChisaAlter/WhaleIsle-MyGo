@@ -184,7 +184,7 @@ func ReadOnlyHistoryWithPreferences(c *ui.Context, scope string, messages []sess
 				case msg.Kind == session.MessageKindThinking:
 					ThinkingBlockView(c, msg.ID, body, expanded, ThinkingStyle{Streaming: msg.Streaming, FG: st.FG, Muted: st.Muted, Border: st.Border, Field: st.Field, Size: secondaryChatSize()})
 				case msg.Kind == session.MessageKindText && msg.Role == "assistant":
-					writeStyle := transcriptMarkdownStyle(st.FG, st.Muted, st.Field, st.Accent, chrome.Color(st.Colors.Hover), theme.CurrentPreferences().Chat.Size, darkSurface(st.Muted))
+					writeStyle := transcriptMarkdownStyle(st.FG, st.Muted, st.Field, st.Accent, chrome.Color(st.Colors.Hover), theme.CurrentPreferences().Chat.Size, darkSurface(st.Muted), chrome.Color(st.Colors.Secondary))
 					writeStyle.ResolveFile = FileMentionResolver(messages, msg)
 					if writeStyle.ResolveFile != nil {
 						writeStyle.ResolveRevision = fileMentionRevision(messages, msg)

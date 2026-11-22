@@ -212,3 +212,12 @@ func ruleBorderColor(st Style) ui.Color {
 	}
 	return st.Muted
 }
+
+// listMarkerColor mirrors MarkdownText.module.css li::marker (label-secondary);
+// an unset Marker keeps the Muted fallback.
+func listMarkerColor(st Style) ui.Color {
+	if st.Marker != ui.Transparent {
+		return st.Marker
+	}
+	return st.Muted
+}

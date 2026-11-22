@@ -154,7 +154,7 @@ func TestTranscriptGalleryAssistantMarkdown(t *testing.T) {
 	colors, fg, muted := galleryTheme()
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(24, 32, 24, 32).Children(func() {
-			style := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), 14, false)
+			style := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), 14, false, chrome.Color(colors.Secondary))
 			// The transcript's message axis: tables only scroll past this width.
 			style.AvailableWidth = 720
 			markdown.View(c, msg.Body, style)

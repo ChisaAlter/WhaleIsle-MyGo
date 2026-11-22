@@ -25,7 +25,10 @@ func HeroOption(c *ui.Context, m Model, snap session.ViewState) {
 	if m.HeroDirectoryReason != "" {
 		hint = directoryRefusalText(m.HeroDirectoryReason)
 	}
-	row := ui.Row(c).Key("project-hero-option").Gap(6).AlignItems(ui.Center).Tooltip(hint)
+	// The row shares the composer stack envelope (card + 16-DIP clearance per
+	// side); the card's content inset adds its own 16-DIP padding, so the label
+	// lines up with the card's inner controls at +32, not the envelope edge.
+	row := ui.Row(c).Key("project-hero-option").Gap(6).AlignItems(ui.Center).Padding(0, 0, 0, 32).Tooltip(hint)
 	row.Children(func() {
 		button := ui.Button(c, "").Label("Project").Tooltip(hint).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy || m.HeroDirectoryReason != "")
 		button.Children(func() {

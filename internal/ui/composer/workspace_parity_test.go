@@ -157,18 +157,24 @@ func TestHeroRowCarriesWorkspaceAndPreset(t *testing.T) {
 			closeMetric(t, presetChip.H, 28, "preset chip height")
 			closeMetric(t, (workspace.Y+workspace.H/2)-(presetChip.Y+presetChip.H/2), 0, "both chips share the row")
 			// The installed hero keeps the preset chip in the left flow right after
-			// the workspace chip (probe: 标准模式 at x=638.3, ~18 DIP past the workspace
-			// chip), not flush to the row's right edge.
-			// Native rule (round205/round211): a fixed 150-DIP workspace chip, so
-			// short and long names share the width and the preset chip after it
-			// keeps the native x.
-			closeMetric(t, workspace.W, 150, "workspace chip width")
+			// the workspace chip (probe: 标准模式 at x=638.3), not flush to the
+			// row's right edge.
+			// HeroShell.workspaceChip is a content-sized inline-flex with
+			// max-width min(100%, 360px): short names size to content and the
+			// chevron stays snug to the label; only very long names pin the
+			// 360-DIP cap with the label ellipsized.
+			if workspace.W > 360 {
+				t.Fatalf("workspace chip exceeds max-width: %v", workspace)
+			}
+			// The chip shows only the workspace basename, so every fixture
+			// sizes to content well under the cap; the long case still proves
+			// the chip stays inside the row and never exceeds max-width.
+			if workspace.W >= 200 {
+				t.Fatalf("basename workspace label stretched the chip: %v", workspace)
+			}
 			closeMetric(t, presetChip.X-(workspace.X+workspace.W), 2, "sourceworkspace-preset gap")
 			if presetChip.X+presetChip.W > row.X+row.W-16 {
 				t.Fatalf("preset chip overflows the row: %v row=%v", presetChip, row)
-			}
-			if len(root) > 30 && workspace.W != 150 {
-				t.Fatalf("long workspace name changed the chip width: %v", workspace)
 			}
 			// The chip shows the workspace basename; the long case only pins the
 			// width rule, so it skips the label assertion.

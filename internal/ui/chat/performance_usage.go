@@ -86,9 +86,9 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 		}
 		trigger := ui.Button(c, "").Label(i18n.T(i18n.KeyChatUsageTitle)).Tooltip(summaryLabel).Description(summaryLabel).Height(28+delta).MinWidth(0).Padding(0, 8).Gap(4).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Expanded(*open)
 		trigger.Children(func() {
-			ui.Box(c).Fill().PassThrough().Label(summaryLabel)
+			ui.Box(c).Absolute().Fill().PassThrough().Label(summaryLabel)
 			if summaryAlt != "" && summaryAlt != summaryLabel {
-				ui.Box(c).Fill().PassThrough().Label(summaryAlt)
+				ui.Box(c).Absolute().Fill().PassThrough().Label(summaryAlt)
 			}
 			ui.Icon(c, usageDatabaseIcon).Size(15+delta, 15+delta)
 			w, _ := c.Size()

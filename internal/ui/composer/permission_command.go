@@ -41,9 +41,9 @@ func paintNativePermissionConfirmation(c *ui.Context, m Model, p *nativeCommandP
 				}
 				cb := ui.Checkbox(c, &p.acknowledged, ackLabel).Disabled(p.busy)
 				cb.Children(func() {
-					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityPermAutoConfirmAcknowledge))
-					ui.Box(c).Fill().PassThrough().Label(i18n.T(i18n.KeyParityPermAutoConfirmAcknowledgeAlt))
-					ui.Box(c).Fill().PassThrough().Label(composerText("我已了解风险，并愿意继续", "I understand these risks and want to continue"))
+					ui.Box(c).Absolute().Fill().PassThrough().Label(i18n.T(i18n.KeyParityPermAutoConfirmAcknowledge))
+					ui.Box(c).Absolute().Fill().PassThrough().Label(i18n.T(i18n.KeyParityPermAutoConfirmAcknowledgeAlt))
+					ui.Box(c).Absolute().Fill().PassThrough().Label(composerText("我已了解风险，并愿意继续", "I understand these risks and want to continue"))
 				})
 				ui.Row(c).Gap(8).Children(func() {
 					if ui.Button(c, composerText("取消", "Cancel")).Disabled(p.busy).Clicked() {

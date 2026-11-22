@@ -22,9 +22,10 @@ func ModalView(c *ui.Context, m Model) {
 	ui.DialogBase(c.Key("settings-modal"), &open, func(backdrop, panel ui.Element) {
 		ui.ShortcutModalScope(panel, "settings")
 		dark := resolved.Scheme == theme.SchemeDark || resolved.Scheme == theme.SchemeSystem && m.SystemDark
-		mask := ui.RGBA(0, 0, 0, .24)
+		// --dsw-alias-bg-mask-1: rgba(13,13,13,.24) light, rgba(0,0,0,.42) dark.
+		mask := ui.RGBA(13, 13, 13, .24)
 		if dark {
-			mask = ui.RGBA(0, 0, 0, .5)
+			mask = ui.RGBA(0, 0, 0, .42)
 		}
 		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
 		chrome.RevealMask(backdrop, mask, progress)

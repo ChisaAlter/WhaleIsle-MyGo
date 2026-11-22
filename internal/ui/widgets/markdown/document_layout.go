@@ -151,7 +151,7 @@ func viewDocumentBlock(c *ui.Context, node ast.Node, source string, st Style) {
 				}
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Gap(0).Padding(top, 0, 0, 0).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, marker).Width(18).NoWrap().FontSize(st.FontSize).FixedLineHeight(BodyLineHeight(st)).TextColor(st.Muted)
+				ui.Text(c, marker).Width(18).NoWrap().FontSize(st.FontSize).FixedLineHeight(BodyLineHeight(st)).TextColor(listMarkerColor(st))
 				ui.Column(c).Grow(1).MinWidth(0).Children(func() { viewDocumentBlocks(c, item, source, st, true) })
 			})
 		}

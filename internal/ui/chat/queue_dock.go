@@ -324,7 +324,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 					grip := ui.Button(c, "").Key("queue-grip:"+item.ID).Label(reorderLabel).Tooltip(moveTip).Description(moveTip).Width(20).Height(24).Radius(6).
 						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
 					grip.Children(func() {
-						ui.Box(c).Fill().PassThrough().Label(moveTip)
+						ui.Box(c).Absolute().Fill().PassThrough().Label(moveTip)
 						ui.Icon(c, queueIconGrip).Width(12).Height(12).TextColor(muted)
 					})
 					if !moveEnabled {

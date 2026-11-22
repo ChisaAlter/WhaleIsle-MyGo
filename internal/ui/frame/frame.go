@@ -1176,6 +1176,13 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					// The ledger owns its empty/loading states. Chat's hero or
 					// history-error placeholder must not hide the selected view.
 					if paneTab != "trajectory" && (phase == conversationHero || phase == conversationSettling || (snap.HistoryError != "" && len(snap.Messages) == 0)) {
+						if phase == conversationHero || phase == conversationSettling {
+							// EmptyHero centers inside scrollBody below the
+							// shared titlebar band; here the caption overlays
+							// the chat column, so a fixed 48-DIP lead drops the
+							// centered stack the same 24 DIP.
+							ui.Box(c).Key("conversation-hero-caption-bias").Height(workspaceCaptionHeight).Shrink(0)
+						}
 						ui.Box(c).Key("conversation-phase-space").Grow(1).MinHeight(0)
 					} else {
 						transcript := ui.Box(c).Grow(1).MinHeight(0).Clip()

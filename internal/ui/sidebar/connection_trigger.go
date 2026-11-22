@@ -259,18 +259,24 @@ func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors
 		detail = label
 	}
 	busy := phase == "checking" || phase == "downloading" || phase == "verifying" || phase == "installing"
+	// A plain footer icon button like the sidebar's other chrome: transparent
+	// at rest with the hover wash under the pointer; the earlier tinted box
+	// read as a separate surface the original footer does not have.
 	ink := chrome.Color(colors.Accent)
-	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Center().Background(ink.Alpha(.08)).Border(1, ink.Alpha(.2)).TextColor(ink).Label(label).Tooltip(detail)
+	if busy {
+		ink = chrome.Color(colors.Muted)
+	}
+	button := ui.Button(c, "").Fill().Padding(0).Radius(8).Center().Background(ui.Transparent).BorderWidth(0).TextColor(ink).Label(label).Tooltip(detail)
 	if busy {
 		button.Disabled(true)
 	} else if button.Hovered() {
-		button.Background(ink.Alpha(.14))
+		button.Background(chrome.Color(colors.Hover))
 	}
 	button.Children(func() {
 		if phase == "error" {
 			ui.Box(c).Size(6, 6).Radius(3).Background(ink)
 		} else if busy {
-			ui.Icon(c, updateLoading).Size(14, 14).TextColor(ink)
+			ui.Icon(c, updateLoading).Size(14, 14).TextColor(ink).Opacity(.7)
 		} else {
 			ui.Icon(c, updateDownload).Size(14, 14).TextColor(ink)
 		}

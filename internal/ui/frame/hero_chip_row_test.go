@@ -27,7 +27,11 @@ func TestHeroChipRowKeepsTheNativeInsets(t *testing.T) {
 			t.Fatalf("%s = %.2f, want %.2f", name, got, want)
 		}
 	}
-	close("workspace chip width", float64(workspace.W), 150)
+	// HeroShell.workspaceChip is content-sized inline-flex under a 360 cap, so
+	// a short workspace name keeps the chevron snug instead of pinning 150.
+	if workspace.W <= 0 || workspace.W >= 200 {
+		t.Fatalf("workspace chip width = %.2f, want a content size under 200", workspace.W)
+	}
 	close("workspace left inset", float64(workspace.X-row.X), 20)
 	close("sourcechip-to-preset gap", float64(preset.X-(workspace.X+workspace.W)), 2)
 	if preset.X+preset.W > row.X+row.W {
