@@ -4133,7 +4133,7 @@
                 "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"]"
               },
               "native": {
-                "type": "Pane",
+                "type": "Group",
                 "namePrefix": "Market entry"
               },
               "assert": [
@@ -4149,7 +4149,7 @@
                 "selector": "[data-market-entry=\"@ui-compare/plugin-alpha\"] button[class*=cardOpen]"
               },
               "native": {
-                "name": "打开插件市场 @ui-compare/plugin-alpha",
+                "name": "查看 阿尔法插件",
                 "type": "Button"
               },
               "assert": [
@@ -4183,7 +4183,7 @@
                 "selector": "button[aria-label=\"安装 阿尔法插件\"]"
               },
               "native": {
-                "name": "安装",
+                "name": "安装 阿尔法插件",
                 "type": "Button"
               },
               "assert": [
@@ -4200,7 +4200,7 @@
                 "selector": "[data-market-entry=\"@ui-compare/plugin-gamma\"]"
               },
               "native": {
-                "type": "Pane",
+                "type": "Group",
                 "namePrefix": "Market entry",
                 "index": 2
               },
@@ -4218,8 +4218,8 @@
                 "selector": "button[aria-label=\"安装 伽马插件\"]"
               },
               "native": {
-                "name": "不兼容",
-                "type": "Text"
+                "name": "安装 伽马插件",
+                "type": "Button"
               },
               "assert": [
                 "x",
@@ -4232,7 +4232,7 @@
             {
               "key": "market.search",
               "web": {
-                "selector": "input[class*=search]"
+                "selector": "[data-plugin-panel] input[class*=search]"
               },
               "native": {
                 "name": "搜索插件",
