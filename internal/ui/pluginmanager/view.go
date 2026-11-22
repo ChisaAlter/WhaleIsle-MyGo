@@ -66,20 +66,24 @@ func View(c *ui.Context, m Model) {
 			detail := s.Tab == "installed" && s.View.Kind != "list" && s.View.Kind != "more"
 			if !detail && s.View.Kind != "more" {
 				pageHeader(c, m, s, a, fg, muted)
-				// The original packs tabs into its page bar 16 under the head
-				// and holds content another 16 + 32 below them; the column's
-				// flat 32 gap only supplies the trailing 32.
-				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 16, 0).Children(func() {
+				// .pageTabList is a SegmentedTabs box: fit-content, min 240,
+				// 4px inset, radius lg on module-platform; each .tab is a
+				// 34px transparent button (14/20, secondary) and the selected
+				// one rides the indicator look — radius md, layer-3 fill,
+				// .5 l3 stroke, primary 600 (ui-primitives
+				// SegmentedTabs.module.css .tabs/.tab/.indicator).
+				ui.Row(c).Shrink(0).MinWidth(240).Padding(4).Radius(theme.ContextRadii(c).LG).Background(chrome.Color(colors.Field)).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-8, 0, 0, 0).Children(func() {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
-						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent)
+						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(34).MinWidth(120).Padding(0, 12).
+							BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent).
+							FontSize(theme.InterfaceSize(14)).FixedLineHeight(20)
 						if s.Tab == tab.id {
-							b.Background(chrome.Color(colors.Field)).TextColor(fg)
+							b = b.Background(chrome.Color(colors.BG)).TextColor(fg).FontWeight(600).Border(.5, chrome.Color(colors.BorderL3))
 						}
 						if b.Clicked() {
 							a.SelectTab(tab.id)
 						}
 					}
-
 				})
 			}
 			widgets.Notice(c, "view:113", s.Notice != "", func() string { return s.Notice })
