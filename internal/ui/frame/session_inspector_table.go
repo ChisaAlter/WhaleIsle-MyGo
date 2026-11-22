@@ -51,7 +51,7 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 			mode := &p.Mode
 			parts := ui.SelectBase(c.Key("inspector-mode-select"), mode)
 			parts.Trigger.Label(paneLabel("展示形式", "Presentation")).Padding(2, 4).BorderWidth(0).Radius(0).
-				Background(chrome.Color(colors.Field)).FontSize(11).MinHeight(0).Cursor(ui.CursorPointer).Children(func() {
+				Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field))).FontSize(11).MinHeight(0).Cursor(ui.CursorPointer).Children(func() {
 				label := paneLabel("原始数据", "Raw Log")
 				if *mode == "chat-node" {
 					label = paneLabel("对话分组", "Chat Group")

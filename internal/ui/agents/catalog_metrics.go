@@ -109,7 +109,7 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	for _, row := range v.Rows {
 		row := row
 		disabled := v.Busy || !row.CanOpen()
-		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).BorderWidth(0).Background(chrome.Color(colors.Field)).Disabled(disabled)
+		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).BorderWidth(0).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Disabled(disabled)
 		if !disabled {
 			button.Cursor(ui.CursorPointer)
 			if button.Hovered() {

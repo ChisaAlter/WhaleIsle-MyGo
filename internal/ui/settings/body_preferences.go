@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -25,7 +26,7 @@ type BodySettingsAccess struct {
 // trigger. It is local to settings; native popup/keyboard behavior is unchanged.
 func settingsPreferenceButton(c *ui.Context, label string) ui.Element {
 	button := ui.Button(c, label).Height(36).Padding(7, 14).Radius(999).BorderWidth(0).
-		Background(c.Theme().Surface).TextColor(c.Theme().Text).FontSize(theme.InterfaceSize(14))
+		Background(chrome.FrostInset(theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface)).TextColor(c.Theme().Text).FontSize(theme.InterfaceSize(14))
 	if button.Hovered() {
 		button.Background(c.Theme().SurfaceHover)
 	}
