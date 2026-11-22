@@ -4605,13 +4605,13 @@
                 }
               },
               {
-                "invoke": {
-                  "name": "Automation task actions",
-                  "type": "Button"
-                },
                 "expect": {
                   "name": "删除任务",
                   "type": "MenuItem"
+                },
+                "expand": {
+                  "name": "Automation task actions",
+                  "type": "Button"
                 }
               },
               {
