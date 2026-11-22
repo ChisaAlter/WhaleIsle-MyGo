@@ -462,7 +462,10 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 					}
 					ta := ui.TextArea(c.Key("composer-draft-input"), m.Draft).Label("Composer draft").FillWidth().Lines(minLines, maxLines).Placeholder(taPlaceholder).
 						Font(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont).Family).FontSize(theme.CurrentPreferences().Composer.Size).FixedLineHeight(composerLineHeight(theme.CurrentPreferences().Composer.Size)).Padding(4, 8, 0, 14).
-						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg)
+						MinHeight(36).Background(ui.Transparent).BorderWidth(0).Radius(0).TextColor(fg).
+						// The original composer textarea draws no ring of its
+						// own; the card carries any focus treatment.
+						FocusRing(false)
 					ta.Disabled(inputDisabled)
 					if m.Hero {
 						ta = ta.MinHeight(52)
