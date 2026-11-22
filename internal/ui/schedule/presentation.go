@@ -260,7 +260,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 			})
 		}
 		if d.dirty() && d.row.Status != "inactive" {
-			saveBar := ui.Row(c.Key("schedule-save-bar")).Label("Unsaved task changes").Absolute().Left(12).Right(12).Bottom(12).Padding(8, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0).Radius(12)
+			saveBar := ui.Row(c.Key("schedule-save-bar")).Label("Unsaved task changes").Absolute().Left(12).Right(12).Bottom(12).Padding(8, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0).Radius(theme.ContextRadii(c).MD)
 			chrome.GlassSurface(saveBar, chrome.Color(colors.Field), chrome.MaterialPanel, 12)
 			saveBar.Children(func() {
 				if width > 760 {
@@ -369,7 +369,7 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 	open := true
 	_, height := c.Size()
 	ui.DialogBase(c.Key("schedule-delete-dialog"), &open, func(backdrop, panel ui.Element) {
-		panel.Label("Delete this task?").Width(480).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(28).Padding(20).Children(func() {
+		panel.Label("Delete this task?").Width(480).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(theme.ContextRadii(c).Panel).Padding(20).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Gap(16).Children(func() {
 				ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(chrome.Color(colors.FG))
 				ui.Scroll(c.Key("schedule-delete-content")).MinHeight(0).MaxHeight(max(float32(40), height-180)).FillWidth().Children(func() {
@@ -440,7 +440,7 @@ func scheduleFrequency(row schedstore.Entry) string {
 }
 
 func scheduleIconButton(c *ui.Context, key, label, icon string, ink ui.Color) ui.Element {
-	b := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).BorderWidth(0).Background(ui.Transparent).Radius(6)
+	b := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).BorderWidth(0).Background(ui.Transparent).Radius(theme.ContextRadii(c).SM)
 	b.Children(func() { ui.Icon(c, scheduleIcons[icon]).Size(16, 16).TextColor(ink) })
 	return b
 }

@@ -68,7 +68,7 @@ func View(c *ui.Context, m Model) {
 				pageHeader(c, m, s, a, fg, muted)
 				ui.Row(c).FillWidth().Wrap().Gap(4).Role(ui.RoleTabList).Label(copyText("插件视图", "Plugin views")).Margin(-16, 0, 0, 0).Children(func() {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
-						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(8).TextColor(muted).Background(ui.Transparent)
+						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(32).MinWidth(120).BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent)
 						if s.Tab == tab.id {
 							b.Background(chrome.Color(colors.Field)).TextColor(fg)
 						}
@@ -125,7 +125,7 @@ func View(c *ui.Context, m Model) {
 	}
 	if s.PreferenceError != "" {
 		ui.Overlay(c.Key("plugin-registry-preference-error"), func() {
-			ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(640).Padding(12).Gap(10).Role(ui.RoleStatus).Background(bg).Border(.5, border).Radius(8).Children(func() {
+			ui.Row(c).Absolute().Bottom(24).Left(24).Right(24).MaxWidth(640).Padding(12).Gap(10).Role(ui.RoleStatus).Background(bg).Border(.5, border).Radius(theme.ContextRadii(c).LG).Children(func() {
 				ui.Text(c, s.PreferenceError).Grow(1).MinWidth(0).TextColor(c.Theme().Danger)
 				if ui.Button(c, copyText("关闭", "Close")).Clicked() {
 					a.DismissPreferenceError()
@@ -165,10 +165,10 @@ func loadingRows(c *ui.Context, muted ui.Color) {
 		ui.Text(c, copyText("正在读取插件…", "Loading plugins…")).TextColor(muted)
 		for i := 0; i < 3; i++ {
 			ui.Row(c).FillWidth().Gap(14).Padding(8).Children(func() {
-				ui.Box(c).Width(48).Height(48).Radius(8).Background(c.Theme().Surface)
+				ui.Box(c).Width(48).Height(48).Radius(theme.ContextRadii(c).LG).Background(c.Theme().Surface)
 				ui.Column(c).Grow(1).Gap(8).Children(func() {
-					ui.Box(c).WidthPercent(35).Height(14).Radius(3).Background(c.Theme().Surface)
-					ui.Box(c).WidthPercent(70).Height(12).Radius(3).Background(c.Theme().Surface)
+					ui.Box(c).WidthPercent(35).Height(14).Radius(theme.ContextRadii(c).XS).Background(c.Theme().Surface)
+					ui.Box(c).WidthPercent(70).Height(12).Radius(theme.ContextRadii(c).XS).Background(c.Theme().Surface)
 				})
 			})
 		}
@@ -186,7 +186,7 @@ func artwork(c *ui.Context, ink, border ui.Color, owner *svgimage.Owner, source 
 	artworkSized(c, ink, border, 48, 36, owner, source...)
 }
 func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owner *svgimage.Owner, source ...string) {
-	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(16)
+	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(theme.ContextRadii(c).LG)
 	shown := false
 	if len(source) > 0 && source[0] != "" {
 		root.AlignItems(ui.Center).Justify(ui.Center).Children(func() { shown = marketui.PluginImage(c, source[0], size, size, owner) })
@@ -281,7 +281,7 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 				groupTitle(c, copyText("内置插件配置", "Built-in plugin settings"), muted)
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					for _, item := range basic {
-						card := ui.Button(c.Key("plugin-item-"+item.Key), "").Label("Plugin item "+item.Title).FillWidth().MinWidth(0).Gap(14).Padding(8).Margin(0, -8).Radius(20).
+						card := ui.Button(c.Key("plugin-item-"+item.Key), "").Label("Plugin item "+item.Title).FillWidth().MinWidth(0).Gap(14).Padding(8).Margin(0, -8).Radius(theme.ContextRadii(c).XL).
 							BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Start).Cursor(ui.CursorPointer)
 						if card.Hovered() {
 							card = card.Background(c.Theme().SurfaceHover)
@@ -341,7 +341,7 @@ func groupTitle(c *ui.Context, title string, ink ui.Color) {
 }
 
 func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a manager.Actions, fg, muted, border ui.Color) {
-	card := ui.Row(c.Key("plugin-package-" + p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(12).AlignItems(ui.Center)
+	card := ui.Row(c.Key("plugin-package-" + p.Name)).FillWidth().MinWidth(0).Wrap().Gap(14).Padding(8).Radius(theme.ContextRadii(c).XL).AlignItems(ui.Center)
 	if card.Hovered() {
 		card.Background(c.Theme().SurfaceHover)
 	}
@@ -374,7 +374,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 			a.Enable(p.Name, value)
 		}
 		menuLabel := copyText("更多操作", "More actions")
-		more := ui.Button(c, "").Label(menuLabel).Size(24, 24).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(menuLabel)
+		more := ui.Button(c, "").Label(menuLabel).Size(24, 24).Shrink(0).Padding(0).Radius(theme.ContextRadii(c).SM).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(menuLabel)
 		more.Children(func() { ui.Text(c, "⋯").FontSize(theme.InterfaceSize(14)).TextColor(muted) })
 		if more.Hovered() {
 			more.Background(c.Theme().SurfaceHover)
