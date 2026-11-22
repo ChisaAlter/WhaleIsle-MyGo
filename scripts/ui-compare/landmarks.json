@@ -4232,7 +4232,7 @@
             {
               "key": "market.search",
               "web": {
-                "selector": "[data-plugin-panel] input[class*=search]"
+                "selector": "[data-plugin-panel] [class*=search]"
               },
               "native": {
                 "name": "搜索插件",
