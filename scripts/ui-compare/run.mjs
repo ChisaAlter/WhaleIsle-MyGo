@@ -161,7 +161,7 @@ try {
   }
   // A surface may seed Host schedule tasks into BOTH DSH homes before either
   // launches — the same Host-persisted state both clients read via
-  // schedule/catalog (per-record JSON under storages/schedule/tasks/).
+  // schedule/catalog (the single-unit document storages/schedule.json).
   if (surfaceSpec.scheduleFixture) {
     const fx = join(TOOL_DIR, surfaceSpec.scheduleFixture);
     for (const home of [host2Home, nativeHome]) {

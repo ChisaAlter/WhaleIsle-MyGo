@@ -10,9 +10,8 @@
 // layout (the default `single`) and is version 1 in the pinned runtime
 // (runtime-rc4: storage.ts scheduleTaskSchema requires record, sessionId,
 // and status active|inactive); each table value is the stored ScheduleTask.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readFileSync } from 'node:fs'
 
 const [home, fixturePath] = process.argv.slice(2)
 if (!home || !fixturePath) {
