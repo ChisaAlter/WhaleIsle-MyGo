@@ -585,11 +585,16 @@ func mergeTrajectoryToolResults(rows []trajRow) []trajRow {
 		if target < 0 {
 			continue
 		}
-		preview := row.Full.Output
+		// summarizeResult: the first text content block, not the JSON
+		// envelope — the projection's Body already carries that extraction.
+		preview := row.Source.Body
+		if preview == "" {
+			preview = row.Full.Output
+		}
 		if preview == "" {
 			preview = row.Output
 		}
-		resultOf[target] = trajectoryPreview(strings.Join(strings.Fields(preview), " "))
+		resultOf[target] = trajectoryPreview(trajectoryPlainText(preview))
 		consumedCall[target] = true
 		drop[i] = true
 	}
