@@ -76,7 +76,7 @@ func View(c *ui.Context, m Model) {
 					for _, tab := range []struct{ id, zh, en string }{{"installed", "已安装", "Installed"}, {"discover", "发现", "Discover"}} {
 						b := ui.Button(c, copyText(tab.zh, tab.en)).Role(ui.RoleTab).Selected(s.Tab == tab.id).Height(34).MinWidth(120).Padding(0, 12).
 							BorderWidth(0).Radius(theme.ContextRadii(c).MD).TextColor(muted).Background(ui.Transparent).
-							FontSize(theme.InterfaceSize(14)).FixedLineHeight(20)
+							FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20))
 						if s.Tab == tab.id {
 							b = b.Background(chrome.Color(colors.BG)).TextColor(fg).FontWeight(600).Border(.5, chrome.Color(colors.BorderL3))
 						}
@@ -868,7 +868,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 								if ui.Button(c, title).Label(fmt.Sprintf(copyText("查看 %s", "View %s"), title)).
 									Shrink(0).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).
 									Background(ui.Transparent).TextColor(fg).
-									FontSize(theme.InterfaceSize(14)).FixedLineHeight(20).FontWeight(500).Clicked() {
+									FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).Clicked() {
 									a.OpenEntry(e.Name)
 								}
 								for _, id := range e.Metadata.Labels {
@@ -877,8 +877,8 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 									}
 								}
 							})
-							ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().MaxLines(1).FontSize(theme.InterfaceSize(13)).FixedLineHeight(18).TextColor(muted)
-							ui.Text(c, marketMeta(e)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted)
+							ui.Text(c, e.Description.Resolve(i18n.Locale())).FillWidth().MaxLines(1).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+							ui.Text(c, marketMeta(e)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 						})
 						marketInstall(c, m, e, s, a)
 					})
@@ -916,7 +916,7 @@ var marketRefreshIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="n
 // marketGhostButton is the toolbar's ghost sm trigger recipe: 28 DIP, 12px/18
 // text, radius sm, transparent until hovered (Button.module.css .sm/.ghost).
 func marketGhostButton(c *ui.Context, b ui.Element, colors theme.Colors) ui.Element {
-	b = b.Height(28).Padding(0, 10).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
+	b = b.Height(28).Padding(0, 10).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
 		Radius(theme.ContextRadii(c).SM).BorderWidth(0).Background(ui.Transparent)
 	if b.Hovered() {
 		b = b.Background(chrome.Color(colors.Hover))
@@ -928,7 +928,7 @@ func marketGhostButton(c *ui.Context, b ui.Element, colors theme.Colors) ui.Elem
 // fill, active flipped to the ghost-active fill with an inset 1px stroke
 // (ui-primitives Pill.module.css .pill/.active).
 func marketPill(c *ui.Context, label string, on bool, colors theme.Colors) ui.Element {
-	p := ui.Button(c, label).Height(24).Padding(0, 8).Radius(999).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).
+	p := ui.Button(c, label).Height(24).Padding(0, 8).Radius(999).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).
 		BorderWidth(0).Background(chrome.Color(colors.Field)).TextColor(chrome.Color(colors.Secondary)).Checked(on)
 	if on {
 		p = p.Background(chrome.Color(colors.Pressed)).TextColor(chrome.Color(colors.FG)).Border(1, chrome.Color(colors.BorderL3))
@@ -943,7 +943,7 @@ func marketPill(c *ui.Context, label string, on bool, colors theme.Colors) ui.El
 // (ui-primitives Tag.module.css .tag[data-tone='outline']).
 func marketTag(c *ui.Context, text string, border, ink ui.Color) {
 	ui.Row(c).Padding(1, 8).Radius(999).Border(0.5, border).Shrink(0).Children(func() {
-		ui.Text(c, text).FontSize(theme.InterfaceSize(11)).FixedLineHeight(17).FontWeight(500).TextColor(ink)
+		ui.Text(c, text).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(17)).FontWeight(500).TextColor(ink)
 	})
 }
 
