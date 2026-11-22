@@ -156,9 +156,11 @@ main-panel and right-pane surfaces. Recorded classifications:
 - **(c) agents pane** — y −71.67/h +71.67 is the merged-caption dock offset;
   native pane also carries 智能体团队 + Agent 预设管理 sections above the
   shared empty state (`agents.empty-title` y +69). x/w match.
-- **(b) trajectory** — native ledger is shorter because the conversation
-  body reserves the composer dock; native adds hint/time-range rows above
-  the ledger (`traj.ledger` y +80, h −249). Ledger x/w match.
+- **(b) trajectory** — the view was rebuilt on the original lane design:
+  `traj.timeline-label` passes (x +0.67, dy-prev +0.67); `traj.toolbar`
+  x matches while y +4.33 is the shared ~4 px tab-strip offset on every
+  rest landmark; `traj.ledger` x/w match and h −169.67 remains the
+  composer-dock reservation the conversation body makes (was −249).
 - **(c) label widths** — native semantic labels fill their row, so Text
   landmark `w`/`x` deltas on title/desc/empty rows are rect-shape
   artifacts; asserts keep x/y/h only where meaningful.

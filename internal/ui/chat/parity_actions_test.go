@@ -202,7 +202,14 @@ func TestParityTrajectoryNativeProgramUsageAndHistory(t *testing.T) {
 	snap.Messages = []session.Message{{ID: "old", Seq: 1, Kind: session.MessageKindSystemPrompt, Body: "old policy"}, {ID: "new", Seq: 2, Kind: session.MessageKindSystemPrompt, Body: "new policy"}}
 	selected, tab = "new", "history-diff"
 	tt.Frame()
-	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "policy") {
+	// Row titles are localized labels now; assert the painted diff's source.
+	diffRow := findTrajectoryRow(trajectoryAllRows(snap.Messages, ""), "new")
+	if diffRow == nil {
+		t.Fatal("system prompt row missing")
+	}
+	before, after := trajectoryHistoryPair(snap, *diffRow)
+	patch := trajectorySimpleDiff(before, after)
+	if !strings.Contains(patch, "old") || !strings.Contains(patch, "new") {
 		t.Fatal("system history diff empty")
 	}
 	snap.TrajectoryRequests = []session.TrajectoryRequest{{ID: "one", StartSeq: 1, Usage: json.RawMessage(`{"inputTokens":10,"outputTokens":2}`)}, {ID: "two", StartSeq: 2, Usage: json.RawMessage(`{"inputTokens":20,"outputTokens":3}`)}}

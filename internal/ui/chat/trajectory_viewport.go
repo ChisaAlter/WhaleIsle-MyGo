@@ -51,14 +51,17 @@ func (v *trajectoryViewport) pan(full trajectoryTimeline, anchorStart, fraction 
 	v.start = math.Max(full.Start, math.Min(full.End-duration, anchorStart-fraction*duration))
 	v.end = v.start + duration
 }
+
+// Sequence mode projects every *visible* ledger record into one equal-width
+// bar on its kind's lane, in record order (timeline.ts deriveTrajectoryTimeline).
 func buildSequenceTrajectoryTimeline(rows []trajRow) trajectoryTimeline {
 	var model trajectoryTimeline
 	for _, row := range rows {
-		if row.Kind == "trajectory-request" {
+		if !trajectoryLedgerVisible(row) {
 			continue
 		}
 		start := float64(len(model.Spans))
-		model.Spans = append(model.Spans, trajectorySpan{Row: row, Start: start, End: start + 1, DurationKnown: true})
+		model.Spans = append(model.Spans, trajectorySpan{Row: row, Start: start, End: start + 1, Lane: trajectorySpanLane(row), DurationKnown: true})
 	}
 	model.End = float64(len(model.Spans))
 	return model

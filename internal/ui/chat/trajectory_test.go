@@ -55,7 +55,7 @@ func TestTrajectoryViewPaintsToolbar(t *testing.T) {
 			ThemeID:  "system",
 		})
 	}, 900, 600)
-	for _, label := range []string{"时长", "轮次", "调用", "轨迹时间线"} {
+	for _, label := range []string{"时长", "轮次", "调用", "输入", "模型", "工具"} {
 		if !tt.HasText(label) && !strings.Contains(strings.Join(tt.Texts(), "\n"), label) {
 			t.Fatalf("missing %q; texts=%q", label, tt.Texts())
 		}

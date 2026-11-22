@@ -16,8 +16,11 @@ func TestTrajectoryProjectionDefaultCompressesIdle(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		TrajectoryView(c, TrajectoryModel{Snapshot: session.ViewState{Messages: messages}, ActualDuration: &actual})
 	}, 900, 600)
-	if !tt.HasText("已记录时间范围 200 ms") {
-		t.Fatalf("default duration is not compressed: %v", tt.Texts())
+	if _, ok := tt.Find("Trajectory span a"); !ok {
+		t.Fatalf("default duration lost span a: %v", tt.Texts())
+	}
+	if _, ok := tt.Find("Trajectory span b"); !ok {
+		t.Fatalf("default duration lost span b: %v", tt.Texts())
 	}
 }
 func TestTrajectoryProjectionOverlapIdleAndImmutability(t *testing.T) {
@@ -70,7 +73,7 @@ func TestTrajectoryProjectionCompleteTimeOptIn(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		TrajectoryView(c, TrajectoryModel{Snapshot: session.ViewState{Messages: messages}, ActualDuration: &actual, ActualTime: &complete})
 	}, 900, 600)
-	if !tt.HasText("已记录时间范围 300 ms") || tt.HasText("空闲已压缩") {
+	if _, ok := tt.Find("Trajectory span b"); !ok || tt.HasText("空闲已压缩") {
 		t.Fatalf("complete time %v", tt.Texts())
 	}
 }

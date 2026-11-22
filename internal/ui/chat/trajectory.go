@@ -46,7 +46,7 @@ type TrajectoryModel struct {
 var (
 	trajSearchFB   string
 	trajSelectedFB string
-	trajActualDur  = true
+	trajActualDur  = false // original dsh.trajectory.duration store defaults false (sequence view)
 	trajTurnsFold  bool
 	trajCallsFold  bool
 	trajDetailTab  = "overview"
@@ -98,7 +98,8 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 	root := ui.Column(c.Key("trajectory:" + m.Snapshot.PlanHistoryBinding + ":" + m.Snapshot.SelectedID)).Fill().MinHeight(0)
 	folds := ui.Local(root, "folds", func() trajectoryFoldState { return trajectoryFoldState{} })
 	allRows := trajectoryAllRows(trajectoryMessages(m.Snapshot), "")
-	rows := folds.rows(allRows, *search, *turnsFold, *callsFold)
+	ledgerRows := func() []trajRow { return trajectoryLedgerRows(folds.rows(allRows, *search, *turnsFold, *callsFold)) }
+	rows := ledgerRows()
 	resize := ui.Local(root, "detail-width", func() trajectoryResize { return trajectoryResize{} })
 	revealed := ui.Local(root, "revealed-row", func() string { return "" })
 	timeRange := ui.Local(root, "time-range", func() trajectoryRangeState { return trajectoryRangeState{} })
@@ -111,7 +112,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 	}
 	if *selected != "" && *revealed != *selected {
 		folds.reveal(allRows, *selected)
-		rows = folds.rows(allRows, *search, *turnsFold, *callsFold)
+		rows = ledgerRows()
 	}
 	if m.List != nil && *selected != "" && *revealed != *selected {
 		for index, row := range rows {
@@ -124,8 +125,12 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 		}
 	}
 	root.Children(func() {
-		// TrajectoryToolbar — sticky 32px strip.
-		ui.Row(c).FillWidth().Height(32).Padding(0, 6, 0, 6).Gap(8).AlignItems(ui.Center).Children(func() {
+		// TrajectoryToolbar .inner — wrap flex, padding 4px 6px, col-gap 8,
+		// row-gap 4 (TrajectoryToolbar.module.css). Controls are ~20 DIP
+		// transparent buttons; the search field is a single compact
+		// 0 1 164px slot with a leading 11px search icon.
+		palette := newTrajectoryPalette(m.ThemeID, m.SystemDark, colors)
+		ui.Row(c).Label("Trajectory toolbar").FillWidth().Wrap().Padding(4, 6, 4, 6).Gap(8).AlignItems(ui.Center).Children(func() {
 			paintTrajToggle(c, i18n.T(i18n.KeyTrajDuration), *actualDur, muted, hover, fg, func() {
 				*actualDur = !*actualDur
 			})
@@ -136,18 +141,19 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 				*callsFold = !*callsFold
 			})
 			ui.Box(c).Grow(1).MinWidth(0)
-			ui.Row(c).Width(160).Height(22).Background(chrome.FrostInset(colors, m.SystemDark, field)).Border(1, border).Radius(6).
-				Padding(0, 8, 0, 8).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, search).FillWidth().Placeholder(i18n.T(i18n.KeyTrajSearch)).FontSize(theme.InterfaceSize(12))
+			ui.Row(c).MaxWidth(164).MinWidth(84).Height(22).Grow(0).Shrink(1).Background(chrome.FrostInset(colors, m.SystemDark, palette.layer2)).Border(1, chrome.Color(colors.BorderL4)).Radius(6).
+				Padding(0, 6, 0, 6).Gap(4).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, trajIconSearch).Width(11).Height(11).TextColor(muted)
+				ui.TextInput(c, search).FillWidth().MinWidth(0).BorderWidth(0).Background(ui.Transparent).Placeholder(i18n.T(i18n.KeyTrajSearch)).FontSize(theme.InterfaceSize(12))
 			})
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
 
-		// TrajectoryTimeline — overview strip from row kinds.
-		ui.Column(c).FillWidth().Padding(6, 8, 4, 8).Gap(4).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyTrajTimeline)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			paintTrajectoryOverview(c, timeRange.viewport.domain(timeRange.model(allRows)), selected, accent, muted, border, timeRange.sequence, timeRange)
-			paintTrajectoryRange(c, allRows, timeRange, m.List, accent, muted, border, rows)
+		// TrajectoryTimeline — three-lane compact chart with the original's
+		// drag-range focus overlay (TrajectoryTimeline.tsx renders drag
+		// ranges, click-sized focus, and Escape reset on the plot itself).
+		ui.Column(c).Label("Trajectory timeline section").FillWidth().Padding(0, 6, 2, 6).Children(func() {
+			paintTrajectoryLanes(c, allRows, selected, timeRange, m.List, rows, palette)
 		})
 		ui.Box(c).FillWidth().Height(1).Background(border)
 
@@ -184,6 +190,7 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 				}
 				ui.List(c, list, len(rows)).Fill().MinHeight(0).Rows(func(lr ui.ListRow) {
 					row := rows[lr.Index]
+					turnStart := lr.Index == 0 || rows[lr.Index-1].TurnKey != row.TurnKey
 					bg := ui.Transparent
 					if rangeMatches != nil && rangeMatches[row.ID] {
 						bg = chrome.FrostInset(colors, m.SystemDark, field)
@@ -191,28 +198,38 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 					if *selected == row.ID {
 						bg = hover
 					}
-					btn := ui.Button(lr.Context, "").Label("Trajectory row " + row.ID).FillWidth().Height(30).Background(bg).BorderWidth(0).
-						Padding(0).Radius(0).Cursor(ui.CursorPointer)
-					btn.Children(func() {
-						ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
-							if row.FoldKey != "" {
-								glyph := "▾"
-								if row.Folded {
-									glyph = "▸"
-								}
-								if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(24).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
-									folds.toggle(row)
-								}
-							}
-							ui.Column(lr.Context).Grow(1).MinWidth(0).Children(func() { paintTrajectoryRecord(lr.Context, row, fg, muted, accent) })
+					ui.Column(lr.Context).FillWidth().MinWidth(0).Children(func() {
+						btn := ui.Button(lr.Context, "").Label("Trajectory row " + row.ID).FillWidth().Height(30).Background(bg).BorderWidth(0).
+							Padding(0).Radius(0).Cursor(ui.CursorPointer)
+						btn.Children(func() {
+							ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
+								// Fixed-width disclosure slot on every row so
+								// badge and title keep one x across foldable
+								// and plain rows.
+								ui.Box(lr.Context).Width(20).FillHeight().Children(func() {
+									if row.FoldKey != "" {
+										glyph := "▾"
+										if row.Folded {
+											glyph = "▸"
+										}
+										if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(20).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
+											folds.toggle(row)
+										}
+									}
+								})
+								ui.Column(lr.Context).Grow(1).MinWidth(0).Children(func() { paintTrajectoryRecord(lr.Context, row, palette, turnStart) })
+							})
 						})
-					})
-					if btn.Clicked() {
-						if timeRange.active && !rangeMatches[row.ID] {
-							timeRange.clear()
+						if btn.Clicked() {
+							if timeRange.active && !rangeMatches[row.ID] {
+								timeRange.clear()
+							}
+							*selected = row.ID
 						}
-						*selected = row.ID
-					}
+						if lr.Index < len(rows)-1 {
+							ui.Box(lr.Context).FillWidth().Height(1).Background(border)
+						}
+					})
 				})
 			})
 
@@ -389,6 +406,10 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 	})
 }
 
+// paintTrajToggle renders the original .toggle control: a 20 DIP transparent
+// button with an 11px clock icon and xxs-12 tertiary label; the pressed state
+// fills with the interactive hover wash (TrajectoryToolbar.module.css
+// .toggle/.toggle[data-pressed]).
 func paintTrajToggle(c *ui.Context, label string, on bool, muted, hover, fg ui.Color, click func()) {
 	bg := ui.Transparent
 	ink := muted
@@ -396,12 +417,21 @@ func paintTrajToggle(c *ui.Context, label string, on bool, muted, hover, fg ui.C
 		bg = hover
 		ink = fg
 	}
-	if ui.Button(c, label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(bg).
-		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Cursor(ui.CursorPointer).Clicked() {
+	btn := ui.Button(c, "").Label(label).Height(20).BorderWidth(0).Background(bg).
+		Padding(0, 4, 0, 4).Radius(4).Cursor(ui.CursorPointer)
+	btn.Children(func() {
+		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Icon(c, trajIconClock).Width(11).Height(11).TextColor(ink)
+			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+		})
+	})
+	if btn.Clicked() {
 		click()
 	}
 }
 
+// paintTrajAction renders the original .action control — the same 20 DIP
+// recipe with the ⊟/⊞ fold glyph the source paints as a plain text span.
 func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg ui.Color, click func()) {
 	icon := "⊟"
 	if pressed {
@@ -413,8 +443,15 @@ func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg
 		bg = hover
 		ink = fg
 	}
-	if ui.Button(c, icon+" "+label).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(bg).
-		TextColor(ink).Padding(2, 7, 2, 7).Radius(4).Cursor(ui.CursorPointer).Clicked() {
+	btn := ui.Button(c, "").Label(label).Height(20).BorderWidth(0).Background(bg).
+		Padding(0, 4, 0, 4).Radius(4).Cursor(ui.CursorPointer)
+	btn.Children(func() {
+		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, icon).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+		})
+	})
+	if btn.Clicked() {
 		click()
 	}
 }
@@ -442,6 +479,12 @@ type trajRow struct {
 	Model     string
 	Tools     string
 	RawHint   string
+	// Result is the inline `→ result` continuation TrajectoryCell paints on
+	// a tool call row after its tool/result row is merged in.
+	Result string
+	// TurnNumber is the 1-based gutter marker (#1, #2 …) on the row that
+	// opens a turn; zero means "inside a turn" or "no turn".
+	TurnNumber int
 }
 
 func trajectoryAllRows(msgs []session.Message, query string) []trajRow {
@@ -454,19 +497,113 @@ func trajectoryAllRows(msgs []session.Message, query string) []trajRow {
 		row.TurnKey = groups[index]
 		if msg.Role == "user" && msg.Kind == session.MessageKindText && !seenTurns[row.TurnKey] {
 			seenTurns[row.TurnKey] = true
-			if number, ok := numbers[row.TurnKey]; ok {
-				row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), int(number))
+			number, ok := numbers[row.TurnKey]
+			if !ok {
+				number = float64(len(seenTurns))
 			}
-		}
-		if q != "" {
-			hay := strings.ToLower(row.Full.Input + " " + row.Full.Output + " " + row.Full.Think + " " + row.Full.Tools + " " + row.Model + " " + row.RawHint + " " + row.Full.Raw)
-			if !strings.Contains(hay, q) {
-				continue
-			}
+			row.Model = fmt.Sprintf(i18n.T(i18n.KeyTrajTurnN), int(number))
+			row.TurnNumber = int(number)
 		}
 		out = append(out, row)
 	}
+	// The original renders records before the first user turn as a preamble
+	// section — no turn rail and no #n marker (TrajectoryTable between-turns).
+	for i := range out {
+		if out[i].Role == "user" && out[i].Kind == session.MessageKindText {
+			break
+		}
+		out[i].TurnKey = ""
+	}
+	out = mergeTrajectoryToolResults(out)
+	if q != "" {
+		filtered := out[:0]
+		for _, row := range out {
+			hay := strings.ToLower(row.Full.Input + " " + row.Full.Output + " " + row.Full.Think + " " + row.Full.Tools + " " + row.Model + " " + row.RawHint + " " + row.Result + " " + row.Full.Raw)
+			if strings.Contains(hay, q) {
+				filtered = append(filtered, row)
+			}
+		}
+		out = filtered
+	}
 	return out
+}
+
+// trajectoryLedgerVisible reports whether a record renders as a ledger row.
+// Request boundaries are zero-height separators, reasoning folds into the
+// assistant record, and auxiliary status/event-typed records (turn/end,
+// session/title, step markers) are not rows.
+func trajectoryLedgerVisible(row trajRow) bool {
+	return row.Kind != trajectoryRequestKind && row.Kind != session.MessageKindThinking &&
+		row.Role != "status" && !strings.Contains(row.Role, "/")
+}
+
+func trajectoryLedgerRows(rows []trajRow) []trajRow {
+	out := make([]trajRow, 0, len(rows))
+	for _, row := range rows {
+		if trajectoryLedgerVisible(row) {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+// mergeTrajectoryToolResults folds each tool/result row into its tool/call
+// row so the ledger renders the original's single `name {args} → result`
+// cell (TrajectoryCell.tsx). Pairing prefers ToolCallView.CallID; a result
+// with no resolvable CallID merges into the most recent unmatched call.
+func mergeTrajectoryToolResults(rows []trajRow) []trajRow {
+	callByID := map[string]int{}
+	for i, row := range rows {
+		if row.Kind == session.MessageKindTool && row.Source.EventType != "tool/result" && row.Source.Tool != nil && row.Source.Tool.CallID != "" {
+			callByID[row.Source.Tool.CallID] = i
+		}
+	}
+	resultOf := map[int]string{}
+	consumedCall := map[int]bool{}
+	drop := map[int]bool{}
+	for i, row := range rows {
+		if row.Kind != session.MessageKindTool || row.Source.EventType != "tool/result" {
+			continue
+		}
+		target := -1
+		if row.Source.Tool != nil && row.Source.Tool.CallID != "" {
+			if j, ok := callByID[row.Source.Tool.CallID]; ok && !consumedCall[j] {
+				target = j
+			}
+		}
+		if target < 0 {
+			for j := i - 1; j >= 0; j-- {
+				if rows[j].Kind != session.MessageKindTool || rows[j].Source.EventType == "tool/result" {
+					break
+				}
+				if !consumedCall[j] {
+					target = j
+				}
+				break
+			}
+		}
+		if target < 0 {
+			continue
+		}
+		preview := row.Full.Output
+		if preview == "" {
+			preview = row.Output
+		}
+		resultOf[target] = trajectoryPreview(strings.Join(strings.Fields(preview), " "))
+		consumedCall[target] = true
+		drop[i] = true
+	}
+	merged := make([]trajRow, 0, len(rows)-len(drop))
+	for i, row := range rows {
+		if drop[i] {
+			continue
+		}
+		if result, ok := resultOf[i]; ok {
+			row.Result = result
+		}
+		merged = append(merged, row)
+	}
+	return merged
 }
 
 func messageToTrajRow(msg session.Message) trajRow {
@@ -602,19 +739,6 @@ func kindLabelZH(k session.MessageKind) string {
 		return i18n.T(i18n.KeyTrajDeliverables)
 	default:
 		return i18n.T(i18n.KeyTrajKindMessage)
-	}
-}
-
-func trajKindColor(k session.MessageKind, accent, muted, border ui.Color) ui.Color {
-	switch k {
-	case session.MessageKindTool:
-		return accent
-	case session.MessageKindThinking:
-		return muted
-	case session.MessageKindCompaction:
-		return border
-	default:
-		return chrome.Color("rgb(148, 163, 184)")
 	}
 }
 
