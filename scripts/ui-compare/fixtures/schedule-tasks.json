@@ -9,14 +9,13 @@
         "prompt": "汇总本周工作并生成周报",
         "time": "09:30:00.000",
         "timeZone": "Asia/Shanghai",
-        "weekdays": [3],
+        "weekdays": [
+          3
+        ],
         "scheduledAt": "2026-11-18T01:30:00.000Z"
       },
       "status": "active",
-      "target": { "kind": "new", "create": {} },
-      "involvedSessionIds": [],
-      "createdAt": "2026-11-18T01:30:00.000Z",
-      "updatedAt": "2026-11-18T01:30:00.000Z"
+      "sessionId": "session-ui-compare-schedule"
     },
     {
       "id": "ui-compare-task-daily-paused",
@@ -29,11 +28,8 @@
         "timeZone": "Asia/Shanghai",
         "scheduledAt": "2026-11-20T01:30:00.000Z"
       },
-      "status": "paused",
-      "target": { "kind": "new", "create": {} },
-      "involvedSessionIds": [],
-      "createdAt": "2026-11-20T01:30:00.000Z",
-      "updatedAt": "2026-11-21T01:30:00.000Z"
+      "status": "active",
+      "sessionId": "session-ui-compare-schedule"
     }
   ]
 }

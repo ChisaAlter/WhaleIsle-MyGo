@@ -1,14 +1,15 @@
 // scripts/ui-compare/seed-schedule.mjs — seed Host schedule tasks into a DSH
-// home, in the real per-record JSON layout the schedule domain reads.
+// home, in the real whole-unit JSON layout the schedule domain reads.
 //
 //   node seed-schedule.mjs <dshHome> <fixtureJson>
 //
 // Layout (vendor/deepseek-harness/packages/storage/storage-json/src/
-// per-record-unit.ts): <home>/storages/<unit>/<table>/<key>.json, each
-// document {"version":<unit version>,"record":<value>} pretty-printed with a
-// trailing newline (format.ts serializeRecord). The schedule unit is
-// version 2 (packages/schedule/schedule/src/storage.ts); the record value is
-// the stored ScheduleTask (storage.ts scheduleTaskSchema).
+// format.ts serialize + single-unit.ts): <home>/storages/<unit>.json, one
+// document {unit:{name,version},global,tables:{<table>:{<key>:<value>}}}
+// pretty-printed with a trailing newline. The schedule unit declares no
+// layout (the default `single`) and is version 1 in the pinned runtime
+// (runtime-rc4: storage.ts scheduleTaskSchema requires record, sessionId,
+// and status active|inactive); each table value is the stored ScheduleTask.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -19,9 +20,10 @@ if (!home || !fixturePath) {
   process.exit(2)
 }
 const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'))
-const dir = join(home, 'storages', 'schedule', 'tasks')
+const dir = join(home, 'storages')
 mkdirSync(dir, { recursive: true })
-for (const { id, ...task } of fixture.tasks) {
-  writeFileSync(join(dir, `${id}.json`), `${JSON.stringify({ version: 2, record: task }, null, 2)}\n`)
-}
-console.log(`seeded ${fixture.tasks.length} schedule task(s) -> ${dir}`)
+const tasks = {}
+for (const { id, ...task } of fixture.tasks) tasks[id] = task
+const document = { unit: { name: 'schedule', version: 1 }, global: null, tables: { tasks } }
+writeFileSync(join(dir, 'schedule.json'), `${JSON.stringify(document, null, 2)}\n`)
+console.log(`seeded ${fixture.tasks.length} schedule task(s) -> ${join(dir, 'schedule.json')}`)
