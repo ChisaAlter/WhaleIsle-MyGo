@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/errcopy"
@@ -31,10 +33,6 @@ type Model struct {
 	// stays the window's content and offers the retry and diagnostics actions,
 	// where a running start would show only its status.
 	Declined bool
-	// ActionLabel replaces the leading action's label when the shell knows a
-	// more specific step than starting or retrying the Host, such as choosing
-	// the folder a first start needs.
-	ActionLabel string
 }
 
 const bootCodeFont = "Consolas, Menlo, monospace"
@@ -102,29 +100,62 @@ func View(c *ui.Context, m Model) {
 		bootTicker(c, m, palette, func() { *drawer = true })
 		ui.Row(c).Absolute().Top(0).Left(c.TitleBar().Left).Right(c.TitleBar().Right).Height(chrome.EffectiveTitleBarHeight()).DragWindow()
 		ui.DialogBase(c, drawer, func(backdrop, panel ui.Element) {
-			// boot.css:596-604 fades the log drawer in (drawer-fade) and rises it
-			// 14 DIP (drawer-rise); the fade is the part the hand-run overlay
-			// token can play here.
-			chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .32))
-			backdrop.AlignItems(ui.End).Justify(ui.Center)
+			// .logdrawer is a full-window scrim that fades in over .18s
+			// (drawer-fade) and seats the panel bottom-centred; the backdrop is a
+			// column, so Justify's End is the bottom and AlignItems' Center is
+			// horizontal (boot.css:462-475).
+			scrim := chrome.Reveal(c, backdrop, 180*time.Millisecond)
+			chrome.RevealMask(backdrop, ui.RGBA(0, 0, 0, .32), scrim)
+			backdrop.Justify(ui.End).AlignItems(ui.Center)
+			// .logdrawer-panel: min(760px, w-96px) wide, at most 46% of the
+			// window tall, the hairline on every edge but the bottom, the 14 DIP
+			// top corners and the --boot-panel fill frosted by a 12 DIP scene
+			// blur; it rises 14 DIP over .24s (drawer-rise, boot.css:477-489,
+			// 596-604). A negative bottom margin paints it lower, as
+			// translateY does.
+			rise := chrome.Reveal(c, panel, 240*time.Millisecond)
 			w, h := c.Size()
-			panel.Width(max(0, min(760, w-96))).Height(min(h*.46, float32(max(1, len(lines)))*19+72)).Background(palette.panel).Border(1, palette.hairline).
-				Radius(14, 14, 0, 0).Clip().Padding(12, 18).Children(func() {
-				ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Children(func() {
-					ui.Text(c, fmt.Sprintf("%s · %d", bootText("启动日志", "Startup logs"), len(lines))).TextColor(palette.ink).Grow(1)
-					if ui.Button(c, "×").Size(28, 28).Label(bootText("关闭日志", "Close logs")).AutoFocus().Clicked() {
-						*drawer = false
-					}
-				})
-				ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-					ui.Column(c).Gap(4).Selectable().Children(func() {
-						paintBootLogLines(c, lines, palette.muted, palette.alert)
-						if len(lines) == 0 {
-							ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted)
+			// A Scroll has no intrinsic height: the panel's own height is the
+			// head plus the lines it lists, capped at the sheet's 46% — the
+			// panel's content height and its cap in one expression.
+			linesH := float32(max(1, len(lines))) * theme.InterfaceSize(19)
+			panel.Width(max(0, min(760, w-96))).Height(min(h*.46, 68+linesH)).
+				Margin(0, 0, (rise-1)*14, 0).Opacity(.4+.6*rise).
+				Radius(14, 14, 0, 0).Clip().BorderWidth(1, 1, 0, 1).BorderColor(palette.hairline).
+				Background(palette.panel).Material(glass.Blur{Radius: 12}).
+				Children(func() {
+					// .logdrawer-head: title, count and close on one row, with the
+					// hairline under it (boot.css:491-495, boot.html:45-48).
+					ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Padding(12, 18).
+						BorderWidth(0, 0, 1, 0).BorderColor(palette.hairline).Children(func() {
+						ui.Text(c, bootText("启动日志", "Startup logs")).FontSize(theme.InterfaceSize(12)).LetterSpacing(12 * .14).TextColor(palette.ink)
+						ui.Text(c, bootText(fmt.Sprintf("%d 行", len(lines)), fmt.Sprintf("%d lines", len(lines)))).
+							Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10.5)).TextColor(palette.muted)
+						ui.Box(c).Grow(1)
+						close := ui.ButtonBase(c).Label(bootText("关闭", "Close")).BorderWidth(0).Background(ui.Transparent).Padding(0, 4).AutoFocus()
+						closeInk := palette.muted
+						if close.Hovered() {
+							closeInk = palette.ink
+						}
+						close.Children(func() {
+							ui.Text(c, "×").FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(closeInk)
+						})
+						if close.Clicked() {
+							*drawer = false
 						}
 					})
+					// .logdrawer-lines: the ordered list in the code face, 11.5/19,
+					// muted, the markers at 10px and important lines alerting; it is
+					// the part that scrolls (boot.css:497-511).
+					ui.Scroll(c).Grow(1).MinHeight(0).Padding(10, 18, 16, 36).Children(func() {
+						ui.Column(c).Gap(4).Selectable().Children(func() {
+							paintBootLogLines(c, lines, palette.muted, palette.alert)
+							if len(lines) == 0 {
+								ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted)
+							}
+						})
+					})
 				})
-			})
 		})
 	})
 }
@@ -180,9 +211,6 @@ func bootCore(c *ui.Context, m Model, palette *scenePalette) {
 					if m.OnRetry != nil {
 						disabled := m.Status.RecoveryActive && !m.Status.RecoveryScheduled && !m.Status.RecoveryCancelled
 						label := retryLabel(m.Status)
-						if m.ActionLabel != "" {
-							label = m.ActionLabel
-						}
 						bootAction(c, label, true, disabled, palette, m.OnRetry)
 					}
 				}

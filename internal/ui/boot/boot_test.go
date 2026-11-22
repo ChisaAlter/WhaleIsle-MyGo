@@ -87,11 +87,11 @@ func TestLoadingPageComposition(t *testing.T) {
 			if err := tt.Click("全部日志"); err != nil {
 				t.Fatal(err)
 			}
-			if _, ok := tt.Find("关闭日志"); !ok {
+			if _, ok := tt.Find("关闭"); !ok {
 				t.Fatal("logs did not open")
 			}
 			tt.Key(0, ui.KeyEscape)
-			if _, ok := tt.Find("关闭日志"); ok {
+			if _, ok := tt.Find("关闭"); ok {
 				t.Fatal("logs still open after Escape")
 			}
 		})

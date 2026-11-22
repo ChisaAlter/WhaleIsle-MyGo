@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"whaleisle/internal/product"
 )
 
 func TestUserDataDirOverride(t *testing.T) {
@@ -18,7 +20,7 @@ func TestUserDataDirOverride(t *testing.T) {
 func TestDerivedPaths(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "nested", "user-data")
 	t.Setenv(EnvUserData, dir)
-	if got, want := DefaultWorkspace(), filepath.Join(dir, "workspace"); got != want {
+	if got, want := DefaultWorkspace(), filepath.Join(dir, "Documents", product.EnglishName); got != want {
 		t.Fatalf("DefaultWorkspace() = %q, want %q", got, want)
 	}
 	if got, want := DshHome(), filepath.Join(dir, "dsh-home"); got != want {

@@ -12,7 +12,6 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/harness"
-	"whaleisle/internal/hoststate"
 	"whaleisle/internal/ui/boot"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -62,12 +61,6 @@ func (s *mainState) startWorkbenchHost(win *mygo.Window, sup *harness.Supervisor
 						return
 					}
 					l.FinishStartPreparation(false, "", picked[0], gen)
-					// The folder the first start asked for is chosen: the page's
-					// request for one is answered, and a later stop must offer
-					// the start, not the folder.
-					s.mu.Lock()
-					s.coldStartNeedsWorkspace = false
-					s.mu.Unlock()
 					startHarness(store.Get())
 				}()
 			})
@@ -90,20 +83,13 @@ func (s *mainState) workbenchHostStatus(c *ui.Context, win *mygo.Window, st harn
 // openedColdPage is the page a cold launch opens on. A declined automatic start
 // still opens there: the reason the shell already carries becomes its status
 // line, and the page offers the action that resolves it (boot.Model.Declined).
-// A launch with no usable workspace asks for the folder instead of offering a
-// retry that would decline the same way.
-func openedColdPage(m boot.Model, st harness.Status, skipped, needsWorkspace bool, message string) boot.Model {
+func openedColdPage(m boot.Model, st harness.Status, skipped bool, message string) boot.Model {
 	if !skipped || st.State != harness.Stopped {
 		return m
 	}
 	m.Declined = true
 	if m.StatusText == "" {
 		m.StatusText = message
-	}
-	if needsWorkspace {
-		report := hoststate.NeedWorkspace()
-		m.StatusText = report.Line
-		m.ActionLabel = report.Action
 	}
 	return m
 }
@@ -115,12 +101,11 @@ func (s *mainState) paintColdLoading(c *ui.Context) bool {
 		return false
 	}
 	win, sup, st, themeID, skipped := s.win, s.sup, s.bootStatus, s.themeID, s.coldStartSkipped
-	needsWorkspace := s.coldStartNeedsWorkspace
 	connectionIssue := connectionUnavailableMessage(s.dshBootstrapError, s.dshNetworkOffline, s.dshMuxLost)
 	logs := append([]string(nil), s.bootLogs...)
 	s.mu.Unlock()
 	m, _, message, _ := s.hostStatusModel(win, st, sup, logs)
-	m = openedColdPage(m, st, skipped, needsWorkspace, message)
+	m = openedColdPage(m, st, skipped, message)
 	systemDark := mygo.Theme.IsDark()
 	themed := theme.ResolveWithSystem(themeID, systemDark)
 	m.Dark = themed.Scheme == theme.SchemeDark
