@@ -31,7 +31,7 @@ func TestEmbeddedUsageInitialLoadingErrorAndEmptyStates(t *testing.T) {
 			if state == "error" && !strings.Contains(text, s.Stats().Err) {
 				t.Fatal("initial error hidden", text)
 			}
-			if state == "empty" && !strings.Contains(text, "No usage in this range.") {
+			if state == "empty" && !strings.Contains(text, "No data yet") {
 				t.Fatal(text)
 			}
 			if strings.Contains(text, "Date range (UTC") || strings.Contains(text, "Export json") {

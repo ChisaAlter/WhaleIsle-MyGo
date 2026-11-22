@@ -57,7 +57,10 @@ func TestPluginManagerParityAndCursorAudit(t *testing.T) {
 	tt.Frame()
 	assertPluginManagerCursors(t, "discover-list", tt)
 
-	if err := tt.Click("Index sources"); err != nil {
+	if err := tt.Click("Switch plugin market, currently Fixture market"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Manage index sources…"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

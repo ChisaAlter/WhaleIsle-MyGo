@@ -28,7 +28,7 @@ func TestEmbeddedUsageEmptyStateHasNoDashboard(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(old)
 	tt := usageDashboardTester(t, "empty")
-	if !tt.HasText(i18n.T(i18n.KeySurfacesUsageEmpty)) {
+	if !tt.HasText(i18n.T(settingsPass4UsageEmptyTitle)) {
 		t.Fatalf("empty state missing its card: %v", tt.Texts())
 	}
 	for _, dashboard := range []string{
@@ -137,7 +137,7 @@ func TestUsageStateCopyFollowsTheLocale(t *testing.T) {
 			t.Fatalf("%s state rendered nothing", state)
 		}
 		if state == "empty" {
-			if !strings.Contains(en, "No usage in this range.") || !strings.Contains(zh, "此范围暂无用量。") {
+			if !strings.Contains(en, "No data yet") || !strings.Contains(zh, "暂无统计数据") {
 				t.Fatalf("%s state lost its copy: en=%s zh=%s", state, en, zh)
 			}
 		}

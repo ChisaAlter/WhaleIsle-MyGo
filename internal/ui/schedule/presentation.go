@@ -36,7 +36,8 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.Center).Children(func() {
 			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(1056).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
 				ui.Row(c.Key("schedule-heading")).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 24).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
+					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).MinWidth(0)
+					ui.Box(c).Grow(1)
 					if m.OnNewTask != nil {
 						// TaskManagerPage.module.css .newButton: a 32px capsule,
 						// 13px/20 label on 0 12 padding — a page-local control, not
@@ -61,7 +62,7 @@ func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, c
 						}
 					}
 				})
-				ui.Row(c.Key("schedule-filters")).Label("Task status").FillWidth().Wrap().Gap(8).Padding(0, 0, 14).Children(func() {
+				ui.Row(c.Key("schedule-filters")).Label("Task status").FillWidth().Wrap().Gap(12).Padding(0, 0, 14).Children(func() {
 					for _, option := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"active", "已开启", "Enabled"}, {"inactive", "已结束", "Inactive"}} {
 						b := ui.Button(c.Key("schedule-filter-"+option.id), scheduleText(option.zh, option.en)).Height(28).Padding(0, 10).Radius(14).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(14)).Cursor(ui.CursorPointer)
 						if p.statusFilter == option.id || (option.id == "all" && p.statusFilter == "") {
@@ -260,7 +261,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 			})
 		}
 		if d.dirty() && d.row.Status != "inactive" {
-			saveBar := ui.Row(c.Key("schedule-save-bar")).Label("Unsaved task changes").Absolute().Left(12).Right(12).Bottom(12).Padding(8, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0).Radius(12)
+			saveBar := ui.Row(c.Key("schedule-save-bar")).Label("Unsaved task changes").Absolute().Left(12).Right(12).Bottom(12).Padding(8, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0).Radius(theme.ContextRadii(c).MD)
 			chrome.GlassSurface(saveBar, chrome.Color(colors.Field), chrome.MaterialPanel, 12)
 			saveBar.Children(func() {
 				if width > 760 {
@@ -296,11 +297,14 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 		height = 37
 	}
 	ui.Row(c.Key("schedule-detail-strip")).Label("Task detail views").FillWidth().MinWidth(0).Height(height).Shrink(0).Padding(0, detailGutter(width)).Gap(12).Border(.5, chrome.Color(colors.Border)).BorderWidth(0, 0, .5, 0).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Grow(1).MinWidth(0).Gap(36).Children(func() {
+		// TaskManagerPage.module.css .detailTabs sits at the strip's bottom edge;
+		// each .detailTab is a 29px box (13px/16 label plus 13px padding below),
+		// its selected rule covering the strip's bottom border.
+		ui.Row(c).Grow(1).MinWidth(0).Height(height).Gap(36).AlignItems(ui.End).Children(func() {
 			var tabs []ui.Element
 			for _, option := range []struct{ id, zh, en string }{{"rule", "规则", "Rules"}, {"records", "任务运行记录", "Records"}} {
 				selected := p.detailTab == option.id || p.detailTab == "" && option.id == "rule"
-				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(height).Padding(0).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13))
+				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(29).Padding(0, 0, 13).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(16))
 				if selected {
 					button.TextColor(chrome.Color(colors.Accent)).FontWeight(500).Border(2, chrome.Color(colors.Accent)).BorderWidth(0, 0, 2, 0)
 				}
@@ -369,16 +373,30 @@ func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, 
 	open := true
 	_, height := c.Size()
 	ui.DialogBase(c.Key("schedule-delete-dialog"), &open, func(backdrop, panel ui.Element) {
-		panel.Label("Delete this task?").Width(480).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(28).Padding(20).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Gap(16).Children(func() {
-				ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(18)).FontWeight(500).TextColor(chrome.Color(colors.FG))
-				ui.Scroll(c.Key("schedule-delete-content")).MinHeight(0).MaxHeight(max(float32(40), height-180)).FillWidth().Children(func() {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-						ui.Text(c, scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0)
-						ui.Text(c, row.Title).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
+		// ui-primitives Modal.module.css .dialog: min(380px,100%) wide, 20px
+		// between the content column and the footer, 24px below it. The header
+		// pads 22/14/12/24, the description and body share 24px side pads, and
+		// the body lands 20px under the description.
+		panel.Label("Delete this task?").Width(380).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)).Background(chrome.Color(colors.BG)).Radius(theme.ContextRadii(c).Panel).Padding(0, 0, 24).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
+				ui.Column(c.Key("schedule-delete-content")).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(chrome.Color(colors.FG))
+						ui.Box(c).Grow(1)
+						if scheduleIconButton(c, "schedule-delete-close", scheduleText("关闭删除确认", "Close deletion confirmation"), "close", chrome.Color(colors.Muted)).Clicked() {
+							open = false
+						}
+					})
+					ui.Scroll(c.Key("schedule-delete-scroll")).MinHeight(0).MaxHeight(max(float32(40), height-200)).FillWidth().Children(func() {
+						ui.Column(c).FillWidth().MinWidth(0).Padding(0, 24, 0).Children(func() {
+							ui.Text(c, scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
+							ui.Box(c).Height(20)
+							ui.Text(c, row.Prompt).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
+						})
 					})
 				})
-				ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
+				ui.Box(c).Height(20)
+				ui.Row(c).FillWidth().Padding(0, 24, 0).Justify(ui.End).Gap(8).Children(func() {
 					palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 					cancel := widgets.Button(c, palette, scheduleText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Busy}).Bind(&p.deleteCancel)
 					cancel.Label("Cancel task deletion")
@@ -440,7 +458,7 @@ func scheduleFrequency(row schedstore.Entry) string {
 }
 
 func scheduleIconButton(c *ui.Context, key, label, icon string, ink ui.Color) ui.Element {
-	b := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).BorderWidth(0).Background(ui.Transparent).Radius(6)
+	b := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).BorderWidth(0).Background(ui.Transparent).Radius(theme.ContextRadii(c).SM)
 	b.Children(func() { ui.Icon(c, scheduleIcons[icon]).Size(16, 16).TextColor(ink) })
 	return b
 }
