@@ -23,7 +23,7 @@ func toolWebCard(c *ui.Context, m *toolWebModel, st ToolCardStyle, key string, o
 	if darkSurface(st.FG) {
 		link = ui.Hex("#7aaaff")
 	}
-	style := transcriptMarkdownStyle(st.FG, secondary, background, link, chrome.Color(st.Colors.Hover), theme.RenderPreferences().Chat.Size, darkSurface(st.FG))
+	style := transcriptMarkdownStyle(st.FG, secondary, background, link, chrome.Color(st.Colors.Hover), theme.RenderPreferences().Chat.Size, darkSurface(st.FG), secondary)
 	style.ToolCodeLanguage = st.Muted
 	style.OnOpenURL = openURL
 	labels := markdown.WebLabels{NoResults: i18n.T(i18n.KeyToolWebEmpty), SourcesTruncated: i18n.T(i18n.KeyToolWebSourcesTruncated), HTTP: i18n.T(i18n.KeyToolWebHTTP), ContentTruncated: i18n.T(i18n.KeyToolWebContentTruncated)}

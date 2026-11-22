@@ -443,7 +443,7 @@ func conversationView(c *ui.Context, m Model) {
 									Muted:    muted,
 								})
 							} else if body != "" {
-								md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, dark)
+								md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, dark, chrome.Color(colors.Secondary))
 								md.TableHeader = chrome.Color(colors.Sidebar)
 								md.Streaming = msg.Streaming
 								md.OnOpenURL = m.OnOpenCitationURL

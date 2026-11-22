@@ -78,7 +78,7 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 				if st.Body != nil {
 					st.Body(c)
 				} else {
-					bodyStyle := transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, st.Hover, size, darkSurface(st.Muted))
+					bodyStyle := transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, st.Hover, size, darkSurface(st.Muted), st.Muted)
 					bodyStyle.Compact = true
 					markdown.View(c, body, bodyStyle)
 				}

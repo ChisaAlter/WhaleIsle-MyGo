@@ -46,8 +46,11 @@ type Style struct {
 	FontSize   float32
 	FG         ui.Color
 	Muted      ui.Color
-	CodeBG     ui.Color
-	Accent     ui.Color
+	// Marker colors the list markers; Transparent falls back to Muted. The
+	// original ::marker uses label-secondary, one step darker than tertiary.
+	Marker ui.Color
+	CodeBG ui.Color
+	Accent ui.Color
 	// CodeSurface, when set, dresses each code-card root instead of the opaque
 	// CodeBG fill — callers bind chrome.FrostSurface so the card frosts over a
 	// live backdrop and keeps CodeBG when there is none. Spans and same-tone
@@ -635,7 +638,7 @@ func walkBlocks(n ast.Node, src string, st Style, out *[]ui.Span) {
 					depth++
 				}
 			}
-			*out = append(*out, ui.Span{Text: strings.Repeat("  ", depth) + marker, Size: st.FontSize, Color: st.Muted})
+			*out = append(*out, ui.Span{Text: strings.Repeat("  ", depth) + marker, Size: st.FontSize, Color: listMarkerColor(st)})
 			// Walk the item itself so its TextBlock/Paragraph children are rendered.
 			walkBlocks(node, src, st, out)
 		case *ast.Blockquote:
