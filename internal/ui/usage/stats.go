@@ -37,7 +37,9 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	}
 	o := st.Overview
 	if m.Embedded && o.AllTime.Totals.Total == 0 && o.AllTime.SessionCount == 0 && o.Totals.Total == 0 && o.SessionCount == 0 {
-		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageEmpty), usageText("开始使用模型后统计会显示在这里。", "Usage appears here after you use a model."), fg, muted)
+		// Never-used state: the original's dsw-ust-empty card copy
+		// (dsh-usage-panel client "empty.title"/"empty.hint").
+		usageEmpty(c, i18n.T(settingsPass4UsageEmptyTitle), i18n.T(settingsPass4UsageEmptyBody), fg, muted)
 		return
 	}
 	if st.Err != "" {
