@@ -71,10 +71,10 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 	p := w.Preferences
 	ps := p.State
 	if m.HarnessReady && m.WhaleEnabled && s.HostKey != "" {
-		if !s.Loaded && !s.Busy && s.Error == "" && s.Notice == "" && w.OnRefresh != nil {
+		if !s.Loaded && !s.Busy && s.Error == nil && s.Notice == "" && w.OnRefresh != nil {
 			w.OnRefresh()
 		}
-		if !ps.Loaded && !ps.Busy && ps.Error == "" && ps.Notice == "" && p.OnRefresh != nil {
+		if !ps.Loaded && !ps.Busy && ps.Error == nil && ps.Notice == "" && p.OnRefresh != nil {
 			p.OnRefresh()
 		}
 	}
@@ -99,7 +99,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				}
 			}
 		})
-		for _, message := range []string{s.Error, ps.Error, ps.ModelsError, s.Notice, ps.Notice} {
+		for _, message := range []string{s.Error.SentenceText(), ps.Error.SentenceText(), ps.ModelsError.SentenceText(), s.Notice, ps.Notice} {
 			if message != "" {
 				ui.Text(c, message).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			}
@@ -172,7 +172,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				selected = route.Provider + " / " + route.Model
 				labels = append(labels, selected)
 			}
-			ui.Select(c, &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Label("Whale model").Disabled(prefDisabled || ps.ModelsError != "").OnChange(func() {
+			ui.Select(c, &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Label("Whale model").Disabled(prefDisabled || ps.ModelsError != nil).OnChange(func() {
 				if v, ok := choices[selected]; ok && p.OnEdit != nil {
 					p.OnEdit(v, ps.IMDefault)
 					if p.OnSave != nil {
@@ -270,7 +270,7 @@ func WhaleSettingsSection(c *ui.Context, m Model) {
 				if ui.Button(c, whaleSectionCopy(i18n.T(i18n.KeyW4AssistantClose), "Close")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Disabled(dismissBusy).Clicked() {
 					dismiss()
 				}
-				for _, message := range []string{s.Error, ps.Error, ps.ModelsError, s.Notice, ps.Notice} {
+				for _, message := range []string{s.Error.SentenceText(), ps.Error.SentenceText(), ps.ModelsError.SentenceText(), s.Notice, ps.Notice} {
 					if message != "" {
 						ui.Text(c, message).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					}

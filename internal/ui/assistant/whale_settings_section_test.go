@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
 )
@@ -20,7 +21,7 @@ func TestWhaleSettingsSectionSourceRowsAndHostDialogIsolation(t *testing.T) {
 	editor.Bind("fixture-host-a")
 	ticket, _ := editor.BeginLoad("fixture-host-a")
 	editor.FinishLoad(ticket, pluginrpc.WhaleSettings{Name: "Whale", UserTitle: "Captain", PersonaText: "Patient and concise", Memory: "Fixture memory"}, nil)
-	m := Model{HarnessReady: true, WhaleEnabled: true, WhaleSettings: WhaleSettingsModel{State: editor.Snapshot(), OnRefresh: func() {}, Preferences: WhalePreferencesModel{State: assiststore.WhalePreferencesSnapshot{Host: "fixture-host-a", Loaded: true}, OnRefresh: func() {}}}}
+	m := Model{HarnessReady: true, WhaleEnabled: true, WhaleSettings: WhaleSettingsModel{State: editor.Snapshot().Value, OnRefresh: func() {}, Preferences: WhalePreferencesModel{State: assiststore.WhalePreferencesSnapshot{Host: "fixture-host-a", Loaded: true}, OnRefresh: func() {}}}}
 	tt := ui.NewTester(func(c *ui.Context) { ui.Scroll(c).Fill().Padding(24).Children(func() { WhaleSettingsSection(c, m) }) }, 620, 1000)
 	for _, label := range []string{"Name and title", "Model and reasoning effort", "Default IM conversation", "Extra persona", "Long-term memory", "Skills"} {
 		if !tt.HasText(label) {
@@ -47,9 +48,9 @@ func TestWhaleSettingsSectionSourceRowsAndHostDialogIsolation(t *testing.T) {
 	tt.Frame()
 	snapshotWhaleSection(t, tt, "settings-pet-assistant-loading.png")
 	m.WhaleSettings.State.Busy = false
-	m.WhaleSettings.State.Error = "Synthetic assistant settings error"
+	m.WhaleSettings.State.Error = state.FaultText("Synthetic assistant settings error")
 	tt.Frame()
-	if !tt.HasText(m.WhaleSettings.State.Error) {
+	if !tt.HasText(m.WhaleSettings.State.Error.SentenceText()) {
 		t.Fatal("Host error hidden")
 	}
 	snapshotWhaleSection(t, tt, "settings-pet-assistant-error.png")

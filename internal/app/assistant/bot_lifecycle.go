@@ -241,7 +241,7 @@ func (s *Service) openCreatedBot(ep harness.Endpoint, client *dsh.Client, curren
 			return false
 		}
 		same := s.AssistantStore() == asst && host.Sessions() == sessions && host.Window() == win
-		selected := asst.Snapshot()
+		selected := asst.Snapshot().Value
 		return same && selected.DshbotID == expected.ID && selected.DshbotOrigin == ep.Origin && target.Current()
 	}
 	s.UpdateAssistantTasks()
@@ -340,7 +340,7 @@ func (s *Service) BotDeleteModel(ep harness.Endpoint, sourceID string) assistant
 		if !same || client == nil || s.roomClient(ep) != client || !controls.ViewCurrent(scope, snapshot.Generation) {
 			return false
 		}
-		selected := originalAssistant.Snapshot()
+		selected := originalAssistant.Snapshot().Value
 		return selected.DshbotID == sourceID && selected.DshbotOrigin == ep.Origin
 	}
 	authority := func(ctx context.Context) (bool, error) {
@@ -488,7 +488,7 @@ func (s *Service) BotDuplicateModel(ep harness.Endpoint, sourceID string) assist
 		if !sameAssistant || client == nil || s.roomClient(ep) != client || !controls.ViewCurrent(scope, snapshot.Generation) {
 			return false
 		}
-		selected := originalAssistant.Snapshot()
+		selected := originalAssistant.Snapshot().Value
 		return selected.DshbotID == sourceID && selected.DshbotOrigin == ep.Origin
 	}
 	read := func(ctx context.Context) (pluginrpc.DshbotBotCatalog, bool, error) {

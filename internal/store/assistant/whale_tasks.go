@@ -1,11 +1,13 @@
 package assistant
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"sync"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 )
 
 type WhaleTaskSnapshot struct {
@@ -13,16 +15,30 @@ type WhaleTaskSnapshot struct {
 	Loaded, Busy, CreateUnknown         bool
 	Goal, Files, Criteria, BotID, Actor string
 	Catalog                             pluginrpc.WhaleTasks
-	Error, Notice                       string
+	Error                               *state.Fault
+	Notice                              string
 }
 type WhaleTaskTicket struct {
 	Host       string
 	Generation uint64
+	lease      state.Lease
 }
 type WhaleTaskPanel struct {
-	mu         sync.Mutex
-	state      WhaleTaskSnapshot
-	generation uint64
+	mu    sync.Mutex
+	state WhaleTaskSnapshot
+	op    state.LeaseOwner
+	opL   state.Lease
+	pub   state.Published[WhaleTaskSnapshot]
+}
+
+// publishLocked deep-copies the catalog, which the task list mutates by
+// reference through pluginrpc values.
+func (s *WhaleTaskPanel) publishLocked() {
+	v := s.state
+	data, _ := json.Marshal(v.Catalog)
+	v.Catalog = pluginrpc.WhaleTasks{}
+	_ = json.Unmarshal(data, &v.Catalog)
+	s.pub.Publish(v)
 }
 
 func (s *WhaleTaskPanel) Bind(host string) {
@@ -31,8 +47,9 @@ func (s *WhaleTaskPanel) Bind(host string) {
 	if s.state.Host == host {
 		return
 	}
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	s.state = WhaleTaskSnapshot{Host: host}
+	s.publishLocked()
 }
 func (s *WhaleTaskPanel) Suspend() {
 	s.mu.Lock()
@@ -40,9 +57,10 @@ func (s *WhaleTaskPanel) Suspend() {
 	if !s.state.Busy {
 		return
 	}
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	s.state.Busy = false
 	s.state.Loaded = false
+	s.publishLocked()
 }
 func (s *WhaleTaskPanel) Cancel(t WhaleTaskTicket) {
 	s.mu.Lock()
@@ -50,25 +68,29 @@ func (s *WhaleTaskPanel) Cancel(t WhaleTaskTicket) {
 	if !s.current(t) {
 		return
 	}
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	s.state.Busy = false
 	s.state.Loaded = false
+	s.publishLocked()
 }
 func (s *WhaleTaskPanel) SetError(host string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if host == s.state.Host && err != nil {
-		s.state.Error = err.Error()
+		s.state.Error = state.FaultOf(err)
+		s.publishLocked()
 	}
 }
-func (s *WhaleTaskPanel) Snapshot() WhaleTaskSnapshot {
+func (s *WhaleTaskPanel) Snapshot() *state.Version[WhaleTaskSnapshot] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	v := s.state
-	data, _ := json.Marshal(v.Catalog)
-	v.Catalog = pluginrpc.WhaleTasks{}
-	_ = json.Unmarshal(data, &v.Catalog)
-	return v
+	if s.pub.Load() == nil {
+		s.pub.Publish(s.state)
+	}
+	return s.pub.Load()
 }
 func (s *WhaleTaskPanel) Edit(host, field, value string) {
 	s.mu.Lock()
@@ -87,7 +109,10 @@ func (s *WhaleTaskPanel) Edit(host, field, value string) {
 		s.state.BotID = value
 	case "actor":
 		s.state.Actor = value
+	default:
+		return
 	}
+	s.publishLocked()
 }
 func taskLines(value string) []string {
 	var result []string
@@ -107,14 +132,15 @@ func (s *WhaleTaskPanel) Begin(host, action string) (WhaleTaskTicket, WhaleTaskS
 	if host == "" || host != s.state.Host || s.state.Busy || action == "start" && s.state.CreateUnknown {
 		return WhaleTaskTicket{}, WhaleTaskSnapshot{}, false
 	}
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	s.state.Busy = true
-	s.state.Error = ""
+	s.state.Error = nil
 	s.state.Notice = ""
 	if action == "start" {
 		s.state.CreateUnknown = true
 	}
-	return WhaleTaskTicket{host, s.generation}, s.state, true
+	s.publishLocked()
+	return WhaleTaskTicket{host, s.opL.Generation(), s.opL}, s.state, true
 }
 func (s *WhaleTaskPanel) Current(t WhaleTaskTicket) bool {
 	s.mu.Lock()
@@ -122,7 +148,7 @@ func (s *WhaleTaskPanel) Current(t WhaleTaskTicket) bool {
 	return s.current(t)
 }
 func (s *WhaleTaskPanel) current(t WhaleTaskTicket) bool {
-	return s.state.Busy && t.Host == s.state.Host && t.Generation == s.generation
+	return s.state.Busy && t.Host == s.state.Host && t.lease == s.opL && s.opL.Valid()
 }
 func (s *WhaleTaskPanel) Finish(t WhaleTaskTicket, action string, catalog *pluginrpc.WhaleTasks, accepted bool, notice string, err error) bool {
 	s.mu.Lock()
@@ -143,9 +169,10 @@ func (s *WhaleTaskPanel) Finish(t WhaleTaskTicket, action string, catalog *plugi
 		s.state.CreateUnknown = false
 	}
 	if err != nil {
-		s.state.Error = err.Error()
+		s.state.Error = state.FaultOf(err)
 	} else {
 		s.state.Notice = notice
 	}
+	s.publishLocked()
 	return true
 }

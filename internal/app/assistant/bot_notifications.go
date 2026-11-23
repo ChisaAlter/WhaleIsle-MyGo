@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/state"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
 )
@@ -85,7 +86,7 @@ func (s *Service) botNotificationCurrent(run *botNotificationRun) bool {
 	if !same || !active || win != run.window || run.window == nil || asst == nil {
 		return false
 	}
-	if host.WindowStatus(run.window).Destroyed || asst.Snapshot().Mode != assiststore.ModeDshbot {
+	if host.WindowStatus(run.window).Destroyed || asst.Snapshot().Value.Mode != assiststore.ModeDshbot {
 		return false
 	}
 	return s.DshbotCurrent(run.endpoint, run.client)
@@ -103,7 +104,7 @@ func (s *Service) ObserveBotNotifications(rendered bool) {
 	ep, _, _ := host.BootEndpoint()
 	asst := s.AssistantStore()
 	winSt := host.WindowStatus(win)
-	if !rendered || !active || win == nil || winSt.Destroyed || asst == nil || asst.Snapshot().Mode != assiststore.ModeDshbot {
+	if !rendered || !active || win == nil || winSt.Destroyed || asst == nil || asst.Snapshot().Value.Mode != assiststore.ModeDshbot {
 		s.StopBotNotifications()
 		return
 	}
@@ -567,7 +568,7 @@ func (s *Service) MarkOpenedBotRead(ep harness.Endpoint, client *dsh.Client, id,
 				if err != nil {
 					asst := s.AssistantStore()
 					if current() && asst != nil {
-						asst.SetLastAction(i18n.T(i18n.KeyCmdConversationOpenedReadMarkerFailed), err.Error())
+						asst.SetLastAction(i18n.T(i18n.KeyCmdConversationOpenedReadMarkerFailed), state.FaultOf(err))
 						host.Invalidate(host.Window())
 					}
 				}

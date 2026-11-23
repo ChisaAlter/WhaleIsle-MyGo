@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	assistantui "whaleisle/internal/ui/assistant"
@@ -59,7 +60,7 @@ func (s *Service) BuildPanelModel(opts PanelBuildOptions) (assistantui.Model, Fr
 		}
 	}
 
-	asstSnap := asst.Snapshot()
+	asstSnap := asst.Snapshot().Value
 	assistantDraft = asst.ConsumeAcceptedDraft(assistantDraft)
 	dshbotSelectedID := ""
 	if asstSnap.DshbotOrigin == origin {
@@ -148,7 +149,7 @@ func (s *Service) BuildPanelModel(opts PanelBuildOptions) (assistantui.Model, Fr
 		Busy:                  asstSnap.Busy || pluginBusy || taskModel.State.Busy || whaleSettingsModel.State.Busy || routineModel.State.Busy || routineCreateModel.State.Busy || roomCreateModel.State.Busy || botCreateModel.State.Busy || botVisibilityModel.State.Busy || contactsModel.State.Busy || botDeleteModel.State.Busy || botDuplicateModel.State.Busy || roomEditModel.State.Busy || roomRuntimeModel.State.Busy,
 		LastWebViewURL:        opts.LastWebViewURL,
 		LastNativeAction:      lastNative,
-		LastErr:               asstSnap.LastErr,
+		LastErr:               asstSnap.LastErr.SentenceText(),
 		SessionID:             asstSnap.SessionID,
 		History:               history,
 		Draft:                 &assistantDraft,
@@ -180,9 +181,9 @@ func (s *Service) BuildPanelModel(opts PanelBuildOptions) (assistantui.Model, Fr
 			openWeb(plugin, "")
 		},
 		OnOpenSession: func(_ string) {
-			target := asst.Snapshot()
+			target := asst.Snapshot().Value
 			if target.Mode == assiststore.ModeDshbot && target.DshbotOrigin != ep.Origin {
-				asst.SetLastAction(i18n.T(i18n.KeyCmdSelectCurrentRosterBot), i18n.T(i18n.KeyCmdComposerHostChanged))
+				asst.SetLastAction(i18n.T(i18n.KeyCmdSelectCurrentRosterBot), state.FaultText(i18n.T(i18n.KeyCmdComposerHostChanged)))
 				return
 			}
 			s.OpenConversation(ep, target.Mode, target.DshbotID, "")

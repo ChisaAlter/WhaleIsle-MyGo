@@ -22,8 +22,8 @@ func TestOpenPersistModeAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Snapshot().Mode != ModeWhale {
-		t.Fatalf("default mode = %q", s.Snapshot().Mode)
+	if s.Snapshot().Value.Mode != ModeWhale {
+		t.Fatalf("default mode = %q", s.Snapshot().Value.Mode)
 	}
 	s.SetMode(ModeDshbot)
 	s.AppendTurn(Turn{
@@ -33,7 +33,7 @@ func TestOpenPersistModeAndHistory(t *testing.T) {
 		SessionID: "sess-dsh",
 		Source:    "session",
 	})
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if snap.Mode != ModeDshbot {
 		t.Fatalf("mode = %q", snap.Mode)
 	}
@@ -60,7 +60,7 @@ func TestOpenPersistModeAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snap2 := s2.Snapshot()
+	snap2 := s2.Snapshot().Value
 	if snap2.Mode != ModeDshbot || len(snap2.History) != 1 {
 		t.Fatalf("reopen snap = %+v", snap2)
 	}
@@ -71,7 +71,7 @@ func TestMaxHistoryTrim(t *testing.T) {
 	for i := 0; i < MaxHistory+5; i++ {
 		s.AppendTurn(Turn{Prompt: "p", Response: "r", Mode: ModeWhale})
 	}
-	if n := len(s.Snapshot().History); n != MaxHistory {
+	if n := len(s.Snapshot().Value.History); n != MaxHistory {
 		t.Fatalf("history len = %d, want %d", n, MaxHistory)
 	}
 }
