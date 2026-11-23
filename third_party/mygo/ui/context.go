@@ -55,11 +55,6 @@ type context struct {
 	router  *Router
 	routers int
 	inert   bool
-	// spare are the chunks of the frame before, which the engine keeps
-	// while elements of that frame may leave with an exit transition, to
-	// copy them (engine.exitsBuilt).
-	spare      [][]node
-	spareDirty int
 	// transitions are the elements given a Transition, in the order asked,
 	// and dividers those drawing lines between their children.
 	transitions []transitionUse
@@ -137,6 +132,7 @@ func (c *context) reset(now time.Time, w, h float32) {
 	root.kind = kindBox
 	root.width, root.height = px(w), px(h)
 	root.st = c.rt.stateFor(root.id)
+	root.st.node = root
 	root.bg = c.theme.Background
 	root.ts = textStyle{set: setColor | setSize | setFamily, color: c.theme.Text, size: c.theme.FontSize, family: c.theme.Font}
 	c.root = root
@@ -145,13 +141,11 @@ func (c *context) reset(now time.Time, w, h float32) {
 }
 
 // finish frees references to elements left out of the frame, including
-// those from an earlier pass. Exit transitions have copied what they
-// need from the spare arena by now. Keep one empty chunk for growth, so
+// those from an earlier pass. Keep one empty chunk for growth, so
 // that a few rows entering and leaving a list do not allocate every frame.
 func (c *context) finish() {
 	c.chunks = trimArena(c.chunks, c.used, max(c.dirty, c.used))
-	c.spare = trimArena(c.spare, 0, c.spareDirty)
-	c.dirty, c.spareDirty = c.used, 0
+	c.dirty = c.used
 }
 
 func trimArena(chunks [][]node, used, dirty int) [][]node {
@@ -186,6 +180,7 @@ func (c *context) overlayRoot() *node {
 		o.inset = [4]length{px(0), px(0), px(0), px(0)}
 		o.depth = 1
 		o.st = c.rt.stateFor(o.id)
+		o.st.node = o
 		c.overlay = o
 	}
 	return c.overlay
@@ -215,6 +210,7 @@ func (c *context) newElement(k kind) *node {
 	p.add(e)
 	var built bool
 	e.st, built = c.rt.lookState(e.id)
+	e.st.node = e
 	if keyed && built {
 		c.rt.duplicateKey(e.id, e.key)
 	}
@@ -239,6 +235,7 @@ func (c *context) rekey(e *node, k any) {
 		rt.duplicateKey(id, k)
 	}
 	e.id, e.st = id, st
+	st.node = e
 	if rt.insp.open {
 		rt.insp.noteKey(id, k)
 		if id == rt.insp.selected {
@@ -541,6 +538,9 @@ type state struct {
 	scope, anchor uint64
 	// page is the Router's page the element was in, 0 for none.
 	page uint64
+	// node is the element the pass that touched the state built last
+	// (builtNode).
+	node *node
 	// trec is what the element's Transition keeps, by the engine's
 	// transitions, when it has one.
 	trec *transition

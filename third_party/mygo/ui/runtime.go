@@ -150,14 +150,10 @@ type engine struct {
 	physical  physicalShortcutState
 
 	// trans are the transitions of the elements given one, by ID
-	// (transition.go): exitsBuilt tells that the last frame built elements
-	// with an Exit, whose arena the next frame keeps to copy those that
-	// go, laidW and laidH are the size the last frame was laid out at, and
-	// byID maps a frame's elements, for the copies going.
+	// (transition.go), and laidW and laidH the size the last frame was laid
+	// out at.
 	trans        map[uint64]*transition
-	exitsBuilt   bool
 	laidW, laidH float32
-	byID         map[uint64]*node
 	// insp is the inspector (inspector.go); dupKeys are the duplicate keys
 	// reported, and warnings what the inspector lists.
 	insp     inspector
@@ -424,14 +420,6 @@ func (rt *engine) runFrame() {
 	rt.scrollTextSelection()
 	rt.stepWheelScroll(now)
 
-	if rt.exitsBuilt {
-		// The last frame's elements stay as they are while this one builds,
-		// for copies of those that go with an exit transition.
-		rt.c.chunks, rt.c.spare = rt.c.spare, rt.c.chunks
-		rt.c.dirty, rt.c.spareDirty = rt.c.spareDirty, rt.c.dirty
-		rt.c.used = rt.c.dirty
-	}
-
 	// An event handled while building (a click, an edit) may change what
 	// was built before it: build again, so the frame shows the outcome.
 	for pass := 0; pass < 3; pass++ {
@@ -530,8 +518,8 @@ func (rt *engine) runFrame() {
 	rt.next()
 	rt.armTimer()
 	rt.showMenu()
+	rt.snapshotExits()
 	rt.c.finish()
-	clear(rt.byID)
 	rt.stats.end(rt)
 }
 

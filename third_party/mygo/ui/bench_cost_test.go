@@ -15,6 +15,8 @@ type costTree struct {
 	rev    [costGroups]uint64
 	labels [costGroups][costRows]string
 	memo   bool
+	// exits gives every group an exit transition, as a sidebar's groups.
+	exits bool
 }
 
 const costGroups, costRows = 34, 24
@@ -30,7 +32,11 @@ func newCostTree() *costTree {
 }
 
 func (t *costTree) group(c *context, g int) {
-	coreColumn(c).Gap(2).Children(func() {
+	col := coreColumn(c).Gap(2)
+	if t.exits {
+		col.Transition(ElementTransition{Exit: &Motion{Opacity: 0}})
+	}
+	col.Children(func() {
 		coreText(c, "Header "+strconv.Itoa(g)).Bold()
 		for r := range costRows {
 			coreRow(c).Padding(2, 4).Gap(4).Children(func() {
@@ -113,6 +119,21 @@ func BenchmarkCostTreeAccessSteady(b *testing.B) {
 	tt.Frame()
 	b.ReportAllocs()
 	for b.Loop() {
+		tt.Frame()
+	}
+}
+
+// BenchmarkCostTreeExits builds frames of the tree, one leaf changing,
+// where every group may leave with an exit transition.
+func BenchmarkCostTreeExits(b *testing.B) {
+	t := newCostTree()
+	t.exits = true
+	tt := costTester(t)
+	b.ReportAllocs()
+	n := 0
+	for b.Loop() {
+		n++
+		t.labels[3][5] = "changed " + strconv.Itoa(n&7)
 		tt.Frame()
 	}
 }

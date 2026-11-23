@@ -139,6 +139,12 @@ type transition struct {
 	ghost   *node
 	gone    tbox
 	opacity float32
+	// snapRoot is a copy of the element as the last frame that built it
+	// showed it, made in snapNodes and snapStates, which becomes the ghost
+	// when the element goes.
+	snapRoot   *node
+	snapNodes  []node
+	snapStates []state
 }
 
 func (r *transition) duration() time.Duration {
@@ -273,7 +279,6 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 	resized := w != rt.laidW || h != rt.laidH
 	rt.laidW, rt.laidH = w, h
 	uses := c.transitions
-	rt.exitsBuilt = false
 	if len(uses) == 0 && len(rt.trans) == 0 {
 		return
 	}
@@ -311,9 +316,6 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 		r.t, r.elem, r.parent, r.built = u.t, e, e.parent.id, rt.frame
 		r.next = tbox{x: e.x, y: e.y, w: e.w, h: e.h, alpha: 1, scale: 1}
 		e.st.trec = r
-		if u.t.Exit != nil {
-			rt.exitsBuilt = true
-		}
 		if underInvisible(e) {
 			// Not laid out (layoutBox): it shows at once when what holds it
 			// does, as an element laid out anew.
@@ -434,7 +436,6 @@ func (r *transition) apply(e *node, s tbox) {
 // their parents, and copies those that just went, from the frame before,
 // which the engine kept for them.
 func (rt *engine) animateExits(root *node, now time.Time, still bool) {
-	var byID map[uint64]*node
 	for id, r := range rt.trans {
 		if r.built == rt.frame {
 			continue
@@ -443,27 +444,29 @@ func (rt *engine) animateExits(root *node, now time.Time, still bool) {
 			delete(rt.trans, id)
 			continue
 		}
-		if byID == nil {
-			byID = rt.elementsByID(root)
-		}
-		p := byID[r.parent]
+		p := rt.builtNode(r.parent)
 		if p == nil || p.leaving != 0 {
 			// Its parent went too.
 			delete(rt.trans, id)
 			continue
 		}
 		if r.ghost == nil {
-			e := r.elem
-			r.ghost = ghostOf(e)
-			r.elem = nil
+			g := r.snapRoot
+			if g == nil {
+				delete(rt.trans, id) // no copy of it was made as it showed
+				continue
+			}
+			// The copy made as the frame before ended is the ghost's now.
+			r.ghost, r.elem = g, nil
+			r.snapRoot, r.snapNodes, r.snapStates = nil, nil, nil
 			r.ghost.leaving = 1
-			if e.flags&flagAbsolute != 0 {
+			if g.flags&flagAbsolute != 0 {
 				r.ghost.leaving = 2
 			}
 			r.ghost.flags |= flagAbsolute
 			r.opacity = 1
-			if e.opacitySet {
-				r.opacity = e.opacity / max(r.shown.alpha, 0.001)
+			if g.opacitySet {
+				r.opacity = g.opacity / max(r.shown.alpha, 0.001)
 			}
 			r.gone, r.start = r.shown, now
 			r.collapse = collapseAxis(r.t.Exit, p)
@@ -495,42 +498,89 @@ func (rt *engine) animateExits(root *node, now time.Time, still bool) {
 	}
 }
 
-// elementsByID returns the elements of the frame by ID, in a map the
-// engine reuses.
-func (rt *engine) elementsByID(root *node) map[uint64]*node {
-	if rt.byID == nil {
-		rt.byID = map[uint64]*node{}
+// builtNode returns the element with the ID id that the frame built, nil
+// for none.
+func (rt *engine) builtNode(id uint64) *node {
+	s := rt.states[id]
+	if s == nil || s.seen != rt.frame || s.pass != rt.pass || s.node == nil || s.node.st != s || s.node.id != id {
+		return nil
 	}
-	clear(rt.byID)
-	var walk func(e *node)
-	walk = func(e *node) {
-		rt.byID[e.id] = e
-		for c := e.first; c != nil; c = c.next {
-			walk(c)
-		}
-	}
-	walk(root)
-	return rt.byID
+	return s.node
 }
 
-// ghostOf copies e, an element of the frame before, and the elements inside
-// it, for its exit transition. The copy only shows: it refers to no other
-// element nor to the app's state, has states of its own, and is inert.
-func ghostOf(e *node) *node {
-	g := new(node)
+// snapshotExits copies, as the frame ends, the elements it built with an
+// Exit and the elements inside them, as they showed: one not built in the
+// next frame leaves as this copy (animateExits). The frame's elements are
+// then free for the next one to reuse, and each copy reuses the storage
+// of the one before.
+func (rt *engine) snapshotExits() {
+	still := len(rt.trans) == 0 || rt.preferences().ReduceMotion
+	for _, r := range rt.trans {
+		if still || r.built != rt.frame || r.laid != rt.frame || r.t.Exit == nil || r.elem == nil || r.elem.leaving != 0 {
+			if r.snapRoot != nil && r.built == rt.frame {
+				// Nothing to leave as: let the copy go.
+				clear(r.snapNodes)
+				clear(r.snapStates)
+				r.snapRoot = nil
+			}
+			continue
+		}
+		r.snapshot(r.elem)
+	}
+}
+
+// snapshot copies e and the elements inside it into the transition's
+// storage (ghostOf).
+func (r *transition) snapshot(e *node) {
+	n := ghostSize(e)
+	if cap(r.snapNodes) < n {
+		r.snapNodes, r.snapStates = make([]node, n), make([]state, n)
+	} else {
+		if n < len(r.snapNodes) {
+			// Let go of what the copy before held beyond this one.
+			clear(r.snapNodes[n:])
+			clear(r.snapStates[n:])
+		}
+		r.snapNodes, r.snapStates = r.snapNodes[:n], r.snapStates[:n]
+	}
+	i := 0
+	r.snapRoot = ghostInto(e, r.snapNodes, r.snapStates, &i)
+}
+
+// ghostSize counts the elements a copy of e has: e and those inside it,
+// but copies leaving.
+func ghostSize(e *node) int {
+	n := 1
+	for c := e.first; c != nil; c = c.next {
+		if c.leaving == 0 {
+			n += ghostSize(c)
+		}
+	}
+	return n
+}
+
+// ghostInto copies e, an element of the frame, and the elements inside it
+// into nodes and states from *i on, for its exit transition. The copy only
+// shows: it refers to no other element nor to the app's state, has states
+// of its own, and is inert.
+func ghostInto(e *node, nodes []node, states []state, i *int) *node {
+	g, st := &nodes[*i], &states[*i]
+	*i++
+	shadows, cols, rows, frags := g.shadows[:0], g.cols[:0], g.rows[:0], g.frags[:0]
 	*g = *e
-	st := *e.st
-	st.trec = nil
-	g.st = &st
+	*st = *e.st
+	st.trec, st.node = nil, nil
+	g.st = st
 	g.parent, g.first, g.last, g.next, g.nchild = nil, nil, nil, nil, 0
-	g.shadows, g.cols, g.rows, g.frags = slices.Clone(e.shadows), slices.Clone(e.cols), slices.Clone(e.rows), slices.Clone(e.frags)
+	g.shadows, g.cols, g.rows, g.frags = append(shadows, e.shadows...), append(cols, e.cols...), append(rows, e.rows...), append(frags, e.frags...)
 	g.track, g.popover, g.list, g.rowsOf, g.overflow = nil, nil, nil, nil, nil
 	g.activeDescendant, g.nameFrom, g.field, g.form = nil, nil, nil, nil
 	g.followX, g.colFit, g.gridFit = nil, nil, nil
 	g.inputFn, g.ghosts = nil, false
-	// The copy shows the frame before: the callbacks of the app's state —
-	// input, escape routing, value commits and layout observers — do not
-	// run for it. Its paint callbacks still run so it looks as it did.
+	// The copy shows the frame it was made in: the callbacks of the app's
+	// state — input, escape routing, value commits and layout observers —
+	// do not run for it. Its paint callbacks still run so it looks as it
+	// did.
 	g.regionEscape, g.valueInput = nil, nil
 	g.observeLayout, g.offsetAfterLayout = nil, nil
 	g.tl, g.nmeasure, g.leafOK = nil, 0, false
@@ -538,7 +588,7 @@ func ghostOf(e *node) *node {
 	g.ghost = true
 	for c := e.first; c != nil; c = c.next {
 		if c.leaving == 0 {
-			g.add(ghostOf(c))
+			g.add(ghostInto(c, nodes, states, i))
 		}
 	}
 	return g
