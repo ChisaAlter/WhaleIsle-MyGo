@@ -157,7 +157,7 @@ func runNativeSessionRecovery() error {
 				continue
 			}
 			setStore.EnsureLoaded(context.Background())
-			sv := setStore.Snapshot()
+			sv := setStore.Snapshot().Value
 			if sv.Err != "" {
 				finish(fmt.Errorf("settings store failed: %s", sv.Err))
 				return

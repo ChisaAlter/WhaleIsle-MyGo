@@ -24,7 +24,7 @@ func pricingView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	}
 	v := m.Store.Billing()
 	wasOpen := *open
-	if *submitted && !v.Busy && v.Err == "" && !v.Dirty {
+	if *submitted && !v.Busy && v.Err == nil && !v.Dirty {
 		*submitted = false
 		*open = false
 	}
@@ -84,8 +84,8 @@ func pricingEditor(c *ui.Context, m Model, fg, muted, accent ui.Color, save func
 	ui.Text(c, usageText("每百万 Token 单价（人民币）", "Price per million tokens (CNY)")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).TextColor(muted)
 	// The editor owns its own outcome: a failed save is drawn above the prices it
 	// refused, and a saved change is an acknowledgement line, not a floating bar.
-	if v.Err != "" {
-		widgets.Alert(c, widgets.AlertOptions{ID: "billing-editor-failure", Message: v.Err})
+	if v.Err != nil {
+		widgets.Alert(c, widgets.AlertOptions{ID: "billing-editor-failure", Message: v.Err.SentenceText()})
 	} else if v.Notice != "" {
 		ui.Text(c, v.Notice).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	}

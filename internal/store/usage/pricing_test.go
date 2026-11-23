@@ -55,7 +55,7 @@ func TestPricingFixture(t *testing.T) {
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL, Cookie: "fixture=yes"}}, nil)
 	s.LoadBilling(context.Background())
 	v := waitBilling(t, s)
-	if !v.Loaded || v.Err != "" {
+	if !v.Loaded || v.Err != nil {
 		t.Fatalf("load: %+v", v)
 	}
 	d := v.Drafts["p/m"]
@@ -65,14 +65,14 @@ func TestPricingFixture(t *testing.T) {
 	fail.Store(true)
 	s.SaveBilling(context.Background())
 	v = waitBilling(t, s)
-	if v.Err == "" || !v.Dirty || v.Drafts["p/m"].Peak[1] != "8" || v.Settings.Prices["p/m"].InputCacheMiss != 2 {
+	if v.Err == nil || !v.Dirty || v.Drafts["p/m"].Peak[1] != "8" || v.Settings.Prices["p/m"].InputCacheMiss != 2 {
 		t.Fatalf("failed save lost draft: %+v", v)
 	}
 	fail.Store(false)
 	s.SaveBilling(context.Background())
 	v = waitBilling(t, s)
 	p := v.Settings.Prices["p/m"]
-	if v.Err != "" || v.Dirty || p.Idle == nil || p.Idle.InputCacheMiss != 8 {
+	if v.Err != nil || v.Dirty || p.Idle == nil || p.Idle.InputCacheMiss != 8 {
 		t.Fatalf("flat save: %+v", v)
 	}
 	d = v.Drafts["p/m"]
@@ -80,7 +80,7 @@ func TestPricingFixture(t *testing.T) {
 	s.EditPrice("p/m", d)
 	s.SaveBilling(context.Background())
 	v = waitBilling(t, s)
-	if v.Err == "" || !v.Dirty {
+	if v.Err == nil || !v.Dirty {
 		t.Fatal("accepted invalid price")
 	}
 	s.Detach()

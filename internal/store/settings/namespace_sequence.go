@@ -26,30 +26,30 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 	}
 	s.mu.Lock()
 	if !b.currentLocked() || s.saving || s.loading || !s.writable || s.client == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	writes := []write{}
 	ref, literal := "", ""
 	if credential != nil {
 		if credential.store != s || !credential.currentLocked() {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		ref, literal = s.webSearchReferenceLocked(), credential.state.Draft
 		if literal != "" && (!credential.state.Known || !credential.state.Writable || credential.state.Loading) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 	}
 	seen := map[string]bool{}
 	for _, binding := range bindings {
 		if binding == nil || binding.store != s || !binding.currentLocked() || binding.client != b.client || binding.generation != b.generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if s.themeWriteInFlightLocked(binding.namespace) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if seen[binding.namespace] {
@@ -60,7 +60,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 		if ns.NS == "subagent-model-selection-settings" && s.draftRevisionLocked(ns) != ns.Revision {
 			s.err = fmt.Errorf("Subagent model selection changed on the Host; discard this draft before editing again")
 			s.lastAction = s.err.Error()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -75,7 +75,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 		}
 		if err != nil {
 			s.err, s.lastAction = err, err.Error()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -86,12 +86,12 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 		writes = append(writes, write{ns, patch, ops, submitted, resets})
 	}
 	if len(writes) == 0 && literal == "" {
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	s.saving, s.err = true, nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		keySaved := literal == ""
@@ -110,13 +110,13 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 			if s.client == b.client && s.generation == b.generation {
 				s.saving, s.err, s.lastAction = false, err, err.Error()
 			}
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 		}
 		for _, w := range writes {
 			s.mu.Lock()
 			if s.client != b.client || s.generation != b.generation {
-				s.mu.Unlock()
+				s.unlockPublish()
 				return
 			}
 			current := s.findNamespaceLocked(w.ns.NS)
@@ -124,11 +124,11 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 				s.saving = false
 				s.err = fmt.Errorf("Settings section %s is no longer available; drafts retained", w.ns.NS)
 				s.lastAction = s.err.Error()
-				s.mu.Unlock()
+				s.unlockPublish()
 				s.fire()
 				return
 			}
-			s.mu.Unlock()
+			s.unlockPublish()
 			if len(w.patch) == 0 && len(w.ops) == 0 {
 				continue
 			}
@@ -148,7 +148,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 			}
 			s.mu.Lock()
 			if s.client != b.client || s.generation != b.generation {
-				s.mu.Unlock()
+				s.unlockPublish()
 				return
 			}
 			current = s.findNamespaceLocked(w.ns.NS)
@@ -159,7 +159,7 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 			}
 			if err != nil {
 				s.saving, s.err, s.lastAction = false, err, err.Error()
-				s.mu.Unlock()
+				s.unlockPublish()
 				s.fire()
 				s.RefreshDescribe(ctx)
 				return
@@ -174,12 +174,12 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 				s.saving = false
 				s.err = &writeRefusal{raw: fmt.Sprintf("%s %s: the receipt reports namespace %q at revision %v without the submitted values", method, w.ns.NS, out.Ns, out.Revision)}
 				s.lastAction = s.err.Error()
-				s.mu.Unlock()
+				s.unlockPublish()
 				s.fire()
 				return
 			}
 			s.acknowledgeDraftsLocked(*current, w.submitted, w.resets)
-			s.mu.Unlock()
+			s.unlockPublish()
 		}
 		if err := saveKey(); err != nil {
 			fail(err)
@@ -187,11 +187,11 @@ func (b *NamespaceBinding) saveSequence(ctx context.Context, credential *WebSear
 		}
 		s.mu.Lock()
 		if s.client != b.client || s.generation != b.generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.saving, s.err, s.lastAction = false, nil, "settings saved"
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

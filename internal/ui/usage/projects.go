@@ -13,15 +13,15 @@ func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, mut
 	b := m.Store.Billing()
 	seat := ui.Column(c.Key("usage-project-ranking-state/" + m.Store.StatisticsOwner()))
 	open := ui.Local(seat, "more", func() bool { return false })
-	if !st.Loading && !r.Started && !r.Loading && r.Err == "" {
+	if !st.Loading && !r.Started && !r.Loading && r.Err == nil {
 		m.Store.LoadProjectCard(context.Background(), r.Sort)
 	}
 	usageCard(c, "usage-project-ranking", usageText("项目排行（会话工作目录）", "Project ranking (session working directories)"), fg, func() {
 		value := r.Sort
 		rankingSort(c, &value, r.Loading, func() { m.Store.LoadProjectCard(context.Background(), value) })
 		projectRankRows(c, r.Rows[:min(10, len(r.Rows))], b, fg, muted)
-		if r.Err != "" {
-			rankMore(c, r.Loading, r.Started, r.HasMore, r.Err, func() { m.Store.LoadProjectCard(context.Background(), r.Sort) }, muted)
+		if r.Err != nil {
+			rankMore(c, r.Loading, r.Started, r.HasMore, r.Err.SentenceText(), func() { m.Store.LoadProjectCard(context.Background(), r.Sort) }, muted)
 		}
 		if ui.Button(c, usageText("更多", "More")).AlignSelf(ui.Start).BorderWidth(0).Background(ui.Transparent).Disabled(len(r.Rows) == 0).Clicked() {
 			*open = true
@@ -33,7 +33,7 @@ func projectRankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, mut
 		value := r.Sort
 		rankingSort(c, &value, r.Loading, func() { m.Store.ResetProjectRanking(context.Background(), value) })
 		projectRankRows(c, r.Rows, b, fg, muted)
-		rankMore(c, r.Loading, r.Started, r.HasMore, r.Err, func() { m.Store.LoadMoreProjects(context.Background()) }, muted)
+		rankMore(c, r.Loading, r.Started, r.HasMore, r.Err.SentenceText(), func() { m.Store.LoadMoreProjects(context.Background()) }, muted)
 	})
 }
 func projectRankRows(c *ui.Context, rows []usagestore.ProjectUsage, b usagestore.BillingView, fg, muted ui.Color) {

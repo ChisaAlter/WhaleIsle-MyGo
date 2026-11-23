@@ -68,7 +68,7 @@ func latestDelivery(row schedstore.Entry) string {
 
 func (p *Panel) loadDeliveryHistory(m Model, row schedstore.Entry, before string, refresh bool) {
 	key := taskKey(row)
-	epoch := m.Store.Snapshot().ConnectionEpoch
+	epoch := m.Store.Snapshot().Value.ConnectionEpoch
 	p.mu.Lock()
 	if p.historyLoading && p.historyKey == key && !refresh {
 		p.mu.Unlock()
@@ -90,7 +90,7 @@ func (p *Panel) loadDeliveryHistory(m Model, row schedstore.Entry, before string
 		defer cancel()
 		page, err := m.Store.DeliveryHistory(ctx, row, before)
 		p.mu.Lock()
-		if p.historyKey == key && p.historyRequest == request && m.Store.Snapshot().ConnectionEpoch == epoch {
+		if p.historyKey == key && p.historyRequest == request && m.Store.Snapshot().Value.ConnectionEpoch == epoch {
 			p.historyLoading = false
 			p.historyState.finish(page, before, err)
 		}

@@ -289,9 +289,9 @@ func TestFunctionalOwnedThemeCAS(t *testing.T) {
 	defer cancel()
 	store.Attach(client, nil)
 	store.RefreshDescribe(ctx)
-	wait("theme schema", func() bool { return !store.Snapshot().Loading && len(store.Snapshot().Namespaces) > 0 })
+	wait("theme schema", func() bool { return !store.Snapshot().Value.Loading && len(store.Snapshot().Value.Namespaces) > 0 })
 	var namespace settingsstore.Namespace
-	for _, row := range store.Snapshot().Namespaces {
+	for _, row := range store.Snapshot().Value.Namespaces {
 		if row.NS == "ui-theme" {
 			namespace = row
 		}
@@ -306,7 +306,7 @@ func TestFunctionalOwnedThemeCAS(t *testing.T) {
 			preferenceServed = strings.Contains(options, " light ") && strings.Contains(options, " dark ")
 		}
 	}
-	if !store.Snapshot().Writable || !fontServed || !preferenceServed {
+	if !store.Snapshot().Value.Writable || !fontServed || !preferenceServed {
 		fail("theme schema", "actual Host did not serve writable fontSize/preference scalar fields")
 	}
 	binding := settingsui.BindHostTheme(store)
@@ -403,7 +403,7 @@ func TestFunctionalOwnedThemeCAS(t *testing.T) {
 	client = start()
 	store.Attach(client, nil)
 	store.RefreshDescribe(ctx)
-	wait("theme restart describe", func() bool { return !store.Snapshot().Loading && len(store.Snapshot().Namespaces) > 0 })
+	wait("theme restart describe", func() bool { return !store.Snapshot().Value.Loading && len(store.Snapshot().Value.Namespaces) > 0 })
 	binding = settingsui.BindHostTheme(store)
 	if binding == nil {
 		fail("theme restart binding", "actual namespace unavailable after owned Host restart")

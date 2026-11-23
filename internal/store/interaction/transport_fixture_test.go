@@ -113,10 +113,10 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	// instead of reporting a timeout the next reader has to explain.
 	pump := &testwait.Producer{Name: "the events pump", Done: pumpExited, Err: func() error { return pumpErr }}
 	state := func() string {
-		snap := s.Snapshot()
+		snap := s.testView()
 		out := fmt.Sprintf("pending=%d status=%q", len(snap.Pending), snap.QuestionStatus)
 		if len(snap.Pending) > 0 {
-			out += fmt.Sprintf(" sending=%v error=%q", snap.Pending[0].Sending, snap.Pending[0].Error)
+			out += fmt.Sprintf(" sending=%v error=%q", snap.Pending[0].Sending, snap.Pending[0].Error.SentenceText())
 		}
 		return out
 	}
@@ -127,7 +127,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	frames <- `{"type":"ready","clientId":"client-A","host":{"home":"fixture"}}`
 	frames <- `{"type":"waterfall","event":"user-questions/request","eventId":"q","agentId":"A","request":{"wait":{"callId":"call-q"},"questions":[{"id":"choice","options":[{"label":"Yes"}]}]}}`
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"cancel-me","agentId":"B","request":{"toolName":"fixture"}}`
-	wait("the two pending requests", func() bool { return len(s.Snapshot().Pending) == 2 })
+	wait("the two pending requests", func() bool { return len(s.testView().Pending) == 2 })
 	if len(s.SnapshotForAgent("A").Pending) != 1 || len(s.SnapshotForAgent("B").Pending) != 1 || len(s.SnapshotForAgent("").Pending) != 0 {
 		t.Fatal("conversation ownership lost")
 	}
@@ -137,8 +137,8 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	s.SetQuestionCustom("q", "choice", "custom answer")
 	s.ResolveQuestions("q")
 	s.ResolveQuestions("q")
-	wait("the failed delivery to be reported on its question", func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].Error != "" })
-	if len(s.Snapshot().QuestionCards["q"].Rows) != 1 || !s.QuestionsCanSubmit("q") {
+	wait("the failed delivery to be reported on its question", func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].Error != nil })
+	if len(s.testView().QuestionCards["q"].Rows) != 1 || !s.QuestionsCanSubmit("q") {
 		t.Fatal("failed delivery discarded draft")
 	}
 	s.Retry("q")
@@ -147,11 +147,11 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		count := len(posts)
 		mu.Unlock()
 		p := s.SnapshotForAgent("A").Pending
-		return count == 2 && len(p) == 1 && p[0].Sending && p[0].Error == ""
+		return count == 2 && len(p) == 1 && p[0].Sending && p[0].Error == nil
 	})
 	// HTTP receipt alone cannot prove that the Host admitted the answer.
 	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"call-q"}]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
-	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.testView().Pending) == 0 })
 	mu.Lock()
 	got := append([]dsh.EventResult(nil), posts...)
 	mu.Unlock()
@@ -166,22 +166,22 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatalf("answer %#v", answer)
 	}
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"deny","agentId":"A","request":{"toolName":"fixture"}}`
-	wait("one pending request", func() bool { return len(s.Snapshot().Pending) == 1 })
+	wait("one pending request", func() bool { return len(s.testView().Pending) == 1 })
 	s.ResolveDeny("deny")
-	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.testView().Pending) == 0 })
 	mu.Lock()
 	last := posts[len(posts)-1]
 	mu.Unlock()
-	if string(last.Outcome.Value) != `"rejected"` || s.Snapshot().AutoAllow {
+	if string(last.Outcome.Value) != `"rejected"` || s.testView().AutoAllow {
 		t.Fatalf("denial or permission changed: %#v", last)
 	}
 	frames <- `{"type":"waterfall","event":"approval/request","eventId":"allow","agentId":"A","request":{"toolName":"fixture","displayReason":{"en":"localized reason"}}}`
-	wait("one pending request", func() bool { return len(s.Snapshot().Pending) == 1 })
-	if s.Snapshot().Pending[0].Detail != "localized reason" {
+	wait("one pending request", func() bool { return len(s.testView().Pending) == 1 })
+	if s.testView().Pending[0].Detail != "localized reason" {
 		t.Fatal("localized approval reason lost")
 	}
 	s.ResolveAllow("allow")
-	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.testView().Pending) == 0 })
 	mu.Lock()
 	last = posts[len(posts)-1]
 	mu.Unlock()
@@ -204,7 +204,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 		t.Fatal("Host continuation did not retain the timed-out question")
 	}
 	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"timed-call"}]}`), json.RawMessage(`{"next-step":[],"next-turn":[]}`))
-	wait("the pending row to clear", func() bool { return len(s.Snapshot().Pending) == 0 })
+	wait("the pending row to clear", func() bool { return len(s.testView().Pending) == 0 })
 	cancel()
 	testwait.Until(t, testwait.Wait{What: "the events pump to stop after cancel", Budget: time.Second}, func() bool {
 		select {

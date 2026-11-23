@@ -76,7 +76,7 @@ func TestApprovalCallsAreSessionScopedStartRecords(t *testing.T) {
 		json.RawMessage(`{"type":"tool/call","data":{"callId":"call","arguments":{"command":"duplicate replacement"}}}`),
 	}
 	s.SyncApprovalCalls("A", events)
-	pending := s.Snapshot().Pending
+	pending := s.testView().Pending
 	byID := make(map[string]Pending, len(pending))
 	for _, p := range pending {
 		byID[p.EventID] = p
@@ -89,7 +89,7 @@ func TestApprovalCallsAreSessionScopedStartRecords(t *testing.T) {
 	}
 	s.SyncApprovalCalls("A", []json.RawMessage{json.RawMessage(`{"type":"tool/call","data":{"callId":"call","arguments":{"command":"late replacement"}}}`)})
 	var frozen string
-	for _, p := range s.Snapshot().Pending {
+	for _, p := range s.testView().Pending {
 		if p.EventID == "root" {
 			frozen = p.Args
 		}
@@ -97,7 +97,7 @@ func TestApprovalCallsAreSessionScopedStartRecords(t *testing.T) {
 	if !strings.Contains(frozen, "root original") {
 		t.Fatalf("frozen original missing or changed: %q", frozen)
 	}
-	if s.Snapshot().AutoAllow || len(s.responses) != 0 {
+	if s.testView().AutoAllow || len(s.responses) != 0 {
 		t.Fatal("presentation changed approval policy or decisions")
 	}
 }
@@ -110,13 +110,13 @@ func TestApprovalContextWaterfallWiring(t *testing.T) {
 		out, _ := s.handleApproval(dsh.EventsWaterfall{AgentID: "A", EventID: "approval", Event: EventApproval, Request: json.RawMessage(`{"toolName":"exec_command","callId":"call"}`)})
 		done <- out
 	}()
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 	s.SyncApprovalCalls("B", []json.RawMessage{json.RawMessage(`{"type":"tool/call","data":{"callId":"call","arguments":{"command":"foreign"}}}`)})
-	if s.Snapshot().Pending[0].Args != "" {
+	if s.testView().Pending[0].Args != "" {
 		t.Fatal("foreign session borrowed")
 	}
 	s.SyncApprovalCalls("A", []json.RawMessage{json.RawMessage(`{"type":"tool/call","data":{"callId":"call","arguments":{"command":"expected"}}}`)})
-	if !strings.Contains(s.Snapshot().Pending[0].Args, "expected") {
+	if !strings.Contains(s.testView().Pending[0].Args, "expected") {
 		t.Fatal("real waterfall not correlated")
 	}
 	s.ResolveAllow("approval")

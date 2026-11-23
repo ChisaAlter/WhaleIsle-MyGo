@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 )
 
 type ProjectUsage struct {
@@ -25,7 +26,7 @@ type ProjectRanking struct {
 	Rows                      []ProjectUsage
 	Sort                      string
 	Started, Loading, HasMore bool
-	Err                       string
+	Err                       *state.Fault
 }
 type projectRankingState struct {
 	ProjectRanking
@@ -44,16 +45,6 @@ func (s *Store) resetProjectRankingLocked() {
 	}
 	s.projectRanking = projectRankingState{epoch: s.projectRanking.epoch + 1}
 }
-func (s *Store) ProjectRanking() ProjectRanking {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.projectRanking.ProjectRanking
-	if v.Sort == "" {
-		v.Sort = "tokens"
-	}
-	v.Rows = append([]ProjectUsage(nil), v.Rows...)
-	return v
-}
 
 // ResetProjectRanking explicitly restarts the official all-time working-directory
 // aggregation from offset zero. The Host, not the UI, sorts by tokens/cost.
@@ -63,7 +54,7 @@ func (s *Store) ResetProjectRanking(ctx context.Context, sort string) {
 	}
 	s.mu.Lock()
 	if s.client == nil || s.stats.Loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	card := s.projectRanking.card
@@ -72,14 +63,14 @@ func (s *Store) ResetProjectRanking(ctx context.Context, sort string) {
 	}
 	s.projectRanking = projectRankingState{epoch: s.projectRanking.epoch + 1, card: card}
 	s.projectRanking.Sort = sort
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.LoadMoreProjects(ctx)
 }
 func (s *Store) LoadMoreProjects(ctx context.Context) {
 	s.mu.Lock()
 	r := &s.projectRanking
-	if s.client == nil || s.stats.Loading || r.Loading || (r.Started && !r.HasMore && r.Err == "") {
-		s.mu.Unlock()
+	if s.client == nil || s.stats.Loading || r.Loading || (r.Started && !r.HasMore && r.Err == nil) {
+		s.unlockPublish()
 		return
 	}
 	if r.Sort == "" {
@@ -90,8 +81,8 @@ func (s *Store) LoadMoreProjects(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	r.cancel = cancel
 	r.Loading = true
-	r.Err = ""
-	s.mu.Unlock()
+	r.Err = nil
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		defer cancel()
@@ -109,14 +100,14 @@ func (s *Store) LoadMoreProjects(ctx context.Context) {
 		}
 		s.mu.Lock()
 		if s.client != client || s.projectRanking.epoch != epoch {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		r := &s.projectRanking
 		r.Loading = false
 		r.cancel = nil
 		if err != nil {
-			r.Err = err.Error()
+			r.Err = faultOf(err)
 		} else {
 			seen := map[string]bool{}
 			for _, row := range r.Rows {
@@ -132,7 +123,7 @@ func (s *Store) LoadMoreProjects(ctx context.Context) {
 			r.Started = true
 			r.HasMore = *page.HasMore
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

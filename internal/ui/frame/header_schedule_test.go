@@ -12,6 +12,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -88,14 +89,14 @@ func TestScheduleHeaderZeroOneManyOwnerAndPopoverBounds(t *testing.T) {
 		t.Fatal("retained schedule loading state missing")
 	}
 	snap.Loading = false
-	snap.Err = "Isolated schedule read failed"
+	snap.Err = state.FaultText("Isolated schedule read failed")
 	tt.Frame()
 	if !tt.HasText("Retry schedules") || !tt.HasText("Morning task") {
 		t.Fatal("failed refresh discarded retained menu")
 	}
 	headerSnapshot(t, tt, "schedule-header-error")
 	tt.Key(0, ui.KeyEscape)
-	snap.Err = ""
+	snap.Err = nil
 	tt.SetSize(360, 420)
 	if err := tt.Click("2 scheduled tasks"); err != nil {
 		t.Fatal(err)
@@ -166,10 +167,12 @@ func TestScheduleHeaderDeletionUsesCapturedOwningSession(t *testing.T) {
 			}
 		}
 	}
-	wait(func() bool { return !store.Snapshot().Loading })
+	wait(func() bool { return !store.Snapshot().Value.Loading })
 	m := Model{ScheduleStore: store, OnOpenScheduleTask: func(schedstore.Entry) {}}
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Row(c).Padding(8).Children(func() { scheduleHeaderView(c, m, store.Snapshot(), "owner", theme.Resolve("deepseek.light").Light) })
+		ui.Row(c).Padding(8).Children(func() {
+			scheduleHeaderView(c, m, store.Snapshot().Value, "owner", theme.Resolve("deepseek.light").Light)
+		})
 	}, 600, 400)
 	if err := tt.Click("2 scheduled tasks"); err != nil {
 		t.Fatal(err)
@@ -185,7 +188,7 @@ func TestScheduleHeaderDeletionUsesCapturedOwningSession(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("isolated delete missing")
 	}
-	wait(func() bool { return !store.Snapshot().Loading && len(store.Snapshot().Rows) == 1 })
+	wait(func() bool { return !store.Snapshot().Value.Loading && len(store.Snapshot().Value.Rows) == 1 })
 	tt.Frame()
 	if tt.HasText("First task") {
 		t.Fatal("deleted task stayed in header menu")

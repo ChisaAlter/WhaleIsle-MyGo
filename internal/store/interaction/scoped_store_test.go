@@ -53,11 +53,11 @@ func TestScopedInteractionApprovalDeliveryAndRetry(t *testing.T) {
 	if string(out.Value) != string(retry.Value) || retry.Delivery == out.Delivery {
 		t.Fatal("retry did not renew exact decision proof")
 	}
-	if s.OnResult(dsh.EventResult{EventID: "e", Outcome: out}, nil) || len(s.Snapshot().Pending) != 1 {
+	if s.OnResult(dsh.EventResult{EventID: "e", Outcome: out}, nil) || len(s.testView().Pending) != 1 {
 		t.Fatal("old delivery completed newer retry")
 	}
 	s.OnResult(dsh.EventResult{EventID: "e", Outcome: retry}, nil)
-	if len(s.Snapshot().Pending) != 0 {
+	if len(s.testView().Pending) != 0 {
 		t.Fatal("current delivery did not settle")
 	}
 }
@@ -81,7 +81,7 @@ func TestScopedInteractionAllSubmissionGesturesFailClosed(t *testing.T) {
 			s.NavigateQuestion("A", "e", 1)
 			scope.active.Store(false)
 			a.run(scoped)
-			if len(s.waiters["e"]) != 0 || s.Snapshot().Pending[0].Sending {
+			if len(s.waiters["e"]) != 0 || s.testView().Pending[0].Sending {
 				t.Fatal("stale callback bypassed scope")
 			}
 			scope.active.Store(true)
@@ -179,7 +179,7 @@ func TestScopedInteractionLateAnswerRevocationCancelsRPC(t *testing.T) {
 	}
 	awaitQuestionFixture(t, func() bool {
 		p := s.SnapshotForAgent("A").Pending
-		return len(p) == 1 && !p[0].Sending && p[0].Error != ""
+		return len(p) == 1 && !p[0].Sending && p[0].Error != nil
 	})
 	if s.SnapshotForAgent("A").QuestionStatus == "submitted" {
 		t.Fatal("cancelled reply reported sent")

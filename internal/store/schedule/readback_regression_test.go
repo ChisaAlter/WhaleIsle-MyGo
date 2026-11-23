@@ -66,7 +66,7 @@ func TestUpdatePublishesCanonicalInstantAndKeepsNewerReadback(t *testing.T) {
 				if err := s.Update(ctx, row, &title, nil, nil); err != nil {
 					t.Fatal(err)
 				}
-				shown := s.Snapshot().Rows[0]
+				shown := s.Snapshot().Value.Rows[0]
 				if newerCatalog {
 					if shown.Title != "Newer catalog" || shown.ScheduledAt != "2026-12-02T12:00:00Z" {
 						t.Fatalf("late save regressed authoritative rule: %+v", shown)
@@ -169,7 +169,7 @@ func TestDeleteOutcomeNoticeSurvivesDetailAndRetiresWithHost(t *testing.T) {
 					t.Fatalf("unexpected outcome: %v", err)
 				}
 				notice, fresh := s.ConsumeDeletionNotice()
-				if !fresh || notice.Sequence == 0 || notice.Outcome != tc.outcome || notice.ConnectionEpoch != s.Snapshot().ConnectionEpoch {
+				if !fresh || notice.Sequence == 0 || notice.Outcome != tc.outcome || notice.ConnectionEpoch != s.Snapshot().Value.ConnectionEpoch {
 					t.Fatalf("wrong notice: %+v fresh=%v", notice, fresh)
 				}
 				if again, fresh := s.ConsumeDeletionNotice(); fresh || again != notice {

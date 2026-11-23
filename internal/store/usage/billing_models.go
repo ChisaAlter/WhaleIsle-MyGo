@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 )
 
 type BillingModelOption struct {
@@ -18,31 +19,21 @@ type BillingModelOption struct {
 type BillingModelsView struct {
 	Options         []BillingModelOption
 	Loaded, Loading bool
-	Error, Filter   string
-}
-
-func (s *Store) BillingModels() BillingModelsView {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.billing.models
-	v.Options = append([]BillingModelOption(nil), v.Options...)
-	for i := range v.Options {
-		v.Options[i].Models = append([]string(nil), v.Options[i].Models...)
-	}
-	return v
+	Error           *state.Fault
+	Filter          string
 }
 
 func (s *Store) SetBillingModelFilter(value string) {
 	s.mu.Lock()
 	s.billing.models.Filter = value
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 func (s *Store) SelectBillingModel(provider, model string) {
 	key := strings.TrimSpace(provider) + "/" + strings.TrimSpace(model)
 	s.mu.Lock()
 	if !s.billing.Loaded || s.billing.Busy || !validPriceKey(key) || provider == "" || model == "" {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.billing.NewKey = key
@@ -54,26 +45,27 @@ func (s *Store) SelectBillingModel(provider, model string) {
 				draft.Idle = draftRates(*price.Idle)
 			}
 		}
+		s.billing.Drafts = cloneDrafts(s.billing.Drafts)
 		s.billing.Drafts[key] = draft
 		s.billing.Dirty = true
 	}
-	s.billing.Err = ""
+	s.billing.Err = nil
 	s.billing.Notice = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
 func (s *Store) LoadBillingModels(ctx context.Context) {
 	s.mu.Lock()
 	if s.client == nil || s.billing.models.Loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
-	client, epoch := s.client, s.statsEpoch
+	client, epoch := s.client, s.attachL.Generation()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	s.billing.modelsCancel = cancel
-	s.billing.models.Loading, s.billing.models.Error = true, ""
-	s.mu.Unlock()
+	s.billing.models.Loading, s.billing.models.Error = true, nil
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		defer cancel()
@@ -94,19 +86,19 @@ func (s *Store) LoadBillingModels(ctx context.Context) {
 			}
 		}
 		s.mu.Lock()
-		if s.statsEpoch != epoch || s.client != client {
-			s.mu.Unlock()
+		if s.attachL.Generation() != epoch || s.client != client {
+			s.unlockPublish()
 			return
 		}
 		s.billing.modelsCancel = nil
 		s.billing.models.Loading = false
 		if err != nil {
-			s.billing.models.Error = err.Error()
+			s.billing.models.Error = faultOf(err)
 		} else {
 			s.billing.models.Options = result.Options
 			s.billing.models.Loaded = true
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

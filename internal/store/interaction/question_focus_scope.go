@@ -9,7 +9,7 @@ import (
 // different Host during desktop endpoint replacement.
 func (s *Store) MatchesClient(client *dsh.Client) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return client != nil && s.client == client
 }
 
@@ -24,7 +24,7 @@ func (s *Store) SyncQuestionFocusForAgent(agentID, eventID string) {
 		if eventID != "" || s.questionFocusScopes[agentID] == "" {
 			s.questionFocusScopes[agentID] = eventID
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	changed := false
@@ -40,7 +40,7 @@ func (s *Store) SyncQuestionFocusForAgent(agentID, eventID string) {
 		on := p.EventID == eventID && !p.Sending && !p.Continued && !ds.hidden
 		changed = ds.wait.focus(on, now) || changed
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	if changed {
 		s.fire()
 	}
@@ -51,7 +51,7 @@ func (s *Store) BeginQuestionFocusFrame() {
 	s.mu.Lock()
 	s.questionFocusFrame = true
 	s.questionFocusScopes = map[string]string{}
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 func (s *Store) EndQuestionFocusFrame() {
 	s.mu.Lock()
@@ -67,7 +67,7 @@ func (s *Store) EndQuestionFocusFrame() {
 		changed = ds.wait.focus(on, now) || changed
 	}
 	s.questionFocusScopes = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	if changed {
 		s.fire()
 	}

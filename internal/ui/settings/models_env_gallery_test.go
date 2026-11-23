@@ -40,11 +40,11 @@ func twoProviderStore(t *testing.T) *store.Store {
 	})}}, nil)
 	s.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(2 * time.Second)
-	for s.Snapshot().Loading && time.Now().Before(deadline) {
+	for s.Snapshot().Value.Loading && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if len(s.Snapshot().Namespaces) != 2 {
-		t.Fatalf("provider fixture = %+v", s.Snapshot())
+	if len(s.Snapshot().Value.Namespaces) != 2 {
+		t.Fatalf("provider fixture = %+v", s.Snapshot().Value)
 	}
 	return s
 }

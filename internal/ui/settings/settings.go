@@ -120,7 +120,7 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	var snap settings.ViewState
 	if m.Store != nil {
-		snap = m.Store.Snapshot()
+		snap = m.Store.Snapshot().Value
 	}
 
 	// The rail and the options column scroll independently inside one panel.

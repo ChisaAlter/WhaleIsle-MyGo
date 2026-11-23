@@ -14,7 +14,7 @@ func (s *mainState) openScheduleTask(row schedstore.Entry) {
 	if store == nil || sessions == nil {
 		return
 	}
-	snap := store.Snapshot()
+	snap := store.Snapshot().Value
 	if !snap.ClientReady || row.Origin != snap.Origin {
 		return
 	}
@@ -52,7 +52,7 @@ func (s *mainState) showScheduleTask(row schedstore.Entry, store *schedstore.Sto
 		s.mu.Unlock()
 		return
 	}
-	current := store.Snapshot()
+	current := store.Snapshot().Value
 	if !current.ClientReady || current.ConnectionEpoch != epoch || current.Origin != row.Origin {
 		s.mu.Unlock()
 		return

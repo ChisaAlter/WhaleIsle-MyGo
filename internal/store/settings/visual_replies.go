@@ -15,7 +15,7 @@ const VisualRepliesNamespace = "visual-replies"
 func (s *Store) SetVisualReplyEnableCheck(check func(context.Context, string) error) {
 	s.mu.Lock()
 	s.visualReplyEnableCheck = check
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 func (s *Store) verifyVisualReplyEnable(ctx context.Context, name string, enabled bool, origin string, generation uint64) error {
@@ -24,7 +24,7 @@ func (s *Store) verifyVisualReplyEnable(ctx context.Context, name string, enable
 	}
 	s.mu.Lock()
 	check := s.visualReplyEnableCheck
-	s.mu.Unlock()
+	s.unlockPublish()
 	if check == nil {
 		return errors.New("HTML visual replies unavailable: desktop runtime verification is not configured")
 	}
@@ -32,7 +32,7 @@ func (s *Store) verifyVisualReplyEnable(ctx context.Context, name string, enable
 		return err
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.generation != generation || s.client == nil || s.client.Endpoint.Origin != origin {
 		return errors.New("HTML visual replies settings connection changed during verification")
 	}

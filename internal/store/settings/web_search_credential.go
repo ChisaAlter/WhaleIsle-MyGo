@@ -26,7 +26,7 @@ type WebSearchCredential struct {
 
 func (s *Store) BindWebSearchCredential() *WebSearchCredential {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.client == nil || s.findNamespaceLocked("web-search-deepseek") == nil {
 		return nil
 	}
@@ -67,7 +67,7 @@ func (k *WebSearchCredential) currentLocked() bool {
 func (k *WebSearchCredential) Snapshot() WebSearchCredentialView {
 	s := k.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if !k.currentLocked() {
 		return WebSearchCredentialView{}
 	}
@@ -86,7 +86,7 @@ func (k *WebSearchCredential) Snapshot() WebSearchCredentialView {
 func (k *WebSearchCredential) Edit(text string) {
 	s := k.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if !k.currentLocked() || s.saving {
 		return
 	}
@@ -98,24 +98,24 @@ func (k *WebSearchCredential) Refresh(ctx context.Context) {
 	s := k.store
 	s.mu.Lock()
 	if !k.currentLocked() || k.state.Loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ref := s.webSearchReferenceLocked()
 	if ref == "" {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	k.read++
 	read := k.read
 	k.state.Ref, k.state.Loading, k.state.Error = ref, true, ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		states, err := DescribeCredentials(ctx, k.client, []string{ref})
 		s.mu.Lock()
 		if !k.currentLocked() || k.read != read || s.webSearchReferenceLocked() != ref {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		k.state.Loading = false
@@ -128,7 +128,7 @@ func (k *WebSearchCredential) Refresh(ctx context.Context) {
 			k.state.Configured = state.Configured
 			k.state.Writable = state.Writable
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -143,7 +143,7 @@ func (k *WebSearchCredential) saveLiteral(ctx context.Context, ref, literal stri
 	s := k.store
 	s.mu.Lock()
 	current := k.currentLocked() && s.webSearchReferenceLocked() == ref
-	s.mu.Unlock()
+	s.unlockPublish()
 	if !current {
 		return fmt.Errorf("Web Search credential reference changed; draft retained")
 	}
@@ -154,7 +154,7 @@ func (k *WebSearchCredential) saveLiteral(ctx context.Context, ref, literal stri
 	}
 	s.mu.Lock()
 	current = k.currentLocked() && s.webSearchReferenceLocked() == ref
-	s.mu.Unlock()
+	s.unlockPublish()
 	if !current {
 		return fmt.Errorf("Web Search credential reference changed; draft retained")
 	}
@@ -164,7 +164,7 @@ func (k *WebSearchCredential) saveLiteral(ctx context.Context, ref, literal stri
 	states, err = DescribeCredentials(ctx, k.client, []string{ref})
 	state, known = states[ref]
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if !k.currentLocked() || s.webSearchReferenceLocked() != ref {
 		return fmt.Errorf("Web Search credential reference changed")
 	}

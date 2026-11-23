@@ -13,7 +13,7 @@ func (s *Store) BusyEnterFor(client *dsh.Client) string {
 		return "queue"
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.client != client || s.describedClient != client {
 		return "queue"
 	}

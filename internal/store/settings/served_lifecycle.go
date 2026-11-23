@@ -15,6 +15,6 @@ func (s *Store) LeaveServedForms() {
 	if s.webSearchKey != nil {
 		s.webSearchKey.state.Draft = ""
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }

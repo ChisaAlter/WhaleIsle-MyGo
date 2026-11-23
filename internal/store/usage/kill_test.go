@@ -146,14 +146,14 @@ func TestKillJobAndFollowJobRespectHostReplacement(t *testing.T) {
 		// The only proof this test accepts is the cancel frame reaching the old
 		// server. When it does not, say what the store and the process were
 		// doing, so a future occurrence names the stall instead of the deadline.
-		snap := st.Snapshot()
+		snap := st.Snapshot().Value
 		buf := make([]byte, 1<<20)
-		t.Fatalf("Attach did not cancel active FollowJob stream (recent=%d err=%q)\n%s", len(snap.Recent), snap.Err, buf[:runtime.Stack(buf, true)])
+		t.Fatalf("Attach did not cancel active FollowJob stream (recent=%d err=%v)\n%s", len(snap.Recent), snap.Err, buf[:runtime.Stack(buf, true)])
 	}
 	time.Sleep(30 * time.Millisecond)
-	snap := st.Snapshot()
-	if len(snap.Recent) != 0 || snap.Err != "" || newHostCalls.Load() != 0 {
-		t.Fatalf("stale job actions leaked into replacement Host: recent=%+v err=%q newHostCalls=%d", snap.Recent, snap.Err, newHostCalls.Load())
+	snap := st.Snapshot().Value
+	if len(snap.Recent) != 0 || snap.Err != nil || newHostCalls.Load() != 0 {
+		t.Fatalf("stale job actions leaked into replacement Host: recent=%+v err=%v newHostCalls=%d", snap.Recent, snap.Err, newHostCalls.Load())
 	}
 }
 

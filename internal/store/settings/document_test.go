@@ -65,7 +65,7 @@ func TestOpenSettingsDocument(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		mu.Lock()
-		ready := opened && st.Snapshot().LastAction == "settings document opened"
+		ready := opened && st.Snapshot().Value.LastAction == "settings document opened"
 		mu.Unlock()
 		if ready {
 			return
@@ -73,7 +73,7 @@ func TestOpenSettingsDocument(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	mu.Lock()
-	seen, action := opened, st.Snapshot().LastAction
+	seen, action := opened, st.Snapshot().Value.LastAction
 	mu.Unlock()
 	t.Fatalf("opened=%v action=%q", seen, action)
 }

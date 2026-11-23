@@ -43,7 +43,7 @@ func rankingView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, acc
 		value := rank.Sort
 		rankingSort(c, &value, rank.Loading, func() { m.Store.ResetSessionRanking(context.Background(), value) })
 		sessionRankRows(c, rank.Rows, billing, fg, muted)
-		rankMore(c, rank.Loading, rank.Started, rank.HasMore, rank.Err, func() { m.Store.LoadMoreSessions(context.Background()) }, muted)
+		rankMore(c, rank.Loading, rank.Started, rank.HasMore, rank.Err.SentenceText(), func() { m.Store.LoadMoreSessions(context.Background()) }, muted)
 	})
 }
 func sessionRankRows(c *ui.Context, rows []usagestore.SessionUsage, billing usagestore.BillingView, fg, muted ui.Color) {

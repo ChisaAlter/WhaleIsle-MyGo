@@ -522,7 +522,7 @@ func TestSettingsOnboardingStepsAndCursorAudit(t *testing.T) {
 			})}}, nil)
 			s.RefreshDescribe(context.Background())
 			for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); {
-				if s.Snapshot().Described && !s.Snapshot().Loading {
+				if s.Snapshot().Value.Described && !s.Snapshot().Value.Loading {
 					break
 				}
 				time.Sleep(time.Millisecond)

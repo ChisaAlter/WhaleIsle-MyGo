@@ -51,12 +51,14 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	if len(initial) != 1 || initial["/api/pluginInventory/list"] != 1 {
 		t.Fatalf("startup loaded duplicate or full market inventory: %v", initial)
 	}
-	if coord.NativeController().Snapshot().Status != "idle" {
+	if coord.NativeController().Snapshot().Value.Status != "idle" {
 		t.Fatal("runtime-only read activated full native manager")
 	}
 	coord.PrepareInstalledPlugin()
 	coord.Store().EnsureInventory(context.Background())
-	waitMarketFixture(t, func() bool { return coord.InstalledPluginState("qa-panel").Known && !coord.Store().Snapshot().Loading })
+	waitMarketFixture(t, func() bool {
+		return coord.InstalledPluginState("qa-panel").Known && !coord.Store().Snapshot().Value.Loading
+	})
 	if !coord.InstalledPluginState("qa-panel").Enabled {
 		t.Fatal("patch-only overlay lost")
 	}
@@ -71,9 +73,9 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	coord.NativeEventHandler(client)(dsh.EventsEmit{Event: "plugin-manager/changed"})
 	waitMarketFixture(t, func() bool {
 		state := coord.InstalledPluginState("qa-panel")
-		return state.Known && state.Revision > before.Revision && !state.Enabled && !coord.Store().Snapshot().Loading
+		return state.Known && state.Revision > before.Revision && !state.Enabled && !coord.Store().Snapshot().Value.Loading
 	})
-	if state := coord.Inventory().Snapshot(); len(state.Global) != 1 || state.Global[0].Enabled != "disabled" {
+	if state := coord.Inventory().Snapshot().Value; len(state.Global) != 1 || state.Global[0].Enabled != "disabled" {
 		t.Fatalf("settings retained enabled overlay: %+v", state)
 	}
 	mu.Lock()
@@ -86,7 +88,7 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	// settings/A2 projections even without a subsequent event notification.
 	coord.Store().Refresh(context.Background())
 	waitMarketFixture(t, func() bool {
-		return coord.InstalledPluginState("qa-panel").Known && coord.InstalledPluginState("qa-panel").Enabled && !coord.Store().Snapshot().Loading
+		return coord.InstalledPluginState("qa-panel").Known && coord.InstalledPluginState("qa-panel").Enabled && !coord.Store().Snapshot().Value.Loading
 	})
 	mu.Lock()
 	defer mu.Unlock()
@@ -145,7 +147,7 @@ func TestWorkspaceInventoryDeferralKeepsExplicitConsumerAndCurrentOwner(t *testi
 			if !coord.WorkspaceReady(client) || !coord.WorkspaceReady(client) {
 				t.Fatal("current attachment did not accept its release")
 			}
-			waitMarketFixture(t, func() bool { return coord.Inventory().Snapshot().Ready })
+			waitMarketFixture(t, func() bool { return coord.Inventory().Snapshot().Value.Ready })
 			mu.Lock()
 			if calls["/api/pluginInventory/list"] != 1 {
 				t.Fatalf("workspace and explicit consumer duplicated inventory: %v", calls)

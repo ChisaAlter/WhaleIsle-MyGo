@@ -19,7 +19,7 @@ func (s *mainState) observeAgentPresetCodingTools() {
 	}
 	manager := s.agentPresetManager
 	s.mu.Unlock()
-	view := settings.Snapshot()
+	view := settings.Snapshot().Value
 	ready := view.ClientReady && view.Described && view.HasDocument && !view.Loading && !view.Saving && !view.PreferencePending["ui-settings.enabled"]
 	var revision, presetRevision float64
 	found, presetFound := false, false

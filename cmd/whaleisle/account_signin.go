@@ -43,7 +43,7 @@ func (s *mainState) retryAccountSignIn() {
 	if store == nil {
 		return
 	}
-	v := store.Snapshot()
+	v := store.Snapshot().Value
 	if !accountlogin.Active(v.AttemptPhase) || v.AttemptID == "" {
 		s.startAccountSignIn()
 		return

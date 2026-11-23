@@ -56,7 +56,7 @@ func TestCapturedOwnerUpdateFailureThenSuccess(t *testing.T) {
 	if err := s.Update(context.Background(), row, &title, nil, nil); err == nil || !strings.Contains(err.Error(), "schedule_conflict") {
 		t.Fatalf("conflict reported as success: %v", err)
 	}
-	if string(s.Snapshot().Rows[0].Raw) != string(record) {
+	if string(s.Snapshot().Value.Rows[0].Raw) != string(record) {
 		t.Fatal("failure replaced captured record")
 	}
 	if err := s.Update(context.Background(), row, &title, nil, nil); err != nil {

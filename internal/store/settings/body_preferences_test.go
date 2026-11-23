@@ -52,10 +52,10 @@ func TestBodyPreferenceWritesCrossNamespaceWithoutAcknowledgingDrafts(t *testing
 	st.SetDraft("draft", "unsaved")
 	st.PatchDescribedField(context.Background(), "ui-chat", "transcriptView", "detailed")
 	deadline := time.Now().Add(3 * time.Second)
-	for len(st.Snapshot().PreferencePending) > 0 && time.Now().Before(deadline) {
+	for len(st.Snapshot().Value.PreferencePending) > 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	snap := st.Snapshot()
+	snap := st.Snapshot().Value
 	if calls.Load() != 1 || snap.Err != "" || snap.Saving || len(snap.PreferencePending) != 0 || snap.SelectedNS != "general" || !snap.Dirty || snap.Drafts["draft"] != "unsaved" || snap.Namespaces[1].Revision != 5 {
 		t.Fatalf("cross-namespace save changed editor ownership: %+v calls=%d", snap, calls.Load())
 	}
@@ -71,7 +71,7 @@ func TestBodyPreferenceRejectsUnadvertisedEnumAndStaleHost(t *testing.T) {
 	st.namespaces = []Namespace{{NS: "ui-chat", Fields: []Field{{Key: "transcriptView", Kind: FieldEnum, EnumOptions: []string{"compact", "detailed"}}}}}
 	st.mu.Unlock()
 	st.PatchDescribedField(context.Background(), "ui-chat", "transcriptView", "imaginary")
-	if snap := st.Snapshot(); snap.Err == "" || snap.Saving {
+	if snap := st.Snapshot().Value; snap.Err == "" || snap.Saving {
 		t.Fatalf("unadvertised enum was not rejected: %+v", snap)
 	}
 	st.mu.Lock()
@@ -87,7 +87,7 @@ func TestBodyPreferenceRejectsUnadvertisedEnumAndStaleHost(t *testing.T) {
 	st.mu.Unlock()
 	oldWriter(context.Background(), "ui-chat", map[string]string{"transcriptView": "compact"})
 	st.saveMutateOwned(context.Background(), "ui-chat", []json.RawMessage{json.RawMessage(`{"op":"set","path":["transcriptView"],"value":"compact"}`)}, a, generation)
-	if st.Snapshot().Saving {
+	if st.Snapshot().Value.Saving {
 		t.Fatal("a stale row retargeted a replacement Host")
 	}
 }
@@ -123,15 +123,15 @@ func TestBodyPreferenceCoupledEffectsAreOneValidatedMutation(t *testing.T) {
 	st.namespaces = []Namespace{{NS: "ui-conversation", Revision: 7, Fields: []Field{{Key: "composerBeamStyle", Kind: FieldJSON}, {Key: "composerBeamPresets", Kind: FieldJSON}}}}
 	st.mu.Unlock()
 	st.PatchDescribedFields(context.Background(), "ui-conversation", map[string]string{"composerBeamStyle": `{"period":3}`, "composerBeamPresets": `invalid`})
-	if snap := st.Snapshot(); snap.Err == "" || snap.Saving || calls.Load() != 0 {
+	if snap := st.Snapshot().Value; snap.Err == "" || snap.Saving || calls.Load() != 0 {
 		t.Fatal("part of an invalid coupled edit reached the Host")
 	}
 	st.PatchDescribedFields(context.Background(), "ui-conversation", map[string]string{"composerBeamStyle": `{"period":3}`, "composerBeamPresets": `{"Work":{"period":3}}`})
 	deadline := time.Now().Add(3 * time.Second)
-	for len(st.Snapshot().PreferencePending) > 0 && time.Now().Before(deadline) {
+	for len(st.Snapshot().Value.PreferencePending) > 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if snap := st.Snapshot(); calls.Load() != 1 || snap.Err != "" || snap.Saving || len(snap.PreferencePending) != 0 || snap.Namespaces[0].Revision != 8 {
+	if snap := st.Snapshot().Value; calls.Load() != 1 || snap.Err != "" || snap.Saving || len(snap.PreferencePending) != 0 || snap.Namespaces[0].Revision != 8 {
 		t.Fatalf("atomic preference write failed: %+v", snap)
 	}
 }

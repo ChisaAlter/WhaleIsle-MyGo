@@ -8,16 +8,19 @@ import (
 	_ "time/tzdata"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
 // EventsOwner binds one existing Host $events stream, including reconnects that
 // reuse a Client. Notifications only invalidate a catalog already opened by UI.
+// Its lease comes from the store's events LeaseOwner: a newer stream, a client
+// change or Detach invalidates it, and its context ends with the stream's.
 type EventsOwner struct {
-	store      *Store
-	client     *dsh.Client
-	ctx        context.Context
-	generation uint64
+	store  *Store
+	client *dsh.Client
+	ctx    context.Context
+	lease  state.Lease
 }
 
 func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwner {
@@ -29,15 +32,18 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	if s.client != client || ctx.Err() != nil {
 		return nil
 	}
-	s.eventsGeneration++
-	s.generation++ // Retire reads issued for the preceding stream.
-	s.loading = false
-	return &EventsOwner{store: s, client: client, ctx: ctx, generation: s.eventsGeneration}
+	lease := s.events.Renew(ctx)
+	s.readL = s.reads.Renew(context.Background()) // Retire reads issued for the preceding stream.
+	if s.loading {
+		s.loading = false
+		s.publishLocked()
+	}
+	return &EventsOwner{store: s, client: client, ctx: ctx, lease: lease}
 }
 
 func (s *Store) eventsOwnerCurrentLocked(owner *EventsOwner) bool {
 	return owner != nil && owner.store == s && owner.client == s.client && owner.ctx != nil &&
-		owner.ctx.Err() == nil && owner.generation == s.eventsGeneration
+		owner.ctx.Err() == nil && owner.lease.Valid()
 }
 
 // OnEventsReady refreshes the retained catalog after a transport reset.

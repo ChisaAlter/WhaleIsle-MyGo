@@ -18,7 +18,7 @@ import (
 func specInstallCardAt(t *testing.T, height int) *ui.Tester {
 	t.Helper()
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
 		installDialog(c, m, s, m.Controller.Actions(s.Owner))
@@ -229,7 +229,7 @@ func TestInstallFooterKeepsTheLongCopyInsideTheCard(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(old) })
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
@@ -262,7 +262,7 @@ func TestInstallFooterKeepsTheLongCopyInsideTheCard(t *testing.T) {
 // instead of offering the install again.
 func TestInstallFooterReadsCheckingWhileTheSpecChecks(t *testing.T) {
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "checking", Spec: "dsh-plugin-whale-pet"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
 		installDialog(c, m, s, m.Controller.Actions(s.Owner))
@@ -290,7 +290,7 @@ func TestInstallFooterReadsCheckingWhileTheSpecChecks(t *testing.T) {
 func marketChoiceFixture(t *testing.T) *ui.Tester {
 	t.Helper()
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	entry := manager.MarketEntry{Name: "fixture-discover", Title: manager.Text(`"Discover fixture"`),
 		Description: manager.Text(`"A source-backed entry with exact install versions."`), Author: "Fixture author", DefaultVersion: "2.0.0"}
 	entry.Installation.Status = "not-installed"
@@ -353,7 +353,7 @@ func TestInstallSafetyNotePaintsTheDarkTint(t *testing.T) {
 	m := pageModel(t)
 	m.SystemDark = true
 	m.ThemeID = theme.IDDeepseekDark
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(ui.DarkTheme())
@@ -382,7 +382,7 @@ func TestInstallSafetyNotePaintsTheDarkTint(t *testing.T) {
 // reference's wizard does (PluginManagerPage.tsx:930-974).
 func TestInstallFooterIsAbsentFromTheLogScreen(t *testing.T) {
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin",
 		Result: &manager.Change{Application: "failed"}}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {

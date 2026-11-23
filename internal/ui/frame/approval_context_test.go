@@ -38,11 +38,11 @@ func TestApprovalContextFrameBridge(t *testing.T) {
 		{Raw: json.RawMessage(`{"type":"tool/call","data":{"callId":"call","arguments":{"command":"original"}}}`)},
 	}
 	syncQuestionHistory(store, session.ViewState{SelectedID: "B", Messages: events})
-	if store.Snapshot().Pending[0].Args != "" {
+	if store.Snapshot().Value.Pending[0].Args != "" {
 		t.Fatal("foreign selected session supplied arguments")
 	}
 	syncQuestionHistory(store, session.ViewState{SelectedID: "A", Messages: events})
-	if got := store.Snapshot().Pending[0].Args; !strings.Contains(got, "original") || strings.Contains(got, "unfinished") {
+	if got := store.Snapshot().Value.Pending[0].Args; !strings.Contains(got, "original") || strings.Contains(got, "unfinished") {
 		t.Fatalf("arguments: %q", got)
 	}
 	store.ResolveDeny("approval")

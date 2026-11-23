@@ -12,6 +12,7 @@ import (
 	_ "time/tzdata"
 	"unicode/utf16"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/state"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
@@ -58,7 +59,7 @@ type Panel struct {
 	deleteTrigger        ui.Handle
 	deleteCancel         ui.Handle
 	focusDelete          bool
-	catalogError         string
+	catalogError         *state.Fault
 	catalogErrorRequest  uint64
 	catalogDismissed     bool
 }
@@ -193,7 +194,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
-	snap := m.Store.Snapshot()
+	snap := m.Store.Snapshot().Value
 	initialized := false
 	if !p.initialized || p.connectionEpoch != snap.ConnectionEpoch {
 		p.closeDetail()
@@ -223,10 +224,10 @@ func (p *Panel) View(c *ui.Context, m Model) {
 		p.detailReadIdentity = detailIdentity
 		p.detailReadBaseline = snap.CatalogRequest
 		m.Store.Refresh(context.Background(), m.SessionID)
-		snap = m.Store.Snapshot()
+		snap = m.Store.Snapshot().Value
 	} else if initialized {
 		m.Store.Refresh(context.Background(), m.SessionID)
-		snap = m.Store.Snapshot()
+		snap = m.Store.Snapshot().Value
 	}
 	p.mu.Lock()
 	for key, saved := range p.committed {
@@ -280,7 +281,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 				p.detailStrip(c, m, snap, nil, colors, width)
 				ui.Column(c).Fill().Justify(ui.Center).Children(func() {
 					answered := snap.CatalogSettled && snap.CatalogReadSettled > p.detailReadBaseline
-					if !answered && snap.ClientReady && snap.Err == "" {
+					if !answered && snap.ClientReady && snap.Err == nil {
 						ui.Spinner(c).Size(20, 20).TextColor(chrome.Color(colors.Muted))
 					} else if !p.catalogFeedback(c, m, snap, colors, false) {
 						scheduleEmpty(c, scheduleText("任务已不可用，可能已被删除", "Task unavailable. It may have been deleted."), colors)
@@ -335,7 +336,7 @@ func (p *Panel) saveDraft(m Model, d *taskDraft) {
 	}
 	go func() {
 		err := m.Store.Update(context.Background(), row, titleChange, promptChange, change)
-		snap := m.Store.Snapshot()
+		snap := m.Store.Snapshot().Value
 		p.mu.Lock()
 		if !p.actionCurrentLocked(owner, request, epoch) || snap.ConnectionEpoch != epoch {
 			p.mu.Unlock()

@@ -461,7 +461,7 @@ func runLiveDesktopAcceptance() error {
 		_ = liveWaitFor("plugin manager packages loaded", 10*time.Second, func() bool {
 			mygo.RunOnMain(func() { drv.Frame() })
 			ctrl := state.nativePluginController()
-			snap := ctrl.Snapshot()
+			snap := ctrl.Snapshot().Value
 			return snap.Status != "loading"
 		})
 		if err := capture("09-marketplace"); err != nil {
@@ -478,7 +478,7 @@ func runLiveDesktopAcceptance() error {
 			state.mu.Lock()
 			sched := state.schedule
 			state.mu.Unlock()
-			return sched != nil && !sched.Snapshot().Loading
+			return sched != nil && !sched.Snapshot().Value.Loading
 		})
 		if err := capture("10-automation"); err != nil {
 			finish(err)
@@ -544,7 +544,7 @@ func runLiveDesktopAcceptance() error {
 			if !open || store == nil {
 				return false
 			}
-			snap := store.Snapshot()
+			snap := store.Snapshot().Value
 			return !snap.Loading && len(snap.Namespaces) > 0 && snap.Err == ""
 		}); err != nil {
 			var liveTexts []string

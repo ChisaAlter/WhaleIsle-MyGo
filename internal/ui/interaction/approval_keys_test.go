@@ -3,6 +3,7 @@ package interaction
 import (
 	"github.com/egoist/mygo/ui"
 	"testing"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/interaction"
 )
 
@@ -45,7 +46,7 @@ func TestApprovalKeyboard(t *testing.T) {
 		case "sending":
 			live.Sending = true
 		case "error":
-			live.Error = "retry required"
+			live.Error = state.FaultText("retry required")
 		case "foreign-agent":
 			live.AgentID = "session-B"
 		case "foreign-event":

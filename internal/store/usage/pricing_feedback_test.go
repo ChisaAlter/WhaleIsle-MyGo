@@ -41,7 +41,7 @@ func TestUpstreamDeltaPricingFeedback(t *testing.T) {
 	s.Attach(c, nil)
 	s.billingRequest(context.Background(), false)
 	v := waitBilling(t, s)
-	if v.Err != "" || !v.Loaded || v.Notice != "" {
+	if v.Err != nil || !v.Loaded || v.Notice != "" {
 		t.Fatalf("load: %+v", v)
 	}
 	d := v.Drafts["p/m"]
@@ -50,13 +50,13 @@ func TestUpstreamDeltaPricingFeedback(t *testing.T) {
 	fail.Store(true)
 	s.SaveBilling(context.Background())
 	v = waitBilling(t, s)
-	if v.Err == "" || v.Notice != "" || !v.Dirty || v.Drafts["p/m"].Peak[1] != "8" {
+	if v.Err == nil || v.Notice != "" || !v.Dirty || v.Drafts["p/m"].Peak[1] != "8" {
 		t.Fatalf("failed save: %+v", v)
 	}
 	fail.Store(false)
 	s.SaveBilling(context.Background())
 	v = waitBilling(t, s)
-	if v.Err != "" || v.Dirty || !strings.Contains(v.Notice, storelocale.T(storelocale.KeyStoreUsagePricesSaved)) || v.Settings.Prices["p/m"].InputCacheMiss != 8 {
+	if v.Err != nil || v.Dirty || !strings.Contains(v.Notice, storelocale.T(storelocale.KeyStoreUsagePricesSaved)) || v.Settings.Prices["p/m"].InputCacheMiss != 8 {
 		t.Fatalf("saved: %+v", v)
 	}
 	s.EditPrice("p/m", d)

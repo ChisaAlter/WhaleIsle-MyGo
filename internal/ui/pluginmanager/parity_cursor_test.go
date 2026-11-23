@@ -31,7 +31,7 @@ func TestPluginManagerParityAndCursorAudit(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 
 	m := pageModel(t)
-	owner := m.Controller.Snapshot().Owner
+	owner := m.Controller.Snapshot().Value.Owner
 	if err := m.Controller.LoadIndexes(context.Background(), owner); err != nil {
 		t.Fatal(err)
 	}

@@ -44,7 +44,7 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 		return
 	}
 	notice := sessions.QuotaNotice()
-	account := store.Snapshot()
+	account := store.Snapshot().Value
 	signedIn := account.AccountStatus == "credential-stored"
 	s.mu.Lock()
 	state := &s.accountQuotaNotice
@@ -76,7 +76,7 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 		return
 	}
 	// Keep the account claim alive during initial loading, like AccountQuotaNotice.
-	if notice.Code == "ACCOUNT_QUOTA" && account.AccountStatus == "" && account.Err == "" && account.ClientReady {
+	if notice.Code == "ACCOUNT_QUOTA" && account.AccountStatus == "" && account.Err == nil && account.ClientReady {
 		return
 	}
 	if notice.Code != "ACCOUNT_QUOTA" || !signedIn || account.TopUpURL == "" {

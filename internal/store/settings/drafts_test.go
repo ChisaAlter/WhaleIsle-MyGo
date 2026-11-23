@@ -17,7 +17,7 @@ func TestDraftSurvivesRefreshSwitchAndLateSave(t *testing.T) {
 	s.mu.Lock()
 	s.seedDraftsLocked(n)
 	s.mu.Unlock()
-	if s.Snapshot().Drafts["name"] != "draft" {
+	if s.Snapshot().Value.Drafts["name"] != "draft" {
 		t.Fatal("refresh/switch lost draft")
 	}
 	submitted := map[string]string{"name": "draft"}
@@ -26,7 +26,7 @@ func TestDraftSurvivesRefreshSwitchAndLateSave(t *testing.T) {
 	s.mu.Lock()
 	s.acknowledgeDraftsLocked(n, submitted)
 	s.mu.Unlock()
-	if s.Snapshot().Drafts["name"] != "newer" {
+	if s.Snapshot().Value.Drafts["name"] != "newer" {
 		t.Fatal("late save lost newer edit")
 	}
 }

@@ -21,6 +21,9 @@ func (e *writeRefusal) Raw() string { return e.raw }
 
 // writeRefusalDetail is the raw text behind a refusal, "" for any other error.
 func writeRefusalDetail(err error) string {
+	if err == nil {
+		return ""
+	}
 	var refusal *writeRefusal
 	if errors.As(err, &refusal) {
 		return refusal.raw

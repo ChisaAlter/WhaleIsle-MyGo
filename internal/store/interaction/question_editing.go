@@ -12,22 +12,22 @@ func (s *Store) continueQuestion(agentID, eventID, questionID string, submit fun
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	if ds == nil || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return "", ""
 	}
 	if !questionAnswered(ds.answers[questionID]) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return questionID, "unanswered"
 	}
 	if ds.index+1 < len(ds.req.Questions) {
 		ds.index++
 		focusID = ds.req.Questions[ds.index].ID
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	focusID, feedback = questionSubmitTargetLocked(ds)
-	s.mu.Unlock()
+	s.unlockPublish()
 	if feedback == "" {
 		submit(eventID)
 	} else {

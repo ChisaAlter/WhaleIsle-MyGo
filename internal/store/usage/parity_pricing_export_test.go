@@ -69,7 +69,7 @@ func TestUsageParityPricingExportFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.stats.Raw = raw
+	s.setStatsRaw(raw)
 	readCSV := func(kind string) [][]string {
 		t.Helper()
 		b, err := s.ExportStats(kind)
@@ -104,9 +104,7 @@ func TestUsageParityPricingExportFixture(t *testing.T) {
 	// estimate stays unknown instead of reporting a misleading partial full cost.
 	overview.Days[1].Models = map[string]Totals{row.Model: {Input: 1, Total: 1}}
 	raw, _ = json.Marshal(overview)
-	s.mu.Lock()
-	s.stats.Raw = raw
-	s.mu.Unlock()
+	s.setStatsRaw(raw)
 	if err := s.SetStatsDateRange("2026-10-13", "2026-10-14"); err != nil {
 		t.Fatal(err)
 	}

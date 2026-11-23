@@ -5,10 +5,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	desktopmarket "whaleisle/internal/desktop/market"
+	"whaleisle/internal/state"
 )
 
 type CatalogService interface {
@@ -16,29 +18,33 @@ type CatalogService interface {
 	Details(context.Context, desktopmarket.CatalogItem, bool) (desktopmarket.Details, error)
 }
 type discoveryState struct {
-	service                                                 CatalogService
-	catalog                                                 desktopmarket.Catalog
-	loaded, loading, detailsLoading                         bool
-	nativeCompatibleOnly                                    bool
-	err, detailsErr, query, category, tab, selected, locale string
-	sort, period                                            string
-	details                                                 desktopmarket.Details
-	revision, requestID, detailID                           uint64
-	cancel, detailCancel                                    context.CancelFunc
-	page                                                    int
-	expanded                                                bool
+	service                                CatalogService
+	catalog                                desktopmarket.Catalog
+	loaded, loading, detailsLoading        bool
+	nativeCompatibleOnly                   bool
+	err, detailsErr                        *state.Fault
+	query, category, tab, selected, locale string
+	sort, period                           string
+	details                                desktopmarket.Details
+	revision                               uint64
+	page                                   int
+	expanded                               bool
 }
+
+// Discovery is the published catalog projection. Its slices and the
+// Selected item are shared with the store and must not be edited.
 type Discovery struct {
-	Catalog                                           desktopmarket.Catalog
-	Rows                                              []desktopmarket.CatalogItem
-	Total, Page                                       int
-	Query, Category, Tab, SelectedID, Err, DetailsErr string
-	Sort, Period                                      string
-	Loading, DetailsLoading, NativeCompatibleOnly     bool
-	Selected                                          *desktopmarket.CatalogItem
-	Details                                           desktopmarket.Details
-	Revision                                          uint64
-	RuntimeReady                                      bool
+	Catalog                                       desktopmarket.Catalog
+	Rows                                          []desktopmarket.CatalogItem
+	Total, Page                                   int
+	Query, Category, Tab, SelectedID              string
+	Err, DetailsErr                               *state.Fault
+	Sort, Period                                  string
+	Loading, DetailsLoading, NativeCompatibleOnly bool
+	Selected                                      *desktopmarket.CatalogItem
+	Details                                       desktopmarket.Details
+	Revision                                      uint64
+	RuntimeReady                                  bool
 }
 
 // InstallTarget is an immutable receipt for one displayed catalog and runtime.
@@ -60,8 +66,12 @@ func newDiscoveryState() discoveryState {
 func (s *Store) SetCatalogService(service CatalogService) {
 	s.mu.Lock()
 	s.invalidateUpdatesLocked()
+	// The replaced discovery state's reads must not land in the new one.
+	s.lists.Retire()
+	s.details.Retire()
 	s.discovery = newDiscoveryState()
 	s.discovery.service = service
+	s.publishLocked()
 	s.mu.Unlock()
 }
 func (s *Store) SetNotify(notify func()) { s.mu.Lock(); s.notify = notify; s.mu.Unlock() }
@@ -77,45 +87,40 @@ func (s *Store) RefreshCatalog(force bool, locale string) {
 	s.mu.Lock()
 	d := &s.discovery
 	s.invalidateUpdatesLocked()
-	if d.cancel != nil {
-		d.cancel()
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	d.cancel = cancel
-	d.requestID++
-	request := d.requestID
+	// Renewing the list lease cancels the previous read.
+	s.listL = s.lists.Renew(context.Background())
+	lease := s.listL
 	service := d.service
 	d.loading = true
 	d.locale = locale
-	d.err = ""
+	d.err = nil
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
-		cat, e := service.List(ctx, force, locale)
+		cat, e := service.List(lease.Context(), force, locale)
 		s.mu.Lock()
 		d := &s.discovery
-		if d.requestID != request {
+		if !lease.Valid() {
 			s.mu.Unlock()
 			return
 		}
 		d.loading = false
 		d.loaded = true
 		if e != nil {
-			d.err = e.Error()
+			d.err = state.FaultOf(e)
 		} else {
 			d.catalog = cat
 			d.revision++
 			d.page = 0
 			d.expanded = false
 			d.details = desktopmarket.Details{}
-			d.detailsErr = ""
+			d.detailsErr = nil
 			d.detailsLoading = false
-			d.detailID++
-			if d.detailCancel != nil {
-				d.detailCancel()
-			}
+			s.details.Retire()
 			d.selected = ""
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 		if e == nil {
@@ -123,24 +128,38 @@ func (s *Store) RefreshCatalog(force bool, locale string) {
 		}
 	}()
 }
+
+// Discovery returns the published discovery projection. It is rebuilt
+// once per change instead of filtered and copied on every read; Catalog,
+// Rows and Selected share the immutable catalog items.
 func (s *Store) Discovery() Discovery {
+	if v := s.disc.Load(); v != nil {
+		return v.Value
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.disc.Load() == nil {
+		s.publishLocked()
+	}
+	s.mu.Unlock()
+	return s.disc.Load().Value
+}
+
+// DiscoveryVersion is Discovery with its publication revision.
+func (s *Store) DiscoveryVersion() *state.Version[Discovery] {
+	s.Discovery()
+	return s.disc.Load()
+}
+
+// buildDiscoveryLocked filters, sorts and pages the catalog. The listing
+// period is measured against the time of the change that published it.
+func (s *Store) buildDiscoveryLocked() Discovery {
 	d := &s.discovery
 	out := Discovery{Catalog: d.catalog, Query: d.query, Category: d.category, Tab: d.tab, Sort: d.sort, Period: d.period, SelectedID: d.selected, Err: d.err, DetailsErr: d.detailsErr, Loading: d.loading, DetailsLoading: d.detailsLoading, NativeCompatibleOnly: d.nativeCompatibleOnly, Details: d.details, Revision: d.revision, RuntimeReady: s.client != nil, Page: d.page}
-	out.Catalog.Items = append([]desktopmarket.CatalogItem(nil), d.catalog.Items...)
-	for i := range out.Catalog.Items {
-		out.Catalog.Items[i] = copyCatalogItem(out.Catalog.Items[i])
-	}
-	out.Catalog.Categories = append([]desktopmarket.Category(nil), d.catalog.Categories...)
-	out.Details.Requirements = append([]string(nil), d.details.Requirements...)
-	out.Details.Capabilities.MCPServers = append([]string(nil), d.details.Capabilities.MCPServers...)
-	out.Details.Capabilities.SkillNames = append([]string(nil), d.details.Capabilities.SkillNames...)
 	q := strings.ToLower(strings.TrimSpace(d.query))
-	for _, item := range d.catalog.Items {
+	for i := range d.catalog.Items {
+		item := d.catalog.Items[i]
 		if item.ID == d.selected {
-			x := copyCatalogItem(item)
-			out.Selected = &x
+			out.Selected = &d.catalog.Items[i]
 		}
 		if d.tab == "favorites" && !s.personal.data.Favorites[item.ID] {
 			continue
@@ -154,9 +173,13 @@ func (s *Store) Discovery() Discovery {
 		if q != "" && !strings.Contains(strings.ToLower(item.ID+" "+item.Description+" "+item.PackageName), q) {
 			continue
 		}
-		out.Rows = append(out.Rows, copyCatalogItem(item))
+		out.Rows = append(out.Rows, item)
 	}
-	out.Rows = filterCatalogListings(out.Rows, d.sort, d.period, time.Now())
+	now := time.Now
+	if s.now != nil {
+		now = s.now
+	}
+	out.Rows = filterCatalogListings(out.Rows, d.sort, d.period, now())
 	out.Total = len(out.Rows)
 	start := d.page * 60
 	if d.expanded {
@@ -173,15 +196,8 @@ func (s *Store) Discovery() Discovery {
 	if end > len(out.Rows) {
 		end = len(out.Rows)
 	}
-	out.Rows = out.Rows[start:end]
+	out.Rows = out.Rows[start:end:end]
 	return out
-}
-
-func copyCatalogItem(item desktopmarket.CatalogItem) desktopmarket.CatalogItem {
-	item.Screenshots = append([]string(nil), item.Screenshots...)
-	item.Capabilities.MCPServers = append([]string(nil), item.Capabilities.MCPServers...)
-	item.Capabilities.SkillNames = append([]string(nil), item.Capabilities.SkillNames...)
-	return item
 }
 
 // SetNativeCompatibleOnly toggles filtering out Web UI-only catalog entries.
@@ -190,6 +206,7 @@ func (s *Store) SetNativeCompatibleOnly(enabled bool) {
 	s.discovery.nativeCompatibleOnly = enabled
 	s.discovery.page = 0
 	s.discovery.expanded = false
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -198,6 +215,7 @@ func (s *Store) SetQuery(q string) {
 	s.discovery.query = q
 	s.discovery.page = 0
 	s.discovery.expanded = false
+	s.publishLocked()
 	s.mu.Unlock()
 }
 func (s *Store) SetCategory(category string) {
@@ -205,6 +223,7 @@ func (s *Store) SetCategory(category string) {
 	s.discovery.category = category
 	s.discovery.page = 0
 	s.discovery.expanded = false
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -214,6 +233,7 @@ func (s *Store) SetTab(tab string) {
 	s.discovery.page = 0
 	s.discovery.expanded = false
 	s.discovery.selected = ""
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -224,6 +244,7 @@ func (s *Store) SetPage(page int) {
 	}
 	s.discovery.page = page
 	s.discovery.expanded = false
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -234,18 +255,17 @@ func (s *Store) ShowMore() {
 	s.mu.Lock()
 	s.discovery.expanded = true
 	s.discovery.page++
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 func (s *Store) CloseDetails() {
 	s.mu.Lock()
 	d := &s.discovery
-	if d.detailCancel != nil {
-		d.detailCancel()
-	}
-	d.detailID++
+	s.details.Retire()
 	d.selected = ""
 	d.detailsLoading = false
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -267,42 +287,46 @@ func (s *Store) SelectDetails(id string, force bool) {
 		s.mu.Unlock()
 		return
 	}
-	if d.detailCancel != nil {
-		d.detailCancel()
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), detailTimeout)
-	d.detailCancel = cancel
-	d.detailID++
-	request, revision := d.detailID, d.revision
+	// Renewing the details lease cancels the previous details read.
+	s.detailL = s.details.Renew(context.Background())
+	lease, revision := s.detailL, d.revision
 	d.selected = id
 	d.detailsLoading = true
-	d.detailsErr = ""
+	d.detailsErr = nil
 	d.details = desktopmarket.Details{}
 	service := d.service
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
+		ctx, cancel := context.WithTimeout(lease.Context(), detailTimeout)
+		defer cancel()
 		details, e := service.Details(ctx, *item, force)
 		s.mu.Lock()
 		d := &s.discovery
-		if d.detailID != request || d.revision != revision || d.selected != id {
+		if !lease.Valid() || d.revision != revision || d.selected != id {
 			s.mu.Unlock()
 			return
 		}
 		d.detailsLoading = false
 		if e != nil {
-			d.detailsErr = e.Error()
+			d.detailsErr = state.FaultOf(e)
 		} else {
 			d.details = details
 			if details.CapabilityKind != "" {
 				for idx := range d.catalog.Items {
 					if d.catalog.Items[idx].ID == id {
-						desktopmarket.ApplyCapabilityProfile(&d.catalog.Items[idx], details.Capabilities)
+						// Published discovery views share the item slice;
+						// apply the profile to a fresh copy.
+						items := slices.Clone(d.catalog.Items)
+						desktopmarket.ApplyCapabilityProfile(&items[idx], details.Capabilities)
+						d.catalog.Items = items
 						break
 					}
 				}
 			}
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -319,7 +343,7 @@ func (s *Store) CaptureTarget(id string) (InstallTarget, error) {
 	}
 	for _, i := range d.catalog.Items {
 		if i.ID == id && desktopmarket.ValidInstallItem(i) {
-			return InstallTarget{ID: i.ID, Spec: i.InstallSpec, Revision: d.revision, Runtime: s.generation}, nil
+			return InstallTarget{ID: i.ID, Spec: i.InstallSpec, Revision: d.revision, Runtime: s.runtimeL.Generation()}, nil
 		}
 	}
 	return InstallTarget{}, errors.New("Catalog target is not installable.")
@@ -327,7 +351,7 @@ func (s *Store) CaptureTarget(id string) (InstallTarget, error) {
 func (s *Store) ValidateTarget(t InstallTarget) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.client == nil || s.generation != t.Runtime || s.discovery.revision != t.Revision || s.discovery.loading {
+	if s.client == nil || s.runtimeL.Generation() != t.Runtime || s.discovery.revision != t.Revision || s.discovery.loading {
 		return errors.New("Catalog or runtime changed; select the plugin again.")
 	}
 	if t.UpdateVersion != "" {

@@ -87,7 +87,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 				ui.Text(c, summary.description).FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(24)).MaxHeight(fonttheme.InterfaceSize(48)).Clip().TextColor(muted)
 			}
 		})
-		if pending.Error != "" {
+		if pending.Error != nil {
 			ui.Text(c, questionErrorText(pending.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		}
 		// .footer { padding: 8px 16px 12px }: the original seats the same
@@ -105,7 +105,7 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 			if widgets.Button(c, colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: pending.Sending}).Tooltip(review.Approve.Description).Clicked() {
 				store.ApprovePlanReview(pending.EventID)
 			}
-			if pending.Error != "" && widgets.Button(c, colors, planpreview.Text("重试上次操作", "Retry last action"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: pending.Sending}).Clicked() {
+			if pending.Error != nil && widgets.Button(c, colors, planpreview.Text("重试上次操作", "Retry last action"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: pending.Sending}).Clicked() {
 				store.Retry(pending.EventID)
 			}
 		})

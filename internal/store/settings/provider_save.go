@@ -18,15 +18,15 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 	s := b.store
 	s.mu.Lock()
 	if !b.currentLocked() || s.client == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	if s.saving || s.loading || s.themeWriteInFlightLocked(b.namespace) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsBusy
 	}
 	if !s.writable {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsReadOnly
 	}
 	ns := *s.findNamespaceLocked(b.namespace)
@@ -39,7 +39,7 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 	}
 	if err != nil {
 		s.err, s.lastAction = err, err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return api.SettingsNamespaceView{}, err
 	}
@@ -48,11 +48,11 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 		s.acknowledgeDraftsLocked(ns, submitted, resets)
 		s.err, s.lastAction = nil, "settings saved"
 		out := api.SettingsNamespaceView{Ns: ns.NS, Schema: ns.Schema, Value: ns.Value, Base: ns.Base, User: ns.User, Revision: ns.Revision}
-		s.mu.Unlock()
+		s.unlockPublish()
 		return out, nil
 	}
 	s.saving, s.err = true, nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	method := "settings/update"
 	args := map[string]any{"ns": ns.NS, "patch": patch, "expectedRevision": ns.Revision}
@@ -65,7 +65,7 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 	err = b.client.Call(ctx, method, args, &out)
 	s.mu.Lock()
 	if !b.currentLocked() {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	s.saving = false
@@ -76,7 +76,7 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 	}
 	if err != nil {
 		s.err, s.lastAction = err, err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return api.SettingsNamespaceView{}, err
 	}
@@ -89,7 +89,7 @@ func (b *NamespaceBinding) SaveProviderSettings(ctx context.Context) (api.Settin
 	current.SecretPaths = configuredSecretPaths(out.Secrets)
 	s.acknowledgeDraftsLocked(*current, submitted, resets)
 	s.err, s.lastAction = nil, "settings saved"
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	return out, nil
 }
@@ -100,7 +100,7 @@ func (b *NamespaceBinding) RefreshProviderSettings(ctx context.Context) {
 	s := b.store
 	s.mu.Lock()
 	current := b.currentLocked()
-	s.mu.Unlock()
+	s.unlockPublish()
 	if current {
 		s.RefreshDescribe(ctx)
 	}

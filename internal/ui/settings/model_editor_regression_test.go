@@ -87,7 +87,7 @@ func TestModelsCatalogFailureIsInThePage(t *testing.T) {
 		return rec.Result(), nil
 	})}}, nil)
 	s.RefreshDescribe(context.Background())
-	for deadline := time.Now().Add(time.Second); s.Snapshot().Loading && time.Now().Before(deadline); {
+	for deadline := time.Now().Add(time.Second); s.Snapshot().Value.Loading && time.Now().Before(deadline); {
 		time.Sleep(time.Millisecond)
 	}
 	tt := ui.NewTester(func(c *ui.Context) {

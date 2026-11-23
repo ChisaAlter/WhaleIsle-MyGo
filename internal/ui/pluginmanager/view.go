@@ -54,7 +54,7 @@ func View(c *ui.Context, m Model) {
 		return
 	}
 	m.Controller.Ensure()
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	a := m.Controller.Actions(s.Owner)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, bg, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.BG), chrome.Color(colors.Border)

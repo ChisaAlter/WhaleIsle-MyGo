@@ -1,6 +1,7 @@
 package interaction
 
 import (
+	"whaleisle/internal/state"
 	storeinteraction "whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/i18n"
 )
@@ -67,11 +68,11 @@ func interactionLocaleText(key string) string {
 }
 
 // questionErrorText resolves the store's delivery markers into copy this surface
-// owns. Any other text is a specific failure the store already worded and is
-// shown unchanged.
-func questionErrorText(text string) string {
-	if text == storeinteraction.QuestionDeliveryStopped {
+// owns. Any other failure renders its classified sentence, or the copy the
+// store already worded.
+func questionErrorText(f *state.Fault) string {
+	if f != nil && f.Text == storeinteraction.QuestionDeliveryStopped {
 		return interactionLocaleText("delivery.stopped")
 	}
-	return text
+	return f.SentenceText()
 }

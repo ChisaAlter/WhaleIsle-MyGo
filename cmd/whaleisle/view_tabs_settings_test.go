@@ -108,7 +108,7 @@ func waitViewTabsSettings(t *testing.T, st *settingsstore.Store, changed <-chan 
 	deadline := time.NewTimer(3 * time.Second)
 	defer deadline.Stop()
 	for {
-		snap := st.Snapshot()
+		snap := st.Snapshot().Value
 		// Immediate Host preferences have their own namespace queue; they do
 		// not block unrelated form editors through the global Saving flag.
 		if !snap.Loading && !snap.Saving && len(snap.PreferencePending) == 0 {
@@ -117,7 +117,7 @@ func waitViewTabsSettings(t *testing.T, st *settingsstore.Store, changed <-chan 
 		select {
 		case <-changed:
 		case <-deadline.C:
-			t.Fatalf("mock settings did not settle: %+v", st.Snapshot())
+			t.Fatalf("mock settings did not settle: %+v", st.Snapshot().Value)
 		}
 	}
 }
@@ -175,7 +175,7 @@ func viewTabsSettingsState(t *testing.T, h *viewTabsHost) (*mainState, chan stru
 		})
 		s.settings.RefreshDescribe(context.Background())
 		waitViewTabsSettings(t, s.settings, changed)
-		if snap := s.settings.Snapshot(); snap.Err != "" {
+		if snap := s.settings.Snapshot().Value; snap.Err != "" {
 			t.Fatalf("mock description=%+v", snap)
 		}
 	}
@@ -207,7 +207,7 @@ func TestViewTabsSettingsFallbackSavesAndAffectsConversation(t *testing.T) {
 			s.desktopDraft.showViewTabs = false
 			m.Interface.OnSave()
 			waitViewTabsSettings(t, s.settings, changed)
-			if s.desktopSaveErr != "" || !s.cfgStore.Get().HideChatViewTabs || !s.conversationViewTabsHidden(s.settings.Snapshot()) {
+			if s.desktopSaveErr != "" || !s.cfgStore.Get().HideChatViewTabs || !s.conversationViewTabsHidden(s.settings.Snapshot().Value) {
 				t.Fatalf("fallback failed: %s", s.desktopSaveErr)
 			}
 			if h != nil && len(h.writes) != 0 {
@@ -247,7 +247,7 @@ func TestViewTabsSettingsOldCallbacksCannotWriteReplacementHost(t *testing.T) {
 	if len(a.writes) != 0 || len(b.writes) != 0 || !s.cfgStore.Get().HideChatViewTabs {
 		t.Fatal("old callback retargeted replacement Host or stale local mirror", a.writes, b.writes)
 	}
-	if !s.conversationViewTabsHidden(s.settings.Snapshot()) {
+	if !s.conversationViewTabsHidden(s.settings.Snapshot().Value) {
 		t.Fatal("accepted replacement false did not control conversation")
 	}
 }
@@ -262,12 +262,12 @@ func TestViewTabsSettingsFailedWriteKeepsAcceptedValue(t *testing.T) {
 	waitViewTabsSettings(t, s.settings, changed)
 	// A successful recovery describe may clear the general request error, but
 	// the rejected preference remains owned by this field until a real retry.
-	if got := s.settings.Snapshot().PreferenceErrors["ui-conversation.viewTabs"]; !strings.Contains(got, h.writeErr.Error()) {
+	if got := s.settings.Snapshot().Value.PreferenceErrors["ui-conversation.viewTabs"]; !strings.Contains(got, h.writeErr.Error()) {
 		t.Fatalf("fixture refusal was not retained for viewTabs: %q", got)
 	}
 	s.desktopDraft.showViewTabs = true
 	m.Interface.OnSave()
-	if !s.cfgStore.Get().HideChatViewTabs || len(h.writes) != 0 || !s.conversationViewTabsHidden(s.settings.Snapshot()) {
+	if !s.cfgStore.Get().HideChatViewTabs || len(h.writes) != 0 || !s.conversationViewTabsHidden(s.settings.Snapshot().Value) {
 		t.Fatal("failed write or stale draft replaced accepted false")
 	}
 }
@@ -323,7 +323,7 @@ func TestViewTabsSettingsUnresolvedAndUnsupportedCannotCommitHiddenDraft(t *test
 			}
 			m.Interface.OnSave()
 			wantHidden := mode == "read-only"
-			if s.cfgStore.Get().HideChatViewTabs != wantHidden || s.conversationViewTabsHidden(s.settings.Snapshot()) != wantHidden {
+			if s.cfgStore.Get().HideChatViewTabs != wantHidden || s.conversationViewTabsHidden(s.settings.Snapshot().Value) != wantHidden {
 				t.Fatalf("hidden draft gained authority: mode=%s", mode)
 			}
 			if gate != nil {

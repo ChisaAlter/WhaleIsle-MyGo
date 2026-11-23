@@ -63,7 +63,7 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
-	snap := m.Store.Snapshot()
+	snap := m.Store.Snapshot().Value
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(14, 16, 8, 16).Gap(4).Children(func() {
@@ -121,8 +121,8 @@ func View(c *ui.Context, m Model) {
 				if m.ActionError != "" {
 					ui.Text(c, m.ActionError).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 				}
-				if snap.Err != "" {
-					ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+				if snap.Err != nil {
+					ui.Text(c, snap.Err.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 				}
 
 				ui.Text(c, i18n.T(i18n.KeyUsageAccount)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)

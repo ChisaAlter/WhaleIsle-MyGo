@@ -67,7 +67,7 @@ func TestInstalledCatalogCardsKeepConfirmationAndVersionReceipts(t *testing.T) {
 			time.Sleep(time.Millisecond)
 		}
 		if !predicate() {
-			t.Fatal("market fixture did not become ready", s.Snapshot(), s.Updates())
+			t.Fatal("market fixture did not become ready", s.Snapshot().Value, s.Updates())
 		}
 	}
 	wait(func() bool { return len(s.Updates().Rows) == 1 && !s.Updates().Loading })
@@ -85,7 +85,7 @@ func TestInstalledCatalogCardsKeepConfirmationAndVersionReceipts(t *testing.T) {
 		// Scope duplicate Update labels to the active dialog, rather than
 		// asking the headless first-label finder to click the masked card.
 		owned := withMarketConfirmations(m)
-		catalogDetailsDialog(c, owned, s.Discovery(), s.Snapshot(), c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+		catalogDetailsDialog(c, owned, s.Discovery(), s.Snapshot().Value, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
 		confirmationView(c, owned, c.Theme().Text, c.Theme().Accent)
 	}, 800, 1000)
 	click := func(label string) {

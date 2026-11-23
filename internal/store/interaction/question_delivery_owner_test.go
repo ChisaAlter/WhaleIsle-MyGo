@@ -23,27 +23,27 @@ func TestLiveQuestionReceiptWaitsForHostAndContinuedRetainsDraft(t *testing.T) {
 		_, _ = s.HandleWaterfall(dsh.EventsWaterfall{EventID: "live", Event: EventUserQuestions, AgentID: "A", Request: json.RawMessage(`{"wait":{"callId":"call-1"},"questions":[{"id":"q","question":"Pick","options":[{"label":"A"},{"label":"B"}]}]}`)})
 		close(done)
 	}()
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 	open := json.RawMessage(strings.Replace(string(continuedFixture), `"continued"`, `"open"`, 1))
 	s.SyncProjectedQuestions("A", open, emptyInboxFixture, 1, 1)
 	s.SetQuestionSingleSelect("live", "q", "B")
 	s.ResolveQuestions("live")
 	<-done
 	s.OnResult(dsh.EventResult{EventID: "live"}, nil)
-	if pending := s.Snapshot().Pending; len(pending) != 1 || !pending[0].Sending || pending[0].Continued {
+	if pending := s.testView().Pending; len(pending) != 1 || !pending[0].Sending || pending[0].Continued {
 		t.Fatal("HTTP receipt settled the request")
 	}
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture, 2, 2)
-	pending := s.Snapshot().Pending
+	pending := s.testView().Pending
 	if len(pending) != 1 || !pending[0].Continued || pending[0].Sending || *s.QuestionSingleSelectPtr(pending[0].EventID, "q") != "B" {
 		t.Fatal("actual continuation lost answerability/draft")
 	}
 	s.SyncProjectedQuestions("A", json.RawMessage(`{"active":[],"settled":[{"callId":"call-1"}]}`), emptyInboxFixture, 3, 3)
-	if len(s.Snapshot().Pending) != 0 {
+	if len(s.testView().Pending) != 0 {
 		t.Fatal("confirmed closed question retained")
 	}
 	s.OnResult(dsh.EventResult{EventID: "live"}, nil)
-	if len(s.Snapshot().Pending) != 0 {
+	if len(s.testView().Pending) != 0 {
 		t.Fatal("late receipt reopened closed question")
 	}
 }
@@ -102,7 +102,7 @@ func TestLateQuestionReceiptDoesNotHideAlreadyDiscardedQueuedReply(t *testing.T)
 	s := New()
 	s.AttachClient(client, nil)
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture, 10, 10)
-	id := s.Snapshot().Pending[0].EventID
+	id := s.testView().Pending[0].EventID
 	s.SetQuestionSingleSelect(id, "q", "B")
 	s.ResolveQuestions(id)
 	<-started
@@ -113,7 +113,7 @@ func TestLateQuestionReceiptDoesNotHideAlreadyDiscardedQueuedReply(t *testing.T)
 		t.Fatal("second answer escaped the in-flight owner")
 	}
 	close(release)
-	awaitQuestionFixture(t, func() bool { p := s.Snapshot().Pending; return len(p) == 1 && !p[0].Sending })
+	awaitQuestionFixture(t, func() bool { p := s.testView().Pending; return len(p) == 1 && !p[0].Sending })
 	if *s.QuestionSingleSelectPtr(id, "q") != "B" || s.SnapshotForAgent("A").QuestionStatus != "" {
 		t.Fatal("late receipt suppressed discarded draft")
 	}

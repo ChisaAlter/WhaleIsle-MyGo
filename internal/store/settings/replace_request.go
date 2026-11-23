@@ -34,7 +34,7 @@ func (s *Store) PrepareReplaceFromDrafts(ctx context.Context) func() {
 	s.mu.Lock()
 	ns := s.findNamespaceLocked(s.selectedNS)
 	if s.client == nil || ns == nil || s.saving || s.loading || s.themeWriteInFlightLocked(s.selectedNS) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return nil
 	}
 	receipt := &replaceDraftReceipt{client: s.client, generation: s.generation, namespace: ns.NS, revision: ns.Revision, draftRevision: s.draftRevisionLocked(*ns), drafts: copyDrafts(s.drafts[ns.NS]), dirty: copyFlags(s.dirty[ns.NS]), resets: copyFlags(s.resets[ns.NS]), fields: append([]Field(nil), ns.Fields...)}
@@ -45,7 +45,7 @@ func (s *Store) PrepareReplaceFromDrafts(ctx context.Context) func() {
 	for key, value := range section {
 		frozen[key] = append(json.RawMessage(nil), value...)
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	var once sync.Once
 	return func() { once.Do(func() { s.saveReplacePrepared(ctx, receipt.namespace, frozen, receipt) }) }
 }

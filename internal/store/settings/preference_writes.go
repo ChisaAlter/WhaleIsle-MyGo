@@ -61,7 +61,7 @@ func (s *Store) enqueuePreferenceLocked(ctx context.Context, ns string, values m
 		s.preferenceWrites[ns] = q
 	}
 	q.pending = append(q.pending, write)
-	s.snapCache.valid = false
+	s.viewStale = true
 	if start {
 		go s.flushPreferenceQueue(ns, q)
 	}
@@ -71,14 +71,14 @@ func (s *Store) flushPreferenceQueue(name string, q *preferenceWriteQueue) {
 	for {
 		s.mu.Lock()
 		if s.client != q.client || s.generation != q.generation || s.preferenceWrites[name] != q {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		write := q.pending[0]
 		ns := s.findNamespaceLocked(name)
 		conflict := ns == nil || ns.Revision != q.revision
 		rev := q.revision
-		s.mu.Unlock()
+		s.unlockPublish()
 		var out api.SettingsNamespaceView
 		var err error
 		if conflict {
@@ -94,7 +94,7 @@ func (s *Store) flushPreferenceQueue(name string, q *preferenceWriteQueue) {
 		}
 		s.mu.Lock()
 		if s.client != q.client || s.generation != q.generation || s.preferenceWrites[name] != q {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if name == "session-log-deepseek" {
@@ -131,9 +131,9 @@ func (s *Store) flushPreferenceQueue(name string, q *preferenceWriteQueue) {
 				delete(s.preferenceWrites, name)
 			}
 		}
-		s.snapCache.valid = false
+		s.viewStale = true
 		done := err != nil || len(q.pending) == 0
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		if err != nil {
 			s.RefreshDescribe(context.Background())

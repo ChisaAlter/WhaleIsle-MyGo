@@ -23,12 +23,12 @@ type instructionsWrite struct {
 func (s *Store) queueInstructions(client *dsh.Client, generation uint64, text string) {
 	s.mu.Lock()
 	if s.client != client || s.generation != generation || s.describedClient != client || !s.writable || s.findNamespaceLocked(CustomInstructionsNamespace) == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if err := validateCustomInstructions(CustomInstructionsNamespace, map[string]string{CustomInstructionsField: text}); err != nil {
 		s.err = err
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -47,14 +47,14 @@ func (s *Store) queueInstructions(client *dsh.Client, generation uint64, text st
 	w.timer = time.AfterFunc(400*time.Millisecond, func() {
 		s.mu.Lock()
 		if s.instructionsWrite != w || s.client != client || s.generation != generation || w.queueRevision != queuedRevision {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		w.ready = true
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	})
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -62,12 +62,12 @@ func (s *Store) flushQueuedInstructions() {
 	s.mu.Lock()
 	w := s.instructionsWrite
 	if w == nil || w.client != s.client || w.generation != s.generation || !w.ready || w.pending == nil || w.inFlight || s.saving || s.loading || !s.writable {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ns := s.findNamespaceLocked(CustomInstructionsNamespace)
 	if ns == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	text, revision := *w.pending, ns.Revision
@@ -75,13 +75,13 @@ func (s *Store) flushQueuedInstructions() {
 	s.saving, s.err = true, nil
 	raw, _ := json.Marshal(text)
 	ops := []json.RawMessage{fieldOperation("set", []string{CustomInstructionsField}, raw)}
-	s.mu.Unlock()
+	s.unlockPublish()
 	go func() {
 		var out api.SettingsNamespaceView
 		err := w.client.Call(context.Background(), "settings/mutate", map[string]any{"ns": CustomInstructionsNamespace, "expectedRevision": revision, "ops": ops}, &out)
 		s.mu.Lock()
 		if s.client != w.client || s.generation != w.generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		w.inFlight, s.saving = false, false
@@ -102,7 +102,7 @@ func (s *Store) flushQueuedInstructions() {
 		} else {
 			s.err, s.lastAction = nil, "custom instructions saved"
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		if err != nil {
 			s.RefreshDescribe(context.Background())
 		} else {

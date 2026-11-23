@@ -11,7 +11,7 @@ func (s *mainState) retryAccountAvatar() {
 	if store == nil {
 		return
 	}
-	v := store.Snapshot()
+	v := store.Snapshot().Value
 	if v.Details.Profile.Value.AvatarURL == nil {
 		return
 	}

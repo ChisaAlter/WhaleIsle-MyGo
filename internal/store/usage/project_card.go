@@ -13,20 +13,10 @@ type projectCardState struct {
 	cancel context.CancelFunc
 }
 
-func (s *Store) ProjectCardRanking() ProjectRanking {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.projectRanking.card == nil {
-		return ProjectRanking{Sort: "tokens"}
-	}
-	v := s.projectRanking.card.ProjectRanking
-	v.Rows = append([]ProjectUsage(nil), v.Rows...)
-	return v
-}
 func (s *Store) LoadProjectCard(ctx context.Context, sortBy string) {
 	s.mu.Lock()
 	if s.client == nil || s.stats.Loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if sortBy != "cost" {
@@ -34,14 +24,14 @@ func (s *Store) LoadProjectCard(ctx context.Context, sortBy string) {
 	}
 	old := s.projectRanking.card
 	if old != nil && old.Loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
-	client, epoch := s.client, s.statsEpoch
+	client, epoch := s.client, s.attachL.Generation()
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	state := &projectCardState{ProjectRanking: ProjectRanking{Sort: sortBy, Loading: true}, cancel: cancel}
 	s.projectRanking.card = state
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		defer cancel()
@@ -55,20 +45,20 @@ func (s *Store) LoadProjectCard(ctx context.Context, sortBy string) {
 			err = errors.New("incomplete project ranking response")
 		}
 		s.mu.Lock()
-		if s.client != client || s.statsEpoch != epoch || s.projectRanking.card != state {
-			s.mu.Unlock()
+		if s.client != client || s.attachL.Generation() != epoch || s.projectRanking.card != state {
+			s.unlockPublish()
 			return
 		}
 		state.Loading = false
 		state.cancel = nil
 		state.Started = true
 		if err != nil {
-			state.Err = err.Error()
+			state.Err = faultOf(err)
 		} else {
 			state.Rows = page.Rows
 			state.HasMore = *page.HasMore
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

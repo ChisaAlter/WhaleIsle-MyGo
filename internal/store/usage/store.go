@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/accountdetails"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 // Entry is one row in the recent-activity list.
@@ -27,7 +28,7 @@ type ViewState struct {
 	Details          accountdetails.State
 	ClientReady      bool
 	Loading          bool
-	Err              string
+	Err              *state.Fault
 	AccountStatus    string
 	UsageURL         string
 	TopUpURL         string
@@ -57,12 +58,16 @@ type Store struct {
 	billing        billingState
 	stats          statsState
 	statsCachePath string
-	statsEpoch     uint64
-	statsCancel    context.CancelFunc
-	mu             sync.Mutex
-	client         *dsh.Client
-	mux            *dsh.Mux
-	notify         func()
+	// attach is the Host-attachment lease (formerly statsEpoch): renewed on
+	// Attach/Detach, its generation fences every stats, billing, ranking,
+	// repair and job-kill completion.
+	attach      state.LeaseOwner
+	attachL     state.Lease
+	statsCancel context.CancelFunc
+	mu          sync.Mutex
+	client      *dsh.Client
+	mux         *dsh.Mux
+	notify      func()
 
 	jobFollowCancel    context.CancelFunc
 	jobFollowEpoch     uint64
@@ -70,8 +75,10 @@ type Store struct {
 	expiryWatchCancel  context.CancelFunc
 
 	loading          bool
-	err              error
-	accountStreamErr error
+	err              *state.Fault
+	accountStreamErr *state.Fault
+	pub              state.Published[views]
+	statePub         state.Published[ViewState]
 	accountStatus    string
 	usageURL         string
 	topUpURL         string
@@ -98,10 +105,14 @@ func New() *Store {
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
 	cachePath := s.statsCachePath
-	s.mu.Unlock()
+	s.unlockPublish()
 	var cachedRaw []byte
 	if client != nil && cachePath != "" {
 		cachedRaw = readStatsCacheFile(cachePath)
+	}
+	var cachedParsed decodedStats
+	if len(cachedRaw) > 0 {
+		cachedParsed = decodeStats(cachedRaw)
 	}
 	s.mu.Lock()
 	s.client = client
@@ -125,14 +136,14 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.expiryWatchCancel()
 		s.expiryWatchCancel = nil
 	}
-	s.statsEpoch++
+	s.attachL = s.attach.Renew(context.Background())
 	if s.statsCancel != nil {
 		s.statsCancel()
 		s.statsCancel = nil
 	}
 	s.stats = statsState{}
 	if len(cachedRaw) > 0 && s.client != nil && s.statsCachePath == cachePath {
-		s.stats.Raw = cachedRaw
+		s.stats.Raw, s.stats.parsed = cachedRaw, cachedParsed
 		s.stats.Cached = true
 	}
 	s.resetRankingLocked()
@@ -144,7 +155,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.dayBuckets = nil
 	s.notify = notify
 	s.err = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 // Detach clears the client when harness stops.
@@ -166,7 +177,7 @@ func (s *Store) Detach() {
 	s.client = nil
 	s.notices = NoticeState{}
 	s.resetAccountDetailsLocked()
-	s.statsEpoch++
+	s.attachL = s.attach.Renew(context.Background())
 	if s.statsCancel != nil {
 		s.statsCancel()
 		s.statsCancel = nil
@@ -193,41 +204,8 @@ func (s *Store) Detach() {
 	s.hasRunningTasks = false
 	s.recent = nil
 	s.dayBuckets = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
-}
-
-// Snapshot copies observable state for one frame.
-func (s *Store) Snapshot() ViewState {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	st := ViewState{
-		Details:          s.details.Clone(),
-		ClientReady:      s.client != nil,
-		Loading:          s.loading,
-		AccountStatus:    s.accountStatus,
-		UsageURL:         s.usageURL,
-		TopUpURL:         s.topUpURL,
-		Email:            s.email,
-		Name:             s.name,
-		Plan:             s.plan,
-		AttemptPhase:     s.attemptPhase,
-		AttemptID:        s.attemptID,
-		AttemptErrorCode: s.attemptErrorCode,
-		AuthorizeURL:     s.authorizeURL,
-		ExpiryNote:       s.expiryNote,
-		BalanceSummary:   s.balanceSummary,
-		HasRunningTasks:  s.hasRunningTasks,
-	}
-	if s.err != nil {
-		st.Err = s.err.Error()
-	}
-	if s.accountStreamErr != nil {
-		st.Err = strings.TrimSpace(st.Err + " " + s.accountStreamErr.Error())
-	}
-	st.Recent = append([]Entry(nil), s.recent...)
-	st.DayBuckets = append([]DayBucket(nil), s.dayBuckets...)
-	return st
 }
 
 // Refresh loads account/getState, account/getBalance, and job/list for sessionID.
@@ -236,7 +214,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 	s.mu.Lock()
 	client := s.client
 	if client == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.resetAccountDetailsLocked()
@@ -244,7 +222,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 	s.loading = true
 	s.err = nil
 	restartWatch := s.accountStreamErr != nil && s.mux != nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	if restartWatch {
 		s.WatchAccount(ctx)
@@ -254,7 +232,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 		var state api.AccountView
 		if err := client.Call(ctx, "account/getState", nil, &state); err != nil {
 			s.finishRefresh(accountRefresh{
-				err:    err,
+				err:    faultOf(err),
 				client: client, epoch: epoch,
 			})
 			return
@@ -298,7 +276,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 			if err := client.Call(ctx, "job/list", map[string]any{"request": req}, &jobs); err != nil {
 				recent = append(recent, Entry{
 					Label:  "job/list",
-					Detail: err.Error(),
+					Detail: faultOf(err).SentenceText(),
 				})
 			} else {
 				buckets = BuildDayBuckets(jobs.Jobs, 28, time.Now())
@@ -342,7 +320,7 @@ func (s *Store) Refresh(ctx context.Context, sessionID string) {
 type accountRefresh struct {
 	client           *dsh.Client
 	epoch            uint64
-	err              error
+	err              *state.Fault
 	status           string
 	usageURL         string
 	topUpURL         string
@@ -362,7 +340,7 @@ type accountRefresh struct {
 func (s *Store) finishRefresh(r accountRefresh) {
 	s.mu.Lock()
 	if s.client != r.client || s.accountEpoch != r.epoch {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.loading = false
@@ -377,7 +355,7 @@ func (s *Store) finishRefresh(r accountRefresh) {
 	s.hasRunningTasks = r.hasRunningTasks
 	s.recent = r.recent
 	s.dayBuckets = r.buckets
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -386,8 +364,8 @@ func (s *Store) KillJob(ctx context.Context, sessionID, jobID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	jobID = strings.TrimSpace(jobID)
 	s.mu.Lock()
-	client, epoch := s.client, s.statsEpoch
-	s.mu.Unlock()
+	client, epoch := s.client, s.attachL.Generation()
+	s.unlockPublish()
 	if client == nil || sessionID == "" || jobID == "" {
 		return
 	}
@@ -397,18 +375,18 @@ func (s *Store) KillJob(ctx context.Context, sessionID, jobID string) {
 			"request": api.JobKillRequest{SessionId: sessionID, JobId: jobID},
 		}, &out)
 		s.mu.Lock()
-		if ctx.Err() != nil || s.client != client || s.statsEpoch != epoch {
-			s.mu.Unlock()
+		if ctx.Err() != nil || s.client != client || s.attachL.Generation() != epoch {
+			s.unlockPublish()
 			return
 		}
 		if err != nil {
-			s.err = err
-			s.mu.Unlock()
+			s.err = faultOf(err)
+			s.unlockPublish()
 			s.fire()
 			return
 		}
 		s.err = nil
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.Refresh(ctx, sessionID)
 	}()
 }

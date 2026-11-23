@@ -69,14 +69,14 @@ func TestResetDraftSurvivesLateAcknowledgement(t *testing.T) {
 	s.writable = true
 	s.Select(ns.NS)
 	s.ResetDraft("maxDepth")
-	snapshot := s.Snapshot()
+	snapshot := s.Snapshot().Value
 	if !snapshot.Dirty || !snapshot.Resets["maxDepth"] || snapshot.Drafts["maxDepth"] != "3" {
 		t.Fatalf("snapshot=%+v", snapshot)
 	}
 	// The same visible text can be a new explicit override while unset is in flight.
 	s.SetDraft("maxDepth", "3")
 	s.acknowledgeDraftsLocked(ns, map[string]string{"maxDepth": "3"}, map[string]bool{"maxDepth": true})
-	if !s.Snapshot().Dirty {
+	if !s.Snapshot().Value.Dirty {
 		t.Fatal("late reset acknowledgement erased a newer explicit override")
 	}
 }

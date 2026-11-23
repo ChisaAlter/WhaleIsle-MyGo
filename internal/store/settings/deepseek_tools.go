@@ -44,7 +44,7 @@ func (s *Store) SnapshotDeepSeekTools() DeepSeekToolsView {
 		return DeepSeekToolsView{}
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	v := DeepSeekToolsView{
 		Connected: s.client != nil, Writable: s.writable,
 		Loading: s.loading, Saving: s.saving,
@@ -84,7 +84,7 @@ func (s *Store) DeepSeekToolsBinding() *NamespaceBinding {
 	}
 	s.mu.Lock()
 	present := s.client != nil && s.deepSeekToolsNamespace() != nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	if !present {
 		return nil
 	}
@@ -94,7 +94,7 @@ func (s *Store) DeepSeekToolsBinding() *NamespaceBinding {
 // SnapshotDeepSeekKey reports the credential reference's stored state.
 func (s *Store) SnapshotDeepSeekKey() DeepSeekKeyView {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return DeepSeekKeyView{
 		Ref: s.deepSeekKeyRef, Loading: s.deepSeekKeyLoading, Busy: s.saving,
 		Writable: s.deepSeekKeyWritable, Configured: s.deepSeekKeyConfigured, Err: s.deepSeekKeyErr,
@@ -109,26 +109,26 @@ func (s *Store) RefreshDeepSeekKey(ctx context.Context, ref string) {
 	client, generation := s.client, s.generation
 	if ref == "" {
 		s.deepSeekKeyRef, s.deepSeekKeyErr, s.deepSeekKeyConfigured, s.deepSeekKeyWritable, s.deepSeekKeyLoading = "", "", false, false, false
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if client == nil {
 		s.deepSeekKeyRef, s.deepSeekKeyErr, s.deepSeekKeyConfigured, s.deepSeekKeyWritable, s.deepSeekKeyLoading = ref, "", false, false, false
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if s.deepSeekKeyLoading && s.deepSeekKeyRef == ref {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.deepSeekKeyLoading, s.deepSeekKeyRef = true, ref
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		described, err := DescribeCredentials(ctx, client, []string{ref})
 		s.mu.Lock()
 		if generation != s.generation || s.client != client {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.deepSeekKeyLoading = false
@@ -138,7 +138,7 @@ func (s *Store) RefreshDeepSeekKey(ctx context.Context, ref string) {
 			value := described[ref]
 			s.deepSeekKeyErr, s.deepSeekKeyConfigured, s.deepSeekKeyWritable = "", value.Configured, value.Writable
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -152,7 +152,7 @@ func (s *Store) SaveDeepSeekKey(ctx context.Context, ref, value string) {
 	}
 	s.mu.Lock()
 	client, generation := s.client, s.generation
-	s.mu.Unlock()
+	s.unlockPublish()
 	if client == nil {
 		return
 	}
@@ -161,7 +161,7 @@ func (s *Store) SaveDeepSeekKey(ctx context.Context, ref, value string) {
 		if generation == s.generation {
 			s.deepSeekKeyErr = err.Error()
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -169,6 +169,6 @@ func (s *Store) SaveDeepSeekKey(ctx context.Context, ref, value string) {
 	if generation == s.generation {
 		s.deepSeekKeyErr, s.deepSeekKeyConfigured = "", true
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }

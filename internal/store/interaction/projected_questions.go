@@ -10,6 +10,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 // questionAnswerItem is one answer record the Host accepts. The pinned 0.2.2
@@ -100,7 +101,7 @@ func (s *Store) syncProjectedQuestions(agentID string, questions, inbox json.Raw
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	p := s.questionAgentLocked(agentID)
 	if reader != nil {
 		p.queueReader = reader
@@ -328,11 +329,11 @@ func (s *Store) resolveContinuedQuestions(eventID string, answer userQuestionsAn
 	s.mu.Lock()
 	p := s.findPending(eventID)
 	if p == nil || !p.Continued {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	agentID, callID := p.AgentID, p.CallID
-	s.mu.Unlock()
+	s.unlockPublish()
 	out := api.AskUserQuestionAnswer{Answers: make([]questionAnswerItem, 0, len(answer.Answers))}
 	for _, item := range answer.Answers {
 		out.Answers = append(out.Answers, questionAnswerItem{Id: item.ID, Selected: item.Selected, Custom: item.Custom})
@@ -356,7 +357,7 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 	s.mu.Lock()
 	reader := s.questionAgentLocked(agentID).queueReader
 	readerClient, readerEpoch := s.client, s.questionRecovery.epoch
-	s.mu.Unlock()
+	s.unlockPublish()
 	var queueClient *dsh.Client
 	var queueInbox json.RawMessage
 	var queueSeq float64
@@ -366,12 +367,12 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 	}
 	s.mu.Lock()
 	if reader != nil && (readerClient != s.client || readerEpoch != s.questionRecovery.epoch || queueClient != s.client) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	p := s.findPending(id)
 	if ctx.Err() != nil || s.client == nil || (boundClient != nil && s.client != boundClient) || p == nil || !p.Continued || p.Sending {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	projection := s.questionAgentLocked(agentID)
@@ -380,15 +381,15 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		projection.queueObserved = cloneQuestionQueueObservations(queueObserved)
 	}
 	if projection.queued[callID] || projection.settled[callID] || projection.answered[callID] {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if _, submitted := projection.submitted[callID]; submitted {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if _, sending := s.questionRecovery.inFlight[id]; sending {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.questionRecovery.nextToken++
@@ -398,9 +399,9 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		s.questionRecovery.inFlight = make(map[string]questionAnswerAttempt)
 	}
 	s.questionRecovery.inFlight[id] = questionAnswerAttempt{token: token, queueBaseline: projection.queueObserved[callID]}
-	p.Sending, p.Error = true, ""
+	p.Sending, p.Error = true, nil
 	projection.status = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		var accepted api.AnswerResult
@@ -428,7 +429,7 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 			// With no attempt left in flight nothing else can finish this send,
 			// so report it instead of spinning; a newer attempt owns the flag.
 			s.releaseStalledAnswerLocked(id)
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -446,13 +447,13 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 		}
 		if err != nil {
 			if p != nil {
-				p.Sending, p.Error = false, err.Error()
+				p.Sending, p.Error = false, state.FaultOf(err)
 			}
 		} else if !accepted && !queued {
 			// A negative RPC result is not an answered projection. Keep the
 			// draft and visible failure until the Host's projection settles it.
 			if p != nil {
-				p.Sending, p.Error = false, "This question is no longer answerable"
+				p.Sending, p.Error = false, state.FaultText("This question is no longer answerable")
 			}
 		} else {
 			// A queued echo can already have been discarded before this RPC
@@ -469,7 +470,7 @@ func (s *Store) submitQuestionAnswerBound(ctx context.Context, agentID, callID s
 			s.dropPending(id)
 			s.reconcileProjectedQuestionsLocked(agentID)
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

@@ -64,7 +64,7 @@ func TestQuestionControlQueueDiscardCoalescingPreservesAttemptOwnership(t *testi
 				source.applyQuestionControlLocked(json.RawMessage(`{"type":"projection","sessionId":"A","key":"inbox","seq":12,"value":{"next-step":[],"next-turn":[]}}`))
 			}
 			paint()
-			id := inter.Snapshot().Pending[0].EventID
+			id := inter.Snapshot().Value.Pending[0].EventID
 			inter.SetQuestionSingleSelect(id, "q", "B")
 			if phase == "before-click" {
 				queue()
@@ -80,15 +80,15 @@ func TestQuestionControlQueueDiscardCoalescingPreservesAttemptOwnership(t *testi
 			}
 			close(release)
 			if phase == "while-request-pending" {
-				awaitCoalescedQuestion(t, func() bool { p := inter.Snapshot().Pending; return len(p) == 1 && !p[0].Sending })
+				awaitCoalescedQuestion(t, func() bool { p := inter.Snapshot().Value.Pending; return len(p) == 1 && !p[0].Sending })
 			} else {
 				awaitCoalescedQuestion(t, func() bool { return inter.SnapshotForAgent("A").QuestionStatus == "submitted" })
-				if len(inter.Snapshot().Pending) != 0 {
+				if len(inter.Snapshot().Value.Pending) != 0 {
 					t.Fatal("receipt exposed an answer still queued or not yet observed")
 				}
 				if phase == "before-click" {
 					paint()
-					if len(inter.Snapshot().Pending) != 0 {
+					if len(inter.Snapshot().Value.Pending) != 0 {
 						t.Fatal("pre-click queue observation was attributed to the new attempt")
 					}
 					return
@@ -99,7 +99,7 @@ func TestQuestionControlQueueDiscardCoalescingPreservesAttemptOwnership(t *testi
 				discard()
 				paint()
 			}
-			if got := inter.Snapshot(); len(got.Pending) != 1 || got.Pending[0].Sending || got.QuestionCards[id].Rows[0].Selected[0] != "B" {
+			if got := inter.Snapshot().Value; len(got.Pending) != 1 || got.Pending[0].Sending || inter.QuestionCards()[id].Rows[0].Selected[0] != "B" {
 				t.Fatal("coalesced discard did not restore the retained draft")
 			}
 		})

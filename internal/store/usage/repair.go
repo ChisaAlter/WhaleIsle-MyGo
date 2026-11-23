@@ -9,6 +9,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -23,13 +24,14 @@ type RepairResult struct {
 type RepairOutcome struct {
 	SessionID string
 	Result    *RepairResult
-	Err       string
+	Err       *state.Fault
 }
 type RepairView struct {
-	PendingID, SessionID, Err                                           string
+	PendingID, SessionID                                                string
+	Err                                                                 *state.Fault
 	PendingIDs, Targets, Unattempted, RemainingFailed                   []string
 	Busy, Batch, StopRequested, Rescanning, RescanComplete, RescanStale bool
-	RescanErr                                                           string
+	RescanErr                                                           *state.Fault
 	Result                                                              *RepairResult // Most recent confirmed result, retained for single-repair callers.
 	Outcomes                                                            []RepairOutcome
 }
@@ -52,34 +54,12 @@ func (s *Store) clearRepairConfirmationLocked() {
 	s.repair.PendingIDs = nil
 	s.repair.pendingBatch = false
 }
-func (s *Store) Repair() RepairView {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.repair.RepairView
-	v.PendingIDs = slices.Clone(v.PendingIDs)
-	v.Targets = slices.Clone(v.Targets)
-	v.Unattempted = slices.Clone(v.Unattempted)
-	v.RemainingFailed = slices.Clone(v.RemainingFailed)
-	clone := func(r *RepairResult) *RepairResult {
-		if r == nil {
-			return nil
-		}
-		c := *r
-		return &c
-	}
-	v.Result = clone(v.Result)
-	v.Outcomes = slices.Clone(v.Outcomes)
-	for i := range v.Outcomes {
-		v.Outcomes[i].Result = clone(v.Outcomes[i].Result)
-	}
-	return v
-}
 func (s *Store) repairCandidatesLocked() []string {
-	if s.client == nil || s.stats.Loading || s.repair.Busy || s.repair.RescanErr != "" || s.repair.RescanStale {
+	if s.client == nil || s.stats.Loading || s.repair.Busy || s.repair.RescanErr != nil || s.repair.RescanStale {
 		return nil
 	}
-	var o Overview
-	if json.Unmarshal(s.stats.Raw, &o) != nil {
+	o := s.stats.parsed.overview
+	if o == nil {
 		return nil
 	}
 	ids := []string{}
@@ -110,32 +90,32 @@ func (s *Store) RepairCandidates() []string {
 func (s *Store) PrepareRepair(id string) {
 	s.mu.Lock()
 	if !s.repairCandidateLocked(id) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.clearRepairConfirmationLocked()
 	s.repair.PendingID = id
 	s.repair.PendingIDs = []string{id}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) PrepareRepairAll() {
 	s.mu.Lock()
 	ids := s.repairCandidatesLocked()
 	if len(ids) == 0 {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.clearRepairConfirmationLocked()
 	s.repair.PendingIDs = ids
 	s.repair.pendingBatch = true
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) CancelRepair() {
 	s.mu.Lock()
 	s.clearRepairConfirmationLocked()
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -147,7 +127,7 @@ func (s *Store) StopRepairQueue() {
 	if s.repair.Busy && !s.repair.Rescanning {
 		s.repair.StopRequested = true
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) ConfirmRepair(ctx context.Context, id string) {
@@ -157,29 +137,29 @@ func (s *Store) ConfirmRepairAll(ctx context.Context, ids []string) { s.confirmR
 func (s *Store) confirmRepairs(ctx context.Context, ids []string, batch bool) {
 	s.mu.Lock()
 	if len(ids) == 0 || s.repair.pendingBatch != batch || !slices.Equal(s.repair.PendingIDs, ids) || (!batch && s.repair.PendingID != ids[0]) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	for _, id := range ids {
 		if !s.repairCandidateLocked(id) {
 			s.clearRepairConfirmationLocked()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
 	}
-	client, epoch := s.client, s.statsEpoch
+	client, epoch := s.client, s.attachL.Generation()
 	generation := s.repair.generation + 1
 	completed := s.repair.completed
 	ctx, cancel := context.WithCancel(ctx)
 	targets := slices.Clone(ids)
 	s.repair = repairState{RepairView: RepairView{Busy: true, Batch: batch, Targets: targets, Unattempted: slices.Clone(targets)}, cancel: cancel, completed: completed, generation: generation}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go s.runRepairs(ctx, cancel, client, epoch, generation, targets)
 }
 func (s *Store) repairCurrentLocked(client *dsh.Client, epoch, generation uint64) bool {
-	return s.client == client && s.statsEpoch == epoch && s.repair.generation == generation
+	return s.client == client && s.attachL.Generation() == epoch && s.repair.generation == generation
 }
 func decodeRepairResult(raw json.RawMessage) (RepairResult, error) {
 	var wire struct {
@@ -202,16 +182,16 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 	for i, id := range ids {
 		s.mu.Lock()
 		if !s.repairCurrentLocked(client, epoch, generation) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if s.repair.StopRequested || ctx.Err() != nil {
-			s.mu.Unlock()
+			s.unlockPublish()
 			break
 		}
 		s.repair.SessionID = id
 		s.repair.Unattempted = slices.Clone(ids[i+1:])
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		callCtx, callCancel := context.WithTimeout(ctx, 30*time.Second)
 		var raw json.RawMessage
@@ -223,13 +203,13 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 		}
 		s.mu.Lock()
 		if !s.repairCurrentLocked(client, epoch, generation) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		outcome := RepairOutcome{SessionID: id}
 		if err != nil {
-			outcome.Err = err.Error()
-			s.repair.Err = err.Error()
+			outcome.Err = faultOf(err)
+			s.repair.Err = faultOf(err)
 		} else {
 			outcome.Result = &result
 			s.repair.Result = &result
@@ -239,7 +219,7 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 			s.repair.completed[id] = true
 		}
 		s.repair.Outcomes = append(s.repair.Outcomes, outcome)
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		// A failed/ambiguous write stops the sequence; never retry automatically.
 		if err != nil {
@@ -248,16 +228,16 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 	}
 	s.mu.Lock()
 	if !s.repairCurrentLocked(client, epoch, generation) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if len(s.repair.Outcomes) == 0 {
 		s.repair.Busy = false
 		s.repair.cancel = nil
 		if ctx.Err() != nil {
-			s.repair.Err = ctx.Err().Error()
+			s.repair.Err = faultOf(ctx.Err())
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -269,10 +249,10 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 	s.stats.generation++
 	scanGeneration := s.stats.generation
 	s.stats.Loading = true
-	s.stats.Err = ""
+	s.stats.Err, s.stats.ErrLead = nil, ""
 	s.resetRankingLocked()
 	s.repair.Rescanning = true
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	var raw json.RawMessage
 	err := rpc.Call(scanCtx, "usage-stats", "overview", map[string]any{"force": true}, &raw)
@@ -280,24 +260,29 @@ func (s *Store) runRepairs(ctx context.Context, cancel context.CancelFunc, clien
 	if err == nil {
 		err = decodeOverview(raw)
 	}
+	// Decode the published form before taking the lock.
+	var parsed decodedStats
+	if err == nil {
+		parsed = decodeStats(raw)
+	}
 	s.mu.Lock()
 	if !s.repairCurrentLocked(client, epoch, generation) || s.stats.generation != scanGeneration {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.stats.Loading = false
 	s.statsCancel = nil
 	if err != nil {
-		s.stats.Err = storelocale.T(storelocale.KeyStoreUsagePostRepairStatisticsRescanFailed) + err.Error()
+		s.stats.Err, s.stats.ErrLead = faultOf(err), storelocale.T(storelocale.KeyStoreUsagePostRepairStatisticsRescanFailed)
 	} else {
-		s.stats.Raw = append(json.RawMessage(nil), raw...)
+		s.stats.Raw, s.stats.parsed = append(json.RawMessage(nil), raw...), parsed
 		s.reconcileStatsRangeLocked()
 	}
 	s.finishRepairScanLocked(err)
 	s.repair.Busy = false
 	s.repair.Rescanning = false
 	s.repair.cancel = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -308,21 +293,15 @@ func (s *Store) finishRepairScanLocked(err error) {
 		return
 	}
 	s.repair.RescanComplete = false
-	s.repair.RescanErr = ""
+	s.repair.RescanErr = nil
 	s.repair.RescanStale = false
 	if err != nil {
-		s.repair.RescanErr = err.Error()
+		s.repair.RescanErr = faultOf(err)
 		return
 	}
-	var o Overview
-	var coverage struct {
-		Coverage struct {
-			FailedIDs *[]string `json:"failedSessionIds"`
-			Failed    *int      `json:"sessionsFailed"`
-		} `json:"coverage"`
-	}
-	if json.Unmarshal(s.stats.Raw, &o) != nil || json.Unmarshal(s.stats.Raw, &coverage) != nil || coverage.Coverage.FailedIDs == nil || coverage.Coverage.Failed == nil || *coverage.Coverage.Failed < 0 || (*coverage.Coverage.Failed > 0 && len(*coverage.Coverage.FailedIDs) == 0) {
-		s.repair.RescanErr = "Incomplete failure coverage in rescan; repair verification unavailable"
+	o := s.stats.parsed.overview
+	if o == nil || !s.stats.parsed.coverageOK {
+		s.repair.RescanErr = state.FaultText("Incomplete failure coverage in rescan; repair verification unavailable")
 		return
 	}
 	s.repair.RescanComplete = true

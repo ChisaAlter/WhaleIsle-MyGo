@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"slices"
 	"strings"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -23,7 +24,7 @@ func (s *Store) AttachMux(mux *dsh.Mux) {
 		s.jobFollowEpoch++
 	}
 	s.mux = mux
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.WatchAccount(context.Background())
 	s.WatchExpiry(context.Background())
 }
@@ -37,12 +38,12 @@ func (s *Store) WatchExpiry(ctx context.Context) {
 		s.expiryWatchCancel = nil
 	}
 	if mux == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	fctx, cancel := context.WithCancel(ctx)
 	s.expiryWatchCancel = cancel
-	s.mu.Unlock()
+	s.unlockPublish()
 	go s.runExpiryWatch(fctx, mux)
 }
 
@@ -77,11 +78,11 @@ func (s *Store) runExpiryWatch(ctx context.Context, mux *dsh.Mux) {
 		}
 		s.mu.Lock()
 		if ctx.Err() != nil || s.mux != mux {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.expiryNote = truncateJSON(line, 120)
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}
 }
@@ -95,12 +96,12 @@ func (s *Store) WatchAccount(ctx context.Context) {
 		s.accountWatchCancel = nil
 	}
 	if mux == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	fctx, cancel := context.WithCancel(ctx)
 	s.accountWatchCancel = cancel
-	s.mu.Unlock()
+	s.unlockPublish()
 	go s.runAccountWatch(fctx, mux)
 }
 
@@ -132,7 +133,7 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		}
 		s.mu.Lock()
 		if ctx.Err() != nil || s.mux != mux {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if view.Status != "credential-stored" || s.accountStatus != view.Status || view.Attempt.Phase == "succeeded" && view.Attempt.Id != s.attemptID {
@@ -168,7 +169,7 @@ func (s *Store) runAccountWatch(ctx context.Context, mux *dsh.Mux) {
 		if view.Attempt.AuthorizeUrl != nil {
 			s.authorizeURL = *view.Attempt.AuthorizeUrl
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		if client != nil {
 			s.refreshAccountDetails(ctx, client, epoch, view.Status)
@@ -182,15 +183,17 @@ func (s *Store) failAccountWatch(ctx context.Context, mux *dsh.Mux, err error) {
 	}
 	s.mu.Lock()
 	if s.mux != mux || ctx.Err() != nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	label := "Account connection lost. Refresh the account to reconnect."
 	if i18n.Locale() == i18n.LocaleZH {
 		label = "账户连接已中断，请刷新账户重新连接。"
 	}
-	s.accountStreamErr = fmt.Errorf("%s %w", label, err)
-	s.mu.Unlock()
+	// The authored reconnect copy is what the view shows; the stream error
+	// itself classifies no better than "connection lost".
+	s.accountStreamErr = state.FaultText(label)
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -199,7 +202,7 @@ func (s *Store) FollowJob(ctx context.Context, sessionID, jobID string) {
 	sessionID = strings.TrimSpace(sessionID)
 	jobID = strings.TrimSpace(jobID)
 	s.mu.Lock()
-	client, mux, epoch := s.client, s.mux, s.statsEpoch
+	client, mux, epoch := s.client, s.mux, s.attachL.Generation()
 	if s.jobFollowCancel != nil {
 		s.jobFollowCancel()
 		s.jobFollowCancel = nil
@@ -207,18 +210,18 @@ func (s *Store) FollowJob(ctx context.Context, sessionID, jobID string) {
 	s.jobFollowEpoch++
 	followEpoch := s.jobFollowEpoch
 	if mux == nil || sessionID == "" || jobID == "" {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	fctx, cancel := context.WithCancel(ctx)
 	s.jobFollowCancel = cancel
-	s.mu.Unlock()
+	s.unlockPublish()
 
 	go s.runJobFollow(fctx, client, mux, epoch, followEpoch, sessionID, jobID)
 }
 
 func (s *Store) jobFollowCurrentLocked(ctx context.Context, client *dsh.Client, mux *dsh.Mux, epoch, followEpoch uint64) bool {
-	return ctx.Err() == nil && s.client == client && s.mux == mux && s.statsEpoch == epoch && s.jobFollowEpoch == followEpoch
+	return ctx.Err() == nil && s.client == client && s.mux == mux && s.attachL.Generation() == epoch && s.jobFollowEpoch == followEpoch
 }
 
 func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.Mux, epoch, followEpoch uint64, sessionID, jobID string) {
@@ -228,11 +231,11 @@ func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.M
 		}
 		s.mu.Lock()
 		if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
-		s.err = err
-		s.mu.Unlock()
+		s.err = faultOf(err)
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -251,11 +254,11 @@ func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.M
 		}
 		s.mu.Lock()
 		if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
-		s.err = err
-		s.mu.Unlock()
+		s.err = faultOf(err)
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -273,11 +276,11 @@ func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.M
 			}
 			s.mu.Lock()
 			if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
-				s.mu.Unlock()
+				s.unlockPublish()
 				return
 			}
-			s.err = err
-			s.mu.Unlock()
+			s.err = faultOf(err)
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -289,12 +292,14 @@ func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.M
 
 	s.mu.Lock()
 	if !s.jobFollowCurrentLocked(ctx, client, mux, epoch, followEpoch) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if len(previews) > 0 {
 		detail := strings.Join(previews, "\n")
 		found := false
+		// Published views share the old slice; edit a fresh one.
+		s.recent = slices.Clone(s.recent)
 		for i := range s.recent {
 			if s.recent[i].JobID == jobID {
 				s.recent[i].Detail = detail
@@ -311,6 +316,6 @@ func (s *Store) runJobFollow(ctx context.Context, client *dsh.Client, mux *dsh.M
 		}
 		s.err = nil
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }

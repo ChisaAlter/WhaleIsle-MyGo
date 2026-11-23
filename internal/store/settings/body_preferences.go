@@ -25,8 +25,8 @@ func (s *Store) PatchDescribedFields(ctx context.Context, namespace string, valu
 func (s *Store) BindDescribedPreferences() (ViewState, uint64, func(context.Context, string, map[string]string)) {
 	s.mu.Lock()
 	client, generation := s.client, s.generation
-	snapshot := s.snapshotLocked()
-	s.mu.Unlock()
+	snapshot := s.buildViewLocked()
+	s.unlockPublish()
 	return snapshot, generation, func(ctx context.Context, namespace string, values map[string]string) {
 		if client != nil {
 			if namespace == CustomInstructionsNamespace && len(values) == 1 {
@@ -45,12 +45,12 @@ func (s *Store) patchDescribedFieldsOwned(ctx context.Context, namespace string,
 	client, generation := s.client, s.generation
 	ns := s.findNamespaceLocked(namespace)
 	if client == nil || s.describedClient != client || s.loading || !s.writable || ns == nil || (owner != nil && (client != owner || generation != ownerGeneration)) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if err := validateCustomInstructions(namespace, values); err != nil {
 		s.err, s.lastAction = err, err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -65,7 +65,7 @@ func (s *Store) patchDescribedFieldsOwned(ctx context.Context, namespace string,
 			}
 		}
 		if field == nil {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		raw, err := PatchValue(field.Kind, value)
@@ -75,13 +75,13 @@ func (s *Store) patchDescribedFieldsOwned(ctx context.Context, namespace string,
 		if err != nil {
 			s.err = err
 			s.lastAction = err.Error()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
 		ops = append(ops, fieldOperation("set", []string{key}, raw))
 	}
 	s.enqueuePreferenceLocked(ctx, namespace, values, ops, client, generation)
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }

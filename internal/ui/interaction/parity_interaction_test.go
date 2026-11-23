@@ -23,7 +23,7 @@ func TestParityApprovalEscalationAndQuestionCardCursors(t *testing.T) {
 			Title:   "bash",
 			Args:    `{"command":"rm -rf /tmp/test"}`,
 		}
-		snap := store.Snapshot()
+		snap := store.Snapshot().Value
 		snap.Pending = []storeinteraction.Pending{pendingApproval}
 
 		tt := ui.NewTester(func(c *ui.Context) {

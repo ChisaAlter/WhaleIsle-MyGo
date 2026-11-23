@@ -31,22 +31,22 @@ func TestAmbientFactsSurviveRefreshFailureWithoutPartialReplacement(t *testing.T
 		s.Attach(client, nil)
 		s.Refresh(context.Background(), "owner-a")
 		synctest.Wait()
-		if len(ActiveForSession(s.Snapshot(), "owner-b")) != 1 {
+		if len(ActiveForSession(s.Snapshot().Value, "owner-b")) != 1 {
 			t.Fatal("shared catalog did not expose the other owning Session")
 		}
 		fail.Store(true)
 		s.Refresh(context.Background(), "owner-a")
-		if len(ActiveForSession(s.Snapshot(), "owner-b")) != 1 {
+		if len(ActiveForSession(s.Snapshot().Value, "owner-b")) != 1 {
 			t.Fatal("refresh loading blanked known ambient facts")
 		}
 		synctest.Wait()
-		snap := s.Snapshot()
-		if snap.Err == "" || snap.CatalogReady || !snap.CatalogSettled || len(ActiveForSession(snap, "owner-b")) != 1 || lists.Load() != 0 {
+		snap := s.Snapshot().Value
+		if snap.Err == nil || snap.CatalogReady || !snap.CatalogSettled || len(ActiveForSession(snap, "owner-b")) != 1 || lists.Load() != 0 {
 			t.Fatalf("catalog failure replaced/cleared global facts: %+v partialReads=%d", snap, lists.Load())
 		}
 		s.Detach()
 		s.Attach(client, nil)
-		if len(ActiveForSession(s.Snapshot(), "owner-b")) != 0 {
+		if len(ActiveForSession(s.Snapshot().Value, "owner-b")) != 0 {
 			t.Fatal("reattached Host inherited ambient task marks")
 		}
 	})

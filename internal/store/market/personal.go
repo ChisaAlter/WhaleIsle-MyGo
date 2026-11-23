@@ -70,7 +70,9 @@ func NewWithPersonalPath(path string) *Store {
 		}
 	}
 	if changed && s.personal.loadErr == nil {
-		_ = s.savePersonalLocked(s.personal.data) // The store exposes persistence failure in Personal.Err.
+		if writePersonal(s.personal.path, nil, s.personal.data) != nil { // The store exposes persistence failure in Personal.Err.
+			s.personal.err = personalSaveFailed
+		}
 	}
 	return s
 }
@@ -83,28 +85,28 @@ func (s *Store) Personal() Personal {
 	}
 	return out
 }
-func (s *Store) savePersonalLocked(data personalData) error {
-	p := &s.personal
-	fail := func(err error) error {
-		p.err = "Could not save local favorites/history; this change will not survive restart."
+
+const personalSaveFailed = "Could not save local favorites/history; this change will not survive restart."
+
+// writePersonal writes the favorites/history document atomically. It touches
+// no store state, so callers run it without mu held.
+func writePersonal(path string, loadErr error, data personalData) error {
+	if loadErr != nil {
+		return loadErr
+	}
+	if path == "" {
+		return errors.New("personal storage path unavailable")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
-	}
-	if p.loadErr != nil {
-		return fail(p.loadErr)
-	}
-	if p.path == "" {
-		return fail(errors.New("personal storage path unavailable"))
-	}
-	if err := os.MkdirAll(filepath.Dir(p.path), 0700); err != nil {
-		return fail(err)
 	}
 	raw, err := json.Marshal(data)
 	if err != nil {
-		return fail(err)
+		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(p.path), ".market-personal-*")
+	f, err := os.CreateTemp(filepath.Dir(path), ".market-personal-*")
 	if err != nil {
-		return fail(err)
+		return err
 	}
 	defer os.Remove(f.Name())
 	if _, err = f.Write(raw); err == nil {
@@ -115,45 +117,76 @@ func (s *Store) savePersonalLocked(data personalData) error {
 		err = closeErr
 	}
 	if err != nil {
-		return fail(err)
+		return err
 	}
-	if err = os.Rename(f.Name(), p.path); err != nil {
-		return fail(err)
-	}
-	p.data = data
-	p.err = ""
-	return nil
+	return os.Rename(f.Name(), path)
 }
-func (s *Store) ToggleFavorite(id string) error {
+
+// commitPersonal serializes local favorites/history writes through
+// persistMu: edit computes the next document under mu, the file is written
+// without mu held so readers never wait on the disk, and the outcome is
+// adopted under mu. keepHistory retains the edited history in memory when
+// the write fails, for receipts this session must keep regardless.
+func (s *Store) commitPersonal(keepHistory bool, edit func(cur personalData) (personalData, error)) error {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
 	s.mu.Lock()
-	known := s.personal.data.Favorites[id]
-	for _, item := range s.discovery.catalog.Items {
-		if item.ID == id {
-			known = true
-			break
-		}
-	}
-	if !known {
-		s.mu.Unlock()
-		return errors.New("catalog item unavailable")
-	}
-	data := s.personal.data
-	data.Favorites = map[string]bool{}
-	for k, v := range s.personal.data.Favorites {
-		data.Favorites[k] = v
-	}
-	if data.Favorites[id] {
-		delete(data.Favorites, id)
-	} else {
-		data.Favorites[id] = true
-	}
-	err := s.savePersonalLocked(data)
-	s.discovery.page = 0
-	s.discovery.expanded = false
+	next, err := edit(s.personal.data)
+	path, loadErr := s.personal.path, s.personal.loadErr
 	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	err = writePersonal(path, loadErr, next)
+	s.mu.Lock()
+	if err != nil {
+		s.personal.err = personalSaveFailed
+		if keepHistory {
+			s.personal.data.History = next.History
+		}
+	} else {
+		s.personal.data = next
+		s.personal.err = ""
+	}
+	s.publishLocked()
+	s.mu.Unlock()
+	return err
+}
+
+func (s *Store) ToggleFavorite(id string) error {
+	err := s.commitPersonal(false, func(cur personalData) (personalData, error) {
+		known := cur.Favorites[id]
+		for _, item := range s.discovery.catalog.Items {
+			if item.ID == id {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return cur, errUnknownFavorite
+		}
+		data := cur
+		data.Favorites = map[string]bool{}
+		for k, v := range cur.Favorites {
+			data.Favorites[k] = v
+		}
+		if data.Favorites[id] {
+			delete(data.Favorites, id)
+		} else {
+			data.Favorites[id] = true
+		}
+		s.discovery.page = 0
+		s.discovery.expanded = false
+		return data, nil
+	})
+	if errors.Is(err, errUnknownFavorite) {
+		return err
+	}
 	s.fire()
 	return err
 }
+
+var errUnknownFavorite = errors.New("catalog item unavailable")
 
 var safePluginID = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
@@ -173,18 +206,14 @@ func (s *Store) RecordInstall(plugin, result, errorCode string) error {
 		errorCode = ""
 	}
 	entry := InstallHistory{At: time.Now().UTC(), Plugin: plugin, Result: result, Error: errorCode}
-	s.mu.Lock()
-	data := s.personal.data
-	data.History = append([]InstallHistory{entry}, data.History...)
-	if len(data.History) > 200 {
-		data.History = data.History[:200]
-	}
-	err := s.savePersonalLocked(data)
 	// Retain the observed result for this session even if disk persistence fails.
-	if err != nil {
-		s.personal.data.History = data.History
-	}
-	s.mu.Unlock()
+	err := s.commitPersonal(true, func(data personalData) (personalData, error) {
+		data.History = append([]InstallHistory{entry}, data.History...)
+		if len(data.History) > 200 {
+			data.History = data.History[:200]
+		}
+		return data, nil
+	})
 	s.fire()
 	return err
 }

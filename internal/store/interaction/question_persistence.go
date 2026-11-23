@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+
+	"whaleisle/internal/state"
 )
 
 type savedQuestionAnswer struct {
@@ -37,7 +39,7 @@ type questionDraftStorage struct {
 	deferred map[string]savedQuestionDraft
 	save     func(json.RawMessage) error
 	last     json.RawMessage
-	err      string
+	err      *state.Fault // the view leads it with QuestionDraftSaveFailed
 	epoch    uint64
 }
 
@@ -111,7 +113,7 @@ func (s *Store) exportQuestionDraftsLocked() json.RawMessage {
 // transient port, cookie, or inferred global Host.
 func (s *Store) ExportQuestionDrafts(owner string) json.RawMessage {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if questionDraftOwner(owner) != s.questionStorage.owner {
 		return nil
 	}
@@ -132,7 +134,7 @@ func (s *Store) SetQuestionDraftPersistence(owner string, save func(json.RawMess
 	s.mu.Lock()
 	s.bindQuestionDraftOwnerLocked(questionDraftOwner(owner))
 	s.questionStorage.save = save
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 // RestoreQuestionDrafts imports once per explicit owner. It never creates a
@@ -141,7 +143,7 @@ func (s *Store) RestoreQuestionDrafts(owner string, raw json.RawMessage) {
 	s.questionWriter.mu.Lock()
 	defer s.questionWriter.mu.Unlock()
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	key := questionDraftOwner(owner)
 	s.bindQuestionDraftOwnerLocked(key)
 	if key == "" || s.questionStorage.restored {
@@ -225,25 +227,25 @@ func (s *Store) FlushQuestionDraftPersistence() error {
 	storage := &s.questionStorage
 	raw, save, epoch := s.exportQuestionDraftsLocked(), storage.save, storage.epoch
 	if save == nil || len(raw) == 0 || bytes.Equal(raw, storage.last) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return nil
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	err := save(raw)
 	s.mu.Lock()
 	if s.questionStorage.epoch != epoch {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return err
 	}
 	previous := s.questionStorage.err
-	s.questionStorage.err = ""
+	s.questionStorage.err = nil
 	if err != nil {
-		s.questionStorage.err = "Could not save question draft: " + err.Error()
+		s.questionStorage.err = state.FaultOf(err)
 	} else {
 		s.questionStorage.last = append(json.RawMessage(nil), raw...)
 	}
-	changed := previous != s.questionStorage.err
-	s.mu.Unlock()
+	changed := previous.SentenceText() != s.questionStorage.err.SentenceText()
+	s.unlockPublish()
 	if changed {
 		s.fire()
 	}
@@ -269,3 +271,6 @@ func (s *Store) pruneQuestionDraftsLocked(sessionID string, active map[string]bo
 		s.persistQuestionDrafts()
 	}
 }
+
+// QuestionDraftSaveFailed leads ViewState.QuestionDraftError in the view.
+const QuestionDraftSaveFailed = "Could not save question draft: "

@@ -2,15 +2,17 @@
 package settings
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
-	"unsafe"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 // Namespace is one settings form from describe.
@@ -107,35 +109,8 @@ type Store struct {
 	onboardingCredentialEpoch uint64
 	uploadNoticeSequence      uint64
 	uploadNotice              string
-	snapCache                 snapshotCache
-}
-
-type namespaceSnapKey struct {
-	ns               string
-	revision         float64
-	draftRevision    float64
-	hasDraftRevision bool
-	fieldsPtr        *Field
-	fieldsLen        int
-	valuePtr         *byte
-	valueLen         int
-	schemaPtr        *byte
-	schemaLen        int
-	basePtr          *byte
-	baseLen          int
-	userPtr          *byte
-	userLen          int
-	hasSecrets       bool
-	secretPathsPtr   *[]string
-	secretPathsLen   int
-}
-
-type snapshotCache struct {
-	valid   bool
-	state   ViewState
-	permPtr *PermissionDefaultOption
-	permLen int
-	nsKeys  []namespaceSnapKey
+	pub                       state.Published[ViewState]
+	viewStale                 bool // a change viewMatchesLocked does not cover; publish on the next unlock
 }
 
 // New returns an empty settings store.
@@ -154,7 +129,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.preferenceWrites = nil
 	s.preferenceErrors = nil
 	s.patchBoolQueues = nil
-	s.snapCache.valid = false
+	s.viewStale = true
 	s.uploadNotice = ""
 	s.generation++
 	s.hasDocument = false
@@ -212,7 +187,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.client = client
 	s.notify = notify
 	s.err = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 // Detach clears the client when harness stops.
@@ -221,7 +196,7 @@ func (s *Store) Detach() {
 	s.preferenceWrites = nil
 	s.preferenceErrors = nil
 	s.patchBoolQueues = nil
-	s.snapCache.valid = false
+	s.viewStale = true
 	s.generation++
 	s.hasDocument = false
 	s.permissionDefaults = PermissionDefaults{}
@@ -244,21 +219,32 @@ func (s *Store) Detach() {
 	s.saving = false
 	s.namespaces = nil
 	s.selectedNS = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
-// Snapshot copies observable state for one frame.
-func (s *Store) Snapshot() ViewState {
+// Snapshot returns the current published version. The same *Version is
+// shared by every reader until a change publishes the next revision; its
+// Value is immutable. Namespace payloads (Fields, Value, Schema, Base, User,
+// SecretPaths) are shared with the store, which replaces them wholesale and
+// never edits them in place.
+func (s *Store) Snapshot() *state.Version[ViewState] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.snapshotLocked()
+	s.viewStale = true
+	s.unlockPublish()
+	return s.pub.Load()
 }
+
+// Changed closes when the next version is published.
+func (s *Store) Changed() <-chan struct{} { return s.pub.Changed() }
 
 // NamespaceValue returns the raw JSON value for one namespace without cloning all namespaces.
 func (s *Store) NamespaceValue(ns string) json.RawMessage {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if item := s.findNamespaceLocked(ns); item != nil {
 		return item.Value
 	}
@@ -270,41 +256,38 @@ func (s *Store) NamespaceValue(ns string) json.RawMessage {
 func (s *Store) EnsureLoaded(ctx context.Context) {
 	s.mu.Lock()
 	needed := s.client != nil && s.describedClient != s.client && !s.loading && s.err == nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	if needed {
 		s.RefreshDescribe(ctx)
 	}
 }
 
-func makeNamespaceSnapKey(ns Namespace, draftRevisions map[string]float64) namespaceSnapKey {
-	drev, hasDrev := draftRevisions[ns.NS]
-	return namespaceSnapKey{
-		ns:               ns.NS,
-		revision:         ns.Revision,
-		draftRevision:    drev,
-		hasDraftRevision: hasDrev,
-		fieldsPtr:        unsafe.SliceData(ns.Fields),
-		fieldsLen:        len(ns.Fields),
-		valuePtr:         unsafe.SliceData(ns.Value),
-		valueLen:         len(ns.Value),
-		schemaPtr:        unsafe.SliceData(ns.Schema),
-		schemaLen:        len(ns.Schema),
-		basePtr:          unsafe.SliceData(ns.Base),
-		baseLen:          len(ns.Base),
-		userPtr:          unsafe.SliceData(ns.User),
-		userLen:          len(ns.User),
-		hasSecrets:       ns.HasSecrets,
-		secretPathsPtr:   unsafe.SliceData(ns.SecretPaths),
-		secretPathsLen:   len(ns.SecretPaths),
+// unlockPublish publishes the view when the working state no longer matches
+// the current version, then releases mu. Every critical section ends with
+// it, so writes publish on the write path and reads never build a view. The
+// match is a content comparison of the published value against the working
+// fields (shared payloads compare in constant time); state the comparison
+// does not cover — queued preference and theme writes — marks viewStale.
+func (s *Store) unlockPublish() {
+	if v := s.pub.Load(); v == nil || s.viewStale || !s.viewMatchesLocked(&v.Value) {
+		s.pub.Publish(s.buildViewLocked())
+		s.viewStale = false
 	}
+	s.mu.Unlock()
 }
 
-func (s *Store) snapCacheHitLocked(errStr string, clientReady, described, dirty bool) bool {
-	c := &s.snapCache
-	if !c.valid {
-		return false
+func (s *Store) errTextLocked() string {
+	if s.err != nil {
+		return s.err.Error()
 	}
-	st := &c.state
+	return ""
+}
+
+// viewMatchesLocked reports whether st still describes the working state.
+// It allocates nothing.
+func (s *Store) viewMatchesLocked(st *ViewState) bool {
+	clientReady := s.client != nil
+	described := clientReady && s.describedClient == s.client
 	if st.ClientReady != clientReady ||
 		st.HasDocument != s.hasDocument ||
 		st.Described != described ||
@@ -313,102 +296,87 @@ func (s *Store) snapCacheHitLocked(errStr string, clientReady, described, dirty 
 		st.Writable != s.writable ||
 		st.LastAction != s.lastAction ||
 		st.SelectedNS != s.selectedNS ||
-		st.Dirty != dirty ||
-		st.Err != errStr {
+		st.Dirty != (len(s.dirty[s.selectedNS]) > 0) ||
+		st.Err != s.errTextLocked() ||
+		st.ErrDetail != writeRefusalDetail(s.err) {
 		return false
 	}
 	if st.PermissionDefaults.DefaultPreset != s.permissionDefaults.DefaultPreset ||
 		st.PermissionDefaults.Loaded != s.permissionDefaults.Loaded ||
 		st.PermissionDefaults.Err != s.permissionDefaults.Err ||
-		c.permLen != len(s.permissionDefaults.Options) ||
-		c.permPtr != unsafe.SliceData(s.permissionDefaults.Options) {
+		!slices.Equal(st.PermissionDefaults.Options, s.permissionDefaults.Options) {
 		return false
 	}
-	if len(c.nsKeys) != len(s.namespaces) || len(st.Namespaces) != len(s.namespaces) {
+	if len(st.Namespaces) != len(s.namespaces) {
 		return false
 	}
 	for i := range s.namespaces {
-		if c.nsKeys[i] != makeNamespaceSnapKey(s.namespaces[i], s.draftRevisions) {
+		if !namespaceMatches(&st.Namespaces[i], &s.namespaces[i], s.draftRevisions) {
 			return false
 		}
 	}
-	resets := s.resets[s.selectedNS]
-	if len(st.Resets) != len(resets) {
+	if !flagsMatch(st.Resets, s.resets[s.selectedNS]) {
 		return false
-	}
-	for k, v := range resets {
-		if cv, ok := st.Resets[k]; !ok || cv != v {
-			return false
-		}
 	}
 	var drafts map[string]string
 	if s.selectedNS != "" {
 		drafts = s.drafts[s.selectedNS]
 	}
-	if len(st.Drafts) != len(drafts) {
-		return false
-	}
-	for k, v := range drafts {
-		if cv, ok := st.Drafts[k]; !ok || cv != v {
-			return false
-		}
-	}
-	return true
+	return maps.Equal(st.Drafts, drafts)
 }
 
-func (s *Store) snapshotLocked() ViewState {
+func flagsMatch(a, b map[string]bool) bool {
+	return maps.Equal(a, b)
+}
+
+// namespaceMatches compares a published namespace with the working one by
+// content; payloads the store shares compare in constant time.
+func namespaceMatches(pub, cur *Namespace, draftRevisions map[string]float64) bool {
+	drev, hasDrev := draftRevisions[cur.NS]
+	return pub.NS == cur.NS && pub.Revision == cur.Revision &&
+		pub.DraftRevision == drev && pub.HasDraftRevision == hasDrev &&
+		pub.HasSecrets == cur.HasSecrets &&
+		bytes.Equal(pub.Value, cur.Value) && bytes.Equal(pub.Schema, cur.Schema) &&
+		bytes.Equal(pub.Base, cur.Base) && bytes.Equal(pub.User, cur.User) &&
+		slices.EqualFunc(pub.Fields, cur.Fields, fieldEqual) &&
+		slices.EqualFunc(pub.SecretPaths, cur.SecretPaths, slices.Equal[[]string])
+}
+
+func fieldEqual(a, b Field) bool {
+	return a.Key == b.Key && a.Label == b.Label && a.Description == b.Description &&
+		a.Kind == b.Kind && a.Required == b.Required && a.Role == b.Role &&
+		slices.Equal(a.EnumOptions, b.EnumOptions)
+}
+
+// buildViewLocked assembles the next published view. The namespace array is
+// copied so later element edits stay private; the payload slices inside are
+// shared, since the store only ever replaces them.
+func (s *Store) buildViewLocked() ViewState {
 	clientReady := s.client != nil
-	described := clientReady && s.describedClient == s.client
-	dirty := len(s.dirty[s.selectedNS]) > 0
-	errStr := ""
-	if s.err != nil {
-		errStr = s.err.Error()
-	}
-	if s.snapCacheHitLocked(errStr, clientReady, described, dirty) {
-		return s.snapCache.state
-	}
 	st := ViewState{
 		PreferencePending:  s.preferencePendingLocked(),
 		PreferenceErrors:   maps.Clone(s.preferenceErrors),
 		PermissionDefaults: s.permissionDefaults.clone(),
 		ClientReady:        clientReady,
 		HasDocument:        s.hasDocument,
-		Described:          described,
+		Described:          clientReady && s.describedClient == s.client,
 		Loading:            s.loading,
 		Saving:             s.saving || s.themeWriteInFlightLocked(s.selectedNS),
 		Writable:           s.writable,
-		Err:                errStr,
+		Err:                s.errTextLocked(),
 		ErrDetail:          writeRefusalDetail(s.err),
 		LastAction:         s.lastAction,
 		SelectedNS:         s.selectedNS,
 		Drafts:             map[string]string{},
 		Resets:             copyFlags(s.resets[s.selectedNS]),
-		Dirty:              dirty,
+		Dirty:              len(s.dirty[s.selectedNS]) > 0,
 	}
-	nsKeys := make([]namespaceSnapKey, len(s.namespaces))
-	st.Namespaces = append([]Namespace(nil), s.namespaces...)
+	st.Namespaces = slices.Clone(s.namespaces)
 	for i := range st.Namespaces {
-		nsKeys[i] = makeNamespaceSnapKey(s.namespaces[i], s.draftRevisions)
 		st.Namespaces[i].DraftRevision, st.Namespaces[i].HasDraftRevision = s.draftRevisions[st.Namespaces[i].NS]
-		st.Namespaces[i].Fields = append([]Field(nil), st.Namespaces[i].Fields...)
-		st.Namespaces[i].Value = append(json.RawMessage(nil), st.Namespaces[i].Value...)
-		st.Namespaces[i].Base = append(json.RawMessage(nil), st.Namespaces[i].Base...)
-		st.Namespaces[i].User = append(json.RawMessage(nil), st.Namespaces[i].User...)
-		st.Namespaces[i].SecretPaths = cloneSecretPaths(st.Namespaces[i].SecretPaths)
 	}
 	if s.selectedNS != "" {
-		if d, ok := s.drafts[s.selectedNS]; ok {
-			for k, v := range d {
-				st.Drafts[k] = v
-			}
-		}
-	}
-	s.snapCache = snapshotCache{
-		valid:   true,
-		state:   st,
-		permPtr: unsafe.SliceData(s.permissionDefaults.Options),
-		permLen: len(s.permissionDefaults.Options),
-		nsKeys:  nsKeys,
+		maps.Copy(st.Drafts, s.drafts[s.selectedNS])
 	}
 	return st
 }
@@ -416,7 +384,7 @@ func (s *Store) snapshotLocked() ViewState {
 // SelectedNamespace returns the active namespace tab without cloning all namespaces.
 func (s *Store) SelectedNamespace() string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return s.selectedNS
 }
 
@@ -424,19 +392,19 @@ func (s *Store) SelectedNamespace() string {
 func (s *Store) Select(ns string) {
 	s.mu.Lock()
 	if s.selectedNS == ns {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.selectedNS = ns
 	s.ensureDraftsLocked(ns)
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
 // SetDraft updates one field draft for the selected namespace.
 func (s *Store) SetDraft(key, value string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.selectedNS == "" {
 		return
 	}
@@ -461,7 +429,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 	client := s.client
 	generation := s.generation
 	if client == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.loading = true
@@ -469,7 +437,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		s.describedClient = nil
 	}
 	s.err = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 
 	go func() {
@@ -482,14 +450,14 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 
 		s.mu.Lock()
 		if s.generation != generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.loading = false
 		if err != nil {
 			s.describedClient = nil
 			s.err = err
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -502,7 +470,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 			if fErr != nil {
 				s.describedClient = nil
 				s.err = fErr
-				s.mu.Unlock()
+				s.unlockPublish()
 				s.fire()
 				return
 			}
@@ -527,7 +495,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 		for _, ns := range nsList {
 			s.seedDraftsLocked(ns)
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -537,7 +505,7 @@ func (s *Store) RefreshDescribe(ctx context.Context) {
 func (s *Store) SaveReplace(ctx context.Context, section map[string]json.RawMessage) {
 	s.mu.Lock()
 	name := s.selectedNS
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.saveReplace(ctx, name, section)
 }
 func (s *Store) saveReplace(ctx context.Context, name string, section map[string]json.RawMessage) {
@@ -547,7 +515,7 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 	s.mu.Lock()
 	if err := s.replaceReceiptErrorLocked(name, receipt); err != nil {
 		s.err, s.lastAction = err, err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -555,13 +523,13 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 	generation := s.generation
 	ns := s.findNamespaceLocked(name)
 	if s.saving || s.themeWriteInFlightLocked(name) || client == nil || ns == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if ns.HasSecrets {
 		s.err = fmt.Errorf("This section contains hidden secrets. Use Save to preserve them; full replacement is unavailable")
 		s.lastAction = s.err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -570,7 +538,7 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 		_ = json.Unmarshal(section[CustomInstructionsField], &text)
 		if err := validateCustomInstructions(name, map[string]string{CustomInstructionsField: text}); err != nil {
 			s.err = err
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -578,13 +546,13 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 	if len(section) == 0 {
 		s.err = fmt.Errorf("settings replace rejected: empty section")
 		s.lastAction = s.err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	if !s.writable {
 		s.lastAction = "settings read-only"
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -594,7 +562,7 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 	nsName := ns.NS
 	s.saving = true
 	s.err = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 
 	go func() {
@@ -610,14 +578,14 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 		}
 		s.mu.Lock()
 		if s.generation != generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.saving = false
 		if err != nil {
 			s.err = err
 			s.lastAction = err.Error()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -636,7 +604,7 @@ func (s *Store) saveReplacePrepared(ctx context.Context, name string, section ma
 				break
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -647,23 +615,23 @@ func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 	s.mu.Lock()
 	ns := s.findNamespaceLocked(s.selectedNS)
 	if s.client == nil || ns == nil || s.saving || s.themeWriteInFlightLocked(s.selectedNS) || s.loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if !s.writable {
 		s.lastAction = "settings read-only"
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	section, err := replacementFromDrafts(*ns, s.drafts[ns.NS], s.dirty[ns.NS], s.resets[ns.NS])
 	name := ns.NS
-	s.mu.Unlock()
+	s.unlockPublish()
 	if err != nil {
 		s.mu.Lock()
 		s.err = err
 		s.lastAction = err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -675,7 +643,7 @@ func (s *Store) SaveReplaceFromDrafts(ctx context.Context) {
 func (s *Store) SaveMutate(ctx context.Context, ops []json.RawMessage) {
 	s.mu.Lock()
 	name := s.selectedNS
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.saveMutate(ctx, name, ops)
 }
 
@@ -689,12 +657,12 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 	generation := s.generation
 	ns := s.findNamespaceLocked(name)
 	if s.saving || s.themeWriteInFlightLocked(name) || client == nil || ns == nil || len(ops) == 0 || (owner != nil && (client != owner || generation != ownerGeneration)) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if !s.writable {
 		s.lastAction = "settings read-only"
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -707,7 +675,7 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 	}
 	s.saving = true
 	s.err = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 
 	go func() {
@@ -726,7 +694,7 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 		}
 		s.mu.Lock()
 		if s.generation != generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.saving = false
@@ -740,7 +708,7 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 		if err != nil {
 			s.err = err
 			s.lastAction = err.Error()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -759,7 +727,7 @@ func (s *Store) saveMutateOwned(ctx context.Context, name string, ops []json.Raw
 				break
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -772,12 +740,12 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 	generation := s.generation
 	ns := s.findNamespaceLocked(s.selectedNS)
 	if s.saving || s.themeWriteInFlightLocked(s.selectedNS) || s.loading || client == nil || ns == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if !s.writable {
 		s.lastAction = "settings read-only"
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -789,7 +757,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 	if !resets[CustomInstructionsField] {
 		if err := validateCustomInstructions(ns.NS, drafts); err != nil {
 			s.err = err
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -798,7 +766,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 	if err != nil {
 		s.err = err
 		s.lastAction = err.Error()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
@@ -806,13 +774,13 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 		s.acknowledgeDraftsLocked(*ns, submitted, resets)
 		s.lastAction = "No settings changes"
 		s.err = nil
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	s.saving = true
 	s.err = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 
 	go func() {
@@ -832,14 +800,14 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 		}
 		s.mu.Lock()
 		if s.generation != generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.saving = false
 		if err != nil {
 			s.err = err
 			s.lastAction = err.Error()
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -857,7 +825,7 @@ func (s *Store) SaveUpdate(ctx context.Context) {
 				break
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -872,7 +840,7 @@ func (s *Store) ViewTabsEnabled() (enabled bool, ok bool) {
 		{"ui", "viewTabs"},
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	for _, c := range candidates {
 		ns := s.findNamespaceLocked(c.ns)
 		if ns == nil || len(ns.Value) == 0 {
@@ -917,7 +885,7 @@ func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
 		{"ui", "viewTabs"},
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	for _, c := range candidates {
 		ns := s.findNamespaceLocked(c.ns)
 		has := false
@@ -947,7 +915,7 @@ func (s *Store) SyncViewTabs(ctx context.Context, show bool) {
 // PatchBool posts settings/update for one bool key in a namespace.
 func (s *Store) PatchBool(ctx context.Context, nsName, key string, value bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	s.enqueuePatchBoolLocked(ctx, nsName, key, value)
 }
 
@@ -981,18 +949,18 @@ func (s *Store) flushPatchBoolQueue(nsName string, q *patchBoolQueue) {
 	for {
 		s.mu.Lock()
 		if s.client != q.client || s.generation != q.generation || s.describedClient != q.client || s.patchBoolQueues[nsName] != q || len(q.pending) == 0 {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		item := q.pending[0]
 		ns := s.findNamespaceLocked(nsName)
 		if ns == nil || !s.writable {
 			delete(s.patchBoolQueues, nsName)
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		rev := ns.Revision
-		s.mu.Unlock()
+		s.unlockPublish()
 
 		args := map[string]any{
 			"ns":               nsName,
@@ -1004,7 +972,7 @@ func (s *Store) flushPatchBoolQueue(nsName string, q *patchBoolQueue) {
 
 		s.mu.Lock()
 		if s.client != q.client || s.generation != q.generation || s.describedClient != q.client || s.patchBoolQueues[nsName] != q {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if len(q.pending) > 0 {
@@ -1031,12 +999,12 @@ func (s *Store) flushPatchBoolQueue(nsName string, q *patchBoolQueue) {
 				}
 			}
 		}
-		s.snapCache.valid = false
+		s.viewStale = true
 		done := len(q.pending) == 0
 		if done {
 			delete(s.patchBoolQueues, nsName)
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		if done {
 			return
@@ -1171,6 +1139,6 @@ func (s *Store) DiscardDrafts(ctx context.Context) {
 	delete(s.drafts, ns)
 	delete(s.draftRevisions, ns)
 	s.ensureDraftsLocked(ns)
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.RefreshDescribe(ctx)
 }

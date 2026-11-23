@@ -159,9 +159,9 @@ func (h *capabilitiesUIFixture) settings(t *testing.T) *store.Store {
 	s.RefreshProviderDirectory(context.Background())
 	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); {
 		_, loading, message := s.ConfigurableProviders()
-		if !s.Snapshot().Loading && !loading {
-			if message != "" || s.Snapshot().Err != "" || len(s.Snapshot().Namespaces) != 1 {
-				t.Fatalf("fixture not loaded: %s %+v", message, s.Snapshot())
+		if !s.Snapshot().Value.Loading && !loading {
+			if message != "" || s.Snapshot().Value.Err != "" || len(s.Snapshot().Value.Namespaces) != 1 {
+				t.Fatalf("fixture not loaded: %s %+v", message, s.Snapshot().Value)
 			}
 			return s
 		}

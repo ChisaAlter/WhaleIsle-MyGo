@@ -48,7 +48,7 @@ func TestStatsRPCAndExports(t *testing.T) {
 	for range 2 {
 		s.RefreshStats(context.Background(), true)
 		v := waitStats(t, s)
-		if v.Err != "" || v.Overview.AllTime.Totals.Total != 12 {
+		if v.Err != nil || v.Overview.AllTime.Totals.Total != 12 {
 			t.Fatalf("%+v", v)
 		}
 		if !<-calls {
@@ -74,13 +74,13 @@ func TestStatsRPCAndExports(t *testing.T) {
 }
 func TestStatsFailurePreservesLastSuccess(t *testing.T) {
 	s := New()
-	s.stats.Raw = json.RawMessage(statsFixture)
+	s.setStatsRaw(json.RawMessage(statsFixture))
 	srv := httptest.NewServer(http.NotFoundHandler())
 	defer srv.Close()
 	s.client = &dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}
 	s.RefreshStats(context.Background(), false)
 	v := waitStats(t, s)
-	if v.Err == "" || v.Overview == nil {
+	if v.Err == nil || v.Overview == nil {
 		t.Fatalf("lost prior data/error: %+v", v)
 	}
 }
@@ -108,7 +108,7 @@ func TestStatsDetachDiscardsLateResponse(t *testing.T) {
 	close(release)
 	time.Sleep(20 * time.Millisecond)
 	v := s.Stats()
-	if v.Overview != nil || v.Loading || v.Err != "" {
+	if v.Overview != nil || v.Loading || v.Err != nil {
 		t.Fatalf("late response leaked: %+v", v)
 	}
 }

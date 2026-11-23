@@ -214,10 +214,10 @@ func TestFunctionalOwnedMarketCatalog(t *testing.T) {
 	c := manager.New()
 	c.Attach(client, nil)
 	defer c.Detach()
-	if e = c.LoadIndexes(ctx, c.Snapshot().Owner); e != nil {
+	if e = c.LoadIndexes(ctx, c.Snapshot().Value.Owner); e != nil {
 		t.Fatal(failure(e))
 	}
-	s := c.Snapshot()
+	s := c.Snapshot().Value
 	if s.Discover.Status != "ready" || s.Discover.Listing == nil || len(s.Discover.Listing.Entries) != 2 {
 		t.Fatal("production Discover did not accept real catalog")
 	}

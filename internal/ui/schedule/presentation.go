@@ -161,7 +161,7 @@ func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewStat
 		ui.Column(c).Label("Loading tasks").FillWidth().AlignItems(ui.Center).Padding(48, 20).Children(func() { ui.Spinner(c).Size(20, 20).TextColor(chrome.Color(colors.Muted)) })
 		return true
 	}
-	if snap.Err != "" {
+	if snap.Err != nil {
 		if p.catalogError != snap.Err || p.catalogErrorRequest != snap.CatalogRequest {
 			p.catalogError, p.catalogErrorRequest, p.catalogDismissed = snap.Err, snap.CatalogRequest, false
 		}
@@ -178,7 +178,7 @@ func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewStat
 		}
 		return true
 	}
-	p.catalogError, p.catalogDismissed = "", false
+	p.catalogError, p.catalogDismissed = nil, false
 	return false
 }
 
@@ -207,7 +207,7 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 	}
 	detail.Children(func() {
 		p.detailStrip(c, m, snap, d, colors, width)
-		if snap.Err != "" {
+		if snap.Err != nil {
 			p.catalogFeedback(c, m, snap, colors, true)
 		}
 		if p.detailTab == "records" {
