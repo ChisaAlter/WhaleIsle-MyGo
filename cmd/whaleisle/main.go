@@ -2687,6 +2687,9 @@ func startHarness(cfg config.Config) {
 	if !state.recoverImportBeforeStart() {
 		return
 	}
+	// Every owned start provisions its directory here, so a restart or a start
+	// from the launcher cannot hand the Host an empty one either.
+	cfg = state.ensureLaunchWorkspace(cfg)
 	host := cfg.Host
 	if host == "" {
 		host = "127.0.0.1"
