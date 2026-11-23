@@ -2,7 +2,6 @@ package main
 
 import (
 	"whaleisle/internal/ui/settings"
-	"whaleisle/internal/ui/sidebar"
 )
 
 func (s *mainState) retryAccountAvatar() {
@@ -23,5 +22,4 @@ func (s *mainState) retryAccountAvatar() {
 		}
 	}
 	settings.RetryAccountAvatar(raw, invalidate)
-	sidebar.RetryAccountAvatar(raw, invalidate)
 }

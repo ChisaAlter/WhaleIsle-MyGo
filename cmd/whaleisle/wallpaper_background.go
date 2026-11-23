@@ -169,6 +169,9 @@ func (s *mainState) wallpaperCanvasFlatFor(path string) bool {
 	if s.activeSkin() == theme.SkinCodex {
 		return false
 	}
+	if renderpolicy.NoBackdrop() {
+		return true
+	}
 	if strings.TrimSpace(s.resolvedWallpaperPath(path)) != "" {
 		return false
 	}
@@ -209,7 +212,7 @@ func (s *mainState) wallpaperPainter(path string, visible bool, reducedMotion ..
 	// Minimal mode paints no backdrop at all — no wallpaper, no ambient
 	// gradient, solid materials — for every skin, and without touching the
 	// stored preferences it is pausing.
-	if renderpolicy.Minimal() {
+	if renderpolicy.NoBackdrop() {
 		prefs := wallpapers.Defaults()
 		if g := s.wallpaperEditor(); g != nil {
 			prefs = g.EffectivePreferences()

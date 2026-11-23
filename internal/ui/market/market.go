@@ -10,19 +10,19 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/dsh/api"
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
 
 // Model wires the market panel to store, install state, and harness status.
 type Model struct {
-	SVGImages *svgimage.Owner
-	Store     *marketstore.Store
+	Media *media.Owner
+	Store *marketstore.Store
 	// Embedded is used by the Settings market section, whose shell owns its header and insets.
 	Embedded           bool
 	categoriesExpanded *bool

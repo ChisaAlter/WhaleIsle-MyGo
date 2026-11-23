@@ -12,6 +12,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
@@ -54,6 +56,11 @@ func TestBotAvatarBoundedInlineDecodeAndPixels(t *testing.T) {
 			_ = botAvatarPreview(c, v, 64, "image-circle", fg, muted)
 		})
 	}, 800, 240)
+	// The image decodes on a media worker; wait for it, then repaint.
+	for deadline := time.Now().Add(5 * time.Second); !media.Default().Cached(botAvatarKey(v)) && time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
+	}
+	tt.Frame()
 	pixels := tt.Image()
 	hashes := map[[32]byte]bool{}
 	for _, shape := range pluginrpc.DshbotAvatarShapes() {

@@ -25,7 +25,10 @@ func publishGradientBackdrop(frame *gradientFrame, box ui.Rect) {
 		gradientPanelFrames.reset()
 	}
 	gradientBackdrop.frame, gradientBackdrop.box = frame, box
-	backgroundState.pixels, backgroundState.box, backgroundState.hasBox = frame.pixels, box, true
+	if frame.colors == nil {
+		frame.colors = colorMap(frame.pixels)
+	}
+	backgroundState.colors, backgroundState.box, backgroundState.hasBox = frame.colors, box, true
 	backgroundState.dark = frame.config.dark
 }
 func clearGradientBackdrop() {

@@ -232,6 +232,8 @@ Windows Project 新建托管 worktree 使用 `compact-v1` 物理布局：`%USERP
 
 视觉基准（2026-11-23）：产品的视觉标准是 **coss ui**（coss.com/ui，MIT，`cosscom/ui`）——以它的 tokens、组件解剖与动效为准，取代与 Electron 原版的视觉对齐；原版仅保留为功能与信息内容的对照参考。主色跟随 DSH Host 主题 accent（`--dsw-alias-state-business-primary`，即 `theme.Accent`）。壁纸与毛玻璃效果改为可选外观主题，默认关闭。
 
+按用户 2026-11-23 的决定：壁纸与毛玻璃是一套可选外观主题，默认关闭；存量 profile 仅当其配置里已有本地壁纸路径时迁移为开启，其余保持默认。外观设置提供一个开关即可恢复整套主题，不拆散为逐项配置。
+
 ## 9. 数据、安装与升级
 
 保持 MyGo 独立安装身份：`ai.deepseek.harness.gui.mygo`、独立安装目录与更新通道，以及独立的用户数据目录，不覆盖 Electron 安装，也不与本体共写同一份 profile。

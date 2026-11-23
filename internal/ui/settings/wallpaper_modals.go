@@ -1,10 +1,10 @@
 package settings
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
+	"whaleisle/internal/desktop/media"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
@@ -85,40 +85,25 @@ func wallpaperImagePreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 	path := g.explicitWallpaper()
 	if path != "" {
 		preview := ui.Column(c.Key("current-wallpaper-preview")).FillWidth().MinWidth(0).Gap(8)
-		type imageState struct {
-			path   string
-			bitmap *ui.Bitmap
+		// The preview shares the process media service: reading and decoding
+		// run on its workers, at the preview's own size.
+		var key media.Key
+		var src media.Source
+		if strings.HasPrefix(path, "data:image/") {
+			key, src = media.DataURL(path)
+		} else {
+			key, src = media.File(path, "")
 		}
-		state := ui.Local(preview, "image", func() imageState { return imageState{} })
-		if state.path != path && g.Run != nil {
-			state.path = path
-			state.bitmap = nil
-			g.Run(func() func() {
-				var data []byte
-				var err error
-				if strings.HasPrefix(path, "data:image/") {
-					_, raw, _ := strings.Cut(path, ",")
-					data, err = base64.StdEncoding.DecodeString(raw)
-				} else {
-					data, err = wallpapers.ReadImportFile(path)
-				}
-				var bitmap *ui.Bitmap
-				if err == nil {
-					bitmap, err = ui.DecodeBitmap(data)
-				}
-				return func() {
-					if state.path == path && err == nil {
-						state.bitmap = bitmap
-					}
-				}
-			})
-		}
+		src.MaxBytes = wallpapers.MaxImportBytes
+		key = key.Sized(1440, 360)
+		key.Cover = true
+		previewBitmap := media.Default().Request(nil, key, src).Bitmap()
 		preview.Children(func() {
 			if g.currentPreferences().Glass >= 90 {
 				ui.Text(c, providerCopy("玻璃透明度偏高时背景图会被盖住。把玻璃透明度调低，图会更清楚。", "High glass opacity covers the wallpaper. Lower Glass opacity to let more of the image show through.")).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
 			}
-			if state.bitmap != nil {
-				ui.Image(c, state.bitmap).FillWidth().Height(180).Fit(ui.Cover).Radius(12).Clip()
+			if previewBitmap != nil {
+				ui.Image(c, previewBitmap).FillWidth().Height(180).Fit(ui.Cover).Radius(12).Clip()
 			}
 			wallpaperImmediateSlider(c, g, "wallpaper-blur", providerCopy("毛玻璃程度", "Frosted glass"), g.currentPreferences().Blur, 0, 100, 1, false, func(p *wallpapers.Preferences, v float64) { p.Blur = v }, fg, muted)
 			wallpaperImmediateSlider(c, g, "wallpaper-pixelate", providerCopy("像素化程度", "Pixelation"), g.currentPreferences().Pixelate, 0, 100, 1, false, func(p *wallpapers.Preferences, v float64) { p.Pixelate = v }, fg, muted)

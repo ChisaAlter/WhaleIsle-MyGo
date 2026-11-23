@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/desktop/avatarimage"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
@@ -89,10 +90,7 @@ func TestBotAvatarImageUIExplicitPreviewApplyAndReview(t *testing.T) {
 		}
 	}
 	// Transient preview never enters the process-wide saved-image cache.
-	botAvatarImageCache.Lock()
-	cached := botAvatarImageCache.set
-	botAvatarImageCache.Unlock()
-	if cached {
+	if media.Default().Cached(botAvatarKey(pluginrpc.DshbotAvatarValues{Kind: "image", DataURL: state.ImageImport.Preview})) {
 		t.Fatal("temporary preview cached")
 	}
 	click(i18n.T(i18n.KeyMiscAssistantCancelImageSelection))

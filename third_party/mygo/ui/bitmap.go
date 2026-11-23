@@ -194,3 +194,18 @@ func orient(img *scene.Image, o int) *scene.Image {
 	}
 	return scene.NewImageRGBA(dw, dh, out)
 }
+
+// SetPixels replaces the bitmap's pixels with pix, premultiplied RGBA rows
+// of the bitmap's own size, keeping the bitmap: renderers upload the same
+// texture again instead of creating another, which is how an animation
+// shows its frames through one texture. pix is kept, not copied, and must
+// not change afterwards. Call it on the UI thread; a pix of another size
+// is ignored.
+func (b *Bitmap) SetPixels(pix []byte) {
+	if b == nil || b.img == nil || len(pix) != 4*b.w*b.h {
+		return
+	}
+	b.img.Pix = pix
+	b.img.Changed()
+	b.levels = nil
+}

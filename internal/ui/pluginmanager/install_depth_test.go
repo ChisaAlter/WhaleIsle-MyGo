@@ -8,11 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/media"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
 )
 
 func TestInstallANSIReplayPrecedesLineFolding(t *testing.T) {
@@ -77,22 +76,25 @@ func (f metadataIconFixture) Call(ctx context.Context, method string, args, out 
 	data, _ := json.Marshal([]manager.Bundle{{Name: "icon-fixture", Availability: "profile", Installed: true, Enabled: true, Meta: &manager.Meta{Title: manager.Text(`"Icon consumer"`), Icon: f.icon}}})
 	return json.Unmarshal(data, out)
 }
-func TestActualManagerCardPassesSVGOwnerAndRetainsFallbackOnRetirement(t *testing.T) {
+func TestActualManagerCardPassesMediaOwnerAndRetainsFallbackOnRelease(t *testing.T) {
 	source := `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><rect width="30" height="30" fill="red"><animate attributeName="opacity" values="0;1" dur="1s" repeatCount="indefinite"/></rect></svg>`
-	calls := 0
-	owner := &svgimage.Owner{ID: "retired-fixture", Context: context.Background(), Window: &mygo.Window{}, Valid: func() bool { calls++; return false }}
+	owner := media.Default().NewOwner(nil, nil)
+	owner.Release()
+	queued := media.Default().Queued()
 	controller := manager.New()
 	controller.Attach(metadataIconFixture{icon: "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(source))}, nil)
 	defer controller.Detach()
 	if err := controller.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Controller: controller, SVGImages: owner}) }, 700, 500)
-	if calls == 0 || !tt.HasText("Icon consumer") {
-		t.Fatal("actual card did not consume the supplied image owner")
+	tt := ui.NewTester(func(c *ui.Context) { View(c, Model{Controller: controller, Media: owner}) }, 700, 500)
+	if !tt.HasText("Icon consumer") {
+		t.Fatal("actual card did not render")
 	}
-	// Valid=false is observed before any helper startup. The source image seat
-	// must return false so the existing default artwork can remain painted.
+	// A released lease starts no work; the drawn default artwork remains.
+	if media.Default().Queued() != queued {
+		t.Fatal("a released owner queued decodes")
+	}
 	if tt.Image().Bounds().Empty() {
 		t.Fatal("card artwork failed to paint")
 	}

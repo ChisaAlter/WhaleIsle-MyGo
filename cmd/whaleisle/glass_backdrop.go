@@ -23,7 +23,7 @@ func desktopGlassMaterial(path string, p wallpapers.Preferences, dark, highContr
 	p = wallpapers.NormalizeEffect(path, p)
 	// Acrylic samples the live desktop, so it is one of the transparent
 	// materials minimal mode pauses; the canvas paints its own fill instead.
-	if renderpolicy.Minimal() {
+	if renderpolicy.NoBackdrop() {
 		return mygo.VibrancyNone
 	}
 	if runtime.GOOS == "windows" && path == "" && p.Effect != "gradient" && dark && !highContrast {

@@ -30,12 +30,8 @@ func TestMarketScreenshotPublicHTTPSFilterAndLimit(t *testing.T) {
 func TestMarketScreenshotGalleryInteractionFailureAndSourceReset(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
-	readmeRemoteImages.RLock()
-	previous := readmeRemoteImages.cache
-	readmeRemoteImages.RUnlock()
 	cache := imgcache.New(t.TempDir())
-	SetRemoteImageCache(cache)
-	t.Cleanup(func() { SetRemoteImageCache(previous) })
+	testMedia := useTestMedia(t, cache)
 	first, failed, replacement := "https://owned.invalid/first.png", "https://owned.invalid/failed.png", "https://owned.invalid/replacement.png"
 	canvas := image.NewRGBA(image.Rect(0, 0, 32, 16))
 	canvas.Set(0, 0, color.RGBA{R: 255, A: 255})
@@ -75,6 +71,7 @@ func TestMarketScreenshotGalleryInteractionFailureAndSourceReset(t *testing.T) {
 		t.Fatal("Previous moved before the first image")
 	}
 	click("Next image")
+	settleMedia(t, tt, testMedia, func() bool { return tt.HasText("Image could not be loaded.") })
 	if !tt.HasText("2 / 2") || !tt.HasText("Image could not be loaded.") {
 		t.Fatalf("failed image did not retain its slot and navigation: %v", tt.Texts())
 	}

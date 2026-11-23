@@ -98,9 +98,9 @@ func TestMarkdownImageUsesSourceDirectoryAndCancelsOnPause(t *testing.T) {
 	w := tabsFor(m)
 	w.Open = []*FileTab{tab}
 	w.Active = tab.Path
-	q := &imageReadQueue{}
-	tab.markdownImages = map[string]*markdownImageRead{"../images/a.png": {queue: q, owner: imageOwner(m, tab)}}
-	q.request(imageOwner(m, tab), markdownImageLoader(m, tab, "../images/a.png"))
+	read := &markdownImageRead{owner: imageOwner(m, tab), preview: markdownImagePreview(m, tab, imageOwner(m, tab), "../images/a.png")}
+	tab.markdownImages = map[string]*markdownImageRead{"../images/a.png": read}
+	read.preview.sync(time.Now())
 	<-started
 	m.Tabs.Pause()
 	select {
