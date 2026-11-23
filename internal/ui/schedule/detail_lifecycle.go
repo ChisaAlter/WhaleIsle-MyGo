@@ -112,7 +112,7 @@ func (p *Panel) reconcileDetail(snap schedstore.ViewState) bool {
 }
 
 func (p *Panel) deleteTask(m Model, row schedstore.Entry) {
-	snap := m.Store.Snapshot()
+	snap := m.Store.Snapshot().Value
 	p.mu.Lock()
 	p.actionRequest++
 	owner, request, epoch := p.detailOwner, p.actionRequest, p.connectionEpoch
@@ -121,7 +121,7 @@ func (p *Panel) deleteTask(m Model, row schedstore.Entry) {
 	p.mu.Unlock()
 	go func() {
 		err := m.Store.DeleteEntry(context.Background(), row)
-		current := m.Store.Snapshot()
+		current := m.Store.Snapshot().Value
 		p.mu.Lock()
 		if !p.actionCurrentLocked(owner, request, epoch) || current.ConnectionEpoch != epoch {
 			p.mu.Unlock()

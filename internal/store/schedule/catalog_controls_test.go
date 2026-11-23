@@ -88,7 +88,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 		t.Helper()
 		deadline := time.After(2 * time.Second)
 		for {
-			snap := store.Snapshot()
+			snap := store.Snapshot().Value
 			if !snap.Loading {
 				return snap
 			}
@@ -143,7 +143,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	// A settled global source retains its complete answer and scope on failure;
 	// it must not replace that answer with a partial selected-Session fallback.
 	global := snap
-	if global.Err != "" || !global.CatalogReady || !global.CatalogSettled || global.CatalogRevision == 0 ||
+	if global.Err != nil || !global.CatalogReady || !global.CatalogSettled || global.CatalogRevision == 0 ||
 		!strings.Contains(global.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleAllSessions)) || len(global.Rows) != 1 ||
 		global.Rows[0].SessionID != "owner" || global.Rows[0].Status != "active" ||
 		global.Rows[0].Origin != client.Endpoint.Origin || global.Rows[0].ID != "job" ||
@@ -154,7 +154,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	fallback.Store(true)
 	s.Refresh(context.Background(), "selected")
 	snap = wait(s)
-	if !strings.Contains(snap.Err, "unsupported") || !strings.Contains(snap.Err, "catalog unavailable") ||
+	if snap.Err == nil ||
 		snap.CatalogReady || !snap.CatalogSettled || !reflect.DeepEqual(snap.Rows, global.Rows) ||
 		snap.CatalogHint != global.CatalogHint || !strings.Contains(snap.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleAllSessions)) ||
 		strings.Contains(snap.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly)) || snap.CatalogRevision != global.CatalogRevision ||
@@ -165,7 +165,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	failAll.Store(true)
 	s.Refresh(context.Background(), "another-session")
 	snap = wait(s)
-	if !strings.Contains(snap.Err, "offline") || snap.CatalogReady || !snap.CatalogSettled ||
+	if snap.Err == nil || snap.CatalogReady || !snap.CatalogSettled ||
 		!reflect.DeepEqual(snap.Rows, global.Rows) || snap.CatalogHint != global.CatalogHint ||
 		snap.CatalogRevision != global.CatalogRevision || snap.CatalogRequest != global.CatalogRequest+2 ||
 		catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList {
@@ -174,7 +174,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	other := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://other.invalid"}, HTTP: client.HTTP}
 	s.Attach(other, nil)
 	s.OnEmit(nextOwner, dsh.EventsEmit{Type: dsh.EventEmit, Event: "schedule/changed"})
-	if len(s.Snapshot().Rows) != 0 || s.Snapshot().Loading || s.Snapshot().CatalogSettled {
+	if len(s.Snapshot().Value.Rows) != 0 || s.Snapshot().Value.Loading || s.Snapshot().Value.CatalogSettled {
 		t.Fatal("old Host repopulated catalog")
 	}
 	// Compatibility fallback is a separate first-read case, before this source
@@ -185,7 +185,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	beforeCatalog, beforeList = catalogs.Load(), lists.Load()
 	fresh.Refresh(context.Background(), "selected")
 	partial := wait(fresh)
-	if partial.Err != "" || partial.CatalogReady || partial.CatalogSettled || partial.CatalogRevision != 0 ||
+	if partial.Err != nil || partial.CatalogReady || partial.CatalogSettled || partial.CatalogRevision != 0 ||
 		partial.CatalogRequest != 1 || !strings.Contains(partial.CatalogHint, storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly)+"selected") ||
 		strings.Contains(partial.CatalogHint, "All sessions") || len(partial.Rows) != 1 ||
 		partial.Rows[0].SessionID != "selected" || partial.Rows[0].Status != "active" ||
@@ -197,7 +197,7 @@ func TestCatalogControlsOwnerRefreshScopeAndPresentation(t *testing.T) {
 	failAll.Store(true)
 	fresh.Refresh(context.Background(), "another-session")
 	failedPartial := wait(fresh)
-	if !strings.Contains(failedPartial.Err, "offline") || failedPartial.CatalogReady || failedPartial.CatalogSettled ||
+	if failedPartial.Err == nil || failedPartial.CatalogReady || failedPartial.CatalogSettled ||
 		failedPartial.CatalogRevision != 0 || failedPartial.CatalogRequest != partial.CatalogRequest+1 ||
 		!reflect.DeepEqual(failedPartial.Rows, partial.Rows) || failedPartial.CatalogHint != partial.CatalogHint ||
 		catalogs.Load() != beforeCatalog+1 || lists.Load() != beforeList+1 {

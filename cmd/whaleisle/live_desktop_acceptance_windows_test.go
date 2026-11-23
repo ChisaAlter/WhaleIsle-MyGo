@@ -478,7 +478,7 @@ func runLiveDesktopAcceptance() error {
 			state.mu.Lock()
 			sched := state.schedule
 			state.mu.Unlock()
-			return sched != nil && !sched.Snapshot().Loading
+			return sched != nil && !sched.Snapshot().Value.Loading
 		})
 		if err := capture("10-automation"); err != nil {
 			finish(err)

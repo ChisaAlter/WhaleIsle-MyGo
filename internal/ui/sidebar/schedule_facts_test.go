@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/state"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
@@ -63,7 +64,7 @@ func TestScheduleMarkIsPassiveAndNeverReplacesAttention(t *testing.T) {
 	}
 	item.Running, item.CompletionUnread = false, false
 	m.PendingStatuses = nil
-	m.Schedules.Loading, m.Schedules.Err = true, "owned refresh failure"
+	m.Schedules.Loading, m.Schedules.Err = true, state.FaultText("owned refresh failure")
 	tt.Frame()
 	if _, ok := tt.Find("3 scheduled tasks"); !ok {
 		t.Fatal("refresh/error blanked settled idle mark")

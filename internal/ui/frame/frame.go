@@ -690,7 +690,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	schedules := schedstore.ViewState{}
 	if m.ScheduleStore != nil {
 		m.ScheduleStore.EnsureContext(context.Background(), snap.SelectedID, nil)
-		schedules = m.ScheduleStore.Snapshot()
+		schedules = m.ScheduleStore.Snapshot().Value
 	}
 	menuShortcutLabels := map[string]string{}
 	for id, chord := range shortcuts.Resolve(m.PageShortcutBindings) {

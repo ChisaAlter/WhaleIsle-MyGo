@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"whaleisle/internal/dsh/api"
 )
@@ -101,13 +102,14 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 	}
 	s.mu.Lock()
 	client := s.client
-	epoch := s.connectionEpoch
+	conn := s.connL
 	if s.busy || client == nil || (row.Origin != "" && row.Origin != client.Endpoint.Origin) {
 		s.mu.Unlock()
 		return fmt.Errorf("not connected or another schedule write is pending")
 	}
 	s.busy = true
 	s.lastAction = ""
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	patch := map[string]any{}
@@ -136,41 +138,30 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 			err = fmt.Errorf("schedule update returned no committed record")
 		}
 	}
+	// The JSON merge runs against the published rows before taking the lock;
+	// the result is adopted only if no catalog replaced those rows meanwhile.
+	var base, merged []Entry
+	if err == nil {
+		base = s.Snapshot().Value.Rows
+		merged = mergeCommittedRows(base, row, expected, committed)
+	}
 	s.mu.Lock()
-	if s.client != client || s.connectionEpoch != epoch {
+	if s.client != client || !conn.Valid() {
 		s.mu.Unlock()
 		return fmt.Errorf("Host connection changed; refresh to verify the result")
 	}
 	s.busy = false
 	if err == nil {
 		s.lastAction = "Schedule saved"
-		for i := range s.rows {
-			if s.rows[i].ID == row.ID && s.rows[i].SessionID == row.SessionID {
-				currentRule, snapshotErr := RuleSnapshot(s.rows[i].Raw)
-				if snapshotErr != nil || !bytes.Equal(currentRule, expected) {
-					// A catalog already observed a later rule while this save was
-					// in flight. Its newer CAS baseline must remain authoritative.
-					continue
-				}
-				// The committed rule owns its new instant/zone as well as text.
-				// Preserve catalog-only ownership and lifecycle metadata.
-				var record, metadata map[string]json.RawMessage
-				_ = json.Unmarshal(committed, &record)
-				_ = json.Unmarshal(s.rows[i].Raw, &metadata)
-				for _, key := range []string{"sessionId", "status", "lastDelivery"} {
-					if len(record[key]) == 0 && len(metadata[key]) != 0 {
-						record[key] = metadata[key]
-					}
-				}
-				merged, _ := json.Marshal(record)
-				fresh := parseScheduleList([]json.RawMessage{merged})[0]
-				fresh.Origin, fresh.SessionID, fresh.Status = s.rows[i].Origin, s.rows[i].SessionID, s.rows[i].Status
-				s.rows[i] = fresh
-			}
+		if sameRows(s.rows, base) {
+			s.rows = merged
+		} else {
+			s.rows = mergeCommittedRows(s.rows, row, expected, committed)
 		}
 	}
 	current := s.client == client
 	sid := s.sessionID
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	var failure *ResultError
@@ -192,13 +183,14 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 	}
 	s.mu.Lock()
 	client := s.client
-	epoch := s.connectionEpoch
+	conn := s.connL
 	if s.busy || client == nil || (row.Origin != "" && row.Origin != client.Endpoint.Origin) {
 		s.mu.Unlock()
 		return fmt.Errorf("not connected or another schedule write is pending")
 	}
 	s.busy = true
 	s.lastAction = ""
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	var out api.ScheduleEditResult
@@ -224,7 +216,7 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 		}
 	}
 	s.mu.Lock()
-	if s.client != client || s.connectionEpoch != epoch {
+	if s.client != client || !conn.Valid() {
 		s.mu.Unlock()
 		return fmt.Errorf("Host connection changed; refresh to verify the result")
 	}
@@ -242,10 +234,53 @@ func (s *Store) DeleteEntry(ctx context.Context, row Entry) error {
 	s.publishDeletionLocked(outcome)
 	current := s.client == client
 	sid := s.sessionID
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	if err == nil && current {
 		s.Refresh(ctx, sid)
 	}
 	return err
+}
+
+// mergeCommittedRows returns rows with every copy of row whose rule still
+// matches expected replaced by the committed record; rows itself is never
+// edited, because a published view may share it. Unchanged input is
+// returned as is.
+func mergeCommittedRows(rows []Entry, row Entry, expected, committed json.RawMessage) []Entry {
+	out := rows
+	for i := range rows {
+		if rows[i].ID != row.ID || rows[i].SessionID != row.SessionID {
+			continue
+		}
+		currentRule, snapshotErr := RuleSnapshot(rows[i].Raw)
+		if snapshotErr != nil || !bytes.Equal(currentRule, expected) {
+			// A catalog already observed a later rule while this save was
+			// in flight. Its newer CAS baseline must remain authoritative.
+			continue
+		}
+		// The committed rule owns its new instant/zone as well as text.
+		// Preserve catalog-only ownership and lifecycle metadata.
+		var record, metadata map[string]json.RawMessage
+		_ = json.Unmarshal(committed, &record)
+		_ = json.Unmarshal(rows[i].Raw, &metadata)
+		for _, key := range []string{"sessionId", "status", "lastDelivery"} {
+			if len(record[key]) == 0 && len(metadata[key]) != 0 {
+				record[key] = metadata[key]
+			}
+		}
+		raw, _ := json.Marshal(record)
+		fresh := parseScheduleList([]json.RawMessage{raw})[0]
+		fresh.Origin, fresh.SessionID, fresh.Status = rows[i].Origin, rows[i].SessionID, rows[i].Status
+		if &out[0] == &rows[0] {
+			out = slices.Clone(rows)
+		}
+		out[i] = fresh
+	}
+	return out
+}
+
+// sameRows reports whether a and b are the same published slice.
+func sameRows(a, b []Entry) bool {
+	return len(a) == len(b) && (len(a) == 0 || &a[0] == &b[0])
 }

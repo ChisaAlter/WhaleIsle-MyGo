@@ -54,7 +54,7 @@ func View(c *ui.Context, m Model) {
 	muted := chrome.Color(colors.Muted)
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
-	snap := m.Store.Snapshot()
+	snap := m.Store.Snapshot().Value
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -77,10 +77,10 @@ func View(c *ui.Context, m Model) {
 			if snap.CatalogHint != "" {
 				ui.Text(c, snap.CatalogHint).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
-			if snap.Err != "" {
-				ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+			if snap.Err != nil {
+				ui.Text(c, snap.Err.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 			}
-			if len(snap.Rows) == 0 && !snap.Loading && snap.Err == "" {
+			if len(snap.Rows) == 0 && !snap.Loading && snap.Err == nil {
 				ui.Text(c, i18n.T(i18n.KeyScheduleEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				return
 			}

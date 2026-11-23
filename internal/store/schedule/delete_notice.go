@@ -10,7 +10,7 @@ type DeletionNotice struct {
 
 func (s *Store) publishDeletionLocked(outcome string) {
 	s.deleteSequence++
-	s.deleteNotice = &DeletionNotice{ConnectionEpoch: s.connectionEpoch, Sequence: s.deleteSequence, Outcome: outcome}
+	s.deleteNotice = &DeletionNotice{ConnectionEpoch: s.connL.Generation(), Sequence: s.deleteSequence, Outcome: outcome}
 	s.deletePublished = false
 }
 
@@ -20,7 +20,7 @@ func (s *Store) publishDeletionLocked(outcome string) {
 func (s *Store) ConsumeDeletionNotice() (notice DeletionNotice, fresh bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.client == nil || s.deleteNotice == nil || s.deleteNotice.ConnectionEpoch != s.connectionEpoch {
+	if s.client == nil || s.deleteNotice == nil || s.deleteNotice.ConnectionEpoch != s.connL.Generation() {
 		return DeletionNotice{}, false
 	}
 	notice, fresh = *s.deleteNotice, !s.deletePublished

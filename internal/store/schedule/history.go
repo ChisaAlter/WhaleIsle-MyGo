@@ -68,7 +68,7 @@ func DecodeDeliveryPage(raw json.RawMessage, id string) (DeliveryPage, error) {
 func (s *Store) DeliveryHistory(ctx context.Context, row Entry, before string) (DeliveryPage, error) {
 	s.mu.Lock()
 	client := s.client
-	epoch := s.connectionEpoch
+	conn := s.connL
 	s.mu.Unlock()
 	if client == nil || (row.Origin != "" && row.Origin != client.Endpoint.Origin) {
 		return DeliveryPage{}, fmt.Errorf("not connected to the task's Host")
@@ -85,7 +85,7 @@ func (s *Store) DeliveryHistory(ctx context.Context, row Entry, before string) (
 		return DeliveryPage{}, err
 	}
 	s.mu.Lock()
-	current := s.client == client && s.connectionEpoch == epoch
+	current := s.client == client && conn.Valid()
 	s.mu.Unlock()
 	if !current {
 		return DeliveryPage{}, fmt.Errorf("Host connection changed; reload task history")

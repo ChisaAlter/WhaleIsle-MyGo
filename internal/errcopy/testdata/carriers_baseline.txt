@@ -65,7 +65,6 @@
 ../store/market/catalog.go	rawerr	2
 ../store/market/store.go	rawerr	1
 ../store/office/store.go	rawerr	2
-../store/schedule/store.go	rawerr	1
 ../store/session/agent_catalog_tree.go	rawerr	1
 ../store/session/agent_documents.go	rawerr	2
 ../store/session/agent_navigation.go	rawerr	2

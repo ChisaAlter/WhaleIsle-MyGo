@@ -42,7 +42,7 @@ func TestLateSaveCannotReachReopenedOrDetachedDetail(t *testing.T) {
 				store := schedstore.New()
 				store.Attach(client, nil)
 				p := &Panel{}
-				p.OpenTask(row, store.Snapshot().ConnectionEpoch)
+				p.OpenTask(row, store.Snapshot().Value.ConnectionEpoch)
 				draft := p.drafts[p.selected]
 				draft.Prompt = "pending edit"
 				p.saveDraft(Model{Store: store}, draft)

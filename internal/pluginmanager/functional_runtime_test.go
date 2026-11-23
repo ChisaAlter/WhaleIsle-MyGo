@@ -339,9 +339,9 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	refreshTasks := func() error {
 		schedules.Refresh(ctx, fixtureSession)
 		return wait(func() (bool, error) {
-			s := schedules.Snapshot()
-			if s.Err != "" {
-				return false, errors.New(s.Err)
+			s := schedules.Snapshot().Value
+			if s.Err != nil {
+				return false, errors.New(s.Err.SentenceText())
 			}
 			return !s.Loading, nil
 		})
@@ -350,13 +350,13 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	if err = refreshTasks(); err != nil {
 		add("TASK-03 catalog", "fail", failure(err), 0)
 	} else {
-		for _, row := range schedules.Snapshot().Rows {
+		for _, row := range schedules.Snapshot().Value.Rows {
 			if row.SessionID == fixtureSession {
 				task = row
 				break
 			}
 		}
-		add("TASK-03 catalog", "pass", "real Host catalog", len(schedules.Snapshot().Rows))
+		add("TASK-03 catalog", "pass", "real Host catalog", len(schedules.Snapshot().Value.Rows))
 	}
 	if installed && task.ID != "" {
 		at, e := time.Parse(time.RFC3339Nano, task.ScheduledAt)
@@ -428,7 +428,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		if e := refreshTasks(); e != nil {
 			add("TASK-04 restart persistence", "fail", failure(e), 0)
 		} else {
-			for _, row := range schedules.Snapshot().Rows {
+			for _, row := range schedules.Snapshot().Value.Rows {
 				if row.ID == task.ID {
 					task = row
 				}
@@ -497,7 +497,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 			add("TASK-04 deleted persistence", "fail", failure(e), 0)
 		} else {
 			remains := false
-			for _, row := range schedules.Snapshot().Rows {
+			for _, row := range schedules.Snapshot().Value.Rows {
 				remains = remains || row.SessionID == fixtureSession
 			}
 			if !remains {

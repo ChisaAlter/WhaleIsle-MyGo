@@ -130,7 +130,7 @@ func newScheduleUIFixture(t *testing.T) *scheduleUIFixture {
 		}
 	})
 	f.store.Refresh(context.Background(), "viewer")
-	f.wait(t, func() bool { return !f.store.Snapshot().Loading })
+	f.wait(t, func() bool { return !f.store.Snapshot().Value.Loading })
 	return f
 }
 
@@ -148,7 +148,7 @@ func (f *scheduleUIFixture) wait(t *testing.T, ready func() bool) {
 }
 
 func (f *scheduleUIFixture) panel() (*Panel, Model) {
-	p := &Panel{initialized: true, connectionEpoch: f.store.Snapshot().ConnectionEpoch, statusFilter: "all", recentZones: []string{"UTC"}}
+	p := &Panel{initialized: true, connectionEpoch: f.store.Snapshot().Value.ConnectionEpoch, statusFilter: "all", recentZones: []string{"UTC"}}
 	return p, Model{Store: f.store, SessionID: "viewer", ThemeID: "deepseek.light", SessionLinks: map[string]string{"owner-first": "Original morning session"}, OnNewTask: func() {}, OnInvalidate: func() {
 		select {
 		case f.notified <- struct{}{}:
@@ -393,7 +393,7 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	// The delete receipt (p.deleteAck) is retired by the frame that reconciles
 	// the detail, so wait for the store's catalog to show the removal and paint
 	// that frame: it is the frame that closes the detail.
-	f.wait(t, func() bool { snap := f.store.Snapshot(); return snap.CatalogReady && len(snap.Rows) == 1 })
+	f.wait(t, func() bool { snap := f.store.Snapshot().Value; return snap.CatalogReady && len(snap.Rows) == 1 })
 	tt.Frame()
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -430,7 +430,7 @@ func TestScheduleEmptyLoadingFailureAndTaskTabChrome(t *testing.T) {
 	f.rows = nil
 	f.mu.Unlock()
 	f.store.Refresh(context.Background(), "viewer")
-	f.wait(t, func() bool { return !f.store.Snapshot().Loading })
+	f.wait(t, func() bool { return !f.store.Snapshot().Value.Loading })
 	tt.Frame()
 	if !tt.HasText("No tasks yet.") {
 		t.Fatalf("catalog empty state: %v", tt.Texts())
@@ -452,7 +452,7 @@ func TestScheduleEmptyLoadingFailureAndTaskTabChrome(t *testing.T) {
 		t.Fatal("initial catalog loading feedback missing")
 	}
 	close(release)
-	f.wait(t, func() bool { return !f.store.Snapshot().Loading })
+	f.wait(t, func() bool { return !f.store.Snapshot().Value.Loading })
 	f.mu.Lock()
 	f.holdRead = nil
 	f.mu.Unlock()
@@ -460,7 +460,7 @@ func TestScheduleEmptyLoadingFailureAndTaskTabChrome(t *testing.T) {
 	f.failRead = true
 	f.mu.Unlock()
 	f.store.Refresh(context.Background(), "viewer")
-	f.wait(t, func() bool { return !f.store.Snapshot().Loading })
+	f.wait(t, func() bool { return !f.store.Snapshot().Value.Loading })
 	tt.Frame()
 	if !tt.HasText("Could not load tasks.") {
 		t.Fatal("failed catalog has no recovery state")
@@ -471,7 +471,7 @@ func TestScheduleEmptyLoadingFailureAndTaskTabChrome(t *testing.T) {
 	if err := tt.Click("Retry"); err != nil {
 		t.Fatal(err)
 	}
-	f.wait(t, func() bool { return !f.store.Snapshot().Loading })
+	f.wait(t, func() bool { return !f.store.Snapshot().Value.Loading })
 	tt.Frame()
 	if tt.HasText("Could not load tasks.") {
 		t.Fatal("Retry did not recover")
@@ -499,7 +499,7 @@ func TestSavedPromptExpansionFollowsMeasuredOverflow(t *testing.T) {
 	f := newScheduleUIFixture(t)
 	p, m := f.panel()
 	text := strings.Repeat("汉", 65)
-	p.historyKey, p.historyRow = "fixture", f.store.Snapshot().Rows[0]
+	p.historyKey, p.historyRow = "fixture", f.store.Snapshot().Value.Rows[0]
 	p.historyState = deliveryHistoryState{Loaded: true, Page: schedstore.DeliveryPage{Records: []schedstore.DeliveryRecord{{MessageID: "short-wrapped", Prompt: &text}}}}
 	tt := ui.NewTester(func(c *ui.Context) { p.deliveryHistoryView(c, m, ui.RGBA(0, 0, 0, 1), ui.RGBA(128, 128, 128, 1)) }, 280, 400)
 	if err := tt.Click("Expand"); err != nil {

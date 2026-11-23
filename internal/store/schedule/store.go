@@ -10,6 +10,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -27,7 +28,8 @@ type Entry struct {
 	Raw         json.RawMessage // original list item for schedule/update expected
 }
 
-// ViewState is a UI-safe snapshot.
+// ViewState is a UI-safe snapshot. A published ViewState is immutable: its
+// Rows slice is replaced wholesale by the store, never edited in place.
 type ViewState struct {
 	ConnectionEpoch    uint64
 	Origin             string
@@ -38,7 +40,7 @@ type ViewState struct {
 	CatalogRevision    uint64 // Advances only when that authoritative catalog settles.
 	CatalogRequest     uint64
 	CatalogReadSettled uint64 // Request ordinal of the retained full-catalog facts.
-	Err                string
+	Err                *state.Fault
 	Rows               []Entry
 	CatalogHint        string
 	SessionID          string
@@ -46,32 +48,40 @@ type ViewState struct {
 	Busy               bool
 }
 
-// Store fetches schedule/list for the selected session.
+// Store fetches schedule/list for the selected session. Its working fields
+// live under mu and every change publishes an immutable ViewState version.
+// Three leases fence async work: reads (one catalog read generation, renewed
+// by every Attach, refresh and events stream), conn (the Host attachment;
+// its generation is the public ConnectionEpoch, renewed when the client
+// changes) and events (the current $events stream owner).
 type Store struct {
 	mu     sync.Mutex
 	client *dsh.Client
 	notify func()
 
-	loading          bool
-	err              error // Catalog read failure; writes report through their own result/notice.
-	rows             []Entry
-	catalogHint      string
-	sessionID        string
-	generation       uint64
-	connectionEpoch  uint64
-	eventsGeneration uint64
-	receiptKeys      map[string]bool
-	receiptReads     map[string]uint64
-	requested        bool
-	catalogReady     bool
-	catalogRevision  uint64
-	catalogRequest   uint64
-	catalogSettled   uint64
-	deleteSequence   uint64
-	deleteNotice     *DeletionNotice
-	deletePublished  bool
-	lastAction       string
-	busy             bool
+	loading         bool
+	err             *state.Fault // Catalog read failure; writes report through their own result/notice.
+	rows            []Entry
+	catalogHint     string
+	sessionID       string
+	reads           state.LeaseOwner
+	readL           state.Lease
+	conn            state.LeaseOwner
+	connL           state.Lease
+	events          state.LeaseOwner
+	receiptKeys     map[string]bool
+	receiptReads    map[string]uint64
+	requested       bool
+	catalogReady    bool
+	catalogRevision uint64
+	catalogRequest  uint64
+	catalogSettled  uint64
+	deleteSequence  uint64
+	deleteNotice    *DeletionNotice
+	deletePublished bool
+	lastAction      string
+	busy            bool
+	pub             state.Published[ViewState]
 }
 
 // New returns an empty schedule store.
@@ -82,13 +92,13 @@ func New() *Store {
 // Attach binds a dsh client.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
-	s.generation++
+	s.readL = s.reads.Renew(context.Background())
 	if s.client != client {
-		s.eventsGeneration++
+		s.events.Retire()
 		s.requested = false
 		s.receiptKeys = nil
 		s.receiptReads = nil
-		s.connectionEpoch++
+		s.connL = s.conn.Renew(context.Background())
 		s.loading = false
 		s.busy = false
 		s.rows = nil
@@ -100,15 +110,16 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.client = client
 	s.notify = notify
 	s.err = nil
+	s.publishLocked()
 	s.mu.Unlock()
 }
 
 // Detach clears the client.
 func (s *Store) Detach() {
 	s.mu.Lock()
-	s.generation++
-	s.connectionEpoch++
-	s.eventsGeneration++
+	s.readL = s.reads.Renew(context.Background())
+	s.connL = s.conn.Renew(context.Background())
+	s.events.Retire()
 	s.requested = false
 	s.receiptKeys, s.receiptReads = nil, nil
 	s.client = nil
@@ -118,16 +129,32 @@ func (s *Store) Detach() {
 	s.catalogHint = ""
 	s.catalogReady = false
 	s.deleteNotice = nil
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 
-// Snapshot copies observable state.
-func (s *Store) Snapshot() ViewState {
+// Snapshot returns the current published version. The same *Version is
+// shared by every reader until a change publishes the next revision; its
+// Value is immutable. A zero-value Store publishes its empty view lazily.
+func (s *Store) Snapshot() *state.Version[ViewState] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.pub.Load() == nil {
+		s.publishLocked()
+	}
+	s.mu.Unlock()
+	return s.pub.Load()
+}
+
+// Changed closes when the next version is published.
+func (s *Store) Changed() <-chan struct{} { return s.pub.Changed() }
+
+func (s *Store) publishLocked() {
 	st := ViewState{
-		ConnectionEpoch:    s.connectionEpoch,
+		ConnectionEpoch:    s.connL.Generation(),
 		ClientReady:        s.client != nil,
 		Loading:            s.loading,
 		CatalogReady:       s.catalogReady && !s.loading && s.err == nil,
@@ -139,15 +166,13 @@ func (s *Store) Snapshot() ViewState {
 		SessionID:          s.sessionID,
 		LastAction:         s.lastAction,
 		Busy:               s.busy,
-	}
-	if s.err != nil {
-		st.Err = s.err.Error()
+		Err:                s.err,
+		Rows:               s.rows,
 	}
 	if s.client != nil {
 		st.Origin = s.client.Endpoint.Origin
 	}
-	st.Rows = append([]Entry(nil), s.rows...)
-	return st
+	s.pub.Publish(st)
 }
 
 // Refresh loads schedule/list (and optional catalog) for sessionID.
@@ -173,21 +198,27 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 		return
 	}
 	hadCatalog := s.catalogReady
-	s.generation++
-	generation := s.generation
+	s.readL = s.reads.Renew(context.Background())
+	lease := s.readL
 	s.catalogRequest++
 	request := s.catalogRequest
 	s.sessionID = sessionID
 	s.requested = true
 	s.loading = true
 	s.err = nil
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 
 	go func() {
+		// The read runs under the caller's context and is also cancelled
+		// when a newer read, Attach or events stream supersedes its lease.
+		rpc, cancel := context.WithCancel(ctx)
+		stop := context.AfterFunc(lease.Context(), cancel)
+		defer func() { stop(); cancel() }()
 		var catalog api.CatalogResult
 		catalogHint := ""
-		catalogErr := client.Call(ctx, "schedule/catalog", nil, &catalog)
+		catalogErr := client.Call(rpc, "schedule/catalog", nil, &catalog)
 		if catalogErr == nil {
 			catalogHint = storelocale.T(storelocale.KeyStoreScheduleAllSessions) + formatCatalogHint(catalog)
 		}
@@ -201,25 +232,16 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 			// facts with a partial list from whichever Session is selected.
 			callErr = catalogErr
 		} else if sessionID == "" {
-			callErr = fmt.Errorf("Host catalog unavailable; select a Session to list its active schedules")
+			// Without a Session there is no fallback list; the catalog
+			// failure itself is what the view explains.
+			callErr = catalogErr
 		} else {
 			catalogHint = storelocale.T(storelocale.KeyStoreScheduleCurrentSessionOnly) + sessionID + storelocale.T(storelocale.KeyStoreScheduleHostCatalogUnavailable)
 			var items []json.RawMessage
-			items, callErr = listScheduleItems(ctx, client, sessionID)
+			items, callErr = listScheduleItems(rpc, client, sessionID)
 			if callErr == nil {
 				rows = parseScheduleList(items)
 			}
-		}
-		s.mu.Lock()
-		if s.generation != generation || s.client != client {
-			s.mu.Unlock()
-			return
-		}
-		if ctx.Err() != nil || (owner != nil && !s.eventsOwnerCurrentLocked(owner)) {
-			s.loading = false
-			s.mu.Unlock()
-			s.fire()
-			return
 		}
 		for i := range rows {
 			rows[i].Origin = client.Endpoint.Origin
@@ -229,8 +251,20 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 				rows[i].Status = "active"
 			}
 		}
+		s.mu.Lock()
+		if !lease.Valid() || s.client != client {
+			s.mu.Unlock()
+			return
+		}
+		if ctx.Err() != nil || (owner != nil && !s.eventsOwnerCurrentLocked(owner)) {
+			s.loading = false
+			s.publishLocked()
+			s.mu.Unlock()
+			s.fire()
+			return
+		}
 		s.loading = false
-		s.err = callErr
+		s.err = state.FaultOf(callErr)
 		if callErr == nil {
 			s.rows = rows
 			s.catalogHint = catalogHint
@@ -240,6 +274,7 @@ func (s *Store) refresh(ctx context.Context, sessionID string, owner *EventsOwne
 				s.catalogSettled = request
 			}
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -254,7 +289,7 @@ func (s *Store) History(ctx context.Context, sessionID, id string) (string, erro
 	}
 	s.mu.Lock()
 	client := s.client
-	epoch := s.connectionEpoch
+	conn := s.connL
 	s.mu.Unlock()
 	if client == nil {
 		return "", fmt.Errorf("not connected")
@@ -267,7 +302,7 @@ func (s *Store) History(ctx context.Context, sessionID, id string) (string, erro
 		return "", err
 	}
 	s.mu.Lock()
-	current := s.client == client && s.connectionEpoch == epoch
+	current := s.client == client && conn.Valid()
 	s.mu.Unlock()
 	if !current {
 		return "", fmt.Errorf("Host connection changed; reload task history")
