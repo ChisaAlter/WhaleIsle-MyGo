@@ -91,6 +91,7 @@ func (c *context) alloc() *node {
 }
 
 func (c *context) reset(now time.Time, w, h float32) {
+	c.rt.beginTouched()
 	for _, f := range c.rt.focusFields {
 		clear(f.members)
 		f.members = f.members[:0]
@@ -435,8 +436,12 @@ type state struct {
 
 	id   uint64
 	seen uint64
-	pass int    // the pass of the frame that built it last
-	born uint64 // the frame that first built the element
+	// pruned is the frame whose prune looked at the state last, and
+	// dormant marks one in the engine's list of states kept for a Router.
+	pruned  uint64
+	dormant bool
+	pass    int    // the pass of the frame that built it last
+	born    uint64 // the frame that first built the element
 	// The element's box and its visible part in the last frame.
 	x, y, w, h     float32
 	vx, vy, vw, vh float32
@@ -568,6 +573,11 @@ func (rt *engine) lookState(id uint64) (s *state, built bool) {
 		rt.states[id] = s
 	} else {
 		built = s.seen == rt.frame && s.pass == rt.pass
+	}
+	if !built {
+		// The states the pass touched, for forgetInput and prune, which
+		// look at them rather than at every state the window keeps.
+		rt.touched = append(rt.touched, s)
 	}
 	s.rt = rt
 	s.seen, s.pass = rt.frame, rt.pass

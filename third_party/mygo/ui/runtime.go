@@ -99,6 +99,18 @@ type engine struct {
 	under []Rect
 
 	states map[uint64]*state
+	// touched are the states the pass building touched (lookState), and
+	// earlier those touched before it, by an earlier pass of the frame or
+	// between frames; live are those the last frame built. dormant are the
+	// states of pages Routers keep out of sight, which prune looks at again
+	// only when the pages kept change (keptSig), dormantNew those it adds,
+	// and keptMemo whether a page is kept, as prune finds out.
+	touched, earlier, live []*state
+	dormant, dormantNew    []*state
+	dormantScratch         []*state
+	dormantLen             int
+	keptSig                uint64
+	keptMemo               map[uint64]bool
 	// free are states pruned, which new elements take: rows coming into
 	// a list's view take those of rows that went out of it.
 	free  []*state
@@ -642,7 +654,7 @@ func (rt *engine) endPass() {
 // forgetInput forgets the input of the elements the pass built, which
 // they handled.
 func (rt *engine) forgetInput() {
-	for _, s := range rt.states {
+	for _, s := range rt.touched {
 		if s.seen != rt.frame || s.pass != rt.pass {
 			continue
 		}
@@ -655,8 +667,19 @@ func (rt *engine) forgetInput() {
 	}
 }
 
+// beginTouched starts the list of states a pass touches; those touched
+// before, by an earlier pass or between frames, wait for prune.
+func (rt *engine) beginTouched() {
+	rt.earlier = append(rt.earlier, rt.touched...)
+	clear(rt.touched)
+	rt.touched = rt.touched[:0]
+}
+
 // prune forgets the elements the frame did not build, but those of the
-// pages Routers keep.
+// pages Routers keep. It looks only at the states that may have gone: those
+// the last frame built, those an earlier pass of this frame touched, and,
+// when the pages Routers keep changed, those kept for them, rather than at
+// every state of the window.
 func (rt *engine) prune() {
 	rt.cancelOrphanedValueDrag()
 	if d := rt.drag; d != nil && d.native {
@@ -664,29 +687,52 @@ func (rt *engine) prune() {
 			rt.host.cancelDataDrag()
 		}
 	}
+	sig := keptSignature(rt.kept)
+	// Now and then all the same, for the pages of pages, which a frame may
+	// move without changing the pages kept.
+	rescan := sig != rt.keptSig || len(rt.dormant) > 2*rt.dormantLen+256 || rt.frame%64 == 0
+	rt.keptSig = sig
+	clear(rt.keptMemo)
 	unpressed := false
-	for id, s := range rt.states {
-		if s.seen != rt.frame || s.pass != rt.pass {
-			if rt.pressed == s {
-				rt.pressed, unpressed = nil, true
+	for _, s := range rt.live {
+		unpressed = rt.pruneState(s) || unpressed
+	}
+	for _, s := range rt.earlier {
+		unpressed = rt.pruneState(s) || unpressed
+	}
+	if rescan {
+		old := rt.dormant
+		rt.dormant = rt.dormantScratch[:0]
+		for _, s := range old {
+			s.dormant = false
+		}
+		for _, s := range old {
+			unpressed = rt.pruneState(s) || unpressed
+		}
+		for _, s := range rt.dormantNew {
+			if rt.states[s.id] == s && !s.dormant {
+				s.dormant = true
+				rt.dormant = append(rt.dormant, s)
 			}
-			if !rt.keptAlive(s) {
-				if s.textAdapter != nil {
-					s.textAdapter.release()
-				}
-				delete(rt.states, id)
-				if rt.scrollDrag.st == s {
-					rt.scrollDrag.st = nil
-				}
-				// Recycle the state itself, without keeping the editor,
-				// local resources or callbacks of the element that went.
-				*s = state{}
-				if len(rt.free) < maxFree {
-					rt.free = append(rt.free, s)
-				}
+		}
+		clear(old)
+		rt.dormantScratch = old[:0]
+		rt.dormantLen = len(rt.dormant)
+	} else {
+		for _, s := range rt.dormantNew {
+			if !s.dormant {
+				s.dormant = true
+				rt.dormant = append(rt.dormant, s)
 			}
 		}
 	}
+	clear(rt.dormantNew)
+	rt.dormantNew = rt.dormantNew[:0]
+	clear(rt.earlier)
+	rt.earlier = rt.earlier[:0]
+	// What the frame built is what the next one looks at.
+	clear(rt.live)
+	rt.live, rt.touched = rt.touched, rt.live[:0]
 	if unpressed {
 		// The element pressed went away, as a button showing over a row
 		// the pointer left: what the pointer is over now hovers, rather
@@ -704,25 +750,79 @@ func (rt *engine) prune() {
 	}
 }
 
+// pruneState forgets s unless the frame built it or a Router keeps its
+// page, and reports whether it was the element pressed.
+func (rt *engine) pruneState(s *state) (unpressed bool) {
+	if rt.states[s.id] != s || s.seen == rt.frame && s.pass == rt.pass || s.pruned == rt.frame {
+		// Forgotten already, or built, or looked at.
+		return false
+	}
+	s.pruned = rt.frame
+	if rt.pressed == s {
+		rt.pressed, unpressed = nil, true
+	}
+	if rt.keptAlive(s) {
+		rt.dormantNew = append(rt.dormantNew, s)
+		return unpressed
+	}
+	if s.textAdapter != nil {
+		s.textAdapter.release()
+	}
+	delete(rt.states, s.id)
+	if rt.scrollDrag.st == s {
+		rt.scrollDrag.st = nil
+	}
+	// Recycle the state itself, without keeping the editor, local
+	// resources or callbacks of the element that went.
+	*s = state{}
+	if len(rt.free) < maxFree {
+		rt.free = append(rt.free, s)
+	}
+	return unpressed
+}
+
+// keptSignature sums the pages Routers keep, so prune can tell they
+// changed without comparing the sets.
+func keptSignature(kept map[uint64]bool) uint64 {
+	sig := uint64(len(kept))
+	for id, ok := range kept {
+		if ok {
+			sig += mix(id, 0x6b657074)
+		}
+	}
+	return sig
+}
+
 // maxFree is how many pruned states the engine keeps for new elements.
 const maxFree = 256
 
 // keptAlive reports whether a state the frame did not build is in a page
-// that a Router keeps: one of its history, or inside one.
+// that a Router keeps: one of its history, or inside one. The answer for
+// each page is kept until the next prune, so the states of one page take
+// one walk up their pages.
 func (rt *engine) keptAlive(s *state) bool {
 	if len(rt.kept) == 0 {
 		return false
 	}
-	for n := 0; s != nil && n < 64; n++ {
-		if rt.kept[s.id] {
-			return true
-		}
-		if s.page == 0 {
-			return false
-		}
-		s = rt.states[s.page]
+	if rt.kept[s.id] {
+		return true
 	}
-	return false
+	return s.page != 0 && rt.pageKept(s.page, 0)
+}
+
+func (rt *engine) pageKept(page uint64, depth int) bool {
+	if kept, ok := rt.keptMemo[page]; ok {
+		return kept
+	}
+	kept := false
+	if s := rt.states[page]; s != nil && depth < 64 {
+		kept = rt.kept[s.id] || s.page != 0 && rt.pageKept(s.page, depth+1)
+	}
+	if rt.keptMemo == nil {
+		rt.keptMemo = map[uint64]bool{}
+	}
+	rt.keptMemo[page] = kept
+	return kept
 }
 
 // overlayExitPending tells whether an element of the overlay layer has gone
