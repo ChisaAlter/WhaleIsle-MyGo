@@ -58,3 +58,19 @@ func TestBootLogDrawerBuildsOnlyVisibleRows(t *testing.T) {
 		t.Fatal("the drawer title must still count every line")
 	}
 }
+
+// TestBootPageRequestsNoContinuousFrames: while starting, the page asks only
+// for the next shared tick, never a frame per refresh. The tester runs frames
+// until the view stops asking (or 20), so a per-frame request shows as 20.
+func TestBootPageRequestsNoContinuousFrames(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		builds := 0
+		m := Model{Status: harness.Status{State: harness.Starting}, Logs: []string{"host line"}, Dark: dark}
+		tt := ui.NewTester(func(c *ui.Context) { builds++; View(c, m) }, 1200, 800)
+		builds = 0
+		tt.Frame()
+		if builds > 3 {
+			t.Fatalf("dark=%v: one boot frame chained into %d builds; the page is driving continuous redraws", dark, builds)
+		}
+	}
+}

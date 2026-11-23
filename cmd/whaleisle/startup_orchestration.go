@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"slices"
 	"sync"
 
@@ -199,4 +200,14 @@ func reportDesktopReady(client *dsh.Client) {
 	_ = settingsstore.ReportProductEvent(context.Background(), client, api.ProductEvent(
 		[]byte(`{"name":"desktop.ready","source":"whaleisle"}`),
 	))
+}
+
+// bootPageCovers reports whether the cold-start boot page is the window's
+// content (paintColdLoading's own condition), so store notifications need
+// no frame of their own.
+func (s *mainState) bootPageCovers() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.coldLoading && s.mainRoute == routeConversation && !s.quitting &&
+		!(!s.settingsLaunchHandled && slices.Contains(os.Args, "--settings"))
 }

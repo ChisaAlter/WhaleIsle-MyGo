@@ -1632,14 +1632,24 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.cancelComposerVoiceIfStale()
 		s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
 		if win != nil {
+			// While the boot page covers the window none of this is visible, and
+			// the page repaints on its own 24 fps tick: run the main-thread work
+			// without asking for a frame per store notification. The refresh
+			// that lowers the page (recordStartupWorkspaceReady above) redraws.
+			booting := s.bootPageCovers()
 			if refreshQueued.CompareAndSwap(false, true) {
-				win.Update(func() {
+				work := func() {
 					refreshQueued.Store(false)
 					s.reconcileComposerSubmissions(sessions)
 					s.refreshPetTask()
 					s.maybeStartupBlankSession(win, sessions)
-				})
-			} else {
+				}
+				if booting {
+					go mygo.RunOnMain(work)
+				} else {
+					win.Update(work)
+				}
+			} else if !booting {
 				win.Invalidate()
 			}
 		} else {

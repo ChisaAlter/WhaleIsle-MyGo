@@ -3,6 +3,7 @@ package dsh
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 )
 
@@ -90,7 +91,7 @@ func RetryTransient(ctx context.Context, policy RetryPolicy, method string, fn f
 	policy = policy.normalized()
 	start := time.Now()
 	delay := policy.Initial
-	for {
+	for attempt := 1; ; attempt++ {
 		err := fn(ctx)
 		if err == nil || !Transient(err) || ctx.Err() != nil {
 			return err
@@ -98,6 +99,8 @@ func RetryTransient(ctx context.Context, policy RetryPolicy, method string, fn f
 		if time.Since(start)+delay > policy.Budget {
 			return err
 		}
+		// The only trace of a healed failure: the caller never sees it.
+		log.Printf("dsh %s: transient failure on attempt %d, retrying in %s: %v", method, attempt, delay, err)
 		if waitErr := sleepCtx(ctx, delay); waitErr != nil {
 			return err
 		}
