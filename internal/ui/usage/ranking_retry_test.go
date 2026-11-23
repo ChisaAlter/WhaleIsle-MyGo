@@ -49,14 +49,14 @@ func TestRankingErrorKeepsRetryActionReachable(t *testing.T) {
 	}
 	wait()
 	tt.Frame()
-	if s.SessionRanking().Err == "" || !tt.HasText("synthetic page refusal") {
+	if s.SessionRanking().Err == nil || !tt.HasText(s.SessionRanking().Err.SentenceText()) {
 		t.Fatal("More modal did not retain failure", tt.Texts())
 	}
 	if err := tt.Click("Retry"); err != nil {
 		t.Fatal(err)
 	}
 	wait()
-	if calls.Load() != 2 || s.SessionRanking().Err != "" {
+	if calls.Load() != 2 || s.SessionRanking().Err != nil {
 		t.Fatal("visible retry did not reload the same ranking page")
 	}
 }

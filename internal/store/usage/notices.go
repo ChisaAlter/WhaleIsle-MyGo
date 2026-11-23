@@ -8,14 +8,6 @@ import (
 // NoticeState contains event revisions, not bearer/expiry credential material.
 type NoticeState struct{ Expired, SignInRequired, Generation uint64 }
 
-func (s *Store) Notices() NoticeState {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	notices := s.notices
-	notices.Generation = s.accountEpoch
-	return notices
-}
-
 // OnAccountNotice belongs to the existing events stream; canceled generations
 // cannot publish after account/Host replacement. It never starts sign-in.
 func (s *Store) OnAccountNotice(ctx context.Context, client *dsh.Client, emit dsh.EventsEmit) {
@@ -24,7 +16,7 @@ func (s *Store) OnAccountNotice(ctx context.Context, client *dsh.Client, emit ds
 	}
 	s.mu.Lock()
 	if s.client != client || client == nil || ctx.Err() != nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	switch emit.Event {
@@ -33,9 +25,9 @@ func (s *Store) OnAccountNotice(ctx context.Context, client *dsh.Client, emit ds
 	case "deepseek-account/model-sign-in-required":
 		s.notices.SignInRequired++
 	default:
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }

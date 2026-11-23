@@ -47,7 +47,7 @@ func TestRepairNativeFlow(t *testing.T) {
 	s := New()
 	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL, Cookie: "fixture=yes"}}
 	s.Attach(client, nil)
-	s.stats.Raw = json.RawMessage(statsFixture)
+	s.setStatsRaw(json.RawMessage(statsFixture))
 	wait := func() RepairView {
 		t.Helper()
 		deadline := time.Now().Add(3 * time.Second)
@@ -92,14 +92,14 @@ func TestRepairNativeFlow(t *testing.T) {
 		t.Fatal("duplicate repair/rescan while busy")
 	}
 	release <- struct{}{}
-	if v := wait(); v.Err == "" || v.Result != nil || s.Stats().Overview.AllTime.Totals.Total != 12 {
+	if v := wait(); v.Err == nil || v.Result != nil || s.Stats().Overview.AllTime.Totals.Total != 12 {
 		t.Fatalf("failure lost prior stats: %+v", v)
 	}
 	s.PrepareRepair("bad")
 	s.ConfirmRepair(context.Background(), "bad")
 	<-started
 	release <- struct{}{}
-	if v := wait(); v.Err != "" || v.Result == nil || v.Result.Repaired != 8 || v.Result.Backup != "mock/session.bak-123" || s.CanRepair("bad") {
+	if v := wait(); v.Err != nil || v.Result == nil || v.Result.Repaired != 8 || v.Result.Backup != "mock/session.bak-123" || s.CanRepair("bad") {
 		t.Fatalf("bad success: %+v", v)
 	}
 	s.PrepareRepair("bad")
@@ -110,7 +110,7 @@ func TestRepairNativeFlow(t *testing.T) {
 	// A fresh attachment resets candidates/results; an in-flight old response
 	// must not leak into that new attachment.
 	s.Attach(client, nil)
-	s.stats.Raw = json.RawMessage(statsFixture)
+	s.setStatsRaw(json.RawMessage(statsFixture))
 	s.PrepareRepair("bad")
 	s.ConfirmRepair(context.Background(), "bad")
 	<-started
@@ -118,7 +118,7 @@ func TestRepairNativeFlow(t *testing.T) {
 	s.Attach(client, nil)
 	release <- struct{}{}
 	time.Sleep(20 * time.Millisecond)
-	if v := s.Repair(); v.Busy || v.Result != nil || v.Err != "" || v.PendingID != "" {
+	if v := s.Repair(); v.Busy || v.Result != nil || v.Err != nil || v.PendingID != "" {
 		t.Fatalf("late result leaked: %+v", v)
 	}
 }

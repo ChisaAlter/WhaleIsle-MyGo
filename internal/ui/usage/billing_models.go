@@ -13,8 +13,8 @@ func formatPrice(value float64) string { return strconv.FormatFloat(value, 'f', 
 func billingModelsView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 	v := m.Store.BillingModels()
 	billing := m.Store.Billing()
-	if v.Error != "" {
-		ui.Text(c, v.Error).TextColor(c.Theme().Danger)
+	if v.Error != nil {
+		ui.Text(c, v.Error.SentenceText()).TextColor(c.Theme().Danger)
 		if ui.Button(c, usageText("重试模型目录", "Retry model directory")).Disabled(v.Loading).Clicked() {
 			m.Store.LoadBillingModels(context.Background())
 		}

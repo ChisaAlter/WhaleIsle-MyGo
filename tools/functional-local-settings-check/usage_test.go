@@ -385,8 +385,8 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 		store.RefreshStats(ctx, force)
 		wait("usage refresh completion", func() bool { return !store.Stats().Loading })
 		v := store.Stats()
-		if v.Err != "" || v.Overview == nil {
-			fail("actual overview", label(errors.New(v.Err)))
+		if v.Err != nil || v.Overview == nil {
+			fail("actual overview", label(errors.New(v.Err.SentenceText())))
 		}
 		return v
 	}
@@ -430,7 +430,7 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 		audit.mu.Unlock()
 		wait("empty overview", func() bool { return !store.Stats().Loading })
 		v = store.Stats()
-		if v.Err != "" || v.Overview == nil || v.Overview.AllTime.Totals.Total != 0 || v.Overview.Coverage.SessionsTotal != 0 || len(v.Overview.Days) != 182 {
+		if v.Err != nil || v.Overview == nil || v.Overview.AllTime.Totals.Total != 0 || v.Overview.Coverage.SessionsTotal != 0 || len(v.Overview.Days) != 182 {
 			fail("actual empty corpus", "unexpected fresh statistics")
 		}
 		capture("empty", "No usage recorded yet")
@@ -498,7 +498,7 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 	}{{7, 17}, {14, 47}, {30, 47}} {
 		store.SelectStatsRecentDays(entry.days)
 		v = store.Stats()
-		if !v.Range.Active() || v.RangeError != "" || v.Selection().Totals.Total != entry.total {
+		if !v.Range.Active() || v.RangeError != nil || v.Selection().Totals.Total != entry.total {
 			fail("UTC date presets", fmt.Sprintf("%d-day selected total mismatch", entry.days))
 		}
 	}
@@ -513,7 +513,7 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 	}
 	store.SetStatsRangeDraft("bad-date", day)
 	store.ApplyStatsRangeDraft()
-	if store.Stats().RangeError == "" {
+	if store.Stats().RangeError == nil {
 		fail("date validation", "invalid draft lacked error")
 	}
 	raw, e := store.ExportStats("json")
@@ -524,7 +524,7 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 		fail("date export scope", "dated session ranking incorrectly exportable")
 	}
 	store.ClearStatsDateRange()
-	if store.Stats().Range.Active() || store.Stats().RangeError != "" {
+	if store.Stats().Range.Active() || store.Stats().RangeError != nil {
 		fail("clear dates", "selection or error retained")
 	}
 	add("UTC selection and export", "7/14/30-day presets =17/47/47; inclusive today=17; unavailable/malformed dates reject without replacing valid range; selected JSON scopes data and rejects all-time session export; clear resets selection/error")
@@ -536,14 +536,14 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 	store.LoadMoreSessions(ctx)
 	wait("session ranking", func() bool { return !store.SessionRanking().Loading })
 	sr := store.SessionRanking()
-	if sr.Err != "" || len(sr.Rows) != 3 || sr.HasMore {
-		fail("session ranking", label(errors.New(sr.Err)))
+	if sr.Err != nil || len(sr.Rows) != 3 || sr.HasMore {
+		fail("session ranking", label(errors.New(sr.Err.SentenceText())))
 	}
 	store.LoadMoreProjects(ctx)
 	wait("project ranking", func() bool { return !store.ProjectRanking().Loading })
 	pr := store.ProjectRanking()
-	if pr.Err != "" || len(pr.Rows) != 2 || pr.HasMore || pr.Rows[0].Totals.Total != 72 {
-		fail("project ranking", label(errors.New(pr.Err)))
+	if pr.Err != nil || len(pr.Rows) != 2 || pr.HasMore || pr.Rows[0].Totals.Total != 72 {
+		fail("project ranking", label(errors.New(pr.Err.SentenceText())))
 	}
 	add("actual read exports and rankings", "Four production exports nonempty; original sessions.more returned three sessions and projects.more grouped two owned directories with leading72 tokens; no fabricated RPC response")
 	v = refresh(true)
@@ -559,7 +559,7 @@ console.log(JSON.stringify({records:rows.length,events:rows.reduce((sum,row)=>su
 	store.RefreshStats(ctx, true)
 	wait("offline refresh", func() bool { return !store.Stats().Loading })
 	v = store.Stats()
-	if v.Err == "" || v.Overview == nil || v.Overview.AllTime.Totals.Total != 102 {
+	if v.Err == nil || v.Overview == nil || v.Overview.AllTime.Totals.Total != 102 {
 		fail("offline retains success", "error or retained prior data missing")
 	}
 	capture("offline-error", "Showing previous results; they may be stale.")

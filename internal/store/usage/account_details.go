@@ -19,7 +19,7 @@ func (s *Store) resetAccountDetailsLocked() {
 func (s *Store) refreshAccountDetails(ctx context.Context, client *dsh.Client, epoch uint64, status string) {
 	s.mu.Lock()
 	if s.client != client || s.accountEpoch != epoch {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.accountRead++
@@ -27,13 +27,13 @@ func (s *Store) refreshAccountDetails(ctx context.Context, client *dsh.Client, e
 	s.details = accountdetails.Empty()
 	s.email, s.name, s.plan, s.balanceSummary = "", "", "", ""
 	if status != "credential-stored" {
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	s.details.Profile.Status = accountdetails.Loading
 	s.details.Balance.Status = accountdetails.Loading
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	args := map[string]any{"client": accountlogin.ClientMetadata()}
 	go func() {
@@ -44,7 +44,7 @@ func (s *Store) refreshAccountDetails(ctx context.Context, client *dsh.Client, e
 		}
 		s.mu.Lock()
 		if s.client != client || s.accountEpoch != epoch || s.accountRead != read {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.details.Profile = result
@@ -56,7 +56,7 @@ func (s *Store) refreshAccountDetails(ctx context.Context, client *dsh.Client, e
 				s.email = *result.Value.Contact
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 	go func() {
@@ -67,12 +67,12 @@ func (s *Store) refreshAccountDetails(ctx context.Context, client *dsh.Client, e
 		}
 		s.mu.Lock()
 		if s.client != client || s.accountEpoch != epoch || s.accountRead != read {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.details.Balance = result
 		s.balanceSummary = result.Summary()
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

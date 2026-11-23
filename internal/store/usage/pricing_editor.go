@@ -7,13 +7,13 @@ import "strings"
 func (s *Store) EditModelPrice(key string, draft PriceDraft) bool {
 	s.mu.Lock()
 	if !s.billing.Loaded || s.billing.Busy || !validPriceKey(key) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return false
 	}
 	next, err := settingsFromDrafts(map[string]PriceDraft{key: draft}, s.billing.Settings.PeakValleyEnabled)
 	if err != nil {
-		s.billing.Err = err.Error()
-		s.mu.Unlock()
+		s.billing.Err = faultOf(err)
+		s.unlockPublish()
 		s.fire()
 		return false
 	}
@@ -31,8 +31,8 @@ func (s *Store) EditModelPrice(key string, draft PriceDraft) bool {
 	} else {
 		s.billing.Drafts[key] = draft
 	}
-	s.billing.Dirty, s.billing.Err, s.billing.Notice = true, "", ""
-	s.mu.Unlock()
+	s.billing.Dirty, s.billing.Err, s.billing.Notice = true, nil, ""
+	s.unlockPublish()
 	s.fire()
 	return true
 }

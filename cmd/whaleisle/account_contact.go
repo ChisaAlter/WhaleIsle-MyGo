@@ -15,7 +15,7 @@ func (s *mainState) contactAccountSupport() {
 	s.mu.Unlock()
 	context := accountcontact.Context{Version: buildVersion, DeviceInfo: runtime.GOOS + "; " + runtime.GOARCH, PixelRatio: 1}
 	if store != nil {
-		profile := store.Snapshot().Details.Profile
+		profile := store.Snapshot().Value.Details.Profile
 		if profile.Status == accountdetails.Ready && profile.Value.ID != nil {
 			context.UID = *profile.Value.ID
 		}

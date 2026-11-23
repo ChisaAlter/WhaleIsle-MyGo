@@ -28,8 +28,8 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 	case st.Loading && st.Overview == nil:
 		ui.Text(c, i18n.T(i18n.KeySurfacesUsageLoading)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		return
-	case st.Err != "" && st.Overview == nil:
-		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageError), st.Err+i18n.T(i18n.KeySurfacesUsageRetryHint), fg, muted)
+	case st.Err != nil && st.Overview == nil:
+		usageEmpty(c, i18n.T(i18n.KeySurfacesUsageError), st.ErrLead+st.Err.SentenceText()+i18n.T(i18n.KeySurfacesUsageRetryHint), fg, muted)
 		return
 	case st.Overview == nil:
 		usageEmpty(c, i18n.T(settingsPass4UsageEmptyTitle), i18n.T(settingsPass4UsageEmptyBody), fg, muted)
@@ -42,8 +42,8 @@ func statsView(c *ui.Context, m Model, fg, muted, accent, field ui.Color) {
 		usageEmpty(c, i18n.T(settingsPass4UsageEmptyTitle), i18n.T(settingsPass4UsageEmptyBody), fg, muted)
 		return
 	}
-	if st.Err != "" {
-		ui.Text(c, st.Err).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+	if st.Err != nil {
+		ui.Text(c, st.ErrLead+st.Err.SentenceText()).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 	}
 
 	statisticsDimensionsView(c, m, st, fg, muted, accent, field)

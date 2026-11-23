@@ -140,14 +140,3 @@
 ../store/settings/provider_save.go	rawerr	2
 ../store/settings/store.go	rawerr	10
 ../store/settings/vision.go	rawerr	3
-../store/usage/billing_models.go	rawerr	1
-../store/usage/follow.go	fmt	1
-../store/usage/pricing.go	rawerr	2
-../store/usage/pricing_editor.go	rawerr	1
-../store/usage/project_card.go	rawerr	1
-../store/usage/projects.go	rawerr	1
-../store/usage/ranking.go	rawerr	1
-../store/usage/repair.go	rawerr	5
-../store/usage/stats.go	rawerr	1
-../store/usage/store.go	rawerr	4
-../store/usage/time_range.go	rawerr	1

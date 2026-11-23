@@ -118,7 +118,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 			client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}, HTTP: &http.Client{Transport: transport}}
 			s.Attach(client, nil)
 			initial := parityRepairOverview("bad1", "bad2", "bad3", "bad1", "")
-			s.stats.Raw = initial
+			s.setStatsRaw(initial)
 			s.ConfirmRepair(context.Background(), "bad1")
 			s.PrepareRepair("not-failed")
 			if len(s.Repair().PendingIDs) > 0 {
@@ -164,16 +164,14 @@ func TestUsageParityRepairFixture(t *testing.T) {
 					s.Detach()
 					replacement := &dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://127.0.0.1"}}
 					s.Attach(replacement, nil)
-					s.mu.Lock()
-					s.stats.Raw = parityRepairOverview("new-host-only")
-					s.mu.Unlock()
+					s.setStatsRaw(parityRepairOverview("new-host-only"))
 				}
 				close(release)
 				if strings.HasPrefix(scenario, "switch-") {
 					<-returned
 					time.Sleep(20 * time.Millisecond)
 					v := s.Repair()
-					if v.Busy || v.Result != nil || len(v.Outcomes) > 0 || v.Err != "" || s.Stats().Overview.Coverage.FailedSessionIDs[0] != "new-host-only" {
+					if v.Busy || v.Result != nil || len(v.Outcomes) > 0 || v.Err != nil || s.Stats().Overview.Coverage.FailedSessionIDs[0] != "new-host-only" {
 						t.Fatalf("old Host result leaked: %+v", v)
 					}
 					mu.Lock()
@@ -191,15 +189,15 @@ func TestUsageParityRepairFixture(t *testing.T) {
 			mu.Unlock()
 			switch scenario {
 			case "success":
-				if !slices.Equal(got, []string{"repair.session/bad1", "repair.session/bad2", "repair.session/bad3", "overview"}) || len(v.Outcomes) != 3 || !v.RescanComplete || len(v.RemainingFailed) != 0 || v.Err != "" {
+				if !slices.Equal(got, []string{"repair.session/bad1", "repair.session/bad2", "repair.session/bad3", "overview"}) || len(v.Outcomes) != 3 || !v.RescanComplete || len(v.RemainingFailed) != 0 || v.Err != nil {
 					t.Fatalf("success: %v %+v", got, v)
 				}
 			case "partial-failure":
-				if !slices.Equal(got, []string{"repair.session/bad1", "repair.session/bad2", "overview"}) || len(v.Outcomes) != 2 || v.Outcomes[0].Result == nil || v.Outcomes[1].Err == "" || !slices.Equal(v.Unattempted, []string{"bad3"}) || !v.RescanComplete {
+				if !slices.Equal(got, []string{"repair.session/bad1", "repair.session/bad2", "overview"}) || len(v.Outcomes) != 2 || v.Outcomes[0].Result == nil || v.Outcomes[1].Err == nil || !slices.Equal(v.Unattempted, []string{"bad3"}) || !v.RescanComplete {
 					t.Fatalf("partial result: %v %+v", got, v)
 				}
 			case "scan-failure":
-				if v.RescanErr == "" || v.RescanComplete || len(v.Outcomes) != 3 || string(s.Stats().raw) != string(initial) || s.Stats().Err == "" {
+				if v.RescanErr == nil || v.RescanComplete || len(v.Outcomes) != 3 || string(s.Stats().raw) != string(initial) || s.Stats().Err == nil {
 					t.Fatalf("repair/scan facts conflated: %+v", v)
 				}
 			case "stop-queue":
@@ -211,15 +209,14 @@ func TestUsageParityRepairFixture(t *testing.T) {
 					t.Fatalf("stale scan claimed verification: %+v", v)
 				}
 			case "incomplete-coverage":
-				if v.RescanComplete || v.RescanErr == "" {
+				if v.RescanComplete || v.RescanErr == nil {
 					t.Fatalf("missing failed-ID coverage invented success: %+v", v)
 				}
 			}
-			if v.Result != nil {
-				v.Result.Backup = "mutated copy"
-				if s.Repair().Result.Backup == "mutated copy" {
-					t.Fatal("repair view shared mutable result")
-				}
+			// The published view is immutable and shared: an unchanged store
+			// hands every reader the same result instead of a per-read copy.
+			if v.Result != nil && s.Repair().Result != v.Result {
+				t.Fatal("unchanged repair view was copied per read")
 			}
 		})
 	}
@@ -236,7 +233,7 @@ func TestUsageParityRepairFixture(t *testing.T) {
 			}
 			return parityRPCResponse(req.RPCID, parityRepairOverview("new")), nil
 		})}}, nil)
-		s.stats.Raw = parityRepairOverview("old")
+		s.setStatsRaw(parityRepairOverview("old"))
 		s.PrepareRepairAll()
 		ids := s.Repair().PendingIDs
 		s.RefreshStats(context.Background(), true)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 )
 
 const rankPageSize = 10
@@ -15,7 +16,7 @@ type SessionRanking struct {
 	Rows                      []SessionUsage
 	Sort                      string
 	Started, Loading, HasMore bool
-	Err                       string
+	Err                       *state.Fault
 }
 type rankingState struct {
 	SessionRanking
@@ -36,19 +37,6 @@ func (s *Store) resetSessionRankingLocked() {
 	}
 	s.ranking = rankingState{SessionRanking: SessionRanking{Sort: sort}, epoch: s.ranking.epoch + 1}
 }
-func (s *Store) SessionRanking() SessionRanking {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.ranking.SessionRanking
-	if v.Sort == "" {
-		v.Sort = "tokens"
-	}
-	v.Rows = append([]SessionUsage(nil), v.Rows...)
-	for i := range v.Rows {
-		v.Rows[i].Models = append([]ModelUsage(nil), v.Rows[i].Models...)
-	}
-	return v
-}
 func (s *Store) ModelRankLimit() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -57,7 +45,7 @@ func (s *Store) ModelRankLimit() int {
 func (s *Store) ShowMoreModels() {
 	s.mu.Lock()
 	s.ranking.modelLimit = max(rankPageSize, s.ranking.modelLimit) + rankPageSize
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -67,8 +55,8 @@ func (s *Store) ShowMoreModels() {
 func (s *Store) LoadMoreSessions(ctx context.Context) {
 	s.mu.Lock()
 	r := &s.ranking
-	if s.client == nil || s.stats.Loading || r.Loading || (r.Started && !r.HasMore && r.Err == "") {
-		s.mu.Unlock()
+	if s.client == nil || s.stats.Loading || r.Loading || (r.Started && !r.HasMore && r.Err == nil) {
+		s.unlockPublish()
 		return
 	}
 	ep := s.client.Endpoint
@@ -79,8 +67,8 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	r.cancel = cancel
 	r.Loading = true
-	r.Err = ""
-	s.mu.Unlock()
+	r.Err = nil
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		defer cancel()
@@ -106,14 +94,14 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 		}
 		s.mu.Lock()
 		if s.ranking.epoch != epoch {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		r := &s.ranking
 		r.Loading = false
 		r.cancel = nil
 		if err != nil {
-			r.Err = err.Error()
+			r.Err = faultOf(err)
 		} else {
 			seen := make(map[string]bool, len(r.Rows))
 			for _, row := range r.Rows {
@@ -129,7 +117,7 @@ func (s *Store) LoadMoreSessions(ctx context.Context) {
 			r.Started = true
 			r.HasMore = *page.HasMore
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -140,12 +128,12 @@ func (s *Store) ResetSessionRanking(ctx context.Context, sort string) {
 	}
 	s.mu.Lock()
 	if s.client == nil || s.stats.Loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.resetSessionRankingLocked()
 	s.ranking.Sort = sort
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.LoadMoreSessions(ctx)
 }
 

@@ -360,8 +360,8 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 					ui.Column(c).FillWidth().Gap(4).Children(func() {
 						ui.Text(c, costText("会话累计费用", "Session cost")+" · "+money(r)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						ui.Text(c, i18n.T(i18n.KeyComposerCostNotABill)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-						if m.Billing.Err != "" {
-							ui.Text(c, m.Billing.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+						if m.Billing.Err != nil {
+							ui.Text(c, m.Billing.Err.SentenceText()).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						}
 						if len(r.Rows) == 0 && (m.Snapshot.SelectedProvider != "" || m.Snapshot.SelectedModel != "") {
 							name := routeName(m.Snapshot.SelectedProvider, m.Snapshot.SelectedModel)
