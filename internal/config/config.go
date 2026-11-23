@@ -195,6 +195,11 @@ type Config struct {
 	MinimalModeSuggestionsOff bool `json:"goMinimalModeSuggestionsOff"`
 	// MinimalModeSnoozedUntil defers the offer until this RFC3339 instant.
 	MinimalModeSnoozedUntil string `json:"goMinimalModeSnoozedUntil,omitempty"`
+	// GlassTheme is the optional wallpaper-and-frosted-glass appearance theme.
+	// nil is a profile from before the switch existed: GlassThemeOn migrates it
+	// (on only where a local wallpaper was explicitly chosen). Fresh profiles
+	// and every other migrated profile are off.
+	GlassTheme *bool `json:"goGlassTheme,omitempty"`
 	// HideChatViewTabs hides ConversationRoot「对话/轨迹」tabs (Electron viewTabs=false).
 	HideChatViewTabs bool `json:"goHideChatViewTabs"`
 	// AutoAllowTools auto-answers approval/request (Electron tool auto-allow).
@@ -773,4 +778,15 @@ func normalizeDisabledPlugins(list []string) []string {
 		out = append(out, name)
 	}
 	return out
+}
+
+// GlassThemeOn is the effective glass-theme switch. A profile that never
+// stored one keeps a look it explicitly chose: an existing local wallpaper
+// (goWallpaperPath) turns the theme on; anything else, including the seeded
+// first-run gradient, starts off.
+func (c Config) GlassThemeOn() bool {
+	if c.GlassTheme != nil {
+		return *c.GlassTheme
+	}
+	return strings.TrimSpace(c.WallpaperPath) != ""
 }

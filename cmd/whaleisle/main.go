@@ -2127,6 +2127,7 @@ func main() {
 		// startup observation starts here too: it decides nothing until the
 		// window has been usable in the foreground for a while.
 		applyMinimalMode(cfg.MinimalMode)
+		applyGlassTheme(migrateGlassTheme(cfgStore))
 		state.minimalSuggestion = startupsuggest.New()
 
 		endOpenAtLogin := startuptrace.Begin("boot.open_at_login")
@@ -3601,7 +3602,7 @@ func mainView(c *ui.Context) {
 		// through the panels; the canvas itself is not painted opaque. Minimal
 		// mode paints no blur material to see through, so the masked canvas it
 		// used to inherit from the desktop is painted here instead.
-		if renderpolicy.Minimal() {
+		if renderpolicy.NoBackdrop() {
 			canvasFill = chrome.FlatBackdropFill(chrome.Color(colors.BG), true)
 		} else {
 			canvasFill = ui.Transparent
@@ -4200,6 +4201,7 @@ func mainView(c *ui.Context) {
 				if appearanceActive && !embeddedActive {
 					appearanceSection = &settings.AppearanceAccess{
 						Minimal:          state.minimalModeAccess(),
+						Glass:            state.glassThemeAccess(),
 						OnSetTheme:       state.setAppearanceTheme,
 						Background:       state.wallpaperSettings(true),
 						Preferences:      state.themeFontEditor(true),

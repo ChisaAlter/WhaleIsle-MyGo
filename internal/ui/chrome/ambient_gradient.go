@@ -55,6 +55,8 @@ type gradientFrame struct {
 	bitmap *ui.Bitmap
 	config gradientConfig
 	tick   int64
+	// colors is the frame's color map for surface sampling, made once.
+	colors *wallpaperColors
 }
 
 func gradientTick(now time.Time, epoch time.Time, reduced bool) int64 {

@@ -63,7 +63,7 @@ func (w *worker) run(ctx context.Context, h *Handle) *result {
 		return &result{fail: fail}
 	}
 	w.svc.decodes.Add(1)
-	r := w.decode(ctx, h.key, h.src.Kind, data)
+	r := w.decode(ctx, h.key, h.src, data)
 	if ctx.Err() != nil {
 		return nil
 	}
@@ -199,8 +199,8 @@ func kind(data []byte, hint string) string {
 	return "bitmap"
 }
 
-func (w *worker) decode(ctx context.Context, key Key, hint string, data []byte) *result {
-	switch kind(data, hint) {
+func (w *worker) decode(ctx context.Context, key Key, src Source, data []byte) *result {
+	switch kind(data, src.Kind) {
 	case "svg":
 		return w.decodeSVG(ctx, key, data)
 	case "ico":
@@ -234,6 +234,22 @@ func (w *worker) decode(ctx context.Context, key Key, hint string, data []byte) 
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width) > imagepreview.MaxPixels/int64(cfg.Height) {
 		return &result{fail: FailTooLarge}
+	}
+	if src.Derive != nil {
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			return &result{fail: FailCorrupt}
+		}
+		if format == "jpeg" {
+			img = avatarimage.ApplyJPEGOrientation(img, data)
+		}
+		derived, extra := src.Derive(img)
+		if derived == nil {
+			return &result{fail: FailCorrupt}
+		}
+		r := bitmapResult(derived)
+		r.pic.Extra = extra
+		return r
 	}
 	if key.W > 0 && key.H > 0 && fitScale(cfg.Width, cfg.Height, key) < 1 {
 		img, _, err := image.Decode(bytes.NewReader(data))

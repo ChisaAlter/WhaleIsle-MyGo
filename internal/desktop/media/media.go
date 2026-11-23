@@ -16,6 +16,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"image"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,6 +87,8 @@ type Picture struct {
 	Bitmap        *ui.Bitmap
 	SVG           *ui.SVG
 	Width, Height float32
+	// Extra is what Source.Derive returned with the image, if anything.
+	Extra any
 }
 
 // Source is the image if the key's picture is not already cached: exactly one
@@ -99,6 +102,10 @@ type Source struct {
 	Load     func(context.Context) ([]byte, error)
 	Kind     string
 	MaxBytes int64
+	// Derive, for still bitmaps, replaces the decoded (upright) image on the
+	// worker and may return derived data for Picture.Extra, such as a color
+	// map. The Key must name whatever Derive depends on.
+	Derive func(image.Image) (image.Image, any)
 }
 
 type result struct {

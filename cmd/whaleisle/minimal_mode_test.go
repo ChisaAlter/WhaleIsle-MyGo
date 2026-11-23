@@ -141,6 +141,7 @@ func TestMinimalModeOfferPresentsThreeAnswers(t *testing.T) {
 // path and not only the stored preference: the acrylic blur material and the
 // ambient backdrop are gone while it is on, and are back when it is off.
 func TestMinimalModePausesBackdropMaterials(t *testing.T) {
+	useGlassTheme(t)
 	s := &mainState{cfgStore: minimalModeStore(t)}
 	// Acrylic is the flat canvas material: no wallpaper and no gradient.
 	flat := wallpapers.Defaults()

@@ -1,330 +1,185 @@
 package chrome
 
 import (
+	"fmt"
 	"image"
-	"image/color"
 	"image/draw"
 	"math"
 	"strings"
-	"sync"
-	"time"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
+	xdraw "golang.org/x/image/draw"
+
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/wallpapers"
 )
 
-// screenBleed matches WALLPAPER_BLEED in the installed wallpaper layer: the
-// sheet paints the bitmap 48px outside the window on every side so a blur has
-// real neighbours instead of the clamped edge, then clips it back.
-const screenBleed = 48
+// wallpaperMaxPixels caps the decoded wallpaper texture: the window never
+// shows more than a 4K screen's worth of it.
+const wallpaperMaxPixels = 3840
 
-// backgroundScreenBitmap prepares the wallpaper at the window's own pixel size:
-// cover-fit into a 48px-bled canvas, pixelate by the screen block size, blur,
-// then crop the bleed back. Pixelation therefore happens after cover-fit, as
-// the page does (it draws the bitmap at cssSize/factor and stretches it back),
-// so the on-screen block size no longer depends on the source image size.
-func backgroundScreenBitmap(path string, p wallpapers.Preferences, w, h int) *ui.Bitmap {
-	s := &backgroundState
-	if w <= 0 || h <= 0 {
-		return nil
-	}
-	if s.path == path && s.targetW == w && s.targetH == h && s.blur == p.Blur && s.pixel == p.Pixelate && s.bitmap != nil && s.screenRGBA != nil {
-		return s.bitmap
-	}
-	src := decodedWallpaper(path)
-	if src == nil {
-		s.path, s.targetW, s.targetH, s.pixels, s.bitmap = path, w, h, nil, nil
-		s.screenRGBA, s.frostSrc, s.frostBmp = nil, nil, nil
-		s.version++
-		return nil
-	}
-	fullW, fullH := w+2*screenBleed, h+2*screenBleed
-	dst := coverFit(src, fullW, fullH)
-	if block := int(math.Round(wallpaperPixelFactor(p.Pixelate))); block > 1 {
-		dst = pixelateBlocks(dst, block)
-	}
-	if radius := wallpaperBlurRadius(p.Blur); radius > 0 {
-		dst = blurThreePass(dst, radius)
-	}
-	if screenBleed > 0 && (fullW != w || fullH != h) {
-		dst = cropImage(dst, image.Rect(screenBleed, screenBleed, screenBleed+w, screenBleed+h))
-	}
-	s.path, s.targetW, s.targetH = path, w, h
-	s.blur, s.pixel = p.Blur, p.Pixelate
-	s.screenRGBA = dst
-	s.bitmap = ui.NewBitmap(dst)
-	s.frostSrc, s.frostBmp = nil, nil
-	s.version++
-	return s.bitmap
+// wallpaperBucket rounds a window size for the pixelated variant, so a live
+// resize does not decode a new texture for every pixel of drag.
+const wallpaperBucket = 64
+
+// colorMapColumns is the color map's width in cells; rows follow the image's
+// aspect. Surfaces sample this map, never the wallpaper's pixels.
+const colorMapColumns = 48
+
+// wallpaperColors is the small precomputed color map of one prepared
+// wallpaper: the mean color of each cell, made once on a media worker when the
+// wallpaper (or its pixelation) changes.
+type wallpaperColors struct {
+	cols, rows int
+	rgb        []uint8
 }
 
-// menuFrostScreenBitmap returns the cached window-space Gaussian-blurred +
-// saturate(150%) wallpaper bitmap for MaterialMenu (--dsw-menu-backdrop-filter:
-// blur(40px) saturate(150%)). It downsamples the screen-space wallpaper by 2x,
-// applies the dim mask and 150% saturation, and runs a 3-pass box blur with
-// radius 20 (equivalent to blur(40px) in window DIPs).
-func menuFrostScreenBitmap() (*ui.Bitmap, ui.Rect, bool) {
-	s := &backgroundState
-	if !s.active || gradientBackdrop.frame != nil || s.wallpaper == "" || s.screenRGBA == nil || !s.hasBox || s.box.W <= 0 || s.box.H <= 0 {
-		return nil, ui.Rect{}, false
-	}
-	prefs := effectivePrefs(s.prefs)
-	if s.frostBmp != nil && s.frostSrc == s.screenRGBA && s.frostVersion == s.version && s.frostDark == s.dark && s.frostTransparent == prefs.Transparent {
-		return s.frostBmp, s.box, true
-	}
-	src := s.screenRGBA
-	b := src.Bounds()
-	w, h := b.Dx(), b.Dy()
-	if w <= 0 || h <= 0 {
-		return nil, ui.Rect{}, false
-	}
-	dw, dh := max(1, w/2), max(1, h/2)
-	keep := float32(1)
-	if !prefs.Transparent {
-		keep = 1 - MaskAlpha(s.dark)
-	}
-	down := image.NewRGBA(image.Rect(0, 0, dw, dh))
-	for y := 0; y < dh; y++ {
-		y0 := y * h / dh
-		y1 := max(y0+1, (y+1)*h/dh)
-		for x := 0; x < dw; x++ {
-			x0 := x * w / dw
-			x1 := max(x0+1, (x+1)*w/dw)
-			var sumR, sumG, sumB, n uint32
-			for sy := y0; sy < y1; sy++ {
-				for sx := x0; sx < x1; sx++ {
-					i := src.PixOffset(b.Min.X+sx, b.Min.Y+sy)
-					sumR += uint32(src.Pix[i])
-					sumG += uint32(src.Pix[i+1])
-					sumB += uint32(src.Pix[i+2])
-					n++
-				}
-			}
-			mix := func(sum uint32) uint8 {
-				v := float32(sum) / float32(n) * keep
-				return uint8(math.Max(0, math.Min(255, math.Round(float64(v)))))
-			}
-			c := saturateColor(ui.RGB(mix(sumR), mix(sumG), mix(sumB)), 1.5)
-			di := down.PixOffset(x, y)
-			down.Pix[di] = c.R
-			down.Pix[di+1] = c.G
-			down.Pix[di+2] = c.B
-			down.Pix[di+3] = 255
-		}
-	}
-	blurred := blurThreePass(down, 20)
-	s.frostSrc = src
-	s.frostBmp = ui.NewBitmap(blurred)
-	s.frostDark = s.dark
-	s.frostTransparent = prefs.Transparent
-	s.frostVersion = s.version
-	return s.frostBmp, s.box, true
-}
+// wallpaperMedia is the process image service; tests substitute their own.
+var wallpaperMedia = media.Default
 
-type decodedWallpaperEntry struct {
-	rgba     *image.RGBA
-	failedAt time.Time
-}
-
-var decodedWallpaperCache struct {
-	mu       sync.Mutex
-	entries  map[string]decodedWallpaperEntry
-	order    []string
-	inFlight map[string]bool
-}
-
-func decodedWallpaperInFlight(path string) bool {
-	decodedWallpaperCache.mu.Lock()
-	defer decodedWallpaperCache.mu.Unlock()
-	return decodedWallpaperCache.inFlight[path]
-}
-
-func decodeWallpaperRGBA(path string) *image.RGBA {
-	data, err := wallpaperImageBytes(path)
-	if err != nil {
-		return nil
-	}
-	img, err := wallpapers.Decode(data)
-	if err != nil {
-		return nil
-	}
-	b := img.Bounds()
-	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	draw.Draw(dst, dst.Bounds(), img, b.Min, draw.Src)
-	return dst
-}
-
-// decodedWallpaper keeps a bounded LRU + negative cache and runs file I/O +
-// decode off the UI thread while preserving synchronous decode for inline data URLs.
-func decodedWallpaper(path string) *image.RGBA {
-	now := time.Now()
-	decodedWallpaperCache.mu.Lock()
-	if entry, ok := decodedWallpaperCache.entries[path]; ok {
-		if entry.rgba != nil {
-			decodedWallpaperCache.order = wallpaperTouchLRU(decodedWallpaperCache.order, path)
-			decodedWallpaperCache.mu.Unlock()
-			return entry.rgba
-		}
-		if now.Sub(entry.failedAt) < wallpaperNegativeTTL {
-			decodedWallpaperCache.order = wallpaperTouchLRU(decodedWallpaperCache.order, path)
-			decodedWallpaperCache.mu.Unlock()
-			return nil
-		}
-		delete(decodedWallpaperCache.entries, path)
-	}
+// wallpaperRequest asks the media service for the wallpaper as the window
+// paints it: decoded once (capped at 4K), pixelated on the worker when the
+// pixelate slider asks for it, with its color map. Blur is not baked in: the
+// painter applies it on the GPU.
+func wallpaperRequest(path string, p wallpapers.Preferences, w, h int) *media.Handle {
+	var key media.Key
+	var src media.Source
 	if strings.HasPrefix(path, "data:") {
-		decodedWallpaperCache.mu.Unlock()
-		rgba := decodeWallpaperRGBA(path)
-		decodedWallpaperCache.mu.Lock()
-		if decodedWallpaperCache.entries == nil {
-			decodedWallpaperCache.entries = make(map[string]decodedWallpaperEntry, maxWallpaperCacheEntries)
+		key, src = media.DataURL(path)
+	} else {
+		key, src = media.File(path)
+	}
+	src.MaxBytes = 64 << 20
+	block := int(math.Round(wallpaperPixelFactor(p.Pixelate)))
+	if wallpaperKind(p) != "wallpaper" && w > 0 && h > 0 {
+		bw := max(wallpaperBucket, (w+wallpaperBucket-1)/wallpaperBucket*wallpaperBucket)
+		bh := max(wallpaperBucket, (h+wallpaperBucket-1)/wallpaperBucket*wallpaperBucket)
+		key = key.Sized(bw, bh)
+		key.Appearance = wallpaperKind(p)
+		src.Derive = func(img image.Image) (image.Image, any) {
+			out := pixelateCover(img, bw, bh, block)
+			return out, colorMap(out)
 		}
-		entry := decodedWallpaperEntry{rgba: rgba}
-		if rgba == nil {
-			entry.failedAt = time.Now()
+	} else {
+		key.Appearance = "wallpaper"
+		src.Derive = func(img image.Image) (image.Image, any) {
+			out := capImage(img, wallpaperMaxPixels)
+			return out, colorMap(out)
 		}
-		wallpaperStoreBounded(decodedWallpaperCache.entries, &decodedWallpaperCache.order, maxWallpaperCacheEntries, path, entry)
-		decodedWallpaperCache.mu.Unlock()
-		return rgba
 	}
-	if decodedWallpaperCache.inFlight[path] {
-		decodedWallpaperCache.mu.Unlock()
-		return nil
+	svc := wallpaperMedia()
+	handle := svc.Request(nil, key, src)
+	if wallpaperSettle != nil {
+		wallpaperSettle(svc)
 	}
-	if decodedWallpaperCache.entries == nil {
-		decodedWallpaperCache.entries = make(map[string]decodedWallpaperEntry, maxWallpaperCacheEntries)
-	}
-	if decodedWallpaperCache.inFlight == nil {
-		decodedWallpaperCache.inFlight = make(map[string]bool)
-	}
-	decodedWallpaperCache.inFlight[path] = true
-	decodedWallpaperCache.mu.Unlock()
-
-	go func() {
-		rgba := decodeWallpaperRGBA(path)
-		decodedWallpaperCache.mu.Lock()
-		delete(decodedWallpaperCache.inFlight, path)
-		entry := decodedWallpaperEntry{rgba: rgba}
-		if rgba == nil {
-			entry.failedAt = time.Now()
-		}
-		wallpaperStoreBounded(decodedWallpaperCache.entries, &decodedWallpaperCache.order, maxWallpaperCacheEntries, path, entry)
-		decodedWallpaperCache.mu.Unlock()
-	}()
-	return nil
+	return handle
 }
 
-// coverFit scales src to cover w×h and centre-crops it, sampling bilinearly the
-// way the page's canvas smoothing does before its pixelated upscale.
-func coverFit(src *image.RGBA, w, h int) *image.RGBA {
-	sb := src.Bounds()
-	scale := math.Max(float64(w)/float64(sb.Dx()), float64(h)/float64(sb.Dy()))
-	sw, sh := float64(sb.Dx())*scale, float64(sb.Dy())*scale
-	offX, offY := (sw-float64(w))/2, (sh-float64(h))/2
-	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			fx := (float64(x)+.5+offX)/scale - .5
-			fy := (float64(y)+.5+offY)/scale - .5
-			dst.SetRGBA(x, y, bilinear(src, fx, fy))
-		}
+// wallpaperSettle, set only by tests, runs queued decodes before painting.
+var wallpaperSettle func(*media.Service)
+
+// wallpaperKind names the prepared variant the preferences ask for.
+func wallpaperKind(p wallpapers.Preferences) string {
+	if block := int(math.Round(wallpaperPixelFactor(p.Pixelate))); block > 1 {
+		return fmt.Sprintf("wallpaper/pixelate:%d", block)
 	}
+	return "wallpaper"
+}
+
+// capImage scales img down so neither side exceeds limit.
+func capImage(img image.Image, limit int) image.Image {
+	b := img.Bounds()
+	scale := math.Min(1, math.Min(float64(limit)/float64(b.Dx()), float64(limit)/float64(b.Dy())))
+	if scale >= 1 {
+		return img
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, max(1, int(float64(b.Dx())*scale)), max(1, int(float64(b.Dy())*scale))))
+	xdraw.ApproxBiLinear.Scale(dst, dst.Rect, img, b, draw.Src, nil)
 	return dst
 }
 
-func bilinear(src *image.RGBA, fx, fy float64) color.RGBA {
-	b := src.Bounds()
-	x0, y0 := int(math.Floor(fx)), int(math.Floor(fy))
-	tx, ty := fx-float64(x0), fy-float64(y0)
-	at := func(x, y int) color.RGBA {
-		return src.RGBAAt(min(max(x, 0), b.Dx()-1), min(max(y, 0), b.Dy()-1))
-	}
-	c00, c10, c01, c11 := at(x0, y0), at(x0+1, y0), at(x0, y0+1), at(x0+1, y0+1)
-	mix := func(a, b, t float64) float64 { return a + (b-a)*t }
-	blend := func(a, b, c, d uint8) uint8 {
-		v := mix(mix(float64(a), float64(b), tx), mix(float64(c), float64(d), tx), ty) + .5
-		if v < 0 {
-			v = 0
-		}
-		if v > 255 {
-			v = 255
-		}
-		return uint8(v)
-	}
-	return color.RGBA{R: blend(c00.R, c10.R, c01.R, c11.R), G: blend(c00.G, c10.G, c01.G, c11.G), B: blend(c00.B, c10.B, c01.B, c11.B), A: 255}
-}
-
-// pixelateBlocks is the page's downsample-then-nearest-upscale on screen pixels.
-func pixelateBlocks(src *image.RGBA, block int) *image.RGBA {
-	if block <= 1 {
-		return src
-	}
-	b := src.Bounds()
-	dst := image.NewRGBA(b)
-	for y := 0; y < b.Dy(); y += block {
-		for x := 0; x < b.Dx(); x += block {
-			col := src.RGBAAt(min(x+block/2, b.Dx()-1), min(y+block/2, b.Dy()-1))
-			for yy := y; yy < min(y+block, b.Dy()); yy++ {
-				for xx := x; xx < min(x+block, b.Dx()); xx++ {
-					dst.SetRGBA(xx, yy, col)
-				}
-			}
-		}
-	}
-	return dst
-}
-
-// blurThreePass approximates the page's CSS gaussian blur(radius) with three
-// box passes: three boxes of half-width b add up to a gaussian of variance
-// 3*((2b+1)^2-1)/12, matched to the sheet's sigma = radius/2.
-func blurThreePass(src *image.RGBA, radius int) *image.RGBA {
-	if radius <= 0 {
-		return src
-	}
-	sigma := float64(radius) / 2
-	box := int(math.Round((math.Sqrt(1+4*sigma*sigma) - 1) / 2))
-	if box < 1 {
-		box = 1
-	}
-	out := src
-	for pass := 0; pass < 3; pass++ {
-		out = blurBitmap(out, box)
-	}
+// pixelateCover is the page's pixelate on screen pixels: cover-fit into w×h
+// at 1/block of the size, then a nearest-neighbour upscale, so the block size
+// does not depend on the source image's size.
+func pixelateCover(img image.Image, w, h, block int) image.Image {
+	b := img.Bounds()
+	sw, sh := max(1, w/block), max(1, h/block)
+	scale := math.Max(float64(sw)/float64(b.Dx()), float64(sh)/float64(b.Dy()))
+	cw, ch := float64(sw)/scale, float64(sh)/scale
+	crop := image.Rect(int(float64(b.Min.X)+(float64(b.Dx())-cw)/2), int(float64(b.Min.Y)+(float64(b.Dy())-ch)/2), 0, 0)
+	crop.Max = image.Point{X: crop.Min.X + int(math.Max(1, cw)), Y: crop.Min.Y + int(math.Max(1, ch))}
+	small := image.NewRGBA(image.Rect(0, 0, sw, sh))
+	xdraw.ApproxBiLinear.Scale(small, small.Rect, img, crop.Intersect(b), draw.Src, nil)
+	out := image.NewRGBA(image.Rect(0, 0, sw*block, sh*block))
+	xdraw.NearestNeighbor.Scale(out, out.Rect, small, small.Rect, draw.Src, nil)
 	return out
 }
 
-func cropImage(src *image.RGBA, r image.Rectangle) *image.RGBA {
-	dst := image.NewRGBA(image.Rect(0, 0, r.Dx(), r.Dy()))
-	for y := 0; y < r.Dy(); y++ {
-		for x := 0; x < r.Dx(); x++ {
-			dst.SetRGBA(x, y, src.RGBAAt(r.Min.X+x, r.Min.Y+y))
+// colorMap averages img into colorMapColumns columns and as many rows as its
+// aspect gives, striding large cells so the pass stays cheap.
+func colorMap(img image.Image) *wallpaperColors {
+	b := img.Bounds()
+	if b.Dx() <= 0 || b.Dy() <= 0 {
+		return nil
+	}
+	cols := min(colorMapColumns, b.Dx())
+	rows := max(1, min(b.Dy(), int(math.Round(float64(cols)*float64(b.Dy())/float64(b.Dx())))))
+	m := &wallpaperColors{cols: cols, rows: rows, rgb: make([]uint8, 3*cols*rows)}
+	rgba, _ := img.(*image.RGBA)
+	for y := 0; y < rows; y++ {
+		y0, y1 := b.Min.Y+y*b.Dy()/rows, b.Min.Y+(y+1)*b.Dy()/rows
+		for x := 0; x < cols; x++ {
+			x0, x1 := b.Min.X+x*b.Dx()/cols, b.Min.X+(x+1)*b.Dx()/cols
+			step := max(1, int(math.Sqrt(float64((x1-x0)*(y1-y0))/64)))
+			var r, g, bl, n uint64
+			for sy := y0; sy < max(y1, y0+1); sy += step {
+				for sx := x0; sx < max(x1, x0+1); sx += step {
+					if rgba != nil {
+						i := rgba.PixOffset(sx, sy)
+						r, g, bl = r+uint64(rgba.Pix[i]), g+uint64(rgba.Pix[i+1]), bl+uint64(rgba.Pix[i+2])
+					} else {
+						cr, cg, cb, _ := img.At(sx, sy).RGBA()
+						r, g, bl = r+uint64(cr>>8), g+uint64(cg>>8), bl+uint64(cb>>8)
+					}
+					n++
+				}
+			}
+			i := 3 * (y*cols + x)
+			m.rgb[i], m.rgb[i+1], m.rgb[i+2] = uint8(r/n), uint8(g/n), uint8(bl/n)
 		}
 	}
-	return dst
+	return m
 }
 
-// backgroundSamplingBitmap prepares the source-resolution wallpaper the glass
-// surfaces average (their sampler maps the window box onto these pixels). The
-// painted layer is screen-resolution; sampling stays source-resolution so panel
-// materials keep the same numbers they had before the screen-space pass.
-func backgroundSamplingBitmap(path string, p wallpapers.Preferences) {
-	s := &backgroundState
-	if s.sampPath == path && s.sampBlur == p.Blur && s.sampPixel == p.Pixelate && s.sampBmp != nil && s.pixels != nil {
-		return
+// average returns the mean color of the cells under panel, for a wallpaper
+// drawn with ui.Cover in box, scaled by keep (the share the dim mask leaves).
+func (m *wallpaperColors) average(box, panel ui.Rect, keep float32) (ui.Color, bool) {
+	if m == nil {
+		return ui.Color{}, false
 	}
-	src := decodedWallpaper(path)
-	if src == nil {
-		s.sampPath, s.sampBmp, s.pixels = path, nil, nil
-		return
+	region, ok := coverRegion(box, panel, image.Rect(0, 0, m.cols, m.rows))
+	if !ok {
+		return ui.Color{}, false
 	}
-	dst := src
-	if block := int(math.Round(wallpaperPixelFactor(p.Pixelate))); block > 1 {
-		dst = pixelateBlocks(dst, block)
+	var r, g, b, n float32
+	for y := region.Min.Y; y < region.Max.Y; y++ {
+		for x := region.Min.X; x < region.Max.X; x++ {
+			i := 3 * (y*m.cols + x)
+			r, g, b, n = r+float32(m.rgb[i]), g+float32(m.rgb[i+1]), b+float32(m.rgb[i+2]), n+1
+		}
 	}
-	if radius := wallpaperBlurRadius(p.Blur); radius > 0 {
-		dst = blurBitmap(dst, radius)
+	if n == 0 {
+		return ui.Color{}, true
 	}
-	s.sampPath, s.sampBlur, s.sampPixel = path, p.Blur, p.Pixelate
-	s.sampBmp = ui.NewBitmap(dst)
-	s.pixels = dst
+	mix := func(v float32) uint8 {
+		return uint8(math.Max(0, math.Min(255, math.Round(float64(v/n*keep)))))
+	}
+	return ui.RGB(mix(r), mix(g), mix(b)), true
+}
+
+// wallpaperBlurMaterial is the wallpaper blur slider on the GPU: the page's
+// filter: blur(radius) over the painted image.
+func wallpaperBlurMaterial(radius int) glass.Blur {
+	return glass.Blur{Radius: float32(radius) / 2}
 }

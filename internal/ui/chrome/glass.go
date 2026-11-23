@@ -2,9 +2,7 @@ package chrome
 
 import (
 	"image"
-	"image/color"
 	"math"
-	"sync"
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
@@ -150,11 +148,15 @@ func BackdropActive() bool { return backgroundState.active }
 // rect, after the dim mask. It reports false when no wallpaper is painted, so
 // callers keep their flat surface color.
 func SampleBackdrop(rect ui.Rect) (ui.Color, bool) {
-	pixels, box, keep, ok := backdropPixels()
-	if !ok {
+	s := &backgroundState
+	if !s.active || s.colors == nil || !s.hasBox || s.box.W <= 0 || s.box.H <= 0 {
 		return ui.Color{}, false
 	}
-	return newBackdropSampler(pixels, keep).average(box, rect)
+	keep := float32(1)
+	if gradientBackdrop.frame == nil && !s.prefs.Transparent {
+		keep = 1 - MaskAlpha(s.dark)
+	}
+	return s.colors.average(s.box, rect, keep)
 }
 
 // SurfaceFill is the glass fill of a surface at alpha over the wallpaper under
@@ -272,14 +274,10 @@ func DrawGlass(p *ui.Painter, r ui.Rect, base ui.Color, m Material, radius ...fl
 	if alpha <= 0 {
 		return
 	}
-	frost := frostOf(m)
-	if frost.cell > 0 {
-		if bmp, box, ok := menuFrostScreenBitmap(); ok {
-			p.Clip(r, round, func() { p.Image(bmp, box, ui.FillBox) })
-		} else if patch, ok := glassPatch(r, frost); ok {
-			// Stretched, not covered: the cells stand for exactly this rect.
-			p.Clip(r, round, func() { p.Image(patch, r, ui.FillBox) })
-		}
+	if frost := frostOf(m); frost.cell > 0 {
+		// The frost is a GPU backdrop blur of what is painted under the
+		// surface; no CPU patch of the wallpaper is made.
+		glass.Blur{Radius: frost.cell, Saturation: frost.saturate - 1}.PaintMaterial(p, r, [4]float32{round, round, round, round})
 	}
 	p.Fill(r, MaterialFill(base, alpha), round)
 }
@@ -458,14 +456,6 @@ func (menuPanelGlass) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32
 	if !backgroundState.active || box.W <= 0 || box.H <= 0 {
 		return
 	}
-	round := radii[0]
-	if gradientBackdrop.frame == nil {
-		if bmp, r, ok := menuFrostScreenBitmap(); ok {
-			p.Clip(box, round, func() { p.Image(bmp, r, ui.FillBox) })
-		} else if patch, ok := glassPatch(box, frostOf(MaterialMenu)); ok {
-			p.Clip(box, round, func() { p.Image(patch, box, ui.FillBox) })
-		}
-	}
 	menuBlur.PaintMaterial(p, box, radii)
 }
 
@@ -495,140 +485,6 @@ func MenuStyle(colors theme.Colors, dark bool) ui.MenuStyle {
 		st.Material = menuPanelGlass{}
 	}
 	return st
-}
-
-// backdropPixels returns the prepared wallpaper pixels, the window box they
-// cover, and the share of them the dim mask leaves.
-func backdropPixels() (*image.RGBA, ui.Rect, float32, bool) {
-	s := &backgroundState
-	if s.pixels == nil || !s.hasBox || s.box.W <= 0 || s.box.H <= 0 {
-		return nil, ui.Rect{}, 1, false
-	}
-	keep := float32(1)
-	if gradientBackdrop.frame == nil && !s.prefs.Transparent {
-		keep = 1 - MaskAlpha(s.dark)
-	}
-	return s.pixels, s.box, keep, true
-}
-
-// backdropSampler averages the prepared wallpaper. keep is the share of each
-// color the dim mask leaves (1 when nothing dims it).
-type backdropSampler struct {
-	pixels      *image.RGBA
-	keep        float32
-	mu          sync.Mutex
-	regionCache map[image.Rectangle][3]uint8
-}
-
-var backdropSampleCache struct {
-	mu          sync.Mutex
-	pixels      *image.RGBA
-	keep        float32
-	version     uint64
-	regionCache map[image.Rectangle][3]uint8
-}
-
-func newBackdropSampler(pixels *image.RGBA, keep float32) *backdropSampler {
-	return &backdropSampler{pixels: pixels, keep: max(0, min(keep, 1))}
-}
-
-// average returns the mean color of the wallpaper under panel, drawn with
-// ui.Cover in box.
-func (s *backdropSampler) average(box, panel ui.Rect) (ui.Color, bool) {
-	if s.pixels == nil {
-		return ui.Color{}, false
-	}
-	region, ok := coverRegion(box, panel, s.pixels.Rect)
-	if !ok {
-		return ui.Color{}, false
-	}
-	region = region.Intersect(s.pixels.Rect)
-	if region.Empty() {
-		return ui.Color{}, true
-	}
-	s.mu.Lock()
-	if s.regionCache != nil {
-		if rgb, hit := s.regionCache[region]; hit {
-			s.mu.Unlock()
-			return ui.RGB(rgb[0], rgb[1], rgb[2]), true
-		}
-	}
-	s.mu.Unlock()
-
-	version := backgroundState.version
-	backdropSampleCache.mu.Lock()
-	if backdropSampleCache.pixels != s.pixels || backdropSampleCache.keep != s.keep || backdropSampleCache.version != version || backdropSampleCache.regionCache == nil {
-		backdropSampleCache.pixels = s.pixels
-		backdropSampleCache.keep = s.keep
-		backdropSampleCache.version = version
-		backdropSampleCache.regionCache = make(map[image.Rectangle][3]uint8, 64)
-	} else if rgb, hit := backdropSampleCache.regionCache[region]; hit {
-		backdropSampleCache.mu.Unlock()
-		s.storeRegion(region, rgb)
-		return ui.RGB(rgb[0], rgb[1], rgb[2]), true
-	}
-	backdropSampleCache.mu.Unlock()
-
-	c := averagePixels(s.pixels, region, s.keep)
-	rgb := [3]uint8{c.R, c.G, c.B}
-	s.storeRegion(region, rgb)
-
-	backdropSampleCache.mu.Lock()
-	if backdropSampleCache.pixels == s.pixels && backdropSampleCache.keep == s.keep && backdropSampleCache.version == version {
-		if len(backdropSampleCache.regionCache) >= 512 {
-			clear(backdropSampleCache.regionCache)
-		}
-		backdropSampleCache.regionCache[region] = rgb
-	}
-	backdropSampleCache.mu.Unlock()
-	return c, true
-}
-
-func (s *backdropSampler) storeRegion(region image.Rectangle, rgb [3]uint8) {
-	s.mu.Lock()
-	if s.regionCache == nil {
-		s.regionCache = make(map[image.Rectangle][3]uint8, 16)
-	} else if len(s.regionCache) >= 512 {
-		clear(s.regionCache)
-	}
-	s.regionCache[region] = rgb
-	s.mu.Unlock()
-}
-
-// patch builds a small bitmap of the wallpaper under panel: cols×rows cells,
-// each the mean of the pixels it covers, so the GPU's linear sampling stretches
-// it into a frost. A cell that averages more wallpaper is a blurrier panel.
-func (s *backdropSampler) patch(box, panel ui.Rect, cols, rows int, saturate float32) (*image.RGBA, bool) {
-	if s.pixels == nil || cols <= 0 || rows <= 0 {
-		return nil, false
-	}
-	region, ok := coverRegion(box, panel, s.pixels.Rect)
-	if !ok {
-		return nil, false
-	}
-	out := image.NewRGBA(image.Rect(0, 0, cols, rows))
-	cellW := float64(region.Dx()) / float64(cols)
-	cellH := float64(region.Dy()) / float64(rows)
-	for y := 0; y < rows; y++ {
-		y0 := region.Min.Y + int(float64(y)*cellH)
-		y1 := region.Min.Y + int(float64(y+1)*cellH)
-		if y1 <= y0 {
-			y1 = min(y0+1, region.Max.Y)
-		}
-		for x := 0; x < cols; x++ {
-			x0 := region.Min.X + int(float64(x)*cellW)
-			x1 := region.Min.X + int(float64(x+1)*cellW)
-			if x1 <= x0 {
-				x1 = min(x0+1, region.Max.X)
-			}
-			c := averagePixels(s.pixels, image.Rect(x0, y0, x1, y1), s.keep)
-			if saturate != 1 {
-				c = saturateColor(c, saturate)
-			}
-			out.SetRGBA(x, y, color.RGBA{R: c.R, G: c.G, B: c.B, A: 255})
-		}
-	}
-	return out, true
 }
 
 // coverRegion maps panel, in window DIPs, onto the pixels of an image that
@@ -668,98 +524,6 @@ func coverRegion(box, panel ui.Rect, bounds image.Rectangle) (image.Rectangle, b
 		y1 = y0 + 1
 	}
 	return image.Rect(x0, y0, x1, y1), true
-}
-
-// averagePixels returns the mean color of region, scaled by keep. It strides
-// wide regions so a full-window sample stays cheap.
-func averagePixels(img *image.RGBA, region image.Rectangle, keep float32) ui.Color {
-	region = region.Intersect(img.Rect)
-	if region.Empty() {
-		return ui.Color{}
-	}
-	step := 1
-	if area := region.Dx() * region.Dy(); area > 4096 {
-		step = int(math.Ceil(math.Sqrt(float64(area) / 4096)))
-	}
-	var sumR, sumG, sumB, n uint64
-	for y := region.Min.Y; y < region.Max.Y; y += step {
-		for x := region.Min.X; x < region.Max.X; x += step {
-			i := img.PixOffset(x, y)
-			sumR += uint64(img.Pix[i])
-			sumG += uint64(img.Pix[i+1])
-			sumB += uint64(img.Pix[i+2])
-			n++
-		}
-	}
-	if n == 0 {
-		return ui.Color{}
-	}
-	mix := func(sum uint64) uint8 {
-		v := float32(sum) / float32(n) * keep
-		return uint8(math.Max(0, math.Min(255, math.Round(float64(v)))))
-	}
-	return ui.RGB(mix(sumR), mix(sumG), mix(sumB))
-}
-
-// saturateColor scales a color away from its luminance, as CSS saturate() does.
-func saturateColor(c ui.Color, s float32) ui.Color {
-	luma := 0.2126*float32(c.R) + 0.7152*float32(c.G) + 0.0722*float32(c.B)
-	channel := func(v uint8) uint8 {
-		mixed := luma + (float32(v)-luma)*s
-		return uint8(math.Max(0, math.Min(255, math.Round(float64(mixed)))))
-	}
-	return ui.RGB(channel(c.R), channel(c.G), channel(c.B))
-}
-
-// glassPatch returns the cached frost bitmap of the wallpaper under rect, made
-// with cols×rows cells of the material's cell size.
-func glassPatch(rect ui.Rect, frost materialFrost) (*ui.Bitmap, bool) {
-	pixels, box, keep, ok := backdropPixels()
-	if !ok || frost.cell <= 0 {
-		return nil, false
-	}
-	cols := clampCells(rect.W / frost.cell)
-	rows := clampCells(rect.H / frost.cell)
-	key := glassKey{
-		x: int(math.Round(float64(rect.X))), y: int(math.Round(float64(rect.Y))),
-		w: int(math.Round(float64(rect.W))), h: int(math.Round(float64(rect.H))),
-		cols: cols, rows: rows, cell: frost.cell, saturate: frost.saturate,
-		version: backgroundState.version,
-	}
-	glassCache.mu.Lock()
-	defer glassCache.mu.Unlock()
-	if bmp, hit := glassCache.entries[key]; hit {
-		return bmp, true
-	}
-	rgba, ok := newBackdropSampler(pixels, keep).patch(box, rect, cols, rows, frost.saturate)
-	if !ok {
-		return nil, false
-	}
-	bmp := ui.NewBitmap(rgba)
-	if glassCache.entries == nil {
-		glassCache.entries = map[glassKey]*ui.Bitmap{}
-	}
-	if len(glassCache.entries) >= 48 {
-		clear(glassCache.entries)
-	}
-	glassCache.entries[key] = bmp
-	return bmp, true
-}
-
-func clampCells(cells float32) int {
-	return int(max(2, min(64, math.Round(float64(cells)))))
-}
-
-type glassKey struct {
-	x, y, w, h     int
-	cols, rows     int
-	cell, saturate float32
-	version        uint64
-}
-
-var glassCache struct {
-	mu      sync.Mutex
-	entries map[glassKey]*ui.Bitmap
 }
 
 // MetallicSheen paints the hover sheen of a custom-painted button, as
