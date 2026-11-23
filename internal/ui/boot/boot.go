@@ -3,6 +3,7 @@ package boot
 
 import (
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strings"
 	"time"
@@ -161,13 +162,19 @@ func View(c *ui.Context, m Model) {
 					// the part that scrolls (boot.css:497-511).
 					// The ol's 36 DIP left pad is the markers' gutter: the rows
 					// seat their markers in it and the lines start on its edge.
-					ui.Scroll(c).Grow(1).MinHeight(0).Padding(10, 18, 16, 16).Children(func() {
-						ui.Column(c).Gap(4).Selectable().Children(func() {
-							paintBootLogLines(c, lines, palette.muted, palette.alert)
-							if len(lines) == 0 {
-								ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted).Margin(0, 0, 0, 20)
-							}
+					// A virtual list over the immutable log the shell published: only
+					// the rows in view are built, and TextSource keeps Copy and Select
+					// All complete for rows that never scrolled in.
+					if len(lines) == 0 {
+						ui.Column(c).Grow(1).MinHeight(0).Padding(10, 18, 16, 16).Children(func() {
+							ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted).Margin(0, 0, 0, 20)
 						})
+						return
+					}
+					list := ui.Local(root, "boot-log-list", func() ui.ListState { return ui.ListState{FollowEnd: true} })
+					list.TextSource = ui.ListTextSource{Revision: logRevision(lines), Paragraphs: func(i int) []string { return []string{lines[i]} }}
+					ui.List(c, list, len(lines)).Grow(1).MinHeight(0).Padding(10, 18, 16, 16).Selectable().Rows(func(row ui.ListRow) {
+						paintBootLogLine(row.Context, row.Index, lines[row.Index], palette.muted, palette.alert)
 					})
 				})
 		})
@@ -429,22 +436,30 @@ func cancelRecoveryLabel() string {
 	return "取消自动恢复"
 }
 
-func paintBootLogLines(c *ui.Context, logs []string, muted, alert ui.Color) {
-	for i, line := range logs {
-		ink := muted
-		if importantBootLog.MatchString(line) {
-			ink = alert
-		}
-		// The ::marker anchors to the entry's first line like the ol's, so the
-		// row is top-aligned: a wrapped entry keeps its number at its head.
-		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
-			// It sits outside the line, right-aligned against it in the gutter
-			// the ol's left padding leaves (boot.css:497-511).
-			ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(muted).Width(18).TextAlign(ui.End).Shrink(0).Unselectable()
-			ui.Box(c).Width(2).Shrink(0)
-			ui.Text(c, line).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(11.5)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(ink).Selectable().MinWidth(0).Grow(1)
-		})
+func paintBootLogLine(c *ui.Context, i int, line string, muted, alert ui.Color) {
+	ink := muted
+	if importantBootLog.MatchString(line) {
+		ink = alert
 	}
+	// The ::marker anchors to the entry's first line like the ol's, so the
+	// row is top-aligned: a wrapped entry keeps its number at its head.
+	ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Start).Padding(0, 0, 4, 0).Children(func() {
+		// It sits outside the line, right-aligned against it in the gutter
+		// the ol's left padding leaves (boot.css:497-511).
+		ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(muted).Width(18).TextAlign(ui.End).Shrink(0).Unselectable()
+		ui.Box(c).Width(2).Shrink(0)
+		ui.Text(c, line).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(11.5)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(ink).Selectable().MinWidth(0).Grow(1)
+	})
+}
+
+// logRevision changes whenever the capped log does: its length stops growing at
+// the cap, so the newest line takes part.
+func logRevision(lines []string) uint64 {
+	h := fnv.New64a()
+	if n := len(lines); n > 0 {
+		_, _ = h.Write([]byte(lines[n-1]))
+	}
+	return h.Sum64() ^ uint64(len(lines))
 }
 
 // Matches installed renderer/boot-recovery.js LOG_ERROR_PATTERN.

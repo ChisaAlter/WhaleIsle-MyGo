@@ -117,8 +117,9 @@ func bootScene(dark, failed, motion bool) func(*ui.Painter, ui.Rect) {
 		} else {
 			p.Image(dayScene(), r, ui.FillBox)
 		}
+		now := motionNow(p.Now())
 		if motion {
-			p.AnimationFrame()
+			p.After(motionWait(p.Now()))
 		}
 		horizon := r.Y + r.H*sceneHorizon
 		line := palette.hairline
@@ -137,7 +138,7 @@ func bootScene(dark, failed, motion bool) func(*ui.Painter, ui.Rect) {
 			}
 			alpha := float32(.75)
 			if motion {
-				alpha = .55 + .45*float32((1-math.Cos(float64(p.Now().UnixMilli()%11000)/11000*2*math.Pi))/2)
+				alpha = .55 + .45*float32((1-math.Cos(float64(now.UnixMilli()%11000)/11000*2*math.Pi))/2)
 			}
 			for i, s := range brightStars {
 				ink := ui.RGB(240, 248, 254)
@@ -159,7 +160,7 @@ func bootScene(dark, failed, motion bool) func(*ui.Painter, ui.Rect) {
 		for i, x := range [5]float32{.32, .41, .53, .62, .71} {
 			phase := float32(i+1) * .15
 			if motion {
-				phase = float32((p.Now().UnixMilli()+delays[i])%periods[i]) / float32(periods[i])
+				phase = float32((now.UnixMilli()+delays[i])%periods[i]) / float32(periods[i])
 			}
 			xDrift := (phase - .5) * 12
 			d := float32(2)
