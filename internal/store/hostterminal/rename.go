@@ -20,7 +20,7 @@ type renameState struct {
 }
 
 func (s *Store) renameEntryLocked(owner uint64, session, id string) *entry {
-	if s.epoch != owner || s.remote == nil || s.visible != session {
+	if s.ownerLease.Generation() != owner || s.remote == nil || s.visible != session {
 		return nil
 	}
 	st := s.sessions[session]
@@ -33,7 +33,7 @@ func (s *Store) renameEntryLocked(owner uint64, session, id string) *entry {
 func (s *Store) RenameSnapshot(owner uint64, session, id string) RenameView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.epoch != owner {
+	if s.ownerLease.Generation() != owner {
 		return RenameView{}
 	}
 	if e := s.entries[terminalKey{session, id}]; e != nil {
@@ -113,7 +113,7 @@ func (s *Store) SaveRename(owner uint64, session, id string) {
 	revision := e.rename.revision
 	e.rename.view.Saving = true
 	e.rename.view.Error = ""
-	remote, ctx, epoch := s.remote, s.ctx, s.epoch
+	remote, ctx, epoch := s.remote, s.ctx, s.ownerLease
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -121,7 +121,7 @@ func (s *Store) SaveRename(owner uint64, session, id string) {
 		defer cancel()
 		err := remote.Call(ctx, "terminal/rename", map[string]any{"agentId": session, "id": id, "title": title}, nil)
 		s.mu.Lock()
-		if s.epoch != epoch || s.entries[e.key] != e || e.rename.revision != revision {
+		if s.ownerLease != epoch || s.entries[e.key] != e || e.rename.revision != revision {
 			s.mu.Unlock()
 			return
 		}

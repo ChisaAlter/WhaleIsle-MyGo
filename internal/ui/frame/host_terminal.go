@@ -26,7 +26,7 @@ func hostTerminalActions(m Model) termui.HostActions {
 		fresh = &m.workspacePane.terminalFresh
 	}
 	session := m.Store.SelectedSessionID()
-	view := m.HostTerminalStore.Snapshot(session)
+	view := m.HostTerminalStore.Snapshot(session).Value
 	valid := func() bool {
 		return m.Store.SelectedSessionID() == session && m.HostTerminalStore.CanCopySelection(view.Owner, session, view.ActiveID, view.Attachment)
 	}

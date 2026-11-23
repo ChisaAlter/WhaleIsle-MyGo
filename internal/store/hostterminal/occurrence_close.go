@@ -3,8 +3,11 @@ package hostterminal
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 // OccurrenceClose is a one-shot, identity-bound explicit pane-close request.
@@ -36,7 +39,7 @@ func (s *Store) BeginOccurrenceClose(key string, expected *Store, owner uint64, 
 		return failedOccurrenceClose("Terminal pane changed; close the current pane instead.")
 	}
 	child.mu.Lock()
-	if child.epoch != owner || child.ctx == nil || child.ctx.Err() != nil {
+	if child.ownerLease.Generation() != owner || child.ctx == nil || child.ctx.Err() != nil {
 		child.mu.Unlock()
 		return failedOccurrenceClose("Terminal Host changed; review the current terminal before closing.")
 	}
@@ -68,7 +71,7 @@ func (s *Store) BeginOccurrenceClose(key string, expected *Store, owner uint64, 
 	request := &OccurrenceClose{}
 	child.paneClose = request
 	if st != nil {
-		st.operation++
+		st.opLease = st.opOwner.Renew(child.ctx)
 		st.busy = true
 	}
 	remote, ctx := child.remote, child.ctx
@@ -79,7 +82,7 @@ func (s *Store) BeginOccurrenceClose(key string, expected *Store, owner uint64, 
 		target.closing = true
 		target.desired = false
 		target.phase = "closing"
-		target.error = ""
+		target.error = nil
 		child.stopHoldLocked(target)
 	}
 	child.mu.Unlock()
@@ -92,7 +95,7 @@ func (s *Store) BeginOccurrenceClose(key string, expected *Store, owner uint64, 
 			cancel()
 		}
 		child.mu.Lock()
-		if child.epoch != owner || child.ctx != ctx || ctx.Err() != nil {
+		if child.ownerLease.Generation() != owner || child.ctx != ctx || ctx.Err() != nil {
 			child.mu.Unlock()
 			request.finish(errors.New("Terminal Host changed while closing; refresh before retrying."))
 			child.fire()
@@ -105,7 +108,8 @@ func (s *Store) BeginOccurrenceClose(key string, expected *Store, owner uint64, 
 			if target != nil {
 				target.closing = false
 				target.phase = "failed"
-				target.error = "Close outcome uncertain; retry close explicitly. " + err.Error()
+				log.Printf("hostterminal: occurrence close outcome uncertain: %v", err)
+				target.error = state.FaultText("Close outcome uncertain; retry close explicitly.")
 			}
 			child.mu.Unlock()
 			request.finish(err)

@@ -14,7 +14,7 @@ func BeginHostTitleRename(store *hostterminal.Store, session string) bool {
 	if store == nil {
 		return false
 	}
-	v := store.Snapshot(session)
+	v := store.Snapshot(session).Value
 	if v.ActiveID == "" {
 		return false
 	}
@@ -29,7 +29,7 @@ func HostTitleEditor(c *ui.Context, store *hostterminal.Store, session string) b
 	if store == nil {
 		return false
 	}
-	v := store.Snapshot(session)
+	v := store.Snapshot(session).Value
 	edit := store.RenameSnapshot(v.Owner, session, v.ActiveID)
 	if !edit.Editing {
 		return false

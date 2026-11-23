@@ -48,10 +48,7 @@
 ../store/dshbot/sender_policy_controls.go	rawerr	4
 ../store/dshbot/task_controls.go	rawerr	3
 ../store/dshbot/text_profile_controls.go	rawerr	5
-../store/hostterminal/controller.go	rawerr	7
 ../store/hostterminal/duplex.go	fmt	1
-../store/hostterminal/occurrence_close.go	rawerr	1
-../store/hostterminal/recovery.go	rawerr	1
 ../store/hostterminal/rename.go	rawerr	1
 ../store/hostterminal/shells.go	rawerr	3
 ../store/imonboard/error.go	rawerr	1
