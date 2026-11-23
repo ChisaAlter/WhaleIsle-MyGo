@@ -6,7 +6,10 @@ package ui
 // entire dialog. The zero value preserves DialogBase's existing behavior.
 type DialogOptions struct {
 	DismissDisabled bool
-	OnDismiss       func()
+	// BackdropDismissDisabled keeps a backdrop click from closing the
+	// dialog while Escape still does (Base UI's AlertDialog contract).
+	BackdropDismissDisabled bool
+	OnDismiss               func()
 	// NoExit removes this dialog at once when it closes, whatever
 	// SetDialogExit configured — for a dialog whose panel hosts a native
 	// child surface, which a fading copy of the frame before cannot move.

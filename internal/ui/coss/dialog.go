@@ -29,6 +29,9 @@ type DialogOptions struct {
 	MaxWidth float32
 	// DismissDisabled keeps Escape and backdrop clicks from closing it.
 	DismissDisabled bool
+	// BackdropDismissDisabled keeps a backdrop click from closing it while
+	// Escape still does.
+	BackdropDismissDisabled bool
 	// Side places a Sheet (SideRight by default) or Drawer (SideBottom).
 	Side Side
 	Key  any
@@ -61,10 +64,10 @@ func Dialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element 
 }
 
 // AlertDialog is coss's AlertDialog: a Dialog without a close button whose
-// backdrop does not dismiss it; give it its actions in Footer.
+// backdrop does not dismiss it (Escape does); give it its actions in Footer.
 func AlertDialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
 	o.NoClose = true
-	o.DismissDisabled = true
+	o.BackdropDismissDisabled = true
 	return modal(c, open, o, body, kindAlert)
 }
 
@@ -86,7 +89,7 @@ func Drawer(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element 
 func modal(c *ui.Context, open *bool, o DialogOptions, body func(), kind modalKind) ui.Element {
 	t := tok(c)
 	withKey(c, o.Key)
-	opts := ui.DialogOptions{DismissDisabled: o.DismissDisabled}
+	opts := ui.DialogOptions{DismissDisabled: o.DismissDisabled, BackdropDismissDisabled: o.BackdropDismissDisabled}
 	return ui.DialogBaseWithOptions(c, open, opts, func(back, panel ui.Element) {
 		ww, wh := c.Size()
 		switch kind {

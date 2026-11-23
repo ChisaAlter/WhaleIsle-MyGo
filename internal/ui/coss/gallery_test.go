@@ -160,7 +160,7 @@ func TestGalleryRender(t *testing.T) {
 			tt.Frame()
 			name := sh.comp + "-" + scheme
 			writePNG(t, filepath.Join(dir, "native", name+".png"), tt.Image())
-			tk := design.Lookup(map[bool]design.Scheme{false: design.Light, true: design.Dark}[dark], galleryAccent[dark])
+			tk := design.Lookup(map[bool]design.Scheme{false: design.Light, true: design.Dark}[dark], galleryAccent[dark], ui.Color{})
 			sj := sheetJSON{Name: name, Comp: sh.comp, Scheme: scheme, Width: w, Height: h, Font: font, Pad: galleryPad,
 				Style: fmt.Sprintf("--primary:%s;--primary-foreground:%s;--ring:%s", hexOf(tk.Primary), hexOf(tk.PrimaryForeground), hexOf(tk.Ring))}
 			for i, s := range sh.specs {

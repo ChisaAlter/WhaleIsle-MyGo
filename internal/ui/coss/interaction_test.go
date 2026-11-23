@@ -185,16 +185,20 @@ func TestDialogEscapeCloses(t *testing.T) {
 	}
 }
 
-func TestAlertDialogIgnoresEscape(t *testing.T) {
+func TestAlertDialogKeepsEscapeRejectsBackdrop(t *testing.T) {
 	open := true
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Box(c).Fill().Children(func() {
 			AlertDialog(c, &open, DialogOptions{Title: "Delete?"}, nil)
 		})
 	}, 700, 400)
-	tt.Key(0, ui.KeyEscape)
+	tt.ClickAt(10, 10)
 	if !open {
-		t.Fatal("alert dialog dismissed by Escape")
+		t.Fatal("a backdrop click dismissed the alert dialog")
+	}
+	tt.Key(0, ui.KeyEscape)
+	if open {
+		t.Fatal("Escape did not close the alert dialog")
 	}
 }
 
@@ -281,9 +285,16 @@ func TestTokensFollowThemeAccent(t *testing.T) {
 	var got *design.Tokens
 	ui.NewTester(func(c *ui.Context) {
 		setTheme(c, true)
+		th := *c.Theme()
+		th.AccentText = ui.Hex("#0f1115")
+		c.SetTheme(&th)
 		got = design.For(c)
 	}, 10, 10)
-	if got.Primary != galleryAccent[true] || design.Contrast(got.PrimaryForeground, got.Primary) < 4.5 {
+	if got.Primary != galleryAccent[true] || got.PrimaryForeground != ui.Hex("#0f1115") {
 		t.Fatalf("primary %v fg %v", got.Primary, got.PrimaryForeground)
+	}
+	// An empty on-accent foreground falls back to the computed contrast pick.
+	if fallback := design.Resolve(design.Dark, galleryAccent[true], ui.Color{}); design.Contrast(fallback.PrimaryForeground, fallback.Primary) < 4.5 {
+		t.Fatalf("fallback fg %v", fallback.PrimaryForeground)
 	}
 }
