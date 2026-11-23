@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/composer"
 )
@@ -200,6 +201,7 @@ func (s *mainState) openWorkspaceSession(win *mygo.Window, sessions *session.Sto
 		if win.IsDestroyed() {
 			return
 		}
+		ui.FrameTraceCause("session-create")
 		win.Update(func() { op.finish(id, err) })
 	}()
 }
