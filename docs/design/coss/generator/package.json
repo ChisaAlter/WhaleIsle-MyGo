@@ -1,0 +1,7 @@
+{
+  "name": "coss-spec-generator",
+  "private": true,
+  "type": "module",
+  "description": "Regenerates docs/design/coss from an extracted cosscom/ui tarball at ../ui-<sha>",
+  "dependencies": { "tailwindcss": "4.1.17", "typescript": "^5" }
+}
