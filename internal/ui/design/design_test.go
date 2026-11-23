@@ -24,7 +24,7 @@ func TestAccentOverrideIsReadable(t *testing.T) {
 		ui.Hex("#4176e6"), ui.Hex("#7aaaff"), ui.Hex("#ffff00"), ui.Hex("#777777"), ui.Hex("#000000"), ui.Hex("#ffffff"), ui.Hex("#e11d48"),
 	} {
 		for _, s := range []Scheme{Light, Dark} {
-			tk := Resolve(s, accent)
+			tk := Resolve(s, accent, ui.Color{})
 			if tk.Primary != accent || tk.Ring != accent {
 				t.Fatalf("accent %v not applied: %v", accent, tk.Primary)
 			}
@@ -33,7 +33,7 @@ func TestAccentOverrideIsReadable(t *testing.T) {
 			}
 		}
 	}
-	if tk := Resolve(Light, ui.Transparent); tk.Primary != cossLight.Primary {
+	if tk := Resolve(Light, ui.Transparent, ui.Color{}); tk.Primary != cossLight.Primary {
 		t.Fatalf("transparent accent should keep coss primary")
 	}
 }
@@ -42,13 +42,13 @@ func TestGlassSwitchDefaultsOff(t *testing.T) {
 	if GlassEnabled() {
 		t.Fatal("glass must default off")
 	}
-	tk := Lookup(Light, ui.Hex("#4176e6"))
+	tk := Lookup(Light, ui.Hex("#4176e6"), ui.Color{})
 	if tk.Glass || tk.Card.A != 255 {
 		t.Fatalf("opaque surfaces expected, got %+v", tk.Card)
 	}
 	SetGlass(true, func(_ Scheme, p *Palette) { p.Card = p.Card.Alpha(0.5) })
 	defer SetGlass(false, nil)
-	if tk := Lookup(Light, ui.Hex("#4176e6")); !tk.Glass || tk.Card.A == 255 {
+	if tk := Lookup(Light, ui.Hex("#4176e6"), ui.Color{}); !tk.Glass || tk.Card.A == 255 {
 		t.Fatalf("glass filter not applied")
 	}
 }

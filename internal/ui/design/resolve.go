@@ -46,13 +46,19 @@ func Base(s Scheme) Palette {
 }
 
 // Resolve returns the tokens of scheme with accent as primary, ring and the
-// sidebar's primary/ring, and a primary foreground readable on it (contrast
-// at least 4.5:1). A transparent accent keeps coss's own primary.
-func Resolve(s Scheme, accent ui.Color) Tokens {
+// sidebar's primary/ring. onAccent is the Host theme's on-accent foreground
+// (--dsw-alias-label-primary-foreground): upstream DSH decides what reads on
+// its accent, so it wins when present; a computed ReadableOn pick is the
+// fallback for an empty foreground. A transparent accent keeps coss's own
+// primary.
+func Resolve(s Scheme, accent, onAccent ui.Color) Tokens {
 	t := Tokens{Palette: Base(s), Scheme: s}
 	if accent.A > 0 {
 		accent.A = 255
-		fg := ReadableOn(accent)
+		fg := onAccent
+		if fg.A == 0 {
+			fg = ReadableOn(accent)
+		}
 		t.Primary, t.PrimaryForeground, t.Ring = accent, fg, accent
 		t.SidebarPrimary, t.SidebarPrimaryForeground, t.SidebarRing = accent, fg, accent
 	}
@@ -150,8 +156,9 @@ func (a *atomicHook) Store(h *glassHook) {
 
 // binding is what Bind pinned for a window.
 type binding struct {
-	scheme Scheme
-	accent ui.Color
+	scheme   Scheme
+	accent   ui.Color
+	onAccent ui.Color
 }
 
 type tokenCache struct {
@@ -174,10 +181,11 @@ func (c *tokenCache) reset() {
 	c.mu.Unlock()
 }
 
-// Bind pins the window's scheme and Host accent, which the app's appearance
-// pass does every frame (cmd/whaleisle applyAppearanceTheme). Windows never
-// bound resolve from their ui.Theme's Dark and Accent instead.
-func Bind(c *ui.Context, s Scheme, accent ui.Color) {
+// Bind pins the window's scheme, Host accent and on-accent foreground, which
+// the app's appearance pass does every frame (cmd/whaleisle
+// applyAppearanceTheme). Windows never bound resolve from their ui.Theme's
+// Dark, Accent and AccentText instead.
+func Bind(c *ui.Context, s Scheme, accent, onAccent ui.Color) {
 	if c == nil {
 		return
 	}
@@ -185,7 +193,7 @@ func Bind(c *ui.Context, s Scheme, accent ui.Color) {
 	if cache.bound == nil {
 		cache.bound = map[*ui.Context]binding{}
 	}
-	cache.bound[c] = binding{s, accent}
+	cache.bound[c] = binding{s, accent, onAccent}
 	cache.mu.Unlock()
 }
 
@@ -212,15 +220,16 @@ func For(c *ui.Context) *Tokens {
 				key.scheme = Dark
 			}
 			key.accent = th.Accent
+			key.onAccent = th.AccentText
 		}
 	}
-	return Lookup(key.scheme, key.accent)
+	return Lookup(key.scheme, key.accent, key.onAccent)
 }
 
-// Lookup returns cached tokens for scheme and accent. The pointer stays
-// valid after eviction; it is never written again.
-func Lookup(s Scheme, accent ui.Color) *Tokens {
-	key := binding{s, accent}
+// Lookup returns cached tokens for scheme, accent and on-accent foreground.
+// The pointer stays valid after eviction; it is never written again.
+func Lookup(s Scheme, accent, onAccent ui.Color) *Tokens {
+	key := binding{s, accent, onAccent}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	for i := range cache.entries {
@@ -228,7 +237,7 @@ func Lookup(s Scheme, accent ui.Color) *Tokens {
 			return e.tokens
 		}
 	}
-	t := Resolve(s, accent)
+	t := Resolve(s, accent, onAccent)
 	cache.entries[cache.next] = cacheEntry{key: key, tokens: &t}
 	cache.next = (cache.next + 1) % len(cache.entries)
 	return &t

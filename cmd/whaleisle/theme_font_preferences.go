@@ -186,7 +186,7 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	if dark {
 		scheme = design.Dark
 	}
-	design.Bind(c, scheme, t.Accent)
+	design.Bind(c, scheme, t.Accent, t.AccentText)
 }
 func (s *mainState) endAppearanceFrame() {
 	if !s.appearanceVisible && s.appearanceEditor != nil && s.appearanceEditor.Preview {
