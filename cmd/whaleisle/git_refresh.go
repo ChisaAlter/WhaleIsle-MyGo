@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/egoist/mygo/ui"
+
 	desktopgit "whaleisle/internal/desktop/git"
 )
 
@@ -97,6 +99,7 @@ func (s *mainState) applyGitRefresh(owner *gitRefreshRead, next *desktopgit.Repo
 	win := s.win
 	s.mu.Unlock()
 	if win != nil {
+		ui.FrameTraceCause("git-status")
 		win.Invalidate()
 	}
 }

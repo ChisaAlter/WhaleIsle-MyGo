@@ -30,7 +30,7 @@ func (s *mainState) notifyUser(win *mygo.Window, text string) {
 	s.mu.Lock()
 	sessions := s.sessions
 	if sessions == nil {
-		s.bootLogs = append(s.bootLogs, text)
+		s.appendBootLogLocked(text)
 	}
 	s.mu.Unlock()
 	if sessions != nil {

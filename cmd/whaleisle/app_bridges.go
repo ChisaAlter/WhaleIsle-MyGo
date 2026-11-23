@@ -437,7 +437,7 @@ func (d mainLauncherDeps) Env() launcherctl.HostEnv {
 		HasSupervisor:      d.s.sup != nil,
 		HasSessions:        d.s.sessions != nil,
 		BootStatus:         d.s.bootStatus,
-		BootLogs:           append([]string(nil), d.s.bootLogs...),
+		BootLogs:           d.s.bootLogSnapshot(),
 		StartLogs:          startLogs,
 		ConfigStore:        d.s.cfgStore,
 		MainWindow:         mainWin,

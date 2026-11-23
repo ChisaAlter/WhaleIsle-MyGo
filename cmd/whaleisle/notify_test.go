@@ -24,8 +24,8 @@ func TestNotifyUserWritesTheStatusLine(t *testing.T) {
 func TestNotifyUserBeforeTheShellKeepsTheLineInTheLog(t *testing.T) {
 	s := &mainState{}
 	s.notifyUser(nil, "尚未连接 Host，请稍后重试")
-	if len(s.bootLogs) != 1 || !strings.Contains(s.bootLogs[0], "Host") {
-		t.Fatalf("startup log = %v", s.bootLogs)
+	if logs := s.bootLogSnapshot(); len(logs) != 1 || !strings.Contains(logs[0], "Host") {
+		t.Fatalf("startup log = %v", logs)
 	}
 }
 

@@ -110,7 +110,7 @@ func (s *mainState) restoreResumeSelection() {
 		return
 	}
 	snap := sessions.SelectionSummary()
-	if !snap.ClientReady || snap.ListLoading || snap.ListErr != "" {
+	if !snap.ClientReady || snap.ListLoading || snap.ListErr != nil {
 		return
 	}
 	// The initial empty snapshot arrives before RefreshList is scheduled.

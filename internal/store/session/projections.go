@@ -89,7 +89,7 @@ func (s *Store) refreshProjectionsForOwner(ctx context.Context, owner *workspace
 	}
 	go func() {
 		var out api.SessionProjectionsValue
-		err := client.Call(ctx, "session/projections", map[string]any{
+		err := client.CallRead(ctx, "session/projections", map[string]any{
 			"request": map[string]any{"sessionId": sessionID},
 		}, &out)
 		if err != nil {

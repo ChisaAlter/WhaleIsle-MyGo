@@ -30,6 +30,7 @@ import (
 	launcherctl "whaleisle/internal/app/launcher"
 	marketctl "whaleisle/internal/app/market"
 	projectctl "whaleisle/internal/app/project"
+	"whaleisle/internal/app/startup"
 	"whaleisle/internal/app/updater"
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
@@ -67,6 +68,7 @@ import (
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/startupsuggest"
 	"whaleisle/internal/startuptrace"
+	appstate "whaleisle/internal/state"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/store/hostterminal"
@@ -235,8 +237,8 @@ type mainState struct {
 	confirmAskTechnicalOpen bool
 	sup                     *harness.Supervisor
 	bootStatus              harness.Status
-	bootLogs                []string
-	coldLoading             bool // first automatic launch, until the workbench can open
+	bootLogs                appstate.Published[[]string] // immutable; replace or appendBootLogLocked, never edit in place
+	coldLoading             bool                         // first automatic launch, until the workbench can open
 	// coldStartSkipped records that the automatic start was declined (a failed
 	// recovery record, a skip-user-plugins recovery, a waiting import) while the
 	// window still opens on the startup page, which carries the reason and the
@@ -386,8 +388,10 @@ type mainState struct {
 	// phoneBootStarted gates the once-per-session phone gateway start when the
 	// harness first becomes ready; phoneBootStartAction is nil in production
 	// (the real start) and replaced by a counter in tests.
-	phoneBootStarted         bool
-	phoneBootStartAction     func()
+	phoneBootStarted     bool
+	phoneBootStartAction func()
+	// startupOrch owns readiness levels and the startup tier plan.
+	startupOrch              startupOrchestration
 	phoneDiagSampling        bool
 	launcherImportCategories map[string]bool
 	launcherImportCatalog    *importer.Catalog
@@ -1420,6 +1424,22 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		}
 		st = actual
 	}
+	if bootProgressOnly(s.bootStatus, st) {
+		// Log lines and plugin progress inside one Starting status (at most five
+		// a second, coalesced by the supervisor) repaint the page from the
+		// published log; the Host-state work below runs on state changes only.
+		s.bootStatus = st
+		if s.sup != nil {
+			s.bootLogs.Publish(s.sup.Logs())
+		}
+		win := s.win
+		s.mu.Unlock()
+		if win != nil {
+			ui.FrameTraceCause("boot-progress")
+			win.Invalidate()
+		}
+		return
+	}
 	prev := s.bootStatus.State
 	// A start that begins clears the declined mark: the page is then showing a
 	// running start, not a skipped one.
@@ -1451,9 +1471,9 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	}
 	sup := s.sup
 	if sup != nil {
-		s.bootLogs = sup.Logs()
+		s.bootLogs.Publish(sup.Logs())
 	}
-	logs := append([]string(nil), s.bootLogs...)
+	logs := s.bootLogSnapshot()
 	win := s.win
 	s.mu.Unlock()
 
@@ -1477,10 +1497,12 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	// remoteEnabled is in effect; MyGo had no such call, so a boot-time enable
 	// never started the daemon. Start it once per session, on the first Ready.
 	if startPhone {
+		// Tier C: the gateway starts on the remote page or after the idle
+		// window, not inside the Host's first seconds.
 		if s.phoneBootStartAction != nil {
-			s.phoneBootStartAction()
+			s.deferPhoneBootStart(s.phoneBootStartAction)
 		} else {
-			go s.refreshPhoneRemote()
+			s.deferPhoneBootStart(func() { s.refreshPhoneRemote() })
 		}
 	}
 	if failedMessage != "" {
@@ -1493,6 +1515,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
 	if win != nil {
+		ui.FrameTraceCause("boot-status")
 		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray(); s.refreshStartupUpdateAttention(win) })
 	}
 }
@@ -1517,6 +1540,7 @@ func (s *mainState) claimPhoneBootStartLocked() bool {
 func (s *mainState) syncDialogue(st harness.Status) {
 	if st.State != harness.Ready {
 		s.stopDSH()
+		s.endStartupGeneration()
 		return
 	}
 	ep := st.Endpoint
@@ -1531,7 +1555,10 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.dshCancel = cancel
 	s.dshCtx = ctx
 	s.dshEndpoint = key
-	client := &dsh.Client{Endpoint: dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie}}
+	// One transport per Host generation: a restarted Host never inherits the
+	// previous process's pooled sockets, and stopDSH closes this pool.
+	client := dsh.NewGenerationClient(dsh.Endpoint{Origin: ep.Origin, Cookie: ep.Cookie})
+	startupGen := s.beginStartupGeneration()
 	s.mu.Lock()
 	s.dshClient = client
 	s.dshMux = nil
@@ -1593,10 +1620,11 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	var inventoryReleased atomic.Bool
 	refresh := func() {
 		uiDiagRefreshHits.Add(1)
+		s.observeWorkbenchReady(startupGen, sessions)
 		s.recordStartupWorkspaceReady(sessions)
 		if !inventoryReleased.Load() {
 			v := sessions.Snapshot()
-			if (v.ClientReady && v.WorkspaceReady && !v.ListLoading) || v.WorkspaceError != "" || v.ListErr != "" {
+			if (v.ClientReady && v.WorkspaceReady && !v.ListLoading) || v.WorkspaceError != nil || v.ListErr != nil {
 				if s.marketCoordinator().WorkspaceReady(client) {
 					inventoryReleased.Store(true)
 				}
@@ -1606,14 +1634,26 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.cancelComposerVoiceIfStale()
 		s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
 		if win != nil {
+			// While the boot page covers the window none of this is visible, and
+			// the page repaints on its own 20 fps tick: run the main-thread work
+			// without asking for a frame per store notification. The refresh
+			// that lowers the page (recordStartupWorkspaceReady above) redraws.
+			booting := s.bootPageCovers()
 			if refreshQueued.CompareAndSwap(false, true) {
-				win.Update(func() {
+				work := func() {
 					refreshQueued.Store(false)
 					s.reconcileComposerSubmissions(sessions)
 					s.refreshPetTask()
 					s.maybeStartupBlankSession(win, sessions)
-				})
-			} else {
+				}
+				if booting {
+					go mygo.RunOnMain(work)
+				} else {
+					ui.FrameTraceCause("session-refresh")
+					win.Update(work)
+				}
+			} else if !booting {
+				ui.FrameTraceCause("session-refresh")
 				win.Invalidate()
 			}
 		} else {
@@ -1628,17 +1668,10 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.refreshReferencedCredentials()
 	s.refreshProviderDiscovery()
 	usageStore.Attach(client, refresh)
-	usageStore.LoadBilling(context.Background())
 	remoteMachines.Attach(client, refresh)
 	imStore.Attach(client, refresh)
 	s.marketCoordinator().AttachHostForWorkspace(client, s.managedMarketProfile(st), refresh)
 	schedStore.Attach(client, refresh)
-	go func() {
-		_ = settingsstore.ReportProductEvent(context.Background(), client, api.ProductEvent(
-			[]byte(`{"name":"desktop.ready","source":"whaleisle"}`),
-		))
-	}()
-	setStore.RefreshVision(context.Background())
 	s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
 	s.mu.Lock()
 	workspace := ""
@@ -1650,7 +1683,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	if inter != nil {
 		inter.Attach(refresh)
 	}
-	mux := &dsh.Mux{Endpoint: client.Endpoint}
+	mux := &dsh.Mux{Endpoint: client.Endpoint, HTTP: client.HTTP}
 	s.dshMu.Lock()
 	if s.dshClient != client || ctx.Err() != nil {
 		s.dshMu.Unlock()
@@ -1658,7 +1691,6 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	}
 	s.mu.Lock()
 	s.dshMux = mux
-	coldDir := s.coldStoresDir
 	s.mu.Unlock()
 	s.dshRefresh = refresh
 	s.dshMu.Unlock()
@@ -1672,19 +1704,19 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		inter.AttachClient(client, mux)
 		s.bindQuestionDraftRecovery(inter)
 	}
-	go s.runDSH(ctx, client, mux, inter)
-	s.dshMu.Lock()
-	if s.dshClient == client && ctx.Err() == nil {
-		s.bindProactiveRunner(ctx, client)
+	go s.runDSH(ctx, startupGen, client, mux, inter)
+	// The proactive runner is Tier C: bound here only once its group ran;
+	// before that the Tier C job binds the then-current client itself.
+	if s.proactiveReady() {
+		s.dshMu.Lock()
+		if s.dshClient == client && ctx.Err() == nil {
+			s.bindProactiveRunner(ctx, client)
+		}
+		s.dshMu.Unlock()
 	}
-	s.dshMu.Unlock()
-	if coldDir != "" {
-		s.triggerDeferredColdStores(coldDir, nil)
-	}
-	sessions.InitializeDefaultModel(context.Background())
-	sessions.RefreshModelCatalog(context.Background())
-	sessions.RefreshAgentPresets(context.Background())
-	sessions.RefreshSkills(context.Background())
+	// Tier B: catalogs, presets, vision, billing and the product event wait
+	// for this generation's WorkbenchReady and then run staggered.
+	s.queueHostTierB(ctx, startupGen, client, sessions)
 }
 
 func (s *mainState) stopDSH() {
@@ -1726,6 +1758,8 @@ func (s *mainState) stopDSHLocked() *accountPlatformLease {
 	s.settingsProviderProfiles.ResetHost()
 	s.remoteWorkspaceLease.Add(1)
 	s.mu.Lock()
+	// Only idle sockets close; requests still in flight finish on their own.
+	s.dshClient.Close()
 	s.dshClient = nil
 	s.dshMux = nil
 	s.dshMuxReady = false
@@ -1763,7 +1797,8 @@ func (s *mainState) refreshSettingsMCP() {
 	s.refreshMCPController()
 }
 
-func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux, inter *interaction.Store) {
+func (s *mainState) runDSH(ctx context.Context, startupGen uint64, client *dsh.Client, mux *dsh.Mux, inter *interaction.Store) {
+	tracker, plan := s.startupPlan()
 	pluginEvent := s.nativePluginEventHandler(client)
 	s.mu.Lock()
 	sessions := s.sessions
@@ -1774,6 +1809,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 	s.mu.Unlock()
 	refresh := func() {
 		if win != nil {
+			ui.FrameTraceCause("connection")
 			win.Update(s.refreshPetTask)
 		}
 	}
@@ -1812,6 +1848,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 				Ready: func(_ dsh.EventsReady) {
 					connection.ready(ctx, func() {
 						startuptrace.Mark("connection.events_ready")
+						tracker.Reach(startupGen, startup.EventsReady)
 						s.marketCoordinator().HostEventsReady(client)
 						if schedStore != nil {
 							schedStore.OnEventsReady(scheduleEventsOwner)
@@ -1819,8 +1856,9 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 						if sessions != nil {
 							sessions.InitializeDefaultWorkspace(ctx)
 							sessions.OnEventsReady(eventsOwner)
-							sessions.WatchSpeechCatalogForEvents(eventsOwner)
-							sessions.RefreshPermissionCatalogForEvents(eventsOwner)
+							// Tier B for this events generation: after the list baseline.
+							plan.AfterWorkbench(ctx, startupGen, "speech.catalog", func() { sessions.WatchSpeechCatalogForEvents(eventsOwner) })
+							plan.AfterWorkbench(ctx, startupGen, "permission.catalog", func() { sessions.RefreshPermissionCatalogForEvents(eventsOwner) })
 						}
 					})
 				},
@@ -1887,6 +1925,7 @@ func (s *mainState) runDSH(ctx context.Context, client *dsh.Client, mux *dsh.Mux
 		if err != nil {
 			log.Print("[connection] lost: ", err)
 		}
+		tracker.Lose(startupGen)
 		connection.lost()
 	}, func(warning error) {
 		log.Print("[connection] ", warning)
@@ -2263,7 +2302,6 @@ func main() {
 		win.OnShow(func() {
 			state.desktopPet.SetReady(!isolatedDesktopRun())
 			startuptrace.Mark("window.shown")
-			state.triggerDeferredColdStores(userData, nil)
 		})
 		win.OnClosed(func() { state.desktopPet.Close() })
 		win.OnBlur(state.cancelComposerVoiceOnBlur)
@@ -2395,9 +2433,12 @@ func main() {
 		state.trajDetailTab = "overview"
 		state.mu.Unlock()
 		state.watchAcceptOpenHook()
-		state.startNativeUpdateCenter(win)
-		state.assistantService().StartProactiveMonitor()
+		// Update center, proactive monitor, cold stores and the bridge alerts
+		// are Tier C (internal/app/startup/plan.go): first use of the
+		// feature or 30 s after WorkbenchReady.
+		state.registerDeferredStartup(win, userData, !isolatedDesktopRun())
 		mygo.App.OnQuit(state.assistantService().CancelProactiveMonitor)
+		// Tier OS: the hang watchdog must cover the start itself.
 		state.startNativeUIRecovery(win)
 		win.OnClosed(state.cancelImportCatalogScan)
 		win.OnClosed(state.stopNativeUpdateCenter)
@@ -2419,7 +2460,6 @@ func main() {
 				log.Println("system notifications:", err)
 			}
 			consumeSystemToastActivation(os.Args[1:])
-			state.startWhaleBridgeAlerts(win)
 		}
 
 		// First-run account onboarding is separate from Host startup.
@@ -3214,7 +3254,7 @@ func mainView(c *ui.Context) {
 	state.mu.Lock()
 	themeID := state.themeID
 	st := state.bootStatus
-	logs := append([]string(nil), state.bootLogs...)
+	logs := state.bootLogSnapshot()
 	sup := state.sup
 	sessions := state.sessions
 	nextPromptRendered := false

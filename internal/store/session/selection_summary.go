@@ -1,5 +1,7 @@
 package session
 
+import "whaleisle/internal/state"
+
 // SelectionSummary is the part of the view the shell compares on every render
 // pass. Each field matches the Snapshot() field of the same name (Selected*
 // describe the listed row of SelectedID), but it is read from the live state
@@ -14,7 +16,7 @@ type SelectionSummary struct {
 	WorkspaceHostGeneration   uint64
 	ClientReady               bool
 	ListLoading               bool
-	ListErr                   string
+	ListErr                   *state.Fault
 	HasWorkspaces             bool
 	// SelectedListed is false when SelectedID is empty or absent from the list.
 	SelectedListed  bool
@@ -34,9 +36,7 @@ func (s *Store) SelectionSummary() SelectionSummary {
 		ListLoading:               s.listLoading,
 		HasWorkspaces:             len(s.workspaceMemberships) != 0,
 	}
-	if s.listErr != nil {
-		out.ListErr = s.listErr.Error()
-	}
+	out.ListErr = s.listFault
 	for _, it := range s.items {
 		if it.SessionID == s.selectedID {
 			out.SelectedCwd = it.Cwd

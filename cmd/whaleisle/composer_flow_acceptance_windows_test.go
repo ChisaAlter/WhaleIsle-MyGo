@@ -377,7 +377,7 @@ func runComposerFlowQA() error {
 		}
 		if sessions == nil {
 			state.mu.Lock()
-			bootLogs := append([]string(nil), state.bootLogs...)
+			bootLogs := state.bootLogSnapshot()
 			state.mu.Unlock()
 			if n := len(bootLogs); n > 8 {
 				bootLogs = bootLogs[n-8:]
@@ -396,8 +396,8 @@ func runComposerFlowQA() error {
 		ctx := context.Background()
 		if err := waitStore(deadline, "workspace ready", func() (bool, error) {
 			v := sessions.Snapshot()
-			if v.ListErr != "" {
-				return false, fmt.Errorf("%s", v.ListErr)
+			if v.ListErr != nil {
+				return false, errors.New(v.ListErr.SentenceText())
 			}
 			return v.WorkspaceReady && !v.ListLoading, nil
 		}); err != nil {

@@ -177,7 +177,7 @@ func runNativeCoreRecoveryDesktop() error {
 					time.Sleep(100 * time.Millisecond)
 					continue
 				}
-				if snap.ListErr != "" {
+				if snap.ListErr != nil {
 					result <- fmt.Errorf("isolated session list failed: %s", snap.ListErr)
 					stopNativeAcceptance()
 					return

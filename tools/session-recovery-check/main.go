@@ -250,8 +250,8 @@ func run(stage, base, native string, r *report) error {
 		store.RefreshList(ctx)
 		return wait(ctx, func() (bool, error) {
 			v := store.Snapshot()
-			if v.ListErr != "" {
-				return false, errors.New(v.ListErr)
+			if v.ListErr != nil {
+				return false, errors.New(v.ListErr.SentenceText())
 			}
 			return !v.ListLoading, nil
 		})

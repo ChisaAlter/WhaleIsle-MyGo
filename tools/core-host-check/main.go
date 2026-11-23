@@ -274,8 +274,8 @@ func run(stage, base, resumeRun string, contributionsOnly bool, r *report) error
 		store.RefreshList(ctx)
 		err = await(ctx, func() (bool, error) {
 			v := store.Snapshot()
-			if v.ListErr != "" {
-				return false, errors.New(v.ListErr)
+			if v.ListErr != nil {
+				return false, errors.New(v.ListErr.SentenceText())
 			}
 			return !v.ListLoading, nil
 		})
@@ -343,8 +343,8 @@ func run(stage, base, resumeRun string, contributionsOnly bool, r *report) error
 	store.RefreshList(ctx)
 	if err = await(ctx, func() (bool, error) {
 		v := store.Snapshot()
-		if v.ListErr != "" {
-			return false, errors.New(v.ListErr)
+		if v.ListErr != nil {
+			return false, errors.New(v.ListErr.SentenceText())
 		}
 		return !v.ListLoading, nil
 	}); err != nil {

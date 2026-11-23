@@ -344,7 +344,7 @@ func TestLifecycleNewReadyDiscardsOldListAndReplaysMutationsInOrder(t *testing.T
 			close(newRelease)
 			wait(t, done)
 			before := s.Snapshot()
-			if len(before.Items) != 1 || before.Items[0].SessionID != "A" || before.Items[0].Running || before.Items[0].UpdatedAt != 20 || before.ListErr != "" {
+			if len(before.Items) != 1 || before.Items[0].SessionID != "A" || before.Items[0].Running || before.Items[0].UpdatedAt != 20 || before.ListErr != nil {
 				t.Fatalf("ordered replay wrong: %+v", before)
 			}
 			close(oldRelease)

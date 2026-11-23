@@ -139,7 +139,7 @@ func (s *mainState) openPetNotificationSession(owner, id string) {
 	// session/list is the authenticated full live roster. Never reinterpret the
 	// receipt as the currently selected chat, restore archives or invent an RPC.
 	snap := target.sessions.Snapshot()
-	if !snap.ClientReady || snap.ListLoading || snap.ListErr != "" {
+	if !snap.ClientReady || snap.ListLoading || snap.ListErr != nil {
 		return
 	}
 	for _, archived := range snap.ArchivedSessionIDs {

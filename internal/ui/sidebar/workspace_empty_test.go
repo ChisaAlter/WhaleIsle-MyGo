@@ -1,9 +1,12 @@
 package sidebar
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -21,11 +24,17 @@ func TestWorkspaceEmptyListDistinguishesReadyLoadingAndFailure(t *testing.T) {
 			t.Fatal("loading was disguised as empty")
 		}
 		retried := 0
-		m.Snapshot.ListErr = "fixture list failure"
+		raw := "dsh session/list: read tcp 127.0.0.1:5000: wsarecv: An existing connection was forcibly closed by the remote host."
+		m.Snapshot.ListErr = state.FaultOf(&dsh.TransportError{Op: "session/list", Err: errors.New(raw)})
 		m.OnRefresh = func() { retried++ }
 		tt.Frame()
-		if !tt.HasText("fixture list failure") || tt.HasText(workspaceText("暂无会话", "No sessions yet")) {
+		if !tt.HasText(workspaceText("会话列表没有加载：", "Sessions did not load: ")+m.Snapshot.ListErr.SentenceText()) || tt.HasText(workspaceText("暂无会话", "No sessions yet")) {
 			t.Fatal("failure was disguised as empty")
+		}
+		for _, word := range []string{"wsarecv", "forcibly", "127.0.0.1", "session/list"} {
+			if tt.HasText(word) {
+				t.Fatalf("sidebar painted raw transport text %q", word)
+			}
 		}
 		if err := tt.Click(workspaceText("重试加载会话", "Retry loading sessions")); err != nil {
 			t.Fatal(err)

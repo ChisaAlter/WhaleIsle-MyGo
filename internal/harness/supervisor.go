@@ -237,6 +237,10 @@ type Supervisor struct {
 	attemptRecovery  bool         // flags captured for the current attempt, not mutable next-launch settings
 	attempt          int
 	readyAt          time.Time
+	// progressPending and progressAt coalesce Starting log and plugin-progress
+	// notifications to at most one per progressInterval (guarded by mu).
+	progressPending bool
+	progressAt      time.Time
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
 	skippedOnce       bool
 	recoveryActive    bool
@@ -569,7 +573,7 @@ func (s *Supervisor) log(line string, generation ...int) {
 	// Notify while Starting so the launcher can stream logs. Copy status under
 	// the lock; refreshBoot ignores Starting after Ready/Failed.
 	if s.status.State == Starting {
-		s.enqueueNotifyLocked(s.status, false)
+		s.notifyProgressLocked()
 	}
 	s.mu.Unlock()
 }
@@ -766,7 +770,7 @@ func (s *Supervisor) run(gen int) {
 			startuptrace.Mark("host.readyline")
 			ctx, cancel := context.WithTimeout(launchCtx, 15*time.Second)
 			endHandshake := startuptrace.Begin("host.handshake")
-			ep, err := Redeem(ctx, s.client, url)
+			ep, err := redeemWithRetry(ctx, s.client, url)
 			endHandshake()
 			cancel()
 			if err != nil {
@@ -910,7 +914,7 @@ func (s *Supervisor) notePluginLog(line string, generation ...int) {
 		return
 	}
 	if ApplyPluginLogLine(&s.status.PluginLoad, line) {
-		s.enqueueNotifyLocked(s.status, false)
+		s.notifyProgressLocked()
 	}
 }
 
@@ -1006,4 +1010,30 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	s.restartTimer = time.AfterFunc(delay, func() { s.run(next) })
 	s.mu.Unlock()
 	s.log(fmt.Sprintf("restart %d/%d in %s", attempt, policy.MaxAttempts, delay), next)
+}
+
+// progressInterval caps Starting progress notifications at five a second. A
+// Host can print hundreds of lines while it loads plugins; each notification
+// re-reads the log and repaints the boot page, so per-line delivery made the
+// log, not the Host, the startup's cost.
+const progressInterval = 200 * time.Millisecond
+
+// notifyProgressLocked schedules one non-essential Starting notification,
+// merging every line that arrives before it fires. State changes still go
+// through setLocked immediately. Caller holds s.mu.
+func (s *Supervisor) notifyProgressLocked() {
+	if s.progressPending || s.opts.OnChange == nil {
+		return
+	}
+	s.progressPending = true
+	wait := max(0, progressInterval-time.Since(s.progressAt))
+	time.AfterFunc(wait, func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.progressPending = false
+		s.progressAt = time.Now()
+		if s.status.State == Starting {
+			s.enqueueNotifyLocked(s.status, false)
+		}
+	})
 }

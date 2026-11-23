@@ -56,7 +56,8 @@ func bootTicker(c *ui.Context, m Model, palette *scenePalette, openLog ...func()
 			dot := ui.Box(c).Key("boot-ticker-dot").Size(5, 5).Radius(2.5).Shrink(0)
 			alpha := float32(1)
 			if !c.Preferences().ReduceMotion {
-				alpha = 1 - .65*dot.Loop("boot-ticker-pulse", tickerPulse, ui.Bounce(ui.EaseInOut))
+				c.After(motionWait(c.Now()))
+				alpha = 1 - .65*ui.Bounce(ui.EaseInOut)(loopPhase(c.Now(), tickerPulse))
 			}
 			dot.Background(dotColor.Alpha(alpha))
 			ui.Text(c, line).Font(bootCodeFont).FontSize(size).FixedLineHeight(18).

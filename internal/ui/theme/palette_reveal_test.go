@@ -83,3 +83,28 @@ func TestMixTokenMovesEachChannelAndAlpha(t *testing.T) {
 		t.Fatalf("an unchanged token became %q", got)
 	}
 }
+
+// A landed switch stays landed: frames that keep asking for the palette they
+// show start no switch, so they ask for no animation frames. The defect this
+// pins restarted a switch from a palette to itself after every landing, and
+// any frame within 200 ms of the last kept the window animating.
+func TestPaletteRevealDoesNotRestartOnTheSamePalette(t *testing.T) {
+	EnablePaletteReveal()
+	t.Cleanup(func() { paletteReveal = paletteSwitch{} })
+	paletteReveal = paletteSwitch{enabled: true}
+	builds := 0
+	tt := ui.NewTester(func(c *ui.Context) {
+		builds++
+		RevealFrame(c)
+		ui.Box(c).Fill().Background(Color(Resolve(DefaultID).Active(false).BG))
+	}, 100, 100)
+	base := time.Unix(9000, 0)
+	for k := 0; k < 20; k++ {
+		builds = 0
+		// A frame every 40 ms, as the boot page's tick asks for.
+		tt.SetTime(base.Add(time.Duration(k) * 40 * time.Millisecond))
+		if builds > 1 || paletteReveal.on {
+			t.Fatalf("frame %d: an unchanged palette is switching (on=%v, %d builds)", k, paletteReveal.on, builds)
+		}
+	}
+}

@@ -101,3 +101,21 @@ func (s *Store) InitialWorkspaceSession() InitialWorkspaceSession {
 		registered && ws.Path == initial.cwd && len(ws.SessionIDs) == 0 && s.cwd == initial.cwd && s.workspaceID == initial.workspaceID
 	return receipt
 }
+
+// WorkbenchBaseline reports whether the current $events generation has the
+// baselines the workbench opens on: its workspace registry, a settled
+// default-workspace initialization and a session list loaded for this
+// generation, none of them failing. internal/app/startup calls this the
+// WorkbenchReady level.
+func (s *Store) WorkbenchBaseline() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	initial := s.initialWorkspaceSession
+	return s.client != nil && s.eventsGeneration != 0 &&
+		s.workspaceReady && s.workspaceReadyHost == s.eventsGeneration && s.workspaceErr == nil &&
+		s.listAuthoritativeHost == s.eventsGeneration && !s.listLoading && s.listErr == nil &&
+		initial.armed && initial.completed && !initial.pending
+}
