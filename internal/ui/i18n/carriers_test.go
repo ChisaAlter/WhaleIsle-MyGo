@@ -46,6 +46,9 @@ var carrierScan = []struct {
 	// from painting the transport's own text.
 	{"../chat", regexp.MustCompile(`ui\.Text\(c, |ui\.Span\{Text:|Label\(`)},
 	{"../sidebar", regexp.MustCompile(`ui\.Text\(c, |Label\(|Description\(`)},
+	// The native Whale UI renderer paints program text and action failures:
+	// failures go through errcopy (Alert, FieldError), never their own words.
+	{"../openui", regexp.MustCompile(`paragraph\(|text\(|Alert\(|FieldError\(|Label\(`)},
 	// hoststate is the copy every surface reads while the local service is not
 	// ready: the sentence itself is the product, so nothing below it may leak a
 	// failure's own words into it.
