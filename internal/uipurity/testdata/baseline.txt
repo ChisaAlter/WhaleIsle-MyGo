@@ -27,7 +27,7 @@ internal/ui/chat/image.go	go	3
 internal/ui/chat/image.go	import	1
 internal/ui/chat/openui.go	go	5
 internal/ui/chat/openui.go	import	1
-internal/ui/chat/openui.go	timer	2
+internal/ui/chat/openui.go	timer	1
 internal/ui/chat/schedule_context.go	snapshot	1
 internal/ui/chat/turn_deliverables.go	go	3
 internal/ui/chat/user_message.go	go	1

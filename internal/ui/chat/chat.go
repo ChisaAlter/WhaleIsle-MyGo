@@ -111,9 +111,7 @@ func View(c *ui.Context, m Model) {
 }
 
 func conversationView(c *ui.Context, m Model) {
-	seq := chatViewSeq.Add(1)
 	if m.GroupRoom {
-		checkOpenUIListEvictions(seq)
 		if m.Inspector != nil {
 			m.Inspector.CancelPicking()
 			m.Inspector.CancelReveal()
@@ -121,9 +119,6 @@ func conversationView(c *ui.Context, m Model) {
 		groupThreadsView(c, m)
 		return
 	}
-	ui.Box(c).Absolute().Left(0).Top(0).Size(1, 1).PassThrough().Draw(func(*ui.Painter, ui.Rect) {
-		checkOpenUIListEvictions(seq)
-	})
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
 	fg := chrome.Color(colors.FG)

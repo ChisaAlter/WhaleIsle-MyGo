@@ -138,6 +138,9 @@ func (c *Card) invalidate() {
 	}
 }
 
+// Host is the host the card was created with.
+func (c *Card) Host() Host { return c.cfg.Host }
+
 // Evaluations counts program evaluations (parse and render passes).
 func (c *Card) Evaluations() uint64 { return c.evals.Load() }
 
