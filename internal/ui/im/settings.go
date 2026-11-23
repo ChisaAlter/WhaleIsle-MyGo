@@ -18,11 +18,11 @@ func SettingsView(c *ui.Context, m Model) {
 		ui.Text(c, "Connect to a Host to configure channels.").TextColor(muted)
 		return
 	}
-	v := m.Store.Onboarding.Snapshot()
+	v := m.Store.Onboarding.Snapshot().Value
 	office := m.Store.Office.Snapshot().Value
 	if !v.Open && !office.Open {
 		m.Store.Onboarding.Show("weixin")
-		v = m.Store.Onboarding.Snapshot()
+		v = m.Store.Onboarding.Snapshot().Value
 	}
 	root := ui.Column(c.Key("channels-settings")).FillWidth().MinWidth(0)
 	width := root.Bounds().W
