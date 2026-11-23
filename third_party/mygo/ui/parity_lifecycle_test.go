@@ -122,6 +122,25 @@ func TestDialogOptionsBlocksBusyDismissalAndPeelsOneLayer(t *testing.T) {
 	}
 }
 
+// TestBackdropDismissDisabledKeepsEscape covers the AlertDialog contract:
+// a backdrop click does not close the dialog, Escape still does.
+func TestBackdropDismissDisabledKeepsEscape(t *testing.T) {
+	open := true
+	tt := NewTester(func(c *Context) {
+		DialogBaseWithOptions(c, &open, DialogOptions{BackdropDismissDisabled: true}, func(backdrop, panel Element) {
+			panel.Size(160, 100).Children(func() { Button(c, "Inside").AutoFocus() })
+		})
+	}, 400, 300)
+	tt.ClickAt(10, 10)
+	if !open {
+		t.Fatal("a backdrop click closed a backdrop-protected dialog")
+	}
+	tt.Key(0, KeyEscape)
+	if open {
+		t.Fatal("Escape did not close the dialog")
+	}
+}
+
 func TestPhysicalNativePriorityHonorsNamedAndNestedModal(t *testing.T) {
 	open, nested := false, false
 	priority, settings := 0, 0

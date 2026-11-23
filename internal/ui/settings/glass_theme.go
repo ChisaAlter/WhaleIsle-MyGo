@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -31,12 +32,12 @@ func glassThemePane(c *ui.Context, g *GlassThemeAccess, fg, muted ui.Color) {
 		return
 	}
 	title := providerCopy("壁纸与毛玻璃主题", "Wallpaper and glass theme")
-	block := ui.Column(c.Key("appearance-glass-theme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
+	block := ui.Column(c.Key("appearance-glass-theme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(design.Sp(3))
 	settingsSearchTarget(c, "appearance-glass-theme", title, block)
 	failure := ui.Local(block, "error", func() settingsRefusal { return settingsRefusal{} })
 	block.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).AlignItems(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(1)).Children(func() {
 				ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
 				ui.Text(c, providerCopy(
 					"可选外观：窗口壁纸、动态背景和半透明毛玻璃面板。默认关闭，关闭时界面使用纯色主题表面，不解码壁纸，也不运行背景或玻璃效果。",

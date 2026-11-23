@@ -42,6 +42,7 @@ internal/ui/composer/beam_raster.go	go	1
 internal/ui/composer/native_commands.go	go	2
 internal/ui/composer/reference_query.go	go	1
 internal/ui/composer/tool_actions.go	timer	1
+internal/ui/design/gen/main.go	import	1
 internal/ui/diffsurface/async_loader.go	go	6
 internal/ui/diffsurface/branches.go	go	1
 internal/ui/diffsurface/commit_selection.go	go	1

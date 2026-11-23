@@ -478,13 +478,14 @@ func coreDialogBaseOptions(c *context, open *bool, options DialogOptions, fn fun
 		if requested {
 			c.rt.dialogCloseRequest = 0
 		}
-		if back.Clicked() || back.OverlayShortcut(0, KeyEscape) || requested {
-			if !options.DismissDisabled {
-				if options.OnDismiss != nil {
-					options.OnDismiss()
-				} else {
-					*open = false
-				}
+		clicked := back.Clicked()
+		escape := back.OverlayShortcut(0, KeyEscape)
+		dismiss := escape || requested || (clicked && !options.BackdropDismissDisabled)
+		if dismiss && !options.DismissDisabled {
+			if options.OnDismiss != nil {
+				options.OnDismiss()
+			} else {
+				*open = false
 			}
 		}
 		back.noPointerCursor = true

@@ -8,6 +8,7 @@ import (
 	"os"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
 	"whaleisle/internal/ui/theme"
@@ -177,6 +178,15 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	// border-l1 hairline and the menu's inks (chrome.MenuStyle).
 	t.Menu = chrome.MenuStyle(colors, dark)
 	c.SetTheme(&t)
+	// The design tokens (internal/ui/design) take the scheme and the Host
+	// accent from here: coss components render with coss's palette for the
+	// scheme and the accent as primary/ring. Surfaces stay opaque coss tokens
+	// unless the glass appearance turns design.SetGlass on.
+	scheme := design.Light
+	if dark {
+		scheme = design.Dark
+	}
+	design.Bind(c, scheme, t.Accent, t.AccentText)
 }
 func (s *mainState) endAppearanceFrame() {
 	if !s.appearanceVisible && s.appearanceEditor != nil && s.appearanceEditor.Preview {
