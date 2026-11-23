@@ -314,6 +314,11 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 		if u.t.Exit != nil {
 			rt.exitsBuilt = true
 		}
+		if underInvisible(e) {
+			// Not laid out (layoutBox): it shows at once when what holds it
+			// does, as an element laid out anew.
+			continue
+		}
 		u.r = r
 		uses[n] = u
 		n++
@@ -592,4 +597,15 @@ func mixPremultiplied(a, b Color, k float32) Color {
 		return uint8(max(0, min(v+0.5, 255)))
 	}
 	return Color{R: ch(a.R, b.R), G: ch(a.G, b.G), B: ch(a.B, b.B), A: alphaByte(alpha)}
+}
+
+// underInvisible reports whether an element is inside an invisible one,
+// whose content is not laid out.
+func underInvisible(e *node) bool {
+	for p := e.parent; p != nil; p = p.parent {
+		if p.flags&flagInvisible != 0 {
+			return true
+		}
+	}
+	return false
 }

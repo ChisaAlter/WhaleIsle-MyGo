@@ -15,6 +15,9 @@ func observeLayout(e *node) {
 	if e.observeLayout != nil {
 		e.observeLayout(Rect{X: e.x, Y: e.y, W: e.w, H: e.h})
 	}
+	if e.flags&flagInvisible != 0 {
+		return // its content was not laid out (layoutBox)
+	}
 	for child := e.first; child != nil; child = child.next {
 		observeLayout(child)
 	}
@@ -36,7 +39,8 @@ func (e Element) OffsetAfterLayout(offset func(Rect) Point) Element {
 }
 
 func applyLayoutOffsets(e *node) {
-	for child := e.first; child != nil; child = child.next {
+	// Nothing inside what is invisible was laid out (layoutBox).
+	for child := e.first; child != nil && e.flags&flagInvisible == 0; child = child.next {
 		applyLayoutOffsets(child)
 	}
 	if e.offsetAfterLayout == nil {

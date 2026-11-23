@@ -953,46 +953,17 @@ func (rt *engine) commit(root *node, w, h float32) {
 }
 
 func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
+	if hidden {
+		rt.commitHidden(e)
+		return
+	}
 	inline := e.isInline()
 	if e.kind == kindText && e.first != nil && !inline {
 		placeInline(e, e, 0)
 	}
 	saved, savedPage := rt.enterScope(e), rt.commitPage
 	defer func() { rt.commitScope, rt.commitPage = saved, savedPage }()
-	s := e.st
-	s.page = rt.commitPage
-	if e.flags&flagPage != 0 {
-		rt.commitPage = e.id
-	}
-	s.x, s.y, s.w, s.h = e.x, e.y, e.w, e.h
-	if e.parent != nil {
-		s.parent = e.parent.id
-	} else {
-		s.parent = 0
-	}
-	s.flags = e.flags
-	s.anchor = 0
-	if e.popover != nil {
-		s.anchor = e.popover.id
-	}
-	if e.parent != nil && e.parent.st.flags&flagDisabled != 0 {
-		// Disabled with the element around it, which may have been
-		// disabled after building it, as a Fieldset.
-		s.flags |= flagDisabled
-	}
-	s.cursor, s.tip = e.cursor, e.tip
-	s.role = e.role
-	s.regionEscape = e.regionEscape
-	s.input, s.caret, s.takesText = e.inputFn, e.caret, e.takesText
-	if s.textClient != e.textClient {
-		if s.textAdapter != nil {
-			s.textAdapter.release()
-		}
-		s.textClient, s.textAdapter = e.textClient, nil
-	}
-	if s.textClient != nil && s.textAdapter == nil {
-		s.textAdapter = &textInputAdapter{rt: rt, id: s.id}
-	}
+	s := rt.recordState(e)
 	if (e.flags&flagEditable != 0 || s.textClient != nil && s.flags&flagDisabled == 0 || e.flags&flagSelectable != 0 && s.editor != nil) && s.cursor == 0 {
 		s.cursor = CursorText + 1
 	}
@@ -1126,4 +1097,76 @@ func (rt *engine) updateCursor() {
 		rt.cursor = c
 		rt.host.setCursor(c)
 	}
+}
+
+// recordState records in the element's state what the last frame laid out
+// and built of it, for input until the next frame.
+func (rt *engine) recordState(e *node) *state {
+	s := e.st
+	s.page = rt.commitPage
+	if e.flags&flagPage != 0 {
+		rt.commitPage = e.id
+	}
+	s.x, s.y, s.w, s.h = e.x, e.y, e.w, e.h
+	if e.parent != nil {
+		s.parent = e.parent.id
+	} else {
+		s.parent = 0
+	}
+	s.flags = e.flags
+	s.anchor = 0
+	if e.popover != nil {
+		s.anchor = e.popover.id
+	}
+	if e.parent != nil && e.parent.st.flags&flagDisabled != 0 {
+		// Disabled with the element around it, which may have been
+		// disabled after building it, as a Fieldset.
+		s.flags |= flagDisabled
+	}
+	s.cursor, s.tip = e.cursor, e.tip
+	s.role = e.role
+	s.regionEscape = e.regionEscape
+	s.input, s.caret, s.takesText = e.inputFn, e.caret, e.takesText
+	if s.textClient != e.textClient {
+		if s.textAdapter != nil {
+			s.textAdapter.release()
+		}
+		s.textClient, s.textAdapter = e.textClient, nil
+	}
+	if s.textClient != nil && s.textAdapter == nil {
+		s.textAdapter = &textInputAdapter{rt: rt, id: s.id}
+	}
+	return s
+}
+
+// commitHidden records an element inside an invisible or inert one, and
+// those inside it. Their states keep up with the frame, and the dialogs and
+// pages they are in, but they take neither the pointer nor the focus and
+// have no text to find: the hit list, the focus order and the labels skip
+// them. Inside an invisible element, their boxes were not laid out.
+func (rt *engine) commitHidden(e *node) {
+	saved, savedPage := rt.enterScope(e), rt.commitPage
+	s := rt.recordState(e)
+	s.vx, s.vy, s.vw, s.vh = e.x, e.y, 0, 0
+	s.cx, s.cy = e.x+e.contentX(), e.y+e.contentY()
+	s.cw, s.ch = max(e.w-e.padX(), 0), max(e.h-e.padY(), 0)
+	if e.flags&(flagScrollX|flagScrollY) != 0 {
+		s.contentW, s.contentH = e.contentW, e.contentH
+		s.barInset = e.barInset
+		s.barVisible = e.barVisible
+	}
+	if rt.focused == e.id {
+		rt.focused = 0
+	}
+	for ch := e.first; ch != nil; ch = ch.next {
+		if ch.flags&flagAbsolute == 0 {
+			rt.commitHidden(ch)
+		}
+	}
+	for ch := e.first; ch != nil; ch = ch.next {
+		if ch.flags&flagAbsolute != 0 {
+			rt.commitHidden(ch)
+		}
+	}
+	rt.commitScope, rt.commitPage = saved, savedPage
 }

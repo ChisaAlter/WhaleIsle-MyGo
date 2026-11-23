@@ -146,6 +146,9 @@ func place(e *node, x, y float32) {
 		cx -= float32(s.scrollX)
 		cy -= float32(s.scrollY - e.scrollBase)
 	}
+	if e.flags&flagInvisible != 0 {
+		return // its content was not laid out (layoutBox)
+	}
 	if e.kind == kindText && e.first != nil && !e.isInline() {
 		placeInline(e, e, 0)
 		return
@@ -448,6 +451,12 @@ func layoutBox(e *node, w, h float32) {
 		e.layoutInput(cw, ch)
 		return
 	case kindImage, kindIcon:
+		return
+	}
+	if e.flags&flagInvisible != 0 {
+		// What is invisible keeps its box, which its parent gave it, but
+		// nothing inside it shows, takes input or is read: its content is
+		// not laid out. Showing it again lays it out, as each frame does.
 		return
 	}
 	if e.list != nil {
