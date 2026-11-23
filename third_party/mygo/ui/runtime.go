@@ -257,8 +257,17 @@ type engine struct {
 	stats *frameStats
 	// dropOver is the element files are dragged over; access is true once
 	// assistive technology asked for the content.
-	dropOver   uint64
-	access     bool
+	dropOver uint64
+	access   bool
+	// accBuild is the tree for assistive technology being built, into
+	// nodes kept from frame to frame, accLast the tree the host got last,
+	// numbered accSeq, and accChanged the indexes of the nodes that
+	// changed since (updateAccess).
+	accBuild   platform.AccessTree
+	accLast    *platform.AccessTree
+	accSeq     uint64
+	accChanged []int
+	accPainted [3]float32
 	blinkStart time.Time
 	inFrame    bool
 	dark       bool
@@ -511,7 +520,7 @@ func (rt *engine) runFrame() {
 	rt.updateTextInput()
 	rt.updateCursor()
 	if rt.access {
-		rt.host.updateAccessibility(rt.accessTree())
+		rt.updateAccess(false)
 	}
 	if h, ok := rt.host.(*headless); ok {
 		// For tests, whether assistive technology reads the window or not.

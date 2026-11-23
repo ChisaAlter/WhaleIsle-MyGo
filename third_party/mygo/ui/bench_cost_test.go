@@ -3,6 +3,8 @@ package ui
 import (
 	"strconv"
 	"testing"
+
+	"github.com/egoist/mygo/internal/platform"
 )
 
 // costTree is a view of about 5000 elements: 34 groups of a header and
@@ -81,6 +83,36 @@ func BenchmarkCostTreeLeaf(b *testing.B) {
 		n++
 		t.labels[3][5] = "changed " + strconv.Itoa(n&7)
 		t.rev[3]++
+		tt.Frame()
+	}
+}
+
+// BenchmarkCostTreeAccess builds frames of the tree, one leaf changing,
+// while assistive technology reads the window.
+func BenchmarkCostTreeAccess(b *testing.B) {
+	t := newCostTree()
+	tt := costTester(t)
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessibilityOn})
+	tt.Frame()
+	b.ReportAllocs()
+	n := 0
+	for b.Loop() {
+		n++
+		t.labels[3][5] = "changed " + strconv.Itoa(n&7)
+		t.rev[3]++
+		tt.Frame()
+	}
+}
+
+// BenchmarkCostTreeAccessSteady builds frames of the tree where nothing
+// changed, while assistive technology reads the window.
+func BenchmarkCostTreeAccessSteady(b *testing.B) {
+	t := newCostTree()
+	tt := costTester(t)
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessibilityOn})
+	tt.Frame()
+	b.ReportAllocs()
+	for b.Loop() {
 		tt.Frame()
 	}
 }

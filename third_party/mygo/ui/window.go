@@ -491,11 +491,13 @@ func (h *windowHost) setTextInput(t platform.TextInputState) {
 }
 
 func (h *windowHost) updateAccessibility(tree *platform.AccessTree) {
-	if tree != nil {
+	if z := h.zoomFactor(); tree != nil && z != 1 {
+		// The engine keeps the tree it gave, in DIPs of the content: zoom a
+		// copy.
 		copyTree := *tree
 		copyTree.Nodes = append([]platform.AccessNode(nil), tree.Nodes...)
 		for i := range copyTree.Nodes {
-			copyTree.Nodes[i].Bounds = zoomRect(copyTree.Nodes[i].Bounds, h.zoomFactor())
+			copyTree.Nodes[i].Bounds = zoomRect(copyTree.Nodes[i].Bounds, z)
 		}
 		tree = &copyTree
 	}
