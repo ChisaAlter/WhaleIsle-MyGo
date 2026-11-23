@@ -13,15 +13,16 @@ import (
 // memoApp is a view of a header above two memo regions, each of a few
 // buttons, with counts of the regions' builds and clicks.
 type memoApp struct {
-	header      float32
-	labels      [2][]string
-	version     [2]uint64
-	builds      [2]int
-	clicks      map[string]int
-	animate     bool
-	plain       bool // no Memo: the same view without regions
-	handle      Element
-	handleSaved bool
+	header         float32
+	labels         [2][]string
+	version        [2]uint64
+	builds         [2]int
+	clicks         map[string]int
+	animate        bool
+	animateOutside bool
+	plain          bool // no Memo: the same view without regions
+	handle         Element
+	handleSaved    bool
 }
 
 func newMemoApp() *memoApp {
@@ -36,6 +37,9 @@ func newMemoApp() *memoApp {
 
 func (a *memoApp) view(c *context) {
 	coreColumn(c).Padding(8).Gap(4).Children(func() {
+		if a.animateOutside {
+			c.AnimationFrame()
+		}
 		coreBox(c).Height(a.header)
 		if coreButton(c, "Outside").Clicked() {
 			a.clicks["Outside"]++
@@ -468,5 +472,18 @@ func TestMemoScrolledByApp(t *testing.T) {
 	}
 	if builds != 1 || tt.rt.memoKept == 0 {
 		t.Fatalf("built %d times, kept %d", builds, tt.rt.memoKept)
+	}
+}
+
+// A region asking for frames while the pass already animates is live all
+// the same.
+func TestMemoAnimationInsideWhileAnimating(t *testing.T) {
+	a := newMemoApp()
+	a.animate, a.animateOutside = true, true
+	tt := memoTester(t, a)
+	tt.Frame()
+	tt.Frame()
+	if a.builds[1] < 2 || a.builds[0] != 0 {
+		t.Fatalf("built %v while region 1 animates", a.builds)
 	}
 }

@@ -343,7 +343,8 @@ func setDepth(e *node, d int) {
 func (rt *engine) buildRegion(r *memoRegion, e *node, fn func(), print *memoPrint) {
 	c := &rt.c
 	before := c.memoMarks()
-	rt.consumed = false
+	// What the region's build asks for, whatever the pass asked for before.
+	rt.consumed, rt.animating, rt.late = false, false, false
 	// The arena of the build before gives way: those elements are gone.
 	r.spent = max(r.spent, r.used)
 	r.used = 0
@@ -354,19 +355,21 @@ func (rt *engine) buildRegion(r *memoRegion, e *node, fn func(), print *memoPrin
 	r.trim()
 	after := c.memoMarks()
 	rt.consumed = before.consumed || after.consumed
+	rt.animating = before.animating || after.animating
+	rt.late = before.late || after.late
 	r.first, r.last, r.nchild, r.depth = e.first, e.last, e.nchild, e.depth+1
 	r.version, r.print = e.memoVersion, *print
 	r.seen, r.seenPass, r.reused = rt.frame, rt.pass, false
 	r.dirty, r.laid, r.committed, r.described = false, false, false, false
 	r.measured, r.heights, r.selPrepared = [2]bool{}, r.heights[:0], false
 	r.focus = false
-	r.live = after.consumed || after.animating && !before.animating || !after.wake.Equal(before.wake) ||
+	r.live = after.consumed || after.animating || !after.wake.Equal(before.wake) ||
 		after.parts != before.parts || after.observers != before.observers || after.captures != before.captures ||
 		after.reveal != before.reveal || after.clicks != before.clicks || after.toasts != before.toasts ||
 		after.phys != before.phys || after.physTerminals != before.physTerminals || after.transitions != before.transitions ||
 		after.members != before.members || after.routers != before.routers ||
 		after.kept != before.kept || after.overlay != before.overlay || after.overlayN != before.overlayN ||
-		after.late && !before.late
+		after.late
 	r.keys = after.regs != before.regs || after.actions != before.actions
 	r.regs = append(r.regs[:0], rt.nextRegs[before.regs:]...)
 	r.dividers = append(r.dividers[:0], c.dividers[before.dividers:]...)
@@ -480,6 +483,10 @@ func keptLayout(e *node, w, h float32) bool {
 		return false
 	}
 	if r.lw != w || r.lh != h || r.lprops != memoLayoutOf(e) {
+		// Laid out anew: what its elements measured at the old size goes.
+		for _, n := range r.nodes {
+			n.nmeasure = 0
+		}
 		return false
 	}
 	for _, n := range r.nodes {
