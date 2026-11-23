@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"hash/maphash"
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/internal/scene"
@@ -302,8 +303,25 @@ func (c *context) SetTheme(t *Theme) {
 	c.root.ts.color, c.root.ts.size, c.root.ts.family = t.Text, t.FontSize, t.Font
 }
 
-// Size returns the size of the window's content in DIPs.
+// Size returns the size of the window's content in DIPs, on every surface:
+// a window's, which counts device pixels, divided by DeviceScale, and a
+// Tester's. DevicePixelSize returns it in device pixels.
 func (c *context) Size() (width, height float32) { return c.w, c.h }
+
+// DevicePixelSize returns the size of the window's content in device pixels:
+// Size, which is in DIPs on every surface, times DeviceScale.
+func (c *context) DevicePixelSize() (width, height float32) {
+	s := c.rt.painted[2]
+	return float32(math.Round(float64(c.w * s))), float32(math.Round(float64(c.h * s)))
+}
+
+// DisplayLandscape reports whether the work area of the screen showing the
+// window, the screen less its taskbars and docks, is wider than high, and
+// whether that is known: on Windows, as the window last saw the monitor it
+// is on, read again as it moves or the displays change; not in a Tester,
+// nor for a square work area. A view sizing itself by the screen's shape
+// rather than the window's falls back to the window's when it is not known.
+func (c *context) DisplayLandscape() (landscape, known bool) { return c.rt.host.workArea() }
 
 // DeviceScale returns the device pixels per layout DIP for the current frame,
 // including the window's content zoom. It is positive and matches Painter.Scale.

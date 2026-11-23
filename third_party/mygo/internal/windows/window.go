@@ -27,7 +27,10 @@ const (
 )
 
 type window struct {
-	b      *Backend
+	b *Backend
+	// work is the orientation of the work area of the window's monitor
+	// (surface_display.go).
+	work   workArea
 	h      platform.WindowHandler
 	opts   *platform.WindowOptions
 	hwnd   uintptr
@@ -364,6 +367,7 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		w.endInteraction()
 		return 0, true
 	case wmMove:
+		w.work.valid = false // perhaps onto another monitor
 		if w.controller != 0 {
 			comCall(w.controller, ctlNotifyParentWindowPositionChanged)
 		}
@@ -406,6 +410,7 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		}
 		return 0, true
 	case wmDpiChanged:
+		w.work.valid = false
 		r := (*rect)(native(lp))
 		procSetWindowPos.Call(w.hwnd, 0, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), swpNoZOrder|swpNoActivate)
 		return 0, true

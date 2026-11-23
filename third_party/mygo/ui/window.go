@@ -171,6 +171,15 @@ const frameIdle = 2 * time.Second
 
 func (h *windowHost) refreshRate() float32 { return float32(h.conn.Surface.RefreshRate()) }
 
+// workArea reads the orientation of the work area of the window's screen
+// from a surface that tells it.
+func (h *windowHost) workArea() (landscape, known bool) {
+	if s, ok := h.conn.Surface.(platform.WorkAreaSurface); ok {
+		return s.WorkAreaLandscape()
+	}
+	return false, false
+}
+
 func (h *windowHost) occluded() bool {
 	s, ok := h.conn.Surface.(platform.OccludableSurface)
 	return ok && s.Occluded()

@@ -391,3 +391,12 @@ const (
 	CursorContextMenu
 	CursorNone
 )
+
+// WorkAreaSurface is a Surface that tells the orientation of the work area
+// of the monitor showing its window: the screen less the taskbars and
+// docks, as a browser's screen.availWidth and availHeight.
+type WorkAreaSurface interface {
+	// WorkAreaLandscape reports whether the work area is wider than high,
+	// and whether that is known: not on no monitor, nor for a square one.
+	WorkAreaLandscape() (landscape, known bool)
+}

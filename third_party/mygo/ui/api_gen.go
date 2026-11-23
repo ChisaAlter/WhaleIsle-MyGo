@@ -277,6 +277,30 @@ func (_handle *Context) CloseToast(id string) {
 	_ctx.CloseToast(id)
 }
 
+// DevicePixelSize returns the size of the window's content in device pixels:
+// Size, which is in DIPs on every surface, times DeviceScale.
+func (_handle *Context) DevicePixelSize() (float32, float32) {
+	_ctx := _handle.build()
+	if _ctx == nil {
+		return 0, 0
+	}
+	return _ctx.DevicePixelSize()
+}
+
+// DisplayLandscape reports whether the work area of the screen showing the
+// window, the screen less its taskbars and docks, is wider than high, and
+// whether that is known: on Windows, as the window last saw the monitor it
+// is on, read again as it moves or the displays change; not in a Tester,
+// nor for a square work area. A view sizing itself by the screen's shape
+// rather than the window's falls back to the window's when it is not known.
+func (_handle *Context) DisplayLandscape() (bool, bool) {
+	_ctx := _handle.build()
+	if _ctx == nil {
+		return false, false
+	}
+	return _ctx.DisplayLandscape()
+}
+
 // DeviceScale returns the device pixels per layout DIP for the current frame,
 // including the window's content zoom. It is positive and matches Painter.Scale.
 func (_handle *Context) DeviceScale() float32 {
@@ -401,7 +425,9 @@ func (_handle *Context) Shortcut(mods Modifiers, key Key) bool {
 	return _ctx.Shortcut(mods, key)
 }
 
-// Size returns the size of the window's content in DIPs.
+// Size returns the size of the window's content in DIPs, on every surface:
+// a window's, which counts device pixels, divided by DeviceScale, and a
+// Tester's. DevicePixelSize returns it in device pixels.
 func (_handle *Context) Size() (float32, float32) {
 	_ctx := _handle.build()
 	if _ctx == nil {

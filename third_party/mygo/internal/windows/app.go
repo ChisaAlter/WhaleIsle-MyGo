@@ -336,6 +336,7 @@ func (b *Backend) appMessage(m uint32, wp, lp uintptr) (uintptr, bool) {
 		b.powerMessage(m, wp)
 		return 1, false // TRUE for power broadcasts, and default handling
 	case wmSettingChange:
+		displayEpoch.Add(1)
 		switch {
 		case lp != 0 && wstr(lp) == settingImmersiveColorSet:
 			b.applyTheme()
@@ -346,6 +347,7 @@ func (b *Backend) appMessage(m uint32, wp, lp uintptr) (uintptr, bool) {
 		}
 		return 0, false
 	case wmDisplayChange:
+		displayEpoch.Add(1)
 		b.h.DisplaysChanged()
 		return 0, false
 	case wmTimer:

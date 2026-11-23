@@ -27,6 +27,9 @@ type host interface {
 	// occluded reports whether nothing of the window shows, as when other
 	// windows cover it.
 	occluded() bool
+	// workArea reports the orientation of the work area of the screen
+	// showing the window (Context.DisplayLandscape).
+	workArea() (landscape, known bool)
 	present(s *scene.Scene)
 	requestFrame()
 	setCursor(Cursor)
