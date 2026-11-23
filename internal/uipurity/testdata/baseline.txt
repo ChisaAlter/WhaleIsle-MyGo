@@ -74,7 +74,6 @@ internal/ui/frame/conversation_header.go	go	1
 internal/ui/frame/conversation_header.go	snapshot	1
 internal/ui/frame/conversation_open_in_app.go	go	3
 internal/ui/frame/conversation_open_in_app.go	snapshot	1
-internal/ui/frame/display_pixels_windows.go	import	1
 internal/ui/frame/frame.go	snapshot	6
 internal/ui/frame/frame_snapshot.go	snapshot	2
 internal/ui/frame/jobs.go	snapshot	2
