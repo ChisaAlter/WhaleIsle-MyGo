@@ -736,3 +736,12 @@ func Bytes(data []byte, kind string) (Key, Source) {
 	sum := sha256.Sum256(data)
 	return Key{ID: "sha256:" + hex.EncodeToString(sum[:])}, Source{Bytes: data, Kind: kind}
 }
+
+// Cached reports whether key has a ready picture in the cache, without
+// requesting it.
+func (s *Service) Cached(key Key) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h := s.entries[key]
+	return h != nil && h.lru != nil
+}

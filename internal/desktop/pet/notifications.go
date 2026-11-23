@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/petwatch"
 )
 
@@ -58,17 +60,26 @@ func (q *QuickChat) presentSticker(owner string, e petwatch.Event, home, root st
 	}
 	q.stickerSeen[key] = true
 	generation := q.stickerGeneration
-	go func() {
-		data, _, err := petwatch.ReadSticker(home, root, e.MediaPath)
-		var bitmap *ui.Bitmap
-		if err == nil {
-			bitmap, err = ui.DecodeBitmap(data)
+	// The confined read and the decode run on the media service; this lease
+	// ends when the sticker is delivered to the chat (or fails).
+	var lease *media.Owner
+	var handle *media.Handle
+	var done bool
+	deliver := func() {
+		if done || handle == nil || handle.State() == media.Pending {
+			return
 		}
-		clear(data)
-		q.win.Update(func() {
-			q.finishSticker(generation, owner, e, home, root, bitmap, err, ack)
-		})
-	}()
+		done = true
+		lease.Release()
+		q.finishSticker(generation, owner, e, home, root, handle.Bitmap(), handle.Err(), ack)
+	}
+	lease = media.Default().NewOwner(nil, func() { q.win.Update(deliver) })
+	mediaPath := e.MediaPath
+	handle = media.Default().Request(lease, media.Key{ID: "pet-sticker\x00" + home + "\x00" + root + "\x00" + mediaPath}, media.Source{Load: func(context.Context) ([]byte, error) {
+		data, _, err := petwatch.ReadSticker(home, root, mediaPath)
+		return data, err
+	}})
+	deliver()
 	return true
 }
 

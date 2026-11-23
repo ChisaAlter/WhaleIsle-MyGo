@@ -2058,8 +2058,6 @@ func main() {
 			cache := imgcache.New(imgDir)
 			media.Init(media.Config{CacheDir: filepath.Join(userData, "cache", "media"), Fetch: cache.Fetch})
 			chat.SetRemoteImageCache(cache)
-			sidebar.SetRemoteImageCache(cache)
-			settings.SetAccountImageCache(cache)
 			attDir := filepath.Join(userData, "cache", "attachments")
 			session.SetAttachmentCacheDir(attDir)
 		}

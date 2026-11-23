@@ -1,24 +1,12 @@
 package sidebar
 
 import (
-	"bytes"
-	"encoding/base64"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
-	"os"
 	"strings"
-	"sync"
-	"time"
 	"unicode"
 
 	"github.com/egoist/mygo/ui"
-	_ "golang.org/x/image/bmp"
-	_ "golang.org/x/image/webp"
 
-	"whaleisle/internal/desktop/imgcache"
-	"whaleisle/internal/paths"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -43,179 +31,10 @@ type Account struct {
 	RenderLauncherPopup func(*ui.Context, ui.Element)
 }
 
-const (
-	maxAccountBitmapCache = 32
-	accountBitmapNegTTL   = 30 * time.Second
-)
-
-type accountBitmapEntry struct {
-	bmp      *ui.Bitmap
-	failedAt time.Time
-}
-
-var (
-	accountRemoteCache struct {
-		mu sync.Mutex
-		c  *imgcache.Cache
-	}
-	accountBitmapCache struct {
-		mu       sync.Mutex
-		entries  map[string]accountBitmapEntry
-		order    []string
-		inFlight map[string]bool
-	}
-)
-
-// SetRemoteImageCache installs the shared http(s) image cache for sidebar avatars.
-func SetRemoteImageCache(c *imgcache.Cache) {
-	accountRemoteCache.mu.Lock()
-	accountRemoteCache.c = c
-	accountRemoteCache.mu.Unlock()
-}
-
-func RetryAccountAvatar(raw string, invalidate func()) {
-	raw = strings.TrimSpace(raw)
-	accountBitmapCache.mu.Lock()
-	delete(accountBitmapCache.entries, raw)
-	accountBitmapCache.mu.Unlock()
-	remoteAvatarCache().Retry(raw, invalidate)
-}
-
-func remoteAvatarCache() *imgcache.Cache {
-	accountRemoteCache.mu.Lock()
-	defer accountRemoteCache.mu.Unlock()
-	if accountRemoteCache.c == nil {
-		accountRemoteCache.c = imgcache.New(imgcache.Dir(paths.UserDataDir()))
-	}
-	return accountRemoteCache.c
-}
-
-func decodeAvatarBytes(data []byte) *ui.Bitmap {
-	if len(data) == 0 {
-		return nil
-	}
-	if bmp, err := ui.DecodeBitmap(data); err == nil && bmp != nil {
-		return bmp
-	}
-	if img, _, err := image.Decode(bytes.NewReader(data)); err == nil && img != nil {
-		return ui.NewBitmap(img)
-	}
-	return nil
-}
-
-func touchAccountBitmapLRU(order []string, key string) []string {
-	for i, existing := range order {
-		if existing == key {
-			order = append(order[:i], order[i+1:]...)
-			break
-		}
-	}
-	return append(order, key)
-}
-
-func storeAccountBitmap(key string, bmp *ui.Bitmap) {
-	accountBitmapCache.mu.Lock()
-	defer accountBitmapCache.mu.Unlock()
-	if accountBitmapCache.entries == nil {
-		accountBitmapCache.entries = make(map[string]accountBitmapEntry, maxAccountBitmapCache)
-	}
-	entry := accountBitmapEntry{bmp: bmp}
-	if bmp == nil {
-		entry.failedAt = time.Now()
-	}
-	accountBitmapCache.entries[key] = entry
-	accountBitmapCache.order = touchAccountBitmapLRU(accountBitmapCache.order, key)
-	for len(accountBitmapCache.order) > maxAccountBitmapCache {
-		oldest := accountBitmapCache.order[0]
-		accountBitmapCache.order = accountBitmapCache.order[1:]
-		delete(accountBitmapCache.entries, oldest)
-	}
-}
-
-func accountAvatarBitmap(c *ui.Context, rawURL string) *ui.Bitmap {
-	rawURL = strings.TrimSpace(rawURL)
-	if rawURL == "" {
-		return nil
-	}
-	var invalidate func()
-	if c != nil {
-		invalidate = c.Services().Invalidate
-	}
-	now := time.Now()
-	accountBitmapCache.mu.Lock()
-	if entry, ok := accountBitmapCache.entries[rawURL]; ok {
-		if entry.bmp != nil {
-			accountBitmapCache.order = touchAccountBitmapLRU(accountBitmapCache.order, rawURL)
-			accountBitmapCache.mu.Unlock()
-			return entry.bmp
-		}
-		if now.Sub(entry.failedAt) < accountBitmapNegTTL {
-			accountBitmapCache.order = touchAccountBitmapLRU(accountBitmapCache.order, rawURL)
-			accountBitmapCache.mu.Unlock()
-			return nil
-		}
-		delete(accountBitmapCache.entries, rawURL)
-	}
-	if accountBitmapCache.inFlight[rawURL] {
-		accountBitmapCache.mu.Unlock()
-		return nil
-	}
-	accountBitmapCache.mu.Unlock()
-
-	readPath := rawURL
-	isDataURI := strings.HasPrefix(rawURL, "data:image/")
-	if imgcache.IsHTTPURL(rawURL) {
-		cache := remoteAvatarCache()
-		if cache == nil {
-			return nil
-		}
-		st, local, _ := cache.State(rawURL)
-		if st == imgcache.StatusMissing {
-			cache.Ensure(rawURL, invalidate)
-			return nil
-		}
-		if st != imgcache.StatusReady {
-			return nil
-		}
-		if local == "" {
-			storeAccountBitmap(rawURL, nil)
-			return nil
-		}
-		readPath = local
-	}
-
-	accountBitmapCache.mu.Lock()
-	if accountBitmapCache.inFlight[rawURL] {
-		accountBitmapCache.mu.Unlock()
-		return nil
-	}
-	if accountBitmapCache.inFlight == nil {
-		accountBitmapCache.inFlight = make(map[string]bool)
-	}
-	accountBitmapCache.inFlight[rawURL] = true
-	accountBitmapCache.mu.Unlock()
-
-	go func() {
-		var bmp *ui.Bitmap
-		if isDataURI {
-			head, encoded, ok := strings.Cut(rawURL, ",")
-			if ok && strings.HasSuffix(head, ";base64") {
-				if data, err := base64.StdEncoding.DecodeString(encoded); err == nil {
-					bmp = decodeAvatarBytes(data)
-				}
-			}
-		} else if data, err := os.ReadFile(readPath); err == nil {
-			bmp = decodeAvatarBytes(data)
-		}
-		accountBitmapCache.mu.Lock()
-		delete(accountBitmapCache.inFlight, rawURL)
-		accountBitmapCache.mu.Unlock()
-		storeAccountBitmap(rawURL, bmp)
-		if bmp != nil && invalidate != nil {
-			invalidate()
-		}
-	}()
-	return nil
+// accountAvatarBitmap reads the account avatar shared with the settings page;
+// downloads and decoding run on the media service.
+func accountAvatarBitmap(_ *ui.Context, rawURL string) *ui.Bitmap {
+	return media.Default().Avatar(rawURL).Bitmap()
 }
 
 var accountPersonIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="8" cy="5.4" r="2.6"/><path d="M2.9 13.1c.7-2.4 2.7-3.7 5.1-3.7s4.4 1.3 5.1 3.7"/></svg>`))

@@ -1,29 +1,20 @@
 package sidebar
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
-	"os"
+	"image"
+	"image/png"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
-
-func resetSidebarAccountBitmapCacheForTest(t *testing.T) {
-	t.Helper()
-	clear := func() {
-		accountBitmapCache.mu.Lock()
-		accountBitmapCache.entries = nil
-		accountBitmapCache.order = nil
-		accountBitmapCache.inFlight = nil
-		accountBitmapCache.mu.Unlock()
-	}
-	clear()
-	t.Cleanup(clear)
-}
 
 func TestFlatGroupingPaginatesAtFiftyAndExpandsCleanly(t *testing.T) {
 	old := i18n.Locale()
@@ -121,10 +112,13 @@ func TestArchivedSectionPaginatesAtThirtyAndResetsOnCollapse(t *testing.T) {
 	}
 }
 
-func TestAccountAvatarBitmapLoadsAsyncNegativeCachedAndBoundsLRU(t *testing.T) {
-	resetSidebarAccountBitmapCacheForTest(t)
-
-	const onePixelPNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+func TestAccountAvatarBitmapLoadsAsyncAndSharesTheSettingsDecode(t *testing.T) {
+	// A picture of its own: the process media cache is shared by every test.
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 3, 2))); err != nil {
+		t.Fatal(err)
+	}
+	onePixelPNG := "data:image/png;base64," + base64.StdEncoding.EncodeToString(encoded.Bytes())
 	var firstBmp, bmp *ui.Bitmap
 	calls := 0
 	tt := ui.NewTester(func(c *ui.Context) {
@@ -139,59 +133,18 @@ func TestAccountAvatarBitmapLoadsAsyncNegativeCachedAndBoundsLRU(t *testing.T) {
 		t.Fatal("first call decoded synchronously instead of dispatching async loader")
 	}
 	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
+	for time.Now().Before(deadline) && bmp == nil {
 		tt.Frame()
-		if bmp != nil {
-			break
-		}
 		time.Sleep(5 * time.Millisecond)
 	}
 	if bmp == nil {
 		t.Fatal("async accountAvatarBitmap never populated bitmap")
 	}
-
-	missingPath := filepath.Join(t.TempDir(), "missing-avatar.png")
-	_ = accountAvatarBitmap(nil, missingPath)
-	deadline = time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		accountBitmapCache.mu.Lock()
-		entry, ok := accountBitmapCache.entries[missingPath]
-		inFlight := accountBitmapCache.inFlight[missingPath]
-		accountBitmapCache.mu.Unlock()
-		if ok && !inFlight && entry.bmp == nil && !entry.failedAt.IsZero() {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
+	if media.Default().Avatar(onePixelPNG).Bitmap() != bmp {
+		t.Fatal("settings and sidebar avatars do not share one bitmap")
 	}
-	_ = accountAvatarBitmap(nil, missingPath)
-	accountBitmapCache.mu.Lock()
-	restarted := accountBitmapCache.inFlight[missingPath]
-	accountBitmapCache.mu.Unlock()
-	if restarted {
-		t.Fatal("negatively cached missing file re-triggered read")
-	}
-
-	// Verify LRU capacity stays bounded at maxAccountBitmapCache.
-	tmpDir := t.TempDir()
-	for i := 0; i < maxAccountBitmapCache+6; i++ {
-		p := filepath.Join(tmpDir, fmt.Sprintf("missing-%d.png", i))
-		_ = os.Remove(p)
-		_ = accountAvatarBitmap(nil, p)
-		wait := time.Now().Add(3 * time.Second)
-		for time.Now().Before(wait) {
-			accountBitmapCache.mu.Lock()
-			_, done := accountBitmapCache.entries[p]
-			accountBitmapCache.mu.Unlock()
-			if done {
-				break
-			}
-			time.Sleep(2 * time.Millisecond)
-		}
-	}
-	accountBitmapCache.mu.Lock()
-	count := len(accountBitmapCache.entries)
-	accountBitmapCache.mu.Unlock()
-	if count > maxAccountBitmapCache {
-		t.Fatalf("sidebar account bitmap LRU exceeded cap: got %d, want <= %d", count, maxAccountBitmapCache)
+	// Local filesystem paths are never avatar sources.
+	if accountAvatarBitmap(nil, filepath.Join(t.TempDir(), "avatar.png")) != nil || media.Default().Avatar(`C:\avatar.png`) != nil {
+		t.Fatal("a local path was accepted as an avatar")
 	}
 }
