@@ -1,0 +1,6606 @@
+{
+ "id": "whale-ui",
+ "version": "1",
+ "root": "Col",
+ "generator": "internal/openui/lang/whaleui/gen/gen.mjs",
+ "sources": {
+  "host": {
+   "path": "internal/desktop/openui/viewer/v2/host.cjs",
+   "sha256": "6426d880bf894f730b5aa37b7a512a226520c57e3ad4ab3fdb05ab6471f6f501"
+  },
+  "guide": {
+   "path": "runtime-rc4/vendor/deepseek-harness/packages/client/ui-chat/lib/types/openui-guide.js",
+   "sha256": "3dbb714c553bfb68460ce487780696af1e1d8d4c17f9da6660296df4c9ee996e"
+  }
+ },
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+   "Col": {
+    "$ref": "#/$defs/Col"
+   },
+   "Row": {
+    "$ref": "#/$defs/Row"
+   },
+   "Box": {
+    "$ref": "#/$defs/Box"
+   },
+   "Grid": {
+    "$ref": "#/$defs/Grid"
+   },
+   "Card": {
+    "$ref": "#/$defs/Card"
+   },
+   "Carousel": {
+    "$ref": "#/$defs/Carousel"
+   },
+   "Popover": {
+    "$ref": "#/$defs/Popover"
+   },
+   "Details": {
+    "$ref": "#/$defs/Details"
+   },
+   "Divider": {
+    "$ref": "#/$defs/Divider"
+   },
+   "Spacer": {
+    "$ref": "#/$defs/Spacer"
+   },
+   "Title": {
+    "$ref": "#/$defs/Title"
+   },
+   "Text": {
+    "$ref": "#/$defs/Text"
+   },
+   "Caption": {
+    "$ref": "#/$defs/Caption"
+   },
+   "Label": {
+    "$ref": "#/$defs/Label"
+   },
+   "Badge": {
+    "$ref": "#/$defs/Badge"
+   },
+   "Link": {
+    "$ref": "#/$defs/Link"
+   },
+   "List": {
+    "$ref": "#/$defs/List"
+   },
+   "ListItem": {
+    "$ref": "#/$defs/ListItem"
+   },
+   "Markdown": {
+    "$ref": "#/$defs/Markdown"
+   },
+   "Quote": {
+    "$ref": "#/$defs/Quote"
+   },
+   "Code": {
+    "$ref": "#/$defs/Code"
+   },
+   "Math": {
+    "$ref": "#/$defs/Math"
+   },
+   "Progress": {
+    "$ref": "#/$defs/Progress"
+   },
+   "Button": {
+    "$ref": "#/$defs/Button"
+   },
+   "IconButton": {
+    "$ref": "#/$defs/IconButton"
+   },
+   "Pressable": {
+    "$ref": "#/$defs/Pressable"
+   },
+   "Input": {
+    "$ref": "#/$defs/Input"
+   },
+   "TextArea": {
+    "$ref": "#/$defs/TextArea"
+   },
+   "Select": {
+    "$ref": "#/$defs/Select"
+   },
+   "SegmentedControl": {
+    "$ref": "#/$defs/SegmentedControl"
+   },
+   "Slider": {
+    "$ref": "#/$defs/Slider"
+   },
+   "Checkbox": {
+    "$ref": "#/$defs/Checkbox"
+   },
+   "RadioGroup": {
+    "$ref": "#/$defs/RadioGroup"
+   },
+   "DatePicker": {
+    "$ref": "#/$defs/DatePicker"
+   },
+   "Timer": {
+    "$ref": "#/$defs/Timer"
+   },
+   "Form": {
+    "$ref": "#/$defs/Form"
+   },
+   "SearchImage": {
+    "$ref": "#/$defs/SearchImage"
+   },
+   "Image": {
+    "$ref": "#/$defs/Image"
+   },
+   "Icon": {
+    "$ref": "#/$defs/Icon"
+   },
+   "Table": {
+    "$ref": "#/$defs/Table"
+   },
+   "YouTube": {
+    "$ref": "#/$defs/YouTube"
+   },
+   "Flashcard": {
+    "$ref": "#/$defs/Flashcard"
+   },
+   "Celebration": {
+    "$ref": "#/$defs/Celebration"
+   },
+   "Chart": {
+    "$ref": "#/$defs/Chart"
+   },
+   "Map": {
+    "$ref": "#/$defs/Map"
+   },
+   "MapMarker": {
+    "$ref": "#/$defs/MapMarker"
+   },
+   "Svg": {
+    "$ref": "#/$defs/Svg"
+   },
+   "G": {
+    "$ref": "#/$defs/G"
+   },
+   "Circle": {
+    "$ref": "#/$defs/Circle"
+   },
+   "Ellipse": {
+    "$ref": "#/$defs/Ellipse"
+   },
+   "Rect": {
+    "$ref": "#/$defs/Rect"
+   },
+   "Line": {
+    "$ref": "#/$defs/Line"
+   },
+   "Path": {
+    "$ref": "#/$defs/Path"
+   },
+   "Polyline": {
+    "$ref": "#/$defs/Polyline"
+   },
+   "Polygon": {
+    "$ref": "#/$defs/Polygon"
+   },
+   "SvgText": {
+    "$ref": "#/$defs/SvgText"
+   },
+   "HtmlView": {
+    "$ref": "#/$defs/HtmlView"
+   },
+   "Genui": {
+    "$ref": "#/$defs/Genui"
+   },
+   "Plot": {
+    "$ref": "#/$defs/Plot"
+   },
+   "Mermaid": {
+    "$ref": "#/$defs/Mermaid"
+   },
+   "Scene3D": {
+    "$ref": "#/$defs/Scene3D"
+   },
+   "EChart": {
+    "$ref": "#/$defs/EChart"
+   },
+   "Diagram": {
+    "$ref": "#/$defs/Diagram"
+   },
+   "Blocks": {
+    "$ref": "#/$defs/Blocks"
+   },
+   "Quiz": {
+    "$ref": "#/$defs/Quiz"
+   },
+   "FileTree": {
+    "$ref": "#/$defs/FileTree"
+   },
+   "Timeline": {
+    "$ref": "#/$defs/Timeline"
+   },
+   "Steps": {
+    "$ref": "#/$defs/Steps"
+   },
+   "KeyValue": {
+    "$ref": "#/$defs/KeyValue"
+   },
+   "Diff": {
+    "$ref": "#/$defs/Diff"
+   },
+   "Json": {
+    "$ref": "#/$defs/Json"
+   },
+   "Tabs": {
+    "$ref": "#/$defs/Tabs"
+   },
+   "Accordion": {
+    "$ref": "#/$defs/Accordion"
+   }
+  },
+  "required": [
+   "Col",
+   "Row",
+   "Box",
+   "Grid",
+   "Card",
+   "Carousel",
+   "Popover",
+   "Details",
+   "Divider",
+   "Spacer",
+   "Title",
+   "Text",
+   "Caption",
+   "Label",
+   "Badge",
+   "Link",
+   "List",
+   "ListItem",
+   "Markdown",
+   "Quote",
+   "Code",
+   "Math",
+   "Progress",
+   "Button",
+   "IconButton",
+   "Pressable",
+   "Input",
+   "TextArea",
+   "Select",
+   "SegmentedControl",
+   "Slider",
+   "Checkbox",
+   "RadioGroup",
+   "DatePicker",
+   "Timer",
+   "Form",
+   "SearchImage",
+   "Image",
+   "Icon",
+   "Table",
+   "YouTube",
+   "Flashcard",
+   "Celebration",
+   "Chart",
+   "Map",
+   "MapMarker",
+   "Svg",
+   "G",
+   "Circle",
+   "Ellipse",
+   "Rect",
+   "Line",
+   "Path",
+   "Polyline",
+   "Polygon",
+   "SvgText",
+   "HtmlView",
+   "Genui",
+   "Plot",
+   "Mermaid",
+   "Scene3D",
+   "EChart",
+   "Diagram",
+   "Blocks",
+   "Quiz",
+   "FileTree",
+   "Timeline",
+   "Steps",
+   "KeyValue",
+   "Diff",
+   "Json",
+   "Tabs",
+   "Accordion"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+   "Col": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "gap": {
+      "type": "number"
+     },
+     "align": {
+      "type": "string",
+      "enum": [
+       "start",
+       "center",
+       "end",
+       "stretch"
+      ]
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Vertical layout; gap and padding units are 4px. Default gap follows article spacing."
+   },
+   "Row": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "gap": {
+      "type": "number"
+     },
+     "align": {
+      "type": "string",
+      "enum": [
+       "start",
+       "center",
+       "end",
+       "stretch"
+      ]
+     },
+     "justify": {
+      "type": "string",
+      "enum": [
+       "start",
+       "center",
+       "end",
+       "between"
+      ]
+     },
+     "wrap": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Horizontal layout with vertically centered children."
+   },
+   "Box": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "row",
+       "col"
+      ]
+     },
+     "gap": {
+      "type": "number"
+     },
+     "padding": {
+      "type": "number"
+     },
+     "background": {
+      "type": "string"
+     },
+     "radius": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "sm",
+         "md",
+         "lg",
+         "xl",
+         "full"
+        ]
+       },
+       {
+        "type": "number"
+       }
+      ]
+     },
+     "border": {
+      "type": "boolean"
+     },
+     "width": {
+      "type": [
+       "number",
+       "string"
+      ]
+     },
+     "height": {
+      "type": [
+       "number",
+       "string"
+      ]
+     },
+     "flex": {
+      "type": "number"
+     },
+     "align": {
+      "type": "string",
+      "enum": [
+       "start",
+       "center",
+       "end",
+       "stretch"
+      ]
+     },
+     "justify": {
+      "type": "string",
+      "enum": [
+       "start",
+       "center",
+       "end",
+       "between"
+      ]
+     },
+     "wrap": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false,
+    "description": "Flexible container. gap and padding use 4px units: padding 3 = 12px, 4 = 16px, 5 = 20px; width and height use pixels/CSS lengths. Named backgrounds use soft theme tints."
+   },
+   "Grid": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "columns": {
+      "type": "number"
+     },
+     "minChildWidth": {
+      "type": "number"
+     },
+     "gap": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Equal columns; use minChildWidth 240–280 for readable responsive fields and cards. With minChildWidth, columns caps the count and a narrower page reflows into balanced rows (4 items → 2×2), never leaving one item alone on the last row."
+   },
+   "Card": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "variant": {
+      "type": "string",
+      "enum": [
+       "outline",
+       "soft"
+      ]
+     },
+     "padding": {
+      "type": "number"
+     },
+     "gap": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Theme-aligned panel. padding and gap are 4px units, not pixels: padding 4 = 16px, padding 5 = 20px (default), gap 3 = 12px. Use a plain section for metrics; do not put each number in a separate card."
+   },
+   "Carousel": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "itemWidth": {
+      "type": "number"
+     },
+     "gap": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Horizontal, scrollable list with snap-aligned items."
+   },
+   "Popover": {
+    "type": "object",
+    "properties": {
+     "trigger": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {}
+       }
+      ]
+     },
+     "content": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {}
+       }
+      ]
+     }
+    },
+    "required": [
+     "trigger",
+     "content"
+    ],
+    "additionalProperties": false,
+    "description": "Click to show a small details panel; Escape or outside click closes it."
+   },
+   "Details": {
+    "type": "object",
+    "properties": {
+     "label": {
+      "type": "string"
+     },
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "defaultOpen": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "label",
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Expandable secondary content, closed by default. Native keyboard disclosure; child inputs remain mounted and retain edits. Use for fee breakdowns, row editing and explanations after the main result."
+   },
+   "Divider": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false,
+    "description": "A subtle horizontal separator."
+   },
+   "Spacer": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false,
+    "description": "Fill remaining space in a row."
+   },
+   "Title": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "size": {
+      "type": "string",
+      "enum": [
+       "sm",
+       "md",
+       "lg",
+       "xl",
+       "2xl",
+       "3xl"
+      ]
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "Page or section heading. Use md for the single page title, sm for a section; 2xl/3xl only for a key numeric value."
+   },
+   "Text": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {}
+       }
+      ]
+     },
+     "size": {
+      "type": "string",
+      "enum": [
+       "xs",
+       "sm",
+       "md",
+       "lg"
+      ]
+     },
+     "color": {
+      "type": "string"
+     },
+     "weight": {
+      "type": "string",
+      "enum": [
+       "normal",
+       "medium",
+       "semibold"
+      ]
+     },
+     "italic": {
+      "type": "boolean"
+     },
+     "lineThrough": {
+      "type": "boolean"
+     },
+     "tabularNums": {
+      "type": "boolean"
+     },
+     "maxLines": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "Paragraph with inline bold, italic, code and links; mixed arrays may contain components."
+   },
+   "Caption": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "Secondary small text."
+   },
+   "Label": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "A field or group label."
+   },
+   "Badge": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string",
+      "enum": [
+       "neutral",
+       "info",
+       "success",
+       "warning",
+       "danger",
+       "purple",
+       "pink"
+      ]
+     },
+     "icon": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "Compact theme-colored tag with optional Lucide icon."
+   },
+   "Link": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "url"
+    ],
+    "additionalProperties": false,
+    "description": "Open an HTTP(S) web URL."
+   },
+   "List": {
+    "type": "object",
+    "properties": {
+     "items": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "$ref": "#/$defs/ListItem"
+        }
+       ]
+      }
+     },
+     "marker": {
+      "type": "string",
+      "enum": [
+       "bullet",
+       "number",
+       "none"
+      ]
+     },
+     "timeline": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "additionalProperties": false,
+    "description": "A bullet, numbered or unmarked list; timeline connects item markers."
+   },
+   "ListItem": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "marker": {
+      "type": "string"
+     },
+     "children": {
+      "type": "array",
+      "items": {}
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "additionalProperties": false,
+    "description": "A list item with optional description, custom marker and child content."
+   },
+   "Markdown": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "Safe Markdown prose including headings, lists, quotes, fenced code and tables."
+   },
+   "Quote": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "cite": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "additionalProperties": false,
+    "description": "Quotation with a source attribution."
+   },
+   "Code": {
+    "type": "object",
+    "properties": {
+     "code": {
+      "type": "string"
+     },
+     "language": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code"
+    ],
+    "additionalProperties": false,
+    "description": "Code block with a host-backed copy button."
+   },
+   "Math": {
+    "type": "object",
+    "properties": {
+     "tex": {
+      "type": "string"
+     },
+     "inline": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "tex"
+    ],
+    "additionalProperties": false,
+    "description": "KaTeX formula; inline formulas sit within text."
+   },
+   "Progress": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "number"
+     },
+     "max": {
+      "type": "number"
+     },
+     "label": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string",
+      "enum": [
+       "info",
+       "success",
+       "warning",
+       "danger",
+       "neutral"
+      ]
+     }
+    },
+    "required": [
+     "value"
+    ],
+    "additionalProperties": false,
+    "description": "Full-width progress bar for completion or a share of a goal: value out of max (default 100). With a label it shows the label and the percentage above the bar. Use it instead of drawing a bar from Box widths."
+   },
+   "Button": {
+    "type": "object",
+    "properties": {
+     "label": {
+      "type": "string"
+     },
+     "action": {
+      "$ref": "#/$defs/ActionExpression"
+     },
+     "variant": {
+      "type": "string",
+      "enum": [
+       "solid",
+       "outline",
+       "soft",
+       "ghost"
+      ]
+     },
+     "color": {
+      "type": "string",
+      "enum": [
+       "primary",
+       "danger",
+       "success"
+      ]
+     },
+     "size": {
+      "type": "string",
+      "enum": [
+       "sm",
+       "md",
+       "lg"
+      ]
+     },
+     "icon": {
+      "type": "string"
+     },
+     "disabled": {
+      "type": "boolean"
+     },
+     "block": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "label"
+    ],
+    "additionalProperties": false,
+    "description": "Run local or host action steps; without an action, send the button label to the assistant."
+   },
+   "ActionExpression": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "type": {
+        "type": "string",
+        "const": "open_url"
+       },
+       "url": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "type",
+       "url"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "type": "object",
+      "properties": {
+       "type": {
+        "type": "string",
+        "const": "continue_conversation"
+       },
+       "context": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "type"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "type": "object",
+      "properties": {
+       "type": {
+        "type": "string"
+       },
+       "params": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "type"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "IconButton": {
+    "type": "object",
+    "properties": {
+     "icon": {
+      "type": "string"
+     },
+     "action": {
+      "$ref": "#/$defs/ActionExpression"
+     },
+     "label": {
+      "type": "string"
+     },
+     "variant": {
+      "type": "string",
+      "enum": [
+       "outline",
+       "ghost",
+       "solid"
+      ]
+     }
+    },
+    "required": [
+     "icon"
+    ],
+    "additionalProperties": false,
+    "description": "Accessible round icon action."
+   },
+   "Pressable": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "action": {
+      "$ref": "#/$defs/ActionExpression"
+     },
+     "selected": {
+      "type": "boolean"
+     },
+     "padding": {
+      "type": "number"
+     },
+     "background": {
+      "type": "string"
+     },
+     "radius": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "sm",
+         "md",
+         "lg",
+         "xl",
+         "full"
+        ]
+       },
+       {
+        "type": "number"
+       }
+      ]
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Keyboard-accessible clickable content with optional selected state."
+   },
+   "Input": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": [
+       "string",
+       "number"
+      ]
+     },
+     "label": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "text",
+       "number"
+      ]
+     },
+     "placeholder": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "value"
+    ],
+    "additionalProperties": false,
+    "description": "Bound text or numeric field; numeric edits store numbers, and an empty number stores null."
+   },
+   "TextArea": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string"
+     },
+     "placeholder": {
+      "type": "string"
+     },
+     "rows": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "value"
+    ],
+    "additionalProperties": false,
+    "description": "Bound multiline text."
+   },
+   "Select": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "string"
+     },
+     "options": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": "string"
+          },
+          "label": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "label"
+         ],
+         "additionalProperties": false
+        }
+       ]
+      }
+     },
+     "label": {
+      "type": "string"
+     },
+     "placeholder": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Bound dropdown with text or value/label options."
+   },
+   "SegmentedControl": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "string"
+     },
+     "options": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": "string"
+          },
+          "label": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "label"
+         ],
+         "additionalProperties": false
+        }
+       ]
+      }
+     },
+     "block": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "value",
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "A bound single selection shown as adjacent buttons with arrow-key navigation."
+   },
+   "Slider": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "number"
+     },
+     "min": {
+      "type": "number"
+     },
+     "max": {
+      "type": "number"
+     },
+     "step": {
+      "type": "number"
+     },
+     "label": {
+      "type": "string"
+     },
+     "unit": {
+      "type": "string"
+     },
+     "marks": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "value": {
+         "type": "number"
+        },
+        "label": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "value",
+        "label"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "value",
+     "min",
+     "max"
+    ],
+    "additionalProperties": false,
+    "description": "Bound numeric slider with label, unit and optional tick marks."
+   },
+   "Checkbox": {
+    "type": "object",
+    "properties": {
+     "checked": {
+      "type": "boolean"
+     },
+     "label": {
+      "type": "string"
+     },
+     "lineThrough": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "checked",
+     "label"
+    ],
+    "additionalProperties": false,
+    "description": "Bound checkbox; optionally strike completed text."
+   },
+   "RadioGroup": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "string"
+     },
+     "options": {
+      "type": "array",
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": "string"
+          },
+          "label": {
+           "type": "string"
+          },
+          "description": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "label"
+         ],
+         "additionalProperties": false
+        }
+       ]
+      }
+     },
+     "label": {
+      "type": "string"
+     },
+     "variant": {
+      "type": "string",
+      "enum": [
+       "list",
+       "pills",
+       "cards"
+      ]
+     }
+    },
+    "required": [
+     "value",
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Bound radio choices as a list, pills or descriptive cards."
+   },
+   "DatePicker": {
+    "type": "object",
+    "properties": {
+     "value": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string"
+     },
+     "min": {
+      "type": "string"
+     },
+     "max": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "value"
+    ],
+    "additionalProperties": false,
+    "description": "Bound local calendar date in YYYY-MM-DD format."
+   },
+   "Timer": {
+    "type": "object",
+    "properties": {
+     "seconds": {
+      "type": "number"
+     },
+     "label": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "seconds"
+    ],
+    "additionalProperties": false,
+    "description": "Durable countdown with start, pause and reset; updates bound seconds down to zero."
+   },
+   "Form": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "Group all bound and plain member fields for assistant submission."
+   },
+   "SearchImage": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "aspectRatio": {
+      "type": "number"
+     },
+     "radius": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "sm",
+         "md",
+         "lg",
+         "xl",
+         "full"
+        ]
+       },
+       {
+        "type": "number"
+       }
+      ]
+     },
+     "fit": {
+      "type": "string",
+      "enum": [
+       "cover",
+       "contain"
+      ]
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false,
+    "description": "Find a real image through the host image-search resource. Failed requests can be retried."
+   },
+   "Image": {
+    "type": "object",
+    "properties": {
+     "src": {
+      "type": "string"
+     },
+     "alt": {
+      "type": "string"
+     },
+     "aspectRatio": {
+      "type": "number"
+     },
+     "radius": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "sm",
+         "md",
+         "lg",
+         "xl",
+         "full"
+        ]
+       },
+       {
+        "type": "number"
+       }
+      ]
+     },
+     "fit": {
+      "type": "string",
+      "enum": [
+       "cover",
+       "contain"
+      ]
+     }
+    },
+    "required": [
+     "src",
+     "alt"
+    ],
+    "additionalProperties": false,
+    "description": "Image from a URL; find an image for alt text if loading fails."
+   },
+   "Icon": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "size": {
+      "type": "string",
+      "enum": [
+       "sm",
+       "md",
+       "lg",
+       "xl"
+      ]
+     },
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false,
+    "description": "Lucide icon by kebab-case name."
+   },
+   "Table": {
+    "type": "object",
+    "properties": {
+     "columns": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "rows": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {}
+      }
+     }
+    },
+    "required": [
+     "columns",
+     "rows"
+    ],
+    "additionalProperties": false,
+    "description": "Scrollable data table with numeric alignment and support for components in cells."
+   },
+   "YouTube": {
+    "type": "object",
+    "properties": {
+     "video": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "video"
+    ],
+    "additionalProperties": false,
+    "description": "YouTube video by known id or URL, embedded through privacy-enhanced mode."
+   },
+   "Flashcard": {
+    "type": "object",
+    "properties": {
+     "front": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {}
+       }
+      ]
+     },
+     "back": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {}
+       }
+      ]
+     },
+     "hint": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "front",
+     "back"
+    ],
+    "additionalProperties": false,
+    "description": "Tap to reveal a flashcard answer; flipped state persists across remounts."
+   },
+   "Celebration": {
+    "type": "object",
+    "properties": {
+     "when": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "when"
+    ],
+    "additionalProperties": false,
+    "description": "Brief confetti when the condition becomes true; respects reduced motion."
+   },
+   "Chart": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "bar",
+       "line",
+       "area",
+       "pie",
+       "donut",
+       "scatter"
+      ]
+     },
+     "data": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": [
+         "string",
+         "number"
+        ]
+       }
+      }
+     },
+     "x": {
+      "type": "string"
+     },
+     "series": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "number",
+       "currency",
+       "percent"
+      ]
+     },
+     "currency": {
+      "type": "string"
+     },
+     "stacked": {
+      "type": "boolean"
+     },
+     "height": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "type",
+     "data"
+    ],
+    "additionalProperties": false,
+    "description": "Accessible SVG chart with interactive series legend; legend buttons only show or hide this chart's series and do not change page filters or summaries. Supports bar, line, area, pie, donut and numeric scatter. Percent values use 45 for 45%."
+   },
+   "Map": {
+    "type": "object",
+    "properties": {
+     "markers": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/MapMarker"
+      }
+     },
+     "route": {
+      "type": "boolean"
+     },
+     "selected": {
+      "type": "string"
+     },
+     "height": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "markers"
+    ],
+    "additionalProperties": false,
+    "description": "MapLibre street map fitted to markers. Optional street route follows marker order; clicking a marker updates the selected binding."
+   },
+   "MapMarker": {
+    "type": "object",
+    "properties": {
+     "label": {
+      "type": "string"
+     },
+     "lat": {
+      "type": "number"
+     },
+     "lng": {
+      "type": "number"
+     },
+     "category": {
+      "type": "string"
+     },
+     "icon": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "label",
+     "lat",
+     "lng"
+    ],
+    "additionalProperties": false,
+    "description": "Map location with label, latitude, longitude and optional category/emoji."
+   },
+   "Svg": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "viewBox": {
+      "type": "string"
+     },
+     "width": {
+      "type": [
+       "number",
+       "string"
+      ]
+     },
+     "height": {
+      "type": [
+       "number",
+       "string"
+      ]
+     }
+    },
+    "required": [
+     "children",
+     "viewBox"
+    ],
+    "additionalProperties": false,
+    "description": "Responsive SVG drawing; coordinates use the declared viewBox. The whole drawing scales with the page width, so its text shrinks on narrow pages: use it for diagrams and illustrations, and draw shares, progress and data bars with Progress or Chart instead."
+   },
+   "G": {
+    "type": "object",
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {}
+     },
+     "transform": {
+      "type": "string"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "children"
+    ],
+    "additionalProperties": false,
+    "description": "SVG group with transform and opacity."
+   },
+   "Circle": {
+    "type": "object",
+    "properties": {
+     "cx": {
+      "type": "number"
+     },
+     "cy": {
+      "type": "number"
+     },
+     "r": {
+      "type": "number"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "cx",
+     "cy",
+     "r"
+    ],
+    "additionalProperties": false,
+    "description": "SVG circle."
+   },
+   "Ellipse": {
+    "type": "object",
+    "properties": {
+     "cx": {
+      "type": "number"
+     },
+     "cy": {
+      "type": "number"
+     },
+     "rx": {
+      "type": "number"
+     },
+     "ry": {
+      "type": "number"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "cx",
+     "cy",
+     "rx",
+     "ry"
+    ],
+    "additionalProperties": false,
+    "description": "SVG ellipse."
+   },
+   "Rect": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "width": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "opacity": {
+      "type": "number"
+     },
+     "rx": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "x",
+     "y",
+     "width",
+     "height"
+    ],
+    "additionalProperties": false,
+    "description": "SVG rectangle with optional corner rounding."
+   },
+   "Line": {
+    "type": "object",
+    "properties": {
+     "x1": {
+      "type": "number"
+     },
+     "y1": {
+      "type": "number"
+     },
+     "x2": {
+      "type": "number"
+     },
+     "y2": {
+      "type": "number"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "x1",
+     "y1",
+     "x2",
+     "y2"
+    ],
+    "additionalProperties": false,
+    "description": "SVG line."
+   },
+   "Path": {
+    "type": "object",
+    "properties": {
+     "d": {
+      "type": "string"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "d"
+    ],
+    "additionalProperties": false,
+    "description": "SVG path using standard path commands."
+   },
+   "Polyline": {
+    "type": "object",
+    "properties": {
+     "points": {
+      "type": "string"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "points"
+    ],
+    "additionalProperties": false,
+    "description": "SVG polyline using x,y coordinate pairs."
+   },
+   "Polygon": {
+    "type": "object",
+    "properties": {
+     "points": {
+      "type": "string"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "stroke": {
+      "type": "string"
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "opacity": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "points"
+    ],
+    "additionalProperties": false,
+    "description": "Closed SVG polygon using x,y coordinate pairs."
+   },
+   "SvgText": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "size": {
+      "type": "number"
+     },
+     "fill": {
+      "type": "string"
+     },
+     "anchor": {
+      "type": "string",
+      "enum": [
+       "start",
+       "middle",
+       "end"
+      ]
+     },
+     "weight": {
+      "type": "string",
+      "enum": [
+       "normal",
+       "medium",
+       "semibold"
+      ]
+     }
+    },
+    "required": [
+     "text",
+     "x",
+     "y"
+    ],
+    "additionalProperties": false,
+    "description": "SVG text anchored at coordinates."
+   },
+   "HtmlView": {
+    "type": "object",
+    "properties": {
+     "html": {
+      "type": "string"
+     },
+     "height": {
+      "type": "number"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "html"
+    ],
+    "additionalProperties": false,
+    "description": "Sandboxed HTML with inline scripts and approved script CDNs. Theme updates preserve iframe state; content height adapts unless fixed."
+   },
+   "Genui": {
+    "type": "object",
+    "properties": {
+     "spec": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "spec"
+    ],
+    "additionalProperties": false,
+    "description": "Render an existing declarative GenUI specification with the shared Whale UI state and action host."
+   },
+   "Plot": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Mathematical function plot. Pass the options object from the plot component schema."
+   },
+   "Mermaid": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Mermaid diagram. Pass the options object from the mermaid component schema."
+   },
+   "Scene3D": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Interactive three-dimensional scene. Pass the options object from the scene3d component schema."
+   },
+   "EChart": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "ECharts data visualization. Pass the options object from the echart component schema."
+   },
+   "Diagram": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Structured diagram with nodes and edges. Pass the options object from the diagram component schema."
+   },
+   "Blocks": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Structured block drawing. Pass the options object from the blocks component schema."
+   },
+   "Quiz": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Locally graded quiz. Pass the options object from the quiz component schema."
+   },
+   "FileTree": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Expandable file tree. Pass the options object from the file-tree component schema."
+   },
+   "Timeline": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Chronological event list. Pass the options object from the timeline component schema."
+   },
+   "Steps": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Step sequence. Pass the options object from the steps component schema."
+   },
+   "KeyValue": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Key and value records. Pass the options object from the keyvalue component schema."
+   },
+   "Diff": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Source text differences. Pass the options object from the diff component schema."
+   },
+   "Json": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Expandable JSON data. Pass the options object from the json component schema."
+   },
+   "Tabs": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Named tab panels. Pass the options object from the tabs component schema."
+   },
+   "Accordion": {
+    "type": "object",
+    "properties": {
+     "options": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "options"
+    ],
+    "additionalProperties": false,
+    "description": "Expandable sections. Pass the options object from the accordion component schema."
+   }
+  },
+  "functions": {
+   "Append": {
+    "description": "Copy the list with an item appended.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "item": {}
+     },
+     "required": [
+      "list",
+      "item"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Prepend": {
+    "description": "Copy the list with an item prepended.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "item": {}
+     },
+     "required": [
+      "list",
+      "item"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Concat": {
+    "description": "Combine two lists without changing either.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "more": {
+       "type": "array",
+       "items": {}
+      }
+     },
+     "required": [
+      "list",
+      "more"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Remove": {
+    "description": "Remove matching field values; an empty field compares the item itself.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      },
+      "value": {}
+     },
+     "required": [
+      "list",
+      "field",
+      "value"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "RemoveAt": {
+    "description": "Remove an item by index; negative indices start at the end.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "index": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "list",
+      "index"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Update": {
+    "description": "Copy matching records with setField replaced by setValue.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      },
+      "value": {},
+      "setField": {
+       "type": "string"
+      },
+      "setValue": {}
+     },
+     "required": [
+      "list",
+      "field",
+      "value",
+      "setField",
+      "setValue"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Toggle": {
+    "description": "Add an absent item or remove its occurrences.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "item": {}
+     },
+     "required": [
+      "list",
+      "item"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Includes": {
+    "description": "Test membership in a list or substring membership in text.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {}
+        },
+        {
+         "type": "string"
+        }
+       ]
+      },
+      "item": {}
+     },
+     "required": [
+      "list",
+      "item"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "boolean"
+    },
+    "pure": true
+   },
+   "Find": {
+    "description": "First record matching a field, or null.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      },
+      "value": {}
+     },
+     "required": [
+      "list",
+      "field",
+      "value"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {},
+    "pure": true
+   },
+   "IndexOf": {
+    "description": "Index of an item, or -1.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "item": {}
+     },
+     "required": [
+      "list",
+      "item"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "Take": {
+    "description": "First n items, or last abs(n) items for a negative count.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "n": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "list",
+      "n"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Slice": {
+    "description": "Slice from start up to end; negative indices count from the end.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {}
+        },
+        {
+         "type": "string"
+        }
+       ]
+      },
+      "start": {
+       "type": "number"
+      },
+      "end": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "list",
+      "start"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "anyOf": [
+      {
+       "type": "array",
+       "items": {}
+      },
+      {
+       "type": "string"
+      }
+     ]
+    },
+    "pure": true
+   },
+   "Unique": {
+    "description": "Distinct items in first-seen order.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      }
+     },
+     "required": [
+      "list"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Reverse": {
+    "description": "A reversed copy.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      }
+     },
+     "required": [
+      "list"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Range": {
+    "description": "Numbers starting at start and stopping before end, with nonzero step (default 1).",
+    "params": {
+     "type": "object",
+     "properties": {
+      "start": {
+       "type": "number"
+      },
+      "end": {
+       "type": "number"
+      },
+      "step": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "start",
+      "end"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "pure": true
+   },
+   "Pick": {
+    "description": "Random item, or null for an empty list. Use inside @Set to draw once.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      }
+     },
+     "required": [
+      "list"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {},
+    "pure": false
+   },
+   "Shuffle": {
+    "description": "Randomly shuffled copy. Use inside @Set to shuffle once.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      }
+     },
+     "required": [
+      "list"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": false
+   },
+   "Flatten": {
+    "description": "Flatten one level of nested lists.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      }
+     },
+     "required": [
+      "list"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Chunk": {
+    "description": "Split into consecutive groups of positive size.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "size": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "list",
+      "size"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {
+      "type": "array",
+      "items": {}
+     }
+    },
+    "pure": true
+   },
+   "Pow": {
+    "description": "Base raised to exponent.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "base": {
+       "type": "number"
+      },
+      "exponent": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "base",
+      "exponent"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "Sqrt": {
+    "description": "Square root, or null for a negative input.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "number": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "number"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "pure": true
+   },
+   "Random": {
+    "description": "Random value from min to max; integer mode includes both bounds. Use inside @Set.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "min": {
+       "type": "number"
+      },
+      "max": {
+       "type": "number"
+      },
+      "integer": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "min",
+      "max"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": false
+   },
+   "Clamp": {
+    "description": "Keep a number within the inclusive bounds.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "number": {
+       "type": "number"
+      },
+      "min": {
+       "type": "number"
+      },
+      "max": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "number",
+      "min",
+      "max"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "Percent": {
+    "description": "Part / total × 100; zero when total is zero.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "part": {
+       "type": "number"
+      },
+      "total": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "part",
+      "total"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "Lerp": {
+    "description": "Linear interpolation from a to b at fraction t.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "a": {
+       "type": "number"
+      },
+      "b": {
+       "type": "number"
+      },
+      "t": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "a",
+      "b",
+      "t"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "Allocate": {
+    "description": "Distribute total in proportion to nonnegative weights, rounding shares to sum exactly to the rounded total.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "total": {
+       "type": "number"
+      },
+      "weights": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "decimals": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "total",
+      "weights"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     }
+    },
+    "pure": true
+   },
+   "Payment": {
+    "description": "Repayment per period using a rate in percent per period.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "principal": {
+       "type": "number"
+      },
+      "rate": {
+       "type": "number"
+      },
+      "periods": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "principal",
+      "rate",
+      "periods"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "pure": true
+   },
+   "Convert": {
+    "description": "Convert mm cm m km in ft yd mi; mg g kg oz lb st; ml l tsp tbsp floz cup pt qt gal (US); m/s km/h mph kn; m2 km2 ft2 ha acre; c f k.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "from": {
+       "type": "string"
+      },
+      "to": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "value",
+      "from",
+      "to"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "pure": true
+   },
+   "Format": {
+    "description": "Locale-aware number, currency, percent (45 means 45%), or compact number formatting.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "value": {
+       "type": "number"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "number",
+        "currency",
+        "percent",
+        "compact"
+       ]
+      },
+      "decimals": {
+       "type": "number"
+      },
+      "currency": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "value"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Join": {
+    "description": "Join items or a chosen field, skipping null values. Default separator is comma and space.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "list": {
+       "type": "array",
+       "items": {}
+      },
+      "sep": {
+       "type": "string"
+      },
+      "field": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "list"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Plural": {
+    "description": "Count and singular/plural word. Default plural appends s.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "n": {
+       "type": "number"
+      },
+      "word": {
+       "type": "string"
+      },
+      "plural": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "n",
+      "word"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Pad": {
+    "description": "Pad the beginning to length, using 0 by default.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "length": {
+       "type": "number"
+      },
+      "char": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "value",
+      "length"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Upper": {
+    "description": "Uppercase text.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Lower": {
+    "description": "Lowercase text.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Trim": {
+    "description": "Trim surrounding whitespace.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Capitalize": {
+    "description": "Uppercase the first letter of each whitespace-separated word.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Split": {
+    "description": "Split, trim and discard empty strings. Default separator is comma.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      },
+      "sep": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "pure": true
+   },
+   "Replace": {
+    "description": "Replace every literal occurrence of find.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      },
+      "find": {
+       "type": "string"
+      },
+      "replacement": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text",
+      "find",
+      "replacement"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Duration": {
+    "description": "Duration as 1h 20m, 4m 05s, 45s, or a clock such as 1:20:00.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "seconds": {
+       "type": "number"
+      },
+      "style": {
+       "type": "string",
+       "enum": [
+        "short",
+        "clock"
+       ]
+      }
+     },
+     "required": [
+      "seconds"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Default": {
+    "description": "Return fallback for null, empty string or nonfinite numbers; retain false and zero.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "value": {},
+      "fallback": {}
+     },
+     "required": [
+      "fallback"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {},
+    "pure": true
+   },
+   "MixColor": {
+    "description": "Interpolate two #rgb or #rrggbb colors at clamped fraction t.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "from": {
+       "type": "string"
+      },
+      "to": {
+       "type": "string"
+      },
+      "t": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "from",
+      "to",
+      "t"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "Now": {
+    "description": "Current time as an ISO timestamp.",
+    "params": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": false
+   },
+   "Today": {
+    "description": "Today's local calendar date as YYYY-MM-DD.",
+    "params": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": false
+   },
+   "FormatDate": {
+    "description": "Format a local date, timestamp or ISO date-time.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "date": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "style": {
+       "type": "string",
+       "enum": [
+        "date",
+        "short",
+        "long",
+        "weekday",
+        "month",
+        "time",
+        "datetime",
+        "iso"
+       ]
+      }
+     },
+     "required": [
+      "date"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "AddDays": {
+    "description": "Calendar date a number of days later (negative for earlier).",
+    "params": {
+     "type": "object",
+     "properties": {
+      "date": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "days": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "date",
+      "days"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "AddMonths": {
+    "description": "Calendar date months later; constrain the day to the destination month's length.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "date": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "months": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "date",
+      "months"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "DaysBetween": {
+    "description": "Signed number of calendar days, independent of DST.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "from": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "to": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "required": [
+      "from",
+      "to"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "MonthsBetween": {
+    "description": "Signed whole calendar months between dates.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "from": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "to": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "required": [
+      "from",
+      "to"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "number"
+    },
+    "pure": true
+   },
+   "StartOf": {
+    "description": "First date of a Monday-based week, month or year.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "date": {
+       "type": [
+        "string",
+        "number"
+       ]
+      },
+      "unit": {
+       "type": "string",
+       "enum": [
+        "week",
+        "month",
+        "year"
+       ]
+      }
+     },
+     "required": [
+      "date",
+      "unit"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "string"
+    },
+    "pure": true
+   },
+   "GroupBy": {
+    "description": "Aggregate per key in first-seen order; without field count records.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "key": {
+       "type": "string"
+      },
+      "field": {
+       "type": "string"
+      },
+      "agg": {
+       "type": "string",
+       "enum": [
+        "sum",
+        "avg",
+        "count",
+        "min",
+        "max"
+       ]
+      }
+     },
+     "required": [
+      "rows",
+      "key"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Pivot": {
+    "description": "One record per rowKey and one aggregate column per colKey.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "rowKey": {
+       "type": "string"
+      },
+      "colKey": {
+       "type": "string"
+      },
+      "field": {
+       "type": "string"
+      },
+      "agg": {
+       "type": "string",
+       "enum": [
+        "sum",
+        "avg",
+        "count",
+        "min",
+        "max"
+       ]
+      }
+     },
+     "required": [
+      "rows",
+      "rowKey",
+      "colKey"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Top": {
+    "description": "The n greatest field values, or smallest in asc order.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      },
+      "n": {
+       "type": "number"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "desc",
+        "asc"
+       ]
+      }
+     },
+     "required": [
+      "rows",
+      "field",
+      "n"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Between": {
+    "description": "Inclusive range of field values, with null for an open end; supports YYYY-MM-DD text.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      },
+      "min": {},
+      "max": {}
+     },
+     "required": [
+      "rows",
+      "field"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Bucket": {
+    "description": "Chronological calendar buckets; fill missing periods with zero for sum/count.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "dateField": {
+       "type": "string"
+      },
+      "unit": {
+       "type": "string",
+       "enum": [
+        "day",
+        "week",
+        "month"
+       ]
+      },
+      "field": {
+       "type": "string"
+      },
+      "agg": {
+       "type": "string",
+       "enum": [
+        "sum",
+        "avg",
+        "count",
+        "min",
+        "max"
+       ]
+      }
+     },
+     "required": [
+      "rows",
+      "dateField",
+      "unit"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Cumulative": {
+    "description": "Replace a field with its running sum; empty field processes numbers directly.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "rows",
+      "field"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "MovingAvg": {
+    "description": "Trailing moving average with a positive window; empty field processes numbers directly.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "rows": {
+       "type": "array",
+       "items": {}
+      },
+      "field": {
+       "type": "string"
+      },
+      "window": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "rows",
+      "field",
+      "window"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Change": {
+    "description": "Percent change from previous to current; null when previous is zero.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "current": {
+       "type": "number"
+      },
+      "previous": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "current",
+      "previous"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "pure": true
+   },
+   "Histogram": {
+    "description": "Counts in equal-width bins, including the maximum in the final bin.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "values": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "bins": {
+       "type": "number"
+      },
+      "min": {
+       "type": "number"
+      },
+      "max": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "values",
+      "bins"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "array",
+     "items": {}
+    },
+    "pure": true
+   },
+   "Stats": {
+    "description": "Numeric summary with population standard deviation. All zeros for empty data.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "values": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      }
+     },
+     "required": [
+      "values"
+     ],
+     "additionalProperties": false
+    },
+    "returns": {
+     "type": "object",
+     "properties": {
+      "count": {
+       "type": "number"
+      },
+      "min": {
+       "type": "number"
+      },
+      "max": {
+       "type": "number"
+      },
+      "mean": {
+       "type": "number"
+      },
+      "median": {
+       "type": "number"
+      },
+      "stdev": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "count",
+      "min",
+      "max",
+      "mean",
+      "median",
+      "stdev"
+     ],
+     "additionalProperties": false
+    },
+    "pure": true
+   }
+  },
+  "actions": {
+   "CopyToClipboard": {
+    "description": "Copy text through the host clipboard bridge; action completion reflects the host response.",
+    "params": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ],
+     "additionalProperties": false
+    }
+   }
+  }
+ },
+ "components": {
+  "Col": {
+   "signature": "Col(children: any[], gap?: number, align?: \"start\" | \"center\" | \"end\" | \"stretch\")",
+   "description": "Vertical layout; gap and padding units are 4px. Default gap follows article spacing."
+  },
+  "Row": {
+   "signature": "Row(children: any[], gap?: number, align?: \"start\" | \"center\" | \"end\" | \"stretch\", justify?: \"start\" | \"center\" | \"end\" | \"between\", wrap?: boolean)",
+   "description": "Horizontal layout with vertically centered children."
+  },
+  "Box": {
+   "signature": "Box(children?: any[], direction?: \"row\" | \"col\", gap?: number, padding?: number, background?: string, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, border?: boolean, width?: number | string, height?: number | string, flex?: number, align?: \"start\" | \"center\" | \"end\" | \"stretch\", justify?: \"start\" | \"center\" | \"end\" | \"between\", wrap?: boolean)",
+   "description": "Flexible container. gap and padding use 4px units: padding 3 = 12px, 4 = 16px, 5 = 20px; width and height use pixels/CSS lengths. Named backgrounds use soft theme tints."
+  },
+  "Grid": {
+   "signature": "Grid(children: any[], columns?: number, minChildWidth?: number, gap?: number)",
+   "description": "Equal columns; use minChildWidth 240–280 for readable responsive fields and cards. With minChildWidth, columns caps the count and a narrower page reflows into balanced rows (4 items → 2×2), never leaving one item alone on the last row."
+  },
+  "Card": {
+   "signature": "Card(children: any[], variant?: \"outline\" | \"soft\", padding?: number, gap?: number)",
+   "description": "Theme-aligned panel. padding and gap are 4px units, not pixels: padding 4 = 16px, padding 5 = 20px (default), gap 3 = 12px. Use a plain section for metrics; do not put each number in a separate card."
+  },
+  "Carousel": {
+   "signature": "Carousel(children: any[], itemWidth?: number, gap?: number)",
+   "description": "Horizontal, scrollable list with snap-aligned items."
+  },
+  "Popover": {
+   "signature": "Popover(trigger: string | any[], content: string | any[])",
+   "description": "Click to show a small details panel; Escape or outside click closes it."
+  },
+  "Details": {
+   "signature": "Details(label: string, children: any[], defaultOpen?: boolean)",
+   "description": "Expandable secondary content, closed by default. Native keyboard disclosure; child inputs remain mounted and retain edits. Use for fee breakdowns, row editing and explanations after the main result."
+  },
+  "Divider": {
+   "signature": "Divider()",
+   "description": "A subtle horizontal separator."
+  },
+  "Spacer": {
+   "signature": "Spacer()",
+   "description": "Fill remaining space in a row."
+  },
+  "Title": {
+   "signature": "Title(text: string, size?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"2xl\" | \"3xl\", color?: string)",
+   "description": "Page or section heading. Use md for the single page title, sm for a section; 2xl/3xl only for a key numeric value."
+  },
+  "Text": {
+   "signature": "Text(text: string | any[], size?: \"xs\" | \"sm\" | \"md\" | \"lg\", color?: string, weight?: \"normal\" | \"medium\" | \"semibold\", italic?: boolean, lineThrough?: boolean, tabularNums?: boolean, maxLines?: number)",
+   "description": "Paragraph with inline bold, italic, code and links; mixed arrays may contain components."
+  },
+  "Caption": {
+   "signature": "Caption(text: string, color?: string)",
+   "description": "Secondary small text."
+  },
+  "Label": {
+   "signature": "Label(text: string)",
+   "description": "A field or group label."
+  },
+  "Badge": {
+   "signature": "Badge(text: string, color?: \"neutral\" | \"info\" | \"success\" | \"warning\" | \"danger\" | \"purple\" | \"pink\", icon?: string)",
+   "description": "Compact theme-colored tag with optional Lucide icon."
+  },
+  "Link": {
+   "signature": "Link(text: string, url: string)",
+   "description": "Open an HTTP(S) web URL."
+  },
+  "List": {
+   "signature": "List(items: (string | ListItem)[], marker?: \"bullet\" | \"number\" | \"none\", timeline?: boolean)",
+   "description": "A bullet, numbered or unmarked list; timeline connects item markers."
+  },
+  "ListItem": {
+   "signature": "ListItem(title: string, description?: string, marker?: string, children?: any[])",
+   "description": "A list item with optional description, custom marker and child content."
+  },
+  "Markdown": {
+   "signature": "Markdown(text: string)",
+   "description": "Safe Markdown prose including headings, lists, quotes, fenced code and tables."
+  },
+  "Quote": {
+   "signature": "Quote(text: string, cite?: string)",
+   "description": "Quotation with a source attribution."
+  },
+  "Code": {
+   "signature": "Code(code: string, language?: string)",
+   "description": "Code block with a host-backed copy button."
+  },
+  "Math": {
+   "signature": "Math(tex: string, inline?: boolean)",
+   "description": "KaTeX formula; inline formulas sit within text."
+  },
+  "Progress": {
+   "signature": "Progress(value: number, max?: number, label?: string, color?: \"info\" | \"success\" | \"warning\" | \"danger\" | \"neutral\")",
+   "description": "Full-width progress bar for completion or a share of a goal: value out of max (default 100). With a label it shows the label and the percentage above the bar. Use it instead of drawing a bar from Box widths."
+  },
+  "Button": {
+   "signature": "Button(label: string, action?: ActionExpression, variant?: \"solid\" | \"outline\" | \"soft\" | \"ghost\", color?: \"primary\" | \"danger\" | \"success\", size?: \"sm\" | \"md\" | \"lg\", icon?: string, disabled?: boolean, block?: boolean)",
+   "description": "Run local or host action steps; without an action, send the button label to the assistant."
+  },
+  "IconButton": {
+   "signature": "IconButton(icon: string, action?: ActionExpression, label?: string, variant?: \"outline\" | \"ghost\" | \"solid\")",
+   "description": "Accessible round icon action."
+  },
+  "Pressable": {
+   "signature": "Pressable(children: any[], action?: ActionExpression, selected?: boolean, padding?: number, background?: string, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number)",
+   "description": "Keyboard-accessible clickable content with optional selected state."
+  },
+  "Input": {
+   "signature": "Input(value: $binding<string | number>, label?: string, type?: \"text\" | \"number\", placeholder?: string)",
+   "description": "Bound text or numeric field; numeric edits store numbers, and an empty number stores null.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "TextArea": {
+   "signature": "TextArea(value: $binding<string>, label?: string, placeholder?: string, rows?: number)",
+   "description": "Bound multiline text.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "Select": {
+   "signature": "Select(value: $binding<string>, options: (string | {value: string, label: string})[], label?: string, placeholder?: string)",
+   "description": "Bound dropdown with text or value/label options.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "SegmentedControl": {
+   "signature": "SegmentedControl(value: $binding<string>, options: (string | {value: string, label: string})[], block?: boolean)",
+   "description": "A bound single selection shown as adjacent buttons with arrow-key navigation.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "Slider": {
+   "signature": "Slider(value: $binding<number>, min: number, max: number, step?: number, label?: string, unit?: string, marks?: {value: number, label: string}[])",
+   "description": "Bound numeric slider with label, unit and optional tick marks.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "Checkbox": {
+   "signature": "Checkbox(checked: $binding<boolean>, label: string, lineThrough?: boolean)",
+   "description": "Bound checkbox; optionally strike completed text.",
+   "bindable": [
+    "checked"
+   ]
+  },
+  "RadioGroup": {
+   "signature": "RadioGroup(value: $binding<string>, options: (string | {value: string, label: string, description?: string})[], label?: string, variant?: \"list\" | \"pills\" | \"cards\")",
+   "description": "Bound radio choices as a list, pills or descriptive cards.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "DatePicker": {
+   "signature": "DatePicker(value: $binding<string>, label?: string, min?: string, max?: string)",
+   "description": "Bound local calendar date in YYYY-MM-DD format.",
+   "bindable": [
+    "value"
+   ]
+  },
+  "Timer": {
+   "signature": "Timer(seconds: $binding<number>, label?: string)",
+   "description": "Durable countdown with start, pause and reset; updates bound seconds down to zero.",
+   "bindable": [
+    "seconds"
+   ]
+  },
+  "Form": {
+   "signature": "Form(children: any[])",
+   "description": "Group all bound and plain member fields for assistant submission."
+  },
+  "SearchImage": {
+   "signature": "SearchImage(query: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
+   "description": "Find a real image through the host image-search resource. Failed requests can be retried."
+  },
+  "Image": {
+   "signature": "Image(src: string, alt: string, aspectRatio?: number, radius?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\" | number, fit?: \"cover\" | \"contain\")",
+   "description": "Image from a URL; find an image for alt text if loading fails."
+  },
+  "Icon": {
+   "signature": "Icon(name: string, size?: \"sm\" | \"md\" | \"lg\" | \"xl\", color?: string)",
+   "description": "Lucide icon by kebab-case name."
+  },
+  "Table": {
+   "signature": "Table(columns: string[], rows: any[][])",
+   "description": "Scrollable data table with numeric alignment and support for components in cells."
+  },
+  "YouTube": {
+   "signature": "YouTube(video: string, title?: string)",
+   "description": "YouTube video by known id or URL, embedded through privacy-enhanced mode."
+  },
+  "Flashcard": {
+   "signature": "Flashcard(front: string | any[], back: string | any[], hint?: string)",
+   "description": "Tap to reveal a flashcard answer; flipped state persists across remounts."
+  },
+  "Celebration": {
+   "signature": "Celebration(when: boolean)",
+   "description": "Brief confetti when the condition becomes true; respects reduced motion."
+  },
+  "Chart": {
+   "signature": "Chart(type: \"bar\" | \"line\" | \"area\" | \"pie\" | \"donut\" | \"scatter\", data: Record<string, string | number>[], x?: string, series?: string[], format?: \"number\" | \"currency\" | \"percent\", currency?: string, stacked?: boolean, height?: number)",
+   "description": "Accessible SVG chart with interactive series legend; legend buttons only show or hide this chart's series and do not change page filters or summaries. Supports bar, line, area, pie, donut and numeric scatter. Percent values use 45 for 45%."
+  },
+  "Map": {
+   "signature": "Map(markers: MapMarker[], route?: boolean, selected?: $binding<string>, height?: number)",
+   "description": "MapLibre street map fitted to markers. Optional street route follows marker order; clicking a marker updates the selected binding.",
+   "bindable": [
+    "selected"
+   ]
+  },
+  "MapMarker": {
+   "signature": "MapMarker(label: string, lat: number, lng: number, category?: string, icon?: string)",
+   "description": "Map location with label, latitude, longitude and optional category/emoji."
+  },
+  "Svg": {
+   "signature": "Svg(children: any[], viewBox: string, width?: number | string, height?: number | string)",
+   "description": "Responsive SVG drawing; coordinates use the declared viewBox. The whole drawing scales with the page width, so its text shrinks on narrow pages: use it for diagrams and illustrations, and draw shares, progress and data bars with Progress or Chart instead."
+  },
+  "G": {
+   "signature": "G(children: any[], transform?: string, opacity?: number)",
+   "description": "SVG group with transform and opacity."
+  },
+  "Circle": {
+   "signature": "Circle(cx: number, cy: number, r: number, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+   "description": "SVG circle."
+  },
+  "Ellipse": {
+   "signature": "Ellipse(cx: number, cy: number, rx: number, ry: number, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+   "description": "SVG ellipse."
+  },
+  "Rect": {
+   "signature": "Rect(x: number, y: number, width: number, height: number, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number, rx?: number)",
+   "description": "SVG rectangle with optional corner rounding."
+  },
+  "Line": {
+   "signature": "Line(x1: number, y1: number, x2: number, y2: number, stroke?: string, strokeWidth?: number, opacity?: number)",
+   "description": "SVG line."
+  },
+  "Path": {
+   "signature": "Path(d: string, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+   "description": "SVG path using standard path commands."
+  },
+  "Polyline": {
+   "signature": "Polyline(points: string, stroke?: string, strokeWidth?: number, fill?: string, opacity?: number)",
+   "description": "SVG polyline using x,y coordinate pairs."
+  },
+  "Polygon": {
+   "signature": "Polygon(points: string, fill?: string, stroke?: string, strokeWidth?: number, opacity?: number)",
+   "description": "Closed SVG polygon using x,y coordinate pairs."
+  },
+  "SvgText": {
+   "signature": "SvgText(text: string, x: number, y: number, size?: number, fill?: string, anchor?: \"start\" | \"middle\" | \"end\", weight?: \"normal\" | \"medium\" | \"semibold\")",
+   "description": "SVG text anchored at coordinates."
+  },
+  "HtmlView": {
+   "signature": "HtmlView(html: string, height?: number, title?: string)",
+   "description": "Sandboxed HTML with inline scripts and approved script CDNs. Theme updates preserve iframe state; content height adapts unless fixed."
+  },
+  "Genui": {
+   "signature": "Genui(spec: Record<string, any>)",
+   "description": "Render an existing declarative GenUI specification with the shared Whale UI state and action host."
+  },
+  "Plot": {
+   "signature": "Plot(options: Record<string, any>)",
+   "description": "Mathematical function plot. Pass the options object from the plot component schema."
+  },
+  "Mermaid": {
+   "signature": "Mermaid(options: Record<string, any>)",
+   "description": "Mermaid diagram. Pass the options object from the mermaid component schema."
+  },
+  "Scene3D": {
+   "signature": "Scene3D(options: Record<string, any>)",
+   "description": "Interactive three-dimensional scene. Pass the options object from the scene3d component schema."
+  },
+  "EChart": {
+   "signature": "EChart(options: Record<string, any>)",
+   "description": "ECharts data visualization. Pass the options object from the echart component schema."
+  },
+  "Diagram": {
+   "signature": "Diagram(options: Record<string, any>)",
+   "description": "Structured diagram with nodes and edges. Pass the options object from the diagram component schema."
+  },
+  "Blocks": {
+   "signature": "Blocks(options: Record<string, any>)",
+   "description": "Structured block drawing. Pass the options object from the blocks component schema."
+  },
+  "Quiz": {
+   "signature": "Quiz(options: Record<string, any>)",
+   "description": "Locally graded quiz. Pass the options object from the quiz component schema."
+  },
+  "FileTree": {
+   "signature": "FileTree(options: Record<string, any>)",
+   "description": "Expandable file tree. Pass the options object from the file-tree component schema."
+  },
+  "Timeline": {
+   "signature": "Timeline(options: Record<string, any>)",
+   "description": "Chronological event list. Pass the options object from the timeline component schema."
+  },
+  "Steps": {
+   "signature": "Steps(options: Record<string, any>)",
+   "description": "Step sequence. Pass the options object from the steps component schema."
+  },
+  "KeyValue": {
+   "signature": "KeyValue(options: Record<string, any>)",
+   "description": "Key and value records. Pass the options object from the keyvalue component schema."
+  },
+  "Diff": {
+   "signature": "Diff(options: Record<string, any>)",
+   "description": "Source text differences. Pass the options object from the diff component schema."
+  },
+  "Json": {
+   "signature": "Json(options: Record<string, any>)",
+   "description": "Expandable JSON data. Pass the options object from the json component schema."
+  },
+  "Tabs": {
+   "signature": "Tabs(options: Record<string, any>)",
+   "description": "Named tab panels. Pass the options object from the tabs component schema."
+  },
+  "Accordion": {
+   "signature": "Accordion(options: Record<string, any>)",
+   "description": "Expandable sections. Pass the options object from the accordion component schema."
+  }
+ },
+ "functions": {
+  "Append": {
+   "signature": "Append(list: any[], item: any) → any[]",
+   "description": "Copy the list with an item appended."
+  },
+  "Prepend": {
+   "signature": "Prepend(list: any[], item: any) → any[]",
+   "description": "Copy the list with an item prepended."
+  },
+  "Concat": {
+   "signature": "Concat(list: any[], more: any[]) → any[]",
+   "description": "Combine two lists without changing either."
+  },
+  "Remove": {
+   "signature": "Remove(list: any[], field: string, value: any) → any[]",
+   "description": "Remove matching field values; an empty field compares the item itself."
+  },
+  "RemoveAt": {
+   "signature": "RemoveAt(list: any[], index: number) → any[]",
+   "description": "Remove an item by index; negative indices start at the end."
+  },
+  "Update": {
+   "signature": "Update(list: any[], field: string, value: any, setField: string, setValue: any) → any[]",
+   "description": "Copy matching records with setField replaced by setValue."
+  },
+  "Toggle": {
+   "signature": "Toggle(list: any[], item: any) → any[]",
+   "description": "Add an absent item or remove its occurrences."
+  },
+  "Includes": {
+   "signature": "Includes(list: any[] | string, item: any) → boolean",
+   "description": "Test membership in a list or substring membership in text."
+  },
+  "Find": {
+   "signature": "Find(list: any[], field: string, value: any) → any",
+   "description": "First record matching a field, or null."
+  },
+  "IndexOf": {
+   "signature": "IndexOf(list: any[], item: any) → number",
+   "description": "Index of an item, or -1."
+  },
+  "Take": {
+   "signature": "Take(list: any[], n: number) → any[]",
+   "description": "First n items, or last abs(n) items for a negative count."
+  },
+  "Slice": {
+   "signature": "Slice(list: any[] | string, start: number, end?: number) → any[] | string",
+   "description": "Slice from start up to end; negative indices count from the end."
+  },
+  "Unique": {
+   "signature": "Unique(list: any[]) → any[]",
+   "description": "Distinct items in first-seen order."
+  },
+  "Reverse": {
+   "signature": "Reverse(list: any[]) → any[]",
+   "description": "A reversed copy."
+  },
+  "Range": {
+   "signature": "Range(start: number, end: number, step?: number) → number[]",
+   "description": "Numbers starting at start and stopping before end, with nonzero step (default 1)."
+  },
+  "Pick": {
+   "signature": "Pick(list: any[]) → any",
+   "description": "Random item, or null for an empty list. Use inside @Set to draw once."
+  },
+  "Shuffle": {
+   "signature": "Shuffle(list: any[]) → any[]",
+   "description": "Randomly shuffled copy. Use inside @Set to shuffle once."
+  },
+  "Flatten": {
+   "signature": "Flatten(list: any[]) → any[]",
+   "description": "Flatten one level of nested lists."
+  },
+  "Chunk": {
+   "signature": "Chunk(list: any[], size: number) → any[][]",
+   "description": "Split into consecutive groups of positive size."
+  },
+  "Pow": {
+   "signature": "Pow(base: number, exponent: number) → number",
+   "description": "Base raised to exponent."
+  },
+  "Sqrt": {
+   "signature": "Sqrt(number: number) → number",
+   "description": "Square root, or null for a negative input."
+  },
+  "Random": {
+   "signature": "Random(min: number, max: number, integer?: boolean) → number",
+   "description": "Random value from min to max; integer mode includes both bounds. Use inside @Set."
+  },
+  "Clamp": {
+   "signature": "Clamp(number: number, min: number, max: number) → number",
+   "description": "Keep a number within the inclusive bounds."
+  },
+  "Percent": {
+   "signature": "Percent(part: number, total: number) → number",
+   "description": "Part / total × 100; zero when total is zero."
+  },
+  "Lerp": {
+   "signature": "Lerp(a: number, b: number, t: number) → number",
+   "description": "Linear interpolation from a to b at fraction t."
+  },
+  "Allocate": {
+   "signature": "Allocate(total: number, weights: number[], decimals?: number) → number[]",
+   "description": "Distribute total in proportion to nonnegative weights, rounding shares to sum exactly to the rounded total."
+  },
+  "Payment": {
+   "signature": "Payment(principal: number, rate: number, periods: number) → number",
+   "description": "Repayment per period using a rate in percent per period."
+  },
+  "Convert": {
+   "signature": "Convert(value: number, from: string, to: string) → number",
+   "description": "Convert mm cm m km in ft yd mi; mg g kg oz lb st; ml l tsp tbsp floz cup pt qt gal (US); m/s km/h mph kn; m2 km2 ft2 ha acre; c f k."
+  },
+  "Format": {
+   "signature": "Format(value: number, kind?: \"number\" | \"currency\" | \"percent\" | \"compact\", decimals?: number, currency?: string) → string",
+   "description": "Locale-aware number, currency, percent (45 means 45%), or compact number formatting."
+  },
+  "Join": {
+   "signature": "Join(list: any[], sep?: string, field?: string) → string",
+   "description": "Join items or a chosen field, skipping null values. Default separator is comma and space."
+  },
+  "Plural": {
+   "signature": "Plural(n: number, word: string, plural?: string) → string",
+   "description": "Count and singular/plural word. Default plural appends s."
+  },
+  "Pad": {
+   "signature": "Pad(value: string | number, length: number, char?: string) → string",
+   "description": "Pad the beginning to length, using 0 by default."
+  },
+  "Upper": {
+   "signature": "Upper(text: string) → string",
+   "description": "Uppercase text."
+  },
+  "Lower": {
+   "signature": "Lower(text: string) → string",
+   "description": "Lowercase text."
+  },
+  "Trim": {
+   "signature": "Trim(text: string) → string",
+   "description": "Trim surrounding whitespace."
+  },
+  "Capitalize": {
+   "signature": "Capitalize(text: string) → string",
+   "description": "Uppercase the first letter of each whitespace-separated word."
+  },
+  "Split": {
+   "signature": "Split(text: string, sep?: string) → string[]",
+   "description": "Split, trim and discard empty strings. Default separator is comma."
+  },
+  "Replace": {
+   "signature": "Replace(text: string, find: string, replacement: string) → string",
+   "description": "Replace every literal occurrence of find."
+  },
+  "Duration": {
+   "signature": "Duration(seconds: number, style?: \"short\" | \"clock\") → string",
+   "description": "Duration as 1h 20m, 4m 05s, 45s, or a clock such as 1:20:00."
+  },
+  "Default": {
+   "signature": "Default(value?: any, fallback: any) → any",
+   "description": "Return fallback for null, empty string or nonfinite numbers; retain false and zero."
+  },
+  "MixColor": {
+   "signature": "MixColor(from: string, to: string, t: number) → string",
+   "description": "Interpolate two #rgb or #rrggbb colors at clamped fraction t."
+  },
+  "Now": {
+   "signature": "Now() → string",
+   "description": "Current time as an ISO timestamp."
+  },
+  "Today": {
+   "signature": "Today() → string",
+   "description": "Today's local calendar date as YYYY-MM-DD."
+  },
+  "FormatDate": {
+   "signature": "FormatDate(date: string | number, style?: \"date\" | \"short\" | \"long\" | \"weekday\" | \"month\" | \"time\" | \"datetime\" | \"iso\") → string",
+   "description": "Format a local date, timestamp or ISO date-time."
+  },
+  "AddDays": {
+   "signature": "AddDays(date: string | number, days: number) → string",
+   "description": "Calendar date a number of days later (negative for earlier)."
+  },
+  "AddMonths": {
+   "signature": "AddMonths(date: string | number, months: number) → string",
+   "description": "Calendar date months later; constrain the day to the destination month's length."
+  },
+  "DaysBetween": {
+   "signature": "DaysBetween(from: string | number, to: string | number) → number",
+   "description": "Signed number of calendar days, independent of DST."
+  },
+  "MonthsBetween": {
+   "signature": "MonthsBetween(from: string | number, to: string | number) → number",
+   "description": "Signed whole calendar months between dates."
+  },
+  "StartOf": {
+   "signature": "StartOf(date: string | number, unit: \"week\" | \"month\" | \"year\") → string",
+   "description": "First date of a Monday-based week, month or year."
+  },
+  "GroupBy": {
+   "signature": "GroupBy(rows: any[], key: string, field?: string, agg?: \"sum\" | \"avg\" | \"count\" | \"min\" | \"max\") → any[]",
+   "description": "Aggregate per key in first-seen order; without field count records."
+  },
+  "Pivot": {
+   "signature": "Pivot(rows: any[], rowKey: string, colKey: string, field?: string, agg?: \"sum\" | \"avg\" | \"count\" | \"min\" | \"max\") → any[]",
+   "description": "One record per rowKey and one aggregate column per colKey."
+  },
+  "Top": {
+   "signature": "Top(rows: any[], field: string, n: number, direction?: \"desc\" | \"asc\") → any[]",
+   "description": "The n greatest field values, or smallest in asc order."
+  },
+  "Between": {
+   "signature": "Between(rows: any[], field: string, min?: any, max?: any) → any[]",
+   "description": "Inclusive range of field values, with null for an open end; supports YYYY-MM-DD text."
+  },
+  "Bucket": {
+   "signature": "Bucket(rows: any[], dateField: string, unit: \"day\" | \"week\" | \"month\", field?: string, agg?: \"sum\" | \"avg\" | \"count\" | \"min\" | \"max\") → any[]",
+   "description": "Chronological calendar buckets; fill missing periods with zero for sum/count."
+  },
+  "Cumulative": {
+   "signature": "Cumulative(rows: any[], field: string) → any[]",
+   "description": "Replace a field with its running sum; empty field processes numbers directly."
+  },
+  "MovingAvg": {
+   "signature": "MovingAvg(rows: any[], field: string, window: number) → any[]",
+   "description": "Trailing moving average with a positive window; empty field processes numbers directly."
+  },
+  "Change": {
+   "signature": "Change(current: number, previous: number) → number",
+   "description": "Percent change from previous to current; null when previous is zero."
+  },
+  "Histogram": {
+   "signature": "Histogram(values: number[], bins: number, min?: number, max?: number) → any[]",
+   "description": "Counts in equal-width bins, including the maximum in the final bin."
+  },
+  "Stats": {
+   "signature": "Stats(values: number[]) → {count: number, min: number, max: number, mean: number, median: number, stdev: number}",
+   "description": "Numeric summary with population standard deviation. All zeros for empty data."
+  }
+ },
+ "actions": {
+  "CopyToClipboard": {
+   "signature": "CopyToClipboard(text: string)",
+   "description": "Copy text through the host clipboard bridge; action completion reflects the host response."
+  }
+ },
+ "builtins": [
+  "Count",
+  "First",
+  "Last",
+  "Sum",
+  "Avg",
+  "Min",
+  "Max",
+  "Sort",
+  "Filter",
+  "Round",
+  "Abs",
+  "Floor",
+  "Ceil",
+  "Each"
+ ],
+ "genui": {
+  "types": {
+   "Plot": {
+    "type": "plot",
+    "description": "Mathematical function plot."
+   },
+   "Mermaid": {
+    "type": "mermaid",
+    "description": "Mermaid diagram."
+   },
+   "Scene3D": {
+    "type": "scene3d",
+    "description": "Interactive three-dimensional scene."
+   },
+   "EChart": {
+    "type": "echart",
+    "description": "ECharts data visualization."
+   },
+   "Diagram": {
+    "type": "diagram",
+    "description": "Structured diagram with nodes and edges."
+   },
+   "Blocks": {
+    "type": "blocks",
+    "description": "Structured block drawing."
+   },
+   "Quiz": {
+    "type": "quiz",
+    "description": "Locally graded quiz."
+   },
+   "FileTree": {
+    "type": "file-tree",
+    "description": "Expandable file tree."
+   },
+   "Timeline": {
+    "type": "timeline",
+    "description": "Chronological event list."
+   },
+   "Steps": {
+    "type": "steps",
+    "description": "Step sequence."
+   },
+   "KeyValue": {
+    "type": "keyvalue",
+    "description": "Key and value records."
+   },
+   "Diff": {
+    "type": "diff",
+    "description": "Source text differences."
+   },
+   "Json": {
+    "type": "json",
+    "description": "Expandable JSON data."
+   },
+   "Tabs": {
+    "type": "tabs",
+    "description": "Named tab panels."
+   },
+   "Accordion": {
+    "type": "accordion",
+    "description": "Expandable sections."
+   }
+  },
+  "schemas": {
+   "arrow": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "dir": "string",
+     "length": "number",
+     "label": "string"
+    },
+    "optional": {
+     "span": "number",
+     "dir": "string",
+     "length": "number",
+     "label": "string"
+    },
+    "aliases": {
+     "direction": "dir"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "dir": [
+      "down",
+      "right"
+     ]
+    },
+    "nested": {}
+   },
+   "accordion": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "items": {
+      "required": [
+       "title",
+       "items"
+      ],
+      "fields": {
+       "title": "string",
+       "items": "nodes"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "audio": {
+    "required": [
+     "src"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "src": "string",
+     "alt": "string",
+     "loop": "boolean"
+    },
+    "optional": {
+     "span": "number",
+     "alt": "string",
+     "loop": "boolean"
+    },
+    "aliases": {
+     "url": "src",
+     "link": "src"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "avatar": {
+    "required": [
+     "name"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "name": "string",
+     "color": "string"
+    },
+    "optional": {
+     "span": "number",
+     "color": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "badge": {
+    "required": [
+     "label"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "tone": "string",
+     "icon": "string"
+    },
+    "optional": {
+     "span": "number",
+     "tone": "string",
+     "icon": "string"
+    },
+    "aliases": {
+     "text": "label",
+     "value": "label"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "tone": [
+      "success",
+      "warn",
+      "danger",
+      "accent"
+     ]
+    },
+    "nested": {}
+   },
+   "breadcrumb": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "button": {
+    "required": [
+     "label"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "tone": "string",
+     "full": "boolean",
+     "small": "boolean",
+     "icon": "string",
+     "action": "string"
+    },
+    "optional": {
+     "span": "number",
+     "tone": "string",
+     "full": "boolean",
+     "small": "boolean",
+     "icon": "string",
+     "action": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "tone": [
+      "primary",
+      "danger",
+      "success",
+      "ghost"
+     ]
+    },
+    "nested": {}
+   },
+   "callout": {
+    "required": [
+     "content"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "title": "string",
+     "content": "string",
+     "tone": "string"
+    },
+    "optional": {
+     "span": "number",
+     "title": "string",
+     "tone": "string"
+    },
+    "aliases": {
+     "kind": "tone",
+     "text": "content",
+     "body": "content",
+     "desc": "content"
+    },
+    "valueAliases": {
+     "tone": {
+      "danger": "error",
+      "warn": "warning"
+     }
+    },
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "tone": [
+      "info",
+      "success",
+      "warning",
+      "error"
+     ]
+    },
+    "nested": {}
+   },
+   "card": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "title": "string",
+     "eyebrow": "string",
+     "items": "nodes",
+     "tone": "string",
+     "accent": "string",
+     "flat": "boolean"
+    },
+    "optional": {
+     "span": "number",
+     "title": "string",
+     "eyebrow": "string",
+     "tone": "string",
+     "accent": "string",
+     "flat": "boolean"
+    },
+    "aliases": {
+     "label": "title",
+     "content": "items"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "tone": [
+      "info",
+      "success",
+      "warning",
+      "danger"
+     ]
+    },
+    "nested": {}
+   },
+   "chart": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "kind": "string",
+     "data": "array",
+     "series": "array",
+     "horizontal": "boolean",
+     "stacked": "boolean",
+     "filter": "string",
+     "palette": "array"
+    },
+    "optional": {
+     "span": "number",
+     "kind": "string",
+     "data": "array",
+     "series": "array",
+     "horizontal": "boolean",
+     "stacked": "boolean",
+     "filter": "string",
+     "palette": "array"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [
+     [
+      "data",
+      "series"
+     ]
+    ],
+    "conditionalRequired": [
+     {
+      "kind": "required-if",
+      "when": {
+       "field": "kind",
+       "equals": "donut"
+      },
+      "required": [
+       "data"
+      ]
+     }
+    ],
+    "rules": [
+     {
+      "kind": "one-of-required",
+      "fields": [
+       "data",
+       "series"
+      ]
+     },
+     {
+      "kind": "required-if",
+      "when": {
+       "field": "kind",
+       "equals": "donut"
+      },
+      "required": [
+       "data"
+      ]
+     }
+    ],
+    "enums": {
+     "kind": [
+      "bars",
+      "line",
+      "donut"
+     ]
+    },
+    "nested": {
+     "data": {
+      "required": [
+       "label",
+       "value"
+      ],
+      "fields": {
+       "label": "string",
+       "value": "number",
+       "color": "string"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     },
+     "series": {
+      "required": [
+       "label",
+       "data"
+      ],
+      "fields": {
+       "label": "string",
+       "color": "string",
+       "data": "array"
+      },
+      "enums": {},
+      "nested": {
+       "data": {
+        "required": [
+         "label",
+         "value"
+        ],
+        "fields": {
+         "label": "string",
+         "value": "number",
+         "color": "string"
+        },
+        "enums": {},
+        "nested": {},
+        "aliases": {}
+       }
+      },
+      "aliases": {}
+     }
+    },
+    "validator": {
+     "name": "chart-renderability"
+    }
+   },
+   "checkbox": {
+    "required": [
+     "label"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "checked": "boolean",
+     "action": "string",
+     "group": "string"
+    },
+    "optional": {
+     "span": "number",
+     "checked": "boolean",
+     "action": "string",
+     "group": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "code": {
+    "required": [
+     "code"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "lang": "string",
+     "code": "string"
+    },
+    "optional": {
+     "span": "number",
+     "lang": "string"
+    },
+    "aliases": {
+     "content": "code",
+     "text": "code"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "col": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "nodes",
+     "gap": "number",
+     "width": "number"
+    },
+    "optional": {
+     "span": "number",
+     "gap": "number",
+     "width": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "copy": {
+    "required": [
+     "text"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "text": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string"
+    },
+    "aliases": {
+     "content": "text",
+     "code": "text",
+     "value": "text"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "diagram": {
+    "required": [
+     "kind",
+     "nodes"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "kind": "string",
+     "variant": "string",
+     "title": "string",
+     "nodes": "array",
+     "edges": "array",
+     "zones": "array",
+     "theme": "object"
+    },
+    "optional": {
+     "span": "number",
+     "variant": "string",
+     "title": "string",
+     "edges": "array",
+     "zones": "array",
+     "theme": "object"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "kind": [
+      "architecture",
+      "it-state",
+      "flowchart",
+      "sequence",
+      "state",
+      "er",
+      "timeline",
+      "swimlane",
+      "quadrant",
+      "radar",
+      "loop",
+      "nested",
+      "tree",
+      "org-chart",
+      "layers",
+      "venn",
+      "pyramid",
+      "bar",
+      "line",
+      "gantt",
+      "scatter",
+      "high-level",
+      "process",
+      "medallion",
+      "data-flow",
+      "dp-integration",
+      "dp-security-matrix"
+     ],
+     "variant": [
+      "light",
+      "dark",
+      "editorial"
+     ]
+    },
+    "nested": {
+     "nodes": {
+      "required": [
+       "id",
+       "label"
+      ],
+      "fields": {
+       "id": "string",
+       "label": "string",
+       "sub": "string",
+       "type": "string",
+       "x": "number",
+       "y": "number",
+       "w": "number",
+       "h": "number",
+       "tag": "string"
+      },
+      "enums": {
+       "type": [
+        "focal",
+        "backend",
+        "store",
+        "external",
+        "input",
+        "optional",
+        "security"
+       ]
+      },
+      "nested": {},
+      "aliases": {}
+     },
+     "edges": {
+      "required": [
+       "from",
+       "to"
+      ],
+      "fields": {
+       "from": "string",
+       "to": "string",
+       "label": "string",
+       "kind": "string",
+       "route": "string"
+      },
+      "enums": {
+       "kind": [
+        "solid",
+        "dashed",
+        "accent",
+        "link"
+       ],
+       "route": [
+        "auto",
+        "orthogonal",
+        "straight"
+       ]
+      },
+      "nested": {},
+      "aliases": {}
+     },
+     "zones": {
+      "required": [
+       "label"
+      ],
+      "fields": {
+       "label": "string",
+       "x": "number",
+       "y": "number",
+       "w": "number",
+       "h": "number"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     },
+     "theme": {
+      "required": [],
+      "fields": {
+       "paper": "string",
+       "paper-2": "string",
+       "ink": "string",
+       "muted": "string",
+       "soft": "string",
+       "rule": "string",
+       "accent": "string",
+       "accent-tint": "string",
+       "link": "string"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "diff": {
+    "required": [
+     "diffs"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "diffs": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {
+     "items": "diffs",
+     "files": "diffs"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "diffs": {
+      "required": [
+       "path",
+       "newText"
+      ],
+      "fields": {
+       "path": "string",
+       "oldText": "string-or-null",
+       "newText": "string"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "divider": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string"
+    },
+    "aliases": {
+     "title": "label",
+     "text": "label"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "echart": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "title": "string",
+     "height": "number",
+     "preset": "string",
+     "data": "array",
+     "series": "array",
+     "links": "array",
+     "palette": "array",
+     "option": "object"
+    },
+    "optional": {
+     "span": "number",
+     "title": "string",
+     "height": "number",
+     "preset": "string",
+     "data": "array",
+     "series": "array",
+     "links": "array",
+     "palette": "array",
+     "option": "object"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [
+     [
+      "option",
+      "data",
+      "series",
+      "links"
+     ]
+    ],
+    "conditionalRequired": [],
+    "rules": [
+     {
+      "kind": "one-of-required",
+      "fields": [
+       "option",
+       "data",
+       "series",
+       "links"
+      ]
+     }
+    ],
+    "enums": {
+     "preset": [
+      "bar",
+      "line",
+      "area",
+      "pie",
+      "scatter",
+      "radar",
+      "gauge",
+      "funnel",
+      "treemap",
+      "sankey",
+      "graph",
+      "heatmap",
+      "bigline",
+      "wordCloud"
+     ]
+    },
+    "nested": {}
+   },
+   "file-tree": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {
+     "nodes": "items"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "items": {
+      "required": [
+       "name"
+      ],
+      "fields": {
+       "name": "string",
+       "type": "string",
+       "children": "array"
+      },
+      "enums": {
+       "type": [
+        "file",
+        "dir"
+       ]
+      },
+      "nested": {
+       "children": {
+        "required": [
+         "name"
+        ],
+        "fields": {
+         "name": "string",
+         "type": "string",
+         "children": "array"
+        },
+        "enums": {
+         "type": [
+          "file",
+          "dir"
+         ]
+        },
+        "nested": {
+         "children": {
+          "required": [
+           "name"
+          ],
+          "fields": {
+           "name": "string",
+           "type": "string",
+           "children": "array"
+          },
+          "enums": {
+           "type": [
+            "file",
+            "dir"
+           ]
+          },
+          "nested": {
+           "children": {
+            "required": [
+             "name"
+            ],
+            "fields": {
+             "name": "string",
+             "type": "string",
+             "children": "array"
+            },
+            "enums": {
+             "type": [
+              "file",
+              "dir"
+             ]
+            },
+            "nested": {
+             "children": {
+              "required": [
+               "name"
+              ],
+              "fields": {
+               "name": "string",
+               "type": "string",
+               "children": "array"
+              },
+              "enums": {
+               "type": [
+                "file",
+                "dir"
+               ]
+              },
+              "nested": {
+               "children": {
+                "required": [
+                 "name"
+                ],
+                "fields": {
+                 "name": "string",
+                 "type": "string",
+                 "children": "array"
+                },
+                "enums": {
+                 "type": [
+                  "file",
+                  "dir"
+                 ]
+                },
+                "nested": {
+                 "children": {
+                  "required": [
+                   "name"
+                  ],
+                  "fields": {
+                   "name": "string",
+                   "type": "string",
+                   "children": "array"
+                  },
+                  "enums": {
+                   "type": [
+                    "file",
+                    "dir"
+                   ]
+                  },
+                  "nested": {},
+                  "aliases": {
+                   "label": "name"
+                  }
+                 }
+                },
+                "aliases": {
+                 "label": "name"
+                }
+               }
+              },
+              "aliases": {
+               "label": "name"
+              }
+             }
+            },
+            "aliases": {
+             "label": "name"
+            }
+           }
+          },
+          "aliases": {
+           "label": "name"
+          }
+         }
+        },
+        "aliases": {
+         "label": "name"
+        }
+       }
+      },
+      "aliases": {
+       "label": "name"
+      }
+     }
+    }
+   },
+   "grid": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "cols": "number",
+     "items": "nodes"
+    },
+    "optional": {
+     "span": "number",
+     "cols": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "blocks": {
+    "required": [
+     "rows"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "rows": "array",
+     "columns": "number",
+     "caption": "string",
+     "title": "string"
+    },
+    "optional": {
+     "span": "number",
+     "columns": "number",
+     "caption": "string",
+     "title": "string"
+    },
+    "aliases": {
+     "items": "rows",
+     "data": "rows"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "rows": {
+      "required": [
+       "cells"
+      ],
+      "fields": {
+       "label": "string",
+       "cells": "array",
+       "color": "string",
+       "variant": "string"
+      },
+      "enums": {
+       "variant": [
+        "fill",
+        "outline",
+        "plain"
+       ]
+      },
+      "nested": {},
+      "aliases": {
+       "title": "label"
+      }
+     }
+    }
+   },
+   "icon": {
+    "required": [
+     "name"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "name": "string",
+     "label": "string",
+     "tone": "string",
+     "size": "number",
+     "tile": "boolean"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "tone": "string",
+     "size": "number",
+     "tile": "boolean"
+    },
+    "aliases": {
+     "icon": "name"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "tone": [
+      "default",
+      "muted",
+      "info",
+      "success",
+      "warning",
+      "danger"
+     ]
+    },
+    "nested": {}
+   },
+   "image": {
+    "required": [
+     "src"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "src": "string",
+     "alt": "string",
+     "caption": "string"
+    },
+    "optional": {
+     "span": "number",
+     "alt": "string",
+     "caption": "string"
+    },
+    "aliases": {
+     "url": "src",
+     "link": "src"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "input": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "placeholder": "string",
+     "value": "string",
+     "inputType": "string",
+     "action": "string",
+     "id": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "placeholder": "string",
+     "value": "string",
+     "inputType": "string",
+     "action": "string",
+     "id": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "inputType": [
+      "text",
+      "email",
+      "password",
+      "color"
+     ]
+    },
+    "nested": {}
+   },
+   "json": {
+    "required": [
+     "value"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "value": "unknown"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "keyvalue": {
+    "required": [
+     "pairs"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "pairs": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {
+     "items": "pairs",
+     "rows": "pairs",
+     "entries": "pairs"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "pairs": {
+      "required": [
+       "key",
+       "value"
+      ],
+      "fields": {
+       "key": "string",
+       "value": "string"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {
+       "label": "key"
+      }
+     }
+    }
+   },
+   "link": {
+    "required": [
+     "label"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "href": "string"
+    },
+    "optional": {
+     "span": "number",
+     "href": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "list": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "array",
+     "filter": "string"
+    },
+    "optional": {
+     "span": "number",
+     "filter": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "mermaid": {
+    "required": [
+     "code"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "code": "string"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "svg": {
+    "required": [
+     "code"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "code": "string",
+     "title": "string",
+     "height": "number"
+    },
+    "optional": {
+     "span": "number",
+     "title": "string",
+     "height": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "plot": {
+    "required": [
+     "series"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "series": "array",
+     "xMin": "number",
+     "xMax": "number",
+     "yMin": "number",
+     "yMax": "number",
+     "title": "string"
+    },
+    "optional": {
+     "span": "number",
+     "xMin": "number",
+     "xMax": "number",
+     "yMin": "number",
+     "yMax": "number",
+     "title": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "series": {
+      "required": [
+       "expr"
+      ],
+      "fields": {
+       "expr": "string",
+       "label": "string",
+       "color": "string",
+       "kind": "string",
+       "params": "array"
+      },
+      "enums": {
+       "kind": [
+        "line",
+        "area",
+        "scatter"
+       ]
+      },
+      "nested": {
+       "params": {
+        "required": [
+         "name",
+         "value"
+        ],
+        "fields": {
+         "name": "string",
+         "value": "number",
+         "min": "number",
+         "max": "number",
+         "step": "number",
+         "animateTo": "number",
+         "durationMs": "number",
+         "loop": "boolean"
+        },
+        "enums": {},
+        "nested": {},
+        "aliases": {}
+       }
+      },
+      "aliases": {}
+     }
+    }
+   },
+   "progress": {
+    "required": [
+     "value"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "value": "number",
+     "label": "string",
+     "valueLabel": "string",
+     "variant": "string",
+     "target": "number"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "valueLabel": "string",
+     "variant": "string",
+     "target": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "variant": [
+      "bar",
+      "ring"
+     ]
+    },
+    "nested": {}
+   },
+   "quiz": {
+    "required": [
+     "question",
+     "options"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "question": "string",
+     "options": "array",
+     "explanation": "string",
+     "id": "string",
+     "action": "string"
+    },
+    "optional": {
+     "span": "number",
+     "explanation": "string",
+     "id": "string",
+     "action": "string"
+    },
+    "aliases": {
+     "title": "question",
+     "text": "question",
+     "choices": "options",
+     "items": "options"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "radio": {
+    "required": [
+     "options"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "options": "array",
+     "selected": "number",
+     "action": "string",
+     "group": "string",
+     "answer": "unknown",
+     "explanation": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "selected": "number",
+     "action": "string",
+     "group": "string",
+     "answer": "unknown",
+     "explanation": "string"
+    },
+    "aliases": {
+     "items": "options"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "row": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "nodes",
+     "wrap": "boolean",
+     "spacer": "boolean",
+     "justify": "string"
+    },
+    "optional": {
+     "span": "number",
+     "wrap": "boolean",
+     "spacer": "boolean",
+     "justify": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "justify": [
+      "start",
+      "center",
+      "end",
+      "between"
+     ]
+    },
+    "nested": {}
+   },
+   "scene3d": {
+    "required": [
+     "meshes"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "title": "string",
+     "meshes": "array",
+     "ambient": "number",
+     "background": "string"
+    },
+    "optional": {
+     "span": "number",
+     "title": "string",
+     "ambient": "number",
+     "background": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "meshes": {
+      "required": [
+       "shape"
+      ],
+      "fields": {
+       "shape": "string",
+       "color": "string",
+       "position": "array",
+       "rotation": "array",
+       "scale": "unknown",
+       "size": "unknown"
+      },
+      "enums": {
+       "shape": [
+        "box",
+        "sphere",
+        "cone",
+        "cylinder",
+        "torus"
+       ]
+      },
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "select": {
+    "required": [
+     "options"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "options": "array",
+     "action": "string",
+     "selected": "number",
+     "id": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "action": "string",
+     "selected": "number",
+     "id": "string"
+    },
+    "aliases": {
+     "items": "options"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "slider": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "min": "number",
+     "max": "number",
+     "step": "number",
+     "value": "number",
+     "action": "string",
+     "id": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "min": "number",
+     "max": "number",
+     "step": "number",
+     "value": "number",
+     "action": "string",
+     "id": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "spacer": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "hero": {
+    "required": [
+     "title"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "title": "string",
+     "subtitle": "string",
+     "value": "string",
+     "label": "string",
+     "delta": "string",
+     "spark": "array",
+     "tone": "string"
+    },
+    "optional": {
+     "span": "number",
+     "subtitle": "string",
+     "value": "string",
+     "label": "string",
+     "delta": "string",
+     "spark": "array",
+     "tone": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "tone": [
+      "accent",
+      "success",
+      "warning",
+      "danger"
+     ]
+    },
+    "nested": {}
+   },
+   "stat": {
+    "required": [
+     "label",
+     "value"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "value": "string",
+     "delta": "string",
+     "spark": "array",
+     "size": "string"
+    },
+    "optional": {
+     "span": "number",
+     "delta": "string",
+     "spark": "array",
+     "size": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "size": [
+      "hero"
+     ]
+    },
+    "nested": {}
+   },
+   "steps": {
+    "required": [
+     "steps"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "steps": "array",
+     "current": "number"
+    },
+    "optional": {
+     "span": "number",
+     "current": "number"
+    },
+    "aliases": {
+     "items": "steps"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "steps": {
+      "required": [
+       "title"
+      ],
+      "fields": {
+       "title": "string",
+       "desc": "string"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "submit": {
+    "required": [
+     "label"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "action": "string",
+     "resetAction": "string",
+     "groups": "array"
+    },
+    "optional": {
+     "span": "number",
+     "action": "string",
+     "resetAction": "string",
+     "groups": "array"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "switch": {
+    "required": [
+     "label"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "checked": "boolean",
+     "action": "string"
+    },
+    "optional": {
+     "span": "number",
+     "checked": "boolean",
+     "action": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "table": {
+    "required": [
+     "columns",
+     "rows"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "columns": "array",
+     "rows": "array",
+     "types": "array",
+     "total": "boolean",
+     "details": "array",
+     "filter": "string",
+     "filterColumn": "number",
+     "sortField": "string",
+     "export": "boolean"
+    },
+    "optional": {
+     "span": "number",
+     "types": "array",
+     "total": "boolean",
+     "details": "array",
+     "filter": "string",
+     "filterColumn": "number",
+     "sortField": "string",
+     "export": "boolean"
+    },
+    "aliases": {
+     "headers": "columns",
+     "data": "rows",
+     "items": "rows"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "tabs": {
+    "required": [
+     "tabs"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "tabs": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "tabs": {
+      "required": [
+       "label",
+       "items"
+      ],
+      "fields": {
+       "label": "string",
+       "items": "nodes",
+       "content": "nodes"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "text": {
+    "required": [
+     "content"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "content": "string",
+     "size": "string",
+     "center": "boolean",
+     "align": "string",
+     "tone": "string",
+     "mono": "boolean"
+    },
+    "optional": {
+     "span": "number",
+     "size": "string",
+     "center": "boolean",
+     "align": "string",
+     "tone": "string",
+     "mono": "boolean"
+    },
+    "aliases": {
+     "text": "content"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "size": [
+      "display",
+      "h1",
+      "h2",
+      "h3",
+      "body",
+      "muted",
+      "caption"
+     ],
+     "align": [
+      "left",
+      "center",
+      "right"
+     ],
+     "tone": [
+      "danger",
+      "success",
+      "warning",
+      "info",
+      "muted"
+     ]
+    },
+    "nested": {}
+   },
+   "textarea": {
+    "required": [],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "label": "string",
+     "placeholder": "string",
+     "rows": "number",
+     "value": "string",
+     "action": "string",
+     "id": "string"
+    },
+    "optional": {
+     "span": "number",
+     "label": "string",
+     "placeholder": "string",
+     "rows": "number",
+     "value": "string",
+     "action": "string",
+     "id": "string"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {}
+   },
+   "timeline": {
+    "required": [
+     "items"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "items": "array"
+    },
+    "optional": {
+     "span": "number"
+    },
+    "aliases": {},
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {},
+    "nested": {
+     "items": {
+      "required": [
+       "title"
+      ],
+      "fields": {
+       "title": "string",
+       "desc": "string",
+       "time": "string"
+      },
+      "enums": {},
+      "nested": {},
+      "aliases": {}
+     }
+    }
+   },
+   "video": {
+    "required": [
+     "src"
+    ],
+    "fields": {
+     "type": "string",
+     "span": "number",
+     "src": "string",
+     "alt": "string",
+     "poster": "string",
+     "loop": "boolean",
+     "muted": "boolean",
+     "aspectRatio": "string"
+    },
+    "optional": {
+     "span": "number",
+     "alt": "string",
+     "poster": "string",
+     "loop": "boolean",
+     "muted": "boolean",
+     "aspectRatio": "string"
+    },
+    "aliases": {
+     "url": "src",
+     "link": "src"
+    },
+    "valueAliases": {},
+    "oneOfRequired": [],
+    "conditionalRequired": [],
+    "rules": [],
+    "enums": {
+     "aspectRatio": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "9:16"
+     ]
+    },
+    "nested": {}
+   }
+  },
+  "limits": {
+   "maxDepth": 8,
+   "maxNodes": 200,
+   "maxString": 2000,
+   "maxCode": 12000,
+   "maxMermaid": 8000,
+   "maxGridCols": 12,
+   "maxTabs": 12,
+   "maxAccordionItems": 24,
+   "maxListItems": 50,
+   "maxOptions": 50,
+   "maxTableRows": 50,
+   "maxTableCols": 12,
+   "maxChartPoints": 60,
+   "maxPlotSeries": 8,
+   "maxPlotParams": 6,
+   "maxMeshes": 5,
+   "maxQuizOptions": 8,
+   "maxSteps": 24,
+   "maxTimelineItems": 24,
+   "maxBreadcrumbItems": 12,
+   "maxKeyValuePairs": 24,
+   "maxTreeDepth": 6,
+   "maxBlocksRows": 14,
+   "maxBlocksCells": 16,
+   "maxDiagramNodes": 9,
+   "maxDiagramEdges": 12,
+   "maxDiagramZones": 3,
+   "maxDiagramFocal": 2,
+   "maxDiagramLabel": 14,
+   "maxEChartOptionDepth": 10,
+   "maxEChartArrayLen": 500,
+   "maxEChartOptionNodes": 2000
+  }
+ }
+}
