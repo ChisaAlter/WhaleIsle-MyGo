@@ -287,6 +287,10 @@ type Renderer struct {
 	effects map[*scene.Effect]*effectShader
 
 	b gpu.Builder
+
+	// lastUpload, lastDraw and lastSwap are how the last frame Render drew
+	// split its GPU work, for the engine's frame trace.
+	lastUpload, lastDraw, lastSwap time.Duration
 }
 
 // New creates a renderer drawing into the window hwnd, on the GPU or, when
@@ -672,6 +676,7 @@ func (r *Renderer) imageView(img *scene.Image) uintptr {
 
 // Render draws s into the window and presents it.
 func (r *Renderer) Render(s *scene.Scene) error {
+	r.lastUpload, r.lastDraw, r.lastSwap = 0, 0, 0
 	if s.Width <= 0 || s.Height <= 0 {
 		return nil
 	}
@@ -680,9 +685,11 @@ func (r *Renderer) Render(s *scene.Scene) error {
 		return err
 	}
 	if r.rounded != nil {
+		applied := time.Now()
 		if err := r.rounded.apply(r, s); err != nil {
 			return err
 		}
+		r.lastDraw += time.Since(applied)
 	}
 	// A frame of a new size is presented at once (sync interval 0), not
 	// after the frame queued before it, which would miss the next
@@ -695,24 +702,37 @@ func (r *Renderer) Render(s *scene.Scene) error {
 	if resized {
 		sync = 0
 	}
+	presented := time.Now()
 	if err := r.present(sync); err != nil {
 		return err
 	}
+	r.lastSwap = time.Since(presented)
 	return nil
+}
+
+// FrameLaps reports how the last frame Render drew split its GPU work: the
+// upload lap syncs the atlases, image textures and instance buffer, the draw
+// lap builds the batches and submits them, backdrop passes and the rounded
+// mask included, and the swap lap is the present call itself.
+func (r *Renderer) FrameLaps() (upload, draw, swap time.Duration) {
+	return r.lastUpload, r.lastDraw, r.lastSwap
 }
 
 // draw draws s into the swap chain's back buffer.
 func (r *Renderer) draw(s *scene.Scene) error {
+	drawStart := time.Now()
 	r.frame++
 	if err := r.resize(s.Width, s.Height); err != nil {
 		return err
 	}
+	uploadStart := time.Now()
 	if err := r.syncAtlas(&r.mask, s.MaskAtlas, formatR8Unorm); err != nil {
 		return err
 	}
 	if err := r.syncAtlas(&r.color, s.ColorAtlas, formatR8G8B8A8Unorm); err != nil {
 		return err
 	}
+	upload := time.Since(uploadStart)
 	r.b.Build(s, r.imageView)
 	if err := r.fitBackdrop(); err != nil {
 		return err
@@ -734,6 +754,7 @@ func (r *Renderer) draw(s *scene.Scene) error {
 	}
 
 	// Upload the instances, growing the buffer as needed.
+	uploadRest := time.Now()
 	if n := len(r.b.Instances); n > 0 {
 		if n > r.instCap {
 			free(&r.instBuf)
@@ -755,6 +776,7 @@ func (r *Renderer) draw(s *scene.Scene) error {
 	}
 	globals := [4]float32{float32(s.Width), float32(s.Height), 0, 0}
 	call(r.ctx, ctxUpdateSubresource, r.cbuf, 0, 0, uintptr(unsafe.Pointer(&globals[0])), 0, 0)
+	upload += time.Since(uploadRest)
 
 	ctx := r.ctx
 	call(ctx, ctxOMSetRenderTargets, 1, uintptr(unsafe.Pointer(&r.rtv)), 0)
@@ -801,6 +823,8 @@ func (r *Renderer) draw(s *scene.Scene) error {
 		call(ctx, ctxOMSetBlendState, r.maskBlend, 0, 0xffffffff)
 		call(ctx, ctxDrawInstanced, 4, 1, 0, uintptr(maskIdx))
 	}
+	r.lastUpload = upload
+	r.lastDraw = time.Since(drawStart) - upload
 	return nil
 }
 

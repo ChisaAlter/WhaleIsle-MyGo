@@ -67,6 +67,10 @@ type frameStats struct {
 	lastCycles  uint64
 	lastTid     uint32
 	laps        [phases]time.Duration
+	// presentUpload, presentDraw and presentSwap are the GPU renderer's
+	// sub-laps inside the present phase, reported by the window host, or
+	// zero where the frame was drawn in memory.
+	presentUpload, presentDraw, presentSwap time.Duration
 	// cycles is what the thread used in each phase, where the system counts
 	// cycles: finer than the monotonic clock, which steps in half milliseconds
 	// on some machines.
@@ -142,6 +146,13 @@ func (f *frameStats) end(rt *engine) {
 		return
 	}
 	total := time.Since(f.start)
+	if p, ok := rt.host.(interface {
+		presentSubLaps() (upload, draw, swap time.Duration)
+	}); ok {
+		f.presentUpload, f.presentDraw, f.presentSwap = p.presentSubLaps()
+	} else {
+		f.presentUpload, f.presentDraw, f.presentSwap = 0, 0, 0
+	}
 	if frameTrace != nil {
 		after := f.read()
 		for i := range after {
@@ -177,7 +188,8 @@ func (f *frameStats) end(rt *engine) {
 	if d[statCycles] > 0 || d[statAssist] > 0 {
 		gc = fmt.Sprintf("GC: %.0f cycles ended, %s ms of assists", d[statCycles], ms(time.Duration(d[statAssist]*float64(time.Second))))
 	}
-	frameLog(fmt.Sprintf("mygo: frame %d took %s ms: build %s%s, layout %s, paint %s, present %s (%s), other %s; meanwhile the process made about %.0f allocations, %.1f KB, %d text layouts; %s",
-		rt.frame, ms(total), ms(f.laps[phaseBuild]), passes, ms(f.laps[phaseLayout]), ms(f.laps[phasePaint]), ms(f.laps[phasePresent]), path, ms(other),
+	frameLog(fmt.Sprintf("mygo: frame %d took %s ms: build %s%s, layout %s, paint %s, present %s (upload %s, draw %s, swap %s) (%s), other %s; meanwhile the process made about %.0f allocations, %.1f KB, %d text layouts; %s",
+		rt.frame, ms(total), ms(f.laps[phaseBuild]), passes, ms(f.laps[phaseLayout]), ms(f.laps[phasePaint]), ms(f.laps[phasePresent]),
+		ms(f.presentUpload), ms(f.presentDraw), ms(f.presentSwap), path, ms(other),
 		d[statObjects]+d[statTiny], d[statBytes]/1024, rt.text.LayoutsMade()-f.layouts, gc))
 }

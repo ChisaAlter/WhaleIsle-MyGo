@@ -94,6 +94,10 @@ type windowHost struct {
 	framing bool
 	// path is how the last frame was drawn, for MYGO_FRAME_STATS.
 	path string
+	// presentUpload, presentDraw and presentSwap are the GPU renderer's
+	// report of how the last presented frame split, or zero where frames
+	// are drawn in memory.
+	presentUpload, presentDraw, presentSwap time.Duration
 	// wide tells that the GPU renderer draws the colors of scenes outside
 	// the sRGB gamut (see wideHold), until wideUntil.
 	wide      bool
@@ -109,6 +113,13 @@ type windowHost struct {
 }
 
 func (h *windowHost) framePath() string { return h.path }
+
+// presentSubLaps is the GPU renderer's report of how the last presented
+// frame split between upload, draw submission and the swap-chain present:
+// zero where frames are drawn in memory.
+func (h *windowHost) presentSubLaps() (upload, draw, swap time.Duration) {
+	return h.presentUpload, h.presentDraw, h.presentSwap
+}
 
 // newGPU makes the GPU renderer of a surface; tests replace it.
 var newGPU = newGPURenderer
@@ -203,6 +214,7 @@ func (h *windowHost) present(s *scene.Scene) {
 	h.lastFrame = now
 	h.armIdle(frameIdle)
 	h.useWide(s, now)
+	h.presentUpload, h.presentDraw, h.presentSwap = 0, 0, 0
 	defer h.ready()
 	defer h.presentedToasts()
 	if h.render(s) {
@@ -326,6 +338,11 @@ func (h *windowHost) render(s *scene.Scene) bool {
 	for try := 0; h.gpu != nil; try++ {
 		err := h.gpu.Render(s)
 		if err == nil {
+			if l, ok := h.gpu.(interface {
+				FrameLaps() (upload, draw, swap time.Duration)
+			}); ok {
+				h.presentUpload, h.presentDraw, h.presentSwap = l.FrameLaps()
+			}
 			return true
 		}
 		log.Printf("mygo: drawing without the GPU: %v", err)

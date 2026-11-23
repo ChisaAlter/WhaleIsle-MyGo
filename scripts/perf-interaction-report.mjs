@@ -38,7 +38,7 @@ function readFrames(dir) {
     .map((line) => {
       const c = line.split(',')
       const n = (i) => Number(c[i]) || 0
-      return { frame: n(1), start: n(2), dur: n(4), build: n(5), layout: n(6), paint: n(7), present: n(8), passes: n(9), path: c[10], alloc: n(18), gc: n(19) }
+      return { frame: n(1), start: n(2), dur: n(4), build: n(5), layout: n(6), paint: n(7), present: n(8), passes: n(9), path: c[10], alloc: n(18), gc: n(19), pu: n(20), pd: n(21), ps: n(22) }
     })
 }
 
@@ -52,7 +52,7 @@ function readRun(dir) {
 function phaseStats(frames) {
   const pick = (k) => frames.map((f) => ms(f[k]))
   const stat = (k) => ({ p50: percentile(pick(k), 50), p95: percentile(pick(k), 95), max: Math.max(0, ...pick(k)) })
-  return { total: stat('dur'), build: stat('build'), layout: stat('layout'), paint: stat('paint'), present: stat('present') }
+  return { total: stat('dur'), build: stat('build'), layout: stat('layout'), paint: stat('paint'), present: stat('present'), 'present.upload': stat('pu'), 'present.draw': stat('pd'), 'present.swap': stat('ps') }
 }
 
 export function analyze(dir) {
