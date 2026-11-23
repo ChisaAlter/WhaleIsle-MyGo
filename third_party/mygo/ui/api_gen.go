@@ -2696,6 +2696,20 @@ func (_handle Element) Disabled(d bool) Element {
 	return wrapElement(_node.Disabled(d))
 }
 
+// DisabledOpacity sets the opacity the element paints at while disabled,
+// in place of the toolkit's .48 (the installed product's disabled
+// buttons): a design system with its own disabled look, as coss's 64%,
+// sets it on its controls. 0 keeps the default.
+func (_handle Element) DisabledOpacity(o float32) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.DisabledOpacity(o))
+}
+
 // Dividers draws a line width DIPs thick in color c between each two
 // children of a row, a column or a List (between their rows), across the
 // element, inside its border: in the middle of the room between them,
