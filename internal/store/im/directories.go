@@ -11,7 +11,7 @@ import (
 // never scans the desktop filesystem or changes the application's workspace.
 func (s *Store) ListDirectories(ctx context.Context, path string) (api.DirectoryListing, error) {
 	s.mu.Lock()
-	client, epoch := s.client, s.connectionEpoch
+	client, connLease := s.client, s.connLease
 	s.mu.Unlock()
 	var out api.DirectoryListing
 	if client == nil {
@@ -23,7 +23,7 @@ func (s *Store) ListDirectories(ctx context.Context, path string) (api.Directory
 	}
 	err := client.Call(ctx, "directoryPicker/list", args, &out)
 	s.mu.Lock()
-	current := s.client == client && s.connectionEpoch == epoch
+	current := s.client == client && connLease.Valid()
 	s.mu.Unlock()
 	if !current {
 		return api.DirectoryListing{}, errors.New("Host changed; reopen the directory picker")
@@ -33,7 +33,7 @@ func (s *Store) ListDirectories(ctx context.Context, path string) (api.Directory
 
 func (s *Store) PickDirectory(ctx context.Context) (string, error) {
 	s.mu.Lock()
-	client, epoch := s.client, s.connectionEpoch
+	client, connLease := s.client, s.connLease
 	s.mu.Unlock()
 	if client == nil {
 		return "", errors.New("Host is not connected")
@@ -41,7 +41,7 @@ func (s *Store) PickDirectory(ctx context.Context) (string, error) {
 	var out api.PickResult
 	err := client.Call(ctx, "directoryPicker/pick", map[string]any{}, &out)
 	s.mu.Lock()
-	current := s.client == client && s.connectionEpoch == epoch
+	current := s.client == client && connLease.Valid()
 	s.mu.Unlock()
 	if !current {
 		return "", errors.New("Host changed; reopen the directory picker")

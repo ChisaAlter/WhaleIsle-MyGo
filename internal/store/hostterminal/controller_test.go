@@ -125,7 +125,7 @@ func wait(t *testing.T, s *Store, session string, pred func(View) bool) View {
 	t.Helper()
 	deadline := time.After(2 * time.Second)
 	for {
-		v := s.Snapshot(session)
+		v := s.Snapshot(session).Value
 		if pred(v) {
 			return v
 		}
@@ -155,9 +155,9 @@ func prepare(t *testing.T) (*Store, *fixtureRemote) {
 	r := fixture()
 	s.bind(r, r, true, nil)
 	s.Show("session", true)
-	s.Refresh(s.Snapshot("session").Owner, "session")
+	s.Refresh(s.Snapshot("session").Value.Owner, "session")
 	wait(t, s, "session", func(v View) bool { return len(v.Items) == 1 && !v.Busy })
-	s.Connect(s.Snapshot("session").Owner, "session", "term")
+	s.Connect(s.Snapshot("session").Value.Owner, "session", "term")
 	return s, r
 }
 func attach(t *testing.T, s *Store, r *fixtureRemote, seq int64) *Attachment {
@@ -261,7 +261,7 @@ func TestRetainedHideSessionAndHostIsolation(t *testing.T) {
 		t.Fatal("hide closed Host process")
 	}
 	s.bind(new(int), fixture(), true, nil)
-	if len(s.Snapshot("session").Items) != 0 {
+	if len(s.Snapshot("session").Value.Items) != 0 {
 		t.Fatal("Host replacement leaked sessions")
 	}
 	if _, err := a.Write([]byte("old")); err == nil {
@@ -286,7 +286,7 @@ func TestRetainedSequenceGapAndTakeover(t *testing.T) {
 		t.Fatal("takeover not enforced")
 	}
 	f.stream.send(map[string]any{"type": "output", "sequence": 11, "data": "gap"})
-	wait(t, s, "session", func(v View) bool { return v.Error != "" && !v.Writable })
+	wait(t, s, "session", func(v View) bool { return v.Error != nil && !v.Writable })
 	if r.count("terminal/create") != 0 {
 		t.Fatal("invalid stream recreated")
 	}
@@ -295,7 +295,7 @@ func TestRetainedCloseTargetsOriginalSession(t *testing.T) {
 	s, r := prepare(t)
 	defer s.bind(nil, nil, false, nil)
 	a := attach(t, s, r, 1)
-	s.Close(s.Snapshot("session").Owner, "session", "term")
+	s.Close(s.Snapshot("session").Value.Owner, "session", "term")
 	wait(t, s, "session", func(v View) bool { return v.Phase == "closed" })
 	if _, err := a.Write([]byte("old")); err == nil {
 		t.Fatal("closed writer accepted")
@@ -353,8 +353,8 @@ func TestRetainedExplicitCreationIsNotRetried(t *testing.T) {
 	s.bind(r, r, true, nil)
 	defer s.bind(nil, nil, false, nil)
 	s.Show("session", true)
-	s.Create(s.Snapshot("session").Owner, "session")
-	v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.ActiveID != "" && v.Error != "" })
+	s.Create(s.Snapshot("session").Value.Owner, "session")
+	v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.ActiveID != "" && v.Error != nil })
 	id := v.ActiveID
 	s.transport(r, false)
 	s.transport(r, true)
@@ -378,7 +378,7 @@ func TestRetainedExplicitCreationIsNotRetried(t *testing.T) {
 
 func TestRetainedStaleUIActionCannotTargetReplacedHost(t *testing.T) {
 	s, r := prepare(t)
-	old := s.Snapshot("session").Owner
+	old := s.Snapshot("session").Value.Owner
 	s.bind(nil, nil, false, nil)
 	r2 := fixture()
 	s.bind(r2, r2, true, nil)
@@ -410,7 +410,7 @@ func TestRetainedRenderBarrierAndReadonlyGrid(t *testing.T) {
 		t.Fatalf("recovery grid %d x %d", cols, rows)
 	}
 	f.stream.send(map[string]any{"type": "output", "sequence": 4, "data": "\x1b[1D!"})
-	if s.Snapshot("session").Render.Revision != v.Render.Revision {
+	if s.Snapshot("session").Value.Render.Revision != v.Render.Revision {
 		t.Fatal("overwrote unacknowledged snapshot")
 	}
 	s.Acknowledge(a, v.Render.Revision)
@@ -451,7 +451,7 @@ func TestRetainedInputLimitAndCloseFailure(t *testing.T) {
 	r.mu.Lock()
 	r.closeErr = errors.New("response lost")
 	r.mu.Unlock()
-	s.Close(s.Snapshot("session").Owner, "session", "term")
+	s.Close(s.Snapshot("session").Value.Owner, "session", "term")
 	wait(t, s, "session", func(v View) bool { return v.Phase == "failed" })
 	if r.count("terminal/close") != 1 {
 		t.Fatal("close automatically replayed")

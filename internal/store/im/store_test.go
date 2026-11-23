@@ -34,7 +34,7 @@ func TestOpenSeedsDefaultChannels(t *testing.T) {
 	if s.Root() != root {
 		t.Fatalf("Root = %q, want %q", s.Root(), root)
 	}
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if len(snap.Rows) < 2 {
 		t.Fatalf("seeded rows = %d, want >= 2", len(snap.Rows))
 	}
@@ -65,7 +65,7 @@ func TestPersistDraftAndHistoryRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := s.Snapshot().SelectedID
+	id := s.Snapshot().Value.SelectedID
 	if id == "" {
 		t.Fatal("no selected id")
 	}
@@ -75,7 +75,7 @@ func TestPersistDraftAndHistoryRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.SendDraft(context.Background(), id, "first message")
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if len(snap.Messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(snap.Messages))
 	}
@@ -85,7 +85,7 @@ func TestPersistDraftAndHistoryRoundTrip(t *testing.T) {
 	if snap.Draft != "" {
 		t.Fatalf("draft after send = %q, want empty", snap.Draft)
 	}
-	if snap.LastSend == "" {
+	if snap.LastSend == nil {
 		t.Fatal("expected LastSend note in local fallback mode")
 	}
 
@@ -95,7 +95,7 @@ func TestPersistDraftAndHistoryRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	s2.Select(id)
-	snap2 := s2.Snapshot()
+	snap2 := s2.Snapshot().Value
 	if len(snap2.Messages) != 1 || snap2.Messages[0].Text != "first message" {
 		t.Fatalf("reloaded history = %+v", snap2.Messages)
 	}
@@ -110,7 +110,7 @@ func TestPersistDraftAndHistoryRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	s3.Select(id)
-	if got := s3.Snapshot().Draft; got != "kept draft" {
+	if got := s3.Snapshot().Value.Draft; got != "kept draft" {
 		t.Fatalf("reloaded draft = %q, want kept draft", got)
 	}
 }
@@ -121,7 +121,7 @@ func TestSelectSwitchesDraftAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows := s.Snapshot().Rows
+	rows := s.Snapshot().Value.Rows
 	if len(rows) < 2 {
 		t.Fatal("need two seeded channels")
 	}
@@ -135,12 +135,12 @@ func TestSelectSwitchesDraftAndHistory(t *testing.T) {
 
 	s.Select(b)
 	s.SetDraft(b, "draft-b")
-	if snap := s.Snapshot(); snap.Draft != "draft-b" || len(snap.Messages) != 0 {
+	if snap := s.Snapshot().Value; snap.Draft != "draft-b" || len(snap.Messages) != 0 {
 		t.Fatalf("channel b snap = draft %q msgs %d", snap.Draft, len(snap.Messages))
 	}
 
 	s.Select(a)
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if snap.Draft != "draft-a-again" {
 		t.Fatalf("channel a draft = %q, want draft-a-again", snap.Draft)
 	}
@@ -155,10 +155,10 @@ func TestDetachKeepsLocalData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := s.Snapshot().SelectedID
+	id := s.Snapshot().Value.SelectedID
 	s.SendDraft(context.Background(), id, "stay")
 	s.Detach()
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if !snap.LocalMode {
 		t.Fatal("LocalMode after Detach")
 	}
@@ -179,9 +179,9 @@ func TestRefreshWithoutClientKeepsLocalChannels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := s.Snapshot().Rows
+	before := s.Snapshot().Value.Rows
 	s.Refresh(context.Background())
-	after := s.Snapshot()
+	after := s.Snapshot().Value
 	if after.Loading {
 		t.Fatal("still loading")
 	}
@@ -194,7 +194,7 @@ func TestRefreshWithoutClientKeepsLocalChannels(t *testing.T) {
 	if len(after.Rows) != len(before) {
 		t.Fatalf("rows changed: %d -> %d", len(before), len(after.Rows))
 	}
-	if after.PluginDiag == "" {
+	if after.PluginDiag == nil {
 		t.Fatal("expected plugin diag note without client")
 	}
 }
@@ -267,7 +267,7 @@ func TestRefreshListAndHistoryMergeHTTPtest(t *testing.T) {
 
 	done := make(chan struct{})
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, func() {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		if !snap.Loading && snap.ListMethod == "im/list" {
 			select {
 			case <-done:
@@ -286,14 +286,14 @@ func TestRefreshListAndHistoryMergeHTTPtest(t *testing.T) {
 	// Allow history merge finish.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		if snap.SyncedRemote && snap.HistoryMethod == "im/history" {
 			break
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if !snap.HasIMRPC || snap.ListMethod != "im/list" {
 		t.Fatalf("list snap = %+v", snap)
 	}
@@ -310,7 +310,7 @@ func TestRefreshListAndHistoryMergeHTTPtest(t *testing.T) {
 		t.Fatal("expected SyncedRemote")
 	}
 	s.Select("c1")
-	msgs := s.Snapshot().Messages
+	msgs := s.Snapshot().Value.Messages
 	if len(msgs) < 2 {
 		t.Fatalf("merged messages = %+v", msgs)
 	}
@@ -372,12 +372,12 @@ func TestRefreshInventoryBridgeHTTPtest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := len(s.Snapshot().Rows)
+	before := len(s.Snapshot().Value.Rows)
 
 	done := make(chan struct{})
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, func() {
-		snap := s.Snapshot()
-		if !snap.Loading && snap.BridgeMode == "inventory" && strings.Contains(snap.PluginDiag, "@xmanrui/dsh-im") {
+		snap := s.Snapshot().Value
+		if !snap.Loading && snap.BridgeMode == "inventory" && strings.Contains(snap.PluginDiag.SentenceText(), "@xmanrui/dsh-im") {
 			select {
 			case <-done:
 			default:
@@ -392,7 +392,7 @@ func TestRefreshInventoryBridgeHTTPtest(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timeout; snap=%+v", s.Snapshot())
 	}
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if snap.HasIMRPC {
 		t.Fatal("HasIMRPC should be false on inventory bridge")
 	}
@@ -402,8 +402,8 @@ func TestRefreshInventoryBridgeHTTPtest(t *testing.T) {
 	if len(snap.Rows) != before {
 		t.Fatalf("local rows should remain: %d -> %d", before, len(snap.Rows))
 	}
-	if !strings.Contains(snap.PluginDiag, "fiber=active") {
-		t.Fatalf("PluginDiag = %q", snap.PluginDiag)
+	if !strings.Contains(snap.PluginDiag.SentenceText(), "fiber=active") {
+		t.Fatalf("PluginDiag = %v", snap.PluginDiag)
 	}
 }
 
@@ -462,8 +462,8 @@ func TestSendDraftCallsIMSendHTTPtest(t *testing.T) {
 	}
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if strings.Contains(s.Snapshot().LastSend, "im/send") {
-			snap := s.Snapshot()
+		if strings.Contains(s.Snapshot().Value.LastSend.SentenceText(), "im/send") {
+			snap := s.Snapshot().Value
 			if len(snap.Messages) != 1 || snap.Messages[0].State != MessageStateSent {
 				t.Fatalf("delivery state = %+v", snap.Messages)
 			}
@@ -471,7 +471,7 @@ func TestSendDraftCallsIMSendHTTPtest(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("LastSend = %q", s.Snapshot().LastSend)
+	t.Fatalf("LastSend = %v", s.Snapshot().Value.LastSend)
 }
 
 func TestSendDraftMarksFailedRPCAsNotSent(t *testing.T) {
@@ -506,8 +506,8 @@ func TestSendDraftMarksFailedRPCAsNotSent(t *testing.T) {
 	s.SendDraft(context.Background(), "general", "must not look delivered")
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		snap := s.Snapshot()
-		if snap.LastSend != "" && len(snap.Messages) == 1 && snap.Messages[0].State != MessageStatePending {
+		snap := s.Snapshot().Value
+		if snap.LastSend != nil && len(snap.Messages) == 1 && snap.Messages[0].State != MessageStatePending {
 			if snap.Messages[0].State != MessageStateFailed {
 				t.Fatalf("delivery state = %q, want failed", snap.Messages[0].State)
 			}
@@ -516,7 +516,7 @@ func TestSendDraftMarksFailedRPCAsNotSent(t *testing.T) {
 				t.Fatal(err)
 			}
 			reopened.Select("general")
-			if got := reopened.Snapshot().Messages; len(got) != 1 || got[0].State != MessageStateFailed {
+			if got := reopened.Snapshot().Value.Messages; len(got) != 1 || got[0].State != MessageStateFailed {
 				t.Fatalf("persisted state = %+v", got)
 			}
 			return
@@ -548,7 +548,7 @@ func TestOpenMarksInterruptedPendingSendAsUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Select("general")
-	messages := s.Snapshot().Messages
+	messages := s.Snapshot().Value.Messages
 	if len(messages) != 1 || messages[0].State != MessageStateUnknown {
 		t.Fatalf("interrupted send = %+v", messages)
 	}
@@ -582,9 +582,9 @@ func TestSendDraftWithoutRegisteredIMSendStaysLocal(t *testing.T) {
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	s.SendDraft(context.Background(), "general", "local queue")
 
-	snap := s.Snapshot()
-	if !strings.Contains(snap.LastSend, "saved locally") {
-		t.Fatalf("LastSend = %q, want local queue note", snap.LastSend)
+	snap := s.Snapshot().Value
+	if !strings.Contains(snap.LastSend.SentenceText(), "saved locally") {
+		t.Fatalf("LastSend = %q, want local queue note", snap.LastSend.SentenceText())
 	}
 	if len(snap.Messages) != 1 || snap.Messages[0].Text != "local queue" {
 		t.Fatalf("messages = %+v", snap.Messages)
@@ -665,7 +665,7 @@ func TestRefreshCordisConnectionStatus(t *testing.T) {
 	}
 	done := make(chan struct{})
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, func() {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		if !snap.Loading && snap.BridgeMode == "cordis" {
 			select {
 			case <-done:
@@ -680,7 +680,7 @@ func TestRefreshCordisConnectionStatus(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timeout; snap=%+v", s.Snapshot())
 	}
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if !snap.HasIMRPC || snap.ListMethod != "connection.status" {
 		t.Fatalf("snap = %+v", snap)
 	}
@@ -690,8 +690,8 @@ func TestRefreshCordisConnectionStatus(t *testing.T) {
 	if !strings.Contains(snap.Rows[0].Detail, "运行正常") {
 		t.Fatalf("Detail = %q", snap.Rows[0].Detail)
 	}
-	if !strings.Contains(snap.PluginDiag, "feishu") {
-		t.Fatalf("PluginDiag = %q", snap.PluginDiag)
+	if !strings.Contains(snap.PluginDiag.SentenceText(), "feishu") {
+		t.Fatalf("PluginDiag = %v", snap.PluginDiag)
 	}
 }
 
@@ -738,7 +738,7 @@ func TestOpenPreservesCorruptChannelsAndLeavesNoTempFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := s.Snapshot().SelectedID
+	id := s.Snapshot().Value.SelectedID
 	s.SetDraft(id, "draft text")
 	if err := s.Persist(); err != nil {
 		t.Fatal(err)

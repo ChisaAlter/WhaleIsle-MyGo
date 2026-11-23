@@ -56,7 +56,7 @@ func View(c *ui.Context, m Model) {
 
 	var snap imstore.ViewState
 	if m.Store != nil {
-		snap = m.Store.Snapshot()
+		snap = m.Store.Snapshot().Value
 	}
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
@@ -122,11 +122,11 @@ func View(c *ui.Context, m Model) {
 			if m.PluginDisabled {
 				ui.Text(c, i18n.T(i18n.KeyIMPluginOff)).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 			}
-			if snap.Err != "" {
-				ui.Text(c, snap.Err).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+			if snap.Err != nil {
+				ui.Text(c, snap.Err.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(accent)
 			}
-			if snap.PluginDiag != "" {
-				ui.Text(c, i18n.T(i18n.KeyIMPluginDiag)+": "+snap.PluginDiag).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+			if snap.PluginDiag != nil {
+				ui.Text(c, i18n.T(i18n.KeyIMPluginDiag)+": "+snap.PluginDiag.SentenceText()).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 
 			if snap.LocalMode {
@@ -171,7 +171,7 @@ func View(c *ui.Context, m Model) {
 									}
 									m.Store.Select(id)
 									if m.Draft != nil {
-										*m.Draft = m.Store.Snapshot().Draft
+										*m.Draft = m.Store.Snapshot().Value.Draft
 									}
 								}
 								if entry.Detail != "" {
@@ -284,13 +284,13 @@ func View(c *ui.Context, m Model) {
 						if send.Clicked() && m.OnSend != nil {
 							m.OnSend(snap.SelectedID, strings.TrimSpace(*m.Draft))
 							if m.Store != nil {
-								*m.Draft = m.Store.Snapshot().Draft
+								*m.Draft = m.Store.Snapshot().Value.Draft
 							} else {
 								*m.Draft = ""
 							}
 						}
-						if snap.LastSend != "" {
-							ui.Text(c, snap.LastSend).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						if snap.LastSend != nil {
+							ui.Text(c, snap.LastSend.SentenceText()).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						}
 					}
 				})

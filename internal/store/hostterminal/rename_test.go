@@ -20,7 +20,7 @@ func renameFixture(t *testing.T) (*Store, *renameFixtureRemote, uint64) {
 	s := new(Store)
 	s.bind(r, r, true, nil)
 	s.Show("session", true)
-	owner := s.Snapshot("session").Owner
+	owner := s.Snapshot("session").Value.Owner
 	s.Refresh(owner, "session")
 	wait(t, s, "session", func(v View) bool { return len(v.Items) == 1 && !v.Busy })
 	s.mu.Lock()
@@ -74,7 +74,7 @@ func TestHostTerminalRenameTargetsCapturedIdentity(t *testing.T) {
 	}
 	r.results <- nil
 	waitRename(t, s, o, func(v RenameView) bool { return !v.Editing && !v.Saving })
-	v := s.Snapshot("session")
+	v := s.Snapshot("session").Value
 	if v.Info.Title != "工作 🐋" || v.Items[0].Title != "工作 🐋" {
 		t.Fatal(v)
 	}
@@ -89,7 +89,7 @@ func TestHostTerminalRenameFailurePreservesDraftAndNeedsExplicitRetry(t *testing
 	s.SaveRename(o, "session", "term")
 	r.results <- errors.New("response lost")
 	v := waitRename(t, s, o, func(v RenameView) bool { return v.Error != "" && !v.Saving })
-	if !v.Editing || v.Draft != "keep my draft" || s.Snapshot("session").Info.Title != "original" {
+	if !v.Editing || v.Draft != "keep my draft" || s.Snapshot("session").Value.Info.Title != "original" {
 		t.Fatal(v)
 	}
 	select {
@@ -148,7 +148,7 @@ func TestHostTerminalRenameRejectsReplacedHostAndLateResult(t *testing.T) {
 	s.EditRename(o, "session", "term", "stale")
 	s.SaveRename(o, "session", "term")
 	r.results <- nil
-	if s.RenameSnapshot(o, "session", "term").Editing || len(s.Snapshot("session").Items) != 0 || len(r2.calls) != 0 {
+	if s.RenameSnapshot(o, "session", "term").Editing || len(s.Snapshot("session").Value.Items) != 0 || len(r2.calls) != 0 {
 		t.Fatal("old rename crossed Host")
 	}
 }
@@ -163,7 +163,7 @@ func TestHostTerminalRenameCloseRetainsDraftAndIgnoresLateSuccess(t *testing.T) 
 	wait(t, s, "session", func(v View) bool { return v.Phase == "closed" })
 	r.results <- nil
 	v := s.RenameSnapshot(o, "session", "term")
-	if v.Saving || v.Draft != "pending" || s.Snapshot("session").Info.Title != "original" {
+	if v.Saving || v.Draft != "pending" || s.Snapshot("session").Value.Info.Title != "original" {
 		t.Fatal(v)
 	}
 }

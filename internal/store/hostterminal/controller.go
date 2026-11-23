@@ -11,8 +11,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"sync"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 type Shell struct {
@@ -59,7 +62,8 @@ type View struct {
 	Owner                              uint64
 	ClientReady, Ready, Busy, Writable bool
 	Items                              []Info
-	ActiveID, Phase, Error             string
+	ActiveID, Phase                    string
+	Error                              *state.Fault
 	Info                               Info
 	Environment                        Environment
 	Attachment                         *Attachment
@@ -69,9 +73,11 @@ type sessionState struct {
 	items        []Info
 	active       string
 	busy         bool
-	error        string
+	error        *state.Fault
 	environment  Environment
-	operation    uint64
+	opOwner      state.LeaseOwner
+	opLease      state.Lease
+	pub          state.Published[View]
 	shells       shellState
 	recoveredID  string
 	freshStarted bool
@@ -81,9 +87,11 @@ type entry struct {
 	key                    terminalKey
 	info                   Info
 	desired, held, closing bool
-	phase, error           string
+	phase                  string
+	error                  *state.Fault
 	holdCancel             context.CancelFunc
-	holdSerial             uint64
+	holdOwner              state.LeaseOwner
+	holdLease              state.Lease
 	attachment             *Attachment
 	rename                 renameState
 	metadataRevision       uint64
@@ -96,7 +104,9 @@ type Store struct {
 	owner               any
 	remote              Remote
 	ready               bool
-	epoch               uint64
+	owners              state.LeaseOwner
+	ownerLease          state.Lease
+	emptyPub            state.Published[View]
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	notify              func()
@@ -125,8 +135,8 @@ func (s *Store) bind(owner any, r Remote, ready bool, notify func()) {
 		s.stopHoldLocked(e)
 	}
 	s.owner, s.remote, s.ready, s.notify = owner, r, ready, notify
-	s.epoch++
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	s.ownerLease = s.owners.Renew(s.ctx)
 	s.sessions = make(map[string]*sessionState)
 	s.entries = make(map[terminalKey]*entry)
 	s.visible = ""
@@ -161,6 +171,7 @@ func (s *Store) transport(owner any, ready bool) {
 }
 func (s *Store) fire() {
 	s.mu.Lock()
+	s.publishAllLocked()
 	f := s.notify
 	s.mu.Unlock()
 	if f != nil {
@@ -223,40 +234,71 @@ func (s *Store) Show(session string, visible bool) {
 	s.mu.Unlock()
 	s.fire()
 }
-func (s *Store) Snapshot(session string) View {
+
+// Snapshot returns the published view version for session; unchanged reads
+// share it and allocate nothing.
+func (s *Store) Snapshot(session string) *state.Version[View] {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	v := View{Owner: s.epoch, ClientReady: s.remote != nil, Ready: s.ready}
 	st := s.sessions[session]
 	if st == nil {
+		v := s.emptyPub.Load()
+		if v == nil {
+			s.publishAllLocked()
+			v = s.emptyPub.Load()
+		}
 		return v
 	}
+	v := st.pub.Load()
+	if v == nil {
+		s.publishAllLocked()
+		v = st.pub.Load()
+	}
+	return v
+}
+
+// publishAllLocked republishes every session view plus the empty-session
+// view; callers hold s.mu. UI-visible mutations all reach fire(), which
+// publishes before notifying.
+func (s *Store) publishAllLocked() {
+	base := View{
+		Owner:       s.ownerLease.Generation(),
+		ClientReady: s.remote != nil,
+		Ready:       s.ready,
+	}
+	s.emptyPub.Publish(base)
+	for id, st := range s.sessions {
+		s.publishSessionLocked(base, id, st)
+	}
+}
+
+func (s *Store) publishSessionLocked(base View, session string, st *sessionState) {
+	v := base
 	v.Busy, v.Error, v.Environment, v.ActiveID = st.busy, st.error, st.environment, st.active
 	v.Items = append([]Info(nil), st.items...)
 	if e := s.entries[terminalKey{session, st.active}]; e != nil {
 		v.Info, v.Phase = e.info, e.phase
-		if e.error != "" {
+		if e.error != nil {
 			v.Error = e.error
 		} else if e.info.Error != "" {
-			v.Error = e.info.Error
+			v.Error = state.FaultText(e.info.Error)
 		}
 		v.Attachment = e.attachment
 		if a := e.attachment; a != nil {
 			v.Writable = s.writableLocked(a)
-			if a.render != nil {
-				r := *a.render
-				v.Render = &r
-			}
+			// a.render is write-once-replace under s.mu: sharing the
+			// pointer is safe, and the Data string is never copied.
+			v.Render = a.render
 		}
 	}
-	return v
+	st.pub.Publish(v)
 }
 
 // Refresh lists retained identities only. It does not activate an Agent, allocate
 // a shell, or attach/take control of any terminal.
 func (s *Store) Refresh(owner uint64, session string) {
 	s.mu.Lock()
-	if s.epoch != owner || s.remote == nil || session == "" {
+	if s.ownerLease.Generation() != owner || s.remote == nil || session == "" {
 		s.mu.Unlock()
 		return
 	}
@@ -266,16 +308,16 @@ func (s *Store) Refresh(owner uint64, session string) {
 		return
 	}
 	st.busy = true
-	st.error = ""
-	st.operation++
-	op := st.operation
+	st.error = nil
+	st.opLease = st.opOwner.Renew(s.ctx)
+	op := st.opLease
 	revisions := make(map[string]uint64)
 	for key, entry := range s.entries {
 		if key.session == session {
 			revisions[key.id] = entry.metadataRevision
 		}
 	}
-	r, epoch, ctx := s.remote, s.epoch, s.ctx
+	r, epoch, ctx := s.remote, s.ownerLease, s.ctx
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -284,13 +326,13 @@ func (s *Store) Refresh(owner uint64, session string) {
 		var items []Info
 		err := r.Call(ctx, "terminal/list", map[string]any{"sessionId": session}, &items)
 		s.mu.Lock()
-		if s.epoch != epoch || st.operation != op {
+		if s.ownerLease != epoch || !op.Valid() {
 			s.mu.Unlock()
 			return
 		}
 		st.busy = false
 		if err != nil {
-			st.error = err.Error()
+			st.error = state.FaultOf(err)
 		} else {
 			for i, info := range items {
 				e := s.entryLocked(terminalKey{session, info.ID})
@@ -324,7 +366,7 @@ func (s *Store) StartFresh(owner uint64, session string) bool {
 
 func (s *Store) create(owner uint64, session string, fresh bool) bool {
 	s.mu.Lock()
-	if s.epoch != owner || s.remote == nil || !s.ready || session == "" || s.visible != session {
+	if s.ownerLease.Generation() != owner || s.remote == nil || !s.ready || session == "" || s.visible != session {
 		s.mu.Unlock()
 		return false
 	}
@@ -339,12 +381,12 @@ func (s *Store) create(owner uint64, session string, fresh bool) bool {
 	}
 	st.freshStarted = st.freshStarted || fresh
 	st.busy = true
-	st.error = ""
-	st.operation++
-	op := st.operation
+	st.error = nil
+	st.opLease = st.opOwner.Renew(s.ctx)
+	op := st.opLease
 	launch := s.shellLaunchLocked(st)
 	id := identity()
-	r, epoch, ctx := s.remote, s.epoch, s.ctx
+	r, epoch, ctx := s.remote, s.ownerLease, s.ctx
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -363,7 +405,7 @@ func (s *Store) create(owner uint64, session string, fresh bool) bool {
 		}
 		if err == nil {
 			s.mu.Lock()
-			valid := s.epoch == epoch && st.operation == op && s.ready && s.visible == session && ctx.Err() == nil
+			valid := s.ownerLease == epoch && op.Valid() && s.ready && s.visible == session && ctx.Err() == nil
 			if valid {
 				// Save the identity before allocation starts. A checkpoint during
 				// creation can later recover this exact process after a lost reply.
@@ -389,17 +431,18 @@ func (s *Store) create(owner uint64, session string, fresh bool) bool {
 			err = errors.New("Host returned a different terminal identity")
 		}
 		s.mu.Lock()
-		if s.epoch != epoch || st.operation != op {
+		if s.ownerLease != epoch || !op.Valid() {
 			s.mu.Unlock()
 			return
 		}
 		st.busy = false
 		if err != nil {
-			st.error = err.Error()
+			st.error = state.FaultOf(err)
 			if attempted {
 				e := s.entryLocked(terminalKey{session, id})
 				e.phase = "failed"
-				e.error = "Creation outcome uncertain; refresh the list or explicitly close this identity. " + err.Error()
+				log.Printf("hostterminal: create outcome uncertain: %v", err)
+				e.error = state.FaultText("Creation outcome uncertain; refresh the list or explicitly close this identity.")
 				st.active = id
 			}
 
@@ -433,15 +476,15 @@ func (s *Store) Connect(owner uint64, session, id string) {
 	s.mu.Lock()
 	st := s.sessionLocked(session)
 	e := s.entries[terminalKey{session, id}]
-	if s.epoch != owner || s.remote == nil || !s.ready || e == nil || e.closing || st.busy || s.visible != session {
+	if s.ownerLease.Generation() != owner || s.remote == nil || !s.ready || e == nil || e.closing || st.busy || s.visible != session {
 		s.mu.Unlock()
 		return
 	}
 	st.busy = true
-	st.error = ""
-	st.operation++
-	op := st.operation
-	r, epoch, ctx := s.remote, s.epoch, s.ctx
+	st.error = nil
+	st.opLease = st.opOwner.Renew(s.ctx)
+	op := st.opLease
+	r, epoch, ctx := s.remote, s.ownerLease, s.ctx
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -453,18 +496,18 @@ func (s *Store) Connect(owner uint64, session, id string) {
 			err = validEnvironment(env)
 		}
 		s.mu.Lock()
-		if s.epoch != epoch || st.operation != op || e.closing {
+		if s.ownerLease != epoch || !op.Valid() || e.closing {
 			s.mu.Unlock()
 			return
 		}
 		st.busy = false
 		if err != nil {
-			st.error = err.Error()
+			st.error = state.FaultOf(err)
 		} else {
 			st.environment = env
 			s.selectLocked(st, e)
 			e.desired = true
-			e.error = ""
+			e.error = nil
 			if e.held {
 				s.startFollowLocked(e)
 			} else {
@@ -494,7 +537,7 @@ func (s *Store) stopFollowLocked(e *entry) {
 func (s *Store) stopHoldLocked(e *entry) {
 	s.stopFollowLocked(e)
 	e.held = false
-	e.holdSerial++
+	e.holdOwner.Retire()
 	if e.holdCancel != nil {
 		e.holdCancel()
 		e.holdCancel = nil
@@ -506,8 +549,8 @@ func (s *Store) startHoldLocked(e *entry) {
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	e.holdCancel = cancel
-	e.holdSerial++
-	serial, epoch, r := e.holdSerial, s.epoch, s.remote
+	e.holdLease = e.holdOwner.Renew(s.ctx)
+	holdLease, epoch, r := e.holdLease, s.ownerLease, s.remote
 	e.phase = "retaining"
 	go func() {
 		st, err := r.Open(ctx, "terminal/retain", map[string]any{"sessionId": e.key.session, "id": e.key.id})
@@ -526,7 +569,7 @@ func (s *Store) startHoldLocked(e *entry) {
 			}
 			if err == nil {
 				s.mu.Lock()
-				valid := s.epoch == epoch && e.holdSerial == serial && !e.closing && ctx.Err() == nil
+				valid := s.ownerLease == epoch && holdLease.Valid() && !e.closing && ctx.Err() == nil
 				if valid {
 					e.held = true
 					e.phase = "retained"
@@ -546,13 +589,13 @@ func (s *Store) startHoldLocked(e *entry) {
 		// Explicit close ends the Host's retention stream before its cleanup
 		// RPC can return. That expected end must not overwrite closing/closed
 		// with a spurious disconnected error while process teardown completes.
-		if s.epoch == epoch && e.holdSerial == serial && ctx.Err() == nil && !e.closing {
+		if s.ownerLease == epoch && holdLease.Valid() && ctx.Err() == nil && !e.closing {
 			s.stopFollowLocked(e)
 			e.held = false
 			e.holdCancel = nil
 			e.phase = "disconnected"
 			if err != nil {
-				e.error = err.Error()
+				e.error = state.FaultOf(err)
 			}
 		}
 		s.mu.Unlock()
@@ -566,14 +609,14 @@ func (s *Store) startFollowLocked(e *entry) {
 	}
 	s.stopFollowLocked(e)
 	ctx, cancel := context.WithCancel(s.ctx)
-	a := &Attachment{ID: identity(), store: s, entry: e, remote: s.remote, epoch: s.epoch, ctx: ctx, cancel: cancel, ack: make(chan uint64, 1), inputAck: make(chan inputAcknowledgement, 1)}
+	a := &Attachment{ID: identity(), store: s, entry: e, remote: s.remote, epoch: s.ownerLease.Generation(), ctx: ctx, cancel: cancel, ack: make(chan uint64, 1), inputAck: make(chan inputAcknowledgement, 1)}
 	e.attachment = a
 	e.phase = "connecting"
-	e.error = ""
+	e.error = nil
 	go a.follow()
 }
 func (s *Store) currentLocked(a *Attachment) bool {
-	return s.epoch == a.epoch && a.ctx.Err() == nil && a.entry.attachment == a && !a.entry.closing
+	return s.ownerLease.Generation() == a.epoch && a.ctx.Err() == nil && a.entry.attachment == a && !a.entry.closing
 }
 
 // writableLocked reports the Host's own input capability for this attachment:
@@ -613,20 +656,20 @@ func (s *Store) RenderFailed(a *Attachment, err error) {
 func (s *Store) Close(owner uint64, session, id string) {
 	s.mu.Lock()
 	e := s.entries[terminalKey{session, id}]
-	if s.epoch != owner || s.remote == nil || e == nil || e.closing || s.visible != session {
+	if s.ownerLease.Generation() != owner || s.remote == nil || e == nil || e.closing || s.visible != session {
 		s.mu.Unlock()
 		return
 	}
 	s.cancelRenameLocked(e)
 	e.closing = true
 	if st := s.sessions[session]; st != nil {
-		st.operation++
+		st.opLease = st.opOwner.Renew(s.ctx)
 		st.busy = false
 	}
 	e.phase = "closing"
-	e.error = ""
+	e.error = nil
 	s.stopFollowLocked(e)
-	r, epoch, ctx := s.remote, s.epoch, s.ctx
+	r, epoch, ctx := s.remote, s.ownerLease, s.ctx
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -634,14 +677,15 @@ func (s *Store) Close(owner uint64, session, id string) {
 		defer cancel()
 		err := r.Call(ctx, "terminal/close", map[string]any{"agentId": session, "id": id}, nil)
 		s.mu.Lock()
-		if s.epoch != epoch {
+		if s.ownerLease != epoch {
 			s.mu.Unlock()
 			return
 		}
 		if err != nil {
 			e.closing = false
 			e.phase = "failed"
-			e.error = "Close outcome uncertain; retry close explicitly. " + err.Error()
+			log.Printf("hostterminal: close outcome uncertain: %v", err)
+			e.error = state.FaultText("Close outcome uncertain; retry close explicitly.")
 		} else {
 			s.stopHoldLocked(e)
 			e.desired = false
@@ -692,7 +736,7 @@ func (a *Attachment) fail(err error) {
 	s.mu.Lock()
 	if s.currentLocked(a) {
 		a.failed = true
-		a.entry.error = err.Error()
+		a.entry.error = state.FaultOf(err)
 		a.entry.phase = "failed"
 	}
 	s.mu.Unlock()
@@ -720,7 +764,7 @@ func (a *Attachment) follow() {
 				a.store.mu.Lock()
 				exited := a.store.currentLocked(a) && a.entry.info.State == "exited"
 				if exited {
-					a.entry.phase, a.entry.error = "closed", ""
+					a.entry.phase, a.entry.error = "closed", nil
 				}
 				a.store.mu.Unlock()
 				if exited {

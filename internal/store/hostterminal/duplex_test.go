@@ -64,8 +64,8 @@ func TestControlRefusalKeepsOutputWithoutReplayingInput(t *testing.T) {
 			if !errors.As(err, &refusal) || refusal.reason != reason {
 				t.Fatalf("refusal=%v", err)
 			}
-			v := s.Snapshot("session")
-			if v.Writable || v.Error != "" || v.Attachment != a {
+			v := s.Snapshot("session").Value
+			if v.Writable || v.Error != nil || v.Attachment != a {
 				t.Fatalf("confirmed refusal lost output: %+v", v)
 			}
 			a.stream.(*fixtureStream).send(map[string]any{"type": "output", "sequence": 5, "data": "still receiving"})
@@ -100,7 +100,7 @@ func TestEncodedInputWindowUsesWholeCommandAndEnvelope(t *testing.T) {
 				if err != nil || r.count("input/write") != 1 {
 					t.Fatal("exact encoded window refused", err)
 				}
-			} else if err == nil || r.count("input/write") != 0 || s.Snapshot("session").Phase != "failed" {
+			} else if err == nil || r.count("input/write") != 0 || s.Snapshot("session").Value.Phase != "failed" {
 				t.Fatal("oversized encoded command transmitted", err)
 			}
 		})
@@ -126,7 +126,7 @@ func TestWrongProviderAckFailsAttachmentAndNeverReplays(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("invalid ack did not release writer")
 	}
-	if s.Snapshot("session").Phase != "failed" {
+	if s.Snapshot("session").Value.Phase != "failed" {
 		t.Fatal("invalid ack attachment not failed")
 	}
 	if _, e := a.Write([]byte("y")); e == nil || r.count("input/write") != 1 {
@@ -191,7 +191,7 @@ func TestControlFailureFailsAttachmentWithoutReplay(t *testing.T) {
 	if r.count("input/write") != 1 {
 		t.Fatal("input replayed after failure")
 	}
-	if s.Snapshot("session").Phase != "failed" {
+	if s.Snapshot("session").Value.Phase != "failed" {
 		t.Fatal("failed control call did not surface")
 	}
 }
@@ -221,8 +221,8 @@ func TestRetentionEndDuringExplicitClosePreservesClosingState(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("retention completion was not observed")
 	}
-	v := s.Snapshot("session")
-	if v.Phase != "closing" || v.Error != "" {
+	v := s.Snapshot("session").Value
+	if v.Phase != "closing" || v.Error != nil {
 		t.Fatalf("expected retention end replaced explicit close: %+v", v)
 	}
 }

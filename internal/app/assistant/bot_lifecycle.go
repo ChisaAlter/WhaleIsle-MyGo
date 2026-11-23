@@ -334,7 +334,7 @@ func (s *Service) BotDeleteModel(ep harness.Endpoint, sourceID string) assistant
 	rpc := host.PluginRPCClient(ep)
 	controls := &s.assistantBotDeleter
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	current := func() bool {
 		same := originalAssistant != nil && s.AssistantStore() == originalAssistant
 		if !same || client == nil || s.roomClient(ep) != client || !controls.ViewCurrent(scope, snapshot.Generation) {
@@ -795,7 +795,7 @@ func (s *Service) BotVisibilityModel(ep harness.Endpoint) assistantui.BotVisibil
 	}
 	controls := &s.assistantBotVisibility
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	rpc := host.PluginRPCClient(ep)
 	current := func() bool {
 		same := originalAssistant != nil && s.AssistantStore() == originalAssistant
@@ -871,7 +871,7 @@ func (s *Service) BotVisibilityModel(ep harness.Endpoint) assistantui.BotVisibil
 		},
 		OnAdopt: func(id, sessionID string) {
 			if current() && controls.Adopt(scope, id, sessionID) {
-				updateRoster(controls.Snapshot(scope).Catalog)
+				updateRoster(controls.Snapshot(scope).Value.Catalog)
 				s.UpdateAssistantTasks()
 			}
 		},

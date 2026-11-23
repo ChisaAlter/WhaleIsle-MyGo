@@ -34,7 +34,7 @@ func TestBotDeleterExplicitConsentAndLifecycle(t *testing.T) {
 	c.Bind("account-a", "client-1")
 	loadDeletePlan(t, &c, "account-a", p)
 	c.Prepare("account-a")
-	r := c.Snapshot("account-a").Review
+	r := c.Snapshot("account-a").Value.Review
 	if _, _, ok := c.Begin("account-a", r); ok {
 		t.Fatal("default deletion enabled")
 	}
@@ -53,17 +53,17 @@ func TestBotDeleterExplicitConsentAndLifecycle(t *testing.T) {
 	c.Suspend()
 	c.Bind("account-b", "client-2")
 	c.Finish(ticket, pluginrpc.DshbotBotDeleteResult{Attempted: true, Removed: "a", Catalog: pluginrpc.DshbotDeleteCatalog{Revision: 5}, PreservedHistory: true, PreservedMemory: true, Warnings: []string{"notepad warning complete"}}, nil)
-	if c.Snapshot("account-b").Completed {
+	if c.Snapshot("account-b").Value.Completed {
 		t.Fatal("wrong account settled")
 	}
-	s := c.Snapshot("account-a")
+	s := c.Snapshot("account-a").Value
 	if !s.Completed || len(s.Warnings) != 1 {
 		t.Fatal(s)
 	}
 	c.Bind("account-c", "client-3")
 	loadDeletePlan(t, &c, "account-c", p)
 	c.Prepare("account-c")
-	stale := c.Snapshot("account-c").Review
+	stale := c.Snapshot("account-c").Value.Review
 	c.Suspend()
 	c.Bind("account-c", "client-3")
 	if _, _, ok := c.Begin("account-c", stale); ok {
@@ -71,7 +71,7 @@ func TestBotDeleterExplicitConsentAndLifecycle(t *testing.T) {
 	}
 	loadDeletePlan(t, &c, "account-c", p)
 	c.Prepare("account-c")
-	r = c.Snapshot("account-c").Review
+	r = c.Snapshot("account-c").Value.Review
 	c.Cancel("account-c")
 	if _, _, ok := c.Begin("account-c", r); ok {
 		t.Fatal("cancel did not retire danger review")
@@ -83,7 +83,7 @@ func TestBotDeleterUnknownReadbackNeverRetries(t *testing.T) {
 	c.Bind("account", "client")
 	loadDeletePlan(t, &c, "account", p)
 	c.Prepare("account")
-	r := c.Snapshot("account").Review
+	r := c.Snapshot("account").Value.Review
 	c.ConfirmIdentity("account", r, "a", "Original name")
 	c.Acknowledge("account", r, true)
 	ticket, _, ok := c.Begin("account", r)
@@ -101,7 +101,7 @@ func TestBotDeleterUnknownReadbackNeverRetries(t *testing.T) {
 		c.FinishLoad(q, pluginrpc.DshbotBotDeletePlan{}, v, true, nil)
 		c.Cancel("account")
 		c.Prepare("account")
-		s := c.Snapshot("account")
+		s := c.Snapshot("account").Value
 		if !s.Uncertain || s.Pending == nil || s.Review != nil || !strings.Contains(s.Observation, "unknown") {
 			t.Fatal("readback unlocked", s)
 		}

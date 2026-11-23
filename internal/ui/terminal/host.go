@@ -62,10 +62,10 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 		return
 	}
 	h.Observe(store, session, true)
-	v := store.Snapshot(session)
+	v := store.Snapshot(session).Value
 	if actions.StartFresh != nil && *actions.StartFresh && store.StartFresh(v.Owner, session) {
 		*actions.StartFresh = false
-		v = store.Snapshot(session)
+		v = store.Snapshot(session).Value
 	}
 	colors := theme.Resolve(themeID).Active(dark)
 	target := fmt.Sprintf("%d:%s:%s", v.Owner, session, v.ActiveID)
@@ -101,7 +101,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 						h.selectionNotice = terminalLabel("此终端没有可用的打开方式。", "Nothing is set up to open terminal targets here.")
 						return true
 					}
-					if err := actions.OpenTarget(target, store.Snapshot(session).Info.Cwd); err != nil {
+					if err := actions.OpenTarget(target, store.Snapshot(session).Value.Info.Cwd); err != nil {
 						h.selectionNotice = errcopy.Sentence(err)
 					} else {
 						h.selectionNotice = ""
@@ -124,7 +124,7 @@ func HostView(c *ui.Context, h *HostState, store *hostterminal.Store, session, t
 			h.terminal.Feed([]byte(r.Data))
 			store.Acknowledge(v.Attachment, r.Revision)
 		}
-		v = store.Snapshot(session)
+		v = store.Snapshot(session).Value
 	}
 	hostSurface(c, h, store, session, colors, v, actions)
 }

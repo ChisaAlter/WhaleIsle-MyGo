@@ -20,15 +20,15 @@ func TestParityRefreshOwnershipAndAuthoritativeEmpty(t *testing.T) {
 	s.Attach(old, nil)
 	s.rows = []Entry{{ID: "feishu:old", BotID: "old"}}
 	s.selectedID = "feishu:old"
-	epoch, generation := s.connectionEpoch, s.refreshGeneration
+	oldConnLease, oldRefreshLease := s.connLease, s.refreshLease
 	s.Detach()
 	s.Attach(&dsh.Client{}, nil)
-	s.finishRefresh(finishArgs{client: old, epoch: epoch, generation: generation, replaceRows: true, rows: []Entry{{ID: "stale"}}, hasRPC: true, bridgeMode: "cordis"})
-	if snap := s.Snapshot(); snap.HasIMRPC || snap.BridgeMode == "cordis" || snap.Rows[0].ID == "stale" {
+	s.finishRefresh(finishArgs{client: old, connLease: oldConnLease, refreshLease: oldRefreshLease, replaceRows: true, rows: []Entry{{ID: "stale"}}, hasRPC: true, bridgeMode: "cordis"})
+	if snap := s.Snapshot().Value; snap.HasIMRPC || snap.BridgeMode == "cordis" || snap.Rows[0].ID == "stale" {
 		t.Fatal("old Host refresh republished facts", snap)
 	}
-	s.finishRefresh(finishArgs{client: s.client, epoch: s.connectionEpoch, generation: s.refreshGeneration, replaceRows: true, rows: []Entry{}, hasRPC: true, bridgeMode: "cordis"})
-	if snap := s.Snapshot(); len(snap.Rows) != 0 || snap.SelectedID != "" || !snap.HasIMRPC {
+	s.finishRefresh(finishArgs{client: s.client, connLease: s.connLease, refreshLease: s.refreshLease, replaceRows: true, rows: []Entry{}, hasRPC: true, bridgeMode: "cordis"})
+	if snap := s.Snapshot().Value; len(snap.Rows) != 0 || snap.SelectedID != "" || !snap.HasIMRPC {
 		t.Fatal("authoritative empty roster retained deleted Bot", snap)
 	}
 }
@@ -54,8 +54,8 @@ func TestDraftPersistenceFailureRetiresUnsentMessage(t *testing.T) {
 	s.Attach(&dsh.Client{}, nil)
 	s.SetDraft("general", "retain me")
 	s.SendDraft(context.Background(), "general", "retain me")
-	snap := s.Snapshot()
-	if snap.Draft != "retain me" || snap.Err == "" || len(snap.Messages) != 1 || snap.Messages[0].State != MessageStateFailed {
+	snap := s.Snapshot().Value
+	if snap.Draft != "retain me" || snap.Err == nil || len(snap.Messages) != 1 || snap.Messages[0].State != MessageStateFailed {
 		t.Fatalf("unsent message was not retired: %+v", snap)
 	}
 	persisted, err := readJSON[map[string][]Message](filepath.Join(s.root, historyFile))
@@ -112,8 +112,8 @@ func TestParityLocalSaveFailureRetainsDraft(t *testing.T) {
 	s.selectedID = "local"
 	s.SetDraft("local", "retain me")
 	s.SendDraft(context.Background(), "local", "retain me")
-	snap := s.Snapshot()
-	if snap.Draft != "retain me" || snap.Err == "" || len(snap.Messages) != 0 {
+	snap := s.Snapshot().Value
+	if snap.Draft != "retain me" || snap.Err == nil || len(snap.Messages) != 0 {
 		t.Fatal("failed local persistence cleared or claimed the draft", snap)
 	}
 }

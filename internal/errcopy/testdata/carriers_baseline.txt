@@ -29,9 +29,7 @@
 ../store/dshbot/avatar_controls.go	rawerr	5
 ../store/dshbot/avatar_image_controls.go	rawerr	3
 ../store/dshbot/bot_create.go	rawerr	7
-../store/dshbot/bot_delete.go	rawerr	5
 ../store/dshbot/bot_duplicate.go	rawerr	6
-../store/dshbot/bot_visibility.go	rawerr	6
 ../store/dshbot/capability_controls.go	rawerr	1
 ../store/dshbot/contact_controls.go	rawerr	2
 ../store/dshbot/memory_controls.go	rawerr	1
@@ -48,16 +46,9 @@
 ../store/dshbot/sender_policy_controls.go	rawerr	4
 ../store/dshbot/task_controls.go	rawerr	3
 ../store/dshbot/text_profile_controls.go	rawerr	5
-../store/hostterminal/controller.go	rawerr	7
 ../store/hostterminal/duplex.go	fmt	1
-../store/hostterminal/occurrence_close.go	rawerr	1
-../store/hostterminal/recovery.go	rawerr	1
 ../store/hostterminal/rename.go	rawerr	1
 ../store/hostterminal/shells.go	rawerr	3
-../store/im/cordis_inventory.go	rawerr	4
-../store/im/cordis_resolve.go	rawerr	5
-../store/im/store.go	fmt	2
-../store/im/store.go	rawerr	6
 ../store/imonboard/error.go	rawerr	1
 ../store/interaction/store.go	rawerr	2
 ../store/office/store.go	rawerr	2

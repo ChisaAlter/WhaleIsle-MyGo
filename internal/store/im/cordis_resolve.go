@@ -34,10 +34,11 @@ func (s *Store) reportCordis(ctx context.Context, method, pluginID, pluginRunID 
 		}, &json.RawMessage{})
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = method + ": " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = method + ": ok"
+			s.diagNoteLocked(method + ": ok")
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -60,10 +61,11 @@ func (s *Store) ResolveCordisInspectQuery(ctx context.Context, requestID string,
 		}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis resolveInspect: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis resolveInspect ok"
+			s.diagNoteLocked("cordis resolveInspect ok")
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -85,10 +87,11 @@ func (s *Store) ResolveCordisRequestRun(ctx context.Context, requestID string, r
 		}, &json.RawMessage{})
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis resolveRun: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis resolveRun ok"
+			s.diagNoteLocked("cordis resolveRun ok")
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -113,10 +116,11 @@ func (s *Store) RunCordisHostHalf(ctx context.Context, packageID, mode, requestI
 		}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis runHostHalf: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis runHostHalf ok"
+			s.diagNoteLocked("cordis runHostHalf ok")
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -139,10 +143,11 @@ func (s *Store) SettleCordisUserRun(ctx context.Context, pluginID string, resolu
 		}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis settle: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis settle ok"
+			s.diagNoteLocked("cordis settle ok")
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

@@ -18,7 +18,7 @@ func HostResourceMenu(menu *ui.Menu, h *HostState, store *hostterminal.Store, se
 	if h == nil || store == nil || session == "" {
 		return false
 	}
-	v := store.Snapshot(session)
+	v := store.Snapshot(session).Value
 	selected := false
 	if menu.Item(terminalLabel("新建 Host 终端", "New Host terminal")).Disabled(!v.Ready || v.Busy).Chosen() {
 		store.Create(v.Owner, session)
@@ -65,11 +65,11 @@ func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session
 			})
 		}
 
-		if v.Error != "" {
-			errText := formatSidebarTerminalError(v.Error)
+		if v.Error != nil {
+			errText := formatSidebarTerminalError(v.Error.SentenceText())
 			ui.Text(c, errText).FillWidth().FontSize(12).MaxLines(2).Tooltip(errText).TextColor(chrome.Color(colors.Danger))
 		}
-		if h.renderError != "" && h.renderError != v.Error {
+		if h.renderError != "" && (v.Error == nil || h.renderError != v.Error.SentenceText()) {
 			ui.Text(c, h.renderError).FillWidth().FontSize(12).MaxLines(2).Tooltip(h.renderError).TextColor(chrome.Color(colors.Danger))
 		}
 		if h.terminal != nil {

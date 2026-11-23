@@ -321,7 +321,6 @@ type mainState struct {
 	sshTunnelMsg                            string
 	sshConnectEpoch                         uint64
 	sshConnectCancel                        context.CancelFunc
-	imDraft                                 string
 	whaleCatalog                            whaleCatalogState
 	desktopDraft                            desktopConfigDraft
 	desktopSaveErr                          string
@@ -2570,10 +2569,6 @@ func (s *mainState) commitDeferredIMStore(ctx context.Context, userData string, 
 	if ctx.Err() != nil {
 		return
 	}
-	loadedDraft := ""
-	if err == nil && imS != nil {
-		loadedDraft = imS.Snapshot().Draft
-	}
 	var attachIM, detachPrev *imstore.Store
 	s.dshMu.Lock()
 	client, refresh, dshCtx := s.dshClient, s.dshRefresh, s.dshCtx
@@ -2587,8 +2582,12 @@ func (s *mainState) commitDeferredIMStore(ctx context.Context, userData string, 
 	} else if imS != nil && (s.im == nil || s.im.Root() == "") {
 		detachPrev = s.im
 		s.im = imS
-		if s.imDraft == "" {
-			s.imDraft = loadedDraft
+		// A draft typed while the durable store was still opening moves with
+		// the swap; a saved draft on disk wins otherwise.
+		if prev := detachPrev; prev != nil {
+			if d := prev.Snapshot().Value.Draft; d != "" && imS.Snapshot().Value.Draft == "" {
+				imS.SetDraft("", d)
+			}
 		}
 		attachIM = imS
 	}
@@ -3710,9 +3709,7 @@ func mainView(c *ui.Context) {
 				}
 				if imStore != nil {
 					toolBtn(i18n.T(i18n.KeyIMOpen), func() {
-						openTool(routeIM, func() {
-							state.imDraft = imStore.Snapshot().Draft
-						})
+						openTool(routeIM, nil)
 						imStore.Refresh(context.Background())
 					})
 				}
@@ -5180,7 +5177,6 @@ func mainView(c *ui.Context) {
 				imOnboardingRendered = true
 				state.mu.Lock()
 				muxReadyIM := state.dshMuxReady
-				imDraft := state.imDraft
 				state.mu.Unlock()
 				imui.View(c, imui.Model{
 					Embedded:       embeddedSection == "channels",
@@ -5190,18 +5186,14 @@ func mainView(c *ui.Context) {
 					HarnessReady:   st.State == harness.Ready,
 					MuxConnected:   muxReadyIM,
 					PluginDisabled: imPluginDisabled,
-					Draft:          &imDraft,
+					Draft:          imStore.DraftBuffer(),
 					OnClose: func() {
-						if sel := imStore.Snapshot().SelectedID; sel != "" {
-							imStore.SetDraft(sel, imDraft)
-						}
 						if err := imStore.Persist(); err != nil {
 							state.notifyUser(win, errcopy.Sentence(err))
 							return
 						}
 						state.mu.Lock()
 						state.setMainRouteLocked(routeConversation)
-						state.imDraft = imDraft
 						state.mu.Unlock()
 						if win != nil {
 							win.Update(func() {})
@@ -5246,9 +5238,6 @@ func mainView(c *ui.Context) {
 						}
 					},
 				})
-				state.mu.Lock()
-				state.imDraft = imDraft
-				state.mu.Unlock()
 				return
 			}
 			if embeddedSection == settings.SectionVoice {
