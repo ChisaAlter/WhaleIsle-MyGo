@@ -180,7 +180,7 @@ func formatDate(t time.Time, style, lc string) string {
 	if t.Hour() >= 12 {
 		ampm = "PM"
 	}
-	clock := strconv.Itoa(hour) + ":" + pad(t.Minute(), 2) + "\u202f" + ampm
+	clock := strconv.Itoa(hour) + ":" + pad(t.Minute(), 2) + " " + ampm
 	date := monthsShort[t.Month()-1] + " " + strconv.Itoa(t.Day()) + ", " + strconv.Itoa(t.Year())
 	switch style {
 	case "short":

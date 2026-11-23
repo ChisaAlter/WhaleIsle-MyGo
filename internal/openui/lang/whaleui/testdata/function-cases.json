@@ -1,0 +1,2007 @@
+{
+ "random": [
+  0.42,
+  0.07,
+  0.93,
+  0.5,
+  0.25,
+  0.75,
+  0.11,
+  0.99,
+  0.3,
+  0.6
+ ],
+ "now": "2026-11-23T10:30:00.000Z",
+ "cases": [
+  {
+   "fn": "Append",
+   "args": {
+    "list": [
+     1,
+     2
+    ],
+    "item": 3
+   },
+   "result": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "fn": "Append",
+   "args": {
+    "list": [],
+    "item": {
+     "a": 1
+    }
+   },
+   "result": [
+    {
+     "a": 1
+    }
+   ]
+  },
+  {
+   "fn": "Prepend",
+   "args": {
+    "list": [
+     1,
+     2
+    ],
+    "item": 0
+   },
+   "result": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "fn": "Concat",
+   "args": {
+    "list": [
+     1
+    ],
+    "more": [
+     2,
+     3
+    ]
+   },
+   "result": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "fn": "Remove",
+   "args": {
+    "list": [
+     {
+      "id": 1
+     },
+     {
+      "id": 2
+     }
+    ],
+    "field": "id",
+    "value": 1
+   },
+   "result": [
+    {
+     "id": 2
+    }
+   ]
+  },
+  {
+   "fn": "Remove",
+   "args": {
+    "list": [
+     1,
+     2,
+     1
+    ],
+    "field": "",
+    "value": 1
+   },
+   "result": [
+    2
+   ]
+  },
+  {
+   "fn": "RemoveAt",
+   "args": {
+    "list": [
+     1,
+     2,
+     3
+    ],
+    "index": 1
+   },
+   "result": [
+    1,
+    3
+   ]
+  },
+  {
+   "fn": "RemoveAt",
+   "args": {
+    "list": [
+     1,
+     2,
+     3
+    ],
+    "index": -1
+   },
+   "result": [
+    1,
+    2
+   ]
+  },
+  {
+   "fn": "RemoveAt",
+   "args": {
+    "list": [
+     1,
+     2
+    ],
+    "index": 1.7
+   },
+   "result": [
+    1
+   ]
+  },
+  {
+   "fn": "Update",
+   "args": {
+    "list": [
+     {
+      "id": 1,
+      "done": false
+     },
+     {
+      "id": 2,
+      "done": false
+     }
+    ],
+    "field": "id",
+    "value": 2,
+    "setField": "done",
+    "setValue": true
+   },
+   "result": [
+    {
+     "id": 1,
+     "done": false
+    },
+    {
+     "id": 2,
+     "done": true
+    }
+   ]
+  },
+  {
+   "fn": "Toggle",
+   "args": {
+    "list": [
+     1,
+     2
+    ],
+    "item": 2
+   },
+   "result": [
+    1
+   ]
+  },
+  {
+   "fn": "Toggle",
+   "args": {
+    "list": [
+     1,
+     2
+    ],
+    "item": 3
+   },
+   "result": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "fn": "Includes",
+   "args": {
+    "list": [
+     1,
+     "a"
+    ],
+    "item": "a"
+   },
+   "result": true
+  },
+  {
+   "fn": "Includes",
+   "args": {
+    "list": "hello",
+    "item": "ell"
+   },
+   "result": true
+  },
+  {
+   "fn": "Includes",
+   "args": {
+    "list": "n1",
+    "item": 1
+   },
+   "result": true
+  },
+  {
+   "fn": "Includes",
+   "args": {
+    "list": [
+     1
+    ],
+    "item": "1"
+   },
+   "result": false
+  },
+  {
+   "fn": "Find",
+   "args": {
+    "list": [
+     {
+      "id": 1,
+      "n": "a"
+     },
+     {
+      "id": 2,
+      "n": "b"
+     }
+    ],
+    "field": "id",
+    "value": 2
+   },
+   "result": {
+    "id": 2,
+    "n": "b"
+   }
+  },
+  {
+   "fn": "Find",
+   "args": {
+    "list": [
+     {
+      "id": 1
+     }
+    ],
+    "field": "id",
+    "value": 5
+   },
+   "result": null
+  },
+  {
+   "fn": "IndexOf",
+   "args": {
+    "list": [
+     "a",
+     "b"
+    ],
+    "item": "b"
+   },
+   "result": 1
+  },
+  {
+   "fn": "IndexOf",
+   "args": {
+    "list": [
+     1
+    ],
+    "item": 2
+   },
+   "result": -1
+  },
+  {
+   "fn": "Take",
+   "args": {
+    "list": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "n": 2
+   },
+   "result": [
+    1,
+    2
+   ]
+  },
+  {
+   "fn": "Take",
+   "args": {
+    "list": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "n": -2
+   },
+   "result": [
+    3,
+    4
+   ]
+  },
+  {
+   "fn": "Take",
+   "args": {
+    "list": [
+     1,
+     2
+    ],
+    "n": 10
+   },
+   "result": [
+    1,
+    2
+   ]
+  },
+  {
+   "fn": "Slice",
+   "args": {
+    "list": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "start": 1,
+    "end": 3
+   },
+   "result": [
+    2,
+    3
+   ]
+  },
+  {
+   "fn": "Slice",
+   "args": {
+    "list": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "start": -2
+   },
+   "result": [
+    3,
+    4
+   ]
+  },
+  {
+   "fn": "Slice",
+   "args": {
+    "list": "héllo",
+    "start": 1,
+    "end": 3
+   },
+   "result": "él"
+  },
+  {
+   "fn": "Slice",
+   "args": {
+    "list": [
+     1,
+     2,
+     3
+    ],
+    "start": 2,
+    "end": 1
+   },
+   "result": []
+  },
+  {
+   "fn": "Unique",
+   "args": {
+    "list": [
+     1,
+     2,
+     1,
+     "1",
+     2
+    ]
+   },
+   "result": [
+    1,
+    2,
+    "1"
+   ]
+  },
+  {
+   "fn": "Reverse",
+   "args": {
+    "list": [
+     1,
+     2,
+     3
+    ]
+   },
+   "result": [
+    3,
+    2,
+    1
+   ]
+  },
+  {
+   "fn": "Range",
+   "args": {
+    "start": 0,
+    "end": 5
+   },
+   "result": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "fn": "Range",
+   "args": {
+    "start": 5,
+    "end": 0,
+    "step": -2
+   },
+   "result": [
+    5,
+    3,
+    1
+   ]
+  },
+  {
+   "fn": "Range",
+   "args": {
+    "start": 0,
+    "end": 1,
+    "step": 0.25
+   },
+   "result": [
+    0,
+    0.25,
+    0.5,
+    0.75
+   ]
+  },
+  {
+   "fn": "Range",
+   "args": {
+    "start": 0,
+    "end": 5,
+    "step": 0
+   },
+   "error": "Range step must be finite and nonzero"
+  },
+  {
+   "fn": "Pick",
+   "args": {
+    "list": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "result": "b"
+  },
+  {
+   "fn": "Pick",
+   "args": {
+    "list": []
+   },
+   "result": null
+  },
+  {
+   "fn": "Shuffle",
+   "args": {
+    "list": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "result": [
+    4,
+    2,
+    5,
+    1,
+    3
+   ]
+  },
+  {
+   "fn": "Flatten",
+   "args": {
+    "list": [
+     [
+      1,
+      2
+     ],
+     3,
+     [
+      4,
+      [
+       5
+      ]
+     ]
+    ]
+   },
+   "result": [
+    1,
+    2,
+    3,
+    4,
+    [
+     5
+    ]
+   ]
+  },
+  {
+   "fn": "Chunk",
+   "args": {
+    "list": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "size": 2
+   },
+   "result": [
+    [
+     1,
+     2
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     5
+    ]
+   ]
+  },
+  {
+   "fn": "Chunk",
+   "args": {
+    "list": [
+     1
+    ],
+    "size": 0
+   },
+   "error": "Chunk size must be positive and finite"
+  },
+  {
+   "fn": "Pow",
+   "args": {
+    "base": 2,
+    "exponent": 10
+   },
+   "result": 1024
+  },
+  {
+   "fn": "Pow",
+   "args": {
+    "base": 9,
+    "exponent": 0.5
+   },
+   "result": 3
+  },
+  {
+   "fn": "Sqrt",
+   "args": {
+    "number": 16
+   },
+   "result": 4
+  },
+  {
+   "fn": "Sqrt",
+   "args": {
+    "number": -1
+   },
+   "result": null
+  },
+  {
+   "fn": "Random",
+   "args": {
+    "min": 1,
+    "max": 6,
+    "integer": true
+   },
+   "result": 3
+  },
+  {
+   "fn": "Random",
+   "args": {
+    "min": 0,
+    "max": 10
+   },
+   "result": 4.2
+  },
+  {
+   "fn": "Clamp",
+   "args": {
+    "number": 15,
+    "min": 0,
+    "max": 10
+   },
+   "result": 10
+  },
+  {
+   "fn": "Clamp",
+   "args": {
+    "number": -3,
+    "min": 0,
+    "max": 10
+   },
+   "result": 0
+  },
+  {
+   "fn": "Percent",
+   "args": {
+    "part": 1,
+    "total": 4
+   },
+   "result": 25
+  },
+  {
+   "fn": "Percent",
+   "args": {
+    "part": 1,
+    "total": 0
+   },
+   "result": 0
+  },
+  {
+   "fn": "Lerp",
+   "args": {
+    "a": 0,
+    "b": 10,
+    "t": 0.25
+   },
+   "result": 2.5
+  },
+  {
+   "fn": "Allocate",
+   "args": {
+    "total": 100,
+    "weights": [
+     1,
+     1,
+     1
+    ]
+   },
+   "result": [
+    33.34,
+    33.33,
+    33.33
+   ]
+  },
+  {
+   "fn": "Allocate",
+   "args": {
+    "total": 10,
+    "weights": [
+     1,
+     2
+    ],
+    "decimals": 0
+   },
+   "result": [
+    3,
+    7
+   ]
+  },
+  {
+   "fn": "Allocate",
+   "args": {
+    "total": -5,
+    "weights": [
+     0,
+     0
+    ]
+   },
+   "result": [
+    0,
+    0
+   ]
+  },
+  {
+   "fn": "Allocate",
+   "args": {
+    "total": 7,
+    "weights": []
+   },
+   "result": []
+  },
+  {
+   "fn": "Payment",
+   "args": {
+    "principal": 1000,
+    "rate": 1,
+    "periods": 12
+   },
+   "result": 88.8487886783416
+  },
+  {
+   "fn": "Payment",
+   "args": {
+    "principal": 1200,
+    "rate": 0,
+    "periods": 12
+   },
+   "result": 100
+  },
+  {
+   "fn": "Payment",
+   "args": {
+    "principal": 1,
+    "rate": 1,
+    "periods": 0
+   },
+   "result": null
+  },
+  {
+   "fn": "Convert",
+   "args": {
+    "value": 1,
+    "from": "mi",
+    "to": "km"
+   },
+   "result": 1.609344
+  },
+  {
+   "fn": "Convert",
+   "args": {
+    "value": 100,
+    "from": "C",
+    "to": "F"
+   },
+   "result": 211.99999999999997
+  },
+  {
+   "fn": "Convert",
+   "args": {
+    "value": 1,
+    "from": "kg",
+    "to": "m"
+   },
+   "result": null
+  },
+  {
+   "fn": "Convert",
+   "args": {
+    "value": 32,
+    "from": "f",
+    "to": "c"
+   },
+   "result": 0
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": 1234.5678
+   },
+   "result": "1,234.568"
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": 1234.5,
+    "kind": "currency",
+    "decimals": 2,
+    "currency": "USD"
+   },
+   "result": "$1,234.50"
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": 45,
+    "kind": "percent"
+   },
+   "result": "45%"
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": 1234567,
+    "kind": "compact"
+   },
+   "result": "1.2M"
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": 1500,
+    "kind": "compact"
+   },
+   "result": "1.5K"
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": -9.87654,
+    "decimals": 2
+   },
+   "result": "-9.88"
+  },
+  {
+   "fn": "Format",
+   "args": {
+    "value": 1234,
+    "kind": "currency",
+    "currency": "EUR"
+   },
+   "result": "€1,234.00"
+  },
+  {
+   "fn": "Join",
+   "args": {
+    "list": [
+     "a",
+     null,
+     "b"
+    ]
+   },
+   "result": "a, b"
+  },
+  {
+   "fn": "Join",
+   "args": {
+    "list": [
+     {
+      "n": "x"
+     },
+     {
+      "n": "y"
+     }
+    ],
+    "sep": "/",
+    "field": "n"
+   },
+   "result": "x/y"
+  },
+  {
+   "fn": "Plural",
+   "args": {
+    "n": 1,
+    "word": "item"
+   },
+   "result": "1 item"
+  },
+  {
+   "fn": "Plural",
+   "args": {
+    "n": 2,
+    "word": "item"
+   },
+   "result": "2 items"
+  },
+  {
+   "fn": "Plural",
+   "args": {
+    "n": 3,
+    "word": "child",
+    "plural": "children"
+   },
+   "result": "3 children"
+  },
+  {
+   "fn": "Pad",
+   "args": {
+    "value": 7,
+    "length": 3
+   },
+   "result": "007"
+  },
+  {
+   "fn": "Pad",
+   "args": {
+    "value": "ab",
+    "length": 5,
+    "char": "xy"
+   },
+   "result": "xyxab"
+  },
+  {
+   "fn": "Pad",
+   "args": {
+    "value": "abc",
+    "length": 2
+   },
+   "result": "abc"
+  },
+  {
+   "fn": "Upper",
+   "args": {
+    "text": "abc ß"
+   },
+   "result": "ABC SS"
+  },
+  {
+   "fn": "Lower",
+   "args": {
+    "text": "ABC"
+   },
+   "result": "abc"
+  },
+  {
+   "fn": "Trim",
+   "args": {
+    "text": "  a b \n"
+   },
+   "result": "a b"
+  },
+  {
+   "fn": "Capitalize",
+   "args": {
+    "text": "hello  wide world"
+   },
+   "result": "Hello  Wide World"
+  },
+  {
+   "fn": "Split",
+   "args": {
+    "text": "a, b,,c "
+   },
+   "result": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  {
+   "fn": "Split",
+   "args": {
+    "text": "a|b",
+    "sep": "|"
+   },
+   "result": [
+    "a",
+    "b"
+   ]
+  },
+  {
+   "fn": "Replace",
+   "args": {
+    "text": "a-b-c",
+    "find": "-",
+    "replacement": "+"
+   },
+   "result": "a+b+c"
+  },
+  {
+   "fn": "Duration",
+   "args": {
+    "seconds": 4800
+   },
+   "result": "1h 20m"
+  },
+  {
+   "fn": "Duration",
+   "args": {
+    "seconds": 245
+   },
+   "result": "4m 05s"
+  },
+  {
+   "fn": "Duration",
+   "args": {
+    "seconds": 45
+   },
+   "result": "45s"
+  },
+  {
+   "fn": "Duration",
+   "args": {
+    "seconds": 4800,
+    "style": "clock"
+   },
+   "result": "1:20:00"
+  },
+  {
+   "fn": "Duration",
+   "args": {
+    "seconds": 65,
+    "style": "clock"
+   },
+   "result": "1:05"
+  },
+  {
+   "fn": "Default",
+   "args": {
+    "value": null,
+    "fallback": 1
+   },
+   "result": 1
+  },
+  {
+   "fn": "Default",
+   "args": {
+    "value": "",
+    "fallback": "x"
+   },
+   "result": "x"
+  },
+  {
+   "fn": "Default",
+   "args": {
+    "value": 0,
+    "fallback": 5
+   },
+   "result": 0
+  },
+  {
+   "fn": "Default",
+   "args": {
+    "value": false,
+    "fallback": true
+   },
+   "result": false
+  },
+  {
+   "fn": "Default",
+   "args": {
+    "fallback": 9
+   },
+   "result": 9
+  },
+  {
+   "fn": "MixColor",
+   "args": {
+    "from": "#000",
+    "to": "#ffffff",
+    "t": 0.5
+   },
+   "result": "#808080"
+  },
+  {
+   "fn": "MixColor",
+   "args": {
+    "from": "#ff0000",
+    "to": "#0000ff",
+    "t": 2
+   },
+   "result": "#0000ff"
+  },
+  {
+   "fn": "MixColor",
+   "args": {
+    "from": "red",
+    "to": "#fff",
+    "t": 0
+   },
+   "error": "Expected a hex color"
+  },
+  {
+   "fn": "Today",
+   "args": {},
+   "result": "2026-11-23"
+  },
+  {
+   "fn": "Now",
+   "args": {},
+   "result": "2026-11-23T10:30:00.000Z"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05"
+   },
+   "result": "Jan 5, 2026"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05",
+    "style": "long"
+   },
+   "result": "Monday, January 5, 2026"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05",
+    "style": "iso"
+   },
+   "result": "2026-01-05"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05T15:04:00Z",
+    "style": "time"
+   },
+   "result": "3:04 PM"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05",
+    "style": "weekday"
+   },
+   "result": "Mon"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05",
+    "style": "month"
+   },
+   "result": "Jan 2026"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "2026-01-05",
+    "style": "short"
+   },
+   "result": "Jan 5"
+  },
+  {
+   "fn": "FormatDate",
+   "args": {
+    "date": "nope"
+   },
+   "error": "Invalid date"
+  },
+  {
+   "fn": "AddDays",
+   "args": {
+    "date": "2026-01-30",
+    "days": 3
+   },
+   "result": "2026-02-02"
+  },
+  {
+   "fn": "AddDays",
+   "args": {
+    "date": "2026-03-01",
+    "days": -1
+   },
+   "result": "2026-02-28"
+  },
+  {
+   "fn": "AddMonths",
+   "args": {
+    "date": "2026-01-31",
+    "months": 1
+   },
+   "result": "2026-02-28"
+  },
+  {
+   "fn": "AddMonths",
+   "args": {
+    "date": "2024-02-29",
+    "months": 12
+   },
+   "result": "2025-02-28"
+  },
+  {
+   "fn": "AddMonths",
+   "args": {
+    "date": "2026-05-15",
+    "months": -3
+   },
+   "result": "2026-02-15"
+  },
+  {
+   "fn": "DaysBetween",
+   "args": {
+    "from": "2026-01-01",
+    "to": "2026-03-01"
+   },
+   "result": 59
+  },
+  {
+   "fn": "DaysBetween",
+   "args": {
+    "from": "2026-03-01",
+    "to": "2026-01-01"
+   },
+   "result": -59
+  },
+  {
+   "fn": "MonthsBetween",
+   "args": {
+    "from": "2026-01-31",
+    "to": "2026-02-28"
+   },
+   "result": 1
+  },
+  {
+   "fn": "MonthsBetween",
+   "args": {
+    "from": "2026-01-15",
+    "to": "2026-04-14"
+   },
+   "result": 2
+  },
+  {
+   "fn": "MonthsBetween",
+   "args": {
+    "from": "2026-04-15",
+    "to": "2026-01-15"
+   },
+   "result": -3
+  },
+  {
+   "fn": "StartOf",
+   "args": {
+    "date": "2026-11-26",
+    "unit": "week"
+   },
+   "result": "2026-11-23"
+  },
+  {
+   "fn": "StartOf",
+   "args": {
+    "date": "2026-11-26",
+    "unit": "month"
+   },
+   "result": "2026-11-01"
+  },
+  {
+   "fn": "StartOf",
+   "args": {
+    "date": "2026-11-26",
+    "unit": "year"
+   },
+   "result": "2026-01-01"
+  },
+  {
+   "fn": "GroupBy",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "key": "k"
+   },
+   "result": [
+    {
+     "key": "a",
+     "value": 2
+    },
+    {
+     "key": "b",
+     "value": 1
+    },
+    {
+     "key": "c",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "fn": "GroupBy",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "key": "k",
+    "field": "v",
+    "agg": "avg"
+   },
+   "result": [
+    {
+     "key": "a",
+     "value": 8.5
+    },
+    {
+     "key": "b",
+     "value": 5
+    },
+    {
+     "key": "c",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "fn": "GroupBy",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "key": "k",
+    "field": "v",
+    "agg": "max"
+   },
+   "result": [
+    {
+     "key": "a",
+     "value": 10
+    },
+    {
+     "key": "b",
+     "value": 5
+    },
+    {
+     "key": "c",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "fn": "Pivot",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "rowKey": "k",
+    "colKey": "d",
+    "field": "v"
+   },
+   "result": [
+    {
+     "k": "a",
+     "2026-01-05": 10,
+     "2026-01-07": 0,
+     "2026-02-10": 7,
+     "2026-03-01": 0
+    },
+    {
+     "k": "b",
+     "2026-01-05": 0,
+     "2026-01-07": 5,
+     "2026-02-10": 0,
+     "2026-03-01": 0
+    },
+    {
+     "k": "c",
+     "2026-01-05": 0,
+     "2026-01-07": 0,
+     "2026-02-10": 0,
+     "2026-03-01": 0
+    }
+   ]
+  },
+  {
+   "fn": "Top",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "field": "v",
+    "n": 2
+   },
+   "result": [
+    {
+     "d": "2026-01-05",
+     "v": 10,
+     "k": "a"
+    },
+    {
+     "d": "2026-02-10",
+     "v": 7,
+     "k": "a"
+    }
+   ]
+  },
+  {
+   "fn": "Top",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "field": "d",
+    "n": 2,
+    "direction": "asc"
+   },
+   "result": [
+    {
+     "d": "2026-01-05",
+     "v": 10,
+     "k": "a"
+    },
+    {
+     "d": "2026-01-07",
+     "v": 5,
+     "k": "b"
+    }
+   ]
+  },
+  {
+   "fn": "Between",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "field": "d",
+    "min": "2026-01-06",
+    "max": "2026-02-28"
+   },
+   "result": [
+    {
+     "d": "2026-01-07",
+     "v": 5,
+     "k": "b"
+    },
+    {
+     "d": "2026-02-10",
+     "v": 7,
+     "k": "a"
+    }
+   ]
+  },
+  {
+   "fn": "Between",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "field": "v",
+    "min": 6
+   },
+   "result": [
+    {
+     "d": "2026-01-05",
+     "v": 10,
+     "k": "a"
+    },
+    {
+     "d": "2026-02-10",
+     "v": 7,
+     "k": "a"
+    }
+   ]
+  },
+  {
+   "fn": "Bucket",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "dateField": "d",
+    "unit": "month",
+    "field": "v"
+   },
+   "result": [
+    {
+     "key": "2026-01",
+     "value": 15
+    },
+    {
+     "key": "2026-02",
+     "value": 7
+    },
+    {
+     "key": "2026-03",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "fn": "Bucket",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "dateField": "d",
+    "unit": "week"
+   },
+   "result": [
+    {
+     "key": "2026-01-05",
+     "value": 2
+    },
+    {
+     "key": "2026-01-12",
+     "value": 0
+    },
+    {
+     "key": "2026-01-19",
+     "value": 0
+    },
+    {
+     "key": "2026-01-26",
+     "value": 0
+    },
+    {
+     "key": "2026-02-02",
+     "value": 0
+    },
+    {
+     "key": "2026-02-09",
+     "value": 1
+    },
+    {
+     "key": "2026-02-16",
+     "value": 0
+    },
+    {
+     "key": "2026-02-23",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "fn": "Bucket",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "dateField": "d",
+    "unit": "month",
+    "field": "v",
+    "agg": "avg"
+   },
+   "result": [
+    {
+     "key": "2026-01",
+     "value": 7.5
+    },
+    {
+     "key": "2026-02",
+     "value": 7
+    },
+    {
+     "key": "2026-03",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "fn": "Cumulative",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "field": "v"
+   },
+   "result": [
+    {
+     "d": "2026-01-05",
+     "v": 10,
+     "k": "a"
+    },
+    {
+     "d": "2026-01-07",
+     "v": 15,
+     "k": "b"
+    },
+    {
+     "d": "2026-02-10",
+     "v": 22,
+     "k": "a"
+    },
+    {
+     "d": "2026-03-01",
+     "v": 22,
+     "k": "c"
+    }
+   ]
+  },
+  {
+   "fn": "Cumulative",
+   "args": {
+    "rows": [
+     1,
+     2,
+     3
+    ],
+    "field": ""
+   },
+   "result": [
+    1,
+    3,
+    6
+   ]
+  },
+  {
+   "fn": "MovingAvg",
+   "args": {
+    "rows": [
+     {
+      "d": "2026-01-05",
+      "v": 10,
+      "k": "a"
+     },
+     {
+      "d": "2026-01-07",
+      "v": 5,
+      "k": "b"
+     },
+     {
+      "d": "2026-02-10",
+      "v": 7,
+      "k": "a"
+     },
+     {
+      "d": "2026-03-01",
+      "v": null,
+      "k": "c"
+     }
+    ],
+    "field": "v",
+    "window": 2
+   },
+   "result": [
+    {
+     "d": "2026-01-05",
+     "v": 10,
+     "k": "a"
+    },
+    {
+     "d": "2026-01-07",
+     "v": 7.5,
+     "k": "b"
+    },
+    {
+     "d": "2026-02-10",
+     "v": 6,
+     "k": "a"
+    },
+    {
+     "d": "2026-03-01",
+     "v": 3.5,
+     "k": "c"
+    }
+   ]
+  },
+  {
+   "fn": "MovingAvg",
+   "args": {
+    "rows": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "field": "",
+    "window": 3
+   },
+   "result": [
+    1,
+    1.5,
+    2,
+    3
+   ]
+  },
+  {
+   "fn": "Change",
+   "args": {
+    "current": 120,
+    "previous": 100
+   },
+   "result": 20
+  },
+  {
+   "fn": "Change",
+   "args": {
+    "current": 1,
+    "previous": 0
+   },
+   "result": null
+  },
+  {
+   "fn": "Histogram",
+   "args": {
+    "values": [
+     1,
+     2,
+     2,
+     3,
+     10
+    ],
+    "bins": 3
+   },
+   "result": [
+    {
+     "key": "1–4",
+     "value": 4,
+     "start": 1,
+     "end": 4
+    },
+    {
+     "key": "4–7",
+     "value": 0,
+     "start": 4,
+     "end": 7
+    },
+    {
+     "key": "7–10",
+     "value": 1,
+     "start": 7,
+     "end": 10
+    }
+   ]
+  },
+  {
+   "fn": "Histogram",
+   "args": {
+    "values": [],
+    "bins": 2
+   },
+   "result": [
+    {
+     "key": "0–0.5",
+     "value": 0,
+     "start": 0,
+     "end": 0.5
+    },
+    {
+     "key": "0.5–1",
+     "value": 0,
+     "start": 0.5,
+     "end": 1
+    }
+   ]
+  },
+  {
+   "fn": "Stats",
+   "args": {
+    "values": [
+     3,
+     1,
+     2,
+     4
+    ]
+   },
+   "result": {
+    "count": 4,
+    "min": 1,
+    "max": 4,
+    "mean": 2.5,
+    "median": 2.5,
+    "stdev": 1.118033988749895
+   }
+  },
+  {
+   "fn": "Stats",
+   "args": {
+    "values": []
+   },
+   "result": {
+    "count": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0,
+    "median": 0,
+    "stdev": 0
+   }
+  }
+ ]
+}

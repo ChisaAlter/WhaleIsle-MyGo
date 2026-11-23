@@ -187,6 +187,8 @@ func writeJSON(b *strings.Builder, v Value, depth int) {
 		b.WriteString(`{"actions":`)
 		writeJSON(b, float64(len(t.steps)), depth+1)
 		b.WriteByte('}')
+	case *Field:
+		writeJSON(b, encodeFields(t, false), depth+1)
 	case *Binding:
 		b.WriteString(`{"$binding":`)
 		writeJSONString(b, t.Target)

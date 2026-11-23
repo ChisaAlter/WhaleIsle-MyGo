@@ -63,7 +63,7 @@ func UnmarshalState(raw []byte) (*Object, error) {
 			out.Set(k, val)
 			continue
 		}
-		out.Set(k, decodeFields(val, true))
+		out.Set(k, decodeEntry(val, true))
 	}
 	return out, nil
 }
@@ -86,21 +86,39 @@ func decodeFields(v Value, legacy bool) Value {
 	if !ok {
 		return v
 	}
+	out := NewObject(o.Len())
+	for _, k := range o.keys {
+		out.Set(k, decodeEntry(o.vals[k], legacy))
+	}
+	return out
+}
+
+// decodeEntry decodes a top-level value: a field, or a form of fields.
+func decodeEntry(v Value, legacy bool) Value {
+	o, ok := v.(*Object)
+	if !ok {
+		return v
+	}
 	if f, ok := asField(o, legacy); ok {
 		return f
 	}
-	out := NewObject(o.Len())
+	form := NewObject(o.Len())
+	changed := false
 	for _, k := range o.keys {
 		x := o.vals[k]
 		if xo, ok := x.(*Object); ok {
 			if f, ok := asField(xo, legacy); ok {
-				out.Set(k, f)
+				form.Set(k, f)
+				changed = true
 				continue
 			}
 		}
-		out.Set(k, x)
+		form.Set(k, x)
 	}
-	return out
+	if !changed {
+		return o
+	}
+	return form
 }
 
 func asField(o *Object, legacy bool) (*Field, bool) {

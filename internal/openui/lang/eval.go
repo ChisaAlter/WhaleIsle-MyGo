@@ -78,6 +78,8 @@ func (e *evalEnv) eval(n Node) Value {
 		return t.V
 	case *NullNode, *PhNode:
 		return nil
+	case *ValueNode:
+		return t.V
 	case *StateRefNode:
 		if e.extra != nil {
 			if v, ok := e.extra[t.N]; ok {
@@ -500,81 +502,130 @@ func (e *evalEnv) evalEach(c *CallNode) Value {
 	return out
 }
 
-func refersTo(n Node, name string) bool {
-	found := false
-	walkAST(n, func(x Node) {
-		if r, ok := x.(*RefNode); ok && r.N == name {
-			found = true
-		}
-	})
-	return found
+// substituteRef replaces Ref(name) with the loop element as literal AST, so
+// deferred steps capture their own element. Unchanged subtrees are shared.
+func substituteRef(n Node, name string, v Value) Node {
+	out, _ := subst(n, name, v)
+	return out
 }
 
-// substituteRef replaces Ref(name) with the loop element as literal AST, so
-// deferred steps capture their own element.
-func substituteRef(n Node, name string, v Value) Node {
-	if !refersTo(n, name) {
-		return n
-	}
-	sub := func(x Node) Node { return substituteRef(x, name, v) }
+func subst(n Node, name string, v Value) (Node, bool) {
 	switch t := n.(type) {
 	case *RefNode:
 		if t.N == name {
-			return toLiteralAST(v)
+			return &ValueNode{V: v}, true
 		}
-		return t
+		return t, false
 	case *MemberNode:
-		obj := sub(t.X)
-		if o, ok := obj.(*ObjNode); ok {
-			for _, en := range o.Entries {
-				if en.Key == t.Field {
-					return en.Value
+		obj, ch := subst(t.X, name, v)
+		if !ch {
+			return t, false
+		}
+		if vn, ok := obj.(*ValueNode); ok {
+			if o, ok := vn.V.(*Object); ok {
+				if x, ok := o.Get(t.Field); ok {
+					return &ValueNode{V: x}, true
 				}
 			}
 		}
-		return &MemberNode{X: obj, Field: t.Field}
+		return &MemberNode{X: obj, Field: t.Field}, true
 	case *IndexNode:
-		return &IndexNode{X: sub(t.X), Index: sub(t.Index)}
+		x, c1 := subst(t.X, name, v)
+		i, c2 := subst(t.Index, name, v)
+		if !c1 && !c2 {
+			return t, false
+		}
+		return &IndexNode{X: x, Index: i}, true
 	case *BinOpNode:
-		return &BinOpNode{Op: t.Op, L: sub(t.L), R: sub(t.R)}
+		l, c1 := subst(t.L, name, v)
+		r, c2 := subst(t.R, name, v)
+		if !c1 && !c2 {
+			return t, false
+		}
+		return &BinOpNode{Op: t.Op, L: l, R: r}, true
 	case *UnaryNode:
-		return &UnaryNode{Op: t.Op, X: sub(t.X)}
+		x, ch := subst(t.X, name, v)
+		if !ch {
+			return t, false
+		}
+		return &UnaryNode{Op: t.Op, X: x}, true
 	case *TernaryNode:
-		return &TernaryNode{Cond: sub(t.Cond), Then: sub(t.Then), Else: sub(t.Else)}
+		c, c1 := subst(t.Cond, name, v)
+		th, c2 := subst(t.Then, name, v)
+		el, c3 := subst(t.Else, name, v)
+		if !c1 && !c2 && !c3 {
+			return t, false
+		}
+		return &TernaryNode{Cond: c, Then: th, Else: el}, true
 	case *ArrNode:
-		els := make([]Node, len(t.Els))
+		var els []Node
 		for i, x := range t.Els {
-			els[i] = sub(x)
+			y, ch := subst(x, name, v)
+			if ch && els == nil {
+				els = append(make([]Node, 0, len(t.Els)), t.Els[:i]...)
+			}
+			if els != nil {
+				els = append(els, y)
+			}
 		}
-		return &ArrNode{Els: els}
+		if els == nil {
+			return t, false
+		}
+		return &ArrNode{Els: els}, true
 	case *ObjNode:
-		ents := make([]ObjEntry, len(t.Entries))
+		var ents []ObjEntry
 		for i, x := range t.Entries {
-			ents[i] = ObjEntry{Key: x.Key, Value: sub(x.Value)}
+			y, ch := subst(x.Value, name, v)
+			if ch && ents == nil {
+				ents = append(make([]ObjEntry, 0, len(t.Entries)), t.Entries[:i]...)
+			}
+			if ents != nil {
+				ents = append(ents, ObjEntry{Key: x.Key, Value: y})
+			}
 		}
-		return &ObjNode{Entries: ents}
+		if ents == nil {
+			return t, false
+		}
+		return &ObjNode{Entries: ents}, true
 	case *CallNode:
 		shadow := t.Name == "Each" && eachVarName(t) == name
-		cp := *t
-		cp.Args = make([]Node, len(t.Args))
+		changed := false
+		args := make([]Node, len(t.Args))
 		for i, a := range t.Args {
 			if shadow && i > 0 {
-				cp.Args[i] = a
-			} else {
-				cp.Args[i] = sub(a)
+				args[i] = a
+				continue
 			}
+			y, ch := subst(a, name, v)
+			args[i] = y
+			changed = changed || ch
 		}
+		var mapped []NamedArg
 		if t.HasMapped {
-			cp.Mapped = make([]NamedArg, len(t.Mapped))
+			mapped = make([]NamedArg, len(t.Mapped))
 			for i, a := range t.Mapped {
-				cp.Mapped[i] = NamedArg{Name: a.Name, Value: sub(a.Value)}
+				y, ch := subst(a.Value, name, v)
+				mapped[i] = NamedArg{Name: a.Name, Value: y}
+				changed = changed || ch
 			}
 		}
-		return &cp
+		if !changed {
+			return t, false
+		}
+		cp := *t
+		cp.Args = args
+		if t.HasMapped {
+			cp.Mapped = mapped
+		}
+		return &cp, true
 	case *AssignNode:
-		return &AssignNode{Target: t.Target, Value: sub(t.Value)}
+		x, ch := subst(t.Value, name, v)
+		if !ch {
+			return t, false
+		}
+		return &AssignNode{Target: t.Target, Value: x}, true
 	}
-	return n
+	return n, false
 }
 
 // evalStandalone evaluates a parse-time state default that is an

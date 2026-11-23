@@ -51,6 +51,9 @@ type (
 		Target string
 		Value  Node
 	}
+	// ValueNode holds an already evaluated value (an @Each loop element
+	// captured by substitution); it evaluates to V.
+	ValueNode struct{ V Value }
 	// CallNode is a component call, an @function/@action call, Action(...),
 	// Query(...) or Mutation(...).
 	CallNode struct {
@@ -94,6 +97,7 @@ func (*MemberNode) isNode()     {}
 func (*IndexNode) isNode()      {}
 func (*AssignNode) isNode()     {}
 func (*CallNode) isNode()       {}
+func (*ValueNode) isNode()      {}
 
 var nullNode = &NullNode{}
 
@@ -194,6 +198,8 @@ func literalValue(n Node) (Value, bool) {
 		return t.V, true
 	case *NullNode:
 		return nil, true
+	case *ValueNode:
+		return dataOnly(t.V), true
 	case *ArrNode:
 		out := make([]Value, 0, len(t.Els))
 		for _, e := range t.Els {

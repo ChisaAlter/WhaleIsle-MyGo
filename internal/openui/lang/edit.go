@@ -188,6 +188,8 @@ func (s *serializer) node(n Node) string {
 		return "null"
 	case *PhNode:
 		return t.N
+	case *ValueNode:
+		return s.value(t.V)
 	case *StateRefNode:
 		return t.N
 	case *RuntimeRefNode:

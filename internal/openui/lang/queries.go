@@ -68,10 +68,11 @@ type queryManager struct {
 	order     []string
 	cache     map[string]*cacheEntry
 	mutations map[string]*mutationEntry
+	resolving map[string]bool
 }
 
 func newQueryManager(in *Instance) *queryManager {
-	return &queryManager{in: in, queries: map[string]*queryEntry{}, cache: map[string]*cacheEntry{}, mutations: map[string]*mutationEntry{}}
+	return &queryManager{in: in, queries: map[string]*queryEntry{}, cache: map[string]*cacheEntry{}, mutations: map[string]*mutationEntry{}, resolving: map[string]bool{}}
 }
 
 func (q *queryManager) enabled() bool {
@@ -196,6 +197,11 @@ func (q *queryManager) result(id string) Value {
 		if res := q.in.result; res != nil {
 			for _, qs := range res.Queries {
 				if qs.ID == id && qs.Defaults != nil {
+					if q.resolving[id] {
+						return nil
+					}
+					q.resolving[id] = true
+					defer delete(q.resolving, id)
 					env := q.in.newEnv(q.in.actRand)
 					return dataOnly(env.eval(qs.Defaults))
 				}

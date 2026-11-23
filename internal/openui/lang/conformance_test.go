@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -44,6 +45,9 @@ func summarize(in *Instance, v Value) any {
 	case bool, string:
 		return t
 	case float64:
+		if math.IsNaN(t) || math.IsInf(t, 0) {
+			return nil // JSON.stringify writes null
+		}
 		return t
 	case []Value:
 		out := make([]any, len(t))
