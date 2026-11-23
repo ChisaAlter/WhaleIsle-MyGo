@@ -27,7 +27,7 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 	}
 	w := m.WhaleSettings
 	s := w.State
-	if s.HostKey != "" && !s.Loaded && !s.Busy && s.Error == "" && s.Notice == "" && m.HarnessReady && m.WhaleEnabled {
+	if s.HostKey != "" && !s.Loaded && !s.Busy && s.Error == nil && s.Notice == "" && m.HarnessReady && m.WhaleEnabled {
 		w.OnRefresh()
 	}
 	blocked := s.Busy || m.PluginRPCBusy || m.Busy || !m.HarnessReady || !m.WhaleEnabled || s.HostKey == ""
@@ -39,8 +39,8 @@ func whaleSettingsBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 			}
 		})
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadingAndSavingAffectOnlyTheCurrentH)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "whale_settings:46", s.Notice)
 		if !s.Loaded {

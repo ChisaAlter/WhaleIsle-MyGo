@@ -134,7 +134,7 @@ func TestConversationOpenAndDraftConflictPreservation(t *testing.T) {
 	svc.HandleNativePrompt(ep.Origin, ep, "hello whale")
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if !asst.Snapshot().Busy && asst.Snapshot().LastErr != "" {
+		if !asst.Snapshot().Value.Busy && asst.Snapshot().Value.LastErr != nil {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)

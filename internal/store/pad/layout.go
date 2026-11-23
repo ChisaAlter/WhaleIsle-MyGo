@@ -3,8 +3,7 @@ package pad
 import (
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
+	"maps"
 )
 
 type PointXY struct {
@@ -136,12 +135,45 @@ func replaceLeaf(n *Tree, id string, replacement *Tree) *Tree {
 	return n
 }
 
+// cloneLayout copies the containers a writer may change — the tree, the
+// point coordinates and the height/state maps — while sharing the raw JSON
+// payloads, which are only ever replaced wholesale.
+func cloneLayout(l Layout) Layout {
+	l.Tree = cloneTree(l.Tree)
+	if l.Ball != nil {
+		ball := *l.Ball
+		l.Ball = &ball
+	}
+	if l.Dock != nil {
+		dock := *l.Dock
+		l.Dock = &dock
+	}
+	l.Heights = maps.Clone(l.Heights)
+	states := make(map[string]map[string]json.RawMessage, len(l.States))
+	for k, v := range l.States {
+		states[k] = maps.Clone(v)
+	}
+	l.States = states
+	return l
+}
+
+func cloneTree(n *Tree) *Tree {
+	if n == nil {
+		return nil
+	}
+	out := &Tree{Kind: n.Kind, ID: n.ID, Dir: n.Dir, Weights: append([]float32(nil), n.Weights...)}
+	for _, c := range n.Children {
+		out.Children = append(out.Children, cloneTree(c))
+	}
+	return out
+}
+
 // DropCard preserves the original nested directional layout, rather than
 // translating it to a fixed-column native widget schema.
 func (s *Store) DropCard(source, target, zone string) {
 	s.mu.Lock()
-	tree := clone(s.layout.Tree)
-	panels := clone(s.panels)
+	tree := cloneTree(s.view.Layout.Tree)
+	panels := s.view.Panels
 	s.mu.Unlock()
 	if source == target {
 		return
@@ -185,22 +217,30 @@ func (s *Store) DropCard(source, target, zone string) {
 	s.UpdateLayout(func(l *Layout) { l.Tree = normalizeTree(tree, panels) })
 }
 func (s *Store) UpdateLayout(change func(*Layout)) {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
 	s.mu.Lock()
-	change(&s.layout)
-	if s.layout.Width < 120 {
-		s.layout.Width = 352
+	l := cloneLayout(s.view.Layout)
+	change(&l)
+	if l.Width < 120 {
+		l.Width = 352
 	}
-	s.layout.Tree = normalizeTree(s.layout.Tree, s.panels)
+	l.Tree = normalizeTree(l.Tree, s.view.Panels)
+	s.view.Layout = l
 	s.restartWatchLocked()
+	s.publishLocked()
 	s.mu.Unlock()
-	s.persist()
+	s.persistNow()
 	s.fire()
 }
 
 // DragLayout keeps pointer motion off disk; the release commits one snapshot.
 func (s *Store) DragLayout(change func(*Layout), commit bool) {
 	s.mu.Lock()
-	change(&s.layout)
+	l := cloneLayout(s.view.Layout)
+	change(&l)
+	s.view.Layout = l
+	s.publishLocked()
 	s.mu.Unlock()
 	if commit {
 		s.persist()
@@ -210,30 +250,26 @@ func (s *Store) DragLayout(change func(*Layout), commit bool) {
 func (s *Store) persist() {
 	s.persistMu.Lock()
 	defer s.persistMu.Unlock()
+	s.persistNow()
+}
+
+// persistNow runs with persistMu held: it reads the layout under a brief
+// state lock and marshals/writes outside it.
+func (s *Store) persistNow() {
 	s.mu.Lock()
-	value, path := clone(s.layout), s.path
+	value, path := cloneLayout(s.view.Layout), s.path
 	s.mu.Unlock()
 	if path == "" {
 		return
 	}
-	raw, err := json.Marshal(value)
-	if err == nil {
-		err = os.MkdirAll(filepath.Dir(path), 0700)
-	}
-	if err == nil {
-		err = os.WriteFile(path+".tmp", raw, 0600)
-	}
-	if err == nil {
-		err = os.Rename(path+".tmp", path)
-	}
-	if err != nil {
+	if err := s.writeFn(path, value); err != nil {
 		s.SetError(err)
 	}
 }
 func (s *Store) PanelState(id string) map[string]json.RawMessage {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return clone(s.layout.States[id])
+	return s.view.Layout.States[id]
 }
 func (s *Store) SetPanelState(id, key string, value json.RawMessage) error {
 	return s.SetPanelStateForGeneration(0, id, key, value)
@@ -242,23 +278,29 @@ func (s *Store) SetPanelStateForGeneration(generation uint64, id, key string, va
 	if !json.Valid(value) {
 		return errors.New("Pad: invalid state JSON")
 	}
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
 	s.mu.Lock()
-	if generation != 0 && (s.client == nil || s.generation != generation) {
+	if generation != 0 && (s.client == nil || s.view.Generation != generation) {
 		s.mu.Unlock()
 		return errors.New("Pad: Host changed")
 	}
-	state := clone(s.layout.States[id])
-	if state == nil {
-		state = map[string]json.RawMessage{}
+	states := maps.Clone(s.view.Layout.States)
+	entry := maps.Clone(states[id])
+	if entry == nil {
+		entry = map[string]json.RawMessage{}
 	}
-	state[key] = append(json.RawMessage(nil), value...)
-	raw, err := json.Marshal(state)
+	entry[key] = append(json.RawMessage(nil), value...)
+	states[id] = entry
+	s.mu.Unlock()
+	raw, err := json.Marshal(entry)
 	if err != nil || len(raw) > 64<<10 {
-		s.mu.Unlock()
 		return errors.New("Pad: panel state exceeds 64 KiB")
 	}
-	s.layout.States[id] = state
+	s.mu.Lock()
+	s.view.Layout.States = states
+	s.publishLocked()
 	s.mu.Unlock()
-	s.persist()
+	s.persistNow()
 	return nil
 }

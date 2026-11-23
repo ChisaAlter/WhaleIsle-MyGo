@@ -45,9 +45,9 @@ func viewMachines(c *ui.Context, m Model) {
 	if m.Machines == nil || m.MachineEditor == nil {
 		return
 	}
-	s, e := m.Machines.Snapshot(), m.MachineEditor
+	s, e := m.Machines.Snapshot().Value, m.MachineEditor
 	e.syncRemoval(s)
-	if !s.Loaded && !s.Busy && s.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
+	if !s.Loaded && !s.Busy && s.Error == nil && m.HarnessReady && m.RemoteWorkspaceEnabled {
 		m.Machines.Refresh()
 	}
 	if e.Saving && !s.Busy {
@@ -72,13 +72,13 @@ func viewMachines(c *ui.Context, m Model) {
 			}
 		})
 		widgets.AckLine(c, "machines:77", s.Notice)
-		if s.Error != "" {
-			ui.Text(c, s.Error).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().Danger)
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().Danger)
 		}
 		if e.Open {
 			machineEditor(c, m, s, e, muted, border)
 		}
-		if s.Loaded && len(s.Machines) == 0 && s.Error == "" && !s.Busy && !e.Open {
+		if s.Loaded && len(s.Machines) == 0 && s.Error == nil && !s.Busy && !e.Open {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Padding(12, 0).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, label("还没有保存的 SSH 机器", "No saved SSH machines yet")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600)
 				ui.Text(c, label("添加一台机器后，新建工作区时可以选择「远程」标签页。", "Once a machine is added, the \"Remote\" tab appears when creating a workspace.")).
@@ -185,8 +185,8 @@ func removeMachineConfirm(c *ui.Context, m Model, s remotestore.Snapshot, e *Mac
 			ui.Text(c, label("移除远程机器？", "Remove remote machine?")).Bold()
 			ui.Text(c, label("删除机器「"+title+"」？本机保存的凭据会一并移除。", "Delete machine \""+title+"\"? Locally stored credentials are removed too.")).
 				FillWidth().MinWidth(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			if s.Error != "" {
-				ui.Text(c, s.Error).FillWidth().TextColor(c.Theme().Danger).Selectable()
+			if s.Error != nil {
+				ui.Text(c, s.Error.SentenceText()).FillWidth().TextColor(c.Theme().Danger).Selectable()
 			}
 			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || e.Removing).Clicked() {

@@ -38,7 +38,7 @@ func TestRegistrySelectionSurvivesStatusFailure(t *testing.T) {
 	if v.Connected || v.Status != (ConnectionStatus{}) || v.Tools.Loaded || len(v.Tools.Forwards) != 0 {
 		t.Fatalf("old target connection metadata survived: %+v", v)
 	}
-	if !v.MutationApplied || !strings.Contains(v.Error, "fixture status unavailable") {
+	if !v.MutationApplied || v.Error == nil {
 		t.Fatalf("lost mutation acknowledgement or status error: %+v", v)
 	}
 }

@@ -27,7 +27,7 @@ func TestSetFromDescribePersists(t *testing.T) {
 		},
 	}
 	s.SetFromDescribe(res, false)
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if len(snap.Rows) != 2 || snap.Revision != 3 {
 		t.Fatalf("snap = %+v", snap)
 	}
@@ -39,7 +39,7 @@ func TestSetFromDescribePersists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snap2 := s2.Snapshot()
+	snap2 := s2.Snapshot().Value
 	if len(snap2.Rows) != 2 {
 		t.Fatalf("reload rows = %d", len(snap2.Rows))
 	}
@@ -76,7 +76,7 @@ func TestMergeActivityAndGroupRuntime(t *testing.T) {
 			{BotID: "b2", Status: "busy"},
 		},
 	})
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	var bot, room Row
 	for _, r := range snap.Rows {
 		switch r.ID {

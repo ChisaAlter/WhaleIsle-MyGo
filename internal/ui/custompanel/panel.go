@@ -3,6 +3,8 @@ package custompanel
 
 import (
 	"fmt"
+	"maps"
+
 	"github.com/egoist/mygo/ui"
 	panel "whaleisle/internal/store/custompanel"
 	"whaleisle/internal/ui/chrome"
@@ -183,10 +185,12 @@ func render(c *ui.Context, i panel.Instance, onUpdate func(panel.Instance), onPr
 									if onUpdate == nil {
 										return
 									}
-									if i.State == nil {
-										i.State = map[string]string{}
+									next := maps.Clone(i.State)
+									if next == nil {
+										next = map[string]string{}
 									}
-									i.State[w.ID] = v
+									next[w.ID] = v
+									i.State = next
 									onUpdate(i)
 								}
 								size := w.FontSize

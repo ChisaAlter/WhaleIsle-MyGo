@@ -15,7 +15,7 @@ func TestWhaleIdentityBlurAndEnterSubmitOnlyTheFocusedField(t *testing.T) {
 	e.Edit("owner-a", "memory", "unsubmitted memory")
 	saves := []string{}
 	tt := ui.NewTester(func(c *ui.Context) {
-		m := Model{Mode: assiststore.ModeWhale, HarnessReady: true, WhaleEnabled: true, WhaleSettings: WhaleSettingsModel{State: e.Snapshot(), OnRefresh: func() {}, OnEdit: func(field, value string) { e.Edit("owner-a", field, value) }, OnSave: func(action string) { saves = append(saves, action) }}}
+		m := Model{Mode: assiststore.ModeWhale, HarnessReady: true, WhaleEnabled: true, WhaleSettings: WhaleSettingsModel{State: e.Snapshot().Value, OnRefresh: func() {}, OnEdit: func(field, value string) { e.Edit("owner-a", field, value) }, OnSave: func(action string) { saves = append(saves, action) }}}
 		whaleSettingsBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(150, 150, 150), ui.RGB(20, 20, 20), ui.RGB(90, 90, 90), ui.RGB(60, 130, 240))
 	}, 1000, 1800)
 	if err := tt.Click("Whale name"); err != nil {
@@ -38,7 +38,7 @@ func TestWhaleIdentityBlurAndEnterSubmitOnlyTheFocusedField(t *testing.T) {
 	if len(saves) != 2 || saves[1] != "title" {
 		t.Fatal("title Enter did not submit narrowly", saves)
 	}
-	if e.Snapshot().Memory != "unsubmitted memory" {
+	if e.Snapshot().Value.Memory != "unsubmitted memory" {
 		t.Fatal("identity gesture discarded another field")
 	}
 	// Host replacement while focused may not auto-submit the retired draft.

@@ -29,7 +29,7 @@ func TestWhaleEditorClearConfirmationAndFailure(t *testing.T) {
 	}
 	s.ReviewClear("host-a")
 	s.CancelClear("host-a")
-	if v := s.Snapshot(); v.Memory != "unsaved" || v.ConfirmClear {
+	if v := s.Snapshot().Value; v.Memory != "unsaved" || v.ConfirmClear {
 		t.Fatalf("cancel lost draft: %+v", v)
 	}
 	s.ReviewClear("host-a")
@@ -41,8 +41,8 @@ func TestWhaleEditorClearConfirmationAndFailure(t *testing.T) {
 		t.Fatal("duplicate clear allowed")
 	}
 	s.FinishWrite(q, cmd, nil, false, errors.New("synthetic timeout"))
-	v := s.Snapshot()
-	if v.Memory != "unsaved" || v.ConfirmClear || v.Loaded || v.Error == "" {
+	v := s.Snapshot().Value
+	if v.Memory != "unsaved" || v.ConfirmClear || v.Loaded || v.Error == nil {
 		t.Fatalf("uncertain clear handling: %+v", v)
 	}
 	if _, _, ok := s.BeginWrite("host-a", "clear"); ok {
@@ -52,7 +52,7 @@ func TestWhaleEditorClearConfirmationAndFailure(t *testing.T) {
 	actual := whaleFixture()
 	actual.Memory = "default template"
 	s.FinishLoad(q, actual, nil)
-	if s.Snapshot().Memory != "unsaved" {
+	if s.Snapshot().Value.Memory != "unsaved" {
 		t.Fatal("refresh overwrote draft")
 	}
 	s.ReviewClear("host-a")
@@ -61,7 +61,7 @@ func TestWhaleEditorClearConfirmationAndFailure(t *testing.T) {
 		t.Fatal("explicit reconfirmation failed")
 	}
 	s.FinishWrite(q, cmd, &actual, true, nil)
-	if v = s.Snapshot(); v.Memory != "default template" || v.Notice == "" || v.Error != "" {
+	if v = s.Snapshot().Value; v.Memory != "default template" || v.Notice == "" || v.Error != nil {
 		t.Fatalf("clear did not use actual Host text: %+v", v)
 	}
 }
@@ -73,7 +73,7 @@ func TestWhaleEditorOwnerRevisionsAndDirtyRefresh(t *testing.T) {
 	server := whaleFixture()
 	server.Memory = "new server"
 	s.FinishLoad(q, server, nil)
-	if s.Snapshot().Memory != "draft-a" {
+	if s.Snapshot().Value.Memory != "draft-a" {
 		t.Fatal("dirty reload discarded draft")
 	}
 	q, cmd, ok := s.BeginWrite("host-a", "memory")
@@ -83,12 +83,12 @@ func TestWhaleEditorOwnerRevisionsAndDirtyRefresh(t *testing.T) {
 	s.Edit("host-a", "memory", "newer edit")
 	server.Memory = "draft-a"
 	s.FinishWrite(q, cmd, &server, true, nil)
-	if s.Snapshot().Memory != "newer edit" {
+	if s.Snapshot().Value.Memory != "newer edit" {
 		t.Fatal("late success discarded newer edit")
 	}
 	q, _ = s.BeginLoad("host-a")
 	s.Bind("host-b")
-	if s.FinishLoad(q, server, nil) || s.Snapshot().Loaded || s.Snapshot().Memory != "" {
+	if s.FinishLoad(q, server, nil) || s.Snapshot().Value.Loaded || s.Snapshot().Value.Memory != "" {
 		t.Fatal("old Host result crossed identity")
 	}
 	loadWhale(t, &s, "host-b")
@@ -97,7 +97,7 @@ func TestWhaleEditorOwnerRevisionsAndDirtyRefresh(t *testing.T) {
 	server.SessionID = "whale-b"
 	server.Memory = "identity-b memory"
 	s.FinishLoad(q, server, nil)
-	if s.Snapshot().Memory != "identity-b memory" {
+	if s.Snapshot().Value.Memory != "identity-b memory" {
 		t.Fatal("Whale identity mixed drafts")
 	}
 	q, cmd, ok = s.BeginWrite("host-b", "memory")
@@ -117,20 +117,20 @@ func TestWhaleEditorAcceptedButUnreadAndFieldIsolation(t *testing.T) {
 	s.Edit("host", "name", "New Whale")
 	q, cmd, _ := s.BeginWrite("host", "persona")
 	s.FinishWrite(q, cmd, nil, true, errors.New("read unavailable"))
-	v := s.Snapshot()
-	if v.PersonaText != "draft persona" || v.Memory != "draft memory" || v.Name != "New Whale" || v.Loaded || v.Notice == "" || v.Error == "" {
+	v := s.Snapshot().Value
+	if v.PersonaText != "draft persona" || v.Memory != "draft memory" || v.Name != "New Whale" || v.Loaded || v.Notice == "" || v.Error == nil {
 		t.Fatalf("accepted/read failure corrupt state: %+v", v)
 	}
 	q, _ = s.BeginLoad("host")
 	server := whaleFixture()
 	server.PersonaText = "draft persona"
 	s.FinishLoad(q, server, nil)
-	if s.Snapshot().Memory != "draft memory" {
+	if s.Snapshot().Value.Memory != "draft memory" {
 		t.Fatal("persona refresh touched memory draft")
 	}
 	s.ReviewClear("host")
 	s.Edit("host", "memory", "later")
-	if s.Snapshot().ConfirmClear {
+	if s.Snapshot().Value.ConfirmClear {
 		t.Fatal("editing must invalidate clear review")
 	}
 }
@@ -152,14 +152,14 @@ func TestWhaleEditorReadBackPreservesRevertedAndConflictingDraft(t *testing.T) {
 	s.Edit("host", "memory", "old memory")
 	current.Memory = "submitted"
 	s.FinishWrite(q, cmd, &current, true, nil)
-	if s.Snapshot().Memory != "old memory" {
+	if s.Snapshot().Value.Memory != "old memory" {
 		t.Fatal("newer deliberate revert consumed by readback")
 	}
 	q, cmd, _ = s.BeginWrite("host", "memory")
 	current.Memory = "changed again"
 	s.FinishWrite(q, cmd, &current, true, nil)
-	v := s.Snapshot()
-	if v.Memory != "old memory" || v.Server.Memory != "changed again" || v.Error == "" {
+	v := s.Snapshot().Value
+	if v.Memory != "old memory" || v.Server.Memory != "changed again" || v.Error == nil {
 		t.Fatalf("conflicting receipt lost draft: %+v", v)
 	}
 }

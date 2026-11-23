@@ -31,28 +31,38 @@ func (s *Files) EditBuffer(captured FileSnapshot, create func(string) FileDraftB
 	return r.draftOwner.buffer
 }
 
-// syncResourceDrafts is always called under Files.mu. Sources remain attached
-// to their captured resource even while a different session is selected.
-func syncResourceDrafts(v *FileSnapshot) {
+// syncResourceDrafts is always called under Files.mu and reports whether a
+// buffer produced new text. Sources remain attached to their captured
+// resource even while a different session is selected.
+func syncResourceDrafts(v *FileSnapshot) bool {
 	if v == nil {
-		return
+		return false
 	}
-	stashResource(v)
+	dirty := stashResource(v)
 	for i := range v.Tabs {
 		r := &v.Tabs[i]
 		if r.draftOwner != nil && r.draftOwner.buffer != nil {
-			r.Draft = r.draftOwner.buffer.CommittedText()
-			if r.Path == v.FilePath {
+			if text := r.draftOwner.buffer.CommittedText(); text != r.Draft {
+				r.Draft = text
+				dirty = true
+			}
+			if r.Path == v.FilePath && v.Draft != r.Draft {
 				v.Draft = r.Draft
+				dirty = true
 			}
 		}
 	}
+	return dirty
 }
 
-func (s *Files) syncDraftsLocked() {
+func (s *Files) syncDraftsLocked() bool {
+	dirty := false
 	for _, v := range s.states {
-		syncResourceDrafts(v)
+		if syncResourceDrafts(v) {
+			dirty = true
+		}
 	}
+	return dirty
 }
 
 // Explicit model replacement (read, discard, SetDraft) updates only this

@@ -3435,7 +3435,7 @@ func mainView(c *ui.Context) {
 	}
 	imOnboardingRendered := false
 	defer func() {
-		if !imOnboardingRendered && imStore != nil && imStore.Onboarding.Snapshot().Open {
+		if !imOnboardingRendered && imStore != nil && imStore.Onboarding.Snapshot().Value.Open {
 			imStore.Onboarding.Hide()
 		}
 	}()

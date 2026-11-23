@@ -137,7 +137,7 @@ func mainParityRemoteChoiceFixture(t *testing.T) (*remoteWorkspaceAdoption, remo
 	remote := remotestore.New()
 	remote.Attach(s.dshClient, nil)
 	s.remoteMachines = remote
-	choice := remotestore.DirectoryChoice{MachineID: "machine-one", RemotePath: "/remote/source", LocalMirror: "/host/original-mirror", Generation: remote.Snapshot().Generation, RequestID: 7}
+	choice := remotestore.DirectoryChoice{MachineID: "machine-one", RemotePath: "/remote/source", LocalMirror: "/host/original-mirror", Generation: remote.Snapshot().Value.Generation, RequestID: 7}
 	setDeliverableFixtureField(t, remote, "directoryRequestID", choice.RequestID)
 	setDeliverableFixtureField(t, remote, "view", remotestore.Snapshot{Generation: choice.Generation, CurrentID: choice.MachineID, Directory: remotestore.DirectorySnapshot{Path: choice.RemotePath, SelectedPath: choice.RemotePath, LocalMirror: choice.LocalMirror, Loaded: true}})
 	op := s.captureRemoteWorkspaceAdoption(nil, s.sessions, remote)
@@ -162,7 +162,7 @@ func TestMainParityRemoteMirrorCannotAdoptAfterOwnerChanges(t *testing.T) {
 			case "session":
 				setDeliverableFixtureField(t, op.sessions, "selectedID", "another-session")
 			case "machine":
-				v := op.remote.Snapshot()
+				v := op.remote.Snapshot().Value
 				v.CurrentID = "another-machine"
 				setDeliverableFixtureField(t, op.remote, "view", v)
 			case "request":

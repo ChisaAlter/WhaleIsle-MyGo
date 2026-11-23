@@ -132,7 +132,7 @@ func (c *Client) callPayload(ctx context.Context, method string, payload any, ou
 	}
 	res, err := c.http().Do(req)
 	if err != nil {
-		return err
+		return &TransportError{Op: method, Err: err}
 	}
 	defer res.Body.Close()
 	// A 25 MiB UTF-8 HTML page can expand six-fold in JSON escaping.
@@ -152,10 +152,10 @@ func (c *Client) callPayload(ctx context.Context, method string, payload any, ou
 		return fmt.Errorf("dsh %s: response exceeds bounded wire limit", method)
 	}
 	if err != nil {
-		return err
+		return &TransportError{Op: method, Err: err}
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("dsh %s: HTTP %d: %s", method, res.StatusCode, clip(raw, 240))
+		return &HTTPError{Op: method, Status: res.StatusCode, Body: clip(raw, 240)}
 	}
 	ct := res.Header.Get("Content-Type")
 	var value json.RawMessage

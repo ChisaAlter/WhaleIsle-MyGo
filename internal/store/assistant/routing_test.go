@@ -5,7 +5,7 @@ import "testing"
 func TestExplicitDshbotTargetAndAcceptedDraft(t *testing.T) {
 	s := New()
 	s.SelectDshbot(" bot ", " http://localhost:8787 ")
-	got := s.Snapshot()
+	got := s.Snapshot().Value
 	if got.DshbotID != "bot" || got.DshbotOrigin != "http://localhost:8787" {
 		t.Fatalf("target = %+v", got)
 	}

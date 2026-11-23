@@ -16,7 +16,7 @@ func waitStore(t *testing.T, s *Store) Snapshot {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		v := s.Snapshot()
+		v := s.Snapshot().Value
 		if !v.Busy {
 			return v
 		}
@@ -69,7 +69,7 @@ func TestMachineLifecycleAndFailureFeedback(t *testing.T) {
 	s := New()
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL, Cookie: "session=fixture"}}, nil)
 	s.Refresh()
-	if v := waitStore(t, s); v.Error != "" || !v.Loaded {
+	if v := waitStore(t, s); v.Error != nil || !v.Loaded {
 		t.Fatal(v)
 	}
 	d := Draft{Name: "Dev", Host: "fixture.invalid", Port: "22", Username: "developer", Workspace: "/work"}
@@ -93,7 +93,7 @@ func TestMachineLifecycleAndFailureFeedback(t *testing.T) {
 		t.Fatal(v)
 	}
 	s.Connect()
-	if v = waitStore(t, s); !strings.Contains(v.Error, "fixture connection refused") || v.Connected || v.Busy {
+	if v = waitStore(t, s); v.Error == nil || v.Error.SentenceText() == "" || v.Connected || v.Busy {
 		t.Fatal(v)
 	}
 	s.Select("")
@@ -160,7 +160,7 @@ func TestOldEndpointCannotOverwriteNewEndpoint(t *testing.T) {
 		t.Fatal("expected not ready")
 	}
 	time.Sleep(20 * time.Millisecond)
-	if v := s.Snapshot(); v.CurrentID != "" || v.Connected || v.Loaded {
+	if v := s.Snapshot().Value; v.CurrentID != "" || v.Connected || v.Loaded {
 		t.Fatal("stale response applied", v)
 	}
 }

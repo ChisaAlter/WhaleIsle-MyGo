@@ -20,7 +20,7 @@ func waitState(t *testing.T, s *Store, changed <-chan struct{}, predicate func(S
 	timer := time.NewTimer(3 * time.Second)
 	defer timer.Stop()
 	for {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		if predicate(snap) {
 			return snap
 		}
@@ -103,13 +103,13 @@ func TestPadStoreLiveWatchActionsAndGeneration(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	s.mu.Lock()
-	oldEpoch, oldStream := s.epoch, s.streamID
+	oldAttach, oldStream := s.attachL, s.streamL
 	s.mu.Unlock()
 	s.Attach(client, 8)
 	if _, err := s.RunForGeneration(context.Background(), 7, "one", "old", ""); err == nil {
 		t.Fatal("old frame used new Host")
 	}
-	s.receive(oldEpoch, oldStream, streamEvent{Type: "panels", Panels: []Panel{samplePanel("stale")}})
+	s.receive(oldAttach, oldStream, streamEvent{Type: "panels", Panels: []Panel{samplePanel("stale")}})
 	if _, ok := s.Panel("stale"); ok {
 		t.Fatal("old stream leaked into new generation")
 	}
@@ -123,10 +123,10 @@ func TestPadLayoutDropStateAndHistoryRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.panels = []Panel{samplePanel("a"), samplePanel("b"), samplePanel("c")}
-	s.layout.Tree = normalizeTree(nil, s.panels)
+	s.view.Panels = []Panel{samplePanel("a"), samplePanel("b"), samplePanel("c")}
+	s.view.Layout.Tree = normalizeTree(nil, s.view.Panels)
 	s.DropCard("a", "b", "left")
-	tree := s.Snapshot().Layout.Tree
+	tree := s.Snapshot().Value.Layout.Tree
 	if tree.Kind != "split" || tree.Children[0].Dir != "row" {
 		t.Fatalf("no nested horizontal split: %+v", tree)
 	}
@@ -139,7 +139,7 @@ func TestPadLayoutDropStateAndHistoryRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snap := restored.Snapshot()
+	snap := restored.Snapshot().Value
 	if !snap.Layout.Expanded || snap.Layout.Width != 480 || snap.Layout.Heights["b"] != 240 || string(restored.PanelState("b")["tab"]) != `"details"` {
 		t.Fatal(snap.Layout)
 	}
@@ -256,28 +256,28 @@ func TestModelSelectionWaitsForBusinessResultAndRetiresOnHostChange(t *testing.T
 	c, _ := NewClient(server.URL, "")
 	s.Attach(c, 7)
 	request := s.ChooseModel(7, "panel", &ModelSelection{Provider: "fixture", Model: "small"})
-	if request == 0 || !s.Snapshot().ModelActions["panel"].Busy || s.ChooseModel(7, "panel", nil) != 0 {
+	if request == 0 || !s.Snapshot().Value.ModelActions["panel"].Busy || s.ChooseModel(7, "panel", nil) != 0 {
 		t.Fatal("selection was not serialized")
 	}
 	if a := <-started; a.Op != "model" || a.Model.Model != "small" {
 		t.Fatal(a)
 	}
 	replies <- `{"ok":false,"error":"model unavailable"}`
-	waitState(t, s, changed, func(v Snapshot) bool { return v.ModelActions["panel"].Error != "" })
-	if a := s.Snapshot().ModelActions["panel"]; a.Busy || a.Succeeded || a.Request != request || a.Error != "model unavailable" {
+	waitState(t, s, changed, func(v Snapshot) bool { return v.ModelActions["panel"].Error != nil })
+	if a := s.Snapshot().Value.ModelActions["panel"]; a.Busy || a.Succeeded || a.Request != request || a.Error == nil || a.Error.SentenceText() == "" {
 		t.Fatal("business rejection counted as success", a)
 	}
 	request = s.ChooseModel(7, "panel", nil)
 	<-started
 	replies <- `{"ok":true}`
 	waitState(t, s, changed, func(v Snapshot) bool { return v.ModelActions["panel"].Succeeded })
-	if a := s.Snapshot().ModelActions["panel"]; a.Request != request || a.Busy || a.Error != "" {
+	if a := s.Snapshot().Value.ModelActions["panel"]; a.Request != request || a.Busy || a.Error != nil {
 		t.Fatal(a)
 	}
 	s.ChooseModel(7, "panel", nil)
 	<-started
 	s.Attach(c, 8)
-	if len(s.Snapshot().ModelActions) != 0 || s.ChooseModel(7, "panel", nil) != 0 {
+	if len(s.Snapshot().Value.ModelActions) != 0 || s.ChooseModel(7, "panel", nil) != 0 {
 		t.Fatal("old Host selection survived replacement")
 	}
 }

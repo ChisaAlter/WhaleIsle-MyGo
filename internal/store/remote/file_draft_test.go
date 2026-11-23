@@ -37,8 +37,11 @@ func seededDraftFiles(t *testing.T, origin string) (*Files, *capturedDraftFixtur
 	v.FilePath, v.Draft, v.RemoteIdentity = "/work/a.txt", "base", "remote-a"
 	v.File = RemoteFile{Content: "base", Mtime: &mtime}
 	stashResource(v)
+	s.mu.Lock()
+	s.publishLocked()
+	s.mu.Unlock()
 	b := &capturedDraftFixture{text: "base"}
-	if got := s.EditBuffer(s.Snapshot(), func(string) FileDraftBuffer { return b }); got != b {
+	if got := s.EditBuffer(s.Snapshot().Value, func(string) FileDraftBuffer { return b }); got != b {
 		t.Fatal("could not attach captured resource")
 	}
 	return s, b
@@ -63,11 +66,11 @@ func TestCapturedRemoteDraftParticipatesInCloseWithoutWidgetCallback(t *testing.
 		t.Fatal("unsaved native text allowed close", done, err)
 	}
 	s.RequestClose("/work/a.txt")
-	if s.Snapshot().PendingClose != "/work/a.txt" {
+	if s.Snapshot().Value.PendingClose != "/work/a.txt" {
 		t.Fatal("native-only dirty tab bypassed review")
 	}
 	s.ConfirmClose(false)
-	if s.Snapshot().Draft != "native committed before frame" {
+	if s.Snapshot().Value.Draft != "native committed before frame" {
 		t.Fatal("cancel close lost committed text")
 	}
 }
@@ -80,12 +83,12 @@ func TestCapturedRemoteDraftStaysWithTabAndSessionOnSuspend(t *testing.T) {
 	first.ReplaceText("first tab native")
 	s.Open("/work/b.txt")
 	second := &capturedDraftFixture{text: "second"}
-	if s.EditBuffer(s.Snapshot(), func(string) FileDraftBuffer { return second }) != second {
+	if s.EditBuffer(s.Snapshot().Value, func(string) FileDraftBuffer { return second }) != second {
 		t.Fatal("second tab source missing")
 	}
 	second.ReplaceText("second tab native")
 	s.Open("/work/a.txt")
-	if s.Snapshot().Draft != "first tab native" {
+	if s.Snapshot().Value.Draft != "first tab native" {
 		t.Fatal("tab switch adopted another resource's text")
 	}
 	s.Suspend()
@@ -94,39 +97,42 @@ func TestCapturedRemoteDraftStaysWithTabAndSessionOnSuspend(t *testing.T) {
 	}
 	s.Bind(s.client, "session-b", nil)
 	first.ReplaceText("late old session input")
-	if snap := s.Snapshot(); snap.SessionID != "session-b" || snap.Draft != "" {
+	if snap := s.Snapshot().Value; snap.SessionID != "session-b" || snap.Draft != "" {
 		t.Fatal("old source wrote into new session", snap)
 	}
 	if err := s.PreflightDirtyForClose(); err == nil || !strings.Contains(err.Error(), "session-a") {
 		t.Fatal("foreign owner borrowed active session", err)
 	}
 	s.Bind(s.client, "session-a", nil)
-	if s.Snapshot().Draft != "late old session input" {
+	if s.Snapshot().Value.Draft != "late old session input" {
 		t.Fatal("cached owner lost its own native text")
 	}
 	s.Open("/work/b.txt")
-	if s.Snapshot().Draft != "second tab native" {
+	if s.Snapshot().Value.Draft != "second tab native" {
 		t.Fatal("other cached resource was overwritten")
 	}
 }
 
 func TestRemoteBufferAttachRejectsReopenedResourceAndChangedIdentity(t *testing.T) {
 	s, b := seededDraftFiles(t, "http://unused.invalid")
-	captured := s.Snapshot()
+	captured := s.Snapshot().Value
 	s.RequestClose(captured.FilePath)
 	v := s.states[s.key]
 	v.FilePath, v.Draft, v.FileLoaded = captured.FilePath, "replacement", true
 	v.File = RemoteFile{Content: "replacement", Mtime: captured.File.Mtime}
 	stashResource(v)
+	s.mu.Lock()
+	s.publishLocked()
+	s.mu.Unlock()
 	if got := s.EditBuffer(captured, func(string) FileDraftBuffer { return b }); got != nil {
 		t.Fatal("closed resource attached to same-path replacement")
 	}
-	fresh := s.Snapshot()
+	fresh := s.Snapshot().Value
 	v.RemoteIdentity = "different-host"
 	if got := s.EditBuffer(fresh, func(string) FileDraftBuffer { return b }); got != nil {
 		t.Fatal("captured source attached to a different remote identity")
 	}
-	if s.Snapshot().Draft != "replacement" {
+	if s.Snapshot().Value.Draft != "replacement" {
 		t.Fatal("rejected attachment mutated replacement")
 	}
 }
@@ -139,7 +145,7 @@ func TestRemoteExplicitDiscardReplacesCommittedBuffer(t *testing.T) {
 		t.Fatal("discard left native document dirty")
 	}
 	s.SetDraft("explicit replacement")
-	if b.CommittedText() != "explicit replacement" || s.Snapshot().Draft != "explicit replacement" {
+	if b.CommittedText() != "explicit replacement" || s.Snapshot().Value.Draft != "explicit replacement" {
 		t.Fatal("model replacement did not update same native resource")
 	}
 }
@@ -187,16 +193,16 @@ func TestCloseSaveCapturesNativeTextAndRetainsNewInputAfterAcknowledgement(t *te
 	b.ReplaceText("new native text while saving")
 	unblock()
 	deadline := time.Now().Add(2 * time.Second)
-	for s.Snapshot().Busy && time.Now().Before(deadline) {
+	for s.Snapshot().Value.Busy && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if s.Snapshot().Busy {
+	if s.Snapshot().Value.Busy {
 		t.Fatal("write acknowledgement did not settle")
 	}
 	if done, err := s.CheckDirtyForClose(); done || err == nil {
 		t.Fatal("new native input was acknowledged as saved", done, err)
 	}
-	got := s.Snapshot()
+	got := s.Snapshot().Value
 	if got.File.Content != "captured native text" || got.Draft != "new native text while saving" || !s.HasDirty() {
 		t.Fatal("acknowledgement discarded later committed input", got)
 	}

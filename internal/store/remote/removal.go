@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -15,7 +16,7 @@ func (s *Store) RemoveAtGeneration(id string, generation uint64) bool {
 		return false
 	}
 	name := id
-	for _, machine := range s.Snapshot().Machines {
+	for _, machine := range s.Snapshot().Value.Machines {
 		if machine.ID == id {
 			name = machine.Name
 			if name == "" {
@@ -33,7 +34,7 @@ func (s *Store) RemoveAtGeneration(id string, generation uint64) bool {
 		if registryLoaded {
 			for _, machine := range machines {
 				if machine.ID == id {
-					v.Error = storelocale.T(storelocale.KeyStoreRemoteRemovalCouldNotBeVerifiedTheHostS)
+					v.Error = state.FaultText(storelocale.T(storelocale.KeyStoreRemoteRemovalCouldNotBeVerifiedTheHostS))
 					return
 				}
 			}

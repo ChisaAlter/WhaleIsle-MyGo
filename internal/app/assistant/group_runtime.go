@@ -148,7 +148,7 @@ func (s *Service) GroupMembers(sessionID string) (bool, []session.GroupMember) {
 	if roster == nil || cfg == nil || !cfg.Get().DshbotEnabled || !ready || sessionID == "" {
 		return false, nil
 	}
-	snap := roster.Snapshot()
+	snap := roster.Snapshot().Value
 	if snap.Origin != ep.Origin {
 		return false, nil
 	}

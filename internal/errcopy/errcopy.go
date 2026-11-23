@@ -7,9 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"strings"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -226,7 +228,9 @@ func ProviderEnvelope(raw string) bool {
 	return providerEnvelope.MatchString(raw)
 }
 
-// Classify reports which family err belongs to.
+// Classify reports which family err belongs to. Typed carriers from
+// internal/dsh answer first; the message text is only the fallback for
+// errors that carry no structure.
 func Classify(err error) Cause {
 	if err == nil {
 		return CauseUnknown
@@ -236,6 +240,25 @@ func Classify(err error) Cause {
 		return CauseCancelled
 	case errors.Is(err, context.DeadlineExceeded):
 		return CauseTimeout
+	}
+	var transport *dsh.TransportError
+	if errors.As(err, &transport) {
+		var ne net.Error
+		if errors.As(transport.Err, &ne) && ne.Timeout() {
+			return CauseTimeout
+		}
+		return CauseNetwork
+	}
+	if errors.Is(err, dsh.ErrEndpointNotReady) {
+		// The Host answered that a lazy service is still activating; the
+		// honest next step is the retry the timeout sentence offers.
+		return CauseTimeout
+	}
+	var rpcErr *dsh.Error
+	if errors.As(err, &rpcErr) {
+		if cause, ok := codeCauses[strings.ToUpper(strings.TrimSpace(rpcErr.Code))]; ok {
+			return cause
+		}
 	}
 	return classifyText(err.Error())
 }
@@ -282,6 +305,27 @@ func SentenceFor(code, raw string) string {
 	return sentenceFor(classifyText(raw), raw)
 }
 
+// CauseSentenceIn renders the sentence for an already-classified failure in
+// the given locale ("" uses the active catalog). The stable code still wins
+// over the cause, matching SentenceFor's order: a carrier that kept only the
+// classification reproduces the same sentence.
+func CauseSentenceIn(locale string, cause Cause, code string) string {
+	if c, ok := codeCauses[strings.ToUpper(strings.TrimSpace(code))]; ok {
+		cause = c
+	}
+	if status, ok := HTTPStatus(code, ""); ok {
+		return rejectedSentenceIn(locale, status)
+	}
+	return lookupT(locale, keyFor(cause))
+}
+
+func lookupT(locale, key string) string {
+	if locale == "" {
+		return i18n.T(key)
+	}
+	return i18n.Lookup(locale, key)
+}
+
 func sentenceFor(cause Cause, raw string) string {
 	if cause == CauseRuntimeExited {
 		if match := exitCode.FindStringSubmatch(raw); match != nil {
@@ -309,15 +353,19 @@ func HTTPStatus(code, raw string) (string, bool) {
 
 // rejectedSentence picks the next step the status calls for.
 func rejectedSentence(status string) string {
+	return rejectedSentenceIn("", status)
+}
+
+func rejectedSentenceIn(locale, status string) string {
 	switch {
 	case status == "401" || status == "403":
-		return fmt.Sprintf(i18n.T(keyRejectedAuth), status)
+		return fmt.Sprintf(lookupT(locale, keyRejectedAuth), status)
 	case status == "429":
-		return fmt.Sprintf(i18n.T(keyRejectedRate), status)
+		return fmt.Sprintf(lookupT(locale, keyRejectedRate), status)
 	case strings.HasPrefix(status, "5"):
-		return fmt.Sprintf(i18n.T(keyRejectedServer), status)
+		return fmt.Sprintf(lookupT(locale, keyRejectedServer), status)
 	default:
-		return fmt.Sprintf(i18n.T(keyRejectedRequest), status)
+		return fmt.Sprintf(lookupT(locale, keyRejectedRequest), status)
 	}
 }
 

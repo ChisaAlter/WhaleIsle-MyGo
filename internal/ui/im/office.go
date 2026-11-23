@@ -12,7 +12,7 @@ import (
 
 func officeSettingsView(c *ui.Context, m Model) {
 	s := &m.Store.Office
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
 	blocked := v.Busy || !v.Available || m.PluginDisabled || !m.HarnessReady

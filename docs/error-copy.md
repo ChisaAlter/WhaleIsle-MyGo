@@ -17,6 +17,7 @@
 | `internal/ui/composer/copy_test.go` | 输入区 | 同上 |
 | `internal/ui/i18n/carriers_test.go` | 见下表 | 按包一条 carrier 正则 |
 | `cmd/whaleisle/carriers_test.go` | 命令层 | 任何非比较、非标记的 `.Error()` |
+| `internal/errcopy/carriers_ratchet_test.go` | `internal/store/**`、`internal/app/**`、`internal/ui/sidebar` | 视图状态/快照字段被赋值为 `.Error()` 或 `fmt.Sprint*`/`Errorf` 包装的错误文本即违规；已有点位记在 `testdata/carriers_baseline.txt`，数量只许下降 |
 
 `carriers_test.go` 覆盖 `remote`、`terminal`、`diffsurface`、`theme`、`frame`、`projects`、`im`、`schedule`、`assistant`、`widgets/markdown`、`svgimage`。
 
@@ -32,6 +33,10 @@
 - `raw-ok:`：命令层写日志而非屏幕的记录（崩溃、启动失败、桥接报告）。后面必须写理由。
 
 两个标记都写在那一行末尾，守卫按行跳过，评审时一眼能看到豁免，而不是靠记忆。
+
+## store/app 层：错误不进快照
+
+`internal/store/**`、`internal/app/**` 与 `internal/ui/sidebar` 的视图状态字段携带 `*state.Fault`（`internal/state`）：边界处 `state.FaultOf(err)` 归类，原始错误留在边界日志，界面渲染 `Fault.Sentence(...)`。ratchet 守卫扫描赋值给字段的 `.Error()` 与 `fmt.Sprint*`/`Errorf` 错误文本；减少违规后运行 `go test ./internal/errcopy -run CarriersRatchet -args -update-carriers` 更新基线，新增违规直接失败。
 
 ## 验证
 

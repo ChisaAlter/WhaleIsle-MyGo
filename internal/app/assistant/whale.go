@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/harness"
+	"whaleisle/internal/state"
 	assiststore "whaleisle/internal/store/assistant"
 	assistantui "whaleisle/internal/ui/assistant"
 	"whaleisle/internal/ui/i18n"
@@ -56,7 +57,7 @@ func (s *Service) whaleSettingsOwner(ep harness.Endpoint) (*dsh.Client, string) 
 	if client == nil || client.Endpoint.Origin != ep.Origin || client.Endpoint.Cookie != ep.Cookie {
 		return nil, ""
 	}
-	if !petSettings && (asst == nil || asst.Snapshot().Mode != assiststore.ModeWhale) {
+	if !petSettings && (asst == nil || asst.Snapshot().Value.Mode != assiststore.ModeWhale) {
 		return nil, ""
 	}
 	s.mu.Lock()
@@ -110,7 +111,7 @@ func (s *Service) WhalePreferencesModel(ep harness.Endpoint) assistantui.WhalePr
 			defer cancel()
 			var value pluginrpc.WhalePreferences
 			var catalog *api.ModelCatalog
-			var modelErr string
+			var modelErr *state.Fault
 			execute := func() error {
 				if !current() || !editor.Current(ticket) {
 					return fmt.Errorf("Whale editor changed")
@@ -145,7 +146,7 @@ func (s *Service) WhalePreferencesModel(ep harness.Endpoint) assistantui.WhalePr
 						return fmt.Errorf("Whale editor changed")
 					}
 					if e := client.Call(ctx, "session/modelCatalog", map[string]any{}, catalog); e != nil {
-						modelErr = e.Error()
+						modelErr = state.FaultOf(e)
 					}
 				}
 				return nil
@@ -156,7 +157,7 @@ func (s *Service) WhalePreferencesModel(ep harness.Endpoint) assistantui.WhalePr
 			}
 		}()
 	}
-	state := editor.Snapshot()
+	state := editor.Snapshot().Value
 	if hostKey == "" {
 		state = assiststore.WhalePreferencesSnapshot{}
 	}
@@ -173,7 +174,7 @@ func (s *Service) WhalePreferencesModel(ep harness.Endpoint) assistantui.WhalePr
 			if !current() {
 				return
 			}
-			draft := editor.Snapshot()
+			draft := editor.Snapshot().Value
 			run(&assiststore.WhalePreferencesCommand{Action: action, Route: draft.Route, IMDefault: draft.IMDefault})
 		},
 		OnToggleSkill: func(name string, enabled bool) {
@@ -200,7 +201,7 @@ func (s *Service) WhaleSettingsModel(ep harness.Endpoint) assistantui.WhaleSetti
 	}
 	cli := host.PluginRPCClient(ep)
 	write := func(action string) {
-		if !current() || s.whaleSettings.Preferences.Snapshot().Busy {
+		if !current() || s.whaleSettings.Preferences.Snapshot().Value.Busy {
 			return
 		}
 		release, allowed := s.whaleSettings.BeginMutation(hostKey)
@@ -288,7 +289,7 @@ func (s *Service) WhaleSettingsModel(ep harness.Endpoint) assistantui.WhaleSetti
 		}()
 	}
 	preferences := s.WhalePreferencesModel(ep)
-	state := s.whaleSettings.Snapshot()
+	state := s.whaleSettings.Snapshot().Value
 	state.Busy = state.Busy || preferences.State.Busy
 	if hostKey == "" {
 		state = assiststore.WhaleSettingsSnapshot{}
@@ -520,10 +521,10 @@ func (s *Service) WhaleTasksModel(ep harness.Endpoint) assistantui.WhaleTasksMod
 			}
 		}()
 	}
-	snap := s.whaleTasks.Snapshot()
-	if current() && !snap.Loaded && !snap.Busy && snap.Error == "" {
+	snap := s.whaleTasks.Snapshot().Value
+	if current() && !snap.Loaded && !snap.Busy && snap.Error == nil {
 		execute("refresh", "")
-		snap = s.whaleTasks.Snapshot()
+		snap = s.whaleTasks.Snapshot().Value
 	}
 	return assistantui.WhaleTasksModel{
 		State:       snap,
@@ -564,7 +565,7 @@ func (s *Service) WhaleTasksModel(ep harness.Endpoint) assistantui.WhaleTasksMod
 				return
 			}
 			found := false
-			for _, task := range s.whaleTasks.Snapshot().Catalog.Tasks {
+			for _, task := range s.whaleTasks.Snapshot().Value.Catalog.Tasks {
 				found = found || task.Execution != nil && task.Execution.SessionID == id
 			}
 			if !found {
