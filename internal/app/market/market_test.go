@@ -98,9 +98,9 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 			coord.SetClient(client)
 			coord.RunCatalogInstall(target)
 
-			waitMarketFixture(t, func() bool { return !coord.ViewSnapshot().WorkerBusy })
+			waitMarketFixture(t, func() bool { return !coord.ViewSnapshot().Value.WorkerBusy })
 			waitMarketFixture(t, func() bool { return !store.Snapshot().Value.Loading })
-			message := coord.ViewSnapshot().InstallMsg
+			message := coord.ViewSnapshot().Value.InstallMsg
 
 			history := marketstore.NewWithPersonalPath(historyPath).Personal().History
 			if len(history) != 1 || history[0].Result != application || history[0].Plugin != "fixture/plugin" {

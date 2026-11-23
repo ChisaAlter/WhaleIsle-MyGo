@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -11,6 +13,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	manager "whaleisle/internal/pluginmanager"
+	"whaleisle/internal/state"
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/i18n"
 )
@@ -39,7 +42,8 @@ type Attempt struct {
 	ContinueBatch bool
 }
 
-// ViewSnapshot is a value copy describing all UI-relevant market coordinator state.
+// ViewSnapshot is the published, immutable view of all UI-relevant market
+// coordinator state; AllowBuilds and Incompatible are shared, not copied.
 type ViewSnapshot struct {
 	Store            *marketstore.Store
 	Open             bool
@@ -57,6 +61,8 @@ type ViewSnapshot struct {
 	Owner            Owner
 	WorkerBusy       bool
 	RepairBusy       bool
+
+	env restartEnv // the shell environment this view was built against
 }
 
 type nativePluginBinding struct {
@@ -109,6 +115,9 @@ type Coordinator struct {
 	pluginEventsReady       bool
 	inventoryDeferred       bool
 	inventoryTraceReady     bool
+
+	view    state.Published[ViewSnapshot]
+	viewEnv restartEnv
 }
 
 // NewCoordinator constructs a marketplace Coordinator attached to optional HostDeps.
@@ -126,7 +135,7 @@ func (c *Coordinator) EnsureStore() *marketstore.Store {
 		c.store = marketstore.New()
 	}
 	st := c.store
-	c.mu.Unlock()
+	c.unlockPublish()
 	return st
 }
 
@@ -134,14 +143,14 @@ func (c *Coordinator) EnsureStore() *marketstore.Store {
 func (c *Coordinator) SetStore(st *marketstore.Store) {
 	c.mu.Lock()
 	c.store = st
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 
 // SetClient sets the coordinator's active Host transport without touching shell mutexes.
 func (c *Coordinator) SetClient(client *dsh.Client) {
 	c.mu.Lock()
 	c.client = client
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 
 // AttachHost binds a connected DSH client and managed profile directory to the
@@ -162,7 +171,7 @@ func (c *Coordinator) attachHost(client *dsh.Client, managedProfileDir string, o
 	c.mu.Lock()
 	c.client = client
 	c.profileDir = managedProfileDir
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.sidebarPlugins.clear()
 	store.SetUpdateProfileDir(managedProfileDir)
 	store.Attach(client, onRefresh)
@@ -181,15 +190,15 @@ func (c *Coordinator) attachHost(client *dsh.Client, managedProfileDir string, o
 func (c *Coordinator) WorkspaceReady(client *dsh.Client) bool {
 	c.mu.Lock()
 	if client == nil || c.nativePlugins.client != client {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return false
 	}
 	if !c.inventoryDeferred {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return true
 	}
 	c.inventoryDeferred = false
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.ensureInventory()
 	return true
 }
@@ -202,7 +211,7 @@ func (c *Coordinator) DetachHost() {
 	c.client = nil
 	c.profileDir = ""
 	store := c.store
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.sidebarPlugins.clear()
 	if store != nil {
 		store.SetUpdateProfileDir("")
@@ -238,7 +247,7 @@ func (c *Coordinator) SetOpen(open bool) {
 	}
 	c.mu.Lock()
 	c.open = open
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 
 // SetManagerMode selects native plugin manager vs discovery market view.
@@ -248,7 +257,7 @@ func (c *Coordinator) SetManagerMode(managerMode bool) {
 	}
 	c.mu.Lock()
 	c.managerMode = managerMode
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 
 // ManagerMode reports whether native plugin manager mode is active inside market.
@@ -268,7 +277,7 @@ func (c *Coordinator) SetInstallSpec(spec string) {
 	}
 	c.mu.Lock()
 	c.installSpec = spec
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 
 // CommitInstallSpec updates installSpec only if it still matches expected before-frame value.
@@ -280,7 +289,7 @@ func (c *Coordinator) CommitInstallSpec(before, next string) {
 	if c.installSpec == before {
 		c.installSpec = next
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 
 // InstallSpecPointer exposes a shell-safe read-only or mutable spec helper via ViewSnapshot.
@@ -294,15 +303,29 @@ func (c *Coordinator) CaptureOwner(store *marketstore.Store) Owner {
 	return Owner{Client: c.client, Store: store, Generation: gen}
 }
 
-// ViewSnapshot returns a consistent point-in-time snapshot for UI rendering.
-func (c *Coordinator) ViewSnapshot() ViewSnapshot {
-	env := c.hostEnv()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	var gen uint64
-	if c.store != nil {
-		gen = c.store.RuntimeToken()
+// restartEnv is the part of the shell's HostEnvSnapshot the published view
+// depends on; ViewSnapshot republishes when it changes.
+type restartEnv struct {
+	hasSupervisor, taskRestartPending, hostStarting bool
+}
+
+func restartEnvOf(env HostEnvSnapshot) restartEnv {
+	return restartEnv{hasSupervisor: env.HasSupervisor, taskRestartPending: env.TaskRestartPending, hostStarting: env.HostStarting}
+}
+
+// storeRuntime reads the store's published RuntimeToken without its lock.
+func storeRuntime(st *marketstore.Store) uint64 {
+	if st == nil {
+		return 0
 	}
+	return st.Snapshot().Value.Runtime
+}
+
+// buildViewLocked assembles the view from the coordinator's fields, the
+// last observed shell environment and the store's published runtime token.
+// Slices are shared: allowBuilds and incompatible are replaced wholesale.
+func (c *Coordinator) buildViewLocked() ViewSnapshot {
+	env := c.viewEnv
 	return ViewSnapshot{
 		Store:            c.store,
 		Open:             c.open,
@@ -313,15 +336,45 @@ func (c *Coordinator) ViewSnapshot() ViewSnapshot {
 		InstallMsg:       c.installMsg,
 		InstallLog:       c.installLog,
 		Activation:       c.activation,
-		CanRestart:       env.HasSupervisor && c.worker == nil && !env.TaskRestartPending && !env.HostStarting,
+		CanRestart:       env.hasSupervisor && c.worker == nil && !env.taskRestartPending && !env.hostStarting,
 		NeedsAllowBuilds: c.needsAllowBuilds,
-		AllowBuilds:      append([]string(nil), c.allowBuilds...),
-		Incompatible:     append([]api.ChangeResultErrorIncompatibleItem(nil), c.incompatible...),
-		Owner:            Owner{Client: c.client, Store: c.store, Generation: gen},
+		AllowBuilds:      c.allowBuilds,
+		Incompatible:     c.incompatible,
+		Owner:            Owner{Client: c.client, Store: c.store, Generation: storeRuntime(c.store)},
 		WorkerBusy:       c.worker != nil,
 		RepairBusy:       c.repairBusy,
+		env:              env,
 	}
 }
+
+// unlockPublish publishes the view if it differs from the current version,
+// then releases c.mu. Every critical section that may have changed a view
+// field ends with it; sections that changed nothing mint no revision.
+func (c *Coordinator) unlockPublish() {
+	next := c.buildViewLocked()
+	if v := c.view.Load(); v == nil || !viewEqual(v.Value, next) {
+		c.view.Publish(next)
+	}
+	c.mu.Unlock()
+}
+
+// ViewSnapshot returns the published point-in-time view for UI rendering.
+// The same *Version is shared until a coordinator change, a new shell
+// environment or a store reattachment publishes the next revision; the
+// fast path neither locks the coordinator nor copies.
+func (c *Coordinator) ViewSnapshot() *state.Version[ViewSnapshot] {
+	env := restartEnvOf(c.hostEnv())
+	if v := c.view.Load(); v != nil && v.Value.env == env && v.Value.Owner.Generation == storeRuntime(v.Value.Store) {
+		return v
+	}
+	c.mu.Lock()
+	c.viewEnv = env
+	c.unlockPublish()
+	return c.view.Load()
+}
+
+// ViewChanged closes when the next view version is published.
+func (c *Coordinator) ViewChanged() <-chan struct{} { return c.view.Changed() }
 
 // IsBusy reports whether an install worker, generic install, or startup repair owns the market slot.
 func (c *Coordinator) IsBusy() bool {
@@ -341,19 +394,19 @@ func (c *Coordinator) TryAcquireRepairSlot() (release func(), ok bool) {
 	}
 	c.mu.Lock()
 	if c.worker != nil || c.installBusy || c.repairBusy {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return nil, false
 	}
 	c.installBusy = true
 	c.repairBusy = true
-	c.mu.Unlock()
+	c.unlockPublish()
 	var once sync.Once
 	return func() {
 		once.Do(func() {
 			c.mu.Lock()
 			c.installBusy = false
 			c.repairBusy = false
-			c.mu.Unlock()
+			c.unlockPublish()
 		})
 	}, true
 }
@@ -417,7 +470,7 @@ func (c *Coordinator) ListPluginsForInstallControl(ctx context.Context, refresh 
 func (c *Coordinator) installedBundles(ctx context.Context, refresh bool) ([]manager.Bundle, bool) {
 	c.mu.Lock()
 	source := c.inventorySource
-	c.mu.Unlock()
+	c.unlockPublish()
 	if source == nil {
 		return nil, false
 	}
@@ -476,4 +529,18 @@ func marketInstallRequestID() string {
 
 func (c *Coordinator) currentAttemptLocked(op *Attempt) bool {
 	return op != nil && c.active == op && op.Client == c.client && op.Store == c.store && (op.Store == nil || op.Store.RuntimeToken() == op.Generation)
+}
+
+// viewEqual compares two views field by field. Store and Client are
+// compared by identity — a deep comparison would walk live objects — and
+// the data slices by value.
+func viewEqual(a, b ViewSnapshot) bool {
+	return a.Store == b.Store && a.Open == b.Open && a.Manager == b.Manager &&
+		a.InstallSpec == b.InstallSpec && a.InstallBusy == b.InstallBusy &&
+		a.CanCancelInstall == b.CanCancelInstall && a.InstallMsg == b.InstallMsg &&
+		a.InstallLog == b.InstallLog && a.Activation == b.Activation &&
+		a.CanRestart == b.CanRestart && a.NeedsAllowBuilds == b.NeedsAllowBuilds &&
+		slices.Equal(a.AllowBuilds, b.AllowBuilds) && reflect.DeepEqual(a.Incompatible, b.Incompatible) &&
+		a.Owner == b.Owner && a.WorkerBusy == b.WorkerBusy && a.RepairBusy == b.RepairBusy &&
+		a.env == b.env
 }

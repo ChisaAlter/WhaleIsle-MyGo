@@ -3209,7 +3209,7 @@ func mainView(c *ui.Context) {
 	state.restoreResumeSelection()
 	state.refreshPetTask()
 	marketStore := state.marketCoordinator().EnsureStore()
-	marketSnap := state.marketCoordinator().ViewSnapshot()
+	marketSnap := state.marketCoordinator().ViewSnapshot().Value
 	marketCanRestart := marketSnap.CanRestart
 	assistantOpen := asstSvc.Open()
 	state.mu.Lock()

@@ -32,7 +32,7 @@ func (c *Coordinator) AttachInventory(client *dsh.Client) {
 	if client != nil {
 		c.mu.Lock()
 		source := c.inventorySource
-		c.mu.Unlock()
+		c.unlockPublish()
 		if source != nil {
 			caller = source
 		} else {
@@ -47,7 +47,7 @@ func (c *Coordinator) AttachInventory(client *dsh.Client) {
 func (c *Coordinator) RefreshInventory() {
 	c.mu.Lock()
 	source := c.inventorySource
-	c.mu.Unlock()
+	c.unlockPublish()
 	if source != nil {
 		source.InvalidateInventory()
 	}
@@ -58,7 +58,7 @@ func (c *Coordinator) acceptInventory(source *manager.HostInventory, host uint64
 	c.mu.Lock()
 	current := c.inventorySource == source
 	ctrl := c.nativePlugins.controller
-	c.mu.Unlock()
+	c.unlockPublish()
 	if !current {
 		return
 	}
@@ -70,7 +70,7 @@ func (c *Coordinator) acceptInventory(source *manager.HostInventory, host uint64
 		if first {
 			c.inventoryTraceReady = true
 		}
-		c.mu.Unlock()
+		c.unlockPublish()
 		if first {
 			startuptrace.Mark("plugins.inventory_ready")
 			// workspace.ready may already have completed the trace writer.
@@ -91,21 +91,21 @@ func (c *Coordinator) ensureInventory() {
 	c.mu.Lock()
 	c.inventoryRefreshPending = true
 	if c.inventoryRefreshRunning {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.inventoryRefreshRunning = true
-	c.mu.Unlock()
+	c.unlockPublish()
 	go func() {
 		for {
 			c.mu.Lock()
 			if !c.inventoryRefreshPending {
 				c.inventoryRefreshRunning = false
-				c.mu.Unlock()
+				c.unlockPublish()
 				return
 			}
 			c.inventoryRefreshPending = false
-			c.mu.Unlock()
+			c.unlockPublish()
 			ctx, cancel := context.WithTimeout(c.lifecycleContext(), 30*time.Second)
 			c.pluginInventory.Refresh(ctx)
 			cancel()

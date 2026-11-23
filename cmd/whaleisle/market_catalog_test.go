@@ -82,9 +82,9 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 			coord.SetClient(client)
 			coord.SetStore(store)
 			s.runMarketCatalogInstall(target)
-			waitCatalogFixture(t, func() bool { return !coord.ViewSnapshot().WorkerBusy })
+			waitCatalogFixture(t, func() bool { return !coord.ViewSnapshot().Value.WorkerBusy })
 			waitCatalogFixture(t, func() bool { return !store.Snapshot().Value.Loading })
-			message := coord.ViewSnapshot().InstallMsg
+			message := coord.ViewSnapshot().Value.InstallMsg
 			history := marketstore.NewWithPersonalPath(historyPath).Personal().History
 			if len(history) != 1 || history[0].Result != application || history[0].Plugin != "fixture/plugin" {
 				t.Fatalf("incorrect persisted history: %+v", history)
@@ -108,7 +108,7 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 func TestMarketInstallBlockedWithoutRuntimeReportsWhy(t *testing.T) {
 	s := &mainState{}
 	s.runMarketCatalogInstall(marketstore.InstallTarget{})
-	message := s.marketCoordinator().ViewSnapshot().InstallMsg
+	message := s.marketCoordinator().ViewSnapshot().Value.InstallMsg
 	if message == "" {
 		t.Fatal("a blocked install left the market with no message")
 	}

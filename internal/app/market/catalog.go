@@ -51,7 +51,7 @@ func (c *Coordinator) Invalidate() {
 		return
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	defer c.unlockPublish()
 	if c.active != nil {
 		c.active.Cancel()
 		if c.active.Store != nil && c.active.ReceiptID != "" {
@@ -84,19 +84,19 @@ func (c *Coordinator) RunCatalogInstall(target marketstore.InstallTarget) {
 		default:
 			c.installMsg = marketMessage("正在刷新插件目录，请稍后重试。", "The catalog is refreshing; try again in a moment.")
 		}
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	if err := c.store.ValidateTarget(target); err != nil {
 		c.installMsg = err.Error()
 		c.clearBatchLocked()
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.catalogTarget = &target
 	c.installSpec = target.Spec
 	owner := Owner{Client: c.client, Store: c.store, Generation: c.store.RuntimeToken()}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.RunInstallForOwner(target.Spec, nil, &owner)
 }
 
@@ -113,7 +113,7 @@ func (c *Coordinator) BeginAttemptForOwner(spec string, allow []string, install 
 		return nil, ""
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	defer c.unlockPublish()
 
 	if expected != nil && (c.client != expected.Client || c.store != expected.Store || (expected.Store != nil && expected.Store.RuntimeToken() != expected.Generation)) {
 		return nil, ""
@@ -283,7 +283,7 @@ func (c *Coordinator) finishAttempt(op *Attempt, r marketResult, install bool) {
 	env := c.hostEnv()
 	c.mu.Lock()
 	if !c.currentAttemptLocked(op) {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.active = nil
@@ -330,7 +330,7 @@ func (c *Coordinator) finishAttempt(op *Attempt, r marketResult, install bool) {
 	if op.Method == "pluginManager/setVersionExemption" && r.accepted {
 		c.incompatible = nil
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 
 	awaitingUpdateApproval := op.Target != nil && op.Target.UpdateVersion != "" &&
 		(len(r.pending) > 0 || len(r.incompatible) > 0 || (op.Method == "pluginManager/setVersionExemption" && r.accepted))
@@ -352,7 +352,7 @@ func (c *Coordinator) releaseAttempt(op *Attempt) {
 			next = &t
 		}
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	if next != nil {
 		c.RunCatalogInstall(*next)
 	}
@@ -498,7 +498,7 @@ func (c *Coordinator) AcceptExemption(packageVersion, runtimeVersion string) {
 	if valid && a.Target != nil {
 		valid = c.store != nil && c.store.ValidateTarget(*a.Target) == nil
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	if !valid || !match {
 		return
 	}
@@ -515,11 +515,11 @@ func (c *Coordinator) CancelInstall() {
 	c.mu.Lock()
 	op := c.active
 	if !c.currentAttemptLocked(op) || op.Client == nil || op.RequestID == "" || op.CancelPending {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	op.CancelPending = true
-	c.mu.Unlock()
+	c.unlockPublish()
 
 	go func() {
 		var out api.PluginInstallCancellation
@@ -531,7 +531,7 @@ func (c *Coordinator) CancelInstall() {
 		}
 		c.mu.Lock()
 		if !c.currentAttemptLocked(op) {
-			c.mu.Unlock()
+			c.unlockPublish()
 			return
 		}
 		op.CancelPending = false
@@ -549,7 +549,7 @@ func (c *Coordinator) CancelInstall() {
 				c.installMsg = fmt.Sprintf("Unknown cancellation status: %s", out.Status)
 			}
 		}
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.updateUI()
 	}()
 }

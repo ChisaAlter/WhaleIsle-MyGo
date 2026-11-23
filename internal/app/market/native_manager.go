@@ -19,7 +19,7 @@ func (c *Coordinator) NativeController() *manager.Controller {
 		c.nativePlugins.controller = manager.New()
 	}
 	ctrl := c.nativePlugins.controller
-	c.mu.Unlock()
+	c.unlockPublish()
 
 	if created {
 		deps := c.deps
@@ -59,7 +59,7 @@ func (c *Coordinator) bindNativePluginManagerCaller(client *dsh.Client, caller m
 	c.pluginEventsReady = false
 	c.inventoryDeferred = deferred && caller != nil
 	c.inventoryTraceReady = false
-	c.mu.Unlock()
+	c.unlockPublish()
 	if oldSource != nil {
 		oldSource.Close()
 	}
@@ -72,7 +72,7 @@ func (c *Coordinator) bindNativePluginManagerCaller(client *dsh.Client, caller m
 	c.mu.Lock()
 	c.inventorySource = source
 	store := c.store
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.AttachInventory(client)
 	inventoryHost = c.pluginInventory.Snapshot().Value.Host
 	if caller == nil {
@@ -84,7 +84,7 @@ func (c *Coordinator) bindNativePluginManagerCaller(client *dsh.Client, caller m
 	c.mu.Lock()
 	c.nativePlugins.client = client
 	c.nativePlugins.owner = ctrl.Snapshot().Value.Owner
-	c.mu.Unlock()
+	c.unlockPublish()
 	if store != nil {
 		if source == nil {
 			store.SetInventoryCaller(nil)
@@ -107,7 +107,7 @@ func (c *Coordinator) BindNativePluginManager(client *dsh.Client) {
 func (c *Coordinator) NativeEventHandler(client *dsh.Client) func(dsh.EventsEmit) {
 	c.mu.Lock()
 	binding := c.nativePlugins
-	c.mu.Unlock()
+	c.unlockPublish()
 	if client == nil || binding.client != client || binding.controller == nil {
 		return func(dsh.EventsEmit) {}
 	}
@@ -148,14 +148,14 @@ func (c *Coordinator) NativeEventHandler(client *dsh.Client) func(dsh.EventsEmit
 func (c *Coordinator) HostEventsReady(client *dsh.Client) {
 	c.mu.Lock()
 	if client == nil || c.nativePlugins.client != client {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	reconnect := c.pluginEventsReady
 	c.pluginEventsReady = true
 	deferred := c.inventoryDeferred
 	ctrl, owner := c.nativePlugins.controller, c.nativePlugins.owner
-	c.mu.Unlock()
+	c.unlockPublish()
 	if reconnect {
 		c.refreshChangedInventory()
 	} else if !deferred {
@@ -172,7 +172,7 @@ func (c *Coordinator) refreshChangedInventory() {
 	ctrl := c.nativePlugins.controller
 	store := c.store
 	deferred := c.inventoryDeferred
-	c.mu.Unlock()
+	c.unlockPublish()
 	if source != nil {
 		source.InvalidateInventory()
 	}
@@ -206,7 +206,7 @@ func (c *Coordinator) InstalledPluginState(name string) manager.InstalledPluginS
 	}
 	c.mu.Lock()
 	ctrl := c.nativePlugins.controller
-	c.mu.Unlock()
+	c.unlockPublish()
 	if ctrl == nil {
 		return manager.InstalledPluginState{}
 	}

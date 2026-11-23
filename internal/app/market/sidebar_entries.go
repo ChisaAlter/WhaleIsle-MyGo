@@ -20,7 +20,7 @@ func (c *Coordinator) SidebarPlugins(locale string) []manager.SidebarPluginEntry
 	client := c.client
 	profileDir := c.profileDir
 	store := c.store
-	c.mu.Unlock()
+	c.unlockPublish()
 	if client == nil {
 		return nil
 	}
