@@ -42,6 +42,21 @@ func TestTierCSubsystemsWaitForTheirTrigger(t *testing.T) {
 	if plan.Started("phone.gateway") != 1 || plan.Started("ssh.tunnel") != 1 {
 		t.Fatal("the remote page starts the phone gateway and the cold stores holding the SSH tunnel")
 	}
+	// The cold stores write into the temp profile; let them finish first.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		s.mu.Lock()
+		done := s.coldStoresDone
+		s.mu.Unlock()
+		if done != nil {
+			<-done
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("cold stores never started")
+		}
+		time.Sleep(time.Millisecond)
+	}
 	s.noteRouteUse(routeUpdatePreferences)
 	if plan.Started("update.center") != 1 {
 		t.Fatal("a Tier C group starts once per process")
