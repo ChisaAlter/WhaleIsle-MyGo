@@ -80,10 +80,10 @@ func TestOfficeNativeExplicitReviewAndFallback(t *testing.T) {
 	s.AttachPlugin(&pluginrpc.Client{BaseURL: "http://127.0.0.1", HTTPClient: &http.Client{Transport: f}})
 	s.Office.Show(context.Background())
 	deadline := time.Now().Add(2 * time.Second)
-	for s.Office.Snapshot().Busy && time.Now().Before(deadline) {
+	for s.Office.Snapshot().Value.Busy && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if !s.Office.Snapshot().Loaded {
+	if !s.Office.Snapshot().Value.Loaded {
 		t.Fatal("fixture status not loaded")
 	}
 	fallback := false
@@ -107,7 +107,7 @@ func TestOfficeNativeExplicitReviewAndFallback(t *testing.T) {
 	if e := tt.Click("取消"); e != nil {
 		t.Fatal(e)
 	}
-	if f.calls.Load() != 1 || s.Office.Snapshot().ReviewAction != "" {
+	if f.calls.Load() != 1 || s.Office.Snapshot().Value.ReviewAction != "" {
 		t.Fatal("cancel mutated")
 	}
 	if e := tt.Click("Office 页面选项"); e != nil {
@@ -116,7 +116,7 @@ func TestOfficeNativeExplicitReviewAndFallback(t *testing.T) {
 	if e := tt.ChooseMenuItem("打开原版插件页面"); e != nil {
 		t.Fatal(e)
 	}
-	if !fallback || s.Office.Snapshot().Open {
+	if !fallback || s.Office.Snapshot().Value.Open {
 		t.Fatal("fallback or close isolation failed")
 	}
 }

@@ -19,7 +19,7 @@ func SettingsView(c *ui.Context, m Model) {
 		return
 	}
 	v := m.Store.Onboarding.Snapshot()
-	office := m.Store.Office.Snapshot()
+	office := m.Store.Office.Snapshot().Value
 	if !v.Open && !office.Open {
 		m.Store.Onboarding.Show("weixin")
 		v = m.Store.Onboarding.Snapshot()

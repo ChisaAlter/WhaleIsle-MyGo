@@ -42,7 +42,7 @@ func View(c *ui.Context, m Model) {
 		onboardingView(c, m)
 		return
 	}
-	if m.Store != nil && m.Store.Office.Snapshot().Open {
+	if m.Store != nil && m.Store.Office.Snapshot().Value.Open {
 		officeSettingsView(c, m)
 		return
 	}

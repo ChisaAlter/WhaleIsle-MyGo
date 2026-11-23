@@ -71,16 +71,16 @@ func setup(t *testing.T) (*Store, *fixtureTransport) {
 func wait(t *testing.T, s *Store) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second * 3)
-	for s.Snapshot().Busy && time.Now().Before(deadline) {
+	for s.Snapshot().Value.Busy && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if s.Snapshot().Busy {
+	if s.Snapshot().Value.Busy {
 		t.Fatal("operation stuck")
 	}
 }
 func TestOfficeStatusAndSecretBoundary(t *testing.T) {
 	s, f := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	if !v.Loaded || v.Status.Connected || !v.Status.Configured || v.Draft.DeviceToken != "" {
 		t.Fatal("bad normalized status")
 	}
@@ -94,7 +94,7 @@ func TestOfficeStatusAndSecretBoundary(t *testing.T) {
 }
 func TestOfficeExplicitSavePreflightAndBlankTokenOmission(t *testing.T) {
 	s, f := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	d := v.Draft
 	d.HeartbeatSeconds = "31"
 	if !s.Edit(v.Scope, d) || !s.Review(v.Scope, "configure") {
@@ -115,14 +115,14 @@ func TestOfficeExplicitSavePreflightAndBlankTokenOmission(t *testing.T) {
 	if len(p) != 6 || p["deviceToken"] != nil || p["expectedRevision"] != nil {
 		t.Fatal("invented or blank credential payload")
 	}
-	v = s.Snapshot()
+	v = s.Snapshot().Value
 	if !strings.Contains(v.Notice, "尚未连接") || v.Dirty || v.Status.Connected {
 		t.Fatal(v.Notice)
 	}
 }
 func TestOfficeDraftConflictBlocksWrites(t *testing.T) {
 	s, f := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	d := v.Draft
 	d.HeartbeatSeconds = "42"
 	s.Edit(v.Scope, d)
@@ -130,7 +130,7 @@ func TestOfficeDraftConflictBlocksWrites(t *testing.T) {
 	f.status = strings.Replace(configured, "device-one", "device-other", 1)
 	s.Confirm(context.Background(), v.Scope)
 	wait(t, s)
-	v = s.Snapshot()
+	v = s.Snapshot().Value
 	if len(f.calls) != 2 || !v.Conflict || v.Draft.HeartbeatSeconds != "42" {
 		t.Fatal("conflict overwritten")
 	}
@@ -138,13 +138,13 @@ func TestOfficeDraftConflictBlocksWrites(t *testing.T) {
 		t.Fatal("conflict remained writable")
 	}
 	s.Discard(v.Scope)
-	if s.Snapshot().Draft.DeviceID != "device-other" || s.Snapshot().Conflict {
+	if s.Snapshot().Value.Draft.DeviceID != "device-other" || s.Snapshot().Value.Conflict {
 		t.Fatal("explicit discard failed")
 	}
 }
 func TestOfficeHostEpochDropsLateResultsAndToken(t *testing.T) {
 	s, f := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	d := v.Draft
 	d.DeviceToken = strings.Repeat("x", 40)
 	s.Edit(v.Scope, d)
@@ -156,7 +156,7 @@ func TestOfficeHostEpochDropsLateResultsAndToken(t *testing.T) {
 	s.Bind(nil, 2, nil)
 	close(gate)
 	wait(t, s)
-	v = s.Snapshot()
+	v = s.Snapshot().Value
 	if v.Loaded || v.Draft.DeviceToken != "" || v.Host != "" {
 		t.Fatal("old host data survived")
 	}
@@ -168,14 +168,14 @@ func TestOfficeNoFalseTestOrRemoveSuccess(t *testing.T) {
 	for _, action := range []string{"test", "remove"} {
 		t.Run(action, func(t *testing.T) {
 			s, f := setup(t)
-			v := s.Snapshot()
+			v := s.Snapshot().Value
 			f.response["connector."+action] = configured
 			if !s.Review(v.Scope, action) {
 				t.Fatal("review")
 			}
 			s.Confirm(context.Background(), v.Scope)
 			wait(t, s)
-			v = s.Snapshot()
+			v = s.Snapshot().Value
 			if v.Notice != "" || v.Fresh || v.Error == "" {
 				t.Fatal("false success")
 			}
@@ -184,7 +184,7 @@ func TestOfficeNoFalseTestOrRemoveSuccess(t *testing.T) {
 }
 func TestOfficeWriteOnlyAndNoAutomaticRetry(t *testing.T) {
 	s, f := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	d := v.Draft
 	d.DeviceToken = strings.Repeat("fixture-token-", 4)
 	s.Edit(v.Scope, d)
@@ -192,7 +192,7 @@ func TestOfficeWriteOnlyAndNoAutomaticRetry(t *testing.T) {
 	f.response["connector.configure"] = `null`
 	s.Confirm(context.Background(), v.Scope)
 	wait(t, s)
-	v = s.Snapshot()
+	v = s.Snapshot().Value
 	b, _ := json.Marshal(v)
 	if v.Draft.DeviceToken != "" || strings.Contains(string(b), "fixture-token") || len(f.calls) != 3 || v.Fresh {
 		t.Fatal("write error leaked or retried")
@@ -200,7 +200,7 @@ func TestOfficeWriteOnlyAndNoAutomaticRetry(t *testing.T) {
 }
 func TestOfficePostSaveRuntimeFailureRequiresRefreshAndReconcilesSavedDraft(t *testing.T) {
 	s, f := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	d := v.Draft
 	d.HeartbeatSeconds = "31"
 	if !s.Edit(v.Scope, d) || !s.Review(v.Scope, "configure") {
@@ -211,7 +211,7 @@ func TestOfficePostSaveRuntimeFailureRequiresRefreshAndReconcilesSavedDraft(t *t
 		t.Fatal("confirm rejected")
 	}
 	wait(t, s)
-	v = s.Snapshot()
+	v = s.Snapshot().Value
 	if v.Fresh || !v.Dirty || v.Draft.HeartbeatSeconds != "31" || !strings.Contains(v.Error, "office-operation-failed") {
 		t.Fatalf("post-save failure treated as pre-write refusal: %+v", v)
 	}
@@ -220,7 +220,7 @@ func TestOfficePostSaveRuntimeFailureRequiresRefreshAndReconcilesSavedDraft(t *t
 	f.mu.Unlock()
 	s.Refresh(context.Background())
 	wait(t, s)
-	v = s.Snapshot()
+	v = s.Snapshot().Value
 	if !v.Fresh || v.Dirty || v.Conflict || v.Status.Config.HeartbeatSeconds != 31 {
 		t.Fatalf("refresh after post-save failure did not reconcile saved draft: %+v", v)
 	}
@@ -229,13 +229,13 @@ func TestOfficePostSaveRuntimeFailureRequiresRefreshAndReconcilesSavedDraft(t *t
 		t.Fatal("test review/confirm rejected")
 	}
 	wait(t, s)
-	if v = s.Snapshot(); !v.Fresh || !strings.Contains(v.Error, "office-hook-unavailable") {
+	if v = s.Snapshot().Value; !v.Fresh || !strings.Contains(v.Error, "office-hook-unavailable") {
 		t.Fatalf("read-only test probe failure invalidated fresh status: %+v", v)
 	}
 }
 func TestOfficeValidationAndEndpointIdentity(t *testing.T) {
 	s, _ := setup(t)
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	cases := []Draft{v.Draft, v.Draft, v.Draft, v.Draft}
 	cases[0].BaseURL = "http://public.example"
 	cases[1].Workspaces = "bad=relative"
