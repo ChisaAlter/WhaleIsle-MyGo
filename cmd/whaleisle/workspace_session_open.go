@@ -162,11 +162,11 @@ func (s *mainState) openGlobalWorkspaceSession(win *mygo.Window, sessions *sessi
 		return
 	}
 	state := sessions.Snapshot()
-	if !state.WorkspaceReady || state.WorkspaceError != "" {
+	if !state.WorkspaceReady || state.WorkspaceError != nil {
 		// Two different states used to share one waiting sentence. Without a
 		// workspace there is nothing to reconnect to: the next step is picking a
 		// folder, and the sentence has to say so.
-		if state.WorkspaceError == "" && strings.TrimSpace(sessions.WorkspaceCwd()) == "" {
+		if state.WorkspaceError == nil && strings.TrimSpace(sessions.WorkspaceCwd()) == "" {
 			sessions.SetLastAction(directoryPickerText("还没有选择工作区。请先选择一个文件夹，再开始新会话。", "No workspace is chosen yet. Pick a folder first, then start a new conversation."))
 			return
 		}

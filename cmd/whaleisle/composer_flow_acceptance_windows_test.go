@@ -396,8 +396,8 @@ func runComposerFlowQA() error {
 		ctx := context.Background()
 		if err := waitStore(deadline, "workspace ready", func() (bool, error) {
 			v := sessions.Snapshot()
-			if v.ListErr != "" {
-				return false, fmt.Errorf("%s", v.ListErr)
+			if v.ListErr != nil {
+				return false, errors.New(v.ListErr.SentenceText())
 			}
 			return v.WorkspaceReady && !v.ListLoading, nil
 		}); err != nil {

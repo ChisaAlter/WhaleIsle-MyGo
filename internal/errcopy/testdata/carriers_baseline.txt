@@ -88,7 +88,6 @@
 ../store/session/queue.go	rawerr	1
 ../store/session/queue_editor.go	rawerr	2
 ../store/session/rename.go	rawerr	2
-../store/session/selection_summary.go	rawerr	1
 ../store/session/session_feedback.go	rawerr	1
 ../store/session/skill_directory.go	rawerr	4
 ../store/session/skill_editor.go	rawerr	2
@@ -97,7 +96,7 @@
 ../store/session/speech.go	rawerr	2
 ../store/session/speech_settings.go	fmt	1
 ../store/session/speech_settings.go	rawerr	1
-../store/session/store.go	rawerr	15
+../store/session/store.go	rawerr	13
 ../store/session/submission_recovery.go	rawerr	1
 ../store/session/submission_watch.go	rawerr	1
 ../store/session/turn_deliverables.go	rawerr	2

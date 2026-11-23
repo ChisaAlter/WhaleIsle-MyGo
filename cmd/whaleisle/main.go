@@ -1596,7 +1596,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.recordStartupWorkspaceReady(sessions)
 		if !inventoryReleased.Load() {
 			v := sessions.Snapshot()
-			if (v.ClientReady && v.WorkspaceReady && !v.ListLoading) || v.WorkspaceError != "" || v.ListErr != "" {
+			if (v.ClientReady && v.WorkspaceReady && !v.ListLoading) || v.WorkspaceError != nil || v.ListErr != nil {
 				if s.marketCoordinator().WorkspaceReady(client) {
 					inventoryReleased.Store(true)
 				}

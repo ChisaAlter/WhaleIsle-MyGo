@@ -3,6 +3,7 @@ package pet
 import (
 	"strings"
 	"testing"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 )
 
@@ -19,11 +20,11 @@ func TestPetTaskStatus(t *testing.T) {
 	if got := TaskFromSession(false, s); got.State != "offline" || got.SessionID != "" {
 		t.Fatal(got)
 	}
-	s.ListErr = "lost"
+	s.ListErr = &state.Fault{Transient: true}
 	if got := TaskFromSession(true, s); got.State != "unknown" || got.SessionID != "" {
 		t.Fatal(got)
 	}
-	s.ListErr = ""
+	s.ListErr = nil
 	s.SelectedID = "missing"
 	if got := TaskFromSession(true, s); got.State != "unknown" {
 		t.Fatal(got)

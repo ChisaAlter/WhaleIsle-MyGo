@@ -16,7 +16,7 @@ func (s *mainState) startScheduleTask(win *mygo.Window, sessions *session.Store)
 }
 
 func scheduleSessionLinkState(snap session.ViewState, id string) string {
-	if snap.WorkspaceError != "" || snap.ListErr != "" {
+	if snap.WorkspaceError != nil || snap.ListErr != nil {
 		return "unavailable"
 	}
 	if !snap.ClientReady || snap.ListLoading || !snap.WorkspaceReady {
@@ -39,7 +39,7 @@ func scheduleSessionLinkState(snap session.ViewState, id string) string {
 // gate. Looking at a task or its receipts never restores an archived session.
 func scheduleSessionLinks(snap session.ViewState) map[string]string {
 	out := map[string]string{}
-	if !snap.ClientReady || snap.ListLoading || snap.ListErr != "" || !snap.WorkspaceReady || snap.WorkspaceError != "" {
+	if !snap.ClientReady || snap.ListLoading || snap.ListErr != nil || !snap.WorkspaceReady || snap.WorkspaceError != nil {
 		return out
 	}
 	archived := map[string]bool{}

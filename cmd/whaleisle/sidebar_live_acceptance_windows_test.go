@@ -402,8 +402,8 @@ func runSidebarDesktop(root, phase string) error {
 				return false, nil
 			}
 			snap := sessions.Snapshot()
-			if snap.ListErr != "" {
-				return false, errors.New(snap.ListErr)
+			if snap.ListErr != nil {
+				return false, errors.New(snap.ListErr.SentenceText())
 			}
 			return snap.ClientReady && !snap.ListLoading && snap.WorkspaceReady, nil
 		})

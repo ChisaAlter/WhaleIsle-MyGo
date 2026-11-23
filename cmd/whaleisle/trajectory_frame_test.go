@@ -129,7 +129,7 @@ func trajectoryFrameStore(t *testing.T, history bool) (*session.Store, *trajecto
 	listDeadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(listDeadline) {
 		snap := store.Snapshot()
-		if !snap.ListLoading && snap.SelectedCwd == transport.root && snap.ListErr == "" {
+		if !snap.ListLoading && snap.SelectedCwd == transport.root && snap.ListErr == nil {
 			break
 		}
 		time.Sleep(time.Millisecond)

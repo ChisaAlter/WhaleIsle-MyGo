@@ -95,7 +95,7 @@ func nativeSettingsAcceptance() error {
 				return false
 			}
 			snap := sessions.Snapshot()
-			return snap.ClientReady && snap.WorkspaceReady && !snap.ListLoading && snap.ListErr == ""
+			return snap.ClientReady && snap.WorkspaceReady && !snap.ListLoading && snap.ListErr == nil
 		}); err != nil {
 			finish(err)
 			return

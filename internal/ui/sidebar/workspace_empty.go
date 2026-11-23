@@ -26,8 +26,11 @@ func workspaceRowsStatus(c *ui.Context, m Model, fg ui.Color) {
 }
 
 func workspaceListFeedback(c *ui.Context, m Model, items []session.Item, fg, muted ui.Color) {
-	if m.Snapshot.ListErr != "" {
-		ui.Text(c, m.Snapshot.ListErr).FontSize(theme.InterfaceSize(12)).TextColor(fg).Padding(8)
+	if m.Snapshot.ListErr != nil {
+		// The classified sentence, never the transport's own words: those stay
+		// in the session store's log line.
+		line := workspaceText("会话列表没有加载：", "Sessions did not load: ") + m.Snapshot.ListErr.SentenceText()
+		ui.Text(c, line).FontSize(theme.InterfaceSize(12)).TextColor(fg).Padding(8)
 		if m.OnRefresh != nil && ui.Button(c, workspaceText("重试加载会话", "Retry loading sessions")).Clicked() {
 			m.OnRefresh()
 		}

@@ -246,7 +246,7 @@ func (m *Manager) TeamModel(win any, client *dsh.Client, id string) projects.Pro
 			team.Members = applySessionRunningStatus(team.Members, snapshot.Items)
 			overview.Team, overview.Project = &team, project
 			model.Overview = &overview
-			model.CountKnown = !model.ActivityStale && team.StatusKnown && team.Failure == "" && snapshot.ClientReady && snapshot.HistoryReady && !snapshot.HistoryLoading && !snapshot.ListLoading && snapshot.ListErr == ""
+			model.CountKnown = !model.ActivityStale && team.StatusKnown && team.Failure == "" && snapshot.ClientReady && snapshot.HistoryReady && !snapshot.HistoryLoading && !snapshot.ListLoading && snapshot.ListErr == nil
 		}
 	}
 	if model.Overview != nil && model.Overview.Team != nil {
