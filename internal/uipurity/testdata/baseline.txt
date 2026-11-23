@@ -36,9 +36,6 @@ internal/ui/chat/whale_ui_panel.go	import	1
 internal/ui/chat/whale_ui_panel.go	timer	1
 internal/ui/chat/whale_ui_tool.go	import	1
 internal/ui/chrome/ambient_gradient.go	go	1
-internal/ui/chrome/wallpaper.go	go	1
-internal/ui/chrome/wallpaper.go	import	1
-internal/ui/chrome/wallpaper_screen.go	go	1
 internal/ui/composer/attachment_display.go	go	1
 internal/ui/composer/attachment_display.go	import	2
 internal/ui/composer/beam_raster.go	go	1
@@ -60,8 +57,6 @@ internal/ui/files/delivery_preview.go	import	1
 internal/ui/files/delivery_source.go	import	1
 internal/ui/files/delivery_source.go	timer	1
 internal/ui/files/files.go	snapshot	1
-internal/ui/files/image_read.go	go	1
-internal/ui/files/markdown_images.go	import	1
 internal/ui/files/media.go	import	1
 internal/ui/files/plan_resource.go	snapshot	1
 internal/ui/files/presented.go	import	1
@@ -102,10 +97,7 @@ internal/ui/im/workspace_picker.go	go	1
 internal/ui/im/workspace_picker.go	snapshot	1
 internal/ui/market/management.go	snapshot	1
 internal/ui/market/market.go	snapshot	1
-internal/ui/market/plugin_artwork.go	go	1
 internal/ui/market/presentation.go	snapshot	1
-internal/ui/market/readme_media.go	go	1
-internal/ui/market/readme_media.go	import	1
 internal/ui/pluginmanager/view.go	snapshot	1
 internal/ui/remote/directory.go	snapshot	1
 internal/ui/remote/directory_picker.go	snapshot	1
@@ -124,8 +116,6 @@ internal/ui/schedule/system_zone_windows.go	import	1
 internal/ui/schedule/timing_picker.go	import	1
 internal/ui/sessioncost/view.go	timer	1
 internal/ui/settings/about.go	snapshot	1
-internal/ui/settings/account_avatar.go	go	1
-internal/ui/settings/account_avatar.go	import	1
 internal/ui/settings/add_provider_editor.go	snapshot	3
 internal/ui/settings/agent_presets.go	go	1
 internal/ui/settings/agent_presets.go	snapshot	1
@@ -140,12 +130,6 @@ internal/ui/settings/search.go	snapshot	1
 internal/ui/settings/served_plugin_body.go	snapshot	2
 internal/ui/settings/settings.go	snapshot	1
 internal/ui/settings/voice_input.go	snapshot	1
-internal/ui/sidebar/account.go	go	1
-internal/ui/sidebar/account.go	import	1
-internal/ui/svgimage/seat.go	go	5
-internal/ui/svgimage/seat.go	timer	1
-internal/ui/svgimage/surface.go	go	3
-internal/ui/svgimage/surface.go	timer	1
 internal/ui/terminal/panel.go	import	1
 internal/ui/terminal/runtime.go	import	1
 internal/ui/theme/gallery.go	import	1
