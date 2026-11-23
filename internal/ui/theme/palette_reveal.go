@@ -77,6 +77,14 @@ func shownPalette(to Colors) Colors {
 		// window shows.
 		paletteReveal.from = paletteReveal.shown
 	} else if paletteReveal.primed {
+		if paletteReveal.to == to {
+			// The switch landed on this palette: asking for it again is no
+			// switch. Starting one from a palette to itself kept every frame
+			// that came within 200 ms of the last one animating for another
+			// 200 ms, so a window with any periodic frame (the boot page's
+			// tick, a store refresh) never stopped redrawing.
+			return to
+		}
 		paletteReveal.from = paletteReveal.to
 	}
 	if !paletteReveal.primed {
