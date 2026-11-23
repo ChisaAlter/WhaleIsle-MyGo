@@ -73,7 +73,7 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 		state := coord.InstalledPluginState("qa-panel")
 		return state.Known && state.Revision > before.Revision && !state.Enabled && !coord.Store().Snapshot().Loading
 	})
-	if state := coord.Inventory().Snapshot(); len(state.Global) != 1 || state.Global[0].Enabled != "disabled" {
+	if state := coord.Inventory().Snapshot().Value; len(state.Global) != 1 || state.Global[0].Enabled != "disabled" {
 		t.Fatalf("settings retained enabled overlay: %+v", state)
 	}
 	mu.Lock()
@@ -145,7 +145,7 @@ func TestWorkspaceInventoryDeferralKeepsExplicitConsumerAndCurrentOwner(t *testi
 			if !coord.WorkspaceReady(client) || !coord.WorkspaceReady(client) {
 				t.Fatal("current attachment did not accept its release")
 			}
-			waitMarketFixture(t, func() bool { return coord.Inventory().Snapshot().Ready })
+			waitMarketFixture(t, func() bool { return coord.Inventory().Snapshot().Value.Ready })
 			mu.Lock()
 			if calls["/api/pluginInventory/list"] != 1 {
 				t.Fatalf("workspace and explicit consumer duplicated inventory: %v", calls)

@@ -228,8 +228,8 @@ func nativeSettingsAcceptance() error {
 			}
 			if page == "Plugins" {
 				err = settingsQAWait("real plugin inventory", func() bool {
-					s := state.marketCoordinator().Inventory().Snapshot()
-					return s.Ready && !s.Busy && s.Err == ""
+					s := state.marketCoordinator().Inventory().Snapshot().Value
+					return s.Ready && !s.Busy && s.Err == nil
 				})
 			} else if page == "MCP" {
 				err = settingsQAWait("real MCP empty catalog", func() bool {

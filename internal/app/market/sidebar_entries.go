@@ -29,7 +29,7 @@ func (c *Coordinator) SidebarPlugins(locale string) []manager.SidebarPluginEntry
 		token = store.RuntimeToken()
 		refreshID = store.CompletedRefreshID()
 	}
-	invSnap := c.pluginInventory.Snapshot()
+	invSnap := c.pluginInventory.Snapshot().Value
 	key := fmt.Sprintf("%s\x00%s\x00%d\x00%d\x00%d\x00%d", profileDir, locale, token, refreshID, invSnap.Host, invSnap.Revision)
 	entries := c.sidebarPlugins.get(key, sidebarPluginCacheTTL, func() []manager.SidebarPluginEntry {
 		var rows []manager.SidebarPluginCandidate
@@ -47,7 +47,7 @@ func (c *Coordinator) SidebarPlugins(locale string) []manager.SidebarPluginEntry
 				})
 			}
 		}
-		for _, invRow := range c.pluginInventory.Snapshot().Global {
+		for _, invRow := range c.pluginInventory.Snapshot().Value.Global {
 			enabled := invRow.Enabled == "enabled"
 			rows = append(rows, manager.SidebarPluginCandidate{
 				Package:          invRow.Module,

@@ -74,7 +74,7 @@ func (c *Coordinator) bindNativePluginManagerCaller(client *dsh.Client, caller m
 	store := c.store
 	c.mu.Unlock()
 	c.AttachInventory(client)
-	inventoryHost = c.pluginInventory.Snapshot().Host
+	inventoryHost = c.pluginInventory.Snapshot().Value.Host
 	if caller == nil {
 		ctrl.Detach()
 		ctrl.SetNotify(notify)

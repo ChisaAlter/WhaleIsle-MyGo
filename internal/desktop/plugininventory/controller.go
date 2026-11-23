@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 type Caller interface {
@@ -28,72 +29,83 @@ type Snapshot struct {
 	Host                               uint64
 	Revision                           uint64
 	Connected, Ready, Busy, GlobalOpen bool
-	Query, SelectedID, Expanded, Err   string
+	Query, SelectedID, Expanded        string
+	Err                                *state.Fault
 	Global                             []Row
 	Presets                            []Preset
 }
+
+// Controller keeps the working Snapshot under mu and publishes an immutable
+// version on every change, so readers share one value per revision instead
+// of cloning the rows on each read. Row slices come from normalize and are
+// replaced wholesale on Accept/Refresh, never edited in place. The Host
+// generation is a state.Lease renewed on Attach; its context cancels the
+// retired Host's in-flight read.
 type Controller struct {
 	mu               sync.Mutex
 	call             Caller
-	hostContext      context.Context
-	cancel           context.CancelFunc
+	host             state.LeaseOwner
+	hostL            state.Lease
 	state            Snapshot
+	pub              state.Published[Snapshot]
 	acceptedRevision uint64
 }
+
+func (c *Controller) publishLocked() { c.pub.Publish(c.state) }
 
 // Attach invalidates both in-flight reads and UI callbacks from the prior Host.
 func (c *Controller) Attach(call Caller) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.cancel != nil {
-		c.cancel()
-	}
-	c.hostContext, c.cancel = context.WithCancel(context.Background())
+	c.hostL = c.host.Renew(context.Background())
 	c.call = call
-	c.state = Snapshot{Host: c.state.Host + 1, Connected: call != nil}
+	c.state = Snapshot{Host: c.hostL.Generation(), Connected: call != nil}
 	c.acceptedRevision = 0
+	c.publishLocked()
 }
-func cloneRows(rows []Row) []Row {
-	out := append([]Row(nil), rows...)
-	for i := range out {
-		out[i].Title = append(json.RawMessage(nil), out[i].Title...)
-		out[i].Description = append(json.RawMessage(nil), out[i].Description...)
+
+// Snapshot returns the current published version. The same *Version is
+// shared by every reader until a change publishes the next revision; its
+// Value and the rows it references are immutable.
+func (c *Controller) Snapshot() *state.Version[Snapshot] {
+	if v := c.pub.Load(); v != nil {
+		return v
 	}
-	return out
-}
-func (c *Controller) Snapshot() Snapshot {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	s := c.state
-	s.Global = cloneRows(s.Global)
-	s.Presets = append([]Preset(nil), s.Presets...)
-	for i := range s.Presets {
-		s.Presets[i].Rows = cloneRows(s.Presets[i].Rows)
+	if c.pub.Load() == nil {
+		c.publishLocked()
 	}
-	return s
+	c.mu.Unlock()
+	return c.pub.Load()
 }
+
+// Changed closes when the next version is published.
+func (c *Controller) Changed() <-chan struct{} { return c.pub.Changed() }
 
 // Accept projects the completed shared Host read without starting another RPC.
 // The captured Host owner rejects a publication from a retired attachment.
 func (c *Controller) Accept(host, revision uint64, wire api.PluginInventorySnapshot) {
+	global, presets := normalize(wire)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Host != host || !c.state.Connected || c.acceptedRevision >= revision {
 		return
 	}
-	c.state.Global, c.state.Presets = normalize(wire)
+	c.state.Global, c.state.Presets = global, presets
 	c.acceptedRevision = revision
 	c.state.Revision++
 	c.state.Ready = true
 	c.state.Busy = false
-	c.state.Err = ""
+	c.state.Err = nil
 	c.state.SelectedID = selectedPreset(c.state.Presets, c.state.SelectedID)
+	c.publishLocked()
 }
 func (c *Controller) SetQuery(host uint64, query string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.state.Host == host {
+	if c.state.Host == host && c.state.Query != query {
 		c.state.Query = query
+		c.publishLocked()
 	}
 }
 func (c *Controller) SelectPreset(host uint64, id string) {
@@ -106,6 +118,7 @@ func (c *Controller) SelectPreset(host uint64, id string) {
 		if p.ID == id {
 			c.state.SelectedID = id
 			c.state.Expanded = ""
+			c.publishLocked()
 			return
 		}
 	}
@@ -121,27 +134,32 @@ func (c *Controller) ToggleExpanded(host uint64, key string) {
 	} else {
 		c.state.Expanded = key
 	}
+	c.publishLocked()
 }
 func (c *Controller) ToggleGlobal(host uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Host == host {
 		c.state.GlobalOpen = !c.state.GlobalOpen
+		c.publishLocked()
 	}
 }
 
 // Refresh only reads pluginInventory/list. A same-Host failure preserves the
 // previous snapshot with an explicit error, while Attach always clears it.
+// The RPC and the normalize pass run without the lock; a completion whose
+// Host lease was renewed meanwhile is dropped.
 func (c *Controller) Refresh(parent context.Context) {
 	c.mu.Lock()
 	if c.call == nil || c.state.Busy {
 		c.mu.Unlock()
 		return
 	}
-	call, host := c.call, c.state.Host
-	ctx, cancel := context.WithCancel(c.hostContext)
+	call, lease := c.call, c.hostL
+	ctx, cancel := context.WithCancel(lease.Context())
 	stop := context.AfterFunc(parent, cancel)
-	c.state.Busy, c.state.Err = true, ""
+	c.state.Busy, c.state.Err = true, nil
+	c.publishLocked()
 	c.mu.Unlock()
 	defer func() { stop(); cancel() }()
 	var wire api.PluginInventorySnapshot
@@ -149,22 +167,29 @@ func (c *Controller) Refresh(parent context.Context) {
 	if err == nil {
 		err = ctx.Err()
 	}
+	var global []Row
+	var presets []Preset
+	if err == nil {
+		global, presets = normalize(wire)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.state.Host != host {
+	if !lease.Valid() {
 		return
 	}
 	c.state.Busy = false
 	if err != nil {
-		c.state.Err = err.Error()
+		c.state.Err = state.FaultOf(err)
+		c.publishLocked()
 		return
 	}
-	c.state.Global, c.state.Presets = normalize(wire)
+	c.state.Global, c.state.Presets = global, presets
 	c.state.Revision++
 	c.state.Ready = true
 	// Refresh keeps filter, chosen preset and expanded row; selection falls back
 	// only when that preset is no longer present in the authoritative inventory.
 	c.state.SelectedID = selectedPreset(c.state.Presets, c.state.SelectedID)
+	c.publishLocked()
 }
 
 func withMeta(row Row, meta *api.ListBundlesResultItemMeta) Row {

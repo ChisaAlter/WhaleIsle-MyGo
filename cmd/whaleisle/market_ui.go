@@ -106,7 +106,7 @@ func (s *mainState) cancelMarketInstall() {
 
 func (s *mainState) pluginInventoryAccess() *settings.PluginInventoryAccess {
 	inv := s.marketCoordinator().Inventory()
-	snap := inv.Snapshot()
+	snap := inv.Snapshot().Value
 	return &settings.PluginInventoryAccess{
 		Snapshot:       snap,
 		OnRefresh:      s.refreshPluginInventory,

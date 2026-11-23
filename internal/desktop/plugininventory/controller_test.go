@@ -37,7 +37,7 @@ func TestPluginInventoryFixture(t *testing.T) {
 		var c Controller
 		c.Attach(load)
 		c.Refresh(context.Background())
-		s := c.Snapshot()
+		s := c.Snapshot().Value
 		v := s.View("zh-CN")
 		if !s.Ready || s.Busy || v.SelectedID != "default" || len(v.Presets) != 1 || v.Presets[0].Rows[0].Enabled != "conditional" || v.Presets[0].Rows[0].Phase != "" {
 			t.Fatalf("default/conditional state: %#v / %#v", s, v)
@@ -50,24 +50,23 @@ func TestPluginInventoryFixture(t *testing.T) {
 		}
 		c.SelectPreset(s.Host, "writer")
 		c.SetQuery(s.Host, "shared")
-		v = c.Snapshot().View("en")
+		v = c.Snapshot().Value.View("en")
 		if v.SelectedID != "writer" || len(v.Presets) != 2 || len(v.Presets[0].Rows) != 0 || v.Presets[1].ID != "default" || len(v.Presets[1].Rows) != 1 || len(v.Global) != 1 {
 			t.Fatalf("search must include other presets without changing selection: %#v", v)
 		}
 		c.SetQuery(s.Host, "检索")
-		if got := c.Snapshot().View("zh"); len(got.Global) != 1 || got.Empty {
+		if got := c.Snapshot().Value.View("zh"); len(got.Global) != 1 || got.Empty {
 			t.Fatalf("localized search: %#v", got)
 		}
 		c.SetQuery(s.Host, "")
 		c.SelectPreset(s.Host, "broken")
-		if got := c.Snapshot().View("en"); got.Presets[0].Broken != "composition missing" {
+		if got := c.Snapshot().Value.View("en"); got.Presets[0].Broken != "composition missing" {
 			t.Fatalf("broken preset hidden: %#v", got)
 		}
-		// A rendering consumer must not be able to mutate the next frame's data.
-		s.Presets[1].Rows[0].Module = "corrupted"
-		s.Global[0].Title[0] = '!'
-		if c.Snapshot().Presets[1].Rows[0].Module != "@sample/shared" || c.Snapshot().View("en").Global[1].Title != "Search" {
-			t.Fatal("snapshot aliases controller data")
+		// Published views are immutable: a later write publishes a new
+		// revision and leaves the value an earlier frame captured intact.
+		if s.SelectedID != "default" || s.Query != "" || s.Presets[1].Rows[0].Module != "@sample/shared" {
+			t.Fatalf("earlier snapshot changed under later writes: %#v", s)
 		}
 	})
 	t.Run("refresh failure preserves same host snapshot and local selection", func(t *testing.T) {
@@ -82,13 +81,13 @@ func TestPluginInventoryFixture(t *testing.T) {
 			return load.Call(ctx, method, args, out)
 		}))
 		c.Refresh(context.Background())
-		s := c.Snapshot()
+		s := c.Snapshot().Value
 		c.SelectPreset(s.Host, "writer")
 		c.SetQuery(s.Host, "writing")
 		fail = true
 		c.Refresh(context.Background())
-		s = c.Snapshot()
-		if !s.Ready || s.Err == "" || s.Busy || s.SelectedID != "writer" || s.Query != "writing" || len(s.Global) != 2 || calls != 2 {
+		s = c.Snapshot().Value
+		if !s.Ready || s.Err == nil || s.Busy || s.SelectedID != "writer" || s.Query != "writing" || len(s.Global) != 2 || calls != 2 {
 			t.Fatalf("failed refresh destroyed context: %#v, calls=%d", s, calls)
 		}
 	})
@@ -100,7 +99,7 @@ func TestPluginInventoryFixture(t *testing.T) {
 			<-release
 			return load.Call(ctx, method, args, out)
 		}))
-		oldHost := c.Snapshot().Host
+		oldHost := c.Snapshot().Value.Host
 		go func() { c.Refresh(context.Background()); close(done) }()
 		oldContext := <-started
 		c.Refresh(context.Background()) // duplicate click while busy must not start another read
@@ -113,13 +112,13 @@ func TestPluginInventoryFixture(t *testing.T) {
 		c.ToggleExpanded(oldHost, "old row")
 		close(release)
 		<-done
-		s := c.Snapshot()
+		s := c.Snapshot().Value
 		if s.Connected || s.Ready || s.Busy || len(s.Global) > 0 || s.Query != "" || s.SelectedID != "" || s.Expanded != "" {
 			t.Fatalf("old Host result/action leaked after detach: %#v", s)
 		}
 		c.Attach(load)
 		c.Refresh(context.Background())
-		if !c.Snapshot().Ready {
+		if !c.Snapshot().Value.Ready {
 			t.Fatal("replacement Host cannot load")
 		}
 	})
