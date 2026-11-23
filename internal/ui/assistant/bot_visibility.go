@@ -65,8 +65,8 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 	card.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantVisibilityTitle)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantThisManagementBlockIsSeparateFromTheO)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_visibility:70", s.Notice)
 		if s.FocusID != "" {

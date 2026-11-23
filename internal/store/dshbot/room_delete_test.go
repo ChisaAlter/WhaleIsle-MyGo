@@ -39,7 +39,7 @@ func TestRoomDeleteUnknownKeepsOriginalRoomLock(t *testing.T) {
 	}
 	c.FinishLoad(q, p, pluginrpc.DshbotDeleteCatalog{}, true, nil)
 	c.Prepare("room-account")
-	r := c.Snapshot("room-account").Review
+	r := c.Snapshot("room-account").Value.Review
 	c.ConfirmIdentity("room-account", r, "a", "name-a")
 	c.Acknowledge("room-account", r, true)
 	if _, _, ok := c.Begin("room-account", r); ok {
@@ -60,7 +60,7 @@ func TestRoomDeleteUnknownKeepsOriginalRoomLock(t *testing.T) {
 	c.FinishLoad(q, pluginrpc.DshbotBotDeletePlan{}, pluginrpc.DshbotDeleteCatalog{Revision: 12, Items: p.Catalog.Items[1:]}, true, nil)
 	c.Cancel("room-account")
 	c.Prepare("room-account")
-	s := c.Snapshot("room-account")
+	s := c.Snapshot("room-account").Value
 	if !s.Uncertain || s.Pending == nil || s.Pending.Plan.Target.ID != "room" || s.Review != nil || !strings.Contains(s.Observation, "roomMemberBotCatalogState") {
 		t.Fatal("room outcome unlocked", s)
 	}
@@ -68,7 +68,7 @@ func TestRoomDeleteUnknownKeepsOriginalRoomLock(t *testing.T) {
 		t.Fatal("unknown resend")
 	}
 	c.Bind("member-account", "same-client")
-	if c.Snapshot("member-account").Uncertain {
+	if c.Snapshot("member-account").Value.Uncertain {
 		t.Fatal("wrong target locked")
 	}
 }
