@@ -38,7 +38,7 @@ function readFrames(dir) {
     .map((line) => {
       const c = line.split(',')
       const n = (i) => Number(c[i]) || 0
-      return { frame: n(1), start: n(2), dur: n(4), build: n(5), layout: n(6), paint: n(7), present: n(8), passes: n(9), path: c[10], alloc: n(18), gc: n(19), pu: n(20), pd: n(21), ps: n(22) }
+      return { frame: n(1), start: n(2), dur: n(4), build: n(5), layout: n(6), paint: n(7), present: n(8), passes: n(9), path: c[10], alloc: n(18), gc: n(19), pu: n(20), pd: n(21), ps: n(22), cause: c[23] || '' }
     })
 }
 
@@ -47,6 +47,15 @@ function readRun(dir) {
   const run = JSON.parse(raw)
   run.steps = Array.isArray(run.steps) ? run.steps : run.steps ? [run.steps] : []
   return run
+}
+
+// causeCounts tallies the cause column (MYGO_FRAME_TRACE column 24) by part:
+// a frame asked for by several causes counts once for each. Older traces
+// have no column and tally nothing.
+function causeCounts(frames) {
+  const out = {}
+  for (const f of frames) for (const part of f.cause ? f.cause.split('+') : []) out[part] = (out[part] || 0) + 1
+  return Object.entries(out).sort((a, b) => b[1] - a[1])
 }
 
 function phaseStats(frames) {
@@ -111,6 +120,7 @@ export function analyze(dir) {
     renderer: software ? 'software' : 'gpu',
     startupFrames: startup.length,
     startupFps: run.ready_ns && run.launch_ns ? startup.length / ((run.ready_ns - run.launch_ns) / 1e9) : null,
+    startupCauses: causeCounts(startup),
     frames: inWindow.length,
     slowFrames: slow,
     maxAllocBytes: maxAlloc,
@@ -129,6 +139,7 @@ function markdown(r) {
   const lines = []
   lines.push(`# Interaction run ${r.label || ''}`.trim(), '')
   lines.push(`profile: ${r.profile} · renderer: ${r.renderer} · ready: ${f1(r.readyMs)} ms (${f1(r.startupFps)} fps while starting) · frames: ${r.frames} (${r.slowFrames} over 16 ms) · GC cycles: ${r.gcCycles}`, '')
+  if (r.startupCauses.length) lines.push(`causes while starting: ${r.startupCauses.slice(0, 8).map(([k, v]) => `${k} ${v}`).join(', ')}`, '')
   lines.push('| phase | p50 ms | p95 ms | max ms |', '|---|---|---|---|')
   for (const [k, v] of Object.entries(r.phases)) lines.push(`| ${k} | ${f1(v.p50)} | ${f1(v.p95)} | ${f1(v.max)} |`)
   lines.push('', '| step | first frame ms | settle ms | frames | max frame ms | alloc |', '|---|---|---|---|---|---|')

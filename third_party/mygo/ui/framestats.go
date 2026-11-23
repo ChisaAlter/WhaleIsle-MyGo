@@ -82,6 +82,10 @@ type frameStats struct {
 	samples [stats]metrics.Sample
 	before  [stats]float64
 	layouts uint64 // the text system's, before the frame
+	// cause is why the frame ran, for the trace (takeFrameCause); prevInput
+	// the engine's last input time the previous frame saw.
+	cause     string
+	prevInput time.Time
 }
 
 func newFrameStats(threshold time.Duration) *frameStats {
@@ -122,6 +126,8 @@ func (f *frameStats) begin(rt *engine) {
 	f.laps, f.cycles, f.passes = [phases]time.Duration{}, [phases]uint64{}, 0
 	f.start = time.Now()
 	f.last = f.start
+	f.cause = takeFrameCause(rt, rt.lastInputAt, f.prevInput)
+	f.prevInput = rt.lastInputAt
 	f.lastCycles, f.lastTid = readThreadCycles()
 }
 

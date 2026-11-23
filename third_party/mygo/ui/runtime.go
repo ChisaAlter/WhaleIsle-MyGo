@@ -356,6 +356,7 @@ func (rt *engine) defaultTheme() *Theme {
 // themeChanged follows a change of the system appearance, or of the
 // desktop's preferences.
 func (rt *engine) themeChanged() {
+	traceCause(rt, causeTheme)
 	rt.darkKnown, rt.prefsKnown = false, false
 	rt.redraw, rt.repaintDue = false, time.Time{}
 	rt.host.requestFrame()
@@ -534,8 +535,10 @@ func (rt *engine) next() {
 	case moving && rt.host.occluded():
 		rt.held = true
 	case rt.animating:
+		traceCause(rt, causeAnimation)
 		rt.host.requestFrame()
 	case rt.repainting:
+		traceCause(rt, causeRepaint)
 		rt.redraw = true
 		rt.host.requestFrame()
 	case !rt.repaintAt.IsZero():
@@ -561,6 +564,7 @@ func (rt *engine) next() {
 func (rt *engine) repaintNow() {
 	if !rt.repaintDue.IsZero() && !rt.now().Before(rt.repaintDue.Add(-time.Millisecond)) {
 		rt.repaintDue = time.Time{}
+		traceCause(rt, causePaintAfter)
 		rt.host.requestFrame()
 	}
 }
@@ -742,6 +746,7 @@ func (rt *engine) requestFrame() {
 	if rt.inFrame {
 		return
 	}
+	traceCause(rt, causeRequest)
 	rt.redraw, rt.repaintDue = false, time.Time{}
 	rt.host.requestFrame()
 }
@@ -749,6 +754,7 @@ func (rt *engine) requestFrame() {
 // changed asks the host for a frame built anew after the app changed what
 // the view shows, from outside the view (surface.Conn.Changed).
 func (rt *engine) changed() {
+	traceCause(rt, causeChanged)
 	rt.redraw, rt.repaintDue = false, time.Time{}
 	rt.host.requestFrame()
 }
@@ -776,12 +782,13 @@ func (rt *engine) armTimer() {
 	case rt.timer != nil:
 		rt.timer.Reset(max(time.Until(at), time.Millisecond))
 	default:
-		rt.timer = time.AfterFunc(max(time.Until(at), time.Millisecond), rt.host.invalidate)
+		rt.timer = time.AfterFunc(max(time.Until(at), time.Millisecond), func() { traceCause(rt, causeAfter); rt.host.invalidate() })
 	}
 }
 
 func (rt *engine) close() {
 	rt.closed = true
+	forgetFrameCauses(rt)
 	clear(rt.inputObservers)
 	rt.inputObservers = nil
 	clear(rt.keyCaptures)
