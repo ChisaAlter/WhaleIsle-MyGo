@@ -2764,21 +2764,6 @@ func startHarness(cfg config.Config) {
 			return startupStore.Record(false, reason, logs, buildVersion)
 		},
 	})
-	if strings.TrimSpace(cfg.Workspace) == "" {
-		state.launcherController().SetStartError(false, true, i18n.T(i18n.KeyLauncherNoWorkspace))
-		state.refreshBoot(harness.Status{
-			State: harness.Failed,
-			Err:   fmt.Errorf("%s", i18n.T(i18n.KeyLauncherNoWorkspace)),
-		})
-		return
-	}
-	if st, err := os.Stat(cfg.Workspace); err != nil || !st.IsDir() {
-		state.refreshBoot(harness.Status{
-			State: harness.Failed,
-			Err:   fmt.Errorf("workspace missing: %s", cfg.Workspace),
-		})
-		return
-	}
 	// Publish on the window queue after preparation, so Close/import cannot
 	// race a late background bridge result into starting a new runtime.
 	launch := func() {

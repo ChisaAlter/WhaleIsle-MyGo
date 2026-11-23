@@ -132,9 +132,12 @@ func (s *Store) Record(ok bool, reason string, logs []string, version string) er
 	return nil
 }
 
-func ShouldAutoStart(workspace string, auto, importReady, lastFailed, skip bool) bool {
-	return strings.TrimSpace(workspace) != "" && auto && importReady && !lastFailed && !skip
+// ShouldAutoStart decides the cold launch. A workspace is not a precondition:
+// the Host runs in the app's own folder until the person picks one.
+func ShouldAutoStart(auto, importReady, lastFailed, skip bool) bool {
+	return auto && importReady && !lastFailed && !skip
 }
+
 func ShouldCloseLauncher(ready, quitAfterStart, recovery, persistenceFailed bool) bool {
 	return ready && quitAfterStart && !recovery && !persistenceFailed
 }

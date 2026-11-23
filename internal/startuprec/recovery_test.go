@@ -19,13 +19,13 @@ func TestColdGateFailureAndRecoveryHold(t *testing.T) {
 		{"manual preference", false, false, true, false, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ShouldAutoStart("/synthetic", tt.auto, tt.imports, tt.failed, tt.skip); got != tt.want {
+			if got := ShouldAutoStart(tt.auto, tt.imports, tt.failed, tt.skip); got != tt.want {
 				t.Fatalf("got %v", got)
 			}
 		})
 	}
-	if ShouldAutoStart(" ", true, true, false, false) {
-		t.Fatal("empty workspace auto-started")
+	if !ShouldAutoStart(true, true, false, false) {
+		t.Fatal("a launch without a workspace must still start the Host")
 	}
 	if ShouldCloseLauncher(true, true, true, false) || ShouldCloseLauncher(true, true, false, true) || ShouldCloseLauncher(true, false, false, false) {
 		t.Fatal("unsafe launcher close")

@@ -5,11 +5,9 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/boot"
@@ -40,33 +38,8 @@ func (s *mainState) startWorkbenchHost(win *mygo.Window, sup *harness.Supervisor
 	}
 	go func() {
 		cfg := store.Get()
-		ws := strings.TrimSpace(cfg.Workspace)
-		if folder, err := os.Stat(ws); err != nil || !folder.IsDir() {
-			// Native folder selection is a user action and belongs to the workbench.
-			mygo.RunOnMain(func() {
-				picked, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: win, Title: i18n.T(i18n.KeySettingsDesktopBrowseWorkspace), Directory: true})
-				if err != nil || len(picked) == 0 {
-					l.EndPreparationOnly()
-					l.SetStartBusy(false)
-					if err != nil {
-						s.notifyUser(win, errcopy.Sentence(err))
-					}
-					win.Invalidate()
-					return
-				}
-				go func() {
-					if err := store.Update(func(c *config.Config) { c.Workspace = picked[0] }); err != nil {
-						l.FinishStartPreparation(true, errcopy.Sentence(err), "", gen)
-						win.Invalidate()
-						return
-					}
-					l.FinishStartPreparation(false, "", picked[0], gen)
-					startHarness(store.Get())
-				}()
-			})
-			return
-		}
-		l.FinishStartPreparation(false, "", ws, gen)
+		cfg = s.ensureLaunchWorkspace(cfg)
+		l.FinishStartPreparation(false, "", strings.TrimSpace(cfg.Workspace), gen)
 		startHarness(cfg)
 	}()
 	win.Invalidate()
