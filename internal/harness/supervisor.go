@@ -15,12 +15,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"whaleisle/internal/harness/installctrl"
+	"whaleisle/internal/paths"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/startuptrace"
 )
@@ -73,6 +75,11 @@ type Status struct {
 	RecoveryScheduled bool
 	// RecoveryCancelled suppresses automatic retries until the next manual start.
 	RecoveryCancelled bool
+	// FailureAt is when a Failed state was recorded; FailureCode and
+	// FailureSignal carry the process exit detail when the failure had one.
+	FailureAt     time.Time
+	FailureCode   string
+	FailureSignal string
 }
 
 // Options configure a Supervisor.
@@ -225,8 +232,9 @@ type Supervisor struct {
 	stoppingChildren int
 	gen              int
 	logs             []string
-	startLogs        []string // current attempt only; old attempts cannot implicate plugins
-	attemptRecovery  bool     // flags captured for the current attempt, not mutable next-launch settings
+	startLogs        []string     // current attempt only; old attempts cannot implicate plugins
+	logSink          *hostLogSink // current attempt's persisted output, nil when unavailable
+	attemptRecovery  bool         // flags captured for the current attempt, not mutable next-launch settings
 	attempt          int
 	readyAt          time.Time
 	// skippedOnce is true after a plugin-tree failure retried with --skip-user-plugins.
@@ -376,6 +384,8 @@ func (s *Supervisor) Stop() {
 	s.nextGenLocked()
 	cmd, exited := s.cmd, s.exited
 	s.cmd, s.exited = nil, nil
+	sink := s.logSink
+	s.logSink = nil
 	if cmd != nil {
 		s.stoppingChildren++
 	}
@@ -393,6 +403,9 @@ func (s *Supervisor) Stop() {
 		notifyDone = s.prevNotifyDone
 	}
 	s.mu.Unlock()
+	if sink != nil {
+		sink.close()
+	}
 	if install != nil {
 		install.Stop()
 	}
@@ -508,6 +521,10 @@ func (s *Supervisor) setLocked(st Status) {
 	st.Generation = s.gen
 	st.Attempt = s.attempt
 	st.Recovery = s.attemptRecovery
+	if st.State == Failed && st.FailureAt.IsZero() {
+		st.FailureAt = time.Now()
+		st.FailureCode, st.FailureSignal = exitDetail(st.Err)
+	}
 	if st.State != Starting {
 		s.recoveryActive, s.recoveryQueued = false, false
 	}
@@ -546,6 +563,9 @@ func (s *Supervisor) log(line string, generation ...int) {
 	if over := len(s.logs) - logLimit; over > 0 {
 		s.logs = append(s.logs[:0], s.logs[over:]...)
 	}
+	if s.logSink != nil {
+		s.logSink.add(line)
+	}
 	// Notify while Starting so the launcher can stream logs. Copy status under
 	// the lock; refreshBoot ignores Starting after Ready/Failed.
 	if s.status.State == Starting {
@@ -577,6 +597,8 @@ func (s *Supervisor) run(gen int) {
 	s.taskControlToken = token
 	s.platformToken = platformToken
 	s.startLogs = nil
+	oldSink := s.logSink
+	s.logSink = nil
 	launch := s.opts.Launch
 	readPatches := s.opts.ReadLaunchPatches
 	launchCtx, launchCancel := s.launchCtx, s.launchCancel
@@ -594,6 +616,9 @@ func (s *Supervisor) run(gen int) {
 	install := s.opts.Install
 	dshbot := s.opts.Prepare.Dshbot
 	s.mu.Unlock()
+	if oldSink != nil {
+		oldSink.close()
+	}
 	if install != nil {
 		launch.ExtraEnv = append(launch.ExtraEnv, install.Env()...)
 	}
@@ -691,6 +716,14 @@ func (s *Supervisor) run(gen int) {
 	}
 	_ = writeOut.Close()
 	s.cmd, s.exited = cmd, exited
+	if sink := newHostLogSink(filepath.Join(paths.UserDataDir(), "logs"), cmd.Process.Pid); sink != nil {
+		// The file's pid needs the started process; the lines logged before
+		// Start (the plan, overlays) belong to this attempt, so replay them.
+		for _, line := range s.startLogs {
+			sink.add(line)
+		}
+		s.logSink = sink
+	}
 	s.mu.Unlock()
 	startuptrace.Mark("host.spawned", strconv.Itoa(cmd.Process.Pid))
 	s.recordHost(cmd.Process.Pid, port, plan.Command, gen)
@@ -894,6 +927,12 @@ func (s *Supervisor) exitedUnexpectedly(gen int, waitErr error, source string) {
 
 // fail records the failure, or schedules a restart when attempts remain.
 func (s *Supervisor) fail(gen int, err error, source string) {
+	var oldSink *hostLogSink
+	defer func() {
+		if oldSink != nil {
+			oldSink.close()
+		}
+	}()
 	// Take one policy snapshot without holding the supervisor mutex. A save
 	// never changes this decision or any timer it has already scheduled.
 	policy := s.RestartPolicy()
@@ -902,6 +941,8 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		s.mu.Unlock()
 		return
 	}
+	oldSink = s.logSink
+	s.logSink = nil
 	if s.status.State == Ready && !s.readyAt.IsZero() && time.Since(s.readyAt) >= restartStablePeriod {
 		s.attempt = 0
 	}
