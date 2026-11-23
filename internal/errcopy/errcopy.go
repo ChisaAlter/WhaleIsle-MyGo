@@ -37,6 +37,10 @@ const (
 	CausePageStopped
 	CauseRevertConflict
 	CauseMissingCredential
+	// CauseInterfaceInvalid and CauseInterfaceTooLarge are generated-interface
+	// (OpenUI Lang) programs that cannot be shown.
+	CauseInterfaceInvalid
+	CauseInterfaceTooLarge
 )
 
 const (
@@ -64,6 +68,8 @@ const (
 	keyRejectedAuth    = "errcopy.rejected_auth"
 	keyRejectedRate    = "errcopy.rejected_rate"
 	keyRejectedServer  = "errcopy.rejected_server"
+	keyInterfaceBad    = "errcopy.interface_invalid"
+	keyInterfaceBig    = "errcopy.interface_too_large"
 )
 
 // causes is ordered: an earlier family claims a message that a later pattern
@@ -82,6 +88,10 @@ var causes = []struct {
 	cause   Cause
 	pattern *regexp.Regexp
 }{
+	// A generated interface reports its diagnostics with these fixed
+	// prefixes (internal/ui/openui); they never reach another family.
+	{CauseInterfaceTooLarge, regexp.MustCompile(`^whale ui program over budget`)},
+	{CauseInterfaceInvalid, regexp.MustCompile(`^whale ui program invalid`)},
 	// Two programs name these failures, so each family covers both spellings:
 	// Go's exec/syscall errors, and the platform's own message when it is the one
 	// reporting (Windows winsock has no errno in the text).
@@ -177,6 +187,12 @@ func init() {
 	i18n.Register(keyPortInUse,
 		"启动所需端口被其他程序占用，请关闭占用程序后重试。",
 		"Another program holds the port this start needs; close it and retry.")
+	i18n.Register(keyInterfaceBad,
+		"这段交互界面无法显示：内容不完整或格式有误。可以让助手重新生成，或在兼容工作台中打开。",
+		"This interface cannot be shown: its content is incomplete or malformed. Ask the assistant to regenerate it, or open it in the compatibility workbench.")
+	i18n.Register(keyInterfaceBig,
+		"这段交互界面超出了安全限制，无法显示。可以让助手生成更精简的版本。",
+		"This interface exceeds the safety limits and cannot be shown. Ask the assistant for a smaller version.")
 	i18n.Register(keyNoCredential,
 		"未配置模型凭据。请在 设置 → 模型 里填写 API Key 后重试。",
 		"No model credentials are set. Add an API key in Settings → Models, then try again.")
@@ -410,6 +426,10 @@ func underUnknown(lead string, err error) string {
 
 func keyFor(cause Cause) string {
 	switch cause {
+	case CauseInterfaceInvalid:
+		return keyInterfaceBad
+	case CauseInterfaceTooLarge:
+		return keyInterfaceBig
 	case CauseCancelled:
 		return keyCancelled
 	case CauseTimeout:
