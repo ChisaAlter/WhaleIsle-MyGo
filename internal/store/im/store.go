@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/store/internal/storefs"
 	officestore "whaleisle/internal/store/office"
@@ -72,14 +73,16 @@ const (
 	MessageStateUnknown = "unknown"
 )
 
-// ViewState is a UI-safe snapshot of the store.
+// ViewState is a UI-safe snapshot of the store. It is published immutable:
+// readers share one version until the next write publishes. Fault fields are
+// classified render-ready errors, never raw error text.
 type ViewState struct {
 	ConnectionBusy bool
 	ConnectionNote string
 	WorkspaceDraft string
 	ClientReady    bool
 	Loading        bool
-	Err            string
+	Err            *state.Fault
 	HasIMRPC       bool
 	ListMethod     string
 	HistoryMethod  string
@@ -87,54 +90,67 @@ type ViewState struct {
 	Rows           []Entry
 	RawListPreview string
 	SelectedID     string
-	LastSend       string
+	LastSend       *state.Fault
 	Messages       []Message
 	Draft          string
-	LocalMode      bool   // true when no list RPC answered this session
-	BridgeMode     string // "rpc" | "cordis" | "inventory" | "local"
-	PluginDiag     string // pluginInventory / dsh-im connection diagnostics
-	SyncedRemote   bool   // true when at least one remote history merge ran
+	LocalMode      bool         // true when no list RPC answered this session
+	BridgeMode     string       // "rpc" | "cordis" | "inventory" | "local"
+	PluginDiag     *state.Fault // pluginInventory / dsh-im connection diagnostics
+	SyncedRemote   bool         // true when at least one remote history merge ran
 }
 
 // Store fetches im/* list/history/send when available and persists local
-// channels / drafts / history under root (userData/im).
+// channels / drafts / history under root (userData/im). The mutable document
+// stays under mu; readers get a published immutable version. Disk writes run
+// outside mu, serialized by persistMu so the last write wins. conn owns the
+// attach lifetime, refresh the probe lifetime: async completions holding a
+// retired lease are dropped.
 type Store struct {
-	Office     officestore.Store
-	Onboarding imonboard.Store
-	mu         sync.Mutex
-	root       string
-	client     *dsh.Client
-	plugin     *pluginrpc.Client
-	notify     func()
+	Office       officestore.Store
+	Onboarding   imonboard.Store
+	mu           sync.Mutex
+	persistMu    sync.Mutex
+	root         string
+	client       *dsh.Client
+	plugin       *pluginrpc.Client
+	notify       func()
+	pub          state.Published[ViewState]
+	conn         state.LeaseOwner
+	refresh      state.LeaseOwner
+	connLease    state.Lease
+	refreshLease state.Lease
 
-	loading           bool
-	err               error
-	hasIMRPC          bool
-	listMethod        string
-	historyMethod     string
-	methods           []string
-	rows              []Entry
-	rawListPreview    string
-	selectedID        string
-	lastSend          string
-	drafts            map[string]string
-	history           map[string][]Message
-	bridgeMode        string
-	pluginDiag        string
-	syncedRemote      bool
-	connectionBusy    bool
-	connectionNote    string
-	workspaceDrafts   map[string]string
-	connectionEpoch   uint64
-	refreshGeneration uint64
+	loading         bool
+	fault           *state.Fault
+	diagText        string
+	hasIMRPC        bool
+	listMethod      string
+	historyMethod   string
+	methods         []string
+	rows            []Entry
+	rawListPreview  string
+	selectedID      string
+	lastSend        *state.Fault
+	drafts          map[string]string
+	draftBuf        string
+	history         map[string][]Message
+	bridgeMode      string
+	pluginDiag      *state.Fault
+	syncedRemote    bool
+	connectionBusy  bool
+	connectionNote  string
+	workspaceDrafts map[string]string
 }
 
 // New returns an in-memory IM store with no persistence root.
 func New() *Store {
-	return &Store{
+	s := &Store{
 		drafts:  map[string]string{},
 		history: map[string][]Message{},
 	}
+	s.connLease = s.conn.Renew(context.Background())
+	s.refreshLease = s.refresh.Renew(context.Background())
+	return s
 }
 
 // Open loads (or seeds) persisted IM state under userData/im.
@@ -153,13 +169,17 @@ func Open(userData string) (*Store, error) {
 	}
 	if len(s.rows) == 0 {
 		s.rows = defaultChannels()
-		if err := s.saveChannelsLocked(); err != nil {
+		if err := writeJSON(filepath.Join(s.root, channelsFile), s.rows); err != nil {
 			return nil, err
 		}
 	}
 	if s.selectedID == "" && len(s.rows) > 0 {
 		s.selectedID = channelKey(s.rows[0])
 	}
+	s.draftBuf = s.drafts[s.selectedID]
+	s.connLease = s.conn.Renew(context.Background())
+	s.refreshLease = s.refresh.Renew(context.Background())
+	s.publishLocked()
 	return s, nil
 }
 
@@ -173,72 +193,86 @@ func (s *Store) Root() string {
 // Attach binds a dsh client and an optional UI refresh hook.
 func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.mu.Lock()
-	s.invalidateRemoteLocked()
-	s.connectionEpoch++
+	dirtyHistory := s.invalidateRemoteLocked()
+	s.connLease = s.conn.Renew(context.Background())
 	s.connectionBusy = false
 	s.connectionNote = ""
 	s.client = client
 	s.plugin = nil
 	s.notify = notify
-	s.err = nil
+	s.fault = nil
 	if client != nil && strings.TrimSpace(client.Endpoint.Origin) != "" {
 		s.plugin = &pluginrpc.Client{BaseURL: client.Endpoint.Origin, Cookie: client.Endpoint.Cookie, HTTPClient: client.HTTP}
 	}
-	s.Office.Bind(s.plugin, s.connectionEpoch, s.fire)
-	s.Onboarding.Bind(s.plugin, s.connectionEpoch, s.fire)
+	s.Office.Bind(s.plugin, s.connLease.Generation(), s.fire)
+	s.Onboarding.Bind(s.plugin, s.connLease.Generation(), s.fire)
+	s.publishLocked()
 	s.mu.Unlock()
+	if dirtyHistory {
+		s.persist(persistHistory)
+	}
 }
 
 // AttachPlugin binds a Cordis-style plugin HTTP client (POST /{channel}/connection.status).
 func (s *Store) AttachPlugin(plugin *pluginrpc.Client) {
 	s.mu.Lock()
-	s.invalidateRemoteLocked()
-	s.connectionEpoch++
+	dirtyHistory := s.invalidateRemoteLocked()
+	s.connLease = s.conn.Renew(context.Background())
 	s.connectionBusy = false
 	s.connectionNote = ""
 	s.plugin = plugin
-	s.Office.Bind(s.plugin, s.connectionEpoch, s.fire)
-	s.Onboarding.Bind(s.plugin, s.connectionEpoch, s.fire)
+	s.Office.Bind(s.plugin, s.connLease.Generation(), s.fire)
+	s.Onboarding.Bind(s.plugin, s.connLease.Generation(), s.fire)
+	s.publishLocked()
 	s.mu.Unlock()
+	if dirtyHistory {
+		s.persist(persistHistory)
+	}
 }
 
 // Detach clears the client when harness stops; local channels/history stay.
 func (s *Store) Detach() {
 	s.mu.Lock()
-	s.invalidateRemoteLocked()
-	s.connectionEpoch++
+	dirtyHistory := s.invalidateRemoteLocked()
+	s.connLease = s.conn.Renew(context.Background())
 	s.connectionBusy = false
 	s.connectionNote = ""
 	s.client = nil
 	s.plugin = nil
-	s.Office.Bind(nil, s.connectionEpoch, s.fire)
-	s.Onboarding.Bind(nil, s.connectionEpoch, s.fire)
+	s.Office.Bind(nil, s.connLease.Generation(), s.fire)
+	s.Onboarding.Bind(nil, s.connLease.Generation(), s.fire)
 	s.loading = false
 	s.hasIMRPC = false
 	s.listMethod = ""
 	s.historyMethod = ""
 	s.methods = nil
 	s.rawListPreview = ""
-	s.lastSend = ""
+	s.lastSend = nil
 	s.bridgeMode = ""
-	s.pluginDiag = ""
+	s.pluginDiag = nil
+	s.diagText = ""
 	s.syncedRemote = false
-	s.err = nil
+	s.fault = nil
 	// Keep rows, selectedID, drafts, history for offline UX.
+	s.publishLocked()
 	s.mu.Unlock()
+	if dirtyHistory {
+		s.persist(persistHistory)
+	}
 	s.fire()
 }
 
-// Snapshot copies observable state for one frame.
-func (s *Store) Snapshot() ViewState {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// publishLocked builds the immutable view of the current mutable state; the
+// caller holds s.mu. SetDraft publishes only on an actual change so the
+// per-frame binding call does not churn versions.
+func (s *Store) publishLocked() {
 	st := ViewState{
 		ConnectionBusy: s.connectionBusy,
 		ConnectionNote: s.connectionNote,
 		WorkspaceDraft: s.workspaceDraftLocked(s.selectedID),
 		ClientReady:    s.client != nil,
 		Loading:        s.loading,
+		Err:            s.fault,
 		HasIMRPC:       s.hasIMRPC,
 		ListMethod:     s.listMethod,
 		HistoryMethod:  s.historyMethod,
@@ -249,10 +283,7 @@ func (s *Store) Snapshot() ViewState {
 		BridgeMode:     s.bridgeMode,
 		PluginDiag:     s.pluginDiag,
 		SyncedRemote:   s.syncedRemote,
-		Draft:          s.drafts[s.selectedID],
-	}
-	if s.err != nil {
-		st.Err = s.err.Error()
+		Draft:          s.draftBuf,
 	}
 	st.Methods = append([]string(nil), s.methods...)
 	st.Rows = append([]Entry(nil), s.rows...)
@@ -262,11 +293,24 @@ func (s *Store) Snapshot() ViewState {
 	if msgs := s.history[s.selectedID]; len(msgs) > 0 {
 		st.Messages = append([]Message(nil), msgs...)
 	}
-	return st
+	s.pub.Publish(st)
+}
+
+// Snapshot returns the published view version; unchanged reads share it.
+func (s *Store) Snapshot() *state.Version[ViewState] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.pub.Load() == nil {
+		s.publishLocked()
+	}
+	return s.pub.Load()
 }
 
 // Select marks a channel/conversation as active for compose and history.
-// Current in-memory drafts are flushed to disk before the switch.
+// The outgoing channel's draft buffer is folded into the drafts map first.
 func (s *Store) Select(id string) {
 	id = strings.TrimSpace(id)
 	s.mu.Lock()
@@ -274,26 +318,49 @@ func (s *Store) Select(id string) {
 		s.mu.Unlock()
 		return
 	}
-	if err := s.saveDraftsLocked(); err != nil {
-		s.err = err
-		s.mu.Unlock()
-		s.fire()
-		return
-	}
+	s.syncDraftLocked()
 	s.selectedID = id
+	s.draftBuf = s.drafts[id]
+	s.publishLocked()
 	s.mu.Unlock()
+	if err := s.persist(persistDrafts); err != nil {
+		s.mu.Lock()
+		s.fault = state.FaultOf(err)
+		s.publishLocked()
+		s.mu.Unlock()
+	}
 	s.fire()
 }
 
-func (s *Store) invalidateRemoteLocked() {
-	s.refreshGeneration++
+// syncDraftLocked folds the live draft buffer into the drafts map for the
+// selected channel. The caller holds s.mu.
+func (s *Store) syncDraftLocked() {
+	if s.selectedID == "" {
+		return
+	}
+	text := strings.TrimRight(s.draftBuf, "\r\n")
+	if s.drafts == nil {
+		s.drafts = map[string]string{}
+	}
+	if strings.TrimSpace(text) == "" {
+		delete(s.drafts, s.selectedID)
+	} else {
+		s.drafts[s.selectedID] = text
+	}
+}
+
+// invalidateRemoteLocked retires in-flight probes and resets remote state.
+// It reports whether pending history entries were settled and must persist.
+func (s *Store) invalidateRemoteLocked() bool {
+	s.refreshLease = s.refresh.Renew(context.Background())
 	s.loading = false
 	s.hasIMRPC = false
 	s.listMethod = ""
 	s.historyMethod = ""
 	s.methods = nil
 	s.rawListPreview = ""
-	s.pluginDiag = ""
+	s.pluginDiag = nil
+	s.diagText = ""
 	s.bridgeMode = "local"
 	s.syncedRemote = false
 	changed := false
@@ -306,11 +373,15 @@ func (s *Store) invalidateRemoteLocked() {
 		}
 		s.history[channel] = messages
 	}
-	if changed {
-		if err := s.saveHistoryLocked(); err != nil {
-			s.err = err
-		}
-	}
+	return changed
+}
+
+// DraftBuffer is the live text binding for the selected channel's draft:
+// the UI writes it directly, the store folds it into the drafts map at
+// Select, Persist, SetDraft and SendDraft boundaries. It is the mutable
+// exception to the published immutable view.
+func (s *Store) DraftBuffer() *string {
+	return &s.draftBuf
 }
 
 // SetDraft updates the in-memory draft for channelID (or the selected channel
@@ -329,24 +400,88 @@ func (s *Store) SetDraft(channelID, text string) {
 		s.drafts = map[string]string{}
 	}
 	text = strings.TrimRight(text, "\r\n")
+	changed := false
 	if strings.TrimSpace(text) == "" {
-		delete(s.drafts, id)
-	} else {
+		if _, ok := s.drafts[id]; ok {
+			delete(s.drafts, id)
+			changed = true
+		}
+	} else if s.drafts[id] != text {
 		s.drafts[id] = text
+		changed = true
+	}
+	if id == s.selectedID && s.draftBuf != text {
+		s.draftBuf = text
+		changed = true
+	}
+	if changed {
+		s.publishLocked()
 	}
 }
 
 // Persist flushes channels, drafts, and history to userData/im when rooted.
 func (s *Store) Persist() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.saveChannelsLocked(); err != nil {
-		return err
+	s.syncDraftLocked()
+	s.mu.Unlock()
+	return s.persist(persistChannels | persistDrafts | persistHistory)
+}
+
+const (
+	persistChannels = 1 << iota
+	persistDrafts
+	persistHistory
+)
+
+// persist serializes disk writes outside s.mu so writes stay ordered and the
+// newest state wins: it re-reads the current document under a brief lock
+// rather than persisting what an earlier caller captured.
+func (s *Store) persist(what int) error {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
+	s.mu.Lock()
+	root := s.root
+	var rows []Entry
+	var drafts map[string]string
+	var hist map[string][]Message
+	if what&persistChannels != 0 {
+		rows = append([]Entry(nil), s.rows...)
+		for i := range rows {
+			rows[i].Presets = append([]Preset(nil), rows[i].Presets...)
+		}
 	}
-	if err := s.saveDraftsLocked(); err != nil {
-		return err
+	if what&persistDrafts != 0 {
+		drafts = map[string]string{}
+		for k, v := range s.drafts {
+			drafts[k] = v
+		}
 	}
-	return s.saveHistoryLocked()
+	if what&persistHistory != 0 {
+		hist = map[string][]Message{}
+		for k, v := range s.history {
+			hist[k] = append([]Message(nil), v...)
+		}
+	}
+	s.mu.Unlock()
+	if root == "" {
+		return nil
+	}
+	if rows != nil {
+		if err := writeJSON(filepath.Join(root, channelsFile), rows); err != nil {
+			return err
+		}
+	}
+	if drafts != nil {
+		if err := writeJSON(filepath.Join(root, draftsFile), drafts); err != nil {
+			return err
+		}
+	}
+	if hist != nil {
+		if err := writeJSON(filepath.Join(root, historyFile), hist); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SendDraft appends one outbound message and calls the resolved im/send RPC.
@@ -362,11 +497,11 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 
 	s.mu.Lock()
 	client := s.client
-	epoch := s.connectionEpoch
+	lease := s.connLease
 	sendMethod := s.pickSendMethodLocked()
-	state := MessageStateLocal
+	msgState := MessageStateLocal
 	if client != nil && sendMethod != "" {
-		state = MessageStatePending
+		msgState = MessageStatePending
 	}
 	msg := Message{
 		ID:        fmt.Sprintf("m-%d", time.Now().UnixNano()),
@@ -374,57 +509,74 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		Text:      text,
 		At:        time.Now().UTC().Format(time.RFC3339),
 		Outbound:  true,
-		State:     state,
+		State:     msgState,
 	}
 	bridge := s.bridgeMode
 	if s.history == nil {
 		s.history = map[string][]Message{}
 	}
+	s.syncDraftLocked()
 	s.history[channelID] = append(s.history[channelID], msg)
-	if s.drafts != nil {
-		delete(s.drafts, channelID)
-	}
-	if err := s.saveHistoryLocked(); err != nil {
-		s.history[channelID] = s.history[channelID][:len(s.history[channelID])-1]
-		if s.drafts == nil {
-			s.drafts = map[string]string{}
+	delete(s.drafts, channelID)
+	s.selectedID = channelID
+	s.draftBuf = s.drafts[channelID]
+	s.publishLocked()
+	s.mu.Unlock()
+	s.fire()
+
+	// The pending entry persists before the RPC goes out: a crash after
+	// dispatch never claims an undelivered message.
+	if err := s.persist(persistHistory); err != nil {
+		s.mu.Lock()
+		msgs := s.history[channelID]
+		if n := len(msgs); n > 0 && msgs[n-1].ID == msg.ID {
+			s.history[channelID] = msgs[:n-1]
 		}
 		s.drafts[channelID] = text
-		s.err = err
-		s.lastSend = "Local save failed: " + err.Error()
+		if channelID == s.selectedID {
+			s.draftBuf = text
+		}
+		s.fault = state.FaultOf(err)
+		s.lastSend = state.FaultOf(err)
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
 	}
-	if err := s.saveDraftsLocked(); err != nil {
-		if s.drafts == nil {
-			s.drafts = map[string]string{}
-		}
+	if err := s.persist(persistDrafts); err != nil {
+		s.mu.Lock()
 		s.drafts[channelID] = text
-		s.err = err
-		s.lastSend = "Draft save failed: " + err.Error()
+		if channelID == s.selectedID {
+			s.draftBuf = text
+		}
+		s.fault = state.FaultOf(err)
+		s.lastSend = state.FaultOf(err)
 		// The RPC is not dispatched when its local draft cannot be saved.
 		// Retire the persisted pending entry before returning to the composer.
 		s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
-		if saveErr := s.saveHistoryLocked(); saveErr != nil {
-			s.lastSend += " · history save failed: " + saveErr.Error()
-		}
+		s.publishLocked()
 		s.mu.Unlock()
+		if saveErr := s.persist(persistHistory); saveErr != nil {
+			s.mu.Lock()
+			s.fault = state.FaultOf(saveErr)
+			s.publishLocked()
+			s.mu.Unlock()
+		}
 		s.fire()
 		return
 	}
-	s.selectedID = channelID
 	if client == nil || sendMethod == "" {
-		s.lastSend = "saved locally (no im/send RPC): " + channelID
+		note := "saved locally (no im/send RPC): " + channelID
 		if bridge == "cordis" {
-			s.lastSend += " — Cordis only supports bot.reconnect+sendTest (fixed test ping), not arbitrary text"
+			note += " — Cordis only supports bot.reconnect+sendTest (fixed test ping), not arbitrary text"
 		}
+		s.mu.Lock()
+		s.lastSend = state.FaultText(note)
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
 	}
-	s.mu.Unlock()
-	s.fire()
 
 	go func() {
 		args := map[string]any{
@@ -434,22 +586,25 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		var raw json.RawMessage
 		err := client.Call(ctx, sendMethod, args, &raw)
 		s.mu.Lock()
-		if s.client != client || s.connectionEpoch != epoch {
+		if s.client != client || !lease.Valid() {
 			s.mu.Unlock()
 			return
 		}
 		if err != nil {
-			s.lastSend = err.Error()
+			s.lastSend = state.FaultOf(err)
 			s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
 		} else {
-			s.lastSend = "sent via " + sendMethod
+			s.lastSend = state.FaultText("sent via " + sendMethod)
 			s.setMessageStateLocked(channelID, msg.ID, MessageStateSent)
 		}
-		if saveErr := s.saveHistoryLocked(); saveErr != nil {
-			s.err = saveErr
-			s.lastSend += " · history save failed: " + saveErr.Error()
-		}
+		s.publishLocked()
 		s.mu.Unlock()
+		if saveErr := s.persist(persistHistory); saveErr != nil {
+			s.mu.Lock()
+			s.fault = state.FaultOf(saveErr)
+			s.publishLocked()
+			s.mu.Unlock()
+		}
 		s.fire()
 	}()
 }
@@ -486,33 +641,36 @@ func (s *Store) Refresh(ctx context.Context) {
 	}
 	client := s.client
 	plugin := s.plugin
-	s.refreshGeneration++
-	epoch, generation := s.connectionEpoch, s.refreshGeneration
+	connLease := s.connLease
+	s.refreshLease = s.refresh.Renew(ctx)
+	refreshLease := s.refreshLease
 	s.loading = true
-	s.err = nil
+	s.fault = nil
 	s.methods = append([]string(nil), regMethods...)
 	s.rawListPreview = ""
-	s.pluginDiag = ""
+	s.pluginDiag = nil
+	s.diagText = ""
 	s.bridgeMode = "local"
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	finish := func(a finishArgs) {
-		a.client, a.plugin, a.epoch, a.generation = client, plugin, epoch, generation
+		a.client, a.plugin, a.connLease, a.refreshLease = client, plugin, connLease, refreshLease
 		s.finishRefresh(a)
 	}
 
 	if client == nil && plugin == nil {
 		finish(finishArgs{
-			err:        fmt.Errorf("im: client not attached — local channels only"),
+			fault:      state.FaultText("im: client not attached — local channels only"),
 			bridgeMode: "local",
-			pluginDiag: "no dsh client; cannot probe im/* or pluginInventory/list",
+			pluginDiag: state.FaultText("no dsh client; cannot probe im/* or pluginInventory/list"),
 		})
 		return
 	}
 
 	go func() {
 		if client != nil {
-			defer s.refreshCordisInventory(ctx, client, epoch, generation)
+			defer s.refreshCordisInventory(ctx, client, connLease, refreshLease)
 		}
 		var listMethod string
 		var rows []Entry
@@ -533,7 +691,7 @@ func (s *Store) Refresh(ctx context.Context) {
 
 			histMethod, remoteMsgs, histErr := probeHistory(ctx, client, histCands, histChannel)
 			fa := finishArgs{
-				err:           firstErr(listErr, histErr),
+				fault:         state.FaultOf(firstErr(listErr, histErr)),
 				rows:          rows,
 				preview:       preview,
 				replaceRows:   true,
@@ -546,9 +704,9 @@ func (s *Store) Refresh(ctx context.Context) {
 			}
 			if histMethod != "" {
 				fa.syncedRemote = true
-				fa.pluginDiag = fmt.Sprintf("im RPC: list=%s history=%s", listMethod, histMethod)
+				fa.pluginDiag = state.FaultText(fmt.Sprintf("im RPC: list=%s history=%s", listMethod, histMethod))
 			} else {
-				fa.pluginDiag = fmt.Sprintf("im RPC: list=%s (history candidates failed)", listMethod)
+				fa.pluginDiag = state.FaultText(fmt.Sprintf("im RPC: list=%s (history candidates failed)", listMethod))
 			}
 			finish(fa)
 			return
@@ -558,14 +716,14 @@ func (s *Store) Refresh(ctx context.Context) {
 			cordisRows, cordisPreview, cordisHits, cordisErr := probeCordisStatus(ctx, plugin)
 			if len(cordisHits) > 0 {
 				fa := finishArgs{
-					err:          cordisErr,
+					fault:        state.FaultOf(cordisErr),
 					rows:         cordisRows,
 					preview:      cordisPreview,
 					replaceRows:  true,
 					hasRPC:       true,
 					listMethod:   "connection.status",
 					bridgeMode:   "cordis",
-					pluginDiag:   fmt.Sprintf("dsh-im Cordis: %s", strings.Join(cordisHits, "; ")),
+					pluginDiag:   state.FaultText(fmt.Sprintf("dsh-im Cordis: %s", strings.Join(cordisHits, "; "))),
 					syncedRemote: true,
 				}
 				finish(fa)
@@ -576,7 +734,7 @@ func (s *Store) Refresh(ctx context.Context) {
 		if client == nil {
 			finish(finishArgs{
 				bridgeMode: "local",
-				pluginDiag: "im/* empty; Cordis connection.status unanswered; no dsh client for pluginInventory",
+				pluginDiag: state.FaultText("im/* empty; Cordis connection.status unanswered; no dsh client for pluginInventory"),
 			})
 			return
 		}
@@ -585,22 +743,26 @@ func (s *Store) Refresh(ctx context.Context) {
 		diag, invErr := probePluginInventory(ctx, client)
 		fa := finishArgs{
 			bridgeMode: "inventory",
-			pluginDiag: diag,
+			pluginDiag: state.FaultText(diag),
 			hasRPC:     false,
 			listMethod: "",
 		}
 		if invErr != nil {
-			fa.err = invErr
-			if fa.pluginDiag == "" {
-				fa.pluginDiag = fmt.Sprintf("im/* unavailable (%v); pluginInventory/list failed: %v", listErr, invErr)
+			fa.fault = state.FaultOf(invErr)
+			if fa.pluginDiag == nil {
+				fa.pluginDiag = state.FaultOf(invErr)
 			}
 		} else {
-			if fa.pluginDiag == "" {
-				fa.pluginDiag = "pluginInventory/list: dsh-im entry not found"
+			if fa.pluginDiag == nil {
+				fa.pluginDiag = state.FaultText("pluginInventory/list: dsh-im entry not found")
 			}
 			// Keep list probe note in diag only — not as hard Err (local mode OK).
 			if listErr != nil {
-				fa.pluginDiag = fa.pluginDiag + fmt.Sprintf(" | im/* probe: %v", listErr)
+				if fa.pluginDiag != nil {
+					fa.pluginDiag = state.FaultText(fa.pluginDiag.SentenceText() + " | im/* probe failed")
+				} else {
+					fa.pluginDiag = state.FaultOf(listErr)
+				}
 			}
 		}
 		finish(fa)
@@ -608,55 +770,58 @@ func (s *Store) Refresh(ctx context.Context) {
 }
 
 type finishArgs struct {
-	client            *dsh.Client
-	plugin            *pluginrpc.Client
-	epoch, generation uint64
-	err               error
-	rows              []Entry
-	preview           string
-	replaceRows       bool
-	hasRPC            bool
-	listMethod        string
-	historyMethod     string
-	bridgeMode        string
-	pluginDiag        string
-	remoteMsgs        []Message
-	channelID         string
-	syncedRemote      bool
+	client        *dsh.Client
+	plugin        *pluginrpc.Client
+	connLease     state.Lease
+	refreshLease  state.Lease
+	fault         *state.Fault
+	rows          []Entry
+	preview       string
+	replaceRows   bool
+	hasRPC        bool
+	listMethod    string
+	historyMethod string
+	bridgeMode    string
+	pluginDiag    *state.Fault
+	remoteMsgs    []Message
+	channelID     string
+	syncedRemote  bool
 }
 
 func (s *Store) finishRefresh(a finishArgs) {
 	s.mu.Lock()
-	if s.client != a.client || s.plugin != a.plugin || s.connectionEpoch != a.epoch || s.refreshGeneration != a.generation {
+	if s.client != a.client || s.plugin != a.plugin || !a.connLease.Valid() || !a.refreshLease.Valid() {
 		s.mu.Unlock()
 		return
 	}
 	s.loading = false
-	s.err = a.err
+	s.fault = a.fault
 	s.rawListPreview = a.preview
 	s.hasIMRPC = a.hasRPC
 	s.listMethod = a.listMethod
 	s.historyMethod = a.historyMethod
 	s.bridgeMode = a.bridgeMode
 	s.pluginDiag = a.pluginDiag
+	s.diagText = ""
+	if a.pluginDiag != nil {
+		s.diagText = a.pluginDiag.SentenceText()
+	}
 	if a.syncedRemote {
 		s.syncedRemote = true
 	}
+	persistWhat := 0
 	if a.replaceRows {
 		s.rows = append([]Entry(nil), a.rows...)
-		if err := s.saveChannelsLocked(); err != nil {
-			s.err = firstErr(s.err, err)
-		}
+		persistWhat |= persistChannels
 		if len(s.rows) == 0 {
 			s.selectedID = ""
 		} else if s.selectedID == "" || !hasChannel(s.rows, s.selectedID) {
 			s.selectedID = channelKey(s.rows[0])
 		}
+		s.draftBuf = s.drafts[s.selectedID]
 	} else if len(s.rows) == 0 {
 		s.rows = defaultChannels()
-		if err := s.saveChannelsLocked(); err != nil {
-			s.err = firstErr(s.err, err)
-		}
+		persistWhat |= persistChannels
 		if s.selectedID == "" {
 			s.selectedID = channelKey(s.rows[0])
 		}
@@ -666,12 +831,44 @@ func (s *Store) finishRefresh(a finishArgs) {
 			s.history = map[string][]Message{}
 		}
 		s.history[a.channelID] = mergeMessages(s.history[a.channelID], a.remoteMsgs)
-		if err := s.saveHistoryLocked(); err != nil {
-			s.err = firstErr(s.err, err)
+		persistWhat |= persistHistory
+	}
+	s.publishLocked()
+	s.mu.Unlock()
+	if persistWhat != 0 {
+		if err := s.persist(persistWhat); err != nil {
+			s.mu.Lock()
+			s.fault = firstFault(s.fault, state.FaultOf(err))
+			s.publishLocked()
+			s.mu.Unlock()
 		}
 	}
-	s.mu.Unlock()
 	s.fire()
+}
+
+func firstFault(faults ...*state.Fault) *state.Fault {
+	for _, f := range faults {
+		if f != nil {
+			return f
+		}
+	}
+	return nil
+}
+
+// diagNoteLocked appends a curated diagnostic note (IDs and status words
+// only, never raw error text) and republishes PluginDiag.
+func (s *Store) diagNoteLocked(note string) {
+	if s.diagText != "" {
+		s.diagText += " | "
+	}
+	s.diagText += note
+	s.pluginDiag = state.FaultText(s.diagText)
+}
+
+// diagFaultLocked replaces PluginDiag with the classified form of a caught
+// error; the raw text stays in logs, never in view state.
+func (s *Store) diagFaultLocked(err error) {
+	s.pluginDiag = state.FaultOf(err)
 }
 
 func firstErr(errs ...error) error {

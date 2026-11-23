@@ -8,17 +8,18 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 // RefreshCordisInventory calls dynamicCordisRunner/inventory and stores a short note.
 func (s *Store) RefreshCordisInventory(ctx context.Context) {
 	s.mu.Lock()
-	client, epoch, generation := s.client, s.connectionEpoch, s.refreshGeneration
+	client, connLease, refreshLease := s.client, s.connLease, s.refreshLease
 	s.mu.Unlock()
-	s.refreshCordisInventory(ctx, client, epoch, generation)
+	s.refreshCordisInventory(ctx, client, connLease, refreshLease)
 }
 
-func (s *Store) refreshCordisInventory(ctx context.Context, client *dsh.Client, epoch, generation uint64) {
+func (s *Store) refreshCordisInventory(ctx context.Context, client *dsh.Client, connLease, refreshLease state.Lease) {
 	if client == nil {
 		return
 	}
@@ -26,9 +27,7 @@ func (s *Store) refreshCordisInventory(ctx context.Context, client *dsh.Client, 
 		var out api.InventoryResult
 		err := client.Call(ctx, "dynamicCordisRunner/inventory", map[string]any{}, &out)
 		note := ""
-		if err != nil {
-			note = "dynamicCordisRunner/inventory: " + err.Error()
-		} else {
+		if err == nil {
 			note = fmt.Sprintf("dynamicCordisRunner/inventory: %d plugins", len(out))
 			if len(out) > 0 {
 				item := out[0]
@@ -45,15 +44,16 @@ func (s *Store) refreshCordisInventory(ctx context.Context, client *dsh.Client, 
 			}
 		}
 		s.mu.Lock()
-		if s.client != client || s.connectionEpoch != epoch || s.refreshGeneration != generation {
+		if s.client != client || !connLease.Valid() || !refreshLease.Valid() {
 			s.mu.Unlock()
 			return
 		}
-		if s.pluginDiag != "" {
-			s.pluginDiag = s.pluginDiag + " | " + note
+		if err != nil {
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = note
+			s.diagNoteLocked(note)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -75,10 +75,11 @@ func (s *Store) StopCordisPlugin(ctx context.Context, pluginID string) {
 		}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis stop: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis stopped: " + pluginID
+			s.diagNoteLocked("cordis stopped: " + pluginID)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -107,10 +108,11 @@ func (s *Store) InvokeCordisMethod(ctx context.Context, pluginID, pluginRunID, m
 		err := client.Call(ctx, "dynamicCordisRunner/invoke", req, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis invoke: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis invoke ok: " + method
+			s.diagNoteLocked("cordis invoke ok: " + method)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -132,10 +134,11 @@ func (s *Store) UndefineCordisPlugin(ctx context.Context, pluginID string) {
 		}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.pluginDiag = "cordis undefine: " + err.Error()
+			s.diagFaultLocked(err)
 		} else {
-			s.pluginDiag = "cordis undefined: " + pluginID
+			s.diagNoteLocked("cordis undefined: " + pluginID)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

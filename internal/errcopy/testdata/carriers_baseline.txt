@@ -54,10 +54,6 @@
 ../store/hostterminal/recovery.go	rawerr	1
 ../store/hostterminal/rename.go	rawerr	1
 ../store/hostterminal/shells.go	rawerr	3
-../store/im/cordis_inventory.go	rawerr	4
-../store/im/cordis_resolve.go	rawerr	5
-../store/im/store.go	fmt	2
-../store/im/store.go	rawerr	6
 ../store/imonboard/error.go	rawerr	1
 ../store/interaction/store.go	rawerr	2
 ../store/office/store.go	rawerr	2
