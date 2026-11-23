@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/app/startup"
 	"whaleisle/internal/dsh"
@@ -41,6 +42,7 @@ func (s *mainState) startupPlan() (*startup.Tracker, *startup.Scheduler) {
 			win := s.win
 			s.mu.Unlock()
 			if win != nil {
+				ui.FrameTraceCause("startup-level")
 				win.Invalidate()
 			}
 		})

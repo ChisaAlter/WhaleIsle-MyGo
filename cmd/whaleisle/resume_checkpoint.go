@@ -81,6 +81,7 @@ func (q *resumeCheckpoint) due(now time.Time, invalidate func()) bool {
 				notify, active := q.invalidate, !q.closed
 				q.mu.Unlock()
 				if active && notify != nil {
+					ui.FrameTraceCause("resume-checkpoint")
 					notify()
 				}
 			})
@@ -186,6 +187,7 @@ func (q *resumeCheckpoint) write(epoch uint64) {
 	close(done)
 	q.mu.Unlock()
 	if active && notify != nil {
+		ui.FrameTraceCause("resume-checkpoint")
 		notify()
 	}
 }

@@ -1435,6 +1435,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 		win := s.win
 		s.mu.Unlock()
 		if win != nil {
+			ui.FrameTraceCause("boot-progress")
 			win.Invalidate()
 		}
 		return
@@ -1514,6 +1515,7 @@ func (s *mainState) refreshBoot(st harness.Status, owner ...*harness.Supervisor)
 	s.syncDialogue(st)
 	s.observeMarketActivation(st)
 	if win != nil {
+		ui.FrameTraceCause("boot-status")
 		win.Update(func() { s.refreshPetTask(); s.refreshDesktopTray(); s.refreshStartupUpdateAttention(win) })
 	}
 }
@@ -1633,7 +1635,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.tryHydrateViewTabsFromHarness(setStore, &viewTabsHydrated)
 		if win != nil {
 			// While the boot page covers the window none of this is visible, and
-			// the page repaints on its own 24 fps tick: run the main-thread work
+			// the page repaints on its own 20 fps tick: run the main-thread work
 			// without asking for a frame per store notification. The refresh
 			// that lowers the page (recordStartupWorkspaceReady above) redraws.
 			booting := s.bootPageCovers()
@@ -1647,9 +1649,11 @@ func (s *mainState) syncDialogue(st harness.Status) {
 				if booting {
 					go mygo.RunOnMain(work)
 				} else {
+					ui.FrameTraceCause("session-refresh")
 					win.Update(work)
 				}
 			} else if !booting {
+				ui.FrameTraceCause("session-refresh")
 				win.Invalidate()
 			}
 		} else {
@@ -1805,6 +1809,7 @@ func (s *mainState) runDSH(ctx context.Context, startupGen uint64, client *dsh.C
 	s.mu.Unlock()
 	refresh := func() {
 		if win != nil {
+			ui.FrameTraceCause("connection")
 			win.Update(s.refreshPetTask)
 		}
 	}
