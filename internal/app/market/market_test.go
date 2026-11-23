@@ -209,7 +209,7 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	if err := ctrl.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	owner := ctrl.Snapshot().Owner
+	owner := ctrl.Snapshot().Value.Owner
 	transport := &dsh.Client{}
 	coord.mu.Lock()
 	coord.nativePlugins.client = transport
@@ -221,7 +221,7 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	a.OpenInstall()
 	a.EditInstall("fixture", "")
 	a.Inspect()
-	waitMarketFixture(t, func() bool { return ctrl.Snapshot().Install.Inspection != nil })
+	waitMarketFixture(t, func() bool { return ctrl.Snapshot().Value.Install.Inspection != nil })
 	a.RequestInstall()
 	a.Confirm()
 
@@ -230,7 +230,7 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("fake install did not start")
 	}
-	id := ctrl.Snapshot().Install.RequestID
+	id := ctrl.Snapshot().Value.Install.RequestID
 	if id == "" {
 		t.Fatal("install request has no identity")
 	}
@@ -242,13 +242,13 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	send("plugin-manager/install-state", map[string]any{"requestId": id, "phase": "applying"})
 	send("plugin-manager/install-state", map[string]any{"requestId": id, "phase": "installing"})
 	send("plugin-manager/install-log", map[string]any{"requestId": id, "jobId": "job", "argv": []string{"pnpm", "install", "fixture"}, "cwd": "C:/fixture", "stream": "stdout", "text": "fixture output"})
-	if got := ctrl.Snapshot().Install; got.Phase != "applying" || got.Log != "fixture output" {
+	if got := ctrl.Snapshot().Value.Install; got.Phase != "applying" || got.Log != "fixture output" {
 		t.Fatalf("native event wire lost owner/phase/output: %+v", got)
 	}
 	ctrl.Attach(fixture, nil)
 	send("plugin-manager/install-log", map[string]any{"requestId": id, "jobId": "job", "text": "stale host"})
 	send("plugin-manager/install-state", map[string]any{"requestId": id, "phase": "applying"})
-	if got := ctrl.Snapshot().Install; got.Log != "" || got.Phase != "" {
+	if got := ctrl.Snapshot().Value.Install; got.Log != "" || got.Phase != "" {
 		t.Fatalf("old transport changed replacement Host: %+v", got)
 	}
 }

@@ -15,7 +15,7 @@ func idleInstallCard(t *testing.T) *ui.Tester {
 	t.Helper()
 	official := manager.OfficialNPMRegistry
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle",
 		RegistryInfo:      &manager.RegistryInfo{Registry: &official, Resolved: &official},
 		RegistrySelection: manager.RegistryChoice{Kind: "offered", Registry: &official}}
@@ -135,7 +135,7 @@ func TestInstallChevronAngleEasesOverTheReferenceDuration(t *testing.T) {
 func TestInstallRegistryChipUnfoldsItsChoices(t *testing.T) {
 	official := manager.OfficialNPMRegistry
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle", RegistryOpen: true,
 		RegistryInfo:      &manager.RegistryInfo{Registry: &official, Resolved: &official},
 		RegistrySelection: manager.RegistryChoice{Kind: "offered", Registry: &official}}

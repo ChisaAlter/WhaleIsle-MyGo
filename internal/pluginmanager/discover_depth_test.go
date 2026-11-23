@@ -31,7 +31,7 @@ func TestDiscoverRetiredQueryCannotReplaceNewAnswerOrOpenedDetail(t *testing.T) 
 		return reply(out, SearchResult{FetchedAt: 1, Total: 1, Entries: []MarketEntry{{Name: request.Query.Text}}})
 	}), nil)
 	defer c.Detach()
-	owner := c.Snapshot().Owner
+	owner := c.Snapshot().Value.Owner
 	url := "https://fixture.invalid/index"
 	c.Actions(owner).edit(func(s *State) { s.Discover.Selected = url; s.Discover.Status = "ready" })
 	done := make(chan error, 1)
@@ -57,7 +57,7 @@ func TestDiscoverRetiredQueryCannotReplaceNewAnswerOrOpenedDetail(t *testing.T) 
 	case <-time.After(3 * time.Second):
 		t.Fatal("retired query did not finish")
 	}
-	s := c.Snapshot()
+	s := c.Snapshot().Value
 	if s.Discover.Listing.Entries[0].Name != "newer" || s.Discover.Answered.Text != "newer" || s.Discover.Opened == nil || s.Discover.Opened.Name != "newer" {
 		t.Fatalf("old query overwrote current listing/detail: %+v", s.Discover)
 	}

@@ -193,7 +193,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	if err = controller.Load(ctx); err != nil {
 		add("PLUG-01 inventory", "fail", failure(err), 0)
 	} else {
-		st := controller.Snapshot()
+		st := controller.Snapshot().Value
 		add("PLUG-01 inventory", "pass", st.Status, len(st.Packages))
 	}
 	if _, err = (manager.Client{Caller: client}).Indexes(ctx); err != nil {
@@ -297,12 +297,12 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		add("PLUG-03 local inspection", "blocked", inspection.Problem+" "+failure(inspectErr), 0)
 	} else {
 		add("PLUG-03 local inspection", "pass", "own directory; no dependencies or install scripts", 1)
-		a := controller.Actions(controller.Snapshot().Owner)
+		a := controller.Actions(controller.Snapshot().Value.Owner)
 		a.OpenInstall()
 		a.EditInstall(fixtureDir, registry.URL)
 		a.Inspect()
 		err = wait(func() (bool, error) {
-			s := controller.Snapshot()
+			s := controller.Snapshot().Value
 			if s.Install.Error != "" {
 				return false, errors.New(s.Install.Error)
 			}
@@ -310,7 +310,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		})
 		if err == nil {
 			err = wait(func() (bool, error) {
-				s := controller.Snapshot()
+				s := controller.Snapshot().Value
 				if s.Install.Error != "" {
 					return false, errors.New(s.Install.Error)
 				}
@@ -318,7 +318,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 			})
 		}
 		if err == nil {
-			r := controller.Snapshot().Install.Result
+			r := controller.Snapshot().Value.Install.Result
 			if r.Error != nil || r.Application == "failed" {
 				code := "failed"
 				if r.Error != nil {

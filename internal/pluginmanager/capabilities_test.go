@@ -144,7 +144,7 @@ func TestInstallUnblocksLocalMCPAndSkillWithoutBundle(t *testing.T) {
 					return nil
 				}
 			}), func() {
-				if c.Snapshot().Install.Phase == "done" {
+				if c.Snapshot().Value.Install.Phase == "done" {
 					select {
 					case <-done:
 					default:
@@ -153,7 +153,7 @@ func TestInstallUnblocksLocalMCPAndSkillWithoutBundle(t *testing.T) {
 				}
 			})
 
-			act := c.Actions(c.Snapshot().Owner)
+			act := c.Actions(c.Snapshot().Value.Owner)
 			act.OpenInstall()
 			act.EditInstall(tc.spec, "")
 			act.Inspect()
@@ -161,7 +161,7 @@ func TestInstallUnblocksLocalMCPAndSkillWithoutBundle(t *testing.T) {
 			select {
 			case <-done:
 			case <-time.After(3 * time.Second):
-				t.Fatalf("install did not complete natively, state=%+v", c.Snapshot().Install)
+				t.Fatalf("install did not complete natively, state=%+v", c.Snapshot().Value.Install)
 			}
 			mu.Lock()
 			gotCalls := append([]string(nil), calls...)
@@ -196,7 +196,7 @@ func TestRemoteMCPNotABundleReplacesBlanketRefusalWithGuidance(t *testing.T) {
 			return nil
 		}
 	}), func() {
-		s := c.Snapshot().Install
+		s := c.Snapshot().Value.Install
 		if s.Phase == "idle" && s.Inspection != nil {
 			select {
 			case <-done:
@@ -205,7 +205,7 @@ func TestRemoteMCPNotABundleReplacesBlanketRefusalWithGuidance(t *testing.T) {
 			}
 		}
 	})
-	act := c.Actions(c.Snapshot().Owner)
+	act := c.Actions(c.Snapshot().Value.Owner)
 	act.OpenInstall()
 	act.EditInstall("mcp-server-filesystem", "")
 	act.Inspect()
@@ -214,7 +214,7 @@ func TestRemoteMCPNotABundleReplacesBlanketRefusalWithGuidance(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("inspect did not settle")
 	}
-	inst := c.Snapshot().Install
+	inst := c.Snapshot().Value.Install
 	if inst.CapabilityKind != CapabilityMCP || strings.Contains(inst.Error, "The package does not declare a plugin bundle.") {
 		t.Fatalf("expected MCP capability guidance instead of blanket bundle refusal: %+v", inst)
 	}

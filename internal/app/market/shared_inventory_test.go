@@ -51,7 +51,7 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	if len(initial) != 1 || initial["/api/pluginInventory/list"] != 1 {
 		t.Fatalf("startup loaded duplicate or full market inventory: %v", initial)
 	}
-	if coord.NativeController().Snapshot().Status != "idle" {
+	if coord.NativeController().Snapshot().Value.Status != "idle" {
 		t.Fatal("runtime-only read activated full native manager")
 	}
 	coord.PrepareInstalledPlugin()

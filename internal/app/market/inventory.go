@@ -81,7 +81,7 @@ func (c *Coordinator) acceptInventory(source *manager.HostInventory, host uint64
 		// refresh its already-visible runtime projection once as well.
 		c.ensureInventory()
 	}
-	if ctrl != nil && ctrl.Snapshot().Status == "ready" {
+	if ctrl != nil && ctrl.Snapshot().Value.Status == "ready" {
 		ctrl.Ensure()
 	}
 	c.invalidateUI()

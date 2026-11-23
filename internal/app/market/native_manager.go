@@ -83,7 +83,7 @@ func (c *Coordinator) bindNativePluginManagerCaller(client *dsh.Client, caller m
 	}
 	c.mu.Lock()
 	c.nativePlugins.client = client
-	c.nativePlugins.owner = ctrl.Snapshot().Owner
+	c.nativePlugins.owner = ctrl.Snapshot().Value.Owner
 	c.mu.Unlock()
 	if store != nil {
 		if source == nil {
@@ -113,7 +113,7 @@ func (c *Coordinator) NativeEventHandler(client *dsh.Client) func(dsh.EventsEmit
 	}
 	ctrl, owner := binding.controller, binding.owner
 	return func(emit dsh.EventsEmit) {
-		if ctrl.Snapshot().Owner != owner {
+		if ctrl.Snapshot().Value.Owner != owner {
 			return
 		}
 		switch emit.Event {
@@ -179,7 +179,7 @@ func (c *Coordinator) refreshChangedInventory() {
 	if !deferred {
 		c.ensureInventory()
 	}
-	if ctrl != nil && ctrl.Snapshot().Status != "idle" {
+	if ctrl != nil && ctrl.Snapshot().Value.Status != "idle" {
 		go ctrl.Load(context.Background())
 	}
 	if store != nil && store.InventoryRequested() {
@@ -191,7 +191,7 @@ func (c *Coordinator) refreshChangedInventory() {
 // remains free of work; initial full catalog loading belongs to this action.
 func (c *Coordinator) PrepareInstalledPlugin() {
 	ctrl := c.NativeController()
-	if ctrl.Snapshot().Status == "error" {
+	if ctrl.Snapshot().Value.Status == "error" {
 		ctrl.Refresh(c.lifecycleContext())
 	} else {
 		ctrl.Ensure()

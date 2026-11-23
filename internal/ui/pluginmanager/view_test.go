@@ -104,7 +104,7 @@ func TestInstallTerminalShowsRunMetadataInNarrowDialog(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	exit := 1
 	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin", DetailsOpen: true, Runs: []manager.InstallRun{{JobID: "pnpm-1", Command: "pnpm add fixture-plugin", CWD: "fixture-profile", Output: "Installing fixture\nFixture failure", Chunks: []manager.InstallOutput{{Stream: "stdout", Text: "Installing fixture"}, {Stream: "stderr", Text: "Fixture failure"}}, Settled: true, ExitCode: &exit}}}
 	tt := ui.NewTester(func(c *ui.Context) {
@@ -157,13 +157,13 @@ func TestManagerNativeNavigationConfigurationsAndNarrowLayout(t *testing.T) {
 	if err := tt.Click("Fixture component"); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText("Row configuration fixture") || m.Controller.Snapshot().View.RowID != "patch-id" {
+	if !tt.HasText("Row configuration fixture") || m.Controller.Snapshot().Value.View.RowID != "patch-id" {
 		t.Fatal("row configuration did not use package#patch row id")
 	}
 	if err := tt.Click("Back to plugins"); err != nil {
 		t.Fatal(err)
 	}
-	if m.Controller.Snapshot().View.Kind != "package" {
+	if m.Controller.Snapshot().Value.View.Kind != "package" {
 		t.Fatal("row breadcrumb did not return to its package")
 	}
 	if err := tt.Click("Back to plugins"); err != nil {
@@ -191,7 +191,7 @@ func TestManagerDiscoverDetailsAndSourcesStaySeparate(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := pageModel(t)
-	owner := m.Controller.Snapshot().Owner
+	owner := m.Controller.Snapshot().Value.Owner
 	if err := m.Controller.LoadIndexes(context.Background(), owner); err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +296,7 @@ func TestPluginPageDiscoverTabIsReachable(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	m := pageModel(t)
-	owner := m.Controller.Snapshot().Owner
+	owner := m.Controller.Snapshot().Value.Owner
 	// The tab row mounts only once the market service answered — the native
 	// stand-in for the original's plugins.tab slot contribution.
 	if err := m.Controller.LoadIndexes(context.Background(), owner); err != nil {
@@ -314,7 +314,7 @@ func TestPluginPageDiscoverTabIsReachable(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if m.Controller.Snapshot().Tab != "discover" {
+	if m.Controller.Snapshot().Value.Tab != "discover" {
 		t.Fatal("Discover click did not select the native discovery view")
 	}
 }
@@ -338,14 +338,14 @@ func TestAddMenuOffersTheOfficialMarketplace(t *testing.T) {
 	if !tt.HasText("Install existing plugin") {
 		t.Fatal("install entry disappeared")
 	}
-	before := m.Controller.Snapshot()
+	before := m.Controller.Snapshot().Value
 	if err := tt.Click("Plugin marketplace"); err != nil {
 		t.Fatal(err)
 	}
 	if len(opened) != 1 || opened[0] != "https://awesome-dsh-plugin.com" {
 		t.Fatalf("marketplace opened %v", opened)
 	}
-	after := m.Controller.Snapshot()
+	after := m.Controller.Snapshot().Value
 	if after.Tab != before.Tab || after.View.Kind != before.View.Kind {
 		t.Fatalf("marketplace entry changed the page: %+v -> %+v", before.View, after.View)
 	}
@@ -366,7 +366,7 @@ func TestAddMenuMarketplaceIsDisabledWithoutABrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Nothing to call and nothing to change.
-	if snap := m.Controller.Snapshot(); snap.View.Kind != "" && snap.View.Kind != "list" {
+	if snap := m.Controller.Snapshot().Value; snap.View.Kind != "" && snap.View.Kind != "list" {
 		t.Fatalf("disabled marketplace entry navigated: %+v", snap.View)
 	}
 }

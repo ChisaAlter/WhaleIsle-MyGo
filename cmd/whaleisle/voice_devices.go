@@ -116,7 +116,7 @@ func (s *mainState) openVoiceSettings() {
 	s.pauseVoiceDevices()
 	s.voiceMicrophone()
 	controller := s.nativePluginController()
-	owner := controller.Snapshot().Owner
+	owner := controller.Snapshot().Value.Owner
 	s.mu.Lock()
 	s.voiceDevices.detailsPending = true
 	s.voiceDevices.detailsOwner = owner
@@ -142,7 +142,7 @@ func (s *mainState) finishVoiceDetailsNavigation() {
 		return
 	}
 	controller := s.nativePluginController()
-	state := controller.Snapshot()
+	state := controller.Snapshot().Value
 	if state.Owner != owner || state.Status != "idle" && state.Status != "loading" {
 		s.mu.Lock()
 		if s.voiceDevices == seat && seat.detailsOwner == owner {

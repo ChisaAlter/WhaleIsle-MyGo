@@ -336,7 +336,7 @@ func runNativeA2Desktop(output string) error {
 			s := state.marketCoordinator().InstalledPluginState(plugin)
 			if s.Known {
 				record["selectedPluginState"] = s
-				for _, entry := range state.nativePluginController().Snapshot().Packages {
+				for _, entry := range state.nativePluginController().Snapshot().Value.Packages {
 					if entry.Name == plugin {
 						record["selectedHostBundle"] = entry
 					}

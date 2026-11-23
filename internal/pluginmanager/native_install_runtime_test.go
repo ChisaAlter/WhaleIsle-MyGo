@@ -81,13 +81,13 @@ func TestFunctionalNativeCapabilityImports(t *testing.T) {
 		controller := manager.New()
 		defer controller.Detach()
 		controller.Attach(client, nil)
-		actions := controller.Actions(controller.Snapshot().Owner)
+		actions := controller.Actions(controller.Snapshot().Value.Owner)
 		actions.OpenInstall()
 		actions.EditInstall(dir, "")
 		actions.Inspect()
 		until := time.Now().Add(30 * time.Second)
 		for time.Now().Before(until) {
-			state := controller.Snapshot().Install
+			state := controller.Snapshot().Value.Install
 			if state.Phase == "done" {
 				return
 			}
@@ -96,7 +96,7 @@ func TestFunctionalNativeCapabilityImports(t *testing.T) {
 			}
 			time.Sleep(25 * time.Millisecond)
 		}
-		t.Fatalf("native import did not settle: %+v", controller.Snapshot().Install)
+		t.Fatalf("native import did not settle: %+v", controller.Snapshot().Value.Install)
 	}
 	mcpDir := filepath.Join(root, "mcp")
 	_ = os.Mkdir(mcpDir, 0700)

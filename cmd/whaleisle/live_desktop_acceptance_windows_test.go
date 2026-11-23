@@ -461,7 +461,7 @@ func runLiveDesktopAcceptance() error {
 		_ = liveWaitFor("plugin manager packages loaded", 10*time.Second, func() bool {
 			mygo.RunOnMain(func() { drv.Frame() })
 			ctrl := state.nativePluginController()
-			snap := ctrl.Snapshot()
+			snap := ctrl.Snapshot().Value
 			return snap.Status != "loading"
 		})
 		if err := capture("09-marketplace"); err != nil {

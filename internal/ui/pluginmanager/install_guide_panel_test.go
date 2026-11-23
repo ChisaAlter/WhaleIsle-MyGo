@@ -13,7 +13,7 @@ import (
 func guideSpecCard(t *testing.T, height int) *ui.Tester {
 	t.Helper()
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
 		installDialog(c, m, s, m.Controller.Actions(s.Owner))

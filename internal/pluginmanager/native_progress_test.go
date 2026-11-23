@@ -36,12 +36,12 @@ func TestNativeUnconfirmedReviewCanFinishWithoutReplayingWrites(t *testing.T) {
 	c.state.Install = InstallState{Open: true, RequestID: "owned", Phase: "unconfirmed", NativeCanFinish: true}
 	a := c.Actions(op.owner)
 	a.FinishNativeReview()
-	state := c.Snapshot()
+	state := c.Snapshot().Value
 	if state.Install.Phase != "failed" || state.Install.Result == nil || state.Install.Result.Error.Code != "native-install/unconfirmed" || state.Install.Result.Warnings[0] != "MCP one: result unconfirmed" {
 		t.Fatalf("uncertainty lost: %+v", state.Install)
 	}
 	a.CloseInstall()
-	if c.Snapshot().Install.RequestID != "" {
+	if c.Snapshot().Value.Install.RequestID != "" {
 		t.Fatal("finished native review still locked installer")
 	}
 }

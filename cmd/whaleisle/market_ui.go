@@ -127,7 +127,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	sessions, win := s.sessions, s.win
 	s.mu.Unlock()
 	ctrl := s.nativePluginController()
-	snap := ctrl.Snapshot()
+	snap := ctrl.Snapshot().Value
 	if snap.Connected {
 		// Gates the Installed/Discover SegmentedTabs the way the original
 		// gates on a plugins.tab slot contribution; the catalog itself

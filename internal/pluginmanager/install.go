@@ -19,7 +19,7 @@ func requestID() string {
 }
 func (a Actions) OpenInstall() { a.c.openInstall(a.owner, "", "", nil, false) }
 func (a Actions) Update(name string) {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner {
 		return
 	}
@@ -28,7 +28,7 @@ func (a Actions) Update(name string) {
 			c := a.c
 			c.mu.Lock()
 			if c.state.Owner != a.owner || c.client == nil || c.state.ActionBusy(p.Name) {
-				c.mu.Unlock()
+				c.unlockPublish()
 				return
 			}
 			client, ctx := Client{c.client}, c.life
@@ -36,7 +36,7 @@ func (a Actions) Update(name string) {
 				c.state.BusyKeys = map[string]bool{}
 			}
 			c.state.BusyKeys[p.Name] = true
-			c.mu.Unlock()
+			c.unlockPublish()
 			c.fire()
 			go func() {
 				result, err := client.Remove(ctx, p.Name)
@@ -64,12 +64,12 @@ func (a Actions) Update(name string) {
 func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *bool, exact bool) bool {
 	c.mu.Lock()
 	if c.state.Owner != owner || c.client == nil {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return false
 	}
 	if c.state.Install.RequestID != "" && c.state.Install.Phase != "reviewed" {
 		c.state.Install.Open = true
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return false
 	}
@@ -93,7 +93,7 @@ func (c *Controller) openInstall(owner uint64, spec, registry string, enabled *b
 	c.choiceRead++
 	read, selection := c.registryRead, c.choiceRead
 	client, ctx := Client{c.client}, c.life
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go c.readInstallRegistries(ctx, client, owner, read, selection)
 	return true
@@ -118,14 +118,14 @@ func (a Actions) startConfirmedInstall() {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	if !c.state.Install.RegistryReadDone {
 		c.state.Install.StartAfterRegistry = true
 		c.state.Install.WaitingForRegistry = true
 		c.state.Install.Phase = "checking"
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return
 	}
@@ -134,11 +134,11 @@ func (a Actions) startConfirmedInstall() {
 		c.state.Install.WaitingForRegistry = false
 		c.state.Install.Phase = "idle"
 	} else if c.state.Install.Phase == "checking" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	prepared := c.state.Install.Inspection != nil
-	c.mu.Unlock()
+	c.unlockPublish()
 	if prepared {
 		a.RequestInstall()
 	} else {
@@ -149,7 +149,7 @@ func (a Actions) CloseInstall() {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	pending := installPending(c.state.Install.Phase)
@@ -164,7 +164,7 @@ func (a Actions) CloseInstall() {
 		c.registryRead++
 		c.state.Install = InstallState{Phase: "idle"}
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	if pending {
 		a.cancelInstall(request)
@@ -199,20 +199,20 @@ func (a Actions) Inspect() {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner || c.client == nil || c.state.Busy || c.state.Install.Phase == "checking" || installPending(c.state.Install.Phase) || c.state.Install.Phase == "unknown" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	spec := strings.TrimSpace(c.state.Install.Spec)
 	registry := c.state.Install.Registry
 	if spec == "" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	if !c.state.Install.RegistryReadDone {
 		c.state.Install.StartAfterRegistry = true
 		c.state.Install.WaitingForRegistry = true
 		c.state.Install.Phase = "checking"
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return
 	}
@@ -222,7 +222,7 @@ func (a Actions) Inspect() {
 		if !registryInputValid(raw) {
 			c.state.Install.RegistryError = true
 			c.state.Install.RegistryOpen = true
-			c.mu.Unlock()
+			c.unlockPublish()
 			c.fire()
 			return
 		}
@@ -236,7 +236,7 @@ func (a Actions) Inspect() {
 			if pkg.Availability == "installation" {
 				c.state.Install.Error = "This plugin is supplied by the runtime: " + spec
 			}
-			c.mu.Unlock()
+			c.unlockPublish()
 			c.fire()
 			return
 		}
@@ -258,7 +258,7 @@ func (a Actions) Inspect() {
 	c.state.Install.Log = ""
 	c.state.Install.DetailsOpen = false
 	c.state.Install.RegistryOpen = false
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	if remember {
 		c.rememberRegistry(a.owner, choice)
@@ -386,7 +386,7 @@ func (a Actions) RequestInstall() {
 	i := &s.Install
 	blockedBundle := i.Inspection != nil && i.Inspection.Bundle != nil && !*i.Inspection.Bundle && !nativeCapabilityInstallReady(i.Inspection)
 	if s.Owner != a.owner || !s.Connected || s.Busy || i.Inspection == nil || i.Inspection.Status != "accepted" || blockedBundle || i.Phase == "checking" || installPending(i.Phase) || i.Phase == "unknown" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	id := requestID()
@@ -412,7 +412,7 @@ func (a Actions) RequestInstall() {
 	if nativeAction(op) {
 		if err := prepareNativeAction(&op); err != nil {
 			i.Error = err.Error()
-			c.mu.Unlock()
+			c.unlockPublish()
 			c.fire()
 			return
 		}
@@ -422,14 +422,14 @@ func (a Actions) RequestInstall() {
 	i.DetailsOpen = false
 	i.RegistryOpen = false
 	i.ApprovedBuilds = nil
-	c.mu.Unlock()
+	c.unlockPublish()
 	if remember {
 		c.rememberRegistry(a.owner, choice)
 	}
 	c.run(op)
 }
 func (a Actions) RetryInstall() {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner {
 		return
 	}
@@ -459,17 +459,17 @@ func (a Actions) EnableInstalled() {
 	c.mu.Lock()
 	i := &c.state.Install
 	if c.state.Owner != a.owner || c.client == nil || i.Phase != "done" || i.Enabling || i.Result == nil {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	name := i.Result.Bundle
 	if name == "" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	i.Enabling = true
 	client, ctx := Client{c.client}, c.life
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go func() {
 		var result Change
@@ -498,7 +498,7 @@ func (a Actions) RequestExemption(pkg, runtime string) {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner || c.state.Busy {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	valid := false
@@ -513,7 +513,7 @@ func (a Actions) RequestExemption(pkg, runtime string) {
 		c.pending = &action{kind: "exemption", target: pkg, runtime: runtime, owner: a.owner, revision: c.revision}
 		c.state.Confirmation = &Confirmation{Kind: "exemption", Target: pkg, Description: "Accept the compatibility risk and exempt " + pkg + " for runtime " + runtime + "?"}
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 }
 func (a Actions) CancelInstall() { a.cancelInstall("") }
@@ -522,7 +522,7 @@ func (a Actions) cancelInstall(expectedID string) {
 	c.mu.Lock()
 	i := &c.state.Install
 	if expectedID != "" && i.RequestID != expectedID {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	if c.state.Owner == a.owner && c.nativeInstall != nil && c.nativeInstall.options.RequestID == i.RequestID && installPending(i.Phase) {
@@ -534,7 +534,7 @@ func (a Actions) cancelInstall(expectedID string) {
 		i.Phase = "unconfirmed"
 		i.Error = "Installation interrupted. Confirm the Host result before retrying."
 		c.state.Busy = false
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return
 	}
@@ -546,12 +546,12 @@ func (a Actions) cancelInstall(expectedID string) {
 		c.installRead++
 		reopenInstallInput(i)
 		c.state.Busy = false
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return
 	}
 	if c.state.Owner != a.owner || c.client == nil || i.RequestID == "" || (i.Phase != "starting" && i.Phase != "running" && i.Phase != "unconfirmed") || (i.CancellationRequested && !i.WaitingForStart) {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	id, client, ctx := c.state.Install.RequestID, Client{c.client}, c.life
@@ -559,7 +559,7 @@ func (a Actions) cancelInstall(expectedID string) {
 	i.CancellationRequested = true
 	i.WaitingForStart = false
 	i.Phase = "cancelling"
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go func() {
 		status, err := client.CancelInstall(ctx, id)
@@ -620,13 +620,13 @@ func (a Actions) ReconcileInstall() {
 	c := a.c
 	c.mu.Lock()
 	id := c.state.Install.RequestID
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.reconcileInstall(a.owner, id)
 }
 func (c *Controller) reconcileInstall(owner uint64, id string) {
 	c.mu.Lock()
 	if c.state.Owner != owner || c.client == nil || id == "" || c.state.Install.RequestID != id || c.state.Install.Recovering || !installPending(c.state.Install.Phase) {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	client, ctx := Client{c.client}, c.life
@@ -636,7 +636,7 @@ func (c *Controller) reconcileInstall(owner uint64, id string) {
 		native = &copy
 	}
 	c.state.Install.Recovering = true
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go func() {
 		var result *Change
