@@ -282,6 +282,14 @@ type Renderer struct {
 	passVS, downPS, blurPS, passCB uintptr
 	grab                           texture
 	backdrop                       [2]texture
+	// bdCache are the backdrops of the last frame, which the next draws
+	// again while what is under them stays the same, bdKeys the keys of
+	// the frame's, and bdHits and bdMisses count the backdrops drawn again
+	// and computed. imageEpoch counts the images whose contents changed.
+	bdCache          []cachedBackdrop
+	bdKeys           []uint64
+	bdHits, bdMisses int
+	imageEpoch       uint64
 	// effects are the pixel shaders of the effects drawn, made as first
 	// drawn.
 	effects map[*scene.Effect]*effectShader
@@ -603,6 +611,7 @@ func (r *Renderer) Release() {
 		free(&t.srv)
 		free(&t.tex)
 	}
+	r.trimBackdrops(0)
 	// The target goes first: a window has one at most, which another
 	// renderer of it then makes.
 	for _, p := range []*uintptr{&r.visual, &r.target, &r.dcomp, &r.rtv, &r.swapChain2, &r.swapChain, &r.instBuf, &r.cbuf, &r.passCB, &r.samp, &r.raster, &r.maskBlend, &r.blend, &r.layout,
@@ -667,6 +676,7 @@ func (r *Renderer) imageView(img *scene.Image) uintptr {
 		t.ver = img.Version()
 		r.images[img.ID()] = t
 	} else if t.ver != img.Version() {
+		r.imageEpoch++
 		call(r.ctx, ctxUpdateSubresource, t.tex, 0, 0, uintptr(unsafe.Pointer(&img.Pix[0])), uintptr(img.W*4), 0)
 		t.ver = img.Version()
 	}
@@ -737,6 +747,12 @@ func (r *Renderer) draw(s *scene.Scene) error {
 	if err := r.fitBackdrop(); err != nil {
 		return err
 	}
+	var salt uint64
+	if len(r.b.Backdrops) > 0 {
+		r.bdKeys = r.b.BackdropKeys(r.bdKeys)
+		salt = r.backdropSalt(s)
+	}
+	r.trimBackdrops(len(r.b.Backdrops))
 	maskIdx := -1
 	if r.rounded != nil {
 		if radius := r.rounded.maskRadius(r, s); radius > 0 {
@@ -798,8 +814,7 @@ func (r *Renderer) draw(s *scene.Scene) error {
 		}
 		if b.Backdrop != 0 {
 			// The effect shows what is drawn so far.
-			r.readBackdrop(r.b.Backdrops[b.Backdrop-1])
-			r.bindState(s, r.backdrop[0].srv)
+			r.bindState(s, r.backdropView(b.Backdrop-1, salt))
 			bound, ps = 0, r.ps
 		}
 		if want != ps {
