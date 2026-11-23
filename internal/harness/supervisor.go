@@ -15,12 +15,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"path/filepath"
 
 	"whaleisle/internal/harness/installctrl"
 	"whaleisle/internal/paths"
