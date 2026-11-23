@@ -27,6 +27,9 @@ type host interface {
 	// occluded reports whether nothing of the window shows, as when other
 	// windows cover it.
 	occluded() bool
+	// workArea reports the orientation of the work area of the screen
+	// showing the window (Context.DisplayLandscape).
+	workArea() (landscape, known bool)
 	present(s *scene.Scene)
 	requestFrame()
 	setCursor(Cursor)
@@ -99,6 +102,27 @@ type engine struct {
 	under []Rect
 
 	states map[uint64]*state
+	// touched are the states the pass building touched (lookState), and
+	// earlier those touched before it, by an earlier pass of the frame or
+	// between frames; live are those the last frame built. dormant are the
+	// states of pages Routers keep out of sight, which prune looks at again
+	// only when the pages kept change (keptSig), dormantNew those it adds,
+	// and keptMemo whether a page is kept, as prune finds out.
+	touched, earlier, live []*state
+	dormant, dormantNew    []*state
+	dormantScratch         []*state
+	dormantLen             int
+	keptSig                uint64
+	keptMemo               map[uint64]bool
+	// memos are the memo regions, by the ID of their elements (memo.go);
+	// memoBuilt, memoKept and memoLaid count the regions built, kept and
+	// kept laid out, binds the Handles bound, and commitMemo is the region
+	// around the elements being committed.
+	memos                         map[uint64]*memoRegion
+	memoBuilt, memoKept, memoLaid int
+	memoCommitted, memoDescribed  int
+	bindLog                       []memoBind
+	commitMemo                    uint64
 	// free are states pruned, which new elements take: rows coming into
 	// a list's view take those of rows that went out of it.
 	free  []*state
@@ -138,14 +162,10 @@ type engine struct {
 	physical  physicalShortcutState
 
 	// trans are the transitions of the elements given one, by ID
-	// (transition.go): exitsBuilt tells that the last frame built elements
-	// with an Exit, whose arena the next frame keeps to copy those that
-	// go, laidW and laidH are the size the last frame was laid out at, and
-	// byID maps a frame's elements, for the copies going.
+	// (transition.go), and laidW and laidH the size the last frame was laid
+	// out at.
 	trans        map[uint64]*transition
-	exitsBuilt   bool
 	laidW, laidH float32
-	byID         map[uint64]*node
 	// insp is the inspector (inspector.go); dupKeys are the duplicate keys
 	// reported, and warnings what the inspector lists.
 	insp     inspector
@@ -245,8 +265,17 @@ type engine struct {
 	stats *frameStats
 	// dropOver is the element files are dragged over; access is true once
 	// assistive technology asked for the content.
-	dropOver   uint64
-	access     bool
+	dropOver uint64
+	access   bool
+	// accBuild is the tree for assistive technology being built, into
+	// nodes kept from frame to frame, accLast the tree the host got last,
+	// numbered accSeq, and accChanged the indexes of the nodes that
+	// changed since (updateAccess).
+	accBuild   platform.AccessTree
+	accLast    *platform.AccessTree
+	accSeq     uint64
+	accChanged []int
+	accPainted [3]float32
 	blinkStart time.Time
 	inFrame    bool
 	dark       bool
@@ -403,14 +432,6 @@ func (rt *engine) runFrame() {
 	rt.scrollTextSelection()
 	rt.stepWheelScroll(now)
 
-	if rt.exitsBuilt {
-		// The last frame's elements stay as they are while this one builds,
-		// for copies of those that go with an exit transition.
-		rt.c.chunks, rt.c.spare = rt.c.spare, rt.c.chunks
-		rt.c.dirty, rt.c.spareDirty = rt.c.spareDirty, rt.c.dirty
-		rt.c.used = rt.c.dirty
-	}
-
 	// An event handled while building (a click, an edit) may change what
 	// was built before it: build again, so the frame shows the outcome.
 	for pass := 0; pass < 3; pass++ {
@@ -499,7 +520,7 @@ func (rt *engine) runFrame() {
 	rt.updateTextInput()
 	rt.updateCursor()
 	if rt.access {
-		rt.host.updateAccessibility(rt.accessTree())
+		rt.updateAccess(false)
 	}
 	if h, ok := rt.host.(*headless); ok {
 		// For tests, whether assistive technology reads the window or not.
@@ -509,8 +530,8 @@ func (rt *engine) runFrame() {
 	rt.next()
 	rt.armTimer()
 	rt.showMenu()
+	rt.snapshotExits()
 	rt.c.finish()
-	clear(rt.byID)
 	rt.stats.end(rt)
 }
 
@@ -642,7 +663,7 @@ func (rt *engine) endPass() {
 // forgetInput forgets the input of the elements the pass built, which
 // they handled.
 func (rt *engine) forgetInput() {
-	for _, s := range rt.states {
+	for _, s := range rt.touched {
 		if s.seen != rt.frame || s.pass != rt.pass {
 			continue
 		}
@@ -655,38 +676,73 @@ func (rt *engine) forgetInput() {
 	}
 }
 
+// beginTouched starts the list of states a pass touches; those touched
+// before, by an earlier pass or between frames, wait for prune.
+func (rt *engine) beginTouched() {
+	rt.earlier = append(rt.earlier, rt.touched...)
+	clear(rt.touched)
+	rt.touched = rt.touched[:0]
+}
+
 // prune forgets the elements the frame did not build, but those of the
-// pages Routers keep.
+// pages Routers keep. It looks only at the states that may have gone: those
+// the last frame built, those an earlier pass of this frame touched, and,
+// when the pages Routers keep changed, those kept for them, rather than at
+// every state of the window.
 func (rt *engine) prune() {
+	rt.pruneMemos()
 	rt.cancelOrphanedValueDrag()
 	if d := rt.drag; d != nil && d.native {
 		if s := rt.states[d.src]; s == nil || s.seen != rt.frame || s.pass != rt.pass {
 			rt.host.cancelDataDrag()
 		}
 	}
+	sig := keptSignature(rt.kept)
+	// Now and then all the same, for the pages of pages, which a frame may
+	// move without changing the pages kept.
+	rescan := sig != rt.keptSig || len(rt.dormant) > 2*rt.dormantLen+256 || rt.frame%64 == 0
+	rt.keptSig = sig
+	clear(rt.keptMemo)
 	unpressed := false
-	for id, s := range rt.states {
-		if s.seen != rt.frame || s.pass != rt.pass {
-			if rt.pressed == s {
-				rt.pressed, unpressed = nil, true
+	for _, s := range rt.live {
+		unpressed = rt.pruneState(s) || unpressed
+	}
+	for _, s := range rt.earlier {
+		unpressed = rt.pruneState(s) || unpressed
+	}
+	if rescan {
+		old := rt.dormant
+		rt.dormant = rt.dormantScratch[:0]
+		for _, s := range old {
+			s.dormant = false
+		}
+		for _, s := range old {
+			unpressed = rt.pruneState(s) || unpressed
+		}
+		for _, s := range rt.dormantNew {
+			if rt.states[s.id] == s && !s.dormant {
+				s.dormant = true
+				rt.dormant = append(rt.dormant, s)
 			}
-			if !rt.keptAlive(s) {
-				if s.textAdapter != nil {
-					s.textAdapter.release()
-				}
-				delete(rt.states, id)
-				if rt.scrollDrag.st == s {
-					rt.scrollDrag.st = nil
-				}
-				// Recycle the state itself, without keeping the editor,
-				// local resources or callbacks of the element that went.
-				*s = state{}
-				if len(rt.free) < maxFree {
-					rt.free = append(rt.free, s)
-				}
+		}
+		clear(old)
+		rt.dormantScratch = old[:0]
+		rt.dormantLen = len(rt.dormant)
+	} else {
+		for _, s := range rt.dormantNew {
+			if !s.dormant {
+				s.dormant = true
+				rt.dormant = append(rt.dormant, s)
 			}
 		}
 	}
+	clear(rt.dormantNew)
+	rt.dormantNew = rt.dormantNew[:0]
+	clear(rt.earlier)
+	rt.earlier = rt.earlier[:0]
+	// What the frame built is what the next one looks at.
+	clear(rt.live)
+	rt.live, rt.touched = rt.touched, rt.live[:0]
 	if unpressed {
 		// The element pressed went away, as a button showing over a row
 		// the pointer left: what the pointer is over now hovers, rather
@@ -704,25 +760,79 @@ func (rt *engine) prune() {
 	}
 }
 
+// pruneState forgets s unless the frame built it or a Router keeps its
+// page, and reports whether it was the element pressed.
+func (rt *engine) pruneState(s *state) (unpressed bool) {
+	if rt.states[s.id] != s || s.seen == rt.frame && s.pass == rt.pass || s.pruned == rt.frame {
+		// Forgotten already, or built, or looked at.
+		return false
+	}
+	s.pruned = rt.frame
+	if rt.pressed == s {
+		rt.pressed, unpressed = nil, true
+	}
+	if rt.keptAlive(s) {
+		rt.dormantNew = append(rt.dormantNew, s)
+		return unpressed
+	}
+	if s.textAdapter != nil {
+		s.textAdapter.release()
+	}
+	delete(rt.states, s.id)
+	if rt.scrollDrag.st == s {
+		rt.scrollDrag.st = nil
+	}
+	// Recycle the state itself, without keeping the editor, local
+	// resources or callbacks of the element that went.
+	*s = state{}
+	if len(rt.free) < maxFree {
+		rt.free = append(rt.free, s)
+	}
+	return unpressed
+}
+
+// keptSignature sums the pages Routers keep, so prune can tell they
+// changed without comparing the sets.
+func keptSignature(kept map[uint64]bool) uint64 {
+	sig := uint64(len(kept))
+	for id, ok := range kept {
+		if ok {
+			sig += mix(id, 0x6b657074)
+		}
+	}
+	return sig
+}
+
 // maxFree is how many pruned states the engine keeps for new elements.
 const maxFree = 256
 
 // keptAlive reports whether a state the frame did not build is in a page
-// that a Router keeps: one of its history, or inside one.
+// that a Router keeps: one of its history, or inside one. The answer for
+// each page is kept until the next prune, so the states of one page take
+// one walk up their pages.
 func (rt *engine) keptAlive(s *state) bool {
 	if len(rt.kept) == 0 {
 		return false
 	}
-	for n := 0; s != nil && n < 64; n++ {
-		if rt.kept[s.id] {
-			return true
-		}
-		if s.page == 0 {
-			return false
-		}
-		s = rt.states[s.page]
+	if rt.kept[s.id] {
+		return true
 	}
-	return false
+	return s.page != 0 && rt.pageKept(s.page, 0)
+}
+
+func (rt *engine) pageKept(page uint64, depth int) bool {
+	if kept, ok := rt.keptMemo[page]; ok {
+		return kept
+	}
+	kept := false
+	if s := rt.states[page]; s != nil && depth < 64 {
+		kept = rt.kept[s.id] || s.page != 0 && rt.pageKept(s.page, depth+1)
+	}
+	if rt.keptMemo == nil {
+		rt.keptMemo = map[uint64]bool{}
+	}
+	rt.keptMemo[page] = kept
+	return kept
 }
 
 // overlayExitPending tells whether an element of the overlay layer has gone
@@ -853,46 +963,17 @@ func (rt *engine) commit(root *node, w, h float32) {
 }
 
 func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
+	if hidden {
+		rt.commitHidden(e)
+		return
+	}
 	inline := e.isInline()
 	if e.kind == kindText && e.first != nil && !inline {
 		placeInline(e, e, 0)
 	}
-	saved, savedPage := rt.enterScope(e), rt.commitPage
-	defer func() { rt.commitScope, rt.commitPage = saved, savedPage }()
-	s := e.st
-	s.page = rt.commitPage
-	if e.flags&flagPage != 0 {
-		rt.commitPage = e.id
-	}
-	s.x, s.y, s.w, s.h = e.x, e.y, e.w, e.h
-	if e.parent != nil {
-		s.parent = e.parent.id
-	} else {
-		s.parent = 0
-	}
-	s.flags = e.flags
-	s.anchor = 0
-	if e.popover != nil {
-		s.anchor = e.popover.id
-	}
-	if e.parent != nil && e.parent.st.flags&flagDisabled != 0 {
-		// Disabled with the element around it, which may have been
-		// disabled after building it, as a Fieldset.
-		s.flags |= flagDisabled
-	}
-	s.cursor, s.tip = e.cursor, e.tip
-	s.role = e.role
-	s.regionEscape = e.regionEscape
-	s.input, s.caret, s.takesText = e.inputFn, e.caret, e.takesText
-	if s.textClient != e.textClient {
-		if s.textAdapter != nil {
-			s.textAdapter.release()
-		}
-		s.textClient, s.textAdapter = e.textClient, nil
-	}
-	if s.textClient != nil && s.textAdapter == nil {
-		s.textAdapter = &textInputAdapter{rt: rt, id: s.id}
-	}
+	saved, savedPage, savedMemo := rt.enterScope(e), rt.commitPage, rt.commitMemo
+	defer func() { rt.commitScope, rt.commitPage, rt.commitMemo = saved, savedPage, savedMemo }()
+	s := rt.recordState(e)
 	if (e.flags&flagEditable != 0 || s.textClient != nil && s.flags&flagDisabled == 0 || e.flags&flagSelectable != 0 && s.editor != nil) && s.cursor == 0 {
 		s.cursor = CursorText + 1
 	}
@@ -960,6 +1041,15 @@ func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
 		r, _ := e.clipRect()
 		clip = intersect(clip, r)
 	}
+	var marks commitMarks
+	if e.memoOn && !invisible {
+		if rt.commitKept(e, clip) {
+			return // a region kept, where it was
+		}
+		marks = rt.commitMarks()
+		rt.commitMemo = e.id
+		defer rt.noteCommit(e, clip, &marks)
+	}
 	// Children in flow first, absolute ones above them: the paint order.
 	for ch := e.first; ch != nil; ch = ch.next {
 		if ch.flags&flagAbsolute == 0 {
@@ -1026,4 +1116,80 @@ func (rt *engine) updateCursor() {
 		rt.cursor = c
 		rt.host.setCursor(c)
 	}
+}
+
+// recordState records in the element's state what the last frame laid out
+// and built of it, for input until the next frame.
+func (rt *engine) recordState(e *node) *state {
+	s := e.st
+	s.page = rt.commitPage
+	s.memo = rt.commitMemo
+	if e.flags&flagPage != 0 {
+		rt.commitPage = e.id
+	}
+	s.x, s.y, s.w, s.h = e.x, e.y, e.w, e.h
+	if e.parent != nil {
+		s.parent = e.parent.id
+	} else {
+		s.parent = 0
+	}
+	s.flags = e.flags
+	s.anchor = 0
+	if e.popover != nil {
+		s.anchor = e.popover.id
+	}
+	if e.parent != nil && e.parent.st.flags&flagDisabled != 0 {
+		// Disabled with the element around it, which may have been
+		// disabled after building it, as a Fieldset.
+		s.flags |= flagDisabled
+	}
+	s.cursor, s.tip = e.cursor, e.tip
+	s.role = e.role
+	s.regionEscape = e.regionEscape
+	s.input, s.caret, s.takesText = e.inputFn, e.caret, e.takesText
+	if s.textClient != e.textClient {
+		if s.textAdapter != nil {
+			s.textAdapter.release()
+		}
+		s.textClient, s.textAdapter = e.textClient, nil
+	}
+	if s.textClient != nil && s.textAdapter == nil {
+		s.textAdapter = &textInputAdapter{rt: rt, id: s.id}
+	}
+	return s
+}
+
+// commitHidden records an element inside an invisible or inert one, and
+// those inside it. Their states keep up with the frame, and the dialogs and
+// pages they are in, but they take neither the pointer nor the focus and
+// have no text to find: the hit list, the focus order and the labels skip
+// them. Inside an invisible element, their boxes were not laid out.
+func (rt *engine) commitHidden(e *node) {
+	saved, savedPage, savedMemo := rt.enterScope(e), rt.commitPage, rt.commitMemo
+	s := rt.recordState(e)
+	if e.memoOn {
+		rt.commitMemo = e.id
+	}
+	s.vx, s.vy, s.vw, s.vh = e.x, e.y, 0, 0
+	s.cx, s.cy = e.x+e.contentX(), e.y+e.contentY()
+	s.cw, s.ch = max(e.w-e.padX(), 0), max(e.h-e.padY(), 0)
+	if e.flags&(flagScrollX|flagScrollY) != 0 {
+		s.contentW, s.contentH = e.contentW, e.contentH
+		s.barInset = e.barInset
+		s.barVisible = e.barVisible
+	}
+	if rt.focused == e.id {
+		rt.focused = 0
+	}
+	for ch := e.first; ch != nil; ch = ch.next {
+		if ch.flags&flagAbsolute == 0 {
+			rt.commitHidden(ch)
+		}
+	}
+	for ch := e.first; ch != nil; ch = ch.next {
+		if ch.flags&flagAbsolute != 0 {
+			rt.commitHidden(ch)
+		}
+	}
+	rt.commitScope, rt.commitPage, rt.commitMemo = saved, savedPage, savedMemo
 }

@@ -68,8 +68,8 @@ func (sizes *LayoutSizes) observeSidebarViewport(width float32) {
 // exists. The reference falls back to viewport aspect only without screen data;
 // headless tests take that same fallback. Width-only solvers keep the most recent
 // observation instead of inventing a screen orientation.
-func (sizes *LayoutSizes) observeSidebarGeometry(width, height float32) {
-	landscape, known := displayLandscape()
+func (sizes *LayoutSizes) observeSidebarGeometry(c *ui.Context, width, height float32) {
+	landscape, known := displayLandscape(c)
 	sizes.observeSidebarOrientation(width, height, landscape, known)
 }
 
@@ -139,7 +139,7 @@ func (sizes *LayoutSizes) ToggleSidebar() {
 // compact rail has no resize target, so dragging cannot overwrite saved width.
 func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 	viewport, height := viewportDIP(c)
-	sizes.observeSidebarGeometry(viewport, height)
+	sizes.observeSidebarGeometry(c, viewport, height)
 	if sizes.drawerMode() {
 		sidebarDrawer(c, sizes, sidebar, center, viewport)
 		return

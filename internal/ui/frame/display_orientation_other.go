@@ -2,6 +2,8 @@
 
 package frame
 
-// No owned native screen is available through this frame's non-Windows pixel
-// source; match the reference's missing-screen viewport-aspect fallback.
-func displayLandscape() (landscape, known bool) { return false, false }
+import "github.com/egoist/mygo/ui"
+
+// MyGo reads no screen here outside Windows, and this frame no native one;
+// match the reference's missing-screen viewport-aspect fallback.
+func displayLandscape(*ui.Context) (landscape, known bool) { return false, false }

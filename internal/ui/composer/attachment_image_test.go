@@ -93,6 +93,14 @@ func TestAttachmentGIFRejectsFrameAndCanvasBudgets(t *testing.T) {
 }
 func TestAttachmentOriginalGIFAdvancesAndDismisses(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
+		// The bubble's clock cannot wait out the process service's real-time
+		// workers: the settled poll burns its whole budget while the decode is
+		// still queued, so the first frame depends on an unrelated test having
+		// warmed the shared cache. Decode on the calling goroutine instead.
+		s := media.New(media.Config{Workers: -1})
+		previous := composerMedia
+		composerMedia = func() *media.Service { return s }
+		defer func() { composerMedia = previous }()
 		a := attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))
 		v := readSettled(a, true)
 		if v.err != nil {

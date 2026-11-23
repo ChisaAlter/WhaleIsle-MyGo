@@ -415,6 +415,12 @@ type node struct {
 	// serial is the order the pass made the element in: of overlays, the
 	// one made last shows on top.
 	serial int32
+	// memoOn makes the element a memo region of version memoVersion (Memo);
+	// rx and ry are where the layout put it, relative to its parent, as
+	// place found it, which a region kept puts back.
+	memoOn      bool
+	memoVersion uint64
+	rx, ry      float32
 }
 
 type measure struct {
@@ -491,6 +497,10 @@ type stripes struct {
 // are added to e.
 func (e *node) Children(fn func()) *node {
 	c := e.c
+	if e.memoOn && !memoOff {
+		c.memoChildren(e, fn)
+		return e
+	}
 	saved := c.parent
 	c.parent = e
 	fn()

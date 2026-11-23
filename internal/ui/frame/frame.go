@@ -502,7 +502,7 @@ func View(c *ui.Context, m Model) {
 	}
 	viewport, viewportHeight := viewportDIP(c)
 	m.ViewportW, m.ViewportH = viewport, viewportHeight
-	m.Sizes.observeSidebarGeometry(viewport, viewportHeight)
+	m.Sizes.observeSidebarGeometry(c, viewport, viewportHeight)
 	m.Sizes.ObserveSidebarSessionSelection(m.Store.Snapshot())
 	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)

@@ -44,6 +44,7 @@ type headless struct {
 
 func (h *headless) size() (w, ht, scale float32)                  { return 0, 0, 1 }
 func (h *headless) pixels() bool                                  { return false }
+func (h *headless) workArea() (bool, bool)                        { return false, false }
 func (h *headless) refreshRate() float32                          { return 0 }
 func (h *headless) occluded() bool                                { return false }
 func (h *headless) present(s *scene.Scene)                        {}

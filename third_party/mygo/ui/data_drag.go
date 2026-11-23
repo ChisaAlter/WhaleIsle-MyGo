@@ -148,7 +148,7 @@ func (rt *engine) dataDrop(x, y float32, d *platform.DataDragEvent) bool {
 
 func (rt *engine) syncDropFormats() {
 	formats := append(rt.dropScratch[:0], transfer.FileList, transfer.URIList, platform.DragSessionFormat)
-	for _, s := range rt.states {
+	for _, s := range rt.live {
 		if s.dataTarget == nil || s.flags&flagDisabled != 0 || s.seen != rt.frame || s.pass != rt.pass {
 			continue
 		}

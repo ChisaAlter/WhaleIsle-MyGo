@@ -40,6 +40,12 @@
 // after construction and bound input, before the rebuild.
 // Input queries such as Clicked remain available.
 //
+// A view builds everything in every pass, which is cheap for most windows.
+// Element.Memo keeps a part that did not change: its children, built once,
+// are kept from frame to frame while a version the app gives stays the same
+// and no input reaches them, without being built, laid out or committed
+// again. MYGO_MEMO=off builds them all the same, for comparing.
+//
 // Widgets take the theme's look, whose Spacing sizes them all. Each is
 // built on a base without a look, such as ButtonBase, CheckboxBase,
 // TabsBase or SelectBase, which handles the pointer, the keyboard, the

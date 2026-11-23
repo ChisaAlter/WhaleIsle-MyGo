@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"hash/maphash"
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/internal/scene"
@@ -55,11 +56,6 @@ type context struct {
 	router  *Router
 	routers int
 	inert   bool
-	// spare are the chunks of the frame before, which the engine keeps
-	// while elements of that frame may leave with an exit transition, to
-	// copy them (engine.exitsBuilt).
-	spare      [][]node
-	spareDirty int
 	// transitions are the elements given a Transition, in the order asked,
 	// and dividers those drawing lines between their children.
 	transitions []transitionUse
@@ -67,22 +63,32 @@ type context struct {
 	// sortedUses and depthStarts are byDepth's.
 	sortedUses  []transitionUse
 	depthStarts []int
+	// region is the memo region being built, whose arena its elements come
+	// from, and slots the elements of the pass by serial, for Elements.
+	region *memoRegion
+	slots  []*node
 }
 
 const chunkSize = 32
 
 // alloc returns a zeroed element from the frame's arena.
 func (c *context) alloc() *node {
-	ci, ei := c.used/chunkSize, c.used%chunkSize
-	if ci == len(c.chunks) {
-		c.chunks = append(c.chunks, make([]node, chunkSize))
+	var e *node
+	if r := c.region; r != nil {
+		e = r.alloc()
+	} else {
+		ci, ei := c.used/chunkSize, c.used%chunkSize
+		if ci == len(c.chunks) {
+			c.chunks = append(c.chunks, make([]node, chunkSize))
+		}
+		c.used++
+		e = &c.chunks[ci][ei]
 	}
-	c.used++
-	e := &c.chunks[ci][ei]
 	shadows, cols, rows, frags := e.shadows[:0], e.cols[:0], e.rows[:0], e.frags[:0]
 	*e = node{}
 	e.shadows, e.cols, e.rows, e.frags = shadows, cols, rows, frags
-	e.serial = int32(c.used)
+	c.slots = append(c.slots, e)
+	e.serial = int32(len(c.slots))
 	e.epoch = c.rt.epoch
 	e.shrink = 1
 	e.justify, e.align, e.self, e.alignContent = alignAuto, alignAuto, alignAuto, alignAuto
@@ -91,6 +97,7 @@ func (c *context) alloc() *node {
 }
 
 func (c *context) reset(now time.Time, w, h float32) {
+	c.rt.beginTouched()
 	for _, f := range c.rt.focusFields {
 		clear(f.members)
 		f.members = f.members[:0]
@@ -117,6 +124,9 @@ func (c *context) reset(now time.Time, w, h float32) {
 	c.rt.actions = c.rt.actions[:0]
 	c.dirty = max(c.dirty, c.used)
 	c.used = 0
+	clear(c.slots)
+	c.slots = c.slots[:0]
+	c.region = nil
 	c.now = now
 	c.w, c.h = w, h
 	c.theme = c.rt.defaultTheme()
@@ -136,6 +146,7 @@ func (c *context) reset(now time.Time, w, h float32) {
 	root.kind = kindBox
 	root.width, root.height = px(w), px(h)
 	root.st = c.rt.stateFor(root.id)
+	root.st.node = root
 	root.bg = c.theme.Background
 	root.ts = textStyle{set: setColor | setSize | setFamily, color: c.theme.Text, size: c.theme.FontSize, family: c.theme.Font}
 	c.root = root
@@ -144,13 +155,11 @@ func (c *context) reset(now time.Time, w, h float32) {
 }
 
 // finish frees references to elements left out of the frame, including
-// those from an earlier pass. Exit transitions have copied what they
-// need from the spare arena by now. Keep one empty chunk for growth, so
+// those from an earlier pass. Keep one empty chunk for growth, so
 // that a few rows entering and leaving a list do not allocate every frame.
 func (c *context) finish() {
 	c.chunks = trimArena(c.chunks, c.used, max(c.dirty, c.used))
-	c.spare = trimArena(c.spare, 0, c.spareDirty)
-	c.dirty, c.spareDirty = c.used, 0
+	c.dirty = c.used
 }
 
 func trimArena(chunks [][]node, used, dirty int) [][]node {
@@ -177,7 +186,11 @@ var overlayID = mix(1, 0x6f7665726c6179)
 // builds into; the frame adds it to the root once the view returns.
 func (c *context) overlayRoot() *node {
 	if c.overlay == nil {
+		// In the frame's arena, though a memo region asks for it.
+		region := c.region
+		c.region = nil
 		o := c.alloc()
+		c.region = region
 		o.c = c
 		o.id = overlayID
 		o.kind = kindBox
@@ -185,6 +198,7 @@ func (c *context) overlayRoot() *node {
 		o.inset = [4]length{px(0), px(0), px(0), px(0)}
 		o.depth = 1
 		o.st = c.rt.stateFor(o.id)
+		o.st.node = o
 		c.overlay = o
 	}
 	return c.overlay
@@ -214,6 +228,7 @@ func (c *context) newElement(k kind) *node {
 	p.add(e)
 	var built bool
 	e.st, built = c.rt.lookState(e.id)
+	e.st.node = e
 	if keyed && built {
 		c.rt.duplicateKey(e.id, e.key)
 	}
@@ -238,6 +253,7 @@ func (c *context) rekey(e *node, k any) {
 		rt.duplicateKey(id, k)
 	}
 	e.id, e.st = id, st
+	st.node = e
 	if rt.insp.open {
 		rt.insp.noteKey(id, k)
 		if id == rt.insp.selected {
@@ -287,8 +303,25 @@ func (c *context) SetTheme(t *Theme) {
 	c.root.ts.color, c.root.ts.size, c.root.ts.family = t.Text, t.FontSize, t.Font
 }
 
-// Size returns the size of the window's content in DIPs.
+// Size returns the size of the window's content in DIPs, on every surface:
+// a window's, which counts device pixels, divided by DeviceScale, and a
+// Tester's. DevicePixelSize returns it in device pixels.
 func (c *context) Size() (width, height float32) { return c.w, c.h }
+
+// DevicePixelSize returns the size of the window's content in device pixels:
+// Size, which is in DIPs on every surface, times DeviceScale.
+func (c *context) DevicePixelSize() (width, height float32) {
+	s := c.rt.painted[2]
+	return float32(math.Round(float64(c.w * s))), float32(math.Round(float64(c.h * s)))
+}
+
+// DisplayLandscape reports whether the work area of the screen showing the
+// window, the screen less its taskbars and docks, is wider than high, and
+// whether that is known: on Windows, as the window last saw the monitor it
+// is on, read again as it moves or the displays change; not in a Tester,
+// nor for a square work area. A view sizing itself by the screen's shape
+// rather than the window's falls back to the window's when it is not known.
+func (c *context) DisplayLandscape() (landscape, known bool) { return c.rt.host.workArea() }
 
 // DeviceScale returns the device pixels per layout DIP for the current frame,
 // including the window's content zoom. It is positive and matches Painter.Scale.
@@ -435,8 +468,12 @@ type state struct {
 
 	id   uint64
 	seen uint64
-	pass int    // the pass of the frame that built it last
-	born uint64 // the frame that first built the element
+	// pruned is the frame whose prune looked at the state last, and
+	// dormant marks one in the engine's list of states kept for a Router.
+	pruned  uint64
+	dormant bool
+	pass    int    // the pass of the frame that built it last
+	born    uint64 // the frame that first built the element
 	// The element's box and its visible part in the last frame.
 	x, y, w, h     float32
 	vx, vy, vw, vh float32
@@ -536,6 +573,11 @@ type state struct {
 	scope, anchor uint64
 	// page is the Router's page the element was in, 0 for none.
 	page uint64
+	// memo is the innermost memo region the element was in, 0 for none.
+	memo uint64
+	// node is the element the pass that touched the state built last
+	// (builtNode).
+	node *node
 	// trec is what the element's Transition keeps, by the engine's
 	// transitions, when it has one.
 	trec *transition
@@ -568,6 +610,11 @@ func (rt *engine) lookState(id uint64) (s *state, built bool) {
 		rt.states[id] = s
 	} else {
 		built = s.seen == rt.frame && s.pass == rt.pass
+	}
+	if !built {
+		// The states the pass touched, for forgetInput and prune, which
+		// look at them rather than at every state the window keeps.
+		rt.touched = append(rt.touched, s)
 	}
 	s.rt = rt
 	s.seen, s.pass = rt.frame, rt.pass
