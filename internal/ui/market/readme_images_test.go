@@ -16,6 +16,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imgcache"
+	"whaleisle/internal/desktop/media"
 )
 
 type readmeImageTransport func(*http.Request) (*http.Response, error)
@@ -24,12 +25,8 @@ func (f readmeImageTransport) RoundTrip(r *http.Request) (*http.Response, error)
 
 func readmeImageCache(t *testing.T) *imgcache.Cache {
 	t.Helper()
-	readmeRemoteImages.RLock()
-	previous := readmeRemoteImages.cache
-	readmeRemoteImages.RUnlock()
 	cache := imgcache.New(t.TempDir())
-	SetRemoteImageCache(cache)
-	t.Cleanup(func() { SetRemoteImageCache(previous) })
+	useTestMedia(t, cache)
 	return cache
 }
 
@@ -46,20 +43,6 @@ func readmeImagePNG(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return body.Bytes()
-}
-
-func awaitReadmeImage(t *testing.T, cache *imgcache.Cache, url string, want imgcache.Status) {
-	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		status, _, _ := cache.State(url)
-		if status == want {
-			return
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	status, _, err := cache.State(url)
-	t.Fatalf("image state=%v want=%v error=%v", status, want, err)
 }
 
 func TestMarketReadmeRemoteImageLoadsInPlaceWithoutNavigation(t *testing.T) {
@@ -98,8 +81,7 @@ func TestMarketReadmeRemoteImageLoadsInPlaceWithoutNavigation(t *testing.T) {
 	}
 	tt.Frame()
 	close(release)
-	awaitReadmeImage(t, cache, imageURL, imgcache.StatusReady)
-	tt.Frame()
+	settleMedia(t, tt, marketMedia(), func() bool { _, ok := tt.Find("README image " + imageURL); return ok })
 	pictureRect, ok := tt.Find("README image " + imageURL)
 	var before, after ui.Rect
 	var beforeOK, afterOK bool
@@ -140,9 +122,10 @@ func TestMarketReadmeCachedImagesKeepNaturalSizeAndAspectRatio(t *testing.T) {
 		for _, width := range []int{320, 800} {
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Children(func() {
-					renderReadmeImage(c, url, "Cached preview")
+					renderReadmeImage(c, url, "Cached preview", nil)
 				})
 			}, width, 600)
+			settleMedia(t, tt, marketMedia(), func() bool { _, ok := tt.Find("README image " + url); return ok })
 			r, ok := tt.Find("README image " + url)
 			wantW := min(float32(width), tc.w)
 			if !ok || r.W != wantW || r.H != wantW*tc.h/tc.w {
@@ -164,7 +147,9 @@ func TestMarketReadmeImageFailureAndUnsupportedDestinationsRetainAlt(t *testing.
 	tt := ui.NewTester(func(c *ui.Context) {
 		marketReadme(c, Model{}, source, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
 	}, 420, 600)
-	awaitReadmeImage(t, cache, url, imgcache.StatusError)
+	settleMedia(t, tt, marketMedia(), func() bool {
+		return marketMedia().Request(nil, media.Key{ID: "url:" + url}, media.Source{}).State() == media.Failed
+	})
 	for range 3 {
 		tt.Frame()
 	}

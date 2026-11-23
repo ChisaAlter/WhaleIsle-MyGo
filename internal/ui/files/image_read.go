@@ -3,7 +3,8 @@ package files
 import (
 	"context"
 	"errors"
-	"sync"
+	"fmt"
+	"strconv"
 )
 
 // Owner pointers are identity tokens only. Workers never dereference UI state.
@@ -13,135 +14,49 @@ type imageReadOwner struct {
 	epoch                        uint64
 }
 
-type imageReadJob struct {
-	owner      imageReadOwner
-	generation uint64
-	ctx        context.Context
-	read       func(context.Context) *imagePreview
-}
-
-// One worker plus one replaceable latest job bounds even decodes that ignore
-// context while blocked in the OS. Cancellation retires authority immediately;
-// it cannot promise to interrupt a synchronous filesystem syscall or bounded native decoder.
-type imageReadQueue struct {
-	mu         sync.Mutex
-	generation uint64
-	owner      imageReadOwner
-	worker     bool
-	closed     bool
-	pending    *imageReadJob
-	cancel     context.CancelFunc
-	result     *imagePreview
-	notify     func()
-}
-
-func (q *imageReadQueue) setNotify(notify func()) {
-	q.mu.Lock()
-	q.notify = notify
-	q.mu.Unlock()
-}
-
-func (q *imageReadQueue) request(owner imageReadOwner, read func(context.Context) *imagePreview) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if q.closed {
-		return
-	}
-	q.retireLocked()
-	q.owner = owner
-	ctx, cancel := context.WithCancel(context.Background())
-	q.cancel = cancel
-	q.pending = &imageReadJob{owner: owner, generation: q.generation, ctx: ctx, read: read}
-	if !q.worker {
-		q.worker = true
-		go q.run()
-	}
-}
-
-func (q *imageReadQueue) run() {
-	for {
-		q.mu.Lock()
-		job := q.pending
-		q.pending = nil
-		if job == nil {
-			q.worker = false
-			q.mu.Unlock()
-			return
-		}
-		q.mu.Unlock()
-		var result *imagePreview
-		if job.ctx.Err() == nil {
-			result = job.read(job.ctx)
-		}
-		q.mu.Lock()
-		var notify func()
-		if !q.closed && q.generation == job.generation && q.owner == job.owner && job.ctx.Err() == nil {
-			q.result = result
-			notify = q.notify
-		}
-		q.mu.Unlock()
-		if notify != nil {
-			notify() // invalidation only; the UI takes and applies its own result
-		}
-	}
-}
-
-func (q *imageReadQueue) take(owner imageReadOwner) (*imagePreview, bool) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if q.closed || q.owner != owner || q.result == nil {
-		return nil, false
-	}
-	result := q.result
-	q.result = nil
-	return result, true
-}
-
-func (q *imageReadQueue) retireLocked() {
-	if q.cancel != nil {
-		q.cancel()
-		q.cancel = nil
-	}
-	q.generation++
-	q.pending = nil
-	q.result = nil
-}
-
-func (q *imageReadQueue) stop(closeQueue bool) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.retireLocked()
-	q.closed = q.closed || closeQueue
-}
-
-// stopImageRead is called on the UI thread. Only unfinished placeholders are
-// removed; completed pixels and independent per-tab view/draft state survive.
+// stopImageRead is called on the UI thread. Unfinished previews release their
+// lease (a queued decode never runs) and are removed; completed pictures stay
+// in the shared media cache and per-tab view/draft state survives.
 func (t *Tabs) stopImageRead(closeQueue bool) {
 	if t == nil {
 		return
 	}
 	for _, w := range t.Workspaces {
-		if w != nil {
-			for _, tab := range w.Open {
-				tab.stopMarkdownImages()
+		if w == nil {
+			continue
+		}
+		for _, tab := range w.Open {
+			tab.stopMarkdownImages()
+			if tab.image != nil && tab.image.loading {
+				tab.image.release()
+				tab.image = nil
 			}
 		}
 	}
 	if t.imageReadTab != nil && t.imageReadTab.image != nil && t.imageReadTab.image.loading {
+		t.imageReadTab.image.release()
 		t.imageReadTab.image = nil
 	}
 	t.imageReadTab = nil
-	if t.imageReader != nil {
-		t.imageReader.stop(closeQueue)
-	}
 }
 
 func imageOwner(m Model, tab *FileTab) imageReadOwner {
 	return imageReadOwner{tab: tab, binding: m.BindingID, session: m.SessionID, root: m.WorkspaceRoot, path: tab.Path, epoch: m.ImageGeneration}
 }
 
-// Painting only starts/takes work. All file reads, validation, WASM compilation
-// and decoding run on a single worker with one replaceable pending request.
+// mediaID names a tab image's content source: the binding, session, root,
+// path and generation that authorize its read, and the delivery declaration
+// when one owns the bytes. Equal IDs share one decoded picture.
+func mediaID(owner imageReadOwner, delivery any) string {
+	id := "files\x00" + owner.binding + "\x00" + owner.session + "\x00" + owner.root + "\x00" + owner.path + "\x00" + strconv.FormatUint(owner.epoch, 10)
+	if delivery != nil {
+		id += fmt.Sprintf("\x00delivery:%p", delivery)
+	}
+	return id
+}
+
+// Painting only prepares the request; file reads, validation and decoding
+// run on media workers under the tab's lease.
 func readImagePreview(m Model, tab *FileTab) *imagePreview {
 	if m.Tabs == nil || tab == nil {
 		return &imagePreview{err: errors.New("Image preview requires a resource tab")}
@@ -149,55 +64,37 @@ func readImagePreview(m Model, tab *FileTab) *imagePreview {
 	t := m.Tabs
 	owner := imageOwner(m, tab)
 	if tab.image != nil && tab.image.owner != owner {
-		if tab.image.svg != nil {
-			tab.image.svg.Close()
-		}
-		t.stopImageRead(false)
+		tab.image.release()
 		tab.image = nil
 	}
 	if tab.image == nil {
-		t.stopImageRead(false)
-		retainImagePreview(m, tab, &imagePreview{loading: true, owner: owner})
-		if t.imageReader == nil {
-			t.imageReader = &imageReadQueue{}
-		}
-		t.imageReader.setNotify(m.notify)
-		t.imageReadTab = tab
 		root, path := owner.root, owner.path
 		resolve := previewPathResolver(m, tab)
 		localSource := tab.deliverySource
 		readRemote := m.ReadImageContext
 		sourceCurrent := localSource == nil || localSource.current(m)
-		t.imageReader.request(owner, func(ctx context.Context) *imagePreview {
+		var delivery any
+		if localSource != nil {
+			delivery = localSource
+		}
+		read := func(ctx context.Context) ([]byte, error) {
 			if !sourceCurrent {
-				return &imagePreview{err: deliverySourceChanged()}
+				return nil, deliverySourceChanged()
 			}
 			if localSource != nil {
-				data, err := localSource.readBytes(ctx, imageByteLimit(path))
-				if err != nil {
-					return &imagePreview{err: err}
-				}
-				return decodeImagePreviewContext(ctx, path, data)
+				return localSource.readBytes(ctx, imageByteLimit(path))
 			}
 			if readRemote != nil {
-				data, err := readRemote(ctx, path, imageByteLimit(path))
-				if err != nil {
-					return &imagePreview{err: err}
-				}
-				return decodeImagePreviewContext(ctx, path, data)
+				return readRemote(ctx, path, imageByteLimit(path))
 			}
 			if _, err := resolve(); err != nil {
-				return &imagePreview{err: err}
+				return nil, err
 			}
-			return loadImagePreviewContext(ctx, root, path)
-		})
-	}
-	if tab.image.loading && t.imageReader != nil {
-		if result, ok := t.imageReader.take(owner); ok {
-			result.owner = owner
-			tab.image = result
-			t.imageReadTab = nil
+			return readWorkspaceImage(ctx, root, path)
 		}
+		retainImagePreview(m, tab, newImagePreview(owner, mediaID(owner, delivery), path, m.notify, read))
+		t.imageReadTab = tab
 	}
+	tab.image.refresh()
 	return tab.image
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/renderpolicy"
@@ -37,7 +38,6 @@ import (
 	remoteui "whaleisle/internal/ui/remote"
 	costui "whaleisle/internal/ui/sessioncost"
 	"whaleisle/internal/ui/sidebar"
-	"whaleisle/internal/ui/svgimage"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/workspacepicker"
@@ -183,7 +183,7 @@ type Model struct {
 	OnCloseForegroundModal func() bool
 	ChildBusyEnter         string
 	RightOverlayReserve    float32
-	SVGImages              *svgimage.Owner
+	Media                  *media.Owner
 	OpenUIParent           uintptr
 	OpenUIWindow           *mygo.Window
 	CustomPanelContent     func(*ui.Context)
@@ -925,7 +925,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						})
 					}
 					composer.View(c, composer.Model{
-						SVGImages:          m.SVGImages,
+						Media:              m.Media,
 						GroupMembers:       m.GroupMembers,
 						NextPrompt:         nextPrompt,
 						OnAcceptNextPrompt: func() string { return m.Store.AcceptNextPrompt(nextPrompt) },
@@ -1720,7 +1720,7 @@ func rightPane(c *ui.Context, m Model) {
 		fileModel := files.Model{
 			TreeOnly:            tab == "files" && !resourceOnly,
 			ResourceOnly:        resourceOnly,
-			SVGImages:           m.SVGImages,
+			Media:               m.Media,
 			PlanOnly:            tab == "plan",
 			AllowPageShortcuts:  m.FileShortcuts,
 			OnNewTab:            m.OnOpenFilePicker,

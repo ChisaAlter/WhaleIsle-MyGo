@@ -41,6 +41,7 @@ import (
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/desktop/mcpconfig"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/phoneremote"
@@ -123,8 +124,8 @@ type mainState struct {
 	launcherCtl                 *launcherctl.Controller
 	assistantCtl                *assistantctl.Service
 	projectCtl                  *projectctl.Manager
-	svgImages                   *nativeSVGImages
-	svgImagesPaused             bool
+	media                       *nativeMedia
+	mediaPaused                 bool
 	customPanels                customPanelState
 	applicationMenu             *desktopApplicationMenu
 	wallpaperControls           *settings.WallpaperEditor
@@ -2052,13 +2053,13 @@ func main() {
 		imgDir := imgcache.Dir(userData)
 		if err := os.MkdirAll(imgDir, 0o755); err != nil {
 			log.Println("imgcache:", err)
+			media.Init(media.Config{CacheDir: filepath.Join(userData, "cache", "media")})
 		} else {
 			cache := imgcache.New(imgDir)
+			media.Init(media.Config{CacheDir: filepath.Join(userData, "cache", "media"), Fetch: cache.Fetch})
 			chat.SetRemoteImageCache(cache)
-			marketui.SetRemoteImageCache(cache)
 			sidebar.SetRemoteImageCache(cache)
 			settings.SetAccountImageCache(cache)
-			files.SetRemoteImageCache(cache)
 			attDir := filepath.Join(userData, "cache", "attachments")
 			session.SetAttachmentCacheDir(attDir)
 		}
@@ -2277,11 +2278,12 @@ func main() {
 		win.OnClosed(state.pauseVoiceDevices)
 		win.OnClosed(state.closeWorkspaceOpenInApp)
 		win.OnClosed(state.cancelGitRefresh)
-		win.OnHide(state.pauseSVGImages)
-		win.OnMinimize(state.pauseSVGImages)
-		win.OnClosed(state.pauseSVGImages)
-		win.OnShow(state.resumeSVGImages)
-		win.OnRestore(state.resumeSVGImages)
+		win.OnHide(state.pauseMedia)
+		win.OnMinimize(state.pauseMedia)
+		win.OnClosed(state.pauseMedia)
+		media.Default().SetProcessNotify(win.Invalidate)
+		win.OnShow(state.resumeMedia)
+		win.OnRestore(state.resumeMedia)
 		asstSvc := state.assistantService()
 		win.OnHide(asstSvc.OnWindowHide)
 		win.OnMinimize(asstSvc.OnWindowMinimize)
@@ -3509,7 +3511,7 @@ func mainView(c *ui.Context) {
 	state.mu.Unlock()
 	th := theme.Resolve(themeID)
 	systemDark := mygo.Theme.IsDark()
-	svgImages := state.svgImageOwner(win, sessions)
+	mediaOwner := state.mediaOwner(win, sessions)
 	colors := th.Active(systemDark)
 	// The quit layer paints from the same palette as everything above it.
 	closingColors = colors
@@ -4986,7 +4988,7 @@ func mainView(c *ui.Context) {
 				marketOwner := marketSnap.Owner
 				spec := marketSnap.InstallSpec
 				marketui.View(c, marketui.Model{
-					SVGImages:     svgImages,
+					Media:         mediaOwner,
 					OnOpenManager: state.openNativePluginManager,
 					OnOpenURL: func(rawURL string) {
 						if err := mygo.Shell.OpenExternal(rawURL); err != nil {
@@ -5721,7 +5723,7 @@ func mainView(c *ui.Context) {
 					// composer cannot disagree about why there are no sessions.
 					hostReport := hoststate.Of(st)
 					frameModel := frame.Model{
-						SVGImages:             svgImages,
+						Media:                 mediaOwner,
 						HostNote:              hostReport.Note,
 						HostPlaceholder:       hostReport.Placeholder,
 						ChildBusyEnter:        setStore.BusyEnterFor(fileClient),

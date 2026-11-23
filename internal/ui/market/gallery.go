@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/imgcache"
 	desktopmarket "whaleisle/internal/desktop/market"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -51,7 +49,7 @@ func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogI
 	}
 	image := images[state.index]
 	root.Children(func() {
-		marketScreenshot(c, image, state, field, muted, m.SVGImages)
+		marketScreenshot(c, image, state, field, muted, m.Media)
 		ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 			if ui.Button(c, "‹").Label(marketText(i18n.T(i18n.KeyW4MarketPreviousScreenshot), "Previous image")).Disabled(state.index == 0).Clicked() {
 				state.index--
@@ -67,53 +65,17 @@ func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogI
 	})
 }
 
-func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryState, field, muted ui.Color, owners ...*svgimage.Owner) {
+func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryState, field, muted ui.Color, owner *media.Owner) {
 	root := ui.Box(c.Key("market-screenshot:" + source)).Label(marketText(i18n.T(i18n.KeyW4MarketPluginScreenshot), "Plugin screenshot") + fmt.Sprintf(" %d", state.index+1)).FillWidth().MinWidth(0).AspectRatio(1.6).Radius(6).Clip().Background(field)
-	decoded := ui.Local(root, "decoded-image", func() readmeDecodedImage { return readmeDecodedImage{} })
-	readmeRemoteImages.RLock()
-	cache := readmeRemoteImages.cache
-	readmeRemoteImages.RUnlock()
-	if !state.failed[source] && cache != nil {
-		status, path, _ := cache.State(source)
-		switch status {
-		case imgcache.StatusMissing:
-			cache.Ensure(source, c.Services().Invalidate)
-		case imgcache.StatusError:
-			state.failed[source] = true
-		case imgcache.StatusReady:
-			if decoded.path != path {
-				if decoded.svgSeat != nil {
-					decoded.svgSeat.Close()
-				}
-				*decoded = readmeDecodedImage{path: path}
-				decoded.load(path, c.Services().Invalidate)
-			}
-			decoded.poll(path)
-			if decoded.svgSeat != nil {
-				var owner *svgimage.Owner
-				if len(owners) > 0 {
-					owner = owners[0]
-				}
-				decoded.svgSeat.Prepare(c, owner)
-				decoded.width, decoded.height = decoded.svgSeat.Size()
-			}
-			if decoded.pending == nil && (decoded.width <= 0 || decoded.height <= 0) {
-				state.failed[source] = true
-			}
-		}
-	}
-	if wait := decoded.advance(time.Now()); !state.failed[source] && wait > 0 {
-		c.After(wait)
+	h := requestImage(owner, source, 0, 0)
+	if h == nil || h.State() == media.Failed {
+		state.failed[source] = true
 	}
 	root.Children(func() {
-		if state.failed[source] || cache == nil {
+		if state.failed[source] {
 			ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketScreenshotFailedToLoad), "Image could not be loaded.")).Fill().Padding(16).TextColor(muted)
-		} else if decoded.svgSeat != nil {
-			ui.Box(c).Fill().DrawOver(func(p *ui.Painter, r ui.Rect) { decoded.svgSeat.PaintClipped(p, r, ui.Contain, 6, nil, field) })
-		} else if decoded.bitmap != nil {
-			ui.Image(c, decoded.bitmap).Fill().Fit(ui.Contain)
-		} else if decoded.svg != nil {
-			ui.Image(c, decoded.svg).Fill().Fit(ui.Contain)
+		} else if h.State() == media.Ready {
+			showImage(c, h).Fill().Fit(ui.Contain)
 		}
 	})
 }

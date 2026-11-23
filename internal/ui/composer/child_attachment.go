@@ -22,22 +22,22 @@ func paintChildAttachments(c *ui.Context, v ChildEditorModel, muted ui.Color) {
 			card := ui.Box(c.Key("child-image:"+path)).Label("Attachment "+a.Name).
 				Width(64).Height(64).Radius(20).Border(.5, c.Theme().Border)
 			seat := ui.Local(card, "preview", func() attachmentDisplaySeat { return attachmentDisplaySeat{} })
-			seat.load(a, false, c.Services().Invalidate)
+			seat.load(a, false, nil, c.Services().Invalidate)
 			card.Children(func() {
 				preview := ui.Box(c).Fill().Radius(20).Clip().Focusable().Label("Preview attachment " + a.Name).Tooltip(a.Name)
 				preview.Children(func() {
-					if display := seat.result; display != nil && display.bitmap != nil {
-						display.animate(c)
-						ui.Image(c, display.bitmap).Fill().Fit(ui.Cover)
+					if display := seat.result; display != nil && display.picture() != nil {
+						display.animate(c, nil)
+						ui.Image(c, display.picture()).Fill().Fit(ui.Cover)
 					} else {
 						ui.Text(c, composerText("图片", "Image")).FontSize(12).TextColor(muted)
 					}
 				})
 				if display := seat.result; display != nil {
-					if display.err != nil {
-						preview.Tooltip(errcopy.Sentence(display.err))
+					if display.failure() != nil {
+						preview.Tooltip(errcopy.Sentence(display.failure()))
 					}
-					if display.bitmap != nil && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
+					if display.picture() != nil && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
 						seat.open = true
 					}
 				}
@@ -51,7 +51,7 @@ func paintChildAttachments(c *ui.Context, v ChildEditorModel, muted ui.Color) {
 					v.OnRemoveImage(path)
 				}
 			})
-			paintAttachmentOriginal(c, seat, a, a.Name)
+			paintAttachmentOriginal(c, seat, a, a.Name, nil)
 		}
 	})
 }

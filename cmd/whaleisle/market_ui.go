@@ -181,7 +181,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 		}
 	}
 	managerui.View(c, managerui.Model{
-		SVGImages:               s.svgImageOwner(win, sessions),
+		Media:                   s.mediaOwner(win, sessions),
 		Controller:              ctrl,
 		ThemeID:                 themeID,
 		SystemDark:              mygo.Theme.IsDark(),

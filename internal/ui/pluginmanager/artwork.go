@@ -5,13 +5,14 @@ import (
 	"encoding/base64"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/desktop/media"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -25,12 +26,23 @@ func metaIcon(meta *manager.Meta) string {
 	}
 	return ""
 }
-func builtInArtwork(name string) string {
-	data, err := previews.ReadFile("assets/artwork-" + name + ".svg")
+
+// builtInArtwork is the data URL of an embedded artwork, encoded once per
+// process rather than on every frame that draws it.
+func builtInArtwork(name string) string { return embeddedDataURL("assets/artwork-" + name + ".svg") }
+
+var embeddedURLs sync.Map // asset path -> data URL
+
+func embeddedDataURL(path string) string {
+	if v, ok := embeddedURLs.Load(path); ok {
+		return v.(string)
+	}
+	data, err := previews.ReadFile(path)
 	if err != nil {
 		return ""
 	}
-	return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(data)
+	v, _ := embeddedURLs.LoadOrStore(path, "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString(data))
+	return v.(string)
 }
 
 // Toolbar glyphs from ui-primitives icons/artwork.ts at regular (1px) weight.
@@ -64,7 +76,7 @@ func itemArtwork(id string) string {
 	}
 	return builtInArtwork("default")
 }
-func packagePreview(c *ui.Context, name string, owner *svgimage.Owner) {
+func packagePreview(c *ui.Context, name string, owner *media.Owner) {
 	asset := ""
 	switch name {
 	case "@deepseek-ai/dsh-experimental-badge-skill-bundle":
@@ -77,11 +89,10 @@ func packagePreview(c *ui.Context, name string, owner *svgimage.Owner) {
 	if strings.HasPrefix(i18n.Locale(), "zh") {
 		asset += ".zh"
 	}
-	data, err := previews.ReadFile("assets/" + asset + ".svg")
-	if err != nil {
+	source := embeddedDataURL("assets/" + asset + ".svg")
+	if source == "" {
 		return
 	}
-	source := "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(data)
 	outer := ui.Column(c).Key("plugin-preview/" + name).FillWidth().MinWidth(0).Gap(6)
 	attempt := ui.Local(outer, "attempt", func() int { return 0 })
 	outer.Children(func() {

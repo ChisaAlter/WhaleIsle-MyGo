@@ -13,11 +13,11 @@ import (
 	"github.com/egoist/mygo/ui"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
+	"whaleisle/internal/desktop/media"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -31,7 +31,7 @@ type Contribution struct {
 	Render                    func(*ui.Context, manager.Subject)
 }
 type Model struct {
-	SVGImages               *svgimage.Owner
+	Media                   *media.Owner
 	Controller              *manager.Controller
 	ThemeID                 string
 	SystemDark              bool
@@ -204,10 +204,10 @@ func errorRow(c *ui.Context, message string, retry func()) {
 		}
 	})
 }
-func artwork(c *ui.Context, ink, border ui.Color, owner *svgimage.Owner, source ...string) {
+func artwork(c *ui.Context, ink, border ui.Color, owner *media.Owner, source ...string) {
 	artworkSized(c, ink, border, 48, 36, owner, source...)
 }
-func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owner *svgimage.Owner, source ...string) {
+func artworkSized(c *ui.Context, ink, border ui.Color, frame, size float32, owner *media.Owner, source ...string) {
 	root := ui.Box(c).Width(frame).Height(frame).Shrink(0).Border(.5, border).Radius(theme.ContextRadii(c).LG)
 	shown := false
 	if len(source) > 0 && source[0] != "" {
@@ -296,7 +296,7 @@ func installedView(c *ui.Context, m Model, s manager.State, a manager.Actions, f
 							a.OpenItem(item.Key)
 						}
 						card.Children(func() {
-							artwork(c, muted, border, m.SVGImages, itemArtwork(item.Key))
+							artwork(c, muted, border, m.Media, itemArtwork(item.Key))
 							ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 								ui.Text(c, item.Title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg)
 								ui.Text(c, item.Summary).FillWidth().MaxLines(1).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
@@ -362,7 +362,7 @@ func packageCard(c *ui.Context, m Model, p manager.Package, s manager.State, a m
 	}
 	card.ContextMenu(func(menu *ui.Menu) { packageMenu(menu, m, p, s, a) })
 	card.Children(func() {
-		artwork(c, muted, border, m.SVGImages, metaIcon(p.Meta))
+		artwork(c, muted, border, m.Media, metaIcon(p.Meta))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 				if ui.Button(c, p.Title(i18n.Locale())).Label(copyText("打开 ", "Open ") + p.Name).MaxWidthPercent(100).MinWidth(0).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).FontSize(theme.InterfaceSize(14)).Clicked() {
@@ -560,7 +560,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 		}
 		renderConfig(c, m, subject)
 	} else {
-		packagePreview(c, pkg.Name, m.SVGImages)
+		packagePreview(c, pkg.Name, m.Media)
 		if pkg.Error != nil {
 			ui.Text(c, pkg.Error.Code+": "+pkg.Error.Diagnostic).FillWidth().TextColor(c.Theme().Danger)
 		}
@@ -600,7 +600,7 @@ func detailView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg, 
 					if icon == "" {
 						icon = builtInArtwork("subagent")
 					}
-					artworkSized(c, muted, border, 40, 30, m.SVGImages, icon)
+					artworkSized(c, muted, border, 40, 30, m.Media, icon)
 					ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 						if configFor(m, manager.Subject{Kind: "row", Name: pkg.Name, RowID: r.RowID}) != nil {
 							if ui.Button(c, r.Title(i18n.Locale())).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).TextColor(fg).Clicked() {
@@ -858,7 +858,7 @@ func discoverView(c *ui.Context, m Model, s manager.State, a manager.Actions, fg
 						row = row.Background(chrome.Color(colors.Hover))
 					}
 					row.Children(func() {
-						artwork(c, muted, border, m.SVGImages, e.Icon)
+						artwork(c, muted, border, m.Media, e.Icon)
 						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 							// .titleRow keeps the open affordance and its label
 							// capsules on one line.

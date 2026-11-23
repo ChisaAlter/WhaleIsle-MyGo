@@ -181,6 +181,10 @@ func ClassifySVG(data []byte) SVGInfo {
 			case "image", "feImage":
 				native = false
 				for _, a := range t.Attr {
+					if a.Name.Local == "href" && !strings.HasPrefix(strings.TrimSpace(a.Value), "data:") && !strings.HasPrefix(strings.TrimSpace(a.Value), "#") {
+						// External files and URLs are never resolved.
+						return SVGInfo{Width: 300, Height: 150}
+					}
 					if a.Name.Local == "href" && strings.HasPrefix(strings.TrimSpace(a.Value), "data:") {
 						count, ok := embeddedPixels(strings.TrimSpace(a.Value))
 						if !ok {

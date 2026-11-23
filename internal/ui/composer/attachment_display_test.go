@@ -18,7 +18,7 @@ func TestAttachmentDisplaySnapshotAndStatus(t *testing.T) {
 	png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 4, 3)))
 	path := filepath.Join(t.TempDir(), "photo.png")
 	os.WriteFile(path, b.Bytes(), 0600)
-	v := readAttachmentDisplay(session.ComposerAttachment{Path: path})
+	v := readSettled(session.ComposerAttachment{Path: path})
 	if v.bitmap == nil || v.bytes != int64(b.Len()) || v.mediaType != "image/png" {
 		t.Fatalf("bad image %+v", v)
 	}

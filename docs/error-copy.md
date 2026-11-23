@@ -19,12 +19,12 @@
 | `cmd/whaleisle/carriers_test.go` | 命令层 | 任何非比较、非标记的 `.Error()` |
 | `internal/errcopy/carriers_ratchet_test.go` | `internal/store/**`、`internal/app/**`、`internal/ui/sidebar` | 视图状态/快照字段被赋值为 `.Error()` 或 `fmt.Sprint*`/`Errorf` 包装的错误文本即违规；已有点位记在 `testdata/carriers_baseline.txt`，数量只许下降 |
 
-`carriers_test.go` 覆盖 `remote`、`terminal`、`diffsurface`、`theme`、`frame`、`projects`、`im`、`schedule`、`assistant`、`widgets/markdown`、`svgimage`。
+`carriers_test.go` 覆盖 `remote`、`terminal`、`diffsurface`、`theme`、`frame`、`projects`、`im`、`schedule`、`assistant`、`widgets/markdown`。
 
 ## 新增一个 carrier
 
 1. **包已在扫描表里**：把字段名、调用或标签加进该包那一条正则即可。
-2. **新包**：在扫描表里加一行 `{dir, carrier}`。不加就永远扫不到——`svgimage` 曾经把解码错误画成占位文字，正是因为表里没有它；守卫只能证明它认识的包，证明不了规则。
+2. **新包**：在扫描表里加一行 `{dir, carrier}`。不加就永远扫不到——已删除的 `svgimage` 曾经把解码错误画成占位文字，正是因为表里没有它；守卫只能证明它认识的包，证明不了规则。
 3. **命令层不用登记**：严格守卫会直接失败，改好即可。
 
 ## 两个标记

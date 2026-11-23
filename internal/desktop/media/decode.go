@@ -34,6 +34,9 @@ const rasterVersion = "resvg-0.46.0/1"
 // scaled down to fit rather than kept at full size.
 const animationBudget = 48 << 20
 
+// rasterHook observes resvg output (tests read the pixels back).
+var rasterHook func([]byte)
+
 type worker struct {
 	svc    *Service
 	raster *svgrender.Rasterizer
@@ -232,7 +235,7 @@ func (w *worker) decode(ctx context.Context, key Key, hint string, data []byte) 
 	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width) > imagepreview.MaxPixels/int64(cfg.Height) {
 		return &result{fail: FailTooLarge}
 	}
-	if key.W > 0 && key.H > 0 && (cfg.Width > 2*key.W || cfg.Height > 2*key.H) {
+	if key.W > 0 && key.H > 0 && fitScale(cfg.Width, cfg.Height, key) < 1 {
 		img, _, err := image.Decode(bytes.NewReader(data))
 		if err != nil {
 			return &result{fail: FailCorrupt}
@@ -240,7 +243,7 @@ func (w *worker) decode(ctx context.Context, key Key, hint string, data []byte) 
 		if format == "jpeg" {
 			img = avatarimage.ApplyJPEGOrientation(img, data)
 		}
-		return bitmapResult(fit(img, key.W, key.H))
+		return bitmapResult(fit(img, key))
 	}
 	bmp, err := ui.DecodeBitmap(data)
 	if err != nil {
@@ -300,6 +303,9 @@ func (w *worker) decodeSVG(ctx context.Context, key Key, data []byte) *result {
 		}
 		return &result{fail: FailCorrupt}
 	}
+	if rasterHook != nil {
+		rasterHook(out)
+	}
 	bmp, err := ui.DecodeBitmap(out)
 	if err != nil {
 		return &result{fail: FailCorrupt}
@@ -328,7 +334,7 @@ func (w *worker) decodeCached(ctx context.Context, key Key, format string, data 
 		return &result{fail: FailTooLarge}
 	}
 	if key.W > 0 && key.H > 0 {
-		img = fit(img, key.W, key.H)
+		img = fit(img, key)
 	}
 	if w.svc.disk != nil {
 		var buf bytes.Buffer
@@ -359,16 +365,23 @@ func bitmapFromUI(bmp *ui.Bitmap) *result {
 	return &result{pic: Picture{Bitmap: bmp, Width: float32(w), Height: float32(h)}}
 }
 
-// fit scales img down to cover at most w×h (keeping its ratio); a smaller
-// image is returned as it is.
-func fit(img image.Image, w, h int) image.Image {
-	b := img.Bounds()
-	if b.Dx() <= w && b.Dy() <= h {
-		return img
+// fitScale is the scale that fits a w×h image to key: within W×H, or
+// covering it for Cover keys. It never enlarges.
+func fitScale(w, h int, key Key) float64 {
+	if key.W <= 0 || key.H <= 0 || w <= 0 || h <= 0 {
+		return 1
 	}
-	// Cover: the smaller scale that still fills w×h, so a cropped avatar
-	// stays sharp.
-	scale := math.Max(float64(w)/float64(b.Dx()), float64(h)/float64(b.Dy()))
+	sx, sy := float64(key.W)/float64(w), float64(key.H)/float64(h)
+	if key.Cover {
+		return math.Min(1, math.Max(sx, sy))
+	}
+	return math.Min(1, math.Min(sx, sy))
+}
+
+// fit scales img down to key's target; a smaller image is returned as is.
+func fit(img image.Image, key Key) image.Image {
+	b := img.Bounds()
+	scale := fitScale(b.Dx(), b.Dy(), key)
 	if scale >= 1 {
 		return img
 	}
@@ -397,14 +410,11 @@ func animationResult(motion *imagepreview.Animation, key Key) *result {
 	for _, f := range motion.Frames {
 		total += int64(f.Bounds().Dx()) * int64(f.Bounds().Dy()) * 4
 	}
-	scale := 1.0
-	if key.W > 0 && key.H > 0 {
-		scale = math.Min(1, math.Max(float64(key.W)/float64(first.Dx()), float64(key.H)/float64(first.Dy())))
-	}
+	scale := fitScale(first.Dx(), first.Dy(), key)
 	if over := float64(total) * scale * scale; over > animationBudget {
 		scale *= math.Sqrt(animationBudget / over)
 	}
-	dw, dh := max(1, int(float64(first.Dx())*scale)), max(1, int(float64(first.Dy())*scale))
+	dw, dh := max(1, int(math.Round(float64(first.Dx())*scale))), max(1, int(math.Round(float64(first.Dy())*scale)))
 	a := &animation{timing: motion}
 	for i, f := range motion.Frames {
 		dst := image.NewRGBA(image.Rect(0, 0, dw, dh))

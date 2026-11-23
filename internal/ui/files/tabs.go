@@ -23,7 +23,6 @@ import (
 type Tabs struct {
 	explorerError    string
 	resourceObserver *resourceObserver
-	imageReader      *imageReadQueue
 	imageReadTab     *FileTab
 	textReader       *textReadQueue
 	readTab          *FileTab

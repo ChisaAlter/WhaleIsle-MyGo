@@ -1,7 +1,6 @@
 package imagepreview
 
 import (
-	"bytes"
 	"encoding/xml"
 	"errors"
 	"math"
@@ -89,35 +88,4 @@ func svgAbsoluteLength(value string) (float64, bool) {
 		return 0, false
 	}
 	return n * factor, true
-}
-
-// svgIntrinsicHint is provisional layout while the contained browser decodes.
-// Only two definite absolute lengths are known without that browser. The
-// 300x150 default-object box is a placeholder, never a viewBox-sized claim.
-func svgIntrinsicHint(data []byte) (width, height float32, exact bool, err error) {
-	d := xml.NewDecoder(bytes.NewReader(data))
-	for {
-		token, e := d.Token()
-		if e != nil {
-			return 0, 0, false, e
-		}
-		root, ok := token.(xml.StartElement)
-		if !ok {
-			continue
-		}
-		values := svgIntrinsicAttributes(root.Attr)
-		w, wk := svgAbsoluteLength(values["width"])
-		h, hk := svgAbsoluteLength(values["height"])
-		exact = wk && hk && !strings.Contains(strings.ToLower(values["style"]), "width") && !strings.Contains(strings.ToLower(values["style"]), "height")
-		if !wk || w <= 0 {
-			w = 300
-		}
-		if !hk || h <= 0 {
-			h = 150
-		}
-		if err := svgArea(w, h); err != nil {
-			return 0, 0, false, err
-		}
-		return float32(w), float32(h), exact, nil
-	}
 }

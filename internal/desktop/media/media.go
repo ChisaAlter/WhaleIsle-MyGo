@@ -74,6 +74,8 @@ type Key struct {
 	ID         string
 	W, H       int
 	Appearance string
+	// Cover fits a bitmap to cover W×H (avatars); the default contains it.
+	Cover bool
 }
 
 // Sized returns k made for a w×h pixel target.
@@ -421,10 +423,50 @@ func (s *Service) Request(o *Owner, key Key, src Source) *Handle {
 	}
 	s.entries[key] = h
 	s.ownLocked(h, o)
+	s.enqueueLocked(h)
+	return h
+}
+
+// fetchSlots bounds concurrent downloads. Downloads never occupy a decode
+// worker: a slow network must not hold local pictures back.
+var fetchSlots = make(chan struct{}, 4)
+
+func (s *Service) enqueueLocked(h *Handle) {
+	if h.src.URL != "" && s.cfg.Fetch != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		h.cancel = cancel
+		src := h.src
+		go func() {
+			fetchSlots <- struct{}{}
+			var path string
+			err := ctx.Err()
+			if err == nil {
+				path, err = s.cfg.Fetch(ctx, src.URL)
+			}
+			<-fetchSlots
+			cancel()
+			s.mu.Lock()
+			h.cancel = nil
+			if h.dropped {
+				s.mu.Unlock()
+				return
+			}
+			if err != nil {
+				s.mu.Unlock()
+				s.finish(h, &result{fail: classifyLoad(err)})
+				return
+			}
+			h.src = Source{Path: path, Kind: src.Kind, MaxBytes: src.MaxBytes}
+			h.queued = true
+			s.queue = append(s.queue, h)
+			s.startLocked()
+			s.mu.Unlock()
+		}()
+		return
+	}
 	h.queued = true
 	s.queue = append(s.queue, h)
 	s.startLocked()
-	return h
 }
 
 // Forget drops a cached or failed picture so the next Request retries it.
