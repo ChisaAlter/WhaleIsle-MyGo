@@ -377,7 +377,7 @@ func runComposerFlowQA() error {
 		}
 		if sessions == nil {
 			state.mu.Lock()
-			bootLogs := append([]string(nil), state.bootLogs...)
+			bootLogs := state.bootLogSnapshot()
 			state.mu.Unlock()
 			if n := len(bootLogs); n > 8 {
 				bootLogs = bootLogs[n-8:]

@@ -290,7 +290,7 @@ func (s *mainState) publishCrashReport(win *mygo.Window, path string) {
 	line := fmt.Sprintf(i18n.T(i18n.KeyCrashReportWritten), path)
 	s.mu.Lock()
 	s.crashReportPath = path
-	s.bootLogs = append(s.bootLogs, line)
+	s.appendBootLogLocked(line)
 	s.mu.Unlock()
 	s.launcherController().AppendStartError(line)
 	if win != nil {

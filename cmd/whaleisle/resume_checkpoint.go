@@ -337,7 +337,7 @@ func (s *mainState) reportResumeCheckpointFailure(err error) {
 	}
 	sentence := errcopy.Under(i18n.T(i18n.KeyCmdResumeStateWasNotSaved), err)
 	s.mu.Lock()
-	s.bootLogs = append(s.bootLogs, sentence+" ["+err.Error()+"]") // raw-ok: the exported boot log, never copy
+	s.appendBootLogLocked(sentence + " [" + err.Error() + "]") // raw-ok: the exported boot log, never copy
 	sessions := s.sessions
 	s.mu.Unlock()
 	if sessions == nil {

@@ -101,6 +101,7 @@ func (s *mainState) applyMainRouteResources() {
 		if route != routeImport {
 			s.cancelImportCatalogScan()
 		}
+		s.noteRouteUse(route)
 		s.assistantService().SetOpen(route == routeAssistant)
 		if browser != nil && route != routeBrowser {
 			browser.Suspend()
