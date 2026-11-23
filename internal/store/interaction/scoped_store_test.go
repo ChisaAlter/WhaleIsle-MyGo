@@ -115,8 +115,12 @@ func TestScopedInteractionQuestionAndPlanUseGuardedSender(t *testing.T) {
 			case "skip":
 				scoped.SkipQuestionAndContinue("A", "e", "last")
 			default:
+				// persistQuestionDrafts runs on its own goroutine after
+				// NavigateQuestion; white-box rewrites still owe it the lock.
+				s.mu.Lock()
 				s.pending[0].CallID = ""
 				s.questionDrafts["e"] = newDraftSession(userQuestionsRequest{Questions: []userQuestionItem{{ID: "plan", Detail: "# Plan", Intent: &planReviewIntent{Kind: "plan-review", Approve: "Approve"}, Options: []userQuestionOption{{Label: "Approve"}}}}})
+				s.mu.Unlock()
 				if gesture == "plan" {
 					scoped.ApprovePlanReview("e")
 				} else {
