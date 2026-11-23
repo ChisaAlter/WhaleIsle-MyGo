@@ -24,6 +24,13 @@ var ErrCarrierLost = errors.New("dsh mux: carrier lost")
 // carrierWriteTimeout caps one frame write on the shared socket.
 const carrierWriteTimeout = 10 * time.Second
 
+// muxDialRetries and muxDialBackoff pace the re-dials after a transient
+// handshake failure (100, 200, 400 ms).
+const (
+	muxDialRetries = 3
+	muxDialBackoff = 100 * time.Millisecond
+)
+
 // Mux is one physical WebSocket that carries many logical Remote streams.
 // WebSocket Ping/Pong is handled by the underlying library (server pings every 2s).
 type Mux struct {
@@ -49,8 +56,17 @@ type Mux struct {
 	readErr error
 }
 
+// ErrStreamOverflow means this client dropped one logical stream whose inbox
+// filled faster than its reader drained it. Only that stream ends; the
+// carrier and its other streams continue, and the owner may re-subscribe.
+var ErrStreamOverflow = errors.New("dsh mux: stream inbox overflow")
+
+// streamInboxFrames bounds the frames one logical stream may queue.
+const streamInboxFrames = 4096
+
 type logicalStream struct {
-	inbox chan ServerFrame
+	inbox    chan ServerFrame
+	overflow chan struct{} // closed once when the read loop drops the stream
 }
 
 // Stream is one open logical Remote stream on a Mux.
@@ -60,6 +76,7 @@ type Stream struct {
 	done       <-chan struct{}
 	id         string
 	inbox      <-chan ServerFrame
+	overflow   <-chan struct{}
 	cancel     context.CancelFunc
 	streamDone chan struct{}
 	cancelDone chan struct{}
@@ -99,6 +116,15 @@ func (m *Mux) Dial(ctx context.Context) error {
 		HTTPHeader: header,
 	}
 	conn, _, err := websocket.Dial(dialCtx, u, opts)
+	// The Host registers the mux route a moment after it prints its ready
+	// line; an upgrade that lands first is a socket reset. Retry those quickly
+	// here rather than reporting a lost carrier for a route still appearing.
+	for attempt := 0; err != nil && attempt < muxDialRetries && temporaryTransport(err) && dialCtx.Err() == nil; attempt++ {
+		if sleepCtx(dialCtx, muxDialBackoff<<attempt) != nil {
+			break
+		}
+		conn, _, err = websocket.Dial(dialCtx, u, opts)
+	}
 	if err != nil {
 		return fmt.Errorf("dsh mux: dial: %w", err)
 	}
@@ -172,7 +198,7 @@ func (m *Mux) Open(ctx context.Context, endpoint string, payload any) (*Stream, 
 		return nil, fmt.Errorf("%w: not connected", ErrCarrierLost)
 	}
 	id := newID()
-	ls := &logicalStream{inbox: make(chan ServerFrame, 4096)}
+	ls := &logicalStream{inbox: make(chan ServerFrame, streamInboxFrames), overflow: make(chan struct{})}
 	m.streams[id] = ls
 	conn := m.conn
 	done := m.done
@@ -202,6 +228,7 @@ func (m *Mux) Open(ctx context.Context, endpoint string, payload any) (*Stream, 
 		done:       done,
 		id:         id,
 		inbox:      ls.inbox,
+		overflow:   ls.overflow,
 		cancel:     cancel,
 		streamDone: make(chan struct{}),
 		cancelDone: make(chan struct{}),
@@ -225,6 +252,11 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 			return nil, err
 		}
 		select {
+		case <-s.overflow:
+			return nil, s.overflowFailure()
+		default:
+		}
+		select {
 		case frame := <-s.inbox:
 			return s.handleFrame(frame)
 		default:
@@ -239,6 +271,8 @@ func (s *Stream) Recv(ctx context.Context) (json.RawMessage, error) {
 			return nil, ctx.Err()
 		case frame := <-s.inbox:
 			return s.handleFrame(frame)
+		case <-s.overflow:
+			return nil, s.overflowFailure()
 		case <-s.cancelDone:
 			select {
 			case frame := <-s.inbox:
@@ -262,6 +296,13 @@ func (s *Stream) queuedOrCarrierFailure() (json.RawMessage, error) {
 	default:
 		return nil, s.carrierFailure()
 	}
+}
+
+// overflowFailure ends a stream the read loop dropped. Frames still queued
+// precede a gap, so the caller re-subscribes instead of folding them.
+func (s *Stream) overflowFailure() error {
+	s.finish()
+	return fmt.Errorf("%w: stream %s", ErrStreamOverflow, s.id)
 }
 
 func (s *Stream) finish() {
@@ -410,9 +451,10 @@ func (m *Mux) readLoop(conn *websocket.Conn, done chan struct{}) {
 		select {
 		case ls.inbox <- frame:
 		default:
-			// Inbox full: treat as carrier failure for this connection.
-			notifyLost(fmt.Errorf("dsh mux: stream %s inbox full", frame.StreamID))
-			return
+			// A full inbox is one slow reader, not a broken socket: drop only
+			// this stream, tell the Host to stop sending it, and keep the
+			// carrier for every other stream.
+			m.dropOverflowedStream(conn, done, frame.StreamID, ls)
 		}
 	}
 }
@@ -514,4 +556,25 @@ func marshalPayload(payload any) (json.RawMessage, error) {
 		}
 		return b, nil
 	}
+}
+
+// dropOverflowedStream retires one logical stream whose inbox is full. The
+// cancel frame is written off the read loop so a slow write never stalls the
+// frames of other streams.
+func (m *Mux) dropOverflowedStream(conn *websocket.Conn, done chan struct{}, id string, ls *logicalStream) {
+	m.mu.Lock()
+	current := !m.closed && m.conn == conn && m.done == done && m.streams[id] == ls
+	if current {
+		delete(m.streams, id)
+	}
+	m.mu.Unlock()
+	if !current {
+		return
+	}
+	close(ls.overflow)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = m.send(ctx, conn, ClientFrame{Type: FrameCancel, StreamID: id})
+	}()
 }

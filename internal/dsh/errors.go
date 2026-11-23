@@ -105,3 +105,12 @@ func (e *Error) Is(target error) bool {
 	}
 	return false
 }
+
+// Is lets errors.Is(err, ErrEndpointNotReady) reach a mux error frame that
+// carries the same lazy-activation codes as an RPC answer.
+func (e *StreamFailure) Is(target error) bool {
+	if target != ErrEndpointNotReady || e == nil {
+		return false
+	}
+	return (&Error{Code: e.Code}).Is(target)
+}
