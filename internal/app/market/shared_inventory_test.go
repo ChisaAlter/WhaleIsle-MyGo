@@ -56,7 +56,9 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	}
 	coord.PrepareInstalledPlugin()
 	coord.Store().EnsureInventory(context.Background())
-	waitMarketFixture(t, func() bool { return coord.InstalledPluginState("qa-panel").Known && !coord.Store().Snapshot().Loading })
+	waitMarketFixture(t, func() bool {
+		return coord.InstalledPluginState("qa-panel").Known && !coord.Store().Snapshot().Value.Loading
+	})
 	if !coord.InstalledPluginState("qa-panel").Enabled {
 		t.Fatal("patch-only overlay lost")
 	}
@@ -71,7 +73,7 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	coord.NativeEventHandler(client)(dsh.EventsEmit{Event: "plugin-manager/changed"})
 	waitMarketFixture(t, func() bool {
 		state := coord.InstalledPluginState("qa-panel")
-		return state.Known && state.Revision > before.Revision && !state.Enabled && !coord.Store().Snapshot().Loading
+		return state.Known && state.Revision > before.Revision && !state.Enabled && !coord.Store().Snapshot().Value.Loading
 	})
 	if state := coord.Inventory().Snapshot().Value; len(state.Global) != 1 || state.Global[0].Enabled != "disabled" {
 		t.Fatalf("settings retained enabled overlay: %+v", state)
@@ -86,7 +88,7 @@ func TestSharedInventoryAttachReadyDemandAndRealChange(t *testing.T) {
 	// settings/A2 projections even without a subsequent event notification.
 	coord.Store().Refresh(context.Background())
 	waitMarketFixture(t, func() bool {
-		return coord.InstalledPluginState("qa-panel").Known && coord.InstalledPluginState("qa-panel").Enabled && !coord.Store().Snapshot().Loading
+		return coord.InstalledPluginState("qa-panel").Known && coord.InstalledPluginState("qa-panel").Enabled && !coord.Store().Snapshot().Value.Loading
 	})
 	mu.Lock()
 	defer mu.Unlock()

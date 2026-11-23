@@ -83,7 +83,7 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 			coord.SetStore(store)
 			s.runMarketCatalogInstall(target)
 			waitCatalogFixture(t, func() bool { return !coord.ViewSnapshot().WorkerBusy })
-			waitCatalogFixture(t, func() bool { return !store.Snapshot().Loading })
+			waitCatalogFixture(t, func() bool { return !store.Snapshot().Value.Loading })
 			message := coord.ViewSnapshot().InstallMsg
 			history := marketstore.NewWithPersonalPath(historyPath).Personal().History
 			if len(history) != 1 || history[0].Result != application || history[0].Plugin != "fixture/plugin" {
@@ -93,11 +93,11 @@ func TestMarketCatalogInstallResultAndInventory(t *testing.T) {
 				t.Fatal("queued installation was not awaited")
 			}
 			if application == "applied" {
-				if marketstore.InstalledName(store.Discovery().Rows[0], store.Snapshot().Rows) != "fixture-plugin" {
+				if marketstore.InstalledName(store.Discovery().Rows[0], store.Snapshot().Value.Rows) != "fixture-plugin" {
 					t.Fatal("applied install was not reconciled to inventory")
 				}
 			} else {
-				if len(store.Snapshot().Rows) != 0 || strings.Contains(message, "Applied") || strings.Contains(message, "已应用") {
+				if len(store.Snapshot().Value.Rows) != 0 || strings.Contains(message, "Applied") || strings.Contains(message, "已应用") {
 					t.Fatalf("failure misreported: %q", message)
 				}
 			}

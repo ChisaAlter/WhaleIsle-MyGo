@@ -17,22 +17,21 @@ func (s *Store) BeginInstall(attempt, plugin, action string) error {
 	default:
 		action = "install"
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data := s.personal.data
-	data.History = append([]InstallHistory(nil), data.History...)
-	for i := range data.History {
-		if data.History[i].Attempt == attempt {
-			data.History[i].Result = "running"
-			return s.savePersonalLocked(data)
+	return s.commitPersonal(false, func(data personalData) (personalData, error) {
+		data.History = append([]InstallHistory(nil), data.History...)
+		for i := range data.History {
+			if data.History[i].Attempt == attempt {
+				data.History[i].Result = "running"
+				return data, nil
+			}
 		}
-	}
-	entry := InstallHistory{Attempt: attempt, Action: action, At: time.Now().UTC(), Plugin: plugin, Result: "running"}
-	data.History = append([]InstallHistory{entry}, data.History...)
-	if len(data.History) > 200 {
-		data.History = data.History[:200]
-	}
-	return s.savePersonalLocked(data)
+		entry := InstallHistory{Attempt: attempt, Action: action, At: time.Now().UTC(), Plugin: plugin, Result: "running"}
+		data.History = append([]InstallHistory{entry}, data.History...)
+		if len(data.History) > 200 {
+			data.History = data.History[:200]
+		}
+		return data, nil
+	})
 }
 
 func (s *Store) FinishInstall(attempt, result, errorCode string, diagnostics ...string) error {
@@ -46,29 +45,32 @@ func (s *Store) FinishInstall(attempt, result, errorCode string, diagnostics ...
 	default:
 		errorCode = ""
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data := s.personal.data
-	data.History = append([]InstallHistory(nil), data.History...)
-	for i := range data.History {
-		if data.History[i].Attempt != attempt {
-			continue
-		}
-		data.History[i].Result = result
-		data.History[i].Error = errorCode
-		if len(diagnostics) > 0 {
-			data.History[i].Log = RedactOperationLog(diagnostics[0], 16000)
-		}
-		if len(diagnostics) > 1 {
-			data.History[i].Diagnostic = RedactOperationLog(diagnostics[1], 2000)
-		}
-		err := s.savePersonalLocked(data)
-		if err != nil {
-			s.personal.data.History = data.History
-		}
-		return err
+	// Redaction runs before the state lock; only the adoption runs under it.
+	var logText, diagnosticText string
+	if len(diagnostics) > 0 {
+		logText = RedactOperationLog(diagnostics[0], 16000)
 	}
-	return errors.New("operation receipt unavailable")
+	if len(diagnostics) > 1 {
+		diagnosticText = RedactOperationLog(diagnostics[1], 2000)
+	}
+	return s.commitPersonal(true, func(data personalData) (personalData, error) {
+		data.History = append([]InstallHistory(nil), data.History...)
+		for i := range data.History {
+			if data.History[i].Attempt != attempt {
+				continue
+			}
+			data.History[i].Result = result
+			data.History[i].Error = errorCode
+			if len(diagnostics) > 0 {
+				data.History[i].Log = logText
+			}
+			if len(diagnostics) > 1 {
+				data.History[i].Diagnostic = diagnosticText
+			}
+			return data, nil
+		}
+		return data, errors.New("operation receipt unavailable")
+	})
 }
 
 func (s *Store) BundleHistoryID(name string) string {
@@ -89,50 +91,44 @@ func (s *Store) BundleHistoryID(name string) string {
 
 // QueueUpdates commits the complete confirmed queue in one write before execution.
 func (s *Store) QueueUpdates(targets []InstallTarget, receipts map[string]string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data := s.personal.data
-	history := make([]InstallHistory, 0, len(targets)+len(data.History))
-	for _, target := range targets {
-		plugin := target.ID
-		if !safePluginID.MatchString(plugin) {
-			plugin = "manual-install"
+	return s.commitPersonal(false, func(data personalData) (personalData, error) {
+		history := make([]InstallHistory, 0, len(targets)+len(data.History))
+		for _, target := range targets {
+			plugin := target.ID
+			if !safePluginID.MatchString(plugin) {
+				plugin = "manual-install"
+			}
+			history = append(history, InstallHistory{Attempt: receipts[target.ID], Action: "update", At: time.Now().UTC(), Plugin: plugin, Result: "queued"})
 		}
-		history = append(history, InstallHistory{Attempt: receipts[target.ID], Action: "update", At: time.Now().UTC(), Plugin: plugin, Result: "queued"})
-	}
-	history = append(history, data.History...)
-	// Do not truncate the active batch; keep at least its full queue.
-	limit := 200
-	if len(targets) > limit {
-		limit = len(targets)
-	}
-	if len(history) > limit {
-		history = history[:limit]
-	}
-	data.History = history
-	return s.savePersonalLocked(data)
+		history = append(history, data.History...)
+		// Do not truncate the active batch; keep at least its full queue.
+		limit := 200
+		if len(targets) > limit {
+			limit = len(targets)
+		}
+		if len(history) > limit {
+			history = history[:limit]
+		}
+		data.History = history
+		return data, nil
+	})
 }
 
 func (s *Store) CancelQueuedUpdates(receipts map[string]string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data := s.personal.data
-	data.History = append([]InstallHistory(nil), data.History...)
-	for i := range data.History {
-		h := &data.History[i]
-		if h.Result != "queued" {
-			continue
-		}
-		for _, receipt := range receipts {
-			if h.Attempt == receipt {
-				h.Result = "not-started"
-				break
+	return s.commitPersonal(true, func(data personalData) (personalData, error) {
+		data.History = append([]InstallHistory(nil), data.History...)
+		for i := range data.History {
+			h := &data.History[i]
+			if h.Result != "queued" {
+				continue
+			}
+			for _, receipt := range receipts {
+				if h.Attempt == receipt {
+					h.Result = "not-started"
+					break
+				}
 			}
 		}
-	}
-	err := s.savePersonalLocked(data)
-	if err != nil {
-		s.personal.data.History = data.History
-	}
-	return err
+		return data, nil
+	})
 }

@@ -62,8 +62,6 @@
 ../store/interaction/projected_questions.go	rawerr	1
 ../store/interaction/question_persistence.go	rawerr	1
 ../store/interaction/store.go	rawerr	3
-../store/market/catalog.go	rawerr	2
-../store/market/store.go	rawerr	1
 ../store/office/store.go	rawerr	2
 ../store/session/agent_catalog_tree.go	rawerr	1
 ../store/session/agent_documents.go	rawerr	2

@@ -206,15 +206,15 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	defer market.Detach()
 	market.Refresh(ctx)
 	if err = wait(func() (bool, error) {
-		s := market.Snapshot()
-		if s.Err != "" {
-			return false, errors.New(s.Err)
+		s := market.Snapshot().Value
+		if s.Err != nil {
+			return false, errors.New(s.Err.SentenceText())
 		}
 		return !s.Loading, nil
 	}); err != nil {
 		add("PLUG-04 installed market", "fail", failure(err), 0)
 	} else {
-		add("PLUG-04 installed market", "pass", "real Host bundle inventory", len(market.Snapshot().Rows))
+		add("PLUG-04 installed market", "pass", "real Host bundle inventory", len(market.Snapshot().Value.Rows))
 	}
 	settings := settingsstore.New()
 	describe := func() error {

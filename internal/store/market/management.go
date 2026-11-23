@@ -51,7 +51,7 @@ func (s *Store) RequestConfirmation(description string, action func()) {
 	s.mu.Lock()
 	s.management.confirmation = description
 	s.management.confirm = action
-	s.management.confirmRuntime = s.generation
+	s.management.confirmRuntime = s.runtimeL.Generation()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -63,7 +63,7 @@ func (s *Store) Confirmation() string {
 func (s *Store) ResolveConfirmation(accept bool) {
 	s.mu.Lock()
 	action := s.management.confirm
-	current := s.management.confirmRuntime == s.generation
+	current := s.management.confirmRuntime == s.runtimeL.Generation()
 	s.clearConfirmationLocked()
 	s.mu.Unlock()
 	s.fire()

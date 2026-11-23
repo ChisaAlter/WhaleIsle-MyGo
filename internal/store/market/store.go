@@ -10,11 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/pluginmanager"
+	"whaleisle/internal/state"
 )
 
 // Entry is one row in the installed-plugin list.
@@ -36,11 +38,12 @@ type Entry struct {
 	NativeCompatibilityLabel string
 }
 
-// ViewState is a UI-safe snapshot of the store.
+// ViewState is a UI-safe snapshot of the store. A published ViewState is
+// immutable: Rows and Methods are replaced wholesale, never edited in place.
 type ViewState struct {
 	ClientReady    bool
 	Loading        bool
-	Err            string
+	Err            *state.Fault
 	HasListRPC     bool
 	ListMethod     string
 	Methods        []string
@@ -48,16 +51,32 @@ type ViewState struct {
 	RawListPreview string
 	RegistriesNote string
 	ExemptionsNote string
+	// Runtime is the attachment's RuntimeToken, published so owners can
+	// fence on it without taking the store lock.
+	Runtime uint64
 }
 
-// Store fetches pluginManager/listPlugins when available.
+// Store fetches pluginManager/listPlugins when available. Its working
+// fields live under mu; every change publishes an immutable ViewState and
+// Discovery version. The runtime lease (RuntimeToken) is renewed on every
+// attachment, the inventory lease on every attachment and inventory read;
+// catalog lists and details hold their own leases, so a superseded read is
+// cancelled and its completion dropped. Local favorites/history writes
+// serialize through persistMu and touch the disk without mu held.
 type Store struct {
 	mu               sync.Mutex
+	persistMu        sync.Mutex
 	client           *dsh.Client
 	inventoryCaller  pluginmanager.Caller
 	inventoryVersion uint64
-	generation       uint64
-	refreshID        uint64
+	runtime          state.LeaseOwner
+	runtimeL         state.Lease
+	inventory        state.LeaseOwner
+	inventoryL       state.Lease
+	lists            state.LeaseOwner
+	listL            state.Lease
+	details          state.LeaseOwner
+	detailL          state.Lease
 	completedRefresh uint64
 	discovery        discoveryState
 	updates          updateState
@@ -65,10 +84,13 @@ type Store struct {
 	management       managementState
 	personal         personalState
 	notify           func()
+	pub              state.Published[ViewState]
+	disc             state.Published[Discovery]
+	now              func() time.Time
 
 	loading         bool
 	inventoryLoaded bool
-	err             error
+	err             *state.Fault
 	hasListRPC      bool
 	listMethod      string
 	methods         []string
@@ -93,8 +115,8 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	if s.updates.cancel != nil {
 		s.updates.cancel()
 	}
-	s.generation++
-	s.refreshID++
+	s.runtimeL = s.runtime.Renew(context.Background())
+	s.inventoryL = s.inventory.Renew(context.Background())
 	s.completedRefresh++
 	s.clearConfirmationLocked()
 	s.rows = nil
@@ -106,6 +128,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.inventoryVersion = 0
 	s.notify = notify
 	s.err = nil
+	s.publishLocked()
 	s.mu.Unlock()
 }
 
@@ -145,8 +168,8 @@ func (s *Store) Detach() {
 	if s.updates.cancel != nil {
 		s.updates.cancel()
 	}
-	s.generation++
-	s.refreshID++
+	s.runtimeL = s.runtime.Renew(context.Background())
+	s.inventoryL = s.inventory.Renew(context.Background())
 	s.completedRefresh++
 	s.clearConfirmationLocked()
 	s.client = nil
@@ -160,34 +183,46 @@ func (s *Store) Detach() {
 	s.rawListPreview = ""
 	s.registriesNote = ""
 	s.exemptionsNote = ""
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
 
-// Snapshot copies observable state for one frame.
-func (s *Store) Snapshot() ViewState {
+// Snapshot returns the current published version. The same *Version is
+// shared by every reader until a change publishes the next revision; its
+// Value is immutable.
+func (s *Store) Snapshot() *state.Version[ViewState] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	st := ViewState{
+	if s.pub.Load() == nil {
+		s.publishLocked()
+	}
+	s.mu.Unlock()
+	return s.pub.Load()
+}
+
+// Changed closes when the next ViewState or Discovery version is published.
+func (s *Store) Changed() <-chan struct{} { return s.pub.Changed() }
+
+// publishLocked publishes the inventory view and the discovery projection
+// built from the current working state. Callers hold mu.
+func (s *Store) publishLocked() {
+	s.pub.Publish(ViewState{
 		ClientReady:    s.client != nil,
 		Loading:        s.loading,
+		Err:            s.err,
 		HasListRPC:     s.hasListRPC,
 		ListMethod:     s.listMethod,
+		Methods:        s.methods,
+		Rows:           s.rows,
 		RawListPreview: s.rawListPreview,
 		RegistriesNote: s.registriesNote,
 		ExemptionsNote: s.exemptionsNote,
-	}
-	if s.err != nil {
-		st.Err = s.err.Error()
-	}
-	st.Methods = append([]string(nil), s.methods...)
-	st.Rows = append([]Entry(nil), s.rows...)
-	for i := range st.Rows {
-		if len(st.Rows[i].Title) > 0 {
-			st.Rows[i].Title = append(json.RawMessage(nil), st.Rows[i].Title...)
-		}
-	}
-	return st
+		Runtime:        s.runtimeL.Generation(),
+	})
+	s.disc.Publish(s.buildDiscoveryLocked())
 }
 
 // Refresh probes pluginManager/* registry entries and calls listPlugins when present.
@@ -223,22 +258,27 @@ func (s *Store) refresh(ctx context.Context, invalidate bool) {
 	if s.updates.cancel != nil {
 		s.updates.cancel()
 	}
-	s.refreshID++
-	generation, refreshID := s.generation, s.refreshID
+	s.inventoryL = s.inventory.Renew(context.Background())
+	runtime, lease := s.runtimeL.Generation(), s.inventoryL
 	s.loading = true
 	s.err = nil
 	s.hasListRPC = hasRPC
 	s.listMethod = listMethod
 	s.methods = append([]string(nil), methods...)
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 
 	if !hasRPC {
-		s.finishRefresh(client, generation, refreshID, nil, nil, "", "", "")
+		s.finishRefresh(client, runtime, lease, nil, nil, "", "", "")
 		return
 	}
 
 	go func() {
+		// A superseding read renews the inventory lease, which cancels this one.
+		ctx, cancel := context.WithCancel(ctx)
+		stop := context.AfterFunc(lease.Context(), cancel)
+		defer func() { stop(); cancel() }()
 		regNote := ""
 		var regs api.PluginRegistries
 		if err := client.Call(ctx, "pluginManager/registries", map[string]any{}, &regs); err == nil {
@@ -275,16 +315,16 @@ func (s *Store) refresh(ctx context.Context, invalidate bool) {
 		var bundles api.ListBundlesResult
 		if err := inventoryCaller.Call(ctx, "pluginManager/listBundles", map[string]any{}, &bundles); err == nil {
 			rows := entriesFromBundles(bundles)
-			s.finishRefresh(client, generation, refreshID, nil, rows, "", regNote, exNote)
+			s.finishRefresh(client, runtime, lease, nil, rows, "", regNote, exNote)
 			return
 		}
 		var raw json.RawMessage
 		if err := inventoryCaller.Call(ctx, "pluginManager/listPlugins", nil, &raw); err != nil {
-			s.finishRefresh(client, generation, refreshID, err, nil, "", regNote, exNote)
+			s.finishRefresh(client, runtime, lease, err, nil, "", regNote, exNote)
 			return
 		}
 		rows, preview := parsePluginList(raw)
-		s.finishRefresh(client, generation, refreshID, nil, rows, preview, regNote, exNote)
+		s.finishRefresh(client, runtime, lease, nil, rows, preview, regNote, exNote)
 	}()
 }
 
@@ -392,14 +432,14 @@ func classifyBundleEntry(b api.ListBundlesResultItem) desktopmarket.PackageCapab
 	return caps
 }
 
-func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, err error, rows []Entry, preview, regNote, exNote string) {
+func (s *Store) finishRefresh(client *dsh.Client, runtime uint64, lease state.Lease, err error, rows []Entry, preview, regNote, exNote string) {
 	s.mu.Lock()
-	if s.client != client || s.generation != generation || s.refreshID != refreshID {
+	if s.client != client || s.runtimeL.Generation() != runtime || !lease.Valid() {
 		s.mu.Unlock()
 		return
 	}
 	s.loading = false
-	s.err = err
+	s.err = state.FaultOf(err)
 	s.inventoryLoaded = err == nil
 	s.completedRefresh++
 	if err == nil {
@@ -408,6 +448,7 @@ func (s *Store) finishRefresh(client *dsh.Client, generation, refreshID uint64, 
 		s.registriesNote = regNote
 		s.exemptionsNote = exNote
 	}
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	if err == nil {
@@ -537,7 +578,11 @@ func valueOrEmpty(v *string) string {
 }
 
 // RuntimeToken changes on every attachment, including reconnect to the same client.
-func (s *Store) RuntimeToken() uint64 { s.mu.Lock(); defer s.mu.Unlock(); return s.generation }
+func (s *Store) RuntimeToken() uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.runtimeL.Generation()
+}
 
 // CompletedRefreshID increments whenever a host attach, detach, or Refresh completes.
 func (s *Store) CompletedRefreshID() uint64 {

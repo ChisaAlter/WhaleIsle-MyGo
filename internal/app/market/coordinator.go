@@ -374,7 +374,7 @@ func (c *Coordinator) InstalledPluginLabels() []string {
 		return nil
 	}
 	var out []string
-	for _, row := range st.Snapshot().Rows {
+	for _, row := range st.Snapshot().Value.Rows {
 		if strings.TrimSpace(row.Label) != "" {
 			out = append(out, row.Label)
 		}
@@ -403,7 +403,7 @@ func (c *Coordinator) ListPluginsForInstallControl(ctx context.Context, refresh 
 		st.Refresh(ctx)
 	}
 	q := strings.ToLower(strings.TrimSpace(query))
-	rows := st.Snapshot().Rows
+	rows := st.Snapshot().Value.Rows
 	plugins := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		if q != "" && !strings.Contains(strings.ToLower(row.Label+" "+row.Detail), q) {

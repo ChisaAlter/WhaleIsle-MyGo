@@ -34,7 +34,7 @@ func (c *Coordinator) SidebarPlugins(locale string) []manager.SidebarPluginEntry
 	entries := c.sidebarPlugins.get(key, sidebarPluginCacheTTL, func() []manager.SidebarPluginEntry {
 		var rows []manager.SidebarPluginCandidate
 		if store != nil {
-			for _, row := range store.Snapshot().Rows {
+			for _, row := range store.Snapshot().Value.Rows {
 				enabled := row.Enabled == nil || *row.Enabled
 				rows = append(rows, manager.SidebarPluginCandidate{
 					Package:          row.Label,

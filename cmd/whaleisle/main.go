@@ -4308,7 +4308,7 @@ func mainView(c *ui.Context) {
 					marketViewState := marketstore.ViewState{}
 					if marketStore != nil {
 						marketStore.EnsureInventory(context.Background())
-						marketViewState = marketStore.Snapshot()
+						marketViewState = marketStore.Snapshot().Value
 					}
 					pluginRows := make([]settings.PluginRow, 0, len(marketViewState.Rows))
 					for _, row := range marketViewState.Rows {
@@ -4322,7 +4322,7 @@ func mainView(c *ui.Context) {
 						Inventory:        state.pluginInventoryAccess(),
 						Rows:             pluginRows,
 						HasListRPC:       marketViewState.HasListRPC,
-						Err:              marketViewState.Err,
+						Err:              marketViewState.Err.SentenceText(),
 						ClientReady:      marketViewState.ClientReady,
 						Loading:          marketViewState.Loading,
 						Busy:             marketSnap.InstallBusy,

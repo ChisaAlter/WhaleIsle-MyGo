@@ -77,12 +77,14 @@ func TestDiscoverySortAndListingPeriod(t *testing.T) {
 			t.Fatal("restoring choices did not preserve original catalog order")
 		}
 		s.personal.data.Favorites = map[string]bool{"owner/02": true, "owner/old": true}
+		s.republish()
 		s.SetTab("favorites")
 		s.SetCategory("tools")
 		s.SetQuery(" SEARCHABLE ")
 		s.SetSort("newest")
 		s.SetPeriod("30")
 		s.discovery.selected = "owner/old"
+		s.republish()
 		if d := s.Discovery(); d.Total != 1 || d.Rows[0].ID != "owner/02" || d.Selected == nil || d.Selected.ID != "owner/old" {
 			t.Fatalf("combined filters changed favorites/details: %+v", d)
 		}
