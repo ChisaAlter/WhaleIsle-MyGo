@@ -16,6 +16,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/hoststate"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -166,14 +167,14 @@ func View(c *ui.Context, m Model) {
 					// the rows in view are built, and TextSource keeps Copy and Select
 					// All complete for rows that never scrolled in.
 					if len(lines) == 0 {
-						ui.Column(c).Grow(1).MinHeight(0).Padding(10, 18, 16, 16).Children(func() {
-							ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted).Margin(0, 0, 0, 20)
+						ui.Column(c).Grow(1).MinHeight(0).Padding(design.Sp(2.5), design.Sp(4.5), design.Sp(4), design.Sp(4)).Children(func() {
+							ui.Text(c, i18n.T(KeyWaiting)).FontSize(12).TextColor(palette.muted).Margin(0, 0, 0, design.Sp(5))
 						})
 						return
 					}
 					list := ui.Local(root, "boot-log-list", func() ui.ListState { return ui.ListState{FollowEnd: true} })
 					list.TextSource = ui.ListTextSource{Revision: logRevision(lines), Paragraphs: func(i int) []string { return []string{lines[i]} }}
-					ui.List(c, list, len(lines)).Grow(1).MinHeight(0).Padding(10, 18, 16, 16).Selectable().Rows(func(row ui.ListRow) {
+					ui.List(c, list, len(lines)).Grow(1).MinHeight(0).Padding(design.Sp(2.5), design.Sp(4.5), design.Sp(4), design.Sp(4)).Selectable().Rows(func(row ui.ListRow) {
 						paintBootLogLine(row.Context, row.Index, lines[row.Index], palette.muted, palette.alert)
 					})
 				})
@@ -443,7 +444,7 @@ func paintBootLogLine(c *ui.Context, i int, line string, muted, alert ui.Color) 
 	}
 	// The ::marker anchors to the entry's first line like the ol's, so the
 	// row is top-aligned: a wrapped entry keeps its number at its head.
-	ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Start).Padding(0, 0, 4, 0).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Start).Padding(0, 0, design.Sp(1), 0).Children(func() {
 		// It sits outside the line, right-aligned against it in the gutter
 		// the ol's left padding leaves (boot.css:497-511).
 		ui.Text(c, fmt.Sprintf("%d.", i+1)).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(19)).TextColor(muted).Width(18).TextAlign(ui.End).Shrink(0).Unselectable()
