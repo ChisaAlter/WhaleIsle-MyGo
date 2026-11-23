@@ -6,7 +6,6 @@
 ../app/assistant/rooms.go	fmt	1
 ../app/assistant/rooms.go	rawerr	1
 ../app/assistant/service.go	rawerr	2
-../app/assistant/whale.go	rawerr	3
 ../app/launcher/controller.go	rawerr	1
 ../app/launcher/diagnostics.go	rawerr	2
 ../app/launcher/recovery.go	rawerr	3
@@ -26,9 +25,7 @@
 ../app/updater/download_completion.go	rawerr	5
 ../app/updater/journal.go	rawerr	1
 ../app/updater/persistence.go	rawerr	3
-../store/assistant/whale_preferences.go	rawerr	1
-../store/assistant/whale_settings.go	rawerr	3
-../store/assistant/whale_tasks.go	rawerr	2
+../store/assistant/whale_settings.go	rawerr	1
 ../store/dshbot/avatar_controls.go	rawerr	5
 ../store/dshbot/avatar_image_controls.go	rawerr	3
 ../store/dshbot/bot_create.go	rawerr	7
@@ -68,14 +65,6 @@
 ../store/market/catalog.go	rawerr	2
 ../store/market/store.go	rawerr	1
 ../store/office/store.go	rawerr	2
-../store/pad/store.go	rawerr	6
-../store/remote/directory.go	rawerr	1
-../store/remote/directory_actions.go	rawerr	2
-../store/remote/file_actions.go	rawerr	2
-../store/remote/file_workspace.go	rawerr	1
-../store/remote/files.go	rawerr	4
-../store/remote/store.go	rawerr	1
-../store/remote/tools.go	rawerr	1
 ../store/schedule/store.go	rawerr	1
 ../store/session/agent_catalog_tree.go	rawerr	1
 ../store/session/agent_documents.go	rawerr	2
