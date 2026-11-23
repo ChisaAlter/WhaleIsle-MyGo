@@ -126,6 +126,11 @@ type Library struct {
 	// name; "" means the form element's identity names the form.
 	FormComponents map[string]string
 
+	// ValidateElement checks an evaluated element beyond its JSON Schema
+	// (for example Whale genui options). Problems become element Issues and
+	// schema-invalid diagnostics.
+	ValidateElement func(el *Element) []string
+
 	// Extra carries loader-specific data (for example the Whale UI genui
 	// schemas); the core ignores it.
 	Extra map[string]Value

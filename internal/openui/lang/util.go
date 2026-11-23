@@ -23,3 +23,31 @@ func utf16Len(s string) int {
 	}
 	return n
 }
+
+// TrimSpace trims ECMAScript white space and line terminators (String.prototype.trim).
+func TrimSpace(s string) string { return trimJSSpace(s) }
+
+// UTF16Len returns the JavaScript length of s.
+func UTF16Len(s string) int { return utf16Len(s) }
+
+// UTF16Slice returns s.slice(start, end) in UTF-16 units (clamped indices).
+func UTF16Slice(s string, start, end int) string {
+	u := utf16Units(s)
+	if start < 0 {
+		start = 0
+	}
+	if end > len(u) {
+		end = len(u)
+	}
+	if start >= end {
+		return ""
+	}
+	return utf16String(u[start:end])
+}
+
+// Member reads an own property of a value like the language's member
+// access (object keys, array index/length, string index/length).
+func Member(v Value, key string) Value { return memberOf(v, key) }
+
+// JSRound implements Math.round.
+func JSRound(x float64) float64 { return jsRound(x) }

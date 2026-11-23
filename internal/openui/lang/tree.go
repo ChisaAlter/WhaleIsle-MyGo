@@ -81,6 +81,14 @@ func (r *renderer) renderElement(el *Element, form string) *Element {
 	if r.lib.Profile.RuntimeValidation && comp != nil {
 		r.validateRuntime(out, comp)
 	}
+	if r.lib.ValidateElement != nil {
+		if issues := r.lib.ValidateElement(out); len(issues) > 0 {
+			out.Issues = issues
+			for _, msg := range issues {
+				r.errors = append(r.errors, Diagnostic{Source: SourceRuntime, Code: CodeSchemaInvalid, Component: out.Type, StatementID: out.StatementID, Message: msg})
+			}
+		}
+	}
 	return out
 }
 

@@ -178,6 +178,9 @@ type Element struct {
 	// Partial is true when the element was read from a statement that is
 	// still streaming.
 	Partial bool
+	// Issues lists schema problems found by the library element validator
+	// (for example invalid options of a specialized component).
+	Issues  []string
 	dynamic bool
 }
 
