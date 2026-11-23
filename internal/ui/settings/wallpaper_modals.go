@@ -92,7 +92,7 @@ func wallpaperImagePreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 		if strings.HasPrefix(path, "data:image/") {
 			key, src = media.DataURL(path)
 		} else {
-			key, src = media.File(path)
+			key, src = media.File(path, "")
 		}
 		src.MaxBytes = wallpapers.MaxImportBytes
 		key = key.Sized(1440, 360)

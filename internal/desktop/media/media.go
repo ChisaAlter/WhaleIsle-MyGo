@@ -16,7 +16,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"image"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -106,12 +108,17 @@ type Source struct {
 	// worker and may return derived data for Picture.Extra, such as a color
 	// map. The Key must name whatever Derive depends on.
 	Derive func(image.Image) (image.Image, any)
+	// AutoRev marks a path-keyed source with no caller revision: the service
+	// stats the file on a worker and forgets the entry when it changes.
+	AutoRev bool
 }
 
 type result struct {
 	pic  Picture
 	anim *animation
 	fail Failure
+	// rev is the file size+mtime observed at load for AutoRev sources.
+	rev string
 }
 
 // Handle is one requested picture. Its methods are safe from any goroutine;
@@ -126,14 +133,17 @@ type Handle struct {
 	lastSeen atomic.Int64
 
 	// guarded by svc.mu
-	owners   map[*Owner]struct{}
-	queued   bool
-	running  bool
-	dropped  bool
-	cancel   context.CancelFunc
-	lru      *list.Element
-	bytes    int64
-	failedAt time.Time
+	owners      map[*Owner]struct{}
+	queued      bool
+	running     bool
+	dropped     bool
+	cancel      context.CancelFunc
+	lru         *list.Element
+	bytes       int64
+	failedAt    time.Time
+	fileRev     string
+	statRunning bool
+	statAt      time.Time
 }
 
 // State reports whether the picture is pending, ready or failed.
@@ -416,6 +426,7 @@ func (s *Service) Request(o *Owner, key Key, src Source) *Handle {
 				s.ownLocked(h, o)
 			} else if h.lru != nil {
 				s.lru.MoveToFront(h.lru)
+				s.maybeRevalidateLocked(h)
 			}
 			return h
 		}
@@ -474,6 +485,48 @@ func (s *Service) enqueueLocked(h *Handle) {
 	h.queued = true
 	s.queue = append(s.queue, h)
 	s.startLocked()
+}
+
+// fileRevalidate is the minimum gap between background stat checks of one
+// path-keyed entry; requests per frame must not stat per frame.
+const fileRevalidate = time.Second
+
+// statRev is a file's content revision: size and modification time.
+func statRev(path string) string {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	return fmt.Sprintf("%d:%d", info.Size(), info.ModTime().UnixNano())
+}
+
+// maybeRevalidateLocked schedules a background stat for a cached path-keyed
+// entry whose caller gave no revision. A changed stat removes the stale
+// entry; the caller keeps its current picture this frame and the next
+// Request decodes the new file. A failed stat keeps the cached picture.
+func (s *Service) maybeRevalidateLocked(h *Handle) {
+	if !h.src.AutoRev || h.statRunning || time.Since(h.statAt) < fileRevalidate {
+		return
+	}
+	h.statAt = time.Now()
+	if s.cfg.Workers < 0 {
+		// Synchronous for RunPending-driven tests.
+		if rev := statRev(h.src.Path); rev != "" && h.fileRev != "" && rev != h.fileRev {
+			s.removeLocked(h)
+		}
+		return
+	}
+	h.statRunning = true
+	path := h.src.Path
+	go func() {
+		rev := statRev(path)
+		s.mu.Lock()
+		h.statRunning = false
+		if rev != "" && h.fileRev != "" && rev != h.fileRev {
+			s.removeLocked(h)
+		}
+		s.mu.Unlock()
+	}()
 }
 
 // Forget drops a cached or failed picture so the next Request retries it.
@@ -677,6 +730,9 @@ func (s *Service) finish(h *Handle, r *result) {
 	}
 	clear(h.owners)
 	h.res.Store(r)
+	if r.rev != "" {
+		h.fileRev = r.rev
+	}
 	if r.fail != FailNone {
 		h.failedAt = time.Now()
 	} else if s.entries[h.key] == h {
@@ -730,8 +786,20 @@ func (p Picture) Image() ui.ImageSource {
 // decoding happens on a worker.
 func DataURL(s string) (Key, Source) { return Key{ID: s}, Source{DataURL: s} }
 
-// File keys a local file by its path; it is read on a worker.
-func File(path string) (Key, Source) { return Key{ID: "file:" + path}, Source{Path: path} }
+// File keys a local file by its path; it is read on a worker. rev is a
+// content revision the caller already knows without doing UI-thread I/O
+// (size+mtime from a listing, a config value). A changed rev is a new
+// picture. With rev == "" the key is the bare path and the service
+// revalidates the file's size/mtime on a worker in the background; a changed
+// stat forgets the stale entry so the next request decodes the new bytes.
+func File(path, rev string) (Key, Source) {
+	src := Source{Path: path}
+	if rev != "" {
+		return Key{ID: "file:" + path + "#" + rev}, src
+	}
+	src.AutoRev = true
+	return Key{ID: "file:" + path}, src
+}
 
 // Remote keys a public http(s) image; it is fetched through the configured
 // image cache on a worker.

@@ -48,7 +48,7 @@ func wallpaperRequest(path string, p wallpapers.Preferences, w, h int) *media.Ha
 	if strings.HasPrefix(path, "data:") {
 		key, src = media.DataURL(path)
 	} else {
-		key, src = media.File(path)
+		key, src = media.File(path, "")
 	}
 	src.MaxBytes = 64 << 20
 	block := int(math.Round(wallpaperPixelFactor(p.Pixelate)))

@@ -55,6 +55,10 @@ func (w *worker) run(ctx context.Context, h *Handle) *result {
 	if ctx.Err() != nil {
 		return nil
 	}
+	var rev string
+	if h.src.AutoRev {
+		rev = statRev(h.src.Path)
+	}
 	data, fail := w.load(ctx, h.src)
 	if ctx.Err() != nil {
 		return nil
@@ -66,6 +70,9 @@ func (w *worker) run(ctx context.Context, h *Handle) *result {
 	r := w.decode(ctx, h.key, h.src, data)
 	if ctx.Err() != nil {
 		return nil
+	}
+	if r != nil {
+		r.rev = rev
 	}
 	return r
 }

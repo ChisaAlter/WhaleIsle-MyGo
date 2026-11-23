@@ -251,3 +251,62 @@ func TestAnimationUsesOneBitmap(t *testing.T) {
 		t.Fatal("animation frames are separate bitmaps")
 	}
 }
+
+func TestFileAutoRevRefreshesChangedFile(t *testing.T) {
+	s := New(Config{Workers: -1})
+	o := s.NewOwner(nil, nil)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "wall.png")
+	if err := os.WriteFile(path, pngBytes(t, 4, 4, color.White), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	key, src := File(path, "")
+	h := s.Request(o, key, src)
+	s.RunPending()
+	first, ok := h.Picture()
+	if !ok || first.Bitmap == nil {
+		t.Fatal("first decode not ready")
+	}
+
+	// Same path, new bytes: the stat (size+mtime) changes.
+	if err := os.WriteFile(path, pngBytes(t, 8, 4, color.Black), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, time.Now(), time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	stale := s.Request(o, key, src)
+	if stale.Bitmap() != first.Bitmap {
+		t.Fatal("the cache-hit frame should still serve the previous picture")
+	}
+	s.RunPending()
+	next := s.Request(o, key, src)
+	s.RunPending()
+	got, ok := next.Picture()
+	if !ok || got.Bitmap == nil {
+		t.Fatal("second decode not ready")
+	}
+	if got.Bitmap == first.Bitmap {
+		t.Fatal("changed file still served the stale bitmap")
+	}
+	if s.Decodes() != 2 {
+		t.Fatalf("decodes = %d", s.Decodes())
+	}
+}
+
+func TestFileRevisionKeysDistinctPictures(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "wall.png")
+	if err := os.WriteFile(path, pngBytes(t, 4, 4, color.White), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ka, _ := File(path, "1:100")
+	kb, _ := File(path, "2:200")
+	if ka.ID == kb.ID {
+		t.Fatal("different revisions must not share a key")
+	}
+	if kb2, _ := File(path, "2:200"); kb2.ID != kb.ID {
+		t.Fatal("same revision must share the key")
+	}
+}
