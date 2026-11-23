@@ -67,6 +67,10 @@ func TestBootPageRequestsNoContinuousFrames(t *testing.T) {
 		builds := 0
 		m := Model{Status: harness.Status{State: harness.Starting}, Logs: []string{"host line"}, Dark: dark}
 		tt := ui.NewTester(func(c *ui.Context) { builds++; View(c, m) }, 1200, 800)
+		// A clock an hour ahead keeps the paced tick's wall-clock timer from
+		// firing inside the measured frame on a loaded machine: only a frame
+		// request made by the view itself can chain builds.
+		tt.SetTime(time.Now().Add(time.Hour))
 		builds = 0
 		tt.Frame()
 		if builds > 3 {
