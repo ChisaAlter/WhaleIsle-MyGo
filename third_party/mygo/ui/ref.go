@@ -120,12 +120,15 @@ func (e Element) Bind(r *Handle) Element {
 	if n == nil || r == nil {
 		return e
 	}
-	n.c.rt.binds++
 	b := r.binding(n.c.rt, true)
 	if b.element.Valid() && b.element != e {
 		panic("ui: Handle bound to two controls in one build")
 	}
 	b.element = e
+	if rt := n.c.rt; rt.c.region != nil {
+		// Bound in a memo region, which binds it again as it is kept.
+		rt.bindLog = append(rt.bindLog, memoBind{b, n})
+	}
 	return e
 }
 

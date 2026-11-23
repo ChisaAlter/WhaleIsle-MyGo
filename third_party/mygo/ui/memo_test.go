@@ -441,3 +441,32 @@ func TestMemoTextInput(t *testing.T) {
 		t.Fatalf("typed %q", value)
 	}
 }
+
+// A scroll container in a kept region scrolled by the app takes the
+// pointer where its content shows.
+func TestMemoScrolledByApp(t *testing.T) {
+	var track ScrollState
+	builds := 0
+	tt := coreNewTester(func(c *context) {
+		coreColumn(c).Memo(1).Children(func() {
+			builds++
+			coreScroll(c).Height(100).TrackScroll(&track).Children(func() {
+				for i := range 20 {
+					coreButton(c, fmt.Sprint("Row ", i))
+				}
+			})
+		})
+	}, 300, 300)
+	tt.Frame()
+	before, _ := tt.Find("Row 5")
+	track.Y = 60
+	tt.Frame()
+	tt.Frame()
+	after, ok := tt.Find("Row 5")
+	if !ok || after.Y >= before.Y {
+		t.Fatalf("scrolled, row 5 at %v, was at %v (built %d times)", after, before, builds)
+	}
+	if builds != 1 || tt.rt.memoKept == 0 {
+		t.Fatalf("built %d times, kept %d", builds, tt.rt.memoKept)
+	}
+}

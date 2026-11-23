@@ -82,6 +82,7 @@ type memoRegion struct {
 	// registers again.
 	regs     []shortcutReg
 	dividers []dividers
+	binds    []memoBind
 	// flags of what the region holds.
 	texts, observers, selectables bool
 	// The layout the region's children had in the last frame: the size of
@@ -108,6 +109,9 @@ type memoRegion struct {
 	labels      []labelNode
 	selTexts    []*state
 	bounds      Rect
+	// scrolls are the scroll containers in the region, with their offsets
+	// as it committed, which its hits and nodes follow.
+	scrolls []scrollMark
 	// The accessibility nodes of the region's children, with parents
 	// relative to the first (-1 for the node of the region's element),
 	// where the region was as they were made, and whether in a scroll
@@ -185,7 +189,7 @@ func (c *context) memoMarks() memoMarks {
 	rt := c.rt
 	m := memoMarks{parts: len(rt.parts), observers: len(rt.inputObservers), captures: len(rt.keyCaptures),
 		reveal: len(c.reveal), clicks: len(rt.clickLater), toasts: len(rt.toasts), regs: len(rt.nextRegs),
-		phys: len(rt.physical.next), transitions: len(c.transitions), dividers: len(c.dividers), binds: rt.binds,
+		phys: len(rt.physical.next), transitions: len(c.transitions), dividers: len(c.dividers), binds: len(rt.bindLog),
 		routers: c.routers, kept: len(rt.kept), actions: len(rt.actions), inputs: len(rt.inputs),
 		physTerminals: len(rt.physical.nextTerminals),
 		overlay:       c.overlay, animating: rt.animating, consumed: rt.consumed, late: rt.late}
@@ -317,6 +321,12 @@ func (rt *engine) keepRegion(r *memoRegion, e *node) {
 	}
 	rt.nextRegs = append(rt.nextRegs, r.regs...)
 	c.dividers = append(c.dividers, r.dividers...)
+	for _, b := range r.binds {
+		b.ref.element = wrapElement(b.n)
+		if c.region != nil {
+			rt.bindLog = append(rt.bindLog, b)
+		}
+	}
 	r.seen, r.seenPass, r.reused = rt.frame, rt.pass, true
 	rt.memoKept++
 }
@@ -354,12 +364,17 @@ func (rt *engine) buildRegion(r *memoRegion, e *node, fn func(), print *memoPrin
 		after.parts != before.parts || after.observers != before.observers || after.captures != before.captures ||
 		after.reveal != before.reveal || after.clicks != before.clicks || after.toasts != before.toasts ||
 		after.phys != before.phys || after.physTerminals != before.physTerminals || after.transitions != before.transitions ||
-		after.binds != before.binds || after.members != before.members || after.routers != before.routers ||
+		after.members != before.members || after.routers != before.routers ||
 		after.kept != before.kept || after.overlay != before.overlay || after.overlayN != before.overlayN ||
 		after.late && !before.late
 	r.keys = after.regs != before.regs || after.actions != before.actions
 	r.regs = append(r.regs[:0], rt.nextRegs[before.regs:]...)
 	r.dividers = append(r.dividers[:0], c.dividers[before.dividers:]...)
+	r.binds = append(r.binds[:0], rt.bindLog[before.binds:]...)
+	if savedRegion == nil {
+		clear(rt.bindLog)
+		rt.bindLog = rt.bindLog[:0]
+	}
 	clear(r.nodes)
 	clear(r.states)
 	r.nodes, r.states = r.nodes[:0], r.states[:0]
@@ -608,7 +623,7 @@ func (rt *engine) keptHere(e *node) *memoRegion {
 // order and the labels goes there again.
 func (rt *engine) commitKept(e *node, clip Rect) bool {
 	r := rt.keptHere(e)
-	if r == nil || !r.committed || !r.plain || r.cx != e.x || r.cy != e.y || r.clip != clip ||
+	if r == nil || !r.committed || !r.plain || r.cx != e.x || r.cy != e.y || r.clip != clip || !r.scrollsAsCommitted() ||
 		r.scope != rt.commitScope || r.page != rt.commitPage || r.disabled != (e.st.flags&flagDisabled != 0) {
 		return false
 	}
@@ -635,6 +650,12 @@ func (rt *engine) noteCommit(e *node, clip Rect, m *commitMarks) {
 	r.focusOrder = append(r.focusOrder[:0], rt.focusOrder[m.focus:]...)
 	r.focusScopes = append(r.focusScopes[:0], rt.focusScopes[m.focus:]...)
 	r.labels = append(r.labels[:0], rt.labels[m.labels:]...)
+	r.scrolls = r.scrolls[:0]
+	for _, n := range r.nodes {
+		if n.scrolls() {
+			r.scrolls = append(r.scrolls, scrollMark{n.st, n.st.scrollX, n.st.scrollY})
+		}
+	}
 	r.bounds = Rect{}
 	for _, h := range r.hits {
 		r.bounds = unionNonEmpty(r.bounds, h.r)
@@ -659,7 +680,7 @@ func unionNonEmpty(a, b Rect) Rect {
 // those nodes made relative to where they go now.
 func (rt *engine) describeKept(t *platform.AccessTree, e *node, parent int, scrolled bool) bool {
 	r := rt.keptHere(e)
-	if r == nil || !r.described || r.ax != e.x || r.ay != e.y || r.scrolled != scrolled ||
+	if r == nil || !r.described || r.ax != e.x || r.ay != e.y || r.scrolled != scrolled || !r.committed || !r.scrollsAsCommitted() ||
 		rt.focused != 0 && rt.inRegion(rt.states[rt.focused], r.id) {
 		return false
 	}
@@ -790,4 +811,27 @@ func (rt *engine) noteSelection(e *node) {
 		r.selPrepared = true
 		r.selScope, r.selControl = selectionScope(e)
 	}
+}
+
+// scrollMark is the offset of a scroll container as its region committed.
+type scrollMark struct {
+	st     *state
+	sx, sy float64
+}
+
+// scrollsAsCommitted reports whether the scroll containers of the region
+// have the offsets they had as it committed.
+func (r *memoRegion) scrollsAsCommitted() bool {
+	for _, m := range r.scrolls {
+		if m.st.scrollX != m.sx || m.st.scrollY != m.sy {
+			return false
+		}
+	}
+	return true
+}
+
+// memoBind is a Handle bound to an element of a memo region.
+type memoBind struct {
+	ref *refState
+	n   *node
 }

@@ -118,7 +118,7 @@ type engine struct {
 	memos                         map[uint64]*memoRegion
 	memoBuilt, memoKept, memoLaid int
 	memoCommitted, memoDescribed  int
-	binds                         int
+	bindLog                       []memoBind
 	commitMemo                    uint64
 	// free are states pruned, which new elements take: rows coming into
 	// a list's view take those of rows that went out of it.
