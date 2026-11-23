@@ -53,7 +53,7 @@ func (s *Service) BuildPanelModel(opts PanelBuildOptions) (assistantui.Model, Fr
 	var dshbotRows []dshbotstore.Row
 	var dshbotRosterAt string
 	if roster != nil {
-		snap := roster.Snapshot()
+		snap := roster.Snapshot().Value
 		if snap.Origin == origin {
 			dshbotRows = snap.Rows
 			dshbotRosterAt = snap.FetchedAt
@@ -310,7 +310,7 @@ func (s *Service) BuildPanelModel(opts PanelBuildOptions) (assistantui.Model, Fr
 					if act, aerr := c.DshbotActivityTyped(ctx, nil); aerr == nil {
 						dr.MergeActivity(act)
 					}
-					for _, row := range dr.Snapshot().Rows {
+					for _, row := range dr.Snapshot().Value.Rows {
 						if row.Kind != "room" {
 							continue
 						}

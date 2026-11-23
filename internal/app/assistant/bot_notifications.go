@@ -383,7 +383,7 @@ func (s *Service) deliverBotNotification(run *botNotificationRun) {
 			roster := s.DshbotRoster()
 			represented := false
 			if roster != nil {
-				snap := roster.Snapshot()
+				snap := roster.Snapshot().Value
 				if snap.Origin == run.endpoint.Origin {
 					for _, row := range snap.Rows {
 						if row.ID == target.ID && row.SessionID == target.SessionID && !row.Hidden {

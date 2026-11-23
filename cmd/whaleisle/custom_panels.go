@@ -50,7 +50,7 @@ func (s *mainState) currentCustomPanelScope(sid string) (panel.Scope, string) {
 	if !ready || roster == nil || cfg == nil || !cfg.Get().DshbotEnabled || sessions == nil || sessions.SelectedSessionID() != sid {
 		return panel.Scope{}, ""
 	}
-	return customPanelBotScope(sessions.WorkspaceLayoutScope(), ep.Origin, sid, roster.Snapshot())
+	return customPanelBotScope(sessions.WorkspaceLayoutScope(), ep.Origin, sid, roster.Snapshot().Value)
 }
 func latestCustomPanelReply(messages []session.Message) (panel.Definition, error) {
 	for n := len(messages) - 1; n >= 0; n-- {

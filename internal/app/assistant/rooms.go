@@ -44,7 +44,7 @@ func (s *Service) isRoomInRoster(ep harness.Endpoint, id string) bool {
 	if roster == nil || id == "" {
 		return false
 	}
-	cached := roster.Snapshot()
+	cached := roster.Snapshot().Value
 	if cached.Origin != ep.Origin {
 		return false
 	}
