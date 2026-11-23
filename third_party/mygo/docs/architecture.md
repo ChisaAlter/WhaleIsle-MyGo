@@ -1345,6 +1345,32 @@ either.
   `MYGO_FRAME_STATS` set, frames slower than its threshold log how long
   each part took, which path drew them, what the process allocated and
   whether the collector ran (`ui/framestats.go`).
+- **Memo regions** (`ui/memo.go`, `Element.Memo`) keep the children of an
+  element from pass to pass and frame to frame. A region builds its
+  children into an arena of its own (`memoRegion`, `context.region`), so
+  that the frame's arena, reused by every pass, leaves them be; `Children`
+  then skips the view's function while the version the app gave, what the
+  region was built against (`memoPrint`: theme, fonts, scale, window size,
+  router), and its continuity hold, and nothing reached it since: events
+  mark the regions they reach (`memoInput`, `memoHover`: under the pointer
+  before and after it moved, holding the focus for keys, the target of an
+  action of assistive technology, all of them for drags and the unknown),
+  and the focus, a press, a drag or a selection in a region keeps it
+  building. A build that asks for frames, or registers with the pass what a
+  region cannot register again (overlays, routers, lists, transitions, focus
+  bindings, Handles, input observers, timers), makes the region live, built
+  in every pass. A region kept counts its states as built (`keepRegion`),
+  registers its shortcuts and dividers again, and gives its elements this
+  pass's serials (`context.slots`, which Elements resolve through), so
+  handles from the pass that built them expire as handles do. Layout puts
+  its children back where it put them, relative to their parents
+  (`node.rx`, `keptLayout`), while the element holding them has the size,
+  layout properties and text style it had, with the measures of its
+  children kept (`memoMeasured`, `memoHeight`); commit, selection and the
+  accessibility tree append what the region made the frame before while it
+  did not move (`commitKept`, `selectionKept`, `describeKept`), and walks
+  for layout observers skip it. `MYGO_MEMO=off` builds every region in
+  every pass.
 - **Transitions** (`ui/transition.go`) animate elements FLIP-style, after
   the layout of each frame and before `place` turns boxes into window
   coordinates: an element given a `Transition` keeps, by its ID, where the

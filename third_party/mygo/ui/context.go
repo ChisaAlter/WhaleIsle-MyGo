@@ -62,22 +62,32 @@ type context struct {
 	// sortedUses and depthStarts are byDepth's.
 	sortedUses  []transitionUse
 	depthStarts []int
+	// region is the memo region being built, whose arena its elements come
+	// from, and slots the elements of the pass by serial, for Elements.
+	region *memoRegion
+	slots  []*node
 }
 
 const chunkSize = 32
 
 // alloc returns a zeroed element from the frame's arena.
 func (c *context) alloc() *node {
-	ci, ei := c.used/chunkSize, c.used%chunkSize
-	if ci == len(c.chunks) {
-		c.chunks = append(c.chunks, make([]node, chunkSize))
+	var e *node
+	if r := c.region; r != nil {
+		e = r.alloc()
+	} else {
+		ci, ei := c.used/chunkSize, c.used%chunkSize
+		if ci == len(c.chunks) {
+			c.chunks = append(c.chunks, make([]node, chunkSize))
+		}
+		c.used++
+		e = &c.chunks[ci][ei]
 	}
-	c.used++
-	e := &c.chunks[ci][ei]
 	shadows, cols, rows, frags := e.shadows[:0], e.cols[:0], e.rows[:0], e.frags[:0]
 	*e = node{}
 	e.shadows, e.cols, e.rows, e.frags = shadows, cols, rows, frags
-	e.serial = int32(c.used)
+	c.slots = append(c.slots, e)
+	e.serial = int32(len(c.slots))
 	e.epoch = c.rt.epoch
 	e.shrink = 1
 	e.justify, e.align, e.self, e.alignContent = alignAuto, alignAuto, alignAuto, alignAuto
@@ -113,6 +123,9 @@ func (c *context) reset(now time.Time, w, h float32) {
 	c.rt.actions = c.rt.actions[:0]
 	c.dirty = max(c.dirty, c.used)
 	c.used = 0
+	clear(c.slots)
+	c.slots = c.slots[:0]
+	c.region = nil
 	c.now = now
 	c.w, c.h = w, h
 	c.theme = c.rt.defaultTheme()
@@ -172,7 +185,11 @@ var overlayID = mix(1, 0x6f7665726c6179)
 // builds into; the frame adds it to the root once the view returns.
 func (c *context) overlayRoot() *node {
 	if c.overlay == nil {
+		// In the frame's arena, though a memo region asks for it.
+		region := c.region
+		c.region = nil
 		o := c.alloc()
+		c.region = region
 		o.c = c
 		o.id = overlayID
 		o.kind = kindBox
@@ -538,6 +555,8 @@ type state struct {
 	scope, anchor uint64
 	// page is the Router's page the element was in, 0 for none.
 	page uint64
+	// memo is the innermost memo region the element was in, 0 for none.
+	memo uint64
 	// node is the element the pass that touched the state built last
 	// (builtNode).
 	node *node

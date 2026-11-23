@@ -120,6 +120,7 @@ func (e Element) Bind(r *Handle) Element {
 	if n == nil || r == nil {
 		return e
 	}
+	n.c.rt.binds++
 	b := r.binding(n.c.rt, true)
 	if b.element.Valid() && b.element != e {
 		panic("ui: Handle bound to two controls in one build")

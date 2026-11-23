@@ -36,6 +36,9 @@ func (t *costTree) group(c *context, g int) {
 	if t.exits {
 		col.Transition(ElementTransition{Exit: &Motion{Opacity: 0}})
 	}
+	if t.memo {
+		col.Memo(t.rev[g])
+	}
 	col.Children(func() {
 		coreText(c, "Header "+strconv.Itoa(g)).Bold()
 		for r := range costRows {
@@ -134,6 +137,51 @@ func BenchmarkCostTreeExits(b *testing.B) {
 	for b.Loop() {
 		n++
 		t.labels[3][5] = "changed " + strconv.Itoa(n&7)
+		tt.Frame()
+	}
+}
+
+// BenchmarkCostTreeMemoSteady builds frames of the tree, its groups memo
+// regions, where nothing changed; BenchmarkCostTreeMemoLeaf where one
+// leaf's text, and the version of its group, change each frame.
+func BenchmarkCostTreeMemoSteady(b *testing.B) {
+	t := newCostTree()
+	t.memo = true
+	tt := costTester(t)
+	b.ReportAllocs()
+	for b.Loop() {
+		tt.Frame()
+	}
+}
+
+func BenchmarkCostTreeMemoLeaf(b *testing.B) {
+	t := newCostTree()
+	t.memo = true
+	tt := costTester(t)
+	b.ReportAllocs()
+	n := 0
+	for b.Loop() {
+		n++
+		t.labels[3][5] = "changed " + strconv.Itoa(n&7)
+		t.rev[3]++
+		tt.Frame()
+	}
+}
+
+// BenchmarkCostTreeMemoAccess is BenchmarkCostTreeMemoLeaf while assistive
+// technology reads the window.
+func BenchmarkCostTreeMemoAccess(b *testing.B) {
+	t := newCostTree()
+	t.memo = true
+	tt := costTester(t)
+	tt.send(platform.SurfaceEvent{Kind: platform.AccessibilityOn})
+	tt.Frame()
+	b.ReportAllocs()
+	n := 0
+	for b.Loop() {
+		n++
+		t.labels[3][5] = "changed " + strconv.Itoa(n&7)
+		t.rev[3]++
 		tt.Frame()
 	}
 }

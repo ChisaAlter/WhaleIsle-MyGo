@@ -344,6 +344,12 @@ func (rt *engine) accessElement(t *platform.AccessTree, e *node, parent int, scr
 	}
 	// Children in flow first, absolute ones above them, as they paint.
 	scrolled = scrolled || e.scrolls()
+	if e.memoOn {
+		if rt.describeKept(t, e, parent, scrolled) {
+			return // a region kept, where it was
+		}
+		defer rt.noteDescribe(t, e, parent, scrolled, len(t.Nodes))
+	}
 	for ch := e.first; ch != nil; ch = ch.next {
 		if ch.flags&flagAbsolute == 0 {
 			rt.accessElement(t, ch, parent, scrolled, focused)

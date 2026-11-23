@@ -3612,6 +3612,44 @@ func (_handle Element) MaxWidthPercent(p float32) Element {
 	return wrapElement(_node.MaxWidthPercent(p))
 }
 
+// Memo makes the element a memo region: the children its next Children
+// call builds are kept from pass to pass and frame to frame, and Children
+// skips its function while version, the element's identity (its place or
+// Key) and what the region was built against stay the same. Bump version
+// whenever what the function shows changes, as with a store's revision:
+//
+//	ui.Column(c).Width(240).Memo(app.sessions.Rev).Children(func() {
+//		app.sidebar(c)
+//	})
+//
+// A kept region is neither built nor laid out again; its hits, focus
+// order, selectable texts and accessibility nodes are those it had. It is
+// built again, all the same, in the frame after input reached it (the
+// pointer over it, a key while the focus is in it, an action of assistive
+// technology on one of its elements), while the focus is in it or one of
+// its elements is pressed or dragged, after the window's size, theme,
+// fonts or scale changed, and in every frame while something in it asks
+// for frames (animations, transitions, timers) or keeps what a region
+// cannot (overlays, routers, lists, focus bindings, Handles, input
+// observers). The element itself builds in every pass as any other: only
+// its children are kept.
+//
+// The function must depend on nothing but what version covers; a region
+// inside another builds only when the one around it does, whose version
+// must then change with the inner one's. Draw
+// callbacks in a kept region run again in later frames: they must not use
+// Elements they captured, which expire as usual. Call Memo before
+// Children, after Key. MYGO_MEMO=off builds every region in every pass.
+func (_handle Element) Memo(version uint64) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.Memo(version))
+}
+
 // Menu makes the element a menu button: it opens a menu below it, which
 // build fills with items, as the pointer goes down on it, as a pop-up
 // button does, and for Enter, Space or Down while it has the focus. It

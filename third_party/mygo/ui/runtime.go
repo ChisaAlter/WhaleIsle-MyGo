@@ -111,6 +111,15 @@ type engine struct {
 	dormantLen             int
 	keptSig                uint64
 	keptMemo               map[uint64]bool
+	// memos are the memo regions, by the ID of their elements (memo.go);
+	// memoBuilt, memoKept and memoLaid count the regions built, kept and
+	// kept laid out, binds the Handles bound, and commitMemo is the region
+	// around the elements being committed.
+	memos                         map[uint64]*memoRegion
+	memoBuilt, memoKept, memoLaid int
+	memoCommitted, memoDescribed  int
+	binds                         int
+	commitMemo                    uint64
 	// free are states pruned, which new elements take: rows coming into
 	// a list's view take those of rows that went out of it.
 	free  []*state
@@ -678,6 +687,7 @@ func (rt *engine) beginTouched() {
 // when the pages Routers keep changed, those kept for them, rather than at
 // every state of the window.
 func (rt *engine) prune() {
+	rt.pruneMemos()
 	rt.cancelOrphanedValueDrag()
 	if d := rt.drag; d != nil && d.native {
 		if s := rt.states[d.src]; s == nil || s.seen != rt.frame || s.pass != rt.pass {
@@ -958,8 +968,8 @@ func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
 	if e.kind == kindText && e.first != nil && !inline {
 		placeInline(e, e, 0)
 	}
-	saved, savedPage := rt.enterScope(e), rt.commitPage
-	defer func() { rt.commitScope, rt.commitPage = saved, savedPage }()
+	saved, savedPage, savedMemo := rt.enterScope(e), rt.commitPage, rt.commitMemo
+	defer func() { rt.commitScope, rt.commitPage, rt.commitMemo = saved, savedPage, savedMemo }()
 	s := rt.recordState(e)
 	if (e.flags&flagEditable != 0 || s.textClient != nil && s.flags&flagDisabled == 0 || e.flags&flagSelectable != 0 && s.editor != nil) && s.cursor == 0 {
 		s.cursor = CursorText + 1
@@ -1027,6 +1037,15 @@ func (rt *engine) commitElement(e *node, clip Rect, hidden bool) {
 	if e.flags&(flagClipX|flagClipY|flagScrollX|flagScrollY) != 0 {
 		r, _ := e.clipRect()
 		clip = intersect(clip, r)
+	}
+	var marks commitMarks
+	if e.memoOn && !invisible {
+		if rt.commitKept(e, clip) {
+			return // a region kept, where it was
+		}
+		marks = rt.commitMarks()
+		rt.commitMemo = e.id
+		defer rt.noteCommit(e, clip, &marks)
 	}
 	// Children in flow first, absolute ones above them: the paint order.
 	for ch := e.first; ch != nil; ch = ch.next {
@@ -1101,6 +1120,7 @@ func (rt *engine) updateCursor() {
 func (rt *engine) recordState(e *node) *state {
 	s := e.st
 	s.page = rt.commitPage
+	s.memo = rt.commitMemo
 	if e.flags&flagPage != 0 {
 		rt.commitPage = e.id
 	}
@@ -1142,8 +1162,11 @@ func (rt *engine) recordState(e *node) *state {
 // have no text to find: the hit list, the focus order and the labels skip
 // them. Inside an invisible element, their boxes were not laid out.
 func (rt *engine) commitHidden(e *node) {
-	saved, savedPage := rt.enterScope(e), rt.commitPage
+	saved, savedPage, savedMemo := rt.enterScope(e), rt.commitPage, rt.commitMemo
 	s := rt.recordState(e)
+	if e.memoOn {
+		rt.commitMemo = e.id
+	}
 	s.vx, s.vy, s.vw, s.vh = e.x, e.y, 0, 0
 	s.cx, s.cy = e.x+e.contentX(), e.y+e.contentY()
 	s.cw, s.ch = max(e.w-e.padX(), 0), max(e.h-e.padY(), 0)
@@ -1165,5 +1188,5 @@ func (rt *engine) commitHidden(e *node) {
 			rt.commitHidden(ch)
 		}
 	}
-	rt.commitScope, rt.commitPage = saved, savedPage
+	rt.commitScope, rt.commitPage, rt.commitMemo = saved, savedPage, savedMemo
 }
