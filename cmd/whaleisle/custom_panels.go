@@ -109,7 +109,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 		available := store != nil && scope.Bot != ""
 		snapshot := panel.Snapshot{}
 		if available {
-			snapshot = store.Snapshot(scope)
+			snapshot = store.Snapshot(scope).Value
 		}
 		prepare := func(text string) {
 			if !current() {
@@ -197,7 +197,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 				err = store.SaveTemplate(d)
 			} else {
 				found := false
-				for _, i := range store.Snapshot(scope).Instances {
+				for _, i := range store.Snapshot(scope).Value.Instances {
 					if i.Definition.ID == d.ID {
 						i.Definition = d
 						err = store.Update(scope, i)
