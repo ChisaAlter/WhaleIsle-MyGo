@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 type Machine struct {
@@ -54,41 +55,63 @@ type Snapshot struct {
 	Connected       bool
 	Busy            bool
 	Loaded          bool
-	Error           string
+	Error           *state.Fault
 	MutationApplied bool
 }
+
+// Store keeps the mutable working view under mu and hands readers a
+// published, immutable Snapshot version. The attach lease's generation is
+// the public Generation; every async RPC body holds an op lease whose
+// Renew cancels the previous request, and each directory picker request
+// mints a request id from its own lease owner.
 type Store struct {
-	mu                 sync.Mutex
-	client             *dsh.Client
-	notify             func()
-	generation         uint64
-	view               Snapshot
-	cancel             context.CancelFunc
+	mu      sync.Mutex
+	client  *dsh.Client
+	notify  func()
+	attach  state.LeaseOwner
+	attachL state.Lease
+	op      state.LeaseOwner
+	opL     state.Lease
+	dir     state.LeaseOwner
+	dirL    state.Lease
+	// directoryRequestID is the public picker token minted from the dir lease;
+	// tests may advance it to simulate a later request.
 	directoryRequestID uint64
+	view               Snapshot
+	pub                state.Published[Snapshot]
 }
 
 func New() *Store { return &Store{} }
 func (s *Store) Attach(c *dsh.Client, notify func()) {
 	s.mu.Lock()
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
-	}
+	s.op.Retire()
+	s.dir.Retire()
 	s.client = c
 	s.notify = notify
-	s.generation++
-	s.view = Snapshot{Generation: s.generation}
+	s.attachL = s.attach.Renew(context.Background())
+	s.view = Snapshot{Generation: s.attachL.Generation()}
+	s.publishLocked()
 	s.mu.Unlock()
 }
-func (s *Store) Snapshot() Snapshot {
+
+// Snapshot returns the current published version, shared by all readers
+// until the next write; Value is immutable.
+func (s *Store) Snapshot() *state.Version[Snapshot] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.view
-	v.Machines = append([]Machine(nil), v.Machines...)
-	v.Directory.Items = append([]DirectoryEntry(nil), v.Directory.Items...)
-	v.Tools = cloneTools(v.Tools)
-	return v
+	if s.pub.Load() == nil {
+		s.publishLocked()
+	}
+	s.mu.Unlock()
+	return s.pub.Load()
 }
+
+// Changed closes when the next version is published.
+func (s *Store) Changed() <-chan struct{} { return s.pub.Changed() }
+
+func (s *Store) publishLocked() { s.pub.Publish(s.view) }
 func request(ctx context.Context, c *dsh.Client, method, route string, body any, out any) error {
 	if c == nil {
 		return fmt.Errorf("Harness is not ready")
@@ -150,24 +173,27 @@ func (s *Store) run(action func(context.Context, *dsh.Client) error) {
 // The completion runs under the generation guard after the mutation and refresh.
 func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, generation *uint64, applied func(*Snapshot, error, []Machine, bool)) bool {
 	s.mu.Lock()
-	if s.view.Busy || (generation != nil && *generation != s.generation) {
+	if s.view.Busy || (generation != nil && *generation != s.view.Generation) {
 		s.mu.Unlock()
 		return false
 	}
 	s.view.Busy = true
-	s.view.Error = ""
+	s.view.Error = nil
 	s.view.Notice = ""
 	s.view.MutationApplied = false
 	s.view.RemovedID = ""
-	c, n, g := s.client, s.notify, s.generation
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	s.cancel = cancel
+	c, n, attachL := s.client, s.notify, s.attachL
+	parent, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	s.opL = s.op.Renew(parent)
+	op := s.opL
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 	go func() {
 		defer cancel()
+		ctx := op.Context()
 		var err error
 		if action != nil {
 			err = action(ctx, c)
@@ -187,7 +213,7 @@ func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, gen
 			err = request(ctx, c, "GET", "status", nil, &status)
 		}
 		s.mu.Lock()
-		if g != s.generation {
+		if s.attachL != attachL {
 			s.mu.Unlock()
 			return
 		}
@@ -218,7 +244,7 @@ func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, gen
 			s.view.CurrentID = registry.CurrentID
 		}
 		if err != nil {
-			s.view.Error = err.Error()
+			s.view.Error = state.FaultOf(err)
 			s.view.Connected = false
 			s.view.Status = ConnectionStatus{}
 		} else {
@@ -228,6 +254,7 @@ func (s *Store) runMutation(action func(context.Context, *dsh.Client) error, gen
 		if mutationApplied && applied != nil {
 			applied(&s.view, err, registry.Machines, registryLoaded)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()
@@ -247,7 +274,7 @@ func (s *Store) Connect() {
 	})
 }
 func (s *Store) Remove(id string) {
-	s.RemoveAtGeneration(id, s.Snapshot().Generation)
+	s.RemoveAtGeneration(id, s.Snapshot().Value.Generation)
 }
 
 // Save preserves existing authentication fields unless the editor supplies options.

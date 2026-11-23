@@ -92,10 +92,10 @@ func remoteFixtureStore(t *testing.T, state string) *remotestore.Store {
 		return s
 	}
 	deadline := time.Now().Add(3 * time.Second)
-	for s.Snapshot().Busy && time.Now().Before(deadline) {
+	for s.Snapshot().Value.Busy && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if s.Snapshot().Busy {
+	if s.Snapshot().Value.Busy {
 		t.Fatal("fixture read timed out")
 	}
 	return s

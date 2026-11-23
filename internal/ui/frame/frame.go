@@ -1701,7 +1701,7 @@ func rightPane(c *ui.Context, m Model) {
 					remote := m.workspacePane.RemoteFiles.Files
 					bindWorkspacePageRefresh(m, func() {
 						if remote != nil {
-							view := remote.Snapshot()
+							view := remote.Snapshot().Value
 							if view.Resolved && !view.Busy && !view.Local && view.RootPath != "" {
 								remote.Browse(view.RootPath)
 							}

@@ -16,6 +16,9 @@ type Fault struct {
 	Cause     errcopy.Cause
 	Code      string
 	Transient bool
+	// Text carries authored, curated copy (never raw error text) for
+	// validation gates whose wording must reach the view verbatim.
+	Text string
 }
 
 // Sentence renders the localized failure sentence for locale; "" follows
@@ -24,7 +27,19 @@ func (f *Fault) Sentence(locale string) string {
 	if f == nil {
 		return ""
 	}
+	if f.Text != "" {
+		return f.Text
+	}
 	return errcopy.CauseSentenceIn(locale, f.Cause, f.Code)
+}
+
+// FaultText wraps authored copy that is already safe for the view; it is
+// never fed from error.Error().
+func FaultText(text string) *Fault {
+	if text == "" {
+		return nil
+	}
+	return &Fault{Text: text}
 }
 
 // SentenceText renders the sentence in the active catalog.

@@ -52,12 +52,12 @@ func TestUpstreamDeltaRemovalFeedback(t *testing.T) {
 	s.Attach(c, nil)
 	s.view.Machines = []Machine{{ID: "one", Name: "Dev"}}
 	s.view.CurrentID = "one"
-	generation := s.Snapshot().Generation
+	generation := s.Snapshot().Value.Generation
 	if !s.RemoveAtGeneration("one", generation) {
 		t.Fatal("initial removal rejected")
 	}
 	v := waitStore(t, s)
-	if v.Error == "" || v.RemovedID != "" || len(v.Machines) != 1 || v.MutationApplied {
+	if v.Error == nil || v.RemovedID != "" || len(v.Machines) != 1 || v.MutationApplied {
 		t.Fatalf("failed removal lost target: %+v", v)
 	}
 	mu.Lock()
@@ -68,7 +68,7 @@ func TestUpstreamDeltaRemovalFeedback(t *testing.T) {
 		t.Fatal("retry rejected")
 	}
 	v = waitStore(t, s)
-	if v.RemovedID != "one" || len(v.Machines) != 0 || v.CurrentID != "" || v.Error == "" || !strings.Contains(v.Notice, "Dev") {
+	if v.RemovedID != "one" || len(v.Machines) != 0 || v.CurrentID != "" || v.Error == nil || !strings.Contains(v.Notice, "Dev") {
 		t.Fatalf("acknowledged delete/failed refresh: %+v", v)
 	}
 	s.Attach(c, nil)
@@ -84,11 +84,11 @@ func TestUpstreamDeltaRemovalFeedback(t *testing.T) {
 		t.Fatalf("unexpected removal count %d", n)
 	}
 	s.view.Machines = []Machine{{ID: "one", Name: "Dev"}}
-	if !s.RemoveAtGeneration("one", s.Snapshot().Generation) {
+	if !s.RemoveAtGeneration("one", s.Snapshot().Value.Generation) {
 		t.Fatal("fresh confirmation rejected")
 	}
 	v = waitStore(t, s)
-	if v.RemovedID != "" || v.Error == "" || len(v.Machines) != 1 {
+	if v.RemovedID != "" || v.Error == nil || len(v.Machines) != 1 {
 		t.Fatalf("unverified removal claimed success: %+v", v)
 	}
 	mu.Lock()
@@ -96,7 +96,7 @@ func TestUpstreamDeltaRemovalFeedback(t *testing.T) {
 	mu.Unlock()
 	s.Remove("one")
 	v = waitStore(t, s)
-	if v.Error != "" || v.RemovedID != "one" || len(v.Machines) != 0 || v.Notice == "" {
+	if v.Error != nil || v.RemovedID != "one" || len(v.Machines) != 0 || v.Notice == "" {
 		t.Fatalf("success: %+v", v)
 	}
 }
@@ -119,7 +119,7 @@ func TestUpstreamDeltaRemovalStatusFailure(t *testing.T) {
 	s.view.Machines = []Machine{{ID: "one", Name: "Dev"}}
 	s.Remove("one")
 	v := waitStore(t, s)
-	if v.RemovedID != "" || v.Notice != "" || len(v.Machines) != 1 || !strings.Contains(v.Error, storelocale.T(storelocale.KeyStoreRemoteRemovalCouldNotBeVerifiedTheHostS)) {
+	if v.RemovedID != "" || v.Notice != "" || len(v.Machines) != 1 || v.Error == nil || !strings.Contains(v.Error.SentenceText(), storelocale.T(storelocale.KeyStoreRemoteRemovalCouldNotBeVerifiedTheHostS)) {
 		t.Fatalf("status error hid contradictory registry: %+v", v)
 	}
 }

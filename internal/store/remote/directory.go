@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 // DirectoryEntry follows dsh-remote/ls, including the Windows drive selector.
@@ -36,8 +38,8 @@ type DirectorySnapshot struct {
 	Items              []DirectoryEntry `json:"items"`
 	Missing            bool             `json:"missing"`
 	Loaded             bool
-	Error              string
-	CreateError        string
+	Error              *state.Fault
+	CreateError        *state.Fault
 	Choosing           bool
 	SelectedPath       string
 	LocalMirror        string
@@ -56,11 +58,11 @@ type DirectoryChoice struct {
 func (s *Store) DirectoryChoiceCurrent(choice DirectoryChoice) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return choice.LocalMirror != "" && !s.view.Busy && s.generation == choice.Generation && s.directoryRequestID == choice.RequestID && s.view.CurrentID == choice.MachineID && s.view.Directory.LocalMirror == choice.LocalMirror && s.view.Directory.SelectedPath == choice.RemotePath
+	return choice.LocalMirror != "" && !s.view.Busy && s.view.Generation == choice.Generation && s.directoryRequestID == choice.RequestID && s.view.CurrentID == choice.MachineID && s.view.Directory.LocalMirror == choice.LocalMirror && s.view.Directory.SelectedPath == choice.RemotePath
 }
 
 func (d DirectorySnapshot) CanChoose() bool {
-	return d.Loaded && !d.Missing && d.Error == "" && strings.TrimSpace(d.Path) != ""
+	return d.Loaded && !d.Missing && d.Error == nil && strings.TrimSpace(d.Path) != ""
 }
 
 // ParentDirectory uses remote path syntax, never the local host OS's separator.
@@ -107,19 +109,18 @@ func (s *Store) ChooseDirectoryWithChoice(picked func(DirectoryChoice)) {
 func (s *Store) CancelDirectoryChoice() {
 	s.mu.Lock()
 	if s.view.Directory.Choosing {
-		s.directoryRequestID++
-		if s.cancel != nil {
-			s.cancel()
-			s.cancel = nil
-		}
+		s.dirL = s.dir.Renew(context.Background())
+		s.directoryRequestID = s.dirL.Generation()
+		s.op.Retire()
 		s.view.Busy, s.view.Directory.Choosing = false, false
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 }
 
 func (s *Store) directoryRequest(path string, choosing bool, picked func(DirectoryChoice)) {
 	s.mu.Lock()
-	if s.view.Busy || s.view.Error != "" || s.view.CurrentID == "" || choosing && !s.view.Directory.CanChoose() {
+	if s.view.Busy || s.view.Error != nil || s.view.CurrentID == "" || choosing && !s.view.Directory.CanChoose() {
 		s.mu.Unlock()
 		return
 	}
@@ -128,17 +129,21 @@ func (s *Store) directoryRequest(path string, choosing bool, picked func(Directo
 	}
 	s.view.Busy = true
 	s.view.Directory.Choosing = choosing
-	s.view.Directory.Error = ""
-	s.directoryRequestID++
-	c, n, g, requestID, machine := s.client, s.notify, s.generation, s.directoryRequestID, s.view.CurrentID
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	s.cancel = cancel
+	s.view.Directory.Error = nil
+	parent, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	s.dirL = s.dir.Renew(parent)
+	s.directoryRequestID = s.dirL.Generation()
+	s.opL = s.op.Renew(parent)
+	c, n, g, requestID, machine := s.client, s.notify, s.view.Generation, s.directoryRequestID, s.view.CurrentID
+	dirL, op := s.dirL, s.opL
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 	go func() {
 		defer cancel()
+		ctx := op.Context()
 		var listing DirectorySnapshot
 		var result struct {
 			LocalMirror string `json:"localMirror"`
@@ -157,16 +162,15 @@ func (s *Store) directoryRequest(path string, choosing bool, picked func(Directo
 			sortDirectoryEntries(listing.Items)
 		}
 		s.mu.Lock()
-		if s.generation != g || s.directoryRequestID != requestID || s.view.CurrentID != machine {
+		if s.attachL.Generation() != g || s.dirL != dirL || s.view.CurrentID != machine {
 			s.mu.Unlock()
 			return
 		}
 		s.view.Busy = false
-		s.cancel = nil
 		d := &s.view.Directory
 		d.Choosing = false
 		if err != nil {
-			d.Error = err.Error()
+			d.Error = state.FaultOf(err)
 		} else if choosing {
 			d.LocalMirror = result.LocalMirror
 			d.SelectedPath = path
@@ -177,6 +181,7 @@ func (s *Store) directoryRequest(path string, choosing bool, picked func(Directo
 			listing.LocalMirror = d.LocalMirror
 			*d = listing
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()

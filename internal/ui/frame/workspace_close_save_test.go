@@ -70,10 +70,10 @@ func TestMixedPaneCloseDrainsRemoteReceiptAfterLocalSaveFails(t *testing.T) {
 	defer remote.Suspend()
 	remote.Files.Bind(&dsh.Client{Endpoint: dsh.Endpoint{Origin: server.URL}}, "owned-close", nil)
 	remote.Files.Browse("")
-	waitWorkspaceClose(t, func() bool { return !remote.Files.Snapshot().Busy })
+	waitWorkspaceClose(t, func() bool { return !remote.Files.Snapshot().Value.Busy })
 	remote.Files.Open("/work/a.txt")
-	waitWorkspaceClose(t, func() bool { return !remote.Files.Snapshot().Busy })
-	if !remote.Files.Snapshot().FileLoaded {
+	waitWorkspaceClose(t, func() bool { return !remote.Files.Snapshot().Value.Busy })
+	if !remote.Files.Snapshot().Value.FileLoaded {
 		t.Fatal("owned remote file not ready")
 	}
 	remote.Files.SetDraft("remote draft")

@@ -2,16 +2,18 @@ package remote
 
 import (
 	"fmt"
+
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 type fileCloseSave struct {
-	key        string
-	client     *dsh.Client
-	generation uint64
-	current    func() bool
-	resources  []FileResource
-	index      int
+	key       string
+	client    *dsh.Client
+	attach    state.Lease
+	current   func() bool
+	resources []FileResource
+	index     int
 }
 
 // preflightCloseSaveLocked captures the current draft metadata and validates
@@ -58,7 +60,7 @@ func (s *Files) preflightCloseSaveLocked() (*fileCloseSave, error) {
 			return nil, fmt.Errorf("Remote file %s needs reconciliation before closing; draft retained", r.Path)
 		}
 	}
-	return &fileCloseSave{key: s.key, client: s.client, generation: s.generation, current: s.current, resources: resources}, nil
+	return &fileCloseSave{key: s.key, client: s.client, attach: s.attachL, current: s.current, resources: resources}, nil
 }
 
 // PreflightDirtyForClose checks all retained drafts without scheduling writes.
@@ -81,6 +83,7 @@ func (s *Files) SaveDirtyForClose() error {
 	}
 	s.closeSave = plan
 	restoreResource(s.states[plan.key], plan.resources[0])
+	s.publishLocked()
 	s.mu.Unlock()
 	s.Save()
 	return nil
@@ -113,7 +116,7 @@ func (s *Files) CheckDirtyForClose() (bool, error) {
 		s.mu.Unlock()
 		return false, fmt.Errorf("%s", message)
 	}
-	if p.key != s.key || p.client != s.client || p.generation != s.generation || p.current != nil && !p.current() {
+	if p.key != s.key || p.client != s.client || p.attach != s.attachL || p.current != nil && !p.current() {
 		return fail("Remote session changed during close save; pane and drafts retained")
 	}
 	v := s.states[p.key]
@@ -131,8 +134,8 @@ func (s *Files) CheckDirtyForClose() (bool, error) {
 		return fail("Remote resource changed during close save; pane retained")
 	}
 	got := v.Tabs[i]
-	if got.Error != "" {
-		return fail(got.Error)
+	if got.Error != nil {
+		return fail(got.Error.SentenceText())
 	}
 	if got.Stale || !got.Loaded || got.File.Mtime == nil || got.File.Content != want.Draft || got.Dirty() {
 		return fail("Remote save was not acknowledged with the expected content and mtime; pane and drafts retained")
@@ -145,6 +148,7 @@ func (s *Files) CheckDirtyForClose() (bool, error) {
 			return fail("Remote draft changed during close save; pane retained")
 		}
 		restoreResource(v, v.Tabs[i])
+		s.publishLocked()
 		s.mu.Unlock()
 		s.Save()
 		return false, nil

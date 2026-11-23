@@ -28,8 +28,8 @@ func cardTitle(c *ui.Context, title string, right func()) {
 }
 
 func ensureToolsLoaded(c *ui.Context, m Model) {
-	s := m.Machines.Snapshot()
-	if !s.Tools.Loaded && !s.Busy && s.Tools.Error == "" && m.HarnessReady && m.RemoteWorkspaceEnabled {
+	s := m.Machines.Snapshot().Value
+	if !s.Tools.Loaded && !s.Busy && s.Tools.Error == nil && m.HarnessReady && m.RemoteWorkspaceEnabled {
 		m.Machines.LoadTools()
 	}
 }
@@ -38,7 +38,7 @@ func ensureToolsLoaded(c *ui.Context, m Model) {
 // current machine's identity and connection facts, then 取消当前/忘记指纹.
 func viewActiveCard(c *ui.Context, m Model, border ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	s := m.Machines.Snapshot()
+	s := m.Machines.Snapshot().Value
 	muted := c.Theme().TextMuted
 	var current *struct{ name, host string }
 	for _, machine := range s.Machines {
@@ -117,7 +117,7 @@ func viewActiveCard(c *ui.Context, m Model, border ui.Color) {
 // as the installed card only mounts with entries.
 func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	s := m.Machines.Snapshot()
+	s := m.Machines.Snapshot().Value
 	if !s.Tools.Loaded || len(s.Tools.SSHEntries) == 0 {
 		return
 	}
@@ -161,7 +161,7 @@ func viewSSHConfigCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color
 // per rule with a state tag and start/stop/remove, then the inline add row.
 func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	s := m.Machines.Snapshot()
+	s := m.Machines.Snapshot().Value
 	muted := c.Theme().TextMuted
 	toolsCard(c, "remote-forwards-card", border, func() {
 		cardTitle(c, label("端口转发", "Port forwards"), nil)
@@ -235,7 +235,7 @@ func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color)
 // the log tail (or its empty/disabled states).
 func viewAuditCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color) {
 	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-	s := m.Machines.Snapshot()
+	s := m.Machines.Snapshot().Value
 	muted := c.Theme().TextMuted
 	toolsCard(c, "remote-audit-card", border, func() {
 		cardTitle(c, label("操作审计", "Audit log"), func() {

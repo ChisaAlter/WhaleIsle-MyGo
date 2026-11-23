@@ -28,15 +28,18 @@ func retainedTreeFiles(t *testing.T, transport retainedTreeTransport) *Files {
 	v.Bound, v.Loaded = true, true
 	v.Tree = map[string]FileLevel{"/work": {Loaded: true, Items: []DirectoryEntry{{Name: "retained.txt", Path: "/work/retained.txt", Type: "file"}}}}
 	v.Expanded = map[string]bool{"/work": true}
+	s.mu.Lock()
+	s.publishLocked()
+	s.mu.Unlock()
 	return s
 }
 func waitRetainedTree(t *testing.T, s *Files) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
-	for s.Snapshot().Busy && time.Now().Before(deadline) {
+	for s.Snapshot().Value.Busy && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if s.Snapshot().Busy {
+	if s.Snapshot().Value.Busy {
 		t.Fatal("mock tree request did not settle")
 	}
 }
@@ -77,7 +80,7 @@ func TestLoadedRemoteDirectoryReopensWithRefreshAndRetainedSoftError(t *testing.
 				}
 			})
 			s.ToggleDirectory("/work")
-			if s.Snapshot().Expanded["/work"] || statusCalls.Load() != 0 || listCalls.Load() != 0 {
+			if s.Snapshot().Value.Expanded["/work"] || statusCalls.Load() != 0 || listCalls.Load() != 0 {
 				t.Fatal("collapse made a remote request")
 			}
 			s.ToggleDirectory("/work")
@@ -86,26 +89,26 @@ func TestLoadedRemoteDirectoryReopensWithRefreshAndRetainedSoftError(t *testing.
 			case <-time.After(2 * time.Second):
 				t.Fatal("loaded directory did not refresh when reopened")
 			}
-			pending := s.Snapshot()
+			pending := s.Snapshot().Value
 			level := pending.Tree["/work"]
 			if !pending.Busy || !level.Loading || !level.Loaded || len(level.Items) != 1 || level.Items[0].Name != "retained.txt" {
 				t.Fatal("refresh discarded retained entries", pending)
 			}
 			s.ToggleDirectory("/work") // The existing busy owner blocks duplicate state/request changes.
-			if !s.Snapshot().Expanded["/work"] || listCalls.Load() != 1 {
+			if !s.Snapshot().Value.Expanded["/work"] || listCalls.Load() != 1 {
 				t.Fatal("busy toggle changed ownership or queued another read")
 			}
 			unblock()
 			waitRetainedTree(t, s)
-			got := s.Snapshot().Tree["/work"]
+			got := s.Snapshot().Value.Tree["/work"]
 			if statusCalls.Load() != 1 || listCalls.Load() != 1 || got.Loading || !got.Loaded {
 				t.Fatal("tree refresh did not settle exactly once", got)
 			}
 			if outcome == "success" {
-				if got.Error != "" || len(got.Items) != 1 || got.Items[0].Name != "fresh.txt" {
+				if got.Error != nil || len(got.Items) != 1 || got.Items[0].Name != "fresh.txt" {
 					t.Fatal("loaded level did not adopt its refresh", got)
 				}
-			} else if got.Error == "" || len(got.Items) != 1 || got.Items[0].Name != "retained.txt" {
+			} else if got.Error == nil || len(got.Items) != 1 || got.Items[0].Name != "retained.txt" {
 				t.Fatal("soft error discarded cached level", got)
 			}
 		})
@@ -154,12 +157,12 @@ func TestLoadedTreeRefreshCannotPublishAfterCapturedOwnerRetires(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("completion did not check its captured session owner")
 	}
-	got := s.Snapshot().Tree["/work"]
+	got := s.Snapshot().Value.Tree["/work"]
 	if len(got.Items) != 1 || got.Items[0].Name != "retained.txt" {
 		t.Fatal("retired owner published into retained tree", got)
 	}
 	s.Suspend()
-	if s.Snapshot().Busy || s.Snapshot().Tree["/work"].Loading {
+	if s.Snapshot().Value.Busy || s.Snapshot().Value.Tree["/work"].Loading {
 		t.Fatal("retirement left a busy tree occurrence")
 	}
 }

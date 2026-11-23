@@ -3,7 +3,7 @@ package remote
 import (
 	"github.com/egoist/mygo/ui"
 	"strings"
-	"whaleisle/internal/errcopy"
+	"whaleisle/internal/state"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -13,7 +13,7 @@ func viewDirectory(c *ui.Context, m Model) {
 	if m.Machines == nil {
 		return
 	}
-	s := m.Machines.Snapshot()
+	s := m.Machines.Snapshot().Value
 	if s.CurrentID == "" {
 		return
 	}
@@ -31,7 +31,7 @@ func viewDirectory(c *ui.Context, m Model) {
 }
 
 func directoryBlocked(m Model, s remotestore.Snapshot) bool {
-	return s.Busy || s.Error != "" || !m.HarnessReady || !m.RemoteWorkspaceEnabled
+	return s.Busy || s.Error != nil || !m.HarnessReady || !m.RemoteWorkspaceEnabled
 }
 
 // Header and footer never join the scrolling directory contents.
@@ -79,9 +79,9 @@ func directoryContents(c *ui.Context, m Model, s remotestore.Snapshot) {
 			ui.Text(c, text).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			return
 		}
-		if d.Error != "" {
+		if d.Error != nil {
 			ui.Text(c, label("无法读取此目录", "This directory could not be read")).FillWidth().Bold().TextColor(c.Theme().Danger)
-			ui.Text(c, d.Error).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, d.Error.SentenceText()).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 			if ui.Button(c, label("重试", "Retry")).Disabled(disabled).Clicked() {
 				m.Machines.Browse(d.Path)
 			}
@@ -237,13 +237,13 @@ func directoryCreate(c *ui.Context, m Model, d remotestore.DirectorySnapshot, di
 			create := func() {
 				if !disabled && d.CanChoose() && strings.TrimSpace(name) != "" {
 					if err := m.Machines.CreateDirectory(name); err != nil {
-						m.Machines.SetDirectoryCreateError(errcopy.Sentence(err))
+						m.Machines.SetDirectoryCreateError(state.FaultOf(err))
 					}
 				}
 			}
 			input.OnShortcut(0, ui.KeyEnter, create)
-			if d.CreateError != "" {
-				ui.Text(c, d.CreateError).FillWidth().Selectable().TextColor(c.Theme().Danger)
+			if d.CreateError != nil {
+				ui.Text(c, d.CreateError.SentenceText()).FillWidth().Selectable().TextColor(c.Theme().Danger)
 			}
 			ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
 				if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
