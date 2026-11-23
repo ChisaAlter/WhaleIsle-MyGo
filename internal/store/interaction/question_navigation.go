@@ -19,11 +19,11 @@ func (s *Store) NavigateQuestion(agentID, eventID string, index int) bool {
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	if ds == nil || index < 0 || index >= len(ds.req.Questions) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return false
 	}
 	ds.index = index
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	return true
 }
@@ -40,7 +40,7 @@ func (s *Store) AdvanceQuestionChoice(agentID, eventID, questionID string) {
 			ds.index++
 		}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -72,11 +72,11 @@ func (s *Store) submitQuestionBatch(agentID, eventID string, submit func(string)
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	if ds == nil || len(ds.req.Questions) == 0 {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return "", ""
 	}
 	focusID, feedback = questionSubmitTargetLocked(ds)
-	s.mu.Unlock()
+	s.unlockPublish()
 	if feedback == "" {
 		submit(eventID)
 	} else {
@@ -96,19 +96,19 @@ func (s *Store) skipQuestionAndContinue(agentID, eventID, questionID string, sub
 	s.mu.Lock()
 	ds := s.questionWizardLocked(agentID, eventID)
 	if ds == nil || ds.index < 0 || ds.index >= len(ds.req.Questions) || ds.req.Questions[ds.index].ID != questionID || ds.answers[questionID] == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return "", ""
 	}
 	s.setQuestionSkippedDraftLocked(eventID, ds.answers[questionID], true)
 	if ds.index+1 < len(ds.req.Questions) {
 		ds.index++
 		focusID = ds.req.Questions[ds.index].ID
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
 	focusID, feedback = questionSubmitTargetLocked(ds)
-	s.mu.Unlock()
+	s.unlockPublish()
 	if feedback == "" {
 		submit(eventID)
 	} else {

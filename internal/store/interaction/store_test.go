@@ -68,7 +68,7 @@ func TestResolveAllowAlways(t *testing.T) {
 	if err := json.Unmarshal(out.Value, &decision); err != nil || decision != outcomeAllowedOnce {
 		t.Fatalf("decision %q err %v", out.Value, err)
 	}
-	if s.Snapshot().AutoAllow {
+	if s.testView().AutoAllow {
 		t.Fatal("one request must not enable automatic approval")
 	}
 }
@@ -172,7 +172,7 @@ func TestSnapshotQuestionCards(t *testing.T) {
 	s.mu.Lock()
 	s.questionDrafts["id"] = newDraftSession(req)
 	s.mu.Unlock()
-	snap := s.Snapshot()
+	snap := s.testView()
 	card, ok := snap.QuestionCards["id"]
 	if !ok || len(card.Rows) != 1 || !card.Rows[0].MultiSelect {
 		t.Fatalf("snapshot %#v", snap.QuestionCards)

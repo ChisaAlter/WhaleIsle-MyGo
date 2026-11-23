@@ -26,7 +26,7 @@ func preferPending(statuses map[string]string, id, status string) {
 // submitted cards do not advertise another required decision.
 func (s *Store) PendingStatuses() map[string]string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	out := map[string]string{}
 	for _, p := range s.pending {
 		if p.Sending || p.approvalResolved {
@@ -159,6 +159,6 @@ func (s *Store) ProjectedSidebarStatus(agentID string, questions, inbox json.Raw
 			ignored[p.CallID] = true
 		}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	return projectedPendingStatus(questions, inbox, ignored)
 }

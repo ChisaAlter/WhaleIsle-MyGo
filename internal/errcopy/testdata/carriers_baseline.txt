@@ -59,9 +59,7 @@
 ../store/im/store.go	fmt	2
 ../store/im/store.go	rawerr	6
 ../store/imonboard/error.go	rawerr	1
-../store/interaction/projected_questions.go	rawerr	1
-../store/interaction/question_persistence.go	rawerr	1
-../store/interaction/store.go	rawerr	3
+../store/interaction/store.go	rawerr	2
 ../store/office/store.go	rawerr	2
 ../store/session/agent_catalog_tree.go	rawerr	1
 ../store/session/agent_documents.go	rawerr	2

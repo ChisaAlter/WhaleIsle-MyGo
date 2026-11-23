@@ -33,7 +33,7 @@ func (s *Store) setQuestionHidden(id string, hidden bool) {
 		}
 		ds.hidden = hidden
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) ReviewQuestionHistory(agentID, callID string) {
@@ -48,7 +48,7 @@ func (s *Store) ReviewQuestionHistory(agentID, callID string) {
 				ds.hidden = false
 				ds.planReviewHidden = false
 			}
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -65,7 +65,7 @@ func (s *Store) ReviewQuestionHistory(agentID, callID string) {
 			}
 		}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -75,7 +75,7 @@ func (s *Store) HasQuestionDrafts(agentID string) bool {
 		return false
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if p := s.questionRecovery.agents[agentID]; p != nil && len(p.drafts) > 0 {
 		return true
 	}
@@ -90,7 +90,7 @@ func (s *Store) SyncQuestionHistory(agentID string, events []json.RawMessage, qu
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.questionHistory == nil {
 		s.questionHistory = map[string]*questionHistoryState{}
 	}

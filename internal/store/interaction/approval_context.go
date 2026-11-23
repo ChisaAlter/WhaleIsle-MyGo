@@ -109,7 +109,7 @@ func (s *Store) SyncApprovalCalls(agentID string, events []json.RawMessage) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	wanted := map[string]bool{}
 	for _, p := range s.pending {
 		if p.AgentID == agentID && p.Event == EventApproval && !p.approvalRequester && !p.approvalResolved && p.approvalCallID != "" {

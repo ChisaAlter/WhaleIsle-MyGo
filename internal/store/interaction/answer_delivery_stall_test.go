@@ -25,7 +25,7 @@ func TestRetiredDeliveryGenerationReleasesSendingCard(t *testing.T) {
 	store.RetireEventsDelivery(owner)
 
 	pending := store.SnapshotForAgent("A").Pending
-	if len(pending) != 1 || pending[0].Sending || pending[0].Error != QuestionDeliveryStopped {
+	if len(pending) != 1 || pending[0].Sending || pending[0].Error.SentenceText() != QuestionDeliveryStopped {
 		t.Fatalf("retired generation left the card in progress: %+v", pending)
 	}
 }
@@ -46,7 +46,7 @@ func TestLiveAttemptKeepsCardSending(t *testing.T) {
 	store.RetireEventsDelivery(owner)
 
 	pending := store.SnapshotForAgent("A").Pending
-	if len(pending) != 1 || !pending[0].Sending || pending[0].Error != "" {
+	if len(pending) != 1 || !pending[0].Sending || pending[0].Error != nil {
 		t.Fatalf("a live attempt was cleared: %+v", pending)
 	}
 }
@@ -69,13 +69,13 @@ func TestStalledAnswerAttemptReleasesOnlyAbandonedCard(t *testing.T) {
 	store.mu.Unlock()
 
 	byEvent := map[string]Pending{}
-	for _, p := range store.Snapshot().Pending {
+	for _, p := range store.testView().Pending {
 		byEvent[p.EventID] = p
 	}
-	if got := byEvent["abandoned"]; got.Sending || got.Error != QuestionDeliveryStopped {
+	if got := byEvent["abandoned"]; got.Sending || got.Error.SentenceText() != QuestionDeliveryStopped {
 		t.Fatalf("abandoned card kept progress: %+v", got)
 	}
-	if got := byEvent["accounted"]; !got.Sending || got.Error != "" {
+	if got := byEvent["accounted"]; !got.Sending || got.Error != nil {
 		t.Fatalf("live attempt was disturbed: %+v", got)
 	}
 }

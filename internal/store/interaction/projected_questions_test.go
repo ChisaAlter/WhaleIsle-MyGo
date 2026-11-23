@@ -139,7 +139,7 @@ func TestLateQuestionAnswerRPCFailureRetryAndQueuedEcho(t *testing.T) {
 	close(release)
 	awaitQuestionFixture(t, func() bool {
 		p := s.SnapshotForAgent("A").Pending
-		return len(p) == 1 && p[0].Error != "" && !p[0].Sending
+		return len(p) == 1 && p[0].Error != nil && !p[0].Sending
 	})
 	s.Retry(id)
 	awaitQuestionFixture(t, func() bool { return s.SnapshotForAgent("A").QuestionStatus == "submitted" })
@@ -232,7 +232,7 @@ func TestLateQuestionNegativeRPCResultPreservesDraftAsError(t *testing.T) {
 	s.ResolveQuestions(id)
 	awaitQuestionFixture(t, func() bool {
 		p := s.SnapshotForAgent("A").Pending
-		return len(p) == 1 && !p[0].Sending && p[0].Error != ""
+		return len(p) == 1 && !p[0].Sending && p[0].Error != nil
 	})
 	if got := *s.QuestionSingleSelectPtr(id, "q"); got != "B" {
 		t.Fatal("negative reply erased draft")

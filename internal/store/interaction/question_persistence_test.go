@@ -24,11 +24,11 @@ func TestQuestionDraftPersistenceMatchesProfileBatchAndRetainsReconnect(t *testi
 	restored := New()
 	restored.SetQuestionDraftPersistence(owner, nil)
 	restored.RestoreQuestionDrafts(owner, raw)
-	if len(restored.Snapshot().Pending) != 0 {
+	if len(restored.testView().Pending) != 0 {
 		t.Fatal("disk created a pending question")
 	}
 	restored.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
-	id = restored.Snapshot().Pending[0].EventID
+	id = restored.testView().Pending[0].EventID
 	if got := *restored.QuestionCustomPtr(id, "q"); got != "saved text" {
 		t.Fatalf("lost draft: %q", got)
 	}
@@ -40,20 +40,20 @@ func TestQuestionDraftPersistenceMatchesProfileBatchAndRetainsReconnect(t *testi
 	restored.Detach()
 	restored.AttachClient(&dsh.Client{}, nil)
 	restored.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
-	if got := *restored.QuestionCustomPtr(restored.Snapshot().Pending[0].EventID, "q"); got != "newer edit" {
+	if got := *restored.QuestionCustomPtr(restored.testView().Pending[0].EventID, "q"); got != "newer edit" {
 		t.Fatal("same-profile reconnect lost retained draft")
 	}
 	foreign := New()
 	foreign.SetQuestionDraftPersistence("other profile", nil)
 	foreign.RestoreQuestionDrafts("other profile", raw)
 	foreign.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
-	if got := *foreign.QuestionCustomPtr(foreign.Snapshot().Pending[0].EventID, "q"); got != "" {
+	if got := *foreign.QuestionCustomPtr(foreign.testView().Pending[0].EventID, "q"); got != "" {
 		t.Fatal("cross-profile draft")
 	}
 	changed := New()
 	changed.RestoreQuestionDrafts(owner, raw)
 	changed.SyncProjectedQuestions("A", json.RawMessage(`{"active":[{"callId":"call-1","state":"continued","questions":[{"id":"q","question":"Different batch"}]}],"settled":[]}`), emptyInboxFixture)
-	if got := *changed.QuestionCustomPtr(changed.Snapshot().Pending[0].EventID, "q"); got != "" {
+	if got := *changed.QuestionCustomPtr(changed.testView().Pending[0].EventID, "q"); got != "" {
 		t.Fatal("stale batch restored")
 	}
 }
@@ -74,9 +74,9 @@ func TestQuestionDraftWritesSerializeLatestAndExposeFailure(t *testing.T) {
 		return nil
 	})
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
-	id := s.Snapshot().Pending[0].EventID
+	id := s.testView().Pending[0].EventID
 	s.SetQuestionCustom(id, "q", "first")
-	if s.FlushQuestionDraftPersistence() == nil || s.Snapshot().QuestionDraftError == "" {
+	if s.FlushQuestionDraftPersistence() == nil || s.testView().QuestionDraftError == nil {
 		t.Fatal("save failure hidden")
 	}
 	mu.Lock()
@@ -93,7 +93,7 @@ func TestQuestionDraftWritesSerializeLatestAndExposeFailure(t *testing.T) {
 	if json.Unmarshal(raw, &envelope) != nil || envelope.Drafts[questionCardID("A", "call-1")].Answers[0].Custom != "last" {
 		t.Fatal("flush saved an older snapshot")
 	}
-	if s.Snapshot().QuestionDraftError != "" {
+	if s.testView().QuestionDraftError != nil {
 		t.Fatal("successful edit did not clear persistence error")
 	}
 }
@@ -139,7 +139,7 @@ func TestQuestionFlushCannotBeOverwrittenByPreviouslyQueuedSnapshot(t *testing.T
 		return nil
 	})
 	s.SyncProjectedQuestions("A", continuedFixture, emptyInboxFixture)
-	id := s.Snapshot().Pending[0].EventID
+	id := s.testView().Pending[0].EventID
 	s.SetQuestionCustom(id, "q", "old")
 	<-started
 	s.SetQuestionCustom(id, "q", "latest")

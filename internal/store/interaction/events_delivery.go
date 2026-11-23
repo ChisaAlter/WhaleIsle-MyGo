@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 // EventsDeliveryOwner is one answering $events attempt, independently of the
@@ -41,7 +42,7 @@ func (s *Store) BeginEventsDelivery(ctx context.Context, client *dsh.Client, mux
 	}
 	s.mu.Lock()
 	if s.client != client || s.mux != mux || ctx.Err() != nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return nil
 	}
 	s.retireEventsDeliveryLocked(s.eventsDeliveryOwner)
@@ -53,7 +54,7 @@ func (s *Store) BeginEventsDelivery(ctx context.Context, client *dsh.Client, mux
 	ctx, cancel := context.WithCancel(ctx)
 	owner := &EventsDeliveryOwner{store: s, client: client, mux: mux, ctx: ctx, cancel: cancel}
 	s.eventsDeliveryOwner = owner
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.persistQuestionDrafts()
 	s.fire()
 	return owner
@@ -140,7 +141,7 @@ func (s *Store) releaseStalledAnswerLocked(eventID string) {
 		return
 	}
 	if p := s.findPending(eventID); p != nil && p.Sending {
-		p.Sending, p.Error = false, QuestionDeliveryStopped
+		p.Sending, p.Error = false, state.FaultText(QuestionDeliveryStopped)
 	}
 }
 
@@ -162,14 +163,14 @@ func (s *Store) releaseStalledAnswersLocked() {
 		if d := s.eventsDeliveries[p.EventID]; d != nil && s.waiters[p.EventID] == d.waiter {
 			continue
 		}
-		p.Sending, p.Error = false, QuestionDeliveryStopped
+		p.Sending, p.Error = false, state.FaultText(QuestionDeliveryStopped)
 	}
 }
 
 func (s *Store) RetireEventsDelivery(owner *EventsDeliveryOwner) {
 	s.mu.Lock()
 	s.retireEventsDeliveryLocked(owner)
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.persistQuestionDrafts()
 	s.fire()
 }
@@ -190,7 +191,7 @@ func (s *Store) finishEventsOutcome(owner *EventsDeliveryOwner, id string, waite
 	s.mu.Lock()
 	d := s.eventsDeliveries[id]
 	if !s.eventsOwnerCurrentLocked(owner) || waiter != nil && (d == nil || d.owner != owner || d.waiter != waiter || s.waiters[id] != waiter) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return expiredEventsOutcome(owner, id)
 	}
 	if d == nil {
@@ -231,7 +232,7 @@ func (s *Store) finishEventsOutcome(owner *EventsDeliveryOwner, id string, waite
 			return false
 		}
 		s.mu.Lock()
-		defer s.mu.Unlock()
+		defer s.unlockPublish()
 		if !s.eventsOwnerCurrentLocked(owner) {
 			return false
 		}
@@ -249,7 +250,7 @@ func (s *Store) finishEventsOutcome(owner *EventsDeliveryOwner, id string, waite
 			stop()
 		}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	return &out
 }
 

@@ -671,7 +671,7 @@ func runComposerFlowQA() error {
 			approveDeadline := time.Now().Add(40 * time.Second)
 			for time.Now().Before(approveDeadline) {
 				if approvalSeen == "" {
-					for _, p := range state.interactions.Snapshot().Pending {
+					for _, p := range state.interactions.Snapshot().Value.Pending {
 						if p.Event == "approval/request" {
 							approvalSeen = p.EventID
 							break
@@ -716,7 +716,7 @@ func runComposerFlowQA() error {
 					return
 				}
 				cleared := true
-				for _, p := range state.interactions.Snapshot().Pending {
+				for _, p := range state.interactions.Snapshot().Value.Pending {
 					if p.EventID == approvalSeen {
 						cleared = false
 					}

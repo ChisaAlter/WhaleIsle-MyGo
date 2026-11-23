@@ -19,13 +19,13 @@ func TestChildQuestionFocusFrameIsolation(t *testing.T) {
 	s.SyncQuestionFocusForAgent("parent", "")
 	s.SyncQuestionFocusForAgent("child", "")
 	s.EndQuestionFocusFrame()
-	if s.Snapshot().QuestionCards["child"].Wait.State != "focused" || s.Snapshot().QuestionCards["parent"].Wait.State != "counting" {
+	if s.testView().QuestionCards["child"].Wait.State != "focused" || s.testView().QuestionCards["parent"].Wait.State != "counting" {
 		t.Fatal("panes clobbered focus")
 	}
 	s.BeginQuestionFocusFrame()
 	s.SyncQuestionFocusForAgent("parent", "")
 	s.EndQuestionFocusFrame()
-	if s.Snapshot().QuestionCards["child"].Wait.State != "counting" {
+	if s.testView().QuestionCards["child"].Wait.State != "counting" {
 		t.Fatal("closed child retained pristine pause")
 	}
 	a, b := &dsh.Client{}, &dsh.Client{}

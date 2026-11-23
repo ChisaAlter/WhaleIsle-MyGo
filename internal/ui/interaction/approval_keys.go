@@ -51,7 +51,7 @@ func (s *approvalKeys) handle(ev ui.InputEvent, pending interaction.Pending, but
 		if current.EventID != pending.EventID || current.AgentID != pending.AgentID || current.Event != interaction.EventApproval {
 			continue
 		}
-		if current.Sending || current.Error != "" || current.Continued {
+		if current.Sending || current.Error != nil || current.Continued {
 			return true
 		}
 		if ev.Key == ui.KeyEnter {

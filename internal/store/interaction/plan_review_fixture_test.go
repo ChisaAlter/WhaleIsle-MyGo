@@ -192,7 +192,7 @@ func TestPlanReviewContractFixture(t *testing.T) {
 		snap := recovered.SnapshotForAgent("A")
 		out := fmt.Sprintf("pending=%d state=%q", len(snap.Pending), snap.QuestionStatus)
 		if len(snap.Pending) > 0 {
-			out += fmt.Sprintf(" sending=%v error=%q continued=%v", snap.Pending[0].Sending, snap.Pending[0].Error, snap.Pending[0].Continued)
+			out += fmt.Sprintf(" sending=%v error=%q continued=%v", snap.Pending[0].Sending, snap.Pending[0].Error.SentenceText(), snap.Pending[0].Continued)
 		}
 		return out
 	}
@@ -209,7 +209,7 @@ func TestPlanReviewContractFixture(t *testing.T) {
 	}
 	wait(func() bool {
 		p := recovered.SnapshotForAgent("A").Pending
-		return len(p) == 1 && !p[0].Sending && p[0].Error != ""
+		return len(p) == 1 && !p[0].Sending && p[0].Error != nil
 	})
 	failDelivery.Store(false)
 	recovered.Retry(id)

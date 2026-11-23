@@ -38,7 +38,7 @@ func TestDialogueRebindAutoAllowNotificationCanReenterMainState(t *testing.T) {
 	s := &mainState{cfgStore: store, interactions: inter}
 	var entered, underLock atomic.Bool
 	inter.Attach(func() {
-		if !inter.Snapshot().AutoAllow {
+		if !inter.Snapshot().Value.AutoAllow {
 			return
 		}
 		entered.Store(true)
@@ -68,7 +68,7 @@ func TestDialogueRebindAutoAllowNotificationCanReenterMainState(t *testing.T) {
 	if underLock.Load() {
 		t.Fatal("retained interaction notify ran while mainState.mu was held")
 	}
-	if !inter.Snapshot().AutoAllow {
+	if !inter.Snapshot().Value.AutoAllow {
 		t.Fatal("rebind lost accepted auto-allow")
 	}
 }

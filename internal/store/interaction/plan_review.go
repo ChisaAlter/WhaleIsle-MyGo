@@ -40,7 +40,7 @@ type planReviewOpenKey struct {
 // hiding a review does not consume it, and manual preview remains independent.
 func (s *Store) ConsumePlanReviewOpen(agentID, eventID string) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	p, draft := s.findPending(eventID), s.questionDrafts[eventID]
 	if agentID == "" || p == nil || p.AgentID != agentID || p.Event != EventUserQuestions || draft == nil || draft.hidden || draft.planReviewHidden {
 		return false
@@ -100,16 +100,16 @@ func (s *Store) ApprovePlanReview(eventID string) {
 	s.mu.Lock()
 	p, draft := s.findPending(eventID), s.questionDrafts[eventID]
 	if p == nil || p.Event != EventUserQuestions || p.Sending || draft == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	review := planReviewOf(draft.req.Questions)
 	if review == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	continued := p.Continued
-	s.mu.Unlock()
+	s.unlockPublish()
 	answer := userQuestionsAnswer{Answers: []userQuestionsAnswerItem{{ID: review.ID, Selected: []string{review.Approve.Label}}}}
 	if continued {
 		s.resolveContinuedQuestions(eventID, answer)
@@ -129,17 +129,17 @@ func (s *Store) DismissPlanReview(eventID string) {
 	s.mu.Lock()
 	p, draft := s.findPending(eventID), s.questionDrafts[eventID]
 	if p == nil || p.Event != EventUserQuestions || p.Sending || draft == nil || planReviewOf(draft.req.Questions) == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if p.CallID != "" {
 		draft.planReviewHidden = true
 		draft.hidden = true
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "the user cancelled ask_user_question"}})
 }
 
@@ -154,6 +154,6 @@ func (s *Store) ReopenPlanReview(eventID string) {
 		draft.planReviewHidden = false
 		draft.hidden = false
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
