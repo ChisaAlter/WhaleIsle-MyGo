@@ -34,7 +34,7 @@ func (s *mainState) wireSettingsBodies(m *settings.Model) {
 		m.AgentPresets.ACP = s.acpSettingsAccess()
 	}
 	m.OnOpenConfig = nil
-	documentState := m.Store.Snapshot()
+	documentState := m.Store.Snapshot().Value
 	if documentState.ClientReady && documentState.Described && documentState.HasDocument {
 		m.OnOpenConfig = func() { m.Store.OpenSettingsDocument(context.Background()) }
 	}

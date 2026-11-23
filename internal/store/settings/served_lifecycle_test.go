@@ -30,11 +30,11 @@ func TestLeavingServedFormDiscardsOnlyItsDraftsAndLiteral(t *testing.T) {
 func TestDocumentCapabilityCannotSurviveHostDetach(t *testing.T) {
 	s := New()
 	s.hasDocument = true
-	if !s.Snapshot().HasDocument {
+	if !s.Snapshot().Value.HasDocument {
 		t.Fatal("fixture capability missing")
 	}
 	s.Detach()
-	if s.Snapshot().HasDocument {
+	if s.Snapshot().Value.HasDocument {
 		t.Fatal("stale Host document action remained available")
 	}
 }

@@ -15,7 +15,7 @@ func (s *Store) OpenSettingsDocument(ctx context.Context) {
 	s.mu.Lock()
 	client := s.client
 	generation := s.generation
-	s.mu.Unlock()
+	s.unlockPublish()
 	if client == nil {
 		return
 	}
@@ -24,7 +24,7 @@ func (s *Store) OpenSettingsDocument(ctx context.Context) {
 		err := client.Call(ctx, "settings/openSettingsDocument", map[string]any{}, &out)
 		s.mu.Lock()
 		if s.client != client || s.generation != generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		if err != nil {
@@ -32,7 +32,7 @@ func (s *Store) OpenSettingsDocument(ctx context.Context) {
 		} else {
 			s.lastAction = "settings document opened"
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		s.RefreshDescribe(ctx)
 	}()
@@ -54,13 +54,13 @@ func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
 	if emit.Event == "credentials/reference-updated" || emit.Event == "llm/adapters-updated" {
 		s.mu.Lock()
 		s.onboardingCredentialEpoch++
-		s.mu.Unlock()
+		s.unlockPublish()
 	}
 	if emit.Event == "llm/adapters-updated" {
 		s.mu.Lock()
 		s.providerDirectoryLoaded = false
 		s.providerDirectoryErr = ""
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.InvalidateModelConfigurationCatalog(ctx)
 	}
 	if emit.Event == "credentials/reference-updated" || emit.Event == "credentials/record-updated" {
@@ -70,7 +70,7 @@ func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
 			key.state.Known = false
 			key.state.Error = ""
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		if key != nil {
 			key.Refresh(ctx)
 		}
@@ -88,6 +88,6 @@ func (s *Store) OnEmitMaybeRefresh(ctx context.Context, emit dsh.EventsEmit) {
 	s.InvalidateModelConfigurationCatalog(ctx)
 	s.mu.Lock()
 	s.lastAction = "settings document updated"
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.RefreshDescribe(ctx)
 }

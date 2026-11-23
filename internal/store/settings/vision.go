@@ -21,7 +21,7 @@ type VisionView struct {
 // VisionSnapshot reads the resolved live entry, never legacy backups or session defaults.
 func (s *Store) VisionSnapshot() VisionView {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	v := VisionView{Writable: s.client != nil && s.writable, Loading: s.loading || s.visionLoading, Saving: s.saving, CatalogErr: s.visionErr, LastAction: s.lastAction, Routes: append([]VisionRoute(nil), s.visionRoutes...)}
 	if s.err != nil {
 		v.Err = s.err.Error()
@@ -54,11 +54,11 @@ func (s *Store) RefreshImageCatalog(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.generation
 	if client == nil || s.visionLoading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.visionLoading, s.visionErr = true, ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		var catalog api.ModelCatalog
@@ -75,7 +75,7 @@ func (s *Store) RefreshImageCatalog(ctx context.Context) {
 		}
 		s.mu.Lock()
 		if generation != s.generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.visionLoading = false
@@ -87,7 +87,7 @@ func (s *Store) RefreshImageCatalog(ctx context.Context) {
 				s.visionErr += failure.Name + ": " + failure.Message + "\n"
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

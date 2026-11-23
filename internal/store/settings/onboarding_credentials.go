@@ -12,14 +12,14 @@ import (
 func (s *Store) readOnboardingAPIKeyPresence(client *dsh.Client, generation uint64) bool {
 	s.mu.Lock()
 	if s.client != client || s.generation != generation {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return false
 	}
 	values := map[string]json.RawMessage{}
 	for _, ns := range s.namespaces {
 		values[ns.NS] = append(json.RawMessage(nil), ns.Value...)
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	refs := map[string]bool{}
 	add := func(raw json.RawMessage, path []string) {
 		var value any

@@ -3856,7 +3856,7 @@ func mainView(c *ui.Context) {
 		)
 		currentSettingsView := func() settingsstore.ViewState {
 			if !settingsViewReady && setStore != nil {
-				settingsView = setStore.Snapshot()
+				settingsView = setStore.Snapshot().Value
 				settingsViewReady = true
 			}
 			return settingsView

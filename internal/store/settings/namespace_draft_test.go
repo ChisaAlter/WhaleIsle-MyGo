@@ -39,7 +39,7 @@ func TestNamespaceDraftIsolatesCards(t *testing.T) {
 	if !openaiDirty || openai["apiKey"] != "openai-key" {
 		t.Fatalf("the OpenAI card reads %v dirty=%v", openai, openaiDirty)
 	}
-	if s.Snapshot().Drafts["apiKey"] != "openai-key" {
+	if s.Snapshot().Value.Drafts["apiKey"] != "openai-key" {
 		t.Fatal("the generic editor stopped following the selection")
 	}
 }
@@ -162,11 +162,11 @@ func TestSaveNamespaceSavesOneCard(t *testing.T) {
 	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) && len(st.Snapshot().Namespaces) < 2 {
+	for time.Now().Before(deadline) && len(st.Snapshot().Value.Namespaces) < 2 {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if len(st.Snapshot().Namespaces) != 2 {
-		t.Fatalf("describe did not land: %+v", st.Snapshot())
+	if len(st.Snapshot().Value.Namespaces) != 2 {
+		t.Fatalf("describe did not land: %+v", st.Snapshot().Value)
 	}
 
 	st.Select("llm-deepseek")
@@ -179,13 +179,13 @@ func TestSaveNamespaceSavesOneCard(t *testing.T) {
 	}
 	deadline = time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if st.Snapshot().LastAction == "settings saved" {
+		if st.Snapshot().Value.LastAction == "settings saved" {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if last := st.Snapshot().LastAction; last != "settings saved" {
-		t.Fatalf("last action = %q, err = %q", last, st.Snapshot().Err)
+	if last := st.Snapshot().Value.LastAction; last != "settings saved" {
+		t.Fatalf("last action = %q, err = %q", last, st.Snapshot().Value.Err)
 	}
 
 	mu.Lock()
@@ -208,7 +208,7 @@ func TestSaveNamespaceSavesOneCard(t *testing.T) {
 	if !openaiDirty || openai["defaultPreset"] != "danger-full-access" {
 		t.Fatalf("the other card lost its draft: %v dirty=%v", openai, openaiDirty)
 	}
-	if selected := st.Snapshot().SelectedNS; selected != "llm-openai" {
+	if selected := st.Snapshot().Value.SelectedNS; selected != "llm-openai" {
 		t.Fatalf("saving moved the rail selection to %q", selected)
 	}
 }

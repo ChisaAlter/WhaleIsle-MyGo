@@ -7,7 +7,7 @@ import "whaleisle/internal/petlook"
 // presence, write access or an unrelated settings save.
 func (s *Store) ImageCatalogSnapshot() petlook.Catalog {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	v := petlook.Catalog{Connected: s.client != nil, Loading: s.visionLoading, Err: s.visionErr}
 	for _, route := range s.visionRoutes {
 		v.Routes = append(v.Routes, petlook.Route{Provider: route.Provider, Model: route.Model, Label: route.Label})

@@ -92,7 +92,7 @@ func modelAddProviderEditor(c *ui.Context, m Model, a *ModelsAccess, editing *st
 			}
 			m.Store.EnsureProviderDirectory(context.Background())
 			directory, loading, _ := m.Store.ConfigurableProviders()
-			snap := m.Store.Snapshot()
+			snap := m.Store.Snapshot().Value
 			labels := []string{}
 			targets := map[string]int{}
 			names := map[string]int{}

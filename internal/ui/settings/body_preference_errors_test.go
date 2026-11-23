@@ -77,9 +77,9 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 			}
 			time.Sleep(time.Millisecond)
 		}
-		t.Fatal("preference fixture did not settle", s.Snapshot())
+		t.Fatal("preference fixture did not settle", s.Snapshot().Value)
 	}
-	wait(func() bool { return s.Snapshot().Described && !s.Snapshot().Loading })
+	wait(func() bool { return s.Snapshot().Value.Described && !s.Snapshot().Value.Loading })
 	tt := ui.NewTester(func(c *ui.Context) {
 		snapshot, owner, patch := s.BindDescribedPreferences()
 		host := &BodySettingsAccess{Owner: owner, Snapshot: snapshot, OnChange: func(ns, key, value string) { patch(context.Background(), ns, map[string]string{key: value}) }}
@@ -108,7 +108,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 		t.Fatal("ordinary write did not start")
 	}
 	tt.Frame()
-	if snap := s.Snapshot(); !snap.PreferencePending["ui-conversation.viewTabs"] || snap.Saving {
+	if snap := s.Snapshot().Value; !snap.PreferencePending["ui-conversation.viewTabs"] || snap.Saving {
 		t.Fatal("ordinary write lost field-local pending", snap)
 	}
 	tt.Key(0, ui.KeySpace)
@@ -117,7 +117,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 	}
 	releaseOnce.Do(func() { close(release) })
 	wait(func() bool {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		return !snap.Loading && snap.Described && snap.Err == "" && len(snap.PreferencePending) == 0 && snap.PreferenceErrors["ui-conversation.viewTabs"] != ""
 	})
 	_ = tt.Announcements()
@@ -149,7 +149,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 	}
 	toggle() // An explicit retry may return the identical refusal before a paint.
 	wait(func() bool {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		return writes.Load() == 2 && !snap.Loading && snap.Described && snap.Err == "" && len(snap.PreferencePending) == 0 && snap.PreferenceErrors["ui-conversation.viewTabs"] != ""
 	})
 	tt.Frame()
@@ -162,7 +162,7 @@ func TestOrdinaryPreferenceRefusalSurvivesDescribeAndRetriesInPlace(t *testing.T
 	refuse.Store(false)
 	toggle()
 	wait(func() bool {
-		snap := s.Snapshot()
+		snap := s.Snapshot().Value
 		return len(snap.PreferencePending) == 0 && snap.PreferenceErrors["ui-conversation.viewTabs"] == "" && writes.Load() == 3
 	})
 	tt.Frame()

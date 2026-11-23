@@ -44,12 +44,12 @@ func TestViewTabsDescriptionTracksAcceptedCurrentClient(t *testing.T) {
 		s := New()
 		a := client()
 		s.Attach(a, nil)
-		if s.Snapshot().Described {
+		if s.Snapshot().Value.Described {
 			t.Fatal("Attach manufactured an accepted description")
 		}
 		s.EnsureLoaded(context.Background())
 		synctest.Wait()
-		if snap := s.Snapshot(); !snap.Described || len(snap.Namespaces) != 0 {
+		if snap := s.Snapshot().Value; !snap.Described || len(snap.Namespaces) != 0 {
 			t.Fatalf("successful empty describe not loaded: %+v", snap)
 		}
 		s.EnsureLoaded(context.Background())
@@ -60,30 +60,30 @@ func TestViewTabsDescriptionTracksAcceptedCurrentClient(t *testing.T) {
 		s.Attach(a, nil)
 		s.EnsureLoaded(context.Background())
 		synctest.Wait()
-		if !s.Snapshot().Described || calls.Load() != 1 {
+		if !s.Snapshot().Value.Described || calls.Load() != 1 {
 			t.Fatal("same client Attach erased accepted description")
 		}
 		b := client()
 		s.Attach(b, nil)
-		if s.Snapshot().Described {
+		if s.Snapshot().Value.Described {
 			t.Fatal("replacement inherited old client's description")
 		}
 		gate = make(chan struct{})
 		s.EnsureLoaded(context.Background())
 		synctest.Wait()
-		if snap := s.Snapshot(); snap.Described || !snap.Loading {
+		if snap := s.Snapshot().Value; snap.Described || !snap.Loading {
 			t.Fatal("pending describe granted authority")
 		}
 		close(gate)
 		synctest.Wait()
 		gate = nil
-		if !s.Snapshot().Described {
+		if !s.Snapshot().Value.Described {
 			t.Fatal("replacement description not accepted")
 		}
 		fail.Store(true)
 		s.RefreshDescribe(context.Background())
 		synctest.Wait()
-		if snap := s.Snapshot(); snap.Described || snap.Err == "" {
+		if snap := s.Snapshot().Value; snap.Described || snap.Err == "" {
 			t.Fatal("failed refresh kept description-ready")
 		}
 		before := calls.Load()
@@ -93,14 +93,14 @@ func TestViewTabsDescriptionTracksAcceptedCurrentClient(t *testing.T) {
 			t.Fatal("EnsureLoaded retried a refused description")
 		}
 		s.Detach()
-		if snap := s.Snapshot(); snap.Described || snap.ClientReady {
+		if snap := s.Snapshot().Value; snap.Described || snap.ClientReady {
 			t.Fatal("Detach retained description authority")
 		}
 		fail.Store(false)
 		s.Attach(b, nil)
 		s.EnsureLoaded(context.Background())
 		synctest.Wait()
-		if !s.Snapshot().Described || calls.Load() != before+1 {
+		if !s.Snapshot().Value.Described || calls.Load() != before+1 {
 			t.Fatal("reconnected client did not describe again")
 		}
 	})
@@ -124,7 +124,7 @@ func TestViewTabsDescriptionRejectsStaleArrival(t *testing.T) {
 		s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "http://new-description.invalid"}}, nil)
 		close(gate)
 		synctest.Wait()
-		if snap := s.Snapshot(); snap.Described || len(snap.Namespaces) != 0 {
+		if snap := s.Snapshot().Value; snap.Described || len(snap.Namespaces) != 0 {
 			t.Fatal("old response described replacement")
 		}
 	})

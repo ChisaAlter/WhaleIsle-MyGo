@@ -38,13 +38,13 @@ func TestCustomInstructionsContract(t *testing.T) {
 	st.SetDraft("customInstructions", strings.Repeat("😀", 751))
 	st.SaveUpdate(context.Background())
 	deadline := time.Now().Add(time.Second)
-	for st.Snapshot().Saving && time.Now().Before(deadline) {
+	for st.Snapshot().Value.Saving && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if hits.Load() != 0 || st.Snapshot().Err == "" {
+	if hits.Load() != 0 || st.Snapshot().Value.Err == "" {
 		t.Fatal("over-limit instructions must fail before RPC and retain the draft")
 	}
-	if st.Snapshot().Drafts["customInstructions"] != strings.Repeat("😀", 751) {
+	if st.Snapshot().Value.Drafts["customInstructions"] != strings.Repeat("😀", 751) {
 		t.Fatal("invalid draft lost")
 	}
 	for _, value := range []string{"literal {{tone}}\n中文😀", ""} {
@@ -59,7 +59,7 @@ func TestCustomInstructionsContract(t *testing.T) {
 			t.Fatal("save timed out")
 		}
 		deadline = time.Now().Add(time.Second)
-		for st.Snapshot().Saving && time.Now().Before(deadline) {
+		for st.Snapshot().Value.Saving && time.Now().Before(deadline) {
 			time.Sleep(time.Millisecond)
 		}
 	}

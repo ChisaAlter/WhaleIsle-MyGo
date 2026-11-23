@@ -16,7 +16,7 @@ func (s *mainState) newBrowserController(win *mygo.Window) *browserpreviewui.Con
 		s.mu.Lock()
 		store := s.settings
 		s.mu.Unlock()
-		return store == nil || settingsstore.DeveloperToolsEnabled(store.Snapshot())
+		return store == nil || settingsstore.DeveloperToolsEnabled(store.Snapshot().Value)
 	})
 	browser.SetActionTarget(s.browserActionTarget)
 	browser.SetWorkspaceOwner(s.browserWorkspaceOwner)

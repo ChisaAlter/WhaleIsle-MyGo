@@ -84,7 +84,7 @@ func (s *Store) ResetDraft(key string) {
 	s.mu.Lock()
 	ns := s.findNamespaceLocked(s.selectedNS)
 	if ns == nil || !s.writable || s.saving || s.loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	for _, field := range ns.Fields {
@@ -108,7 +108,7 @@ func (s *Store) ResetDraft(key string) {
 		s.err = nil
 		break
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 

@@ -40,7 +40,7 @@ func (b *NamespaceBinding) SetForm(key, value string) {
 	}
 	s := b.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if !b.currentLocked() {
 		return
 	}
@@ -50,7 +50,7 @@ func (b *NamespaceBinding) SetForm(key, value string) {
 
 func (s *Store) BindNamespace(namespace string) *NamespaceBinding {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.findNamespaceLocked(namespace) == nil {
 		return nil
 	}
@@ -66,7 +66,7 @@ func (b *NamespaceBinding) Snapshot() ViewState {
 	}
 	s := b.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	st := ViewState{SelectedNS: b.namespace, Drafts: map[string]string{}}
 	if !b.currentLocked() {
 		return st
@@ -101,7 +101,7 @@ func (b *NamespaceBinding) SetDraft(key, value string) {
 	s := b.store
 	s.mu.Lock()
 	if !b.currentLocked() || !s.writable || s.loading || s.saving || s.themeWriteInFlightLocked(b.namespace) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ns := s.findNamespaceLocked(b.namespace)
@@ -113,7 +113,7 @@ func (b *NamespaceBinding) SetDraft(key, value string) {
 		}
 	}
 	if !known {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.beginDraftLocked(b.namespace)
@@ -125,7 +125,7 @@ func (b *NamespaceBinding) SetDraft(key, value string) {
 	s.dirty[b.namespace][key] = true
 	delete(s.resets[b.namespace], key)
 	s.err, s.lastAction = nil, ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (b *NamespaceBinding) Reset(key string) {
@@ -136,7 +136,7 @@ func (b *NamespaceBinding) Reset(key string) {
 	s := b.store
 	s.mu.Lock()
 	if !b.currentLocked() || !s.writable || s.loading || s.saving || s.themeWriteInFlightLocked(b.namespace) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ns := s.findNamespaceLocked(b.namespace)
@@ -160,7 +160,7 @@ func (b *NamespaceBinding) Reset(key string) {
 			break
 		}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (b *NamespaceBinding) Discard() {
@@ -171,7 +171,7 @@ func (b *NamespaceBinding) Discard() {
 	s := b.store
 	s.mu.Lock()
 	if !b.currentLocked() || s.saving || s.themeWriteInFlightLocked(b.namespace) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	delete(s.drafts, b.namespace)
@@ -179,7 +179,7 @@ func (b *NamespaceBinding) Discard() {
 	delete(s.resets, b.namespace)
 	delete(s.draftRevisions, b.namespace)
 	s.ensureDraftsLocked(b.namespace)
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 

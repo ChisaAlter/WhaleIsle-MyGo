@@ -84,7 +84,7 @@ func (o *DesktopOnboarding) Sync(account OnboardingAccount) {
 		storeError = s.err.Error()
 	}
 	chatReady := s.findNamespaceLocked("ui-chat") != nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	o.mu.Lock()
 	if client != o.client || generation != o.generation {
 		o.client, o.generation = client, generation
@@ -371,7 +371,7 @@ func (s *Store) writeOnboardingFields(ctx context.Context, client *dsh.Client, g
 	s.mu.Lock()
 	ns := s.findNamespaceLocked(namespace)
 	if s.client != client || s.generation != generation || s.describedClient != client || ns == nil || !s.writable || s.saving || s.loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return fmt.Errorf("Onboarding settings are unavailable; retry after reconnecting")
 	}
 	revision := ns.Revision
@@ -381,13 +381,13 @@ func (s *Store) writeOnboardingFields(ctx context.Context, client *dsh.Client, g
 		ops = append(ops, fieldOperation("set", []string{key}, raw))
 	}
 	s.saving = true
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	var out api.SettingsNamespaceView
 	err := client.Call(ctx, "settings/mutate", map[string]any{"ns": namespace, "expectedRevision": revision, "ops": ops}, &out)
 	s.mu.Lock()
 	if s.client != client || s.generation != generation {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return fmt.Errorf("Onboarding Host changed")
 	}
 	s.saving = false
@@ -419,7 +419,7 @@ func (s *Store) writeOnboardingFields(ctx context.Context, client *dsh.Client, g
 		s.err = err
 		s.lastAction = err.Error()
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	return err
 }

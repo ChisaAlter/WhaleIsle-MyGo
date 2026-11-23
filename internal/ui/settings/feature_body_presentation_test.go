@@ -40,11 +40,11 @@ func featureModelStore(t *testing.T) *store.Store {
 	})}}, nil)
 	s.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(time.Second)
-	for s.Snapshot().Loading && time.Now().Before(deadline) {
+	for s.Snapshot().Value.Loading && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if s.Snapshot().Err != "" || len(s.Snapshot().Namespaces) != 2 {
-		t.Fatalf("fixture describe %+v", s.Snapshot())
+	if s.Snapshot().Value.Err != "" || len(s.Snapshot().Value.Namespaces) != 2 {
+		t.Fatalf("fixture describe %+v", s.Snapshot().Value)
 	}
 	s.Select("general")
 	return s
@@ -81,7 +81,7 @@ func TestFeatureModelsKeepStructuredEditorsAndBoundDrafts(t *testing.T) {
 		}
 	}
 	snap := binding.Snapshot()
-	if !strings.Contains(snap.Drafts["models"], `"id":""`) || s.Snapshot().SelectedNS != "general" {
+	if !strings.Contains(snap.Drafts["models"], `"id":""`) || s.Snapshot().Value.SelectedNS != "general" {
 		t.Fatalf("typed editor lost binding %+v", snap)
 	}
 }

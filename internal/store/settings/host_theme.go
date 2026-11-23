@@ -42,7 +42,7 @@ func (t *ThemeBinding) Snapshot() ViewState {
 
 func (s *Store) BindTheme() *ThemeBinding {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.findNamespaceLocked("ui-theme") == nil {
 		return nil
 	}
@@ -58,7 +58,7 @@ func (s *Store) BindTheme() *ThemeBinding {
 func (t *ThemeBinding) ReadOnlyThemeView() (ready, writable, loading, saving, pending bool, owner, errStr string, revision float64, value json.RawMessage, fields []Field) {
 	s := t.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	owner = t.Owner()
 	if !t.currentLocked() {
 		return
@@ -84,7 +84,7 @@ func (t *ThemeBinding) ReadOnlyThemeView() (ready, writable, loading, saving, pe
 func (t *ThemeBinding) Pending() bool {
 	s := t.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return t.currentLocked() && (len(t.pending) > 0 || t.inFlight)
 }
 
@@ -92,21 +92,21 @@ func (t *ThemeBinding) Flush() {
 	s := t.store
 	s.mu.Lock()
 	if !t.currentLocked() {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if t.timer != nil {
 		t.timer.Stop()
 	}
 	t.ready = true
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
 func (t *ThemeBinding) EffectiveValue() json.RawMessage {
 	s := t.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if !t.currentLocked() {
 		return nil
 	}
@@ -134,7 +134,7 @@ func (t *ThemeBinding) Queue(values map[string]any) error {
 	s := t.store
 	s.mu.Lock()
 	if !t.currentLocked() || s.client == nil || s.describedClient != s.client || !s.writable {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return fmt.Errorf("Host appearance is unavailable or read-only")
 	}
 	ns := s.findNamespaceLocked("ui-theme")
@@ -144,14 +144,14 @@ func (t *ThemeBinding) Queue(values map[string]any) error {
 	}
 	for key := range values {
 		if !known[key] {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return fmt.Errorf("Host does not expose appearance field %s", key)
 		}
 	}
 	for key, value := range values {
 		raw, err := json.Marshal(value)
 		if err != nil {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return err
 		}
 		t.pending[key] = raw
@@ -165,14 +165,14 @@ func (t *ThemeBinding) Queue(values map[string]any) error {
 	t.timer = time.AfterFunc(300*time.Millisecond, func() {
 		s.mu.Lock()
 		if !t.currentLocked() || t.queueRevision != queuedRevision {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		t.ready = true
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	})
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	return nil
 }
@@ -181,7 +181,7 @@ func (s *Store) flushQueuedTheme() {
 	s.mu.Lock()
 	t := s.themeBinding
 	if t == nil || !t.currentLocked() || !t.ready || t.inFlight || len(t.pending) == 0 || s.saving || s.preferenceWrites["ui-theme"] != nil || s.loading || !s.writable {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ns := s.findNamespaceLocked("ui-theme")
@@ -192,7 +192,7 @@ func (s *Store) flushQueuedTheme() {
 	t.inFlight = true
 	t.inFlightFields = fields
 	t.writeError = ""
-	s.snapCache.valid = false
+	s.viewStale = true
 	keys := make([]string, 0, len(fields))
 	for key := range fields {
 		keys = append(keys, key)
@@ -202,20 +202,20 @@ func (s *Store) flushQueuedTheme() {
 	for _, key := range keys {
 		ops = append(ops, fieldOperation("set", []string{key}, fields[key]))
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	go func() {
 		var out api.SettingsNamespaceView
 		err := t.client.Call(context.Background(), "settings/mutate", map[string]any{"ns": "ui-theme", "ops": ops, "expectedRevision": revision}, &out)
 		s.mu.Lock()
 		if s.client != t.client || s.generation != t.generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		t.inFlight = false
 		t.inFlightFields = nil
 		if s.findNamespaceLocked("ui-theme") == nil {
 			t.writeError = "Host appearance is no longer available"
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -236,11 +236,11 @@ func (s *Store) flushQueuedTheme() {
 			t.writeError = err.Error()
 			t.pending = map[string]json.RawMessage{}
 			t.ready = false
-			s.snapCache.valid = false
+			s.viewStale = true
 		} else {
-			s.snapCache.valid = false
+			s.viewStale = true
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		if err != nil {
 			s.RefreshDescribe(context.Background())
 		} else {

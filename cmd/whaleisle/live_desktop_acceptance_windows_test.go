@@ -544,7 +544,7 @@ func runLiveDesktopAcceptance() error {
 			if !open || store == nil {
 				return false
 			}
-			snap := store.Snapshot()
+			snap := store.Snapshot().Value
 			return !snap.Loading && len(snap.Namespaces) > 0 && snap.Err == ""
 		}); err != nil {
 			var liveTexts []string

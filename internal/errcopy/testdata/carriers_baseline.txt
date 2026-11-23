@@ -138,5 +138,5 @@
 ../store/settings/provider_draft.go	rawerr	2
 ../store/settings/provider_save.go	fmt	2
 ../store/settings/provider_save.go	rawerr	2
-../store/settings/store.go	rawerr	10
+../store/settings/store.go	rawerr	9
 ../store/settings/vision.go	rawerr	3

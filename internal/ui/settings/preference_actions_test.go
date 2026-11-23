@@ -14,7 +14,7 @@ func replaceActionFixture(t *testing.T) (Model, store.ViewState, *store.Namespac
 	s := featureModelStore(t)
 	s.Select("llm-deepseek")
 	s.SetDraft("models", `[{"id":"changed"}]`)
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	return Model{Store: s}, snap, &snap.Namespaces[1]
 }
 
@@ -47,7 +47,7 @@ func TestReplaceAsksInTheApp(t *testing.T) {
 	if tt.HasText(i18n.T(i18n.KeySurfacesSettingsConfirmTitle)) {
 		t.Fatalf("cancel left the confirmation open: %v", tt.Texts())
 	}
-	if snap := m.Store.Snapshot(); snap.LastAction != "" || snap.Err != "" {
+	if snap := m.Store.Snapshot().Value; snap.LastAction != "" || snap.Err != "" {
 		t.Fatalf("cancelled replace mutated the store: last=%q err=%q", snap.LastAction, snap.Err)
 	}
 }

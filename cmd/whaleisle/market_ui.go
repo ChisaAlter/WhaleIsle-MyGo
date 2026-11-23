@@ -141,7 +141,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	contributions := []managerui.Contribution{}
 	if store != nil {
 		served := map[string]bool{}
-		for _, ns := range store.Snapshot().Namespaces {
+		for _, ns := range store.Snapshot().Value.Namespaces {
 			served[ns.NS] = true
 		}
 		// Titles and summaries are the original plugins.item registrations'

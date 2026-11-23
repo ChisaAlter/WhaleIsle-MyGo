@@ -41,7 +41,7 @@ func TestAccountModelsNativeEditsUseLivePerIDOverrides(t *testing.T) {
 	s.RefreshModelConfigurationCatalog(context.Background())
 	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); {
 		_, loading, _ := s.ConfigurationModels("deepseek-account")
-		if !s.Snapshot().Loading && !loading {
+		if !s.Snapshot().Value.Loading && !loading {
 			break
 		}
 		time.Sleep(time.Millisecond)

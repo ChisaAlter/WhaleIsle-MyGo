@@ -221,7 +221,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		settings.Attach(client, nil)
 		settings.RefreshDescribe(ctx)
 		return wait(func() (bool, error) {
-			s := settings.Snapshot()
+			s := settings.Snapshot().Value
 			if s.Err != "" {
 				return false, errors.New(s.Err)
 			}
@@ -229,7 +229,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		})
 	}
 	readBusy := func() (string, bool) {
-		for _, ns := range settings.Snapshot().Namespaces {
+		for _, ns := range settings.Snapshot().Value.Namespaces {
 			if ns.NS == "ui-conversation" {
 				var value struct {
 					BusyEnter string `json:"busyEnter"`
@@ -247,7 +247,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	writeBusy := func(value string) error {
 		settings.PatchDescribedField(ctx, "ui-conversation", "busyEnter", value)
 		return wait(func() (bool, error) {
-			s := settings.Snapshot()
+			s := settings.Snapshot().Value
 			if s.Err != "" {
 				return false, errors.New(s.Err)
 			}
@@ -259,7 +259,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	if err = describe(); err != nil {
 		add("SET-18 served describe", "fail", failure(err), 0)
 	} else {
-		add("SET-18 served describe", "pass", "Go schema decoder against real Host", len(settings.Snapshot().Namespaces))
+		add("SET-18 served describe", "pass", "Go schema decoder against real Host", len(settings.Snapshot().Value.Namespaces))
 		if originalBusy, settingsChanged = readBusy(); settingsChanged && (originalBusy == "queue" || originalBusy == "steer") {
 			chosenBusy = "steer"
 			if originalBusy == "steer" {

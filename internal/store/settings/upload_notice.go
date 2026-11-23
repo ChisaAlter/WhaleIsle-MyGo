@@ -2,7 +2,7 @@ package settings
 
 func (s *Store) UploadNotice() (uint64, string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return s.uploadNoticeSequence, s.uploadNotice
 }
 func (s *Store) DismissUploadNotice(sequence uint64) {
@@ -10,5 +10,5 @@ func (s *Store) DismissUploadNotice(sequence uint64) {
 	if s.uploadNoticeSequence == sequence {
 		s.uploadNotice = ""
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 }

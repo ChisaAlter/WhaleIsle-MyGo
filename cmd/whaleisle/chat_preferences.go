@@ -7,7 +7,7 @@ import (
 )
 
 func (s *mainState) openChatLink(rawURL string) {
-	p := settings.ChatPreferencesFrom(s.settings.Snapshot())
+	p := settings.ChatPreferencesFrom(s.settings.Snapshot().Value)
 	if p.LinkOpening == "new-tab" {
 		if err := webview.OpenExternal(rawURL); err != nil && s.sessions != nil {
 			s.sessions.SetLastAction(errcopy.Sentence(err))
