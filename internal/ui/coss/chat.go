@@ -255,13 +255,15 @@ func ChatReplyPreview(c *ui.Context, label, quote string, own bool) (cancel bool
 }
 
 // ChatDatePill is coss's date separator: a 24 DIP round popover/90 pill of
-// 12 px medium text, centered.
+// 12 px medium text, centered in its row. It returns the pill.
 func ChatDatePill(c *ui.Context, label string) ui.Element {
 	t := tok(c)
-	return ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-		ui.Row(c).Height(24).PaddingX(design.Sp(2)).Radius(design.RadiusFull).Border(design.BorderWidth, t.Border).Background(t.Popover.Alpha(0.9)).
+	var pill ui.Element
+	ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
+		pill = ui.Row(c).Height(24).PaddingX(design.Sp(2)).Radius(design.RadiusFull).Border(design.BorderWidth, t.Border).Background(t.Popover.Alpha(0.9)).
 			Center().Children(func() { text(c, label, design.TextXS, design.WeightMedium, t.Foreground) })
 	})
+	return pill
 }
 
 // ChatUnreadDivider is coss's unread marker: 12 px medium label between
