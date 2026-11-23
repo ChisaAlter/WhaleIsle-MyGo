@@ -15,7 +15,9 @@ func settleAttachment(v *attachmentDisplay) *attachmentDisplay {
 	}
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) && composerMedia().Request(nil, v.key, v.src).State() == media.Pending {
-		time.Sleep(2 * time.Millisecond)
+		if composerMedia().RunPending() == 0 {
+			time.Sleep(2 * time.Millisecond)
+		}
 	}
 	v.refresh(nil, time.Time{})
 	return v
