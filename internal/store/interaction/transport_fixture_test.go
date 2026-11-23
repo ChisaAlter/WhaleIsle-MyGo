@@ -20,6 +20,12 @@ import (
 func TestInteractionDeliveryFixture(t *testing.T) {
 	frames := make(chan string, 8)
 	stop := make(chan struct{})
+	// release holds the first answer's rejection until the redundant
+	// ResolveQuestions below has run. A second submit while the first is
+	// still in flight is a no-op only if the 503 cannot land in between;
+	// under -race the round trip can, and the second call then re-sends
+	// for real, which is a legitimate retry the assertion cannot wait out.
+	release := make(chan struct{})
 	var mu sync.Mutex
 	var posts []dsh.EventResult
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +53,11 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 			n := len(posts)
 			mu.Unlock()
 			if body.EventID == "q" && n == 1 {
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
 				http.Error(w, "temporary failure", 503)
 				return
 			}
@@ -137,6 +148,7 @@ func TestInteractionDeliveryFixture(t *testing.T) {
 	s.SetQuestionCustom("q", "choice", "custom answer")
 	s.ResolveQuestions("q")
 	s.ResolveQuestions("q")
+	close(release)
 	wait("the failed delivery to be reported on its question", func() bool { p := s.SnapshotForAgent("A").Pending; return len(p) == 1 && p[0].Error != nil })
 	if len(s.testView().QuestionCards["q"].Rows) != 1 || !s.QuestionsCanSubmit("q") {
 		t.Fatal("failed delivery discarded draft")
