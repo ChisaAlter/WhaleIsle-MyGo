@@ -53,8 +53,8 @@ type MemoryControls struct {
 func (c *MemoryControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.dirty = true
 	if c.state.Scope != k {
+		c.dirty = true
 		c.generation++
 		c.sequence++
 		c.state = MemorySnapshot{Scope: k, Track: "bot"}
@@ -71,7 +71,7 @@ func (c *MemoryControls) Snapshot(k RoutineScope) *state.Version[MemorySnapshot]
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		if c.foreignKey != k {
+		if c.foreignPub.Load() == nil || c.foreignKey != k {
 			c.foreignKey = k
 			c.foreignPub.Publish(MemorySnapshot{Scope: k, Track: "bot"})
 		}

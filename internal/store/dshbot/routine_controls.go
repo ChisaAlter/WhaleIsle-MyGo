@@ -77,8 +77,8 @@ type RoutineControls struct {
 func (c *RoutineControls) Bind(scope RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.dirty = true
 	if c.state.Scope != scope {
+		c.dirty = true
 		c.TextProfile.Bind(scope)
 		c.SenderPolicy.Bind(scope)
 		c.Notify.Bind(scope)
@@ -132,7 +132,7 @@ func (c *RoutineControls) Snapshot(scope RoutineScope) *state.Version[RoutineSna
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
-		if c.foreignKey != scope {
+		if c.foreignPub.Load() == nil || c.foreignKey != scope {
 			c.foreignKey = scope
 			c.foreignPub.Publish(RoutineSnapshot{Scope: scope})
 		}

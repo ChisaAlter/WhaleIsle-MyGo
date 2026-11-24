@@ -40,8 +40,8 @@ type MemoryReviewControls struct {
 func (c *MemoryReviewControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.dirty = true
 	if c.state.Scope != k {
+		c.dirty = true
 		c.generation++
 		c.sequence++
 		c.state = MemoryReviewSnapshot{Scope: k}
@@ -58,7 +58,7 @@ func (c *MemoryReviewControls) Snapshot(k RoutineScope) *state.Version[MemoryRev
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		if c.foreignKey != k {
+		if c.foreignPub.Load() == nil || c.foreignKey != k {
 			c.foreignKey = k
 			c.foreignPub.Publish(MemoryReviewSnapshot{Scope: k})
 		}

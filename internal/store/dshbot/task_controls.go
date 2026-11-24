@@ -50,8 +50,8 @@ type TaskControls struct {
 func (c *TaskControls) Bind(scope TaskScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.dirty = true
 	if c.state.Scope != scope {
+		c.dirty = true
 		c.generation++
 		c.state = TaskControlSnapshot{Scope: scope}
 	}
@@ -60,7 +60,7 @@ func (c *TaskControls) Snapshot(scope TaskScope) *state.Version[TaskControlSnaps
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
-		if c.foreignKey != scope {
+		if c.foreignPub.Load() == nil || c.foreignKey != scope {
 			c.foreignKey = scope
 			c.foreignPub.Publish(TaskControlSnapshot{Scope: scope})
 		}

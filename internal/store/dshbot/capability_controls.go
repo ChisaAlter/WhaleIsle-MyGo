@@ -42,8 +42,8 @@ type CapabilityControls struct {
 func (c *CapabilityControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.dirty = true
 	if c.state.Scope != k {
+		c.dirty = true
 		c.generation++
 		c.sequence++
 		c.state = CapabilitySnapshot{Scope: k}
@@ -59,7 +59,7 @@ func (c *CapabilityControls) Snapshot(k RoutineScope) *state.Version[CapabilityS
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		if c.foreignKey != k {
+		if c.foreignPub.Load() == nil || c.foreignKey != k {
 			c.foreignKey = k
 			c.foreignPub.Publish(CapabilitySnapshot{Scope: k})
 		}

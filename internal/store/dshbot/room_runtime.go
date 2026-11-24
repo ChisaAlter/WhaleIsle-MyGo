@@ -29,10 +29,10 @@ type RoomRuntimeReader struct {
 func (c *RoomRuntimeReader) Bind(scope string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.dirty = true
 	if c.state.Scope == scope {
 		return
 	}
+	c.dirty = true
 	generation := c.state.Generation + 1
 	c.state = RoomRuntimeSnapshot{Scope: scope, Generation: generation}
 }
