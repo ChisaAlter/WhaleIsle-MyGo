@@ -167,7 +167,15 @@ func digest(filename string) (string, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
-func preflight(root string, g graph, full, requireLinks bool) error {
+
+// preflight checks the graph's structure before any mutation. full keeps the
+// per-file SHA-256 pass for verify; requireLinks makes a missing alias an
+// error; tolerateGone is detach's partial-cleanup retry: only it lets an
+// already-absent alias stand for possibly-removed targets and parent
+// subtrees. Every other command still checks the target's ancestors and the
+// physical target itself, so a half-deleted tree can never pass check or be
+// half-relinked by restore.
+func preflight(root string, g graph, full, requireLinks, tolerateGone bool) error {
 	for name, spec := range g.Links {
 		origin, _ := child(root, name)
 		target, _ := child(root, spec.Target)
@@ -178,7 +186,7 @@ func preflight(root string, g graph, full, requireLinks bool) error {
 		if originErr != nil && !os.IsNotExist(originErr) {
 			return originErr
 		}
-		if !full && os.IsNotExist(originErr) {
+		if tolerateGone && os.IsNotExist(originErr) {
 			if err := checkParents(root, target, false, true); err != nil {
 				return err
 			}
@@ -313,7 +321,7 @@ func operate(command, root string) error {
 	// before the first link appeared, which is the one part of promotion whose
 	// work grows with payload size. Structure is checked for every command;
 	// content is verified by verify, which the upgrade and uninstall paths run.
-	if err = preflight(root, g, command == "verify", command == "verify"); err != nil {
+	if err = preflight(root, g, command == "verify", command == "verify", command == "detach"); err != nil {
 		return err
 	}
 	if command == "verify" || command == "check" {

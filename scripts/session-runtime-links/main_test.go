@@ -147,6 +147,31 @@ func TestRuntimeLinksChangedFileAndStaleJunction(t *testing.T) {
 	}
 }
 
+func TestRuntimeLinksRestoreRejectsMissingPhysicalTarget(t *testing.T) {
+	root, _ := fixtureGraph(t)
+	// One physical target is gone before restore ever ran. The retry
+	// tolerance for already-removed subtrees is detach's alone: restore must
+	// refuse at preflight instead of relinking the surviving half.
+	if err := os.RemoveAll(filepath.Join(root, "peer")); err != nil {
+		t.Fatal(err)
+	}
+	if err := operate("restore", root); err == nil {
+		t.Fatal("restore accepted a missing physical target")
+	}
+	for _, name := range []string{"package/node_modules/peer", "peer/node_modules/package"} {
+		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
+			t.Fatalf("restore left a partial link: %s", name)
+		}
+	}
+	// check refuses the same incomplete tree; only detach tolerates it.
+	if err := operate("check", root); err == nil {
+		t.Fatal("check accepted a missing physical target")
+	}
+	if err := operate("detach", root); err != nil {
+		t.Fatalf("detach did not tolerate the partial tree: %v", err)
+	}
+}
+
 func TestRuntimeLinksTraceRecordsEntryAndOutcome(t *testing.T) {
 	root, _ := fixtureGraph(t)
 	trace := filepath.Join(t.TempDir(), "runtime-links.log")
