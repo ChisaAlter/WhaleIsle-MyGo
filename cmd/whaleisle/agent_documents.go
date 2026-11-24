@@ -26,7 +26,7 @@ func (s *mainState) openAgentPaneDocument(paneID string, sessions *session.Store
 	if err != nil || !valid() {
 		return
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.Published().Value
 	kind := browserpreviewui.DocumentHTML
 	if strings.EqualFold(filepath.Ext(path), ".pdf") {
 		kind = browserpreviewui.DocumentPDF

@@ -303,8 +303,8 @@ func TestWorkspacePreferencesRetryPreservesConflictUntilResolved(t *testing.T) {
 	recoveryWrite(t, path, map[string]config.WorkspaceNavigationPreferences{scope: external})
 	s.SetWorkspaceGrouping("workspace-tree")
 	for i := 0; i < 2; i++ {
-		if got := s.Snapshot().WorkspaceLayout; got.GroupBy != "workspace-tree" || !strings.Contains(got.PreferenceError, "groupBy") {
-			t.Fatalf("conflict did not retain pending edit and helpful error: %+v", got)
+		if got := s.Snapshot().WorkspaceLayout; got.GroupBy != "workspace-tree" || got.PreferenceError == "" || strings.Contains(got.PreferenceError, "groupBy") {
+			t.Fatalf("conflict did not retain pending edit and helpful error, or leaked raw field name: %+v", got)
 		}
 		s.RetryWorkspacePreferences()
 		if got := recoveryRead(t, path, scope); got.GroupBy != "flat" {
@@ -373,8 +373,8 @@ func TestWorkspacePreferencesRecoverySaveHonorsConcurrentChange(t *testing.T) {
 	external.GroupBy = "workspace"
 	repo.beforeSave = func() { recoveryWrite(t, path, map[string]config.WorkspaceNavigationPreferences{scope: external}) }
 	s.RetryWorkspacePreferences()
-	if got := s.Snapshot().WorkspaceLayout; got.GroupBy != "flat" || !strings.Contains(got.PreferenceError, "groupBy") {
-		t.Fatalf("save-time conflict lost pending change: %+v", got)
+	if got := s.Snapshot().WorkspaceLayout; got.GroupBy != "flat" || got.PreferenceError == "" || strings.Contains(got.PreferenceError, "groupBy") {
+		t.Fatalf("save-time conflict lost pending change or leaked raw field name: %+v", got)
 	}
 	if got := recoveryRead(t, path, scope); got.GroupBy != "workspace" {
 		t.Fatal("save-time external change was overwritten")
@@ -446,8 +446,8 @@ func TestWorkspacePreferencesWriteFailureAcrossHostsRetainsError(t *testing.T) {
 	s.SetWorkspaceGrouping("flat")
 	recoveryAttach(t, s, repo, "host-b", a)
 	recoveryAttach(t, s, repo, "host-a", a)
-	if got := s.Snapshot().WorkspaceLayout; got.GroupBy != "flat" || !strings.Contains(got.PreferenceError, "fixture read-only disk") {
-		t.Fatalf("Host return lost unsaved change or diagnostic: %+v", got)
+	if got := s.Snapshot().WorkspaceLayout; got.GroupBy != "flat" || got.PreferenceError == "" || strings.Contains(got.PreferenceError, "fixture read-only disk") {
+		t.Fatalf("Host return lost unsaved change or diagnostic, or leaked raw text: %+v", got)
 	}
 	repo.fail = false
 	s.RetryWorkspacePreferences()

@@ -155,7 +155,7 @@ func (s *Store) refreshSkillCatalogForOwner(ctx context.Context, owner *workspac
 			return
 		}
 		if err != nil {
-			s.skillCatalog.Err = err.Error()
+			s.skillCatalog.Err = faultText("skillGroups.list", err)
 		} else {
 			s.skillCatalog.Skills = inv.Skills
 			s.skillCatalog.Err = ""
@@ -163,6 +163,7 @@ func (s *Store) refreshSkillCatalogForOwner(ctx context.Context, owner *workspac
 			s.skillCatalogScope = scope
 			s.skillCatalog.invocationScope = skillCatalogInvocationScope{client, sid, cwd, generation, version}
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -302,7 +303,7 @@ func (s *Store) setCatalogInvocationScoped(ctx context.Context, matches func(api
 			req := api.SkillInventoryInvocationRequest{Name: sk.Name, ModelInvocable: enabled, UserInvocable: sk.UserInvocable, SessionId: scope.SessionId, Cwd: scope.Cwd}
 			var out api.SetInvocationResult
 			if err := client.Call(ctx, "skillInventory/setInvocation", map[string]any{"request": req}, &out); err != nil {
-				failures[sk.Name] = err.Error()
+				failures[sk.Name] = faultText("skillGroups.invocation", err)
 			}
 		}
 		s.mu.Lock()
@@ -310,7 +311,7 @@ func (s *Store) setCatalogInvocationScoped(ctx context.Context, matches func(api
 			s.invalidateViewLocked()
 			for _, sk := range targets {
 				if ctx.Err() != nil && failures[sk.Name] == "" {
-					failures[sk.Name] = ctx.Err().Error()
+					failures[sk.Name] = faultText("skillGroups.invocation", ctx.Err())
 				}
 				if failures[sk.Name] != "" {
 					for i := range s.skillCatalog.Skills {
@@ -395,7 +396,7 @@ func (s *Store) SaveCatalogSkill(ctx context.Context, doc api.SkillInventoryDeta
 			s.invalidateViewLocked()
 			s.skillCatalog.Busy = false
 			if err != nil {
-				s.skillCatalog.Action = "Skill save failed: " + err.Error()
+				s.skillCatalog.Action = prefixedFaultText("skillGroups.save", "Skill save failed: ", err)
 			} else {
 				s.skillCatalog.Action = "Skill saved: " + doc.Name
 				for i := range s.skillCatalog.Skills {

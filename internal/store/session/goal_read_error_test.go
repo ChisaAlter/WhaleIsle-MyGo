@@ -201,7 +201,7 @@ func TestGoalReadDoesNotChangeWriteErrorRouting(t *testing.T) {
 	s.goalReadError = goalReadErrorState{client: client, sessionID: "A", generation: s.followGeneration, fault: state.FaultText("goals/get: fixture read failed")}
 	s.runCreateGoal(context.Background(), client, "A", s.followGeneration, "fixture objective")
 	v := s.Snapshot()
-	if v.LastAction != "GOAL_WRITE_DENIED: fixture write denied" || v.GoalReadError == nil || v.GoalReadError.SentenceText() != "goals/get: fixture read failed" {
-		t.Fatal("write error was hidden or read diagnostic lost", v.LastAction, v.GoalReadError)
+	if v.LastAction == "" || strings.Contains(v.LastAction, "fixture write denied") || v.GoalReadError == nil || v.GoalReadError.SentenceText() != "goals/get: fixture read failed" {
+		t.Fatal("write error was hidden or leaked raw text, or read diagnostic lost", v.LastAction, v.GoalReadError)
 	}
 }

@@ -271,11 +271,10 @@ func (s *Store) selectAgentPresetIDForSession(ctx context.Context, targetID, pre
 		p := s.presetStateLocked()
 		p.busy = false
 		if err != nil {
-			p.error = label + ": " + err.Error()
-			if s.lastAction != err.Error() {
-				s.invalidateViewLocked()
-			}
-			s.lastAction = err.Error()
+			msg := faultText("agentPresets.select", err)
+			p.error = label + ": " + msg
+			s.lastAction = msg
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 			return

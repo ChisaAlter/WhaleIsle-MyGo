@@ -119,3 +119,37 @@ func (s *Store) setHistoryPageErrLocked(err error) {
 
 // errListSuperseded ends the retries of a list a newer refresh replaced.
 var errListSuperseded = errors.New("session list superseded")
+
+// faultText logs the raw failure at the store boundary and returns the safe,
+// localized view sentence via state.FaultOf (which classifies transport/HTTP/RPC
+// failures and preserves storelocale.AuthoredError copy verbatim).
+func faultText(scope string, err error) string {
+	if err == nil {
+		return ""
+	}
+	log.Printf("[session] %s: %v", scope, err)
+	return state.FaultOf(err).SentenceText()
+}
+
+// prefixedFaultText logs err and returns prefix + safe localized sentence.
+// Used where existing UI/protocol contracts match a stable prefix such as
+// "queue: ", "feedback: ", or "workspace follow: ".
+func prefixedFaultText(scope, prefix string, err error) string {
+	if err == nil {
+		return ""
+	}
+	return prefix + faultText(scope, err)
+}
+
+// setLastActionFaultLocked logs err, sets s.lastAction to the classified
+// localized sentence, and invalidates the view cache when the value changes.
+func (s *Store) setLastActionFaultLocked(scope, prefix string, err error) {
+	if err == nil {
+		return
+	}
+	next := prefixedFaultText(scope, prefix, err)
+	if s.lastAction != next {
+		s.invalidateViewLocked()
+	}
+	s.lastAction = next
+}

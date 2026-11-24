@@ -158,7 +158,7 @@ func (s *mainState) customPanelContent(sid, themeID string) func(*ui.Context) {
 			if !current() || sessions == nil {
 				return
 			}
-			d, err := latestCustomPanelReply(sessions.Snapshot().Messages)
+			d, err := latestCustomPanelReply(sessions.Published().Value.Messages)
 			if err != nil {
 				report(err, "")
 				return

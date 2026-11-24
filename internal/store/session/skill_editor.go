@@ -169,7 +169,7 @@ func (s *Store) SaveCatalogSkillEditor(ctx context.Context, t SkillEditTarget, f
 			s.invalidateViewLocked()
 			s.skillCatalog.Busy = false
 			if err != nil {
-				s.skillCatalog.Action = err.Error()
+				s.skillCatalog.Action = faultText("skillEditor.save", err)
 			} else {
 				s.skillCatalog.Action = "Skill saved: " + t.name
 				for i := range s.skillCatalog.Skills {

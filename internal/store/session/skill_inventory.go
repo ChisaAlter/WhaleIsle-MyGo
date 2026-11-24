@@ -31,7 +31,7 @@ func (s *Store) SkillInventoryTarget(root string) (SkillTarget, error) {
 
 func (s *Store) skillInventoryTargetError(err error) {
 	s.mu.Lock()
-	s.lastAction = err.Error()
+	s.setLastActionFaultLocked("skillInventory.target", "", err)
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
@@ -66,7 +66,7 @@ func (s *Store) UpdateSkillInventory(ctx context.Context, name, description, con
 		err := client.Call(ctx, "skillInventory/update", map[string]any{"request": req}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.lastAction = "skill update: " + err.Error()
+			s.setLastActionFaultLocked("skillInventory.update", "skill update: ", err)
 		} else {
 			s.lastAction = "skill updated: " + name
 		}
@@ -132,7 +132,7 @@ func (s *Store) SearchSkillHub(ctx context.Context, query, root string) {
 			return
 		}
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("skillInventory.searchHub", "", err)
 			s.skillHubHits = nil
 		} else {
 			hits := make([]SkillHubHit, 0, len(out))
@@ -202,7 +202,7 @@ func (s *Store) InstallSkillHub(ctx context.Context, hit SkillHubHit, root strin
 			return
 		}
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("skillInventory.installHub", "", err)
 		} else {
 			s.lastAction = message
 			for i := range s.skillHubHits {
@@ -262,10 +262,11 @@ func (s *Store) CreateSkillInventory(ctx context.Context, name, description, con
 			return
 		}
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("skillInventory.create", "", err)
 		} else {
 			s.lastAction = "skill created " + name
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		if err == nil {
@@ -345,10 +346,11 @@ func (s *Store) SetSkillInvocation(ctx context.Context, name string, modelInvoca
 		err := client.Call(ctx, "skillInventory/setInvocation", map[string]any{"request": req}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("skillInventory.setInvocation", "", err)
 		} else {
 			s.lastAction = "skill invocation " + name
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		if err == nil {

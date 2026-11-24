@@ -132,7 +132,7 @@ func (s *Store) followAgentNavigation(ctx context.Context, token uint64, client 
 						s.applyQuestionValuesForSessionLocked(address.ChildSessionID, baseline.Projections.Values, *baseline.Projections.AsOfSeq)
 					}
 					if catalogErr := seedAgentNavigationCatalog(&n.view, baseline.Projections.Values, baseline.Projections.AsOfSeq, s.items); catalogErr != nil {
-						n.view.Error = "Agent directory: " + catalogErr.Error()
+						n.view.Error = prefixedFaultText("agentNavigation.liveCatalog", "Agent directory: ", catalogErr)
 					}
 				}
 				s.refreshAgentNavigationRowsLocked(&n.view)
@@ -194,8 +194,9 @@ func (s *Store) finishAgentNavigationLive(ctx context.Context, token uint64, cli
 	n.view = freezeAgentNavigationView(n.view)
 	n.view.Busy = false
 	if err != nil {
-		n.view.Error = err.Error()
+		n.view.Error = faultText("agentNavigation.live", err)
 	}
+	s.invalidateViewLocked()
 	cancel := n.cancel
 	n.cancel = nil
 	notify := !n.notifyPending
@@ -264,8 +265,9 @@ func (s *Store) loadAgentNavigationLiveCatalog(ctx context.Context, token uint64
 		s.refreshAgentNavigationRowsLocked(&n.view)
 	}
 	if err != nil {
-		n.view.Error = "Agent directory: " + err.Error()
+		n.view.Error = prefixedFaultText("agentNavigation.liveCatalog", "Agent directory: ", err)
 	}
+	s.invalidateViewLocked()
 	notify := !n.notifyPending
 	n.notifyPending = true
 	s.mu.Unlock()

@@ -284,7 +284,7 @@ func (s *Store) persistSubmissionOutcome(p *composerPending, outcome error) erro
 	}
 	record.DraftKey, record.DraftSequence = p.draftKey, p.draftSequence
 	if outcome != nil {
-		record.Phase, record.Error = "failed", outcome.Error()
+		record.Phase, record.Error = "failed", faultText("submissionOutcome", outcome)
 	}
 	if writer != nil {
 		writer.mu.Lock()

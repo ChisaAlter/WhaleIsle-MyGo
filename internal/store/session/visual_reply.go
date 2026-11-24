@@ -203,11 +203,12 @@ func (s *Store) loadVisualReply(ctx context.Context, sessionID, attachmentID str
 	}
 	s.visualReply.Loading = false
 	if err != nil {
-		s.visualReply.Error = storelocale.T(storelocale.KeyStoreSessionPublishedHtmlUnavailable) + err.Error()
+		s.visualReply.Error = storelocale.T(storelocale.KeyStoreSessionPublishedHtmlUnavailable) + faultText("visualReply.load", err)
 	} else {
 		s.visualReply.HTML = out.HTML
 		s.visualReply.Ready = true
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	if err != nil {

@@ -42,10 +42,8 @@ func (s *Store) ExecuteCommandLine(ctx context.Context, line string) error {
 	s.mu.Lock()
 	current := s.sessionResultCurrentLocked(ctx, client, sessionID, generation)
 	if current && err != nil {
-		if s.lastAction != err.Error() {
-			s.invalidateViewLocked()
-		}
-		s.lastAction = err.Error()
+		s.setLastActionFaultLocked("executeCommand", "", err)
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	if current && err != nil {

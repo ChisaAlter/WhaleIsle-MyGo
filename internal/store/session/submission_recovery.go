@@ -180,7 +180,7 @@ func (t *ComposerTarget) recordSubmission(id, phase string, cause error) error {
 		record.DraftSnapshot = append(json.RawMessage(nil), p.draftSnapshot...)
 	}
 	if cause != nil {
-		record.Error = cause.Error()
+		record.Error = faultText("submission", cause)
 	}
 	for i := range record.Attachments {
 		// A local file remains the recovery owner; never duplicate its potentially

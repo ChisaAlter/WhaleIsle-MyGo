@@ -23,7 +23,7 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 		return nil
 	}
 	cwd := panel.Workspace()
-	before := sessions.Snapshot()
+	before := sessions.Published().Value
 	workspace := sessions.WorkspaceCwd()
 	s.mu.Lock()
 	host := s.bootStatus
@@ -37,7 +37,7 @@ func (s *mainState) terminalTargetHandler(win *mygo.Window, m frame.Model, revea
 		if !current || win == nil || win.IsDestroyed() || panel.Workspace() != cwd || m.WorkspaceRoot != cwd {
 			return false
 		}
-		now := sessions.Snapshot()
+		now := sessions.Published().Value
 		if now.SelectedID != before.SelectedID || now.SelectedCwd != before.SelectedCwd || sessions.WorkspaceCwd() != workspace {
 			return false
 		}

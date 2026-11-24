@@ -79,7 +79,7 @@ func (s *mainState) phoneGitWorkspaceCatalog() (string, []remoteui.PhoneGitWorks
 	if id == "" || binding != fmt.Sprintf("%p\x00%s", client, id) {
 		return "", nil
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.Published().Value
 	if !snap.WorkspaceReady {
 		return "", nil
 	}

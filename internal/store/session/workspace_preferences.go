@@ -7,6 +7,7 @@ import (
 	"strings"
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/store/storelocale"
 )
 
 type WorkspacePreferenceStore interface {
@@ -213,7 +214,7 @@ func (s *Store) readWorkspacePreferenceBaselineLocked(scope string) bool {
 	prefs, err := b.store.WorkspaceNavigationPreferences(scope)
 	if err != nil {
 		b.readFailed[scope] = true
-		b.errors[scope] = "Workspace view preferences could not be read; view state kept for this run: " + err.Error()
+		b.errors[scope] = prefixedFaultText("workspacePreferences.read", storelocale.Pick("工作区视图偏好读取失败，本次保留当前状态：", "Workspace view preferences could not be read; view state kept for this run: "), err)
 		return false
 	}
 	b.readFailed[scope] = false
@@ -344,7 +345,7 @@ func (s *Store) saveWorkspacePreferencesLocked() {
 		return
 	}
 	if err := b.store.SaveWorkspaceNavigationPreferences(b.scope, cloneWorkspacePreferences(b.cache[b.scope])); err != nil {
-		b.errors[b.scope] = "View state kept for this run; saving failed: " + err.Error()
+		b.errors[b.scope] = prefixedFaultText("workspacePreferences.save", storelocale.Pick("本次保留当前视图状态，但保存失败：", "View state kept for this run; saving failed: "), err)
 		s.workspaceLayout.view.PreferenceError = b.errors[b.scope]
 		return
 	}

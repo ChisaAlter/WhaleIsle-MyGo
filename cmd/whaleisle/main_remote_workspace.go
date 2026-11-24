@@ -88,7 +88,7 @@ func (op *remoteWorkspaceAdoption) register(choice remotestore.DirectoryChoice) 
 		return false
 	}
 	op.sessions.OpenWorkspacePicker()
-	request := op.sessions.Snapshot().WorkspaceNavigation
+	request := op.sessions.Published().Value.WorkspaceNavigation
 	if request == nil || request.Mode != "pick" || request.Busy {
 		return false
 	}

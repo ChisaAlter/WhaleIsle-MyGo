@@ -292,7 +292,7 @@ func (d mainProjectDeps) hostDeps() projectctl.HostDeps {
 			draft.Text = text
 			d.s.mu.Unlock()
 			draft.Client.Sync()
-			snap := sessions.Snapshot()
+			snap := sessions.Published().Value
 			d.s.submitComposer(w, sessions, draft, sessionID, snap.ScratchCwd, false, snap.ComposerHostGeneration)
 			return nil
 		},

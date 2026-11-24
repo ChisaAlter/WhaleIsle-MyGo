@@ -146,11 +146,12 @@ func (s *Store) BeginAgentQueueEdit(token uint64, address AgentSessionAddress, i
 		edit := &s.agentNavigation.view.QueueEditor
 		edit.Loading = false
 		if err != nil {
-			edit.Error = err.Error()
+			edit.Error = faultText("agentQueue.edit", err)
 		} else {
 			edit.Text = text
 			edit.Ready = true
 		}
+		s.invalidateViewLocked()
 		go s.fire()
 	}()
 }
@@ -220,9 +221,10 @@ func (s *Store) UpdateAgentQueue(token uint64, address AgentSessionAddress, id s
 		n.view.ActionBusy = false
 		n.view.QueueEditor.Saving = false
 		if err != nil && !(action == QueueActionSteer && queueSteerConverged(err)) {
-			n.view.ActionStatus = err.Error()
+			msg := faultText("agentQueue.update", err)
+			n.view.ActionStatus = msg
 			if action == QueueActionEdit {
-				n.view.QueueEditor.Error = err.Error()
+				n.view.QueueEditor.Error = msg
 			}
 		} else {
 			next := n.view.Board.Queue[:0]
@@ -301,8 +303,9 @@ func (s *Store) SteerAgentQueue(token uint64, address AgentSessionAddress) {
 		if s.agentPromptActionAdmissionLocked(token, address, true) && s.agentNavigation.client == client && s.agentNavigation.actionEpoch == epoch {
 			s.agentNavigation.view.ActionBusy = false
 			if last != nil {
-				s.agentNavigation.view.ActionStatus = last.Error()
+				s.agentNavigation.view.ActionStatus = faultText("agentQueue.steerAll", last)
 			}
+			s.invalidateViewLocked()
 		}
 		s.mu.Unlock()
 		s.fire()

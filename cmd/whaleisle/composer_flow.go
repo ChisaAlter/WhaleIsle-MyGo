@@ -59,7 +59,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	current := s.sessions == sessions && s.composerDrafts[id] == d
 	preferences := s.settings
 	s.mu.Unlock()
-	live := sessions.Snapshot()
+	live := sessions.Published().Value
 	if !current || live.SelectedID != id || live.ComposerHostGeneration != hostGeneration {
 		log.Printf("composer submit dropped: stale current=%v selected=%q want=%q hostGen=%d/%d", current, live.SelectedID, id, live.ComposerHostGeneration, hostGeneration)
 		return
@@ -69,7 +69,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 	isRoom, _ := s.assistantGroupMembers(id)
 	if !isRoom && strings.HasPrefix(strings.TrimSpace(d.Text), "/") {
 		sessions.EnsureSlashCommands(s.lifecycleContext())
-		live = sessions.Snapshot()
+		live = sessions.Published().Value
 	}
 	if !isRoom && s.handleSessionLogExportCommand(win, sessions, d, live) {
 		return
@@ -103,7 +103,7 @@ func (s *mainState) submitComposer(win *mygo.Window, sessions *session.Store, d 
 		return
 	}
 	editSeq := d.EditSeq
-	if editSeq > 0 && !d.EditAllowed(sessions.Snapshot()) {
+	if editSeq > 0 && !d.EditAllowed(sessions.Published().Value) {
 		d.Error = i18n.T(i18n.KeyChatEditStale)
 		return
 	}

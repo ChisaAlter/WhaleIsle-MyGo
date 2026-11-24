@@ -37,7 +37,7 @@ func (s *mainState) remoteFileWorkspaceModel(win *mygo.Window, sessions *session
 	if sessions == nil {
 		return m
 	}
-	snapshot := sessions.Snapshot()
+	snapshot := sessions.Published().Value
 	reader, current, err := sessions.MediaPreviewSource(snapshot.SelectedID)
 	if err != nil {
 		return m

@@ -177,8 +177,9 @@ func (s *Store) ToggleAgentCatalogBranch(token uint64, path []AgentSessionAddres
 		b.busy = false
 		b.cancel = nil
 		if err != nil {
-			b.error = err.Error()
+			b.error = faultText("agentCatalog", err)
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

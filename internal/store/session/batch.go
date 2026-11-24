@@ -192,7 +192,7 @@ func (s *Store) ConfirmSessionBatch(ctx context.Context, token uint64) {
 			}
 			result := SessionBatchResult{SessionBatchTarget: target}
 			if err != nil {
-				result.Error = err.Error()
+				result.Error = faultText("batch", err)
 			} else {
 				if op.Kind == "delete" {
 					s.applyDeleteResultLocked(deleted)
@@ -201,6 +201,7 @@ func (s *Store) ConfirmSessionBatch(ctx context.Context, token uint64) {
 			}
 			s.batch.Results = append(s.batch.Results, result)
 			s.batch.Attempted++
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 		}

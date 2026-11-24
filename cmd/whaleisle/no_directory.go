@@ -15,7 +15,7 @@ func (s *mainState) openNoDirectory(win *mygo.Window, sessions *session.Store, d
 	}
 	s.revealMainConversation()
 	carry := sourceID == ""
-	snap := sessions.Snapshot()
+	snap := sessions.Published().Value
 	if snap.SelectedID != sourceID {
 		return
 	}

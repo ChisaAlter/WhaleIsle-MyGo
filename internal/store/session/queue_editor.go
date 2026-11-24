@@ -80,7 +80,7 @@ func (s *Store) runLoadQueueEdit(ctx context.Context, client *dsh.Client, sid st
 	s.queueEditor.Loading = false
 	s.invalidateViewLocked()
 	if err != nil {
-		s.queueEditor.Error = err.Error()
+		s.queueEditor.Error = faultText("queueEditor.load", err)
 	} else {
 		s.queueEditor.Text = text
 		s.queueEditor.Ready = true
@@ -173,7 +173,7 @@ func (s *Store) runSaveQueueEdit(ctx context.Context, client *dsh.Client, sid st
 	s.queueEditor.Saving = false
 	s.invalidateViewLocked()
 	if err != nil {
-		s.queueEditor.Error = err.Error()
+		s.queueEditor.Error = faultText("queueEditor.load", err)
 	} else {
 		for i := range s.planBoard.Queue {
 			if s.planBoard.Queue[i].ID == edit.ItemID {

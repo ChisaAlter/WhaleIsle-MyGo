@@ -419,10 +419,11 @@ func (s *Store) runHistoryTurnJump(ctx context.Context, client *dsh.Client, id s
 		resultErr = errors.New("The requested turn is no longer available in history.")
 	}
 	if resultErr != nil {
-		n.view.Err = resultErr.Error()
+		n.view.Err = faultText("historyNavigation", resultErr)
 	} else {
 		n.view.Ready = true
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }

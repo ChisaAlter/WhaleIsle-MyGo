@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/projectflow"
 	"whaleisle/internal/state"
+	"whaleisle/internal/store/storelocale"
 )
 
 func TestPublishedReusesSharedVersionWithoutAlloc(t *testing.T) {
@@ -201,4 +203,157 @@ func TestViewStateFaultsDoNotLeakRawErrorText(t *testing.T) {
 			t.Fatalf("fault[%d] leaked raw error: %q", i, text)
 		}
 	}
+}
+
+func TestBoundaryFaultClassificationAndNoRawErrorLeak(t *testing.T) {
+	rawErr := errors.New("dial tcp 10.99.88.77:9999: connectex: connection refused (secret-token)")
+	assertSafe := func(label, got string) {
+		t.Helper()
+		if got == "" {
+			t.Fatalf("%s is empty", label)
+		}
+		for _, needle := range []string{"10.99.88.77", "connectex", "secret-token"} {
+			if strings.Contains(got, needle) {
+				t.Fatalf("%s leaked raw error token %q: %q", label, needle, got)
+			}
+		}
+	}
+
+	s := snapshotCacheFixture(t)
+	v0 := s.Published()
+
+	// 1. setLastActionFaultLocked advances Published().Rev and strips raw error text.
+	s.mu.Lock()
+	s.setLastActionFaultLocked("test.action", "", rawErr)
+	s.mu.Unlock()
+	v1 := s.Published()
+	if v1.Rev <= v0.Rev {
+		t.Fatalf("LastAction fault did not advance Published Rev: %d -> %d", v0.Rev, v1.Rev)
+	}
+	assertSafe("LastAction", v1.Value.LastAction)
+
+	// Prefixed contract ("queue: ") preserves prefix without leaking raw error text.
+	s.mu.Lock()
+	s.setLastActionFaultLocked("test.queue", "queue: ", rawErr)
+	s.mu.Unlock()
+	v2 := s.Published()
+	if !strings.HasPrefix(v2.Value.LastAction, "queue: ") {
+		t.Fatalf("prefixed LastAction lost prefix: %q", v2.Value.LastAction)
+	}
+	assertSafe("prefixed LastAction", v2.Value.LastAction)
+
+	// storelocale.AuthoredError copy is preserved verbatim across faultText.
+	authored := storelocale.Authored("authored validation message")
+	if got := faultText("test.authored", authored); got != "authored validation message" {
+		t.Fatalf("AuthoredError was not preserved: %q", got)
+	}
+
+	// 2. workspaceNavigation.view.Error updates Published() without raw text.
+	s.OpenWorkspacePicker()
+	nav := s.Published().Value.WorkspaceNavigation
+	if nav == nil {
+		t.Fatal("WorkspaceNavigation is nil after OpenWorkspacePicker")
+	}
+	beforeNavRev := s.Published().Rev
+	s.SetWorkspaceNavigationError(nav.Token, rawErr)
+	vNav := s.Published()
+	if vNav.Rev <= beforeNavRev {
+		t.Fatalf("SetWorkspaceNavigationError did not advance Published Rev: %d -> %d", beforeNavRev, vNav.Rev)
+	}
+	if vNav.Value.WorkspaceNavigation == nil {
+		t.Fatal("WorkspaceNavigation became nil")
+	}
+	assertSafe("WorkspaceNavigation.Error", vNav.Value.WorkspaceNavigation.Error)
+
+	// 3. agentNavigation view.Error, ActionStatus, and Resources[path].Error strip raw text.
+	s.mu.Lock()
+	s.selectedID = "parent"
+	s.planHistoryBinding = "binding"
+	s.items = append(s.items, Item{SessionID: "parent", AgentAvailable: true})
+	addr := AgentSessionAddress{Kind: "subagent", ParentSessionID: "parent", ChildSessionID: "child", Mode: "continuable"}
+	s.agentNavigation = agentNavigationState{
+		client:     s.client,
+		mux:        s.mux,
+		generation: s.followGeneration,
+		binding:    "binding",
+		root:       "parent",
+		view: AgentNavigationView{
+			Token:     11,
+			SessionID: "child",
+			Address:   addr,
+			Process:   projectflow.ProcessSnapshot{Live: true},
+		},
+	}
+	s.mu.Unlock()
+
+	s.SetAgentResourceStatus(11, addr, "report.xlsx", false, rawErr)
+	agentView := s.AgentNavigationSnapshot()
+	assertSafe("AgentNavigation.Resources.Error", agentView.Resources["report.xlsx"].Error)
+
+	s.AddAgentNavigationImages(11, addr, nil, rawErr)
+	agentView = s.AgentNavigationSnapshot()
+	assertSafe("AgentNavigation.ActionStatus", agentView.ActionStatus)
+
+	s.mu.Lock()
+	s.agentNavigation.view.Error = faultText("test.agentLive", rawErr)
+	s.mu.Unlock()
+	assertSafe("AgentNavigation.Error", s.AgentNavigationSnapshot().Error)
+}
+
+func TestPublishedConcurrentFaultWritesAndReadOnlyReads(t *testing.T) {
+	s := snapshotCacheFixture(t)
+	s.OpenWorkspacePicker()
+	nav := s.Published().Value.WorkspaceNavigation
+	if nav == nil {
+		t.Fatal("expected open workspace picker")
+	}
+	rawErr := errors.New("dial tcp 10.99.88.77:9999: connectex: connection refused")
+
+	var wg sync.WaitGroup
+	for w := 0; w < 4; w++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for i := 0; i < 40; i++ {
+				switch (i + id) % 3 {
+				case 0:
+					s.mu.Lock()
+					s.setLastActionFaultLocked("bench.fault", "", rawErr)
+					s.mu.Unlock()
+				case 1:
+					s.SetWorkspaceNavigationError(nav.Token, rawErr)
+				case 2:
+					s.SetLastAction("ok")
+				}
+			}
+		}(w)
+	}
+	for r := 0; r < 6; r++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var lastRev uint64
+			for i := 0; i < 150; i++ {
+				v := s.Published()
+				if v == nil || v.Rev == 0 {
+					t.Errorf("invalid Published version: %+v", v)
+					return
+				}
+				if v.Rev < lastRev {
+					t.Errorf("Published rev regressed: %d -> %d", lastRev, v.Rev)
+					return
+				}
+				lastRev = v.Rev
+				if strings.Contains(v.Value.LastAction, "10.99.88.77") {
+					t.Errorf("LastAction leaked raw error: %q", v.Value.LastAction)
+					return
+				}
+				if v.Value.WorkspaceNavigation != nil && strings.Contains(v.Value.WorkspaceNavigation.Error, "10.99.88.77") {
+					t.Errorf("WorkspaceNavigation.Error leaked raw error: %q", v.Value.WorkspaceNavigation.Error)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }

@@ -176,10 +176,11 @@ func (s *Store) SetWorkspaceNavigationDraft(token uint64, draft string) {
 func (s *Store) SetWorkspaceNavigationError(token uint64, err error) {
 	s.mu.Lock()
 	if s.workspaceNavigationCurrentLocked(token) && err != nil {
-		if s.workspaceNavigation.view.Error != err.Error() {
+		msg := faultText("workspaceNavigation", err)
+		if s.workspaceNavigation.view.Error != msg {
 			s.invalidateViewLocked()
 		}
-		s.workspaceNavigation.view.Error = err.Error()
+		s.workspaceNavigation.view.Error = msg
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -222,10 +223,11 @@ func (s *Store) ChooseRegisteredWorkspace(token uint64, id string, persist func(
 	}
 	err := s.commitWorkspaceLocked(WorkspaceRow(ws), persist)
 	if err != nil {
-		if s.workspaceNavigation.view.Error != err.Error() {
+		msg := faultText("workspaceNavigation.choose", err)
+		if s.workspaceNavigation.view.Error != msg {
 			s.invalidateViewLocked()
 		}
-		s.workspaceNavigation.view.Error = err.Error()
+		s.workspaceNavigation.view.Error = msg
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -295,7 +297,7 @@ func (s *Store) RegisterWorkspace(ctx context.Context, token uint64, path string
 		}
 		if err != nil {
 			s.workspaceNavigation.view.Busy = false
-			s.workspaceNavigation.view.Error = err.Error()
+			s.workspaceNavigation.view.Error = faultText("workspaceNavigation.register", err)
 			s.workspaceNavigation.cancel = nil
 			s.invalidateViewLocked()
 		}
@@ -371,7 +373,7 @@ func (s *Store) ConfirmWorkspaceRename(ctx context.Context, token uint64, title 
 		}
 		if err != nil {
 			s.workspaceNavigation.view.Busy = false
-			s.workspaceNavigation.view.Error = err.Error()
+			s.workspaceNavigation.view.Error = faultText("workspaceNavigation.rename", err)
 			s.workspaceNavigation.cancel = nil
 			s.invalidateViewLocked()
 		} else {
@@ -433,7 +435,7 @@ func (s *Store) ConfirmWorkspaceRemoval(ctx context.Context, token uint64) {
 			}
 			if err != nil {
 				s.workspaceNavigation.view.Busy = false
-				s.workspaceNavigation.view.Error = err.Error()
+				s.workspaceNavigation.view.Error = faultText("workspaceNavigation.remove", err)
 				s.workspaceNavigation.cancel = nil
 				s.invalidateViewLocked()
 				s.mu.Unlock()
@@ -513,7 +515,7 @@ func (s *Store) BrowseWorkspaceDirectories(ctx context.Context, token uint64, pa
 		}
 		s.workspaceNavigation.view.ListBusy = false
 		if err != nil {
-			s.workspaceNavigation.view.Error = err.Error()
+			s.workspaceNavigation.view.Error = faultText("workspaceNavigation.browse", err)
 		} else {
 			s.workspaceNavigation.view.Listing = &listing
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -191,7 +192,7 @@ func (s *Store) refreshFeedbackForOwner(ctx context.Context, owner *workspaceSel
 		f := &s.feedback
 		f.Loading = false
 		if err != nil {
-			f.Error = "Feedback unavailable: " + err.Error()
+			f.Error = prefixedFaultText("feedback.read", "Feedback unavailable: ", err)
 		} else {
 			f.Ready = true
 			f.Items = map[string]FeedbackItem{}
@@ -203,6 +204,7 @@ func (s *Store) refreshFeedbackForOwner(ctx context.Context, owner *workspaceSel
 				}
 			}
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -295,8 +297,16 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 		s.feedbackBusyID = ""
 		if err != nil {
 			if currentDraft {
-				f.Error = err.Error()
-				s.lastAction = "feedback: " + err.Error()
+				var msg string
+				if r.Error.Code == "version-conflict" || r.Error.Code == "note-too-large" {
+					log.Printf("[session] feedback.write: %v", err)
+					msg = r.Error.Code
+				} else {
+					msg = faultText("feedback.write", err)
+				}
+				f.Error = msg
+				s.lastAction = "feedback: " + msg
+				s.invalidateViewLocked()
 			}
 			if r.Error.Code == "version-conflict" {
 				if r.Error.Current == nil {

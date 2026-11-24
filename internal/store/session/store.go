@@ -578,7 +578,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 		s.mu.Unlock()
 		target, err := s.CaptureWorkspaceSessionTarget(host, workspaceID, excluded...)
 		if err != nil {
-			s.SetLastAction("create workspace session: " + err.Error())
+			s.SetLastAction(prefixedFaultText("createWorkspaceSession", "create workspace session: ", err))
 			return
 		}
 		go func() {
@@ -682,7 +682,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 		}
 		if err != nil {
 			// A failed authoritative check is not permission to reuse an identity.
-			s.lastAction = "blank session check: " + err.Error()
+			s.setLastActionFaultLocked("blankReuse", "blank session check: ", err)
 			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
@@ -1708,7 +1708,7 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 		s.promptBusy = false
 		s.invalidateViewLocked()
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("prompt", "", err)
 		} else if editSeq > 0 {
 			s.lastAction = "prompt edited"
 			for i := range s.messages {
@@ -1765,7 +1765,7 @@ func (s *Store) SetPresentation(ctx context.Context, sessionID, title string) {
 		if err != nil {
 			// Non-fatal: rename already applied; keep lastAction unless empty.
 			if s.lastAction == "" {
-				s.lastAction = err.Error()
+				s.setLastActionFaultLocked("setPresentation", "", err)
 				s.invalidateViewLocked()
 			}
 		}
@@ -1807,7 +1807,7 @@ func (s *Store) OpenWorkspacePath(ctx context.Context, path, action, application
 		err := client.Call(ctx, "session/openWorkspacePath", map[string]any{"request": req}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("openWorkspacePath", "", err)
 		} else if out.Opened {
 			s.lastAction = "workspace path opened"
 		} else {
@@ -1882,7 +1882,7 @@ func (s *Store) CancelSession(ctx context.Context, sessionID string) {
 			return
 		}
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("cancelSession", "", err)
 		} else if out.Accepted {
 			s.lastAction = "cancel accepted"
 		} else {
@@ -1918,7 +1918,7 @@ func (s *Store) InterruptChild(ctx context.Context, parentID, childID, mode stri
 		}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("interruptChild", "", err)
 		} else {
 			s.lastAction = "interrupt accepted"
 		}
@@ -1953,7 +1953,7 @@ func (s *Store) PromptChild(ctx context.Context, parentID, childID, text string)
 		err := client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &out)
 		s.mu.Lock()
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("promptChild", "", err)
 		} else {
 			s.lastAction = "subagent prompt sent"
 		}

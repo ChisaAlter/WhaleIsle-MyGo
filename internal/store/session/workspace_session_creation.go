@@ -96,7 +96,8 @@ func (s *Store) SetWorkspaceSessionErrorForHost(expectedHost, expectedFollow uin
 		s.mu.Unlock()
 		return false
 	}
-	s.lastAction = "create workspace session: " + err.Error()
+	s.setLastActionFaultLocked("workspaceSessionCreate", "create workspace session: ", err)
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	return true
@@ -429,7 +430,8 @@ func (t *WorkspaceSessionTarget) ReportFailure(err error) bool {
 		log.Printf("session: workspace create error suppressed by stale-owner fence: %s", err)
 		return false
 	}
-	s.lastAction = err.Error()
+	s.setLastActionFaultLocked("workspaceSessionTarget", "", err)
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	return true
