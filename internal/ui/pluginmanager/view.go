@@ -63,12 +63,22 @@ type page struct {
 	rev   uint64
 	a     manager.Actions
 	watch *pagekit.MediaWatch
+	// epoch moves when the model's Controller is swapped, so a memo keyed
+	// on the same revision cannot keep another controller's rows.
+	epoch uint64
+}
+
+// controllerEpoch is the retained record behind page.epoch.
+type controllerEpoch struct {
+	last *manager.Controller
+	n    uint64
 }
 
 // version is the memo version of a region showing s: the revision, the
-// locale, the contributions and the pictures that arrived.
+// controller's identity, the design tokens' generation, the locale, the
+// contributions and the pictures that arrived.
 func (p *page) version() uint64 {
-	v := pagekit.NewVersion().Uint(p.rev).Uint(p.watch.Epoch()).Bool(p.m.OnOpenURL != nil).Bool(p.m.RenderConfiguration != nil)
+	v := pagekit.NewVersion().Uint(p.rev).Uint(p.epoch).Uint(design.Revision()).Uint(p.watch.Epoch()).Bool(p.m.OnOpenURL != nil).Bool(p.m.RenderConfiguration != nil)
 	for _, item := range p.m.Contributions {
 		v = v.String(item.Kind).String(item.Key).String(item.Title).String(item.Summary).Uint(uint64(item.Order))
 	}
@@ -81,9 +91,13 @@ func View(c *ui.Context, m Model) {
 	}
 	m.Controller.Ensure()
 	ver := m.Controller.Snapshot()
-	p := &page{m: m, s: ver.Value, rev: ver.Rev, a: m.Controller.Actions(ver.Value.Owner)}
-	s, a := p.s, p.a
 	root := ui.Column(c).Key("plugin-manager-page").Grow(1).FillWidth().MinHeight(0).MinWidth(0)
+	epoch := ui.Local(root, "controller-epoch", func() controllerEpoch { return controllerEpoch{} })
+	if epoch.last != m.Controller {
+		epoch.last, epoch.n = m.Controller, epoch.n+1
+	}
+	p := &page{m: m, s: ver.Value, rev: ver.Rev, a: m.Controller.Actions(ver.Value.Owner), epoch: epoch.n}
+	s, a := p.s, p.a
 	p.watch = *ui.Local(root, "media-watch", func() *pagekit.MediaWatch { return &pagekit.MediaWatch{} })
 	scroll := ui.Local(root, "scroll", func() *ui.ScrollState { return &ui.ScrollState{} })
 	root.Children(func() {
