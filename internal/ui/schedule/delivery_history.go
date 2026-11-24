@@ -155,6 +155,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, epoch uint64) {
 				Uint(theme.Revision()).
 				Uint(epoch).
 				String(key).
+				String(row.TimeZone).
 				Uint(uint64(len(h.Page.Records))).
 				Bool(loading).
 				String(h.Error).
@@ -164,7 +165,7 @@ func (p *Panel) deliveryHistoryView(c *ui.Context, m Model, epoch uint64) {
 				Bool(p.historyRetentionOpen).
 				Uint(measureGen)
 			for _, rec := range h.Page.Records {
-				ver = ver.String(rec.MessageID).Bool(p.deliveryExpanded[key+"/"+rec.MessageID])
+				ver = ver.String(rec.MessageID).String(rec.ScheduledAt).Bool(p.deliveryExpanded[key+"/"+rec.MessageID])
 			}
 			ui.Column(c.Key("schedule-records-list")).FillWidth().MinWidth(0).
 				Padding(design.Sp(6), design.Sp(6), design.Sp(20), design.Sp(6)).Gap(0).

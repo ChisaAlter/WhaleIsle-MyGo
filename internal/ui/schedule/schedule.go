@@ -111,13 +111,17 @@ func View(c *ui.Context, m Model) {
 				}, nil)
 				return
 			}
-			listVer := scheduleMemoBase(epoch, snap).
+			v := scheduleMemoBase(epoch, snap).
+				Uint(snap.CatalogRequest).
 				Uint(uint64(len(snap.Rows))).
 				Bool(m.EditID != nil).
 				Bool(m.EditTitle != nil).
 				Bool(m.OnHistory != nil).
-				Bool(m.OnDelete != nil).
-				Key()
+				Bool(m.OnDelete != nil)
+			for _, entry := range snap.Rows {
+				v = v.String(entry.ID).String(entry.Title).String(entry.Status).String(entry.Detail)
+			}
+			listVer := v.Key()
 			listCard := ui.Column(c).Key("schedule-standalone-list").FillWidth().MinWidth(0).
 				Radius(design.RadiusXL).Border(design.BorderWidth, t.Border).Background(t.Card).Clip().
 				Memo(listVer)

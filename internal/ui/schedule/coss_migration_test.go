@@ -166,3 +166,55 @@ func TestTimingPickersCossControls(t *testing.T) {
 		t.Fatalf("Zone = %q, want Asia/Tokyo", d.Zone)
 	}
 }
+
+func TestDeliveryHistoryMemoUpdatesOnTimezoneChange(t *testing.T) {
+	f := newScheduleUIFixture(t)
+	i18n.SetLocale(i18n.LocaleZH)
+	p, m := f.panel()
+	row := f.store.Snapshot().Value.Rows[0]
+	row.TimeZone = "UTC"
+	p.historyKey = taskKey(row)
+	p.historyRow = row
+	p.historyState = deliveryHistoryState{
+		Loaded: true,
+		Page: schedstore.DeliveryPage{
+			Records: []schedstore.DeliveryRecord{
+				{MessageID: "m1", ScheduledAt: "2026-10-16T01:00:00Z"},
+			},
+		},
+	}
+
+	tt := ui.NewTester(func(c *ui.Context) { p.deliveryHistoryView(c, m, 1) }, 400, 300)
+	if !tt.HasText("10月16日 01:00") {
+		t.Fatalf("expected UTC time 01:00, got %v", tt.Texts())
+	}
+
+	p.historyRow.TimeZone = "Asia/Shanghai"
+	tt.Frame()
+	if !tt.HasText("10月16日 09:00") {
+		t.Fatalf("expected Shanghai time 09:00 after timezone change, got %v", tt.Texts())
+	}
+}
+
+func TestStandaloneListMemoUpdatesWhenRowContentChanges(t *testing.T) {
+	f := newScheduleUIFixture(t)
+	m := Model{Store: f.store, SessionID: "viewer"}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() { View(c, m) })
+	}, 900, 700)
+	if !tt.HasText("Morning check") {
+		t.Fatalf("initial task missing: %v", tt.Texts())
+	}
+	f.mu.Lock()
+	f.rows[0]["title"] = "Morning check v2"
+	f.mu.Unlock()
+	f.store.Refresh(t.Context(), "viewer")
+	f.wait(t, func() bool {
+		snap := f.store.Snapshot().Value
+		return !snap.Loading && len(snap.Rows) > 0 && snap.Rows[0].Title == "Morning check v2"
+	})
+	tt.Frame()
+	if !tt.HasText("Morning check v2") {
+		t.Fatalf("standalone list did not update title: %v", tt.Texts())
+	}
+}
