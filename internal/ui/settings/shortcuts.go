@@ -5,8 +5,12 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
+
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -29,6 +33,143 @@ const (
 	shortcutRowActionSize = 20
 	shortcutRecorderWidth = 96
 )
+
+var (
+	shortcutStaticOnce     sync.Once
+	shortcutAllCommands    []shortcuts.Command
+	shortcutFixedList      []shortcuts.Command
+	shortcutOrderRankMap   map[string]int
+	shortcutReferenceGroup = []struct {
+		zh, en string
+		rows   []shortcuts.Command
+	}{
+		{"消息输入", "Message input", []shortcuts.Command{
+			{ID: "fixed.send", ZH: "发送消息", EN: "Send message", Default: "Enter"},
+			{ID: "fixed.newline", ZH: "换行", EN: "New line", Default: "Shift+Enter"},
+			{ID: "fixed.complementary", ZH: "使用互补的 Queue／Steer 方式", EN: "Use the complementary Queue / Steer action", Default: "Mod+Enter"},
+			{ID: "fixed.slash", ZH: "打开命令菜单", EN: "Open command menu", Default: "/"},
+			{ID: "fixed.mention", ZH: "打开引用菜单", EN: "Open reference menu", Default: "@"},
+			{ID: "response.stop", ZH: "停止生成", EN: "Stop generation", Default: "Esc  Esc"},
+		}},
+		{"菜单与弹层", "Menus and dialogs", []shortcuts.Command{
+			{ID: "fixed.move", ZH: "移动菜单选择", EN: "Move menu selection", Default: "↑  ↓"},
+			{ID: "fixed.select", ZH: "选择菜单项", EN: "Select menu item", Default: "Enter"},
+			{ID: "fixed.dismiss", ZH: "关闭菜单或顶层弹窗", EN: "Close menu or top dialog", Default: "Esc"},
+		}},
+		{"审批区域", "Approval area", []shortcuts.Command{
+			{ID: "approval.allow", ZH: "允许一次", EN: "Allow once", Default: "Enter"},
+			{ID: "approval.reject", ZH: "拒绝", EN: "Reject", Default: "Esc"},
+		}},
+	}
+)
+
+func initShortcutStatic() {
+	shortcutStaticOnce.Do(func() {
+		shortcutAllCommands = shortcuts.Commands()
+		shortcutFixedList = shortcuts.FixedCommands()
+		orderList := []string{
+			"shortcuts.open", "session.new", "sidebar.toggle", "session.search",
+			"workspace.add", "session.rename", "session.fork", "session.archive",
+			"settings.open", "fontSize.increase", "fontSize.decrease",
+			"workspace.openLocal", "sidebar.right.toggle", "workspace.files",
+			"browser.open", "terminal.new", "pane.split", "pane.fullscreen.toggle",
+			"page.refresh", "page.close",
+		}
+		shortcutOrderRankMap = make(map[string]int, len(orderList))
+		for i, id := range orderList {
+			shortcutOrderRankMap[id] = i
+		}
+	})
+}
+
+func shortcutCommandRank(id string) int {
+	if value, ok := shortcutOrderRankMap[id]; ok {
+		return value
+	}
+	return len(shortcutOrderRankMap)
+}
+
+// shortcutDialogCache caches per-editor normalized defaults, issues, modified
+// count and filtered row lists so steady frames never rebuild shortcuts.Defaults()
+// or re-parse every chord.
+type shortcutDialogCache struct {
+	editor       *shortcuts.Editor
+	normDefaults map[string]string
+	draftsHash   uint64
+	query        string
+	rows         []shortcuts.Command
+	fixed        map[string]bool
+	issues       map[string]string
+	modified     int
+	valid        bool
+}
+
+func (sc *shortcutDialogCache) refresh(e *shortcuts.Editor) {
+	initShortcutStatic()
+	if sc.editor != e || sc.normDefaults == nil {
+		sc.editor = e
+		sc.normDefaults = make(map[string]string, len(shortcutAllCommands))
+		// Probe once whether e uses shared defaults or platform defaults:
+		// Editor.Default calls Defaults() on every invocation when !shared, so
+		// probing a key that differs between SharedDefaults and Defaults
+		// ("session.search": "Mod+K" vs "Mod+Shift+K") eliminates 40+
+		// Defaults() allocations per frame.
+		probe := e.Default("session.search")
+		var defaults map[string]string
+		if probe == "Mod+K" {
+			defaults = shortcuts.SharedDefaults()
+		} else {
+			defaults = shortcuts.Defaults()
+		}
+		for _, cmd := range shortcutAllCommands {
+			sc.normDefaults[cmd.ID] = shortcutBinding(defaults[cmd.ID])
+		}
+		sc.valid = false
+	}
+	h := newMemoKey(1)
+	for _, cmd := range shortcutAllCommands {
+		h.s(shortcutDraft(e, cmd.ID))
+	}
+	draftsHash := h.sum()
+	if sc.valid && sc.draftsHash == draftsHash && sc.query == e.Query {
+		return
+	}
+	if !sc.valid || sc.draftsHash != draftsHash {
+		sc.issues = e.Issues()
+		modified := 0
+		for _, cmd := range shortcutAllCommands {
+			if shortcutBinding(shortcutDraft(e, cmd.ID)) != sc.normDefaults[cmd.ID] {
+				modified++
+			}
+		}
+		sc.modified = modified
+		sc.draftsHash = draftsHash
+	}
+	sc.query = e.Query
+	rows := make([]shortcuts.Command, 0, len(shortcutAllCommands)+len(shortcutFixedList))
+	fixed := make(map[string]bool, len(shortcutFixedList))
+	for _, cmd := range shortcutAllCommands {
+		if shortcutReferenceMatches(cmd, e.Query, shortcutDraft(e, cmd.ID)) {
+			rows = append(rows, cmd)
+		}
+	}
+	for _, cmd := range shortcutFixedList {
+		if shortcutReferenceMatches(cmd, e.Query, cmd.Default) {
+			rows = append(rows, cmd)
+			fixed[cmd.ID] = true
+		}
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := shortcutCommandRank(rows[i].ID), shortcutCommandRank(rows[j].ID)
+		if a != b {
+			return a < b
+		}
+		return rows[i].ID < rows[j].ID
+	})
+	sc.rows = rows
+	sc.fixed = fixed
+	sc.valid = true
+}
 
 // shortcutPalette carries the resolved colors the dialog paints with.
 type shortcutPalette struct {
@@ -74,6 +215,8 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 		return
 	}
 	target := ui.Local(c.Root(), "shortcut-reference-target", func() string { return "" })
+	cache := ui.Local(c.Root(), "shortcut-dialog-cache", func() shortcutDialogCache { return shortcutDialogCache{} })
+	cache.refresh(e)
 	dismiss := func() {
 		if e.ResetPending {
 			e.CancelReset()
@@ -93,11 +236,11 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 			shortcutDialogHeader(c, open, e, p, target)
 			shortcutDialogSearch(c, e, p)
 			ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
-				ui.Column(c).FillWidth().MinWidth(0).Gap(0).Padding(0, 16, 18, 16).Children(func() {
-					shortcutDialogRows(c, e, p, target)
+				ui.Column(c).FillWidth().MinWidth(0).Gap(0).Padding(0, design.Sp(4), design.Sp(4.5), design.Sp(4)).Children(func() {
+					shortcutDialogRowsCached(c, e, p, target, cache)
 				})
 			})
-			shortcutDialogFooter(c, e, p, target)
+			shortcutDialogFooterCached(c, e, p, target, cache)
 			shortcutResetConfirmation(c, e, p)
 		})
 	})
@@ -105,15 +248,15 @@ func bodyShortcutDialog(c *ui.Context, open *bool, e *shortcuts.Editor, p shortc
 
 func shortcutDialogHeader(c *ui.Context, open *bool, e *shortcuts.Editor, p shortcutPalette, target *string) {
 	ui.Row(c).FillWidth().Height(shortcutHeaderHeight).Shrink(0).Padding(22, 14, 0, 24).AlignItems(ui.Start).Children(func() {
-		ui.Text(c, providerCopy("快捷键", "Keyboard shortcuts")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
+		ui.Text(c, providerCopy("快捷键", "Keyboard shortcuts")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(design.WeightMedium).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
 		// The reference places the 28 DIP close box at 20 from the top, two DIPs
 		// above the title's 22, so the two share a center line.
-		close := ui.Button(c, "").Label(providerCopy("关闭快捷键", "Close keyboard shortcuts")).
-			Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
-		close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(p.fg) })
-		if close.Hovered() {
-			close.Background(p.hover)
-		}
+		close := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonIconSM,
+			Icon:    coss.IconX,
+			Label:   providerCopy("关闭快捷键", "Close keyboard shortcuts"),
+		}).Shrink(0).Margin(-2, 0, 0, 0)
 		if close.Clicked() {
 			shortcutCloseReference(open, e, target)
 		}
@@ -134,7 +277,7 @@ func shortcutCloseReference(open *bool, e *shortcuts.Editor, target *string) {
 
 func shortcutDialogSearch(c *ui.Context, e *shortcuts.Editor, p shortcutPalette) {
 	ui.Row(c).FillWidth().Height(shortcutSearchHeight).Shrink(0).Padding(14, 20, 10, 20).Children(func() {
-		field := ui.Row(c).FillWidth().Height(36).MinWidth(0).Padding(8, 14).Gap(8).Radius(12).Border(.5, p.border).Background(p.field).AlignItems(ui.Center)
+		field := ui.Row(c).FillWidth().Height(36).MinWidth(0).Padding(design.Sp(2), design.Sp(3.5)).Gap(design.Sp(2)).Radius(design.RadiusXL).Border(design.BorderWidth, p.border).Background(p.field).AlignItems(ui.Center)
 		field.Children(func() {
 			ui.Icon(c, bodyIcon("search")).Size(14, 14).Shrink(0).TextColor(p.caption)
 			ui.TextInputBase(c, &e.Query).AutoFocus().Label("shortcut-search").Grow(1).MinWidth(0).Height(18).
@@ -143,9 +286,12 @@ func shortcutDialogSearch(c *ui.Context, e *shortcuts.Editor, p shortcutPalette)
 			if e.Query == "" {
 				return
 			}
-			clear := ui.Button(c, "").Label("clear-shortcut-search").Tooltip(providerCopy("清空搜索", "Clear search")).
-				Size(16, 16).Shrink(0).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent)
-			clear.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(10, 10).TextColor(p.muted) })
+			clear := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconXS,
+				Icon:    coss.IconX,
+				Label:   "clear-shortcut-search",
+			}).Tooltip(providerCopy("清空搜索", "Clear search"))
 			if clear.Clicked() {
 				e.Query = ""
 			}
@@ -156,39 +302,17 @@ func shortcutDialogSearch(c *ui.Context, e *shortcuts.Editor, p shortcutPalette)
 // Application entries and the read-only input/menu/approval directories are
 // deliberately separate from dispatch: bare Enter/Escape are context actions.
 func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, target *string) {
-	rows := []shortcuts.Command{}
-	fixed := map[string]bool{}
-	for _, command := range e.Search("") {
-		if shortcutReferenceMatches(command, e.Query, shortcutDraft(e, command.ID)) {
-			rows = append(rows, command)
-		}
-	}
-	for _, command := range shortcuts.FixedCommands() {
-		if shortcutReferenceMatches(command, e.Query, command.Default) {
-			rows = append(rows, command)
-			fixed[command.ID] = true
-		}
-	}
-	order := map[string]int{}
-	for i, id := range []string{"shortcuts.open", "session.new", "sidebar.toggle", "session.search", "workspace.add", "session.rename", "session.fork", "session.archive", "settings.open", "fontSize.increase", "fontSize.decrease", "workspace.openLocal", "sidebar.right.toggle", "workspace.files", "browser.open", "terminal.new", "pane.split", "pane.fullscreen.toggle", "page.refresh", "page.close"} {
-		order[id] = i
-	}
-	rank := func(id string) int {
-		if value, ok := order[id]; ok {
-			return value
-		}
-		return len(order)
-	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		a, b := rank(rows[i].ID), rank(rows[j].ID)
-		if a != b {
-			return a < b
-		}
-		return rows[i].ID < rows[j].ID
-	})
-	issues := e.Issues()
+	cache := &shortcutDialogCache{}
+	cache.refresh(e)
+	shortcutDialogRowsCached(c, e, p, target, cache)
+}
+
+func shortcutDialogRowsCached(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, target *string, cache *shortcutDialogCache) {
+	rows := cache.rows
+	fixed := cache.fixed
+	issues := cache.issues
 	if len(rows) > 0 {
-		ui.Text(c, providerCopy("应用操作", "Application")).FillWidth().Padding(16, 8, 6, 8).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(p.caption)
+		ui.Text(c, providerCopy("应用操作", "Application")).FillWidth().Padding(design.Sp(4), design.Sp(2), design.Sp(1.5), design.Sp(2)).FontSize(fonttheme.InterfaceSize(12)).FontWeight(design.WeightMedium).TextColor(p.caption)
 	}
 	for _, command := range rows {
 		if fixed[command.ID] {
@@ -202,36 +326,14 @@ func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, t
 		}
 	}
 	count := len(rows)
-	groups := []struct {
-		zh, en string
-		rows   []shortcuts.Command
-	}{
-		{"消息输入", "Message input", []shortcuts.Command{
-			{ID: "fixed.send", ZH: "发送消息", EN: "Send message", Default: "Enter"},
-			{ID: "fixed.newline", ZH: "换行", EN: "New line", Default: "Shift+Enter"},
-			{ID: "fixed.complementary", ZH: "使用互补的 Queue／Steer 方式", EN: "Use the complementary Queue / Steer action", Default: "Mod+Enter"},
-			{ID: "fixed.slash", ZH: "打开命令菜单", EN: "Open command menu", Default: "/"},
-			{ID: "fixed.mention", ZH: "打开引用菜单", EN: "Open reference menu", Default: "@"},
-			{ID: "response.stop", ZH: "停止生成", EN: "Stop generation", Default: "Esc  Esc"},
-		}},
-		{"菜单与弹层", "Menus and dialogs", []shortcuts.Command{
-			{ID: "fixed.move", ZH: "移动菜单选择", EN: "Move menu selection", Default: "↑  ↓"},
-			{ID: "fixed.select", ZH: "选择菜单项", EN: "Select menu item", Default: "Enter"},
-			{ID: "fixed.dismiss", ZH: "关闭菜单或顶层弹窗", EN: "Close menu or top dialog", Default: "Esc"},
-		}},
-		{"审批区域", "Approval area", []shortcuts.Command{
-			{ID: "approval.allow", ZH: "允许一次", EN: "Allow once", Default: "Enter"},
-			{ID: "approval.reject", ZH: "拒绝", EN: "Reject", Default: "Esc"},
-		}},
-	}
-	for _, group := range groups {
+	for _, group := range shortcutReferenceGroup {
 		shown := false
 		for _, command := range group.rows {
 			if !shortcutReferenceMatches(command, e.Query, group.zh+" "+group.en) {
 				continue
 			}
 			if !shown {
-				ui.Text(c, providerCopy(group.zh, group.en)).FillWidth().Padding(16, 8, 6, 8).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(p.caption)
+				ui.Text(c, providerCopy(group.zh, group.en)).FillWidth().Padding(design.Sp(4), design.Sp(2), design.Sp(1.5), design.Sp(2)).FontSize(fonttheme.InterfaceSize(12)).FontWeight(design.WeightMedium).TextColor(p.caption)
 				shown = true
 			}
 			shortcutFixedReferenceRow(c, command, p)
@@ -239,10 +341,13 @@ func shortcutDialogRows(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, t
 		}
 	}
 	if count == 0 {
-		ui.Text(c, providerCopy("没有匹配的快捷键", "No matching shortcuts")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.caption).Padding(6, 8)
+		ui.Text(c, providerCopy("没有匹配的快捷键", "No matching shortcuts")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.caption).Padding(design.Sp(1.5), design.Sp(2))
 	}
 }
 func shortcutReferenceMatches(command shortcuts.Command, query, extra string) bool {
+	if strings.TrimSpace(query) == "" {
+		return true
+	}
 	haystack := strings.ToLower(command.ID + " " + command.ZH + " " + command.EN + " " + command.Default + " " + shortcutDisplay(command.Default) + " " + extra)
 	for _, term := range strings.Fields(strings.ToLower(query)) {
 		if !strings.Contains(haystack, term) {
@@ -256,14 +361,15 @@ func shortcutFixedReferenceRow(c *ui.Context, command shortcuts.Command, p short
 	if command.ID == "fontSize.increase" {
 		row.Tooltip(providerCopy("也支持 ", "Also accepts ") + shortcutDisplay("Mod+Shift+="))
 	}
-	row.MinWidth(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
+	row.MinWidth(0).MinHeight(shortcutRowHeight).Padding(design.Sp(2)).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, shortcutCommandLabel(command)).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg)
-		ui.Text(c, shortcutDisplay(command.Default)).Padding(4, 12).Radius(10).Background(p.field).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.muted).SingleLine()
+		ui.Text(c, shortcutDisplay(command.Default)).Padding(design.Sp(1), design.Sp(3)).Radius(design.RadiusLG).Background(p.field).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.muted).SingleLine()
 	})
 }
 func shortcutFixedRows(c *ui.Context, query string, p shortcutPalette) int {
+	initShortcutStatic()
 	count := 0
-	for _, command := range shortcuts.FixedCommands() {
+	for _, command := range shortcutFixedList {
 		if shortcutReferenceMatches(command, query, "") {
 			shortcutFixedReferenceRow(c, command, p)
 			count++
@@ -297,9 +403,9 @@ func shortcutDraft(e *shortcuts.Editor, id string) string {
 
 func shortcutRow(c *ui.Context, e *shortcuts.Editor, command shortcuts.Command, p shortcutPalette, target *string, invalid bool) {
 	label := shortcutCommandLabel(command)
-	row := ui.Button(c, "").Label("shortcut-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).
-		Padding(8).Gap(8).Radius(10).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
-		Tooltip(providerCopy("修改"+label+"快捷键", "Edit shortcut for "+label))
+	row := ui.ButtonBase(c).Label("shortcut-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).
+		Padding(design.Sp(2)).Gap(design.Sp(2)).Radius(design.RadiusLG).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
+		Cursor(ui.CursorPointer).Tooltip(providerCopy("修改"+label+"快捷键", "Edit shortcut for "+label))
 	hovered := row.Hovered()
 	row.Children(func() {
 		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.fg).Grow(1).MinWidth(0).SingleLine()
@@ -334,16 +440,16 @@ func shortcutKeyBadge(c *ui.Context, e *shortcuts.Editor, id string, p shortcutP
 	value := shortcutDraft(e, id)
 	color := p.muted
 	if invalid {
-		color = c.Theme().Danger
+		color = tk(c).DestructiveForeground
 	}
-	badge := ui.Box(c).Height(shortcutBadgeHeight).Shrink(0).Radius(10).Background(p.field).AlignItems(ui.Center).Justify(ui.Center).PassThrough()
+	badge := ui.Box(c).Height(shortcutBadgeHeight).Shrink(0).Radius(design.RadiusLG).Background(p.field).AlignItems(ui.Center).Justify(ui.Center).PassThrough()
 	if value == "" {
-		badge.Padding(0, 16).Children(func() {
+		badge.Padding(0, design.Sp(4)).Children(func() {
 			ui.Text(c, providerCopy("暂无快捷键", "No shortcut")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.caption).SingleLine().PassThrough()
 		})
 		return
 	}
-	badge.Padding(0, 12).Children(func() {
+	badge.Padding(0, design.Sp(3)).Children(func() {
 		ui.Text(c, shortcutDisplay(value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(color).SingleLine().PassThrough()
 	})
 }
@@ -354,7 +460,7 @@ func shortcutKeyBadge(c *ui.Context, e *shortcuts.Editor, id string, p shortcutP
 // pointer-down handler does, but it is not a second control in the row.
 func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.Command, p shortcutPalette, target *string, issue string) {
 	label := shortcutCommandLabel(command)
-	ui.Row(c).Key("shortcut-row-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).Padding(8).Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Key("shortcut-row-" + command.ID).FillWidth().Shrink(0).MinHeight(shortcutRowHeight).Padding(design.Sp(2)).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 		labelArea := ui.Box(c).Label("shortcut-" + command.ID).
 			Grow(1).MinWidth(0).Height(shortcutRowHeight).AlignItems(ui.Start).Justify(ui.Center)
 		labelArea.Children(func() {
@@ -364,8 +470,8 @@ func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.
 			e.CancelRecording()
 			*target = ""
 		}
-		ui.Column(c).Gap(4).Shrink(0).AlignItems(ui.End).Children(func() {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Gap(design.Sp(1)).Shrink(0).AlignItems(ui.End).Children(func() {
+			ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 				disabled := e.ReadError != "" || e.ResetPending
 				if shortcutTextAction(c, providerCopy("恢复默认", "Restore default"), "default-"+command.ID, p.muted, disabled) {
 					e.ResetDraft(command.ID)
@@ -382,7 +488,7 @@ func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.
 				shortcutRecorder(c, e, command.ID, func() { *target = "" })
 			})
 			if issue != "" && e.Recording != command.ID {
-				ui.Text(c, issue).FontSize(fonttheme.InterfaceSize(11)).TextColor(c.Theme().Danger).MaxWidth(220)
+				kError(c, issue).MaxWidth(220)
 			}
 			if e.Err != "" && e.Recording == "" {
 				settingsFailureLine(c, "shortcut:save", providerCopy("没能保存这个快捷键，请重试。", "This shortcut was not saved. Try again."), e.Err)
@@ -392,27 +498,36 @@ func shortcutInlineEditor(c *ui.Context, e *shortcuts.Editor, command shortcuts.
 }
 
 func shortcutTextAction(c *ui.Context, text, label string, color ui.Color, disabled bool) bool {
-	button := ui.Button(c, text).Label(label).Shrink(0).Height(shortcutBadgeHeight).Padding(0).BorderWidth(0).Background(ui.Transparent).
-		FontSize(fonttheme.InterfaceSize(12)).TextColor(color).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.TextColor(c.Theme().Text)
-	}
+	button := coss.Button(c, text, coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonXS,
+		Disabled: disabled,
+	}).Label(label).Shrink(0)
 	return button.Clicked()
 }
 
 func shortcutDialogFooter(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, target *string) {
-	modified := shortcutModifiedCount(e)
-	ui.Row(c).FillWidth().Height(shortcutFooterHeight).Shrink(0).Padding(0, 24).Gap(12).AlignItems(ui.Center).
-		BorderWidth(1, 0, 0, 0).BorderColor(p.border).Children(func() {
-		reset := ui.Button(c, "").Label("reset-shortcuts").Height(shortcutBadgeHeight).Shrink(0).Padding(6, 0).
-			BorderWidth(0).Background(ui.Transparent).Disabled(modified == 0 || e.ReadError != "" || e.ResetPending).
-			Tooltip(providerCopy("恢复全部默认", "Restore all defaults"))
-		reset.Children(func() {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, bodyIcon("refresh")).Size(12, 12).TextColor(p.muted)
-				ui.Text(c, providerCopy("恢复全部默认", "Restore all defaults")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.muted).SingleLine()
-			})
-		})
+	cache := &shortcutDialogCache{}
+	cache.refresh(e)
+	shortcutDialogFooterCached(c, e, p, target, cache)
+}
+
+func shortcutDialogFooterCached(c *ui.Context, e *shortcuts.Editor, p shortcutPalette, target *string, cache *shortcutDialogCache) {
+	modified := cache.modified
+	ui.Row(c).FillWidth().Height(shortcutFooterHeight).Shrink(0).Padding(0, design.Sp(6)).Gap(design.Sp(3)).AlignItems(ui.Center).
+		BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(p.border).Children(func() {
+		reset := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Size:     coss.ButtonXS,
+			Label:    "reset-shortcuts",
+			Disabled: modified == 0 || e.ReadError != "" || e.ResetPending,
+			Content: func() {
+				ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+					ui.Icon(c, bodyIcon("refresh")).Size(12, 12).TextColor(p.muted).PassThrough()
+					ui.Text(c, providerCopy("恢复全部默认", "Restore all defaults")).FontSize(fonttheme.InterfaceSize(12)).TextColor(p.muted).SingleLine().PassThrough()
+				})
+			},
+		}).Shrink(0).Tooltip(providerCopy("恢复全部默认", "Restore all defaults"))
 		if reset.Clicked() {
 			// The reference's Reset All clears the armed row editor as it opens
 			// its confirmation (Reference.tsx:206).
@@ -435,13 +550,9 @@ func shortcutDialogFooter(c *ui.Context, e *shortcuts.Editor, p shortcutPalette,
 // binding differs from this platform's default. Saved values and the table's
 // defaults are compared in the normalized chord spelling Save writes.
 func shortcutModifiedCount(e *shortcuts.Editor) int {
-	count := 0
-	for _, command := range e.Search("") {
-		if shortcutBinding(shortcutDraft(e, command.ID)) != shortcutBinding(e.Default(command.ID)) {
-			count++
-		}
-	}
-	return count
+	cache := &shortcutDialogCache{}
+	cache.refresh(e)
+	return cache.modified
 }
 
 // shortcutBinding compares bindings in the normalized chord spelling Save
@@ -462,19 +573,19 @@ func shortcutResetConfirmation(c *ui.Context, e *shortcuts.Editor, p shortcutPal
 	ui.DialogBaseWithOptions(c, &open, ui.DialogOptions{OnDismiss: e.CancelReset}, func(backdrop, panel ui.Element) {
 		ui.ShortcutModalScope(panel, "shortcuts")
 		w, _ := c.Size()
-		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(420), max(float32(0), w-32)), 20).Gap(12).Children(func() {
-			ui.Text(c, providerCopy("恢复全部默认快捷键？", "Restore all default shortcuts?")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500).TextColor(p.fg)
-			ui.Text(c, providerCopy("将恢复当前平台的默认快捷键。你修改或移除的快捷键都会恢复，其他平台不受影响。", "Restore the default shortcuts for this platform. All modified or removed shortcuts will be restored. Other platforms are unaffected.")).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.muted)
+		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(420), max(float32(0), w-32)), design.Sp(5)).Gap(design.Sp(3)).Children(func() {
+			kHeading(c, providerCopy("恢复全部默认快捷键？", "Restore all default shortcuts?"))
+			kBody(c, providerCopy("将恢复当前平台的默认快捷键。你修改或移除的快捷键都会恢复，其他平台不受影响。", "Restore the default shortcuts for this platform. All modified or removed shortcuts will be restored. Other platforms are unaffected.")).TextColor(p.muted)
 			ui.Box(c).FillWidth().MinHeight(36).Children(func() {
 				if e.Err != "" {
 					settingsFailureLine(c, "shortcut:restore", providerCopy("没能恢复默认快捷键，请重试。", "The default shortcuts could not be restored. Try again."), e.Err)
 				}
 			})
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("取消", "Cancel")).Label("cancel-reset-shortcuts").AutoFocus().Clicked() {
+			ui.Row(c).Gap(design.Sp(2)).Children(func() {
+				if kButton(c, providerCopy("取消", "Cancel")).Label("cancel-reset-shortcuts").AutoFocus().Clicked() {
 					e.CancelReset()
 				}
-				if ui.Button(c, providerCopy("恢复默认", "Restore default")).Label("confirm-reset-shortcuts").Clicked() {
+				if kDanger(c, providerCopy("恢复默认", "Restore default"), false).Label("confirm-reset-shortcuts").Clicked() {
 					e.ConfirmReset()
 				}
 			})

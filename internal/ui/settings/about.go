@@ -3,16 +3,16 @@ package settings
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"whaleisle/internal/credentials"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
-
-	"whaleisle/internal/errcopy"
-	"whaleisle/internal/ui/i18n"
 )
 
 // AboutAccess is the dedicated About settings page.
@@ -42,6 +42,46 @@ type AboutAccess struct {
 	OnDownloadUpdate                    func()
 	OnResumeUpdate                      func()
 	OnOpenUpdateCenter                  func()
+}
+
+type aboutStorageState struct {
+	mu      sync.Mutex
+	started bool
+	loading bool
+	loaded  bool
+	seq     uint64
+	status  credentials.StorageStatus
+}
+
+func (s *aboutStorageState) snapshot() (started, loading, loaded bool, status credentials.StorageStatus) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.started, s.loading, s.loaded, s.status
+}
+
+func (s *aboutStorageState) startLoad(read func() credentials.StorageStatus, invalidate func()) {
+	if read == nil {
+		return
+	}
+	s.mu.Lock()
+	s.started = true
+	s.loading = true
+	s.seq++
+	seq := s.seq
+	s.mu.Unlock()
+	go func() {
+		result := read()
+		s.mu.Lock()
+		if s.seq == seq {
+			s.status = result
+			s.loaded = true
+			s.loading = false
+		}
+		s.mu.Unlock()
+		if invalidate != nil {
+			invalidate()
+		}
+	}()
 }
 
 func aboutUpdatePhaseSummary(a *AboutAccess) string {
@@ -155,24 +195,27 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	a := m.About
-	accent := chrome.Color(fonttheme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
-	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(12)
-	storage := ui.Local(anchor, "metadata", func() credentials.StorageStatus {
-		if a.ReadCredentialStorage != nil {
-			return a.ReadCredentialStorage()
-		}
-		return credentials.StorageStatus{Mode: "unknown"}
+	t := tk(c)
+	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(design.Sp(3))
+	storageState := ui.Local(anchor, "metadata-async", func() aboutStorageState {
+		return aboutStorageState{status: credentials.StorageStatus{Mode: "unknown"}}
 	})
+	started, storageLoading, storageLoaded, storage := storageState.snapshot()
+	if !started && a.ReadCredentialStorage != nil {
+		storageState.startLoad(a.ReadCredentialStorage, c.Invalidate)
+		_, storageLoading, storageLoaded, storage = storageState.snapshot()
+	}
 	linkError := ui.Local(anchor, "error", func() settingsRefusal { return settingsRefusal{} })
 	revealResult := ui.Local(anchor, "home-result", func() string { return "" })
 	meta := func(text string) {
-		ui.Text(c, text).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		kHint(c, text)
 	}
 	link := func(link aboutLink) {
-		button := ui.Button(c, link.Label).AlignSelf(ui.Start).MinWidth(0).Height(fonttheme.InterfaceSize(21)).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(21)).TextColor(accent).Tooltip(link.URL).Disabled(a.OnOpenLink == nil)
-		if button.Hovered() {
-			button.Underline()
-		}
+		button := coss.Button(c, link.Label, coss.ButtonOptions{
+			Variant:  coss.ButtonLink,
+			Size:     coss.ButtonSM,
+			Disabled: a.OnOpenLink == nil,
+		}).AlignSelf(ui.Start).Padding(0).TextColor(t.Primary).Tooltip(link.URL)
 		if button.Clicked() {
 			linkError.refuse(nil)
 			if err := a.OnOpenLink(link.URL); err != nil {
@@ -183,26 +226,28 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	anchor.Children(func() {
 		// Keep the primary update status and next action directly under the
 		// desktop version. Only local diagnostics belong in the disclosure.
-		ui.Text(c, i18n.T(KeyPass4AboutTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(18)).FixedLineHeight(fonttheme.InterfaceSize(24)).FontWeight(600).TextColor(fg)
-		ui.Text(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and official Harness.")).FillWidth().FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(19.5)).TextColor(muted)
+		kPageTitle(c, i18n.T(KeyPass4AboutTitle))
+		kBody(c, providerCopy("本桌面应用与官方 Harness。", "This desktop app and official Harness.")).TextColor(muted)
 		settingsAlert(c, "about:118", a.Err != "", providerCopy("没能读取更新信息，请检查网络后重试。", "Update information could not be read. Check the connection and retry."), a.Err)
 		links := aboutLinks()
-		ui.Column(c).FillWidth().MinWidth(0).Gap(14).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
-				ui.Text(c, emptyDash(a.AppName)).FillWidth().FontSize(fonttheme.InterfaceSize(15)).FixedLineHeight(fonttheme.InterfaceSize(21)).FontWeight(600).TextColor(fg)
+		ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(3.5)).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1)).Children(func() {
+				kText(c, emptyDash(a.AppName), design.TextBase, design.WeightSemibold, fg).FillWidth()
 				meta(providerCopy("桌面版本 ", "Desktop version ") + emptyDash(a.Version))
 				aboutUpdateRow(c, a, fg, muted)
 				meta("Based on DeepSeek Harness")
-				meta(providerCopy("凭据存储：", "Credential storage: ") + credentialStorageSummary(*storage))
+				storageSummary := credentialStorageSummary(storage)
+				if storageLoading && !storageLoaded {
+					storageSummary = providerCopy("正在检查…", "Checking…")
+				}
+				meta(providerCopy("凭据存储：", "Credential storage: ") + storageSummary)
 				if a.HomePath != "" {
 					meta(providerCopy("运行目录 ", "Runtime folder ") + a.HomePath)
 				}
 				if a.OnRevealHome != nil {
-					colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
-					ui.Row(c).FillWidth().Margin(10, 0, 8).Children(func() {
-						folder := widgets.Button(c, colors, i18n.T(KeyPass4OpenRuntime),
-							widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: a.HomeBusy})
-						folder.AlignSelf(ui.Start)
+					ui.Row(c).FillWidth().Margin(design.Sp(2.5), 0, design.Sp(2)).Children(func() {
+						label := i18n.T(KeyPass4OpenRuntime)
+						folder := kButtonDisabled(c, label, a.HomeBusy).Label(label).AlignSelf(ui.Start)
 						if folder.Clicked() {
 							if err := a.OnRevealHome(); err != nil {
 								*revealResult = errcopy.Sentence(err)
@@ -222,7 +267,11 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		settingsAlert(c, "about:154", linkError.failed(), linkError.sentence, linkError.detail)
 		settingsNotice(c, "about:157", a.Status != "", func() string { return a.Status })
 		bodyDisclosure(c, "about-local-details", providerCopy("应用数据与诊断", "Application data and diagnostics"), func() {
-			ui.Text(c, credentialStorageDescription(*storage)).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			storageDesc := credentialStorageDescription(storage)
+			if storageLoading && !storageLoaded {
+				storageDesc = providerCopy("正在检查本机凭据存储状态…", "Checking local credential storage status…")
+			}
+			kHint(c, storageDesc)
 			for _, row := range []struct{ id, label, value string }{{"about-detail-id", i18n.T(i18n.KeySettingsAboutID), a.Identifier}, {"about-detail-user-data", i18n.T(i18n.KeySettingsAboutUserData), a.UserData}, {"about-detail-vendor", i18n.T(i18n.KeySettingsAboutVendor), a.VendorRoot}} {
 				if row.value != "" {
 					element := bodyPreferenceRow(c, "about-detail-"+row.label, row.label, "", fg, muted, func() {
@@ -236,12 +285,15 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				if *a.AnalyticsEnabled {
 					value = i18n.T(i18n.KeySettingsAboutAnalyticsOn)
 				}
-				ui.Text(c, i18n.T(i18n.KeySettingsAboutAnalytics)+": "+value).FillWidth().TextColor(muted)
+				kBody(c, i18n.T(i18n.KeySettingsAboutAnalytics)+": "+value).TextColor(muted)
 			}
-			if a.ReadCredentialStorage != nil && ui.Button(c, providerCopy("刷新凭据存储状态", "Refresh credential storage status")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
-				*storage = a.ReadCredentialStorage()
+			if a.ReadCredentialStorage != nil {
+				refreshLabel := providerCopy("刷新凭据存储状态", "Refresh credential storage status")
+				if kButtonDisabled(c, refreshLabel, storageLoading).AlignSelf(ui.Start).Clicked() {
+					storageState.startLoad(a.ReadCredentialStorage, c.Invalidate)
+				}
 			}
-			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
 				for _, action := range []struct {
 					label  string
 					run    func()
@@ -250,7 +302,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					if action.run == nil && action.reveal == nil {
 						continue
 					}
-					if !ui.Button(c, action.label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+					if !kButton(c, action.label).Clicked() {
 						continue
 					}
 					if action.reveal != nil {
@@ -268,7 +320,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				desktopDiagnostics(c, m.Desktop, fg, muted)
 			}
 			if m.Store != nil {
-				advancedNavigation(c, m, m.Store.Snapshot().Value, fg, muted)
+				advancedNavigation(c, m, m.withVersion().snapshot(), fg, muted)
 			}
 		})
 	})
@@ -276,61 +328,52 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 
 // aboutUpdateRow is the primary version/update surface immediately below the version.
 func aboutUpdateRow(c *ui.Context, a *AboutAccess, fg, muted ui.Color) {
-	ui.Row(c).FillWidth().Wrap().Gap(8).Margin(10, 0, 8).AlignItems(ui.Center).Children(func() {
+	t := tk(c)
+	ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Margin(design.Sp(2.5), 0, design.Sp(2)).AlignItems(ui.Center).Children(func() {
 		// The version is data, not a choice: it paints as read-only text
 		// instead of a disabled picker with one option.
 		ui.Text(c, emptyDash(a.Version)).Label(i18n.T(i18n.KeySettingsAboutCopyVersion)).
-			Height(28).Padding(0, 10).Radius(8).Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .35)).
+			Height(28).Padding(0, design.Sp(2.5)).Radius(design.RadiusLG).Border(design.BorderWidth, t.Border).
 			FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Tooltip(a.Version)
 		installLabel := i18n.T(KeyPass4OnlineInstall)
-		// The badge keeps its near-black fill even when the installer is
-		// absent; only the label fades, so it still reads as a badge.
-		badgeInk := ui.RGBA(255, 255, 255, .95)
 		enabled := a.OnInstallUpdate != nil && !a.UpdateBusy
-		if !enabled {
-			badgeInk = ui.RGBA(255, 255, 255, .62)
-		}
-		install := ui.Button(c, "").Label(installLabel).Height(28).Padding(0, 12).Radius(8).
-			Background(pass4InstallBadgeFill).AlignSelf(ui.Start).Disabled(!enabled)
+		install := kPrimary(c, installLabel, !enabled).AlignSelf(ui.Start)
 		if !enabled {
 			install = install.Tooltip(i18n.T(KeyPass4InstallUnavailable))
 		}
-		install.Children(func() {
-			ui.Text(c, installLabel).FontSize(fonttheme.InterfaceSize(12)).TextColor(badgeInk)
-		})
 		if install.Clicked() && enabled {
 			a.OnInstallUpdate()
 		}
-		if a.OnCheckUpdates != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(a.UpdateBusy).Clicked() {
+		if a.OnCheckUpdates != nil && kButtonDisabled(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates), a.UpdateBusy).Clicked() {
 			a.OnCheckUpdates()
 		}
-		if a.UpdatePhase == "available" && a.OnDownloadUpdate != nil && ui.Button(c, providerCopy("下载更新", "Download update")).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(a.UpdateBusy).Clicked() {
+		if a.UpdatePhase == "available" && a.OnDownloadUpdate != nil && kPrimary(c, providerCopy("下载更新", "Download update"), a.UpdateBusy).Clicked() {
 			a.OnDownloadUpdate()
 		}
-		if (a.UpdatePhase == "paused" || a.UpdatePhase == "error") && a.OnResumeUpdate != nil && ui.Button(c, providerCopy("继续下载", "Resume download")).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(a.UpdateBusy).Clicked() {
+		if (a.UpdatePhase == "paused" || a.UpdatePhase == "error") && a.OnResumeUpdate != nil && kPrimary(c, providerCopy("继续下载", "Resume download"), a.UpdateBusy).Clicked() {
 			a.OnResumeUpdate()
 		}
-		if a.UpdatePhase == "ready" && a.OnInstallUpdate != nil && ui.Button(c, providerCopy("安装并重启", "Install and restart")).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Disabled(a.UpdateBusy).Clicked() {
+		if a.UpdatePhase == "ready" && a.OnInstallUpdate != nil && kPrimary(c, providerCopy("安装并重启", "Install and restart"), a.UpdateBusy).Clicked() {
 			a.OnInstallUpdate()
 		}
-		if a.OnOpenUpdateCenter != nil && ui.Button(c, providerCopy("打开更新中心", "Open Update Center")).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
+		if a.OnOpenUpdateCenter != nil && kButton(c, providerCopy("打开更新中心", "Open Update Center")).Clicked() {
 			a.OnOpenUpdateCenter()
 		}
-		if a.OnOpenUpdateCenter != nil && ui.Button(c, i18n.T(i18n.KeySettingsParityAboutCenterOpen)).Height(28).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
+		if a.OnOpenUpdateCenter != nil && kButton(c, i18n.T(i18n.KeySettingsParityAboutCenterOpen)).Clicked() {
 			a.OnOpenUpdateCenter()
 		}
 	})
 	if summary := aboutUpdatePhaseSummary(a); summary != "" && summary != a.UpdateStatus && !(a.UpdateBusy && a.UpdatePhase == "checking") {
-		ui.Text(c, summary).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		kHint(c, summary)
 	}
 	if center := aboutUpdateCenterSubtitle(a); center != "" && center != aboutUpdatePhaseSummary(a) && !(a.UpdateBusy && a.UpdatePhase == "checking") {
-		ui.Text(c, center).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		kHint(c, center)
 	}
 	if altErr := aboutUpdateCenterErrorAlt(a); altErr != "" && altErr != aboutUpdateCenterSubtitle(a) && !(a.UpdateBusy && a.UpdatePhase == "checking") {
-		ui.Text(c, altErr).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		kHint(c, altErr)
 	}
 	if a.UpdateStatus != "" {
-		ui.Text(c, a.UpdateStatus).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		kHint(c, a.UpdateStatus)
 	}
 }
 

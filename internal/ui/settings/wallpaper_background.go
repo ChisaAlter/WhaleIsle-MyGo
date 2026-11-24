@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -266,7 +267,16 @@ func (g *WallpaperEditor) load(page int) {
 	})
 }
 func (g *WallpaperEditor) loadThumbs() {
-	items := append([]wallpapers.Item(nil), g.visible()...)
+	var missing []wallpapers.Item
+	for _, item := range g.visible() {
+		if item.ThumbURL == "" || g.Thumbs[item.ThumbURL] != nil {
+			continue
+		}
+		missing = append(missing, item)
+	}
+	if len(missing) == 0 {
+		return
+	}
 	generation := g.generation
 	ctx := g.operation
 	if ctx == nil {
@@ -274,7 +284,7 @@ func (g *WallpaperEditor) loadThumbs() {
 	}
 	g.Run(func() func() {
 		images := map[string]*ui.Bitmap{}
-		for _, item := range items {
+		for _, item := range missing {
 			data, err := wallpapers.Fetch(ctx, item.ThumbURL, true)
 			if err == nil {
 				img, err := ui.DecodeBitmap(data)
@@ -448,28 +458,18 @@ func (g *WallpaperEditor) applyCrop() {
 // wallpaperChoiceSelect shows localized labels while writing the renderer's
 // stable enum IDs back into preferences.
 func wallpaperChoiceSelect(c *ui.Context, current *string, label string, options [][2]string, disabled bool) bool {
-	labels := make([]string, 0, len(options))
-	selected := ""
+	opts := make([]coss.SelectOption, 0, len(options)+1)
+	found := false
 	for _, option := range options {
-		labels = append(labels, option[1])
+		opts = append(opts, coss.SelectOption{Value: option[0], Label: option[1]})
 		if option[0] == *current {
-			selected = option[1]
+			found = true
 		}
 	}
-	if selected == "" {
-		selected = *current
-		labels = append(labels, selected)
+	if !found && *current != "" {
+		opts = append(opts, coss.SelectOption{Value: *current, Label: *current})
 	}
-	if !ui.Select(c, &selected, labels).Label(label).FillWidth().Disabled(disabled).Changed() {
-		return false
-	}
-	for _, option := range options {
-		if option[1] == selected {
-			*current = option[0]
-			return true
-		}
-	}
-	return false
+	return coss.Select(c, current, opts, coss.SelectOptions{Label: label, Disabled: disabled}).FillWidth().Changed()
 }
 
 func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
@@ -560,11 +560,7 @@ func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64,
 // appearanceGhostButton is the reference's borderless block action (重置 /
 // 高级): transparent, 36 DIP tall, primary text, only a hover wash.
 func appearanceGhostButton(c *ui.Context, label string, disabled bool) ui.Element {
-	button := ui.Button(c, label).Height(36).Padding(0, 14).Radius(12).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(14)).TextColor(c.Theme().Text).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	return button
+	return coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonLG, Disabled: disabled})
 }
 
 // wallpaperBlockSwitch draws the reference's switch-leading row (.switchRow):
