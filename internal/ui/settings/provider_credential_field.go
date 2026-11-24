@@ -5,7 +5,6 @@ import (
 
 	"whaleisle/internal/desktop/credentialrefs"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -58,11 +57,13 @@ func providerCredentialField(c *ui.Context, a *ReferencedCredentialsAccess, name
 		})
 		settingsAlert(c, "provider-key/"+row.ID, s.Err != "", providerCopy("没能保存这个提供商的密钥，请重试。", "The provider key was not saved. Try again."), s.Err)
 		if row.Configured && a.OnClear != nil {
-			label := providerCopy("清除已保存密钥…", "Clear saved key…")
+			var clearBtn ui.Element
 			if s.ClearPending {
-				label = providerCopy("取消清除", "Cancel clear")
+				clearBtn = kGhost(c, providerCopy("取消清除", "Cancel clear"), s.Busy || a.locked)
+			} else {
+				clearBtn = kDanger(c, providerCopy("清除已保存密钥…", "Clear saved key…"), s.Busy || a.locked)
 			}
-			if ui.Button(c, label).AlignSelf(ui.Start).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(12)).Disabled(s.Busy || a.locked).Clicked() {
+			if clearBtn.AlignSelf(ui.Start).Clicked() {
 				a.OnClear(s.Ticket, !s.ClearPending)
 			}
 			if s.ClearPending {

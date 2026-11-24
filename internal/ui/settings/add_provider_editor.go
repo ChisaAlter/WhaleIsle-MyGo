@@ -127,7 +127,7 @@ func modelAddProviderEditor(c *ui.Context, m Model, a *ModelsAccess, editing *st
 			if len(labels) > 0 {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 					modelFieldLabel(c, providerCopy("提供商", "Provider"))
-					ui.Select(c, selected, labels).Label(providerCopy("选择目录供应商", "Choose catalog provider")).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Disabled(busy || loading)
+					kSelect(c, selected, labels, providerCopy("选择目录供应商", "Choose catalog provider"), busy || loading).FillWidth()
 				})
 			}
 			if i, ok := targets[*selected]; ok {

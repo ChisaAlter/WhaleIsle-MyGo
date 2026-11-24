@@ -53,14 +53,14 @@ func accountSignOutPane(c *ui.Context, a *AccountAccess, fg, muted ui.Color) {
 			if s.Unknown {
 				cancel = signOutText("关闭提示", "Close notice")
 			}
-			if a.OnCancelSignOut != nil && ui.Button(c, cancel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() {
+			if a.OnCancelSignOut != nil && kButtonDisabled(c, cancel, s.Busy).Clicked() {
 				a.OnCancelSignOut()
 			}
 			if s.Unknown {
-				if a.OnCheckSignOut != nil && ui.Button(c, signOutText("检查退出结果", "Check sign-out result")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() {
+				if a.OnCheckSignOut != nil && kButtonDisabled(c, signOutText("检查退出结果", "Check sign-out result"), s.Busy).Clicked() {
 					a.OnCheckSignOut()
 				}
-			} else if a.OnConfirmSignOut != nil && ui.Button(c, signOutText("确认退出账户", "Confirm sign out")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() {
+			} else if a.OnConfirmSignOut != nil && kDanger(c, signOutText("确认退出账户", "Confirm sign out"), s.Busy).Clicked() {
 				a.OnConfirmSignOut()
 			}
 		})

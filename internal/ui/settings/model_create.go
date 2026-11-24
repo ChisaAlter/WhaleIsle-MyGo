@@ -164,7 +164,7 @@ func configurationCreateProvider(c *ui.Context, m Model, s store.ViewState, prov
 		ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			modelFieldLabel(c, providerCopy("API 协议", "API protocol"))
 			labels, selected := configurationProtocolChoices(protocol, protocols)
-			if ui.Select(c, &selected, labels).Label(providerCopy("API 协议", "API protocol")).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).Disabled(disabled).Changed() {
+			if kSelect(c, &selected, labels, providerCopy("API 协议", "API protocol"), disabled).FillWidth().Changed() {
 				draft["api"] = configurationProtocolChoice(selected, protocols)
 				save()
 			}

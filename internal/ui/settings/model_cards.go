@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -46,40 +47,30 @@ func modelFieldLabel(c *ui.Context, text string) {
 // modelPill is the page's button: 36 DIP / 18 radius, or the 28 DIP / 14 radius
 // small one, primary (monochrome fill) or outlined.
 func modelPill(c *ui.Context, label string, primary, small, disabled bool) ui.Element {
-	colors := modelColors(c)
-	height, radius, size, pad := float32(36), float32(18), float32(14), float32(14)
+	size := coss.ButtonLG
 	if small {
-		height, radius, size, pad = 28, 14, 12, 10
+		size = coss.ButtonSM
 	}
-	button := ui.Button(c, label).Height(height).Shrink(0).Padding(0, pad).Radius(radius).FontSize(theme.InterfaceSize(size)).Disabled(disabled)
+	variant := coss.ButtonOutline
 	if primary {
-		button.Background(theme.Color(colors.BrandPrimary)).TextColor(theme.Color(colors.ButtonFG)).BorderWidth(0)
-		if button.Hovered() && !disabled {
-			button.Background(theme.Color(colors.BrandPrimaryHover))
-		}
-		return button
+		variant = coss.ButtonDefault
 	}
-	button.Background(ui.Transparent).Border(.667, theme.Color(colors.BorderL3))
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	return button
+	return coss.Button(c, label, coss.ButtonOptions{
+		Variant:  variant,
+		Size:     size,
+		Disabled: disabled,
+	}).Shrink(0)
 }
 
 // modelAddPill is the page's full-width "add" row: the outlined 36 DIP pill with a
 // 16 DIP plus before its label.
 func modelAddPill(c *ui.Context, label string, disabled bool) ui.Element {
-	colors := modelColors(c)
-	button := ui.Button(c, "").Label(label).FillWidth().Height(36).Shrink(0).Padding(0, 14).Gap(8).Radius(18).
-		Border(.667, theme.Color(colors.BorderL3)).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	button.Children(func() {
-		ui.Icon(c, bodyIcon("plus")).Size(16, 16).Shrink(0).TextColor(c.Theme().Text).PassThrough()
-		ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(c.Theme().Text)
-	})
-	return button
+	return coss.Button(c, label, coss.ButtonOptions{
+		Variant:  coss.ButtonOutline,
+		Size:     coss.ButtonLG,
+		Icon:     coss.IconPlus,
+		Disabled: disabled,
+	}).Label(label).FillWidth().Shrink(0)
 }
 
 // modelDisclosure is the editor's "custom settings" fold: a hairline, 12 DIP of
@@ -93,22 +84,18 @@ func modelDisclosure(c *ui.Context, key, title string, body func()) {
 		*open = true
 	}
 	settingsSearchTarget(c, key, title, anchor)
-	secondary := theme.Color(colors.Secondary)
 	anchor.Children(func() {
 		ui.Box(c).FillWidth().Height(.667).Background(theme.Color(colors.Border))
 		ui.Box(c).FillWidth().Height(12)
-		toggle := ui.Button(c, "").Label(title).AlignSelf(ui.Start).Height(28).Padding(0, 8, 0, 0).Gap(8).Radius(8).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FocusRing(false)
-		toggle.Children(func() {
-			icon := "right"
-			if *open {
-				icon = "down"
-			}
-			ui.Icon(c, bodyIcon(icon)).Size(16, 16).Shrink(0).TextColor(secondary).PassThrough()
-			ui.Text(c, title).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).TextColor(secondary).SingleLine()
-		})
-		if toggle.Hovered() {
-			toggle.Background(c.Theme().SurfaceHover)
+		icon := coss.IconChevronRight
+		if *open {
+			icon = coss.IconChevronDown
 		}
+		toggle := coss.Button(c, title, coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonSM,
+			Icon:    icon,
+		}).Label(title).AlignSelf(ui.Start)
 		if toggle.Clicked() {
 			*open = !*open
 		}

@@ -20,7 +20,7 @@ func servedSubagentModels(c *ui.Context, s *store.Store, b *store.NamespaceBindi
 	if message != "" {
 		ui.Text(c, message).FillWidth().TextColor(c.Theme().Danger)
 	}
-	if ui.Button(c, providerCopy("刷新模型目录", "Refresh model catalog")).Disabled(loading || state.Saving).Clicked() {
+	if kButtonDisabled(c, providerCopy("刷新模型目录", "Refresh model catalog"), loading || state.Saving).AlignSelf(ui.Start).Clicked() {
 		s.RefreshModelConfigurationCatalog(context.Background())
 	}
 	var selected []servedModelRoute
@@ -52,7 +52,7 @@ func servedSubagentModels(c *ui.Context, s *store.Store, b *store.NamespaceBindi
 				checked = true
 			}
 		}
-		if ui.Checkbox(c, &checked, route.Label).Disabled(!state.ClientReady || !state.Writable || state.Loading || state.Saving).Changed() {
+		if kCheckbox(c, &checked, route.Label, !state.ClientReady || !state.Writable || state.Loading || state.Saving).Changed() {
 			next := []servedModelRoute{}
 			for _, item := range selected {
 				if item.Provider != route.Provider || item.Model != route.Model {

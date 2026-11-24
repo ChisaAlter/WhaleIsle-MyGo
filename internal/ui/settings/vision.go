@@ -23,8 +23,6 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 		failure = s.CatalogErr
 	}
 	settingsAlert(c, "vision-save-error", failure != "", providerCopy("没能读取视觉模型，请重试。", "Image models could not be read. Try again."), failure)
-	dark := c.Theme().Dark
-	colors := fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark)
 	// 0.3.13: a bordered 16 DIP card holding the label, the pill select and the
 	// explanation. The Host data is refreshed when the page opens, so the old
 	// refresh button is gone.
@@ -53,7 +51,7 @@ func visionPane(c *ui.Context, a *VisionAccess, fg, muted ui.Color) {
 		if s.Saving {
 			selected = providerCopy("正在保存…", "Saving…")
 		}
-		ui.Select(c, &selected, labels).FillWidth().Height(36).Padding(0, 14).Radius(18).BorderWidth(0).Background(fonttheme.Color(colors.SelectorFill)).FontSize(fonttheme.InterfaceSize(14)).Disabled(!s.Writable || s.Saving || s.Loading).OnChange(func() {
+		kSelect(c, &selected, labels, providerCopy("识图模型", "Vision model"), !s.Writable || s.Saving || s.Loading).FillWidth().OnChange(func() {
 			if a.OnSelect == nil {
 				return
 			}

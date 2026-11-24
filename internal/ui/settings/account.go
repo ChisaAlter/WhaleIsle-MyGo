@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/accountdetails"
 
 	"whaleisle/internal/accountlogout"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -68,7 +69,7 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Column(c).FillWidth().Gap(16).Padding(40, 0).Children(func() {
 			ui.Text(c, providerCopy("当前未登录 DeepSeek 账号", "You are not signed in to DeepSeek")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
 			ui.Text(c, providerCopy("登录 DeepSeek 账号获取专属 API Key", "Sign in to DeepSeek to get your dedicated API Key")).FillWidth().FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
-			if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).AlignSelf(ui.Start).Height(36).Padding(0, 16).Radius(8).Disabled(!a.ClientReady || a.SignInBusy || a.OnSignIn == nil).Clicked() {
+			if coss.Button(c, i18n.T(i18n.KeySettingsAccountSignIn), coss.ButtonOptions{Size: coss.ButtonLG, Disabled: !a.ClientReady || a.SignInBusy || a.OnSignIn == nil}).AlignSelf(ui.Start).Clicked() {
 				a.OnSignIn()
 			}
 		})
@@ -107,7 +108,7 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 					ui.Text(c, name).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 					ui.Text(c, contact).FillWidth().SingleLine().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 				})
-				if a.OnOpenInfo != nil && ui.Button(c, providerCopy("更多账号信息 ↗", "More account information ↗")).Shrink(0).Height(32).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(13)).Clicked() {
+				if a.OnOpenInfo != nil && kGhost(c, providerCopy("更多账号信息 ↗", "More account information ↗"), false).Shrink(0).Clicked() {
 					a.OnOpenInfo()
 				}
 			})
@@ -122,7 +123,7 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 							return
 						}
 						if a.Details.Balance.Status != accountdetails.Ready || len(wallets) == 0 {
-							if ui.Button(c, providerCopy("前往开放平台查看 ↗", "View on Platform ↗")).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(a.OnOpenUsage == nil || a.UsageURL == "").Clicked() {
+							if coss.Button(c, providerCopy("前往开放平台查看 ↗", "View on Platform ↗"), coss.ButtonOptions{Variant: coss.ButtonLink, Size: coss.ButtonSM, Disabled: a.OnOpenUsage == nil || a.UsageURL == ""}).Padding(0).Clicked() {
 								a.OnOpenUsage(a.UsageURL)
 							}
 							return
@@ -145,10 +146,10 @@ func accountPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Box(c).FillWidth().Height(.5).Background(chrome.Color(colors.Border).Alpha(.45))
 			ui.Row(c).FillWidth().Gap(10).Padding(6, 0).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, providerCopy("更多", "More")).Grow(1).FontSize(fonttheme.InterfaceSize(14)).TextColor(muted)
-				if ui.Button(c, providerCopy("查询用量", "View usage")).Height(36).Padding(0, 16).Radius(8).Border(.5, c.Theme().Border.Alpha(.45)).FontSize(fonttheme.InterfaceSize(14)).Disabled(a.OnOpenUsage == nil || a.UsageURL == "").Clicked() {
+				if coss.Button(c, providerCopy("查询用量", "View usage"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonLG, Disabled: a.OnOpenUsage == nil || a.UsageURL == ""}).Clicked() {
 					a.OnOpenUsage(a.UsageURL)
 				}
-				if ui.Button(c, providerCopy("充值", "Top up")).Height(36).Padding(0, 16).Radius(8).BorderWidth(0).Background(chrome.Color(colors.Accent)).TextColor(ui.RGB(255, 255, 255)).FontSize(fonttheme.InterfaceSize(14)).Disabled(a.OnOpenTopUp == nil || a.TopUpURL == "").Clicked() {
+				if coss.Button(c, providerCopy("充值", "Top up"), coss.ButtonOptions{Size: coss.ButtonLG, Disabled: a.OnOpenTopUp == nil || a.TopUpURL == ""}).Clicked() {
 					a.OnOpenTopUp(a.TopUpURL)
 				}
 			})

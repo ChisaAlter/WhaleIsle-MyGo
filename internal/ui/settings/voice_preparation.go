@@ -79,7 +79,7 @@ func VoicePreparationView(c *ui.Context, store *session.Store, microphone *voice
 			}
 			voiceFailureLine(c, failure.id, failure.raw, failure.message, failure.dismiss, owner)
 		}
-		if !state.Connected && ui.Button(c, voiceText("重新连接语音服务", "Reconnect speech service")).Clicked() {
+		if !state.Connected && kButton(c, voiceText("重新连接语音服务", "Reconnect speech service")).AlignSelf(ui.Start).Clicked() {
 			owner.Retry()
 		}
 		catalog := state.Catalog
@@ -232,7 +232,7 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 		if state.Phase == "failed" && failure != "" && *dismissed != failure {
 			ui.Row(c).FillWidth().Gap(6).Children(func() {
 				ui.Text(c, failure).Grow(1).MinWidth(0).FontSize(12).TextColor(c.Theme().Danger).Selectable()
-				if ui.Button(c, voiceText("关闭提示", "Dismiss")).Clicked() {
+				if kGhost(c, voiceText("关闭提示", "Dismiss"), false).Clicked() {
 					*dismissed = failure
 				}
 			})
@@ -267,7 +267,7 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 				if *expanded {
 					arrow = "▾ "
 				}
-				if ui.Button(c, arrow+summary).Grow(1).MinWidth(0).Clicked() {
+				if kGhost(c, arrow+summary, false).Grow(1).MinWidth(0).Justify(ui.Start).Clicked() {
 					*expanded = !*expanded
 				}
 			} else {
@@ -308,11 +308,11 @@ func voicePreparationCard(c *ui.Context, id, name, location string, raw json.Raw
 			}
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if canPrepare && ui.Button(c, voiceText("准备或重试准备", "Prepare or retry preparation")).Disabled(!connected || submitting).Clicked() {
+			if canPrepare && kPrimary(c, voiceText("准备或重试准备", "Prepare or retry preparation"), !connected || submitting).Clicked() {
 				*dismissed = ""
 				owner.Prepare(id, selectedSource)
 			}
-			if preparing && state.Phase != "waking" && ui.Button(c, voiceText("取消准备", "Cancel preparation")).Disabled(!connected || submitting || state.Phase == "cancelling").Clicked() {
+			if preparing && state.Phase != "waking" && kButtonDisabled(c, voiceText("取消准备", "Cancel preparation"), !connected || submitting || state.Phase == "cancelling").Clicked() {
 				owner.CancelPreparation(id)
 			}
 		})

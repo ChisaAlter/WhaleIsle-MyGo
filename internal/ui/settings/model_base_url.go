@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	store "whaleisle/internal/store/settings"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
 )
 
 // modelBaseURLField is the editor's "API 地址" row: a label, the input (clearing
@@ -27,8 +27,11 @@ func modelBaseURLField(c *ui.Context, binding *store.NamespaceBinding, snap stor
 	label := configurationLabel(f.Key)
 	ui.Column(c.Key("model-scalar/" + f.Key)).FillWidth().MinWidth(0).Gap(8).Children(func() {
 		modelFieldLabel(c, label)
-		input := ui.TextInput(c, &value).Label(label).Placeholder(placeholder).FillWidth().Height(36).Radius(8).
-			Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled)
+		input := kInput(c, &value, coss.InputOptions{
+			Label:       label,
+			Placeholder: placeholder,
+			ReadOnly:    disabled,
+		})
 		if input.Changed() {
 			if value == "" {
 				binding.Reset(f.Key)

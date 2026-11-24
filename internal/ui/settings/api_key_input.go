@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -16,10 +16,12 @@ func apiKeyInput(c *ui.Context, key string, value *string, placeholder string, d
 	shown := ui.Local(row, "revealed-value", func() string { return "" })
 	changed := false
 	row.Children(func() {
-		input := ui.TextInput(c, value).Label("API Key").Grow(1).MinWidth(0).Height(36).Radius(8).Border(.5, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).Placeholder(placeholder).Disabled(disabled)
-		if *value == "" || *shown != *value {
-			input.Password()
-		}
+		input := kInputRow(c, value, coss.InputOptions{
+			Label:       "API Key",
+			Placeholder: placeholder,
+			Password:    *value == "" || *shown != *value,
+			Disabled:    disabled,
+		})
 		if input.Changed() {
 			*shown = ""
 			changed = true
@@ -29,9 +31,7 @@ func apiKeyInput(c *ui.Context, key string, value *string, placeholder string, d
 			if *shown == *value {
 				label = providerCopy("隐藏密钥", "Hide key")
 			}
-			toggle := ui.Button(c, "").Label(label).Tooltip(label).Size(32, 32).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
-			toggle.Children(func() { ui.Icon(c, draftEyeIcon).Size(16, 16).TextColor(c.Theme().TextMuted).PassThrough() })
-			if toggle.Clicked() {
+			if kIconButton(c, draftEyeIcon, label, disabled).Clicked() {
 				if *shown == *value {
 					*shown = ""
 				} else {

@@ -5,6 +5,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -37,19 +39,27 @@ func modelIconButton(c *ui.Context, key, label, tooltip string, icon *ui.SVG, da
 	if tooltip == "" {
 		tooltip = label
 	}
-	button := ui.Button(c.Key(key), "").Label(label).Tooltip(tooltip).Size(28, 28).Shrink(0).Padding(0).Radius(8).
-		BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Disabled(disabled)
-	ink := theme.Color(modelColors(c).Muted)
-	if button.Hovered() && !disabled {
-		if danger {
-			ink = c.Theme().Danger
-			button.Background(c.Theme().Danger.Alpha(.12))
-		} else {
-			ink = c.Theme().Text
-			button.Background(c.Theme().SurfaceHover)
-		}
+	size := coss.ButtonIconSM
+	m := size.Metrics()
+	ink := tk(c).Foreground
+	if danger {
+		ink = tk(c).DestructiveForeground
 	}
-	button.Children(func() { ui.Icon(c, icon).Size(16, 16).TextColor(ink).PassThrough() })
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     size,
+		Label:    label,
+		Disabled: disabled,
+		Key:      key,
+		Content: func() {
+			if icon != nil {
+				ui.Icon(c, icon).Size(m.IconSize, m.IconSize).Shrink(0).TextColor(ink).Opacity(design.OpacityIcon).PassThrough()
+			}
+		},
+	}).Shrink(0)
+	if tooltip != "" {
+		button.Tooltip(tooltip)
+	}
 	return button.Clicked()
 }
 
@@ -66,26 +76,17 @@ func modelLabelWithHelp(c *ui.Context, key, label, help string) {
 
 // modelLinkPill is the text-only 28 DIP button in the tertiary ink.
 func modelLinkPill(c *ui.Context, label string, disabled bool) ui.Element {
-	button := ui.Button(c, label).Height(28).Shrink(0).Padding(0, 10).Radius(14).BorderWidth(0).Background(ui.Transparent).
-		FontSize(theme.InterfaceSize(12)).TextColor(theme.Color(modelColors(c).Muted)).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
-	}
-	return button
+	return kGhost(c, label, disabled).Shrink(0)
 }
 
 // modelPlusPill is the outlined 28 DIP pill with a plus glyph ("add model").
 func modelPlusPill(c *ui.Context, label string, disabled bool) ui.Element {
-	button := ui.Button(c, "").Label(label).AlignSelf(ui.Start).Height(28).Shrink(0).Padding(0, 12).Gap(6).Radius(14).
-		Border(.667, theme.Color(modelColors(c).BorderL3)).Background(ui.Transparent).AlignItems(ui.Center).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	button.Children(func() {
-		ui.Icon(c, bodyIcon("plus")).Size(16, 16).Shrink(0).TextColor(c.Theme().Text).PassThrough()
-		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(c.Theme().Text)
-	})
-	return button
+	return coss.Button(c, label, coss.ButtonOptions{
+		Variant:  coss.ButtonOutline,
+		Size:     coss.ButtonSM,
+		Icon:     coss.IconPlus,
+		Disabled: disabled,
+	}).Label(label).AlignSelf(ui.Start).Shrink(0)
 }
 
 // modelSegmented is the two-way mode switch of the add card: equal 28 DIP
@@ -93,24 +94,10 @@ func modelPlusPill(c *ui.Context, label string, disabled bool) ui.Element {
 // when nothing was clicked this frame).
 func modelSegmented(c *ui.Context, key string, labels []string, active int, disabled bool) int {
 	picked := -1
-	ui.Row(c.Key(key)).AlignSelf(ui.Start).Shrink(0).Gap(8).Height(28).Children(func() {
+	ui.Row(c.Key(key)).AlignSelf(ui.Start).Shrink(0).Gap(design.Sp(2)).Children(func() {
 		for index, caption := range labels {
 			i, text := index, caption
-			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).Height(28).Padding(0, 14).Radius(8).
-				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
-			if disabled {
-				segment = segment.Disabled(true).Opacity(0.5)
-			}
-			ink := c.Theme().Text
-			if i == active {
-				segment.Background(ink)
-				ink = c.Theme().Background
-			} else if segment.Hovered() && !disabled {
-				segment.Background(c.Theme().SurfaceHover)
-			}
-			segment.Children(func() {
-				ui.Text(c, text).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(ink)
-			})
+			segment := kChoiceButton(c.Key(key+"-"+strconv.Itoa(i)), text, i == active, disabled).Label(text)
 			if segment.Clicked() && !disabled {
 				picked = i
 			}

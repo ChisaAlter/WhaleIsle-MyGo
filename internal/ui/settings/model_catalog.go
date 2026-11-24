@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	store "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -117,8 +118,14 @@ func configurationModels(c *ui.Context, m Model, s store.ViewState, scope string
 									placeholder = idText
 								}
 							}
-							input := ui.TextInput(c.Key(fmt.Sprintf("%s/model/%d/%s", scope, index, field)), &value).Label(label).Placeholder(placeholder).Grow(grow).MinWidth(0).Height(36).Radius(8).
-								Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(fonttheme.InterfaceSize(14)).Disabled(disabled)
+							var input ui.Element
+							ui.Box(c.Key(fmt.Sprintf("%s/model/%d/%s", scope, index, field))).Grow(grow).MinWidth(0).Children(func() {
+								input = kInput(c, &value, coss.InputOptions{
+									Label:       label,
+									Placeholder: placeholder,
+									Disabled:    disabled,
+								})
+							})
 							if input.Changed() {
 								if field == "name" && strings.TrimSpace(value) == "" {
 									configurationSet(row, field, nil)
@@ -314,9 +321,8 @@ func configurationModelReasoningEfforts(c *ui.Context, m Model, s store.ViewStat
 					}
 				}
 				selectedLevel := level
-				if ui.Select(c.Key(fmt.Sprintf("%s/model/%d/reasoning/level/%d", scope, index, rowIdx)), &selectedLevel, choices).
-					Label(providerCopy("档位", "Level")).Grow(1).MinWidth(0).Height(36).Radius(8).
-					Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(fonttheme.InterfaceSize(14)).Disabled(disabled).Changed() && selectedLevel != level {
+				if kSelect(c.Key(fmt.Sprintf("%s/model/%d/reasoning/level/%d", scope, index, rowIdx)), &selectedLevel, choices, providerCopy("档位", "Level"), disabled).
+					Grow(1).MinWidth(0).Changed() && selectedLevel != level {
 					nextLevels := append([]string{}, entries...)
 					nextLevels[rowIdx] = selectedLevel
 					nextMap := map[string]any{}
@@ -346,10 +352,11 @@ func configurationModelReasoningEfforts(c *ui.Context, m Model, s store.ViewStat
 				} else {
 					valuePtr = &wireText
 				}
-				if ui.TextInput(c.Key(fmt.Sprintf("%s/model/%d/reasoning/wire/%s", scope, index, level)), valuePtr).
-					Label(fmt.Sprintf("%s (%s)", providerCopy("API 参数值", "API value"), level)).Placeholder(placeholder).
-					Grow(1).MinWidth(0).Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).
-					FontSize(fonttheme.InterfaceSize(14)).Disabled(disabled || level == "off").Changed() {
+				if kInputRow(c.Key(fmt.Sprintf("%s/model/%d/reasoning/wire/%s", scope, index, level)), valuePtr, coss.InputOptions{
+					Label:       fmt.Sprintf("%s (%s)", providerCopy("API 参数值", "API value"), level),
+					Placeholder: placeholder,
+					Disabled:    disabled || level == "off",
+				}).Changed() {
 					efforts[level] = *valuePtr
 					change(rows)
 				}

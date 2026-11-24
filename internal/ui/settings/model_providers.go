@@ -93,7 +93,7 @@ func configurationProviders(c *ui.Context, m Model, s store.ViewState, ns store.
 					}
 					ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 						modelFieldLabel(c, providerCopy("API 协议", "API protocol"))
-						if ui.Select(c, &selected, labels).Label(providerCopy("API 协议", "API protocol")).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(fonttheme.InterfaceSize(14)).Disabled(!s.Writable || s.Saving).Changed() {
+						if kSelect(c, &selected, labels, providerCopy("API 协议", "API protocol"), !s.Writable || s.Saving).FillWidth().Changed() {
 							for i, label := range labels {
 								if label == selected {
 									p["api"] = field.EnumOptions[i]
