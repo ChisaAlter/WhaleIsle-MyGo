@@ -156,10 +156,7 @@ func TestTimingPickersCossControls(t *testing.T) {
 	if d.Clock[:2] != wantHour {
 		t.Fatalf("Clock = %q, want %s:...", d.Clock, wantHour)
 	}
-	clickHour := "08"
-	if wantHour == "08" {
-		clickHour = "06"
-	}
+	clickHour := fmt.Sprintf("%02d", beforeHour)
 	if err := tt.Click("Hour " + clickHour); err != nil {
 		t.Fatal(err)
 	}
