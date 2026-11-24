@@ -179,7 +179,7 @@ func preflight(root string, g graph, full, requireLinks, tolerateGone bool) erro
 	for name, spec := range g.Links {
 		origin, _ := child(root, name)
 		target, _ := child(root, spec.Target)
-		if err := checkParents(root, origin, false, !full); err != nil {
+		if err := checkParents(root, origin, false, tolerateGone); err != nil {
 			return err
 		}
 		existing, originErr := os.Lstat(origin)

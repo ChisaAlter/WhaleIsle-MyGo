@@ -63,12 +63,23 @@ func painted(tt *ui.Tester, want color.RGBA) int {
 	return n
 }
 
+func settledModel(t *testing.T, f *reviewFixture) Model {
+	t.Helper()
+	m := reviewModel(t, f)
+	owner := m.Controller.Snapshot().Value.Owner
+	if err := m.Controller.LoadIndexes(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
 // swapMediaLease releases the page's media lease while its pictures are still
 // pending — the window hide/session swap the owner exists for — then runs the
 // decodes the regions must ask the next lease for. A memo region that stays
 // put keeps the dead owner's fallback forever.
 func swapMediaLease(t *testing.T, tt *ui.Tester, s *media.Service, m *Model) {
 	t.Helper()
+	revBefore := m.Controller.Snapshot().Rev
 	m.Media.Release()
 	m.Media = s.NewOwner(nil, nil)
 	for range 3 {
@@ -77,6 +88,9 @@ func swapMediaLease(t *testing.T, tt *ui.Tester, s *media.Service, m *Model) {
 	s.RunPending()
 	for range 3 {
 		tt.Frame()
+	}
+	if revAfter := m.Controller.Snapshot().Rev; revAfter != revBefore {
+		t.Fatalf("controller revision changed during media swap (%d -> %d); mediaEpoch not isolated", revBefore, revAfter)
 	}
 }
 
@@ -101,7 +115,7 @@ func TestArtworkReloadsAfterMediaLeaseSwap(t *testing.T) {
 	// plugins-installed and its package rows (view.go's list and row memos).
 	t.Run("installed rows", func(t *testing.T) {
 		s := testMediaService(t)
-		m := reviewModel(t, fixture(t))
+		m := settledModel(t, fixture(t))
 		m.Media = s.NewOwner(nil, nil)
 		tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
 		if painted(tt, red) != 0 {
@@ -116,7 +130,7 @@ func TestArtworkReloadsAfterMediaLeaseSwap(t *testing.T) {
 	// plugin-detail-head and plugin-parts (detail.go's two memos).
 	t.Run("detail head and parts", func(t *testing.T) {
 		s := testMediaService(t)
-		m := reviewModel(t, fixture(t))
+		m := settledModel(t, fixture(t))
 		m.Media = s.NewOwner(nil, nil)
 		tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)
 		if err := tt.Click("Fixture plugin"); err != nil {
@@ -138,11 +152,8 @@ func TestArtworkReloadsAfterMediaLeaseSwap(t *testing.T) {
 	// discover-listing and its entry rows (discover.go's two memos).
 	t.Run("discover listing", func(t *testing.T) {
 		s := testMediaService(t)
-		m := reviewModel(t, fixture(t))
+		m := settledModel(t, fixture(t))
 		owner := m.Controller.Snapshot().Value.Owner
-		if err := m.Controller.LoadIndexes(context.Background(), owner); err != nil {
-			t.Fatal(err)
-		}
 		m.Controller.Actions(owner).SelectTab("discover")
 		m.Media = s.NewOwner(nil, nil)
 		tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 1200, 900)

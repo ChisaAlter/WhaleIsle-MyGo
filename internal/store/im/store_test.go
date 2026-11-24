@@ -599,31 +599,29 @@ func TestSendDraftWithoutRegisteredIMSendStaysLocal(t *testing.T) {
 	}
 }
 
-// holdTerminalPersist installs a persistHook that blocks the first history
-// persist to run after channelID's last message reached a terminal state.
-// It returns a channel that closes when the persist is held, and one the
-// test closes to let the write go through.
+// holdTerminalPersist installs a persist hook that blocks the first history
+// persist carrying a terminal state (sent/failed) for channelID. It returns a
+// channel that closes when the persist is held, and one the test closes to let
+// the write proceed.
 func holdTerminalPersist(t *testing.T, s *Store, channelID string) (blocked <-chan struct{}, release chan<- struct{}) {
 	t.Helper()
 	held := make(chan struct{})
 	gate := make(chan struct{})
 	var once sync.Once
-	persistHook = func(what int) {
+	s.setPersistHook(func(what int, hist map[string][]Message) {
 		if what != persistHistory {
 			return
 		}
-		s.mu.Lock()
-		msgs := s.history[channelID]
+		msgs := hist[channelID]
 		terminal := len(msgs) > 0 &&
 			(msgs[len(msgs)-1].State == MessageStateSent || msgs[len(msgs)-1].State == MessageStateFailed)
-		s.mu.Unlock()
 		if !terminal {
 			return
 		}
 		once.Do(func() { close(held) })
 		<-gate
-	}
-	t.Cleanup(func() { persistHook = nil })
+	})
+	t.Cleanup(func() { s.setPersistHook(nil) })
 	return held, gate
 }
 
@@ -665,7 +663,9 @@ func reopenState(t *testing.T, dir, channelID string) string {
 
 // A terminal delivery state must be on disk before subscribers see it: the
 // snapshot is the contract, and anything observing sent/failed must read the
-// same state back after a reopen rather than unknown.
+// same state back after a reopen rather than unknown. Concurrent publishLocked
+// callers (like SetDraft) must not observe the terminal state early, and a
+// failed terminal persist must leave s.history pre-terminal.
 func TestSendDraftPublishesTerminalStateOnlyAfterPersist(t *testing.T) {
 	old, had := api.Registry["im/send"]
 	api.Registry["im/send"] = api.Endpoint{Method: "im/send"}
@@ -704,6 +704,11 @@ func TestSendDraftPublishesTerminalStateOnlyAfterPersist(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatal("terminal persist never ran")
 		}
+		// Trigger publishLocked concurrently while persist is held.
+		s.SetDraft("general", "typing while persist held")
+		if got := reopenState(t, dir, "general"); got != MessageStateUnknown {
+			t.Fatalf("disk state while held = %q, want unknown", got)
+		}
 		assertTerminalNotPublishedYet(t, s)
 		close(release)
 
@@ -719,6 +724,122 @@ func TestSendDraftPublishesTerminalStateOnlyAfterPersist(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 		t.Fatalf("send never settled: %+v", s.Snapshot().Value.Messages)
+	})
+
+	t.Run("rpc success with concurrent SetDraft", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			rpcID, _ := body["rpcId"].(string)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"type":   "server-response",
+				"rpcId":  rpcID,
+				"result": map[string]any{"ok": true, "messageId": "m-ok"},
+			})
+		}))
+		defer srv.Close()
+
+		dir := t.TempDir()
+		s, err := Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
+		blocked, release := holdTerminalPersist(t, s, "general")
+		s.SendDraft(context.Background(), "general", "must persist sent before publish")
+
+		select {
+		case <-blocked:
+		case <-time.After(2 * time.Second):
+			t.Fatal("terminal persist never ran")
+		}
+		s.SetDraft("general", "typing while sent persist held")
+		if got := reopenState(t, dir, "general"); got != MessageStateUnknown {
+			t.Fatalf("disk state while held = %q, want unknown", got)
+		}
+		assertTerminalNotPublishedYet(t, s)
+		close(release)
+
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			snap := s.Snapshot().Value
+			if len(snap.Messages) == 1 && snap.Messages[0].State == MessageStateSent {
+				if got := reopenState(t, dir, "general"); got != MessageStateSent {
+					t.Fatalf("observed sent but reopen read %q", got)
+				}
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatalf("send never settled: %+v", s.Snapshot().Value.Messages)
+	})
+
+	t.Run("failed terminal persist keeps pre-terminal state", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			rpcID, _ := body["rpcId"].(string)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"type":   "server-response",
+				"rpcId":  rpcID,
+				"result": map[string]any{"ok": true, "messageId": "m-fail-persist"},
+			})
+		}))
+		defer srv.Close()
+
+		dir := t.TempDir()
+		s, err := Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
+		blocked, release := holdTerminalPersist(t, s, "general")
+		s.SendDraft(context.Background(), "general", "disk write fails before sent")
+
+		select {
+		case <-blocked:
+		case <-time.After(2 * time.Second):
+			t.Fatal("terminal persist never ran")
+		}
+		historyPath := filepath.Join(Dir(dir), historyFile)
+		historyBak := historyPath + ".bak"
+		if err := os.Rename(historyPath, historyBak); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(historyPath, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		close(release)
+
+		deadline := time.Now().Add(2 * time.Second)
+		var settled bool
+		for time.Now().Before(deadline) {
+			snap := s.Snapshot().Value
+			if snap.Err != nil {
+				if len(snap.Messages) != 1 || snap.Messages[0].State != MessageStatePending {
+					t.Fatalf("failed terminal persist leaked state = %+v, want pending", snap.Messages)
+				}
+				settled = true
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if !settled {
+			t.Fatal("failed persist never published Err")
+		}
+		s.SetDraft("general", "keystroke after failed persist")
+		if got := s.Snapshot().Value.Messages[0].State; got != MessageStatePending {
+			t.Fatalf("SetDraft after failed persist showed %q, want pending", got)
+		}
+		if err := os.Remove(historyPath); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(historyBak, historyPath); err != nil {
+			t.Fatal(err)
+		}
+		if got := reopenState(t, dir, "general"); got != MessageStateUnknown {
+			t.Fatalf("reopened failed terminal persist as %q, want unknown", got)
+		}
 	})
 
 	t.Run("draft persist rollback", func(t *testing.T) {
@@ -746,6 +867,7 @@ func TestSendDraftPublishesTerminalStateOnlyAfterPersist(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatal("rollback persist never ran")
 		}
+		s.SetDraft("notes", "typing on another channel while rollback held")
 		assertTerminalNotPublishedYet(t, s)
 		close(release)
 		select {
@@ -755,6 +877,8 @@ func TestSendDraftPublishesTerminalStateOnlyAfterPersist(t *testing.T) {
 		}
 
 		snap := s.Snapshot().Value
+		s.Select("general")
+		snap = s.Snapshot().Value
 		if len(snap.Messages) != 1 || snap.Messages[0].State != MessageStateFailed {
 			t.Fatalf("rollback state = %+v, want failed", snap.Messages)
 		}

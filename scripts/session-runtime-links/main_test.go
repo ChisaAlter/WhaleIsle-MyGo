@@ -172,6 +172,32 @@ func TestRuntimeLinksRestoreRejectsMissingPhysicalTarget(t *testing.T) {
 	}
 }
 
+func TestRuntimeLinksRejectsMissingOriginAncestor(t *testing.T) {
+	root, _ := fixtureGraph(t)
+	// Keep both package and peer targets intact, but delete one origin
+	// ancestor directory. check, restore and verify must all refuse the
+	// half-deleted tree and leave no partial link behind; only detach
+	// tolerates the retry cleanup.
+	if err := os.RemoveAll(filepath.Join(root, "package", "node_modules")); err != nil {
+		t.Fatal(err)
+	}
+	if err := operate("check", root); err == nil {
+		t.Fatal("check accepted a missing origin ancestor")
+	}
+	if err := operate("restore", root); err == nil {
+		t.Fatal("restore accepted a missing origin ancestor")
+	}
+	if _, err := os.Lstat(filepath.Join(root, "peer", "node_modules", "package")); !os.IsNotExist(err) {
+		t.Fatalf("restore left a partial link: peer/node_modules/package (err=%v)", err)
+	}
+	if err := operate("verify", root); err == nil {
+		t.Fatal("verify accepted a missing origin ancestor")
+	}
+	if err := operate("detach", root); err != nil {
+		t.Fatalf("detach did not tolerate missing origin ancestor: %v", err)
+	}
+}
+
 func TestRuntimeLinksTraceRecordsEntryAndOutcome(t *testing.T) {
 	root, _ := fixtureGraph(t)
 	trace := filepath.Join(t.TempDir(), "runtime-links.log")
