@@ -7,6 +7,7 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/shortcuts"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -145,7 +146,7 @@ func desktopPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	} {
 		if action.run != nil {
 			bodyPreferenceRow(c, action.id, action.label, "", fg, muted, func() {
-				if ui.Button(c, providerCopy("打开", "Open")).Label(action.label).Clicked() {
+				if kButton(c, providerCopy("打开", "Open")).Label(action.label).Clicked() {
 					action.run()
 				}
 			})
@@ -166,12 +167,12 @@ func desktopDiagnostics(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 		bodyHeading(c, i18n.T(i18n.KeySettingsDesktopTitle), i18n.T(i18n.KeySettingsDesktopHint), fg, muted)
 		ui.Row(c).Wrap().Gap(8).Children(func() {
 			if d.OnDetectElectron != nil {
-				if ui.Button(c, i18n.T(i18n.KeySettingsDesktopDetectElectron)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
+				if kButton(c, i18n.T(i18n.KeySettingsDesktopDetectElectron)).Clicked() {
 					d.OnDetectElectron()
 				}
 			}
 			if d.OnCheckUpdates != nil {
-				if ui.Button(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(d.UpdateBusy).Clicked() {
+				if kButtonDisabled(c, i18n.T(i18n.KeySettingsDesktopCheckUpdates), d.UpdateBusy).Clicked() {
 					d.OnCheckUpdates()
 				}
 			}
@@ -181,9 +182,9 @@ func desktopDiagnostics(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 				return
 			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, d.Fields.Workspace).Label(i18n.T(i18n.KeySettingsDesktopWorkspace)).Grow(1).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
+				kInputRow(c, d.Fields.Workspace, coss.InputOptions{Label: i18n.T(i18n.KeySettingsDesktopWorkspace)})
 				if d.OnBrowseWorkspace != nil {
-					if ui.Button(c, i18n.T(i18n.KeySettingsDesktopBrowseWorkspace)).Height(32).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
+					if kButton(c, i18n.T(i18n.KeySettingsDesktopBrowseWorkspace)).Clicked() {
 						d.OnBrowseWorkspace()
 					}
 				}
@@ -193,15 +194,12 @@ func desktopDiagnostics(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 			if d.Fields.Port == nil {
 				return
 			}
-			ui.TextInput(c, d.Fields.Port).Label(i18n.T(i18n.KeySettingsDesktopPort)).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
+			kInput(c, d.Fields.Port, coss.InputOptions{Label: i18n.T(i18n.KeySettingsDesktopPort)})
 		}, fg, muted)
 		harnessRestartPane(c, d, fg, muted)
 	})
 	// Theme/wallpaper → Appearance; locale/tray/login → Interface (ui-settings partition).
-	save := ui.Button(c, i18n.T(i18n.KeySettingsSave)).Label("save-desktop-config").AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
-	if d.OnSave == nil {
-		save = save.Disabled(true)
-	}
+	save := kPrimary(c, i18n.T(i18n.KeySettingsSave), d.OnSave == nil).Label("save-desktop-config").AlignSelf(ui.Start)
 	if save.Clicked() && d.OnSave != nil {
 		d.OnSave()
 	}

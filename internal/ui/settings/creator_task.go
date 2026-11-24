@@ -41,16 +41,16 @@ func creatorTaskPane(c *ui.Context, a *CreatorTaskAccess, roster session.AgentPr
 		}
 		if s.Attempted && !s.Opened {
 			ui.Row(c).Gap(8).Children(func() {
-				if !s.Created && ui.Button(c, providerCopy("定位已提交目标", "Locate attempted task")).Disabled(s.Busy || a.OnLocate == nil).Clicked() && a.OnLocate != nil {
+				if !s.Created && kButtonDisabled(c, providerCopy("定位已提交目标", "Locate attempted task"), s.Busy || a.OnLocate == nil).Clicked() && a.OnLocate != nil {
 					a.OnLocate(s.Ticket)
 				}
-				if s.Created && ui.Button(c, providerCopy("打开已有任务", "Open existing task")).Disabled(s.Busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
+				if s.Created && kPrimary(c, providerCopy("打开已有任务", "Open existing task"), s.Busy || a.OnOpen == nil).Clicked() && a.OnOpen != nil {
 					a.OnOpen(s.Ticket)
 				}
 			})
 			return
 		}
-		if ui.Button(c, providerCopy("新建 Creator 任务", "New Creator task")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Disabled(!roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).Clicked() && a.OnPrepare != nil {
+		if kPrimary(c, providerCopy("新建 Creator 任务", "New Creator task"), !roster.Loaded || !available || roster.Busy || s.Busy || a.OnPrepare == nil).AlignSelf(ui.Start).Clicked() && a.OnPrepare != nil {
 			a.OnPrepare()
 		}
 	})

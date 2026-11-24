@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -159,7 +161,7 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 							card = card.Border(.667, cardBorder).Background(modelWell(c).Alpha(.8))
 						}
 						card.Children(func() {
-							main := ui.Button(c, "").Label(providerCopy("设为新任务默认", "Set as new task default")+" · "+label).FillWidth().MinWidth(0).Padding(14, 16, 12, 16).BorderWidth(0).Background(ui.Transparent).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
+							main := ui.ButtonBase(c).Label(providerCopy("设为新任务默认", "Set as new task default")+" · "+label).FillWidth().MinWidth(0).Padding(design.Sp(3.5), design.Sp(4), design.Sp(3), design.Sp(4)).Cursor(ui.CursorPointer).Disabled(a.Selected == nil || !roster.Loaded || !roster.Writable || roster.Busy || row.Hidden || row.Broken != "")
 							main.Children(func() {
 								ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
 									ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
@@ -225,12 +227,10 @@ func agentPresetRosterPane(c *ui.Context, a *AgentPresetsAccess, roster session.
 						// The reference's dashed entry: the Agent drafts a new preset
 						// mode rather than asking for hand-written JSON.
 						label := i18n.T(KeyPass4CreateWithAgent)
-						create := ui.Button(c, "").Label(label).FillWidth().Height(46).Radius(12).
-							Border(1, ui.RGBA(muted.R, muted.G, muted.B, .22)).BorderStyle(ui.BorderDashed).
-							Background(ui.Transparent).TextColor(fg)
-						create.Children(func() {
-							ui.Text(c, label).FontSize(fonttheme.InterfaceSize(14)).TextColor(fg)
-						})
+						create := coss.Button(c, label, coss.ButtonOptions{
+							Variant: coss.ButtonOutline,
+							Size:    coss.ButtonXL,
+						}).Label(label).FillWidth().BorderStyle(ui.BorderDashed)
 						if create.Clicked() && a.Creator != nil && a.Creator.OnPrepare != nil {
 							a.Creator.OnPrepare()
 						}

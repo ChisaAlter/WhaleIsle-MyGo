@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"whaleisle/internal/config"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -34,12 +35,12 @@ func harnessRestartPane(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {
 		} else {
 			ui.Text(c, providerCopy("本地配置不可用，无法保存重试策略。", "Local configuration is unavailable; retry policy cannot be saved.")).TextColor(muted)
 		}
-		ui.Checkbox(c, f.HarnessAutoRestart, providerCopy("允许崩溃后自动重启", "Restart automatically after a crash")).Label("harness-restart-enabled").Disabled(d.RestartPolicy == nil)
+		kCheckbox(c, f.HarnessAutoRestart, providerCopy("允许崩溃后自动重启", "Restart automatically after a crash"), d.RestartPolicy == nil).Label("harness-restart-enabled")
 		desktopRow(c, providerCopy("最多重试次数（1–10）", "Maximum retry attempts (1–10)"), func() {
-			ui.TextInput(c, f.HarnessRestartMaxAttempts).Label("harness-restart-attempts").FillWidth().Disabled(d.RestartPolicy == nil)
+			kInput(c, f.HarnessRestartMaxAttempts, coss.InputOptions{Label: "harness-restart-attempts", Disabled: d.RestartPolicy == nil})
 		}, fg, muted)
 		desktopRow(c, providerCopy("基础延迟（500–30000 毫秒）", "Base delay (500–30000 ms)"), func() {
-			ui.TextInput(c, f.HarnessRestartBaseDelayMs).Label("harness-restart-delay").FillWidth().Disabled(d.RestartPolicy == nil)
+			kInput(c, f.HarnessRestartBaseDelayMs, coss.InputOptions{Label: "harness-restart-delay", Disabled: d.RestartPolicy == nil})
 		}, fg, muted)
 	})
 }

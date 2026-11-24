@@ -50,7 +50,7 @@ func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg
 		labels = append(labels, selected) // display-only sentinel, never saved implicitly
 	}
 	bodyPreferenceRow(c, "pet-look-model", providerCopy("看看模型", "Look model"), providerCopy("独立于全局视觉模型保存。每次截图和发送前仍需确认。", "Saved separately from the global vision model. Each screenshot and send still asks for confirmation."), fg, muted, func() {
-		if ui.Button(c, providerCopy("刷新模型目录", "Refresh models")).Disabled(disabled || store == nil || catalog.Loading).Clicked() {
+		if kButtonDisabled(c, providerCopy("刷新模型目录", "Refresh models"), disabled || store == nil || catalog.Loading).Clicked() {
 			store.RefreshImageCatalog(context.Background())
 		}
 		if !catalog.Connected {
@@ -62,7 +62,7 @@ func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg
 		if legacy {
 			ui.Text(c, providerCopy("旧配置使用桌面 API 设置，不依赖 Host。选择目录中的提供方后，将改走该提供方。", "This legacy selection uses desktop API settings without a Host. Selecting a catalog provider changes the route explicitly.")).TextColor(muted)
 		}
-		ui.Select(c, &selected, labels).Label("pet-look-model-route").FillWidth().Disabled(disabled || catalog.Loading).OnChange(func() {
+		kSelect(c, &selected, labels, "pet-look-model-route", disabled || catalog.Loading).FillWidth().OnChange(func() {
 			for _, route := range choices {
 				if route.Label == selected {
 					fresh := petlook.Catalog{}

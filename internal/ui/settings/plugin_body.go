@@ -6,6 +6,7 @@ import (
 
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -38,7 +39,7 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 			ui.Column(c.Key(f.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, f.Label).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-					if ui.Button(c, providerCopy("重置为继承值", "Reset to inherited")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(disabled).Clicked() {
+					if kButtonDisabled(c, providerCopy("重置为继承值", "Reset to inherited"), disabled).Clicked() {
 						binding.Reset(f.Key)
 					}
 				})
@@ -57,24 +58,32 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 						}
 					}
 				case store.FieldEnum:
-					if ui.Select(c, &value, f.EnumOptions).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() {
+					if kSelect(c, &value, f.EnumOptions, f.Label, disabled).FillWidth().Changed() {
 						binding.SetDraft(f.Key, value)
 					}
 				case store.FieldJSON:
-					if ui.TextArea(c, &value).FillWidth().MinHeight(100).Lines(4, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).ReadOnly(disabled).Changed() {
+					if kTextarea(c, &value, coss.TextareaOptions{
+						Label:    f.Label,
+						ReadOnly: disabled,
+						MaxLines: 12,
+					}).MinHeight(100).Lines(4, 12).Changed() {
 						binding.SetDraft(f.Key, value)
 					}
 				default:
 					if f.Kind == store.FieldString && (MultilineStringField(f) || strings.Contains(value, "\n")) {
-						if ui.TextArea(c, &value).FillWidth().MinHeight(80).Lines(3, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).ReadOnly(disabled).Changed() {
+						if kTextarea(c, &value, coss.TextareaOptions{
+							Label:    f.Label,
+							ReadOnly: disabled,
+							MaxLines: 10,
+						}).MinHeight(80).Lines(3, 10).Changed() {
 							binding.SetDraft(f.Key, value)
 						}
 					} else {
-						input := ui.TextInput(c, &value).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(f.Label).ReadOnly(disabled)
-						if SecretLikeKey(f.Key) || SecretLikeKey(f.Label) {
-							input.Password()
-						}
-						if input.Changed() {
+						if kInput(c, &value, coss.InputOptions{
+							Label:    f.Label,
+							ReadOnly: disabled,
+							Password: SecretLikeKey(f.Key) || SecretLikeKey(f.Label),
+						}).Changed() {
 							binding.SetDraft(f.Key, value)
 						}
 					}
@@ -85,10 +94,10 @@ func NamespaceBody(c *ui.Context, m Model, namespace string) bool {
 			})
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.PrimaryButton(c, providerCopy("保存", "Save")).Height(32).Padding(0, 14).Radius(8).FontSize(theme.InterfaceSize(13)).Disabled(disabled || !snap.Dirty).Clicked() {
+			if kPrimary(c, providerCopy("保存", "Save"), disabled || !snap.Dirty).Clicked() {
 				binding.Save(context.Background())
 			}
-			if ui.Button(c, providerCopy("放弃草稿", "Discard drafts")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(snap.Saving || !snap.Dirty).Clicked() {
+			if kButtonDisabled(c, providerCopy("放弃草稿", "Discard drafts"), snap.Saving || !snap.Dirty).Clicked() {
 				binding.Discard()
 			}
 		})

@@ -9,7 +9,6 @@ import (
 	"whaleisle/internal/desktop/whale"
 	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -34,7 +33,7 @@ func petChoiceSelect(c *ui.Context, current *string, label string, options []pet
 		selected = *current
 		labels = append(labels, selected)
 	}
-	if !ui.Select(c, &selected, labels).Label(label).FillWidth().Disabled(disabled).Changed() {
+	if !kSelect(c, &selected, labels, label, disabled).FillWidth().Changed() {
 		return false
 	}
 	for _, option := range options {
@@ -180,7 +179,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				}
 				ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
 					ui.Text(c, label).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-					if ui.Select(c, &selected, choices).FillWidth().Label(label).Disabled(disabled).Changed() {
+					if kSelect(c, &selected, choices, label, disabled).FillWidth().Changed() {
 						number, _ := strconv.ParseFloat(strings.TrimSuffix(selected, "%"), 64)
 						*value = number / 100
 						commit(field)
@@ -243,13 +242,13 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 		}
 		reset := ui.Local(anchor, "confirm-reset", func() bool { return false })
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if widgets.Button(c, colors, providerCopy("恢复桌面形象与行为默认", "Reset desktop appearance & behavior"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall, Disabled: p.Store == nil || disabled}).Clicked() {
+			if kDanger(c, providerCopy("恢复桌面形象与行为默认", "Reset desktop appearance & behavior"), p.Store == nil || disabled).Clicked() {
 				*reset = true
 			}
 		})
 		ConfirmDialog(c, petResetQuestion(p, reset, colors))
 		bodyDisclosure(c, "pet-local-skins", providerCopy("本地皮肤与动画", "Local skins and animation"), func() {
-			if ui.Button(c, providerCopy("保存本地皮肤与导入草稿", "Save local skin and imported draft")).Disabled(disabled).Clicked() {
+			if kPrimary(c, providerCopy("保存本地皮肤与导入草稿", "Save local skin and imported draft"), disabled).Clicked() {
 				save()
 			}
 			bodyLocalToggle(c, "pet-neural", providerCopy("THA4 动画", "THA4 animation"), providerCopy("使用已验证的本地资源；不可用时使用内置动画。", "Uses verified local resources, with bundled animation when unavailable."), &p.Neural, disabled, fg, muted, nil)
@@ -266,11 +265,13 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 				options = append(options, p.SkinID)
 				ui.Text(c, providerCopy("已存皮肤缺失，暂用内置形象。", "Saved skin is missing; showing the bundled character.")).FillWidth().TextColor(muted)
 			}
-			bodyPreferenceRow(c, "pet-skin", providerCopy("皮肤", "Skin"), providerCopy("留空使用内置鲸鱼娘。", "Leave blank to use the bundled Whale."), fg, muted, func() { ui.Select(c, &p.SkinID, options).FillWidth().Disabled(disabled) })
-			if ui.Button(c, providerCopy("刷新本地皮肤", "Refresh local skins")).Disabled(p.Store == nil).Clicked() {
+			bodyPreferenceRow(c, "pet-skin", providerCopy("皮肤", "Skin"), providerCopy("留空使用内置鲸鱼娘。", "Leave blank to use the bundled Whale."), fg, muted, func() {
+				kSelect(c, &p.SkinID, options, providerCopy("皮肤", "Skin"), disabled).FillWidth()
+			})
+			if kButtonDisabled(c, providerCopy("刷新本地皮肤", "Refresh local skins"), p.Store == nil).Clicked() {
 				p.Refresh()
 			}
-			if ui.Button(c, providerCopy("载入原版设置草稿", "Load original settings draft")).Disabled(p.Store == nil).Clicked() {
+			if kButtonDisabled(c, providerCopy("载入原版设置草稿", "Load original settings draft"), p.Store == nil).Clicked() {
 				p.LoadOriginalDraft()
 			}
 			for _, line := range p.OriginalImportReport {
@@ -278,7 +279,7 @@ func petPane(c *ui.Context, colors theme.Colors, p *pet.Companion, fg, muted ui.
 			}
 			if p.PositionDraft != nil {
 				ui.Text(c, fmt.Sprintf(providerCopy("待保存位置：(%d, %d)", "Pending position: (%d, %d)"), p.PositionDraft.X, p.PositionDraft.Y)).FillWidth().TextColor(muted)
-				if ui.Button(c, providerCopy("取消位置导入", "Discard position import")).Clicked() {
+				if kButton(c, providerCopy("取消位置导入", "Discard position import")).Clicked() {
 					p.PositionDraft = nil
 					p.OriginalImportReport = nil
 				}
@@ -328,20 +329,21 @@ func petRenderAssetsRow(c *ui.Context, colors theme.Colors, key string, p *pet.C
 		}
 		p.CancelDownloadRenderAssets()
 	}
+	_ = colors
 	bodyPreferenceRow(c, key, title, hint, fg, muted, func() {
 		switch snap.State {
 		case pet.RenderAssetsReady:
 			ui.Text(c, providerCopy("已就绪", "Ready")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		case pet.RenderAssetsDownloading:
-			if widgets.Button(c, colors, providerCopy("取消下载", "Cancel download"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+			if kButton(c, providerCopy("取消下载", "Cancel download")).Clicked() {
 				cancel()
 			}
 		case pet.RenderAssetsError:
-			if widgets.Button(c, colors, providerCopy("重试下载", "Retry download"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
+			if kPrimary(c, providerCopy("重试下载", "Retry download"), false).Clicked() {
 				start()
 			}
 		default:
-			if widgets.Button(c, colors, providerCopy("下载高阶渲染包", "Download render pack"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
+			if kPrimary(c, providerCopy("下载高阶渲染包", "Download render pack"), false).Clicked() {
 				start()
 			}
 		}

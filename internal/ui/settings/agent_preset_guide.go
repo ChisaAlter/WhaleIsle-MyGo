@@ -119,14 +119,14 @@ func agentPresetGuidePane(c *ui.Context, row session.ManagedAgentPreset, fg, mut
 				ui.Column(c).Fill().MinHeight(0).Gap(12).Children(func() {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 						ui.Text(c, providerCopy("模式指南", "Mode guide")).FontSize(fonttheme.InterfaceSize(16)).Bold().Grow(1)
-						if ui.Button(c, providerCopy("关闭帮助", "Close help")).Label(providerCopy("关闭帮助", "Close help") + " · " + row.ID).Clicked() {
+						if kGhost(c, providerCopy("关闭帮助", "Close help"), false).Label(providerCopy("关闭帮助", "Close help") + " · " + row.ID).Clicked() {
 							open = false
 						}
 					})
 					ui.Text(c, guide.Intro).FontSize(fonttheme.InterfaceSize(13)).TextColor(muted).Selectable()
 					ui.Row(c).Gap(8).Label(agentPresetGuideSectionsLabel()).Children(func() {
 						for _, tab := range []struct{ id, label string }{{"explanation", providerCopy("模式说明", "Mode details")}, {"usage", providerCopy("如何使用", "How to use")}} {
-							button := ui.Button(c.Key(tab.id), tab.label).Role(ui.RoleTab).Selected(state.Page == tab.id)
+							button := kChoiceButton(c.Key(tab.id), tab.label, state.Page == tab.id, false).Role(ui.RoleTab)
 							if state.Page == tab.id {
 								button.AutoFocus()
 							}
@@ -352,15 +352,7 @@ PTC 是 Programmatic Tool Calling，即通过程序调用工具。当前内置�
 // presetTextAction is the card footer's plain text action: 12 DIP muted, no
 // border or fill, and the primary text colour on hover.
 func presetTextAction(c *ui.Context, label, id string, trigger *ui.Handle, muted, fg ui.Color) bool {
-	ink := muted
-	button := ui.Button(c, "").Label(label+" · "+id).Height(36).Padding(0, 6).Radius(12).
-		BorderWidth(0).Background(ui.Transparent).TextColor(ink)
-	if button.Hovered() {
-		ink = fg
-	}
-	button.Bind(trigger)
-	button.Children(func() {
-		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(ink)
-	})
+	_, _ = muted, fg
+	button := kGhost(c, label, false).Label(label + " · " + id).Bind(trigger)
 	return button.Clicked()
 }

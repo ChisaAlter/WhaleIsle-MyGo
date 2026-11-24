@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sort"
 	"whaleisle/internal/shortcuts"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -17,10 +18,11 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 	desktopChords := runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 	t := c.Theme()
 	if e.Recording != id {
-		button := ui.Button(c, providerCopy("按下快捷键", "Press a shortcut")).Label("record-"+id).
-			Height(shortcutBadgeHeight).MinWidth(shortcutRecorderWidth).Shrink(0).Padding(0, 14).Radius(10).
-			Border(.5, t.Border).Background(t.Surface).FontSize(fonttheme.InterfaceSize(12)).TextColor(t.TextMuted).
-			Disabled(e.ReadError != "" || e.ResetPending)
+		button := coss.Button(c, providerCopy("按下快捷键", "Press a shortcut"), coss.ButtonOptions{
+			Variant:  coss.ButtonOutline,
+			Size:     coss.ButtonSM,
+			Disabled: e.ReadError != "" || e.ResetPending,
+		}).Label("record-" + id).Height(shortcutBadgeHeight).MinWidth(shortcutRecorderWidth).Shrink(0)
 		if button.Clicked() {
 			e.BeginRecording(id)
 		}
@@ -130,11 +132,11 @@ func shortcutRecorder(c *ui.Context, e *shortcuts.Editor, id string, onSaved fun
 	}
 	if e.Err != "" {
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, providerCopy("审阅当前配置，保留录制", "Review current settings; keep recording")).Label("review-shortcuts").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+			if kButton(c, providerCopy("审阅当前配置，保留录制", "Review current settings; keep recording")).Label("review-shortcuts").Clicked() {
 				reset()
 				e.Review()
 			}
-			if ui.Button(c, providerCopy("重试保存", "Retry save")).Label("retry-shortcuts").FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+			if kPrimary(c, providerCopy("重试保存", "Retry save"), false).Label("retry-shortcuts").Clicked() {
 				e.SaveRow(id, false)
 			}
 		})

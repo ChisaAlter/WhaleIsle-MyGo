@@ -57,10 +57,10 @@ func pluginsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Text(c, i18n.T(KeyPass4ABuiltinHint)).FontSize(fonttheme.InterfaceSize(13)).FixedLineHeight(fonttheme.InterfaceSize(17.3)).TextColor(muted)
 	pluginSettingsTabs(c, a, fg, muted)
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-		if ui.Button(c, pluginsText("管理插件包", "Manage plugin packages")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenManager == nil).Clicked() && a.OnOpenManager != nil {
+		if kButtonDisabled(c, pluginsText("管理插件包", "Manage plugin packages"), a.OnOpenManager == nil).Clicked() && a.OnOpenManager != nil {
 			a.OnOpenManager()
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsPluginsOpenMarket)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.OnOpenMarket == nil).Clicked() && a.OnOpenMarket != nil {
+		if kButtonDisabled(c, i18n.T(i18n.KeySettingsPluginsOpenMarket), a.OnOpenMarket == nil).Clicked() && a.OnOpenMarket != nil {
 			a.OnOpenMarket()
 		}
 	})
@@ -83,7 +83,7 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 		}
 		ui.Text(c, message).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		if a.CanRestart && !a.Busy && !a.Activation.Restarting && a.OnRestart != nil {
-			if ui.Button(c, pluginsText("重启运行时并应用", "Restart runtime and apply")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+			if kPrimary(c, pluginsText("重启运行时并应用", "Restart runtime and apply"), false).AlignSelf(ui.Start).Clicked() {
 				a.OnRestart()
 			}
 		}
@@ -112,12 +112,12 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 						ui.Box(c).Grow(1).MinWidth(0)
 					}
 					if a.OnOpenView != nil && a.ClientReady && !a.Loading && !a.Busy && r.Name != "" && !r.Disabled {
-						if ui.Button(c, i18n.T(i18n.KeyWebViewOpenHost)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+						if kButton(c, i18n.T(i18n.KeyWebViewOpenHost)).Clicked() {
 							a.OnOpenView(r.Name)
 						}
 					}
 					if a.OnInspect != nil && a.ClientReady && !a.Loading && !a.Busy && r.Name != "" {
-						if ui.Button(c, i18n.T(i18n.KeySettingsPluginsInspect)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+						if kButton(c, i18n.T(i18n.KeySettingsPluginsInspect)).Clicked() {
 							a.OnInspect(r.Name)
 						}
 					}
@@ -126,7 +126,7 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 						if !r.Disabled {
 							label = i18n.T(i18n.KeySettingsPluginsDisable)
 						}
-						if ui.Button(c, label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+						if kButton(c, label).Clicked() {
 							a.OnSetDisabled(r.Name, !r.Disabled)
 						}
 					}
@@ -135,10 +135,10 @@ func pluginPackages(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 		}
 	}
 	ui.Row(c).Gap(8).Children(func() {
-		if !a.Loading && !a.Busy && a.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+		if !a.Loading && !a.Busy && a.OnRefresh != nil && kButton(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
 			a.OnRefresh()
 		}
-		if a.OnOpenMarket != nil && ui.Button(c, i18n.T(i18n.KeySettingsPluginsOpenMarket)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+		if a.OnOpenMarket != nil && kButton(c, i18n.T(i18n.KeySettingsPluginsOpenMarket)).Clicked() {
 			a.OnOpenMarket()
 		}
 	})

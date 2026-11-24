@@ -8,6 +8,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 type AgentPresetReaderAccess struct {
@@ -23,9 +25,17 @@ type presetReaderFocus struct {
 }
 
 func agentPresetViewAction(c *ui.Context, a *AgentPresetReaderAccess, label string, disabled bool) bool {
-	button := ui.Button(c, "").Label(providerCopy("查看配置", "View configuration")+" · "+label).Size(28, 28).Padding(6).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(providerCopy("查看配置", "View configuration"))
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconSM,
+		Label:    providerCopy("查看配置", "View configuration") + " · " + label,
+		Disabled: disabled,
+		Content: func() {
+			ui.Icon(c, presetDocIcon).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(tk(c).Foreground).Opacity(design.OpacityIcon).PassThrough()
+		},
+	}).Tooltip(providerCopy("查看配置", "View configuration"))
 	handle := ui.Local(button, "view-trigger", func() ui.Handle { return ui.Handle{} })
-	button.Bind(handle).Children(func() { ui.Icon(c, presetDocIcon).Size(16, 16) })
+	button.Bind(handle)
 	if button.Clicked() {
 		if a.focus != nil {
 			a.focus.Trigger = handle
@@ -36,6 +46,7 @@ func agentPresetViewAction(c *ui.Context, a *AgentPresetReaderAccess, label stri
 }
 
 func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster session.AgentPresetManagerState, fg, muted ui.Color) {
+	_ = fg
 	if a == nil {
 		return
 	}
@@ -66,7 +77,7 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 		}
 		if s.Error != "" {
 			settingsFailureLine(c, "agent-preset-reader", providerCopy("没能读取 Agent 预设声明，请重试。", "The agent preset declaration could not be read. Try again."), s.Error)
-			if ui.Button(c, providerCopy("重试", "Retry")).Disabled(a.OnRead == nil).Clicked() && a.OnRead != nil {
+			if kButtonDisabled(c, providerCopy("重试", "Retry"), a.OnRead == nil).Clicked() && a.OnRead != nil {
 				a.OnRead(s.Ticket)
 			}
 			return
@@ -85,24 +96,27 @@ func agentPresetReaderPane(c *ui.Context, a *AgentPresetReaderAccess, roster ses
 			if len(s.Content) > session.AgentPresetContentLimit {
 				ui.Text(c, fmt.Sprintf(providerCopy("显示字节 %d–%d（共 %d）；可翻页阅读，复制包含全文", "Showing bytes %d–%d of %d; browse every page, copy includes the full declaration"), pages.Start+1, next, s.TotalBytes)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, providerCopy("上一页", "Previous page")).Disabled(len(pages.Previous) == 0).Clicked() {
+					if kButtonDisabled(c, providerCopy("上一页", "Previous page"), len(pages.Previous) == 0).Clicked() {
 						last := len(pages.Previous) - 1
 						pages.Start = pages.Previous[last]
 						pages.Previous = pages.Previous[:last]
 					}
-					if ui.Button(c, providerCopy("下一页", "Next page")).Disabled(next == len(s.Content)).Clicked() {
+					if kButtonDisabled(c, providerCopy("下一页", "Next page"), next == len(s.Content)).Clicked() {
 						pages.Previous = append(pages.Previous, pages.Start)
 						pages.Start = next
 					}
 				})
 			}
-			ui.TextArea(c.Key(pages.Start), &content).Label(providerCopy("预设配置只读内容", "Preset configuration source")).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			kTextarea(c.Key(pages.Start), &content, coss.TextareaOptions{
+				Label:    providerCopy("预设配置只读内容", "Preset configuration source"),
+				ReadOnly: true,
+			}).Height(320).FontSize(fonttheme.InterfaceSize(12))
 		})
 	}, func() {
-		if ui.Button(c, providerCopy("关闭", "Close")).Clicked() {
+		if kButton(c, providerCopy("关闭", "Close")).Clicked() {
 			open = false
 		}
-		if ui.Button(c, providerCopy("复制全文", "Copy full declaration")).Disabled(!s.Loaded || s.Busy || a.OnCopy == nil).Clicked() && a.OnCopy != nil {
+		if kPrimary(c, providerCopy("复制全文", "Copy full declaration"), !s.Loaded || s.Busy || a.OnCopy == nil).Clicked() && a.OnCopy != nil {
 			a.OnCopy(s.Ticket)
 		}
 	})

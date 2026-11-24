@@ -10,6 +10,8 @@ import (
 	"whaleisle/internal/desktop/plugininventory"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -74,17 +76,22 @@ func pluginInventoryContent(c *ui.Context, a *PluginInventoryAccess, fg, muted u
 		}
 	}
 	if s.Err != nil && a.OnRefresh != nil {
-		if ui.Button(c, pluginsText("重新读取插件", "Retry plugin inventory")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || !s.Connected).Clicked() {
+		if kButtonDisabled(c, pluginsText("重新读取插件", "Retry plugin inventory"), s.Busy || !s.Connected).Clicked() {
 			a.OnRefresh()
 		}
 	}
 	// 0.3.13: one full-width search field, then the session plugins of the chosen
 	// Agent preset under a collapsible header that carries the preset select.
 	query := s.Query
-	ui.Row(c.Key("plugin-search")).FillWidth().MinWidth(0).Height(36).Shrink(0).Padding(0, 12).Gap(8).Radius(12).AlignItems(ui.Center).Margin(2, 0, 0, 0).
+	ui.Row(c.Key("plugin-search")).FillWidth().MinWidth(0).Height(36).Shrink(0).Padding(0, design.Sp(3)).Gap(design.Sp(2)).Radius(design.RadiusXL).AlignItems(ui.Center).Margin(design.Sp(0.5), 0, 0, 0).
 		Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).Label(pluginsText("搜索插件", "Search plugins")).Children(func() {
 		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
-		if ui.TextInput(c, &query).Grow(1).MinWidth(0).Height(34).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(fonttheme.InterfaceSize(13)).Label(pluginsText("搜索插件", "Search plugins")).Placeholder(pluginsText("搜索插件", "Search plugins")).Changed() && a.OnQuery != nil {
+		if kInputRow(c, &query, coss.InputOptions{
+			Size:        coss.InputLG,
+			Unstyled:    true,
+			Label:       pluginsText("搜索插件", "Search plugins"),
+			Placeholder: pluginsText("搜索插件", "Search plugins"),
+		}).Changed() && a.OnQuery != nil {
 			a.OnQuery(query)
 		}
 	})
@@ -227,9 +234,9 @@ func pluginInventoryCard(c *ui.Context, a *PluginInventoryAccess, r plugininvent
 		card.FillWidth()
 	}
 	card.Children(func() {
-		button := ui.Button(c.Key("inventory-toggle-"+r.Key), "").Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).Padding(12, 14).BorderWidth(0).Radius(0).Background(ui.Transparent).TextColor(fg)
+		button := ui.ButtonBase(c.Key("inventory-toggle-"+r.Key)).Label(r.Title).Description(inventoryRowState(r)+"; "+inventoryPhase(r.Phase)).Role(ui.RoleDisclosure).Expanded(open).FillWidth().MinWidth(0).Padding(design.Sp(3), design.Sp(3.5)).Cursor(ui.CursorPointer)
 		if button.Hovered() || open {
-			button.Background(c.Theme().SurfaceHover)
+			button.Background(tk(c).Accent.Alpha(0.5))
 		}
 		button.Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(2).PassThrough().Children(func() {
@@ -307,11 +314,15 @@ func inventoryCardChevron(c *ui.Context, open bool, ink ui.Color) {
 // inventoryGroupToggle is a group's disclosure: a 22 DIP row with the 12 DIP
 // chevron and the 14/22 title, as wide as its content.
 func inventoryGroupToggle(c *ui.Context, title string, open bool, fg, muted ui.Color) bool {
-	button := ui.Button(c, "").Label(title).Role(ui.RoleDisclosure).Expanded(open).MinWidth(0).Height(22).Padding(0).Gap(8).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FocusRing(false)
-	button.Children(func() {
-		inventoryChevron(c, open, muted)
-		ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg).SingleLine()
-	})
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+		Label:   title,
+		Content: func() {
+			inventoryChevron(c, open, muted)
+			ui.Text(c, title).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg).SingleLine()
+		},
+	}).Role(ui.RoleDisclosure).Expanded(open).MinWidth(0).Padding(0)
 	return button.Clicked()
 }
 

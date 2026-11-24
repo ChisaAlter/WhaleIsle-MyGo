@@ -6,8 +6,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	store "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // navigationEntry is one feature's place in the original settings rail.
@@ -191,7 +191,7 @@ func navigationGroups(m Model, snap store.ViewState) []navigationGroup {
 func generalNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted ui.Color) {
 	if m.Account != nil && m.Account.Status != "credential-stored" && (m.OnSignIn != nil || m.OnSelectAccount != nil) {
 		bodyPreferenceRow(c, "general-account", i18n.T(i18n.KeySettingsSectionAccount), "", fg, muted, func() {
-			if ui.Button(c, i18n.T(i18n.KeySettingsAccountSignIn)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Clicked() {
+			if kPrimary(c, i18n.T(i18n.KeySettingsAccountSignIn), false).Clicked() {
 				if m.OnSignIn != nil {
 					m.OnSignIn()
 				} else {
@@ -210,13 +210,13 @@ func generalNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted u
 func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted ui.Color) {
 	ui.Text(c, i18n.T(i18n.KeySurfacesSettingsDevHint)).FillWidth().FontSize(11).FixedLineHeight(16).TextColor(muted)
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-		if m.Desktop != nil && m.OnSelectDesktop != nil && ui.Button(c, i18n.T(i18n.KeySettingsDesktopNav)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
+		if m.Desktop != nil && m.OnSelectDesktop != nil && kButton(c, i18n.T(i18n.KeySettingsDesktopNav)).Clicked() {
 			m.OnSelectDesktop()
 		}
-		if m.OnSelectNamespace != nil && ui.Button(c, sectionLabel(SectionGeneral)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
+		if m.OnSelectNamespace != nil && kButton(c, sectionLabel(SectionGeneral)).Clicked() {
 			m.OnSelectNamespace(generalNamespace(snap))
 		}
-		if m.Credentials != nil && m.OnSelectCredentials != nil && ui.Button(c, i18n.T(i18n.KeySettingsCredNav)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
+		if m.Credentials != nil && m.OnSelectCredentials != nil && kButton(c, i18n.T(i18n.KeySettingsCredNav)).Clicked() {
 			m.OnSelectCredentials()
 		}
 	})
@@ -228,7 +228,7 @@ func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted 
 	}
 	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 		if m.FilterPtr != nil {
-			ui.TextInput(c, m.FilterPtr).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Placeholder(i18n.T(i18n.KeySurfacesSettingsFilter))
+			kInput(c, m.FilterPtr, coss.InputOptions{Placeholder: i18n.T(i18n.KeySurfacesSettingsFilter)})
 		}
 		names := []string{}
 		for _, ns := range snap.Namespaces {
@@ -250,7 +250,7 @@ func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted 
 					selected = labels[index]
 				}
 			}
-			ui.Select(c, &selected, labels).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Label(i18n.T(i18n.KeySurfacesSettingsNamespace)).OnChange(func() {
+			kSelect(c, &selected, labels, i18n.T(i18n.KeySurfacesSettingsNamespace), false).FillWidth().OnChange(func() {
 				for index, label := range labels {
 					if label != selected {
 						continue
@@ -267,7 +267,7 @@ func advancedNavigation(c *ui.Context, m Model, snap store.ViewState, fg, muted 
 		} else if len(names) > 0 {
 			ui.Text(c, i18n.T(i18n.KeySurfacesSettingsFilterEmpty)).FontSize(11).TextColor(muted)
 		}
-		if ui.Button(c, i18n.T(i18n.KeySurfacesSettingsRefresh)).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
+		if kButton(c, i18n.T(i18n.KeySurfacesSettingsRefresh)).AlignSelf(ui.Start).Clicked() {
 			m.Store.RefreshDescribe(context.Background())
 		}
 	})
