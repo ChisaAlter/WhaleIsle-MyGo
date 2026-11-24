@@ -140,6 +140,9 @@ type Store struct {
 	connectionBusy  bool
 	connectionNote  string
 	workspaceDrafts map[string]string
+	// persistHook, when a test sets it, runs inside persistMu before disk
+	// writes with a snapshot of the history map being written.
+	persistHook func(what int, hist map[string][]Message)
 }
 
 // New returns an in-memory IM store with no persistence root.
@@ -433,12 +436,37 @@ const (
 	persistHistory
 )
 
+// setPersistHook installs or clears the test persist hook under persistMu.
+func (s *Store) setPersistHook(fn func(what int, hist map[string][]Message)) {
+	s.persistMu.Lock()
+	s.persistHook = fn
+	s.persistMu.Unlock()
+}
+
+func cloneHistoryMap(src map[string][]Message) map[string][]Message {
+	hist := make(map[string][]Message, len(src))
+	for k, v := range src {
+		hist[k] = append([]Message(nil), v...)
+	}
+	return hist
+}
+
+func setHistoryMessageState(hist map[string][]Message, channelID, id, msgState string) {
+	for index := range hist[channelID] {
+		if hist[channelID][index].ID == id {
+			hist[channelID][index].State = msgState
+			return
+		}
+	}
+}
+
 // persist serializes disk writes outside s.mu so writes stay ordered and the
 // newest state wins: it re-reads the current document under a brief lock
 // rather than persisting what an earlier caller captured.
 func (s *Store) persist(what int) error {
 	s.persistMu.Lock()
 	defer s.persistMu.Unlock()
+	hook := s.persistHook
 	s.mu.Lock()
 	root := s.root
 	var rows []Entry
@@ -457,12 +485,12 @@ func (s *Store) persist(what int) error {
 		}
 	}
 	if what&persistHistory != 0 {
-		hist = map[string][]Message{}
-		for k, v := range s.history {
-			hist[k] = append([]Message(nil), v...)
-		}
+		hist = cloneHistoryMap(s.history)
 	}
 	s.mu.Unlock()
+	if hook != nil {
+		hook(what, hist)
+	}
 	if root == "" {
 		return nil
 	}
@@ -482,6 +510,56 @@ func (s *Store) persist(what int) error {
 		}
 	}
 	return nil
+}
+
+// commitMessageState persists targetState for one message before updating
+// s.history and publishing, keeping lock order persistMu -> s.mu. If the disk
+// write fails, s.history stays pre-terminal, s.fault records saveErr, and
+// subscribers never observe an unpersisted terminal state.
+func (s *Store) commitMessageState(channelID, msgID, targetState string, valid func() bool, onCommitLocked func(), onFailLocked func(saveErr error)) (bool, error) {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
+	hook := s.persistHook
+	s.mu.Lock()
+	if valid != nil && !valid() {
+		s.mu.Unlock()
+		return false, nil
+	}
+	root := s.root
+	hist := cloneHistoryMap(s.history)
+	setHistoryMessageState(hist, channelID, msgID, targetState)
+	s.mu.Unlock()
+	if hook != nil {
+		hook(persistHistory, hist)
+	}
+	if root != "" {
+		if err := writeJSON(filepath.Join(root, historyFile), hist); err != nil {
+			s.mu.Lock()
+			if valid != nil && !valid() {
+				s.mu.Unlock()
+				return false, nil
+			}
+			s.fault = state.FaultOf(err)
+			if onFailLocked != nil {
+				onFailLocked(err)
+			}
+			s.publishLocked()
+			s.mu.Unlock()
+			return false, err
+		}
+	}
+	s.mu.Lock()
+	if valid != nil && !valid() {
+		s.mu.Unlock()
+		return false, nil
+	}
+	s.setMessageStateLocked(channelID, msgID, targetState)
+	if onCommitLocked != nil {
+		onCommitLocked()
+	}
+	s.publishLocked()
+	s.mu.Unlock()
+	return true, nil
 }
 
 // SendDraft appends one outbound message and calls the resolved im/send RPC.
@@ -544,24 +622,29 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		return
 	}
 	if err := s.persist(persistDrafts); err != nil {
-		s.mu.Lock()
-		s.drafts[channelID] = text
-		if channelID == s.selectedID {
-			s.draftBuf = text
+		draftFault := state.FaultOf(err)
+		restoreDraft := func() {
+			s.drafts[channelID] = text
+			if channelID == s.selectedID {
+				s.draftBuf = text
+			}
+			s.lastSend = draftFault
 		}
-		s.fault = state.FaultOf(err)
-		s.lastSend = state.FaultOf(err)
 		// The RPC is not dispatched when its local draft cannot be saved.
-		// Retire the persisted pending entry before returning to the composer.
-		s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
-		s.publishLocked()
-		s.mu.Unlock()
-		if saveErr := s.persist(persistHistory); saveErr != nil {
-			s.mu.Lock()
-			s.fault = state.FaultOf(saveErr)
-			s.publishLocked()
-			s.mu.Unlock()
-		}
+		// Retire the persisted pending entry before committing or publishing it.
+		_, _ = s.commitMessageState(
+			channelID,
+			msg.ID,
+			MessageStateFailed,
+			nil,
+			func() {
+				restoreDraft()
+				s.fault = draftFault
+			},
+			func(_ error) {
+				restoreDraft()
+			},
+		)
 		s.fire()
 		return
 	}
@@ -585,32 +668,37 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		}
 		var raw json.RawMessage
 		err := client.Call(ctx, sendMethod, args, &raw)
-		s.mu.Lock()
-		if s.client != client || !lease.Valid() {
-			s.mu.Unlock()
-			return
-		}
+		targetState := MessageStateSent
+		lastSend := state.FaultText("sent via " + sendMethod)
 		if err != nil {
-			s.lastSend = state.FaultOf(err)
-			s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
-		} else {
-			s.lastSend = state.FaultText("sent via " + sendMethod)
-			s.setMessageStateLocked(channelID, msg.ID, MessageStateSent)
+			targetState = MessageStateFailed
+			lastSend = state.FaultOf(err)
 		}
-		s.publishLocked()
-		s.mu.Unlock()
-		if saveErr := s.persist(persistHistory); saveErr != nil {
-			s.mu.Lock()
-			s.fault = state.FaultOf(saveErr)
-			s.publishLocked()
-			s.mu.Unlock()
+		committed, saveErr := s.commitMessageState(
+			channelID,
+			msg.ID,
+			targetState,
+			func() bool { return s.client == client && lease.Valid() },
+			func() {
+				s.lastSend = lastSend
+			},
+			func(saveErr error) {
+				if err != nil {
+					s.lastSend = lastSend
+				} else {
+					s.lastSend = state.FaultOf(saveErr)
+				}
+			},
+		)
+		if committed || saveErr != nil {
+			s.fire()
 		}
-		s.fire()
 	}()
 }
 
-// setMessageStateLocked updates one message's delivery state. The caller holds
-// s.mu and persists the history before releasing it.
+// setMessageStateLocked updates one message's delivery state in s.history.
+// The caller holds s.mu; terminal state commits use commitMessageState so disk
+// persistence completes before memory/view state advances.
 func (s *Store) setMessageStateLocked(channelID, id, state string) {
 	for index := range s.history[channelID] {
 		if s.history[channelID][index].ID == id {
