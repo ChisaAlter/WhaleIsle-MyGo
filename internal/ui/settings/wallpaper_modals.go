@@ -6,11 +6,12 @@ import (
 	"time"
 	"whaleisle/internal/desktop/media"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // Feature dialogs share the installed modal surface, but keep their own draft

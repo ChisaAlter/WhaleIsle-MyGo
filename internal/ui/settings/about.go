@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
+
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"

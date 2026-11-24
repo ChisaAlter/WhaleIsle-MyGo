@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // RemoteAccess configures the dedicated Remote control & pairing settings section.

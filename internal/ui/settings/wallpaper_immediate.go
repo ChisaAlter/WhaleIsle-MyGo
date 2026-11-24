@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func (g *WallpaperEditor) hasEffectiveWallpaper(p wallpapers.Preferences) bool {

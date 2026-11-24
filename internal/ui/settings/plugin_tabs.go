@@ -3,8 +3,9 @@ package settings
 import (
 	"sort"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // PluginSettingsTab is a settings.plugins.tab contribution. Render receives

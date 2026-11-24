@@ -2,13 +2,14 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"runtime"
 	"sort"
 	"strings"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // The installed build's shortcut dialog is a 480x600 reference list: a 46 DIP

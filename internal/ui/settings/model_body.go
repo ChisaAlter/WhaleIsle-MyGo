@@ -3,12 +3,13 @@ package settings
 import (
 	"context"
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"strings"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // modelNamespaceBody retains the rich model/provider editors and scopes every

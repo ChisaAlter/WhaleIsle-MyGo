@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type settingsSearchJump struct {

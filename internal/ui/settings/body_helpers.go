@@ -2,20 +2,21 @@ package settings
 
 import (
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
-// bodyCard follows the settings feature cards, independently of the navigation shell.
+// bodyCard is a feature card inside a settings page: coss's FramePanel, a
+// bordered card surface with the xl radius and 20 DIPs of padding.
 func bodyCard(c *ui.Context, m Model, content func()) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	chrome.FrostSurface(ui.Column(c).FillWidth().MinWidth(0).Gap(8).Padding(14, 16), colors, m.SystemDark, chrome.Color(colors.Field), 12).Border(0.5, chrome.Color(colors.Border).Alpha(0.45)).Children(content)
+	kSurface(c, ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Padding(design.Sp(4), design.Sp(5))).Children(content)
 }
 
 // bodyRosterRow keeps metadata above actions at narrow widths without a fixed label column.
 func bodyRosterRow(c *ui.Context, title string, content func(), fg, muted ui.Color) {
-	ui.Column(c.Key(title)).FillWidth().MinWidth(0).Gap(6).Padding(12, 0).Children(func() {
-		ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+	ui.Column(c.Key(title)).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Padding(design.Sp(3), 0).Children(func() {
+		kLabel(c, title, tk(c).Foreground)
 		content()
 	})
 }
@@ -27,27 +28,29 @@ func bodyDialog(c *ui.Context, open *bool, title string, content func(), options
 }
 
 // bodyDialogFooter keeps the editor's actions outside its bounded scroll body.
-// Short forms size to their content instead of reserving a 720 DIP blank panel.
+// Short forms size to their content instead of reserving a blank panel.
 func bodyDialogFooter(c *ui.Context, open *bool, title string, content, footer func(), options ...ui.DialogOptions) {
-	bodyDialogFooterWidth(c, open, title, 380, content, footer, options...)
+	bodyDialogFooterWidth(c, open, title, design.Sp(96), content, footer, options...)
 }
 
-// bodyDialogFooterWidth lets a feature keep its original confirmation/editor
-// width while sharing the same bounded body and resident action row.
+// bodyDialogFooterWidth is coss's Dialog for settings editors: the popover
+// panel with the 2xl radius over a black/32 backdrop, a header with the 20 DIP
+// bold title and the ghost close button, a bounded scrolling body and the
+// muted footer strip holding the actions. width is the panel's maximum width;
+// the panel keeps coss's 16 DIP viewport inset.
 func bodyDialogFooterWidth(c *ui.Context, open *bool, title string, width float32, content, footer func(), options ...ui.DialogOptions) {
 	var dismissal ui.DialogOptions
 	if len(options) > 0 {
 		dismissal = options[0]
 	}
-	ui.DialogBaseWithOptions(c, open, dismissal, func(backdrop, panel ui.Element) {
-		w, h := c.Size()
-		maxHeight := max(0, h-48)
-		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), max(0, min(width, w-48)), 0).
-			MaxHeight(maxHeight).Gap(20).Padding(0, 0, 24, 0).Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FontWeight(500).Grow(1).MinWidth(0)
-				close := ui.Button(c, "").Label(providerCopy("关闭", "Close")).Disabled(dismissal.DismissDisabled).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
-				close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(16, 16) })
+	bodyDialogFrame(c, open, width, func() {
+		t := tk(c)
+		func() {
+			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(design.Sp(6), design.Sp(3), design.Sp(3), design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
+				kText(c, title, design.TextStyle{Size: design.TextXL.Size, LineHeight: design.TextXL.Size}, design.WeightBold, t.PopoverForeground).
+					Grow(1).MinWidth(0).Role(ui.RoleHeading)
+				close := coss.Button(c, "", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonIcon, Icon: coss.IconX, Label: providerCopy("关闭", "Close"), Disabled: dismissal.DismissDisabled})
+				close.Margin(-design.Sp(3), 0, 0, 0)
 				if close.Clicked() {
 					if dismissal.OnDismiss != nil {
 						dismissal.OnDismiss()
@@ -56,16 +59,21 @@ func bodyDialogFooterWidth(c *ui.Context, open *bool, title string, width float3
 					}
 				}
 			})
-			bodyHeight := maxHeight - 110
+			// The panel sizes to its content, so the scroll keeps a viewport
+			// budget instead of Grow: the panel's inset max height minus the
+			// 56 DIP header and the 69 DIP footer strip when present.
+			_, vh := c.Size()
+			bodyMax := max(float32(0), vh-2*design.Sp(4)-design.Sp(14))
 			if footer != nil {
-				bodyHeight -= 52
+				bodyMax = max(0, bodyMax-design.Sp(17)-design.BorderWidth)
 			}
-			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(0, bodyHeight)).Shrink(1).Children(func() {
-				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Padding(0, 24).Children(content)
+			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).Shrink(1).MaxHeight(bodyMax).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Padding(design.Sp(1), design.Sp(6), design.Sp(6), design.Sp(6)).Children(content)
 			})
 			if footer != nil {
-				ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(0, 24).Wrap().Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(footer)
+				ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(design.Sp(4), design.Sp(6)).Wrap().Gap(design.Sp(2)).Justify(ui.End).AlignItems(ui.Center).
+					Background(t.Muted.Alpha(0.72)).BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).Children(footer)
 			}
-		})
-	})
+		}()
+	}, dismissal)
 }

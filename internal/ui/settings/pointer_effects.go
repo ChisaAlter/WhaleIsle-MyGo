@@ -2,10 +2,11 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {

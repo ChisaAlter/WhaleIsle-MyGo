@@ -3,7 +3,6 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"math"
 	"reflect"
 	"sort"
@@ -12,6 +11,8 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 var effectTypingPalettes = map[string][3]string{

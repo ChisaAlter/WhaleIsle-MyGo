@@ -5,8 +5,9 @@ import (
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/providerdiscovery"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type ProviderDiscoveryAccess struct {

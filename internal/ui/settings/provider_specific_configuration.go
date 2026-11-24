@@ -7,9 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // Provider controls use the connected Host's schema and the existing draft

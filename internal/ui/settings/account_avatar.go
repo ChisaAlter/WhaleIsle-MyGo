@@ -1,8 +1,9 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/media"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // RetryAccountAvatar is the explicit refresh of the account avatar shared by

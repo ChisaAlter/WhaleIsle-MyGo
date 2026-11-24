@@ -2,7 +2,6 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"strconv"
 	"strings"
 	"whaleisle/internal/config"
@@ -11,6 +10,8 @@ import (
 	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type petChoice struct {

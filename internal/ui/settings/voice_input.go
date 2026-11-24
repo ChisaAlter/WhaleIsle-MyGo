@@ -1,11 +1,12 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"math"
 	"whaleisle/internal/desktop/voicecapture"
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // VoiceInputDeviceView is the microphone row in the existing voice plugin

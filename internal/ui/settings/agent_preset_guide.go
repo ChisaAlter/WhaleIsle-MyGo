@@ -1,12 +1,13 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type presetModeGuide struct{ Intro, Explanation, Usage string }

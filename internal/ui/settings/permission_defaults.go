@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func permissionDefaultUnavailable(s store.ViewState) bool {

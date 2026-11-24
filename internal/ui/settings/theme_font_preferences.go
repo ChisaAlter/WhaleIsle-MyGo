@@ -5,12 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func themeFontPane(c *ui.Context, e *theme.Editor) {

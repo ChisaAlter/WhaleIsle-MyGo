@@ -4,12 +4,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/whale"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // petWhaleState keeps the page's local editing: the two identity drafts, the

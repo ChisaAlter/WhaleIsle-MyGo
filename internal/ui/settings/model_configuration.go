@@ -7,8 +7,9 @@ import (
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func configurationWrite(m Model, key string, value any) {

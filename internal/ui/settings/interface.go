@@ -3,8 +3,9 @@ package settings
 import (
 	"encoding/json"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/shortcuts"
 	store "whaleisle/internal/store/settings"

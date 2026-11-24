@@ -3,51 +3,67 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
-// Toggle geometry from the installed build: a 44×24 track with a 20 DIP knob and
-// 2 DIP inset, fully rounded. Settings paints its own switch so every row in this
-// domain matches that size instead of the framework default.
+// coss Switch geometry: a 30×18 track (thumb 16, 1 DIP inset), fully rounded.
 const (
-	toggleWidth  float32 = 44
-	toggleHeight float32 = 24
-	toggleKnob   float32 = 20
+	toggleKnob   float32 = 4 * design.Unit
+	toggleWidth  float32 = 2*toggleKnob - 2
+	toggleHeight float32 = toggleKnob + 2
 )
 
-// settingsToggle paints one switch. The caller keeps the state: the element only
-// reports the click, so the same row code works for host-backed and local flags.
+// settingsToggle paints one coss switch whose state the caller keeps: the
+// element only reports the click, so the same row code works for host-backed
+// and local flags. The track is input when off and primary when on, the
+// thumb the background color with shadow-sm/5; keyboard focus shows coss's
+// ring-2 ring-offset-1.
 func settingsToggle(c *ui.Context, title string, value *bool, disabled bool) ui.Element {
+	t := tk(c)
 	on := value != nil && *value
-	track := c.Theme().Border
+	track := t.Input
 	if on {
-		track = c.Theme().Accent
+		track = t.Primary
 	}
-	toggle := ui.Button(c, "").Label(title).Width(toggleWidth).Height(toggleHeight).Shrink(0).
-		Radius(toggleHeight / 2).BorderWidth(0).Padding(0).Gap(0).
-		Background(ui.Transparent).AlignItems(ui.Center)
+	toggle := ui.ButtonBase(c).Label(title).Width(toggleWidth).Height(toggleHeight).Shrink(0).
+		Radius(design.RadiusFull).Padding(0).Gap(0).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer).Checked(on)
 	if disabled {
-		toggle = toggle.Disabled(true).Opacity(0.5)
+		toggle = toggle.Disabled(true).DisabledOpacity(design.OpacityDisabled)
 	}
-	// The track and the knob are painted, not laid out: a child box would take the
-	// pointer hit before the button sees it and the switch would stop toggling.
-	knob := ui.Hex("#ffffff")
+	x := toggle.AnimateWith("settings-toggle-thumb", b01(on)*(toggleKnob-4), design.DurationDefault, design.EaseInOut)
+	focus := toggle.FocusVisible() && !disabled
+	thumb, ring, gap := t.Background, t.Ring, t.Background
+	shadow := design.TW.Black.Alpha(0.05)
+	// The track and the thumb are painted, not laid out: a child box would take
+	// the pointer hit before the button sees it and the switch would stop
+	// toggling.
 	toggle.Draw(func(p *ui.Painter, r ui.Rect) {
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
-		p.Fill(r, track, r.H/2)
-		x := r.X + 2
-		if on {
-			x = r.X + r.W - 2 - toggleKnob
+		if focus {
+			p.Fill(ui.Rect{X: r.X - design.RingOffset - design.RingWidth, Y: r.Y - design.RingOffset - design.RingWidth, W: r.W + 2*(design.RingOffset+design.RingWidth), H: r.H + 2*(design.RingOffset+design.RingWidth)}, ring, r.H)
+			p.Fill(ui.Rect{X: r.X - design.RingOffset, Y: r.Y - design.RingOffset, W: r.W + 2*design.RingOffset, H: r.H + 2*design.RingOffset}, gap, r.H)
 		}
-		p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-toggleKnob)/2, W: toggleKnob, H: toggleKnob}, knob, toggleKnob/2)
+		p.Fill(r, track, r.H/2)
+		knob := ui.Rect{X: r.X + 1 + x, Y: r.Y + 1, W: toggleKnob, H: toggleKnob}
+		for _, l := range design.ShadowSm {
+			p.Shadow(knob, toggleKnob/2, l.X, l.Y, l.Blur, l.Spread, shadow)
+		}
+		p.Fill(knob, thumb, toggleKnob/2)
 	})
 	return toggle
 }
 
-// settingsToggleRow is a preference row whose control is the 44×24 switch.
+func b01(on bool) float32 {
+	if on {
+		return 1
+	}
+	return 0
+}
+
+// settingsToggleRow is a preference row whose control is the switch.
 func settingsToggleRow(c *ui.Context, key, title, hint string, value *bool, disabled bool, fg, muted ui.Color, changed func(bool)) {
 	if value == nil {
 		return
@@ -62,74 +78,46 @@ func settingsToggleRow(c *ui.Context, key, title, hint string, value *bool, disa
 	})
 }
 
-// settingsSegmented is the two-or-more segment control the installed build uses
-// for page-level switches: one track, equal segments, the active segment on a
-// raised pill. It reports the picked index.
+// settingsSegmented is a page-level switch between two or more views: coss's
+// SegmentedControl. It reports the picked index, -1 when none was picked this
+// frame.
 func settingsSegmented(c *ui.Context, key string, labels []string, active int, disabled bool) (ui.Element, int) {
-	const (
-		segmentHeight float32 = 38
-		segmentWidth  float32 = 230
-	)
-	root := ui.Row(c.Key(key)).Height(segmentHeight).Shrink(0).Gap(2).Padding(3).
-		Radius(segmentHeight / 2).Background(c.Theme().SurfaceHover).AlignItems(ui.Stretch)
-	picked := -1
-	root.Children(func() {
-		for index, label := range labels {
-			i, caption := index, label
-			segment := ui.Button(c.Key(key+"-"+caption), "").Label(caption).
-				Width(segmentWidth).Shrink(0).Padding(0).Radius((segmentHeight - 6) / 2).
-				BorderWidth(0).Background(ui.Transparent).Disabled(disabled).
-				AlignItems(ui.Center).Justify(ui.Center)
-			if i == active {
-				segment.Background(chrome.FrostInset(theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface))
-			}
-			segment.Children(func() {
-				ui.Text(c, caption).FontSize(13).TextColor(c.Theme().Text)
-			})
-			if segment.Clicked() && !disabled {
-				picked = i
-			}
-		}
-	})
-	return root, picked
+	selected := active
+	root := coss.SegmentedControl(c, &selected, labels, coss.SegmentedOptions{Disabled: disabled, Key: key})
+	if root.Changed() && !disabled {
+		return root, selected
+	}
+	return root, -1
 }
 
 // bodyToggleRowBadge is settingsToggleRow with a status badge after the title,
-// used where the installed build marks a row as beta (机器人（Bots）· 测试中).
+// used where a row is marked beta (机器人（Bots）· 测试中).
 func bodyToggleRowBadge(c *ui.Context, key, title, badge, hint string, value *bool, disabled bool, fg, muted ui.Color, changed func(bool)) {
 	if value == nil {
 		return
 	}
 	row := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(0)
-	leadingRule := nextPreferenceRowIndex(c.Now()) > 0
-	row.Draw(func(p *ui.Painter, bounds ui.Rect) {
-		if leadingRule {
-			p.Fill(ui.Rect{X: bounds.X, Y: bounds.Y, W: bounds.W, H: .5}, ui.RGBA(muted.R, muted.G, muted.B, .25), 0)
-		}
-	})
+	settingsRowRule(c, row)
 	row.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).MinHeight(64).Gap(24).Padding(16, 0).AlignItems(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(6)).Padding(design.Sp(4), 0).AlignItems(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(1)).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+					kLabel(c, title, tk(c).Foreground)
 					if badge != "" {
-						ui.Text(c, badge).Padding(1, 6).Radius(4).FontSize(theme.InterfaceSize(10)).
-							Border(.5, ui.RGBA(muted.R, muted.G, muted.B, .35)).TextColor(muted)
+						coss.Badge(c, badge, coss.BadgeOptions{Variant: coss.BadgeOutline})
 					}
 				})
 				if hint != "" {
-					ui.Text(c, hint).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+					kHint(c, hint)
 				}
 			})
-			ui.Column(c).Width(180).Shrink(0).Gap(6).Children(func() {
-				ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Children(func() {
-					if settingsToggle(c, key, value, disabled).Clicked() && !disabled {
-						*value = !*value
-						if changed != nil {
-							changed(*value)
-						}
+			ui.Row(c).Shrink(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+				if settingsToggle(c, key, value, disabled).Clicked() && !disabled {
+					*value = !*value
+					if changed != nil {
+						changed(*value)
 					}
-				})
+				}
 			})
 		})
 	})

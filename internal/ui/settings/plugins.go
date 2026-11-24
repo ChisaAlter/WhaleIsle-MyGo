@@ -2,9 +2,10 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/chrome"

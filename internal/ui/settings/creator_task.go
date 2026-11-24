@@ -2,9 +2,10 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type CreatorTaskAccess struct {

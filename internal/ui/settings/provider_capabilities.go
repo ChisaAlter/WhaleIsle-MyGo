@@ -5,11 +5,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/credentialrefs"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func configurationProviderMetadata(m Model, namespace string, path []string) (api.ListConfigurableProvidersResultItem, bool) {

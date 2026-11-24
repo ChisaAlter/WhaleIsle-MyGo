@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/providerdiscovery"
 	"whaleisle/internal/errcopy"
 	store "whaleisle/internal/store/settings"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type modelProbeState struct {

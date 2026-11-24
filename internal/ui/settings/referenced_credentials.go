@@ -1,10 +1,11 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/credentialrefs"
 	settingsstore "whaleisle/internal/store/settings"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // ReferencedCredentialsAccess is separate from local desktop credentials.json.

@@ -2,11 +2,12 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"runtime"
 	"sort"
 	"whaleisle/internal/shortcuts"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // shortcutRecorder is the reference inline recorder: a 26 DIP key field that

@@ -5,8 +5,9 @@ import (
 	"strings"
 	fonttheme "whaleisle/internal/ui/theme"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/accountdetails"
 
