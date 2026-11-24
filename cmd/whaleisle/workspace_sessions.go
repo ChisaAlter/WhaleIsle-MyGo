@@ -200,6 +200,15 @@ func (s *mainState) disposeWorkspaceSessions() {
 	}
 }
 
+// newSessionStoreLocked creates a session store with trajectory projection
+// disabled unless the Trajectory tab is already active, so normal chat
+// streaming avoids eager trajectory cloning.
+func (s *mainState) newSessionStoreLocked() *session.Store {
+	store := session.New()
+	store.SetTrajectoryEnabled(s.chatPaneTab == "trajectory")
+	return store
+}
+
 // replaceSessionsLocked installs next as the session store and releases the
 // frame memory the previous store owned. Every store installation goes through
 // here, so a replaced store cannot stay reachable through that bookkeeping.

@@ -98,6 +98,7 @@ type scheduleCardsCache struct {
 	ready    bool
 	projKey  session.ProjectionKey
 	selected string
+	binding  string
 	msgCount int
 	firstID  string
 	lastID   string
@@ -107,10 +108,14 @@ type scheduleCardsCache struct {
 }
 
 // prepareScheduleContextCached reuses ScheduleCards in O(1) while the store's
-// HistoryProjectionKey is unchanged, avoiding per-frame O(N) scans inside
-// HistoryDerivedMemo.prepare on steady long-history viewports.
+// DurableHistoryProjectionKey (or HistoryProjectionKey fallback) is unchanged,
+// avoiding per-frame O(N) scans and map clones on streaming and long-history
+// viewports.
 func prepareScheduleContextCached(root ui.Element, m Model, memo *session.HistoryDerivedMemo) map[float64][]schedstore.Entry {
-	projKey := m.Snapshot.HistoryProjectionKey()
+	projKey := m.Snapshot.DurableHistoryProjectionKey()
+	if !projKey.Valid() {
+		projKey = m.Snapshot.HistoryProjectionKey()
+	}
 	if !projKey.Valid() {
 		return prepareScheduleContext(m, memo)
 	}
@@ -122,6 +127,7 @@ func prepareScheduleContextCached(root ui.Element, m Model, memo *session.Histor
 		lastID = m.Snapshot.Messages[n-1].ID
 	}
 	if cache.ready && cache.projKey == projKey && cache.selected == m.Snapshot.SelectedID &&
+		cache.binding == m.Snapshot.PlanHistoryBinding &&
 		cache.msgCount == n && cache.firstID == firstID && cache.lastID == lastID {
 		if m.ScheduleStore != nil {
 			m.ScheduleStore.EnsureContext(context.Background(), m.Snapshot.SelectedID, cache.cardIDs)
@@ -141,6 +147,7 @@ func prepareScheduleContextCached(root ui.Element, m Model, memo *session.Histor
 	cache.ready = true
 	cache.projKey = projKey
 	cache.selected = m.Snapshot.SelectedID
+	cache.binding = m.Snapshot.PlanHistoryBinding
 	cache.msgCount = n
 	cache.firstID = firstID
 	cache.lastID = lastID

@@ -1194,6 +1194,13 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
 								ui.Column(c.Key("frame-chat-pane")).Width(transcriptWidth).FillHeight().MinWidth(0).Children(func() {
 									if paneTab == "trajectory" {
+										if m.Store != nil && !m.Store.TrajectoryEnabled() &&
+											snap.TrajectoryMessages == nil && snap.TrajectoryRequests == nil && snap.TrajectoryRequestHeaders == nil {
+											tv := m.Store.TrajectoryPublished()
+											snap.TrajectoryMessages = tv.Messages
+											snap.TrajectoryRequests = tv.Requests
+											snap.TrajectoryRequestHeaders = tv.RequestHeaders
+										}
 										if snap.HistoryNavigation.Busy || snap.HistoryNavigation.Ready {
 											m.Store.CancelHistoryTurnJump(snap.SelectedID, snap.HistoryNavigation.Request)
 										}

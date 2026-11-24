@@ -264,25 +264,36 @@ func (s *mainState) enqueueConfigMerge(store *config.Store, fn func(*config.Conf
 	s.configWriterFor(store).EnqueueMerge(fn)
 }
 
-// flushPendingConfigWrites drains both the general async config writer and any
-// async workspace view-preference writes before quit, relaunch, or Host restart.
+// flushPendingConfigWrites drains all debounced async persistence layers
+// (session workspace preferences, workspace view preferences, general async
+// config writer, and config.Store async writes) in dependency order before
+// quit, relaunch, data-location switch, or Host restart.
 func (s *mainState) flushPendingConfigWrites() error {
 	s.configWriterMu.Lock()
 	w := s.configWriter
 	s.configWriterMu.Unlock()
+	s.mu.Lock()
+	sessions := s.sessions
+	vp := s.viewPreferences
+	cfgStore := s.cfgStore
+	s.mu.Unlock()
 	var firstErr error
-	if w != nil {
-		if err := w.Flush(); err != nil {
+	recordErr := func(err error) {
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
-	s.mu.Lock()
-	vp := s.viewPreferences
-	s.mu.Unlock()
+	if sessions != nil {
+		recordErr(sessions.FlushWorkspacePreferences())
+	}
 	if vp != nil {
-		if err := vp.Flush(); err != nil && firstErr == nil {
-			firstErr = err
-		}
+		recordErr(vp.Flush())
+	}
+	if w != nil {
+		recordErr(w.Flush())
+	}
+	if cfgStore != nil {
+		recordErr(cfgStore.Flush())
 	}
 	return firstErr
 }

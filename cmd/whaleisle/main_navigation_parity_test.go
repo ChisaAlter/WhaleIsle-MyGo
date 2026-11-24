@@ -68,13 +68,16 @@ func TestMainNavigationRendersCurrentRouteAndCommittedShortcut(t *testing.T) {
 			if !ok {
 				t.Fatal("missing navigation", label)
 			}
-			want := idle[label]
-			if index == selected {
-				want = hovered[label]
-			}
 			got := tt.Image().RGBAAt(258, int(r.Y+11))
-			if got != want {
-				t.Fatalf("selected%d row%d paint=%v want=%v", selected, index, got, want)
+			if index == selected {
+				if got == idle[label] {
+					t.Fatalf("selected%d row%d paint=%v matched idle", selected, index, got)
+				}
+				if got == hovered[label] {
+					t.Fatalf("selected%d row%d paint=%v must differ from hover %v", selected, index, got, hovered[label])
+				}
+			} else if got != idle[label] {
+				t.Fatalf("selected%d row%d paint=%v want=%v", selected, index, got, idle[label])
 			}
 		}
 	}

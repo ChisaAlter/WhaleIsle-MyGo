@@ -221,3 +221,53 @@ func InvalidateStorageStatusCache(dir string) {
 	}
 	storageStatusCache.mu.Unlock()
 }
+
+// StorageStatusProbe owns the asynchronous credential storage inspection
+// lifecycle for a UI surface so view code reads prepared snapshots without
+// spawning goroutines in the build path.
+type StorageStatusProbe struct {
+	mu      sync.Mutex
+	started bool
+	loading bool
+	loaded  bool
+	seq     uint64
+	status  StorageStatus
+}
+
+// State returns the latest probe state without blocking on disk I/O.
+func (p *StorageStatusProbe) State() (started, loading, loaded bool, status StorageStatus) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	status = p.status
+	if status.Mode == "" {
+		status = defaultStorageStatus()
+	}
+	return p.started, p.loading, p.loaded, status
+}
+
+// Start runs read off the caller thread, guarding against overlapping stale
+// completions via a monotonic sequence number, and invokes onDone once updated.
+func (p *StorageStatusProbe) Start(read func() StorageStatus, onDone func()) {
+	if p == nil || read == nil {
+		return
+	}
+	p.mu.Lock()
+	p.started = true
+	p.loading = true
+	p.seq++
+	seq := p.seq
+	p.mu.Unlock()
+	go func() {
+		result := read()
+		p.mu.Lock()
+		if p.seq == seq {
+			p.status = result
+			p.loaded = true
+			p.loading = false
+		}
+		p.mu.Unlock()
+		if onDone != nil {
+			onDone()
+		}
+	}()
+}

@@ -1719,7 +1719,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 	s.settingsProviderDiscovery.Attach(client)
 	s.mu.Lock()
 	if s.sessions == nil {
-		s.replaceSessionsLocked(session.New())
+		s.replaceSessionsLocked(s.newSessionStoreLocked())
 	}
 	if s.interactions == nil {
 		s.interactions = interaction.New()
@@ -2605,6 +2605,11 @@ func main() {
 		// feature or 30 s after WorkbenchReady.
 		state.registerDeferredStartup(win, userData, !isolatedDesktopRun())
 		mygo.App.OnQuit(state.assistantService().CancelProactiveMonitor)
+		mygo.App.OnQuit(func() {
+			if err := state.flushPendingConfigWrites(); err != nil {
+				log.Println("config flush on app quit:", err)
+			}
+		})
 		// Tier OS: the hang watchdog must cover the start itself.
 		state.startNativeUIRecovery(win)
 		win.OnClosed(state.cancelImportCatalogScan)
@@ -3981,7 +3986,7 @@ func mainView(c *ui.Context) {
 		if sessions == nil {
 			state.mu.Lock()
 			if state.sessions == nil {
-				state.replaceSessionsLocked(session.New())
+				state.replaceSessionsLocked(state.newSessionStoreLocked())
 			}
 			sessions = state.sessions
 			state.mu.Unlock()
@@ -5498,7 +5503,7 @@ func mainView(c *ui.Context) {
 			if sessions == nil {
 				state.mu.Lock()
 				if state.sessions == nil {
-					state.replaceSessionsLocked(session.New())
+					state.replaceSessionsLocked(state.newSessionStoreLocked())
 				}
 				sessions = state.sessions
 				state.mu.Unlock()
@@ -6552,9 +6557,11 @@ func mainView(c *ui.Context) {
 					state.chatPaneTab = chatPaneTab
 					state.mu.Unlock()
 					frame.TraceConversationTabWriteback(previousChatPaneTab, chatPaneTab)
-					// Search synchronously notifies the attached session store. Its
-					// refresh callback also takes state.mu, so publish after unlocking.
+					// Search and lazy trajectory gating synchronously notify the
+					// attached session store. Its refresh callback also takes
+					// state.mu, so publish after unlocking.
 					if sessions != nil {
+						sessions.SetTrajectoryEnabled(chatPaneTab == "trajectory" && settingsstore.DeveloperToolsEnabled(settingsView))
 						sessions.UpdateSessionSearch(state.lifecycleContext(), sessionSearch)
 					}
 				})

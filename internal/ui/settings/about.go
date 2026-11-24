@@ -3,7 +3,6 @@ package settings
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/errcopy"
@@ -42,46 +41,6 @@ type AboutAccess struct {
 	OnDownloadUpdate                    func()
 	OnResumeUpdate                      func()
 	OnOpenUpdateCenter                  func()
-}
-
-type aboutStorageState struct {
-	mu      sync.Mutex
-	started bool
-	loading bool
-	loaded  bool
-	seq     uint64
-	status  credentials.StorageStatus
-}
-
-func (s *aboutStorageState) snapshot() (started, loading, loaded bool, status credentials.StorageStatus) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.started, s.loading, s.loaded, s.status
-}
-
-func (s *aboutStorageState) startLoad(read func() credentials.StorageStatus, invalidate func()) {
-	if read == nil {
-		return
-	}
-	s.mu.Lock()
-	s.started = true
-	s.loading = true
-	s.seq++
-	seq := s.seq
-	s.mu.Unlock()
-	go func() {
-		result := read()
-		s.mu.Lock()
-		if s.seq == seq {
-			s.status = result
-			s.loaded = true
-			s.loading = false
-		}
-		s.mu.Unlock()
-		if invalidate != nil {
-			invalidate()
-		}
-	}()
 }
 
 func aboutUpdatePhaseSummary(a *AboutAccess) string {
@@ -197,13 +156,13 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 	a := m.About
 	t := tk(c)
 	anchor := ui.Column(c.Key("about-heading")).FillWidth().MaxWidth(560).MinWidth(0).Gap(design.Sp(3))
-	storageState := ui.Local(anchor, "metadata-async", func() aboutStorageState {
-		return aboutStorageState{status: credentials.StorageStatus{Mode: "unknown"}}
+	storageState := ui.Local(anchor, "metadata-async", func() credentials.StorageStatusProbe {
+		return credentials.StorageStatusProbe{}
 	})
-	started, storageLoading, storageLoaded, storage := storageState.snapshot()
+	started, storageLoading, storageLoaded, storage := storageState.State()
 	if !started && a.ReadCredentialStorage != nil {
-		storageState.startLoad(a.ReadCredentialStorage, c.Invalidate)
-		_, storageLoading, storageLoaded, storage = storageState.snapshot()
+		storageState.Start(a.ReadCredentialStorage, c.Invalidate)
+		_, storageLoading, storageLoaded, storage = storageState.State()
 	}
 	linkError := ui.Local(anchor, "error", func() settingsRefusal { return settingsRefusal{} })
 	revealResult := ui.Local(anchor, "home-result", func() string { return "" })
@@ -290,7 +249,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 			if a.ReadCredentialStorage != nil {
 				refreshLabel := providerCopy("刷新凭据存储状态", "Refresh credential storage status")
 				if kButtonDisabled(c, refreshLabel, storageLoading).AlignSelf(ui.Start).Clicked() {
-					storageState.startLoad(a.ReadCredentialStorage, c.Invalidate)
+					storageState.Start(a.ReadCredentialStorage, c.Invalidate)
 				}
 			}
 			ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
