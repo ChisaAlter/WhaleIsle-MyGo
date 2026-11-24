@@ -134,7 +134,7 @@ func paintPreviewFindBar(c *ui.Context, m Model, path string, border, muted ui.C
 			input := ui.TextInput(c.Key("preview-find-input"), &t.findQuery).
 				Label(label("文件内查找", "Find in file")).
 				Placeholder(label("查找文本…", "Find text…")).
-				Width(200).Height(26).Radius(6).Border(0.5, border).
+				Grow(1).Shrink(1).MinWidth(60).MaxWidth(240).Height(26).Radius(6).Border(0.5, border).
 				FontSize(theme.InterfaceSize(12))
 			if t.findFocusPending {
 				input.Focus()
@@ -167,15 +167,15 @@ func paintPreviewFindBar(c *ui.Context, m Model, path string, border, muted ui.C
 				stepMatch(1)
 			}
 			if widgets.Button(c, colors, "↑", widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: len(matches) == 0}).
-				Label(label("上一个匹配", "Previous match")).Clicked() {
+				Shrink(0).Label(label("上一个匹配", "Previous match")).Clicked() {
 				stepMatch(-1)
 			}
 			if widgets.Button(c, colors, "↓", widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: len(matches) == 0}).
-				Label(label("下一个匹配", "Next match")).Clicked() {
+				Shrink(0).Label(label("下一个匹配", "Next match")).Clicked() {
 				stepMatch(1)
 			}
 			if (!input.Composing() && (input.Shortcut(0, ui.KeyEscape) || c.PageShortcut(0, ui.KeyEscape))) || widgets.Button(c, colors, "×", widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).
-				Label(label("关闭查找", "Close find")).Clicked() {
+				Shrink(0).Label(label("关闭查找", "Close find")).Clicked() {
 				t.findOpen = false
 				t.findFocusPending = false
 				t.findScrollPending = false

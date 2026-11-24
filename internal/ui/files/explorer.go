@@ -73,18 +73,7 @@ func viewExplorer(c *ui.Context, m Model) {
 		if m.Tabs != nil {
 			m.Tabs.Search.EnsureHostOnly(m.BindingID, root, filter, m.ListRemoteContext, c.Invalidate, m.HostOnly)
 		}
-		ui.Scroll(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-			// FilesPanel.module.css `.body` pads the scroll content 8/12/16 and
-			// `.list[data-file-tree]` itself carries the rows, so the tree's
-			// semantic box is the padded column, not the scroll viewport.
-			ui.Column(c).MinWidth(0).Margin(8, 12, 16, 12).Label(label("文件树", "File tree")).Children(func() {
-				if filter != "" {
-					paintFiltered(c, m, root, filter, fg, muted, chrome.Color(colors.Accent))
-				} else {
-					paintDir(c, m, root, "", 0, fg, muted, chrome.Color(colors.Accent))
-				}
-			})
-		})
+		paintVirtualizedFileTree(c, m, root, filter, false, fg, muted, chrome.Color(colors.Accent))
 	})
 }
 
