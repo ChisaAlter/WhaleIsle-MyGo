@@ -3,6 +3,8 @@ package chrome
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -34,19 +36,32 @@ func DrawGitCommitStrip(c *ui.Context, colors TitleBarColors, open bool, m GitCo
 	if muted.A == 0 && muted.R == 0 && muted.G == 0 && muted.B == 0 {
 		muted = colors.Foreground
 	}
-	ui.Row(c).Fill().Height(36).Background(colors.Background).
-		Padding(0, 12, 0, 12).AlignItems(ui.Center).Gap(8).
+	leftPad, rightPad := TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
+	ui.Row(c.Key("git-commit-strip")).FillWidth().MinWidth(0).Height(40).Shrink(0).Background(colors.Background).
+		Padding(0, rightPad, 0, leftPad).AlignItems(ui.Center).Gap(design.Sp(2)).
 		Children(func() {
-			inp := ui.TextInput(c, m.Message).Grow(1).Placeholder(m.Placeholder)
+			var inp ui.Element
+			ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+				inp = coss.Input(c, m.Message, coss.InputOptions{
+					Size:        coss.InputSM,
+					Placeholder: m.Placeholder,
+					Key:         "git-commit-message",
+				})
+			})
 			if m.GenerateError != "" {
-				ui.Text(c, m.GenerateError).FontSize(theme.InterfaceSize(11)).TextColor(muted).MaxLines(1)
+				ui.Text(c, m.GenerateError).FontSize(theme.InterfaceSize(11)).TextColor(design.For(c).Destructive).MaxLines(1)
 			}
 			if m.OnGenerate != nil && m.GenerateLabel != "" {
 				label := m.GenerateLabel
 				if m.Generating {
 					label = m.GenerateLabel + "…"
 				}
-				if ui.Button(c, label).Disabled(m.Generating).Clicked() {
+				if coss.Button(c, label, coss.ButtonOptions{
+					Variant:  coss.ButtonOutline,
+					Size:     coss.ButtonSM,
+					Disabled: m.Generating,
+					Key:      "git-commit-generate",
+				}).Shrink(0).Clicked() {
 					m.OnGenerate()
 				}
 			}
@@ -55,17 +70,30 @@ func DrawGitCommitStrip(c *ui.Context, colors TitleBarColors, open bool, m GitCo
 				if inp.Submitted() {
 					m.OnCommit()
 				}
-				if ui.Button(c, m.CommitLabel).Clicked() {
+				if coss.Button(c, m.CommitLabel, coss.ButtonOptions{
+					Variant: coss.ButtonDefault,
+					Size:    coss.ButtonSM,
+					Key:     "git-commit-submit",
+				}).Shrink(0).Clicked() {
 					m.OnCommit()
 				}
 			} else if m.CommitLabel != "" {
-				ui.Button(c, m.CommitLabel).Disabled(true)
+				coss.Button(c, m.CommitLabel, coss.ButtonOptions{
+					Variant:  coss.ButtonDefault,
+					Size:     coss.ButtonSM,
+					Disabled: true,
+					Key:      "git-commit-submit",
+				}).Shrink(0)
 			}
 			if m.OnCancel != nil && m.CancelLabel != "" {
-				if ui.Button(c, m.CancelLabel).Clicked() {
+				if coss.Button(c, m.CancelLabel, coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonSM,
+					Key:     "git-commit-cancel",
+				}).Shrink(0).Clicked() {
 					m.OnCancel()
 				}
 			}
 		})
-	ui.Box(c).Fill().Height(1).Background(colors.Border)
+	ui.Box(c).FillWidth().Height(1).Shrink(0).Background(colors.Border)
 }

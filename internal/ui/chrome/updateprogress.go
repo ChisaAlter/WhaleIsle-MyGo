@@ -2,6 +2,8 @@ package chrome
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -37,13 +39,14 @@ func DrawUpdateProgress(c *ui.Context, colors TitleBarColors, open bool, m Updat
 	} else if value > 1 {
 		value = 1
 	}
-	ui.Column(c).Fill().Background(colors.Background).
-		Padding(6, 12, 6, 12).Gap(4).
+	leftPad, rightPad := TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
+	ui.Column(c.Key("update-progress-banner")).FillWidth().MinWidth(0).Shrink(0).Background(colors.Background).
+		Padding(design.Sp(1.5), rightPad, design.Sp(1.5), leftPad).Gap(design.Sp(1)).
 		Children(func() {
-			ui.Row(c).Fill().AlignItems(ui.Center).Gap(8).Children(func() {
-				ui.Text(c, m.Title).FontSize(theme.InterfaceSize(12)).TextColor(colors.Foreground).Grow(1).MaxLines(2)
+			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(2)).Children(func() {
+				ui.Text(c, m.Title).FontSize(theme.InterfaceSize(12)).TextColor(colors.Foreground).Grow(1).MinWidth(0).MaxLines(2)
 				if onDismiss != nil && m.DismissLabel != "" {
-					if ui.Button(c, m.DismissLabel).Clicked() {
+					if coss.Button(c, m.DismissLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Key: "update-dismiss"}).Shrink(0).Clicked() {
 						onDismiss()
 					}
 				}
@@ -53,5 +56,5 @@ func DrawUpdateProgress(c *ui.Context, colors TitleBarColors, open bool, m Updat
 				ui.Text(c, m.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted).MaxLines(2)
 			}
 		})
-	ui.Box(c).Fill().Height(1).Background(colors.Border)
+	ui.Box(c).FillWidth().Height(1).Shrink(0).Background(colors.Border)
 }

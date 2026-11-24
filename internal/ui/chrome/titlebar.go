@@ -40,6 +40,20 @@ func EffectiveTitleBarHeight() float32 {
 	return TitleBarHeight
 }
 
+// TitleBarSafeHorizontalPadding adds native window-control insets (macOS
+// traffic lights via bar.Left, Windows - □ × buttons via bar.Right) onto base
+// horizontal padding so top strips and route headers never overlap OS controls.
+func TitleBarSafeHorizontalPadding(bar ui.TitleBar, base float32) (left, right float32) {
+	left, right = base, base
+	if bar.Left > 0 {
+		left += bar.Left
+	}
+	if bar.Right > 0 {
+		right += bar.Right
+	}
+	return left, right
+}
+
 // GitBadge is optional branch / dirty state shown beside the product title.
 // When OnPull / OnPush / OnFetch / OnCommit / OnPR* are set, compact action buttons appear next to the badge.
 type GitBadge struct {
