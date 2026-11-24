@@ -44,8 +44,8 @@ func contactsView(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 				cm.OnRefresh()
 			}
 		})
-		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "contacts:50", s.Notice)
 		query := s.Filters.Query

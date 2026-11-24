@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
+	wstate "whaleisle/internal/state"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
 )
@@ -37,7 +38,7 @@ func TestRoomRuntimeCompleteUIExplicitOpenFixture(t *testing.T) {
 		t.Fatal("explicit open missing")
 	}
 	state.Loaded = false
-	state.Error = "group/runtime failed"
+	state.Error = wstate.FaultText("group/runtime failed")
 	tt.Frame()
 	tt.Click(roomRuntimeOpenLabel())
 	if opens != 1 {

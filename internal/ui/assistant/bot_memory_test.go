@@ -18,7 +18,7 @@ func TestBotMemoryUIReviewDeleteOnlyOnConfirm(t *testing.T) {
 	controls.FinishLoad(load, pluginrpc.DshbotCatalogItem{ID: "b", Name: "Fixture Bot", SessionID: "session"}, v, true, nil)
 	saves, reads := 0, 0
 	tt := ui.NewTester(func(c *ui.Context) {
-		s := controls.Snapshot(k)
+		s := controls.Snapshot(k).Value
 		m := BotMemoryModel{State: s, HostLabel: "https://fixture.invalid", OnRefresh: func() { reads++ }, OnTrack: func(track string) { controls.SetTrack(k, track) }, OnEdit: func(index int) { controls.StartEdit(k, index) }, OnDelete: func(index int) { controls.PrepareDelete(k, index) }, OnChange: func(text string) { controls.Change(k, text) }, OnReview: func() { controls.Prepare(k) }, OnDismiss: func() { controls.Dismiss(k, s.Review) }, OnDiscard: func() { controls.Discard(k) }, OnConfirm: func() {
 			if _, cmd, ok := controls.BeginSave(k, s.Review); ok {
 				if cmd.Track != "bot" || cmd.Text != "" {

@@ -39,8 +39,8 @@ func routineCreateBlock(c *ui.Context, m Model, fg, muted, field, border, accent
 	chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
 	card.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateBotRoutine)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
-		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "routine_create:45", s.Notice)
 		if s.Draft == nil {

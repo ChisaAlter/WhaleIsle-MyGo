@@ -72,8 +72,8 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshSourcePolicy)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_sender_policy:78", s.Notice)
 		for _, w := range s.Warnings {
