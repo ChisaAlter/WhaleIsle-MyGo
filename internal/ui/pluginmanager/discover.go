@@ -230,9 +230,7 @@ func categories(c *ui.Context, p *page) {
 	ui.Row(c).Label(copyText("分类", "Categories")).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 		pill := func(id, label string) {
 			on := d.Query.Category == id
-			was := on
-			coss.Toggle(c, &on, label, coss.ToggleOptions{Variant: coss.ToggleOutline, Size: coss.ToggleSM, Key: "category-" + id})
-			if on != was && !was {
+			if coss.Toggle(c, &on, label, coss.ToggleOptions{Variant: coss.ToggleOutline, Size: coss.ToggleSM, Key: "category-" + id}).Changed() && on {
 				q := d.Query
 				q.Category = id
 				p.a.Search(q)

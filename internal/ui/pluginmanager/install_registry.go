@@ -193,7 +193,7 @@ func installRegistryPanel(c *ui.Context, anchor ui.Element, i manager.InstallSta
 					choice += *r
 				}
 			}
-			was := choice
+			changed := false
 			coss.RadioGroup(c, copyText("安装源", "Installation registry"), func() {
 				for _, registry := range manager.OfferedRegistries(i.RegistryInfo) {
 					label := registryName(registry, resolved)
@@ -204,11 +204,11 @@ func installRegistryPanel(c *ui.Context, anchor ui.Element, i manager.InstallSta
 							label += " · " + *registry
 						}
 					}
-					coss.Radio(c, &choice, value, label, coss.CheckOptions{Key: value})
+					changed = coss.Radio(c, &choice, value, label, coss.CheckOptions{Key: value}).Changed() || changed
 				}
-				coss.Radio(c, &choice, "custom", copyText("自定义地址", "Custom address"), coss.CheckOptions{Key: "custom"})
+				changed = coss.Radio(c, &choice, "custom", copyText("自定义地址", "Custom address"), coss.CheckOptions{Key: "custom"}).Changed() || changed
 			})
-			if choice != was {
+			if changed {
 				chooseRegistry(i, a, choice, *draft)
 			}
 			errText := ""
