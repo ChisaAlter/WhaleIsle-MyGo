@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -61,7 +62,8 @@ test('environment uses native shared caches and preserves explicit isolation', {
   assert.equal(shared.status, 0, shared.stderr);
   const json = JSON.parse(shared.stdout.slice(0, shared.stdout.indexOf('PIN=')));
   assert.ok(!JSON.stringify(json).includes('.toolchain'));
-  assert.match(shared.stdout, /PIN=go1\.27\.2\+auto/);
+  const pin = /GOTOOLCHAIN\s*=\s*'([^']+)'/.exec(fs.readFileSync(path.join(scripts, 'env.ps1'), 'utf8'))[1];
+  assert.match(shared.stdout, new RegExp('PIN=' + pin.replaceAll('.', '\\.').replaceAll('+', '\\+')));
   const isolated = fresh();
   const explicit = powershell(base + `\n$env:GOCACHE=${quote(path.join(isolated, 'cache'))}\n$env:GOMODCACHE=${quote(path.join(isolated, 'modules'))}\n$env:GOTMPDIR=${quote(path.join(isolated, 'temp'))}\n` + probe);
   assert.equal(explicit.status, 0, explicit.stderr);
@@ -231,6 +233,73 @@ test('owned-dir cleanup unlinks nested junctions without descending and enforces
   assert.equal(fs.existsSync(owned), false);
   assert.equal(fs.readFileSync(path.join(source, 'keep.txt'), 'utf8'), 'protected-data');
   removeOwnedDir(owned, parent, 'whaleisle-owned-');
+});
+
+const releaseFixtureGo = name => {
+  const fakeGo = path.join(temporary, name);
+  fs.writeFileSync(fakeGo, String.raw`
+$global:LASTEXITCODE=0
+if ($args[0] -eq 'env') { if ($args[1] -in @('GOOS','GOHOSTOS')) { 'windows' } else { 'amd64' }; return }
+if ($args[0] -eq 'tool') { $out=$args[[Array]::IndexOf($args,'-out')+1]; [IO.File]::WriteAllText($out,'fixture resource'); return }
+if ($args[0] -eq 'build') { $out=$args[[Array]::IndexOf($args,'-o')+1]; [IO.File]::WriteAllText($out,'fixture payload, never executed'); return }
+`);
+  return fakeGo;
+};
+// The script names its cross-process lock sha256(upper(normalized candidate)):
+// an ASCII-only repo path keeps ToUpperInvariant equal to toUpperCase.
+const sysoLockPath = candidate => path.join(
+  fs.realpathSync.native(os.tmpdir()).replaceAll('\\', '/'),
+  'whaleisle-syso-' + crypto.createHash('sha256').update(candidate.toUpperCase(), 'utf8').digest('hex') + '.lock');
+
+test('release build reclaims a stale .syso and removes its resource lock', { skip: process.platform !== 'win32' }, () => {
+  const candidate = path.join(path.dirname(scripts), 'cmd', 'whaleisle', 'mygo_windows_amd64.syso');
+  const lock = sysoLockPath(candidate);
+  fs.rmSync(candidate, { force: true });
+  fs.rmSync(lock, { force: true });
+  fs.writeFileSync(candidate, 'stale resource from a killed build');
+  const output = path.join(temporary, 'stale-syso-desktop.exe');
+  try {
+    const result = powershell(`& ${quote(path.join(scripts, 'build-release.ps1'))} -Package cmd/whaleisle -Output ${quote(output)} -GoExecutable ${quote(releaseFixtureGo('stale-syso-go.ps1'))}`);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(fs.existsSync(output), true);
+    assert.equal(fs.existsSync(candidate), false, 'build left its .syso behind');
+    assert.equal(fs.existsSync(lock), false, 'build left its resource lock behind');
+  } finally {
+    fs.rmSync(candidate, { force: true });
+    fs.rmSync(lock, { force: true });
+  }
+});
+
+test('release build refuses while another process holds the resource lock', { skip: process.platform !== 'win32' }, () => {
+  const candidate = path.join(path.dirname(scripts), 'cmd', 'whaleisle', 'mygo_windows_amd64.syso');
+  const lock = sysoLockPath(candidate);
+  fs.rmSync(candidate, { force: true });
+  fs.rmSync(lock, { force: true });
+  fs.writeFileSync(candidate, 'sentinel in use by another build');
+  const output = path.join(temporary, 'locked-syso-desktop.exe');
+  try {
+    // The probe holds the same exclusive lock a live build would, then runs
+    // a second build: it must fail fast and leave the .syso untouched.
+    const probe = powershell(`$candidate = ${quote(candidate)}
+$lockPath = ${quote(lock)}
+$lock = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+try {
+  & ${quote(path.join(scripts, 'build-release.ps1'))} -Package cmd/whaleisle -Output ${quote(output)} -GoExecutable ${quote(releaseFixtureGo('locked-syso-go.ps1'))}
+  Write-Output 'BUILD-SUCCEEDED'
+} catch {
+  Write-Output ('BUILD-FAILED: ' + $_.Exception.Message)
+} finally {
+  $lock.Dispose()
+  Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+}`);
+    assert.match(probe.stdout, /BUILD-FAILED/);
+    assert.match(probe.stdout, /resource lock/);
+    assert.equal(fs.existsSync(output), false);
+    assert.equal(fs.readFileSync(candidate, 'utf8'), 'sentinel in use by another build');
+  } finally {
+    fs.rmSync(candidate, { force: true });
+    fs.rmSync(lock, { force: true });
+  }
 });
 
 test('env.ps1 pins PSModuleAnalysisCachePath outside cwd and with-build-workspace restores it', { skip: process.platform !== 'win32' }, () => {
