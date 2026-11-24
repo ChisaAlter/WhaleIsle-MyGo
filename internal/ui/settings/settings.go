@@ -592,9 +592,7 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 	confirming := ui.Local(anchor, "confirm-replace", func() bool { return false })
 	preparedReplace := ui.Local(anchor, "prepared-replace", func() func() { return nil })
 	anchor.Children(func() {
-		if snap.Err != "" {
-			coss.Alert(c, "", snap.Err, coss.AlertOptions{Variant: coss.AlertError, Key: "settings-actions-error"})
-		}
+		settingsAlert(c, "settings-actions", snap.Err != "", providerCopy("没能保存设置，请重试。", "The settings could not be saved. Try again."), snap.Err)
 		ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 			switch {
 			case snap.Saving:
