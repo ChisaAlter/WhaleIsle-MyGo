@@ -89,6 +89,28 @@ func responsiveDeliveryStore(t *testing.T) (*session.Store, session.TurnFileScop
 
 // Tester.Texts includes clipped nodes, so require a nonempty clipped rectangle
 // as well as the actual browser error; an off-screen zero-width node is not UI.
+// settleResponsiveDeliveryFrame waits until background Host capability,
+// stop-sequence bootstrap, and goal-refresh updates have settled and painted so
+// headless Click coordinates cannot shift between FindRect and PointerUp.
+func settleResponsiveDeliveryFrame(t *testing.T, tt *ui.Tester, store *session.Store, target session.TurnFileTarget) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		tt.Frame()
+		snap := store.Snapshot()
+		host := snap.TurnFiles.Results[session.TurnFileRequest{Target: target, Action: "host"}]
+		if snap.LastAction != "" && snap.GoalReadError != nil && host.Host != nil && !host.Busy {
+			if r, ok := tt.Find("Preview report.pdf"); ok && r.W > 0 && r.H > 0 {
+				return
+			}
+		}
+		if !time.Now().Before(deadline) {
+			t.Fatalf("responsive delivery frame did not settle: lastAction=%q goalErr=%v host=%+v texts=%q", snap.LastAction, snap.GoalReadError, host, tt.Texts())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 func requireResponsiveDeliveryVisible(t *testing.T, tt *ui.Tester, want string) {
 	t.Helper()
 	for _, text := range tt.Texts() {
@@ -163,6 +185,7 @@ func TestDeliveryResponsiveFramePreview(t *testing.T) {
 			}, width, height)
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 			requireResponsiveDeliveryVisible(t, tt, "Delivered report")
+			settleResponsiveDeliveryFrame(t, tt, store, target)
 			if calls != 0 || open || w.Fullscreen != "" {
 				t.Fatal("rendering the delivery card opened a preview")
 			}
@@ -280,6 +303,7 @@ func TestDeliveryResponsiveFramePreviewErrorPreservesRoute(t *testing.T) {
 						RightPaneOpen: open, RightPaneTab: &route, NewWorkspaceBrowser: create, OnPreviewDeliverable: preview})
 				}, width, 900)
 				tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+				settleResponsiveDeliveryFrame(t, tt, store, target)
 				if err := tt.Click("Preview report.pdf"); err != nil {
 					t.Fatalf("click delivery card: %v; texts=%q", err, tt.Texts())
 				}
