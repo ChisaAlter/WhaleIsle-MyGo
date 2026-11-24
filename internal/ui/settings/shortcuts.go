@@ -465,7 +465,7 @@ func shortcutResetConfirmation(c *ui.Context, e *shortcuts.Editor, p shortcutPal
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(420), max(float32(0), w-32)), 20).Gap(12).Children(func() {
 			ui.Text(c, providerCopy("恢复全部默认快捷键？", "Restore all default shortcuts?")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500).TextColor(p.fg)
 			ui.Text(c, providerCopy("将恢复当前平台的默认快捷键。你修改或移除的快捷键都会恢复，其他平台不受影响。", "Restore the default shortcuts for this platform. All modified or removed shortcuts will be restored. Other platforms are unaffected.")).FontSize(fonttheme.InterfaceSize(13)).TextColor(p.muted)
-			ui.Box(c).FillWidth().Height(36).Children(func() {
+			ui.Box(c).FillWidth().MinHeight(36).Children(func() {
 				if e.Err != "" {
 					settingsFailureLine(c, "shortcut:restore", providerCopy("没能恢复默认快捷键，请重试。", "The default shortcuts could not be restored. Try again."), e.Err)
 				}
