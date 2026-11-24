@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -26,31 +27,96 @@ type chevronAnimation struct {
 	started         bool
 }
 
-// groupChevronAngle eases a Workspace row's disclosure triangle towards the
-// group's open state. The caller redraws while the angle is still moving, so
-// collapsing a group spins its arrow instead of swapping glyphs.
-func groupChevronAngle(c *ui.Context, owner ui.Element, collapsed bool) float32 {
-	state := ui.Local(owner, "workspace-chevron", func() chevronAnimation { return chevronAnimation{} })
+func (s *chevronAnimation) update(now time.Time, collapsed bool) {
 	target := float32(0)
 	if !collapsed {
 		target = 90
 	}
-	if !state.started {
-		state.started, state.angle, state.to = true, target, target
+	if !s.started {
+		s.started, s.angle, s.from, s.to = true, target, target, target
+		return
 	}
-	if state.to != target {
-		state.from, state.to, state.since = state.angle, target, c.Now()
+	if s.to != target {
+		s.from = s.eval(now)
+		s.to = target
+		s.since = now
 	}
-	if state.angle != state.to {
-		progress := float32(c.Now().Sub(state.since)) / float32(chevronSettle)
-		if progress >= 1 {
-			state.angle = state.to
-		} else {
-			// Ease-out cubic, the settle the original's arrow uses.
-			inverted := 1 - progress
-			state.angle = state.from + (state.to-state.from)*(1-inverted*inverted*inverted)
-			c.After(16 * time.Millisecond)
+}
+
+func (s *chevronAnimation) eval(now time.Time) float32 {
+	if s.since.IsZero() || s.from == s.to {
+		s.angle = s.to
+		return s.to
+	}
+	progress := float32(now.Sub(s.since)) / float32(chevronSettle)
+	if progress <= 0 {
+		s.angle = s.from
+		return s.from
+	}
+	if progress >= 1 {
+		s.angle = s.to
+		s.from = s.to
+		s.since = time.Time{}
+		return s.to
+	}
+	inverted := 1 - progress
+	s.angle = s.from + (s.to-s.from)*(1-inverted*inverted*inverted)
+	return s.angle
+}
+
+func (s *chevronAnimation) moving(now time.Time) bool {
+	return !s.since.IsZero() && s.from != s.to && now.Sub(s.since) < chevronSettle
+}
+
+// groupChevronAngle evaluates the current disclosure angle without scheduling a
+// full-tree rebuild timer. Animated rotation is painted via groupChevronIcon.
+func groupChevronAngle(c *ui.Context, owner ui.Element, collapsed bool) float32 {
+	state := ui.Local(owner, "workspace-chevron", func() chevronAnimation { return chevronAnimation{} })
+	now := c.Now()
+	state.update(now, collapsed)
+	return state.eval(now)
+}
+
+// groupChevronIcon paints the disclosure triangle with paint-only p.After
+// animation so expanding/collapsing a workspace never triggers 60fps tree rebuilds.
+func groupChevronIcon(c *ui.Context, owner ui.Element, collapsed bool, size float32, ink ui.Color, label string) ui.Element {
+	state := ui.Local(owner, "workspace-chevron", func() chevronAnimation { return chevronAnimation{} })
+	reduceMotion := c.Preferences().ReduceMotion
+	if reduceMotion {
+		target := float32(0)
+		if !collapsed {
+			target = 90
 		}
+		state.started, state.angle, state.from, state.to, state.since = true, target, target, target, time.Time{}
+	} else {
+		state.update(c.Now(), collapsed)
 	}
-	return state.angle
+	return ui.Box(c).Size(size, size).Label(label).Draw(func(p *ui.Painter, r ui.Rect) {
+		now := p.Now()
+		deg := state.eval(now)
+		rad := float64(deg) * math.Pi / 180.0
+		cos, sin := float32(math.Cos(rad)), float32(math.Sin(rad))
+		cx, cy := r.X+r.W/2, r.Y+r.H/2
+		sx, sy := r.W/16, r.H/16
+		pts := [3][2]float32{
+			{(6 - 8) * sx, (4.1 - 8) * sy},
+			{(11.2 - 8) * sx, (8 - 8) * sy},
+			{(6 - 8) * sx, (11.9 - 8) * sy},
+		}
+		var path ui.Path
+		for i, pt := range pts {
+			x := cx + pt[0]*cos - pt[1]*sin
+			y := cy + pt[0]*sin + pt[1]*cos
+			if i == 0 {
+				path.MoveTo(x, y)
+			} else {
+				path.LineTo(x, y)
+			}
+		}
+		path.Close()
+		p.FillPath(&path, ink)
+		if !reduceMotion && state.moving(now) {
+			p.After(16 * time.Millisecond)
+		}
+	})
 }

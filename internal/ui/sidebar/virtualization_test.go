@@ -237,3 +237,142 @@ func TestSidebarSearchResultsVirtualizesAndScrolls(t *testing.T) {
 		t.Fatalf("wheel scroll did not advance search results: built=%v", built)
 	}
 }
+
+func TestSidebarWorkspaceGroupModeVirtualizesAndScrolls(t *testing.T) {
+	i18n.SetLocale("en")
+	t.Cleanup(func() {
+		i18n.SetLocale(i18n.DefaultLocale)
+		sidebarVirtualRowHook = nil
+	})
+
+	const numWorkspaces = 40
+	const sessionsPerWorkspace = 3
+	workspaces := make([]session.WorkspaceRow, numWorkspaces)
+	items := make([]session.Item, 0, numWorkspaces*sessionsPerWorkspace)
+	collapsed := make(map[string]bool, numWorkspaces)
+	for w := 0; w < numWorkspaces; w++ {
+		wsID := fmt.Sprintf("ws-%02d", w)
+		collapsed[wsID] = false
+		sids := make([]string, sessionsPerWorkspace)
+		for s := 0; s < sessionsPerWorkspace; s++ {
+			id := fmt.Sprintf("ws-%02d-s-%02d", w, s)
+			sids[s] = id
+			items = append(items, session.Item{SessionID: id, Title: fmt.Sprintf("Group %02d Session %02d", w, s)})
+		}
+		workspaces[w] = session.WorkspaceRow{
+			WorkspaceID: wsID,
+			Title:       fmt.Sprintf("Workspace %02d", w),
+			Path:        fmt.Sprintf("/repo/ws-%02d", w),
+			SessionIDs:  sids,
+		}
+	}
+	m := Model{
+		ThemeID:         "deepseek.light",
+		ViewportW:       320,
+		ViewportH:       360,
+		ConnectionReady: true,
+		Snapshot: session.ViewState{
+			WorkspaceReady: true,
+			Workspaces:     workspaces,
+			Items:          items,
+			WorkspaceLayout: session.WorkspaceLayoutState{
+				GroupBy:        "workspace",
+				HostGeneration: 1,
+				Collapsed:      collapsed,
+			},
+		},
+	}
+
+	built := map[int]string{}
+	sidebarVirtualRowHook = func(surface string, index int, id string) {
+		if surface == "workspace" {
+			built[index] = id
+		}
+	}
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		clear(built)
+		View(c, m)
+	}, 320, 360)
+	clear(built)
+	tt.Frame()
+
+	// Total flattened rows = 40 * (1 header + 3 sessions) = 160; virtualized
+	// viewport must build only a small bounded window around the visible rows.
+	if len(built) == 0 || len(built) >= 28 {
+		t.Fatalf("workspace group viewport built %d rows on initial frame, want bounded subset (<28)", len(built))
+	}
+	if !tt.HasText("Workspace 00") || tt.HasText("Workspace 30") {
+		t.Fatalf("workspace group initial visibility wrong: has0=%v has30=%v built=%d", tt.HasText("Workspace 00"), tt.HasText("Workspace 30"), len(built))
+	}
+
+	firstRect, ok := tt.Find("Workspace 00")
+	if !ok {
+		t.Fatal("missing first workspace header before wheel scroll")
+	}
+	for range 10 {
+		tt.Scroll(firstRect.X+10, firstRect.Y+10, 0, 240)
+	}
+	clear(built)
+	tt.Frame()
+
+	if len(built) == 0 || len(built) >= 28 {
+		t.Fatalf("workspace group viewport built %d rows after scroll, want bounded subset (<28)", len(built))
+	}
+	if tt.HasText("Workspace 00") {
+		t.Fatal("top workspace header stayed mounted after scrolling down")
+	}
+}
+
+func BenchmarkSidebarWorkspaceGroupsViewport(b *testing.B) {
+	i18n.SetLocale("en")
+	b.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+
+	const numWorkspaces = 50
+	const sessionsPerWorkspace = 4
+	workspaces := make([]session.WorkspaceRow, numWorkspaces)
+	items := make([]session.Item, 0, numWorkspaces*sessionsPerWorkspace)
+	collapsed := make(map[string]bool, numWorkspaces)
+	for w := 0; w < numWorkspaces; w++ {
+		wsID := fmt.Sprintf("ws-%02d", w)
+		collapsed[wsID] = false
+		sids := make([]string, sessionsPerWorkspace)
+		for s := 0; s < sessionsPerWorkspace; s++ {
+			id := fmt.Sprintf("ws-%02d-s-%02d", w, s)
+			sids[s] = id
+			items = append(items, session.Item{SessionID: id, Title: fmt.Sprintf("Group %02d Session %02d", w, s)})
+		}
+		workspaces[w] = session.WorkspaceRow{
+			WorkspaceID: wsID,
+			Title:       fmt.Sprintf("Workspace %02d", w),
+			Path:        fmt.Sprintf("/repo/ws-%02d", w),
+			SessionIDs:  sids,
+		}
+	}
+	m := Model{
+		ThemeID:         "deepseek.light",
+		ViewportW:       300,
+		ViewportH:       720,
+		ConnectionReady: true,
+		Snapshot: session.ViewState{
+			WorkspaceReady: true,
+			SelectedID:     "ws-00-s-00",
+			Workspaces:     workspaces,
+			Items:          items,
+			WorkspaceLayout: session.WorkspaceLayoutState{
+				GroupBy:        "workspace",
+				HostGeneration: 1,
+				Collapsed:      collapsed,
+			},
+		},
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		View(c, m)
+	}, 300, 720)
+	tt.Frame()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tt.Frame()
+	}
+}
