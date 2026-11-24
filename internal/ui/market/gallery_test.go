@@ -53,7 +53,7 @@ func TestMarketScreenshotGalleryInteractionFailureAndSourceReset(t *testing.T) {
 	model := Model{OnOpenURL: func(source string) { opened = append(opened, source) }}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Children(func() {
-			marketScreenshotGallery(c, model, item, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface)
+			marketScreenshotGallery(c, model, item)
 		})
 	}, 800, 700)
 	click := func(label string) {

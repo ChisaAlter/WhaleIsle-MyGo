@@ -1087,34 +1087,6 @@
     "colors": 0,
     "metrics": 12
   },
-  "market/gallery.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "market/management.go": {
-    "colors": 0,
-    "metrics": 14
-  },
-  "market/market.go": {
-    "colors": 1,
-    "metrics": 50
-  },
-  "market/presentation.go": {
-    "colors": 0,
-    "metrics": 73
-  },
-  "market/readme.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "market/readme_images.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "market/readme_svg.go": {
-    "colors": 2,
-    "metrics": 0
-  },
   "planpreview/view.go": {
     "colors": 0,
     "metrics": 8
