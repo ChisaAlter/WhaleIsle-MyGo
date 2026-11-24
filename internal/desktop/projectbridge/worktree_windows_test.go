@@ -25,7 +25,10 @@ func TestWindowsLongWorktreeCheckoutAndInterruptedContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("USERPROFILE", root)
 	source := filepath.Join(root, "source")
 	if err = os.MkdirAll(source, 0700); err != nil {
@@ -155,7 +158,10 @@ func TestWindowsLegacyPreparingWorktreeNeedsCompleteCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	source, home := filepath.Join(root, "source"), filepath.Join(root, "home")
 	if err = os.MkdirAll(source, 0700); err != nil {
 		t.Fatal(err)
