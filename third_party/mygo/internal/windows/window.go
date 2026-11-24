@@ -13,17 +13,10 @@ import (
 var errDestroyed = errors.New("mygo: window has been destroyed")
 
 const (
-	// timerResizeSettle builds the frame a size burst held, a little after
-	// the last WM_SIZE, so a programmatic resize gets the same cheap steps a
-	// live drag does.
-	timerResizeSettle = 3
-	// resizeBurstGap is how close two WM_SIZE messages are to count as one
-	// burst; resizeSettleDelay is how long after the last one the view is
-	// built again. Both leave the probe's 50 ms resize steps comfortably
-	// inside a burst and its ping outside the settle frame, and a step that
-	// is slow to paint does not settle the burst it belongs to.
-	resizeBurstGap    = 300 * time.Millisecond
-	resizeSettleDelay = 250 // milliseconds
+	// timerResizeTick flushes a throttled live-resize frame at the next
+	// VSync-paced slot (16-33ms) so dragging redraws smoothly in real time
+	// without saturating the message queue.
+	timerResizeTick = 3
 )
 
 type window struct {
@@ -98,15 +91,11 @@ type window struct {
 
 	programmatic        bool
 	roundedFramePending bool
-	// A live move or resize (WM_ENTERSIZEMOVE..WM_EXITSIZEMOVE), or a run of
-	// programmatic WM_SIZE messages closer together than resizeBurstGap,
-	// holds the last frame: the surface stretches it to each new size, and
-	// the view is built once more when the interaction ends or the sizes
-	// stop (settleSize). Building the immediate-mode view for every step of
-	// a drag made moving and resizing wait on the whole UI each time.
-	interaction bool
-	sizeBurst   bool
-	lastSize    time.Time
+	// Live move/resize state: frames are never frozen or stretched during a
+	// drag; instead resizePacer paces real-time ResizeBuffers + relayout redraws
+	// to monitor VSync (16-33ms) and flushes any pending size on exit.
+	inSizeMove  bool
+	resizePacer resizePacer
 	loading     bool
 	zoom        float64
 	devTools    bool
@@ -343,9 +332,9 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		return 0, true
 	case wmTimer:
 		switch wp {
-		case timerResizeSettle:
-			procKillTimer.Call(w.hwnd, timerResizeSettle)
-			w.settleSize()
+		case timerResizeTick:
+			procKillTimer.Call(w.hwnd, timerResizeTick)
+			w.onResizeTick()
 			return 0, true
 		case timerWebView:
 			procKillTimer.Call(w.hwnd, timerWebView)
@@ -354,7 +343,6 @@ func (w *window) message(m uint32, wp, lp uintptr) (uintptr, bool) {
 		}
 		return 0, false
 	case wmSize:
-		w.noteSize()
 		if !w.reframing { // SetFullScreen lays the window out once it is done
 			w.sized(wp)
 		}
@@ -498,70 +486,81 @@ func (w *window) sized(kind uintptr) {
 	w.h.Resized()
 }
 
-// noteSize records a WM_SIZE. Steps closer together than resizeBurstGap are a
-// burst: the first frame draws the new size, later steps keep the last frame
-// stretched to the surface, and settleSize builds the view once more when
-// they stop. A live move or resize holds every step until it ends.
-func (w *window) noteSize() {
+// onSurfaceSize paces live resize redraws so dragging redraws smoothly at
+// monitor VSync (16-33ms) instead of freezing and stretching an old frame.
+func (w *window) onSurfaceSize(width, height int) {
 	if w.surface == nil {
 		return
 	}
-	now := time.Now()
-	if !w.lastSize.IsZero() && now.Sub(w.lastSize) < resizeBurstGap {
-		w.sizeBurst = true
+	if width <= 0 || height <= 0 {
+		procKillTimer.Call(w.hwnd, timerResizeTick)
+		w.resizePacer.reset()
+		return
 	}
-	w.lastSize = now
-	if w.interaction || w.sizeBurst {
-		procSetTimer.Call(w.hwnd, timerResizeSettle, resizeSettleDelay, 0)
+	interval := resizeIntervalForRefreshRate(w.surface.RefreshRate())
+	drawNow, armDelay := w.resizePacer.onSize(time.Now(), interval)
+	if drawNow {
+		procKillTimer.Call(w.hwnd, timerResizeTick)
+		w.surface.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
+		procRedrawWindow.Call(w.surface.hwnd, 0, 0, rdwInvalidate|rdwUpdateNow)
+		return
+	}
+	if armDelay > 0 {
+		ms := uintptr(armDelay / time.Millisecond)
+		if ms < 1 {
+			ms = 1
+		}
+		procSetTimer.Call(w.hwnd, timerResizeTick, ms, 0)
 	}
 }
 
-// holdsFrames reports that the surface shows its last frame, stretched to the
-// size it has now, while a move/resize interaction or a burst of sizes goes
-// on: the view is not built for each step.
-func (w *window) holdsFrames() bool {
-	return w.surface != nil && (w.interaction || w.sizeBurst)
+// noteSurfacePainted records that the surface just painted its current size,
+// satisfying any throttled resize tick.
+func (w *window) noteSurfacePainted() {
+	if w.resizePacer.onPainted(time.Now()) {
+		procKillTimer.Call(w.hwnd, timerResizeTick)
+	}
 }
 
-// beginInteraction starts holding frames for a live move or resize. The
-// window moves and changes size with the frame it has until it ends.
+// onResizeTick flushes a coalesced live-resize frame at the next VSync slot.
+func (w *window) onResizeTick() {
+	if w.surface == nil || w.closed || !w.resizePacer.onTimer(time.Now()) {
+		return
+	}
+	w.refreshSurface()
+}
+
+// beginInteraction notes that a live move or resize modal loop has started.
+// Frames keep rendering live through resizePacer rather than freezing.
 func (w *window) beginInteraction() {
-	if w.surface == nil || w.interaction {
-		return
-	}
-	w.interaction = true
-	w.lastSize = time.Now()
-	procKillTimer.Call(w.hwnd, timerResizeSettle)
+	w.inSizeMove = true
 }
 
-// endInteraction shows the size a live move or resize reached, built once,
-// as the drag ends.
+// endInteraction flushes any pending throttled resize as soon as the user
+// finishes dragging so the final size is laid out and painted immediately.
 func (w *window) endInteraction() {
-	if w.surface == nil || !w.interaction {
+	w.inSizeMove = false
+	if w.surface == nil || w.closed {
 		return
 	}
-	w.interaction = false
-	w.sizeBurst = false
-	w.lastSize = time.Time{}
-	procKillTimer.Call(w.hwnd, timerResizeSettle)
-	w.refreshSurface()
-}
-
-// settleSize builds the frame a burst of sizes held, after the last step.
-func (w *window) settleSize() {
-	w.sizeBurst = false
-	w.lastSize = time.Time{}
-	w.refreshSurface()
+	procKillTimer.Call(w.hwnd, timerResizeTick)
+	if w.resizePacer.onExitSizeMove(time.Now()) {
+		w.refreshSurface()
+	}
 }
 
 // refreshSurface lays the surface out at its final size and builds the frame
-// that an interaction or a size burst held, at once, so what the user let go
-// of shows the content for the size it has.
+// immediately so the content matches the current window geometry.
 func (w *window) refreshSurface() {
-	if w.surface == nil {
+	if w.surface == nil || w.closed {
 		return
 	}
 	w.surface.fit()
+	var r rect
+	procGetClientRect.Call(w.surface.hwnd, uintptr(unsafe.Pointer(&r)))
+	if r.Right-r.Left <= 0 || r.Bottom-r.Top <= 0 {
+		return
+	}
 	w.surface.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
 	procRedrawWindow.Call(w.surface.hwnd, 0, 0, rdwInvalidate|rdwUpdateNow)
 }
@@ -624,6 +623,8 @@ func (w *window) cleanup() {
 		return
 	}
 	w.closed = true
+	procKillTimer.Call(w.hwnd, timerResizeTick)
+	w.resizePacer.reset()
 	if w.opts.Modal && w.parent != nil && !w.parent.closed {
 		procEnableWindow.Call(w.parent.hwnd, 1)
 	}

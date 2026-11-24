@@ -139,6 +139,11 @@ type surface struct {
 	// redirection bitmap, where GDI cannot (compositor.go); nil while none
 	// shows.
 	comp *compositor
+
+	// Cached monitor refresh rate invalidated on displayEpoch or monitor changes.
+	refreshRateVal   float64
+	refreshRateMon   uintptr
+	refreshRateEpoch uint64
 }
 
 func registerSurfaceClass() {
@@ -230,16 +235,22 @@ func (s *surface) RequestFrame() {
 // RefreshRate returns the refresh rate of the monitor showing the window,
 // in its current display mode.
 func (s *surface) RefreshRate() float64 {
-	mi := monitorInfo(s.w.monitor())
+	mon := s.w.monitor()
+	epoch := displayEpoch.Load()
+	if s.refreshRateMon == mon && s.refreshRateEpoch == epoch && mon != 0 {
+		return s.refreshRateVal
+	}
+	mi := monitorInfo(mon)
 	var dm devMode
 	dm.Size = uint16(unsafe.Sizeof(dm))
-	if ok, _, _ := procEnumDisplaySettingsW.Call(uintptr(unsafe.Pointer(&mi.Device[0])), enumCurrentSettings, uintptr(unsafe.Pointer(&dm))); ok == 0 {
-		return 0
+	rate := float64(0)
+	if ok, _, _ := procEnumDisplaySettingsW.Call(uintptr(unsafe.Pointer(&mi.Device[0])), enumCurrentSettings, uintptr(unsafe.Pointer(&dm))); ok != 0 && dm.DisplayFrequency > 1 {
+		rate = float64(dm.DisplayFrequency)
 	}
-	if dm.DisplayFrequency <= 1 {
-		return 0 // the hardware's default rate, unknown
-	}
-	return float64(dm.DisplayFrequency)
+	s.refreshRateMon = mon
+	s.refreshRateEpoch = epoch
+	s.refreshRateVal = rate
+	return rate
 }
 
 func (s *surface) PresentPixels(pix []byte, stride, width, height int) {
@@ -418,13 +429,7 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		recordTestPaintMsg()
 		var ps paintStruct
 		dc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
-		if s.w.holdsFrames() {
-			// A move or a run of sizes holds the last frame, which the swap
-			// chain stretches to the surface; validate the paint without
-			// building the view for a size the user is still dragging.
-			procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
-			return 0, true
-		}
+		s.w.noteSurfacePainted()
 		s.paintDC = dc
 		s.send(platform.SurfaceEvent{Kind: platform.SurfaceFrame})
 		s.paintDC = 0
@@ -433,13 +438,7 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 	case wmEraseBkgnd:
 		return 1, true
 	case wmSize:
-		if s.w.holdsFrames() {
-			return 0, true
-		}
-		s.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
-		// Draw at once, so the content follows the window while it is
-		// resized.
-		procRedrawWindow.Call(hwnd, 0, 0, rdwInvalidate|rdwUpdateNow)
+		s.w.onSurfaceSize(int(loword(lp)), int(hiword(lp)))
 		return 0, true
 	case wmMouseMove:
 		if !s.tracking {

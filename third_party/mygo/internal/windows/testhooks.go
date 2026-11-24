@@ -452,16 +452,11 @@ func popupLabels(h uintptr) []string {
 	return labels
 }
 
-// TestHoldsFrames reports why a window stopped building views: a live
-// move/resize interaction or a size burst holds the last frame and validates
-// paints without building. Both stuck true means the window never paints
-// again.
+// TestHoldsFrames is kept for API compatibility with QA diagnostics.
+// Live resizing no longer freezes frames (draws are paced in real time
+// instead), so it always reports false, false.
 func TestHoldsFrames(hwnd uintptr) (interaction, sizeBurst bool) {
-	w := theBackend.windows[hwnd]
-	if w == nil {
-		return false, false
-	}
-	return w.interaction, w.sizeBurst
+	return false, false
 }
 
 // testPaintCounters count frames requested of the surface and WM_PAINT
