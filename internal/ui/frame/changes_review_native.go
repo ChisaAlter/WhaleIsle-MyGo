@@ -5,7 +5,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/widgets"
 )
 
 // changesReviewNativeMenu draws the Host file-actions button and its menu. It
@@ -20,14 +19,14 @@ func changesReviewNativeMenu(c *ui.Context, target session.TurnFileTarget, snaps
 	}
 	button := reviewToolbarButton(c.Key(fmt.Sprintf("review-host-%s-%d-%v", snapshot.Scope.Binding, snapshot.Scope.Generation, target)), paneLabel("Host 文件操作", "Host file actions"), conversationHeaderIcons["EllipsisOutline"])
 	// A handed-to-Host outcome reads as a muted caption beside the button that
-	// caused it, fading after a few seconds; a failure stays on widgets.Alert
+	// caused it, fading after a few seconds; a failure stays on the inline alert
 	// where the caller writes it beside the diff.
 	outcome := ""
 	if state.Error == "" && state.Ready && !state.Busy && !state.Unavailable && !state.NativeUnavailable {
 		outcome = paneLabel("已交给 Host：", "Handed to Host: ") + state.Action
 	}
-	if widgets.AckLive(c, "changes-review-host", outcome, widgets.StatusDuration) {
-		ui.Text(c, outcome).FontSize(11).TextColor(c.Theme().TextMuted)
+	if frameAckLive(c, "changes-review-host", outcome, frameStatusDuration) {
+		ui.Text(c, outcome).FontSize(11).TextColor(tk(c).MutedForeground)
 	}
 	button.Menu(func(menu *ui.Menu) {
 		for _, action := range []struct{ key, label string }{{"open", paneLabel("在 Host 打开", "Open on Host")}, {"reveal", paneLabel("在 Host 定位", "Reveal on Host")}} {

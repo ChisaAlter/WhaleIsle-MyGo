@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -77,18 +78,18 @@ func workspaceOrdinaryTeam(c *ui.Context, m Model) {
 		n.OrdinaryTeam = &WorkspaceOrdinaryTeamState{SessionID: m.Store.SelectedSessionID()}
 	}
 	s := n.OrdinaryTeam
-	snap := m.Store.Snapshot()
+	snap := m.Store.Published().Value
 	if s.Binding == "" {
 		s.Binding = snap.PlanHistoryBinding
 	}
 	if s.SessionID != snap.SelectedID || s.Binding != snap.PlanHistoryBinding {
-		ui.Text(c, paneLabel("请从来源会话重新打开团队。", "Reopen the Team from its source conversation.")).Padding(12)
+		ui.Text(c, paneLabel("请从来源会话重新打开团队。", "Reopen the Team from its source conversation.")).Padding(design.Sp(3))
 		return
 	}
 	model := m.OrdinaryTeam()
 	model.ThemeID, model.SystemDark = m.ThemeID, m.SystemDark
 	model.Columns = 1
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Padding(8, 0, 0, 0).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Padding(design.Sp(2), 0, 0, 0).Children(func() {
 		if model.State != nil && model.State.NavigationError != "" {
 			model.Error = model.State.NavigationError
 		}

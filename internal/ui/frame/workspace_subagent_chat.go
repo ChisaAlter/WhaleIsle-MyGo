@@ -4,6 +4,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/agents"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/projects"
 )
 
@@ -78,7 +80,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 		}
 	}
 	if v.Address != target.Address {
-		ui.Column(c).Fill().Padding(12).Gap(8).Children(func() {
+		ui.Column(c).Fill().Padding(design.Sp(3)).Gap(design.Sp(2)).Children(func() {
 			ui.Text(c, subagentChatPaneTitle(m))
 			ui.Text(c, target.Address.ParentSessionID+" → "+target.Address.ChildSessionID+" · "+target.Address.Mode).Selectable()
 			ui.Text(c, paneLabel("聊天已暂停。重新打开只会读取此子会话。", "Chat is paused. Reopen to read this child session."))
@@ -89,7 +91,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 			if !directRoot {
 				ui.Text(c, paneLabel("请从来源会话当前展开的子代理目录打开此聊天。", "Open this chat from the currently expanded child catalog in the source session."))
 			}
-			if directRoot && ui.Button(c, paneLabel("重新打开聊天", "Reopen chat")).Disabled(!sameRoot).Clicked() {
+			if directRoot && coss.Button(c, paneLabel("重新打开聊天", "Reopen chat"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: !sameRoot}).Clicked() {
 				navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 			}
 		})
@@ -100,7 +102,7 @@ func subagentChatPane(c *ui.Context, m Model) {
 		if !directRoot {
 			ui.Text(c, paneLabel("嵌套聊天的重新授权必须从来源会话当前展开的子代理目录发起。", "Reauthorize a nested chat from the currently expanded child catalog in the source session."))
 		}
-		if directRoot && m.Store.SelectedSessionID() == target.Root && ui.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions")).Clicked() {
+		if directRoot && m.Store.SelectedSessionID() == target.Root && coss.Button(c, paneLabel("重新授权聊天操作", "Reauthorize chat actions"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 			navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 		}
 	}

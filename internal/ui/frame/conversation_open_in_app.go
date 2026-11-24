@@ -10,9 +10,9 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imagepreview"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 type workspaceApplication struct {
@@ -177,7 +177,7 @@ func (s *WorkspaceOpenInAppState) OpenCurrent(store *session.Store) bool {
 		return false
 	}
 	s.ObserveHost(store)
-	snap := store.Snapshot()
+	snap := store.Published().Value
 	s.mu.Lock()
 	id := ""
 	if len(s.apps) > 0 {
@@ -255,6 +255,7 @@ func (s *WorkspaceOpenInAppState) launch(sessionID, path, app string, remember b
 }
 
 func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors) {
+	_ = colors
 	s := m.WorkspaceOpenInApp
 	if s == nil || snap.SelectedID == "" || snap.SelectedCwd == "" {
 		return
@@ -281,13 +282,14 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 	}
 	busy, failure := s.busy, s.failure
 	s.mu.Unlock()
-	ink, border := chrome.Color(colors.FG), c.Theme().Border
-	root := ui.Row(c.Key("workspace-open-in-app:"+snap.SelectedCwd)).Height(27).Shrink(0).Radius(8).Clip().Border(.5, border).AlignItems(ui.Center)
+	t := tk(c)
+	ink, border := t.Foreground, t.Border
+	root := ui.Row(c.Key("workspace-open-in-app:"+snap.SelectedCwd)).Height(27).Shrink(0).Radius(design.RadiusMD).Clip().Border(design.BorderWidth/2, border).AlignItems(ui.Center)
 	root.Children(func() {
 		label := fmt.Sprintf(archiveText("用 %s 打开", "Open in %s"), workspaceApplicationName(preferred.id))
-		button := ui.ButtonBase(c.Key("workspace-open-in-app-primary")).Label(label).Tooltip(label).Height(26).Padding(0, 9).BorderWidth(0).Background(ui.Transparent).Disabled(busy)
+		button := ui.ButtonBase(c.Key("workspace-open-in-app-primary")).Label(label).Tooltip(label).Height(26).Padding(0, design.Sp(2.25)).BorderWidth(0).Background(ui.Transparent).Disabled(busy)
 		if !busy && (button.Hovered() || button.FocusVisible()) {
-			button.Background(chrome.Color(colors.Hover))
+			button.Background(t.Accent)
 		}
 		button.Children(func() {
 			if busy {
@@ -300,7 +302,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 		// pill keeps full opacity; its visual seat lives beside the disabled hit
 		// target while busy, so keyboard/pointer admission remains disabled.
 		if busy {
-			ui.Box(c).Absolute().AttachTo(button, ui.AnchorCenter, ui.AnchorCenter).Size(13, 13).Children(func() { ui.Spinner(c).Size(13, 13).TextColor(ink) })
+			ui.Box(c).Absolute().AttachTo(button, ui.AnchorCenter, ui.AnchorCenter).Size(13, 13).Children(func() { coss.Spinner(c, coss.SpinnerOptions{Size: 13}).TextColor(ink) })
 		}
 		if button.Clicked() {
 			s.launch(snap.SelectedID, snap.SelectedCwd, preferred.id, false)
@@ -308,7 +310,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 		if len(apps) <= 1 {
 			return
 		}
-		ui.Box(c).Width(.5).Height(26).Shrink(0).Background(border)
+		ui.Box(c).Width(design.BorderWidth / 2).Height(26).Shrink(0).Background(border)
 		choice := ui.Local(root, "menu-choice", func() string { return "" })
 		wasOpen := ui.Local(root, "menu-open", func() bool { return false })
 		parts := ui.SelectBase(c.Key("workspace-open-in-app-menu"), choice)
@@ -320,33 +322,33 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 			}
 		})
 		if !busy && (parts.Trigger.Hovered() || parts.Trigger.FocusVisible()) {
-			parts.Trigger.Background(chrome.Color(colors.Hover))
+			parts.Trigger.Background(t.Accent)
 		}
 		if busy {
 			ui.Box(c).Absolute().AttachTo(parts.Trigger, ui.AnchorCenter, ui.AnchorCenter).Size(10, 10).Children(func() { ui.Icon(c, workspaceOpenChevron).Size(10, 10).TextColor(ink) })
 		}
 		if !busy {
 			parts.Popup(func(panel ui.Element) {
-				chrome.FrostSurface(panel.AttachTo(parts.Trigger, ui.AnchorBottomRight, ui.AnchorTopRight).MinWidth(180).MaxHeight(400).Padding(4).Border(.5, border), colors, m.SystemDark, chrome.Color(colors.BG), 6)
-				ui.Scroll(c).FillWidth().MaxHeight(360).MinHeight(0).Children(func() {
+				framePopoverPanel(panel.AttachTo(parts.Trigger, ui.AnchorBottomRight, ui.AnchorTopRight).MinWidth(180).MaxHeight(400).Padding(design.Sp(1)), t, design.RadiusSM)
+				coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
 					for _, app := range apps {
 						app := app
 						name := workspaceApplicationName(app.id)
 						if app.id == preferred.id {
 							name = fmt.Sprintf(archiveText("%s（默认）", "%s (default)"), name)
 						}
-						item := parts.Item(app.id).Label(name).FillWidth().Padding(6, 8).Radius(4)
+						item := parts.Item(app.id).Label(name).FillWidth().Padding(design.Sp(1.5), design.Sp(2)).Radius(design.RadiusXS * 2)
 						if item.Highlighted() {
-							item.Background(chrome.Color(colors.Hover)).ScrollIntoView()
+							item.Background(t.Accent).ScrollIntoView()
 						}
 						item.Children(func() {
-							ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
+							ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(2)).Children(func() {
 								workspaceApplicationIcon(c, app, 14, ink)
-								ui.Text(c, name).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+								frameText(c, name, design.TextXS, design.WeightNormal, ink).SingleLine()
 							})
 						})
 					}
-				})
+				}).FillWidth().MaxHeight(360).MinHeight(0)
 			})
 		}
 		if parts.Open() && !busy && !*wasOpen {
@@ -360,7 +362,7 @@ func conversationOpenInApp(c *ui.Context, m Model, snap session.ViewState, color
 		}
 	})
 	if failure != "" {
-		widgets.Alert(c, widgets.AlertOptions{ID: "workspace-open-in-app", Message: failure})
+		frameErrorAlert(c, frameAlertOptions{ID: "workspace-open-in-app", Message: failure})
 	}
 }
 

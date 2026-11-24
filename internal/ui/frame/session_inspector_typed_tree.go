@@ -11,7 +11,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -317,13 +317,15 @@ func (s *inspectorObjectTreeState) rows(object inspectorObject, objects map[stri
 }
 
 func inspectorTypedTree(c *ui.Context, state *inspectorObjectTreeState, object inspectorObject, objects map[string]inspectorObject, navigate func(string), colors theme.Colors) {
+	_ = colors
+	t := tk(c)
 	ui.Column(c).FillWidth().Font(inspectorFont()).FontSize(11).Selectable().Children(func() {
 		for _, row := range state.rows(object, objects) {
 			ctx := c.Key("object-field:" + row.path + ":" + row.label)
-			ui.Row(ctx).FillWidth().Padding(2, 0, 2, float32(row.depth+1)*16).Gap(4).AlignItems(ui.Start).Children(func() {
+			ui.Row(ctx).FillWidth().Padding(design.Sp(0.5), 0, design.Sp(0.5), float32(row.depth+1)*design.Sp(4)).Gap(design.Sp(1)).AlignItems(ui.Start).Children(func() {
 				if row.more {
 					button := inspectorButton(ctx, "More object entries "+row.path)
-					button.Children(func() { inspectorText(ctx, row.label).TextColor(chrome.Color(colors.Accent)) })
+					button.Children(func() { inspectorText(ctx, row.label).TextColor(t.Primary) })
 					if button.Clicked() {
 						state.more(row.path)
 					}
@@ -335,7 +337,7 @@ func inspectorTypedTree(c *ui.Context, state *inspectorObjectTreeState, object i
 						label = next.Label + " · " + next.Identity
 					}
 					button := inspectorButton(ctx.Key("reference"), "Open "+label).Tooltip(label)
-					button.Children(func() { inspectorText(ctx, row.name+": ↗ "+label).TextColor(chrome.Color(colors.Accent)) })
+					button.Children(func() { inspectorText(ctx, row.name+": ↗ "+label).TextColor(t.Primary) })
 					if button.Clicked() {
 						navigate(row.reference)
 					}
@@ -353,7 +355,7 @@ func inspectorTypedTree(c *ui.Context, state *inspectorObjectTreeState, object i
 						name = ""
 					}
 					button := inspectorButton(ctx.Key("expand"), row.name+": "+row.label).Expanded(row.expanded).MinWidth(0)
-					button.Children(func() { inspectorText(ctx, marker+name+row.label).TextColor(chrome.Color(colors.FG)) })
+					button.Children(func() { inspectorText(ctx, marker+name+row.label).TextColor(t.Foreground) })
 					if button.Clicked() {
 						state.toggle(row.path)
 					}
@@ -362,7 +364,7 @@ func inspectorTypedTree(c *ui.Context, state *inspectorObjectTreeState, object i
 					if name != "" {
 						name += ": "
 					}
-					ui.Text(ctx, name+row.label).FontSize(11).TextColor(chrome.Color(colors.Secondary)).Selectable()
+					ui.Text(ctx, name+row.label).FontSize(11).TextColor(t.MutedForeground).Selectable()
 				}
 			})
 		}

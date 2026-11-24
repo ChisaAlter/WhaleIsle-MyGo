@@ -7,10 +7,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/files"
 	fonttheme "whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // Drain both domains even when one has failed. A remote close attempt retains
@@ -71,7 +71,7 @@ func workspaceCloseFilesModel(m Model) files.Model {
 }
 
 func workspacePaneClosePrompt(c *ui.Context, m Model) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
+	t := tk(c)
 	n, w := m.workspacePane, m.Sizes.Workspace
 	fileModel := workspaceCloseFilesModel(m)
 	pending := w.closeSaving == n.ID
@@ -97,18 +97,18 @@ func workspacePaneClosePrompt(c *ui.Context, m Model) {
 			}
 		}
 	}
-	ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
+	ui.Text(c, paneLabel("此面板有未保存草稿。", "This pane has unsaved drafts.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(t.Foreground)
 	if w.closeError != "" {
-		ui.Text(c, w.closeError).FontSize(fonttheme.InterfaceSize(11)).TextColor(chrome.Color(colors.Danger))
+		ui.Text(c, w.closeError).FontSize(fonttheme.InterfaceSize(11)).TextColor(t.DestructiveForeground)
 	}
-	ui.Row(c).Gap(4).Wrap().Children(func() {
-		if widgets.Button(c, colors, paneLabel("保留面板", "Keep pane"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(pending).Clicked() {
+	ui.Row(c).Gap(design.Sp(1)).Wrap().Children(func() {
+		if coss.Button(c, paneLabel("保留面板", "Keep pane"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: pending}).Clicked() {
 			w.closing, w.closeSaving, w.closeError = "", "", ""
 		}
-		if widgets.Button(c, colors, paneLabel("放弃并关闭", "Discard and close"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Disabled(pending).Clicked() {
+		if coss.Button(c, paneLabel("放弃并关闭", "Discard and close"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonXS, Disabled: pending}).Clicked() {
 			finish()
 		}
-		if widgets.Button(c, colors, paneLabel("保存并关闭", "Save and close"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(pending).Clicked() {
+		if coss.Button(c, paneLabel("保存并关闭", "Save and close"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS, Disabled: pending}).Clicked() {
 			var err error
 			pending, err = startWorkspacePaneCloseSave(n, fileModel)
 			w.closeError = ""

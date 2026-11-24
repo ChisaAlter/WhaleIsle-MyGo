@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -74,11 +75,11 @@ func TestCaptionButtonsHoverFills(t *testing.T) {
 	)
 	page := ui.RGB(250, 250, 250)
 	ink := ui.RGB(40, 40, 40)
-	closeFill := ui.RGB(0xe8, 0x11, 0x23)
+	closeFill := design.TW.Red600
 	var hoverFill ui.Color
 	var closed, minimized, maximizedCalls int
 	view := func(c *ui.Context) {
-		hoverFill = c.Theme().SurfaceHover
+		hoverFill = design.For(c).Accent
 		ui.Column(c).Fill().Background(page).Children(func() {
 			drawCaptionButtons(c, ink, captionWindowActions{
 				Close:          func() { closed++ },

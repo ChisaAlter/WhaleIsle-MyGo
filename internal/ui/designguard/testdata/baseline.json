@@ -161,7 +161,7 @@
   },
   "boot/boot.go": {
     "colors": 2,
-    "metrics": 25
+    "metrics": 19
   },
   "boot/brand.go": {
     "colors": 1,
@@ -294,10 +294,6 @@
   "chat/message_actions.go": {
     "colors": 0,
     "metrics": 4
-  },
-  "chat/openui.go": {
-    "colors": 0,
-    "metrics": 2
   },
   "chat/pending_submission.go": {
     "colors": 0,
@@ -544,7 +540,7 @@
     "metrics": 3
   },
   "chrome/glass.go": {
-    "colors": 13,
+    "colors": 9,
     "metrics": 3
   },
   "chrome/gradient_sampler.go": {
@@ -831,162 +827,6 @@
     "colors": 0,
     "metrics": 2
   },
-  "frame/archive_confirmation.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/caption_buttons.go": {
-    "colors": 2,
-    "metrics": 1
-  },
-  "frame/changes_review.go": {
-    "colors": 2,
-    "metrics": 4
-  },
-  "frame/changes_review_icons.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "frame/columns_view.go": {
-    "colors": 2,
-    "metrics": 2
-  },
-  "frame/conversation_blank_header.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "frame/conversation_file_drop.go": {
-    "colors": 2,
-    "metrics": 1
-  },
-  "frame/conversation_header.go": {
-    "colors": 1,
-    "metrics": 26
-  },
-  "frame/conversation_open_in_app.go": {
-    "colors": 0,
-    "metrics": 7
-  },
-  "frame/conversation_phase.go": {
-    "colors": 0,
-    "metrics": 28
-  },
-  "frame/conversation_team.go": {
-    "colors": 1,
-    "metrics": 4
-  },
-  "frame/cordis_panel.go": {
-    "colors": 0,
-    "metrics": 33
-  },
-  "frame/frame.go": {
-    "colors": 0,
-    "metrics": 11
-  },
-  "frame/jobs.go": {
-    "colors": 1,
-    "metrics": 55
-  },
-  "frame/permission_risk.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/project_header_directory.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/project_observer.go": {
-    "colors": 1,
-    "metrics": 4
-  },
-  "frame/session_ancestry.go": {
-    "colors": 0,
-    "metrics": 7
-  },
-  "frame/session_inspector_controls.go": {
-    "colors": 0,
-    "metrics": 15
-  },
-  "frame/session_inspector_details.go": {
-    "colors": 0,
-    "metrics": 7
-  },
-  "frame/session_inspector_pane.go": {
-    "colors": 0,
-    "metrics": 5
-  },
-  "frame/session_inspector_table.go": {
-    "colors": 0,
-    "metrics": 19
-  },
-  "frame/session_inspector_tree.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/session_inspector_typed_tree.go": {
-    "colors": 0,
-    "metrics": 3
-  },
-  "frame/sidebar_columns.go": {
-    "colors": 2,
-    "metrics": 1
-  },
-  "frame/workflow_member.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "frame/workspace_agent_jobs.go": {
-    "colors": 0,
-    "metrics": 7
-  },
-  "frame/workspace_authorized_file.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "frame/workspace_caption.go": {
-    "colors": 1,
-    "metrics": 5
-  },
-  "frame/workspace_close_save.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "frame/workspace_dock_drop.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/workspace_dock_tabs.go": {
-    "colors": 0,
-    "metrics": 10
-  },
-  "frame/workspace_float.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/workspace_float_drop.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "frame/workspace_ordinary_team.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/workspace_project_team.go": {
-    "colors": 1,
-    "metrics": 16
-  },
-  "frame/workspace_resource_guide.go": {
-    "colors": 0,
-    "metrics": 8
-  },
-  "frame/workspace_subagent_chat.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "frame/workspace_subagent_conversation.go": {
-    "colors": 0,
-    "metrics": 2
-  },
   "im/channel_bot.go": {
     "colors": 1,
     "metrics": 6
@@ -1094,26 +934,6 @@
   "pluginmanager/artwork.go": {
     "colors": 0,
     "metrics": 10
-  },
-  "pluginmanager/dialogs.go": {
-    "colors": 0,
-    "metrics": 27
-  },
-  "pluginmanager/install_footer.go": {
-    "colors": 4,
-    "metrics": 3
-  },
-  "pluginmanager/install_registry.go": {
-    "colors": 0,
-    "metrics": 14
-  },
-  "pluginmanager/install_terminal.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "pluginmanager/view.go": {
-    "colors": 0,
-    "metrics": 58
   },
   "projects/activity.go": {
     "colors": 0,
@@ -1327,25 +1147,13 @@
     "colors": 0,
     "metrics": 1
   },
-  "settings/body_helpers.go": {
-    "colors": 0,
-    "metrics": 17
-  },
   "settings/body_icons.go": {
     "colors": 0,
     "metrics": 4
   },
-  "settings/body_preferences.go": {
-    "colors": 0,
-    "metrics": 24
-  },
   "settings/catalog_pass4b.go": {
     "colors": 1,
     "metrics": 0
-  },
-  "settings/confirm.go": {
-    "colors": 0,
-    "metrics": 4
   },
   "settings/creator_task.go": {
     "colors": 0,
@@ -1403,10 +1211,6 @@
     "colors": 0,
     "metrics": 3
   },
-  "settings/modal.go": {
-    "colors": 5,
-    "metrics": 1
-  },
   "settings/model_base_url.go": {
     "colors": 0,
     "metrics": 2
@@ -1451,10 +1255,6 @@
     "colors": 0,
     "metrics": 14
   },
-  "settings/notice.go": {
-    "colors": 0,
-    "metrics": 6
-  },
   "settings/onboarding.go": {
     "colors": 0,
     "metrics": 15
@@ -1495,10 +1295,6 @@
     "colors": 6,
     "metrics": 0
   },
-  "settings/preference_row.go": {
-    "colors": 2,
-    "metrics": 10
-  },
   "settings/provider_credential_field.go": {
     "colors": 0,
     "metrics": 1
@@ -1535,14 +1331,6 @@
     "colors": 0,
     "metrics": 14
   },
-  "settings/settings.go": {
-    "colors": 4,
-    "metrics": 46
-  },
-  "settings/settings_switch.go": {
-    "colors": 2,
-    "metrics": 1
-  },
   "settings/shortcut_recording.go": {
     "colors": 0,
     "metrics": 6
@@ -1570,10 +1358,6 @@
   "settings/theme_font_preferences.go": {
     "colors": 5,
     "metrics": 39
-  },
-  "settings/toggle.go": {
-    "colors": 3,
-    "metrics": 10
   },
   "settings/vision.go": {
     "colors": 0,

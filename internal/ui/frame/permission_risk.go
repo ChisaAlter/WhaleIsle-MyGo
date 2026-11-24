@@ -6,7 +6,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -36,27 +37,31 @@ func permissionRiskConfirmation(c *ui.Context, m Model) {
 // up. Without that, the refilled request.Acknowledged resets the box to off
 // every frame and the primary button can never enable.
 func permissionRiskDialog(c *ui.Context, colors theme.Colors, token uint64, title, description, sessionID, action string, acknowledged bool, onAcknowledge func(bool), onCancel, onConfirm func()) {
+	_ = colors
 	open := true
-	ui.DialogBase(c.Key("permission-risk"), &open, func(backdrop, panel ui.Element) {
-		chrome.DialogSurface(c, backdrop, panel, colors, 520, 24).Children(func() {
-			ack := ui.Local(panel, "permission-risk-ack-"+strconv.FormatUint(token, 10), func() bool {
-				return acknowledged
-			})
-			ui.Column(c).Gap(14).Children(func() {
-				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
-				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).LineHeight(1.5)
-				if ui.Checkbox(c, ack, archiveText("我已了解风险，并愿意继续", "I understand these risks and want to continue")).Changed() || *ack != acknowledged {
-					onAcknowledge(*ack)
-				}
-				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, archiveText("取消", "Cancel")).Clicked() {
-						onCancel()
-					}
-					if ui.PrimaryButton(c, action).Disabled(!*ack).Clicked() {
-						onConfirm()
-					}
-				})
-			})
+	anchor := ui.Box(c.Key("permission-risk-state")).Absolute().Size(0, 0).PassThrough()
+	ack := ui.Local(anchor, "permission-risk-ack-"+strconv.FormatUint(token, 10), func() bool {
+		return acknowledged
+	})
+	coss.AlertDialog(c, &open, coss.DialogOptions{
+		Title:         title,
+		Description:   description,
+		MaxWidth:      520,
+		FooterVariant: coss.FooterBare,
+		Key:           "permission-risk",
+		Footer: func() {
+			if coss.Button(c, archiveText("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline}).Clicked() {
+				onCancel()
+			}
+			if coss.Button(c, action, coss.ButtonOptions{Variant: coss.ButtonDefault, Disabled: !*ack}).Clicked() {
+				onConfirm()
+			}
+		},
+	}, func() {
+		ui.Column(c).FillWidth().Gap(design.Sp(2)).Children(func() {
+			if coss.Checkbox(c, ack, archiveText("我已了解风险，并愿意继续", "I understand these risks and want to continue"), coss.CheckOptions{}).Changed() || *ack != acknowledged {
+				onAcknowledge(*ack)
+			}
 		})
 	})
 	if !open {

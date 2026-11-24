@@ -7,9 +7,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func archiveText(zh, en string) string {
@@ -21,33 +21,43 @@ func archiveConfirmation(c *ui.Context, m Model) {
 	if request == nil {
 		return
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	t := tk(c)
 	open := true
-	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		chrome.DialogSurface(c, backdrop, panel, colors, 480, 24).Children(func() {
-			ui.Column(c).Gap(12).Children(func() {
-				ui.Text(c, archiveText("停止并归档此会话？", "Stop and archive this session?")).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
-				ui.Text(c, fmt.Sprintf(archiveText("“%s”仍有正在进行的工作。归档会先停止这些工作；之后可在侧栏筛选“全部对话（显示已归档）”中恢复会话，被停止的工作不会自动继续。", "“%s” still has work in progress. Archiving first stops that work; the session can later be restored from the “All conversations (show archived)” filter in the sidebar, but stopped work does not resume automatically."), request.Title)).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
-				ui.Text(c, archiveText("将被停止的工作", "Work that will be stopped")).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
-				for _, activity := range request.Activity {
-					ui.Text(c, archiveActivityLine(activity)).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
-				}
-				if request.Error != "" {
-					ui.Text(c, request.Error).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
-				}
-				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, archiveText("取消", "Cancel")).Disabled(request.Busy).Clicked() {
-						m.Store.CancelArchive(request.Token)
-					}
-					confirmLabel := archiveText("停止并归档", "Stop and archive")
-					if request.Busy {
-						confirmLabel = archiveText("正在停止并归档…", "Stopping and archiving…")
-					}
-					if ui.Button(c, confirmLabel).Disabled(request.Busy).Clicked() {
-						m.Store.ConfirmArchive(context.Background(), request.Token)
-					}
-				})
-			})
+	title := archiveText("停止并归档此会话？", "Stop and archive this session?")
+	desc := fmt.Sprintf(archiveText("“%s”仍有正在进行的工作。归档会先停止这些工作；之后可在侧栏筛选“全部对话（显示已归档）”中恢复会话，被停止的工作不会自动继续。", "“%s” still has work in progress. Archiving first stops that work; the session can later be restored from the “All conversations (show archived)” filter in the sidebar, but stopped work does not resume automatically."), request.Title)
+	confirmLabel := archiveText("停止并归档", "Stop and archive")
+	if request.Busy {
+		confirmLabel = archiveText("正在停止并归档…", "Stopping and archiving…")
+	}
+	coss.AlertDialog(c, &open, coss.DialogOptions{
+		Title:           title,
+		Description:     desc,
+		MaxWidth:        480,
+		DismissDisabled: request.Busy,
+		FooterVariant:   coss.FooterBare,
+		Footer: func() {
+			if coss.Button(c, archiveText("取消", "Cancel"), coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Disabled: request.Busy,
+			}).Clicked() {
+				m.Store.CancelArchive(request.Token)
+			}
+			if coss.Button(c, confirmLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonDestructive,
+				Disabled: request.Busy,
+			}).Clicked() {
+				m.Store.ConfirmArchive(context.Background(), request.Token)
+			}
+		},
+	}, func() {
+		ui.Column(c).FillWidth().Gap(design.Sp(2)).Children(func() {
+			frameText(c, archiveText("将被停止的工作", "Work that will be stopped"), design.TextXS, design.WeightMedium, t.Foreground)
+			for _, activity := range request.Activity {
+				frameText(c, archiveActivityLine(activity), design.TextXS, design.WeightNormal, t.Foreground)
+			}
+			if request.Error != "" {
+				coss.Alert(c, "", request.Error, coss.AlertOptions{Variant: coss.AlertError})
+			}
 		})
 	})
 	if !open && !request.Busy {

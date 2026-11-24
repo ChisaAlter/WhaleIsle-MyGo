@@ -4,9 +4,9 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/agents"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/projects"
-	"whaleisle/internal/ui/theme"
 )
 
 // A transient addressed route replaces only the conversation surface. The root
@@ -104,8 +104,8 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 	if len(rightInset) > 0 {
 		paddingRight = rightInset[0]
 	}
-	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(workspaceCaptionContent).Padding(0, paddingRight, 0, 20).Gap(8).DragWindow().Children(func() {
-		if ui.Button(c, paneLabel("返回父会话", "Back to parent conversation")).Clicked() {
+	ui.Row(c).Key(n.ID+":header").FillWidth().MinHeight(workspaceCaptionContent).Padding(0, paddingRight, 0, design.Sp(5)).Gap(design.Sp(2)).DragWindow().Children(func() {
+		if coss.Button(c, paneLabel("返回父会话", "Back to parent conversation"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 			w.closeMainChild()
 		}
 		source := m.AgentNavigationStore
@@ -116,7 +116,7 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 			view := source.AgentNavigationSnapshot()
 			ancestors, siblings := source.AgentConversationRoutes(view.Token, target.Address)
 			if len(ancestors) > 0 {
-				ui.Button(c, paneLabel("上级会话", "Ancestors")).Menu(func(menu *ui.Menu) {
+				coss.Button(c, paneLabel("上级会话", "Ancestors"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Menu(func(menu *ui.Menu) {
 					for _, ancestor := range ancestors {
 						ancestor := ancestor
 						label := ancestor.Label
@@ -130,7 +130,7 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 				})
 			}
 			if len(siblings) > 1 {
-				ui.Button(c, paneLabel("同级会话", "Siblings")).Menu(func(menu *ui.Menu) {
+				coss.Button(c, paneLabel("同级会话", "Siblings"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Menu(func(menu *ui.Menu) {
 					for _, sibling := range siblings {
 						sibling := sibling
 						if menu.Item(sibling.Label).Disabled(sibling.Address == target.Address).Chosen() {
@@ -141,8 +141,7 @@ func mainSubagentConversationHeader(c *ui.Context, m Model, rightInset ...float3
 			}
 		}
 		ui.Text(c, target.Root+" → "+target.Address.ChildSessionID).Grow(1).MinWidth(0).NoWrap().Ellipsis("…")
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		conversationTeamAction(c, m, renderSnapshot(m), m.Sizes.Center-20-paddingRight <= 560, chrome.Color(colors.Muted))
+		conversationTeamAction(c, m, renderSnapshot(m), m.Sizes.Center-20-paddingRight <= 560, tk(c).MutedForeground)
 	})
 	return true
 }
@@ -179,7 +178,7 @@ func mainSubagentConversationBody(c *ui.Context, m Model) bool {
 			if !directRoot {
 				ui.Text(c, paneLabel("请从来源会话当前展开的子代理目录打开此聊天。", "Open this chat from the currently expanded child catalog in the source session."))
 			}
-			if directRoot && ui.Button(c, paneLabel("重新打开聊天", "Reopen chat")).Clicked() {
+			if directRoot && coss.Button(c, paneLabel("重新打开聊天", "Reopen chat"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 				navigation.OpenAgentChat(target.Root, target.Address, target.Title)
 			}
 			return
