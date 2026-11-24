@@ -74,3 +74,9 @@ func pluginImage(c *ui.Context, source string, width, height float32, owner *med
 	root.Clip().Children(func() { showImage(c, h).Fill().Fit(ui.Contain) })
 	return true, h
 }
+
+// PluginImageHandle is PluginImage that also returns the handle it asked
+// for, so a memo region can watch a picture that is still pending.
+func PluginImageHandle(c *ui.Context, source string, width, height float32, owner *media.Owner) (bool, *media.Handle) {
+	return pluginImage(c, source, width, height, owner)
+}

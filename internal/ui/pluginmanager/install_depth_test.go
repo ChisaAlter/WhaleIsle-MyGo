@@ -11,15 +11,16 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/media"
 	manager "whaleisle/internal/pluginmanager"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
 func TestInstallANSIReplayPrecedesLineFolding(t *testing.T) {
-	theme := ui.LightTheme()
+	tokens := design.Lookup(design.Light, ui.Transparent, ui.Transparent)
 	for _, tc := range []struct{ raw, want string }{
 		{"100%\rOK", "OK0%"}, {"abc\b", "abc"}, {"abc\r\x1b[Kxy", "xy"}, {"界x\rA", "A x"}, {"e\u0301x\rA", "Ax"}, {"\x1b]0;inert title\x07a\n\x1b[0m", "a"},
 	} {
-		lines := installANSI(tc.raw, theme)
+		lines := installANSI(tc.raw, tokens)
 		var output []string
 		for _, line := range lines {
 			var text strings.Builder
@@ -32,8 +33,8 @@ func TestInstallANSIReplayPrecedesLineFolding(t *testing.T) {
 			t.Fatalf("%q => %q want %q", tc.raw, got, tc.want)
 		}
 	}
-	lines := installANSI("\x1b[31mred\x1b[39mplain", theme)
-	if len(lines) != 1 || len(lines[0]) != 2 || lines[0][0].Color != theme.Danger || lines[0][1].Color.A != 0 {
+	lines := installANSI("\x1b[31mred\x1b[39mplain", tokens)
+	if len(lines) != 1 || len(lines[0]) != 2 || lines[0][0].Color != tokens.DestructiveForeground || lines[0][1].Color.A != 0 {
 		t.Fatalf("SGR color or closer lost: %+v", lines)
 	}
 }

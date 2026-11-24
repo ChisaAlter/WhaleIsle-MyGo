@@ -15,4 +15,12 @@
 // runs on Element.Animate/Loop and the toolkit's transitions. There is no
 // toast: the app gives feedback inline (docs/error-copy.md), with Alert and
 // Field errors.
+//
+// Bound values update only when pending input is applied: a response query
+// (Changed, Submitted) applies it for the controls built so far, and the
+// end of the build pass applies the rest. Reading a bound pointer right
+// after building its control therefore always sees the old value; call the
+// returned element's Changed() and read the pointer after it. Groups such
+// as RadioGroup and ToggleGroup do not aggregate their children's Changed:
+// query each item's element.
 package coss

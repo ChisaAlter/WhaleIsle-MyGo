@@ -26,10 +26,10 @@ func pluginDialogFixture(t *testing.T, render func(c *ui.Context), width, height
 	return tt
 }
 
-// assertSharedCard checks the reference Modal metrics the plugin manager's
-// cards share: a 560 DIP card on the 1440 viewport with 24 DIP of air, a 28 DIP
-// close box 22 DIP below its top, and the close box inside the card's right
-// edge at the reference's 14 DIP inset.
+// assertSharedCard checks the metrics the plugin manager's cards share on the
+// shared dialog surface: a 560 DIP card on the 1440 viewport with at least the
+// reference's 24 DIP of air, and the surface's icon close box inside the
+// card's top right corner.
 func assertSharedCard(t *testing.T, tt *ui.Tester, title string) {
 	t.Helper()
 	card, ok := tt.Find(title)
@@ -45,22 +45,20 @@ func assertSharedCard(t *testing.T, tt *ui.Tester, title string) {
 	if card.Y < 23 {
 		t.Fatalf("card starts at %.0f, want at least the reference's 24 DIP inset", card.Y)
 	}
-	closeBox, ok := tt.Find(providerDialogCloseLabel())
+	closeBox, ok := tt.Find("Close")
 	if !ok {
 		t.Fatalf("card %q has no close box: %v", title, tt.Texts())
 	}
-	if closeBox.W < 27 || closeBox.W > 29 || closeBox.H < 27 || closeBox.H > 29 {
-		t.Fatalf("close box is %.0fx%.0f, want the reference's 28x28", closeBox.W, closeBox.H)
+	if closeBox.W < 30 || closeBox.W > 34 || closeBox.H < 30 || closeBox.H > 34 {
+		t.Fatalf("close box is %.0fx%.0f, want the shared surface's 32x32", closeBox.W, closeBox.H)
 	}
-	if offset := closeBox.Y - card.Y; offset < 21 || offset > 23 {
-		t.Fatalf("close box starts %.0f below the card, want the reference's 22", offset)
+	if offset := closeBox.Y - card.Y; offset < 0 || offset > 16 {
+		t.Fatalf("close box starts %.0f below the card, want it inside the card's top edge", offset)
 	}
-	if right := card.X + card.W - (closeBox.X + closeBox.W); right < 13 || right > 15 {
-		t.Fatalf("close box is %.0f from the card's right edge, want the reference's 14", right)
+	if right := card.X + card.W - (closeBox.X + closeBox.W); right < 0 || right > 16 {
+		t.Fatalf("close box is %.0f from the card's right edge, want it inside the card's right edge", right)
 	}
 }
-
-func providerDialogCloseLabel() string { return copyText("关闭", "Close") }
 
 // TestInstallDialogUsesTheSharedModalSurface pins the idle spec screen: the
 // reference's 560 wide content-sized card with the shared fade, glass, radius
@@ -70,7 +68,7 @@ func TestInstallDialogUsesTheSharedModalSurface(t *testing.T) {
 	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	assertSharedCard(t, tt, copyText("添加插件", "Add plugin"))
@@ -96,7 +94,7 @@ func TestInstallDialogSizesTheLogScreenToItsContent(t *testing.T) {
 		Runs: []manager.InstallRun{{JobID: "pnpm-1", Command: "pnpm add fixture-plugin", CWD: "fixture-profile",
 			Output: "Installing fixture\nFixture failure", Settled: true}}}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	card, ok := tt.Find(copyText("添加插件", "Add plugin"))
@@ -122,7 +120,7 @@ func TestSourcesDialogUsesTheSharedModalSurface(t *testing.T) {
 	s := m.Controller.Snapshot().Value
 	s.Discover.SourcesOpen = true
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		sourcesDialog(c, m, s, m.Controller.Actions(s.Owner))
+		sourcesDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	assertSharedCard(t, tt, copyText("插件索引源", "Plugin index sources"))
@@ -143,7 +141,7 @@ func TestMarketChoiceDialogUsesTheSharedModalSurface(t *testing.T) {
 	entry.Title = manager.Text(`"Discover fixture"`)
 	s.Discover.Choice = &manager.MarketChoice{Entry: entry, Version: version}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		marketChoiceDialog(c, m, s, m.Controller.Actions(s.Owner))
+		marketChoiceDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	assertSharedCard(t, tt, copyText("确认安装插件", "Confirm plugin installation"))

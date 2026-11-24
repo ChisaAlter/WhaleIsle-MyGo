@@ -50,6 +50,19 @@ const (
 	// indicators, drawn at stroke width 3.
 	IconCheckboxCheck
 	IconCheckboxMinus
+	// Page icons (Lucide, ISC) for the tool pages: plugins, market,
+	// scheduled tasks and usage.
+	IconRefresh
+	IconPlay
+	IconPause
+	IconCalendar
+	IconClock
+	IconDownload
+	IconPuzzle
+	IconExternalLink
+	IconHistory
+	IconChartBar
+	IconArrowLeft
 	iconCount
 )
 
@@ -89,6 +102,17 @@ var iconPaths = [iconCount]string{
 	IconCheckboxCheck:  `<path d="M5.252 12.7 10.2 18.63 18.748 5.37"/>`,
 	IconCheckboxMinus:  `<path d="M5.252 12h13.496"/>`,
 	IconFile:           `<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>`,
+	IconRefresh:        `<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>`,
+	IconPlay:           `<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>`,
+	IconPause:          `<rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/>`,
+	IconCalendar:       `<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>`,
+	IconClock:          `<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>`,
+	IconDownload:       `<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>`,
+	IconPuzzle:         `<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>`,
+	IconExternalLink:   `<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>`,
+	IconHistory:        `<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>`,
+	IconChartBar:       `<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>`,
+	IconArrowLeft:      `<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>`,
 }
 
 var (

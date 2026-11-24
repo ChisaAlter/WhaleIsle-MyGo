@@ -117,12 +117,14 @@ func CheckboxGroup(c *ui.Context, label string, fn func()) ui.Element {
 }
 
 // RadioGroup lays radios out in a column 12 DIPs apart; arrows move among
-// them as one Tab stop.
+// them as one Tab stop. The group's element does not aggregate Changed:
+// query each Radio's.
 func RadioGroup(c *ui.Context, label string, fn func()) ui.Element {
 	return ui.Column(c).Gap(design.Sp(3)).Role(ui.RoleRadioGroup).Label(label).FocusGroup(ui.Vertical).Children(fn)
 }
 
-// Radio is coss's Radio choosing value into *selected.
+// Radio is coss's Radio choosing value into *selected (Changed reports
+// this radio was picked).
 func Radio[T comparable](c *ui.Context, selected *T, value T, label string, o CheckOptions) ui.Element {
 	withKey(c, o.Key)
 	t := tok(c)
@@ -249,7 +251,8 @@ func (s ToggleSize) metrics() (h, padX float32) {
 	return 32, design.Sp(2) - 1
 }
 
-// Toggle is coss's Toggle: a button that stays pressed while *on.
+// Toggle is coss's Toggle: a button that stays pressed while *on (Changed
+// reports a flip).
 func Toggle(c *ui.Context, on *bool, label string, o ToggleOptions) ui.Element {
 	withKey(c, o.Key)
 	t := tok(c)

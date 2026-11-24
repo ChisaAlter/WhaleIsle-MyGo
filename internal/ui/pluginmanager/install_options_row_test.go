@@ -20,7 +20,7 @@ func idleInstallCard(t *testing.T) *ui.Tester {
 		RegistryInfo:      &manager.RegistryInfo{Registry: &official, Resolved: &official},
 		RegistrySelection: manager.RegistryChoice{Kind: "offered", Registry: &official}}
 	return pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, 920)
 }
 
@@ -140,7 +140,7 @@ func TestInstallRegistryChipUnfoldsItsChoices(t *testing.T) {
 		RegistryInfo:      &manager.RegistryInfo{Registry: &official, Resolved: &official},
 		RegistrySelection: manager.RegistryChoice{Kind: "offered", Registry: &official}}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	if _, ok := tt.Find(copyText("安装源", "Registry") + " " + copyText("npm npm 官方源", "npm official registry")); !ok {
