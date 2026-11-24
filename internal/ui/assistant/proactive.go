@@ -8,6 +8,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/proactive"
+	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -108,13 +110,14 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 				p.OnToggle()
 			}
 		})
+		danger := design.For(c).Destructive
 		if p.LoadError != "" {
-			ui.Text(c, whaleTaskCopy("无法读取任务记录，原文件已保留。", "Task records could not be loaded. The original file is preserved.")).TextColor(accent)
-			ui.Text(c, p.LoadError).TextColor(muted).Selectable()
+			ui.Text(c, whaleTaskCopy("无法读取任务记录，原文件已保留。", "Task records could not be loaded. The original file is preserved.")).TextColor(danger)
+			ui.Text(c, errcopy.SentenceText(p.LoadError)).TextColor(danger).Selectable()
 			return
 		}
 		if p.Error != "" {
-			ui.Text(c, p.Error).TextColor(accent).Selectable()
+			ui.Text(c, errcopy.SentenceText(p.Error)).TextColor(danger).Selectable()
 		}
 		proactiveNotices(c, p, fg, muted, border, accent)
 		proactiveSources(c, p, fg, muted, border, accent)
@@ -277,7 +280,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 								effect := map[string]string{"pending": "等待执行", "ready": "等待执行", "executing": "执行已发起，等待回执", "succeeded": "执行成功", "failed": "执行失败", "unknown": "执行结果未知，不会自动重试", "cancelled": "执行已取消", "denied": "执行被拒绝"}[a.Effect]
 								ui.Text(c, whaleTaskCopy(effect, a.Effect)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 								if a.EffectError != "" {
-									ui.Text(c, a.EffectError).TextColor(muted).Selectable()
+									ui.Text(c, errcopy.SentenceText(a.EffectError)).TextColor(danger).Selectable()
 								}
 							}
 							if a.Note != "" {
@@ -324,7 +327,7 @@ func proactiveExecution(c *ui.Context, p ProactiveModel, t proactive.Task, fg, m
 			ui.Text(c, e.Summary).FontSize(theme.InterfaceSize(13)).TextColor(fg).Selectable()
 		}
 		if e.Error != "" {
-			ui.Text(c, e.Error).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
+			ui.Text(c, errcopy.SentenceText(e.Error)).FontSize(theme.InterfaceSize(12)).TextColor(design.For(c).Destructive).Selectable()
 		}
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			if ui.Button(c, whaleTaskCopy("查看执行会话", "Open execution")).Disabled(p.OnOpenSession == nil).Clicked() {

@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 
@@ -138,7 +140,7 @@ func View(c *ui.Context, m Model) {
 					{i18n.T(i18n.KeyAssistantDshbotTitle) + " · " + i18n.T(i18n.KeyAssistantVendorPresent), onOff(m.DshbotVendorPresent)},
 					{i18n.T(i18n.KeyAssistantLastWebURL), dash(m.LastWebViewURL)},
 					{i18n.T(i18n.KeyAssistantLastAction), dash(m.LastNativeAction)},
-					{i18n.T(i18n.KeyAssistantLastErr), dash(m.LastErr)},
+					{i18n.T(i18n.KeyAssistantLastErr), dash(errcopy.SentenceText(m.LastErr))},
 					{i18n.T(i18n.KeyAssistantSessionID), dash(m.SessionID)},
 				})
 
@@ -303,7 +305,7 @@ func composeBlock(c *ui.Context, m Model, fg, muted, field, border, accent ui.Co
 			ui.Text(c, m.LastNativeAction).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 		}
 		if m.LastErr != "" {
-			ui.Text(c, m.LastErr).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+			ui.Text(c, errcopy.SentenceText(m.LastErr)).FontSize(theme.InterfaceSize(11)).TextColor(design.For(c).Destructive)
 		}
 	})
 }

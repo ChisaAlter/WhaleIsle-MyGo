@@ -6,7 +6,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -134,8 +136,9 @@ func whaleTaskRow(c *ui.Context, m WhaleTasksModel, task pluginrpc.WhaleTask, bl
 			names = append(names, input.Name)
 		}
 		ui.Text(c, whaleTaskCopy("资料：", "Inputs: ")+strings.Join(names, " · ")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		danger := design.For(c).Destructive
 		if task.Error != "" {
-			ui.Text(c, task.Error).TextColor(accent).Selectable()
+			ui.Text(c, errcopy.SentenceText(task.Error)).TextColor(danger).Selectable()
 		}
 		if task.Result != nil {
 			ui.Text(c, task.Result.Summary).FontSize(theme.InterfaceSize(13)).TextColor(fg).Selectable()
@@ -153,7 +156,7 @@ func whaleTaskRow(c *ui.Context, m WhaleTasksModel, task pluginrpc.WhaleTask, bl
 		for _, effect := range task.Effects {
 			ui.Text(c, fmt.Sprintf("%s · %s", whaleTaskCopy(map[string]string{"session": "会话", "pet": "桌宠", "im": "飞书"}[effect.Target], effect.Target), whaleTaskState(effect.State))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			if effect.Error != "" {
-				ui.Text(c, effect.Error).TextColor(accent)
+				ui.Text(c, errcopy.SentenceText(effect.Error)).TextColor(danger)
 			}
 		}
 		ui.Row(c).Gap(8).Children(func() {

@@ -7,6 +7,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/proactive"
+	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -32,9 +34,10 @@ func proactiveSources(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 			if ui.Button(c, label).Clicked() {
 				*open = !*open
 			}
+			danger := design.For(c).Destructive
 			for _, source := range p.State.Sources {
 				if source.Error != "" {
-					ui.Text(c, whaleTaskCopy("来源检查失败", "Source check failed")).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+					ui.Text(c, whaleTaskCopy("来源检查失败", "Source check failed")).FontSize(theme.InterfaceSize(12)).TextColor(danger)
 					break
 				}
 			}
@@ -55,7 +58,7 @@ func proactiveSources(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 				}
 				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				if source.Error != "" {
-					ui.Text(c, source.Error).TextColor(accent).Selectable()
+					ui.Text(c, errcopy.SentenceText(source.Error)).TextColor(design.For(c).Destructive).Selectable()
 				}
 				ui.Row(c).Gap(8).Wrap().Children(func() {
 					label := whaleTaskCopy("暂停来源", "Pause source")

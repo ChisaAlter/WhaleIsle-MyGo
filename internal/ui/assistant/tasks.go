@@ -10,8 +10,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -133,7 +135,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantResult)+task.ResultSummary).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				}
 				if task.Error != "" {
-					ui.Text(c, i18n.T(i18n.KeyMiscAssistantError)+task.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+					ui.Text(c, i18n.T(i18n.KeyMiscAssistantError)+errcopy.SentenceText(task.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(design.For(c).Destructive).Selectable()
 				}
 				ui.Text(c, fmt.Sprintf("Attempts: %d · %s", task.Attempts, taskTime(task.UpdatedAt))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if task.ParentTaskID != "" || task.RetryOf != "" {

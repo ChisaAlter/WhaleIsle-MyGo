@@ -5,9 +5,11 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -166,7 +168,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantPrompt)+row.Prompt).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, fmt.Sprintf("Next: %s · Last: %s\nRuns: %d / %s · Outcome: %s", taskTime(row.NextRunAt), taskTime(row.LastRunAt), row.RunCount, routineLimit(row.MaxRuns), firstTaskValue(row.LastOutcome, "—"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				if row.LastError != "" {
-					ui.Text(c, row.LastError).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+					ui.Text(c, errcopy.SentenceText(row.LastError)).FontSize(fonttheme.InterfaceSize(12)).TextColor(design.For(c).Destructive).Selectable()
 				}
 				if row.LastOutput != "" {
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantLastOutput)+row.LastOutput).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
@@ -197,7 +199,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					run := row.RunHistory[i]
 					ui.Text(c, fmt.Sprintf("%s · %s · %s\nCreated: %s · Started: %s · Ended: %s\nSession: %s · Turn: %d", run.RunID, run.Status, run.Trigger, taskTime(run.CreatedAt), taskTime(run.StartedAt), taskTime(run.EndedAt), run.SessionID, run.Turn)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 					if run.Error != "" {
-						ui.Text(c, run.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
+						ui.Text(c, errcopy.SentenceText(run.Error)).FontSize(fonttheme.InterfaceSize(11)).TextColor(design.For(c).Destructive).Selectable()
 					}
 				}
 			})

@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
@@ -20,8 +21,11 @@ func TestBotRoutinePanelRequiresExplicitReview(t *testing.T) {
 		}, OnConfirm: func() { confirmed++ }, OnDismiss: func() { state.Review = nil }}}
 		routineControlBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(160, 160, 160), ui.RGB(20, 20, 20), ui.RGB(80, 80, 80), ui.RGB(80, 130, 220))
 	}, 1100, 3000)
-	if !tt.HasText(i18n.T(i18n.KeyMiscAssistantPrompt)+"Fixture objective") || !tt.HasText("Fixture run failure") {
+	if !tt.HasText(i18n.T(i18n.KeyMiscAssistantPrompt)+"Fixture objective") || !tt.HasText(errcopy.SentenceText("Fixture run failure")) {
 		t.Fatal(tt.Texts())
+	}
+	if tt.HasText("Fixture run failure") {
+		t.Fatalf("raw routine run error leaked: %v", tt.Texts())
 	}
 	if confirmed != 0 {
 		t.Fatal("render issued write")

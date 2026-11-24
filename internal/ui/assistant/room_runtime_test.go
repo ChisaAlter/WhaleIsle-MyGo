@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	wstate "whaleisle/internal/state"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
@@ -26,9 +27,14 @@ func TestRoomRuntimeCompleteUIExplicitOpenFixture(t *testing.T) {
 		t.Fatal("render activated runtime")
 	}
 	text := strings.Join(tt.Texts(), "\n")
-	for _, term := range []string{"Full room", "room-session", "Alpha", "member-session", "pending", "EXTERNAL_UNKNOWN", "full failure", "approval-1", "all details", "root extension", "或自动回答", "可能恢复", i18n.T(i18n.KeyMiscAssistantNeedsAttention)} {
+	for _, term := range []string{"Full room", "room-session", "Alpha", "member-session", "pending", errcopy.SentenceFor("EXTERNAL_UNKNOWN", "full failure"), "approval-1", "all details", "root extension", "或自动回答", "可能恢复", i18n.T(i18n.KeyMiscAssistantNeedsAttention)} {
 		if !strings.Contains(text, term) {
 			t.Fatal("missing complete runtime or effect", term)
+		}
+	}
+	for _, leaked := range []string{"EXTERNAL_UNKNOWN", "full failure"} {
+		if strings.Contains(text, leaked) {
+			t.Fatalf("raw error text %q leaked into member runtime card", leaked)
 		}
 	}
 	if err := tt.Click(roomRuntimeOpenLabel()); err != nil {
