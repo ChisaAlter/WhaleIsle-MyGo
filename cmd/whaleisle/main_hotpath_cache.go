@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"maps"
 	"os"
 	"path/filepath"
-	"reflect"
 	"whaleisle/internal/errcopy"
 
 	"github.com/egoist/mygo/ui"
@@ -19,7 +17,48 @@ import (
 	"whaleisle/internal/ui/theme"
 )
 
+// writebackRevisions tracks external/callback mutations to non-comparable
+// frame-owned fields on mainState. mainView captures these counters once at
+// frame start and commits frame-local copies only when a field's revision has
+// not advanced concurrently, replacing per-frame reflect.DeepEqual and map
+// cloning with O(1) integer comparisons.
+type writebackRevisions struct {
+	fileTabs         uint64
+	gitWorkbench     uint64
+	filePreviewList  uint64
+	thinkingExpanded uint64
+	fileExpanded     uint64
+	composerSuggest  uint64
+	composerSkills   uint64
+}
+
+func (s *mainState) markFileTabsMutatedLocked() {
+	s.writebackRevs.fileTabs++
+}
+
+func (s *mainState) markGitWorkbenchMutatedLocked() {
+	s.writebackRevs.gitWorkbench++
+}
+
+func (s *mainState) markThinkingExpandedMutatedLocked() {
+	s.writebackRevs.thinkingExpanded++
+}
+
+func (s *mainState) markFileExpandedMutatedLocked() {
+	s.writebackRevs.fileExpanded++
+}
+
+func (s *mainState) markWorkspaceProjectionMutatedLocked() {
+	s.writebackRevs.fileTabs++
+	s.writebackRevs.gitWorkbench++
+	s.writebackRevs.filePreviewList++
+	s.writebackRevs.fileExpanded++
+	s.lastFileTabsBinding = ""
+	s.lastFileTabsRoot = ""
+}
+
 type mainViewWritebackSnapshot struct {
+	revs                 writebackRevisions
 	layout               frame.LayoutSizes
 	draft                string
 	editMessageSeq       float64
@@ -29,14 +68,12 @@ type mainViewWritebackSnapshot struct {
 	permissionPick       string
 	agentPresetPick      string
 	thinkingExpanded     map[string]bool
-	thinkingExpandedNil  bool
 	renameSessionID      string
 	renameDraft          string
 	sessionSearch        string
 	fileTabs             files.Tabs
 	gitWorkbench         diffsurface.Workbench
 	fileExpanded         map[string]bool
-	fileExpandedNil      bool
 	selectedFile         string
 	fileFilter           string
 	filePreview          string
@@ -69,44 +106,34 @@ type mainViewWritebackSnapshot struct {
 }
 
 type composerWritebackSnapshot struct {
-	suggest      ui.ListState
-	skillsList   ui.ListState
-	skillsOpen   bool
-	skillsFilter string
-	skillCreate  string
-	chipEdit     composer.ChipEdit
+	suggestRev    uint64
+	skillsListRev uint64
+	suggest       ui.ListState
+	skillsList    ui.ListState
+	skillsOpen    bool
+	skillsFilter  string
+	skillCreate   string
+	chipEdit      composer.ChipEdit
 }
 
-func cloneBoolMapForDiff(m map[string]bool) (map[string]bool, bool) {
-	if m == nil {
-		return nil, true
-	}
-	return maps.Clone(m), false
-}
-
-func boolMapChanged(cur, start map[string]bool, startNil bool) bool {
-	if (cur == nil) != startNil {
-		return true
-	}
-	return !maps.Equal(cur, start)
-}
-
-func captureComposerWriteback(suggest, skillsList ui.ListState, skillsOpen bool, skillsFilter, skillCreate string, chipEdit composer.ChipEdit) composerWritebackSnapshot {
+func captureComposerWriteback(suggestRev, skillsListRev uint64, suggest, skillsList ui.ListState, skillsOpen bool, skillsFilter, skillCreate string, chipEdit composer.ChipEdit) composerWritebackSnapshot {
 	return composerWritebackSnapshot{
-		suggest:      suggest,
-		skillsList:   skillsList,
-		skillsOpen:   skillsOpen,
-		skillsFilter: skillsFilter,
-		skillCreate:  skillCreate,
-		chipEdit:     chipEdit,
+		suggestRev:    suggestRev,
+		skillsListRev: skillsListRev,
+		suggest:       suggest,
+		skillsList:    skillsList,
+		skillsOpen:    skillsOpen,
+		skillsFilter:  skillsFilter,
+		skillCreate:   skillCreate,
+		chipEdit:      chipEdit,
 	}
 }
 
 func (s *mainState) commitComposerWritebackLocked(start, cur composerWritebackSnapshot) {
-	if !reflect.DeepEqual(cur.suggest, start.suggest) {
+	if s.writebackRevs.composerSuggest == start.suggestRev {
 		s.composerSuggest = cur.suggest
 	}
-	if !reflect.DeepEqual(cur.skillsList, start.skillsList) {
+	if s.writebackRevs.composerSkills == start.skillsListRev {
 		s.composerSkillsList = cur.skillsList
 	}
 	if cur.skillsOpen != start.skillsOpen {
@@ -118,7 +145,7 @@ func (s *mainState) commitComposerWritebackLocked(start, cur composerWritebackSn
 	if cur.skillCreate != start.skillCreate {
 		s.skillCreateName = cur.skillCreate
 	}
-	if !reflect.DeepEqual(cur.chipEdit, start.chipEdit) {
+	if cur.chipEdit != start.chipEdit {
 		s.composerChipEdit = cur.chipEdit
 	}
 }
@@ -154,7 +181,7 @@ func (s *mainState) commitMainViewWritebackLocked(start, cur mainViewWritebackSn
 	if cur.agentPresetPick != start.agentPresetPick {
 		s.agentPresetPick = cur.agentPresetPick
 	}
-	if boolMapChanged(cur.thinkingExpanded, start.thinkingExpanded, start.thinkingExpandedNil) {
+	if s.writebackRevs.thinkingExpanded == start.revs.thinkingExpanded {
 		s.thinkingExpanded = cur.thinkingExpanded
 	}
 	if cur.renameSessionID != start.renameSessionID {
@@ -166,13 +193,13 @@ func (s *mainState) commitMainViewWritebackLocked(start, cur mainViewWritebackSn
 	if cur.sessionSearch != start.sessionSearch {
 		s.sessionSearch = cur.sessionSearch
 	}
-	if !reflect.DeepEqual(cur.fileTabs, start.fileTabs) {
+	if s.writebackRevs.fileTabs == start.revs.fileTabs {
 		s.fileTabs = cur.fileTabs
 	}
-	if !reflect.DeepEqual(cur.gitWorkbench, start.gitWorkbench) {
+	if s.writebackRevs.gitWorkbench == start.revs.gitWorkbench {
 		s.gitWorkbench = cur.gitWorkbench
 	}
-	if boolMapChanged(cur.fileExpanded, start.fileExpanded, start.fileExpandedNil) {
+	if s.writebackRevs.fileExpanded == start.revs.fileExpanded {
 		s.fileExpanded = cur.fileExpanded
 	}
 	if cur.selectedFile != start.selectedFile {
@@ -187,7 +214,7 @@ func (s *mainState) commitMainViewWritebackLocked(start, cur mainViewWritebackSn
 	if cur.filePreviewErr != start.filePreviewErr {
 		s.filePreviewErr = cur.filePreviewErr
 	}
-	if !reflect.DeepEqual(cur.filePreviewList, start.filePreviewList) {
+	if s.writebackRevs.filePreviewList == start.revs.filePreviewList {
 		s.filePreviewList = cur.filePreviewList
 	}
 	if cur.fileEditing != start.fileEditing {
@@ -266,12 +293,11 @@ func (s *mainState) commitMainViewWritebackLocked(start, cur mainViewWritebackSn
 	return previousChatPaneTab
 }
 
-func (s *mainState) commitGitWorkbenchIfChanged(start, cur diffsurface.Workbench) {
-	if reflect.DeepEqual(cur, start) {
-		return
-	}
+func (s *mainState) commitGitWorkbenchByRev(startRev uint64, cur diffsurface.Workbench) {
 	s.mu.Lock()
-	s.gitWorkbench = cur
+	if s.writebackRevs.gitWorkbench == startRev {
+		s.gitWorkbench = cur
+	}
 	s.mu.Unlock()
 }
 

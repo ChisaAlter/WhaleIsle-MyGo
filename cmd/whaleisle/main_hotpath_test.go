@@ -22,19 +22,20 @@ func TestMainViewDiffWritebackPreservesConcurrentUpdatesAndBottom(t *testing.T) 
 		diffText:         "concurrent diff from worker",
 		gitCommitOpen:    false,
 		chatPaneTab:      "chat",
-		thinkingExpanded: map[string]bool{"m1": true},
+		thinkingExpanded: map[string]bool{"m1": true, "concurrent": true},
 	}
 
-	startExpanded, expandedNil := cloneBoolMapForDiff(map[string]bool{"m1": true})
 	start := mainViewWritebackSnapshot{
-		layout:              frame.LayoutSizes{Sidebar: 240, Bottom: 0},
-		draft:               "initial",
-		diffText:            "stale start diff",
-		gitCommitOpen:       true,
-		chatPaneTab:         "chat",
-		thinkingExpanded:    startExpanded,
-		thinkingExpandedNil: expandedNil,
+		revs:             s.writebackRevs,
+		layout:           frame.LayoutSizes{Sidebar: 240, Bottom: 0},
+		draft:            "initial",
+		diffText:         "stale start diff",
+		gitCommitOpen:    true,
+		chatPaneTab:      "chat",
+		thinkingExpanded: map[string]bool{"m1": true},
 	}
+	// Simulate concurrent external mutation to thinkingExpanded after snapshot capture.
+	s.markThinkingExpandedMutatedLocked()
 
 	cur := start
 	cur.thinkingExpanded = map[string]bool{"m1": true}
@@ -55,6 +56,9 @@ func TestMainViewDiffWritebackPreservesConcurrentUpdatesAndBottom(t *testing.T) 
 	if s.gitCommitOpen {
 		t.Fatal("untouched gitCommitOpen clobbered callback close")
 	}
+	if !s.thinkingExpanded["concurrent"] {
+		t.Fatal("stale thinkingExpanded clobbered concurrent mutation after revision bump")
+	}
 	if s.draft != "edited draft" {
 		t.Fatalf("modified draft not written back: %q", s.draft)
 	}
@@ -68,7 +72,7 @@ func TestComposerDiffWritebackPreservesUntouchedCallbackState(t *testing.T) {
 		composerSkillsOpen:   true,
 		composerSkillsFilter: "old",
 	}
-	start := captureComposerWriteback(ui.ListState{}, ui.ListState{}, false, "old", "", composer.ChipEdit{})
+	start := captureComposerWriteback(s.writebackRevs.composerSuggest, s.writebackRevs.composerSkills, ui.ListState{}, ui.ListState{}, false, "old", "", composer.ChipEdit{})
 	cur := start
 	cur.skillsFilter = "git"
 

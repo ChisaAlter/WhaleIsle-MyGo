@@ -110,6 +110,7 @@ func (s *mainState) switchWorkspaceSessionLocked(scope, workspace, session strin
 	s.filesPaneOpen, s.rightPaneTab = entry.Open, entry.Tab
 	s.layout.Right, s.layout.RightTree = entry.Right, entry.Tree
 	s.layout.Workspace.PublishSessionProjection(s.workspaceProjectionLocked())
+	s.markWorkspaceProjectionMutatedLocked()
 	s.fileOpenWithFor, s.fileOpenWithApps = "", nil
 }
 

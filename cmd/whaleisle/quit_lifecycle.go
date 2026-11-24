@@ -98,12 +98,18 @@ func (s *mainState) finalizeQuit(sup *harness.Supervisor) {
 	// (tray, webviews, Host child). The next frame then tells the user the close
 	// was received instead of leaving the window looking deaf.
 	s.closingOverlay = true
+	s.closingOverlayActive.Store(true)
 	win := s.win
 	cancelPreparation := s.launcherStartCancel
 	cancelLifecycle := s.lifecycleCancel
 	s.mu.Unlock()
 	if cancelLifecycle != nil {
 		cancelLifecycle()
+	}
+	// Flush any debounced async config and workspace-preference writes before
+	// stopping services or exiting the process so no preference change is lost.
+	if err := s.flushPendingConfigWrites(); err != nil {
+		log.Println("config flush on quit:", err)
 	}
 	s.cancelImportCatalogScan()
 	s.stopProactiveMonitor()
@@ -231,6 +237,7 @@ func waitForClosingFrame(request func(done func()), budget time.Duration) bool {
 func (s *mainState) showClosingOverlayForQuit(request func(done func()), budget time.Duration) bool {
 	s.mu.Lock()
 	s.closingOverlay = true
+	s.closingOverlayActive.Store(true)
 	s.mu.Unlock()
 	return waitForClosingFrame(request, budget)
 }

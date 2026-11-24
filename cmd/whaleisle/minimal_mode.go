@@ -39,15 +39,14 @@ func applyMinimalMode(on bool) {
 // classifier's sentence (internal/errcopy) and logs this text.
 var errMinimalModeUnavailable = errors.New("minimal mode: the settings store is not open yet")
 
-// setMinimalMode persists the switch and paints the result.
+// setMinimalMode applies the switch optimistically in memory and persists it
+// asynchronously on the single-writer debounced config queue.
 func (s *mainState) setMinimalMode(on bool) error {
 	if s.cfgStore == nil {
 		return errMinimalModeUnavailable
 	}
-	if err := s.cfgStore.Update(func(c *config.Config) { c.MinimalMode = on }); err != nil {
-		return err
-	}
 	applyMinimalMode(on)
+	s.enqueueConfigUpdate(s.cfgStore, func(c *config.Config) { c.MinimalMode = on })
 	s.invalidateAppearance()
 	return nil
 }
@@ -65,26 +64,24 @@ func (s *mainState) invalidateAppearance() {
 }
 
 // minimalModeAccess is the appearance page's minimal-mode block. The values are
-// read from the stored config every frame, so a write only has to succeed for
-// the page to show it.
+// read from the effective config every frame, so optimistic updates appear at
+// once while disk persistence runs off the UI thread.
 func (s *mainState) minimalModeAccess() *settings.MinimalModeAccess {
 	if s.cfgStore == nil {
 		return nil
 	}
-	cfg := s.cfgStore.Get()
+	cfg := s.effectiveConfigFor(s.cfgStore)
 	enabled, suggestions := cfg.MinimalMode, !cfg.MinimalModeSuggestionsOff
 	access := &settings.MinimalModeAccess{Enabled: &enabled, Suggestions: &suggestions}
 	access.OnToggle = s.setMinimalMode
 	access.OnToggleSuggestions = func(on bool) error {
-		if err := s.cfgStore.Update(func(c *config.Config) {
+		s.enqueueConfigUpdate(s.cfgStore, func(c *config.Config) {
 			c.MinimalModeSuggestionsOff = !on
 			if on {
 				// Turning the offer back on clears a snooze it may still carry.
 				c.MinimalModeSnoozedUntil = ""
 			}
-		}); err != nil {
-			return err
-		}
+		})
 		s.invalidateAppearance()
 		return nil
 	}
@@ -121,7 +118,7 @@ func (s *mainState) minimalSuggestionWanted() bool {
 	if s.cfgStore == nil || renderpolicy.Minimal() {
 		return false
 	}
-	cfg := s.cfgStore.Get()
+	cfg := s.effectiveConfigFor(s.cfgStore)
 	if cfg.MinimalMode || cfg.MinimalModeSuggestionsOff {
 		return false
 	}
@@ -153,8 +150,6 @@ func (s *mainState) stopMinimalModeOffers() {
 	if s.cfgStore == nil {
 		return
 	}
-	if err := s.cfgStore.Update(func(c *config.Config) { c.MinimalModeSuggestionsOff = true }); err != nil {
-		log.Printf("minimal mode: stop the startup offer: %v", err)
-	}
+	s.enqueueConfigUpdate(s.cfgStore, func(c *config.Config) { c.MinimalModeSuggestionsOff = true })
 	s.invalidateAppearance()
 }

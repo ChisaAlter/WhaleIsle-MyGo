@@ -24,6 +24,7 @@ import (
 func (s *mainState) openMinimalModeOffer() {
 	s.mu.Lock()
 	s.minimalOfferOpen = true
+	s.minimalOfferActive.Store(true)
 	win := s.win
 	s.mu.Unlock()
 	if win != nil {
@@ -41,6 +42,7 @@ func (s *mainState) minimalModeOfferDue() bool {
 func (s *mainState) closeMinimalModeOffer() {
 	s.mu.Lock()
 	s.minimalOfferOpen = false
+	s.minimalOfferActive.Store(false)
 	s.mu.Unlock()
 }
 
