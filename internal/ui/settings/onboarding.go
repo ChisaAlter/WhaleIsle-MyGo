@@ -80,15 +80,15 @@ func DesktopOnboarding(c *ui.Context, controller *store.DesktopOnboarding, accou
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(bg)
-		chrome.FrostSurface(panel.WidthPercent(100).HeightPercent(100).MinWidth(0).MinHeight(0), colors, systemDark, bg, 0).Children(func() {
+		chrome.FrostSurface(panel.WidthPercent(100).HeightPercent(100).MinWidth(0).MinHeight(0).Padding(topPad, 0, 0, 0), colors, systemDark, bg, 0).Children(func() {
 			if s.Loading {
-				ui.Column(c).Fill().Center().Padding(topPad, sidePad, design.Sp(10), sidePad).Children(func() {
+				ui.Column(c).Fill().Center().Padding(0, sidePad, design.Sp(10), sidePad).Children(func() {
 					ui.Text(c, providerCopy("正在读取设置…", "Loading settings…")).TextColor(muted)
 				})
 				return
 			}
 			scroll := ui.Scroll(c.Key("onboarding-scroll")).FillWidth().Grow(1).MinWidth(0).MinHeight(0).
-				Padding(topPad, sidePad, design.Sp(10), sidePad)
+				Padding(design.Sp(2), sidePad, design.Sp(10), sidePad)
 			scroll.Children(func() {
 				anchor := ui.Column(c.Key("desktop-onboarding/" + s.Progress.Step)).FillWidth().MinWidth(0).Gap(design.Sp(5))
 				dialog := ui.Local(anchor, "confirm", func() string { return "" })

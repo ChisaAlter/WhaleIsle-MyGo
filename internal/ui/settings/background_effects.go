@@ -86,13 +86,13 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 			settingsAlert(c, "appearance-dialog", true, providerCopy("没能保存外观设置，请重试。", "The appearance setting was not saved. Try again."), g.failure)
 		}
 	}, func() {
-		if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(g.Save == nil || busy).Clicked() {
+		if kGhost(c, providerCopy("恢复默认", "Reset"), g.Save == nil || busy).Clicked() {
 			*draft = wallpapers.Defaults()
 		}
-		if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(busy).Clicked() {
+		if kButtonDisabled(c, providerCopy("取消", "Cancel"), busy).Clicked() {
 			*open = false
 		}
-		if ui.PrimaryButton(c, providerCopy("保存", "Save")).Disabled(g.Save == nil || busy).Clicked() {
+		if kPrimary(c, providerCopy("保存", "Save"), g.Save == nil || busy).Clicked() {
 			if !wallpaperColorsValid(g, draft.Colors[:]) {
 				return
 			}

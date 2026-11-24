@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
-
-	"whaleisle/internal/ui/i18n"
 )
 
 // MCPServerRow is one host MCP server for the dedicated settings page.
@@ -125,10 +126,10 @@ func mcpPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				settingsFailureLine(c, "mcp:remove", providerCopy("没能删除这个 MCP 服务，请重试。", "The MCP server could not be removed. Try again."), a.Err)
 			}
 		}, func() {
-			if a.OnCancelDelete != nil && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
+			if a.OnCancelDelete != nil && kButtonDisabled(c, i18n.T(i18n.KeyQuitConfirmCancel), a.Busy).Clicked() {
 				a.OnCancelDelete()
 			}
-			if a.OnConfirmDelete != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPDelete)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
+			if a.OnConfirmDelete != nil && kDanger(c, i18n.T(i18n.KeySettingsMCPDelete), a.Busy).Clicked() {
 				a.OnConfirmDelete()
 			}
 		}, ui.DialogOptions{DismissDisabled: a.Busy})
@@ -154,15 +155,15 @@ func mcpEditorForms(c *ui.Context, a *MCPAccess, fg, muted ui.Color) {
 		if a.EditingID != "" {
 			ui.Text(c, i18n.T(i18n.KeyFilesEdit)+": "+a.EditingID).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 		}
-		area := ui.TextArea(c, a.DraftSpec).Fill().MinHeight(72).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
+		area := kTextarea(c, a.DraftSpec, coss.TextareaOptions{Label: i18n.T(i18n.KeySettingsMCPUpsert)}).MinHeight(72)
 		if area.Changed() && a.OnDraftChanged != nil {
 			a.OnDraftChanged(*a.DraftSpec)
 		}
-		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && ui.Button(c, i18n.T(i18n.KeyQuitConfirmCancel)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy).Clicked() {
+		ui.Row(c).FillWidth().Gap(design.Sp(2)).Justify(ui.End).Children(func() {
+			if a.OnCancelEdit != nil && (*a.DraftSpec != "" || a.EditingID != "") && kButtonDisabled(c, i18n.T(i18n.KeyQuitConfirmCancel), a.Busy).Clicked() {
 				a.OnCancelEdit()
 			}
-			if a.OnUpsert != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPUpsertSave)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(a.Busy || *a.DraftSpec == "").Clicked() {
+			if a.OnUpsert != nil && kPrimary(c, i18n.T(i18n.KeySettingsMCPUpsertSave), a.Busy || *a.DraftSpec == "").Clicked() {
 				a.OnUpsert(*a.DraftSpec)
 			}
 		})
@@ -293,8 +294,8 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 			} else {
 				ui.Column(c).Grow(1).MinWidth(180).Children(heading)
 			}
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				if a.OnTest != nil && ui.Button(c, i18n.T(i18n.KeySettingsMCPTest)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
+			ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+				if a.OnTest != nil && kButtonDisabled(c, i18n.T(i18n.KeySettingsMCPTest), a.Busy).Clicked() {
 					a.OnTest(r.ID)
 				}
 				if r.Writable {
@@ -302,7 +303,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 					if ui.Switch(c, &enabled).Label("Enable MCP server · "+r.ID).Disabled(a.Busy || a.OnSetEnabled == nil).Changed() && a.OnSetEnabled != nil {
 						a.OnSetEnabled(r.ID, enabled)
 					}
-					if mcpNeedsSignIn(a, r) && a.OnAuthorize != nil && ui.Button(c, providerCopy("登录", "Sign in")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(a.Busy).Clicked() {
+					if mcpNeedsSignIn(a, r) && a.OnAuthorize != nil && kPrimary(c, providerCopy("登录", "Sign in"), a.Busy).Clicked() {
 						a.OnAuthorize(r.ID)
 					}
 					if a.OnEdit != nil && bodyIconAction(c, "Edit MCP server · "+r.ID, "edit", a.Busy) {
@@ -329,7 +330,7 @@ func mcpCompactRow(c *ui.Context, a *MCPAccess, r MCPServerRow, fg, muted ui.Col
 						ui.Text(c, providerCopy("没有工具", "no tools")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 						continue
 					}
-					if ui.Button(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).AlignSelf(ui.Start).Height(28).Padding(0, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12)).Clicked() && a.Catalog.OnInspect != nil {
+					if kButton(c, fmt.Sprintf(providerCopy("%d 个工具", "%d tools"), len(entry.Connection.Tools))).AlignSelf(ui.Start).Clicked() && a.Catalog.OnInspect != nil {
 						a.Catalog.OnInspect(r.ID)
 					}
 				}
@@ -384,12 +385,14 @@ func mcpEmptyCard(c *ui.Context, message string, muted ui.Color) {
 
 // mcpHeaderIconButton is the 28x28 outlined icon button of the page head.
 func mcpHeaderIconButton(c *ui.Context, label, icon string, disabled bool) bool {
-	dark := c.Theme().Dark
-	outline := fonttheme.Color(fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark).BorderL3)
-	button := ui.Button(c, "").Label(label).Size(28, 28).Shrink(0).Padding(6).Radius(8).Border(.667, outline).Background(ui.Transparent).Disabled(disabled).Tooltip(label)
-	button.Children(func() { ui.Icon(c, bodyIcon(icon)).Size(16, 16) })
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	return button.Clicked() && !disabled
+	b := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonOutline,
+		Size:     coss.ButtonIconSM,
+		Label:    label,
+		Disabled: disabled,
+		Content: func() {
+			ui.Icon(c, bodyIcon(icon)).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(tk(c).Foreground).PassThrough()
+		},
+	}).Tooltip(label)
+	return b.Clicked() && !disabled
 }

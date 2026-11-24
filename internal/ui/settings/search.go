@@ -277,9 +277,9 @@ func settingsSearchResults(c *ui.Context, m Model, snap store.ViewState, query s
 			if detail != "" {
 				subtitle += " · " + detail
 			}
-			button := ui.Button(c.Key(fmt.Sprintf("settings-search-%d-%s", index, entry.title)), "").Label(entry.title).
+			button := ui.ButtonBase(c.Key(fmt.Sprintf("settings-search-%d-%s", index, entry.title))).Label(entry.title).
 				FillWidth().MinWidth(0).Height(60).Shrink(0).Padding(10, 12).Radius(12).BorderWidth(0).Background(ui.Transparent).
-				AlignItems(ui.Start).FocusRing(false)
+				AlignItems(ui.Start).Cursor(ui.CursorPointer).FocusRing(false)
 			button.Children(func() {
 				ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
 					ui.Text(c, entry.title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(500).TextColor(fg).SingleLine()

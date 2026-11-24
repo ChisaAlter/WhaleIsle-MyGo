@@ -2,9 +2,10 @@ package settings
 
 import (
 	"fmt"
-	fonttheme "whaleisle/internal/ui/theme"
 
 	store "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
@@ -31,17 +32,23 @@ func customInstructionsRow(c *ui.Context, m Model, snap store.ViewState, fg, mut
 		return
 	}
 	draft := m.DraftPtr(store.CustomInstructionsField, snap.Drafts[store.CustomInstructionsField])
-	ui.Column(c).Gap(4).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyCustomInstructionsTitle)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
-		ui.Text(c, i18n.T(i18n.KeyCustomInstructionsScope)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		area := ui.TextArea(c, draft).FillWidth().Lines(4, 10).Disabled(!snap.Writable || !snap.ClientReady)
+	ui.Column(c).Gap(design.Sp(1)).Children(func() {
+		kLabel(c, i18n.T(i18n.KeyCustomInstructionsTitle), fg)
+		kHint(c, i18n.T(i18n.KeyCustomInstructionsScope))
+		count := store.CustomInstructionsLength(*draft)
+		over := count > store.CustomInstructionsMaxLength
+		area := kTextarea(c, draft, coss.TextareaOptions{
+			Label:    i18n.T(i18n.KeyCustomInstructionsTitle),
+			MaxLines: 10,
+			Disabled: !snap.Writable || !snap.ClientReady,
+			Invalid:  over,
+		}).Lines(4, 10)
 		if area.Changed() && m.OnDraft != nil {
 			m.OnDraft(store.CustomInstructionsField, *draft)
 		}
-		count := store.CustomInstructionsLength(*draft)
-		ui.Text(c, fmt.Sprintf("%d / %d", count, store.CustomInstructionsMaxLength)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if count > store.CustomInstructionsMaxLength {
-			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsLimit)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		kHint(c, fmt.Sprintf("%d / %d", count, store.CustomInstructionsMaxLength))
+		if over {
+			kError(c, i18n.T(i18n.KeyCustomInstructionsLimit))
 		}
 	})
 }
@@ -56,29 +63,26 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 		return
 	}
 	clearFailure := bodyPreferenceFieldError(c, a, store.CustomInstructionsNamespace, store.CustomInstructionsField, i18n.T(i18n.KeyCustomInstructionsTitle))
-	anchor := ui.Column(c.Key(fmt.Sprintf("general-custom-instructions-%d", a.Owner))).FillWidth().MinWidth(0).Gap(10).Padding(16, 0)
+	anchor := ui.Column(c.Key(fmt.Sprintf("general-custom-instructions-%d", a.Owner))).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).Padding(design.Sp(4), 0)
 	settingsSearchTarget(c, "custom-instructions", i18n.T(i18n.KeyCustomInstructionsTitle), anchor)
 	type draftState struct{ Value, Base string }
 	draft := ui.Local(anchor, "draft", func() draftState { return draftState{value, value} })
 	if draft.Value == value || draft.Value == draft.Base && draft.Base != value {
 		draft.Value, draft.Base = value, value
 	}
-	dark := c.Theme().Dark
-	colors := fonttheme.ResolveWithSystem(fonttheme.IDSystem, dark).Active(dark)
-	well := ui.RGB(255, 255, 255)
-	if dark {
-		well = fonttheme.Color(colors.Field)
-	}
 	anchor.Children(func() {
-		// 0.3.13: title and one-line explanation, a 12 DIP textarea on the
-		// raised layer at 80%, and the counter under its right edge.
-		ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsTitle)).FillWidth().FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).TextColor(fg)
-			ui.Text(c, providerCopy("给智能体定几条规则，后续对所有任务都生效", "Give the agent a few rules that apply to every later task")).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+		ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1)).Children(func() {
+			kLabel(c, i18n.T(i18n.KeyCustomInstructionsTitle), fg).FillWidth()
+			kHint(c, providerCopy("给智能体定几条规则，后续对所有任务都生效", "Give the agent a few rules that apply to every later task"))
 		})
-		area := ui.TextArea(c, &draft.Value).FillWidth().Lines(6, 10).Radius(12).Border(0.667, fonttheme.Color(colors.BorderL4)).Background(well.Alpha(.8)).Padding(12, 14).FontSize(fonttheme.InterfaceSize(14)).
-			Placeholder(i18n.T(i18n.KeyCustomInstructionsPlaceholder)).
-			Label(i18n.T(i18n.KeyCustomInstructionsTitle)).Disabled(!a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading)
+		over := store.CustomInstructionsLength(draft.Value) > store.CustomInstructionsMaxLength
+		area := kTextarea(c, &draft.Value, coss.TextareaOptions{
+			Label:       i18n.T(i18n.KeyCustomInstructionsTitle),
+			Placeholder: i18n.T(i18n.KeyCustomInstructionsPlaceholder),
+			MaxLines:    10,
+			Disabled:    !a.Snapshot.ClientReady || !a.Snapshot.Writable || a.Snapshot.Loading,
+			Invalid:     over,
+		}).Lines(6, 10)
 		if area.Changed() && a.OnChange != nil {
 			draft.Value = store.LimitCustomInstructions(draft.Value)
 			if store.CustomInstructionsLength(draft.Value) <= store.CustomInstructionsMaxLength {
@@ -87,10 +91,10 @@ func generalCustomInstructions(c *ui.Context, a *BodySettingsAccess, fg, muted u
 			}
 		}
 		ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d / %d", store.CustomInstructionsLength(draft.Value), store.CustomInstructionsMaxLength)).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+			kText(c, fmt.Sprintf("%d / %d", store.CustomInstructionsLength(draft.Value), store.CustomInstructionsMaxLength), design.TextXS, design.WeightNormal, muted)
 		})
 		if store.CustomInstructionsLength(draft.Value) > store.CustomInstructionsMaxLength {
-			ui.Text(c, i18n.T(i18n.KeyCustomInstructionsLimit)).FillWidth().TextColor(fg)
+			kError(c, i18n.T(i18n.KeyCustomInstructionsLimit))
 		}
 	})
 	bodyPreferenceFieldAlert(c, a, store.CustomInstructionsNamespace, store.CustomInstructionsField, i18n.T(i18n.KeyCustomInstructionsTitle))
