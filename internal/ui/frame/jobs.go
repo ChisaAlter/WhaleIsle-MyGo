@@ -8,9 +8,9 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/jobflow"
 	"whaleisle/internal/ui/agents"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 func jobsHeader(c *ui.Context, m Model) {
@@ -33,6 +33,7 @@ func jobsHeader(c *ui.Context, m Model) {
 // expanded output observation follows visibility. PopoverBase lifts its panel
 // into the window overlay, outside the clipped conversation header.
 func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool, colors theme.Colors) {
+	_ = colors
 	s := controller.Snapshot()
 	if len(s.Rows) == 0 && s.Error == "" && !s.Open {
 		return
@@ -42,12 +43,10 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	if len(s.Rows) == 0 {
 		label = archiveText("后台任务读取失败", "Background jobs need a fresh read")
 	}
-	muted := chrome.Color(colors.Muted)
+	t := tk(c)
+	muted := t.MutedForeground
 	headerInk := muted
-	if colors.Secondary != "" {
-		headerInk = chrome.Color(colors.Secondary)
-	}
-	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk).Cursor(ui.CursorPointer)
+	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, design.Sp(2)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk).Cursor(ui.CursorPointer)
 	if compact {
 		anchor.Size(28, 28).Padding(0)
 	}
@@ -55,13 +54,13 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 		if compact {
 			ui.Icon(c, conversationHeaderIcons["CodeOutline"]).Size(14, 14).TextColor(muted)
 			if len(live) > 0 {
-				ui.Spinner(c).Size(10, 10).Absolute().Top(0).Right(0).TextColor(muted)
+				coss.Spinner(c, coss.SpinnerOptions{Size: 10}).Absolute().Top(0).Right(0).TextColor(muted)
 			}
 			return
 		}
-		ui.Row(c).AlignItems(ui.Center).Gap(5).Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
 			if len(live) > 0 {
-				ui.Spinner(c).Size(10, 10).TextColor(muted)
+				coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(muted)
 			}
 			if !compact {
 				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).SingleLine().MaxWidth(220).Ellipsis("…")
@@ -84,19 +83,19 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	w, h := viewportDIP(c)
 	ui.PopoverBase(c.Key("jobs-popover"), anchor, &open, func(panel ui.Element) {
 		headerPopupInset(c, panel, anchor, min(float32(500), max(float32(0), w-32)), w, 12)
-		panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(5, 0, 0, 0).Padding(4), colors, c.Theme().Dark, chrome.Color(colors.BG), 12).Border(.5, chrome.Color(colors.Border)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+		panel = framePopoverPanel(panel.Label("Background jobs popover").Width(min(float32(500), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(480), h-140))).Margin(design.Sp(1.25), 0, 0, 0).Padding(design.Sp(1)), t, design.RadiusXL-design.Sp(0.5))
 		panel.Children(func() {
-			ui.Scroll(c.Key("jobs-roster")).Label("Background jobs list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(472), h-148))).Children(func() {
-				ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+			coss.ScrollArea(c.Key("jobs-roster"), coss.ScrollAreaOptions{}, func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(design.BorderWidth).Children(func() {
 					if s.Loading {
-						ui.Row(c).Label("Loading jobs").Gap(6).Padding(8).Children(func() {
-							ui.Spinner(c).Size(14, 14)
-							ui.Text(c, archiveText("正在读取后台任务…", "Loading background jobs…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						ui.Row(c).Label("Loading jobs").Gap(design.Sp(1.5)).Padding(design.Sp(2)).Children(func() {
+							coss.Spinner(c, coss.SpinnerOptions{Size: 14})
+							frameText(c, archiveText("正在读取后台任务…", "Loading background jobs…"), design.TextXS, design.WeightNormal, muted)
 						})
 					}
 					if s.Error != "" {
-						ui.Box(c).FillWidth().MinWidth(0).Padding(8).Children(func() {
-							widgets.Alert(c, widgets.AlertOptions{
+						ui.Box(c).FillWidth().MinWidth(0).Padding(design.Sp(2)).Children(func() {
+							frameErrorAlert(c, frameAlertOptions{
 								ID:       "jobs-roster",
 								Message:  archiveText("没能读取后台任务，请重试。", "Background jobs could not be read. Try again."),
 								Detail:   s.Error,
@@ -118,13 +117,13 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 							settledOpen = *s.SettledOpen
 						}
 						if len(live) > 0 {
-							ui.Box(c).FillWidth().Height(.5).Margin(4, 4, 0, 4).Background(chrome.Color(colors.Border))
+							ui.Box(c).FillWidth().Height(design.BorderWidth/2).Margin(design.Sp(1), design.Sp(1), 0, design.Sp(1)).Background(t.Border)
 						}
-						ui.Row(c).FillWidth().Gap(4).Padding(4).AlignItems(ui.Center).Children(func() {
+						ui.Row(c).FillWidth().Gap(design.Sp(1)).Padding(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 							text := fmt.Sprintf(archiveText("已结束 %d", "Finished %d"), len(settled))
-							button := ui.Button(c, "").Label("Toggle finished jobs").MinWidth(0).Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer)
+							button := ui.Button(c, "").Label("Toggle finished jobs").MinWidth(0).Padding(design.Sp(0.5), design.Sp(1)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer)
 							button.Children(func() {
-								ui.Row(c).Gap(3).AlignItems(ui.Center).Children(func() {
+								ui.Row(c).Gap(design.Sp(0.75)).AlignItems(ui.Center).Children(func() {
 									icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
 									if !settledOpen {
 										icon.Rotate(-90)
@@ -136,7 +135,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 								controller.ToggleSettled(s.Generation)
 							}
 							ui.Box(c).Grow(1)
-							if ui.Button(c, archiveText("清空", "Clear")).Label("Clear finished jobs").Padding(2, 4).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+							if ui.Button(c, archiveText("清空", "Clear")).Label("Clear finished jobs").Padding(design.Sp(0.5), design.Sp(1)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
 								controller.ClearSettled(s.Generation)
 							}
 						})
@@ -147,10 +146,10 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 						}
 					}
 					if len(s.Rows) == 0 && !s.Loading && s.Error == "" {
-						ui.Text(c, archiveText("暂无后台任务", "No background jobs")).Padding(12).TextColor(muted).FontSize(theme.InterfaceSize(12))
+						ui.Text(c, archiveText("暂无后台任务", "No background jobs")).Padding(design.Sp(3)).TextColor(muted).FontSize(theme.InterfaceSize(12))
 					}
 				})
-			})
+			}).Label("Background jobs list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(472), h-148)))
 		})
 		if panel.OverlayShortcut(0, ui.KeyEscape) {
 			open = false
@@ -163,7 +162,7 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 }
 
 func jobsSectionLabel(c *ui.Context, label string, ink ui.Color) {
-	ui.Text(c, label).Padding(4, 8).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(ink)
+	ui.Text(c, label).Padding(design.Sp(1), design.Sp(2)).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(ink)
 }
 func splitJobs(rows []jobflow.Job) (live, settled []jobflow.Job) {
 	for _, row := range rows {
@@ -189,7 +188,9 @@ func jobsCountLabel(live, total int) string {
 }
 
 func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapshot, job jobflow.Job, colors theme.Colors) {
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	_ = colors
+	t := tk(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	label := job.Label
 	if label == "" {
 		label = job.ID
@@ -198,17 +199,17 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 	durText := jobDuration(job, time.Now())
 	durTip := agents.FormatJobsDurationTitle(live, durText)
 	ui.Column(c.Key("job-" + job.ID)).FillWidth().MinWidth(0).Children(func() {
-		line := ui.Row(c.Key("job-line-" + job.ID)).Label("Job row: " + job.ID).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center)
+		line := ui.Row(c.Key("job-line-" + job.ID)).Label("Job row: " + job.ID).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center)
 		if live {
-			line.Padding(4, 8, 4, 2).Radius(8).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field)))
+			line.Padding(design.Sp(1), design.Sp(2), design.Sp(1), design.Sp(0.5)).Radius(design.RadiusMD).Background(frameInsetBg(t))
 		}
 		line.Children(func() {
-			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(4, 7).Radius(6).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(!job.Observable())
+			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(design.Sp(1), design.Sp(1.75)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(!job.Observable())
 			button.Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Children(func() {
 					jobStateIndicator(c, job.Status)
 					if !live {
-						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, 5).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field))).TextColor(muted).Shrink(0)
+						ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).Padding(0, design.Sp(1.25)).Radius(design.RadiusXS * 2).Background(frameInsetBg(t)).TextColor(muted).Shrink(0)
 						ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
 						detail := job.Progress
 						if detail == "" {
@@ -223,14 +224,14 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 						}
 						ui.Text(c, durText).Tooltip(durTip).FontSize(theme.InterfaceSize(11)).TextColor(muted).Shrink(0)
 					} else {
-						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+						ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
 							ink := fg
 							if !live {
 								ink = muted
 							}
 							ui.Text(c, label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(ink).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(label)
-							ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-								ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).Padding(0, 5).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Sidebar))).TextColor(muted).Shrink(0)
+							ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Children(func() {
+								ui.Text(c, job.Kind).FontSize(theme.InterfaceSize(10)).FixedLineHeight(theme.InterfaceSize(16)).Padding(0, design.Sp(1.25)).Radius(design.RadiusXS * 2).Background(t.Sidebar).TextColor(muted).Shrink(0)
 								detail := job.Progress
 								if detail == "" {
 									detail = job.Detail
@@ -244,7 +245,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 						})
 					}
 					if job.Observable() {
-						ui.Box(c).Size(20, 20).Shrink(0).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.BG))).Center().Children(func() {
+						ui.Box(c).Size(20, 20).Shrink(0).Border(design.BorderWidth/2, t.Border).Radius(design.RadiusXS * 2).Background(t.Background).Center().Children(func() {
 							icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
 							if s.SelectedID == job.ID {
 								icon.Rotate(180)
@@ -257,10 +258,10 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				controller.Toggle(s.Generation, job.ID)
 			}
 			if job.Status == "running" {
-				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(4).Border(.5, chrome.Color(colors.Border)).Radius(4).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.BG))).Cursor(ui.CursorPointer).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
+				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(design.Sp(1)).Border(design.BorderWidth/2, t.Border).Radius(design.RadiusXS * 2).Background(t.Background).Cursor(ui.CursorPointer).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
 				stop.Children(func() {
 					if s.Kill.JobID == job.ID && s.Kill.Phase == "pending" {
-						ui.Spinner(c).Size(10, 10).TextColor(muted)
+						coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(muted)
 					} else {
 						ui.Icon(c, jobIcons["stop"]).Size(10, 10).TextColor(muted)
 					}
@@ -275,19 +276,19 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 			}
 		})
 		if s.Kill.JobID == job.ID && s.Kill.Phase == "armed" {
-			ui.Row(c.Key("job-kill-confirm-"+job.ID)).FillWidth().MinWidth(0).Gap(6).Padding(0, 8, 4, 8).AlignItems(ui.Center).Children(func() {
+			ui.Row(c.Key("job-kill-confirm-"+job.ID)).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Padding(0, design.Sp(2), design.Sp(1), design.Sp(2)).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, archiveText("再次点击确认停止", "Click again to confirm stop")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1).MinWidth(0)
-				if ui.Button(c, archiveText("确认停止", "Confirm stop")).Label("Confirm stop job "+job.ID).Height(24).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+				if ui.Button(c, archiveText("确认停止", "Confirm stop")).Label("Confirm stop job "+job.ID).Height(24).Padding(0, design.Sp(2)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
 					controller.ConfirmKill(s.Generation, job.ID)
 				}
-				if ui.Button(c, archiveText("取消", "Cancel")).Label("Cancel stop job "+job.ID).Height(24).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+				if ui.Button(c, archiveText("取消", "Cancel")).Label("Cancel stop job "+job.ID).Height(24).Padding(0, design.Sp(2)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
 					controller.CancelKill(s.Generation)
 				}
 			})
 		}
 		if s.Kill.JobID == job.ID && s.Kill.Phase != "armed" && s.Kill.Error != "" {
-			ui.Box(c).FillWidth().MinWidth(0).Padding(0, 8, 4, 8).Children(func() {
-				widgets.Alert(c, widgets.AlertOptions{
+			ui.Box(c).FillWidth().MinWidth(0).Padding(0, design.Sp(2), design.Sp(1), design.Sp(2)).Children(func() {
+				frameErrorAlert(c, frameAlertOptions{
 					ID:        "job-kill:" + job.ID,
 					Message:   archiveText("没能停止这条任务，请重试。", "This task could not be stopped. Try again."),
 					Detail:    s.Kill.Error,
@@ -305,26 +306,29 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 }
 
 func jobStateIndicator(c *ui.Context, status string) {
+	t := tk(c)
 	if status == "running" {
-		ui.Spinner(c).Label("Job state: running").Size(10, 10).TextColor(c.Theme().TextMuted)
+		coss.Spinner(c, coss.SpinnerOptions{Size: 10}).Label("Job state: running").TextColor(t.MutedForeground)
 		return
 	}
-	ink := c.Theme().Success
+	ink := t.Success
 	switch status {
 	case "stopping", "killed":
-		ink = c.Theme().Warning
+		ink = t.Warning
 	case "failed":
-		ink = c.Theme().Danger
+		ink = t.Destructive
 	}
 	ui.Box(c).Label("Job state: "+status).Size(10, 10).Shrink(0).Center().Children(func() {
-		ui.Box(c).Size(6, 6).Radius(3).Background(ink)
+		ui.Box(c).Size(6, 6).Radius(design.RadiusFull).Background(ink)
 	})
 }
 
 func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapshot, job jobflow.Job, colors theme.Colors) {
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	_ = colors
+	t := tk(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	o := s.Observed
-	panel := ui.Column(c.Key("job-output-panel-"+job.ID)).FillWidth().MinWidth(0).Padding(0, 8, 8).Gap(6)
+	panel := ui.Column(c.Key("job-output-panel-"+job.ID)).FillWidth().MinWidth(0).Padding(0, design.Sp(2), design.Sp(2)).Gap(design.Sp(1.5))
 	notice := ui.Local(panel, "output-error-notice", func() struct {
 		value     string
 		dismissed bool
@@ -342,7 +346,7 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 			ui.Text(c, archiveText("……较早的输出已丢弃……", "… earlier output dropped …")).FontSize(theme.InterfaceSize(11)).TextColor(muted).FillWidth().MinWidth(0)
 		}
 		if o.Error != "" && !notice.dismissed {
-			widgets.Alert(c, widgets.AlertOptions{
+			frameErrorAlert(c, frameAlertOptions{
 				ID:        "job-output:" + job.ID,
 				Message:   archiveText("这条任务的输出没能读到，可以再试一次。", "This task's output could not be read. Try again."),
 				Detail:    o.Error,
@@ -352,19 +356,24 @@ func jobOutputView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snap
 				OnDismiss: func() { notice.dismissed = true },
 			})
 		}
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
 			ui.Text(c, job.Label).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).Grow(1).MinWidth(0)
-			if ui.Button(c, archiveText("复制", "Copy")).Label("Copy job command").FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Disabled(job.Label == "").Clicked() {
+			if coss.Button(c, archiveText("复制", "Copy"), coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonXS,
+				Label:    "Copy job command",
+				Disabled: job.Label == "",
+			}).Clicked() {
 				mygo.Clipboard.WriteText(job.Label)
 			}
 		})
-		ui.Scroll(c.Key("job-output-" + job.ID)).Label("Job output scroll: " + job.ID).FillWidth().MinWidth(0).MaxHeight(288).Children(func() {
+		coss.ScrollArea(c.Key("job-output-"+job.ID), coss.ScrollAreaOptions{}, func() {
 			body := o.Text
 			if body == "" {
 				body = archiveText("（无输出）", "(no output)")
 			}
 			ui.Text(c, body).Font(theme.RenderPreferences().Code.Family).FontSize(theme.InterfaceSize(12)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
-		})
+		}).Label("Job output scroll: " + job.ID).FillWidth().MinWidth(0).MaxHeight(288)
 	})
 }
 func jobDuration(job jobflow.Job, now time.Time) string {

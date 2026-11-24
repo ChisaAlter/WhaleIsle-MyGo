@@ -5,7 +5,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -97,7 +96,7 @@ func (s *inspectorPulseState) paint(c *ui.Context, rowElement ui.Element, row se
 	// Draw, rather than rebuilding the hierarchy each animation frame. At expiry
 	// the next build restores the row's ordinary hover/selection background.
 	start := local.started
-	color := chrome.Color(colors.BubbleHighlight)
+	color := theme.Color(colors.BubbleHighlight)
 	rowElement.Background(ui.Transparent).Draw(func(p *ui.Painter, r ui.Rect) {
 		elapsed := p.Now().Sub(start)
 		if elapsed >= inspectorPulseDuration {

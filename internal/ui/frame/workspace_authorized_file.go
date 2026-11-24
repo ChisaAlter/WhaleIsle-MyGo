@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/files"
 )
 
@@ -133,7 +134,7 @@ func paintAuthorizedProjectFile(c *ui.Context, m Model, n *WorkspacePane) bool {
 		workspacePaneControls(c, m)
 		if !state.projectAccess.current() {
 			state.Tabs.Pause()
-			ui.Text(c, paneLabel("请从项目交付报告重新打开此文件；未保存草稿仍保留。", "Reopen this file from its Project delivery report. Unsaved drafts are retained.")).Padding(12)
+			ui.Text(c, paneLabel("请从项目交付报告重新打开此文件；未保存草稿仍保留。", "Reopen this file from its Project delivery report. Unsaved drafts are retained.")).Padding(design.Sp(3))
 			return
 		}
 		state.rendered = true

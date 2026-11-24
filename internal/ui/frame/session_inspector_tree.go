@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -106,6 +106,8 @@ func (s *inspectorJSONTreeState) visibleRows() []inspectorJSONTreeRow {
 // inspectorJSONTree is hosted in the pane's details scroll. It only displays
 // serialized JSON; it does not evaluate accessors or imply runtime references.
 func inspectorJSONTree(c *ui.Context, state *inspectorJSONTreeState, raw []byte, colors theme.Colors) {
+	_ = colors
+	t := tk(c)
 	state.setRaw(raw)
 	if state.invalid {
 		ui.Text(c, paneLabel("无法解析 JSON，显示原始内容", "Invalid JSON; showing raw content")).FontSize(11)
@@ -115,18 +117,18 @@ func inspectorJSONTree(c *ui.Context, state *inspectorJSONTreeState, raw []byte,
 	ui.Column(c).FillWidth().Font(inspectorFont()).FontSize(11).LineHeight(0).Selectable().Children(func() {
 		for _, row := range state.visibleRows() {
 			rowContext := c.Key("json-field:" + row.path)
-			ui.Row(rowContext).FillWidth().Padding(2, 0, 2, float32(row.depth+1)*16).AlignItems(ui.Start).Children(func() {
-				valueColor := chrome.Color(colors.Secondary)
+			ui.Row(rowContext).FillWidth().Padding(design.Sp(0.5), 0, design.Sp(0.5), float32(row.depth+1)*design.Sp(4)).AlignItems(ui.Start).Children(func() {
+				valueColor := t.MutedForeground
 				if row.expandable {
-					valueColor = chrome.Color(colors.Muted)
+					valueColor = t.MutedForeground
 				}
-				spans := []ui.Span{{Text: row.name + ": ", Color: chrome.Color(colors.FG)}, {Text: row.label, Color: valueColor}}
+				spans := []ui.Span{{Text: row.name + ": ", Color: t.Foreground}, {Text: row.label, Color: valueColor}}
 				if row.expandable {
 					marker := "▾ "
 					if state.collapsed[row.path] {
 						marker = "▸ "
 					}
-					spans = append([]ui.Span{{Text: marker, Color: chrome.Color(colors.FG)}}, spans...)
+					spans = append([]ui.Span{{Text: marker, Color: t.Foreground}}, spans...)
 					button := inspectorButton(rowContext, row.name+": "+row.label).Expanded(!state.collapsed[row.path]).MinWidth(0)
 					button.Children(func() { ui.RichText(rowContext, spans...).Font(inspectorFont()).FontSize(11).LineHeight(0).MinWidth(0) })
 					if button.Clicked() {

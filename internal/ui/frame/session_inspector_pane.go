@@ -7,9 +7,9 @@ import (
 	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // Only presentation preferences are persisted. Raw logs, selected values and
@@ -53,7 +53,10 @@ func sessionInspectorGuide(c *ui.Context, m Model) {
 	if m.DisableDeveloperTools {
 		return
 	}
-	if ui.Button(c, paneLabel("会话日志 · 检查当前会话原始事件", "Session Log · Inspect this session's raw events")).Cursor(ui.CursorPointer).Clicked() && m.RightPaneTab != nil {
+	if coss.Button(c, paneLabel("会话日志 · 检查当前会话原始事件", "Session Log · Inspect this session's raw events"), coss.ButtonOptions{
+		Variant: coss.ButtonOutline,
+		Size:    coss.ButtonSM,
+	}).Clicked() && m.RightPaneTab != nil {
 		*m.RightPaneTab = "session-inspector-log"
 	}
 }
@@ -255,6 +258,7 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 }
 
 func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source session.InspectorSnapshot, state session.ViewState, colors theme.Colors, loadOlder func()) {
+	t := tk(c)
 	source.Chat = inspectorChatRows(source, &p.navigation)
 	objects := inspectorNativeObjects(source, &p.navigation)
 	p.objects = objects
@@ -262,18 +266,18 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 	if p.Mode == "chat-node" {
 		rows = source.Chat
 	}
-	root := ui.Column(c.Key("inspector-root")).Fill().MinHeight(0).Font(theme.RenderPreferences().Interface.Family).FontSize(11).LineHeight(0).TextColor(chrome.Color(colors.FG))
+	root := ui.Column(c.Key("inspector-root")).Fill().MinHeight(0).Font(theme.RenderPreferences().Interface.Family).FontSize(11).LineHeight(0).TextColor(t.Foreground)
 	if root.Shortcut(0, ui.KeyEscape) && p.navigation.Picking {
 		p.navigation.CancelPicking()
 	}
 	root.Children(func() {
 		inspectorToolbar(c, p, source, rows, state.HistoryHasMore, state.HistoryPageBusy, loadOlder, colors)
 		if p.navigation.Picking {
-			ui.Text(c, paneLabel("点击对话中的元素；Esc 取消。", "Choose a node in Chat; Esc cancels.")).FontSize(11).Padding(4, 8).TextColor(chrome.Color(colors.Secondary))
+			ui.Text(c, paneLabel("点击对话中的元素；Esc 取消。", "Choose a node in Chat; Esc cancels.")).FontSize(11).Padding(design.Sp(1), design.Sp(2)).TextColor(t.MutedForeground)
 		}
 
 		if state.HistoryPageErr != nil && state.HistoryPageErr != p.dismissedHistoryError {
-			ui.Row(c).FillWidth().Padding(4, 8).Gap(8).Children(func() {
+			ui.Row(c).FillWidth().Padding(design.Sp(1), design.Sp(2)).Gap(design.Sp(2)).Children(func() {
 				ui.Text(c, state.HistoryPageErr.SentenceText()).Grow(1).FontSize(11)
 				button := inspectorButton(c, paneLabel("关闭错误", "Dismiss error"))
 				button.Children(func() { inspectorText(c, paneLabel("关闭", "Dismiss")) })
@@ -293,7 +297,7 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 		if hadPick {
 			c.Services().Invalidate()
 		}
-		widgets.AckLine(c, "session_inspector_pane:294", p.navigation.Notice)
+		frameAckLine(c, "session_inspector_pane:294", p.navigation.Notice)
 		body := ui.Column(c).Grow(1).MinHeight(0).FillWidth()
 		body.Children(func() {
 			available := root.Bounds().H

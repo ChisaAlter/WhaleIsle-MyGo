@@ -11,7 +11,7 @@ func inspectToolCallNavigation(m Model, captured session.ViewState, pending *pen
 		return nil
 	}
 	return func(callID string) {
-		live := m.Store.Snapshot()
+		live := m.Store.Published().Value
 		if live.SelectedID != captured.SelectedID || live.ComposerHostGeneration != captured.ComposerHostGeneration {
 			return
 		}

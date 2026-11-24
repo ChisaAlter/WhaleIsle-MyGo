@@ -3,6 +3,7 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/design"
 )
 
 // Only the main Conversation owns this target. Sidebar, resource docks and
@@ -28,19 +29,19 @@ func conversationFileDrop(c *ui.Context, m Model, area ui.Element, sessionID str
 		// The browser overlay is full-viewport. Keep the equivalent decoration
 		// bounded to this owner target so resource panes, child views and WebViews
 		// never become a parent-conversation drop surface.
-		mask := ui.RGBA(37, 99, 235, 0.12)
-		border := c.Theme().Accent
+		t := tk(c)
+		mask := t.Primary.Alpha(0.12)
+		border := t.Primary
 		if disabled {
-			mask = ui.RGBA(113, 113, 122, 0.12)
-			border = c.Theme().TextMuted
+			mask = t.MutedForeground.Alpha(0.12)
+			border = t.MutedForeground
 		}
 		ui.Column(c).Absolute().Left(bounds.X).Top(bounds.Y).Width(bounds.W).Height(bounds.H).
-			Padding(24).AlignItems(ui.Center).Justify(ui.Center).
-			Background(mask).Border(2, border).PassThrough().Children(func() {
-			ui.Text(c, label).FontSize(16).TextColor(c.Theme().Text).PassThrough()
+			Padding(design.Sp(6)).AlignItems(ui.Center).Justify(ui.Center).
+			Background(mask).Border(design.Sp(0.5), border).PassThrough().Children(func() {
+			frameText(c, label, design.TextBase, design.WeightMedium, t.Foreground).PassThrough()
 			if !disabled {
-				ui.Text(c, paneLabel("文件将作为当前对话附件添加", "Files will be attached to this conversation")).
-					FontSize(12).TextColor(c.Theme().TextMuted).PassThrough()
+				frameText(c, paneLabel("文件将作为当前对话附件添加", "Files will be attached to this conversation"), design.TextXS, design.WeightNormal, t.MutedForeground).PassThrough()
 			}
 		})
 	})

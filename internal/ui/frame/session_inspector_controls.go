@@ -5,8 +5,7 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 func inspectorTypeCandidates(rows []session.InspectorRecord, query string) []string {
@@ -65,12 +64,13 @@ func (p *SessionInspectorPaneState) confirmFilter(items []string) {
 	p.applyInspectorFilter(query)
 }
 func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord) {
+	t := tk(c)
 	ui.Row(c).Children(func() {
-		anchor := inspectorButton(c, "Inspector type filter").Tooltip(paneLabel("筛选类型", "Filter types")).Size(17, 17).Padding(2).Radius(3).Selected(inspectorFilterQuery(p.Filter) != "").Expanded(p.filterOpen)
-		ink := c.Theme().Text
+		anchor := inspectorButton(c, "Inspector type filter").Tooltip(paneLabel("筛选类型", "Filter types")).Size(17, 17).Padding(design.Sp(0.5)).Radius(design.RadiusXS + design.BorderWidth).Selected(inspectorFilterQuery(p.Filter) != "").Expanded(p.filterOpen)
+		ink := t.Foreground
 		if anchor.Hovered() || inspectorFilterQuery(p.Filter) != "" {
-			anchor.Background(c.Theme().SurfaceHover)
-			ink = c.Theme().Accent
+			anchor.Background(t.Accent)
+			ink = t.Primary
 		}
 		anchor.Children(func() { ui.Icon(c, inspectorFilterIcon).Size(13, 13).TextColor(ink) })
 		if anchor.Clicked() {
@@ -87,9 +87,9 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 		}
 		ui.PopoverBase(c, anchor, &p.filterOpen, func(panel ui.Element) {
 			width, height := c.Size()
-			chrome.PopoverReveal(c, chrome.FrostSurface(panel.Width(290).MaxWidth(width-24).MaxHeight(height-24).Margin(4, 0, 0, 0).Padding(10).Border(.5, c.Theme().Border).FontSize(11).FontWeight(400), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 6))
+			framePopoverPanel(panel.Width(290).MaxWidth(width-24).MaxHeight(height-24).Margin(design.Sp(1), 0, 0, 0).Padding(design.Sp(2.5)).FontSize(11).FontWeight(design.WeightNormal), t, design.RadiusSM)
 			ui.Column(c).FillWidth().Children(func() {
-				input := ui.TextInputBase(c, &p.draft).FillWidth().Label("Inspector type query").Placeholder(paneLabel("输入类型片段，如 delta", "Type a fragment, e.g. delta")).AutoFocus().Padding(5, 6).Border(.5, c.Theme().Border).Radius(4).Background(ui.Transparent).FontSize(11)
+				input := ui.TextInputBase(c, &p.draft).FillWidth().Label("Inspector type query").Placeholder(paneLabel("输入类型片段，如 delta", "Type a fragment, e.g. delta")).AutoFocus().Padding(design.Sp(1.25), design.Sp(1.5)).Border(design.BorderWidth/2, t.Border).Radius(design.RadiusXS * 2).Background(ui.Transparent).FontSize(11)
 				if p.filterQuery != p.draft {
 					p.filterQuery = p.draft
 					p.filterActive = -1
@@ -109,14 +109,14 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 						anchor.Focus()
 					}
 				}
-				ui.Text(c, paneLabel("默认包含匹配（*关键词*）；Enter 确认，Esc 取消。", "Contains matching (*keyword*). Enter confirms; Esc cancels.")).FontSize(11).FontWeight(400).Margin(6, 0).TextColor(c.Theme().TextMuted)
+				ui.Text(c, paneLabel("默认包含匹配（*关键词*）；Enter 确认，Esc 取消。", "Contains matching (*keyword*). Enter confirms; Esc cancels.")).FontSize(11).FontWeight(design.WeightNormal).Margin(design.Sp(1.5), 0).TextColor(t.MutedForeground)
 				if len(items) == 0 {
 					ui.Text(c, paneLabel("没有匹配候选，仍可确认当前关键词。", "No suggestions. You can still apply this keyword.")).FontSize(11)
 				} else {
 					p.filterList.Key = func(i int) any { return items[i] }
 					hoveredItem := -1
 					ui.List(c, &p.filterList, len(items), func(i int) {
-						row := inspectorButton(c, items[i]).FillWidth().Padding(4, 6).Selected(i == p.filterActive).Tooltip(items[i])
+						row := inspectorButton(c, items[i]).FillWidth().Padding(design.Sp(1), design.Sp(1.5)).Selected(i == p.filterActive).Tooltip(items[i])
 						if row.Hovered() {
 							hoveredItem = i
 							if p.filterHovered != i {
@@ -124,10 +124,10 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 								p.filterActive = i
 							}
 						}
-						ink := c.Theme().Text
+						ink := t.Foreground
 						if i == p.filterActive || (p.filterActive < 0 && row.Hovered()) {
-							row.Background(c.Theme().SurfaceHover)
-							ink = c.Theme().Accent
+							row.Background(t.Accent)
+							ink = t.Primary
 						}
 						row.Children(func() { inspectorText(c, items[i]).Grow(1).TextColor(ink) })
 						if row.Clicked() {
@@ -138,11 +138,11 @@ func inspectorTypeFilter(c *ui.Context, p *SessionInspectorPaneState, rows []ses
 					p.filterHovered = hoveredItem
 				}
 				action := func(label string) ui.Element {
-					button := inspectorButton(c, label).Padding(3, 6).Border(.5, c.Theme().Border).Radius(4)
+					button := inspectorButton(c, label).Padding(design.Sp(0.75), design.Sp(1.5)).Border(design.BorderWidth/2, t.Border).Radius(design.RadiusXS * 2)
 					button.Children(func() { inspectorText(c, label) })
 					return button
 				}
-				ui.Row(c).Gap(8).Margin(8, 0, 0, 0).Justify(ui.End).Children(func() {
+				ui.Row(c).Gap(design.Sp(2)).Margin(design.Sp(2), 0, 0, 0).Justify(ui.End).Children(func() {
 					if action(paneLabel("清空", "Clear")).Clicked() {
 						p.draft = ""
 						p.filterActive = -1
@@ -220,10 +220,11 @@ func inspectorDetailsDivider(c *ui.Context, p *SessionInspectorPaneState, availa
 		rail.Focus()
 	}
 	p.dragInspectorDetails(dy, available, held)
+	tRail := tk(c)
 	rail.Draw(func(painter *ui.Painter, r ui.Rect) {
-		color := c.Theme().Border
+		color := tRail.Border
 		if held || rail.Hovered() {
-			color = c.Theme().Accent
+			color = tRail.Primary
 		}
 		painter.Fill(r, color, 0)
 		if rail.FocusVisible() {
