@@ -298,3 +298,39 @@ func TestTokensFollowThemeAccent(t *testing.T) {
 		t.Fatalf("fallback fg %v", fallback.PrimaryForeground)
 	}
 }
+
+func TestScrollAreaScrollbarDragAndGutter(t *testing.T) {
+	var st ui.ScrollState
+	var rowBounds ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Children(func() {
+			ScrollArea(c, ScrollAreaOptions{State: &st}, func() {
+				for i := 0; i < 20; i++ {
+					row := ui.Row(c.Key(i)).FillWidth().Height(24)
+					if i == 0 {
+						rowBounds = row.Bounds()
+					}
+					row.Children(func() {
+						ui.Text(c, "Item")
+					})
+				}
+			}).Size(200, 120)
+		})
+	}, 220, 140)
+	tt.Frame()
+	tt.Frame()
+	if st.MaxY <= 0 {
+		t.Fatalf("expected scrollable overflow, got MaxY=%v", st.MaxY)
+	}
+	if rowBounds.X+rowBounds.W > 200-scrollAreaGutter+0.5 {
+		t.Fatalf("expected trailing gutter of %v DIP, row right=%v", scrollAreaGutter, rowBounds.X+rowBounds.W)
+	}
+	// Hover then drag the native vertical scrollbar thumb near the right edge.
+	tt.Move(194, 15)
+	tt.Press(194, 15)
+	tt.Move(194, 90)
+	tt.Release(194, 90)
+	if st.Y <= 0 {
+		t.Fatalf("expected dragging scrollbar thumb to scroll vertically, got Y=%v", st.Y)
+	}
+}

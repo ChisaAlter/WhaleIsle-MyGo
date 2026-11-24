@@ -97,6 +97,7 @@ type buttonLook struct {
 	sh             shadowList
 	d              deco
 	underline      bool
+	hasRing        bool
 }
 
 func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
@@ -105,7 +106,7 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 	pressed := s.Has(StatePressed)
 	disabled := s.Has(StateDisabled)
 	hover := s.Has(StateHover)
-	ring := b2f(s.Has(StateFocusVisible))
+	focus := s.Has(StateFocusVisible)
 	filled := func(fill, fg ui.Color) {
 		l.bg, l.border, l.fg = fill, fill, fg
 		if hover || pressed {
@@ -118,7 +119,7 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 		default:
 			// not-disabled:inset-shadow white/16 + shadow-xs tinted /24.
 			l.sh.inset(0, 1, 0, 0, white.Alpha(0.16))
-			l.sh.ring(t, ring)
+			l.hasRing = focus
 			l.sh.scale(design.ShadowXs, fill, 0.24)
 		}
 	}
@@ -135,7 +136,7 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 			}
 		}
 		if !disabled && !pressed {
-			l.sh.ring(t, ring)
+			l.hasRing = focus
 			l.sh.scale(design.ShadowXs, black, 0.05)
 			l.d.highlight(t, 0.04, 0.06)
 		} else if dark && !disabled {
@@ -163,17 +164,17 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 		case hover:
 			l.bg = t.Secondary.Alpha(0.9)
 		}
-		l.sh.ring(t, ring)
+		l.hasRing = focus
 	case ButtonGhost:
 		l.fg = t.Foreground
 		if hover || pressed {
 			l.bg = t.Accent
 		}
-		l.sh.ring(t, ring)
+		l.hasRing = focus
 	case ButtonLink:
 		l.fg = t.Foreground
 		l.underline = hover || pressed
-		l.sh.ring(t, ring)
+		l.hasRing = focus
 	}
 	return l
 }
@@ -205,11 +206,11 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 		s |= StateLoading
 	}
 	l := resolveButton(t, o.Variant, s)
-	l.sh.n = ringFade(b, &l.sh, s)
 	b.Background(l.bg)
 	border(b, l.border, l.bg)
 	joined(b, m.Radius, l.border)
 	l.d.border, l.d.radius = design.BorderWidth, m.Radius
+	l.d.setRing(c, b, t, l.hasRing, t.Ring)
 	finish(b, &l.sh, &l.d)
 	disabledLook(b, s)
 	fg := l.fg
@@ -240,21 +241,6 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 		}
 	})
 	return b
-}
-
-// ringFade eases the focus ring layers of sh in and out; it returns the
-// layer count unchanged (the ring alpha is folded into the colors).
-func ringFade(e ui.Element, sh *shadowList, s State) int {
-	amt := ringAmount(e, s.Has(StateFocusVisible))
-	if amt >= 1 || amt <= 0 {
-		return sh.n
-	}
-	for i := 0; i < sh.n; i++ {
-		if l := &sh.l[i]; l.Spread > 0 && l.Blur == 0 && l.X == 0 && l.Y == 0 && !l.Inset {
-			l.Color = l.Color.Alpha(amt)
-		}
-	}
-	return sh.n
 }
 
 func firstNonEmpty(s ...string) string {

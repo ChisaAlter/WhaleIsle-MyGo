@@ -660,19 +660,16 @@ type ScrollAreaOptions struct {
 }
 
 type scrollMemo struct {
-	st       ui.ScrollState
-	lastY    float32
-	lastX    float32
-	moved    int64
-	hoverAmt float32
+	st ui.ScrollState
 }
 
-// ScrollArea is coss's ScrollArea: content that scrolls with coss's own
-// thumb — 6 DIPs, foreground/20, fully rounded, 4 DIPs from the edges —
-// shown while the pointer is over the area or it scrolls, fading over
-// 100 ms and leaving 300 ms after. Size it with Height/Fill.
+const scrollAreaGutter float32 = 12
+
+// ScrollArea is coss's ScrollArea: a scrollable container using native
+// interactive scrollbars (draggable thumb & track paging) with a dedicated
+// trailing gutter on vertical areas so thumbs never overlap trailing action
+// controls such as row overflow menus. Size it with Height/Fill.
 func ScrollArea(c *ui.Context, o ScrollAreaOptions, fn func()) ui.Element {
-	t := tok(c)
 	withKey(c, o.Key)
 	var sc ui.Element
 	if o.Horizontal {
@@ -680,49 +677,26 @@ func ScrollArea(c *ui.Context, o ScrollAreaOptions, fn func()) ui.Element {
 	} else {
 		sc = ui.Scroll(c)
 	}
-	memo := ui.Local(sc, "coss.scroll", func() scrollMemo { return scrollMemo{} })
 	st := o.State
 	if st == nil {
+		memo := ui.Local(sc, "coss.scroll", func() scrollMemo { return scrollMemo{} })
 		st = &memo.st
 	}
-	sc.TrackScroll(st).ScrollbarsVisible(false)
-	now := c.Now().UnixMilli()
-	if st.Y != memo.lastY || st.X != memo.lastX {
-		memo.lastY, memo.lastX, memo.moved = st.Y, st.X, now
+	sc.TrackScroll(st)
+	if forced.Has(StateHover) {
+		sc.ScrollbarsVisible(true)
 	}
-	_, _, over := sc.PointerPosition()
-	show := over || now-memo.moved < 300 || forced.Has(StateHover)
-	amt := b2f(show)
-	if forced == 0 {
-		amt = sc.AnimateWith("coss.thumb", amt, 100*1e6, design.EaseInOut)
-		if !over && now-memo.moved < 300 {
-			c.After(300 * 1e6)
+	if o.Horizontal {
+		sc.Children(fn)
+	} else {
+		gutter := float32(0)
+		if st.MaxY > 0.5 || forced.Has(StateHover) {
+			gutter = scrollAreaGutter
 		}
+		sc.Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Padding(0, gutter, 0, 0).Children(fn)
+		})
 	}
-	thumbC := t.Foreground.Alpha(0.2 * amt)
-	x, y, maxX, maxY, horiz := st.X, st.Y, st.MaxX, st.MaxY, o.Horizontal
-	sc.Children(fn)
-	sc.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if thumbC.A == 0 {
-			return
-		}
-		const w, m = 6, 4
-		if horiz {
-			if maxX <= 0 {
-				return
-			}
-			track := r.W - 2*m
-			th := max(track*r.W/(r.W+maxX), 16)
-			p.Fill(ui.Rect{X: r.X + m + (track-th)*x/maxX, Y: r.Y + r.H - m - w, W: th, H: w}, thumbC, w/2)
-			return
-		}
-		if maxY <= 0 {
-			return
-		}
-		track := r.H - 2*m
-		th := max(track*r.H/(r.H+maxY), 16)
-		p.Fill(ui.Rect{X: r.X + r.W - m - w, Y: r.Y + m + (track-th)*y/maxY, W: w, H: th}, thumbC, w/2)
-	})
 	return sc
 }
 

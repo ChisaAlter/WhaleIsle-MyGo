@@ -1,6 +1,8 @@
 package coss
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
@@ -143,9 +145,9 @@ func (s *shadowList) hasInset() bool {
 }
 
 // deco paints what CSS draws above a box's background and below its
-// content: inset shadows (inside the padding box) and the ::before overlay's
-// 1 DIP highlight shadow (radius outer − 1), which coss puts on almost every
-// bordered control.
+// content: inset shadows (inside the padding box), the ::before overlay's
+// 1 DIP highlight shadow (radius outer − 1), and any paint-only focus ring
+// animation so focus transitions never trigger full-tree rebuilds.
 type deco struct {
 	insets  shadowList
 	border  float32
@@ -156,9 +158,92 @@ type deco struct {
 	// fill paints an extra fill over the padding box (autofill tints,
 	// pressed washes layered over a base).
 	fill ui.Color
+	// ring holds paint-only focus ring state when active or fading out.
+	ring      *focusRingState
+	ringColor ui.Color
+	ringBg    ui.Color
+	ringForce float32
+}
+
+type focusRingState struct {
+	init   bool
+	target bool
+	from   float32
+	start  time.Time
+}
+
+func (f *focusRingState) update(now time.Time, on bool) {
+	if !f.init {
+		f.init = true
+		f.target = on
+		f.from = b2f(on)
+		f.start = time.Time{}
+		return
+	}
+	if f.target != on {
+		f.from = f.eval(now)
+		f.target = on
+		f.start = now
+	}
+}
+
+func (f *focusRingState) eval(now time.Time) float32 {
+	to := b2f(f.target)
+	if f.start.IsZero() {
+		return to
+	}
+	elapsed := now.Sub(f.start)
+	if elapsed <= 0 {
+		return f.from
+	}
+	if elapsed >= design.DurationDefault {
+		return to
+	}
+	p := float32(elapsed) / float32(design.DurationDefault)
+	eased := design.EaseInOut(p)
+	return f.from + (to-f.from)*eased
+}
+
+func (f *focusRingState) animating(now time.Time) bool {
+	if f.start.IsZero() {
+		return false
+	}
+	return now.Sub(f.start) < design.DurationDefault
+}
+
+func (d *deco) setRing(c *ui.Context, e ui.Element, t *design.Tokens, on bool, ringColor ui.Color) {
+	if ringColor.A == 0 {
+		ringColor = t.Ring
+	}
+	d.ringColor = ringColor
+	d.ringBg = t.Background
+	if forced != 0 {
+		d.ringForce = b2f(on)
+		return
+	}
+	now := c.Now()
+	st := ui.Local(e, "coss.ring.paint", func() focusRingState { return focusRingState{} })
+	st.update(now, on)
+	if on || st.eval(now) > 0 || st.animating(now) {
+		d.ring = st
+	}
 }
 
 func (d *deco) paint(p *ui.Painter, r ui.Rect) {
+	if d.ring != nil || d.ringForce > 0 {
+		amt := d.ringForce
+		if d.ring != nil {
+			now := p.Now()
+			amt = d.ring.eval(now)
+			if d.ring.animating(now) {
+				p.After(16 * time.Millisecond)
+			}
+		}
+		if amt > 0 {
+			p.Shadow(r, d.radius, 0, 0, 0, design.RingOffset+design.RingWidth, d.ringColor.Alpha(amt))
+			p.Shadow(r, d.radius, 0, 0, 0, design.RingOffset, d.ringBg.Alpha(amt))
+		}
+	}
 	pad := ui.Rect{X: r.X + d.border, Y: r.Y + d.border, W: r.W - 2*d.border, H: r.H - 2*d.border}
 	inner := max(d.radius-d.border, 0)
 	if d.fill.A > 0 {
@@ -182,7 +267,7 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 }
 
 func (d *deco) active() bool {
-	return d.fill.A > 0 || d.insets.hasInset() || d.before && d.beforeC.A > 0
+	return d.ring != nil || d.ringForce > 0 || d.fill.A > 0 || d.insets.hasInset() || d.before && d.beforeC.A > 0
 }
 
 // highlight sets the ::before shadow: 0 1px black/4% in light, 0 -1px
@@ -218,13 +303,10 @@ func para(c *ui.Context, s string, ts design.TextStyle, weight int, col ui.Color
 	return ui.Text(c, s).FontSize(ts.Size).FixedLineHeight(ts.LineHeight).FontWeight(weight).TextColor(col)
 }
 
-// ringAmount animates a focus ring in and out over the part's box-shadow
-// transition.
-func ringAmount(e ui.Element, on bool) float32 {
-	if forced != 0 {
-		return b2f(on)
-	}
-	return e.AnimateWith("coss.ring", b2f(on), design.DurationDefault, design.EaseInOut)
+// ringAmount returns the static ring opacity without scheduling a rebuild
+// animation; interactive controls paint animated focus rings via deco.setRing.
+func ringAmount(_ ui.Element, on bool) float32 {
+	return b2f(on)
 }
 
 // isDisabled folds the gallery's forced disabled state into a component's

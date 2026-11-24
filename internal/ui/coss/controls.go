@@ -23,7 +23,7 @@ type CheckOptions struct {
 // boxLook is the frame of checkboxes and radios: 16 DIPs, border input,
 // background (input/32 in dark unless checked), shadow-xs/5 and the
 // ::before highlight while unchecked, valid and enabled.
-func boxLook(e ui.Element, t *design.Tokens, s State, radius float32) {
+func boxLook(c *ui.Context, e ui.Element, t *design.Tokens, s State, radius float32) {
 	checked := s.Has(StateChecked)
 	bg := t.Background
 	if t.IsDark() && !checked {
@@ -39,18 +39,14 @@ func boxLook(e ui.Element, t *design.Tokens, s State, radius float32) {
 	}
 	var sh shadowList
 	var d deco
-	amt := ringAmount(e, focus)
-	if amt > 0 {
-		ring := t.Ring
-		if invalid {
-			ring = t.Destructive.Alpha(0.48)
-			if t.IsDark() {
-				ring = t.Destructive.Alpha(0.24)
-			}
+	ringColor := t.Ring
+	if invalid {
+		ringColor = t.Destructive.Alpha(0.48)
+		if t.IsDark() {
+			ringColor = t.Destructive.Alpha(0.24)
 		}
-		sh.add(0, 0, 0, design.RingOffset, t.Background.Alpha(amt))
-		sh.add(0, 0, 0, design.RingOffset+design.RingWidth, ring.Alpha(amt))
 	}
+	d.setRing(c, e, t, focus, ringColor)
 	if !disabled && !checked && !invalid {
 		sh.scale(design.ShadowXs, black, 0.05)
 		d.highlight(t, 0.04, 0.06)
@@ -89,7 +85,7 @@ func Checkbox(c *ui.Context, checked *bool, label string, o CheckOptions) ui.Ele
 	}
 	row.Children(func() {
 		box := ui.Box(c).Center().Shrink(0)
-		boxLook(box, t, s, 4)
+		boxLook(c, box, t, s, 4)
 		if s.Has(StateDisabled) {
 			box.Opacity(design.OpacityDisabled)
 		}
@@ -142,7 +138,7 @@ func Radio[T comparable](c *ui.Context, selected *T, value T, label string, o Ch
 	}
 	row.Children(func() {
 		box := ui.Box(c).Center().Shrink(0)
-		boxLook(box, t, s, design.RadiusFull)
+		boxLook(c, box, t, s, design.RadiusFull)
 		if s.Has(StateDisabled) {
 			box.Opacity(design.OpacityDisabled)
 		}
@@ -179,8 +175,10 @@ func Switch(c *ui.Context, on *bool, label string, o CheckOptions) ui.Element {
 			track.Background(t.Input)
 		}
 		var sh shadowList
-		sh.ring(t, ringAmount(track, s.Has(StateFocusVisible)))
-		finish(track, &sh, nil)
+		var d deco
+		d.radius = design.RadiusFull
+		d.setRing(c, track, t, s.Has(StateFocusVisible), t.Ring)
+		finish(track, &sh, &d)
 		if s.Has(StateDisabled) {
 			track.Opacity(design.OpacityDisabled)
 		}
@@ -286,7 +284,7 @@ func Toggle(c *ui.Context, on *bool, label string, o ToggleOptions) ui.Element {
 	fg := t.Foreground
 	var sh shadowList
 	var d deco
-	sh.ring(t, ringAmount(e, s.Has(StateFocusVisible)))
+	d.setRing(c, e, t, s.Has(StateFocusVisible), t.Ring)
 	if s.Has(StateHover) {
 		bg = t.Accent
 	}
