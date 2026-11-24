@@ -84,7 +84,7 @@ func installDialog(c *ui.Context, p *page) {
 		footer = func() { installFooter(c, i, a, s.Busy) }
 	}
 	coss.Dialog(c, &open, coss.DialogOptions{Key: "plugin-manager-install", Title: title, Description: description, MaxWidth: pluginDialogWidth,
-		FooterVariant: coss.FooterBare, DismissDisabled: i.Phase == "applying" || i.Phase == "cancelling", Footer: footer}, func() {
+		FooterVariant: coss.FooterBare, Footer: footer}, func() {
 		// The spec screen's footer is the dialog's largest chrome: the warn
 		// note and the 40 DIP action in their 16/24 padding, under the
 		// title+description header.
