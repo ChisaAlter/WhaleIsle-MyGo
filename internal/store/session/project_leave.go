@@ -79,10 +79,13 @@ func (s *Store) waitProjectLeaveReady(ctx context.Context, host uint64, id strin
 				return errors.New("Project Lead exit selected another Project")
 			}
 		}
-		if s.historyError != "" {
-			message := s.historyError
+		if s.historyFault != nil {
+			err := s.historyErr
+			if err == nil {
+				err = errors.New(s.historyFault.SentenceText())
+			}
 			s.mu.Unlock()
-			return errors.New(message)
+			return err
 		}
 		if s.historyReady && !s.historyLoading {
 			s.mu.Unlock()

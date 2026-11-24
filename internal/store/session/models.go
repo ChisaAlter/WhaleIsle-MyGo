@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -268,15 +270,7 @@ func (s *Store) RefreshModelCatalog(ctx context.Context) {
 			s.mu.Unlock()
 			return
 		}
-		oldErr, newErr := "", ""
-		if s.modelsErr != nil {
-			oldErr = s.modelsErr.Error()
-		}
-		if err != nil {
-			newErr = err.Error()
-		}
-		changed := oldErr != newErr
-		s.modelsErr = err
+		changed := s.setModelsErrLocked(err)
 		if err == nil {
 			options := flattenModelCatalog(cat)
 			selection := cloneModelSelection(cat.Default)
@@ -285,10 +279,16 @@ func (s *Store) RefreshModelCatalog(ctx context.Context) {
 				failures = append(failures, f.Name+": "+f.Message)
 			}
 			warning := strings.Join(failures, "; ")
+			var warningFault *state.Fault
+			if warning != "" {
+				warningFault = state.FaultOf(errors.New(warning))
+				log.Printf("[session] modelCatalog failures: %s", warning)
+			}
 			changed = changed || !s.modelState.CatalogReady || !reflect.DeepEqual(s.modelOptions, options) || !reflect.DeepEqual(s.modelState.Default, selection) || s.modelState.CatalogWarning != warning
 			s.modelOptions, s.modelState.Default = options, selection
 			s.modelState.CatalogReady = true
 			s.modelState.CatalogWarning = warning
+			s.modelState.CatalogWarningFault = warningFault
 		}
 		if changed {
 			s.invalidateViewLocked()
@@ -411,7 +411,7 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 	operation := s.modelState.Operation
 	startSeq := s.modelState.Projection.Seq
 	s.modelState.Pending = true
-	s.modelsErr = nil
+	s.setModelsErrLocked(nil)
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
@@ -463,7 +463,7 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 				err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostHasNotReturnedTheCurrentSessio))
 			}
 		}
-		s.modelsErr = err
+		s.setModelsErrLocked(err)
 		if err != nil {
 			s.lastAction = err.Error()
 		} else {

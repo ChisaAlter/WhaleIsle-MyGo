@@ -193,7 +193,7 @@ func TestLoadEarlierHistoryRejectsDiscontinuousPagesWithoutChangingWindow(t *tes
 			var once sync.Once
 			s.Attach(client, func() {
 				v := s.Snapshot()
-				if !v.HistoryPageBusy && v.HistoryPageErr != "" {
+				if !v.HistoryPageBusy && v.HistoryPageErr != nil {
 					once.Do(func() { close(done) })
 				}
 			})
@@ -204,7 +204,7 @@ func TestLoadEarlierHistoryRejectsDiscontinuousPagesWithoutChangingWindow(t *tes
 			s.LoadEarlierHistory(context.Background())
 			wait(t, done)
 			v := s.Snapshot()
-			if len(v.Messages) != 1 || v.Messages[0].Body != "retained" || v.HistoryPageErr == "" || !v.HistoryHasMore || s.historyThroughSeq != 5 {
+			if len(v.Messages) != 1 || v.Messages[0].Body != "retained" || v.HistoryPageErr == nil || !v.HistoryHasMore || s.historyThroughSeq != 5 {
 				t.Fatalf("invalid page changed current window: %+v", v)
 			}
 		})

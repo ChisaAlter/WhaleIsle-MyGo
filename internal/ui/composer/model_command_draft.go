@@ -30,7 +30,7 @@ func (d *DraftState) HandleNativeCommand(s session.ViewState, action func(Native
 		return false
 	}
 	if (name == "permission" || name == "feedback") && !s.SlashCommandsKnown {
-		d.Error = s.SlashCommandsErr
+		d.Error = s.SlashCommandsErr.SentenceText()
 		if d.Error == "" {
 			d.Error = composerText("正在加载命令目录…", "Loading command catalog…")
 		}

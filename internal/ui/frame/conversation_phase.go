@@ -2,10 +2,10 @@ package frame
 
 import (
 	"context"
-	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -75,7 +75,7 @@ func conversationPhase(snap session.ViewState, interactions bool) conversationLa
 	}
 	// An authoritative blank summary outranks the transport error: the Hero
 	// stays and the shared error row above it carries the failure.
-	if snap.HistoryError != "" && !snap.SelectedSummaryBlank {
+	if snap.HistoryError != nil && !snap.SelectedSummaryBlank {
 		return conversationActive
 	}
 	if snap.SelectedID != "" && !snap.HistoryReady && !snap.SelectedSummaryBlank {
@@ -92,11 +92,11 @@ func conversationHasTurnContent(snap session.ViewState) bool {
 }
 
 func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, muted ui.Color) {
-	if snap.HistoryError == "" {
+	if snap.HistoryError == nil {
 		return
 	}
 	message := paneLabel("无法加载此会话历史", "Could not load this conversation history")
-	if strings.Contains(snap.HistoryError, "not marked ignorable") || strings.Contains(snap.HistoryError, "requires a supported versioned catalog fact") {
+	if snap.HistoryError.Cause == errcopy.CauseRuntimeMismatch {
 		message = paneLabel("当前 Host 无法读取此会话的格式", "This Host cannot read the format of this conversation")
 	}
 	ui.Row(c).Key("conversation-history-error").FillWidth().Wrap().AlignItems(ui.Center).Gap(8).Padding(8, 16).Children(func() {
@@ -105,7 +105,7 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 			m.Store.FollowSelected(context.Background())
 		}
 		if ui.Button(c, paneLabel("复制错误详情", "Copy error details")).Key("conversation-history-copy-error").Clicked() {
-			mygo.Clipboard.WriteText(snap.HistoryError)
+			mygo.Clipboard.WriteText(snap.HistoryError.SentenceText())
 		}
 	})
 }

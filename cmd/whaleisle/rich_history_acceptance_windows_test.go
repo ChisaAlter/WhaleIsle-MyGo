@@ -93,7 +93,7 @@ func nativeRichHistory() error {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			if snap.HistoryError != "" || snap.PromptBusy {
+			if snap.HistoryError != nil || snap.PromptBusy {
 				finish(fmt.Errorf("saved state was not an idle ready history"))
 				return
 			}

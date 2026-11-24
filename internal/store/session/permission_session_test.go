@@ -72,10 +72,10 @@ func TestPermissionComposerUsesSessionCommandAndProjection(t *testing.T) {
 				t.Fatalf("commands = %d", commands.Load())
 			}
 			if fail {
-				if got.SelectedPermission != "Read" || got.PermissionsErr == "" || reads.Load() != 0 {
+				if got.SelectedPermission != "Read" || got.PermissionsErr == nil || reads.Load() != 0 {
 					t.Fatalf("refusal replaced current permission: %+v", got)
 				}
-			} else if got.SelectedPermission != "Write" || got.PermissionsErr != "" || reads.Load() != 1 {
+			} else if got.SelectedPermission != "Write" || got.PermissionsErr != nil || reads.Load() != 1 {
 				t.Fatalf("projection not reflected: %+v", got)
 			}
 		})

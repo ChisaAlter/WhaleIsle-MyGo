@@ -64,7 +64,7 @@ func (s *Store) startSessionSearch(ctx context.Context, query string, expected u
 	}
 	s.searchSeq++
 	gen, client := s.searchSeq, s.client
-	visibleChange := len(s.searchResults) > 0 || len(s.searchHits) > 0 || s.searchHasMore || s.searchRPCQuery != "" || s.searchErr != nil
+	visibleChange := len(s.searchResults) > 0 || len(s.searchHits) > 0 || s.searchHasMore || s.searchRPCQuery != "" || s.searchFault != nil
 	visibleChange = visibleChange || s.searchLoading != (client != nil) || s.searchUseLocal != (client == nil)
 	if visibleChange {
 		s.invalidateViewLocked()
@@ -73,7 +73,7 @@ func (s *Store) startSessionSearch(ctx context.Context, query string, expected u
 	s.searchHits = nil
 	s.searchHasMore = false
 	s.searchRPCQuery = ""
-	s.searchErr = nil
+	s.setSearchErrLocked(nil)
 	if client == nil {
 		s.searchLoading = false
 		s.searchUseLocal = true
@@ -111,14 +111,14 @@ func (s *Store) runSessionSearch(ctx context.Context, client *dsh.Client, gen ui
 	s.searchLoading = false
 	if err != nil {
 		s.searchUseLocal = true
-		s.searchErr = err
+		s.setSearchErrLocked(err)
 		s.searchRPCQuery = ""
 		s.searchHits = nil
 		s.searchResults = nil
 		s.searchHasMore = false
 	} else {
 		s.searchUseLocal = false
-		s.searchErr = nil
+		s.setSearchErrLocked(nil)
 		s.searchRPCQuery = query
 		s.searchResults = append([]api.SessionSearchValueItemsItem(nil), out.Items...)
 		s.searchHasMore = out.HasMore
@@ -147,7 +147,7 @@ func (s *Store) clearSearchLocked() {
 	s.searchSeq++
 	s.searchLoading = false
 	s.searchUseLocal = false
-	s.searchErr = nil
+	s.setSearchErrLocked(nil)
 	s.searchRPCQuery = ""
 	s.searchHits = nil
 	s.searchInput = ""

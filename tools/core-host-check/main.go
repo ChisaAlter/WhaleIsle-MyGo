@@ -366,15 +366,15 @@ func run(stage, base, resumeRun string, contributionsOnly bool, r *report) error
 		store.Select(id)
 		if err = await(ctx, func() (bool, error) {
 			v := store.Snapshot()
-			if v.HistoryError != "" {
-				return false, errors.New(v.HistoryError)
+			if v.HistoryError != nil {
+				return false, errors.New(v.HistoryError.SentenceText())
 			}
 			return v.SelectedID == id && v.HistoryReady && !v.HistoryLoading, nil
 		}); err != nil {
 			return err
 		}
 		v := store.Snapshot()
-		if len(v.Messages) != 1 || digest([]byte(v.Messages[0].Body)) != digest([]byte(fixtureText)) || v.PromptBusy || v.GoalReadError != "" {
+		if len(v.Messages) != 1 || digest([]byte(v.Messages[0].Body)) != digest([]byte(fixtureText)) || v.PromptBusy || v.GoalReadError != nil {
 			return errors.New("actual Store history projection mismatch")
 		}
 		r.Checks = append(r.Checks, check{Name: fmt.Sprintf("fixture-%d-store-follow-projection", i), Pass: true, Count: len(v.Messages), SHA256: digest([]byte(v.Messages[0].Body))})

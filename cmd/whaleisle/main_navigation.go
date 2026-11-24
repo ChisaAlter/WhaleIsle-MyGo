@@ -94,7 +94,7 @@ func (s *mainState) withMainNavigation(c *ui.Context, enabled bool, m frame.Mode
 	s.bindShellParity(c, &m, win)
 	sessions := m.Store
 	if m.ActivePanel == "" && sessions != nil {
-		snap := sessions.RenderSnapshot()
+		snap := sessions.Published().Value
 		if strings.HasPrefix(snap.SelectedID, "session-whale-") {
 			m.ActivePanel = "assistant"
 		} else if snap.SelectedID != "" {

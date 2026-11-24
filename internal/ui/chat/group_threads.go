@@ -36,8 +36,8 @@ func groupThreadsView(c *ui.Context, m Model) {
 		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupEarlier), buttonGhost, false).Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
 			m.OnLoadEarlier()
 		}
-		if m.Snapshot.HistoryPageErr != "" {
-			ui.Text(c, m.Snapshot.HistoryPageErr).TextColor(muted)
+		if m.Snapshot.HistoryPageErr != nil {
+			ui.Text(c, m.Snapshot.HistoryPageErr.SentenceText()).TextColor(muted)
 		}
 		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(12).Gap(12).Children(func() {

@@ -269,9 +269,9 @@ func viewWithColors(c *ui.Context, m Model, colors theme.Colors) {
 		if !inputDisabled && kind == SuggestSlash && !m.Editing {
 			if m.Snapshot.SlashCommandsLoading {
 				ui.Text(c, i18n.T(i18n.KeyCommandCatalogLoading)).FontSize(12).TextColor(muted).Padding(4, 8)
-			} else if m.Snapshot.SlashCommandsErr != "" {
+			} else if m.Snapshot.SlashCommandsErr != nil {
 				ui.Row(c).FillWidth().Gap(8).Padding(4, 8).Children(func() {
-					ui.Text(c, m.Snapshot.SlashCommandsErr).FontSize(12).TextColor(muted).Grow(1)
+					ui.Text(c, m.Snapshot.SlashCommandsErr.SentenceText()).FontSize(12).TextColor(muted).Grow(1)
 					if m.OnRetrySlashCommands != nil && ui.Button(c, i18n.T(i18n.KeyCommandCatalogRetry)).FontSize(11).Clicked() {
 						m.OnRetrySlashCommands()
 					}
@@ -844,8 +844,8 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, panel
 			if len(items) == 0 {
 				msg := i18n.T(i18n.KeyComposerSkillsEmpty)
 				filterEmpty := m.SkillsFilter == nil || strings.TrimSpace(*m.SkillsFilter) == ""
-				if m.Snapshot.SkillsErr != "" && filterEmpty && len(m.Skills) == 0 {
-					msg = m.Snapshot.SkillsErr
+				if m.Snapshot.SkillsErr != nil && filterEmpty && len(m.Skills) == 0 {
+					msg = m.Snapshot.SkillsErr.SentenceText()
 				}
 				if len(m.SkillHubHits) == 0 {
 					ui.Text(c, msg).FontSize(11).TextColor(muted).Padding(6, 8, 6, 8)

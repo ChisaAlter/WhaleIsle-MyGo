@@ -189,7 +189,7 @@ func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *
 		Producer: follow,
 		State: func() string {
 			st := s.Snapshot()
-			return fmt.Sprintf("ready=%v reconnecting=%v error=%q messages=%d", st.HistoryReady, st.HistoryReconnecting, st.HistoryError, len(st.Messages))
+			return fmt.Sprintf("ready=%v reconnecting=%v error=%v messages=%d", st.HistoryReady, st.HistoryReconnecting, st.HistoryError, len(st.Messages))
 		},
 		Budget: 3 * time.Second,
 	}, func() bool {
@@ -198,8 +198,8 @@ func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *
 	})
 
 	mid := s.Snapshot()
-	if mid.HistoryError != "" || len(mid.Messages) != 2 || !mid.HistoryReady {
-		t.Fatalf("carrier loss flashed error or cleared history: err=%q msgs=%d ready=%v", mid.HistoryError, len(mid.Messages), mid.HistoryReady)
+	if mid.HistoryError != nil || len(mid.Messages) != 2 || !mid.HistoryReady {
+		t.Fatalf("carrier loss flashed error or cleared history: err=%+v msgs=%d ready=%v", mid.HistoryError, len(mid.Messages), mid.HistoryReady)
 	}
 
 	// Simulate an older page (seq 8..9) already loaded to the bottom (hasMore=false) before reconnect snapshot arrives.
@@ -218,7 +218,7 @@ func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *
 		Producer: follow,
 		State: func() string {
 			st := s.Snapshot()
-			return fmt.Sprintf("reconnecting=%v error=%q hasMore=%v messages=%+v", st.HistoryReconnecting, st.HistoryError, st.HistoryHasMore, st.Messages)
+			return fmt.Sprintf("reconnecting=%v error=%v hasMore=%v messages=%+v", st.HistoryReconnecting, st.HistoryError, st.HistoryHasMore, st.Messages)
 		},
 		Budget: 3 * time.Second,
 	}, func() bool {
@@ -226,8 +226,8 @@ func TestFollowCarrierLostReconnectsNonDestructivelyAndPreservesEarlierPages(t *
 		return !st.HistoryReconnecting && len(st.Messages) == 5 && st.Messages[4].Seq == 12
 	})
 	merged := s.Snapshot()
-	if merged.HistoryError != "" {
-		t.Fatalf("unexpected historyError after reconnect: %q", merged.HistoryError)
+	if merged.HistoryError != nil {
+		t.Fatalf("unexpected historyError after reconnect: %+v", merged.HistoryError)
 	}
 	if merged.HistoryHasMore {
 		t.Fatal("reconnect snapshot clobbered pre-existing HistoryHasMore=false paging depth")

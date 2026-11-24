@@ -255,7 +255,7 @@ func runRealModelFlow(stage, base, secret, ledger string, real, preflight bool, 
 	st.Select(id)
 	if err := await(ctx, func() (bool, error) {
 		v := st.Snapshot()
-		if v.HistoryError != "" {
+		if v.HistoryError != nil {
 			return false, realFlowFailure("history-follow-failed")
 		}
 		return v.HistoryReady && !v.HistoryLoading, nil
@@ -280,7 +280,7 @@ func runRealModelFlow(stage, base, secret, ledger string, real, preflight bool, 
 		turnCtx, turnCancel := context.WithTimeout(ctx, 80*time.Second)
 		err := await(turnCtx, func() (bool, error) {
 			v := st.Snapshot()
-			if v.HistoryError != "" {
+			if v.HistoryError != nil {
 				return false, realFlowFailure("turn-history-error-no-replay")
 			}
 			if preflight {

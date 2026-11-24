@@ -29,8 +29,8 @@ func paintModelPicker(c *ui.Context, m Model, colors theme.Colors, height float3
 			// label the user cannot click.
 			paintModelSeat(c, m, colors)
 		}
-		if m.Snapshot.ModelsErr != "" {
-			ui.Text(c, m.Snapshot.ModelsErr).FontSize(11).TextColor(muted)
+		if m.Snapshot.ModelsErr != nil {
+			ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(11).TextColor(muted)
 			if m.OnRetryModels != nil && ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(11).Clicked() {
 				m.OnRetryModels()
 			}
@@ -81,8 +81,8 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 			AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0), colors))
 		panel.Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyComposerModelUnavailable)).FontSize(13).TextColor(muted)
-			if m.Snapshot.ModelsErr != "" {
-				ui.Text(c, m.Snapshot.ModelsErr).FontSize(11).MaxLines(3).TextColor(muted)
+			if m.Snapshot.ModelsErr != nil {
+				ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(11).MaxLines(3).TextColor(muted)
 			}
 			if m.OnRetryModels != nil {
 				reload := ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(12).Height(28).Padding(0, 8).Radius(8).

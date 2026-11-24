@@ -26,7 +26,7 @@ func NextPromptTooltip(text string) string {
 
 // NextPromptEligible mirrors the original plain, empty, idle composer surface.
 func NextPromptEligible(snapshot session.ViewState, draft *DraftState, enabled, hero bool) bool {
-	if !enabled || hero || !snapshot.ClientReady || snapshot.SelectedID == "" || !snapshot.HistoryReady || snapshot.HistoryLoading || snapshot.HistoryError != "" || snapshot.PromptBusy || snapshot.MessageEditBusy || snapshot.HistoryBranchBusy || draft == nil {
+	if !enabled || hero || !snapshot.ClientReady || snapshot.SelectedID == "" || !snapshot.HistoryReady || snapshot.HistoryLoading || snapshot.HistoryError != nil || snapshot.PromptBusy || snapshot.MessageEditBusy || snapshot.HistoryBranchBusy || draft == nil {
 		return false
 	}
 	if strings.TrimSpace(draft.Text) != "" || len(draft.Attachments) != 0 || draft.Sending || draft.Preparing != 0 || draft.EditSeq != 0 || draft.ModelCommand.Visible(snapshot.SelectedID) || draft.PermissionCommand.Visible(snapshot.SelectedID) {

@@ -111,7 +111,7 @@ func (s *Store) AcceptNextPrompt(suggestion NextPromptSuggestion) string {
 // original aborted effect and keyboard.snapshot checks. A retained suggestion
 // must not cross a reopen of the same ID or a managed-presentation transition.
 func (s *Store) nextPromptSessionEligibleLocked() bool {
-	if s.selectedID == "" || !s.historyReady || s.historyLoading || s.historyError != "" || s.promptBusy || s.composerPromptBusyLocked() || s.composerPendingForSelectedLocked() || s.historyBranchBusy || s.turnStartMs > 0 {
+	if s.selectedID == "" || !s.historyReady || s.historyLoading || s.historyFault != nil || s.promptBusy || s.composerPromptBusyLocked() || s.composerPendingForSelectedLocked() || s.historyBranchBusy || s.turnStartMs > 0 {
 		return false
 	}
 	for _, item := range s.items {

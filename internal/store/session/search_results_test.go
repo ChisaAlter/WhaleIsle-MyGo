@@ -83,7 +83,7 @@ func TestNativeMergedSessionSearchStoreFixture(t *testing.T) {
 	s.UpdateSessionSearch(context.Background(), "failure")
 	idle()
 	<-requests
-	if snap = s.Snapshot(); !snap.SearchUseLocal || snap.SearchErr == "" || len(snap.SearchResults) != 0 || snap.SearchHasMore {
+	if snap = s.Snapshot(); !snap.SearchUseLocal || snap.SearchErr == nil || len(snap.SearchResults) != 0 || snap.SearchHasMore {
 		t.Fatal("failure did not expose clean local fallback")
 	}
 	// Late completion is rejected on query, clear, Host replacement and Detach.

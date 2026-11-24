@@ -50,7 +50,7 @@ func (s *Store) followCurrentLocked(ctx context.Context, sessionID string, gener
 
 func (s *Store) clearHistoryErrorLocked() {
 	s.invalidateViewLocked()
-	s.historyError = ""
+	s.setHistoryErrLocked("", nil)
 }
 
 func (s *Store) reportFollowError(ctx context.Context, sessionID string, generation uint64, prefix string, err error) {
@@ -64,7 +64,7 @@ func (s *Store) reportFollowError(ctx context.Context, sessionID string, generat
 	}
 	s.historyLoading = false
 	s.historyReconnecting = false
-	s.historyError = prefix + err.Error()
+	s.setHistoryErrLocked(prefix, err)
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
@@ -76,7 +76,7 @@ func (s *Store) markFollowReconnecting(ctx context.Context, sessionID string, ge
 		s.mu.Unlock()
 		return false
 	}
-	changed := !s.historyReconnecting || s.historyError != "" || s.historyLoading
+	changed := !s.historyReconnecting || s.historyFault != nil || s.historyLoading
 	s.historyReconnecting = true
 	s.historyLoading = false
 	s.clearHistoryErrorLocked()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/egoist/mygo/ui"
 	"strings"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
@@ -27,7 +28,7 @@ type SessionInspectorPaneState struct {
 	tree                                                    inspectorJSONTreeState
 	objectTree                                              inspectorObjectTreeState
 	objects                                                 map[string]inspectorObject
-	dismissedHistoryError                                   string
+	dismissedHistoryError                                   *state.Fault
 	Mode                                                    string `json:"mode,omitempty"`
 	Filter                                                  string `json:"filter,omitempty"`
 	binding, draft, selected                                string
@@ -271,17 +272,17 @@ func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source s
 			ui.Text(c, paneLabel("点击对话中的元素；Esc 取消。", "Choose a node in Chat; Esc cancels.")).FontSize(11).Padding(4, 8).TextColor(chrome.Color(colors.Secondary))
 		}
 
-		if state.HistoryPageErr != "" && state.HistoryPageErr != p.dismissedHistoryError {
+		if state.HistoryPageErr != nil && state.HistoryPageErr != p.dismissedHistoryError {
 			ui.Row(c).FillWidth().Padding(4, 8).Gap(8).Children(func() {
-				ui.Text(c, state.HistoryPageErr).Grow(1).FontSize(11)
+				ui.Text(c, state.HistoryPageErr.SentenceText()).Grow(1).FontSize(11)
 				button := inspectorButton(c, paneLabel("关闭错误", "Dismiss error"))
 				button.Children(func() { inspectorText(c, paneLabel("关闭", "Dismiss")) })
 				if button.Clicked() {
 					p.dismissedHistoryError = state.HistoryPageErr
 				}
 			})
-		} else if state.HistoryPageErr == "" {
-			p.dismissedHistoryError = ""
+		} else if state.HistoryPageErr == nil {
+			p.dismissedHistoryError = nil
 		}
 		// A pending inspect request (a tool card clicked before this pane had rows)
 		// turns into a pick once the chat projection exists, so the selection is the

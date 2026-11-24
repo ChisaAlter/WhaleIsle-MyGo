@@ -232,8 +232,8 @@ func run(stage, base, native, reuse string, r *report) error {
 		s.Select(row.ID)
 		if err = wait(ctx, func() (bool, error) {
 			v := s.Snapshot()
-			if v.HistoryError != "" {
-				return false, errors.New(v.HistoryError)
+			if v.HistoryError != nil {
+				return false, errors.New(v.HistoryError.SentenceText())
 			}
 			return v.SelectedID == row.ID && v.HistoryReady && !v.HistoryLoading, nil
 		}); err != nil {

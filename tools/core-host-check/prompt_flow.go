@@ -756,8 +756,8 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 	store.Select(id)
 	if err = await(ctx, func() (bool, error) {
 		v := store.Snapshot()
-		if v.HistoryError != "" {
-			return false, errors.New(v.HistoryError)
+		if v.HistoryError != nil {
+			return false, errors.New(v.HistoryError.SentenceText())
 		}
 		return v.HistoryReady && !v.HistoryLoading, nil
 	}); err != nil {
@@ -769,7 +769,7 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 	}
 	save := func(name string) error {
 		v := store.Snapshot()
-		raw, err := json.MarshalIndent(map[string]any{"sessionId": v.SelectedID, "historyReady": v.HistoryReady, "historyError": v.HistoryError, "promptBusy": v.PromptBusy, "lastAction": v.LastAction, "messages": v.Messages}, "", "  ")
+		raw, err := json.MarshalIndent(map[string]any{"sessionId": v.SelectedID, "historyReady": v.HistoryReady, "historyError": v.HistoryError.SentenceText(), "promptBusy": v.PromptBusy, "lastAction": v.LastAction, "messages": v.Messages}, "", "  ")
 		if err != nil {
 			return err
 		}
@@ -780,8 +780,8 @@ func runPromptFlow(stage, base string, r *report, queueIdle, dshbotFlow, phoneFl
 		defer cancel()
 		return await(waitCtx, func() (bool, error) {
 			v := store.Snapshot()
-			if v.HistoryError != "" {
-				return false, errors.New(v.HistoryError)
+			if v.HistoryError != nil {
+				return false, errors.New(v.HistoryError.SentenceText())
 			}
 			for _, m := range v.Messages {
 				if m.Role == "assistant" && strings.Contains(m.Body, marker) && (!settled || !m.Streaming && m.Seq > 0 && !v.PromptBusy && v.StopTurnSeq == 0) {

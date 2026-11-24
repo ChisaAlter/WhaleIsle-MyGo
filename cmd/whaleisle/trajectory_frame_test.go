@@ -176,7 +176,7 @@ func trajectoryFrameStore(t *testing.T, history bool) (*session.Store, *trajecto
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		snap := store.Snapshot()
-		if snap.HistoryReady && !snap.HistoryLoading && snap.HistoryError == "" && (len(snap.Messages) > 0) == history && transport.goals.Load() == 1 {
+		if snap.HistoryReady && !snap.HistoryLoading && snap.HistoryError == nil && (len(snap.Messages) > 0) == history && transport.goals.Load() == 1 {
 			return store, transport
 		}
 		time.Sleep(time.Millisecond)

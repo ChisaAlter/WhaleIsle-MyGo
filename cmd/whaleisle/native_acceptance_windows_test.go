@@ -188,7 +188,7 @@ func runNativeCoreRecoveryDesktop() error {
 						requestedSelection = true
 						continue
 					}
-					if snap.HistoryError != "" || snap.GoalReadError != "" {
+					if snap.HistoryError != nil || snap.GoalReadError != nil {
 						result <- fmt.Errorf("isolated selected history or goal read failed")
 						stopNativeAcceptance()
 						return

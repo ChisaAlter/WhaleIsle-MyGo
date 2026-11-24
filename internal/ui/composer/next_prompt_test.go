@@ -1,9 +1,11 @@
 package composer
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -20,7 +22,7 @@ func TestNextPromptEligibilityAndAcceptanceGates(t *testing.T) {
 	}{
 		{"not-open", func(m *Model) { m.Snapshot.HistoryReady = false }},
 		{"opening", func(m *Model) { m.Snapshot.HistoryLoading = true }},
-		{"open-error", func(m *Model) { m.Snapshot.HistoryError = "lost feed" }},
+		{"open-error", func(m *Model) { m.Snapshot.HistoryError = state.FaultOf(errors.New("lost feed")) }},
 		{"managed", func(m *Model) { m.Snapshot.Items[0].Presentation = &session.SessionPresentation{Composer: "managed"} }},
 		{"permission-popup", func(m *Model) { m.State.PermissionCommand = ModelCommandState{Open: true, SessionID: "a"} }},
 		{"model-popup", func(m *Model) { m.State.ModelCommand = ModelCommandState{Open: true, SessionID: "a"} }},

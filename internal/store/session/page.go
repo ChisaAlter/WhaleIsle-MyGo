@@ -50,7 +50,7 @@ func (s *Store) resetHistoryPagingLocked() {
 	s.historyPageRequest++
 	s.historyHasMore = false
 	s.historyPageBusy = false
-	s.historyPageErr = nil
+	s.setHistoryPageErrLocked(nil)
 }
 
 func (s *Store) syncHistoryHasMoreAfterSnapshotLocked() {
@@ -82,7 +82,7 @@ func (s *Store) LoadEarlierHistory(ctx context.Context) {
 	s.historyPageRequest++
 	requestID := s.historyPageRequest
 	s.historyPageBusy = true
-	s.historyPageErr = nil
+	s.setHistoryPageErrLocked(nil)
 	s.invalidateViewLocked()
 	client := s.client
 	sessionID := s.selectedID
@@ -143,7 +143,7 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 		return
 	}
 	if err != nil {
-		s.historyPageErr = err
+		s.setHistoryPageErrLocked(err)
 		s.lastAction = "session/page: " + err.Error()
 		s.mu.Unlock()
 		s.fire()

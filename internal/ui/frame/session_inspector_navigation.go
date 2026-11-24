@@ -123,7 +123,7 @@ func (p *SessionInspectorPaneState) bindInspectorSource(binding, sessionID strin
 		p.pendingPick, p.pendingPickBinding = pending, owner
 	}
 	p.binding = binding
-	p.objects, p.dismissedHistoryError = nil, ""
+	p.objects, p.dismissedHistoryError = nil, nil
 	p.filterOpen, p.detailsDragging = false, false
 	p.filterActive = -1
 	p.filterList = ui.ListState{}

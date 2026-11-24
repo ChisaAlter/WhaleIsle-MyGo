@@ -1,9 +1,11 @@
 package frame
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -17,7 +19,7 @@ func TestTrajectoryRemainsVisibleAcrossChatHistoryPhases(t *testing.T) {
 	}{
 		{"ready-empty", session.ViewState{SelectedID: "current", HistoryReady: true}},
 		{"settling", session.ViewState{SelectedID: "current", HistoryLoading: true}},
-		{"failed-empty", session.ViewState{SelectedID: "current", HistoryError: "history unavailable"}},
+		{"failed-empty", session.ViewState{SelectedID: "current", HistoryError: state.FaultOf(errors.New("history unavailable"))}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sizes := DefaultLayout()

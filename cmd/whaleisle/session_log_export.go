@@ -97,7 +97,7 @@ func (s *mainState) handleSessionLogExportCommand(win *mygo.Window, sessions *se
 		return false
 	}
 	if !v.SlashCommandsKnown {
-		d.Error = v.SlashCommandsErr
+		d.Error = v.SlashCommandsErr.SentenceText()
 		if d.Error == "" {
 			d.Error = resumeText("正在加载命令目录，请稍后重试。", "Loading the command catalog. Try again shortly.")
 		}

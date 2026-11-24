@@ -1175,7 +1175,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					}
 					// The ledger owns its empty/loading states. Chat's hero or
 					// history-error placeholder must not hide the selected view.
-					if paneTab != "trajectory" && (phase == conversationHero || phase == conversationSettling || (snap.HistoryError != "" && len(snap.Messages) == 0)) {
+					if paneTab != "trajectory" && (phase == conversationHero || phase == conversationSettling || (snap.HistoryError != nil && len(snap.Messages) == 0)) {
 						if phase == conversationHero || phase == conversationSettling {
 							// EmptyHero centers inside scrollBody below the
 							// shared titlebar band; here the caption overlays

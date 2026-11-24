@@ -285,7 +285,11 @@ func runLocalSettingsComposer(t *testing.T, defaultSession bool) {
 		state := s.Snapshot()
 		var direct api.SkillInventorySnapshot
 		err := client.Call(ctx, "skillInventory/list", map[string]any{"request": map[string]any{"cwd": workspace}}, &direct)
-		add("CHAT skill picker diagnosis", "observed", "options="+stringCount(len(state.SkillOptions))+" catalog="+stringCount(len(state.SkillCatalog.Skills))+" catalog-error="+failure(errors.New(state.SkillCatalog.Err))+" picker-error="+failure(errors.New(state.SkillsErr))+" direct="+stringCount(len(direct.Skills))+" direct-error="+failure(err))
+		var pickerErr error
+		if state.SkillsErr != nil {
+			pickerErr = errors.New(state.SkillsErr.SentenceText())
+		}
+		add("CHAT skill picker diagnosis", "observed", "options="+stringCount(len(state.SkillOptions))+" catalog="+stringCount(len(state.SkillCatalog.Skills))+" catalog-error="+failure(errors.New(state.SkillCatalog.Err))+" picker-error="+failure(pickerErr)+" direct="+stringCount(len(direct.Skills))+" direct-error="+failure(err))
 		for _, sk := range direct.Skills {
 			if sk.Name == skillName {
 				add("CHAT own skill flags", "observed", "source="+sk.Source+" writable="+boolText(sk.Writable)+" model="+boolText(sk.ModelInvocable)+" user="+boolText(sk.UserInvocable))

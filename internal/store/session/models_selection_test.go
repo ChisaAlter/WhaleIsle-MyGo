@@ -178,7 +178,7 @@ func TestModelSelectionWireFailureRetryAndEffort(t *testing.T) {
 	defer srv.Close()
 	s := modelTestStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})
 	s.SelectModelForSessionID(context.Background(), "current", "Provider — Two")
-	v := waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.ModelsErr != "" })
+	v := waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.ModelsErr != nil })
 	if v.SelectedModel != "Provider — One" {
 		t.Fatal("rejected selection changed committed label")
 	}
@@ -188,7 +188,7 @@ func TestModelSelectionWireFailureRetryAndEffort(t *testing.T) {
 	}
 	s.SelectModelForSessionID(context.Background(), "current", "Provider — Two")
 	v = waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.SelectedModel == "Provider — Two" })
-	if v.SelectedModelEffort != "Deep" || v.ModelsErr != "" {
+	if v.SelectedModelEffort != "Deep" || v.ModelsErr != nil {
 		t.Fatalf("retry failed: %+v", v)
 	}
 	<-requests
@@ -276,7 +276,7 @@ func TestModelSelectionRejectsUnconfirmedProjection(t *testing.T) {
 	defer srv.Close()
 	s := modelTestStore(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}})
 	s.SelectModelForSessionID(context.Background(), "current", "Provider — Two")
-	v := waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.ModelsErr != "" })
+	v := waitModelSnapshot(t, s, func(v ViewState) bool { return !v.ModelSelectionBusy && v.ModelsErr != nil })
 	if v.SelectedModel != "Provider — One" {
 		t.Fatal("unconfirmed response changed projection")
 	}

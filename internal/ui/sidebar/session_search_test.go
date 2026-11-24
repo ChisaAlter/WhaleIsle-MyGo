@@ -1,10 +1,12 @@
 package sidebar
 
 import (
+	"errors"
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -37,12 +39,12 @@ func TestNativeMergedSessionSearchViewFixture(t *testing.T) {
 		t.Fatal("loading must retain only local matches")
 	}
 	snap.SearchLoading = false
-	snap.SearchErr = "index unavailable"
+	snap.SearchErr = state.FaultOf(errors.New("index unavailable"))
 	failed, _ := deriveSessionSearchResults(snap, query)
 	if len(failed) != 2 {
 		t.Fatal("error removed title/workspace results")
 	}
-	snap.SearchErr = ""
+	snap.SearchErr = nil
 	snap.SearchRPCQuery = "other"
 	stale, _ := deriveSessionSearchResults(snap, query)
 	if len(stale) != 2 {

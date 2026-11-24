@@ -93,7 +93,7 @@ func deriveSessionSearchResults(snap session.ViewState, query string, filters ..
 		}
 		return local[i].SessionID < local[j].SessionID
 	})
-	ready := !snap.SearchLoading && !snap.SearchUseLocal && snap.SearchErr == "" && snap.SearchRPCQuery == query
+	ready := !snap.SearchLoading && !snap.SearchUseLocal && snap.SearchErr == nil && snap.SearchRPCQuery == query
 	snippets := map[string]string{}
 	if ready {
 		for _, hit := range snap.SearchResults {
@@ -139,8 +139,8 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	}
 	workspaceRowsStatus(c, m, fg)
 	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery, searchArchiveFilter(m))
-	if m.Snapshot.SearchErr != "" {
-		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+	if m.Snapshot.SearchErr != nil {
+		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	if len(rows) == 0 && !m.Snapshot.SearchLoading {
 		ui.Text(c, i18n.T(i18n.KeyWSSearchNoMatches)).FontSize(theme.InterfaceSize(12)).TextColor(muted)

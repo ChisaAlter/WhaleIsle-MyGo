@@ -147,7 +147,7 @@ func TestAgentPresetCatalogCacheBelongsToAttachedHost(t *testing.T) {
 			s.Attach(&dsh.Client{}, nil)
 			s.agentPresetOptions = []AgentPresetOption{{ID: "old-preset", Label: "Old preset"}}
 			s.selectedAgentPresetLabel = "Old preset"
-			s.agentPresetsErr = errors.New("old Host refusal")
+			s.setAgentPresetsErrLocked(errors.New("old Host refusal"))
 			switch transition {
 			case "other-client":
 				s.Attach(&dsh.Client{}, nil)
@@ -157,8 +157,8 @@ func TestAgentPresetCatalogCacheBelongsToAttachedHost(t *testing.T) {
 				s.Detach()
 			}
 			got := s.Snapshot()
-			if len(got.AgentPresetLabels) != 0 || got.SelectedAgentPreset != "" || got.AgentPresetsErr != "" {
-				t.Fatalf("old Host catalog remains selectable: %+v %q %q", got.AgentPresetLabels, got.SelectedAgentPreset, got.AgentPresetsErr)
+			if len(got.AgentPresetLabels) != 0 || got.SelectedAgentPreset != "" || got.AgentPresetsErr != nil {
+				t.Fatalf("old Host catalog remains selectable: %+v %q %+v", got.AgentPresetLabels, got.SelectedAgentPreset, got.AgentPresetsErr)
 			}
 			// Empty-session selection is a local future-session draft, so this
 			// exposes stale menu admission without any Host or model request.

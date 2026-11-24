@@ -21,7 +21,7 @@ func TestHistoryLifecycleSelectionAndAuthoritativeSnapshot(t *testing.T) {
 	s := New()
 	s.items = []Item{{SessionID: "blank", Blank: true}, {SessionID: "old"}}
 	s.Select("old")
-	if st := s.Snapshot(); !st.HistoryLoading || st.HistoryReady || st.HistoryError != "" || st.SelectedSummaryBlank || len(st.Messages) != 0 {
+	if st := s.Snapshot(); !st.HistoryLoading || st.HistoryReady || st.HistoryError != nil || st.SelectedSummaryBlank || len(st.Messages) != 0 {
 		t.Fatalf("unopened selected history must remain unsettled: %+v", st)
 	}
 	// A malformed snapshot must never certify an empty conversation.
@@ -38,11 +38,11 @@ func TestHistoryLifecycleSelectionAndAuthoritativeSnapshot(t *testing.T) {
 		t.Fatalf("Host blank summary must be separate from opening history: %+v", st)
 	}
 	s.reportFollowError(context.Background(), "blank", s.followGeneration, "follow: ", errors.New("offline"))
-	if st := s.Snapshot(); !st.SelectedSummaryBlank || st.HistoryLoading || st.HistoryReady || st.HistoryError != "follow: offline" {
+	if st := s.Snapshot(); !st.SelectedSummaryBlank || st.HistoryLoading || st.HistoryReady || st.HistoryError == nil || st.HistoryError.SentenceText() == "" {
 		t.Fatalf("known blank failure lost authority or feedback: %+v", st)
 	}
 	s.Select("")
-	if st := s.Snapshot(); st.HistoryLoading || st.HistoryReady || st.HistoryError != "" || st.SelectedSummaryBlank {
+	if st := s.Snapshot(); st.HistoryLoading || st.HistoryReady || st.HistoryError != nil || st.SelectedSummaryBlank {
 		t.Fatalf("deselection retained prior lifecycle: %+v", st)
 	}
 }
@@ -52,11 +52,11 @@ func TestHistoryLifecycleFailureRecoveryAndStaleGeneration(t *testing.T) {
 	s.Select("old")
 	oldGeneration := s.followGeneration
 	s.reportFollowError(context.Background(), "old", oldGeneration, "follow open: ", errors.New("unavailable"))
-	if st := s.Snapshot(); st.HistoryLoading || st.HistoryReady || st.HistoryError == "" {
+	if st := s.Snapshot(); st.HistoryLoading || st.HistoryReady || st.HistoryError == nil {
 		t.Fatalf("unknown history failure masquerades as empty: %+v", st)
 	}
 	s.applyFollowFrameForTarget(context.Background(), "old", oldGeneration, json.RawMessage(`{"type":"snapshot","records":[{"type":"event","event":{"type":"user/message","seq":1,"data":{"content":[{"type":"text","text":"retained"}]}}}]}`))
-	if st := s.Snapshot(); !st.HistoryReady || st.HistoryLoading || st.HistoryError != "" || st.LastAction != "" || len(st.Messages) != 1 {
+	if st := s.Snapshot(); !st.HistoryReady || st.HistoryLoading || st.HistoryError != nil || st.LastAction != "" || len(st.Messages) != 1 {
 		t.Fatalf("successful history did not recover: %+v", st)
 	}
 	s.mu.Lock()
@@ -97,7 +97,7 @@ func TestHistoryLifecycleRecoveryPreservesUnrelatedAction(t *testing.T) {
 			if recovery == "snapshot" {
 				s.applyFollowFrame(json.RawMessage(`{"type":"snapshot","records":[]}`))
 			}
-			if st := s.Snapshot(); st.HistoryError != "" || st.LastAction != "session renamed" {
+			if st := s.Snapshot(); st.HistoryError != nil || st.LastAction != "session renamed" {
 				t.Fatalf("history recovery overwrote an unrelated action: %+v", st)
 			}
 		})
@@ -129,7 +129,7 @@ func TestHistoryLifecycleStreamEndBeforeSnapshotIsVisibleFailure(t *testing.T) {
 	if restart := s.runFollowConnection(ctx, mux, "old", s.followGeneration); restart {
 		t.Fatal("ended opening unexpectedly restarted")
 	}
-	if st := s.Snapshot(); st.HistoryLoading || st.HistoryReady || !strings.Contains(st.HistoryError, "before snapshot") {
+	if st := s.Snapshot(); st.HistoryLoading || st.HistoryReady || st.HistoryError == nil || !strings.Contains(s.historyErr.Error(), "before snapshot") {
 		t.Fatalf("ended opening has no visible failure: %+v", st)
 	}
 }
@@ -169,20 +169,20 @@ func TestHistoryLifecycleFollowRetryRetainsBaseline(t *testing.T) {
 	s.reportFollowError(context.Background(), "old", s.followGeneration, "follow: ", errors.New("previous failure"))
 	s.AttachMux(mux)
 	s.notify = func() {
-		if s.Snapshot().HistoryError != "" {
+		if s.Snapshot().HistoryError != nil {
 			failedOnce.Do(func() { close(failed) })
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	s.FollowSelected(ctx)
-	if st := s.Snapshot(); !st.HistoryLoading || !st.HistoryReady || st.HistoryError != "" || st.LastAction != "" || len(st.Messages) != 1 {
+	if st := s.Snapshot(); !st.HistoryLoading || !st.HistoryReady || st.HistoryError != nil || st.LastAction != "" || len(st.Messages) != 1 {
 		t.Fatalf("retry did not expose loading with retained baseline: %+v", st)
 	}
 	wait(t, opened)
 	releaseOnce.Do(func() { close(release) })
 	wait(t, failed)
-	if st := s.Snapshot(); st.HistoryLoading || !st.HistoryReady || !strings.Contains(st.HistoryError, "retry unavailable") || len(st.Messages) != 1 {
+	if st := s.Snapshot(); st.HistoryLoading || !st.HistoryReady || st.HistoryError == nil || !strings.Contains(s.historyErr.Error(), "retry unavailable") || len(st.Messages) != 1 {
 		t.Fatalf("retry failure discarded retained baseline: %+v", st)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 type goalReadRoundTrip func(*http.Request) (*http.Response, error)
@@ -65,11 +66,11 @@ func TestGoalReadOptionalSuccessDoesNotPolluteAction(t *testing.T) {
 				s.selectedID = "A"
 				s.lastAction = status
 				s.planBoard.Goal = &PlanGoal{ID: "stale"}
-				s.goalReadError = goalReadErrorState{client: client, sessionID: "A", generation: s.followGeneration, message: "previous read failed"}
+				s.goalReadError = goalReadErrorState{client: client, sessionID: "A", generation: s.followGeneration, fault: state.FaultText("previous read failed")}
 				s.runRefreshGoal(context.Background(), client, "A", s.followGeneration)
 				v := s.Snapshot()
-				if v.LastAction != status || v.GoalReadError != "" {
-					t.Fatalf("background success changed action or kept old error: action=%q read=%q", v.LastAction, v.GoalReadError)
+				if v.LastAction != status || v.GoalReadError != nil {
+					t.Fatalf("background success changed action or kept old error: action=%q read=%+v", v.LastAction, v.GoalReadError)
 				}
 				if tc.goal {
 					if v.PlanBoard.Goal == nil || v.PlanBoard.Goal.ID != "current" || v.PlanBoard.Goal.Revision != 2 {
@@ -93,7 +94,7 @@ func TestGoalReadRealErrorHasDedicatedOwnership(t *testing.T) {
 	s.planBoard.Goal = &PlanGoal{ID: "known", Objective: "keep current projection"}
 	s.runRefreshGoal(context.Background(), client, "A", s.followGeneration)
 	v := s.Snapshot()
-	if v.LastAction != "prompt failed: fixture denied" || v.GoalReadError != "goals/get: GOAL_AGENT_UNAVAILABLE: fixture unavailable" || v.PlanBoard.Goal == nil || v.PlanBoard.Goal.ID != "known" {
+	if v.LastAction != "prompt failed: fixture denied" || v.GoalReadError == nil || v.GoalReadError.Code != "GOAL_AGENT_UNAVAILABLE" || v.PlanBoard.Goal == nil || v.PlanBoard.Goal.ID != "known" {
 		t.Fatal("read error lost ownership or goal projection", v.GoalReadError, v.LastAction, v.PlanBoard.Goal)
 	}
 	// A subsequent legitimate absent result clears only the goal diagnostic.
@@ -101,7 +102,7 @@ func TestGoalReadRealErrorHasDedicatedOwnership(t *testing.T) {
 	delete(result, "error")
 	s.runRefreshGoal(context.Background(), client, "A", s.followGeneration)
 	v = s.Snapshot()
-	if v.GoalReadError != "" || v.LastAction != "prompt failed: fixture denied" || v.PlanBoard.Goal != nil {
+	if v.GoalReadError != nil || v.LastAction != "prompt failed: fixture denied" || v.PlanBoard.Goal != nil {
 		t.Fatal("optional success did not clear only its own read state")
 	}
 }
@@ -114,7 +115,7 @@ func TestGoalReadErrorProjectionExpiresWithOwner(t *testing.T) {
 			s.Attach(client, nil)
 			s.selectedID = "A"
 			s.runRefreshGoal(context.Background(), client, "A", s.followGeneration)
-			if s.Snapshot().GoalReadError == "" {
+			if s.Snapshot().GoalReadError == nil {
 				t.Fatal("fixture did not retain real read error")
 			}
 			switch change {
@@ -135,7 +136,7 @@ func TestGoalReadErrorProjectionExpiresWithOwner(t *testing.T) {
 					s.Attach(client, nil)
 				}
 			}
-			if s.Snapshot().GoalReadError != "" {
+			if s.Snapshot().GoalReadError != nil {
 				t.Fatal("new owner inherited old read diagnostic")
 			}
 		})
@@ -197,10 +198,10 @@ func TestGoalReadDoesNotChangeWriteErrorRouting(t *testing.T) {
 	s := New()
 	s.Attach(client, nil)
 	s.selectedID = "A"
-	s.goalReadError = goalReadErrorState{client: client, sessionID: "A", generation: s.followGeneration, message: "goals/get: fixture read failed"}
+	s.goalReadError = goalReadErrorState{client: client, sessionID: "A", generation: s.followGeneration, fault: state.FaultText("goals/get: fixture read failed")}
 	s.runCreateGoal(context.Background(), client, "A", s.followGeneration, "fixture objective")
 	v := s.Snapshot()
-	if v.LastAction != "GOAL_WRITE_DENIED: fixture write denied" || v.GoalReadError != "goals/get: fixture read failed" {
+	if v.LastAction != "GOAL_WRITE_DENIED: fixture write denied" || v.GoalReadError == nil || v.GoalReadError.SentenceText() != "goals/get: fixture read failed" {
 		t.Fatal("write error was hidden or read diagnostic lost", v.LastAction, v.GoalReadError)
 	}
 }

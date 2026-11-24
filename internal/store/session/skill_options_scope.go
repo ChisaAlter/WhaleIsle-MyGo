@@ -28,7 +28,7 @@ func (s *Store) invalidateSkillOptionsLocked() {
 	s.skillOptionsEpoch++
 	s.skillOptions = nil
 	s.skillOptionsOwner = skillOptionsScope{}
-	s.skillsErr = nil
+	s.setSkillsErrLocked(nil)
 	// Same-session preset changes also invalidate the full inventory and any
 	// response/edit target captured under its previous version.
 	s.skillCatalogVersion++

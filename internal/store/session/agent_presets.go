@@ -113,10 +113,9 @@ func (s *Store) RefreshAgentPresets(ctx context.Context) {
 			return
 		}
 		if err != nil {
-			if s.agentPresetsErr == nil || s.agentPresetsErr.Error() != err.Error() {
+			if s.setAgentPresetsErrLocked(err) {
 				s.invalidateViewLocked()
 			}
-			s.agentPresetsErr = err
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -126,10 +125,9 @@ func (s *Store) RefreshAgentPresets(ctx context.Context) {
 		if lbl := defaultAgentPresetLabel(options, roster); lbl != "" && label == "" {
 			label = lbl
 		}
-		if s.agentPresetsErr != nil || !slices.Equal(s.agentPresetOptions, options) || s.selectedAgentPresetLabel != label {
+		if s.setAgentPresetsErrLocked(nil) || !slices.Equal(s.agentPresetOptions, options) || s.selectedAgentPresetLabel != label {
 			s.invalidateViewLocked()
 		}
-		s.agentPresetsErr = nil
 		s.agentPresetsLoaded = true
 		s.agentPresetOptions = options
 		s.selectedAgentPresetLabel = label
@@ -144,8 +142,8 @@ func (s *Store) CreatorPresetCatalog() (loaded, loading, available bool, message
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	loaded, loading = s.agentPresetsLoaded, s.agentPresetsLoading
-	if s.agentPresetsErr != nil {
-		message = s.agentPresetsErr.Error()
+	if s.agentPresetsFault != nil {
+		message = s.agentPresetsFault.SentenceText()
 	}
 	for _, row := range s.agentPresetOptions {
 		if row.ID == "cordis" && row.Broken == "" {
