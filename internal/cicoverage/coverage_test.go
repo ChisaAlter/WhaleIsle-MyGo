@@ -65,9 +65,13 @@ jobs:
             ./internal/two
       - name: wd
         working-directory: third_party/mygo
-        run: go test -tags release . -run TestX
+        run: go test -tags release .
       - name: inline
-        run: go test -count=1 ./internal/three -run TestY
+        run: go test -count=1 ./internal/three && echo ./not-a-pkg
+      - name: subset
+        run: go test -count=1 -run TestOnlyOne ./internal/partial
+      - name: subset-eq
+        run: go test -run=TestOnlyOne ./internal/partial2
 `
 	pats := CoveredPatterns([]byte(workflow))
 	want := []string{
@@ -82,8 +86,10 @@ jobs:
 			t.Errorf("missing pattern %s (got %v)", w, pats)
 		}
 	}
-	if pats["./should/not/count"] {
-		t.Error("comment line leaked a go test pattern")
+	for _, bad := range []string{"./should/not/count", "./not-a-pkg", "./internal/partial", "./internal/partial2"} {
+		if pats[bad] {
+			t.Errorf("unexpected pattern %s leaked into %v", bad, pats)
+		}
 	}
 }
 

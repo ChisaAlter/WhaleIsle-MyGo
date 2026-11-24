@@ -434,20 +434,46 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $cacheDir = if ($env:RUNNER_TOOL_CACHE) { Join-Path $env:RUNNER_TOOL_CACHE 'nsis' } else { Join-Path $env:RUNNER_TEMP 'nsis-cache' }
-          function Find-Makensis {
-            $onPath = Get-Command makensis -ErrorAction SilentlyContinue
-            if ($onPath -and (Test-Path -LiteralPath $onPath.Source)) { return $onPath.Source }
-            $candidates = @(
-              (Join-Path $cacheDir 'makensis.exe'),
-              (Join-Path $cacheDir 'Bin\makensis.exe'),
-              (Join-Path $cacheDir 'NSIS\makensis.exe'),
-              (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
-              (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')
-            )
-            $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          function Resolve-NsisInstallRoot([string]$exeDir) {
+            if (-not $exeDir) { return $null }
+            if ((Test-Path -LiteralPath (Join-Path $exeDir 'Include') -PathType Container) -or (Test-Path -LiteralPath (Join-Path $exeDir 'Stubs') -PathType Container)) {
+              return $exeDir
+            }
+            if ((Split-Path -Leaf $exeDir) -ieq 'Bin') {
+              $parent = Split-Path -Parent $exeDir
+              if ($parent -and ((Test-Path -LiteralPath (Join-Path $parent 'Include') -PathType Container) -or (Test-Path -LiteralPath (Join-Path $parent 'Stubs') -PathType Container))) {
+                return $parent
+              }
+            }
+            return $null
+          }
+          function Test-NsisRoot([string]$dir) {
+            if (-not $dir) { return $false }
+            if (-not (Test-Path -LiteralPath (Join-Path $dir 'makensis.exe') -PathType Leaf)) { return $false }
+            return $null -ne (Resolve-NsisInstallRoot $dir)
+          }
+          function Find-RealMakensis {
+            $dirs = New-Object System.Collections.Generic.List[string]
+            $dirs.Add($cacheDir)
+            $dirs.Add((Join-Path $cacheDir 'Bin'))
+            $dirs.Add((Join-Path $cacheDir 'NSIS'))
+            if (${env:ProgramFiles(x86)}) {
+              $dirs.Add((Join-Path ${env:ProgramFiles(x86)} 'NSIS'))
+              $dirs.Add((Join-Path ${env:ProgramFiles(x86)} 'NSIS\Bin'))
+            }
+            if ($env:ProgramFiles) {
+              $dirs.Add((Join-Path $env:ProgramFiles 'NSIS'))
+              $dirs.Add((Join-Path $env:ProgramFiles 'NSIS\Bin'))
+            }
+            foreach ($dir in $dirs) {
+              if (Test-NsisRoot $dir) {
+                return (Join-Path $dir 'makensis.exe')
+              }
+            }
+            return $null
           }
 
-          $makensis = Find-Makensis
+          $makensis = Find-RealMakensis
           if (-not $makensis) {
             # Chocolatey intermittently serves 503s; retry with backoff before
             # falling back to a direct winget download + silent install.
@@ -459,12 +485,19 @@ jobs:
               Write-Warning "choco install nsis exited $LASTEXITCODE"
             }
             if ($installed) {
-              $makensis = Find-Makensis
+              $makensis = Find-RealMakensis
               if ($makensis -and -not ($makensis.StartsWith($cacheDir, [StringComparison]::OrdinalIgnoreCase))) {
-                New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
-                Copy-Item -Recurse -Force (Join-Path (Split-Path -Parent $makensis) '*') $cacheDir
-                $cached = Find-Makensis | Where-Object { $_.StartsWith($cacheDir, [StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
-                if ($cached) { $makensis = $cached }
+                $srcRoot = Resolve-NsisInstallRoot (Split-Path -Parent $makensis)
+                if ($srcRoot) {
+                  New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+                  Copy-Item -Recurse -Force (Join-Path $srcRoot '*') $cacheDir
+                  foreach ($candidate in @((Join-Path $cacheDir 'makensis.exe'), (Join-Path $cacheDir 'Bin\makensis.exe'))) {
+                    if (Test-NsisRoot (Split-Path -Parent $candidate)) {
+                      $makensis = $candidate
+                      break
+                    }
+                  }
+                }
               }
             }
           }
@@ -482,10 +515,18 @@ jobs:
                 $proc = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$cacheDir") -PassThru -WindowStyle Hidden
                 if (-not $proc.WaitForExit(180000)) { throw 'NSIS silent installer did not exit within 180 seconds' }
                 if ($proc.ExitCode -ne 0) { throw "NSIS silent installer failed (exit $($proc.ExitCode))" }
-                $makensis = Find-Makensis
+                $makensis = Find-RealMakensis
               } finally {
                 Remove-Item -Recurse -Force $dl -ErrorAction SilentlyContinue
               }
+            }
+          }
+          if (-not $makensis) {
+            # Last resort when makensis is already usable on PATH without a standard
+            # root layout: use it for this run without copying a shim into $cacheDir.
+            $onPath = Get-Command makensis -ErrorAction SilentlyContinue
+            if ($onPath -and (Test-Path -LiteralPath $onPath.Source -PathType Leaf)) {
+              $makensis = $onPath.Source
             }
           }
           if (-not $makensis) { throw 'NSIS is unavailable: cache miss, Chocolatey install failed and the winget fallback did not produce makensis.exe.' }

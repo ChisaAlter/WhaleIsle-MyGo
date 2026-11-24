@@ -190,12 +190,36 @@ func goTestPackageArgs(script []string, workDir string) []string {
 			if fields[j] != "go" || fields[j+1] != "test" {
 				continue
 			}
-			for _, tok := range fields[j+2:] {
-				if !strings.HasPrefix(tok, ".") {
-					continue
+			cmdEnd := len(fields)
+			for k := j + 2; k < len(fields); k++ {
+				tok := fields[k]
+				if tok == "&&" || tok == "||" || tok == ";" || tok == "|" || strings.HasPrefix(tok, "#") {
+					cmdEnd = k
+					break
 				}
-				pats = append(pats, resolvePattern(tok, workDir))
+				if strings.HasSuffix(tok, ";") {
+					cmdEnd = k + 1
+					break
+				}
 			}
+			cmdTokens := fields[j+2 : cmdEnd]
+			subsetOnly := false
+			for _, tok := range cmdTokens {
+				if tok == "-run" || tok == "--run" || strings.HasPrefix(tok, "-run=") || strings.HasPrefix(tok, "--run=") {
+					subsetOnly = true
+					break
+				}
+			}
+			if !subsetOnly {
+				for _, tok := range cmdTokens {
+					clean := strings.TrimSuffix(tok, ";")
+					if !strings.HasPrefix(clean, ".") {
+						continue
+					}
+					pats = append(pats, resolvePattern(clean, workDir))
+				}
+			}
+			j = cmdEnd - 1
 		}
 	}
 	return pats
