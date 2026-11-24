@@ -8,8 +8,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // sessionSearchState belongs to the retained sidebar root, so opening a result
@@ -140,13 +141,13 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 	workspaceRowsStatus(c, m, fg)
 	rows, more := deriveSessionSearchResults(m.Snapshot, *m.SearchQuery, searchArchiveFilter(m))
 	if m.Snapshot.SearchErr != nil {
-		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, workspaceText("正文搜索失败，仍显示标题和工作区匹配：", "Content search failed; title and workspace matches remain: ")+m.Snapshot.SearchErr.SentenceText()).FontSize(fs(12)).TextColor(muted)
 	}
 	if len(rows) == 0 && !m.Snapshot.SearchLoading {
-		ui.Text(c, i18n.T(i18n.KeyWSSearchNoMatches)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyWSSearchNoMatches)).FontSize(fs(12)).TextColor(muted)
 	}
 	if len(rows) > 0 {
-		searchHost := ui.Column(c.Key("sidebar-search-list-host")).FillWidth().MinWidth(0).Gap(2)
+		searchHost := ui.Column(c.Key("sidebar-search-list-host")).FillWidth().MinWidth(0).Gap(design.Sp(0.5))
 		if m.sidebarBodyFill {
 			searchHost.Grow(1).MinHeight(0)
 		} else {
@@ -175,7 +176,7 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 						ID   string
 					}{m.Snapshot.WorkspaceLayout.HostGeneration, rows[i].Item.SessionID}
 				}).
-				FillWidth().MinWidth(0).Gap(2).
+				FillWidth().MinWidth(0).Gap(design.Sp(0.5)).
 				MaxHeight(capH).
 				ScrollbarsVisible(m.scrollbarsVisible)
 			if m.sidebarBodyFill {
@@ -200,29 +201,39 @@ func sessionSearchResultsView(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			msg = fmt.Sprintf("Only the first %d results are shown. Narrow your search.", session.SessionSearchResultLimit)
 		}
 		ui.Box(c).FillWidth().Shrink(0).Label(i18n.WSf(i18n.KeyWSSearchHasMore, "n", strconv.Itoa(session.SessionSearchResultLimit))).Children(func() {
-			ui.Text(c, msg).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, msg).FontSize(fs(12)).TextColor(muted)
 		})
 	}
 	return true
 }
 
 func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, muted ui.Color) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	t := tok(c)
 	batch := m.Batch.Enabled
 	locked := batch && (m.Batch.Busy || m.Batch.Confirming || m.OnBatchEdit == nil)
 	checkboxChanged := false
-	button := ui.Button(c.Key(struct {
-		Host uint64
-		ID   string
-	}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID}), "").Label("Open search result "+row.Item.SessionID).FillWidth().MinHeight(48).BorderWidth(0).Radius(12).Background(ui.Transparent).Padding(4, 8)
 	selected := row.Item.SessionID == displayedSessionID(m)
 	if batch {
-		button.Label("Select session " + row.Item.SessionID).Disabled(locked || row.Item.Blank)
 		_, selected = m.Batch.Selected[row.Item.SessionID]
+	}
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonMD,
+		Disabled: batch && (locked || row.Item.Blank),
+		Pressed:  selected,
+		Label:    "Open search result " + row.Item.SessionID,
+		Key: struct {
+			Host uint64
+			ID   string
+		}{m.Snapshot.WorkspaceLayout.HostGeneration, row.Item.SessionID},
+		Content: func() {},
+	}).FillWidth().MinHeight(48).BorderWidth(0).Radius(design.RadiusXL).Padding(design.Sp(1), design.Sp(2))
+	if batch {
+		button.Label("Select session " + row.Item.SessionID)
 	}
 	menuOpen := button.MenuOpen()
 	if selected || button.Hovered() || button.FocusWithin() || menuOpen {
-		button.Background(selectedBackground(colors))
+		button.Background(sbSelectedBg(t))
 	}
 	if !batch && !menuOpen {
 		button.Tooltip(statusLabel(sessionStatus(m, row.Item)))
@@ -249,7 +260,11 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 				}
 				if batch {
 					ui.Box(c).Size(16, 20).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-						check := ui.Checkbox(c.Key("batch-search-checkbox-"+row.Item.SessionID), &selected, "").Label("Select search checkbox "+row.Item.SessionID).Size(16, 16).Gap(0).Disabled(locked || row.Item.Blank)
+						check := coss.Checkbox(c, &selected, "", coss.CheckOptions{
+							Disabled: locked || row.Item.Blank,
+							Label:    "Select search checkbox " + row.Item.SessionID,
+							Key:      "batch-search-checkbox-" + row.Item.SessionID,
+						})
 						checkboxChanged = check.Changed()
 					})
 				} else {
@@ -263,31 +278,37 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 				if row.Archived {
 					ink = muted
 				}
-				ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, 4).SingleLine()
+				ui.Text(c, title).FontSize(fs(14)).FixedLineHeight(fs(20)).TextColor(ink).MinWidth(0).Grow(1).Margin(0, 0, 0, design.Sp(1)).SingleLine()
 				if row.Archived && !batch {
-					more := ui.Button(c.Key("search-result-menu-"+row.Item.SessionID), "").Label(sessionActionsLabel(row.Item.SessionID, row.Item.Title)).Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
+					more := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonIconXS,
+						Label:   sessionActionsLabel(row.Item.SessionID, row.Item.Title),
+						Key:     "search-result-menu-" + row.Item.SessionID,
+						Content: func() {},
+					}).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
 					if !menuOpen {
 						more.Tooltip(workspaceText("会话操作", "Session actions"))
 					}
-					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
+					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
 					showActions := button.Hovered() || button.FocusWithin() || button.MenuOpen()
 					if !showActions && !more.Focused() {
-						more.Absolute().Right(8).Opacity(0)
+						more.Absolute().Right(design.Sp(2)).Opacity(0)
 					}
 				}
 			})
 			// The 20px status inset belongs outside the flex context: percentage
 			// limits must resolve against the remaining metadata width.
-			ui.Box(c).FillWidth().MinWidth(0).Height(17).Padding(0, 0, 0, 20).Children(func() {
-				ui.Row(c).Label("Search result context " + row.Item.SessionID).FillWidth().MinWidth(0).Height(17).Gap(6).AlignItems(ui.Center).Children(func() {
+			ui.Box(c).FillWidth().MinWidth(0).Height(17).Padding(0, 0, 0, design.Sp(5)).Children(func() {
+				ui.Row(c).Label("Search result context " + row.Item.SessionID).FillWidth().MinWidth(0).Height(17).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 					label := row.Workspace
 					if label == "" {
 						label = workspaceText("无目录会话", "No workspace folder")
 					}
-					workspace := ui.Text(c, label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(muted).SingleLine().MinWidth(0).MaxWidthPercent(100)
+					workspace := ui.Text(c, label).FontSize(fs(12)).FixedLineHeight(fs(17)).TextColor(muted).SingleLine().MinWidth(0).MaxWidthPercent(100)
 					if row.Snippet != "" {
 						workspace.MaxWidthPercent(40)
-						ui.Text(c, row.Snippet).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(17)).TextColor(muted).SingleLine().Grow(1).MinWidth(0)
+						ui.Text(c, row.Snippet).FontSize(fs(12)).FixedLineHeight(fs(17)).TextColor(muted).SingleLine().Grow(1).MinWidth(0)
 					}
 				})
 			})

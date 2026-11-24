@@ -1,10 +1,9 @@
 package sidebar
 
 import (
-	"time"
-
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 // archiveUndoRow keeps an archived session's undo affordance in the surface the
@@ -16,7 +15,7 @@ func archiveUndoRow(c *ui.Context, m Model) {
 	if notice == nil || notice.Expires.IsZero() {
 		return
 	}
-	remaining := time.Until(notice.Expires)
+	remaining := notice.Expires.Sub(c.Now())
 	if remaining <= 0 {
 		return
 	}
@@ -28,11 +27,15 @@ func archiveUndoRow(c *ui.Context, m Model) {
 	if notice.Announce {
 		c.Announce(title)
 	}
-	muted := c.Theme().TextMuted
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(4, 12, 0, 12).Children(func() {
-		ui.Text(c, title+" · "+notice.Title).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+	t := tok(c)
+	ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Padding(design.Sp(1), design.Sp(3), 0, design.Sp(3)).Children(func() {
+		ui.Text(c, title+" · "+notice.Title).FontSize(fs(12)).TextColor(t.MutedForeground).Grow(1).MinWidth(0).SingleLine()
 		label := workspaceText("撤销归档", "Undo archive")
-		if ui.Button(c, label).Label(label).Height(24).Padding(0, 8).FontSize(theme.InterfaceSize(12)).Shrink(0).Clicked() && m.OnUndoArchive != nil {
+		if coss.Button(c, label, coss.ButtonOptions{
+			Variant: coss.ButtonOutline,
+			Size:    coss.ButtonXS,
+			Key:     "archive-undo-btn",
+		}).Label(label).Shrink(0).Clicked() && m.OnUndoArchive != nil {
 			m.OnUndoArchive(notice.Token)
 		}
 	})

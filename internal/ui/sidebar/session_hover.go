@@ -10,8 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
+	"whaleisle/internal/ui/design"
 )
 
 const (
@@ -20,6 +19,40 @@ const (
 	sessionHoverLeave         = 200 * time.Millisecond
 	sessionHoverCopied        = time.Second
 )
+
+type hoverDotState uint8
+
+const (
+	hoverDotIdle hoverDotState = iota
+	hoverDotRunning
+	hoverDotDone
+	hoverDotWarning
+)
+
+func sbHoverDot(c *ui.Context, state hoverDotState) {
+	t := tok(c)
+	col := t.MutedForeground.Alpha(0.5)
+	switch state {
+	case hoverDotRunning:
+		col = t.Primary
+	case hoverDotDone:
+		col = t.Success
+	case hoverDotWarning:
+		col = t.Warning
+	}
+	ui.Box(c).Size(sbDotSize, sbDotSize).Radius(design.RadiusFull).Background(col).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+		if state != hoverDotRunning || c.Preferences().ReduceMotion {
+			return
+		}
+		phase := float64(c.Now().UnixNano()%int64(sbStatusPulseDur)) / float64(sbStatusPulseDur)
+		alpha := float32(0.35 * (1 - phase))
+		radius := (r.W / 2) * (1 + 0.6*float32(phase))
+		path := &ui.Path{}
+		path.Circle(r.X+r.W/2, r.Y+r.H/2, radius)
+		p.FillPath(path, col.Alpha(alpha))
+		c.After(16 * time.Millisecond)
+	})
+}
 
 // One sidebar-local seat; the Model carries only a pointer to it during a frame.
 // Each frame resets anchors, so borrowed Elements never survive their epoch.
@@ -48,7 +81,7 @@ type sessionHoverAnchor struct {
 }
 
 type sessionHoverStatus struct {
-	state widgets.State
+	state hoverDotState
 	label string
 }
 
@@ -102,7 +135,7 @@ func sessionHoverCopyTitle(item session.Item) string {
 // sessionHoverCard registers a row; the root renders once after all anchors
 // are known. Optional press values come only from existing click owners; pure
 // layout/text must not be made clickable merely to observe a preview dismissal.
-func sessionHoverCard(c *ui.Context, m Model, anchor ui.Element, item session.Item, label, _ string, _ theme.Colors, anchorPressed ...bool) {
+func sessionHoverCard(c *ui.Context, m Model, anchor ui.Element, item session.Item, label, _ string, anchorPressed ...bool) {
 	registerSessionHover(m, anchor, item, label, false, true, anchorPressed...)
 }
 
@@ -277,11 +310,12 @@ func renderSessionHoverCard(c *ui.Context, m Model, root ui.Element, suppressSes
 	} // Removed/filtered/folded row cannot leave a detached card.
 	a := *shown
 	ui.Overlay(c.Key("session-hover-overlay:"+s.shown), func() {
+		t := tok(c)
 		width, height := m.viewport(c)
 		// Keep the existing observer identity on a plain wrapper. The whole
 		// child is the one actual copy button when an original title exists.
 		box := ui.Box(c.Key("session-preview:"+s.shown)).Label("Session preview: "+a.item.SessionID).
-			AttachTo(a.row, ui.AnchorTopRight, ui.AnchorTopLeft).Margin(0, 0, 0, 8).
+			AttachTo(a.row, ui.AnchorTopRight, ui.AnchorTopLeft).Margin(0, 0, 0, design.Sp(2)).
 			Width(min(float32(244), max(float32(0), width-16))).MaxHeight(max(float32(0), height-16))
 		copyTitle := sessionHoverCopyTitle(a.item)
 		copying := now.Before(s.copiedUntil)
@@ -293,9 +327,8 @@ func renderSessionHoverCard(c *ui.Context, m Model, root ui.Element, suppressSes
 			} else {
 				panel = ui.Box(c.Key("session-preview-body:" + s.shown))
 			}
-			panel.Column().FillWidth().MinWidth(0).Padding(12, 16).Gap(8).Radius(12).Clip().
-				AlignItems(ui.Start).Justify(ui.Start).Background(ui.RGB(44, 44, 46)).TextColor(ui.RGB(255, 255, 255)).
-				BorderWidth(0).Shadow(0, 0, 1, 0, ui.RGBA(0, 0, 0, .2)).Shadow(0, 0, 4, 0, ui.RGBA(0, 0, 0, .02)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .08))
+			sbPopoverSurface(panel.Column().FillWidth().MinWidth(0).Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(2)).Clip().
+				AlignItems(ui.Start).Justify(ui.Start), t, design.RadiusXL)
 			if copying {
 				panel.MinHeight(s.panelHeight).Justify(ui.Center).AlignItems(ui.Center)
 				c.After(s.copiedUntil.Sub(now))
@@ -304,7 +337,7 @@ func renderSessionHoverCard(c *ui.Context, m Model, root ui.Element, suppressSes
 			}
 			panel.Children(func() {
 				if copying {
-					ui.Text(c, workspaceText("已复制", "Copied")).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
+					ui.Text(c, workspaceText("已复制", "Copied")).FontSize(14).FixedLineHeight(20).TextColor(t.PopoverForeground)
 					return
 				}
 				drawSessionHoverBody(c, a, s.sampledAt)
@@ -370,27 +403,27 @@ func sessionHoverStatuses(m Model, item session.Item, archived bool) []sessionHo
 	childPrimary := false
 	switch status := sessionStatus(m, item); status {
 	case "approval", "plan-review", "question":
-		out = append(out, sessionHoverStatus{widgets.StateWarning, statusLabel(status)})
+		out = append(out, sessionHoverStatus{hoverDotWarning, statusLabel(status)})
 	case "running":
 		label := workspaceText("运行中", "Running")
 		if !item.Running && children > 0 {
 			label = fmt.Sprintf(workspaceText("%d 个子代理运行中", "%d running subagents"), children)
 			childPrimary = true
 		}
-		out = append(out, sessionHoverStatus{widgets.StateRunning, label})
+		out = append(out, sessionHoverStatus{hoverDotRunning, label})
 	case "completed":
 		if !archived {
-			out = append(out, sessionHoverStatus{widgets.StateDone, statusLabel(status)})
+			out = append(out, sessionHoverStatus{hoverDotDone, statusLabel(status)})
 		}
 	default:
 		if !archived {
-			out = append(out, sessionHoverStatus{widgets.StateIdle, workspaceText("空闲", "Idle")})
+			out = append(out, sessionHoverStatus{hoverDotIdle, workspaceText("空闲", "Idle")})
 		}
 	}
 	// Counts come only from the parent's owned catalog/status projection.
 	// Unknown activity must never be displayed as an exact child count.
 	if children > 0 && !childPrimary {
-		out = append(out, sessionHoverStatus{widgets.StateRunning,
+		out = append(out, sessionHoverStatus{hoverDotRunning,
 			fmt.Sprintf(workspaceText("%d 个子代理运行中", "%d running subagents"), children)})
 	}
 	return out
@@ -401,9 +434,10 @@ func sessionHoverStatuses(m Model, item session.Item, archived bool) []sessionHo
 var sessionHoverTaskClockArtwork = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke-width="1" xmlns="http://www.w3.org/2000/svg"><path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor"/><path d="M8 4.31V8.46L11 10.08" stroke="currentColor"/></svg>`))
 
 func drawSessionHoverBody(c *ui.Context, a sessionHoverAnchor, sampledAt time.Time) {
-	white := ui.RGB(255, 255, 255)
-	secondary := ui.RGBA(255, 255, 255, .65)
-	ui.Text(c, a.displayTitle).FillWidth().MinWidth(0).FontSize(14).FixedLineHeight(20).TextColor(white)
+	t := tok(c)
+	fg := t.PopoverForeground
+	secondary := t.MutedForeground
+	ui.Text(c, a.displayTitle).FillWidth().MinWidth(0).FontSize(14).FixedLineHeight(20).TextColor(fg)
 	if !a.item.Blank {
 		if ago := sessionHoverAgo(a.item.UpdatedAt, sampledAt); ago != "" {
 			ui.Text(c, ago).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(secondary)
@@ -411,15 +445,15 @@ func drawSessionHoverBody(c *ui.Context, a sessionHoverAnchor, sampledAt time.Ti
 	}
 	ordered := orderSchedulePreview(a.tasks, sampledAt)
 	if len(ordered) > 0 {
-		timingInk, relativeInk := ui.RGB(207, 211, 214), ui.RGB(173, 178, 184)
-		ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+		timingInk, relativeInk := fg, secondary
+		ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
 			for _, task := range ordered[:min(2, len(ordered))] {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 					ui.Box(c).Size(12, 16).Shrink(0).Center().Role(ui.RoleNone).Children(func() {
 						ui.Icon(c, sessionHoverTaskClockArtwork).Size(12, 12).TextColor(timingInk).Role(ui.RoleNone)
 					})
-					ui.Column(c).MinWidth(0).Grow(1).Gap(2).Children(func() {
-						ui.Text(c, task.Title).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(white)
+					ui.Column(c).MinWidth(0).Grow(1).Gap(design.Sp(0.5)).Children(func() {
+						ui.Text(c, task.Title).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(fg)
 						absolute, relative := schedulePreviewParts(task, sampledAt)
 						ui.RichText(c, ui.Span{Text: scheduleHoverFrequency(task, sampledAt) + " · " + absolute + " ", Color: timingInk},
 							ui.Span{Text: relative, Color: relativeInk}).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(timingInk)
@@ -432,14 +466,14 @@ func drawSessionHoverBody(c *ui.Context, a sessionHoverAnchor, sampledAt time.Ti
 		})
 	}
 	for _, status := range a.statuses {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-			widgets.StateDot(c, status.state)
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+			sbHoverDot(c, status.state)
 			ui.Text(c, status.label).MinWidth(0).Grow(1).FontSize(12).FixedLineHeight(16).TextColor(secondary)
 		})
 	}
 	if a.archived {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, menuArchiveArtwork).Size(14, 14).TextColor(secondary)
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+			ui.Icon(c, menuArchiveArtwork).Size(design.IconXS, design.IconXS).TextColor(secondary)
 			ui.Text(c, workspaceText("已归档", "Archived")).MinWidth(0).Grow(1).FontSize(12).FixedLineHeight(16).TextColor(secondary)
 		})
 	}

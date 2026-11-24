@@ -10,8 +10,6 @@ import (
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 type hoverDraftInput struct {
@@ -49,7 +47,7 @@ func sessionHoverDraftFixture(t *testing.T) (*ui.Tester, *Model, *hoverDraftInpu
 				if in.archived[item.SessionID] {
 					archivedSessionHoverCard(c, *m, row, item, item.Title, in.pressed[item.SessionID])
 				} else {
-					sessionHoverCard(c, *m, row, item, item.Title, sessionStatus(*m, item), theme.Colors{}, in.pressed[item.SessionID])
+					sessionHoverCard(c, *m, row, item, item.Title, sessionStatus(*m, item), in.pressed[item.SessionID])
 				}
 			}
 		})
@@ -295,7 +293,7 @@ func TestSessionHoverSubagentActivityRequiresAuthoritativeKnownCount(t *testing.
 			for _, status := range statuses {
 				if strings.Contains(status.label, "running subagents") {
 					found = true
-					if status.state != widgets.StateRunning || status.label != "2 running subagents" {
+					if status.state != hoverDotRunning || status.label != "2 running subagents" {
 						t.Fatalf("wrong child activity: %+v", status)
 					}
 				}

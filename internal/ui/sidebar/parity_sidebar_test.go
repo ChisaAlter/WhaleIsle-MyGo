@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -173,6 +174,7 @@ func TestParitySidebarArchiveConfirmDialog(t *testing.T) {
 				ArchiveConfirm: state,
 			}
 			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 480, 640)
+			tt.SetTime(time.Now().Add(300 * time.Millisecond))
 			tt.Frame()
 
 			expectedAll := append([]string{tc.wantTitle, tc.wantDesc, tc.wantHeader, tc.wantAction}, tc.wantLines...)
@@ -275,6 +277,7 @@ func TestParitySidebarDeleteSessionDialogAndErrorCodes(t *testing.T) {
 		},
 	}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 420, 640)
+	tt.SetTime(time.Now().Add(300 * time.Millisecond))
 	tt.Frame()
 	if !tt.HasText("删除会话") {
 		t.Fatalf("missing delete confirm title in %v", tt.Texts())

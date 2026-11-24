@@ -7,10 +7,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 var batchChecklistIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M3.75 6.25C4.7165 6.25 5.5 5.4665 5.5 4.5C5.5 3.5335 4.7165 2.75 3.75 2.75C2.7835 2.75 2 3.5335 2 4.5C2 5.4665 2.7835 6.25 3.75 6.25Z"/><path d="M7.5 4.5H13.5"/><path d="M3.75 13.25C4.7165 13.25 5.5 12.4665 5.5 11.5C5.5 10.5335 4.7165 9.75 3.75 9.75C2.7835 9.75 2 10.5335 2 11.5C2 12.4665 2.7835 13.25 3.75 13.25Z"/><path d="M7.5 11.5H13.5"/></svg>`))
@@ -82,6 +81,7 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 	if !m.Batch.Enabled {
 		return false
 	}
+	t := tok(c)
 	if item.Blank {
 		title = i18n.T(i18n.KeySidebarNewSessionFallback)
 	}
@@ -89,8 +89,8 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 		title = i18n.T(i18n.KeyWSSessionUntitled)
 	}
 	locked := m.Batch.Busy || m.Batch.Confirming || m.OnBatchEdit == nil
-	row := ui.Row(c.Key("batch-row-"+item.SessionID)).Label("Select session "+item.SessionID).FillWidth().Height(32).Radius(12).
-		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).Clip().AlignItems(ui.Center).Gap(0)
+	row := ui.Row(c.Key("batch-row-"+item.SessionID)).Label("Select session "+item.SessionID).FillWidth().Height(design.Sp(8)).Radius(design.RadiusXL).
+		Background(ui.Transparent).BorderWidth(0).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(depth)*design.Sp(3)).Clip().AlignItems(ui.Center).Gap(0)
 	selected, changed := false, false
 	_, selected = m.Batch.Selected[item.SessionID]
 	if item.Blank {
@@ -102,20 +102,24 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 		}
 	}
 	if selected {
-		row.Background(c.Theme().Accent.Alpha(.12))
+		row.Background(sbSelectedBg(t))
 	}
 	row.Children(func() {
 		if item.Blank {
-			ui.Box(c).Size(16, 20)
+			ui.Box(c).Size(design.IconSM, design.Sp(5))
 		} else {
-			ui.Box(c).Size(16, 20).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-				check := ui.Checkbox(c.Key("batch-checkbox-"+item.SessionID), &selected, "").Label(i18n.WSf(i18n.KeyWSSelectionSessionAria, "name", title)).Size(16, 16).Gap(0).Disabled(locked)
+			ui.Box(c).Size(design.IconSM, design.Sp(5)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+				check := coss.Checkbox(c, &selected, "", coss.CheckOptions{
+					Disabled: locked,
+					Label:    i18n.WSf(i18n.KeyWSSelectionSessionAria, "name", title),
+					Key:      "batch-checkbox-" + item.SessionID,
+				})
 				changed = check.Changed()
 			})
 		}
-		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, 6, 0, 4).SingleLine().FontSize(theme.InterfaceSize(14)).TextColor(fg)
+		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(fg)
 		if !item.Blank {
-			ui.Text(c, sessionTrailingLabel(sessionStatus(m, item), item.UpdatedAt)).Label("Session time " + item.SessionID).FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).SingleLine().TextColor(muted)
+			ui.Text(c, sessionTrailingLabel(sessionStatus(m, item), item.UpdatedAt)).Label("Session time " + item.SessionID).FontSize(fs(10)).FixedLineHeight(design.Sp(4)).SingleLine().TextColor(muted)
 		}
 	})
 	clicked := false
@@ -127,35 +131,45 @@ func batchSessionRow(c *ui.Context, m Model, item session.Item, depth int, title
 	}
 	return true
 }
+
 func batchToggle(c *ui.Context, m Model, fg ui.Color) {
 	if m.OnBatchEdit == nil {
 		return
 	}
+	t := tok(c)
 	b := m.Batch
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	label := i18n.T(i18n.KeyWSSelectionEnter)
 	if b.Enabled {
 		label = i18n.T(i18n.KeyWSSelectionExit)
 	}
-	button := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).Padding(0).Radius(8).
-		BorderWidth(0).Background(ui.Transparent).Disabled(b.Busy || b.Confirming).Center()
+	btn := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconSM,
+		Disabled: b.Busy || b.Confirming,
+		Pressed:  b.Enabled,
+		Label:    label,
+		Key:      "batch-toggle",
+		Content:  func() {},
+	}).Tooltip(label).Radius(design.RadiusMD).Padding(0).BorderWidth(0).Center()
 	ink := fg
-	if b.Enabled || button.Hovered() {
-		button.Background(chrome.Color(colors.Hover))
-		ink = chrome.Color(colors.FG)
+	if b.Enabled || btn.Hovered() {
+		ink = t.Foreground
 	}
-	button.Children(func() {
-		ui.Icon(c, batchChecklistIcon).Size(14, 14).TextColor(ink)
+	btn.Children(func() {
+		ui.Icon(c, batchChecklistIcon).Size(design.IconXS, design.IconXS).TextColor(ink)
 	})
-	if button.Clicked() {
+	if btn.Clicked() {
 		m.OnBatchEdit("toggle", nil)
 	}
 }
 
-// batchActionIcon draws the 14 DIP leading glyph a SessionSelectionToolbar
-// action carries before its label (SessionSelection.tsx renders size-14 icons).
-func batchActionIcon(icon *ui.SVG, ink ui.Color) func(*ui.Context) {
-	return func(c *ui.Context) { ui.Icon(c, icon).Size(14, 14).TextColor(ink) }
+func batchActionContent(c *ui.Context, icon *ui.SVG, label string, ink ui.Color) func() {
+	return func() {
+		ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Center().Children(func() {
+			ui.Icon(c, icon).Size(design.IconXS, design.IconXS).TextColor(ink)
+			ui.Text(c, label).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).TextColor(ink).SingleLine()
+		})
+	}
 }
 
 func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
@@ -167,41 +181,51 @@ func batchToolbar(c *ui.Context, m Model, fg ui.Color) {
 	if !b.Enabled {
 		return
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	// Progress shares the selection count's caption seat, so a running batch
-	// does not push the session list down.
+	t := tok(c)
 	count := i18n.WSf(i18n.KeyWSSelectionCount, "n", strconv.Itoa(len(b.Selected)))
 	if b.Busy {
 		count = fmt.Sprintf(workspaceText("处理中 %d / %d", "Processing %d / %d"), b.Attempted, len(b.Targets))
 	}
 	none := len(b.Selected) == 0
-	dangerInk := chrome.Color(colors.Danger)
-	// --dsw-alias-interactive-bg-hover-danger is error-primary at 5% light and
-	// 15% dark (ui-theme design-platform.css); SessionSelection's .danger is a
-	// label-only tint, so the outline stays border-l3.
-	dangerHover := dangerInk.Alpha(.05)
-	if m.SystemDark {
-		dangerHover = dangerInk.Alpha(.15)
-	}
-	// SessionSelection.module.css .toolbar: an 8 DIP column under 4/4/12
-	// padding; .selectionLine carries the label-primary count and two ghost sm
-	// buttons with padding-inline 8, and .actions shares the row between two
-	// outline sm buttons at flex 1.
-	ui.Column(c).FillWidth().Gap(8).Padding(4, 4, 12, 4).Children(func() {
-		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, count).Grow(1).MinWidth(0).SingleLine().Padding(0, 0, 0, 4).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
-			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionAllVisible), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: locked, PadX: 8}).Clicked() {
+	ui.Column(c).FillWidth().Gap(design.Sp(2)).Padding(design.Sp(1), design.Sp(1), design.Sp(3), design.Sp(1)).Children(func() {
+		ui.Row(c).FillWidth().Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, count).Grow(1).MinWidth(0).SingleLine().Padding(0, 0, 0, design.Sp(1)).FontSize(fs(12)).FixedLineHeight(18).TextColor(fg).Label(i18n.T(i18n.KeyWSSelectionToolbarAria))
+			if coss.Button(c, i18n.T(i18n.KeyWSSelectionAllVisible), coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: locked,
+				Key:      "batch-all-visible",
+			}).BorderWidth(0).Padding(0, design.Sp(2)).Clicked() {
 				m.OnBatchEdit("visible", VisibleBatchTargets(m))
 			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionClear), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: locked || none, PadX: 8}).Clicked() {
+			if coss.Button(c, i18n.T(i18n.KeyWSSelectionClear), coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: locked || none,
+				Key:      "batch-clear",
+			}).BorderWidth(0).Padding(0, design.Sp(2)).Clicked() {
 				m.OnBatchEdit("clear", nil)
 			}
 		})
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionArchive), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: locked || none, Leading: batchActionIcon(menuArchiveArtwork, fg)}).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
+		ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
+			archiveLabel := i18n.T(i18n.KeyWSSelectionArchive)
+			if coss.Button(c, archiveLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonSM,
+				Disabled: locked || none,
+				Content:  batchActionContent(c, menuArchiveArtwork, archiveLabel, t.Foreground),
+				Key:      "batch-archive",
+			}).Label(archiveLabel).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
 				m.OnBatchRequest("archive")
 			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeyWSSelectionDelete), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: locked || none, Ink: &dangerInk, HoverFill: &dangerHover, Leading: batchActionIcon(menuTrashArtwork, dangerInk)}).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
+			deleteLabel := i18n.T(i18n.KeyWSSelectionDelete)
+			if coss.Button(c, deleteLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonDestructiveOutline,
+				Size:     coss.ButtonSM,
+				Disabled: locked || none,
+				Content:  batchActionContent(c, menuTrashArtwork, deleteLabel, t.DestructiveForeground),
+				Key:      "batch-delete",
+			}).Label(deleteLabel).Grow(1).MinWidth(0).Clicked() && m.OnBatchRequest != nil {
 				m.OnBatchRequest("delete")
 			}
 		})

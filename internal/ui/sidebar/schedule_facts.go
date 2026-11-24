@@ -10,8 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 func sessionScheduleMark(c *ui.Context, count int, ink ui.Color) {
@@ -107,7 +106,7 @@ func schedulePreviewFrequency(row schedstore.Entry) string {
 	return workspaceText("仅一次", "Once")
 }
 
-func sessionScheduleHover(c *ui.Context, m Model, anchor ui.Element, item session.Item, status string, rows []schedstore.Entry, epoch uint64, colors theme.Colors) {
+func sessionScheduleHover(c *ui.Context, m Model, anchor ui.Element, item session.Item, status string, rows []schedstore.Entry, epoch uint64) {
 	if anchor.MenuOpen() {
 		return
 	}
@@ -127,25 +126,26 @@ func sessionScheduleHover(c *ui.Context, m Model, anchor ui.Element, item sessio
 	ui.TooltipBase(c.Key("session-task-hover"), anchor, func(tip ui.Element) {
 		shown = true
 		if !state.shown {
-			state.now = time.Now()
+			state.now = c.Now()
 		}
 		state.shown = true
+		t := tok(c)
 		ordered := orderSchedulePreview(rows, state.now)
 		width, height := m.viewport(c)
-		chrome.FrostSurface(tip.Label("Scheduled task preview: "+item.SessionID).Width(min(float32(300), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Clip().Padding(12), colors, m.SystemDark, chrome.Color(colors.BG), 12).Border(.5, chrome.Color(colors.Border)).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .16)).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-				ui.Text(c, item.Title).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0).MaxLines(2)
+		sbPopoverSurface(tip.Label("Scheduled task preview: "+item.SessionID).Width(min(float32(300), max(float32(0), width-24))).MaxHeight(max(float32(0), height-24)).Clip().Padding(design.Sp(3)), t, design.RadiusXL).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
+				ui.Text(c, item.Title).FontSize(fs(13)).TextColor(t.PopoverForeground).FillWidth().MinWidth(0).MaxLines(2)
 				for _, task := range ordered[:min(2, len(ordered))] {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
-						ui.Text(c, task.Title).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0).MaxLines(2)
-						ui.Text(c, schedulePreviewFrequency(task)+" · "+schedulePreviewTiming(task, state.now)).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0).MaxLines(3)
+					ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
+						ui.Text(c, task.Title).FontSize(fs(12)).TextColor(t.PopoverForeground).FillWidth().MinWidth(0).MaxLines(2)
+						ui.Text(c, schedulePreviewFrequency(task)+" · "+schedulePreviewTiming(task, state.now)).FontSize(fs(11)).TextColor(t.MutedForeground).FillWidth().MinWidth(0).MaxLines(3)
 					})
 				}
 				if omitted := len(ordered) - 2; omitted > 0 {
-					ui.Text(c, fmt.Sprintf(workspaceText("另有 %d 个任务", "%d more tasks"), omitted)).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
+					ui.Text(c, fmt.Sprintf(workspaceText("另有 %d 个任务", "%d more tasks"), omitted)).FontSize(fs(11)).TextColor(t.MutedForeground)
 				}
 				if text := statusLabel(status); text != "" {
-					ui.Text(c, text).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
+					ui.Text(c, text).FontSize(fs(11)).TextColor(t.MutedForeground)
 				}
 			})
 		})

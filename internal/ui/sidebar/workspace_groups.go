@@ -1,26 +1,35 @@
 package sidebar
 
 import (
-	"github.com/egoist/mygo/ui"
 	"strconv"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 const flatSessionPageBase = 50
 
 func sidebarPaginationToggle(c *ui.Context, key, label, accessible string, muted ui.Color) bool {
-	return ui.Button(c.Key(key), label).Label(accessible).FillWidth().Height(28).FontSize(theme.InterfaceSize(12)).TextColor(muted).Background(ui.Transparent).BorderWidth(0).Cursor(ui.CursorPointer).Clicked()
+	return coss.Button(c, label, coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+		Key:     key,
+	}).Label(accessible).FillWidth().Height(28).FontSize(fs(12)).TextColor(muted).BorderWidth(0).Clicked()
 }
 
 func workspaceText(zh, en string) string {
 	return i18n.Pick(zh, en)
 }
+
 func workspaceViewOptions(c *ui.Context, m Model) {
-	workspaceViewOptionsMenu(c, m, nil)
+	items, run := workspaceViewOptionsItems(m)
+	if chosen := coss.MenuPanel(c, items, coss.MenuOptions{MinWidth: 200}); chosen != "" {
+		run(chosen)
+	}
 }
 func visibleWorkspaceGroups(m Model, items []session.Item) []session.WorkspaceGroup {
 	groups := session.BuildSidebarWorkspaceGroups(m.Snapshot, items)
@@ -84,7 +93,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 	// Sections own their 4-DIP separation; the scroll container adds none.
 	// Rows inside a section keep the reference's 2-DIP spacing.
 	flatFill := len(groups) == 1 && groups[0].Kind == "flat" && m.sidebarBodyFill
-	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(4)
+	list := ui.Column(c.Key("workspace-drop-list")).FillWidth().Gap(design.Sp(1))
 	if flatFill {
 		list.Grow(1).MinHeight(0)
 	} else {
@@ -106,7 +115,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			if m.SearchQuery != nil && strings.TrimSpace(*m.SearchQuery) != "" {
 				collapsed = false
 			}
-			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(2).
+			block := ui.Column(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "group/" + g.Key})).FillWidth().Gap(design.Sp(0.5)).
 				Transition(rowTransition)
 			if flatFill {
 				block.Grow(1).MinHeight(0)
@@ -115,7 +124,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 			}
 			blocks = append(blocks, workspaceDropBlock{Group: g, Element: block})
 			block.Children(func() {
-				colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+				t := tok(c)
 				if g.Kind != "flat" {
 					title := session.WorkspaceDisplayTitle(g.Workspace.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 					if title == "" {
@@ -133,9 +142,9 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 					// The 34-DIP header carries the group's accessible name and
 					// treeitem role, as the source's [role=treeitem] row does;
 					// its inner buttons keep their own names for the actions.
-					header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).Role(ui.RoleTreeItem).Label(title).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, 8, 0, float32(8+g.Depth*12)).Radius(8)
+					header := ui.Row(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: g.Key})).Role(ui.RoleTreeItem).Label(title).FillWidth().Height(34).Gap(0).AlignItems(ui.Center).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(g.Depth)*design.Sp(3)).Radius(design.RadiusMD)
 					if header.Hovered() || header.FocusWithin() || header.MenuOpen() {
-						header.Background(selectedBackground(colors))
+						header.Background(sbSelectedBg(t))
 					}
 					holdsSelection := highlights[g.Key]
 					anchor := workspaceHoverAnchor{row: header, workspace: g.Workspace, label: title, pressed: header.Pressed()}
@@ -144,15 +153,19 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 						// Rows.module.css: the folder rests, and the row swaps it for the
 						// disclosure arrow on hover (the arrow rotates as the group opens).
 						hovered := header.Hovered() || header.FocusWithin()
-						lead := ui.ButtonBase(c).Width(16).Height(20).Shrink(0).Padding(0).BorderWidth(0).
-							Background(ui.Transparent).Label(workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key).Center().Cursor(ui.CursorPointer)
+						lead := coss.Button(c, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonIconXS,
+							Label:   workspaceText("折叠工作区 ", "Toggle workspace ") + g.Key,
+							Content: func() {},
+						}).Size(16, 20).Shrink(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Center()
 						lead.Children(func() {
 							if hovered || g.Kind == "scratch" || g.Kind == "pinned" {
 								size, ink := float32(12), muted
 								if g.Kind == "scratch" || g.Kind == "pinned" {
-									size, ink = 14, chrome.Color(colors.Muted)
+									size, ink = design.IconXS, t.MutedForeground
 									if holdsSelection {
-										ink = chrome.Color(colors.Accent)
+										ink = t.Primary
 									}
 								}
 								ui.Icon(c, workspaceChevronArtwork).Size(size, size).TextColor(ink).
@@ -162,24 +175,29 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 							}
 							ink := muted
 							if holdsSelection {
-								ink = chrome.Color(colors.Accent)
+								ink = t.Primary
 							}
 							folder := workspaceFolderClosedArtwork
 							if !collapsed {
 								folder = workspaceFolderOpenArtwork
 							}
-							ui.Icon(c, folder).Size(16, 16).TextColor(ink).
+							ui.Icon(c, folder).Size(design.IconSM, design.IconSM).TextColor(ink).
 								Label(workspaceText("工作区文件夹 ", "Workspace folder ") + g.Key)
 						})
 						if lead.Clicked() && m.OnToggleWorkspaceGroup != nil {
 							resetWorkspaceWatermark(m, g.Key, groups)
 							m.OnToggleWorkspaceGroup(g.Key)
 						}
-						titleButton := ui.Button(c, "").Label(title).Grow(1).MinWidth(0).Height(32).Padding(0, 6, 0, 6).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
+						titleButton := coss.Button(c, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonSM,
+							Label:   title,
+							Content: func() {},
+						}).Grow(1).MinWidth(0).Height(32).Padding(0, design.Sp(1.5), 0, design.Sp(1.5)).BorderWidth(0).Background(ui.Transparent).TextColor(fg)
 						titleButton.Children(func() {
-							text := ui.Text(c, title).FontSize(theme.InterfaceSize(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
+							text := ui.Text(c, title).FontSize(fs(14)).TextColor(fg).MinWidth(0).Grow(1).SingleLine()
 							if g.Kind == "scratch" || g.Kind == "pinned" {
-								text.FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(chrome.Color(colors.Muted)).FixedLineHeight(theme.InterfaceSize(18))
+								text.FontSize(fs(12)).FontWeight(design.WeightMedium).TextColor(t.MutedForeground).FixedLineHeight(fs(18))
 							}
 						})
 						if g.Kind == "workspace" && !layout.Reordering {
@@ -298,7 +316,7 @@ func workspaceRowsView(c *ui.Context, m Model, items []session.Item, fg, muted, 
 							capH := sidebarListMaxHeight(m, c, capRatio)
 							flatList := ui.List(c.Key(workspaceRowKey{HostGeneration: layout.HostGeneration, ID: "flat-list"}), &flatState.list, len(rows)).
 								ItemKey(func(i int) any { return sessionRowKey{layout.HostGeneration, g.Key, rows[i].Item.SessionID} }).
-								FillWidth().MinWidth(0).Gap(2).
+								FillWidth().MinWidth(0).Gap(design.Sp(0.5)).
 								MaxHeight(capH).
 								ScrollbarsVisible(m.scrollbarsVisible)
 							if flatFill {

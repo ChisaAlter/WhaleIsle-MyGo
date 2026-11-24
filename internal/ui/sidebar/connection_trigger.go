@@ -1,12 +1,12 @@
 package sidebar
 
 import (
-	"github.com/egoist/mygo/ui"
-	"math"
 	"time"
-	"whaleisle/internal/ui/chrome"
+
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 type connectionTriggerState struct {
@@ -73,13 +73,13 @@ func (s *connectionTriggerState) project(now time.Time, epoch uint64, phase stri
 
 var connectionRefresh = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))
 var connectionCheck = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3 3 7-7"/></svg>`))
-var updateLoading = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M12.596 12.596C11.687 13.5049 10.5288 14.1239 9.26798 14.3747C8.00716 14.6255 6.70028 14.4968 5.51261 14.0048C4.32494 13.5129 3.30981 12.6798 2.59557 11.611C1.88134 10.5421 1.50008 9.2855 1.5 7.99998C1.50008 6.71446 1.88134 5.45783 2.59557 4.38898C3.30981 3.32013 4.32494 2.48707 5.51261 1.99513C6.70028 1.50319 8.00716 1.37447 9.26798 1.62524C10.5288 1.87602 11.687 2.49502 12.596 3.40398"/></svg>`))
 var updateDownload = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1"><path d="M8 1.95317V10.0469M4.25 6.29688L8 10.0469L11.75 6.29688M1.5 10.0469V13.158C1.5 13.3937 1.60536 13.6198 1.79289 13.7865C1.98043 13.9532 2.23478 14.0469 2.5 14.0469H13.5C13.7652 14.0469 14.0196 13.9532 14.2071 13.7865C14.3946 13.6198 14.5 13.3937 14.5 13.158V10.0469"/></svg>`))
 var settingsGear = ui.MustParseSVG([]byte(`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="m8 2-.5 2-2 .9-1.8-.5L2 7.4l1.5 1.5v2.2L2 12.6l1.7 3 1.8-.5 2 .9.5 2h4l.5-2 2-.9 1.8.5 1.7-3-1.5-1.5V8.9L18 7.4l-1.7-3-1.8.5-2-.9-.5-2z"/><circle cx="10" cy="10" r="3"/></svg>`))
 
 // SettingsRoot's expanded trigger and compact rail share the exact physical
 // connection producer. A recovered session/list snapshot cannot stand in for it.
-func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, compact bool) {
+func settingsConnectionTrigger(c *ui.Context, m Model, compact bool) {
+	t := tok(c)
 	height := float32(44)
 	if compact {
 		height = 80
@@ -102,7 +102,7 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 	if reduced {
 		opacity = 1
 	}
-	if !reduced && (opacity < 1 || status == "connecting") {
+	if !reduced && opacity < 1 {
 		c.After(16 * time.Millisecond)
 	}
 	for _, deadline := range []time.Time{state.holdUntil, state.recoveredUntil, state.leaveUntil} {
@@ -116,13 +116,18 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 		if combined {
 			seatLabel = i18n.T(i18n.KeySettingsAccountSeat)
 		}
-		button := ui.Button(c, "").FillWidth().Height(42).Padding(0, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Label(seatLabel).Tooltip(seatLabel).Disabled(m.OnOpenSettings == nil)
+		button := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Size:     coss.ButtonMD,
+			Disabled: m.OnOpenSettings == nil,
+			Label:    seatLabel,
+			Key:      "settings-connection-button",
+			Content:  func() {},
+		}).FillWidth().Height(42).Padding(0, design.Sp(2)).Radius(design.RadiusMD).BorderWidth(0).Label(seatLabel).Tooltip(seatLabel)
 		if compact {
 			button.Size(36, 36).Absolute().Bottom(0).Padding(0)
 		}
 		if combined {
-			// The reference pins one settings/account seat whose menu keeps
-			// settings, contact, account details and sign-out.
 			button.Menu(func(menu *ui.Menu) {
 				if m.OnOpenSettings != nil && menu.Item(i18n.T(i18n.KeySettingsOpen)).Chosen() {
 					m.OnOpenSettings()
@@ -142,16 +147,13 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 				}
 			})
 		}
-		if button.Hovered() {
-			button.Background(chrome.Color(colors.Hover))
-		}
 		button.Children(func() {
-			ui.Row(c).Fill().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, settingsGear).Size(20, 20).TextColor(chrome.Color(colors.FG))
+			ui.Row(c).Fill().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, settingsGear).Size(design.IconLG, design.IconLG).TextColor(t.Foreground)
 				if !compact {
-					label := ui.Text(c, seatLabel).Grow(1).SingleLine().FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG))
+					label := ui.Text(c, seatLabel).Grow(1).SingleLine().FontSize(fs(14)).TextColor(t.Foreground)
 					if status != "" {
-						label.Margin(0, 44, 0, 0)
+						label.Margin(0, design.Sp(11), 0, 0)
 					}
 				}
 			})
@@ -162,7 +164,7 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 		if status == "" {
 			return
 		}
-		seat := ui.Box(c).Size(36, 36).Absolute().Right(0).Top(4).Opacity(opacity)
+		seat := ui.Box(c).Size(36, 36).Absolute().Right(0).Top(design.Sp(1)).Opacity(opacity)
 		if compact {
 			seat.Top(0)
 		}
@@ -172,20 +174,16 @@ func settingsConnectionTrigger(c *ui.Context, m Model, colors theme.Colors, comp
 				if status == "installing" {
 					phase = "installing"
 				}
-				desktopUpdateSeat(c, m, phase, colors)
+				desktopUpdateSeat(c, m, phase)
 			} else {
-				connectionStatusSeat(c, m, status, colors, reduced)
+				connectionStatusSeat(c, m, status)
 			}
 		})
 	})
 }
 
-func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Colors, reduced bool) {
-	dark := theme.ResolveWithSystem(m.ThemeID, m.SystemDark).Scheme == theme.SchemeDark
-	ink, fill := ui.RGB(221, 134, 41), ui.RGB(254, 245, 231)
-	if dark {
-		fill = ui.RGB(39, 36, 31)
-	}
+func connectionStatusSeat(c *ui.Context, m Model, status string) {
+	t := tok(c)
 	label, action := workspaceText("连接异常，刷新重试", "Disconnected"), workspaceText("连接异常，点击立即重连", "Disconnected, reconnect now")
 	if status == "connecting" {
 		label, action = workspaceText("重新连接中", "Reconnecting"), workspaceText("连接中断，正在重试，点击立即重连", "Reconnecting, reconnect now")
@@ -195,50 +193,33 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 		action += "\n" + m.ConnectionError
 	}
 	if status == "recovered" {
-		ink, fill = ui.RGB(34, 197, 94), ui.RGB(230, 250, 237)
-		if dark {
-			fill = ui.RGB(35, 60, 44)
-		}
-		ui.Box(c).Size(36, 36).Radius(8).Background(fill).Border(1, ink.Alpha(.2)).Role(ui.RoleStatus).Label(workspaceText("连接成功", "Connected")).Tooltip(workspaceText("连接成功", "Connected")).Center().Children(func() { ui.Icon(c, connectionCheck).Size(14, 14).TextColor(ink) })
+		ui.Box(c).Size(36, 36).Radius(design.RadiusMD).
+			Background(t.Success.Alpha(0.12)).Border(design.BorderWidth, t.Success.Alpha(0.24)).
+			Role(ui.RoleStatus).Label(workspaceText("连接成功", "Connected")).Tooltip(workspaceText("连接成功", "Connected")).
+			Center().Children(func() {
+			ui.Icon(c, connectionCheck).Size(design.IconXS, design.IconXS).TextColor(t.SuccessForeground)
+		})
 		return
 	}
-	button := ui.Button(c, "").Size(36, 36).Padding(0).Radius(8).Center().Background(fill).Border(1, ink.Alpha(.2)).Label(action).Tooltip(label).Disabled(m.OnReconnect == nil)
+	fill := t.Warning.Alpha(0.12)
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconLG,
+		Disabled: m.OnReconnect == nil,
+		Label:    action,
+		Key:      "connection-status-seat",
+		Content:  func() {},
+	}).Size(36, 36).Padding(0).Radius(design.RadiusMD).Center().
+		Background(fill).Border(design.BorderWidth, t.Warning.Alpha(0.24)).
+		Label(action).Tooltip(label)
 	if button.Hovered() {
-		button.Background(ui.RGB(uint8(float32(fill.R)*.94+float32(ink.R)*.06), uint8(float32(fill.G)*.94+float32(ink.G)*.06), uint8(float32(fill.B)*.94+float32(ink.B)*.06)))
+		button.Background(t.Warning.Alpha(0.2))
 	}
 	button.Children(func() {
 		if status == "connecting" {
-			ui.Box(c).Size(14, 14).Draw(func(p *ui.Painter, r ui.Rect) {
-				color := chrome.Color(colors.Muted)
-				p.Stroke(ui.Rect{X: r.X + 1.5, Y: r.Y + 1.5, W: r.W - 3, H: r.H - 3}, color.Alpha(.25), 7, 1.2)
-				t := float64(p.Now().UnixNano()%int64(1500*time.Millisecond)) / float64(1500*time.Millisecond)
-				if reduced {
-					t = .5
-				}
-				breath := (1 - math.Cos(t*2*math.Pi)) / 2
-				start := t*2*math.Pi + 6/9.5*breath
-				length := (12 + 12*breath) / 9.5
-				if reduced {
-					start = 3 / 9.5
-					length = 18 / 9.5
-				}
-				var path ui.Path
-				for i := 0; i <= 20; i++ {
-					a := start + length*float64(i)/20
-					x, y := r.X+7+float32(math.Cos(a))*5.5, r.Y+7+float32(math.Sin(a))*5.5
-					if i == 0 {
-						path.MoveTo(x, y)
-					} else {
-						path.LineTo(x, y)
-					}
-				}
-				p.StrokePath(&path, 1.2, color)
-				if !reduced {
-					p.AnimationFrame()
-				}
-			})
+			coss.Spinner(c, coss.SpinnerOptions{Size: design.IconXS, Color: t.MutedForeground})
 		} else {
-			ui.Icon(c, connectionRefresh).Size(14, 14).TextColor(ink)
+			ui.Icon(c, connectionRefresh).Size(design.IconXS, design.IconXS).TextColor(t.WarningForeground)
 		}
 	})
 	if button.Clicked() && m.OnReconnect != nil {
@@ -248,8 +229,16 @@ func connectionStatusSeat(c *ui.Context, m Model, status string, colors theme.Co
 
 // The sidebar is a status projection, not the update center. Only actual
 // updater changes should wake the workbench, including during a slow check.
-func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors) {
-	labels := map[string]string{"checking": workspaceText("正在检查更新…", "Checking for updates…"), "available": workspaceText("有可用更新", "Update available"), "downloading": workspaceText("正在下载更新…", "Downloading update…"), "verifying": workspaceText("正在校验更新…", "Verifying update…"), "installing": workspaceText("正在准备重启…", "Preparing to restart…"), "ready": workspaceText("安装并重启", "Install and Restart"), "error": workspaceText("重试更新", "Retry update")}
+func desktopUpdateSeat(c *ui.Context, m Model, phase string) {
+	labels := map[string]string{
+		"checking":    workspaceText("正在检查更新…", "Checking for updates…"),
+		"available":   workspaceText("有可用更新", "Update available"),
+		"downloading": workspaceText("正在下载更新…", "Downloading update…"),
+		"verifying":   workspaceText("正在校验更新…", "Verifying update…"),
+		"installing":  workspaceText("正在准备重启…", "Preparing to restart…"),
+		"ready":       workspaceText("安装并重启", "Install and Restart"),
+		"error":       workspaceText("重试更新", "Retry update"),
+	}
 	label := labels[phase]
 	if label == "" {
 		return
@@ -258,27 +247,28 @@ func desktopUpdateSeat(c *ui.Context, m Model, phase string, colors theme.Colors
 	if detail == "" {
 		detail = label
 	}
+	t := tok(c)
 	busy := phase == "checking" || phase == "downloading" || phase == "verifying" || phase == "installing"
-	// A plain footer icon button like the sidebar's other chrome: transparent
-	// at rest with the hover wash under the pointer; the earlier tinted box
-	// read as a separate surface the original footer does not have.
-	ink := chrome.Color(colors.Accent)
+	ink := t.Primary
 	if busy {
-		ink = chrome.Color(colors.Muted)
+		ink = t.MutedForeground
 	}
-	button := ui.Button(c, "").Fill().Padding(0).Radius(8).Center().Background(ui.Transparent).BorderWidth(0).TextColor(ink).Label(label).Tooltip(detail)
-	if busy {
-		button.Disabled(true)
-	} else if button.Hovered() {
-		button.Background(chrome.Color(colors.Hover))
-	}
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconLG,
+		Disabled: busy,
+		Label:    label,
+		Key:      "desktop-update-seat",
+		Content:  func() {},
+	}).Fill().Padding(0).Radius(design.RadiusMD).BorderWidth(0).Center().
+		TextColor(ink).Label(label).Tooltip(detail)
 	button.Children(func() {
 		if phase == "error" {
-			ui.Box(c).Size(6, 6).Radius(3).Background(ink)
+			ui.Box(c).Size(6, 6).Radius(design.RadiusFull).Background(ink)
 		} else if busy {
-			ui.Icon(c, updateLoading).Size(14, 14).TextColor(ink).Opacity(.7)
+			coss.Spinner(c, coss.SpinnerOptions{Size: design.IconXS, Color: ink})
 		} else {
-			ui.Icon(c, updateDownload).Size(14, 14).TextColor(ink)
+			ui.Icon(c, updateDownload).Size(design.IconXS, design.IconXS).TextColor(ink)
 		}
 	})
 	if !busy && button.Clicked() && m.OnOpenDesktopUpdate != nil {

@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/workspacepicker"
 )
 
@@ -82,57 +82,61 @@ func sessionArchiveConfirmDialog(c *ui.Context, m Model) {
 		return
 	}
 	s := *m.ArchiveConfirm
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
-	danger := chrome.Color(colors.Danger)
-	if danger.A == 0 {
-		danger = ui.RGB(242, 90, 90)
-	}
+	t := tok(c)
 	title := strings.TrimSpace(s.Title)
 	if title == "" {
 		title = i18n.T(i18n.KeyWSSessionUntitled)
 	}
 	open := true
-	ui.DialogBase(c.Key("session-archive-confirm-modal"), &open, func(backdrop, panel ui.Element) {
-		chrome.DialogReveal(c, backdrop, panel)
-		chrome.FrostSurface(panel.Width(420).MaxWidthPercent(94).Padding(24).Gap(16), colors, m.SystemDark, chrome.Color(colors.Field), 24).Border(0.5, border).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyWSArchiveConfirmTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
-			ui.Text(c, i18n.WSf(i18n.KeyWSArchiveConfirmDesc, "title", title)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
-			lines := FormatArchiveConfirmActivityLines(s)
+	lines := FormatArchiveConfirmActivityLines(s)
+	var body func()
+	if len(lines) > 0 || s.Error != "" {
+		body = func() {
 			if len(lines) > 0 {
-				ui.Column(c).FillWidth().Gap(6).Padding(10, 12).Radius(12).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.BG))).Border(0.5, border).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyWSArchiveConfirmActivity)).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(fg)
+				ui.Column(c).FillWidth().Gap(design.Sp(1.5)).Padding(design.Sp(2.5), design.Sp(3)).Radius(design.RadiusXL).
+					Background(t.Muted.Alpha(0.5)).Border(design.BorderWidth, t.Border).Children(func() {
+					sbText(c, i18n.T(i18n.KeyWSArchiveConfirmActivity), 12, design.WeightMedium, t.Foreground)
 					for _, line := range lines {
-						ui.Text(c, line).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+						sbText(c, line, 12, design.WeightNormal, t.MutedForeground).FixedLineHeight(fs(18))
 					}
 				})
 			}
 			if s.Error != "" {
-				ui.Text(c, s.Error).FontSize(theme.InterfaceSize(12)).TextColor(danger)
+				sbText(c, s.Error, 12, design.WeightNormal, t.Destructive)
 			}
-			ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
-				cancelLabel := workspaceText("取消", "Cancel")
-				cancelBtn := ui.Button(c, cancelLabel).Label(cancelLabel).Height(34).Padding(0, 14).Radius(10).Disabled(s.Busy)
-				if !s.Busy {
-					cancelBtn.Cursor(ui.CursorPointer)
-				}
-				if cancelBtn.Clicked() && s.OnCancel != nil {
-					s.OnCancel()
-				}
-				actionLabel := i18n.T(i18n.KeyWSArchiveConfirmAction)
-				if s.Busy {
-					actionLabel = i18n.T(i18n.KeyWSArchiveConfirmPending)
-				}
-				confirmBtn := ui.Button(c, actionLabel).Label(actionLabel).Height(34).Padding(0, 14).Radius(10).TextColor(danger).Border(0.5, border).Background(ui.Transparent).Disabled(s.Busy)
-				if !s.Busy {
-					confirmBtn.Cursor(ui.CursorPointer)
-				}
-				if confirmBtn.Clicked() && s.OnConfirm != nil {
-					s.OnConfirm(s.SessionID)
-				}
-			})
-		})
-	})
+		}
+	}
+	coss.AlertDialog(c, &open, coss.DialogOptions{
+		Title:           i18n.T(i18n.KeyWSArchiveConfirmTitle),
+		Description:     i18n.WSf(i18n.KeyWSArchiveConfirmDesc, "title", title),
+		MaxWidth:        420,
+		DismissDisabled: s.Busy,
+		Key:             "session-archive-confirm-modal",
+		Footer: func() {
+			cancelLabel := workspaceText("取消", "Cancel")
+			if coss.Button(c, cancelLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonMD,
+				Disabled: s.Busy,
+				Key:      "archive-confirm-cancel",
+			}).Label(cancelLabel).Clicked() && s.OnCancel != nil {
+				s.OnCancel()
+			}
+			actionLabel := i18n.T(i18n.KeyWSArchiveConfirmAction)
+			if s.Busy {
+				actionLabel = i18n.T(i18n.KeyWSArchiveConfirmPending)
+			}
+			if coss.Button(c, actionLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonDestructiveOutline,
+				Size:     coss.ButtonMD,
+				Disabled: s.Busy,
+				Loading:  s.Busy,
+				Key:      "archive-confirm-submit",
+			}).Label(actionLabel).Clicked() && s.OnConfirm != nil {
+				s.OnConfirm(s.SessionID)
+			}
+		},
+	}, body)
 	if !open && !s.Busy && s.OnCancel != nil {
 		s.OnCancel()
 	}
@@ -143,53 +147,54 @@ func sessionDeleteConfirmDialog(c *ui.Context, m Model) {
 		return
 	}
 	s := *m.DeleteConfirm
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
-	danger := chrome.Color(colors.Danger)
-	if danger.A == 0 {
-		danger = ui.RGB(242, 90, 90)
-	}
+	t := tok(c)
 	title := strings.TrimSpace(s.Title)
 	if title == "" {
 		title = i18n.T(i18n.KeyWSSessionUntitled)
 	}
+	errMsg := strings.TrimSpace(s.Error)
+	if s.ErrorCode != "" {
+		errMsg = FormatSessionDeleteError(s.ErrorCode)
+	}
+	var body func()
+	if errMsg != "" {
+		body = func() {
+			sbText(c, errMsg, 12, design.WeightNormal, t.Destructive)
+		}
+	}
 	open := true
-	ui.DialogBase(c.Key("session-delete-confirm-modal"), &open, func(backdrop, panel ui.Element) {
-		chrome.DialogReveal(c, backdrop, panel)
-		chrome.FrostSurface(panel.Width(400).MaxWidthPercent(94).Padding(24).Gap(16), colors, m.SystemDark, chrome.Color(colors.Field), 24).Border(0.5, border).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyWSDeleteSessionTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg)
-			ui.Text(c, i18n.WSf(i18n.KeyWSDeleteSessionDesc, "name", title)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
-			errMsg := strings.TrimSpace(s.Error)
-			if s.ErrorCode != "" {
-				errMsg = FormatSessionDeleteError(s.ErrorCode)
+	coss.AlertDialog(c, &open, coss.DialogOptions{
+		Title:           i18n.T(i18n.KeyWSDeleteSessionTitle),
+		Description:     i18n.WSf(i18n.KeyWSDeleteSessionDesc, "name", title),
+		MaxWidth:        400,
+		DismissDisabled: s.Busy,
+		Key:             "session-delete-confirm-modal",
+		Footer: func() {
+			cancelLabel := workspaceText("取消", "Cancel")
+			if coss.Button(c, cancelLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonMD,
+				Disabled: s.Busy,
+				Key:      "delete-confirm-cancel",
+			}).Label(cancelLabel).Clicked() && s.OnCancel != nil {
+				s.OnCancel()
 			}
-			if errMsg != "" {
-				ui.Text(c, errMsg).FontSize(theme.InterfaceSize(12)).TextColor(danger)
+			actionLabel := i18n.T(i18n.KeyWSMenuDeleteSession)
+			if s.Busy {
+				actionLabel = i18n.T(i18n.KeyWSDeleteSessionPending)
 			}
-			ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
-				cancelLabel := workspaceText("取消", "Cancel")
-				cancelBtn := ui.Button(c, cancelLabel).Label(cancelLabel).Height(34).Padding(0, 14).Radius(10).Disabled(s.Busy)
-				if !s.Busy {
-					cancelBtn.Cursor(ui.CursorPointer)
-				}
-				if cancelBtn.Clicked() && s.OnCancel != nil {
-					s.OnCancel()
-				}
-				actionLabel := i18n.T(i18n.KeyWSMenuDeleteSession)
-				if s.Busy {
-					actionLabel = i18n.T(i18n.KeyWSDeleteSessionPending)
-				}
-				confirmLabel := workspaceText("确认删除会话", "Confirm delete session")
-				deleteBtn := ui.Button(c, actionLabel).Label(confirmLabel).Height(34).Padding(0, 14).Radius(10).TextColor(danger).Border(0.5, border).Background(ui.Transparent).Disabled(s.Busy)
-				if !s.Busy {
-					deleteBtn.Cursor(ui.CursorPointer)
-				}
-				if deleteBtn.Clicked() && s.OnConfirm != nil {
-					s.OnConfirm(s.SessionID)
-				}
-			})
-		})
-	})
+			confirmLabel := workspaceText("确认删除会话", "Confirm delete session")
+			if coss.Button(c, actionLabel, coss.ButtonOptions{
+				Variant:  coss.ButtonDestructive,
+				Size:     coss.ButtonMD,
+				Disabled: s.Busy,
+				Loading:  s.Busy,
+				Key:      "delete-confirm-submit",
+			}).Label(confirmLabel).Clicked() && s.OnConfirm != nil {
+				s.OnConfirm(s.SessionID)
+			}
+		},
+	}, body)
 	if !open && !s.Busy && s.OnCancel != nil {
 		s.OnCancel()
 	}
