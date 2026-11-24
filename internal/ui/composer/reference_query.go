@@ -9,10 +9,15 @@ import (
 	"whaleisle/internal/store/session"
 )
 
+const referenceQueryDebounce = 130 * time.Millisecond
+
 // Reference discovery never runs on the renderer. Each draft owns one query;
-// changing the token, Session or Host revokes the old receipt.
+// changing the token, Session or Host revokes the old receipt. Within the same
+// host/session scope, previous candidate rows are retained while the debounced
+// replacement query is in flight so keystrokes never flash the popup empty.
 type referenceQueryState struct {
 	mu      sync.Mutex
+	scope   string
 	key     string
 	epoch   uint64
 	cancel  context.CancelFunc
@@ -28,16 +33,19 @@ func (s *referenceQueryState) cancelQuery() {
 		s.cancel()
 		s.cancel = nil
 	}
-	if s.key != "" {
+	if s.key != "" || s.scope != "" {
 		s.epoch++
+		s.scope = ""
 		s.key = ""
 		s.rows = nil
 		s.pending = false
 		s.err = ""
 	}
 }
+
 func (s *referenceQueryState) query(m Model, q string, quoted bool) []session.ReferenceCandidate {
-	key := strconv.FormatUint(m.Snapshot.ComposerHostGeneration, 10) + ":" + strconv.FormatUint(m.Snapshot.ComposerSessionGeneration, 10) + "\x00" + m.Snapshot.SelectedID + "\x00" + q
+	scope := strconv.FormatUint(m.Snapshot.ComposerHostGeneration, 10) + ":" + strconv.FormatUint(m.Snapshot.ComposerSessionGeneration, 10) + "\x00" + m.Snapshot.SelectedID
+	key := scope + "\x00" + q
 	if quoted {
 		key += "\x00quoted"
 	}
@@ -47,14 +55,25 @@ func (s *referenceQueryState) query(m Model, q string, quoted bool) []session.Re
 			s.cancel()
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		if s.scope != scope {
+			// Switching host or session clears stale rows from the prior scope.
+			s.rows = nil
+		}
+		s.scope = scope
 		s.key = key
 		s.epoch++
 		epoch := s.epoch
 		s.cancel = cancel
 		s.pending = true
 		s.err = ""
-		s.rows = nil
 		go func() {
+			timer := time.NewTimer(referenceQueryDebounce)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
 			rows, err := m.OnQueryReferences(ctx, q, quoted)
 			cancel()
 			s.mu.Lock()

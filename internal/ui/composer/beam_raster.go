@@ -247,6 +247,15 @@ func (b *beamRasterData) render(w, h, scale float32, style beamStyle, colors []u
 	if b.legacy {
 		first, second = design.TW.Pink400, design.TW.Sky400
 	}
+	stops := [8]struct {
+		t float64
+		c beamRGBA
+	}{{0, beamRGBA{}}, {.58, beamRGBA{}}, {.64, beamRGBA{.08, .08, .08, .08}}, {.69, beamInk(first, 140.0/255)}, {.705, beamInk(second, 179.0/255)}, {.73, beamInk(first, 115.0/255)}, {.82, beamRGBA{}}, {1, beamRGBA{}}}
+	if b.legacy {
+		stops[3].c = beamInk(first, .55)
+		stops[4].c = beamInk(second, .7)
+		stops[5].c = beamInk(first, .45)
+	}
 	for i := 0; i < samples; i++ {
 		t := float64(i) / samples
 		at := t * float64(intervals)
@@ -258,15 +267,6 @@ func (b *beamRasterData) render(w, h, scale float32, style beamStyle, colors []u
 		strokes[i] = beamMultiply(beamFiltered(color, matrix, hueEnabled, false), float32(beamMask(t))*float32(opacity.stroke))
 		aMask, bMask := beamStops(t, beamInnerMaskA), beamStops(t, beamInnerMaskB)
 		inners[i][3] = (aMask + bMask - aMask*bMask) * float32(opacity.inner)
-		stops := []struct {
-			t float64
-			c beamRGBA
-		}{{0, beamRGBA{}}, {.58, beamRGBA{}}, {.64, beamRGBA{.08, .08, .08, .08}}, {.69, beamInk(first, 140.0/255)}, {.705, beamInk(second, 179.0/255)}, {.73, beamInk(first, 115.0/255)}, {.82, beamRGBA{}}, {1, beamRGBA{}}}
-		if b.legacy {
-			stops[3].c = beamInk(first, .55)
-			stops[4].c = beamInk(second, .7)
-			stops[5].c = beamInk(first, .45)
-		}
 		for j := 1; j < len(stops); j++ {
 			if t <= stops[j].t {
 				a, z := stops[j-1], stops[j]
