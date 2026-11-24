@@ -1,6 +1,8 @@
 package schedule
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -131,20 +133,38 @@ func TestTimingPickersCossControls(t *testing.T) {
 	if d.Kind != "daily" {
 		t.Fatalf("Kind = %q, want daily", d.Kind)
 	}
-	// Open clock picker and pick hour 10 via keyboard navigation, then 08 via click.
+	// Open clock picker and pick an adjacent hour via keyboard navigation, then another hour via click.
+	if len(d.Clock) < 2 {
+		t.Fatalf("unexpected initial Clock %q", d.Clock)
+	}
+	beforeHour, err := strconv.Atoi(d.Clock[:2])
+	if err != nil {
+		t.Fatalf("parse initial Clock %q: %v", d.Clock, err)
+	}
+	stepKey := ui.KeyDown
+	wantHourNum := beforeHour + 1
+	if beforeHour == 23 {
+		stepKey = ui.KeyUp
+		wantHourNum = 22
+	}
+	wantHour := fmt.Sprintf("%02d", wantHourNum)
 	if err := tt.Click("Time"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Key(0, ui.KeyDown)
+	tt.Key(0, stepKey)
 	tt.Key(0, ui.KeyEnter)
-	if d.Clock[:2] != "10" {
-		t.Fatalf("Clock = %q, want 10:...", d.Clock)
+	if d.Clock[:2] != wantHour {
+		t.Fatalf("Clock = %q, want %s:...", d.Clock, wantHour)
 	}
-	if err := tt.Click("Hour 08"); err != nil {
+	clickHour := "08"
+	if wantHour == "08" {
+		clickHour = "06"
+	}
+	if err := tt.Click("Hour " + clickHour); err != nil {
 		t.Fatal(err)
 	}
-	if d.Clock[:2] != "08" {
-		t.Fatalf("Clock = %q, want 08:...", d.Clock)
+	if d.Clock[:2] != clickHour {
+		t.Fatalf("Clock = %q, want %s:...", d.Clock, clickHour)
 	}
 	// Close clock popup via Escape and open zone picker.
 	tt.Key(0, ui.KeyEscape)
