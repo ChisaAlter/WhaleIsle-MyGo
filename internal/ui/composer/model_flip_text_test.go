@@ -316,7 +316,7 @@ func TestModelFlipLabelReloadDoesNotRestartEffort(t *testing.T) {
 	snap.ModelCatalogChoices[0].Name = "Previous name"
 	snap.SelectedModelEffort = "Low"
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+		paintModelPicker(c, Model{Snapshot: snap}, 28)
 	}, 600, 100)
 	tt.SetTime(start)
 	snap.ModelCatalogChoices[0].Name = "Current name"
@@ -335,7 +335,7 @@ func TestModelFlipLabelReloadDoesNotRestartEffort(t *testing.T) {
 		t.Fatal("label renderer reload restarted or moved the independently owned effort animation")
 	}
 	static := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+		paintModelPicker(c, Model{Snapshot: snap}, 28)
 	}, 600, 100)
 	if modelFlipImagesEqual(modelFlipCrop(tt.Image(), after, 1), modelFlipCrop(static.Image(), after, 1)) {
 		t.Fatal("effort animation was already static during the retained transition")
@@ -348,7 +348,7 @@ func TestModelFlipGroupedUnknownRouteAndCatalogSourceBoundary(t *testing.T) {
 	snap.SelectedModel = "custom/previous-route"
 	newTester := func() *ui.Tester {
 		return ui.NewTester(func(c *ui.Context) {
-			paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+			paintModelPicker(c, Model{Snapshot: snap}, 28)
 		}, 600, 100)
 	}
 	tt := newTester()
@@ -377,7 +377,7 @@ func TestModelFlipSoftwareFramesAtFractionalDPI(t *testing.T) {
 			snap.SelectedModelEffort = "Low"
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Padding(24).Background(ui.RGB(255, 255, 255)).Children(func() {
-					paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+					paintModelPicker(c, Model{Snapshot: snap}, 28)
 				})
 			}, 500, 100)
 			tt.SetScale(scale)

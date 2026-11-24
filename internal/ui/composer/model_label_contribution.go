@@ -8,6 +8,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 // ModelLabelPlacement is the fixed model-selection slot's display location.
@@ -237,7 +239,7 @@ func ModelLabel(c *ui.Context, s session.ViewState, label string, placement Mode
 	key := fmt.Sprintf("model-label:%s:%s:%t:%d:%s", placement, modelSelectBinding(s),
 		decorated, s.NativeModelLabelGeneration, s.NativeContributions.ModelLabelRevision())
 	row := ui.Row(c.Key(key)).
-		MinWidth(0).MaxWidthPercent(100).AlignItems(ui.Center).Gap(4)
+		MinWidth(0).MaxWidthPercent(100).AlignItems(ui.Center).Gap(design.Sp(1))
 	row.Children(func() {
 		name := modelLabelName(s, label)
 		if placement == ModelLabelTrigger {
@@ -245,13 +247,10 @@ func ModelLabel(c *ui.Context, s session.ViewState, label string, placement Mode
 			modelFlipText(c, "trigger-name", name, color, fontSize)
 		} else {
 			ui.Text(c, name).MinWidth(0).SingleLine().Ellipsis("…").
-				FontSize(fontSize).FontWeight(400).TextColor(color)
+				FontSize(fontSize).FontWeight(design.WeightNormal).TextColor(color)
 		}
 		if modelLabel1017(s, label) {
-			info := c.Theme().Accent
-			ui.Text(c, "1017").Shrink(0).SingleLine().FontSize(11).FontWeight(500).
-				FixedLineHeight(17).Padding(1, 8).Radius(999).
-				TextColor(info).Background(info.Alpha(.1))
+			coss.Badge(c, "1017", coss.BadgeOptions{Variant: coss.BadgeInfo, Size: coss.BadgeSM}).Radius(design.RadiusFull)
 		}
 	})
 	return row

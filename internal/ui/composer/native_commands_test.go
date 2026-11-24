@@ -117,6 +117,7 @@ func nativePopupFixture(t *testing.T, text string, rows []NativeCommandOption) (
 	m.OnNativeCommandChanged = func() { changed <- struct{}{} }
 	m.OnLoadNativeCommandOptions = func(context.Context, NativeCommandOwner, string) ([]NativeCommandOption, error) { return rows, nil }
 	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { ui.Box(c).Grow(1); View(c, m) }) }, 700, 700)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 	t.Cleanup(d.RetireNativeCommands)
 	return d, &m, tt, changed
 }
@@ -405,6 +406,7 @@ func TestNativePopupPermissionRiskCanCancelAndRequiresAcknowledgement(t *testing
 	if err := tt.Click(label); err != nil {
 		t.Fatal(err)
 	}
+	tt.Frame()
 	action := composerText("启用完全权限", "Enable Full access")
 	if err := tt.Click(action); err != nil {
 		t.Fatal(err)
@@ -423,6 +425,7 @@ func TestNativePopupPermissionRiskCanCancelAndRequiresAcknowledgement(t *testing
 	if err := tt.Click(label); err != nil {
 		t.Fatal(err)
 	}
+	tt.Frame()
 	if err := tt.Click(composerText("我已了解风险，并愿意继续", "I understand these risks and want to continue")); err != nil {
 		t.Fatal(err)
 	}

@@ -22,6 +22,7 @@ func TestParityPermissionPickerConfirmDialogAndSwitchFailed(t *testing.T) {
 		m.OnPermissionChange = func(v string) { picked = v }
 
 		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 880, 480)
+		tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 
 		// Verify switchFailed notice is rendered in both locales.
 		wantSwitchFailed := i18n.T(i18n.KeyParityPermSwitchFailed)
@@ -45,6 +46,7 @@ func TestParityPermissionPickerConfirmDialogAndSwitchFailed(t *testing.T) {
 		if picked != "" {
 			t.Fatalf("[%s] unconfirmed full access dispatched early: %q", locale, picked)
 		}
+		tt.Frame()
 
 		// Verify confirmation descriptions and acknowledge checkbox copy.
 		if !tt.HasText(i18n.T(i18n.KeyParityPermConfirmDescription)) || !tt.HasText(i18n.T(i18n.KeyParityPermConfirmDescriptionAlt)) {

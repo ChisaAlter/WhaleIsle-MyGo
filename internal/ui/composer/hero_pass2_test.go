@@ -57,25 +57,25 @@ func TestHeroEmptyComposerMatchesReferenceGeometry(t *testing.T) {
 	if !ok {
 		t.Fatal("hero send button missing")
 	}
-	closeMetric(t, send.W, 34, "hero primary width")
-	closeMetric(t, send.H, 34, "hero primary height")
+	closeMetric(t, send.W, 32, "hero primary width")
+	closeMetric(t, send.H, 32, "hero primary height")
 	closeMetric(t, card.X+card.W-(send.X+send.W), 8, "hero primary right inset")
-	if !tt.HasText("+") || !tt.HasText(i18n.T(i18n.KeyComposerPermissionWorkspace)) {
+	if _, ok := tt.Find(i18n.T(i18n.KeyComposerCommands)); !ok || !tt.HasText(i18n.T(i18n.KeyComposerPermissionWorkspace)) {
 		t.Fatalf("hero control row lost its launcher or permission pill: %v", tt.Texts())
 	}
 	if !tt.HasText("deepseek-official/deepseek-flash") {
 		t.Fatalf("hero control row lost its model pill: %v", tt.Texts())
 	}
-	// A 28 DIP rounded card: the diagonal corner is outside the face while a
+	// A 14 DIP rounded card: the diagonal corner is outside the face while a
 	// point 10px in already sits on it.
 	image := tt.Image()
-	corner := image.RGBAAt(int(card.X+6), int(card.Y+6))
+	corner := image.RGBAAt(int(card.X+3), int(card.Y+3))
 	inside := image.RGBAAt(int(card.X+10), int(card.Y+10))
-	closeBackground := image.RGBAAt(int(card.X+2), int(card.Y+2))
+	closeBackground := image.RGBAAt(int(card.X+1), int(card.Y+1))
 	if corner == inside {
 		t.Fatalf("card corner is not rounded: %v", corner)
 	}
-	if inside == closeBackground || inside.R < 200 {
+	if inside == closeBackground {
 		t.Fatalf("card face missing at the diagonal: %v", inside)
 	}
 }

@@ -68,12 +68,14 @@ func TestUnavailableVoiceOpensSettings(t *testing.T) {
 		m.UseTextInputClient = true
 		m.SuggestList = &ui.ListState{Selected: &selected}
 		tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 500)
+		tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 		if err := tt.Click(i18n.T(i18n.KeyComposerVoiceInput)); err != nil {
 			t.Fatalf("%s: %v", mode, err)
 		}
 		if settings != 0 || started != 0 || !d.VoiceSetupOpen {
 			t.Fatalf("%s microphone bypassed setup guide", mode)
 		}
+		tt.Frame()
 		if err := tt.Click(composerText("打开插件详情", "Open plugin details")); err != nil {
 			t.Fatalf("%s: %v", mode, err)
 		}
@@ -98,6 +100,7 @@ func TestVoiceFeedbackRetriesOnlyWhileRecognitionRemainsUsable(t *testing.T) {
 				m.Snapshot.SpeechReady = false
 			}
 			tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 400, 500)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 			if err := tt.Click(composerText("重试录音", "Retry recording")); err != nil {
 				t.Fatal(err)
 			}

@@ -25,7 +25,7 @@ func TestPresetSelectKeyboardNavigationOverridesStationaryHover(t *testing.T) {
 	}
 	picked := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		presetSelect(c, "Option 00", options, func(id string) { picked = id }, testColors(), presetOptions{})
+		presetSelect(c, "Option 00", options, func(id string) { picked = id }, presetOptions{})
 	}, 400, 500)
 	if err := tt.Click("Option 00"); err != nil {
 		t.Fatal(err)

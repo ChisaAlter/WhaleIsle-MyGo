@@ -12,9 +12,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // These exercise the shipped stable DraftClient path through MyGo's software
@@ -46,8 +45,8 @@ func TestShippedDraftSoftwareSnapshots(t *testing.T) {
 						if dark {
 							c.SetTheme(ui.DarkTheme())
 						}
-						colors := theme.Default().Active(dark)
-						ui.Column(c).Fill().Background(chrome.Color(colors.BG)).Padding(16, 0, 0, 0).Children(func() {
+						bg := design.For(c).Background
+						ui.Column(c).Fill().Background(bg).Padding(16, 0, 0, 0).Children(func() {
 							View(c, Model{Draft: &draft, TextInput: client, UseTextInputClient: true, Hero: hero, SystemDark: dark, WorkspaceRoot: "fixture", ModelPick: &model,
 								Snapshot: session.ViewState{SelectedModel: model, NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}}})
 						})

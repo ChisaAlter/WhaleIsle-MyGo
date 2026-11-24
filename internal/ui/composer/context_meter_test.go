@@ -9,7 +9,7 @@ import (
 
 func TestContextMeterDisclosureAndInvalidation(t *testing.T) {
 	snap := session.ViewState{SelectedID: "s", ContextOccupancy: &session.ContextOccupancy{UsedTokens: 250, ContextWindow: 1000, Percent: 25, Breakdown: &session.ContextBreakdown{SystemTokens: 20, ToolsTokens: 30, MessageTokens: 50}}}
-	tt := ui.NewTester(func(c *ui.Context) { paintContextMeter(c, snap, testColors(), 24) }, 800, 600)
+	tt := ui.NewTester(func(c *ui.Context) { paintContextMeter(c, snap, 24) }, 800, 600)
 	if _, ok := tt.Find("25%"); !ok {
 		t.Fatal("meter does not show its reading")
 	}

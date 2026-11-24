@@ -1,10 +1,12 @@
 package composer
 
 import (
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
 	"math"
 	"time"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -39,11 +41,12 @@ func relativeLuminance(c ui.Color) float64 {
 
 func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, selectUTF16Start, selectUTF16End int) ui.Element {
 	client := m.TextInput
+	t := design.For(c)
 	services := c.Services()
 	client.readClipboard, client.writeClipboard = services.ReadClipboard, services.WriteClipboard
 	client.syncFont(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont))
 	client.configureTyping(m, c.Preferences().ReduceMotion)
-	_, _, textInk := client.typing.colors(fg, c.Theme().Accent)
+	_, _, textInk := client.typing.colors(fg, t.Primary)
 	if selectUTF16Start >= 0 {
 		client.SetSelectionUTF16(selectUTF16Start, selectUTF16End)
 	}
@@ -86,6 +89,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			return draftInputEvent(client, m, ev)
 		})
 	}
+	selectionFill := t.Primary.Alpha(0.3)
 	box.Draw(func(p *ui.Painter, r ui.Rect) {
 		width := max(0, r.W-left-right)
 		if width != client.wrapWidth {
@@ -99,7 +103,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			for _, b := range client.visualSelectionRects(client.selection.Range) {
 				b.X += r.X + left
 				b.Y += r.Y + top - client.scrollY
-				p.Fill(b, c.Theme().Selection, 0)
+				p.Fill(b, selectionFill, 0)
 			}
 		})
 	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -107,7 +111,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			p.Clip(r, 0, func() { client.paintProjectedText(p, r, textInk) })
 		}
 		if !inputDisabled {
-			client.paintTyping(p, r, fg, c.Theme().Accent, box.Focused())
+			client.paintTyping(p, r, fg, t.Primary, box.Focused())
 		}
 	})
 	box.Children(func() {
@@ -128,7 +132,7 @@ func paintDraftTextInput(c *ui.Context, m Model, fg, placeholderInk ui.Color, se
 			})
 			return
 		}
-		paintInlineDraftChips(c, client, m, fg, c.Theme().TextMuted, c.Theme().Accent)
+		paintInlineDraftChips(c, client, m, fg, t.MutedForeground, t.Primary)
 	})
 
 	return box

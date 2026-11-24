@@ -19,13 +19,10 @@ import (
 	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
-
-// attachmentErrorInk marks a failed attachment. theme.Colors carries no danger
-// token yet, so the shell's error red is kept here for the composer's rail.
-var attachmentErrorInk = ui.RGB(213, 73, 65)
 
 // composerMedia is the process image service; tests substitute their own.
 var composerMedia = media.Default
@@ -248,10 +245,11 @@ func attachmentDisplayStatus(d *DraftState, i int) string {
 // Draft files share the original 64-DIP rail: files are 240 wide and images 64.
 // Metadata reads and upload state never reserve an additional vertical block.
 func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
+	t := design.For(c)
 	d := m.State
 	paintFileIntake(c, d, muted)
 	if len(d.Attachments) > 0 {
-		ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(66).Padding(2, 10, 0).Margin(0, 0, -6, 0).Gap(10).Children(func() {
+		ui.ScrollHorizontal(c).Key("composer-attachment-rail").FillWidth().Height(66).Padding(design.Sp(0.5), design.Sp(2.5), 0).Margin(0, 0, -design.Sp(1.5), 0).Gap(design.Sp(2.5)).Children(func() {
 			for i, a := range d.Attachments {
 				i, a := i, a
 				label := a.Name
@@ -263,9 +261,9 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 				if imageFile {
 					width = 64
 				}
-				card := ui.Row(c).Key(fmt.Sprintf("attachment:%d:%d:%s", i, a.PreparationID, a.Path)).Label("Attachment "+label).Width(width).Height(64).Gap(10).Radius(16).Border(.5, c.Theme().Border).AlignItems(ui.Center)
+				card := ui.Row(c).Key(fmt.Sprintf("attachment:%d:%d:%s", i, a.PreparationID, a.Path)).Label("Attachment "+label).Width(width).Height(64).Gap(design.Sp(2.5)).Radius(design.RadiusXL2).Border(design.BorderWidth*0.5, t.Border).AlignItems(ui.Center)
 				if !imageFile {
-					card.Padding(0, 12)
+					card.Padding(0, design.Sp(3))
 				}
 				seat := ui.Local(card, "preview", func() attachmentDisplaySeat { return attachmentDisplaySeat{} })
 				seat.load(a, false, m.Media, c.Services().Invalidate)
@@ -276,13 +274,13 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 				if imageFile {
 					// The empty seat keeps a quiet placeholder fill while the
 					// preview decodes, instead of flashing a white square.
-					card.Radius(20).Background(muted.Alpha(0.12))
+					card.Radius(design.RadiusXL2).Background(t.Muted)
 				}
 				remove := false
 				card.Children(func() {
 					v := seat.result
 					if imageFile {
-						preview := ui.Box(c).Fill().Radius(20).Clip().Focusable().Label("Preview attachment " + label).Tooltip(label)
+						preview := ui.Box(c).Fill().Radius(design.RadiusXL2).Clip().Focusable().Cursor(ui.CursorPointer).Label("Preview attachment " + label).Tooltip(label)
 						preview.Children(func() {
 							if v != nil {
 								v.animate(c, m.Media)
@@ -290,7 +288,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							if src := v.picture(); src != nil {
 								ui.Image(c, src).Fill().Fit(ui.Cover)
 							} else {
-								ui.Text(c, i18n.T(i18n.KeyComposerAttachmentImage)).FontSize(12).TextColor(muted)
+								ui.Text(c, i18n.T(i18n.KeyComposerAttachmentImage)).FontSize(design.TextXS.Size).TextColor(muted)
 							}
 						})
 						if v.failure() != nil {
@@ -300,16 +298,18 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							seat.open = true
 						}
 					} else {
-						ui.Text(c, "▤").Width(28).FontSize(22).TextColor(muted)
+						ui.Box(c).Width(28).Center().Children(func() {
+							cossIcon(c, coss.IconFile, design.IconLG, muted)
+						})
 						body := ui.Column(c).Grow(1).MinWidth(0).Gap(0).Tooltip(label)
 						if a.PrepareError != "" && m.OnRetryAttachment != nil {
-							body.Focusable().Label("Retry upload: " + label).Tooltip(a.PrepareError)
+							body.Focusable().Cursor(ui.CursorPointer).Label("Retry upload: " + label).Tooltip(a.PrepareError)
 							if !d.Sending && !d.AttachmentPreparing(i) && (body.Clicked() || body.Shortcut(0, ui.KeyEnter)) {
 								m.OnRetryAttachment(i)
 							}
 						}
 						body.Children(func() {
-							ui.Text(c, label).FontSize(14).FixedLineHeight(22).TextColor(fg).MaxLines(1)
+							ui.Text(c, label).FontSize(design.TextSM.Size).FixedLineHeight(22).TextColor(fg).MaxLines(1)
 							meta := i18n.T(i18n.KeyComposerAttachmentPending)
 							if d.AttachmentPreparing(i) {
 								meta = attachmentDisplayStatus(d, i)
@@ -321,30 +321,35 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 							} else if v != nil && a.Upload.ReceiptId != "" {
 								meta = fmt.Sprintf("%s · %d bytes", strings.ToUpper(strings.TrimPrefix(filepath.Ext(label), ".")), v.bytes)
 							}
-							ui.Text(c, meta).FontSize(12).FixedLineHeight(15).TextColor(muted).MaxLines(1)
+							ui.Text(c, meta).FontSize(design.TextXS.Size).FixedLineHeight(design.TextXS.LineHeight).TextColor(muted).MaxLines(1)
 						})
 					}
 					// Contrast-fill discs sit on top of an unpredictable preview, so
-					// both the retry and remove buttons use the same dark seat and a
-					// glyph colour checked against it.
-					discFill := ui.RGB(0, 0, 0).Alpha(0.55)
-					discInk := chrome.EnsureContrast(ui.RGB(255, 255, 255), ui.RGB(0, 0, 0))
+					// both the retry and remove buttons use the same dark seat and high-contrast ink.
+					discFill := design.TW.Black.Alpha(0.55)
+					discInk := design.TW.White
 					failed := a.PrepareError != "" || v.failure() != nil
 					if failed {
-						// The theme exposes no danger token yet; this is the shell's
-						// error ink, kept in one place.
-						card.Tooltip(firstError(a.PrepareError, v)).Border(.5, attachmentErrorInk)
-						if imageFile && m.OnRetryAttachment != nil && !d.Sending && !d.AttachmentPreparing(i) &&
-							ui.Button(c, "↻").Label("Retry upload: "+label).
+						card.Tooltip(firstError(a.PrepareError, v)).Border(design.BorderWidth*0.5, t.DestructiveForeground)
+						if imageFile && m.OnRetryAttachment != nil && !d.Sending && !d.AttachmentPreparing(i) {
+							retry := ui.ButtonBase(c).Label("Retry upload: " + label).
 								Tooltip(firstError(a.PrepareError, v)).
-								Absolute().Bottom(4).Left(4).Width(18).Height(18).Padding(0).Radius(9).BorderWidth(0).
-								Background(discFill).TextColor(discInk).FontSize(12).Clicked() {
-							m.OnRetryAttachment(i)
+								Absolute().Bottom(design.Sp(1)).Left(design.Sp(1)).Width(18).Height(18).Padding(0).
+								Radius(design.RadiusFull).BorderWidth(0).Background(discFill).Cursor(ui.CursorPointer).Center()
+							retry.Children(func() {
+								cossIcon(c, coss.IconRefresh, design.Sp(3), discInk)
+							})
+							if retry.Clicked() {
+								m.OnRetryAttachment(i)
+							}
 						}
 					}
-					close := ui.Button(c, "×").Absolute().Top(4).Right(4).Width(18).Height(18).Padding(0).Radius(9).
-						BorderWidth(0).Background(discFill).TextColor(discInk).FontSize(12).
+					close := ui.ButtonBase(c).Absolute().Top(design.Sp(1)).Right(design.Sp(1)).Width(18).Height(18).Padding(0).
+						Radius(design.RadiusFull).BorderWidth(0).Background(discFill).Cursor(ui.CursorPointer).Center().
 						Label("Remove attachment " + label).Disabled(d.Sending)
+					close.Children(func() {
+						cossIcon(c, coss.IconX, design.Sp(3), discInk)
+					})
 					if !card.Hovered() && !card.FocusWithin() && a.PrepareError == "" && !failed {
 						close.Opacity(0)
 					}
@@ -359,7 +364,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 		})
 	}
 	if d.Error != "" {
-		ui.Text(c, FormatComposerError(d.Error)).FontSize(12).TextColor(muted).Padding(0, 14)
+		ui.Text(c, FormatComposerError(d.Error)).FontSize(design.TextXS.Size).TextColor(muted).Padding(0, design.Sp(3.5))
 	}
 }
 func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a session.ComposerAttachment, label string, owner *media.Owner) {
@@ -371,20 +376,22 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 		seat.full = &attachmentDisplaySeat{}
 	}
 	seat.full.load(a, true, owner, c.Services().Invalidate)
-	ui.DialogBase(c, &seat.open, func(backdrop, panel ui.Element) {
-		chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
+	coss.Dialog(c, &seat.open, coss.DialogOptions{
+		Title:         label,
+		MaxWidth:      960,
+		NoClose:       true,
+		FooterVariant: coss.FooterBare,
+		Footer: func() {
+			if coss.Button(c, "1:1 / Fit", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
+				seat.originalSize = !seat.originalSize
+			}
+			if coss.Button(c, i18n.T(i18n.KeyComposerAttachmentClosePreview), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM}).Clicked() {
+				seat.open = false
+			}
+		},
+	}, func() {
 		_, height := c.Size()
-		panel.Width(960).MaxWidthPercent(94).Height(max(float32(120), height*.85)).Padding(16).Radius(20).Clip().
-			Background(c.Theme().Background).Children(func() {
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, label).Grow(1).MaxLines(1)
-				if ui.Button(c, "1:1 / Fit").Clicked() {
-					seat.originalSize = !seat.originalSize
-				}
-				if ui.Button(c, i18n.T(i18n.KeyComposerAttachmentClosePreview)).Clicked() {
-					seat.open = false
-				}
-			})
+		ui.Column(c).FillWidth().Height(max(float32(120), height*.65)).Children(func() {
 			v := seat.full.result
 			if v == nil || v.image && v.handle.State() == media.Pending {
 				ui.Text(c, i18n.T(i18n.KeyComposerAttachmentLoadingOriginal))
