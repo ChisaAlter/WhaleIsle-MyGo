@@ -561,9 +561,9 @@ func packageMetaLine(p manager.Package) string {
 // already distinguishes: bundled, official on-demand, market, or local.
 func packageSource(p manager.Package) string {
 	switch {
-	case p.Official && p.Availability == "missing":
+	case p.Official && p.Availability == "missing" && !p.Installed:
 		return copyText("官方 · 按需安装", "Official · On-demand")
-	case p.Official && p.Availability == "profile":
+	case p.Official && (p.Availability == "profile" || p.Availability == "missing"):
 		return copyText("官方", "Official")
 	case p.Official:
 		return copyText("内置", "Built-in")

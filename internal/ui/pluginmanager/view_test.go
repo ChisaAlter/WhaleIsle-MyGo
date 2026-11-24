@@ -511,6 +511,11 @@ func TestInstalledBundleWithMissingFilesStillShowsUnavailableAndProblemBadges(t 
 					Meta:  &manager.Meta{Title: manager.Text(`"损坏的插件"`)},
 					Error: &manager.ManagementError{Code: "not-bundle"},
 				},
+				{
+					Name: "@deepseek-ai/dsh-subagent-codex", Official: true, Availability: "missing", Installed: true, Removable: true,
+					Meta:  &manager.Meta{Title: manager.Text(`"Codex 子智能体"`)},
+					Error: &manager.ManagementError{Code: "not-bundle"},
+				},
 			})
 			return json.Unmarshal(raw, out)
 		}
@@ -523,6 +528,22 @@ func TestInstalledBundleWithMissingFilesStillShowsUnavailableAndProblemBadges(t 
 	tt := ui.NewTester(func(ctx *ui.Context) { ui.Column(ctx).Fill().Children(func() { View(ctx, Model{Controller: c}) }) }, 860, 760)
 	if !tt.HasText("异常") || !tt.HasText("包不可用") {
 		t.Fatalf("installed bundle with missing files must show 异常 and 包不可用: %v", tt.Texts())
+	}
+	if err := tt.Click("更多"); err != nil {
+		t.Fatalf("open more: %v", err)
+	}
+	if !tt.HasText("异常") || !tt.HasText("包不可用") || !tt.HasText("官方") {
+		t.Fatalf("installed official bundle with missing files must show 异常, 包不可用, and 官方: %v", tt.Texts())
+	}
+	if tt.HasText("官方 · 按需安装") {
+		t.Fatalf("installed official bundle with missing files must not be labeled 官方 · 按需安装: %v", tt.Texts())
+	}
+	if got := packageSource(manager.Package{Bundle: manager.Bundle{Official: true, Installed: true, Availability: "missing"}}); got != "官方" {
+		t.Fatalf("packageSource(installed missing official) = %q, want %q", got, "官方")
+	}
+	i18n.SetLocale(i18n.LocaleEN)
+	if got := packageSource(manager.Package{Bundle: manager.Bundle{Official: true, Installed: true, Availability: "missing"}}); got != "Official" {
+		t.Fatalf("packageSource(en installed missing official) = %q, want %q", got, "Official")
 	}
 }
 
