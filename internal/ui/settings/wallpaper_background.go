@@ -544,15 +544,17 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		g.downloadItem = nil
 	}
 }
-func wallpaperSlider(c *ui.Context, key, label, hint string, value *float64, lo, hi float64, disabled bool, fg, muted ui.Color) {
-	wallpaperSliderStep(c, key, label, hint, value, lo, hi, 1, disabled, fg, muted)
+func wallpaperSlider(c *ui.Context, key, label, hint string, value *float64, lo, hi float64, disabled bool, fg, muted ui.Color) bool {
+	return wallpaperSliderStep(c, key, label, hint, value, lo, hi, 1, disabled, fg, muted)
 }
 
-func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) {
+func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) bool {
+	changed := false
 	bodyPreferenceRow(c, key, label, hint, fg, muted, func() {
 		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		ui.StepSlider(c, value, lo, hi, step).FillWidth().Label(label).Disabled(disabled)
+		changed = ui.StepSlider(c, value, lo, hi, step).FillWidth().Label(label).Disabled(disabled).Changed()
 	})
+	return changed
 }
 
 // appearanceGhostButton is the reference's borderless block action (重置 /
