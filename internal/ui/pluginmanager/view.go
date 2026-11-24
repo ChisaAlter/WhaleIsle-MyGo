@@ -18,6 +18,7 @@ import (
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 	"whaleisle/internal/desktop/media"
+	"whaleisle/internal/errcopy"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
@@ -161,8 +162,8 @@ func View(c *ui.Context, m Model) {
 // notice shows the controller's last outcome inline: authored outcomes in
 // their own words, anything else as the sentence for the failure it is.
 func notice(c *ui.Context, raw string) {
-	if text, ok := outcomeText(raw); ok {
-		pagekit.Note(c, coss.AlertSuccess, text, "", nil)
+	if text, variant, ok := outcomeText(raw); ok {
+		pagekit.Note(c, variant, text, "", nil)
 		return
 	}
 	pagekit.Fault(c, "", raw, "", nil)
@@ -170,22 +171,45 @@ func notice(c *ui.Context, raw string) {
 
 // outcomeText localizes the controller's authored outcomes (changeMessage
 // and its fixed notices); ok is false for anything else, which is a raw
-// failure.
-func outcomeText(raw string) (string, bool) {
+// failure. An "applied" outcome that carries an error's code and diagnostic
+// comes back as a warning holding the classified sentence: the code and
+// diagnostic themselves never reach the screen.
+func outcomeText(raw string) (string, coss.AlertVariant, bool) {
 	head, rest, _ := strings.Cut(raw, " · ")
 	switch {
 	case head == "applied" && rest == "":
-		return copyText("已应用。", "Applied."), true
+		return copyText("已应用。", "Applied."), coss.AlertSuccess, true
+	case head == "applied" && outcomeCarriesError(rest):
+		return copyText("已应用，但出现错误：", "Applied, with an error: ") + outcomeErrorSentence(rest), coss.AlertWarning, true
 	case head == "applied":
-		return copyText("已应用，但有提示：", "Applied with warnings: ") + rest, true
+		return copyText("已应用，但有提示：", "Applied with warnings: ") + rest, coss.AlertSuccess, true
 	case strings.HasPrefix(head, "Restart required: "):
-		return copyText("已保存，重启运行时后生效。", "Saved. Restart the runtime to apply it."), true
+		return copyText("已保存，重启运行时后生效。", "Saved. Restart the runtime to apply it."), coss.AlertSuccess, true
 	case raw == "Installation cancelled.":
-		return copyText("已取消安装。", "Installation cancelled."), true
+		return copyText("已取消安装。", "Installation cancelled."), coss.AlertSuccess, true
 	case raw == "The plugin inventory changed. Refresh and review the action again.":
-		return copyText("插件清单已变化，请刷新后重新确认操作。", "The plugin inventory changed. Refresh and review the action again."), true
+		return copyText("插件清单已变化，请刷新后重新确认操作。", "The plugin inventory changed. Refresh and review the action again."), coss.AlertSuccess, true
 	}
-	return "", false
+	return "", 0, false
+}
+
+// outcomeCarriesError reports whether the extras changeMessage appends to
+// "applied" start with a failure's code — a slug with no spaces — rather
+// than the Host's authored warnings.
+func outcomeCarriesError(rest string) bool {
+	code, _, _ := strings.Cut(rest, " · ")
+	return !strings.Contains(code, " ")
+}
+
+// outcomeErrorSentence is the classified sentence for the code and
+// diagnostic changeMessage flattened after "applied", or errcopy's generic
+// one when the lookup cannot name the failure.
+func outcomeErrorSentence(rest string) string {
+	code, tail, _ := strings.Cut(rest, " · ")
+	if s := errcopySentenceFor(code, tail); s != "" {
+		return s
+	}
+	return errcopy.CauseSentenceIn("", errcopy.CauseUnknown, "")
 }
 
 func pageHeader(c *ui.Context, p *page) {
