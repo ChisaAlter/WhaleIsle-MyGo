@@ -24,6 +24,7 @@ var pluginmanagerLocaleCatalog = []pluginmanagerLocaleEntry{
 	{module: `dsh-client-ui-plugin-manager`, key: `installGuideFillAria`, zh: `填入示例 {example}`, en: `Use the example {example}`},
 	{module: `dsh-client-ui-plugin-manager`, key: `registryOfficial`, zh: `npm 官方源`, en: `Official npm registry`},
 	{module: `dsh-client-ui-plugin-manager`, key: `installConfirmedTitle`, zh: `安装插件`, en: `Install plugin`},
+	{module: `dsh-client-ui-plugin-manager`, key: `statusNotInstalled`, zh: `未安装`, en: `Not installed`},
 	{module: `dsh-client-ui-plugin-manager`, key: `statusMissingFiles`, zh: `包不可用`, en: `Package unavailable`},
 	{module: `dsh-client-ui-plugin-manager`, key: `installPackageLabel`, zh: `插件包名`, en: `Plugin package name`},
 	{module: `dsh-client-ui-plugin-manager`, key: `installCancelAndEdit`, zh: `取消安装并返回修改`, en: `Cancel installation and return to editing`},

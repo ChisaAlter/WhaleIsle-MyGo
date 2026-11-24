@@ -377,3 +377,157 @@ func TestAddMenuMarketplaceIsDisabledWithoutABrowser(t *testing.T) {
 		t.Fatalf("disabled marketplace entry navigated: %+v", snap.View)
 	}
 }
+
+type onDemandSubagentFixture struct {
+	pageFixture
+	installed []string
+}
+
+func (f *onDemandSubagentFixture) Call(ctx context.Context, method string, args, out any) error {
+	switch method {
+	case "pluginManager/listBundles":
+		raw, _ := json.Marshal([]manager.Bundle{
+			{Name: "@deepseek-ai/dsh-base", Version: "0.2.2-rc.5", Availability: "installation", Enabled: true},
+			{
+				Name: "@deepseek-ai/dsh-subagent-codex", Official: true, Availability: "missing",
+				Meta: &manager.Meta{
+					Title:       manager.Text(`{"en":"Codex subagent","zh":"Codex 子智能体"}`),
+					Description: manager.Text(`{"en":"Delegate one task to Codex using its native authentication and settings.","zh":"使用 Codex 原生认证和设置委派单个任务。"}`),
+				},
+				Error: &manager.ManagementError{
+					Code:       "operation-error",
+					Diagnostic: `Official bundle @deepseek-ai/dsh-subagent-codex: expected one workspace package in C:\runtime\vendor\deepseek-harness, found 0; restore the checkout and run pnpm install`,
+				},
+			},
+			{
+				Name: "@deepseek-ai/dsh-subagent-claude-code", Official: true, Availability: "missing",
+				InstallTarget: &manager.InstallTarget{Spec: "@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.5", Version: "0.2.2-rc.5"},
+				Meta: &manager.Meta{
+					Title:       manager.Text(`{"en":"Claude Code subagent","zh":"Claude Code 子智能体"}`),
+					Description: manager.Text(`{"en":"Delegate one task to Claude Code using its native authentication and settings.","zh":"使用 Claude Code 原生认证和设置委派单个任务。"}`),
+				},
+			},
+		})
+		return json.Unmarshal(raw, out)
+	case "pluginManager/installBundle":
+		raw, _ := json.Marshal(args)
+		var req struct {
+			Spec string `json:"spec"`
+		}
+		_ = json.Unmarshal(raw, &req)
+		f.installed = append(f.installed, req.Spec)
+		resp, _ := json.Marshal(manager.Change{Application: "applied", Changed: true, Target: req.Spec})
+		return json.Unmarshal(resp, out)
+	default:
+		return f.pageFixture.Call(ctx, method, args, out)
+	}
+}
+
+func TestOnDemandOfficialSubagentsShowNotInstalledWithoutProblemAndRemainToggleable(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		locale         string
+		moreBtn        string
+		wantTitle      string
+		wantBadge      string
+		wantSource     string
+		forbidProblem  string
+		forbidCombined string
+	}{
+		{
+			name:           "zh",
+			locale:         i18n.LocaleZH,
+			moreBtn:        "更多",
+			wantTitle:      "Codex 子智能体",
+			wantBadge:      "未安装",
+			wantSource:     "官方 · 按需安装",
+			forbidProblem:  "异常",
+			forbidCombined: "未安装 / 包不可用",
+		},
+		{
+			name:           "en",
+			locale:         i18n.LocaleEN,
+			moreBtn:        "More",
+			wantTitle:      "Codex subagent",
+			wantBadge:      "Not installed",
+			wantSource:     "Official · On-demand",
+			forbidProblem:  "Problem",
+			forbidCombined: "Not installed / missing files",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			i18n.SetLocale(tc.locale)
+			t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+			f := &onDemandSubagentFixture{}
+			c := manager.New()
+			c.Attach(f, nil)
+			t.Cleanup(c.Detach)
+			if err := c.Load(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			tt := ui.NewTester(func(ctx *ui.Context) { ui.Column(ctx).Fill().Children(func() { View(ctx, Model{Controller: c}) }) }, 860, 760)
+			if err := tt.Click(tc.moreBtn); err != nil {
+				t.Fatalf("open more: %v", err)
+			}
+			if !tt.HasText(tc.wantTitle) {
+				t.Fatalf("missing subagent row %q in %v", tc.wantTitle, tt.Texts())
+			}
+			if !tt.HasText(tc.wantBadge) {
+				t.Fatalf("missing badge %q in %v", tc.wantBadge, tt.Texts())
+			}
+			if !tt.HasText(tc.wantSource) {
+				t.Fatalf("missing source label %q in %v", tc.wantSource, tt.Texts())
+			}
+			if tt.HasText(tc.forbidProblem) {
+				t.Fatalf("unexpected problem badge %q rendered for healthy on-demand subagent: %v", tc.forbidProblem, tt.Texts())
+			}
+			if tt.HasText(tc.forbidCombined) {
+				t.Fatalf("unexpected combined unavailable badge %q rendered: %v", tc.forbidCombined, tt.Texts())
+			}
+			// Verify the switch is unlocked and clicking it opens the on-demand install flow.
+			switchLabel := "Enable @deepseek-ai/dsh-subagent-codex"
+			if tc.locale == i18n.LocaleZH {
+				switchLabel = "启用 @deepseek-ai/dsh-subagent-codex"
+			}
+			if err := tt.Click(switchLabel); err != nil {
+				t.Fatalf("click subagent switch %q: %v", switchLabel, err)
+			}
+			if !c.Snapshot().Value.Install.Open || c.Snapshot().Value.Install.Spec != "@deepseek-ai/dsh-subagent-codex@0.2.2-rc.5" {
+				t.Fatalf("switch did not open on-demand catalog install: %+v", c.Snapshot().Value.Install)
+			}
+		})
+	}
+}
+
+func TestInstalledBundleWithMissingFilesStillShowsUnavailableAndProblemBadges(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleZH)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	c := manager.New()
+	c.Attach(testCallFunc(func(ctx context.Context, method string, args, out any) error {
+		if method == "pluginManager/listBundles" {
+			raw, _ := json.Marshal([]manager.Bundle{
+				{
+					Name: "broken-local-plugin", Availability: "missing", Installed: true, Removable: true,
+					Meta:  &manager.Meta{Title: manager.Text(`"损坏的插件"`)},
+					Error: &manager.ManagementError{Code: "not-bundle"},
+				},
+			})
+			return json.Unmarshal(raw, out)
+		}
+		return pageFixture{}.Call(ctx, method, args, out)
+	}), nil)
+	t.Cleanup(c.Detach)
+	if err := c.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	tt := ui.NewTester(func(ctx *ui.Context) { ui.Column(ctx).Fill().Children(func() { View(ctx, Model{Controller: c}) }) }, 860, 760)
+	if !tt.HasText("异常") || !tt.HasText("包不可用") {
+		t.Fatalf("installed bundle with missing files must show 异常 and 包不可用: %v", tt.Texts())
+	}
+}
+
+type testCallFunc func(context.Context, string, any, any) error
+
+func (f testCallFunc) Call(ctx context.Context, method string, args, out any) error {
+	return f(ctx, method, args, out)
+}

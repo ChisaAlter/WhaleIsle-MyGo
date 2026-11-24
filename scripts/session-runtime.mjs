@@ -78,6 +78,58 @@ async function fileInside(root, relative) {
   return filename;
 }
 
+function publishWorkspaceRange(spec, version) {
+  if (spec === 'workspace:*') return version;
+  if (spec === 'workspace:~') return `~${version}`;
+  if (spec === 'workspace:^') return `^${version}`;
+  if (spec.startsWith('workspace:')) return spec.slice('workspace:'.length);
+  return spec;
+}
+
+async function resolveStagedDependencyVersion(harnessRoot, depName, fallbackVersion) {
+  const segments = depName.split('/');
+  for (const base of [path.join(harnessRoot, 'apps/cli/node_modules'), path.join(harnessRoot, 'node_modules')]) {
+    try {
+      const pkg = await readJSON(path.join(base, ...segments, 'package.json'));
+      if (typeof pkg.version === 'string' && pkg.version.trim() !== '') return pkg.version.trim();
+    } catch {}
+  }
+  return fallbackVersion;
+}
+
+/**
+ * Rewrite pnpm `workspace:` dependency ranges in a staged/packaged CLI manifest
+ * to published semver strings, matching `pnpm pack`. DSH's
+ * `officialBundleInstallTarget()` treats any `@deepseek-ai/dsh` manifest with a
+ * `workspace:` dependency as a complete monorepo source checkout and fails with
+ * `expected one workspace package ..., found 0` for on-demand official bundles
+ * (`@deepseek-ai/dsh-subagent-codex`, `@deepseek-ai/dsh-subagent-claude-code`)
+ * because slim desktop runtimes intentionally omit those workspace packages.
+ */
+export async function normalizePackagedCliManifest(harnessRoot) {
+  const root = await fs.realpath(path.resolve(harnessRoot));
+  const cliManifestPath = await fileInside(root, 'apps/cli/package.json');
+  const manifest = await readJSON(cliManifestPath);
+  if (manifest.name !== '@deepseek-ai/dsh' || !manifest.dependencies || typeof manifest.dependencies !== 'object') {
+    return {changed: false, rewritten: 0};
+  }
+  let rewritten = 0;
+  const nextDependencies = {...manifest.dependencies};
+  for (const [depName, depSpec] of Object.entries(manifest.dependencies)) {
+    if (typeof depSpec !== 'string' || !depSpec.startsWith('workspace:')) continue;
+    const version = await resolveStagedDependencyVersion(root, depName, manifest.version);
+    if (typeof version !== 'string' || version.trim() === '') {
+      throw new Error(`Cannot resolve workspace dependency ${depName} without a package version`);
+    }
+    nextDependencies[depName] = publishWorkspaceRange(depSpec, version);
+    rewritten += 1;
+  }
+  if (rewritten === 0) return {changed: false, rewritten: 0};
+  manifest.dependencies = nextDependencies;
+  await fs.writeFile(cliManifestPath, JSON.stringify(manifest, null, 2) + '\n');
+  return {changed: true, rewritten};
+}
+
 /** Validate the actual installed exports, not a version string or format number. */
 export async function inspectSessionRuntime(harnessRoot) {
   const root = await fs.realpath(path.resolve(harnessRoot));
@@ -222,6 +274,7 @@ export async function stageSessionRuntime(resources, destination) {
   }
   await fs.mkdir(path.join(target, 'node'));
   await fs.copyFile(nodeSource, path.join(target, 'node/node.exe'), constants.COPYFILE_EXCL);
+  await normalizePackagedCliManifest(path.join(targetVendor, 'deepseek-harness'));
   const safetyPatch = await applySessionRuntimeReadiness(targetVendor, graph.root, metadata.cliVersion);
   const staged = await inspectSessionRuntime(path.join(targetVendor, 'deepseek-harness'));
   for (const relative of [...Object.values(artifactPaths).map(value => 'deepseek-harness/' + value), 'harness-upstream.json']) {
@@ -611,6 +664,7 @@ export async function stageReleaseRuntime(stageRoot, freshDest, {slim = false} =
   if (slim) {
     await applyReleaseSlim(vendor);
   }
+  await normalizePackagedCliManifest(path.join(vendor, 'deepseek-harness'));
   await assertCapabilities(vendor);
   const graph = inventoryGraph(vendor, ['runtime-graph.json', 'dshd-remote/debug.log']);
   const closure = {schemaVersion: 1, files: graph.files, links: graph.links};

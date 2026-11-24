@@ -110,7 +110,13 @@ type Package struct {
 }
 
 func (p Package) SwitchLocked() bool {
-	return p.ReadOnlyReason != "" || !p.Enabled && p.Error != nil && !(p.Availability == "missing" && p.InstallTarget != nil)
+	if p.ReadOnlyReason != "" {
+		return true
+	}
+	if !p.Enabled && p.Error != nil {
+		return p.Error.Code == "unsupported-platform" || !(p.Availability == "missing" && p.InstallTarget != nil)
+	}
+	return false
 }
 
 func (p Package) Title(locale string) string {

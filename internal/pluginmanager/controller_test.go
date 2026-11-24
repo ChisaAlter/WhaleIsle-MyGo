@@ -379,3 +379,137 @@ func TestGenericMarketTypertEnvelopeWithoutNetwork(t *testing.T) {
 		t.Fatalf("result=%+v error=%v calls=%d", result, err, calls)
 	}
 }
+
+func TestSlimRuntimeOnDemandOfficialSubagentsRecoverInstallTargetAndEnableInstall(t *testing.T) {
+	installCalls := make(chan map[string]any, 2)
+	bundles := []Bundle{
+		{
+			Name: "@deepseek-ai/dsh-base", Version: "0.2.2-rc.5", Availability: "installation",
+			Enabled: true, Installed: false,
+		},
+		{
+			Name: "@deepseek-ai/dsh-subagent-codex", Official: true, Availability: "missing",
+			Meta: &Meta{Title: Text(`{"en":"Codex subagent","zh":"Codex 子智能体"}`)},
+			Error: &ManagementError{
+				Code:       "operation-error",
+				Diagnostic: `Official bundle @deepseek-ai/dsh-subagent-codex: expected one workspace package in C:\AI\WhaleIsle-MyGo\runtime-rc4\vendor\deepseek-harness, found 0; restore the checkout and run pnpm install`,
+			},
+		},
+		{
+			Name: "@deepseek-ai/dsh-subagent-claude-code", Official: true, Availability: "missing",
+			Meta: &Meta{Title: Text(`{"en":"Claude Code subagent","zh":"Claude Code 子智能体"}`)},
+			Error: &ManagementError{
+				Code:       "operation-error",
+				Diagnostic: `Official bundle @deepseek-ai/dsh-subagent-claude-code: source DSH installation C:\runtime\apps\cli\package.json requires its complete workspace checkout`,
+			},
+		},
+		{
+			Name: "@deepseek-ai/dsh-official-installed-profile", Official: true, Availability: "profile",
+			Installed: true, Enabled: true, Version: "0.2.2-rc.5",
+			Error: &ManagementError{
+				Code:       "operation-error",
+				Diagnostic: `Official bundle @deepseek-ai/dsh-official-installed-profile: expected one workspace package in C:\runtime, found 0; restore the checkout and run pnpm install`,
+			},
+		},
+		{
+			Name: "@deepseek-ai/dsh-official-unsupported", Official: true, Availability: "missing",
+			InstallTarget: &InstallTarget{Spec: "@deepseek-ai/dsh-official-unsupported@0.2.2-rc.5", Version: "0.2.2-rc.5"},
+			Error:         &ManagementError{Code: "unsupported-platform", Diagnostic: "darwin only"},
+		},
+		{
+			Name: "@deepseek-ai/dsh-official-duplicate", Official: true, Availability: "missing",
+			Error: &ManagementError{
+				Code:       "operation-error",
+				Diagnostic: `Official bundle @deepseek-ai/dsh-official-duplicate: expected one workspace package in C:\checkout, found 2; restore the checkout and run pnpm install`,
+			},
+		},
+		{
+			Name: "@deepseek-ai/dsh-official-broken-files", Official: true, Availability: "missing",
+			Installed: true, Enabled: false,
+			Error: &ManagementError{
+				Code:       "operation-error",
+				Diagnostic: `Official bundle @deepseek-ai/dsh-official-broken-files: expected one workspace package in C:\runtime, found 0; restore the checkout and run pnpm install`,
+			},
+		},
+		{
+			Name: "@deepseek-ai/dsh-official-enabled-uninstalled", Official: true, Availability: "missing",
+			Installed: false, Enabled: true,
+			Error: &ManagementError{
+				Code:       "operation-error",
+				Diagnostic: `Official bundle @deepseek-ai/dsh-official-enabled-uninstalled: expected one workspace package in C:\runtime, found 0; restore the checkout and run pnpm install`,
+			},
+		},
+	}
+
+	c := New()
+	c.Attach(fixtureCall(func(_ context.Context, method string, args, out any) error {
+		switch method {
+		case "pluginInventory/list":
+			return reply(out, map[string]any{"managementAvailable": true, "entries": []any{}})
+		case "pluginManager/listBundles":
+			return reply(out, bundles)
+		case "pluginManager/listPlugins":
+			return reply(out, []Plugin{})
+		case "pluginManager/registries":
+			return reply(out, RegistryInfo{})
+		case "pluginManager/installBundle":
+			raw, _ := json.Marshal(args)
+			var req map[string]any
+			_ = json.Unmarshal(raw, &req)
+			installCalls <- req
+			return reply(out, Change{Application: "applied", Changed: true, Target: "@deepseek-ai/dsh-subagent-codex"})
+		default:
+			return fmt.Errorf("unexpected method %s", method)
+		}
+	}), nil)
+	t.Cleanup(c.Detach)
+
+	if err := c.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]Package{}
+	for _, pkg := range c.Snapshot().Value.Packages {
+		byName[pkg.Name] = pkg
+	}
+
+	for _, name := range []string{"@deepseek-ai/dsh-subagent-codex", "@deepseek-ai/dsh-subagent-claude-code"} {
+		pkg := byName[name]
+		if pkg.Error != nil {
+			t.Fatalf("%s retained false-positive slim-runtime error: %+v", name, pkg.Error)
+		}
+		if pkg.InstallTarget == nil || pkg.InstallTarget.Spec != name+"@0.2.2-rc.5" || pkg.InstallTarget.Version != "0.2.2-rc.5" {
+			t.Fatalf("%s did not recover published installTarget: %+v", name, pkg.InstallTarget)
+		}
+		if pkg.SwitchLocked() {
+			t.Fatalf("%s switch remained locked after recovering installTarget", name)
+		}
+	}
+
+	if pkg := byName["@deepseek-ai/dsh-official-installed-profile"]; pkg.Error != nil || pkg.InstallTarget == nil {
+		t.Fatalf("installed official profile bundle kept spurious targetError: %+v", pkg)
+	}
+	if pkg := byName["@deepseek-ai/dsh-official-unsupported"]; pkg.Error == nil || pkg.Error.Code != "unsupported-platform" || !pkg.SwitchLocked() {
+		t.Fatalf("unsupported-platform bundle lost its error or lock: %+v", pkg)
+	}
+	if pkg := byName["@deepseek-ai/dsh-official-duplicate"]; pkg.Error == nil || pkg.InstallTarget != nil || !pkg.SwitchLocked() {
+		t.Fatalf("duplicate workspace error must not be cleared: %+v", pkg)
+	}
+	if pkg := byName["@deepseek-ai/dsh-official-broken-files"]; pkg.Error == nil {
+		t.Fatalf("installed bundle with missing files must keep its error: %+v", pkg)
+	}
+	if pkg := byName["@deepseek-ai/dsh-official-enabled-uninstalled"]; pkg.Error == nil || pkg.Error.Code != "not-bundle" {
+		t.Fatalf("enabled uninstalled bundle should surface not-bundle, got: %+v", pkg.Error)
+	}
+
+	// Flipping Codex subagent ON must invoke the on-demand catalog install flow.
+	c.Actions(c.Snapshot().Value.Owner).Enable("@deepseek-ai/dsh-subagent-codex", true)
+	select {
+	case req := <-installCalls:
+		opts := req["options"].(map[string]any)
+		if req["spec"] != "@deepseek-ai/dsh-subagent-codex@0.2.2-rc.5" || opts["enabled"] != true || opts["saveExact"] != true {
+			t.Fatalf("unexpected on-demand install request: %+v", req)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("enabling recovered official on-demand bundle did not call pluginManager/installBundle")
+	}
+}
