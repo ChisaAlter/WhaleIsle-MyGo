@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 )
 
 type beamRGBA [4]float32 // premultiplied, sRGB
@@ -107,7 +108,7 @@ func (b *beamRasterData) prepare(w, h, scale, track float32, colors []ui.Color, 
 	shadow := [2]ui.Color{colors[0], colors[len(colors)-1]}
 	shadowAlpha := [2]float32{102.0 / 255, 51.0 / 255}
 	if legacy {
-		inks = [4]ui.Color{ui.RGB(100, 70, 255), ui.RGB(255, 120, 40), ui.RGB(40, 140, 255), ui.RGB(255, 50, 100)}
+		inks = [4]ui.Color{design.TW.Violet500, design.TW.Orange500, design.TW.Blue500, design.TW.Rose500}
 		for i, a := range []float32{.42, .38, .4, .36} {
 			radials[i][4] = a
 		}
@@ -244,7 +245,7 @@ func (b *beamRasterData) render(w, h, scale float32, style beamStyle, colors []u
 	var strokes, inners, blooms [samples]beamRGBA
 	first, second := colors[0], colors[1%len(colors)]
 	if b.legacy {
-		first, second = ui.RGB(255, 80, 180), ui.RGB(80, 180, 255)
+		first, second = design.TW.Pink400, design.TW.Sky400
 	}
 	for i := 0; i < samples; i++ {
 		t := float64(i) / samples

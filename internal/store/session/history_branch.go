@@ -72,7 +72,7 @@ func (s *Store) ForkTurn(ctx context.Context, sessionID string, seq float64) {
 		s.historyBranchBusy = false
 		s.invalidateViewLocked()
 		if err != nil {
-			s.lastAction = "session/fork: " + err.Error()
+			s.setLastActionFaultLocked("historyBranch.fork", "session/fork: ", err)
 			s.mu.Unlock()
 			beforeSnapshotNotification("fork-complete")
 			s.fire()

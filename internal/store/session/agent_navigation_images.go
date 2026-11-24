@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,7 +30,7 @@ func agentNavigationPromptContentWithLimits(text string, paths []string, limits 
 		switch mediaType {
 		case "image/png", "image/jpeg", "image/gif", "image/webp":
 		default:
-			return nil, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreSessionChildImagesOnly), filepath.Base(path)))
+			return nil, storelocale.Errorf(storelocale.KeyStoreSessionChildImagesOnly, filepath.Base(path))
 		}
 		block, _ := json.Marshal(map[string]string{"type": "image", "mediaType": mediaType, "data": base64.StdEncoding.EncodeToString(data), "name": filepath.Base(path)})
 		parts = append(parts, block)
@@ -69,7 +67,8 @@ func (s *Store) addAgentNavigationImages(token uint64, address AgentSessionAddre
 		return
 	}
 	if pickErr != nil {
-		s.agentNavigation.view.ActionStatus = pickErr.Error()
+		s.agentNavigation.view.ActionStatus = faultText("agentNavigation.pickImages", pickErr)
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
@@ -126,11 +125,12 @@ func (s *Store) addAgentNavigationImages(token uint64, address AgentSessionAddre
 		}
 		s.agentNavigation.view.ImagesPreparing = false
 		if err != nil {
-			s.agentNavigation.view.ActionStatus = err.Error()
+			s.agentNavigation.view.ActionStatus = faultText("agentNavigation.images", err)
 		} else if s.agentParentCanPromptLocked(address) {
 			s.agentNavigation.view.PromptImages = combined
 			s.agentNavigation.view.ActionStatus = ""
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}

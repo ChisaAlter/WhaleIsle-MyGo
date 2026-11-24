@@ -36,7 +36,7 @@ func (s *Store) runCreateGoal(ctx context.Context, client *dsh.Client, sessionID
 		return
 	}
 	if err != nil {
-		s.lastAction = err.Error()
+		s.setLastActionFaultLocked("goals.create", "", err)
 	} else {
 		s.planBoard.goalReadToken = nil
 		s.lastAction = "goal created"
@@ -83,7 +83,7 @@ func (s *Store) runEditGoal(ctx context.Context, client *dsh.Client, sessionID s
 		return
 	}
 	if err != nil {
-		s.lastAction = err.Error()
+		s.setLastActionFaultLocked("goals.create", "", err)
 	} else {
 		s.lastAction = "goal edited"
 		s.applyGoalView(&out)
@@ -196,7 +196,7 @@ func (s *Store) runGoalAction(ctx context.Context, client *dsh.Client, sessionID
 		return
 	}
 	if err != nil {
-		s.lastAction = err.Error()
+		s.setLastActionFaultLocked("goals.create", "", err)
 	} else {
 		s.planBoard.goalReadToken = nil
 		s.lastAction = okAction

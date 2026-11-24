@@ -79,7 +79,7 @@ func (s *mainState) sessionFeedbackAction(win *mygo.Window, sessions *session.St
 		s.mu.Lock()
 		current := s.sessions == sessions && !s.quitting
 		s.mu.Unlock()
-		live := sessions.Snapshot()
+		live := sessions.Published().Value
 		if current && id == v.SelectedID && live.SelectedID == id && live.ComposerHostGeneration == v.ComposerHostGeneration && live.NativeContributions.FeedbackCommand {
 			sessions.OpenSessionFeedback(id)
 			if win != nil {

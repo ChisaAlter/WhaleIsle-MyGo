@@ -88,7 +88,7 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 			return
 		}
 		if err != nil {
-			s.lastAction = "workspace init: " + err.Error()
+			s.setLastActionFaultLocked("workspaceInit", "workspace init: ", err)
 		} else {
 			if createdRow.WorkspaceID != "" && createdRow.Path != "" {
 				s.putWorkspaceRowLocked(createdRow)

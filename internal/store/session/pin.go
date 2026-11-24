@@ -51,10 +51,8 @@ func (s *Store) PinSession(ctx context.Context, sessionID string) {
 			return
 		}
 		if err != nil {
-			if s.lastAction != err.Error() {
-				s.invalidateViewLocked()
-			}
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("pinSession", "", err)
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -89,10 +87,8 @@ func (s *Store) UnpinSession(ctx context.Context, sessionID string) {
 			return
 		}
 		if err != nil {
-			if s.lastAction != err.Error() {
-				s.invalidateViewLocked()
-			}
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("pinSession", "", err)
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 			return

@@ -118,9 +118,10 @@ func (s *Store) finishWorkflowMember(ctx context.Context, token uint64, err erro
 	w.view.Busy = false
 	w.view.Process.Live = false
 	if err != nil {
-		w.view.Process.Error = err.Error()
+		w.view.Process.Error = faultText("workflowMember", err)
 	}
 	w.cancel = nil
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -177,7 +178,7 @@ func (s *Store) EarlierWorkflowMember(token uint64) {
 		w.view.Busy = false
 		w.cancel = nil
 		if err != nil {
-			w.view.Process.Error = err.Error()
+			w.view.Process.Error = faultText("workflowMember.earlier", err)
 		} else {
 			if len(page.Records) > projectflow.ProcessRecordLimit {
 				page.Records = append([]projectflow.ProcessRecord(nil), page.Records[len(page.Records)-projectflow.ProcessRecordLimit:]...)
@@ -191,6 +192,7 @@ func (s *Store) EarlierWorkflowMember(token uint64) {
 			}
 			w.view.Process = page
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

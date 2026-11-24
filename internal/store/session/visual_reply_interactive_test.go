@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -79,8 +80,8 @@ func TestInteractiveVisualReplyAuthorizedLifetime(t *testing.T) {
 	}
 	s.OpenInteractiveVisualReply(context.Background(), "A", "page", fail)
 	state := s.VisualReplySnapshot()
-	if calls != 1 || !state.Ready || state.HTML != source || state.InteractiveActive || state.InteractiveError != "containment unavailable" {
-		t.Fatalf("failed launch did not preserve authorized source: %+v", state)
+	if calls != 1 || !state.Ready || state.HTML != source || state.InteractiveActive || state.InteractiveError == "" || strings.Contains(state.InteractiveError, "containment unavailable") {
+		t.Fatalf("failed launch did not preserve authorized source or leaked raw text: %+v", state)
 	}
 
 	handle := &interactiveFixtureHandle{done: make(chan struct{})}

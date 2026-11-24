@@ -72,7 +72,7 @@ func (s *mainState) workspaceDocumentReady(source browserpreviewui.DocumentSourc
 	if quitting || sessions == nil || win == nil {
 		return false
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.Published().Value
 	viewID := source.ViewSessionID
 	if viewID == "" {
 		viewID = source.SessionID
@@ -150,7 +150,7 @@ func (s *mainState) readWorkspaceDocument(ctx context.Context, source browserpre
 			st.Generation == host.Generation && st.State == host.State &&
 			st.Endpoint.Origin == host.Endpoint.Origin && st.Endpoint.Cookie == host.Endpoint.Cookie
 		s.mu.Unlock()
-		snap := sessions.Snapshot()
+		snap := sessions.Published().Value
 		return current && (sourceErr != nil || sourceValid()) &&
 			snap.SelectedID == viewID && snap.SelectedCwd == root &&
 			source.Authority == s.browserWorkspaceOwner().Authority

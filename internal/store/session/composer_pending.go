@@ -167,10 +167,11 @@ func (t *ComposerTarget) finishSubmission(id string, err error) error {
 	s.startSubmissionWatchesLocked()
 	if t.currentLocked() && s.selectedID == t.SessionID && s.followGeneration == t.followGeneration {
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("composerPending", "", err)
 		} else {
 			s.lastAction = "prompt accepted"
 		}
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	if terminal != nil && !errors.Is(err, ErrSubmissionUnconfirmed) && (seen && observed.target == t || err != nil) {

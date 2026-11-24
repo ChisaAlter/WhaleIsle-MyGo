@@ -77,10 +77,11 @@ func (s *Store) OpenInteractiveVisualReply(ctx context.Context, sessionID, attac
 			s.visualReply.Surface, _ = handle.(VisualReplySurface)
 		}
 		if err != nil {
-			s.visualReply.InteractiveError = err.Error()
+			s.visualReply.InteractiveError = faultText("visualReply.interactive", err)
 			s.visualReply.interaction = nil
 			s.visualReply.Surface = nil
 		}
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	if current {
@@ -106,8 +107,9 @@ func (s *Store) OpenInteractiveVisualReply(ctx context.Context, sessionID, attac
 		s.visualReply.InteractiveActive = false
 		s.visualReply.InteractiveLoading = false
 		if closeErr != nil {
-			s.visualReply.InteractiveError = closeErr.Error()
+			s.visualReply.InteractiveError = faultText("visualReply.interactiveClose", closeErr)
 		}
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	if current {

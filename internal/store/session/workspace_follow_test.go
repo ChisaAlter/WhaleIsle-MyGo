@@ -17,8 +17,8 @@ func TestApplyWorkspaceFollowUnknownFrameNoPanic(t *testing.T) {
 func TestWorkspaceBaselineRetiresOnlyItsPriorReaderError(t *testing.T) {
 	for _, unrelated := range []bool{false, true} {
 		s := New()
-		s.workspaceErr = errors.New("workspace follow unavailable; reconnect and try again")
-		s.lastAction = "workspace follow: " + s.workspaceErr.Error()
+		s.setWorkspaceErrLocked(errors.New("workspace follow unavailable; reconnect and try again"))
+		s.lastAction = "workspace follow: " + s.workspaceFault.SentenceText()
 		if unrelated {
 			s.lastAction = "rename failed"
 		}

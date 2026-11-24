@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/store/storelocale"
 )
 
 // SessionFeedbackView is a local draft; opening or editing never records feedback.
@@ -103,11 +104,12 @@ func (s *Store) SubmitSessionFeedback(ctx context.Context) {
 		}
 		s.sessionFeedback.Busy = false
 		if err != nil {
-			s.sessionFeedback.Error = err.Error()
+			s.sessionFeedback.Error = faultText("sessionFeedback", err)
 		} else {
 			s.invalidateSessionFeedbackLocked()
 			s.lastAction = "Session feedback recorded"
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -126,6 +128,9 @@ func checkSessionFeedbackAck(raw json.RawMessage) error {
 		return fmt.Errorf("feedback: incompatible Host response")
 	}
 	if !*r.OK {
+		if r.Error.Code == "version-conflict" || r.Error.Code == "note-too-large" {
+			return storelocale.Authored(r.Error.Code)
+		}
 		return fmt.Errorf("feedback: %s", r.Error.Code)
 	}
 	if !r.Value.Recorded {

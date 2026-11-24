@@ -83,12 +83,14 @@ func (s *Store) RenameSession(ctx context.Context, sessionID, title string) {
 			s.rename.Busy = false
 		}
 		if err != nil {
-			if s.lastAction != err.Error() {
+			msg := faultText("rename", err)
+			if s.lastAction != msg {
 				s.invalidateViewLocked()
 			}
-			s.lastAction = err.Error()
+			s.lastAction = msg
 			if editing {
-				s.rename.Error = err.Error()
+				s.rename.Error = msg
+				s.invalidateViewLocked()
 			}
 			s.mu.Unlock()
 			s.fire()

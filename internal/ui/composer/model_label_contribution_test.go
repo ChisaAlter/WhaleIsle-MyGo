@@ -108,7 +108,7 @@ func TestModelPickerUnknownCurrentHasNoInferredBadge(t *testing.T) {
 	snap := modelLabelFixture()
 	snap.SelectedModel = "deepseek-official / deepseek-flash"
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+		paintModelPicker(c, Model{Snapshot: snap}, 28)
 	}, 600, 600)
 	if modelBadgeCount(tt) != 0 {
 		t.Fatal("unknown current choice borrowed another catalog entry's badge")
@@ -135,7 +135,7 @@ func TestModelPickerColdUnknownDoesNotInventSeat(t *testing.T) {
 		snap := modelLabelFixture()
 		snap.NativeContributions = contribution
 		tt := ui.NewTester(func(c *ui.Context) {
-			paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+			paintModelPicker(c, Model{Snapshot: snap}, 28)
 		}, 600, 100)
 		if _, ok := tt.Find("Model catalog"); ok || modelBadgeCount(tt) != 0 || tt.HasText("DeepSeek-V4.1-Flash") {
 			t.Fatal("unknown or unavailable model owner invented a local seat")
@@ -147,8 +147,9 @@ func TestModelPickerLabelAndOwnerWithdrawalsHaveDifferentLifetimes(t *testing.T)
 	snap := modelLabelFixture()
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, testColors(), 28)
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, 28)
 	}, 600, 600)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 	if modelBadgeCount(tt) != 1 {
 		t.Fatal("actual trigger is missing its label contribution")
 	}
@@ -247,7 +248,7 @@ func TestFriendlyModelTriggerNameAndUnifiedSeatEffort(t *testing.T) {
 		NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true},
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap}, testColors(), 28)
+		paintModelPicker(c, Model{Snapshot: snap}, 28)
 	}, 600, 100)
 	if !tt.HasText("SWE-2") || !tt.HasText("Max") {
 		t.Fatalf("unified model seat missing SWE-2 or Max: %v", tt.Texts())

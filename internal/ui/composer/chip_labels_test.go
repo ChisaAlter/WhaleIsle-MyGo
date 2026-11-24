@@ -132,4 +132,3 @@ func TestPermissionPopupGeometryMatchesReference(t *testing.T) {
 		t.Fatalf("permission popup did not open above trigger: row=%+v trigger=%+v", rowBounds, triggerBounds)
 	}
 }
-

@@ -29,7 +29,7 @@ func (s *mainState) openScheduleTask(row schedstore.Entry) {
 	if !registered || settled {
 		return
 	}
-	owner := sessions.Snapshot()
+	owner := sessions.Published().Value
 	if !owner.ClientReady || owner.SelectedID != row.SessionID {
 		return
 	}

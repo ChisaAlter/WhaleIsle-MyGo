@@ -52,7 +52,7 @@ func (s *Store) PreviewVisualReply(ctx context.Context, sessionID, attachmentID 
 	v.previewCancel = nil
 	v.PreviewLoading = false
 	if err != nil {
-		v.PreviewError = err.Error()
+		v.PreviewError = faultText("visualReply.preview", err)
 	} else {
 		v.PreviewPNG = append([]byte(nil), result.PNG...)
 		v.PreviewWidth = result.Width
@@ -60,6 +60,7 @@ func (s *Store) PreviewVisualReply(ctx context.Context, sessionID, attachmentID 
 		v.PreviewCapturedHeight = result.CapturedHeight
 		v.PreviewID = previewSequence.Add(1)
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }

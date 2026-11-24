@@ -5,7 +5,6 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
@@ -29,7 +28,7 @@ func TestChildCompactToolbarKeepsCapturedCallbacksAndBusyGates(t *testing.T) {
 	for _, control := range []struct {
 		label string
 		size  float32
-	}{{"Tools", 28}, {i18n.T(i18n.KeyComposerSend), 34}} {
+	}{{"Tools", 28}, {i18n.T(i18n.KeyComposerSend), 32}} {
 		bounds, ok := tt.Find(control.label)
 		if !ok || bounds.W != control.size || bounds.H != control.size || bounds.X < 0 || bounds.X+bounds.W > 180 {
 			t.Fatalf("compact child control %q clipped at narrow width: %+v", control.label, bounds)
@@ -42,10 +41,10 @@ func TestChildCompactToolbarKeepsCapturedCallbacksAndBusyGates(t *testing.T) {
 		if err := tt.Click("Tools"); err != nil {
 			t.Fatal(err)
 		}
-		if got := tt.Menu(); !reflect.DeepEqual(got, []string{"Add images", "Paste image"}) {
-			t.Fatalf("child tools borrowed parent controls or lost intake: %v", got)
+		if !tt.HasText("Add images") || !tt.HasText("Paste image") {
+			t.Fatalf("child tools borrowed parent controls or lost intake: %v", tt.Texts())
 		}
-		if err := tt.ChooseMenuItem(item); err != nil {
+		if err := tt.Click(item); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -65,7 +64,7 @@ func TestChildCompactToolbarKeepsCapturedCallbacksAndBusyGates(t *testing.T) {
 		v.Disabled, draft.Sending = lock == "disabled", lock == "sending"
 		tt.Frame()
 		_ = tt.Click("Tools")
-		if len(tt.Menu()) != 0 {
+		if tt.HasText("Add images") || tt.HasText("Paste image") {
 			t.Fatalf("%s child opened intake", lock)
 		}
 		_ = tt.Click(i18n.T(i18n.KeyComposerSend))

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 )
 
 type presetIntroduction struct {
@@ -18,9 +19,9 @@ type presetIntroduction struct {
 // Creator's staged choice announces itself once. Glyphs retain their full
 // layout width throughout the reveal; only their ink moves and fades.
 func paintPresetIntroduction(c *ui.Context, m Model, caption string, fg ui.Color) {
-	root := ui.Row(c.Key("preset-introduction")).Gap(4).Grow(1).MinWidth(0).AlignItems(ui.Center)
+	root := ui.Row(c.Key("preset-introduction")).Gap(design.Sp(1)).Grow(1).MinWidth(0).AlignItems(ui.Center)
 	state := ui.Local(root, "timeline", func() presetIntroduction { return presetIntroduction{} })
-	font := ui.Font{Family: c.Theme().Font, Size: 13, Weight: 500}
+	font := ui.Font{Family: c.Theme().Font, Size: 13, Weight: design.WeightMedium}
 	sequence := m.AgentPresetSelection.Introduction
 	binding := fmt.Sprintf("%d:%s:%d:%s", m.Snapshot.ComposerHostGeneration, m.Snapshot.SelectedID, sequence, caption)
 	if state.Binding != binding {

@@ -5,27 +5,30 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
 // SettingsEffectPreview uses the shipped native painters and an isolated draft.
 // It has no session, submission, attachment, or Host callbacks.
 func SettingsEffectPreview(c *ui.Context, style json.RawMessage, typing bool) {
-	box := chrome.FrostSurface(ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(12), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 16)
+	t := design.For(c)
+	box := ui.Column(c.Key("settings-effect-preview")).FillWidth().MinWidth(0).Padding(design.Sp(3)).
+		Radius(design.RadiusXL2).Background(t.Card).Border(design.BorderWidth, t.Border).TextColor(t.CardForeground)
 	reducedMotion := c.Preferences().ReduceMotion
 	if typing {
 		fx := typingEffects{enabled: true}
 		fx.style = readTypingStyle(style)
 		clock := ui.Local(box, "typing-preview-clock", func() typingPreviewClock { return typingPreviewClock{} })
-		box.MinHeight(86).DrawOver(func(p *ui.Painter, r ui.Rect) { clock.paint(p, r, fx, reducedMotion) })
+		fg, primary := t.CardForeground, t.Primary
+		box.MinHeight(86).DrawOver(func(p *ui.Painter, r ui.Rect) { clock.paint(p, r, fx, reducedMotion, fg, primary) })
 		return
 	}
 	beam := readBeamStyle(style)
 	beamState := ui.Local(box, "preview-beam-timeline", func() beamTimeline { return beamTimeline{} })
-	box.Radius(22).MinHeight(86).Draw(func(p *ui.Painter, rect ui.Rect) { paintComposerBeam(p, rect, beam, beamState, true, reducedMotion) })
+	box.Radius(design.RadiusXL2).MinHeight(86).Draw(func(p *ui.Painter, rect ui.Rect) { paintComposerBeam(p, rect, beam, beamState, true, reducedMotion) })
 	box.Children(func() {
-		ui.Text(c, composerText("智能体正在思考", "Agent is thinking")).FontSize(14).Padding(16).TextColor(c.Theme().Text)
+		ui.Text(c, composerText("智能体正在思考", "Agent is thinking")).FontSize(design.TextSM.Size).Padding(design.Sp(4)).TextColor(t.CardForeground)
 	})
 }
 
@@ -35,7 +38,7 @@ type typingPreviewClock struct {
 	blink                   bool
 }
 
-func (s *typingPreviewClock) paint(p *ui.Painter, r ui.Rect, fx typingEffects, reduced bool) {
+func (s *typingPreviewClock) paint(p *ui.Painter, r ui.Rect, fx typingEffects, reduced bool, fg, accent ui.Color) {
 	now := p.Now()
 	sample := composerText("输入特效", "Typing effects")
 	if s.born.IsZero() || s.sample != sample {
@@ -62,8 +65,8 @@ func (s *typingPreviewClock) paint(p *ui.Painter, r ui.Rect, fx typingEffects, r
 	} else {
 		p.After(step - phase%step)
 	}
-	font := ui.Font{Family: theme.TextFamily(theme.CurrentPreferences().Interface.Family), Size: 14}
-	echoInk, caretInk, textInk := fx.colors(p.Theme().Text, p.Theme().Accent)
+	font := ui.Font{Family: theme.TextFamily(theme.CurrentPreferences().Interface.Family), Size: design.TextSM.Size}
+	echoInk, caretInk, textInk := fx.colors(fg, accent)
 	x, y := r.X+12, r.Y+(r.H-22)/2
 	cycleAt := now.Add(-phase)
 	for i, char := range chars[:count] {

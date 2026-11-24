@@ -82,11 +82,12 @@ func (s *Store) ReadAgentResource(ctx context.Context, token uint64, address Age
 	if err != nil {
 		result = previous
 		result.Busy = false
-		result.Error = err.Error()
+		result.Error = faultText("agentResources", err)
 	}
 	s.mu.Lock()
 	if s.agentResourceCurrentLocked(token, address) && s.client == client && client.Endpoint == endpoint {
 		s.agentNavigation.view.Resources[ref] = result
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	s.fire()

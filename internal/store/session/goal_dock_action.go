@@ -54,7 +54,7 @@ func (s *Store) GoalDockAction(goalID string, revision float64) func(context.Con
 			}
 		}
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("goalDockAction", "", err)
 		} else {
 			s.lastAction = "goal " + action
 		}

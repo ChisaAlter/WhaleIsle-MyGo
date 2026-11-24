@@ -31,8 +31,8 @@ func TestHeroSourceGeometryBothInputOwners(t *testing.T) {
 		closeMetric(t, input.Y-card.Y, 8, "sourcecard top")
 		closeMetric(t, input.X-card.X, 0, "sourceinput fullwidth")
 		closeMetric(t, input.W, card.W, "sourceinput scrollport width")
-		closeMetric(t, send.W, 34, "sourceprimarywidth")
-		closeMetric(t, send.H, 34, "sourceprimaryheight")
+		closeMetric(t, send.W, 32, "sourceprimarywidth")
+		closeMetric(t, send.H, 32, "sourceprimaryheight")
 		closeMetric(t, card.X+card.W-send.X-send.W, 8, "sourcetoolbar rightpadding")
 		left, right, top := draftInsets(true)
 		if left != 14 || right != 8 || top != 4 {

@@ -188,8 +188,8 @@ func TestWorkspaceArchivedFilterConcurrentFieldsMergeAndConflictStaysVisible(t *
 	b.SetWorkspaceArchivedFilter("only")
 	a.SetWorkspaceArchivedFilter("default")
 	for i := 0; i < 2; i++ {
-		if got := a.Snapshot().WorkspaceLayout; got.ArchivedFilter != "default" || !strings.Contains(got.PreferenceError, "archivedFilter") {
-			t.Fatal("pending choice or field conflict hidden", got)
+		if got := a.Snapshot().WorkspaceLayout; got.ArchivedFilter != "default" || got.PreferenceError == "" || strings.Contains(got.PreferenceError, "archivedFilter") {
+			t.Fatal("pending choice or field conflict hidden, or leaked raw field name", got)
 		}
 		a.RetryWorkspacePreferences()
 		if recoveryRead(t, path, scope).ArchivedFilter != "only" {

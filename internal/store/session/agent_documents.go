@@ -39,9 +39,10 @@ func (s *Store) SetAgentResourceStatus(token uint64, address AgentSessionAddress
 		read.Error = ""
 		read.EOF = true
 		if err != nil {
-			read.Error = err.Error()
+			read.Error = faultText("agentDocuments.status", err)
 		}
 		s.agentNavigation.view.Resources[path] = read
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -74,9 +75,10 @@ func (s *Store) ReadAgentWorkbook(ctx context.Context, token uint64, address Age
 		result := AgentResourceRead{Table: page, EOF: true}
 		if err != nil {
 			result.Table = previous.Table
-			result.Error = err.Error()
+			result.Error = faultText("agentDocuments.workbook", err)
 		}
 		s.agentNavigation.view.Resources[path] = result
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	s.fire()

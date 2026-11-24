@@ -162,7 +162,7 @@ func (s *mainState) openGlobalWorkspaceSession(win *mygo.Window, sessions *sessi
 	if sessions == nil {
 		return
 	}
-	state := sessions.Snapshot()
+	state := sessions.Published().Value
 	if !state.WorkspaceReady || state.WorkspaceError != nil {
 		// Two different states used to share one waiting sentence. Without a
 		// workspace there is nothing to reconnect to: the next step is picking a

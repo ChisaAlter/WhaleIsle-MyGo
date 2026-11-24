@@ -64,7 +64,7 @@ func (m *AgentPresetManager) finish(err error, status string) {
 	m.state.Err = ""
 	m.state.Status = status
 	if err != nil {
-		m.state.Err = err.Error()
+		m.state.Err = faultText("agentPresetManager", err)
 		m.state.Status = ""
 	}
 	pending := m.codingToolsRefreshPending

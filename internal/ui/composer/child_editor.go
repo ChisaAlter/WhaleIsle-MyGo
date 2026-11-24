@@ -2,11 +2,11 @@ package composer
 
 import (
 	"context"
-	"github.com/egoist/mygo/ui"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 // ChildEditor exposes editing primitives only. No parent session snapshot,
@@ -41,7 +41,8 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 	if d.Client == nil {
 		d.Client = NewDraftClient(&d.Text)
 	}
-	fg, muted := c.Theme().Text, c.Theme().TextMuted
+	t := design.For(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	send := func() {
 		if !v.Disabled && !v.ParentOffline && (strings.TrimSpace(d.Text) != "" || len(v.Images) > 0) {
 			if v.OnSendGesture != nil {
@@ -73,24 +74,32 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 			send()
 		}
 	}
-	colors := theme.Resolve(v.ThemeID).Active(v.SystemDark)
-	radius := theme.ResolvedSkinLayout(v.ThemeID, v.SystemDark).ComposerRadius
-	root := ui.Column(c.Key("child-composer")).FillWidth().MinWidth(0).Padding(8, 0, 0, 0).Gap(12).Radius(radius).Draw(chrome.Glass(chrome.Color(colors.InputMajor), chrome.MaterialPanel, radius))
+	radius := design.RadiusXL
+	disabled := v.Disabled || v.ParentOffline
+	root := ui.Column(c.Key("child-composer")).FillWidth().MinWidth(0).Padding(design.Sp(2), 0, 0, 0).Gap(design.Sp(3)).Radius(radius)
+	focused := !disabled && root.FocusWithin()
+	fill := composerCardFill(t)
+	borderCol := composerCardBorder(t, focused)
+	composerCardElevation(root, t, focused, disabled)
+	root.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(r, fill, radius)
+	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		p.Stroke(r, borderCol, radius, design.BorderWidth)
+	})
 	selected := ui.Local(root, "reference-selection", func() int { return 0 })
 	m.SuggestList = ui.Local(root, "references", func() ui.ListState { return ui.ListState{Selected: selected} })
 	BindStopRegion(root, d.Client, m, false)
-	disabled := v.Disabled || v.ParentOffline
 	root.Children(func() {
 		paintChildAttachments(c, v, muted)
 		start, end := -1, -1
 		if v.Chip != nil && v.Chip.Open {
-			paintChipEditPopup(c, m, c.Theme().Background, c.Theme().Border, muted)
+			paintChipEditPopup(c, m)
 		}
 		area := paintDraftTextInput(c, m, fg, muted, start, end).Disabled(disabled)
 		kind, q, tok, quoted, open := activeSuggestion(m, d.Client)
 		if open && kind == SuggestMention {
 			items := buildSuggestItemsWithQuote(m, kind, q, quoted)
-			paintSuggestPopup(c, m, area, items, kind, tok, theme.Resolve(v.ThemeID).Active(v.SystemDark))
+			paintSuggestPopup(c, m, area, items, kind, tok)
 		} else {
 			d.references.cancelQuery()
 		}
@@ -110,7 +119,7 @@ func ChildEditor(c *ui.Context, v ChildEditorModel) {
 		vToolbar.Disabled = disabled
 		paintChildToolbar(c, vToolbar, send)
 		if d.Error != "" {
-			ui.Text(c, FormatComposerError(d.Error)).FontSize(11).TextColor(muted)
+			ui.Text(c, FormatComposerError(d.Error)).FontSize(design.TextXS.Size).TextColor(t.DestructiveForeground)
 		}
 	})
 }

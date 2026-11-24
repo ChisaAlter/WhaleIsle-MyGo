@@ -247,7 +247,7 @@ func TestSubagentLauncherRetainsIntakeAndVoiceCallbacks(t *testing.T) {
 	}, OnVoiceSettings: func() { voice++ }}
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 700)
 	for _, label := range []string{composerText("添加文件", "Add files"), composerText("粘贴图片", "Paste image"), composerText("语音设置", "Voice settings")} {
-		tt.Click("+")
+		tt.Click(i18n.T(i18n.KeyComposerCommands))
 		if tt.HasText("/hidden-skill") {
 			t.Fatal("child exposed parent skill picker")
 		}

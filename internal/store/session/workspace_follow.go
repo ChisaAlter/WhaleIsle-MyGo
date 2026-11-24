@@ -38,7 +38,7 @@ func (s *Store) runWorkspaceFollow(ctx context.Context, mux *dsh.Mux, generation
 			return
 		}
 		s.setWorkspaceErrLocked(err)
-		s.lastAction = "workspace follow: " + err.Error()
+		s.lastAction = "workspace follow: " + s.workspaceFault.SentenceText()
 		s.signalWorkspaceLocked()
 		s.invalidateViewLocked()
 		s.mu.Unlock()
@@ -141,7 +141,7 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 		s.workspaceReadyHost = s.eventsGeneration
 		// A fresh authoritative baseline retires only this reader's prior error.
 		// Keep later user-action feedback while removing stale reconnect noise.
-		if s.workspaceErr != nil && s.lastAction == "workspace follow: "+s.workspaceErr.Error() {
+		if s.workspaceFault != nil && s.lastAction == "workspace follow: "+s.workspaceFault.SentenceText() {
 			s.lastAction = ""
 		}
 		s.setWorkspaceErrLocked(nil)

@@ -141,7 +141,7 @@ func (s *Store) runUpdateQueue(ctx context.Context, client *dsh.Client, sessionI
 		// an unavailable steering window as convergence for every Steer gesture,
 		// including the per-row button. Other mutations still report failures.
 		if action != QueueActionSteer || !queueSteerConverged(err) {
-			s.lastAction = "queue: " + err.Error()
+			s.setLastActionFaultLocked("queue", "queue: ", err)
 		}
 	} else {
 		s.lastAction = "queue " + string(action) + " " + itemID
