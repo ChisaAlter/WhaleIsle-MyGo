@@ -19,6 +19,8 @@ import (
 // Performance is a value; schedule results are independently cloned on every read.
 type HistoryDerivedMemo struct {
 	binding, sessionID string
+	durableKey         ProjectionKey
+	keyFastPath        bool
 	source             []historyDerivedSource
 	sourceBytes        int
 	ready, nilMessages bool
@@ -68,7 +70,7 @@ func historyTimingNaN(t *TrajectoryTiming) bool {
 }
 
 func (old historyDerivedSource) matches(m Message) bool {
-	if old.seq != m.Seq || old.streaming != m.Streaming || !bytes.Equal([]byte(old.raw), m.Raw) || old.timingPresent != (m.TrajectoryTime != nil) {
+	if old.seq != m.Seq || old.streaming != m.Streaming || len(old.raw) != len(m.Raw) || old.raw != string(m.Raw) || old.timingPresent != (m.TrajectoryTime != nil) {
 		return false
 	}
 	if t := m.TrajectoryTime; t != nil {
@@ -77,14 +79,29 @@ func (old historyDerivedSource) matches(m Message) bool {
 	return true
 }
 
-// prepare compares actual values and every Raw byte, not IDs, lengths, hashes or
-// pointer identities. SelectedID and the accepted history binding isolate owners.
+// prepare uses O(1) durable projection identity when the view came unmodified
+// from a Store, and falls back to exact value-and-byte comparison for manually
+// assembled views or copies stripped with WithoutProjectionKeys.
 func (memo *HistoryDerivedMemo) prepare(v ViewState) bool {
+	if key := v.DurableHistoryProjectionKey(); key.Valid() {
+		if memo.ready && memo.keyFastPath && memo.durableKey == key && memo.binding == v.PlanHistoryBinding && memo.sessionID == v.SelectedID {
+			return true
+		}
+		*memo = HistoryDerivedMemo{
+			binding:     strings.Clone(v.PlanHistoryBinding),
+			sessionID:   strings.Clone(v.SelectedID),
+			durableKey:  key,
+			keyFastPath: true,
+			ready:       true,
+			nilMessages: v.Messages == nil,
+		}
+		return true
+	}
 	if len(v.Messages) > historyDerivedRowLimit || len(v.PlanHistoryBinding) > historyDerivedByteLimit || len(v.SelectedID) > historyDerivedByteLimit-len(v.PlanHistoryBinding) {
 		return false
 	}
 	size := len(v.PlanHistoryBinding) + len(v.SelectedID)
-	same := memo.ready && memo.binding == v.PlanHistoryBinding && memo.sessionID == v.SelectedID && len(memo.source) == len(v.Messages) && memo.nilMessages == (v.Messages == nil)
+	same := memo.ready && !memo.keyFastPath && memo.binding == v.PlanHistoryBinding && memo.sessionID == v.SelectedID && len(memo.source) == len(v.Messages) && memo.nilMessages == (v.Messages == nil)
 	for i, m := range v.Messages {
 		if math.IsNaN(m.Seq) || historyTimingNaN(m.TrajectoryTime) {
 			return false

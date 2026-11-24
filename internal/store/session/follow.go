@@ -30,8 +30,13 @@ func (s *Store) FollowSelected(ctx context.Context) {
 		s.mu.Unlock()
 		return
 	}
-	s.invalidateFollowLocked()
-	s.historyLoading = true
+	if s.historyReady {
+		s.beginFollowReconnectLocked()
+		s.historyLoading = true
+	} else {
+		s.invalidateFollowLocked()
+		s.historyLoading = true
+	}
 	generation := s.followGeneration
 	fctx, cancel := context.WithCancel(ctx)
 	s.followCancel = cancel
@@ -257,13 +262,14 @@ type followSnapshotFrame struct {
 }
 
 type parsedFollowFrame struct {
-	raw      json.RawMessage
-	kind     string
-	kindOK   bool
-	snap     followSnapshotFrame
-	snapOK   bool
-	eventRaw json.RawMessage
-	eventOK  bool
+	raw        json.RawMessage
+	kind       string
+	kindOK     bool
+	streamType string
+	snap       followSnapshotFrame
+	snapOK     bool
+	eventRaw   json.RawMessage
+	eventOK    bool
 }
 
 func parseFollowFrame(raw json.RawMessage) parsedFollowFrame {
@@ -323,6 +329,15 @@ func parseFollowFrame(raw json.RawMessage) parsedFollowFrame {
 			out.eventRaw = wrap.Event
 			out.eventOK = true
 		}
+	case "assistant-stream":
+		var wrap struct {
+			Frame struct {
+				Type string `json:"type"`
+			} `json:"frame"`
+		}
+		if json.Unmarshal(raw, &wrap) == nil {
+			out.streamType = wrap.Frame.Type
+		}
 	}
 	return out
 }
@@ -338,11 +353,16 @@ func (s *Store) applyFollowFrameForTarget(ctx context.Context, sessionID string,
 		return false
 	}
 	changed := s.applyFollowFrameParsedLocked(parsed)
+	streamChunk := parsed.kindOK && parsed.kind == "assistant-stream" && parsed.streamType == "chunk" && !s.assistantStream.rebaseline
 	client := s.client
 	refreshGoal := changed && client != nil && wantGoalRefresh
 	s.mu.Unlock()
 	if changed {
-		s.fireFollowFrame(parsed)
+		if streamChunk {
+			s.fireStream()
+		} else {
+			s.fire()
+		}
 	}
 	if refreshGoal {
 		go s.runRefreshGoal(ctx, client, sessionID, generation)
@@ -354,9 +374,14 @@ func (s *Store) applyFollowFrame(raw json.RawMessage) {
 	parsed := parseFollowFrame(raw)
 	s.mu.Lock()
 	changed := s.applyFollowFrameParsedLocked(parsed)
+	streamChunk := parsed.kindOK && parsed.kind == "assistant-stream" && parsed.streamType == "chunk" && !s.assistantStream.rebaseline
 	s.mu.Unlock()
 	if changed {
-		s.fireFollowFrame(parsed)
+		if streamChunk {
+			s.fireStream()
+		} else {
+			s.fire()
+		}
 	}
 }
 
@@ -475,6 +500,9 @@ func (s *Store) applyFollowFrameParsedLocked(parsed parsedFollowFrame) bool {
 		s.messages = nil
 		s.workflowBoundaries = nil
 		s.trajectoryBoundaries = nil
+		s.markHistoryDirtyLocked()
+		s.markBoundaryDirtyLocked()
+		s.markWorkflowDirtyLocked()
 		s.systemPromptAnchors = nil
 		s.systemPromptRowsCache = nil
 		s.promptEventCache = nil
@@ -684,6 +712,7 @@ func (s *Store) applyPersistenceRecordLocked(raw json.RawMessage, head parsedEve
 		s.editTurnOpening = false
 		s.editTurnSeq = 0
 		s.messages = append(s.messages, Message{ID: newRequestID(), Kind: MessageKindText, Role: "status", Seq: head.Seq, EventType: "turn/end", TurnSeq: turnSeq, Raw: append(json.RawMessage(nil), raw...), Body: fmt.Sprintf("%.0f", elapsed), EventTime: head.Time})
+		s.markHistoryDirtyLocked()
 		return true
 	}
 	var msg Message
@@ -701,6 +730,7 @@ func (s *Store) applyPersistenceRecordLocked(raw json.RawMessage, head parsedEve
 	}
 	annotateEditMessage(&msg, s.editTurnSeq, &s.editTurnOpening)
 	s.messages = append(s.messages, msg)
+	s.markHistoryDirtyLocked()
 	return true
 }
 

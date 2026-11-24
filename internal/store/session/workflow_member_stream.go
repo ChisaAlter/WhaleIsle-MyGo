@@ -73,6 +73,7 @@ func (p *workflowMemberStream) prune() {
 		}
 	}
 	s.messages = kept
+	s.markHistoryDirtyLocked()
 	for seq := range s.assistantStream.published {
 		if seq < floor {
 			delete(s.assistantStream.published, seq)
@@ -81,6 +82,7 @@ func (p *workflowMemberStream) prune() {
 	for seq := range s.workflowBoundaries {
 		if seq < floor {
 			delete(s.workflowBoundaries, seq)
+			s.markWorkflowDirtyLocked()
 		}
 	}
 	for seq := range s.trajectoryBoundaries {

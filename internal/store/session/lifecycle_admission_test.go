@@ -70,7 +70,7 @@ func TestLifecycleRepliesCannotSelectAcrossHostGeneration(t *testing.T) {
 					case "session/blankReuse":
 						s.cwd = "/owned"
 						s.items = []Item{{SessionID: "owned-blank", Cwd: "/owned", Blank: true}}
-						s.CreateSession(context.Background())
+						s.runCreateSessionWithBlankReuseOwned(context.Background(), client, generation, "/owned", "", s.workspaceNavigationToken, s.followGeneration, s.selectedID, []string{"owned-blank"})
 					case "scratch/create":
 						s.scratchCwd, s.workspaceReady = "/owned-scratch", true
 						s.selectedID = "owned-scratch-source"

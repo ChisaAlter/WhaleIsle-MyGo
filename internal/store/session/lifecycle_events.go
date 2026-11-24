@@ -44,6 +44,8 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	}
 	s.cancelRetainedAgentReadsLocked("") // Event authority is being re-established; never assume missed revocations.
 	s.eventsGeneration++
+	s.sessionLRU.clear()
+	s.stopStreamNotifyTimerLocked()
 	s.resetSidebarCatalogLocked()
 	s.skillRefreshOnEventsReady = s.skillRefreshOnEventsReady || s.skillCatalogClient != nil || s.skillOptionsOwner.client != nil
 	// A reconnect may have missed inventory or invocation revocations. Rows,
@@ -299,6 +301,7 @@ func (s *Store) applyLifecycleMutationLocked(m lifecycleMutation, live bool) boo
 			return true
 		}
 		s.items = append(s.items[:index], s.items[index+1:]...)
+		s.sessionLRU.removeSession(m.sessionID)
 		if live && s.selectedID == m.sessionID {
 			s.selectSessionLocked("")
 		}
@@ -323,8 +326,11 @@ func sessionListItems(rows []api.SessionListValueItemsItem) []Item {
 	return items
 }
 
-// selectSessionLocked invalidates all work belonging to the old transcript,
-// including an Open or page request that completes after a selection change.
+// selectSessionLocked switches the active transcript. Previously loaded
+// sessions are saved into a bounded LRU cache so switching back populates
+// messages immediately (historyReady=true, zero blank flash) while background
+// follow catches up; same-workspace switches also retain workspace-scoped
+// skills and slash commands instead of flashing empty.
 func (s *Store) selectSessionLocked(sessionID string) {
 	s.selectedAuto = false
 	s.invalidateViewLocked()
@@ -333,24 +339,43 @@ func (s *Store) selectSessionLocked(sessionID string) {
 	if s.selectedID == sessionID {
 		return
 	}
+	prevID := s.selectedID
+	sameWS := s.sameSessionWorkspaceLocked(prevID, sessionID)
+	s.saveCurrentSessionToLRULocked()
 	s.invalidateArchiveLocked()
 	s.invalidateFollowLocked()
-	s.invalidateCommandsLocked()
+	if sameWS && s.commandCatalog.client == s.client && s.commandCatalog.loaded && s.commandCatalog.err == nil {
+		s.commandCatalog.sessionID = sessionID
+	} else {
+		s.invalidateCommandsLocked()
+	}
 	s.selectedID = sessionID
-	s.historyReady = false
-	s.historyLoading = sessionID != ""
-	s.invalidateSkillOptionsLocked()
-	s.messages = nil
+	if sameWS && s.skillOptionsOwner.client == s.client && s.skillOptionsOwner.generation == s.eventsGeneration && len(s.skillOptions) > 0 {
+		s.skillOptionsOwner.sessionID = sessionID
+		if s.skillCatalogClient == s.client && len(s.skillCatalog.Skills) > 0 {
+			s.skillCatalogSession = sessionID
+		}
+	} else {
+		s.invalidateSkillOptionsLocked()
+	}
 	s.turnStartMs = 0
 	s.editTurnSeq, s.editTurnOpening = 0, false
-	s.resetPlanBoardLocked()
 	s.resetHistoryPagingLocked()
-	s.historyThroughSeq = 0
 	s.clearFeedbackLocked()
+	if s.restoreSessionFromLRULocked(sessionID) {
+		return
+	}
+	s.historyReady = false
+	s.historyLoading = sessionID != ""
+	s.messages = nil
+	s.markHistoryDirtyLocked()
+	s.resetPlanBoardLocked()
+	s.historyThroughSeq = 0
 }
 
 func (s *Store) invalidateFollowLocked() {
 	s.invalidateViewLocked()
+	s.stopStreamNotifyTimerLocked()
 	s.historyLoading = false
 	s.historyReconnecting = false
 	s.clearHistoryErrorLocked()
@@ -360,6 +385,7 @@ func (s *Store) invalidateFollowLocked() {
 	s.clearHistoryOutlineLocked()
 	s.clearPerSessionDecodeCachesLocked()
 	s.trajectoryBoundaries = nil
+	s.markBoundaryDirtyLocked()
 	s.systemPromptAnchors = nil
 	s.planHistoryBinding = ""
 	s.invalidateJobsLocked()
@@ -372,6 +398,27 @@ func (s *Store) invalidateFollowLocked() {
 	s.resetModelSelectionLocked()
 	s.permissionProjection = permissionProjectionState{}
 	s.setPermissionsErrLocked(nil)
+	s.historyBranchBusy = false
+	if s.followCancel != nil {
+		s.followCancel()
+		s.followCancel = nil
+	}
+}
+
+// beginFollowReconnectLocked starts a new follow generation while preserving an
+// already-ready optimistic/cached transcript baseline so switching back to a
+// cached session never flashes blank or drops its boundaries before the Host
+// catch-up snapshot arrives.
+func (s *Store) beginFollowReconnectLocked() {
+	s.invalidateViewLocked()
+	s.stopStreamNotifyTimerLocked()
+	s.historyReconnecting = false
+	s.clearHistoryErrorLocked()
+	s.resetHistoryPagingLocked()
+	s.resetPermissionRiskLocked()
+	s.resetAssistantStreamLocked()
+	s.cancelVisualReplyLocked()
+	s.followGeneration++
 	s.historyBranchBusy = false
 	if s.followCancel != nil {
 		s.followCancel()
