@@ -315,6 +315,10 @@ func operate(command, root string) error {
 	if err != nil {
 		return err
 	}
+	root, err = resolveDirectoryLink(root)
+	if err != nil {
+		return err
+	}
 	// Restore runs against the tree the installer has just written from its own
 	// verified include, and it must create the missing links before they exist.
 	// Checking every payload digest there made the step cost the whole 1.1 GB

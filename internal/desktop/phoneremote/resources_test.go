@@ -79,8 +79,12 @@ func TestPackagedMobileResourceProof(t *testing.T) {
 		m.HarnessPeer.Artifacts[name] = digest(name)
 	}
 	write("staging-manifest.json", m)
+	realRoot, realErr := filepath.EvalSymlinks(root)
+	if realErr != nil {
+		t.Fatal(realErr)
+	}
 	node, err := verifyPackagedMobileResources(root)
-	if err != nil || node != filepath.Join(root, "node.exe") {
+	if err != nil || node != filepath.Join(realRoot, "node.exe") {
 		t.Fatalf("valid proof failed: %q %v", node, err)
 	}
 	write("unknown.js", "unexpected executable code")

@@ -119,7 +119,31 @@ jobs:
             ./internal/ui/launcher \
             ./internal/ui/layoutstability \
             ./internal/jobflow \
-            ./internal/workflowrun
+            ./internal/workflowrun \
+            ./internal/accountcontact \
+            ./internal/accountdetails \
+            ./internal/accountlogin \
+            ./internal/accountlogout \
+            ./internal/app/startup \
+            ./internal/cicoverage \
+            ./internal/directorypicker \
+            ./internal/openui/card \
+            ./internal/openui/lang \
+            ./internal/openui/lang/whaleui \
+            ./internal/petdirect \
+            ./internal/petgrowth \
+            ./internal/petwatch \
+            ./internal/projectflow \
+            ./internal/renderpolicy \
+            ./internal/startupsuggest \
+            ./internal/state \
+            ./internal/store/internal/storefs \
+            ./internal/testwait \
+            ./internal/ui/design \
+            ./internal/ui/designguard \
+            ./internal/uipurity \
+            ./tools/gen-api \
+            ./tools/gen-events
       - name: Test build storage contracts
         if: ${{ !cancelled() }}
         run: node --test scripts/build-storage.test.mjs
@@ -127,7 +151,7 @@ jobs:
   ui-windows:
     name: UI packages (Windows)
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       GOTOOLCHAIN: local
     steps:
@@ -142,22 +166,60 @@ jobs:
       - name: Test UI packages
         shell: bash
         run: |
-          # These four packages assert Windows copy, path decoding and layout
+          # The first four packages assert Windows copy, path decoding and layout
           # behaviour. Portability debt: file:// decoding, long- vs short-form
           # local paths, hover and focus repaint, and badge geometry all assume
           # Windows, so moving them to the Linux job needs real work rather than
-          # a workflow edit. Every test added here must pass on a clean runner.
+          # a workflow edit. The remaining UI surface packages ride the same
+          # job: their tests compile on Linux but exercise layout, rendering and
+          # platform copy that have only ever been verified on Windows. Every
+          # test added here must pass on a clean runner.
           # TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU asserts a timing
           # outcome rather than a contract: it requires the first render to return
           # before the async avatar decode finishes, and a hosted runner can win
           # that race. Excluded by name here so the exclusion stays visible where
           # this job is read, instead of hiding as a skip inside the test.
-          go test -count=1 \
+          go test -count=1 -p 4 \
             -skip '^TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU$' \
             ./internal/ui/settings \
             ./internal/ui/files \
             ./internal/ui/chat \
-            ./internal/ui/composer
+            ./internal/ui/composer \
+            ./internal/ui/agents \
+            ./internal/ui/assistant \
+            ./internal/ui/chrome \
+            ./internal/ui/coss \
+            ./internal/ui/custompanel \
+            ./internal/ui/dirpick \
+            ./internal/ui/filelink \
+            ./internal/ui/im \
+            ./internal/ui/market \
+            ./internal/ui/openui \
+            ./internal/ui/planpreview \
+            ./internal/ui/pluginmanager \
+            ./internal/ui/projects \
+            ./internal/ui/remote \
+            ./internal/ui/schedule \
+            ./internal/ui/sessioncost \
+            ./internal/ui/settings/failurepolicy \
+            ./internal/ui/sidebar \
+            ./internal/ui/terminal \
+            ./internal/ui/theme \
+            ./internal/ui/toastpolicy \
+            ./internal/ui/usage \
+            ./internal/ui/webview \
+            ./internal/ui/welcome \
+            ./internal/ui/widgets \
+            ./internal/ui/widgets/ansi \
+            ./internal/ui/widgets/diff \
+            ./internal/ui/widgets/markdown \
+            ./internal/ui/workspacepicker
+      - name: Test diffsurface UI package
+        shell: bash
+        # diffsurface spawns real git subprocesses in fixture tests whose wait
+        # deadlines can expire when starved by 33 other UI packages compiling
+        # and running in parallel on Windows.
+        run: go test -count=1 ./internal/ui/diffsurface
       - name: Test the native directory picker
         shell: bash
         # The Linux entry job excludes this test because native mode needs a
@@ -171,7 +233,7 @@ jobs:
   windows-native-packages:
     name: Windows native packages
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     env:
       GOTOOLCHAIN: local
     steps:
@@ -200,13 +262,65 @@ jobs:
         # shortcuts package's own tests already skip under the fallback grammar
         # for exactly these Mod+B/Mod+W defaults, so this is a known platform
         # boundary rather than a defect introduced by running it.
+        # internal/desktop/pet's anime4k provenance test asserts the checked-out
+        # bytes of a 9 MiB text asset; the runner's default core.autocrlf=true
+        # produces the CRLF identity the test wants. It fails on LF checkouts —
+        # keep it off any job whose checkout might be LF.
         run: |
           go test -count=1 \
             ./internal/ui/frame \
             ./internal/desktop/previewprocess \
             ./internal/desktop/sshremote \
             ./internal/desktop/importer \
-            ./internal/desktop/voicecapture
+            ./internal/desktop/voicecapture \
+            ./internal/desktop/acp \
+            ./internal/desktop/appuninstall \
+            ./internal/desktop/avatarimage \
+            ./internal/desktop/botnotify \
+            ./internal/desktop/bridgealerts \
+            ./internal/desktop/browserrecording \
+            ./internal/desktop/components \
+            ./internal/desktop/credentialrefs \
+            ./internal/desktop/deeplink \
+            ./internal/desktop/editors \
+            ./internal/desktop/htmldocument \
+            ./internal/desktop/htmlpreview \
+            ./internal/desktop/imagepreview \
+            ./internal/desktop/imgcache \
+            ./internal/desktop/localservers \
+            ./internal/desktop/market \
+            ./internal/desktop/mcpconfig \
+            ./internal/desktop/media \
+            ./internal/desktop/notifications \
+            ./internal/desktop/openui \
+            ./internal/desktop/pdfpreview \
+            ./internal/desktop/pet \
+            ./internal/desktop/phoneremote \
+            ./internal/desktop/platformview \
+            ./internal/desktop/plugininventory \
+            ./internal/desktop/pluginrpc \
+            ./internal/desktop/pluginslots \
+            ./internal/desktop/proactive \
+            ./internal/desktop/projectbridge \
+            ./internal/desktop/projectpreference \
+            ./internal/desktop/providerdiscovery \
+            ./internal/desktop/providerprofiles \
+            ./internal/desktop/screenglance \
+            ./internal/desktop/svgrender \
+            ./internal/desktop/taskcontrol \
+            ./internal/desktop/taskguard \
+            ./internal/desktop/update \
+            ./internal/desktop/voiceinput \
+            ./internal/desktop/wallpapers \
+            ./internal/desktop/webview \
+            ./internal/desktop/whale \
+            ./internal/desktop/workspaceauth \
+            ./internal/desktop/workspacefs \
+            ./internal/installhealth \
+            ./internal/processutil \
+            ./scripts/nsis \
+            ./scripts/session-runtime-links \
+            ./tools/core-host-check
 
   entry-and-git:
     name: Entry point and git packages
@@ -313,15 +427,113 @@ jobs:
       # A release that installs the payload without them ships capabilities the
       # user cannot reach and reports nothing, so the real installer is built and
       # run here instead of only on a developer machine.
+      - name: Restore the NSIS tool cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.tool_cache }}\nsis
+          key: nsis-${{ runner.os }}-v1
+          restore-keys: |
+            nsis-${{ runner.os }}-
       - name: Run the runtime link transaction fixture
         shell: pwsh
         run: |
-          choco install nsis --no-progress -y
-          $candidates = @(
-            (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
-            (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')
-          )
-          $makensis = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $makensis) { throw 'NSIS is unavailable after installation.' }
+          $ErrorActionPreference = 'Stop'
+          $cacheDir = if ($env:RUNNER_TOOL_CACHE) { Join-Path $env:RUNNER_TOOL_CACHE 'nsis' } else { Join-Path $env:RUNNER_TEMP 'nsis-cache' }
+          function Resolve-NsisInstallRoot([string]$exeDir) {
+            if (-not $exeDir) { return $null }
+            if ((Test-Path -LiteralPath (Join-Path $exeDir 'Include') -PathType Container) -or (Test-Path -LiteralPath (Join-Path $exeDir 'Stubs') -PathType Container)) {
+              return $exeDir
+            }
+            if ((Split-Path -Leaf $exeDir) -ieq 'Bin') {
+              $parent = Split-Path -Parent $exeDir
+              if ($parent -and ((Test-Path -LiteralPath (Join-Path $parent 'Include') -PathType Container) -or (Test-Path -LiteralPath (Join-Path $parent 'Stubs') -PathType Container))) {
+                return $parent
+              }
+            }
+            return $null
+          }
+          function Test-NsisRoot([string]$dir) {
+            if (-not $dir) { return $false }
+            if (-not (Test-Path -LiteralPath (Join-Path $dir 'makensis.exe') -PathType Leaf)) { return $false }
+            return $null -ne (Resolve-NsisInstallRoot $dir)
+          }
+          function Find-RealMakensis {
+            $dirs = New-Object System.Collections.Generic.List[string]
+            $dirs.Add($cacheDir)
+            $dirs.Add((Join-Path $cacheDir 'Bin'))
+            $dirs.Add((Join-Path $cacheDir 'NSIS'))
+            if (${env:ProgramFiles(x86)}) {
+              $dirs.Add((Join-Path ${env:ProgramFiles(x86)} 'NSIS'))
+              $dirs.Add((Join-Path ${env:ProgramFiles(x86)} 'NSIS\Bin'))
+            }
+            if ($env:ProgramFiles) {
+              $dirs.Add((Join-Path $env:ProgramFiles 'NSIS'))
+              $dirs.Add((Join-Path $env:ProgramFiles 'NSIS\Bin'))
+            }
+            foreach ($dir in $dirs) {
+              if (Test-NsisRoot $dir) {
+                return (Join-Path $dir 'makensis.exe')
+              }
+            }
+            return $null
+          }
+
+          $makensis = Find-RealMakensis
+          if (-not $makensis) {
+            # Chocolatey intermittently serves 503s; retry with backoff before
+            # falling back to a direct winget download + silent install.
+            $installed = $false
+            foreach ($delay in @(0, 5, 15)) {
+              if ($delay -gt 0) { Start-Sleep -Seconds $delay }
+              choco install nsis --no-progress -y
+              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+              Write-Warning "choco install nsis exited $LASTEXITCODE"
+            }
+            if ($installed) {
+              $makensis = Find-RealMakensis
+              if ($makensis -and -not ($makensis.StartsWith($cacheDir, [StringComparison]::OrdinalIgnoreCase))) {
+                $srcRoot = Resolve-NsisInstallRoot (Split-Path -Parent $makensis)
+                if ($srcRoot) {
+                  New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+                  Copy-Item -Recurse -Force (Join-Path $srcRoot '*') $cacheDir
+                  foreach ($candidate in @((Join-Path $cacheDir 'makensis.exe'), (Join-Path $cacheDir 'Bin\makensis.exe'))) {
+                    if (Test-NsisRoot (Split-Path -Parent $candidate)) {
+                      $makensis = $candidate
+                      break
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (-not $makensis) {
+            $winget = Get-Command winget -ErrorAction SilentlyContinue
+            if ($winget) {
+              $dl = Join-Path $env:RUNNER_TEMP ('nsis-dl-' + [guid]::NewGuid().ToString('N'))
+              New-Item -ItemType Directory -Force -Path $dl | Out-Null
+              try {
+                & $winget.Source download --id NSIS.NSIS --download-directory $dl --accept-package-agreements --accept-source-agreements
+                if ($LASTEXITCODE -ne 0) { throw "winget download NSIS failed (exit $LASTEXITCODE)" }
+                $setup = Get-ChildItem $dl -Filter '*.exe' | Select-Object -First 1
+                if (-not $setup) { throw "NSIS installer not found under $dl" }
+                New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+                $proc = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$cacheDir") -PassThru -WindowStyle Hidden
+                if (-not $proc.WaitForExit(180000)) { throw 'NSIS silent installer did not exit within 180 seconds' }
+                if ($proc.ExitCode -ne 0) { throw "NSIS silent installer failed (exit $($proc.ExitCode))" }
+                $makensis = Find-RealMakensis
+              } finally {
+                Remove-Item -Recurse -Force $dl -ErrorAction SilentlyContinue
+              }
+            }
+          }
+          if (-not $makensis) {
+            # Last resort when makensis is already usable on PATH without a standard
+            # root layout: use it for this run without copying a shim into $cacheDir.
+            $onPath = Get-Command makensis -ErrorAction SilentlyContinue
+            if ($onPath -and (Test-Path -LiteralPath $onPath.Source -PathType Leaf)) {
+              $makensis = $onPath.Source
+            }
+          }
+          if (-not $makensis) { throw 'NSIS is unavailable: cache miss, Chocolatey install failed and the winget fallback did not produce makensis.exe.' }
           $env:PATH = (Split-Path -Parent $makensis) + ';' + $env:PATH
           ./scripts/nsis-runtime-links-fixture.ps1

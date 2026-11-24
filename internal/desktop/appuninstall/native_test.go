@@ -11,7 +11,10 @@ import (
 
 // Only inert temporary files and a fake process starter; no OS action is run.
 func TestNativeUninstallFixture(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	current := filepath.Join(root, "whaleisle.exe")
 	uninstall := filepath.Join(root, "Uninstall.exe")
 	for _, p := range []string{current, uninstall} {

@@ -95,11 +95,31 @@ func zeroTerminatedLength(p *uint16) int {
 	}
 	return 32768
 }
+
+var (
+	shortcutKernel32    = syscall.NewLazyDLL("kernel32.dll")
+	procGetLongPathName = shortcutKernel32.NewProc("GetLongPathNameW")
+)
+
+func canonicalShortcutPath(p string) string {
+	cleaned := filepath.Clean(p)
+	in, err := syscall.UTF16PtrFromString(cleaned)
+	if err != nil {
+		return cleaned
+	}
+	buf := make([]uint16, 32768)
+	n, _, _ := procGetLongPathName.Call(uintptr(unsafe.Pointer(in)), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	if n == 0 || n >= uintptr(len(buf)) {
+		return cleaned
+	}
+	return filepath.Clean(syscall.UTF16ToString(buf[:n]))
+}
+
 func sameShortcutTarget(a, b string) bool {
 	if !filepath.IsAbs(a) || !filepath.IsAbs(b) {
 		return false
 	}
-	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+	return strings.EqualFold(canonicalShortcutPath(a), canonicalShortcutPath(b))
 }
 
 // MigrateLegacy moves only Electron.lnk with the same executable, AppID and
