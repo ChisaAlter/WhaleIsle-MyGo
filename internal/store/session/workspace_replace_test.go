@@ -13,7 +13,7 @@ func TestPublishedWorkspaceReplaceUsesCompleteAdmittedRegistry(t *testing.T) {
 	s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"baseline","value":{"items":[{"workspaceId":"hidden","path":"/owned/hidden","title":"Hidden","sessionIds":["hidden-session"]},{"workspaceId":"retained","path":"/owned/retained","title":"Retained","sessionIds":["retained-session"]}],"scratchCwd":"/owned/scratch","pinnedSessionIds":["hidden-session"],"archivedSessionIds":["hidden-session"]}}`))
 	s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"replace","value":{"items":[{"workspaceId":"retained","path":"/owned/retained","title":"Retained renamed","sessionIds":["retained-session"]}],"scratchCwd":"/owned/new-scratch","pinnedSessionIds":["retained-session"],"archivedSessionIds":[]}}`))
 	v := s.Snapshot()
-	if !v.WorkspaceReady || v.WorkspaceError != "" || len(v.Workspaces) != 1 || v.Workspaces[0].WorkspaceID != "retained" || v.Workspaces[0].Title != "Retained renamed" {
+	if !v.WorkspaceReady || v.WorkspaceError != nil || len(v.Workspaces) != 1 || v.Workspaces[0].WorkspaceID != "retained" || v.Workspaces[0].Title != "Retained renamed" {
 		t.Fatalf("complete replacement was not adopted: %+v", v.Workspaces)
 	}
 	if v.ScratchCwd != "/owned/new-scratch" || !reflect.DeepEqual(v.PinnedSessionIDs, []string{"retained-session"}) || len(v.ArchivedSessionIDs) != 0 {

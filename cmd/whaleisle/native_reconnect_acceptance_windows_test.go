@@ -73,7 +73,7 @@ func observeNativeReconnect() nativeReconnectObservation {
 }
 func (v nativeReconnectObservation) usable() bool {
 	g := v.snapshot.NativeContributions
-	return v.win != nil && v.client != nil && v.mux != nil && v.sessions != nil && v.interactions != nil && v.supervisor != nil && v.hostReady && v.ready && v.snapshot.ClientReady && !v.snapshot.ListLoading && v.snapshot.ListErr == "" && v.snapshot.WorkspaceReady && g.Known && g.Error == "" && g.FileCommand && g.ModelCommand && g.PermissionCommand && g.FeedbackCommand && g.ModelLabel1017
+	return v.win != nil && v.client != nil && v.mux != nil && v.sessions != nil && v.interactions != nil && v.supervisor != nil && v.hostReady && v.ready && v.snapshot.ClientReady && !v.snapshot.ListLoading && v.snapshot.ListErr == nil && v.snapshot.WorkspaceReady && g.Known && g.Error == "" && g.FileCommand && g.ModelCommand && g.PermissionCommand && g.FeedbackCommand && g.ModelLabel1017
 }
 func waitNativeReconnect(ctx context.Context, predicate func(nativeReconnectObservation) bool) (nativeReconnectObservation, error) {
 	tick := time.NewTicker(50 * time.Millisecond)
@@ -95,7 +95,7 @@ func waitNativeReconnect(ctx context.Context, predicate func(nativeReconnectObse
 }
 func nativeReconnectFacts(v nativeReconnectObservation) map[string]any {
 	g := v.snapshot.NativeContributions
-	return map[string]any{"muxReady": v.ready, "clientReady": v.snapshot.ClientReady, "sessionListReady": !v.snapshot.ListLoading && v.snapshot.ListErr == "", "workspaceReady": v.snapshot.WorkspaceReady, "hostReady": v.hostReady, "supervisorGeneration": v.hostGeneration, "origin": v.origin, "composerHostGeneration": v.snapshot.ComposerHostGeneration, "sessionGeneration": v.snapshot.ComposerSessionGeneration, "sessionID": v.snapshot.SelectedID, "registrationGeneration": v.snapshot.NativeContributionsGeneration, "permissionCatalogRevision": v.snapshot.PermissionCatalogRevision, "nativeGraphKnown": g.Known, "nativeFlags": map[string]bool{"file": g.FileCommand, "model": g.ModelCommand, "permission": g.PermissionCommand, "feedback": g.FeedbackCommand, "modelLabel1017": g.ModelLabel1017}}
+	return map[string]any{"muxReady": v.ready, "clientReady": v.snapshot.ClientReady, "sessionListReady": !v.snapshot.ListLoading && v.snapshot.ListErr == nil, "workspaceReady": v.snapshot.WorkspaceReady, "hostReady": v.hostReady, "supervisorGeneration": v.hostGeneration, "origin": v.origin, "composerHostGeneration": v.snapshot.ComposerHostGeneration, "sessionGeneration": v.snapshot.ComposerSessionGeneration, "sessionID": v.snapshot.SelectedID, "registrationGeneration": v.snapshot.NativeContributionsGeneration, "permissionCatalogRevision": v.snapshot.PermissionCatalogRevision, "nativeGraphKnown": g.Known, "nativeFlags": map[string]bool{"file": g.FileCommand, "model": g.ModelCommand, "permission": g.PermissionCommand, "feedback": g.FeedbackCommand, "modelLabel1017": g.ModelLabel1017}}
 }
 
 func runNativeReconnectDesktop(output string) error {

@@ -65,7 +65,7 @@ func captionSelectedStore(t *testing.T, root string) (*session.Store, *captionLi
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		snapshot := store.Snapshot()
-		if !snapshot.ListLoading && snapshot.SelectedID == "fixture" && snapshot.SelectedCwd == root && snapshot.ListErr == "" {
+		if !snapshot.ListLoading && snapshot.SelectedID == "fixture" && snapshot.SelectedCwd == root && snapshot.ListErr == nil {
 			return store, transport
 		}
 		time.Sleep(time.Millisecond)

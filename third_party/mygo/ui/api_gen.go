@@ -277,6 +277,30 @@ func (_handle *Context) CloseToast(id string) {
 	_ctx.CloseToast(id)
 }
 
+// DevicePixelSize returns the size of the window's content in device pixels:
+// Size, which is in DIPs on every surface, times DeviceScale.
+func (_handle *Context) DevicePixelSize() (float32, float32) {
+	_ctx := _handle.build()
+	if _ctx == nil {
+		return 0, 0
+	}
+	return _ctx.DevicePixelSize()
+}
+
+// DisplayLandscape reports whether the work area of the screen showing the
+// window, the screen less its taskbars and docks, is wider than high, and
+// whether that is known: on Windows, as the window last saw the monitor it
+// is on, read again as it moves or the displays change; not in a Tester,
+// nor for a square work area. A view sizing itself by the screen's shape
+// rather than the window's falls back to the window's when it is not known.
+func (_handle *Context) DisplayLandscape() (bool, bool) {
+	_ctx := _handle.build()
+	if _ctx == nil {
+		return false, false
+	}
+	return _ctx.DisplayLandscape()
+}
+
 // DeviceScale returns the device pixels per layout DIP for the current frame,
 // including the window's content zoom. It is positive and matches Painter.Scale.
 func (_handle *Context) DeviceScale() float32 {
@@ -401,7 +425,9 @@ func (_handle *Context) Shortcut(mods Modifiers, key Key) bool {
 	return _ctx.Shortcut(mods, key)
 }
 
-// Size returns the size of the window's content in DIPs.
+// Size returns the size of the window's content in DIPs, on every surface:
+// a window's, which counts device pixels, divided by DeviceScale, and a
+// Tester's. DevicePixelSize returns it in device pixels.
 func (_handle *Context) Size() (float32, float32) {
 	_ctx := _handle.build()
 	if _ctx == nil {
@@ -3610,6 +3636,44 @@ func (_handle Element) MaxWidthPercent(p float32) Element {
 	_ctx := _node.c
 	_ = _ctx
 	return wrapElement(_node.MaxWidthPercent(p))
+}
+
+// Memo makes the element a memo region: the children its next Children
+// call builds are kept from pass to pass and frame to frame, and Children
+// skips its function while version, the element's identity (its place or
+// Key) and what the region was built against stay the same. Bump version
+// whenever what the function shows changes, as with a store's revision:
+//
+//	ui.Column(c).Width(240).Memo(app.sessions.Rev).Children(func() {
+//		app.sidebar(c)
+//	})
+//
+// A kept region is neither built nor laid out again; its hits, focus
+// order, selectable texts and accessibility nodes are those it had. It is
+// built again, all the same, in the frame after input reached it (the
+// pointer over it, a key while the focus is in it, an action of assistive
+// technology on one of its elements), while the focus is in it or one of
+// its elements is pressed or dragged, after the window's size, theme,
+// fonts or scale changed, and in every frame while something in it asks
+// for frames (animations, transitions, timers) or keeps what a region
+// cannot (overlays, routers, lists, focus bindings, Handles, input
+// observers). The element itself builds in every pass as any other: only
+// its children are kept.
+//
+// The function must depend on nothing but what version covers; a region
+// inside another builds only when the one around it does, whose version
+// must then change with the inner one's. Draw
+// callbacks in a kept region run again in later frames: they must not use
+// Elements they captured, which expire as usual. Call Memo before
+// Children, after Key. MYGO_MEMO=off builds every region in every pass.
+func (_handle Element) Memo(version uint64) Element {
+	_node := _handle.node()
+	if _node == nil {
+		return Element{}
+	}
+	_ctx := _node.c
+	_ = _ctx
+	return wrapElement(_node.Memo(version))
 }
 
 // Menu makes the element a menu button: it opens a menu below it, which

@@ -170,6 +170,14 @@ func (s *Store) runFollowAttempt(ctx context.Context, mux *dsh.Mux, sessionID st
 			if errors.Is(err, dsh.ErrCarrierLost) {
 				return s.markFollowReconnecting(ctx, sessionID, generation), opened
 			}
+			// A lazily activated follow service, or a stream this client dropped on
+			// overflow, re-opens with the loop's backoff and a fresh snapshot.
+			if errors.Is(err, dsh.ErrEndpointNotReady) || errors.Is(err, dsh.ErrStreamOverflow) {
+				s.mu.Lock()
+				current := s.followCurrentLocked(ctx, sessionID, generation)
+				s.mu.Unlock()
+				return current, opened
+			}
 			if !errors.Is(err, dsh.ErrStreamEnd) {
 				s.reportFollowError(ctx, sessionID, generation, "follow: ", err)
 			} else {

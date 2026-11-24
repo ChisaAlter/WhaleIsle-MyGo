@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 
 	"whaleisle/internal/dsh"
@@ -93,21 +92,37 @@ func (s *Store) runControlWatch(ctx context.Context, client *dsh.Client, mux *ds
 	if err := mux.Dial(ctx); err != nil {
 		return
 	}
-	stream, err := mux.Open(ctx, "session/control", map[string]any{"args": map[string]any{}})
-	if err != nil {
-		return
+	// session/control re-subscribes while the Host activates it, after a clean
+	// end and after an overflow; each subscription opens with a baseline.
+	var pace dsh.Resubscriber
+	for {
+		stream, err := mux.Open(ctx, "session/control", map[string]any{"args": map[string]any{}})
+		if err != nil {
+			return
+		}
+		retry := s.readControlWatch(ctx, client, mux, sessionID, catalogOwner, stream, &pace)
+		stream.Cancel()
+		if !retry || pace.Wait(ctx) != nil {
+			return
+		}
+		s.mu.Lock()
+		current := s.controlWatchCurrentLocked(ctx, client, mux, sessionID)
+		s.mu.Unlock()
+		if !current {
+			return
+		}
 	}
-	defer stream.Cancel()
+}
 
+// readControlWatch folds one session/control subscription and reports whether
+// the watch should open again.
+func (s *Store) readControlWatch(ctx context.Context, client *dsh.Client, mux *dsh.Mux, sessionID string, catalogOwner sidebarCatalogOwner, stream *dsh.Stream, pace *dsh.Resubscriber) bool {
 	for {
 		raw, err := stream.Recv(ctx)
 		if err != nil {
-			if errors.Is(err, dsh.ErrStreamEnd) || errors.Is(err, context.Canceled) ||
-				strings.Contains(err.Error(), "context canceled") {
-				return
-			}
-			return
+			return ctx.Err() == nil && dsh.Resubscribable(err)
 		}
+		pace.Reset()
 		var head struct {
 			Type  string          `json:"type"`
 			Key   string          `json:"key"`
@@ -132,7 +147,7 @@ func (s *Store) runControlWatch(ctx context.Context, client *dsh.Client, mux *ds
 		s.mu.Lock()
 		if !s.controlWatchCurrentLocked(ctx, client, mux, sessionID) {
 			s.mu.Unlock()
-			return
+			return false
 		}
 		switch head.Type {
 		case "baseline":

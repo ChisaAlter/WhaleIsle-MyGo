@@ -109,6 +109,7 @@ func (s *Store) SaveAgentPreset(ctx context.Context, id, preset string) error {
 func (s *Store) connectionFailure(message string) error {
 	s.mu.Lock()
 	s.connectionNote = message
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	return errors.New(message)
@@ -145,10 +146,11 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 			return s.connectionFailure(storelocale.T(storelocale.KeyStoreImThatAgentPresetIsNotInTheHostCatalog))
 		}
 	}
-	plugin, epoch := s.plugin, s.connectionEpoch
+	plugin, connLease := s.plugin, s.connLease
 	s.connectionBusy = true
 	s.connectionNote = storelocale.T(storelocale.KeyStoreImUpdatingTheBot)
 	payload["botId"] = target.BotID
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -177,7 +179,7 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 			}
 		}
 		s.mu.Lock()
-		if epoch != s.connectionEpoch || plugin != s.plugin {
+		if !connLease.Valid() || plugin != s.plugin {
 			s.mu.Unlock()
 			return
 		}
@@ -200,6 +202,7 @@ func (s *Store) changeConnection(ctx context.Context, id, method string, payload
 				}
 			}
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

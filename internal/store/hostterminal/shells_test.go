@@ -38,7 +38,7 @@ func shellFixture() (*Store, *shellFixtureRemote, uint64) {
 	s := new(Store)
 	s.bind(r, r, true, nil)
 	s.Show("session", true)
-	return s, r, s.Snapshot("session").Owner
+	return s, r, s.Snapshot("session").Value.Owner
 }
 func replyShells(t *testing.T, r *shellFixtureRemote, items []Shell, err error) {
 	t.Helper()
@@ -139,7 +139,7 @@ func TestHostTerminalShellsUnavailableExplicitSelectionPreserved(t *testing.T) {
 	s.SelectShell(o, "session", "/host/preferred")
 	s.Create(o, "session")
 	replyShells(t, r, shellChoices[:1], nil)
-	v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != "" })
+	v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != nil })
 	if v.ActiveID != "" || r.count("terminal/create") != 0 || s.ShellSnapshot(o, "session").SelectedPath != "/host/preferred" {
 		t.Fatal(v)
 	}
@@ -171,7 +171,7 @@ func TestHostTerminalShellsHostReplacementRejectsStaleDiscoveryAndSelection(t *t
 	replyShells(t, r, shellChoices, nil)
 	s.SelectShell(o, "session", "/host/preferred")
 	s.Create(o, "session")
-	if s.ShellSnapshot(o, "session").Loaded || s.ShellSnapshot(s.Snapshot("session").Owner, "session").Loaded || r2.count("terminal/create") != 0 {
+	if s.ShellSnapshot(o, "session").Loaded || s.ShellSnapshot(s.Snapshot("session").Value.Owner, "session").Loaded || r2.count("terminal/create") != 0 {
 		t.Fatal("crossed Host")
 	}
 }
@@ -188,7 +188,7 @@ func TestHostTerminalShellsHideCancelsDiscoveryAndPreAllocation(t *testing.T) {
 	s.Create(o, "session")
 	s.Show("", false)
 	replyShells(t, r, shellChoices, nil)
-	v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != "" })
+	v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != nil })
 	if r.count("terminal/create") != 0 || v.ActiveID != "" {
 		t.Fatal("allocated after hide", v)
 	}

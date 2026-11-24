@@ -37,7 +37,7 @@ func (s *Store) runWorkspaceFollow(ctx context.Context, mux *dsh.Mux, generation
 			s.mu.Unlock()
 			return
 		}
-		s.workspaceErr = err
+		s.setWorkspaceErrLocked(err)
 		s.lastAction = "workspace follow: " + err.Error()
 		s.signalWorkspaceLocked()
 		s.invalidateViewLocked()
@@ -48,24 +48,50 @@ func (s *Store) runWorkspaceFollow(ctx context.Context, mux *dsh.Mux, generation
 		report(err)
 		return
 	}
-	stream, err := mux.Open(ctx, "workspace/follow", map[string]any{"args": map[string]any{}})
-	if err != nil {
-		report(err)
-		return
-	}
-	defer stream.Cancel()
+	// workspace/follow re-subscribes while the Host activates the service, after
+	// a clean end and after an overflow; each new subscription starts with a
+	// full baseline, so no frame is folded across the gap.
+	var pace dsh.Resubscriber
 	for {
-		raw, err := stream.Recv(ctx)
+		stream, err := mux.Open(ctx, "workspace/follow", map[string]any{"args": map[string]any{}})
 		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				report(errors.New("workspace follow unavailable; reconnect and try again"))
-			}
+			report(err)
+			return
+		}
+		retry := s.readWorkspaceFollow(ctx, stream, mux, generation, hostGeneration, &pace, report)
+		stream.Cancel()
+		if !retry || pace.Wait(ctx) != nil {
 			return
 		}
 		s.mu.Lock()
+		current := s.workspaceFollowCurrentLocked(ctx, mux, generation, hostGeneration)
+		s.mu.Unlock()
+		if !current {
+			return
+		}
+	}
+}
+
+// readWorkspaceFollow folds one subscription and reports whether the follow
+// should open again.
+func (s *Store) readWorkspaceFollow(ctx context.Context, stream *dsh.Stream, mux *dsh.Mux, generation, hostGeneration uint64, pace *dsh.Resubscriber, report func(error)) bool {
+	for {
+		raw, err := stream.Recv(ctx)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return false
+			}
+			if dsh.Resubscribable(err) {
+				return true
+			}
+			report(errors.New("workspace follow unavailable; reconnect and try again"))
+			return false
+		}
+		pace.Reset()
+		s.mu.Lock()
 		if !s.workspaceFollowCurrentLocked(ctx, mux, generation, hostGeneration) {
 			s.mu.Unlock()
-			return
+			return false
 		}
 		changed := s.applyWorkspaceFrameLocked(raw)
 		s.mu.Unlock()
@@ -118,7 +144,7 @@ func (s *Store) applyWorkspaceFrameLocked(raw json.RawMessage) bool {
 		if s.workspaceErr != nil && s.lastAction == "workspace follow: "+s.workspaceErr.Error() {
 			s.lastAction = ""
 		}
-		s.workspaceErr = nil
+		s.setWorkspaceErrLocked(nil)
 		s.workspaceMemberships = map[string]workspaceMembership{}
 		s.workspaceOrder = nil
 		for _, ws := range frame.Value.Items {

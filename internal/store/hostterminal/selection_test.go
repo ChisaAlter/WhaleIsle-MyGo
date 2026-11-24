@@ -6,13 +6,14 @@ func TestHostTerminalSelectionRequiresCurrentDisplayedIdentity(t *testing.T) {
 	s, r := prepare(t)
 	defer s.bind(nil, nil, false, nil)
 	a := attach(t, s, r, 1)
-	o := s.Snapshot("session").Owner
+	o := s.Snapshot("session").Value.Owner
 	s.mu.Lock()
 	// The Host makes this stream read-only: input is revoked while
 	// local selection stays available.
 	a.writable = false
 	s.mu.Unlock()
-	if s.Snapshot("session").Writable || !s.CanCopySelection(o, "session", "term", a) {
+	s.fire()
+	if s.Snapshot("session").Value.Writable || !s.CanCopySelection(o, "session", "term", a) {
 		t.Fatal("read-only selection rejected")
 	}
 	for _, target := range []struct {

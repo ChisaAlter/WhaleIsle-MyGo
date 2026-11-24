@@ -5,6 +5,8 @@ import (
 	"errors"
 	"regexp"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 // RecoveryTarget identifies an existing Host process. It contains no transport,
@@ -41,7 +43,7 @@ func (s *Store) AdoptRecovery(owner uint64, authority, session string, saved *Re
 		return false
 	}
 	s.mu.Lock()
-	if s.epoch != owner || s.remote == nil || !s.ready || s.visible != session || s.ctx == nil || s.ctx.Err() != nil {
+	if s.ownerLease.Generation() != owner || s.remote == nil || !s.ready || s.visible != session || s.ctx == nil || s.ctx.Err() != nil {
 		s.mu.Unlock()
 		return false
 	}
@@ -51,9 +53,9 @@ func (s *Store) AdoptRecovery(owner uint64, authority, session string, saved *Re
 		return false
 	}
 	id := saved.TerminalID
-	st.recoveredID, st.active, st.busy, st.error = id, id, true, ""
-	st.operation++
-	op, epoch, remote, parent := st.operation, s.epoch, s.remote, s.ctx
+	st.recoveredID, st.active, st.busy, st.error = id, id, true, nil
+	st.opLease = st.opOwner.Renew(s.ctx)
+	op, epoch, remote, parent := st.opLease, s.ownerLease, s.remote, s.ctx
 	e := s.entryLocked(terminalKey{session, id})
 	e.info.Title, e.phase = saved.Title, "loading"
 	st.items = append(st.items, e.info)
@@ -82,16 +84,16 @@ func (s *Store) AdoptRecovery(owner uint64, authority, session string, saved *Re
 			err = errors.New("Saved Host terminal is no longer available; no replacement was created")
 		}
 		s.mu.Lock()
-		if s.epoch != epoch || st.operation != op || s.entries[e.key] != e || parent.Err() != nil {
+		if s.ownerLease != epoch || !op.Valid() || s.entries[e.key] != e || parent.Err() != nil {
 			s.mu.Unlock()
 			return
 		}
 		st.busy = false
 		if err != nil {
-			e.phase, e.error = "failed", err.Error()
+			e.phase, e.error = "failed", state.FaultOf(err)
 		} else {
 			st.environment, st.items = environment, items
-			e.info, e.desired, e.error = *found, true, ""
+			e.info, e.desired, e.error = *found, true, nil
 			s.startHoldLocked(e)
 		}
 		s.mu.Unlock()

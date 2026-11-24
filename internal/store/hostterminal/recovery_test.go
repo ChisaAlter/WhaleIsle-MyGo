@@ -12,7 +12,7 @@ func TestRecoveryAdoptsExactExistingProcessWithoutCreateOrInput(t *testing.T) {
 	s.bind(r, r, true, nil)
 	defer s.bind(nil, nil, false, nil)
 	s.Show("session", true)
-	owner := s.Snapshot("session").Owner
+	owner := s.Snapshot("session").Value.Owner
 	saved := &RecoveryTarget{Authority: "host-a", SessionID: "session", TerminalID: "term", Title: "Saved terminal"}
 	if s.AdoptRecovery(owner+1, "host-a", "session", saved) || s.AdoptRecovery(owner, "host-b", "session", saved) || s.AdoptRecovery(owner, "host-a", "other", saved) {
 		t.Fatal("foreign recovery accepted")
@@ -60,11 +60,11 @@ func TestMissingRecoveryNeverAllocatesAndFreshFailureIsConsumedOnce(t *testing.T
 		s.bind(r, r, true, nil)
 		defer s.bind(nil, nil, false, nil)
 		s.Show("session", true)
-		owner := s.Snapshot("session").Owner
+		owner := s.Snapshot("session").Value.Owner
 		if !s.AdoptRecovery(owner, "host", "session", &RecoveryTarget{Authority: "host", SessionID: "session", TerminalID: "gone"}) {
 			t.Fatal("recovery not started")
 		}
-		v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != "" })
+		v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != nil })
 		if v.ActiveID != "gone" || v.Phase != "failed" || r.count("terminal/create") != 0 || r.count("input/write") != 0 {
 			t.Fatalf("missing descriptor replaced: %+v", v)
 		}
@@ -78,7 +78,7 @@ func TestMissingRecoveryNeverAllocatesAndFreshFailureIsConsumedOnce(t *testing.T
 		r.createErr = errors.New("allocation response lost")
 		s.bind(r, r, true, nil)
 		defer s.bind(nil, nil, false, nil)
-		owner := s.Snapshot("session").Owner
+		owner := s.Snapshot("session").Value.Owner
 		if s.StartFresh(owner, "session") {
 			t.Fatal("hidden session consumed fresh create")
 		}
@@ -86,7 +86,7 @@ func TestMissingRecoveryNeverAllocatesAndFreshFailureIsConsumedOnce(t *testing.T
 		if !s.StartFresh(owner, "session") {
 			t.Fatal("fresh explicit occurrence rejected")
 		}
-		v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != "" })
+		v := wait(t, s, "session", func(v View) bool { return !v.Busy && v.Error != nil })
 		if r.count("terminal/create") != 1 || v.ActiveID == "" {
 			t.Fatalf("uncertain identity lost: %+v", v)
 		}
@@ -95,7 +95,7 @@ func TestMissingRecoveryNeverAllocatesAndFreshFailureIsConsumedOnce(t *testing.T
 				t.Fatal("consumed marker was not acknowledged")
 			}
 		}
-		if r.count("terminal/create") != 1 || s.Snapshot("session").ActiveID != v.ActiveID {
+		if r.count("terminal/create") != 1 || s.Snapshot("session").Value.ActiveID != v.ActiveID {
 			t.Fatal("repaint retried uncertain allocation")
 		}
 	})

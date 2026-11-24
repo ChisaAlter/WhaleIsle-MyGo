@@ -11,6 +11,25 @@ type AccessTree struct {
 	// after what it is reading, as the title of a page shown or a toast:
 	// news the focus does not bring.
 	Announcements []string
+	// Seq numbers the trees a content gives, from 1; 0 when it does not.
+	Seq uint64
+	// Delta, unless nil, tells how Nodes differ from those of the tree
+	// numbered Delta.Base, so a surface that applied that one can apply
+	// only what changed. Nodes are complete all the same.
+	Delta *AccessDelta
+}
+
+// AccessDelta is how the nodes of an AccessTree differ from those of the
+// tree before.
+type AccessDelta struct {
+	// Base is the Seq of the tree the delta goes from.
+	Base uint64
+	// Structure is set when nodes came or went, or moved: the trees then
+	// differ in more than Changed.
+	Structure bool
+	// Changed are the indexes of the nodes that changed, in both trees,
+	// when Structure is not set.
+	Changed []int
 }
 
 // AccessNode is an element of an AccessTree.

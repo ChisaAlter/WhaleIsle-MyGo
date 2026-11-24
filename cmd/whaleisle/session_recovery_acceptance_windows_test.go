@@ -103,7 +103,7 @@ func runNativeSessionRecovery() error {
 				revealed = true
 			}
 			snap := sessions.Snapshot()
-			if snap.ListLoading || snap.ListErr != "" || !snap.WorkspaceReady {
+			if snap.ListLoading || snap.ListErr != nil || !snap.WorkspaceReady {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}

@@ -220,8 +220,8 @@ func run(stage, base, native, reuse string, r *report) error {
 	s.FollowWorkspace(ctx)
 	if err = wait(ctx, func() (bool, error) {
 		v := s.Snapshot()
-		if v.ListErr != "" {
-			return false, errors.New(v.ListErr)
+		if v.ListErr != nil {
+			return false, errors.New(v.ListErr.SentenceText())
 		}
 		return !v.ListLoading && len(v.Items) == len(manifest.Rows), nil
 	}); err != nil {

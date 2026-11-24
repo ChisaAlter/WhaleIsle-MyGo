@@ -23,7 +23,7 @@ func (s *Store) Occurrence(key, source, session string) *Store {
 	// merely because the shared transport currently has an active terminal.
 	var seed View
 	if origin != nil {
-		seed = origin.Snapshot(session)
+		seed = origin.Snapshot(session).Value
 	}
 	child.bind(owner, remote, ready, notify)
 	child.ConfigureShellPreference(preference, save)

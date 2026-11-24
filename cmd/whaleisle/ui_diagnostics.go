@@ -160,8 +160,8 @@ func (s *mainState) recordStartupWorkspaceReady(sessions *session.Store) {
 		return
 	}
 	snapshot := sessions.Snapshot()
-	ready := snapshot.ClientReady && snapshot.WorkspaceReady && !snapshot.ListLoading && snapshot.ListErr == "" && snapshot.WorkspaceError == ""
-	if loading && (ready || snapshot.WorkspaceError != "" || snapshot.ListErr != "") {
+	ready := snapshot.ClientReady && snapshot.WorkspaceReady && !snapshot.ListLoading && snapshot.ListErr == nil && snapshot.WorkspaceError == nil
+	if loading && (ready || snapshot.WorkspaceError != nil || snapshot.ListErr != nil) {
 		s.mu.Lock()
 		if s.sessions == sessions && s.dshMuxReady {
 			s.coldLoading = false

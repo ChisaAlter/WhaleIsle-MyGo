@@ -12,6 +12,7 @@ import (
 // event handles a surface event on the main thread. It reports whether
 // an element takes files dragged over or dropped at the event's position.
 func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
+	rt.memoInput(ev)
 	switch ev.Kind {
 	case platform.PointerMove:
 		if !rt.pointerIn || float32(ev.X) != rt.pointerX || float32(ev.Y) != rt.pointerY {
@@ -195,6 +196,7 @@ func (rt *engine) setHover(chain []uint64) bool {
 			}
 		}
 	}
+	rt.memoHover(rt.hover, chain)
 	rt.hover = chain
 	if need {
 		rt.requestFrame()

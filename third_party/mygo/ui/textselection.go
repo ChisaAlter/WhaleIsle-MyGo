@@ -70,6 +70,12 @@ type textSelection struct {
 // so rebuilding a paragraph does not reset its selection to its own text.
 func (rt *engine) prepareSelectable(e *node) {
 	e.prepareSelectable()
+	if e.memoOn {
+		if rt.selectionKept(e) {
+			return // a region kept, within what it was
+		}
+		defer rt.noteSelection(e)
+	}
 	for ch := e.first; ch != nil; ch = ch.next {
 		rt.prepareSelectable(ch)
 	}
@@ -144,8 +150,14 @@ func (e *node) prepareSelectable() {
 // paragraph's text, and must not be copied a second time.
 func (rt *engine) collectSelectable(e *node, hidden bool) {
 	hidden = hidden || e.flags&(flagInvisible|flagInert) != 0
+	if hidden {
+		return // nothing inside takes part in selection
+	}
 	if !hidden && e.kind == kindText && !e.isInline() && e.st.flags&flagDisabled == 0 && e.flags&flagSelectable != 0 {
 		rt.texts = append(rt.texts, e.st)
+	}
+	if e.memoOn && !rt.memoWalks(e, true) {
+		return // a region kept, with nothing selectable
 	}
 	for ch := e.first; ch != nil; ch = ch.next {
 		rt.collectSelectable(ch, hidden)

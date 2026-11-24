@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -48,8 +51,8 @@ func newFrameTrace(path string) *frameTracer {
 		return nil
 	}
 	t := &frameTracer{w: bufio.NewWriterSize(f, 1<<16), file: f}
-	fmt.Fprintln(t.w, "kind,frame,start_unix_ns,gap_ns,dur_ns,build_ns,layout_ns,paint_ns,present_ns,passes,path,name,cycles,cycles_build,cycles_layout,cycles_paint,cycles_present,cycles_total,alloc_bytes,gc_cycles,present_upload_ns,present_draw_ns,present_swap_ns")
-	fmt.Fprintf(t.w, "cal,0,0,-1,0,0,0,0,0,0,none,clock,%.0f,0,0,0,0,0,0,0,0,0,0\n", measureCycleRate())
+	fmt.Fprintln(t.w, "kind,frame,start_unix_ns,gap_ns,dur_ns,build_ns,layout_ns,paint_ns,present_ns,passes,path,name,cycles,cycles_build,cycles_layout,cycles_paint,cycles_present,cycles_total,alloc_bytes,gc_cycles,present_upload_ns,present_draw_ns,present_swap_ns,cause")
+	fmt.Fprintf(t.w, "cal,0,0,-1,0,0,0,0,0,0,none,clock,%.0f,0,0,0,0,0,0,0,0,0,0,-\n", measureCycleRate())
 	return t
 }
 
@@ -90,7 +93,7 @@ func (t *frameTracer) frame(rt *engine, f *frameStats, total time.Duration) {
 			path = strings.ReplaceAll(s, " ", "_")
 		}
 	}
-	fmt.Fprintf(t.w, "frame,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	fmt.Fprintf(t.w, "frame,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s\n",
 		rt.frame, f.start.UnixNano(), gap, int64(total),
 		int64(f.laps[phaseBuild]), int64(f.laps[phaseLayout]), int64(f.laps[phasePaint]), int64(f.laps[phasePresent]),
 		f.passes, path,
@@ -98,7 +101,7 @@ func (t *frameTracer) frame(rt *engine, f *frameStats, total time.Duration) {
 		f.cycles[phaseBuild], f.cycles[phaseLayout], f.cycles[phasePaint], f.cycles[phasePresent],
 		f.cycles[phaseBuild]+f.cycles[phaseLayout]+f.cycles[phasePaint]+f.cycles[phasePresent],
 		uint64(f.delta[statBytes]), uint64(f.delta[statCycles]),
-		int64(f.presentUpload), int64(f.presentDraw), int64(f.presentSwap))
+		int64(f.presentUpload), int64(f.presentDraw), int64(f.presentSwap), f.cause)
 	t.flush()
 }
 
@@ -107,7 +110,7 @@ func (t *frameTracer) mark(name string) {
 	if t == nil {
 		return
 	}
-	fmt.Fprintf(t.w, "mark,0,%d,-1,0,0,0,0,0,0,none,%s,0,0,0,0,0,0,0,0,0,0,0\n", time.Now().UnixNano(), csvToken(name))
+	fmt.Fprintf(t.w, "mark,0,%d,-1,0,0,0,0,0,0,none,%s,0,0,0,0,0,0,0,0,0,0,0,-\n", time.Now().UnixNano(), csvToken(name))
 	t.flush()
 }
 
@@ -145,3 +148,105 @@ func csvToken(s string) string {
 // starts it: the frames after the mark belong to it until the next mark. It
 // does nothing unless MYGO_FRAME_TRACE is set.
 func FrameTraceMark(name string) { frameTrace.mark(name) }
+
+// Frame causes: why a frame ran, appended to each trace row as the cause
+// column. A request records its cause while frames are traced; the frame
+// that starts next takes every cause recorded since the previous one began,
+// so a cause names what asked, not which frame finally served it. Untraced,
+// recording costs one nil check.
+const (
+	causeChanged    uint32 = 1 << iota // the app changed state: Window.Invalidate/Update
+	causeRequest                       // the engine asked for a frame built anew (input handling, focus, resize, …)
+	causeAnimation                     // Context.AnimationFrame: the view animates
+	causeRepaint                       // Painter.AnimationFrame: a drawing moves
+	causeAfter                         // Context.After's timer came due
+	causePaintAfter                    // Painter.After's timer came due
+	causeTheme                         // the system appearance or preferences changed
+	causeInput                         // an input event arrived since the last frame
+	causeKinds
+)
+
+var causeNames = [...]string{"changed", "request", "animation", "repaint", "after", "paint-after", "theme", "input"}
+
+// frameCauses holds each window engine's pending causes; frameCauseTags the
+// tags the app passed with FrameTraceCause, which name no window.
+var (
+	frameCauses    sync.Map // *engine → *atomic.Uint32
+	frameCauseMu   sync.Mutex
+	frameCauseTags map[string]struct{}
+)
+
+// traceCause records why rt is about to ask for a frame.
+func traceCause(rt *engine, cause uint32) {
+	if frameTrace == nil || rt == nil {
+		return
+	}
+	v, ok := frameCauses.Load(rt)
+	if !ok {
+		v, _ = frameCauses.LoadOrStore(rt, new(atomic.Uint32))
+	}
+	v.(*atomic.Uint32).Or(cause)
+}
+
+// FrameTraceCause names the source of an Invalidate or Update the app is
+// about to make, for the cause column of the frame trace ("tag:<source>").
+// It does nothing unless MYGO_FRAME_TRACE is set, so call sites need no
+// guard. Tags are process-wide: with several windows a tag may land on the
+// next frame of another window.
+func FrameTraceCause(source string) {
+	if frameTrace == nil || source == "" {
+		return
+	}
+	frameCauseMu.Lock()
+	if frameCauseTags == nil {
+		frameCauseTags = map[string]struct{}{}
+	}
+	frameCauseTags[source] = struct{}{}
+	frameCauseMu.Unlock()
+}
+
+// takeFrameCause consumes rt's pending causes for the frame starting now.
+// lastInput is the engine's last input time before the frame; an input
+// since the previous frame counts as a cause. A frame nothing recorded a
+// cause for was asked for by the platform (first show, expose, a host
+// invalidate outside the engine): "surface".
+func takeFrameCause(rt *engine, lastInput, prevInput time.Time) string {
+	if frameTrace == nil {
+		return ""
+	}
+	var bits uint32
+	if v, ok := frameCauses.Load(rt); ok {
+		bits = v.(*atomic.Uint32).Swap(0)
+	}
+	if !lastInput.IsZero() && lastInput.After(prevInput) {
+		bits |= causeInput
+	}
+	var parts []string
+	for i := 0; i < len(causeNames); i++ {
+		if bits&(1<<i) != 0 {
+			parts = append(parts, causeNames[i])
+		}
+	}
+	frameCauseMu.Lock()
+	if len(frameCauseTags) > 0 {
+		tags := make([]string, 0, len(frameCauseTags))
+		for t := range frameCauseTags {
+			tags = append(tags, "tag:"+t)
+		}
+		clear(frameCauseTags)
+		sort.Strings(tags)
+		parts = append(parts, tags...)
+	}
+	frameCauseMu.Unlock()
+	if len(parts) == 0 {
+		return "surface"
+	}
+	return csvToken(strings.Join(parts, "+"))
+}
+
+// forgetFrameCauses drops a closed engine's pending causes.
+func forgetFrameCauses(rt *engine) {
+	if frameTrace != nil {
+		frameCauses.Delete(rt)
+	}
+}

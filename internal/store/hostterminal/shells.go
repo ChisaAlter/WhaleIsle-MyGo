@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 // ShellView contains only choices returned by the current Host for this Session.
@@ -43,7 +45,7 @@ func cloneShells(items []Shell) []Shell {
 func (s *Store) ShellSnapshot(owner uint64, session string) ShellView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.epoch != owner {
+	if s.ownerLease.Generation() != owner {
 		return ShellView{}
 	}
 	if st := s.sessions[session]; st != nil {
@@ -86,7 +88,7 @@ func (s *Store) cancelShellDiscoveryLocked(st *sessionState) {
 // follow or environment call is sent by this operation.
 func (s *Store) DiscoverShells(owner uint64, session string) {
 	s.mu.Lock()
-	if s.epoch != owner || s.remote == nil || !s.ready || session == "" || s.visible != session {
+	if s.ownerLease.Generation() != owner || s.remote == nil || !s.ready || session == "" || s.visible != session {
 		s.mu.Unlock()
 		return
 	}
@@ -100,7 +102,7 @@ func (s *Store) DiscoverShells(owner uint64, session string) {
 	ctx, cancel := context.WithTimeout(s.ctx, 15*time.Second)
 	st.shells.cancel = cancel
 	st.shells.view.Loading, st.shells.view.Error = true, ""
-	r, epoch := s.remote, s.epoch
+	r, epoch := s.remote, s.ownerLease
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -108,7 +110,7 @@ func (s *Store) DiscoverShells(owner uint64, session string) {
 		var items []Shell
 		err := r.Call(ctx, "terminal/shells", map[string]any{"agentId": session}, &items)
 		s.mu.Lock()
-		if s.epoch != epoch || st.shells.revision != revision {
+		if s.ownerLease != epoch || st.shells.revision != revision {
 			s.mu.Unlock()
 			return
 		}
@@ -138,7 +140,7 @@ func (s *Store) SelectShell(owner uint64, session, path string) {
 	s.preferenceMu.Lock()
 	s.mu.Lock()
 	st := s.sessions[session]
-	if s.epoch != owner || !s.ready || s.visible != session || st == nil || st.busy || st.shells.view.Loading || !st.shells.view.Loaded || !shellOffered(st.shells.view.Items, path) {
+	if s.ownerLease.Generation() != owner || !s.ready || s.visible != session || st == nil || st.busy || st.shells.view.Loading || !st.shells.view.Loaded || !shellOffered(st.shells.view.Items, path) {
 		s.mu.Unlock()
 		s.preferenceMu.Unlock()
 		return
@@ -155,7 +157,7 @@ func (s *Store) SelectShell(owner uint64, session, path string) {
 		err = save(path)
 	}
 	s.mu.Lock()
-	if s.epoch == owner && err != nil {
+	if s.ownerLease.Generation() == owner && err != nil {
 		st.shells.view.PreferenceError = "Shell choice is usable for this run, but could not be saved. " + err.Error()
 	}
 	s.mu.Unlock()
@@ -169,7 +171,7 @@ func (s *Store) shellLaunchLocked(st *sessionState) shellLaunch {
 
 // resolveLaunchShell revalidates preferences against this Host at explicit New.
 // An explicit unavailable pick fails instead of silently starting another shell.
-func (s *Store) resolveLaunchShell(ctx context.Context, r Remote, epoch uint64, session string, st *sessionState, op uint64, launch shellLaunch) (string, error) {
+func (s *Store) resolveLaunchShell(ctx context.Context, r Remote, epoch state.Lease, session string, st *sessionState, op state.Lease, launch shellLaunch) (string, error) {
 	var items []Shell
 	if err := r.Call(ctx, "terminal/shells", map[string]any{"agentId": session}, &items); err != nil {
 		return "", err
@@ -183,7 +185,7 @@ func (s *Store) resolveLaunchShell(ctx context.Context, r Remote, epoch uint64, 
 	}
 	s.preferenceMu.Lock()
 	s.mu.Lock()
-	if s.epoch != epoch || st.operation != op || !s.ready || s.visible != session || ctx.Err() != nil {
+	if s.ownerLease != epoch || !op.Valid() || !s.ready || s.visible != session || ctx.Err() != nil {
 		s.mu.Unlock()
 		s.preferenceMu.Unlock()
 		return "", context.Canceled
@@ -203,7 +205,7 @@ func (s *Store) resolveLaunchShell(ctx context.Context, r Remote, epoch uint64, 
 		err = save(path)
 	}
 	s.mu.Lock()
-	if s.epoch == epoch && st.operation == op && err != nil {
+	if s.ownerLease == epoch && op.Valid() && err != nil {
 		st.shells.view.PreferenceError = "Shell choice is usable for this run, but could not be saved. " + err.Error()
 	}
 	s.mu.Unlock()

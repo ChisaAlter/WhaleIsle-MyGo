@@ -56,7 +56,7 @@ func enterFrameStore(t *testing.T) (*session.Store, *enterFrameTransport) {
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		snap := store.Snapshot()
-		if !snap.ListLoading && snap.ListErr == "" && snap.SelectedSummaryBlank && snap.SelectedCwd != "" {
+		if !snap.ListLoading && snap.ListErr == nil && snap.SelectedSummaryBlank && snap.SelectedCwd != "" {
 			return store, f
 		}
 		time.Sleep(time.Millisecond)

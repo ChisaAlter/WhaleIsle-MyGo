@@ -57,10 +57,10 @@ func TestConnectionManagementFixture(t *testing.T) {
 	await := func() {
 		t.Helper()
 		deadline := time.Now().Add(2 * time.Second)
-		for s.Snapshot().ConnectionBusy && time.Now().Before(deadline) {
+		for s.Snapshot().Value.ConnectionBusy && time.Now().Before(deadline) {
 			time.Sleep(time.Millisecond)
 		}
-		if s.Snapshot().ConnectionBusy || s.Snapshot().ConnectionNote != storelocale.T(storelocale.KeyStoreImBotStatusUpdated) {
+		if s.Snapshot().Value.ConnectionBusy || s.Snapshot().Value.ConnectionNote != storelocale.T(storelocale.KeyStoreImBotStatusUpdated) {
 			t.Fatalf("operation failed: %+v", s.Snapshot())
 		}
 	}
@@ -79,27 +79,29 @@ func TestConnectionManagementFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	await()
-	if s.Snapshot().WorkspaceDraft != "/fixture/new" {
+	if s.Snapshot().Value.WorkspaceDraft != "/fixture/new" {
 		t.Fatal("workspace did not roundtrip")
 	}
 	if err := s.SaveAgentPreset(context.Background(), s.selectedID, "coding"); err != nil {
 		t.Fatal(err)
 	}
 	await()
-	if s.Snapshot().Rows[0].AgentPreset != "coding" {
+	if s.Snapshot().Value.Rows[0].AgentPreset != "coding" {
 		t.Fatal("preset did not roundtrip")
 	}
 	if err := s.SaveAgentPreset(context.Background(), s.selectedID, ""); err != nil {
 		t.Fatal(err)
 	}
 	await()
-	if s.Snapshot().Rows[0].AgentPreset != "" {
+	if s.Snapshot().Value.Rows[0].AgentPreset != "" {
 		t.Fatal("preset null did not roundtrip")
 	}
-	snap := s.Snapshot()
-	snap.Rows[0].Presets[0].Label = "modified"
-	if s.Snapshot().Rows[0].Presets[0].Label == "modified" {
-		t.Fatal("snapshot aliases preset catalog")
+	snap := s.Snapshot().Value
+	if snap.Rows[0].Presets[0].Label == "" {
+		t.Fatal("preset catalog missing from snapshot")
+	}
+	if s.Snapshot() != s.Snapshot() {
+		t.Fatal("unchanged snapshot should return the shared published version")
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -147,10 +149,10 @@ func TestWorkspaceSaveRetainsDraftUntilReadBackMatches(t *testing.T) {
 				t.Fatal(err)
 			}
 			deadline := time.Now().Add(3 * time.Second)
-			for s.Snapshot().ConnectionBusy && time.Now().Before(deadline) {
+			for s.Snapshot().Value.ConnectionBusy && time.Now().Before(deadline) {
 				time.Sleep(time.Millisecond)
 			}
-			if snap := s.Snapshot(); snap.ConnectionBusy || snap.WorkspaceDraft != "/fixture/new" {
+			if snap := s.Snapshot().Value; snap.ConnectionBusy || snap.WorkspaceDraft != "/fixture/new" {
 				t.Fatalf("unverified receipt discarded the workspace draft: %+v", snap)
 			}
 		})

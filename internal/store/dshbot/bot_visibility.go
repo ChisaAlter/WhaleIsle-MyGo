@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -22,7 +23,9 @@ type BotVisibilitySnapshot struct {
 	Pending                                       *pluginrpc.DshbotVisibilityCommand
 	Candidate                                     *pluginrpc.DshbotBotItem
 	Result                                        pluginrpc.DshbotBotItem
-	FocusID, FocusSessionID, Error, Notice        string
+	FocusID, FocusSessionID                       string
+	Error                                         *state.Fault
+	Notice                                        string
 }
 type BotVisibilityTicket struct {
 	Scope                string
@@ -37,6 +40,8 @@ type botVisibilityEntry struct {
 	state   BotVisibilitySnapshot
 	attempt *botVisibilityAttempt
 	loading uint64
+	pub     state.Published[BotVisibilitySnapshot]
+	dirty   bool
 }
 
 // Separate from the visible roster: hiding a row never removes this management
@@ -55,6 +60,8 @@ func (c *BotVisibilityManager) entry(k string) *botVisibilityEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &botVisibilityEntry{state: BotVisibilitySnapshot{Scope: k}}
 	}
+	// Mutating paths all reach the entry through this accessor.
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *BotVisibilityManager) valid(k string) bool {
@@ -85,12 +92,18 @@ func (c *BotVisibilityManager) ViewCurrent(k string, g uint64) bool {
 	defer c.mu.Unlock()
 	return c.valid(k) && g == c.generation
 }
-func (c *BotVisibilityManager) Snapshot(k string) BotVisibilitySnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *BotVisibilityManager) Snapshot(k string) *state.Version[BotVisibilitySnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return BotVisibilitySnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	out := e.state
 	out.Generation = c.generation
@@ -109,7 +122,9 @@ func (c *BotVisibilityManager) Snapshot(k string) BotVisibilitySnapshot {
 		v := pluginrpc.CloneDshbotBotItem(*out.Candidate)
 		out.Candidate = &v
 	}
-	return out
+	e.pub.Publish(out)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *BotVisibilityManager) Show(k string, on bool) {
 	c.mu.Lock()
@@ -150,13 +165,16 @@ func (c *BotVisibilityManager) BeginLoad(k string) (BotVisibilityTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return BotVisibilityTicket{k, c.generation, c.sequence}, true
 }
 func (c *BotVisibilityManager) FinishLoad(t BotVisibilityTicket, v pluginrpc.DshbotBotCatalog, w bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || t.Generation != c.generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -164,19 +182,19 @@ func (c *BotVisibilityManager) FinishLoad(t BotVisibilityTicket, v pluginrpc.Dsh
 	e.state.Busy = false
 	e.state.Writable = w
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return true
 	}
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(v)
 	e.state.Loaded = true
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.state.Uncertain && e.attempt != nil {
 		row, matchErr := pluginrpc.DshbotVisibilityApplied(e.attempt.Command, v)
 		if matchErr == nil {
 			e.state.Candidate = &row
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactReadbackInspectAndAdopt)
 		} else {
-			e.state.Error = matchErr.Error()
+			e.state.Error = state.FaultOf(matchErr)
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotStillUnknownNoRetry)
 		}
 	}
@@ -200,12 +218,12 @@ func (c *BotVisibilityManager) Prepare(k, id, session string, stamp int64) {
 		err = pluginrpc.ValidateDshbotVisibilityCommand(cmd)
 	}
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	e.state.Review = &BotVisibilityReview{Command: cmd, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func sameVisibilityReview(a, b *BotVisibilityReview) bool {
 	return a != nil && b != nil && a.Sequence == b.Sequence && reflect.DeepEqual(a.Command, b.Command)
@@ -246,7 +264,7 @@ func (c *BotVisibilityManager) Begin(k string, r *BotVisibilityReview) (BotVisib
 	e.attempt = &botVisibilityAttempt{Command: cmd, Sequence: c.sequence}
 	e.state.Busy = true
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return BotVisibilityTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *BotVisibilityManager) current(t BotVisibilityTicket) bool {
@@ -271,6 +289,9 @@ func (c *BotVisibilityManager) AbortUnsent(t BotVisibilityTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -280,13 +301,16 @@ func (c *BotVisibilityManager) AbortUnsent(t BotVisibilityTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview2)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *BotVisibilityManager) Finish(t BotVisibilityTicket, result pluginrpc.DshbotVisibilityResult, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -296,7 +320,7 @@ func (c *BotVisibilityManager) Finish(t BotVisibilityTicket, result pluginrpc.Ds
 	if err != nil && result.Rejected {
 		e.attempt = nil
 		e.state.Uncertain = false
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWrite)
 		return
 	}
@@ -309,14 +333,14 @@ func (c *BotVisibilityManager) Finish(t BotVisibilityTicket, result pluginrpc.Ds
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeNoRetry)
 		return
 	}
 	e.state.Result = pluginrpc.CloneDshbotBotItem(result.Item)
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(result.Catalog)
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotConfirmedVisibilityHiddenItemsRemain)
 	e.state.ShowHidden = true
 	e.attempt = nil
@@ -334,7 +358,7 @@ func (c *BotVisibilityManager) Adopt(k, id, session string) bool {
 	e.state.Result = pluginrpc.CloneDshbotBotItem(*e.state.Candidate)
 	e.state.Candidate = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedExactReadbackNoResend)
 	e.state.ShowHidden = true
 	e.attempt = nil

@@ -548,7 +548,7 @@ func TestResumeCheckpointFailureIsWrittenInTheStatusLine(t *testing.T) {
 		t.Fatalf("the status line does not say what was not saved: %q", sentence)
 	}
 	s.mu.Lock()
-	logs := strings.Join(s.bootLogs, "\n")
+	logs := strings.Join(s.bootLogSnapshot(), "\n")
 	s.mu.Unlock()
 	if !strings.Contains(logs, raw.Error()) {
 		t.Fatalf("the exported log lost the raw failure: %q", logs)

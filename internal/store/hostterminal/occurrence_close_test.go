@@ -47,7 +47,7 @@ func TestOccurrenceCloseExplicitRetiresOnlyTarget(t *testing.T) {
 	if r.count("terminal/close") != 0 {
 		t.Fatal("hiding terminated process")
 	}
-	v := child.Snapshot("session")
+	v := child.Snapshot("session").Value
 	request := root.BeginOccurrenceClose("pane", child, v.Owner, "session")
 	if err := awaitClose(t, request); err != nil {
 		t.Fatal(err)
@@ -83,7 +83,7 @@ func TestOccurrenceCloseExplicitRetiresOnlyTarget(t *testing.T) {
 func TestOccurrenceCloseFailureKeepsRetryablePaneWithoutHold(t *testing.T) {
 	root, child, r := closeFixture(t)
 	r.closeErr = errors.New("offline")
-	v := child.Snapshot("session")
+	v := child.Snapshot("session").Value
 	if err := awaitClose(t, root.BeginOccurrenceClose("pane", child, v.Owner, "session")); err == nil {
 		t.Fatal("missing failure")
 	}
@@ -109,7 +109,7 @@ func TestOccurrenceCloseFailureKeepsRetryablePaneWithoutHold(t *testing.T) {
 }
 func TestOccurrenceCloseStaleHostAndBusyFailClosed(t *testing.T) {
 	root, child, r := closeFixture(t)
-	v := child.Snapshot("session")
+	v := child.Snapshot("session").Value
 	if err := awaitClose(t, root.BeginOccurrenceClose("pane", child, v.Owner+1, "session")); err == nil {
 		t.Fatal("stale Host accepted")
 	}

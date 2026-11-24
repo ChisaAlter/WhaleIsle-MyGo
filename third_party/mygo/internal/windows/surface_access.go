@@ -203,8 +203,10 @@ type uiaTree struct {
 	nodes     map[uint64]*uiaElement
 	order     []*uiaElement // in the order of the content's tree
 	lastNodes []platform.AccessNode
-	focus     uint64
-	quiet     bool // building the tree a client asked for
+	// seq is the Seq of the content's tree applied last.
+	seq   uint64
+	focus uint64
+	quiet bool // building the tree a client asked for
 	// announced is the text of the live region of announcements.
 	announced string
 }
@@ -404,6 +406,10 @@ func listening() bool {
 }
 
 func (t *uiaTree) update(tree *platform.AccessTree) {
+	if t.applyDelta(tree) {
+		return
+	}
+	t.seq = tree.Seq
 	// Announcements go into a polite live region at the end of the tree,
 	// whose LiveRegionChanged screen readers read, as Flutter's alerts:
 	// notification events (UiaRaiseNotificationEvent), which a provider of
@@ -490,15 +496,7 @@ func (t *uiaTree) update(tree *platform.AccessTree) {
 	for _, e := range old {
 		e.disconnect()
 	}
-	if tree.Focus != t.focus {
-		t.focus = tree.Focus
-		if e := t.nodes[t.focus]; e != nil && notify {
-			procUiaRaiseAutomationEvent.Call(e.ptr(ifaceSimple), uiaFocusChangedEvent)
-			// Clients that follow the focus through WinEvents, as those of
-			// System.Windows.Automation, then ask the window for it.
-			procNotifyWinEvent.Call(eventObjectFocus, t.s.hwnd, uintptr(objidClient&0xffffffff), 0)
-		}
-	}
+	t.setFocus(tree.Focus, notify)
 	if e := t.nodes[announcerID]; e != nil && notify && len(tree.Announcements) > 0 {
 		procUiaRaiseAutomationEvent.Call(e.ptr(ifaceSimple), uiaLiveRegionChangedEvent)
 	}
@@ -1154,4 +1152,57 @@ func (e *uiaElement) container() *uiaElement {
 		}
 	}
 	return nil
+}
+
+// applyDelta applies a tree that differs from the one applied last only in
+// some nodes, as its Delta tells, updating those elements alone and telling
+// clients how they changed. It reports false, having changed nothing, for
+// a tree it cannot apply so: one that changes the structure, announces
+// something, or does not follow the tree applied last.
+func (t *uiaTree) applyDelta(tree *platform.AccessTree) bool {
+	d := tree.Delta
+	if d == nil || d.Structure || d.Base == 0 || d.Base != t.seq || len(tree.Announcements) > 0 {
+		return false
+	}
+	n := len(tree.Nodes)
+	extra := 0
+	if t.announced != "" {
+		extra = 1 // the live region of announcements, at the end
+	}
+	if len(t.order) != n+extra || len(t.lastNodes) != n+extra {
+		return false
+	}
+	for _, i := range d.Changed {
+		if i < 0 || i >= n || t.order[i].n.ID != tree.Nodes[i].ID {
+			return false
+		}
+	}
+	t.seq = tree.Seq
+	notify := !t.quiet && listening()
+	for _, i := range d.Changed {
+		e := t.order[i]
+		prev := e.n
+		e.n = tree.Nodes[i]
+		t.lastNodes[i] = e.n
+		if notify && prev != e.n {
+			e.notifyChanges(prev)
+		}
+	}
+	t.setFocus(tree.Focus, notify)
+	return true
+}
+
+// setFocus moves the focus of the tree to the element focus, telling
+// clients unless the tree is quiet.
+func (t *uiaTree) setFocus(focus uint64, notify bool) {
+	if focus == t.focus {
+		return
+	}
+	t.focus = focus
+	if e := t.nodes[t.focus]; e != nil && notify {
+		procUiaRaiseAutomationEvent.Call(e.ptr(ifaceSimple), uiaFocusChangedEvent)
+		// Clients that follow the focus through WinEvents, as those of
+		// System.Windows.Automation, then ask the window for it.
+		procNotifyWinEvent.Call(eventObjectFocus, t.s.hwnd, uintptr(objidClient&0xffffffff), 0)
+	}
 }

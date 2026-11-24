@@ -1334,14 +1334,43 @@ either.
   it), without keeping their local resources, editors or callbacks.
   The arena uses chunks of 32 elements, releases unused chunks after a
   smaller frame, and keeps one empty chunk for growth; unused elements
-  and the spare arena of exit transitions give up their references after
-  the frame copied what it needs. A text keeps in its state what it made
+  give up their references as the frame ends. `lookState` lists the
+  states each pass touches: `forgetInput` walks the pass's list, and
+  `prune` the states the last frame built and those earlier passes
+  touched, looking at the states of pages a Router keeps only when the
+  pages kept change. A text keeps in its state what it made
   of its spans
   (`spanCache`: their text, the styles of their layout, encoded, and where
   each ends), which a frame compares rather than makes again. With
   `MYGO_FRAME_STATS` set, frames slower than its threshold log how long
   each part took, which path drew them, what the process allocated and
   whether the collector ran (`ui/framestats.go`).
+- **Memo regions** (`ui/memo.go`, `Element.Memo`) keep the children of an
+  element from pass to pass and frame to frame. A region builds its
+  children into an arena of its own (`memoRegion`, `context.region`), so
+  that the frame's arena, reused by every pass, leaves them be; `Children`
+  then skips the view's function while the version the app gave, what the
+  region was built against (`memoPrint`: theme, fonts, scale, window size,
+  router), and its continuity hold, and nothing reached it since: events
+  mark the regions they reach (`memoInput`, `memoHover`: under the pointer
+  before and after it moved, holding the focus for keys, the target of an
+  action of assistive technology, all of them for drags and the unknown),
+  and the focus, a press, a drag or a selection in a region keeps it
+  building. A build that asks for frames, or registers with the pass what a
+  region cannot register again (overlays, routers, lists, transitions, focus
+  bindings, Handles, input observers, timers), makes the region live, built
+  in every pass. A region kept counts its states as built (`keepRegion`),
+  registers its shortcuts and dividers again, and gives its elements this
+  pass's serials (`context.slots`, which Elements resolve through), so
+  handles from the pass that built them expire as handles do. Layout puts
+  its children back where it put them, relative to their parents
+  (`node.rx`, `keptLayout`), while the element holding them has the size,
+  layout properties and text style it had, with the measures of its
+  children kept (`memoMeasured`, `memoHeight`); commit, selection and the
+  accessibility tree append what the region made the frame before while it
+  did not move (`commitKept`, `selectionKept`, `describeKept`), and walks
+  for layout observers skip it. `MYGO_MEMO=off` builds every region in
+  every pass.
 - **Transitions** (`ui/transition.go`) animate elements FLIP-style, after
   the layout of each frame and before `place` turns boxes into window
   coordinates: an element given a `Transition` keeps, by its ID, where the
@@ -1353,11 +1382,12 @@ either.
   move as elements paint, after their `styleFn`. An element appears with
   its `Enter` only in a parent the frame before had. One no longer built,
   whose parent still is, goes with its `Exit` as an inert copy, laid out
-  and painted under its siblings without taking room: frames that built
-  elements with an `Exit` leave their arena to the next frame, which
-  builds in the other (`Context.spare`), so that the next one copies those
-  gone (`ghostOf`), with states of their own and nothing referring to the
-  app's state. Siblings are not laid out around a size moving; they move
+  and painted under its siblings without taking room: each frame ends copying the
+  elements it built with an `Exit`, and those inside them, into storage
+  of their transition that the next copy reuses (`snapshotExits`,
+  `ghostInto`), with states of their own and nothing referring to the
+  app's state; one gone leaves as that copy, under its parent of the new
+  frame (`builtNode`). Siblings are not laid out around a size moving; they move
   with their own transitions, in step when they share it.
 - **The inspector** (`ui/inspector.go`, `inspector_details.go`,
   `inspector_panel.go`, `inspector_overlay.go`), as Chrome's developer
@@ -1981,7 +2011,15 @@ either.
   small pipelines (`down` and `blur`, scissored to the texels they
   compute, reading them with `Load`, `read` or `texelFetch`) into textures
   as large as the frame's largest backdrop, and goes on with the pass, the
-  backdrop bound for the effect. Each renderer draws scenes offscreen for
+  backdrop bound for the effect. Direct3D 11 keeps each backdrop it
+  computed (`backdrop_cache.go`) and draws it again in the next frames while
+  its area and what is drawn under it stay the same: `Builder.BackdropKeys`
+  hashes the instances whose clipped rectangles reach the area, with their
+  batches' images and effects and the keys of the backdrops of those
+  effects, and the renderer adds the frame's size and clear color, the
+  atlases' generations and a count of images whose contents changed
+  (`MYGO_BACKDROP_CACHE=off` computes every backdrop, for comparing).
+  Each renderer draws scenes offscreen for
   the tests of packages defining effects (`RenderOffscreen`,
   `NewOffscreen`).
   Near square corners, coverage is exact, the area of a pixel

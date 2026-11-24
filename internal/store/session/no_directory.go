@@ -34,7 +34,7 @@ func (s *Store) resetWorkspaceLocked() {
 	s.workspaceFollowGeneration++
 	s.scratchCwd = ""
 	s.workspaceReady = false
-	s.workspaceErr = nil
+	s.setWorkspaceErrLocked(nil)
 	s.workspaceMemberships = nil
 	s.signalWorkspaceLocked()
 }

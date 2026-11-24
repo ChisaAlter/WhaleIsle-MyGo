@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/app/startup"
 	"whaleisle/internal/desktop/deeplink"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/boot"
@@ -75,7 +76,7 @@ func (s *mainState) paintColdLoading(c *ui.Context) bool {
 	}
 	win, sup, st, themeID, skipped := s.win, s.sup, s.bootStatus, s.themeID, s.coldStartSkipped
 	connectionIssue := connectionUnavailableMessage(s.dshBootstrapError, s.dshNetworkOffline, s.dshMuxLost)
-	logs := append([]string(nil), s.bootLogs...)
+	logs := s.bootLogSnapshot()
 	s.mu.Unlock()
 	m, _, message, _ := s.hostStatusModel(win, st, sup, logs)
 	m = openedColdPage(m, st, skipped, message)
@@ -83,7 +84,12 @@ func (s *mainState) paintColdLoading(c *ui.Context) bool {
 	themed := theme.ResolveWithSystem(themeID, systemDark)
 	m.Dark = themed.Scheme == theme.SchemeDark
 	if st.State == harness.Ready {
+		// The page stays up until the workbench baselines arrive; name the
+		// readiness level it is waiting on (internal/app/startup).
 		m.StatusText = lifecycleText("正在打开工作区…", "Opening workspace…")
+		if s.startupLevel() < startup.EventsReady {
+			m.StatusText = lifecycleText("正在连接会话服务…", "Connecting to the session service…")
+		}
 		if connectionIssue != "" {
 			m.Status.State = harness.Failed
 			m.StatusText = connectionIssue

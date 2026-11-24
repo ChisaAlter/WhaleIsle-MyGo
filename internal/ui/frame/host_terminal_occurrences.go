@@ -14,7 +14,7 @@ func workspaceTerminalTitle(m Model, pane *WorkspacePane) (*hostterminal.Store, 
 	if store == nil {
 		return nil, sid, dockTabTitle(pane), false
 	}
-	v := store.Snapshot(sid)
+	v := store.Snapshot(sid).Value
 	title := v.Info.Title
 	if title == "" {
 		title = dockTabTitle(pane)
@@ -80,7 +80,7 @@ func hostTerminalPaneModel(m Model) Model {
 	root, renderer := m.HostTerminalStore, m.HostTerminalUI
 	m.HostTerminalStore = root.Occurrence(pane.ID, pane.TerminalSource, session)
 	child := m.HostTerminalStore
-	owner := child.Snapshot(session).Owner
+	owner := child.Snapshot(session).Value.Owner
 	authority := m.Store.WorkspaceLayoutScope()
 	child.AdoptRecovery(owner, authority, session, pane.TerminalRecovery)
 	pane.terminalRecovery = func() *hostterminal.RecoveryTarget { return child.RecoverySnapshot(authority, session) }

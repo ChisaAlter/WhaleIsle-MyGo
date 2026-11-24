@@ -50,8 +50,8 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 	card.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDeleteSelectedBotOrRoom)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadTheFullImpactFirstCancelIsTheDef)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_delete:56", s.Notice)
 		for _, w := range s.Warnings {

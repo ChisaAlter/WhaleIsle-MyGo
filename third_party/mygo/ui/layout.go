@@ -118,6 +118,7 @@ func (rt *engine) lateInput() {
 // place turns the boxes, laid out relative to their parents, into window
 // coordinates, moving the content of scroll containers by their offset.
 func place(e *node, x, y float32) {
+	e.rx, e.ry = e.x, e.y
 	e.x += x
 	e.y += y
 	cx, cy := e.x, e.y
@@ -145,6 +146,9 @@ func place(e *node, x, y float32) {
 		}
 		cx -= float32(s.scrollX)
 		cy -= float32(s.scrollY - e.scrollBase)
+	}
+	if e.flags&flagInvisible != 0 {
+		return // its content was not laid out (layoutBox)
 	}
 	if e.kind == kindText && e.first != nil && !e.isInline() {
 		placeInline(e, e, 0)
@@ -322,6 +326,7 @@ func intrinsic(e *node, maxContent bool) float32 {
 		if !maxContent && e.scrolls() {
 			w = 0
 		}
+	case e.memoOn && memoMeasured(e, maxContent, &w):
 	default:
 		n := 0
 		for ch := e.first; ch != nil; ch = ch.next {
@@ -338,6 +343,9 @@ func intrinsic(e *node, maxContent bool) float32 {
 		}
 		if e.row && n > 1 && (maxContent || !e.wrap) {
 			w += e.gapX * float32(n-1)
+		}
+		if e.memoOn {
+			noteMeasured(e, maxContent, w)
 		}
 		if !maxContent && e.scrolls() {
 			w = 0
@@ -411,6 +419,14 @@ func contentHeight(e *node, cw float32) float32 {
 	if e.first == nil {
 		return 0
 	}
+	if e.memoOn {
+		if h, ok := memoHeight(e, cw); ok {
+			return h
+		}
+		_, h := boxLayout(e, cw, inf, false)
+		noteHeight(e, cw, h)
+		return h
+	}
 	_, h := boxLayout(e, cw, inf, false)
 	return h
 }
@@ -450,8 +466,17 @@ func layoutBox(e *node, w, h float32) {
 	case kindImage, kindIcon:
 		return
 	}
+	if e.flags&flagInvisible != 0 {
+		// What is invisible keeps its box, which its parent gave it, but
+		// nothing inside it shows, takes input or is read: its content is
+		// not laid out. Showing it again lays it out, as each frame does.
+		return
+	}
 	if e.list != nil {
 		e.layoutList(w, h)
+		return
+	}
+	if e.memoOn && keptLayout(e, w, h) {
 		return
 	}
 	if e.overflow != nil {
@@ -480,6 +505,9 @@ func layoutBox(e *node, w, h float32) {
 		e.contentH = float64(max(uh, ch) + e.padY())
 	}
 	layoutAbsolute(e)
+	if e.memoOn {
+		noteLayout(e, w, h)
+	}
 }
 
 type flexItem struct {

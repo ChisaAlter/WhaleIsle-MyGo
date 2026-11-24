@@ -31,7 +31,7 @@ func visibilityRead(t *testing.T, c *BotVisibilityManager, k string, v pluginrpc
 func visibilityCommand(t *testing.T, c *BotVisibilityManager, k, id, sid string) (BotVisibilityTicket, pluginrpc.DshbotVisibilityCommand) {
 	t.Helper()
 	c.Prepare(k, id, sid, 100)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
 		t.Fatal("review")
 	}
@@ -39,7 +39,7 @@ func visibilityCommand(t *testing.T, c *BotVisibilityManager, k, id, sid string)
 		t.Fatal("missing ack")
 	}
 	c.Acknowledge(k, r, true)
-	ticket, cmd, ok := c.Begin(k, c.Snapshot(k).Review)
+	ticket, cmd, ok := c.Begin(k, c.Snapshot(k).Value.Review)
 	if !ok {
 		t.Fatal("begin")
 	}
@@ -67,10 +67,10 @@ func TestBotVisibilityHideRevealRestoreAndUnknown(t *testing.T) {
 	c.Bind("A", "client1")
 	base := visibilityCatalog()
 	visibilityRead(t, &c, "A", base, true)
-	if !c.Reveal("A", "r", "rs") || !c.Snapshot("A").ShowHidden || c.Snapshot("A").FocusID != "r" {
+	if !c.Reveal("A", "r", "rs") || !c.Snapshot("A").Value.ShowHidden || c.Snapshot("A").Value.FocusID != "r" {
 		t.Fatal("local exact reveal")
 	}
-	if !pluginrpc.SameDshbotBotCatalog(base, c.Snapshot("A").Catalog) {
+	if !pluginrpc.SameDshbotBotCatalog(base, c.Snapshot("A").Value.Catalog) {
 		t.Fatal("reveal modified Host state")
 	}
 	ticket, cmd := visibilityCommand(t, &c, "A", "b", "s")
@@ -79,12 +79,12 @@ func TestBotVisibilityHideRevealRestoreAndUnknown(t *testing.T) {
 	}
 	result := visibilityResult(t, cmd)
 	c.Finish(ticket, result, nil)
-	s := c.Snapshot("A")
+	s := c.Snapshot("A").Value
 	if s.Result.ID != "b" || !s.Result.Hidden || !s.ShowHidden || s.Uncertain {
 		t.Fatal("hidden outcome not locatable")
 	}
 	c.Show("A", false)
-	if c.Snapshot("A").Result.ID != "b" {
+	if c.Snapshot("A").Value.Result.ID != "b" {
 		t.Fatal("filter dropped result")
 	}
 	visibilityRead(t, &c, "A", result.Catalog, true)
@@ -94,7 +94,7 @@ func TestBotVisibilityHideRevealRestoreAndUnknown(t *testing.T) {
 	}
 	c.MarkSent(ticket)
 	c.Finish(ticket, visibilityResult(t, cmd), nil)
-	if c.Snapshot("A").Result.Hidden {
+	if c.Snapshot("A").Value.Result.Hidden {
 		t.Fatal("restore")
 	}
 	visibilityRead(t, &c, "A", base, true)
@@ -103,36 +103,36 @@ func TestBotVisibilityHideRevealRestoreAndUnknown(t *testing.T) {
 	c.Suspend()
 	c.Bind("B", "client2")
 	c.Finish(ticket, pluginrpc.DshbotVisibilityResult{Attempted: true}, errors.New("reply lost"))
-	if c.Snapshot("B").Uncertain || !c.Snapshot("A").Uncertain {
+	if c.Snapshot("B").Value.Uncertain || !c.Snapshot("A").Value.Uncertain {
 		t.Fatal("late settle crossed account")
 	}
 	c.Bind("A", "new-client")
-	s = c.Snapshot("A")
+	s = c.Snapshot("A").Value
 	if s.Pending == nil || s.Pending.ID != "r" || s.Pending.SessionID != "rs" {
 		t.Fatal("pending identity lost")
 	}
 	c.Prepare("A", "b", "s", 101)
-	if c.Snapshot("A").Review != nil {
+	if c.Snapshot("A").Value.Review != nil {
 		t.Fatal("unknown allowed write")
 	}
 	visibilityRead(t, &c, "A", base, true)
-	if c.Snapshot("A").Candidate != nil || c.Adopt("A", "r", "rs") {
+	if c.Snapshot("A").Value.Candidate != nil || c.Adopt("A", "r", "rs") {
 		t.Fatal("old state unlocked attempt")
 	}
 	result = visibilityResult(t, cmd)
 	visibilityRead(t, &c, "A", result.Catalog, false)
-	if c.Snapshot("A").Candidate == nil || !c.Snapshot("A").Uncertain {
+	if c.Snapshot("A").Value.Candidate == nil || !c.Snapshot("A").Value.Uncertain {
 		t.Fatal("readback must not auto adopt")
 	}
 	if c.Adopt("A", "r", "wrong") || !c.Adopt("A", "r", "rs") {
 		t.Fatal("exact explicit adopt")
 	}
-	if c.Snapshot("A").Uncertain || c.Snapshot("A").Result.ID != "r" {
+	if c.Snapshot("A").Value.Uncertain || c.Snapshot("A").Value.Result.ID != "r" {
 		t.Fatal("adoption")
 	}
 	visibilityRead(t, &c, "A", base, false)
 	c.Prepare("A", "b", "s", 100)
-	if c.Snapshot("A").Review != nil {
+	if c.Snapshot("A").Value.Review != nil {
 		t.Fatal("readonly")
 	}
 	visibilityRead(t, &c, "A", base, true)
@@ -143,20 +143,18 @@ func TestBotVisibilityHideRevealRestoreAndUnknown(t *testing.T) {
 	}
 	c.AbortUnsent(ticket, nil)
 	c.Bind("A", "client1")
-	if c.Snapshot("A").Busy || c.Snapshot("A").Pending != nil {
+	if c.Snapshot("A").Value.Busy || c.Snapshot("A").Value.Pending != nil {
 		t.Fatal("unsent stuck")
 	}
 	visibilityRead(t, &c, "A", base, true)
 	c.Prepare("A", "b", "s", 100)
-	stale := c.Snapshot("A").Review
+	stale := c.Snapshot("A").Value.Review
 	visibilityRead(t, &c, "A", base, true)
 	c.Acknowledge("A", stale, true)
 	if _, _, ok := c.Begin("A", stale); ok {
 		t.Fatal("stale review")
 	}
-	copy := c.Snapshot("A")
-	copy.Catalog.Items[0].Profile["hidden"] = json.RawMessage(`true`)
-	if string(c.Snapshot("A").Catalog.Items[0].Profile["hidden"]) != "false" {
-		t.Fatal("snapshot alias")
+	if c.Snapshot("A") != c.Snapshot("A") {
+		t.Fatal("unchanged Snapshot should return the shared published version")
 	}
 }

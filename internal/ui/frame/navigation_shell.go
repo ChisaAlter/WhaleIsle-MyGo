@@ -17,7 +17,7 @@ func NavigationShell(c *ui.Context, m Model, content func()) {
 	}
 	viewport, height := viewportDIP(c)
 	m.ViewportW, m.ViewportH = viewport, height
-	m.Sizes.observeSidebarGeometry(viewport, height)
+	m.Sizes.observeSidebarGeometry(c, viewport, height)
 	m.Sizes.ObserveSidebarSessionSelection(renderSnapshot(m))
 	m.Sizes.resolveColumnsWithReserve(viewport, m.RightOverlayReserve, m.RightPaneOpen)
 	registerPageCommands(c, m)

@@ -212,6 +212,9 @@ func leafRole(r platform.AccessRole) bool {
 // innerText returns the texts of an element and those inside it, joined
 // by spaces.
 func (e *node) innerText() string {
+	// The text of one element, as most have, is taken as it is; only
+	// several are joined.
+	var first string
 	var b strings.Builder
 	var walk func(e *node)
 	walk = func(e *node) {
@@ -219,10 +222,15 @@ func (e *node) innerText() string {
 			return
 		}
 		if e.kind == kindText {
-			if e.text != "" {
-				if b.Len() > 0 {
-					b.WriteByte(' ')
+			switch {
+			case e.text == "":
+			case first == "" && b.Len() == 0:
+				first = e.text
+			default:
+				if b.Len() == 0 {
+					b.WriteString(first)
 				}
+				b.WriteByte(' ')
 				b.WriteString(e.text)
 			}
 			return // its text holds that of the elements inside it
@@ -232,12 +240,21 @@ func (e *node) innerText() string {
 		}
 	}
 	walk(e)
+	if b.Len() == 0 {
+		return first
+	}
 	return b.String()
 }
 
 // accessTree describes the last frame for assistive technology.
 func (rt *engine) accessTree() *platform.AccessTree {
 	t := &platform.AccessTree{}
+	rt.describe(t)
+	return t
+}
+
+// describe fills t with the last frame, appending to t.Nodes.
+func (rt *engine) describe(t *platform.AccessTree) {
 	var focused *node
 	switch root := rt.c.root; {
 	case root == nil:
@@ -278,7 +295,6 @@ func (rt *engine) accessTree() *platform.AccessTree {
 	if len(rt.announcements) > 0 {
 		t.Announcements = slices.Clone(rt.announcements)
 	}
-	return t
 }
 
 // listOf returns the List the element is, if any.
@@ -328,6 +344,12 @@ func (rt *engine) accessElement(t *platform.AccessTree, e *node, parent int, scr
 	}
 	// Children in flow first, absolute ones above them, as they paint.
 	scrolled = scrolled || e.scrolls()
+	if e.memoOn {
+		if rt.describeKept(t, e, parent, scrolled) {
+			return // a region kept, where it was
+		}
+		defer rt.noteDescribe(t, e, parent, scrolled, len(t.Nodes))
+	}
 	for ch := e.first; ch != nil; ch = ch.next {
 		if ch.flags&flagAbsolute == 0 {
 			rt.accessElement(t, ch, parent, scrolled, focused)
@@ -475,7 +497,7 @@ func (rt *engine) accessibilityOn() {
 			rt.requestFrame()
 		}
 	}
-	rt.host.updateAccessibility(rt.accessTree())
+	rt.updateAccess(true)
 }
 
 // accessAction performs an action of assistive technology on an element
@@ -563,4 +585,56 @@ func (rt *engine) focusOn(s *state) {
 	}
 	rt.focusVisible = true
 	rt.reveal(s.id)
+}
+
+// updateAccess gives the host the last frame's tree for assistive
+// technology, unless it is the tree the host has: built into a buffer the
+// engine reuses, it is compared with the tree sent last, and goes with how
+// it differs, so the host can apply only that. full sends it whatever it
+// is, without a delta, as for a host that starts again.
+func (rt *engine) updateAccess(full bool) {
+	t := &rt.accBuild
+	t.Nodes, t.Focus, t.Announcements = t.Nodes[:0], 0, nil
+	rt.describe(t)
+	if rt.accPainted != rt.painted {
+		// Bounds the host shows scaled or zoomed may change though the
+		// content's do not.
+		rt.accPainted, full = rt.painted, true
+	}
+	last := rt.accLast
+	var delta *platform.AccessDelta
+	if !full && last != nil {
+		delta = accessDelta(last.Nodes, t.Nodes, rt.accChanged[:0])
+		rt.accChanged = delta.Changed
+		if !delta.Structure && len(delta.Changed) == 0 && t.Focus == last.Focus && len(t.Announcements) == 0 {
+			return // as the host has it
+		}
+		delta.Base = last.Seq
+		delta.Changed = slices.Clone(delta.Changed)
+	}
+	rt.accSeq++
+	sent := &platform.AccessTree{Nodes: slices.Clone(t.Nodes), Focus: t.Focus, Announcements: t.Announcements, Seq: rt.accSeq, Delta: delta}
+	rt.accLast = sent
+	rt.host.updateAccessibility(sent)
+}
+
+// accessDelta tells how the nodes cur differ from prev, appending the
+// indexes of those that changed to changed.
+func accessDelta(prev, cur []platform.AccessNode, changed []int) *platform.AccessDelta {
+	d := &platform.AccessDelta{Changed: changed}
+	if len(prev) != len(cur) {
+		d.Structure, d.Changed = true, changed[:0]
+		return d
+	}
+	for i := range cur {
+		p, n := &prev[i], &cur[i]
+		if p.ID != n.ID || p.Parent != n.Parent {
+			d.Structure, d.Changed = true, changed[:0]
+			return d
+		}
+		if *p != *n {
+			d.Changed = append(d.Changed, i)
+		}
+	}
+	return d
 }

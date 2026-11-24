@@ -14,6 +14,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/sessioncost"
 	"whaleisle/internal/workflowrun"
 )
@@ -135,7 +136,7 @@ type ViewState struct {
 	WorkspaceLayout               WorkspaceLayoutState
 	Workspaces                    []WorkspaceRow
 	WorkspaceReady                bool
-	WorkspaceError                string
+	WorkspaceError                *state.Fault
 	WorkspaceNavigation           *WorkspaceNavigationState
 	QuestionProjection            QuestionProjectionState
 	ArchiveConfirmation           *ArchiveConfirmation
@@ -161,7 +162,7 @@ type ViewState struct {
 	WorkspaceMembers map[string]bool
 	ClientReady      bool
 	ListLoading      bool
-	ListErr          string
+	ListErr          *state.Fault
 	Items            []Item
 	SelectedID       string
 	Messages         []Message
@@ -383,6 +384,7 @@ type Store struct {
 	scratchCwd           string
 	workspaceReady       bool
 	workspaceErr         error
+	workspaceFault       *state.Fault // classified workspaceErr for the view; set with it
 	workspaceChanged     chan struct{}
 	workspaceMemberships map[string]workspaceMembership
 	mu                   sync.Mutex
@@ -398,6 +400,7 @@ type Store struct {
 	eventsGeneration                     uint64
 	listMutations                        []lifecycleMutation
 	listErr                              error
+	listFault                            *state.Fault // classified listErr for the view; set with it
 	items                                []Item
 	selectedID                           string
 	selectedAuto                         bool
@@ -531,7 +534,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 	s.costProjections = nil
 	s.client = client
 	s.notify = notify
-	s.listErr = nil
+	s.setListErrLocked(nil)
 	s.invalidateViewLocked()
 	s.mu.Unlock()
 }
@@ -1107,18 +1110,14 @@ func (s *Store) ensureViewCacheLocked() {
 		HistoryBranchBusy:   s.historyBranchBusy,
 		FeedbackBusyID:      s.feedbackBusyID,
 	}
-	if s.workspaceErr != nil {
-		st.WorkspaceError = s.workspaceErr.Error()
-	}
+	st.WorkspaceError = s.workspaceFault
 	if len(s.messageRatings) > 0 {
 		st.MessageRatings = make(map[string]string, len(s.messageRatings))
 		for k, v := range s.messageRatings {
 			st.MessageRatings[k] = v
 		}
 	}
-	if s.listErr != nil {
-		st.ListErr = s.listErr.Error()
-	}
+	st.ListErr = s.listFault
 	if s.modelsErr != nil {
 		st.ModelsErr = s.modelsErr.Error()
 	}
@@ -1488,15 +1487,30 @@ func (s *Store) beginListRefreshLocked() (*dsh.Client, uint64) {
 	s.listMutations = nil
 	s.listLoading = true
 	s.listAuthoritativeHost = 0
-	s.listErr = nil
+	s.setListErrLocked(nil)
 	return s.client, s.listGeneration
 }
 
 func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generation uint64) {
 	var out api.SessionListValue
-	err := client.Call(ctx, "session/list", map[string]any{
-		"_request": api.SessionListRequest{},
-	}, &out)
+	// An idempotent read: a reset on a pooled socket or a lazily activated
+	// endpoint heals within the retry budget instead of reaching the sidebar.
+	// A superseded generation stops retrying: its answer would be discarded.
+	attempt := 0
+	err := dsh.RetryTransient(ctx, dsh.ReadRetry, "session/list", func(ctx context.Context) error {
+		attempt++
+		if attempt > 1 {
+			s.mu.Lock()
+			current := s.client == client && s.listGeneration == generation
+			s.mu.Unlock()
+			if !current {
+				return errListSuperseded
+			}
+		}
+		return client.Call(ctx, "session/list", map[string]any{
+			"_request": api.SessionListRequest{},
+		}, &out)
+	})
 	var parsedItems []Item
 	if err == nil && ctx.Err() == nil {
 		parsedItems = sessionListItems(out.Items)
@@ -1517,7 +1531,7 @@ func (s *Store) runRefreshList(ctx context.Context, client *dsh.Client, generati
 	}
 	if err != nil {
 		s.listMutations = nil
-		s.listErr = err
+		s.setListErrLocked(err)
 		s.mu.Unlock()
 		s.fire()
 		return

@@ -90,7 +90,7 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 	}
 	sessions := renderSnapshot(m)
 	links := map[string]string{}
-	if sessions.ClientReady && !sessions.ListLoading && sessions.ListErr == "" && sessions.WorkspaceReady && sessions.WorkspaceError == "" {
+	if sessions.ClientReady && !sessions.ListLoading && sessions.ListErr == nil && sessions.WorkspaceReady && sessions.WorkspaceError == nil {
 		archived := map[string]bool{}
 		for _, id := range sessions.ArchivedSessionIDs {
 			archived[id] = true
@@ -122,7 +122,7 @@ func scheduleTaskPane(c *ui.Context, m Model) {
 	panel.View(c, scheduleui.Model{Store: m.ScheduleStore, SessionID: target.SessionID, DetailID: target.ID, DetailSessionID: target.SessionID,
 		ViewerSessionID: sessions.SelectedID,
 		SessionLinkState: func(id string) string {
-			if sessions.WorkspaceError != "" || sessions.ListErr != "" {
+			if sessions.WorkspaceError != nil || sessions.ListErr != nil {
 				return "unavailable"
 			}
 			if !sessions.ClientReady || sessions.ListLoading || !sessions.WorkspaceReady {

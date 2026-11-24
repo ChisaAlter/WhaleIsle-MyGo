@@ -2,12 +2,16 @@ package harness
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
+	"whaleisle/internal/dsh"
 	"whaleisle/internal/startuptrace"
 )
 
@@ -61,5 +65,43 @@ func Redeem(ctx context.Context, client *http.Client, readyURL string) (Endpoint
 			return ep, nil
 		}
 	}
-	return Endpoint{}, fmt.Errorf("dsh web answered %d without a session cookie", res.StatusCode)
+	return Endpoint{}, &redeemStatusError{status: res.StatusCode}
+}
+
+// redeemStatusError is a completed token exchange that set no session cookie.
+type redeemStatusError struct{ status int }
+
+func (e *redeemStatusError) Error() string {
+	return fmt.Sprintf("dsh web answered %d without a session cookie", e.status)
+}
+
+// redeemBackoff paces the retries of a failed token exchange: the Host's
+// socket can reset while its routes settle, which is no reason to kill it.
+var redeemBackoff = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second}
+
+// redeemWithRetry runs Redeem and repeats it up to three times when the
+// failure is transient (a reset, refusal or timeout, or a 429/5xx answer).
+// The caller's ctx bounds the whole exchange.
+func redeemWithRetry(ctx context.Context, client *http.Client, readyURL string) (Endpoint, error) {
+	ep, err := Redeem(ctx, client, readyURL)
+	for i := 0; err != nil && i < len(redeemBackoff) && redeemRetryable(err) && ctx.Err() == nil; i++ {
+		startuptrace.Mark("host.auth.retry", strconv.Itoa(i+1))
+		timer := time.NewTimer(redeemBackoff[i])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ep, err
+		case <-timer.C:
+		}
+		ep, err = Redeem(ctx, client, readyURL)
+	}
+	return ep, err
+}
+
+func redeemRetryable(err error) bool {
+	var status *redeemStatusError
+	if errors.As(err, &status) {
+		return status.status == http.StatusTooManyRequests || status.status >= 500
+	}
+	return (&dsh.TransportError{Err: err}).Temporary()
 }

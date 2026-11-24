@@ -95,7 +95,8 @@ func wordmark(c *ui.Context, text string, size, line float32, base ui.Color) {
 	sweep := float32(-1)
 	if !c.Preferences().ReduceMotion {
 		// Outside its window brand-sheen keeps the highlight off the letters.
-		if phase := mark.Loop("boot-sheen", brandSheenPeriod, ui.Linear); phase >= .22 && phase <= .55 {
+		c.After(motionWait(c.Now()))
+		if phase := loopPhase(c.Now(), brandSheenPeriod); phase >= .22 && phase <= .55 {
 			sweep = (phase - .22) / .33
 		}
 	}
@@ -120,16 +121,18 @@ func wordmark(c *ui.Context, text string, size, line float32, base ui.Color) {
 // It replaces the spinner the page used to turn at the head of the status line.
 func statusDots(c *ui.Context, color ui.Color) {
 	row := ui.Row(c).Key("boot-status-dots").Gap(4).AlignItems(ui.Center).Shrink(0).Role(ui.RoleNone)
-	now := c.Now()
+	now := motionNow(c.Now())
 	reduced := c.Preferences().ReduceMotion
+	if !reduced {
+		c.After(motionWait(c.Now()))
+	}
 	row.Children(func() {
 		for i := 0; i < 3; i++ {
 			dot := ui.Box(c).Size(4, 4).Radius(2).Shrink(0)
 			alpha := float32(.22)
 			if !reduced {
-				// The context's frame request rebuilds the view, so the phase
-				// alone decides each dot's opacity.
-				c.AnimationFrame()
+				// The paced frame request rebuilds the view, so the phase alone
+				// decides each dot's opacity.
 				phase := float32(now.UnixMilli()%1300)/1300 + float32(i)*.2/1.3
 				alpha = dotBlink(phase - float32(int(phase)))
 			}

@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -48,21 +47,10 @@ type Client struct {
 // sever long-lived SSE (/plugins/events) or large archive (/api/session.export) streams.
 var defaultCallTimeout = 60 * time.Second
 
-var defaultHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		MaxIdleConns:          128,
-		MaxIdleConnsPerHost:   64,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ResponseHeaderTimeout: 120 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	},
-}
+// defaultHTTPClient serves clients built without a generation transport
+// (tools, short-lived readers). It follows the same idle policy as
+// NewHostTransport so a pooled socket never outlives the Host keep-alive.
+var defaultHTTPClient = &http.Client{Transport: NewHostTransport()}
 
 func (c *Client) http() *http.Client {
 	if c.HTTP != nil {

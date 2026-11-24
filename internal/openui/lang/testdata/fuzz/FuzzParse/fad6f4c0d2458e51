@@ -1,0 +1,3 @@
+go test fuzz v1
+string("A= Query(\"00000000000\", 0A\xbb[\x1b\x90+\xd1Ӣx\xc5\xfb\xea\x04Z\xb3g\x8e\r2")
+uint16(29)

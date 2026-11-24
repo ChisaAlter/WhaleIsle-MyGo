@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -213,8 +212,11 @@ func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux, generation ui
 		s.failSpeechReadiness(ctx, mux, generation, err)
 		return
 	}
-	poll := time.NewTicker(200 * time.Millisecond)
-	defer poll.Stop()
+	// speech/follow is activated lazily by the Host: until its service is up
+	// the stream fails with gateway/invocation-unavailable. That answer, a
+	// clean end and a dropped overflow re-subscribe with backoff; only a real
+	// failure ends the follow (the next $events ready restarts it).
+	var pace dsh.Resubscriber
 	for ctx.Err() == nil {
 		stream, err := mux.Open(ctx, "speech/follow", map[string]any{"args": map[string]any{}})
 		if err != nil {
@@ -225,12 +227,15 @@ func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux, generation ui
 			raw, err := stream.Recv(ctx)
 			if err != nil {
 				stream.Cancel()
-				s.failSpeechReadiness(ctx, mux, generation, err)
-				if errors.Is(err, dsh.ErrStreamEnd) {
+				if !errors.Is(err, dsh.ErrEndpointNotReady) {
+					s.failSpeechReadiness(ctx, mux, generation, err)
+				}
+				if dsh.Resubscribable(err) {
 					break
 				}
 				return
 			}
+			pace.Reset()
 			var cat api.SpeechCatalog
 			if json.Unmarshal(raw, &cat) != nil {
 				continue
@@ -256,10 +261,8 @@ func (s *Store) runSpeechFollow(ctx context.Context, mux *dsh.Mux, generation ui
 			s.mu.Unlock()
 			s.fire()
 		}
-		select {
-		case <-ctx.Done():
+		if pace.Wait(ctx) != nil {
 			return
-		case <-poll.C:
 		}
 	}
 }

@@ -29,7 +29,7 @@ func TaskFromSelection(online bool, s session.SelectionSummary) TaskStatus {
 	if !online || !s.ClientReady {
 		return TaskStatus{State: "offline"}
 	}
-	if s.ListLoading || s.ListErr != "" {
+	if s.ListLoading || s.ListErr != nil {
 		return TaskStatus{State: "unknown"}
 	}
 	if s.SelectedListed {

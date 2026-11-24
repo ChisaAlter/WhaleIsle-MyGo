@@ -77,10 +77,10 @@ func wrapElement(n *node) Element {
 }
 
 func (rt *engine) nodeAt(slot uint32) *node {
-	if uint64(slot) >= uint64(rt.c.used) {
+	if uint64(slot) >= uint64(len(rt.c.slots)) {
 		return nil
 	}
-	return &rt.c.chunks[int(slot)/chunkSize][int(slot)%chunkSize]
+	return rt.c.slots[slot]
 }
 
 func (e Element) lookup() *node {
