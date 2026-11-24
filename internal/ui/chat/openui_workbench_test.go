@@ -15,15 +15,13 @@ import (
 )
 
 type fakeOpenUISession struct {
-	mu           sync.Mutex
-	done         chan struct{}
-	events       chan json.RawMessage
-	closeOnce    sync.Once
-	updates      []openui.Render
-	themeCalls   []string
-	hideCalls    atomic.Int32
-	presentCalls atomic.Int32
-	closed       atomic.Bool
+	mu         sync.Mutex
+	done       chan struct{}
+	events     chan json.RawMessage
+	closeOnce  sync.Once
+	updates    []openui.Render
+	themeCalls []string
+	closed     atomic.Bool
 }
 
 func newFakeOpenUISession() *fakeOpenUISession {
@@ -31,21 +29,6 @@ func newFakeOpenUISession() *fakeOpenUISession {
 		done:   make(chan struct{}),
 		events: make(chan json.RawMessage),
 	}
-}
-
-func (f *fakeOpenUISession) ContentHeight() int { return 240 }
-
-func (f *fakeOpenUISession) RenderPixels(c *ui.Context, height float32, appearance string, variables map[string]string) bool {
-	return false
-}
-
-func (f *fakeOpenUISession) PresentSurface(parent uintptr, x, y, w, h, clipX, clipY, clipW, clipH int) error {
-	if w == 0 && h == 0 {
-		f.hideCalls.Add(1)
-	} else {
-		f.presentCalls.Add(1)
-	}
-	return nil
 }
 
 func (f *fakeOpenUISession) UpdateOpenUI(r openui.Render) error {
@@ -94,17 +77,13 @@ func TestOpenUILoopIdleZeroHzAndCoalescedEvents(t *testing.T) {
 
 	sess := newFakeOpenUISession()
 	b := &openUIBlock{
-		program:      "initial",
-		appearance:   "light",
-		variables:    map[string]string{"--bg": "#ffffff"},
-		streaming:    false,
-		inline:       true,
-		attempted:    true,
-		visible:      true,
-		offscreenTTL: 50 * time.Millisecond,
-		wake:         make(chan struct{}, 1),
-		handle:       sess,
-		revision:     1,
+		program:    "initial",
+		appearance: "light",
+		variables:  map[string]string{"--bg": "#ffffff"},
+		streaming:  false,
+		wake:       make(chan struct{}, 1),
+		handle:     sess,
+		revision:   1,
 	}
 
 	var validCalls atomic.Int32
@@ -122,7 +101,7 @@ func TestOpenUILoopIdleZeroHzAndCoalescedEvents(t *testing.T) {
 		runOpenUILoop(
 			ctx, b, sess, "inst-1", "", t.TempDir(), "store-1",
 			"initial", "light", map[string]string{"--bg": "#ffffff"},
-			false, false, true, nil,
+			false, false,
 			func() bool { validCalls.Add(1); return true },
 			func() { invalidations.Add(1) },
 			finish,
@@ -194,96 +173,6 @@ func TestOpenUILoopIdleZeroHzAndCoalescedEvents(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("runOpenUILoop did not exit on context cancel")
 	}
-}
-
-func TestOpenUIOffscreenAndListEvictionReclaim(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sess := newFakeOpenUISession()
-	b := &openUIBlock{
-		program:      "chart",
-		appearance:   "light",
-		inline:       true,
-		attempted:    true,
-		visible:      true,
-		lastViewSeq:  10,
-		offscreenTTL: 35 * time.Millisecond,
-		wake:         make(chan struct{}, 1),
-		handle:       sess,
-		revision:     1,
-	}
-
-	loopDone := make(chan struct{})
-	var finished atomic.Bool
-	finish := func(err error) {
-		finished.Store(true)
-		b.mu.Lock()
-		b.loading = false
-		b.handle = nil
-		b.mu.Unlock()
-	}
-
-	go func() {
-		defer close(loopDone)
-		runOpenUILoop(
-			ctx, b, sess, "inst-2", "", t.TempDir(), "store-2",
-			"chart", "light", nil,
-			false, false, true, nil,
-			func() bool { return true },
-			func() {},
-			finish,
-		)
-	}()
-
-	// Wait until block is registered in activeInlineOpenUIBlocks.
-	waitChatCond(t, time.Second, func() bool {
-		activeInlineOpenUIMu.Lock()
-		_, ok := activeInlineOpenUIBlocks[b]
-		activeInlineOpenUIMu.Unlock()
-		return ok
-	}, "inline block did not register")
-
-	// Frame with matching lastViewSeq keeps block visible and alive.
-	checkOpenUIListEvictions(10)
-	time.Sleep(55 * time.Millisecond)
-	if finished.Load() || sess.hideCalls.Load() != 0 {
-		t.Fatal("on-screen block was falsely evicted")
-	}
-
-	// Simulate brief offscreen hide followed by rapid scroll back before TTL.
-	b.mu.Lock()
-	b.visible = false
-	b.offscreenSince = time.Now()
-	b.mu.Unlock()
-	b.notifyWake()
-
-	waitChatCond(t, time.Second, func() bool { return sess.hideCalls.Load() == 1 }, "offscreen transition did not hide surface")
-	b.mu.Lock()
-	b.visible = true
-	b.offscreenSince = time.Time{}
-	b.mu.Unlock()
-	b.notifyWake()
-	time.Sleep(55 * time.Millisecond)
-	if finished.Load() {
-		t.Fatal("block reclaimed even though it returned visible before TTL")
-	}
-
-	// Simulate virtualized list eviction (view seq advanced without updating b.lastViewSeq).
-	checkOpenUIListEvictions(11)
-	waitChatCond(t, time.Second, func() bool { return finished.Load() }, "list-evicted OpenUI block did not reclaim after TTL")
-
-	select {
-	case <-loopDone:
-	case <-time.After(time.Second):
-		t.Fatal("evicted OpenUI loop did not exit cleanly")
-	}
-	b.mu.Lock()
-	if b.attempted || b.handle != nil {
-		b.mu.Unlock()
-		t.Fatalf("reclaimed block retained stale handle/attempted: attempted=%v handle=%v", b.attempted, b.handle)
-	}
-	b.mu.Unlock()
 }
 
 func TestOpenUIBlockViewDoesNotScheduleContinuousRebuilds(t *testing.T) {
