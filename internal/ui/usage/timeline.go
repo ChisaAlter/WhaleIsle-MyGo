@@ -2,10 +2,13 @@ package usage
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"math"
+
+	"github.com/egoist/mygo/ui"
+
 	usagestore "whaleisle/internal/store/usage"
-	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 func usageHitRate(t usagestore.Totals) string {
@@ -35,10 +38,11 @@ func usageNiceCeil(v float64) float64 {
 
 // One responsive plot retains the original 7/14/30-day comparison on a single
 // time axis. Hit boxes match every date band, including zero-use dates.
-func usageTimeline(c *ui.Context, days []usagestore.DayUsage, slices []usageSlice, maximum float64, providers map[string]string, settings usagestore.BillingSettings, muted, field ui.Color) {
+func usageTimeline(c *ui.Context, days []usagestore.DayUsage, slices []usageSlice, maximum float64, providers map[string]string, settings usagestore.BillingSettings) {
 	if len(days) == 0 {
 		return
 	}
+	t := design.For(c)
 	maximum = usageNiceCeil(maximum)
 	chart := ui.Box(c).FillWidth().MinWidth(0).Height(230)
 	width := chart.Bounds().W
@@ -49,13 +53,13 @@ func usageTimeline(c *ui.Context, days []usagestore.DayUsage, slices []usageSlic
 		plot := ui.Rect{X: r.X + 52, Y: r.Y + 10, W: max(1, r.W-64), H: r.H - 36}
 		for n := 0; n <= 4; n++ {
 			y := plot.Y + plot.H - float32(n)*plot.H/4
-			p.Fill(ui.Rect{X: plot.X, Y: y, W: plot.W, H: 1}, field, 0)
-			usagePlotText(p, fmt.Sprintf("%.0f", maximum*float64(n)/4), ui.Rect{X: r.X, Y: y - 8, W: 46, H: 16}, fonttheme.InterfaceSize(10), muted, ui.End)
+			p.Fill(ui.Rect{X: plot.X, Y: y, W: plot.W, H: 1}, t.Border, 0)
+			usagePlotText(p, fmt.Sprintf("%.0f", maximum*float64(n)/4), ui.Rect{X: r.X, Y: y - 8, W: 46, H: 16}, theme.InterfaceSize(10), t.MutedForeground, ui.End)
 		}
 		band := plot.W / float32(len(days))
-		bar := min(float32(44), band*.6)
+		bar := min(float32(44), band*0.6)
 		for index, day := range days {
-			x := plot.X + (float32(index)+.5)*band
+			x := plot.X + (float32(index)+0.5)*band
 			y := plot.Y + plot.H
 			for i, s := range slices {
 				value := day.Models[s.name].Total
@@ -84,7 +88,7 @@ func usageTimeline(c *ui.Context, days []usagestore.DayUsage, slices []usageSlic
 				if len(label) > 5 {
 					label = label[5:]
 				}
-				usagePlotText(p, label, ui.Rect{X: x - 22, Y: plot.Y + plot.H + 7, W: 44, H: 18}, fonttheme.InterfaceSize(10), muted, ui.Center)
+				usagePlotText(p, label, ui.Rect{X: x - 22, Y: plot.Y + plot.H + 7, W: 44, H: 18}, theme.InterfaceSize(10), t.MutedForeground, ui.Center)
 			}
 		}
 	}).Children(func() {
@@ -97,7 +101,7 @@ func usageTimeline(c *ui.Context, days []usagestore.DayUsage, slices []usageSlic
 }
 
 func usagePlotText(p *ui.Painter, text string, r ui.Rect, size float32, color ui.Color, align ui.Align) {
-	layout := ui.ShapeText(text, ui.Font{Family: fonttheme.TextFamily(fonttheme.RenderPreferences().Interface.Family), Size: size}, 0)
+	layout := ui.ShapeText(text, ui.Font{Family: theme.TextFamily(theme.RenderPreferences().Interface.Family), Size: size}, 0)
 	w, h := layout.Size()
 	x := r.X
 	if align == ui.Center {
