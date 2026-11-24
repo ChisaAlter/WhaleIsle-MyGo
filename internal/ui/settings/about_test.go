@@ -3,6 +3,7 @@ package settings
 import (
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"whaleisle/internal/credentials"
@@ -33,16 +34,21 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 	old := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleEN)
 	defer i18n.SetLocale(old)
-	checks, homes, reads := 0, 0, 0
+	checks, homes := 0, 0
+	var reads atomic.Int32
 	revealRaw := "open C:/fixture-runtime: Access is denied."
-	a := &AboutAccess{AppName: "Fixture", Version: "1.2.3", Loading: true, UpdateBusy: true, HomeBusy: true, Err: "synthetic metadata error", UpdateStatus: "synthetic update pending", HomePath: "fixture-runtime", OnCheckUpdates: func() { checks++ }, OnRevealHome: func() error { homes++; return errors.New(revealRaw) }, ReadCredentialStorage: func() credentials.StorageStatus { reads++; return credentials.StorageStatus{Mode: "unknown"} }, OnOpenLink: func(string) error { return errors.New("synthetic link denied") }}
+	a := &AboutAccess{AppName: "Fixture", Version: "1.2.3", Loading: true, UpdateBusy: true, HomeBusy: true, Err: "synthetic metadata error", UpdateStatus: "synthetic update pending", HomePath: "fixture-runtime", OnCheckUpdates: func() { checks++ }, OnRevealHome: func() error { homes++; return errors.New(revealRaw) }, ReadCredentialStorage: func() credentials.StorageStatus { reads.Add(1); return credentials.StorageStatus{Mode: "unknown"} }, OnOpenLink: func(string) error { return errors.New("synthetic link denied") }}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Padding(16).Children(func() { aboutPane(c, Model{About: a}, c.Theme().Text, c.Theme().TextMuted) })
 	}, 620, 1000)
 	if err := tt.Click("Application data and diagnostics"); err != nil {
 		t.Fatal(err)
 	}
-	if checks != 0 || reads != 1 || !tt.HasText("Update information could not be read. Check the connection and retry.") || !tt.HasText("synthetic update pending") {
+	for deadline := time.Now().Add(time.Second); reads.Load() == 0 && time.Now().Before(deadline); {
+		time.Sleep(time.Millisecond)
+		tt.Frame()
+	}
+	if checks != 0 || reads.Load() != 1 || !tt.HasText("Update information could not be read. Check the connection and retry.") || !tt.HasText("synthetic update pending") {
 		t.Fatal("initial metadata/check/error receipts missing")
 	}
 	if !detailHolds(t, tt, "synthetic metadata error") {
@@ -55,7 +61,7 @@ func TestAboutPendingActionsAndErrorReceipts(t *testing.T) {
 		t.Fatal("pending reveal remained enabled")
 	}
 	tt.Frame()
-	if checks != 0 || reads != 1 {
+	if checks != 0 || reads.Load() != 1 {
 		t.Fatal("render repeated mount-only I/O")
 	}
 	a.Loading, a.UpdateBusy, a.HomeBusy = false, false, false
