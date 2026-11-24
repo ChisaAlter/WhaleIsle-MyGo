@@ -3,7 +3,8 @@ package frame
 import (
 	"github.com/egoist/mygo/ui"
 	"path"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
@@ -224,20 +225,18 @@ func dockTabTitle(n *WorkspacePane) string {
 // tab run shrinks; pane chrome remains reachable at the trailing edge.
 func workspaceDockTabStrip(c *ui.Context, m Model) {
 	n, w := m.workspacePane, m.Sizes.Workspace
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	t := tk(c)
 	group := w.Root.dockGroup(n.ID)
 	tabs := group.dockTabs()
 	n.tabDragging = false
 	// The original's right pane rides a 48px strip with its tabs centered
 	// (SidebarRight.module.css `.panel [data-dockkit-strip]`).
 	header := ui.Row(c.Key("workspace-pane-header")).Label("Workspace pane header").FillWidth().MinWidth(0).Height(48).
-		Padding(0, 6, 0, 10).Gap(4).AlignItems(ui.Center)
+		Padding(0, design.Sp(1.5), 0, design.Sp(2.5)).Gap(design.Sp(1)).AlignItems(ui.Center)
 	n.stripWidth = header.Bounds().W
 	header.Children(func() {
-		tabRun := ui.ScrollHorizontal(c.Key("workspace-pane-tabs")).Grow(1).MinWidth(0).Height(24)
-		n.tabRunWidth = tabRun.Bounds().W
-		tabRun.Children(func() {
-			ui.Row(c).Gap(4).Children(func() {
+		tabRun := coss.ScrollArea(c.Key("workspace-pane-tabs"), coss.ScrollAreaOptions{Horizontal: true}, func() {
+			ui.Row(c).Gap(design.Sp(1)).Children(func() {
 				for index, tab := range tabs {
 					if tab.Float != nil {
 						continue
@@ -253,12 +252,12 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					// `.panel [data-dockkit-tab]`: 24px chips, 12px type; the kit's
 					// `.tab` is content-box, so the 80px content floor and 144px
 					// content cap land at 100/164 with the 10px side padding.
-					chip.Label(title).Tooltip(title).Height(24).MinWidth(100).MaxWidth(164).Padding(0, 10).Radius(8).BorderWidth(0).Background(ui.Transparent)
+					chip.Label(title).Tooltip(title).Height(24).MinWidth(100).MaxWidth(164).Padding(0, design.Sp(2.5)).Radius(design.RadiusMD).BorderWidth(0).Background(ui.Transparent)
 					if tab.Files != nil && tab.Files.ResourcePath != "" {
 						chip.Tooltip(tab.Files.ResourcePath)
 					}
 					if tab == n {
-						chip.Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
+						chip.Background(frameInsetBg(t))
 					}
 					chipHovered := chip.Hovered()
 					chip.Children(func() {
@@ -270,12 +269,12 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						fileTab := tab.Files != nil && tab.Files.ResourcePath != ""
 						if (tab.Kind == "agents" || fileTab) && w.canCloseResource(tab) && (tab == n || chipHovered) {
 							closeLabel := paneLabel("关闭", "Close")
-							close := ui.Button(c.Key("resource-tab-close:"+tab.ID), "").Label(closeLabel).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
+							close := ui.Button(c.Key("resource-tab-close:"+tab.ID), "").Label(closeLabel).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(design.RadiusXS * 2).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
 							close.Children(func() {
-								ui.Icon(c, workspacePaneCloseIcon).Size(10, 10).TextColor(c.Theme().TextMuted).PassThrough()
+								ui.Icon(c, workspacePaneCloseIcon).Size(10, 10).TextColor(t.MutedForeground).PassThrough()
 							})
 							if close.Hovered() {
-								close.Background(c.Theme().SurfacePressed)
+								close.Background(t.Accent)
 							}
 							if close.Clicked() {
 								workspacePaneClose(m, tab)
@@ -286,7 +285,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						continue
 					}
 					if _, over := ui.DragOver[workspaceTabDrag](chip); over {
-						chip.Border(2, c.Theme().Accent)
+						chip.Border(2, t.Primary)
 					}
 					if dropped, ok := ui.Drop[workspaceTabDrag](chip); ok {
 						w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, index) }
@@ -309,25 +308,26 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					guide = guide || tab.Kind == "guide" && tab.Float == nil
 				}
 				if !guide {
-					add := ui.Button(c.Key("workspace-add-tab"), "").Label(paneLabel("新标签页", "New tab")).Tooltip(paneLabel("新标签页", "New tab")).Size(28, 28).Shrink(0).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent)
-					add.Children(func() { ui.Icon(c, workspacePaneAddIcon).Size(16, 16).TextColor(c.Theme().TextMuted) })
+					add := ui.Button(c.Key("workspace-add-tab"), "").Label(paneLabel("新标签页", "New tab")).Tooltip(paneLabel("新标签页", "New tab")).Size(28, 28).Shrink(0).Padding(design.Sp(1.5)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent)
+					add.Children(func() { ui.Icon(c, workspacePaneAddIcon).Size(16, 16).TextColor(t.MutedForeground) })
 					if add.Clicked() {
 						w.pending = func() { w.openGuide(n.ID) }
 					}
 				}
 				end := ui.Box(c.Key("resource-tab-end")).Width(10).Height(24)
 				if _, over := ui.DragOver[workspaceTabDrag](end); over {
-					end.Background(c.Theme().Accent)
+					end.Background(t.Primary)
 				}
 				if dropped, ok := ui.Drop[workspaceTabDrag](end); ok {
 					w.pending = func() { w.MoveWorkspaceTab(dropped.ID, n.ID, len(tabs)) }
 				}
 			})
-		})
+		}).Grow(1).MinWidth(0).Height(24)
+		n.tabRunWidth = tabRun.Bounds().W
 		control := func(key string, icon *ui.SVG, label string) ui.Element {
 			button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Width(28).Height(28).
-				Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
-			button.AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Icon(c, icon).Width(16).Height(16).TextColor(c.Theme().TextMuted) })
+				Padding(0).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent)
+			button.AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Icon(c, icon).Width(16).Height(16).TextColor(t.MutedForeground) })
 			return button
 		}
 		control("workspace-resource-menu", workspacePaneResourcesIcon, paneLabel("资源菜单", "Resources")).Menu(func(menu *ui.Menu) { workspaceResourceMenu(menu, m) })

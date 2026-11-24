@@ -1,6 +1,9 @@
 package frame
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
+)
 
 // The original DockSurface floats a tab when a release has no dock target and
 // lies outside that surface's root rectangle (DockSurface.tsx:239-243). This is
@@ -15,8 +18,9 @@ func workspaceFloatDropSurface(c *ui.Context, m Model, surface ui.Element) {
 	width, height := viewportDIP(c)
 	if drag, over := ui.DragOver[workspaceTabDrag](surface); over && inside {
 		if n := w.Root.find(drag.ID); n != nil && n.Kind != "project-observer" {
+			t := tk(c)
 			ui.Overlay(c, func() {
-				ui.Box(c).Absolute().Left(min(bounds.X+x+14, max(float32(0), width-180))).Top(min(bounds.Y+y+14, max(float32(0), height-32))).Padding(6).Background(c.Theme().Background).Border(1, c.Theme().Accent).Children(func() { ui.Text(c, paneLabel("放下以浮动面板", "Release to float pane")).FontSize(11) })
+				ui.Box(c).Absolute().Left(min(bounds.X+x+14, max(float32(0), width-180))).Top(min(bounds.Y+y+14, max(float32(0), height-32))).Padding(design.Sp(1.5)).Background(t.Popover).Border(design.BorderWidth, t.Primary).Children(func() { ui.Text(c, paneLabel("放下以浮动面板", "Release to float pane")).FontSize(11) })
 			})
 		}
 	}

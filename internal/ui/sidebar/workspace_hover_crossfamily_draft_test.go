@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func crossFamilyHoverFixture(t *testing.T) (*ui.Tester, *Model, time.Time) {
@@ -34,7 +33,7 @@ func crossFamilyHoverFixture(t *testing.T) (*ui.Tester, *Model, time.Time) {
 				anchors = append(anchors, workspaceHoverAnchor{row: row, workspace: workspace, label: workspace.Title, pressed: row.Pressed()})
 				sessionRow := ui.ButtonBase(c.Key("session-family-row")).Label("Cross session row").FillWidth().Height(32)
 				sessionRow.Children(func() { ui.Text(c, item.Title) })
-				sessionHoverCard(c, *m, sessionRow, item, item.Title, "", theme.Colors{}, sessionRow.Pressed())
+				sessionHoverCard(c, *m, sessionRow, item, item.Title, "", sessionRow.Pressed())
 			})
 			registerWorkspaceHover(c, *m, list, state, anchors)
 		})

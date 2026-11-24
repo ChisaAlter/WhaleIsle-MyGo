@@ -12,34 +12,33 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // ConversationSessionHeader: titleCluster (crumbs + actions), utilities, corner.
 // Occupants share the original 560 DIP title-row compact threshold.
 func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors) {
+	t := tk(c)
 	rightInset := max(float32(28), m.captionRightInset)
 	compact := m.Sizes.Center-20-rightInset <= 560
-	gap := float32(8)
-	utilitiesMargin := float32(12)
+	gap := design.Sp(2)
+	utilitiesMargin := design.Sp(3)
 	if compact {
-		gap = 4
-		utilitiesMargin = 8
+		gap = design.Sp(1)
+		utilitiesMargin = design.Sp(2)
 	}
-	muted := chrome.Color(colors.Muted)
+	muted := t.MutedForeground
 	secondary := muted
-	if colors.Secondary != "" {
-		secondary = chrome.Color(colors.Secondary)
-	}
 	managed := conversationIsManaged(snap)
 	// The phone band floats the drawer's menu button over the band's leading
 	// edge (AppFrame .phoneMenu at 10,10 36x36), so the title clears it.
-	leftInset := float32(20)
+	leftInset := design.Sp(5)
 	if m.Sizes != nil && m.Sizes.drawerMode() {
-		leftInset = 48
+		leftInset = design.Sp(12)
 	}
 	// The caption owns the title and actions. View tabs are a separate,
 	// non-draggable row, independent of compact title actions.
@@ -59,7 +58,7 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 				if snap.SelectedID != "" {
 					sessionAncestryHeader(c, m, snap)
 				} else {
-					ui.Text(c, i18n.T(i18n.KeyAppName)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(chrome.Color(colors.FG))
+					ui.Text(c, i18n.T(i18n.KeyAppName)).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(design.WeightMedium).TextColor(t.Foreground)
 				}
 			})
 			ui.Row(c).Key("conversation-header-actions").Shrink(0).AlignItems(ui.Center).Gap(gap).Children(func() {
@@ -73,9 +72,9 @@ func conversationHeaderTitleRow(c *ui.Context, m Model, snap session.ViewState, 
 				}
 				if preset != "" {
 					preset = composer.PresetDisplayName(preset)
-					presetRow := ui.Row(c).Key("conversation-active-preset").Label("Conversation agent preset").Tooltip(preset).Height(28).MaxWidth(180).MinWidth(14).Shrink(0).Gap(5).AlignItems(ui.Center).Padding(0, 8)
+					presetRow := ui.Row(c).Key("conversation-active-preset").Label("Conversation agent preset").Tooltip(preset).Height(28).MaxWidth(180).MinWidth(14).Shrink(0).Gap(design.Sp(1.25)).AlignItems(ui.Center).Padding(0, design.Sp(2))
 					if compact {
-						presetRow = presetRow.Height(22).Gap(4).Padding(0, 2, 0, 0)
+						presetRow = presetRow.Height(22).Gap(design.Sp(1)).Padding(0, design.Sp(0.5), 0, 0)
 					}
 					presetRow.Children(func() {
 						ui.Icon(c, conversationHeaderIcons["AgentPresetOutline"]).Width(14).Height(14).Shrink(0).TextColor(secondary).Opacity(0.85)
@@ -162,6 +161,7 @@ func scheduleHeader(c *ui.Context, m Model, sessionSnap session.ViewState, color
 }
 
 func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessionID string, colors theme.Colors) {
+	_ = colors
 	if !snap.ClientReady {
 		return
 	}
@@ -172,7 +172,8 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		}
 	}
 	rows = schedstore.FilterEntries(rows, "", "active")
-	muted, fg := chrome.Color(colors.Muted), chrome.Color(colors.FG)
+	t := tk(c)
+	muted, fg := t.MutedForeground, t.Foreground
 	root := ui.Row(c.Key("schedule-header:" + snap.Origin + ":" + sessionID)).Shrink(0)
 	state := ui.Local(root, "schedule-menu", func() *scheduleHeaderState { return &scheduleHeaderState{} })
 	local := *state
@@ -180,7 +181,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		root.Size(0, 0)
 		return
 	}
-	root.Padding(0, 0, 0, 4)
+	root.Padding(0, 0, 0, design.Sp(1))
 	root.Children(func() {
 		label := archiveText("定时任务", "Scheduled tasks")
 		if len(rows) == 1 {
@@ -188,18 +189,18 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		} else if len(rows) > 1 {
 			label = fmt.Sprintf(archiveText("%d 个定时任务", "%d scheduled tasks"), len(rows))
 		}
-		anchor := ui.Button(c.Key("conversation-schedule"), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent)
+		anchor := ui.Button(c.Key("conversation-schedule"), "").Label(label).Tooltip(label).Size(28, 28).Padding(design.Sp(1.5)).Radius(design.RadiusXL).BorderWidth(0).Background(ui.Transparent)
 		if snap.Err != nil {
 			anchor.Tooltip(archiveText("定时任务读取失败", "Scheduled tasks could not be read"))
 		}
 		anchor.Children(func() {
 			if snap.Loading {
-				ui.Spinner(c).Size(16, 16).TextColor(muted)
+				coss.Spinner(c, coss.SpinnerOptions{Size: 16}).TextColor(muted)
 			} else {
 				ui.Icon(c, conversationHeaderIcons["ClockOutline"]).Size(16, 16).TextColor(muted)
 			}
 			if snap.Err != nil && !snap.Loading {
-				ui.Box(c).Label("Scheduled tasks failed").Size(6, 6).Radius(3).Absolute().Top(3).Right(3).Background(chrome.Color(colors.Danger))
+				ui.Box(c).Label("Scheduled tasks failed").Size(6, 6).Radius(design.RadiusFull).Absolute().Top(3).Right(3).Background(t.Destructive)
 			}
 		})
 		if anchor.Clicked() {
@@ -214,13 +215,13 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		w, h := viewportDIP(c)
 		ui.PopoverBase(c.Key("schedule-header-popover"), anchor, &local.open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, min(float32(336), max(float32(0), w-32)), w, 16)
-			panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Label("Scheduled tasks popover").Width(min(float32(336), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(420), h-140))).Margin(5, 0, 0, 0).Padding(3).Border(.5, chrome.Color(colors.Border)), colors, m.SystemDark, chrome.Color(colors.BG), 16).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+			panel = framePopoverPanel(panel.Label("Scheduled tasks popover").Width(min(float32(336), max(float32(0), w-32))).MaxHeight(max(float32(0), min(float32(420), h-140))).Margin(design.Sp(1.25), 0, 0, 0).Padding(design.Sp(0.75)), t, design.RadiusXL2)
 			panel.Children(func() {
-				ui.Scroll(c.Key("schedule-header-list")).Label("Scheduled tasks list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(414), h-146))).Children(func() {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+				coss.ScrollArea(c.Key("schedule-header-list"), coss.ScrollAreaOptions{}, func() {
+					ui.Column(c).FillWidth().MinWidth(0).Gap(design.BorderWidth).Children(func() {
 						if snap.Err != nil {
-							ui.Box(c).FillWidth().MinWidth(0).Padding(6).Children(func() {
-								widgets.Alert(c, widgets.AlertOptions{
+							ui.Box(c).FillWidth().MinWidth(0).Padding(design.Sp(1.5)).Children(func() {
+								frameErrorAlert(c, frameAlertOptions{
 									ID:      "schedule-catalog",
 									Message: archiveText("没能读取这个对话的定时任务，请重试。", "This conversation's scheduled tasks could not be read. Try again."),
 									Detail:  snap.Err.SentenceText(),
@@ -234,27 +235,27 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 							})
 						}
 						if snap.Loading {
-							ui.Row(c).Label("Loading scheduled tasks").Padding(10, 12).Gap(6).Children(func() {
-								ui.Spinner(c).Size(14, 14)
-								ui.Text(c, archiveText("正在读取任务…", "Loading tasks…")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+							ui.Row(c).Label("Loading scheduled tasks").Padding(design.Sp(2.5), design.Sp(3)).Gap(design.Sp(1.5)).Children(func() {
+								coss.Spinner(c, coss.SpinnerOptions{Size: 14})
+								frameText(c, archiveText("正在读取任务…", "Loading tasks…"), design.TextXS, design.WeightNormal, muted)
 							})
 						}
 						for _, entry := range rows {
 							row := entry
-							ui.Row(c.Key("header-task-"+row.ID)).FillWidth().MinWidth(0).Gap(2).Padding(10, 12).Radius(10).AlignItems(ui.Start).Children(func() {
+							ui.Row(c.Key("header-task-"+row.ID)).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Padding(design.Sp(2.5), design.Sp(3)).Radius(design.RadiusLG).AlignItems(ui.Start).Children(func() {
 								button := ui.Button(c, "").Label("Open scheduled task: " + row.Title).Grow(1).MinWidth(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(m.OnOpenScheduleTask == nil)
 								button.Children(func() {
-									ui.Column(c).FillWidth().MinWidth(0).Gap(3).Children(func() {
+									ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.75)).Children(func() {
 										ui.Text(c, row.Title).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg).FillWidth().MinWidth(0)
-										ui.Text(c, scheduleHeaderFrequency(row)).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
-										ui.Text(c, scheduleHeaderNext(row)).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
+										frameText(c, scheduleHeaderFrequency(row), design.TextXS, design.WeightNormal, muted).FillWidth().MinWidth(0)
+										frameText(c, scheduleHeaderNext(row), design.TextXS, design.WeightNormal, muted).FillWidth().MinWidth(0)
 									})
 								})
 								if button.Clicked() {
 									local.open = false
 									m.OnOpenScheduleTask(row)
 								}
-								remove := ui.Button(c, "").Label("Delete scheduled task: "+row.Title).Tooltip(archiveText("删除任务", "Delete task")).Size(24, 24).Padding(5).BorderWidth(0).Background(ui.Transparent).Disabled(snap.Busy || snap.Loading || snap.Err != nil || m.ScheduleStore == nil)
+								remove := ui.Button(c, "").Label("Delete scheduled task: "+row.Title).Tooltip(archiveText("删除任务", "Delete task")).Size(24, 24).Padding(design.Sp(1.25)).BorderWidth(0).Background(ui.Transparent).Disabled(snap.Busy || snap.Loading || snap.Err != nil || m.ScheduleStore == nil)
 								remove.Children(func() { ui.Icon(c, jobIcons["trash"]).Size(14, 14).TextColor(muted) })
 								if remove.Clicked() {
 									services := c.Services()
@@ -269,7 +270,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 							})
 						}
 					})
-				})
+				}).Label("Scheduled tasks list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(414), h-146)))
 			})
 			if panel.OverlayShortcut(0, ui.KeyEscape) {
 				local.open = false
@@ -329,13 +330,13 @@ func conversationHeaderButton(c *ui.Context, key, label, icon string, compact bo
 	if action == nil {
 		return ui.Element{}
 	}
-	padX := float32(8)
+	padX := design.Sp(2)
 	if compact {
-		padX = 6
+		padX = design.Sp(1.5)
 	}
-	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, padX).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(ink)
+	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, padX).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).TextColor(ink)
 	button.Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Justify(ui.Center).Gap(5).Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Justify(ui.Center).Gap(design.Sp(1.25)).Children(func() {
 			ui.Icon(c, conversationHeaderIcons[icon]).Width(16).Height(16).TextColor(ink).Rotate(rotation)
 			if !compact {
 				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).NoWrap().TextColor(ink)
@@ -399,11 +400,11 @@ func subagentsHeader(c *ui.Context, m Model, snap session.ViewState, compact boo
 		summary = archiveText("1 个子智能体", "1 subagent")
 	}
 	btn := ui.Button(c.Key("conversation-subagents"), "").Label("Subagents").Tooltip(summary).
-		Height(28).MinWidth(28).Shrink(0).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk)
+		Height(28).MinWidth(28).Shrink(0).Padding(0, design.Sp(2)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk)
 	btn.Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Gap(5).Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
 			if runningCount > 0 {
-				ui.Spinner(c).Size(10, 10).TextColor(headerInk)
+				coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(headerInk)
 			}
 			ui.Text(c, summary).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).NoWrap()
 			ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)

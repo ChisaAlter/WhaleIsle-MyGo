@@ -8,7 +8,6 @@ import (
 
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // TestSidebarFooterUsesAccountSeatWhenSignedIn keeps the production footer
@@ -46,7 +45,7 @@ func TestAccountRowShowsIdentityAndMenu(t *testing.T) {
 					signedOut++
 				},
 			}}
-			accountRow(c, m, theme.Resolve("deepseek.light").Light, ui.RGB(90, 90, 90), false)
+			accountRow(c, m, false)
 		})
 	}, 280, 120)
 
@@ -102,8 +101,8 @@ func TestAccountRowFallsBackToSettings(t *testing.T) {
 			m := Model{OnOpenSettings: func() { settings++ }}
 			// Two fixture seats need independent parents; production renders one
 			// stable account trigger in its footer, changing only its compact style.
-			ui.Column(c.Key("wide-fixture")).FillWidth().Children(func() { accountRow(c, m, theme.Resolve("deepseek.light").Light, ui.RGB(90, 90, 90), false) })
-			ui.Column(c.Key("rail-fixture")).FillWidth().Children(func() { accountRow(c, m, theme.Resolve("deepseek.light").Light, ui.RGB(90, 90, 90), true) })
+			ui.Column(c.Key("wide-fixture")).FillWidth().Children(func() { accountRow(c, m, false) })
+			ui.Column(c.Key("rail-fixture")).FillWidth().Children(func() { accountRow(c, m, true) })
 		})
 	}, 280, 160)
 
@@ -157,7 +156,7 @@ func TestAccountRowFocusAndMenuAcrossResponsiveWidths(t *testing.T) {
 					seatWidth = 36
 				}
 				ui.Column(c.Key("footer")).Width(seatWidth).Children(func() {
-					accountRow(c, m, theme.Resolve("deepseek.light").Light, ui.RGB(90, 90, 90), compact)
+					accountRow(c, m, compact)
 				})
 			}, 1200, 300)
 			if err := tt.Click(label); err != nil {
@@ -215,7 +214,7 @@ func TestAccountRowFocusAndMenuAcrossResponsiveWidths(t *testing.T) {
 func TestAccountRowSkipWithoutAnyDestination(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
-			accountRow(c, Model{}, theme.Resolve("deepseek.light").Light, ui.RGB(90, 90, 90), false)
+			accountRow(c, Model{}, false)
 		})
 	}, 280, 80)
 	if texts := tt.Texts(); len(texts) != 0 {

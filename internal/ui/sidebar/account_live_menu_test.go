@@ -5,7 +5,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // An async launcher registration can arrive between the platform choice and
@@ -43,7 +42,7 @@ func TestAccountNativeChoiceSurvivesLauncherInsertion(t *testing.T) {
 			}
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Children(func() {
-					accountRow(c, Model{Account: a}, theme.Resolve(theme.IDDeepseekLight).Light, ui.RGB(90, 90, 90), false)
+					accountRow(c, Model{Account: a}, false)
 				})
 			}, 280, 200)
 			if err := tt.Click("Fixture"); err != nil {

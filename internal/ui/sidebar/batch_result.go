@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/widgets"
 )
 
 type batchResultOwner struct {
@@ -68,10 +67,9 @@ func batchResultSummary(b session.SessionBatch) (string, []session.SessionBatchR
 }
 
 // batchResultReceipt reports a finished batch: a success is an acknowledgement
-// and stays a toast, while a batch with failures draws its receipt in the
-// sidebar's own flow above the footer, where it survives search, archive
-// disclosure and the rail, and keeps the failed rows readable until the reader
-// closes it.
+// and stays an announcement, while a batch with failures draws its receipt in
+// the sidebar's own flow above the footer, where it survives search, archive
+// disclosure and the rail, and keeps the failed rows readable until closed.
 func batchResultReceipt(c *ui.Context, m Model) {
 	if m.Collapsed {
 		return
@@ -88,7 +86,7 @@ func batchResultReceipt(c *ui.Context, m Model) {
 		notice.Announced = true
 	}
 	if len(failures) == 0 {
-		widgets.AckLine(c, "batch-result", summary)
+		sbAckLine(c, "batch-result", summary)
 		return
 	}
 	dismiss := func() {
@@ -100,13 +98,7 @@ func batchResultReceipt(c *ui.Context, m Model) {
 			m.OnBatchEdit("dismiss", nil)
 		}
 	}
-	widgets.Alert(c, widgets.AlertOptions{
-		ID:        "batch-result",
-		Message:   summary,
-		Detail:    batchFailureDetail(failures),
-		Dismiss:   workspaceText("关闭结果", "Dismiss results"),
-		OnDismiss: dismiss,
-	})
+	sbAlert(c, "batch-result", summary, batchFailureDetail(failures), workspaceText("关闭结果", "Dismiss results"), dismiss)
 }
 
 // batchFailureDetail is what the reader opens the receipt to see: which rows the

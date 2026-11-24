@@ -12,9 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/product"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func navigationEvidence(t *testing.T, tt *ui.Tester, name string) {
@@ -223,8 +221,7 @@ func TestSidebarNavigationBrandActionAndDarwinDrag(t *testing.T) {
 			m := Model{OnCreate: func() { calls++ }}
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Row(c).FillWidth().Height(60).DragWindow().Children(func() {
-					colors := theme.Resolve("deepseek.light").Light
-					sidebarBrand(c, m, colors, chrome.Color(colors.FG), chrome.Color(colors.Muted), platform)
+					sidebarBrand(c, m, platform)
 				})
 			}, 280, 100)
 			if err := tt.Click(product.Name); err != nil {
@@ -258,9 +255,8 @@ func TestSidebarNavigationBrandActionAndDarwinDrag(t *testing.T) {
 
 func TestSidebarNavigationNarrowHintStaysInsideButton(t *testing.T) {
 	m := Model{NewSessionShortcut: "Control+Alt+Shift+Meta+F10 & F11", OnCreate: func() {}}
-	colors := theme.Resolve("deepseek.light").Light
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Fill().Children(func() { newSessionButton(c, m, colors, chrome.Color(colors.FG), chrome.Color(colors.Border)) })
+		ui.Column(c).Fill().Children(func() { newSessionButton(c, m) })
 	}, 180, 60)
 	r := navigationRect(t, tt, i18n.T(i18n.KeySidebarNewSessionFallback))
 	tt.Move(r.X+r.W/2, r.Y+r.H/2)

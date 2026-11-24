@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -30,7 +31,7 @@ const (
 // glyph, from both native caption stylesheets
 // (reference/electron/src/renderer/window-controls.css:43-46 and
 // reference/electron/src/main/harness-chrome-inject.js:119-122).
-var captionCloseHover = ui.RGB(0xe8, 0x11, 0x23)
+var captionCloseHover = design.TW.Red600
 
 // captionWindowActions is the window a painted control trio acts on. The
 // native window is absent in a headless tester, so the buttons take it as data.
@@ -86,16 +87,16 @@ func drawCaptionButtons(c *ui.Context, ink ui.Color, w captionWindowActions) {
 		}
 		return en
 	}
-	hoverFill := c.Theme().SurfaceHover
+	hoverFill := tk(c).Accent
 	control := func(key string, right float32, name string, fill, hoverInk ui.Color, paint func(*ui.Painter, ui.Rect, ui.Color), run func()) {
 		button := ui.ButtonBase(c.Key(key)).Absolute().Top(captionButtonTop).Right(right).
 			Size(captionButtonSize, captionButtonSize).
-			Padding(0).BorderWidth(0).Radius(8).Background(ui.Transparent).
+			Padding(0).BorderWidth(0).Radius(design.RadiusMD).Background(ui.Transparent).
 			Label(name).Tooltip(name)
 		button.Draw(func(p *ui.Painter, r ui.Rect) {
 			tone := ink
 			if button.Hovered() {
-				p.Fill(r, fill, 8)
+				p.Fill(r, fill, design.RadiusMD)
 				tone = hoverInk
 			}
 			paint(p, r, tone)
@@ -106,7 +107,7 @@ func drawCaptionButtons(c *ui.Context, ink ui.Color, w captionWindowActions) {
 	}
 	maximized := w.Maximized != nil && w.Maximized()
 	// Order from the right edge: close (8), maximize (40), minimize (72).
-	control("caption-close", 8, label("关闭", "Close"), captionCloseHover, ui.RGB(255, 255, 255),
+	control("caption-close", 8, label("关闭", "Close"), captionCloseHover, design.TW.White,
 		func(p *ui.Painter, r ui.Rect, tone ui.Color) {
 			// The reference close glyph is an ✕. Painter.Line draws an
 			// axis-aligned bar (paint.go:874), so the cross is a dotted diagonal.

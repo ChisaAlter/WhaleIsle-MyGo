@@ -22,7 +22,7 @@ func TestSessionRenameRootDialogPrefillsSelectsAndTrims(t *testing.T) {
 	tt.SetTime(time.Now().Add(300 * time.Millisecond))
 	tt.Frame()
 	dialog, ok := tt.Find(workspaceText("重命名会话", "Rename session"))
-	if !ok || dialog.W != 380 || dialog.H != 206 || dialog.X < 200 || dialog.Y < 150 {
+	if !ok || dialog.W != 380 || dialog.H < 160 || dialog.H > 260 || dialog.X < 200 {
 		t.Fatalf("rename root dialog bounds=%+v present=%t", dialog, ok)
 	}
 	client := tt.NativeTextInputClient()

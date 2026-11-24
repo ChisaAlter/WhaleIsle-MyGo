@@ -8,7 +8,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/projects"
 	"whaleisle/internal/ui/theme"
 )
@@ -60,9 +61,9 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 		if model.CountKnown {
 			hint = fmt.Sprintf(paneLabel("%d 名成员正在运行，含后台命令。点击查看。", "%d members running, including background commands. Click to inspect."), model.RunningCount)
 		}
-		anchor := ui.Button(c.Key("conversation-project-team"), "").Label(paneLabel("智能体团队", "Agent Team")+" · "+count).Tooltip(hint).Height(28).MinWidth(28).Padding(0, 8).Radius(6).BorderWidth(0).Background(ui.Transparent)
+		anchor := ui.Button(c.Key("conversation-project-team"), "").Label(paneLabel("智能体团队", "Agent Team")+" · "+count).Tooltip(hint).Height(28).MinWidth(28).Padding(0, design.Sp(2)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent)
 		anchor.Children(func() {
-			ui.Row(c).AlignItems(ui.Center).Gap(5).Children(func() {
+			ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
 				ui.Icon(c, conversationHeaderIcons["UsersOutline"]).Size(14, 14).TextColor(ink)
 				if !compact {
 					ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(ink)
@@ -73,7 +74,7 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 		if anchor.Clicked() {
 			state.SetFloating(!state.FloatingOpen)
 		}
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		t := tk(c)
 		w, h := viewportDIP(c)
 		width := min(float32(500), max(float32(0), w-32))
 		if model.Overview != nil && model.Overview.Team != nil && len(model.Overview.Team.Members) == 1 && len(model.Overview.Team.Tasks) == 0 {
@@ -86,11 +87,10 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 		open := state.FloatingOpen
 		ui.PopoverBase(c.Key("project-team-popover"), anchor, &open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, width, w, 16)
-			panel = chrome.FrostSurface(panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Border(.5, chrome.Color(colors.Border)), colors, m.SystemDark, chrome.Color(colors.BG), 12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18))
-			panel = chrome.PopoverReveal(c, panel)
+			panel = framePopoverPanel(panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(design.Sp(1.25), 0, 0, 0).Padding(design.Sp(2), design.Sp(0.5), 0, design.Sp(0.5)), t, design.RadiusXL-design.Sp(0.5))
 			panel.Children(func() {
-				ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Gap(8).Padding(4, 14, 8, 14).Children(func() {
-					if ui.Button(c, paneLabel("持续观察", "Keep observing")).Clicked() {
+				ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Gap(design.Sp(2)).Padding(design.Sp(1), design.Sp(3.5), design.Sp(2), design.Sp(3.5)).Children(func() {
+					if coss.Button(c, paneLabel("持续观察", "Keep observing"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 						if err := openProjectTeamSidebar(m, model); err != nil {
 							state.NavigationError = errcopy.Sentence(err)
 						} else {
@@ -98,7 +98,7 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 							open = false
 						}
 					}
-					if ui.Button(c, paneLabel("关闭", "Close")).Clicked() {
+					if coss.Button(c, paneLabel("关闭", "Close"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 						state.SetFloating(false)
 						open = false
 						anchor.Focus()
@@ -157,21 +157,21 @@ func openProjectTeamSidebar(m Model, model projects.ProjectTeamModel) error {
 func workspaceProjectTeam(c *ui.Context, m Model) {
 	n := m.workspacePane
 	if n == nil || n.ProjectTeam == nil || m.Store == nil || m.Projects.ProjectTeam == nil || n.ProjectTeam.Host != m.Projects.ObserverHost || n.ProjectTeam.CoordinatorSessionID != m.Store.SelectedSessionID() {
-		ui.Text(c, paneLabel("请从来源项目的团队按钮重新打开。", "Reopen this Team from its source Project.")).Padding(12)
+		ui.Text(c, paneLabel("请从来源项目的团队按钮重新打开。", "Reopen this Team from its source Project.")).Padding(design.Sp(3))
 		return
 	}
 	model := m.Projects.ProjectTeam(n.ProjectTeam.ProjectID)
 	if model.State == nil || model.Project.CoordinatorSessionID != n.ProjectTeam.CoordinatorSessionID {
-		ui.Text(c, paneLabel("团队暂不可用，请从来源项目重试。", "Team is unavailable. Retry from its source Project.")).Padding(12)
+		ui.Text(c, paneLabel("团队暂不可用，请从来源项目重试。", "Team is unavailable. Retry from its source Project.")).Padding(design.Sp(3))
 		return
 	}
 	model.ThemeID, model.SystemDark = m.ThemeID, m.SystemDark
-	snap := m.Store.Snapshot()
+	snap := m.Store.Published().Value
 	if child := m.Sizes.Workspace.currentMainChild(m); child != nil {
 		model.SessionID = child.SubagentChat.Address.ChildSessionID
 	}
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Padding(12).Gap(10).Children(func() {
-		if ui.Button(c, paneLabel("回到浮层", "Return to popover")).AlignSelf(ui.Start).Clicked() {
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Padding(design.Sp(3)).Gap(design.Sp(2.5)).Children(func() {
+		if coss.Button(c, paneLabel("回到浮层", "Return to popover"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).AlignSelf(ui.Start).Clicked() {
 			state := model.State
 			w := m.Sizes.Workspace
 			docked := n.Float == nil

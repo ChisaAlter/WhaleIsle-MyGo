@@ -7,7 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -99,12 +100,21 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 	if snap.HistoryError.Cause == errcopy.CauseRuntimeMismatch {
 		message = paneLabel("当前 Host 无法读取此会话的格式", "This Host cannot read the format of this conversation")
 	}
-	ui.Row(c).Key("conversation-history-error").FillWidth().Wrap().AlignItems(ui.Center).Gap(8).Padding(8, 16).Children(func() {
-		ui.Text(c, message).FontSize(theme.InterfaceSize(12)).TextColor(muted).Grow(1).MinWidth(0)
-		if ui.Button(c, paneLabel("重试加载对话", "Retry conversation history")).Key("conversation-history-retry").Disabled(snap.HistoryLoading).Clicked() {
+	ui.Row(c).Key("conversation-history-error").FillWidth().Wrap().AlignItems(ui.Center).Gap(design.Sp(2)).Padding(design.Sp(2), design.Sp(4)).Children(func() {
+		frameText(c, message, design.TextXS, design.WeightNormal, muted).Grow(1).MinWidth(0)
+		if coss.Button(c, paneLabel("重试加载对话", "Retry conversation history"), coss.ButtonOptions{
+			Variant:  coss.ButtonOutline,
+			Size:     coss.ButtonXS,
+			Disabled: snap.HistoryLoading,
+			Key:      "conversation-history-retry",
+		}).Clicked() {
 			m.Store.FollowSelected(context.Background())
 		}
-		if ui.Button(c, paneLabel("复制错误详情", "Copy error details")).Key("conversation-history-copy-error").Clicked() {
+		if coss.Button(c, paneLabel("复制错误详情", "Copy error details"), coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonXS,
+			Key:     "conversation-history-copy-error",
+		}).Clicked() {
 			mygo.Clipboard.WriteText(snap.HistoryError.SentenceText())
 		}
 	})
@@ -114,21 +124,23 @@ func conversationHistoryStatus(c *ui.Context, m Model, snap session.ViewState, m
 // and composer-stack gaps are represented by conversationHeroHeadlineFoot;
 // ConversationRoot centers the complete item including its 32-DIP bottom pad.
 func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
+	_ = colors
+	t := tk(c)
 	// Installed HeroShell uses an outer10-DIP gap and a7-DIP title-group gap.
 	skin := theme.ResolvedSkin(m.ThemeID, m.SystemDark)
-	size, lineHeight, weight := theme.InterfaceSize(26), theme.InterfaceSize(32), 500
+	size, lineHeight, weight := theme.InterfaceSize(26), theme.InterfaceSize(32), design.WeightMedium
 	if skin == theme.SkinCodex {
-		size, lineHeight, weight = 28, 28*1.35, 600
+		size, lineHeight, weight = 28, 28*1.35, design.WeightSemibold
 	} else if skin == theme.SkinClaude {
-		size, lineHeight, weight = 30, 30*1.3, 400
+		size, lineHeight, weight = 30, 30*1.3, design.WeightNormal
 	}
 	font := theme.FontForSkin(theme.RenderPreferences(), skin, theme.SkinHeroFont)
-	ui.Row(c).Key("conversation-hero-headline").Label("Conversation hero headline").FillWidth().Wrap().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16, conversationHeroHeadlineFoot, 16).Children(func() {
+	ui.Row(c).Key("conversation-hero-headline").Label("Conversation hero headline").FillWidth().Wrap().Gap(design.Sp(2.5)).Justify(ui.Center).AlignItems(ui.Center).Padding(0, design.Sp(4), conversationHeroHeadlineFoot, design.Sp(4)).Children(func() {
 		if skin != theme.SkinCodex {
-			conversationHeroFish(c, chrome.Color(colors.FG))
+			conversationHeroFish(c, t.Foreground)
 		}
-		ui.Row(c).Wrap().Gap(7).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
-			headline := ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).Font(font.Family).FontSize(size).FixedLineHeight(lineHeight).FontWeight(weight).TextColor(chrome.Color(colors.FG))
+		ui.Row(c).Wrap().Gap(design.Sp(1.75)).Justify(ui.Center).AlignItems(ui.Center).MinWidth(0).Children(func() {
+			headline := ui.Text(c, i18n.T(i18n.KeyChatHeroSlogan)).Font(font.Family).FontSize(size).FixedLineHeight(lineHeight).FontWeight(weight).TextColor(t.Foreground)
 			if skin == theme.SkinCodex {
 				headline.LetterSpacing(-.02 * size).MaxWidth(640)
 			} else if skin == theme.SkinClaude {
@@ -138,9 +150,9 @@ func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
 				return
 			}
 			badgeBG, badgeFG := theme.HeroBadgeColors(m.ThemeID, m.SystemDark)
-			ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).FontWeight(500).
-				TextColor(chrome.Color(badgeFG)).Padding(1, 7, 0, 7).AlignSelf(ui.Start).Margin(2, 0, 0, 0).
-				Background(chrome.Color(badgeBG)).Border(.5, chrome.Color(colors.Hover)).Radius(999)
+			ui.Text(c, i18n.T(i18n.KeyChatHeroPreview)).Font(theme.RenderPreferences().Code.Family).FontSize(12).FixedLineHeight(18).FontWeight(design.WeightMedium).
+				TextColor(theme.Color(badgeFG)).Padding(design.BorderWidth, design.Sp(1.75), 0, design.Sp(1.75)).AlignSelf(ui.Start).Margin(design.Sp(0.5), 0, 0, 0).
+				Background(theme.Color(badgeBG)).Border(design.BorderWidth/2, t.Accent).Radius(design.RadiusFull)
 		})
 	})
 }
@@ -150,26 +162,28 @@ func conversationHeroHeadline(c *ui.Context, m Model, colors theme.Colors) {
 // input card keeps its exact size, so nothing jumps when the composer mounts.
 // The Original settles on the Hero shell rather than on a blank box.
 func conversationSettlingSkeleton(c *ui.Context, colors theme.Colors) {
-	placeholder := chrome.Color(colors.Hover)
+	_ = colors
+	t := tk(c)
+	placeholder := t.Accent
 	if placeholder.A == 0 {
-		placeholder = chrome.Color(colors.Field).Alpha(.7)
+		placeholder = frameInsetBg(t).Alpha(0.7)
 	}
-	border := chrome.Color(colors.Border)
-	ui.Column(c).Key("conversation-settling-skeleton").Label("Loading conversation").FillWidth().MinWidth(0).Gap(14).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Justify(ui.Center).AlignItems(ui.Center).Padding(0, 16).Children(func() {
-			conversationHeroFish(c, chrome.Color(colors.Muted))
-			ui.Box(c).Width(196).Height(26).Radius(8).Background(placeholder)
+	border := t.Border
+	ui.Column(c).Key("conversation-settling-skeleton").Label("Loading conversation").FillWidth().MinWidth(0).Gap(design.Sp(3.5)).Children(func() {
+		ui.Row(c).FillWidth().Gap(design.Sp(2.5)).Justify(ui.Center).AlignItems(ui.Center).Padding(0, design.Sp(4)).Children(func() {
+			conversationHeroFish(c, t.MutedForeground)
+			ui.Box(c).Width(196).Height(26).Radius(design.RadiusMD).Background(placeholder)
 		})
-		ui.Column(c).FillWidth().MinWidth(0).Padding(0, 16).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Height(96).Radius(28).
-				Background(placeholder).Border(1, border).Padding(16, 18, 16, 18).Gap(10).Children(func() {
-				ui.Box(c).FillWidth().MaxWidthPercent(58).Height(13).Radius(6).Background(border.Alpha(.55))
-				ui.Box(c).FillWidth().MaxWidthPercent(34).Height(13).Radius(6).Background(border.Alpha(.4))
+		ui.Column(c).FillWidth().MinWidth(0).Padding(0, design.Sp(4)).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Height(96).Radius(design.RadiusXL3+design.Sp(1)).
+				Background(placeholder).Border(design.BorderWidth, border).Padding(design.Sp(4), design.Sp(4.5), design.Sp(4), design.Sp(4.5)).Gap(design.Sp(2.5)).Children(func() {
+				ui.Box(c).FillWidth().MaxWidthPercent(58).Height(13).Radius(design.RadiusSM).Background(border.Alpha(.55))
+				ui.Box(c).FillWidth().MaxWidthPercent(34).Height(13).Radius(design.RadiusSM).Background(border.Alpha(.4))
 				ui.Box(c).Grow(1)
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Box(c).Width(28).Height(28).Radius(14).Background(border.Alpha(.35))
+				ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
+					ui.Box(c).Width(28).Height(28).Radius(design.RadiusXL).Background(border.Alpha(.35))
 					ui.Box(c).Grow(1)
-					ui.Box(c).Width(56).Height(28).Radius(14).Background(border.Alpha(.45))
+					ui.Box(c).Width(56).Height(28).Radius(design.RadiusXL).Background(border.Alpha(.45))
 				})
 			})
 		})

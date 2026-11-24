@@ -8,7 +8,7 @@ import (
 )
 
 func cancelCapturedResponse(m Model, snap session.ViewState) {
-	live := m.Store.Snapshot()
+	live := m.Store.Published().Value
 	// Bind both keyboard regions and the button to their captured session. A
 	// replacement turn, follow or Host must not inherit the previous gesture.
 	if live.SelectedID != snap.SelectedID || live.ComposerHostGeneration != snap.ComposerHostGeneration || live.StopGeneration != snap.StopGeneration || live.StopTurnSeq != snap.StopTurnSeq {
