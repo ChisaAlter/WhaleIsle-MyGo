@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -13,11 +14,22 @@ import (
 func usageDashboardTester(t *testing.T, state string) *ui.Tester {
 	t.Helper()
 	s := usageFixture(t, state)
-	return ui.NewTester(func(c *ui.Context) {
+	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Scroll(c).Fill().Children(func() {
 			View(c, Model{Store: s, Embedded: true, OnExportStats: func(string) {}})
 		})
 	}, 850, 3600)
+	if state != "loading" {
+		deadline := time.Now().Add(3 * time.Second)
+		for s.ProjectRanking().Loading && time.Now().Before(deadline) {
+			time.Sleep(time.Millisecond)
+		}
+		if s.ProjectRanking().Loading {
+			t.Fatal("fixture project ranking timed out")
+		}
+		tt.Frame()
+	}
+	return tt
 }
 
 // TestEmbeddedUsageEmptyStateHasNoDashboard keeps the empty page honest: the

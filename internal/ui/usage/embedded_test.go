@@ -22,7 +22,7 @@ func usageFixture(t *testing.T, state string) *usagestore.Store {
 	t.Helper()
 	gate := make(chan struct{})
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/usage-stats/billing.") || r.URL.Path == "/usage-stats/projectRank" {
+		if strings.HasPrefix(r.URL.Path, "/usage-stats/billing.") || r.URL.Path == "/usage-stats/projectRank" || r.URL.Path == "/usage-stats/projects.more" || r.URL.Path == "/usage-stats/sessions.more" {
 			var req struct {
 				RPCID   string          `json:"rpcId"`
 				Payload json.RawMessage `json:"payload"`
@@ -36,8 +36,8 @@ func usageFixture(t *testing.T, state string) *usagestore.Store {
 				result = map[string]any{"options": []any{map[string]any{"provider": "deepseek", "providerName": "DeepSeek", "models": []string{"deepseek-v4-flash"}}}}
 			case "/usage-stats/billing.set":
 				result = req.Payload
-			case "/usage-stats/projectRank":
-				result = map[string]any{"projects": []any{}, "hasMore": false}
+			case "/usage-stats/projectRank", "/usage-stats/projects.more", "/usage-stats/sessions.more":
+				result = map[string]any{"rows": []any{}, "projects": []any{}, "hasMore": false}
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": req.RPCID, "result": map[string]any{"ok": true, "value": result}})
 			return
