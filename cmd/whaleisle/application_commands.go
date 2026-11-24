@@ -4,7 +4,6 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/deeplink"
-	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/frame"
 )
 
@@ -63,17 +62,16 @@ func (s *mainState) registerApplicationCommands(c *ui.Context) {
 			s.adjustFontSizes(fixed.delta)
 		}
 	}
-	actions := s.applicationMenuActions(c)
-	bindings := s.pageShortcutChords()
-	accepted := s.pageShortcutEncoded()
-	for _, command := range shortcuts.Commands() {
-		run := actions[command.ID]
-		chord, ok := bindings[command.ID]
-		if run == nil || !ok {
-			continue
-		}
-		if frame.NativeCommandPressed(c, chord, command.ID+accepted, shortcuts.NativeCommandScope(command.ID)) {
-			run()
+	sc := s.pageShortcutState()
+	var actions map[string]func()
+	for _, cmd := range sc.nativeCommands {
+		if frame.NativeCommandPressed(c, cmd.chord, cmd.key, cmd.scope) {
+			if actions == nil {
+				actions = s.applicationMenuActions(c)
+			}
+			if run := actions[cmd.id]; run != nil {
+				run()
+			}
 		}
 	}
 }
