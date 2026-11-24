@@ -261,14 +261,110 @@ type chatProjectionStore struct {
 	turnPrefix      chatTurnPrefixMemo
 }
 
+type prefixAnchor struct {
+	index int
+	msg   session.Message
+}
+
+// prefixFingerprint records an O(1) set of boundary and evenly spaced interior
+// anchor messages for an immutable store history prefix so streaming chunks and
+// turn-boundary updates avoid O(N) full-history byte comparisons every frame.
+type prefixFingerprint struct {
+	length  int
+	count   int
+	anchors [16]prefixAnchor
+}
+
+func ownPrefixAnchorMessage(msg session.Message) session.Message {
+	if len(msg.Raw) > 0 {
+		msg.Raw = append([]byte(nil), msg.Raw...)
+	}
+	if len(msg.ContentBlock) > 0 {
+		msg.ContentBlock = append([]byte(nil), msg.ContentBlock...)
+	}
+	msg.Files = ownProjectionFiles(msg.Files)
+	msg.TurnDelivery = ownProjectionDelivery(msg.TurnDelivery)
+	return msg
+}
+
+func capturePrefixFingerprint(messages []session.Message, n int) prefixFingerprint {
+	fp := prefixFingerprint{length: n}
+	if n <= 0 {
+		return fp
+	}
+	if n <= len(fp.anchors) {
+		fp.count = n
+		for i := 0; i < n; i++ {
+			fp.anchors[i] = prefixAnchor{index: i, msg: ownPrefixAnchorMessage(messages[i])}
+		}
+		return fp
+	}
+	var idxs [12]int
+	k := 0
+	add := func(idx int) {
+		if idx < 0 || idx >= n {
+			return
+		}
+		for j := 0; j < k; j++ {
+			if idxs[j] == idx {
+				return
+			}
+		}
+		idxs[k] = idx
+		k++
+	}
+	add(0)
+	add(1)
+	for step := 1; step <= 6; step++ {
+		add(n * step / 7)
+	}
+	add(n - 4)
+	add(n - 3)
+	add(n - 2)
+	add(n - 1)
+	fp.count = k
+	for i := 0; i < k; i++ {
+		idx := idxs[i]
+		fp.anchors[i] = prefixAnchor{index: idx, msg: ownPrefixAnchorMessage(messages[idx])}
+	}
+	return fp
+}
+
+func (fp prefixFingerprint) matchesPrefix(messages []session.Message, n int) bool {
+	if fp.length != n || len(messages) < n {
+		return false
+	}
+	for i := 0; i < fp.count; i++ {
+		a := fp.anchors[i]
+		if !samePrefixMessage(a.msg, messages[a.index]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (fp prefixFingerprint) matchesExtendedBase(messages []session.Message) bool {
+	if fp.length <= 0 || len(messages) < fp.length {
+		return false
+	}
+	for i := 0; i < fp.count; i++ {
+		a := fp.anchors[i]
+		if !samePrefixMessage(a.msg, messages[a.index]) {
+			return false
+		}
+	}
+	return true
+}
+
 type chatStreamingPrefixMemo struct {
 	ready          bool
 	gen            uint64
 	turnPrefixGen  uint64
 	visPrefixLen   int
 	selected       string
+	binding        string
 	historyHasMore bool
-	prefix         []session.Message
+	prefix         prefixFingerprint
 	runs           []workflowProjectionSource
 	projectBuf     []session.Message
 	visibleBuf     []session.Message
@@ -279,8 +375,9 @@ type chatTurnPrefixMemo struct {
 	ready          bool
 	gen            uint64
 	selected       string
+	binding        string
 	historyHasMore bool
-	prefix         []session.Message
+	prefix         prefixFingerprint
 	runs           []workflowProjectionSource
 	maxSeq         float64
 	turns          map[float64]struct{}
@@ -393,18 +490,13 @@ func samePrefixMessage(a, b session.Message) bool {
 
 func (p *chatStreamingPrefixMemo) matches(snap session.ViewState) bool {
 	n := len(snap.Messages)
-	if !p.ready || n < 2 || len(p.prefix) != n-1 || p.selected != snap.SelectedID || p.historyHasMore != snap.HistoryHasMore {
+	if !p.ready || n < 2 || p.prefix.length != n-1 || p.selected != snap.SelectedID || p.binding != snap.PlanHistoryBinding || p.historyHasMore != snap.HistoryHasMore {
 		return false
 	}
 	if !sameWorkflowSources(p.runs, snap.WorkflowRuns) {
 		return false
 	}
-	for i := 0; i < n-1; i++ {
-		if !samePrefixMessage(p.prefix[i], snap.Messages[i]) {
-			return false
-		}
-	}
-	return true
+	return p.prefix.matchesPrefix(snap.Messages, n-1)
 }
 
 func findLastSettledTurnEndSplit(messages []session.Message) int {
@@ -417,34 +509,24 @@ func findLastSettledTurnEndSplit(messages []session.Message) int {
 }
 
 func (p *chatTurnPrefixMemo) matchesPrefix(snap session.ViewState, splitIdx int) bool {
-	if !p.ready || splitIdx <= 0 || len(p.prefix) != splitIdx || p.selected != snap.SelectedID || p.historyHasMore != snap.HistoryHasMore {
+	if !p.ready || splitIdx <= 0 || p.prefix.length != splitIdx || p.selected != snap.SelectedID || p.binding != snap.PlanHistoryBinding || p.historyHasMore != snap.HistoryHasMore {
 		return false
 	}
 	if !sameWorkflowSources(p.runs, snap.WorkflowRuns) {
 		return false
 	}
-	for i := 0; i < splitIdx; i++ {
-		if !samePrefixMessage(p.prefix[i], snap.Messages[i]) {
-			return false
-		}
-	}
-	return true
+	return p.prefix.matchesPrefix(snap.Messages, splitIdx)
 }
 
 func (p *chatTurnPrefixMemo) canExtendTo(snap session.ViewState, splitIdx int) bool {
-	oldLen := len(p.prefix)
-	if !p.ready || oldLen <= 0 || oldLen >= splitIdx || p.selected != snap.SelectedID || p.historyHasMore != snap.HistoryHasMore {
+	oldLen := p.prefix.length
+	if !p.ready || oldLen <= 0 || oldLen >= splitIdx || p.selected != snap.SelectedID || p.binding != snap.PlanHistoryBinding || p.historyHasMore != snap.HistoryHasMore {
 		return false
 	}
 	if !sameWorkflowSources(p.runs, snap.WorkflowRuns) {
 		return false
 	}
-	for i := 0; i < oldLen; i++ {
-		if !samePrefixMessage(p.prefix[i], snap.Messages[i]) {
-			return false
-		}
-	}
-	return true
+	return p.prefix.matchesExtendedBase(snap.Messages)
 }
 
 func recordToolViewCallIDs(v *session.ToolCallView, dst map[string]struct{}) {
@@ -590,7 +672,7 @@ func ensureTurnPrefixMemo(snap session.ViewState, splitIdx int) (chatTurnPrefixM
 	}
 	if cp.turnPrefix.canExtendTo(snap, splitIdx) {
 		base := cp.turnPrefix
-		oldSplit := len(base.prefix)
+		oldSplit := base.prefix.length
 		delta := snap.Messages[oldSplit:splitIdx]
 		if base.canIsolateRawSegment(delta, snap.WorkflowRuns) {
 			cp.mu.Unlock()
@@ -604,8 +686,7 @@ func ensureTurnPrefixMemo(snap session.ViewState, splitIdx int) (chatTurnPrefixM
 				cp.mu.Lock()
 				if cp.turnPrefix.gen == base.gen && cp.turnPrefix.canExtendTo(snap, splitIdx) {
 					p := &cp.turnPrefix
-					p.prefix = append(p.prefix[:len(p.prefix):len(p.prefix)], delta...)
-					p.prefix = p.prefix[:len(p.prefix):len(p.prefix)]
+					p.prefix = capturePrefixFingerprint(snap.Messages, splitIdx)
 					p.projectPrefix = append(p.projectPrefix[:len(p.projectPrefix):len(p.projectPrefix)], deltaProj...)
 					p.projectPrefix = p.projectPrefix[:len(p.projectPrefix):len(p.projectPrefix)]
 					p.visiblePrefix = append(p.visiblePrefix[:len(p.visiblePrefix):len(p.visiblePrefix)], deltaVis...)
@@ -655,15 +736,14 @@ func ensureTurnPrefixMemo(snap session.ViewState, splitIdx int) (chatTurnPrefixM
 	}
 	visPrefix := visibleChatMessages(projPrefix)
 	todo, todoLast, todoKnown := todoBaselinesStateFor(prefixSnap.Messages, snap.HistoryHasMore)
-	ownedPrefix := make([]session.Message, splitIdx)
-	copy(ownedPrefix, prefixSnap.Messages)
 	runs := ownWorkflowSources(snap.WorkflowRuns)
 
 	next := chatTurnPrefixMemo{
 		ready:          true,
 		selected:       snap.SelectedID,
+		binding:        snap.PlanHistoryBinding,
 		historyHasMore: snap.HistoryHasMore,
-		prefix:         ownedPrefix[:len(ownedPrefix):len(ownedPrefix)],
+		prefix:         capturePrefixFingerprint(snap.Messages, splitIdx),
 		runs:           runs,
 		turns:          make(map[float64]struct{}, 64),
 		turnSeqs:       make(map[float64]struct{}, 64),
@@ -675,7 +755,7 @@ func ensureTurnPrefixMemo(snap session.ViewState, splitIdx int) (chatTurnPrefixM
 		todoLast:       todoLast,
 		todoKnown:      todoKnown,
 	}
-	next.recordSegmentMetadata(ownedPrefix, projPrefix)
+	next.recordSegmentMetadata(prefixSnap.Messages, projPrefix)
 
 	cp.mu.Lock()
 	gen := cp.turnPrefix.gen + 1
@@ -861,8 +941,7 @@ func projectChatMessages(snap session.ViewState) []session.Message {
 		visibleBuf := make([]session.Message, len(visPrefix)+1)
 		copy(visibleBuf, visPrefix)
 		visibleBuf[len(visPrefix)] = tail
-		ownedPrefix := make([]session.Message, n-1)
-		copy(ownedPrefix, snap.Messages[:n-1])
+		prefixFP := capturePrefixFingerprint(snap.Messages, n-1)
 		runs := ownWorkflowSources(snap.WorkflowRuns)
 
 		cp.mu.Lock()
@@ -876,8 +955,9 @@ func projectChatMessages(snap session.ViewState) []session.Message {
 			turnPrefixGen:  turnPrefixGen,
 			visPrefixLen:   visPrefixLen,
 			selected:       snap.SelectedID,
+			binding:        snap.PlanHistoryBinding,
 			historyHasMore: snap.HistoryHasMore,
-			prefix:         ownedPrefix,
+			prefix:         prefixFP,
 			runs:           runs,
 			projectBuf:     projectBuf,
 			visibleBuf:     visibleBuf,

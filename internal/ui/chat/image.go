@@ -419,7 +419,9 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 	t := design.For(c)
 	width, height := c.Size()
 	border := t.Border
-	caption := c.TitleBar().Height
+	titleBar := c.TitleBar()
+	caption := titleBar.Height
+	closeRight := max(float32(20), titleBar.Right+12)
 	pw, ph := imageLightboxSize(bmp, width, height-caption)
 	open := true
 	ui.DialogBase(c.Key("image-lightbox"), &open, func(backdrop, panel ui.Element) {
@@ -442,7 +444,7 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 		// A sibling of the centered image stays anchored to the window, and the
 		// modal scope keeps Tab on this sole control and restores the opener.
 		backdrop.Children(func() {
-			close := ui.ButtonBase(c.Key("close")).Absolute().Top(20+c.TitleBar().Height).Right(20).Size(36, 36).Padding(0).
+			close := ui.ButtonBase(c.Key("close")).Absolute().Top(20+caption).Right(closeRight).Size(36, 36).Padding(0).
 				Radius(design.RadiusFull).Border(.5, border).Background(t.Card).TextColor(t.Foreground).
 				Label(i18n.T(i18n.KeyToolImageClosePreview)).Cursor(ui.CursorPointer).Center().FocusRing(false).Opacity(progress)
 			if close.Clicked() {

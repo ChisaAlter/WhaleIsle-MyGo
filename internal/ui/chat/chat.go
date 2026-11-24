@@ -146,7 +146,7 @@ func conversationView(c *ui.Context, m Model) {
 	msgs, transcriptControls, actionTargets, messageKeys := viewMemo.resolve(m)
 
 	derived := ui.Local(root, "history-derived", func() session.HistoryDerivedMemo { return session.HistoryDerivedMemo{} })
-	cards := prepareScheduleContext(m, derived)
+	cards := prepareScheduleContextCached(root, m, derived)
 	// Index each todo_write call's predecessor from the same loaded event window
 	// the transcript draws, as the installed todo history does.
 	todoBaselines := projectedTodoBaselines(m.Snapshot)
@@ -156,9 +156,11 @@ func conversationView(c *ui.Context, m Model) {
 	history.prepare(m, msgs, list)
 	history.observeInput(c, list)
 	prepareHistoryNavigationLanding(m, msgs, list)
-	prepareSessionInspector(m, msgs, transcriptControls, list, projected)
-	if m.Inspector != nil && m.Inspector.SessionID == m.Snapshot.SelectedID && m.Inspector.Target != nil {
-		c.Services().Invalidate()
+	if m.Inspector != nil {
+		prepareSessionInspector(m, msgs, transcriptControls, list, projected)
+		if m.Inspector.SessionID == m.Snapshot.SelectedID && m.Inspector.Target != nil {
+			c.Services().Invalidate()
+		}
 	}
 	root.Children(func() {
 		if !m.SuppressStatus {
@@ -186,6 +188,7 @@ func conversationView(c *ui.Context, m Model) {
 			return
 		}
 		services := c.Services()
+		inspector := inspectorChatNavigation(m)
 		transcript := ui.List(c, list, len(msgs)+historyRows).Fill().ObserveLayout(func(box ui.Rect) {
 			history.observeViewport(box)
 			if history.requested && !m.Snapshot.HistoryPageBusy {
@@ -193,15 +196,21 @@ func conversationView(c *ui.Context, m Model) {
 			}
 		})
 		scroll := m.Scroll
-		if scroll == nil {
+		if scroll == nil && inspector != nil {
 			scroll = ui.Local(transcript, "inspector-scroll", func() ui.ScrollState { return ui.ScrollState{} })
 		}
-		transcript.TrackScroll(scroll)
-		inspectorChatViewport(c, m, transcript, list)
+		if scroll != nil {
+			transcript.TrackScroll(scroll)
+		}
+		if inspector != nil {
+			inspectorChatViewportActive(c, m, inspector, transcript, list)
+		}
 		if m.FullColumnViewport {
 			transcript.ScrollbarInsets(0, -3, 0, 0)
 		}
-		inspectorChatPickerOverlay(c, m, colors, list, scroll)
+		if inspector != nil {
+			inspectorChatPickerOverlay(c, m, colors, list, scroll)
+		}
 		transcript.Rows(func(row ui.ListRow) {
 			if row.Index < historyRows {
 				transcriptRowContent(row.Context, m, func() {
@@ -240,7 +249,9 @@ func conversationView(c *ui.Context, m Model) {
 					}
 					isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
 					messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(design.Sp(1)).Fill()
-					inspectorChatRowGeometry(row.Context, m, msg, messageRoot, padT, padR, padB, padL)
+					if inspector != nil {
+						inspectorChatRowGeometryActive(inspector, msg, messageRoot, padT, padR, padB, padL)
+					}
 					messageRoot.Children(func() {
 						if control, ok := transcriptControls[msg.ID]; ok {
 							transcriptControlView(row.Context, control, m, colors)
@@ -442,27 +453,36 @@ func conversationView(c *ui.Context, m Model) {
 									Muted:    muted,
 								})
 							} else if body != "" {
-								md := transcriptMarkdownStyleFor(row.Context, theme.CurrentPreferences().Chat.Size)
-								md.Streaming = msg.Streaming
-								md.OnOpenURL = m.OnOpenCitationURL
-								md.RenderImage = func(ctx *ui.Context, ref, _ string) bool {
-									ImageInlineView(ctx, ref, fg, muted, openImage)
-									return true
+								paintMarkdown := func(ctx *ui.Context) {
+									md := transcriptMarkdownStyleFor(ctx, theme.CurrentPreferences().Chat.Size)
+									md.Streaming = msg.Streaming
+									md.OnOpenURL = m.OnOpenCitationURL
+									md.RenderImage = func(ictx *ui.Context, ref, _ string) bool {
+										ImageInlineView(ictx, ref, fg, muted, openImage)
+										return true
+									}
+									// Tables size their columns from measured content and
+									// only scroll once they no longer fit the message axis.
+									if m.ContentWidth > 0 {
+										md.AvailableWidth = m.ContentWidth
+									}
+									md.ResolveFile = projectedFileMentionResolver(m.Snapshot, msg)
+									if md.ResolveFile != nil {
+										md.ResolveRevision = projectedFileMentionRevision(m.Snapshot, msg)
+									}
+									md.OnOpenFile = m.OnOpenDeliverable
+									md.RenderFence = func(fctx *ui.Context, language, program string, offset int) bool {
+										return openUIFence(fctx, m, msg, language, program, offset)
+									}
+									markdown.View(ctx, body, md)
 								}
-								// Tables size their columns from measured content and
-								// only scroll once they no longer fit the message axis.
-								if m.ContentWidth > 0 {
-									md.AvailableWidth = m.ContentWidth
+								if mdVer, ok := chatMarkdownMemoVersion(row.Context, m, msg, body); ok {
+									ui.Column(row.Context.Key(chatContentMemoKey{id: msg.ID, seq: msg.Seq})).FillWidth().MinWidth(0).Memo(mdVer).Children(func() {
+										paintMarkdown(row.Context)
+									})
+								} else {
+									paintMarkdown(row.Context)
 								}
-								md.ResolveFile = projectedFileMentionResolver(m.Snapshot, msg)
-								if md.ResolveFile != nil {
-									md.ResolveRevision = projectedFileMentionRevision(m.Snapshot, msg)
-								}
-								md.OnOpenFile = m.OnOpenDeliverable
-								md.RenderFence = func(ctx *ui.Context, language, program string, offset int) bool {
-									return openUIFence(ctx, m, msg, language, program, offset)
-								}
-								markdown.View(row.Context, body, md)
 							}
 							if msg.Role == "assistant" {
 								CitationsView(row.Context, rowMeta.citations, muted, accent, m.OnOpenCitationURL)
@@ -477,7 +497,9 @@ func conversationView(c *ui.Context, m Model) {
 			})
 		})
 	})
-	inspectorChatRevealOverlay(c, m, colors)
+	if m.Inspector != nil {
+		inspectorChatRevealOverlay(c, m, colors)
+	}
 	// FeedbackDialog's overlay is session-owned, outside the virtualized rows.
 	// Scrolling the voted message away must not unmount its open modal.
 	if m.FeedbackStore != nil {
