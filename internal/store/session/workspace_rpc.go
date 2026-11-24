@@ -43,8 +43,20 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 	s.mu.Unlock()
 	go func() {
 		var out api.InitializeDefaultResult
-		err := client.Call(ctx, "workspace/initializeDefault", map[string]any{}, &out)
 		var createdRow WorkspaceRow
+		var err error
+		if isHostAbsolutePath(cwd) {
+			// The app already works in a directory. An empty registry means that
+			// directory is unregistered, not that the launch has nowhere to work,
+			// so register the one in hand instead of letting the Host create a
+			// second default somewhere else.
+			var created api.WorkspaceCreateValue
+			err = client.Call(ctx, "workspace/create", map[string]any{"request": map[string]any{"path": cwd}}, &created)
+			createdRow = workspaceRowFromCreate(created.Workspace)
+			out.Workspace = created.Workspace
+		} else {
+			err = client.Call(ctx, "workspace/initializeDefault", map[string]any{}, &out)
+		}
 		if err == nil && strings.TrimSpace(out.Workspace.WorkspaceId) == "" && strings.TrimSpace(cwd) != "" {
 			s.mu.Lock()
 			canCreate := s.client == client && s.eventsGeneration == generation &&
@@ -52,7 +64,7 @@ func (s *Store) InitializeDefaultWorkspace(ctx context.Context) {
 				s.workspaceNavigationToken == token && s.cwd == cwd && s.selectedID == selected &&
 				len(s.workspaceMemberships) == 0 && !s.hasOrdinarySessionsLocked()
 			s.mu.Unlock()
-			if canCreate && isHostAbsolutePath(cwd) {
+			if canCreate {
 				var created api.WorkspaceCreateValue
 				if errCreate := client.Call(ctx, "workspace/create", map[string]any{"request": map[string]any{"path": cwd}}, &created); errCreate == nil {
 					createdRow = workspaceRowFromCreate(created.Workspace)

@@ -45,7 +45,7 @@ func newStartupReceiptHost(t *testing.T) *startupReceiptHost {
 		h.mu.Unlock()
 		var value any = map[string]any{}
 		switch method {
-		case "workspace/initializeDefault":
+		case "workspace/initializeDefault", "workspace/create":
 			h.initStarted <- struct{}{}
 			if initRelease != nil {
 				<-initRelease

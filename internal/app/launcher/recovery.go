@@ -58,7 +58,7 @@ func (c *Controller) ColdStartupAllowed(cfg config.Config, importReady bool) boo
 			}
 		}
 	}
-	return startuprec.ShouldAutoStart(cfg.Workspace, cfg.AutoStartDesktop, importReady, failed, cfg.SkipUserPlugins)
+	return startuprec.ShouldAutoStart(cfg.AutoStartDesktop, importReady, failed, cfg.SkipUserPlugins)
 }
 
 // RecordStartupStatus persists the settled boot status for the current supervisor

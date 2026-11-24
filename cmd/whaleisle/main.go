@@ -2727,6 +2727,9 @@ func startHarness(cfg config.Config) {
 	if !state.recoverImportBeforeStart() {
 		return
 	}
+	// Every owned start provisions its directory here, so a restart or a start
+	// from the launcher cannot hand the Host an empty one either.
+	cfg = state.ensureLaunchWorkspace(cfg)
 	host := cfg.Host
 	if host == "" {
 		host = "127.0.0.1"
@@ -2804,21 +2807,6 @@ func startHarness(cfg config.Config) {
 			return startupStore.Record(false, reason, logs, buildVersion)
 		},
 	})
-	if strings.TrimSpace(cfg.Workspace) == "" {
-		state.launcherController().SetStartError(false, true, i18n.T(i18n.KeyLauncherNoWorkspace))
-		state.refreshBoot(harness.Status{
-			State: harness.Failed,
-			Err:   fmt.Errorf("%s", i18n.T(i18n.KeyLauncherNoWorkspace)),
-		})
-		return
-	}
-	if st, err := os.Stat(cfg.Workspace); err != nil || !st.IsDir() {
-		state.refreshBoot(harness.Status{
-			State: harness.Failed,
-			Err:   fmt.Errorf("workspace missing: %s", cfg.Workspace),
-		})
-		return
-	}
 	// Publish on the window queue after preparation, so Close/import cannot
 	// race a late background bridge result into starting a new runtime.
 	launch := func() {
