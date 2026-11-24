@@ -1,9 +1,11 @@
 package composer
 
 import (
-	"github.com/egoist/mygo/ui"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/ui/design"
 )
 
 // CommandAttachmentsUnsupportedNotice returns the localized notice when a slash
@@ -155,5 +157,6 @@ func paintLeadingClaimHint(c *ui.Context, m Model, muted ui.Color) {
 	if claim == nil || claim.hint == "" || !strings.HasPrefix(*m.Draft, claim.token) || strings.TrimSpace(strings.TrimPrefix(*m.Draft, claim.token)) != "" {
 		return
 	}
-	ui.Text(c, claim.hint).Label("Command argument hint").FontSize(12).TextColor(muted).Padding(2, 8)
+	t := design.For(c)
+	ui.Text(c, claim.hint).Label("Command argument hint").FontSize(design.TextXS.Size).TextColor(t.MutedForeground).Padding(design.Sp(0.5), design.Sp(2))
 }

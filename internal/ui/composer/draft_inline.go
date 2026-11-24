@@ -6,12 +6,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
 // Inline controls use the same object rectangles as native selection and hit
 // testing. Pointer capture belongs to the draft, including a drag across chips.
 func paintInlineDraftChips(c *ui.Context, client *DraftClient, m Model, fg, muted, accent ui.Color) {
+	t := design.For(c)
 	left, _, top := client.ins()
 	for _, chip := range client.inlineChips {
 		chip := chip
@@ -25,27 +27,27 @@ func paintInlineDraftChips(c *ui.Context, client *DraftClient, m Model, fg, mute
 		if !valid {
 			continue
 		}
-		ink := accent
+		ink := t.Primary
 		if mention.Kind == DraftMentionSkill {
-			ink = fg
+			ink = t.Foreground
 		}
 		body := ui.Box(c.Key(struct {
 			Name  string
 			Start int
 		}{"composer-inline-chip", mention.Start})).Absolute().Left(b.X).Top(b.Y + 1).
-			Width(b.W).Height(max(1, b.H-2)).Radius(5).Role(ui.RoleButton).Label(ChipLabel(mention)).
+			Width(b.W).Height(max(1, b.H-2)).Radius(design.RadiusSM).Role(ui.RoleButton).Label(ChipLabel(mention)).
 			Tooltip(mention.Text).KeepFocus().Disabled(m.Inert)
-		fill := c.Theme().Surface
+		fill := t.Secondary
 		selection := client.selection.Range
 		if selection.Start < chip.reference.End && selection.End > chip.reference.Start {
-			fill = c.Theme().Selection
+			fill = t.Primary.Alpha(0.3)
 		} else if body.Hovered() {
-			fill = fill.Mix(accent, .12)
+			fill = t.Accent
 		}
 		if client.pointerDragging && client.pointerChip != nil && *client.pointerChip == chip.reference {
 			body.Opacity(.5)
 		}
-		body.Background(fill).Border(1, accent.Alpha(.22))
+		body.Background(fill).Border(design.BorderWidth, t.Primary.Alpha(.22))
 		body.HandleInput(func(ev ui.InputEvent) bool {
 			ev.X, ev.Y = ev.X+b.X, ev.Y+b.Y+1
 			return draftInputEvent(client, m, ev)

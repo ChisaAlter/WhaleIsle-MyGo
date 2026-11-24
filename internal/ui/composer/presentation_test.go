@@ -5,12 +5,12 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func closeMetric(t *testing.T, got, want float32, name string) {
@@ -33,17 +33,19 @@ func TestComposerCurrentCardGeometry(t *testing.T) {
 			t.Fatal("composer input missing")
 		}
 		// InputBar.card has the same top/side padding in Hero and docked mode;
-		// the control row owns its 8-DIP horizontal inset. The primary's existing
-		// two-DIP paint lift adds to the row's six-DIP bottom padding.
-		topPad, sideInset, draftShrink, rightInset, bottomInset := float32(8), float32(0), float32(0), float32(8), float32(8)
+		// the control row owns its 8-DIP horizontal inset and 6-DIP bottom padding.
+		topPad, sideInset, draftShrink, rightInset, bottomInset := float32(8), float32(0), float32(0), float32(8), float32(6)
+		if hero {
+			bottomInset = 8
+		}
 		closeMetric(t, input.Y-card.Y, topPad, "card top padding")
 		closeMetric(t, input.X-card.X, sideInset, "input owns horizontal inset")
 		closeMetric(t, input.W, card.W-draftShrink, "draft scrollport width")
 		send, _ := tt.Find(i18n.T(i18n.KeyComposerSend))
-		closeMetric(t, send.W, 34, "primary width")
-		closeMetric(t, send.H, 34, "primary height")
+		closeMetric(t, send.W, 32, "primary width")
+		closeMetric(t, send.H, 32, "primary height")
 		closeMetric(t, card.X+card.W-(send.X+send.W), rightInset, "primary right inset")
-		closeMetric(t, card.Y+card.H-(send.Y+send.H), bottomInset, "primary bottom inset including upward shift")
+		closeMetric(t, card.Y+card.H-(send.Y+send.H), bottomInset, "primary bottom inset")
 		closeMetric(t, card.X, 16, "shared side clearance")
 	}
 }
@@ -55,7 +57,9 @@ func TestComposerSendAndStopUseInfoFill(t *testing.T) {
 			draft = ""
 		}
 		sent, stopped := "", false
+		var wantPrimary ui.Color
 		tt := ui.NewTester(func(c *ui.Context) {
+			wantPrimary = design.For(c).Primary
 			View(c, Model{Draft: &draft, Snapshot: session.ViewState{PromptBusy: busy}, OnSend: func(s string) { sent = s }, OnStop: func() { stopped = true }})
 		}, 800, 200)
 		label := i18n.T(i18n.KeyComposerSend)
@@ -67,8 +71,8 @@ func TestComposerSendAndStopUseInfoFill(t *testing.T) {
 			t.Fatalf("missing %s", label)
 		}
 		p := tt.Image().RGBAAt(int(button.X+6), int(button.Y+button.H/2))
-		if p.R != 65 || p.G != 118 || p.B != 230 {
-			t.Errorf("%s fill=%v want info fill 65,118,230", label, p)
+		if p.R != wantPrimary.R || p.G != wantPrimary.G || p.B != wantPrimary.B {
+			t.Errorf("%s fill=%v want primary fill %v", label, p, wantPrimary)
 		}
 		if err := tt.Click(label); err != nil {
 			t.Fatal(err)
@@ -83,14 +87,21 @@ func TestComposerSendAndStopUseInfoFill(t *testing.T) {
 }
 
 func TestComposerResolvedAndCustomPalette(t *testing.T) {
-	for _, colors := range []theme.Colors{theme.Resolve("light").Active(false), theme.Resolve("dark").Active(false), {FG: "#202020", Muted: "#606060", Border: "#888888", InputMajor: "#d7dbdf", SelectorFill: "#adbdbb", ButtonInfoFill: "#ffffff", ButtonFG: "#111111", Accent: "#606060", BG: "#cccccc"}} {
+	for _, dark := range []bool{false, true} {
 		for _, busy := range []bool{false, true} {
 			draft := "hello"
 			if busy {
 				draft = ""
 			}
+			var tok *design.Tokens
 			tt := ui.NewTester(func(c *ui.Context) {
-				viewWithColors(c, Model{Draft: &draft, WorkspaceRoot: "fixture", Snapshot: session.ViewState{PromptBusy: busy}, OnStop: func() {}}, colors)
+				if dark {
+					c.SetTheme(ui.DarkTheme())
+				}
+				tok = design.For(c)
+				ui.Box(c).Fill().Background(tok.Background).Children(func() {
+					View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", SystemDark: dark, Snapshot: session.ViewState{PromptBusy: busy}, OnStop: func() {}})
+				})
 			}, 800, 200)
 			label := i18n.T(i18n.KeyComposerSend)
 			if busy {
@@ -100,12 +111,23 @@ func TestComposerResolvedAndCustomPalette(t *testing.T) {
 			if !ok {
 				t.Fatalf("missing primary %s", label)
 			}
-			want := chrome.Color(colors.ButtonInfoFill)
+			want := tok.Primary
 			got := tt.Image().RGBAAt(int(r.X+6), int(r.Y+r.H/2))
-			if got.R != want.R || got.G != want.G || got.B != want.B {
-				t.Errorf("primary ignores palette %q: %v", colors.ButtonInfoFill, got)
+			if absByte(got.R, want.R) > 1 || absByte(got.G, want.G) > 1 || absByte(got.B, want.B) > 1 {
+				t.Errorf("dark=%v primary ignores design.Primary %v: %v", dark, want, got)
 			}
-			ink := chrome.Color(colors.ButtonFG)
+			ink := tok.PrimaryForeground
+			if !busy {
+				// coss Button draws standard icons at design.OpacityIcon over button fill.
+				op := float64(design.OpacityIcon)
+				a := int(op*255 + 0.5)
+				ink = ui.RGBA(
+					uint8((int(ink.R)*a+int(want.R)*(255-a)+127)/255),
+					uint8((int(ink.G)*a+int(want.G)*(255-a)+127)/255),
+					uint8((int(ink.B)*a+int(want.B)*(255-a)+127)/255),
+					255,
+				)
+			}
 			inkPixels := 0
 			rendered := tt.Image()
 			for y := int(r.Y + 6); y < int(r.Y+r.H-6); y++ {
@@ -117,17 +139,17 @@ func TestComposerResolvedAndCustomPalette(t *testing.T) {
 				}
 			}
 			if inkPixels < 1 {
-				t.Errorf("primary on-accent glyph did not use %s (%d pixels)", colors.ButtonFG, inkPixels)
+				t.Errorf("dark=%v primary glyph did not use PrimaryForeground %v (%d pixels)", dark, ink, inkPixels)
 			}
 			card, _ := tt.Find("Composer card")
-			fill := chrome.Color(colors.InputMajor)
-			// Sample below the 8px inset highlight band the card paints on its rim.
+			fill := composerCardFill(tok)
+			bg := tok.Background
+			// Sample below the rim highlight band.
 			p := tt.Image().RGBAAt(int(card.X+40), int(card.Y+16))
-			// The software renderer composites the semantic translucent fill over white.
-			for i, pair := range [][2]uint8{{p.R, fill.R}, {p.G, fill.G}, {p.B, fill.B}} {
-				expected := uint8((int(pair[1])*int(fill.A) + 255*(255-int(fill.A)) + 127) / 255)
-				if absByte(pair[0], expected) > 1 {
-					t.Errorf("card channel %d=%d want %d", i, pair[0], expected)
+			for i, pair := range [][3]uint8{{p.R, fill.R, bg.R}, {p.G, fill.G, bg.G}, {p.B, fill.B, bg.B}} {
+				expected := uint8((int(pair[1])*int(fill.A) + int(pair[2])*(255-int(fill.A)) + 127) / 255)
+				if absByte(pair[0], expected) > 2 {
+					t.Errorf("dark=%v card channel %d=%d want %d", dark, i, pair[0], expected)
 				}
 			}
 		}
@@ -147,8 +169,8 @@ func TestComposerNarrowToolbarKeepsPrimaryAndActionsVisible(t *testing.T) {
 		if !ok {
 			t.Fatalf("width %d lost primary", width)
 		}
-		closeMetric(t, send.W, 34, "narrow primary width")
-		closeMetric(t, send.H, 34, "narrow primary height")
+		closeMetric(t, send.W, 32, "narrow primary width")
+		closeMetric(t, send.H, 32, "narrow primary height")
 		closeMetric(t, card.X+card.W-(send.X+send.W), 8, "narrow primary right inset")
 		if card.H > 120 {
 			t.Fatalf("idle tools expanded card at width %d: %v", width, card)
@@ -157,7 +179,7 @@ func TestComposerNarrowToolbarKeepsPrimaryAndActionsVisible(t *testing.T) {
 			if tt.HasText(label) {
 				t.Fatalf("idle tool %q is permanently visible", label)
 			}
-			if err := tt.Click("+"); err != nil {
+			if err := tt.Click(i18n.T(i18n.KeyComposerCommands)); err != nil {
 				t.Fatal(err)
 			}
 			if !tt.HasText(label) {
@@ -201,19 +223,19 @@ func TestComposerLongModelLabelsKeepPrimaryVisible(t *testing.T) {
 			card, _ := tt.Find("Composer card")
 			r, ok := tt.Find(label)
 			t.Logf("width=%d busy=%v card=%v primary=%v", width, busy, card, r)
-			if !ok || r.W < 33.9 || r.H < 33.9 || r.X < card.X || r.X+r.W > card.X+card.W+.1 {
+			if !ok || r.W < 31.9 || r.H < 31.9 || r.X < card.X || r.X+r.W > card.X+card.W+.1 {
 				t.Errorf("width=%d busy=%v clipped primary: %v card=%v", width, busy, r, card)
 			}
 			tt.SetSize(320, 1000)
 			r, _ = tt.Find(label)
 			card, _ = tt.Find("Composer card")
-			if r.W < 33.9 || r.X < card.X || r.X+r.W > card.X+card.W+.1 {
+			if r.W < 31.9 || r.X < card.X || r.X+r.W > card.X+card.W+.1 {
 				t.Errorf("shrink clipped primary: %v card=%v", r, card)
 			}
 			tt.SetSize(1200, 1000)
 			r, _ = tt.Find(label)
 			card, _ = tt.Find("Composer card")
-			if r.W < 33.9 || r.X < card.X || r.X+r.W > card.X+card.W+.1 {
+			if r.W < 31.9 || r.X < card.X || r.X+r.W > card.X+card.W+.1 {
 				t.Errorf("expand clipped primary: %v card=%v", r, card)
 			}
 		}
@@ -235,7 +257,7 @@ func TestReviewOrdinaryModelStatusKeepsPrimary(t *testing.T) {
 			}, 320, 500)
 			r, _ := tt.Find(i18n.T(i18n.KeyComposerSend))
 			t.Logf("label=%q error=%v primary=%v", label, errorMode, r)
-			if r.W < 33.9 || r.X+r.W > 304.1 {
+			if r.W < 31.9 || r.X+r.W > 304.1 {
 				t.Errorf("primary collapsed or offcard for %q error=%v: %v", label, errorMode, r)
 			}
 		}
@@ -252,6 +274,9 @@ func TestComposerTruncatedModelKeepsRealValueAndSelection(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, Snapshot: snap, OnModelChange: func(s string) { changed = s; changes++ }})
 	}, 320, 500)
+	now := time.Now()
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tt.SetTime(now)
 	trigger, ok := tt.Find(original)
 	if !ok {
 		t.Fatal("complete model value not available through trigger label")
@@ -265,9 +290,11 @@ func TestComposerTruncatedModelKeepsRealValueAndSelection(t *testing.T) {
 	if err := tt.Click(original); err != nil {
 		t.Fatal(err)
 	}
+	tt.SetTime(now.Add(time.Second))
 	if err := tt.Click(composerText("模型", "Model") + "  " + original + "  ›"); err != nil {
 		t.Fatal(err)
 	}
+	tt.SetTime(now.Add(2 * time.Second))
 	if _, ok := tt.Find("Choose model " + original); !ok {
 		t.Fatal("full model choice missing from popup")
 	}

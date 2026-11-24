@@ -9,6 +9,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 // PendingFiles is the recoverable user input, never a cached Host receipt.
@@ -147,21 +149,24 @@ func paintFileIntake(c *ui.Context, d *DraftState, muted ui.Color) {
 	if op == nil {
 		return
 	}
+	t := design.For(c)
 	label := composerText("正在准备文件…", "Preparing files…")
+	ink := t.MutedForeground
 	if !op.Busy {
 		label = composerText("文件已保留，确认后添加到输入框。", "Files retained. Add them when you are ready.")
 	}
 	if op.Error != "" {
 		label = op.Error
+		ink = t.DestructiveForeground
 	}
-	ui.Row(c.Key("file-intake")).FillWidth().Gap(8).Padding(4, 14).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, label).FontSize(12).TextColor(muted).Grow(1)
-		if op.Ready && op.Apply != nil && ui.Button(c, composerText("添加文件", "Add files")).Clicked() {
+	ui.Row(c.Key("file-intake")).FillWidth().Gap(design.Sp(2)).Padding(design.Sp(1), design.Sp(3.5)).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, label).FontSize(design.TextXS.Size).TextColor(ink).Grow(1)
+		if op.Ready && op.Apply != nil && coss.Button(c, composerText("添加文件", "Add files"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS}).Clicked() {
 			op.Apply()
-		} else if !op.Busy && !op.Ready && op.Retry != nil && ui.Button(c, composerText("重试", "Retry")).Clicked() {
+		} else if !op.Busy && !op.Ready && op.Retry != nil && coss.Button(c, composerText("重试", "Retry"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 			op.Retry()
 		}
-		if ui.Button(c, composerText("取消", "Cancel")).Clicked() {
+		if coss.Button(c, composerText("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 			d.CancelFileIntake()
 		}
 	})

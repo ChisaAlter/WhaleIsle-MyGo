@@ -2,36 +2,37 @@ package composer
 
 import (
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
-func paintModelPicker(c *ui.Context, m Model, colors theme.Colors, height float32) {
+func paintModelPicker(c *ui.Context, m Model, height float32) {
 	// The model-selection plugin owns this entire seat, independently of its
 	// optional label decorator. Omitting the subtree also retires local menus;
 	// the Host's model projection remains available to the session store.
 	if !m.Snapshot.NativeContributions.Known || !m.Snapshot.NativeContributions.ModelCommand {
 		return
 	}
-	muted := chrome.Color(colors.Muted)
-	row := ui.Row(c).MinWidth(0).Grow(1).Gap(6).AlignItems(ui.Center)
+	t := design.For(c)
+	muted := t.MutedForeground
+	row := ui.Row(c).MinWidth(0).Grow(1).Gap(design.Sp(1.5)).AlignItems(ui.Center)
 	model := ui.Local(row, "model-choice", func() modelPickerChoice { return modelPickerChoice{} })
 	effort := ui.Local(row, "effort-choice", func() modelPickerChoice { return modelPickerChoice{} })
 	model.sync(m.Snapshot.SelectedID, m.Snapshot.SelectedModel)
 	effort.sync(m.Snapshot.SelectedID, m.Snapshot.SelectedModelEffort)
 	row.Children(func() {
 		if len(m.Snapshot.ModelLabels) > 0 {
-			paintGroupedModelCatalog(c, m, colors, height)
+			paintGroupedModelCatalog(c, m, height)
 		} else {
 			// No catalog: keep the seat a control. The chip names the state and
 			// opens a panel with the reload action instead of degrading to a dead
 			// label the user cannot click.
-			paintModelSeat(c, m, colors)
+			paintModelSeat(c, m)
 		}
 		if m.Snapshot.ModelsErr != nil {
-			ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(11).TextColor(muted)
-			if m.OnRetryModels != nil && ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(11).Clicked() {
+			ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(design.TextXS.Size).TextColor(muted)
+			if m.OnRetryModels != nil && coss.Button(c, i18n.T(i18n.KeyComposerModelReload), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 				m.OnRetryModels()
 			}
 		}
@@ -41,8 +42,9 @@ func paintModelPicker(c *ui.Context, m Model, colors theme.Colors, height float3
 // paintModelSeat is the catalog-less model chip: "Loading…" while the request
 // is in flight, "Choose model" before any selection, and the router's
 // resolved model name when a selection exists but its catalog row does not.
-func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
-	muted := chrome.Color(colors.Muted)
+func paintModelSeat(c *ui.Context, m Model) {
+	t := design.For(c)
+	muted := t.MutedForeground
 	owner := ui.Box(c)
 	open := ui.Local(owner, "model-seat-open", func() bool { return false })
 	label := i18n.T(i18n.KeyComposerModelChoose)
@@ -52,21 +54,18 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 	case m.Snapshot.SelectedModel != "":
 		label = friendlyModelTriggerName(m.Snapshot, m.Snapshot.SelectedModel)
 	}
-	secondary := muted
-	if colors.Secondary != "" {
-		secondary = chrome.Color(colors.Secondary)
-	}
+	secondary := t.SecondaryForeground
 	effortDisplay := formatEffortDisplay(m.Snapshot.SelectedModelEffort)
 	tooltip := label
 	if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
 		tooltip += " · " + effortDisplay
 	}
-	trigger := chip(c, colors, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).MaxWidthPercent(100).Disabled(m.Inert)
+	trigger := chip(c, *open, secondary).Label(label).Tooltip(tooltip + "  ·  " + i18n.T(i18n.KeyComposerShortcutEsc)).MaxWidth(260).MaxWidthPercent(100).Disabled(m.Inert)
 	trigger.Children(func() {
-		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(13).TextColor(secondary)
+		ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(design.TextSM.Size).TextColor(secondary)
 		if effortDisplay != "" && !m.Snapshot.ModelSelectionBusy {
 			binding := modelSelectBinding(m.Snapshot)
-			modelFlipText(c, "retained-effort:"+binding, effortDisplay, chrome.Color(colors.Caption), 13).Shrink(1000)
+			modelFlipText(c, "retained-effort:"+binding, effortDisplay, muted, design.TextSM.Size).Shrink(1000)
 		}
 		chevron(c, *open)
 	})
@@ -77,17 +76,15 @@ func paintModelSeat(c *ui.Context, m Model, colors theme.Colors) {
 		return
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, menuSurface(c, panel.MinWidth(240).MaxWidth(420).Padding(8).Gap(8).
-			AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, 8, 0), colors))
+		panel = menuSurface(c, panel.MinWidth(240).MaxWidth(420).Padding(design.Sp(2)).Gap(design.Sp(2)).
+			AttachTo(trigger, ui.AnchorTopRight, ui.AnchorBottomRight).Margin(0, 0, design.Sp(2), 0))
 		panel.Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyComposerModelUnavailable)).FontSize(13).TextColor(muted)
+			ui.Text(c, i18n.T(i18n.KeyComposerModelUnavailable)).FontSize(design.TextSM.Size).TextColor(muted)
 			if m.Snapshot.ModelsErr != nil {
-				ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(11).MaxLines(3).TextColor(muted)
+				ui.Text(c, m.Snapshot.ModelsErr.SentenceText()).FontSize(design.TextXS.Size).MaxLines(3).TextColor(muted)
 			}
 			if m.OnRetryModels != nil {
-				reload := ui.Button(c, i18n.T(i18n.KeyComposerModelReload)).FontSize(12).Height(28).Padding(0, 8).Radius(8).
-					BorderWidth(0).Background(ui.Transparent).TextColor(chrome.Color(colors.Accent)).AlignSelf(ui.Start)
-				if reload.Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyComposerModelReload), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).AlignSelf(ui.Start).Clicked() {
 					m.OnRetryModels()
 				}
 			}

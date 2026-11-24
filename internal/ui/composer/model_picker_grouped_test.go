@@ -13,7 +13,7 @@ func TestGroupedModelPickerSearchAndSelection(t *testing.T) {
 	}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, testColors(), 24)
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, 24)
 	}, 800, 600)
 	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal("grouped catalog trigger absent:", err)
@@ -67,7 +67,7 @@ func TestGroupedModelPickerBusyAndSessionIsolation(t *testing.T) {
 	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "one", ModelLabels: []string{"one", "two"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, testColors(), 24)
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, 24)
 	}, 800, 600)
 	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestGroupedModelPickerWithoutCatalogSelectionOpensModelPaneDirectly(t *test
 	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "retired-model", ModelLabels: []string{"one", "two"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, testColors(), 24)
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, 24)
 	}, 800, 600)
 	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal(err)
@@ -126,7 +126,7 @@ func TestGroupedModelPickerKeyboardSearchKeepsHostAuthority(t *testing.T) {
 			snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
 			chosen := ""
 			tt := ui.NewTester(func(c *ui.Context) {
-				paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, testColors(), 24)
+				paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(s string) { chosen = s }}, 24)
 			}, 800, 600)
 			if err := tt.Click("Model catalog"); err != nil {
 				t.Fatal(err)
@@ -156,7 +156,7 @@ func TestGroupedModelPickerEscapeReturnsFocusWithoutSelecting(t *testing.T) {
 	snap := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true}, SelectedID: "s", SelectedModel: "a", ModelLabels: []string{"a", "b", "c", "d", "e"}}
 	chosen := ""
 	tt := ui.NewTester(func(c *ui.Context) {
-		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, testColors(), 24)
+		paintModelPicker(c, Model{Snapshot: snap, OnModelChange: func(label string) { chosen = label }}, 24)
 	}, 800, 600)
 	if err := tt.Click("Model catalog"); err != nil {
 		t.Fatal(err)

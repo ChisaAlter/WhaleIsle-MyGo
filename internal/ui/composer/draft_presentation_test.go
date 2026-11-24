@@ -6,9 +6,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func shippedDraftTester(draft *string, client *DraftClient, width int, hero, dark bool) *ui.Tester {
@@ -256,36 +255,56 @@ func TestComposerRetainsOtherControlFocusForBothInputs(t *testing.T) {
 }
 
 func TestShippedDraftResolvedAndCustomInk(t *testing.T) {
-	for _, colors := range []theme.Colors{
-		theme.Default().Light, theme.Default().Dark,
-		{FG: "#a03050", Caption: "#336699", InputMajor: "#f0f0f0", Border: "#888888", Muted: "#606060", Accent: "#2266aa", ButtonInfoFill: "#4176e6", ButtonFG: "#ffffff", SelectorFill: "#eeeeee"},
-	} {
+	for _, dark := range []bool{false, true} {
 		for _, text := range []string{"", "MMMM\nMMMM"} {
 			draft := text
 			client := NewDraftClient(&draft)
+			var fg, placeholder ui.Color
 			tt := ui.NewTester(func(c *ui.Context) {
-				viewWithColors(c, Model{Draft: &draft, UseTextInputClient: true, TextInput: client}, colors)
+				if dark {
+					c.SetTheme(ui.DarkTheme())
+				}
+				tok := design.For(c)
+				fg = tok.Foreground
+				ph := tok.MutedForeground.Alpha(design.OpacityPlaceholder)
+				rawFill := composerCardFill(tok)
+				bg := tok.Background
+				fill := ui.RGBA(
+					uint8((int(rawFill.R)*int(rawFill.A)+int(bg.R)*(255-int(rawFill.A))+127)/255),
+					uint8((int(rawFill.G)*int(rawFill.A)+int(bg.G)*(255-int(rawFill.A))+127)/255),
+					uint8((int(rawFill.B)*int(rawFill.A)+int(bg.B)*(255-int(rawFill.A))+127)/255),
+					255,
+				)
+				if contrastRatio(ph, fill) < 3 {
+					ph = tok.MutedForeground
+				}
+				placeholder = ui.RGBA(
+					uint8((int(ph.R)*int(ph.A)+int(fill.R)*(255-int(ph.A))+127)/255),
+					uint8((int(ph.G)*int(ph.A)+int(fill.G)*(255-int(ph.A))+127)/255),
+					uint8((int(ph.B)*int(ph.A)+int(fill.B)*(255-int(ph.A))+127)/255),
+					255,
+				)
+				ui.Box(c).Fill().Background(tok.Background).Children(func() {
+					View(c, Model{Draft: &draft, UseTextInputClient: true, TextInput: client, SystemDark: dark})
+				})
 			}, 320, 500)
 			input, _ := tt.Find("Composer draft")
-			ink := chrome.Color(colors.FG)
+			ink := fg
 			if text == "" {
-				ink = chrome.Color(colors.Caption)
-				if isDark(colors) && colors.Secondary != "" {
-					ink = chrome.Color(colors.Secondary)
-				}
+				ink = placeholder
 			}
 			matches := 0
 			image := tt.Image()
 			for y := int(input.Y + 4); y < int(input.Y+input.H); y++ {
 				for x := int(input.X + 14); x < int(input.X+100); x++ {
 					p := image.RGBAAt(x, y)
-					if absByte(p.R, ink.R) < 20 && absByte(p.G, ink.G) < 20 && absByte(p.B, ink.B) < 20 {
+					if absByte(p.R, ink.R) < 35 && absByte(p.G, ink.G) < 35 && absByte(p.B, ink.B) < 35 {
 						matches++
 					}
 				}
 			}
 			if matches < 3 {
-				t.Errorf("native draft text=%q ignores semantic ink %v (%d pixels)", text, ink, matches)
+				t.Errorf("native draft dark=%v text=%q ignores semantic ink %v (%d pixels)", dark, text, ink, matches)
 			}
 		}
 	}

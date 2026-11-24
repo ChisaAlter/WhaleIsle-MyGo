@@ -3,14 +3,15 @@ package composer
 import (
 	"context"
 	"errors"
-	"github.com/egoist/mygo/ui"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 type NativeCommandOwner = session.NativeCommandOwner
@@ -368,12 +369,13 @@ func nativePopupRows(p *nativeCommandPopup) []NativeCommandOption {
 	}
 	return out
 }
-func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, colors theme.Colors, panel, border, fg, muted ui.Color) {
+func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element) {
 	if m.State == nil {
 		return
 	}
-	hover := chrome.Color(colors.Hover)
-	caption := chrome.Color(colors.Caption)
+	t := design.For(c)
+	fg := t.PopoverForeground
+	muted := t.MutedForeground
 	for _, state := range []*ModelCommandState{&m.State.ModelCommand, &m.State.PermissionCommand} {
 		p := state.popup
 		if !state.Open || p == nil {
@@ -411,15 +413,15 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, colors the
 			c.Services().Invalidate()
 		}
 		if p.confirmation != nil {
-			paintNativePermissionConfirmation(c, m, p, panel, fg)
+			paintNativePermissionConfirmation(c, m, p)
 			continue
 		}
 		height := float32(320)
 		if bounds := card.Bounds(); bounds.W > 0 {
 			height = min(height, max(float32(0), bounds.Y-4))
 		}
-		pane := ui.Column(c.Key("native-command:"+p.name)).Absolute().Left(0).Right(0).BottomPercent(100).Margin(0, 0, 4, 0).MaxHeight(height).Clip().Padding(4).Gap(0)
-		pane = menuSurface(c, pane, colors)
+		pane := ui.Column(c.Key("native-command:"+p.name)).Absolute().Left(0).Right(0).BottomPercent(100).Margin(0, 0, design.Sp(1), 0).MaxHeight(height).Clip().Padding(design.Sp(1)).Gap(0)
+		pane = menuPanelLook(c, pane)
 		pointerX, pointerY, pointerPresent := pane.PointerPosition()
 		pointerX, pointerY = pointerX+pane.Bounds().X, pointerY+pane.Bounds().Y
 		pointerMoved := pointerPresent && (!p.pointerPresent || pointerX != p.pointerX || pointerY != p.pointerY)
@@ -429,9 +431,12 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, colors the
 			return
 		}
 		pane.Children(func() {
-			ui.TextInput(c, &p.query).Label("Search command options").Placeholder(nativePopupSearchPlaceholder(p.name)).FillWidth().AutoFocus().
-				Margin(2, 2, 3, 2).Padding(5, 7).Radius(12).BorderWidth(0).Background(ui.Transparent).FontSize(12).
-				Disabled(p.busy || p.confirmation != nil).OnChange(func() { p.active = 0; p.reveal = true }).HandleInput(func(ev ui.InputEvent) bool {
+			coss.Input(c, &p.query, coss.InputOptions{
+				Size:        coss.InputSM,
+				Label:       "Search command options",
+				Placeholder: nativePopupSearchPlaceholder(p.name),
+				Disabled:    p.busy || p.confirmation != nil,
+			}).AutoFocus().Margin(design.Sp(0.5), design.Sp(0.5), design.Sp(1), design.Sp(0.5)).OnChange(func() { p.active = 0; p.reveal = true }).HandleInput(func(ev ui.InputEvent) bool {
 				if ev.Kind == ui.InputCompose {
 					p.composing = ev.Text != ""
 					return false
@@ -462,70 +467,77 @@ func paintNativeCommandPopup(c *ui.Context, m Model, card ui.Element, colors the
 				return false
 			})
 			if p.loading {
-				ui.Text(c, composerText("正在加载…", "Loading…")).FontSize(12).TextColor(muted).Padding(5, 7)
+				ui.Text(c, composerText("正在加载…", "Loading…")).FontSize(design.TextXS.Size).TextColor(muted).Padding(design.Sp(1), design.Sp(2))
 			}
 			if p.errorText != "" {
-				ui.Text(c, p.errorText).FontSize(12).TextColor(fg).MaxHeight(48).Padding(5, 7)
-				if !p.busy && !p.loading && len(p.rows) == 0 && ui.Button(c, composerText("重试", "Retry")).Clicked() {
+				ui.Text(c, p.errorText).FontSize(design.TextXS.Size).TextColor(t.DestructiveForeground).MaxHeight(48).Padding(design.Sp(1), design.Sp(2))
+				if !p.busy && !p.loading && len(p.rows) == 0 && coss.Button(c, composerText("重试", "Retry"), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonXS,
+				}).Clicked() {
 					p.load(m)
 				}
 			}
 			if !p.loading && len(visible) == 0 {
-				ui.Text(c, composerText("没有可用选项", "No matching options")).FontSize(12).TextColor(muted).Padding(5, 7)
+				ui.Text(c, composerText("没有可用选项", "No matching options")).FontSize(design.TextXS.Size).TextColor(muted).Padding(design.Sp(1), design.Sp(2))
 			}
-			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(float32(0), height-48)).Gap(0).Children(func() {
-				group := ""
-				for i, row := range visible {
-					row := row
-					if row.Group != "" && row.Group != group {
-						group = row.Group
-						label := row.GroupLabel
-						if group == "deepseek-account" {
-							label = composerText("DeepSeek 账户", "DeepSeek account")
+			coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+				ui.Column(c).FillWidth().Gap(0).Children(func() {
+					group := ""
+					for i, row := range visible {
+						row := row
+						if row.Group != "" && row.Group != group {
+							group = row.Group
+							label := row.GroupLabel
+							if group == "deepseek-account" {
+								label = composerText("DeepSeek 账户", "DeepSeek account")
+							}
+							ui.Text(c, label).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).FixedLineHeight(design.TextXS.LineHeight).TextColor(muted).Padding(design.Sp(1), design.Sp(2), design.Sp(0.5), design.Sp(2))
 						}
-						ui.Text(c, label).FontSize(11).FontWeight(500).FixedLineHeight(16).TextColor(caption).Padding(5, 8, 2, 8)
-					}
-					button := ui.Button(c, "").Label(row.Label).FillWidth().MinHeight(34).Padding(5, 7).Radius(12).
-						AlignItems(ui.Center).Justify(ui.Start).Gap(6).BorderWidth(0).Background(ui.Transparent).
-						Disabled(p.busy || p.loading || p.confirmation != nil)
-					if pointerMoved && button.Hovered() && !p.busy && !p.loading {
-						p.active, p.reveal = i, false
-					}
-					if i == p.active {
-						button = button.Background(hover)
-						if p.reveal {
-							button.ScrollIntoView()
+						button := ui.ButtonBase(c).Label(row.Label).FillWidth().MinHeight(menuRowHeight).Padding(design.Sp(1.5), design.Sp(2)).Radius(design.RadiusLG).
+							AlignItems(ui.Center).Justify(ui.Start).Gap(design.Sp(1.5)).FocusRing(false).Cursor(ui.CursorPointer).
+							Disabled(p.busy || p.loading || p.confirmation != nil)
+						if pointerMoved && button.Hovered() && !p.busy && !p.loading {
+							p.active, p.reveal = i, false
 						}
-					}
-					button.Children(func() {
-						ui.Column(c).FillWidth().Gap(2).Children(func() {
-							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-								if p.name == "model" && row.CatalogLabel != "" {
-									ModelLabel(c, m.Snapshot, row.CatalogLabel, ModelLabelOption, row.Active, fg, 12).Grow(1).MinWidth(0)
-								} else {
-									ui.Text(c, nativeOptionLabel(row)).TextColor(fg).FontSize(12).FixedLineHeight(18).Grow(1)
-								}
+						rowFg := fg
+						if i == p.active {
+							button = button.Background(t.Accent)
+							rowFg = t.AccentForeground
+							if p.reveal {
+								button.ScrollIntoView()
+							}
+						}
+						button.Children(func() {
+							ui.Column(c).FillWidth().Gap(design.Sp(0.5)).Children(func() {
+								ui.Row(c).FillWidth().Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+									if p.name == "model" && row.CatalogLabel != "" {
+										ModelLabel(c, m.Snapshot, row.CatalogLabel, ModelLabelOption, row.Active, rowFg, design.TextXS.Size).Grow(1).MinWidth(0)
+									} else {
+										ui.Text(c, nativeOptionLabel(row)).TextColor(rowFg).FontSize(design.TextXS.Size).FixedLineHeight(18).Grow(1)
+									}
+									if row.ID == session.PermissionAutoReview {
+										coss.Badge(c, "EXP", coss.BadgeOptions{Variant: coss.BadgeOutline, Size: coss.BadgeSM})
+									}
+									if row.Active {
+										ui.Icon(c, coss.IconCheck.SVG()).Size(design.IconSM, design.IconSM).TextColor(rowFg).Shrink(0)
+									}
+								})
 								if row.ID == session.PermissionAutoReview {
-									ui.Text(c, "EXP").FontSize(8).FixedLineHeight(10).FontWeight(500).TextColor(muted)
+									row.Detail = composerText("无沙盒运行；每次原生工具调用和 PTC 内层调用前由同一模型进行实验性审查。", "Run without a sandbox after an experimental same-model review of every native tool call and PTC inner call.")
 								}
-								if row.Active {
-									ui.Icon(c, checkIcon).Size(16, 16).TextColor(fg).Shrink(0)
+								if row.Detail != "" {
+									ui.Text(c, row.Detail).FontSize(design.TextXS.Size).FixedLineHeight(design.TextXS.LineHeight).TextColor(muted)
 								}
 							})
-							if row.ID == session.PermissionAutoReview {
-								row.Detail = composerText("无沙盒运行；每次原生工具调用和 PTC 内层调用前由同一模型进行实验性审查。", "Run without a sandbox after an experimental same-model review of every native tool call and PTC inner call.")
-							}
-							if row.Detail != "" {
-								ui.Text(c, row.Detail).FontSize(11).FixedLineHeight(16).TextColor(muted)
-							}
 						})
-					})
-					if button.Clicked() {
-						p.active = i
-						p.settle(m, row)
+						if button.Clicked() {
+							p.active = i
+							p.settle(m, row)
+						}
 					}
-				}
-			})
+				})
+			}).FillWidth().MinHeight(0).MaxHeight(max(float32(0), height-48))
 		})
 		p.reveal = false
 		if pane.PressedOutside() {
