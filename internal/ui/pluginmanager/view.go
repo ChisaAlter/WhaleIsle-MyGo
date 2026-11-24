@@ -66,6 +66,10 @@ type page struct {
 	// epoch moves when the model's Controller is swapped, so a memo keyed
 	// on the same revision cannot keep another controller's rows.
 	epoch uint64
+	// mediaEpoch moves when the model's Media lease is swapped: pictures a
+	// released owner was waiting on never arrive, so a kept region must
+	// build again to ask the new lease for them.
+	mediaEpoch uint64
 }
 
 // controllerEpoch is the retained record behind page.epoch.
@@ -74,11 +78,17 @@ type controllerEpoch struct {
 	n    uint64
 }
 
+// mediaEpoch is the retained record behind page.mediaEpoch.
+type mediaEpoch struct {
+	last *media.Owner
+	n    uint64
+}
+
 // version is the memo version of a region showing s: the revision, the
 // controller's identity, the design tokens' generation, the locale, the
 // contributions and the pictures that arrived.
 func (p *page) version() uint64 {
-	v := pagekit.NewVersion().Uint(p.rev).Uint(p.epoch).Uint(design.Revision()).Uint(p.watch.Epoch()).Bool(p.m.OnOpenURL != nil).Bool(p.m.RenderConfiguration != nil)
+	v := pagekit.NewVersion().Uint(p.rev).Uint(p.epoch).Uint(p.mediaEpoch).Uint(design.Revision()).Uint(p.watch.Epoch()).Bool(p.m.OnOpenURL != nil).Bool(p.m.RenderConfiguration != nil)
 	for _, item := range p.m.Contributions {
 		v = v.String(item.Kind).String(item.Key).String(item.Title).String(item.Summary).Uint(uint64(item.Order))
 	}
@@ -96,9 +106,17 @@ func View(c *ui.Context, m Model) {
 	if epoch.last != m.Controller {
 		epoch.last, epoch.n = m.Controller, epoch.n+1
 	}
-	p := &page{m: m, s: ver.Value, rev: ver.Rev, a: m.Controller.Actions(ver.Value.Owner), epoch: epoch.n}
+	watch := ui.Local(root, "media-watch", func() *pagekit.MediaWatch { return &pagekit.MediaWatch{} })
+	lease := ui.Local(root, "media-epoch", func() mediaEpoch { return mediaEpoch{} })
+	if lease.last != m.Media {
+		lease.last, lease.n = m.Media, lease.n+1
+		// Handles the released owner was waiting on stay Pending forever;
+		// a fresh watch stops counting the dead ones.
+		*watch = &pagekit.MediaWatch{}
+	}
+	p := &page{m: m, s: ver.Value, rev: ver.Rev, a: m.Controller.Actions(ver.Value.Owner), epoch: epoch.n, mediaEpoch: lease.n}
 	s, a := p.s, p.a
-	p.watch = *ui.Local(root, "media-watch", func() *pagekit.MediaWatch { return &pagekit.MediaWatch{} })
+	p.watch = *watch
 	scroll := ui.Local(root, "scroll", func() *ui.ScrollState { return &ui.ScrollState{} })
 	root.Children(func() {
 		pagekit.Page(c, pagekit.PageOptions{Scroll: *scroll}, func() {
