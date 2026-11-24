@@ -54,7 +54,7 @@ func Select(c *ui.Context, selected *string, options []SelectOption, o SelectOpt
 	case InputLG:
 		h = 36
 	}
-	tr.MinHeight(h).FillWidth().MinWidth(144).PaddingX(padX).Gap(gap).Justify(ui.SpaceBetween).FocusRing(false)
+	tr.MinHeight(h).PaddingX(padX).Gap(gap).Justify(ui.SpaceBetween).FocusRing(false)
 	if io.Label != "" {
 		tr.Label(io.Label)
 	}
@@ -91,6 +91,11 @@ func Select(c *ui.Context, selected *string, options []SelectOption, o SelectOpt
 			col = t.MutedForeground.Alpha(design.OpacityPlaceholder)
 		}
 		text(c, current, design.TextSM, design.WeightNormal, col).Grow(1).Shrink(1).MinWidth(0)
+		// The trigger is at least 144 DIPs wide by default. The spacer
+		// carries that floor as intrinsic width, so a caller's explicit
+		// Width — or a narrower row — still wins: ClipX drops its shrink
+		// floor to 0.
+		ui.Box(c).Width(144 - 2*padX - 2*gap - design.IconSM + design.Sp(1)).ClipX()
 		icon(c, IconChevronsUpDown, design.IconSM, t.Foreground, false).Margin(0, -design.Sp(1), 0, 0)
 	})
 	parts.Popup(func(panel ui.Element) {
