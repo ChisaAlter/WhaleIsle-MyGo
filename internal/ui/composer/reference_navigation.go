@@ -1,8 +1,11 @@
 package composer
 
 import (
-	"github.com/egoist/mygo/ui"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 type referenceCrumb struct {
@@ -88,9 +91,9 @@ func paintReferenceBreadcrumbs(c *ui.Context, m Model, tok TokenRange) {
 	if len(crumbs) == 0 {
 		return
 	}
-	ui.Row(c).Gap(3).Children(func() {
+	ui.Row(c).Gap(design.Sp(1)).Children(func() {
 		for _, crumb := range crumbs {
-			if ui.Button(c, crumb.label).Disabled(crumb.current).Clicked() {
+			if coss.Button(c, crumb.label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: crumb.current}).Clicked() {
 				applySuggestDrill(m, suggestItem{kind: SuggestMention, drill: crumb.insert}, tok)
 			}
 		}

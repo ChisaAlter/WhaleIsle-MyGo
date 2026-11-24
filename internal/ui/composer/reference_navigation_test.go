@@ -3,6 +3,7 @@ package composer
 import (
 	"github.com/egoist/mygo/ui"
 	"testing"
+	"time"
 )
 
 func TestReferenceDirectoryEnterSettles(t *testing.T) {
@@ -79,6 +80,8 @@ func TestReferenceEmptyDirectoryRetainsBackNavigation(t *testing.T) {
 	handleSuggestKey(d.Client, m, ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyTab})
 	m.FilePaths = nil
 	tt := ui.NewTester(func(c *ui.Context) { View(c, m) }, 800, 600)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tt.SetTime(time.Now().Add(time.Second))
 	if _, ok := tt.Find(composerText("工作区", "Workspace")); !ok {
 		t.Fatal("empty folder lost breadcrumb")
 	}

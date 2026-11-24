@@ -2,11 +2,13 @@ package composer
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 type beamStyle struct {
@@ -103,25 +105,39 @@ func effectHexColor(value string) bool {
 	return true
 }
 
-var beamPalettes = map[string][]string{
-	"legacy":  {"#ff3264", "#288cff", "#32c850", "#1eb9aa", "#6446ff", "#ff7828", "#f032b4"},
-	"warm":    {"#ff4d6d", "#ff8c42", "#ffd166", "#ef476f", "#ff4d6d"},
-	"aurora":  {"#42e8c8", "#3f8cff", "#8a5cf6", "#e45bff", "#42e8c8"},
-	"rose":    {"#ff4f81", "#ff79c6", "#c77dff", "#7b61ff", "#ff4f81"},
-	"glacier": {"#d9f7ff", "#6edff6", "#328bff", "#5b6dff", "#d9f7ff"},
-	"cyber":   {"#00f0ff", "#00ff8f", "#b6ff00", "#ffed00", "#00f0ff"},
-	"sunset":  {"#ff5f6d", "#ffc371", "#ff9a8b", "#ff6a88", "#ff5f6d"},
-	"cyan":    {"#31d7ff", "#1eb9aa", "#64a8ff", "#31d7ff"},
+var beamPalettes = map[string][]ui.Color{
+	"legacy":  {design.TW.Rose500, design.TW.Blue500, design.TW.Green500, design.TW.Teal500, design.TW.Violet500, design.TW.Orange500, design.TW.Fuchsia500},
+	"warm":    {design.TW.Rose500, design.TW.Orange400, design.TW.Amber300, design.TW.Rose500, design.TW.Rose500},
+	"aurora":  {design.TW.Teal400, design.TW.Blue500, design.TW.Violet500, design.TW.Fuchsia400, design.TW.Teal400},
+	"rose":    {design.TW.Pink500, design.TW.Pink400, design.TW.Purple400, design.TW.Indigo500, design.TW.Pink500},
+	"glacier": {design.TW.Cyan100, design.TW.Sky300, design.TW.Blue500, design.TW.Indigo500, design.TW.Cyan100},
+	"cyber":   {design.TW.Cyan400, design.TW.Emerald400, design.TW.Lime400, design.TW.Yellow400, design.TW.Cyan400},
+	"sunset":  {design.TW.Rose400, design.TW.Amber300, design.TW.Rose300, design.TW.Pink400, design.TW.Rose400},
+	"cyan":    {design.TW.Cyan400, design.TW.Teal400, design.TW.Blue400, design.TW.Cyan400},
+}
+
+func formatEffectHex(c ui.Color) string {
+	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
+}
+
+func opaqueRGB(r, g, b uint8) ui.Color {
+	var out ui.Color
+	out.R, out.G, out.B, out.A = r, g, b, 255
+	return out
 }
 
 // BeamPaletteColors returns the configured stops for the settings color editor.
 func BeamPaletteColors(raw json.RawMessage) []string {
 	style := readBeamStyle(raw)
-	colors := beamPalettes[style.Palette.ID]
 	if style.Palette.Kind == "custom" {
-		colors = style.Palette.Colors
+		return append([]string(nil), style.Palette.Colors...)
 	}
-	return append([]string(nil), colors...)
+	swatches := beamPalettes[style.Palette.ID]
+	out := make([]string, len(swatches))
+	for i, c := range swatches {
+		out[i] = formatEffectHex(c)
+	}
+	return out
 }
 
 func composerRunning(m Model) bool {
@@ -155,34 +171,36 @@ func paintComposerBeam(p *ui.Painter, r ui.Rect, style beamStyle, timeline *beam
 		phase = beamPhase(frame.seconds, style)
 		hue = beamHue(frame.hueSeconds, style)
 	}
-	colors := beamPalettes[style.Palette.ID]
+	var inks []ui.Color
 	if style.Palette.Kind == "custom" {
-		colors = style.Palette.Colors
-	}
-	if len(colors) == 0 {
-		colors = beamPalettes["legacy"]
-	}
-	// Normalized custom palettes contain 2..6 colors; presets at most seven.
-	// Keep the common paint path on the stack and retain larger raw palettes
-	// without allocating a fresh color slice on every animation frame.
-	var palette [7]ui.Color
-	inks := palette[:]
-	if len(colors) > len(palette) {
-		if cap(timeline.palette) < len(colors) {
-			timeline.palette = make([]ui.Color, len(colors))
+		// Normalized custom palettes contain 2..6 colors; presets at most seven.
+		// Keep the common paint path on the stack and retain larger raw palettes
+		// without allocating a fresh color slice on every animation frame.
+		var palette [7]ui.Color
+		inks = palette[:]
+		if len(style.Palette.Colors) > len(palette) {
+			if cap(timeline.palette) < len(style.Palette.Colors) {
+				timeline.palette = make([]ui.Color, len(style.Palette.Colors))
+			}
+			inks = timeline.palette[:len(style.Palette.Colors)]
 		}
-		inks = timeline.palette[:len(colors)]
-	}
-	for i, value := range colors {
-		inks[i] = chrome.Color(value)
+		for i, value := range style.Palette.Colors {
+			inks[i] = theme.Color(value)
+		}
+		inks = inks[:len(style.Palette.Colors)]
+	} else {
+		inks = beamPalettes[style.Palette.ID]
+		if len(inks) == 0 {
+			inks = beamPalettes["legacy"]
+		}
 	}
 	// Source closes only open palettes. Already closed presets use n-1
 	// intervals; an extra repeated first color would shift every stop.
-	intervals := len(colors)
-	if colors[0] == colors[len(colors)-1] {
+	intervals := len(inks)
+	if len(inks) > 0 && inks[0] == inks[len(inks)-1] {
 		intervals--
 	}
-	timeline.raster.paint(p, r, style, inks[:len(colors)], intervals, phase, hue, active && style.HueCycle.Enabled, frame.opacity)
+	timeline.raster.paint(p, r, style, inks, intervals, phase, hue, active && style.HueCycle.Enabled, frame.opacity)
 }
 
 // CSS applies hue-rotate, brightness(1.3), then saturate(1.2).
@@ -191,7 +209,7 @@ func filterBeamColor(color ui.Color, matrix [9]float64) ui.Color {
 	r, g, b := min(255, float64(color.R)*1.3), min(255, float64(color.G)*1.3), min(255, float64(color.B)*1.3)
 	luma := .213*r + .715*g + .072*b
 	channel := func(value float64) uint8 { return uint8(min(255, max(0, luma+(value-luma)*1.2))) }
-	return ui.RGB(channel(r), channel(g), channel(b))
+	return opaqueRGB(channel(r), channel(g), channel(b))
 }
 
 func beamMask(t float64) float64 {
@@ -252,7 +270,7 @@ func beamHueMatrix(degrees float64) [9]float64 {
 func applyBeamHue(color ui.Color, matrix [9]float64) ui.Color {
 	r, g, b := float64(color.R), float64(color.G), float64(color.B)
 	channel := func(value float64) uint8 { return uint8(min(255, max(0, value))) }
-	return ui.RGB(
+	return opaqueRGB(
 		channel(matrix[0]*r+matrix[1]*g+matrix[2]*b),
 		channel(matrix[3]*r+matrix[4]*g+matrix[5]*b),
 		channel(matrix[6]*r+matrix[7]*g+matrix[8]*b),

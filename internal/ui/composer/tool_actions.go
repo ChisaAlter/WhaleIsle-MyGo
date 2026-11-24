@@ -7,6 +7,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -66,22 +68,32 @@ func composerToolItems(m Model, query string) []suggestItem {
 
 // The optional voice contribution keeps its microphone trigger in the input
 // activity seat; feedback offers Retry without forcing a trip to Settings.
-func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height float32) {
+func paintVoiceControls(c *ui.Context, m Model, height float32) {
+	t := design.For(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	locked := m.Disabled || composerParentOffline(m) || m.State != nil && (m.State.Sending || m.State.Preparing > 0)
-	button := func(glyph, label string, disabled bool, action func()) {
+	button := func(icon coss.Icon, glyph, label string, disabled bool, action func()) {
 		if action == nil {
 			return
 		}
-		caption := glyph
 		if glyph == "microphone" {
-			caption = ""
+			control := ui.ButtonBase(c).Label(label).Tooltip(label).
+				Width(height).Height(height).Padding(0).Radius(design.RadiusFull).
+				Background(t.Secondary).BorderWidth(0).TextColor(t.SecondaryForeground).
+				Cursor(ui.CursorPointer).Center().Disabled(disabled)
+			control.Children(func() { ui.Icon(c, voiceMicrophoneIcon).Size(design.IconMD, design.IconMD).PassThrough() })
+			if control.Clicked() {
+				action()
+			}
+			return
 		}
-		control := ui.Button(c, caption).Label(label).Tooltip(label).
-			Width(height).Height(height).Padding(0).Radius(height / 2).
-			Background(fill).BorderWidth(0).TextColor(fg).Disabled(disabled)
-		if glyph == "microphone" {
-			control.Children(func() { ui.Icon(c, voiceMicrophoneIcon).Size(18, 18).PassThrough() })
-		}
+		control := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonSecondary,
+			Size:     coss.ButtonIconSM,
+			Icon:     icon,
+			Label:    label,
+			Disabled: disabled,
+		}).Tooltip(label).Width(height).Height(height).Radius(design.RadiusFull)
 		if control.Clicked() {
 			action()
 		}
@@ -90,7 +102,7 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 		// One stable control name: the launcher row that opens voice settings
 		// keeps its own caption, so the microphone never shadows it in the tree.
 		if voiceNeedsSetup(m) {
-			button("microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, func() {
+			button(coss.IconNone, "microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, func() {
 				if m.State != nil {
 					m.State.VoiceSetupOpen = true
 				} else if m.OnVoiceSettings != nil {
@@ -98,12 +110,12 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 				}
 			})
 		} else {
-			button("microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, m.OnStartVoice)
+			button(coss.IconNone, "microphone", i18n.T(i18n.KeyComposerVoiceInput), locked, m.OnStartVoice)
 		}
 	}
 	paintVoiceSetup(c, m)
 	if m.Voice.Phase == "recording" {
-		button("■", i18n.T(i18n.KeyComposerVoiceStop), false, m.OnStopVoice)
+		button(coss.IconPause, "■", i18n.T(i18n.KeyComposerVoiceStop), false, m.OnStopVoice)
 		paintVoiceClock(c, m, fg, muted)
 	} else if m.State != nil && !m.State.VoiceStarted.IsZero() {
 		// Leaving the recording phase retires the clock; the controller owns
@@ -112,23 +124,21 @@ func paintVoiceControls(c *ui.Context, m Model, fg, muted, fill ui.Color, height
 		m.State.VoiceTick = time.Time{}
 	}
 	if m.Voice.Pending != "" {
-		button("↵", i18n.T(i18n.KeyComposerVoiceInsert), locked, m.OnInsertVoice)
+		button(coss.IconArrowUp, "↵", i18n.T(i18n.KeyComposerVoiceInsert), locked, m.OnInsertVoice)
 	}
 	if m.Voice.Phase == "feedback" && m.Voice.Pending == "" {
-		button("microphone", i18n.T(i18n.KeyComposerVoiceRetry), locked || voiceNeedsSetup(m), m.OnStartVoice)
+		button(coss.IconNone, "microphone", i18n.T(i18n.KeyComposerVoiceRetry), locked || voiceNeedsSetup(m), m.OnStartVoice)
 	}
 	if m.Voice.Phase != "" {
-		button("×", i18n.T(i18n.KeyComposerVoiceCancel), false, m.OnCancelVoice)
+		button(coss.IconX, "×", i18n.T(i18n.KeyComposerVoiceCancel), false, m.OnCancelVoice)
 	}
 	if m.Voice.Message != "" {
 		// Feedback such as "microphone unavailable" stays visible and offers the
 		// settings seat as its recovery, so a failed capture is never a dead end.
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, m.Voice.Message).MaxWidth(180).SingleLine().FontSize(11).TextColor(muted).Tooltip(m.Voice.Pending)
+		ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, m.Voice.Message).MaxWidth(180).SingleLine().FontSize(design.TextXS.Size).TextColor(muted).Tooltip(m.Voice.Pending)
 			if !m.Voice.Busy() && m.OnVoiceSettings != nil {
-				link := ui.Button(c, i18n.T(i18n.KeyComposerVoiceSettings)).FontSize(11).Padding(0, 4).Height(20).
-					Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
-				if link.Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyComposerVoiceSettings), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 					m.OnVoiceSettings()
 				}
 			}
@@ -164,7 +174,7 @@ func paintVoiceClock(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	seconds := int(elapsed / time.Second)
 	clock := fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
-	row := ui.Row(c.Key("voice-waveform")).Gap(6).AlignItems(ui.Center).MinWidth(0).Shrink(1)
+	row := ui.Row(c.Key("voice-waveform")).Gap(design.Sp(1.5)).AlignItems(ui.Center).MinWidth(0).Shrink(1)
 	width, _ := c.Size()
 	waveWidth := max(float32(24), min(float32(240), (width-180)*.4))
 	history := ui.Local(row, "rms-history", func() voiceWaveformHistory { return voiceWaveformHistory{} })
@@ -192,7 +202,7 @@ func paintVoiceClock(c *ui.Context, m Model, fg, muted ui.Color) {
 				p.Fill(ui.Rect{X: r.X + (float32(i)+.5)*step, Y: r.Y + (r.H-bar)/2, W: max(float32(.6), step*.38), H: bar}, muted.Alpha(.25+float32(i)/120), 1)
 			}
 		})
-		ui.Text(c, clock).FontSize(11).TextColor(fg).FixedLineHeight(14).Shrink(0).Tooltip(i18n.T(i18n.KeyComposerVoiceRecording))
+		ui.Text(c, clock).FontSize(design.TextXS.Size).TextColor(fg).FixedLineHeight(14).Shrink(0).Tooltip(i18n.T(i18n.KeyComposerVoiceRecording))
 	})
 }
 

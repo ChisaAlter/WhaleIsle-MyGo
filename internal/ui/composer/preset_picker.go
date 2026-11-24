@@ -6,9 +6,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // presetChoice is one row of a picker: the opaque value sent back, the
@@ -62,12 +62,17 @@ type presetNavigation struct {
 // The toolkit's SelectBase is not used here because it owns its open flag and
 // paints no hover fill, so the chip could show neither its open state nor its
 // own hover.
-func presetSelect(c *ui.Context, caption string, options []presetChoice, pick func(string), colors theme.Colors, opt presetOptions) ui.Element {
+func presetSelect(c *ui.Context, caption string, options []presetChoice, pick func(string), opt presetOptions) ui.Element {
+	t := design.For(c)
 	owner := ui.Box(c).Absolute().Size(0, 0).PassThrough()
 	open := ui.Local(owner, "preset-open", func() bool { return false })
 	nav := ui.Local(owner, "preset-navigation", func() presetNavigation { return presetNavigation{} })
 	display, selectedID := resolvePresetCaption(caption, options)
-	trigger := chip(c, colors, *open, opt.Text)
+	textColor := opt.Text
+	if textColor.A == 0 {
+		textColor = t.MutedForeground
+	}
+	trigger := chip(c, *open, textColor)
 	if opt.PaddingX > 0 {
 		trigger = trigger.Padding(0, opt.PaddingX)
 	}
@@ -81,7 +86,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 	trigger.Bind(&nav.Anchor)
 	trigger.Children(func() {
 		if opt.Icon != nil {
-			ui.Icon(c, opt.Icon).Size(14, 14).Shrink(0)
+			ui.Icon(c, opt.Icon).Size(design.IconXS, design.IconXS).Shrink(0)
 		}
 		if opt.Leading != nil {
 			opt.Leading()
@@ -124,8 +129,8 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		nav.Active = 0
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, menuSurface(c, panel.Padding(4).Gap(0).MinWidth(144).MaxWidth(360).
-			AttachTo(trigger, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(4, 0, 0, 0), colors))
+		panel = menuSurface(c, panel.Padding(design.Sp(1)).Gap(0).MinWidth(144).MaxWidth(360).
+			AttachTo(trigger, ui.AnchorBottomLeft, ui.AnchorTopLeft).Margin(design.Sp(1), 0, 0, 0))
 		if panel.Shortcut(0, ui.KeyDown) {
 			nav.Active = (nav.Active + 1) % len(options)
 			nav.ScrollActive = true
@@ -137,11 +142,11 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 			nav.Rows[nav.Active].RequestFocus(c)
 		}
 		panel.Children(func() {
-			ui.Scroll(c).FillWidth().MaxHeight(300).Gap(0).Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
 				hoveredRow := -1
 				for i, o := range options {
 					i, o := i, o
-					row := menuRow(c, colors).Bind(nav.Rows[i])
+					row := menuRow(c).Bind(nav.Rows[i])
 					if row.Hovered() {
 						hoveredRow = i
 						if nav.HoveredIndex != i {
@@ -150,21 +155,24 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 						}
 					}
 					if i == nav.Active {
-						row = row.Background(chrome.Color(colors.Hover))
+						row = row.Background(t.Accent).TextColor(t.AccentForeground)
 						if nav.ScrollActive {
 							row.ScrollIntoView()
 							nav.ScrollActive = false
 						}
 					}
 					row.Children(func() {
-						ui.Column(c).Grow(1).MinWidth(0).MaxWidth(280).Gap(2).Children(func() {
-							ui.Text(c, o.Label).MinWidth(0).SingleLine().FontSize(13).FixedLineHeight(20).TextColor(opt.Text)
+						ui.Column(c).Grow(1).MinWidth(0).MaxWidth(280).Gap(design.Sp(0.5)).Children(func() {
+							label := ui.Text(c, o.Label).MinWidth(0).SingleLine().FontSize(design.TextSM.Size).FixedLineHeight(design.TextSM.LineHeight)
+							if opt.Text.A != 0 {
+								label.TextColor(opt.Text)
+							}
 							if o.Description != "" {
-								ui.Text(c, o.Description).FontSize(12).FixedLineHeight(16).MaxLines(2).TextColor(chrome.Color(colors.Caption))
+								ui.Text(c, o.Description).FontSize(design.TextXS.Size).FixedLineHeight(design.TextXS.LineHeight).MaxLines(2).TextColor(t.MutedForeground)
 							}
 						})
 						if o.ID == selectedID {
-							ui.Icon(c, checkIcon).Size(14, 14).Shrink(0).TextColor(chrome.Color(colors.FG))
+							cossIcon(c, coss.IconCheck, design.IconXS, t.PopoverForeground)
 						}
 					})
 					if row.Clicked() && pick != nil {
@@ -177,7 +185,7 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 				if hoveredRow < 0 {
 					nav.HoveredIndex = -1
 				}
-			})
+			}).FillWidth().MaxHeight(300)
 		})
 		// The current row takes the focus once as the popup opens, so the arrows
 		// and Enter work at once, the way a native select does. Later frames

@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 type typingStyle struct {
@@ -61,7 +62,7 @@ func readTypingStyle(raw json.RawMessage) typingStyle {
 		style.Cursor = "native"
 	}
 	style.Speed = min(240, max(40, style.Speed))
-	valid := style.Colors.Kind == "theme" || style.Colors.Kind == "preset" && typingPalettes[style.Colors.ID] != ([3]string{}) || style.Colors.Kind == "custom" && effectHexColor(style.Colors.Echo) && effectHexColor(style.Colors.Caret) && effectHexColor(style.Colors.Text)
+	valid := style.Colors.Kind == "theme" || style.Colors.Kind == "preset" && typingPalettes[style.Colors.ID] != ([3]ui.Color{}) || style.Colors.Kind == "custom" && effectHexColor(style.Colors.Echo) && effectHexColor(style.Colors.Caret) && effectHexColor(style.Colors.Text)
 	if !valid {
 		style.Colors.Kind = "theme"
 	}
@@ -131,26 +132,32 @@ func (client *DraftClient) captureTyping(before, after string) {
 	}
 }
 
-var typingPalettes = map[string][3]string{
-	"ocean":  {"#7dd3fc", "#38bdf8", "#0284c7"},
-	"sunset": {"#fdba74", "#fb923c", "#ea580c"},
-	"candy":  {"#f9a8d4", "#ec4899", "#db2777"},
-	"forest": {"#86efac", "#34d399", "#059669"},
-	"violet": {"#c4b5fd", "#8b5cf6", "#7c3aed"},
-	"ember":  {"#fcd34d", "#f59e0b", "#d97706"},
+var typingPalettes = map[string][3]ui.Color{
+	"ocean":  {design.TW.Sky300, design.TW.Sky400, design.TW.Sky600},
+	"sunset": {design.TW.Orange300, design.TW.Orange400, design.TW.Orange600},
+	"candy":  {design.TW.Pink300, design.TW.Pink500, design.TW.Pink600},
+	"forest": {design.TW.Green300, design.TW.Emerald400, design.TW.Emerald600},
+	"violet": {design.TW.Violet300, design.TW.Violet500, design.TW.Violet600},
+	"ember":  {design.TW.Amber300, design.TW.Amber500, design.TW.Amber600},
 }
 
-func TypingColorScheme(id string) [3]string { return typingPalettes[id] }
+func TypingColorScheme(id string) [3]string {
+	swatches, ok := typingPalettes[id]
+	if !ok {
+		return [3]string{}
+	}
+	return [3]string{formatEffectHex(swatches[0]), formatEffectHex(swatches[1]), formatEffectHex(swatches[2])}
+}
 
 func (fx typingEffects) colors(text, caret ui.Color) (ui.Color, ui.Color, ui.Color) {
 	if !fx.enabled || fx.style.Colors.Kind == "theme" {
 		return text, caret, text
 	}
-	values := [3]string{fx.style.Colors.Echo, fx.style.Colors.Caret, fx.style.Colors.Text}
 	if fx.style.Colors.Kind == "preset" {
-		values = typingPalettes[fx.style.Colors.ID]
+		values := typingPalettes[fx.style.Colors.ID]
+		return values[0], values[1], values[2]
 	}
-	return chrome.Color(values[0]), chrome.Color(values[1]), chrome.Color(values[2])
+	return theme.Color(fx.style.Colors.Echo), theme.Color(fx.style.Colors.Caret), theme.Color(fx.style.Colors.Text)
 }
 
 func (client *DraftClient) paintTyping(p *ui.Painter, r ui.Rect, textInk, caretInk ui.Color, focused bool) {
