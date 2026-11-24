@@ -4,20 +4,22 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
 func groupThreadsView(c *ui.Context, m Model) {
+	t := design.For(c)
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
+	colors := palette
+	fg, muted, border := t.Foreground, t.MutedForeground, t.Border
 	threads := session.ProjectGroupThreads(m.Snapshot.Messages, m.GroupMembers)
 	ui.Column(c).Fill().MinHeight(0).Children(func() {
-		ConnBannerView(c, palette, m.ConnectionBanner, muted, chrome.Color(colors.Field), border, m.OnReconnect)
-		ui.Row(c).Padding(8, 12).Gap(8).Wrap().Children(func() {
+		ConnBannerView(c, palette, m.ConnectionBanner, muted, t.Muted, border, m.OnReconnect)
+		ui.Row(c).Padding(design.Sp(2), design.Sp(3)).Gap(design.Sp(2)).Wrap().Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatGroupTitle)).Bold().TextColor(fg)
 			for _, member := range m.GroupMembers {
 				name := member.Title
@@ -33,14 +35,14 @@ func groupThreadsView(c *ui.Context, m Model) {
 				ui.Text(c, name).TextColor(muted)
 			}
 		})
-		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupEarlier), buttonGhost, false).Disabled(m.Snapshot.HistoryPageBusy).Clicked() {
+		if ShowLoadEarlier(m.Snapshot) && m.OnLoadEarlier != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupEarlier), buttonGhost, m.Snapshot.HistoryPageBusy).Clicked() {
 			m.OnLoadEarlier()
 		}
 		if m.Snapshot.HistoryPageErr != nil {
 			ui.Text(c, m.Snapshot.HistoryPageErr.SentenceText()).TextColor(muted)
 		}
-		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(12).Gap(12).Children(func() {
+		coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+			ui.Column(c).FillWidth().Padding(design.Sp(3)).Gap(design.Sp(3)).Children(func() {
 				if len(threads) == 0 {
 					ui.Text(c, i18n.T(i18n.KeyChatGroupEmpty)).TextColor(muted)
 				}
@@ -52,12 +54,12 @@ func groupThreadsView(c *ui.Context, m Model) {
 							expanded = value
 						}
 					}
-					ui.Column(c.Key(key)).FillWidth().Border(1, border).Radius(8).Padding(12).Gap(8).Children(func() {
+					chatCardSurface(c, ui.Column(c.Key(key)).FillWidth().Padding(design.Sp(3)).Gap(design.Sp(2)), design.RadiusMD).Children(func() {
 						label := fmt.Sprintf(i18n.T(i18n.KeyChatGroupCount), thread.ID, len(thread.Messages))
 						if !expanded && len(thread.Messages) > 0 {
 							label = thread.Messages[0].Text + " · " + label
 						}
-						if ui.Button(c, label).Clicked() && m.ThinkingExpanded != nil {
+						if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() && m.ThinkingExpanded != nil {
 							if *m.ThinkingExpanded == nil {
 								*m.ThinkingExpanded = map[string]bool{}
 							}
@@ -67,7 +69,7 @@ func groupThreadsView(c *ui.Context, m Model) {
 							return
 						}
 						for _, message := range thread.Messages {
-							ui.Column(c.Key(message.ID)).FillWidth().Gap(4).Children(func() {
+							ui.Column(c.Key(message.ID)).FillWidth().Gap(design.Sp(1)).Children(func() {
 								label := message.Speaker
 								if message.Late {
 									label += " · " + i18n.T(i18n.KeyChatGroupLate)
@@ -89,16 +91,16 @@ func groupThreadsView(c *ui.Context, m Model) {
 										ui.Text(c, "📎 "+name).TextColor(muted)
 									}
 								} else if message.Text != "" {
-									markdown.ViewInteractive(c, message.Text, transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, darkSurface(muted), chrome.Color(colors.Secondary)), m.OnOpenCitationURL)
+									markdown.ViewInteractive(c, message.Text, transcriptMarkdownStyleFor(c, theme.CurrentPreferences().Chat.Size), m.OnOpenCitationURL)
 								}
 							})
 						}
-						if m.OnReplyGroupThread != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupReply), buttonGhost, false).Disabled(m.Snapshot.PromptBusy).Clicked() {
+						if m.OnReplyGroupThread != nil && stdButton(c, palette, i18n.T(i18n.KeyChatGroupReply), buttonGhost, m.Snapshot.PromptBusy).Clicked() {
 							m.OnReplyGroupThread(thread.ID)
 						}
 					})
 				}
 			})
-		})
+		}).Grow(1).MinHeight(0)
 	})
 }

@@ -8,8 +8,7 @@ import (
 	"time"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 type goalDockEditor struct {
@@ -24,13 +23,13 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 	if g == nil || g.Phase == "complete" || g.Phase == "completed" {
 		return
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	t := design.For(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	scope := g.ID
 	if len(stores) > 0 && stores[0] != nil {
 		scope = stores[0].PlanHistoryBinding() + ":" + g.ID
 	}
-	root := ui.Row(c.Key("goal-dock:"+scope)).FillWidth().MinWidth(0).MinHeight(36).Shrink(0).Padding(4, 5, 4, 12).Gap(10).AlignItems(ui.Center).Radius(12).Draw(chrome.Glass(chrome.Color(colors.InputMajor), chrome.MaterialPanel, 12))
+	root := chatCardSurface(c, ui.Row(c.Key("goal-dock:"+scope)).FillWidth().MinWidth(0).MinHeight(36).Shrink(0).Padding(design.Sp(1), design.Sp(1.25), design.Sp(1), design.Sp(3)).Gap(design.Sp(2.5)).AlignItems(ui.Center), design.RadiusLG)
 	state := ui.Local(root, "editor", func() goalDockEditor { return goalDockEditor{draft: g.Objective} })
 	if !state.editing {
 		root.Height(36)
@@ -88,7 +87,11 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 		}()
 	}
 	button := func(glyph, label, action string, disabled bool) {
-		b := ui.Button(c, "").Label(label).Tooltip(label).Size(28, 28).Padding(0).Radius(14).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(state.pending || disabled)
+		isDisabled := state.pending || disabled
+		b := ui.Button(c, "").Label(label).Tooltip(label).Size(28, 28).Padding(0).Radius(design.RadiusFull).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(isDisabled)
+		if !isDisabled {
+			b.Cursor(ui.CursorPointer)
+		}
 		b.Children(func() {
 			if state.pending && state.action == action {
 				ui.Spinner(c).Size(14, 14)
@@ -114,10 +117,13 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 				}, func() { state.editing = false })
 			})
 			if state.error != "" {
-				ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(c.Theme().Danger).SingleLine().Tooltip(state.error).MinWidth(0).Shrink(1)
+				ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(t.DestructiveForeground).SingleLine().Tooltip(state.error).MinWidth(0).Shrink(1)
 			}
 			button("✓", referenceCopy("Save goal", "保存目标"), "edit", strings.TrimSpace(state.draft) == "")
-			cancel := ui.Button(c, "").Label(referenceCopy("Cancel edit", "取消编辑")).Tooltip(referenceCopy("Cancel edit", "取消编辑")).Size(28, 28).Padding(0).Radius(14).BorderWidth(0).Background(ui.Transparent).Disabled(state.pending)
+			cancel := ui.Button(c, "").Label(referenceCopy("Cancel edit", "取消编辑")).Tooltip(referenceCopy("Cancel edit", "取消编辑")).Size(28, 28).Padding(0).Radius(design.RadiusFull).BorderWidth(0).Background(ui.Transparent).Disabled(state.pending)
+			if !state.pending {
+				cancel.Cursor(ui.CursorPointer)
+			}
 			cancel.Children(func() { ui.Icon(c, messageIconCloseOutline).Size(14, 14) })
 			if cancel.Clicked() {
 				state.editing = false
@@ -142,7 +148,7 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 			root.Tooltip(g.BlockedReason.Message)
 		}
 		if state.error != "" {
-			ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(c.Theme().Danger).SingleLine().MinWidth(0).Shrink(1).Tooltip(state.error)
+			ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(t.DestructiveForeground).SingleLine().MinWidth(0).Shrink(1).Tooltip(state.error)
 		}
 		if g.Phase == "active" && g.Activation == "armed" {
 			button("Ⅱ", referenceCopy("Pause goal", "暂停目标"), "pause", false)
@@ -150,7 +156,10 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 		if g.Phase == "paused" || g.Phase == "active" && g.Activation == "disarmed" {
 			button("▷", referenceCopy("Resume goal", "恢复目标"), "resume", false)
 		}
-		edit := ui.Button(c, "").Label(referenceCopy("Edit goal", "编辑目标")).Tooltip(referenceCopy("Edit goal", "编辑目标")).Size(28, 28).Padding(0).Radius(14).BorderWidth(0).Background(ui.Transparent).Disabled(state.pending)
+		edit := ui.Button(c, "").Label(referenceCopy("Edit goal", "编辑目标")).Tooltip(referenceCopy("Edit goal", "编辑目标")).Size(28, 28).Padding(0).Radius(design.RadiusFull).BorderWidth(0).Background(ui.Transparent).Disabled(state.pending)
+		if !state.pending {
+			edit.Cursor(ui.CursorPointer)
+		}
 		edit.Children(func() { ui.Icon(c, messageIconEditOutline).Size(14, 14) })
 		if edit.Clicked() {
 			state.draft = g.Objective

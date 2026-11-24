@@ -4,27 +4,23 @@ import (
 	"math"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
 // toolIORows groups generic evidence into independently scrollable input/output
 // sections. Specialized bodies keep their own clipboard affordances.
-func toolIORows(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string) {
+func toolIORows(c *ui.Context, info ToolCardInfo, _ ToolCardStyle, key string) {
 	if info.Arguments == "" && info.Output == "" {
 		return
 	}
+	t := design.For(c)
 	border := float32(max(1, math.Floor(.5*float64(c.DeviceScale()))) / float64(c.DeviceScale()))
-	background, stroke, secondary, caption := st.Field, st.Border.Alpha(.4), st.Muted, st.Muted.Alpha(.6)
-	if st.Colors.CodeBlock != "" {
-		background = chrome.Color(st.Colors.CodeBlock)
-		stroke = chrome.Color(st.Colors.BorderL1)
-		secondary = chrome.Color(st.Colors.Secondary)
-		caption = chrome.Color(st.Colors.Caption)
-	}
-	chrome.FrostSurface(ui.Column(c.Key("tool-io:"+key)).MinWidth(0).Shrink(0).Margin(4, 0, 4, 4).Label(i18n.T(i18n.KeyToolRowIOGroup)).
-		Border(border, stroke), st.Colors, c.Theme().Dark, background, 16).Children(func() {
+	background, stroke, secondary, caption := t.Code, t.Border, t.Foreground, t.MutedForeground
+	ui.Column(c.Key("tool-io:"+key)).MinWidth(0).Shrink(0).Margin(design.Sp(1), 0, design.Sp(1), design.Sp(1)).Label(i18n.T(i18n.KeyToolRowIOGroup)).
+		Background(background).Radius(design.RadiusXL2).Border(border, stroke).Children(func() {
 		section := func(label, value, suffix string, color ui.Color) {
 			font := theme.RenderPreferences().Code.Family
 			labelLayout := ui.ShapeText(label, ui.Font{Family: font, Size: 11}, 0)
@@ -39,7 +35,7 @@ func toolIORows(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string) 
 				})
 			})
 			scroll.Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Padding(12, 16, 12, 16).Gap(14).AlignItems(ui.Start).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Padding(design.Sp(3), design.Sp(4), design.Sp(3), design.Sp(4)).Gap(design.Sp(3.5)).AlignItems(ui.Start).Children(func() {
 					// A separate fixed gutter supplies the label after scrolling;
 					// the text itself remains selectable and wraps in its column.
 					ui.Box(c).Width(width).Height(16).Shrink(0).ObserveLayout(func(r ui.Rect) { gutter = r })
@@ -51,12 +47,12 @@ func toolIORows(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string) 
 			section(i18n.T(i18n.KeyChatToolInput), prettyToolPayload(info.Arguments), "input", secondary)
 		}
 		if info.Arguments != "" && info.Output != "" {
-			ui.Box(c).FillWidth().Height(.5).Shrink(0).Background(st.Border)
+			coss.Separator(c, coss.Horizontal)
 		}
 		if info.Output != "" {
 			ink := secondary
 			if toolRowStatus(info.Status) == statusError {
-				ink = st.Err
+				ink = t.DestructiveForeground
 			}
 			section(i18n.T(i18n.KeyChatToolIOOutput), info.Output, "output", ink)
 		}

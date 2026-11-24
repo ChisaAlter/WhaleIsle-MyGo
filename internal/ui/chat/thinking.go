@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -71,14 +72,15 @@ func ThinkingBlockView(c *ui.Context, msgID, body string, expanded *map[string]b
 		}
 		// ReasoningRow.module.css .thinkBody indents the body under the title:
 		// leading 16 + delta plus gap 6.
-		ui.Column(c).Key("thinking-body").FillWidth().MinWidth(0).Padding(4, 0, 4, 22+(theme.RenderPreferences().Chat.Size-14)).
+		ui.Column(c).Key("thinking-body").FillWidth().MinWidth(0).Padding(design.Sp(1), 0, design.Sp(1), disclosureBodyIndent+(theme.RenderPreferences().Chat.Size-14)).
 			Transition(ui.ElementTransition{Duration: 180 * time.Millisecond, Ease: contextFadeEase, Colors: true,
 				Enter: &ui.Motion{Opacity: 0, Y: -4}, Exit: &ui.Motion{Opacity: 0, Y: -4}}).
 			Children(func() {
 				if st.Body != nil {
 					st.Body(c)
 				} else {
-					bodyStyle := transcriptMarkdownStyle(st.Muted, st.Muted, st.Field, st.FG, st.Hover, size, darkSurface(st.Muted), st.Muted)
+					bodyStyle := transcriptMarkdownStyleFor(c, size)
+					bodyStyle.FG = design.For(c).MutedForeground
 					bodyStyle.Compact = true
 					markdown.View(c, body, bodyStyle)
 				}

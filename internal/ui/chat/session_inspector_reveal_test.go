@@ -13,7 +13,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/settings"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -312,7 +312,8 @@ func TestInspectorRevealNativePulseMatchesFourLinearKeyframes(t *testing.T) {
 		tt.SetTime(start.Add(time.Duration(ms) * time.Millisecond))
 		alpha := inspectorChatFlashOpacity(time.Duration(ms) * time.Millisecond)
 		pixel := tt.Image().RGBAAt(250, 90)
-		fill := chrome.Color(theme.Default().Light.BubbleHighlight)
+		tok := design.Resolve(design.Light, ui.LightTheme().Accent, ui.Color{})
+		fill := tok.Primary.Mix(tok.Background, 0.8)
 		for i, channel := range []uint8{pixel.R, pixel.G, pixel.B} {
 			want := float64([]uint8{fill.R, fill.G, fill.B}[i])*float64(alpha) + 255*(1-float64(alpha))
 			if math.Abs(float64(channel)-want) > 1.5 {

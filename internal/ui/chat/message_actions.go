@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -13,6 +14,10 @@ import (
 // MessageIconActions.module.css shares a 28px seat and an 8px gap; earlier
 // user rows and turn tails reveal on hover/focus without changing geometry.
 func messageAction(c *ui.Context, icon *ui.SVG, label string, assistant bool, muted ui.Color, semanticID ...string) ui.Element {
+	t := design.For(c)
+	if muted.A == 0 {
+		muted = t.MutedForeground
+	}
 	delta := theme.CurrentPreferences().Chat.Size - 14
 	edge, glyph := float32(28)+delta, float32(15)+delta
 	if assistant {
@@ -23,10 +28,10 @@ func messageAction(c *ui.Context, icon *ui.SVG, label string, assistant bool, mu
 		key = semanticID[0]
 	}
 	b := ui.Button(c.Key("message-action-"+key), "").Label(label).Tooltip(label).Width(edge).Height(edge).Padding(0).
-		Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).
-		Justify(ui.Center).AlignItems(ui.Center)
+		Radius(design.RadiusMD).BorderWidth(0).Background(ui.Transparent).TextColor(muted).
+		Justify(ui.Center).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 	if b.Hovered() {
-		b.Background(c.Theme().SurfaceHover)
+		b.Background(t.Accent)
 	}
 	b.Children(func() { ui.Icon(c, icon).Width(glyph).Height(glyph).PassThrough() })
 	return b
@@ -186,8 +191,8 @@ func combineTurnPrefixActionTargets(
 
 func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarget, owner ui.Element, muted ui.Color) {
 	msg := target.message
-	row := ui.Row(c).Key("assistant-actions").Label("Assistant message actions").Gap(8).
-		Height(28+theme.CurrentPreferences().Chat.Size-14).AlignItems(ui.Center).Margin(4, 0, 0, -6)
+	row := ui.Row(c).Key("assistant-actions").Label("Assistant message actions").Gap(design.Sp(2)).
+		Height(28+theme.CurrentPreferences().Chat.Size-14).AlignItems(ui.Center).Margin(design.Sp(1), 0, 0, -design.Sp(1.5))
 	messageActionMenu(c, row, m, msg)
 	revealed := target.latest || owner.Hovered() || owner.FocusWithin()
 	row.Children(func() {
@@ -216,7 +221,7 @@ func assistantMessageActions(c *ui.Context, m Model, target assistantActionTarge
 			TurnUsageView(c, m, session.Message{Seq: target.endSeq}, muted)
 		}
 		if msg.EventTime > 0 {
-			stamp := ui.Text(c, formatMessageClock(msg.EventTime, c.Now())).FontSize(theme.CurrentPreferences().Chat.Size-2).FixedLineHeight(theme.CurrentPreferences().Chat.Size+10).Margin(0, 0, 0, 8).TextColor(muted)
+			stamp := ui.Text(c, formatMessageClock(msg.EventTime, c.Now())).FontSize(theme.CurrentPreferences().Chat.Size-2).FixedLineHeight(theme.CurrentPreferences().Chat.Size+10).Margin(0, 0, 0, design.Sp(2)).TextColor(muted)
 			if !revealed {
 				stamp.Opacity(0)
 			}

@@ -6,9 +6,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
@@ -22,12 +21,12 @@ var (
 // CompactionItem.tsx in @deepseek-harness/ui-chat. Missing history evidence
 // stays in the compact single-line row and never falls back to a raw body card.
 func CompactionView(c *ui.Context, msg session.Message, fg, muted, field ui.Color) {
-	root := ui.Column(c).FillWidth().MinWidth(0).Padding(2, 0).Clip()
+	t := design.For(c)
+	root := ui.Column(c).FillWidth().MinWidth(0).Padding(design.Sp(0.5), 0).Clip()
 	open := ui.Local(root, "summary-open", func() bool { return false })
 
-	dark := darkSurface(fg)
-	secondary := chrome.Color(theme.SecondaryInk(dark))
-	caption := compactionCaptionColor(dark, muted)
+	secondary := t.Foreground.Alpha(0.72)
+	caption := t.MutedForeground
 
 	compact := msg.AutomaticCompaction
 	summary := ""
@@ -56,7 +55,7 @@ func CompactionView(c *ui.Context, msg session.Message, fg, muted, field ui.Colo
 		active := expandable && (header.Hovered() || isExpanded)
 		titleColor := secondary
 		if active {
-			titleColor = fg
+			titleColor = t.Foreground
 		}
 
 		header.Children(func() {
@@ -73,7 +72,7 @@ func CompactionView(c *ui.Context, msg session.Message, fg, muted, field ui.Colo
 			ui.Row(c).Grow(1).Height(24).MinWidth(0).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyChatCompaction)).FontSize(13).FixedLineHeight(24).
 					TextColor(titleColor).NoWrap().Shrink(0)
-				ui.Box(c).Size(2, 2).Radius(999).Background(caption).Margin(0, 8, 0, 8).Shrink(0)
+				ui.Box(c).Size(2, 2).Radius(design.RadiusFull).Background(caption).Margin(0, design.Sp(2), 0, design.Sp(2)).Shrink(0)
 				ui.Text(c, label).FontSize(13).FixedLineHeight(24).
 					TextColor(caption).NoWrap().Ellipsis("…").Grow(1).MinWidth(0)
 			})
@@ -83,26 +82,19 @@ func CompactionView(c *ui.Context, msg session.Message, fg, muted, field ui.Colo
 			*open = !*open
 		}
 		if isExpanded {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(4, 0, 4, 22).Children(func() {
-				markdown.View(c, compact.Summary, markdown.Style{
-					FG:       secondary,
-					Muted:    caption,
-					CodeBG:   field,
-					Accent:   c.Theme().Accent,
-					FontSize: 13,
-					Dark:     dark,
-				})
+			ui.Column(c).FillWidth().MinWidth(0).Padding(design.Sp(1), 0, design.Sp(1), disclosureBodyIndent).Children(func() {
+				md := transcriptMarkdownStyleFor(c, 13)
+				md.FG = secondary
+				md.Muted = caption
+				markdown.View(c, compact.Summary, md)
 			})
 		}
 	})
 }
 
-func compactionCaptionColor(dark bool, fallback ui.Color) ui.Color {
-	if dark {
-		return ui.RGB(129, 133, 140)
-	}
+func compactionCaptionColor(_ bool, fallback ui.Color) ui.Color {
 	if fallback.A != 0 {
-		return ui.RGB(173, 178, 184)
+		return fallback
 	}
-	return ui.RGB(173, 178, 184)
+	return design.Base(design.Light).MutedForeground
 }

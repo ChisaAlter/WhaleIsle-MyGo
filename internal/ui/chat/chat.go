@@ -15,7 +15,8 @@ import (
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/settings"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
@@ -121,11 +122,14 @@ func conversationView(c *ui.Context, m Model) {
 	}
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	border := chrome.Color(colors.Border)
-	dark := th.Scheme == theme.SchemeDark || (th.Scheme == theme.SchemeSystem && m.SystemDark)
-	// Let the frame desk-wash show through (Electron chat pane is translucent mica).
+	tokens := design.For(c)
+	fg := tokens.Foreground
+	muted := tokens.MutedForeground
+	border := tokens.Border
+	field := tokens.Muted
+	accent := tokens.Primary
+	hover := tokens.Accent
+	_ = th
 	_ = colors.BG
 
 	// The snapshot carries the tool/workflow/delivery projection built with it;
@@ -163,7 +167,7 @@ func conversationView(c *ui.Context, m Model) {
 		HistoryNavigationView(c, m, list, muted)
 		whaleUIPanelView(c, m)
 		if !m.FullColumnViewport {
-			ui.Box(c).Fill().Height(1).Background(border)
+			coss.Separator(c, coss.Horizontal)
 		}
 		if len(msgs) == 0 && historyRows == 0 {
 			if m.Inspector != nil {
@@ -235,7 +239,7 @@ func conversationView(c *ui.Context, m Model) {
 						padR = max(padR, 4.67)
 					}
 					isSystem := msg.Kind == session.MessageKindText && msg.Role == "system"
-					messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(4).Fill()
+					messageRoot := ui.Column(row.Context).Padding(padT, padR, padB, padL).Gap(design.Sp(1)).Fill()
 					inspectorChatRowGeometry(row.Context, m, msg, messageRoot, padT, padR, padB, padL)
 					messageRoot.Children(func() {
 						if control, ok := transcriptControls[msg.ID]; ok {
@@ -282,7 +286,7 @@ func conversationView(c *ui.Context, m Model) {
 							return
 						}
 						if msg.Kind == session.MessageKindSubmittedPlan {
-							SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: chrome.Color(colors.Field), Accent: chrome.Color(colors.Accent)}, m.OnOpenPlanResource)
+							SubmittedPlanCardView(row.Context, msg, m.Snapshot.SelectedID, planpreview.Style{FG: fg, Muted: muted, Border: border, Field: tokens.Card, Accent: accent}, m.OnOpenPlanResource)
 							return
 						}
 						// Electron turn/end strip: 「已完成，用时 …」 with the usage row
@@ -316,7 +320,7 @@ func conversationView(c *ui.Context, m Model) {
 									})
 								}
 							} else {
-								root := ui.Column(row.Context).FillWidth().MinWidth(0).Gap(2)
+								root := ui.Column(row.Context).FillWidth().MinWidth(0).Gap(design.Sp(0.5))
 								root.Children(func() {
 									paintDisclosureRow(row.Context, disclosureRow{
 										Key:        key,
@@ -326,9 +330,9 @@ func conversationView(c *ui.Context, m Model) {
 										Expandable: detail != "",
 										Open:       open,
 										OnToggle:   func() { toggleThinkingExpanded(m.ThinkingExpanded, key) },
-									}, disclosureStyle{FG: fg, Muted: muted, Hover: chrome.Color(colors.Hover), Accent: chrome.Color(colors.Accent), Size: 12})
+									}, disclosureStyle{FG: fg, Muted: muted, Hover: hover, Accent: accent, Size: 12})
 									if open && detail != "" {
-										ui.Column(row.Context).Key("turn-end-detail").Padding(0, 0, 2, 22).
+										ui.Column(row.Context).Key("turn-end-detail").Padding(0, 0, design.Sp(0.5), design.Sp(5.5)).
 											Transition(ui.ElementTransition{Duration: 180 * time.Millisecond, Ease: contextFadeEase, Colors: true,
 												Enter: &ui.Motion{Opacity: 0, Y: -4}, Exit: &ui.Motion{Opacity: 0, Y: -4}}).
 											Children(func() {
@@ -356,7 +360,7 @@ func conversationView(c *ui.Context, m Model) {
 						rowMeta := ui.Local(messageRoot, "row-meta", func() rowContentMemo { return rowContentMemo{} })
 						rowMeta.update(msg)
 						if rowMeta.hasPublication {
-							VisualReplyView(row.Context, rowMeta.publication, m, fg, muted, border, chrome.Color(colors.Field))
+							VisualReplyView(row.Context, rowMeta.publication, m, fg, muted, border, field)
 						}
 						switch msg.Kind {
 						case session.MessageKindCommand:
@@ -383,9 +387,9 @@ func conversationView(c *ui.Context, m Model) {
 							})
 						case session.MessageKindDeliverables:
 							// Unbound/legacy declarations remain readable without path-open authority.
-							DeliverablesView(row.Context, msg, fg, muted, border, chrome.Color(colors.Field), nil)
+							DeliverablesView(row.Context, msg, fg, muted, border, field, nil)
 						case session.MessageKindCompaction:
-							CompactionView(row.Context, msg, fg, muted, chrome.Color(colors.Field))
+							CompactionView(row.Context, msg, fg, muted, field)
 						case session.MessageKindThinking:
 							thSt := ThinkingStyle{
 								HidePreview: m.Preferences.TranscriptView == "compact" && !msg.Streaming,
@@ -393,10 +397,10 @@ func conversationView(c *ui.Context, m Model) {
 								FG:          fg,
 								Muted:       muted,
 								Border:      border,
-								Field:       chrome.Color(colors.Field),
+								Field:       field,
 								Size:        secondaryChatSize(),
-								Accent:      chrome.Color(colors.Accent),
-								Hover:       chrome.Color(colors.Hover),
+								Accent:      accent,
+								Hover:       hover,
 							}
 							ThinkingBlockView(row.Context, msg.ID, msg.Body, m.ThinkingExpanded, thSt)
 						case session.MessageKindUnknown:
@@ -431,15 +435,14 @@ func conversationView(c *ui.Context, m Model) {
 								diff.View(row.Context, patch, diff.Style{
 									FontSize: 12,
 									FG:       fg,
-									Add:      ui.RGB(61, 153, 112),
-									Del:      ui.RGB(224, 102, 102),
-									Hunk:     chrome.Color(colors.Accent),
+									Add:      tokens.SuccessForeground,
+									Del:      tokens.DestructiveForeground,
+									Hunk:     accent,
 									File:     muted,
 									Muted:    muted,
 								})
 							} else if body != "" {
-								md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, dark, chrome.Color(colors.Secondary))
-								md.TableHeader = chrome.Color(colors.Sidebar)
+								md := transcriptMarkdownStyleFor(row.Context, theme.CurrentPreferences().Chat.Size)
 								md.Streaming = msg.Streaming
 								md.OnOpenURL = m.OnOpenCitationURL
 								md.RenderImage = func(ctx *ui.Context, ref, _ string) bool {
@@ -462,7 +465,7 @@ func conversationView(c *ui.Context, m Model) {
 								markdown.View(row.Context, body, md)
 							}
 							if msg.Role == "assistant" {
-								CitationsView(row.Context, rowMeta.citations, muted, chrome.Color(colors.Accent), m.OnOpenCitationURL)
+								CitationsView(row.Context, rowMeta.citations, muted, accent, m.OnOpenCitationURL)
 							}
 						}
 						if target, ok := actionTargets[messageIndex]; ok {
@@ -488,19 +491,17 @@ func conversationView(c *ui.Context, m Model) {
 // StatusView belongs to the conversation shell as well as stand-alone chat
 // surfaces: connection failures and action feedback must survive an empty body.
 func StatusView(c *ui.Context, m Model) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	muted := chrome.Color(colors.Muted)
-	field := chrome.Color(colors.Field)
-	border := chrome.Color(colors.Border)
-	ConnBannerView(c, colors, m.ConnectionBanner, muted, field, border, m.OnReconnect)
+	tokens := design.For(c)
+	muted := tokens.MutedForeground
+	field := tokens.Muted
+	border := tokens.Border
+	ConnBannerView(c, theme.Colors{}, m.ConnectionBanner, muted, field, border, m.OnReconnect)
 	// Host bookkeeping strings (e.g. "workspace ready: <title>") are internal
 	// state, not transcript copy; the shell shows user-facing status only.
 	if action := displayableAction(m.Snapshot.LastAction); action != "" {
-		ui.Text(c, action).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
+		ui.Text(c, action).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(design.Sp(2), design.Sp(3), 0, design.Sp(3))
 	} else if notice := conversationSessionNotice(m.Snapshot); notice != "" {
-		ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
-	} else if false {
-		ui.Text(c, action).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 12, 0, 12)
+		ui.Text(c, notice).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(design.Sp(2), design.Sp(3), 0, design.Sp(3))
 	}
 }
 

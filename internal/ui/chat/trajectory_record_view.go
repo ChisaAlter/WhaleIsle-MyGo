@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -32,11 +33,11 @@ func paintTrajectoryRecord(c *ui.Context, row trajRow, p trajectoryPalette, turn
 				ui.Box(c).Absolute().Left(13).Top(1).Bottom(1).Width(1).Background(p.turnAccent)
 			}
 			if turnStart && row.TurnNumber > 0 {
-				ui.Row(c).Absolute().Left(0).Top(0).Height(10).Padding(1, 5, 1, 5).Background(p.modulePlatform).Radius(2).Children(func() {
+				ui.Row(c).Absolute().Left(0).Top(0).Height(10).Padding(design.Sp(0.25), design.Sp(1.25), design.Sp(0.25), design.Sp(1.25)).Background(p.modulePlatform).Radius(design.RadiusXS).Children(func() {
 					ui.Text(c, fmt.Sprintf("#%d", row.TurnNumber)).FontSize(theme.InterfaceSize(8)).TextColor(p.caption).SingleLine()
 				})
 			}
-			ui.Box(c).Absolute().Right(4).Top(7).Width(16).Height(16).Radius(4).Background(fill).Children(func() {
+			ui.Box(c).Absolute().Right(4).Top(7).Width(16).Height(16).Radius(design.RadiusXS + 2).Background(fill).Children(func() {
 				ui.Icon(c, icon).Width(11).Height(11).TextColor(ink).Absolute().Left(2.5).Top(2.5)
 			})
 		})

@@ -7,6 +7,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -45,18 +47,22 @@ func CompactUsageBalance(balance string) string {
 
 // UsageLabelView paints a one-line usage strip above the message list.
 // Empty text hides it. When onOpen is set, a click opens the usage panel.
-func UsageLabelView(c *ui.Context, text string, muted, field, border ui.Color, onOpen func()) {
+func UsageLabelView(c *ui.Context, text string, _, _, _ ui.Color, onOpen func()) {
 	if text == "" {
 		return
 	}
-	ui.Column(c).Background(field).Children(func() {
-		row := ui.Row(c).Padding(4, 12, 4, 12).Gap(6).AlignItems(ui.Center)
+	t := design.For(c)
+	ui.Column(c).Background(t.Muted).Children(func() {
+		row := ui.Row(c).Padding(design.Sp(1), design.Sp(3), design.Sp(1), design.Sp(3)).Gap(design.Sp(1.5)).AlignItems(ui.Center)
+		if onOpen != nil {
+			row.Cursor(ui.CursorPointer)
+		}
 		row.Children(func() {
-			ui.Text(c, text).FontSize(11).TextColor(muted).Grow(1)
+			ui.Text(c, text).FontSize(11).TextColor(t.MutedForeground).Grow(1)
 		})
 		if onOpen != nil && row.Clicked() {
 			onOpen()
 		}
-		ui.Box(c).Fill().Height(1).Background(border)
+		coss.Separator(c, coss.Horizontal)
 	})
 }

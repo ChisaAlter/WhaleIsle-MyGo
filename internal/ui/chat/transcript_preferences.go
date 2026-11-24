@@ -9,7 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -342,17 +342,18 @@ func processCategory(kind ToolKind, done bool) string {
 // chevron rotates 180deg over the same 100ms ease rather than swapping
 // glyphs. Height, font size and line height ride the chat content font
 // delta; the Original's padding-bottom is 8.
-func transcriptControlView(c *ui.Context, control transcriptControl, m Model, colors theme.Colors) {
+func transcriptControlView(c *ui.Context, control transcriptControl, m Model, _ theme.Colors) {
+	t := design.For(c)
 	delta := theme.RenderPreferences().Chat.Size - 14
-	muted, secondary := chrome.Color(colors.Muted), chrome.Color(colors.Secondary)
+	muted, secondary := t.MutedForeground, t.Foreground
 	if strings.HasPrefix(control.key, "transcript-group:") {
 		transcriptGroupView(c, control, m, muted, secondary, delta)
 		return
 	}
 	ui.Row(c).FillWidth().MinWidth(0).MinHeight(33 + delta).AlignItems(ui.Center).Children(func() {
 		btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).
-			FillWidth().MinWidth(0).Height(33+delta).Padding(0, 0, 8, 0).Gap(4).BorderWidth(0).
-			Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
+			FillWidth().MinWidth(0).Height(33+delta).Padding(0, 0, design.Sp(2), 0).Gap(design.Sp(1)).BorderWidth(0).
+			Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 		target := float32(0)
 		if btn.Hovered() {
 			target = 1
@@ -422,10 +423,10 @@ func transcriptFoldChevron(c *ui.Context, open bool, color ui.Color) {
 func transcriptGroupView(c *ui.Context, control transcriptControl, m Model, muted, secondary ui.Color, delta float32) {
 	bottom := float32(0)
 	if control.open {
-		bottom = 8
+		bottom = design.Sp(2)
 	}
 	btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).MinWidth(0).AlignSelf(ui.Start).
-		Padding(0, 0, bottom, 0).Gap(6).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
+		Padding(0, 0, bottom, 0).Gap(design.Sp(1.5)).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 	textColor := muted.Mix(secondary, btn.AnimateWith("group-hover", boolFloat(btn.Hovered()), 100*time.Millisecond, contextColorEase))
 	leadingSize, glyph := float32(16)+delta, float32(14)+delta
 	btn.Children(func() {

@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -134,9 +135,9 @@ func (body contextBody) paint(c *ui.Context, style contextBodyStyle) {
 	ui.Column(c.Key(body.key)).FillWidth().MinWidth(0).Gap(0).Selectable().Children(func() {
 		switch body.Form {
 		case "instructions":
-			ui.Row(c).FillWidth().MinWidth(0).Wrap().GapX(12).GapY(4).Margin(0, 0, 8, 0).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().GapX(design.Sp(3)).GapY(design.Sp(1)).Margin(0, 0, design.Sp(2), 0).Children(func() {
 				for _, change := range body.instructions {
-					ui.Row(c).MinWidth(0).Gap(6).AlignItems(ui.Start).Children(func() {
+					ui.Row(c).MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Start).Children(func() {
 						path := style.meta(c, change.Path, style.Secondary).Shrink(1).MinWidth(0)
 						if change.Digest != "" {
 							path.Tooltip(change.Digest)
@@ -148,25 +149,25 @@ func (body contextBody) paint(c *ui.Context, style contextBodyStyle) {
 			paintContextBodyRuns(c, body.runs, style, false)
 		case "catalog":
 			if body.catalogUpdate {
-				style.text(c, i18n.T(i18n.KeyContextCatalogReplaced), style.Caption).FillWidth().Margin(0, 0, 6, 0)
+				style.text(c, i18n.T(i18n.KeyContextCatalogReplaced), style.Caption).FillWidth().Margin(0, 0, design.Sp(1.5), 0)
 			}
-			ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1)).Children(func() {
 				for _, entry := range body.catalog {
-					ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 						style.meta(c, entry.Name, style.Secondary).Shrink(0)
 						style.meta(c, entry.Description, style.Tertiary).Grow(1).MinWidth(0).SingleLine()
 					})
 				}
 			})
 			if body.catalogTotal > len(body.catalog) {
-				style.text(c, fmt.Sprintf(i18n.T(i18n.KeyContextCatalogMore), body.catalogTotal-len(body.catalog)), style.Caption).FillWidth().Margin(0, 0, 6, 0)
+				style.text(c, fmt.Sprintf(i18n.T(i18n.KeyContextCatalogMore), body.catalogTotal-len(body.catalog)), style.Caption).FillWidth().Margin(0, 0, design.Sp(1.5), 0)
 			}
 			paintContextBodyRuns(c, body.runs, style, true)
 		case "snapshot":
-			style.text(c, i18n.T(i18n.KeyContextSnapshotSupersedes), style.Caption).FillWidth().Margin(0, 0, 6, 0)
-			ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+			style.text(c, i18n.T(i18n.KeyContextSnapshotSupersedes), style.Caption).FillWidth().Margin(0, 0, design.Sp(1.5), 0)
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
 				for _, section := range body.sections {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
+					ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
 						style.meta(c, section.Name, style.Caption).FillWidth()
 						style.text(c, contextBoundedText(section.Text), style.Secondary).FillWidth().MinWidth(0)
 					})
@@ -175,12 +176,12 @@ func (body contextBody) paint(c *ui.Context, style contextBodyStyle) {
 			// SnapshotBody intentionally replaces all content with the source's
 			// sections, including dropping unknown content blocks, as the reference does.
 		case "relay":
-			style.meta(c, fmt.Sprintf(i18n.T(i18n.KeyContextRelayFrom), body.sender), style.Caption).FillWidth().Margin(0, 0, 6, 0)
+			style.meta(c, fmt.Sprintf(i18n.T(i18n.KeyContextRelayFrom), body.sender), style.Caption).FillWidth().Margin(0, 0, design.Sp(1.5), 0)
 			paintContextBodyRuns(c, body.runs, style, false)
 		case "recall":
-			ui.Column(c).FillWidth().MinWidth(0).Gap(2).Margin(0, 0, 8, 0).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Margin(0, 0, design.Sp(2), 0).Children(func() {
 				for _, recalled := range body.recalls {
-					ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 						style.meta(c, recalled.Label, style.Secondary).MinWidth(0).Shrink(1)
 						style.text(c, fmt.Sprintf(i18n.T(i18n.KeyContextRecallCounts), recalled.Retained, recalled.Omitted), style.Caption).Shrink(0)
 						if recalled.Truncated {
@@ -240,11 +241,11 @@ func paintContextBodyRuns(c *ui.Context, runs []contextContentRun, style context
 }
 
 func paintContextJSONBlock(c *ui.Context, raw json.RawMessage, style contextBodyStyle, previousJSON bool) {
-	top := float32(4)
+	top := design.Sp(1)
 	if previousJSON {
 		top = 0
 	}
-	root := ui.Column(c).FillWidth().MinWidth(0).Gap(4).Margin(top, 0, 4, 0)
+	root := ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1)).Margin(top, 0, design.Sp(1), 0)
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Children(func() {
@@ -254,8 +255,8 @@ func paintContextJSONBlock(c *ui.Context, raw json.RawMessage, style contextBody
 				marker = "▾"
 			}
 			toggle := ui.Button(c, marker+" "+label).Label(label).Role(ui.RoleDisclosure).Expanded(*open).
-				Font(style.Font).FontSize(12).FixedLineHeight(18).TextColor(style.Secondary).
-				BorderWidth(0).Background(ui.Transparent).Radius(8).Padding(2, 6).MinWidth(0).Shrink(1)
+				Font(style.Font).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(style.Secondary).
+				BorderWidth(0).Background(ui.Transparent).Radius(design.RadiusMD).Padding(design.Sp(0.5), design.Sp(1.5)).MinWidth(0).Shrink(1).Cursor(ui.CursorPointer)
 			if toggle.Hovered() {
 				toggle.Background(style.Hover)
 			}
@@ -269,8 +270,8 @@ func paintContextJSONBlock(c *ui.Context, raw json.RawMessage, style contextBody
 			// trigger notice uses the ordinary chat font.
 			jsonStyle := style
 			jsonStyle.Font, jsonStyle.Size, jsonStyle.LineHeight = theme.RenderPreferences().Code.Family, 11, 16
-			ui.ScrollBoth(c).FillWidth().MinWidth(0).MaxHeight(217).Padding(8).
-				Border(.5, style.BorderL1).Radius(16).Background(style.CodeBlock).Children(func() {
+			ui.ScrollBoth(c).FillWidth().MinWidth(0).MaxHeight(217).Padding(design.Sp(2)).
+				Border(design.BorderWidth, style.BorderL1).Radius(design.RadiusXL2).Background(style.CodeBlock).Children(func() {
 				jsonStyle.text(c, contextBoundedText(contextFormattedJSON(raw)), style.Primary).NoWrap()
 			})
 		}
@@ -285,13 +286,13 @@ func paintContextSourceFields(c *ui.Context, fields []contextSourceField, style 
 	if !visible {
 		return
 	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(2).Margin(8, 0, 0, 0).Padding(8, 0, 0, 0).
-		BorderWidth(.5, 0, 0, 0).BorderColor(style.Border).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Margin(design.Sp(2), 0, 0, 0).Padding(design.Sp(2), 0, 0, 0).
+		BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(style.Border).Children(func() {
 		for _, field := range fields {
 			if field.Name == "kind" {
 				continue
 			}
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 				style.meta(c, field.Name, style.Caption).MinWidth(96).Shrink(0)
 				style.meta(c, contextFieldValue(field.Raw), style.Tertiary).Grow(1).MinWidth(0)
 			})

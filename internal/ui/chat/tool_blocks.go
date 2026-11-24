@@ -8,9 +8,9 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // searchHitLimit keeps a grep result readable; the rest becomes a count line.
@@ -142,11 +142,11 @@ func searchHitsBlock(c *ui.Context, st toolSeatStyle, key, query, output string,
 			shown = shown[:searchHitLimit]
 		}
 		ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(st.maxHeight()).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.25)).Children(func() {
 				for _, hit := range shown {
 					hit := hit
 					ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Children(func() {
-						ui.Row(c).MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+						ui.Row(c).MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 							if loc := searchHitLocation(hit); loc != "" {
 								ui.Text(c, loc).FontSize(size).Font(font).FixedLineHeight(toolSeatLine).
 									TextColor(st.Muted).NoWrap()
@@ -262,16 +262,16 @@ func webSourceRow(c *ui.Context, st toolSeatStyle, source session.WebSource, tra
 	if title == "" {
 		title = source.URL
 	}
-	row := ui.Column(c).FillWidth().MinWidth(0).Padding(4, 4, 4, 4).Radius(6).Gap(1)
+	row := ui.Column(c).FillWidth().MinWidth(0).Padding(design.Sp(1)).Radius(design.RadiusSM).Gap(design.Sp(0.25))
 	clickable := onOpenURL != nil && strings.TrimSpace(source.URL) != ""
 	if clickable {
-		row = row.Label(title).Tooltip(source.URL).Focusable().Role(ui.RoleButton)
+		row = row.Label(title).Tooltip(source.URL).Focusable().Role(ui.RoleButton).Cursor(ui.CursorPointer)
 	}
 	if row.Hovered() && clickable {
 		row.Background(st.FG.Alpha(.05))
 	}
 	row.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, title).FontSize(size).FixedLineHeight(toolSeatLine).TextColor(st.AccentOr(st.FG)).Grow(1).MinWidth(0).SingleLine()
 			if trailing != "" {
 				ui.Text(c, trailing).FontSize(size - 1).TextColor(st.Muted).NoWrap()
@@ -384,8 +384,8 @@ func todoBlock(c *ui.Context, st toolSeatStyle, key, output string, onCopy func(
 			if done {
 				textColor = st.Muted
 			}
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-				widgets.StateDot(c, widgetState(todoRowStatus(item.Status)))
+			ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+				chatStateDot(c, todoRowStatus(item.Status))
 				text := ui.Text(c, item.Text).FontSize(size).FixedLineHeight(toolSeatLine).TextColor(textColor).Grow(1).MinWidth(0)
 				if done {
 					text.Strikethrough()

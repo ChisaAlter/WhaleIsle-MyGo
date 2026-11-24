@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -55,30 +56,31 @@ func toolDetailsBadgeKey(index int) string {
 	return "tool-details-badge:" + strconv.Itoa(index)
 }
 
-// toolDetailsBadgeInk maps the static tone to the card palette. The installed
-// warn token is approximated by the tool-card warning ink already used for
-// status summaries; business/info uses the card accent.
-func toolDetailsBadgeInk(tone string, st ToolCardStyle, caption ui.Color) ui.Color {
+func toolDetailsBadgeInkFor(c *ui.Context, tone string, caption ui.Color) ui.Color {
+	t := design.For(c)
 	switch tone {
 	case "success":
-		return st.OK
+		return t.SuccessForeground
 	case "error":
-		return st.Err
+		return t.DestructiveForeground
 	case "warning":
-		return ui.Hex("#dd8629")
+		return t.WarningForeground
 	case "info":
-		return st.Accent
+		return t.InfoForeground
 	default:
-		return caption
+		if caption.A != 0 {
+			return caption
+		}
+		return t.MutedForeground
 	}
 }
 
 // toolDetailsBadgeView is the installed inline status badge: a 5px round dot, a
 // 5px gap and the 12px label, sized and aligned with the heading's first line.
-func toolDetailsBadgeView(c *ui.Context, badge toolDetailBadge, st ToolCardStyle, caption ui.Color, font, key string) {
-	ink := toolDetailsBadgeInk(badge.Tone, st, caption)
-	ui.Row(c.Key(key)).Shrink(0).Gap(5).AlignItems(ui.Center).Label(badge.Label).Children(func() {
-		ui.Box(c.Key("dot")).Size(5, 5).Radius(999).Background(ink).Shrink(0)
-		ui.Text(c, badge.Label).Font(font).FontSize(12).FixedLineHeight(20).TextColor(ink).MinWidth(0)
+func toolDetailsBadgeView(c *ui.Context, badge toolDetailBadge, _ ToolCardStyle, caption ui.Color, font, key string) {
+	ink := toolDetailsBadgeInkFor(c, badge.Tone, caption)
+	ui.Row(c.Key(key)).Shrink(0).Gap(design.Sp(1.25)).AlignItems(ui.Center).Label(badge.Label).Children(func() {
+		ui.Box(c.Key("dot")).Size(5, 5).Radius(design.RadiusFull).Background(ink).Shrink(0)
+		ui.Text(c, badge.Label).Font(font).FontSize(design.TextXS.Size).FixedLineHeight(20).TextColor(ink).MinWidth(0)
 	})
 }

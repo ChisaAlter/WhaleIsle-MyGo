@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/composer"
@@ -25,7 +26,8 @@ func TestBrowserLinksFixture(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ToolCardView(c, "tool/result", raw, ToolCardStyle{FontSize: 12}, ToolImageGalleryOptions{OnOpenURL: func(s string) { opened = s }})
 	}, 800, 600)
-	tt.Frame()
+	baseTime := time.Unix(1000, 0)
+	tt.SetTime(baseTime)
 	if opened != "" {
 		t.Fatal("passive render navigated")
 	}
@@ -33,7 +35,7 @@ func TestBrowserLinksFixture(t *testing.T) {
 	if err := tt.Click(toolRowTitle(card.Name)); err != nil {
 		t.Fatal(err)
 	}
-	tt.Frame()
+	tt.SetTime(baseTime.Add(250 * time.Millisecond))
 	if err := tt.Click("↗ result"); err != nil {
 		t.Fatal(err)
 	}

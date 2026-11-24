@@ -8,7 +8,8 @@ import (
 
 	"whaleisle/internal/dsh/events"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -185,13 +186,11 @@ func toolCardInfoViewExtra(c *ui.Context, info ToolCardInfo, st ToolCardStyle, e
 		// main generic IN/OUT sections expose selectable text without extra chrome.
 		if payload := toolCopyPayload(info.Arguments, info.Output); payload != "" && !ownsCopy && (handled || opts.TextOnly) {
 			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-				borderColor := st.Border
-				if borderColor.A == 255 {
-					borderColor = borderColor.Alpha(0.45)
-				}
-				copySeat := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(11).Label(i18n.T(i18n.KeyChatToolCopy)).
-					Height(24).Padding(0, 8, 0, 8).Radius(6).Border(0.5, borderColor).
-					Background(ui.Transparent).TextColor(st.Muted)
+				copySeat := coss.Button(c, i18n.T(i18n.KeyChatToolCopy), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonXS,
+					Label:   i18n.T(i18n.KeyChatToolCopy),
+				})
 				if copySeat.Clicked() {
 					if opts.TextOnly {
 						c.Services().WriteClipboard(payload)
@@ -310,28 +309,28 @@ func truncateToolText(s string, max int) string {
 	return s[:max] + "…"
 }
 
-// toolCardStyle builds a tool style for one active palette: the framework face
-// colors plus the whaleisle palette the standard buttons use.
+// toolCardStyle builds a tool style for one active palette: the design tokens
+// plus the theme palette carried for legacy callers.
 func toolCardStyle(colors theme.Colors, fg, muted, border ui.Color) ToolCardStyle {
-	style := DefaultToolCardStyle(fg, muted, border, chrome.Color(colors.Field), chrome.Color(colors.Accent))
+	tokens := design.Base(designScheme(darkSurface(fg)))
+	style := DefaultToolCardStyle(fg, muted, border, tokens.Muted, tokens.Primary)
 	style.Colors = colors
-	if darkSurface(fg) {
-		style.OK = ui.RGB(34, 197, 94)
-	}
-	style.Err = chrome.Color(colors.Danger)
+	style.OK = tokens.SuccessForeground
+	style.Err = tokens.DestructiveForeground
 	return style
 }
 
-// DefaultToolCardStyle builds colors from theme chrome helpers.
+// DefaultToolCardStyle builds colors from design tokens.
 func DefaultToolCardStyle(fg, muted, border, field, accent ui.Color) ToolCardStyle {
+	tokens := design.Base(design.Light)
 	return ToolCardStyle{
 		FG:       fg,
 		Muted:    muted,
 		Border:   border,
 		Field:    field,
 		Accent:   accent,
-		OK:       ui.RGB(22, 163, 74),
-		Err:      ui.RGB(236, 19, 19),
+		OK:       tokens.SuccessForeground,
+		Err:      tokens.DestructiveForeground,
 		FontSize: 12,
 	}
 }

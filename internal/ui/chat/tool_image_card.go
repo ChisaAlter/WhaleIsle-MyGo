@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -35,9 +35,10 @@ func toolImageLoaderAvailable() bool {
 }
 
 func toolImageCard(c *ui.Context, model *toolImageModel, st ToolCardStyle, key string, onOpen func(string), renderers ...func(func())) {
-	ui.Column(c.Key("tool-image:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).Children(func() {
+	t := design.For(c)
+	ui.Column(c.Key("tool-image:"+key)).FillWidth().MinWidth(0).Margin(design.Sp(1), 0, design.Sp(1), design.Sp(1)).Children(func() {
 		gallery := func() {
-			ui.Row(c.Key("gallery")).Wrap().Gap(10).MaxWidthPercent(100).AlignSelf(ui.Start).Children(func() {
+			ui.Row(c.Key("gallery")).Wrap().Gap(design.Sp(2.5)).MaxWidthPercent(100).AlignSelf(ui.Start).Children(func() {
 				for index, image := range model.Images {
 					toolImageFrame(c.Key(strconv.Itoa(index)+":"+image.AttachmentID), image, len(model.Images) > 1, st, onOpen)
 				}
@@ -49,17 +50,17 @@ func toolImageCard(c *ui.Context, model *toolImageModel, st ToolCardStyle, key s
 			gallery()
 		}
 		font := theme.RenderPreferences().Code.Family
-		ui.Column(c.Key("metadata")).FillWidth().MinWidth(0).Margin(4, 0, 0, 0).Children(func() {
+		ui.Column(c.Key("metadata")).FillWidth().MinWidth(0).Margin(design.Sp(1), 0, 0, 0).Children(func() {
 			if model.HasPath {
-				toolImageCardText(c, model.Path, font, 11, 16, st.Muted)
+				toolImageCardText(c, model.Path, font, 11, 16, t.MutedForeground)
 			}
 			for _, image := range model.Images {
-				toolImageCardText(c, toolImageSizeText(image), font, 11, 16, st.Muted)
+				toolImageCardText(c, toolImageSizeText(image), font, 11, 16, t.MutedForeground)
 			}
 		})
 		if model.ExtraText != nil {
-			ui.Column(c.Key("extra")).FillWidth().MinWidth(0).Margin(4, 0, 0, 0).Children(func() {
-				toolImageCardText(c, *model.ExtraText, theme.RenderPreferences().Chat.Family, 13, 20, st.Muted)
+			ui.Column(c.Key("extra")).FillWidth().MinWidth(0).Margin(design.Sp(1), 0, 0, 0).Children(func() {
+				toolImageCardText(c, *model.ExtraText, theme.RenderPreferences().Chat.Family, 13, 20, t.MutedForeground)
 			})
 		}
 	})
@@ -104,6 +105,7 @@ func toolImageFit(width, height float64, tile bool) (float32, float32) {
 // Cached and loaded bytes use the same session-authorized attachment loader as
 // chat images. The recorded source path is never read as an image or retried.
 func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st ToolCardStyle, onOpen func(string)) {
+	t := design.For(c)
 	read := attachmentImageRead()
 	fetch := read.Fetch
 	path := read.Cached(image.AttachmentID)
@@ -128,13 +130,7 @@ func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st Tool
 		}
 	}
 	border := float32(math.Max(1, math.Floor(.5*float64(c.DeviceScale()))) / float64(c.DeviceScale()))
-	hover, borderInk := st.Field, st.Border
-	if st.Colors.Hover != "" {
-		hover, borderInk = chrome.Color(st.Colors.Hover), chrome.Color(st.Colors.Border)
-		if darkSurface(st.FG) {
-			borderInk = chrome.Color(st.Colors.BorderL1)
-		}
-	}
+	hover, borderInk := t.Accent, t.Border
 	if state.err != nil {
 		toolImageRetry(c, image.AttachmentID, tile, border, borderInk, st)
 		return
@@ -144,8 +140,9 @@ func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st Tool
 	if image.Name != nil {
 		label = *image.Name
 	}
+	frameRadius := design.Sp(5)
 	frame := ui.ButtonBase(c).Width(w).Height(h).MinWidth(w).MinHeight(h).Shrink(0).Padding(0).
-		Radius(20).Border(border, borderInk).Background(hover).Center().FocusRing(false).
+		Radius(frameRadius).Border(border, borderInk).Background(hover).Center().FocusRing(false).
 		Label(fmt.Sprintf(i18n.T(i18n.KeyToolImageOpenNamed), label)).Tooltip(i18n.T(i18n.KeyToolImageOpen)).Cursor(ui.CursorPointer)
 	if frame.Clicked() && bitmap != nil && onOpen != nil {
 		onOpen(path)
@@ -155,15 +152,15 @@ func toolImageFrame(c *ui.Context, image toolImageAttachment, tile bool, st Tool
 		if bitmap != nil {
 			inner := ui.Rect{X: r.X + border, Y: r.Y + border, W: max(0, r.W-2*border), H: max(0, r.H-2*border)}
 			destination := toolImageCrop(bitmap, inner, image.Width/image.Height, tile)
-			p.Clip(inner, 20-border, func() { p.Image(bitmap, destination, ui.FillBox) })
+			p.Clip(inner, frameRadius-border, func() { p.Image(bitmap, destination, ui.FillBox) })
 		}
 		if focused {
-			p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, st.Accent, 24, 2)
+			p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, t.Ring, design.RadiusXL3, design.RingWidth)
 		}
 	})
 	if bitmap == nil {
 		frame.Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyToolImageLoading)).Font(theme.RenderPreferences().Chat.Family).FontSize(12).FixedLineHeight(18).TextColor(st.Muted).PassThrough()
+			ui.Text(c, i18n.T(i18n.KeyToolImageLoading)).Font(theme.RenderPreferences().Chat.Family).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(t.MutedForeground).PassThrough()
 		})
 	}
 }
@@ -182,17 +179,18 @@ func toolImageCrop(bitmap *ui.Bitmap, box ui.Rect, natural float64, tile bool) u
 	return ui.Rect{X: x, Y: y, W: w, H: h}
 }
 
-func toolImageRetry(c *ui.Context, id string, tile bool, border float32, borderInk ui.Color, st ToolCardStyle) {
+func toolImageRetry(c *ui.Context, id string, tile bool, border float32, borderInk ui.Color, _ ToolCardStyle) {
+	t := design.For(c)
 	read := attachmentImageRead()
-	// --dsw-alias-interactive-bg-hover-danger: mix of the error ink and transparent.
-	failure := ui.Hex("#ec13130d")
-	if darkSurface(st.FG) {
-		failure = ui.Hex("#f25a5a26")
+	alpha := float32(0.05)
+	if t.IsDark() {
+		alpha = 0.15
 	}
-	button := ui.ButtonBase(c).MaxWidth(240).MinWidth(0).Padding(10, 12, 10, 12).Radius(12).
-		Border(border, borderInk).Background(failure).TextColor(st.Muted).Label(i18n.T(i18n.KeyToolImageFailed)).Cursor(ui.CursorPointer).FocusRing(false)
+	failure := t.Destructive.Alpha(alpha)
+	button := ui.ButtonBase(c).MaxWidth(240).MinWidth(0).Padding(design.Sp(2.5), design.Sp(3), design.Sp(2.5), design.Sp(3)).Radius(design.RadiusLG+2).
+		Border(border, borderInk).Background(failure).TextColor(t.MutedForeground).Label(i18n.T(i18n.KeyToolImageFailed)).Cursor(ui.CursorPointer).FocusRing(false)
 	if tile {
-		button.Size(64, 64).MinWidth(64).MinHeight(64).Padding(4).Radius(20).Clip()
+		button.Size(64, 64).MinWidth(64).MinHeight(64).Padding(design.Sp(1)).Radius(design.Sp(5)).Clip()
 	}
 	if button.Clicked() {
 		read.Forget(id)
@@ -202,10 +200,10 @@ func toolImageRetry(c *ui.Context, id string, tile bool, border float32, borderI
 	focused := button.FocusVisible()
 	button.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if focused {
-			p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, st.Accent, 12, 2)
+			p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, t.Ring, design.RadiusLG+2, design.RingWidth)
 		}
 	})
 	button.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyToolImageFailed)).Font(theme.RenderPreferences().Chat.Family).FontSize(12).FixedLineHeight(18).TextColor(st.Muted).PassThrough()
+		ui.Text(c, i18n.T(i18n.KeyToolImageFailed)).Font(theme.RenderPreferences().Chat.Family).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(t.MutedForeground).PassThrough()
 	})
 }

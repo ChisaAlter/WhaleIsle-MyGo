@@ -2,16 +2,21 @@ package chat
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"strings"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
 
 func QuestionReplyView(c *ui.Context, msg session.Message, scope string, palette theme.Colors, fg, muted ui.Color) {
+	t := design.For(c)
+	fg, muted = t.Foreground, t.MutedForeground
 	data := session.QuestionReplyDetails(msg)
-	root := ui.Column(c.Key(fmt.Sprintf("question-reply:%s:%s:%g", scope, msg.ID, msg.Seq))).FillWidth().Gap(5)
+	root := ui.Column(c.Key(fmt.Sprintf("question-reply:%s:%s:%g", scope, msg.ID, msg.Seq))).FillWidth().Gap(design.Sp(1.25))
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
 		if stdButton(c, palette, i18n.T(i18n.KeyChatQuestionEarlier), buttonGhost, false).Label("Question reply details " + msg.ID).Clicked() {
@@ -31,8 +36,8 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, palette
 			}
 			ui.Text(c, clipRunes(summary, 160)).FontSize(12).TextColor(muted)
 		} else {
-			ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
-				ui.Column(c).FillWidth().Gap(5).Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+				ui.Column(c).FillWidth().Gap(design.Sp(1.25)).Children(func() {
 					if len(data.Questions) == 0 {
 						ui.Text(c, data.Text).FontSize(12).TextColor(fg).Selectable()
 					}
@@ -59,9 +64,9 @@ func QuestionReplyView(c *ui.Context, msg session.Message, scope string, palette
 						ui.Text(c, i18n.T(i18n.KeyChatQuestionAnswer)+": "+answer).FontSize(12).TextColor(fg).Selectable()
 					}
 				})
-			})
+			}).FillWidth().MaxHeight(320)
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Gap(design.Sp(2)).Children(func() {
 			if data.Time > 0 {
 				ui.Text(c, formatMessageClock(data.Time, c.Now())).FontSize(11).TextColor(muted)
 			}

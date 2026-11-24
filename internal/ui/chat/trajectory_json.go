@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -61,14 +62,14 @@ func trajectoryPayloadView(c *ui.Context, scope, body string, fg, muted ui.Color
 		ui.Text(c, body).FontSize(12).TextColor(fg).Selectable()
 		return
 	}
-	root := ui.Column(c.Key("trajectory-json:" + scope)).FillWidth().Gap(4).Selectable()
+	root := ui.Column(c.Key("trajectory-json:" + scope)).FillWidth().Gap(design.Sp(1)).Selectable()
 	tree := ui.Local(root, "structured", func() bool { return false })
 	root.Children(func() {
 		label := "Structured JSON"
 		if *tree {
 			label = "Raw text"
 		}
-		if ui.Button(c, label).Clicked() {
+		if ui.Button(c, label).Cursor(ui.CursorPointer).Clicked() {
 			*tree = !*tree
 		}
 		if !*tree {
@@ -90,10 +91,10 @@ func trajectoryJSONNode(c *ui.Context, path string, value any, depth int, budget
 	object, isObject := value.(map[string]any)
 	array, isArray := value.([]any)
 	container := isObject || isArray
-	root := ui.Column(c.Key(path)).FillWidth().Gap(3)
+	root := ui.Column(c.Key(path)).FillWidth().Gap(design.Sp(0.75))
 	open := ui.Local(root, "expanded", func() bool { return depth == 0 })
 	root.Children(func() {
-		ui.Row(c).FillWidth().Gap(4).Children(func() {
+		ui.Row(c).FillWidth().Gap(design.Sp(1)).Children(func() {
 			if container {
 				count := len(object)
 				kind := "object"
@@ -101,21 +102,21 @@ func trajectoryJSONNode(c *ui.Context, path string, value any, depth int, budget
 					count = len(array)
 					kind = "array"
 				}
-				if ui.Button(c, fmt.Sprintf("%s · %s (%d)", path, kind, count)).Label("Expand JSON " + path).Clicked() {
+				if ui.Button(c, fmt.Sprintf("%s · %s (%d)", path, kind, count)).Label("Expand JSON " + path).Cursor(ui.CursorPointer).Clicked() {
 					*open = !*open
 				}
 			} else {
 				ui.Text(c, path+": "+clipRunes(trajectoryJSONCopy(value, false), 160)).FontSize(12).TextColor(fg)
 			}
 		})
-		ui.Row(c).Gap(4).Children(func() {
-			if ui.Button(c, "Copy value").Label("Copy JSON value " + path).Clicked() {
+		ui.Row(c).Gap(design.Sp(1)).Children(func() {
+			if ui.Button(c, "Copy value").Label("Copy JSON value " + path).Cursor(ui.CursorPointer).Clicked() {
 				c.WriteClipboard(trajectoryJSONCopy(value, false))
 			}
-			if ui.Button(c, "Copy JSON").Label("Copy JSON pretty " + path).Clicked() {
+			if ui.Button(c, "Copy JSON").Label("Copy JSON pretty " + path).Cursor(ui.CursorPointer).Clicked() {
 				c.WriteClipboard(trajectoryJSONCopy(value, true))
 			}
-			if ui.Button(c, "Copy path").Label("Copy JSON path " + path).Clicked() {
+			if ui.Button(c, "Copy path").Label("Copy JSON path " + path).Cursor(ui.CursorPointer).Clicked() {
 				c.WriteClipboard(path)
 			}
 		})

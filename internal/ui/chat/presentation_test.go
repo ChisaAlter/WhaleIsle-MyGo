@@ -13,7 +13,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -62,7 +62,7 @@ func TestUserBubbleGeometryAndOutsideActions(t *testing.T) {
 			}
 			rectNear(t, bubble.X+bubble.W, float32(width-16), "bubble right edge")
 			bodyBox, _ := tt.Find(body)
-			rectNear(t, bodyBox.X-bubble.X, 16, "bubble left padding")
+			rectNear(t, bodyBox.X-bubble.X, 14, "bubble left padding")
 			rectNear(t, bodyBox.Y-bubble.Y, 10, "bubble top padding")
 			rectNear(t, bubble.H-bodyBox.H, 20, "bubble vertical padding")
 			if body == "hello" {
@@ -169,15 +169,26 @@ func TestUserMessageSharedWidthAxis(t *testing.T) {
 }
 
 func TestUserBubbleUsesResolvedAndCustomPalette(t *testing.T) {
-	for _, colors := range []theme.Colors{theme.Resolve("light").Active(false), theme.Resolve("dark").Active(false), {FG: "#202020", Muted: "#505050", Accent: "#806020", Bubble: "#bfd6ba"}} {
+	for _, dark := range []bool{false, true} {
+		bg := ui.RGB(255, 255, 255)
+		scheme := design.Light
+		if dark {
+			bg = ui.RGB(20, 20, 20)
+			scheme = design.Dark
+		}
 		tt := ui.NewTester(func(c *ui.Context) {
-			ui.Column(c).FillWidth().Padding(12, 16, 8, 16).Children(func() { userMessageView(c, Model{}, presentationMessage("hello"), colors, nil, "hello", nil) })
+			if dark {
+				c.SetTheme(ui.DarkTheme())
+			}
+			ui.Column(c).Fill().Padding(12, 16, 8, 16).Background(bg).Children(func() {
+				userMessageView(c, Model{SystemDark: dark}, presentationMessage("hello"), theme.Colors{}, nil, "hello", nil)
+			})
 		}, 800, 120)
 		bubble, _ := tt.Find("User message bubble")
-		want := chrome.Color(colors.Bubble)
-		got := tt.Image().RGBAAt(int(bubble.X+2), int(bubble.Y+bubble.H/2))
-		if got.R != want.R || got.G != want.G || got.B != want.B {
-			t.Errorf("bubble ignores palette %q: %v", colors.Bubble, got)
+		want := design.Base(scheme).Foreground.Alpha(0.12).Over(bg)
+		got := tt.Image().RGBAAt(int(bubble.X+4), int(bubble.Y+bubble.H/2))
+		if absToolColor(int(got.R)-int(want.R)) > 1 || absToolColor(int(got.G)-int(want.G)) > 1 || absToolColor(int(got.B)-int(want.B)) > 1 {
+			t.Errorf("bubble dark=%v got=%v want=%v", dark, got, want)
 		}
 		corner := tt.Image().RGBAAt(int(bubble.X+1), int(bubble.Y+1))
 		if corner == got {

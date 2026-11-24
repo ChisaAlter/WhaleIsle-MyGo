@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -206,11 +207,13 @@ func shortenURL(raw string) string {
 }
 
 // CitationsView renders a compact source list under a message or tool card.
-func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOpen func(url string)) {
+func CitationsView(c *ui.Context, cites []Citation, _, _ ui.Color, onOpen func(url string)) {
 	if len(cites) == 0 {
 		return
 	}
-	ui.Column(c).Gap(2).Padding(4, 0, 0, 0).Children(func() {
+	t := design.For(c)
+	muted, accent := t.MutedForeground, t.Primary
+	ui.Column(c).Gap(design.Sp(0.5)).Padding(design.Sp(1), 0, 0, 0).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyChatCitations)).FontSize(theme.InterfaceSize(10)).Bold().TextColor(muted)
 		for _, cite := range cites {
 			entry := cite
@@ -218,10 +221,10 @@ func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOp
 			if len(label) > 72 {
 				label = label[:72] + "…"
 			}
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 				if onOpen != nil {
 					link := ui.Button(c, label).FontSize(theme.InterfaceSize(10)).BorderWidth(0).
-						Background(ui.Transparent).TextColor(accent).Padding(0, 2, 0, 2)
+						Background(ui.Transparent).TextColor(accent).Padding(0, design.Sp(0.5), 0, design.Sp(0.5)).Cursor(ui.CursorPointer)
 					if link.Clicked() {
 						onOpen(entry.URL)
 					}
@@ -230,7 +233,7 @@ func CitationsView(c *ui.Context, cites []Citation, muted, accent ui.Color, onOp
 				}
 				if strings.TrimSpace(entry.URL) != "" {
 					copyAction := ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(10)).
-						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Padding(0, 2, 0, 2)
+						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Padding(0, design.Sp(0.5), 0, design.Sp(0.5)).Cursor(ui.CursorPointer)
 					if copyAction.Clicked() {
 						mygo.Clipboard.WriteText(entry.URL)
 					}

@@ -64,10 +64,10 @@ func TestToolRowViewGenericIOGeometryKeyboardAndCopyOwnership(t *testing.T) {
 			toolTreeNear(t, "input x", input.X, 25)
 			toolTreeNear(t, "input y", input.Y, 49)
 			toolTreeNear(t, "input height", input.H, 40)
-			toolTreeNear(t, "output y", output.Y, 89.5)
+			toolTreeNear(t, "output y", output.Y, 90)
 			toolTreeNear(t, "output height", output.H, 40)
 			flow, _ := tt.Find("following flow")
-			toolTreeNear(t, "expanded own height", flow.Y-20, 114.5)
+			toolTreeNear(t, "expanded own height", flow.Y-20, 115)
 			if tt.HasText(i18n.T(i18n.KeyChatToolCopy)) {
 				t.Fatal("generic IO gained an extra clipboard control")
 			}
@@ -79,7 +79,7 @@ func TestToolRowViewGenericIOGeometryKeyboardAndCopyOwnership(t *testing.T) {
 			// The closing reveal keeps the body in its space for as long as
 			// the opening took, then takes the space too.
 			flow, _ = tt.Find("following flow")
-			toolTreeNear(t, "closing reveal keeps flow", flow.Y-20, 114.5)
+			toolTreeNear(t, "closing reveal keeps flow", flow.Y-20, 115)
 			tt.SetTime(time.Unix(7800, 0).Add(500 * time.Millisecond))
 			if tt.HasText("argument") && tt.HasText("result") {
 				t.Fatal("body stayed after the closing reveal")

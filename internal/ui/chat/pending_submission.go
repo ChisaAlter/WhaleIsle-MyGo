@@ -6,6 +6,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -13,8 +15,10 @@ import (
 // reuses the durable bubble and attachment cards so the message does not change
 // shape when its record lands (Original MessageItem data-submission-echo).
 func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, muted ui.Color) {
-	border, field := muted.Alpha(0.28), muted.Alpha(0.08)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.End).Children(func() {
+	t := design.For(c)
+	fg, muted = t.Foreground, t.MutedForeground
+	border, field := t.Border, t.Muted
+	ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.End).Children(func() {
 		var files []session.ComposerAttachment
 		for _, a := range p.Attachments {
 			if !isImageAttachment(a) {
@@ -31,17 +35,16 @@ func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, mute
 			attachmentCardView(c, pendingAttachmentCard(a), fg, muted, border, field)
 		}
 		if len(images) > 0 {
-			ui.Row(c).Wrap().Gap(8).Justify(ui.End).MaxWidthPercent(100).Children(func() {
+			ui.Row(c).Wrap().Gap(design.Sp(2)).Justify(ui.End).MaxWidthPercent(100).Children(func() {
 				for _, a := range images {
 					paintImageTile(c, a.Path, muted, nil)
 				}
 			})
 		}
 		if text := strings.TrimSpace(p.Text); text != "" {
-			ui.Column(c).Label("User message bubble").MinWidth(0).MaxWidthPercent(100).
-				Background(fg.Alpha(0.06)).Radius(20).Padding(10, 16, 10, 16).Children(func() {
+			coss.ChatBubble(c, coss.ChatBubbleOptions{Side: coss.ChatOutgoing}, func() {
 				ui.Text(c, maskedUserText(text)).FontSize(13).FixedLineHeight(22).TextColor(fg)
-			})
+			}).Label("User message bubble").MaxWidthPercent(100)
 		}
 		status := i18n.T(i18n.KeyChatPendingSending)
 		if p.Accepted {

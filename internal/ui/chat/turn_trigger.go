@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -45,18 +45,18 @@ func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette t
 		label, icon = i18n.KeyChatTriggerPlugin, triggerIcons["plugin"]
 	}
 	title := i18n.T(label)
-	muted, secondary := chrome.Color(palette.Muted), chrome.Color(palette.Secondary)
-	root := chrome.FrostSurface(ui.Column(c.Key("turn-trigger:"+scope+":"+msg.ID)).FillWidth().MinWidth(0).
-		Border(.5, chrome.Color(palette.BorderL1)), palette, c.Theme().Dark, chrome.Color(palette.TriggerBG), 20).
+	t := design.For(c)
+	muted, secondary := t.MutedForeground, t.Foreground
+	root := chatCardSurface(c, ui.Column(c.Key("turn-trigger:"+scope+":"+msg.ID)).FillWidth().MinWidth(0), design.RadiusXL2).
 		Transition(ui.ElementTransition{Colors: true, Duration: 100 * time.Millisecond, Ease: contextColorEase})
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
-		header := ui.Button(c, "").Label(title).Expanded(*open).Role(ui.RoleDisclosure).
-			FillWidth().MinWidth(0).Padding(12, 16).Gap(10).BorderWidth(0).Radius(20).
-			Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Start)
+		header := ui.ButtonBase(c).Label(title).Expanded(*open).Role(ui.RoleDisclosure).
+			FillWidth().MinWidth(0).Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(2.5)).Radius(design.RadiusXL2).
+			Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Start).Cursor(ui.CursorPointer).FocusRing(false)
 		rootHovered, headerHovered := root.Hovered(), header.Hovered()
 		if rootHovered {
-			root.Background(chrome.Color(palette.TriggerHover))
+			root.Background(t.Accent)
 		}
 		target := float32(0)
 		if headerHovered {
@@ -68,10 +68,10 @@ func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette t
 			c.Invalidate()
 		}
 		header.Children(func() {
-			ui.Icon(c, icon).Size(14, 14).TextColor(ink).Shrink(0).Role(ui.RoleNone)
+			ui.Icon(c, icon).Size(design.IconXS, design.IconXS).TextColor(ink).Shrink(0).Role(ui.RoleNone)
 			ui.Text(c, title).Font(theme.RenderPreferences().Interface.Family).FontSize(theme.RenderPreferences().Chat.Size).LineHeight(0).TextColor(ink).Shrink(0).SingleLine()
 			if stamp := formatMessageClock(msg.EventTime, c.Now()); stamp != "" {
-				ui.Text(c, stamp).Font(theme.RenderPreferences().Interface.Family).FontSize(12).FixedLineHeight(18).TextColor(ink).SingleLine().Shrink(0).Margin(0, 0, 0, ui.Auto)
+				ui.Text(c, stamp).Font(theme.RenderPreferences().Interface.Family).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(ink).SingleLine().Shrink(0).Margin(0, 0, 0, ui.Auto)
 			}
 			chevron := ui.Icon(c, contextChevronIcon).Size(12, 12).TextColor(ink).Shrink(0).Role(ui.RoleNone)
 			if *open {
@@ -81,10 +81,10 @@ func TurnTriggerView(c *ui.Context, msg session.Message, scope string, palette t
 		if !*open {
 			return
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Padding(0, 16, 12, 40).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyChatTriggerExplanation)).Font(theme.RenderPreferences().Interface.Family).FontSize(12).FixedLineHeight(18).TextColor(secondary).Margin(8, 0)
-			style := contextBodyPalette(palette)
-			style.Font, style.Size, style.LineHeight = theme.RenderPreferences().Interface.Family, 12, 18
+		ui.Column(c).FillWidth().MinWidth(0).Padding(0, design.Sp(4), design.Sp(3), design.Sp(10)).Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyChatTriggerExplanation)).Font(theme.RenderPreferences().Interface.Family).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(t.MutedForeground).Margin(design.Sp(2), 0)
+			style := contextBodyPaletteFor(c, palette)
+			style.Font, style.Size, style.LineHeight = theme.RenderPreferences().Interface.Family, design.TextXS.Size, 18
 			ui.Scroll(c).ScrollOverflowX().FillWidth().MinWidth(0).MaxHeight(240).Children(func() {
 				paintNoticeContext(c, msg, style)
 			})

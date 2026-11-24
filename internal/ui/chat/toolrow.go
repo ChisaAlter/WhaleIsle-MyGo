@@ -8,6 +8,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -236,11 +238,12 @@ func toolNumberedBlock(c *ui.Context, key, body string, st ToolCardStyle) {
 			out = append(out, ui.Span{Text: "\n", Size: size, Font: font})
 		}
 	}
-	ui.Box(c).Key("tool-file:"+key).FillWidth().MinWidth(0).Background(st.Muted.Alpha(.06)).Radius(6).
-		Padding(6, 8, 6, 8).Children(func() {
-		ui.Scroll(c).FillWidth().MaxHeight(toolRowBlockMaxHeight).Children(func() {
-			ui.RichText(c, out...).Font(font).FixedLineHeight(size + 6).TextColor(st.FG)
-		})
+	t := design.For(c)
+	ui.Box(c).Key("tool-file:"+key).FillWidth().MinWidth(0).Background(t.Code).Border(design.BorderWidth, t.Border).Radius(design.RadiusSM).
+		Padding(design.Sp(1.5), design.Sp(2), design.Sp(1.5), design.Sp(2)).Children(func() {
+		coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+			ui.RichText(c, out...).Font(font).FixedLineHeight(size + 6).TextColor(t.CodeForeground)
+		}).FillWidth().MaxHeight(toolRowBlockMaxHeight)
 	})
 }
 

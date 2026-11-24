@@ -346,4 +346,3 @@ func TestMessageEditStatusAndCopyParity(t *testing.T) {
 		t.Fatalf("stale status zh = %q", got)
 	}
 }
-

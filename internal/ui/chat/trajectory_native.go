@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/diff"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -231,7 +232,7 @@ func trajectoryLinks(c *ui.Context, m TrajectoryModel, row trajRow, all []trajRo
 	if len(targets) == 0 {
 		return
 	}
-	ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
+	ui.Row(c).FillWidth().Wrap().Gap(design.Sp(1.5)).Children(func() {
 		for _, label := range []string{"Assistant", "Parent tool", "Result"} {
 			if id := targets[label]; id != "" {
 				if ui.Button(c, label).Label("Trajectory jump " + label).Cursor(ui.CursorPointer).Clicked() {
@@ -414,10 +415,10 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 			ui.Text(c, trajectoryText("没有已记录程序", "No recorded program")).TextColor(muted)
 			return true, ""
 		}
-		root := ui.Column(c.Key("trajectory-program:" + row.ID)).FillWidth().Gap(6)
+		root := ui.Column(c.Key("trajectory-program:" + row.ID)).FillWidth().Gap(design.Sp(1.5))
 		jsonMode := ui.Local(root, "json", func() bool { return false })
 		root.Children(func() {
-			ui.Row(c).Gap(6).Children(func() {
+			ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
 				label := trajectoryText("JSON 参数", "JSON arguments")
 				if *jsonMode {
 					label = trajectoryText("程序源码", "Program source")
@@ -437,12 +438,13 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		})
 		return true, program
 	case "history-diff":
+		t := design.For(c)
 		before, after := trajectoryHistoryPair(m.Snapshot, row)
 		patch := trajectorySimpleDiff(before, after)
 		if patch == "" {
-			ui.Text(c, trajectoryText("已加载历史中没有变化", "No change in loaded history")).TextColor(muted)
+			ui.Text(c, trajectoryText("已加载历史中没有变化", "No change in loaded history")).TextColor(t.MutedForeground)
 		} else {
-			diff.View(c, patch, diff.Style{FontSize: 12, FG: fg, Muted: muted, Add: ui.RGB(40, 160, 90), Del: ui.RGB(210, 70, 70), Hunk: accent})
+			diff.View(c, patch, diff.Style{FontSize: 12, FG: t.Foreground, Muted: t.MutedForeground, Add: t.SuccessForeground, Del: t.DestructiveForeground, Hunk: t.Primary})
 		}
 		return true, patch
 	case "usage":
@@ -462,7 +464,7 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 			TrajectoryLocale("usage.output"), outTok,
 			TrajectoryLocale("usage.reasoning"), reasonTok,
 		)
-		ui.Column(c).FillWidth().Gap(4).Children(func() {
+		ui.Column(c).FillWidth().Gap(design.Sp(1)).Children(func() {
 			ui.Text(c, TrajectoryLocale("usage.thisRequest")).FontSize(11).FontWeight(600).TextColor(muted)
 			ui.Text(c, summaryLine).FontSize(12).TextColor(fg)
 			if len(cumulative) > 0 {
@@ -479,7 +481,7 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		return true, string(body)
 	case "overview", "preview":
 		trajectoryLinks(c, m, row, all, selected)
-		root := ui.Column(c.Key("trajectory-preview:" + row.ID)).FillWidth().Gap(6)
+		root := ui.Column(c.Key("trajectory-preview:" + row.ID)).FillWidth().Gap(design.Sp(1.5))
 		thinking := ui.Local(root, "thinking", func() bool { return true })
 		body := source.Body
 		if body == "" {
@@ -647,7 +649,7 @@ func trajectoryToolResultView(c *ui.Context, source session.Message, fg, muted u
 	if len(refs) == 0 {
 		return false, ""
 	}
-	ui.Column(c).FillWidth().MinWidth(0).Gap(8).Selectable().Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Selectable().Children(func() {
 		ui.Text(c, TrajectoryLocale("attachment.list")).FontSize(11).FontWeight(600).TextColor(muted)
 		imgIdx := 0
 		for index, raw := range content {

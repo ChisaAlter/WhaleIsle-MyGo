@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -195,7 +196,7 @@ func paintTrajectoryLanes(c *ui.Context, rows []trajRow, selected *string, s *tr
 				}
 				row := span.Row
 				b := ui.Button(c, "").Label("Trajectory span " + row.ID).Absolute().LeftPercent(left).Top(float32(5 + span.Lane*14)).WidthPercent(width).Height(8).
-					Padding(0).BorderWidth(0).Radius(1).Background(trajTimelineColor(p, row, trajCellKind(row))).
+					Padding(0).BorderWidth(0).Radius(design.RadiusXS / 2).Background(trajTimelineColor(p, row, trajCellKind(row))).
 					Tooltip(trajectoryTimingDetail(row)).Cursor(ui.CursorPointer)
 				if width == 0 {
 					b.Width(2)
@@ -208,7 +209,7 @@ func paintTrajectoryLanes(c *ui.Context, rows []trajRow, selected *string, s *tr
 		})
 	})
 	if s.active || s.viewport.active {
-		ui.Row(c).Padding(2, 0, 0, 44).Gap(8).Children(func() {
+		ui.Row(c).Padding(design.Sp(0.5), 0, 0, design.Sp(11)).Gap(design.Sp(2)).Children(func() {
 			label := fmt.Sprintf(trajectoryText("已选 %.0f–%.0f ms · %d 项", "Selected %.0f–%.0f ms · %d records"), s.start-full.Start, s.end-full.Start, len(s.matches(rows)))
 			if s.sequence {
 				label = fmt.Sprintf(trajectoryText("已选 %.1f–%.1f · %d 项", "Selected %.1f–%.1f · %d records"), s.start, s.end, len(s.matches(rows)))

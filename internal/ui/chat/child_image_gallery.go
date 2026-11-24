@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -48,27 +49,28 @@ func childImageGallery(c *ui.Context, state *childGalleryState, reads map[string
 		state.Ref = ""
 		return
 	}
+	t := design.For(c)
 	ui.DialogBase(c, &state.Open, func(backdrop, panel ui.Element) {
-		chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .6))
+		backdrop.Background(design.TW.Black.Alpha(0.6))
 		w, h := c.Size()
 		pw, ph := max(float32(0), min(float32(1000), w-32)), max(float32(0), h-32)
-		panel.Width(pw).Height(ph).Padding(16).Radius(20).Clip().Background(c.Theme().Background).Children(func() {
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyChatImagePrev)).Disabled(index == 0).Clicked() {
+		chatPopupSurface(c, panel.Width(pw).Height(ph).Padding(design.Sp(4)).Clip(), design.RadiusXL2+design.Sp(1)).Background(t.Background).Children(func() {
+			ui.Row(c).Gap(design.Sp(2)).Children(func() {
+				if coss.Button(c, i18n.T(i18n.KeyChatImagePrev), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: index == 0}).Clicked() {
 					index--
 					state.Ref = refs[index]
 				}
-				if ui.Button(c, i18n.T(i18n.KeyChatImageNext)).Disabled(index == len(refs)-1).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyChatImageNext), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: index == len(refs)-1}).Clicked() {
 					index++
 					state.Ref = refs[index]
 				}
-				if ui.Button(c, i18n.T(i18n.KeyChatImageFit)).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyChatImageFit), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 					state.ActualSize = false
 				}
-				if ui.Button(c, "1:1").Clicked() {
+				if coss.Button(c, "1:1", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 					state.ActualSize = true
 				}
-				if ui.Button(c, i18n.T(i18n.KeyChatImageCloseOne)).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyChatImageCloseOne), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 					state.Open = false
 				}
 			})

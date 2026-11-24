@@ -5,10 +5,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // PreviewNoticeVersion is the exact preview-notice copy version a profile has to
@@ -88,18 +88,17 @@ func PreviewNoticeView(c *ui.Context, m PreviewNotice) {
 	if !m.Open {
 		return
 	}
-	colors := m.Colors
-	if colors.BG == "" {
-		colors = theme.Default().Light
-	}
-	ink, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	t := design.For(c)
+	ink, muted := t.Foreground, t.MutedForeground
 	open := true
 	ui.DialogBase(c.Key("preview-notice"), &open, func(backdrop, panel ui.Element) {
-		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
-		chrome.RevealMask(backdrop, chrome.DialogMask(c), progress)
-		panel.Width(PreviewNoticeWidth).MaxWidthPercent(100).MaxHeightPercent(100).
-			Radius(PreviewNoticeRadius).Clip().Opacity(progress).
-			Draw(chrome.Glass(chrome.Color(colors.BG), chrome.MaterialPanel, PreviewNoticeRadius)).
+		progress := float32(1)
+		if !c.Preferences().ReduceMotion {
+			progress = backdrop.AnimateWith("coss.dialog.mask", 1, design.DurationPanel, design.EaseInOut)
+		}
+		backdrop.Background(design.TW.Black.Alpha(0.32 * progress))
+		chatPopupSurface(c, panel.Width(PreviewNoticeWidth).MaxWidthPercent(100).MaxHeightPercent(100).
+			Clip().Opacity(progress), PreviewNoticeRadius).BorderWidth(0).
 			Children(func() {
 				ui.Column(c).FillWidth().Padding(PreviewNoticePadding).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyChatPreviewNoticeTitle)).
@@ -119,22 +118,22 @@ func PreviewNoticeView(c *ui.Context, m PreviewNotice) {
 								Margin(PreviewNoticeParagraphGap, 0, 0, 0).
 								FontSize(theme.InterfaceSize(PreviewNoticeCopySize)).
 								FixedLineHeight(theme.InterfaceSize(22)).
-								TextColor(chrome.Color(colors.Danger))
+								TextColor(t.DestructiveForeground)
 						}
 					})
 					ui.Row(c).FillWidth().Justify(ui.End).Margin(PreviewNoticeActionGap, 0, 0, 0).Children(func() {
-						button := widgets.Button(c, colors, i18n.T(i18n.KeyChatPreviewNoticeContinue), widgets.ButtonSpec{
-							Variant:  widgets.ButtonPrimary,
-							Size:     widgets.ButtonMedium,
+						continueLabel := i18n.T(i18n.KeyChatPreviewNoticeContinue)
+						button := coss.Button(c, continueLabel, coss.ButtonOptions{
+							Variant:  coss.ButtonDefault,
+							Size:     coss.ButtonLG,
 							Disabled: m.Saving,
-						}).MinWidth(PreviewNoticeButtonMin)
+						}).Label(continueLabel).MinWidth(PreviewNoticeButtonMin)
 						if button.Clicked() && m.OnContinue != nil {
 							m.OnContinue()
 						}
 					})
 				})
 			})
-		chrome.MenuElevation(panel)
 		if m.Observe != nil {
 			panel.DrawOver(func(_ *ui.Painter, r ui.Rect) { m.Observe(r) })
 		}

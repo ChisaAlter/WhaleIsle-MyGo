@@ -22,7 +22,7 @@ func SystemPromptView(c *ui.Context, m Model, msg session.Message, fg, muted ui.
 	}
 	box.Children(func() {
 		paintContextDisclosure(c, box, open, contextDisclosure{Icon: systemPromptIcon, Title: title, Body: func() {
-			paintContextBodyRuns(c, []contextContentRun{{Text: msg.Body}}, contextBodyPalette(palette), false)
+			paintContextBodyRuns(c, []contextContentRun{{Text: msg.Body}}, contextBodyPaletteFor(c, palette), false)
 		}}, palette)
 	})
 }

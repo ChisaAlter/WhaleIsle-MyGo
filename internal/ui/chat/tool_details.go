@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -24,52 +25,48 @@ type toolDetailsPalette struct {
 // Goal details are a subset of the installed ToolDetails entity renderer. Values
 // come from the immutable logged result, independently of the live Goals store.
 func toolDetailsCard(c *ui.Context, model *toolDetailsModel, st ToolCardStyle, key string, hasInspect bool, openFile func(string)) {
-	background, borderInk, secondary, caption := st.Field, st.Border.Alpha(.4), st.Muted, st.Muted.Alpha(.6)
-	tertiary := st.Muted
-	if st.Colors.CodeBlock != "" {
-		background, borderInk = chrome.Color(st.Colors.CodeBlock), chrome.Color(st.Colors.BorderL1)
-		secondary, caption = chrome.Color(st.Colors.Secondary), chrome.Color(st.Colors.Caption)
-		tertiary = chrome.Color(st.Colors.Muted)
-	}
+	t := design.For(c)
+	background, borderInk := t.Code, t.Border
+	secondary, tertiary, caption := t.Foreground, t.MutedForeground, t.MutedForeground
 	ink := toolDetailsPalette{font: theme.RenderPreferences().Interface.Family, codeFont: theme.RenderPreferences().Code.Family,
 		secondary: secondary, tertiary: tertiary, caption: caption, background: background, openFile: openFile}
 	border := toolCSSHalfBorder(c)
 	// The installed 88px reserve clears the row's Inspect button. It applies to
 	// the caption when a caption exists, and to the items only when the card has
 	// no caption to carry it (`:not([data-caption])`).
-	itemEnd := float32(14)
+	itemEnd := design.Sp(3.5)
 	if hasInspect && model.Caption == "" {
 		itemEnd = 88
 	}
 	font := theme.RenderPreferences().Interface.Family
-	card := chrome.FrostSurface(ui.Column(c.Key("tool-details:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
-		Border(border, borderInk).Clip().Selectable(), st.Colors, c.Theme().Dark, background, 16)
+	card := ui.Column(c.Key("tool-details:"+key)).FillWidth().MinWidth(0).Margin(design.Sp(1), 0, design.Sp(1), design.Sp(1)).
+		Background(background).Radius(design.RadiusXL2).Border(border, borderInk).Clip().Selectable()
 	card.Children(func() {
 		if model.Caption != "" {
-			end := float32(14)
+			end := design.Sp(3.5)
 			if hasInspect {
 				end = 88
 			}
-			ui.Column(c.Key("caption")).FillWidth().MinWidth(0).Padding(10, end, 6, 14).Children(func() {
-				ui.Text(c, model.Caption).Font(font).FontSize(12).FixedLineHeight(20).TextColor(caption).
+			ui.Column(c.Key("caption")).FillWidth().MinWidth(0).Padding(design.Sp(2.5), end, design.Sp(1.5), design.Sp(3.5)).Children(func() {
+				ui.Text(c, model.Caption).Font(font).FontSize(design.TextXS.Size).FixedLineHeight(20).TextColor(caption).
 					FillWidth().MinWidth(0).Selectable()
 			})
 		}
 		if len(model.Items) == 0 {
-			ui.Column(c.Key("empty")).FillWidth().MinWidth(0).Padding(10, itemEnd, 10, 14).Children(func() {
+			ui.Column(c.Key("empty")).FillWidth().MinWidth(0).Padding(design.Sp(2.5), itemEnd, design.Sp(2.5), design.Sp(3.5)).Children(func() {
 				toolDetailsText(c, model.Empty, font, secondary)
 			})
 		} else {
-			ui.Scroll(c.Key("list")).FillWidth().MinWidth(0).MaxHeight(320).Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{Key: "list"}, func() {
 				ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 					for index, item := range model.Items {
 						if index > 0 {
-							ui.Box(c).FillWidth().Height(border).Shrink(0).Background(st.Border)
+							ui.Box(c).FillWidth().Height(border).Shrink(0).Background(t.Border)
 						}
 						toolDetailsItem(c, item, st, ink, itemEnd, false, index)
 					}
 				})
-			})
+			}).FillWidth().MinWidth(0).MaxHeight(320)
 		}
 		// The installed unchanged container follows the list and paints even
 		// when the list itself is empty.
@@ -94,20 +91,20 @@ func toolDetailsItem(c *ui.Context, item toolDetailItem, st ToolCardStyle, ink t
 	switch {
 	case nested && codeOnly:
 		// The installed `.group .item:has(> .code:only-child)` inset.
-		body.Padding(4, 0, 0, 20)
+		body.Padding(design.Sp(1), 0, 0, design.Sp(5))
 	case nested:
-		body.Padding(9, 0, 2, 20)
+		body.Padding(design.Sp(2.25), 0, design.Sp(0.5), design.Sp(5))
 	case codeOnly:
 		body.Padding(0)
 	default:
-		body.Padding(10, end, 10, 14)
+		body.Padding(design.Sp(2.5), end, design.Sp(2.5), design.Sp(3.5))
 	}
 	body.Children(func() {
 		if hasHeading {
 			// The installed heading keeps the status glyph, the title (or its file
 			// link), the badge and the trailing status text on one wrapping line.
 			hasStatusText := item.Status != nil
-			ui.Row(c.Key("heading")).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+			ui.Row(c.Key("heading")).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 				if item.Status != nil {
 					toolDetailsStatusGlyph(c, item, st, ink)
 				}
@@ -121,23 +118,23 @@ func toolDetailsItem(c *ui.Context, item toolDetailItem, st ToolCardStyle, ink t
 			})
 		}
 		if item.Subtitle != nil {
-			ui.Text(c, *item.Subtitle).Font(ink.font).FontSize(12).FixedLineHeight(20).TextColor(ink.tertiary).
-				Margin(3, 0, 0, 0).FillWidth().MinWidth(0).Selectable()
+			ui.Text(c, *item.Subtitle).Font(ink.font).FontSize(design.TextXS.Size).FixedLineHeight(20).TextColor(ink.tertiary).
+				Margin(design.Sp(0.75), 0, 0, 0).FillWidth().MinWidth(0).Selectable()
 		}
 		if item.Description != nil {
 			ui.Text(c, *item.Description).Font(ink.font).FontSize(13).FixedLineHeight(20).TextColor(ink.caption).
-				Margin(6, 0, 6, 0).FillWidth().MinWidth(0).Selectable()
+				Margin(design.Sp(1.5), 0, design.Sp(1.5), 0).FillWidth().MinWidth(0).Selectable()
 		}
 		if len(item.Fields) > 0 {
-			fields := ui.Column(c).FillWidth().MinWidth(0).Gap(4)
+			fields := ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1))
 			// The installed `.heading + .fields` rule only applies when the fields
 			// directly follow the heading line.
 			if hasHeading && item.Subtitle == nil && item.Description == nil {
-				fields.Margin(6, 0, 0, 0)
+				fields.Margin(design.Sp(1.5), 0, 0, 0)
 			}
 			fields.Children(func() {
 				for _, field := range item.Fields {
-					ui.Grid(c).ColumnTracks(ui.Fixed(5.5*13), ui.Fr(1)).Gap(12).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
+					ui.Grid(c).ColumnTracks(ui.Fixed(5.5*13), ui.Fr(1)).Gap(design.Sp(3)).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
 						toolDetailsText(c, field.Label, ink.font, ink.caption)
 						toolDetailsText(c, field.Value, ink.font, ink.secondary)
 					})
@@ -169,27 +166,21 @@ func toolCSSHalfBorder(c *ui.Context) float32 {
 
 // Inspect stays in the expanded body. It is keyboard reachable at rest; hovering
 // anywhere on the owner row or giving it visible focus fades its paint in.
-func toolInspectButton(c *ui.Context, st ToolCardStyle, key string, inDetails, ownerHovered bool, inspect func()) {
-	base, secondary, stroke, hover := ui.Transparent, st.Muted, st.Border, st.Field
-	if st.Colors.BG != "" {
-		base, secondary, stroke = chrome.Color(st.Colors.BG), chrome.Color(st.Colors.Secondary), chrome.Color(st.Colors.BorderL3)
-		hover = ui.Hex("#f1f3f5")
-		if darkSurface(st.FG) {
-			hover = ui.Hex("#353638")
-		}
-	}
-	button := ui.ButtonBase(c.Key("tool-inspect:"+key)).AlignSelf(ui.Start).Padding(2, 8, 2, 8).Gap(4).
-		Border(toolCSSHalfBorder(c), stroke).Radius(999).AlignItems(ui.Center).Cursor(ui.CursorPointer).
+func toolInspectButton(c *ui.Context, _ ToolCardStyle, key string, inDetails, ownerHovered bool, inspect func()) {
+	t := design.For(c)
+	base, secondary, stroke, hover := t.Popover, t.MutedForeground, t.Border, t.Accent
+	button := ui.ButtonBase(c.Key("tool-inspect:"+key)).AlignSelf(ui.Start).Padding(design.Sp(0.5), design.Sp(2), design.Sp(0.5), design.Sp(2)).Gap(design.Sp(1)).
+		Border(toolCSSHalfBorder(c), stroke).Radius(design.RadiusFull).AlignItems(ui.Center).Cursor(ui.CursorPointer).
 		Label(i18n.T(i18n.KeyChatToolInspect)).FocusRing(false)
 	if inDetails {
-		button.Absolute().Top(12).Right(12)
+		button.Absolute().Top(design.Sp(3)).Right(design.Sp(3))
 	} else {
-		button.Margin(4, 0, 2, 4)
+		button.Margin(design.Sp(1), 0, design.Sp(0.5), design.Sp(1))
 	}
 	focused := button.FocusVisible()
 	ink := secondary
 	if button.Hovered() {
-		base, ink = hover, st.FG
+		base, ink = hover, t.Foreground
 	}
 	button.Background(base).TextColor(ink)
 	visible := boolFloat(ownerHovered || focused)
@@ -199,7 +190,7 @@ func toolInspectButton(c *ui.Context, st ToolCardStyle, key string, inDetails, o
 	button.Opacity(visible)
 	button.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if focused {
-			p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, st.Accent, 999, 2)
+			p.Stroke(ui.Rect{X: r.X - 4, Y: r.Y - 4, W: r.W + 8, H: r.H + 8}, t.Ring, design.RadiusFull, design.RingWidth)
 		}
 	})
 	if button.Clicked() {

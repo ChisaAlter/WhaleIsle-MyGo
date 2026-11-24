@@ -3,7 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -15,6 +15,7 @@ import (
 // drifting back to the flat span run.
 func transcriptMarkdownStyle(fg, muted, field, accent, hover ui.Color, size float32, dark bool, secondary ui.Color) markdown.Style {
 	wrapLabel, noWrapLabel := i18n.T(i18n.KeyMarkdownWrap), i18n.T(i18n.KeyMarkdownNoWrap)
+	tokens := design.Base(designScheme(dark))
 	return markdown.Style{
 		DocumentLayout: true,
 		FontFamily:     theme.FontForSkin(theme.RenderPreferences(), theme.SkinForMode(theme.CurrentPreferences(), dark), theme.SkinProseFont).Family,
@@ -22,17 +23,12 @@ func transcriptMarkdownStyle(fg, muted, field, accent, hover ui.Color, size floa
 		FG:             fg,
 		Muted:          muted,
 		Marker:         secondary,
-		CodeBG:         field,
+		CodeBG:         tokens.Code,
 		Accent:         accent,
-		// Code cards frost over a live backdrop; the resolved theme's colors
-		// only reach MenuBaseFill when no backdrop paints, so the default
-		// palette stands in where FrostSurface never reads it.
 		CodeSurface: func(e ui.Element, radius float32) ui.Element {
-			return chrome.FrostSurface(e, theme.Default().Active(dark), dark, field, radius)
+			return e.Background(tokens.Code).Border(design.BorderWidth, tokens.Border).Radius(radius)
 		},
-		// Inline-code chips keep their token fill without a backdrop and take
-		// the same translucent wash nested frosted surfaces get when one paints.
-		InlineCodeBG:  chrome.FrostInset(theme.Default().Active(dark), dark, markdown.InlineCodeBase(dark)),
+		InlineCodeBG:  tokens.CodeHighlight,
 		Dark:          dark,
 		QuoteInset:    14,
 		ToolCodeHover: hover,
@@ -42,6 +38,27 @@ func transcriptMarkdownStyle(fg, muted, field, accent, hover ui.Color, size floa
 		NoWrapLabel:   noWrapLabel,
 		CodeLabel:     i18n.T(i18n.KeyMarkdownCode),
 	}
+}
+
+func transcriptMarkdownStyleFor(c *ui.Context, size float32) markdown.Style {
+	t := design.For(c)
+	st := transcriptMarkdownStyle(t.Foreground, t.MutedForeground, t.Code, t.Primary, t.Accent, size, t.IsDark(), t.MutedForeground)
+	st.CodeBG = t.Code
+	st.CodeSurface = func(e ui.Element, radius float32) ui.Element {
+		return e.Background(t.Code).Border(design.BorderWidth, t.Border).Radius(radius)
+	}
+	st.InlineCodeBG = t.CodeHighlight
+	st.TableHeader = t.Muted
+	st.QuoteBorder = t.Border
+	st.RuleBorder = t.Border
+	return st
+}
+
+func designScheme(dark bool) design.Scheme {
+	if dark {
+		return design.Dark
+	}
+	return design.Light
 }
 
 // darkSurface reports whether a color pair reads as a dark theme, judged from

@@ -7,10 +7,9 @@ import (
 
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 type turnFailure struct {
@@ -48,7 +47,8 @@ func splitTurnFailure(body string) (text, code string) {
 
 // paintTurnFailure matches the reference's persistent, nonexpandable error row:
 // state dot, inline title and reason, followed by the optional provider code.
-func paintTurnFailure(c *ui.Context, failure turnFailure, palette theme.Colors) {
+func paintTurnFailure(c *ui.Context, failure turnFailure, _ theme.Colors) {
+	t := design.For(c)
 	title := i18n.T(i18n.KeyChatRunFailed)
 	if failure.Code == "ACCOUNT_SIGNED_OUT" {
 		title = i18n.T(i18n.KeyChatAccountStopped)
@@ -61,19 +61,19 @@ func paintTurnFailure(c *ui.Context, failure turnFailure, palette theme.Colors) 
 		code = ""
 	}
 	label := strings.TrimSpace(title + " " + failure.Message + " " + code)
-	ui.Row(c).FillWidth().MinWidth(0).Padding(2, 0, 2, 0).Gap(8).AlignItems(ui.Start).
+	ui.Row(c).FillWidth().MinWidth(0).Padding(design.Sp(0.5), 0, design.Sp(0.5), 0).Gap(design.Sp(2)).AlignItems(ui.Start).
 		Role(ui.RoleStatus).Label(label).Children(func() {
-		ui.Box(c).Margin(5, 0, 0, 0).Shrink(0).Children(func() {
-			widgets.StateDot(c, widgets.StateError)
+		ui.Box(c).Margin(design.Sp(1.25), 0, 0, 0).Shrink(0).Children(func() {
+			chatStateDot(c, statusError)
 		})
 		ui.RichText(c,
-			ui.Span{Text: title + "  ", Weight: 600, Color: chrome.Color(palette.Danger)},
-			ui.Span{Text: failure.Message, Color: chrome.Color(palette.Secondary)},
+			ui.Span{Text: title + "  ", Weight: design.WeightSemibold, Color: t.DestructiveForeground},
+			ui.Span{Text: failure.Message, Color: t.Foreground},
 		).Font(theme.RenderPreferences().Chat.Family).FontSize(size).FixedLineHeight(size + 7).
 			Grow(1).MinWidth(0).Selectable()
 		if code != "" {
 			ui.Text(c, code).Font(theme.RenderPreferences().Code.Family).FontSize(11).
-				FixedLineHeight(16).TextColor(chrome.Color(palette.Muted)).Shrink(0)
+				FixedLineHeight(16).TextColor(t.MutedForeground).Shrink(0)
 		}
 	})
 }

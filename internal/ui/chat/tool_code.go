@@ -2,7 +2,8 @@ package chat
 
 import (
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -16,21 +17,29 @@ func toolCodeProgram(arguments string) (string, bool) {
 
 func toolCodeBody(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string) {
 	if code, present := toolCodeProgram(info.Arguments); present {
-		background, secondary := st.Field, st.Muted
-		if st.Colors.CodeBlock != "" {
-			background = chrome.Color(st.Colors.CodeBlock)
-			secondary = chrome.Color(st.Colors.Secondary)
+		t := design.For(c)
+		style := markdown.Style{
+			FontSize:         14,
+			FG:               t.CodeForeground,
+			Muted:            t.MutedForeground,
+			CodeBG:           t.Code,
+			Dark:             t.IsDark(),
+			ToolCodeLanguage: t.MutedForeground,
+			ToolCodeHover:    t.Accent,
+			CopyLabel:        i18n.T(i18n.KeyChatToolCopy),
+			CopiedLabel:      i18n.T(i18n.KeyMarkdownCopied),
+			WrapLabel:        i18n.T(i18n.KeyMarkdownWrap),
+			NoWrapLabel:      i18n.T(i18n.KeyMarkdownNoWrap),
+			CodeLabel:        i18n.T(i18n.KeyMarkdownCode),
 		}
-		style := markdown.Style{FontSize: 14, FG: st.FG, Muted: secondary, CodeBG: background, Dark: darkSurface(st.FG),
-			ToolCodeLanguage: st.Muted, ToolCodeHover: chrome.Color(st.Colors.Hover),
-			CopyLabel: i18n.T(i18n.KeyChatToolCopy), CopiedLabel: i18n.T(i18n.KeyMarkdownCopied),
-			WrapLabel: i18n.T(i18n.KeyMarkdownWrap), NoWrapLabel: i18n.T(i18n.KeyMarkdownNoWrap), CodeLabel: i18n.T(i18n.KeyMarkdownCode)}
-		scroll := ui.Scroll(c.Key("tool-code:" + key)).MinWidth(0).Shrink(0).MaxHeight(260).Label(i18n.T(i18n.KeyToolCodeProgram))
-		position := ui.Local(scroll, "position", func() ui.ScrollState { return ui.ScrollState{} })
-		scroll.TrackScroll(position).Children(func() {
-			ui.Column(c).MinWidth(0).Shrink(0).Margin(4, 0, 4, 4).Children(func() {
-				markdown.ToolCodeBlock(c, "typescript", code, style, position.Y).Label(i18n.T(i18n.KeyToolCodeCard))
-			})
+		seat := ui.Column(c.Key("tool-code:" + key)).MinWidth(0).Shrink(0)
+		position := ui.Local(seat, "position", func() ui.ScrollState { return ui.ScrollState{} })
+		seat.Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{State: position}, func() {
+				ui.Column(c).MinWidth(0).Shrink(0).Margin(design.Sp(1), 0, design.Sp(1), design.Sp(1)).Children(func() {
+					markdown.ToolCodeBlock(c, "typescript", code, style, position.Y).Label(i18n.T(i18n.KeyToolCodeCard))
+				})
+			}).MinWidth(0).Shrink(0).MaxHeight(260).Label(i18n.T(i18n.KeyToolCodeProgram))
 		})
 	}
 	// The code variant owns its input card; only result text enters generic IO.

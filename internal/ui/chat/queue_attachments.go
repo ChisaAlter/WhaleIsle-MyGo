@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -30,8 +32,10 @@ func queueFileSize(bytes float64) string {
 	return fmt.Sprintf("%.0f B", bytes)
 }
 func paintQueueAttachments(c *ui.Context, m PlanBoardModel, item session.PlanQueueItem, fg, muted ui.Color) {
+	t := design.For(c)
+	fg, muted = t.Foreground, t.MutedForeground
 	for _, a := range item.Attachments {
-		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 			if a.Kind == "image" && m.LoadQueueImage != nil {
 				key := m.Board.QueueActions.Scope + "\x00" + a.AttachmentID
 				read := attachmentImageRead()
@@ -46,7 +50,7 @@ func paintQueueAttachments(c *ui.Context, m PlanBoardModel, item session.PlanQue
 					ui.Image(c, bmp).Width(64).Height(48).Fit(ui.Contain)
 				} else {
 					ui.Text(c, "[image]").Width(64).FontSize(11).TextColor(muted)
-					if state.err != nil && ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(10).Clicked() {
+					if state.err != nil && coss.Button(c, i18n.T(i18n.KeyChatImageRetry), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 						if read.Key != "" {
 							read.Forget(a.AttachmentID)
 						}

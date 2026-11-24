@@ -11,6 +11,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -64,13 +66,14 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 			}
 		}
 		build := func() {
-			seat := ui.Column(c.Key("call:" + call.CallID)).MinWidth(0).Shrink(0).Radius(8)
+			t := design.For(c)
+			seat := ui.Column(c.Key("call:" + call.CallID)).MinWidth(0).Shrink(0).Radius(design.RadiusMD)
 			// A plain root block lets its last margin escape into the Chat
 			// seat. Nested call wrappers are flex items and include that margin.
-			bottom := float32(2)
+			bottom := design.Sp(0.5)
 			if item.parent < 0 && hasChildren {
 				bottom = 0
-				seat.Margin(0, 0, 2, 0)
+				seat.Margin(0, 0, design.Sp(0.5), 0)
 			}
 			if tree != nil {
 				box := &inspectorToolBox{call: call}
@@ -86,9 +89,9 @@ func ToolMessageView(c *ui.Context, msg session.Message, st ToolCardStyle, galle
 				}
 				toolLifecycleCard(c, call, st, childGallery)
 				if hasChildren {
-					children = ui.Column(c.Key("subcalls")).MinWidth(0).Shrink(0).Gap(4).
-						Margin(4, 0, bottom, 22).Padding(0, 0, 0, 8).
-						BorderWidth(0, 0, 0, border).BorderColor(st.Border)
+					children = ui.Column(c.Key("subcalls")).MinWidth(0).Shrink(0).Gap(design.Sp(1)).
+						Margin(design.Sp(1), 0, bottom, design.Sp(5.5)).Padding(0, 0, 0, design.Sp(2)).
+						BorderWidth(0, 0, 0, border).BorderColor(t.Border)
 				}
 			})
 		}
@@ -319,12 +322,13 @@ func ToolLifecycleCardInfo(call *session.ToolCallView) ToolCardInfo {
 }
 
 func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyle, expanded *map[string]bool, textOnly bool) {
+	t := design.For(c)
 	body = strings.TrimRight(body, "\n")
 	if body == "" {
 		return
 	}
 	open := expanded == nil || isThinkingExpanded(expanded, key)
-	ui.Column(c).Key("tool-detail:" + key).Gap(3).FillWidth().MinWidth(0).Children(func() {
+	ui.Column(c).Key("tool-detail:" + key).Gap(design.Sp(0.75)).FillWidth().MinWidth(0).Children(func() {
 		if expanded != nil {
 			paintDisclosureRow(c, disclosureRow{
 				Key:        "tool-detail-row:" + key,
@@ -335,9 +339,9 @@ func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyl
 				OnToggle:   func() { toggleThinkingExpanded(expanded, key) },
 			}, toolRowStyle(st))
 		} else {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, label).FontSize(11).TextColor(st.Muted).Grow(1)
-				if ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(10).Label(i18n.T(i18n.KeyChatToolCopy)).Clicked() {
+			ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, label).FontSize(11).TextColor(t.MutedForeground).Grow(1)
+				if coss.Button(c, i18n.T(i18n.KeyChatToolCopy), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Label: i18n.T(i18n.KeyChatToolCopy)}).Clicked() {
 					if textOnly {
 						c.Services().WriteClipboard(body)
 					} else {
@@ -348,7 +352,7 @@ func toolLifecycleDetail(c *ui.Context, key, label, body string, st ToolCardStyl
 		}
 		if open {
 			ui.Scroll(c).FillWidth().MinWidth(0).MaxHeight(toolRowBlockMaxHeight).Children(func() {
-				ui.Text(c, body).FontSize(11).Font(theme.RenderPreferences().Code.Family).TextColor(st.Muted).Selectable()
+				ui.Text(c, body).FontSize(11).Font(theme.RenderPreferences().Code.Family).TextColor(t.MutedForeground).Selectable()
 			})
 		}
 	})

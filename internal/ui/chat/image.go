@@ -14,9 +14,9 @@ import (
 
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/errcopy"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 var attachmentFetcher struct {
@@ -141,9 +141,10 @@ func cachedDisplayImagePath(ref string, invalidate func()) (string, bool) {
 }
 
 func paintImageLoading(c *ui.Context, muted ui.Color) {
-	frame := ui.Column(c).Width(240).Height(160).Radius(16).Background(muted.Alpha(0.08)).Center()
+	t := design.For(c)
+	frame := ui.Column(c).Width(240).Height(160).Radius(design.RadiusXL2).Background(t.Muted).Center()
 	frame.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(muted)
+		ui.Text(c, i18n.T(i18n.KeyChatImageLoading)).FontSize(12).TextColor(t.MutedForeground)
 	})
 }
 
@@ -286,20 +287,21 @@ func paintInlineImage(c *ui.Context, local string, muted ui.Color, onOpen func(s
 }
 
 func paintInlineImageBitmap(c *ui.Context, local string, bmp *ui.Bitmap, muted ui.Color, onOpen func(string)) {
+	t := design.For(c)
 	w, h := inlineImageBounds(bmp)
 	ratio := w / h
-	card := ui.Column(c).Width(w).MaxWidthPercent(100).AspectRatio(ratio).Radius(16).
-		Border(0.5, muted.Alpha(0.28)).Clip()
+	card := ui.Column(c).Width(w).MaxWidthPercent(100).AspectRatio(ratio).Radius(design.RadiusXL2).
+		Border(0.5, t.Border).Clip()
 	card.Children(func() {
 		ui.Image(c, bmp).Fill().Fit(ui.Cover)
 	})
 	if card.Hovered() {
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(r, muted.Alpha(0.06), 16)
+			p.Fill(r, t.MutedForeground.Alpha(0.06), design.RadiusXL2)
 		})
 	}
 	if onOpen != nil {
-		card.Label("Message image").Focusable().Role(ui.RoleButton)
+		card.Label("Message image").Focusable().Role(ui.RoleButton).Cursor(ui.CursorPointer)
 		if card.Clicked() {
 			onOpen(local)
 		}
@@ -360,28 +362,29 @@ func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(stri
 	if local != "" {
 		bmp, _ = cachedChatBitmap(local, svc.Invalidate)
 	}
-	tile := ui.Column(c).Width(size).Height(size).Radius(12).Border(0.5, muted.Alpha(0.28)).Clip()
+	t := design.For(c)
+	tile := ui.Column(c).Width(size).Height(size).Radius(design.RadiusLG).Border(0.5, t.Border).Clip()
 	tile.Children(func() {
 		switch {
 		case state.err != nil:
-			ui.Box(c).Fill().Background(c.Theme().Danger.Alpha(.10)).Center().Children(func() { ui.Text(c, i18n.T(i18n.KeyToolImageFailed)).FontSize(11).TextColor(c.Theme().Danger) })
+			ui.Box(c).Fill().Background(t.Destructive.Alpha(.10)).Center().Children(func() { ui.Text(c, i18n.T(i18n.KeyToolImageFailed)).FontSize(11).TextColor(t.DestructiveForeground) })
 		case bmp != nil:
 			ui.Image(c, bmp).Fill().Fit(ui.Cover)
 		case path != "":
-			ui.Box(c).Fill().Background(muted.Alpha(0.10)).Center().Children(func() {
-				ui.Icon(c, attachmentIconImage).Width(18).Height(18).TextColor(muted)
+			ui.Box(c).Fill().Background(t.Muted).Center().Children(func() {
+				ui.Icon(c, attachmentIconImage).Width(18).Height(18).TextColor(t.MutedForeground)
 			})
 		}
 	})
 	if state.err != nil {
-		tile.Label(i18n.T(i18n.KeyChatImageRetry)).Tooltip(errcopy.Sentence(state.err)).Focusable().Role(ui.RoleButton)
+		tile.Label(i18n.T(i18n.KeyChatImageRetry)).Tooltip(errcopy.Sentence(state.err)).Focusable().Role(ui.RoleButton).Cursor(ui.CursorPointer)
 		if tile.Clicked() {
 			read.Forget(id)
 			attachmentLoads.retry(read.Identity(id))
 			c.Invalidate()
 		}
 	} else if onOpen != nil {
-		tile.Label("Message image").Focusable().Role(ui.RoleButton)
+		tile.Label("Message image").Focusable().Role(ui.RoleButton).Cursor(ui.CursorPointer)
 		if tile.Clicked() && local != "" && bmp != nil {
 			onOpen(local)
 		}
@@ -391,11 +394,12 @@ func paintImageTile(c *ui.Context, path string, muted ui.Color, onOpen func(stri
 // paintImageFailure is the danger card the Original shows instead of a broken
 // picture: a tinted panel, the reason and an explicit retry.
 func paintImageFailure(c *ui.Context, message string, retry func()) {
-	ui.Column(c).Width(240).MaxWidthPercent(100).MinWidth(0).Radius(16).Padding(10, 12, 10, 12).Gap(6).
-		Background(ui.RGBA(200, 60, 60, .10)).Border(0.5, ui.RGBA(200, 60, 60, .45)).Children(func() {
-		ui.Text(c, message).FontSize(12).TextColor(ui.RGB(190, 60, 60))
+	t := design.For(c)
+	ui.Column(c).Width(240).MaxWidthPercent(100).MinWidth(0).Radius(design.RadiusXL2).Padding(design.Sp(2.5), design.Sp(3), design.Sp(2.5), design.Sp(3)).Gap(design.Sp(1.5)).
+		Background(t.Destructive.Alpha(.10)).Border(0.5, t.Destructive.Alpha(.45)).Children(func() {
+		ui.Text(c, message).FontSize(12).TextColor(t.DestructiveForeground)
 		if retry != nil {
-			if ui.Button(c, i18n.T(i18n.KeyChatImageRetry)).FontSize(11).Clicked() {
+			if coss.Button(c, i18n.T(i18n.KeyChatImageRetry), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 				retry()
 			}
 		}
@@ -412,33 +416,34 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 	if bmp == nil {
 		return
 	}
-	th := theme.Resolve(themeID)
-	colors := th.Active(systemDark)
+	t := design.For(c)
 	width, height := c.Size()
-	border := chrome.Color(colors.Border)
-	if darkSurface(chrome.Color(colors.FG)) {
-		border = chrome.Color(colors.BorderL1)
-	}
+	border := t.Border
 	caption := c.TitleBar().Height
 	pw, ph := imageLightboxSize(bmp, width, height-caption)
 	open := true
 	ui.DialogBase(c.Key("image-lightbox"), &open, func(backdrop, panel ui.Element) {
-		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
-		mask := ui.RGBA(0, 0, 0, chrome.MaskAlpha(darkSurface(chrome.Color(colors.FG))))
+		progress := float32(1)
+		if !c.Preferences().ReduceMotion {
+			progress = backdrop.AnimateWith("coss.dialog.mask", 1, design.DurationPanel, design.EaseInOut)
+		}
+		mask := design.TW.Black.Alpha(0.45)
+		if t.IsDark() {
+			mask = design.TW.Black.Alpha(0.65)
+		}
 		backdrop.Draw(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X, Y: r.Y + caption, W: r.W, H: max(0, r.H-caption)}, mask.Alpha(progress), 0)
 		})
-		backdrop.Padding(40+caption, 40, 40, 40)
-		panel.Label(i18n.T(i18n.KeyToolImagePreview)).Size(pw, ph).Padding(0).Radius(16).
-			Background(chrome.Color(colors.InputMajor)).Opacity(progress).
-			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
-			ui.Image(c, bmp).Fill().Fit(ui.Contain).Radius(16).Label(filepath.Base(displayPath))
+		backdrop.Padding(design.Sp(10)+caption, design.Sp(10), design.Sp(10), design.Sp(10))
+		chatPopupSurface(c, panel.Label(i18n.T(i18n.KeyToolImagePreview)).Size(pw, ph).Padding(0).
+			Background(t.Card).Opacity(progress), design.RadiusXL2).Children(func() {
+			ui.Image(c, bmp).Fill().Fit(ui.Contain).Radius(design.RadiusXL2).Label(filepath.Base(displayPath))
 		})
 		// A sibling of the centered image stays anchored to the window, and the
 		// modal scope keeps Tab on this sole control and restores the opener.
 		backdrop.Children(func() {
 			close := ui.ButtonBase(c.Key("close")).Absolute().Top(20+c.TitleBar().Height).Right(20).Size(36, 36).Padding(0).
-				Radius(18).Border(.5, border).Background(chrome.Color(colors.InputMajor)).TextColor(chrome.Color(colors.FG)).
+				Radius(design.RadiusFull).Border(.5, border).Background(t.Card).TextColor(t.Foreground).
 				Label(i18n.T(i18n.KeyToolImageClosePreview)).Cursor(ui.CursorPointer).Center().FocusRing(false).Opacity(progress)
 			if close.Clicked() {
 				open = false
@@ -446,7 +451,7 @@ func ImageLightboxOverlay(c *ui.Context, displayPath, themeID string, systemDark
 			focused := close.FocusVisible()
 			close.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				if focused {
-					p.Stroke(ui.Rect{X: r.X - 5, Y: r.Y - 5, W: r.W + 10, H: r.H + 10}, chrome.Color(colors.Accent), 23, 2)
+					p.Stroke(ui.Rect{X: r.X - 5, Y: r.Y - 5, W: r.W + 10, H: r.H + 10}, t.Ring, 23, 2)
 				}
 			})
 			close.Children(func() { ui.Icon(c, messageIconCloseOutline).Size(16, 16).PassThrough() })

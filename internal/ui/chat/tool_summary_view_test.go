@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -26,6 +27,9 @@ func toolSummaryViewFixture(t *testing.T, call *session.ToolCallView, width int,
 	expanded := map[string]bool{}
 	opened := []string{}
 	tt := ui.NewTester(func(c *ui.Context) {
+		if dark {
+			c.SetTheme(ui.DarkTheme())
+		}
 		theme.ApplyInterface(c)
 		palette := theme.Resolve(theme.DefaultID).Active(dark)
 		ui.Column(c).Fill().Padding(20).Background(chrome.Color(palette.BG)).Children(func() {
@@ -109,7 +113,11 @@ func TestToolSummaryViewDiffTotalsSizeAndTruncation(t *testing.T) {
 			// down.5DIP inside the fixed-height disclosure, as installed CSS does.
 			toolTreeNear(t, "stat visible height", stat.H, 23.5)
 			toolTreeNear(t, "stat downshift", stat.Y-size.Y, .5)
-			if toolSummaryHasColor(tt, stat, ui.Hex("#22c55e")) {
+			wantSuccess := design.Base(design.Light).SuccessForeground
+			if dark {
+				wantSuccess = design.Base(design.Dark).SuccessForeground
+			}
+			if toolSummaryHasColor(tt, stat, wantSuccess) {
 				t.Fatal("resting totals showed success color")
 			}
 			toolSummaryExport(t, tt, fmt.Sprintf("mutation-rest-dark-%v", dark))
@@ -119,7 +127,7 @@ func TestToolSummaryViewDiffTotalsSizeAndTruncation(t *testing.T) {
 				t.Fatal("empty header end failed to open")
 			}
 			stat, _ = tt.Find("+2 -1")
-			if !toolSummaryHasColor(tt, stat, ui.Hex("#22c55e")) {
+			if !toolSummaryHasColor(tt, stat, wantSuccess) {
 				t.Fatal("open totals did not use installed success alias")
 			}
 			tt.SetTime(time.Unix(11700, 0).Add(250 * time.Millisecond))

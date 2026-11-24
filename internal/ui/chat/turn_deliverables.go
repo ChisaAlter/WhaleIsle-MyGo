@@ -13,7 +13,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/diff"
 )
@@ -46,39 +47,22 @@ type deliverablePalette struct {
 	pathColor, chevronColor      ui.Color
 }
 
-func resolveDeliverablePalette(st ToolCardStyle) deliverablePalette {
-	dark := st.FG.R > 128
-	if dark {
-		return deliverablePalette{
-			borderL1:     ui.RGBA(255, 255, 255, 0.05),
-			borderL2:     ui.RGBA(255, 255, 255, 0.08),
-			borderL4:     ui.RGBA(255, 255, 255, 0.16),
-			fill:         ui.RGBA(28, 28, 30, 0.72),
-			fillHover:    ui.RGBA(38, 38, 40, 0.78),
-			cardGlass:    ui.RGB(33, 33, 35),
-			tileBg:       ui.RGBA(255, 255, 255, 0.05),
-			rowHover:     ui.RGBA(255, 255, 255, 0.08),
-			pillHover:    ui.RGBA(255, 255, 255, 0.08),
-			addColor:     ui.RGB(34, 197, 94),
-			delColor:     ui.RGB(242, 90, 90),
-			pathColor:    ui.RGB(173, 178, 184),
-			chevronColor: ui.RGB(207, 211, 214),
-		}
-	}
+func resolveDeliverablePalette(c *ui.Context) deliverablePalette {
+	t := design.For(c)
 	return deliverablePalette{
-		borderL1:     ui.RGBA(0, 0, 0, 0.04),
-		borderL2:     ui.RGBA(0, 0, 0, 0.10),
-		borderL4:     ui.RGBA(0, 0, 0, 0.16),
-		fill:         ui.RGB(250, 250, 250),
-		fillHover:    ui.RGB(245, 245, 245),
-		cardGlass:    ui.RGB(255, 255, 255),
-		tileBg:       ui.RGBA(255, 255, 255, 0.50),
-		rowHover:     ui.RGBA(38, 49, 72, 0.06),
-		pillHover:    ui.RGBA(38, 49, 72, 0.06),
-		addColor:     ui.RGB(22, 163, 74),
-		delColor:     ui.RGB(220, 38, 38),
-		pathColor:    st.Muted,
-		chevronColor: st.Muted,
+		borderL1:     t.Border,
+		borderL2:     t.Border,
+		borderL4:     t.Border,
+		fill:         t.Card,
+		fillHover:    t.Accent,
+		cardGlass:    t.Card,
+		tileBg:       t.Muted,
+		rowHover:     t.Accent,
+		pillHover:    t.Accent,
+		addColor:     t.SuccessForeground,
+		delColor:     t.DestructiveForeground,
+		pathColor:    t.MutedForeground,
+		chevronColor: t.MutedForeground,
 	}
 }
 
@@ -203,41 +187,38 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 	}
 	host := snapshot.Results[session.TurnFileRequest{Target: hostTarget, Action: "host"}]
 	nativeAvailable := enabled && host.Host != nil && host.Host.Available
-	pal := resolveDeliverablePalette(st)
-	box := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(8)
+	t := design.For(c)
+	pal := resolveDeliverablePalette(c)
+	box := ui.Column(c.Key(key)).FillWidth().MinWidth(0).Gap(design.Sp(2))
 	expanded := ui.Local(box, "expanded", func() bool { return false })
 	box.Children(func() {
 		if host.Error != "" && !host.Unavailable {
-			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, host.Error).FontSize(11).TextColor(st.Muted)
+			ui.Row(c).FillWidth().Gap(design.Sp(1.5)).Children(func() {
+				ui.Text(c, host.Error).FontSize(11).TextColor(t.MutedForeground)
 				if stdButton(c, st.Colors, i18n.T(i18n.KeyChatDeliveryRetryHost), buttonGhost, !enabled || host.Busy || run == nil).Clicked() {
 					run(hostTarget, "host")
 				}
 			})
 		} else if host.Host != nil && !host.Host.Available {
-			ui.Text(c, historyNavigationText("此主机没有可用的桌面，无法使用外部程序打开文件或文件夹；文件仍可在应用内预览", "Host desktop unavailable")).FontSize(11).TextColor(st.Muted)
+			ui.Text(c, historyNavigationText("此主机没有可用的桌面，无法使用外部程序打开文件或文件夹；文件仍可在应用内预览", "Host desktop unavailable")).FontSize(11).TextColor(t.MutedForeground)
 		}
 		if d.Changes != nil {
 			target := *d.Changes
 			state := snapshot.Results[session.TurnFileRequest{Target: target, Action: "summary"}]
 			if state.Summary != nil && len(state.Summary.Files) > 0 {
 				single := len(state.Summary.Files) == 1
-				cardBorder := pal.borderL2
-				if single {
-					cardBorder = pal.borderL1
-				}
-				chrome.GlassSurface(ui.Column(c.Key("changes")).FillWidth().MinWidth(0).Radius(16), pal.cardGlass, chrome.MaterialPanel, 16).Border(0.5, cardBorder).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
-					if cardBorder.A > 0 && r.W > 0 && r.H > 0 {
-						p.Stroke(r, cardBorder, 16, 0.5)
-					}
-				}).Children(func() {
+				chatCardSurface(c, ui.Column(c.Key("changes")).FillWidth().MinWidth(0), design.RadiusXL2).Clip().Children(func() {
 					headerTitle := fmt.Sprintf(historyNavigationText("已编辑 %d 个文件", "Edited %d files"), state.Summary.Total)
 					if state.Summary.Total == 1 && len(state.Summary.Files) == 1 {
 						headerTitle = historyNavigationText("已编辑 ", "Edited ") + path.Base(strings.ReplaceAll(state.Summary.Files[0].Display, `\`, "/"))
 					}
+					hdrDisabled := !enabled || state.Busy || run == nil
 					hdr := ui.Button(c.Key("changes-header"), "").Label(headerTitle).FillWidth().MinWidth(0).Height(60).
-						Padding(8, 10).Gap(10).BorderWidth(0).Background(pal.fill).AlignItems(ui.Center).
-						Disabled(!enabled || state.Busy || run == nil)
+						Padding(design.Sp(2), design.Sp(2.5)).Gap(design.Sp(2.5)).BorderWidth(0).Background(pal.fill).AlignItems(ui.Center).
+						Disabled(hdrDisabled)
+					if !hdrDisabled {
+						hdr.Cursor(ui.CursorPointer)
+					}
 					if hdr.Hovered() {
 						hdr.Background(pal.fillHover)
 					}
@@ -247,14 +228,14 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 							if single {
 								headerIconName = state.Summary.Files[0].Display
 							}
-							paintDeliverableFileTileBadge(c, headerIconName, st.Accent, 28)
+							paintDeliverableFileTileBadge(c, headerIconName, t.Accent, 28)
 						})
-						ui.Column(c).Grow(1).MinWidth(0).Gap(2).PassThrough().Children(func() {
-							ui.Text(c, headerTitle).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(st.FG).SingleLine().PassThrough()
+						ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).PassThrough().Children(func() {
+							ui.Text(c, headerTitle).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).SingleLine().PassThrough()
 							if single && state.Summary.Files[0].Binary {
 								ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(10).FixedLineHeight(16).TextColor(pal.pathColor).PassThrough()
 							} else {
-								ui.Row(c).Gap(6).AlignItems(ui.Center).PassThrough().Children(func() {
+								ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).PassThrough().Children(func() {
 									ui.Text(c, fmt.Sprintf("+%d", state.Summary.Added)).FontSize(10).FixedLineHeight(16).TextColor(pal.addColor).PassThrough()
 									ui.Text(c, fmt.Sprintf("-%d", state.Summary.Deleted)).FontSize(10).FixedLineHeight(16).TextColor(pal.delColor).PassThrough()
 								})
@@ -269,7 +250,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 						rows = rows[:4]
 					}
 					if len(rows) > 0 {
-						ui.Box(c).FillWidth().Height(1).Background(pal.borderL2)
+						coss.Separator(c, coss.Horizontal)
 					}
 					for index, file := range rows {
 						selected := target
@@ -282,9 +263,13 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 								rowWrap.Background(pal.rowHover)
 							}
 							rowWrap.Children(func() {
+								rowDisabled := !enabled || comparison.Busy || run == nil
 								rowBtn := ui.Button(c.Key("diff-btn"), "").Label(file.Display).Grow(1).MinWidth(0).Height(34).
-									Padding(7, 14, 7, 14).Gap(10).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
-									Disabled(!enabled || comparison.Busy || run == nil)
+									Padding(design.Sp(1.75), design.Sp(3.5), design.Sp(1.75), design.Sp(3.5)).Gap(design.Sp(2.5)).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
+									Disabled(rowDisabled)
+								if !rowDisabled {
+									rowBtn.Cursor(ui.CursorPointer)
+								}
 								if rowBtn.Hovered() {
 									rowWrap.Background(pal.rowHover)
 								}
@@ -295,7 +280,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 									} else if file.Oversized {
 										ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
 									} else {
-										ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).PassThrough().Children(func() {
+										ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Shrink(0).PassThrough().Children(func() {
 											ui.Text(c, fmt.Sprintf("+%d", file.Added)).FontSize(11).FixedLineHeight(18).TextColor(pal.addColor).PassThrough()
 											ui.Text(c, fmt.Sprintf("-%d", file.Deleted)).FontSize(11).FixedLineHeight(18).TextColor(pal.delColor).PassThrough()
 										})
@@ -318,20 +303,20 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 									ensure(selected, "diff")
 								}
 								ui.PopoverBase(c, rowBtn, &showHover, func(panel ui.Element) {
-									panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Width(620).MaxHeight(360).Padding(10).Border(1, st.Border), st.Colors, c.Theme().Dark, st.Field, 8))
+									panel = chatPopupSurface(c, panel.Width(620).MaxHeight(360).Padding(design.Sp(2.5)), design.RadiusMD)
 									panel.Children(func() {
-										ui.Text(c, file.Display).FontSize(12).TextColor(st.FG)
-										ui.Scroll(c).MaxHeight(310).Children(func() {
+										ui.Text(c, file.Display).FontSize(12).TextColor(t.Foreground)
+										coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
 											if comparison.Diff != nil && comparison.Diff.Kind == "text" {
-												diff.View(c, comparison.Diff.Patch(), diff.Style{FontSize: 11, FG: st.FG, Muted: st.Muted, Add: pal.addColor, Del: pal.delColor, Hunk: st.Accent})
+												diff.View(c, comparison.Diff.Patch(), diff.Style{FontSize: 11, FG: t.Foreground, Muted: t.MutedForeground, Add: pal.addColor, Del: pal.delColor, Hunk: t.Accent})
 											} else if comparison.Error != "" {
-												ui.Text(c, comparison.Error).TextColor(st.Muted)
+												ui.Text(c, comparison.Error).TextColor(t.MutedForeground)
 											} else if comparison.Diff != nil {
-												ui.Text(c, comparison.Diff.Kind).TextColor(st.Muted)
+												ui.Text(c, comparison.Diff.Kind).TextColor(t.MutedForeground)
 											} else {
-												ui.Text(c, historyNavigationText("正在读取改动…", "Reading diff…")).TextColor(st.Muted)
+												ui.Text(c, historyNavigationText("正在读取改动…", "Reading diff…")).TextColor(t.MutedForeground)
 											}
-										})
+										}).MaxHeight(310)
 									})
 								})
 								if rowBtn.Clicked() && enabled && !comparison.Busy && run != nil {
@@ -341,17 +326,17 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 								deliverableActionPill(c, selected, file.Display, snapshot, nativeAvailable, run, st, 24)
 							})
 							if *showInline && comparison.Error != "" && !comparison.Unavailable {
-								ui.Row(c).Padding(0, 14, 6, 14).Children(func() {
-									ui.Text(c, comparison.Error).FontSize(10).TextColor(st.Muted)
+								ui.Row(c).Padding(0, design.Sp(3.5), design.Sp(1.5), design.Sp(3.5)).Children(func() {
+									ui.Text(c, comparison.Error).FontSize(10).TextColor(t.MutedForeground)
 								})
 							}
 							if content := comparison.Diff; *showInline && content != nil {
-								ui.Column(c).FillWidth().Padding(4, 14, 8, 14).Children(func() {
+								ui.Column(c).FillWidth().Padding(design.Sp(1), design.Sp(3.5), design.Sp(2), design.Sp(3.5)).Children(func() {
 									switch content.Kind {
 									case "binary":
-										ui.Text(c, i18n.T(i18n.KeyChatDeliveryBinary)).FontSize(11).TextColor(st.Muted)
+										ui.Text(c, i18n.T(i18n.KeyChatDeliveryBinary)).FontSize(11).TextColor(t.MutedForeground)
 									case "oversized":
-										ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).TextColor(st.Muted)
+										ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).TextColor(t.MutedForeground)
 									case "text":
 										patch := content.Patch()
 										if len(patch) > 64<<10 {
@@ -359,12 +344,12 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 											if at := strings.LastIndexByte(patch, '\n'); at >= 0 {
 												patch = patch[:at]
 											}
-											ui.Text(c, i18n.T(i18n.KeyChatDeliveryDiffClip)).FontSize(10).TextColor(st.Muted)
+											ui.Text(c, i18n.T(i18n.KeyChatDeliveryDiffClip)).FontSize(10).TextColor(t.MutedForeground)
 										}
 										if patch == "" {
-											ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(st.Muted)
+											ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(t.MutedForeground)
 										} else {
-											diff.View(c, patch, diff.Style{FontSize: 11, FG: st.FG, Muted: st.Muted, Add: ui.RGB(40, 160, 90), Del: ui.RGB(210, 70, 70), Hunk: st.Accent})
+											diff.View(c, patch, diff.Style{FontSize: 11, FG: t.Foreground, Muted: t.MutedForeground, Add: pal.addColor, Del: pal.delColor, Hunk: t.Accent})
 										}
 									}
 								})
@@ -373,8 +358,8 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 					}
 				})
 			} else if state.Error != "" && !state.Unavailable {
-				ui.Row(c).Gap(6).Children(func() {
-					ui.Text(c, state.Error).FontSize(11).TextColor(st.Muted)
+				ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
+					ui.Text(c, state.Error).FontSize(11).TextColor(t.MutedForeground)
 					if stdButton(c, st.Colors, i18n.T(i18n.KeyChatDeliveryRetryReview), buttonGhost, !enabled || state.Busy || run == nil).Clicked() {
 						run(target, "summary")
 					}
@@ -392,7 +377,7 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 				if len(pair) > 2 {
 					pair = pair[:2]
 				}
-				ui.Row(c.Key(fmt.Sprintf("presented-row:%d", i))).FillWidth().MinWidth(0).Gap(10).AlignItems(ui.Start).Children(func() {
+				ui.Row(c.Key(fmt.Sprintf("presented-row:%d", i))).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).AlignItems(ui.Start).Children(func() {
 					for _, file := range pair {
 						ui.Column(c.Key(fmt.Sprintf("col:%d:%d", file.Target.Seq, file.Target.Index))).Grow(1).Basis(0).MinWidth(0).Children(func() {
 							presentedFileCard(c, file, snapshot, enabled, nativeAvailable, run, preview, st)
@@ -436,8 +421,9 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 			meta = i18n.T(i18n.KeyChatAttachmentFile)
 		}
 	}
-	pal := resolveDeliverablePalette(st)
-	owner := ui.Column(c.Key(fmt.Sprintf("presented:%d:%d", target.Seq, target.Index))).FillWidth().MinWidth(0).Gap(3)
+	t := design.For(c)
+	pal := resolveDeliverablePalette(c)
+	owner := ui.Column(c.Key(fmt.Sprintf("presented:%d:%d", target.Seq, target.Index))).FillWidth().MinWidth(0).Gap(design.Sp(0.75))
 	previewError := ui.Local(owner, "preview-error", func() string { return "" })
 	previewErrorAt := ui.Local(owner, "preview-error-at", func() time.Time { return time.Time{} })
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
@@ -449,28 +435,28 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 		run(target, "applications")
 	}
 	owner.Children(func() {
-		cardRow := chrome.FrostSurface(ui.Row(c).FillWidth().MinWidth(0).Height(60).BorderWidth(0).AlignItems(ui.Center).Clip(), st.Colors, c.Theme().Dark, pal.fill, 16).DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if pal.borderL1.A > 0 && r.W > 0 && r.H > 0 {
-				p.Stroke(r, pal.borderL1, 16, 0.5)
-			}
-		})
+		cardRow := chatCardSurface(c, ui.Row(c).FillWidth().MinWidth(0).Height(60).AlignItems(ui.Center).Clip(), design.RadiusXL2)
 		if cardRow.Hovered() {
-			cardRow.Background(chrome.FrostInset(st.Colors, c.Theme().Dark, pal.fillHover))
+			cardRow.Background(pal.fillHover)
 		}
 		cardRow.Children(func() {
 			label := historyNavigationText("预览 ", "Preview ") + name
+			cardDisabled := !enabled || preview == nil
 			card := ui.Button(c.Key("preview"), "").Label(label).Description(file.Path).Tooltip(file.Path).Grow(1).MinWidth(0).Height(60).
-				Padding(8, 10).Gap(10).Radius(16).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
-				Disabled(!enabled || preview == nil)
+				Padding(design.Sp(2), design.Sp(2.5)).Gap(design.Sp(2.5)).Radius(design.RadiusXL2).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
+				Disabled(cardDisabled)
+			if !cardDisabled {
+				card.Cursor(ui.CursorPointer)
+			}
 			if card.Hovered() {
-				cardRow.Background(chrome.FrostInset(st.Colors, c.Theme().Dark, pal.fillHover))
+				cardRow.Background(pal.fillHover)
 			}
 			card.Children(func() {
-				ui.Box(c).Size(38, 38).Radius(8).Background(chrome.FrostInset(st.Colors, c.Theme().Dark, pal.tileBg)).Border(0.5, pal.borderL2).Shrink(0).Center().PassThrough().Children(func() {
-					paintDeliverableFileTileBadge(c, name, st.Accent, 24)
+				ui.Box(c).Size(38, 38).Radius(design.RadiusMD).Background(pal.tileBg).Border(0.5, pal.borderL2).Shrink(0).Center().PassThrough().Children(func() {
+					paintDeliverableFileTileBadge(c, name, t.Accent, 24)
 				})
-				ui.Column(c).Grow(1).MinWidth(0).Gap(2).PassThrough().Children(func() {
-					ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(st.FG).SingleLine().PassThrough()
+				ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).PassThrough().Children(func() {
+					ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).SingleLine().PassThrough()
 					status, failed, opacity, repaint := presentedMetadata(snapshot, state, meta, c.Now())
 					if *previewError != "" && !state.Busy && !state.SettledAt.After(*previewErrorAt) {
 						status, failed, opacity, repaint = historyNavigationText("打开失败，请重试", "Could not preview file; try again"), true, 1, 0
@@ -480,7 +466,7 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 					}
 					ink := pal.pathColor
 					if failed {
-						ink = st.Err
+						ink = t.DestructiveForeground
 					}
 					presentedStatusSeat(c, status, ink, opacity, repaint)
 				})
@@ -499,7 +485,7 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 
 func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, displayName string, snapshot session.TurnFilesSnapshot, nativeAvailable bool, run func(session.TurnFileTarget, string), st ToolCardStyle, height float32) {
 	name := path.Base(strings.ReplaceAll(displayName, `\`, "/"))
-	pal := resolveDeliverablePalette(st)
+	pal := resolveDeliverablePalette(c)
 	state := snapshot.Results[(session.TurnFileRequest{Target: target, Action: "open"}).StateKey()]
 	nativeAvailable = nativeAvailable && !state.NativeUnavailable
 	apps, exists := snapshot.Results[session.TurnFileRequest{Target: target, Action: "applications"}]
@@ -514,8 +500,12 @@ func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, display
 	}
 	menuLabel := historyNavigationText("文件操作：", "File actions: ") + name
 	var menu ui.Element
-	ui.Row(c.Key("actions")).Width(42).Height(height).Margin(0, 10, 0, 0).Gap(0).Radius(8).Border(.5, pal.borderL4).Clip().Children(func() {
-		main := ui.Button(c, "").Label(historyNavigationText("打开文件：", "Open file: ") + name).Tooltip(historyNavigationText("打开文件", "Open file")).Width(24).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(!nativeAvailable || state.Busy || apps.Busy || run == nil)
+	ui.Row(c.Key("actions")).Width(42).Height(height).Margin(0, design.Sp(2.5), 0, 0).Gap(0).Radius(design.RadiusMD).Border(.5, pal.borderL4).Clip().Children(func() {
+		mainDisabled := !nativeAvailable || state.Busy || apps.Busy || run == nil
+		main := ui.Button(c, "").Label(historyNavigationText("打开文件：", "Open file: ") + name).Tooltip(historyNavigationText("打开文件", "Open file")).Width(24).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(mainDisabled)
+		if !mainDisabled {
+			main.Cursor(ui.CursorPointer)
+		}
 		main.Children(func() { paintOpenTargetAppIcon(c, name, apps.Applications) })
 		if main.Hovered() {
 			main.Background(pal.pillHover)
@@ -534,7 +524,11 @@ func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, display
 			run(target, action)
 		}
 		ui.Box(c).Width(1).Height(height).Background(pal.borderL4)
-		menu = ui.Button(c, "").Label(menuLabel).Tooltip(menuLabel).Width(17).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(!nativeAvailable || state.Busy || run == nil)
+		menuDisabled := !nativeAvailable || state.Busy || run == nil
+		menu = ui.Button(c, "").Label(menuLabel).Tooltip(menuLabel).Width(17).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(menuDisabled)
+		if !menuDisabled {
+			menu.Cursor(ui.CursorPointer)
+		}
 		menu.Children(func() { ui.Icon(c, deliverableChevronDownIcon).Size(10, 10).TextColor(pal.chevronColor).PassThrough() })
 		if menu.Hovered() {
 			menu.Background(pal.pillHover)
@@ -784,7 +778,8 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 		*requested = true
 		run(target, "applications")
 	}
-	ui.Row(c).Gap(6).Children(func() {
+	t := design.For(c)
+	ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
 		for _, action := range []string{"open", "reveal"} {
 			label := i18n.T(i18n.KeyChatDeliveryOpenHost)
 			if action == "reveal" {
@@ -797,7 +792,7 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 				run(target, action)
 			}
 		}
-		ui.Button(c, "Open with…").FontSize(10).Disabled(!enabled || state.Busy || apps.Busy || run == nil).Menu(func(menu *ui.Menu) {
+		coss.Button(c, "Open with…", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: !enabled || state.Busy || apps.Busy || run == nil}).Menu(func(menu *ui.Menu) {
 			for _, app := range apps.Applications {
 				caption := strings.TrimSpace(app.Name)
 				if caption == "" {
@@ -821,9 +816,9 @@ func TurnFileNativeActions(c *ui.Context, target session.TurnFileTarget, snapsho
 		if apps.Error != "" && state.Error == "" && !state.Busy {
 			status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true
 		}
-		ink := st.Muted
+		ink := t.MutedForeground
 		if failed {
-			ink = st.Err
+			ink = t.DestructiveForeground
 		}
 		ui.Box(c).Grow(1).MinWidth(0).Height(16).Tooltip(state.Error + "\n" + apps.Error).Children(func() { presentedStatusSeat(c, status, ink, opacity, repaint) })
 	})

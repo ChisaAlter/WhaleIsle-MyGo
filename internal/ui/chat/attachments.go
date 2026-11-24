@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -147,6 +148,8 @@ func attachmentKindIcon(name, mediaType string) *ui.SVG {
 // is display-only: it names the file and its size, and the transcript's file
 // mentions (not the card) are what open anything.
 func attachmentCardView(c *ui.Context, file userFileAttachment, fg, muted, border, field ui.Color) {
+	t := design.For(c)
+	fg, muted, border = t.Foreground, t.MutedForeground, t.Border
 	name := strings.TrimSpace(file.Name)
 	if name == "" {
 		name = i18n.T(i18n.KeyChatAttachmentFile)
@@ -154,11 +157,11 @@ func attachmentCardView(c *ui.Context, file userFileAttachment, fg, muted, borde
 	meta := attachmentMeta(name, file.MediaType, file.Bytes)
 	icon := attachmentKindIcon(name, file.MediaType)
 	ui.Row(c).Label("Attachment "+name).Width(attachmentCardWidth).MinHeight(attachmentCardHeight).
-		Radius(20).Border(0.5, border).Padding(0, 12, 0, 12).Gap(10).AlignItems(ui.Center).Children(func() {
+		Radius(design.RadiusXL2+design.Sp(1)).Border(0.5, border).Padding(0, design.Sp(3), 0, design.Sp(3)).Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
 		ui.Box(c).Size(attachmentGlyphSize, attachmentGlyphSize).Center().Children(func() {
 			ui.Icon(c, icon).Width(attachmentGlyphSeat).Height(attachmentGlyphSeat).TextColor(muted)
 		})
-		ui.Column(c).MinWidth(0).Grow(1).Gap(1).Children(func() {
+		ui.Column(c).MinWidth(0).Grow(1).Gap(design.Sp(0.25)).Children(func() {
 			ui.Text(c, name).FontSize(14).FixedLineHeight(22).FontWeight(500).TextColor(fg).SingleLine()
 			if meta != "" {
 				ui.Text(c, meta).FontSize(12).FixedLineHeight(15).TextColor(muted).SingleLine()

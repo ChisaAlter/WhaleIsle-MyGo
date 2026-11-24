@@ -3,18 +3,17 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
 // Every tool family renders its evidence in the same seat: one tinted container,
-// an 8 DIP padding, a 10 DIP copy action in the corner and the same 18 DIP line
+// an 8 DIP padding, a copy action in the corner and the same 18 DIP line
 // rhythm. Only the body differs — terminal, search hits, web cards, todo rows.
 const (
-	toolSeatRadius   = 8
-	toolSeatPad      = 8
-	toolSeatLine     = 18
-	toolSeatCopySize = 20
-	toolSeatMaxBody  = 224
+	toolSeatLine    = 18
+	toolSeatMaxBody = 224
 )
 
 // toolSeatStyle carries the surface a tool seat paints on.
@@ -44,19 +43,29 @@ func (s toolSeatStyle) maxHeight() float32 {
 // toolSeat paints the shared frame around a family-specific body. payload is what
 // the copy action yields; an empty payload renders no copy seat.
 func toolSeat(c *ui.Context, st toolSeatStyle, key, label, payload string, onCopy func(string), body func()) {
-	seat := ui.Column(c).Key("tool-seat:"+key).Label(label).FillWidth().MinWidth(0).Selectable().
-		Background(st.Field).Radius(toolSeatRadius).Padding(toolSeatPad, toolSeatPad, toolSeatPad, toolSeatPad).Gap(2)
+	t := design.For(c)
+	bg := st.Field
+	if bg.A == 0 {
+		bg = t.Muted
+	}
+	seat := ui.Column(c).Key("tool-seat:" + key).Label(label).FillWidth().MinWidth(0).Selectable().
+		Background(bg).Radius(design.RadiusMD).Padding(design.Sp(2)).Gap(design.Sp(0.5))
 	copied := ui.Local(seat, "tool-seat-copied", func() string { return "" })
 	seat.Children(func() {
 		if onCopy != nil && payload != "" {
 			ui.Row(c).FillWidth().MinWidth(0).Unselectable().Justify(ui.End).Children(func() {
 				text := i18n.T(i18n.KeyChatToolCopy)
+				icon := coss.IconCopy
 				if *copied == payload {
 					text = i18n.T(i18n.KeyMarkdownCopied)
+					icon = coss.IconCheck
 				}
-				button := ui.Button(c, text).Label(text).Tooltip(text).FontSize(10).Height(toolSeatCopySize).
-					Padding(0, 8, 0, 8).Radius(6).Border(0.5, st.Muted.Alpha(.35)).
-					Background(ui.Transparent).TextColor(st.Muted)
+				button := coss.Button(c, text, coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonXS,
+					Icon:    icon,
+					Label:   text,
+				}).Tooltip(text)
 				if button.Clicked() {
 					if *copied == payload {
 						*copied = ""
