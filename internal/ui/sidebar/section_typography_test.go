@@ -7,7 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -44,7 +44,11 @@ func TestSidebarSectionTypographyPaintMatchesInstalledRoles(t *testing.T) {
 			actual.SetDark(tc.dark)
 			actual.SetPreferences(ui.Preferences{TextScale: 1, ReduceMotion: true})
 			painted := actual.Image()
-			colors := theme.Resolve(theme.IDSystem).Active(tc.dark)
+			scheme := design.Light
+			if tc.dark {
+				scheme = design.Dark
+			}
+			dt := design.Resolve(scheme, ui.Color{}, ui.Color{})
 			workspaceSize := float32(14)
 			if tc.family != "deepseek" {
 				workspaceSize = 13
@@ -64,10 +68,10 @@ func TestSidebarSectionTypographyPaintMatchesInstalledRoles(t *testing.T) {
 				referenceLabel := text.label
 				reference := ui.NewTester(func(c *ui.Context) {
 					theme.ApplyInterface(c)
-					ui.Column(c).Fill().Background(chrome.Color(colors.Sidebar)).Children(func() {
+					ui.Column(c).Fill().Background(dt.Sidebar).Children(func() {
 						ui.Text(c, referenceLabel).Absolute().Left(bounds.X).Top(bounds.Y).Width(bounds.W).Height(bounds.H).
 							FontSize(text.size).FontWeight(text.weight).FixedLineHeight(text.height).
-							TextColor(chrome.Color(colors.Muted)).SingleLine()
+							TextColor(dt.SidebarForeground).SingleLine()
 					})
 				}, 280, 700)
 				reference.SetDark(tc.dark)

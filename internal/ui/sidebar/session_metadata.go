@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -47,7 +48,7 @@ func sessionRelativeTime(at, now float64) string {
 
 func sessionPinIndicator(c *ui.Context, id string, ink ui.Color) {
 	ui.Box(c.Key("session-pin")).Label("Session pinned "+id).Tooltip(i18n.T(i18n.KeyWSRowPinned)).
-		Width(16).Height(20).Margin(0, 0, 0, 6).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+		Width(16).Height(20).Margin(0, 0, 0, design.Sp(1.5)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		ui.Icon(c, sessionPinArtwork).Width(14).Height(14).TextColor(ink)
 	})
 }

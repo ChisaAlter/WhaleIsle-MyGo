@@ -5,7 +5,6 @@ package sidebar
 import (
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -13,6 +12,8 @@ import (
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
 	"whaleisle/internal/ui/theme"
@@ -209,40 +210,49 @@ type Model struct {
 var workspaceMenuFB bool
 
 // sidebarBrand keeps the caption drag surface outside the non-macOS session button.
-func sidebarBrand(c *ui.Context, m Model, colors theme.Colors, fg, muted ui.Color, platform string) {
+func sidebarBrand(c *ui.Context, m Model, platform string) {
+	t := tok(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
 	identity := func() {
 		if skinLayout.Skin == theme.SkinCodex {
-			ui.Text(c, product.Name).Font(theme.RenderPreferences().Interface.Family).FontSize(15).FontWeight(600).LetterSpacing(-.15).Grow(1).MinWidth(0).SingleLine().TextColor(fg)
+			ui.Text(c, product.Name).Font(theme.RenderPreferences().Interface.Family).FontSize(15).FontWeight(design.WeightSemibold).LetterSpacing(-.15).Grow(1).MinWidth(0).SingleLine().TextColor(fg)
 			return
 		}
 		if bmp := chrome.BrandAvatar(); bmp != nil {
 			ui.Image(c, bmp).Size(38, 38).Fit(ui.Contain)
 		} else {
-			ui.Box(c).Size(38, 38).Radius(19).Background(chrome.Color(colors.Accent).Alpha(0.25))
+			ui.Box(c).Size(38, 38).Radius(design.RadiusFull).Background(t.Primary.Alpha(0.25))
 		}
 		// Claude's brand scope uses the user's sans stack rather than Inter.
-		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Font(theme.RenderPreferences().Interface.Family).Children(func() {
-			ui.Row(c).Gap(4).AlignItems(ui.Center).MinWidth(0).Children(func() {
+		ui.Column(c).Gap(design.Sp(0.25)).Grow(1).MinWidth(0).Font(theme.RenderPreferences().Interface.Family).Children(func() {
+			ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).MinWidth(0).Children(func() {
 				ui.Row(c).Label(product.Name).Gap(0).Shrink(0).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "鲸").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
-						FontWeight(700).TextColor(fg).SingleLine()
-					ui.Text(c, "屿 MyGo").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).
-						FontWeight(700).TextColor(chrome.Color(colors.Accent)).SingleLine()
+					ui.Text(c, "鲸").FontSize(fs(14)).FixedLineHeight(fs(20)).
+						FontWeight(design.WeightBold).TextColor(fg).SingleLine()
+					ui.Text(c, "屿 MyGo").FontSize(fs(14)).FixedLineHeight(fs(20)).
+						FontWeight(design.WeightBold).TextColor(t.Primary).SingleLine()
 				})
-				ui.Text(c, "WHALE ISLE MYGO").Shrink(0).FontSize(theme.InterfaceSize(8.5)).FixedLineHeight(theme.InterfaceSize(14)).
-					FontWeight(700).LetterSpacing(0.1).TextColor(fg.Alpha(0.88)).SingleLine()
+				ui.Text(c, "WHALE ISLE MYGO").Shrink(0).FontSize(fs(8.5)).FixedLineHeight(fs(14)).
+					FontWeight(design.WeightBold).LetterSpacing(0.1).TextColor(fg.Alpha(0.88)).SingleLine()
 			})
-			ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(theme.InterfaceSize(8.5)).
-				FixedLineHeight(theme.InterfaceSize(11)).FontWeight(500).LetterSpacing(0.28).TextColor(muted)
+			ui.Text(c, "BASED ON DEEPSEEK HARNESS").FontSize(fs(8.5)).
+				FixedLineHeight(fs(11)).FontWeight(design.WeightMedium).LetterSpacing(0.28).TextColor(muted)
 		})
 	}
 	if platform == "darwin" || m.OnCreate == nil {
-		ui.Row(c.Key("sidebar-brand-identity")).Label(product.Name).Grow(1).MinWidth(0).Gap(7).AlignItems(ui.Center).DragWindow().Children(identity)
+		ui.Row(c.Key("sidebar-brand-identity")).Label(product.Name).Grow(1).MinWidth(0).Gap(design.Sp(1.75)).AlignItems(ui.Center).DragWindow().Children(identity)
 		return
 	}
-	brand := ui.ButtonBase(c.Key("sidebar-brand-new")).Label(product.Name).Description(i18n.T(i18n.KeySidebarNewSessionFallback)).
-		Grow(1).Shrink(1).MinWidth(0).Height(38).Gap(7).Padding(0).AlignItems(ui.Center).Justify(ui.Start).Radius(8).Cursor(ui.CursorPointer)
+	brand := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonMD,
+		Label:   product.Name,
+		Key:     "sidebar-brand-new",
+		Content: func() {},
+	}).Description(i18n.T(i18n.KeySidebarNewSessionFallback)).
+		Grow(1).Shrink(1).MinWidth(0).Height(38).Gap(design.Sp(1.75)).Padding(0).BorderWidth(0).
+		AlignItems(ui.Center).Justify(ui.Start).Radius(design.RadiusMD)
 	brand.Children(identity)
 	if brand.Clicked() {
 		m.OnCreate()
@@ -253,59 +263,45 @@ var newSessionIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none
 
 // The title stays centered over the full button while its right edge fades
 // before the configured shortcut, matching SidebarRoot's label mask.
-func newSessionButton(c *ui.Context, m Model, colors theme.Colors, fg, border ui.Color) {
+func newSessionButton(c *ui.Context, m Model) {
+	t := tok(c)
+	fg := t.Foreground
 	label := i18n.T(i18n.KeySidebarNewSessionFallback)
 	if theme.ResolvedSkin(m.ThemeID, m.SystemDark) == theme.SkinCodex {
-		btn := ui.Button(c.Key("sidebar-new-session"), "").Label(label).FillWidth().Height(32).Radius(8).Margin(2, 0, 6, 0).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).Gap(8).TextColor(fg)
-		if btn.Hovered() {
-			btn.Background(chrome.Color(colors.Hover))
-		}
+		btn := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonMD,
+			Label:   label,
+			Key:     "sidebar-new-session",
+			Content: func() {},
+		}).FillWidth().Height(32).Radius(design.RadiusMD).Margin(design.Sp(0.5), 0, design.Sp(1.5), 0).
+			Padding(0, design.Sp(2)).BorderWidth(0).Justify(ui.Start).Gap(design.Sp(2)).TextColor(fg)
 		btn.Children(func() {
-			ui.Icon(c, newSessionIcon).Size(16, 16).TextColor(fg)
-			ui.Text(c, label).FontSize(13).FontWeight(500).TextColor(fg)
+			ui.Icon(c, newSessionIcon).Size(design.IconSM, design.IconSM).TextColor(fg)
+			ui.Text(c, label).FontSize(13).FontWeight(design.WeightMedium).TextColor(fg)
 		})
 		if btn.Clicked() {
 			m.OnCreate()
 		}
 		return
 	}
-	btnFill := chrome.Color(colors.Field)
-	btnHoverFill := chrome.Color(colors.Hover)
-	if m.SystemDark {
-		btnFill = ui.RGBA(255, 255, 255, 0.18)
-		btnHoverFill = ui.RGBA(255, 255, 255, 0.23)
-	}
-	btnBorder := chrome.Color(colors.BorderL3)
-	if colors.BorderL3 == "" {
-		btnBorder = border
-	}
-	btn := ui.Button(c.Key("sidebar-new-session"), "").Label(label).FillWidth().Height(38).Radius(12).
-		Margin(4, 2, 0, 2).MaxWidth(252).Border(0.5, btnBorder).
-		TextColor(fg).FontSize(theme.InterfaceSize(14)).FontWeight(500).Padding(8, 12, 8, 12)
-	if chrome.BackdropActive() {
-		// The menu frost needs the wash inside the same Draw: a Background
-		// here would sit under the frosted patch and never show.
-		base := chrome.MenuBaseFill(colors, m.SystemDark)
-		hovered := btn.Hovered()
-		btn.Background(ui.Transparent).Draw(func(p *ui.Painter, r ui.Rect) {
-			chrome.DrawGlass(p, r, base, chrome.MaterialMenu, 12)
-			if hovered {
-				p.Fill(r, btnHoverFill, 12)
-			}
-		})
-	} else {
-		btn.Background(btnFill)
-		if btn.Hovered() {
-			btn.Background(btnHoverFill)
-		}
-	}
+	btn := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonOutline,
+		Size:    coss.ButtonLG,
+		Label:   label,
+		Key:     "sidebar-new-session",
+		Content: func() {},
+	}).FillWidth().Height(38).Radius(design.RadiusXL).
+		Margin(design.Sp(1), design.Sp(0.5), 0, design.Sp(0.5)).MaxWidth(252).
+		TextColor(fg).FontSize(fs(14)).FontWeight(design.WeightMedium).
+		Padding(design.Sp(2), design.Sp(3), design.Sp(2), design.Sp(3))
 	showShortcut := m.NewSessionShortcut != "" && (btn.Hovered() || btn.FocusVisible())
-	font := ui.Font{Family: c.Theme().Font, Size: theme.InterfaceSize(14), Weight: 500}
+	font := ui.Font{Family: c.Theme().Font, Size: fs(14), Weight: design.WeightMedium}
 	title := ui.ShapeTextLine(label, font, 0)
 	titleW, titleH := title.Size()
 	shortcutW := float32(0)
 	if showShortcut {
-		shortcutW, _ = ui.ShapeTextLine(m.NewSessionShortcut, ui.Font{Family: font.Family, Size: font.Size, Weight: 400}, 0).Size()
+		shortcutW, _ = ui.ShapeTextLine(m.NewSessionShortcut, ui.Font{Family: font.Family, Size: font.Size, Weight: design.WeightNormal}, 0).Size()
 	}
 	btn.Children(func() {
 		mask := ui.Box(c.Key("sidebar-new-label")).Grow(1).MinWidth(0).Height(22).PassThrough()
@@ -319,7 +315,7 @@ func newSessionButton(c *ui.Context, m Model, colors theme.Colors, fg, border ui
 				p.Clip(r, 0, func() { draw(fg) })
 				return
 			}
-			fade := min(float32(16), r.W)
+			fade := min(design.Sp(4), r.W)
 			p.Clip(ui.Rect{X: r.X, Y: r.Y, W: r.W - fade, H: r.H}, 0, func() { draw(fg) })
 			for step := float32(0); step < fade; step++ {
 				p.Clip(ui.Rect{X: r.X + r.W - fade + step, Y: r.Y, W: min(float32(1), fade-step), H: r.H}, 0,
@@ -328,7 +324,7 @@ func newSessionButton(c *ui.Context, m Model, colors theme.Colors, fg, border ui
 		})
 		if showShortcut {
 			ui.Text(c, m.NewSessionShortcut).Role(ui.RoleNone).Width(shortcutW).Shrink(1).MinWidth(0).SingleLine().
-				FontSize(font.Size).FontWeight(400).FixedLineHeight(22).TextColor(fg).PassThrough().
+				FontSize(font.Size).FontWeight(design.WeightNormal).FixedLineHeight(22).TextColor(fg).PassThrough().
 				ObserveLayout(func(r ui.Rect) { shortcutW = r.W })
 		}
 	})
@@ -344,35 +340,22 @@ type treeNode struct {
 
 // View paints the left session tree.
 func View(c *ui.Context, m Model) {
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	if !m.SystemDark {
-		// The rail's light glass over the wallpaper lifts muted gray below a
-		// readable ratio; secondary ink keeps times and hints legible.
-		muted = chrome.Color(colors.Secondary)
-	}
-	border := chrome.Color(colors.Border)
+	defer withSidebarTheme(c, m)()
+	t := tok(c)
+	fg := t.Foreground
+	muted := t.MutedForeground
+	border := t.SidebarBorder
 	// SidebarRoot.root: flex column height 100%, pad 6 / inline 12.
 	// Children (flex:none): logoRow (60), newSession, panelList;
 	// regionArea flex:1 min-height:0; footArea flex:none (pinned bottom).
 	skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
-	root := ui.Column(c.Key("sidebar-root")).Fill().MinWidth(0).Padding(6, skinLayout.SidebarInline, 6, skinLayout.SidebarInline)
+	root := ui.Column(c.Key("sidebar-root")).Fill().MinWidth(0).Padding(design.Sp(1.5), skinLayout.SidebarInline, design.Sp(1.5), skinLayout.SidebarInline)
 	m = beginSessionHover(root, m)
 	if skinLayout.Active() {
 		root.FontSize(skinLayout.SidebarFont)
 	}
 	if m.Collapsed {
-		// Native collapsed rail: SidebarRoot.module.css .root.collapsed is
-		// `padding: 18px 10px 6px`, and the 36-DIP seats with their 12-DIP gaps
-		// then reproduce the round261 UIA table (150%) exactly — 打开侧边栏 18,
-		// 新建会话 66, 插件/自动化任务/鲸鱼娘 114/162/210, pitch 48. Keep the
-		// reference constant: the uniform +0.67 the live window measured is a
-		// window-origin artifact (round261 also saw native rects quantized to
-		// 1/1.5 DIP: 9.33/35.33/36.67), not rail padding, so rounding it in
-		// here would sit the rail 1 DIP high at 100% scaling.
-		root.Padding(18, 10, 6, 10)
+		root.Padding(design.Sp(4.5), design.Sp(2.5), design.Sp(1.5), design.Sp(2.5))
 	}
 	if m.SearchFocus == nil {
 		m.SearchFocus = ui.Local(root, "search-focus-request", func() bool { return false })
@@ -385,49 +368,48 @@ func View(c *ui.Context, m Model) {
 	})
 	m.workspaceWatermarks = ui.Local(root, "workspace-watermarks", func() workspaceWatermarkState { return workspaceWatermarkState{} })
 	m.sidebarDrag = ui.Local(root, "sidebar-drag-state", func() sidebarDragState { return sidebarDragState{} })
+	fill := t.Sidebar
 	if skinLayout.Active() {
-		fill := chrome.Color(colors.Sidebar)
 		if m.Collapsed && skinLayout.Skin == theme.SkinCodex {
-			fill = chrome.Color(colors.BG)
+			fill = t.Background
 		}
 		root.Background(fill).Radius(0).DrawOver(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(ui.Rect{X: r.X + r.W - skinLayout.SidebarBorder, Y: r.Y, W: skinLayout.SidebarBorder, H: r.H}, chrome.Color(skinLayout.SidebarBorderColor), 0)
+			p.Fill(ui.Rect{X: r.X + r.W - skinLayout.SidebarBorder, Y: r.Y, W: skinLayout.SidebarBorder, H: r.H}, t.SidebarBorder, 0)
 		})
 	} else {
-		root.Draw(chrome.Glass(chrome.Color(colors.Sidebar), chrome.MaterialSidebar))
+		root.Background(fill).Radius(0)
 	}
 	root.Children(func() {
 		if m.Collapsed {
-			// SidebarRoot.railIn: the rail's controls enter from the former
-			// expanded edge over 150 ms as the track finishes collapsing.
 			rail := ui.Column(c.Key("sidebar-rail-content")).FillWidth().Grow(1).MinHeight(0)
 			if !c.Preferences().ReduceMotion {
 				rail.Transition(ui.ElementTransition{
-					Duration: 150 * time.Millisecond,
-					Ease:     ui.EaseInOut,
+					Duration: design.DurationDefault,
+					Ease:     design.EaseInOut,
 					Position: true,
 					Enter:    &ui.Motion{X: 49, Opacity: 0},
 				})
 			}
-			rail.Children(func() { collapsedRail(c, m, fg, colors) })
+			rail.Children(func() { collapsedRail(c, m, fg) })
 		} else {
-			// Keep the full product name readable within the sidebar's brand
-			// column, alongside the avatar and collapse control.
-			ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(6).AlignItems(ui.Center).
+			ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(design.Sp(1.5)).AlignItems(ui.Center).
 				DragWindow().Children(func() {
-				sidebarBrand(c, m, colors, fg, muted, runtime.GOOS)
+				sidebarBrand(c, m, runtime.GOOS)
 				if m.OnToggle != nil {
-					// Native 收起侧边栏: a 28x28 r8 control at (240,22) inside the
-					// 60-DIP brand row; the 16x16 panel glyph sits centred.
-					collapse := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse) + " (Ctrl+B)").
-						Width(28).Height(28).Shrink(0).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Center()
-					collapseInk := chrome.Color(colors.Secondary)
+					collapse := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonIconSM,
+						Label:   i18n.T(i18n.KeySidebarCollapse),
+						Key:     "sidebar-collapse",
+						Content: func() {},
+					}).Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse)+" (Ctrl+B)").
+						Size(28, 28).Shrink(0).Padding(0).Radius(design.RadiusMD).BorderWidth(0).Center()
+					collapseInk := t.MutedForeground
 					if collapse.Hovered() {
-						collapse.Background(chrome.Color(colors.Hover))
 						collapseInk = fg
 					}
 					collapse.Children(func() {
-						ui.Icon(c, sidebarRailIcons["panel"]).Size(16, 16).TextColor(collapseInk)
+						ui.Icon(c, sidebarRailIcons["panel"]).Size(design.IconSM, design.IconSM).TextColor(collapseInk)
 					})
 					if collapse.Clicked() {
 						m.OnToggle()
@@ -435,43 +417,36 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 			if m.OnCreate != nil {
-				// SidebarRoot.module.css .newSession: h38, radius 12, margin 0 2 8,
-				// border-l2. The 4-DIP top margin is the page's 10-DIP gap under
-				// the 60-DIP brand row (native: button at y=70, 252x38 at x=14).
-				newSessionButton(c, m, colors, fg, border)
-				// 12 DIP under the new-session button puts the panel list at the
-				// native y=120 (button 70..108).
+				newSessionButton(c, m)
 				if skinLayout.Skin != theme.SkinCodex {
 					ui.Box(c).Height(12)
 				}
 			}
-			// SidebarRoot.panelList: 36-high rows with the source's 2-DIP gap,
-			// so the pitch is 38, inset 2 inside the 256-DIP list (native
-			// buttons sit at x=14, 252 wide, with 插件 at y=120 and 自动化任务
-			// at y=158, matching the installed page).
-			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, 2, 8, 2).Gap(2).Children(func() {
+			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, design.Sp(0.5), design.Sp(2), design.Sp(0.5)).Gap(design.Sp(0.5)).Children(func() {
 				nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
-					row := ui.Button(c.Key("sidebar-panel-"+key), "").FillWidth().Height(skinLayout.NavHeight).Radius(12).
-						Selected(m.ActivePanel == id).Background(ui.Transparent).TextColor(fg).BorderWidth(0).
-						Padding(7, 8, 7, 8).AlignItems(ui.Center)
+					row := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonMD,
+						Pressed: m.ActivePanel == id,
+						Key:     "sidebar-panel-" + key,
+						Content: func() {},
+					}).FillWidth().Height(skinLayout.NavHeight).Radius(design.RadiusXL).
+						TextColor(fg).BorderWidth(0).
+						Padding(design.Sp(1.75), design.Sp(2), design.Sp(1.75), design.Sp(2)).AlignItems(ui.Center)
 					if m.ActivePanel == id || row.Hovered() {
-						row.Background(chrome.Color(colors.Hover))
+						row.Background(t.Accent)
+					} else {
+						row.Background(ui.Transparent)
 					}
 					if skinLayout.Skin == theme.SkinCodex {
-						row.Padding(6, 8).MinHeight(32)
+						row.Padding(design.Sp(1.5), design.Sp(2)).MinHeight(32)
 					}
-					// SidebarRoot.module.css .panelRow:hover swaps the fill with no
-					// transition; no colors transition here either.
 					row.Children(func() {
-						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+						ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 							if drawIcon != nil {
 								drawIcon()
 							}
-							// Native rows carry a 22-DIP line box under the 7-DIP
-							// padding, so the label ink starts at 7 + (22-14)/2 below
-							// the row; a plain text box is 18.7 tall and its centred
-							// ink sits ~1.7 DIP lower than the reference.
-							lineHeight := theme.InterfaceSize(22)
+							lineHeight := fs(22)
 							if skinLayout.Active() {
 								lineHeight = 20
 							}
@@ -507,21 +482,15 @@ func View(c *ui.Context, m Model) {
 			if m.WorkspaceMenuOpen != nil {
 				menuOpen = m.WorkspaceMenuOpen
 			}
-			// SidebarRoot.regionArea (flex:1): workspace browser + real session
-			// tree. The section header sits 4 DIP above the tree rows, as the
-			// installed 36-DIP sectionHeader does with its zero bottom gap, and
-			// the region's top inset keeps the label on the source's 250 line.
-			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(4).Padding(2.67, 0, 0, 0).Children(func() {
-				// WorkspaceBrowser.sectionHeader and Rows.tasksSection use the
-				// source tertiary token, independent of other rail readability ink.
-				sectionInk := chrome.Color(colors.Muted)
+			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(1)).Padding(design.Sp(0.6675), 0, 0, 0).Children(func() {
+				sectionInk := t.SidebarForeground
 				workspaceHeading(c, m, menuOpen, fg, sectionInk)
 				batchToolbar(c, m, fg)
 				m.scrollbarsVisible = sidebarScrollbarLinger(c, root)
 				searchActive := m.SearchQuery != nil && session.NormalizeSessionSearchQuery(*m.SearchQuery) != ""
 				if searchActive {
 					m.sidebarBodyFill = true
-					ui.Column(c.Key("sidebar-search-body")).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+					ui.Column(c.Key("sidebar-search-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
 						sessionSearchResultsView(c, m, fg, muted)
 						// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
 						// projects.View(c, m.Projects)
@@ -535,7 +504,7 @@ func View(c *ui.Context, m Model) {
 					flatHost := len(groups) == 1 && groups[0].Kind == "flat"
 					if flatHost {
 						m.sidebarBodyFill = true
-						ui.Column(c.Key("sidebar-flat-body")).FillWidth().Grow(1).MinHeight(0).Gap(2).Children(func() {
+						ui.Column(c.Key("sidebar-flat-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
 							workspaceRowsView(c, m, items, fg, muted, border)
 							workspaceListFeedback(c, m, items, fg, muted)
 							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
@@ -545,7 +514,7 @@ func View(c *ui.Context, m Model) {
 							}
 						})
 					} else {
-						ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(2).ScrollbarsVisible(m.scrollbarsVisible).Children(func() {
+						coss.ScrollArea(c, coss.ScrollAreaOptions{Key: "sidebar-tree-scroll"}, func() {
 							workspaceRowsView(c, m, items, fg, muted, border)
 							workspaceListFeedback(c, m, items, fg, muted)
 							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
@@ -553,38 +522,25 @@ func View(c *ui.Context, m Model) {
 							if showArchived {
 								archivedSection(c, m, archivedItems, sectionInk, muted)
 							}
-						})
+						}).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5))
 					}
 				}
 			})
 		}
 		batchResultReceipt(c, m)
 		archiveUndoRow(c, m)
-		// Keep the same root/footer/settings identity across widths, as SidebarRoot does.
-		// SidebarRoot.footArea: footer.action then settings (always pinned), and the
-		// account seat at the very bottom.
-		// The installed page keeps 14 DIP under the bottom-pinned settings
-		// trigger (6 root padding + the frame/footer inset); the root's 6 and
-		// the footer's 8 match it.
-		ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(8, 0, 8, 0).Gap(2).Shrink(0).Children(func() {
+		ui.Column(c.Key("sidebar-footer")).FillWidth().Padding(design.Sp(2), 0, design.Sp(2), 0).Gap(design.Sp(0.5)).Shrink(0).Children(func() {
 			// The footer's top edge drags the window, like the logo row does.
 			ui.Box(c).Key("sidebar-footer-drag").FillWidth().Height(6).DragWindow()
-			// The launcher is not a sidebar row in the installed build: the header's
-			// ellipsis opens it (conversation-more), so the tree stays
-			// to workspaces and sessions.
-
-			// SidebarRoot.footArea: one account seat for both signed-in and
-			// signed-out profiles. Signed out it falls back to the settings
-			// entry, keeping the account menu and person avatar.
-			accountRow(c, m, colors, muted, m.Collapsed)
+			accountRow(c, m, m.Collapsed)
 			updatePhase := sidebarUpdatePhase(m)
 			if !m.Collapsed && updatePhase != "" {
-				bottomOffset := float32(4)
+				bottomOffset := design.Sp(1)
 				if !accountSignedOut(m.Account) {
-					bottomOffset = 8
+					bottomOffset = design.Sp(2)
 				}
-				ui.Box(c).Key("sidebar-footer-update-seat").Size(36, 36).Absolute().Right(2).Bottom(bottomOffset).Children(func() {
-					desktopUpdateSeat(c, m, updatePhase, colors)
+				ui.Box(c).Key("sidebar-footer-update-seat").Size(36, 36).Absolute().Right(design.Sp(0.5)).Bottom(bottomOffset).Children(func() {
+					desktopUpdateSeat(c, m, updatePhase)
 				})
 			}
 		})
@@ -608,6 +564,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if batchSessionRow(c, m, it, depth, label, fg, muted) {
 		return
 	}
+	t := tok(c)
 	selected := it.SessionID == displayedSessionID(m)
 	renaming := m.RenameSessionID == it.SessionID && m.RenameDraft != nil
 	status := sessionStatus(m, it)
@@ -619,12 +576,17 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		hint += "\n" + text
 	}
 	tasks := schedstore.ActiveForSession(m.Schedules, it.SessionID)
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	row := ui.Button(c, "").Label(label).Description(hint).FillWidth().Height(32).Radius(8).
-		Background(ui.Transparent).BorderWidth(0).Padding(0, 8, 0, float32(8+depth*12)).Clip().AlignItems(ui.Center)
+	row := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+		Pressed: selected,
+		Label:   label,
+		Content: func() {},
+	}).Description(hint).FillWidth().Height(32).Radius(design.RadiusMD).
+		BorderWidth(0).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(depth)*design.Sp(3)).Clip().AlignItems(ui.Center)
 	revealSessionSearchRow(row, m, it.SessionID)
 	if selected || row.Hovered() || row.FocusWithin() || row.MenuOpen() {
-		row.Background(selectedBackground(colors))
+		row.Background(sbSelectedBg(t))
 	}
 	menu := sessionRowMenu(m, it)
 	if !it.Blank && !renaming {
@@ -662,26 +624,29 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 				if !showActions {
 					if m.pinnedSection {
 						ui.Text(c, m.sessionContext).Label("Workspace " + it.SessionID).MaxWidth(64).MinWidth(0).
-							FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine().Tooltip(m.sessionContext)
+							FontSize(fs(10)).FixedLineHeight(16).TextColor(muted).SingleLine().Tooltip(m.sessionContext)
 					} else {
 						ui.Text(c, sessionTrailingLabel(status, it.UpdatedAt)).Label("Session time " + it.SessionID).
-							FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+							FontSize(fs(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
 						if it.Pinned {
 							sessionPinIndicator(c, it.SessionID, muted)
 						}
 					}
 				}
-				// Shipped rowActions: ellipsis, archive, pin, separated by 15 DIP.
-				// Retain the menu seat for keyboard focus while the group is hidden.
-				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Shrink(0).AlignItems(ui.Center).Gap(15)
+				actions := ui.Row(c).Key("session-actions-" + it.SessionID).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(3.75))
 				if !showActions {
-					actions.Absolute().Right(4).Opacity(0)
+					actions.Absolute().Right(design.Sp(1)).Opacity(0)
 				}
 				actions.Children(func() {
-					more := ui.Button(c.Key("session-menu-"+it.SessionID), "").Label(sessionActionsLabel(it.SessionID, label)).
-						Tooltip(workspaceText("会话操作", "Session actions")).Width(16).Height(16).Padding(0).
-						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
-					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
+					more := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonIconXS,
+						Label:   sessionActionsLabel(it.SessionID, label),
+						Key:     "session-menu-" + it.SessionID,
+						Content: func() {},
+					}).Tooltip(workspaceText("会话操作", "Session actions")).Size(design.IconSM, design.IconSM).Padding(0).
+						BorderWidth(0).TextColor(muted).Center().Menu(menu)
+					more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
 					if showActions {
 						sessionRowAction(c, "archive-"+it.SessionID, menuArchiveArtwork, i18n.T(i18n.KeySidebarArchive),
 							i18n.T(i18n.KeySidebarArchive), muted, archiveAction(m, it))
@@ -699,7 +664,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if m.sessionHover != nil {
 		m.sessionHover.dragging = m.sessionHover.dragging || row.Dragging()
 	}
-	sessionHoverCard(c, m, row, it, label, status, colors, hoverPressed)
+	sessionHoverCard(c, m, row, it, label, status, hoverPressed)
 	if !renaming {
 		sessionDragSource(row, m, it)
 		sessionRowDropTarget(row, m, it, fg)
@@ -708,16 +673,6 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 		}
 	}
 	_ = border
-}
-
-// Selected rows use the theme's interactive fill and retain primary/tertiary
-// label roles. This also keeps custom colors supplied by the caller intact.
-func selectedBackground(colors theme.Colors) ui.Color {
-	bg := chrome.Color(colors.Hover)
-	if bg.A == 0 {
-		bg = chrome.Color(colors.Field)
-	}
-	return bg
 }
 
 func buildTree(items []session.Item, pinnedOrder []string) []treeNode {

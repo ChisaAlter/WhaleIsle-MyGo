@@ -3,6 +3,7 @@ package sidebar
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -40,15 +41,15 @@ func sidebarPanelIcon(c *ui.Context, id string, ink ui.Color) {
 	switch id {
 	case "whale":
 		if image := chrome.BrandAvatar(); image != nil {
-			ui.Image(c, image).Size(18, 18).Fit(ui.Contain)
+			ui.Image(c, image).Size(design.IconMD, design.IconMD).Fit(ui.Contain)
 		} else {
 			ui.Text(c, "◉").TextColor(ink)
 		}
 	case "plugins":
-		ui.Icon(c, sidebarRailIcons["plugins"]).Size(16, 16).TextColor(ink)
+		ui.Icon(c, sidebarRailIcons["plugins"]).Size(design.IconSM, design.IconSM).TextColor(ink)
 	case "schedules":
-		ui.Icon(c, sidebarRailIcons["clock"]).Size(16, 16).TextColor(ink)
+		ui.Icon(c, sidebarRailIcons["clock"]).Size(design.IconSM, design.IconSM).TextColor(ink)
 	default:
-		ui.Icon(c, sidebarRailIcons["panel"]).Size(16, 16).TextColor(ink)
+		ui.Icon(c, sidebarRailIcons["panel"]).Size(design.IconSM, design.IconSM).TextColor(ink)
 	}
 }

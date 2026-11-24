@@ -1,6 +1,9 @@
 package sidebar
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
+)
 
 func normalizeArchiveFilter(filter string) string {
 	if filter == "show" || filter == "only" {
@@ -48,19 +51,17 @@ func archiveViewOptions(c *ui.Context, m Model) {
 	if !canSetArchiveFilter(m) {
 		return
 	}
-	values := []string{"default", "show", "only"}
-	labels := []string{workspaceText("隐藏归档会话", "Hide archived sessions"), workspaceText("显示归档会话", "Show archived sessions"), workspaceText("仅归档会话", "Only archived sessions")}
-	selected := labels[0]
-	for i, value := range values {
-		if sharedArchiveFilter(m) == value {
-			selected = labels[i]
-		}
+	selected := sharedArchiveFilter(m)
+	options := []coss.SelectOption{
+		{Value: "default", Label: workspaceText("隐藏归档会话", "Hide archived sessions")},
+		{Value: "show", Label: workspaceText("显示归档会话", "Show archived sessions")},
+		{Value: "only", Label: workspaceText("仅归档会话", "Only archived sessions")},
 	}
-	ui.Select(c.Key("workspace-archive-filter"), &selected, labels).Label("Archived session visibility").FillWidth().OnChange(func() {
-		for i, label := range labels {
-			if selected == label {
-				setArchiveFilter(m, values[i])
-			}
-		}
-	})
+	sel := coss.Select(c, &selected, options, coss.SelectOptions{
+		Label: "Archived session visibility",
+		Key:   "workspace-archive-filter",
+	}).FillWidth()
+	if sel.Changed() {
+		setArchiveFilter(m, selected)
+	}
 }

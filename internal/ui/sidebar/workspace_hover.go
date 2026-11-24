@@ -6,6 +6,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -131,17 +133,16 @@ func workspaceHoverCard(c *ui.Context, m Model, list ui.Element, state *workspac
 		return
 	}
 	ui.Overlay(c.Key("workspace-hover-overlay:"+state.shown), func() {
+		t := tok(c)
 		width, height := m.viewport(c)
 		// The installed compact variant sits 8 DIP right of the header, at
 		// its top; the native attachment flips it to keep it in the window.
 		panel := ui.ButtonBase(c.Key("workspace-hover-panel:"+state.shown)).Selectable().Column().
 			Label("Copy workspace path "+state.shown).Description(workspaceText("复制：", "Copy: ")+shown.workspace.Path).
-			AttachTo(shown.row, ui.AnchorTopRight, ui.AnchorTopLeft).Margin(0, 0, 0, 8).
+			AttachTo(shown.row, ui.AnchorTopRight, ui.AnchorTopLeft).Margin(0, 0, 0, design.Sp(2)).
 			Width(min(float32(244), max(float32(0), width-16))).MaxHeight(max(float32(0), height-16)).
-			AlignItems(ui.Start).Justify(ui.Start).Padding(12, 16).Gap(8).Radius(12).Clip().
-			Background(ui.RGB(44, 44, 46)).TextColor(ui.RGB(255, 255, 255)).
-			BorderWidth(0).Shadow(0, 0, 1, 0, ui.RGBA(0, 0, 0, .2)).
-			Shadow(0, 0, 4, 0, ui.RGBA(0, 0, 0, .02)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .08)).Cursor(ui.CursorPointer)
+			AlignItems(ui.Start).Justify(ui.Start).Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(2)).Clip().Cursor(ui.CursorPointer)
+		sbPopoverSurface(panel, t, design.RadiusXL)
 		copying := now.Before(state.copiedUntil)
 		if copying {
 			panel.MinHeight(state.panelHeight).Justify(ui.Center).AlignItems(ui.Center)
@@ -151,15 +152,15 @@ func workspaceHoverCard(c *ui.Context, m Model, list ui.Element, state *workspac
 		}
 		panel.Children(func() {
 			if copying {
-				ui.Text(c, i18n.T(i18n.KeyWSHoverCopied)).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
+				ui.Text(c, i18n.T(i18n.KeyWSHoverCopied)).FontSize(14).FixedLineHeight(20).TextColor(t.PopoverForeground)
 				return
 			}
-			ui.Text(c, shown.label).Label("Workspace preview: " + state.shown).FillWidth().MinWidth(0).FontSize(14).FixedLineHeight(20).TextColor(ui.RGB(255, 255, 255))
+			ui.Text(c, shown.label).Label("Workspace preview: " + state.shown).FillWidth().MinWidth(0).FontSize(14).FixedLineHeight(20).TextColor(t.PopoverForeground)
 			if shown.workspace.Path != "" {
-				ui.Text(c, shown.workspace.Path).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(ui.RGB(207, 211, 214))
+				ui.Text(c, shown.workspace.Path).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground)
 			}
 			if created := workspaceCreatedLabel(shown.workspace.CreatedAt); created != "" {
-				ui.Text(c, created).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(ui.RGB(207, 211, 214))
+				ui.Text(c, created).FillWidth().MinWidth(0).FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground)
 			}
 		})
 		if panel.OverlayShortcut(0, ui.KeyEscape) || panel.PressedOutside() {
@@ -250,7 +251,7 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		}
 	}
 	shown := header.Hovered() || header.FocusWithin() || header.MenuOpen()
-	actions := ui.Row(c.Key("workspace-actions:" + g.Key)).Height(20).Shrink(0).AlignItems(ui.Center).Gap(15)
+	actions := ui.Row(c.Key("workspace-actions:" + g.Key)).Height(20).Shrink(0).AlignItems(ui.Center).Gap(design.Sp(3.75))
 	if !shown {
 		actions.Absolute().Right(8).Top(7).Opacity(0)
 	}
@@ -264,10 +265,15 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 		}
 		hasReveal := g.Kind == "workspace" && g.Workspace.Path != "" && (m.OnRevealWorkspace != nil || m.OnRevealWorkspacePath != nil)
 		if g.Kind == "workspace" && (m.OnBeginWorkspaceRename != nil || m.OnBeginWorkspaceRemoval != nil || hasReveal) || hasDirectoryActions {
-			more := ui.Button(c.Key("workspace-menu:"+g.Key), "").Label(fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), wsName)).
-				Tooltip(i18n.WSf(i18n.KeyWSActionsWorkspaceAria, "name", wsName)).
-				Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
-			more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
+			more := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconXS,
+				Label:   fmt.Sprintf(workspaceText("工作区“%s”的操作", "Actions for workspace “%s”"), wsName),
+				Key:     "workspace-menu:" + g.Key,
+				Content: func() {},
+			}).Tooltip(i18n.WSf(i18n.KeyWSActionsWorkspaceAria, "name", wsName)).
+				Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center()
+			more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
 			more.Menu(func(menu *ui.Menu) {
 				menu.CloseOnPointerLeave(true)
 				for _, action := range m.DirectoryActions {
@@ -310,12 +316,18 @@ func workspaceRowActions(c *ui.Context, m Model, header ui.Element, g session.Wo
 			}
 		}
 		if run != nil {
-			create := ui.Button(c.Key("workspace-create:"+g.Key), "").Label(label).Tooltip(label).Size(16, 16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
+			create := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconXS,
+				Label:   label,
+				Key:     "workspace-create:" + g.Key,
+				Content: func() {},
+			}).Tooltip(label).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center()
 			art := menuNewChatArtwork
 			if g.Kind == "scratch" {
 				art = workspaceScratchCreateArtwork
 			}
-			create.Children(func() { ui.Icon(c, art).Size(16, 16).TextColor(muted) })
+			create.Children(func() { ui.Icon(c, art).Size(design.IconSM, design.IconSM).TextColor(muted) })
 			if create.Clicked() {
 				run()
 			}

@@ -3,32 +3,39 @@ package sidebar
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // SidebarRoot's settled rail: 36px controls centered in 56px, with 12px
 // between controls/groups. The caller retains the root and bottom settings seat.
-func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
-	button := func(key, label string, icon *ui.SVG, enabled bool, action func()) ui.Element {
-		b := ui.ButtonBase(c.Key(key)).Size(36, 36).Shrink(0).Padding(0).Radius(12).
-			BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).
-			Label(label).Tooltip(label).Disabled(!enabled)
-		if enabled {
-			b.Cursor(ui.CursorPointer)
-		}
-		if b.Hovered() {
-			b.Background(chrome.Color(colors.Hover))
+func collapsedRail(c *ui.Context, m Model, fg ui.Color) {
+	button := func(key, label string, icon *ui.SVG, enabled, pressed bool, action func()) ui.Element {
+		b := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Size:     coss.ButtonIconLG,
+			Disabled: !enabled,
+			Pressed:  pressed,
+			Label:    label,
+			Key:      key,
+			Content:  func() {},
+		}).Size(36, 36).Shrink(0).Padding(0).Radius(design.RadiusXL).
+			BorderWidth(0).Center().Label(label).Tooltip(label)
+		if pressed || b.Hovered() {
+			b.Background(tok(c).Accent)
+		} else {
+			b.Background(ui.Transparent)
 		}
 		if icon != nil {
-			b.Children(func() { ui.Icon(c, icon).Size(18, 18).TextColor(fg) })
+			b.Children(func() { ui.Icon(c, icon).Size(design.IconMD, design.IconMD).TextColor(fg) })
 		}
 		if b.Clicked() && action != nil {
 			action()
 		}
 		return b
 	}
-	toggle := button("sidebar-rail-toggle", i18n.T(i18n.KeySidebarExpand), nil, m.OnToggle != nil, m.OnToggle).
+	toggle := button("sidebar-rail-toggle", i18n.T(i18n.KeySidebarExpand), nil, m.OnToggle != nil, false, m.OnToggle).
 		Tooltip(i18n.T(i18n.KeySidebarExpand) + " (Ctrl+B)")
 	toggle.Children(func() {
 		if !toggle.Hovered() && !toggle.Focused() {
@@ -37,39 +44,31 @@ func collapsedRail(c *ui.Context, m Model, fg ui.Color, colors theme.Colors) {
 				return
 			}
 		}
-		ui.Icon(c, sidebarRailIcons["panel"]).Size(18, 18).TextColor(fg)
+		ui.Icon(c, sidebarRailIcons["panel"]).Size(design.IconMD, design.IconMD).TextColor(fg)
 	})
 	ui.Box(c).Height(12).Shrink(0)
 	if m.OnCreate != nil {
-		button("sidebar-rail-new", i18n.T(i18n.KeySidebarNewSessionFallback), sidebarRailIcons["new"], true, m.OnCreate)
+		button("sidebar-rail-new", i18n.T(i18n.KeySidebarNewSessionFallback), sidebarRailIcons["new"], true, false, m.OnCreate)
 		ui.Box(c).Height(12).Shrink(0)
 	}
-	ui.Column(c.Key("sidebar-rail-panels")).Label(sidebarLocaleText("panels.label")).FillWidth().Gap(12).Shrink(0).Children(func() {
-		panel := func(id, key, label string, icon *ui.SVG, action func()) ui.Element {
-			b := button(key, label, icon, action != nil, action).Selected(m.ActivePanel == id).
-				Background(ui.Transparent).TextColor(fg)
-			if m.ActivePanel == id || b.Hovered() {
-				b.Background(chrome.Color(colors.Hover))
-			}
-			return b
-		}
+	ui.Column(c.Key("sidebar-rail-panels")).Label(sidebarLocaleText("panels.label")).FillWidth().Gap(design.Sp(3)).Shrink(0).Children(func() {
 		for _, entry := range sidebarPanelRows(m) {
 			entry := entry
-			button := panel(entry.active, "sidebar-rail-panel:builtin:"+entry.id, entry.label, nil, entry.run)
-			button.Children(func() { sidebarPanelIcon(c, entry.id, fg) })
+			panelBtn := button("sidebar-rail-panel:builtin:"+entry.id, entry.label, nil, entry.run != nil, m.ActivePanel == entry.active, entry.run)
+			panelBtn.Children(func() { sidebarPanelIcon(c, entry.id, fg) })
 		}
 	})
 	ui.Box(c).Height(12).Shrink(0)
 	// WorkspaceBrowser keeps this region seat mounted; Add precedes Search in
 	// its pinned DOM. Both reuse the existing owner callbacks, without a new menu.
-	ui.Column(c.Key("sidebar-rail-workspaces")).FillWidth().Grow(1).MinHeight(0).Gap(12).Children(func() {
+	ui.Column(c.Key("sidebar-rail-workspaces")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(3)).Children(func() {
 		if m.OnBrowseWorkspace != nil {
-			button("sidebar-rail-add", i18n.T(i18n.KeySidebarBrowseWorkspace), sidebarRailIcons["add"], m.OnToggle != nil, func() {
+			button("sidebar-rail-add", i18n.T(i18n.KeySidebarBrowseWorkspace), sidebarRailIcons["add"], m.OnToggle != nil, false, func() {
 				m.OnToggle()
 				m.OnBrowseWorkspace()
 			})
 		}
-		button("sidebar-rail-search", i18n.T(i18n.KeySidebarSearch), sidebarRailIcons["search"], m.OnToggle != nil && m.SearchQuery != nil, func() {
+		button("sidebar-rail-search", i18n.T(i18n.KeySidebarSearch), sidebarRailIcons["search"], m.OnToggle != nil && m.SearchQuery != nil, false, func() {
 			// Only this explicit search gesture requests focus on expansion.
 			// An unrelated layout/terminal change must not focus the input.
 			*m.SearchFocus = true
