@@ -505,9 +505,7 @@ func wallpaperCropModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 				return false
 			}).DrawOver(func(_ *ui.Painter, r ui.Rect) { g.previewWidth, g.previewHeight = r.W, r.H })
 		}
-		before := g.cropDraft.Zoom
-		wallpaperSliderStep(c, "wallpaper-crop-zoom", providerCopy("缩放", "Zoom"), "", &g.cropDraft.Zoom, 1, 3, .05, busy, fg, muted)
-		if before != g.cropDraft.Zoom {
+		if wallpaperSliderStep(c, "wallpaper-crop-zoom", providerCopy("缩放", "Zoom"), "", &g.cropDraft.Zoom, 1, 3, .05, busy, fg, muted) {
 			g.updatePreview()
 		}
 		if g.Status != "" {

@@ -63,10 +63,9 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 				p.ApplyCursorPreset(p.CursorPreset)
 			}
 		})
-		beforeSpeed, beforeSize := p.CursorSpeed, p.CursorSize
-		wallpaperSliderStep(c, "cursor-speed", providerCopy("指针速度", "Pointer speed"), minimalOverrideHint(""), &p.CursorSpeed, 20, 300, 10, g.Save == nil || busy, fg, muted)
-		wallpaperSliderStep(c, "cursor-size", providerCopy("指针大小", "Pointer size"), minimalOverrideHint(""), &p.CursorSize, 25, 300, 5, g.Save == nil || busy, fg, muted)
-		if beforeSpeed != p.CursorSpeed || beforeSize != p.CursorSize {
+		speedChanged := wallpaperSliderStep(c, "cursor-speed", providerCopy("指针速度", "Pointer speed"), minimalOverrideHint(""), &p.CursorSpeed, 20, 300, 10, g.Save == nil || busy, fg, muted)
+		sizeChanged := wallpaperSliderStep(c, "cursor-size", providerCopy("指针大小", "Pointer size"), minimalOverrideHint(""), &p.CursorSize, 25, 300, 5, g.Save == nil || busy, fg, muted)
+		if speedChanged || sizeChanged {
 			p.CursorPreset = "custom"
 		}
 		for i := range p.CursorColors {

@@ -262,8 +262,7 @@ func paintCommitPreparation(c *ui.Context, m Model, fg, muted ui.Color) bool {
 func paintCommitCheckbox(c *ui.Context, w *Workbench, path string) {
 	s := w.commitState()
 	selected := !s.Excluded[path]
-	ui.Checkbox(c, &selected, "").Label(path)
-	if selected == s.Excluded[path] {
+	if ui.Checkbox(c, &selected, "").Label(path).Changed() {
 		s.Excluded[path] = !selected
 		s.LargeAcknowledged = false
 		w.invalidateCommitReview()
@@ -310,29 +309,29 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 				}
 			})
 		}
-		beforeLargeAcknowledged := s.LargeAcknowledged
-		ui.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解风险，并愿意继续", "Keep checked large files; I understand they may be rejected"))
-		w.invalidateChangedLargeAcknowledgement(beforeLargeAcknowledged)
+		if ui.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解风险，并愿意继续", "Keep checked large files; I understand they may be rejected")).Changed() {
+			w.invalidateCommitReview()
+		}
 	}
-	beforeMessage, beforeBranch, beforeMake := w.Message, s.NewBranch, s.MakeBranch
 	ui.Text(c, GitLocale("commit.message")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-	ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)"))
-	ui.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch"))
+	messageChanged := ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)")).Changed()
+	makeBranchChanged := ui.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch")).Changed()
+	newBranchChanged := false
 	if s.MakeBranch {
-		ui.TextInput(c, &s.NewBranch).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder("feature/my-change")
+		newBranchChanged = ui.TextInput(c, &s.NewBranch).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder("feature/my-change").Changed()
 	}
-	if beforeMessage != w.Message || beforeBranch != s.NewBranch || beforeMake != s.MakeBranch {
+	if messageChanged || makeBranchChanged || newBranchChanged {
 		w.invalidateCommitReview()
 	}
-	beforePR, beforeTitle, beforeBody, beforeDraft := s.WantPR, s.PRTitle, s.PRBody, s.PRDraft
-	ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建 PR", "Prepare commit, push and PR"))
+	wantPRChanged := ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建 PR", "Prepare commit, push and PR")).Changed()
+	prDraftChanged, prTitleChanged, prBodyChanged := false, false, false
 	if s.WantPR {
-		ui.Checkbox(c, &s.PRDraft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"))
-		ui.TextInput(c, &s.PRTitle).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)"))
-		ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)"))
+		prDraftChanged = ui.Checkbox(c, &s.PRDraft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)")).Changed()
+		prTitleChanged = ui.TextInput(c, &s.PRTitle).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)")).Changed()
+		prBodyChanged = ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)")).Changed()
 		ui.Text(c, word("PR 使用手写文案；会展示收件仓库和目标分支，创建前要求仓库干净。", "PR text is editable. Review the recipient and base; PR creation requires a clean repository.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	}
-	if beforePR != s.WantPR || beforeTitle != s.PRTitle || beforeBody != s.PRBody || beforeDraft != s.PRDraft {
+	if wantPRChanged || prDraftChanged || prTitleChanged || prBodyChanged {
 		w.invalidateCommitReview()
 	}
 	if s.Plan == nil {
@@ -421,11 +420,4 @@ func confirmSelectedCommit(c *ui.Context, m Model) {
 		result, e := git.RunCommitStack(ctx, root, plan)
 		return gitOperationResult{text: result.Output, err: e, committed: result.Committed, stack: &result}
 	})
-}
-
-// Revoking the large-file choice also revokes the already-prepared commit.
-func (w *Workbench) invalidateChangedLargeAcknowledgement(before bool) {
-	if w.Commit != nil && before != w.Commit.LargeAcknowledged {
-		w.invalidateCommitReview()
-	}
 }

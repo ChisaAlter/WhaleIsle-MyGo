@@ -276,25 +276,16 @@ func workspaceDockNode(c *ui.Context, m Model, n *WorkspacePane) {
 	}
 	box := ui.Box(c).Key(n.ID).Fill().MinWidth(0).MinHeight(0).Clip()
 	box.Children(func() {
-		total := box.Bounds().W
-		if n.Axis == "vertical" {
-			total = box.Bounds().H
-		}
-		if total <= 1 {
-			total = 400
-		}
 		if n.Ratio == 0 {
 			n.Ratio = .5
 		}
-		size := (total - 1) * n.Ratio
 		a := func() { workspaceDockNode(c, m, n.First) }
 		b := func() { workspaceDockNode(c, m, n.Second) }
 		if n.Axis == "vertical" {
-			ui.SplitVertical(c, &size, a, b).Fill()
+			ui.SplitVerticalFraction(c, &n.Ratio, .2, a, b).Fill()
 		} else {
-			ui.Split(c, &size, a, b).Fill()
+			ui.SplitFraction(c, &n.Ratio, .2, a, b).Fill()
 		}
-		n.Ratio = size / (total - 1)
 	})
 }
 
