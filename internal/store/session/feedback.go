@@ -259,6 +259,7 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 	f.BusyID = id
 	s.feedbackBusyID = id
 	f.Error = ""
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -306,7 +307,6 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 				}
 				f.Error = msg
 				s.lastAction = "feedback: " + msg
-				s.invalidateViewLocked()
 			}
 			if r.Error.Code == "version-conflict" {
 				if r.Error.Current == nil {
@@ -340,6 +340,7 @@ func (s *Store) mutateFeedback(ctx context.Context, id, rating, note string, rem
 			}
 			s.lastAction = "feedback saved"
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

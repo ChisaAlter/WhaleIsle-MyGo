@@ -155,6 +155,7 @@ func (s *Store) SearchSkillHub(ctx context.Context, query, root string) {
 			s.skillHubHits = hits
 			s.lastAction = "skill hub " + query
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -212,6 +213,7 @@ func (s *Store) InstallSkillHub(ctx context.Context, hit SkillHubHit, root strin
 				}
 			}
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		if err == nil {

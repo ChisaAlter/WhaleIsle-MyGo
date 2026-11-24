@@ -243,6 +243,7 @@ func (s *Store) UpdateAgentQueue(token uint64, address AgentSessionAddress, id s
 			}
 			n.view.ActionStatus = ""
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

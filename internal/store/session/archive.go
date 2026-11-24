@@ -156,6 +156,7 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) {
 		if ctx.Err() == nil {
 			_, listGeneration = s.beginListRefreshLocked()
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		if listGeneration != 0 {

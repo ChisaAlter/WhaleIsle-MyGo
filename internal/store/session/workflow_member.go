@@ -192,6 +192,7 @@ func (s *Store) EarlierWorkflowMember(token uint64) {
 			}
 			w.view.Process = page
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
