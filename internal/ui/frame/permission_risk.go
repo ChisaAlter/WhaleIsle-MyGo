@@ -45,8 +45,7 @@ func permissionRiskDialog(c *ui.Context, colors theme.Colors, token uint64, titl
 			ui.Column(c).Gap(14).Children(func() {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(16)).Bold().TextColor(chrome.Color(colors.FG))
 				ui.Text(c, description).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG)).LineHeight(1.5)
-				ui.Checkbox(c, ack, archiveText("我已了解风险，并愿意继续", "I understand these risks and want to continue"))
-				if *ack != acknowledged {
+				if ui.Checkbox(c, ack, archiveText("我已了解风险，并愿意继续", "I understand these risks and want to continue")).Changed() || *ack != acknowledged {
 					onAcknowledge(*ack)
 				}
 				ui.Row(c).Gap(8).Children(func() {
