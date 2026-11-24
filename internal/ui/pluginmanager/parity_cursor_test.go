@@ -12,6 +12,10 @@ import (
 func assertPluginManagerCursors(t *testing.T, viewName string, tt *ui.Tester) {
 	t.Helper()
 	for _, b := range tt.Interactives() {
+		// A dialog panel's geometric center can land on an inner text input; child controls are audited individually.
+		if b.Role == ui.RoleDialog {
+			continue
+		}
 		if slices.Contains(b.Kinds, "text") {
 			if b.Cursor != ui.CursorText && b.Cursor != ui.CursorDefault && b.Cursor != ui.CursorNotAllowed {
 				t.Errorf("[%s] text input %s has unexpected cursor %v", viewName, b.String(), b.Cursor)
