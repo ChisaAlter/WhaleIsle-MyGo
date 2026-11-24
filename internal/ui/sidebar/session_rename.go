@@ -5,9 +5,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // Native TextInput delivers IME edits through its text client. Keep the Enter
@@ -20,6 +19,7 @@ func (k *sessionRenameKeys) observe(composing bool) {
 	}
 	k.composing = composing
 }
+
 func (k *sessionRenameKeys) handle(event ui.InputEvent, composing bool) bool {
 	switch event.Kind {
 	case ui.InputCompose:
@@ -47,21 +47,55 @@ func sessionRenameDialog(c *ui.Context, m Model) {
 		return
 	}
 	open := true
-	close := func() {
+	closeDialog := func() {
 		if !m.RenameBusy && m.OnCancelRename != nil {
 			m.OnCancelRename()
 		}
 	}
-	ui.DialogBase(c.Key("session-rename-dialog:"+m.RenameSessionID), &open, func(backdrop, panel ui.Element) {
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), chrome.DialogSurfaceBox{Width: 380, Height: 206, Radius: 14, Padding: 20}).Label(i18n.T(i18n.KeyWSRenameSessionTitle)).Gap(14).Children(func() {
-			ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyWSRenameSessionTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(chrome.Color(colors.FG)).Grow(1)
-				if ui.Button(c, "×").Label(workspaceText("关闭", "Close")).Size(24, 24).Padding(0).Background(ui.Transparent).BorderWidth(0).Disabled(m.RenameBusy).Clicked() {
-					close()
-				}
+	title := i18n.T(i18n.KeyWSRenameSessionTitle)
+	submit := false
+
+	coss.Dialog(c, &open, coss.DialogOptions{
+		Title:           title,
+		MaxWidth:        380,
+		NoClose:         m.RenameBusy,
+		DismissDisabled: m.RenameBusy,
+		Key:             "session-rename-dialog:" + m.RenameSessionID,
+		Footer: func() {
+			trimmed := strings.TrimSpace(*m.RenameDraft)
+			blocked := m.RenameBusy || trimmed == "" || m.OnCommitRename == nil
+			if coss.Button(c, i18n.T(i18n.KeySidebarRenameCancel), coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonMD,
+				Disabled: m.RenameBusy,
+				Key:      "session-rename-cancel",
+			}).MinWidth(72).Clicked() {
+				closeDialog()
+			}
+			save := coss.Button(c, i18n.T(i18n.KeySidebarRename), coss.ButtonOptions{
+				Variant:  coss.ButtonDefault,
+				Size:     coss.ButtonMD,
+				Disabled: blocked,
+				Loading:  m.RenameBusy,
+				Key:      "session-rename-save",
+			}).MinWidth(72)
+			if !blocked && (save.Clicked() || submit) {
+				m.OnCommitRename(m.RenameSessionID, trimmed)
+			}
+		},
+	}, func() {
+		coss.Field(c, coss.FieldOptions{
+			Error:    m.RenameError,
+			Disabled: m.RenameBusy,
+		}, func() {
+			input := coss.Input(c, m.RenameDraft, coss.InputOptions{
+				Size:     coss.InputMD,
+				Label:    i18n.T(i18n.KeyWSFieldSessionName),
+				Disabled: m.RenameBusy,
+				Invalid:  m.RenameError != "",
+				Error:    m.RenameError,
+				Key:      "session-rename-name",
 			})
-			input := ui.TextInput(c.Key("session-rename-name"), m.RenameDraft).Label(i18n.T(i18n.KeyWSFieldSessionName)).FillWidth().MinWidth(0).Height(34).Shrink(0).FontSize(theme.InterfaceSize(14)).Disabled(m.RenameBusy)
 			first := ui.Local(input, "initial-focus", func() bool { return true })
 			if *first {
 				input.Focus().SetTextSelection(0, utf8.RuneCountInString(*m.RenameDraft))
@@ -74,26 +108,11 @@ func sessionRenameDialog(c *ui.Context, m Model) {
 			if input.Changed() && m.OnRenameDraftChanged != nil {
 				m.OnRenameDraftChanged(*m.RenameDraft)
 			}
-			trimmed := strings.TrimSpace(*m.RenameDraft)
-			blocked := m.RenameBusy || trimmed == "" || m.OnCommitRename == nil
-			submit := input.Submitted() && !keys.composing && !keys.ended
-			if m.RenameError != "" {
-				ui.Text(c, m.RenameError).Label(m.RenameError).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.FG))
-			} else {
-				ui.Box(c).Grow(1).MinHeight(0)
-			}
-			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(8).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeySidebarRenameCancel)).MinWidth(72).Height(32).Disabled(m.RenameBusy).Clicked() {
-					close()
-				}
-				save := ui.PrimaryButton(c, i18n.T(i18n.KeySidebarRename)).MinWidth(72).Height(32).Disabled(blocked)
-				if !blocked && (save.Clicked() || submit) {
-					m.OnCommitRename(m.RenameSessionID, trimmed)
-				}
-			})
+			submit = input.Submitted() && !keys.composing && !keys.ended
 		})
-	})
+	}).Label(title)
+
 	if !open {
-		close()
+		closeDialog()
 	}
 }

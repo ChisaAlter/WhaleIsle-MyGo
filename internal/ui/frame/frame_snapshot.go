@@ -9,5 +9,5 @@ func renderSnapshot(m Model) session.ViewState {
 	if m.FrameView.BelongsTo(m.Store) {
 		return m.FrameView.Snapshot()
 	}
-	return m.Store.Snapshot()
+	return m.Store.Published().Value
 }

@@ -1,11 +1,8 @@
 package frame
 
 import (
-	"strings"
-
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 var rightDrawerChevronLeftSVG = ui.MustParseSVG([]byte(`<svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.3"><path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
@@ -38,30 +35,18 @@ func rightDrawerExpandButton(c *ui.Context, m Model) {
 	if m.RightPaneOpen || details >= DetailsMin || m.OnToggleTools == nil {
 		return
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	dark := m.SystemDark || strings.HasSuffix(strings.ToLower(m.ThemeID), "dark")
-	if strings.HasSuffix(strings.ToLower(m.ThemeID), "light") {
-		dark = false
-	}
-	bg := ui.RGBA(0, 0, 0, 0.05)
-	if dark {
-		bg = ui.RGBA(255, 255, 255, 0.08)
-	}
-	ink := chrome.Color(colors.Muted)
-	if colors.Secondary != "" {
-		ink = chrome.Color(colors.Secondary)
-	}
+	t := tk(c)
 	label := paneLabel("展开右侧栏", "Expand right sidebar")
 	btn := ui.ButtonBase(c.Key("right-drawer-expand")).
 		Absolute().Right(0).Top(56).Width(20).Height(32).
-		Radius(8, 0, 0, 8).Padding(0).
-		Background(bg).Border(0.5, chrome.Color(colors.Border)).
+		Radius(design.RadiusMD, 0, 0, design.RadiusMD).Padding(0).
+		Background(t.Accent).Border(design.BorderWidth/2, t.Border).
 		Center().Label(label).Tooltip(label)
 	if !btn.Hovered() && !btn.FocusVisible() {
 		btn.Opacity(0)
 	}
 	btn.Children(func() {
-		ui.Icon(c, rightDrawerChevronLeftSVG).Size(12, 12).TextColor(ink)
+		ui.Icon(c, rightDrawerChevronLeftSVG).Size(12, 12).TextColor(t.MutedForeground)
 	})
 	if btn.Clicked() {
 		m.OnToggleTools()
@@ -157,10 +142,11 @@ func centerRightBodyColumns(c *ui.Context, m Model, center, right func(), hasSha
 		} else {
 			drag.active = false
 		}
+		t := tk(c)
 		div.Draw(func(p *ui.Painter, r ui.Rect) {
-			color := c.Theme().Border
+			color := t.Border
 			if held || handle.Hovered() {
-				color = c.Theme().Accent
+				color = t.Primary
 			}
 			p.Fill(r, color, 0)
 		})
@@ -284,10 +270,11 @@ func centerTerminalColumn(c *ui.Context, m Model, chat, terminal func()) {
 		} else {
 			drag.active = false
 		}
+		t := tk(c)
 		div.Draw(func(p *ui.Painter, r ui.Rect) {
-			color := c.Theme().Border
+			color := t.Border
 			if held || handle.Hovered() {
-				color = c.Theme().Accent
+				color = t.Primary
 			}
 			p.Fill(r, color, 0)
 		})

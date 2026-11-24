@@ -6,7 +6,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/theme"
 )
 
 // This fixture uses only the in-memory UI engine and a fixed frame clock. It
@@ -40,7 +39,7 @@ func coldHoverFixture(t *testing.T, family string) (*ui.Tester, time.Time, strin
 				case "archived":
 					archivedSessionHoverCard(c, m, row, item, item.Title)
 				default:
-					sessionHoverCard(c, m, row, item, item.Title, "", theme.Colors{})
+					sessionHoverCard(c, m, row, item, item.Title, "")
 				}
 			})
 		})

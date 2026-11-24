@@ -6,7 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/widgets"
+	"whaleisle/internal/ui/design"
 )
 
 const groupPresenceDuration = 200 * time.Millisecond
@@ -79,7 +79,7 @@ func advanceWorkspaceMotion(c *ui.Context, state *workspaceListMotionState, host
 	return ui.ElementTransition{
 		Duration:     groupPresenceDuration,
 		ExitDuration: groupFadeDuration,
-		Ease:         widgets.DesignEase,
+		Ease:         design.EaseInOut,
 		Position:     glide,
 		Colors:       true,
 		Enter:        &ui.Motion{Opacity: 0},
@@ -111,8 +111,8 @@ func workspaceGroupSessionRun(c *ui.Context, host ui.Element, m Model, group ses
 	if open {
 		target = 1
 	}
-	track := host.AnimateWith("session-run-track", target, groupPresenceDuration, widgets.DesignEase)
-	fade := host.AnimateWith("session-run-fade", target, groupFadeDuration, widgets.DesignEase)
+	track := host.AnimateWith("session-run-track", target, groupPresenceDuration, design.EaseInOut)
+	fade := host.AnimateWith("session-run-fade", target, groupFadeDuration, design.EaseInOut)
 	state.Initialized, state.Open = true, open
 	if !open && (c.Preferences().ReduceMotion || track <= 0) {
 		state.Last = workspaceWatermarkRows{}
@@ -124,7 +124,7 @@ func workspaceGroupSessionRun(c *ui.Context, host ui.Element, m Model, group ses
 		run.Height(track * state.Height)
 	}
 	run.Children(func() {
-		inner := ui.Column(c.Key("workspace-session-inner/" + group.Key)).FillWidth().Shrink(0).Gap(2)
+		inner := ui.Column(c.Key("workspace-session-inner/" + group.Key)).FillWidth().Shrink(0).Gap(design.Sp(0.5))
 		inner.Children(func() { draw(state.Last) })
 		if height := inner.Bounds().H; height > 0 && (open || state.Height == 0) {
 			state.Height = height

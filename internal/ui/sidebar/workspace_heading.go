@@ -3,7 +3,8 @@ package sidebar
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -11,7 +12,8 @@ import (
 // WorkspaceBrowser's section header contains search and selection in the same
 // 36 DIP line. Expanding search takes the label and trailing actions' room.
 func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color) {
-	header := ui.Row(c).FillWidth().Height(36).Gap(4).Padding(0, 0, 0, 4).AlignItems(ui.Center)
+	t := tok(c)
+	header := ui.Row(c).FillWidth().Height(36).Gap(design.Sp(1)).Padding(0, 0, 0, design.Sp(1)).AlignItems(ui.Center)
 	state := m.searchState
 	if state == nil {
 		state = ui.Local(header, "session-search", func() sessionSearchState {
@@ -25,10 +27,14 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 	}
 	header.Children(func() {
 		if *expanded && m.SearchQuery != nil {
-			searchRoot := ui.Row(c.Key("workspace-search-root")).Grow(1).MinWidth(0).Height(30).Gap(4).AlignItems(ui.Center)
+			searchRoot := ui.Row(c.Key("workspace-search-root")).Grow(1).MinWidth(0).Height(30).Gap(design.Sp(1)).AlignItems(ui.Center)
 			searchRoot.Children(func() {
-				input := ui.TextInput(c.Key("workspace-search"), m.SearchQuery).Label(i18n.T(i18n.KeySidebarSearch)).
-					Placeholder(i18n.T(i18n.KeySidebarSearch)).Grow(1).MinWidth(0).Height(30)
+				input := coss.Input(c, m.SearchQuery, coss.InputOptions{
+					Size:        coss.InputSM,
+					Placeholder: i18n.T(i18n.KeySidebarSearch),
+					Label:       i18n.T(i18n.KeySidebarSearch),
+					Key:         "workspace-search",
+				}).Height(30)
 				if input.Changed() {
 					*m.SearchQuery = session.SanitizeSessionSearchInput(*m.SearchQuery)
 				}
@@ -39,9 +45,14 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 						*m.SearchFocus = false
 					}
 				}
-				clear := ui.Button(c, "×").Label(i18n.T(i18n.KeyWSSearchClear)).Width(24).Height(28).
-					Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted)
-				if input.Shortcut(0, ui.KeyEscape) || clear.Clicked() {
+				clearBtn := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconXS,
+					Icon:    coss.IconX,
+					Label:   i18n.T(i18n.KeyWSSearchClear),
+					Key:     "workspace-search-clear",
+				}).Height(28).BorderWidth(0).TextColor(muted)
+				if input.Shortcut(0, ui.KeyEscape) || clearBtn.Clicked() {
 					*m.SearchQuery = ""
 					*expanded, *pendingFocus = false, false
 				}
@@ -52,7 +63,7 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 				*expanded = false
 			}
 		} else {
-			labelSize := theme.InterfaceSize(14)
+			labelSize := fs(14)
 			if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
 				labelSize = layout.SidebarFont
 			}
@@ -60,16 +71,20 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 			if m.Snapshot.WorkspaceLayout.GroupBy == "flat" {
 				sectionLabel = i18n.T(i18n.KeyWSSectionSessions)
 			}
-			ui.Text(c, sectionLabel).FontSize(labelSize).FontWeight(400).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
+			ui.Text(c, sectionLabel).FontSize(labelSize).FontWeight(design.WeightNormal).FixedLineHeight(fs(20)).TextColor(muted).Grow(1).MinWidth(0).SingleLine()
 			if m.SearchQuery != nil {
-				search := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarSearch)).Tooltip(i18n.T(i18n.KeySidebarSearch)).
-					Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Center()
+				search := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconSM,
+					Label:   i18n.T(i18n.KeySidebarSearch),
+					Key:     "workspace-search-open",
+					Content: func() {},
+				}).Tooltip(i18n.T(i18n.KeySidebarSearch)).Radius(design.RadiusMD).Padding(0).BorderWidth(0).Center()
 				searchInk := muted
 				if search.Hovered() {
-					search.Background(chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Hover))
 					searchInk = fg
 				}
-				search.Children(func() { ui.Icon(c, sidebarRailIcons["search"]).Size(14, 14).TextColor(searchInk) })
+				search.Children(func() { ui.Icon(c, sidebarRailIcons["search"]).Size(design.IconXS, design.IconXS).TextColor(searchInk) })
 				if search.Clicked() {
 					*expanded = true
 					*pendingFocus = true
@@ -79,44 +94,50 @@ func workspaceHeading(c *ui.Context, m Model, menuOpen *bool, fg, muted ui.Color
 		}
 		batchToggle(c, m, muted)
 		if !*expanded {
-			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			label := i18n.T(i18n.KeyWSViewOptionsLabel)
-			options := ui.Button(c, "").Label(label).Tooltip(label).Width(28).Height(28).
-				Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
+			options := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconSM,
+				Pressed: *menuOpen,
+				Label:   label,
+				Key:     "workspace-view-options",
+				Content: func() {},
+			}).Tooltip(label).Radius(design.RadiusMD).Padding(0).BorderWidth(0).Center()
 			optionsInk := muted
 			if *menuOpen || options.Hovered() {
-				options.Background(chrome.Color(colors.Hover))
 				optionsInk = fg
 			}
-			options.Children(func() { ui.Icon(c, workspaceViewOptionsArtwork).Size(16, 16).TextColor(optionsInk) })
-			if options.Clicked() {
-				*menuOpen = !*menuOpen
-			}
-			ui.PopoverBase(c, options, menuOpen, func(panel ui.Element) {
-				// The shared menu material: its own fill, the elevation hairline
-				// and shadow, faded in over the popover token.
-				bg := chrome.Color(colors.BG)
-				dark := bg.R < 128 && bg.G < 128 && bg.B < 128
-				progress := chrome.Reveal(c, panel, chrome.PopoverDuration)
-				panel.Width(200).Padding(4).Gap(0).Radius(16).Role(ui.RoleMenu).Opacity(progress)
-				chrome.MenuSurface(panel, chrome.MenuBaseFill(colors, dark), chrome.MenuBorderColor(colors, dark), 16)
-				panel.Children(func() {
-					workspaceViewOptionsMenu(c, m, menuOpen)
-				})
+			options.Children(func() {
+				ui.Icon(c, workspaceViewOptionsArtwork).Size(design.IconSM, design.IconSM).TextColor(optionsInk)
 			})
+			items, run := workspaceViewOptionsItems(m)
+			if chosen := coss.Menu(c, options, menuOpen, items, coss.MenuOptions{
+				Side:     coss.SideBottom,
+				Align:    coss.AlignEnd,
+				MinWidth: 200,
+				Label:    label,
+			}); chosen != "" {
+				run(chosen)
+			}
 			if m.OnBrowseWorkspace != nil {
-				add := ui.Button(c, "").Label(i18n.T(i18n.KeySidebarBrowseWorkspace)).Size(28, 28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center()
+				add := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconSM,
+					Label:   i18n.T(i18n.KeySidebarBrowseWorkspace),
+					Key:     "workspace-browse-add",
+					Content: func() {},
+				}).Radius(design.RadiusMD).Padding(0).BorderWidth(0).Center()
 				addInk := muted
 				if add.Hovered() {
-					add.Background(chrome.Color(colors.Hover))
 					addInk = fg
 				}
-				add.Children(func() { ui.Icon(c, sidebarRailIcons["add"]).Size(16, 16).TextColor(addInk) })
+				add.Children(func() { ui.Icon(c, sidebarRailIcons["add"]).Size(design.IconSM, design.IconSM).TextColor(addInk) })
 				if add.Clicked() {
 					*menuOpen = false
 					m.OnBrowseWorkspace()
 				}
 			}
+			_ = t
 		}
 	})
 }

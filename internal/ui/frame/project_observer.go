@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/projects"
 	"whaleisle/internal/ui/theme"
 )
@@ -117,7 +117,7 @@ func requestNavigationModel(m Model, model projects.Model) projects.Model {
 		model.RequestCardActions = func(id string, revision int) projects.RequestCardActions {
 			actions := original(id, revision)
 			actions.OpenCurrent = func(work projectflow.RequestWork) error {
-				return openTeamMember(m, m.Store.Snapshot(), work.WorkerSessionID, false, func(message string) {
+				return openTeamMember(m, m.Store.Published().Value, work.WorkerSessionID, false, func(message string) {
 					if m.Store != nil {
 						m.Store.SetLastAction(message)
 					}
@@ -171,8 +171,8 @@ func projectObserverHeader(c *ui.Context, m Model) {
 			*o = projects.ObserverState{ProjectID: p.ID, CoordinatorSessionID: p.CoordinatorSessionID, Host: m.Projects.ObserverHost, Section: "tasks"}
 		}
 		owner.Children(func() {
-			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-			ink := chrome.Color(colors.Muted)
+			t := tk(c)
+			ink := t.MutedForeground
 			directory := projectHeaderDirectory(c, m, p, ink)
 			directory.Tooltip(p.CanonicalWorkingDirectory)
 			count := 0
@@ -191,9 +191,9 @@ func projectObserverHeader(c *ui.Context, m Model) {
 				badge = "?"
 				status = paneLabel("正在加载", "Loading")
 			}
-			anchor := ui.Button(c.Key("project-requirements-trigger"), "").Label(paneLabel("需求", "Requirements")+" · "+status).Tooltip(status).Height(28).Padding(0, 8).BorderWidth(0).Radius(6).Background(ui.Transparent)
+			anchor := ui.Button(c.Key("project-requirements-trigger"), "").Label(paneLabel("需求", "Requirements")+" · "+status).Tooltip(status).Height(28).Padding(0, design.Sp(2)).BorderWidth(0).Radius(design.RadiusSM).Background(ui.Transparent)
 			anchor.Children(func() {
-				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).Gap(design.Sp(1.25)).AlignItems(ui.Center).Children(func() {
 					projects.HeaderIcon(c, "checklist", 14, ink)
 					w, _ := viewportDIP(c)
 					if w > 560 {
@@ -226,7 +226,7 @@ func projectObserverHeader(c *ui.Context, m Model) {
 			width := min(float32(460), max(float32(0), w-32))
 			ui.PopoverBase(c.Key("project-requirements-popover"), anchor, &open, func(panel ui.Element) {
 				headerPopupInset(c, panel, anchor, width, w, 16)
-				panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Label(paneLabel("需求", "Requirements")).Width(width).MaxHeight(min(float32(620), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Border(.5, chrome.Color(colors.Border)), colors, m.SystemDark, chrome.Color(colors.BG), 12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+				panel = framePopoverPanel(panel.Label(paneLabel("需求", "Requirements")).Width(width).MaxHeight(min(float32(620), max(float32(0), h-32))).MinHeight(0).Margin(design.Sp(1.25), 0, 0, 0), t, design.RadiusXL-design.Sp(0.5))
 				panel.Children(func() {
 					o.OnPin = func() { pinProjectRequirements(m, o); open = false }
 					o.OnReturn = nil

@@ -7,9 +7,9 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/media"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // Account is the sidebar's bottom account seat, mirroring the original
@@ -70,10 +70,7 @@ func accountInitial(name string) string {
 func accountMenu(a Account, open func()) func(*ui.Menu) {
 	return func(menu *ui.Menu) {
 		if accountSignedOut(a) {
-			// AccountMenu.module.css .signedOutMenu [role='menuitem']: taller
-			// rows than the shared menu metrics — 40 min height, 8/10 padding,
-			// gap 8, 14-on-22 labels and 16 icons.
-			menu.Rows(ui.MenuRows{MinHeight: 40, PadV: 8, PadH: 10, Gap: 8, FontSize: theme.InterfaceSize(14), LineHeight: theme.InterfaceSize(22), IconSize: 16})
+			menu.Rows(ui.MenuRows{MinHeight: 40, PadV: 8, PadH: 10, Gap: 8, FontSize: fs(14), LineHeight: fs(22), IconSize: 16})
 		}
 		if open != nil && menu.Item(i18n.T(i18n.KeySettingsOpen)).Key("account:settings").Chosen() {
 			open()
@@ -95,7 +92,7 @@ func accountMenu(a Account, open func()) func(*ui.Menu) {
 
 // accountRow paints the account seat. compact is the collapsed rail's 36x36
 // control, which keeps the same menu.
-func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, compact bool) {
+func accountRow(c *ui.Context, m Model, compact bool) {
 	a := m.Account
 	open := m.OnOpenSettings
 	if open == nil {
@@ -104,78 +101,72 @@ func accountRow(c *ui.Context, m Model, colors theme.Colors, muted ui.Color, com
 	if open == nil && a.OnSignOut == nil && a.OnSignIn == nil {
 		return
 	}
+	t := tok(c)
 	label := accountLabel(a)
 	signedOut := accountSignedOut(a)
-	// The native trigger's accessible name stays 账号菜单 even when the signed-out
-	// label reads launcherLabel.
 	menuLabel := label
 	if signedOut {
 		menuLabel = i18n.T(i18n.KeySettingsAccountMenu)
 	}
-	height := float32(44) // AccountMenu.module.css .trigger
-	if compact {
-		height = 36 // AccountMenu.module.css [data-collapsed='true']
-	} else if signedOut {
-		// Installed AccountMenu trigger[data-signed-out='true']: 36 DIP tall with
-		// 7/8 padding, replacing the avatar with a 16 DIP settings glyph whose
-		// label is launcherLabel (设置与账号 / Settings & account).
+	height := float32(44)
+	if compact || signedOut {
 		height = 36
 	}
 	// Installed AccountMenu retains the same trigger/ref when wide changes.
 	// Keep its identity so auto-collapse preserves keyboard focus and menu state.
-	row := ui.Button(c.Key("sidebar-account"), "").FillWidth().Height(height).Radius(12).
-		BorderWidth(0).Background(ui.Transparent).Padding(6).
-		Label(menuLabel).Tooltip(menuLabel).Disabled(a.Busy)
+	row := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonMD,
+		Disabled: a.Busy,
+		Label:    menuLabel,
+		Key:      "sidebar-account",
+		Content:  func() {},
+	}).FillWidth().Height(height).Radius(design.RadiusXL).
+		BorderWidth(0).Padding(design.Sp(1.5)).
+		Label(menuLabel).Tooltip(menuLabel)
 	if !compact {
-		// The footer seat sits on the page's 14-DIP inset with the native 252-DIP
-		// width, as the 账号菜单 button does in the installed page.
 		maxW := float32(252)
 		if sidebarUpdatePhase(m) != "" {
 			maxW = 212
 		}
-		row.Margin(0, 2, 0, 2).MaxWidth(maxW)
+		row.Margin(0, design.Sp(0.5), 0, design.Sp(0.5)).MaxWidth(maxW)
 	}
 	if signedOut && !compact {
-		// Installed AccountMenu trigger[data-signed-out='true']: 7/8 padding.
-		row.Padding(7, 8, 7, 8)
-	}
-	if row.Hovered() {
-		row.Background(chrome.Color(colors.Hover))
+		row.Padding(design.Sp(1.75), design.Sp(2), design.Sp(1.75), design.Sp(2))
 	}
 	row.Menu(accountMenu(a, open))
 	if a.RenderLauncherPopup != nil {
 		a.RenderLauncherPopup(c, row)
 	}
 	row.Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Justify(ui.Start).Children(func() {
+		ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Justify(ui.Start).Children(func() {
 			if signedOut {
-				// The trigger swaps the avatar for a 16 DIP settings glyph.
-				ui.Icon(c, settingsGear).Size(16, 16).TextColor(chrome.Color(colors.FG))
+				ui.Icon(c, settingsGear).Size(design.IconSM, design.IconSM).TextColor(t.Foreground)
 				if compact {
 					return
 				}
-				ui.Text(c, label).Grow(1).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.FG)).SingleLine()
+				ui.Text(c, label).Grow(1).FontSize(fs(14)).TextColor(t.Foreground).SingleLine()
 				return
 			}
-			avatar := ui.Box(c).Size(24, 24).Radius(12).Clip().Center()
-			avatar.Background(chrome.Color(colors.Accent).Alpha(.12))
+			avatar := ui.Box(c).Size(24, 24).Radius(design.RadiusXL).Clip().Center()
+			avatar.Background(t.Primary.Alpha(0.12))
 			avatar.Children(func() {
 				if bmp := accountAvatarBitmap(c, a.AvatarURL); bmp != nil {
-					ui.Image(c, bmp).Size(24, 24).Fit(ui.Cover).Radius(12)
+					ui.Image(c, bmp).Size(24, 24).Fit(ui.Cover).Radius(design.RadiusXL)
 					return
 				}
 				if initial := accountInitial(a.Name); initial != "" {
-					ui.Text(c, initial).FontSize(theme.InterfaceSize(11)).FontWeight(600).TextColor(chrome.Color(colors.Accent))
+					ui.Text(c, initial).FontSize(fs(11)).FontWeight(design.WeightSemibold).TextColor(t.Primary)
 					return
 				}
-				ui.Icon(c, accountPersonIcon).Size(14, 14).TextColor(muted)
+				ui.Icon(c, accountPersonIcon).Size(design.IconXS, design.IconXS).TextColor(t.MutedForeground)
 			})
 			if compact {
 				return
 			}
 			ui.Text(c, label).MinWidth(0).Grow(1).
-				FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).
-				FontWeight(400).TextColor(chrome.Color(colors.FG)).SingleLine()
+				FontSize(fs(14)).FixedLineHeight(fs(22)).
+				FontWeight(design.WeightNormal).TextColor(t.Foreground).SingleLine()
 		})
 	})
 }

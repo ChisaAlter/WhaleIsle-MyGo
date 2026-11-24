@@ -4,7 +4,8 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"sort"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	termui "whaleisle/internal/ui/terminal"
 	"whaleisle/internal/ui/theme"
 )
@@ -175,11 +176,12 @@ func workspaceFloating(c *ui.Context, m Model) {
 		n := n
 		f := n.Float
 		ui.Overlay(c, func() {
+			t := tk(c)
 			visible := boundedFloat(*f, viewportWidth, viewportHeight)
-			panel := chrome.FrostSurface(ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Border(1, c.Theme().Border).Clip(), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background, 0).FocusBind(&w.focusedResource, n.ID)
+			panel := frameShadow(ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Border(design.BorderWidth, t.Border).Background(t.Popover), design.ShadowLg).Clip().FocusBind(&w.focusedResource, n.ID)
 			n.paneBoxFocused = panel.Focused()
 			panel.Children(func() {
-				ui.Row(c).FillWidth().Height(38).Gap(4).Padding(4).Children(func() {
+				ui.Row(c).FillWidth().Height(38).Gap(design.Sp(1)).Padding(design.Sp(1)).Children(func() {
 					terminal, sid, title, editing := workspaceTerminalTitle(m, n)
 					grip := ui.Box(c).Key("float-move").Grow(1).Height(28).Cursor(ui.CursorMove).Focusable().Label(paneLabel("移动浮动面板", "Move floating pane"))
 					grip.Children(func() {
@@ -214,18 +216,18 @@ func workspaceFloating(c *ui.Context, m Model) {
 							}
 						}
 					}
-					ui.Button(c, "⠿").Key("float-dock-drag").Label(paneLabel("拖到停靠落点", "Drag to dock target")).Drag(workspaceTabDrag{ID: n.ID})
+					coss.Button(c, "⠿", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Label: paneLabel("拖到停靠落点", "Drag to dock target"), Key: "float-dock-drag"}).Drag(workspaceTabDrag{ID: n.ID})
 					label := "−"
 					if f.Minimized {
 						label = "+"
 					}
-					if ui.Button(c, label).Label(paneLabel("最小化 / 恢复", "Minimize / restore")).Clicked() {
+					if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Label: paneLabel("最小化 / 恢复", "Minimize / restore")}).Clicked() {
 						w.MinimizeWorkspaceFloat(n.ID, !f.Minimized)
 					}
-					if n.Kind != "project-observer" && ui.Button(c, "↙").Label(paneLabel("停靠面板", "Redock pane")).Clicked() {
+					if n.Kind != "project-observer" && coss.Button(c, "↙", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Label: paneLabel("停靠面板", "Redock pane")}).Clicked() {
 						w.pending = func() { w.RedockWorkspaceTab(n.ID, "") }
 					}
-					if n.Kind != "project-observer" && ui.Button(c, "×").Label(paneLabel("关闭标签", "Close tab")).Clicked() {
+					if n.Kind != "project-observer" && coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Label: paneLabel("关闭标签", "Close tab")}).Clicked() {
 						w.pending = func() { w.close(n.ID) }
 					}
 				})

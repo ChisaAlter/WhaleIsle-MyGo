@@ -4,9 +4,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // SidebarResponsive mirrors AppFrame's desktop 1024px breakpoint and the phone
@@ -183,7 +182,7 @@ func sidebarColumns(c *ui.Context, sizes *LayoutSizes, sidebar, center func()) {
 			main.Transition(shellTrackTransition)
 		}
 		main.Children(center)
-		div.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, c.Theme().Border, 0) })
+		div.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, tk(c).Border, 0) })
 		if !open {
 			drag.active = false
 			return
@@ -230,7 +229,7 @@ func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), vi
 
 		if open {
 			backdrop := ui.Box(c).Key("sidebar-drawer-backdrop").Absolute().Top(0).Bottom(0).Left(0).Right(0)
-			backdrop.Background(ui.RGBA(0, 0, 0, .28)).Label(i18n.T(i18n.KeySidebarCollapse)).Cursor(ui.CursorDefault)
+			backdrop.Background(design.TW.Black.Alpha(0.28)).Label(i18n.T(i18n.KeySidebarCollapse)).Cursor(ui.CursorDefault)
 			if backdrop.Clicked() {
 				sizes.ToggleSidebar()
 			}
@@ -253,11 +252,12 @@ func sidebarDrawer(c *ui.Context, sizes *LayoutSizes, sidebar, center func(), vi
 		if !open {
 			// AppFrame .phoneMenu: the only way back into navigation once the
 			// drawer has left the grid.
+			t := tk(c)
 			open := ui.ButtonBase(c.Key("sidebar-drawer-open")).Absolute().Left(10).Top(10).Size(36, 36).
-				Radius(10).Padding(0).BorderWidth(0).Background(chrome.FrostInset(theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface)).
-				Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, .14)).Center().
+				Radius(design.RadiusLG).Padding(0).BorderWidth(0).Background(frameInsetBg(t)).
+				Shadow(0, 2, 8, 0, design.TW.Black.Alpha(0.14)).Center().
 				Label(i18n.T(i18n.KeySidebarExpand)).Tooltip(i18n.T(i18n.KeySidebarExpand))
-			open.Children(func() { ui.Icon(c, drawerMenuArtwork).Size(18, 18).TextColor(c.Theme().Text) })
+			open.Children(func() { ui.Icon(c, drawerMenuArtwork).Size(18, 18).TextColor(t.Foreground) })
 			if open.Clicked() {
 				sizes.ToggleSidebar()
 			}

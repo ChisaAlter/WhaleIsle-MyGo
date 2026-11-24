@@ -2,10 +2,12 @@ package sidebar
 
 import (
 	"fmt"
+
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func sessionActionsLabel(id, title string) string {
@@ -23,9 +25,14 @@ func sessionRowAction(c *ui.Context, key string, art *ui.SVG, label, tip string,
 	if run == nil || art == nil {
 		return
 	}
-	button := ui.Button(c.Key("session-action-"+key), "").Label(label).Tooltip(tip).
-		Width(16).Height(16).Padding(0).BorderWidth(0).Background(ui.Transparent).Center()
-	button.Children(func() { ui.Icon(c, art).Size(14, 14).TextColor(ink) })
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconXS,
+		Label:   label,
+		Key:     "session-action-" + key,
+		Content: func() {},
+	}).Tooltip(tip).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).Center()
+	button.Children(func() { ui.Icon(c, art).Size(design.IconXS, design.IconXS).TextColor(ink) })
 	if button.Clicked() {
 		run()
 	}
@@ -100,15 +107,16 @@ func sessionStatusSlot(c *ui.Context, status string, muted ui.Color) {
 	if status == "" {
 		return
 	}
-	ink := muted
+	t := tok(c)
 	if status == "running" {
-		slot.AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Spinner(c).Width(14).Height(14).TextColor(muted) })
+		slot.AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+			coss.Spinner(c, coss.SpinnerOptions{Size: design.IconXS, Color: muted})
+		})
 		return
 	}
+	ink := t.Warning
 	if status == "completed" {
-		ink = c.Theme().Success
-	} else {
-		ink = c.Theme().Warning
+		ink = t.Success
 	}
 	slot.Draw(func(p *ui.Painter, r ui.Rect) {
 		path := &ui.Path{}
@@ -131,10 +139,10 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 			break
 		}
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	row := ui.Row(c.Key("archived-session-"+id)).FillWidth().Height(32).Padding(0, 8, 0, float32(8+depth*12)).Gap(0).AlignItems(ui.Center).Radius(12)
+	t := tok(c)
+	row := ui.Row(c.Key("archived-session-"+id)).FillWidth().Height(32).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(depth)*design.Sp(3)).Gap(0).AlignItems(ui.Center).Radius(design.RadiusXL)
 	if row.Hovered() || row.FocusWithin() || row.MenuOpen() {
-		row.Background(selectedBackground(colors))
+		row.Background(sbSelectedBg(t))
 	}
 	menu := func(menu *ui.Menu) {
 		menu.CloseOnPointerLeave(true)
@@ -147,17 +155,23 @@ func rowArchivedSession(c *ui.Context, id, title string, depth int, m Model, mut
 	}
 	row.ContextMenu(menu).Children(func() {
 		ui.Box(c).Width(16).Height(20)
-		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, 6, 0, 4).SingleLine().FontSize(theme.InterfaceSize(14)).TextColor(muted)
+		ui.Text(c, title).MinWidth(0).Grow(1).Padding(0, design.Sp(1.5), 0, design.Sp(1)).SingleLine().FontSize(fs(14)).TextColor(muted)
 		showActions := row.Hovered() || row.FocusWithin() || row.MenuOpen()
 		if !showActions && !item.Blank && item.UpdatedAt > 0 {
 			ui.Text(c, sessionTrailingLabel("", item.UpdatedAt)).Label("Session time " + id).
-				FontSize(theme.InterfaceSize(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
+				FontSize(fs(10)).FixedLineHeight(16).TextColor(muted).SingleLine()
 		}
-		more := ui.Button(c.Key("archived-session-menu-"+id), "").Label(sessionActionsLabel(id, title)).Width(16).Height(16).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Center().Menu(menu)
-		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(16, 16).TextColor(muted) })
+		more := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonIconXS,
+			Label:   sessionActionsLabel(id, title),
+			Key:     "archived-session-menu-" + id,
+			Content: func() {},
+		}).Size(design.IconSM, design.IconSM).Padding(0).BorderWidth(0).TextColor(muted).Center().Menu(menu)
+		more.Children(func() { ui.Icon(c, menuEllipsisArtwork).Size(design.IconSM, design.IconSM).TextColor(muted) })
 		if !showActions && !more.Focused() {
-			more.Absolute().Right(8).Opacity(0)
+			more.Absolute().Right(design.Sp(2)).Opacity(0)
 		}
 	})
-	archivedSessionHoverCard(c, m, row, item, title)
+	archivedSessionHoverCard(c, m, row, item, title, row.Pressed())
 }
