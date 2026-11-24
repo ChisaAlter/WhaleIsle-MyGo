@@ -87,7 +87,11 @@ func TestJoinRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != filepath.Join(sub, "main.go") {
+	realSub, err := filepath.EvalSymlinks(sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Join(realSub, "main.go") {
 		t.Fatalf("got %q", got)
 	}
 	if _, err := JoinRoot(root, "../outside"); err == nil {

@@ -57,7 +57,11 @@ func TestRuntimeLinksRestoreDetachRenameRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	real, err := resolveDirectoryLink(filepath.Join(final, "package/node_modules/peer"))
-	if err != nil || !strings.EqualFold(real, filepath.Join(final, "peer")) {
+	wantPeer, wantErr := resolveDirectoryLink(filepath.Join(final, "peer"))
+	if wantErr != nil {
+		t.Fatal(wantErr)
+	}
+	if err != nil || !strings.EqualFold(real, wantPeer) {
 		t.Fatalf("bad rebased target %s: %v", real, err)
 	}
 	if err = operate("detach", final); err != nil {
