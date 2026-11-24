@@ -46,8 +46,11 @@ func (s *Store) PageShortcuts(ids []string) (map[string]string, error) {
 // Ordinary config Update also preserves this raw key. Publish the new active
 // bindings only after this atomic replacement succeeds.
 func (s *Store) SavePageShortcuts(patch map[string]string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}

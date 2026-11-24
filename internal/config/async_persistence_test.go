@@ -172,3 +172,92 @@ func TestAsyncUpdateConcurrentSafety(t *testing.T) {
 		t.Fatalf("Flush after concurrent writes: %v", err)
 	}
 }
+
+func TestAsyncUpdateInterleavedWithSyncNamespaceWritersPreservesAllEdits(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.SetAsyncDebounce(80 * time.Millisecond)
+
+	// Schedule pending async edits across both main Config and workspace prefs.
+	if err := s.UpdateAsync(func(c *Config) { c.Port = 4321; c.Locale = "en" }); err != nil {
+		t.Fatalf("UpdateAsync: %v", err)
+	}
+	if err := s.SaveWorkspaceNavigationPreferencesAsync("host-mix", WorkspaceNavigationPreferences{
+		GroupBy:   "flat",
+		OrderBy:   "updated",
+		Collapsed: map[string]bool{"ws-a": true},
+	}); err != nil {
+		t.Fatalf("SaveWorkspaceNavigationPreferencesAsync: %v", err)
+	}
+
+	// Before the 80ms debounce fires, interleave synchronous namespace writers.
+	appPrefs, err := s.Appearance()
+	if err != nil {
+		t.Fatalf("Appearance: %v", err)
+	}
+	appPrefs.Interface.Size = 17
+	if err := s.SaveAppearance(appPrefs); err != nil {
+		t.Fatalf("SaveAppearance during pending async failed: %v", err)
+	}
+
+	pet := s.DesktopPet()
+	pet.Enabled = true
+	if err := s.SaveDesktopPet(pet); err != nil {
+		t.Fatalf("SaveDesktopPet during pending async failed: %v", err)
+	}
+
+	if err := s.SavePageShortcuts(map[string]string{"sidebar.toggle": "Mod+Shift+B"}); err != nil {
+		t.Fatalf("SavePageShortcuts during pending async failed: %v", err)
+	}
+
+	wpPrefs, err := s.WallpaperBackground()
+	if err != nil {
+		t.Fatalf("WallpaperBackground: %v", err)
+	}
+	wpPrefs.SkinWallpaperEnabled = true
+	wpPrefs.Blur = 12
+	if err := s.SaveWallpaperBackground(wpPrefs); err != nil {
+		t.Fatalf("SaveWallpaperBackground during pending async failed: %v", err)
+	}
+
+	// Queue another async edit after sync writers and let the debounce timer fire.
+	if err := s.UpdateAsync(func(c *Config) { c.SidebarWidth = 360 }); err != nil {
+		t.Fatalf("trailing UpdateAsync: %v", err)
+	}
+	time.Sleep(130 * time.Millisecond)
+	if err := s.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	// Reopen from disk and confirm zero lost writes across every writer.
+	reopened, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := reopened.Get()
+	if cfg.Port != 4321 || cfg.Locale != "en" || cfg.SidebarWidth != 360 {
+		t.Fatalf("reopened Config lost async edits: %+v", cfg)
+	}
+	gotApp, err := reopened.Appearance()
+	if err != nil || gotApp.Interface.Size != 17 {
+		t.Fatalf("reopened Appearance lost sync edit: %+v err=%v", gotApp, err)
+	}
+	if !reopened.DesktopPet().Enabled {
+		t.Fatal("reopened DesktopPet lost sync edit")
+	}
+	gotShortcuts, err := reopened.PageShortcuts([]string{"sidebar.toggle"})
+	if err != nil || gotShortcuts["sidebar.toggle"] != "Mod+Shift+B" {
+		t.Fatalf("reopened PageShortcuts lost sync edit: %+v err=%v", gotShortcuts, err)
+	}
+	gotWP, err := reopened.WallpaperBackground()
+	if err != nil || !gotWP.SkinWallpaperEnabled || gotWP.Blur != 12 {
+		t.Fatalf("reopened WallpaperBackground lost sync edit: %+v err=%v", gotWP, err)
+	}
+	gotWS, err := reopened.WorkspaceNavigationPreferences("host-mix")
+	if err != nil || gotWS.GroupBy != "flat" || !gotWS.Collapsed["ws-a"] {
+		t.Fatalf("reopened WorkspaceNavigationPreferences lost async edit: %+v err=%v", gotWS, err)
+	}
+}

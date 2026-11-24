@@ -412,6 +412,161 @@ func TestSessionStoreConcurrentReadWriteSafety(t *testing.T) {
 	s.Detach()
 }
 
+func TestStreamingWithQueuedComposerPendingDoesNotDuplicateOrMutatePublished(t *testing.T) {
+	s := New()
+	client := stubOKClient("http://queued-stream.invalid")
+	s.Attach(client, nil)
+	s.Select("q-session")
+	s.applyFollowFrame(json.RawMessage(`{"type":"snapshot","cursor":1,"records":[{"type":"event","event":{"type":"step/start","seq":1,"data":{"turn":1,"step":1}}}]}`))
+	s.applyFollowFrame(json.RawMessage(`{"type":"assistant-stream","frame":{"type":"start","attemptId":"a1","revision":1,"startedAfterSeq":1,"turn":1,"step":1}}`))
+
+	// Install a queued pending submission and an existing PlanBoard.Queue entry.
+	target, err := s.CaptureComposerTarget("q-session")
+	if err != nil {
+		t.Fatalf("CaptureComposerTarget: %v", err)
+	}
+	s.mu.Lock()
+	s.composerPending = map[string]*composerPending{
+		"req-queued": {
+			PendingSubmission: PendingSubmission{
+				RequestID: "req-queued",
+				SessionID: "q-session",
+				Text:      "queued follow-up",
+				Placement: "queued",
+				Order:     1,
+			},
+			target: target,
+		},
+	}
+	s.planBoard.Queue = []PlanQueueItem{
+		{ID: "q1", RequestID: "req-hide", Preview: "hidden item"},
+		{ID: "q2", RequestID: "req-keep", Preview: "visible item"},
+	}
+	s.invalidateViewLocked()
+	s.mu.Unlock()
+
+	first := s.Published().Value
+	if len(first.PlanBoard.Pending) != 1 || first.PlanBoard.Pending[0].RequestID != "req-queued" {
+		t.Fatalf("initial queued pending mismatch: %+v", first.PlanBoard.Pending)
+	}
+	if len(first.PlanBoard.Queue) != 2 || first.PlanBoard.Queue[0].ID != "q1" || first.PlanBoard.Queue[1].ID != "q2" {
+		t.Fatalf("initial queue mismatch: %+v", first.PlanBoard.Queue)
+	}
+	firstQueueCopy := append([]PlanQueueItem(nil), first.PlanBoard.Queue...)
+	firstPendingCopy := append([]PendingSubmission(nil), first.PlanBoard.Pending...)
+
+	// Hide q1 via composerObserved (non-queued placement) and send 10 streaming chunks.
+	s.mu.Lock()
+	s.composerObserved = map[string]composerObserved{
+		"req-hide": {target: target, placement: "transcript"},
+	}
+	s.mu.Unlock()
+
+	for i := 0; i < 10; i++ {
+		raw := fmt.Sprintf(`{"type":"assistant-stream","frame":{"type":"chunk","attemptId":"a1","revision":%d,"index":%d,"time":%d,"chunk":{"type":"text-delta","text":"c"}}}`, i+2, i, 2000+i)
+		s.applyFollowFrame(json.RawMessage(raw))
+		cur := s.Published().Value
+		if len(cur.PlanBoard.Pending) != 1 {
+			t.Fatalf("chunk %d duplicated PlanBoard.Pending: len=%d (%+v)", i, len(cur.PlanBoard.Pending), cur.PlanBoard.Pending)
+		}
+		if len(cur.PlanBoard.Queue) != 1 || cur.PlanBoard.Queue[0].ID != "q2" {
+			t.Fatalf("chunk %d queue filter mismatch: %+v", i, cur.PlanBoard.Queue)
+		}
+	}
+
+	// Previously published snapshot slices must remain completely unmutated.
+	if len(first.PlanBoard.Pending) != len(firstPendingCopy) || first.PlanBoard.Pending[0].RequestID != firstPendingCopy[0].RequestID {
+		t.Fatalf("streaming mutated prior published PlanBoard.Pending: %+v", first.PlanBoard.Pending)
+	}
+	if len(first.PlanBoard.Queue) != len(firstQueueCopy) || first.PlanBoard.Queue[0].ID != firstQueueCopy[0].ID || first.PlanBoard.Queue[1].ID != firstQueueCopy[1].ID {
+		t.Fatalf("streaming mutated prior published PlanBoard.Queue backing array: %+v", first.PlanBoard.Queue)
+	}
+}
+
+type blockingPreferenceStore struct {
+	entered   chan struct{}
+	release   chan struct{}
+	firstOnce sync.Once
+	mu        sync.Mutex
+	writes    int
+	saved     map[string]config.WorkspaceNavigationPreferences
+}
+
+func (b *blockingPreferenceStore) WorkspaceNavigationPreferences(key string) (config.WorkspaceNavigationPreferences, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return cloneWorkspacePreferences(b.saved[key]), nil
+}
+
+func (b *blockingPreferenceStore) SaveWorkspaceNavigationPreferences(key string, prefs config.WorkspaceNavigationPreferences) error {
+	b.firstOnce.Do(func() {
+		close(b.entered)
+		<-b.release
+	})
+	b.mu.Lock()
+	b.writes++
+	b.saved[key] = cloneWorkspacePreferences(prefs)
+	b.mu.Unlock()
+	return nil
+}
+
+func TestFlushWorkspacePreferencesWaitsForInFlightTimerWriteAndLatestSeq(t *testing.T) {
+	s := New()
+	repo := &blockingPreferenceStore{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+		saved:   map[string]config.WorkspaceNavigationPreferences{},
+	}
+	client := stubOKClient("http://flush-wait.invalid")
+	s.Attach(client, nil)
+	s.SetWorkspacePreferencesAsync(true)
+	s.SetWorkspacePreferencesDebounce(15 * time.Millisecond)
+	s.BindWorkspacePreferences(client, "host-flush", repo)
+	s.applyWorkspaceFollowFrame(json.RawMessage(`{"type":"baseline","value":{"scratchCwd":"/scratch","items":[{"workspaceId":"w1","path":"/w1","sessionIds":[]}],"pinnedSessionIds":[],"archivedSessionIds":[]}}`))
+
+	// First edit triggers the debounced timer, which blocks inside Save.
+	s.SetWorkspaceGrouping("flat")
+	select {
+	case <-repo.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("debounced timer write did not start")
+	}
+
+	// While the first write is in flight, apply a newer edit and call FlushWorkspacePreferences.
+	s.SetWorkspaceGrouping("workspace-tree")
+	flushDone := make(chan error, 1)
+	go func() {
+		flushDone <- s.FlushWorkspacePreferences()
+	}()
+
+	// Flush must NOT return while the in-flight timer write is still blocked.
+	select {
+	case err := <-flushDone:
+		t.Fatalf("FlushWorkspacePreferences returned prematurely while write was in flight: err=%v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	// Unblock the in-flight write; Flush must finish and persist the latest seq ("workspace-tree").
+	close(repo.release)
+	select {
+	case err := <-flushDone:
+		if err != nil {
+			t.Fatalf("FlushWorkspacePreferences failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("FlushWorkspacePreferences did not complete after unblocking write")
+	}
+
+	scope := preferenceHash("host", "host-flush", "/scratch")
+	repo.mu.Lock()
+	got := repo.saved[scope]
+	writes := repo.writes
+	repo.mu.Unlock()
+	if got.GroupBy != "workspace-tree" || writes < 2 {
+		t.Fatalf("FlushWorkspacePreferences lost latest edit or skipped in-flight write: groupBy=%q writes=%d", got.GroupBy, writes)
+	}
+}
+
 func BenchmarkSnapshotWhileStreamingLazyTrajectory(b *testing.B) {
 	for _, size := range []int{500, 2000, 8000} {
 		b.Run(fmt.Sprintf("messages_%d_frame_stream_only_lazy", size), func(b *testing.B) {

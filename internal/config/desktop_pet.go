@@ -45,8 +45,11 @@ var (
 )
 
 func (s *Store) SaveDesktopPet(value DesktopPet) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}

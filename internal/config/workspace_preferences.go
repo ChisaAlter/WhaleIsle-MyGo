@@ -44,11 +44,11 @@ func (s *Store) SaveWorkspaceNavigationPreferences(hostKey string, prefs Workspa
 	if strings.TrimSpace(hostKey) == "" {
 		return errors.New("workspace preference Host is missing")
 	}
-	if err := s.flushPendingBeforeSync(); err != nil {
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}

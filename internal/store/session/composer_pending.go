@@ -360,13 +360,22 @@ func (s *Store) projectComposerSubmissionsLocked(view *ViewState) bool {
 			view.Messages = append(view.Messages, Message{ID: "pending:" + p.RequestID, Kind: MessageKindSubmission, Role: "user", Body: p.Text, Submission: &copy})
 		}
 	}
-	kept := view.PlanBoard.Queue[:0]
+	anyHidden := false
 	for _, q := range view.PlanBoard.Queue {
-		if !s.hideComposerQueueLocked(q.RequestID) {
-			kept = append(kept, q)
+		if s.hideComposerQueueLocked(q.RequestID) {
+			anyHidden = true
+			break
 		}
 	}
-	view.PlanBoard.Queue = kept
+	if anyHidden {
+		kept := make([]PlanQueueItem, 0, len(view.PlanBoard.Queue))
+		for _, q := range view.PlanBoard.Queue {
+			if !s.hideComposerQueueLocked(q.RequestID) {
+				kept = append(kept, q)
+			}
+		}
+		view.PlanBoard.Queue = kept
+	}
 	changed := !samePendingSubmissions(s.historyInlinePending, inline)
 	s.historyInlinePending = inline
 	return changed

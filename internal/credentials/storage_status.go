@@ -27,10 +27,18 @@ type storageStatusCacheEntry struct {
 	updatedAt time.Time
 }
 
+type storageStatusInflight struct {
+	callbacks []func(StorageStatus)
+}
+
+var readStorageFile = os.ReadFile
+
 var storageStatusCache struct {
-	mu       sync.Mutex
-	entries  map[string]storageStatusCacheEntry
-	inflight map[string][]func(StorageStatus)
+	mu        sync.Mutex
+	entries   map[string]storageStatusCacheEntry
+	inflight  map[string]*storageStatusInflight
+	keyGen    map[string]uint64
+	globalGen uint64
 }
 
 func storageStatusCacheKey(dir string) string {
@@ -45,9 +53,13 @@ func defaultStorageStatus() StorageStatus {
 	}
 }
 
-func storeStorageStatusCache(dir string, s StorageStatus) {
+func storeStorageStatusCacheIfCurrent(dir string, s StorageStatus, expectedGlobal, expectedKey uint64, checkGen bool) {
 	key := storageStatusCacheKey(dir)
 	storageStatusCache.mu.Lock()
+	if checkGen && (storageStatusCache.globalGen != expectedGlobal || storageStatusCache.keyGen[key] != expectedKey) {
+		storageStatusCache.mu.Unlock()
+		return
+	}
 	if storageStatusCache.entries == nil {
 		storageStatusCache.entries = make(map[string]storageStatusCacheEntry)
 	}
@@ -58,25 +70,20 @@ func storeStorageStatusCache(dir string, s StorageStatus) {
 	storageStatusCache.mu.Unlock()
 }
 
-// InspectStorage reads credential storage metadata synchronously from disk and
-// refreshes the in-memory cache.
-func InspectStorage(dir string) StorageStatus {
+func inspectStorageUncached(dir string) StorageStatus {
 	s := defaultStorageStatus()
-	data, err := os.ReadFile(filepath.Join(dir, FileName))
+	data, err := readStorageFile(filepath.Join(dir, FileName))
 	if errors.Is(err, fs.ErrNotExist) {
 		s.Mode = "missing"
-		storeStorageStatusCache(dir, s)
 		return s
 	}
 	if err != nil {
 		s.Error = "Credential storage metadata could not be read."
-		storeStorageStatusCache(dir, s)
 		return s
 	}
 	kind, err := classifyDocument(data)
 	if err != nil {
 		s.Error = "Credential storage format is invalid or unsupported."
-		storeStorageStatusCache(dir, s)
 		return s
 	}
 	s.Mode = "plaintext"
@@ -97,7 +104,19 @@ func InspectStorage(dir string) StorageStatus {
 			}
 		}
 	}
-	storeStorageStatusCache(dir, s)
+	return s
+}
+
+// InspectStorage reads credential storage metadata synchronously from disk and
+// refreshes the in-memory cache if no invalidation superseded this read.
+func InspectStorage(dir string) StorageStatus {
+	key := storageStatusCacheKey(dir)
+	storageStatusCache.mu.Lock()
+	startGlobal := storageStatusCache.globalGen
+	startKey := storageStatusCache.keyGen[key]
+	storageStatusCache.mu.Unlock()
+	s := inspectStorageUncached(dir)
+	storeStorageStatusCacheIfCurrent(dir, s, startGlobal, startKey, true)
 	return s
 }
 
@@ -118,8 +137,8 @@ func InspectStorageCached(dir string) (StorageStatus, bool) {
 // I/O. When a fresh cached entry exists (within storageStatusCacheTTL), it is
 // returned directly. Otherwise the stale cached value (or a default unknown
 // status) is returned immediately and a deduplicated background refresh runs
-// InspectStorage(dir), invoking onUpdate (if non-nil) once fresh metadata is
-// available.
+// disk inspection, updating the cache only if no InvalidateStorageStatusCache
+// occurred while the read was in flight.
 func InspectStorageAsync(dir string, onUpdate func(StorageStatus)) StorageStatus {
 	key := storageStatusCacheKey(dir)
 	now := time.Now()
@@ -134,21 +153,37 @@ func InspectStorageAsync(dir string, onUpdate func(StorageStatus)) StorageStatus
 		current = entry.status
 	}
 	if storageStatusCache.inflight == nil {
-		storageStatusCache.inflight = make(map[string][]func(StorageStatus))
+		storageStatusCache.inflight = make(map[string]*storageStatusInflight)
 	}
-	waiters, running := storageStatusCache.inflight[key]
+	req, running := storageStatusCache.inflight[key]
+	if !running {
+		req = &storageStatusInflight{}
+		storageStatusCache.inflight[key] = req
+	}
 	if onUpdate != nil {
-		waiters = append(waiters, onUpdate)
+		req.callbacks = append(req.callbacks, onUpdate)
 	}
-	storageStatusCache.inflight[key] = waiters
+	startGlobal := storageStatusCache.globalGen
+	startKey := storageStatusCache.keyGen[key]
 	storageStatusCache.mu.Unlock()
 
 	if !running {
 		go func() {
-			fresh := InspectStorage(dir)
+			fresh := inspectStorageUncached(dir)
 			storageStatusCache.mu.Lock()
-			callbacks := storageStatusCache.inflight[key]
-			delete(storageStatusCache.inflight, key)
+			if storageStatusCache.globalGen == startGlobal && storageStatusCache.keyGen[key] == startKey {
+				if storageStatusCache.entries == nil {
+					storageStatusCache.entries = make(map[string]storageStatusCacheEntry)
+				}
+				storageStatusCache.entries[key] = storageStatusCacheEntry{
+					status:    fresh,
+					updatedAt: time.Now(),
+				}
+			}
+			callbacks := req.callbacks
+			if storageStatusCache.inflight[key] == req {
+				delete(storageStatusCache.inflight, key)
+			}
 			storageStatusCache.mu.Unlock()
 			for _, cb := range callbacks {
 				if cb != nil {
@@ -167,13 +202,22 @@ func PrefetchStorageStatus(dir string) {
 }
 
 // InvalidateStorageStatusCache clears cached metadata for dir (or all dirs when
-// dir is empty).
+// dir is empty) and advances the invalidation generation so an in-flight read
+// started earlier cannot repopulate stale metadata.
 func InvalidateStorageStatusCache(dir string) {
 	storageStatusCache.mu.Lock()
 	if dir == "" {
+		storageStatusCache.globalGen++
 		storageStatusCache.entries = nil
+		storageStatusCache.inflight = nil
 	} else {
-		delete(storageStatusCache.entries, storageStatusCacheKey(dir))
+		key := storageStatusCacheKey(dir)
+		if storageStatusCache.keyGen == nil {
+			storageStatusCache.keyGen = make(map[string]uint64)
+		}
+		storageStatusCache.keyGen[key]++
+		delete(storageStatusCache.entries, key)
+		delete(storageStatusCache.inflight, key)
 	}
 	storageStatusCache.mu.Unlock()
 }

@@ -1302,10 +1302,15 @@ func (s *Store) ensureViewCacheLocked() {
 	// Stream-only fast path: when only streaming chunks advanced (rosterDirty is
 	// false and durable history/selection/boundaries are unchanged), reuse all
 	// frozen non-message fields from s.viewCache without re-cloning 30+ slices/maps.
+	// Exclude active composer pending/tracked submissions so projectComposerSubmissionsLocked
+	// always receives a freshly cloned PlanBoard and never duplicates queued rows or
+	// mutates a previously published slice.
 	streamOnly := s.viewCacheValid && !s.rosterDirty &&
 		!historyChanged && !boundariesChanged && !workflowsChanged &&
 		s.selectedID == s.historySelectedID && s.editTurnSeq == s.historyEditTurnSeq &&
 		s.historyHasMore == s.historyHasMorePrev && !inspDirty &&
+		len(s.composerPending) == 0 && len(s.submissionTracked) == 0 &&
+		len(s.composerObserved) == 0 && len(s.viewCache.PlanBoard.Pending) == 0 &&
 		(s.trajectoryDisabled || s.trajViewValid)
 
 	var st ViewState

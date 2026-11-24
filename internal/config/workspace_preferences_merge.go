@@ -59,11 +59,11 @@ func (s *Store) ReadWorkspaceNavigationPreferences(hostKey string) (WorkspaceNav
 // another process (such as the shared desktop pet) before applying fn and
 // writing the merged configuration atomically.
 func (s *Store) Merge(fn func(*Config)) error {
-	if err := s.flushPendingBeforeSync(); err != nil {
+	unlockSync, err := s.beginSyncWrite()
+	if err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer unlockSync()
 	unlock, err := s.lockCommit()
 	if err != nil {
 		return err
@@ -138,11 +138,11 @@ func (s *Store) MergeWorkspaceNavigationPreferences(hostKey string, base, next W
 	if strings.TrimSpace(hostKey) == "" {
 		return WorkspaceNavigationPreferences{}, fmt.Errorf("workspace preference Host is missing")
 	}
-	if err := s.flushPendingBeforeSync(); err != nil {
+	unlockSync, err := s.beginSyncWrite()
+	if err != nil {
 		return WorkspaceNavigationPreferences{}, err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer unlockSync()
 	unlock, err := s.lockCommit()
 	if err != nil {
 		return WorkspaceNavigationPreferences{}, err

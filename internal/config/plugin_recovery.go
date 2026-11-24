@@ -35,8 +35,11 @@ func (s *Store) PluginRecovery() PluginRecoveryInfo {
 // config.json. Empty objects remove pluginRecovery. SkipUserPlugins on Config
 // is re-read from the saved object.
 func (s *Store) UpdatePluginRecovery(fn func(map[string]any)) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 
 	if err := s.checkBaseline(); err != nil {
 		return err

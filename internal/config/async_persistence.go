@@ -18,7 +18,6 @@ type asyncPersistState struct {
 	timer      *time.Timer
 	dirty      bool
 	seq        uint64
-	pendingRaw map[string]json.RawMessage
 	lastErr    error
 	errHandler func(error)
 	hasPending atomic.Bool
@@ -59,8 +58,7 @@ func (s *Store) hasPendingAsync() bool {
 	return s.async.hasPending.Load()
 }
 
-func (s *Store) scheduleAsyncPersistLocked(merged map[string]json.RawMessage) {
-	s.async.pendingRaw = cloneRawMap(merged)
+func (s *Store) scheduleAsyncPersistLocked() {
 	s.async.dirty = true
 	s.async.seq++
 	s.async.hasPending.Store(true)
@@ -101,7 +99,7 @@ func (s *Store) UpdateAsync(fn func(*Config)) error {
 	merged := mergeKnownConfig(s.raw, known)
 	s.raw = merged
 	s.setCfgLocked(next)
-	s.scheduleAsyncPersistLocked(merged)
+	s.scheduleAsyncPersistLocked()
 	return nil
 }
 
@@ -125,7 +123,7 @@ func (s *Store) SaveWorkspaceNavigationPreferencesAsync(hostKey string, prefs Wo
 		return err
 	}
 	s.raw = merged
-	s.scheduleAsyncPersistLocked(merged)
+	s.scheduleAsyncPersistLocked()
 	return nil
 }
 
@@ -183,7 +181,13 @@ func (s *Store) Flush() error {
 func (s *Store) flushAsync(syncCaller bool) error {
 	s.async.writeMu.Lock()
 	defer s.async.writeMu.Unlock()
+	return s.flushAsyncLocked(syncCaller)
+}
 
+// flushAsyncLocked drains all pending async edits while the caller already
+// holds s.async.writeMu. It always snapshots the latest s.raw under s.mu so
+// interleaved synchronous writes can never be overwritten by stale raw maps.
+func (s *Store) flushAsyncLocked(syncCaller bool) error {
 	for {
 		s.mu.Lock()
 		if s.async.timer != nil {
@@ -200,7 +204,7 @@ func (s *Store) flushAsync(syncCaller bool) error {
 			return nil
 		}
 		seq := s.async.seq
-		merged := cloneRawMap(s.async.pendingRaw)
+		merged := cloneRawMap(s.raw)
 		expected := s.baseline
 		path := s.path
 		commitLock := s.commitLock
@@ -218,7 +222,6 @@ func (s *Store) flushAsync(syncCaller bool) error {
 			s.async.lastErr = err
 			if s.async.seq == seq {
 				s.async.dirty = false
-				s.async.pendingRaw = nil
 				s.async.hasPending.Store(false)
 			}
 			errHandler = s.async.errHandler
@@ -232,7 +235,6 @@ func (s *Store) flushAsync(syncCaller bool) error {
 		s.async.lastErr = nil
 		if s.async.seq == seq {
 			s.async.dirty = false
-			s.async.pendingRaw = nil
 			s.async.hasPending.Store(false)
 			s.mu.Unlock()
 			return nil
@@ -241,6 +243,24 @@ func (s *Store) flushAsync(syncCaller bool) error {
 		// the latest coalesced state under the same single writer.
 		s.mu.Unlock()
 	}
+}
+
+// beginSyncWrite enforces lock hierarchy s.async.writeMu -> s.mu across all
+// synchronous config writers, flushing any pending debounced async edits while
+// holding writeMu so there is zero TOCTOU window and zero lost writes.
+func (s *Store) beginSyncWrite() (func(), error) {
+	s.async.writeMu.Lock()
+	if s.hasPendingAsync() {
+		if err := s.flushAsyncLocked(true); err != nil {
+			s.async.writeMu.Unlock()
+			return nil, err
+		}
+	}
+	s.mu.Lock()
+	return func() {
+		s.mu.Unlock()
+		s.async.writeMu.Unlock()
+	}, nil
 }
 
 func (s *Store) flushPendingBeforeSync() error {

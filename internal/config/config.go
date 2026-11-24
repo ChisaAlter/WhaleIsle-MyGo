@@ -450,11 +450,11 @@ func (s *Store) Update(fn func(*Config)) error {
 // A callback error leaves both the current configuration and the file unchanged.
 // The same baseline checks and atomic write used by Update protect the commit.
 func (s *Store) UpdateChecked(fn func(*Config) error) error {
-	if err := s.flushPendingBeforeSync(); err != nil {
-		return err
+	unlockSync, syncErr := s.beginSyncWrite()
+	if syncErr != nil {
+		return syncErr
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer unlockSync()
 
 	// Refuse to build on a stale snapshot before running the callback, so a
 	// conflicting update has no side effects. The final check and replacement

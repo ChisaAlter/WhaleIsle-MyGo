@@ -89,6 +89,7 @@ func (p *workflowMemberStream) prune() {
 		if seq < floor {
 			delete(s.trajectoryBoundaries, seq)
 			delete(s.systemPromptAnchors, seq)
+			s.markBoundaryDirtyLocked()
 		}
 	}
 }
