@@ -63,7 +63,8 @@ func TestInstallFooterKeepsTheNoteAndActionOutsideTheScroll(t *testing.T) {
 	tallCard, tallNote, tallAction := installFooterBoxes(t, tall)
 	shortCard, shortNote, shortAction := installFooterBoxes(t, short)
 
-	// Both windows end the footer at the reference's 24 DIP inset.
+	// Both windows end the footer at the card's 1 DIP border plus the
+	// reference's 24 DIP inset.
 	for _, want := range []struct {
 		name string
 		card ui.Rect
@@ -72,8 +73,8 @@ func TestInstallFooterKeepsTheNoteAndActionOutsideTheScroll(t *testing.T) {
 		{"920", tallCard, tallAction},
 		{"480", shortCard, shortAction},
 	} {
-		if inset := want.card.Y + want.card.H - (want.act.Y + want.act.H); math.Abs(float64(inset-24)) > 1 {
-			t.Fatalf("at %s the action ends %.1f DIP above the card's bottom, want the reference's 24", want.name, inset)
+		if inset := want.card.Y + want.card.H - (want.act.Y + want.act.H); math.Abs(float64(inset-25)) > 1 {
+			t.Fatalf("at %s the action ends %.1f DIP above the card's bottom, want the border plus the reference's 24", want.name, inset)
 		}
 	}
 
@@ -270,8 +271,8 @@ func TestInstallFooterKeepsTheLongCopyInsideTheCard(t *testing.T) {
 	if note.H < 18 || note.Y <= desc.Y+desc.H {
 		t.Fatalf("the English note is out of place: %v in a %.0f DIP card", note, card.H)
 	}
-	if inset := card.Y + card.H - (action.Y + action.H); math.Abs(float64(inset-24)) > 1 {
-		t.Fatalf("the English action ends %.1f DIP above the card's bottom, want the reference's 24", inset)
+	if inset := card.Y + card.H - (action.Y + action.H); math.Abs(float64(inset-25)) > 1 {
+		t.Fatalf("the English action ends %.1f DIP above the card's bottom, want the border plus the reference's 24", inset)
 	}
 	if action.Y+action.H > card.Y+card.H {
 		t.Fatalf("the English action ends at %.0f, past the card's bottom %.0f", action.Y+action.H, card.Y+card.H)
