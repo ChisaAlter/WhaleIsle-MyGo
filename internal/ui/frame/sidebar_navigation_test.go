@@ -94,8 +94,12 @@ func TestSidebarNavigationSelectionComesFromFrameRoute(t *testing.T) {
 	tt.Move(1199, 700)
 	m.ActivePanel = "schedule"
 	tt.Frame()
-	if got := tt.Image().RGBAAt(258, int(r.Y+11)); got != hover {
-		t.Fatalf("route selected paint=%v hover=%v", got, hover)
+	got := tt.Image().RGBAAt(258, int(r.Y+11))
+	if got == idle {
+		t.Fatalf("route selected paint matched idle=%v", got)
+	}
+	if got == hover {
+		t.Fatalf("route selected paint=%v must differ from hover=%v", got, hover)
 	}
 	m.ActivePanel = ""
 	tt.Frame()

@@ -27,7 +27,7 @@ func (p *SessionInspectorPaneState) applyInspectorFilter(query string) {
 	p.filterOpen = false
 	p.filterActive = -1
 	p.closeInspectorDetails()
-	p.collapsed = map[string]inspectorDisclosure{}
+	p.resetCollapsed()
 	p.list = ui.ListState{}
 	previousOffset := p.tableY.Y
 	p.tableY = ui.ScrollState{}

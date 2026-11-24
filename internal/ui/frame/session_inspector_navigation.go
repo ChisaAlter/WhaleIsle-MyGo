@@ -7,8 +7,35 @@ import (
 	"whaleisle/internal/ui/chat"
 )
 
+func hasMountedInspectorPane(w *WorkspacePanes) bool {
+	if w == nil || w.Root == nil {
+		return false
+	}
+	found := false
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Kind == "session-inspector-log" {
+			found = true
+		}
+	})
+	return found
+}
+
+func hasVisibleInspectorPane(m Model) bool {
+	if m.DisableDeveloperTools || m.Store == nil || m.Sizes == nil || m.Sizes.Workspace == nil || m.Sizes.Workspace.Root == nil {
+		return false
+	}
+	w := m.Sizes.Workspace
+	visible := false
+	w.Root.eachResource(func(n *WorkspacePane) {
+		if n.Kind == "session-inspector-log" && inspectorPaneVisible(w, n, m.RightPaneOpen) {
+			visible = true
+		}
+	})
+	return visible
+}
+
 func sessionInspectorChatNavigation(m Model) *chat.InspectorNavigation {
-	if m.Sizes == nil || m.Sizes.Workspace == nil {
+	if m.Sizes == nil || m.Sizes.Workspace == nil || !hasMountedInspectorPane(m.Sizes.Workspace) {
 		return nil
 	}
 	w := m.Sizes.Workspace
@@ -68,7 +95,7 @@ func sessionInspectorChatNavigation(m Model) *chat.InspectorNavigation {
 // Chat projects its current runtime groups once. Every visible inspector sees
 // that same projection; only the selected navigation owner handles gestures.
 func syncInspectorChatProjection(m Model, source *chat.InspectorNavigation) {
-	if m.Store == nil || m.DisableDeveloperTools || m.GroupRoom || m.Sizes == nil || m.Sizes.Workspace == nil {
+	if m.Store == nil || m.DisableDeveloperTools || m.GroupRoom || m.Sizes == nil || m.Sizes.Workspace == nil || !hasMountedInspectorPane(m.Sizes.Workspace) {
 		return
 	}
 	w := m.Sizes.Workspace
@@ -130,7 +157,7 @@ func (p *SessionInspectorPaneState) bindInspectorSource(binding, sessionID strin
 	p.navigation = chat.InspectorNavigation{SessionID: sessionID}
 	p.closeInspectorDetails()
 	p.draft = p.Filter
-	p.collapsed = map[string]inspectorDisclosure{}
+	p.resetCollapsed()
 	p.list = ui.ListState{FollowEnd: true}
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
 	p.scroll, p.pulse = inspectorScrollState{}, inspectorPulseState{}

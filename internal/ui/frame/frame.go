@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -17,7 +16,6 @@ import (
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/renderpolicy"
-	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/store/interaction"
 	schedstore "whaleisle/internal/store/schedule"
@@ -693,17 +691,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		m.ScheduleStore.EnsureContext(context.Background(), snap.SelectedID, nil)
 		schedules = m.ScheduleStore.Snapshot().Value
 	}
-	menuShortcutLabels := map[string]string{}
-	for id, chord := range shortcuts.Resolve(m.PageShortcutBindings) {
-		label := chord.String()
-		switch runtime.GOOS {
-		case "windows":
-			label = strings.Replace(label, "Mod", "Ctrl", 1)
-		case "darwin":
-			label = strings.Replace(label, "Mod", "Cmd", 1)
-		}
-		menuShortcutLabels[id] = label
-	}
+	menuShortcutLabels := resolvedMenuShortcutLabels(m.PageShortcutBindings)
 	newSessionShortcut := menuShortcutLabels["session.new"]
 	m.Store.SetSessionBatchScope(sidebar.BatchSelectionScope(sidebar.Model{Snapshot: snap, Collapsed: m.Sizes.sidebarCollapsed(), SearchQuery: m.SessionSearch}))
 	activePanel := m.ActivePanel
@@ -854,7 +842,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			body()
 			return
 		}
-		sidebarColumns(c, m.Sizes, func() { navigationView(c, m, snap) }, body)
+		sidebarColumns(c, m.Sizes, func() {
+			ui.Column(c.Key("frame-sidebar-pane")).Fill().MinWidth(0).MinHeight(0).Children(func() {
+				navigationView(c, m, snap)
+			})
+		}, body)
 	}
 	withNavigation(func() {
 		hero := conversationPhase(snap, hasSessionInteractions(m.Interactions, snap.SelectedID)) == conversationHero
@@ -1200,7 +1192,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							}
 							ui.Row(c).Fill().Children(func() {
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
-								ui.Column(c).Width(transcriptWidth).FillHeight().MinWidth(0).Children(func() {
+								ui.Column(c.Key("frame-chat-pane")).Width(transcriptWidth).FillHeight().MinWidth(0).Children(func() {
 									if paneTab == "trajectory" {
 										if snap.HistoryNavigation.Busy || snap.HistoryNavigation.Ready {
 											m.Store.CancelHistoryTurnJump(snap.SelectedID, snap.HistoryNavigation.Request)
@@ -1232,7 +1224,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											},
 										})
 									} else {
-										navigation := sessionInspectorChatNavigation(m)
+										var navigation *chat.InspectorNavigation
+										inspectorActive := hasVisibleInspectorPane(m)
+										if inspectorActive {
+											navigation = sessionInspectorChatNavigation(m)
+										}
 										chat.View(c, chat.Model{
 											OnPreviewDeliverablePresentation: m.OnPreviewDeliverablePresentation,
 											OnInspectToolCall:                inspectActionFor(inspectToolCall, m.toolCallInspector()),
@@ -1319,7 +1315,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 											OnSaveVisualReply:            m.OnSaveVisualReply,
 											OnCloseVisualReply:           m.OnCloseVisualReply,
 										})
-										syncInspectorChatProjection(m, navigation)
+										if inspectorActive {
+											syncInspectorChatProjection(m, navigation)
+										}
 									}
 								})
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
@@ -1410,11 +1408,15 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								// The unknown page settles on the Hero shell: same fish,
 								// title slot and input-card geometry, no blank box and no
 								// jump when the composer mounts.
-								conversationSettlingSkeleton(c, colors)
+								ui.Column(c.Key("frame-settling-memo")).FillWidth().Memo(settlingSkeletonMemoVersion(m)).Children(func() {
+									conversationSettlingSkeleton(c, colors)
+								})
 								return
 							}
 							if emptyHero {
-								conversationHeroHeadline(c, m, colors)
+								ui.Column(c.Key("frame-hero-headline-memo")).FillWidth().Memo(heroHeadlineMemoVersion(m)).Children(func() {
+									conversationHeroHeadline(c, m, colors)
+								})
 							}
 							chat.GoalDockView(c, chat.PlanBoardModel{
 								Board: snap.PlanBoard, ThemeID: m.ThemeID, SystemDark: m.SystemDark,
@@ -1554,7 +1556,7 @@ func rightPane(c *ui.Context, m Model) {
 		}
 	}
 
-	artifact := ui.Column(c).Label("Skin artifact boundary").Fill().MinWidth(0)
+	artifact := ui.Column(c.Key("frame-right-pane:" + tab)).Label("Skin artifact boundary").Fill().MinWidth(0)
 	if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
 		artifact.Background(theme.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, theme.Color(layout.SidebarBorderColor), 0)

@@ -131,7 +131,7 @@ func (p *SessionInspectorPaneState) changeInspectorMode(mode, sessionID string) 
 	p.breadcrumb, p.tree = nil, inspectorJSONTreeState{}
 	p.objectTree, p.objects = inspectorObjectTreeState{}, nil
 	p.Filter, p.draft, p.selected = "", "", ""
-	p.collapsed = map[string]inspectorDisclosure{}
+	p.resetCollapsed()
 	p.list = ui.ListState{FollowEnd: true}
 	p.tableX, p.tableY = ui.ScrollState{}, ui.ScrollState{}
 	p.scroll, p.pulse = inspectorScrollState{}, inspectorPulseState{}
@@ -207,10 +207,7 @@ func inspectorStickyIndexes(rows []session.InspectorRecord, branches map[string]
 // Narrow docks retain the reference's 660px table rather than wrapping cells.
 func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, colors theme.Colors) {
 	t := tk(c)
-	depths, _ := inspectorDepths(rows)
-	filtered := inspectorTypeRows(rows, p.Filter)
-	_, branches := inspectorDepths(filtered)
-	shown := inspectorDisclosedRows(filtered, p.collapsed)
+	depths, _, branches, shown := p.cachedTableProjection(rows)
 	p.pulse.updateRows(rows, c.Now())
 	viewport := ui.ScrollHorizontal(c.Key("inspector-table-x")).Label("Inspector table horizontal scroll").TrackScroll(&p.tableX).Grow(1).MinHeight(0).FillWidth()
 	width := max(float32(660), viewport.Bounds().W)
