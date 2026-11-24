@@ -207,8 +207,7 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, "重连不会发送测试消息。账号凭证请在插件页面管理。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						ui.Text(c, "工作区绝对路径").FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
 						workspace := snap.WorkspaceDraft
-						ui.TextInput(c, &workspace).FillWidth().Placeholder("/path/to/workspace 或 C:\\workspace")
-						if m.Store != nil && workspace != snap.WorkspaceDraft {
+						if ui.TextInput(c, &workspace).FillWidth().Placeholder("/path/to/workspace 或 C:\\workspace").Changed() && m.Store != nil {
 							m.Store.SetWorkspaceDraft(selected.ID, workspace)
 						}
 						if ui.Button(c, "保存工作区").Disabled(disabled || strings.TrimSpace(workspace) == selected.Workspace).Clicked() {
@@ -273,8 +272,7 @@ func View(c *ui.Context, m Model) {
 
 					if m.Draft != nil {
 						ui.Text(c, i18n.T(i18n.KeyIMCompose)).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
-						ui.TextArea(c, m.Draft).Fill().Lines(2, 4)
-						if m.Store != nil && snap.SelectedID != "" {
+						if ui.TextArea(c, m.Draft).Fill().Lines(2, 4).Changed() && m.Store != nil && snap.SelectedID != "" {
 							m.Store.SetDraft(snap.SelectedID, *m.Draft)
 						}
 						send := ui.Button(c, i18n.T(i18n.KeyIMSend))
