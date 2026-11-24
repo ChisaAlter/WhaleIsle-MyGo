@@ -1,111 +1,74 @@
 package usage
 
 import (
-	"context"
 	"fmt"
 	"time"
-	usagestore "whaleisle/internal/store/usage"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
+
+	usagestore "whaleisle/internal/store/usage"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/pagekit"
 )
 
 // embeddedView is the usage-stats settings contribution. Account and jobs retain
 // their own surfaces; this body follows dsh-usage-panel's StatsSection contract.
-//
-// 0.3.13 titles the page 用量与费用: the title is followed by the time of the
-// data and the basis of the totals, the export / settings / refresh actions sit
-// to the right. Settings opens billing; Host preference rows remain visible.
 func embeddedView(c *ui.Context, m Model) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	_, _, muted := usageCardPalette(c)
-	fg, accent, field := chrome.Color(colors.FG), chrome.Color(colors.Accent), chrome.Color(colors.Field)
-	body := ui.Column(c.Key("usage-stats-body")).FillWidth().MinWidth(0).Gap(16).Padding(16, 20, 28).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18))
-
-	body.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Wrap().Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
-					ui.Icon(c, usagePageIcon).Size(16, 16).Margin(4, 0, 0).TextColor(muted)
-					ui.Text(c, usageText("用量与费用", "Usage & cost")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(600).TextColor(fg).Grow(1)
-				})
-				if m.Store != nil {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(2).Padding(0, 0, 0, 24).Children(func() {
-						if at := m.Store.Stats().UpdatedAt; at > 0 {
-							ui.Text(c, usageUpdatedLabel(at)).FillWidth().TextColor(fg)
-						}
-						if overview := m.Store.Stats().Overview; overview != nil {
-							label, source := usageSourceLabel(overview)
-							ui.Text(c, label).FillWidth().TextColor(fg)
-							usageSourceLine(c, source, muted)
-						}
-					})
-				}
-			})
-			if m.Store != nil {
-				ui.Row(c).Shrink(0).Gap(8).Children(func() {
-					exportDisabled := m.OnExportStats == nil
-					export := widgets.Button(c, colors, usageText("导出", "Export"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: exportDisabled, Leading: usageLeadingIcon("export")})
-					if exportDisabled {
-						export.Tooltip(usageText("本版本还没有统计导出。", "Exporting statistics is not wired in this build"))
-					} else {
-						export.Menu(func(menu *ui.Menu) {
-							for _, format := range []struct{ id, zh, en string }{{"json", "导出 JSON", "Export JSON"}, {"days", "导出每日 CSV", "Export daily CSV"}, {"models", "导出模型 CSV", "Export model CSV"}} {
-								if menu.Item(usageText(format.zh, format.en)).Chosen() {
-									m.OnExportStats(format.id)
-								}
-							}
-						})
-					}
-					pricingView(c, m, fg, muted, accent)
-					if widgets.Button(c, colors, usageText("刷新", "Refresh"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Leading: usageLeadingIcon("refresh")}).Disabled(m.Store.Stats().Loading).Clicked() {
-						m.Store.RefreshStats(context.Background(), true)
-					}
-				})
-			}
-		})
-		if m.Preferences != nil {
-			ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() { m.Preferences(c, fg, muted) })
-		}
+	pagekit.Page(c, pagekit.PageOptions{Key: "usage-stats-body", Embedded: true}, func() {
+		usageHeader(c, m, usageText("用量与费用", "Usage & cost"))
+		renderPreferences(c, m)
 		if m.ActionError != "" {
-			ui.Text(c, m.ActionError).TextColor(accent)
+			pagekit.FaultSentence(c, "", m.ActionError, "", nil)
 		}
 		if m.Store == nil {
-			usageEmpty(c, "", usageText("连接 Host 后即可读取用量统计。", "Connect to a Host to read usage statistics."), fg, muted)
+			usageEmpty(c, "", usageText("连接 Host 后即可读取用量统计。", "Connect to a Host to read usage statistics."))
 			return
 		}
-		statsView(c, m, fg, muted, accent, field)
+		statsView(c, m)
+	})
+}
+
+func renderPreferences(c *ui.Context, m Model) {
+	if m.Preferences == nil {
+		return
+	}
+	t := design.For(c)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
+		m.Preferences(c, t.Foreground, t.MutedForeground)
 	})
 }
 
 // usageSourceLine says where the totals came from in words a person can read,
 // and keeps the log file's own path behind a details disclosure: the path is how
 // a person points support at the record, not the answer to "what am I looking at".
-func usageSourceLine(c *ui.Context, source string, muted ui.Color) {
+func usageSourceLine(c *ui.Context, source string) {
 	text := usageText("统计来源：本机网关用量记录", "Source: this machine's gateway usage log")
 	if source == "" {
 		text = usageText("统计来源：会话日志", "Source: session logs")
 	}
-	row := ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center)
+	row := ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center)
 	open := ui.Local(row, "usage-source-details", func() bool { return false })
 	row.Children(func() {
-		ui.Text(c, text).TextColor(muted).FontSize(theme.InterfaceSize(11)).Grow(1).MinWidth(0)
+		pagekit.Caption(c, text).Grow(1).MinWidth(0)
 		if source == "" {
 			return
 		}
-		marker := "▸ "
+		icon := coss.IconChevronRight
 		if *open {
-			marker = "▾ "
+			icon = coss.IconChevronDown
 		}
-		if ui.Button(c, marker+usageText("详情", "Details")).Role(ui.RoleDisclosure).Expanded(*open).
-			FontSize(theme.InterfaceSize(11)).Shrink(0).Clicked() {
+		btn := coss.Button(c, usageText("详情", "Details"), coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonXS,
+			Icon:    icon,
+		}).Role(ui.RoleDisclosure).Expanded(*open)
+		if btn.Clicked() {
 			*open = !*open
 		}
 	})
 	if source != "" && *open {
-		ui.Text(c, usageText("用量记录文件：", "Usage log file: ")+source).FontSize(theme.InterfaceSize(11)).TextColor(muted).Selectable()
+		pagekit.Caption(c, usageText("用量记录文件：", "Usage log file: ")+source).FillWidth().Selectable()
 	}
 }
 

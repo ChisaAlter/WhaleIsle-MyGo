@@ -42,12 +42,14 @@ func TestRankingErrorKeepsRetryActionReachable(t *testing.T) {
 		t.Fatal("synthetic ranking request did not settle")
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
-		rankingView(c, Model{Store: s}, store.StatsView{Overview: &store.Overview{TopSessions: []store.SessionUsage{{ID: "fixture", Title: "Fixture session"}}}}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Text)
+		rankingView(c, Model{Store: s}, store.StatsView{Overview: &store.Overview{TopSessions: []store.SessionUsage{{ID: "fixture", Title: "Fixture session"}}}})
 	}, 900, 1600)
 	if err := tt.Click("More"); err != nil {
 		t.Fatal(err)
 	}
 	wait()
+	tt.SetTime(time.Now().Add(time.Second))
+	tt.Frame()
 	tt.Frame()
 	if s.SessionRanking().Err == nil || !tt.HasText(s.SessionRanking().Err.SentenceText()) {
 		t.Fatal("More modal did not retain failure", tt.Texts())

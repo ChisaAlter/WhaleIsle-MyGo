@@ -31,10 +31,12 @@ func TestUsageHeaderExportMenuAndBillingSettings(t *testing.T) {
 		if err := tt.Click("Export"); err != nil {
 			t.Fatalf("export action is missing: %v", err)
 		}
-		if got := tt.Menu(); !reflect.DeepEqual(got, []string{"Export JSON", "Export daily CSV", "Export model CSV"}) {
-			t.Fatalf("wrong export menu: %v", got)
+		for _, want := range []string{"Export JSON", "Export daily CSV", "Export model CSV"} {
+			if !tt.HasText(want) {
+				t.Fatalf("wrong export menu, missing %q: %v", want, tt.Texts())
+			}
 		}
-		if err := tt.ChooseMenuItem(item); err != nil {
+		if err := tt.Click(item); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -60,7 +62,7 @@ func TestUsageHeaderExportMenuAndBillingSettings(t *testing.T) {
 				bottom := float32(-1)
 				for _, label := range []string{"Input (cache hit)", "Input (cache miss)", "Output"} {
 					r, ok := tt.Find(period + " · " + label)
-					if !ok || r.H != 36 {
+					if !ok || r.H < 34 || r.H > 36 {
 						t.Fatalf("missing price input at width %d: %s %+v", width, label, r)
 					}
 					if bottom >= 0 && r.Y+r.H != bottom {

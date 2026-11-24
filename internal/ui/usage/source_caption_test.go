@@ -18,7 +18,7 @@ func TestUsageSourceCaptionKeepsThePathInDetails(t *testing.T) {
 	const path = `C:\Users\48818\.config\magpie\usage.jsonl`
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().Padding(12).Gap(2).Children(func() {
-			usageSourceLine(c, path, c.Theme().TextMuted)
+			usageSourceLine(c, path)
 		})
 	}, 640, 200)
 
@@ -29,7 +29,7 @@ func TestUsageSourceCaptionKeepsThePathInDetails(t *testing.T) {
 	if strings.Contains(shown, "usage.jsonl") || strings.Contains(shown, `C:\Users`) {
 		t.Fatalf("the caption is still a filesystem path: %q", shown)
 	}
-	if err := tt.Click("▸ 详情"); err != nil {
+	if err := tt.Click("详情"); err != nil {
 		t.Fatalf("details control: %v", err)
 	}
 	opened := strings.Join(tt.Texts(), "\n")
