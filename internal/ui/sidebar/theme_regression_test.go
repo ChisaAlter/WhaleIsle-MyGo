@@ -1,22 +1,27 @@
 package sidebar
 
 import (
-	"github.com/egoist/mygo/ui"
 	"testing"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 func TestSidebarBackgroundUsesThemeRole(t *testing.T) {
-	for _, id := range []string{"deepseek.light", "deepseek.dark"} {
-		t.Run(id, func(t *testing.T) {
-			tt := ui.NewTester(func(c *ui.Context) { View(c, Model{ThemeID: id}) }, 280, 800)
-			colors := theme.Resolve(id).Active(false)
-			want := chrome.Color(colors.Sidebar)
+	for _, tc := range []struct {
+		id     string
+		scheme design.Scheme
+	}{
+		{"deepseek.light", design.Light},
+		{"deepseek.dark", design.Dark},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			tt := ui.NewTester(func(c *ui.Context) { View(c, Model{ThemeID: tc.id}) }, 280, 800)
+			want := design.Resolve(tc.scheme, ui.Color{}, ui.Color{}).Sidebar
 			got := tt.Image().RGBAAt(275, 790)
 			if got.R != want.R || got.G != want.G || got.B != want.B {
-				t.Fatalf("sidebar background=%+v, want theme.Sidebar=%+v", got, want)
+				t.Fatalf("sidebar background=%+v, want design.Sidebar=%+v", got, want)
 			}
 		})
 	}

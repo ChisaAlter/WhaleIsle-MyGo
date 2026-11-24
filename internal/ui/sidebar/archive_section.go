@@ -6,8 +6,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 const archiveSessionPageBase = 30
@@ -16,27 +17,30 @@ const archiveSessionPageBase = 30
 // here nor changing the surrounding browser may reuse a workspace disclosure.
 // Expansion remains local to the sidebar; it never writes workspace preferences.
 func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui.Color) {
-	// WorkspaceBrowser.module.css `.groupSection + .groupSection` separates
-	// sibling sections by 4 DIP; the parent column's 2-DIP row gap leaves 2
-	// to the section's own top margin.
-	section := ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(2).Margin(2, 0, 0, 0).Shrink(0)
+	t := tok(c)
+	section := ui.Column(c.Key("workspace-archive-section")).FillWidth().Gap(design.Sp(0.5)).Margin(design.Sp(0.5), 0, 0, 0).Shrink(0)
 	limit := ui.Local(section, "archive-visible-limit", func() int { return archiveSessionPageBase })
 	section.Transition(workspaceArchiveSectionMotion(c, section, m.Snapshot)).Children(func() {
 		label := i18n.T(i18n.KeySidebarArchivedSection)
-		header := ui.ButtonBase(c.Key("workspace-archive-disclosure")).Label(workspaceText("已归档分组", "Archived group")).
-			Role(ui.RoleDisclosure).Expanded(*m.archiveExpanded).
-			FillWidth().Height(34).Padding(0, 8).Gap(6).Radius(12).
-			BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Cursor(ui.CursorPointer)
+		header := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonSM,
+			Label:   workspaceText("已归档分组", "Archived group"),
+			Key:     "workspace-archive-disclosure",
+			Content: func() {},
+		}).Role(ui.RoleDisclosure).Expanded(*m.archiveExpanded).
+			FillWidth().Height(34).Padding(0, design.Sp(2)).Gap(design.Sp(1.5)).Radius(design.RadiusXL).
+			BorderWidth(0).AlignItems(ui.Center)
 		if header.Hovered() || header.FocusWithin() {
-			header.Background(selectedBackground(theme.Resolve(m.ThemeID).Active(m.SystemDark)))
+			header.Background(sbSelectedBg(t))
 		}
 		header.Children(func() {
 			ui.Box(c.Key("archive-chevron-seat")).Width(16).Height(20).Shrink(0).Center().Children(func() {
-				ui.Icon(c, workspaceChevronArtwork).Size(14, 14).TextColor(ink).
+				ui.Icon(c, workspaceChevronArtwork).Size(design.IconXS, design.IconXS).TextColor(ink).
 					Rotate(groupChevronAngle(c, header, !*m.archiveExpanded))
 			})
-			ui.Text(c, label).Label(label).FontSize(theme.InterfaceSize(12)).FontWeight(500).
-				FixedLineHeight(theme.InterfaceSize(18)).TextColor(ink).Grow(1).MinWidth(0).SingleLine()
+			ui.Text(c, label).Label(label).FontSize(fs(12)).FontWeight(design.WeightMedium).
+				FixedLineHeight(fs(18)).TextColor(ink).Grow(1).MinWidth(0).SingleLine()
 		})
 		if header.Clicked() {
 			*m.archiveExpanded = !*m.archiveExpanded
@@ -50,7 +54,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 		}
 		if len(items) == 0 {
 			ui.Text(c.Key("archive-empty"), workspaceText("暂无已归档会话", "No archived sessions")).
-				FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8)
+				FontSize(fs(12)).TextColor(muted).Padding(design.Sp(1), design.Sp(2))
 			return
 		}
 		if *limit < archiveSessionPageBase {
@@ -72,7 +76,7 @@ func archivedSection(c *ui.Context, m Model, items []session.Item, ink, muted ui
 				ItemKey(func(i int) any { return visible[i].SessionID }).
 				FillWidth().MinWidth(0).MinHeight(0).
 				MaxHeight(sidebarListMaxHeight(m, c, capRatio)).
-				Gap(2).
+				Gap(design.Sp(0.5)).
 				ScrollbarsVisible(m.scrollbarsVisible)
 			list.Rows(func(lr ui.ListRow) {
 				item := visible[lr.Index]

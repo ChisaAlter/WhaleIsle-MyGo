@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // TestUpdateSeatSpeaksTheActiveLocale pins the sidebar's update entry: in a
@@ -28,7 +27,7 @@ func TestUpdateSeatSpeaksTheActiveLocale(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
 	for phase, want := range phases {
 		tt := ui.NewTester(func(c *ui.Context) {
-			desktopUpdateSeat(c, Model{}, phase, theme.Resolve("deepseek.light").Light)
+			desktopUpdateSeat(c, Model{}, phase)
 		}, 60, 60)
 		painted := strings.Join(tt.Texts(), "\n")
 		if !strings.Contains(painted, want) {
@@ -53,7 +52,7 @@ func TestConnectionSeatSpeaksTheActiveLocale(t *testing.T) {
 		{"recovered", "连接成功"},
 	} {
 		tt := ui.NewTester(func(c *ui.Context) {
-			connectionStatusSeat(c, Model{OnReconnect: func() {}}, tc.status, theme.Resolve("deepseek.light").Light, true)
+			connectionStatusSeat(c, Model{OnReconnect: func() {}}, tc.status)
 		}, 60, 60)
 		painted := strings.Join(tt.Texts(), "\n")
 		if !strings.Contains(painted, tc.want) {

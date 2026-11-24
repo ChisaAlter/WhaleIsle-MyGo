@@ -2,7 +2,8 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -10,8 +11,8 @@ import (
 // Installed SidebarRight GuideBody: an actual page in the current pane, with
 // two columns of resource doors. Picking a door replaces this guide occurrence.
 func workspaceResourceGuide(c *ui.Context, m Model) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+	t := tk(c)
+	fg, muted := t.Foreground, t.MutedForeground
 	entries := workspaceResourceEntries(m)
 	if m.OnOpenMarket != nil || m.OnCreatePluginDraft != nil {
 		entries = append(entries, workspaceResourceEntry{
@@ -25,18 +26,18 @@ func workspaceResourceGuide(c *ui.Context, m Model) {
 	if m.FilePaneWidth != nil && *m.FilePaneWidth > 0 {
 		width = min(width, max(float32(0), *m.FilePaneWidth-32))
 	}
-	ui.Scroll(c.Key("workspace-resource-guide")).Label(sidebarRightText("tab.guide.heading")).Fill().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().MinHeightPercent(100).Padding(16).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Column(c).FillWidth().Gap(4).Margin(0, 0, 16, 0).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, sidebarRightText("tab.guide.heading")).FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg)
+	coss.ScrollArea(c.Key("workspace-resource-guide"), coss.ScrollAreaOptions{}, func() {
+		ui.Column(c).FillWidth().MinHeightPercent(100).Padding(design.Sp(4)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+			ui.Column(c).FillWidth().Gap(design.Sp(1)).Margin(0, 0, design.Sp(4), 0).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, sidebarRightText("tab.guide.heading")).FontSize(theme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg)
 				ui.Text(c, paneLabel("选择要在右侧栏显示的内容。", "Choose what to show in the right sidebar.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			})
-			ui.Column(c).Width(width).MaxWidthPercent(100).Gap(8).Children(func() {
+			ui.Column(c).Width(width).MaxWidthPercent(100).Gap(design.Sp(2)).Children(func() {
 				for i := 0; i < len(entries); i += 2 {
-					ui.Row(c).FillWidth().Gap(8).Children(func() {
+					ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
 						for j := i; j < min(i+2, len(entries)); j++ {
 							entry := entries[j]
-							button := ui.Button(c.Key("resource-guide:"+entry.id), "").Label(entry.title).Tooltip(entry.description).Width((width - 8) / 2).Height((width - 8) / 2).MinWidth(0).Padding(12).Radius(8).BorderWidth(0).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Disabled(entry.disabled)
+							button := ui.Button(c.Key("resource-guide:"+entry.id), "").Label(entry.title).Tooltip(entry.description).Width((width - 8) / 2).Height((width - 8) / 2).MinWidth(0).Padding(design.Sp(3)).Radius(design.RadiusMD).BorderWidth(0).Background(frameInsetBg(t)).Disabled(entry.disabled)
 							if !entry.disabled {
 								button.Cursor(ui.CursorPointer)
 							}
@@ -51,9 +52,9 @@ func workspaceResourceGuide(c *ui.Context, m Model) {
 								})
 							}
 							button.Children(func() {
-								ui.Column(c).Fill().MinWidth(0).AlignItems(ui.Center).Justify(ui.Center).Gap(4).Children(func() {
+								ui.Column(c).Fill().MinWidth(0).AlignItems(ui.Center).Justify(ui.Center).Gap(design.Sp(1)).Children(func() {
 									ui.Icon(c, entry.icon).Size(20, 20).TextColor(muted)
-									ui.Text(c, entry.title).FontSize(theme.InterfaceSize(14)).FontWeight(500).TextColor(fg).SingleLine().Ellipsis("…").MaxWidthPercent(100)
+									ui.Text(c, entry.title).FontSize(theme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg).SingleLine().Ellipsis("…").MaxWidthPercent(100)
 									if entry.description != "" {
 										ui.Text(c, entry.description).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted).TextAlign(ui.Center).MaxLines(2).MaxWidthPercent(100)
 									}
@@ -67,5 +68,5 @@ func workspaceResourceGuide(c *ui.Context, m Model) {
 				}
 			})
 		})
-	})
+	}).Label(sidebarRightText("tab.guide.heading")).Fill().MinHeight(0)
 }

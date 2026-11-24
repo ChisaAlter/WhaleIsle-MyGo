@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"runtime"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -36,14 +37,22 @@ func drawSidebarRestoreCaption(c *ui.Context, sizes *LayoutSizes, colors chrome.
 	}
 	chrome.TitleBarWithLeadingActions(c, "", colors, git, func() {
 		label := i18n.T(i18n.KeySidebarExpand)
-		if ui.Button(c, "☰").Label(label).Tooltip(label).Width(28).Height(28).
-			Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(colors.Foreground).Clicked() {
+		if coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonIconSM,
+			Label:   label,
+			Content: func() { ui.Text(c, "☰").TextColor(colors.Foreground) },
+		}).Tooltip(label).Clicked() {
 			sizes.ToggleSidebar()
 		}
 		if len(onNewSession) > 0 && onNewSession[0] != nil {
 			label := i18n.T(i18n.KeySidebarNewSessionFallback)
-			if ui.Button(c, "+").Label(label).Tooltip(label).Width(28).Height(28).
-				Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(colors.Foreground).Clicked() {
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconSM,
+				Label:   label,
+				Content: func() { ui.Text(c, "+").TextColor(colors.Foreground) },
+			}).Tooltip(label).Clicked() {
 				onNewSession[0]()
 			}
 		}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 // titleCrawl drives Rows.module.css's hover crawl: a Session title that does not
@@ -74,7 +74,7 @@ func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Co
 	offset := float32(0)
 	moving := false
 	if hovered {
-		measured, _ := c.MeasureText(0, ui.Span{Text: label, Size: theme.InterfaceSize(14)})
+		measured, _ := c.MeasureText(0, ui.Span{Text: label, Size: fs(14)})
 		content = measured + 10
 		crawl.start(c.Now())
 		if c.Preferences().ReduceMotion {
@@ -90,8 +90,8 @@ func sessionTitleCell(c *ui.Context, row ui.Element, id, label string, ink ui.Co
 	lane.FadeHorizontal(left, right)
 	lane.ObserveLayout(func(r ui.Rect) { crawl.cell = r.W })
 	lane.Children(func() {
-		text := ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(ink).MinWidth(0).FillWidth().
-			Padding(0, 6, 0, 4)
+		text := ui.Text(c, label).FontSize(fs(14)).TextColor(ink).MinWidth(0).FillWidth().
+			Padding(0, design.Sp(1.5), 0, design.Sp(1))
 		if moving || offset != 0 {
 			// Keep the far edge exposed after settling, including reduced motion.
 			text.NoWrap().Width(content)

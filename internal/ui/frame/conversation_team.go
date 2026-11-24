@@ -5,10 +5,9 @@ import (
 	"time"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/projects"
-	"whaleisle/internal/ui/theme"
 )
 
 // The header and Sidebar share one owner-scoped view, but member navigation
@@ -56,7 +55,7 @@ func conversationTeamAction(c *ui.Context, m Model, snap session.ViewState, comp
 			state.HoverAt = time.Time{}
 			state.HoverDismissed = false
 		}
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+		t := tk(c)
 		w, h := viewportDIP(c)
 		width := min(float32(500), max(float32(0), w-32))
 		visibleTasks := 0
@@ -73,7 +72,7 @@ func conversationTeamAction(c *ui.Context, m Model, snap session.ViewState, comp
 		open := state.FloatingOpen
 		ui.PopoverBase(c.Key("conversation-team-popover"), anchor, &open, func(panel ui.Element) {
 			headerPopupInset(c, panel, anchor, width, w, 16)
-			panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(5, 0, 0, 0).Padding(8, 2, 0, 2).Border(.5, chrome.Color(colors.Border)), colors, m.SystemDark, chrome.Color(colors.BG), 12).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, .18)))
+			panel = framePopoverPanel(panel.Label(paneLabel("智能体团队", "Agent Team")).Width(width).MaxHeight(min(float32(680), max(float32(0), h-32))).MinHeight(0).Margin(design.Sp(1.25), 0, 0, 0).Padding(design.Sp(2), design.Sp(0.5), 0, design.Sp(0.5)), t, design.RadiusXL-design.Sp(0.5))
 			panel.Children(func() {
 				model.ThemeID, model.SystemDark = m.ThemeID, m.SystemDark
 				model.Columns = 1

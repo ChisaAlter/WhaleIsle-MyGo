@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
+	"whaleisle/internal/ui/design"
 )
 
 // Inspect final memory-renderer nodes without mutating them or exporting a
@@ -64,6 +65,10 @@ func TestScheduleHoverLayoutOriginalRowsColorsAndSelectableTiming(t *testing.T) 
 	if tt.HasText(rows[2].Title) || !tt.HasText("1 more") {
 		t.Fatalf("task limit or omission differs: %q", tt.Texts())
 	}
+	dt := design.Resolve(design.Light, ui.Color{}, ui.Color{})
+	opaque := func(c ui.Color) ui.Color { return ui.RGB(c.R, c.G, c.B) }
+	wantPrimary := opaque(dt.PopoverForeground)
+	wantMuted := opaque(dt.MutedForeground)
 	var taskBoxes []ui.Rect
 	var selectableTiming string
 	var timingBox ui.Rect
@@ -85,21 +90,21 @@ func TestScheduleHoverLayoutOriginalRowsColorsAndSelectableTiming(t *testing.T) 
 		if icon.FieldByName("role").Uint() != uint64(ui.RoleNone) || iconBox.FieldByName("role").Uint() != uint64(ui.RoleNone) || icon.FieldByName("svg").Pointer() != reflect.ValueOf(sessionHoverTaskClockArtwork).Pointer() {
 			t.Fatal("task clock is not the exact decorative regular primitive")
 		}
-		if scheduleLayoutColor(icon.FieldByName("ts").FieldByName("color")) != ui.RGB(207, 211, 214) {
-			t.Fatal("clock ink differs from #CFD3D6")
+		if scheduleLayoutColor(icon.FieldByName("ts").FieldByName("color")) != wantPrimary {
+			t.Fatal("clock ink differs from PopoverForeground")
 		}
-		if titleBox.X+titleBox.W > card.X+card.W-15.9 || rowBox.X+rowBox.W > card.X+card.W-15.9 || bodyBox.W != 192 {
+		if titleBox.X+titleBox.W > card.X+card.W-15.9 || rowBox.X+rowBox.W > card.X+card.W-15.9 || bodyBox.W != 190 {
 			t.Fatalf("task escaped compact card: title=%+v row=%+v body=%+v card=%+v", titleBox, rowBox, bodyBox, card)
 		}
 		style := title.FieldByName("ts")
-		if style.FieldByName("size").Float() != 12 || style.FieldByName("lineHeight").Float() != 16 || !style.FieldByName("fixedLine").Bool() || scheduleLayoutColor(style.FieldByName("color")) != ui.RGB(255, 255, 255) {
-			t.Fatal("task name typography differs from white12/16")
+		if style.FieldByName("size").Float() != 12 || style.FieldByName("lineHeight").Float() != 16 || !style.FieldByName("fixedLine").Bool() || scheduleLayoutColor(style.FieldByName("color")) != wantPrimary {
+			t.Fatal("task name typography differs from PopoverForeground 12/16")
 		}
 		timing := title.FieldByName("next").Elem()
 		spans := timing.FieldByName("spans")
 		absolute, relative := schedulePreviewParts(task, start.Add(800*time.Millisecond))
 		prefix := scheduleHoverFrequency(task, start.Add(800*time.Millisecond)) + " · " + absolute + " "
-		if spans.Len() != 2 || spans.Index(0).FieldByName("Text").String() != prefix || spans.Index(1).FieldByName("Text").String() != relative || scheduleLayoutColor(spans.Index(0).FieldByName("Color")) != ui.RGB(207, 211, 214) || scheduleLayoutColor(spans.Index(1).FieldByName("Color")) != ui.RGB(173, 178, 184) {
+		if spans.Len() != 2 || spans.Index(0).FieldByName("Text").String() != prefix || spans.Index(1).FieldByName("Text").String() != relative || scheduleLayoutColor(spans.Index(0).FieldByName("Color")) != wantPrimary || scheduleLayoutColor(spans.Index(1).FieldByName("Color")) != wantMuted {
 			t.Fatalf("timing must remain one inline paragraph with distinct absolute/relative ink; text=%q", timing.FieldByName("text").String())
 		}
 		if timing.FieldByName("ts").FieldByName("lineHeight").Float() != 16 || timing.FieldByName("ts").FieldByName("size").Float() != 12 {
@@ -117,7 +122,7 @@ func TestScheduleHoverLayoutOriginalRowsColorsAndSelectableTiming(t *testing.T) 
 		t.Fatal("tasks do not have8DIP separation")
 	}
 	omission := scheduleLayoutTextNode(t, tt, "1 more")
-	if scheduleLayoutColor(omission.FieldByName("ts").FieldByName("color")) != ui.RGB(173, 178, 184) || !scheduleLayoutNear(scheduleLayoutBox(omission).Y, taskBoxes[1].Y+taskBoxes[1].H+8) {
+	if scheduleLayoutColor(omission.FieldByName("ts").FieldByName("color")) != wantMuted || !scheduleLayoutNear(scheduleLayoutBox(omission).Y, taskBoxes[1].Y+taskBoxes[1].H+8) {
 		t.Fatal("omission placement/ink differs from installed CSS")
 	}
 	navigationEvidence(t, tt, "schedule-hover-task-layout")
