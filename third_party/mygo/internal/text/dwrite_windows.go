@@ -730,13 +730,13 @@ func rendererDrawInlineObject(this, context, a2, a3, a4, a5, a6, a7 uintptr) uin
 
 // dwRun is a glyph run of a layout, referencing flat scratch slices guarded by drawMu.
 type dwRun struct {
-	face          uintptr
-	size          float32
-	rtl           bool
-	pos, n        uint32 // the run's code units
-	gOff, gLen    int
-	offOff        int // -1 when run has no glyphOffsets
-	clOff, clLen  int
+	face         uintptr
+	size         float32
+	rtl          bool
+	pos, n       uint32 // the run's code units
+	gOff, gLen   int
+	offOff       int // -1 when run has no glyphOffsets
+	clOff, clLen int
 }
 
 func collect(run *dwGlyphRun, desc *dwGlyphRunDescription) {
