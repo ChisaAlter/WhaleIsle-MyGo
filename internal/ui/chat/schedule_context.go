@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -48,7 +49,7 @@ func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
 			_, settled = m.ScheduleStore.ReceiptCatalogState(receipt)
 		}
 		deleted := settled && !found
-		ui.Column(c).Padding(8, 12).Gap(4).Border(1, c.Theme().Border).Radius(6).Children(func() {
+		chatCardSurface(c, ui.Column(c).Padding(design.Sp(2), design.Sp(3)).Gap(design.Sp(1)), design.RadiusSM).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatScheduleTask)+" · "+row.Title).Bold()
 			ui.Text(c, row.Prompt).FontSize(12)
 			ui.Text(c, schedstore.TimingLabel(row)).FontSize(11)
@@ -59,7 +60,8 @@ func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
 				}
 				ui.Text(c, label).FontSize(11)
 			}
-			if stdButton(c, palette, i18n.T(i18n.KeyChatScheduleDetails), buttonGhost, false).Disabled(deleted || !snap.ClientReady || m.OnOpenScheduleTask == nil).Clicked() && m.OnOpenScheduleTask != nil {
+			disabled := deleted || !snap.ClientReady || m.OnOpenScheduleTask == nil
+			if stdButton(c, palette, i18n.T(i18n.KeyChatScheduleDetails), buttonGhost, disabled).Clicked() && !disabled {
 				m.OnOpenScheduleTask(row)
 			}
 		})

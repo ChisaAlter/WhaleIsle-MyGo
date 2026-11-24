@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -80,7 +81,7 @@ func paintTrajectoryRequestTabs(c *ui.Context, selected *string, schema, header 
 	if schema == "" && header == "" {
 		return
 	}
-	ui.Row(c).Gap(6).Children(func() {
+	ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
 		for _, tab := range []struct{ id, label, body string }{{"schema", "Schema", schema}, {"request-header", "Request header", header}} {
 			if tab.body == "" {
 				continue

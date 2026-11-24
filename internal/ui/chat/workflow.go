@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/workflowrun"
 )
@@ -60,9 +61,10 @@ func workflowUnnamedMemberLabel() string {
 	return workflowText("空成员名", "Empty member name")
 }
 func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardStyle) {
+	t := design.For(c)
 	// State belongs to the exact Host/session binding, run and phase, not labels.
 	key := fmt.Sprintf("workflow:%q:%q", m.Snapshot.PlanHistoryBinding, run.ID)
-	card := ui.Column(c.Key(key)).FillWidth().Gap(6).Padding(10).Border(1, st.Border).Radius(8)
+	card := chatCardSurface(c, ui.Column(c.Key(key)).FillWidth().Gap(design.Sp(1.5)).Padding(design.Sp(2.5)), design.RadiusMD)
 	disclosures := ui.Local(card, "status-disclosures", func() workflowDisclosures { return newWorkflowDisclosures(run) })
 	phaseStartedCycle := disclosures.syncPhases(run)
 	facts := workflowRunFacts(run)
@@ -75,8 +77,8 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 		count += len(p.Members)
 	}
 	card.Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			header := ui.Button(c, "").Label("Workflow " + name).Grow(1).FontSize(13)
+		ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
+			header := ui.Button(c, "").Label("Workflow " + name).Grow(1).FontSize(13).Cursor(ui.CursorPointer)
 			clicked := header.Clicked()
 			// Keep a pending header press through release. Keyboard departure
 			// still settles the deferred clean collapse of its content.
@@ -88,12 +90,12 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				disclosures.run.toggle()
 			}
 			header.Children(func() { ui.Text(c, workflowDisclosureArrow(disclosures.run.open)+name) })
-			ink := st.FG
+			ink := t.Foreground
 			if workflowAbnormal(run.Status) {
-				ink = st.Err
+				ink = t.DestructiveForeground
 			}
 			ui.Text(c, workflowStatus(run.Status)).FontSize(11).TextColor(ink)
-			ui.Text(c, workflowMemberCount(count)).FontSize(11).TextColor(st.Muted)
+			ui.Text(c, workflowMemberCount(count)).FontSize(11).TextColor(t.MutedForeground)
 		})
 		if !disclosures.run.open {
 			for _, phase := range run.Phases {
@@ -101,9 +103,9 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 			}
 			return
 		}
-		ui.Column(c.Key("run-content")).Bind(&disclosures.run.content).FillWidth().Gap(6).Children(func() {
+		ui.Column(c.Key("run-content")).Bind(&disclosures.run.content).FillWidth().Gap(design.Sp(1.5)).Children(func() {
 			if count == 0 {
-				ui.Text(c, workflowEmptyLabel()).FontSize(11).TextColor(st.Muted)
+				ui.Text(c, workflowEmptyLabel()).FontSize(11).TextColor(t.MutedForeground)
 			}
 			for _, phase := range run.Phases {
 				p := phase
@@ -116,8 +118,8 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				}
 				pk := key + ":" + p.Key
 				phaseState := disclosures.phases[p.Key]
-				ui.Column(c.Key(pk)).FillWidth().Gap(5).Padding(5, 0, 5, 12).Children(func() {
-					header := ui.Button(c, "").Label("Workflow phase " + phaseName).FontSize(11)
+				ui.Column(c.Key(pk)).FillWidth().Gap(design.Sp(1.25)).Padding(design.Sp(1.25), 0, design.Sp(1.25), design.Sp(3)).Children(func() {
+					header := ui.Button(c, "").Label("Workflow phase " + phaseName).FontSize(11).Cursor(ui.CursorPointer)
 					clicked := header.Clicked()
 					phaseState.advance(workflowPhaseFacts(p), phaseState.content.FocusWithin(c) || phaseState.pendingCleanCollapse && (header.Pressed() || clicked))
 					if clicked {
@@ -129,7 +131,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 					if !phaseState.open {
 						return
 					}
-					ui.Column(c.Key("members")).Bind(&phaseState.content).FillWidth().Gap(2).Padding(0, 0, 0, 16).Children(func() {
+					ui.Column(c.Key("members")).Bind(&phaseState.content).FillWidth().Gap(design.Sp(0.5)).Padding(0, 0, 0, design.Sp(4)).Children(func() {
 						for _, member := range p.Members {
 							ch := member
 							label := ch.Label
@@ -145,12 +147,12 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				})
 			}
 		})
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c).Gap(design.Sp(2)).Children(func() {
 			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatWorkflowCopy), buttonGhost, false).Clicked() {
 				raw, _ := json.MarshalIndent(run.Events, "", "  ")
 				mygo.Clipboard.WriteText(string(raw))
 			}
-			ui.Text(c, i18n.T(i18n.KeyChatWorkflowEndedNote)).FontSize(10).TextColor(st.Muted)
+			ui.Text(c, i18n.T(i18n.KeyChatWorkflowEndedNote)).FontSize(10).TextColor(t.MutedForeground)
 		})
 	})
 }
@@ -182,6 +184,7 @@ func workflowPhaseSummary(members []workflowrun.Member) string {
 }
 
 func paintWorkflowMember(c *ui.Context, member workflowrun.Member, label string, available bool, st ToolCardStyle, open func()) {
+	t := design.For(c)
 	owner := ui.Row(c.Key(fmt.Sprintf("member:%.0f", member.Seq))).FillWidth().MinWidth(0)
 	action := ui.Local(owner, "action", func() ui.Handle { return ui.Handle{} })
 	owner.Children(func() {
@@ -191,7 +194,7 @@ func paintWorkflowMember(c *ui.Context, member workflowrun.Member, label string,
 		if available || action.Focused(c) {
 			row = ui.Button(c.Key("member-row"), "").Label(label)
 			if available {
-				row.Label(workflowText("打开 ", "Open ") + label)
+				row.Label(workflowText("打开 ", "Open ") + label).Cursor(ui.CursorPointer)
 			}
 		} else {
 			row = ui.Row(c.Key("member-row")).Label(label)
@@ -200,27 +203,27 @@ func paintWorkflowMember(c *ui.Context, member workflowrun.Member, label string,
 		if size <= 0 {
 			size = 14
 		}
-		row.Bind(action).FillWidth().MinWidth(0).MinHeight(size + 10).Padding(0).Gap(12).
-			AlignItems(ui.Center).Radius(4).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
+		row.Bind(action).FillWidth().MinWidth(0).MinHeight(size + 10).Padding(0).Gap(design.Sp(3)).
+			AlignItems(ui.Center).Radius(design.Sp(1)).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
 		row.Children(func() {
 			ui.Box(c).Width(16).Height(size + 10).Shrink(0).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 				paintWorkflowStateDot(c, member.Status)
 			})
-			labelWrap := ui.Row(c).Grow(1).MinWidth(0).Height(size+10).Padding(0, 2).Radius(4).AlignItems(ui.Center)
+			labelWrap := ui.Row(c).Grow(1).MinWidth(0).Height(size+10).Padding(0, design.Sp(0.5)).Radius(design.Sp(1)).AlignItems(ui.Center)
 			if row.FocusVisible() {
-				labelWrap.Border(1, c.Theme().Focus)
+				labelWrap.Border(design.BorderWidth, t.Ring)
 			}
 			labelWrap.Children(func() {
-				text := ui.Text(c, label).Grow(1).MinWidth(0).MaxLines(1).FontSize(size).FixedLineHeight(size + 10).TextColor(st.Muted)
+				text := ui.Text(c, label).Grow(1).MinWidth(0).MaxLines(1).FontSize(size).FixedLineHeight(size + 10).TextColor(t.MutedForeground)
 				if available {
-					text.TextColor(st.Accent).FontWeight(500)
+					text.TextColor(t.Primary).FontWeight(500)
 					if row.Hovered() || row.FocusVisible() {
 						text.Underline()
 					}
 				}
 			})
 			ui.Text(c, workflowStatus(member.Status)).Width(64).Shrink(0).MaxLines(1).
-				FontSize(size - 1).FixedLineHeight(size + 7).TextAlign(ui.End).TextColor(st.Muted)
+				FontSize(size - 1).FixedLineHeight(size + 7).TextAlign(ui.End).TextColor(t.MutedForeground)
 		})
 		if available && row.Clicked() {
 			open()
@@ -231,20 +234,21 @@ func paintWorkflowMember(c *ui.Context, member workflowrun.Member, label string,
 // StateDot's ongoing ring is the only animated state. All solid states occupy
 // a ten-DIP slot with a six-DIP core; elapsed time keeps new rings in phase.
 func paintWorkflowStateDot(c *ui.Context, status string) {
+	t := design.For(c)
 	if status != "running" {
-		ink := c.Theme().Success
+		ink := t.Success
 		if status == "failed" {
-			ink = c.Theme().Danger
+			ink = t.Destructive
 		} else if status == "cancelled" || status == "interrupted" {
-			ink = c.Theme().Warning
+			ink = t.Warning
 		}
 		ui.Box(c).Width(10).Height(10).PassThrough().Children(func() {
-			ui.Box(c).Width(6).Height(6).Margin(2).Radius(3).Background(ink)
+			ui.Box(c).Width(6).Height(6).Margin(design.Sp(0.5)).Radius(design.RadiusFull).Background(ink)
 		})
 		return
 	}
 	reduced := c.Preferences().ReduceMotion
-	ink := c.Theme().TextMuted
+	ink := t.MutedForeground
 	ui.Box(c).Width(14).Height(14).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
 		cx, cy, radius := r.X+r.W/2, r.Y+r.H/2, r.W*9.5/24
 		var track ui.Path

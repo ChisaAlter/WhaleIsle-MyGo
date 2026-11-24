@@ -4,7 +4,8 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -36,7 +37,7 @@ var (
 // toolDetailsLines paints the installed `ul.lines`: one disc per recorded string
 // inset 18px, a 4px gap between lines, and the recorded whitespace kept.
 func toolDetailsLines(c *ui.Context, lines []string, font string, ink ui.Color) {
-	list := ui.Column(c.Key("lines")).FillWidth().MinWidth(0).Margin(6, 0, 0, 0).Gap(4)
+	list := ui.Column(c.Key("lines")).FillWidth().MinWidth(0).Margin(design.Sp(1.5), 0, 0, 0).Gap(design.Sp(1))
 	list.Children(func() {
 		for index, line := range lines {
 			ui.Row(c.Key(index)).FillWidth().MinWidth(0).AlignItems(ui.Start).Children(func() {
@@ -53,7 +54,7 @@ func toolDetailsLines(c *ui.Context, lines []string, font string, ink ui.Color) 
 func toolDetailsCode(c *ui.Context, code toolDetailCode, st ToolCardStyle, ink toolDetailsPalette, codeOnly bool) {
 	region := ui.Scroll(c.Key("code")).FillWidth().MinWidth(0).MaxHeight(240)
 	if !codeOnly {
-		region.Margin(8, 0, 0, 0)
+		region.Margin(design.Sp(2), 0, 0, 0)
 	}
 	language := code.Language
 	if language == "" {
@@ -62,16 +63,16 @@ func toolDetailsCode(c *ui.Context, code toolDetailCode, st ToolCardStyle, ink t
 	// The code card keeps its banner at the top of its own viewport.
 	position := ui.Local(region, "position", func() ui.ScrollState { return ui.ScrollState{} })
 	region.TrackScroll(position).Children(func() {
-		markdown.ToolCodeBlock(c, language, code.Text, toolDetailsCodeStyle(st, ink), position.Y)
+		markdown.ToolCodeBlock(c, language, code.Text, toolDetailsCodeStyle(c, st, ink), position.Y)
 	})
 }
 
 // toolDetailsMarkdown paints the installed `markdown` prose entry with the
 // transcript's Markdown preset at the entry typography.
-func toolDetailsMarkdown(c *ui.Context, text string, st ToolCardStyle, ink toolDetailsPalette) {
-	column := ui.Column(c.Key("prose")).FillWidth().MinWidth(0).Margin(8, 0, 0, 0)
+func toolDetailsMarkdown(c *ui.Context, text string, _ ToolCardStyle, _ toolDetailsPalette) {
+	column := ui.Column(c.Key("prose")).FillWidth().MinWidth(0).Margin(design.Sp(2), 0, 0, 0)
 	column.Children(func() {
-		markdown.View(c, text, transcriptMarkdownStyle(ink.secondary, ink.tertiary, ink.background, st.Accent, chrome.Color(st.Colors.Hover), 13, darkSurface(st.FG), ink.secondary))
+		markdown.View(c, text, transcriptMarkdownStyleFor(c, 13))
 	})
 }
 
@@ -90,7 +91,7 @@ func toolDetailsHeadingTitle(c *ui.Context, item toolDetailItem, st ToolCardStyl
 			label += ":" + strconv.Itoa(*item.Location.Line)
 		}
 		button := ui.ButtonBase(c.Key("path")).Padding(0).Radius(0).Background(ui.Transparent).
-			AlignItems(ui.Start).Justify(ui.Start).Grow(1).MinWidth(0).Label(item.Title)
+			AlignItems(ui.Start).Justify(ui.Start).Grow(1).MinWidth(0).Label(item.Title).Cursor(ui.CursorPointer)
 		if hasStatusText {
 			button.MinWidth(12 * 13)
 		}
@@ -119,28 +120,29 @@ func toolDetailsHeadingTitle(c *ui.Context, item toolDetailItem, st ToolCardStyl
 
 // toolDetailsStatusGlyph paints the installed todo marker: the change sign, the
 // completed check, the in-progress play triangle or the pending square.
-func toolDetailsStatusGlyph(c *ui.Context, item toolDetailItem, st ToolCardStyle, ink toolDetailsPalette) {
+func toolDetailsStatusGlyph(c *ui.Context, item toolDetailItem, _ ToolCardStyle, ink toolDetailsPalette) {
+	t := design.For(c)
 	colour := ink.secondary
 	if item.Change != nil {
 		switch item.Change.Value {
 		case "added":
-			colour = st.OK
+			colour = t.SuccessForeground
 		case "removed":
-			colour = st.Err
+			colour = t.DestructiveForeground
 		}
 	}
 	ui.Row(c.Key("status")).Width(14).Height(18).Shrink(0).AlignItems(ui.Center).Justify(ui.Start).Children(func() {
 		switch {
 		case item.Change != nil && item.Change.Value == "added":
-			ui.Text(c, "+").Font(ink.font).FontSize(16).FixedLineHeight(18).TextColor(colour)
+			ui.Text(c, "+").Font(ink.font).FontSize(design.TextBase.Size).FixedLineHeight(18).TextColor(colour)
 		case item.Change != nil && item.Change.Value == "removed":
-			ui.Text(c, "−").Font(ink.font).FontSize(16).FixedLineHeight(18).TextColor(colour)
+			ui.Text(c, "−").Font(ink.font).FontSize(design.TextBase.Size).FixedLineHeight(18).TextColor(colour)
 		case item.Status != nil && item.Status.Value == "completed":
-			ui.Icon(c, toolDetailsCheckIcon).Size(14, 14).TextColor(colour).Role(ui.RoleNone)
+			ui.Icon(c, coss.IconCheck.SVG()).Size(design.IconXS, design.IconXS).TextColor(colour).Role(ui.RoleNone)
 		case item.Status != nil && item.Status.Value == "in_progress":
-			ui.Icon(c, toolDetailsPlayIcon).Size(14, 14).TextColor(colour).Role(ui.RoleNone)
+			ui.Icon(c, toolDetailsPlayIcon).Size(design.IconXS, design.IconXS).TextColor(colour).Role(ui.RoleNone)
 		default:
-			ui.Box(c).Size(10, 10).Shrink(0).Border(1, ink.tertiary).Radius(2)
+			ui.Box(c).Size(10, 10).Shrink(0).Border(design.BorderWidth, ink.tertiary).Radius(design.RadiusXS)
 		}
 	})
 }
@@ -160,9 +162,10 @@ func toolDetailsStatusText(c *ui.Context, item toolDetailItem, ink toolDetailsPa
 }
 
 // toolDetailsCodeStyle localizes the shared code card for this card's ink.
-func toolDetailsCodeStyle(st ToolCardStyle, ink toolDetailsPalette) markdown.Style {
-	return markdown.Style{FontSize: 13, FG: ink.secondary, Muted: ink.secondary, CodeBG: ink.background, Dark: darkSurface(st.FG),
-		ToolCodeLanguage: st.Muted, ToolCodeHover: chrome.Color(st.Colors.Hover),
+func toolDetailsCodeStyle(c *ui.Context, _ ToolCardStyle, ink toolDetailsPalette) markdown.Style {
+	t := design.For(c)
+	return markdown.Style{FontSize: 13, FG: ink.secondary, Muted: ink.secondary, CodeBG: ink.background, Dark: t.IsDark(),
+		ToolCodeLanguage: t.MutedForeground, ToolCodeHover: t.Accent,
 		CopyLabel: i18n.T(i18n.KeyToolDetailCopy), CopiedLabel: i18n.T(i18n.KeyToolDetailCopied),
 		WrapLabel: i18n.T(i18n.KeyToolDetailWrap), NoWrapLabel: i18n.T(i18n.KeyToolDetailUnwrap),
 		CodeLabel: i18n.T(i18n.KeyToolDetailCodeLabel)}
@@ -173,11 +176,12 @@ func toolDetailsCodeStyle(st ToolCardStyle, ink toolDetailsPalette) markdown.Sty
 // with the ordinary hairline between them. A code-only child keeps 4/0/0/20,
 // as the installed `:has(> code:only-child)` rule does.
 func toolDetailsGroupView(c *ui.Context, group toolDetailGroup, st ToolCardStyle, ink toolDetailsPalette, index int) {
+	t := design.For(c)
 	root := ui.Column(c.Key("group:"+strconv.Itoa(index))).FillWidth().MinWidth(0).
-		Margin(8, 0, 0, 0).BorderWidth(.5, 0, 0, 0).BorderColor(st.Border)
+		Margin(design.Sp(2), 0, 0, 0).BorderWidth(.5, 0, 0, 0).BorderColor(t.Border)
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
-		toolDetailsSummary(c, "summary", group.Label, ink.caption, ink.font, [4]float32{8, 0, 0, 0}, open)
+		toolDetailsSummary(c, "summary", group.Label, ink.caption, ink.font, [4]float32{design.Sp(2), 0, 0, 0}, open)
 		if !*open {
 			return
 		}
@@ -185,7 +189,7 @@ func toolDetailsGroupView(c *ui.Context, group toolDetailGroup, st ToolCardStyle
 		items.Children(func() {
 			for childIndex, child := range group.Items {
 				if childIndex > 0 {
-					ui.Box(c).FillWidth().Height(toolCSSHalfBorder(c)).Shrink(0).Background(st.Border)
+					ui.Box(c).FillWidth().Height(toolCSSHalfBorder(c)).Shrink(0).Background(t.Border)
 				}
 				toolDetailsItem(c, child, st, ink, 0, true, childIndex)
 			}
@@ -197,11 +201,12 @@ func toolDetailsGroupView(c *ui.Context, group toolDetailGroup, st ToolCardStyle
 // list. Its summary is the muted count at 9/14, and its entries use the ordinary
 // item padding once opened, so the container never reserves the Inspect inset.
 func toolDetailsUnchangedView(c *ui.Context, unchanged toolDetailsUnchanged, st ToolCardStyle, ink toolDetailsPalette) {
+	t := design.For(c)
 	root := ui.Column(c.Key("unchanged")).FillWidth().MinWidth(0).
-		BorderWidth(.5, 0, 0, 0).BorderColor(st.Border)
+		BorderWidth(.5, 0, 0, 0).BorderColor(t.Border)
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
-		toolDetailsSummary(c, "summary", unchanged.Label, ink.tertiary, ink.font, [4]float32{9, 14, 9, 14}, open)
+		toolDetailsSummary(c, "summary", unchanged.Label, ink.tertiary, ink.font, [4]float32{design.Sp(2.25), design.Sp(3.5), design.Sp(2.25), design.Sp(3.5)}, open)
 		if !*open {
 			return
 		}
@@ -209,9 +214,9 @@ func toolDetailsUnchangedView(c *ui.Context, unchanged toolDetailsUnchanged, st 
 		items.Children(func() {
 			for index, item := range unchanged.Items {
 				if index > 0 {
-					ui.Box(c).FillWidth().Height(toolCSSHalfBorder(c)).Shrink(0).Background(st.Border)
+					ui.Box(c).FillWidth().Height(toolCSSHalfBorder(c)).Shrink(0).Background(t.Border)
 				}
-				toolDetailsItem(c, item, st, ink, 14, false, index)
+				toolDetailsItem(c, item, st, ink, design.Sp(3.5), false, index)
 			}
 		})
 	})
@@ -222,15 +227,15 @@ func toolDetailsUnchangedView(c *ui.Context, unchanged toolDetailsUnchanged, st 
 // the installed native element is.
 func toolDetailsSummary(c *ui.Context, key, label string, ink ui.Color, font string, padding [4]float32, open *bool) {
 	row := ui.ButtonBase(c.Key(key)).FillWidth().MinWidth(0).Shrink(0).
-		Padding(padding[0], padding[1], padding[2], padding[3]).Gap(6).
+		Padding(padding[0], padding[1], padding[2], padding[3]).Gap(design.Sp(1.5)).
 		AlignItems(ui.Center).Justify(ui.Start).Background(ui.Transparent).Radius(0).
-		Role(ui.RoleDisclosure).Expanded(*open).Label(label)
+		Role(ui.RoleDisclosure).Expanded(*open).Label(label).Cursor(ui.CursorPointer)
 	if row.Clicked() {
 		*open = !*open
 		c.Invalidate()
 	}
 	row.Children(func() {
-		chevron := ui.Icon(c, toolDetailsChevron).Size(14, 14).Shrink(0).TextColor(ink).Role(ui.RoleNone).PassThrough()
+		chevron := ui.Icon(c, coss.IconChevronRight.SVG()).Size(design.IconXS, design.IconXS).Shrink(0).TextColor(ink).Role(ui.RoleNone).PassThrough()
 		if *open {
 			chevron.Rotate(90)
 		}

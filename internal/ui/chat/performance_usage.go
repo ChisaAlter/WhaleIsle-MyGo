@@ -7,7 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -62,7 +63,7 @@ func completedTurnStatus(msg session.Message) string {
 
 // TurnUsageView is the compact action pill and its anchored exact-accounting
 // dialog. Details never expand the transcript's row height.
-func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) {
+func TurnUsageView(c *ui.Context, m Model, msg session.Message, _ ui.Color) {
 	if m.Preferences.PerformanceUsage == "compact" {
 		return
 	}
@@ -70,6 +71,7 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 	if !ok {
 		return
 	}
+	t := design.For(c)
 	key := fmt.Sprintf("turn-usage:%s:%s:%.0f", m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, msg.Seq)
 	root := ui.Row(c.Key(key)).MinWidth(0)
 	open := ui.Local(root, "open", func() bool { return false })
@@ -84,7 +86,9 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 			summaryLabel = i18n.ChatParityf(i18n.KeyParityChatTurnUsageSummaryWithCache, "total", totalCompact, "percent", pct)
 			summaryAlt = i18n.ChatParityf(i18n.KeyParityChatTurnUsageSummaryWithCacheV2, "total", totalCompact, "percent", pct)
 		}
-		trigger := ui.Button(c, "").Label(i18n.T(i18n.KeyChatUsageTitle)).Tooltip(summaryLabel).Description(summaryLabel).Height(28+delta).MinWidth(0).Padding(0, 8).Gap(4).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Expanded(*open)
+		trigger := ui.Button(c, "").Label(i18n.T(i18n.KeyChatUsageTitle)).Tooltip(summaryLabel).Description(summaryLabel).
+			Height(28+delta).MinWidth(0).Padding(0, design.Sp(2)).Gap(design.Sp(1)).Radius(design.RadiusMD).
+			BorderWidth(0).Background(ui.Transparent).TextColor(t.MutedForeground).Cursor(ui.CursorPointer).Expanded(*open)
 		trigger.Children(func() {
 			ui.Box(c).Absolute().Fill().PassThrough().Label(summaryLabel)
 			if summaryAlt != "" && summaryAlt != summaryLabel {
@@ -99,41 +103,44 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, muted ui.Color) 
 		if trigger.Clicked() {
 			*open = !*open
 		}
-		ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-			w, _ := c.Size()
-			// stat-dialog.module.css .panel: width max-content within
-			// min(300)/max(440) bounds, anchored above the trigger's left.
-			chrome.PopoverReveal(c, chrome.FrostSurface(panel.Role(ui.RoleDialog).AttachTo(trigger, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 8, 0).MinWidth(min(float32(300), max(float32(0), w-24))).MaxWidth(min(float32(440), max(float32(0), w-24))).MaxWidthPercent(96).Padding(16).Gap(6), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().Surface, 16).Border(.5, c.Theme().Border)).Children(func() {
-				ui.Row(c).FillWidth().Gap(16).Children(func() {
-					ui.Icon(c, usageDatabaseIcon).Size(14, 14).TextColor(c.Theme().Text)
-					ui.Text(c, i18n.T(i18n.KeyChatUsageTitle)).FontSize(12).FontWeight(500).Grow(1)
-					ui.Text(c, formatExactTokens(u.Total)).FontSize(12).FontWeight(500)
+		w, _ := c.Size()
+		if pop := coss.Popover(c, trigger, open, coss.PopoverOptions{Side: coss.SideTop, Align: coss.AlignStart}, func() {
+			ui.Column(c).FillWidth().Gap(design.Sp(1.5)).Children(func() {
+				ui.Row(c).FillWidth().Gap(design.Sp(4)).Children(func() {
+					ui.Icon(c, usageDatabaseIcon).Size(design.IconXS, design.IconXS).TextColor(t.Foreground)
+					ui.Text(c, i18n.T(i18n.KeyChatUsageTitle)).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).TextColor(t.PopoverForeground).Grow(1)
+					ui.Text(c, formatExactTokens(u.Total)).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).TextColor(t.PopoverForeground)
 				})
-				ui.Box(c).FillWidth().Height(.5).Background(c.Theme().Border).Margin(2, 0, 4, 0)
+				coss.Separator(c, coss.Horizontal).Margin(design.Sp(0.5), 0, design.Sp(1), 0)
 				// The labeled grid mirrors the Original's dl[data-turn-usage-details]
 				// (padding 10px 16px 12px 12px, row gap 6) for comparison.
-				ui.Column(c).Label("Turn usage details").FillWidth().MinWidth(0).Margin(4, 0, 0, 22).Padding(10, 16, 12, 12).Gap(6).Children(func() {
+				ui.Column(c).Label("Turn usage details").FillWidth().MinWidth(0).Margin(design.Sp(1), 0, 0, design.Sp(5.5)).Padding(design.Sp(2.5), design.Sp(4), design.Sp(3), design.Sp(3)).Gap(design.Sp(1.5)).Children(func() {
 					if len(u.Routes) > 0 {
-						usageDetailLine(c, muted, referenceCopy("Model", "模型"), strings.Join(u.Routes, ", "))
+						usageDetailLine(c, t.MutedForeground, referenceCopy("Model", "模型"), strings.Join(u.Routes, ", "))
 					}
 					if u.CacheRead != nil && u.Total > u.Output {
-						usageDetailLine(c, muted, referenceCopy("Cache hit", "缓存命中"), fmt.Sprintf("%.1f%%", 100**u.CacheRead/(u.Total-u.Output)))
+						usageDetailLine(c, t.MutedForeground, referenceCopy("Cache hit", "缓存命中"), fmt.Sprintf("%.1f%%", 100**u.CacheRead/(u.Total-u.Output)))
 					}
-					usageDetailLine(c, muted, i18n.T(i18n.KeyChatUsageUncached), formatExactTokens(u.Input))
+					usageDetailLine(c, t.MutedForeground, i18n.T(i18n.KeyChatUsageUncached), formatExactTokens(u.Input))
 					if u.CacheRead != nil {
-						usageDetailLine(c, muted, i18n.T(i18n.KeyChatUsageCacheRead), formatExactTokens(*u.CacheRead))
+						usageDetailLine(c, t.MutedForeground, i18n.T(i18n.KeyChatUsageCacheRead), formatExactTokens(*u.CacheRead))
 					}
 					if u.CacheWrite != nil {
-						usageDetailLine(c, muted, i18n.T(i18n.KeyChatUsageCacheWrit), formatExactTokens(*u.CacheWrite))
+						usageDetailLine(c, t.MutedForeground, i18n.T(i18n.KeyChatUsageCacheWrit), formatExactTokens(*u.CacheWrite))
 					}
 					output := formatExactTokens(u.Output)
 					if u.Reasoning != nil {
 						output += " · " + fmt.Sprintf(i18n.T(i18n.KeyChatUsageReasoning), formatExactTokens(*u.Reasoning))
 					}
-					usageDetailLine(c, muted, i18n.T(i18n.KeyChatUsageOutput), output)
+					usageDetailLine(c, t.MutedForeground, i18n.T(i18n.KeyChatUsageOutput), output)
 				})
 			})
-		})
+		}); pop.Valid() {
+			pop.Role(ui.RoleDialog).Radius(design.RadiusXL2).
+				MinWidth(min(float32(300), max(float32(0), w-24))).
+				MaxWidth(min(float32(440), max(float32(0), w-24))).
+				MaxWidthPercent(96)
+		}
 	})
 }
 
@@ -151,12 +158,13 @@ func formatExactTokens(value float64) string {
 
 // usageDetailLine is one label/value pair of the usage body (the Original's
 // dt/dd pair), kept on one line so the numbers align right.
-func usageDetailLine(c *ui.Context, muted ui.Color, label, value string) {
-	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
+func usageDetailLine(c *ui.Context, _ ui.Color, label, value string) {
+	t := design.For(c)
+	ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
 		// The Original's details grid column is minmax(76px, auto).
-		ui.Text(c, label).FontSize(12).FixedLineHeight(18).TextColor(muted).MinWidth(76)
+		ui.Text(c, label).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(t.MutedForeground).MinWidth(76)
 		if value != "" {
-			ui.Text(c, value).FontSize(12).FixedLineHeight(18).TextColor(c.Theme().Text).Grow(1).MinWidth(0).TextAlign(ui.End)
+			ui.Text(c, value).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(t.PopoverForeground).Grow(1).MinWidth(0).TextAlign(ui.End)
 		} else {
 			ui.Box(c).Grow(1)
 		}
@@ -181,7 +189,9 @@ func formatTokensCompact(value float64) string {
 }
 
 // PerformanceUsageView is the composer status line's decode/cache summary.
-func PerformanceUsageView(c *ui.Context, snapshot session.ViewState, mode string, muted ui.Color) {
+func PerformanceUsageView(c *ui.Context, snapshot session.ViewState, mode string, _ ui.Color) {
+	t := design.For(c)
+	muted := t.MutedForeground
 	memo := ui.Local(c.Root(), "chat-performance-history-derived", func() session.HistoryDerivedMemo { return session.HistoryDerivedMemo{} })
 	tokens, ms, steps := memo.RecordedPerformance(snapshot)
 	var labels []string
@@ -211,7 +221,7 @@ func PerformanceUsageView(c *ui.Context, snapshot session.ViewState, mode string
 		return
 	}
 	key := "performance:" + snapshot.PlanHistoryBinding + ":" + snapshot.SelectedID
-	row := ui.Column(c).Key(key).FillWidth().Padding(4, 8).Gap(4)
+	row := ui.Column(c).Key(key).FillWidth().Padding(design.Sp(1), design.Sp(2)).Gap(design.Sp(1))
 	open := ui.Local(row, "open", func() bool { return false })
 	row.Children(func() {
 		summary := strings.Join(labels, " · ")
@@ -225,11 +235,11 @@ func PerformanceUsageView(c *ui.Context, snapshot session.ViewState, mode string
 			Open:       *open,
 			Expandable: true,
 			OnToggle:   func() { *open = !*open },
-		}, disclosureStyle{FG: muted, Muted: muted, Accent: muted, Hover: muted.Alpha(.12), Size: 11})
+		}, disclosureStyle{FG: muted, Muted: muted, Accent: muted, Hover: t.Accent, Size: 11})
 		if !*open {
 			return
 		}
-		ui.Column(c).FillWidth().MinWidth(0).Padding(2, 0, 2, 20).Gap(2).Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Padding(design.Sp(0.5), 0, design.Sp(0.5), design.Sp(5)).Gap(design.Sp(0.5)).Children(func() {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyChatStatusLoaded), len(snapshot.TurnUsage), steps)).FontSize(11).TextColor(muted)
 			if ms > 0 {
 				ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyChatStatusTimed), tokens, ms)).FontSize(11).TextColor(muted)

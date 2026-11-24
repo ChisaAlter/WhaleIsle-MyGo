@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/ansi"
@@ -79,20 +79,20 @@ func terminalPrompt(cwd, home string) string {
 	return trimmed
 }
 
-func terminalPalette(st ToolCardStyle) ansi.Palette {
-	danger := st.Err
-	if danger.A == 0 {
-		danger = chrome.Color(st.Colors.Danger)
-	}
-	background := st.Field
-	if st.Colors.CodeBlock != "" {
-		background = chrome.Color(st.Colors.CodeBlock)
-	}
+func terminalPalette(c *ui.Context) ansi.Palette {
+	t := design.For(c)
 	return ansi.Palette{
-		Primary: st.FG, Tertiary: st.Muted, Background: background, DimBase: st.FG,
-		Error: danger, ErrorSecondary: ui.RGB(242, 90, 90),
-		Success: ui.RGB(34, 197, 94), SuccessSecondary: ui.RGB(78, 209, 126),
-		Warning: ui.RGB(245, 158, 11), WarningSecondary: ui.RGB(247, 173, 49), Business: st.Accent,
+		Primary:          t.CodeForeground,
+		Tertiary:         t.MutedForeground,
+		Background:       t.Code,
+		DimBase:          t.CodeForeground,
+		Error:            t.DestructiveForeground,
+		ErrorSecondary:   t.Destructive,
+		Success:          t.SuccessForeground,
+		SuccessSecondary: t.Success,
+		Warning:          t.WarningForeground,
+		WarningSecondary: t.Warning,
+		Business:         t.Primary,
 	}
 }
 
@@ -110,14 +110,9 @@ func terminalVisible(lines [][]ui.Span) bool {
 // terminalCard draws only validated shell/terminal_send data. The command and
 // output scroll independently; clipboard payload is the exact parsed output.
 func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalModel, home string, readOnly bool) {
-	palette := terminalPalette(st)
-	background, stroke, secondary := palette.Background, st.Border.Alpha(.4), st.Muted
-	if st.Colors.BorderL1 != "" {
-		stroke = chrome.Color(st.Colors.BorderL1)
-	}
-	if st.Colors.Secondary != "" {
-		secondary = chrome.Color(st.Colors.Secondary)
-	}
+	t := design.For(c)
+	palette := terminalPalette(c)
+	background, stroke, secondary := t.Code, t.Border, t.Foreground
 	border := float32(max(1, math.Floor(.5*float64(c.DeviceScale()))) / float64(c.DeviceScale()))
 	lines := ansi.Parse(m.Output, palette)
 	visible := terminalVisible(lines)
@@ -127,8 +122,8 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 	command = strings.TrimSuffix(command, "\n")
 	commandLines := strings.Split(command, "\n")
 	font := theme.RenderPreferences().Code.Family
-	card := ui.Column(c.Key("terminal:"+key)).MinWidth(0).Shrink(0).Margin(4, 0, 4, 4).
-		Border(border, stroke).Radius(16).Background(background).Clip().Label(i18n.T(i18n.KeyToolTerminalOutput))
+	card := ui.Column(c.Key("terminal:"+key)).MinWidth(0).Shrink(0).Margin(design.Sp(1), 0, design.Sp(1), design.Sp(1)).
+		Border(border, stroke).Radius(design.RadiusXL2).Background(background).Clip().Label(i18n.T(i18n.KeyToolTerminalOutput))
 	copied := ui.Local(card, "copied-until", func() time.Time { return time.Time{} })
 	copying := c.Now().Before(*copied)
 	if copying {
@@ -153,16 +148,16 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 			}
 			controlsWidth += width
 		}
-		rightPadding := float32(14)
+		rightPadding := design.Sp(3.5)
 		if controlsWidth > 0 {
-			rightPadding += controlsWidth + 12
+			rightPadding += controlsWidth + design.Sp(3)
 		}
 		banner.Children(func() {
 			ui.Scroll(c.Key("header")).TrackScroll(position).FillWidth().MinWidth(0).MaxHeight(terminalHeaderMaxHeight).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(12).Padding(9, rightPadding, 9, 30).AlignItems(ui.Start).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Padding(design.Sp(2.25), rightPadding, design.Sp(2.25), design.Sp(7.5)).AlignItems(ui.Start).Children(func() {
 					ui.Column(c).Grow(1).MinWidth(0).Gap(0).Selectable().Children(func() {
 						for index, line := range commandLines {
-							ui.Row(c.Key(strconv.Itoa(index))).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Start).Children(func() {
+							ui.Row(c.Key(strconv.Itoa(index))).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Start).Children(func() {
 								if index == 0 && (!m.Background || m.Running) {
 									terminalRunState(c, m, palette).Absolute().Left(-22).Top((terminalLineHeight - terminalRunStateSize(m)) / 2)
 								}
@@ -170,8 +165,8 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 								if index == 0 {
 									prompt = terminalPrompt(m.Cwd, home)
 								}
-								ui.Text(c, prompt).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(st.Muted).NoWrap().Shrink(0).Unselectable()
-								ui.Text(c, line).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(st.FG).
+								ui.Text(c, prompt).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(t.MutedForeground).NoWrap().Shrink(0).Unselectable()
+								ui.Text(c, line).Font(font).FontSize(11).FixedLineHeight(terminalLineHeight).TextColor(t.CodeForeground).
 									Grow(1).MinWidth(0).Selectable().Description(fmt.Sprintf(i18n.T(i18n.KeyToolTerminalLine), index+1))
 							})
 						}
@@ -181,10 +176,10 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 			if controlsWidth > 0 {
 				// CSS sticky: reserve the normal header width and retain its 9px
 				// inset until scrolling passes it, then clamp controls to top0.
-				ui.Row(c.Key("controls")).Absolute().Top(max(float32(0), 9-position.Y)).Right(14).Height(18).Gap(12).AlignItems(ui.Start).Children(func() {
+				ui.Row(c.Key("controls")).Absolute().Top(max(float32(0), 9-position.Y)).Right(14).Height(18).Gap(design.Sp(3)).AlignItems(ui.Start).Children(func() {
 					if status != "" {
-						ui.Box(c).Shrink(0).Padding(0, 8, 0, 8).Radius(9).Background(terminalPillBackground(st)).Label(i18n.T(i18n.KeyToolTerminalStatus)).Children(func() {
-							ui.Text(c, status).Font(theme.RenderPreferences().Chat.Family).FontSize(12).FixedLineHeight(18).NoWrap().TextColor(palette.Error)
+						ui.Box(c).Shrink(0).Padding(0, design.Sp(2), 0, design.Sp(2)).Radius(design.RadiusFull).Background(t.Muted).Label(i18n.T(i18n.KeyToolTerminalStatus)).Children(func() {
+							ui.Text(c, status).Font(theme.RenderPreferences().Chat.Family).FontSize(design.TextXS.Size).FixedLineHeight(18).NoWrap().TextColor(palette.Error)
 						})
 					}
 					if showCopy {
@@ -193,7 +188,7 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 							text = i18n.T(i18n.KeyMarkdownCopied)
 						}
 						button := ui.ButtonBase(c.Key("copy")).Label(text).Tooltip(text).Background(background).TextColor(secondary).
-							Height(18).Shrink(0).MinWidth(0).Padding(0).Font(theme.RenderPreferences().Chat.Family).FontSize(13)
+							Height(18).Shrink(0).MinWidth(0).Padding(0).Font(theme.RenderPreferences().Chat.Family).FontSize(13).Cursor(ui.CursorPointer)
 						button.Children(func() { ui.Text(c, text).FontSize(13).FixedLineHeight(18).NoWrap().TextColor(secondary) })
 						if button.Clicked() && !copying {
 							if readOnly {
@@ -209,10 +204,10 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 			}
 		})
 		if hasBody {
-			ui.Box(c).FillWidth().Height(border).Shrink(0).Background(st.Border)
+			ui.Box(c).FillWidth().Height(border).Shrink(0).Background(t.Border)
 			if !visible {
-				ui.Box(c).MinWidth(0).Margin(0, 0, 0, 30).Padding(12, 14, 12, 0).Label(i18n.T(i18n.KeyToolTerminalNoOutput)).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyToolTerminalNoOutput)).Font(font).FontSize(11).FixedLineHeight(16).TextColor(st.Muted)
+				ui.Box(c).MinWidth(0).Margin(0, 0, 0, design.Sp(7.5)).Padding(design.Sp(3), design.Sp(3.5), design.Sp(3), 0).Label(i18n.T(i18n.KeyToolTerminalNoOutput)).Children(func() {
+					ui.Text(c, i18n.T(i18n.KeyToolTerminalNoOutput)).Font(font).FontSize(11).FixedLineHeight(16).TextColor(t.MutedForeground)
 				})
 			} else if m.FoldLines > 0 && len(lines) > m.FoldLines {
 				expanded := ui.Local(card, "expanded-output", func() bool { return false })
@@ -221,7 +216,7 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 				if !*expanded {
 					visibleLines = lines[:m.FoldLines]
 				}
-				ui.Column(c.Key("output-folded")).MinWidth(0).Margin(0, 0, 0, 30).Label(i18n.T(i18n.KeyChatToolOutput)).Children(func() {
+				ui.Column(c.Key("output-folded")).MinWidth(0).Margin(0, 0, 0, design.Sp(7.5)).Label(i18n.T(i18n.KeyChatToolOutput)).Children(func() {
 					spans := []ui.Span{}
 					for index, line := range visibleLines {
 						spans = append(spans, line...)
@@ -229,13 +224,14 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 							spans = append(spans, ui.Span{Text: "\n"})
 						}
 					}
-					ui.RichText(c, spans...).Font(font).FontSize(11).FixedLineHeight(18).TextColor(st.FG).NoWrap().Selectable().
-						Padding(12, 14, 6, 0).MinWidth(0).Shrink(0)
+					ui.RichText(c, spans...).Font(font).FontSize(11).FixedLineHeight(18).TextColor(t.CodeForeground).NoWrap().Selectable().
+						Padding(design.Sp(3), design.Sp(3.5), design.Sp(1.5), 0).MinWidth(0).Shrink(0)
 					if !*expanded {
 						restText := terminalExpandRestLabel(remaining)
 						restAria := terminalExpandAriaLabel(remaining)
 						btn := ui.Button(c.Key("expand-rest"), restText).Label(restAria).Tooltip(restAria).
-							Background(ui.Transparent).BorderWidth(0).Padding(0, 14, 10, 0).FontSize(11).TextColor(st.Muted)
+							Background(ui.Transparent).BorderWidth(0).Padding(0, design.Sp(3.5), design.Sp(2.5), 0).
+							FontSize(11).TextColor(t.MutedForeground).Cursor(ui.CursorPointer)
 						if btn.Clicked() {
 							*expanded = true
 						}
@@ -243,14 +239,15 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 						collapseText := i18n.T(i18n.KeyChatRowCollapse)
 						collapseAria := terminalCollapseAriaLabel()
 						btn := ui.Button(c.Key("collapse-rest"), collapseText).Label(collapseAria).Tooltip(collapseAria).
-							Background(ui.Transparent).BorderWidth(0).Padding(0, 14, 10, 0).FontSize(11).TextColor(st.Muted)
+							Background(ui.Transparent).BorderWidth(0).Padding(0, design.Sp(3.5), design.Sp(2.5), 0).
+							FontSize(11).TextColor(t.MutedForeground).Cursor(ui.CursorPointer)
 						if btn.Clicked() {
 							*expanded = false
 						}
 					}
 				})
 			} else {
-				ui.ScrollBoth(c.Key("output")).MinWidth(0).Margin(0, 0, 0, 30).MaxHeight(terminalMaxHeight).Label(i18n.T(i18n.KeyChatToolOutput)).Children(func() {
+				ui.ScrollBoth(c.Key("output")).MinWidth(0).Margin(0, 0, 0, design.Sp(7.5)).MaxHeight(terminalMaxHeight).Label(i18n.T(i18n.KeyChatToolOutput)).Children(func() {
 					spans := []ui.Span{}
 					for index, line := range lines {
 						spans = append(spans, line...)
@@ -258,24 +255,12 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 							spans = append(spans, ui.Span{Text: "\n"})
 						}
 					}
-					ui.RichText(c, spans...).Font(font).FontSize(11).FixedLineHeight(18).TextColor(st.FG).NoWrap().Selectable().
-						Padding(12, 14, 12, 0).MinWidth(0).Shrink(0)
+					ui.RichText(c, spans...).Font(font).FontSize(11).FixedLineHeight(18).TextColor(t.CodeForeground).NoWrap().Selectable().
+						Padding(design.Sp(3), design.Sp(3.5), design.Sp(3), 0).MinWidth(0).Shrink(0)
 				})
 			}
 		}
 	})
-}
-
-func terminalPillBackground(st ToolCardStyle) ui.Color {
-	dark := darkSurface(st.Muted)
-	base := ui.RGB(255, 255, 255)
-	if dark {
-		base = ui.RGB(44, 44, 46)
-	}
-	if st.Colors.FG == "" {
-		return base
-	}
-	return chrome.FrostInset(st.Colors, dark, base)
 }
 
 func terminalRunStateSize(m *toolTerminalModel) float32 {

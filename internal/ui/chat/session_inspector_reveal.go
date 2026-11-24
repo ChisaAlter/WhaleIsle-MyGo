@@ -5,7 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -274,11 +274,12 @@ func inspectorChatRowGeometry(c *ui.Context, m Model, msg session.Message, root 
 	})
 }
 
-func inspectorChatRevealOverlay(c *ui.Context, m Model, colors theme.Colors) {
+func inspectorChatRevealOverlay(c *ui.Context, m Model, _ theme.Colors) {
 	n := inspectorChatNavigation(m)
 	if n == nil {
 		return
 	}
+	t := design.For(c)
 	ui.Overlay(c, func() {
 		ui.Box(c.Key("inspector-chat-reveal")).Absolute().Left(0).Top(0).Right(0).Bottom(0).PassThrough().DrawOver(func(p *ui.Painter, _ ui.Rect) {
 			r := &n.reveal
@@ -294,9 +295,10 @@ func inspectorChatRevealOverlay(c *ui.Context, m Model, colors theme.Colors) {
 				n.CancelReveal()
 				return
 			}
-			p.Fill(r.rect, chrome.Color(colors.BubbleHighlight).Alpha(alpha), 6)
+			fill := t.Primary.Mix(t.Background, 0.8)
+			p.Fill(r.rect, fill.Alpha(alpha), 6)
 			outline := ui.Rect{X: r.rect.X - 1, Y: r.rect.Y - 1, W: r.rect.W + 2, H: r.rect.H + 2}
-			p.Stroke(outline, chrome.Color(colors.Accent).Alpha(alpha), 7, 1)
+			p.Stroke(outline, t.Primary.Alpha(alpha), 7, 1)
 			p.AnimationFrame()
 		})
 	})

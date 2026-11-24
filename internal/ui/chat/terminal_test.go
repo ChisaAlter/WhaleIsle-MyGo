@@ -316,4 +316,3 @@ func TestTerminalExpandRestAndToolCopyParity(t *testing.T) {
 		t.Fatalf("toolSearchMatchesSummary zh = %q", got)
 	}
 }
-

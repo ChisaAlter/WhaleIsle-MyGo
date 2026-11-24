@@ -1,10 +1,11 @@
 package chat
 
 import (
-	"github.com/egoist/mygo/ui"
 	"time"
+
+	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -13,14 +14,16 @@ import (
 // native text until interaction mounts a lifetime-bound AppContainer child.
 // The chat process never loads the HTML or executes its scripts.
 func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, fg, muted, border, field ui.Color) {
+	t := design.For(c)
+	fg, muted = t.Foreground, t.MutedForeground
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	id := p.File.AttachmentID
 	state := m.VisualReply
 	active := state.SessionID == m.Snapshot.SelectedID && state.AttachmentID == id
-	ui.Column(c.Key("published-html-"+id)).FillWidth().Gap(6).Padding(10).Background(chrome.FrostInset(palette, m.SystemDark, field)).Border(1, border).Radius(6).Children(func() {
+	chatInsetSurface(c, ui.Column(c.Key("published-html-"+id)).FillWidth().Gap(design.Sp(1.5)).Padding(design.Sp(2.5)), design.RadiusSM).Children(func() {
 		ui.Text(c, p.Title).FontSize(13).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyChatVisualPublished)).FontSize(11).TextColor(muted)
-		ui.Row(c).Gap(6).Children(func() {
+		ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
 			if m.OnInteractVisualReply != nil && m.OnInlineVisualReply == nil {
 				if stdButton(c, palette, i18n.T(i18n.KeyChatVisualInteract), buttonPrimary, active && (state.Loading || state.InteractiveLoading || state.InteractiveActive)).
 					Tooltip(i18n.T(i18n.KeyChatVisualIsolatedTooltip)).Clicked() {
@@ -73,7 +76,8 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 					// NoExit: the seat presents a native helper surface at
 					// window coordinates, which a fading exit copy cannot move.
 					ui.DialogBaseWithOptions(c, &open, ui.DialogOptions{NoExit: true}, func(backdrop, panel ui.Element) {
-						chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 960, 12).Children(func() {
+						backdrop.Background(design.TW.Black.Alpha(0.32))
+						chatPopupSurface(c, panel, design.RadiusXL2).Width(960).MaxWidthPercent(94).MaxHeightPercent(90).Padding(design.Sp(3)).Gap(design.Sp(3)).Children(func() {
 							ui.Row(c).FillWidth().Children(func() {
 								ui.Text(c, p.Title).Grow(1).TextColor(fg)
 								if stdButton(c, palette, i18n.T(i18n.KeyChatRowCollapse), buttonGhost, false).Clicked() {
@@ -137,6 +141,8 @@ func visualReplySurfaceSeat(c *ui.Context, surface session.VisualReplySurface, t
 }
 
 func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, page session.InlineVisualReply, fg, muted, field ui.Color) {
+	t := design.For(c)
+	fg, muted = t.Foreground, t.MutedForeground
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	if page.Loading {
 		ui.Text(c, i18n.T(i18n.KeyChatVisualLoadingPage)).TextColor(muted)
@@ -168,7 +174,8 @@ func inlineVisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Mo
 	// NoExit: the seat presents a native helper surface at window coordinates,
 	// which a fading exit copy cannot move.
 	ui.DialogBaseWithOptions(c, &open, ui.DialogOptions{NoExit: true}, func(backdrop, panel ui.Element) {
-		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 960, 12).Children(func() {
+		backdrop.Background(design.TW.Black.Alpha(0.32))
+		chatPopupSurface(c, panel, design.RadiusXL2).Width(960).MaxWidthPercent(94).MaxHeightPercent(90).Padding(design.Sp(3)).Gap(design.Sp(3)).Children(func() {
 			ui.Row(c).FillWidth().Children(func() {
 				ui.Text(c, p.Title).Grow(1).TextColor(fg)
 				if stdButton(c, palette, i18n.T(i18n.KeyChatRowCollapse), buttonGhost, false).Clicked() {

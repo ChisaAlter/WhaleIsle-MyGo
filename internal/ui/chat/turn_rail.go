@@ -8,9 +8,9 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 // The Original keeps a 28 DIP turn rail floating on the transcript's trailing
@@ -172,9 +172,9 @@ func TurnRailView(c *ui.Context, m Model, available float32, onJump func(seq flo
 	if len(anchors) < 2 {
 		return
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
+	t := design.For(c)
+	fg := t.Foreground
+	muted := t.MutedForeground
 	projection := ui.Local(c.Root(), "turn-rail-projection:"+m.Snapshot.PlanHistoryBinding+":"+m.Snapshot.SelectedID, func() transcriptViewMemo { return transcriptViewMemo{} })
 	current := activeTurnAnchor(m, anchors, projection)
 	if available < turnRailNarrowMin {
@@ -200,20 +200,20 @@ func TurnRailView(c *ui.Context, m Model, available float32, onJump func(seq flo
 		state.activeSeq, state.count, state.placed = anchors[current].Seq, len(anchors), true
 	}
 	rail.Children(func() {
-		ui.List(c, &state.list, len(anchors)).Label(i18n.T(i18n.KeyChatTurnRailLabel)).Width(turnRailWidth).FillHeight().MinHeight(0).Padding(6, 0).Rows(func(row ui.ListRow) {
+		ui.List(c, &state.list, len(anchors)).Label(i18n.T(i18n.KeyChatTurnRailLabel)).Width(turnRailWidth).FillHeight().MinHeight(0).Padding(design.Sp(1.5), 0).Rows(func(row ui.ListRow) {
 			anchor := anchors[row.Index]
 			active := row.Index == current
 			// The seat is the hit target: a 10 DIP row holding the 2 DIP tick, so
 			// a multi-turn transcript gives each tick a comfortable right-aligned target.
 			seat := ui.Row(row.Context).Key("turn-rail-tick:"+itoaFast(anchor.Index)).
-				Width(turnRailWidth).Height(turnRailSeatHeight).Padding(0, 4, 0, 4).Justify(ui.End).AlignItems(ui.Center)
+				Width(turnRailWidth).Height(turnRailSeatHeight).Padding(0, design.Sp(1), 0, design.Sp(1)).Justify(ui.End).AlignItems(ui.Center)
 			interactive := onJump != nil
 			if interactive {
 				jumpKey := i18n.KeyChatTurnRailJump
 				if !anchor.Loaded {
 					jumpKey = i18n.KeyChatTurnRailJumpLoad
 				}
-				seat.Label(fmt.Sprintf(i18n.T(jumpKey), anchor.Index)).Focusable().Role(ui.RoleButton)
+				seat.Label(fmt.Sprintf(i18n.T(jumpKey), anchor.Index)).Focusable().Role(ui.RoleButton).Cursor(ui.CursorPointer)
 			}
 			hovered := interactive && seat.Hovered()
 			barWidth := float32(12)
@@ -231,10 +231,10 @@ func TurnRailView(c *ui.Context, m Model, available float32, onJump func(seq flo
 				barColor = barColor.Alpha(.5)
 			}
 			if m.Snapshot.HistoryNavigation.Busy && m.Snapshot.HistoryNavigation.TargetSeq == anchor.Seq {
-				barColor = chrome.Color(colors.Accent)
+				barColor = t.Primary
 			}
 			seat.Children(func() {
-				ui.Box(row.Context).Width(barWidth).Height(barHeight).Radius(999).Background(barColor)
+				ui.Box(row.Context).Width(barWidth).Height(barHeight).Radius(design.RadiusFull).Background(barColor)
 			})
 			preview := i18n.T(i18n.KeyChatTurnRailTurn) + " " + itoaFast(anchor.Index) + " · " + anchor.Preview
 			if anchor.Response != "" {
@@ -249,32 +249,36 @@ func TurnRailView(c *ui.Context, m Model, available float32, onJump func(seq flo
 }
 
 // turnRailMenu is the narrow fallback: one button that opens the turn list.
-func turnRailMenu(c *ui.Context, anchors []turnAnchor, m Model, current int, muted ui.Color, onJump func(seq float64)) {
-	button := ui.Button(c, i18n.T(i18n.KeyChatTurnRailLabel)+" "+itoaFast(len(anchors))).
-		FontSize(11).Padding(0, 8, 0, 8).Height(24).Radius(6).
-		Background(ui.Transparent).Border(0.5, muted.Alpha(.4)).TextColor(muted)
+func turnRailMenu(c *ui.Context, anchors []turnAnchor, _ Model, current int, _ ui.Color, onJump func(seq float64)) {
+	t := design.For(c)
+	button := coss.Button(c, i18n.T(i18n.KeyChatTurnRailLabel)+" "+itoaFast(len(anchors)), coss.ButtonOptions{
+		Variant: coss.ButtonOutline,
+		Size:    coss.ButtonXS,
+	})
 	open := ui.Local(button, "turn-rail-menu", func() bool { return false })
 	if button.Clicked() {
 		*open = !*open
 	}
-	ui.Popover(c, button, open, func() {
-		ui.Scroll(c).Width(260).MaxHeight(320).Children(func() {
-			ui.Column(c).FillWidth().Gap(2).Padding(4).Children(func() {
+	coss.Popover(c, button, open, coss.PopoverOptions{Width: 260}, func() {
+		coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+			ui.Column(c).FillWidth().Gap(design.Sp(0.5)).Children(func() {
 				for index, anchor := range anchors {
 					anchor := anchor
 					jumpKey := i18n.KeyChatTurnRailJump
 					if !anchor.Loaded {
 						jumpKey = i18n.KeyChatTurnRailJumpLoad
 					}
-					item := chrome.MenuRowColors(c, c.Theme().SurfaceHover, c.Theme().SurfacePressed).
+					item := ui.ButtonBase(c).FocusRing(false).Cursor(ui.CursorPointer).
+						FillWidth().Justify(ui.Start).AlignItems(ui.Center).Gap(design.Sp(2)).
+						Padding(design.Sp(1), design.Sp(2)).Radius(design.RadiusSM).
 						Label(fmt.Sprintf(i18n.T(jumpKey), anchor.Index)).Selected(index == current).MinHeight(32)
-					if index == current {
-						item.Background(c.Theme().SurfaceHover)
+					if index == current || item.Hovered() {
+						item.Background(t.Accent)
 					}
 					item.Tooltip(anchor.Response)
 					item.Children(func() {
-						ui.Text(c, itoaFast(anchor.Index)).Width(20).FontSize(11).TextColor(muted)
-						ui.Text(c, anchor.Preview).FontSize(12).TextColor(c.Theme().Text).Grow(1).MinWidth(0).SingleLine()
+						ui.Text(c, itoaFast(anchor.Index)).Width(20).FontSize(11).TextColor(t.MutedForeground)
+						ui.Text(c, anchor.Preview).FontSize(design.TextXS.Size).TextColor(t.PopoverForeground).Grow(1).MinWidth(0).SingleLine()
 					})
 					if onJump != nil && item.Clicked() {
 						onJump(anchor.Seq)
@@ -282,7 +286,7 @@ func turnRailMenu(c *ui.Context, anchors []turnAnchor, m Model, current int, mut
 					}
 				}
 			})
-		})
+		}).MaxHeight(320)
 	})
 }
 

@@ -18,7 +18,6 @@ import (
 	"whaleisle/internal/openui/card"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
@@ -161,13 +160,12 @@ func openUIBlockView(c *ui.Context, m Model, msg session.Message, language, prog
 	host.mu.Unlock()
 	k.SetSource(language, program, msg.Streaming)
 
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	dark := darkSurface(fg)
+	t := design.For(c)
+	dark := t.IsDark()
 	box := ui.Column(c.Key("openui:" + id)).FillWidth().MinWidth(0).Gap(design.Sp(2))
 	st := ui.Local(box, "chrome", func() openUIChrome { return openUIChrome{} })
 	box.Children(func() {
-		md := transcriptMarkdownStyle(fg, muted, chrome.Color(colors.Field), chrome.Color(colors.Accent), chrome.Color(colors.Hover), theme.CurrentPreferences().Chat.Size, dark, chrome.Color(colors.Secondary))
+		md := transcriptMarkdownStyleFor(c, theme.CurrentPreferences().Chat.Size)
 		openCompat := func() {
 			appearance := "light"
 			if dark {

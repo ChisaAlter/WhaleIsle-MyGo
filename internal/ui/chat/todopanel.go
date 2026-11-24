@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -36,34 +36,20 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 	if len(m.Todos) == 0 {
 		return
 	}
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	accent := chrome.Color(colors.Accent)
-	dark := th.Scheme == theme.SchemeDark || (th.Scheme == theme.SchemeSystem && m.SystemDark)
-
-	ok := ui.RGB(22, 163, 74)
+	t := design.For(c)
+	fg := t.Foreground
+	muted := t.MutedForeground
+	accent := t.Primary
+	ok := t.SuccessForeground
 	labelSecondary := fg.Alpha(0.88)
-	tipBG := ui.RGBA(255, 255, 255, 0.62)
-	tipHoverBG := ui.RGBA(255, 255, 255, 0.74)
-	border := ui.RGBA(0, 0, 0, 0.04)
-	if dark {
-		ok = ui.RGB(34, 197, 94)
-		labelSecondary = ui.RGB(207, 211, 214)
-		muted = ui.RGB(173, 178, 184)
-		tipBG = ui.RGBA(215, 230, 250, 0.055)
-		tipHoverBG = ui.RGBA(215, 230, 250, 0.08)
-		border = ui.RGBA(255, 255, 255, 0.03)
-	}
 
 	collapsed := &todoPanelCollapsedFB
 	if m.Collapsed != nil {
 		collapsed = m.Collapsed
 	}
 	allDone := len(m.Todos) > 0
-	for _, t := range m.Todos {
-		switch strings.ToLower(strings.TrimSpace(t.Status)) {
+	for _, todo := range m.Todos {
+		switch strings.ToLower(strings.TrimSpace(todo.Status)) {
 		case "completed", "complete", "done":
 		default:
 			allDone = false
@@ -81,25 +67,20 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 	}
 
 	// TaskDock.module.css + TodoPanel.module.css: 32px side inset inside composerOuterW (W+64) so TodoPanel width equals W (680px).
-	ui.Column(c).FillWidth().Padding(0, 32, 5, 32).Children(func() {
-		card := ui.Column(c).FillWidth().Radius(12).Background(chrome.FrostInset(colors, m.SystemDark, tipBG)).
-			Padding(6, 12, 6, 12).Gap(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if border.A > 0 && r.W > 0 && r.H > 0 {
-				p.Stroke(r, border, 12, 0.5)
-			}
-		})
+	ui.Column(c).FillWidth().Padding(0, design.Sp(8), design.Sp(1.25), design.Sp(8)).Children(func() {
+		card := chatCardSurface(c, ui.Column(c).FillWidth().Padding(design.Sp(1.5), design.Sp(3), design.Sp(1.5), design.Sp(3)).Gap(0), design.RadiusLG).Clip()
 		if card.Hovered() {
-			card.Background(tipHoverBG)
+			card.Background(t.Accent)
 		}
 		card.Children(func() {
 			hdr := ui.Button(c, "").FillWidth().
 				Background(ui.Transparent).
-				BorderWidth(0).Padding(0, 0, 0, 0)
+				BorderWidth(0).Padding(0, 0, 0, 0).Cursor(ui.CursorPointer)
 			if hdr.Hovered() {
-				card.Background(tipHoverBG)
+				card.Background(t.Accent)
 			}
 			hdr.Children(func() {
-				ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).FillWidth().Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, todoChecklistIcon).Size(16, 16).TextColor(muted.Alpha(0.85)).PassThrough()
 					ui.Text(c, i18n.T(i18n.KeyTodoPanelTitle)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(24).FontWeight(500).TextColor(fg).PassThrough()
 					ui.Text(c, todoProgressLabel(m.Todos)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).FontWeight(400).TextColor(muted).Grow(1).PassThrough()
@@ -116,7 +97,7 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 			if *collapsed {
 				return
 			}
-			ui.Column(c).FillWidth().Padding(8, 0, 0, 0).Gap(8).MaxHeight(180).Children(func() {
+			ui.Column(c).FillWidth().Padding(design.Sp(2), 0, 0, 0).Gap(design.Sp(2)).MaxHeight(180).Children(func() {
 				for _, todo := range m.Todos {
 					stColor := muted
 					switch strings.ToLower(strings.TrimSpace(todo.Status)) {
@@ -125,9 +106,9 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 					case "in_progress", "running", "active":
 						stColor = accent
 					}
-					ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+					ui.Row(c).FillWidth().Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
 						ui.Box(c).Size(16, 16).Shrink(0).Center().Children(func() {
-							ui.Box(c).Size(6, 6).Radius(3).Background(stColor)
+							ui.Box(c).Size(6, 6).Radius(design.RadiusFull).Background(stColor)
 						})
 						ui.Text(c, todo.Content).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).TextColor(labelSecondary).Grow(1)
 					})

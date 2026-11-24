@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 func toolHeaderMetrics() (size, height, leading, glyph float32) {
@@ -20,19 +19,21 @@ func toolHeaderMetrics() (size, height, leading, glyph float32) {
 	return size, 24 + delta, 16 + delta, 14 + delta
 }
 
-func toolHeaderColor(st ToolCardStyle, hover bool) ui.Color {
+func toolHeaderColor(c *ui.Context, st ToolCardStyle, hover bool) ui.Color {
+	t := design.For(c)
 	if hover {
-		if st.Colors.Secondary != "" {
-			return chrome.Color(st.Colors.Secondary)
-		}
-		return st.Muted.Mix(st.FG, .35)
+		return t.Foreground
 	}
-	return st.Muted
+	if st.Muted.A != 0 {
+		return st.Muted
+	}
+	return t.MutedForeground
 }
 
 // Tool rows keep their business icon at rest. Lifecycle cues affect the summary
 // and accessible description; they never replace that icon with a status dot.
 func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, open *bool, expandable bool) ui.Element {
+	t := design.For(c)
 	size, height, leadingSize, glyph := toolHeaderMetrics()
 	var row ui.Element
 	if expandable {
@@ -49,18 +50,15 @@ func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, 
 	title, summary := toolRowTitle(info.Name), toolRowSummary(info)
 	row.Label(strings.TrimSpace(title + " " + summary)).Description(toolRowStatusLabel(info.Status))
 	hovered := row.Hovered()
-	ink := toolHeaderColor(st, false).Mix(toolHeaderColor(st, true), row.AnimateWith("tool-hover", boolFloat(hovered), 100*time.Millisecond, contextColorEase))
-	caption := st.Muted.Alpha(.6)
-	if st.Colors.Caption != "" {
-		caption = chrome.Color(st.Colors.Caption)
-	}
+	ink := toolHeaderColor(c, st, false).Mix(toolHeaderColor(c, st, true), row.AnimateWith("tool-hover", boolFloat(hovered), 100*time.Millisecond, contextColorEase))
+	caption := t.MutedForeground.Alpha(0.6)
 	summaryInk := ink
 	exitLabel := terminalExitText(info.terminal)
 	switch toolRowStatus(info.Status) {
 	case statusError:
-		summaryInk = st.Err
+		summaryInk = t.DestructiveForeground
 	case statusWarning:
-		summaryInk = ui.Hex("#dd8629")
+		summaryInk = t.WarningForeground
 	}
 	if exitLabel != "" {
 		summaryInk = ink
@@ -68,7 +66,7 @@ func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, 
 	running := toolRowStatus(info.Status) == statusRunning
 	font := theme.RenderPreferences().Chat.Family
 	row.Children(func() {
-		ui.Box(c).Size(leadingSize, leadingSize).Shrink(0).Margin(0, 6, 0, 0).Children(func() {
+		ui.Box(c).Size(leadingSize, leadingSize).Shrink(0).Margin(0, design.Sp(1.5), 0, 0).Children(func() {
 			icon := toolKindIconForName(info.Name)
 			if expandable && *open {
 				icon = toolIconChevronUp
@@ -82,17 +80,17 @@ func toolHeader(c *ui.Context, info ToolCardInfo, st ToolCardStyle, key string, 
 				ui.Icon(c, toolIconChevronDown).Absolute().Size(glyph, glyph).Left((leadingSize - glyph) / 2).Top((leadingSize - glyph) / 2).TextColor(ink).Opacity(fade).PassThrough()
 			}
 		})
-		weight := 400
+		weight := design.WeightNormal
 		if strings.HasPrefix(info.Name, "cordis_") {
-			weight = 500
+			weight = design.WeightMedium
 		}
 		if running {
-			widgets.TextShimmer(c, widgets.TextShimmerOptions{Text: title, Active: true, Font: font, Size: size, Weight: weight, Color: ink}).Shrink(0)
+			chatTextShimmer(c, textShimmerOptions{Text: title, Active: true, Font: font, Size: size, Weight: weight, Color: ink}).Shrink(0)
 		} else {
 			ui.Text(c, title).Font(font).FontSize(size).FontWeight(weight).FixedLineHeight(height).TextColor(ink).NoWrap().Shrink(0)
 		}
 		if summary != "" {
-			ui.Box(c).Size(2, 2).Radius(1).Background(caption).Shrink(0).Margin(0, 8, 0, 8)
+			ui.Box(c).Size(2, 2).Radius(design.RadiusFull).Background(caption).Shrink(0).Margin(0, design.Sp(2), 0, design.Sp(2))
 			toolHeaderSummary(c, info, st, summary, size, height, summaryInk, running, hovered || *open, exitLabel)
 		}
 	})

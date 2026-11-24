@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -206,19 +207,20 @@ func (h *transcriptHistoryState) load(m Model) {
 	m.OnLoadEarlier()
 }
 
-func transcriptLoadEarlierView(c *ui.Context, m Model, h *transcriptHistoryState, colors theme.Colors, muted ui.Color) {
+func transcriptLoadEarlierView(c *ui.Context, m Model, h *transcriptHistoryState, colors theme.Colors, _ ui.Color) {
+	t := design.For(c)
 	label := i18n.T(i18n.KeyChatLoadEarlier)
 	if m.Snapshot.HistoryPageBusy {
 		label = i18n.T(i18n.KeyChatLoadEarlierBusy)
 	}
-	ui.Column(c).FillWidth().Padding(8, 12, 0, 12).Gap(4).Children(func() {
+	ui.Column(c).FillWidth().Padding(design.Sp(2), design.Sp(3), 0, design.Sp(3)).Gap(design.Sp(1)).Children(func() {
 		ui.Row(c).FillWidth().Children(func() {
 			if stdButton(c, colors, label, buttonGhost, m.Snapshot.HistoryPageBusy || h.requested).Clicked() {
 				h.load(m)
 			}
 		})
 		if m.Snapshot.HistoryPageErr != nil {
-			ui.Text(c, m.Snapshot.HistoryPageErr.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			ui.Text(c, m.Snapshot.HistoryPageErr.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(t.MutedForeground)
 		}
 	})
 }
@@ -234,7 +236,7 @@ func transcriptRowContent(c *ui.Context, m Model, paint func()) {
 	}
 	// The same content axis serves history and messages; the native scrollbar
 	// stays at the edge of the full conversation column.
-	ui.Row(c).FillWidth().Padding(0, 37, 0, 32).Children(func() {
+	ui.Row(c).FillWidth().Padding(0, design.Sp(9.25), 0, design.Sp(8)).Children(func() {
 		ui.Box(c).Grow(1).MinWidth(0)
 		ui.Column(c).FillWidth().MaxWidth(axis).MinWidth(0).Children(paint)
 		ui.Box(c).Grow(1).MinWidth(0)

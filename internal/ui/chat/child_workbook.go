@@ -6,15 +6,17 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
 func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRead, opts ReadOnlyResourceOptions, st ToolCardStyle) {
+	t := design.For(c)
 	page := read.Table
 	if page == nil {
 		return
 	}
-	box := ui.Column(c.Key("child-workbook:" + path)).FillWidth().Gap(5)
+	box := ui.Column(c.Key("child-workbook:" + path)).FillWidth().Gap(design.Sp(1.25))
 	selectedCell := ui.Local(box, "cell", func() string { return "" })
 	run := func(request workspacefs.XLSXPageRequest) {
 		if opts.OnReadTable != nil {
@@ -23,7 +25,7 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 	}
 	blocked := read.Busy || opts.OnReadTable == nil
 	box.Children(func() {
-		ui.Text(c, i18n.T(i18n.KeyChatWorkbookReadOnly)).FontSize(10).TextColor(st.Muted)
+		ui.Text(c, i18n.T(i18n.KeyChatWorkbookReadOnly)).FontSize(10).TextColor(t.MutedForeground)
 		options := make([]string, len(page.Sheets))
 		selected := ""
 		for i, sheet := range page.Sheets {
@@ -39,7 +41,7 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 				}
 			}
 		}
-		ui.Row(c).Wrap().Gap(5).Children(func() {
+		ui.Row(c).Wrap().Gap(design.Sp(1.25)).Children(func() {
 			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatWorkbookPrevRows), buttonGhost, blocked || page.Request.Row == 0).Clicked() {
 				r := page.Request
 				r.Row = max(0, r.Row-r.Rows)

@@ -6,7 +6,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -27,14 +28,13 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 	if !queueDockHasRows(m.Board) && m.QueueEditor.ItemID == "" {
 		return
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	border := chrome.Color(colors.Border)
-	field := chrome.Color(colors.Field)
-	accent := chrome.Color(colors.Accent)
-	root := ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(6).
-		Background(field).Border(0.5, border).Radius(12).Padding(8, 10, 8, 10)
+	t := design.For(c)
+	fg := t.Foreground
+	muted := t.MutedForeground
+	border := t.Border
+	accent := t.Primary
+	root := chatCardSurface(c, ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(design.Sp(1.5)).
+		Padding(design.Sp(2), design.Sp(2.5), design.Sp(2), design.Sp(2.5)), design.RadiusLG)
 	collapsed := ui.Local(root, "collapsed", func() bool {
 		if m.Open != nil {
 			return !*m.Open
@@ -42,7 +42,7 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 		return true
 	})
 	root.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
 			if n := len(m.Board.Queue) + len(m.Board.Pending); n > 0 {
 				ui.Text(c, queueCountLabel(n)).FontSize(11).TextColor(muted)
@@ -52,7 +52,7 @@ func QueueDockView(c *ui.Context, m PlanBoardModel) {
 				if *collapsed {
 					label = "▾"
 				}
-				if ui.Button(c, label).Label(trajectoryText("展开或收起队列", "Expand or collapse queue")).Disabled(m.QueueEditor.ItemID != "").Clicked() {
+				if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: m.QueueEditor.ItemID != ""}).Label(trajectoryText("展开或收起队列", "Expand or collapse queue")).Clicked() {
 					*collapsed = !*collapsed
 				}
 			}
@@ -274,6 +274,7 @@ func queueCountNumber(n int) string {
 // prompts. Compact rows keep the preview on one line and put the actions in
 // icon seats; the expanded board keeps the same order with more room.
 func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border ui.Color, compact bool) {
+	t := design.For(c)
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	rowsOwner := ui.Box(c.Key("queue-rows-owner")).Size(0, 0).PassThrough()
 	moveFailed := ui.Local(rowsOwner, "queue-move-failed", func() bool { return false })
@@ -291,7 +292,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 		errNotice = queueMoveFailedCopy()
 	}
 	if errNotice != "" {
-		ui.Text(c, errNotice).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(palette.Danger))
+		ui.Text(c, errNotice).FontSize(theme.InterfaceSize(11)).TextColor(t.DestructiveForeground)
 	}
 	for _, pending := range m.Board.Pending {
 		paintPendingSubmission(c, pending, fg, muted)
@@ -299,7 +300,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 	for index, q := range m.Board.Queue {
 		index := index
 		item := q
-		itemBox := ui.Column(c).Key("queue-item:" + item.ID).FillWidth().MinWidth(0).Gap(4)
+		itemBox := ui.Column(c).Key("queue-item:" + item.ID).FillWidth().MinWidth(0).Gap(design.Sp(1))
 		localEdit := ui.Local(itemBox, "inline-edit", func() queueInlineEditState {
 			return queueInlineEditState{draft: item.Preview}
 		})
@@ -312,8 +313,8 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 		removeEnabled := can.Can(session.QueueActionRemove, item)
 
 		itemBox.Children(func() {
-			row := ui.Row(c).Key("queue-row:"+item.ID).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).
-				Padding(4, 6, 4, 6).Radius(8)
+			row := ui.Row(c).Key("queue-row:"+item.ID).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).
+				Padding(design.Sp(1), design.Sp(1.5), design.Sp(1), design.Sp(1.5)).Radius(design.RadiusMD)
 			if moveEnabled && (m.OnQueueMove != nil || m.OnQueueMoveResult != nil) {
 				queueDropTarget(row, m, item.ID, accent, dispatchMove)
 			}
@@ -321,7 +322,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 				if (m.OnQueueMove != nil || m.OnQueueMoveResult != nil) && len(m.Board.Queue) > 1 && item.ID != "" {
 					reorderLabel := queueReorderLabel(index+1, len(m.Board.Queue))
 					moveTip := queueMoveCopy()
-					grip := ui.Button(c, "").Key("queue-grip:"+item.ID).Label(reorderLabel).Tooltip(moveTip).Description(moveTip).Width(20).Height(24).Radius(6).
+					grip := ui.Button(c, "").Key("queue-grip:"+item.ID).Label(reorderLabel).Tooltip(moveTip).Description(moveTip).Width(20).Height(24).Radius(design.RadiusSM).
 						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
 					grip.Children(func() {
 						ui.Box(c).Absolute().Fill().PassThrough().Label(moveTip)
@@ -330,6 +331,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 					if !moveEnabled {
 						grip.Disabled(true).Opacity(.35)
 					} else {
+						grip.Cursor(ui.CursorPointer)
 						grip.Drag(queueDrag{Scope: can.Scope, ID: item.ID})
 						ui.DragEnd[queueDrag](grip)
 						grip.HandleInput(func(ev ui.InputEvent) bool {
@@ -355,7 +357,7 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 						}
 					}
 				}
-				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+				ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.75)).Children(func() {
 					paintQueueAttachments(c, m, item, fg, muted)
 					line := item.Preview
 					if item.Source != "" && !compact {
@@ -376,13 +378,14 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 					if tip == "" {
 						tip = label
 					}
-					button := ui.Button(c, "").Label(label).Tooltip(tip).Description(tip).Width(24).Height(24).Radius(6).
+					button := ui.Button(c, "").Label(label).Tooltip(tip).Description(tip).Width(24).Height(24).Radius(design.RadiusSM).
 						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
 					button.Children(func() { ui.Icon(c, icon).Width(13).Height(13).TextColor(tone) })
 					if !enabled {
 						button.Disabled(true).Opacity(.35)
 						return
 					}
+					button.Cursor(ui.CursorPointer)
 					if button.Hovered() {
 						button.Background(tone.Alpha(.12))
 					}
@@ -432,21 +435,22 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 					ready = m.QueueEditor.Ready
 					errText = m.QueueEditor.Error
 				}
-				ui.Column(c).Key("queue-inline-editor:"+item.ID).FillWidth().MinWidth(0).Gap(6).Padding(4, 6, 4, 6).Children(func() {
+				ui.Column(c).Key("queue-inline-editor:"+item.ID).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Padding(design.Sp(1), design.Sp(1.5), design.Sp(1), design.Sp(1.5)).Children(func() {
 					if ready {
-						ui.TextArea(c.Key("queue-edit-"+item.ID), &draft).Label(queueEditCopy()).FillWidth().Lines(2, 6).ReadOnly(saving).OnChange(func() {
+						ta := ui.TextArea(c.Key("queue-edit-"+item.ID), &draft).Label(queueEditCopy()).FillWidth().Lines(2, 6).ReadOnly(saving)
+						if ta.Changed() {
 							localEdit.draft = draft
 							if storeEditing && m.OnChangeQueueEdit != nil {
 								m.OnChangeQueueEdit(m.QueueEditor.Token, draft)
 							}
-						})
+						}
 					}
 					if errText != "" {
 						ui.Text(c, errText).FontSize(theme.InterfaceSize(11)).TextColor(fg)
 					}
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+					ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 						saveLabel := queueSaveEditCopy()
-						if ui.Button(c, saveLabel).Label(saveLabel).Tooltip(saveLabel).Disabled(!ready || saving || strings.TrimSpace(draft) == "").Clicked() {
+						if coss.Button(c, saveLabel, coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS, Label: saveLabel, Disabled: !ready || saving || strings.TrimSpace(draft) == ""}).Tooltip(saveLabel).Clicked() {
 							if storeEditing && m.OnSaveQueueEdit != nil {
 								m.OnSaveQueueEdit(m.QueueEditor.Token)
 							} else if m.OnQueueEdit != nil {

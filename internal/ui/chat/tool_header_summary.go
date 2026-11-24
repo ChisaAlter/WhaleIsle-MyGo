@@ -5,12 +5,13 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 func toolHeaderSummary(c *ui.Context, info ToolCardInfo, st ToolCardStyle, text string, size, height float32, ink ui.Color, running, active bool, exitLabel string) {
+	t := design.For(c)
 	font := theme.RenderPreferences().Chat.Family
 	linked := info.summaryModel != nil && info.summaryModel.FilePath != "" && info.openFile != nil && !toolSummaryHasCue(info.Status) && exitLabel == ""
 	webLinked := info.webHref != "" && info.openURL != nil && !toolSummaryHasCue(info.Status) && exitLabel == ""
@@ -23,13 +24,9 @@ func toolHeaderSummary(c *ui.Context, info ToolCardInfo, st ToolCardStyle, text 
 		if webLinked {
 			button.Role(ui.RoleLink).FocusRing(false)
 			focused := button.FocusVisible()
-			linkInk := ui.Hex("#4176e6")
-			if darkSurface(st.FG) {
-				linkInk = ui.Hex("#7aaaff")
-			}
 			button.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				if focused {
-					p.Stroke(ui.Rect{X: r.X - 3, Y: r.Y - 3, W: r.W + 6, H: r.H + 6}, linkInk, 3, 2)
+					p.Stroke(ui.Rect{X: r.X - 3, Y: r.Y - 3, W: r.W + 6, H: r.H + 6}, t.Ring, design.RadiusXS+1, design.RingWidth)
 				}
 			})
 		}
@@ -51,7 +48,7 @@ func toolHeaderSummary(c *ui.Context, info ToolCardInfo, st ToolCardStyle, text 
 		}
 		button.Children(func() {
 			label := toolSummaryText(c, text, font, size, height, ink, running).MinWidth(0).Shrink(1)
-			// CSS's dotted1px underline sits3px below the text baseline. Retain
+			// CSS's dotted 1px underline sits 3px below the text baseline. Retain
 			// native text/ellipsis and draw its decoration inside the same bounds.
 			metrics := (ui.Font{Family: font, Size: size}).Metrics()
 			baseline := (height-metrics.Ascent-metrics.Descent)/2 + metrics.Ascent
@@ -77,27 +74,26 @@ func toolHeaderSummary(c *ui.Context, info ToolCardInfo, st ToolCardStyle, text 
 		return
 	}
 	if info.image != nil {
-		toolSummaryText(c, fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyToolImageLabel), len(info.image.Images)), font, size, height, ink, running).Shrink(0).Margin(0, 0, 0, 4)
+		toolSummaryText(c, fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyToolImageLabel), len(info.image.Images)), font, size, height, ink, running).Shrink(0).Margin(0, 0, 0, design.Sp(1))
 	} else if info.contentKB != nil {
-		toolSummaryText(c, fmt.Sprintf("%dKB", *info.contentKB), font, size, height, ink, running).Shrink(0).Margin(0, 0, 0, 4)
+		toolSummaryText(c, fmt.Sprintf("%dKB", *info.contentKB), font, size, height, ink, running).Shrink(0).Margin(0, 0, 0, design.Sp(1))
 	}
 	if info.diffSummary != nil {
 		added, removed := ink, ink
 		if active {
-			// The installed semantic success alias is green500 in both themes.
-			added, removed = ui.Hex("#22c55e"), st.Err
+			added, removed = t.SuccessForeground, t.DestructiveForeground
 		}
-		ui.Row(c).Shrink(0).Margin(0, 0, 0, 10).Height(height).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Shrink(0).Margin(0, 0, 0, design.Sp(2.5)).Height(height).AlignItems(ui.Center).Children(func() {
 			// Match a single monospace inline text, including its real space.
 			ui.RichText(c, ui.Span{Text: fmt.Sprintf("+%d", info.diffSummary.Added), Color: added}, ui.Span{Text: " "}, ui.Span{Text: fmt.Sprintf("-%d", info.diffSummary.Removed), Color: removed}).
-				Font(theme.RenderPreferences().Code.Family).FontSize(11).FixedLineHeight(height).TextColor(ink).NoWrap().Shrink(0).Margin(.5, 0, -.5, 0)
+				Font(theme.RenderPreferences().Code.Family).FontSize(11).FixedLineHeight(height).TextColor(ink).NoWrap().Shrink(0).Margin(design.Sp(0.125), 0, -design.Sp(0.125), 0)
 		})
 	}
 }
 
 func toolSummaryText(c *ui.Context, text, font string, size, height float32, ink ui.Color, running bool) ui.Element {
 	if running {
-		return widgets.TextShimmer(c, widgets.TextShimmerOptions{Text: text, Active: true, Font: font, Size: size, Color: ink}).Height(height)
+		return chatTextShimmer(c, textShimmerOptions{Text: text, Active: true, Font: font, Size: size, Color: ink}).Height(height)
 	}
 	return ui.Text(c, text).Font(font).FontSize(size).FixedLineHeight(height).TextColor(ink).SingleLine()
 }

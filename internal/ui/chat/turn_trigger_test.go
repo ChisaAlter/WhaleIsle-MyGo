@@ -7,7 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -61,7 +61,7 @@ func TestTurnTriggerContentClockAndGeometry(t *testing.T) {
 		t.Fatal(err)
 	}
 	text, ok := tt.Find("first\nsecond\nthird")
-	if !ok || text.H != 54 || text.X != 52.5 {
+	if !ok || text.H != 54 || text.X != 53 {
 		t.Fatalf("12/18 trigger content inset/height: %+v found=%v", text, ok)
 	}
 	if tt.HasText("ignored source") || !tt.HasText("Unknown content block") {
@@ -72,8 +72,8 @@ func TestTurnTriggerContentClockAndGeometry(t *testing.T) {
 	tt.Move(text.X+1, text.Y+1)
 	tt.SetTime(at.Add(110 * time.Millisecond))
 	pixel := tt.Image().RGBAAt(20, int(text.Y+4))
-	bg := chrome.Color(palette.TriggerHover)
-	want := bg.Over(ui.RGB(255, 255, 255))
+	tokens := design.Base(design.Light)
+	want := tokens.Accent.Over(tokens.Card).Over(ui.RGB(255, 255, 255))
 	if pixel.R != want.R || pixel.G != want.G || pixel.B != want.B {
 		t.Fatalf("body hover background=%v want=%v", pixel, want)
 	}

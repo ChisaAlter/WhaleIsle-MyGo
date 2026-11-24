@@ -5,7 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -209,27 +209,23 @@ func askQuestionCardFor(call *session.ToolCallView) *askQuestionCard {
 // surface whose answered list names each question and its answer lines, and
 // whose unanswered form names the verdict above the questions.
 func askQuestionCardView(c *ui.Context, card askQuestionCard, st ToolCardStyle, key string) {
-	background, borderInk, primary, tertiary := st.Field, st.Border, st.FG, st.Muted
-	if st.Colors.BG != "" {
-		background, borderInk = chrome.Color(st.Colors.BG), chrome.Color(st.Colors.BorderL1)
-		primary, tertiary = chrome.Color(st.Colors.FG), chrome.Color(st.Colors.Muted)
-	}
+	t := design.For(c)
+	primary, tertiary := t.Foreground, t.MutedForeground
 	font := theme.RenderPreferences().Chat.Family
 	size := theme.RenderPreferences().Chat.Size
 	if size <= 0 {
 		size = 14
 	}
 	line := size + 10
-	root := chrome.FrostSurface(ui.Column(c.Key("ask-card:"+key)).FillWidth().MinWidth(0).Margin(4, 0, 4, 4).
-		Border(toolCSSHalfBorder(c), borderInk).Clip(), st.Colors, c.Theme().Dark, background, 16)
+	root := chatCardSurface(c, ui.Column(c.Key("ask-card:"+key)).FillWidth().MinWidth(0).Margin(design.Sp(1), 0, design.Sp(1), design.Sp(1)).Clip(), design.RadiusXL2)
 	root.Children(func() {
 		ui.Scroll(c.Key("scroll")).FillWidth().MinWidth(0).MaxHeight(360).Children(func() {
-			list := ui.Column(c.Key("body")).FillWidth().MinWidth(0).Padding(16, 20).Gap(16)
+			list := ui.Column(c.Key("body")).FillWidth().MinWidth(0).Padding(design.Sp(4), design.Sp(5)).Gap(design.Sp(4))
 			list.Children(func() {
 				if card.Kind == "unanswered" {
 					ui.Text(c, card.Verdict).Font(font).FontSize(size).FixedLineHeight(line).TextColor(primary).
 						FillWidth().MinWidth(0).Selectable()
-					questions := ui.Column(c.Key("questions")).FillWidth().MinWidth(0).Gap(8).Padding(0, 0, 0, 20)
+					questions := ui.Column(c.Key("questions")).FillWidth().MinWidth(0).Gap(design.Sp(2)).Padding(0, 0, 0, design.Sp(5))
 					questions.Children(func() {
 						for _, question := range card.Questions {
 							ui.Text(c, question.Question).Font(font).FontSize(size).FixedLineHeight(line).TextColor(tertiary).
@@ -239,7 +235,7 @@ func askQuestionCardView(c *ui.Context, card askQuestionCard, st ToolCardStyle, 
 					return
 				}
 				for index, question := range card.Questions {
-					item := ui.Column(c.Key(index)).FillWidth().MinWidth(0).Gap(2)
+					item := ui.Column(c.Key(index)).FillWidth().MinWidth(0).Gap(design.Sp(0.5))
 					item.Children(func() {
 						ui.Text(c, question.Question).Font(font).FontSize(size).FixedLineHeight(line).TextColor(tertiary).
 							FillWidth().MinWidth(0).Selectable()

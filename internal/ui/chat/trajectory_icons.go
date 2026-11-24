@@ -4,8 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/design"
 )
 
 // Artwork from the original ui-trajectory table/toolbar (artwork.ts and the
@@ -39,37 +38,30 @@ type trajectoryPalette struct {
 	dark                            bool
 }
 
-func newTrajectoryPalette(themeID string, systemDark bool, colors theme.Colors) trajectoryPalette {
-	token := func(name, fallback string) ui.Color {
-		return chrome.Color(theme.SkinSemanticToken(themeID, systemDark, name, fallback))
+func newTrajectoryPalette(c *ui.Context) trajectoryPalette {
+	t := design.For(c)
+	return trajectoryPalette{
+		fg:                t.Foreground,
+		muted:             t.MutedForeground,
+		secondary:         t.MutedForeground,
+		caption:           t.MutedForeground,
+		accent:            t.Primary,
+		danger:            t.DestructiveForeground,
+		hover:             t.Accent,
+		field:             t.Muted,
+		layer2:            t.Muted,
+		modulePlatform:    t.Muted,
+		businessTertiary:  t.Info.Alpha(.14),
+		warnLabel:         t.WarningForeground,
+		warnTertiary:      t.Warning.Alpha(.14),
+		successPrimary:    t.SuccessForeground,
+		successTertiary:   t.Success.Alpha(.14),
+		assistantViolet:   t.Primary,
+		assistantVioletBG: t.Primary.Alpha(.15),
+		turnAccent:        t.Border,
+		borderL1:          t.Border,
+		dark:              t.IsDark(),
 	}
-	violet := token("--dsw-alias-trajectory-assistant", "rgb(136, 120, 224)")
-	// --dsw-alias-brand-primary-new 60% + --dsw-alias-state-error-secondary.
-	assistant := token("--dsw-alias-trajectory-message", "rgb(144, 122, 205)")
-	p := trajectoryPalette{
-		fg:                chrome.Color(colors.FG),
-		muted:             chrome.Color(colors.Muted),
-		secondary:         chrome.Color(colors.Secondary),
-		caption:           chrome.Color(colors.Caption),
-		accent:            chrome.Color(colors.Accent),
-		danger:            chrome.Color(colors.Danger),
-		hover:             chrome.Color(colors.Hover),
-		field:             chrome.Color(colors.Field),
-		layer2:            chrome.Color(colors.SelectorFill),
-		modulePlatform:    token("--dsw-alias-bg-module-platform", "#f5f6f7"),
-		businessTertiary:  token("--dsw-alias-state-business-tertiary", "#e8effe"),
-		warnLabel:         token("--dsw-alias-state-warn-label", "#b35c00"),
-		warnTertiary:      token("--dsw-alias-state-warn-tertiary", "#fdf0e0"),
-		successPrimary:    token("--dsw-alias-state-success-primary", "#30a46c"),
-		successTertiary:   token("--dsw-alias-state-success-tertiary", "#e5f6ec"),
-		assistantViolet:   assistant,
-		assistantVioletBG: assistant.Alpha(.15),
-		turnAccent:        token("--dsw-alias-trajectory-accent", "#9db4d0").Alpha(.22),
-		borderL1:          chrome.Color(colors.BorderL1),
-		dark:              systemDark,
-	}
-	_ = violet
-	return p
 }
 
 // trajKind is the original TrajectoryCellKind the native message maps to.

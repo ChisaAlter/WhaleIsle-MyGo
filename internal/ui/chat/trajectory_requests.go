@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"sort"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 )
 
 const trajectoryRequestKind session.MessageKind = "trajectory-request"
@@ -55,7 +56,7 @@ func paintTrajectoryLifecycleTabs(c *ui.Context, selected *string, available boo
 	if !available {
 		return
 	}
-	ui.Row(c).Gap(6).Children(func() {
+	ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
 		for _, tab := range []struct{ id, label string }{{"request", "Request"}, {"request-events", "Events"}} {
 			ink := muted
 			if *selected == tab.id {

@@ -15,6 +15,7 @@ import (
 	"whaleisle/internal/desktop/openui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -661,7 +662,7 @@ func whaleUIPanelView(c *ui.Context, m Model) {
 		return
 	}
 	palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
+	ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
 		ui.Text(c, whaleLabel("会话面板", "Conversation panel")).FontSize(13)
 		if stdButton(c, palette, whaleLabel("折叠 / 展开", "Collapse / expand"), buttonGhost, false).Clicked() {
 			p.toggleCollapsed()

@@ -12,6 +12,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/design"
 )
 
 func toolDiffViewCall(n int) *session.ToolCallView {
@@ -41,10 +42,15 @@ func TestToolDiffViewSingleCardFoldPaletteAndFullCopy(t *testing.T) {
 			card, _ := tt.Find("Diff content card")
 			toolTreeNear(t, "diff left inset", card.X, 24)
 			toolTreeNear(t, "diff folded height", card.H, 258)
+			scheme := design.Light
+			if dark {
+				scheme = design.Dark
+			}
+			wantStripe := design.Base(scheme).SuccessForeground
 			add, _ := tt.Find("+ created-00")
 			pixel := tt.Image().RGBAAt(int(card.X+1), int(add.Y+4))
-			if absToolColor(int(pixel.R)-34)+absToolColor(int(pixel.G)-197)+absToolColor(int(pixel.B)-94) > 4 {
-				t.Fatalf("diff stripe%v", pixel)
+			if absToolColor(int(pixel.R)-int(wantStripe.R))+absToolColor(int(pixel.G)-int(wantStripe.G))+absToolColor(int(pixel.B)-int(wantStripe.B)) > 4 {
+				t.Fatalf("diff stripe%v want%v", pixel, wantStripe)
 			}
 			if tt.HasText("created-04") {
 				t.Fatal("folded middle visible")
@@ -144,27 +150,29 @@ func TestToolDiffViewSemanticRowsBothThemes(t *testing.T) {
 			tt, expanded, _ := toolSummaryViewFixture(t, call, 640, dark, false)
 			openReadView(t, tt, expanded)
 			card, _ := tt.Find("Diff content card")
-			base, deleted, alpha := [3]int{249, 250, 251}, [3]int{236, 19, 19}, 20
+			scheme := design.Light
+			bgAlpha := float32(20.0 / 255)
 			if dark {
-				base, deleted, alpha = [3]int{27, 27, 28}, [3]int{242, 90, 90}, 31
+				scheme = design.Dark
+				bgAlpha = 31.0 / 255
 			}
+			tok := design.Base(scheme)
 			for _, sample := range []struct {
-				label string
-				ink   [3]int
-			}{{"- old", deleted}, {"+ new", [3]int{34, 197, 94}}} {
+				label  string
+				stripe ui.Color
+				bg     ui.Color
+			}{
+				{"- old", tok.DestructiveForeground, tok.Destructive.Alpha(bgAlpha).Over(tok.Code)},
+				{"+ new", tok.SuccessForeground, tok.Success.Alpha(bgAlpha).Over(tok.Code)},
+			} {
 				r, _ := tt.Find(sample.label)
 				stripe := tt.Image().RGBAAt(int(card.X+1), int(r.Y+4))
 				fill := tt.Image().RGBAAt(int(card.X+card.W-5), int(r.Y+4))
-				for i, channel := range [3]int{int(stripe.R), int(stripe.G), int(stripe.B)} {
-					if absToolColor(channel-sample.ink[i]) > 1 {
-						t.Fatalf("%s stripe %v", sample.label, stripe)
-					}
+				if absToolColor(int(stripe.R)-int(sample.stripe.R)) > 1 || absToolColor(int(stripe.G)-int(sample.stripe.G)) > 1 || absToolColor(int(stripe.B)-int(sample.stripe.B)) > 1 {
+					t.Fatalf("%s stripe %v want %v", sample.label, stripe, sample.stripe)
 				}
-				for i, channel := range [3]int{int(fill.R), int(fill.G), int(fill.B)} {
-					want := (sample.ink[i]*alpha + base[i]*(255-alpha)) / 255
-					if absToolColor(channel-want) > 2 {
-						t.Fatalf("%s full row background %v", sample.label, fill)
-					}
+				if absToolColor(int(fill.R)-int(sample.bg.R)) > 2 || absToolColor(int(fill.G)-int(sample.bg.G)) > 2 || absToolColor(int(fill.B)-int(sample.bg.B)) > 2 {
+					t.Fatalf("%s full row background %v want %v", sample.label, fill, sample.bg)
 				}
 			}
 			toolDiffExport(t, tt, fmt.Sprintf("semantic-dark-%v", dark))

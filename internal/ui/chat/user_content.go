@@ -7,6 +7,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -27,7 +29,7 @@ func userContentAttachments(c *ui.Context, attachments []session.UserContentAtta
 	if len(attachments) == 0 {
 		return
 	}
-	ui.Row(c.Key("attachments")).Wrap().Gap(8).Justify(ui.End).MaxWidthPercent(100).Children(func() {
+	ui.Row(c.Key("attachments")).Wrap().Gap(design.Sp(2)).Justify(ui.End).MaxWidthPercent(100).Children(func() {
 		for index, attachment := range attachments {
 			child := c.Key(fmt.Sprintf("attachment:%d:%s", index, attachment.AttachmentID))
 			if attachment.Type == "image" {
@@ -47,11 +49,20 @@ func userContentAttachments(c *ui.Context, attachments []session.UserContentAtta
 // Unknown blocks are inspectable evidence, never guessed executable UI or links.
 // Masking changes display only; Copy preserves exactly the durable JSON block.
 func userExtraBlockView(c *ui.Context, raw json.RawMessage, fg, muted ui.Color) {
-	root := ui.Column(c.Key("extra-content")).FillWidth().MinWidth(0).Gap(4)
+	t := design.For(c)
+	root := ui.Column(c.Key("extra-content")).FillWidth().MinWidth(0).Gap(design.Sp(1))
 	open := ui.Local(root, "open", func() bool { return false })
 	root.Children(func() {
 		label := referenceCopy("Additional content", "附加内容")
-		button := ui.Button(c, label).Role(ui.RoleDisclosure).Expanded(*open).FillWidth().MinWidth(0)
+		chevron := coss.IconChevronDown
+		if *open {
+			chevron = coss.IconChevronUp
+		}
+		button := coss.Button(c, label, coss.ButtonOptions{
+			Variant:      coss.ButtonGhost,
+			Size:         coss.ButtonXS,
+			TrailingIcon: chevron,
+		}).Role(ui.RoleDisclosure).Expanded(*open).FillWidth().MinWidth(0)
 		if button.Clicked() {
 			*open = !*open
 		}
@@ -63,8 +74,8 @@ func userExtraBlockView(c *ui.Context, raw json.RawMessage, fg, muted ui.Color) 
 		if json.Indent(&formatted, raw, "", "  ") == nil {
 			body = formatted.String()
 		}
-		ui.Text(c, maskedUserText(body)).Font(theme.RenderPreferences().Code.Family).FontSize(12).TextColor(fg).Selectable().MinWidth(0)
-		if ui.Button(c, referenceCopy("Copy content", "复制内容")).TextColor(muted).Clicked() {
+		ui.Text(c, maskedUserText(body)).Font(theme.RenderPreferences().Code.Family).FontSize(design.TextXS.Size).TextColor(t.Foreground).Selectable().MinWidth(0)
+		if coss.Button(c, referenceCopy("Copy content", "复制内容"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Icon: coss.IconCopy}).Clicked() {
 			c.Services().WriteClipboard(string(raw))
 		}
 	})

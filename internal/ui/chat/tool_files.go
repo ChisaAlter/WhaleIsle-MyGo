@@ -9,6 +9,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/diff"
 )
@@ -255,20 +257,21 @@ func appliedToolDiffs(raw json.RawMessage) ([]toolFileDiff, bool) {
 }
 
 func toolFileView(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, opts ToolImageGalleryOptions) {
+	t := design.For(c)
 	card := toolFileCardFor(call)
 	if card.Path == "" {
 		return
 	}
-	ui.Column(c).Gap(4).FillWidth().Children(func() {
+	ui.Column(c).Gap(design.Sp(1)).FillWidth().Children(func() {
 		toolFileButton(c, card.Path, card.Line, st, opts.OnOpenFile)
 		if card.Read != nil {
 			body := card.Read
-			ui.Text(c, fmt.Sprintf("%s · %d lines", body.Path, body.TotalLines)).FontSize(10).TextColor(st.Muted)
+			ui.Text(c, fmt.Sprintf("%s · %d lines", body.Path, body.TotalLines)).FontSize(10).TextColor(t.MutedForeground)
 			for i, line := range body.Lines {
 				if i == 8 && !isThinkingExpanded(opts.Expanded, "tool-file:"+call.CallID) {
 					break
 				}
-				ui.Text(c, fmt.Sprintf("%d  %s", line.Number, line.Text)).FontSize(11).TextColor(st.FG)
+				ui.Text(c, fmt.Sprintf("%d  %s", line.Number, line.Text)).FontSize(11).TextColor(t.Foreground)
 			}
 			if len(body.Lines) > 8 {
 				toolFileDisclosure(c, call.CallID, opts)
@@ -279,7 +282,7 @@ func toolFileView(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, o
 			if card.Intended {
 				label = i18n.T(i18n.KeyChatToolProposedDiff)
 			}
-			ui.Text(c, label).FontSize(10).TextColor(st.Muted)
+			ui.Text(c, label).FontSize(10).TextColor(t.MutedForeground)
 			for _, d := range card.Diffs {
 				if d.Path != card.Path {
 					toolFileButton(c, d.Path, 0, st, opts.OnOpenFile)
@@ -296,14 +299,14 @@ func toolFileView(c *ui.Context, call *session.ToolCallView, st ToolCardStyle, o
 				}
 				patch := diff.LineDiff(old, d.NewText)
 				if patch == "" {
-					ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(st.Muted)
+					ui.Text(c, i18n.T(i18n.KeyChatToolNoDiff)).FontSize(11).TextColor(t.MutedForeground)
 					continue
 				}
 				lines := strings.Split(patch, "\n")
 				if len(lines) > 9 && !isThinkingExpanded(opts.Expanded, "tool-file:"+call.CallID) {
 					patch = strings.Join(lines[:9], "\n")
 				}
-				diff.View(c, patch, diff.Style{FG: st.FG, Muted: st.Muted, File: st.Muted, Hunk: st.Accent, Add: ui.RGB(61, 153, 112), Del: ui.RGB(224, 102, 102)})
+				diff.View(c, patch, diff.Style{FG: t.Foreground, Muted: t.MutedForeground, File: t.MutedForeground, Hunk: t.Primary, Add: t.SuccessForeground, Del: t.DestructiveForeground})
 				if len(lines) > 9 {
 					toolFileDisclosure(c, call.CallID, opts)
 				}
@@ -317,7 +320,7 @@ func toolFileButton(c *ui.Context, path string, line int, st ToolCardStyle, open
 		label += ":" + strconv.Itoa(line)
 	}
 	if open == nil {
-		ui.Text(c, label).FontSize(11).TextColor(st.Muted)
+		ui.Text(c, label).FontSize(11).TextColor(design.For(c).MutedForeground)
 		return
 	}
 	if stdButton(c, st.Colors, label, buttonGhost, false).Clicked() {
@@ -329,7 +332,7 @@ func toolFileDisclosure(c *ui.Context, id string, opts ToolImageGalleryOptions) 
 	if isThinkingExpanded(opts.Expanded, "tool-file:"+id) {
 		label = i18n.T(i18n.KeyChatToolCollapseFile)
 	}
-	if ui.Button(c, label).FontSize(10).Clicked() {
+	if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 		toggleThinkingExpanded(opts.Expanded, "tool-file:"+id)
 	}
 }

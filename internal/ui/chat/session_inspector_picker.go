@@ -3,7 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -192,13 +192,14 @@ func inspectorChatPickerOverlay(c *ui.Context, m Model, colors theme.Colors, lis
 			}
 			return false
 		})
+		t := design.For(c)
 		mask.DrawOver(func(p *ui.Painter, _ ui.Rect) {
 			if !n.Picking || q.preview.W <= 0 || q.preview.H <= 0 {
 				return
 			}
-			p.Fill(q.preview, chrome.Color(colors.Accent).Alpha(.15), 4)
+			p.Fill(q.preview, t.Primary.Alpha(.15), 4)
 			outline := ui.Rect{X: q.preview.X - 1, Y: q.preview.Y - 1, W: q.preview.W + 2, H: q.preview.H + 2}
-			p.Stroke(outline, chrome.Color(colors.Accent), 5, 1)
+			p.Stroke(outline, t.Primary, 5, 1)
 		})
 	})
 }

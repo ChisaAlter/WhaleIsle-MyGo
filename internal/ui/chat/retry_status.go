@@ -10,6 +10,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -55,13 +57,14 @@ func retrySeconds(deadline, now time.Time) int {
 }
 
 func RetryStatusView(c *ui.Context, m Model, msg session.Message, fg, muted ui.Color) {
+	t := design.For(c)
 	attempts := msg.Retry.Attempts
 	if len(attempts) == 0 {
 		return
 	}
 	current := attempts[len(attempts)-1]
 	scope := fmt.Sprintf("retry:%s:%s:%s:%.0f", m.Snapshot.PlanHistoryBinding, m.Snapshot.SelectedID, current.RetryID, current.Seq)
-	box := ui.Column(c.Key(scope)).FillWidth().Gap(4)
+	box := ui.Column(c.Key(scope)).FillWidth().Gap(design.Sp(1))
 	// As in the original client, anchor the Host's delay to first presentation:
 	// Host time and client wall time need not share a clock. This is an estimate,
 	// and only llm/retry-started can transition the scheduled status.
@@ -89,24 +92,24 @@ func RetryStatusView(c *ui.Context, m Model, msg session.Message, fg, muted ui.C
 			}
 		}
 		open := workflowExpanded(m.ThinkingExpanded, scope, false)
-		arrow := "▸ "
+		icon := coss.IconChevronRight
 		if open {
-			arrow = "▾ "
+			icon = coss.IconChevronDown
 		}
-		if ui.Button(c, arrow+text).FontSize(12).TextColor(muted).Clicked() {
+		if coss.Button(c, text, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Icon: icon}).AlignSelf(ui.Start).Clicked() {
 			workflowToggle(m.ThinkingExpanded, scope, false)
 		}
 		if !open {
 			return
 		}
 		for _, a := range attempts {
-			ui.Text(c, fmt.Sprintf("#%d · %s · %.0f ms", a.Retry, a.State, a.DelayMs)).FontSize(11).TextColor(muted)
+			ui.Text(c, fmt.Sprintf("#%d · %s · %.0f ms", a.Retry, a.State, a.DelayMs)).FontSize(11).TextColor(t.MutedForeground)
 			message, code := displayFailure(a.Failure)
 			if code != "" {
 				message += " [" + code + "]"
 			}
 			if message != "" {
-				ui.Text(c, message).FontSize(12).TextColor(fg)
+				ui.Text(c, message).FontSize(design.TextXS.Size).TextColor(t.Foreground)
 			}
 		}
 	})

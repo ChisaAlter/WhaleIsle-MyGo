@@ -7,10 +7,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 var feedbackCategories = []string{"task-result", "instruction-following", "product-interaction", "service-stability", "resource-cost", "security-privacy-permission", "other"}
@@ -84,7 +83,7 @@ func messageFeedbackDialog(c *ui.Context, m Model) {
 	if notice.recorded {
 		key = strconv.FormatUint(v.Acknowledgement, 10)
 	}
-	widgets.AckLineKeyed(c, "message-feedback-recorded", key, feedbackText("recorded"))
+	chatAckLineKeyed(c, "message-feedback-recorded", key, feedbackText("recorded"))
 	if v.EditorID == "" {
 		return
 	}
@@ -104,48 +103,45 @@ func SessionFeedbackDialog(c *ui.Context, store *session.Store, themeID string, 
 		store.EditSessionFeedback, func() { store.SubmitSessionFeedback(context.Background()) }, store.CancelSessionFeedback)
 }
 
-func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, category, failure string, busy bool, edit func(string, string), submit, dismiss func()) {
-	colors := theme.Resolve(themeID).Active(systemDark)
-	resolved := theme.Resolve(themeID)
-	dark := resolved.Scheme == theme.SchemeDark || (resolved.Scheme == theme.SchemeSystem && systemDark)
-	mask, stroke, layer := ui.RGBA(0, 0, 0, .24), ui.RGBA(0, 0, 0, .16), ui.RGBA(255, 255, 255, .8)
-	if dark {
-		mask = ui.RGBA(0, 0, 0, .5)
-		stroke = ui.RGBA(255, 255, 255, .2)
-		layer = ui.RGBA(44, 44, 46, .8)
-	}
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	primary, onPrimary := chrome.Color(colors.Accent), chrome.Color(colors.ButtonFG)
+func feedbackDialogView(c *ui.Context, _ string, _ bool, note, category, failure string, busy bool, edit func(string, string), submit, dismiss func()) {
+	t := design.For(c)
+	mask := design.TW.Black.Alpha(0.32)
+	fg, muted := t.Foreground, t.MutedForeground
+	primary, onPrimary := t.Primary, t.PrimaryForeground
 	open := true
 	w, h := c.Size()
 	ui.DialogBase(c.Key("message-feedback-modal"), &open, func(backdrop, panel ui.Element) {
-		progress := chrome.Reveal(c, backdrop, chrome.OverlayDuration)
-		chrome.RevealMask(backdrop, mask, progress)
-		backdrop.Padding(24)
-		panel.Label(feedbackText("title")).Width(max(0, min(float32(488), w-48))).MaxHeight(max(0, h-48)).MinHeight(0).Gap(38).Padding(0, 0, 24, 0).
-			Radius(28).Clip().Opacity(progress).Draw(chrome.Glass(layer, chrome.MaterialPanel, 28)).
-			Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+		progress := float32(1)
+		if !c.Preferences().ReduceMotion {
+			progress = backdrop.AnimateWith("coss.dialog.mask", 1, design.DurationPanel, design.EaseInOut)
+		}
+		backdrop.Background(mask.Alpha(progress)).Padding(design.Sp(6))
+		chatPopupSurface(c, panel.Label(feedbackText("title")).Width(max(0, min(float32(488), w-48))).MaxHeight(max(0, h-48)).MinHeight(0).Gap(design.Sp(9.5)).Padding(0, 0, design.Sp(6), 0).
+			Clip().Opacity(progress), design.RadiusXL3+design.Sp(1)).BorderWidth(0).Children(func() {
 			ui.Column(c).FillWidth().MinHeight(0).Shrink(1).Children(func() {
-				ui.Row(c).FillWidth().Shrink(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).FillWidth().Shrink(0).Padding(design.Sp(5.5), design.Sp(3.5), design.Sp(3), design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, feedbackText("title")).FontSize(16).FixedLineHeight(24).FontWeight(500).TextColor(fg).Grow(1)
-					close := ui.Button(c.Key("feedback-close"), "").Label(feedbackText("close")).Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Justify(ui.Center).AlignItems(ui.Center).FocusRing(false)
+					close := ui.Button(c.Key("feedback-close"), "").Label(feedbackText("close")).Width(28).Height(28).Padding(0).Radius(design.RadiusMD).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Justify(ui.Center).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
 					if close.Hovered() {
-						close.Background(chrome.Color(colors.Hover))
+						close.Background(t.Accent)
 					}
 					close.Children(func() { ui.Icon(c, messageIconCloseOutline).Width(14).Height(14).PassThrough() })
 					if close.Clicked() {
 						open = false
 					}
 				})
-				ui.Scroll(c).FillWidth().MinHeight(0).Shrink(1).Margin(20, 0, 0, 0).Padding(0, 24).Children(func() {
-					ui.Row(c).Key("feedback-categories").Role(ui.RoleGroup).Label(feedbackText("categories")).FillWidth().Wrap().Gap(8).Margin(-14, 0, 0, 0).Children(func() {
+				ui.Scroll(c).FillWidth().MinHeight(0).Shrink(1).Margin(design.Sp(5), 0, 0, 0).Padding(0, design.Sp(6)).Children(func() {
+					ui.Row(c).Key("feedback-categories").Role(ui.RoleGroup).Label(feedbackText("categories")).FillWidth().Wrap().Gap(design.Sp(2)).Margin(-design.Sp(3.5), 0, 0, 0).Children(func() {
 						for _, chipCategory := range feedbackCategories {
 							chipCategory := chipCategory
-							chip := ui.Button(c.Key("feedback-category-"+chipCategory), feedbackText(chipCategory)).Height(28).Padding(0, 12).FontSize(13).FixedLineHeight(18).Radius(8).Border(.5, stroke).Background(ui.Transparent).TextColor(fg).Checked(chipCategory == category).Disabled(busy)
+							chip := ui.Button(c.Key("feedback-category-"+chipCategory), feedbackText(chipCategory)).Height(28).Padding(0, design.Sp(3)).FontSize(13).FixedLineHeight(18).Radius(design.RadiusMD).Border(.5, t.Border).Background(ui.Transparent).TextColor(fg).Checked(chipCategory == category).Disabled(busy)
+							if !busy {
+								chip.Cursor(ui.CursorPointer)
+							}
 							if chipCategory == category {
 								chip.Border(.5, primary).Background(primary).TextColor(onPrimary)
 							} else if chip.Hovered() {
-								chip.Background(chrome.Color(colors.Hover))
+								chip.Background(t.Accent)
 							}
 							if chip.Clicked() {
 								next := chipCategory
@@ -157,21 +153,25 @@ func feedbackDialogView(c *ui.Context, themeID string, systemDark bool, note, ca
 						}
 					})
 					draft := note
-					ui.TextAreaBase(c.Key("feedback-detail"), &draft).Label(feedbackText("detail")).Placeholder(feedbackText("hint")).FillWidth().Lines(3, 12).MinHeight(116).MaxHeight(280).Margin(18, 0, 0, 0).Padding(12, 14).
-						FontSize(14).FixedLineHeight(22).Radius(16).Border(.5, stroke).Background(chrome.FrostInset(colors, systemDark, chrome.Color(colors.Field))).TextColor(fg).ReadOnly(busy).OnChange(func() { edit(draft, category) })
+					ui.TextAreaBase(c.Key("feedback-detail"), &draft).Label(feedbackText("detail")).Placeholder(feedbackText("hint")).FillWidth().Lines(3, 12).MinHeight(116).MaxHeight(280).Margin(design.Sp(4.5), 0, 0, 0).Padding(design.Sp(3), design.Sp(3.5)).
+						FontSize(14).FixedLineHeight(22).Radius(design.RadiusXL2).Border(.5, t.Input).Background(t.Muted).TextColor(fg).ReadOnly(busy).OnChange(func() { edit(draft, category) })
 				})
 			})
 			if failure != "" {
-				ui.Row(c).FillWidth().Shrink(0).Padding(0, 24, 12, 24).Children(func() {
-					widgets.Alert(c, widgets.AlertOptions{ID: "feedback-failure", Message: failure})
+				ui.Row(c).FillWidth().Shrink(0).Padding(0, design.Sp(6), design.Sp(3), design.Sp(6)).Children(func() {
+					coss.Alert(c, failure, "", coss.AlertOptions{Variant: coss.AlertError, Key: "feedback-failure"})
 				})
 			}
-			ui.Row(c).FillWidth().Shrink(0).Padding(0, 24).Children(func() {
+			ui.Row(c).FillWidth().Shrink(0).Padding(0, design.Sp(6)).Children(func() {
 				label := feedbackText("submit")
 				if busy {
 					label = feedbackText("submitting")
 				}
-				if ui.Button(c.Key("feedback-submit"), label).Label(label).FillWidth().Height(44).Radius(16).FontSize(14).FontWeight(500).BorderWidth(0).Background(primary).TextColor(onPrimary).Disabled(busy).Clicked() {
+				submitBtn := ui.Button(c.Key("feedback-submit"), label).Label(label).FillWidth().Height(44).Radius(design.RadiusXL2).FontSize(14).FontWeight(500).BorderWidth(0).Background(primary).TextColor(onPrimary).Disabled(busy)
+				if !busy {
+					submitBtn.Cursor(ui.CursorPointer)
+				}
+				if submitBtn.Clicked() {
 					submit()
 				}
 			})
