@@ -52,15 +52,15 @@ func TestBotRoutineDurationReviewIdentityAndPending(t *testing.T) {
 			source := RoutineSnapshot{Scope: RoutineScope{HostKey: "fixture-client", BotID: "b"}, Loaded: true, Revision: 7, SessionID: "s"}
 			c.Sync(k, 1, source)
 			c.Start(k, "Asia/Shanghai")
-			d := c.Snapshot(k).Draft
+			d := c.Snapshot(k).Value.Draft
 			if d.Frequency != "daily" || d.OnceDelay != "30m" || d.IntervalAmount != "1" || d.IntervalUnit != "h" || d.Enabled {
 				t.Fatal(d)
 			}
 			c.Change(k, "prompt", "Fixture prompt")
 			c.Prepare(k)
-			dailyReview := c.Snapshot(k).Review
+			dailyReview := c.Snapshot(k).Value.Review
 			c.Change(k, "frequency", frequency)
-			if c.Snapshot(k).Review != nil {
+			if c.Snapshot(k).Value.Review != nil {
 				t.Fatal("type change retained confirmation")
 			}
 			c.Change(k, "enabled", "true")
@@ -68,9 +68,9 @@ func TestBotRoutineDurationReviewIdentityAndPending(t *testing.T) {
 			if _, _, ok := c.Begin(k, dailyReview); ok {
 				t.Fatal("daily callback consumed duration review")
 			}
-			review := c.Snapshot(k).Review
+			review := c.Snapshot(k).Value.Review
 			if review == nil {
-				t.Fatal(c.Snapshot(k).Error)
+				t.Fatal(c.Snapshot(k).Value.Error)
 			}
 			want := "30m"
 			if frequency == "interval" {
@@ -88,23 +88,23 @@ func TestBotRoutineDurationReviewIdentityAndPending(t *testing.T) {
 			c.Change(k, "onceDelay", "1m")
 			c.Change(k, "intervalAmount", "2")
 			c.Prepare(k)
-			s := c.Snapshot(k)
+			s := c.Snapshot(k).Value
 			if !s.Uncertain || s.Draft.Frequency != frequency || s.Draft.OnceDelay != "30m" || s.Draft.IntervalAmount != "1" || s.Draft.RequestID != cmd.RequestID {
 				t.Fatal("pending duration identity changed")
 			}
 			c.Sync(k, 1, source)
 			c.Rebase(k)
-			if !c.Snapshot(k).Uncertain {
+			if !c.Snapshot(k).Value.Uncertain {
 				t.Fatal("same revision replay unlocked")
 			}
 			source.Revision = 8
 			c.Sync(k, 1, source)
-			if !c.Snapshot(k).RetryVerified {
+			if !c.Snapshot(k).Value.RetryVerified {
 				t.Fatal("new revision fence not available")
 			}
 			c.Rebase(k)
 			c.Prepare(k)
-			s = c.Snapshot(k)
+			s = c.Snapshot(k).Value
 			if s.Review == nil || s.Review.Command.Edit.Schedule != want || s.Review.Command.RequestID == cmd.RequestID || s.Draft.Frequency != frequency {
 				t.Fatal("rebase lost duration or reused request identity")
 			}
@@ -121,28 +121,28 @@ func TestBotRoutineDurationInvalidDraftRetained(t *testing.T) {
 	c.Change(k, "frequency", "once")
 	c.Change(k, "onceDelay", "0m")
 	c.Prepare(k)
-	s := c.Snapshot(k)
-	if s.Review != nil || s.Error == "" || s.Draft.OnceDelay != "0m" {
+	s := c.Snapshot(k).Value
+	if s.Review != nil || s.Error == nil || s.Draft.OnceDelay != "0m" {
 		t.Fatal("invalid draft not retained")
 	}
 	c.Change(k, "onceDelay", "30m")
 	c.Change(k, "timezone", "Local")
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("duration bypassed explicit timezone")
 	}
 	c.Change(k, "timezone", "UTC")
 	c.Prepare(k)
-	if c.Snapshot(k).Review == nil {
-		t.Fatal(c.Snapshot(k).Error)
+	if c.Snapshot(k).Value.Review == nil {
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	c.Change(k, "frequency", "not-a-frequency")
-	if c.Snapshot(k).Draft.Frequency != "once" {
+	if c.Snapshot(k).Value.Draft.Frequency != "once" {
 		t.Fatal("unsupported editor type accepted")
 	}
 	c.Change(k, "frequency", "interval")
 	c.Change(k, "intervalUnit", "s")
-	if c.Snapshot(k).Draft.IntervalUnit != "h" {
+	if c.Snapshot(k).Value.Draft.IntervalUnit != "h" {
 		t.Fatal("unsupported unit accepted")
 	}
 }

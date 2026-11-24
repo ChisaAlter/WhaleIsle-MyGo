@@ -10,6 +10,7 @@ import (
 	"time"
 	_ "time/tzdata"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -36,7 +37,8 @@ type RoutineCreateSnapshot struct {
 	Draft                                  *RoutineCreateDraft
 	Review                                 *RoutineCreateReview
 	Candidates                             []pluginrpc.DshbotRoutine
-	CreatedID, Error, Notice               string
+	CreatedID, Notice                      string
+	Error                                  *state.Fault
 }
 type RoutineCreateTicket struct {
 	Scope, SourceScope RoutineScope
@@ -50,6 +52,8 @@ type routineCreateAttempt struct {
 type routineCreateEntry struct {
 	state   RoutineCreateSnapshot
 	attempt *routineCreateAttempt
+	pub     state.Published[RoutineCreateSnapshot]
+	dirty   bool
 }
 
 // Entries are local to an authenticated Host + Bot, including unresolved creates
@@ -72,6 +76,7 @@ func (c *RoutineCreator) entry(k RoutineScope) *routineCreateEntry {
 		e = &routineCreateEntry{state: RoutineCreateSnapshot{Scope: k}}
 		c.entries[k] = e
 	}
+	e.dirty = true
 	return e
 }
 func (c *RoutineCreator) valid(k RoutineScope) bool {
@@ -101,7 +106,7 @@ func (c *RoutineCreator) Sync(k RoutineScope, binding uint64, source RoutineSnap
 	}
 	cmd := e.attempt.Command
 	if source.SessionID != cmd.SessionID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotBotSessionChangedInspectTheOriginal)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotBotSessionChangedInspectTheOriginal))
 		return
 	}
 	if source.Revision < cmd.Revision {
@@ -126,12 +131,15 @@ func cloneCreateCommand(cmd pluginrpc.DshbotRoutineCreateCommand) pluginrpc.Dshb
 	cmd.Advanced = pluginrpc.CloneDshbotRoutineAdvanced(cmd.Advanced)
 	return cmd
 }
-func (c *RoutineCreator) Snapshot(k RoutineScope) RoutineCreateSnapshot {
+func (c *RoutineCreator) Snapshot(k RoutineScope) *state.Version[RoutineCreateSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return RoutineCreateSnapshot{Scope: k}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	out := e.state
 	if out.Draft != nil {
@@ -149,7 +157,9 @@ func (c *RoutineCreator) Snapshot(k RoutineScope) RoutineCreateSnapshot {
 	for i, r := range e.state.Candidates {
 		out.Candidates[i] = cloneRoutine(r)
 	}
-	return out
+	e.pub.Publish(out)
+	e.dirty = false
+	return e.pub.Load()
 }
 func createRequestID() (string, error) {
 	var b [16]byte
@@ -180,13 +190,13 @@ func (c *RoutineCreator) Start(k RoutineScope, zone string) {
 	}
 	id, err := createRequestID()
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	e.state.Draft = &RoutineCreateDraft{Name: storelocale.T(storelocale.KeyStoreDshbotNewScheduledTask), Frequency: "daily", Weekday: "1", MonthDay: "1", Cron: "0 9 * * *", OnceDelay: "30m", IntervalAmount: "1", IntervalUnit: "h", Hour: "09", Minute: "00", Timezone: RoutineCreateTimezone(zone), MaxRuns: "0", Revision: c.source.Revision, SessionID: c.source.SessionID, RequestID: id}
 	e.state.Draft.Advanced = RoutineAdvancedDraft{SilentAllowed: true, WatchTimeout: "15000"}
 	e.state.CreatedID = ""
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = ""
 }
 func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
@@ -238,7 +248,7 @@ func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
 	default:
 		changed, err := editRoutineAdvanced(&d.Advanced, field, value, k.BotID, "", c.source.Routines)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 			return
 		}
 		if !changed {
@@ -247,7 +257,7 @@ func (c *RoutineCreator) Change(k RoutineScope, field, value string) {
 	}
 	d.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RoutineCreator) Discard(k RoutineScope) {
 	c.mu.Lock()
@@ -257,7 +267,7 @@ func (c *RoutineCreator) Discard(k RoutineScope) {
 		if !e.state.Busy && e.attempt == nil {
 			e.state.Draft = nil
 			e.state.Review = nil
-			e.state.Error = ""
+			e.state.Error = nil
 		}
 	}
 }
@@ -285,12 +295,12 @@ func (c *RoutineCreator) Rebase(k RoutineScope) {
 		return
 	}
 	if e.state.Draft.SessionID != c.source.SessionID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotBotIdentityChanged2)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotBotIdentityChanged2))
 		return
 	}
 	id, err := createRequestID()
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	e.state.Draft.RequestID = id
@@ -300,7 +310,7 @@ func (c *RoutineCreator) Rebase(k RoutineScope) {
 	e.attempt = nil
 	e.state.Uncertain = false
 	e.state.RetryVerified = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCurrentCatalogAdoptedReviewCreation)
 }
 func (c *RoutineCreator) Prepare(k RoutineScope) {
@@ -316,38 +326,38 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 	e.state.Review = nil
 	d := e.state.Draft
 	if d.Revision != c.source.Revision || d.SessionID != c.source.SessionID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotCatalogChangedRecheckBeforeReviewing)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotCatalogChangedRecheckBeforeReviewing))
 		return
 	}
 	schedule, err := routineCreateSchedule(*d)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	limit, lErr := strconv.Atoi(strings.TrimSpace(d.MaxRuns))
 	if lErr != nil {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotRunLimitMustBeAnInteger2)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotRunLimitMustBeAnInteger2))
 		return
 	}
 	zone := strings.TrimSpace(d.Timezone)
 	if zone == "" || zone == "Local" {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotSpecifyTheIntendedIanaTimezone)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotSpecifyTheIntendedIanaTimezone))
 		return
 	}
 	if _, err := time.LoadLocation(zone); err != nil {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotInvalidIanaTimezone) + zone
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotInvalidIanaTimezone) + zone)
 		return
 	}
 	edit := pluginrpc.DshbotRoutineEdit{Name: d.Name, Prompt: d.Prompt, Schedule: schedule, Timezone: d.Timezone, MaxRuns: limit, Enabled: d.Enabled}
 	if err := pluginrpc.ValidateDshbotRoutineEdit(edit); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	advancedDraft := cloneRoutineAdvanced(d.Advanced)
 	advancedDraft.ContextChanged, advancedDraft.SilentChanged, advancedDraft.WatchChanged = true, true, true
 	advanced, err := prepareRoutineAdvanced(advancedDraft, k.BotID, "", c.source.Routines)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	cmd := pluginrpc.DshbotRoutineCreateCommand{BotID: k.BotID, SessionID: d.SessionID, RequestID: d.RequestID, Revision: d.Revision, Edit: edit, Advanced: advanced}
@@ -355,7 +365,7 @@ func (c *RoutineCreator) Prepare(k RoutineScope) {
 		cmd.BeforeIDs = append(cmd.BeforeIDs, r.ID)
 	}
 	e.state.Review = &RoutineCreateReview{Command: cmd, Version: d.Version, Advanced: routineAdvancedReviewValue(advancedDraft, advanced), WorkspaceID: c.source.WorkspaceID}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RoutineCreator) Begin(k RoutineScope, expected *RoutineCreateReview) (RoutineCreateTicket, pluginrpc.DshbotRoutineCreateCommand, bool) {
 	c.mu.Lock()
@@ -377,7 +387,7 @@ func (c *RoutineCreator) Begin(k RoutineScope, expected *RoutineCreateReview) (R
 	e.attempt = &routineCreateAttempt{Command: cmd, Sequence: c.sequence}
 	e.state.Busy = true
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return RoutineCreateTicket{Scope: k, SourceScope: c.source.Scope, Binding: c.binding, Sequence: c.sequence}, cmd, true
 }
 
@@ -397,6 +407,9 @@ func (c *RoutineCreator) AcknowledgeWatch(k RoutineScope, expected *RoutineCreat
 }
 func (c *RoutineCreator) current(t RoutineCreateTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.binding == t.Binding && c.source.Scope == t.SourceScope && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *RoutineCreator) Current(t RoutineCreateTicket) bool {
@@ -417,6 +430,9 @@ func (c *RoutineCreator) AbortUnsent(t RoutineCreateTicket) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && !e.attempt.Sent {
 		e.attempt = nil
 		e.state.Busy = false
@@ -428,6 +444,9 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -436,7 +455,7 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 		e.attempt = nil
 		e.state.Uncertain = false
 		e.state.Review = nil
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCreationRejectedBeforeWriteDraftRet)
 		return
 	}
@@ -449,7 +468,7 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainInspectTheCatalogBe)
 		return
 	}
@@ -457,7 +476,7 @@ func (c *RoutineCreator) Finish(t RoutineCreateTicket, result pluginrpc.DshbotRo
 	e.state.Draft = nil
 	e.state.Review = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCreatedRoutine) + result.ID
 	e.attempt = nil
 }
@@ -479,7 +498,7 @@ func (c *RoutineCreator) Adopt(k RoutineScope, id string) bool {
 			e.state.Uncertain = false
 			e.state.Candidates = nil
 			e.state.RetryVerified = false
-			e.state.Error = ""
+			e.state.Error = nil
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUsingTheInspectedExistingRecord)
 			e.attempt = nil
 			return true

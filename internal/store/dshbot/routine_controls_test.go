@@ -27,7 +27,7 @@ func TestBotRoutineScopeDraftRevisionAndConfirmation(t *testing.T) {
 	s := RoutineScope{HostKey: "host-a", BotID: "b"}
 	c.Bind(s)
 	loadRoutines(t, &c, s, 4)
-	if len(c.Snapshot(s).Routines) != 2 {
+	if len(c.Snapshot(s).Value.Routines) != 2 {
 		t.Fatal("foreign routine exposed")
 	}
 	c.Select(s, "r")
@@ -37,23 +37,23 @@ func TestBotRoutineScopeDraftRevisionAndConfirmation(t *testing.T) {
 	c.StartEdit(s)
 	c.Edit(s, "name", "Second draft")
 	c.Select(s, "r")
-	if c.Snapshot(s).Draft.Edit.Name != "Changed" {
+	if c.Snapshot(s).Value.Draft.Edit.Name != "Changed" {
 		t.Fatal("routine drafts mixed")
 	}
 	if _, _, ok := c.BeginAction(s); ok {
 		t.Fatal("unreviewed action")
 	}
 	c.Prepare(s, "save")
-	if c.Snapshot(s).Review == nil {
+	if c.Snapshot(s).Value.Review == nil {
 		t.Fatal("missing review")
 	}
 	c.Edit(s, "prompt", "New prompt")
-	if c.Snapshot(s).Review != nil {
+	if c.Snapshot(s).Value.Review != nil {
 		t.Fatal("edited draft kept prior approval")
 	}
 	c.Prepare(s, "save")
 	loadRoutines(t, &c, s, 5)
-	snap := c.Snapshot(s)
+	snap := c.Snapshot(s).Value
 	if snap.Draft.Edit.Name != "Changed" || snap.Draft.Revision != 4 || snap.Review != nil {
 		t.Fatal("refresh rebased/discarded draft or approval")
 	}
@@ -67,14 +67,14 @@ func TestBotRoutineScopeDraftRevisionAndConfirmation(t *testing.T) {
 	c.Prepare(s, "save")
 	ticket, _, ok := c.BeginAction(s)
 	if !ok {
-		t.Fatal(c.Snapshot(s).Error)
+		t.Fatal(c.Snapshot(s).Value.Error)
 	}
 	c.Bind(RoutineScope{HostKey: "host-b", BotID: "b"})
 	if c.FinishAction(ticket, routineView(6), nil) {
 		t.Fatal("late cross-Host write result applied")
 	}
 	c.Bind(s)
-	if c.Snapshot(s).Draft != nil || c.Snapshot(s).Loaded {
+	if c.Snapshot(s).Value.Draft != nil || c.Snapshot(s).Value.Loaded {
 		t.Fatal("old Host draft revived")
 	}
 }
@@ -93,7 +93,7 @@ func TestBotRoutineAmbiguousWriteAndCanonicalIdentity(t *testing.T) {
 		t.Fatal("double click allowed")
 	}
 	c.FinishAction(ticket, nil, errors.New("ambiguous transport"))
-	if c.Snapshot(s).Loaded || c.Snapshot(s).Review != nil {
+	if c.Snapshot(s).Value.Loaded || c.Snapshot(s).Value.Review != nil {
 		t.Fatal("ambiguous write permits replay")
 	}
 	c.Prepare(s, "run")
@@ -110,7 +110,7 @@ func TestBotRoutineAmbiguousWriteAndCanonicalIdentity(t *testing.T) {
 	v.Value.Routines = v.Value.Routines[1:]
 	v.Value.Items[0].SessionID = "replaced"
 	c.FinishAction(ticket, v, nil)
-	if c.Snapshot(s).Loaded || c.Snapshot(s).Error == "" {
+	if c.Snapshot(s).Value.Loaded || c.Snapshot(s).Value.Error == nil {
 		t.Fatal("canonical session changed silently")
 	}
 }
@@ -122,15 +122,15 @@ func TestBotRoutineSnapshotsAndReadFailure(t *testing.T) {
 	c.Select(s, "r")
 	c.StartEdit(s)
 	c.Edit(s, "name", "Keep draft")
-	snap := c.Snapshot(s)
+	snap := c.Snapshot(s).Value
 	snap.Draft.Edit.Name = "External mutation"
 	snap.Routines[0].Name = "External row"
-	if c.Snapshot(s).Draft.Edit.Name != "Keep draft" || c.Snapshot(s).Routines[0].Name == "External row" {
+	if c.drafts[c.state.SelectedID].Edit.Name != "Keep draft" || c.state.Routines[0].Name == "External row" {
 		t.Fatal("snapshot aliases state")
 	}
 	ticket, _ := c.BeginLoad(s)
 	c.FinishLoad(ticket, nil, nil, nil, errors.New("read failed"))
-	snap = c.Snapshot(s)
+	snap = c.Snapshot(s).Value
 	if snap.Loaded || snap.Draft.Edit.Name != "Keep draft" {
 		t.Fatal("read failure discarded draft or left writes enabled")
 	}

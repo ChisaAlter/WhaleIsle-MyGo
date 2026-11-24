@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -44,7 +45,8 @@ type RoutineSnapshot struct {
 	MissedKnown                    bool
 	Draft                          *RoutineDraft
 	Review                         *RoutineReview
-	Error, Notice                  string
+	Error                          *state.Fault
+	Notice                         string
 	Trigger                        RoutineTriggerSnapshot
 }
 type RoutineControls struct {
@@ -66,11 +68,16 @@ type RoutineControls struct {
 	triggerSequence uint64
 	trigger         routineTriggerState
 	drafts          map[string]RoutineDraft
+	pub             state.Published[RoutineSnapshot]
+	dirty           bool
+	foreignPub      state.Published[RoutineSnapshot]
+	foreignKey      RoutineScope
 }
 
 func (c *RoutineControls) Bind(scope RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.state.Scope != scope {
 		c.TextProfile.Bind(scope)
 		c.SenderPolicy.Bind(scope)
@@ -121,11 +128,18 @@ func cloneRoutine(r pluginrpc.DshbotRoutine) pluginrpc.DshbotRoutine {
 	}
 	return r
 }
-func (c *RoutineControls) Snapshot(scope RoutineScope) RoutineSnapshot {
+func (c *RoutineControls) Snapshot(scope RoutineScope) *state.Version[RoutineSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
-		return RoutineSnapshot{Scope: scope}
+		if c.foreignKey != scope {
+			c.foreignKey = scope
+			c.foreignPub.Publish(RoutineSnapshot{Scope: scope})
+		}
+		return c.foreignPub.Load()
+	}
+	if v := c.pub.Load(); v != nil && !c.dirty {
+		return v
 	}
 	out := c.state
 	out.Trigger = c.trigger.meta
@@ -142,7 +156,9 @@ func (c *RoutineControls) Snapshot(scope RoutineScope) RoutineSnapshot {
 		r := cloneRoutineReview(*out.Review)
 		out.Review = &r
 	}
-	return out
+	c.pub.Publish(out)
+	c.dirty = false
+	return c.pub.Load()
 }
 func (c *RoutineControls) valid(s RoutineScope) bool {
 	return s == c.state.Scope && s.HostKey != "" && s.BotID != ""
@@ -153,13 +169,14 @@ func (c *RoutineControls) matches(t RoutineTicket) bool {
 func (c *RoutineControls) BeginLoad(s RoutineScope) (RoutineTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(s) || c.state.Busy {
 		return RoutineTicket{}, false
 	}
 	c.clearRoutineTrigger()
 	c.generation++
 	c.state.Busy = true
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Review = nil
 	return RoutineTicket{s, c.generation}, true
 }
@@ -204,6 +221,7 @@ func (c *RoutineControls) replace(v *pluginrpc.DshbotRoutineView) error {
 func (c *RoutineControls) FinishLoad(t RoutineTicket, v *pluginrpc.DshbotRoutineView, missed []string, missedErr, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.matches(t) {
 		return false
 	}
@@ -213,7 +231,7 @@ func (c *RoutineControls) FinishLoad(t RoutineTicket, v *pluginrpc.DshbotRoutine
 	}
 	if err != nil {
 		c.state.Loaded = false
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return true
 	}
 	c.state.MissedIDs = nil
@@ -223,10 +241,10 @@ func (c *RoutineControls) FinishLoad(t RoutineTicket, v *pluginrpc.DshbotRoutine
 		}
 	}
 	c.state.MissedKnown = missedErr == nil
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRoutinesRefreshed)
 	if missedErr != nil {
-		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotMissedRunStatusUnavailable) + missedErr.Error()
+		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotMissedRunStatusUnavailable)
 	}
 	return true
 }
@@ -241,6 +259,7 @@ func (c *RoutineControls) row(id string) (pluginrpc.DshbotRoutine, bool) {
 func (c *RoutineControls) Select(s RoutineScope, id string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(s) || c.state.Busy {
 		return
 	}
@@ -250,12 +269,13 @@ func (c *RoutineControls) Select(s RoutineScope, id string) {
 		}
 		c.state.SelectedID = id
 		c.state.Review = nil
-		c.state.Error = ""
+		c.state.Error = nil
 	}
 }
 func (c *RoutineControls) StartEdit(s RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(s) || c.state.Busy || !c.state.Loaded {
 		return
 	}
@@ -279,6 +299,7 @@ func (c *RoutineControls) StartEdit(s RoutineScope) {
 func (c *RoutineControls) Edit(s RoutineScope, field, value string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(s) || c.state.Busy {
 		return
 	}
@@ -302,7 +323,7 @@ func (c *RoutineControls) Edit(s RoutineScope, field, value string) {
 	default:
 		changed, err := editRoutineAdvanced(&d.Advanced, field, value, s.BotID, d.ID, c.state.Routines)
 		if err != nil {
-			c.state.Error = err.Error()
+			c.state.Error = state.FaultOf(err)
 			c.state.Review = nil
 			return
 		}
@@ -313,20 +334,22 @@ func (c *RoutineControls) Edit(s RoutineScope, field, value string) {
 	d.Version++
 	c.drafts[d.ID] = d
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 }
 func (c *RoutineControls) DiscardEdit(s RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(s) && !c.state.Busy {
 		delete(c.drafts, c.state.SelectedID)
 		c.state.Review = nil
-		c.state.Error = ""
+		c.state.Error = nil
 	}
 }
 func (c *RoutineControls) Dismiss(s RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(s) && !c.state.Busy {
 		c.state.Review = nil
 	}
@@ -334,6 +357,7 @@ func (c *RoutineControls) Dismiss(s RoutineScope) {
 func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(s) || c.state.Busy || !c.state.Loaded {
 		return
 	}
@@ -351,26 +375,26 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 			return
 		}
 		if d.Revision != c.state.Revision || d.SessionID != c.state.SessionID {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotCatalogChangedReviewCurrentValuesBe)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotCatalogChangedReviewCurrentValuesBe))
 			return
 		}
 		n, err := strconv.Atoi(strings.TrimSpace(d.MaxRunsText))
 		if err != nil {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotRunLimitMustBeAnInteger)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotRunLimitMustBeAnInteger))
 			return
 		}
 		d.Edit.MaxRuns = n
 		if err := pluginrpc.ValidateDshbotRoutineEdit(d.Edit); err != nil {
-			c.state.Error = err.Error()
+			c.state.Error = state.FaultOf(err)
 			return
 		}
 		if d.Edit.Enabled && n > 0 && n <= r.RunCount {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotLimitMustExceedCurrentRunCount)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotLimitMustExceedCurrentRunCount))
 			return
 		}
 		advanced, err := prepareRoutineAdvanced(d.Advanced, s.BotID, r.ID, c.state.Routines)
 		if err != nil {
-			c.state.Error = err.Error()
+			c.state.Error = state.FaultOf(err)
 			return
 		}
 		review.Command.Advanced = advanced
@@ -383,7 +407,7 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 		review.Timezone = d.Edit.Timezone
 	case "run":
 		if r.LastOutcome == "queued" || r.LastOutcome == "running" {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotAPreviousRunIsPendingOrRunning)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotAPreviousRunIsPendingOrRunning))
 			return
 		}
 	case "toggle", "delete":
@@ -393,12 +417,13 @@ func (c *RoutineControls) Prepare(s RoutineScope, action string) {
 	c.reviewSequence++
 	review.Sequence = c.reviewSequence
 	c.state.Review = review
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = ""
 }
 func (c *RoutineControls) BeginAction(s RoutineScope, expected ...*RoutineReview) (RoutineTicket, pluginrpc.DshbotRoutineCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	var empty pluginrpc.DshbotRoutineCommand
 	if !c.valid(s) || c.state.Busy || !c.state.Loaded || c.state.Review == nil {
 		return RoutineTicket{}, empty, false
@@ -428,12 +453,13 @@ func (c *RoutineControls) BeginAction(s RoutineScope, expected ...*RoutineReview
 	c.clearRoutineTrigger()
 	c.generation++
 	c.state.Busy = true
-	c.state.Error = ""
+	c.state.Error = nil
 	return RoutineTicket{s, c.generation}, cmd, true
 }
 func (c *RoutineControls) FinishAction(t RoutineTicket, v *pluginrpc.DshbotRoutineView, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.matches(t) || c.state.Review == nil {
 		return false
 	}
@@ -454,7 +480,8 @@ func (c *RoutineControls) FinishAction(t RoutineTicket, v *pluginrpc.DshbotRouti
 	}
 	if err != nil {
 		c.state.Loaded = false
-		c.state.Error = err.Error() + storelocale.T(storelocale.KeyStoreDshbotOutcomeMayHaveAppliedRefreshBefore)
+		c.state.Error = state.FaultOf(err)
+		c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeMayHaveAppliedRefreshBefore)
 		return true
 	}
 	if review.Command.Action == "save" || review.Command.Action == "delete" {
@@ -465,7 +492,7 @@ func (c *RoutineControls) FinishAction(t RoutineTicket, v *pluginrpc.DshbotRouti
 	}
 	c.state.MissedKnown = false
 	c.state.MissedIDs = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostReturnedCatalog) + review.Command.Action
 	if review.Command.Action == "run" {
 		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotCheckStatusAndHistoryThisIsNotCom)

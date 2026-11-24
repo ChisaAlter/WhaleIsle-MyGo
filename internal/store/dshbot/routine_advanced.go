@@ -140,6 +140,7 @@ func RoutineReviewNeedsWatchAcknowledgement(r RoutineReview) bool {
 func (c *RoutineControls) AcknowledgeWatch(s RoutineScope, expected *RoutineReview, ack bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(s) && !c.state.Busy && c.state.Review != nil && expected != nil && c.state.Review.Sequence == expected.Sequence {
 		c.state.Review.WatchAcknowledged = ack
 	}

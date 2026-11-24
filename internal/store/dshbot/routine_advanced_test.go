@@ -33,7 +33,7 @@ func TestBotRoutineAdvancedUntouchedAndAcknowledgement(t *testing.T) {
 	c, k := advancedReady(t, true)
 	c.Edit(k, "name", "Edited base name")
 	c.Prepare(k, "save")
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if s.Review == nil || s.Review.Command.Advanced.WatchSet || s.Review.Command.Advanced.ContextSet || s.Review.Command.Advanced.SilentSet || s.Review.Advanced.WatchValue != "fixture-only-command" || s.Review.WorkspaceID != "/configured/workspace" {
 		t.Fatal(s)
 	}
@@ -48,20 +48,20 @@ func TestBotRoutineAdvancedUntouchedAndAcknowledgement(t *testing.T) {
 	c.Edit(k, "watchValue", "fixture-only-new-command")
 	c.Prepare(k, "save")
 	c.AcknowledgeWatch(k, old, true)
-	if c.Snapshot(k).Review.WatchAcknowledged {
+	if c.Snapshot(k).Value.Review.WatchAcknowledged {
 		t.Fatal("old acknowledgement consumed new review")
 	}
 	if _, _, ok := c.BeginAction(k, old); ok {
 		t.Fatal("old confirm consumed new review")
 	}
-	current := c.Snapshot(k).Review
+	current := c.Snapshot(k).Value.Review
 	c.AcknowledgeWatch(k, current, true)
 	ticket, cmd, ok := c.BeginAction(k, current)
 	if !ok || !cmd.Advanced.WatchSet || cmd.Advanced.Watch.Value != "fixture-only-new-command" || cmd.Advanced.ContextSet {
 		t.Fatal(cmd)
 	}
 	c.FinishAction(ticket, nil, errors.New("synthetic uncertain response"))
-	s = c.Snapshot(k)
+	s = c.Snapshot(k).Value
 	if s.Loaded || s.Draft == nil || s.Draft.Advanced.WatchValue != "fixture-only-new-command" || s.Review != nil {
 		t.Fatal("uncertain edit lost draft or allowed another action")
 	}
@@ -69,40 +69,40 @@ func TestBotRoutineAdvancedUntouchedAndAcknowledgement(t *testing.T) {
 func TestBotRoutineAdvancedContextOwnershipAndIsolation(t *testing.T) {
 	c, k := advancedReady(t, false)
 	c.Edit(k, "contextToggle", "foreign")
-	if c.Snapshot(k).Error == "" {
+	if c.Snapshot(k).Value.Error == nil {
 		t.Fatal("cross-Bot reference accepted")
 	}
 	c.Edit(k, "contextToggle", "r")
-	if c.Snapshot(k).Error == "" {
+	if c.Snapshot(k).Value.Error == nil {
 		t.Fatal("own ID bypassed self")
 	}
 	c.Edit(k, "contextToggle", "r2")
 	c.Edit(k, "contextToggle", "r3")
 	c.Edit(k, "contextToggle", "r4")
-	if len(c.Snapshot(k).Draft.Advanced.ContextFrom) != 3 || c.Snapshot(k).Error == "" {
+	if len(c.Snapshot(k).Value.Draft.Advanced.ContextFrom) != 3 || c.Snapshot(k).Value.Error == nil {
 		t.Fatal("context cap bypassed")
 	}
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	s.Draft.Advanced.ContextFrom[0] = "leak"
 	c.Edit(k, "silentAllowed", "false")
 	c.Prepare(k, "save")
-	s = c.Snapshot(k)
+	s = c.Snapshot(k).Value
 	if s.Review == nil || s.Review.Command.Advanced.ContextFrom[0] != "self" || !s.Review.Command.Advanced.SilentSet || s.Review.Command.Advanced.WatchSet {
 		t.Fatal(s)
 	}
 	s.Review.Advanced.ContextFrom[0] = "leak"
 	s.Review.Command.Advanced.ContextFrom[0] = "leak"
-	if c.Snapshot(k).Review.Command.Advanced.ContextFrom[0] != "self" || c.Snapshot(k).Review.Advanced.ContextFrom[0] != "self" {
+	if c.state.Review.Command.Advanced.ContextFrom[0] != "self" || c.state.Review.Advanced.ContextFrom[0] != "self" {
 		t.Fatal("snapshot aliased review")
 	}
-	if RoutineReviewNeedsWatchAcknowledgement(*c.Snapshot(k).Review) {
+	if RoutineReviewNeedsWatchAcknowledgement(*c.Snapshot(k).Value.Review) {
 		t.Fatal("paused save unnecessarily gated")
 	}
 	c.Prepare(k, "toggle")
-	if !RoutineReviewNeedsWatchAcknowledgement(*c.Snapshot(k).Review) {
+	if !RoutineReviewNeedsWatchAcknowledgement(*c.Snapshot(k).Value.Review) {
 		t.Fatal("enable omitted effective command")
 	}
-	old := c.Snapshot(k).Review
+	old := c.Snapshot(k).Value.Review
 	c.Bind(RoutineScope{HostKey: "other-host", BotID: "b"})
 	c.AcknowledgeWatch(k, old, true)
 	if _, _, ok := c.BeginAction(k, old); ok {
