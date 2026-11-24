@@ -27,6 +27,7 @@ type buffer struct {
 	version uint64
 	indexed bool
 	root    *textNode
+	oldPara [1]paragraph // avoids heap slice allocation for single-paragraph edits
 }
 
 func (b *buffer) string() string {
@@ -257,10 +258,18 @@ func (b *buffer) text(p int) string {
 // one holding a to the one holding z give way to those of the new text,
 // which have no layout yet: it returns the first, those there were, and
 // how many there are.
+func (b *buffer) cloneOldParas(pa, pz int) []paragraph {
+	if pa == pz {
+		b.oldPara[0] = b.paras[pa]
+		return b.oldPara[:]
+	}
+	return slices.Clone(b.paras[pa : pz+1])
+}
+
 func (b *buffer) replace(a, z int, s string) (first int, old []paragraph, after int) {
 	if b.indexed {
 		pa, pz := b.para(a), b.para(z)
-		old = slices.Clone(b.paras[pa : pz+1])
+		old = b.cloneOldParas(pa, pz)
 		b.root = textReplace(b.root, a, z, s)
 		b.n, b.units = textSum(b.root).runes, textSum(b.root).units
 		added := make([]paragraph, strings.Count(s, "\n"))
@@ -271,23 +280,32 @@ func (b *buffer) replace(a, z int, s string) (first int, old []paragraph, after 
 	}
 	ba, bz := b.byteOf(a), b.byteOf(z)
 	pa, pz := b.para(a), b.para(z)
-	old = slices.Clone(b.paras[pa : pz+1])
-	runes := utf8.RuneCountInString(s)
+	old = b.cloneOldParas(pa, pz)
+	runes := countRunes(s)
 	var added []paragraph
-	r, units := a, b.utf16At(a)
-	for i, c := range s {
-		r++
-		units += utf16.RuneLen(c)
-		if c == '\n' {
-			added = append(added, paragraph{rune: r, byte: ba + i + 1, units: units})
+	if strings.IndexByte(s, '\n') >= 0 {
+		r, units := a, b.utf16At(a)
+		for i, c := range s {
+			r++
+			units += utf16.RuneLen(c)
+			if c == '\n' {
+				added = append(added, paragraph{rune: r, byte: ba + i + 1, units: units})
+			}
 		}
 	}
 	dr, db := runes-(z-a), len(s)-(bz-ba)
-	du := countUnits(s) - (b.utf16At(z) - b.utf16At(a))
+	var du int
+	if a == z {
+		du = unitsForRunes(s, runes)
+	} else {
+		du = unitsForRunes(s, runes) - (b.utf16At(z) - b.utf16At(a))
+	}
 	b.s = b.s[:ba] + s + b.s[bz:]
 	b.n += dr
 	b.units += du
-	b.paras = slices.Replace(b.paras, pa+1, pz+1, added...)
+	if pa != pz || len(added) > 0 {
+		b.paras = slices.Replace(b.paras, pa+1, pz+1, added...)
+	}
 	b.paras[pa] = paragraph{rune: b.paras[pa].rune, byte: b.paras[pa].byte, units: b.paras[pa].units}
 	for k := pa + 1 + len(added); k < len(b.paras); k++ {
 		b.paras[k].rune += dr

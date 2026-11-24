@@ -147,7 +147,7 @@ func TestShapeTextLineNativeFallbackAndGraphemeEllipsis(t *testing.T) {
 			t.Fatalf("width %v did not use the native one-line ellipsis", width)
 		}
 		end := line.l.Lines[0].End
-		if !slices.Contains(line.boundaries, end) {
+		if !slices.Contains(line.graphemeBoundaries(), end) {
 			t.Fatalf("ellipsis cut combining/surrogate/ZWJ/flag cluster at rune %d", end)
 		}
 		marker := false

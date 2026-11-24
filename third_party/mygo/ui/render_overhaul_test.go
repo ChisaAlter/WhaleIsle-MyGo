@@ -312,3 +312,28 @@ func TestSmoothWheelScrollListFastPath(t *testing.T) {
 		t.Fatalf("virtual List did not reveal newly scrolled rows: %q", tt.Texts())
 	}
 }
+
+// TestShapeTextCacheReuse verifies that repeated ShapeText / ShapeTextLine calls
+// reuse the bounded DirectWrite Shape LRU cache and defer UTF-16/grapheme
+// indexing until an editing geometry query is actually made.
+func TestShapeTextCacheReuse(t *testing.T) {
+	f := Font{Size: 15}
+	l1 := ShapeTextLine("Repeated sidebar item label — cache hit check", f, 220)
+	if l1.units != nil || l1.boundaries != nil {
+		t.Fatal("display-only ShapeTextLine eagerly allocated UTF-16/grapheme index")
+	}
+	l2 := ShapeTextLine("Repeated sidebar item label — cache hit check", f, 220)
+	if l1.l != l2.l {
+		t.Fatal("repeated ShapeTextLine did not hit bounded Shape cache")
+	}
+	w1, h1 := l1.Size()
+	w2, h2 := l2.Size()
+	if w1 != w2 || h1 != h2 || w1 <= 0 || h1 <= 0 {
+		t.Fatalf("cached layout dimensions mismatch: (%v,%v) vs (%v,%v)", w1, h1, w2, h2)
+	}
+	// Editing query lazily constructs the index and returns valid geometry.
+	c1 := l1.Caret(3)
+	if l1.units == nil || l1.boundaries == nil || c1.H <= 0 {
+		t.Fatalf("lazy index failed on Caret query: units=%v boundaries=%v caret=%v", l1.units != nil, l1.boundaries != nil, c1)
+	}
+}

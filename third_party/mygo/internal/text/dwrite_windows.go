@@ -377,6 +377,14 @@ type dwrite struct {
 	aliases map[string]string
 
 	scratch []byte
+
+	// Reusable per-shape scratch buffers (protected by System.mu) to avoid
+	// allocating temporary UTF-16, line-metric and cluster arrays on every call.
+	u16Buf     []uint16
+	u16IdxBuf  []int
+	metricsBuf []dwLineMetrics
+	endsBuf    []uint32
+	firstBuf   []uint32
 }
 
 type formatKey struct {
@@ -650,6 +658,10 @@ var (
 	rendererObj  struct{ vtbl *[10]uintptr }
 	drawMu       sync.Mutex
 	drawing      []dwRun
+	drawGlyphs   []uint16
+	drawAdvances []float32
+	drawOffsets  []dwGlyphOffset
+	drawClusters []uint16
 )
 
 func textRenderer() uintptr {
@@ -716,32 +728,77 @@ func rendererDrawDecoration(this, context, a2, a3, a4, a5 uintptr) uintptr { ret
 
 func rendererDrawInlineObject(this, context, a2, a3, a4, a5, a6, a7 uintptr) uintptr { return 0 }
 
-// dwRun is a glyph run of a layout, copied.
+// dwRun is a glyph run of a layout, referencing flat scratch slices guarded by drawMu.
 type dwRun struct {
-	face     uintptr
-	size     float32
-	rtl      bool
-	pos, n   uint32 // the run's code units
-	glyphs   []uint16
-	advances []float32
-	offsets  []dwGlyphOffset
-	clusters []uint16 // the first glyph of the cluster of each code unit
+	face          uintptr
+	size          float32
+	rtl           bool
+	pos, n        uint32 // the run's code units
+	gOff, gLen    int
+	offOff        int // -1 when run has no glyphOffsets
+	clOff, clLen  int
 }
 
 func collect(run *dwGlyphRun, desc *dwGlyphRunDescription) {
 	n := int(run.glyphCount)
-	r := dwRun{face: run.fontFace, size: run.fontEmSize, rtl: run.bidiLevel&1 != 0, pos: desc.textPosition, n: desc.textLength}
+	r := dwRun{
+		face:   run.fontFace,
+		size:   run.fontEmSize,
+		rtl:    run.bidiLevel&1 != 0,
+		pos:    desc.textPosition,
+		n:      desc.textLength,
+		gOff:   len(drawGlyphs),
+		gLen:   n,
+		offOff: -1,
+		clOff:  len(drawClusters),
+	}
 	if n > 0 {
-		r.glyphs = slices.Clone(unsafe.Slice(run.glyphIndices, n))
-		r.advances = slices.Clone(unsafe.Slice(run.glyphAdvances, n))
+		drawGlyphs = append(drawGlyphs, unsafe.Slice(run.glyphIndices, n)...)
+		drawAdvances = append(drawAdvances, unsafe.Slice(run.glyphAdvances, n)...)
 		if run.glyphOffsets != nil {
-			r.offsets = slices.Clone(unsafe.Slice(run.glyphOffsets, n))
+			r.offOff = len(drawOffsets)
+			drawOffsets = append(drawOffsets, unsafe.Slice(run.glyphOffsets, n)...)
 		}
 	}
 	if desc.clusterMap != nil && desc.textLength > 0 {
-		r.clusters = slices.Clone(unsafe.Slice(desc.clusterMap, desc.textLength))
+		r.clLen = int(desc.textLength)
+		drawClusters = append(drawClusters, unsafe.Slice(desc.clusterMap, desc.textLength)...)
 	}
 	drawing = append(drawing, r)
+}
+
+func (e *dwrite) utf16Into(text []rune) ([]uint16, []int) {
+	u16 := e.u16Buf[:0]
+	idx := e.u16IdxBuf[:0]
+	if cap(u16) < len(text) {
+		u16 = make([]uint16, 0, len(text))
+	}
+	if cap(idx) < len(text)+1 {
+		idx = make([]int, 0, len(text)+1)
+	}
+	for i, r := range text {
+		if r < 0x10000 {
+			u16 = append(u16, uint16(r))
+			idx = append(idx, i)
+		} else {
+			r1, r2 := utf16EncodeRune(r)
+			u16 = append(u16, r1, r2)
+			idx = append(idx, i, i)
+		}
+	}
+	idx = append(idx, len(text))
+	if cap(u16) <= maxScratch*2 {
+		e.u16Buf = u16
+		e.u16IdxBuf = idx
+	} else {
+		e.u16Buf, e.u16IdxBuf = nil, nil
+	}
+	return u16, idx
+}
+
+func utf16EncodeRune(r rune) (uint16, uint16) {
+	r -= 0x10000
+	return uint16(0xD800 + (r >> 10)), uint16(0xDC00 + (r & 0x3FF))
 }
 
 func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rtl, wholeWords, breakAll bool) []shapedLine {
@@ -749,7 +806,7 @@ func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rt
 	if format == 0 || len(text) == 0 {
 		return nil
 	}
-	u16, index := utf16Text(text)
+	u16, index := e.utf16Into(text)
 	var layout uintptr
 	hr := method[func(this uintptr, text *uint16, n uint32, format uintptr, width, height float32, out *uintptr) uintptr](e.factory, factoryCreateTextLayout)(
 		e.factory, &u16[0], uint32(len(u16)), format, width, maxLayoutHeight, &layout)
@@ -779,19 +836,20 @@ func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rt
 	if hr := call(layout, layoutGetLineMetrics, 0, 0, uintptr(unsafe.Pointer(&count))); failed(hr) && uint32(hr) != errNotSufficientBuffer || count == 0 {
 		return nil
 	}
-	metrics := make([]dwLineMetrics, count)
+	if cap(e.metricsBuf) < int(count) {
+		e.metricsBuf = make([]dwLineMetrics, count)
+	}
+	metrics := e.metricsBuf[:count]
 	if failed(call(layout, layoutGetLineMetrics, uintptr(unsafe.Pointer(&metrics[0])), uintptr(count), uintptr(unsafe.Pointer(&count)))) {
 		return nil
 	}
-
-	drawMu.Lock()
-	drawing = drawing[:0]
-	method[func(this, context, renderer uintptr, x, y float32) uintptr](layout, layoutDraw)(layout, 0, textRenderer(), 0, 0)
-	runs := slices.Clone(drawing)
-	drawMu.Unlock()
+	metrics = metrics[:count]
 
 	lines := make([]shapedLine, len(metrics))
-	ends := make([]uint32, len(metrics)) // the code unit ending each line
+	if cap(e.endsBuf) < len(metrics) {
+		e.endsBuf = make([]uint32, len(metrics))
+	}
+	ends := e.endsBuf[:len(metrics)] // the code unit ending each line
 	pos := uint32(0)
 	for i, m := range metrics {
 		lines[i].start = index[min(int(pos), len(u16))]
@@ -799,7 +857,15 @@ func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rt
 		ends[i] = pos
 		lines[i].end = index[min(int(pos), len(u16))]
 	}
-	for _, r := range runs {
+
+	drawMu.Lock()
+	drawing = drawing[:0]
+	drawGlyphs = drawGlyphs[:0]
+	drawAdvances = drawAdvances[:0]
+	drawOffsets = drawOffsets[:0]
+	drawClusters = drawClusters[:0]
+	method[func(this, context, renderer uintptr, x, y float32) uintptr](layout, layoutDraw)(layout, 0, textRenderer(), 0, 0)
+	for _, r := range drawing {
 		li, _ := slices.BinarySearch(ends, r.pos+1)
 		if li >= len(lines) || int(r.pos+r.n) > len(u16) {
 			continue
@@ -809,12 +875,22 @@ func (e *dwrite) shape(text []rune, style Style, spans []Span, width float32, rt
 		call(layout, layoutHitTestTextPosition, uintptr(r.pos), 0, uintptr(unsafe.Pointer(&x)), uintptr(unsafe.Pointer(&y)), uintptr(unsafe.Pointer(&hit)))
 		lines[li].runs = append(lines[li].runs, e.run(r, x, index))
 	}
+	if cap(drawGlyphs) > maxScratch*2 {
+		drawing, drawGlyphs, drawAdvances, drawOffsets, drawClusters = nil, nil, nil, nil, nil
+	}
+	drawMu.Unlock()
+	if cap(e.metricsBuf) > maxScratch {
+		e.metricsBuf, e.endsBuf = nil, nil
+	}
 	return lines
 }
 
 // typeset applies a style's letter spacing and OpenType features to a text
 // layout of text, and the styles of its spans to their ranges.
 func (e *dwrite) typeset(layout uintptr, style Style, spans []Span, text []rune) {
+	if style.LetterSpacing == 0 && style.Features == "" && len(spans) == 0 {
+		return
+	}
 	// The code unit of each rune, and a DWRITE_TEXT_RANGE of runes, passed
 	// in a register.
 	units := make([]uint32, len(text)+1)
@@ -892,34 +968,45 @@ func (e *dwrite) typography(layout uintptr, list string, r uintptr) {
 }
 
 // run positions the glyphs of a run whose origin, on the right for a
-// right-to-left run, is at x.
+// right-to-left run, is at x. Caller holds drawMu.
 func (e *dwrite) run(r dwRun, x float32, index []int) shapedRun {
 	f := e.fontOf(r.face, r.size)
-	out := shapedRun{font: f, start: index[r.pos], end: index[r.pos+r.n], glyphs: make([]Glyph, len(r.glyphs))}
+	out := shapedRun{font: f, start: index[r.pos], end: index[r.pos+r.n], glyphs: e.glyphRoom(r.gLen)}
 	// The code unit starting the cluster of each glyph.
-	first := make([]uint32, len(r.glyphs))
-	for k := 0; k < len(r.clusters); {
-		g0 := int(r.clusters[k])
+	if cap(e.firstBuf) < r.gLen {
+		e.firstBuf = make([]uint32, r.gLen)
+	}
+	first := e.firstBuf[:r.gLen]
+	clear(first)
+	clusters := drawClusters[r.clOff : r.clOff+r.clLen]
+	for k := 0; k < len(clusters); {
+		g0 := int(clusters[k])
 		k1 := k + 1
-		for k1 < len(r.clusters) && int(r.clusters[k1]) == g0 {
+		for k1 < len(clusters) && int(clusters[k1]) == g0 {
 			k1++
 		}
-		g1 := len(r.glyphs)
-		if k1 < len(r.clusters) {
-			g1 = int(r.clusters[k1])
+		g1 := r.gLen
+		if k1 < len(clusters) {
+			g1 = int(clusters[k1])
 		}
 		for g := g0; g < min(g1, len(first)); g++ {
 			first[g] = uint32(k)
 		}
 		k = k1
 	}
+	glyphIDs := drawGlyphs[r.gOff : r.gOff+r.gLen]
+	advances := drawAdvances[r.gOff : r.gOff+r.gLen]
+	var offsets []dwGlyphOffset
+	if r.offOff >= 0 {
+		offsets = drawOffsets[r.offOff : r.offOff+r.gLen]
+	}
 	pen := x
-	for i, id := range r.glyphs {
+	for i, id := range glyphIDs {
 		var off dwGlyphOffset
-		if r.offsets != nil {
-			off = r.offsets[i]
+		if offsets != nil {
+			off = offsets[i]
 		}
-		g := Glyph{Font: f, ID: uint32(id), Advance: r.advances[i], Y: -off.ascenderOffset, Cluster: index[r.pos+first[i]], RTL: r.rtl}
+		g := Glyph{Font: f, ID: uint32(id), Advance: advances[i], Y: -off.ascenderOffset, Cluster: index[r.pos+first[i]], RTL: r.rtl}
 		if r.rtl {
 			pen -= g.Advance
 			g.X = pen - off.advanceOffset
@@ -928,6 +1015,9 @@ func (e *dwrite) run(r dwRun, x float32, index []int) shapedRun {
 			pen += g.Advance
 		}
 		out.glyphs[i] = g
+	}
+	if cap(e.firstBuf) > maxScratch*2 {
+		e.firstBuf = nil
 	}
 	return out
 }
