@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/pagekit"
+	"whaleisle/internal/ui/widgets"
 )
 
 func scheduleMonthTitle(month time.Time) string {
@@ -28,6 +31,7 @@ func scheduleShiftMonth(state *timingPickerState, step int) {
 // The panel stages a day and stays open, matching the installed DatePicker.
 // Navigation changes only the focused day, never the draft until a day is picked.
 func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
+	t := design.For(c)
 	date, clock := d.wallClock()
 	state := &d.picker
 	label := scheduleText("日期", "Date")
@@ -44,43 +48,53 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 			state.clock.open, state.zone.open = false, false
 		}
 	}
-	ui.PopoverBase(c.Key("schedule-date-popup"), trigger, &state.calendarOpen, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(232).MaxWidthPercent(100).Padding(8).Gap(4).Role(ui.RoleDialog).Label(label).Margin(4, 0, 0, 0), c.Theme().Background, ui.Transparent, 16))
-		if panel.OverlayShortcut(0, ui.KeyEscape) {
-			state.calendarOpen = false
-			trigger.Focus()
-			return
-		}
-		panel.Children(func() {
-			ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
-				if ui.Button(c, "‹").Label(scheduleText("上个月", "Previous month")).Size(26, 26).Padding(0).BorderWidth(0).Radius(8).Clicked() {
+	panel := coss.Popover(c.Key("schedule-date-popup"), trigger, &state.calendarOpen, coss.PopoverOptions{
+		Side:  coss.SideBottom,
+		Align: coss.AlignStart,
+		Width: 248,
+	}, func() {
+		ui.Column(c).FillWidth().Gap(design.Sp(1)).Children(func() {
+			ui.Row(c).FillWidth().Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+				if coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconXS,
+					Icon:    coss.IconChevronLeft,
+					Label:   scheduleText("上个月", "Previous month"),
+				}).Clicked() {
 					scheduleShiftMonth(state, -1)
 				}
-				ui.Text(c, scheduleMonthTitle(state.month)).Grow(1).TextAlign(ui.Center).FontSize(13).FontWeight(500)
-				if ui.Button(c, "›").Label(scheduleText("下个月", "Next month")).Size(28, 28).Padding(0).BorderWidth(0).Clicked() {
+				pagekit.Strong(c, scheduleMonthTitle(state.month)).Grow(1).TextAlign(ui.Center)
+				if coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconXS,
+					Icon:    coss.IconChevronRight,
+					Label:   scheduleText("下个月", "Next month"),
+				}).Clicked() {
 					scheduleShiftMonth(state, 1)
 				}
 			})
-			grid := ui.Column(c.Key("schedule-date-grid")).Role(ui.RoleTable).Label(scheduleMonthTitle(state.month)).FillWidth().Gap(2)
+			grid := ui.Column(c.Key("schedule-date-grid")).Role(ui.RoleTable).Label(scheduleMonthTitle(state.month)).FillWidth().Gap(design.Sp(0.5))
 			month := state.month
 			grid.Children(func() {
-				ui.Row(c).FillWidth().Gap(2).Children(func() {
+				ui.Row(c).FillWidth().Gap(design.Sp(0.5)).Children(func() {
 					for day := 1; day <= 7; day++ {
-						ui.Text(c, catalogWeekday(day, i18n.Locale())).Role(ui.RoleColumnHeader).Grow(1).MinWidth(0).Height(22).TextAlign(ui.Center).FontSize(11).TextColor(c.Theme().TextMuted)
+						pagekit.Caption(c, catalogWeekday(day, i18n.Locale())).Role(ui.RoleColumnHeader).Grow(1).MinWidth(0).Height(design.Sp(5.5)).TextAlign(ui.Center)
 					}
 				})
 				cells := calendarCells(month)
 				last := month.AddDate(0, 1, -1).Day()
 				for row := 0; row < len(cells); row += 7 {
-					ui.Row(c).Role(ui.RoleRow).FillWidth().Gap(2).Children(func() {
+					ui.Row(c).Role(ui.RoleRow).FillWidth().Gap(design.Sp(0.5)).Children(func() {
 						for _, day := range cells[row : row+7] {
 							if day == 0 {
-								ui.Box(c).Grow(1).MinWidth(0).Height(28).Role(ui.RoleNone)
+								ui.Box(c).Grow(1).MinWidth(0).Height(design.Sp(7)).Role(ui.RoleNone)
 								continue
 							}
 							day := day
 							iso := fmt.Sprintf("%04d-%02d-%02d", month.Year(), month.Month(), day)
-							cell := ui.Box(c.Key("schedule-calendar-" + iso)).Bind(&state.calendarCells[day]).Grow(1).MinWidth(0).Height(28).Center().Radius(8).Role(ui.RoleCell).Label(iso).Checked(iso == date)
+							cell := ui.Box(c.Key("schedule-calendar-" + iso)).Bind(&state.calendarCells[day]).
+								Grow(1).MinWidth(0).Height(design.Sp(7)).Center().Radius(design.RadiusMD).
+								Role(ui.RoleCell).Label(iso).Checked(iso == date).Cursor(ui.CursorPointer)
 							if day == state.calendarDay {
 								cell.Focusable()
 								if state.calendarFocus {
@@ -88,16 +102,18 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 									state.calendarFocus = false
 								}
 							}
-							ink := c.Theme().Text
+							ink := t.Foreground
 							if iso == date {
-								cell.Background(c.Theme().SurfaceHover).Border(1, c.Theme().Border)
+								cell.Background(t.Accent).Border(design.BorderWidth, t.Border)
 							} else if cell.Hovered() {
-								cell.Background(c.Theme().SurfaceHover)
+								cell.Background(t.Accent)
 							}
 							if iso == time.Now().Format("2006-01-02") && iso != date {
-								cell.Border(.5, c.Theme().Border)
+								cell.Border(design.BorderWidth, t.Border)
 							}
-							cell.Children(func() { ui.Text(c, strconv.Itoa(day)).TextAlign(ui.Center).FontSize(13).TextColor(ink) })
+							cell.Children(func() {
+								ui.Text(c, strconv.Itoa(day)).TextAlign(ui.Center).FontSize(design.TextSM.Size).FixedLineHeight(design.TextSM.LineHeight).TextColor(ink)
+							})
 							next := day
 							if cell.Shortcut(0, ui.KeyLeft) {
 								next--
@@ -134,4 +150,12 @@ func (p *Panel) datePicker(c *ui.Context, d *taskDraft) {
 			})
 		})
 	})
+	if panel != (ui.Element{}) {
+		panel.MaxWidthPercent(100).Role(ui.RoleDialog).Label(label)
+		panel.Opacity(widgets.Reveal(c, panel, design.TransitionFor("popover/popover-popup").Duration))
+		if panel.OverlayShortcut(0, ui.KeyEscape) {
+			state.calendarOpen = false
+			trigger.Focus()
+		}
+	}
 }

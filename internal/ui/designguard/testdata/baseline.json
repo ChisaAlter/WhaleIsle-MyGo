@@ -1267,46 +1267,6 @@
     "colors": 0,
     "metrics": 21
   },
-  "schedule/choices.go": {
-    "colors": 0,
-    "metrics": 5
-  },
-  "schedule/clock_picker.go": {
-    "colors": 0,
-    "metrics": 5
-  },
-  "schedule/date_picker.go": {
-    "colors": 0,
-    "metrics": 9
-  },
-  "schedule/delivery_history.go": {
-    "colors": 0,
-    "metrics": 29
-  },
-  "schedule/feedback.go": {
-    "colors": 1,
-    "metrics": 6
-  },
-  "schedule/presentation.go": {
-    "colors": 0,
-    "metrics": 51
-  },
-  "schedule/rule_rows.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "schedule/schedule.go": {
-    "colors": 0,
-    "metrics": 50
-  },
-  "schedule/timing_picker.go": {
-    "colors": 0,
-    "metrics": 10
-  },
-  "schedule/zone_picker.go": {
-    "colors": 0,
-    "metrics": 9
-  },
   "sessioncost/view.go": {
     "colors": 1,
     "metrics": 12
