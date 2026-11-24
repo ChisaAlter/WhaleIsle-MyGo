@@ -4,7 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -47,44 +48,66 @@ func skillCreateDialog(c *ui.Context, a *SkillsAccess, fg, muted ui.Color) {
 	open := true
 	var validation *string
 	bodyDialogFooterWidth(c, &open, providerCopy("添加技能", "Add skill"), 720, func() {
-		nameLabel := ui.Text(c, providerCopy("名称", "Name")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextInput(c, &draft.Name).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Placeholder("review-code")
-		ui.Text(c, providerCopy("描述", "Description")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextInput(c, &draft.Description).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
-		ui.Text(c, providerCopy("使用时机（可选）", "When to use (optional)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextArea(c, &draft.WhenToUse).FillWidth().Lines(2, 4).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
+		nameLabel := kLabel(c, providerCopy("名称", "Name"), fg)
+		validation = ui.Local(nameLabel, "skill-create-validation", func() string { return "" })
+		nameInvalid := *validation != "" && !skillCreateName.MatchString(draft.Name)
+		descInvalid := *validation != "" && strings.TrimSpace(draft.Description) == ""
+		bodyInvalid := *validation != "" && strings.TrimSpace(draft.Content) == ""
+		kInput(c, &draft.Name, coss.InputOptions{
+			Label:       providerCopy("名称", "Name"),
+			Placeholder: "review-code",
+			Disabled:    create.Busy,
+			Invalid:     nameInvalid,
+		})
+		kLabel(c, providerCopy("描述", "Description"), fg)
+		kInput(c, &draft.Description, coss.InputOptions{
+			Label:    providerCopy("描述", "Description"),
+			Disabled: create.Busy,
+			Invalid:  descInvalid,
+		})
+		kLabel(c, providerCopy("使用时机（可选）", "When to use (optional)"), fg)
+		kTextarea(c, &draft.WhenToUse, coss.TextareaOptions{
+			Label:    providerCopy("使用时机（可选）", "When to use (optional)"),
+			MaxLines: 4,
+			Disabled: create.Busy,
+		}).Lines(2, 4)
 		skillGroupPicker(c, "create-skill-groups", &draft.Groups, a.Skills, create.Busy, fg, muted)
-		ui.Text(c, providerCopy("技能正文", "Skill body")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.TextArea(c, &draft.Content).FillWidth().Lines(5, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy)
-		ui.Text(c, providerCopy("保存位置", "Save to")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.Row(c).Gap(8).Wrap().Children(func() {
+		kLabel(c, providerCopy("技能正文", "Skill body"), fg)
+		kTextarea(c, &draft.Content, coss.TextareaOptions{
+			Label:    providerCopy("技能正文", "Skill body"),
+			MaxLines: 14,
+			Disabled: create.Busy,
+			Invalid:  bodyInvalid,
+		}).Lines(5, 14)
+		kLabel(c, providerCopy("保存位置", "Save to"), fg)
+		ui.Row(c).Gap(design.Sp(2)).Wrap().Children(func() {
 			for _, root := range []struct{ value, label string }{{"user-dsh", providerCopy("用户技能", "User skills")}, {"project-dsh", providerCopy("项目技能", "Project skills")}} {
+				selected := draft.Root == root.value
 				label := root.label
-				if draft.Root == root.value {
+				if selected {
 					label = "✓ " + label
 				}
-				if ui.Button(c, label).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(create.Busy || root.value == "project-dsh" && a.ProjectCwd == "").Clicked() {
+				if kChoiceButton(c, label, selected, create.Busy || root.value == "project-dsh" && a.ProjectCwd == "").Clicked() {
 					draft.Root = root.value
 				}
 			}
 		})
 		if draft.Root == "project-dsh" {
-			ui.Text(c, a.ProjectCwd).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			kHint(c, a.ProjectCwd)
 		}
-		ui.Checkbox(c, &draft.ModelInvocable, providerCopy("模型可调用", "Model invocable")).Disabled(create.Busy)
-		ui.Checkbox(c, &draft.UserInvocable, providerCopy("用户可调用", "User invocable")).Disabled(create.Busy)
+		kCheckbox(c, &draft.ModelInvocable, providerCopy("模型可调用", "Model invocable"), create.Busy)
+		kCheckbox(c, &draft.UserInvocable, providerCopy("用户可调用", "User invocable"), create.Busy)
 		if create.Error != "" {
 			settingsFailureLine(c, "skill:create", providerCopy("没能创建这个技能，请重试。", "The skill could not be created. Try again."), create.Error)
 		}
-		validation = ui.Local(nameLabel, "skill-create-validation", func() string { return "" })
 		if *validation != "" {
-			ui.Text(c, *validation).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+			kError(c, *validation)
 		}
 	}, func() {
-		if ui.Button(c, providerCopy("取消", "Cancel")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy).Clicked() && create.OnCancel != nil {
+		if kButtonDisabled(c, providerCopy("取消", "Cancel"), create.Busy).Clicked() && create.OnCancel != nil {
 			create.OnCancel()
 		}
-		if ui.Button(c, providerCopy("创建技能", "Create skill")).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(create.Busy || create.OnSave == nil).Clicked() {
+		if kPrimary(c, providerCopy("创建技能", "Create skill"), create.Busy || create.OnSave == nil).Clicked() {
 			*validation = skillCreateError(*draft)
 			if *validation == "" {
 				create.OnSave(*draft)

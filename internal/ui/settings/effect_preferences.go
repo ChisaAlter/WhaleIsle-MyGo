@@ -10,6 +10,8 @@ import (
 	"unicode/utf16"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -437,8 +439,8 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(float32(620), max(float32(0), vw-48)), 0).
 			Height(min(float32(760), max(float32(0), vh*.85))).Children(func() {
 			ui.Column(c).Fill().MinWidth(0).MinHeight(0).Children(func() {
-				ui.Row(c).FillWidth().Padding(16, 20).Wrap().Gap(8).Children(func() {
-					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+				ui.Row(c).FillWidth().Padding(design.Sp(4), design.Sp(5)).Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+					ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
 						ui.Text(c, title).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 						dialogHint := providerCopy("调整运行态边光；保存后立即用于所有会话。", "Tune the running border beam; saved changes apply to every conversation.")
 						if typing {
@@ -446,11 +448,11 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						}
 						ui.Text(c, dialogHint).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 					})
-					if ui.Button(c, providerCopy("关闭", "Close")).Disabled(len(draft.Pending) > 0).Clicked() {
+					if kGhost(c, providerCopy("关闭", "Close"), len(draft.Pending) > 0).Clicked() {
 						*open = false
 					}
 				})
-				ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, 24, 24, 24).Gap(12).Children(func() {
+				ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, design.Sp(6), design.Sp(6), design.Sp(6)).Gap(design.Sp(3)).Children(func() {
 					previewStyle, previewErr := normalizeEffect(draft.Style, typing)
 					if previewErr != nil {
 						previewStyle = effectDefaults(typing)
@@ -464,7 +466,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						names = append(names, name)
 					}
 					sort.Strings(names)
-					if ui.Select(c, &draft.Selected, names).FillWidth().Label("effect-preset-selection").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Changed() {
+					if kSelect(c, &draft.Selected, names, "effect-preset-selection", bodyHostDisabled(a) || len(draft.Pending) > 0).FillWidth().Changed() {
 						if value, ok := draft.Presets[draft.Selected]; ok {
 							if normalized, err := normalizeEffect(value, typing); err != nil {
 								draft.Err = errcopy.Sentence(err)
@@ -474,9 +476,13 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 							}
 						}
 					}
-					ui.TextInput(c, &draft.Name).FillWidth().Label("effect-preset-name").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Placeholder(providerCopy("预设名称", "Preset name"))
-					ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-						if ui.Button(c, providerCopy("保存预设", "Save preset")).Label("effect-save-preset").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0 || !presetsFound || a.OnPatch == nil).Clicked() {
+					kInput(c, &draft.Name, coss.InputOptions{
+						Label:       "effect-preset-name",
+						Disabled:    bodyHostDisabled(a) || len(draft.Pending) > 0,
+						Placeholder: providerCopy("预设名称", "Preset name"),
+					})
+					ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
+						if kButtonDisabled(c, providerCopy("保存预设", "Save preset"), bodyHostDisabled(a) || len(draft.Pending) > 0 || !presetsFound || a.OnPatch == nil).Label("effect-save-preset").Clicked() {
 							name := strings.TrimSpace(draft.Name)
 							units := utf16.Encode([]rune(name))
 							if len(units) > 32 {
@@ -495,13 +501,13 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 								draft.Err = ""
 							}
 						}
-						if ui.Button(c, providerCopy("删除预设", "Delete preset")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0 || draft.Selected == "" || !presetsFound || a.OnPatch == nil).Clicked() {
+						if kDanger(c, providerCopy("删除预设", "Delete preset"), bodyHostDisabled(a) || len(draft.Pending) > 0 || draft.Selected == "" || !presetsFound || a.OnPatch == nil).Clicked() {
 							delete(draft.Presets, draft.Selected)
 							draft.Selected = ""
 						}
 					})
-					ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-						if ui.Button(c, providerCopy("复制配置 JSON", "Copy configuration JSON")).Clicked() {
+					ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
+						if kButton(c, providerCopy("复制配置 JSON", "Copy configuration JSON")).Clicked() {
 							if text, err := effectEnvelope(draft.Style, draft.Presets, typing); err != nil {
 								draft.Err = errcopy.Sentence(err)
 							} else {
@@ -509,30 +515,30 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 								draft.Err = ""
 							}
 						}
-						if ui.Button(c, providerCopy("从剪贴板导入", "Import from clipboard")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
+						if kButtonDisabled(c, providerCopy("从剪贴板导入", "Import from clipboard"), bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
 							if imported, err := parseEffectEnvelope(c.ReadClipboard(), typing); err != nil {
 								draft.Err = errcopy.Sentence(err)
 							} else {
 								*draft = imported
 							}
 						}
-						if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
+						if kGhost(c, providerCopy("恢复默认", "Reset"), bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
 							draft.Style = effectDefaults(typing)
 							draft.Selected = ""
 							draft.Err = ""
 						}
 					})
 				}) // Feedback stays in a reserved footer slot; saving never moves the controls.
-				ui.Box(c).FillWidth().Height(24).Padding(0, 24).Children(func() {
+				ui.Box(c).FillWidth().Height(24).Padding(0, design.Sp(6)).Children(func() {
 					if draft.Err != "" {
 						settingsFailureLine(c, "appearance-effect-"+enabledKey, preferenceFailureCopy(title), draft.Err)
 					}
 				})
-				ui.Row(c).FillWidth().Padding(12, 24).Wrap().Gap(8).Children(func() {
-					if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(len(draft.Pending) > 0).Clicked() {
+				ui.Row(c).FillWidth().Padding(design.Sp(3), design.Sp(6)).Wrap().Gap(design.Sp(2)).Justify(ui.End).Children(func() {
+					if kButtonDisabled(c, providerCopy("取消", "Cancel"), len(draft.Pending) > 0).Clicked() {
 						*open = false
 					}
-					if ui.Button(c, providerCopy("保存并应用", "Save and apply")).Label("save-" + enabledKey + "-configuration").Disabled(bodyHostDisabled(a) || len(draft.Pending) > 0).Clicked() {
+					if kPrimary(c, providerCopy("保存并应用", "Save and apply"), bodyHostDisabled(a) || len(draft.Pending) > 0).Label("save-" + enabledKey + "-configuration").Clicked() {
 						normalized, err := normalizeEffect(draft.Style, typing)
 						if err != nil {
 							draft.Err = errcopy.Sentence(err)
@@ -723,13 +729,13 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 					d.Style["mode"] = "custom"
 					d.Err = ""
 				}
-				if ui.Button(c, providerCopy("移除颜色", "Remove color")).Disabled(blocked || len(colors) <= 2).Clicked() {
+				if kDanger(c, providerCopy("移除颜色", "Remove color"), blocked || len(colors) <= 2).AlignSelf(ui.Start).Clicked() {
 					effectSet(d.Style, "palette.colors", append(colors[:index], colors[index+1:]...))
 					d.Style["mode"] = "custom"
 				}
 			})
 		}
-		if ui.Button(c, providerCopy("添加颜色", "Add color")).Disabled(blocked || len(colors) >= 6).Clicked() {
+		if kButtonDisabled(c, providerCopy("添加颜色", "Add color"), blocked || len(colors) >= 6).AlignSelf(ui.Start).Clicked() {
 			effectSet(d.Style, "palette.colors", append(colors, "#ffffff"))
 			d.Style["mode"] = "custom"
 		}

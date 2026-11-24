@@ -23,10 +23,15 @@ func ModalView(c *ui.Context, m Model) {
 	}
 	open := true
 	t := tk(c)
-	w, h := c.Size()
-	w, h = settingsModalSize(w, h)
+	vw, vh := c.Size()
+	bar := c.TitleBar()
+	topInset, bottomInset, sideInset := settingsModalInsets(vw, vh, bar)
+	w, h := settingsModalSizeFor(vw, vh, bar)
 	ui.DialogBase(c.Key("settings-modal"), &open, func(backdrop, panel ui.Element) {
 		ui.ShortcutModalScope(panel, "settings")
+		if topInset > design.Sp(4) {
+			backdrop.Padding(topInset, sideInset, bottomInset, sideInset)
+		}
 		mask := design.TW.Black
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
 		chrome.RevealMask(backdrop, mask.Alpha(0.32), progress)
@@ -51,9 +56,39 @@ func ModalView(c *ui.Context, m Model) {
 	}
 }
 
+// settingsModalInsets computes the viewport insets for the settings dialog.
+// When the window carries overlaid title-bar controls (such as Windows - □ ×)
+// and centering the modal would place its upper corners inside the caption
+// band, the top inset rises below the window controls so the modal's close
+// button never collides with them.
+func settingsModalInsets(w, h float32, bar ui.TitleBar) (top, bottom, side float32) {
+	base := design.Sp(4)
+	top, bottom, side = base, base, base
+	safeTop := settingsTitleBarTopInset(bar)
+	if safeTop <= base {
+		return top, bottom, side
+	}
+	baseW := max(0, min(design.Sp(220), w-2*base))
+	baseH := max(0, min(design.Sp(200), h-2*base))
+	topGap := (h - baseH) / 2
+	horizGap := (w - baseW) / 2
+	nearRight := bar.Right > 0 && horizGap < bar.Right+base
+	nearLeft := bar.Left > 0 && horizGap < bar.Left+base
+	if topGap < safeTop && (nearRight || nearLeft || (bar.Right == 0 && bar.Left == 0)) {
+		top = safeTop
+	}
+	return top, bottom, side
+}
+
+// settingsModalSizeFor is the panel's size accounting for overlaid title-bar
+// controls.
+func settingsModalSizeFor(w, h float32, bar ui.TitleBar) (float32, float32) {
+	top, bottom, side := settingsModalInsets(w, h, bar)
+	return max(0, min(design.Sp(220), w-2*side)), max(0, min(design.Sp(200), h-top-bottom))
+}
+
 // settingsModalSize is the panel's size: at most 880×800, keeping coss's
 // p-4 viewport inset on every side.
 func settingsModalSize(w, h float32) (float32, float32) {
-	inset := 2 * design.Sp(4)
-	return max(0, min(design.Sp(220), w-inset)), max(0, min(design.Sp(200), h-inset))
+	return settingsModalSizeFor(w, h, ui.TitleBar{})
 }

@@ -2,13 +2,13 @@ package settings
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
 	store "whaleisle/internal/store/settings"
-	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -18,7 +18,7 @@ import (
 func configurationProviderOptions(c *ui.Context, m Model, s store.ViewState, ns store.Namespace, route string, profile map[string]any, change func(), fg, muted ui.Color) {
 	path := []string{"providers", route}
 	fields := store.ConfigurationFields(ns.Schema, path...)
-	ui.Text(c, providerCopy("供应商专用设置", "Provider-specific settings")).Bold().TextColor(fg)
+	kHeading(c, providerCopy("供应商专用设置", "Provider-specific settings"))
 	for _, key := range []string{
 		"cacheRetention", "transport", "timeoutMs", "websocketConnectTimeoutMs",
 		"streamIdleTimeoutMs", "maxRequestImageBytes", "requestImagePixelBudget", "requestImageMaxBytes",
@@ -73,9 +73,9 @@ func configurationOptionField(c *ui.Context, m Model, s store.ViewState, scope s
 	if field.Kind == store.FieldJSON {
 		return
 	}
-	ui.Text(c, field.Label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	kHint(c, field.Label)
 	if field.Description != "" {
-		ui.Text(c, field.Description).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		kHint(c, field.Description)
 	}
 	value := configurationText(row[field.Key])
 	disabled := !s.Writable || s.Saving
@@ -86,7 +86,7 @@ func configurationOptionField(c *ui.Context, m Model, s store.ViewState, scope s
 		if field.Kind == store.FieldBool {
 			options = []string{"", "true", "false"}
 		}
-		if ui.Select(c, &value, options).FillWidth().Disabled(disabled).Changed() {
+		if kSelect(c, &value, options, field.Label, disabled).FillWidth().Changed() {
 			if value == "" {
 				set(nil)
 			} else if field.Kind == store.FieldBool {
@@ -98,10 +98,11 @@ func configurationOptionField(c *ui.Context, m Model, s store.ViewState, scope s
 	default:
 		if m.DraftPtr != nil {
 			text := m.DraftPtr("configuration/"+scope+"/"+field.Key, value)
-			input := ui.TextInput(c, text).FillWidth().Disabled(disabled)
-			if secretField(field) && (m.RevealSecrets == nil || !*m.RevealSecrets) {
-				input = input.Password()
-			}
+			input := kInput(c, text, coss.InputOptions{
+				Label:    field.Label,
+				Disabled: disabled,
+				Password: secretField(field) && (m.RevealSecrets == nil || !*m.RevealSecrets),
+			})
 			if input.Changed() {
 				if strings.TrimSpace(*text) == "" {
 					set(nil)
@@ -119,7 +120,7 @@ func configurationOptionField(c *ui.Context, m Model, s store.ViewState, scope s
 			}
 		}
 	}
-	if ui.Button(c, providerCopy("继承默认值", "Inherit default")).FontSize(fonttheme.InterfaceSize(11)).Disabled(disabled).Clicked() {
+	if kGhost(c, providerCopy("继承默认值", "Inherit default"), disabled).AlignSelf(ui.Start).Clicked() {
 		set(nil)
 	}
 }
@@ -134,8 +135,8 @@ func configurationOptionObject(c *ui.Context, m Model, s store.ViewState, schema
 		row = map[string]any{}
 	}
 	save := func() { parent[key] = row; change() }
-	ui.Column(c).Gap(4).Padding(6, 6, 6, 6).Children(func() {
-		ui.Text(c, key).Bold().TextColor(fg)
+	ui.Column(c).Gap(design.Sp(1)).Padding(design.Sp(1.5)).Children(func() {
+		kHeading(c, key)
 		for _, field := range fields {
 			configurationOptionField(c, m, s, scope+"/"+key, row, field, save, fg, muted)
 		}
@@ -144,7 +145,7 @@ func configurationOptionObject(c *ui.Context, m Model, s store.ViewState, schema
 				configurationOptionDictionary(c, m, s, schema, append(append([]string{}, path...), child), scope+"/"+key, row, child, true, save, fg, muted)
 			}
 		}
-		if ui.Button(c, providerCopy("继承整组设置", "Inherit this group")).Disabled(!s.Writable || s.Saving).Clicked() {
+		if kGhost(c, providerCopy("继承整组设置", "Inherit this group"), !s.Writable || s.Saving).AlignSelf(ui.Start).Clicked() {
 			delete(parent, key)
 			change()
 		}
@@ -167,8 +168,8 @@ func configurationRetryPolicy(c *ui.Context, m Model, s store.ViewState, schema 
 		profile["retryPolicy"] = policy
 		change()
 	}
-	ui.Column(c).Gap(4).Padding(6, 6, 6, 6).Children(func() {
-		ui.Text(c, providerCopy("请求重试策略", "Request retry policy")).Bold().TextColor(fg)
+	ui.Column(c).Gap(design.Sp(1)).Padding(design.Sp(1.5)).Children(func() {
+		kHeading(c, providerCopy("请求重试策略", "Request retry policy"))
 		if field, ok := configurationOption(fields, "mode"); ok {
 			configurationOptionField(c, m, s, scope+"/retryPolicy", policy, field, func() {
 				if configurationText(policy["mode"]) == "" {
@@ -180,7 +181,7 @@ func configurationRetryPolicy(c *ui.Context, m Model, s store.ViewState, schema 
 			}, fg, muted)
 		}
 		if policy["mode"] == "always" {
-			ui.Text(c, providerCopy("所有模型请求失败都会持续重试，直到成功或取消。", "Every model-request failure retries until success or cancellation.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			kHint(c, providerCopy("所有模型请求失败都会持续重试，直到成功或取消。", "Every model-request failure retries until success or cancellation."))
 		} else {
 			if field, ok := configurationOption(fields, "maxRetries"); ok {
 				configurationOptionField(c, m, s, scope+"/retryPolicy", policy, field, save, fg, muted)
@@ -192,7 +193,7 @@ func configurationRetryPolicy(c *ui.Context, m Model, s store.ViewState, schema 
 		if configurationHas(fields, "backoff") {
 			configurationOptionObject(c, m, s, schema, append(append([]string{}, path...), "backoff"), scope+"/retryPolicy", policy, "backoff", save, fg, muted)
 		}
-		if ui.Button(c, providerCopy("继承重试策略", "Inherit retry policy")).Disabled(!s.Writable || s.Saving).Clicked() {
+		if kGhost(c, providerCopy("继承重试策略", "Inherit retry policy"), !s.Writable || s.Saving).AlignSelf(ui.Start).Clicked() {
 			delete(profile, "retryPolicy")
 			change()
 		}
@@ -200,14 +201,18 @@ func configurationRetryPolicy(c *ui.Context, m Model, s store.ViewState, schema 
 }
 
 func configurationOptionList(c *ui.Context, m Model, s store.ViewState, scope string, row map[string]any, key string, change func(), fg, muted ui.Color) {
-	ui.Text(c, key+providerCopy("（每行一项）", " (one per line)")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	kHint(c, key+providerCopy("（每行一项）", " (one per line)"))
 	var values []string
 	for _, value := range configurationRows(row[key]) {
 		values = append(values, configurationText(value))
 	}
 	if m.DraftPtr != nil {
 		text := m.DraftPtr("configuration/"+scope+"/"+key, strings.Join(values, "\n"))
-		if ui.TextArea(c, text).FillWidth().Lines(3, 8).Disabled(!s.Writable || s.Saving).Changed() {
+		if kTextarea(c, text, coss.TextareaOptions{
+			Label:    key,
+			MaxLines: 8,
+			Disabled: !s.Writable || s.Saving,
+		}).Lines(3, 8).Changed() {
 			if strings.TrimSpace(*text) == "" {
 				delete(row, key)
 			} else {
@@ -222,7 +227,7 @@ func configurationOptionList(c *ui.Context, m Model, s store.ViewState, scope st
 			change()
 		}
 	}
-	if ui.Button(c, providerCopy("继承列表", "Inherit list")).Disabled(!s.Writable || s.Saving).Clicked() {
+	if kGhost(c, providerCopy("继承列表", "Inherit list"), !s.Writable || s.Saving).AlignSelf(ui.Start).Clicked() {
 		delete(row, key)
 		change()
 	}
@@ -235,7 +240,7 @@ func configurationOptionDictionary(c *ui.Context, m Model, s store.ViewState, sc
 	}
 	save := func() { parent[key] = row; change() }
 	disabled := !s.Writable || s.Saving
-	ui.Text(c, key).Bold().TextColor(fg)
+	kHeading(c, key)
 	keys := make([]string, 0, len(row))
 	for name := range row {
 		keys = append(keys, name)
@@ -263,7 +268,7 @@ func configurationOptionDictionary(c *ui.Context, m Model, s store.ViewState, sc
 			if configurationHas(variableFields, "$var") {
 				options = append(options, "variable")
 			}
-			if ui.Select(c, &kind, options).Disabled(disabled).Changed() {
+			if kSelect(c, &kind, options, name, disabled).Changed() {
 				switch kind {
 				case "number":
 					row[name] = float64(0)
@@ -300,7 +305,7 @@ func configurationOptionDictionary(c *ui.Context, m Model, s store.ViewState, sc
 			}
 			configurationOptionField(c, m, s, scope+"/"+key, row, store.Field{Key: name, Label: providerCopy("值", "Value"), Kind: fieldKind}, save, fg, muted)
 		}
-		if ui.Button(c, providerCopy("移除此项", "Remove entry")).Disabled(disabled).Clicked() {
+		if kDanger(c, providerCopy("移除此项", "Remove entry"), disabled).AlignSelf(ui.Start).Clicked() {
 			delete(row, name)
 			save()
 		}
@@ -309,20 +314,20 @@ func configurationOptionDictionary(c *ui.Context, m Model, s store.ViewState, sc
 	name := s.Drafts[formKey]
 	if m.DraftPtr != nil {
 		draft := m.DraftPtr("configuration/"+formKey, name)
-		if ui.TextInput(c, draft).FillWidth().Placeholder(providerCopy("新字段名称", "New field name")).Disabled(disabled).Changed() {
+		if kInput(c, draft, coss.InputOptions{
+			Label:       providerCopy("新字段名称", "New field name"),
+			Placeholder: providerCopy("新字段名称", "New field name"),
+			Disabled:    disabled,
+		}).Changed() {
 			name = *draft
 			configurationSetForm(m, formKey, name)
 		}
 	}
 	name = strings.TrimSpace(name)
 	_, exists := row[name]
-	if ui.Button(c, providerCopy("添加字段", "Add field")).Disabled(disabled || name == "" || exists).Clicked() {
+	if kButtonDisabled(c, providerCopy("添加字段", "Add field"), disabled || name == "" || exists).AlignSelf(ui.Start).Clicked() {
 		row[name] = ""
-		save()
 		configurationSetForm(m, formKey, "")
-	}
-	if ui.Button(c, fmt.Sprintf("%s %s", providerCopy("继承", "Inherit"), key)).Disabled(disabled).Clicked() {
-		delete(parent, key)
-		change()
+		save()
 	}
 }
