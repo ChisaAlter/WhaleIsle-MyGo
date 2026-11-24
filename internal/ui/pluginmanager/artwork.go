@@ -126,7 +126,8 @@ func previewSkeleton(c *ui.Context, retry func()) {
 	})
 }
 
-func addPluginMenu(c *ui.Context, m Model, s manager.State, a manager.Actions) {
+func addPluginMenu(c *ui.Context, p *page) {
+	m, s, a := p.m, p.s, p.a
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	primaryInk := theme.Color(colors.ButtonFG)
 	md := theme.ContextRadii(c).MD

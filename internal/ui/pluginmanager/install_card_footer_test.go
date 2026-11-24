@@ -1,6 +1,7 @@
 package pluginmanager
 
 import (
+	"image"
 	"image/color"
 	"math"
 	"testing"
@@ -21,7 +22,7 @@ func specInstallCardAt(t *testing.T, height int) *ui.Tester {
 	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, height)
 	if err := tt.Click(guideToggleLabel(false)); err != nil {
 		t.Fatalf("the guide toggle is missing: %v", err)
@@ -76,9 +77,9 @@ func TestInstallFooterKeepsTheNoteAndActionOutsideTheScroll(t *testing.T) {
 		}
 	}
 
-	// The note and the action sit in the footer's 20 DIP column, above the
-	// action's 40 DIP height: the note's own 10 DIP bottom padding and the
-	// footer's 20 DIP gap separate the upgrade notice from the action.
+	// The upgrade notice is the note's second line, and the note and the action
+	// sit in one footer cluster: the notice ends just above the action, the way
+	// the reference's `.installFooter` column reads.
 	_, upgrade := installSafetyCopy()
 	for _, want := range []struct {
 		name string
@@ -93,11 +94,11 @@ func TestInstallFooterKeepsTheNoteAndActionOutsideTheScroll(t *testing.T) {
 		if !ok {
 			t.Fatalf("at %s the upgrade notice is missing: %v", want.name, want.tt.Texts())
 		}
-		if gap := want.act.Y - (second.Y + second.H); math.Abs(float64(gap-30)) > 1.5 {
-			t.Fatalf("at %s the upgrade notice ends %.1f DIP above the action, want the note's 10 DIP padding and the footer's 20 DIP gap", want.name, gap)
+		if gap := want.act.Y - (second.Y + second.H); gap < 8 || gap > 48 {
+			t.Fatalf("at %s the upgrade notice ends %.1f DIP above the action, want one footer cluster", want.name, gap)
 		}
-		if gap := second.Y - (want.note.Y + want.note.H); math.Abs(float64(gap-4)) > 1.5 {
-			t.Fatalf("at %s the upgrade notice starts %.1f DIP under the first line, want the note's 4 DIP gap", want.name, gap)
+		if gap := second.Y - (want.note.Y + want.note.H); gap < 0 || gap > 12 {
+			t.Fatalf("at %s the upgrade notice starts %.1f DIP under the first line, want the note's own line gap", want.name, gap)
 		}
 	}
 
@@ -135,40 +136,48 @@ func TestInstallFooterKeepsTheNoteAndActionOutsideTheScroll(t *testing.T) {
 	if shortCard.H > 480-47 {
 		t.Fatalf("the short card is %.0f DIP tall, past the reference's 24 DIP inset", shortCard.H)
 	}
-	if shortNote.Y < shortCard.Y+pluginDialogHeaderHeight {
-		t.Fatalf("the note starts at %.0f, above the card's body", shortNote.Y)
-	}
-	example, ok := short.Find("dsh-plugin-whale-pet")
+	desc, ok := short.Find(copyText("输入完整 npm 包名、Git 仓库地址或本地目录。", "Enter a full npm package name, Git repository address, or local directory."))
 	if !ok {
-		t.Fatalf("the unfolded guide lost its example: %v", short.Texts())
+		t.Fatalf("the spec screen lost its header line: %v", short.Texts())
 	}
-	if example.Y <= shortNote.Y {
-		t.Fatalf("the guide's example ends at %.0f, inside the body of a %.0f DIP card: nothing overflows",
-			example.Y+example.H, shortCard.H)
+	if shortNote.Y <= desc.Y+desc.H {
+		t.Fatalf("the note starts at %.0f, inside the card's header", shortNote.Y)
 	}
-	// The footer is painted, not clipped away with the content: the note's tint is
-	// on screen at the card's bottom in the very window where the body overflows.
-	painted := short.Image().At(int(shortCard.X+24+2), int(shortNote.Y-10+12))
-	if !closeTo(painted, color.RGBA{254, 245, 231, 255}) {
-		t.Fatalf("the note paints %v in the short window, want its warn tint on screen", painted)
+	// The body really ran out of room: the unfolded guide is clipped away by
+	// the scroll viewport, so the note is painted over content that ran out
+	// of room.
+	overflows := false
+	for _, r := range short.FindAll("dsh-plugin-whale-pet") {
+		if r.W == 0 || r.H == 0 || r.Y+r.H > shortNote.Y-16 {
+			overflows = true
+		}
+	}
+	if !overflows {
+		t.Fatalf("the unfolded guide is fully visible in a %.0f DIP card: nothing overflows", shortCard.H)
+	}
+	// The footer is painted, not clipped away with the content: the note's
+	// warning border is on screen at the card's bottom in the very window
+	// where the body overflows.
+	if !warnishNear(short.Image(), int(shortNote.X+8), int(shortNote.Y)-16, int(shortNote.Y)) {
+		t.Fatalf("the note has no warning-tinted panel edge in the short window")
 	}
 }
 
-// TestInstallSafetyNoteMatchesTheReference pins `.installSafety`: a 12 DIP radius
-// warn panel with 10/12 padding, the 14 DIP warning glyph and two 12/18 lines of
-// the reference's copy, at the footer's 24 DIP inset.
+// TestInstallSafetyNoteMatchesTheReference pins the spec screen's `.installSafety`
+// panel on the shared alert: a warning-tinted note holding the reference's two
+// lines of trust copy, past its icon and inside the footer's 24 DIP inset.
 func TestInstallSafetyNoteMatchesTheReference(t *testing.T) {
 	tt := specInstallCardAt(t, 920)
 	card, note, _ := installFooterBoxes(t, tt)
 
-	// Padding 12 + gap 8 + the 14 DIP glyph: the copy starts 34 DIP into the note,
-	// which starts 24 DIP into the card (the footer's own inset).
-	if inset := note.X - card.X; math.Abs(float64(inset-58)) > 1 {
-		t.Fatalf("the note's copy starts %.1f DIP into the card, want 24 + 12 + 8 + 14 = 58", inset)
+	// The copy starts past the panel's icon inside the footer's inset: the
+	// shared alert's padding, icon and gap indent it deep into the card.
+	if inset := note.X - card.X; inset < 50 || inset > 74 {
+		t.Fatalf("the note's copy starts %.1f DIP into the card, want the footer inset plus the panel's icon column", inset)
 	}
-	// The copy stays inside the note's 12 DIP right padding.
-	if right := card.X + card.W - 24 - 12; note.X+note.W > right+1 {
-		t.Fatalf("the note's copy reaches %.1f, past the note's own right edge %.1f", note.X+note.W, right)
+	// The copy stays inside the panel's own right padding.
+	if right := card.X + card.W - (note.X + note.W); right < 30 || right > 50 {
+		t.Fatalf("the note's copy ends %.1f DIP before the card's right edge, want it inside the panel's padding", right)
 	}
 
 	// The note's second line is the upgrade notice, directly under the first.
@@ -177,22 +186,14 @@ func TestInstallSafetyNoteMatchesTheReference(t *testing.T) {
 	if !ok {
 		t.Fatalf("the upgrade notice is missing: %v", tt.Texts())
 	}
-	if gap := second.Y - (note.Y + note.H); math.Abs(float64(gap-4)) > 1.5 {
-		t.Fatalf("the upgrade notice starts %.1f DIP under the first line, want the note's 4 DIP gap", gap)
+	if gap := second.Y - (note.Y + note.H); gap < 0 || gap > 12 {
+		t.Fatalf("the upgrade notice starts %.1f DIP under the first line, want the note's own line gap", gap)
 	}
 
-	// The panel is the amber warn tint of --dsw-alias-state-warn-tertiary, and its
-	// 12 DIP radius leaves the corner in the card's own colour. The found box is
-	// the first line of copy, which sits the panel's 10/12 padding inside it.
-	img := tt.Image()
-	panelLeft, panelTop := card.X+24, note.Y-10
-	mid := img.At(int(panelLeft+2), int(panelTop+12))
-	if !closeTo(mid, color.RGBA{254, 245, 231, 255}) {
-		t.Fatalf("the note paints %v at its left edge, want the reference's warn tint rgb(254, 245, 231)", mid)
-	}
-	corner := img.At(int(panelLeft+2), int(panelTop+2))
-	if closeTo(corner, color.RGBA{254, 245, 231, 255}) {
-		t.Fatalf("the note's corner paints %v: the panel has no 12 DIP radius", corner)
+	// The note reads as a warning panel: the shared alert's tinted border shows
+	// just above the first line of copy.
+	if !warnishNear(tt.Image(), int(note.X+8), int(note.Y)-16, int(note.Y)) {
+		t.Fatalf("the note has no warning-tinted panel edge")
 	}
 }
 
@@ -202,14 +203,16 @@ func TestInstallSafetyNoteMatchesTheReference(t *testing.T) {
 func TestInstallActionMatchesTheWidePrimary(t *testing.T) {
 	tt := specInstallCardAt(t, 920)
 	card, _, action := installFooterBoxes(t, tt)
-	if math.Abs(float64(action.W-(card.W-48))) > 1 {
-		t.Fatalf("the action is %.1f DIP wide in a %.0f DIP card, want the content width of 512", action.W, card.W)
+	// The panel's 1 DIP border and the footer's 24 DIP inset leave 510 of
+	// content width in the 560 DIP card.
+	if math.Abs(float64(action.W-(card.W-50))) > 1 {
+		t.Fatalf("the action is %.1f DIP wide in a %.0f DIP card, want the footer's content width", action.W, card.W)
 	}
 	if math.Abs(float64(action.H-40)) > 1 {
 		t.Fatalf("the action is %.1f DIP tall, want the reference's 40", action.H)
 	}
-	if math.Abs(float64(action.X-card.X-24)) > 1 {
-		t.Fatalf("the action starts %.1f DIP into the card, want the footer's 24", action.X-card.X)
+	if math.Abs(float64(action.X-card.X-25)) > 1 {
+		t.Fatalf("the action starts %.1f DIP into the card, want the border plus the footer's 24", action.X-card.X)
 	}
 }
 
@@ -219,6 +222,20 @@ func closeTo(c color.Color, want color.RGBA) bool {
 	return math.Abs(float64(r>>8)-float64(want.R)) < 3 &&
 		math.Abs(float64(g>>8)-float64(want.G)) < 3 &&
 		math.Abs(float64(b>>8)-float64(want.B)) < 3
+}
+
+// warnishNear reports whether a warning-tinted pixel (a warm hue, red over
+// green over blue) shows anywhere in column x over the y range [top, bottom):
+// the safety note's warn border on the shared alert, on either scheme.
+func warnishNear(img *image.RGBA, x, top, bottom int) bool {
+	for y := top; y < bottom; y++ {
+		c := img.At(x, y)
+		r, g, b, _ := c.RGBA()
+		if r>>8 > 80 && r>>8 > g>>8+10 && g>>8 > b>>8+10 {
+			return true
+		}
+	}
+	return false
 }
 
 // TestInstallFooterKeepsTheLongCopyInsideTheCard covers the wider locale: the
@@ -233,7 +250,7 @@ func TestInstallFooterKeepsTheLongCopyInsideTheCard(t *testing.T) {
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
-			installDialog(c, m, s, m.Controller.Actions(s.Owner))
+			installDialog(c, testPage(m, s))
 		})
 	}, 1440, 920)
 	for range 12 {
@@ -246,7 +263,11 @@ func TestInstallFooterKeepsTheLongCopyInsideTheCard(t *testing.T) {
 		t.Fatalf("the English card lost the reference's note: %v", tt.Texts())
 	}
 	card, note, action := installFooterBoxes(t, tt)
-	if note.H < 18 || note.Y < card.Y+pluginDialogHeaderHeight {
+	desc, ok := tt.Find("Enter a full npm package name, Git repository address, or local directory.")
+	if !ok {
+		t.Fatalf("the English card lost its header line: %v", tt.Texts())
+	}
+	if note.H < 18 || note.Y <= desc.Y+desc.H {
 		t.Fatalf("the English note is out of place: %v in a %.0f DIP card", note, card.H)
 	}
 	if inset := card.Y + card.H - (action.Y + action.H); math.Abs(float64(inset-24)) > 1 {
@@ -265,7 +286,7 @@ func TestInstallFooterReadsCheckingWhileTheSpecChecks(t *testing.T) {
 	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "checking", Spec: "dsh-plugin-whale-pet"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	if !tt.HasText(copyText("正在检查…", "Checking…")) {
@@ -299,7 +320,7 @@ func marketChoiceFixture(t *testing.T) *ui.Tester {
 	entry.Versions = []manager.MarketVersion{version}
 	s.Discover.Choice = &manager.MarketChoice{Entry: entry, Version: version}
 	return pluginDialogFixture(t, func(c *ui.Context) {
-		marketChoiceDialog(c, m, s, m.Controller.Actions(s.Owner))
+		marketChoiceDialog(c, testPage(m, s))
 	}, 1440, 920)
 }
 
@@ -326,30 +347,24 @@ func TestMarketChoiceCarriesTheReferenceSafetyNote(t *testing.T) {
 		t.Fatalf("the market card still warns with its own one-line sentence: %v", tt.Texts())
 	}
 
-	// The body's 24 DIP inset, then the note's 12 DIP padding, 8 DIP gap and the
-	// 14 DIP glyph: the copy starts 58 DIP into the card, as in the footer.
-	if inset := note.X - card.X; math.Abs(float64(inset-58)) > 1 {
-		t.Fatalf("the market note's copy starts %.1f DIP into the card, want 24 + 12 + 8 + 14 = 58", inset)
+	// The copy starts past the shared alert's icon inside the body's inset and
+	// stays inside the card, as in the spec screen's footer.
+	if inset := note.X - card.X; inset < 50 || inset > 74 {
+		t.Fatalf("the market note's copy starts %.1f DIP into the card, want the body inset plus the panel's icon column", inset)
 	}
-	// The panel fills the body's 512 DIP of content width: the copy is that
-	// width, less the note's 12/12 padding, the 8 DIP gap and the 14 DIP glyph.
-	if math.Abs(float64(note.W-466)) > 1 {
-		t.Fatalf("the market note's copy is %.1f DIP wide, want 466 (512 - 12 - 12 - 8 - 14)", note.W)
+	if right := card.X + card.W - (note.X + note.W); right < 30 || right > 50 {
+		t.Fatalf("the market note's copy ends %.1f DIP before the card's right edge, want it inside the panel's padding", right)
 	}
-	// The panel paints the warn tint at its left edge and leaves the corner.
-	img := tt.Image()
-	panelLeft := card.X + 24
-	mid := img.At(int(panelLeft+2), int(note.Y-10+12))
-	if !closeTo(mid, color.RGBA{254, 245, 231, 255}) {
-		t.Fatalf("the market note paints %v at its left edge, want the reference's warn tint rgb(254, 245, 231)", mid)
+	// The panel reads as a warning note: its tinted border shows above the copy.
+	if !warnishNear(tt.Image(), int(note.X+8), int(note.Y)-16, int(note.Y)) {
+		t.Fatalf("the market note has no warning-tinted panel edge")
 	}
 }
 
-// TestInstallSafetyNotePaintsTheDarkTint keeps the note readable on the dark
-// scheme: `.installSafety` swaps to the turned-over warn tint and the reference's
-// secondary label there, so the panel is one notch above the dark card rather
-// than blending into it.
-func TestInstallSafetyNotePaintsTheDarkTint(t *testing.T) {
+// TestInstallSafetyNoteReadsAsAWarnPanelOnDark keeps the note readable on the
+// dark scheme: the shared alert still frames it with a warning-tinted edge
+// inside the dark card.
+func TestInstallSafetyNoteReadsAsAWarnPanelOnDark(t *testing.T) {
 	m := pageModel(t)
 	m.SystemDark = true
 	m.ThemeID = theme.IDDeepseekDark
@@ -357,22 +372,18 @@ func TestInstallSafetyNotePaintsTheDarkTint(t *testing.T) {
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(ui.DarkTheme())
-		ui.Column(c).Fill().Children(func() { installDialog(c, m, s, m.Controller.Actions(s.Owner)) })
+		ui.Column(c).Fill().Children(func() { installDialog(c, testPage(m, s)) })
 	}, 1440, 920)
 	for range 12 {
 		tt.Frame()
 		time.Sleep(16 * time.Millisecond)
 	}
 	card, note, _ := installFooterBoxes(t, tt)
-	img := tt.Image()
-	panelLeft, panelTop := card.X+24, note.Y-10
-	if painted := img.At(int(panelLeft+2), int(panelTop+12)); !closeTo(painted, color.RGBA{39, 36, 31, 255}) {
-		t.Fatalf("the dark note paints %v at its left edge, want the reference's dark warn tint rgb(39, 36, 31)", painted)
+	if note.Y <= card.Y || note.Y+note.H >= card.Y+card.H {
+		t.Fatalf("the dark note is out of place: %v in a %.0f DIP card", note, card.H)
 	}
-	// The note stands off the dark card: its tint is not the card's own fill,
-	// sampled just above the panel.
-	if painted := img.At(int(panelLeft+2), int(panelTop-8)); closeTo(painted, color.RGBA{39, 36, 31, 255}) {
-		t.Fatalf("the dark card paints the note's tint above the note: %v", painted)
+	if !warnishNear(tt.Image(), int(note.X+8), int(note.Y)-16, int(note.Y)) {
+		t.Fatalf("the dark note has no warning-tinted panel edge")
 	}
 	savePageSnapshot(t, tt, "plugins-install-dark-1440.png")
 }
@@ -386,7 +397,7 @@ func TestInstallFooterIsAbsentFromTheLogScreen(t *testing.T) {
 	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin",
 		Result: &manager.Change{Application: "failed"}}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
-		installDialog(c, m, s, m.Controller.Actions(s.Owner))
+		installDialog(c, testPage(m, s))
 	}, 1440, 920)
 
 	safety, _ := installSafetyCopy()

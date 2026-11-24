@@ -2,16 +2,17 @@ package pluginmanager
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/widgets/ansi"
 )
 
-// Installation output keeps its existing theme mapping while sharing the inert
-// cursor/SGR replay with conversation terminal cards.
-func installANSI(raw string, theme *ui.Theme) [][]ui.Span {
+// installANSI replays installation output's cursor/SGR codes, as the
+// conversation terminal cards do, in the window's design tokens.
+func installANSI(raw string, t *design.Tokens) [][]ui.Span {
 	return ansi.Parse(raw, ansi.Palette{
-		Primary: theme.Text, Tertiary: theme.TextMuted, Background: theme.Surface, DimBase: theme.TextMuted,
-		Error: theme.Danger, ErrorSecondary: theme.Danger,
-		Success: theme.Success, SuccessSecondary: theme.Success,
-		Warning: theme.Warning, WarningSecondary: theme.Warning, Business: theme.Accent,
+		Primary: t.Foreground, Tertiary: t.MutedForeground, Background: t.Muted, DimBase: t.MutedForeground,
+		Error: t.DestructiveForeground, ErrorSecondary: t.DestructiveForeground,
+		Success: t.SuccessForeground, SuccessSecondary: t.SuccessForeground,
+		Warning: t.WarningForeground, WarningSecondary: t.WarningForeground, Business: t.Primary,
 	})
 }

@@ -60,7 +60,7 @@ func TestPluginManagerParityAndCursorAudit(t *testing.T) {
 	if err := tt.Click("Switch plugin market, currently Fixture market"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Manage index sources…"); err != nil {
+	if err := tt.Click("Manage index sources…"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

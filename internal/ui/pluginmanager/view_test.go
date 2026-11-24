@@ -100,6 +100,12 @@ func pageModel(t *testing.T) Model {
 	}}
 }
 
+// testPage is the page frame's reading of the fixture controller for a test
+// that renders one of its parts directly.
+func testPage(m Model, s manager.State) *page {
+	return &page{m: m, s: s, a: m.Controller.Actions(s.Owner)}
+}
+
 func TestInstallTerminalShowsRunMetadataInNarrowDialog(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
@@ -108,7 +114,7 @@ func TestInstallTerminalShowsRunMetadataInNarrowDialog(t *testing.T) {
 	exit := 1
 	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin", DetailsOpen: true, Runs: []manager.InstallRun{{JobID: "pnpm-1", Command: "pnpm add fixture-plugin", CWD: "fixture-profile", Output: "Installing fixture\nFixture failure", Chunks: []manager.InstallOutput{{Stream: "stdout", Text: "Installing fixture"}, {Stream: "stderr", Text: "Fixture failure"}}, Settled: true, ExitCode: &exit}}}
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Fill().Children(func() { installDialog(c, m, s, m.Controller.Actions(s.Owner)) })
+		ui.Column(c).Fill().Children(func() { installDialog(c, testPage(m, s)) })
 	}, 520, 760)
 	for _, label := range []string{"pnpm add fixture-plugin", "fixture-profile", "Installing fixture\nFixture failure", "Exit: 1"} {
 		if !tt.HasText(label) {
@@ -214,7 +220,7 @@ func TestManagerDiscoverDetailsAndSourcesStaySeparate(t *testing.T) {
 	if err := tt.Click("Switch plugin market, currently Fixture market"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Manage index sources…"); err != nil {
+	if err := tt.Click("Manage index sources…"); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("https://fixture.invalid/index.json") || !tt.HasText("Add source") {
@@ -227,7 +233,8 @@ func TestManagerDiscoverDetailsAndSourcesStaySeparate(t *testing.T) {
 func TestManagerDisconnectedPageNeverShowsCuratedCatalog(t *testing.T) {
 	m := Model{Controller: manager.New()}
 	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Fill().Children(func() { View(c, m) }) }, 800, 600)
-	if !tt.HasText(copyText("本部署没有可管理的 profile，无法安装或启停插件。", "Runtime disconnected. Connect to manage this profile's plugins.")) {
+	if !tt.HasText(copyText("运行时未连接", "Runtime disconnected")) ||
+		!tt.HasText(copyText("连接后即可管理此 profile 的插件。", "Connect to manage this profile's plugins.")) {
 		t.Fatal("disconnected manager state was hidden")
 	}
 	if tt.HasText("Catalog source:") {
