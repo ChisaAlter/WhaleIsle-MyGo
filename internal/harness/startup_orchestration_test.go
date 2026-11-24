@@ -43,6 +43,9 @@ func TestStartingNotificationStopsAfterStateChange(t *testing.T) {
 		}
 	}}}
 	s.status = Status{State: Starting}
+	// A recent notification keeps the next one pending past the state change;
+	// with a zero progressAt the timer fires at once and may see Starting.
+	s.progressAt = time.Now()
 	s.log("late line")
 	s.mu.Lock()
 	s.status = Status{State: Stopped}
