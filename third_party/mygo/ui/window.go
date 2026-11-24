@@ -215,8 +215,7 @@ func (h *windowHost) present(s *scene.Scene) {
 		h.makeGPU()
 	case due && h.degraded:
 		// Drawing in software since the GPU went away: is it back?
-		h.gpu.Release()
-		h.gpu = nil
+		h.releaseGPU()
 		h.makeGPU()
 	}
 	now := time.Now()
@@ -355,8 +354,7 @@ func (h *windowHost) render(s *scene.Scene) bool {
 			return true
 		}
 		log.Printf("mygo: drawing without the GPU: %v", err)
-		h.gpu.Release()
-		h.gpu = nil
+		h.releaseGPU()
 		if try > 0 {
 			h.retryLater()
 			return false
@@ -407,6 +405,25 @@ func (h *windowHost) makeGPU() {
 	}
 	h.gpu, h.gpuSince = r, time.Now()
 	h.wide = false // the renderer draws sRGB until told otherwise
+	if ps, ok := h.conn.Surface.(platform.FramePacedSurface); ok {
+		if fp, ok := r.(platform.FramePacer); ok {
+			ps.SetFramePacer(fp)
+		} else {
+			ps.SetFramePacer(nil)
+		}
+	}
+}
+
+func (h *windowHost) releaseGPU() {
+	if h.conn != nil && h.conn.Surface != nil {
+		if ps, ok := h.conn.Surface.(platform.FramePacedSurface); ok {
+			ps.SetFramePacer(nil)
+		}
+	}
+	if h.gpu != nil {
+		h.gpu.Release()
+		h.gpu = nil
+	}
 }
 
 // software reports whether a renderer draws on the CPU, as Direct3D's WARP.
@@ -449,10 +466,7 @@ func (h *windowHost) detach() {
 	}
 	h.rt.close()
 	h.soft.Release()
-	if h.gpu != nil {
-		h.gpu.Release()
-		h.gpu = nil
-	}
+	h.releaseGPU()
 }
 
 func (h *windowHost) requestFrame() {

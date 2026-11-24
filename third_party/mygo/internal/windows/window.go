@@ -502,7 +502,9 @@ func (w *window) onSurfaceSize(width, height int) {
 	if drawNow {
 		procKillTimer.Call(w.hwnd, timerResizeTick)
 		w.surface.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
+		w.surface.immediatePaint = true
 		procRedrawWindow.Call(w.surface.hwnd, 0, 0, rdwInvalidate|rdwUpdateNow)
+		w.surface.immediatePaint = false
 		return
 	}
 	if armDelay > 0 {
@@ -562,7 +564,9 @@ func (w *window) refreshSurface() {
 		return
 	}
 	w.surface.send(platform.SurfaceEvent{Kind: platform.SurfaceResize})
+	w.surface.immediatePaint = true
 	procRedrawWindow.Call(w.surface.hwnd, 0, 0, rdwInvalidate|rdwUpdateNow)
+	w.surface.immediatePaint = false
 }
 
 // captionless reports a window without a caption: frameless, or with a

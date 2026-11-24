@@ -19,10 +19,11 @@ import (
 // Backend is the Windows (Win32 + WebView2) implementation of
 // platform.Backend.
 type Backend struct {
-	h       platform.AppHandler
-	name    string
-	appHwnd uintptr // hidden window receiving app level messages
-	running bool
+	h          platform.AppHandler
+	name       string
+	appHwnd    uintptr // hidden window receiving app level messages
+	running    bool
+	inMainLoop bool
 
 	signaled atomic.Bool
 
@@ -176,22 +177,137 @@ func sanitize(name string) string {
 
 func (b *Backend) Run() error {
 	b.running = true
+	b.inMainLoop = true
+	defer func() {
+		b.inMainLoop = false
+		b.running = false
+	}()
 	postMessage(b.appHwnd, wmAppReady, 0, 0)
 	var m msg
 	for {
-		r, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
-		if int32(r) <= 0 {
-			break
+		for {
+			r, _, _ := procPeekMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0, pmRemove)
+			if r == 0 {
+				break
+			}
+			if m.Message == wmQuit {
+				goto done
+			}
+			procTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
+			procDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
 		}
-		procTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
-		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
+		if !b.waitForMessageOrFrame() {
+			r, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
+			if int32(r) <= 0 {
+				break
+			}
+			procTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
+			procDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
+		}
 	}
-	b.running = false
+done:
 	if b.toast != nil {
 		b.toast.close()
 		b.toast = nil
 	}
 	return nil
+}
+
+// frameDeferMaxWait bounds how long a deferred VSync frame waits for its DXGI
+// waitable handle before falling back to an immediate repaint (e.g. when the
+// monitor is asleep, occluded or a hidden test window receives no VBlank).
+const frameDeferMaxWait = 32 * time.Millisecond
+
+// waitForMessageOrFrame waits for either incoming Win32 messages (input,
+// timers, app dispatches) or any deferred surface's DXGI frame-latency
+// waitable object. Input always wakes the loop immediately without blocking
+// behind Present(1, 0).
+func (b *Backend) waitForMessageOrFrame() bool {
+	const maxWaitHandles = 63 // MAXIMUM_WAIT_OBJECTS (64) - 1 for MsgWait
+	var handles [maxWaitHandles]uintptr
+	var waiting [maxWaitHandles]*surface
+	n := 0
+	now := time.Now()
+	timeout := frameDeferMaxWait
+	wokeTimedOut := false
+	for _, s := range b.surfaces {
+		if !s.frameDeferred {
+			continue
+		}
+		if s.w == nil || s.w.closed || s.pacer == nil {
+			s.frameDeferred = false
+			continue
+		}
+		h := s.pacer.WaitHandle()
+		if h == 0 {
+			s.frameDeferred = false
+			procInvalidateRectW.Call(s.hwnd, 0, 0)
+			wokeTimedOut = true
+			continue
+		}
+		elapsed := now.Sub(s.deferredSince)
+		if elapsed >= frameDeferMaxWait {
+			s.frameDeferred = false
+			s.deferredForce = true
+			procInvalidateRectW.Call(s.hwnd, 0, 0)
+			wokeTimedOut = true
+			continue
+		}
+		if rem := frameDeferMaxWait - elapsed; rem < timeout {
+			timeout = rem
+		}
+		if n < maxWaitHandles {
+			handles[n] = h
+			waiting[n] = s
+			n++
+		}
+	}
+	if wokeTimedOut {
+		return true
+	}
+	if n == 0 {
+		res, _, _ := procMsgWaitForMultipleObjectsEx.Call(0, 0, waitInfinite, qsAllInput, mwmoInputAvailable)
+		return res != waitFailed
+	}
+	ms := uintptr(timeout / time.Millisecond)
+	if ms < 1 {
+		ms = 1
+	}
+	res, _, _ := procMsgWaitForMultipleObjectsEx.Call(uintptr(n), uintptr(unsafe.Pointer(&handles[0])), ms, qsAllInput, mwmoInputAvailable)
+	switch {
+	case res < uintptr(n):
+		s := waiting[res]
+		s.frameDeferred = false
+		if s.pacer != nil {
+			s.pacer.MarkFrameReady()
+		}
+		procInvalidateRectW.Call(s.hwnd, 0, 0)
+		return true
+	case res == uintptr(n):
+		// Win32 input/message arrived; return to PeekMessageW immediately.
+		return true
+	case res == waitTimeout:
+		// Safety net: wake any surfaces that reached frameDeferMaxWait.
+		now = time.Now()
+		for i := range n {
+			s := waiting[i]
+			if s.frameDeferred && now.Sub(s.deferredSince) >= frameDeferMaxWait {
+				s.frameDeferred = false
+				s.deferredForce = true
+				procInvalidateRectW.Call(s.hwnd, 0, 0)
+			}
+		}
+		return true
+	default:
+		// WAIT_FAILED (e.g. a handle was closed concurrently): recover safely.
+		for i := range n {
+			s := waiting[i]
+			s.frameDeferred = false
+			s.deferredForce = true
+			procInvalidateRectW.Call(s.hwnd, 0, 0)
+		}
+		return false
+	}
 }
 
 // Quit ends the event loop. Modal loops (dialogs, menus) end too: they

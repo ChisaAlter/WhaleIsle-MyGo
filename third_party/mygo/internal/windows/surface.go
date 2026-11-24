@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"time"
 	"unicode/utf16"
 	"unsafe"
 
@@ -144,6 +145,14 @@ type surface struct {
 	refreshRateVal   float64
 	refreshRateMon   uintptr
 	refreshRateEpoch uint64
+
+	// Frame pacing via DXGI waitable swap chain so WM_PAINT never blocks
+	// Win32 input dispatch inside Present(1, 0).
+	pacer          platform.FramePacer
+	frameDeferred  bool
+	deferredForce  bool
+	deferredSince  time.Time
+	immediatePaint bool
 }
 
 func registerSurfaceClass() {
@@ -230,6 +239,43 @@ func (s *surface) Size() (float64, float64, float64) {
 func (s *surface) RequestFrame() {
 	recordTestFrameRequest()
 	procInvalidateRectW.Call(s.hwnd, 0, 0)
+}
+
+// SetFramePacer attaches or detaches a GPU waitable swap-chain pacer.
+func (s *surface) SetFramePacer(p platform.FramePacer) {
+	s.pacer = p
+	if p == nil {
+		s.frameDeferred = false
+		s.deferredForce = false
+	}
+}
+
+// shouldDeferPaint reports whether WM_PAINT should yield back to the Win32
+// event loop and wait on the swap chain's DXGI waitable handle instead of
+// blocking input dispatch inside Present(1, 0).
+func (s *surface) shouldDeferPaint() bool {
+	if s.immediatePaint || s.deferredForce {
+		s.deferredForce = false
+		s.frameDeferred = false
+		return false
+	}
+	if s.pacer == nil || s.w == nil || s.w.b == nil || !s.w.b.inMainLoop || s.w.inMenu || s.w.inSizeMove {
+		s.frameDeferred = false
+		return false
+	}
+	if s.pacer.WaitHandle() == 0 {
+		s.frameDeferred = false
+		return false
+	}
+	if s.pacer.TryAcquireFrame() {
+		s.frameDeferred = false
+		return false
+	}
+	if !s.frameDeferred {
+		s.frameDeferred = true
+		s.deferredSince = time.Now()
+	}
+	return true
 }
 
 // RefreshRate returns the refresh rate of the monitor showing the window,
@@ -429,6 +475,10 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 		recordTestPaintMsg()
 		var ps paintStruct
 		dc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+		if s.shouldDeferPaint() {
+			procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+			return 0, true
+		}
 		s.w.noteSurfacePainted()
 		s.paintDC = dc
 		s.send(platform.SurfaceEvent{Kind: platform.SurfaceFrame})
@@ -648,6 +698,8 @@ func (s *surface) message(hwnd uintptr, m uint32, wp, lp uintptr) (uintptr, bool
 	case wmGetObject:
 		return s.getObject(wp, lp)
 	case wmDestroy:
+		s.frameDeferred = false
+		s.pacer = nil
 		s.CancelDataDrag()
 		s.destroyAccess()
 		s.revokeFileDrops()

@@ -87,6 +87,29 @@ type IdleSurface interface {
 	Idle()
 }
 
+// FramePacer exposes a GPU swap chain's frame-latency waitable object so the
+// platform event loop can wait on VSync readiness alongside OS input events
+// instead of blocking the main thread inside Present(1, 0).
+type FramePacer interface {
+	// WaitHandle returns the native waitable handle signaled when the next
+	// swap-chain slot is ready, or 0 when waitable pacing is unavailable.
+	WaitHandle() uintptr
+	// TryAcquireFrame performs a non-blocking check/acquire of a frame slot.
+	// Returning true means the next frame may be drawn and presented without
+	// blocking on VSync.
+	TryAcquireFrame() bool
+	// MarkFrameReady records that the platform event loop consumed a signal
+	// from WaitHandle so the next frame may proceed immediately.
+	MarkFrameReady()
+}
+
+// FramePacedSurface is a Surface whose event loop can pace frames using a GPU
+// FramePacer. Passing nil detaches any active pacer before the renderer is
+// released.
+type FramePacedSurface interface {
+	SetFramePacer(p FramePacer)
+}
+
 // TextInputState is the state of the text input that has the keyboard,
 // for input methods.
 type TextInputState struct {
