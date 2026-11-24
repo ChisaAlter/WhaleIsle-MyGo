@@ -85,14 +85,20 @@ func TestInstalledCatalogCardsKeepConfirmationAndVersionReceipts(t *testing.T) {
 		// Scope duplicate Update labels to the active dialog, rather than
 		// asking the headless first-label finder to click the masked card.
 		owned := withMarketConfirmations(m)
-		catalogDetailsDialog(c, owned, s.Discovery(), s.Snapshot().Value, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
-		confirmationView(c, owned, c.Theme().Text, c.Theme().Accent)
+		p := testPage(owned, s.Discovery(), s.Snapshot().Value)
+		catalogDetailsDialog(c, p)
+		confirmationView(c, p)
 	}, 800, 1000)
+	clock := time.Unix(1000, 0)
+	tt.SetTime(clock)
 	click := func(label string) {
 		t.Helper()
 		if err := tt.Click(label); err != nil {
 			t.Fatal(err)
 		}
+		tt.Frame()
+		clock = clock.Add(time.Second)
+		tt.SetTime(clock)
 		tt.Frame()
 	}
 	for _, tab := range []string{"discover", "favorites"} {

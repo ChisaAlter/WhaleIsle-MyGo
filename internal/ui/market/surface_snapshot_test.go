@@ -55,7 +55,7 @@ func TestMarketSurfaceSnapshot(t *testing.T) {
 	inventory := marketstore.ViewState{ClientReady: true, Rows: []marketstore.Entry{{Label: "@deepseek-ai/dsh-glass", Detail: "1.2.0"}}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(16).Gap(16).Children(func() {
-			catalogCards(c, Model{Store: store, ThemeID: "deepseek.light"}, d, inventory, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+			catalogCards(c, testPage(Model{Store: store, ThemeID: "deepseek.light"}, d, inventory))
 		})
 	}, 800, 640)
 	saveSurfaceSnapshot(t, tt, "surface-market.png")

@@ -156,7 +156,7 @@ func TestMarketCapabilityFilterDefaultOnWebUIOnlyGuidanceDetailsAndInstalledBadg
 	}
 	installedTester := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
-			installedRows(c, m, marketstore.Discovery{}, inv, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+			installedRows(c, testPage(m, marketstore.Discovery{}, inv))
 		})
 	}, 800, 500)
 	if !installedTester.HasText("MCP server (Native)") || !installedTester.HasText("Web UI only") || !installedTester.HasText("compatibility workbench") {
