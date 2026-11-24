@@ -433,12 +433,20 @@ const (
 	persistHistory
 )
 
+// persistHook, when a test sets it, runs inside persistMu before the document
+// is snapshotted, so a test can hold one chosen persist open and assert what
+// subscribers have seen so far.
+var persistHook func(what int)
+
 // persist serializes disk writes outside s.mu so writes stay ordered and the
 // newest state wins: it re-reads the current document under a brief lock
 // rather than persisting what an earlier caller captured.
 func (s *Store) persist(what int) error {
 	s.persistMu.Lock()
 	defer s.persistMu.Unlock()
+	if persistHook != nil {
+		persistHook(what)
+	}
 	s.mu.Lock()
 	root := s.root
 	var rows []Entry
@@ -554,14 +562,16 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 		// The RPC is not dispatched when its local draft cannot be saved.
 		// Retire the persisted pending entry before returning to the composer.
 		s.setMessageStateLocked(channelID, msg.ID, MessageStateFailed)
+		s.mu.Unlock()
+		// The failed state lands on disk before subscribers see it: a
+		// snapshot carrying failed always reads back the same state.
+		saveErr := s.persist(persistHistory)
+		s.mu.Lock()
+		if saveErr != nil {
+			s.fault = state.FaultOf(saveErr)
+		}
 		s.publishLocked()
 		s.mu.Unlock()
-		if saveErr := s.persist(persistHistory); saveErr != nil {
-			s.mu.Lock()
-			s.fault = state.FaultOf(saveErr)
-			s.publishLocked()
-			s.mu.Unlock()
-		}
 		s.fire()
 		return
 	}
@@ -597,20 +607,23 @@ func (s *Store) SendDraft(ctx context.Context, channelID, text string) {
 			s.lastSend = state.FaultText("sent via " + sendMethod)
 			s.setMessageStateLocked(channelID, msg.ID, MessageStateSent)
 		}
+		s.mu.Unlock()
+		// The terminal state lands on disk before subscribers see it: a
+		// snapshot carrying sent/failed always reads back the same state.
+		saveErr := s.persist(persistHistory)
+		s.mu.Lock()
+		if saveErr != nil {
+			s.fault = state.FaultOf(saveErr)
+		}
 		s.publishLocked()
 		s.mu.Unlock()
-		if saveErr := s.persist(persistHistory); saveErr != nil {
-			s.mu.Lock()
-			s.fault = state.FaultOf(saveErr)
-			s.publishLocked()
-			s.mu.Unlock()
-		}
 		s.fire()
 	}()
 }
 
 // setMessageStateLocked updates one message's delivery state. The caller holds
-// s.mu and persists the history before releasing it.
+// s.mu; disk I/O never runs under it, so a terminal state is persisted after
+// unlocking and only then announced with publishLocked.
 func (s *Store) setMessageStateLocked(channelID, id, state string) {
 	for index := range s.history[channelID] {
 		if s.history[channelID][index].ID == id {
