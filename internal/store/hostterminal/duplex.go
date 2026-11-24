@@ -118,6 +118,7 @@ func (a *Attachment) sendCommand(command inputCommand) (err error) {
 			if ack.Sequence != command.Sequence {
 				err = errors.New("Host terminal input acknowledgement is out of sequence")
 			} else if ack.Refusal != "" {
+				s.fire()
 				return &controlRefusal{reason: ack.Refusal}
 			}
 		}
