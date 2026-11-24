@@ -119,7 +119,31 @@ jobs:
             ./internal/ui/launcher \
             ./internal/ui/layoutstability \
             ./internal/jobflow \
-            ./internal/workflowrun
+            ./internal/workflowrun \
+            ./internal/accountcontact \
+            ./internal/accountdetails \
+            ./internal/accountlogin \
+            ./internal/accountlogout \
+            ./internal/app/startup \
+            ./internal/cicoverage \
+            ./internal/directorypicker \
+            ./internal/openui/card \
+            ./internal/openui/lang \
+            ./internal/openui/lang/whaleui \
+            ./internal/petdirect \
+            ./internal/petgrowth \
+            ./internal/petwatch \
+            ./internal/projectflow \
+            ./internal/renderpolicy \
+            ./internal/startupsuggest \
+            ./internal/state \
+            ./internal/store/internal/storefs \
+            ./internal/testwait \
+            ./internal/ui/design \
+            ./internal/ui/designguard \
+            ./internal/uipurity \
+            ./tools/gen-api \
+            ./tools/gen-events
       - name: Test build storage contracts
         if: ${{ !cancelled() }}
         run: node --test scripts/build-storage.test.mjs
@@ -127,7 +151,7 @@ jobs:
   ui-windows:
     name: UI packages (Windows)
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       GOTOOLCHAIN: local
     steps:
@@ -142,11 +166,14 @@ jobs:
       - name: Test UI packages
         shell: bash
         run: |
-          # These four packages assert Windows copy, path decoding and layout
+          # The first four packages assert Windows copy, path decoding and layout
           # behaviour. Portability debt: file:// decoding, long- vs short-form
           # local paths, hover and focus repaint, and badge geometry all assume
           # Windows, so moving them to the Linux job needs real work rather than
-          # a workflow edit. Every test added here must pass on a clean runner.
+          # a workflow edit. The remaining UI surface packages ride the same
+          # job: their tests compile on Linux but exercise layout, rendering and
+          # platform copy that have only ever been verified on Windows. Every
+          # test added here must pass on a clean runner.
           # TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU asserts a timing
           # outcome rather than a contract: it requires the first render to return
           # before the async avatar decode finishes, and a hosted runner can win
@@ -157,7 +184,37 @@ jobs:
             ./internal/ui/settings \
             ./internal/ui/files \
             ./internal/ui/chat \
-            ./internal/ui/composer
+            ./internal/ui/composer \
+            ./internal/ui/agents \
+            ./internal/ui/assistant \
+            ./internal/ui/chrome \
+            ./internal/ui/coss \
+            ./internal/ui/custompanel \
+            ./internal/ui/diffsurface \
+            ./internal/ui/dirpick \
+            ./internal/ui/filelink \
+            ./internal/ui/im \
+            ./internal/ui/market \
+            ./internal/ui/openui \
+            ./internal/ui/planpreview \
+            ./internal/ui/pluginmanager \
+            ./internal/ui/projects \
+            ./internal/ui/remote \
+            ./internal/ui/schedule \
+            ./internal/ui/sessioncost \
+            ./internal/ui/settings/failurepolicy \
+            ./internal/ui/sidebar \
+            ./internal/ui/terminal \
+            ./internal/ui/theme \
+            ./internal/ui/toastpolicy \
+            ./internal/ui/usage \
+            ./internal/ui/webview \
+            ./internal/ui/welcome \
+            ./internal/ui/widgets \
+            ./internal/ui/widgets/ansi \
+            ./internal/ui/widgets/diff \
+            ./internal/ui/widgets/markdown \
+            ./internal/ui/workspacepicker
       - name: Test the native directory picker
         shell: bash
         # The Linux entry job excludes this test because native mode needs a
@@ -171,7 +228,7 @@ jobs:
   windows-native-packages:
     name: Windows native packages
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     env:
       GOTOOLCHAIN: local
     steps:
@@ -200,13 +257,65 @@ jobs:
         # shortcuts package's own tests already skip under the fallback grammar
         # for exactly these Mod+B/Mod+W defaults, so this is a known platform
         # boundary rather than a defect introduced by running it.
+        # internal/desktop/pet's anime4k provenance test asserts the checked-out
+        # bytes of a 9 MiB text asset; the runner's default core.autocrlf=true
+        # produces the CRLF identity the test wants. It fails on LF checkouts —
+        # keep it off any job whose checkout might be LF.
         run: |
           go test -count=1 \
             ./internal/ui/frame \
             ./internal/desktop/previewprocess \
             ./internal/desktop/sshremote \
             ./internal/desktop/importer \
-            ./internal/desktop/voicecapture
+            ./internal/desktop/voicecapture \
+            ./internal/desktop/acp \
+            ./internal/desktop/appuninstall \
+            ./internal/desktop/avatarimage \
+            ./internal/desktop/botnotify \
+            ./internal/desktop/bridgealerts \
+            ./internal/desktop/browserrecording \
+            ./internal/desktop/components \
+            ./internal/desktop/credentialrefs \
+            ./internal/desktop/deeplink \
+            ./internal/desktop/editors \
+            ./internal/desktop/htmldocument \
+            ./internal/desktop/htmlpreview \
+            ./internal/desktop/imagepreview \
+            ./internal/desktop/imgcache \
+            ./internal/desktop/localservers \
+            ./internal/desktop/market \
+            ./internal/desktop/mcpconfig \
+            ./internal/desktop/media \
+            ./internal/desktop/notifications \
+            ./internal/desktop/openui \
+            ./internal/desktop/pdfpreview \
+            ./internal/desktop/pet \
+            ./internal/desktop/phoneremote \
+            ./internal/desktop/platformview \
+            ./internal/desktop/plugininventory \
+            ./internal/desktop/pluginrpc \
+            ./internal/desktop/pluginslots \
+            ./internal/desktop/proactive \
+            ./internal/desktop/projectbridge \
+            ./internal/desktop/projectpreference \
+            ./internal/desktop/providerdiscovery \
+            ./internal/desktop/providerprofiles \
+            ./internal/desktop/screenglance \
+            ./internal/desktop/svgrender \
+            ./internal/desktop/taskcontrol \
+            ./internal/desktop/taskguard \
+            ./internal/desktop/update \
+            ./internal/desktop/voiceinput \
+            ./internal/desktop/wallpapers \
+            ./internal/desktop/webview \
+            ./internal/desktop/whale \
+            ./internal/desktop/workspaceauth \
+            ./internal/desktop/workspacefs \
+            ./internal/installhealth \
+            ./internal/processutil \
+            ./scripts/nsis \
+            ./scripts/session-runtime-links \
+            ./tools/core-host-check
 
   entry-and-git:
     name: Entry point and git packages
