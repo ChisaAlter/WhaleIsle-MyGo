@@ -285,7 +285,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 	// The search hit pulse fills with the same sidebar-accent wash.
 	settingsSearchJumpState(c).HitFill = t.SidebarAccent
 	groups := navigationGroups(m, snap)
-	key := newMemoKey(m.rev()).s(string(active)).b(searching)
+	key := newMemoKey(m.rev()).u(design.Revision()).u(theme.Revision()).s(string(active)).b(searching)
 	for _, group := range groups {
 		key.s(group.label)
 		for _, entry := range group.entries {
