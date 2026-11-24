@@ -1,59 +1,56 @@
 package usage
 
 import (
+	"math"
+
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/pagekit"
 	"whaleisle/internal/ui/theme"
 )
 
-// These are dsh-usage-panel/styles.ts's layer-1, border-l1 and secondary
-// label roles. Keep them local to the statistics surface.
-func usageCardPalette(c *ui.Context) (surface, border, secondary ui.Color) {
-	t := c.Theme()
-	if int(t.Background.R)+int(t.Background.G)+int(t.Background.B) < 384 {
-		return t.Surface.Alpha(.8), ui.RGBA(255, 255, 255, .06), ui.Hex("#cfd3d6")
-	}
-	return t.Background.Alpha(.8), ui.RGBA(0, 0, 0, .04), ui.Hex("#61666b")
-}
-
-func usageHeatColor(level int, surface, secondary ui.Color) ui.Color {
+// usageHeatColor derives the 5-level heatmap palette from the active coss
+// card and primary tokens.
+func usageHeatColor(t *design.Tokens, level int) ui.Color {
 	if level <= 0 {
-		return secondary.Alpha(.14)
+		return t.Card.Mix(t.MutedForeground, 0.14)
 	}
-	accent := ui.Hex("#4176e6") // --dsw-static-deepseek-500, in both schemes.
-	weight := []float32{0, .26, .48, .74, 1}[min(level, 4)]
-	channel := func(a, b uint8) uint8 { return uint8(float32(a)*weight + float32(b)*(1-weight) + .5) }
-	return ui.RGB(channel(accent.R, surface.R), channel(accent.G, surface.G), channel(accent.B, surface.B))
+	weight := []float32{0, 0.26, 0.48, 0.74, 1}[min(level, 4)]
+	return t.Card.Mix(t.Primary, weight)
 }
 
-func usageCard(c *ui.Context, key, title string, fg ui.Color, content func()) {
-	surface, border, _ := usageCardPalette(c)
-	ui.Column(c.Key(key)).FillWidth().MinWidth(0).Padding(16).Gap(12).Radius(8).Background(surface).Border(1, border).Children(func() {
-		if title != "" {
-			ui.Text(c, title).FillWidth().FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(600).TextColor(fg)
-		}
-		content()
+// usageSeriesColors derives the 6-series chart palette from coss semantic chart
+// tokens plus muted-foreground for the "Other" bucket.
+func usageSeriesColors(t *design.Tokens) []ui.Color {
+	return []ui.Color{t.Chart1, t.Chart2, t.Chart3, t.Chart4, t.Chart5, t.MutedForeground}
+}
+
+func usageCard(c *ui.Context, key, title string, content func()) ui.Element {
+	return coss.Card(c, coss.CardOptions{Key: key, Title: title}, content)
+}
+
+func usageEmpty(c *ui.Context, title, hint string) {
+	coss.Card(c, coss.CardOptions{}, func() {
+		coss.Empty(c, coss.EmptyOptions{
+			Icon:        coss.IconChartBar,
+			Title:       title,
+			Description: hint,
+		}, nil)
 	})
 }
 
-func usageEmpty(c *ui.Context, title, hint string, fg, muted ui.Color) {
-	surface, _, _ := usageCardPalette(c)
-	// The reference's empty state: a plain white card, about 108 DIP tall,
-	// with the title and one muted line centred.
-	ui.Column(c).FillWidth().MinWidth(0).Height(108).Padding(0, 20).Gap(4).Radius(8).
-		Background(surface).Border(.5, c.Theme().Border).Shadow(0, 1, 3, 0, ui.RGBA(15, 23, 42, .08)).
-		Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-		if title != "" {
-			ui.Text(c, title).FillWidth().TextAlign(ui.Center).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(600).TextColor(fg)
-		}
-		if hint != "" {
-			ui.Text(c, hint).FillWidth().TextAlign(ui.Center).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
-		}
-	})
+// usageMemoVersion starts a memo version seeded with locale, design tokens,
+// theme preferences and store identity.
+func usageMemoVersion(m Model) pagekit.Version {
+	v := pagekit.NewVersion().Uint(design.Revision()).Uint(theme.Revision())
+	if m.Store != nil {
+		v = v.String(m.Store.StatisticsOwner())
+	}
+	return v
 }
 
-var usagePageIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 13V9.5M8 13V5.5M13 13V3M2 13.5h12"/></svg>`))
-
-// Disclosure chevrons for folded sections, from the original 16px icon set.
-var usageChevronDownIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.25L8 9.75L11.5 6.25"/></svg>`))
-
-var usageChevronRightIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.25 4.5L9.75 8L6.25 11.5"/></svg>`))
+func mixFloat64(v pagekit.Version, f float64) pagekit.Version {
+	return v.Uint(math.Float64bits(f))
+}

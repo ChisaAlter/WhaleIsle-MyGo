@@ -6,13 +6,15 @@ import (
 	"sort"
 	"strings"
 	"time"
-	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
-	usagestore "whaleisle/internal/store/usage"
-)
 
-var usageSeriesColors = []ui.Color{ui.Hex("#5B8FF9"), ui.Hex("#61DDAA"), ui.Hex("#F6BD16"), ui.Hex("#E8684A"), ui.Hex("#9270CA"), ui.Hex("#6F7B8B")}
+	usagestore "whaleisle/internal/store/usage"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/pagekit"
+	"whaleisle/internal/ui/theme"
+)
 
 func totalsText(t usagestore.Totals) string {
 	return fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f · 缓存读取 %.0f · 缓存写入 %.0f", "Input %.0f · Output %.0f · Cache read %.0f · Cache write %.0f"), t.Input, t.Output, t.CacheRead, t.CacheWrite)
@@ -72,31 +74,35 @@ func dayTip(day usagestore.DayUsage, providers map[string]string, settings usage
 	return strings.Join(lines, "\n")
 }
 
-func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, fg, muted, accent, field ui.Color) {
+func effectiveBillingSettings(b usagestore.BillingView) usagestore.BillingSettings {
+	if !b.Loaded {
+		return usagestore.BillingSettings{PeakValleyEnabled: true}
+	}
+	return b.Settings
+}
+
+func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView) {
 	o := st.Overview
 	billing := m.Store.Billing()
-	settings := billing.Settings
-	if !billing.Loaded {
-		settings = usagestore.BillingSettings{PeakValleyEnabled: true}
-	}
+	settings := effectiveBillingSettings(billing)
 	providers := map[string]string{}
 	for _, row := range o.AllTime.ByModel {
 		providers[row.Model] = row.Provider
 	}
-	usageKPIView(c, o, o.AllTime.ByModel, settings, fg, muted)
-	calendarUsageView(c, m, st, providers, settings, fg, muted, accent, field)
+	usageKPIView(c, m, o, o.AllTime.ByModel, billing)
+	calendarUsageView(c, m, st, providers, settings)
 	days := o.Days
 	if len(days) > st.Days {
 		days = days[len(days)-st.Days:]
 	}
-	usageCard(c, "usage-daily-models", usageText("每日模型堆叠（近期）", "Daily model breakdown (recent)"), fg, func() {
-		usageRangeToolbar(c, m, st, fg, muted, accent)
-		stackedUsageView(c, days, o.ByModel, providers, settings, fg, muted, field)
+	usageCard(c, "usage-daily-models", usageText("每日模型堆叠（近期）", "Daily model breakdown (recent)"), func() {
+		usageRangeToolbar(c, m, st)
+		stackedUsageView(c, days, o.ByModel, providers, settings)
 	})
-	rankingView(c, m, st, fg, muted, accent)
-	projectRankingView(c, m, st, fg, muted, accent)
+	rankingView(c, m, st)
+	projectRankingView(c, m, st)
 	if len(o.Providers) > 0 && !(len(o.Providers) == 1 && (o.Providers[0].ID == "unknown" || o.Providers[0].Totals.Total <= 0)) {
-		usageCard(c, "usage-providers", usageText("服务商分项用量", "Provider token breakdown"), fg, func() {
+		usageCard(c, "usage-providers", usageText("服务商分项用量", "Provider token breakdown"), func() {
 			maximum := 1.0
 			for _, p := range o.Providers {
 				maximum = math.Max(maximum, p.Totals.Total)
@@ -106,155 +112,172 @@ func statisticsDimensionsView(c *ui.Context, m Model, st usagestore.StatsView, f
 				if name == "" {
 					name = p.ID
 				}
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, name).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
-					ui.Text(c, formatCompactTokens(p.Totals.Total)).TextColor(muted)
+				coss.Progress(c, p.Totals.Total/maximum, coss.ProgressOptions{
+					Label: name,
+					Value: formatCompactTokens(p.Totals.Total),
 				})
-				providerUsageBar(c, p.Totals.Total, maximum, accent, field)
 			}
 		})
 	}
-	usageCard(c, "usage-model-share", usageText("模型占比（全部历史）", "Model share (all time)"), fg, func() { modelShareView(c, o.AllTime.ByModel, o.AllTime.Totals.Total, settings, fg, muted, field) })
+	usageCard(c, "usage-model-share", usageText("模型占比（全部历史）", "Model share (all time)"), func() {
+		modelShareView(c, o.AllTime.ByModel, o.AllTime.Totals.Total, settings)
+	})
 }
 
 // Calendar cells use one set of quartiles over all returned days, including
 // when a date selection is active. Gaps are blank rather than zero-use days.
-func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, providers map[string]string, settings usagestore.BillingSettings, fg, muted, accent, field ui.Color) {
+func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, providers map[string]string, settings usagestore.BillingSettings) {
 	days := append([]usagestore.DayUsage(nil), st.Overview.Days...)
 	sort.Slice(days, func(i, j int) bool { return days[i].Date < days[j].Date })
 	if len(days) == 0 {
 		return
 	}
-	usageCard(c, "usage-calendar-card", "", fg, func() {
-		surface, _, secondary := usageCardPalette(c)
-		positives := []float64{}
-		lookup := map[string]usagestore.DayUsage{}
-		for _, d := range days {
-			lookup[d.Date] = d
-			if d.Total > 0 {
-				positives = append(positives, d.Total)
+	t := design.For(c)
+	positives := []float64{}
+	lookup := map[string]usagestore.DayUsage{}
+	for _, d := range days {
+		lookup[d.Date] = d
+		if d.Total > 0 {
+			positives = append(positives, d.Total)
+		}
+	}
+	sort.Float64s(positives)
+	levels := []float64{0, 0, 0}
+	if len(positives) > 0 {
+		for i := range levels {
+			levels[i] = positives[(len(positives)-1)*(i+1)/4]
+		}
+	}
+	selected := st.Selection()
+	active := 0
+	for _, d := range selected.Days {
+		if d.Total > 0 {
+			active++
+		}
+	}
+	summary := fmt.Sprintf(usageText("%.0f tokens · %d 天有用量，共 %d 天 · %s", "%.0f tokens · %d active of %d days · %s"),
+		selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))
+	var clearAction func()
+	if st.Range.Active() {
+		clearAction = func() {
+			if coss.Button(c, usageText("清除选区", "Clear selection"), coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonSM,
+			}).Clicked() {
+				m.Store.ClearStatsDateRange()
 			}
 		}
-		sort.Float64s(positives)
-		levels := []float64{0, 0, 0}
-		if len(positives) > 0 {
-			for i := range levels {
-				levels[i] = positives[(len(positives)-1)*(i+1)/4]
-			}
-		}
-		selected := st.Selection()
-		active := 0
-		for _, d := range selected.Days {
-			if d.Total > 0 {
-				active++
-			}
-		}
-		heading := ui.Text(c.Key("usage-calendar"), usageText("用量日历（UTC）", "Usage calendar (UTC)")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(22)).FontWeight(600).TextColor(fg)
-		detail := ui.Local(heading, "detail-date", func() string { return "" })
-		focusDay := ui.Local(heading, "focus-date", func() string { return "" })
-		buttons := map[string]ui.Element{}
-		focusTarget := ""
-		ui.Text(c, fmt.Sprintf(usageText("%.0f tokens · %d 天有用量，共 %d 天 · %s", "%.0f tokens · %d active of %d days · %s"), selected.Totals.Total, active, len(selected.Days), usageCostText(selected.Models, settings))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if st.Range.Active() && ui.Button(c, usageText("清除选区", "Clear selection")).AlignSelf(ui.Start).BorderWidth(0).Background(ui.Transparent).Clicked() {
-			m.Store.ClearStatsDateRange()
-		}
-		start, _ := time.Parse("2006-01-02", days[0].Date)
-		end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
-		start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
-		months := calendarMonthLabels(start, end, lookup)
-		ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(124).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
-			ui.Row(c).Gap(6).Children(func() {
-				ui.Column(c).Width(20).Gap(3).Children(func() {
-					ui.Box(c).Height(17)
-					for _, label := range []string{usageText("一", "Mon"), "", usageText("三", "Wed"), "", usageText("五", "Fri"), "", ""} {
-						ui.Text(c, label).Height(12).FixedLineHeight(12).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).NoWrap()
-					}
-				})
-				ui.Row(c).Gap(3).Children(func() {
-					for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
-						ui.Column(c).Width(12).Gap(3).Children(func() {
-							label := months[week.Format("2006-01-02")]
-							if label != "" {
-								month, _ := time.Parse("2006-01", label)
-								ui.Text(c, usageText(fmt.Sprintf("%d月", month.Month()), month.Format("Jan"))).Height(17).FixedLineHeight(16).NoWrap().Tooltip(label).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-							} else {
-								ui.Box(c).Height(17)
-							}
-							for n := 0; n < 7; n++ {
-								date := week.AddDate(0, 0, n).Format("2006-01-02")
-								day, ok := lookup[date]
-								if !ok {
-									ui.Box(c).Size(12, 12)
-									continue
+	}
+	seat := ui.Column(c.Key("usage-calendar")).FillWidth().MinWidth(0)
+	detail := ui.Local(seat, "detail-date", func() string { return "" })
+	focusDay := ui.Local(seat, "focus-date", func() string { return "" })
+	seat.Children(func() {
+		coss.Card(c, coss.CardOptions{
+			Key:         "usage-calendar-card",
+			Title:       usageText("用量日历（UTC）", "Usage calendar (UTC)"),
+			Description: summary,
+			Action:      clearAction,
+		}, func() {
+			buttons := map[string]ui.Element{}
+			focusTarget := ""
+			start, _ := time.Parse("2006-01-02", days[0].Date)
+			end, _ := time.Parse("2006-01-02", days[len(days)-1].Date)
+			start = start.AddDate(0, 0, -(int(start.Weekday())+6)%7)
+			months := calendarMonthLabels(start, end, lookup)
+			ui.ScrollHorizontal(c).FillWidth().MinWidth(0).Height(124).FocusGroup(ui.Horizontal | ui.Vertical).Children(func() {
+				ui.Row(c).Gap(design.Sp(1.5)).Children(func() {
+					ui.Column(c).Width(20).Gap(design.Sp(0.75)).Children(func() {
+						ui.Box(c).Height(17)
+						for _, label := range []string{usageText("一", "Mon"), "", usageText("三", "Wed"), "", usageText("五", "Fri"), "", ""} {
+							ui.Text(c, label).Height(12).FixedLineHeight(12).FontSize(theme.InterfaceSize(10)).TextColor(t.MutedForeground).NoWrap()
+						}
+					})
+					ui.Row(c).Gap(design.Sp(0.75)).Children(func() {
+						for week := start; !week.After(end); week = week.AddDate(0, 0, 7) {
+							ui.Column(c).Width(12).Gap(design.Sp(0.75)).Children(func() {
+								label := months[week.Format("2006-01-02")]
+								if label != "" {
+									month, _ := time.Parse("2006-01", label)
+									ui.Text(c, usageText(fmt.Sprintf("%d月", month.Month()), month.Format("Jan"))).Height(17).FixedLineHeight(16).NoWrap().Tooltip(label).FontSize(design.TextXS.Size).TextColor(t.MutedForeground)
+								} else {
+									ui.Box(c).Height(17)
 								}
-								level := 0
-								if day.Total > 0 {
-									level = 1
-									for _, q := range levels {
-										if day.Total > q {
-											level++
+								for n := 0; n < 7; n++ {
+									date := week.AddDate(0, 0, n).Format("2006-01-02")
+									day, ok := lookup[date]
+									if !ok {
+										ui.Box(c).Size(12, 12)
+										continue
+									}
+									level := 0
+									if day.Total > 0 {
+										level = 1
+										for _, q := range levels {
+											if day.Total > q {
+												level++
+											}
 										}
 									}
-								}
-								color := usageHeatColor(level, surface, secondary)
-								selectedDay := st.Range.Active() && date >= st.Range.Start && date <= st.Range.End
-								ui.Column(c).Width(12).Children(func() {
-									button := ui.Button(c.Key("day-"+date), "").Label(date+" UTC").Size(12, 12).Padding(0).BorderWidth(0).Radius(3).Background(color).FocusRing(false).Tooltip(dayTip(day, providers, settings))
-									if st.Range.Active() && !selectedDay {
-										button.Opacity(.3)
-									}
-									if selectedDay && st.Range.Start == st.Range.End || button.Hovered() || button.Focused() {
-										button.Opacity(1).DrawOver(func(p *ui.Painter, r ui.Rect) {
-											p.Stroke(ui.Rect{X: r.X - 3, Y: r.Y - 3, W: r.W + 6, H: r.H + 6}, accent, 5, 2)
-										})
-									}
-									buttons[date] = button
-									if button.Focused() {
-										if *focusDay == "" && !button.Clicked() {
-											focusTarget = days[len(days)-1].Date
-										} else {
+									color := usageHeatColor(t, level)
+									selectedDay := st.Range.Active() && date >= st.Range.Start && date <= st.Range.End
+									ui.Column(c).Width(12).Children(func() {
+										button := ui.Button(c.Key("day-"+date), "").Label(date+" UTC").Size(12, 12).Padding(0).BorderWidth(0).Radius(design.RadiusXS).Background(color).FocusRing(false).Cursor(ui.CursorPointer).Tooltip(dayTip(day, providers, settings))
+										if st.Range.Active() && !selectedDay {
+											button.Opacity(0.3)
+										}
+										if selectedDay && st.Range.Start == st.Range.End || button.Hovered() || button.Focused() {
+											button.Opacity(1).DrawOver(func(p *ui.Painter, r ui.Rect) {
+												p.Stroke(ui.Rect{X: r.X - 3, Y: r.Y - 3, W: r.W + 6, H: r.H + 6}, t.Ring, 5, 2)
+											})
+										}
+										buttons[date] = button
+										if button.Focused() {
+											if *focusDay == "" && !button.Clicked() {
+												focusTarget = days[len(days)-1].Date
+											} else {
+												*focusDay = date
+											}
+										}
+										if button.Focused() || button.Hovered() {
+											*detail = date
+										}
+										for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown, ui.KeyHome, ui.KeyEnd} {
+											if button.Shortcut(0, key) {
+												focusTarget = calendarFocusTarget(date, key, days)
+											}
+										}
+										if button.Shortcut(ui.Shift, ui.KeyEnter) || button.Shortcut(ui.Shift, ui.KeySpace) {
+											m.Store.SelectStatsDay(date, true)
+										}
+										if button.Clicked() {
+											*detail = date
 											*focusDay = date
+											m.Store.SelectStatsDay(date, button.ClickModifiers()&ui.Shift != 0)
 										}
-									}
-									if button.Focused() || button.Hovered() {
-										*detail = date
-									}
-									for _, key := range []ui.Key{ui.KeyLeft, ui.KeyRight, ui.KeyUp, ui.KeyDown, ui.KeyHome, ui.KeyEnd} {
-										if button.Shortcut(0, key) {
-											focusTarget = calendarFocusTarget(date, key, days)
-										}
-									}
-									if button.Shortcut(ui.Shift, ui.KeyEnter) || button.Shortcut(ui.Shift, ui.KeySpace) {
-										m.Store.SelectStatsDay(date, true)
-									}
-									if button.Clicked() {
-										*detail = date
-										*focusDay = date
-										m.Store.SelectStatsDay(date, button.ClickModifiers()&ui.Shift != 0)
-									}
-								})
-							}
-						})
-					}
+									})
+								}
+							})
+						}
+					})
 				})
 			})
-		})
-		if button, ok := buttons[focusTarget]; ok {
-			button.Focus()
-			button.ScrollIntoView()
-			*detail = focusTarget
-			*focusDay = focusTarget
-		}
-		if day, ok := lookup[*detail]; ok {
-			ui.Text(c, dayTip(day, providers, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		}
-		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Margin(14, 0, 0).Children(func() {
-			ui.Spacer(c)
-			ui.Text(c, usageText("少", "Less")).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
-			for level := 0; level <= 4; level++ {
-				ui.Box(c).Size(12, 12).Radius(3).Background(usageHeatColor(level, surface, secondary))
+			if button, ok := buttons[focusTarget]; ok {
+				button.Focus()
+				button.ScrollIntoView()
+				*detail = focusTarget
+				*focusDay = focusTarget
 			}
-			ui.Text(c, usageText("多", "More")).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
+			if day, ok := lookup[*detail]; ok {
+				pagekit.Caption(c, dayTip(day, providers, settings)).FillWidth()
+			}
+			ui.Row(c).FillWidth().Gap(design.Sp(1)).AlignItems(ui.Center).Margin(design.Sp(3.5), 0, 0).Children(func() {
+				ui.Spacer(c)
+				pagekit.Caption(c, usageText("少", "Less"))
+				for level := 0; level <= 4; level++ {
+					ui.Box(c).Size(12, 12).Radius(design.RadiusXS).Background(usageHeatColor(t, level))
+				}
+				pagekit.Caption(c, usageText("多", "More"))
+			})
 		})
 	})
 }
@@ -303,7 +326,8 @@ type usageSlice struct {
 	buckets usagestore.Totals
 }
 
-func modelSlices(models []usagestore.ModelUsage) []usageSlice {
+func modelSlices(t *design.Tokens, models []usagestore.ModelUsage) []usageSlice {
+	palette := usageSeriesColors(t)
 	rows := append([]usagestore.ModelUsage(nil), models...)
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Total == rows[j].Total {
@@ -314,9 +338,9 @@ func modelSlices(models []usagestore.ModelUsage) []usageSlice {
 	slices := []usageSlice{}
 	for i, row := range rows {
 		if i < 5 {
-			slices = append(slices, usageSlice{row.Model, row.Total, usageSeriesColors[i], row.Totals})
+			slices = append(slices, usageSlice{row.Model, row.Total, palette[i], row.Totals})
 		} else if i == 5 {
-			slices = append(slices, usageSlice{usageText("其他", "Other"), row.Total, usageSeriesColors[5], row.Totals})
+			slices = append(slices, usageSlice{usageText("其他", "Other"), row.Total, palette[5], row.Totals})
 		} else {
 			slices[5].value += row.Total
 			slices[5].buckets.Input += row.Input
@@ -328,22 +352,27 @@ func modelSlices(models []usagestore.ModelUsage) []usageSlice {
 	return slices
 }
 
-func stackedUsageView(c *ui.Context, days []usagestore.DayUsage, models []usagestore.ModelUsage, providers map[string]string, settings usagestore.BillingSettings, fg, muted, field ui.Color) {
-	slices := modelSlices(models)
+func stackedUsageView(c *ui.Context, days []usagestore.DayUsage, models []usagestore.ModelUsage, providers map[string]string, settings usagestore.BillingSettings) {
+	t := design.For(c)
+	slices := modelSlices(t, models)
 	maxTotal := 0.0
 	for _, day := range days {
 		maxTotal = math.Max(maxTotal, day.Total)
 	}
-	ui.Row(c).FillWidth().Wrap().Gap(12).Children(func() {
+	ui.Row(c).FillWidth().Wrap().Gap(design.Sp(3)).AlignItems(ui.Center).Children(func() {
 		for _, s := range slices {
-			ui.Text(c, "■ "+s.name).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
+			ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Size(8, 8).Radius(design.RadiusXS).Background(s.color).Shrink(0)
+				pagekit.Caption(c, s.name)
+			})
 		}
 	})
-	usageTimeline(c, days, slices, maxTotal, providers, settings, muted, field)
+	usageTimeline(c, days, slices, maxTotal, providers, settings)
 }
 
-func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64, settings usagestore.BillingSettings, fg, muted, field ui.Color) {
-	slices := modelSlices(models)
+func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64, settings usagestore.BillingSettings) {
+	t := design.For(c)
+	slices := modelSlices(t, models)
 	tip := fmt.Sprintf("%.0f tokens", total)
 	for _, s := range slices {
 		percent := 0.0
@@ -352,70 +381,120 @@ func modelShareView(c *ui.Context, models []usagestore.ModelUsage, total float64
 		}
 		tip += fmt.Sprintf("\n%s · %.1f%% · %.0f tokens · %s", s.name, percent, s.value, usageHitRate(s.buckets))
 	}
-	ui.Box(c).Width(180).Height(180).Tooltip(tip).Draw(func(p *ui.Painter, r ui.Rect) {
-		if total <= 0 {
-			p.Fill(r, field, 80)
-			return
-		}
-		angle := -math.Pi / 2
-		for _, s := range slices {
-			sweep := s.value / total * 2 * math.Pi
-			if sweep <= 0 {
-				continue
+	ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Children(func() {
+		ui.Box(c).Width(180).Height(180).Tooltip(tip).Draw(func(p *ui.Painter, r ui.Rect) {
+			if total <= 0 {
+				p.Fill(r, t.Muted, 80)
+				return
 			}
-			var path ui.Path
-			steps := max(2, int(math.Ceil(sweep*30)))
-			for i := 0; i <= steps; i++ {
-				a := angle + sweep*float64(i)/float64(steps)
-				x, y := r.X+r.W/2+float32(math.Cos(a))*82, r.Y+r.H/2+float32(math.Sin(a))*82
-				if i == 0 {
-					path.MoveTo(x, y)
-				} else {
-					path.LineTo(x, y)
+			angle := -math.Pi / 2
+			for _, s := range slices {
+				sweep := s.value / total * 2 * math.Pi
+				if sweep <= 0 {
+					continue
 				}
+				var path ui.Path
+				steps := max(2, int(math.Ceil(sweep*30)))
+				for i := 0; i <= steps; i++ {
+					a := angle + sweep*float64(i)/float64(steps)
+					x, y := r.X+r.W/2+float32(math.Cos(a))*82, r.Y+r.H/2+float32(math.Sin(a))*82
+					if i == 0 {
+						path.MoveTo(x, y)
+					} else {
+						path.LineTo(x, y)
+					}
+				}
+				for i := steps; i >= 0; i-- {
+					a := angle + sweep*float64(i)/float64(steps)
+					path.LineTo(r.X+r.W/2+float32(math.Cos(a))*58, r.Y+r.H/2+float32(math.Sin(a))*58)
+				}
+				path.Close()
+				p.FillPath(&path, s.color)
+				angle += sweep
 			}
-			for i := steps; i >= 0; i-- {
-				a := angle + sweep*float64(i)/float64(steps)
-				path.LineTo(r.X+r.W/2+float32(math.Cos(a))*58, r.Y+r.H/2+float32(math.Sin(a))*58)
-			}
-			path.Close()
-			p.FillPath(&path, s.color)
-			angle += sweep
-		}
-		usagePlotText(p, fmt.Sprintf("%.0f", total), ui.Rect{X: r.X + 25, Y: r.Y + 68, W: 130, H: 25}, fonttheme.InterfaceSize(18), fg, ui.Center)
-		usagePlotText(p, usageText("总 Tokens", "Total tokens"), ui.Rect{X: r.X + 25, Y: r.Y + 94, W: 130, H: 18}, fonttheme.InterfaceSize(11), muted, ui.Center)
-	})
-	for _, s := range slices {
-		percent := 0.0
-		if total > 0 {
-			percent = s.value / total * 100
-		}
-		ui.Text(c, fmt.Sprintf("■ %s · %.1f%% · %.0f tokens · %s", s.name, percent, s.value, usageHitRate(s.buckets))).FontSize(fonttheme.InterfaceSize(11)).TextColor(s.color)
-	}
-	ui.Scroll(c).Height(180).Children(func() {
-		ui.Column(c).Gap(6).Children(func() {
-			for _, row := range models {
+			usagePlotText(p, fmt.Sprintf("%.0f", total), ui.Rect{X: r.X + 25, Y: r.Y + 68, W: 130, H: 25}, theme.InterfaceSize(18), t.Foreground, ui.Center)
+			usagePlotText(p, usageText("总 Tokens", "Total tokens"), ui.Rect{X: r.X + 25, Y: r.Y + 94, W: 130, H: 18}, theme.InterfaceSize(11), t.MutedForeground, ui.Center)
+		})
+		ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Children(func() {
+			for _, s := range slices {
 				percent := 0.0
 				if total > 0 {
-					percent = row.Total / total * 100
+					percent = s.value / total * 100
 				}
-				ui.Text(c, fmt.Sprintf("%s · %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-				detail := totalsText(row.Totals)
-				if phases := phaseTotalsText(row.Cost); phases != "" {
-					detail += "\n" + phases
-				}
-				ui.Text(c, detail+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+					ui.Box(c).Size(8, 8).Radius(design.RadiusXS).Background(s.color).Shrink(0)
+					pagekit.Caption(c, fmt.Sprintf("%s · %.1f%% · %.0f tokens · %s", s.name, percent, s.value, usageHitRate(s.buckets))).Grow(1).MinWidth(0)
+				})
 			}
 		})
+		coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
+				for _, row := range models {
+					percent := 0.0
+					if total > 0 {
+						percent = row.Total / total * 100
+					}
+					ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
+						pagekit.Body(c, fmt.Sprintf("%s · %s · %.1f%% · %.0f tokens", row.Provider, row.Model, percent, row.Total)).FillWidth()
+						detail := totalsText(row.Totals)
+						if phases := phaseTotalsText(row.Cost); phases != "" {
+							detail += "\n" + phases
+						}
+						pagekit.Caption(c, detail+"\n"+usageCostText([]usagestore.ModelUsage{row}, settings)).FillWidth()
+					})
+				}
+			})
+		}).FillWidth().Height(180)
 	})
 }
 
-func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.ModelUsage, settings usagestore.BillingSettings, fg, muted ui.Color) {
-	t := o.AllTime.Totals
-	input := t.Input + t.CacheRead + t.CacheWrite
+func kpiMemoVersion(m Model, o *usagestore.Overview, models []usagestore.ModelUsage, billing usagestore.BillingView, columns int) uint64 {
+	v := usageMemoVersion(m).Uint(uint64(columns)).Uint(uint64(o.UpdatedAt)).Uint(uint64(o.AllTime.SessionCount)).
+		Uint(uint64(o.Coverage.UsageSessionsMain)).Uint(uint64(o.Coverage.UsageSessionsSubagent)).
+		Bool(billing.Loaded).Bool(billing.Settings.PeakValleyEnabled)
+	tot := o.AllTime.Totals
+	for _, f := range []float64{tot.Input, tot.Output, tot.CacheRead, tot.CacheWrite, tot.Total} {
+		v = mixFloat64(v, f)
+	}
+	settings := effectiveBillingSettings(billing)
+	for _, row := range models {
+		v = v.String(row.Provider).String(row.Model)
+		v = mixFloat64(v, row.Total)
+		v = mixFloat64(v, row.Input)
+		v = mixFloat64(v, row.Output)
+		v = mixFloat64(v, row.CacheRead)
+		v = mixFloat64(v, row.CacheWrite)
+		if row.Cost != nil {
+			v = v.Bool(true)
+			if row.Cost.Peak != nil {
+				v = mixFloat64(mixFloat64(mixFloat64(v, row.Cost.Peak.Input), row.Cost.Peak.Output), row.Cost.Peak.CacheRead)
+			}
+			if row.Cost.OffPeak != nil {
+				v = mixFloat64(mixFloat64(mixFloat64(v, row.Cost.OffPeak.Input), row.Cost.OffPeak.Output), row.Cost.OffPeak.CacheRead)
+			}
+		} else {
+			v = v.Bool(false)
+		}
+		if price, ok := usagestore.ResolveModelPrice(row.Provider, row.Model, settings.Prices); ok {
+			v = v.Bool(true).Bool(price.Flat)
+			v = mixFloat64(mixFloat64(mixFloat64(v, price.InputCacheHit), price.InputCacheMiss), price.Output)
+			if price.Idle != nil {
+				v = mixFloat64(mixFloat64(mixFloat64(v, price.Idle.InputCacheHit), price.Idle.InputCacheMiss), price.Idle.Output)
+			}
+		} else {
+			v = v.Bool(false)
+		}
+	}
+	return v.Key()
+}
+
+func usageKPIView(c *ui.Context, m Model, o *usagestore.Overview, models []usagestore.ModelUsage, billing usagestore.BillingView) {
+	settings := effectiveBillingSettings(billing)
+	tot := o.AllTime.Totals
+	input := tot.Input + tot.CacheRead + tot.CacheWrite
 	rate := usageText("无输入数据", "No input data")
 	if input > 0 {
-		rate = fmt.Sprintf("%.2f%%", t.CacheRead/input*100)
+		rate = fmt.Sprintf("%.2f%%", tot.CacheRead/input*100)
 	}
 	topName, topDetail := "—", ""
 	if len(models) > 0 {
@@ -426,8 +505,8 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 			}
 		}
 		topName = top.Model
-		if t.Total > 0 {
-			topDetail = fmt.Sprintf("%.1f%%", top.Total/t.Total*100)
+		if tot.Total > 0 {
+			topDetail = fmt.Sprintf("%.1f%%", top.Total/tot.Total*100)
 		}
 	}
 	costValue := "—"
@@ -446,14 +525,13 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 		costDetail = fmt.Sprintf(usageText("峰段 ¥%.2f · 谷段 ¥%.2f", "Peak ¥%.2f · Off-peak ¥%.2f"), peakSum/100, idleSum/100)
 	}
 	metrics := []struct{ label, value, detail string }{
-		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", t.Total), fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f · 缓存读取 %.0f", "Input %.0f · Output %.0f · Cache read %.0f"), input, t.Output, t.CacheRead)},
+		{usageText("总 Tokens", "Total tokens"), fmt.Sprintf("%.0f", tot.Total), fmt.Sprintf(usageText("输入 %.0f · 输出 %.0f · 缓存读取 %.0f", "Input %.0f · Output %.0f · Cache read %.0f"), input, tot.Output, tot.CacheRead)},
 		{usageText("估算费用", "Estimated cost"), costValue, costDetail},
 		{usageText("会话", "Sessions"), fmt.Sprint(o.AllTime.SessionCount), fmt.Sprintf(usageText("主会话 %d · 子代理 %d", "Main %d · Subagent %d"), o.Coverage.UsageSessionsMain, o.Coverage.UsageSessionsSubagent)},
 		{usageText("最常用模型", "Top model"), topName, topDetail},
-		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf(usageText("缓存读取 %.0f · 缓存写入 %.0f", "Cache read %.0f · Cache write %.0f"), t.CacheRead, t.CacheWrite)},
+		{usageText("缓存命中率", "Cache hit rate"), rate, fmt.Sprintf(usageText("缓存读取 %.0f · 缓存写入 %.0f", "Cache read %.0f · Cache write %.0f"), tot.CacheRead, tot.CacheWrite)},
 	}
-	surface, border, secondary := usageCardPalette(c)
-	grid := ui.Grid(c.Key("usage-kpis")).FillWidth().MinWidth(0).Gap(12)
+	grid := ui.Grid(c.Key("usage-kpis")).FillWidth().MinWidth(0).Gap(design.Sp(3))
 	width := grid.Bounds().W
 	columns := 6
 	if width <= 320 {
@@ -461,11 +539,13 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 	} else if width <= 460 {
 		columns = 2
 	}
-	grid.Columns(columns).Draw(func(_ *ui.Painter, r ui.Rect) {
+	version := kpiMemoVersion(m, o, models, billing, columns)
+	grid.Columns(columns).Memo(version).Draw(func(_ *ui.Painter, r ui.Rect) {
 		if r.W != width {
 			c.Invalidate()
 		}
 	}).Children(func() {
+		t := design.For(c)
 		for index, metric := range metrics {
 			span := 1
 			if columns == 6 {
@@ -474,20 +554,15 @@ func usageKPIView(c *ui.Context, o *usagestore.Overview, models []usagestore.Mod
 					span = 3
 				}
 			}
-			ui.Column(c).ColumnSpan(span).MinWidth(0).Gap(0).Padding(12, 16).Radius(8).Background(surface).Border(1, border).Children(func() {
-				ui.Text(c, metric.label).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(secondary)
-				size, height := float32(16), float32(24)
+			ui.Column(c).ColumnSpan(span).MinWidth(0).Gap(design.Sp(1)).Padding(design.Sp(3), design.Sp(4)).Radius(design.RadiusXL).Background(t.Card).Border(design.BorderWidth, t.Border).Children(func() {
+				pagekit.Caption(c, metric.label).FillWidth()
+				ts := design.TextBase
 				if index == 1 || index >= 3 {
-					size, height = 14, 22
+					ts = design.TextSM
 				}
-				ui.Text(c, metric.value).FillWidth().Margin(8, 0, 0).FontSize(fonttheme.InterfaceSize(size)).FixedLineHeight(fonttheme.InterfaceSize(height)).FontWeight(700).FontFeatures("tnum").TextColor(fg)
-				ui.Text(c, metric.detail).FillWidth().Margin(4, 0, 0).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).FontFeatures("tnum").TextColor(secondary)
+				ui.Text(c, metric.value).FillWidth().FontSize(ts.Size).FixedLineHeight(ts.LineHeight).FontWeight(design.WeightBold).FontFeatures("tnum").TextColor(t.Foreground)
+				pagekit.Caption(c, metric.detail).FillWidth().FontFeatures("tnum")
 			})
 		}
-	})
-}
-func providerUsageBar(c *ui.Context, value, maximum float64, accent, field ui.Color) {
-	ui.Box(c).FillWidth().Height(8).Background(field).Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * max(.02, float32(value/maximum)), H: r.H}, accent, 3)
 	})
 }

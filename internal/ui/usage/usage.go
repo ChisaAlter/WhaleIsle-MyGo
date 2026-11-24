@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	usagestore "whaleisle/internal/store/usage"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/pagekit"
 )
 
 func jobKillable(status string) bool {
@@ -49,159 +49,158 @@ type Model struct {
 
 // View paints the native usage panel.
 func View(c *ui.Context, m Model) {
+	if !m.Embedded && m.Store == nil {
+		return
+	}
+	var snap usagestore.ViewState
+	if m.Store != nil {
+		snap = m.Store.Snapshot().Value
+	}
 	if m.Embedded {
 		embeddedView(c, m)
 		return
 	}
-	if m.Store == nil {
-		return
-	}
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	border := chrome.Color(colors.Border)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	field := chrome.Color(colors.Field)
-	accent := chrome.Color(colors.Accent)
-	snap := m.Store.Snapshot().Value
+	root := ui.Column(c).Key("usage-page").Grow(1).FillWidth().MinHeight(0).MinWidth(0)
+	scroll := ui.Local(root, "scroll", func() *ui.ScrollState { return &ui.ScrollState{} })
+	root.Children(func() {
+		pagekit.Page(c, pagekit.PageOptions{Scroll: *scroll}, func() {
+			usageHeader(c, m, i18n.T(settingsPass4UsageTitle))
+			renderPreferences(c, m)
+			if m.ActionError != "" {
+				pagekit.FaultSentence(c, "", m.ActionError, "", nil)
+			}
+			statsView(c, m)
+			if snap.Err != nil {
+				pagekit.FaultSentence(c, "", snap.Err.SentenceText(), "", nil)
+			}
+			accountSection(c, m, snap)
+			recentSection(c, m, snap)
+		})
+	})
+}
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
-		ui.Column(c).FillWidth().MinWidth(0).Padding(14, 16, 8, 16).Gap(4).Children(func() {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, usageChartIcon).Size(16, 16).TextColor(fg)
-				ui.Text(c, i18n.T(settingsPass4UsageTitle)).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(fg).Grow(1)
-				// The reference keeps export and refresh next to the title. Export
-				// is a real action once the Host supplies it; the range dialog the
-				// reference's gear opens does not exist in this build, so no second
-				// dead button is drawn.
-				exportDisabled := m.OnExportStats == nil
-				export := widgets.Button(c, colors, i18n.T(settingsPass4UsageExport), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: exportDisabled})
-				if exportDisabled {
-					export.Tooltip(usageText("本版本还没有统计导出。", "Exporting statistics is not wired in this build"))
-				} else {
-					export.Menu(func(menu *ui.Menu) {
-						for _, format := range []struct{ id, zh, en string }{{"json", "导出 JSON", "Export JSON"}, {"days", "导出每日 CSV", "Export daily CSV"}, {"models", "导出模型 CSV", "Export model CSV"}} {
-							if menu.Item(usageText(format.zh, format.en)).Chosen() {
-								m.OnExportStats(format.id)
-							}
-						}
-					})
+func usageHeader(c *ui.Context, m Model, title string) {
+	var actions func()
+	if m.Store != nil {
+		actions = func() {
+			st := m.Store.Stats()
+			exportDisabled := m.OnExportStats == nil
+			exportBtn := coss.Button(c, i18n.T(settingsPass4UsageExport), coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonSM,
+				Icon:     coss.IconDownload,
+				Disabled: exportDisabled,
+			})
+			if exportDisabled {
+				exportBtn.Tooltip(i18n.T(settingsPass4UsageExportUnavailable))
+			} else {
+				exportOpen := ui.Local(exportBtn, "export-open", func() bool { return false })
+				items := []coss.MenuItem{
+					{ID: "json", Label: usageText("导出 JSON", "Export JSON")},
+					{ID: "days", Label: usageText("导出每日 CSV", "Export daily CSV")},
+					{ID: "models", Label: usageText("导出模型 CSV", "Export model CSV")},
 				}
-				pricingView(c, m, fg, muted, accent)
-				if widgets.Button(c, colors, i18n.T(settingsPass4UsageRefresh), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(m.Store.Stats().Loading).Clicked() {
-					m.Store.RefreshStats(context.Background(), true)
+				if id := coss.Menu(c, exportBtn, exportOpen, items, coss.MenuOptions{
+					Align: coss.AlignEnd,
+					Label: i18n.T(settingsPass4UsageExport),
+				}); id != "" {
+					m.OnExportStats(id)
+				}
+			}
+			pricingView(c, m)
+			if coss.Button(c, i18n.T(settingsPass4UsageRefresh), coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonSM,
+				Icon:     coss.IconRefresh,
+				Disabled: st.Loading,
+			}).Clicked() {
+				m.Store.RefreshStats(context.Background(), true)
+				if !m.Embedded {
 					if m.OnRefresh != nil {
 						m.OnRefresh()
 					} else {
 						m.Store.Refresh(context.Background(), m.SessionID)
 					}
 				}
-				if m.OnClose != nil && widgets.Button(c, colors, i18n.T(i18n.KeyUsageBack), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-					m.OnClose()
-				}
-			})
-			if at := m.Store.Stats().UpdatedAt; at > 0 {
-				ui.Text(c, usageUpdatedLabel(at)).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
-			if overview := m.Store.Stats().Overview; overview != nil {
-				label, source := usageSourceLabel(overview)
-				ui.Text(c, label).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				usageSourceLine(c, source, muted)
+			if !m.Embedded && m.OnClose != nil && coss.Button(c, i18n.T(i18n.KeyUsageBack), coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonSM,
+				Icon:    coss.IconArrowLeft,
+			}).Clicked() {
+				m.OnClose()
 			}
-		})
-		ui.Box(c).Fill().Height(1).Background(border)
-
-		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
-			ui.Column(c).Gap(10).Children(func() {
-				if m.Preferences != nil {
-					ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() { m.Preferences(c, fg, muted) })
-				}
-				statsView(c, m, fg, muted, accent, field)
-
-				if m.ActionError != "" {
-					ui.Text(c, m.ActionError).FontSize(theme.InterfaceSize(12)).TextColor(accent)
-				}
-				if snap.Err != nil {
-					ui.Text(c, snap.Err.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(accent)
-				}
-
-				ui.Text(c, i18n.T(i18n.KeyUsageAccount)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg)
-				if snap.AccountStatus == "" && !snap.Loading {
-					ui.Text(c, i18n.T(i18n.KeyUsageNoData)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				} else {
-					ui.Text(c, snap.AccountStatus).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-				}
-				if snap.UsageURL != "" {
-					ui.Text(c, i18n.T(i18n.KeyUsageWebLink)+": "+snap.UsageURL).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				}
-				if snap.ExpiryNote != "" {
-					ui.Text(c, i18n.T(i18n.KeyUsageExpiry)+": "+snap.ExpiryNote).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-				}
-
-				ui.Text(c, i18n.T(i18n.KeyUsageBalance)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
-				if snap.BalanceSummary != "" {
-					ui.Text(c, snap.BalanceSummary).FontSize(theme.InterfaceSize(11)).TextColor(fg)
-				}
-
-				ui.Row(c).Gap(8).Children(func() {
-					if snap.UsageURL != "" && m.OnOpenUsageWeb != nil {
-						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageOpenWeb), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-							m.OnOpenUsageWeb()
-						}
+		}
+	}
+	ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
+		pagekit.Header(c, title, "", actions)
+		if m.Store != nil {
+			st := m.Store.Stats()
+			if st.UpdatedAt > 0 || st.Overview != nil {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
+					if st.UpdatedAt > 0 {
+						pagekit.Caption(c, usageUpdatedLabel(st.UpdatedAt)).FillWidth()
 					}
-					if snap.UsageURL != "" && m.OnCopyUsageURL != nil {
-						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageCopyURL), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-							m.OnCopyUsageURL(snap.UsageURL)
-						}
-					}
-					if snap.TopUpURL != "" && m.OnOpenTopUp != nil {
-						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageOpenTopUp), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Clicked() {
-							m.OnOpenTopUp()
-						}
-					}
-					if snap.TopUpURL != "" && m.OnCopyTopUpURL != nil {
-						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageCopyTopUp), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-							m.OnCopyTopUpURL(snap.TopUpURL)
-						}
-					}
-					if snap.BalanceSummary != "" && m.OnCopyBalance != nil {
-						if widgets.Button(c, colors, i18n.T(i18n.KeyUsageCopyBalance), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-							m.OnCopyBalance(snap.BalanceSummary)
-						}
+					if overview := st.Overview; overview != nil {
+						label, source := usageSourceLabel(overview)
+						pagekit.Caption(c, label).FillWidth()
+						usageSourceLine(c, source)
 					}
 				})
+			}
+		}
+	})
+}
 
-				ui.Text(c, i18n.T(i18n.KeyUsageRecent)).FontSize(theme.InterfaceSize(13)).Bold().TextColor(fg).Padding(8, 0, 0, 0)
-				if len(snap.Recent) == 0 {
-					ui.Text(c, i18n.T(i18n.KeyUsageRecentEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+func accountSection(c *ui.Context, m Model, snap usagestore.ViewState) {
+	pagekit.Section(c, i18n.T(i18n.KeyUsageAccount), nil, func() {
+		coss.Card(c, coss.CardOptions{}, func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Children(func() {
+				if snap.AccountStatus == "" && !snap.Loading {
+					pagekit.Muted(c, i18n.T(i18n.KeyUsageNoData)).FillWidth()
 				} else {
-					chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0).Border(1, border), colors, m.SystemDark, field, 8).
-						Padding(8, 10, 8, 10).Gap(6).Children(func() {
-						for _, row := range snap.Recent {
-							entry := row
-							ui.Column(c).Gap(2).Children(func() {
-								ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-									ui.Text(c, entry.Label).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg).Grow(1)
-									body := strings.TrimSpace(entry.Detail)
-									if body == "" {
-										body = entry.Label
-									}
-									if widgets.Button(c, colors, i18n.T(i18n.KeyChatCopy), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
-										mygo.Clipboard.WriteText(body)
-									}
-									if entry.JobID != "" {
-										if widgets.Button(c, colors, i18n.T(i18n.KeyUsageFollowJob), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-											m.Store.FollowJob(context.Background(), m.SessionID, entry.JobID)
-										}
-									}
-									if entry.JobID != "" && jobKillable(entry.Status) {
-										if widgets.Button(c, colors, i18n.T(i18n.KeyUsageKillJob), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonSmall}).Clicked() {
-											m.Store.KillJob(context.Background(), m.SessionID, entry.JobID)
-										}
-									}
-								})
-								ui.Text(c, entry.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-							})
+					pagekit.Body(c, snap.AccountStatus).FillWidth()
+				}
+				if snap.UsageURL != "" {
+					pagekit.Caption(c, i18n.T(i18n.KeyUsageWebLink)+": "+snap.UsageURL).FillWidth()
+				}
+				if snap.ExpiryNote != "" {
+					pagekit.Caption(c, i18n.T(i18n.KeyUsageExpiry)+": "+snap.ExpiryNote).FillWidth()
+				}
+				if snap.BalanceSummary != "" {
+					coss.Separator(c, coss.Horizontal)
+					pagekit.Strong(c, i18n.T(i18n.KeyUsageBalance)).FillWidth()
+					pagekit.Body(c, snap.BalanceSummary).FillWidth()
+				}
+				hasAction := (snap.UsageURL != "" && (m.OnOpenUsageWeb != nil || m.OnCopyUsageURL != nil)) ||
+					(snap.TopUpURL != "" && (m.OnOpenTopUp != nil || m.OnCopyTopUpURL != nil)) ||
+					(snap.BalanceSummary != "" && m.OnCopyBalance != nil)
+				if hasAction {
+					ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
+						if snap.UsageURL != "" && m.OnOpenUsageWeb != nil {
+							if coss.Button(c, i18n.T(i18n.KeyUsageOpenWeb), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Icon: coss.IconExternalLink}).Clicked() {
+								m.OnOpenUsageWeb()
+							}
+						}
+						if snap.UsageURL != "" && m.OnCopyUsageURL != nil {
+							if coss.Button(c, i18n.T(i18n.KeyUsageCopyURL), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Icon: coss.IconCopy}).Clicked() {
+								m.OnCopyUsageURL(snap.UsageURL)
+							}
+						}
+						if snap.TopUpURL != "" && m.OnOpenTopUp != nil {
+							if coss.Button(c, i18n.T(i18n.KeyUsageOpenTopUp), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Icon: coss.IconExternalLink}).Clicked() {
+								m.OnOpenTopUp()
+							}
+						}
+						if snap.TopUpURL != "" && m.OnCopyTopUpURL != nil {
+							if coss.Button(c, i18n.T(i18n.KeyUsageCopyTopUp), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Icon: coss.IconCopy}).Clicked() {
+								m.OnCopyTopUpURL(snap.TopUpURL)
+							}
+						}
+						if snap.BalanceSummary != "" && m.OnCopyBalance != nil {
+							if coss.Button(c, i18n.T(i18n.KeyUsageCopyBalance), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Icon: coss.IconCopy}).Clicked() {
+								m.OnCopyBalance(snap.BalanceSummary)
+							}
 						}
 					})
 				}
@@ -210,8 +209,51 @@ func View(c *ui.Context, m Model) {
 	})
 }
 
-// usageChartIcon is the bar-chart glyph beside the usage title.
-var usageChartIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13V8M8 13V3M13 13V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`))
+func recentSection(c *ui.Context, m Model, snap usagestore.ViewState) {
+	pagekit.Section(c, i18n.T(i18n.KeyUsageRecent), nil, func() {
+		if len(snap.Recent) == 0 {
+			coss.Card(c, coss.CardOptions{}, func() {
+				pagekit.Muted(c, i18n.T(i18n.KeyUsageRecentEmpty)).FillWidth()
+			})
+			return
+		}
+		coss.Card(c, coss.CardOptions{}, func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Children(func() {
+				for i, row := range snap.Recent {
+					if i > 0 {
+						coss.Separator(c, coss.Horizontal)
+					}
+					entry := row
+					ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1)).Children(func() {
+						ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+							pagekit.Strong(c, entry.Label).Grow(1).MinWidth(0)
+							body := strings.TrimSpace(entry.Detail)
+							if body == "" {
+								body = entry.Label
+							}
+							if coss.Button(c, i18n.T(i18n.KeyChatCopy), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Icon: coss.IconCopy}).Clicked() {
+								mygo.Clipboard.WriteText(body)
+							}
+							if entry.JobID != "" {
+								if coss.Button(c, i18n.T(i18n.KeyUsageFollowJob), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
+									m.Store.FollowJob(context.Background(), m.SessionID, entry.JobID)
+								}
+							}
+							if entry.JobID != "" && jobKillable(entry.Status) {
+								if coss.Button(c, i18n.T(i18n.KeyUsageKillJob), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonSM}).Clicked() {
+									m.Store.KillJob(context.Background(), m.SessionID, entry.JobID)
+								}
+							}
+						})
+						if entry.Detail != "" {
+							pagekit.Caption(c, entry.Detail).FillWidth()
+						}
+					})
+				}
+			})
+		})
+	})
+}
 
 // usageUpdatedLabel renders the Host's snapshot time in UTC, matching the
 // reference's "data as of HH:MM · UTC" line. Values above 1e12 are taken as
