@@ -15,6 +15,8 @@ import (
 	"whaleisle/internal/dsh"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -112,13 +114,14 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
-		ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyRemoteTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyRemoteBack)).Clicked() {
+		leftPad, rightPad := chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
+		ui.Row(c.Key("remote-header")).FillWidth().MinWidth(0).Shrink(0).Padding(design.Sp(2), rightPad, design.Sp(2), leftPad).Gap(design.Sp(2)).AlignItems(ui.Center).DragWindow().Children(func() {
+			ui.Text(c, i18n.T(i18n.KeyRemoteTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+			if m.OnClose != nil && coss.Button(c, i18n.T(i18n.KeyRemoteBack), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Key: "remote-back"}).Shrink(0).Clicked() {
 				m.OnClose()
 			}
 		})
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).FillWidth().Height(1).Shrink(0).Background(border)
 
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Children(func() {
 			ui.Column(c).Gap(10).Children(func() {

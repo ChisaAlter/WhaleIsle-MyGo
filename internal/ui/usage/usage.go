@@ -63,6 +63,13 @@ func View(c *ui.Context, m Model) {
 	root := ui.Column(c).Key("usage-page").Grow(1).FillWidth().MinHeight(0).MinWidth(0)
 	scroll := ui.Local(root, "scroll", func() *ui.ScrollState { return &ui.ScrollState{} })
 	root.Children(func() {
+		bar := c.TitleBar()
+		if bar.Left > 0 || bar.Right > 0 {
+			// Reserve the native window-control band above the scroll viewport so
+			// neither the top-right page actions (even in narrow windows) nor
+			// scrolled content can overlap Windows - □ × or macOS traffic lights.
+			ui.Row(c.Key("usage-caption-safe")).FillWidth().Height(max(float32(44), bar.Height)).Shrink(0).DragWindow()
+		}
 		pagekit.Page(c, pagekit.PageOptions{Scroll: *scroll}, func() {
 			usageHeader(c, m, i18n.T(settingsPass4UsageTitle))
 			renderPreferences(c, m)

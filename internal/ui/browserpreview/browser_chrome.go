@@ -7,7 +7,10 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -89,13 +92,17 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 		b.showHost(t.Host)
 	}
 	ui.Column(c).Fill().MinWidth(0).MinHeight(0).Background(ui.Transparent).Children(func() {
-		ui.Column(c).FillWidth().MinWidth(0).Height(float32(b.chromeHeight())).Shrink(0).Padding(6, 8).Gap(4).Children(func() {
+		leftPad, rightPad := design.Sp(2), design.Sp(2)
+		if !b.docked {
+			leftPad, rightPad = chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(2))
+		}
+		ui.Column(c).FillWidth().MinWidth(0).Height(float32(b.chromeHeight())).Shrink(0).Padding(design.Sp(1.5), rightPad, design.Sp(1.5), leftPad).Gap(design.Sp(1)).Children(func() {
 			// DockKit owns the tabs and close control in a workspace resource seat.
 			// The standalone browser keeps its own tab strip.
 			if !b.docked {
 				b.browserTabs(c, onClose)
 			}
-			ui.Row(c).FillWidth().MinWidth(0).Height(32).Shrink(0).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).FillWidth().MinWidth(0).Height(32).Shrink(0).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 				switch {
 				case t.Media != nil:
 					b.mediaControls(c, t)
@@ -123,12 +130,12 @@ func (b *Controller) view(c *ui.Context, themeID string, dark bool, onClose func
 				status = t.source.Path
 			}
 			problem := t.Error
-			if problem == "" {
-				problem = state.Error
+			if problem == "" && state.Error != "" {
+				problem = errcopy.SentenceText(state.Error)
 			}
 			ink := chrome.Color(colors.Muted)
 			if problem != "" {
-				status, ink = problem, chrome.Color(colors.Danger)
+				status, ink = problem, design.For(c).Destructive
 			} else if state.Loading {
 				status = browserChromeLabel("正在打开…", "Loading…")
 			}
@@ -172,7 +179,15 @@ func (b *Controller) browserNavigation(c *ui.Context, t *Tab, state desktop.Stat
 			t.Host.Reload()
 		}
 	}
-	address := ui.TextInput(c, &t.Draft).Label(browserChromeLabel("网页地址", "Web address")).Placeholder(browserChromeLabel("输入 HTTP(S) 地址", "Enter an HTTP(S) address")).Grow(1).MinWidth(0).Height(28).Radius(6).FontSize(theme.InterfaceSize(12))
+	var address ui.Element
+	ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+		address = coss.Input(c, &t.Draft, coss.InputOptions{
+			Size:        coss.InputSM,
+			Label:       browserChromeLabel("网页地址", "Web address"),
+			Placeholder: browserChromeLabel("输入 HTTP(S) 地址", "Enter an HTTP(S) address"),
+			Key:         "browser-address",
+		})
+	})
 	goButton := browserChromeTool(c, "browser-go", browserChromeLabel("前往", "Go"), browserGoIcon)
 	if address.Submitted() && !address.Composing() || goButton.Clicked() {
 		b.Navigate(t.Draft)
@@ -293,26 +308,37 @@ func (b *Controller) savedBrowserTabsMenu(menu *ui.Menu) {
 }
 
 func (b *Controller) browserTabs(c *ui.Context, onClose func()) {
-	ui.Row(c).FillWidth().MinWidth(0).Height(32).Shrink(0).Gap(4).AlignItems(ui.Center).Children(func() {
+	ui.Row(c.Key("browser-tabs")).FillWidth().MinWidth(0).Height(32).Shrink(0).Gap(design.Sp(1)).AlignItems(ui.Center).DragWindow().Children(func() {
 		if onClose != nil && browserChromeTool(c, "browser-return", browserChromeLabel("返回工作区", "Back to workspace"), browserBackIcon).Clicked() {
 			b.Hide()
 			onClose()
 		}
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
-			ui.Row(c).Gap(4).Children(func() {
+			ui.Row(c).Gap(design.Sp(1)).Children(func() {
 				for i, tab := range b.Tabs {
 					title := browserTabDisplayTitle(tab, false)
-					button := ui.Button(c, truncate(title, 24)).Key(tab.ID).Height(28).MaxWidth(180).Tooltip(title)
+					variant := coss.ButtonGhost
 					if i == b.Active {
-						button.Background(c.Theme().SurfaceHover)
+						variant = coss.ButtonSecondary
 					}
+					button := coss.Button(c, truncate(title, 24), coss.ButtonOptions{
+						Variant: variant,
+						Size:    coss.ButtonSM,
+						Pressed: i == b.Active,
+						Key:     tab.ID,
+					}).MaxWidth(180).Shrink(0).Tooltip(title)
 					if button.Clicked() {
 						b.Select(i)
 					}
 				}
 			})
 		})
-		if ui.Button(c, browserChromeLabel("新标签", "New tab")).Height(28).Clicked() {
+		if coss.Button(c, browserChromeLabel("新标签", "New tab"), coss.ButtonOptions{
+			Variant: coss.ButtonOutline,
+			Size:    coss.ButtonSM,
+			Icon:    coss.IconPlus,
+			Key:     "browser-new-tab",
+		}).Shrink(0).Clicked() {
 			b.NewTab("")
 		}
 		if browserChromeTool(c, "browser-close-tab", browserChromeLabel("关闭标签", "Close tab"), browserStopIcon).Clicked() {
@@ -322,12 +348,12 @@ func (b *Controller) browserTabs(c *ui.Context, onClose func()) {
 }
 
 func (b *Controller) browserPlaceholder(c *ui.Context, t *Tab, muted ui.Color) {
-	ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Center).Justify(ui.Center).Padding(24).Gap(12).Children(func() {
+	ui.Column(c).Fill().MinWidth(0).MinHeight(0).AlignItems(ui.Center).Justify(ui.Center).Padding(design.Sp(6)).Gap(design.Sp(3)).Children(func() {
 		switch {
 		case t.resumeURL != "":
 			ui.Text(c, browserChromeLabel("上次打开", "Restore the previous page")).FontSize(theme.InterfaceSize(14))
 			ui.Text(c, t.resumeURL).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(t.resumeURL)
-			if ui.Button(c, browserChromeLabel("恢复页面", "Restore page")).Clicked() {
+			if coss.Button(c, browserChromeLabel("恢复页面", "Restore page"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Key: "browser-restore"}).Clicked() {
 				b.restoreBrowserAddress(t)
 			}
 		case t.source != nil:
@@ -336,7 +362,7 @@ func (b *Controller) browserPlaceholder(c *ui.Context, t *Tab, muted ui.Color) {
 				message = t.Error
 			}
 			ui.Text(c, message).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if t.Error != "" && ui.Button(c, browserChromeLabel("重试", "Retry")).Clicked() {
+			if t.Error != "" && coss.Button(c, browserChromeLabel("重试", "Retry"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Key: "browser-retry"}).Clicked() {
 				b.retryDocument(t)
 			}
 		default:

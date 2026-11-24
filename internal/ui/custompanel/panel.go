@@ -117,19 +117,19 @@ func View(c *ui.Context, m Model) {
 						}
 					})
 					ui.Row(pc).Gap(4).Children(func() {
-						if ui.Button(pc, "宽 −").Disabled(i.Definition.Width <= 240).Clicked() {
+						if ui.Button(pc, i18n.Pick("宽 −", "Width −")).Disabled(m.OnUpdate == nil || i.Definition.Width <= 240).Clicked() && m.OnUpdate != nil {
 							i.Definition.Width = max(240, i.Definition.Width-40)
 							m.OnUpdate(i)
 						}
-						if ui.Button(pc, "宽 +").Disabled(i.Definition.Width >= 1600).Clicked() {
+						if ui.Button(pc, i18n.Pick("宽 +", "Width +")).Disabled(m.OnUpdate == nil || i.Definition.Width >= 1600).Clicked() && m.OnUpdate != nil {
 							i.Definition.Width = min(1600, i.Definition.Width+40)
 							m.OnUpdate(i)
 						}
-						if ui.Button(pc, "高 −").Disabled(i.Definition.Height <= 120).Clicked() {
+						if ui.Button(pc, i18n.Pick("高 −", "Height −")).Disabled(m.OnUpdate == nil || i.Definition.Height <= 120).Clicked() && m.OnUpdate != nil {
 							i.Definition.Height = max(120, i.Definition.Height-40)
 							m.OnUpdate(i)
 						}
-						if ui.Button(pc, "高 +").Disabled(i.Definition.Height >= 1600).Clicked() {
+						if ui.Button(pc, i18n.Pick("高 +", "Height +")).Disabled(m.OnUpdate == nil || i.Definition.Height >= 1600).Clicked() && m.OnUpdate != nil {
 							i.Definition.Height = min(1600, i.Definition.Height+40)
 							m.OnUpdate(i)
 						}

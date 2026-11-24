@@ -543,9 +543,15 @@ func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
 	}
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for _, link := range links {
-			if ui.Button(c, "").Label("↗ " + link.Label).Tooltip(link.URL).
+			caption := "↗ " + link.Label
+			btn := ui.Button(c.Key("md-link-"+link.URL), "").Label(caption).Tooltip(link.URL).
 				MaxWidthPercent(100).MinWidth(0).FontSize(theme.InterfaceSize(st.FontSize - 1)).
-				BorderWidth(0).Background(ui.Transparent).TextColor(st.Accent).Clicked() {
+				BorderWidth(0).Background(ui.Transparent).TextColor(st.Accent)
+			btn.Children(func() {
+				ui.Text(c, caption).MaxWidthPercent(100).MinWidth(0).SingleLine().Ellipsis("…").
+					FontSize(theme.InterfaceSize(st.FontSize - 1)).TextColor(st.Accent).PassThrough()
+			})
+			if btn.Clicked() {
 				onLink(link.URL)
 			}
 		}
