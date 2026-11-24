@@ -154,48 +154,113 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 let exported,paint,changed,selected=[],settings=[],disposed=false;
 const entries={main:[{registrant:'fixture',options:{key:'custom-view',label:'Custom view'}}], 'settings.section':[], 'sidebar.page':[], 'sidebar.nav.tab':[], 'settings.remote.tab':[]};
 const react={createElement(){return null},useState(v){return [v,()=>{}]},useEffect(){},useSyncExternalStore(){return 0}};
-let buttons=[],cards=[];const document={documentElement:{},querySelectorAll(selector){return selector==='[data-plugin-item]'?cards:buttons}};
-const context={URL,URLSearchParams,location:{search:'?desktopPlugin=fixture'},document,console,queueMicrotask,MutationObserver:class{observe(){} disconnect(){}},setTimeout,clearTimeout,window:{__ModuleLoader__:{load(row){exported=row.factory(id=>react)}}}};
+let buttons=[],cards=[],dialogs=[],styles=[];
+const winListeners={};
+const document={
+  documentElement:{dataset:{}},
+  head:{appendChild(el){styles.push(el)}},
+  createElement(tag){return {tag,attrs:{},textContent:'',setAttribute(k,v){this.attrs[k]=v},remove(){styles=styles.filter(s=>s!==this)}}},
+  querySelectorAll(selector){if(selector==='[data-plugin-item]')return cards;if(selector==='[role="dialog"]')return dialogs;return buttons}
+};
+const windowObj={
+  __ModuleLoader__:{load(row){exported=row.factory(id=>react)}},
+  addEventListener(type,fn){(winListeners[type] ||= new Set()).add(fn)},
+  removeEventListener(type,fn){winListeners[type]?.delete(fn)},
+  dispatch(type){for(const fn of [...(winListeners[type]||[])])fn();}
+};
+const context={URL,URLSearchParams,location:{search:'?desktopPlugin=fixture'},document,console,queueMicrotask,MutationObserver:class{observe(){} disconnect(){}},setTimeout,clearTimeout,window:windowObj};
 vm.runInNewContext(fs.readFileSync(process.argv[2],'utf8'),context);
-const ctx={slots:{entriesOfSlot(k){return entries[k]||[]},entries(k){return entries[k]||[]},inject(k,fn){return fn()},register(o,c){paint=c;return ()=>{disposed=true}},snapshot(){return []}},layout:{selectPanel(id){selected.push(id)}},settingsNavigation:{open(id){settings.push(id)}},effect(fn){this.dispose=fn()},on(k,fn){changed=fn;return ()=>{}},get(k){return this[k]}};
+let activePanelId=null,panelListeners=new Set(),navState={open:false,sectionId:undefined},navListeners=new Set();
+const ctx={
+  slots:{entriesOfSlot(k){return entries[k]||[]},entries(k){return entries[k]||[]},inject(k,fn){return fn()},register(o,c){paint=c;return ()=>{disposed=true}},snapshot(){return []}},
+  layout:{
+    panelInfo:{getSnapshot(){return {activePanelId}},subscribe(fn){panelListeners.add(fn);return ()=>panelListeners.delete(fn)}},
+    selectPanel(id){selected.push(id);activePanelId=id;for(const fn of panelListeners)fn();}
+  },
+  settingsNavigation:{
+    getSnapshot(){return navState},
+    subscribe(fn){navListeners.add(fn);return ()=>navListeners.delete(fn)},
+    open(id){settings.push(id);navState={open:true,sectionId:id};for(const fn of navListeners)fn();},
+    close(){navState={open:false,sectionId:undefined};for(const fn of navListeners)fn();}
+  },
+  effect(fn){this.dispose=fn()},
+  on(k,fn){changed=fn;return ()=>{}},
+  get(k){return this[k]}
+};
 exported.apply(ctx);
 assert.deepEqual(selected,['custom-view']);assert.equal(typeof paint,'function');
-changed('main');assert.deepEqual(selected,['custom-view']);
+assert.equal(document.documentElement.dataset.whalePluginFocus,'main');
+assert.equal(styles.length,1);
+// Switching back to a conversation clears plugin focus mode so the chat shell appears.
+ctx.layout.selectPanel(null);
+assert.equal(document.documentElement.dataset.whalePluginFocus,undefined);
+ctx.layout.selectPanel('custom-view');
+assert.equal(document.documentElement.dataset.whalePluginFocus,'main');
+changed('main');assert.deepEqual(selected,['custom-view',null,'custom-view']);
 entries.main=[];changed('main');
-ctx.dispose();assert.equal(disposed,true);
+assert.equal(document.documentElement.dataset.whalePluginFocus,undefined);
+ctx.dispose();assert.equal(disposed,true);assert.equal(styles.length,0);
 context.location.search='?desktopPlugin=fixture';entries['settings.section']=[{registrant:'fixture',options:{id:'plugin-settings'}}];
-exported.apply(ctx);assert.deepEqual(settings,['plugin-settings']);ctx.dispose();
-entries['settings.section']=[];entries['settings.remote.tab']=[{registrant:'fixture',options:{id:'channels'}}];
-let clicks=0;buttons=[{getAttribute(name){return name==='data-dsh-settings-remote-tab'?'channels':null},click(){clicks++}}];
-exported.apply(ctx);assert.equal(settings.at(-1),'remote');assert.equal(clicks,1);ctx.dispose();
-entries['settings.remote.tab']=[];entries['sidebar.page']=[{registrant:'fixture',options:{key:'bots'}}];entries['sidebar.nav.tab']=[{options:{id:'bots',label:()=> 'Bots'}}];
-buttons=[{getAttribute(name){return name==='aria-label'?'Bots':null},hasAttribute(){return false},click(){clicks++}}];
-exported.apply(ctx);assert.equal(clicks,2);ctx.dispose();
-entries['sidebar.page']=[];entries['settings.section']=[{registrant:'host',options:{id:'general'},children:{'settings.general.item':{}}}];entries['settings.general.item']=[{registrant:'fixture',options:{id:'custom'}}];
-exported.apply(ctx);assert.equal(settings.at(-1),'general');ctx.dispose();
-entries['settings.section']=[];entries['settings.general.item']=[];
-entries.main=[{registrant:'manager',options:{key:'plugins'},children:{'plugins.bundle.config':{},'plugins.row.config':{},'plugins.item':{}}}];
-entries['plugins.bundle.config']=[{registrant:'fixture',options:{key:'fixture-bundle'}}];
-const openedBundles=[];ctx.pluginNavigation={openBundle(name){openedBundles.push(name)}};
-exported.apply(ctx);assert.deepEqual(openedBundles,['fixture-bundle']);changed('plugins.bundle.config');assert.equal(openedBundles.length,1);ctx.dispose();
-entries['plugins.bundle.config']=[];entries['plugins.row.config']=[{registrant:'fixture',options:{key:'fixture-bundle#worker'}}];
-exported.apply(ctx);assert.equal(openedBundles.at(-1),'fixture-bundle');ctx.dispose();
-entries['plugins.row.config']=[];entries['plugins.item']=[{registrant:'fixture',options:{id:'official-settings',label:'Official settings'}}];
-cards=[{getAttribute(){return 'official-settings'},querySelectorAll(){return [{click(){clicks++}}]}}];
-exported.apply(ctx);assert.equal(selected.at(-1),'plugins');assert.equal(clicks,3);
-entries['plugins.item']=[];changed('plugins.item');assert.equal(clicks,3);ctx.dispose();
-entries.main=[{registrant:'host',options:{key:'custom-owner'},children:{'custom.settings':{}}}];
-entries['custom.settings']=[{registrant:'fixture',options:{id:'contribution'}}];
-exported.apply(ctx);assert.equal(selected.at(-1),'custom-owner');ctx.dispose();
-entries['custom.settings']=[];
-entries.main=[{registrant:'fixture',options:{key:'qa-panel'}}];
-entries['sidebar.panellist']=[{registrant:'fixture',options:{id:'qa-panel',label:'QA Panel'}}];
-const viewsBefore=selected.length;
-exported.apply(ctx);assert.equal(selected.length,viewsBefore+1);assert.equal(selected.at(-1),'qa-panel');ctx.dispose();
-// rc.4 stores registrant/children at entry level. A stale options stamp must
-// not claim another entry; children still lead to their original owner panel.
-entries.main=[{registrant:'other',options:{key:'foreign',registrant:'fixture'}}];
-const selectedBeforeForeign=selected.length;
-exported.apply(ctx);assert.equal(selected.length,selectedBeforeForeign);ctx.dispose();
-console.log('main/settings/plugin configuration owners, single activation and disposal passed');
+exported.apply(ctx);assert.deepEqual(settings,['plugin-settings']);assert.equal(document.documentElement.dataset.whalePluginFocus,'settings');
+// Simulate SettingsRoot closing programmatically on sessions ready with no visible onboarding dialog.
+const settingsBeforeAutoClose=settings.length;
+ctx.settingsNavigation.close();
+setTimeout(()=>{
+  assert.equal(settings.length,settingsBeforeAutoClose+1);
+  assert.equal(navState.open,true);
+  assert.equal(navState.sectionId,'plugin-settings');
+  assert.equal(document.documentElement.dataset.whalePluginFocus,'settings');
+  // Once the user interacts and closes Settings, do not steal navigation.
+  windowObj.dispatch('pointerdown');
+  ctx.settingsNavigation.close();
+  setTimeout(()=>{
+    assert.equal(navState.open,false);
+    assert.equal(document.documentElement.dataset.whalePluginFocus,undefined);
+    ctx.dispose();
+    // With a visible onboarding dialog, programmatic close must not fight the dialog.
+    dialogs=[{role:'dialog'}];
+    const beforeDialog=settings.length;
+    exported.apply(ctx);
+    assert.equal(settings.length,beforeDialog+1);
+    ctx.settingsNavigation.close();
+    setTimeout(()=>{
+      assert.equal(navState.open,false);
+      dialogs=[];
+      ctx.dispose();
+      entries['settings.section']=[];entries['settings.remote.tab']=[{registrant:'fixture',options:{id:'channels'}}];
+      let clicks=0;buttons=[{getAttribute(name){return name==='data-dsh-settings-remote-tab'?'channels':null},click(){clicks++}}];
+      exported.apply(ctx);assert.equal(settings.at(-1),'remote');assert.equal(clicks,1);ctx.dispose();
+      entries['settings.remote.tab']=[];entries['sidebar.page']=[{registrant:'fixture',options:{key:'bots'}}];entries['sidebar.nav.tab']=[{options:{id:'bots',label:()=> 'Bots'}}];
+      buttons=[{getAttribute(name){return name==='aria-label'?'Bots':null},hasAttribute(){return false},click(){clicks++}}];
+      exported.apply(ctx);assert.equal(clicks,2);assert.equal(document.documentElement.dataset.whalePluginFocus,undefined);ctx.dispose();
+      entries['sidebar.page']=[];entries['settings.section']=[{registrant:'host',options:{id:'general'},children:{'settings.general.item':{}}}];entries['settings.general.item']=[{registrant:'fixture',options:{id:'custom'}}];
+      exported.apply(ctx);assert.equal(settings.at(-1),'general');ctx.dispose();
+      entries['settings.section']=[];entries['settings.general.item']=[];
+      entries.main=[{registrant:'manager',options:{key:'plugins'},children:{'plugins.bundle.config':{},'plugins.row.config':{},'plugins.item':{}}}];
+      entries['plugins.bundle.config']=[{registrant:'fixture',options:{key:'fixture-bundle'}}];
+      const openedBundles=[];ctx.pluginNavigation={openBundle(name){openedBundles.push(name)}};
+      exported.apply(ctx);assert.deepEqual(openedBundles,['fixture-bundle']);changed('plugins.bundle.config');assert.equal(openedBundles.length,1);ctx.dispose();
+      entries['plugins.bundle.config']=[];entries['plugins.row.config']=[{registrant:'fixture',options:{key:'fixture-bundle#worker'}}];
+      exported.apply(ctx);assert.equal(openedBundles.at(-1),'fixture-bundle');ctx.dispose();
+      entries['plugins.row.config']=[];entries['plugins.item']=[{registrant:'fixture',options:{id:'official-settings',label:'Official settings'}}];
+      cards=[{getAttribute(){return 'official-settings'},querySelectorAll(){return [{click(){clicks++}}]}}];
+      exported.apply(ctx);assert.equal(selected.at(-1),'plugins');assert.equal(clicks,3);
+      entries['plugins.item']=[];changed('plugins.item');assert.equal(clicks,3);ctx.dispose();
+      entries.main=[{registrant:'host',options:{key:'custom-owner'},children:{'custom.settings':{}}}];
+      entries['custom.settings']=[{registrant:'fixture',options:{id:'contribution'}}];
+      exported.apply(ctx);assert.equal(selected.at(-1),'custom-owner');ctx.dispose();
+      entries['custom.settings']=[];
+      entries.main=[{registrant:'fixture',options:{key:'qa-panel'}}];
+      entries['sidebar.panellist']=[{registrant:'fixture',options:{id:'qa-panel',label:'QA Panel'}}];
+      const viewsBefore=selected.length;
+      exported.apply(ctx);assert.equal(selected.length,viewsBefore+1);assert.equal(selected.at(-1),'qa-panel');assert.equal(document.documentElement.dataset.whalePluginFocus,'main');ctx.dispose();
+      // rc.4 stores registrant/children at entry level. A stale options stamp must
+      // not claim another entry; children still lead to their original owner panel.
+      entries.main=[{registrant:'other',options:{key:'foreign',registrant:'fixture'}}];
+      const selectedBeforeForeign=selected.length;
+      exported.apply(ctx);assert.equal(selected.length,selectedBeforeForeign);ctx.dispose();
+      console.log('main/settings/plugin configuration owners, focus isolation, single activation and disposal passed');
+    }, 20);
+  }, 20);
+}, 20);
 `

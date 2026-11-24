@@ -4,7 +4,21 @@ import (
 	"testing"
 
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/chrome"
+	webviewui "whaleisle/internal/ui/webview"
 )
+
+func TestWebViewTopInsetForOS(t *testing.T) {
+	if got := webviewTopInsetForOS("windows"); got != webviewui.PanelChromeHeight {
+		t.Fatalf("windows webviewTopInset = %d, want %d", got, webviewui.PanelChromeHeight)
+	}
+	wantOther := chrome.TitleBarHeight + webviewui.PanelChromeHeight
+	for _, goos := range []string{"darwin", "linux"} {
+		if got := webviewTopInsetForOS(goos); got != wantOther {
+			t.Fatalf("%s webviewTopInset = %d, want %d", goos, got, wantOther)
+		}
+	}
+}
 
 func TestSelectMainPanelAndRevealClearActivePluginWebViewState(t *testing.T) {
 	s := &mainState{

@@ -3663,7 +3663,7 @@ func mainView(c *ui.Context) {
 			}
 		}
 		state.mainCaptionFileDrop(c, st.State == harness.Ready, frame.Model{Store: sessions, Sizes: &layout, WorkspaceRoot: workspaceRoot}, func() {
-			if sharedNativeCaption {
+			if sharedNativeCaption || (webviewOpen && runtime.GOOS == "windows") {
 				ui.Box(c).Height(0)
 			} else if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit, captionNewSession) {
 				// Settings and other exclusive routes bypass the navigation shell's
