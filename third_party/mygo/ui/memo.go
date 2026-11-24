@@ -57,9 +57,10 @@ type memoRegion struct {
 	// live when that build asked for frames or kept what a region cannot,
 	// and dirty once input reached the region since.
 	valid, live, dirty bool
-	// keys is set when the region's elements take keys through shortcuts,
-	// which any key then reaches.
-	keys bool
+	// keys is set when the region's elements take keys through shortcuts or
+	// actions; actions tracks non-shortcut actions that may react to any key.
+	keys    bool
+	actions bool
 	// focus is set when the keyboard focus was in the region as it built.
 	focus bool
 	// seen and seenPass are the frame and pass that last built or kept the
@@ -80,9 +81,10 @@ type memoRegion struct {
 	states []*state
 	// What the region's build registered with the pass, which keeping it
 	// registers again.
-	regs     []shortcutReg
-	dividers []dividers
-	binds    []memoBind
+	regs        []shortcutReg
+	dividers    []dividers
+	binds       []memoBind
+	transitions []transitionUse
 	// flags of what the region holds.
 	texts, observers, selectables bool
 	// The layout the region's children had in the last frame: the size of
@@ -258,10 +260,27 @@ func (rt *engine) memoKeep(r *memoRegion, e *node, print *memoPrint) bool {
 		return false
 	case rt.wheelID != 0 && (rt.wheelRemainX != 0 || rt.wheelRemainY != 0) && rt.inRegion(rt.states[rt.wheelID], r.id):
 		return false
+	case rt.memoTransitionBusy(r):
+		return false
 	}
 	// The region was in the frame before, or in an earlier pass of this
 	// one: its states are still there.
 	return r.seen == rt.frame || r.seen+1 == rt.frame // pruneMemos lets go of one missing from a frame
+}
+
+// memoTransitionBusy reports whether any transition inside r is currently
+// animating layout geometry or an exit ghost (requiring a rebuild). Resting
+// transitions and paint-only color/alpha transitions do not bust memo regions.
+func (rt *engine) memoTransitionBusy(r *memoRegion) bool {
+	if len(r.transitions) == 0 || len(rt.trans) == 0 {
+		return false
+	}
+	for _, u := range r.transitions {
+		if tr := rt.trans[u.e.id]; tr != nil && (tr.moving&^moveAlpha != 0 || tr.ghost != nil) {
+			return true
+		}
+	}
+	return false
 }
 
 // inRegion reports whether the state s was in the region id as the last
@@ -321,6 +340,7 @@ func (rt *engine) keepRegion(r *memoRegion, e *node) {
 	}
 	rt.nextRegs = append(rt.nextRegs, r.regs...)
 	c.dividers = append(c.dividers, r.dividers...)
+	c.transitions = append(c.transitions, r.transitions...)
 	for _, b := range r.binds {
 		b.ref.element = wrapElement(b.n)
 		if c.region != nil {
@@ -366,13 +386,15 @@ func (rt *engine) buildRegion(r *memoRegion, e *node, fn func(), print *memoPrin
 	r.live = after.consumed || after.animating || !after.wake.Equal(before.wake) ||
 		after.parts != before.parts || after.observers != before.observers || after.captures != before.captures ||
 		after.reveal != before.reveal || after.clicks != before.clicks || after.toasts != before.toasts ||
-		after.phys != before.phys || after.physTerminals != before.physTerminals || after.transitions != before.transitions ||
+		after.phys != before.phys || after.physTerminals != before.physTerminals ||
 		after.members != before.members || after.routers != before.routers ||
 		after.kept != before.kept || after.overlay != before.overlay || after.overlayN != before.overlayN ||
 		after.late
-	r.keys = after.regs != before.regs || after.actions != before.actions
+	r.actions = after.actions != before.actions
+	r.keys = after.regs != before.regs || r.actions
 	r.regs = append(r.regs[:0], rt.nextRegs[before.regs:]...)
 	r.dividers = append(r.dividers[:0], c.dividers[before.dividers:]...)
+	r.transitions = append(r.transitions[:0], c.transitions[before.transitions:]...)
 	r.binds = append(r.binds[:0], rt.bindLog[before.binds:]...)
 	if savedRegion == nil {
 		clear(rt.bindLog)
@@ -416,7 +438,7 @@ func (r *memoRegion) collect(e *node) {
 	// What refers to elements outside the region, or holds what lists,
 	// tables, toolbars and forms make as they lay out, is not kept.
 	if e.list != nil || e.rowsOf != nil || e.overflow != nil || e.form != nil || e.field != nil || e.colFit != nil ||
-		e.gridFit != nil || e.baselines || e.flags&(flagModal|flagPage) != 0 || e.focusGroup != 0 {
+		e.gridFit != nil || e.baselines || e.flags&(flagModal|flagPage) != 0 {
 		r.live = true
 	}
 	for _, p := range [...]*node{e.popover, e.nameFrom, e.activeDescendant, e.followX} {
@@ -522,21 +544,61 @@ func (rt *engine) memoInput(ev platform.SurfaceEvent) {
 	switch ev.Kind {
 	case platform.SurfaceFrame, platform.SurfaceResize, platform.SurfaceShown, platform.AccessibilityOn:
 		return
-	case platform.PointerMove, platform.PointerDown, platform.PointerUp, platform.PointerScroll, platform.PointerLeave:
+	case platform.PointerMove:
+		// Handled selectively by pointerMove / setHover so moving within the
+		// same element without hover/track/drag changes never busts Memo.
+		return
+	case platform.PointerLeave:
+		for _, id := range rt.hover {
+			if s := rt.states[id]; s != nil && s.memo != 0 {
+				rt.memoDirty(s.memo)
+			}
+		}
+		if rt.pressed != nil && rt.pressed.memo != 0 {
+			rt.memoDirty(rt.pressed.memo)
+		}
+		return
+	case platform.PointerScroll:
+		// Scroll dirties only the scroll container's region (handled by scroll)
+		// unless a custom input handler intercepts it; skip busting unrelated regions.
+		x, y := float32(ev.X), float32(ev.Y)
+		for _, r := range rt.memos {
+			if r.bounds.Contains(x, y) && (ev.Precise || rt.isHeadless() && !rt.smoothWheelInTest || rt.preferences().ReduceMotion) {
+				rt.memoDirty(r.id)
+			}
+		}
+		return
+	case platform.PointerDown, platform.PointerUp:
 		x, y := float32(ev.X), float32(ev.Y)
 		for _, r := range rt.memos {
 			if r.bounds.Contains(x, y) || rt.pointerIn && r.bounds.Contains(rt.pointerX, rt.pointerY) {
 				rt.memoDirty(r.id)
 			}
 		}
-	case platform.KeyPressed, platform.KeyReleased, platform.TextInput, platform.TextComposition, platform.SurfaceCommand,
-		platform.ModifiersChanged:
+	case platform.TextInput, platform.TextComposition, platform.SurfaceCommand:
+		// Text editing only targets the focused element's region; never bust
+		// unrelated sibling regions that happen to register shortcuts.
 		if s := rt.states[rt.focused]; s != nil {
 			rt.memoDirty(s.memo)
 		}
+	case platform.KeyPressed, platform.KeyReleased, platform.ModifiersChanged:
+		if s := rt.states[rt.focused]; s != nil {
+			rt.memoDirty(s.memo)
+		}
+		k, m := Key(ev.Key), Modifiers(ev.Mods)
 		for _, r := range rt.memos {
-			if r.keys {
+			if !r.keys {
+				continue
+			}
+			if r.actions || ev.Kind == platform.ModifiersChanged {
 				rt.memoDirty(r.id)
+				continue
+			}
+			for _, reg := range r.regs {
+				if reg.key == k && reg.mods == m {
+					rt.memoDirty(r.id)
+					break
+				}
 			}
 		}
 	case platform.AccessAction:
@@ -562,19 +624,36 @@ func (rt *engine) memoDirty(id uint64) {
 	}
 }
 
-// memoHover marks the regions of the elements the pointer comes over or
-// leaves.
+// memoHover marks the regions of the elements the pointer actually enters or
+// leaves (the symmetric difference of from and to), leaving unchanged ancestor
+// or sibling regions clean.
 func (rt *engine) memoHover(from, to []uint64) {
 	if len(rt.memos) == 0 {
 		return
 	}
-	for _, list := range [2][]uint64{from, to} {
-		for _, id := range list {
+	for _, id := range from {
+		if !containsID(to, id) {
 			if s := rt.states[id]; s != nil && s.memo != 0 {
 				rt.memoDirty(s.memo)
 			}
 		}
 	}
+	for _, id := range to {
+		if !containsID(from, id) {
+			if s := rt.states[id]; s != nil && s.memo != 0 {
+				rt.memoDirty(s.memo)
+			}
+		}
+	}
+}
+
+func containsID(list []uint64, id uint64) bool {
+	for _, v := range list {
+		if v == id {
+			return true
+		}
+	}
+	return false
 }
 
 // pruneMemos lets go of the regions the frame did not build or keep.

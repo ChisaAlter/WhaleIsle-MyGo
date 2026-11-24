@@ -134,6 +134,11 @@ type transition struct {
 	colorStart                         time.Time
 	colorMoving, colorSet              bool
 	colorFrame                         uint64
+	colorPaintSeq                      uint64
+	// Pure-opacity transitions animate in paint without rebuilding the view.
+	baseOpacity    float32
+	baseOpacitySet bool
+	alphaPaintSeq  uint64
 	// ghost is the copy of the element going, which moves from gone,
 	// where it showed as it went; opacity is its own.
 	ghost   *node
@@ -278,6 +283,8 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 	// Changes that resizing the window makes do not animate.
 	resized := w != rt.laidW || h != rt.laidH
 	rt.laidW, rt.laidH = w, h
+	clear(rt.exitTrans)
+	rt.exitTrans = rt.exitTrans[:0]
 	uses := c.transitions
 	if len(uses) == 0 && len(rt.trans) == 0 {
 		return
@@ -336,7 +343,20 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 			if m := r.t.Enter; m != nil && !still && !resized && e.st.born == rt.frame && e.parent.st.born != rt.frame {
 				r.collapse = collapseAxis(m, e.parent)
 				r.from = next.moved(m, r.collapse)
-				r.start, r.moving = now, movePos|moveSize|moveAlpha|moveScale
+				var moving uint8
+				if r.from.x != next.x || r.from.y != next.y {
+					moving |= movePos
+				}
+				if r.from.w != next.w || r.from.h != next.h {
+					moving |= moveSize
+				}
+				if r.from.alpha != next.alpha {
+					moving |= moveAlpha
+				}
+				if r.from.scale != next.scale {
+					moving |= moveScale
+				}
+				r.start, r.moving = now, moving
 			}
 		case still || resized:
 			r.moving, r.collapse = 0, 0
@@ -355,6 +375,7 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 			}
 		}
 		r.target, r.laid = next, rt.frame
+		r.baseOpacity, r.baseOpacitySet = e.opacity, e.opacitySet
 		shown := next
 		if r.moving != 0 {
 			k, done := r.progress(r.start, now)
@@ -362,11 +383,22 @@ func (rt *engine) animateLayout(root *node, w, h float32) {
 				r.moving, r.collapse = 0, 0
 			} else {
 				shown = r.from.at(next, k, r.moving)
-				rt.animating = true
+				if r.moving == moveAlpha {
+					rt.repainting = true
+				} else {
+					rt.animating = true
+				}
 			}
 		}
 		r.shown = shown
 		r.apply(e, shown)
+		if r.t.Exit != nil && e.leaving == 0 {
+			rt.exitTrans = append(rt.exitTrans, r)
+		} else if r.snapRoot != nil {
+			clear(r.snapNodes)
+			clear(r.snapStates)
+			r.snapRoot = nil
+		}
 	}
 	rt.animateExits(root, now, still)
 }
@@ -510,15 +542,16 @@ func (rt *engine) builtNode(id uint64) *node {
 
 // snapshotExits copies, as the frame ends, the elements it built with an
 // Exit and the elements inside them, as they showed: one not built in the
-// next frame leaves as this copy (animateExits). The frame's elements are
-// then free for the next one to reuse, and each copy reuses the storage
-// of the one before.
+// next frame leaves as this copy (animateExits). When no element in the
+// frame specifies an Exit motion, it skips iterating rt.trans completely.
 func (rt *engine) snapshotExits() {
-	still := len(rt.trans) == 0 || rt.preferences().ReduceMotion
-	for _, r := range rt.trans {
+	if len(rt.exitTrans) == 0 {
+		return
+	}
+	still := rt.preferences().ReduceMotion
+	for _, r := range rt.exitTrans {
 		if still || r.built != rt.frame || r.laid != rt.frame || r.t.Exit == nil || r.elem == nil || r.elem.leaving != 0 {
 			if r.snapRoot != nil && r.built == rt.frame {
-				// Nothing to leave as: let the copy go.
 				clear(r.snapNodes)
 				clear(r.snapStates)
 				r.snapRoot = nil
@@ -595,7 +628,8 @@ func ghostInto(e *node, nodes []node, states []state, i *int) *node {
 }
 
 // animateColors moves e's background and border colors, once its styleFn
-// set them, as its Transition asks.
+// set them, as its Transition asks. Pure color transitions request paint-only
+// frames (rt.repainting) instead of rebuilding the view tree.
 func (rt *engine) animateColors(e *node, r *transition) {
 	if r.properties()&propColors == 0 {
 		return
@@ -615,16 +649,47 @@ func (rt *engine) animateColors(e *node, r *transition) {
 		}
 		r.colorSet, r.colorTarget, r.colorFrame = true, target, rt.frame
 		r.colorShown = target
-		if r.colorMoving {
-			if k, done := r.progress(r.colorStart, rt.c.now); done {
-				r.colorMoving = false
-			} else {
-				r.colorShown = [2]Color{mixPremultiplied(r.colorFrom[0], target[0], k), mixPremultiplied(r.colorFrom[1], target[1], k)}
-				rt.animating = true
+	}
+	if r.colorMoving && r.colorPaintSeq != rt.paintSeq {
+		r.colorPaintSeq = rt.paintSeq
+		if k, done := r.progress(r.colorStart, rt.c.now); done {
+			r.colorMoving = false
+			r.colorShown = r.colorTarget
+		} else {
+			r.colorShown = [2]Color{
+				mixPremultiplied(r.colorFrom[0], r.colorTarget[0], k),
+				mixPremultiplied(r.colorFrom[1], r.colorTarget[1], k),
 			}
+			rt.repainting = true
 		}
 	}
 	e.bg, e.borderC = r.colorShown[0], r.colorShown[1]
+}
+
+// animateAlpha advances a pure-opacity Transition during paint-only frames
+// (repaintFrame) without triggering a full view rebuild.
+func (rt *engine) animateAlpha(e *node, r *transition) {
+	if r.moving != moveAlpha {
+		return
+	}
+	if r.alphaPaintSeq != rt.paintSeq {
+		r.alphaPaintSeq = rt.paintSeq
+		k, done := r.progress(r.start, rt.c.now)
+		if done {
+			r.moving = 0
+			r.shown.alpha = r.target.alpha
+			e.opacity, e.opacitySet = r.baseOpacity, r.baseOpacitySet
+			return
+		}
+		alpha := lerp(r.from.alpha, r.target.alpha, k)
+		r.shown.alpha = alpha
+		base := float32(1)
+		if r.baseOpacitySet {
+			base = r.baseOpacity
+		}
+		e.opacity, e.opacitySet = base*max(alpha, 0), true
+		rt.repainting = true
+	}
 }
 
 // mixPremultiplied returns the color k of the way from a to b, mixed with

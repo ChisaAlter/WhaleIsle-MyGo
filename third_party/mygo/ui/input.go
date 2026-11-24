@@ -22,11 +22,14 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		platform.KeyPressed, platform.KeyReleased, platform.TextInput, platform.TextComposition, platform.SurfaceFocus:
 		rt.lastInputAt = rt.now()
 	}
-	if ev.Kind != platform.SurfaceFrame {
+	if ev.Kind != platform.SurfaceFrame && ev.Kind != platform.PointerMove && ev.Kind != platform.PointerScroll {
 		// Whatever the event changes, the next frame builds anew.
 		rt.redraw = false
+		rt.fastScroll = false
 	}
 	if rt.observeInput(ev) {
+		rt.redraw = false
+		rt.fastScroll = false
 		// Captures run before controls, but must still retire physical-key
 		// chords and publish the native modifier state of the captured press.
 		rt.modsChanged(Modifiers(ev.Mods))
@@ -35,6 +38,8 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 	}
 	x, y := float32(ev.X), float32(ev.Y)
 	if rt.insp.pointer(rt, ev, x, y) {
+		rt.redraw = false
+		rt.fastScroll = false
 		return true
 	}
 	switch ev.Kind {
@@ -101,7 +106,7 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 		rt.editEvent(editEvent{kind: editCommand, text: ev.Text})
 	case platform.SurfaceFocus:
 		rt.windowFocused = true
-		rt.blinkStart = time.Now()
+		rt.blinkStart = rt.now()
 		rt.requestFrame()
 	case platform.SurfaceBlur:
 		if h := rt.focusHandler(); h != nil {
@@ -175,34 +180,56 @@ func (rt *engine) appendHitChain(chain []uint64, x, y float32) []uint64 {
 // setHover makes chain the elements under the pointer, and reports
 // whether it took chain, which then must not change.
 func (rt *engine) setHover(chain []uint64) bool {
-	changed := len(chain) != len(rt.hover)
-	if !changed {
-		for i := range chain {
-			if chain[i] != rt.hover[i] {
-				changed = true
-				break
-			}
-		}
-	}
-	if !changed {
+	if slices.Equal(chain, rt.hover) {
 		return false
 	}
-	// Only elements that look at their hover need a frame.
-	need := false
-	for _, list := range [][]uint64{chain, rt.hover} {
-		for _, id := range list {
-			if s := rt.states[id]; s != nil && s.flags&(flagHover|flagTrackPointer) != 0 {
-				need = true
-			}
-		}
-	}
+	// Only elements that look at their hover need a frame; only regions whose
+	// membership changed are dirtied.
+	need := hoverNeedsFrame(rt, rt.hover, chain)
 	rt.memoHover(rt.hover, chain)
 	rt.hover = chain
+	// A hover transition may alter what the view builds (including entering the
+	// window for the first time), so break paint-only redraw when hover changed.
+	rt.redraw = false
+	rt.fastScroll = false
 	if need {
 		rt.requestFrame()
 	}
 	rt.updateCursor()
 	return true
+}
+
+// setHoverSilent updates hover during a fast scroll frame without requesting
+// a rebuild unless an element entering or leaving hover actually observes it.
+func (rt *engine) setHoverSilent(chain []uint64) bool {
+	if slices.Equal(chain, rt.hover) {
+		return false
+	}
+	need := hoverNeedsFrame(rt, rt.hover, chain)
+	rt.memoHover(rt.hover, chain)
+	rt.hover = chain
+	if need {
+		rt.animating = true
+	}
+	return true
+}
+
+func hoverNeedsFrame(rt *engine, from, to []uint64) bool {
+	for _, id := range from {
+		if !slices.Contains(to, id) {
+			if s := rt.states[id]; s != nil && s.flags&(flagHover|flagTrackPointer) != 0 {
+				return true
+			}
+		}
+	}
+	for _, id := range to {
+		if !slices.Contains(from, id) {
+			if s := rt.states[id]; s != nil && s.flags&(flagHover|flagTrackPointer) != 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (rt *engine) pointerMove(x, y float32) {
@@ -220,12 +247,14 @@ func (rt *engine) pointerMove(x, y float32) {
 			s.scrollTo(s.scrollX, dragTo(d.from, y-d.start, travel, d.contentH-float64(s.h), s.contentH-float64(s.h)))
 		}
 		rt.pointerX, rt.pointerY = x, y
+		rt.memoDirty(s.memo)
 		rt.requestFrame()
 		return
 	}
 	if rt.pressed != nil && rt.pointerIn {
 		rt.pressed.dragX += x - rt.pointerX
 		rt.pressed.dragY += y - rt.pointerY
+		rt.memoDirty(rt.pressed.memo)
 		if rt.pressed.flags&(flagTrackPointer|flagDraggable|flagEditable|flagSelectable) != 0 {
 			rt.requestFrame()
 		} else {
@@ -236,6 +265,9 @@ func (rt *engine) pointerMove(x, y float32) {
 	moved := x != rt.pointerX || y != rt.pointerY
 	rt.pointerX, rt.pointerY, rt.pointerIn = x, y, true
 	if rt.selection.dragging && rt.pressed != nil {
+		rt.memoDirty(rt.pressed.memo)
+		rt.redraw = false
+		rt.fastScroll = false
 		rt.moveTextSelection(x, y)
 	}
 	if rt.pressed == nil {
@@ -252,16 +284,25 @@ func (rt *engine) pointerMove(x, y float32) {
 		// The element pressed takes the moves, else the one under the
 		// pointer.
 		if p := rt.pressed; p != nil && p.input != nil {
-			rt.deliver(p, InputEvent{Kind: InputPointerMove, Button: rt.pressButton, Mods: rt.mods})
+			if rt.deliver(p, InputEvent{Kind: InputPointerMove, Button: rt.pressButton, Mods: rt.mods}) {
+				rt.memoDirty(p.memo)
+				rt.redraw = false
+				rt.fastScroll = false
+			}
 		} else if p == nil {
 			if h := rt.handler(rt.hover); h != nil {
-				rt.deliver(h, InputEvent{Kind: InputPointerMove, Button: -1, Mods: rt.mods})
+				if rt.deliver(h, InputEvent{Kind: InputPointerMove, Button: -1, Mods: rt.mods}) {
+					rt.memoDirty(h.memo)
+					rt.redraw = false
+					rt.fastScroll = false
+				}
 			}
 		}
 	}
 	if moved {
 		for _, id := range rt.hover {
 			if s := rt.states[id]; s != nil && s.flags&flagTrackPointer != 0 {
+				rt.memoDirty(s.memo)
 				rt.requestFrame()
 				break
 			}
@@ -309,7 +350,7 @@ func (rt *engine) pointerDown(x, y float32, button int, mods Modifiers, count in
 		if newFocus != rt.focused {
 			rt.focused = newFocus
 			rt.focusVisible = false
-			rt.blinkStart = time.Now()
+			rt.blinkStart = rt.now()
 		}
 	}
 	if h := rt.handler(chain); h != nil && rt.deliver(h, InputEvent{Kind: InputPointerDown, Button: button, Mods: mods, Clicks: max(count, 1)}) {
@@ -433,12 +474,14 @@ func (rt *engine) scroll(dx, dy float32, mods Modifiers, precise bool) {
 	chain := rt.appendHitChain(rt.chain[:0], rt.pointerX, rt.pointerY)
 	rt.chain = chain[:0]
 	if h := rt.handler(chain); h != nil && rt.deliver(h, InputEvent{Kind: InputScroll, DX: dx, DY: dy, Mods: mods, Precise: precise}) {
+		rt.redraw = false
+		rt.fastScroll = false
 		return
 	}
 	if mods&Shift != 0 && dx == 0 {
 		dx, dy = dy, 0
 	}
-	if !precise && !rt.isHeadless() && !rt.preferences().ReduceMotion {
+	if !precise && (!rt.isHeadless() || rt.smoothWheelInTest) && !rt.preferences().ReduceMotion {
 		for _, id := range chain {
 			s := rt.states[id]
 			if s == nil {
@@ -469,7 +512,7 @@ func (rt *engine) scroll(dx, dy float32, mods Modifiers, precise bool) {
 					s.list.StopScrollAnimation()
 				}
 			}
-			rt.requestFrame()
+			rt.requestFastScrollFrame()
 			return
 		}
 		return
@@ -477,6 +520,7 @@ func (rt *engine) scroll(dx, dy float32, mods Modifiers, precise bool) {
 	rt.clearWheelScroll()
 	for _, id := range chain {
 		if s := rt.states[id]; s != nil && scrollBy(s, dx, dy) {
+			rt.memoDirty(s.memo)
 			rt.requestFrame()
 			return
 		}
@@ -543,7 +587,7 @@ func scrollByFloat(s *state, dx, dy float64) (movedX, movedY bool) {
 	return movedX, movedY
 }
 
-func (rt *engine) stepWheelScroll(now time.Time) {
+func (rt *engine) stepWheelScroll(now time.Time, fast bool) {
 	if rt.wheelID == 0 || (rt.wheelRemainX == 0 && rt.wheelRemainY == 0) {
 		return
 	}
@@ -575,10 +619,11 @@ func (rt *engine) stepWheelScroll(now time.Time) {
 	if stepY != 0 && !movedY {
 		rt.wheelRemainY = 0
 	}
-	if rt.wheelRemainX != 0 || rt.wheelRemainY != 0 {
-		rt.animating = true
-	} else {
+	if rt.wheelRemainX == 0 && rt.wheelRemainY == 0 {
 		rt.clearWheelScroll()
+	} else if !fast && s.editor != nil {
+		// TextArea manages its own virtual paragraph layout inside runFrame.
+		rt.animating = true
 	}
 }
 

@@ -34,6 +34,7 @@ type Painter struct {
 const continuousCorners = runtime.GOOS == "darwin"
 
 func (rt *engine) paint(root *node, w, h, scale float32) {
+	rt.paintSeq++
 	s := &rt.scene
 	// The root paints the theme's background: frames start transparent, so
 	// that a transparent root shows what is behind the content, such as a
@@ -134,6 +135,7 @@ func (p *Painter) elementBody(e *node) {
 	}
 	if r := e.st.trec; r != nil && r.built == p.rt.frame && r.elem == e {
 		p.rt.animateColors(e, r)
+		p.rt.animateAlpha(e, r)
 	}
 	if e.flags&flagInvisible != 0 {
 		return

@@ -162,9 +162,11 @@ type engine struct {
 	physical  physicalShortcutState
 
 	// trans are the transitions of the elements given one, by ID
-	// (transition.go), and laidW and laidH the size the last frame was laid
-	// out at.
+	// (transition.go), exitTrans are those built in the current frame with an
+	// Exit motion (so snapshotExits skips iterating trans when none exist),
+	// and laidW and laidH the size the last frame was laid out at.
 	trans        map[uint64]*transition
+	exitTrans    []*transition
 	laidW, laidH float32
 	// insp is the inspector (inspector.go); dupKeys are the duplicate keys
 	// reported, and warnings what the inspector lists.
@@ -221,6 +223,9 @@ type engine struct {
 	repainting   bool
 	repaintAt    time.Time
 	redraw       bool
+	fastScroll   bool
+	wheelStepped bool
+	paintSeq     uint64
 	held         bool
 	painted      [3]float32
 	gen          uint64
@@ -229,11 +234,12 @@ type engine struct {
 	// late is set when lists built elements while laying out.
 	late bool
 	// Smooth wheel scroll state for discrete mouse wheel ticks (!precise) on
-	// real window surfaces.
-	wheelID      uint64
-	wheelRemainX float64
-	wheelRemainY float64
-	wheelLast    time.Time
+	// real window surfaces (or tests with smoothWheelInTest).
+	wheelID           uint64
+	wheelRemainX      float64
+	wheelRemainY      float64
+	wheelLast         time.Time
+	smoothWheelInTest bool
 	// revealIDs are the elements to scroll into view once the frame is
 	// laid out.
 	revealIDs []uint64
@@ -386,8 +392,8 @@ func (rt *engine) defaultTheme() *Theme {
 // desktop's preferences.
 func (rt *engine) themeChanged() {
 	traceCause(rt, causeTheme)
+	rt.redraw, rt.fastScroll, rt.repaintDue = false, false, time.Time{}
 	rt.darkKnown, rt.prefsKnown = false, false
-	rt.redraw, rt.repaintDue = false, time.Time{}
 	rt.host.requestFrame()
 }
 
@@ -430,7 +436,11 @@ func (rt *engine) runFrame() {
 		rt.dragScroll()
 	}
 	rt.scrollTextSelection()
-	rt.stepWheelScroll(now)
+	if rt.wheelStepped {
+		rt.wheelStepped = false
+	} else {
+		rt.stepWheelScroll(now, false)
+	}
 
 	// An event handled while building (a click, an edit) may change what
 	// was built before it: build again, so the frame shows the outcome.
@@ -550,13 +560,18 @@ func (rt *engine) now() time.Time {
 // (SurfaceShown) rather than draw frames nobody sees, as browsers pause
 // the animation frames of windows out of sight.
 func (rt *engine) next() {
-	rt.redraw, rt.repaintDue, rt.held = false, time.Time{}, false
-	moving := rt.animating || rt.repainting || !rt.repaintAt.IsZero()
+	rt.redraw, rt.fastScroll, rt.repaintDue, rt.held = false, false, time.Time{}, false
+	wheelPending := rt.wheelID != 0 && (rt.wheelRemainX != 0 || rt.wheelRemainY != 0)
+	moving := rt.animating || wheelPending || rt.repainting || !rt.repaintAt.IsZero()
 	switch {
 	case moving && rt.host.occluded():
 		rt.held = true
 	case rt.animating:
 		traceCause(rt, causeAnimation)
+		rt.host.requestFrame()
+	case wheelPending:
+		traceCause(rt, causeRepaint)
+		rt.fastScroll = true
 		rt.host.requestFrame()
 	case rt.repainting:
 		traceCause(rt, causeRepaint)
@@ -591,11 +606,25 @@ func (rt *engine) repaintNow() {
 }
 
 // surfaceFrame draws the frame the surface asked for: the last frame's
-// elements painted again when only drawings moved since, else a frame
-// built anew.
+// elements painted again when only drawings or smooth wheel scroll offsets
+// moved since, else a frame built anew.
 func (rt *engine) surfaceFrame() {
-	if w, h, scale := rt.host.size(); rt.redraw && !rt.inFrame && rt.c.root != nil &&
-		rt.painted == [3]float32{w, h, scale} && rt.text.Generation() == rt.gen {
+	w, h, scale := rt.host.size()
+	sameSurface := !rt.inFrame && rt.c.root != nil &&
+		rt.painted == [3]float32{w, h, scale} && rt.text.Generation() == rt.gen
+	if sameSurface && rt.fastScroll {
+		if scale <= 0 {
+			scale = 1
+		}
+		lw, lh := w, h
+		if rt.host.pixels() {
+			lw, lh = w/scale, h/scale
+		}
+		if rt.scrollFrame(lw, lh, scale) {
+			return
+		}
+	}
+	if sameSurface && rt.redraw {
 		if scale <= 0 {
 			scale = 1
 		}
@@ -606,6 +635,132 @@ func (rt *engine) surfaceFrame() {
 		return
 	}
 	rt.runFrame()
+}
+
+// requestFastScrollFrame schedules a smooth wheel scroll frame without
+// forcing a full view rebuild when the existing tree can be shifted in place.
+func (rt *engine) requestFastScrollFrame() {
+	if rt.inFrame {
+		return
+	}
+	if rt.c.root != nil && !rt.insp.open && !rt.animating {
+		traceCause(rt, causeRepaint)
+		rt.fastScroll = true
+		rt.host.requestFrame()
+		return
+	}
+	rt.requestFrame()
+}
+
+// scrollFrame advances discrete smooth wheel scrolling on the existing layout
+// tree without rebuilding the view or re-running layoutTree, returning false
+// to fall back to a full runFrame when virtual rows or editor layout require
+// a rebuild.
+func (rt *engine) scrollFrame(w, h, scale float32) bool {
+	if rt.insp.open || rt.wheelID == 0 || (rt.wheelRemainX == 0 && rt.wheelRemainY == 0) {
+		return false
+	}
+	s := rt.states[rt.wheelID]
+	if s == nil || s.node == nil || s.node.st != s || s.node.id != rt.wheelID {
+		return false
+	}
+	e := s.node
+	if e.st.editor != nil {
+		return false
+	}
+	if f := e.list; f != nil {
+		if f.s == nil || f.s.Header != nil || f.s.read || len(f.rows) == 0 {
+			return false
+		}
+	}
+
+	now := rt.now()
+	oldX, oldY := s.scrollX, s.scrollY
+	rt.stepWheelScroll(now, true)
+	dx := float32(s.scrollX - oldX)
+	dy := float32(s.scrollY - oldY)
+	if f := e.list; f != nil && !listCoversViewport(e, dy) {
+		// Virtual list scrolled past its already-built overscan rows; fall
+		// back to runFrame without re-stepping the wheel delta.
+		rt.wheelStepped = true
+		return false
+	}
+
+	rt.inFrame = true
+	defer func() { rt.inFrame = false }()
+	rt.stats.begin(rt)
+	start := time.Now()
+	rt.c.now = now
+	rt.text.BeginFrame()
+	rt.repainting, rt.repaintAt = false, time.Time{}
+
+	if dx != 0 || dy != 0 {
+		for ch := e.first; ch != nil; ch = ch.next {
+			if ch.flags&flagAbsolute == 0 || ch.leaving == 1 {
+				shiftSubtree(ch, -dx, -dy)
+			}
+		}
+	}
+	root := rt.c.root
+	rt.commit(root, w, h)
+	if rt.pointerIn && rt.pressed == nil {
+		old, chain := rt.hover, rt.appendHitChain(rt.chain[:0], rt.pointerX, rt.pointerY)
+		if rt.setHoverSilent(chain) {
+			rt.chain = old[:0]
+		} else {
+			rt.chain = chain[:0]
+		}
+	}
+	rt.paint(root, w, h, scale)
+	for try := 0; try < 2 && rt.text.Full(); try++ {
+		rt.text.MakeRoom()
+		rt.paint(root, w, h, scale)
+	}
+	rt.stats.lap(phasePaint)
+	rt.insp.repainted(time.Since(start))
+	rt.host.present(&rt.scene)
+	rt.stats.lap(phasePresent)
+	rt.text.EndFrame()
+	rt.updateCursor()
+	if rt.access {
+		rt.updateAccess(false)
+	}
+	rt.next()
+	rt.stats.end(rt)
+	return true
+}
+
+// listCoversViewport reports whether the rows already built for virtual list e
+// still cover the viewport after shifting content by -dy.
+func listCoversViewport(e *node, dy float32) bool {
+	f := e.list
+	if f == nil || len(f.rows) == 0 {
+		return false
+	}
+	first := f.rows[0]
+	last := f.rows[len(f.rows)-1]
+	topEdge := e.y + e.border[0]
+	botEdge := e.y + e.h - e.border[2]
+	if dy > 0 && last.i < f.n-1 && last.e.y+last.e.h-dy < botEdge {
+		return false
+	}
+	if dy < 0 && first.i > 0 && first.e.y-dy > topEdge {
+		return false
+	}
+	return true
+}
+
+// shiftSubtree translates e and all descendants by (dx, dy) in window DIPs.
+func shiftSubtree(e *node, dx, dy float32) {
+	e.x += dx
+	e.y += dy
+	for i := range e.frags {
+		e.frags[i].X += dx
+		e.frags[i].Y += dy
+	}
+	for ch := e.first; ch != nil; ch = ch.next {
+		shiftSubtree(ch, dx, dy)
+	}
 }
 
 // repaintFrame paints the elements of the last frame again, at the time of
@@ -857,7 +1012,7 @@ func (rt *engine) requestFrame() {
 		return
 	}
 	traceCause(rt, causeRequest)
-	rt.redraw, rt.repaintDue = false, time.Time{}
+	rt.redraw, rt.fastScroll, rt.repaintDue = false, false, time.Time{}
 	rt.host.requestFrame()
 }
 
@@ -865,7 +1020,7 @@ func (rt *engine) requestFrame() {
 // the view shows, from outside the view (surface.Conn.Changed).
 func (rt *engine) changed() {
 	traceCause(rt, causeChanged)
-	rt.redraw, rt.repaintDue = false, time.Time{}
+	rt.redraw, rt.fastScroll, rt.repaintDue = false, false, time.Time{}
 	rt.host.requestFrame()
 }
 
