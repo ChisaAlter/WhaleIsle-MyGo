@@ -47,7 +47,7 @@ func HostTitleEditor(c *ui.Context, store *hostterminal.Store, session string) b
 	} else {
 		input.Tooltip(terminalLabel("Enter 保存，Esc 取消", "Enter saves, Esc cancels"))
 	}
-	if draft != edit.Draft {
+	if input.Changed() {
 		store.EditRename(v.Owner, session, v.ActiveID, draft)
 	}
 	wasFocused := ui.Local(input, "focused", func() bool { return false })
@@ -78,7 +78,7 @@ func hostRenameView(c *ui.Context, store *hostterminal.Store, v hostterminal.Vie
 	ui.Column(c).Key(fmt.Sprintf("host-title:%d:%s:%s", v.Owner, session, v.ActiveID)).Gap(4).Children(func() {
 		draft := edit.Draft
 		input := ui.TextInput(c, &draft).FillWidth().Label(terminalLabel("终端名称", "Terminal name")).Placeholder(terminalLabel("最多120字符", "Up to 120 characters")).Disabled(edit.Saving).AutoFocus()
-		if draft != edit.Draft {
+		if input.Changed() {
 			store.EditRename(v.Owner, session, v.ActiveID, draft)
 		}
 		ui.Row(c).Gap(4).Children(func() {

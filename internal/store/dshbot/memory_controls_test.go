@@ -25,15 +25,15 @@ func memoryPrepared(t *testing.T, c *MemoryControls, k RoutineScope) *MemoryRevi
 	c.StartEdit(k, 0)
 	c.Change(k, "edited")
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal("review missing", c.Snapshot(k).Error)
+		t.Fatal("review missing", c.Snapshot(k).Value.Error)
 	}
 	return r
 }
 func TestBotMemoryCASDraftAndUnknownResult(t *testing.T) {
 	c, k := memoryLoaded(t)
-	oldView := c.Snapshot(k).Generation
+	oldView := c.Snapshot(k).Value.Generation
 	r := memoryPrepared(t, c, k)
 	if c.ViewCurrent(k, oldView) {
 		t.Fatal("old rendered memory callbacks survived new draft")
@@ -46,7 +46,7 @@ func TestBotMemoryCASDraftAndUnknownResult(t *testing.T) {
 		t.Fatal("duplicate save")
 	}
 	c.FinishSave(ticket, pluginrpc.DshbotMemoryReceipt{}, errors.New("synthetic uncertainty"))
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if s.Loaded || s.Draft == nil || s.Draft.Input != "edited" {
 		t.Fatal("unknown result lost draft or enabled retry")
 	}
@@ -56,7 +56,7 @@ func TestBotMemoryCASDraftAndUnknownResult(t *testing.T) {
 	fresh.Bot.Entries = []string{"edited"}
 	fresh.Bot.Revision = "bot-v2"
 	c.FinishLoad(load, pluginrpc.DshbotCatalogItem{ID: "b", SessionID: "s"}, fresh, true, nil)
-	if c.Snapshot(k).Draft != nil || !c.Snapshot(k).Loaded || c.Snapshot(k).Server.User.Revision != "user-v1" {
+	if c.Snapshot(k).Value.Draft != nil || !c.Snapshot(k).Value.Loaded || c.Snapshot(k).Value.Server.User.Revision != "user-v1" {
 		t.Fatal("readback did not reconcile exact content")
 	}
 	if _, _, ok := c.BeginSave(k, r); ok {
@@ -73,26 +73,26 @@ func TestBotMemoryConflictScopeAndReadonly(t *testing.T) {
 	fresh.Bot.Entries = []string{"other"}
 	c.FinishLoad(load, pluginrpc.DshbotCatalogItem{ID: "b", SessionID: "s"}, fresh, true, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil || c.Snapshot(k).Draft.Input != "edited" {
+	if c.Snapshot(k).Value.Review != nil || c.Snapshot(k).Value.Draft.Input != "edited" {
 		t.Fatal("silently rebased conflicting draft")
 	}
 	c.Discard(k)
 	c.SetTrack(k, "user")
 	c.StartEdit(k, 0)
-	if c.Snapshot(k).Draft.BaseRevision != "user-v1" {
+	if c.Snapshot(k).Value.Draft.BaseRevision != "user-v1" {
 		t.Fatal("track CAS mixed")
 	}
-	snap := c.Snapshot(k)
+	snap := c.Snapshot(k).Value
 	snap.Server.User.Entries[0] = "mutated"
 	snap.Draft.Entries[0] = "mutated"
-	if c.Snapshot(k).Server.User.Entries[0] != "user" || c.Snapshot(k).Draft.Entries[0] != "user" {
+	if c.state.Server.User.Entries[0] != "user" || c.state.Draft.Entries[0] != "user" {
 		t.Fatal("snapshot aliases")
 	}
 	c.Discard(k)
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, pluginrpc.DshbotCatalogItem{ID: "b", SessionID: "s"}, memoryFixture(), false, nil)
 	c.StartEdit(k, 0)
-	if c.Snapshot(k).Draft != nil {
+	if c.Snapshot(k).Value.Draft != nil {
 		t.Fatal("readonly edited")
 	}
 	c.Bind(RoutineScope{})
@@ -112,7 +112,7 @@ func TestBotMemoryDeleteAndLifecycleFence(t *testing.T) {
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, pluginrpc.DshbotCatalogItem{ID: "b", SessionID: "s"}, memoryFixture(), true, nil)
 	c.PrepareDelete(k, 0)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil || r.Command.Text != "" || r.Before != "- old" {
 		t.Fatal("delete must review whole-track empty replacement")
 	}
@@ -122,7 +122,7 @@ func TestBotMemoryDeleteAndLifecycleFence(t *testing.T) {
 	}
 	owner.Bind(RoutineScope{})
 	owner.Bind(k)
-	if c.Current(ticket) || c.Snapshot(k).Draft != nil {
+	if c.Current(ticket) || c.Snapshot(k).Value.Draft != nil {
 		t.Fatal("parent lifecycle retained memory")
 	}
 }
@@ -132,7 +132,7 @@ func TestBotMemorySuccessfulReceiptAndStaleReview(t *testing.T) {
 	old := memoryPrepared(t, c, k)
 	c.Change(k, "final")
 	c.Prepare(k)
-	fresh := c.Snapshot(k).Review
+	fresh := c.Snapshot(k).Value.Review
 	if _, _, ok := c.BeginSave(k, old); ok {
 		t.Fatal("old confirm consumed replacement draft")
 	}
@@ -144,7 +144,7 @@ func TestBotMemorySuccessfulReceiptAndStaleReview(t *testing.T) {
 	if !c.FinishSave(ticket, out, nil) {
 		t.Fatal("success missing")
 	}
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if !s.Loaded || s.Draft != nil || s.Server.Bot.Text != "- final" || s.Server.User.Text != "- user" || c.Current(ticket) {
 		t.Fatal("receipt changed wrong track or stayed pending")
 	}

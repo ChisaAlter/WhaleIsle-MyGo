@@ -111,11 +111,10 @@ func (q *phonePRReview) view(c *ui.Context) {
 			}
 			ui.Text(c, i18n.T(i18n.KeyCmdCommitPushMayAlreadyBeCompleteCanc))
 			if !q.busy {
-				beforeTitle, beforeBody, beforeDraft := q.title, q.body, q.draft
-				ui.TextInput(c, &q.title).FillWidth().Placeholder(i18n.T(i18n.KeyCmdPrTitle))
-				ui.TextArea(c, &q.body).FillWidth().Lines(4, 10).Placeholder(i18n.T(i18n.KeyCmdPrBody))
-				ui.Checkbox(c, &q.draft, i18n.T(i18n.KeyCmdCreateDraftPr))
-				if beforeTitle != q.title || beforeBody != q.body || beforeDraft != q.draft {
+				titleChanged := ui.TextInput(c, &q.title).FillWidth().Placeholder(i18n.T(i18n.KeyCmdPrTitle)).Changed()
+				bodyChanged := ui.TextArea(c, &q.body).FillWidth().Lines(4, 10).Placeholder(i18n.T(i18n.KeyCmdPrBody)).Changed()
+				draftChanged := ui.Checkbox(c, &q.draft, i18n.T(i18n.KeyCmdCreateDraftPr)).Changed()
+				if titleChanged || bodyChanged || draftChanged {
 					q.plan = nil
 				}
 				if ui.Button(c, i18n.T(i18n.KeyCmdGenerateCandidate)).Clicked() {

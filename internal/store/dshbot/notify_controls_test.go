@@ -23,14 +23,14 @@ func TestBotNotifyLifecycleUnknownAndExactAdoption(t *testing.T) {
 	ticket, _ := c.BeginLoad(k)
 	c.FinishLoad(ticket, notifyStoreFixture(), false, nil)
 	c.SetDraft(k, true)
-	if c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Dirty {
 		t.Fatal("readonly")
 	}
 	ticket, _ = c.BeginLoad(k)
 	c.FinishLoad(ticket, notifyStoreFixture(), true, nil)
 	c.SetDraft(k, true)
 	c.Prepare(k)
-	review := c.Snapshot(k).Review
+	review := c.Snapshot(k).Value.Review
 	if review == nil || !review.Command.Enabled {
 		t.Fatal("review")
 	}
@@ -38,26 +38,26 @@ func TestBotNotifyLifecycleUnknownAndExactAdoption(t *testing.T) {
 		t.Fatal("unacknowledged")
 	}
 	c.Acknowledge(k, review, true)
-	save, cmd, ok := c.BeginSave(k, c.Snapshot(k).Review)
+	save, cmd, ok := c.BeginSave(k, c.Snapshot(k).Value.Review)
 	if !ok || !c.MarkSent(save) {
 		t.Fatal("dispatch")
 	}
 	if c.MarkSent(save) {
 		t.Fatal("double dispatch")
 	}
-	generation := c.Snapshot(k).Generation
+	generation := c.Snapshot(k).Value.Generation
 	parent.Bind(RoutineScope{})
 	parent.Bind(RoutineScope{HostKey: "account-b", BotID: "b"})
 	c.FinishSave(save, pluginrpc.DshbotCapabilityReceipt{Attempted: true}, errors.New("unknown"))
 	parent.Bind(k)
-	if c.ViewCurrent(k, generation) || c.Current(save) || !c.Snapshot(k).Uncertain || !c.Snapshot(k).Draft {
+	if c.ViewCurrent(k, generation) || c.Current(save) || !c.Snapshot(k).Value.Uncertain || !c.Snapshot(k).Value.Draft {
 		t.Fatal("hidden original attempt lost")
 	}
 	ticket, _ = c.BeginLoad(k)
 	c.FinishLoad(ticket, notifyStoreFixture(), true, nil)
 	c.Prepare(k)
 	c.Discard(k)
-	if c.Snapshot(k).Review != nil || !c.Snapshot(k).Uncertain || !c.Snapshot(k).Draft {
+	if c.Snapshot(k).Value.Review != nil || !c.Snapshot(k).Value.Uncertain || !c.Snapshot(k).Value.Draft {
 		t.Fatal("unknown unlocked")
 	}
 	fresh := notifyStoreFixture()
@@ -67,28 +67,28 @@ func TestBotNotifyLifecycleUnknownAndExactAdoption(t *testing.T) {
 	bad.Profile["hidden"] = json.RawMessage(`true`)
 	ticket, _ = c.BeginLoad(k)
 	c.FinishLoad(ticket, bad, true, nil)
-	if c.Snapshot(k).Candidate {
+	if c.Snapshot(k).Value.Candidate {
 		t.Fatal("unrelated hidden change treated success")
 	}
 	ticket, _ = c.BeginLoad(k)
 	c.FinishLoad(ticket, fresh, true, nil)
-	if !c.Snapshot(k).Candidate || !c.Adopt(k) || c.Snapshot(k).Uncertain {
+	if !c.Snapshot(k).Value.Candidate || !c.Adopt(k) || c.Snapshot(k).Value.Uncertain {
 		t.Fatal("exact adoption")
 	}
 	c.SetDraft(k, false)
 	c.Prepare(k)
-	stale := c.Snapshot(k).Review
+	stale := c.Snapshot(k).Value.Review
 	c.Discard(k)
-	if c.Snapshot(k).Dirty || c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Dirty || c.Snapshot(k).Value.Review != nil {
 		t.Fatal("discard")
 	}
 	c.SetDraft(k, false)
 	c.Prepare(k)
-	c.Acknowledge(k, c.Snapshot(k).Review, true)
+	c.Acknowledge(k, c.Snapshot(k).Value.Review, true)
 	if _, _, ok := c.BeginSave(k, stale); ok {
 		t.Fatal("old confirmation")
 	}
-	unsent, _, ok := c.BeginSave(k, c.Snapshot(k).Review)
+	unsent, _, ok := c.BeginSave(k, c.Snapshot(k).Value.Review)
 	if !ok {
 		t.Fatal("unsent begin")
 	}
@@ -98,7 +98,7 @@ func TestBotNotifyLifecycleUnknownAndExactAdoption(t *testing.T) {
 	}
 	c.AbortUnsent(unsent, errors.New("view changed"))
 	parent.Bind(k)
-	if c.Snapshot(k).Busy || c.Snapshot(k).Uncertain {
+	if c.Snapshot(k).Value.Busy || c.Snapshot(k).Value.Uncertain {
 		t.Fatal("unsent recovery")
 	}
 }

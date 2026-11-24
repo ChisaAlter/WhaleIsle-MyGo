@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -31,7 +32,8 @@ type BotDuplicateSnapshot struct {
 	Candidates                        []pluginrpc.DshbotBotItem
 	Warnings                          []string
 	Created                           pluginrpc.DshbotBotItem
-	Error, Notice                     string
+	Error                             *state.Fault
+	Notice                            string
 }
 type BotDuplicateTicket struct {
 	Scope                string
@@ -46,6 +48,8 @@ type botDuplicateEntry struct {
 	state   BotDuplicateSnapshot
 	attempt *botDuplicateAttempt
 	loading uint64
+	pub     state.Published[BotDuplicateSnapshot]
+	dirty   bool
 }
 
 // Account-isolated, memory-only drafts survive closing the panel. Neither an
@@ -66,6 +70,7 @@ func (c *BotDuplicator) entry(k string) *botDuplicateEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &botDuplicateEntry{state: BotDuplicateSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *BotDuplicator) valid(k string) bool { return k != "" && c.active == k && c.binding != "" }
@@ -94,12 +99,18 @@ func (c *BotDuplicator) ViewCurrent(k string, g uint64) bool {
 	defer c.mu.Unlock()
 	return c.valid(k) && g == c.generation
 }
-func (c *BotDuplicator) Snapshot(k string) BotDuplicateSnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *BotDuplicator) Snapshot(k string) *state.Version[BotDuplicateSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return BotDuplicateSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	out := e.state
 	if e.attempt != nil {
@@ -123,7 +134,9 @@ func (c *BotDuplicator) Snapshot(k string) BotDuplicateSnapshot {
 	}
 	out.Warnings = append([]string(nil), e.state.Warnings...)
 	out.Created = pluginrpc.CloneDshbotBotItem(out.Created)
-	return out
+	e.pub.Publish(out)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *BotDuplicator) BeginLoad(k string) (BotDuplicateTicket, bool) {
 	c.mu.Lock()
@@ -141,13 +154,16 @@ func (c *BotDuplicator) BeginLoad(k string) (BotDuplicateTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidates = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return BotDuplicateTicket{k, c.generation, c.sequence}, true
 }
 func (c *BotDuplicator) FinishLoad(t BotDuplicateTicket, v pluginrpc.DshbotBotCatalog, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || t.Generation != c.generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -155,12 +171,12 @@ func (c *BotDuplicator) FinishLoad(t BotDuplicateTicket, v pluginrpc.DshbotBotCa
 	e.state.Busy = false
 	e.state.Writable = writable
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return true
 	}
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(v)
 	e.state.Loaded = true
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		e.state.Candidates = pluginrpc.DshbotBotDuplicateCandidates(e.attempt.Command, v)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotCandidatesDoNotEstablishCausalityNo)
@@ -179,14 +195,14 @@ func (c *BotDuplicator) Start(k, sourceID, cwd string) {
 		return
 	}
 	if _, err := pluginrpc.DshbotBotDuplicateSource(pluginrpc.DshbotBotDuplicateCommand{SourceID: sourceID, Expected: e.state.Catalog}); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	e.state.Draft = &BotDuplicateDraft{SourceID: sourceID, ScratchCwd: strings.TrimSpace(cwd)}
 	e.state.Warnings = nil
 	e.state.Created = pluginrpc.DshbotBotItem{}
 	e.state.CreatedScratchCwd = ""
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = ""
 }
 func (c *BotDuplicator) editable(k string) *botDuplicateEntry {
@@ -217,7 +233,7 @@ func (c *BotDuplicator) Change(k, field, value string) {
 	}
 	d.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *BotDuplicator) Discard(k string) {
 	c.mu.Lock()
@@ -226,7 +242,7 @@ func (c *BotDuplicator) Discard(k string) {
 	if e != nil {
 		e.state.Draft = nil
 		e.state.Review = nil
-		e.state.Error = ""
+		e.state.Error = nil
 	}
 }
 func (c *BotDuplicator) Dismiss(k string) {
@@ -250,12 +266,12 @@ func (c *BotDuplicator) Prepare(k string) {
 	d := e.state.Draft
 	cmd := pluginrpc.DshbotBotDuplicateCommand{SourceID: d.SourceID, Name: strings.TrimSpace(d.Name), ScratchCwd: strings.TrimSpace(d.ScratchCwd), Expected: pluginrpc.CloneDshbotBotCatalog(e.state.Catalog)}
 	if err := pluginrpc.ValidateDshbotBotDuplicate(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	e.state.Review = &BotDuplicateReview{Command: cmd, Version: d.Version, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func sameBotReviewForDuplicate(a, b *BotDuplicateReview) bool {
 	return a != nil && b != nil && a.Sequence == b.Sequence && a.Version == b.Version && reflect.DeepEqual(a.Command, b.Command)
@@ -294,11 +310,14 @@ func (c *BotDuplicator) Begin(k string, r *BotDuplicateReview) (BotDuplicateTick
 	e.attempt = &botDuplicateAttempt{Command: cmd, Sequence: c.sequence}
 	e.state.Busy = true
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return BotDuplicateTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *BotDuplicator) current(t BotDuplicateTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *BotDuplicator) Current(t BotDuplicateTicket) bool {
@@ -323,6 +342,9 @@ func (c *BotDuplicator) AbortUnsent(t BotDuplicateTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -332,13 +354,16 @@ func (c *BotDuplicator) AbortUnsent(t BotDuplicateTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotDuplicateResult, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -349,7 +374,7 @@ func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotD
 	if err != nil && result.Rejected {
 		e.attempt = nil
 		e.state.Uncertain = false
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWriteDraftRetained)
 		return
 	}
@@ -362,7 +387,7 @@ func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotD
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownDuplicateOutcomeCandidatesAre)
 		return
 	}
@@ -371,7 +396,7 @@ func (c *BotDuplicator) Finish(t BotDuplicateTicket, result pluginrpc.DshbotBotD
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(result.Catalog)
 	e.state.Draft = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotProfileSessionReceiptConfirmedInspec)
 	e.attempt = nil
 }

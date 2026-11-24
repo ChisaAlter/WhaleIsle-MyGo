@@ -1,12 +1,12 @@
 package dshbot
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -28,7 +28,8 @@ type RoomEditSnapshot struct {
 	Status                                       pluginrpc.DshbotRoomEditStatus
 	Draft                                        *RoomEditDraft
 	Review                                       *RoomEditReview
-	Error, Notice                                string
+	Error                                        *state.Fault
+	Notice                                       string
 	Warnings                                     []string
 }
 type RoomEditTicket struct {
@@ -44,6 +45,8 @@ type roomEditEntry struct {
 	state   RoomEditSnapshot
 	attempt *roomEditAttempt
 	loading uint64
+	pub     state.Published[RoomEditSnapshot]
+	dirty   bool
 }
 
 // Entries survive navigation in this process. A sent write always settles its
@@ -62,6 +65,7 @@ func (c *RoomEditor) entry(k string) *roomEditEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &roomEditEntry{state: RoomEditSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *RoomEditor) valid(k string) bool { return k != "" && c.active == k && c.binding != "" }
@@ -91,12 +95,15 @@ func (c *RoomEditor) ViewCurrent(k string, g uint64) bool {
 	defer c.mu.Unlock()
 	return c.valid(k) && g == c.generation
 }
-func (c *RoomEditor) Snapshot(k string) RoomEditSnapshot {
+func (c *RoomEditor) Snapshot(k string) *state.Version[RoomEditSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return RoomEditSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	v := e.state
 	v.Warnings = append([]string(nil), e.state.Warnings...)
@@ -112,7 +119,9 @@ func (c *RoomEditor) Snapshot(k string) RoomEditSnapshot {
 		r.Command = pluginrpc.CloneDshbotRoomEditCommand(r.Command)
 		v.Review = &r
 	}
-	return v
+	e.pub.Publish(v)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *RoomEditor) BeginLoad(k string) (RoomEditTicket, bool) {
 	c.mu.Lock()
@@ -130,13 +139,16 @@ func (c *RoomEditor) BeginLoad(k string) (RoomEditTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	return RoomEditTicket{k, c.generation, c.sequence}, true
 }
 func (c *RoomEditor) FinishLoad(t RoomEditTicket, status pluginrpc.DshbotRoomEditStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || t.Generation != c.generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -144,19 +156,19 @@ func (c *RoomEditor) FinishLoad(t RoomEditTicket, status pluginrpc.DshbotRoomEdi
 	e.state.Busy = false
 	e.state.Writable = writable
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotRoomEdit(status)
 	e.state.Loaded = true
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		if match := pluginrpc.DshbotRoomEditApplied(e.attempt.Command, status); match == nil {
 			e.state.Candidate = true
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactReviewedProfileFoundInspectAnd)
 		} else {
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotConfirmedNoRetry)
-			e.state.Error = match.Error()
+			e.state.Error = state.FaultOf(match)
 		}
 	}
 	return true
@@ -174,7 +186,7 @@ func (c *RoomEditor) Start(k string) {
 	r := e.state.Status.Item
 	e.state.Warnings = nil
 	e.state.Draft = &RoomEditDraft{Name: r.Name, Description: r.Description, MemberBotIDs: append([]string(nil), r.MemberBotIDs...), MaxRounds: strconv.Itoa(r.MaxRounds), MaxSpeaks: strconv.Itoa(r.MaxSpeaks)}
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = ""
 }
 func (c *RoomEditor) editable(k string) *roomEditEntry {
@@ -208,7 +220,7 @@ func (c *RoomEditor) Change(k, field, value string) {
 	}
 	e.state.Draft.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RoomEditor) ToggleMember(k, id string) {
 	c.mu.Lock()
@@ -242,7 +254,7 @@ func (c *RoomEditor) ToggleMember(k, id string) {
 	e.state.Draft.MemberBotIDs = ids
 	e.state.Draft.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RoomEditor) Discard(k string) {
 	c.mu.Lock()
@@ -250,7 +262,7 @@ func (c *RoomEditor) Discard(k string) {
 	if e := c.editable(k); e != nil {
 		e.state.Draft = nil
 		e.state.Review = nil
-		e.state.Error = ""
+		e.state.Error = nil
 	}
 }
 func (c *RoomEditor) Dismiss(k string) {
@@ -274,28 +286,28 @@ func (c *RoomEditor) Prepare(k string) {
 	d := e.state.Draft
 	textValues, textErr := pluginrpc.ParseDshbotRoomText(pluginrpc.DshbotRoomTextValues{Name: d.Name, Description: d.Description})
 	if textErr != nil {
-		e.state.Error = textErr.Error()
+		e.state.Error = state.FaultOf(textErr)
 		return
 	}
 	r, er := strconv.Atoi(strings.TrimSpace(d.MaxRounds))
 	s, es := strconv.Atoi(strings.TrimSpace(d.MaxSpeaks))
 	if er != nil || es != nil {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotLimitsMustBeIntegers2)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotLimitsMustBeIntegers2))
 		return
 	}
 	cmd := pluginrpc.DshbotRoomEditCommand{Expected: pluginrpc.CloneDshbotRoomEdit(e.state.Status), Values: pluginrpc.DshbotRoomEditValues{MemberBotIDs: append([]string(nil), d.MemberBotIDs...), MaxRounds: r, MaxSpeaks: s, Text: &textValues}}
 	if err := pluginrpc.ValidateDshbotRoomEdit(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	before := cmd.Expected.Item
 	if r == before.MaxRounds && s == before.MaxSpeaks && reflect.DeepEqual(d.MemberBotIDs, before.MemberBotIDs) && !pluginrpc.DshbotRoomTextChanged(cmd) {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotNoChangesToSave)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotNoChangesToSave))
 		return
 	}
 	c.sequence++
 	e.state.Review = &RoomEditReview{Command: cmd, Version: d.Version, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func sameRoomEditReview(a, b *RoomEditReview) bool {
 	return a != nil && b != nil && a.Sequence == b.Sequence && a.Version == b.Version && reflect.DeepEqual(a.Command, b.Command)
@@ -323,11 +335,14 @@ func (c *RoomEditor) Begin(k string, r *RoomEditReview) (RoomEditTicket, pluginr
 	e.attempt = &roomEditAttempt{Command: cmd, Sequence: c.sequence}
 	e.state.Busy = true
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return RoomEditTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *RoomEditor) current(t RoomEditTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *RoomEditor) Current(t RoomEditTicket) bool {
@@ -352,6 +367,9 @@ func (c *RoomEditor) AbortUnsent(t RoomEditTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -361,13 +379,16 @@ func (c *RoomEditor) AbortUnsent(t RoomEditTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained2)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditResult, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -380,7 +401,7 @@ func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditRes
 		e.state.Uncertain = false
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained3)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 		}
 		return
 	}
@@ -389,14 +410,14 @@ func (c *RoomEditor) Finish(t RoomEditTicket, result pluginrpc.DshbotRoomEditRes
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeReadBackOnly)
 		return
 	}
 	e.state.Status = pluginrpc.CloneDshbotRoomEdit(result.Status)
 	e.state.Draft = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostConfirmedGroupUpdate)
 	e.attempt = nil
 }
@@ -411,14 +432,14 @@ func (c *RoomEditor) Adopt(k string) bool {
 		return false
 	}
 	if pluginrpc.DshbotRoomEditApplied(e.attempt.Command, e.state.Status) != nil {
-		e.state.Error = fmt.Sprint("readback no longer matches")
+		e.state.Error = state.FaultText("readback no longer matches")
 		return false
 	}
 	e.state.Candidate = false
 	e.state.Draft = nil
 	e.state.Review = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedMatchingCatalogPresentationSi)
 	e.attempt = nil
 	return true

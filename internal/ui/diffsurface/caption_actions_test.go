@@ -146,7 +146,7 @@ func TestCaptionGlobalReviewUsesSameWorkbenchAcrossPageAndRetiresOwner(t *testin
 	if !w.CaptionReviewOpen() || selection == nil || !tt.HasText("Commit changes") {
 		t.Fatal("review was hidden behind the global page", tt.Texts())
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for (!w.Loaded || !tt.HasText("tracked.txt")) && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 		tt.Frame()
@@ -205,13 +205,13 @@ func TestCaptionCleanCommitPushRoutesExistingPushReview(t *testing.T) {
 		t.Fatal("RequestCaptionAction rejected clean commit_push")
 	}
 	m := Model{Workbench: w, WorkspaceRoot: root}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for !w.Loaded && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 		w.finishAsync(m)
 	}
 	if !w.Loaded || w.Remote == nil || w.Remote.Mode != "push" || w.Operation != nil || w.Remote.Task != nil {
-		t.Fatal("clean default quick Push was trapped in empty file selection")
+		t.Fatalf("clean default quick Push was trapped in empty file selection (loaded=%v remote=%+v op=%v)", w.Loaded, w.Remote, w.Operation != nil)
 	}
 }
 

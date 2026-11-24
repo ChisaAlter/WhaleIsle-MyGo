@@ -24,7 +24,7 @@ func (s *Service) bindBotAvatarModel(m *assistantui.RoutineModel, ep harness.End
 		return
 	}
 	controls.Bind(k)
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotCapabilityStatus, bool, error) {
@@ -182,7 +182,7 @@ func (s *Service) bindBotAvatarImageActions(m *assistantui.BotAvatarModel, k dsh
 
 func (s *Service) bindBotCapabilityModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, current func() bool) {
 	controls := &s.assistantRoutines.Capabilities
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	host := s.safeHost()
 	rpc := host.PluginRPCClient(ep)
@@ -283,7 +283,7 @@ func (s *Service) bindBotCapabilityModel(m *assistantui.RoutineModel, ep harness
 
 func (s *Service) bindBotMemoryModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, current func() bool) {
 	controls := &s.assistantRoutines.Memory
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	// Check the existing Host settings authority. Unlike catalog mutations,
@@ -411,7 +411,7 @@ func (s *Service) bindBotMemoryModel(m *assistantui.RoutineModel, ep harness.End
 
 func (s *Service) bindBotMemoryReviewModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, current func() bool) {
 	controls := &s.assistantRoutines.MemoryReview
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotCapabilityStatus, bool, error) {
@@ -518,7 +518,7 @@ func (s *Service) bindBotNotifyModel(m *assistantui.RoutineModel, ep harness.End
 		return
 	}
 	controls.Bind(k)
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotCapabilityStatus, bool, error) {
@@ -614,7 +614,7 @@ func (s *Service) bindBotNotifyModel(m *assistantui.RoutineModel, ep harness.End
 
 func (s *Service) bindBotObjectiveModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, current func() bool) {
 	controls := &s.assistantRoutines.Objective
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	m.Objective = assistantui.BotObjectiveModel{
@@ -697,7 +697,7 @@ func (s *Service) bindBotObjectiveModel(m *assistantui.RoutineModel, ep harness.
 
 func (s *Service) bindBotObjectiveConfigModel(m *assistantui.RoutineModel, ep harness.Endpoint, k dshbotstore.RoutineScope, current func() bool) {
 	controls := &s.assistantRoutines.ObjectiveConfig
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotCapabilityStatus, bool, error) {
@@ -804,7 +804,7 @@ func (s *Service) bindBotRouteModel(m *assistantui.RoutineModel, ep harness.Endp
 		return
 	}
 	controls.Bind(k)
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotRouteStatus, bool, error) {
@@ -967,7 +967,7 @@ func (s *Service) bindBotSenderPolicyModel(m *assistantui.RoutineModel, ep harne
 		return
 	}
 	controls.Bind(k)
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotSenderPolicyStatus, bool, error) {
@@ -1089,7 +1089,7 @@ func (s *Service) bindBotTextProfileModel(m *assistantui.RoutineModel, ep harnes
 		return
 	}
 	controls.Bind(k)
-	snapshot := controls.Snapshot(k)
+	snapshot := controls.Snapshot(k).Value
 	viewCurrent := func() bool { return current() && controls.ViewCurrent(k, snapshot.Generation) }
 	rpc := s.safeHost().PluginRPCClient(ep)
 	read := func(ctx context.Context, live func() bool) (pluginrpc.DshbotCapabilityStatus, bool, error) {

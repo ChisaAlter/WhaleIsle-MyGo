@@ -22,25 +22,25 @@ func objectiveLoaded(t *testing.T) (*ObjectiveControls, RoutineScope) {
 }
 func TestBotObjectiveReviewScopeAndUnknownOutcome(t *testing.T) {
 	c, k := objectiveLoaded(t)
-	oldView := c.Snapshot(k).Generation
+	oldView := c.Snapshot(k).Value.Generation
 	c.Prepare(k, "start")
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if c.ViewCurrent(k, oldView) || r == nil {
 		t.Fatal("review identity missing")
 	}
 	ticket, cmd, ok := c.BeginAction(k, r)
-	if !ok || cmd.Action != "start" || c.Snapshot(k).Loaded {
+	if !ok || cmd.Action != "start" || c.Snapshot(k).Value.Loaded {
 		t.Fatal("explicit action failed")
 	}
 	if _, _, ok := c.BeginAction(k, r); ok {
 		t.Fatal("double start")
 	}
 	c.FinishAction(ticket, pluginrpc.DshbotObjectiveResult{Attempted: true}, errors.New("synthetic unknown"))
-	if c.Snapshot(k).Loaded || c.Current(ticket) {
+	if c.Snapshot(k).Value.Loaded || c.Current(ticket) {
 		t.Fatal("unknown result enabled retry")
 	}
 	c.Prepare(k, "start")
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("unknown result permitted review before read")
 	}
 	load, _ := c.BeginLoad(k)
@@ -49,7 +49,7 @@ func TestBotObjectiveReviewScopeAndUnknownOutcome(t *testing.T) {
 	if _, _, ok := c.BeginAction(k, r); ok {
 		t.Fatal("old confirmation consumed new action")
 	}
-	current := c.Snapshot(k).Review
+	current := c.Snapshot(k).Value.Review
 	ticket, _, _ = c.BeginAction(k, current)
 	c.Bind(RoutineScope{})
 	c.Bind(k)
@@ -60,13 +60,13 @@ func TestBotObjectiveReviewScopeAndUnknownOutcome(t *testing.T) {
 func TestBotObjectiveSnapshotsAndClearWarnings(t *testing.T) {
 	c, k := objectiveLoaded(t)
 	c.Prepare(k, "clear")
-	snapshot := c.Snapshot(k)
+	snapshot := c.Snapshot(k).Value
 	snapshot.Status.Goal.Blocker.Message = "mutated"
 	snapshot.Review.Command.Expected.Goal.Blocker.Message = "mutated"
-	if c.Snapshot(k).Status.Goal.Blocker.Message != "unchanged" || c.Snapshot(k).Review.Command.Expected.Goal.Blocker.Message != "unchanged" {
+	if c.state.Status.Goal.Blocker.Message != "unchanged" || c.state.Review.Command.Expected.Goal.Blocker.Message != "unchanged" {
 		t.Fatal("goal snapshot aliases")
 	}
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	ticket, _, ok := c.BeginAction(k, r)
 	if !ok {
 		t.Fatal("clear missing")
@@ -76,7 +76,7 @@ func TestBotObjectiveSnapshotsAndClearWarnings(t *testing.T) {
 	result.Goal = nil
 	result.GoalKnown = false
 	c.FinishAction(ticket, pluginrpc.DshbotObjectiveResult{Status: result, Warnings: []string{"fixture live goal clear failed"}}, nil)
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if s.Loaded || s.Status.GoalKnown || s.Status.Bot.Objective != "" || len(s.Warnings) != 1 {
 		t.Fatal("clear receipt invented live stop or hid warning")
 	}
@@ -85,7 +85,7 @@ func TestBotObjectiveSnapshotsAndClearWarnings(t *testing.T) {
 	actual.GoalKnown = true
 	actual.Goal = &pluginrpc.DshbotObjectiveGoal{Phase: "active", Activation: "armed", RoundsStarted: 3, MaxGoalRounds: 16}
 	c.FinishLoad(load, actual, nil)
-	if !c.Snapshot(k).Loaded || c.Snapshot(k).Status.Goal.Phase != "active" || len(c.Snapshot(k).Warnings) != 1 {
+	if !c.Snapshot(k).Value.Loaded || c.Snapshot(k).Value.Status.Goal.Phase != "active" || len(c.Snapshot(k).Value.Warnings) != 1 {
 		t.Fatal("readback did not preserve real live state/warning")
 	}
 }
@@ -96,7 +96,7 @@ func TestBotObjectiveParentLifecycleIsolation(t *testing.T) {
 	c := &parent.Objective
 	ticket, _ := c.BeginLoad(k)
 	parent.Bind(RoutineScope{HostKey: "host-b", BotID: "b"})
-	if c.FinishLoad(ticket, objectiveFixture(), nil) || c.Snapshot(k).Loaded {
+	if c.FinishLoad(ticket, objectiveFixture(), nil) || c.Snapshot(k).Value.Loaded {
 		t.Fatal("foreign Host late read")
 	}
 	parent.Bind(k)
@@ -104,7 +104,7 @@ func TestBotObjectiveParentLifecycleIsolation(t *testing.T) {
 	wrong := objectiveFixture()
 	wrong.Bot.ID = "other"
 	c.FinishLoad(ticket, wrong, nil)
-	if c.Snapshot(k).Loaded {
+	if c.Snapshot(k).Value.Loaded {
 		t.Fatal("wrong Bot load accepted")
 	}
 }

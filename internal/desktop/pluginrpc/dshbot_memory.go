@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotMemoryTrack struct {
@@ -88,10 +89,10 @@ type DshbotMemoryReceipt struct {
 
 func ValidateDshbotMemoryCommand(cmd DshbotMemoryCommand) error {
 	if cmd.BotID == "" || cmd.SessionID == "" || (cmd.Track != "bot" && cmd.Track != "user") || cmd.MemoryRevision == "" || cmd.Limit <= 0 {
-		return fmt.Errorf("memory target, track, revision or limit unavailable")
+		return storelocale.Authored("memory target, track, revision or limit unavailable")
 	}
 	if WhaleTextLength(cmd.Text) > min(cmd.Limit, 64000) {
-		return fmt.Errorf("memory exceeds this track's Host limit (UTF-16)")
+		return storelocale.Authored("memory exceeds this track's Host limit (UTF-16)")
 	}
 	return nil
 }

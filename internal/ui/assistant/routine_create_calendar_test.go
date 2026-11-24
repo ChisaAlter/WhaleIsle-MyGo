@@ -21,7 +21,7 @@ func TestBotRoutineCalendarUIReview(t *testing.T) {
 			submitted := 0
 			var schedule string
 			tt := ui.NewTester(func(c *ui.Context) {
-				s := creator.Snapshot(key)
+				s := creator.Snapshot(key).Value
 				m := Model{Mode: assiststore.ModeDshbot, HarnessReady: true, DshbotEnabled: true, RoutineCreate: RoutineCreateModel{State: s, HostLabel: "https://fixture.invalid", BotName: "Bot B", OnStart: func() {}, OnChange: func(field, value string) { creator.Change(key, field, value) }, OnReview: func() { creator.Prepare(key) }, OnConfirm: func() {
 					_, cmd, ok := creator.Begin(key, s.Review)
 					if ok {
@@ -45,7 +45,7 @@ func TestBotRoutineCalendarUIReview(t *testing.T) {
 			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {
 				t.Fatal(err)
 			}
-			if submitted != 0 || !tt.HasText(routineCreateImpact(false)) || creator.Snapshot(key).Review.Command.Edit.Schedule != tc.want {
+			if submitted != 0 || !tt.HasText(routineCreateImpact(false)) || creator.Snapshot(key).Value.Review.Command.Edit.Schedule != tc.want {
 				t.Fatal("review created or schedule differs")
 			}
 			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmNewRoutine)); err != nil {

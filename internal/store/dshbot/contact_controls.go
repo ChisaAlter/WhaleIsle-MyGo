@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -27,7 +28,8 @@ type ContactSnapshot struct {
 	EditingSection, SectionName, AssignmentItem, DeleteSection string
 	Undo                                                       *pluginrpc.DshbotSectionSnapshot
 	Pending                                                    *pluginrpc.DshbotContactCommand
-	Error, Notice                                              string
+	Error                                                      *state.Fault
+	Notice                                                     string
 }
 type ContactTicket struct {
 	Scope                string
@@ -37,6 +39,8 @@ type contactEntry struct {
 	state    ContactSnapshot
 	sequence uint64
 	attempt  uint64
+	pub      state.Published[ContactSnapshot]
+	dirty    bool
 }
 type ContactControls struct {
 	mu                   sync.Mutex
@@ -52,6 +56,7 @@ func (c *ContactControls) entry(k string) *contactEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &contactEntry{state: ContactSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *ContactControls) Bind(k, b string) {
@@ -75,21 +80,30 @@ func (c *ContactControls) ViewCurrent(k string, g uint64) bool {
 	defer c.mu.Unlock()
 	return k != "" && k == c.active && c.binding != "" && g == c.generation
 }
-func (c *ContactControls) Snapshot(k string) ContactSnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *ContactControls) Snapshot(k string) *state.Version[ContactSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	out := ContactSnapshot{Scope: k, Generation: c.generation}
-	if e := c.entries[k]; e != nil {
-		out = e.state
-		out.Generation = c.generation
+	e := c.entries[k]
+	if e == nil {
+		e = c.entry(k)
 	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
+	}
+	out := e.state
+	out.Generation = c.generation
 	out.Catalog = pluginrpc.CloneDshbotContactCatalog(out.Catalog)
 	out.Undo = pluginrpc.CloneDshbotSectionSnapshot(out.Undo)
 	if out.Pending != nil {
 		cmd := pluginrpc.CloneDshbotContactCommand(*out.Pending)
 		out.Pending = &cmd
 	}
-	return out
+	e.pub.Publish(out)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *ContactControls) Change(k, field, value string) {
 	c.mu.Lock()
@@ -141,11 +155,14 @@ func (c *ContactControls) BeginLoad(k string) (ContactTicket, bool) {
 	c.sequence++
 	e.sequence = c.sequence
 	e.state.Busy = true
-	e.state.Error = ""
+	e.state.Error = nil
 	return ContactTicket{k, c.generation, c.sequence}, true
 }
 func (c *ContactControls) ticket(t ContactTicket) *contactEntry {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if t.Scope == "" || t.Scope != c.active || t.Generation != c.generation || e == nil || e.sequence != t.Sequence {
 		return nil
 	}
@@ -161,12 +178,12 @@ func (c *ContactControls) FinishLoad(t ContactTicket, v pluginrpc.DshbotContactC
 	e.state.Busy = false
 	e.state.Writable = w
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return true
 	}
 	e.state.Catalog = pluginrpc.CloneDshbotContactCatalog(v)
 	e.state.Loaded = true
-	e.state.Error = ""
+	e.state.Error = nil
 	if p := e.state.Pending; p != nil {
 		if pluginrpc.DshbotContactApplied(*p, v) {
 			c.applySuccess(e, p, nil)
@@ -190,7 +207,7 @@ func (c *ContactControls) Begin(k string, cmd pluginrpc.DshbotContactCommand) (C
 	c.sequence++
 	e.sequence = c.sequence
 	e.state.Busy = true
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = ""
 	cmd = pluginrpc.CloneDshbotContactCommand(cmd)
 	e.state.Pending = &cmd
@@ -220,12 +237,15 @@ func (c *ContactControls) Finish(t ContactTicket, cmd pluginrpc.DshbotContactCom
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt != t.Sequence {
 		return false
 	}
 	e.state.Busy = false
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		if !result.Attempted || result.Rejected {
 			e.attempt = 0
 			e.state.Pending = nil

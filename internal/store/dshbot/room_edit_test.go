@@ -25,15 +25,15 @@ func TestRoomEditorDraftLifecycleAndUnknownReadback(t *testing.T) {
 	c.Start(k)
 	c.Change(k, "maxRounds", "2")
 	c.Prepare(k)
-	review := c.Snapshot(k).Review
+	review := c.Snapshot(k).Value.Review
 	if review == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.Begin(k, review); ok {
 		t.Fatal("missing explicit acknowledgment")
 	}
 	c.Acknowledge(k, review, true)
-	old := c.Snapshot(k)
+	old := c.Snapshot(k).Value
 	c.Suspend()
 	c.Bind(k, "client-1")
 	if c.ViewCurrent(k, old.Generation) {
@@ -42,15 +42,15 @@ func TestRoomEditorDraftLifecycleAndUnknownReadback(t *testing.T) {
 	if _, _, ok := c.Begin(k, old.Review); ok {
 		t.Fatal("old confirmation revived")
 	}
-	if c.Snapshot(k).Draft.MaxRounds != "2" {
+	if c.Snapshot(k).Value.Draft.MaxRounds != "2" {
 		t.Fatal("draft lost")
 	}
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, roomEditStoreStatus(), true, nil)
 	c.Prepare(k)
-	review = c.Snapshot(k).Review
+	review = c.Snapshot(k).Value.Review
 	c.Acknowledge(k, review, true)
-	review = c.Snapshot(k).Review
+	review = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.Begin(k, review)
 	if !ok || !c.MarkSent(ticket) {
 		t.Fatal("explicit save unavailable")
@@ -60,22 +60,22 @@ func TestRoomEditorDraftLifecycleAndUnknownReadback(t *testing.T) {
 	}
 	c.Bind("other-account-room", "client-2")
 	c.Finish(ticket, pluginrpc.DshbotRoomEditResult{Attempted: true}, fmt.Errorf("lost response"))
-	if c.Snapshot("other-account-room").Draft != nil {
+	if c.Snapshot("other-account-room").Value.Draft != nil {
 		t.Fatal("cross-account result")
 	}
 	c.Bind(k, "client-3")
-	if !c.Snapshot(k).Uncertain {
+	if !c.Snapshot(k).Value.Uncertain {
 		t.Fatal("unknown attempt lost")
 	}
 	c.Discard(k)
 	c.Change(k, "maxRounds", "1")
-	if c.Snapshot(k).Draft.MaxRounds != "2" {
+	if c.Snapshot(k).Value.Draft.MaxRounds != "2" {
 		t.Fatal("unknown draft unlocked")
 	}
 	load, _ = c.BeginLoad(k)
 	c.Suspend()
 	c.Bind(k, "client-3")
-	if c.Snapshot(k).Busy {
+	if c.Snapshot(k).Value.Busy {
 		t.Fatal("retired unknown readback wedged busy")
 	}
 	if c.FinishLoad(load, roomEditStoreStatus(), true, nil) {
@@ -86,7 +86,7 @@ func TestRoomEditorDraftLifecycleAndUnknownReadback(t *testing.T) {
 	fresh.Catalog.Revision++
 	c.FinishLoad(load, fresh, true, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Candidate || c.Snapshot(k).Review != nil || c.Adopt(k) {
+	if c.Snapshot(k).Value.Candidate || c.Snapshot(k).Value.Review != nil || c.Adopt(k) {
 		t.Fatal("different readback unlocked")
 	}
 	fresh.Profile = pluginrpc.DshbotRoomEditProfile(cmd)
@@ -94,15 +94,15 @@ func TestRoomEditorDraftLifecycleAndUnknownReadback(t *testing.T) {
 	json.Unmarshal(raw, &fresh.Item)
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, fresh, true, nil)
-	if !c.Snapshot(k).Candidate || !c.Adopt(k) || c.Snapshot(k).Uncertain {
+	if !c.Snapshot(k).Value.Candidate || !c.Adopt(k) || c.Snapshot(k).Value.Uncertain {
 		t.Fatal("exact readback not adopted")
 	}
 	c.Start(k)
 	c.Change(k, "maxRounds", "1")
 	c.Prepare(k)
-	review = c.Snapshot(k).Review
+	review = c.Snapshot(k).Value.Review
 	c.Acknowledge(k, review, true)
-	review = c.Snapshot(k).Review
+	review = c.Snapshot(k).Value.Review
 	ticket, _, ok = c.Begin(k, review)
 	if !ok {
 		t.Fatal("new reviewed edit unavailable")
@@ -110,7 +110,7 @@ func TestRoomEditorDraftLifecycleAndUnknownReadback(t *testing.T) {
 	c.Suspend()
 	c.AbortUnsent(ticket, fmt.Errorf("view retired"))
 	c.Bind(k, "client-4")
-	if c.Snapshot(k).Uncertain || c.Snapshot(k).Draft == nil || c.Snapshot(k).Busy {
+	if c.Snapshot(k).Value.Uncertain || c.Snapshot(k).Value.Draft == nil || c.Snapshot(k).Value.Busy {
 		t.Fatal("unsent draft not retained")
 	}
 }

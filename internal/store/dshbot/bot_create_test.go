@@ -26,15 +26,15 @@ func botCreatorReady(t *testing.T) (*BotCreator, string) {
 }
 func botCreatorBegin(t *testing.T, c *BotCreator, k string) (BotCreateTicket, pluginrpc.DshbotBotCreateCommand) {
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.Begin(k, r); ok {
 		t.Fatal("no acknowledgement")
 	}
 	c.Acknowledge(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.Begin(k, r)
 	if !ok {
 		t.Fatal("begin")
@@ -61,7 +61,7 @@ func TestBotCreatorLifecycleUnknown(t *testing.T) {
 		t.Run(event, func(t *testing.T) {
 			c, k := botCreatorReady(t)
 			c.Prepare(k)
-			old := c.Snapshot(k)
+			old := c.Snapshot(k).Value
 			c.Acknowledge(k, old.Review, true)
 			c.Suspend()
 			c.Bind(k, "client-a")
@@ -77,13 +77,13 @@ func TestBotCreatorLifecycleUnknown(t *testing.T) {
 			c.Suspend()
 			c.Bind("account-b", "client-b")
 			c.Finish(ticket, pluginrpc.DshbotBotCreateResult{Attempted: true}, fmt.Errorf("lost"))
-			if c.Snapshot("account-b").Draft != nil {
+			if c.Snapshot("account-b").Value.Draft != nil {
 				t.Fatal("cross-account draft")
 			}
 			c.Bind(k, "client-c")
 			c.Discard(k)
 			c.Start(k, "/different")
-			if s := c.Snapshot(k); !s.Uncertain || s.Busy || s.Draft.ID != cmd.ID {
+			if s := c.Snapshot(k).Value; !s.Uncertain || s.Busy || s.Draft.ID != cmd.ID {
 				t.Fatal("lost attempt", s)
 			}
 			load, _ = c.BeginLoad(k)
@@ -91,16 +91,16 @@ func TestBotCreatorLifecycleUnknown(t *testing.T) {
 			empty.Revision += 2
 			c.FinishLoad(load, empty, true, nil)
 			c.Prepare(k)
-			if c.Snapshot(k).Review != nil || c.Snapshot(k).Candidate != nil {
+			if c.Snapshot(k).Value.Review != nil || c.Snapshot(k).Value.Candidate != nil {
 				t.Fatal("absence released unknown")
 			}
 			result := botCreatorCreated(cmd)
 			load, _ = c.BeginLoad(k)
 			c.FinishLoad(load, result.Catalog, true, nil)
-			if c.Snapshot(k).Candidate == nil || !c.Adopt(k, cmd.ID) {
+			if c.Snapshot(k).Value.Candidate == nil || !c.Adopt(k, cmd.ID) {
 				t.Fatal("exact adopt")
 			}
-			s := c.Snapshot(k)
+			s := c.Snapshot(k).Value
 			if s.Created.ID != cmd.ID || s.CreatedScratchCwd != "/reviewed-cwd" || s.Draft != nil {
 				t.Fatal("adopt lost reviewed identity/cwd", s)
 			}
@@ -110,7 +110,7 @@ func TestBotCreatorLifecycleUnknown(t *testing.T) {
 func TestBotCreatorReviewPreflightAndSuccess(t *testing.T) {
 	c, k := botCreatorReady(t)
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	c.Acknowledge(k, r, true)
 	c.Change(k, "title", "new title")
 	if _, _, ok := c.Begin(k, r); ok {
@@ -119,13 +119,13 @@ func TestBotCreatorReviewPreflightAndSuccess(t *testing.T) {
 	ticket, cmd := botCreatorBegin(t, c, k)
 	c.Finish(ticket, pluginrpc.DshbotBotCreateResult{Attempted: true, Rejected: true}, fmt.Errorf("read-only"))
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("rejection must refresh")
 	}
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, botCreatorCatalog(), false, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("read-only review")
 	}
 	load, _ = c.BeginLoad(k)
@@ -134,7 +134,7 @@ func TestBotCreatorReviewPreflightAndSuccess(t *testing.T) {
 	c.Suspend()
 	c.Finish(ticket, botCreatorCreated(cmd), nil)
 	c.Bind(k, "client-new")
-	if s := c.Snapshot(k); s.Created.ID != cmd.ID || s.CreatedScratchCwd != "/reviewed-cwd" || s.Uncertain || s.Busy {
+	if s := c.Snapshot(k).Value; s.Created.ID != cmd.ID || s.CreatedScratchCwd != "/reviewed-cwd" || s.Uncertain || s.Busy {
 		t.Fatal("late success failed to settle original", s)
 	}
 	load, _ = c.BeginLoad(k)

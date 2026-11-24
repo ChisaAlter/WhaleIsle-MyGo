@@ -52,8 +52,8 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshCapabilities)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_capabilities:58", s.Notice)
 		for _, warning := range s.Warnings {

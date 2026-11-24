@@ -41,8 +41,8 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshMemberRuntime)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRuntimeFailure)+s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRuntimeFailure)+s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "room_runtime:47", s.Notice)
 		if !s.Loaded {

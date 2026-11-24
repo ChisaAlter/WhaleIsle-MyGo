@@ -3,7 +3,6 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"unicode/utf8"
 	"whaleisle/internal/store/storelocale"
@@ -35,16 +34,16 @@ func DshbotTextProfileValue(s DshbotCapabilityStatus) (DshbotTextProfileValues, 
 }
 func ParseDshbotTextProfile(v DshbotTextProfileValues) (DshbotTextProfileValues, error) {
 	if !utf8.ValidString(v.Name) || !utf8.ValidString(v.Title) || !utf8.ValidString(v.Description) {
-		return DshbotTextProfileValues{}, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcInvalidUnicode))
+		return DshbotTextProfileValues{}, storelocale.Error(storelocale.KeyDesktopPluginrpcInvalidUnicode)
 	}
 	v.Name = trimBotMemory(v.Name)
 	v.Title = trimBotMemory(v.Title)
 	v.Description = trimBotMemory(v.Description)
 	if v.Name == "" || WhaleTextLength(v.Name) > 120 {
-		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcNameIsRequiredMaximum120Utf16Unit))
+		return v, storelocale.Error(storelocale.KeyDesktopPluginrpcNameIsRequiredMaximum120Utf16Unit)
 	}
 	if WhaleTextLength(v.Title) > 120 || WhaleTextLength(v.Description) > 12000 {
-		return v, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcTitle120Description12000Utf16Units))
+		return v, storelocale.Error(storelocale.KeyDesktopPluginrpcTitle120Description12000Utf16Units)
 	}
 	return v, nil
 }
@@ -53,7 +52,7 @@ func ValidateDshbotTextProfileCommand(c DshbotTextProfileCommand) error {
 		return err
 	}
 	if c.Expected.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved; use existing Bot Web")
+		return storelocale.Authored("profile cannot be preserved; use existing Bot Web")
 	}
 	before, err := DshbotTextProfileValue(c.Expected)
 	if err != nil {
@@ -64,10 +63,10 @@ func ValidateDshbotTextProfileCommand(c DshbotTextProfileCommand) error {
 		return err
 	}
 	if next != c.Values {
-		return fmt.Errorf("review trimmed values before saving")
+		return storelocale.Authored("review trimmed values before saving")
 	}
 	if before == next {
-		return fmt.Errorf("text profile is unchanged")
+		return storelocale.Authored("text profile is unchanged")
 	}
 	return nil
 }

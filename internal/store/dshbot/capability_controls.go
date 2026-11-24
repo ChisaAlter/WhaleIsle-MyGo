@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -25,18 +26,24 @@ type CapabilitySnapshot struct {
 	Draft                         pluginrpc.DshbotCapabilityPolicies
 	Review                        *CapabilityReview
 	Warnings                      []string
-	Error, Notice                 string
+	Error                         *state.Fault
+	Notice                        string
 }
 type CapabilityControls struct {
 	mu                   sync.Mutex
 	state                CapabilitySnapshot
 	generation, sequence uint64
+	pub                  state.Published[CapabilitySnapshot]
+	dirty                bool
+	foreignPub           state.Published[CapabilitySnapshot]
+	foreignKey           RoutineScope
 }
 
 func (c *CapabilityControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
+		c.dirty = true
 		c.generation++
 		c.sequence++
 		c.state = CapabilitySnapshot{Scope: k}
@@ -45,11 +52,21 @@ func (c *CapabilityControls) Bind(k RoutineScope) {
 func (c *CapabilityControls) valid(k RoutineScope) bool {
 	return c.state.Scope == k && k.HostKey != "" && k.BotID != ""
 }
-func (c *CapabilityControls) Snapshot(k RoutineScope) CapabilitySnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *CapabilityControls) Snapshot(k RoutineScope) *state.Version[CapabilitySnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		return CapabilitySnapshot{Scope: k}
+		if c.foreignPub.Load() == nil || c.foreignKey != k {
+			c.foreignKey = k
+			c.foreignPub.Publish(CapabilitySnapshot{Scope: k})
+		}
+		return c.foreignPub.Load()
+	}
+	if v := c.pub.Load(); v != nil && !c.dirty {
+		return v
 	}
 	out := c.state
 	out.Generation = c.generation
@@ -62,7 +79,9 @@ func (c *CapabilityControls) Snapshot(k RoutineScope) CapabilitySnapshot {
 		r.Command.Desired = pluginrpc.CloneDshbotCapabilityPolicies(r.Command.Desired)
 		out.Review = &r
 	}
-	return out
+	c.pub.Publish(out)
+	c.dirty = false
+	return c.pub.Load()
 }
 func (c *CapabilityControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -80,6 +99,7 @@ func (c *CapabilityControls) Current(t CapabilityTicket) bool {
 func (c *CapabilityControls) BeginLoad(k RoutineScope) (CapabilityTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || c.state.Busy {
 		return CapabilityTicket{}, false
 	}
@@ -87,19 +107,20 @@ func (c *CapabilityControls) BeginLoad(k RoutineScope) (CapabilityTicket, bool) 
 	c.state.Busy = true
 	c.state.Loaded = false
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	return CapabilityTicket{k, c.generation}, true
 }
 func (c *CapabilityControls) FinishLoad(t CapabilityTicket, value pluginrpc.DshbotCapabilityStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) {
 		return false
 	}
 	c.generation++
 	c.state.Busy = false
 	if err != nil || value.Bot.ID != t.Scope.BotID || value.Bot.SessionID == "" {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadFailedDraftRetainedAndLocked)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadFailedDraftRetainedAndLocked))
 		return true
 	}
 	if c.state.Draft == nil || !c.state.Dirty {
@@ -109,7 +130,7 @@ func (c *CapabilityControls) FinishLoad(t CapabilityTicket, value pluginrpc.Dshb
 	c.state.Writable = writable
 	c.state.Loaded = true
 	c.state.Dirty = !reflect.DeepEqual(c.state.Draft, value.Policies)
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewPreservedDraftAgainst)
 	return true
 }
@@ -119,6 +140,7 @@ func (c *CapabilityControls) editable(k RoutineScope) bool {
 func (c *CapabilityControls) Change(k RoutineScope, group, field, value string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.editable(k) || c.state.Review != nil || !slices.Contains(pluginrpc.DshbotCapabilityGroups, group) {
 		return
 	}
@@ -150,12 +172,13 @@ func (c *CapabilityControls) Change(k RoutineScope, group, field, value string) 
 	}
 	c.state.Draft[group] = p
 	c.state.Dirty = !reflect.DeepEqual(c.state.Draft, c.state.Status.Policies)
-	c.state.Error = ""
+	c.state.Error = nil
 	c.generation++
 }
 func (c *CapabilityControls) Discard(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || !c.state.Loaded || c.state.Busy {
 		return
 	}
@@ -167,22 +190,24 @@ func (c *CapabilityControls) Discard(k RoutineScope) {
 func (c *CapabilityControls) Prepare(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.editable(k) || !c.state.Dirty {
 		return
 	}
 	cmd := pluginrpc.DshbotCapabilityCommand{Expected: pluginrpc.CloneDshbotCapabilities(c.state.Status), Desired: pluginrpc.CloneDshbotCapabilityPolicies(c.state.Draft)}
 	if err := pluginrpc.ValidateDshbotCapabilityCommand(cmd); err != nil {
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	c.state.Review = &CapabilityReview{Command: cmd, Sequence: c.sequence}
-	c.state.Error = ""
+	c.state.Error = nil
 }
 func (c *CapabilityControls) Dismiss(k RoutineScope, r *CapabilityReview) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && r != nil && c.state.Review != nil && r.Sequence == c.state.Review.Sequence {
 		c.state.Review = nil
 		c.generation++
@@ -191,6 +216,7 @@ func (c *CapabilityControls) Dismiss(k RoutineScope, r *CapabilityReview) {
 func (c *CapabilityControls) Acknowledge(k RoutineScope, r *CapabilityReview, ack bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && r != nil && c.state.Review != nil && r.Sequence == c.state.Review.Sequence {
 		c.state.Review.Acknowledged = ack
 		c.generation++
@@ -199,6 +225,7 @@ func (c *CapabilityControls) Acknowledge(k RoutineScope, r *CapabilityReview, ac
 func (c *CapabilityControls) BeginSave(k RoutineScope, r *CapabilityReview) (CapabilityTicket, pluginrpc.DshbotCapabilityCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	var zero pluginrpc.DshbotCapabilityCommand
 	actual := c.state.Review
 	if !c.editable(k) || r == nil || actual == nil || actual.Sequence != r.Sequence || !actual.Acknowledged || !pluginrpc.SameDshbotCapabilities(actual.Command.Expected, c.state.Status) {
@@ -215,6 +242,7 @@ func (c *CapabilityControls) BeginSave(k RoutineScope, r *CapabilityReview) (Cap
 func (c *CapabilityControls) FinishSave(t CapabilityTicket, out pluginrpc.DshbotCapabilityReceipt, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) || c.state.Review == nil {
 		return false
 	}
@@ -223,14 +251,14 @@ func (c *CapabilityControls) FinishSave(t CapabilityTicket, out pluginrpc.Dshbot
 	c.state.Review = nil
 	c.state.Warnings = append([]string(nil), out.Warnings...)
 	if err != nil || out.Status.Bot.ID != t.Scope.BotID || out.Status.Bot.SessionID != c.state.Status.Bot.SessionID {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin))
 		if !out.Attempted {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent))
 		}
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(out.Status)
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotSavedReceiptReadBackToReconcile)
 	return true
 }

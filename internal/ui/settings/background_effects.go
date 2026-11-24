@@ -70,10 +70,9 @@ func backgroundEffectPreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.
 				draft.Preset = "custom"
 			}
 		})
-		beforeSpeed, beforeCount := draft.Speed, draft.Count
-		wallpaperSliderStep(c, "background-speed", providerCopy("速度", "Speed"), minimalOverrideHint(""), &draft.Speed, 20, 300, 10, g.Save == nil || busy, fg, muted)
-		wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), minimalOverrideHint(""), &draft.Count, 1, 5, g.Save == nil || busy, fg, muted)
-		if draft.Speed != beforeSpeed || draft.Count != beforeCount {
+		speedChanged := wallpaperSliderStep(c, "background-speed", providerCopy("速度", "Speed"), minimalOverrideHint(""), &draft.Speed, 20, 300, 10, g.Save == nil || busy, fg, muted)
+		countChanged := wallpaperSlider(c, "background-count", providerCopy("光团数量", "Orb count"), minimalOverrideHint(""), &draft.Count, 1, 5, g.Save == nil || busy, fg, muted)
+		if speedChanged || countChanged {
 			draft.Preset = "custom"
 		}
 		for i := range draft.Colors {

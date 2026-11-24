@@ -28,7 +28,7 @@ func TestBotRoutineAdvancedUIExplicitCommandAcknowledgement(t *testing.T) {
 			}
 			submitted := 0
 			tt := ui.NewTester(func(c *ui.Context) {
-				snapshot := controls.Snapshot(k)
+				snapshot := controls.Snapshot(k).Value
 				model := Model{Mode: assiststore.ModeDshbot, HarnessReady: true, DshbotEnabled: true, Routines: RoutineModel{State: snapshot, HostLabel: "https://fixture.invalid", OnRefresh: func() {}, OnChange: func(field, value string) { controls.Edit(k, field, value) }, OnReview: func(a string) { controls.Prepare(k, a) }, OnAcknowledgeWatch: func(ack bool) { controls.AcknowledgeWatch(k, snapshot.Review, ack) }, OnConfirm: func() {
 					if _, _, ok := controls.BeginAction(k, snapshot.Review); ok {
 						submitted++
@@ -52,7 +52,7 @@ func TestBotRoutineAdvancedUIExplicitCommandAcknowledgement(t *testing.T) {
 			if err := tt.Click(routineWatchAcknowledgement()); err != nil {
 				t.Fatal(err)
 			}
-			if submitted != 0 || !controls.Snapshot(k).Review.WatchAcknowledged {
+			if submitted != 0 || !controls.Snapshot(k).Value.Review.WatchAcknowledged {
 				t.Fatal("acknowledgement sent mutation or missing")
 			}
 			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction)); err != nil {

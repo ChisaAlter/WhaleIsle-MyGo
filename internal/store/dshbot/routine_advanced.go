@@ -2,8 +2,6 @@ package dshbot
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -63,10 +61,10 @@ func editRoutineAdvanced(d *RoutineAdvancedDraft, field, value, botID, currentID
 			d.ContextFrom = append(append([]string(nil), d.ContextFrom[:index]...), d.ContextFrom[index+1:]...)
 		} else {
 			if !routineContextCandidate(value, botID, currentID, rows) {
-				return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotContextSourceIsNotOwnedByThisBot))
+				return false, storelocale.Error(storelocale.KeyStoreDshbotContextSourceIsNotOwnedByThisBot)
 			}
 			if len(d.ContextFrom) >= 3 {
-				return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotAtMost3ContextSources))
+				return false, storelocale.Error(storelocale.KeyStoreDshbotAtMost3ContextSources)
 			}
 			d.ContextFrom = append(append([]string(nil), d.ContextFrom...), value)
 		}
@@ -76,20 +74,20 @@ func editRoutineAdvanced(d *RoutineAdvancedDraft, field, value, botID, currentID
 		d.SilentChanged = true
 	case "watchKind":
 		if value != "" && value != "url" && value != "command" {
-			return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotUnsupportedWatchKind))
+			return false, storelocale.Error(storelocale.KeyStoreDshbotUnsupportedWatchKind)
 		}
 		d.WatchKind = value
 		d.WatchUnknown = false
 		d.WatchChanged = true
 	case "watchValue":
 		if d.WatchUnknown {
-			return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotSelectASupportedWatchTypeFirst))
+			return false, storelocale.Error(storelocale.KeyStoreDshbotSelectASupportedWatchTypeFirst)
 		}
 		d.WatchValue = value
 		d.WatchChanged = true
 	case "watchTimeout":
 		if d.WatchUnknown {
-			return false, errors.New(storelocale.T(storelocale.KeyStoreDshbotSelectASupportedWatchTypeFirst))
+			return false, storelocale.Error(storelocale.KeyStoreDshbotSelectASupportedWatchTypeFirst)
 		}
 		d.WatchTimeout = value
 		d.WatchChanged = true
@@ -108,7 +106,7 @@ func prepareRoutineAdvanced(d RoutineAdvancedDraft, botID, currentID string, row
 	}
 	for _, id := range d.ContextFrom {
 		if !routineContextCandidate(id, botID, currentID, rows) {
-			return p, errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreDshbotContextSourceUnavailable), id))
+			return p, storelocale.Errorf(storelocale.KeyStoreDshbotContextSourceUnavailable, id)
 		}
 	}
 	if p.ContextSet {
@@ -117,7 +115,7 @@ func prepareRoutineAdvanced(d RoutineAdvancedDraft, botID, currentID string, row
 	if p.WatchSet && d.WatchKind != "" {
 		timeout, err := strconv.Atoi(strings.TrimSpace(d.WatchTimeout))
 		if err != nil {
-			return p, errors.New(storelocale.T(storelocale.KeyStoreDshbotWatchTimeoutMustBeIntegerMillisecon))
+			return p, storelocale.Error(storelocale.KeyStoreDshbotWatchTimeoutMustBeIntegerMillisecon)
 		}
 		p.Watch = &pluginrpc.DshbotRoutineWatch{Kind: d.WatchKind, Value: strings.TrimSpace(d.WatchValue), TimeoutMS: timeout}
 	}
@@ -140,6 +138,7 @@ func RoutineReviewNeedsWatchAcknowledgement(r RoutineReview) bool {
 func (c *RoutineControls) AcknowledgeWatch(s RoutineScope, expected *RoutineReview, ack bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(s) && !c.state.Busy && c.state.Review != nil && expected != nil && c.state.Review.Sequence == expected.Sequence {
 		c.state.Review.WatchAcknowledged = ack
 	}

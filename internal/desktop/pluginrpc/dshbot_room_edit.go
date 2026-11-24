@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // The room update endpoint accepts a whole profile, not a patch. Retain raw
@@ -311,11 +312,11 @@ func ValidateDshbotRoomEdit(cmd DshbotRoomEditCommand) error {
 			return err
 		}
 		if normalized != *v.Text {
-			return fmt.Errorf("review normalized room name/description before saving")
+			return storelocale.Authored("review normalized room name/description before saving")
 		}
 	}
 	if v.MaxRounds < 1 || v.MaxRounds > 3 || v.MaxSpeaks < 1 || v.MaxSpeaks > 10 || len(v.MemberBotIDs) < 2 || len(v.MemberBotIDs) > 6 {
-		return fmt.Errorf("choose 2–6 Bots, 1–3 rounds and 1–10 speaks")
+		return storelocale.Authored("choose 2–6 Bots, 1–3 rounds and 1–10 speaks")
 	}
 	available := map[string]bool{}
 	for _, row := range cmd.Expected.Catalog.Items {
@@ -326,7 +327,7 @@ func ValidateDshbotRoomEdit(cmd DshbotRoomEditCommand) error {
 	seen := map[string]bool{}
 	for _, id := range v.MemberBotIDs {
 		if !available[id] || seen[id] {
-			return fmt.Errorf("members must be distinct current Bot identities")
+			return storelocale.Authored("members must be distinct current Bot identities")
 		}
 		seen[id] = true
 	}

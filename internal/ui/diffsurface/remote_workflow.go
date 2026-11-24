@@ -161,11 +161,10 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, word("正在准备后续操作…", "Preparing next action…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	} else {
 		if s.Mode == "pr" {
-			oldTitle, oldBody, oldDraft := s.Title, s.Body, s.Draft
-			ui.Checkbox(c, &s.Draft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"))
-			ui.TextInput(c, &s.Title).FillWidth().Placeholder(word("PR 标题", "PR title"))
-			ui.TextArea(c, &s.Body).FillWidth().Lines(2, 6).Placeholder(word("PR 正文", "PR body"))
-			if oldTitle != s.Title || oldBody != s.Body || oldDraft != s.Draft {
+			draftChanged := ui.Checkbox(c, &s.Draft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)")).Changed()
+			titleChanged := ui.TextInput(c, &s.Title).FillWidth().Placeholder(word("PR 标题", "PR title")).Changed()
+			bodyChanged := ui.TextArea(c, &s.Body).FillWidth().Lines(2, 6).Placeholder(word("PR 正文", "PR body")).Changed()
+			if draftChanged || titleChanged || bodyChanged {
 				s.Plan = nil
 				s.PR = nil
 			}

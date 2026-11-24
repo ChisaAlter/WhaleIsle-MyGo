@@ -3,6 +3,7 @@ package dshbot
 import (
 	"fmt"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -11,7 +12,7 @@ type RoutineTriggerSnapshot struct {
 	Sequence                                uint64
 	RoutineID, RoutineName, SessionID       string
 	Revision                                int
-	Error                                   string
+	Error                                   *state.Fault
 }
 type RoutineTriggerTicket struct {
 	Scope                RoutineScope
@@ -25,6 +26,7 @@ type routineTriggerState struct {
 }
 
 func (c *RoutineControls) clearRoutineTrigger() {
+	c.dirty = true
 	clear(c.trigger.token)
 	if c.trigger.meta.Busy {
 		c.state.Busy = false
@@ -36,6 +38,7 @@ func (c *RoutineControls) clearRoutineTrigger() {
 func (c *RoutineControls) PrepareTrigger(s RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(s) || !c.state.Loaded || c.state.Busy {
 		return
 	}
@@ -53,6 +56,7 @@ func (c *RoutineControls) triggerBound(s RoutineScope, sequence uint64) bool {
 func (c *RoutineControls) AcknowledgeTrigger(s RoutineScope, sequence uint64, ack bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.triggerBound(s, sequence) && c.trigger.meta.Review && !c.state.Busy {
 		c.trigger.meta.Acknowledged = ack
 	}
@@ -60,6 +64,7 @@ func (c *RoutineControls) AcknowledgeTrigger(s RoutineScope, sequence uint64, ac
 func (c *RoutineControls) CloseTrigger(s RoutineScope, sequence uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.triggerBound(s, sequence) {
 		c.clearRoutineTrigger()
 	}
@@ -67,6 +72,7 @@ func (c *RoutineControls) CloseTrigger(s RoutineScope, sequence uint64) {
 func (c *RoutineControls) BeginTrigger(s RoutineScope, sequence uint64) (RoutineTriggerTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	m := c.trigger.meta
 	if !c.triggerBound(s, sequence) || !c.state.Loaded || c.state.Busy || !m.Review || !m.Acknowledged || m.Revision != c.state.Revision {
 		return RoutineTriggerTicket{}, false
@@ -93,6 +99,7 @@ func (c *RoutineControls) CurrentTrigger(t RoutineTriggerTicket) bool {
 func (c *RoutineControls) FinishTrigger(t RoutineTriggerTicket, token []byte, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.triggerCurrent(t) {
 		return false
 	}
@@ -104,7 +111,7 @@ func (c *RoutineControls) FinishTrigger(t RoutineTriggerTicket, token []byte, er
 	// refresh before further writes; that refresh also clears the displayed token.
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRefreshBeforeFurtherChangesRefreshC)
 	if err != nil || len(token) == 0 {
-		c.trigger.meta.Error = storelocale.T(storelocale.KeyStoreDshbotCredentialOutcomeUncertainNoAutomati)
+		c.trigger.meta.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotCredentialOutcomeUncertainNoAutomati))
 		return true
 	}
 	c.trigger.token = append([]byte(nil), token...)
