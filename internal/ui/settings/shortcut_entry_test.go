@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestDSK10NativeEntry(t *testing.T) {

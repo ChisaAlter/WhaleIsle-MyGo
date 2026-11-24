@@ -5,9 +5,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestAgentPresetSettingsParity(t *testing.T) {

@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/providerdiscovery"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestSP23HostDiscoveryAvailableWithoutEndpoint(t *testing.T) {

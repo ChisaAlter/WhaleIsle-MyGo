@@ -2,7 +2,6 @@ package settings
 
 import (
 	"errors"
-	"github.com/egoist/mygo/ui"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +12,8 @@ import (
 	"whaleisle/internal/config"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestSP06DesktopNativeEntry(t *testing.T) {

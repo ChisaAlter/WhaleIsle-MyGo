@@ -3,13 +3,13 @@ package settings
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/pet"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func fullRailModel() Model {
@@ -60,29 +60,35 @@ func TestSettingsRailIsGroupedLikeTheInstalledBuild(t *testing.T) {
 	}
 }
 
-func TestSettingsRailGeometryMatchesTheInstalledBuild(t *testing.T) {
+// TestSettingsRailCellsShareAUniformGrid pins the rail's coss layout contract:
+// every nav cell sits on the same column with the same box, stacked in group
+// order above the options pane, which starts right of the rail.
+func TestSettingsRailCellsShareAUniformGrid(t *testing.T) {
 	previous := i18n.Locale()
 	i18n.SetLocale(i18n.LocaleZH)
 	t.Cleanup(func() { i18n.SetLocale(previous) })
 	m := fullRailModel()
 	m.ActiveSection, m.SectionContent = SectionGeneral, func(c *ui.Context) { ui.Box(c).Label("origin").Size(8, 8) }
 	tt := ui.NewTester(func(c *ui.Context) { ModalView(c, m) }, 1440, 864)
-	for _, expected := range []struct {
-		label               string
-		x, y, width, height float32
-	}{
-		// panel (320,32): search 164x32 at +12,+64; first group label 20 DIP at +114;
-		// cells 36 DIP high, 2 DIP apart; groups 12 DIP apart.
-		{"用量与费用", 332, 168, 164, 36},
-		{"通用设置", 332, 238, 164, 36},
-		{"外观", 332, 276, 164, 36},
-		{"对话", 332, 352, 164, 36},
-		{"模型", 332, 422, 164, 36},
-	} {
-		got, found := tt.Find(expected.label)
-		if !found || got.X != expected.x || got.Y != expected.y || got.W != expected.width || got.H != expected.height {
-			t.Fatalf("%s actual=%+v found=%v want=(%g,%g,%g,%g)", expected.label, got, found, expected.x, expected.y, expected.width, expected.height)
+	var prev ui.Rect
+	for i, label := range []string{"用量与费用", "通用设置", "外观", "对话", "模型"} {
+		got, found := tt.Find(label)
+		if !found || got.W <= 0 || got.H <= 0 {
+			t.Fatalf("%s actual=%+v found=%v", label, got, found)
 		}
+		if i > 0 {
+			if got.X != prev.X || got.W != prev.W || got.H != prev.H {
+				t.Fatalf("%s off the rail grid: %+v vs %+v", label, got, prev)
+			}
+			if got.Y <= prev.Y {
+				t.Fatalf("%s not stacked below %v: %+v", label, prev, got)
+			}
+		}
+		prev = got
+	}
+	origin, found := tt.Find("origin")
+	if !found || origin.X <= prev.X+prev.W {
+		t.Fatalf("options pane is not right of the rail: %+v vs %+v", origin, prev)
 	}
 }
 
@@ -146,14 +152,48 @@ func TestSettingsSearchResultOpensItsSection(t *testing.T) {
 	}
 }
 
-func TestSettingsPanelBaseIsTheRaisedLayer(t *testing.T) {
-	light := theme.Resolve(theme.IDDeepseekLight).Active(false)
-	dark := theme.Resolve(theme.IDDeepseekDark).Active(true)
-	if got := settingsPanelBase(light, false); got != ui.RGB(255, 255, 255) {
-		t.Fatalf("light panel base = %v, want white", got)
+// TestSettingsPanelPaintsThePopoverSurface pins the modal's surface contract:
+// the panel reads coss's raised popover token in both schemes, floating over
+// the black/32 dimming backdrop.
+func TestSettingsPanelPaintsThePopoverSurface(t *testing.T) {
+	bg := ui.RGB(8, 96, 8)
+	var popover ui.Color
+	m := fullRailModel()
+	m.ActiveSection, m.SectionContent = SectionGeneral, func(c *ui.Context) {}
+	tt := ui.NewTester(func(c *ui.Context) {
+		popover = tk(c).Popover
+		ui.Column(c).Fill().Background(bg)
+		ModalView(c, m)
+	}, 1440, 864)
+	settle := func() {
+		t0 := time.Now()
+		tt.SetTime(t0)
+		tt.Frame()
+		tt.SetTime(t0.Add(time.Second))
+		tt.Frame()
 	}
-	if got := settingsPanelBase(dark, true); got != theme.Color("#232324") {
-		t.Fatalf("dark panel base = %v, want rgb(35, 35, 36)", got)
+	near := func(px, want uint8) bool { d := int(px) - int(want); return d > -4 && d < 4 }
+	settle()
+	panel := ui.Rect{}
+	for _, r := range tt.FindAll(i18n.T(i18n.KeySettingsTitle)) {
+		if r.W*r.H > panel.W*panel.H {
+			panel = r
+		}
+	}
+	if panel.W == 0 {
+		t.Fatalf("settings panel not found: %v", tt.Texts())
+	}
+	for _, dark := range []bool{false, true} {
+		tt.SetDark(dark)
+		settle()
+		px := tt.Image().RGBAAt(int(panel.X+panel.W)-24, int(panel.Y+panel.H/2))
+		if !near(px.R, popover.R) || !near(px.G, popover.G) || !near(px.B, popover.B) {
+			t.Fatalf("dark%v panel paints %v, want popover %v", dark, px, popover)
+		}
+		mask := tt.Image().RGBAAt(4, 4)
+		if !near(mask.G, uint8(float32(bg.G)*0.68+0.5)) || mask.G == popover.G {
+			t.Fatalf("dark%v backdrop is %v, want black/32 over %v", dark, mask, bg)
+		}
 	}
 }
 

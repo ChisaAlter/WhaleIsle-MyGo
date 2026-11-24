@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/desktop/pet"
@@ -18,6 +17,8 @@ import (
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func bodyFixtureHost() *BodySettingsAccess {

@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestCreatorTaskEntryUIFixture(t *testing.T) {

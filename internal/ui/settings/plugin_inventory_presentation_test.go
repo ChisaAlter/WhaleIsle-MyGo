@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/plugininventory"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestPluginInventoryCardsReflowAndExpandTheirOwnEntry(t *testing.T) {

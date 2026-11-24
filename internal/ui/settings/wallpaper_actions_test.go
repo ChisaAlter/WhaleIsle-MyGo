@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"github.com/egoist/mygo/ui"
 	"image"
 	"image/png"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"testing"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func wallpaperFixture(t *testing.T) (*WallpaperEditor, *[]wallpapers.Preferences, *[]string) {

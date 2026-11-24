@@ -5,38 +5,75 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
-func TestSettingsSelectedRailUsesExactSourceTokensAndOverrides(t *testing.T) {
-	previous := theme.CurrentPreferences()
-	t.Cleanup(func() { theme.SetPreferences(previous) })
-	prefs := theme.Defaults()
-	theme.SetPreferences(prefs)
-	for _, tc := range []struct {
-		id          string
-		fill, brand ui.Color
-	}{
-		// 0.3.13: a neutral wash that keeps the label colour.
-		{theme.IDDeepseekLight, ui.RGBA(38, 49, 72, .10), ui.RGB(65, 118, 230)},
-		{theme.IDDeepseekDark, ui.RGBA(255, 255, 255, .14), ui.RGB(86, 134, 254)},
-	} {
-		fill, ink := settingsSelectedRailColors(Model{ThemeID: tc.id})
-		fg := theme.Color(theme.Resolve(tc.id).Active(false).FG)
-		if fill != tc.fill || ink != fg {
-			t.Fatalf("source token %s: fill%v ink%v", tc.id, fill, ink)
+// buttonRect picks a labelled element's own box out of the nodes that carry
+// its name: the element registers first, its copy paints inside it.
+func buttonRect(rs []ui.Rect) ui.Rect {
+	out := ui.Rect{}
+	for _, r := range rs {
+		if r.W*r.H > out.W*out.H {
+			out = r
 		}
 	}
-	prefs.Light = "codex"
-	theme.SetPreferences(prefs)
-	fill, _ := settingsSelectedRailColors(Model{ThemeID: theme.IDDeepseekLight})
-	if fill != ui.Hex("#dce7ff") {
-		t.Fatalf("explicit installed Codex active-accent override lost: %v", fill)
+	return out
+}
+
+// TestSettingsSelectedRailPaintsTheSidebarAccentWash pins the selected rail
+// cell's fill to the coss sidebar-accent token in both schemes; an inactive
+// cell keeps the bare sidebar surface.
+func TestSettingsSelectedRailPaintsTheSidebarAccentWash(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		query := ""
+		var sidebar, accent ui.Color
+		tt := ui.NewTester(func(c *ui.Context) {
+			tokens := tk(c)
+			sidebar, accent = tokens.Sidebar, tokens.SidebarAccent
+			ui.Column(c).Fill().Background(sidebar).Children(func() {
+				railButton(c, Model{}, navigationEntry{id: SectionGeneral, icon: "SettingsOutline"}, true, &query)
+				railButton(c, Model{}, navigationEntry{id: SectionAppearance, icon: "LightOutline"}, false, &query)
+			})
+		}, 240, 120)
+		tt.SetDark(dark)
+		sel := buttonRect(tt.FindAll(navigationLabel(Model{}, SectionGeneral)))
+		idle := buttonRect(tt.FindAll(navigationLabel(Model{}, SectionAppearance)))
+		if sel.W == 0 || idle.W == 0 {
+			t.Fatalf("dark%v rail cells not found: %v", dark, tt.Texts())
+		}
+		px := func(r ui.Rect) (uint8, uint8, uint8) {
+			p := tt.Image().RGBAAt(int(r.X+r.W)-6, int(r.Y+r.H/2))
+			return p.R, p.G, p.B
+		}
+		blend := func(base, over uint8, alpha uint8) int {
+			a := float64(alpha) / 255
+			return int(float64(base)*(1-a) + float64(over)*a + .5)
+		}
+		want := func(base, over ui.Color) (int, int, int) {
+			return blend(base.R, over.R, over.A), blend(base.G, over.G, over.A), blend(base.B, over.B, over.A)
+		}
+		near := func(got uint8, want int) bool { d := int(got) - want; return d > -4 && d < 4 }
+		r, g, b := px(sel)
+		wr, wg, wb := want(sidebar, accent)
+		if !near(r, wr) || !near(g, wg) || !near(b, wb) {
+			t.Fatalf("dark%v selected fill rgba(%d,%d,%d), want sidebar-accent over sidebar ~(%d,%d,%d)", dark, r, g, b, wr, wg, wb)
+		}
+		r, g, b = px(idle)
+		if !near(r, int(sidebar.R)) || !near(g, int(sidebar.G)) || !near(b, int(sidebar.B)) {
+			t.Fatalf("dark%v inactive fill rgba(%d,%d,%d), want bare sidebar %v", dark, r, g, b, sidebar)
+		}
 	}
 }
 
-func TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors(t *testing.T) {
+// TestSettingsSwitchSourceBranchesKeepInteractionAndColors pins the coss
+// switch contract: the labelled row switch is the 30×18 track itself while the
+// input branch keeps a wider 44×28 hit box with the track drawn centered, the
+// on track paints the primary token in both schemes, and keyboard, pointer and
+// the disabled state behave identically on both branches.
+func TestSettingsSwitchSourceBranchesKeepInteractionAndColors(t *testing.T) {
 	previous := theme.CurrentPreferences()
 	t.Cleanup(func() { theme.SetPreferences(previous) })
 	prefs := theme.Defaults()
@@ -44,7 +81,9 @@ func TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors(t *testing.T
 	for _, dark := range []bool{false, true} {
 		for _, style := range []settingsSwitchStyle{settingsSwitchLabelled, settingsSwitchInput} {
 			value, disabled, changes := true, false, 0
+			var want ui.Color
 			tt := ui.NewTester(func(c *ui.Context) {
+				want = tk(c).Primary
 				ui.Column(c).Fill().Padding(20).Children(func() {
 					if settingsPreferenceSwitch(c, &value, style).Label("Source switch branch").Disabled(disabled).Changed() {
 						changes++
@@ -55,19 +94,14 @@ func TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors(t *testing.T
 			tt.SetTime(time.Unix(1000, 0))
 			tt.SetTime(time.Unix(1001, 0))
 			bounds, found := tt.Find("Source switch branch")
-			wantWidth, wantHeight := float32(36), float32(20)
+			wantWidth, wantHeight := toggleWidth, toggleHeight
 			if style == settingsSwitchInput {
-				wantWidth, wantHeight = 44, 28
+				wantWidth, wantHeight = 11*design.Unit, 7*design.Unit
 			}
 			if !found || bounds.W != wantWidth || bounds.H != wantHeight {
 				t.Fatalf("style%v bounds%+v dark%v", style, bounds, dark)
 			}
-			colors := theme.ResolveWithSystem(theme.IDSystem, dark).Active(dark)
-			want := theme.Color(colors.BrandPrimary)
-			if style == settingsSwitchInput {
-				want = theme.Color(colors.Accent)
-			}
-			pixel := tt.Image().RGBAAt(int(bounds.X+(bounds.W-36)/2+8), int(bounds.Y+bounds.H/2))
+			pixel := tt.Image().RGBAAt(int(bounds.X+(bounds.W-toggleWidth)/2+8), int(bounds.Y+bounds.H/2))
 			if pixel.R != want.R || pixel.G != want.G || pixel.B != want.B {
 				t.Fatalf("style%v dark%v on track%v want%v", style, dark, pixel, want)
 			}
@@ -121,7 +155,7 @@ func TestSettingsSwitchHostSourceStylesPreserveCallbacks(t *testing.T) {
 	coding := titleRect(tt.FindAll("Coding switch"))
 	git := titleRect(tt.FindAll("Git switch"))
 	// Titles now own only their intrinsic text width; switch geometry itself is
-	// pinned by TestSettingsSwitchSourceBranchesKeepNativeInteractionAndColors.
+	// pinned by TestSettingsSwitchSourceBranchesKeepInteractionAndColors.
 	if coding.W <= 0 || git.W <= 0 || coding.H != 22 || git.H != 22 || coding.Y >= git.Y {
 		t.Fatalf("source row title geometry coding%+v git%+v", coding, git)
 	}
@@ -155,8 +189,8 @@ func TestSettingsPillSelectPreservesNativeKeyboardAndDisabledContract(t *testing
 		})
 	}, 400, 240)
 	bounds, ok := tt.Find("Pill probe")
-	if !ok || bounds.H != 36 {
-		t.Fatalf("pill trigger=%+v found=%v want36px", bounds, ok)
+	if !ok || bounds.H != design.Sp(8) {
+		t.Fatalf("pill trigger=%+v found=%v want h-8", bounds, ok)
 	}
 	tt.Key(0, ui.KeyTab)
 	tt.Key(0, ui.KeyDown)
@@ -187,8 +221,8 @@ func TestSettingsSourceRowHeightAndAdjacentGearToggle(t *testing.T) {
 	}, 560, 300)
 	first, _ := tt.Find("Source title")
 	second, _ := tt.Find("Other title")
-	if math.Abs(float64(second.Y-first.Y-76.5)) > .1 {
-		t.Fatalf("source22+4+18+16*2+.5 row pitch=%g", second.Y-first.Y)
+	if math.Abs(float64(second.Y-first.Y-75)) > .1 {
+		t.Fatalf("source row pitch=%g want 75 (rows tile with no gap)", second.Y-first.Y)
 	}
 	gear, g := tt.Find("Source gear")
 	toggle, s := tt.Find("Source switch")

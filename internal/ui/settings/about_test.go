@@ -2,13 +2,14 @@ package settings
 
 import (
 	"errors"
-	"github.com/egoist/mygo/ui"
 	"strings"
 	"testing"
 	"time"
 	"whaleisle/internal/credentials"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestAboutStorageWarningsAndLinks(t *testing.T) {

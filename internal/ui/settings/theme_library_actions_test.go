@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func libraryActionsFixture(t *testing.T, width int, writable bool) (*theme.Editor, *ui.Tester, *int) {
