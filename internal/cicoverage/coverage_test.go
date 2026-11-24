@@ -318,6 +318,162 @@ jobs:
       - run: go test -o ./internal/state ./internal/other
 `,
 		},
+		{
+			name: "F1 -C escape rejected",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: go test -C ../outside ./...
+`,
+		},
+		{
+			name: "F4 inline GOFLAGS",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: GOFLAGS=-run=^$ go test ./internal/state
+`,
+		},
+		{
+			name: "F4 step env GOFLAGS",
+			wf: `
+jobs:
+  a:
+    steps:
+      - env:
+          GOFLAGS: -run=^$
+        run: go test ./internal/state
+`,
+		},
+		{
+			name: "F4 job env GOFLAGS",
+			wf: `
+jobs:
+  a:
+    env:
+      GOFLAGS: -run=^$
+    steps:
+      - run: go test ./internal/state
+`,
+		},
+		{
+			name: "F4 export GOFLAGS",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: |
+          export GOFLAGS=-run=^$
+          go test ./internal/state
+`,
+		},
+		{
+			name: "F5 -exec rejected",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: go test -exec 'cmd /c rem' ./internal/state
+`,
+		},
+		{
+			name: "F6 -count=0 rejected",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: go test -count=0 ./internal/state
+`,
+		},
+		{
+			name: "F7 -skip slash skips all subtests",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: go test -skip / ./internal/state
+`,
+		},
+		{
+			name: "F7 -skip subtest wildcard",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: go test -skip '^TestFoo/.*' ./internal/state
+`,
+		},
+		{
+			name: "F8 if false then inline",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: if false; then go test ./internal/state; fi
+`,
+		},
+		{
+			name: "F8 negated go test",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: '! go test ./internal/state'
+`,
+		},
+		{
+			name: "F8 heredoc body",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: |
+          cat > never.sh <<'EOF'
+          go test ./internal/state
+          EOF
+`,
+		},
+		{
+			name: "F9 if !true",
+			wf: `
+jobs:
+  a:
+    steps:
+      - if: ${{ !true }}
+        run: go test ./internal/state
+`,
+		},
+		{
+			name: "F9 swallowed failure with || true",
+			wf: `
+jobs:
+  a:
+    steps:
+      - run: go test ./internal/state || true
+`,
+		},
+		{
+			name: "F9 step continue-on-error",
+			wf: `
+jobs:
+  a:
+    steps:
+      - continue-on-error: true
+        run: go test ./internal/state
+`,
+		},
+		{
+			name: "F9 job continue-on-error",
+			wf: `
+jobs:
+  a:
+    continue-on-error: true
+    steps:
+      - run: go test ./internal/state
+`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -349,10 +505,67 @@ jobs:
     steps:
       - if: ${{ !cancelled() && steps.go.outcome == 'success' }}
         run: go test -count=1 -skip '^TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU$' ./internal/ui/settings
+      - run: go test -skip '^TestFoo/specific_sub$' ./internal/ui/other
 `
 		pats := CoveredPatterns([]byte(wf))
-		if !pats["./internal/ui/settings"] || len(pats) != 1 {
-			t.Fatalf("got %v, want only ./internal/ui/settings", pats)
+		if !pats["./internal/ui/settings"] || !pats["./internal/ui/other"] || len(pats) != 2 {
+			t.Fatalf("got %v, want ./internal/ui/settings and ./internal/ui/other", pats)
+		}
+	})
+
+	t.Run("F1 -C resolves packages relative to subdir without leaking root", func(t *testing.T) {
+		wf := `
+jobs:
+  a:
+    steps:
+      - run: go test -C third_party/mygo ./...
+`
+		pats := CoveredPatterns([]byte(wf))
+		if !pats["./third_party/mygo/..."] || len(MissingCoverage([]string{"./internal/state"}, pats, nil)) == 0 {
+			t.Fatalf("expected only ./third_party/mygo/..., got %v", pats)
+		}
+	})
+
+	t.Run("F2 packages after -- are test binary args not packages", func(t *testing.T) {
+		wf := `
+jobs:
+  a:
+    steps:
+      - run: go test ./internal/paths -- ./internal/state
+`
+		pats := CoveredPatterns([]byte(wf))
+		if !pats["./internal/paths"] || pats["./internal/state"] || len(pats) != 1 {
+			t.Fatalf("got %v, want only ./internal/paths", pats)
+		}
+	})
+
+	t.Run("F3 packages after trailing flag are test binary args not packages", func(t *testing.T) {
+		wf := `
+jobs:
+  a:
+    steps:
+      - run: go test ./internal/paths -count=1 ./internal/state
+`
+		pats := CoveredPatterns([]byte(wf))
+		if !pats["./internal/paths"] || pats["./internal/state"] || len(pats) != 1 {
+			t.Fatalf("got %v, want only ./internal/paths", pats)
+		}
+	})
+
+	t.Run("F4 empty GOFLAGS override remains covered", func(t *testing.T) {
+		wf := `
+jobs:
+  a:
+    env:
+      GOFLAGS: -run=^$
+    steps:
+      - env:
+          GOFLAGS: ""
+        run: go test ./internal/paths
+`
+		pats := CoveredPatterns([]byte(wf))
+		if !pats["./internal/paths"] || len(pats) != 1 {
+			t.Fatalf("got %v, want only ./internal/paths", pats)
 		}
 	})
 

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -85,6 +86,7 @@ func TestPackages(root string) ([]string, error) {
 }
 
 type workflowDoc struct {
+	Env      map[string]string      `yaml:"env"`
 	Defaults workflowDefaults       `yaml:"defaults"`
 	Jobs     map[string]workflowJob `yaml:"jobs"`
 }
@@ -98,15 +100,19 @@ type runDefaults struct {
 }
 
 type workflowJob struct {
-	If       yaml.Node        `yaml:"if"`
-	Defaults workflowDefaults `yaml:"defaults"`
-	Steps    []workflowStep   `yaml:"steps"`
+	If              yaml.Node         `yaml:"if"`
+	ContinueOnError yaml.Node         `yaml:"continue-on-error"`
+	Env             map[string]string `yaml:"env"`
+	Defaults        workflowDefaults  `yaml:"defaults"`
+	Steps           []workflowStep    `yaml:"steps"`
 }
 
 type workflowStep struct {
-	If               yaml.Node `yaml:"if"`
-	Run              string    `yaml:"run"`
-	WorkingDirectory string    `yaml:"working-directory"`
+	If               yaml.Node         `yaml:"if"`
+	ContinueOnError  yaml.Node         `yaml:"continue-on-error"`
+	Env              map[string]string `yaml:"env"`
+	Run              string            `yaml:"run"`
+	WorkingDirectory string            `yaml:"working-directory"`
 }
 
 // ParseCoveredPatterns parses workflow with YAML semantics and extracts the
@@ -118,17 +124,29 @@ func ParseCoveredPatterns(workflow []byte) (map[string]bool, error) {
 	if err := yaml.Unmarshal(workflow, &doc); err != nil {
 		return nil, err
 	}
+	docGoFlags, _ := lookupEnvCI(doc.Env, "GOFLAGS")
 	patterns := map[string]bool{}
 	for _, job := range doc.Jobs {
-		if isDisabledIf(job.If) {
+		if isDisabledIf(job.If) || isContinueOnError(job.ContinueOnError) {
 			continue
 		}
 		jobWD := job.Defaults.Run.WorkingDirectory
 		if jobWD == "" {
 			jobWD = doc.Defaults.Run.WorkingDirectory
 		}
+		jobGoFlags := docGoFlags
+		if v, ok := lookupEnvCI(job.Env, "GOFLAGS"); ok {
+			jobGoFlags = v
+		}
 		for _, step := range job.Steps {
-			if isDisabledIf(step.If) || strings.TrimSpace(step.Run) == "" {
+			if isDisabledIf(step.If) || isContinueOnError(step.ContinueOnError) || strings.TrimSpace(step.Run) == "" {
+				continue
+			}
+			stepGoFlags := jobGoFlags
+			if v, ok := lookupEnvCI(step.Env, "GOFLAGS"); ok {
+				stepGoFlags = v
+			}
+			if strings.TrimSpace(stepGoFlags) != "" {
 				continue
 			}
 			wd := step.WorkingDirectory
@@ -141,6 +159,15 @@ func ParseCoveredPatterns(workflow []byte) (map[string]bool, error) {
 		}
 	}
 	return patterns, nil
+}
+
+func lookupEnvCI(env map[string]string, key string) (string, bool) {
+	for k, v := range env {
+		if strings.EqualFold(k, key) {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 // CoveredPatterns extracts the package arguments of every full-package `go test`
@@ -165,8 +192,29 @@ func isDisabledIf(node yaml.Node) bool {
 	if strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}") {
 		s = strings.TrimSpace(s[3 : len(s)-2])
 	}
+	for len(s) >= 2 && strings.HasPrefix(s, "(") && strings.HasSuffix(s, ")") {
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
 	s = strings.ToLower(s)
-	return s == "false" || s == "0"
+	return s == "false" || s == "0" || s == "!true" || s == "!1"
+}
+
+func isContinueOnError(node yaml.Node) bool {
+	if node.Kind == yaml.AliasNode && node.Alias != nil {
+		node = *node.Alias
+	}
+	if node.Kind == 0 || node.Kind != yaml.ScalarNode {
+		return false
+	}
+	s := strings.TrimSpace(node.Value)
+	if strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}") {
+		s = strings.TrimSpace(s[3 : len(s)-2])
+	}
+	for len(s) >= 2 && strings.HasPrefix(s, "(") && strings.HasSuffix(s, ")") {
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	s = strings.ToLower(s)
+	return s != "" && s != "false" && s != "0" && s != "!true" && s != "!1"
 }
 
 type shellToken struct {
@@ -174,11 +222,17 @@ type shellToken struct {
 	hasCmdSubst bool
 }
 
+type shellCommand struct {
+	tokens       []shellToken
+	followedByOr bool
+}
+
 // goTestValueFlags enumerates `go test` / `go build` flags that take a separate
 // value argument when not written as `-flag=value`. Boolean flags (a, c, i, n,
 // race, cover, short, v, work, etc.) must stay absent so the next package
 // argument is not mistakenly consumed as a flag value.
 var goTestValueFlags = map[string]bool{
+	"C":                    true,
 	"p":                    true,
 	"asmflags":             true,
 	"buildmode":            true,
@@ -227,45 +281,237 @@ var goTestValueFlags = map[string]bool{
 	"trace":                true,
 }
 
+type heredocSpec struct {
+	delim     string
+	stripTabs bool
+}
+
 // goTestPackageArgs finds full-package `go test` commands inside a step script
 // and returns their package arguments resolved against the step's
 // working-directory.
 func goTestPackageArgs(runScript, workDir string) []string {
 	var pats []string
+	stepGoFlagsActive := false
 	for _, line := range joinShellLines(runScript) {
 		for _, cmd := range splitShellCommands(line) {
-			pats = append(pats, parseGoTestCommand(cmd, workDir)...)
+			if updateStepGoFlags(cmd.tokens, &stepGoFlagsActive) {
+				continue
+			}
+			if cmd.followedByOr || stepGoFlagsActive {
+				continue
+			}
+			pats = append(pats, parseGoTestCommand(cmd.tokens, workDir)...)
 		}
 	}
 	return pats
 }
 
+func updateStepGoFlags(tokens []shellToken, active *bool) bool {
+	if len(tokens) == 0 {
+		return false
+	}
+	if tokens[0].val == "export" {
+		for _, tok := range tokens[1:] {
+			if isShellEnvAssign(tok.val) {
+				k, v, _ := strings.Cut(tok.val, "=")
+				if strings.EqualFold(k, "GOFLAGS") {
+					*active = strings.TrimSpace(v) != ""
+				}
+			}
+		}
+		return true
+	}
+	if tokens[0].val == "unset" {
+		for _, tok := range tokens[1:] {
+			if strings.EqualFold(tok.val, "GOFLAGS") {
+				*active = false
+			}
+		}
+		return true
+	}
+	for _, tok := range tokens {
+		if !isShellEnvAssign(tok.val) {
+			return false
+		}
+	}
+	for _, tok := range tokens {
+		k, v, _ := strings.Cut(tok.val, "=")
+		if strings.EqualFold(k, "GOFLAGS") {
+			*active = strings.TrimSpace(v) != ""
+		}
+	}
+	return true
+}
+
 func joinShellLines(runScript string) []string {
 	norm := strings.ReplaceAll(runScript, "\r\n", "\n")
 	raw := strings.Split(norm, "\n")
+	var pending []heredocSpec
 	filtered := make([]string, 0, len(raw))
-	for _, l := range raw {
-		trimmed := strings.TrimSpace(l)
+	for i := 0; i < len(raw); i++ {
+		line := raw[i]
+		if len(pending) > 0 {
+			cand := line
+			if pending[0].stripTabs {
+				cand = strings.TrimLeft(cand, "\t")
+			}
+			if cand == pending[0].delim {
+				pending = pending[1:]
+			}
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		filtered = append(filtered, l)
-	}
-	var out []string
-	for i := 0; i < len(filtered); i++ {
-		cur := strings.TrimRight(filtered[i], " \t")
-		for strings.HasSuffix(cur, "\\") && !strings.HasSuffix(cur, "\\\\") && i+1 < len(filtered) {
-			cur = strings.TrimSuffix(cur, "\\")
+		filtered = append(filtered, line)
+		cur := strings.TrimRight(line, " \t")
+		for strings.HasSuffix(cur, "\\") && !strings.HasSuffix(cur, "\\\\") && i+1 < len(raw) {
 			i++
-			cur = strings.TrimRight(cur, " \t") + " " + strings.TrimSpace(filtered[i])
+			next := raw[i]
+			nextTrim := strings.TrimSpace(next)
+			if nextTrim != "" && !strings.HasPrefix(nextTrim, "#") {
+				filtered[len(filtered)-1] = strings.TrimRight(strings.TrimSuffix(cur, "\\"), " \t") + " " + nextTrim
+			}
+			cur = strings.TrimRight(filtered[len(filtered)-1], " \t")
 		}
-		out = append(out, cur)
+		pending = append(pending, scanHeredocs(filtered[len(filtered)-1])...)
 	}
-	return out
+	return filtered
 }
 
-func splitShellCommands(line string) [][]shellToken {
-	var cmds [][]shellToken
+func scanHeredocs(line string) []heredocSpec {
+	var specs []heredocSpec
+	inSingle := false
+	inDouble := false
+	arithDepth := 0
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if inSingle {
+			if ch == '\'' {
+				inSingle = false
+			}
+			continue
+		}
+		if ch == '\\' && i+1 < len(line) {
+			i++
+			continue
+		}
+		if inDouble {
+			if ch == '"' {
+				inDouble = false
+			}
+			continue
+		}
+		if arithDepth > 0 {
+			if ch == '(' && i+1 < len(line) && line[i+1] == '(' {
+				arithDepth++
+				i++
+			} else if ch == ')' && i+1 < len(line) && line[i+1] == ')' {
+				arithDepth--
+				i++
+			}
+			continue
+		}
+		switch ch {
+		case '\'':
+			inSingle = true
+		case '"':
+			inDouble = true
+		case '#':
+			if i == 0 || line[i-1] == ' ' || line[i-1] == '\t' || line[i-1] == ';' || line[i-1] == '&' || line[i-1] == '|' {
+				return specs
+			}
+		case '$':
+			if i+2 < len(line) && line[i+1] == '(' && line[i+2] == '(' {
+				arithDepth++
+				i += 2
+			}
+		case '(':
+			if i+1 < len(line) && line[i+1] == '(' {
+				arithDepth++
+				i++
+			}
+		case '<':
+			if i+1 < len(line) && line[i+1] == '<' {
+				if i+2 < len(line) && line[i+2] == '<' {
+					i += 2
+					continue
+				}
+				j := i + 2
+				stripTabs := false
+				if j < len(line) && line[j] == '-' {
+					stripTabs = true
+					j++
+				}
+				for j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+					j++
+				}
+				delim, nextIdx := readHeredocDelim(line, j)
+				if delim != "" {
+					specs = append(specs, heredocSpec{delim: delim, stripTabs: stripTabs})
+				}
+				i = nextIdx - 1
+			}
+		}
+	}
+	return specs
+}
+
+func readHeredocDelim(line string, start int) (string, int) {
+	var b strings.Builder
+	inS := false
+	inD := false
+	i := start
+	for i < len(line) {
+		ch := line[i]
+		if inS {
+			if ch == '\'' {
+				inS = false
+			} else {
+				b.WriteByte(ch)
+			}
+			i++
+			continue
+		}
+		if inD {
+			if ch == '\\' && i+1 < len(line) {
+				b.WriteByte(line[i+1])
+				i += 2
+				continue
+			}
+			if ch == '"' {
+				inD = false
+			} else {
+				b.WriteByte(ch)
+			}
+			i++
+			continue
+		}
+		if ch == ' ' || ch == '\t' || ch == ';' || ch == '|' || ch == '&' || ch == '<' || ch == '>' || ch == ')' || ch == '(' {
+			break
+		}
+		switch ch {
+		case '\'':
+			inS = true
+		case '"':
+			inD = true
+		case '\\':
+			if i+1 < len(line) {
+				b.WriteByte(line[i+1])
+				i += 2
+				continue
+			}
+		default:
+			b.WriteByte(ch)
+		}
+		i++
+	}
+	return b.String(), i
+}
+
+func splitShellCommands(line string) []shellCommand {
+	var cmds []shellCommand
 	var curCmd []shellToken
 	var buf strings.Builder
 	inToken := false
@@ -281,10 +527,10 @@ func splitShellCommands(line string) [][]shellToken {
 			hasCmdSubst = false
 		}
 	}
-	flushCmd := func() {
+	flushCmd := func(followedByOr bool) {
 		flushToken()
 		if len(curCmd) > 0 {
-			cmds = append(cmds, curCmd)
+			cmds = append(cmds, shellCommand{tokens: curCmd, followedByOr: followedByOr})
 			curCmd = nil
 		}
 	}
@@ -345,12 +591,13 @@ func splitShellCommands(line string) [][]shellToken {
 			inToken = true
 		case '#':
 			if !inToken {
-				flushCmd()
+				flushCmd(false)
 				return cmds
 			}
 			buf.WriteByte(ch)
 		case ';', '|', '&':
-			flushCmd()
+			isOr := ch == '|' && i+1 < len(line) && line[i+1] == '|'
+			flushCmd(isOr)
 			if i+1 < len(line) && (ch == '&' || ch == '|') && line[i+1] == ch {
 				i++
 			}
@@ -359,7 +606,7 @@ func splitShellCommands(line string) [][]shellToken {
 			buf.WriteByte(ch)
 		}
 	}
-	flushCmd()
+	flushCmd(false)
 	return cmds
 }
 
@@ -418,7 +665,11 @@ func parseGoTestCommand(cmd []shellToken, workDir string) []string {
 	idx := 0
 	for idx < len(cmd) {
 		v := cmd[idx].val
-		if v == "then" || v == "do" || v == "else" || v == "elif" || v == "!" || isShellEnvAssign(v) {
+		if isShellEnvAssign(v) {
+			k, val, _ := strings.Cut(v, "=")
+			if strings.EqualFold(k, "GOFLAGS") && strings.TrimSpace(val) != "" {
+				return nil
+			}
 			idx++
 			continue
 		}
@@ -435,50 +686,96 @@ func parseGoTestCommand(cmd []shellToken, workDir string) []string {
 	}
 
 	var pats []string
-	afterDoubleDash := false
+	effectiveWD := workDir
+	seenPkg := false
+	stopPkgs := false
 	for i := 0; i < len(args); i++ {
 		tok := args[i].val
-		if !afterDoubleDash {
-			if tok == "--" {
-				afterDoubleDash = true
-				continue
-			}
-			if tok == "-args" || tok == "--args" {
-				break
-			}
-			if strings.HasPrefix(tok, "-") && tok != "-" {
-				flagPart := strings.TrimPrefix(strings.TrimPrefix(tok, "-"), "-")
-				name, val, hasEq := strings.Cut(flagPart, "=")
-				name = strings.TrimPrefix(name, "test.")
-				if goTestValueFlags[name] && !hasEq {
-					if i+1 >= len(args) {
-						return nil
-					}
-					i++
-					val = args[i].val
-				}
-				switch name {
-				case "run", "list":
-					return nil
-				case "c", "n":
-					if !(hasEq && strings.EqualFold(val, "false")) {
-						return nil
-					}
-				case "skip":
-					if isBroadSkipPattern(val) {
-						return nil
-					}
-				}
-				continue
-			}
+		if tok == "--" || tok == "-args" || tok == "--args" {
+			break
 		}
-		if tok == "." || strings.HasPrefix(tok, "./") {
-			if pat := resolvePattern(tok, workDir); pat != "" {
+		if strings.HasPrefix(tok, "-") && tok != "-" {
+			if seenPkg {
+				stopPkgs = true
+			}
+			flagPart := strings.TrimPrefix(strings.TrimPrefix(tok, "-"), "-")
+			name, val, hasEq := strings.Cut(flagPart, "=")
+			name = strings.TrimPrefix(name, "test.")
+			if goTestValueFlags[name] && !hasEq {
+				if i+1 >= len(args) {
+					return nil
+				}
+				i++
+				val = args[i].val
+			}
+			switch name {
+			case "run", "list", "exec":
+				return nil
+			case "c", "n":
+				if !(hasEq && strings.EqualFold(val, "false")) {
+					return nil
+				}
+			case "count":
+				n, err := strconv.Atoi(strings.TrimSpace(val))
+				if err != nil || n <= 0 {
+					return nil
+				}
+			case "C":
+				nextWD, ok := resolveSubdir(effectiveWD, val)
+				if !ok {
+					return nil
+				}
+				effectiveWD = nextWD
+			case "skip":
+				if isBroadSkipPattern(val) {
+					return nil
+				}
+			}
+			continue
+		}
+		if !stopPkgs && (tok == "." || strings.HasPrefix(tok, "./")) {
+			seenPkg = true
+			if pat := resolvePattern(tok, effectiveWD); pat != "" {
 				pats = append(pats, pat)
 			}
 		}
 	}
 	return pats
+}
+
+func resolveSubdir(baseWD, dirArg string) (string, bool) {
+	dirArg = strings.TrimSpace(strings.ReplaceAll(dirArg, "\\", "/"))
+	if dirArg == "" || strings.HasPrefix(dirArg, "/") || (len(dirArg) >= 2 && dirArg[1] == ':') {
+		return "", false
+	}
+	wd := normalizeWorkDir(baseWD)
+	var joined string
+	if wd == "" {
+		joined = path.Clean(dirArg)
+	} else {
+		joined = path.Clean(wd + "/" + dirArg)
+	}
+	if joined == ".." || strings.HasPrefix(joined, "../") {
+		return "", false
+	}
+	if joined == "." {
+		return "", true
+	}
+	return joined, true
+}
+
+func normalizeWorkDir(workDir string) string {
+	wd := strings.TrimSpace(strings.ReplaceAll(workDir, "\\", "/"))
+	if wd == "" {
+		return ""
+	}
+	wd = path.Clean(wd)
+	wd = strings.TrimPrefix(wd, "./")
+	wd = strings.Trim(wd, "/")
+	if wd == "." {
+		return ""
+	}
+	return wd
 }
 
 func isShellEnvAssign(tok string) bool {
@@ -508,6 +805,19 @@ func isBroadSkipPattern(pat string) bool {
 	if pat == "" {
 		return false
 	}
+	parts := strings.Split(pat, "/")
+	if len(parts) > 1 {
+		for _, p := range parts {
+			re, err := regexp.Compile(p)
+			if err != nil {
+				return true
+			}
+			if re.MatchString("TestCicoverageSentinelAlpha") || re.MatchString("TestUnrelatedBehaviorBeta") || re.MatchString("subtest_alpha") {
+				return true
+			}
+		}
+		return false
+	}
 	re, err := regexp.Compile(pat)
 	if err != nil {
 		return true
@@ -519,15 +829,7 @@ func isBroadSkipPattern(pat string) bool {
 // repo-relative pattern. A bare "." or "./x" inside a step with
 // working-directory resolves relative to that directory.
 func resolvePattern(tok, workDir string) string {
-	wd := strings.TrimSpace(strings.ReplaceAll(workDir, "\\", "/"))
-	if wd != "" {
-		wd = path.Clean(wd)
-		wd = strings.TrimPrefix(wd, "./")
-		wd = strings.Trim(wd, "/")
-		if wd == "." {
-			wd = ""
-		}
-	}
+	wd := normalizeWorkDir(workDir)
 	if wd == "" {
 		if tok == "." {
 			return "./"
