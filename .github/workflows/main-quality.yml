@@ -422,15 +422,72 @@ jobs:
       # A release that installs the payload without them ships capabilities the
       # user cannot reach and reports nothing, so the real installer is built and
       # run here instead of only on a developer machine.
+      - name: Restore the NSIS tool cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.tool_cache }}\nsis
+          key: nsis-${{ runner.os }}-v1
+          restore-keys: |
+            nsis-${{ runner.os }}-
       - name: Run the runtime link transaction fixture
         shell: pwsh
         run: |
-          choco install nsis --no-progress -y
-          $candidates = @(
-            (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
-            (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')
-          )
-          $makensis = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $makensis) { throw 'NSIS is unavailable after installation.' }
+          $ErrorActionPreference = 'Stop'
+          $cacheDir = if ($env:RUNNER_TOOL_CACHE) { Join-Path $env:RUNNER_TOOL_CACHE 'nsis' } else { Join-Path $env:RUNNER_TEMP 'nsis-cache' }
+          function Find-Makensis {
+            $onPath = Get-Command makensis -ErrorAction SilentlyContinue
+            if ($onPath -and (Test-Path -LiteralPath $onPath.Source)) { return $onPath.Source }
+            $candidates = @(
+              (Join-Path $cacheDir 'makensis.exe'),
+              (Join-Path $cacheDir 'Bin\makensis.exe'),
+              (Join-Path $cacheDir 'NSIS\makensis.exe'),
+              (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
+              (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')
+            )
+            $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          }
+
+          $makensis = Find-Makensis
+          if (-not $makensis) {
+            # Chocolatey intermittently serves 503s; retry with backoff before
+            # falling back to a direct winget download + silent install.
+            $installed = $false
+            foreach ($delay in @(0, 5, 15)) {
+              if ($delay -gt 0) { Start-Sleep -Seconds $delay }
+              choco install nsis --no-progress -y
+              if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+              Write-Warning "choco install nsis exited $LASTEXITCODE"
+            }
+            if ($installed) {
+              $makensis = Find-Makensis
+              if ($makensis -and -not ($makensis.StartsWith($cacheDir, [StringComparison]::OrdinalIgnoreCase))) {
+                New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+                Copy-Item -Recurse -Force (Join-Path (Split-Path -Parent $makensis) '*') $cacheDir
+                $cached = Find-Makensis | Where-Object { $_.StartsWith($cacheDir, [StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
+                if ($cached) { $makensis = $cached }
+              }
+            }
+          }
+          if (-not $makensis) {
+            $winget = Get-Command winget -ErrorAction SilentlyContinue
+            if ($winget) {
+              $dl = Join-Path $env:RUNNER_TEMP ('nsis-dl-' + [guid]::NewGuid().ToString('N'))
+              New-Item -ItemType Directory -Force -Path $dl | Out-Null
+              try {
+                & $winget.Source download --id NSIS.NSIS --download-directory $dl --accept-package-agreements --accept-source-agreements
+                if ($LASTEXITCODE -ne 0) { throw "winget download NSIS failed (exit $LASTEXITCODE)" }
+                $setup = Get-ChildItem $dl -Filter '*.exe' | Select-Object -First 1
+                if (-not $setup) { throw "NSIS installer not found under $dl" }
+                New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+                $proc = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$cacheDir") -PassThru -WindowStyle Hidden
+                if (-not $proc.WaitForExit(180000)) { throw 'NSIS silent installer did not exit within 180 seconds' }
+                if ($proc.ExitCode -ne 0) { throw "NSIS silent installer failed (exit $($proc.ExitCode))" }
+                $makensis = Find-Makensis
+              } finally {
+                Remove-Item -Recurse -Force $dl -ErrorAction SilentlyContinue
+              }
+            }
+          }
+          if (-not $makensis) { throw 'NSIS is unavailable: cache miss, Chocolatey install failed and the winget fallback did not produce makensis.exe.' }
           $env:PATH = (Split-Path -Parent $makensis) + ';' + $env:PATH
           ./scripts/nsis-runtime-links-fixture.ps1
