@@ -59,7 +59,7 @@ func (s *Store) ListSkills(ctx context.Context) []SkillOption {
 	if current && err == nil && ctx.Err() == nil {
 		s.skillOptions = flattenSkillList(out)
 		s.skillOptionsOwner = owner
-		s.skillsErr = nil
+		s.setSkillsErrLocked(nil)
 	}
 	s.mu.Unlock()
 	if !current || ctx.Err() != nil {
@@ -135,12 +135,12 @@ func (s *Store) refreshSkillsForOwner(ctx context.Context, expected *workspaceSe
 			return
 		}
 		if err != nil {
-			s.skillsErr = err
+			s.setSkillsErrLocked(err)
 			s.mu.Unlock()
 			s.fire()
 			return
 		}
-		s.skillsErr = nil
+		s.setSkillsErrLocked(nil)
 		s.skillOptions = opts
 		s.skillOptionsOwner = owner
 		s.mu.Unlock()

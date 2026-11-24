@@ -117,12 +117,12 @@ func TestNativeOrdinaryHistoryTurnWindowFixture(t *testing.T) {
 		s.LoadEarlierHistory(context.Background())
 		waitIdle(t, s)
 		v := s.Snapshot()
-		if v.HistoryPageErr == "" || !v.HistoryHasMore || len(v.Messages) != 2 {
+		if v.HistoryPageErr == nil || !v.HistoryHasMore || len(v.Messages) != 2 {
 			t.Fatalf("failure discarded current window: %+v", v)
 		}
 		s.LoadEarlierHistory(context.Background())
 		waitIdle(t, s)
-		if s.Snapshot().HistoryPageErr != "" || calls.Load() != 2 {
+		if s.Snapshot().HistoryPageErr != nil || calls.Load() != 2 {
 			t.Fatal("explicit retry did not settle")
 		}
 	})

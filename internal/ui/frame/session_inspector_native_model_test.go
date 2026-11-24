@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/i18n"
@@ -256,9 +257,9 @@ func TestInspectorHistoryErrorDismissal(t *testing.T) {
 	i18n.SetLocale(i18n.LocaleEN)
 	t.Cleanup(func() { i18n.SetLocale(old) })
 	p := SessionInspectorPaneState{}
-	state := session.ViewState{HistoryPageErr: "page unavailable"}
+	view := session.ViewState{HistoryPageErr: state.FaultText("page unavailable")}
 	tt := ui.NewTester(func(c *ui.Context) {
-		inspectorPresentation(c, &p, session.InspectorSnapshot{}, state, theme.Default().Light, nil)
+		inspectorPresentation(c, &p, session.InspectorSnapshot{}, view, theme.Default().Light, nil)
 	}, 500, 480)
 	if err := tt.Click("Dismiss error"); err != nil {
 		t.Fatal(err)
@@ -266,9 +267,9 @@ func TestInspectorHistoryErrorDismissal(t *testing.T) {
 	if tt.HasText("page unavailable") {
 		t.Fatal("history error was not dismissed")
 	}
-	state.HistoryPageErr = ""
+	view.HistoryPageErr = nil
 	tt.Frame()
-	state.HistoryPageErr = "page unavailable"
+	view.HistoryPageErr = state.FaultText("page unavailable")
 	tt.Frame()
 	if !tt.HasText("page unavailable") {
 		t.Fatal("a new failed page request was silently dismissed")

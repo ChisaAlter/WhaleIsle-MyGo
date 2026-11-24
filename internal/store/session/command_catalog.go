@@ -3,9 +3,11 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 type commandCatalog struct {
@@ -16,6 +18,7 @@ type commandCatalog struct {
 	loaded    bool
 	loading   bool
 	err       error
+	fault     *state.Fault
 	items     []api.ListResultItem2
 }
 
@@ -76,6 +79,10 @@ func (s *Store) EnsureSlashCommands(ctx context.Context) {
 		} else if err == nil {
 			catalog.err = requestCtx.Err()
 		}
+		catalog.fault = state.FaultOf(catalog.err)
+		if catalog.err != nil {
+			log.Printf("[session] commands/list: %v", catalog.err)
+		}
 		s.invalidateViewLocked()
 		s.mu.Unlock()
 		beforeSnapshotNotification("command-complete")
@@ -123,9 +130,7 @@ func (s *Store) snapshotCommandsLocked(st *ViewState) {
 	st.SlashCommands = cloneCommandDescriptors(catalog.items)
 	st.SlashCommandsKnown = catalog.loaded && catalog.err == nil
 	st.SlashCommandsLoading = catalog.loading
-	if catalog.err != nil {
-		st.SlashCommandsErr = catalog.err.Error()
-	}
+	st.SlashCommandsErr = catalog.fault
 }
 
 // Caller already validated the $events owner while holding s.mu.

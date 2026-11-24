@@ -134,8 +134,8 @@ func exerciseQueueIdle(ctx context.Context, client *dsh.Client, store *session.S
 	store.Select(id)
 	if err = await(ctx, func() (bool, error) {
 		v := store.Snapshot()
-		if v.HistoryError != "" {
-			return false, errors.New(v.HistoryError)
+		if v.HistoryError != nil {
+			return false, errors.New(v.HistoryError.SentenceText())
 		}
 		return v.SelectedID == id && v.HistoryReady && !v.HistoryLoading && slices.ContainsFunc(v.Messages, func(row session.Message) bool { return row.Seq > 0 && strings.Contains(row.Body, "QA_WAIT_STREAM") }), nil
 	}); err != nil {

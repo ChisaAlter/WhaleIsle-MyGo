@@ -65,7 +65,7 @@ func sidebarItemsForArchiveFilter(snap session.ViewState, queryPtr *string, filt
 	if q != "" {
 		rpcReady := !snap.SearchLoading &&
 			!snap.SearchUseLocal &&
-			snap.SearchErr == "" &&
+			snap.SearchErr == nil &&
 			snap.SearchRPCQuery == q
 		if rpcReady {
 			items = filterItemsByHitIDs(items, snap.SearchHitIDs)

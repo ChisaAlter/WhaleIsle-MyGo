@@ -156,7 +156,7 @@ func (h *transcriptHistoryState) prepare(m Model, messages []session.Message, li
 	// that advances the journal cursor without adding a visible message. Busy
 	// is authoritative on the next build; the input latch only deduplicates
 	// the activation's build passes, rather than waiting forever for busy=true.
-	settled := !m.Snapshot.HistoryPageBusy && (h.sawBusy || prepended || transcriptHistoryRows(m) == 0 || m.Snapshot.HistoryPageErr != "" || !h.activated)
+	settled := !m.Snapshot.HistoryPageBusy && (h.sawBusy || prepended || transcriptHistoryRows(m) == 0 || m.Snapshot.HistoryPageErr != nil || !h.activated)
 	if settled {
 		if index >= 0 && (prepended || transcriptHistoryRows(m) == 0) {
 			list.ScrollToPosition(transcriptMessageRow(m, index), h.anchor.top)
@@ -217,8 +217,8 @@ func transcriptLoadEarlierView(c *ui.Context, m Model, h *transcriptHistoryState
 				h.load(m)
 			}
 		})
-		if m.Snapshot.HistoryPageErr != "" {
-			ui.Text(c, m.Snapshot.HistoryPageErr).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		if m.Snapshot.HistoryPageErr != nil {
+			ui.Text(c, m.Snapshot.HistoryPageErr.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 	})
 }

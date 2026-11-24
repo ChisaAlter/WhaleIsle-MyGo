@@ -1,10 +1,12 @@
 package chat
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 )
@@ -109,7 +111,7 @@ func TestEmptyTranscriptCentersItsHintInsteadOfTopLeftLine(t *testing.T) {
 	}
 	errTT := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
-			View(c, Model{Snapshot: session.ViewState{SelectedID: "s", HistoryError: "offline"}})
+			View(c, Model{Snapshot: session.ViewState{SelectedID: "s", HistoryError: state.FaultOf(errors.New("offline"))}})
 		})
 	}, 700, 500)
 	if errTT.HasText(i18n.T(i18n.KeyChatEmpty)) {

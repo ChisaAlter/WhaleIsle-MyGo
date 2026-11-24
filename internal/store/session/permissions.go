@@ -74,13 +74,13 @@ func permissionOptionByLabel(label string, options []PermissionOption) (Permissi
 }
 
 func (s *Store) clearPermissionErrorLocked() {
-	if s.permissionsErr == nil {
+	if s.permissionsErr == nil && s.permissionsFault == nil {
 		return
 	}
-	if s.lastAction == s.permissionsErr.Error() {
+	if s.permissionsErr != nil && s.lastAction == s.permissionsErr.Error() {
 		s.lastAction = ""
 	}
-	s.permissionsErr = nil
+	s.setPermissionsErrLocked(nil)
 	s.invalidateViewLocked()
 }
 
@@ -131,17 +131,10 @@ func (s *Store) beginPermissionCatalogLocked(ctx context.Context) func() {
 		if err == nil {
 			options = flattenPermissionCatalog(cat)
 		}
-		oldErr, newErr := "", ""
-		if s.permissionsErr != nil {
-			oldErr = s.permissionsErr.Error()
-		}
-		if err != nil {
-			newErr = err.Error()
-		}
-		if oldErr != newErr || !slices.Equal(s.permissionOptions, options) {
+		if s.setPermissionsErrLocked(err) || !slices.Equal(s.permissionOptions, options) {
 			s.invalidateViewLocked()
 		}
-		s.permissionsErr, s.permissionOptions = err, options
+		s.permissionOptions = options
 		s.mu.Unlock()
 		beforeSnapshotNotification("permission-catalog")
 		s.fire()
@@ -235,25 +228,18 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 			err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostDidNotConfirmTheCurrentSession))
 		}
 	}
-	oldErr, newErr := "", ""
-	if s.permissionsErr != nil {
-		oldErr = s.permissionsErr.Error()
-	}
-	if err != nil {
-		newErr = err.Error()
-	}
-	if oldErr != newErr {
+	prevErr := s.permissionsErr
+	if s.setPermissionsErrLocked(err) {
 		s.invalidateViewLocked()
 	}
-	s.permissionsErr = err
 	// The confirmed projection updates the chip in place. A configuration
 	// command is not a conversation or a permanent shell success notice.
 	if err != nil {
-		if s.lastAction != newErr {
+		if s.lastAction != err.Error() {
 			s.invalidateViewLocked()
 		}
-		s.lastAction = newErr
-	} else if oldErr != "" && s.lastAction == oldErr {
+		s.lastAction = err.Error()
+	} else if prevErr != nil && s.lastAction == prevErr.Error() {
 		s.lastAction = ""
 		s.invalidateViewLocked()
 	}

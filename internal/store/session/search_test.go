@@ -189,7 +189,7 @@ func TestSearchSessionsDebounces(t *testing.T) {
 			select {
 			case <-notifications:
 			case <-deadline.C:
-				t.Fatalf("search result was not published: loading=%v query=%q error=%q", snap.SearchLoading, snap.SearchRPCQuery, snap.SearchErr)
+				t.Fatalf("search result was not published: loading=%v query=%q error=%+v", snap.SearchLoading, snap.SearchRPCQuery, snap.SearchErr)
 			}
 		}
 		assertNoRequest("after response publication")
@@ -251,7 +251,7 @@ func TestSearchSessionsFallbackOnError(t *testing.T) {
 	wait(t, done)
 
 	snap := st.Snapshot()
-	if snap.SearchErr == "" {
+	if snap.SearchErr == nil {
 		t.Fatal("expected search error")
 	}
 	if !snap.SearchUseLocal {

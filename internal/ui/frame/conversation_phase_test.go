@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"errors"
 	"fmt"
 	"image/png"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
@@ -27,8 +29,8 @@ func TestConversationPhaseSeparatesHistoryReadinessFromEmpty(t *testing.T) {
 		{"unknown cold", session.ViewState{SelectedID: "old"}, false, conversationSettling},
 		{"unknown loading", session.ViewState{SelectedID: "old", HistoryLoading: true}, false, conversationSettling},
 		{"known blank loading", session.ViewState{SelectedID: "new", HistoryLoading: true, SelectedSummaryBlank: true}, false, conversationHero},
-		{"known blank failed", session.ViewState{SelectedID: "new", HistoryError: "offline", SelectedSummaryBlank: true}, false, conversationHero},
-		{"unknown failed", session.ViewState{SelectedID: "old", HistoryError: "offline"}, false, conversationActive},
+		{"known blank failed", session.ViewState{SelectedID: "new", HistoryError: state.FaultOf(errors.New("offline")), SelectedSummaryBlank: true}, false, conversationHero},
+		{"unknown failed", session.ViewState{SelectedID: "old", HistoryError: state.FaultOf(errors.New("offline"))}, false, conversationActive},
 		{"ready empty", session.ViewState{SelectedID: "old", HistoryReady: true}, false, conversationHero},
 		{"retained history reconnect", session.ViewState{SelectedID: "old", HistoryLoading: true, Messages: []session.Message{{Body: "retained"}}}, false, conversationActive},
 		// A running session with no messages yet keeps the Hero: the Original
@@ -182,7 +184,7 @@ func TestConversationSettlingAndFailureUseSharedStatus(t *testing.T) {
 	}
 	saveConversationEvidence(t, tt, "conversation-settling")
 	snap.HistoryLoading = false
-	snap.HistoryError = "follow failed"
+	snap.HistoryError = state.FaultOf(errors.New("follow failed"))
 	failure := paneLabel("无法加载此会话历史", "Could not load this conversation history")
 	tt.Frame()
 	if tt.HasText(i18n.T(i18n.KeyChatHeroSlogan)) || !tt.HasText(failure) || tt.HasText("follow failed") {

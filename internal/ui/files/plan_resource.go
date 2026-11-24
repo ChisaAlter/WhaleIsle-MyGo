@@ -203,8 +203,8 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 				message = label("临时计划预览已失效，请从仍在等待审批的卡片重新打开。", "This temporary plan preview has expired. Reopen it from the pending review card.")
 			case !m.PlanSnapshot.ClientReady || !planpreview.HistoryMatchesBinding(m.PlanSnapshot.PlanHistoryBinding, m.BindingID):
 				message = label("等待当前会话历史…", "Waiting for current session history…")
-			case m.PlanSnapshot.HistoryPageErr != "":
-				message = m.PlanSnapshot.HistoryPageErr
+			case m.PlanSnapshot.HistoryPageErr != nil:
+				message = m.PlanSnapshot.HistoryPageErr.SentenceText()
 				if m.OnLoadPlanHistory != nil && widgets.Button(c, colors, label("重试", "Retry"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 					m.OnLoadPlanHistory()
 				}

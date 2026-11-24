@@ -143,7 +143,7 @@ type ViewState struct {
 	SlashCommands                 []api.ListResultItem2
 	SlashCommandsLoading          bool
 	SlashCommandsKnown            bool
-	SlashCommandsErr              string
+	SlashCommandsErr              *state.Fault
 	NativeContributions           dsh.NativeContributions
 	NativeContributionsGeneration uint64
 	NativeModelLabelGeneration    uint64
@@ -171,7 +171,7 @@ type ViewState struct {
 	HistoryLoading      bool
 	HistoryReconnecting bool
 	HistoryReady        bool
-	HistoryError        string
+	HistoryError        *state.Fault
 	// SelectedSummaryBlank is Host list authority, not inferred from Messages.
 	SelectedSummaryBlank bool
 	MessageEditBusy      bool
@@ -193,24 +193,24 @@ type ViewState struct {
 	SelectedModelEffort     string
 	ModelLabels             []string
 	SelectedModel           string
-	ModelsErr               string
+	ModelsErr               *state.Fault
 	PermissionLabels        []string
 	SelectedPermission      string
 	SelectedPermissionValue string
 	PermissionSelectionBusy bool
-	PermissionsErr          string
+	PermissionsErr          *state.Fault
 	PlanModeControl         PlanModeControl
 	AgentPresetLabels       []string
 	SelectedAgentPreset     string
-	AgentPresetsErr         string
+	AgentPresetsErr         *state.Fault
 	SkillCatalog            SkillCatalog
 	SkillOptions            []SkillOption
-	SkillsErr               string
+	SkillsErr               *state.Fault
 	SkillHubHits            []SkillHubHit
 
 	SearchLoading  bool
 	SearchUseLocal bool
-	SearchErr      string
+	SearchErr      *state.Fault
 	SearchRPCQuery string
 	SearchHitIDs   map[string]bool
 	SearchResults  []api.SessionSearchValueItemsItem
@@ -220,13 +220,13 @@ type ViewState struct {
 	PlanBoard PlanBoard
 	// GoalReadError is a selected-follow diagnostic; background goal reads
 	// never replace the conversation's LastAction or open an empty goal panel.
-	GoalReadError string
+	GoalReadError *state.Fault
 
 	HistoryNavigation HistoryNavigationView
 	HistoryBranchBusy bool
 	HistoryHasMore    bool
 	HistoryPageBusy   bool
-	HistoryPageErr    string
+	HistoryPageErr    *state.Fault
 
 	// PromptMode is the session/prompt wire mode: "queue" (排队) or "steer" (插话).
 	PromptMode                PromptMode
@@ -315,6 +315,9 @@ type Store struct {
 	rosterProjectionToken     *projectionToken
 	rosterDirty               bool
 	renderFrame               *FrameSnapshot // lazily made by RenderSnapshot
+	pub                       state.Published[ViewState]
+	dirtyRev                  atomic.Uint64
+	publishedRev              atomic.Uint64
 	viewCacheRev              uint64
 	viewCache                 ViewState
 	viewCacheValid            bool
@@ -408,7 +411,8 @@ type Store struct {
 	historyLoading                       bool
 	historyReconnecting                  bool
 	historyReady                         bool
-	historyError                         string
+	historyErr                           error
+	historyFault                         *state.Fault
 	promptBusy                           bool
 	historyBranchBusy                    bool
 	lastAction                           string
@@ -418,13 +422,16 @@ type Store struct {
 	modelOptions                         []ModelOption
 	modelState                           modelSelectionState
 	modelsErr                            error
+	modelsFault                          *state.Fault
 	permissionOptions                    []PermissionOption
 	permissionCatalogRevision            uint64
 	permissionProjection                 permissionProjectionState
 	permissionsErr                       error
+	permissionsFault                     *state.Fault
 	agentPresetOptions                   []AgentPresetOption
 	selectedAgentPresetLabel             string
 	agentPresetsErr                      error
+	agentPresetsFault                    *state.Fault
 	agentPresetsRequest                  uint64
 	agentPresetsLoaded                   bool
 	agentPresetsLoading                  bool
@@ -441,11 +448,13 @@ type Store struct {
 	skillOptionsOwner                    skillOptionsScope
 	skillOptions                         []SkillOption
 	skillsErr                            error
+	skillsFault                          *state.Fault
 	skillHubHits                         []SkillHubHit
 	searchInput                          string
 	searchLoading                        bool
 	searchUseLocal                       bool
 	searchErr                            error
+	searchFault                          *state.Fault
 	searchRPCQuery                       string
 	searchHits                           map[string]struct{}
 	searchResults                        []api.SessionSearchValueItemsItem
@@ -476,6 +485,7 @@ type Store struct {
 	historyPageBusy                      bool
 	historyPageRequest                   uint64
 	historyPageErr                       error
+	historyPageFault                     *state.Fault
 	historyThroughSeq                    float64
 	promptMode                           PromptMode
 	promptModeExplicit                   bool
@@ -520,7 +530,7 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.resetModelCatalogLocked()
 		s.agentPresetOptions = nil
 		s.selectedAgentPresetLabel = ""
-		s.agentPresetsErr = nil
+		s.setAgentPresetsErrLocked(nil)
 		s.agentPresetsLoaded, s.agentPresetsLoading = false, false
 		s.invalidateArchiveLocked()
 		s.invalidateCommandsLocked()
@@ -711,7 +721,7 @@ func (s *Store) Detach() {
 	s.resetModelCatalogLocked()
 	s.agentPresetOptions = nil
 	s.selectedAgentPresetLabel = ""
-	s.agentPresetsErr = nil
+	s.setAgentPresetsErrLocked(nil)
 	s.agentPresetsLoaded, s.agentPresetsLoading = false, false
 	s.questionProjections = nil
 	s.invalidateArchiveLocked()
@@ -758,6 +768,25 @@ func (s *Store) SelectedSessionID() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.selectedID
+}
+
+// Published returns the current immutable published ViewState version. When
+// nothing has changed since the last publication, it returns the shared
+// *state.Version[ViewState] lock-free with zero allocations. Callers must treat
+// Value and its nested slices, maps, and pointers as read-only; use Snapshot
+// for an independent mutable copy.
+func (s *Store) Published() *state.Version[ViewState] {
+	pubRev := s.publishedRev.Load()
+	v := s.pub.Load()
+	dirty := s.dirtyRev.Load()
+	if v != nil && pubRev == dirty {
+		return v
+	}
+	s.mu.Lock()
+	s.ensureViewCacheLocked()
+	v = s.pub.Load()
+	s.mu.Unlock()
+	return v
 }
 
 // Snapshot returns an independent copy of the current observable state. The
@@ -1103,7 +1132,7 @@ func (s *Store) ensureViewCacheLocked() {
 		HistoryLoading:      s.historyLoading,
 		HistoryReconnecting: s.historyReconnecting,
 		HistoryReady:        s.historyReady,
-		HistoryError:        s.historyError,
+		HistoryError:        s.historyFault,
 		PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),
 		PromptAttempted:     s.promptAttempted[s.selectedID],
 		MessageEditBusy:     s.editTurnSeq > 0 || s.composerPendingForSelectedLocked(),
@@ -1118,18 +1147,9 @@ func (s *Store) ensureViewCacheLocked() {
 		}
 	}
 	st.ListErr = s.listFault
-	if s.modelsErr != nil {
-		st.ModelsErr = s.modelsErr.Error()
-	}
-	if s.permissionsErr != nil {
-		st.PermissionsErr = s.permissionsErr.Error()
-	}
-	if s.agentPresetsErr != nil {
-		st.AgentPresetsErr = s.agentPresetsErr.Error()
-	}
-	if s.skillsErr != nil {
-		st.SkillsErr = s.skillsErr.Error()
-	}
+	st.PermissionsErr = s.permissionsFault
+	st.AgentPresetsErr = s.agentPresetsFault
+	st.SkillsErr = s.skillsFault
 	st.SidebarSubagentActivity = s.sidebarSubagentActivityLocked()
 	if s.selectedID != "" {
 		if len(s.subagentCatalogs[s.selectedID]) > 0 {
@@ -1257,9 +1277,7 @@ func (s *Store) ensureViewCacheLocked() {
 	st.SearchRPCQuery = s.searchRPCQuery
 	st.SearchResults = append([]api.SessionSearchValueItemsItem(nil), s.searchResults...)
 	st.SearchHasMore = s.searchHasMore
-	if s.searchErr != nil {
-		st.SearchErr = s.searchErr.Error()
-	}
+	st.SearchErr = s.searchFault
 	if len(s.searchHits) > 0 {
 		st.SearchHitIDs = make(map[string]bool, len(s.searchHits))
 		for id := range s.searchHits {
@@ -1270,9 +1288,7 @@ func (s *Store) ensureViewCacheLocked() {
 	st.PlanBoard.QueueActions = s.queueActionsLocked()
 	st.HistoryHasMore = s.historyHasMore
 	st.HistoryPageBusy = s.historyPageBusy
-	if s.historyPageErr != nil {
-		st.HistoryPageErr = s.historyPageErr.Error()
-	}
+	st.HistoryPageErr = s.historyPageFault
 	st.PromptMode = NormalizePromptMode(string(s.promptMode))
 	st.PromptModeExplicit = s.promptModeExplicit
 	st.ContextOccupancy = s.contextOccupancyLocked()
@@ -1307,6 +1323,8 @@ func (s *Store) ensureViewCacheLocked() {
 	s.viewCache = cloneStoreViewCache(st)
 	s.viewCacheRev = s.viewRev
 	s.viewCacheValid = true
+	s.pub.Publish(s.viewCache)
+	s.publishedRev.Store(s.viewRev)
 	atomic.AddUint64(&s.snapshotBuilds, 1)
 }
 
@@ -1992,6 +2010,7 @@ func (s *Store) SetLastAction(msg string) {
 func (s *Store) invalidateViewLocked() {
 	noteViewInvalidation()
 	s.viewRev++
+	s.dirtyRev.Store(s.viewRev)
 	s.rosterDirty = true
 	if s.viewChanged != nil {
 		close(s.viewChanged)
@@ -2002,6 +2021,7 @@ func (s *Store) invalidateViewLocked() {
 func (s *Store) invalidateStreamViewLocked() {
 	noteViewInvalidation()
 	s.viewRev++
+	s.dirtyRev.Store(s.viewRev)
 	if s.viewChanged != nil {
 		close(s.viewChanged)
 		s.viewChanged = nil

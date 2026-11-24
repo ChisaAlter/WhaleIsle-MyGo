@@ -213,7 +213,7 @@ func TestEventsOwnersFenceSameClientReconnectAndCanceledReady(t *testing.T) {
 	// diagnostic lands mid-assertion and the comparison reports a read this
 	// fixture itself started as the canceled owner disturbing the store.
 	settle := time.Now().Add(5 * time.Second)
-	for s.Snapshot().GoalReadError == "" {
+	for s.Snapshot().GoalReadError == nil {
 		if time.Now().After(settle) {
 			t.Fatal("goals/get diagnostic never settled")
 		}

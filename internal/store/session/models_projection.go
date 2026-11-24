@@ -3,6 +3,8 @@ package session
 import (
 	"bytes"
 	"encoding/json"
+
+	"whaleisle/internal/state"
 )
 
 // ModelCatalogChoice carries display metadata only; Label still resolves through ModelChoices.
@@ -17,13 +19,14 @@ type modelProjectionState struct {
 }
 
 type modelSelectionState struct {
-	Default        modelSelection
-	CatalogReady   bool
-	CatalogRequest uint64
-	CatalogWarning string
-	Projection     modelProjectionState
-	Pending        bool
-	Operation      uint64
+	Default             modelSelection
+	CatalogReady        bool
+	CatalogRequest      uint64
+	CatalogWarning      string
+	CatalogWarningFault *state.Fault
+	Projection          modelProjectionState
+	Pending             bool
+	Operation           uint64
 }
 
 func (s *Store) resetModelSelectionLocked() {
@@ -31,7 +34,7 @@ func (s *Store) resetModelSelectionLocked() {
 	s.modelState.Projection = modelProjectionState{}
 	s.modelState.Pending = false
 	s.modelState.Operation++
-	s.modelsErr = nil
+	s.setModelsErrLocked(nil)
 }
 
 func (s *Store) resetModelCatalogLocked() {
@@ -40,6 +43,7 @@ func (s *Store) resetModelCatalogLocked() {
 	s.modelState.Default = modelSelection{}
 	s.modelState.CatalogReady = false
 	s.modelState.CatalogWarning = ""
+	s.modelState.CatalogWarningFault = nil
 	s.modelState.CatalogRequest++
 	s.resetModelSelectionLocked()
 }
@@ -71,10 +75,10 @@ func (s *Store) snapshotModelsLocked(st *ViewState) {
 	selection, known := s.currentModelSelectionLocked()
 	st.ModelSelectionKnown = known
 	st.ModelSelectionBusy = s.modelState.Pending
-	if s.modelsErr != nil {
-		st.ModelsErr = s.modelsErr.Error()
+	if s.modelsFault != nil {
+		st.ModelsErr = s.modelsFault
 	} else {
-		st.ModelsErr = s.modelState.CatalogWarning
+		st.ModelsErr = s.modelState.CatalogWarningFault
 	}
 	if !known {
 		return

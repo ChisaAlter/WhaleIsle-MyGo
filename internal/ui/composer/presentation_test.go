@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
@@ -227,7 +228,7 @@ func TestReviewOrdinaryModelStatusKeepsPrimary(t *testing.T) {
 			ss := session.ViewState{NativeContributions: dsh.NativeContributions{Known: true, ModelCommand: true, PermissionCommand: true}, ModelLabels: []string{label}}
 			if errorMode {
 				ss.ModelLabels = nil
-				ss.ModelsErr = label
+				ss.ModelsErr = state.FaultText(label)
 			}
 			tt := ui.NewTester(func(c *ui.Context) {
 				View(c, Model{Draft: &draft, WorkspaceRoot: "fixture", ModelPick: &model, Snapshot: ss})

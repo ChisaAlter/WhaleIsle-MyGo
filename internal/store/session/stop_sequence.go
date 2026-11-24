@@ -49,6 +49,7 @@ func (s *Store) LoadStopSequenceConfig() {
 		} else {
 			s.lastAction = "Double Escape unavailable: Host shortcut configuration could not be loaded"
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

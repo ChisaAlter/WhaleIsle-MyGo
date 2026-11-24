@@ -169,8 +169,8 @@ func TestPermissionSnapshotBeforeNotification(t *testing.T) {
 	release()
 	waitSnapshotPublication(t, gate.reached, "permission settlement publication")
 	for _, got := range []ViewState{s.Snapshot(), frame.Snapshot()} {
-		if got.SelectedPermission != "Write" || got.PermissionsErr != "" {
-			t.Errorf("permission snapshot before fire: selected=%q error=%q", got.SelectedPermission, got.PermissionsErr)
+		if got.SelectedPermission != "Write" || got.PermissionsErr != nil {
+			t.Errorf("permission snapshot before fire: selected=%q error=%+v", got.SelectedPermission, got.PermissionsErr)
 		}
 	}
 	gate.unblock()

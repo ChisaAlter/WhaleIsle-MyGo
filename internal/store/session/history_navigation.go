@@ -323,7 +323,7 @@ func (s *Store) JumpToHistoryTurn(ctx context.Context, sessionID string, expecte
 	}
 	n.view.Busy = true
 	s.historyPageBusy = true
-	s.historyPageErr = nil
+	s.setHistoryPageErrLocked(nil)
 	s.historyPageRequest++
 	request, pageRequest := n.view.Request, s.historyPageRequest
 	client, generation := s.client, s.followGeneration

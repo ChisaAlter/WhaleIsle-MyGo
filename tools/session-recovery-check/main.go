@@ -271,8 +271,8 @@ func run(stage, base, native string, r *report) error {
 	store.Select(sourceID)
 	if err = wait(ctx, func() (bool, error) {
 		v := store.Snapshot()
-		if v.HistoryError != "" {
-			return false, errors.New(v.HistoryError)
+		if v.HistoryError != nil {
+			return false, errors.New(v.HistoryError.SentenceText())
 		}
 		for _, message := range v.Messages {
 			if message.Role == "user" && message.Body == "Owned session recovery fixture. No model request." {
@@ -287,8 +287,8 @@ func run(stage, base, native string, r *report) error {
 	store.UpdateSessionSearch(ctx, "Owned session recovery fixture")
 	if err = wait(ctx, func() (bool, error) {
 		v := store.Snapshot()
-		if v.SearchErr != "" {
-			return false, errors.New(v.SearchErr)
+		if v.SearchErr != nil {
+			return false, errors.New(v.SearchErr.SentenceText())
 		}
 		return !v.SearchLoading && v.SearchRPCQuery != "" && len(v.SearchHitIDs) == 3, nil
 	}); err != nil {

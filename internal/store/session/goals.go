@@ -2,10 +2,12 @@ package session
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 )
 
 // CreateGoal calls goals/create for the selected session.
@@ -149,7 +151,8 @@ func (s *Store) runRefreshGoalForOwner(ctx context.Context, client *dsh.Client, 
 	}
 	s.planBoard.goalReadToken = nil
 	if err != nil {
-		s.goalReadError = goalReadErrorState{client: client, sessionID: sessionID, generation: generation, message: "goals/get: " + err.Error()}
+		log.Printf("[session] goals/get: %v", err)
+		s.goalReadError = goalReadErrorState{client: client, sessionID: sessionID, generation: generation, fault: state.FaultOf(err)}
 	} else {
 		s.goalReadError = goalReadErrorState{}
 		// goals/get returns undefined when this live agent has no current goal.

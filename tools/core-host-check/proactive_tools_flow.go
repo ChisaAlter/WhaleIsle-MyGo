@@ -320,8 +320,8 @@ func exerciseProactiveOrdinaryContinuation(ctx context.Context, client *dsh.Clie
 	store.Select(task.Execution.SessionID)
 	if err := await(ctx, func() (bool, error) {
 		state := store.Snapshot()
-		if state.HistoryError != "" {
-			return false, fmt.Errorf("task history: %s", state.HistoryError)
+		if state.HistoryError != nil {
+			return false, fmt.Errorf("task history: %s", state.HistoryError.SentenceText())
 		}
 		return state.HistoryReady && !state.HistoryLoading, nil
 	}); err != nil {

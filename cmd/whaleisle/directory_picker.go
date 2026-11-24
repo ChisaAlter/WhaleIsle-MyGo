@@ -581,7 +581,7 @@ func (s *mainState) directoryPickerView(c *ui.Context, win *mygo.Window, session
 			}
 			if browser.Remote && remote != nil && remoteEnabled {
 				ui.Column(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Clip().Padding(24).Children(func() {
-					remoteui.DirectoryPicker(c, remoteui.DirectoryPickerModel{Store: remote, Ready: sessions.Snapshot().ClientReady, Enabled: remoteEnabled,
+					remoteui.DirectoryPicker(c, remoteui.DirectoryPickerModel{Store: remote, Ready: sessions.Published().Value.ClientReady, Enabled: remoteEnabled,
 						OnCancel: func() { s.closeDirectoryPicker(win) },
 						OnChoice: func(choice remotestore.DirectoryChoice) {
 							if win == nil || win.IsDestroyed() {

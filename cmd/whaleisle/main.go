@@ -3951,7 +3951,7 @@ func mainView(c *ui.Context) {
 				sessSnap := session.ViewState{}
 				if sessions != nil {
 					if (modelsActive || skillsActive) && !embeddedActive {
-						sessSnap = sessionViews.snapshot(sessions)
+						sessSnap = sessions.Published().Value
 					}
 					if modelsActive && !embeddedActive {
 						if state.settingsModelSession != sessSnap.SelectedID {
@@ -4301,8 +4301,8 @@ func mainView(c *ui.Context) {
 						Labels:     sessSnap.ModelLabels,
 						Selected:   &state.settingsModelLabel,
 						SessionID:  sessSnap.SelectedID,
-						Err:        sessSnap.ModelsErr,
-						LastAction: settingsModelsSessionAction(sessSnap.LastAction, sessSnap.ModelsErr),
+						Err:        sessSnap.ModelsErr.SentenceText(),
+						LastAction: settingsModelsSessionAction(sessSnap.LastAction, sessSnap.ModelsErr.SentenceText()),
 						OnRefresh: func() {
 							if sessions != nil {
 								sessions.RefreshModelCatalog(context.Background())
@@ -5097,7 +5097,7 @@ func mainView(c *ui.Context) {
 				sessionLinks := map[string]string{}
 				sessionSnap := session.ViewState{}
 				if sessions != nil {
-					sessionSnap = sessionViews.snapshot(sessions)
+					sessionSnap = sessions.Published().Value
 					sid = sessionSnap.SelectedID
 					sessionLinks = scheduleSessionLinks(sessionSnap)
 				}
@@ -5291,7 +5291,7 @@ func mainView(c *ui.Context) {
 				var sessionLastAction string
 				var sessionMsgs []struct{ Role, Body string }
 				if sessions != nil {
-					sessSnap := sessionViews.snapshot(sessions)
+					sessSnap := sessions.Published().Value
 					sessionLastAction = sessSnap.LastAction
 					for _, m := range sessSnap.Messages {
 						sessionMsgs = append(sessionMsgs, struct{ Role, Body string }{m.Role, m.Body})
@@ -5551,7 +5551,7 @@ func mainView(c *ui.Context) {
 							usageJobsToday = &n
 						}
 					}
-					snap := sessionViews.snapshot(sessions)
+					snap := sessions.Published().Value
 					state.mu.Lock()
 					activeDraft := state.composerDraftLocked(snap.SelectedID)
 					composerRendered, composerSessionID = true, snap.SelectedID

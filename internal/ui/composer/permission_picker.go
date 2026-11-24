@@ -80,7 +80,7 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 			chevron(c, picker.open)
 		}
 	})
-	if m.PermissionSwitchFailed || strings.EqualFold(strings.TrimSpace(snap.PermissionsErr), "switch_failed") {
+	if m.PermissionSwitchFailed || (snap.PermissionsErr != nil && (strings.EqualFold(strings.TrimSpace(snap.PermissionsErr.Code), "switch_failed") || strings.EqualFold(strings.TrimSpace(snap.PermissionsErr.Text), "switch_failed"))) {
 		errText := i18n.T(i18n.KeyParityPermSwitchFailed)
 		errAlt := i18n.T(i18n.KeyParityPermSwitchFailedAlt)
 		ui.Text(c, errText).FontSize(11).TextColor(chrome.Color(colors.Danger)).SingleLine()
@@ -137,9 +137,9 @@ func paintPermissionPicker(c *ui.Context, m Model, colors theme.Colors, ink ui.C
 			}
 		}
 		panel.Children(func() {
-			if snap.PermissionsErr != "" {
-				errMsg := snap.PermissionsErr
-				if strings.EqualFold(strings.TrimSpace(errMsg), "switch_failed") {
+			if snap.PermissionsErr != nil {
+				errMsg := snap.PermissionsErr.SentenceText()
+				if strings.EqualFold(strings.TrimSpace(snap.PermissionsErr.Code), "switch_failed") || strings.EqualFold(strings.TrimSpace(snap.PermissionsErr.Text), "switch_failed") {
 					errMsg = i18n.T(i18n.KeyParityPermSwitchFailed)
 				}
 				ui.Text(c, errMsg).FontSize(12).TextColor(chrome.Color(colors.FG)).Padding(6).MaxLines(3)

@@ -55,7 +55,10 @@ func (views sessionFrameViews) view(store *session.Store) *session.FrameSnapshot
 }
 
 func (views sessionFrameViews) snapshot(store *session.Store) session.ViewState {
-	return views.view(store).Snapshot()
+	if store == nil {
+		return session.ViewState{}
+	}
+	return store.Published().Value
 }
 
 func (views sessionFrameViews) end() {

@@ -50,8 +50,8 @@ func exerciseDshbot(ctx context.Context, client *dsh.Client, store *session.Stor
 	store.Select(roomID)
 	if err = await(ctx, func() (bool, error) {
 		v := store.Snapshot()
-		if v.HistoryError != "" {
-			return false, errors.New(v.HistoryError)
+		if v.HistoryError != nil {
+			return false, errors.New(v.HistoryError.SentenceText())
 		}
 		return v.SelectedID == roomID && v.HistoryReady && !v.HistoryLoading, nil
 	}); err != nil {
@@ -82,8 +82,8 @@ func exerciseDshbot(ctx context.Context, client *dsh.Client, store *session.Stor
 		store.Select(id)
 		return await(ctx, func() (bool, error) {
 			v := store.Snapshot()
-			if v.HistoryError != "" {
-				return false, errors.New(v.HistoryError)
+			if v.HistoryError != nil {
+				return false, errors.New(v.HistoryError.SentenceText())
 			}
 			for _, m := range v.Messages {
 				if m.Role == "assistant" && strings.Contains(m.Body, "QA_REPLY_OK") && !m.Streaming && m.Seq > 0 {

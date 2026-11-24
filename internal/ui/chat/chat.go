@@ -173,7 +173,7 @@ func conversationView(c *ui.Context, m Model) {
 			// The empty Session is the Hero's job (conversationPhase), so this
 			// only paints for a standalone surface or an errored settle: center
 			// the hint instead of pinning a 13px line to the top-left corner.
-			if m.Snapshot.HistoryError == "" && !m.FullColumnViewport {
+			if m.Snapshot.HistoryError == nil && !m.FullColumnViewport {
 				ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyChatEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(muted)
 				})

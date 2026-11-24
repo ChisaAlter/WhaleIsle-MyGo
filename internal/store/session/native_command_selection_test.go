@@ -213,7 +213,7 @@ func TestNativeModelSelectionFailureKeepsProjectionAndCanRetry(t *testing.T) {
 	if err := s.SelectNativeCommandModel(context.Background(), o, selection); err == nil {
 		t.Fatal("writer refusal reported success")
 	}
-	if v := s.Snapshot(); v.ModelSelectionBusy || v.SelectedModel != "Provider — One" || v.ModelsErr == "" {
+	if v := s.Snapshot(); v.ModelSelectionBusy || v.SelectedModel != "Provider — One" || v.ModelsErr == nil {
 		t.Fatal("failure changed projection or left busy state")
 	}
 	if err := s.SelectNativeCommandModel(context.Background(), o, selection); err != nil {

@@ -51,7 +51,8 @@ func (s *Store) BeginEvents(ctx context.Context, client *dsh.Client) *EventsOwne
 	s.invalidateSkillOptionsLocked()
 	s.resetNativeContributionsLocked()
 	s.permissionCatalogRevision++
-	s.permissionOptions, s.permissionsErr = nil, nil
+	s.permissionOptions = nil
+	s.setPermissionsErrLocked(nil)
 	s.invalidateCommandsLocked()
 	s.listGeneration++
 	s.listLoading = false
@@ -370,7 +371,7 @@ func (s *Store) invalidateFollowLocked() {
 	s.followGeneration++
 	s.resetModelSelectionLocked()
 	s.permissionProjection = permissionProjectionState{}
-	s.permissionsErr = nil
+	s.setPermissionsErrLocked(nil)
 	s.historyBranchBusy = false
 	if s.followCancel != nil {
 		s.followCancel()

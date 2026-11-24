@@ -99,7 +99,7 @@ var causes = []struct {
 	// A runtime that is present but not the one this app was built against is a
 	// different problem with a different next step: reinstalling, not repairing
 	// a path. Both the provenance receipt and the session reader report it.
-	{CauseRuntimeMismatch, regexp.MustCompile(`(?i)compatible Host runtime|Host session reader is |cannot verify the built Host session event registry|differs from the verified Host session runtime`)},
+	{CauseRuntimeMismatch, regexp.MustCompile(`(?i)compatible Host runtime|Host session reader is |cannot verify the built Host session event registry|differs from the verified Host session runtime|not marked ignorable|requires a supported versioned catalog fact`)},
 	{CausePortInUse, regexp.MustCompile(`(?i)EADDRINUSE|address already in use|only one usage of each socket address|no free port in `)},
 	// A provider route without a credential is the one failure a person fixes in
 	// Settings, so it claims its own family ahead of the generic ones: the Host

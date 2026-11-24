@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
@@ -138,9 +139,9 @@ func TestTranscriptHistoryFailureRetryAndEmptyLoadableList(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.Snapshot.HistoryPageBusy = false
-	m.Snapshot.HistoryPageErr = "Earlier page is unavailable"
+	m.Snapshot.HistoryPageErr = state.FaultText("Earlier page is unavailable")
 	tt.Frame()
-	if !tt.HasText(m.Snapshot.HistoryPageErr) {
+	if !tt.HasText(m.Snapshot.HistoryPageErr.SentenceText()) {
 		t.Fatal("page failure disappeared from scrollable history control")
 	}
 	if err := tt.Click(i18n.T(i18n.KeyChatLoadEarlier)); err != nil {
@@ -151,7 +152,7 @@ func TestTranscriptHistoryFailureRetryAndEmptyLoadableList(t *testing.T) {
 	}
 	m.Snapshot.HistoryPageBusy = false
 	m.Snapshot.HistoryHasMore = false
-	m.Snapshot.HistoryPageErr = ""
+	m.Snapshot.HistoryPageErr = nil
 	m.Snapshot.Messages = transcriptHistoryMessages(90, 1)
 	tt.Frame()
 	if _, visible := tt.Find(i18n.T(i18n.KeyChatLoadEarlier)); visible || !tt.HasText("History row 090") {
