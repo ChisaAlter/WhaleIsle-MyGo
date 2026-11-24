@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 // catalog/items is the original visibility command, not bot/update. Its CAS
@@ -31,11 +32,11 @@ func DshbotVisibilityTarget(c DshbotVisibilityCommand) (DshbotBotItem, error) {
 			return CloneDshbotBotItem(v), nil
 		}
 	}
-	return DshbotBotItem{}, fmt.Errorf("exact catalog target is missing; refresh without choosing another item")
+	return DshbotBotItem{}, storelocale.Authored("exact catalog target is missing; refresh without choosing another item")
 }
 func ValidateDshbotVisibilityCommand(c DshbotVisibilityCommand) error {
 	if c.Expected.Revision < 0 || c.ID == "" || c.SessionID == "" || c.UpdatedAt <= 0 || c.UpdatedAt > 9007199254740991 {
-		return fmt.Errorf("invalid catalog identity, revision or reviewed timestamp")
+		return storelocale.Authored("invalid catalog identity, revision or reviewed timestamp")
 	}
 	ids, sessions := map[string]bool{}, map[string]bool{}
 	for _, row := range c.Expected.Items {
@@ -45,19 +46,19 @@ func ValidateDshbotVisibilityCommand(c DshbotVisibilityCommand) error {
 		}
 		decoded, err := decodeDshbotBotItem(raw)
 		if err != nil || decoded.ID != row.ID || decoded.SessionID != row.SessionID || decoded.Kind != row.Kind || decoded.Hidden != row.Hidden || ids[row.ID] || sessions[row.SessionID] {
-			return fmt.Errorf("catalog contains ambiguous or unsupported identities")
+			return storelocale.Authored("catalog contains ambiguous or unsupported identities")
 		}
 		ids[row.ID], sessions[row.SessionID] = true, true
 		hidden := strings.TrimSpace(string(row.Profile["hidden"]))
 		if hidden != "true" && hidden != "false" {
-			return fmt.Errorf("catalog hidden value is not an explicit boolean")
+			return storelocale.Authored("catalog hidden value is not an explicit boolean")
 		}
 		var stamp json.Number
 		if json.Unmarshal(row.Profile["updatedAt"], &stamp) != nil {
-			return fmt.Errorf("catalog timestamp is missing")
+			return storelocale.Authored("catalog timestamp is missing")
 		}
 		if _, err := stamp.Float64(); err != nil {
-			return fmt.Errorf("catalog timestamp is invalid")
+			return storelocale.Authored("catalog timestamp is invalid")
 		}
 	}
 	target, err := DshbotVisibilityTarget(c)
@@ -65,7 +66,7 @@ func ValidateDshbotVisibilityCommand(c DshbotVisibilityCommand) error {
 		return err
 	}
 	if target.Hidden == c.Hidden {
-		return fmt.Errorf("visibility is unchanged")
+		return storelocale.Authored("visibility is unchanged")
 	}
 	return nil
 }

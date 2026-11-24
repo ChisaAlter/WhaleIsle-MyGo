@@ -9,7 +9,30 @@
 // synchronise. It deliberately keeps no catalog of its own.
 package storelocale
 
-import ui18n "whaleisle/internal/ui/i18n"
+import (
+	"fmt"
+
+	ui18n "whaleisle/internal/ui/i18n"
+)
+
+// AuthoredError carries curated, view-ready validation copy through an error
+// return so state.FaultOf can preserve it verbatim instead of collapsing it to
+// an unknown generic sentence. Never construct it from raw error text.
+type AuthoredError struct {
+	msg string
+}
+
+func (e AuthoredError) Error() string        { return e.msg }
+func (e AuthoredError) AuthoredCopy() string { return e.msg }
+
+// Error builds an AuthoredError from a registered storelocale catalog key.
+func Error(key string) error { return AuthoredError{msg: T(key)} }
+
+// Errorf formats a registered storelocale catalog key as an AuthoredError.
+func Errorf(key string, args ...any) error { return AuthoredError{msg: fmt.Sprintf(T(key), args...)} }
+
+// Authored wraps curated static validation copy as an AuthoredError.
+func Authored(text string) error { return AuthoredError{msg: text} }
 
 // T resolves key through the shared catalog (zh-CN, then English, then key).
 func T(key string) string { return ui18n.T(key) }

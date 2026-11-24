@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"whaleisle/internal/store/storelocale"
 )
 
 // These are catalog Bot identities, never IM accounts or external recipients.
@@ -155,14 +156,14 @@ func ValidateDshbotSenderPolicyCommand(c DshbotSenderPolicyCommand) error {
 		return err
 	}
 	if c.Expected.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved")
+		return storelocale.Authored("profile cannot be preserved")
 	}
 	snapshot := CloneDshbotSenderPolicy(c.Expected)
 	if err := decodeSenderCatalog(&snapshot); err != nil {
 		return err
 	}
 	if c.Values.Selected != (len(c.Values.IDs) > 0) {
-		return fmt.Errorf("select at least one Bot, or explicitly choose the default rule")
+		return storelocale.Authored("select at least one Bot, or explicitly choose the default rule")
 	}
 	raw, _ := json.Marshal(c.Values.IDs)
 	ids, err := senderPolicyIDs(raw)
@@ -171,7 +172,7 @@ func ValidateDshbotSenderPolicyCommand(c DshbotSenderPolicyCommand) error {
 	}
 	for _, id := range ids {
 		if id == c.Expected.Bot.ID || !slices.Contains(snapshot.PeerIDs, id) {
-			return fmt.Errorf("selected source is not an available peer Bot: %s", id)
+			return storelocale.Authored(fmt.Sprintf("selected source is not an available peer Bot: %s", id))
 		}
 	}
 	before, err := DshbotSenderPolicyValue(c.Expected)
@@ -179,7 +180,7 @@ func ValidateDshbotSenderPolicyCommand(c DshbotSenderPolicyCommand) error {
 		return err
 	}
 	if SameDshbotSenderPolicyValues(before, c.Values) {
-		return fmt.Errorf("sender policy unchanged")
+		return storelocale.Authored("sender policy unchanged")
 	}
 	return nil
 }

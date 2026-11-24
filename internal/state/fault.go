@@ -54,6 +54,12 @@ func FaultOf(err error) *Fault {
 	if err == nil {
 		return nil
 	}
+	var authored interface{ AuthoredCopy() string }
+	if errors.As(err, &authored) {
+		if text := authored.AuthoredCopy(); text != "" {
+			return &Fault{Text: text}
+		}
+	}
 	f := &Fault{Cause: errcopy.Classify(err)}
 	var transport *dsh.TransportError
 	if errors.As(err, &transport) {

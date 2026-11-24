@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Contract: WhaleIsle@e9f584be vendor/dshbot/lib/control-plane.js:346-430,
@@ -141,17 +142,17 @@ func ValidateDshbotRoutineEdit(e DshbotRoutineEdit) error {
 		limit       int
 	}{{"name", e.Name, 120}, {"prompt", e.Prompt, 8000}} {
 		if strings.TrimSpace(f.value) == "" || len(utf16.Encode([]rune(f.value))) > f.limit {
-			return fmt.Errorf("%s is required and must be at most %d UTF-16 units", f.name, f.limit)
+			return storelocale.Authored(fmt.Sprintf("%s is required and must be at most %d UTF-16 units", f.name, f.limit))
 		}
 	}
 	if strings.TrimSpace(e.Schedule) == "" || strings.TrimSpace(e.Timezone) == "" {
-		return fmt.Errorf("schedule and timezone are required; Host validates the original schedule syntax")
+		return storelocale.Authored("schedule and timezone are required; Host validates the original schedule syntax")
 	}
 	if len(utf16.Encode([]rune(strings.TrimSpace(e.Schedule)))) > 200 || strings.ContainsRune(e.Schedule, '\x00') {
-		return fmt.Errorf("schedule must be at most 200 UTF-16 units and contain no NUL")
+		return storelocale.Authored("schedule must be at most 200 UTF-16 units and contain no NUL")
 	}
 	if e.MaxRuns < 0 || e.MaxRuns > 100000 {
-		return fmt.Errorf("run limit must be 0–100000 (0 means unlimited)")
+		return storelocale.Authored("run limit must be 0–100000 (0 means unlimited)")
 	}
 	return nil
 }

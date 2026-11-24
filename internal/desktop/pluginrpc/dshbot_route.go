@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"unicode/utf8"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotRouteModel struct {
@@ -197,16 +198,16 @@ func DecodeDshbotRouteSession(raw json.RawMessage, id string, o *DshbotRouteOpti
 }
 func validateRouteModel(m DshbotRouteModel, o DshbotRouteOptions) error {
 	if !routeText(m.Provider, 200, false) || !routeText(m.Model, 500, false) || !routeText(m.ReasoningEffort, 100, false) || (m.Provider == "") != (m.Model == "") || m.Provider == "" && m.ReasoningEffort != "" {
-		return fmt.Errorf("provider/model must be selected together with a valid effort")
+		return storelocale.Authored("provider/model must be selected together with a valid effort")
 	}
 	if !o.ModelsKnown {
-		return fmt.Errorf("refresh real Host model choices before changing model")
+		return storelocale.Authored("refresh real Host model choices before changing model")
 	}
 	selected := m
 	if selected.Provider == "" {
 		selected = o.Default
 		if selected.Provider == "" || selected.Model == "" {
-			return fmt.Errorf("Host default model unavailable")
+			return storelocale.Authored("Host default model unavailable")
 		}
 	}
 	for _, entry := range o.Models {
@@ -214,10 +215,10 @@ func validateRouteModel(m DshbotRouteModel, o DshbotRouteOptions) error {
 			if selected.ReasoningEffort == "" || slices.Contains(entry.Efforts, selected.ReasoningEffort) {
 				return nil
 			}
-			return fmt.Errorf("effort is not available for this model")
+			return storelocale.Authored("effort is not available for this model")
 		}
 	}
-	return fmt.Errorf("model route is not in the current Host catalog")
+	return storelocale.Authored("model route is not in the current Host catalog")
 }
 func ValidateDshbotRouteCommand(c DshbotRouteCommand) error {
 	s := c.Expected
@@ -225,14 +226,14 @@ func ValidateDshbotRouteCommand(c DshbotRouteCommand) error {
 		return err
 	}
 	if s.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved")
+		return storelocale.Authored("profile cannot be preserved")
 	}
 	before, err := DshbotRouteValue(s)
 	if err != nil {
 		return err
 	}
 	if before == c.Values {
-		return fmt.Errorf("model and workspace are unchanged")
+		return storelocale.Authored("model and workspace are unchanged")
 	}
 	if before.Model != c.Values.Model {
 		if err := validateRouteModel(c.Values.Model, s.Options); err != nil {
@@ -241,10 +242,10 @@ func ValidateDshbotRouteCommand(c DshbotRouteCommand) error {
 	}
 	if before.WorkspaceID != c.Values.WorkspaceID {
 		if !s.Options.SessionKnown || s.Options.WorkspaceLocked {
-			return fmt.Errorf("conversation history is present or unknown; workspace change is locked")
+			return storelocale.Authored("conversation history is present or unknown; workspace change is locked")
 		}
 		if !s.Options.WorkspacesKnown || !routeText(c.Values.WorkspaceID, 2000, false) {
-			return fmt.Errorf("refresh real Host workspace choices")
+			return storelocale.Authored("refresh real Host workspace choices")
 		}
 		found := false
 		if c.Values.WorkspaceID == "" {
@@ -257,7 +258,7 @@ func ValidateDshbotRouteCommand(c DshbotRouteCommand) error {
 			}
 		}
 		if !found {
-			return fmt.Errorf("workspace is no longer available on this Host")
+			return storelocale.Authored("workspace is no longer available on this Host")
 		}
 	}
 	return nil

@@ -9,6 +9,7 @@ import (
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/store/storelocale"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -83,5 +84,25 @@ func TestFaultLocale(t *testing.T) {
 	}
 	if i18n.Normalize("en") != "en" {
 		t.Fatal("catalog locale assumption broken")
+	}
+}
+
+func TestFaultOfAuthoredErrorPreservesCopyAndHidesRawWrapper(t *testing.T) {
+	authored := storelocale.Authored("Curated validation sentence")
+	f := FaultOf(authored)
+	if f == nil || f.Text != "Curated validation sentence" || f.SentenceText() != "Curated validation sentence" {
+		t.Fatalf("authored fault = %#v", f)
+	}
+	wrapped := fmt.Errorf("raw outer diagnostic %w", authored)
+	wf := FaultOf(wrapped)
+	if wf == nil || wf.Text != "Curated validation sentence" || wf.SentenceText() != "Curated validation sentence" {
+		t.Fatalf("wrapped authored fault = %#v", wf)
+	}
+	if strings.Contains(wf.SentenceText(), "raw outer") {
+		t.Fatalf("raw outer wrapper leaked into sentence: %q", wf.SentenceText())
+	}
+	raw := FaultOf(errors.New("unclassified backend noise"))
+	if raw == nil || raw.Text != "" || raw.Cause != errcopy.CauseUnknown {
+		t.Fatalf("ordinary raw error mutated Fault.Text: %#v", raw)
 	}
 }

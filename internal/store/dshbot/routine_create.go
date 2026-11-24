@@ -1,9 +1,11 @@
 package dshbot
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -91,40 +93,132 @@ func (c *RoutineCreator) Sync(k RoutineScope, binding uint64, source RoutineSnap
 		c.source = RoutineSnapshot{}
 		return
 	}
-	e := c.entry(k)
+	changed := false
+	e := c.entries[k]
+	if e == nil {
+		if c.entries == nil {
+			c.entries = map[RoutineScope]*routineCreateEntry{}
+		}
+		e = &routineCreateEntry{state: RoutineCreateSnapshot{Scope: k}}
+		c.entries[k] = e
+		changed = true
+	}
 	if c.active != k || c.binding != binding || c.source.Scope != source.Scope || c.source.Revision != source.Revision || c.source.SessionID != source.SessionID {
-		e.state.Review = nil
+		if e.state.Review != nil {
+			e.state.Review = nil
+			changed = true
+		}
 	}
 	c.active = k
 	c.binding = binding
 	c.source = source
-	e.state.Loaded = source.Loaded && !source.Busy
-	e.state.RetryVerified = false
-	e.state.Candidates = nil
+	nextLoaded := source.Loaded && !source.Busy
+	if e.state.Loaded != nextLoaded {
+		e.state.Loaded = nextLoaded
+		changed = true
+	}
+	clearRetry := func() {
+		if e.state.RetryVerified {
+			e.state.RetryVerified = false
+			changed = true
+		}
+		if len(e.state.Candidates) > 0 {
+			e.state.Candidates = nil
+			changed = true
+		}
+	}
 	if e.attempt == nil || e.state.Busy || !e.state.Loaded {
+		clearRetry()
+		if changed {
+			e.dirty = true
+		}
 		return
 	}
 	cmd := e.attempt.Command
 	if source.SessionID != cmd.SessionID {
-		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotBotSessionChangedInspectTheOriginal))
+		clearRetry()
+		msg := storelocale.T(storelocale.KeyStoreDshbotBotSessionChangedInspectTheOriginal)
+		if e.state.Error == nil || e.state.Error.Text != msg || e.state.Error.Cause != 0 || e.state.Error.Code != "" {
+			e.state.Error = state.FaultText(msg)
+			changed = true
+		}
+		if changed {
+			e.dirty = true
+		}
 		return
 	}
 	if source.Revision < cmd.Revision {
+		clearRetry()
+		if changed {
+			e.dirty = true
+		}
 		return
 	}
-	old := map[string]bool{}
-	for _, id := range cmd.BeforeIDs {
-		old[id] = true
-	}
+	candCount := 0
+	candSame := true
 	for _, r := range source.Routines {
-		if !old[r.ID] && r.BotID == k.BotID {
-			e.state.Candidates = append(e.state.Candidates, cloneRoutine(r))
+		if !slices.Contains(cmd.BeforeIDs, r.ID) && r.BotID == k.BotID {
+			if candCount >= len(e.state.Candidates) || !sameRoutine(e.state.Candidates[candCount], r) {
+				candSame = false
+			}
+			candCount++
 		}
+	}
+	if candCount != len(e.state.Candidates) {
+		candSame = false
+	}
+	if !candSame {
+		if candCount == 0 {
+			e.state.Candidates = nil
+		} else {
+			cands := make([]pluginrpc.DshbotRoutine, 0, candCount)
+			for _, r := range source.Routines {
+				if !slices.Contains(cmd.BeforeIDs, r.ID) && r.BotID == k.BotID {
+					cands = append(cands, cloneRoutine(r))
+				}
+			}
+			e.state.Candidates = cands
+		}
+		changed = true
 	}
 	// A newer catalog revision fences any late request carrying the old CAS.
 	// Any new target-Bot row, including one edited by another client, stays visible
 	// for explicit adoption rather than being assumed not to be our creation.
-	e.state.RetryVerified = source.Revision > cmd.Revision && len(e.state.Candidates) == 0
+	nextRetry := source.Revision > cmd.Revision && candCount == 0
+	if e.state.RetryVerified != nextRetry {
+		e.state.RetryVerified = nextRetry
+		changed = true
+	}
+	if changed {
+		e.dirty = true
+	}
+}
+func sameRoutine(a, b pluginrpc.DshbotRoutine) bool {
+	return a.ID == b.ID &&
+		a.BotID == b.BotID &&
+		a.Name == b.Name &&
+		a.Prompt == b.Prompt &&
+		a.Schedule == b.Schedule &&
+		a.Timezone == b.Timezone &&
+		a.IntervalMinutes == b.IntervalMinutes &&
+		a.MaxRuns == b.MaxRuns &&
+		a.RunCount == b.RunCount &&
+		a.Enabled == b.Enabled &&
+		a.NextRunAt == b.NextRunAt &&
+		a.LastRunAt == b.LastRunAt &&
+		a.LastOutcome == b.LastOutcome &&
+		a.LastError == b.LastError &&
+		a.LastOutput == b.LastOutput &&
+		a.PendingRunID == b.PendingRunID &&
+		a.RunSessionID == b.RunSessionID &&
+		a.RunTurn == b.RunTurn &&
+		a.FailureCount == b.FailureCount &&
+		a.SilentAllowed == b.SilentAllowed &&
+		a.UpdatedAt == b.UpdatedAt &&
+		slices.Equal(a.ContextFrom, b.ContextFrom) &&
+		bytes.Equal(a.Watch, b.Watch) &&
+		(a.RunHistory == nil) == (b.RunHistory == nil) &&
+		slices.Equal(a.RunHistory, b.RunHistory)
 }
 func cloneCreateCommand(cmd pluginrpc.DshbotRoutineCreateCommand) pluginrpc.DshbotRoutineCreateCommand {
 	cmd.BeforeIDs = append([]string(nil), cmd.BeforeIDs...)
@@ -407,9 +501,6 @@ func (c *RoutineCreator) AcknowledgeWatch(k RoutineScope, expected *RoutineCreat
 }
 func (c *RoutineCreator) current(t RoutineCreateTicket) bool {
 	e := c.entries[t.Scope]
-	if e != nil {
-		e.dirty = true
-	}
 	return c.valid(t.Scope) && c.binding == t.Binding && c.source.Scope == t.SourceScope && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *RoutineCreator) Current(t RoutineCreateTicket) bool {

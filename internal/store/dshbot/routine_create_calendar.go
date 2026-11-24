@@ -1,7 +1,6 @@
 package dshbot
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,11 +26,11 @@ func routineCreateCalendarSchedule(d RoutineCreateDraft) (string, error) {
 		raw := strings.TrimSpace(d.Cron)
 		fields := strings.Fields(raw)
 		if len(fields) != 5 || len(utf16.Encode([]rune(raw))) > 200 || strings.ContainsRune(raw, '\x00') {
-			return "", errors.New(storelocale.T(storelocale.KeyStoreDshbotCronNeedsFiveFieldsAtMost200Chara))
+			return "", storelocale.Error(storelocale.KeyStoreDshbotCronNeedsFiveFieldsAtMost200Chara)
 		}
 		for _, field := range fields {
 			if len(utf16.Encode([]rune(field))) > 40 {
-				return "", errors.New(storelocale.T(storelocale.KeyStoreDshbotEachCronFieldMayContainAtMost40C))
+				return "", storelocale.Error(storelocale.KeyStoreDshbotEachCronFieldMayContainAtMost40C)
 			}
 		}
 		// Preserve the exact trimmed expression rather than guessing parser semantics.
@@ -40,7 +39,7 @@ func routineCreateCalendarSchedule(d RoutineCreateDraft) (string, error) {
 		hour, hErr := strconv.Atoi(strings.TrimSpace(d.Hour))
 		minute, mErr := strconv.Atoi(strings.TrimSpace(d.Minute))
 		if hErr != nil || mErr != nil || hour < 0 || hour > 23 || minute < 0 || minute > 59 {
-			return "", errors.New(storelocale.T(storelocale.KeyStoreDshbotEnterAValidCalendarTime))
+			return "", storelocale.Error(storelocale.KeyStoreDshbotEnterAValidCalendarTime)
 		}
 		switch d.Frequency {
 		case "weekdays":
@@ -48,16 +47,16 @@ func routineCreateCalendarSchedule(d RoutineCreateDraft) (string, error) {
 		case "weekly":
 			day, err := strconv.Atoi(strings.TrimSpace(d.Weekday))
 			if err != nil || day < 0 || day > 6 {
-				return "", errors.New(storelocale.T(storelocale.KeyStoreDshbotSelectWeekday06))
+				return "", storelocale.Error(storelocale.KeyStoreDshbotSelectWeekday06)
 			}
 			return fmt.Sprintf("%d %d * * %d", minute, hour, day), nil
 		case "monthly":
 			day, err := strconv.Atoi(strings.TrimSpace(d.MonthDay))
 			if err != nil || day < 1 || day > 31 {
-				return "", errors.New(storelocale.T(storelocale.KeyStoreDshbotDayOfMonthMustBe131))
+				return "", storelocale.Error(storelocale.KeyStoreDshbotDayOfMonthMustBe131)
 			}
 			return fmt.Sprintf("%d %d %d * *", minute, hour, day), nil
 		}
 	}
-	return "", errors.New(storelocale.T(storelocale.KeyStoreDshbotSelectASupportedFrequency))
+	return "", storelocale.Error(storelocale.KeyStoreDshbotSelectASupportedFrequency)
 }

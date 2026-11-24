@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Pinned e9f584be profile-ops.js accepts caller IDs, but has no requestId
@@ -93,25 +94,25 @@ func ValidateDshbotRoomCreate(cmd DshbotRoomCreateCommand) error {
 		required bool
 	}{{cmd.ID, 200, true}, {cmd.SessionID, 240, true}, {d.Name, 120, true}, {d.Description, 12000, false}, {d.WorkspaceID, 2000, false}, {d.ScratchCwd, 2000, d.WorkspaceID == ""}} {
 		if f.value != strings.TrimSpace(f.value) || (f.required && f.value == "") || len(utf16.Encode([]rune(f.value))) > f.limit {
-			return fmt.Errorf("invalid room text/identity; name is required (120 UTF-16 units), description ≤12000, workspace/cwd ≤2000")
+			return storelocale.Authored("invalid room text/identity; name is required (120 UTF-16 units), description ≤12000, workspace/cwd ≤2000")
 		}
 	}
 	if cmd.Expected.Revision < 0 {
-		return fmt.Errorf("refresh the Host catalog before creating")
+		return storelocale.Authored("refresh the Host catalog before creating")
 	}
 	if d.MaxRounds < 1 || d.MaxRounds > 3 || d.MaxSpeaks < 1 || d.MaxSpeaks > 10 {
-		return fmt.Errorf("group limits must be 1–3 rounds and 1–10 speaks")
+		return storelocale.Authored("group limits must be 1–3 rounds and 1–10 speaks")
 	}
 	if len(d.MemberBotIDs) < 2 || len(d.MemberBotIDs) > 6 {
-		return fmt.Errorf("choose 2–6 available Bots")
+		return storelocale.Authored("choose 2–6 available Bots")
 	}
 	available := map[string]bool{}
 	for _, item := range cmd.Expected.Items {
 		if item.ID == cmd.ID || item.SessionID == cmd.SessionID {
-			return fmt.Errorf("room identity already exists; read back, do not create again")
+			return storelocale.Authored("room identity already exists; read back, do not create again")
 		}
 		if item.Kind == "room" && strings.EqualFold(strings.TrimSpace(item.Name), d.Name) {
-			return fmt.Errorf("a group with this name already exists")
+			return storelocale.Authored("a group with this name already exists")
 		}
 		if item.Kind == "bot" && item.ID != "" && item.SessionID != "" {
 			available[item.ID] = true
@@ -120,7 +121,7 @@ func ValidateDshbotRoomCreate(cmd DshbotRoomCreateCommand) error {
 	seen := map[string]bool{}
 	for _, id := range d.MemberBotIDs {
 		if !available[id] || seen[id] {
-			return fmt.Errorf("members must be distinct current Bot IDs, not rooms or names")
+			return storelocale.Authored("members must be distinct current Bot IDs, not rooms or names")
 		}
 		seen[id] = true
 	}

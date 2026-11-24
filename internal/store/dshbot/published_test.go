@@ -1,11 +1,16 @@
 package dshbot
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
+	"whaleisle/internal/state"
+	"whaleisle/internal/store/storelocale"
 )
 
 func describeResult() pluginrpc.DshbotDescribeResult {
@@ -342,6 +347,204 @@ func TestForeignZeroScopeSnapshotNeverReturnsNil(t *testing.T) {
 		}
 		if allocs := testing.AllocsPerRun(50, func() { _ = c.Snapshot(TaskScope{}) }); allocs != 0 {
 			t.Fatalf("repeated zero-scope TaskControls Snapshot allocs = %v", allocs)
+		}
+	})
+}
+
+func TestAuthoredValidationCopyReachesView(t *testing.T) {
+	checkAuthored := func(t *testing.T, f *state.Fault, want error) {
+		t.Helper()
+		if want == nil {
+			t.Fatal("fixture did not produce a validation error")
+		}
+		if f == nil {
+			t.Fatal("snapshot carries no fault")
+		}
+		if got := f.SentenceText(); got != want.Error() {
+			t.Fatalf("view sentence = %q (Cause=%v Text=%q), want %q", got, f.Cause, f.Text, want.Error())
+		}
+	}
+
+	t.Run("TextProfilePrepare", func(t *testing.T) {
+		var parent RoutineControls
+		k := RoutineScope{HostKey: "fixture-account", BotID: "b"}
+		parent.Bind(k)
+		c := &parent.TextProfile
+		load, _ := c.BeginLoad(k)
+		c.FinishLoad(load, textProfileStoreFixture(), true, nil)
+		d := pluginrpc.DshbotTextProfileValues{Name: "   ", Title: "t", Description: "d"}
+		_, want := pluginrpc.ParseDshbotTextProfile(d)
+		c.SetDraft(k, d)
+		c.Prepare(k)
+		checkAuthored(t, c.Snapshot(k).Value.Error, want)
+	})
+
+	t.Run("ObjectiveConfigPrepare", func(t *testing.T) {
+		c, k := objectiveConfigLoaded(t)
+		d := pluginrpc.DshbotObjectiveConfigDraft{Objective: "Changed objective", MaxRounds: "0"}
+		_, want := pluginrpc.ParseDshbotObjectiveConfigDraft(d)
+		c.SetDraft(k, d)
+		c.Prepare(k)
+		checkAuthored(t, c.Snapshot(k).Value.Error, want)
+	})
+
+	t.Run("RoutineAdvancedContextEdit", func(t *testing.T) {
+		c, k := advancedReady(t, false)
+		c.Edit(k, "contextToggle", "foreign")
+		checkAuthored(t, c.Snapshot(k).Value.Error, storelocale.Error(storelocale.KeyStoreDshbotContextSourceIsNotOwnedByThisBot))
+	})
+
+	t.Run("RoutineControlsPrepare", func(t *testing.T) {
+		c, k := advancedReady(t, false)
+		c.Edit(k, "schedule", "")
+		c.Prepare(k, "save")
+		snap := c.Snapshot(k).Value
+		want := pluginrpc.ValidateDshbotRoutineEdit(snap.Draft.Edit)
+		checkAuthored(t, snap.Error, want)
+	})
+
+	t.Run("RoutineCreateSchedulePrepare", func(t *testing.T) {
+		var c RoutineCreator
+		k := RoutineScope{HostKey: "account", BotID: "b"}
+		c.Sync(k, 1, createSource(4))
+		c.Start(k, "Asia/Shanghai")
+		c.Change(k, "prompt", "Fixture prompt")
+		c.Change(k, "frequency", "weekly")
+		c.Change(k, "weekday", "7")
+		_, want := routineCreateSchedule(*c.entries[k].state.Draft)
+		c.Prepare(k)
+		checkAuthored(t, c.Snapshot(k).Value.Error, want)
+	})
+
+	t.Run("RoomEditorPrepare", func(t *testing.T) {
+		c := &RoomEditor{}
+		k := "account-room"
+		c.Bind(k, "client-1")
+		load, _ := c.BeginLoad(k)
+		c.FinishLoad(load, roomEditStoreStatus(), true, nil)
+		c.Start(k)
+		c.Change(k, "name", "   ")
+		_, want := pluginrpc.ParseDshbotRoomText(pluginrpc.DshbotRoomTextValues{Name: "   ", Description: "preserve full description"})
+		c.Prepare(k)
+		checkAuthored(t, c.Snapshot(k).Value.Error, want)
+	})
+
+	t.Run("RoomCreatorPrepare", func(t *testing.T) {
+		c, k := roomStoreReady(t)
+		c.ToggleMember(k, "a")
+		c.Prepare(k)
+		snap := c.Snapshot(k).Value
+		cmd := pluginrpc.DshbotRoomCreateCommand{
+			ID: snap.Draft.ID, SessionID: snap.Draft.SessionID,
+			Expected: snap.Catalog,
+			Draft: pluginrpc.DshbotRoomDraft{
+				Name: strings.TrimSpace(snap.Draft.Name), Description: strings.TrimSpace(snap.Draft.Description),
+				WorkspaceID: strings.TrimSpace(snap.Draft.WorkspaceID), ScratchCwd: strings.TrimSpace(snap.Draft.ScratchCwd),
+				MemberBotIDs: snap.Draft.MemberBotIDs, MaxRounds: 3, MaxSpeaks: 10,
+			},
+		}
+		checkAuthored(t, snap.Error, pluginrpc.ValidateDshbotRoomCreate(cmd))
+	})
+
+	t.Run("MemoryControlsPrepare", func(t *testing.T) {
+		c, k := memoryLoaded(t)
+		c.StartEdit(k, 0)
+		huge := strings.Repeat("a", 8001)
+		c.Change(k, huge)
+		c.Prepare(k)
+		snap := c.Snapshot(k).Value
+		cmd := pluginrpc.DshbotMemoryCommand{
+			BotID: k.BotID, SessionID: snap.SessionID, Track: snap.Draft.Track,
+			MemoryRevision: snap.Draft.BaseRevision, Text: pluginrpc.DshbotMemoryText([]string{huge}),
+			Limit: snap.Server.Limit(snap.Draft.Track),
+		}
+		checkAuthored(t, snap.Error, pluginrpc.ValidateDshbotMemoryCommand(cmd))
+	})
+
+	t.Run("UnknownRawErrorDoesNotLeak", func(t *testing.T) {
+		var c RoutineControls
+		k := RoutineScope{HostKey: "fixture-host", BotID: "b"}
+		c.Bind(k)
+		ticket, _ := c.BeginLoad(k)
+		rawErr := errors.New("internal backend stack trace detail")
+		c.FinishLoad(ticket, nil, nil, nil, rawErr)
+		f := c.Snapshot(k).Value.Error
+		if f == nil || f.Text != "" {
+			t.Fatalf("raw backend error unexpectedly populated Fault.Text: %#v", f)
+		}
+		got := f.SentenceText()
+		if got != errcopy.Sentence(rawErr) || strings.Contains(got, "stack trace") {
+			t.Fatalf("unexpected sentence %q", got)
+		}
+	})
+}
+
+func TestRoutineCreatorUnchangedSyncKeepsVersion(t *testing.T) {
+	t.Run("with active draft", func(t *testing.T) {
+		var c RoutineCreator
+		k := RoutineScope{HostKey: "account", BotID: "b"}
+		src := createSource(4)
+		c.Sync(k, 1, src)
+		c.Start(k, "Asia/Shanghai")
+		before := c.Snapshot(k)
+		for range 5 {
+			c.Sync(k, 1, src)
+			if got := c.Snapshot(k); got != before {
+				t.Fatalf("unchanged Sync republished: %p rev %d -> %p rev %d", before, before.Rev, got, got.Rev)
+			}
+		}
+		if allocs := testing.AllocsPerRun(100, func() {
+			c.Sync(k, 1, src)
+			_ = c.Snapshot(k)
+		}); allocs != 0 {
+			t.Fatalf("unchanged draft Sync+Snapshot allocs = %v", allocs)
+		}
+	})
+
+	t.Run("with pending attempt candidate and retry-verified steady state", func(t *testing.T) {
+		var c RoutineCreator
+		k := RoutineScope{HostKey: "account", BotID: "b"}
+		createReady(t, &c, k)
+		ticket, cmd, ok := c.Begin(k, c.Snapshot(k).Value.Review)
+		if !ok || !c.MarkSent(ticket) {
+			t.Fatal("begin failed")
+		}
+		c.Finish(ticket, pluginrpc.DshbotRoutineCreateResult{}, errors.New("lost"))
+
+		srcCand := createSource(5)
+		srcCand.Routines = []pluginrpc.DshbotRoutine{{
+			ID: "new", BotID: "b", Name: cmd.Edit.Name, Prompt: cmd.Edit.Prompt,
+			Schedule: cmd.Edit.Schedule, Timezone: cmd.Edit.Timezone,
+		}}
+		c.Sync(k, 1, srcCand)
+		before := c.Snapshot(k)
+		if len(before.Value.Candidates) != 1 {
+			t.Fatalf("candidates = %d, want 1", len(before.Value.Candidates))
+		}
+		for range 3 {
+			c.Sync(k, 1, srcCand)
+			if got := c.Snapshot(k); got != before {
+				t.Fatalf("unchanged candidate Sync republished: rev %d -> %d", before.Rev, got.Rev)
+			}
+		}
+		if allocs := testing.AllocsPerRun(100, func() {
+			c.Sync(k, 1, srcCand)
+			_ = c.Snapshot(k)
+		}); allocs != 0 {
+			t.Fatalf("unchanged candidate Sync+Snapshot allocs = %v", allocs)
+		}
+
+		srcRetry := createSource(6)
+		c.Sync(k, 1, srcRetry)
+		beforeRetry := c.Snapshot(k)
+		if !beforeRetry.Value.RetryVerified {
+			t.Fatal("expected RetryVerified")
+		}
+		if allocs := testing.AllocsPerRun(100, func() {
+			c.Sync(k, 1, srcRetry)
+			_ = c.Snapshot(k)
+		}); allocs != 0 {
+			t.Fatalf("unchanged retry-verified Sync+Snapshot allocs = %v", allocs)
 		}
 	})
 }
