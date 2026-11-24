@@ -17,10 +17,11 @@ import (
 )
 
 type reviewFixture struct {
-	mu       sync.Mutex
-	bundles  []manager.Bundle
-	indexes  []manager.Index
-	metadata manager.MarketMetadata
+	mu        sync.Mutex
+	bundles   []manager.Bundle
+	indexes   []manager.Index
+	metadata  manager.MarketMetadata
+	entryIcon string
 }
 
 func newReviewFixture() *reviewFixture {
@@ -57,6 +58,7 @@ func (f *reviewFixture) Call(_ context.Context, method string, args, out any) er
 	bundles := append([]manager.Bundle(nil), f.bundles...)
 	indexes := append([]manager.Index(nil), f.indexes...)
 	meta := f.metadata
+	icon := f.entryIcon
 	f.mu.Unlock()
 
 	var value any
@@ -78,6 +80,7 @@ func (f *reviewFixture) Call(_ context.Context, method string, args, out any) er
 		entry := manager.MarketEntry{
 			Name: "fixture-discover", Title: manager.Text(`"Discover fixture"`),
 			Description: manager.Text(`"Desc"`), Author: "Author", DefaultVersion: "2.0.0",
+			Icon: icon,
 		}
 		entry.Metadata.Category = "tools"
 		entry.Metadata.Labels = []string{"verified"}

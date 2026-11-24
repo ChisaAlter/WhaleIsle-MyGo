@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -22,19 +23,25 @@ type MemoryReviewSnapshot struct {
 	Status                               pluginrpc.DshbotCapabilityStatus
 	Review                               *MemoryReviewConfirmation
 	Warnings                             []string
-	Error, Notice                        string
+	Error                                *state.Fault
+	Notice                               string
 }
 type MemoryReviewControls struct {
 	mu                   sync.Mutex
 	state                MemoryReviewSnapshot
 	generation, sequence uint64
 	hasDraft             bool
+	pub                  state.Published[MemoryReviewSnapshot]
+	dirty                bool
+	foreignPub           state.Published[MemoryReviewSnapshot]
+	foreignKey           RoutineScope
 }
 
 func (c *MemoryReviewControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
+		c.dirty = true
 		c.generation++
 		c.sequence++
 		c.state = MemoryReviewSnapshot{Scope: k}
@@ -44,11 +51,21 @@ func (c *MemoryReviewControls) Bind(k RoutineScope) {
 func (c *MemoryReviewControls) valid(k RoutineScope) bool {
 	return c.state.Scope == k && k.HostKey != "" && k.BotID != ""
 }
-func (c *MemoryReviewControls) Snapshot(k RoutineScope) MemoryReviewSnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *MemoryReviewControls) Snapshot(k RoutineScope) *state.Version[MemoryReviewSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		return MemoryReviewSnapshot{Scope: k}
+		if c.foreignPub.Load() == nil || c.foreignKey != k {
+			c.foreignKey = k
+			c.foreignPub.Publish(MemoryReviewSnapshot{Scope: k})
+		}
+		return c.foreignPub.Load()
+	}
+	if v := c.pub.Load(); v != nil && !c.dirty {
+		return v
 	}
 	out := c.state
 	out.Generation = c.generation
@@ -59,7 +76,9 @@ func (c *MemoryReviewControls) Snapshot(k RoutineScope) MemoryReviewSnapshot {
 		r.Command.Expected = pluginrpc.CloneDshbotCapabilities(r.Command.Expected)
 		out.Review = &r
 	}
-	return out
+	c.pub.Publish(out)
+	c.dirty = false
+	return c.pub.Load()
 }
 func (c *MemoryReviewControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -77,6 +96,7 @@ func (c *MemoryReviewControls) Current(t MemoryReviewTicket) bool {
 func (c *MemoryReviewControls) BeginLoad(k RoutineScope) (MemoryReviewTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || c.state.Busy {
 		return MemoryReviewTicket{}, false
 	}
@@ -84,12 +104,13 @@ func (c *MemoryReviewControls) BeginLoad(k RoutineScope) (MemoryReviewTicket, bo
 	c.state.Busy = true
 	c.state.Loaded = false
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	return MemoryReviewTicket{k, c.generation}, true
 }
 func (c *MemoryReviewControls) FinishLoad(t MemoryReviewTicket, status pluginrpc.DshbotCapabilityStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) {
 		return false
 	}
@@ -97,7 +118,7 @@ func (c *MemoryReviewControls) FinishLoad(t MemoryReviewTicket, status pluginrpc
 	c.state.Busy = false
 	enabled, flagErr := pluginrpc.DshbotMemoryReviewEnabled(status)
 	if err != nil || flagErr != nil || status.Bot.ID != t.Scope.BotID || status.Bot.SessionID == "" {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetainedAndLock)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetainedAndLock))
 		return true
 	}
 	if !c.hasDraft || !c.state.Dirty {
@@ -108,7 +129,7 @@ func (c *MemoryReviewControls) FinishLoad(t MemoryReviewTicket, status pluginrpc
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(status)
 	c.state.Writable = writable
 	c.state.Loaded = true
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewAnyRemainingDraft)
 	return true
 }
@@ -118,6 +139,7 @@ func (c *MemoryReviewControls) editable(k RoutineScope) bool {
 func (c *MemoryReviewControls) SetEnabled(k RoutineScope, enabled bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.editable(k) || c.state.Review != nil {
 		return
 	}
@@ -132,6 +154,7 @@ func (c *MemoryReviewControls) SetEnabled(k RoutineScope, enabled bool) {
 func (c *MemoryReviewControls) Discard(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || !c.state.Loaded || c.state.Busy {
 		return
 	}
@@ -147,22 +170,24 @@ func (c *MemoryReviewControls) Discard(k RoutineScope) {
 func (c *MemoryReviewControls) Prepare(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.editable(k) || !c.state.Dirty {
 		return
 	}
 	cmd := pluginrpc.DshbotMemoryReviewCommand{Expected: pluginrpc.CloneDshbotCapabilities(c.state.Status), Enabled: c.state.Draft}
 	if err := pluginrpc.ValidateDshbotMemoryReviewCommand(cmd); err != nil {
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	c.state.Review = &MemoryReviewConfirmation{Command: cmd, Sequence: c.sequence}
-	c.state.Error = ""
+	c.state.Error = nil
 }
 func (c *MemoryReviewControls) Dismiss(k RoutineScope, r *MemoryReviewConfirmation) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && r != nil && c.state.Review != nil && r.Sequence == c.state.Review.Sequence {
 		c.state.Review = nil
 		c.generation++
@@ -171,6 +196,7 @@ func (c *MemoryReviewControls) Dismiss(k RoutineScope, r *MemoryReviewConfirmati
 func (c *MemoryReviewControls) Acknowledge(k RoutineScope, r *MemoryReviewConfirmation, ack bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && r != nil && c.state.Review != nil && r.Sequence == c.state.Review.Sequence {
 		c.state.Review.Acknowledged = ack
 		c.generation++
@@ -179,6 +205,7 @@ func (c *MemoryReviewControls) Acknowledge(k RoutineScope, r *MemoryReviewConfir
 func (c *MemoryReviewControls) BeginSave(k RoutineScope, r *MemoryReviewConfirmation) (MemoryReviewTicket, pluginrpc.DshbotMemoryReviewCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	var zero pluginrpc.DshbotMemoryReviewCommand
 	actual := c.state.Review
 	if !c.editable(k) || r == nil || actual == nil || actual.Sequence != r.Sequence || !actual.Acknowledged || !pluginrpc.SameDshbotCapabilities(actual.Command.Expected, c.state.Status) {
@@ -194,6 +221,7 @@ func (c *MemoryReviewControls) BeginSave(k RoutineScope, r *MemoryReviewConfirma
 func (c *MemoryReviewControls) FinishSave(t MemoryReviewTicket, out pluginrpc.DshbotCapabilityReceipt, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) || c.state.Review == nil {
 		return false
 	}
@@ -202,14 +230,14 @@ func (c *MemoryReviewControls) FinishSave(t MemoryReviewTicket, out pluginrpc.Ds
 	c.state.Review = nil
 	c.state.Warnings = append([]string(nil), out.Warnings...)
 	if err != nil || out.Status.Bot.ID != t.Scope.BotID || out.Status.Bot.SessionID != c.state.Status.Bot.SessionID {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin2)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin2))
 		if !out.Attempted {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent2)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent2))
 		}
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(out.Status)
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReceiptReceivedReadBackToVerify)
 	return true
 }

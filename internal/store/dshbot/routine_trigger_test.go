@@ -29,7 +29,7 @@ func triggerReady(t *testing.T) (*RoutineControls, RoutineScope) {
 func triggerBegin(t *testing.T, c *RoutineControls, k RoutineScope) RoutineTriggerTicket {
 	t.Helper()
 	c.PrepareTrigger(k)
-	s := c.Snapshot(k).Trigger
+	s := c.Snapshot(k).Value.Trigger
 	c.AcknowledgeTrigger(k, s.Sequence, true)
 	ticket, ok := c.BeginTrigger(k, s.Sequence)
 	if !ok {
@@ -39,11 +39,11 @@ func triggerBegin(t *testing.T, c *RoutineControls, k RoutineScope) RoutineTrigg
 }
 func TestBotRoutineTriggerConfirmationAndZeroing(t *testing.T) {
 	c, k := triggerReady(t)
-	if c.Snapshot(k).Trigger.Open {
+	if c.Snapshot(k).Value.Trigger.Open {
 		t.Fatal("ordinary catalog load opened credential")
 	}
 	c.PrepareTrigger(k)
-	s := c.Snapshot(k).Trigger
+	s := c.Snapshot(k).Value.Trigger
 	if !s.Review || s.Acknowledged {
 		t.Fatal(s)
 	}
@@ -52,7 +52,7 @@ func TestBotRoutineTriggerConfirmationAndZeroing(t *testing.T) {
 	}
 	c.AcknowledgeTrigger(k, s.Sequence, true)
 	ticket, ok := c.BeginTrigger(k, s.Sequence)
-	if !ok || !c.CurrentTrigger(ticket) || c.Snapshot(k).Loaded {
+	if !ok || !c.CurrentTrigger(ticket) || c.Snapshot(k).Value.Loaded {
 		t.Fatal("dispatch or revision fence missing")
 	}
 	if _, ok := c.BeginTrigger(k, s.Sequence); ok {
@@ -67,7 +67,7 @@ func TestBotRoutineTriggerConfirmationAndZeroing(t *testing.T) {
 	if err != nil || address != "https://fixture.invalid/dshbot-hook/routine/r" || header != "X-Dshbot-Token: synthetic-fixture-secret" {
 		t.Fatal("material missing")
 	}
-	snapshot, _ := json.Marshal(c.Snapshot(k))
+	snapshot, _ := json.Marshal(c.Snapshot(k).Value)
 	if strings.Contains(string(snapshot), "synthetic-fixture-secret") {
 		t.Fatal("snapshot captures plaintext")
 	}
@@ -78,7 +78,7 @@ func TestBotRoutineTriggerConfirmationAndZeroing(t *testing.T) {
 			t.Fatal("owned credential buffer not overwritten")
 		}
 	}
-	if c.Snapshot(k).Trigger.Open {
+	if c.Snapshot(k).Value.Trigger.Open {
 		t.Fatal("close kept credential view")
 	}
 	if _, _, err := c.TriggerMaterial(k, s.Sequence, "https://fixture.invalid"); err == nil {
@@ -129,8 +129,8 @@ func TestBotRoutineTriggerFailureRequiresFreshReview(t *testing.T) {
 	c, k := triggerReady(t)
 	ticket := triggerBegin(t, c, k)
 	c.FinishTrigger(ticket, nil, errors.New("synthetic-secret-never-display"))
-	s := c.Snapshot(k)
-	if s.Loaded || s.Trigger.Ready || strings.Contains(s.Trigger.Error, "synthetic-secret") {
+	s := c.Snapshot(k).Value
+	if s.Loaded || s.Trigger.Ready || strings.Contains(s.Trigger.Error.SentenceText(), "synthetic-secret") {
 		t.Fatal("unknown result enabled writes or leaked error")
 	}
 	c.PrepareTrigger(k)
@@ -141,9 +141,9 @@ func TestBotRoutineTriggerFailureRequiresFreshReview(t *testing.T) {
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, triggerView(5), nil, nil, nil)
 	c.PrepareTrigger(k)
-	next := c.Snapshot(k).Trigger
+	next := c.Snapshot(k).Value.Trigger
 	c.AcknowledgeTrigger(k, ticket.Sequence, true)
-	if next.Sequence == ticket.Sequence || c.Snapshot(k).Trigger.Acknowledged {
+	if next.Sequence == ticket.Sequence || c.Snapshot(k).Value.Trigger.Acknowledged {
 		t.Fatal("stale acknowledgement consumed new review")
 	}
 	if _, ok := c.BeginTrigger(k, ticket.Sequence); ok {

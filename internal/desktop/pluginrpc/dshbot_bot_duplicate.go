@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+	"whaleisle/internal/store/storelocale"
 )
 
 // e9f584be profile-ops duplicate generates new identities inside the Host.
@@ -78,14 +79,14 @@ func ValidateDshbotBotDuplicate(cmd DshbotBotDuplicateCommand) error {
 		return err
 	}
 	if cmd.Expected.Revision < 0 || !utf8.ValidString(cmd.Name) || cmd.Name == "" || cmd.Name != trimBotMemory(cmd.Name) || WhaleTextLength(cmd.Name) > 120 {
-		return fmt.Errorf("enter a distinct name of at most 120 UTF-16 units and refresh the original catalog")
+		return storelocale.Authored("enter a distinct name of at most 120 UTF-16 units and refresh the original catalog")
 	}
 	if !utf8.ValidString(cmd.ScratchCwd) || cmd.ScratchCwd != trimBotMemory(cmd.ScratchCwd) || WhaleTextLength(cmd.ScratchCwd) > 2000 || (source.WorkspaceID == "" && cmd.ScratchCwd == "") {
-		return fmt.Errorf("scratch cwd is required without a workspace and must be at most 2000 UTF-16 units")
+		return storelocale.Authored("scratch cwd is required without a workspace and must be at most 2000 UTF-16 units")
 	}
 	for _, item := range cmd.Expected.Items {
 		if item.Kind == "bot" && strings.EqualFold(trimBotMemory(item.Name), cmd.Name) {
-			return fmt.Errorf("a personal Bot with this name already exists")
+			return storelocale.Authored("a personal Bot with this name already exists")
 		}
 	}
 	return nil

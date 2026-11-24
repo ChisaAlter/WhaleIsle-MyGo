@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotObjectiveBot struct {
@@ -141,16 +142,16 @@ type DshbotObjectiveResult struct {
 func ValidateDshbotObjectiveCommand(cmd DshbotObjectiveCommand) error {
 	s := cmd.Expected
 	if s.Bot.ID == "" || s.Bot.SessionID == "" || s.Bot.Kind == "room" || s.Bot.Hidden || s.Bot.ObjectiveMaxRounds < 1 || s.Bot.ObjectiveMaxRounds > 200 || s.Revision < 0 || !s.GoalKnown {
-		return fmt.Errorf("refresh the current Bot objective before reviewing")
+		return storelocale.Authored("refresh the current Bot objective before reviewing")
 	}
 	switch cmd.Action {
 	case "start":
 		if strings.TrimSpace(s.Bot.Objective) == "" {
-			return fmt.Errorf("configure a Bot objective in the existing profile editor first")
+			return storelocale.Authored("configure a Bot objective in the existing profile editor first")
 		}
 	case "pause", "clear":
 	default:
-		return fmt.Errorf("unsupported Bot objective action")
+		return storelocale.Authored("unsupported Bot objective action")
 	}
 	return nil
 }

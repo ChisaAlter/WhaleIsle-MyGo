@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"whaleisle/internal/desktop/avatarimage"
+	"whaleisle/internal/store/storelocale"
 )
 
 // Exact pinned Host avatar vocabulary. Image imports are explicitly cropped
@@ -43,7 +44,7 @@ func DshbotAvatarValue(s DshbotCapabilityStatus) (DshbotAvatarValues, error) {
 	for _, raw := range p {
 		var text string
 		if string(raw) == "null" || json.Unmarshal(raw, &text) != nil {
-			return v, fmt.Errorf("avatar fields must be strings")
+			return v, storelocale.Authored("avatar fields must be strings")
 		}
 	}
 	if err := json.Unmarshal(s.Profile["avatar"], &v); err != nil {
@@ -66,14 +67,14 @@ func ParseDshbotAvatar(v DshbotAvatarValues) (DshbotAvatarValues, error) {
 			return v, nil
 		}
 	}
-	return v, fmt.Errorf("avatar is not an exact supported record; use Bot Web")
+	return v, storelocale.Authored("avatar is not an exact supported record; use Bot Web")
 }
 func ValidateDshbotAvatarCommand(c DshbotAvatarCommand) error {
 	if err := ValidateDshbotCapabilityProfile(c.Expected); err != nil {
 		return err
 	}
 	if c.Expected.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved; use Bot Web")
+		return storelocale.Authored("profile cannot be preserved; use Bot Web")
 	}
 	before, err := DshbotAvatarValue(c.Expected)
 	if err != nil {
@@ -89,7 +90,7 @@ func ValidateDshbotAvatarCommand(c DshbotAvatarCommand) error {
 		}
 	}
 	if next == before {
-		return fmt.Errorf("avatar unchanged")
+		return storelocale.Authored("avatar unchanged")
 	}
 	return nil
 }

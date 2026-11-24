@@ -70,7 +70,7 @@ func (s *Service) RoomCreateModel(ep harness.Endpoint) assistantui.RoomCreateMod
 	}
 	controls := &s.assistantRoomCreator
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	workspaceSessions := host.Sessions()
 	var workspaceOptions []session.WorkspaceRow
 	workspacesKnown := false
@@ -344,7 +344,7 @@ func (s *Service) RoomEditModel(ep harness.Endpoint, id string) assistantui.Room
 	}
 	controls := &s.assistantRoomEditor
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	current := func() bool {
 		if client == nil || asst == nil || scope == "" || s.roomClient(ep) != client || !controls.ViewCurrent(scope, snapshot.Generation) {
 			return false
@@ -466,7 +466,7 @@ func (s *Service) RoomRuntimeModel(ep harness.Endpoint, id string) assistantui.R
 	}
 	reader := &s.assistantRoomRuntime
 	reader.Bind(scope)
-	snapshot := reader.Snapshot()
+	snapshot := reader.Snapshot().Value
 	current := func() bool {
 		if scope == "" || client == nil || s.roomClient(ep) != client || !reader.ViewCurrent(scope, snapshot.Generation) {
 			return false

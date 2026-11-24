@@ -22,7 +22,7 @@ func TestBotRoutineTriggerUIIndependentConfirmation(t *testing.T) {
 	obtains := 0
 	var copies []string
 	tt := ui.NewTester(func(c *ui.Context) {
-		state := cstore.Snapshot(k)
+		state := cstore.Snapshot(k).Value
 		seq := state.Trigger.Sequence
 		m := RoutineModel{State: state, HostLabel: "https://fixture.invalid", OnPrepareTrigger: func() { cstore.PrepareTrigger(k) }, OnAcknowledgeTrigger: func(ack bool) { cstore.AcknowledgeTrigger(k, seq, ack) }, OnConfirmTrigger: func() {
 			if ticket, ok := cstore.BeginTrigger(k, seq); ok {
@@ -82,7 +82,7 @@ func TestBotRoutineTriggerUIIndependentConfirmation(t *testing.T) {
 	if err := tt.Click(i18n.T(i18n.KeyMiscAssistantCloseAndClearCredential)); err != nil {
 		t.Fatal(err)
 	}
-	if cstore.Snapshot(k).Trigger.Open || tt.HasText("X-Dshbot-Token: synthetic-ui-credential") {
+	if cstore.Snapshot(k).Value.Trigger.Open || tt.HasText("X-Dshbot-Token: synthetic-ui-credential") {
 		t.Fatal("close did not clear display")
 	}
 	if obtains != 1 || len(copies) != 2 {

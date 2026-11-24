@@ -27,12 +27,12 @@ func TestBotTaskControlsRetryReviewAndFailureRetention(t *testing.T) {
 	var c TaskControls
 	scope := TaskScope{"host-account", "b"}
 	loadTaskControl(t, &c, scope, 7, "failed")
-	if got := c.Snapshot(scope); len(got.Tasks) != 1 {
+	if got := c.Snapshot(scope).Value; len(got.Tasks) != 1 {
 		t.Fatal("foreign task leaked")
 	}
 	c.Select(scope, "t")
 	c.Prepare(scope, "retry", "t")
-	review := c.Snapshot(scope).Review
+	review := c.Snapshot(scope).Value.Review
 	if review == nil || review.Command.RequestID == "" {
 		t.Fatal("missing review/id")
 	}
@@ -45,8 +45,8 @@ func TestBotTaskControlsRetryReviewAndFailureRetention(t *testing.T) {
 		t.Fatal("duplicate click admitted")
 	}
 	c.FinishAction(ticket, pluginrpc.DshbotTaskResult{}, errors.New("synthetic timeout"))
-	got := c.Snapshot(scope)
-	if got.Review == nil || got.Review.Command.RequestID != id || got.Error == "" || got.SelectedID != "t" {
+	got := c.Snapshot(scope).Value
+	if got.Review == nil || got.Review.Command.RequestID != id || got.Error == nil || got.SelectedID != "t" {
 		t.Fatal("failure discarded operation")
 	}
 	// Refresh advances authority, but must not silently rebase the reviewed write.
@@ -60,7 +60,7 @@ func TestBotTaskControlsRetryReviewAndFailureRetention(t *testing.T) {
 	}
 	c.Dismiss(scope)
 	c.Prepare(scope, "retry", "t")
-	if c.Snapshot(scope).Review.Command.RequestID != id {
+	if c.Snapshot(scope).Value.Review.Command.RequestID != id {
 		t.Fatal("refresh/dismiss lost retry identity")
 	}
 	ticket, command, ok = c.BeginAction(scope)
@@ -70,8 +70,8 @@ func TestBotTaskControlsRetryReviewAndFailureRetention(t *testing.T) {
 	view := taskControlFixture(9, "failed")
 	view.Value.Tasks = append(view.Value.Tasks, pluginrpc.DshbotTask{ID: "new", FromID: "a", ToID: "b", Status: "queued", ParentTaskID: "t", RetryRequestID: id})
 	c.FinishAction(ticket, pluginrpc.DshbotTaskResult{View: view, TaskID: "new", OriginalTaskID: "t", WakeError: "synthetic wake unavailable"}, nil)
-	got = c.Snapshot(scope)
-	if got.Review != nil || got.SelectedID != "new" || got.Revision != 9 || got.Notice == "" || got.Error != "" {
+	got = c.Snapshot(scope).Value
+	if got.Review != nil || got.SelectedID != "new" || got.Revision != 9 || got.Notice == "" || got.Error != nil {
 		t.Fatalf("bad settled state: %+v", got)
 	}
 }
@@ -101,7 +101,7 @@ func TestBotTaskControlsFenceHostAccountBotAndLoadFailures(t *testing.T) {
 	refresh, _ := c.BeginLoad(a)
 	c.FinishLoad(refresh, nil, errors.New("read failed"))
 	c.Prepare(a, "stop", "")
-	if got := c.Snapshot(a); got.Loaded || got.Review != nil || len(got.Tasks) != 1 {
+	if got := c.Snapshot(a).Value; got.Loaded || got.Review != nil || len(got.Tasks) != 1 {
 		t.Fatal("failed refresh enabled writes or lost visible evidence")
 	}
 }
@@ -117,7 +117,7 @@ func TestBotTaskControlsRejectChangedCanonicalSession(t *testing.T) {
 	view := taskControlFixture(2, "queued")
 	view.Value.Items[0].SessionID = "replacement-session"
 	c.FinishAction(ticket, pluginrpc.DshbotTaskResult{View: view, StopAccepted: true}, nil)
-	if got := c.Snapshot(a); got.Error == "" || got.SessionID != "s-b" || got.Review == nil {
+	if got := c.Snapshot(a).Value; got.Error == nil || got.SessionID != "s-b" || got.Review == nil {
 		t.Fatal("changed canonical identity accepted")
 	}
 }

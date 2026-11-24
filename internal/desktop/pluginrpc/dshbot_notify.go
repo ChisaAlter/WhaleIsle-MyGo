@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotNotifyCommand struct {
@@ -29,14 +30,14 @@ func ValidateDshbotNotifyCommand(c DshbotNotifyCommand) error {
 		return err
 	}
 	if c.Expected.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved; use Bot Web")
+		return storelocale.Authored("profile cannot be preserved; use Bot Web")
 	}
 	before, err := DshbotNotifyEnabled(c.Expected)
 	if err != nil {
 		return err
 	}
 	if before == c.Enabled {
-		return fmt.Errorf("notify unchanged")
+		return storelocale.Authored("notify unchanged")
 	}
 	return nil
 }

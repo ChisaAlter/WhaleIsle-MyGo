@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/store/storelocale"
 )
 
 // These are read-only projections. The catalog credential triggerToken is never
@@ -313,10 +314,10 @@ func ValidateDshbotBotDelete(cmd DshbotBotDeleteCommand) error {
 		return e
 	}
 	if !SameDshbotBotDeletePlan(p, cmd.Plan) {
-		return fmt.Errorf("deletion review changed")
+		return storelocale.Authored("deletion review changed")
 	}
 	if !cmd.Acknowledged || cmd.ConfirmedID != p.Target.ID || cmd.ConfirmedName != p.Target.Name {
-		return fmt.Errorf("confirm irreversible effects and type the exact original Bot/room name and ID for this deletion")
+		return storelocale.Authored("confirm irreversible effects and type the exact original Bot/room name and ID for this deletion")
 	}
 	return nil
 }

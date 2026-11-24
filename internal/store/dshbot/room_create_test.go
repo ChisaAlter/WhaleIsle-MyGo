@@ -25,15 +25,15 @@ func roomStoreReady(t *testing.T) (*RoomCreator, string) {
 }
 func roomStoreBegin(t *testing.T, c *RoomCreator, k string) (RoomCreateTicket, pluginrpc.DshbotRoomCreateCommand) {
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.Begin(k, r); ok {
 		t.Fatal("missing impact acknowledgment")
 	}
 	c.Acknowledge(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.Begin(k, r)
 	if !ok {
 		t.Fatal("explicit creation missing")
@@ -51,17 +51,17 @@ func TestRoomCreatorUnknownReadbackAndAccountIsolation(t *testing.T) {
 	ticket, cmd := roomStoreBegin(t, c, k)
 	c.Bind("other-account", "client-2")
 	c.Finish(ticket, pluginrpc.DshbotRoomCreateResult{Attempted: true}, fmt.Errorf("lost response"))
-	if c.Snapshot("other-account").Draft != nil {
+	if c.Snapshot("other-account").Value.Draft != nil {
 		t.Fatal("draft leaked")
 	}
 	c.Bind(k, "client-3")
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if !s.Uncertain || s.Draft == nil {
 		t.Fatal("lost attempt", s)
 	}
 	c.Discard(k)
 	c.Start(k, "/another")
-	if c.Snapshot(k).Draft.ID != cmd.ID {
+	if c.Snapshot(k).Value.Draft.ID != cmd.ID {
 		t.Fatal("unknown identity replaced")
 	}
 	load, _ := c.BeginLoad(k)
@@ -69,23 +69,23 @@ func TestRoomCreatorUnknownReadbackAndAccountIsolation(t *testing.T) {
 	newer.Revision++
 	c.FinishLoad(load, newer, true, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("absence unlocked unknown request")
 	}
 	newer.Items = append(newer.Items, pluginrpc.DshbotRoomItem{DshbotCatalogItem: pluginrpc.DshbotCatalogItem{ID: cmd.ID, Kind: "room", SessionID: cmd.SessionID, Name: cmd.Draft.Name, MemberBotIDs: cmd.Draft.MemberBotIDs}, MaxRounds: cmd.Draft.MaxRounds, MaxSpeaks: cmd.Draft.MaxSpeaks})
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, newer, true, nil)
-	if c.Snapshot(k).Candidate == nil {
+	if c.Snapshot(k).Value.Candidate == nil {
 		t.Fatal("exact record not offered")
 	}
-	if !c.Adopt(k, cmd.ID) || c.Snapshot(k).Created.ID != cmd.ID || c.Snapshot(k).Draft != nil {
+	if !c.Adopt(k, cmd.ID) || c.Snapshot(k).Value.Created.ID != cmd.ID || c.Snapshot(k).Value.Draft != nil {
 		t.Fatal("explicit adoption failed")
 	}
 }
 func TestRoomCreatorStaleReviewAndRejectedDraft(t *testing.T) {
 	c, k := roomStoreReady(t)
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	c.Acknowledge(k, r, true)
 	c.Change(k, "name", "Changed")
 	if _, _, ok := c.Begin(k, r); ok {
@@ -93,11 +93,11 @@ func TestRoomCreatorStaleReviewAndRejectedDraft(t *testing.T) {
 	}
 	ticket, cmd := roomStoreBegin(t, c, k)
 	c.Finish(ticket, pluginrpc.DshbotRoomCreateResult{Attempted: true, Rejected: true}, fmt.Errorf("catalog changed"))
-	if s := c.Snapshot(k); s.Draft == nil || s.Draft.ID != cmd.ID || s.Uncertain {
+	if s := c.Snapshot(k).Value; s.Draft == nil || s.Draft.ID != cmd.ID || s.Uncertain {
 		t.Fatal("rejection lost draft", s)
 	}
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("rejection did not require refresh")
 	}
 	load, _ := c.BeginLoad(k)
@@ -109,7 +109,7 @@ func TestRoomCreatorStaleReviewAndRejectedDraft(t *testing.T) {
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, roomStoreCatalog(), false, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("read-only allowed mutation")
 	}
 }
@@ -136,7 +136,7 @@ func TestRoomCreatorFinalRecoveryKeepsReviewedCwd(t *testing.T) {
 			}
 			c.Suspend()
 			c.Bind(k, "reopened-client")
-			result := c.Snapshot(k)
+			result := c.Snapshot(k).Value
 			if result.CreatedScratchCwd != "/reviewed/room-cwd" || result.Created.SessionID != cmd.SessionID || result.Draft != nil {
 				t.Fatal("recovery lost reviewed cwd/canonical identity", result)
 			}
@@ -147,9 +147,9 @@ func TestRoomCreatorFinalRecoveryKeepsReviewedCwd(t *testing.T) {
 func TestRoomCreatorHiddenViewRetiresCallbacksKeepsSentAttempt(t *testing.T) {
 	c, k := roomStoreReady(t)
 	c.Prepare(k)
-	before := c.Snapshot(k)
+	before := c.Snapshot(k).Value
 	c.Acknowledge(k, before.Review, true)
-	review := c.Snapshot(k).Review
+	review := c.Snapshot(k).Value.Review
 	c.Suspend()
 	c.Bind(k, "client-1")
 	if c.ViewCurrent(k, before.Generation) {
@@ -161,14 +161,14 @@ func TestRoomCreatorHiddenViewRetiresCallbacksKeepsSentAttempt(t *testing.T) {
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, roomStoreCatalog(), true, nil)
 	ticket, cmd := roomStoreBegin(t, c, k)
-	sentView := c.Snapshot(k).Generation
+	sentView := c.Snapshot(k).Value.Generation
 	c.Suspend()
 	c.Bind(k, "client-1")
 	if c.ViewCurrent(k, sentView) || c.Current(ticket) {
 		t.Fatal("late opened-view callback still current")
 	}
 	c.Finish(ticket, pluginrpc.DshbotRoomCreateResult{Attempted: true}, fmt.Errorf("response lost after hide"))
-	result := c.Snapshot(k)
+	result := c.Snapshot(k).Value
 	if !result.Uncertain || result.Busy || result.Draft == nil || result.Draft.ID != cmd.ID {
 		t.Fatal("sent origin attempt was discarded by lifecycle retirement", result)
 	}

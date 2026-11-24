@@ -19,7 +19,7 @@ func TestBotRoutineDurationUIReviewOnly(t *testing.T) {
 			submitted := 0
 			var schedule string
 			tt := ui.NewTester(func(c *ui.Context) {
-				s := creator.Snapshot(key)
+				s := creator.Snapshot(key).Value
 				m := Model{Mode: assiststore.ModeDshbot, HarnessReady: true, DshbotEnabled: true, RoutineCreate: RoutineCreateModel{State: s, HostLabel: "https://fixture.invalid", BotName: "Bot B", OnStart: func() {}, OnChange: func(field, value string) { creator.Change(key, field, value) }, OnReview: func() { creator.Prepare(key) }, OnDismiss: func() { creator.Dismiss(key) }, OnConfirm: func() {
 					_, cmd, ok := creator.Begin(key, s.Review)
 					if ok {
@@ -32,7 +32,7 @@ func TestBotRoutineDurationUIReviewOnly(t *testing.T) {
 			if err := tt.Click(routineCreateFrequencyLabel(frequency)); err != nil {
 				t.Fatal(err)
 			}
-			if submitted != 0 || creator.Snapshot(key).Draft.Frequency != frequency {
+			if submitted != 0 || creator.Snapshot(key).Value.Draft.Frequency != frequency {
 				t.Fatal("selector submitted")
 			}
 			want := "30m"
@@ -51,17 +51,17 @@ func TestBotRoutineDurationUIReviewOnly(t *testing.T) {
 			if submitted != 0 || !tt.HasText(routineCreateImpact(true)) {
 				t.Fatal("review did not disclose enabled effect", tt.Texts())
 			}
-			if creator.Snapshot(key).Review.Command.Edit.Schedule != want {
+			if creator.Snapshot(key).Value.Review.Command.Edit.Schedule != want {
 				t.Fatal("review schedule incorrect")
 			}
 			// A reviewed form locks frequency and duration; only Back enables changes.
-			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantDaily)); err == nil && creator.Snapshot(key).Draft.Frequency != frequency {
+			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantDaily)); err == nil && creator.Snapshot(key).Value.Draft.Frequency != frequency {
 				t.Fatal("reviewed frequency changed")
 			}
 			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantBackToDraft2)); err != nil {
 				t.Fatal(err)
 			}
-			if submitted != 0 || creator.Snapshot(key).Review != nil {
+			if submitted != 0 || creator.Snapshot(key).Value.Review != nil {
 				t.Fatal("back submitted")
 			}
 			if err := tt.Click(i18n.T(i18n.KeyMiscAssistantReviewCreation)); err != nil {

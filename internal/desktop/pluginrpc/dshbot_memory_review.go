@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotMemoryReviewCommand struct {
@@ -25,14 +26,14 @@ func ValidateDshbotMemoryReviewCommand(cmd DshbotMemoryReviewCommand) error {
 		return err
 	}
 	if cmd.Expected.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved")
+		return storelocale.Authored("profile cannot be preserved")
 	}
 	current, err := DshbotMemoryReviewEnabled(cmd.Expected)
 	if err != nil {
 		return err
 	}
 	if current == cmd.Enabled {
-		return fmt.Errorf("memoryReview is unchanged")
+		return storelocale.Authored("memoryReview is unchanged")
 	}
 	return nil
 }

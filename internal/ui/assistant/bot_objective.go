@@ -67,8 +67,8 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshObjective)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_objective:73", s.Notice)
 		for _, warning := range s.Warnings {

@@ -3,6 +3,7 @@ package dshbot
 import (
 	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 )
 
 type AvatarImageImportSnapshot struct {
@@ -10,7 +11,8 @@ type AvatarImageImportSnapshot struct {
 	Name, Format         string
 	Bytes, Width, Height int
 	Crop                 avatarimage.Crop
-	Preview, Error       string
+	Preview              string
+	Error                *state.Fault
 }
 type avatarImagePending struct {
 	Ticket AvatarTicket
@@ -21,6 +23,7 @@ type avatarImagePending struct {
 // Sent attempts retain only the reviewed output for exact unknown readback.
 func (c *AvatarControls) clearImageImportLocked() {
 	if e := c.entries[c.active]; e != nil {
+		e.dirty = true
 		e.state.ImageImport = AvatarImageImportSnapshot{}
 		if e.imageDraft && (e.attempt == nil || !e.attempt.Sent) {
 			if before, err := pluginrpc.DshbotAvatarValue(e.state.Status); err == nil {
@@ -72,7 +75,7 @@ func (c *AvatarControls) FinishImageImport(t AvatarTicket, source *avatarimage.S
 	if err != nil || source == nil {
 		c.imageImport = nil
 		if err != nil {
-			e.state.ImageImport.Error = err.Error()
+			e.state.ImageImport.Error = state.FaultOf(err)
 		}
 		return true
 	}
@@ -80,7 +83,7 @@ func (c *AvatarControls) FinishImageImport(t AvatarTicket, source *avatarimage.S
 	preview, bakeErr := source.Bake(crop)
 	if bakeErr != nil {
 		c.imageImport = nil
-		e.state.ImageImport.Error = bakeErr.Error()
+		e.state.ImageImport.Error = state.FaultOf(bakeErr)
 		return true
 	}
 	c.imageImport.Source = source
@@ -99,12 +102,12 @@ func (c *AvatarControls) UpdateImageCrop(k RoutineScope, crop avatarimage.Crop) 
 	}
 	preview, err := c.imageImport.Source.Bake(crop)
 	if err != nil {
-		e.state.ImageImport.Error = err.Error()
+		e.state.ImageImport.Error = state.FaultOf(err)
 		return
 	}
 	e.state.ImageImport.Crop = crop
 	e.state.ImageImport.Preview = preview
-	e.state.ImageImport.Error = ""
+	e.state.ImageImport.Error = nil
 	c.generation++
 }
 func (c *AvatarControls) ApplyImageCrop(k RoutineScope) bool {
@@ -115,7 +118,7 @@ func (c *AvatarControls) ApplyImageCrop(k RoutineScope) bool {
 	}
 	e := c.entry(k)
 	p := e.state.ImageImport
-	if !p.Ready || p.Error != "" || e.attempt != nil || !e.state.Loaded || !e.state.Writable || e.state.Status.WriteError != "" || e.state.Uncertain {
+	if !p.Ready || p.Error != nil || e.attempt != nil || !e.state.Loaded || !e.state.Writable || e.state.Status.WriteError != "" || e.state.Uncertain {
 		return false
 	}
 	if avatarimage.ValidateBaked(p.Preview) != nil {

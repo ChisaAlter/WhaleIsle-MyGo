@@ -44,8 +44,8 @@ func routineTriggerBlock(c *ui.Context, m RoutineModel, blocked bool, fg, muted,
 				m.OnConfirmTrigger()
 			}
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 		}
 		if s.Ready && m.TriggerMaterial != nil {
 			address, header := m.TriggerMaterial()

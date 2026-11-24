@@ -61,7 +61,7 @@ func TestBotRoutineCalendarReviewAndRejectedDraft(t *testing.T) {
 	c.Sync(k, 1, RoutineSnapshot{Scope: RoutineScope{HostKey: "client", BotID: "b"}, Loaded: true, Revision: 4, SessionID: "s"})
 	c.Start(k, "America/New_York")
 	c.Change(k, "prompt", "Fixture prompt")
-	d := c.Snapshot(k).Draft
+	d := c.Snapshot(k).Value.Draft
 	if d.Weekday != "1" || d.MonthDay != "1" || d.Cron != "0 9 * * *" {
 		t.Fatal("original defaults missing", d)
 	}
@@ -70,7 +70,7 @@ func TestBotRoutineCalendarReviewAndRejectedDraft(t *testing.T) {
 	c.Change(k, "hour", "02")
 	c.Change(k, "minute", "30")
 	c.Prepare(k)
-	monthly := c.Snapshot(k).Review
+	monthly := c.Snapshot(k).Value.Review
 	if monthly == nil || monthly.Command.Edit.Schedule != "30 2 31 * *" || monthly.Command.Edit.Timezone != "America/New_York" {
 		t.Fatal(monthly)
 	}
@@ -80,19 +80,19 @@ func TestBotRoutineCalendarReviewAndRejectedDraft(t *testing.T) {
 	if _, _, ok := c.Begin(k, monthly); ok {
 		t.Fatal("old monthly review consumed cron draft")
 	}
-	review := c.Snapshot(k).Review
+	review := c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.Begin(k, review)
 	if !ok || !c.MarkSent(ticket) {
 		t.Fatal("explicit cron review missing")
 	}
 	c.Finish(ticket, pluginrpc.DshbotRoutineCreateResult{Rejected: true}, errors.New("pluginrpc: failed: Invalid cron schedule: Constraint error"))
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if s.Uncertain || s.Draft.Cron != "61 * * * *" || s.Draft.RequestID != cmd.RequestID {
 		t.Fatal("Host rejection lost draft or became ambiguous")
 	}
 	c.Change(k, "cron", "30 2 * * *")
 	c.Prepare(k)
-	if c.Snapshot(k).Review == nil || c.Snapshot(k).Review.Command.Edit.Schedule != "30 2 * * *" {
+	if c.Snapshot(k).Value.Review == nil || c.Snapshot(k).Value.Review.Command.Edit.Schedule != "30 2 * * *" {
 		t.Fatal("corrected cron not reviewable")
 	}
 }

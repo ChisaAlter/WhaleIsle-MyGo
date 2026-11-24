@@ -37,8 +37,8 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshAvatar)).Disabled(blocked || s.Scope.BotID == "" || s.ImageImport.Busy || s.ImageImport.Ready).Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_avatar:43", s.Notice)
 		for _, warning := range s.Warnings {

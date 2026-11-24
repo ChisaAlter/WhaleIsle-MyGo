@@ -69,8 +69,8 @@ func botDuplicateView(c *ui.Context, m BotDuplicateModel, blocked bool, fg, mute
 		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadDuplicateSource)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "" || m.SourceID == "").Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_duplicate:75", s.Notice)
 		for _, warning := range s.Warnings {
