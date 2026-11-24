@@ -2,42 +2,25 @@ package schedule
 
 import (
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
 )
 
 type scheduleChoiceOption struct{ ID, Label string }
 
-// Keep protocol values in SelectBase items and human-readable copy in the face.
-// ui.Select's string-only convenience surface otherwise exposes raw rule ids.
+// Keep protocol values in Select options and human-readable copy in their labels.
 func scheduleChoice(c *ui.Context, key, label string, value *string, options []scheduleChoiceOption) bool {
-	caption := label
-	for _, option := range options {
-		if option.ID == *value {
-			caption = option.Label
-			break
-		}
+	opts := make([]coss.SelectOption, len(options))
+	for i, option := range options {
+		opts[i] = coss.SelectOption{Value: option.ID, Label: option.Label}
 	}
-	parts := ui.SelectBase(c.Key(key), value)
-	parts.Trigger.Label(label).FillWidth().MinWidth(0).Height(48).Padding(0).Border(.5, c.Theme().Border).BorderWidth(0, 0, .5, 0).Radius(0).Background(ui.Transparent).Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() { ui.Text(c, label).FontSize(14); ui.Box(c).Grow(1); scheduleValueFace(c, caption, false) })
+	var sel ui.Element
+	scheduleRuleRow(c, label, false, func() {
+		sel = coss.Select(c, value, opts, coss.SelectOptions{
+			Key:   key,
+			Label: label,
+		})
 	})
-	parts.Popup(func(panel ui.Element) {
-		chrome.FrostSurface(panel.Padding(4).BorderWidth(0), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 16)
-		for _, option := range options {
-			row := parts.Item(option.ID).Label(option.Label).Padding(6, 10).Radius(6)
-			if row.Hovered() || row.FocusWithin() {
-				row.Background(c.Theme().SurfaceHover)
-			}
-			row.Children(func() {
-				ui.Text(c, option.Label).Grow(1).MinWidth(0)
-				if option.ID == *value {
-					ui.Text(c, "✓")
-				}
-			})
-		}
-	})
-	return parts.Trigger.Changed()
+	return sel.Changed()
 }
 
 func scheduleIntervalHint(factor int) string {

@@ -17,6 +17,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/dsh"
 	schedstore "whaleisle/internal/store/schedule"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -181,7 +182,7 @@ func TestScheduleCatalogDetailGeometryAndLazyRecords(t *testing.T) {
 	p, m := f.panel()
 	tt := ui.NewTester(func(c *ui.Context) { p.View(c, m) }, 1280, 720)
 	content, ok := tt.Find("Task catalog content")
-	if !ok || content.W != 1056 || content.X != 112 || content.Y != 0 {
+	if !ok || content.W != 1056 || content.X != 112 || content.Y != design.Sp(7) {
 		t.Fatalf("catalog frame: %+v %v", content, ok)
 	}
 	saveScheduleSnapshot(t, tt, "catalog")
@@ -204,7 +205,7 @@ func TestScheduleCatalogDetailGeometryAndLazyRecords(t *testing.T) {
 		t.Fatal("history read before Records opened")
 	}
 	tt.SetSize(600, 450)
-	if _, ok := tt.Find("Task catalog scroll"); ok {
+	if _, ok := tt.Find("Task catalog content"); ok {
 		t.Fatal("catalog stayed beside narrow detail")
 	}
 	detail, _ = tt.Find("Task details")
@@ -365,9 +366,11 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	if err := tt.Click("Automation task actions"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Delete task"); err != nil {
+	if err := tt.Click("Delete task"); err != nil {
 		t.Fatal(err)
 	}
+	now := time.Now()
+	tt.SetTime(now.Add(250 * time.Millisecond))
 	if _, ok := tt.Find("Delete this task?"); !ok {
 		t.Fatal("scoped delete dialog missing")
 	}
@@ -384,9 +387,10 @@ func TestScheduleSaveAndDeleteKeepCapturedOwner(t *testing.T) {
 	if err := tt.Click("Automation task actions"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Delete task"); err != nil {
+	if err := tt.Click("Delete task"); err != nil {
 		t.Fatal(err)
 	}
+	tt.SetTime(now.Add(500 * time.Millisecond))
 	if err := tt.Click("Confirm deletion"); err != nil {
 		t.Fatal(err)
 	}
@@ -501,7 +505,7 @@ func TestSavedPromptExpansionFollowsMeasuredOverflow(t *testing.T) {
 	text := strings.Repeat("汉", 65)
 	p.historyKey, p.historyRow = "fixture", f.store.Snapshot().Value.Rows[0]
 	p.historyState = deliveryHistoryState{Loaded: true, Page: schedstore.DeliveryPage{Records: []schedstore.DeliveryRecord{{MessageID: "short-wrapped", Prompt: &text}}}}
-	tt := ui.NewTester(func(c *ui.Context) { p.deliveryHistoryView(c, m, ui.RGBA(0, 0, 0, 1), ui.RGBA(128, 128, 128, 1)) }, 280, 400)
+	tt := ui.NewTester(func(c *ui.Context) { p.deliveryHistoryView(c, m, 1) }, 280, 400)
 	if err := tt.Click("Expand"); err != nil {
 		t.Fatalf("short prompt clipped without expansion: %v", err)
 	}

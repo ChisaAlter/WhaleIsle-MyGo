@@ -8,8 +8,10 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	schedstore "whaleisle/internal/store/schedule"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/pagekit"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -42,120 +44,198 @@ type Model struct {
 	EditPrompt *string
 }
 
+type storeEpoch struct {
+	last *schedstore.Store
+	n    uint64
+}
+
+func trackStoreEpoch(root ui.Element, store *schedstore.Store) uint64 {
+	ep := ui.Local(root, "store-epoch", func() storeEpoch { return storeEpoch{} })
+	if ep.last != store {
+		ep.last, ep.n = store, ep.n+1
+	}
+	return ep.n
+}
+
+func scheduleMemoBase(epoch uint64, snap schedstore.ViewState) pagekit.Version {
+	return pagekit.NewVersion().
+		Uint(design.Revision()).
+		Uint(theme.Revision()).
+		Uint(epoch).
+		Uint(snap.CatalogRevision).
+		Uint(snap.ConnectionEpoch).
+		String(snap.Origin).
+		Bool(snap.ClientReady).
+		Bool(snap.Loading)
+}
+
 // View paints the schedule panel.
 func View(c *ui.Context, m Model) {
 	if m.Store == nil {
 		return
 	}
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	border := chrome.Color(colors.Border)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	field := chrome.Color(colors.Field)
-	accent := chrome.Color(colors.Accent)
 	snap := m.Store.Snapshot().Value
+	t := design.For(c)
+	root := ui.Column(c).Key("schedule-standalone").Grow(1).FillWidth().MinHeight(0).MinWidth(0)
+	epoch := trackStoreEpoch(root, m.Store)
+	scroll := ui.Local(root, "scroll", func() *ui.ScrollState { return &ui.ScrollState{} })
 
-	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
-		ui.Row(c).Padding(12, 16, 12, 16).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyScheduleTitle)).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyScheduleRefresh)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-				if m.OnRefresh != nil {
-					m.OnRefresh()
-				} else {
-					m.Store.Refresh(context.Background(), m.SessionID)
+	root.Children(func() {
+		pagekit.Page(c, pagekit.PageOptions{Scroll: *scroll}, func() {
+			pagekit.Header(c, i18n.T(i18n.KeyScheduleTitle), i18n.T(i18n.KeyScheduleNote), func() {
+				if coss.Button(c, i18n.T(i18n.KeyScheduleRefresh), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonSM,
+					Icon:    coss.IconRefresh,
+				}).Clicked() {
+					if m.OnRefresh != nil {
+						m.OnRefresh()
+					} else {
+						m.Store.Refresh(context.Background(), m.SessionID)
+					}
 				}
-			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyScheduleBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-				m.OnClose()
-			}
-		})
-		ui.Box(c).Fill().Height(.5).Background(border)
-
-		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyScheduleNote)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				if m.OnClose != nil && pagekit.Back(c, i18n.T(i18n.KeyScheduleBack)) {
+					m.OnClose()
+				}
+			})
 			if snap.CatalogHint != "" {
-				ui.Text(c, snap.CatalogHint).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+				pagekit.Caption(c, snap.CatalogHint).FillWidth()
 			}
 			if snap.Err != nil {
-				ui.Text(c, snap.Err.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+				pagekit.FaultSentence(c, "", snap.Err.SentenceText(), "", nil)
 			}
 			if len(snap.Rows) == 0 && !snap.Loading && snap.Err == nil {
-				ui.Text(c, i18n.T(i18n.KeyScheduleEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				coss.Empty(c, coss.EmptyOptions{
+					Icon:  coss.IconClock,
+					Title: i18n.T(i18n.KeyScheduleEmpty),
+				}, nil)
 				return
 			}
-			listCard := ui.Column(c).Fill().MinHeight(0).Border(.5, border).Radius(12).
-				Padding(12, 16, 12, 16).Gap(8)
-			chrome.GlassSurface(listCard, field, chrome.MaterialPanel, 12)
+			listVer := scheduleMemoBase(epoch, snap).
+				Uint(uint64(len(snap.Rows))).
+				Bool(m.EditID != nil).
+				Bool(m.EditTitle != nil).
+				Bool(m.OnHistory != nil).
+				Bool(m.OnDelete != nil).
+				Key()
+			listCard := ui.Column(c).Key("schedule-standalone-list").FillWidth().MinWidth(0).
+				Radius(design.RadiusXL).Border(design.BorderWidth, t.Border).Background(t.Card).Clip().
+				Memo(listVer)
 			listCard.Children(func() {
-				for _, row := range snap.Rows {
+				for i, row := range snap.Rows {
 					entry := row
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Column(c).Gap(2).Grow(1).Children(func() {
-							ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-								ui.Text(c, entry.Title).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+					if i > 0 {
+						coss.Separator(c, coss.Horizontal)
+					}
+					ui.Row(c.Key(taskKey(entry))).FillWidth().MinWidth(0).
+						Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(3)).AlignItems(ui.Center).Children(func() {
+						ui.Column(c).Gap(design.Sp(0.5)).Grow(1).MinWidth(0).Children(func() {
+							ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+								pagekit.Strong(c, entry.Title).Shrink(1).MinWidth(0)
 								if entry.Status != "" {
-									ui.Text(c, entry.Status).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted)
+									variant := coss.BadgeSecondary
+									if entry.Status == "active" {
+										variant = coss.BadgeSuccess
+									}
+									coss.Badge(c, entry.Status, coss.BadgeOptions{Variant: variant})
 								}
 							})
 							if entry.Detail != "" {
-								ui.Text(c, entry.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+								pagekit.Muted(c, entry.Detail).FillWidth().MinWidth(0)
 							}
 						})
-						if entry.ID != "" && m.EditID != nil && m.EditTitle != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleEditTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-								*m.EditID = entry.ID
-								*m.EditTitle = entry.Title
-								if m.EditPrompt != nil {
-									*m.EditPrompt = ""
+						ui.Row(c).Shrink(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+							if entry.ID != "" && m.EditID != nil && m.EditTitle != nil {
+								if coss.Button(c, i18n.T(i18n.KeyScheduleEditTitle), coss.ButtonOptions{
+									Variant: coss.ButtonOutline,
+									Size:    coss.ButtonSM,
+								}).Clicked() {
+									*m.EditID = entry.ID
+									*m.EditTitle = entry.Title
+									if m.EditPrompt != nil {
+										*m.EditPrompt = ""
+									}
 								}
 							}
-						}
-						if entry.ID != "" && m.OnHistory != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-								m.OnHistory(entry.ID)
+							if entry.ID != "" && m.OnHistory != nil {
+								if coss.Button(c, i18n.T(i18n.KeyScheduleHistory), coss.ButtonOptions{
+									Variant: coss.ButtonOutline,
+									Size:    coss.ButtonSM,
+								}).Clicked() {
+									m.OnHistory(entry.ID)
+								}
 							}
-						}
-						if entry.ID != "" && m.OnDelete != nil {
-							if ui.Button(c, i18n.T(i18n.KeyScheduleDelete)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-								m.OnDelete(entry.ID)
+							if entry.ID != "" && m.OnDelete != nil {
+								if coss.Button(c, i18n.T(i18n.KeyScheduleDelete), coss.ButtonOptions{
+									Variant: coss.ButtonDestructiveOutline,
+									Size:    coss.ButtonSM,
+								}).Clicked() {
+									m.OnDelete(entry.ID)
+								}
 							}
-						}
+						})
 					})
 				}
 			})
 			if m.EditID != nil && m.EditTitle != nil && strings.TrimSpace(*m.EditID) != "" {
-				ui.Text(c, i18n.T(i18n.KeyScheduleEditTitle)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.TextInput(c, m.EditTitle).Grow(1).Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(colors, m.SystemDark, field)).Padding(0, 10)
-					if m.OnSaveTitle != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSaveTitle)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-						m.OnSaveTitle(*m.EditID, *m.EditTitle)
-					}
+				coss.Field(c, coss.FieldOptions{Label: i18n.T(i18n.KeyScheduleEditTitle)}, func() {
+					ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+						titleDraft := *m.EditTitle
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+							if coss.Input(c, &titleDraft, coss.InputOptions{
+								Key:   "schedule-standalone-edit-title",
+								Label: i18n.T(i18n.KeyScheduleEditTitle),
+							}).Changed() {
+								*m.EditTitle = titleDraft
+							}
+						})
+						if m.OnSaveTitle != nil && coss.Button(c, i18n.T(i18n.KeyScheduleSaveTitle), coss.ButtonOptions{
+							Size: coss.ButtonSM,
+						}).Clicked() {
+							m.OnSaveTitle(*m.EditID, *m.EditTitle)
+						}
+					})
 				})
 				if m.EditPrompt != nil {
-					ui.Text(c, i18n.T(i18n.KeyScheduleEditPrompt)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted)
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.TextInput(c, m.EditPrompt).Grow(1).Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(colors, m.SystemDark, field)).Padding(0, 10)
-						if m.OnSavePrompt != nil && ui.Button(c, i18n.T(i18n.KeyScheduleSavePrompt)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
-							m.OnSavePrompt(*m.EditID, *m.EditPrompt)
-						}
+					coss.Field(c, coss.FieldOptions{Label: i18n.T(i18n.KeyScheduleEditPrompt)}, func() {
+						ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+							promptDraft := *m.EditPrompt
+							ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+								if coss.Input(c, &promptDraft, coss.InputOptions{
+									Key:   "schedule-standalone-edit-prompt",
+									Label: i18n.T(i18n.KeyScheduleEditPrompt),
+								}).Changed() {
+									*m.EditPrompt = promptDraft
+								}
+							})
+							if m.OnSavePrompt != nil && coss.Button(c, i18n.T(i18n.KeyScheduleSavePrompt), coss.ButtonOptions{
+								Size: coss.ButtonSM,
+							}).Clicked() {
+								m.OnSavePrompt(*m.EditID, *m.EditPrompt)
+							}
+						})
 					})
 				}
 			}
 			if strings.TrimSpace(m.HistoryText) != "" {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyScheduleHistory)).FontSize(theme.InterfaceSize(11)).Bold().TextColor(muted).Grow(1)
-					if m.OnCopyHistory != nil {
-						if ui.Button(c, i18n.T(i18n.KeyScheduleCopyHistory)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Cursor(ui.CursorPointer).Clicked() {
+				var copyAction func()
+				if m.OnCopyHistory != nil {
+					copyAction = func() {
+						if coss.Button(c, i18n.T(i18n.KeyScheduleCopyHistory), coss.ButtonOptions{
+							Variant: coss.ButtonOutline,
+							Size:    coss.ButtonSM,
+							Icon:    coss.IconCopy,
+						}).Clicked() {
 							m.OnCopyHistory(m.HistoryText)
 						}
 					}
-				})
-				histCard := ui.Column(c).Border(.5, border).Radius(12).
-					Padding(12, 16, 12, 16).MaxHeight(160)
-				chrome.GlassSurface(histCard, field, chrome.MaterialPanel, 12)
-				histCard.Children(func() {
-					ui.Text(c, m.HistoryText).FontSize(theme.InterfaceSize(11)).TextColor(fg)
+				}
+				pagekit.Section(c, i18n.T(i18n.KeyScheduleHistory), copyAction, func() {
+					coss.Card(c, coss.CardOptions{}, func() {
+						coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+							pagekit.Code(c, m.HistoryText).FillWidth().Selectable()
+						}).MaxHeight(design.Sp(40)).FillWidth()
+					}).FillWidth()
 				})
 			}
 		})

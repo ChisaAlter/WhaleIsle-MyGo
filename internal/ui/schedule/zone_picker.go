@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/pagekit"
 )
 
 type scheduleZoneChoice struct {
@@ -129,6 +131,7 @@ func matchingScheduleZones(catalog []scheduleZoneChoice, recent []string, query 
 }
 
 func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
+	t := design.For(c)
 	system, now := systemScheduleZone(), time.Now()
 	if p.recentZones == nil {
 		p.recentZones = loadRecentZones(system)
@@ -154,15 +157,29 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 		state.catalog = scheduleZoneCatalog(d.Zone, system, now)
 		state.locale, state.stored = i18n.Locale(), d.Zone
 	}
-	ui.PopoverBase(c.Key("schedule-zone-menu"), trigger, &state.open, func(panel ui.Element) {
-		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(360).MaxWidthPercent(100).Padding(4).Gap(4), c.Theme().Surface, c.Theme().Border, 16))
-		if panel.OverlayShortcut(0, ui.KeyEscape) {
-			state.open, state.query = false, ""
-			trigger.Focus()
-			return
-		}
-		panel.Children(func() {
-			search := ui.TextInputBase(c.Key("schedule-zone-search"), &state.query).Label(scheduleText("搜索 UTC 偏移、IANA 标识或城市", "Search by UTC offset, IANA ID, or city")).Placeholder(scheduleText("搜索时区", "Search time zones")).AutoFocus().FillWidth().MinWidth(0).Padding(8, 10)
+	panel := coss.Popover(c.Key("schedule-zone-menu"), trigger, &state.open, coss.PopoverOptions{
+		Side:  coss.SideBottom,
+		Align: coss.AlignEnd,
+		Width: 360,
+	}, func() {
+		box := ui.Column(c).FillWidth().Gap(design.Sp(2))
+		box.Children(func() {
+			query := state.query
+			search := coss.InputGroup(c, &query, coss.InputGroupOptions{
+				InputOptions: coss.InputOptions{
+					Key:         "schedule-zone-search",
+					Size:        coss.InputSM,
+					Label:       scheduleText("搜索 UTC 偏移、IANA 标识或城市", "Search by UTC offset, IANA ID, or city"),
+					Placeholder: scheduleText("搜索时区", "Search time zones"),
+				},
+				Start: func() { coss.AddonIcon(c, coss.IconSearch) },
+			}).AutoFocus()
+			if search.Changed() {
+				state.query = query
+				state.active = -1
+				state.hoveredIndex = -1
+				state.reveal = false
+			}
 			items := matchingScheduleZones(state.catalog, p.recentZones, state.query)
 			if len(state.rows) != len(items) {
 				state.rows = make([]*ui.Handle, len(items))
@@ -173,23 +190,18 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 				state.hoveredIndex = -1
 				state.reveal = false
 			}
-			if search.Changed() {
-				state.active = -1
-				state.hoveredIndex = -1
-				state.reveal = false
-			}
 			if len(items) > 0 {
 				next := -1
-				if panel.Shortcut(0, ui.KeyDown) {
+				if box.Shortcut(0, ui.KeyDown) {
 					next = (state.active + 1) % len(items)
-				} else if panel.Shortcut(0, ui.KeyUp) {
+				} else if box.Shortcut(0, ui.KeyUp) {
 					next = (state.active + len(items) - 1) % len(items)
 					if state.active < 0 {
 						next = len(items) - 1
 					}
-				} else if !search.Focused() && panel.Shortcut(0, ui.KeyHome) {
+				} else if !search.Focused() && box.Shortcut(0, ui.KeyHome) {
 					next = 0
-				} else if !search.Focused() && panel.Shortcut(0, ui.KeyEnd) {
+				} else if !search.Focused() && box.Shortcut(0, ui.KeyEnd) {
 					next = len(items) - 1
 				}
 				if next >= 0 {
@@ -198,14 +210,16 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 					state.rows[next].RequestFocus(c)
 				}
 			}
-			ui.Scroll(c.Key("schedule-zone-options")).FillWidth().MinWidth(0).MaxHeight(300).Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{Key: "schedule-zone-options"}, func() {
 				if len(items) == 0 {
-					ui.Text(c, scheduleText("没有匹配的时区", "No matching time zones")).Padding(8, 10).TextColor(c.Theme().TextMuted)
+					pagekit.Muted(c, scheduleText("没有匹配的时区", "No matching time zones")).Padding(design.Sp(2), design.Sp(2.5))
 				}
 				hoveredItem := -1
 				for index, item := range items {
 					item := item
-					row := ui.Button(c.Key("schedule-zone-"+item.ID), "").Label(item.Label).Tooltip(strings.Join(item.Aliases, ", ")).Bind(state.rows[index]).FillWidth().MinWidth(0).Padding(8, 10).BorderWidth(0).Background(ui.Transparent).Radius(6)
+					row := ui.ButtonBase(c.Key("schedule-zone-"+item.ID)).Label(item.Label).Tooltip(strings.Join(item.Aliases, ", ")).
+						Bind(state.rows[index]).FillWidth().MinWidth(0).Justify(ui.Start).Cursor(ui.CursorPointer).FocusRing(false).
+						Padding(design.Sp(1.5), design.Sp(2.5)).Radius(design.RadiusSM).Gap(design.Sp(2)).AlignItems(ui.Center)
 					if row.Hovered() {
 						hoveredItem = index
 						if state.hoveredIndex != index {
@@ -218,17 +232,17 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 						state.active = index
 					}
 					if index == state.active {
-						row.Background(c.Theme().SurfaceHover)
+						row.Background(t.Accent)
 						if state.reveal {
 							row.ScrollIntoView()
 							state.reveal = false
 						}
 					}
 					row.Children(func() {
-						ui.Text(c, item.Label).Grow(1).MinWidth(0)
+						pagekit.Body(c, item.Label).Grow(1).MinWidth(0)
 						for _, alias := range item.Aliases {
 							if alias == d.Zone {
-								ui.Text(c, "✓")
+								ui.Icon(c, coss.IconCheck.SVG()).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(t.Foreground)
 								break
 							}
 						}
@@ -249,7 +263,14 @@ func (p *Panel) zonePicker(c *ui.Context, d *taskDraft) {
 					}
 				}
 				state.hoveredIndex = hoveredItem
-			})
+			}).FillWidth().MinWidth(0).MaxHeight(300)
 		})
 	})
+	if panel != (ui.Element{}) {
+		panel.MaxWidthPercent(100)
+		if panel.OverlayShortcut(0, ui.KeyEscape) {
+			state.open, state.query = false, ""
+			trigger.Focus()
+		}
+	}
 }

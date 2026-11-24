@@ -13,9 +13,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/paths"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/pagekit"
 )
 
 type timingPickerState struct {
@@ -158,7 +159,7 @@ func rememberZone(recent []string, zone string) []string {
 }
 func dayPills(c *ui.Context, days []int, maximum int, onPick func([]int)) {
 	for start := 1; start <= maximum; start += 7 {
-		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).Gap(4).Padding(6, 0).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).Gap(design.Sp(1)).Padding(design.Sp(1.5), 0).Children(func() {
 			for day := start; day < start+7 && day <= maximum; day++ {
 				day := day
 				label := strconv.Itoa(day)
@@ -166,11 +167,12 @@ func dayPills(c *ui.Context, days []int, maximum int, onPick func([]int)) {
 					label = catalogWeekday(day, i18n.Locale())
 				}
 				selected := slices.Contains(days, day)
-				button := ui.Button(c, label).Label(label).Selected(selected).MinWidth(28).Height(28).Padding(0, 6).Radius(14).BorderWidth(0).Background(ui.Transparent).FontSize(13)
-				if selected {
-					button.Background(c.Theme().SurfaceHover).Border(1, c.Theme().Border)
-				}
-				if button.Clicked() {
+				if coss.Toggle(c, &selected, label, coss.ToggleOptions{
+					Variant: coss.ToggleOutline,
+					Size:    coss.ToggleSM,
+					Label:   label,
+					Key:     day,
+				}).Radius(design.RadiusFull).Changed() {
 					onPick(toggleNumber(days, day))
 				}
 			}
@@ -249,49 +251,49 @@ func (p *Panel) timingEditorBody(c *ui.Context, d *taskDraft) {
 			quantity = strconv.FormatFloat(seconds/float64(factor), 'f', -1, 64)
 		}
 		scheduleRuleRow(c, scheduleText("间隔", "Interval"), true, func() {
-			stepper := ui.Row(c).MinWidth(72).Height(32).Radius(16).Gap(2).AlignItems(ui.Center)
-			if stepper.Hovered() || stepper.FocusWithin() {
-				stepper.Background(c.Theme().SurfaceHover)
-			}
-			stepper.Children(func() {
-				if ui.TextInputBase(c, &quantity).Label("Task repeat interval").Width(max(float32(72), float32(len(quantity))*8+52)).Height(32).Padding(0, 26).TextAlign(ui.Center).FontSize(14).Changed() {
-					if value, err := strconv.ParseFloat(quantity, 64); err == nil && !math.IsNaN(value) && !math.IsInf(value, 0) {
-						d.Seconds = strconv.FormatFloat(math.Round(value*float64(factor)), 'f', 0, 64)
-					} else {
-						d.Seconds = quantity
-					}
+			ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(2)).Children(func() {
+				if coss.Button(c, "", coss.ButtonOptions{
+					Key:     "schedule-interval-dec",
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonIconSM,
+					Icon:    coss.IconMinus,
+					Label:   scheduleText("减少间隔", "Decrease interval"),
+				}).Clicked() {
+					value, _ := strconv.Atoi(d.Seconds)
+					d.Seconds = strconv.Itoa(max(factor, 60, value-factor))
 				}
-				if stepper.Hovered() || stepper.FocusWithin() {
-					ui.Column(c).Absolute().Right(8).Gap(2).Children(func() {
-						for _, delta := range []int{1, -1} {
-							delta := delta
-							label := scheduleText("增加间隔", "Increase interval")
-							if delta < 0 {
-								label = scheduleText("减少间隔", "Decrease interval")
-							}
-							button := ui.Button(c, "").Label(label).Size(17, 12).Padding(0).Radius(3).BorderWidth(0).Background(chrome.FrostInset(theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface))
-							button.Children(func() {
-								icon := ui.Icon(c, scheduleChevron).Size(9, 9)
-								if delta > 0 {
-									icon.Rotate(180)
-								}
-							})
-							if button.Clicked() {
-								value, _ := strconv.Atoi(d.Seconds)
-								d.Seconds = strconv.Itoa(max(factor, 60, value+delta*factor))
-							}
+				ui.Box(c).Width(design.Sp(20)).Children(func() {
+					if coss.Input(c, &quantity, coss.InputOptions{
+						Key:   "schedule-interval-input",
+						Size:  coss.InputSM,
+						Label: "Task repeat interval",
+					}).TextAlign(ui.Center).Changed() {
+						if value, err := strconv.ParseFloat(quantity, 64); err == nil && !math.IsNaN(value) && !math.IsInf(value, 0) {
+							d.Seconds = strconv.FormatFloat(math.Round(value*float64(factor)), 'f', 0, 64)
+						} else {
+							d.Seconds = quantity
 						}
-					})
+					}
+				})
+				if coss.Button(c, "", coss.ButtonOptions{
+					Key:     "schedule-interval-inc",
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonIconSM,
+					Icon:    coss.IconPlus,
+					Label:   scheduleText("增加间隔", "Increase interval"),
+				}).Clicked() {
+					value, _ := strconv.Atoi(d.Seconds)
+					d.Seconds = strconv.Itoa(max(factor, 60, value+factor))
 				}
+				unit := scheduleText("秒", "seconds")
+				if factor == 60 {
+					unit = scheduleText("分钟", "minutes")
+				}
+				if factor == 3600 {
+					unit = scheduleText("小时", "hours")
+				}
+				pagekit.Body(c, unit)
 			})
-			unit := scheduleText("秒", "seconds")
-			if factor == 60 {
-				unit = scheduleText("分钟", "minutes")
-			}
-			if factor == 3600 {
-				unit = scheduleText("小时", "hours")
-			}
-			ui.Text(c, unit).FontSize(14)
 		})
 
 	case "daily", "weekly":
@@ -368,8 +370,19 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 		}
 	}
 	if choice == "raw" {
+		expr := d.Expression
 		scheduleRuleRow(c, scheduleText("表达式", "Expression"), false, func() {
-			ui.TextInputBase(c, &d.Expression).Label("Cron expression").WidthPercent(70).MinWidth(0).Height(32).Padding(0, 8).Placeholder("minute hour day month weekday").FontSize(14)
+			ui.Box(c).WidthPercent(70).MinWidth(0).Children(func() {
+				if coss.Input(c, &expr, coss.InputOptions{
+					Key:         "schedule-cron-expr",
+					Size:        coss.InputSM,
+					Label:       "Cron expression",
+					Placeholder: "minute hour day month weekday",
+					Invalid:     err != nil,
+				}).Changed() {
+					d.Expression = expr
+				}
+			})
 		})
 	} else {
 		update := func() { d.Expression = shape.expression() }
@@ -421,25 +434,26 @@ func (p *Panel) cronEditor(c *ui.Context, d *taskDraft) {
 			}
 			dayPills(c, shape.days, max, func(values []int) { shape.days = values; update() })
 		}
-		ui.Text(c, "Cron: "+d.Expression)
+		pagekit.Code(c, "Cron: "+d.Expression).Padding(design.Sp(2), 0, design.Sp(1), 0)
 	}
-	muted := c.Theme().TextMuted
 	if parsed, err := parseTaskCron(d.Expression); err != nil {
 		// Keep the parser's diagnostics internal; the editor names the accepted
 		// shape and a usable example beside the field that produced it.
-		ui.Text(c, scheduleText("请输入 5 字段的 cron 表达式，例如 0 9 * * 1-5", "Enter a five-field cron expression, for example 0 9 * * 1-5.")).FontSize(12).TextColor(c.Theme().Danger)
+		pagekit.Danger(c, scheduleText("请输入 5 字段的 cron 表达式，例如 0 9 * * 1-5", "Enter a five-field cron expression, for example 0 9 * * 1-5.")).Padding(0, 0, design.Sp(2), 0)
 		return
 	} else {
-		ui.Text(c, i18n.T(i18n.KeyMiscSchedulePreview)+catalogCronPreview(parsed, i18n.Locale())+" · "+formatCatalogZone(d.Zone, time.Now(), i18n.Locale())).FontSize(12).TextColor(muted)
-		loc := time.UTC
-		if loaded, err := time.LoadLocation(d.Zone); err == nil {
-			loc = loaded
-		}
-		if at, ok := parsed.nextAfter(time.Now(), loc); ok {
-			ui.Text(c, scheduleText("下次计划时间：", "Next run: ")+at.Format("2006-01-02 15:04 MST")).FontSize(12).TextColor(muted)
-		} else {
-			ui.Text(c, scheduleText("这个表达式在 45 天内不会再运行。", "This expression does not run again within 45 days.")).FontSize(12).TextColor(muted)
-		}
+		ui.Column(c).FillWidth().Padding(design.Sp(1), 0, design.Sp(2), 0).Gap(design.Sp(0.5)).Children(func() {
+			pagekit.Caption(c, i18n.T(i18n.KeyMiscSchedulePreview)+catalogCronPreview(parsed, i18n.Locale())+" · "+formatCatalogZone(d.Zone, time.Now(), i18n.Locale())).FillWidth()
+			loc := time.UTC
+			if loaded, err := time.LoadLocation(d.Zone); err == nil {
+				loc = loaded
+			}
+			if at, ok := parsed.nextAfter(time.Now(), loc); ok {
+				pagekit.Caption(c, scheduleText("下次计划时间：", "Next run: ")+at.Format("2006-01-02 15:04 MST")).FillWidth()
+			} else {
+				pagekit.Caption(c, scheduleText("这个表达式在 45 天内不会再运行。", "This expression does not run again within 45 days.")).FillWidth()
+			}
+		})
 	}
 }
 
