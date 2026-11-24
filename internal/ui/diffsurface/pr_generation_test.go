@@ -3,6 +3,7 @@ package diffsurface
 import (
 	"context"
 	"errors"
+	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/desktop/git"
 )
@@ -40,8 +41,24 @@ func TestPRGenerationFailureAndCancellationKeepDraft(t *testing.T) {
 	}
 }
 func TestLargeFileAcknowledgementRevocationInvalidatesReview(t *testing.T) {
-	w := Workbench{Commit: &commitSelectionState{LargeAcknowledged: false, Plan: &git.SelectedCommitPlan{}, StackPlan: &git.StackPlan{}}, ReviewToken: "selected", ReviewText: "patch"}
-	w.invalidateChangedLargeAcknowledgement(true)
+	fg, muted := ui.RGB(24, 24, 24), ui.RGB(120, 120, 120)
+	w := &Workbench{Changes: []git.Change{{Path: "dir/huge.bin", Index: 'M', Worktree: ' '}},
+		Commit:      &commitSelectionState{LargeAcknowledged: true, Excluded: map[string]bool{}, Plan: &git.SelectedCommitPlan{}, StackPlan: &git.StackPlan{}},
+		ReviewToken: "selected", ReviewText: "patch"}
+	w.Commit.LargeFiles = []git.LargeFile{{Path: "dir/huge.bin", Size: 200 << 20}}
+	text := ""
+	m := Model{Workbench: w, WorkspaceRoot: "workspace", Text: &text}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			paintCommitSelection(c, m, fg, muted)
+		})
+	}, 720, 700)
+	if err := tt.Click(word("保留仍被勾选的大文件；我已了解风险，并愿意继续", "Keep checked large files; I understand they may be rejected")); err != nil {
+		t.Fatalf("acknowledgement checkbox not reachable: %v", err)
+	}
+	if w.Commit.LargeAcknowledged {
+		t.Fatal("revoked acknowledgement flag did not clear")
+	}
 	if w.Commit.Plan != nil || w.Commit.StackPlan != nil || w.ReviewToken != "" || w.ReviewText != "" {
 		t.Fatal("revoked acknowledgement retained review")
 	}
