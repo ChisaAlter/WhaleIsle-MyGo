@@ -80,7 +80,7 @@ func (s *Service) TasksModel(ep harness.Endpoint, botID string) assistantui.Task
 		}()
 	}
 	return assistantui.TaskModel{
-		State:     s.assistantTasks.Snapshot(scope),
+		State:     s.assistantTasks.Snapshot(scope).Value,
 		OnRefresh: refresh,
 		OnSelect: func(id string) {
 			if current() {
