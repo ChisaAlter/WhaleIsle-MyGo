@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -275,6 +276,121 @@ func (p *Companion) motionMoved(now time.Time) {
 	}
 }
 
+const motionAnchorSaveDebounce = 150 * time.Millisecond
+
+// motionAnchorSaver coalesces drag-drop anchor updates and persists them on a
+// single background goroutine so SaveDesktopPet (and its NTFS fsync) never
+// blocks the UI thread.
+type motionAnchorSaver struct {
+	mu       sync.Mutex
+	debounce time.Duration
+	timer    *time.Timer
+	pending  *config.PetPosition
+	running  bool
+	done     chan struct{}
+	store    *config.Store
+	write    func(config.DesktopPet) error
+	onError  func(error)
+	lastErr  error
+}
+
+func (s *motionAnchorSaver) schedule(store *config.Store, anchor config.PetPosition, onError func(error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pos := anchor
+	s.store = store
+	s.pending = &pos
+	s.onError = onError
+	s.lastErr = nil
+	if s.timer != nil {
+		s.timer.Stop()
+	}
+	delay := s.debounce
+	if delay <= 0 {
+		delay = motionAnchorSaveDebounce
+	}
+	s.timer = time.AfterFunc(delay, s.trigger)
+}
+
+func (s *motionAnchorSaver) trigger() {
+	s.mu.Lock()
+	s.timer = nil
+	if s.running || s.pending == nil {
+		s.mu.Unlock()
+		return
+	}
+	s.running = true
+	s.done = make(chan struct{})
+	s.mu.Unlock()
+	go s.drain()
+}
+
+func (s *motionAnchorSaver) drain() {
+	for {
+		s.mu.Lock()
+		pos := s.pending
+		store := s.store
+		write := s.write
+		onError := s.onError
+		s.pending = nil
+		if pos == nil {
+			s.running = false
+			done := s.done
+			s.done = nil
+			s.mu.Unlock()
+			if done != nil {
+				close(done)
+			}
+			return
+		}
+		s.mu.Unlock()
+
+		var err error
+		if store != nil {
+			cfg := store.DesktopPet()
+			if cfg.Enabled && (cfg.Position == nil || *cfg.Position != *pos) {
+				next := *pos
+				cfg.Position = &next
+				if write != nil {
+					err = write(cfg)
+				} else {
+					err = store.SaveDesktopPet(cfg)
+				}
+			}
+		}
+		if err != nil {
+			s.mu.Lock()
+			s.lastErr = err
+			s.mu.Unlock()
+			if onError != nil {
+				onError(err)
+			}
+		}
+	}
+}
+
+func (s *motionAnchorSaver) flush() error {
+	s.mu.Lock()
+	if s.timer != nil {
+		s.timer.Stop()
+		s.timer = nil
+	}
+	if s.pending != nil && !s.running {
+		s.running = true
+		s.done = make(chan struct{})
+		go s.drain()
+	}
+	done := s.done
+	s.mu.Unlock()
+	if done != nil {
+		<-done
+	}
+	s.mu.Lock()
+	err := s.lastErr
+	s.mu.Unlock()
+	return err
+}
+
 func (p *Companion) saveMotionAnchor(position motionPoint) {
 	if p.Store == nil {
 		return
@@ -287,10 +403,21 @@ func (p *Companion) saveMotionAnchor(position motionPoint) {
 	if cfg.Position != nil && *cfg.Position == anchor {
 		return
 	}
-	cfg.Position = &anchor
-	if err := p.Store.SaveDesktopPet(cfg); err != nil {
+	w := p.win
+	p.motionSave.schedule(p.Store, anchor, func(err error) {
 		// Preserve the store's conflict/error semantics; never reload and retry
 		// a stale whole-config write or continuously retry an idle timer.
+		msg := storelocale.T(storelocale.KeyDesktopPetPetPositionWasNotSaved) + err.Error()
+		if w != nil && !w.IsDestroyed() {
+			w.Update(func() {
+				p.Error = msg
+			})
+		}
+	})
+}
+
+func (p *Companion) flushMotionAnchor() {
+	if err := p.motionSave.flush(); err != nil && (p.win == nil || p.win.IsDestroyed()) {
 		p.Error = storelocale.T(storelocale.KeyDesktopPetPetPositionWasNotSaved) + err.Error()
 	}
 }

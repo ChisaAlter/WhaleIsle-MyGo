@@ -126,8 +126,11 @@ func TestOptionalAnime4KRuntimeLookupAndGracefulDegradation(t *testing.T) {
 		t.Fatal("accepted tampered anime4k.js")
 	}
 
-	// Valid verified copy in userData/pet-render-assets is served verbatim.
-	if err := os.WriteFile(filepath.Join(userPetAssets, "anime4k.js"), diskBytes, 0o600); err != nil {
+	// Valid verified copy in userData/pet-render-assets is served verbatim
+	// regardless of whether git checked out assets/anime4k.js with LF or CRLF.
+	lfBytes := bytes.ReplaceAll(diskBytes, []byte("\r\n"), []byte("\n"))
+	crlfBytes := bytes.ReplaceAll(lfBytes, []byte("\n"), []byte("\r\n"))
+	if err := os.WriteFile(filepath.Join(userPetAssets, "anime4k.js"), crlfBytes, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	resUserData := httptest.NewRecorder()
@@ -141,7 +144,6 @@ func TestOptionalAnime4KRuntimeLookupAndGracefulDegradation(t *testing.T) {
 	}
 
 	// LF-normalized download bytes (matching GitHub raw) are also verified & served.
-	lfBytes := bytes.ReplaceAll(diskBytes, []byte("\r\n"), []byte("\n"))
 	if err := os.WriteFile(filepath.Join(userPetAssets, "anime4k.js"), lfBytes, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +162,7 @@ func TestOptionalAnime4KRuntimeLookupAndGracefulDegradation(t *testing.T) {
 	if err := os.MkdirAll(envAssets, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(envAssets, "anime4k.js"), diskBytes, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(envAssets, "anime4k.js"), crlfBytes, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_ = os.Remove(filepath.Join(userPetAssets, "anime4k.js"))
