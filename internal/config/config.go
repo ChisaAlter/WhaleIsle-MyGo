@@ -315,6 +315,8 @@ type Store struct {
 	// compare-and-replace; nil means acquireCommitLock. It is a per-instance
 	// seam so tests can inject a lock failure or skip OS locking entirely.
 	commitLock func(path string) (func(), error)
+
+	async asyncPersistState
 }
 
 // cloneConfig returns a Config whose mutable fields share no storage with c,
@@ -448,6 +450,9 @@ func (s *Store) Update(fn func(*Config)) error {
 // A callback error leaves both the current configuration and the file unchanged.
 // The same baseline checks and atomic write used by Update protect the commit.
 func (s *Store) UpdateChecked(fn func(*Config) error) error {
+	if err := s.flushPendingBeforeSync(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
