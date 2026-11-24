@@ -356,7 +356,11 @@ func sealAndWriteRaw(dir string, raw map[string]json.RawMessage, create bool, re
 			return err
 		}
 	}
-	return writeAtomic(filepath.Join(dir, FileName), data, rename)
+	if err := writeAtomic(filepath.Join(dir, FileName), data, rename); err != nil {
+		return err
+	}
+	InvalidateStorageStatusCache(dir)
+	return nil
 }
 
 // preserveMigratedEnvelope keeps the earlier encrypted bytes once, beside the
