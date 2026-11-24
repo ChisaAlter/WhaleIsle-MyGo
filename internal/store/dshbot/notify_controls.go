@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -23,7 +24,8 @@ type NotifySnapshot struct {
 	Status                                              pluginrpc.DshbotCapabilityStatus
 	Review                                              *NotifyConfirmation
 	Warnings                                            []string
-	Error, Notice                                       string
+	Error                                               *state.Fault
+	Notice                                              string
 }
 type notifyAttempt struct {
 	Command  pluginrpc.DshbotNotifyCommand
@@ -35,6 +37,8 @@ type notifyEntry struct {
 	attempt  *notifyAttempt
 	loading  uint64
 	hasDraft bool
+	pub      state.Published[NotifySnapshot]
+	dirty    bool
 }
 
 // Scope-local entries preserve sent requests across hidden/reopened frames. No
@@ -53,6 +57,7 @@ func (c *NotifyControls) entry(k RoutineScope) *notifyEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &notifyEntry{state: NotifySnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *NotifyControls) valid(k RoutineScope) bool {
@@ -77,12 +82,18 @@ func (c *NotifyControls) Bind(k RoutineScope) {
 		}
 	}
 }
-func (c *NotifyControls) Snapshot(k RoutineScope) NotifySnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *NotifyControls) Snapshot(k RoutineScope) *state.Version[NotifySnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return NotifySnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	v := e.state
 	v.Generation = c.generation
@@ -93,7 +104,9 @@ func (c *NotifyControls) Snapshot(k RoutineScope) NotifySnapshot {
 		r.Command = pluginrpc.CloneDshbotNotifyCommand(r.Command)
 		v.Review = &r
 	}
-	return v
+	e.pub.Publish(v)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *NotifyControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -117,19 +130,25 @@ func (c *NotifyControls) BeginLoad(k RoutineScope) (NotifyTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	return NotifyTicket{k, c.generation, c.sequence}, true
 }
 func (c *NotifyControls) LoadCurrent(t NotifyTicket) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.loading == t.Sequence
 }
 func (c *NotifyControls) FinishLoad(t NotifyTicket, status pluginrpc.DshbotCapabilityStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || c.generation != t.Generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -138,13 +157,13 @@ func (c *NotifyControls) FinishLoad(t NotifyTicket, status pluginrpc.DshbotCapab
 	c.generation++
 	value, ve := pluginrpc.DshbotNotifyEnabled(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained2)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained2))
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotCapabilities(status)
 	e.state.Loaded = true
 	e.state.Writable = writable
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotNotifyApplied(e.attempt.Command, status) == nil {
 			e.state.Candidate = true
@@ -202,7 +221,7 @@ func (c *NotifyControls) Discard(k RoutineScope) {
 	e.state.Draft = before
 	e.state.Dirty = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	c.generation++
 }
 func (c *NotifyControls) Prepare(k RoutineScope) {
@@ -214,13 +233,13 @@ func (c *NotifyControls) Prepare(k RoutineScope) {
 	}
 	cmd := pluginrpc.DshbotNotifyCommand{Expected: pluginrpc.CloneDshbotCapabilities(e.state.Status), Enabled: e.state.Draft}
 	if err := pluginrpc.ValidateDshbotNotifyCommand(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	e.state.Review = &NotifyConfirmation{Command: cmd, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *NotifyControls) Dismiss(k RoutineScope, r *NotifyConfirmation) {
 	c.mu.Lock()
@@ -264,11 +283,14 @@ func (c *NotifyControls) BeginSave(k RoutineScope, r *NotifyConfirmation) (Notif
 	e.state.Busy = true
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return NotifyTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *NotifyControls) current(t NotifyTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *NotifyControls) Current(t NotifyTicket) bool {
@@ -289,6 +311,9 @@ func (c *NotifyControls) AbortUnsent(t NotifyTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -298,13 +323,16 @@ func (c *NotifyControls) AbortUnsent(t NotifyTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *NotifyControls) FinishSave(t NotifyTicket, out pluginrpc.DshbotCapabilityReceipt, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -316,7 +344,7 @@ func (c *NotifyControls) FinishSave(t NotifyTicket, out pluginrpc.DshbotCapabili
 		e.attempt = nil
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 		}
 		return
 	}
@@ -325,7 +353,7 @@ func (c *NotifyControls) FinishSave(t NotifyTicket, out pluginrpc.DshbotCapabili
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
@@ -334,7 +362,7 @@ func (c *NotifyControls) FinishSave(t NotifyTicket, out pluginrpc.DshbotCapabili
 	e.state.Dirty = false
 	e.state.Uncertain = false
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotProfileSavedVerifyPresentationWarnin2)
 	e.attempt = nil
 }
@@ -353,7 +381,7 @@ func (c *NotifyControls) Adopt(k RoutineScope) bool {
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogPresentationRenameAnd)
 	e.attempt = nil
 	c.generation++
