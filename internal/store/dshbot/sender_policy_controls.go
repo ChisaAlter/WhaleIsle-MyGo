@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -24,7 +25,8 @@ type SenderPolicySnapshot struct {
 	Status                                              pluginrpc.DshbotSenderPolicyStatus
 	Review                                              *SenderPolicyConfirmation
 	Warnings                                            []string
-	Error, Notice                                       string
+	Error                                               *state.Fault
+	Notice                                              string
 }
 type senderPolicyAttempt struct {
 	Command  pluginrpc.DshbotSenderPolicyCommand
@@ -36,6 +38,8 @@ type senderPolicyEntry struct {
 	attempt  *senderPolicyAttempt
 	loading  uint64
 	hasDraft bool
+	pub      state.Published[SenderPolicySnapshot]
+	dirty    bool
 }
 
 // Scope-local entries preserve sent requests across hidden/reopened frames. No
@@ -54,6 +58,7 @@ func (c *SenderPolicyControls) entry(k RoutineScope) *senderPolicyEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &senderPolicyEntry{state: SenderPolicySnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *SenderPolicyControls) valid(k RoutineScope) bool {
@@ -78,12 +83,15 @@ func (c *SenderPolicyControls) Bind(k RoutineScope) {
 		}
 	}
 }
-func (c *SenderPolicyControls) Snapshot(k RoutineScope) SenderPolicySnapshot {
+func (c *SenderPolicyControls) Snapshot(k RoutineScope) *state.Version[SenderPolicySnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return SenderPolicySnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	v := e.state
 	v.Generation = c.generation
@@ -95,7 +103,9 @@ func (c *SenderPolicyControls) Snapshot(k RoutineScope) SenderPolicySnapshot {
 		r.Command = pluginrpc.CloneDshbotSenderPolicyCommand(r.Command)
 		v.Review = &r
 	}
-	return v
+	e.pub.Publish(v)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *SenderPolicyControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -119,19 +129,25 @@ func (c *SenderPolicyControls) BeginLoad(k RoutineScope) (SenderPolicyTicket, bo
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	return SenderPolicyTicket{k, c.generation, c.sequence}, true
 }
 func (c *SenderPolicyControls) LoadCurrent(t SenderPolicyTicket) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.loading == t.Sequence
 }
 func (c *SenderPolicyControls) FinishLoad(t SenderPolicyTicket, status pluginrpc.DshbotSenderPolicyStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || c.generation != t.Generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -140,13 +156,13 @@ func (c *SenderPolicyControls) FinishLoad(t SenderPolicyTicket, status pluginrpc
 	c.generation++
 	value, ve := pluginrpc.DshbotSenderPolicyValue(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained4)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained4))
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotSenderPolicy(status)
 	e.state.Loaded = true
 	e.state.Writable = writable
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotSenderPolicyApplied(e.attempt.Command, status.DshbotCapabilityStatus) == nil {
 			e.state.Candidate = true
@@ -204,7 +220,7 @@ func (c *SenderPolicyControls) Discard(k RoutineScope) {
 	e.state.Draft = before
 	e.state.Dirty = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	c.generation++
 }
 func (c *SenderPolicyControls) Prepare(k RoutineScope) {
@@ -216,13 +232,13 @@ func (c *SenderPolicyControls) Prepare(k RoutineScope) {
 	}
 	cmd := pluginrpc.DshbotSenderPolicyCommand{Expected: pluginrpc.CloneDshbotSenderPolicy(e.state.Status), Values: e.state.Draft}
 	if err := pluginrpc.ValidateDshbotSenderPolicyCommand(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	e.state.Review = &SenderPolicyConfirmation{Command: cmd, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *SenderPolicyControls) Dismiss(k RoutineScope, r *SenderPolicyConfirmation) {
 	c.mu.Lock()
@@ -275,11 +291,14 @@ func (c *SenderPolicyControls) BeginSave(k RoutineScope, r *SenderPolicyConfirma
 	e.state.Busy = true
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return SenderPolicyTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *SenderPolicyControls) current(t SenderPolicyTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *SenderPolicyControls) Current(t SenderPolicyTicket) bool {
@@ -300,6 +319,9 @@ func (c *SenderPolicyControls) AbortUnsent(t SenderPolicyTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -309,13 +331,16 @@ func (c *SenderPolicyControls) AbortUnsent(t SenderPolicyTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *SenderPolicyControls) FinishSave(t SenderPolicyTicket, out pluginrpc.DshbotCapabilityReceipt, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -327,7 +352,7 @@ func (c *SenderPolicyControls) FinishSave(t SenderPolicyTicket, out pluginrpc.Ds
 		e.attempt = nil
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 		}
 		return
 	}
@@ -336,7 +361,7 @@ func (c *SenderPolicyControls) FinishSave(t SenderPolicyTicket, out pluginrpc.Ds
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
@@ -345,7 +370,7 @@ func (c *SenderPolicyControls) FinishSave(t SenderPolicyTicket, out pluginrpc.Ds
 	e.state.Dirty = false
 	e.state.Uncertain = false
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotSavedProfileLiveSynchronizationAndE)
 	e.attempt = nil
 }
@@ -364,7 +389,7 @@ func (c *SenderPolicyControls) Adopt(k RoutineScope) bool {
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogLiveSynchronizationAnd)
 	e.attempt = nil
 	c.generation++

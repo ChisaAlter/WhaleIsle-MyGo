@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -23,18 +24,24 @@ type ObjectiveConfigSnapshot struct {
 	Status                        pluginrpc.DshbotCapabilityStatus
 	Review                        *ObjectiveConfigConfirmation
 	Warnings                      []string
-	Error, Notice                 string
+	Error                         *state.Fault
+	Notice                        string
 }
 type ObjectiveConfigControls struct {
 	mu                   sync.Mutex
 	state                ObjectiveConfigSnapshot
 	generation, sequence uint64
 	hasDraft             bool
+	pub                  state.Published[ObjectiveConfigSnapshot]
+	dirty                bool
+	foreignPub           state.Published[ObjectiveConfigSnapshot]
+	foreignKey           RoutineScope
 }
 
 func (c *ObjectiveConfigControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.state.Scope != k {
 		c.generation++
 		c.sequence++
@@ -45,11 +52,21 @@ func (c *ObjectiveConfigControls) Bind(k RoutineScope) {
 func (c *ObjectiveConfigControls) valid(k RoutineScope) bool {
 	return c.state.Scope == k && k.HostKey != "" && k.BotID != ""
 }
-func (c *ObjectiveConfigControls) Snapshot(k RoutineScope) ObjectiveConfigSnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *ObjectiveConfigControls) Snapshot(k RoutineScope) *state.Version[ObjectiveConfigSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		return ObjectiveConfigSnapshot{Scope: k}
+		if c.foreignKey != k {
+			c.foreignKey = k
+			c.foreignPub.Publish(ObjectiveConfigSnapshot{Scope: k})
+		}
+		return c.foreignPub.Load()
+	}
+	if v := c.pub.Load(); v != nil && !c.dirty {
+		return v
 	}
 	out := c.state
 	out.Generation = c.generation
@@ -60,7 +77,9 @@ func (c *ObjectiveConfigControls) Snapshot(k RoutineScope) ObjectiveConfigSnapsh
 		r.Command.Expected = pluginrpc.CloneDshbotCapabilities(r.Command.Expected)
 		out.Review = &r
 	}
-	return out
+	c.pub.Publish(out)
+	c.dirty = false
+	return c.pub.Load()
 }
 func (c *ObjectiveConfigControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -78,6 +97,7 @@ func (c *ObjectiveConfigControls) Current(t ObjectiveConfigTicket) bool {
 func (c *ObjectiveConfigControls) BeginLoad(k RoutineScope) (ObjectiveConfigTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || c.state.Busy {
 		return ObjectiveConfigTicket{}, false
 	}
@@ -85,12 +105,13 @@ func (c *ObjectiveConfigControls) BeginLoad(k RoutineScope) (ObjectiveConfigTick
 	c.state.Busy = true
 	c.state.Loaded = false
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	return ObjectiveConfigTicket{k, c.generation}, true
 }
 func (c *ObjectiveConfigControls) FinishLoad(t ObjectiveConfigTicket, status pluginrpc.DshbotCapabilityStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) {
 		return false
 	}
@@ -98,7 +119,7 @@ func (c *ObjectiveConfigControls) FinishLoad(t ObjectiveConfigTicket, status plu
 	c.state.Busy = false
 	value, valueErr := pluginrpc.DshbotObjectiveConfigValue(status)
 	if err != nil || valueErr != nil || status.Bot.ID != t.Scope.BotID || status.Bot.SessionID == "" {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetainedAndLock2)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetainedAndLock2))
 		return true
 	}
 	draftValue, draftErr := pluginrpc.ParseDshbotObjectiveConfigDraft(c.state.Draft)
@@ -110,7 +131,7 @@ func (c *ObjectiveConfigControls) FinishLoad(t ObjectiveConfigTicket, status plu
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(status)
 	c.state.Writable = writable
 	c.state.Loaded = true
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReadBackReviewAnyRemainingDraft)
 	return true
 }
@@ -120,6 +141,7 @@ func (c *ObjectiveConfigControls) editable(k RoutineScope) bool {
 func (c *ObjectiveConfigControls) SetDraft(k RoutineScope, draft pluginrpc.DshbotObjectiveConfigDraft) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.editable(k) || c.state.Review != nil {
 		return
 	}
@@ -134,6 +156,7 @@ func (c *ObjectiveConfigControls) SetDraft(k RoutineScope, draft pluginrpc.Dshbo
 func (c *ObjectiveConfigControls) Discard(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || !c.state.Loaded || c.state.Busy {
 		return
 	}
@@ -149,27 +172,29 @@ func (c *ObjectiveConfigControls) Discard(k RoutineScope) {
 func (c *ObjectiveConfigControls) Prepare(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.editable(k) || !c.state.Dirty {
 		return
 	}
 	desired, err := pluginrpc.ParseDshbotObjectiveConfigDraft(c.state.Draft)
 	if err != nil {
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return
 	}
 	cmd := pluginrpc.DshbotObjectiveConfigCommand{Expected: pluginrpc.CloneDshbotCapabilities(c.state.Status), Desired: desired}
 	if err := pluginrpc.ValidateDshbotObjectiveConfigCommand(cmd); err != nil {
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	c.state.Review = &ObjectiveConfigConfirmation{Command: cmd, Sequence: c.sequence}
-	c.state.Error = ""
+	c.state.Error = nil
 }
 func (c *ObjectiveConfigControls) Dismiss(k RoutineScope, r *ObjectiveConfigConfirmation) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && r != nil && c.state.Review != nil && r.Sequence == c.state.Review.Sequence {
 		c.state.Review = nil
 		c.generation++
@@ -178,6 +203,7 @@ func (c *ObjectiveConfigControls) Dismiss(k RoutineScope, r *ObjectiveConfigConf
 func (c *ObjectiveConfigControls) Acknowledge(k RoutineScope, r *ObjectiveConfigConfirmation, ack bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && r != nil && c.state.Review != nil && r.Sequence == c.state.Review.Sequence {
 		c.state.Review.Acknowledged = ack
 		c.generation++
@@ -186,6 +212,7 @@ func (c *ObjectiveConfigControls) Acknowledge(k RoutineScope, r *ObjectiveConfig
 func (c *ObjectiveConfigControls) BeginSave(k RoutineScope, r *ObjectiveConfigConfirmation) (ObjectiveConfigTicket, pluginrpc.DshbotObjectiveConfigCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	var zero pluginrpc.DshbotObjectiveConfigCommand
 	actual := c.state.Review
 	if !c.editable(k) || r == nil || actual == nil || actual.Sequence != r.Sequence || !actual.Acknowledged || !pluginrpc.SameDshbotCapabilities(actual.Command.Expected, c.state.Status) {
@@ -201,6 +228,7 @@ func (c *ObjectiveConfigControls) BeginSave(k RoutineScope, r *ObjectiveConfigCo
 func (c *ObjectiveConfigControls) FinishSave(t ObjectiveConfigTicket, out pluginrpc.DshbotCapabilityReceipt, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) || c.state.Review == nil {
 		return false
 	}
@@ -209,14 +237,14 @@ func (c *ObjectiveConfigControls) FinishSave(t ObjectiveConfigTicket, out plugin
 	c.state.Review = nil
 	c.state.Warnings = append([]string(nil), out.Warnings...)
 	if err != nil || out.Status.Bot.ID != t.Scope.BotID || out.Status.Bot.SessionID != c.state.Status.Bot.SessionID {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin2)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotOutcomeUncertainReadBackBeforeSavin2))
 		if !out.Attempted {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent2)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotPreflightChangedNoSaveSent2))
 		}
 		return true
 	}
 	c.state.Status = pluginrpc.CloneDshbotCapabilities(out.Status)
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotReceiptReceivedReadBackToVerify)
 	return true
 }

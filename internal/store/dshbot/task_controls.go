@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -31,7 +32,8 @@ type TaskControlSnapshot struct {
 	Tasks              []pluginrpc.DshbotTask
 	SelectedID         string
 	Review             *TaskReview
-	Error, Notice      string
+	Error              *state.Fault
+	Notice             string
 }
 
 type TaskControls struct {
@@ -39,21 +41,33 @@ type TaskControls struct {
 	state      TaskControlSnapshot
 	generation uint64
 	retryIDs   map[TaskScope]map[string]string
+	pub        state.Published[TaskControlSnapshot]
+	dirty      bool
+	foreignPub state.Published[TaskControlSnapshot]
+	foreignKey TaskScope
 }
 
 func (c *TaskControls) Bind(scope TaskScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.state.Scope != scope {
 		c.generation++
 		c.state = TaskControlSnapshot{Scope: scope}
 	}
 }
-func (c *TaskControls) Snapshot(scope TaskScope) TaskControlSnapshot {
+func (c *TaskControls) Snapshot(scope TaskScope) *state.Version[TaskControlSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != scope {
-		return TaskControlSnapshot{Scope: scope}
+		if c.foreignKey != scope {
+			c.foreignKey = scope
+			c.foreignPub.Publish(TaskControlSnapshot{Scope: scope})
+		}
+		return c.foreignPub.Load()
+	}
+	if v := c.pub.Load(); v != nil && !c.dirty {
+		return v
 	}
 	out := c.state
 	out.Tasks = append([]pluginrpc.DshbotTask(nil), out.Tasks...)
@@ -61,7 +75,9 @@ func (c *TaskControls) Snapshot(scope TaskScope) TaskControlSnapshot {
 		review := *out.Review
 		out.Review = &review
 	}
-	return out
+	c.pub.Publish(out)
+	c.dirty = false
+	return c.pub.Load()
 }
 func (c *TaskControls) matches(t TaskTicket) bool {
 	return c.state.Scope == t.Scope && c.generation == t.generation
@@ -72,12 +88,13 @@ func (c *TaskControls) valid(scope TaskScope) bool {
 func (c *TaskControls) BeginLoad(scope TaskScope) (TaskTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(scope) || c.state.Busy {
 		return TaskTicket{}, false
 	}
 	c.generation++
 	c.state.Busy = true
-	c.state.Error = ""
+	c.state.Error = nil
 	return TaskTicket{scope, c.generation}, true
 }
 func (c *TaskControls) replaceView(view *pluginrpc.DshbotTaskView) error {
@@ -108,6 +125,7 @@ func (c *TaskControls) replaceView(view *pluginrpc.DshbotTaskView) error {
 func (c *TaskControls) FinishLoad(t TaskTicket, view *pluginrpc.DshbotTaskView, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.matches(t) {
 		return false
 	}
@@ -117,16 +135,17 @@ func (c *TaskControls) FinishLoad(t TaskTicket, view *pluginrpc.DshbotTaskView, 
 	}
 	if err != nil {
 		c.state.Loaded = false
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return true
 	}
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotTasksRefreshed)
 	return true
 }
 func (c *TaskControls) Select(scope TaskScope, id string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(scope) || c.state.Busy {
 		return
 	}
@@ -134,7 +153,7 @@ func (c *TaskControls) Select(scope TaskScope, id string) {
 		if task.ID == id {
 			c.state.SelectedID = id
 			c.state.Review = nil
-			c.state.Error = ""
+			c.state.Error = nil
 			return
 		}
 	}
@@ -150,6 +169,7 @@ func (c *TaskControls) task(id string) (pluginrpc.DshbotTask, bool) {
 func (c *TaskControls) Prepare(scope TaskScope, action, taskID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(scope) || c.state.Busy || !c.state.Loaded {
 		return
 	}
@@ -174,7 +194,7 @@ func (c *TaskControls) Prepare(scope TaskScope, action, taskID string) {
 		if ids[taskID] == "" {
 			var bytes [16]byte
 			if _, err := rand.Read(bytes[:]); err != nil {
-				c.state.Error = "Could not create retry request ID: " + err.Error()
+				c.state.Error = state.FaultOf(err)
 				return
 			}
 			ids[taskID] = "mygo-task-" + hex.EncodeToString(bytes[:])
@@ -182,22 +202,24 @@ func (c *TaskControls) Prepare(scope TaskScope, action, taskID string) {
 		command.RequestID = ids[taskID]
 	}
 	c.state.Review = &TaskReview{Command: command, SessionID: c.state.SessionID}
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = ""
 }
 func (c *TaskControls) Dismiss(scope TaskScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(scope) || c.state.Busy {
 		return
 	}
 	// Keep an ambiguous retry's operation ID even after dismissing the review.
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 }
 func (c *TaskControls) BeginAction(scope TaskScope) (TaskTicket, pluginrpc.DshbotTaskCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	var empty pluginrpc.DshbotTaskCommand
 	if !c.valid(scope) || c.state.Busy || !c.state.Loaded || c.state.Review == nil {
 		return TaskTicket{}, empty, false
@@ -205,24 +227,25 @@ func (c *TaskControls) BeginAction(scope TaskScope) (TaskTicket, pluginrpc.Dshbo
 	review := c.state.Review
 	command := review.Command
 	if command.Revision != c.state.Revision || review.SessionID != c.state.SessionID {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotCatalogChangedReviewTheActionAgain)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotCatalogChangedReviewTheActionAgain))
 		return TaskTicket{}, empty, false
 	}
 	if command.Action != "stop" {
 		task, ok := c.task(command.TaskID)
 		if !ok || !pluginrpc.DshbotTaskActionAllowed(command.Action, task.Status) {
-			c.state.Error = "Task status changed; refresh and review again"
+			c.state.Error = state.FaultText("Task status changed; refresh and review again")
 			return TaskTicket{}, empty, false
 		}
 	}
 	c.generation++
 	c.state.Busy = true
-	c.state.Error = ""
+	c.state.Error = nil
 	return TaskTicket{scope, c.generation}, command, true
 }
 func (c *TaskControls) FinishAction(t TaskTicket, result pluginrpc.DshbotTaskResult, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.matches(t) || c.state.Review == nil {
 		return false
 	}
@@ -238,7 +261,7 @@ func (c *TaskControls) FinishAction(t TaskTicket, result pluginrpc.DshbotTaskRes
 		err = c.replaceView(result.View)
 	}
 	if err != nil {
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return true
 	}
 	if review.Command.Action == "retry" {
@@ -246,7 +269,7 @@ func (c *TaskControls) FinishAction(t TaskTicket, result pluginrpc.DshbotTaskRes
 		c.state.SelectedID = result.TaskID
 	}
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostAccepted) + review.Command.Action
 	if strings.TrimSpace(result.WakeError) != "" {
 		c.state.Notice += storelocale.T(storelocale.KeyStoreDshbotStateSavedWakeFailed) + result.WakeError

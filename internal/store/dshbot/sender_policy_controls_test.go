@@ -22,29 +22,29 @@ func TestBotSenderPolicyLifecycleAcknowledgementAndUnknownReadback(t *testing.T)
 	c := &parent.SenderPolicy
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, senderPolicyStoreFixture(), true, nil)
-	v := c.Snapshot(k).Draft
+	v := c.Snapshot(k).Value.Draft
 	v = pluginrpc.DshbotSenderPolicyValues{Selected: true, IDs: []string{"peer-b"}}
 	c.SetDraft(k, v)
-	snapshot := c.Snapshot(k)
+	snapshot := c.Snapshot(k).Value
 	snapshot.Draft.IDs[0] = "forged"
 	snapshot.Status.CatalogItems[1] = json.RawMessage(`{}`)
-	if c.Snapshot(k).Draft.IDs[0] != "peer-b" {
+	if c.entries[k].state.Draft.IDs[0] != "peer-b" {
 		t.Fatal("draft alias escaped")
 	}
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.BeginSave(k, r); ok {
 		t.Fatal("missing independent acknowledgement")
 	}
 	c.Acknowledge(k, r, true)
-	if _, _, ok := c.BeginSave(k, c.Snapshot(k).Review); ok {
+	if _, _, ok := c.BeginSave(k, c.Snapshot(k).Value.Review); ok {
 		t.Fatal("expansion lacks explicit approval")
 	}
-	c.AcknowledgeExpansion(k, c.Snapshot(k).Review, true)
-	r = c.Snapshot(k).Review
+	c.AcknowledgeExpansion(k, c.Snapshot(k).Value.Review, true)
+	r = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.BeginSave(k, r)
 	if !ok || !c.MarkSent(ticket) {
 		t.Fatal("dispatch")
@@ -52,20 +52,20 @@ func TestBotSenderPolicyLifecycleAcknowledgementAndUnknownReadback(t *testing.T)
 	if _, _, ok := c.BeginSave(k, r); ok {
 		t.Fatal("double dispatch")
 	}
-	old := c.Snapshot(k).Generation
+	old := c.Snapshot(k).Value.Generation
 	parent.Bind(RoutineScope{})
 	parent.Bind(k)
 	if c.ViewCurrent(k, old) || c.Current(ticket) {
 		t.Fatal("retired view revived")
 	}
 	c.FinishSave(ticket, pluginrpc.DshbotCapabilityReceipt{Attempted: true}, errors.New("unknown"))
-	if !c.Snapshot(k).Uncertain || !pluginrpc.SameDshbotSenderPolicyValues(c.Snapshot(k).Draft, v) {
+	if !c.Snapshot(k).Value.Uncertain || !pluginrpc.SameDshbotSenderPolicyValues(c.Snapshot(k).Value.Draft, v) {
 		t.Fatal("old scope receipt lost")
 	}
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, senderPolicyStoreFixture(), true, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil || !c.Snapshot(k).Uncertain {
+	if c.Snapshot(k).Value.Review != nil || !c.Snapshot(k).Value.Uncertain {
 		t.Fatal("unmatched readback released request")
 	}
 	fresh := senderPolicyStoreFixture()
@@ -77,14 +77,14 @@ func TestBotSenderPolicyLifecycleAcknowledgementAndUnknownReadback(t *testing.T)
 	}
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, fresh, true, nil)
-	if !c.Snapshot(k).Candidate {
+	if !c.Snapshot(k).Value.Candidate {
 		t.Fatal("matching not offered")
 	}
-	if !c.Adopt(k) || c.Snapshot(k).Uncertain || c.Snapshot(k).Dirty {
+	if !c.Adopt(k) || c.Snapshot(k).Value.Uncertain || c.Snapshot(k).Value.Dirty {
 		t.Fatal("adoption failed")
 	}
 	parent.Bind(RoutineScope{HostKey: "other", BotID: "b"})
-	if c.Snapshot(RoutineScope{HostKey: "other", BotID: "b"}).Status.Bot.ID != "" {
+	if c.Snapshot(RoutineScope{HostKey: "other", BotID: "b"}).Value.Status.Bot.ID != "" {
 		t.Fatal("cross-account leak")
 	}
 }
@@ -94,19 +94,19 @@ func TestBotSenderPolicyUnsentAndReadOnlyGuards(t *testing.T) {
 	c.Bind(k)
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, senderPolicyStoreFixture(), false, nil)
-	v := c.Snapshot(k).Draft
+	v := c.Snapshot(k).Value.Draft
 	v = pluginrpc.DshbotSenderPolicyValues{Selected: true, IDs: []string{"peer-b"}}
 	c.SetDraft(k, v)
-	if c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Dirty {
 		t.Fatal("readonly")
 	}
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, senderPolicyStoreFixture(), true, nil)
 	c.SetDraft(k, v)
 	c.Prepare(k)
-	c.Acknowledge(k, c.Snapshot(k).Review, true)
-	c.AcknowledgeExpansion(k, c.Snapshot(k).Review, true)
-	ticket, _, ok := c.BeginSave(k, c.Snapshot(k).Review)
+	c.Acknowledge(k, c.Snapshot(k).Value.Review, true)
+	c.AcknowledgeExpansion(k, c.Snapshot(k).Value.Review, true)
+	ticket, _, ok := c.BeginSave(k, c.Snapshot(k).Value.Review)
 	if !ok {
 		t.Fatal("begin")
 	}
@@ -116,7 +116,7 @@ func TestBotSenderPolicyUnsentAndReadOnlyGuards(t *testing.T) {
 	}
 	c.AbortUnsent(ticket, errors.New("view changed"))
 	c.Bind(k)
-	if c.Snapshot(k).Busy || c.Snapshot(k).Uncertain || c.Snapshot(k).Loaded {
+	if c.Snapshot(k).Value.Busy || c.Snapshot(k).Value.Uncertain || c.Snapshot(k).Value.Loaded {
 		t.Fatal("unsent recovery")
 	}
 }
