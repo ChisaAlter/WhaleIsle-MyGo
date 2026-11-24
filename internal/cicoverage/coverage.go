@@ -7,9 +7,13 @@ package cicoverage
 
 import (
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // scanExcludedDirs are never treated as project packages at any depth.
@@ -47,12 +51,12 @@ var UncoveredExemptions = map[string]string{
 // *_test.go file as sorted "./"-prefixed slash paths.
 func TestPackages(root string) ([]string, error) {
 	found := map[string]bool{}
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
-			if path != root {
+			if p != root {
 				base := d.Name()
 				if scanExcludedDirs[base] || strings.HasPrefix(base, ".") {
 					return filepath.SkipDir
@@ -61,7 +65,7 @@ func TestPackages(root string) ([]string, error) {
 			return nil
 		}
 		if strings.HasSuffix(d.Name(), "_test.go") {
-			rel, err := filepath.Rel(root, filepath.Dir(path))
+			rel, err := filepath.Rel(root, filepath.Dir(p))
 			if err != nil {
 				return err
 			}
@@ -80,176 +84,471 @@ func TestPackages(root string) ([]string, error) {
 	return pkgs, nil
 }
 
-// CoveredPatterns extracts the package arguments of every `go test` command in
-// a GitHub Actions workflow document. It understands `run:` block scalars,
-// `\` line continuations, full-line comments and per-step `working-directory`,
-// and returns "./"-prefixed patterns; a trailing "/..." marks a subtree
-// wildcard.
-func CoveredPatterns(workflow []byte) map[string]bool {
+type workflowDoc struct {
+	Defaults workflowDefaults       `yaml:"defaults"`
+	Jobs     map[string]workflowJob `yaml:"jobs"`
+}
+
+type workflowDefaults struct {
+	Run runDefaults `yaml:"run"`
+}
+
+type runDefaults struct {
+	WorkingDirectory string `yaml:"working-directory"`
+}
+
+type workflowJob struct {
+	If       yaml.Node        `yaml:"if"`
+	Defaults workflowDefaults `yaml:"defaults"`
+	Steps    []workflowStep   `yaml:"steps"`
+}
+
+type workflowStep struct {
+	If               yaml.Node `yaml:"if"`
+	Run              string    `yaml:"run"`
+	WorkingDirectory string    `yaml:"working-directory"`
+}
+
+// ParseCoveredPatterns parses workflow with YAML semantics and extracts the
+// package arguments of every full-package `go test` command in active jobs and
+// steps. It returns "./"-prefixed repo-relative patterns; a trailing "/..."
+// marks a subtree wildcard.
+func ParseCoveredPatterns(workflow []byte) (map[string]bool, error) {
+	var doc workflowDoc
+	if err := yaml.Unmarshal(workflow, &doc); err != nil {
+		return nil, err
+	}
 	patterns := map[string]bool{}
-	lines := strings.Split(string(workflow), "\n")
-
-	workDir := ""
-	for i := 0; i < len(lines); i++ {
-		line := strings.TrimRight(lines[i], "\r")
-
-		// Step boundary: a new "- name:"/"- uses:"/"- run:" etc. or a new
-		// mapping key resets the working-directory context for inline runs.
-		if isStepItem(line) {
-			workDir = ""
+	for _, job := range doc.Jobs {
+		if isDisabledIf(job.If) {
+			continue
 		}
-		if key, val, ok := yamlKey(line); ok {
-			switch key {
-			case "working-directory":
-				workDir = strings.Trim(val, `"'`)
-			case "run":
-				var script []string
-				if val == "|" || val == "|-" || val == "|+" || val == ">" || val == ">-" || val == ">+" {
-					base := indent(line)
-					j := i + 1
-					for ; j < len(lines); j++ {
-						bl := strings.TrimRight(lines[j], "\r")
-						if strings.TrimSpace(bl) == "" {
-							continue
-						}
-						if indent(bl) <= base {
-							break
-						}
-						script = append(script, strings.TrimSpace(bl))
-					}
-					i = j - 1
-				} else if val != "" {
-					script = []string{strings.TrimSpace(val)}
-				}
-				for _, pat := range goTestPackageArgs(script, workDir) {
-					patterns[pat] = true
-				}
+		jobWD := job.Defaults.Run.WorkingDirectory
+		if jobWD == "" {
+			jobWD = doc.Defaults.Run.WorkingDirectory
+		}
+		for _, step := range job.Steps {
+			if isDisabledIf(step.If) || strings.TrimSpace(step.Run) == "" {
+				continue
+			}
+			wd := step.WorkingDirectory
+			if wd == "" {
+				wd = jobWD
+			}
+			for _, pat := range goTestPackageArgs(step.Run, wd) {
+				patterns[pat] = true
 			}
 		}
+	}
+	return patterns, nil
+}
+
+// CoveredPatterns extracts the package arguments of every full-package `go test`
+// command in a GitHub Actions workflow document, failing closed (empty map) if
+// workflow is malformed YAML.
+func CoveredPatterns(workflow []byte) map[string]bool {
+	patterns, err := ParseCoveredPatterns(workflow)
+	if err != nil {
+		return map[string]bool{}
 	}
 	return patterns
 }
 
-// isStepItem reports whether a line starts a new YAML sequence item (a step or
-// a matrix entry), which resets the working-directory context.
-func isStepItem(line string) bool {
-	trimmed := strings.TrimLeft(line, " \t")
-	return strings.HasPrefix(trimmed, "- ") && len(strings.TrimSpace(trimmed[2:])) > 0
+func isDisabledIf(node yaml.Node) bool {
+	if node.Kind == yaml.AliasNode && node.Alias != nil {
+		node = *node.Alias
+	}
+	if node.Kind != yaml.ScalarNode {
+		return false
+	}
+	s := strings.TrimSpace(node.Value)
+	if strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}") {
+		s = strings.TrimSpace(s[3 : len(s)-2])
+	}
+	s = strings.ToLower(s)
+	return s == "false" || s == "0"
 }
 
-// yamlKey returns the key and value of a simple `key: value` line.
-func yamlKey(line string) (key, val string, ok bool) {
-	trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(line, " \t"), "- "))
-	idx := strings.Index(trimmed, ":")
-	if idx < 0 {
-		return "", "", false
-	}
-	key = strings.TrimSpace(trimmed[:idx])
-	val = strings.TrimSpace(trimmed[idx+1:])
-	if strings.HasPrefix(key, "#") {
-		return "", "", false
-	}
-	return key, val, true
+type shellToken struct {
+	val         string
+	hasCmdSubst bool
 }
 
-func indent(line string) int {
-	n := 0
-	for _, c := range line {
-		if c != ' ' {
-			break
-		}
-		n++
-	}
-	return n
+// goTestValueFlags enumerates `go test` / `go build` flags that take a separate
+// value argument when not written as `-flag=value`. Boolean flags (a, c, i, n,
+// race, cover, short, v, work, etc.) must stay absent so the next package
+// argument is not mistakenly consumed as a flag value.
+var goTestValueFlags = map[string]bool{
+	"p":                    true,
+	"asmflags":             true,
+	"buildmode":            true,
+	"buildvcs":             true,
+	"compiler":             true,
+	"gccgoflags":           true,
+	"gcflags":              true,
+	"installsuffix":        true,
+	"ldflags":              true,
+	"mod":                  true,
+	"modfile":              true,
+	"overlay":              true,
+	"pgo":                  true,
+	"pkgdir":               true,
+	"tags":                 true,
+	"toolexec":             true,
+	"o":                    true,
+	"exec":                 true,
+	"vet":                  true,
+	"bench":                true,
+	"benchtime":            true,
+	"blockprofile":         true,
+	"blockprofilerate":     true,
+	"count":                true,
+	"covermode":            true,
+	"coverpkg":             true,
+	"coverprofile":         true,
+	"cpu":                  true,
+	"cpuprofile":           true,
+	"fuzz":                 true,
+	"fuzzcachedir":         true,
+	"fuzzminimizetime":     true,
+	"fuzztime":             true,
+	"list":                 true,
+	"memprofile":           true,
+	"memprofilerate":       true,
+	"mutexprofile":         true,
+	"mutexprofilerate":     true,
+	"mutexprofilefraction": true,
+	"outputdir":            true,
+	"parallel":             true,
+	"run":                  true,
+	"shuffle":              true,
+	"skip":                 true,
+	"timeout":              true,
+	"trace":                true,
 }
 
-// goTestPackageArgs finds `go test` commands inside script lines and returns
-// their package arguments (tokens starting with "."), resolved against the
-// step's working-directory.
-func goTestPackageArgs(script []string, workDir string) []string {
+// goTestPackageArgs finds full-package `go test` commands inside a step script
+// and returns their package arguments resolved against the step's
+// working-directory.
+func goTestPackageArgs(runScript, workDir string) []string {
 	var pats []string
-	for i := 0; i < len(script); i++ {
-		line := script[i]
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		// Join backslash continuations into one logical line.
-		for strings.HasSuffix(line, "\\") && i+1 < len(script) {
-			i++
-			next := script[i]
-			if strings.HasPrefix(next, "#") {
-				continue
-			}
-			line = strings.TrimSuffix(line, "\\") + " " + next
-		}
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		for j := 0; j+1 < len(fields); j++ {
-			if fields[j] != "go" || fields[j+1] != "test" {
-				continue
-			}
-			cmdEnd := len(fields)
-			for k := j + 2; k < len(fields); k++ {
-				tok := fields[k]
-				if tok == "&&" || tok == "||" || tok == ";" || tok == "|" || strings.HasPrefix(tok, "#") {
-					cmdEnd = k
-					break
-				}
-				if strings.HasSuffix(tok, ";") {
-					cmdEnd = k + 1
-					break
-				}
-			}
-			cmdTokens := fields[j+2 : cmdEnd]
-			subsetOnly := false
-			for _, tok := range cmdTokens {
-				if tok == "-run" || tok == "--run" || strings.HasPrefix(tok, "-run=") || strings.HasPrefix(tok, "--run=") {
-					subsetOnly = true
-					break
-				}
-			}
-			if !subsetOnly {
-				for _, tok := range cmdTokens {
-					clean := strings.TrimSuffix(tok, ";")
-					if !strings.HasPrefix(clean, ".") {
-						continue
-					}
-					pats = append(pats, resolvePattern(clean, workDir))
-				}
-			}
-			j = cmdEnd - 1
+	for _, line := range joinShellLines(runScript) {
+		for _, cmd := range splitShellCommands(line) {
+			pats = append(pats, parseGoTestCommand(cmd, workDir)...)
 		}
 	}
 	return pats
+}
+
+func joinShellLines(runScript string) []string {
+	norm := strings.ReplaceAll(runScript, "\r\n", "\n")
+	raw := strings.Split(norm, "\n")
+	filtered := make([]string, 0, len(raw))
+	for _, l := range raw {
+		trimmed := strings.TrimSpace(l)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	var out []string
+	for i := 0; i < len(filtered); i++ {
+		cur := strings.TrimRight(filtered[i], " \t")
+		for strings.HasSuffix(cur, "\\") && !strings.HasSuffix(cur, "\\\\") && i+1 < len(filtered) {
+			cur = strings.TrimSuffix(cur, "\\")
+			i++
+			cur = strings.TrimRight(cur, " \t") + " " + strings.TrimSpace(filtered[i])
+		}
+		out = append(out, cur)
+	}
+	return out
+}
+
+func splitShellCommands(line string) [][]shellToken {
+	var cmds [][]shellToken
+	var curCmd []shellToken
+	var buf strings.Builder
+	inToken := false
+	hasCmdSubst := false
+	inSingle := false
+	inDouble := false
+
+	flushToken := func() {
+		if inToken {
+			curCmd = append(curCmd, shellToken{val: buf.String(), hasCmdSubst: hasCmdSubst})
+			buf.Reset()
+			inToken = false
+			hasCmdSubst = false
+		}
+	}
+	flushCmd := func() {
+		flushToken()
+		if len(curCmd) > 0 {
+			cmds = append(cmds, curCmd)
+			curCmd = nil
+		}
+	}
+
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if inSingle {
+			if ch == '\'' {
+				inSingle = false
+			} else {
+				buf.WriteByte(ch)
+			}
+			continue
+		}
+		if ch == '\\' && i+1 < len(line) {
+			inToken = true
+			next := line[i+1]
+			if !inDouble || next == '"' || next == '\\' || next == '$' || next == '`' {
+				buf.WriteByte(next)
+				i++
+				continue
+			}
+			buf.WriteByte(ch)
+			continue
+		}
+		if ch == '$' && i+1 < len(line) && line[i+1] == '(' {
+			inToken = true
+			hasCmdSubst = true
+			end := scanParenSubst(line, i+2)
+			buf.WriteString(line[i:end])
+			i = end - 1
+			continue
+		}
+		if ch == '`' {
+			inToken = true
+			hasCmdSubst = true
+			end := scanBacktickSubst(line, i+1)
+			buf.WriteString(line[i:end])
+			i = end - 1
+			continue
+		}
+		if inDouble {
+			if ch == '"' {
+				inDouble = false
+			} else {
+				buf.WriteByte(ch)
+			}
+			continue
+		}
+		switch ch {
+		case ' ', '\t':
+			flushToken()
+		case '\'':
+			inSingle = true
+			inToken = true
+		case '"':
+			inDouble = true
+			inToken = true
+		case '#':
+			if !inToken {
+				flushCmd()
+				return cmds
+			}
+			buf.WriteByte(ch)
+		case ';', '|', '&':
+			flushCmd()
+			if i+1 < len(line) && (ch == '&' || ch == '|') && line[i+1] == ch {
+				i++
+			}
+		default:
+			inToken = true
+			buf.WriteByte(ch)
+		}
+	}
+	flushCmd()
+	return cmds
+}
+
+func scanParenSubst(s string, start int) int {
+	depth := 1
+	inSingle := false
+	inDouble := false
+	for i := start; i < len(s); i++ {
+		ch := s[i]
+		if inSingle {
+			if ch == '\'' {
+				inSingle = false
+			}
+			continue
+		}
+		if ch == '\\' && i+1 < len(s) {
+			i++
+			continue
+		}
+		if ch == '\'' && !inDouble {
+			inSingle = true
+			continue
+		}
+		if ch == '"' {
+			inDouble = !inDouble
+			continue
+		}
+		if !inDouble {
+			if ch == '(' {
+				depth++
+			} else if ch == ')' {
+				depth--
+				if depth == 0 {
+					return i + 1
+				}
+			}
+		}
+	}
+	return len(s)
+}
+
+func scanBacktickSubst(s string, start int) int {
+	for i := start; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			continue
+		}
+		if s[i] == '`' {
+			return i + 1
+		}
+	}
+	return len(s)
+}
+
+func parseGoTestCommand(cmd []shellToken, workDir string) []string {
+	idx := 0
+	for idx < len(cmd) {
+		v := cmd[idx].val
+		if v == "then" || v == "do" || v == "else" || v == "elif" || v == "!" || isShellEnvAssign(v) {
+			idx++
+			continue
+		}
+		break
+	}
+	if idx+1 >= len(cmd) || cmd[idx].val != "go" || cmd[idx+1].val != "test" {
+		return nil
+	}
+	args := cmd[idx+2:]
+	for _, tok := range args {
+		if tok.hasCmdSubst {
+			return nil
+		}
+	}
+
+	var pats []string
+	afterDoubleDash := false
+	for i := 0; i < len(args); i++ {
+		tok := args[i].val
+		if !afterDoubleDash {
+			if tok == "--" {
+				afterDoubleDash = true
+				continue
+			}
+			if tok == "-args" || tok == "--args" {
+				break
+			}
+			if strings.HasPrefix(tok, "-") && tok != "-" {
+				flagPart := strings.TrimPrefix(strings.TrimPrefix(tok, "-"), "-")
+				name, val, hasEq := strings.Cut(flagPart, "=")
+				name = strings.TrimPrefix(name, "test.")
+				if goTestValueFlags[name] && !hasEq {
+					if i+1 >= len(args) {
+						return nil
+					}
+					i++
+					val = args[i].val
+				}
+				switch name {
+				case "run", "list":
+					return nil
+				case "c", "n":
+					if !(hasEq && strings.EqualFold(val, "false")) {
+						return nil
+					}
+				case "skip":
+					if isBroadSkipPattern(val) {
+						return nil
+					}
+				}
+				continue
+			}
+		}
+		if tok == "." || strings.HasPrefix(tok, "./") {
+			if pat := resolvePattern(tok, workDir); pat != "" {
+				pats = append(pats, pat)
+			}
+		}
+	}
+	return pats
+}
+
+func isShellEnvAssign(tok string) bool {
+	if tok == "" || strings.HasPrefix(tok, "-") {
+		return false
+	}
+	eq := strings.IndexByte(tok, '=')
+	if eq <= 0 {
+		return false
+	}
+	name := tok[:eq]
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		isLetter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+		isDigit := c >= '0' && c <= '9'
+		if i == 0 && !isLetter {
+			return false
+		}
+		if !isLetter && !isDigit {
+			return false
+		}
+	}
+	return true
+}
+
+func isBroadSkipPattern(pat string) bool {
+	if pat == "" {
+		return false
+	}
+	re, err := regexp.Compile(pat)
+	if err != nil {
+		return true
+	}
+	return re.MatchString("TestCicoverageSentinelAlpha") || re.MatchString("TestUnrelatedBehaviorBeta")
 }
 
 // resolvePattern normalizes a package argument to a "./"-prefixed
 // repo-relative pattern. A bare "." or "./x" inside a step with
 // working-directory resolves relative to that directory.
 func resolvePattern(tok, workDir string) string {
-	tok = strings.Trim(tok, `"'`)
-	wd := strings.Trim(strings.ReplaceAll(workDir, "\\", "/"), "/")
-	var p string
-	switch {
-	case tok == ".":
-		p = wd
-	case strings.HasPrefix(tok, "./"):
-		rest := strings.TrimPrefix(tok, "./")
-		if wd != "" {
-			p = wd + "/" + rest
-		} else {
-			p = rest
+	wd := strings.TrimSpace(strings.ReplaceAll(workDir, "\\", "/"))
+	if wd != "" {
+		wd = path.Clean(wd)
+		wd = strings.TrimPrefix(wd, "./")
+		wd = strings.Trim(wd, "/")
+		if wd == "." {
+			wd = ""
 		}
-	default:
-		p = tok
 	}
-	p = strings.TrimRight(p, "/")
-	if p == "" {
+	if wd == "" {
+		if tok == "." {
+			return "./"
+		}
+		cleaned := path.Clean(tok)
+		if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+			return ""
+		}
+		if cleaned == "." {
+			return "./"
+		}
+		return "./" + cleaned
+	}
+	joined := path.Join(wd, tok)
+	if joined == ".." || strings.HasPrefix(joined, "../") {
+		return ""
+	}
+	if joined == "." {
 		return "./"
 	}
-	return "./" + p
+	return "./" + joined
 }
 
 // Covers reports whether pkg ("./a/b") matches a workflow pattern: an exact

@@ -179,7 +179,7 @@ jobs:
           # before the async avatar decode finishes, and a hosted runner can win
           # that race. Excluded by name here so the exclusion stays visible where
           # this job is read, instead of hiding as a skip inside the test.
-          go test -count=1 \
+          go test -count=1 -p 4 \
             -skip '^TestAccountAvatarLoadsAsyncCachesNegativeAndBoundsLRU$' \
             ./internal/ui/settings \
             ./internal/ui/files \
@@ -190,7 +190,6 @@ jobs:
             ./internal/ui/chrome \
             ./internal/ui/coss \
             ./internal/ui/custompanel \
-            ./internal/ui/diffsurface \
             ./internal/ui/dirpick \
             ./internal/ui/filelink \
             ./internal/ui/im \
@@ -215,6 +214,12 @@ jobs:
             ./internal/ui/widgets/diff \
             ./internal/ui/widgets/markdown \
             ./internal/ui/workspacepicker
+      - name: Test diffsurface UI package
+        shell: bash
+        # diffsurface spawns real git subprocesses in fixture tests whose wait
+        # deadlines can expire when starved by 33 other UI packages compiling
+        # and running in parallel on Windows.
+        run: go test -count=1 ./internal/ui/diffsurface
       - name: Test the native directory picker
         shell: bash
         # The Linux entry job excludes this test because native mode needs a

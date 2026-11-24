@@ -2,6 +2,7 @@ package openui
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -149,7 +150,14 @@ func TestStatePersistsAcrossCards(t *testing.T) {
 }
 
 func TestStreamingKeepsTreeAndDisablesActions(t *testing.T) {
-	h := newHarness(t, "", card.Config{Coalesce: time.Nanosecond})
+	now := time.Unix(1000, 0)
+	var clockMu sync.Mutex
+	clock := func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		return now
+	}
+	h := newHarness(t, "", card.Config{Now: clock, Coalesce: time.Millisecond})
 	steps := []string{
 		`root = Col([Title("Plan"), Te`,
 		`root = Col([Title("Plan"), Text("Step one"), Button("Go", @ToAssistant("go"))`,
@@ -157,6 +165,9 @@ func TestStreamingKeepsTreeAndDisablesActions(t *testing.T) {
 	}
 	var last uint64
 	for _, s := range steps {
+		clockMu.Lock()
+		now = now.Add(time.Second)
+		clockMu.Unlock()
 		h.card.SetSource("whale-ui", s, true)
 		h.frame()
 		f := h.card.Frame()
