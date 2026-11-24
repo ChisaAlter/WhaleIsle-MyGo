@@ -1,15 +1,14 @@
 package settings
 
 import (
-	"time"
-
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/theme"
+
+	"whaleisle/internal/ui/design"
 )
 
-// The installed Switch has a labelled button and an unlabelled native-input
-// branch. The latter reserves a 44x28 hit area around the same 36x20 track.
-// SwitchBase retains the native toggle, focus, keyboard and Changed contract.
+// settingsSwitchStyle used to pick between two installed switch looks. Both
+// are coss's Switch now; the input style keeps its larger 44×28 hit area
+// around the same track.
 type settingsSwitchStyle uint8
 
 const (
@@ -17,38 +16,34 @@ const (
 	settingsSwitchInput
 )
 
+// settingsPreferenceSwitch is coss's Switch on SwitchBase, which keeps the
+// native toggle, focus, keyboard and Changed contract: a 30×18 track (input
+// off, primary on), the 16 DIP background thumb sliding over 150 ms, and the
+// ring-2 ring-offset-1 focus ring.
 func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchStyle) ui.Element {
-	switcher := ui.SwitchBase(c, value).Size(36, 20).Shrink(0).Radius(999).FocusRing(false)
+	t := tk(c)
+	switcher := ui.SwitchBase(c, value).Size(toggleWidth, toggleHeight).Shrink(0).Radius(design.RadiusFull).FocusRing(false).Cursor(ui.CursorPointer)
 	if style == settingsSwitchInput {
-		switcher.Size(44, 28)
+		switcher.Size(11*design.Unit, 7*design.Unit)
 	}
-	colors := theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark)
-	active, thumb := theme.Color(colors.BrandPrimary), theme.Color(colors.ButtonFG)
-	if style == settingsSwitchInput {
-		active, thumb = theme.Color(colors.Accent), theme.Color(colors.Field)
-		if !c.Theme().Dark && colors.Field == "#f5f6f7" {
-			thumb = ui.RGB(255, 255, 255) // bg-layer-1, not module-platform
-		}
-	}
-	target := float32(0)
-	if *value {
-		target = 1
-	}
-	// The labelled switch's knob is the muted ink while it is off in the dark half
-	// (0.3.13: rgb(173, 178, 184)) and slides to the button foreground when on.
-	offThumb := thumb
-	if style == settingsSwitchLabelled && c.Theme().Dark {
-		offThumb = theme.Color(colors.Muted)
-	}
-	position := switcher.Animate("settings-switch-thumb", target, 100*time.Millisecond)
+	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.DurationDefault, design.EaseInOut)
+	off, on, thumb, ring, gap := t.Input, t.Primary, t.Background, t.Ring, t.Background
+	shadow := design.TW.Black.Alpha(0.05)
+	switcher.DisabledOpacity(design.OpacityDisabled)
 	switcher.Draw(func(p *ui.Painter, bounds ui.Rect) {
-		track := ui.Rect{X: bounds.X + (bounds.W-36)/2, Y: bounds.Y + (bounds.H-20)/2, W: 36, H: 20}
-		p.Fill(track, theme.Color(colors.BorderL3).Mix(active, position), 10)
-		knob := ui.Rect{X: track.X + 2 + position*16, Y: track.Y + 2, W: 16, H: 16}
-		p.Fill(knob, offThumb.Mix(thumb, position), 8)
+		track := ui.Rect{X: bounds.X + (bounds.W-toggleWidth)/2, Y: bounds.Y + (bounds.H-toggleHeight)/2, W: toggleWidth, H: toggleHeight}
 		if switcher.FocusVisible() && !switcher.IsDisabled() {
-			p.Stroke(ui.Rect{X: track.X - 4, Y: track.Y - 4, W: track.W + 8, H: track.H + 8}, theme.Color(colors.Accent), 14, 2)
+			o := design.RingOffset + design.RingWidth
+			p.Fill(ui.Rect{X: track.X - o, Y: track.Y - o, W: track.W + 2*o, H: track.H + 2*o}, ring, track.H)
+			g := design.RingOffset
+			p.Fill(ui.Rect{X: track.X - g, Y: track.Y - g, W: track.W + 2*g, H: track.H + 2*g}, gap, track.H)
 		}
+		p.Fill(track, off.Mix(on, position), track.H/2)
+		knob := ui.Rect{X: track.X + 1 + position*(toggleKnob-4), Y: track.Y + 1, W: toggleKnob, H: toggleKnob}
+		for _, l := range design.ShadowSm {
+			p.Shadow(knob, toggleKnob/2, l.X, l.Y, l.Blur, l.Spread, shadow)
+		}
+		p.Fill(knob, thumb, toggleKnob/2)
 	})
 	return switcher
 }

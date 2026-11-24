@@ -3,10 +3,11 @@ package settings
 import (
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/credentialrefs"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // providerCredentialField is the editor card's key row, as in the reference: the

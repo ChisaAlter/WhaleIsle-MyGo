@@ -1,10 +1,11 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/accountlogout"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func signOutText(zh, en string) string {

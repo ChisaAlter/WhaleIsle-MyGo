@@ -12,13 +12,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/dsh"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // twoProviderStore describes two api-key namespaces: one whose environment

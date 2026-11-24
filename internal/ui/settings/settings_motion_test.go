@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // TestSettingsSectionSwapRidesTheSwapToken pins the section-switch fade to the
@@ -131,30 +132,35 @@ func TestSettingsSearchHitPulsesThenClears(t *testing.T) {
 	}
 }
 
-// TestRailCellFocusRingOnlyOnKeyboardFocus pins .navCell:focus-visible: the
-// inset ring paints only while the cell carries keyboard focus.
+// TestRailCellFocusRingOnlyOnKeyboardFocus pins the rail cell's focus-visible
+// ring: the sidebar-ring shadow paints only while the cell carries keyboard
+// focus.
 func TestRailCellFocusRingOnlyOnKeyboardFocus(t *testing.T) {
-	ink := ui.RGB(10, 20, 200)
+	query := ""
+	var ring ui.Color
+	label := navigationLabel(Model{}, SectionGeneral)
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Fill().Background(ui.RGB(255, 255, 255)).Children(func() {
-			cell := ui.Button(c.Key("cell"), "").Label("cell").FillWidth().Height(36).Padding(7, 16, 7, 12).FocusRing(false)
-			cell.Children(func() {
-				railCellFocusRing(c, cell, ink)
-			})
+		ring = tk(c).SidebarRing
+		ui.Column(c).Fill().Background(ui.RGB(255, 255, 255)).Padding(8).Children(func() {
+			railButton(c, Model{}, navigationEntry{id: SectionGeneral, icon: "SettingsOutline"}, false, &query)
 		})
-	}, 200, 60)
-	cell, _ := tt.Find("cell")
-	edge := func() color.RGBA { return tt.Image().RGBAAt(int(cell.X)+4, int(cell.Y)+18) }
-	if got := edge(); got == (color.RGBA{R: 10, G: 20, B: 200, A: 255}) {
+	}, 200, 80)
+	cell := buttonRect(tt.FindAll(label))
+	if cell.W == 0 {
+		t.Fatalf("rail cell not found: %v", tt.Texts())
+	}
+	edge := func() color.RGBA { return tt.Image().RGBAAt(int(cell.X)-1, int(cell.Y+cell.H/2)) }
+	isRing := func(px color.RGBA) bool { return px.R == ring.R && px.G == ring.G && px.B == ring.B }
+	if got := edge(); isRing(got) {
 		t.Fatalf("no ring without focus, got %v", got)
 	}
 	// Pointer focus is not focus-visible.
-	tt.ClickAt(cell.X+10, cell.Y+18)
-	if got := edge(); got == (color.RGBA{R: 10, G: 20, B: 200, A: 255}) {
+	tt.ClickAt(cell.X+10, cell.Y+cell.H/2)
+	if got := edge(); isRing(got) {
 		t.Fatalf("pointer focus should not paint the ring, got %v", got)
 	}
 	tt.Key(0, ui.KeyTab)
-	if got := edge(); got != (color.RGBA{R: 10, G: 20, B: 200, A: 255}) {
-		t.Fatalf("keyboard focus should paint the inset ring, got %v", got)
+	if got := edge(); !isRing(got) {
+		t.Fatalf("keyboard focus should paint the sidebar-ring shadow, got %v want %v", got, ring)
 	}
 }

@@ -2,12 +2,13 @@ package settings
 
 import (
 	"encoding/json"
-	"github.com/egoist/mygo/ui"
 	"sort"
 	"strings"
 	"whaleisle/internal/desktop/acp"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type ACPAccess struct {

@@ -1,9 +1,10 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	settingsstore "whaleisle/internal/store/settings"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type VisionAccess struct {

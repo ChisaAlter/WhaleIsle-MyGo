@@ -4,9 +4,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // The options menu stays anchored to the input. Existing labels remain exact

@@ -2,11 +2,12 @@ package settings
 
 import (
 	"encoding/json"
-	"github.com/egoist/mygo/ui"
 	"os"
 	"testing"
 	"whaleisle/internal/desktop/acp"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestACPSettingsDraftAndModelPreferences(t *testing.T) {

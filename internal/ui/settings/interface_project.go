@@ -1,9 +1,10 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/projectpreference"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // ProjectPreferenceAccess exposes an accepted lifecycle snapshot, not a local

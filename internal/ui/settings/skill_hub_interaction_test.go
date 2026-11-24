@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func skillHubEnglish(t *testing.T) {

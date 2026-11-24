@@ -1,8 +1,9 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 var draftEyeIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 8s2.3-4.3 6.5-4.3 6.5 4.3 6.5 4.3-2.3 4.3-6.5 4.3S1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>`))

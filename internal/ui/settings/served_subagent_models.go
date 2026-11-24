@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type servedModelRoute struct {

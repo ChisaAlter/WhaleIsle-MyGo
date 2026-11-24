@@ -5,9 +5,10 @@ import (
 	"math"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // The appearance theme grid must stay inside the settings pane. A live capture

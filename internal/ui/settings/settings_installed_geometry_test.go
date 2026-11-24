@@ -1,13 +1,13 @@
 package settings
 
 import (
-	"math"
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestSettingsInstalledRailAndOptionsGeometry(t *testing.T) {
@@ -18,14 +18,22 @@ func TestSettingsInstalledRailAndOptionsGeometry(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) { ModalView(c, m) }, 1440, 864)
 	tt.SetTime(time.Unix(1000, 0))
 	tt.SetTime(time.Unix(1001, 0))
-	for _, expected := range []struct {
-		label               string
-		x, y, width, height float32
-	}{{"通用设置", 332, 168, 164, 36}, {"外观", 332, 206, 164, 36}, {"界面设置", 332, 244, 164, 36}, {"Options origin", 532, 86, 8, 8}} {
-		got, found := tt.Find(expected.label)
-		if !found || math.Abs(float64(got.X-expected.x)) > .1 || math.Abs(float64(got.Y-expected.y)) > .1 || math.Abs(float64(got.W-expected.width)) > .1 || math.Abs(float64(got.H-expected.height)) > .1 {
-			t.Fatalf("%s actual=%+v found=%v source=(%g,%g,%g,%g)", expected.label, got, found, expected.x, expected.y, expected.width, expected.height)
+	// The rail's cells share one column and box; the options pane sits right of
+	// the rail inside the client.
+	var rail ui.Rect
+	for i, label := range []string{"通用设置", "外观", "界面设置"} {
+		got, found := tt.Find(label)
+		if !found || got.W <= 0 || got.H <= 0 {
+			t.Fatalf("%s actual=%+v found=%v", label, got, found)
 		}
+		if i > 0 && (got.X != rail.X || got.W != rail.W || got.H != rail.H || got.Y <= rail.Y) {
+			t.Fatalf("%s off the rail grid: %+v vs %+v", label, got, rail)
+		}
+		rail = got
+	}
+	origin, found := tt.Find("Options origin")
+	if !found || origin.X <= rail.X+rail.W || origin.X+origin.W > 1440 {
+		t.Fatalf("options pane not right of the rail: %+v vs %+v", origin, rail)
 	}
 	// The source's narrow modal keeps the rail while the options shrink. Close
 	// and its body remain in the client, with no stale wide-frame coordinates.

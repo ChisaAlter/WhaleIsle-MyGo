@@ -1,9 +1,10 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"testing"
 	settingsstore "whaleisle/internal/store/settings"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestSettingsModalReturnsWorkspaceFocus(t *testing.T) {

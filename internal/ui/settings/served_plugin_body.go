@@ -3,12 +3,13 @@ package settings
 import (
 	"context"
 	"encoding/json"
-	"github.com/egoist/mygo/ui"
 	"strings"
 	desktopwebview "whaleisle/internal/desktop/webview"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // ServedPluginBody is one original plugins.item form, including its coupled

@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // modelAddProviderEditor is the reference's add row: the full-width outlined pill

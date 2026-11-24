@@ -1,8 +1,9 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // Pass 4 batch B copy for the Agent preset, usage and About pages. It lives in

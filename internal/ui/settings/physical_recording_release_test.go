@@ -1,10 +1,11 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"runtime"
 	"testing"
 	"whaleisle/internal/shortcuts"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func recorderFixture(t *testing.T) (*ui.Tester, *shortcuts.Editor, *[]map[string]string) {

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	fonttheme "whaleisle/internal/ui/theme"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // Keep an actual General namespace reachable if supplied by a Host. Older

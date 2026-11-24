@@ -1,10 +1,11 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/desktop/projectpreference"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestInterfaceProjectLifecyclePendingAndAcceptedRollback(t *testing.T) {

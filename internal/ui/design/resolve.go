@@ -3,6 +3,7 @@ package design
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -129,7 +130,15 @@ var glass atomicHook
 func SetGlass(enabled bool, filter SurfaceFilter) {
 	glass.Store(&glassHook{enabled: enabled, filter: filter})
 	cache.reset()
+	tokensRev.Add(1)
 }
+
+var tokensRev atomic.Uint64
+
+// Revision counts the changes to what For resolves: the glass hook and any
+// window's bound scheme, accent or on-accent foreground. A memo key folding
+// resolved tokens mixes it in, so a token change rebuilds the region.
+func Revision() uint64 { return tokensRev.Load() }
 
 // GlassEnabled reports whether the frosted appearance is on.
 func GlassEnabled() bool {
@@ -189,11 +198,15 @@ func Bind(c *ui.Context, s Scheme, accent, onAccent ui.Color) {
 	if c == nil {
 		return
 	}
+	b := binding{s, accent, onAccent}
 	cache.mu.Lock()
 	if cache.bound == nil {
 		cache.bound = map[*ui.Context]binding{}
 	}
-	cache.bound[c] = binding{s, accent, onAccent}
+	if prev, ok := cache.bound[c]; !ok || prev != b {
+		tokensRev.Add(1)
+	}
+	cache.bound[c] = b
 	cache.mu.Unlock()
 }
 

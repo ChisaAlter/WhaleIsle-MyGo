@@ -6,8 +6,9 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func accountModelOverrides(legacy []any, overrides map[string]any, defaults []any) map[string]any {

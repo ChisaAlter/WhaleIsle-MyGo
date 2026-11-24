@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"image"
 	"reflect"
 	"strings"
@@ -12,6 +11,8 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type WallpaperEditor struct {

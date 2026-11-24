@@ -5,9 +5,10 @@ import (
 	"maps"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestPresetGuideRetainsEachPageScrollAndReturnsToOpeningAction(t *testing.T) {

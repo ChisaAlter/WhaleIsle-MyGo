@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestDesktopImmediatePreferencesSaveIndependentlyAndRollback(t *testing.T) {

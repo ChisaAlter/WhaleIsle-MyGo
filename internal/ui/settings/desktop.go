@@ -1,8 +1,9 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/shortcuts"

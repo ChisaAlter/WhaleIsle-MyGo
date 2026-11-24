@@ -3,12 +3,13 @@ package settings
 import (
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/whale"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // whaleFixture is the catalog the Whale page renders: one identity, no persona

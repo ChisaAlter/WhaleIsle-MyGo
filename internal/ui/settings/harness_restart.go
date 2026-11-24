@@ -2,10 +2,11 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"strconv"
 	"whaleisle/internal/config"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func harnessRestartPane(c *ui.Context, d *DesktopAccess, fg, muted ui.Color) {

@@ -3,10 +3,11 @@ package settings
 import (
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestSettingsFeatureSectionKeepsShellAndGeneralControls(t *testing.T) {

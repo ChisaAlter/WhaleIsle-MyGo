@@ -1,10 +1,11 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/desktop/acp"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func acpLogin(c *ui.Context, a *ACPAccess, agent acp.Agent, call func(string, map[string]any), fg, muted ui.Color) {

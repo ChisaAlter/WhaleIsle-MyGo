@@ -2,9 +2,10 @@ package settings
 
 import (
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // The color well retains the native anchored picker, keyboard focus and Escape

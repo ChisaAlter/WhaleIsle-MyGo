@@ -9,11 +9,13 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/pet"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 )
 
 // Model wires the settings panel to store state.
@@ -98,9 +100,40 @@ type Model struct {
 	FilterPtr *string
 	// RevealSecrets, when true, shows password-like string fields in the clear.
 	RevealSecrets *bool
+
+	// version is the settings store's published version, read once by View
+	// and shared by everything it builds.
+	version *state.Version[settings.ViewState]
 }
 
-// View paints namespace list + schema-driven form.
+// withVersion reads the store's published version unless the page entry
+// already did.
+func (m Model) withVersion() Model {
+	if m.version == nil && m.Store != nil {
+		m.version = m.Store.Snapshot()
+	}
+	return m
+}
+
+// snapshot is the published view state View read, or the zero state.
+func (m Model) snapshot() settings.ViewState {
+	if m.version == nil {
+		return settings.ViewState{}
+	}
+	return m.version.Value
+}
+
+// rev is the published version's revision, 0 without a store.
+func (m Model) rev() uint64 {
+	if m.version == nil {
+		return 0
+	}
+	return m.version.Rev
+}
+
+// View paints the settings shell: the coss sidebar rail and the options pane
+// of the active section. It reads the settings store's published version
+// once and hands it down; nested views never take a snapshot of their own.
 func View(c *ui.Context, m Model) {
 	if m.Store == nil && m.Desktop == nil && m.SectionContent == nil && m.Remote == nil {
 		return
@@ -110,47 +143,40 @@ func View(c *ui.Context, m Model) {
 	if close := m.OnClose; close != nil {
 		m.OnClose = func() { ClearPreferenceErrorNotices(c); close() }
 	}
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	// The modal owns the single bg-layer-2 glass surface; its layout children
-	// are transparent so they cannot flatten the sampled backdrop.
-	bg := ui.Transparent
-	border := chrome.Color(colors.Border)
-	fg := chrome.Color(colors.FG)
-	muted := chrome.Color(colors.Muted)
-	var snap settings.ViewState
-	if m.Store != nil {
-		snap = m.Store.Snapshot().Value
-	}
+	m = m.withVersion()
+	snap := m.snapshot()
+	t := tk(c)
+	fg, muted, border := t.Foreground, t.MutedForeground, t.Border
 
 	// The rail and the options column scroll independently inside one panel.
-	// SettingsRoot.module.css: the 188 DIP rail directly precedes content;
-	// the options' own 24 DIP inset puts its copy at panel.X + 212.
-	root := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Gap(0).Background(bg).AlignItems(ui.Stretch)
+	root := ui.Row(c).Grow(1).MinWidth(0).MinHeight(0).Gap(0).AlignItems(ui.Stretch)
 	query := ui.Local(root, "settings-search", func() string { return "" })
 	root.Children(func() {
-		nsList(c, m, snap, fg, muted, border, bg, chrome.Color(colors.Hover), query)
+		nsList(c, m, snap, fg, muted, border, query)
 		ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
 			header(c, m, snap, fg, muted, border)
-			formPane(c, m, snap, fg, muted, border, bg, query)
+			formPane(c, m, snap, fg, muted, border, ui.Transparent, query)
 		})
 	})
 }
 
+// header is the options pane's top bar: the page title, the configuration
+// file action and the close button, over a bottom border.
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
-	ui.Row(c).FillWidth().Height(54).Shrink(0).Padding(20, 14, 8, 10).Gap(8).AlignItems(ui.Center).Label(providerCopy("设置页头", "Settings header")).Children(func() {
-		ui.Box(c).Grow(1).MinWidth(0)
-		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-		configLabel := i18n.T(i18n.KeySurfacesSettingsOpenConfig)
-		configButton := widgets.Button(c, colors, configLabel, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall, Disabled: m.OnOpenConfig == nil})
+	t := tk(c)
+	bar := ui.Row(c).FillWidth().Height(design.Sp(14)).Shrink(0).PaddingX(design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Center).
+		BorderWidth(0, 0, design.BorderWidth, 0).BorderColor(t.Border).Label(providerCopy("设置页头", "Settings header"))
+	bar.Children(func() {
+		kText(c, navigationLabel(m, effectiveActiveSection(c, m, snap)), design.TextBase, design.WeightSemibold, t.Foreground).
+			Grow(1).MinWidth(0).SingleLine().Role(ui.RoleHeading)
+		configButton := kButtonDisabled(c, i18n.T(i18n.KeySurfacesSettingsOpenConfig), m.OnOpenConfig == nil)
 		if m.OnOpenConfig == nil {
 			configButton.Tooltip(i18n.T(KeyPass4AConfigUnavailable))
 		} else if configButton.Clicked() {
 			m.OnOpenConfig()
 		}
 		if m.OnClose != nil {
-			close := ui.Button(c, "").Label(i18n.T(i18n.KeySettingsBack)).Size(28, 28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
-			close.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(14, 14).TextColor(fg) })
+			close := coss.Button(c, "", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonIconSM, Icon: coss.IconX, Label: i18n.T(i18n.KeySettingsBack)})
 			if close.Clicked() {
 				*settingsSearchJumpState(c) = settingsSearchJump{}
 				m.OnClose()
@@ -158,6 +184,7 @@ func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 		}
 	})
 }
+
 func sectionLabel(id SectionID) string {
 	switch id {
 	case SectionAccount:
@@ -225,66 +252,6 @@ func dedicatedNamespace(ns string) bool {
 	}
 }
 
-// settingsSelectedRailColors follows the source's active-accent wash and its
-// 65% brand / 35% primary-label text. Explicit family token overrides win.
-func settingsSelectedRailColors(m Model) (fill, ink ui.Color) {
-	resolved := theme.ResolveWithSystem(m.ThemeID, m.SystemDark)
-	colors := resolved.Active(m.SystemDark)
-	preferences := theme.RenderPreferences()
-	familyID := preferences.Light
-	dark := resolved.Scheme == theme.SchemeDark
-	if dark {
-		familyID = preferences.Dark
-	}
-	family := preferences.Family(familyID)
-	seed := family.Light
-	if dark {
-		seed = family.Dark
-	}
-	// design-platform.css's default half: deepseek-100 and
-	// neutral-bluish-800; the brand-new dark token is deepseek-450.
-	// 0.3.13: the active cell is a neutral wash (light rgba(38,49,72,.10), dark
-	// rgba(255,255,255,.14)) and keeps the label colour.
-	brand, fill := ui.RGB(65, 118, 230), ui.RGBA(38, 49, 72, .10)
-	if dark {
-		brand, fill = ui.RGB(86, 134, 254), ui.RGBA(255, 255, 255, .14)
-	}
-	if family.ID != "deepseek" {
-		// ui-theme/derive.js: mixUntilContrast(background, accent,
-		// max(washStrong, wash+.08), layer2, 1.4), in .04 steps.
-		base, foreground, accent := chrome.Color(seed.Background), chrome.Color(seed.Foreground), chrome.Color(seed.Accent)
-		factor := max(0, min(float32(seed.ContrastValue()/100), 1))
-		wash, strong, layerFG, layerAccent := .10+factor*.08, .18+factor*.10, .02+factor*.02, .07+factor*.04
-		if chrome.RelativeLuminance(base) < chrome.RelativeLuminance(foreground) {
-			wash, strong, layerFG, layerAccent = .14+factor*.10, .26+factor*.12, .05+factor*.05, .12+factor*.06
-		}
-		layer := base.Mix(foreground, layerFG).Mix(accent, layerAccent)
-		amount := max(strong, wash+.08)
-		fill = base.Mix(accent, amount)
-		for chrome.ContrastRatio(fill, layer) < 1.4 && amount < 1 {
-			amount = min(1, amount+.04)
-			fill = base.Mix(accent, amount)
-		}
-		brand = accent
-	}
-	if value := seed.Overrides["--dsw-alias-brand-primary-new-colorprimary-new-color"]; value != "" {
-		brand = chrome.Color(value)
-	}
-	if value := seed.Overrides["--dsw-specific-sidebar-nav-item-active-accent"]; value != "" {
-		fill = chrome.Color(value)
-	}
-	_ = brand
-	return fill, chrome.Color(colors.FG)
-}
-
-// railCellFocusRing paints .navCell:focus-visible's ring — a 2 DIP outline
-// inset 3 (its -2 offset plus its width), keyboard focus only.
-func railCellFocusRing(c *ui.Context, cell ui.Element, ink ui.Color) {
-	if cell.FocusVisible() {
-		ui.Box(c).Absolute().Top(3).Right(3).Bottom(3).Left(3).Border(2, ink).Radius(9).PassThrough()
-	}
-}
-
 func effectiveActiveSection(c *ui.Context, m Model, snap settings.ViewState) SectionID {
 	base := activeSection(m, snap)
 	if m.ActiveSection != "" && m.SectionContent != nil {
@@ -306,50 +273,40 @@ func effectiveActiveSection(c *ui.Context, m Model, snap settings.ViewState) Sec
 	return base
 }
 
-func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, navBG, hover ui.Color, query *string) {
+// nsList is the settings rail as coss's Sidebar: the sidebar surface and
+// border, a title, the search field, then labelled groups of menu buttons
+// (32 DIPs, 8 DIP padding, rounded-lg; the active one on sidebar-accent in
+// medium weight). The groups are a memo region keyed by everything they
+// show, so a frame that changes nothing in the rail does not rebuild it.
+func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color, query *string) {
+	t := tk(c)
 	active := effectiveActiveSection(c, m, snap)
 	searching := strings.TrimSpace(*query) != ""
-	selectedBG, selectedFG := settingsSelectedRailColors(m)
-	// The search hit pulse fills with the same nav-item-active-accent wash.
-	settingsSearchJumpState(c).HitFill = selectedBG
+	// The search hit pulse fills with the same sidebar-accent wash.
+	settingsSearchJumpState(c).HitFill = t.SidebarAccent
 	groups := navigationGroups(m, snap)
-	ui.Column(c).Key("settings-rail").Width(188).Shrink(0).MinHeight(0).Padding(22, 12, 0, 12).Gap(18).Label(providerCopy("设置导航", "Settings navigation")).Children(func() {
-		ui.Text(c, i18n.T(i18n.KeySettingsTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Padding(0, 12, 0, 12)
+	key := newMemoKey(m.rev()).u(design.Revision()).u(theme.Revision()).s(string(active)).b(searching)
+	for _, group := range groups {
+		key.s(group.label)
+		for _, entry := range group.entries {
+			key.s(string(entry.id), navigationLabel(m, entry.id), entry.icon)
+		}
+	}
+	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), design.Sp(2), 0, design.Sp(2)).Gap(design.Sp(3)).
+		Background(t.Sidebar).BorderWidth(0, design.BorderWidth, 0, 0).BorderColor(t.SidebarBorder).
+		Label(providerCopy("设置导航", "Settings navigation"))
+	rail.Children(func() {
+		kText(c, i18n.T(i18n.KeySettingsTitle), design.TextBase, design.WeightSemibold, t.SidebarAccentForeground).PaddingX(design.Sp(2)).Role(ui.RoleHeading)
 		settingsRailSearch(c, m, snap, query, fg, muted, border)
-		// navGroup: a 20 DIP label, 2 DIP, then 36 DIP cells 2 DIP apart; groups
-		// sit 12 DIP from each other.
-		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Gap(12).Children(func() {
+		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Memo(key.sum()).Children(func() {
 			for _, group := range groups {
-				ui.Column(c.Key("settings-group-" + group.label)).FillWidth().MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, group.label).FillWidth().Padding(0, 12, 2, 12).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+				ui.Column(c.Key("settings-group-"+group.label)).FillWidth().MinWidth(0).Gap(design.Sp(1)).Padding(0, 0, design.Sp(2), 0).Children(func() {
+					ui.Row(c).FillWidth().Height(design.Sp(8)).Shrink(0).PaddingX(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+						kText(c, group.label, design.TextXS, design.WeightMedium, t.SidebarForeground).SingleLine()
+					})
 					for _, entry := range group.entries {
 						// The rail keeps no selection while the search lists results.
-						selected := entry.id == active && !searching
-						fill, ink := ui.Transparent, fg
-						if selected {
-							fill, ink = selectedBG, selectedFG
-						}
-						label := navigationLabel(m, entry.id)
-						button := ui.Button(c.Key(string(entry.id)), "").Label(label).FillWidth().Height(36).Shrink(0).Radius(12).BorderWidth(0).Background(fill).TextColor(fg).Padding(7, 16, 7, 12).Gap(8).AlignItems(ui.Center).FocusRing(false)
-						button.Children(func() {
-							railCellFocusRing(c, button, fg)
-							ui.Icon(c, settingsIcons[entry.icon]).Size(16, 16).Shrink(0).TextColor(ink)
-							weight := 400
-							if selected {
-								weight = 500
-							}
-							ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).FontWeight(weight).TextColor(ink).Grow(1).MinWidth(0).SingleLine()
-						})
-						if button.Hovered() && !selected {
-							button.Background(hover)
-						}
-						if button.Clicked() {
-							*query = ""
-							*settingsSearchJumpState(c) = settingsSearchJump{}
-							if entry.onSelect != nil {
-								entry.onSelect()
-							}
-						}
+						railButton(c, m, entry, entry.id == active && !searching, query)
 					}
 				})
 			}
@@ -357,13 +314,61 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, 
 	})
 }
 
-// settingsRailSearch is the 164x32 search field above the groups: a 12 DIP
-// pill with a hairline border, the magnifier at +10, the text from +32 and a
-// clear button once there is text.
+// railButton is one SidebarMenuButton.
+func railButton(c *ui.Context, m Model, entry navigationEntry, selected bool, query *string) {
+	t := tk(c)
+	label := navigationLabel(m, entry.id)
+	button := ui.ButtonBase(c.Key(string(entry.id))).Label(label).FillWidth().Height(design.Sp(8)).Shrink(0).
+		Radius(design.RadiusLG).Padding(design.Sp(2)).Gap(design.Sp(2)).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
+	if selected {
+		button.Selected(true)
+	}
+	ink, weight := t.SidebarForeground, design.WeightNormal
+	if selected || button.Hovered() || button.Pressed() {
+		button.Background(t.SidebarAccent)
+		ink = t.SidebarAccentForeground
+	}
+	if selected {
+		weight = design.WeightMedium
+	}
+	if button.FocusVisible() {
+		button.Shadow(0, 0, 0, design.RingWidth, t.SidebarRing)
+	}
+	button.Children(func() {
+		ui.Icon(c, settingsIcons[entry.icon]).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(ink).PassThrough()
+		kText(c, label, design.TextSM, weight, ink).Grow(1).MinWidth(0).SingleLine()
+	})
+	if button.Clicked() {
+		*query = ""
+		*settingsSearchJumpState(c) = settingsSearchJump{}
+		if entry.onSelect != nil {
+			entry.onSelect()
+		}
+	}
+}
+
+// settingsRailSearch is the rail's SidebarInput: a small coss input group
+// with the search icon, and a clear button once there is text.
 func settingsRailSearch(c *ui.Context, m Model, snap settings.ViewState, query *string, fg, muted, border ui.Color) {
-	ui.Row(c.Key("settings-search")).FillWidth().Height(32).Shrink(0).Radius(12).Border(0.667, border).AlignItems(ui.Center).Padding(0, 6, 0, 10).Gap(6).Label(i18n.T(i18n.KeySettingsNavSearch)).Children(func() {
-		ui.Icon(c, bodyIcon("search")).Size(16, 16).Shrink(0).TextColor(muted)
-		input := ui.TextInput(c, query).Grow(1).MinWidth(0).Height(30).Padding(0).Radius(0).BorderWidth(0).Background(ui.Transparent).FontSize(theme.InterfaceSize(13)).TextColor(fg).Label(i18n.T(i18n.KeySettingsNavSearch)).Placeholder(i18n.T(i18n.KeySettingsNavSearch)).OnSubmit(func() {
+	label := i18n.T(i18n.KeySettingsNavSearch)
+	var end func()
+	if *query != "" {
+		end = func() {
+			clearLabel := i18n.T(i18n.KeySettingsNavSearchClear)
+			clear := coss.Button(c, "", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonIconXS, Icon: coss.IconX, Label: clearLabel})
+			clear.Tooltip(clearLabel)
+			if clear.Clicked() {
+				*query = ""
+			}
+		}
+	}
+	ui.Box(c.Key("settings-search")).FillWidth().Shrink(0).Label(label).Children(func() {
+		input := coss.InputGroup(c, query, coss.InputGroupOptions{
+			InputOptions: coss.InputOptions{Size: coss.InputSM, Placeholder: label, Label: label},
+			Start:        func() { coss.AddonIcon(c, coss.IconSearch) },
+			End:          end,
+		})
+		input.OnSubmit(func() {
 			ids := map[SectionID]bool{}
 			for _, entry := range primaryNavigation(m, snap) {
 				ids[entry.id] = true
@@ -375,16 +380,9 @@ func settingsRailSearch(c *ui.Context, m Model, snap settings.ViewState, query *
 		if input.Changed() {
 			*settingsSearchJumpState(c) = settingsSearchJump{}
 		}
-		if *query != "" {
-			clearLabel := i18n.T(i18n.KeySettingsNavSearchClear)
-			clear := ui.Button(c, "").Label(clearLabel).Size(20, 20).Shrink(0).Padding(4).Radius(10).BorderWidth(0).Background(ui.Transparent).Tooltip(clearLabel)
-			clear.Children(func() { ui.Icon(c, settingsIcons["CloseOutline"]).Size(12, 12).TextColor(muted) })
-			if clear.Clicked() {
-				*query = ""
-			}
-		}
 	})
 }
+
 func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border, paneBG ui.Color, query *string) {
 	active := effectiveActiveSection(c, m, snap)
 	jump := settingsSearchJumpState(c)
@@ -396,15 +394,11 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 	}
 	jump.HighlightedKey = ""
 	jump.HighlightedTitle = ""
-	// General/Interface source lists have no inter-row gap: each Setting-Cell
-	// owns its 16 DIP vertical padding and a half-pixel bottom border.
-	gap := float32(10)
+	// Row lists own their rhythm (each row its padding and rule); other pages
+	// stack cards and groups 24 DIPs apart, coss's form gap.
+	gap := design.Sp(6)
 	if active == SectionGeneral || active == SectionInterface || active == SectionConversation || active == SectionFeatures {
 		gap = 0
-	} else if active == SectionAppearance {
-		gap = 28
-	} else if active == SectionPlugins {
-		gap = 12
 	}
 	searching := strings.TrimSpace(*query) != ""
 	scrollKey := "settings-options-" + string(active)
@@ -419,8 +413,7 @@ func formPane(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border
 	pane.Opacity(chrome.Reveal(c, pane, chrome.SwapDuration))
 	pane.Children(func() {
 		if searching {
-			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-			settingsSearchResults(c, m, snap, *query, fg, muted, chrome.Color(colors.Hover), func() { *query = "" })
+			settingsSearchResults(c, m, snap, *query, fg, muted, tk(c).Accent, func() { *query = "" })
 			return
 		}
 		if m.SectionContent != nil && m.ActiveSection != "" {
@@ -532,47 +525,47 @@ func namespaceForm(c *ui.Context, m Model, snap settings.ViewState, fg, muted ui
 		}
 	}
 	if ns == nil {
-		ui.Text(c, i18n.T(i18n.KeySurfacesSettingsPick)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		coss.Empty(c, coss.EmptyOptions{Icon: coss.IconFile, Description: i18n.T(i18n.KeySurfacesSettingsPick)}, nil)
 		return
 	}
-	access := i18n.T(i18n.KeySurfacesSettingsWritable)
-	accessColor := fg
-	if !snap.Writable {
-		access = i18n.T(i18n.KeySurfacesSettingsReadOnly)
-		accessColor = chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent)
-	}
-	ui.Row(c).FillWidth().Gap(8).Padding(14, 0, 2, 0).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, ns.NS).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Grow(1)
-		ui.Text(c, fmt.Sprintf("%s %g", i18n.T(i18n.KeySurfacesSettingsRevision), ns.Revision)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-		ui.Text(c, access).FontSize(theme.InterfaceSize(11)).FontWeight(500).TextColor(accessColor)
+	ui.Row(c).FillWidth().Gap(design.Sp(2)).Padding(design.Sp(4), 0, design.Sp(1), 0).AlignItems(ui.Center).Children(func() {
+		kText(c, ns.NS, design.TextBase, design.WeightSemibold, tk(c).Foreground).Grow(1).MinWidth(0).Role(ui.RoleHeading)
+		coss.Badge(c, fmt.Sprintf("%s %g", i18n.T(i18n.KeySurfacesSettingsRevision), ns.Revision), coss.BadgeOptions{Variant: coss.BadgeOutline})
+		if snap.Writable {
+			coss.Badge(c, i18n.T(i18n.KeySurfacesSettingsWritable), coss.BadgeOptions{Variant: coss.BadgeSecondary})
+		} else {
+			coss.Badge(c, i18n.T(i18n.KeySurfacesSettingsReadOnly), coss.BadgeOptions{Variant: coss.BadgeWarning})
+		}
 	})
 	if m.RevealSecrets != nil && hasSecretField(ns) {
 		reveal := *m.RevealSecrets
 		settingsFieldRow(c, "reveal-secrets", i18n.T(i18n.KeySurfacesSettingsReveal), "", fg, muted, nil, func() {
-			if ui.Switch(c, &reveal).Label(i18n.T(i18n.KeySurfacesSettingsReveal)).Changed() {
+			if coss.Switch(c, &reveal, "", coss.CheckOptions{Label: i18n.T(i18n.KeySurfacesSettingsReveal)}).Changed() {
 				*m.RevealSecrets = reveal
 			}
 		})
 	}
 	if snap.SelectedNS == settings.VisualRepliesNamespace {
-		ui.Text(c, i18n.T(i18n.KeySurfacesSettingsVisualHint)).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+		kHint(c, i18n.T(i18n.KeySurfacesSettingsVisualHint))
 	}
 	if ns.NS == "llm-deepseek" || ns.NS == "llm-pi-ai" || ns.NS == "web-search-deepseek" {
 		referencedCredentialsPane(c, m.ReferencedCredentials, ns.NS, fg, muted)
 	}
 	if snap.SelectedNS == "general" && m.OnSelectNamespace != nil {
-		for _, candidate := range snap.Namespaces {
-			switch candidate.NS {
-			case "permission":
-				if ui.Button(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
-					m.OnSelectNamespace("permission")
-				}
-			case settings.CustomInstructionsNamespace:
-				if ui.Button(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Clicked() {
-					m.OnSelectNamespace(settings.CustomInstructionsNamespace)
+		ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
+			for _, candidate := range snap.Namespaces {
+				switch candidate.NS {
+				case "permission":
+					if kButton(c, providerCopy("新任务默认权限", "Default permissions for new tasks")).Clicked() {
+						m.OnSelectNamespace("permission")
+					}
+				case settings.CustomInstructionsNamespace:
+					if kButton(c, i18n.T(i18n.KeyCustomInstructionsTitle)).Clicked() {
+						m.OnSelectNamespace(settings.CustomInstructionsNamespace)
+					}
 				}
 			}
-		}
+		})
 	}
 	for _, raw := range ns.Fields {
 		field := raw
@@ -590,27 +583,26 @@ func namespaceForm(c *ui.Context, m Model, snap settings.ViewState, fg, muted ui
 // settingsActions is the footer of a namespace page: the save state on the left,
 // then discard, the rare full replace and the save action. Replace asks in the
 // application's own dialog, so a destructive write never opens an operating
-// system message box over the themed window.
+// system message box over the themed window. A failed save shows its sentence
+// inline, as a coss error Alert above the actions.
 func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settings.Namespace, fg, muted ui.Color) {
 	blocked := snap.Loading || snap.Saving || !snap.Writable || snap.SelectedNS == "" ||
 		customInstructionsInvalid(snap) || configurationInvalid(snap) || permissionDefaultUnavailable(snap)
-	anchor := ui.Column(c.Key("settings-actions")).FillWidth().MinWidth(0).Gap(0)
+	anchor := ui.Column(c.Key("settings-actions")).FillWidth().MinWidth(0).Gap(design.Sp(2)).Padding(design.Sp(4), 0, design.Sp(1), 0)
 	confirming := ui.Local(anchor, "confirm-replace", func() bool { return false })
 	preparedReplace := ui.Local(anchor, "prepared-replace", func() func() { return nil })
 	anchor.Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Padding(16, 0, 6, 0).AlignItems(ui.Center).Children(func() {
+		settingsAlert(c, "settings-actions", snap.Err != "", providerCopy("没能保存设置，请重试。", "The settings could not be saved. Try again."), snap.Err)
+		ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 			switch {
-			case snap.Err != "":
-				settingsStatusLine(c, snap.Err, c.Theme().Danger)
 			case snap.Saving:
 				settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaving), muted)
 			case snap.Dirty:
 				settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsUnsaved), muted)
 			}
 			ui.Box(c).Grow(1)
-			colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 			if ns != nil && !ns.HasSecrets {
-				if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsReplace), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonMedium, Disabled: blocked}).Clicked() {
+				if kDanger(c, i18n.T(i18n.KeySurfacesSettingsReplace), blocked).Clicked() {
 					submit := m.Store.PrepareReplaceFromDrafts(context.Background())
 					if submit != nil {
 						*preparedReplace = submit
@@ -618,23 +610,22 @@ func settingsActions(c *ui.Context, m Model, snap settings.ViewState, ns *settin
 					}
 				}
 			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsDiscard), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Loading || snap.Saving}).Clicked() {
+			if kGhost(c, i18n.T(i18n.KeySurfacesSettingsDiscard), snap.Loading || snap.Saving).Clicked() {
 				m.Store.DiscardDrafts(context.Background())
 			}
-			if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesSettingsSave), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: blocked || !snap.Dirty}).Clicked() {
+			if coss.Button(c, i18n.T(i18n.KeySurfacesSettingsSave), coss.ButtonOptions{Size: coss.ButtonSM, Disabled: blocked || !snap.Dirty, Loading: snap.Saving}).Clicked() {
 				m.Store.SaveUpdate(context.Background())
 			}
 		})
 		if ns != nil && ns.HasSecrets {
-			settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSecretsHint), muted)
+			kHint(c, i18n.T(i18n.KeySurfacesSettingsSecretsHint))
 		}
-		settingsStatusLine(c, i18n.T(i18n.KeySurfacesSettingsSaveHint), muted)
+		kHint(c, i18n.T(i18n.KeySurfacesSettingsSaveHint))
 	})
 	if !*confirming {
 		return
 	}
 	ConfirmDialog(c, ConfirmOptions{
-		Colors:       theme.Resolve(m.ThemeID).Active(m.SystemDark),
 		Title:        i18n.T(i18n.KeySurfacesSettingsConfirmTitle),
 		Body:         i18n.T(i18n.KeySurfacesSettingsConfirmBody),
 		Detail:       i18n.T(i18n.KeySurfacesSettingsReplaceHint),
@@ -695,6 +686,11 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 	}
 	seed := snap.Drafts[f.Key]
 	key := "field-" + f.Key
+	changed := func(e ui.Element, value *string) {
+		if e.Changed() && m.OnDraft != nil {
+			m.OnDraft(f.Key, *value)
+		}
+	}
 	switch f.Kind {
 	case settings.FieldBool:
 		if m.BoolPtr == nil {
@@ -703,58 +699,43 @@ func fieldRow(c *ui.Context, m Model, snap settings.ViewState, f settings.Field,
 		checked := m.BoolPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
 			ui.Row(c).FillWidth().Justify(ui.End).AlignItems(ui.Center).Children(func() {
-				if ui.Switch(c, checked).Label(label).Disabled(disabled).Changed() && m.OnDraft != nil {
+				if coss.Switch(c, checked, "", coss.CheckOptions{Label: label, Disabled: disabled}).Changed() && m.OnDraft != nil {
 					m.OnDraft(f.Key, fmt.Sprint(*checked))
 				}
 			})
 		})
 	case settings.FieldEnum:
-		draft := m.DraftPtr(f.Key, seed)
+		value := m.DraftPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.Select(c, draft, f.EnumOptions).Label(label).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
+			changed(kSelect(c, value, f.EnumOptions, label, disabled), value)
 		})
 	case settings.FieldJSON:
-		draft := m.DraftPtr(f.Key, seed)
+		value := m.DraftPtr(f.Key, seed)
 		settingsFieldBlock(c, key, label, hint, fg, muted, func() {
-			if ui.TextArea(c, draft).Fill().Lines(4, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
+			changed(coss.Textarea(c, value, coss.TextareaOptions{Label: label, Disabled: disabled, MaxLines: 12}), value)
 		})
 	case settings.FieldNumber:
-		draft := m.DraftPtr(f.Key, seed)
+		value := m.DraftPtr(f.Key, seed)
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
+			changed(kInput(c, value, coss.InputOptions{Label: label, Disabled: disabled}), value)
 		})
 	default:
-		draft := m.DraftPtr(f.Key, seed)
+		value := m.DraftPtr(f.Key, seed)
 		if secretField(f) {
 			settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-				input := ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13))
-				if m.RevealSecrets == nil || !*m.RevealSecrets {
-					input = input.Password()
-				}
-				if input.Disabled(disabled).Changed() && m.OnDraft != nil {
-					m.OnDraft(f.Key, *draft)
-				}
+				hidden := m.RevealSecrets == nil || !*m.RevealSecrets
+				changed(kInput(c, value, coss.InputOptions{Label: label, Disabled: disabled, Password: hidden}), value)
 			})
 			return
 		}
-		if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*draft, "\n") {
+		if MultilineStringField(f) || strings.Contains(seed, "\n") || strings.Contains(*value, "\n") {
 			settingsFieldBlock(c, key, label, hint, fg, muted, func() {
-				if ui.TextArea(c, draft).Fill().Lines(3, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
-					m.OnDraft(f.Key, *draft)
-				}
+				changed(coss.Textarea(c, value, coss.TextareaOptions{Label: label, Disabled: disabled, MaxLines: 10}), value)
 			})
 			return
 		}
 		settingsFieldRow(c, key, label, hint, fg, muted, reset, func() {
-			if ui.TextInput(c, draft).Fill().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(13)).Disabled(disabled).Changed() && m.OnDraft != nil {
-				m.OnDraft(f.Key, *draft)
-			}
+			changed(kInput(c, value, coss.InputOptions{Label: label, Disabled: disabled}), value)
 		})
 	}
 }

@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/shortcuts"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // TestShortcutDialogDropsDownLikeTheReference pins the reference dialog's

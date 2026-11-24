@@ -3,7 +3,6 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"math"
 	"time"
 	"whaleisle/internal/desktop/voiceinput"
@@ -11,6 +10,8 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func voiceText(zh, en string) string {

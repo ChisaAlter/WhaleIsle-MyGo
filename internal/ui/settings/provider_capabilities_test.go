@@ -12,11 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/credentialrefs"
 	"whaleisle/internal/dsh"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // In-process transport only: no listener, Host, real environment or credentials.

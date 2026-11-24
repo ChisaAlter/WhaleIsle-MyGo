@@ -3,10 +3,11 @@ package settings
 import (
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestPetSettingsRenderAssetsDownloadStatesAndActions(t *testing.T) {

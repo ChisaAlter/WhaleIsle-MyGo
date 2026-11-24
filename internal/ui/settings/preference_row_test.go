@@ -1,8 +1,9 @@
 package settings
 
 import (
+	"image/color"
+	"math"
 	"testing"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -99,19 +100,55 @@ func TestImplementationNamespacesStayInsideGeneral(t *testing.T) {
 	}
 }
 
-// TestPreferenceRowIndexIsPerFrame pins the rule-suppression mechanism every
-// settings page relies on: the first row of a frame carries no leading hairline,
-// each following row does, and the next frame starts counting again. That is why
-// no page ends on a stray rule above its action bar.
-func TestPreferenceRowIndexIsPerFrame(t *testing.T) {
-	preferenceRowFrame, preferenceRowCount = time.Time{}, 0
-	base := time.Now()
-	for want := 0; want < 3; want++ {
-		if got := nextPreferenceRowIndex(base); got != want {
-			t.Fatalf("row %d of a frame numbered %d", want, got)
+// TestSettingsFieldRowCarriesItsSeparatingRule pins the item-list contract the
+// frame counter used to provide: every field row paints its own bottom rule,
+// so the first row of a page never leaks a leading hairline and each row still
+// separates itself from the next.
+func TestSettingsFieldRowCarriesItsSeparatingRule(t *testing.T) {
+	bg := ui.RGB(255, 255, 255)
+	var rule ui.Color
+	tt := ui.NewTester(func(c *ui.Context) {
+		rule = tk(c).Border
+		ui.Column(c).Fill().Background(bg).Children(func() {
+			settingsFieldRow(c, "row-a", "First row", "", c.Theme().Text, c.Theme().TextMuted, nil, nil)
+			settingsFieldRow(c, "row-b", "Second row", "", c.Theme().Text, c.Theme().TextMuted, nil, nil)
+		})
+	}, 400, 300)
+	first, okA := tt.Find("First row")
+	second, okB := tt.Find("Second row")
+	if !okA || !okB {
+		t.Fatalf("rows not rendered: %v", tt.Texts())
+	}
+	a := float32(rule.A) / 255
+	want := func(base uint8) float64 {
+		return float64(float32(base)*(1-a) + float32(rule.R)*a)
+	}
+	isRule := func(px color.RGBA) bool {
+		return math.Abs(float64(px.R)-want(bg.R)) < 6 &&
+			math.Abs(float64(px.G)-want(bg.G)) < 6 &&
+			math.Abs(float64(px.B)-want(bg.B)) < 6
+	}
+	lineAt := func(y int) bool {
+		for _, x := range []int{40, 140, 240, 340} {
+			if !isRule(tt.Image().RGBAAt(x, y)) {
+				return false
+			}
+		}
+		return true
+	}
+	separated := false
+	for y := int(first.Y+first.H) + 1; y < int(second.Y); y++ {
+		if lineAt(y) {
+			separated = true
+			break
 		}
 	}
-	if got := nextPreferenceRowIndex(base.Add(time.Millisecond)); got != 0 {
-		t.Fatalf("next frame kept counting: %d", got)
+	if !separated {
+		t.Fatal("no rule separates the first row from the second")
+	}
+	for y := 0; y < int(first.Y); y++ {
+		if lineAt(y) {
+			t.Fatalf("a stray rule sits above the first row at y=%d", y)
+		}
 	}
 }

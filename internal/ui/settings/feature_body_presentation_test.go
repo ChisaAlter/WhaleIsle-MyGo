@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/egoist/mygo/ui"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +20,8 @@ import (
 	"whaleisle/internal/store/session"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type featureTransport func(*http.Request) (*http.Response, error)

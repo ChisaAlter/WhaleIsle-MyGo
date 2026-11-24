@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"whaleisle/internal/ui/i18n"
 )
@@ -300,8 +301,17 @@ func SetPreferences(p Preferences) {
 	preferenceState.value = p
 	preferenceState.rendered = rendered
 	preferenceState.selected = selected
+	preferencesRev.Add(1)
 	preferenceState.Unlock()
 }
+
+var preferencesRev atomic.Uint64
+
+// Revision counts committed preference changes. A memo key folding
+// preference-derived metrics (Interface.Size, font choices) mixes it in, so
+// a preference change rebuilds the region.
+func Revision() uint64 { return preferencesRev.Load() }
+
 func CurrentPreferences() Preferences {
 	preferenceState.RLock()
 	defer preferenceState.RUnlock()

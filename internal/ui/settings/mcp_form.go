@@ -1,8 +1,9 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/ui"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/mcpconfig"
 )

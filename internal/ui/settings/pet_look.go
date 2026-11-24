@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/petlook"
 	settingsstore "whaleisle/internal/store/settings"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func petLookPane(c *ui.Context, p *pet.Companion, store *settingsstore.Store, fg, muted ui.Color, blocked ...bool) {

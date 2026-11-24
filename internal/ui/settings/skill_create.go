@@ -4,8 +4,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	fonttheme "whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type SkillCreateDraft struct {

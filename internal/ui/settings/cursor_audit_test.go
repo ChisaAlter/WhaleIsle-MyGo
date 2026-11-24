@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/shortcuts"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func assertInteractiveCursors(t *testing.T, section string, tt *ui.Tester) {
