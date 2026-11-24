@@ -1787,54 +1787,6 @@
     "colors": 62,
     "metrics": 0
   },
-  "usage/billing_models.go": {
-    "colors": 0,
-    "metrics": 3
-  },
-  "usage/embedded.go": {
-    "colors": 0,
-    "metrics": 12
-  },
-  "usage/presentation.go": {
-    "colors": 7,
-    "metrics": 6
-  },
-  "usage/pricing.go": {
-    "colors": 1,
-    "metrics": 12
-  },
-  "usage/projects.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "usage/ranking.go": {
-    "colors": 1,
-    "metrics": 4
-  },
-  "usage/ranking_modal.go": {
-    "colors": 1,
-    "metrics": 8
-  },
-  "usage/repair.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "usage/statistics_dimensions.go": {
-    "colors": 6,
-    "metrics": 17
-  },
-  "usage/stats.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "usage/time_range.go": {
-    "colors": 0,
-    "metrics": 3
-  },
-  "usage/usage.go": {
-    "colors": 0,
-    "metrics": 21
-  },
   "webview/panel.go": {
     "colors": 2,
     "metrics": 11

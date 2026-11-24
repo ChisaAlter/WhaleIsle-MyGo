@@ -13,7 +13,7 @@ func TestCalendarRovingTab(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Children(func() {
 			ui.Button(c, "Before")
-			calendarUsageView(c, Model{Store: s}, st, nil, usagestore.BillingSettings{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Text, c.Theme().TextMuted)
+			calendarUsageView(c, Model{Store: s}, st, nil, usagestore.BillingSettings{})
 			ui.Button(c, "After")
 		})
 	}, 1000, 900)
