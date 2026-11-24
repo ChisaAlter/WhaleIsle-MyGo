@@ -78,7 +78,12 @@ func Select(c *ui.Context, selected *string, options []SelectOption, o SelectOpt
 		}
 	}
 	if placeholder {
-		current = o.Placeholder
+		// A value the option list does not know still shows itself; the
+		// placeholder only stands in for no selection at all.
+		current, placeholder = *selected, *selected == ""
+		if placeholder {
+			current = o.Placeholder
+		}
 	}
 	tr.Children(func() {
 		col := t.Foreground
