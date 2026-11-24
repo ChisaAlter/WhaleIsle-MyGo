@@ -68,7 +68,7 @@ func TestMarketReadmeRemoteImageLoadsInPlaceWithoutNavigation(t *testing.T) {
 	opened := 0
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
-			marketReadme(c, Model{OnOpenURL: func(string) { opened++ }}, "Before image\n\n![Preview]("+imageURL+")\n\nAfter image", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+			marketReadme(c, Model{OnOpenURL: func(string) { opened++ }}, "Before image\n\n![Preview]("+imageURL+")\n\nAfter image")
 		})
 	}, 400, 600)
 	select {
@@ -145,7 +145,7 @@ func TestMarketReadmeImageFailureAndUnsupportedDestinationsRetainAlt(t *testing.
 	})})
 	source := "![Missing preview](" + url + ")\n\n![Relative preview](images/local.png)\n\n![Local preview](file:///C:/private.png)\n\n![Embedded preview](data:image/png;base64,AAAA)"
 	tt := ui.NewTester(func(c *ui.Context) {
-		marketReadme(c, Model{}, source, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+		marketReadme(c, Model{}, source)
 	}, 420, 600)
 	settleMedia(t, tt, marketMedia(), func() bool {
 		return marketMedia().Request(nil, media.Key{ID: "url:" + url}, media.Source{}).State() == media.Failed

@@ -8,110 +8,125 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	desktopmarket "whaleisle/internal/desktop/market"
+	"whaleisle/internal/errcopy"
 	marketstore "whaleisle/internal/store/market"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
+	"whaleisle/internal/ui/pagekit"
 )
+
+func rowsCard(c *ui.Context, fn func()) {
+	t := design.For(c)
+	ui.Column(c).FillWidth().MinWidth(0).Radius(design.RadiusXL).Border(design.BorderWidth, t.Border).Background(t.Card).Clip().Children(fn)
+}
+
+func rowSeparator(c *ui.Context) {
+	coss.Separator(c, coss.Horizontal)
+}
+
+func rowFrame(e ui.Element) ui.Element {
+	return e.FillWidth().MinWidth(0).Gap(design.Sp(3)).Padding(design.Sp(3), design.Sp(4)).AlignItems(ui.Center)
+}
 
 // The desktop-owned MarketSection is an 800 DIP settings column. The
 // container's measured width, rather than the window, controls its card grid.
-func marketHeader(c *ui.Context, m Model, d marketstore.Discovery, fg, muted, border ui.Color) {
-	ui.Row(c).FillWidth().Wrap().Gap(16).AlignItems(ui.Start).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyMarketTitle)).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg)
-			// 0.3.13 wording: the catalog is curated and the Harness restarts after a change.
-			ui.Text(c, marketText("从精选目录浏览、安装并更新社区插件；变更后 Harness 会自动重启。", "Browse, install and update community plugins from the curated catalog; the Harness restarts after a change.")).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted).FillWidth()
-		})
-		ui.Row(c).Gap(8).Wrap().Children(func() {
-			refreshLabel := i18n.T(i18n.KeyMarketRefresh)
-			if d.Loading {
-				refreshLabel = marketText("正在加载插件目录…", "Loading the plugin catalog…")
+func marketHeader(c *ui.Context, p *page) {
+	m, d := p.m, p.d
+	description := marketText("从精选目录浏览、安装并更新社区插件；变更后 Harness 会自动重启。", "Browse, install and update community plugins from the curated catalog; the Harness restarts after a change.")
+	pagekit.Header(c, i18n.T(i18n.KeyMarketTitle), description, func() {
+		refreshLabel := i18n.T(i18n.KeyMarketRefresh)
+		if d.Loading {
+			refreshLabel = marketText("正在加载插件目录…", "Loading the plugin catalog…")
+		}
+		if coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonOutline,
+			Size:     coss.ButtonIconSM,
+			Icon:     coss.IconRefresh,
+			Label:    refreshLabel,
+			Loading:  d.Loading,
+			Disabled: d.Loading || m.InstallBusy,
+		}).Tooltip(refreshLabel).Clicked() {
+			m.Store.RefreshCatalog(true, i18n.Locale())
+			if m.OnRefresh != nil {
+				m.OnRefresh()
+			} else {
+				m.Store.Refresh(context.Background())
 			}
-			// A 28 DIP outlined icon button; it shows the same refresh glyph while loading.
-			refresh := ui.Button(c, "").Label(refreshLabel).Size(28, 28).Shrink(0).Padding(6).Radius(8).Border(.667, border).Background(ui.Transparent).Tooltip(refreshLabel).Disabled(d.Loading || m.InstallBusy)
-			refresh.Children(func() { ui.Icon(c, marketRefreshIcon).Size(16, 16).TextColor(fg) })
-			if refresh.Clicked() {
-				m.Store.RefreshCatalog(true, i18n.Locale())
-				if m.OnRefresh != nil {
-					m.OnRefresh()
-				} else {
-					m.Store.Refresh(context.Background())
-				}
-			}
-			if !m.Embedded && m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyMarketBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
-				m.Store.CloseDetails()
-				m.OnClose()
-			}
-		})
-	})
-}
-
-func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
-	ui.Row(c).Role(ui.RoleTabList).Label(i18n.T(i18n.KeyMarketTitle)).FillWidth().Wrap().Gap(4).Children(func() {
-		for _, item := range []struct{ id, zh, en string }{
-			{"discover", i18n.T(i18n.KeyW4MarketDiscover), "Discover"}, {"installed", i18n.T(i18n.KeyW4MarketInstalled2), "Installed"},
-			{"favorites", i18n.T(i18n.KeyW4MarketSave), "Favorites"}, {"history", i18n.T(i18n.KeyW4MarketInstallHistory), "History"},
-		} {
-			active := tab == item.id || tab == "" && item.id == "discover"
-			label := marketText(item.zh, item.en)
-			if item.id == "installed" {
-				count := len(desktopInstalledRows(m.Store.Snapshot().Value.Rows))
-				if count > 0 {
-					label = fmt.Sprintf("%s (%d)", label, count)
-				}
-			}
-			button := ui.Button(c.Key("market-tab-"+item.id), label).Role(ui.RoleTab).Height(28).Padding(0, 12).Radius(999).BorderWidth(0).FontSize(theme.InterfaceSize(12.5)).Background(ui.Transparent).TextColor(muted).Selected(active)
-			if active {
-				button.Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).TextColor(fg).FontWeight(500)
-			}
-			if button.Clicked() {
-				m.Store.SetTab(item.id)
-			}
+		}
+		if !m.Embedded && m.OnClose != nil && coss.Button(c, i18n.T(i18n.KeyMarketBack), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Icon: coss.IconArrowLeft}).Clicked() {
+			m.Store.CloseDetails()
+			m.OnClose()
 		}
 	})
 }
 
-func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, muted, field, border ui.Color) {
+func marketTabs(c *ui.Context, p *page) {
+	m := p.m
+	tabIDs := []string{"discover", "installed", "favorites", "history"}
+	tabItems := []struct{ id, zh, en string }{
+		{"discover", i18n.T(i18n.KeyW4MarketDiscover), "Discover"},
+		{"installed", i18n.T(i18n.KeyW4MarketInstalled2), "Installed"},
+		{"favorites", i18n.T(i18n.KeyW4MarketSave), "Favorites"},
+		{"history", i18n.T(i18n.KeyW4MarketInstallHistory), "History"},
+	}
+	installedCount := len(desktopInstalledRows(m.Store.Snapshot().Value.Rows))
+	labels := make([]string, len(tabItems))
+	selected := 0
+	for i, item := range tabItems {
+		label := marketText(item.zh, item.en)
+		if item.id == "installed" && installedCount > 0 {
+			label = fmt.Sprintf("%s (%d)", label, installedCount)
+		}
+		labels[i] = label
+		if p.d.Tab == item.id {
+			selected = i
+		}
+	}
+	if coss.Tabs(c, &selected, labels, coss.TabsOptions{Label: i18n.T(i18n.KeyMarketTitle), Key: "market-tabs"}).Changed() {
+		m.Store.SetTab(tabIDs[selected])
+	}
+}
+
+func catalogCategories(c *ui.Context, p *page) {
+	m, d := p.m, p.d
 	if len(d.Catalog.Categories) <= 1 {
 		return
 	}
-	ui.Row(c).Role(ui.RoleRadioGroup).Label(marketText(i18n.T(i18n.KeyW4MarketCategories), "Categories")).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
+	ui.Row(c).Label(marketText(i18n.T(i18n.KeyW4MarketCategories), "Categories")).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 		for i, category := range d.Catalog.Categories {
-			if i >= 5 && category.ID != d.Category && (m.categoriesExpanded == nil || !*m.categoriesExpanded) {
+			if i >= 5 && category.ID != d.Category && (p.categoriesExpanded == nil || !*p.categoriesExpanded) {
 				continue
 			}
-			active := category.ID == d.Category
-			button := ui.Button(c.Key("market-category-"+category.ID), fmt.Sprintf("%s %d", category.Label, category.Count)).Role(ui.RoleRadio).Checked(active).Height(28).Padding(0, 10).Radius(999).BorderWidth(0).FontSize(theme.InterfaceSize(12.5)).Background(ui.Transparent).TextColor(muted)
-			if active {
-				button.Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).TextColor(fg).FontWeight(500)
-			}
-			if button.Clicked() {
+			on := category.ID == d.Category
+			label := fmt.Sprintf("%s %d", category.Label, category.Count)
+			if coss.Toggle(c, &on, label, coss.ToggleOptions{Variant: coss.ToggleOutline, Size: coss.ToggleSM, Key: "market-category-" + category.ID}).Changed() && on {
 				m.Store.SetCategory(category.ID)
 			}
 		}
-		if len(d.Catalog.Categories) > 5 && m.categoriesExpanded != nil {
+		if len(d.Catalog.Categories) > 5 && p.categoriesExpanded != nil {
 			label := marketText(i18n.T(i18n.KeyW4MarketExpandCategories), "More categories")
-			if *m.categoriesExpanded {
+			if *p.categoriesExpanded {
 				label = marketText(i18n.T(i18n.KeyW4MarketCollapseCategories), "Fewer categories")
 			}
-			if ui.Button(c, label).Height(28).Padding(0, 10).Radius(999).Border(.5, border).FontSize(theme.InterfaceSize(12.5)).Clicked() {
-				*m.categoriesExpanded = !*m.categoriesExpanded
+			if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
+				*p.categoriesExpanded = !*p.categoriesExpanded
 			}
 		}
 	})
 }
 
-func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
+func catalogCards(c *ui.Context, p *page) {
+	m, d := p.m, p.d
+	t := design.For(c)
 	if len(d.Rows) == 0 && !d.Loading && d.Err == nil && !d.Catalog.FetchedAt.IsZero() {
 		message := marketText(i18n.T(i18n.KeyW4MarketNoPluginsYet), "No plugins available.")
 		if d.Query != "" || d.Category != "all" && d.Category != "" || d.Period != "all" || d.Tab == "favorites" {
 			message = marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")
 		}
-		ui.Text(c, message).FillWidth().Padding(24).Border(.5, border).Radius(12).TextColor(muted)
+		coss.Empty(c, coss.EmptyOptions{Icon: coss.IconSearch, Title: message}, nil)
 	}
-	grid := ui.Row(c).Key("market-cards").FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Start)
+	grid := ui.Row(c).Key("market-cards").FillWidth().MinWidth(0).Wrap().Gap(design.Sp(3)).AlignItems(ui.Start)
 	width := grid.Bounds().W
 	grid.Draw(func(_ *ui.Painter, bounds ui.Rect) {
 		if bounds.W != width {
@@ -122,63 +137,69 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 	if width >= 572 {
 		columns = 2
 	}
+	version := p.version()
+	cardVersion := pagekit.Version(version).Float(width).Key()
 	grid.Children(func() {
 		for _, item := range d.Rows {
 			i := item
-			card := ui.Column(c.Key("market-card-"+i.ID)).MinWidth(0).Border(.5, border).Radius(12).Padding(14, 16).Gap(8)
-			cardBg := field
+			card := ui.Column(c.Key("market-card-"+i.ID)).MinWidth(0).Radius(design.RadiusXL).Border(design.BorderWidth, t.Border).Padding(design.Sp(3.5), design.Sp(4)).Gap(design.Sp(2))
+			cardBg := t.Card
 			if card.Hovered() {
-				cardBg = c.Theme().SurfaceHover
+				cardBg = t.Accent.Over(t.Card)
 			}
-			chrome.GlassSurface(card, cardBg, chrome.MaterialPanel, 12)
+			card.Background(cardBg)
 			if columns == 2 {
-				card.Width((width - 12) / 2)
+				card.Width((width - design.Sp(3)) / 2)
 			} else {
 				card.FillWidth()
 			}
-			card.Children(func() {
-				ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
-					marketIconTile(c, i, muted, border)
-					ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-						ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-							ui.Text(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
+			card.Memo(cardVersion).Children(func() {
+				ui.Row(c).FillWidth().Gap(design.Sp(2.5)).AlignItems(ui.Start).Children(func() {
+					marketIconTile(c, i)
+					ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(1)).Children(func() {
+						ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+							pagekit.Strong(c, catalogTitle(i)).Grow(1).MinWidth(0).SingleLine().Tooltip(i.ID)
 							if badge := capabilityBadgeLabel(i.CapabilityKind, i.NativeCompatibilityLabel); badge != "" {
-								badgeInk, badgeBorder := muted, border
+								variant := coss.BadgeOutline
 								if i.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
-									badgeInk, badgeBorder = accent, accent
+									variant = coss.BadgeWarning
 								}
-								ui.Text(c, badge).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, badgeBorder).TextColor(badgeInk).Tooltip(capabilityGuidanceText(i.CapabilityKind, i.Capabilities.Guidance))
+								coss.Badge(c, badge, coss.BadgeOptions{Variant: variant}).Tooltip(capabilityGuidanceText(i.CapabilityKind, i.Capabilities.Guidance))
 							}
 							if i.Deprecated {
-								ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated")).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, accent).TextColor(accent)
+								coss.Badge(c, marketText(i18n.T(i18n.KeyW4MarketDeprecated), "Deprecated"), coss.BadgeOptions{Variant: coss.BadgeWarning})
 							}
 						})
-						ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-							if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16, m.Media) {
-								ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+						ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+							if i.Owner != "" {
+								shown, h := PluginImageHandle(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", design.Sp(4), design.Sp(4), m.Media)
+								if !shown {
+									p.watch.Track(h)
+									pagekit.Caption(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(design.Sp(4)).Height(design.Sp(4))
+								}
 							}
-							ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-							ui.Text(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketSStars), "%s stars"), formatStars(i.Stars))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+							pagekit.Caption(c, i.Owner)
+							pagekit.Caption(c, fmt.Sprintf(marketText(i18n.T(i18n.KeyW4MarketSStars), "%s stars"), formatStars(i.Stars)))
 						})
 					})
 				})
-				ui.Text(c, i.Description).FillWidth().MinWidth(0).MaxLines(2).MinHeight(36).FontSize(theme.InterfaceSize(12)).TextColor(muted).Tooltip(i.Description)
+				pagekit.Muted(c, i.Description).FillWidth().MinWidth(0).MaxLines(2).MinHeight(2 * design.TextSM.LineHeight).Tooltip(i.Description)
 				if i.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
-					ui.Text(c, capabilityGuidanceText(i.CapabilityKind, i.Capabilities.Guidance)).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(11)).TextColor(accent)
+					pagekit.Caption(c, capabilityGuidanceText(i.CapabilityKind, i.Capabilities.Guidance)).FillWidth().MinWidth(0).TextColor(t.WarningForeground)
 				}
-				ui.Row(c).FillWidth().Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, catalogCategory(d.Catalog, i.Category)).FontSize(theme.InterfaceSize(11)).Padding(2, 8).Radius(999).Border(.5, border).TextColor(muted)
-					favoriteButton(c, m, i.ID)
-					ui.Box(c).Grow(1)
-					if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketDetails), "Details"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+				ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+					coss.Badge(c, catalogCategory(d.Catalog, i.Category), coss.BadgeOptions{Variant: coss.BadgeOutline})
+					favoriteButton(c, p, i.ID)
+					ui.Spacer(c)
+					if coss.Button(c, marketText(i18n.T(i18n.KeyW4MarketDetails), "Details"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 						m.Store.SelectDetails(i.ID, false)
 					}
 					if parsed, err := url.Parse(i.Homepage); err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != "" && parsed.User == nil && m.OnOpenURL != nil {
-						if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketHomepage), "Homepage"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+						if coss.Button(c, marketText(i18n.T(i18n.KeyW4MarketHomepage), "Homepage"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, TrailingIcon: coss.IconExternalLink}).Clicked() {
 							m.OnOpenURL(parsed.String())
 						}
 					}
-					catalogInstallButton(c, m, d, i, inventory, fg, muted)
+					catalogInstallButton(c, p, i)
 				})
 			})
 		}
@@ -235,7 +256,9 @@ func installedGroups(catalog desktopmarket.Catalog, rows []marketstore.Entry) []
 	return append(groups, other)
 }
 
-func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
+func installedRows(c *ui.Context, p *page) {
+	m, d, snap := p.m, p.d, p.snap
+	t := design.For(c)
 	var rows []marketstore.Entry
 	installed := desktopInstalledRows(snap.Rows)
 	for _, row := range installed {
@@ -244,61 +267,69 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 		}
 	}
 	if len(rows) == 0 && len(installed) > 0 {
-		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")).FillWidth().Padding(24).TextColor(muted)
+		coss.Empty(c, coss.EmptyOptions{Icon: coss.IconSearch, Title: marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")}, nil)
 	}
-	for _, group := range installedGroups(d.Catalog, rows) {
-		if len(group.rows) == 0 {
-			continue
-		}
-		ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-			ui.Text(c, group.label).FontSize(theme.InterfaceSize(12)).FontWeight(500).TextColor(muted)
-			for _, row := range group.rows {
-				r := row
-				card := ui.Column(c.Key("installed-"+r.Label)).FillWidth().MinWidth(0).Border(.5, border).Radius(12).Padding(12, 16)
-				chrome.GlassSurface(card, field, chrome.MaterialPanel, 12)
-				card.Children(func() {
-					ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(12).AlignItems(ui.Center).Children(func() {
-						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-							ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
-								ui.Text(c, r.Label).Shrink(1).MinWidth(0).SingleLine().Tooltip(r.Label).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-								if badge := capabilityBadgeLabel(r.CapabilityKind, r.NativeCompatibilityLabel); badge != "" {
-									badgeInk, badgeBorder := muted, border
-									if r.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
-										badgeInk, badgeBorder = accent, accent
+	version := p.version()
+	ui.Column(c).Key("market-installed-rows").FillWidth().MinWidth(0).Gap(design.Sp(5)).Memo(version).Children(func() {
+		for _, group := range installedGroups(d.Catalog, rows) {
+			if len(group.rows) == 0 {
+				continue
+			}
+			g := group
+			pagekit.Section(c, g.label, nil, func() {
+				rowsCard(c, func() {
+					for i, row := range g.rows {
+						r := row
+						if i > 0 {
+							rowSeparator(c)
+						}
+						el := rowFrame(ui.Row(c.Key("installed-" + r.Label))).Wrap()
+						if el.Hovered() {
+							el.Background(t.Accent)
+						}
+						el.Children(func() {
+							ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
+								ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+									pagekit.Strong(c, r.Label).Shrink(1).MinWidth(0).SingleLine().Tooltip(r.Label)
+									if badge := capabilityBadgeLabel(r.CapabilityKind, r.NativeCompatibilityLabel); badge != "" {
+										variant := coss.BadgeOutline
+										if r.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
+											variant = coss.BadgeWarning
+										}
+										coss.Badge(c, badge, coss.BadgeOptions{Variant: variant}).Tooltip(capabilityGuidanceText(r.CapabilityKind, ""))
 									}
-									ui.Text(c, badge).FontSize(theme.InterfaceSize(11)).Padding(1, 7).Radius(999).Border(.5, badgeBorder).TextColor(badgeInk).Tooltip(capabilityGuidanceText(r.CapabilityKind, ""))
+								})
+								pagekit.Caption(c, r.Detail).FillWidth().SingleLine().Tooltip(r.Detail)
+								if r.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
+									pagekit.Caption(c, capabilityGuidanceText(r.CapabilityKind, "")).FillWidth().TextColor(t.WarningForeground)
+								}
+								if r.ReadOnlyReason != "" {
+									pagekit.Caption(c, r.ReadOnlyReason).FillWidth()
+								}
+								if r.Error != "" {
+									pagekit.Danger(c, errcopy.SentenceText(r.Error)).FillWidth()
 								}
 							})
-							ui.Text(c, r.Detail).FillWidth().SingleLine().Tooltip(r.Detail).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-							if r.CapabilityKind == desktopmarket.CapabilityWebUIOnly {
-								ui.Text(c, capabilityGuidanceText(r.CapabilityKind, "")).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(accent)
-							}
-							if r.ReadOnlyReason != "" {
-								ui.Text(c, r.ReadOnlyReason).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(muted)
-							}
-							if r.Error != "" {
-								ui.Text(c, r.Error).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(accent)
-							}
-						})
-						ui.Row(c).Wrap().Gap(8).Children(func() {
-							if !m.Embedded && snap.ClientReady && !snap.Loading && snap.Err == nil && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
-								label := i18n.T(i18n.KeySettingsPluginsEnable)
-								if *r.Enabled {
-									label = i18n.T(i18n.KeySettingsPluginsDisable)
+							ui.Row(c).Shrink(0).Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+								if !m.Embedded && snap.ClientReady && !snap.Loading && snap.Err == nil && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
+									label := i18n.T(i18n.KeySettingsPluginsEnable)
+									if *r.Enabled {
+										label = i18n.T(i18n.KeySettingsPluginsDisable)
+									}
+									if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
+										m.OnSetBundleEnabled(r.Label, !*r.Enabled)
+									}
 								}
-								if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
-									m.OnSetBundleEnabled(r.Label, !*r.Enabled)
+								if snap.ClientReady && !snap.Loading && snap.Err == nil && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && coss.Button(c, i18n.T(i18n.KeyMarketRemove), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonSM, Icon: coss.IconTrash}).Clicked() {
+									m.OnRemoveBundle(r.Label)
 								}
-							}
-							if snap.ClientReady && !snap.Loading && snap.Err == nil && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
-								m.OnRemoveBundle(r.Label)
-							}
+							})
 						})
-					})
+					}
 				})
-			}
-		})
-	}
+			})
+		}
+	})
 }
 
 // The desktop Market's installed list is the profile's declared dependencies;
@@ -320,133 +351,135 @@ func formatStars(stars float64) string {
 	return fmt.Sprintf("%.0f", stars)
 }
 
-// marketCloseIcon is the reference Modal's 14 DIP cross.
-var marketCloseIcon = ui.MustParseSVG([]byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>`))
-
-func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, accent ui.Color) {
+func catalogDetailsDialog(c *ui.Context, p *page) {
+	m, d := p.m, p.d
 	if d.Selected == nil || m.Store.Confirmation() != "" {
 		return
 	}
+	t := design.For(c)
 	item := *d.Selected
 	open := true
-	w, h := c.Size()
-	ui.DialogBase(c.Key("market-details-dialog"), &open, func(backdrop, panel ui.Element) {
-		box := chrome.DialogSurfaceBox{
-			Width:   max(0, min(float32(680), w-48)),
-			Height:  max(0, min(float32(720), h-48)),
-			Padding: 0,
-		}
-		panel = chrome.DialogSurfaceSized(c, backdrop, panel, c.Theme(), box)
-		panel.Label(catalogTitle(item)).Gap(0).Children(func() {
-			ui.Row(c).FillWidth().Height(58).Shrink(0).Gap(8).Padding(22, 14, 12, 24).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, catalogTitle(item)).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).SingleLine()
-				refreshLabel := marketText("刷新详情", "Refresh details")
-				refresh := ui.Button(c, "").Label(refreshLabel).Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(6).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(d.DetailsLoading).Tooltip(refreshLabel)
-				refresh.Children(func() { ui.Icon(c, marketRefreshIcon).Size(16, 16).TextColor(muted) })
-				if refresh.Clicked() {
-					m.Store.SelectDetails(item.ID, true)
-				}
-				closeLabel := marketText(i18n.T(i18n.KeyW4MarketClose), "Close")
-				closeBox := ui.Button(c, "").Label(closeLabel).Size(28, 28).Shrink(0).Margin(-2, 0, 0, 0).Padding(7).
-					Radius(8).BorderWidth(0).Background(ui.Transparent).FocusRing(false)
-				closeBox.Children(func() { ui.Icon(c, marketCloseIcon).Size(14, 14).TextColor(muted) })
-				if closeBox.Hovered() {
-					closeBox.Background(c.Theme().SurfaceHover)
-				}
-				if closeBox.Clicked() {
-					open = false
-				}
-			})
-			ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().Padding(20, 24, 24, 24).Children(func() {
-				ui.Column(c).FillWidth().MinWidth(0).Gap(12).Children(func() {
-					ui.Text(c, item.Description).FillWidth().TextColor(fg)
-					catalogMetadata(c, marketText("作者", "Author"), item.Owner, fg, muted)
-					catalogMetadata(c, marketText("来源", "Source"), item.InstallSpec, fg, muted)
-					catalogMetadata(c, marketText("上架时间", "Added"), item.Added, fg, muted)
+	_, h := c.Size()
+	refreshLabel := marketText("刷新详情", "Refresh details")
+	closeLabel := marketText(i18n.T(i18n.KeyW4MarketClose), "Close")
+	coss.Dialog(c, &open, coss.DialogOptions{
+		Key:           "market-details-dialog",
+		MaxWidth:      680,
+		NoClose:       true,
+		FooterVariant: coss.FooterBare,
+		Footer: func() {
+			favoriteButton(c, p, item.ID)
+			ui.Spacer(c)
+			if m.InstallBusy {
+				pagekit.Caption(c, i18n.T(i18n.KeyMarketInstallRunning))
+			} else {
+				catalogInstallButton(c, p, item)
+			}
+		},
+	}, func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+			pagekit.Title(c, catalogTitle(item)).Grow(1).MinWidth(0).SingleLine()
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonIconSM,
+				Icon:     coss.IconRefresh,
+				Label:    refreshLabel,
+				Disabled: d.DetailsLoading,
+			}).Tooltip(refreshLabel).Clicked() {
+				m.Store.SelectDetails(item.ID, true)
+			}
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconSM,
+				Icon:    coss.IconX,
+				Label:   closeLabel,
+			}).Tooltip(closeLabel).Clicked() {
+				open = false
+			}
+		})
+		ui.Column(c).FillWidth().MinWidth(0).MaxHeight(max(design.Sp(30), h-design.Sp(52))).Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{}, func() {
+				ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Padding(design.Sp(2), 0, design.Sp(1), 0).Children(func() {
+					pagekit.Body(c, item.Description).FillWidth()
+					catalogMetadata(c, marketText("作者", "Author"), item.Owner)
+					catalogMetadata(c, marketText("来源", "Source"), item.InstallSpec)
+					catalogMetadata(c, marketText("上架时间", "Added"), item.Added)
 					compatKind, compatLabel, compatGuidance := resolveDetailsCapability(item, d.Details)
 					compatValue := capabilityBadgeLabel(compatKind, compatLabel)
 					if compatValue == "" {
 						compatValue = marketText("未知", "Unknown")
 					}
-					catalogMetadata(c, marketText("兼容性", "Compatibility"), compatValue, fg, muted)
+					catalogMetadata(c, marketText("兼容性", "Compatibility"), compatValue)
 					if compatGuidance != "" {
-						guidanceInk := muted
+						guidanceInk := t.MutedForeground
 						if compatKind == desktopmarket.CapabilityWebUIOnly {
-							guidanceInk = accent
+							guidanceInk = t.WarningForeground
 						}
-						ui.Text(c, compatGuidance).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(guidanceInk)
+						pagekit.Caption(c, compatGuidance).FillWidth().TextColor(guidanceInk)
 					}
 					if item.Deprecated {
-						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeprecatedInstallationIsNotOffered), "Deprecated; installation unavailable.")+" "+item.Replacement).FillWidth().TextColor(accent)
+						pagekit.Note(c, coss.AlertWarning, marketText(i18n.T(i18n.KeyW4MarketDeprecatedInstallationIsNotOffered), "Deprecated; installation unavailable."), item.Replacement, nil)
 					}
 					if d.DetailsLoading {
-						ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
+						pagekit.Muted(c, i18n.T(i18n.KeyMarketLoading))
 					}
 					if d.DetailsErr != nil {
-						ui.Text(c, d.DetailsErr.SentenceText()).FillWidth().TextColor(accent)
+						pagekit.FaultSentence(c, marketText("详情加载失败", "Could not load details"), d.DetailsErr.SentenceText(), marketText("重试", "Retry"), func() {
+							m.Store.SelectDetails(item.ID, true)
+						})
 					}
 					if d.Details.Partial {
-						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSomeDetailsFailedToLoad), "Some details could not be loaded.")).FillWidth().TextColor(accent)
+						pagekit.Note(c, coss.AlertWarning, marketText(i18n.T(i18n.KeyW4MarketSomeDetailsFailedToLoad), "Some details could not be loaded."), "", nil)
 					}
 					if d.Details.Version != "" {
-						catalogMetadata(c, marketText("发布版本", "Published version"), d.Details.Version, fg, muted)
+						catalogMetadata(c, marketText("发布版本", "Published version"), d.Details.Version)
 					}
 					if len(d.Details.Requirements) > 0 {
-						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketDeclaredRuntimeRequirementsNotACompatib), "Declared requirements (not a compatibility verdict)")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+						pagekit.Caption(c, marketText(i18n.T(i18n.KeyW4MarketDeclaredRuntimeRequirementsNotACompatib), "Declared requirements (not a compatibility verdict)")).FillWidth()
 						for _, requirement := range d.Details.Requirements {
-							ui.Text(c, requirement).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(fg)
+							pagekit.Code(c, requirement).FillWidth()
 						}
 					}
-					marketScreenshotGallery(c, m, item, fg, muted, field)
+					marketScreenshotGallery(c, m, item)
 					if parsed, err := url.Parse(item.Homepage); err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != "" && parsed.User == nil && m.OnOpenURL != nil {
-						if ui.Button(c, marketText("打开项目主页", "Open project homepage")).Label(item.Homepage).AlignSelf(ui.Start).MaxWidthPercent(100).MinWidth(0).Clicked() {
+						if coss.Button(c, marketText("打开项目主页", "Open project homepage"), coss.ButtonOptions{Variant: coss.ButtonLink, Size: coss.ButtonSM, TrailingIcon: coss.IconExternalLink}).Label(item.Homepage).AlignSelf(ui.Start).MaxWidthPercent(100).MinWidth(0).Clicked() {
 							m.OnOpenURL(parsed.String())
 						}
 					}
-					marketReadme(c, m, d.Details.Readme, fg, muted, field, accent)
+					marketReadme(c, m, d.Details.Readme)
 				})
 			})
-			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Wrap().Padding(10, 24, 16, 24).Gap(8).AlignItems(ui.Center).Children(func() {
-				favoriteButton(c, m, item.ID)
-				ui.Box(c).Grow(1)
-				if m.InstallBusy {
-					ui.Text(c, i18n.T(i18n.KeyMarketInstallRunning)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				} else {
-					catalogInstallButton(c, m, d, item, inventory, fg, muted)
-				}
-			})
 		})
-	})
+	}).Label(catalogTitle(item))
 	if !open {
 		m.Store.CloseDetails()
 	}
 }
 
-func catalogMetadata(c *ui.Context, label, value string, fg, muted ui.Color) {
+func catalogMetadata(c *ui.Context, label, value string) {
 	if value == "" {
 		value = marketText("未知", "Unknown")
 	}
-	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-		ui.Text(c, label).Width(112).MaxWidthPercent(100).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ui.Text(c, value).Grow(1).MinWidth(0).Selectable().FontSize(theme.InterfaceSize(12)).TextColor(fg)
+	t := design.For(c)
+	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(2)).Children(func() {
+		pagekit.Caption(c, label).Width(design.Sp(28)).MaxWidthPercent(100)
+		pagekit.Caption(c, value).Grow(1).MinWidth(0).Selectable().TextColor(t.Foreground)
 	})
 }
 
 // marketIconTile is the card's 44px identity tile: a rounded frame with the
 // plugin's initial, the same weight a row icon carries in the plugin list.
-func marketIconTile(c *ui.Context, item desktopmarket.CatalogItem, muted, border ui.Color) {
-	tile := ui.Box(c.Key("market-icon-"+item.ID)).Size(44, 44).Shrink(0).Radius(10).Border(.5, border).AlignItems(ui.Center).Justify(ui.Center)
+func marketIconTile(c *ui.Context, item desktopmarket.CatalogItem) {
+	t := design.For(c)
+	tile := ui.Box(c.Key("market-icon-"+item.ID)).Size(design.Sp(11), design.Sp(11)).Shrink(0).Radius(design.RadiusLG).Border(design.BorderWidth, t.Border).Background(t.Card).AlignItems(ui.Center).Justify(ui.Center)
 	tile.Children(func() {
 		initial := "?"
 		if runes := []rune(strings.TrimSpace(catalogTitle(item))); len(runes) > 0 {
 			initial = strings.ToUpper(string(runes[0]))
 		}
-		ui.Text(c, initial).FontSize(theme.InterfaceSize(17)).FontWeight(600).TextColor(muted)
+		ui.Text(c, initial).FontSize(design.TextLG.Size).FixedLineHeight(design.TextLG.LineHeight).FontWeight(design.WeightSemibold).TextColor(t.MutedForeground)
 	})
 }
-
-// marketRefreshIcon is the circular-arrow glyph of the header's refresh button.
-var marketRefreshIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5 5 0 1 0 0 5M13 2v4H9"/></svg>`))
 
 func capabilityBadgeLabel(kind desktopmarket.CapabilityKind, rawLabel string) string {
 	trimmed := strings.TrimSpace(rawLabel)

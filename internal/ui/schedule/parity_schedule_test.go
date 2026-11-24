@@ -8,7 +8,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 )
 
 func TestScheduledTasksCatalogAndFormattingParity(t *testing.T) {
@@ -86,11 +85,10 @@ func TestScheduleCatalogViewHeadlessAndCursors(t *testing.T) {
 		i18n.SetLocale(loc)
 		var panel Panel
 		tt := ui.NewTester(func(c *ui.Context) {
-			colors := theme.Resolve("system").Active(false)
 			panel.catalogView(c, Model{
 				ThemeID:   "system",
 				OnNewTask: func() {},
-			}, snap, colors, 760)
+			}, snap, 1, 760)
 		}, 760, 480)
 
 		if !tt.HasText("Daily Standup") {

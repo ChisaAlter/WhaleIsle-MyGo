@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/media"
+	"whaleisle/internal/ui/design"
 )
 
 // renderReadmeImage draws a public README image at its natural width. The
@@ -24,7 +25,7 @@ func renderReadmeImage(c *ui.Context, source, alt string, owner *media.Owner) bo
 	// Original .readme img: max-width100%, height:auto. Keep the source's
 	// natural width and ratio; no chat-thumbnail cap, caption or extra action.
 	root := ui.Box(c.Key("market-readme-image:" + source)).Label("README image " + source)
-	root.Width(w).MaxWidthPercent(100).MinWidth(0).AspectRatio(w / ht).Radius(12).Clip().Tooltip(alt).Children(func() {
+	root.Width(w).MaxWidthPercent(100).MinWidth(0).AspectRatio(w / ht).Radius(design.RadiusXL).Clip().Tooltip(alt).Children(func() {
 		showImage(c, h).Fill().Fit(ui.Contain)
 	})
 	return true

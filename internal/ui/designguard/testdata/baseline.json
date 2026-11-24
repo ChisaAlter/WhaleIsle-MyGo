@@ -1087,34 +1087,6 @@
     "colors": 0,
     "metrics": 12
   },
-  "market/gallery.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "market/management.go": {
-    "colors": 0,
-    "metrics": 14
-  },
-  "market/market.go": {
-    "colors": 1,
-    "metrics": 50
-  },
-  "market/presentation.go": {
-    "colors": 0,
-    "metrics": 73
-  },
-  "market/readme.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "market/readme_images.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "market/readme_svg.go": {
-    "colors": 2,
-    "metrics": 0
-  },
   "planpreview/view.go": {
     "colors": 0,
     "metrics": 8
@@ -1294,46 +1266,6 @@
   "remote/tools.go": {
     "colors": 0,
     "metrics": 21
-  },
-  "schedule/choices.go": {
-    "colors": 0,
-    "metrics": 5
-  },
-  "schedule/clock_picker.go": {
-    "colors": 0,
-    "metrics": 5
-  },
-  "schedule/date_picker.go": {
-    "colors": 0,
-    "metrics": 9
-  },
-  "schedule/delivery_history.go": {
-    "colors": 0,
-    "metrics": 29
-  },
-  "schedule/feedback.go": {
-    "colors": 1,
-    "metrics": 6
-  },
-  "schedule/presentation.go": {
-    "colors": 0,
-    "metrics": 51
-  },
-  "schedule/rule_rows.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "schedule/schedule.go": {
-    "colors": 0,
-    "metrics": 50
-  },
-  "schedule/timing_picker.go": {
-    "colors": 0,
-    "metrics": 10
-  },
-  "schedule/zone_picker.go": {
-    "colors": 0,
-    "metrics": 9
   },
   "sessioncost/view.go": {
     "colors": 1,
@@ -1814,54 +1746,6 @@
   "theme/theme.go": {
     "colors": 62,
     "metrics": 0
-  },
-  "usage/billing_models.go": {
-    "colors": 0,
-    "metrics": 3
-  },
-  "usage/embedded.go": {
-    "colors": 0,
-    "metrics": 12
-  },
-  "usage/presentation.go": {
-    "colors": 7,
-    "metrics": 6
-  },
-  "usage/pricing.go": {
-    "colors": 1,
-    "metrics": 12
-  },
-  "usage/projects.go": {
-    "colors": 0,
-    "metrics": 2
-  },
-  "usage/ranking.go": {
-    "colors": 1,
-    "metrics": 4
-  },
-  "usage/ranking_modal.go": {
-    "colors": 1,
-    "metrics": 8
-  },
-  "usage/repair.go": {
-    "colors": 0,
-    "metrics": 1
-  },
-  "usage/statistics_dimensions.go": {
-    "colors": 6,
-    "metrics": 17
-  },
-  "usage/stats.go": {
-    "colors": 0,
-    "metrics": 4
-  },
-  "usage/time_range.go": {
-    "colors": 0,
-    "metrics": 3
-  },
-  "usage/usage.go": {
-    "colors": 0,
-    "metrics": 21
   },
   "webview/panel.go": {
     "colors": 2,

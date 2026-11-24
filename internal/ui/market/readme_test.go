@@ -36,8 +36,7 @@ func TestMarketReadmeNativeDocumentAndExplicitInlineLink(t *testing.T) {
 	opened := ""
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Scroll(c).Fill().Children(func() {
-			marketReadme(c, Model{OnOpenURL: func(url string) { opened = url }}, readmeFixture,
-				c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+			marketReadme(c, Model{OnOpenURL: func(url string) { opened = url }}, readmeFixture)
 		})
 	}, 640, 1000)
 	if opened != "" {
@@ -70,7 +69,7 @@ func TestMarketReadmeNativeDocumentAndExplicitInlineLink(t *testing.T) {
 
 func TestMarketReadmeEmptyDoesNotMountSection(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
-		marketReadme(c, Model{}, "  \n", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+		marketReadme(c, Model{}, "  \n")
 	}, 400, 400)
 	if _, ok := tt.Find("Repository README"); ok {
 		t.Fatal("empty details mounted an empty README section")
@@ -86,7 +85,7 @@ func TestMarketReadmeSourceHeadingParagraphAndQuoteGeometry(t *testing.T) {
 		theme.SetPreferences(prefs)
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Children(func() {
-				marketReadme(c, Model{}, "# Source heading\n\nFirst paragraph\n\nSecond paragraph\n\n> Quoted paragraph", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+				marketReadme(c, Model{}, "# Source heading\n\nFirst paragraph\n\nSecond paragraph\n\n> Quoted paragraph")
 			})
 		}, 640, 720)
 		find := func(want string) ui.Rect {
@@ -124,7 +123,7 @@ func TestMarketReadmeSourceListAndRuleGeometry(t *testing.T) {
 		}
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Children(func() {
-				marketReadme(c, Model{}, source, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+				marketReadme(c, Model{}, source)
 			})
 		}, 640, 1000)
 		find := func(want string) ui.Rect {
@@ -169,7 +168,7 @@ func TestMarketReadmeH3CascadeKeepsAbsoluteMetricsAndSharedMargins(t *testing.T)
 		theme.SetPreferences(prefs)
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Children(func() {
-				marketReadme(c, Model{}, "# Level one\n\n## Level two\n\n### Level three\n\nBody after heading\n\n#### Level four\n\n> ### Nested three\n>\n> Quoted body", c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+				marketReadme(c, Model{}, "# Level one\n\n## Level two\n\n### Level three\n\nBody after heading\n\n#### Level four\n\n> ### Nested three\n>\n> Quoted body")
 			})
 		}, 360, 900)
 		find := func(want string) ui.Rect {
@@ -213,7 +212,7 @@ func TestMarketReadmeH3CascadeWrapsAtFourteenPixels(t *testing.T) {
 			}
 			tt := ui.NewTester(func(c *ui.Context) {
 				ui.Column(c).Fill().Children(func() {
-					marketReadme(c, Model{}, "### "+heading, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+					marketReadme(c, Model{}, "### "+heading)
 				})
 			}, width, 500)
 			got, ok := tt.Find(heading)
@@ -231,7 +230,7 @@ func TestMarketRichReadmeDetailsWideAndNarrow(t *testing.T) {
 	for _, size := range [][2]int{{1000, 1000}, {420, 720}} {
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Background(c.Theme().Background)
-			catalogDetailsDialog(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+			catalogDetailsDialog(c, testPage(Model{Store: store}, d, marketstore.ViewState{}))
 		}, size[0], size[1])
 		panel, ok := tt.Find("Native tools")
 		section, mounted := tt.Find("Repository README")

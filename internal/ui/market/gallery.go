@@ -8,8 +8,10 @@ import (
 	"github.com/egoist/mygo/ui"
 	desktopmarket "whaleisle/internal/desktop/market"
 	"whaleisle/internal/desktop/media"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/pagekit"
 )
 
 type screenshotGalleryState struct {
@@ -35,13 +37,13 @@ func marketScreenshots(values []string) []string {
 	return images
 }
 
-func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogItem, fg, muted, field ui.Color) {
+func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogItem) {
 	images := marketScreenshots(item.Screenshots)
 	if len(images) == 0 {
-		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketNoScreenshots), "No screenshots available.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		pagekit.Caption(c, marketText(i18n.T(i18n.KeyW4MarketNoScreenshots), "No screenshots available.")).FillWidth()
 		return
 	}
-	root := ui.Column(c.Key("market-screenshot-gallery:" + item.ID)).FillWidth().MinWidth(0).Gap(8)
+	root := ui.Column(c.Key("market-screenshot-gallery:" + item.ID)).FillWidth().MinWidth(0).Gap(design.Sp(2))
 	state := ui.Local(root, "gallery", func() screenshotGalleryState { return screenshotGalleryState{} })
 	sources := strings.Join(images, "\x00")
 	if state.sources != sources {
@@ -49,31 +51,49 @@ func marketScreenshotGallery(c *ui.Context, m Model, item desktopmarket.CatalogI
 	}
 	image := images[state.index]
 	root.Children(func() {
-		marketScreenshot(c, image, state, field, muted, m.Media)
-		ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			if ui.Button(c, "‹").Label(marketText(i18n.T(i18n.KeyW4MarketPreviousScreenshot), "Previous image")).Disabled(state.index == 0).Clicked() {
+		marketScreenshot(c, image, state, m.Media)
+		ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonIconSM,
+				Icon:     coss.IconChevronLeft,
+				Label:    marketText(i18n.T(i18n.KeyW4MarketPreviousScreenshot), "Previous image"),
+				Disabled: state.index == 0,
+			}).Clicked() {
 				state.index--
 			}
-			ui.Text(c, fmt.Sprintf("%d / %d", state.index+1, len(images))).FontSize(theme.InterfaceSize(12)).TextColor(fg)
-			if ui.Button(c, "›").Label(marketText(i18n.T(i18n.KeyW4MarketNextScreenshot), "Next image")).Disabled(state.index == len(images)-1).Clicked() {
+			pagekit.Caption(c, fmt.Sprintf("%d / %d", state.index+1, len(images))).TextColor(design.For(c).Foreground)
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonIconSM,
+				Icon:     coss.IconChevronRight,
+				Label:    marketText(i18n.T(i18n.KeyW4MarketNextScreenshot), "Next image"),
+				Disabled: state.index == len(images)-1,
+			}).Clicked() {
 				state.index++
 			}
-			if ui.Button(c, marketText(i18n.T(i18n.KeyW4MarketOpenOriginalImage), "Open image")).Disabled(m.OnOpenURL == nil).Clicked() && m.OnOpenURL != nil {
+			if coss.Button(c, marketText(i18n.T(i18n.KeyW4MarketOpenOriginalImage), "Open image"), coss.ButtonOptions{
+				Variant:      coss.ButtonGhost,
+				Size:         coss.ButtonSM,
+				TrailingIcon: coss.IconExternalLink,
+				Disabled:     m.OnOpenURL == nil,
+			}).Clicked() && m.OnOpenURL != nil {
 				m.OnOpenURL(image)
 			}
 		})
 	})
 }
 
-func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryState, field, muted ui.Color, owner *media.Owner) {
-	root := ui.Box(c.Key("market-screenshot:" + source)).Label(marketText(i18n.T(i18n.KeyW4MarketPluginScreenshot), "Plugin screenshot") + fmt.Sprintf(" %d", state.index+1)).FillWidth().MinWidth(0).AspectRatio(1.6).Radius(6).Clip().Background(field)
+func marketScreenshot(c *ui.Context, source string, state *screenshotGalleryState, owner *media.Owner) {
+	t := design.For(c)
+	root := ui.Box(c.Key("market-screenshot:"+source)).Label(marketText(i18n.T(i18n.KeyW4MarketPluginScreenshot), "Plugin screenshot")+fmt.Sprintf(" %d", state.index+1)).FillWidth().MinWidth(0).AspectRatio(1.6).Radius(design.RadiusMD).Border(design.BorderWidth, t.Border).Clip().Background(t.Muted)
 	h := requestImage(owner, source, 0, 0)
 	if h == nil || h.State() == media.Failed {
 		state.failed[source] = true
 	}
 	root.Children(func() {
 		if state.failed[source] {
-			ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketScreenshotFailedToLoad), "Image could not be loaded.")).Fill().Padding(16).TextColor(muted)
+			pagekit.Muted(c, marketText(i18n.T(i18n.KeyW4MarketScreenshotFailedToLoad), "Image could not be loaded.")).Fill().Padding(design.Sp(4))
 		} else if h.State() == media.Ready {
 			showImage(c, h).Fill().Fit(ui.Contain)
 		}

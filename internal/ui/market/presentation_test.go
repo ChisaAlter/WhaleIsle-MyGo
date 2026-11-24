@@ -25,7 +25,7 @@ func TestMarketCardsReflowWithTheirContainer(t *testing.T) {
 	}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Children(func() {
-			catalogCards(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+			catalogCards(c, testPage(Model{Store: store}, d, marketstore.ViewState{}))
 		})
 	}, 800, 1000)
 	first, ok1 := tt.Find("First plugin")
@@ -51,8 +51,17 @@ func TestMarketConfirmationIsModalAndEscapeCancels(t *testing.T) {
 		if ui.Button(c, "Background action").Clicked() {
 			behind++
 		}
-		confirmationView(c, Model{Store: store}, c.Theme().Text, c.Theme().Accent)
+		confirmationView(c, testPage(Model{Store: store}, marketstore.Discovery{}, marketstore.ViewState{}))
 	}, 600, 420)
+	clock := time.Unix(1000, 0)
+	tt.SetTime(clock)
+	settleDialog := func() {
+		tt.Frame()
+		clock = clock.Add(time.Second)
+		tt.SetTime(clock)
+		tt.Frame()
+	}
+	settleDialog()
 	saveMarketSnapshot(t, tt, "market-confirmation.png")
 	if err := tt.Click("Background action"); err != nil {
 		t.Fatal(err)
@@ -63,13 +72,13 @@ func TestMarketConfirmationIsModalAndEscapeCancels(t *testing.T) {
 	// A backdrop click may dismiss the dialog. A fresh request checks Escape
 	// through the same store owner without executing the operation.
 	store.RequestConfirmation("Install owner/plugin", func() { run++ })
-	tt.Frame()
+	settleDialog()
 	tt.Key(0, ui.KeyEscape)
 	if store.Confirmation() != "" || run != 0 {
 		t.Fatal("Escape did not cancel the pending operation")
 	}
 	store.RequestConfirmation("Install owner/plugin", func() { run++ })
-	tt.Frame()
+	settleDialog()
 	if err := tt.Click(marketText(i18n.T(i18n.KeyW4MarketConfirmAndRun), "Confirm and run")); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +100,7 @@ func TestMarketDetailsSnapshotFixture(t *testing.T) {
 	}}
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Fill().Background(c.Theme().Background)
-		catalogDetailsDialog(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+		catalogDetailsDialog(c, testPage(Model{Store: store}, d, marketstore.ViewState{}))
 	}, 1000, 800)
 	if _, ok := tt.Find("Workspace tools"); !ok {
 		t.Fatal("details fixture did not open")
@@ -171,18 +180,21 @@ func TestMarketDetailsDrawsItsHairlineInTheDark(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(ui.DarkTheme())
 		ui.Column(c).Fill().Background(c.Theme().Background)
-		catalogDetailsDialog(c, Model{Store: store, ThemeID: theme.IDDeepseekDark, SystemDark: true}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Accent)
+		catalogDetailsDialog(c, testPage(Model{Store: store, ThemeID: theme.IDDeepseekDark, SystemDark: true}, d, marketstore.ViewState{}))
 	}, 900, 700)
 	// The panel fades in; a settled clock shows its material, not frame one.
 	start := time.Unix(1000, 0)
 	tt.SetTime(start)
 	tt.SetTime(start.Add(time.Second))
-	// The panel is min(680, w-32) × min(720, h-48), centered by DialogBase with
-	// its 16 DIP padding: 680×652 at (110, 24).
+	tt.Frame()
+	panel, ok := tt.Find("Hairline fixture")
+	if !ok {
+		t.Fatal("details panel did not mount")
+	}
 	image := tt.Image()
-	const panelTop, panelLeft = 24, 110
+	panelTop, panelLeft := int(panel.Y), int(panel.X)
 	inside := ttColor(image.RGBAAt(panelLeft+200, panelTop+6))
-	edge := ttColor(image.RGBAAt(panelLeft+200, panelTop))
+	edge := ttColor(image.RGBAAt(panelLeft+200, panelTop+1))
 	contrast := chrome.ContrastRatio(edge, inside)
 	t.Logf("details hairline %v on fill %v = %.2f:1", edge, inside, contrast)
 	if contrast < 1.15 {

@@ -7,158 +7,190 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
+	"whaleisle/internal/ui/pagekit"
 )
 
 func scheduleText(zh, en string) string {
 	return i18n.Pick(zh, en)
 }
 
-// The catalog and detail use the original TaskManagerPage.module.css geometry.
-func scheduleGutter(width float32) float32 { return min(float32(48), max(float32(24), width*.04)) }
-func detailGutter(width float32) float32 {
+func detailGutterSp(width float32) float32 {
 	if width <= 400 {
-		return 16
+		return design.Sp(4)
 	}
 	if width <= 1100 {
-		return 20
+		return design.Sp(5)
 	}
-	return 24
+	return design.Sp(6)
 }
 
-func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, colors theme.Colors, width float32) {
-	winW, _ := c.Size()
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	ui.Scroll(c.Key("schedule-catalog-scroll")).Label("Task catalog scroll").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.Center).Children(func() {
-			ui.Column(c.Key("schedule-catalog-content")).Label("Task catalog content").Grow(1).MaxWidth(1056).MinWidth(0).Padding(0, scheduleGutter(winW), 48).Children(func() {
-				ui.Row(c.Key("schedule-heading")).FillWidth().MinWidth(0).Wrap().Gap(16).Padding(28, 0, 24).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, scheduleText("自动化任务", "Automation tasks")).Bind(&p.headingFocus).Role(ui.RoleHeading).Focusable().FocusRing(false).FontSize(theme.InterfaceSize(20)).FixedLineHeight(theme.InterfaceSize(28)).FontWeight(500).TextColor(fg).MinWidth(0)
-					ui.Box(c).Grow(1)
-					if m.OnNewTask != nil {
-						// TaskManagerPage.module.css .newButton: a 32px capsule,
-						// 13px/20 label on 0 12 padding — a page-local control, not
-						// one of the shared button sizes.
-						newTask := ui.ButtonBase(c.Key("schedule-new")).Label(scheduleText("新建", "New")).Height(32).Padding(0, 12).Gap(4).Radius(16).
-							FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).
-							Background(theme.Color(colors.BrandPrimary)).TextColor(theme.Color(colors.ButtonFG)).
-							BorderWidth(0).Disabled(!snap.ClientReady).Cursor(ui.CursorPointer).Shrink(0).
-							Transition(widgets.HoverTransition())
-						if !snap.ClientReady {
-							newTask = newTask.Opacity(0.4)
-						}
-						if snap.ClientReady && (newTask.Hovered() || newTask.Pressed()) {
-							newTask = newTask.Background(theme.Color(colors.BrandPrimaryHover))
-						}
-						newTask.Children(func() {
-							ui.Icon(c, scheduleIcons["plus"]).Size(13, 13).TextColor(chrome.Color(colors.ButtonFG))
-							ui.Text(c, scheduleText("新建", "New")).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(theme.Color(colors.ButtonFG))
-						})
-						if newTask.Clicked() {
-							m.OnNewTask()
-						}
-					}
-				})
-				ui.Row(c.Key("schedule-filters")).Label("Task status").FillWidth().Wrap().Gap(12).Padding(0, 0, 14).Children(func() {
-					for _, option := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"active", "已开启", "Enabled"}, {"inactive", "已结束", "Inactive"}} {
-						b := ui.Button(c.Key("schedule-filter-"+option.id), scheduleText(option.zh, option.en)).Height(28).Padding(0, 10).Radius(14).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(14)).Cursor(ui.CursorPointer)
-						if p.statusFilter == option.id || (option.id == "all" && p.statusFilter == "") {
-							b.Background(chrome.Color(colors.Hover)).TextColor(fg).FontWeight(500)
-						}
-						if b.Clicked() {
-							p.statusFilter = option.id
-						}
-					}
-				})
-				chrome.FrostSurface(ui.Row(c.Key("schedule-search-field")).FillWidth().MinWidth(0).Height(36).Padding(0, 10).Gap(6), colors, m.SystemDark, chrome.Color(colors.Field), 12).Border(.5, chrome.Color(colors.Border)).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, scheduleIcons["search"]).Size(14, 14).TextColor(muted).Shrink(0)
-					ui.TextInputBase(c.Key("schedule-search"), &p.query).Label("Search tasks").Placeholder(scheduleText("搜索自动化任务", "Search automation tasks")).Grow(1).MinWidth(0).Height(24).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-					if p.query != "" && scheduleIconButton(c, "schedule-search-clear", "Clear search", "close", muted).Clicked() {
-						p.query = ""
-					}
-				})
-				ui.Box(c).Height(16)
-				rows := schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter)
-				feedback := false
-				if p.selected == "" {
-					feedback = p.catalogFeedback(c, m, snap, colors, len(rows) > 0)
+func (p *Panel) catalogView(c *ui.Context, m Model, snap schedstore.ViewState, epoch uint64, width float32) {
+	t := design.For(c)
+	pagekit.Page(c, pagekit.PageOptions{MaxWidth: 1056, Scroll: &p.catalogScroll}, func() {
+		pagekit.Header(c, scheduleText("自动化任务", "Automation tasks"), "", func() {
+			if m.OnNewTask != nil {
+				if coss.Button(c, scheduleText("新建", "New"), coss.ButtonOptions{
+					Key:      "schedule-new",
+					Icon:     coss.IconPlus,
+					Disabled: !snap.ClientReady,
+				}).Clicked() {
+					m.OnNewTask()
 				}
-				if !feedback && len(rows) == 0 {
-					label := scheduleText("没有匹配的自动化任务", "No matching tasks")
-					if len(snap.Rows) == 0 {
-						label = scheduleText("还没有自动化任务，在会话中创建的任务会显示在这里", "No tasks yet. Tasks created in your sessions appear here.")
-					}
-					if p.statusFilter == "inactive" && strings.TrimSpace(p.query) == "" {
-						label = scheduleText("没有已结束的自动化任务", "No inactive automation tasks")
-					}
-					scheduleEmpty(c, label, colors, func(c *ui.Context) {
-						if m.OnNewTask != nil && widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), scheduleText("新建自动化任务", "New automation task"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonMedium, Disabled: !snap.ClientReady}).Clicked() {
-							m.OnNewTask()
-						}
-					})
+			}
+		}).Bind(&p.headingFocus).Focusable().FocusRing(false)
+
+		ui.Row(c.Key("schedule-filters")).Label("Task status").FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
+			for _, option := range []struct{ id, zh, en string }{{"all", "全部", "All"}, {"active", "已开启", "Enabled"}, {"inactive", "已结束", "Inactive"}} {
+				on := p.statusFilter == option.id || (option.id == "all" && p.statusFilter == "")
+				if coss.Toggle(c, &on, scheduleText(option.zh, option.en), coss.ToggleOptions{
+					Key:     "schedule-filter-" + option.id,
+					Variant: coss.ToggleOutline,
+					Size:    coss.ToggleSM,
+				}).Radius(design.RadiusFull).Changed() {
+					p.statusFilter = option.id
 				}
-				ui.Column(c.Key("schedule-catalog-rows")).FillWidth().MinWidth(0).Gap(2).Children(func() {
-					for _, entry := range rows {
+			}
+		})
+
+		query := p.query
+		var clearEnd func()
+		if p.query != "" {
+			clearEnd = func() {
+				if coss.Button(c, "", coss.ButtonOptions{
+					Key:     "schedule-search-clear",
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconXS,
+					Icon:    coss.IconX,
+					Label:   "Clear search",
+				}).Clicked() {
+					p.query = ""
+				}
+			}
+		}
+		if coss.InputGroup(c, &query, coss.InputGroupOptions{
+			InputOptions: coss.InputOptions{
+				Key:         "schedule-search",
+				Label:       "Search tasks",
+				Placeholder: scheduleText("搜索自动化任务", "Search automation tasks"),
+			},
+			Start: func() { coss.AddonIcon(c, coss.IconSearch) },
+			End:   clearEnd,
+		}).Changed() {
+			p.query = query
+		}
+
+		rows := schedstore.FilterEntries(snap.Rows, p.query, p.statusFilter)
+		feedback := false
+		if p.selected == "" {
+			feedback = p.catalogFeedback(c, m, snap, len(rows) > 0)
+		}
+		if !feedback && len(rows) == 0 {
+			label := scheduleText("没有匹配的自动化任务", "No matching tasks")
+			if len(snap.Rows) == 0 {
+				label = scheduleText("还没有自动化任务，在会话中创建的任务会显示在这里", "No tasks yet. Tasks created in your sessions appear here.")
+			}
+			if p.statusFilter == "inactive" && strings.TrimSpace(p.query) == "" {
+				label = scheduleText("没有已结束的自动化任务", "No inactive automation tasks")
+			}
+			var action func()
+			if m.OnNewTask != nil {
+				action = func() {
+					if coss.Button(c, scheduleText("新建自动化任务", "New automation task"), coss.ButtonOptions{
+						Variant:  coss.ButtonOutline,
+						Disabled: !snap.ClientReady,
+					}).Clicked() {
+						m.OnNewTask()
+					}
+				}
+			}
+			coss.Empty(c, coss.EmptyOptions{
+				Icon:        coss.IconClock,
+				Description: label,
+			}, action)
+		}
+
+		if len(rows) > 0 {
+			baseVer := scheduleMemoBase(epoch, snap).
+				String(p.query).
+				String(p.statusFilter).
+				Uint(uint64(len(rows)))
+			ui.Column(c.Key("schedule-catalog-rows")).FillWidth().MinWidth(0).
+				Radius(design.RadiusXL).Border(design.BorderWidth, t.Border).Background(t.Card).Clip().
+				Children(func() {
+					for i, entry := range rows {
 						row := entry
+						if i > 0 {
+							coss.Separator(c, coss.Horizontal)
+						}
 						if p.rowFocus == nil {
 							p.rowFocus = map[string]*ui.Handle{}
 						}
-						if p.rowFocus[taskKey(row)] == nil {
-							p.rowFocus[taskKey(row)] = &ui.Handle{}
+						key := taskKey(row)
+						if p.rowFocus[key] == nil {
+							p.rowFocus[key] = &ui.Handle{}
 						}
-						b := ui.Button(c.Key("schedule-row-"+taskKey(row)), "").Bind(p.rowFocus[taskKey(row)]).Label("Open task: " + row.Title).FillWidth().MinWidth(0).Padding(8).Radius(12).BorderWidth(0)
-						rowBg := ui.Transparent
-						if p.selected == taskKey(row) || b.Hovered() || b.FocusWithin() {
-							rowBg = chrome.Color(colors.Hover)
+						selected := p.selected == key
+						b := ui.ButtonBase(c.Key("schedule-row-"+key)).
+							Bind(p.rowFocus[key]).
+							Label("Open task: "+row.Title).
+							FillWidth().MinWidth(0).Justify(ui.Start).Cursor(ui.CursorPointer).
+							Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(3)).AlignItems(ui.Start).FocusRing(false)
+						hovered := b.Hovered()
+						focused := b.FocusWithin()
+						if selected || hovered || focused {
+							b.Background(t.Accent)
 						}
-						b.Background(rowBg)
-						b.Children(func() {
-							ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
-								ui.Icon(c, scheduleIcons["clock"]).Size(16, 20).TextColor(muted).Shrink(0)
-								ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-									ink := fg
-									if row.Status == "inactive" && p.selected != taskKey(row) && !b.Hovered() {
-										ink = muted
+						rowVer := baseVer.
+							String(key).
+							String(row.Title).
+							String(row.Status).
+							String(row.ScheduledAt).
+							String(string(row.Raw)).
+							Bool(selected).
+							Bool(hovered).
+							Bool(focused)
+						if row.Status == "active" {
+							rowVer = rowVer.Uint(uint64(time.Now().Unix()))
+						}
+						b.Memo(rowVer.Key()).Children(func() {
+							ui.Icon(c, coss.IconClock.SVG()).Size(design.IconSM, design.IconSM).Margin(design.Sp(0.5), 0, 0, 0).TextColor(t.MutedForeground).Shrink(0)
+							ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).Children(func() {
+								ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+									titleEl := pagekit.Strong(c, row.Title).SingleLine().Ellipsis("…").Grow(1).MinWidth(0)
+									if row.Status == "inactive" && !selected && !hovered {
+										titleEl.TextColor(t.MutedForeground)
 									}
-									ui.Text(c, row.Title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(23)).FontWeight(500).NoWrap().Ellipsis("…").FillWidth().MinWidth(0).TextColor(ink)
-									ui.Text(c, scheduleRowSummary(row)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(21)).FillWidth().MinWidth(0).TextColor(muted)
+									if row.Status == "inactive" {
+										coss.Badge(c, scheduleText("已结束", "Inactive"), coss.BadgeOptions{Variant: coss.BadgeSecondary, Size: coss.BadgeSM})
+									}
 								})
+								pagekit.Caption(c, scheduleRowSummary(row)).FillWidth().MinWidth(0)
 							})
 						})
 						if b.Clicked() {
 							p.selectCatalogTask(row)
-							p.returnRow = taskKey(row)
+							p.returnRow = key
 						}
 					}
 				})
-			})
-		})
-	})
-}
-
-func scheduleEmpty(c *ui.Context, text string, colors theme.Colors, action ...func(*ui.Context)) {
-	ui.Column(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Padding(48, 20).Gap(12).Children(func() {
-		ui.Icon(c, scheduleIcons["clock"]).Size(24, 24).TextColor(chrome.Color(colors.Caption))
-		ui.Text(c, text).FontSize(theme.InterfaceSize(14)).TextColor(chrome.Color(colors.Muted)).FillWidth().MinWidth(0).TextAlign(ui.Center)
-		for _, build := range action {
-			// .emptyAction lands 24px under the last empty line on top of the column's
-			// own 12px gap (the 16px rule plus the line's descender space).
-			ui.Box(c).Margin(12, 0, 0, 0).Children(func() { build(c) })
 		}
-	})
+	}).Label("Task catalog content")
 }
 
 // Initial loading and failures are explicit; refreshing retained rows never blanks them.
-func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewState, colors theme.Colors, populated bool) bool {
+func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewState, populated bool) bool {
 	if !snap.ClientReady {
-		scheduleEmpty(c, scheduleText("连接 Host 后可管理任务。", "Connect to the Host to manage tasks."), colors)
+		coss.Empty(c, coss.EmptyOptions{
+			Icon:        coss.IconWifiOff,
+			Description: scheduleText("连接 Host 后可管理任务。", "Connect to the Host to manage tasks."),
+		}, nil)
 		return true
 	}
 	if snap.Loading && !populated {
-		ui.Column(c).Label("Loading tasks").FillWidth().AlignItems(ui.Center).Padding(48, 20).Children(func() { ui.Spinner(c).Size(20, 20).TextColor(chrome.Color(colors.Muted)) })
+		pagekit.SkeletonRows(c, 3, scheduleText("正在读取任务…", "Loading tasks"))
 		return true
 	}
 	if snap.Err != nil {
@@ -166,24 +198,15 @@ func (p *Panel) catalogFeedback(c *ui.Context, m Model, snap schedstore.ViewStat
 			p.catalogError, p.catalogErrorRequest, p.catalogDismissed = snap.Err, snap.CatalogRequest, false
 		}
 		retry := func() { m.Store.Refresh(context.Background(), m.SessionID) }
-		if p.catalogDismissed {
-			ui.Column(c.Key("schedule-catalog-retry")).FillWidth().MinWidth(0).Gap(8).Padding(12, 16).Role(ui.RoleStatus).Children(func() {
-				ui.Text(c, scheduleText("任务列表待重新读取", "The task list needs a fresh read.")).FontSize(theme.InterfaceSize(12)).TextColor(chrome.Color(colors.Muted))
-				if widgets.Button(c, colors, scheduleText("重试", "Retry"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: snap.Loading}).Clicked() {
-					retry()
-				}
-			})
-		} else {
-			scheduleNotice(c, "schedule-catalog-failure", scheduleText("无法加载任务", "Could not load tasks."), colors, 24, []scheduleNoticeAction{{Label: scheduleText("重试", "Retry"), Disabled: snap.Loading, Run: retry}}, func() { p.catalogDismissed = true })
-		}
+		pagekit.FaultSentence(c, scheduleText("无法加载任务", "Could not load tasks."), snap.Err.SentenceText(), scheduleText("重试", "Retry"), retry)
 		return true
 	}
 	p.catalogError, p.catalogDismissed = nil, false
 	return false
 }
 
-func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d *taskDraft, colors theme.Colors, width float32) {
-	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
+func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d *taskDraft, epoch uint64, width float32) {
+	t := design.For(c)
 	available := false
 	for _, row := range snap.Rows {
 		if taskKey(row) == taskKey(d.row) {
@@ -203,13 +226,16 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 	if m.DetailID != "" || width <= 760 {
 		detail.Grow(1).FillWidth()
 	} else {
-		detail.WidthPercent(47).Border(.5, chrome.Color(colors.Border)).BorderWidth(0, 0, 0, .5)
+		detail.WidthPercent(47).BorderWidth(0, 0, 0, design.BorderWidth).BorderColor(t.Border)
 	}
 	detail.Children(func() {
-		p.detailStrip(c, m, snap, d, colors, width)
+		p.detailStrip(c, m, snap, d, width)
 		if snap.Err != nil {
-			p.catalogFeedback(c, m, snap, colors, true)
+			ui.Column(c).FillWidth().Padding(design.Sp(2), detailGutterSp(width), 0, detailGutterSp(width)).Children(func() {
+				p.catalogFeedback(c, m, snap, true)
+			})
 		}
+		p.detailFeedback(c, m, d, !editable, detailGutterSp(width))
 		if p.detailTab == "records" {
 			p.mu.Lock()
 			load := p.historyKey != taskKey(d.row) || p.historyLatest != latestDelivery(d.row) || (!p.historyLoading && !p.historyState.Loaded && p.historyState.Error == "")
@@ -217,118 +243,124 @@ func (p *Panel) detailView(c *ui.Context, m Model, snap schedstore.ViewState, d 
 			if load {
 				p.loadDeliveryHistory(m, d.row, "", true)
 			}
-			p.deliveryHistoryView(c, m, fg, muted)
+			p.deliveryHistoryView(c, m, epoch)
 		} else {
-			ui.Scroll(c.Key("schedule-rule-scroll-" + taskKey(d.row))).Label("Task rules scroll").Grow(1).MinHeight(0).FillWidth().MinWidth(0).Children(func() {
-				ui.Column(c).FillWidth().MinWidth(0).Padding(24, detailGutter(width), 80).Gap(4).Children(func() {
+			coss.ScrollArea(c, coss.ScrollAreaOptions{Key: "schedule-rule-scroll-" + taskKey(d.row)}, func() {
+				ui.Column(c).FillWidth().MinWidth(0).Padding(design.Sp(6), detailGutterSp(width), design.Sp(20), detailGutterSp(width)).Gap(design.Sp(4)).Children(func() {
 					if !available {
-						ui.Text(c, scheduleText("任务已不可用。草稿已保留，无法保存。", "This task is unavailable. Your draft is retained and cannot be saved.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
+						pagekit.Note(c, coss.AlertWarning, scheduleText("任务已不可用。草稿已保留，无法保存。", "This task is unavailable. Your draft is retained and cannot be saved."), "", nil)
 					}
-					if d.row.Status == "inactive" {
-						ui.Text(c, d.Title).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg).FillWidth().MinWidth(0)
-					} else {
-						ui.TextInputBase(c.Key("schedule-task-name"), &d.Title).Label("Automation task name").FillWidth().MinWidth(0).Height(32).FontSize(theme.InterfaceSize(20)).FontWeight(500).TextColor(fg).Disabled(!editable)
-					}
-					ui.Row(c).FillWidth().MinWidth(0).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, scheduleDetailNextRun(d.row)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
-					})
-					ui.Box(c).Height(16)
-					if d.row.Status == "inactive" {
-						promptCard := chrome.FrostSurface(ui.Column(c).FillWidth().MinWidth(0).Padding(12), colors, m.SystemDark, chrome.Color(colors.Field), 16)
-						// The prompt is the installed quiet field, not an elevated card.
-						promptCard.Children(func() {
-							ui.Text(c, d.Prompt).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(24)).TextColor(fg).FillWidth().MinWidth(0).Selectable()
-						})
-					} else {
-						chrome.FrostSurface(ui.TextArea(c.Key("schedule-task-instruction"), &d.Prompt).Label("Automation task instruction").FillWidth().MinWidth(0).Height(112).MaxHeight(160).Padding(12).BorderWidth(0), colors, m.SystemDark, chrome.Color(colors.Field), 16).FontSize(theme.InterfaceSize(14)).TextColor(fg).Disabled(!editable)
-					}
-					ui.Box(c).Height(20)
-					ui.Text(c, scheduleText("运行时间", "Run time")).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(500).TextColor(muted)
-					runCard := ui.Column(c).FillWidth().MinWidth(0).Padding(0, 12).Gap(0).Border(.5, chrome.Color(colors.Border)).Radius(16)
-					runCard.Background(ui.Transparent)
-					runCard.Children(func() {
+					ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Children(func() {
 						if d.row.Status == "inactive" {
-							ui.Text(c, scheduleFrequency(d.row)).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg).FillWidth().MinWidth(0)
-							if d.Zone != "" {
-								ui.Text(c, d.Zone).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
-							}
-							ui.Text(c, scheduleText("已结束的任务为只读，无法修改时间", "Inactive tasks are read-only. Their timing cannot be edited.")).FontSize(theme.InterfaceSize(12)).TextColor(muted).FillWidth().MinWidth(0)
+							pagekit.Title(c, d.Title).FillWidth().MinWidth(0)
 						} else {
-							p.timingEditor(c, d, editable)
+							title := d.Title
+							if coss.Input(c, &title, coss.InputOptions{
+								Key:      "schedule-task-name",
+								Label:    "Automation task name",
+								Size:     coss.InputLG,
+								Disabled: !editable,
+							}).Changed() {
+								d.Title = title
+							}
 						}
+						pagekit.Caption(c, scheduleDetailNextRun(d.row)).FillWidth()
+					})
+					if d.row.Status == "inactive" {
+						coss.Card(c, coss.CardOptions{}, func() {
+							pagekit.Body(c, d.Prompt).FillWidth().MinWidth(0).Selectable()
+						}).FillWidth()
+					} else {
+						prompt := d.Prompt
+						if coss.Textarea(c, &prompt, coss.TextareaOptions{
+							Key:      "schedule-task-instruction",
+							Label:    "Automation task instruction",
+							MaxLines: 8,
+							Disabled: !editable,
+						}).Changed() {
+							d.Prompt = prompt
+						}
+					}
+					pagekit.Section(c, scheduleText("运行时间", "Run time"), nil, func() {
+						runCard := ui.Column(c).FillWidth().MinWidth(0).Padding(0, design.Sp(3)).
+							Radius(design.RadiusXL2).Border(design.BorderWidth, t.Border).Background(t.Card)
+						runCard.Children(func() {
+							if d.row.Status == "inactive" {
+								ui.Column(c).FillWidth().MinWidth(0).PaddingY(design.Sp(3)).Gap(design.Sp(1)).Children(func() {
+									pagekit.Strong(c, scheduleFrequency(d.row)).FillWidth()
+									if d.Zone != "" {
+										pagekit.Caption(c, d.Zone).FillWidth()
+									}
+									pagekit.Caption(c, scheduleText("已结束的任务为只读，无法修改时间", "Inactive tasks are read-only. Their timing cannot be edited.")).FillWidth()
+								})
+							} else {
+								p.timingEditor(c, d, editable)
+							}
+						})
 					})
 				})
-			})
+			}).Label("Task rules scroll").Grow(1).MinHeight(0).FillWidth().MinWidth(0)
 		}
 		if d.dirty() && d.row.Status != "inactive" {
-			saveBar := ui.Row(c.Key("schedule-save-bar")).Label("Unsaved task changes").Absolute().Left(12).Right(12).Bottom(12).Padding(8, 12).Gap(8).AlignItems(ui.Center).BorderWidth(0).Radius(theme.ContextRadii(c).MD)
-			chrome.GlassSurface(saveBar, chrome.Color(colors.Field), chrome.MaterialPanel, 12)
+			saveBar := ui.Row(c.Key("schedule-save-bar")).Label("Unsaved task changes").
+				Absolute().Left(design.Sp(3)).Right(design.Sp(3)).Bottom(design.Sp(3)).
+				Padding(design.Sp(2), design.Sp(3)).Gap(design.Sp(2)).AlignItems(ui.Center).
+				Radius(design.RadiusXL).Border(design.BorderWidth, t.Border).Background(t.Popover)
+			for _, l := range design.ShadowLg {
+				saveBar.Shadow(l.X, l.Y, l.Blur, l.Spread, l.Color.Alpha(0.05))
+			}
 			saveBar.Children(func() {
-				if width > 760 {
-					ui.Box(c).Grow(1)
-				} else {
-					ui.Box(c).Grow(1)
-				}
-				palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-				cancel := widgets.Button(c, palette, scheduleText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall, Disabled: snap.Busy || pending})
+				ui.Spacer(c)
+				cancel := coss.Button(c, scheduleText("取消", "Cancel"), coss.ButtonOptions{
+					Variant:  coss.ButtonGhost,
+					Size:     coss.ButtonSM,
+					Disabled: snap.Busy || pending,
+				})
 				cancel.Label("Cancel task changes")
 				if cancel.Clicked() {
 					*d = *newTaskDraft(d.row)
 					p.message("")
 				}
-				if widgets.Button(c, palette, scheduleText("保存修改", "Save changes"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: !editable}).Clicked() {
+				if coss.Button(c, scheduleText("保存修改", "Save changes"), coss.ButtonOptions{
+					Size:     coss.ButtonSM,
+					Disabled: !editable,
+					Loading:  pending,
+				}).Clicked() {
 					p.saveDraft(m, d)
 				}
 			})
 		}
 		if p.detailTab != "records" {
 			if notice := scheduleSessionNotice(m, d.row.SessionID); notice != "" {
-				ui.Text(c, notice).Role(ui.RoleStatus).FillWidth().MinWidth(0).Padding(8, detailGutter(width), 12).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				pagekit.Caption(c, notice).Role(ui.RoleStatus).FillWidth().MinWidth(0).Padding(design.Sp(2), detailGutterSp(width), design.Sp(3), detailGutterSp(width))
 			}
 		}
-		p.detailFeedback(c, m, d, colors, !editable)
 	})
 }
 
-func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d *taskDraft, colors theme.Colors, width float32) {
-	muted := chrome.Color(colors.Muted)
+func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d *taskDraft, width float32) {
+	t := design.For(c)
 	height := float32(44)
 	if m.DetailID != "" {
 		height = 37
 	}
-	ui.Row(c.Key("schedule-detail-strip")).Label("Task detail views").FillWidth().MinWidth(0).Height(height).Shrink(0).Padding(0, detailGutter(width)).Gap(12).Border(.5, chrome.Color(colors.Border)).BorderWidth(0, 0, .5, 0).AlignItems(ui.Center).Children(func() {
-		// TaskManagerPage.module.css .detailTabs sits at the strip's bottom edge;
-		// each .detailTab is a 29px box (13px/16 label plus 13px padding below),
-		// its selected rule covering the strip's bottom border.
-		ui.Row(c).Grow(1).MinWidth(0).Height(height).Gap(36).AlignItems(ui.End).Children(func() {
-			var tabs []ui.Element
-			for _, option := range []struct{ id, zh, en string }{{"rule", "规则", "Rules"}, {"records", "任务运行记录", "Records"}} {
-				selected := p.detailTab == option.id || p.detailTab == "" && option.id == "rule"
-				button := ui.Button(c.Key("schedule-tab-"+option.id), scheduleText(option.zh, option.en)).Height(29).Padding(0, 0, 13).Radius(0).Background(ui.Transparent).BorderWidth(0).TextColor(muted).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(16))
-				if selected {
-					button.TextColor(chrome.Color(colors.Accent)).FontWeight(500).Border(2, chrome.Color(colors.Accent)).BorderWidth(0, 0, 2, 0)
-				}
-				if button.Clicked() {
-					p.selectDetailTab(option.id)
-				}
-				tabs = append(tabs, button)
-			}
-			for index, button := range tabs {
-				next := -1
-				if button.Shortcut(0, ui.KeyLeft) || button.Shortcut(0, ui.KeyRight) {
-					next = 1 - index
-				} else if button.Shortcut(0, ui.KeyHome) {
-					next = 0
-				} else if button.Shortcut(0, ui.KeyEnd) {
-					next = 1
-				}
-				if next >= 0 {
-					p.selectDetailTab([]string{"rule", "records"}[next])
-					tabs[next].Focus()
-				}
+	ui.Row(c.Key("schedule-detail-strip")).Label("Task detail views").FillWidth().MinWidth(0).Height(height).Shrink(0).
+		Padding(0, detailGutterSp(width)).Gap(design.Sp(3)).BorderWidth(0, 0, design.BorderWidth, 0).BorderColor(t.Border).AlignItems(ui.Center).Children(func() {
+		tabIdx := 0
+		if p.detailTab == "records" {
+			tabIdx = 1
+		}
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			if coss.Tabs(c, &tabIdx, []string{scheduleText("规则", "Rules"), scheduleText("任务运行记录", "Records")}, coss.TabsOptions{
+				Variant: coss.TabsUnderline,
+				Size:    coss.SegmentedSM,
+				Label:   scheduleText("任务视图标签", "Task view tabs"),
+				Key:     "schedule-detail-tabs",
+			}).Changed() {
+				p.selectDetailTab([]string{"rule", "records"}[tabIdx])
 			}
 		})
-		ui.Row(c).Shrink(0).Gap(0).Children(func() {
+		ui.Row(c).Shrink(0).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 			if d != nil {
 				if m.ViewerSessionID != d.row.SessionID && m.OnOpenSession != nil && p.detailTab != "records" {
 					label, allowed := m.SessionLinks[d.row.SessionID]
@@ -341,84 +373,104 @@ func (p *Panel) detailStrip(c *ui.Context, m Model, snap schedstore.ViewState, d
 					if notice := scheduleSessionNotice(m, d.row.SessionID); notice != "" {
 						label += "\n" + notice
 					}
-					if scheduleIconButton(c, "schedule-linked-session", scheduleText("打开原会话", "Open original session"), "session", muted).Tooltip(label).Disabled(!allowed || d.row.Origin != snap.Origin).Clicked() {
+					if coss.Button(c, "", coss.ButtonOptions{
+						Key:      "schedule-linked-session",
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonIconSM,
+						Icon:     coss.IconMessage,
+						Label:    scheduleText("打开原会话", "Open original session"),
+						Disabled: !allowed || d.row.Origin != snap.Origin,
+					}).Tooltip(label).Clicked() {
 						m.OnOpenSession(d.row)
 					}
 				}
-				more := scheduleIconButton(c, "schedule-task-actions", "Automation task actions", "more", muted).Bind(&p.deleteTrigger)
-				more.Menu(func(menu *ui.Menu) {
-					if menu.Item(scheduleText("删除任务", "Delete task")).Disabled(snap.Busy || snap.Loading || !snap.ClientReady || !scheduleEntryAvailable(snap, d.row)).Chosen() {
-						row := d.row
-						p.deleting = &row
-						p.focusDelete = true
-					}
-				})
+				more := coss.Button(c, "", coss.ButtonOptions{
+					Key:     "schedule-task-actions",
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconSM,
+					Icon:    coss.IconEllipsis,
+					Label:   "Automation task actions",
+				}).Bind(&p.deleteTrigger)
+				menuOpen := ui.Local(more, "menu-open", func() bool { return false })
+				if id := coss.Menu(c, more, menuOpen, []coss.MenuItem{
+					{
+						ID:          "delete",
+						Label:       scheduleText("删除任务", "Delete task"),
+						Icon:        coss.IconTrash,
+						Destructive: true,
+						Disabled:    snap.Busy || snap.Loading || !snap.ClientReady || !scheduleEntryAvailable(snap, d.row),
+					},
+				}, coss.MenuOptions{
+					Align: coss.AlignEnd,
+					Label: "Automation task actions",
+				}); id == "delete" {
+					row := d.row
+					p.deleting = &row
+					p.focusDelete = true
+				}
 			}
 			closeLabel := "Close details"
 			if m.DetailID != "" {
 				closeLabel = "Close task"
 			}
-			if scheduleIconButton(c, "schedule-close-detail", closeLabel, "close", muted).Clicked() {
+			if coss.Button(c, "", coss.ButtonOptions{
+				Key:     "schedule-close-detail",
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconSM,
+				Icon:    coss.IconX,
+				Label:   closeLabel,
+			}).Tooltip(closeLabel).Clicked() {
 				p.dismissDetails(c, m, snap)
 			}
 		})
 	})
 }
 
-func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState, colors theme.Colors) {
+func (p *Panel) deleteDialog(c *ui.Context, m Model, snap schedstore.ViewState) {
 	if p.deleting == nil {
 		return
 	}
 	row := *p.deleting
 	open := true
-	_, height := c.Size()
-	ui.DialogBase(c.Key("schedule-delete-dialog"), &open, func(backdrop, panel ui.Element) {
-		// ui-primitives Modal.module.css .dialog: min(380px,100%) wide, 20px
-		// between the content column and the footer, 24px below it. The header
-		// pads 22/14/12/24, the description and body share 24px side pads, and
-		// the body lands 20px under the description.
-		chrome.FrostSurface(panel.Label("Delete this task?").Width(380).MaxWidthPercent(92).MaxHeight(max(float32(0), height-48)), colors, m.SystemDark, chrome.Color(colors.BG), theme.ContextRadii(c).Panel).Padding(0, 0, 24).Children(func() {
-			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
-				ui.Column(c.Key("schedule-delete-content")).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
-					ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, scheduleText("删除此任务？", "Delete this task?")).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(chrome.Color(colors.FG))
-						ui.Box(c).Grow(1)
-						if scheduleIconButton(c, "schedule-delete-close", scheduleText("关闭删除确认", "Close deletion confirmation"), "close", chrome.Color(colors.Muted)).Clicked() {
-							open = false
-						}
-					})
-					ui.Scroll(c.Key("schedule-delete-scroll")).MinHeight(0).MaxHeight(max(float32(40), height-200)).FillWidth().Children(func() {
-						ui.Column(c).FillWidth().MinWidth(0).Padding(0, 24, 0).Children(func() {
-							ui.Text(c, scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn.")).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
-							ui.Box(c).Height(20)
-							ui.Text(c, row.Prompt).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(chrome.Color(colors.FG)).FillWidth().MinWidth(0)
-						})
-					})
-				})
-				ui.Box(c).Height(20)
-				ui.Row(c).FillWidth().Padding(0, 24, 0).Justify(ui.End).Gap(8).Children(func() {
-					palette := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-					cancel := widgets.Button(c, palette, scheduleText("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium, Disabled: snap.Busy}).Bind(&p.deleteCancel)
-					cancel.Label("Cancel task deletion")
-					if p.focusDelete {
-						cancel.Focus()
-						p.focusDelete = false
-					}
-					if cancel.Clicked() {
-						p.deleting = nil
-						p.deleteTrigger.RequestFocus(c)
-					}
-					if widgets.Button(c, palette, scheduleText("确认删除", "Confirm deletion"), widgets.ButtonSpec{Variant: widgets.ButtonDanger, Size: widgets.ButtonMedium, Disabled: snap.Busy || !snap.ClientReady}).Clicked() {
-						p.deleting = nil
-						p.deleteTrigger.RequestFocus(c)
-						p.deleteTask(m, row)
-					}
-				})
-			})
-		})
-		chrome.DialogDecor(c, backdrop, panel, colors, 28)
+	panel := coss.AlertDialog(c, &open, coss.DialogOptions{
+		Key:         "schedule-delete-dialog",
+		Title:       scheduleText("删除此任务？", "Delete this task?"),
+		Description: scheduleText("任务将停止触发，并连同其已保存的任务运行记录一并删除。原会话及其消息仍然保留；已排队的消息不会被撤回。", "This stops the task from triggering and deletes it together with its saved delivery records. The original session and its messages remain; queued messages are not withdrawn."),
+		MaxWidth:    380,
+		Footer: func() {
+			cancel := coss.Button(c, scheduleText("取消", "Cancel"), coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Disabled: snap.Busy,
+			}).Bind(&p.deleteCancel)
+			cancel.Label("Cancel task deletion")
+			if p.focusDelete {
+				cancel.Focus()
+				p.focusDelete = false
+			}
+			if cancel.Clicked() {
+				open = false
+			}
+			if coss.Button(c, scheduleText("确认删除", "Confirm deletion"), coss.ButtonOptions{
+				Variant:  coss.ButtonDestructive,
+				Disabled: snap.Busy || !snap.ClientReady,
+			}).Clicked() {
+				p.deleting = nil
+				p.deleteTrigger.RequestFocus(c)
+				p.deleteTask(m, row)
+			}
+		},
+	}, func() {
+		if strings.TrimSpace(row.Prompt) != "" {
+			pagekit.Body(c, row.Prompt).FillWidth().MinWidth(0)
+		}
 	})
-	if !open {
+	if panel != (ui.Element{}) {
+		panel.Label("Delete this task?")
+		if panel.Bounds().H == 0 {
+			c.Services().Invalidate()
+		}
+	}
+	if !open && p.deleting != nil {
 		p.deleting = nil
 		p.deleteTrigger.RequestFocus(c)
 	}
@@ -468,19 +520,4 @@ func scheduleFrequency(row schedstore.Entry) string {
 		return text
 	}
 	return scheduleText("运行规则不可用", "Run rule unavailable")
-}
-
-func scheduleIconButton(c *ui.Context, key, label, icon string, ink ui.Color) ui.Element {
-	b := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).BorderWidth(0).Background(ui.Transparent).Radius(theme.ContextRadii(c).SM)
-	b.Children(func() { ui.Icon(c, scheduleIcons[icon]).Size(16, 16).TextColor(ink) })
-	return b
-}
-
-var scheduleIcons = map[string]*ui.SVG{
-	"clock":   ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><path d="M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" stroke="currentColor"/><path d="M8 4.31v4.15L11 10.08" stroke="currentColor"/></svg>`)),
-	"search":  ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor"/><path d="m10.5 10.5 3 3" stroke="currentColor"/></svg>`)),
-	"close":   ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><path d="m4 4 8 8M12 4l-8 8" stroke="currentColor"/></svg>`)),
-	"more":    ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="13" cy="8" r="1"/></svg>`)),
-	"session": ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><path d="M13.5 10a2 2 0 0 1-2 2H6l-3.5 2V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v6Z" stroke="currentColor"/></svg>`)),
-	"plus":    ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor"/></svg>`)),
 }

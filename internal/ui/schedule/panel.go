@@ -14,8 +14,8 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/state"
 	schedstore "whaleisle/internal/store/schedule"
-	"whaleisle/internal/ui/chrome"
-	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 // Panel retains the current detail draft while it is mounted, including failures.
@@ -62,6 +62,8 @@ type Panel struct {
 	catalogError         *state.Fault
 	catalogErrorRequest  uint64
 	catalogDismissed     bool
+	catalogScroll        ui.ScrollState
+	deliveryMeasureGen   uint64
 }
 type savedDraft struct {
 	row schedstore.Entry
@@ -256,8 +258,9 @@ func (p *Panel) View(c *ui.Context, m Model) {
 			p.OpenTask(row, snap.ConnectionEpoch)
 		}
 	}
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	t := design.For(c)
 	root := ui.Row(c.Key("schedule-page")).Label("Automation tasks page").Grow(1).FillWidth().MinWidth(0).MinHeight(0).AlignItems(ui.Stretch).Background(ui.Transparent)
+	epoch := trackStoreEpoch(root, m.Store)
 	width := root.Bounds().W
 	if width <= 0 {
 		width, _ = c.Size()
@@ -272,19 +275,22 @@ func (p *Panel) View(c *ui.Context, m Model) {
 	draft := p.drafts[p.selected]
 	root.Children(func() {
 		if m.DetailID == "" && (draft == nil || width > 760) {
-			p.catalogView(c, m, snap, colors, width)
+			p.catalogView(c, m, snap, epoch, width)
 		}
 		if draft != nil {
-			p.detailView(c, m, snap, draft, colors, width)
+			p.detailView(c, m, snap, draft, epoch, width)
 		} else if m.DetailID != "" {
 			ui.Column(c.Key("schedule-unavailable")).Fill().MinWidth(0).Children(func() {
-				p.detailStrip(c, m, snap, nil, colors, width)
-				ui.Column(c).Fill().Justify(ui.Center).Children(func() {
+				p.detailStrip(c, m, snap, nil, width)
+				ui.Column(c).Fill().Justify(ui.Center).AlignItems(ui.Center).Padding(design.Sp(6)).Children(func() {
 					answered := snap.CatalogSettled && snap.CatalogReadSettled > p.detailReadBaseline
 					if !answered && snap.ClientReady && snap.Err == nil {
-						ui.Spinner(c).Size(20, 20).TextColor(chrome.Color(colors.Muted))
-					} else if !p.catalogFeedback(c, m, snap, colors, false) {
-						scheduleEmpty(c, scheduleText("任务已不可用，可能已被删除", "Task unavailable. It may have been deleted."), colors)
+						coss.Spinner(c, coss.SpinnerOptions{Size: design.IconLG, Color: t.MutedForeground})
+					} else if !p.catalogFeedback(c, m, snap, false) {
+						coss.Empty(c, coss.EmptyOptions{
+							Icon:  coss.IconClock,
+							Title: scheduleText("任务已不可用，可能已被删除", "Task unavailable. It may have been deleted."),
+						}, nil)
 					}
 				})
 			})
@@ -301,7 +307,7 @@ func (p *Panel) View(c *ui.Context, m Model) {
 			p.dismissDetails(c, m, snap)
 		}
 	}
-	p.deleteDialog(c, m, snap, colors)
+	p.deleteDialog(c, m, snap)
 }
 
 func (d *taskDraft) dirty() bool {
