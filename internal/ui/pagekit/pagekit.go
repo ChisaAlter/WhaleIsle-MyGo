@@ -159,10 +159,12 @@ func Fault(c *ui.Context, title, raw, retryLabel string, retry func()) {
 }
 
 // FaultSentence is Fault for a sentence already made safe for the view
-// (state.Fault.SentenceText, authored copy).
+// (state.Fault.SentenceText, authored copy). It is only called on a real
+// failure, so an empty sentence falls back to errcopy's generic one rather
+// than rendering nothing.
 func FaultSentence(c *ui.Context, title, sentence, retryLabel string, retry func()) {
 	if sentence == "" {
-		return
+		sentence = errcopy.CauseSentenceIn("", errcopy.CauseUnknown, "")
 	}
 	o := coss.AlertOptions{Variant: coss.AlertError}
 	if retry != nil {
