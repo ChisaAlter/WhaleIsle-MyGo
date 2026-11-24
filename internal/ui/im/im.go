@@ -11,6 +11,8 @@ import (
 
 	imstore "whaleisle/internal/store/im"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -61,34 +63,35 @@ func View(c *ui.Context, m Model) {
 
 	ui.Column(c).Grow(1).MinHeight(0).Background(ui.Transparent).Children(func() {
 		if !m.Embedded {
-			ui.Row(c).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1)
-				if m.Store != nil && !m.PluginDisabled && ui.Button(c, "平台接入 / 修复").Clicked() {
+			leftPad, rightPad := chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
+			ui.Row(c.Key("im-header")).FillWidth().MinWidth(0).Shrink(0).Padding(design.Sp(2), rightPad, design.Sp(2), leftPad).Gap(design.Sp(2)).AlignItems(ui.Center).DragWindow().Children(func() {
+				ui.Text(c, i18n.T(i18n.KeyIMTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+				if m.Store != nil && !m.PluginDisabled && coss.Button(c, channelText("平台接入 / 修复", "Channel setup / repair"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Key: "im-onboarding"}).Shrink(0).Clicked() {
 					m.Store.Onboarding.Show("feishu")
 				}
-				if m.Store != nil && !m.PluginDisabled && ui.Button(c, "AI Office").Clicked() {
+				if m.Store != nil && !m.PluginDisabled && coss.Button(c, "AI Office", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Key: "im-office"}).Shrink(0).Clicked() {
 					m.Store.Office.Show(context.Background())
 				}
 				if m.PluginDisabled && m.OnEnablePlugin != nil {
-					if ui.Button(c, i18n.T(keyIMEnablePlugin)).Clicked() {
+					if coss.Button(c, i18n.T(keyIMEnablePlugin), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Key: "im-enable-plugin"}).Shrink(0).Clicked() {
 						m.OnEnablePlugin()
 					}
 				}
-				if m.OnOpenPluginWeb != nil && ui.Button(c, i18n.T(i18n.KeyIMOpenWeb)).Clicked() {
+				if m.OnOpenPluginWeb != nil && coss.Button(c, i18n.T(i18n.KeyIMOpenWeb), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Key: "im-open-web"}).Shrink(0).Clicked() {
 					m.OnOpenPluginWeb()
 				}
-				if m.Store != nil && ui.Button(c, i18n.T(i18n.KeyIMRefresh)).Disabled(snap.ConnectionBusy).Clicked() {
+				if m.Store != nil && coss.Button(c, i18n.T(i18n.KeyIMRefresh), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: snap.ConnectionBusy, Key: "im-refresh"}).Shrink(0).Clicked() {
 					if m.OnRefresh != nil {
 						m.OnRefresh()
 					} else {
 						m.Store.Refresh(context.Background())
 					}
 				}
-				if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyIMBack)).Clicked() {
+				if m.OnClose != nil && coss.Button(c, i18n.T(i18n.KeyIMBack), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Key: "im-back"}).Shrink(0).Clicked() {
 					m.OnClose()
 				}
 			})
-			ui.Box(c).Fill().Height(1).Background(border)
+			ui.Box(c).FillWidth().Height(1).Shrink(0).Background(border)
 
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(12, 16, 12, 16).Gap(10).Children(func() {

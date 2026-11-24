@@ -13,6 +13,8 @@ import (
 	"time"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -23,7 +25,10 @@ func onboardingView(c *ui.Context, m Model) {
 	copy := copyForChannel(v.Channel)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	root := ui.Column(c.Key(fmt.Sprintf("im-setup-%d", v.Scope))).FillWidth().MinWidth(0).Gap(12)
+	root := ui.Column(c.Key(fmt.Sprintf("im-setup-%d", v.Scope))).FillWidth().MinWidth(0).Gap(design.Sp(3))
+	if !m.Embedded {
+		root.Grow(1).MinHeight(0)
+	}
 	page := ui.Local(root, "channel-page", func() channelPageState { return channelPageState{} })
 	if v.Loaded && !page.loaded {
 		page.loaded = true
@@ -35,14 +40,25 @@ func onboardingView(c *ui.Context, m Model) {
 	blocked := v.Busy || !v.Available || m.PluginDisabled || !m.HarnessReady
 	root.Children(func() {
 		if !m.Embedded {
-			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-				ui.Text(c, copy.name).Bold().Grow(1)
+			leftPad, rightPad := chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
+			ui.Row(c.Key("im-onboarding-header")).FillWidth().MinWidth(0).Shrink(0).Padding(design.Sp(2), rightPad, design.Sp(2), leftPad).Wrap().Gap(design.Sp(2)).AlignItems(ui.Center).DragWindow().Children(func() {
+				ui.Text(c, copy.name).Bold().Grow(1).MinWidth(0)
 				for _, platform := range imonboard.Platforms {
-					if ui.Button(c, platform.Label).Disabled(v.Busy || platform.ID == v.Channel).Clicked() {
+					variant := coss.ButtonOutline
+					if platform.ID == v.Channel {
+						variant = coss.ButtonSecondary
+					}
+					if coss.Button(c, platform.Label, coss.ButtonOptions{
+						Variant:  variant,
+						Size:     coss.ButtonSM,
+						Disabled: v.Busy || platform.ID == v.Channel,
+						Pressed:  platform.ID == v.Channel,
+						Key:      "platform-" + platform.ID,
+					}).Shrink(0).Clicked() {
 						s.Show(platform.ID)
 					}
 				}
-				if ui.Button(c, channelText("返回 IM", "Back to IM")).Clicked() {
+				if coss.Button(c, channelText("返回 IM", "Back to IM"), coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Key: "im-onboarding-back"}).Shrink(0).Clicked() {
 					s.Hide()
 				}
 			})
