@@ -37,7 +37,7 @@ vec3 sampleBackdrop(Effect e, vec2 q) {
 void main() {
 	vec2 p = vPoint.xy;
 	Effect e = Effect(vRect, abs(vRadii), vInner, vColor, vColor2, vBorder, vGrad, vWidths, vParams.z);
-	fragColor = effect(p, e) * (rectCoverage(p, vRect, vRadii) * rectCoverage(p, vClip, vClipRadii) * vParams.w);
+	fragColor = effect(p, e) * (rectCoverage(p, vRect, vRadii) * rectCoverage(p, vClip, vClipRadii) * fadeCoverage(p.x, vClipFade) * vParams.w);
 #ifdef DUAL
 	fragAlpha = fragColor.aaaa;
 #endif

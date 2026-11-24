@@ -52,6 +52,7 @@ func (m *Image) RGBA() []byte {
 type clip struct {
 	shape
 	round bool
+	fade  [2]float32
 	// spans is where in spanBuf the clip, with continuous corners, keeps
 	// the spans clipSolid found for the rows of the area, lo and hi a row
 	// (noSpan until found), or -1.
@@ -217,7 +218,7 @@ func (r *renderer) render(dst *Image, s *scene.Scene, area image.Rectangle, boun
 			}
 		case scene.OpPushClip:
 			radii := scene.Corners(op.Rect, op.Radii, op.Continuous)
-			c := clip{shape: newShape(op.Rect, radii), round: hasRadii(radii), spans: -1}
+			c := clip{shape: newShape(op.Rect, radii), round: hasRadii(radii), fade: op.Fade, spans: -1}
 			if c.continuous {
 				// Continuous corners take long to find the spans of, which
 				// every operation within the clip needs.
@@ -287,6 +288,16 @@ func (r *renderer) clipCoverage(x, y int) float32 {
 			// Partial pixels at fractional clip edges.
 			cov *= clamp01(min(px-c.r.X, c.r.X+c.r.W-px)+0.5) * clamp01(min(py-c.r.Y, c.r.Y+c.r.H-py)+0.5)
 		}
+		if c.fade[0] > 0 || c.fade[1] > 0 {
+			fa := float32(1)
+			if c.fade[0] > 0 {
+				fa = min(fa, clamp01((px-c.r.X)/c.fade[0]))
+			}
+			if c.fade[1] > 0 {
+				fa = min(fa, clamp01((c.r.X+c.r.W-px)/c.fade[1]))
+			}
+			cov *= fa
+		}
 		if cov == 0 {
 			return 0
 		}
@@ -310,6 +321,12 @@ func (r *renderer) clipSolid(y int) (lo, hi int) {
 			}
 		} else {
 			l, h = solidSpan(&c.shape, float32(y), float32(y+1))
+		}
+		if c.fade[0] > 0 {
+			l = max(l, int(math.Ceil(float64(c.r.X+c.fade[0]))))
+		}
+		if c.fade[1] > 0 {
+			h = min(h, int(math.Floor(float64(c.r.X+c.r.W-c.fade[1]))))
 		}
 		lo, hi = max(lo, l), min(hi, h)
 	}

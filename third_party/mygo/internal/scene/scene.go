@@ -138,6 +138,10 @@ type Op struct {
 	Grayscale bool
 	// Opacity multiplies the op's colors; 0 means 1.
 	Opacity float32
+	// Fade holds optional horizontal edge fade widths in device pixels
+	// (left, right) for OpPushClip: alpha ramps linearly from 0 at the
+	// clip's left/right edges to 1 inward. Zero disables fading.
+	Fade [2]float32
 }
 
 // Paint is what fills an OpFill besides plain Color, or the masks of an

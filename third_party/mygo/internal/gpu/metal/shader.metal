@@ -24,6 +24,7 @@ struct Inst {
 	float4 clip;      // the innermost clip rectangle
 	float4 clipRadii;
 	float4 params;    // kind, dashed or grayscale, sigma or paint, opacity
+	float4 clipFade;  // horizontal edge fade: left, right, fadeL, fadeR
 };
 
 // The color and, for dual-source blending, the source's alpha of each
@@ -73,6 +74,17 @@ float sdRoundRect(float2 p, float4 rect, float4 radii) {
 }
 
 float coverage(float d) { return saturate(0.5f - d); }
+
+float fadeCoverage(float x, float4 fade) {
+	float a = 1.0f;
+	if (fade.z > 0.0f) {
+		a = min(a, saturate((x - fade.x) / fade.z));
+	}
+	if (fade.w > 0.0f) {
+		a = min(a, saturate((fade.y - x) / fade.w));
+	}
+	return a;
+}
 
 // Continuous corners are Core Animation's, as internal/raster/corner.go
 // explains: a corner of radius r whose curve leaves the edges e from it,
@@ -435,11 +447,11 @@ fragment PSOut ps(VSOut v [[stage_in]],
 		float4 c = paint(v.p, i.params.z, i.rect, i.color, i.color2, i.grad, wide);
 		float3 straight = unpremul(c);
 		float3 a = subpixelCoverage(colorTex.sample(samp, v.tex).rgb, straight, i.inner.x, i.inner.y, i.radii);
-		float3 w = a * c.a * rectCoverage(v.p, i.clip, i.clipRadii) * i.params.w;
+		float3 w = a * c.a * rectCoverage(v.p, i.clip, i.clipRadii) * fadeCoverage(v.p.x, i.clipFade) * i.params.w;
 		float wa = (w.r + w.g + w.b) / 3.0f;
 		return PSOut{float4(straight * w, wa), float4(w, wa)};
 	}
-	float clip = rectCoverage(v.p, i.clip, i.clipRadii);
+	float clip = rectCoverage(v.p, i.clip, i.clipRadii) * fadeCoverage(v.p.x, i.clipFade);
 	res *= clip * i.params.w;
 	return PSOut{res, res.aaaa};
 }

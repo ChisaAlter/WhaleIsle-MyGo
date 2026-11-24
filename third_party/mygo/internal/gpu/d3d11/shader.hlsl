@@ -28,6 +28,7 @@ struct Inst {
 	float4 clip : CLIP;         // the innermost clip rectangle
 	float4 clipRadii : CLIPR;
 	float4 params : PARAMS;     // kind, dashed or grayscale, sigma or paint, opacity
+	float4 clipFade : CLIPF;    // horizontal edge fade: left, right, fadeL, fadeR
 };
 
 struct VSOut {
@@ -45,6 +46,7 @@ struct VSOut {
 	nointerpolation float4 clip : CLIP;
 	nointerpolation float4 clipRadii : CLIPR;
 	nointerpolation float4 params : PARAMS;
+	nointerpolation float4 clipFade : CLIPF;
 };
 
 VSOut vs(uint vid : SV_VertexID, Inst i) {
@@ -73,6 +75,7 @@ VSOut vs(uint vid : SV_VertexID, Inst i) {
 	o.clip = i.clip;
 	o.clipRadii = i.clipRadii;
 	o.params = i.params;
+	o.clipFade = i.clipFade;
 	return o;
 }
 
@@ -109,6 +112,17 @@ float rectCoverage(float2 p, float4 rect, float4 radii) {
 	}
 	float2 c = saturate(min(rect.xy + rect.zw, p + 0.5) - max(rect.xy, p - 0.5));
 	return c.x * c.y;
+}
+
+float fadeCoverage(float x, float4 fade) {
+	float a = 1.0;
+	if (fade.z > 0.0) {
+		a = min(a, saturate((x - fade.x) / fade.z));
+	}
+	if (fade.w > 0.0) {
+		a = min(a, saturate((fade.y - x) / fade.w));
+	}
+	return a;
 }
 
 float4 premul(float4 c) { return float4(c.rgb * c.a, c.a); }
@@ -302,14 +316,14 @@ PSOut ps(VSOut i) {
 		float4 c = paint(i.p, i.params.z, i.rect, i.color, i.color2, i.grad);
 		float3 straight = unpremul(c);
 		float3 a = subpixelCoverage(colorTex.Sample(samp, i.tex).rgb, straight, i.inner.x, i.inner.y, i.radii);
-		float3 w = a * c.a * rectCoverage(i.p, i.clip, i.clipRadii) * i.params.w;
+		float3 w = a * c.a * rectCoverage(i.p, i.clip, i.clipRadii) * fadeCoverage(i.p.x, i.clipFade) * i.params.w;
 		float wa = (w.r + w.g + w.b) / 3;
 		PSOut so;
 		so.color = float4(straight * w, wa);
 		so.alpha = float4(w, wa);
 		return so;
 	}
-	float clip = rectCoverage(i.p, i.clip, i.clipRadii);
+	float clip = rectCoverage(i.p, i.clip, i.clipRadii) * fadeCoverage(i.p.x, i.clipFade);
 	PSOut o;
 	o.color = res * (clip * i.params.w);
 	o.alpha = o.color.aaaa;

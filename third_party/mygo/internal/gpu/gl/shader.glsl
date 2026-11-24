@@ -24,6 +24,7 @@ layout(location = 7) in vec4 aUV;        // texture rectangle, normalized, borde
 layout(location = 8) in vec4 aClip;      // the innermost clip rectangle
 layout(location = 9) in vec4 aClipRadii;
 layout(location = 10) in vec4 aParams;   // kind, dashed or grayscale, sigma or paint, opacity
+layout(location = 11) in vec4 aClipFade; // horizontal edge fade: left, right, fadeL, fadeR
 
 uniform vec2 uSize;
 
@@ -39,6 +40,7 @@ flat out vec4 vWidths;
 flat out vec4 vClip;
 flat out vec4 vClipRadii;
 flat out vec4 vParams;
+flat out vec4 vClipFade;
 
 void main() {
 	vec2 corner = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));
@@ -64,6 +66,7 @@ void main() {
 	vClip = aClip;
 	vClipRadii = aClipRadii;
 	vParams = aParams;
+	vClipFade = aClipFade;
 }
 
 #endif
@@ -82,6 +85,7 @@ flat in vec4 vWidths;
 flat in vec4 vClip;
 flat in vec4 vClipRadii;
 flat in vec4 vParams;
+flat in vec4 vClipFade;
 
 uniform sampler2D uMask;
 uniform sampler2D uColor;
@@ -117,6 +121,17 @@ float rectCoverage(vec2 p, vec4 rect, vec4 radii) {
 	}
 	vec2 c = clamp(min(rect.xy + rect.zw, p + 0.5) - max(rect.xy, p - 0.5), 0.0, 1.0);
 	return c.x * c.y;
+}
+
+float fadeCoverage(float x, vec4 fade) {
+	float a = 1.0;
+	if (fade.z > 0.0) {
+		a = min(a, clamp((x - fade.x) / fade.z, 0.0, 1.0));
+	}
+	if (fade.w > 0.0) {
+		a = min(a, clamp((fade.y - x) / fade.w, 0.0, 1.0));
+	}
+	return a;
 }
 
 vec4 premul(vec4 c) { return vec4(c.rgb * c.a, c.a); }
@@ -319,7 +334,7 @@ void main() {
 		vec4 c = paint(p, vParams.z, vRect, vColor, vColor2, vGrad);
 		vec3 straight = unpremul(c);
 		vec3 a = subpixelCoverage(texture(uColor, tex).rgb, straight, vInner.x, vInner.y, vRadii);
-		vec3 w = a * c.a * rectCoverage(p, vClip, vClipRadii) * vParams.w;
+		vec3 w = a * c.a * rectCoverage(p, vClip, vClipRadii) * fadeCoverage(p.x, vClipFade) * vParams.w;
 		float wa = (w.r + w.g + w.b) / 3.0;
 #ifdef DUAL
 		fragColor = vec4(straight * w, wa);
@@ -329,7 +344,7 @@ void main() {
 #endif
 		return;
 	}
-	float clip = rectCoverage(p, vClip, vClipRadii);
+	float clip = rectCoverage(p, vClip, vClipRadii) * fadeCoverage(p.x, vClipFade);
 	fragColor = res * clip * vParams.w;
 #ifdef DUAL
 	fragAlpha = fragColor.aaaa;
