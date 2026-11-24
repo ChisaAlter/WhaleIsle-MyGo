@@ -14,8 +14,8 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 		m.OnChooseImage()
 	}
 	ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyAManuallyChosenLocalJpegPngIsUse)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if p.Error != "" {
-		ui.Text(c, p.Error).TextColor(accent)
+	if p.Error != nil {
+		ui.Text(c, p.Error.SentenceText()).TextColor(accent)
 	}
 	if !p.Busy && !p.Ready {
 		return
@@ -48,7 +48,7 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 			if changed && m.OnImageCropChange != nil {
 				m.OnImageCropChange(crop)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantApplyCropToDraft)).Disabled(!eligible || p.Error != "" || m.OnApplyImageCrop == nil).Clicked() {
+			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantApplyCropToDraft)).Disabled(!eligible || p.Error != nil || m.OnApplyImageCrop == nil).Clicked() {
 				m.OnApplyImageCrop()
 			}
 		}

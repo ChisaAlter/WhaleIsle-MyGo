@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -32,7 +33,8 @@ type MemorySnapshot struct {
 	Server                    pluginrpc.DshbotMemoryResult
 	Draft                     *MemoryDraft
 	Review                    *MemoryReview
-	Error, Notice             string
+	Error                     *state.Fault
+	Notice                    string
 }
 
 // A separate memory state machine shares only the parent's Host/Bot lifecycle.
@@ -42,12 +44,17 @@ type MemoryControls struct {
 	state                MemorySnapshot
 	generation, sequence uint64
 	attempt              *pluginrpc.DshbotMemoryCommand
+	pub                  state.Published[MemorySnapshot]
+	dirty                bool
+	foreignPub           state.Published[MemorySnapshot]
+	foreignKey           RoutineScope
 }
 
 func (c *MemoryControls) Bind(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
+		c.dirty = true
 		c.generation++
 		c.sequence++
 		c.state = MemorySnapshot{Scope: k, Track: "bot"}
@@ -57,11 +64,21 @@ func (c *MemoryControls) Bind(k RoutineScope) {
 func (c *MemoryControls) valid(k RoutineScope) bool {
 	return k == c.state.Scope && k.HostKey != "" && k.BotID != ""
 }
-func (c *MemoryControls) Snapshot(k RoutineScope) MemorySnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *MemoryControls) Snapshot(k RoutineScope) *state.Version[MemorySnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Scope != k {
-		return MemorySnapshot{Scope: k, Track: "bot"}
+		if c.foreignPub.Load() == nil || c.foreignKey != k {
+			c.foreignKey = k
+			c.foreignPub.Publish(MemorySnapshot{Scope: k, Track: "bot"})
+		}
+		return c.foreignPub.Load()
+	}
+	if v := c.pub.Load(); v != nil && !c.dirty {
+		return v
 	}
 	out := c.state
 	out.Generation = c.generation
@@ -75,7 +92,9 @@ func (c *MemoryControls) Snapshot(k RoutineScope) MemorySnapshot {
 		r := *out.Review
 		out.Review = &r
 	}
-	return out
+	c.pub.Publish(out)
+	c.dirty = false
+	return c.pub.Load()
 }
 func (c *MemoryControls) current(t MemoryTicket) bool {
 	return c.valid(t.Scope) && c.generation == t.generation && c.state.Busy
@@ -93,6 +112,7 @@ func (c *MemoryControls) Current(t MemoryTicket) bool {
 func (c *MemoryControls) BeginLoad(k RoutineScope) (MemoryTicket, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.valid(k) || c.state.Busy {
 		return MemoryTicket{}, false
 	}
@@ -100,12 +120,13 @@ func (c *MemoryControls) BeginLoad(k RoutineScope) (MemoryTicket, bool) {
 	c.state.Busy = true
 	c.state.Loaded = false
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	return MemoryTicket{k, c.generation}, true
 }
 func (c *MemoryControls) FinishLoad(t MemoryTicket, bot pluginrpc.DshbotCatalogItem, v pluginrpc.DshbotMemoryResult, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) {
 		return false
 	}
@@ -118,7 +139,7 @@ func (c *MemoryControls) FinishLoad(t MemoryTicket, bot pluginrpc.DshbotCatalogI
 		err = fmt.Errorf("select an available individual Bot")
 	}
 	if err != nil {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotMemoryUnavailableDraftRetained)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotMemoryUnavailableDraftRetained))
 		return true
 	}
 	if c.state.SessionID != "" && c.state.SessionID != bot.SessionID {
@@ -131,7 +152,7 @@ func (c *MemoryControls) FinishLoad(t MemoryTicket, bot pluginrpc.DshbotCatalogI
 	c.state.BotName = bot.Name
 	c.state.Loaded = true
 	c.state.Writable = writable
-	c.state.Error = ""
+	c.state.Error = nil
 	if c.attempt != nil {
 		actual := v.Track(c.attempt.Track)
 		if actual.Text == c.attempt.Text {
@@ -143,13 +164,14 @@ func (c *MemoryControls) FinishLoad(t MemoryTicket, bot pluginrpc.DshbotCatalogI
 		c.attempt = nil
 	}
 	if d := c.state.Draft; d != nil && d.BaseRevision != v.Track(d.Track).Revision {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotMemoryConflictNoAutomaticRebase)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotMemoryConflictNoAutomaticRebase))
 	}
 	return true
 }
 func (c *MemoryControls) SetTrack(k RoutineScope, track string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && c.state.Draft == nil && (track == "bot" || track == "user") {
 		c.generation++
 		c.state.Track = track
@@ -157,6 +179,7 @@ func (c *MemoryControls) SetTrack(k RoutineScope, track string) {
 	}
 }
 func (c *MemoryControls) start(k RoutineScope, index int, remove bool) bool {
+	c.dirty = true
 	if !c.valid(k) || !c.state.Loaded || !c.state.Writable || c.state.Busy || c.state.Draft != nil {
 		return false
 	}
@@ -172,7 +195,7 @@ func (c *MemoryControls) start(k RoutineScope, index int, remove bool) bool {
 	c.generation++
 	c.state.Draft = d
 	c.state.Review = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	return true
 }
 func (c *MemoryControls) StartEdit(k RoutineScope, index int) {
@@ -183,6 +206,7 @@ func (c *MemoryControls) StartEdit(k RoutineScope, index int) {
 func (c *MemoryControls) Change(k RoutineScope, text string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && c.state.Draft != nil && !c.state.Draft.Remove {
 		c.sequence++
 		c.generation++
@@ -194,28 +218,31 @@ func (c *MemoryControls) Change(k RoutineScope, text string) {
 func (c *MemoryControls) Discard(k RoutineScope) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy {
 		c.generation++
 		c.state.Draft = nil
 		c.state.Review = nil
-		c.state.Error = ""
+		c.state.Error = nil
 	}
 }
 func (c *MemoryControls) Dismiss(k RoutineScope, expected *MemoryReview) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if c.valid(k) && !c.state.Busy && expected != nil && c.state.Review != nil && expected.Sequence == c.state.Review.Sequence {
 		c.generation++
 		c.state.Review = nil
 	}
 }
 func (c *MemoryControls) prepare(k RoutineScope) {
+	c.dirty = true
 	d := c.state.Draft
 	if !c.valid(k) || !c.state.Loaded || !c.state.Writable || c.state.Busy || d == nil {
 		return
 	}
 	if d.BaseRevision != c.state.Server.Track(d.Track).Revision {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotMemoryRevisionConflict)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotMemoryRevisionConflict))
 		return
 	}
 	entries := append([]string(nil), d.Entries...)
@@ -223,7 +250,7 @@ func (c *MemoryControls) prepare(k RoutineScope) {
 		entries = append(entries[:d.Index], entries[d.Index+1:]...)
 	} else {
 		if pluginrpc.DshbotMemoryText([]string{d.Input}) == "" {
-			c.state.Error = storelocale.T(storelocale.KeyStoreDshbotEntryMustNotBeEmpty)
+			c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotEntryMustNotBeEmpty))
 			return
 		}
 		if d.Index < 0 {
@@ -234,17 +261,17 @@ func (c *MemoryControls) prepare(k RoutineScope) {
 	}
 	cmd := pluginrpc.DshbotMemoryCommand{BotID: k.BotID, SessionID: c.state.SessionID, Track: d.Track, MemoryRevision: d.BaseRevision, Text: pluginrpc.DshbotMemoryText(entries), Limit: c.state.Server.Limit(d.Track)}
 	if err := pluginrpc.ValidateDshbotMemoryCommand(cmd); err != nil {
-		c.state.Error = err.Error()
+		c.state.Error = state.FaultOf(err)
 		return
 	}
 	if cmd.Text == d.BaseText {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotNoMemoryChanges)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotNoMemoryChanges))
 		return
 	}
 	c.sequence++
 	c.generation++
 	c.state.Review = &MemoryReview{Command: cmd, Before: d.BaseText, Sequence: c.sequence, DraftVersion: d.Version, Remove: d.Remove}
-	c.state.Error = ""
+	c.state.Error = nil
 }
 func (c *MemoryControls) Prepare(k RoutineScope) { c.mu.Lock(); defer c.mu.Unlock(); c.prepare(k) }
 func (c *MemoryControls) PrepareDelete(k RoutineScope, index int) {
@@ -257,6 +284,7 @@ func (c *MemoryControls) PrepareDelete(k RoutineScope, index int) {
 func (c *MemoryControls) BeginSave(k RoutineScope, expected *MemoryReview) (MemoryTicket, pluginrpc.DshbotMemoryCommand, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	var zero pluginrpc.DshbotMemoryCommand
 	r := c.state.Review
 	d := c.state.Draft
@@ -273,6 +301,7 @@ func (c *MemoryControls) BeginSave(k RoutineScope, expected *MemoryReview) (Memo
 func (c *MemoryControls) FinishSave(t MemoryTicket, out pluginrpc.DshbotMemoryReceipt, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.dirty = true
 	if !c.current(t) || c.attempt == nil {
 		return false
 	}
@@ -284,7 +313,7 @@ func (c *MemoryControls) FinishSave(t MemoryTicket, out pluginrpc.DshbotMemoryRe
 		err = pluginrpc.ValidateDshbotMemoryReceipt(cmd, out)
 	}
 	if err != nil {
-		c.state.Error = storelocale.T(storelocale.KeyStoreDshbotSaveUncertainRefreshToVerify)
+		c.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotSaveUncertainRefreshToVerify))
 		return true
 	}
 	track := out.DshbotMemoryTrack
@@ -297,7 +326,7 @@ func (c *MemoryControls) FinishSave(t MemoryTicket, out pluginrpc.DshbotMemoryRe
 	c.state.Loaded = true
 	c.state.Draft = nil
 	c.attempt = nil
-	c.state.Error = ""
+	c.state.Error = nil
 	c.state.Notice = storelocale.T(storelocale.KeyStoreDshbotHostConfirmedMemoryReplacement)
 	return true
 }

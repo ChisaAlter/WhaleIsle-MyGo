@@ -40,7 +40,7 @@ func TestBotAvatarImageImportLifecycleAndUnknown(t *testing.T) {
 		}
 	}
 	load()
-	original := c.Snapshot(k).Draft
+	original := c.Snapshot(k).Value.Draft
 	ticket, ok := c.BeginImageImport(k)
 	if !ok || !c.ImageImportCurrent(ticket) {
 		t.Fatal("begin import")
@@ -49,27 +49,27 @@ func TestBotAvatarImageImportLifecycleAndUnknown(t *testing.T) {
 		t.Fatal("refresh during import")
 	}
 	c.SetDraft(k, pluginrpc.DshbotAvatarValues{Kind: "blob", Shape: "hex", Color: "red"})
-	if c.Snapshot(k).Draft != original {
+	if c.Snapshot(k).Value.Draft != original {
 		t.Fatal("changed during chooser")
 	}
-	if !c.FinishImageImport(ticket, source, nil) || !c.Snapshot(k).ImageImport.Ready || c.Snapshot(k).Draft != original {
+	if !c.FinishImageImport(ticket, source, nil) || !c.Snapshot(k).Value.ImageImport.Ready || c.Snapshot(k).Value.Draft != original {
 		t.Fatal("import silently replaced draft")
 	}
 	crop := avatarimage.DefaultCrop("square")
 	crop.Zoom = 2
 	crop.X = 1
 	c.UpdateImageCrop(k, crop)
-	if c.Snapshot(k).ImageImport.Crop != crop {
+	if c.Snapshot(k).Value.ImageImport.Crop != crop {
 		t.Fatal("crop not consumed")
 	}
 	c.CancelImageImport(k)
-	if c.imageImport != nil || c.Snapshot(k).ImageImport.Ready || c.Snapshot(k).Draft != original {
+	if c.imageImport != nil || c.Snapshot(k).Value.ImageImport.Ready || c.Snapshot(k).Value.Draft != original {
 		t.Fatal("cancel retained source")
 	}
 	ticket, _ = c.BeginImageImport(k)
 	parent.Bind(RoutineScope{})
 	parent.Bind(k)
-	if c.FinishImageImport(ticket, source, nil) || c.ImageImportCurrent(ticket) || c.imageImport != nil || c.Snapshot(k).ImageImport.Busy {
+	if c.FinishImageImport(ticket, source, nil) || c.ImageImportCurrent(ticket) || c.imageImport != nil || c.Snapshot(k).Value.ImageImport.Busy {
 		t.Fatal("hidden selection revived")
 	}
 	load()
@@ -78,13 +78,13 @@ func TestBotAvatarImageImportLifecycleAndUnknown(t *testing.T) {
 	if !c.ApplyImageCrop(k) {
 		t.Fatal("apply")
 	}
-	applied := c.Snapshot(k).Draft
-	if applied.Kind != "image" || !c.Snapshot(k).Dirty || c.imageImport != nil {
+	applied := c.Snapshot(k).Value.Draft
+	if applied.Kind != "image" || !c.Snapshot(k).Value.Dirty || c.imageImport != nil {
 		t.Fatal("apply/source release")
 	}
 	parent.Bind(RoutineScope{})
 	parent.Bind(k)
-	if c.Snapshot(k).Draft != original || c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Draft != original || c.Snapshot(k).Value.Dirty {
 		t.Fatal("hidden unsent image retained")
 	}
 	load()
@@ -92,15 +92,15 @@ func TestBotAvatarImageImportLifecycleAndUnknown(t *testing.T) {
 	c.FinishImageImport(ticket, source, nil)
 	c.ApplyImageCrop(k)
 	c.Prepare(k)
-	review := c.Snapshot(k).Review
+	review := c.Snapshot(k).Value.Review
 	if review == nil {
-		t.Fatal("image review", c.Snapshot(k).Error)
+		t.Fatal("image review", c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.BeginSave(k, review); ok {
 		t.Fatal("missing impact acknowledgement")
 	}
 	c.Acknowledge(k, review, true)
-	save, cmd, ok := c.BeginSave(k, c.Snapshot(k).Review)
+	save, cmd, ok := c.BeginSave(k, c.Snapshot(k).Value.Review)
 	if !ok || !c.MarkSent(save) {
 		t.Fatal("save")
 	}
@@ -108,12 +108,12 @@ func TestBotAvatarImageImportLifecycleAndUnknown(t *testing.T) {
 	parent.Bind(RoutineScope{HostKey: "other-account", BotID: "b"})
 	c.FinishSave(save, pluginrpc.DshbotCapabilityReceipt{Attempted: true}, errors.New("unknown"))
 	parent.Bind(k)
-	if !c.Snapshot(k).Uncertain || c.Snapshot(k).Draft != applied || c.imageImport != nil {
+	if !c.Snapshot(k).Value.Uncertain || c.Snapshot(k).Value.Draft != applied || c.imageImport != nil {
 		t.Fatal("unknown image draft lost")
 	}
 	load()
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("unknown resent")
 	}
 	fresh := imageStoreFixture()
@@ -121,7 +121,7 @@ func TestBotAvatarImageImportLifecycleAndUnknown(t *testing.T) {
 	fresh.Profile["avatar"], _ = json.Marshal(cmd.Values)
 	read, _ := c.BeginLoad(k)
 	c.FinishLoad(read, fresh, true, nil)
-	if !c.Snapshot(k).Candidate || !c.Adopt(k) {
+	if !c.Snapshot(k).Value.Candidate || !c.Adopt(k) {
 		t.Fatal("exact image readback")
 	}
 }

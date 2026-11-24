@@ -3,7 +3,6 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"whaleisle/internal/store/storelocale"
 )
@@ -131,7 +130,7 @@ func contactTarget(cmd DshbotContactCommand) (DshbotBotItem, error) {
 			return row, nil
 		}
 	}
-	return DshbotBotItem{}, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRefreshTheContactIdentity))
+	return DshbotBotItem{}, storelocale.Error(storelocale.KeyDesktopPluginrpcRefreshTheContactIdentity)
 }
 func contactPinItems(cmd DshbotContactCommand) []map[string]json.RawMessage {
 	maxOrder := float64(0)
@@ -160,7 +159,7 @@ func contactPinItems(cmd DshbotContactCommand) []map[string]json.RawMessage {
 func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 	payload := map[string]any{"revision": cmd.Expected.Revision}
 	if cmd.Expected.Revision < 0 {
-		return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRefreshTheCatalogFirst))
+		return "", nil, storelocale.Error(storelocale.KeyDesktopPluginrpcRefreshTheCatalogFirst)
 	}
 	switch cmd.Action {
 	case "pin":
@@ -172,20 +171,20 @@ func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 	case "create", "rename":
 		name := strings.TrimSpace(cmd.Name)
 		if name == "" || WhaleTextLength(name) > 120 {
-			return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcSectionName1120Characters))
+			return "", nil, storelocale.Error(storelocale.KeyDesktopPluginrpcSectionName1120Characters)
 		}
 		if cmd.ID == "" {
-			return "", nil, errors.New(storelocale.T(storelocale.KeyStorePluginrpcGroupIdMustNotBeEmpty))
+			return "", nil, storelocale.Error(storelocale.KeyStorePluginrpcGroupIdMustNotBeEmpty)
 		}
 		for _, section := range cmd.Expected.Sections {
 			if section.ID != cmd.ID && strings.EqualFold(strings.TrimSpace(section.Name), name) {
-				return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcSectionNameAlreadyExists))
+				return "", nil, storelocale.Error(storelocale.KeyDesktopPluginrpcSectionNameAlreadyExists)
 			}
 		}
 		payload["id"], payload["name"] = cmd.ID, name
 	case "move":
 		if cmd.Delta != -1 && cmd.Delta != 1 {
-			return "", nil, errors.New(storelocale.T(storelocale.KeyStorePluginrpcInvalidMoveDirection))
+			return "", nil, storelocale.Error(storelocale.KeyStorePluginrpcInvalidMoveDirection)
 		}
 		payload["id"], payload["delta"] = cmd.ID, cmd.Delta
 	case "assign":
@@ -197,11 +196,11 @@ func contactPayload(cmd DshbotContactCommand) (string, map[string]any, error) {
 		payload["id"] = cmd.ID
 	case "restore":
 		if cmd.Snapshot == nil {
-			return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcNoSectionSnapshot))
+			return "", nil, storelocale.Error(storelocale.KeyDesktopPluginrpcNoSectionSnapshot)
 		}
 		payload["snapshot"] = cmd.Snapshot
 	default:
-		return "", nil, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcUnsupportedContactsAction))
+		return "", nil, storelocale.Error(storelocale.KeyDesktopPluginrpcUnsupportedContactsAction)
 	}
 	return "section/" + cmd.Action, payload, nil
 }

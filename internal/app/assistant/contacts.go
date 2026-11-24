@@ -30,7 +30,7 @@ func (s *Service) ContactsModel(ep harness.Endpoint) assistantui.ContactsModel {
 	}
 	controls := &s.assistantContacts
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	rpc := host.PluginRPCClient(ep)
 	current := func() bool {
 		same := originalAssistant != nil && s.AssistantStore() == originalAssistant
@@ -173,7 +173,7 @@ func (s *Service) ContactsModel(ep harness.Endpoint) assistantui.ContactsModel {
 		cached := roster.Snapshot().Value
 		newerCatalog = cached.Origin == ep.Origin && cached.Revision > snapshot.Catalog.Revision
 	}
-	if scope != "" && (!snapshot.Loaded || newerCatalog) && !snapshot.Busy && snapshot.Error == "" {
+	if scope != "" && (!snapshot.Loaded || newerCatalog) && !snapshot.Busy && snapshot.Error == nil {
 		refresh()
 	}
 	return model
@@ -241,7 +241,7 @@ func (s *Service) contactsActivity(ep harness.Endpoint, catalog pluginrpc.Dshbot
 		}
 	}
 	runtimes := s.contactRoomRuntimes(ep, catalog)
-	runtime := s.assistantRoomRuntime.Snapshot()
+	runtime := s.assistantRoomRuntime.Snapshot().Value
 	if runtime.Loaded && runtimes[runtime.Data.Room.ID].data.Room.ID == "" {
 		id := runtime.Data.Room.ID
 		if runtime.Scope == endpointScope(clientBinding(client), ep.Origin, ep.Cookie, id) {

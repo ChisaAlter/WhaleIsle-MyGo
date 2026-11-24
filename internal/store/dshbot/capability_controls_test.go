@@ -27,22 +27,22 @@ func capabilityStoreLoaded(t *testing.T) (*CapabilityControls, RoutineScope) {
 }
 func TestBotCapabilitiesExplicitReviewAndDraftIsolation(t *testing.T) {
 	c, k := capabilityStoreLoaded(t)
-	old := c.Snapshot(k).Generation
+	old := c.Snapshot(k).Value.Generation
 	c.Change(k, "tools", "mode", "selected")
 	c.Change(k, "tools", "toggle", "read")
 	if c.ViewCurrent(k, old) {
 		t.Fatal("old view valid")
 	}
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.BeginSave(k, r); ok {
 		t.Fatal("saved before impact acknowledgement")
 	}
 	c.Acknowledge(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	r.Command.Expected.Profile["description"] = json.RawMessage(`"mutated"`)
 	r.Command.Desired["tools"] = pluginrpc.DshbotCapabilityPolicy{Mode: "all", Names: []string{}}
 	ticket, cmd, ok := c.BeginSave(k, r)
@@ -53,18 +53,18 @@ func TestBotCapabilitiesExplicitReviewAndDraftIsolation(t *testing.T) {
 		t.Fatal("double save")
 	}
 	c.FinishSave(ticket, pluginrpc.DshbotCapabilityReceipt{Attempted: true}, errors.New("synthetic unknown"))
-	if c.Snapshot(k).Loaded || !c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Loaded || !c.Snapshot(k).Value.Dirty {
 		t.Fatal("unknown unlocked or lost draft")
 	}
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("retry before readback")
 	}
 	load, _ := c.BeginLoad(k)
 	fresh := capabilityStoreFixture()
 	fresh.Revision++
 	c.FinishLoad(load, fresh, true, nil)
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if !s.Dirty || s.Draft["tools"].Mode != "selected" {
 		t.Fatal("refresh dropped draft")
 	}
@@ -88,9 +88,9 @@ func TestBotCapabilitiesReadbackAndScopeFence(t *testing.T) {
 	c.FinishLoad(ticket, capabilityStoreFixture(), true, nil)
 	c.Change(k, "tools", "mode", "selected")
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	c.Acknowledge(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.BeginSave(k, r)
 	if !ok {
 		t.Fatal("save")
@@ -100,19 +100,19 @@ func TestBotCapabilitiesReadbackAndScopeFence(t *testing.T) {
 	receipt.Profile["capabilities"], _ = json.Marshal(receipt.Policies)
 	receipt.Revision++
 	c.FinishSave(ticket, pluginrpc.DshbotCapabilityReceipt{Status: receipt, Attempted: true, Warnings: []string{"fixture warning"}}, nil)
-	if c.Snapshot(k).Loaded || len(c.Snapshot(k).Warnings) != 1 {
+	if c.Snapshot(k).Value.Loaded || len(c.Snapshot(k).Value.Warnings) != 1 {
 		t.Fatal("receipt skips readback")
 	}
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, receipt, true, nil)
-	if c.Snapshot(k).Dirty || !c.Snapshot(k).Loaded {
+	if c.Snapshot(k).Value.Dirty || !c.Snapshot(k).Value.Loaded {
 		t.Fatal("readback not reconciled")
 	}
 	c.Change(k, "tools", "mode", "all")
 	c.Prepare(k)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	c.Acknowledge(k, r, true)
-	ticket, _, _ = c.BeginSave(k, c.Snapshot(k).Review)
+	ticket, _, _ = c.BeginSave(k, c.Snapshot(k).Value.Review)
 	parent.Bind(RoutineScope{HostKey: "b", BotID: "b"})
 	if c.Current(ticket) {
 		t.Fatal("foreign Host dispatch")
@@ -125,13 +125,13 @@ func TestBotCapabilitiesUnavailableAndReadOnly(t *testing.T) {
 	bad.WriteError = "unknown nested model"
 	c.FinishLoad(load, bad, true, nil)
 	c.Change(k, "tools", "mode", "selected")
-	if c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Dirty {
 		t.Fatal("unsafe profile writable")
 	}
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, capabilityStoreFixture(), false, nil)
 	c.Change(k, "tools", "mode", "selected")
-	if c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Dirty {
 		t.Fatal("read-only authority writable")
 	}
 }

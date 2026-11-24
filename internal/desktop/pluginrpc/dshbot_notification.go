@@ -3,7 +3,6 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"whaleisle/internal/desktop/botnotify"
@@ -24,7 +23,7 @@ func (c *Client) DshbotNotificationSnapshot(ctx context.Context) (botnotify.Snap
 	}
 	out.Revision = catalog.View.Revision
 	if len(catalog.View.Value.Items) > botnotify.MaxBots {
-		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcNotificationCatalogExceedsTheHostLi))
+		return out, storelocale.Error(storelocale.KeyDesktopPluginrpcNotificationCatalogExceedsTheHostLi)
 	}
 	profiles := map[string]DshbotCatalogItem{}
 	ids := make([]string, 0, len(catalog.View.Value.Items))

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -32,7 +33,8 @@ type RoomCreateSnapshot struct {
 	Review                            *RoomCreateReview
 	Candidate                         *pluginrpc.DshbotRoomItem
 	Created                           pluginrpc.DshbotRoomItem
-	Error, Notice                     string
+	Error                             *state.Fault
+	Notice                            string
 }
 type RoomCreateTicket struct {
 	Scope                string
@@ -47,6 +49,8 @@ type roomCreateEntry struct {
 	state   RoomCreateSnapshot
 	attempt *roomCreateAttempt
 	loading uint64
+	pub     state.Published[RoomCreateSnapshot]
+	dirty   bool
 }
 
 // Account-isolated, memory-only drafts survive closing the panel. Neither an
@@ -66,6 +70,7 @@ func (c *RoomCreator) entry(k string) *roomCreateEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &roomCreateEntry{state: RoomCreateSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *RoomCreator) valid(k string) bool { return k != "" && c.active == k && c.binding != "" }
@@ -94,12 +99,15 @@ func (c *RoomCreator) ViewCurrent(k string, g uint64) bool {
 	defer c.mu.Unlock()
 	return c.valid(k) && g == c.generation
 }
-func (c *RoomCreator) Snapshot(k string) RoomCreateSnapshot {
+func (c *RoomCreator) Snapshot(k string) *state.Version[RoomCreateSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return RoomCreateSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	out := e.state
 	out.Generation = c.generation
@@ -120,7 +128,9 @@ func (c *RoomCreator) Snapshot(k string) RoomCreateSnapshot {
 		out.Candidate = &r
 	}
 	out.Created.MemberBotIDs = append([]string(nil), out.Created.MemberBotIDs...)
-	return out
+	e.pub.Publish(out)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *RoomCreator) BeginLoad(k string) (RoomCreateTicket, bool) {
 	c.mu.Lock()
@@ -138,13 +148,16 @@ func (c *RoomCreator) BeginLoad(k string) (RoomCreateTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return RoomCreateTicket{k, c.generation, c.sequence}, true
 }
 func (c *RoomCreator) FinishLoad(t RoomCreateTicket, v pluginrpc.DshbotRoomCatalog, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || t.Generation != c.generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -152,12 +165,12 @@ func (c *RoomCreator) FinishLoad(t RoomCreateTicket, v pluginrpc.DshbotRoomCatal
 	e.state.Busy = false
 	e.state.Writable = writable
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return true
 	}
 	e.state.Catalog = pluginrpc.CloneDshbotRoomCatalog(v)
 	e.state.Loaded = true
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		row, matchErr := pluginrpc.DshbotCreatedRoom(e.attempt.Command, v)
 		if matchErr == nil {
@@ -165,7 +178,7 @@ func (c *RoomCreator) FinishLoad(t RoomCreateTicket, v pluginrpc.DshbotRoomCatal
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactCatalogRecordFoundInspectAndA)
 		} else {
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeRemainsUnknownNoRetry)
-			e.state.Error = matchErr.Error()
+			e.state.Error = state.FaultOf(matchErr)
 		}
 	}
 	return true
@@ -182,14 +195,14 @@ func (c *RoomCreator) Start(k, cwd string) {
 	}
 	var bytes [16]byte
 	if _, err := rand.Read(bytes[:]); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	id := hex.EncodeToString(bytes[:])
 	e.state.Draft = &RoomCreateDraft{ID: "room-" + id, SessionID: "session-room-" + id, Name: storelocale.T(storelocale.KeyStoreDshbotNewGroupChat), ScratchCwd: strings.TrimSpace(cwd), MaxRounds: "3", MaxSpeaks: "10"}
 	e.state.Created = pluginrpc.DshbotRoomItem{}
 	e.state.CreatedScratchCwd = ""
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = ""
 }
 func (c *RoomCreator) editable(k string) *roomCreateEntry {
@@ -228,7 +241,7 @@ func (c *RoomCreator) Change(k, field, value string) {
 	}
 	d.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RoomCreator) ToggleMember(k, id string) {
 	c.mu.Lock()
@@ -262,7 +275,7 @@ func (c *RoomCreator) ToggleMember(k, id string) {
 	e.state.Draft.MemberBotIDs = ids
 	e.state.Draft.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RoomCreator) Discard(k string) {
 	c.mu.Lock()
@@ -271,7 +284,7 @@ func (c *RoomCreator) Discard(k string) {
 	if e != nil {
 		e.state.Draft = nil
 		e.state.Review = nil
-		e.state.Error = ""
+		e.state.Error = nil
 	}
 }
 func (c *RoomCreator) Dismiss(k string) {
@@ -296,17 +309,17 @@ func (c *RoomCreator) Prepare(k string) {
 	rounds, rErr := strconv.Atoi(strings.TrimSpace(d.MaxRounds))
 	speaks, sErr := strconv.Atoi(strings.TrimSpace(d.MaxSpeaks))
 	if rErr != nil || sErr != nil {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotLimitsMustBeIntegers)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotLimitsMustBeIntegers))
 		return
 	}
 	cmd := pluginrpc.DshbotRoomCreateCommand{ID: d.ID, SessionID: d.SessionID, Expected: pluginrpc.CloneDshbotRoomCatalog(e.state.Catalog), Draft: pluginrpc.DshbotRoomDraft{Name: strings.TrimSpace(d.Name), Description: strings.TrimSpace(d.Description), WorkspaceID: strings.TrimSpace(d.WorkspaceID), ScratchCwd: strings.TrimSpace(d.ScratchCwd), MemberBotIDs: append([]string(nil), d.MemberBotIDs...), MaxRounds: rounds, MaxSpeaks: speaks}}
 	if err := pluginrpc.ValidateDshbotRoomCreate(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	e.state.Review = &RoomCreateReview{Command: cmd, Version: d.Version, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func sameRoomReview(a, b *RoomCreateReview) bool {
 	return a != nil && b != nil && a.Sequence == b.Sequence && a.Version == b.Version && reflect.DeepEqual(a.Command, b.Command)
@@ -334,11 +347,14 @@ func (c *RoomCreator) Begin(k string, r *RoomCreateReview) (RoomCreateTicket, pl
 	e.attempt = &roomCreateAttempt{Command: cmd, Sequence: c.sequence}
 	e.state.Busy = true
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return RoomCreateTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *RoomCreator) current(t RoomCreateTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *RoomCreator) Current(t RoomCreateTicket) bool {
@@ -363,6 +379,9 @@ func (c *RoomCreator) AbortUnsent(t RoomCreateTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -372,13 +391,16 @@ func (c *RoomCreator) AbortUnsent(t RoomCreateTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *RoomCreator) Finish(t RoomCreateTicket, result pluginrpc.DshbotRoomCreateResult, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -388,7 +410,7 @@ func (c *RoomCreator) Finish(t RoomCreateTicket, result pluginrpc.DshbotRoomCrea
 	if err != nil && result.Rejected {
 		e.attempt = nil
 		e.state.Uncertain = false
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWriteDraftRetained)
 		return
 	}
@@ -401,7 +423,7 @@ func (c *RoomCreator) Finish(t RoomCreateTicket, result pluginrpc.DshbotRoomCrea
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeReadBackWithoutRetry)
 		return
 	}
@@ -410,7 +432,7 @@ func (c *RoomCreator) Finish(t RoomCreateTicket, result pluginrpc.DshbotRoomCrea
 	e.state.Catalog = pluginrpc.CloneDshbotRoomCatalog(result.Catalog)
 	e.state.Draft = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRoomCreatedOpeningFailureIsSeparate)
 	e.attempt = nil
 }
@@ -430,7 +452,7 @@ func (c *RoomCreator) Adopt(k, id string) bool {
 	e.state.Draft = nil
 	e.state.Review = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedExistingRoomOpeningVerifiesR)
 	e.attempt = nil
 	return true

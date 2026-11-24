@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -24,7 +25,8 @@ type AvatarSnapshot struct {
 	Status                                              pluginrpc.DshbotCapabilityStatus
 	Review                                              *AvatarConfirmation
 	Warnings                                            []string
-	Error, Notice                                       string
+	Error                                               *state.Fault
+	Notice                                              string
 }
 type avatarAttempt struct {
 	Command  pluginrpc.DshbotAvatarCommand
@@ -37,6 +39,8 @@ type avatarEntry struct {
 	loading    uint64
 	hasDraft   bool
 	imageDraft bool
+	pub        state.Published[AvatarSnapshot]
+	dirty      bool
 }
 
 // Scope-local entries preserve sent requests across hidden/reopened frames. No
@@ -56,6 +60,7 @@ func (c *AvatarControls) entry(k RoutineScope) *avatarEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &avatarEntry{state: AvatarSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *AvatarControls) valid(k RoutineScope) bool {
@@ -81,12 +86,18 @@ func (c *AvatarControls) Bind(k RoutineScope) {
 		}
 	}
 }
-func (c *AvatarControls) Snapshot(k RoutineScope) AvatarSnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *AvatarControls) Snapshot(k RoutineScope) *state.Version[AvatarSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return AvatarSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	v := e.state
 	v.Generation = c.generation
@@ -97,7 +108,9 @@ func (c *AvatarControls) Snapshot(k RoutineScope) AvatarSnapshot {
 		r.Command = pluginrpc.CloneDshbotAvatarCommand(r.Command)
 		v.Review = &r
 	}
-	return v
+	e.pub.Publish(v)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *AvatarControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -121,19 +134,25 @@ func (c *AvatarControls) BeginLoad(k RoutineScope) (AvatarTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	return AvatarTicket{k, c.generation, c.sequence}, true
 }
 func (c *AvatarControls) LoadCurrent(t AvatarTicket) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.loading == t.Sequence
 }
 func (c *AvatarControls) FinishLoad(t AvatarTicket, status pluginrpc.DshbotCapabilityStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || c.generation != t.Generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -142,13 +161,13 @@ func (c *AvatarControls) FinishLoad(t AvatarTicket, status pluginrpc.DshbotCapab
 	c.generation++
 	value, ve := pluginrpc.DshbotAvatarValue(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained))
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotCapabilities(status)
 	e.state.Loaded = true
 	e.state.Writable = writable
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotAvatarApplied(e.attempt.Command, status) == nil {
 			e.state.Candidate = true
@@ -209,7 +228,7 @@ func (c *AvatarControls) Discard(k RoutineScope) {
 	e.imageDraft = false
 	e.state.Dirty = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	c.generation++
 }
 func (c *AvatarControls) Prepare(k RoutineScope) {
@@ -221,18 +240,18 @@ func (c *AvatarControls) Prepare(k RoutineScope) {
 	}
 	values, err := pluginrpc.ParseDshbotAvatar(e.state.Draft)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	cmd := pluginrpc.DshbotAvatarCommand{Expected: pluginrpc.CloneDshbotCapabilities(e.state.Status), Values: values}
 	if err := pluginrpc.ValidateDshbotAvatarCommand(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	e.state.Review = &AvatarConfirmation{Command: cmd, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *AvatarControls) Dismiss(k RoutineScope, r *AvatarConfirmation) {
 	c.mu.Lock()
@@ -284,11 +303,14 @@ func (c *AvatarControls) BeginSave(k RoutineScope, r *AvatarConfirmation) (Avata
 	e.state.Busy = true
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return AvatarTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *AvatarControls) current(t AvatarTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *AvatarControls) Current(t AvatarTicket) bool {
@@ -309,6 +331,9 @@ func (c *AvatarControls) AbortUnsent(t AvatarTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -318,13 +343,16 @@ func (c *AvatarControls) AbortUnsent(t AvatarTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *AvatarControls) FinishSave(t AvatarTicket, out pluginrpc.DshbotCapabilityReceipt, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -336,7 +364,7 @@ func (c *AvatarControls) FinishSave(t AvatarTicket, out pluginrpc.DshbotCapabili
 		e.attempt = nil
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 		}
 		return
 	}
@@ -345,7 +373,7 @@ func (c *AvatarControls) FinishSave(t AvatarTicket, out pluginrpc.DshbotCapabili
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
@@ -354,7 +382,7 @@ func (c *AvatarControls) FinishSave(t AvatarTicket, out pluginrpc.DshbotCapabili
 	e.state.Dirty = false
 	e.state.Uncertain = false
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotProfileSavedVerifyPresentationWarnin)
 	e.attempt = nil
 }
@@ -373,7 +401,7 @@ func (c *AvatarControls) Adopt(k RoutineScope) bool {
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogPresentationRenameAnd)
 	e.attempt = nil
 	c.generation++

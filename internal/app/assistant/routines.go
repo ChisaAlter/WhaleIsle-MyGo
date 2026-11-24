@@ -70,7 +70,7 @@ func (s *Service) RoutinesModel(ep harness.Endpoint, botID string) assistantui.R
 			}
 		}()
 	}
-	snapshot := s.assistantRoutines.Snapshot(scope)
+	snapshot := s.assistantRoutines.Snapshot(scope).Value
 	model := assistantui.RoutineModel{
 		State:     snapshot,
 		HostLabel: ep.Origin,
@@ -179,7 +179,7 @@ func (s *Service) RoutineCreateModel(ep harness.Endpoint, botID string, source d
 	}
 	binding := s.assistantRoutines.Binding(source.Scope)
 	s.assistantRoutineCreate.Sync(scope, binding, source)
-	snapshot := s.assistantRoutineCreate.Snapshot(scope)
+	snapshot := s.assistantRoutineCreate.Snapshot(scope).Value
 	current := func() bool {
 		return client != nil && s.routineClient(ep, botID) == client && s.assistantRoutines.Bound(source.Scope, binding)
 	}

@@ -29,15 +29,15 @@ func TestBotMemoryReviewIndependentConfirmationAndUnknownDraft(t *testing.T) {
 	c, k := memoryReviewLoaded(t)
 	c.SetEnabled(k, true)
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	if _, _, ok := c.BeginSave(k, r); ok {
 		t.Fatal("unacknowledged save")
 	}
 	c.Acknowledge(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.BeginSave(k, r)
 	if !ok || !cmd.Enabled {
 		t.Fatal("review lost")
@@ -46,12 +46,12 @@ func TestBotMemoryReviewIndependentConfirmationAndUnknownDraft(t *testing.T) {
 		t.Fatal("double send")
 	}
 	c.FinishSave(ticket, pluginrpc.DshbotCapabilityReceipt{Attempted: true}, errors.New("synthetic uncertain"))
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if s.Loaded || !s.Draft || !s.Dirty {
 		t.Fatal("unknown lost/unlocked draft")
 	}
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("save before readback")
 	}
 	load, _ := c.BeginLoad(k)
@@ -78,8 +78,8 @@ func TestBotMemoryReviewScopeAndReadback(t *testing.T) {
 	c.FinishLoad(ticket, memoryReviewStoreFixture(), true, nil)
 	c.SetEnabled(k, true)
 	c.Prepare(k)
-	c.Acknowledge(k, c.Snapshot(k).Review, true)
-	ticket, _, ok := c.BeginSave(k, c.Snapshot(k).Review)
+	c.Acknowledge(k, c.Snapshot(k).Value.Review, true)
+	ticket, _, ok := c.BeginSave(k, c.Snapshot(k).Value.Review)
 	if !ok {
 		t.Fatal("save missing")
 	}
@@ -87,12 +87,12 @@ func TestBotMemoryReviewScopeAndReadback(t *testing.T) {
 	out.Profile["memoryReview"] = json.RawMessage(`true`)
 	out.Revision++
 	c.FinishSave(ticket, pluginrpc.DshbotCapabilityReceipt{Status: out, Attempted: true, Warnings: []string{"fixture warning"}}, nil)
-	if c.Snapshot(k).Loaded {
+	if c.Snapshot(k).Value.Loaded {
 		t.Fatal("receipt skipped readback")
 	}
 	load, _ := c.BeginLoad(k)
 	c.FinishLoad(load, out, true, nil)
-	if c.Snapshot(k).Dirty || !c.Snapshot(k).Draft || len(c.Snapshot(k).Warnings) != 1 {
+	if c.Snapshot(k).Value.Dirty || !c.Snapshot(k).Value.Draft || len(c.Snapshot(k).Value.Warnings) != 1 {
 		t.Fatal("readback not reconciled")
 	}
 	parent.Bind(RoutineScope{HostKey: "b", BotID: "b"})
@@ -106,13 +106,13 @@ func TestBotMemoryReviewMissingFlagAndReadOnly(t *testing.T) {
 	value := memoryReviewStoreFixture()
 	delete(value.Profile, "memoryReview")
 	c.FinishLoad(load, value, true, nil)
-	if c.Snapshot(k).Loaded {
+	if c.Snapshot(k).Value.Loaded {
 		t.Fatal("missing flag defaulted")
 	}
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, memoryReviewStoreFixture(), false, nil)
 	c.SetEnabled(k, true)
-	if c.Snapshot(k).Dirty {
+	if c.Snapshot(k).Value.Dirty {
 		t.Fatal("readonly draft changed")
 	}
 }

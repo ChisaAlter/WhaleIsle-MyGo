@@ -15,7 +15,7 @@ func TestBotRoutineAdvancedCanonicalAndUnavailable(t *testing.T) {
 	c.Edit(key, "watchValue", "  fixture-only-command-normalized  ")
 	c.Edit(key, "watchTimeout", "015000")
 	c.Prepare(key, "save")
-	snapshot := c.Snapshot(key)
+	snapshot := c.Snapshot(key).Value
 	if snapshot.Review == nil {
 		t.Fatal(snapshot.Error)
 	}

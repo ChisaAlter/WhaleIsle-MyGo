@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -33,7 +34,8 @@ type BotCreateSnapshot struct {
 	Pending                           *pluginrpc.DshbotBotCreateCommand
 	Candidate                         *pluginrpc.DshbotBotItem
 	Created                           pluginrpc.DshbotBotItem
-	Error, Notice                     string
+	Error                             *state.Fault
+	Notice                            string
 }
 type BotCreateTicket struct {
 	Scope                string
@@ -48,6 +50,8 @@ type botCreateEntry struct {
 	state   BotCreateSnapshot
 	attempt *botCreateAttempt
 	loading uint64
+	pub     state.Published[BotCreateSnapshot]
+	dirty   bool
 }
 
 // Account-isolated, memory-only drafts survive closing the panel. Neither an
@@ -67,6 +71,7 @@ func (c *BotCreator) entry(k string) *botCreateEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &botCreateEntry{state: BotCreateSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *BotCreator) valid(k string) bool { return k != "" && c.active == k && c.binding != "" }
@@ -95,12 +100,18 @@ func (c *BotCreator) ViewCurrent(k string, g uint64) bool {
 	defer c.mu.Unlock()
 	return c.valid(k) && g == c.generation
 }
-func (c *BotCreator) Snapshot(k string) BotCreateSnapshot {
+
+// Snapshot returns the published view for scope k; unchanged reads share
+// the version and allocate nothing.
+func (c *BotCreator) Snapshot(k string) *state.Version[BotCreateSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return BotCreateSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	out := e.state
 	if e.attempt != nil {
@@ -124,7 +135,9 @@ func (c *BotCreator) Snapshot(k string) BotCreateSnapshot {
 		out.Candidate = &r
 	}
 	out.Created = pluginrpc.CloneDshbotBotItem(out.Created)
-	return out
+	e.pub.Publish(out)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *BotCreator) BeginLoad(k string) (BotCreateTicket, bool) {
 	c.mu.Lock()
@@ -142,13 +155,16 @@ func (c *BotCreator) BeginLoad(k string) (BotCreateTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return BotCreateTicket{k, c.generation, c.sequence}, true
 }
 func (c *BotCreator) FinishLoad(t BotCreateTicket, v pluginrpc.DshbotBotCatalog, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || t.Generation != c.generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -156,12 +172,12 @@ func (c *BotCreator) FinishLoad(t BotCreateTicket, v pluginrpc.DshbotBotCatalog,
 	e.state.Busy = false
 	e.state.Writable = writable
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return true
 	}
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(v)
 	e.state.Loaded = true
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		row, matchErr := pluginrpc.DshbotCreatedBot(e.attempt.Command, v)
 		if matchErr == nil {
@@ -169,7 +185,7 @@ func (c *BotCreator) FinishLoad(t BotCreateTicket, v pluginrpc.DshbotBotCatalog,
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotExactCatalogRecordFoundInspectAndA)
 		} else {
 			e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotOutcomeRemainsUnknownNoRetry)
-			e.state.Error = matchErr.Error()
+			e.state.Error = state.FaultOf(matchErr)
 		}
 	}
 	return true
@@ -186,14 +202,14 @@ func (c *BotCreator) Start(k, cwd string) {
 	}
 	var bytes [16]byte
 	if _, err := rand.Read(bytes[:]); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	id := hex.EncodeToString(bytes[:])
 	e.state.Draft = &BotCreateDraft{ID: "bot-" + id, SessionID: "session-bot-" + id, Name: storelocale.T(storelocale.KeyStoreDshbotNewBot), ScratchCwd: strings.TrimSpace(cwd), MemoryReview: true, Notify: true}
 	e.state.Created = pluginrpc.DshbotBotItem{}
 	e.state.CreatedScratchCwd = ""
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = ""
 }
 func (c *BotCreator) editable(k string) *botCreateEntry {
@@ -246,7 +262,7 @@ func (c *BotCreator) Change(k, field, value string) {
 	}
 	d.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *BotCreator) Discard(k string) {
 	c.mu.Lock()
@@ -255,7 +271,7 @@ func (c *BotCreator) Discard(k string) {
 	if e != nil {
 		e.state.Draft = nil
 		e.state.Review = nil
-		e.state.Error = ""
+		e.state.Error = nil
 	}
 }
 func (c *BotCreator) Dismiss(k string) {
@@ -280,7 +296,7 @@ func (c *BotCreator) ChangeModel(k string, v pluginrpc.DshbotRouteModel) {
 	e.state.Draft.Provider, e.state.Draft.Model, e.state.Draft.ReasoningEffort = v.Provider, v.Model, v.ReasoningEffort
 	e.state.Draft.Version++
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 }
 
 func (c *BotCreator) Prepare(k string) {
@@ -294,12 +310,12 @@ func (c *BotCreator) Prepare(k string) {
 	d := e.state.Draft
 	cmd := pluginrpc.DshbotBotCreateCommand{ID: d.ID, SessionID: d.SessionID, Expected: pluginrpc.CloneDshbotBotCatalog(e.state.Catalog), Draft: pluginrpc.DshbotBotDraft{Name: strings.TrimSpace(d.Name), Title: strings.TrimSpace(d.Title), Description: strings.TrimSpace(d.Description), WorkspaceID: strings.TrimSpace(d.WorkspaceID), ScratchCwd: strings.TrimSpace(d.ScratchCwd), Provider: strings.TrimSpace(d.Provider), Model: strings.TrimSpace(d.Model), ReasoningEffort: strings.TrimSpace(d.ReasoningEffort), MemoryReview: d.MemoryReview, Notify: d.Notify}}
 	if err := pluginrpc.ValidateDshbotBotCreate(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	e.state.Review = &BotCreateReview{Command: cmd, Version: d.Version, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func sameBotReview(a, b *BotCreateReview) bool {
 	return a != nil && b != nil && a.Sequence == b.Sequence && a.Version == b.Version && reflect.DeepEqual(a.Command, b.Command)
@@ -327,11 +343,14 @@ func (c *BotCreator) Begin(k string, r *BotCreateReview) (BotCreateTicket, plugi
 	e.attempt = &botCreateAttempt{Command: cmd, Sequence: c.sequence}
 	e.state.Busy = true
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return BotCreateTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *BotCreator) current(t BotCreateTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *BotCreator) Current(t BotCreateTicket) bool {
@@ -356,6 +375,9 @@ func (c *BotCreator) AbortUnsent(t BotCreateTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -365,13 +387,16 @@ func (c *BotCreator) AbortUnsent(t BotCreateTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentDraftRetained)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateResult, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -381,7 +406,7 @@ func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateR
 	if err != nil && result.Rejected {
 		e.attempt = nil
 		e.state.Uncertain = false
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotRejectedBeforeWriteDraftRetained)
 		return
 	}
@@ -394,7 +419,7 @@ func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateR
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownOutcomeReadBackWithoutRetry)
 		return
 	}
@@ -403,7 +428,7 @@ func (c *BotCreator) Finish(t BotCreateTicket, result pluginrpc.DshbotBotCreateR
 	e.state.Catalog = pluginrpc.CloneDshbotBotCatalog(result.Catalog)
 	e.state.Draft = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotBotCreatedOpeningFailureIsSeparate)
 	e.attempt = nil
 }
@@ -423,7 +448,7 @@ func (c *BotCreator) Adopt(k, id string) bool {
 	e.state.Draft = nil
 	e.state.Review = nil
 	e.state.Uncertain = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedExistingBotOpeningVerifiesRe)
 	e.attempt = nil
 	return true

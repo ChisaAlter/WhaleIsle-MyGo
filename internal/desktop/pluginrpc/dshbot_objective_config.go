@@ -3,7 +3,6 @@ package pluginrpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"unicode/utf8"
@@ -40,18 +39,18 @@ func (v DshbotObjectiveConfig) Draft() DshbotObjectiveConfigDraft {
 func ParseDshbotObjectiveConfigDraft(d DshbotObjectiveConfigDraft) (DshbotObjectiveConfig, error) {
 	var out DshbotObjectiveConfig
 	if !utf8.ValidString(d.Objective) {
-		return out, fmt.Errorf("objective contains invalid Unicode")
+		return out, storelocale.Authored("objective contains invalid Unicode")
 	}
 	out.Objective = trimBotMemory(d.Objective)
 	if out.Objective == "" {
-		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcUseClearCatalogObjectiveToRemoveIt))
+		return out, storelocale.Error(storelocale.KeyDesktopPluginrpcUseClearCatalogObjectiveToRemoveIt)
 	}
 	if WhaleTextLength(out.Objective) > 2000 {
-		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcObjectiveExceeds2000Utf16Units))
+		return out, storelocale.Error(storelocale.KeyDesktopPluginrpcObjectiveExceeds2000Utf16Units)
 	}
 	n, err := strconv.Atoi(trimBotMemory(d.MaxRounds))
 	if err != nil || n < 1 || n > 200 {
-		return out, errors.New(storelocale.T(storelocale.KeyDesktopPluginrpcRoundCapMustBeAnIntegerFrom1To2))
+		return out, storelocale.Error(storelocale.KeyDesktopPluginrpcRoundCapMustBeAnIntegerFrom1To2)
 	}
 	out.MaxRounds = n
 	return out, nil
@@ -61,7 +60,7 @@ func ValidateDshbotObjectiveConfigCommand(cmd DshbotObjectiveConfigCommand) erro
 		return err
 	}
 	if cmd.Expected.WriteError != "" {
-		return fmt.Errorf("profile cannot be preserved")
+		return storelocale.Authored("profile cannot be preserved")
 	}
 	before, err := DshbotObjectiveConfigValue(cmd.Expected)
 	if err != nil {
@@ -72,10 +71,10 @@ func ValidateDshbotObjectiveConfigCommand(cmd DshbotObjectiveConfigCommand) erro
 		return err
 	}
 	if parsed != cmd.Desired {
-		return fmt.Errorf("objective must be reviewed after trimming")
+		return storelocale.Authored("objective must be reviewed after trimming")
 	}
 	if before == cmd.Desired {
-		return fmt.Errorf("objective configuration is unchanged")
+		return storelocale.Authored("objective configuration is unchanged")
 	}
 	return nil
 }

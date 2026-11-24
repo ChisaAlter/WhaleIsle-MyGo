@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -23,7 +24,8 @@ type RouteSnapshot struct {
 	Status                                              pluginrpc.DshbotRouteStatus
 	Review                                              *RouteConfirmation
 	Warnings                                            []string
-	Error, Notice                                       string
+	Error                                               *state.Fault
+	Notice                                              string
 }
 type routeAttempt struct {
 	Command  pluginrpc.DshbotRouteCommand
@@ -35,6 +37,8 @@ type routeEntry struct {
 	attempt  *routeAttempt
 	loading  uint64
 	hasDraft bool
+	pub      state.Published[RouteSnapshot]
+	dirty    bool
 }
 
 // Scope-local entries preserve sent requests across hidden/reopened frames. No
@@ -53,6 +57,7 @@ func (c *RouteControls) entry(k RoutineScope) *routeEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &routeEntry{state: RouteSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *RouteControls) valid(k RoutineScope) bool {
@@ -77,12 +82,15 @@ func (c *RouteControls) Bind(k RoutineScope) {
 		}
 	}
 }
-func (c *RouteControls) Snapshot(k RoutineScope) RouteSnapshot {
+func (c *RouteControls) Snapshot(k RoutineScope) *state.Version[RouteSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return RouteSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	v := e.state
 	v.Generation = c.generation
@@ -93,7 +101,9 @@ func (c *RouteControls) Snapshot(k RoutineScope) RouteSnapshot {
 		r.Command = pluginrpc.CloneDshbotRouteCommand(r.Command)
 		v.Review = &r
 	}
-	return v
+	e.pub.Publish(v)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *RouteControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -117,19 +127,25 @@ func (c *RouteControls) BeginLoad(k RoutineScope) (RouteTicket, bool) {
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	return RouteTicket{k, c.generation, c.sequence}, true
 }
 func (c *RouteControls) LoadCurrent(t RouteTicket) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.loading == t.Sequence
 }
 func (c *RouteControls) FinishLoad(t RouteTicket, status pluginrpc.DshbotRouteStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || c.generation != t.Generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -138,13 +154,13 @@ func (c *RouteControls) FinishLoad(t RouteTicket, status pluginrpc.DshbotRouteSt
 	c.generation++
 	value, ve := pluginrpc.DshbotRouteValue(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained3)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained3))
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotRoute(status)
 	e.state.Loaded = true
 	e.state.Writable = writable
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotRouteApplied(e.attempt.Command, status.DshbotCapabilityStatus) == nil {
 			e.state.Candidate = true
@@ -202,7 +218,7 @@ func (c *RouteControls) Discard(k RoutineScope) {
 	e.state.Draft = before
 	e.state.Dirty = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	c.generation++
 }
 func (c *RouteControls) Prepare(k RoutineScope) {
@@ -214,13 +230,13 @@ func (c *RouteControls) Prepare(k RoutineScope) {
 	}
 	cmd := pluginrpc.DshbotRouteCommand{Expected: pluginrpc.CloneDshbotRoute(e.state.Status), Values: e.state.Draft}
 	if err := pluginrpc.ValidateDshbotRouteCommand(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	e.state.Review = &RouteConfirmation{Command: cmd, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *RouteControls) Dismiss(k RoutineScope, r *RouteConfirmation) {
 	c.mu.Lock()
@@ -261,11 +277,14 @@ func (c *RouteControls) BeginSave(k RoutineScope, r *RouteConfirmation) (RouteTi
 	e.state.Busy = true
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return RouteTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *RouteControls) current(t RouteTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *RouteControls) Current(t RouteTicket) bool {
@@ -286,6 +305,9 @@ func (c *RouteControls) AbortUnsent(t RouteTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -295,13 +317,16 @@ func (c *RouteControls) AbortUnsent(t RouteTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapabilityReceipt, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -313,7 +338,7 @@ func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapability
 		e.attempt = nil
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 		}
 		return
 	}
@@ -322,7 +347,7 @@ func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapability
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
@@ -331,7 +356,7 @@ func (c *RouteControls) FinishSave(t RouteTicket, out pluginrpc.DshbotCapability
 	e.state.Dirty = false
 	e.state.Uncertain = false
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotSavedUseExistingEntryToOpenAfterR)
 	e.attempt = nil
 }
@@ -350,7 +375,7 @@ func (c *RouteControls) Adopt(k RoutineScope) bool {
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogSessionAndLiveSynchro)
 	e.attempt = nil
 	c.generation++

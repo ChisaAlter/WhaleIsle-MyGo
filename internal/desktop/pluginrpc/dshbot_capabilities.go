@@ -171,7 +171,7 @@ func ValidateDshbotCapabilityCommand(cmd DshbotCapabilityCommand) error {
 		return err
 	}
 	if cmd.Expected.WriteError != "" || !cmd.Expected.Catalog.Active {
-		return fmt.Errorf("capability editing unavailable")
+		return storelocale.Authored("capability editing unavailable")
 	}
 	raw, _ := json.Marshal(cmd.Desired)
 	policies, err := decodeCapabilityPolicies(raw)
@@ -184,7 +184,7 @@ func ValidateDshbotCapabilityCommand(cmd DshbotCapabilityCommand) error {
 			continue
 		}
 		if group == "skills" && !cmd.Expected.Catalog.SkillsAvailable && len(p.Names) > 0 {
-			return fmt.Errorf("Skills are unavailable")
+			return storelocale.Authored("Skills are unavailable")
 		}
 		available := []string{}
 		for _, e := range cmd.Expected.Catalog.Entries(group) {
@@ -192,12 +192,12 @@ func ValidateDshbotCapabilityCommand(cmd DshbotCapabilityCommand) error {
 		}
 		for _, name := range p.Names {
 			if !slices.Contains(available, name) {
-				return fmt.Errorf("selected %s is no longer available: %s", group, name)
+				return storelocale.Authored(fmt.Sprintf("selected %s is no longer available: %s", group, name))
 			}
 		}
 	}
 	if reflect.DeepEqual(cmd.Expected.Policies, cmd.Desired) {
-		return fmt.Errorf("capabilities are unchanged")
+		return storelocale.Authored("capabilities are unchanged")
 	}
 	return nil
 }

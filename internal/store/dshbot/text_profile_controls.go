@@ -3,6 +3,7 @@ package dshbot
 import (
 	"sync"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -23,7 +24,8 @@ type TextProfileSnapshot struct {
 	Status                                              pluginrpc.DshbotCapabilityStatus
 	Review                                              *TextProfileConfirmation
 	Warnings                                            []string
-	Error, Notice                                       string
+	Error                                               *state.Fault
+	Notice                                              string
 }
 type textProfileAttempt struct {
 	Command  pluginrpc.DshbotTextProfileCommand
@@ -35,6 +37,8 @@ type textProfileEntry struct {
 	attempt  *textProfileAttempt
 	loading  uint64
 	hasDraft bool
+	pub      state.Published[TextProfileSnapshot]
+	dirty    bool
 }
 
 // Scope-local entries preserve sent requests across hidden/reopened frames. No
@@ -53,6 +57,7 @@ func (c *TextProfileControls) entry(k RoutineScope) *textProfileEntry {
 	if c.entries[k] == nil {
 		c.entries[k] = &textProfileEntry{state: TextProfileSnapshot{Scope: k}}
 	}
+	c.entries[k].dirty = true
 	return c.entries[k]
 }
 func (c *TextProfileControls) valid(k RoutineScope) bool {
@@ -77,12 +82,15 @@ func (c *TextProfileControls) Bind(k RoutineScope) {
 		}
 	}
 }
-func (c *TextProfileControls) Snapshot(k RoutineScope) TextProfileSnapshot {
+func (c *TextProfileControls) Snapshot(k RoutineScope) *state.Version[TextProfileSnapshot] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[k]
 	if e == nil {
-		return TextProfileSnapshot{Scope: k, Generation: c.generation}
+		e = c.entry(k)
+	}
+	if v := e.pub.Load(); v != nil && !e.dirty {
+		return v
 	}
 	v := e.state
 	v.Generation = c.generation
@@ -93,7 +101,9 @@ func (c *TextProfileControls) Snapshot(k RoutineScope) TextProfileSnapshot {
 		r.Command = pluginrpc.CloneDshbotTextProfileCommand(r.Command)
 		v.Review = &r
 	}
-	return v
+	e.pub.Publish(v)
+	e.dirty = false
+	return e.pub.Load()
 }
 func (c *TextProfileControls) ViewCurrent(k RoutineScope, g uint64) bool {
 	c.mu.Lock()
@@ -117,19 +127,25 @@ func (c *TextProfileControls) BeginLoad(k RoutineScope) (TextProfileTicket, bool
 	e.state.Loaded = false
 	e.state.Review = nil
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	return TextProfileTicket{k, c.generation, c.sequence}, true
 }
 func (c *TextProfileControls) LoadCurrent(t TextProfileTicket) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.loading == t.Sequence
 }
 func (c *TextProfileControls) FinishLoad(t TextProfileTicket, status pluginrpc.DshbotCapabilityStatus, writable bool, err error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if !c.valid(t.Scope) || c.generation != t.Generation || e == nil || e.loading != t.Sequence {
 		return false
 	}
@@ -138,13 +154,13 @@ func (c *TextProfileControls) FinishLoad(t TextProfileTicket, status pluginrpc.D
 	c.generation++
 	value, ve := pluginrpc.DshbotTextProfileValue(status)
 	if err != nil || ve != nil || status.Bot.ID != t.Scope.BotID {
-		e.state.Error = storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained5)
+		e.state.Error = state.FaultText(storelocale.T(storelocale.KeyStoreDshbotReadUnavailableDraftRetained5))
 		return true
 	}
 	e.state.Status = pluginrpc.CloneDshbotCapabilities(status)
 	e.state.Loaded = true
 	e.state.Writable = writable
-	e.state.Error = ""
+	e.state.Error = nil
 	if e.attempt != nil && e.state.Uncertain {
 		if pluginrpc.DshbotTextProfileApplied(e.attempt.Command, status) == nil {
 			e.state.Candidate = true
@@ -203,7 +219,7 @@ func (c *TextProfileControls) Discard(k RoutineScope) {
 	e.state.Draft = before
 	e.state.Dirty = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	c.generation++
 }
 func (c *TextProfileControls) Prepare(k RoutineScope) {
@@ -215,18 +231,18 @@ func (c *TextProfileControls) Prepare(k RoutineScope) {
 	}
 	values, err := pluginrpc.ParseDshbotTextProfile(e.state.Draft)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	cmd := pluginrpc.DshbotTextProfileCommand{Expected: pluginrpc.CloneDshbotCapabilities(e.state.Status), Values: values}
 	if err := pluginrpc.ValidateDshbotTextProfileCommand(cmd); err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		return
 	}
 	c.sequence++
 	c.generation++
 	e.state.Review = &TextProfileConfirmation{Command: cmd, Sequence: c.sequence}
-	e.state.Error = ""
+	e.state.Error = nil
 }
 func (c *TextProfileControls) Dismiss(k RoutineScope, r *TextProfileConfirmation) {
 	c.mu.Lock()
@@ -271,11 +287,14 @@ func (c *TextProfileControls) BeginSave(k RoutineScope, r *TextProfileConfirmati
 	e.state.Busy = true
 	e.state.Loaded = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	return TextProfileTicket{k, c.generation, c.sequence}, cmd, true
 }
 func (c *TextProfileControls) current(t TextProfileTicket) bool {
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	return c.valid(t.Scope) && c.generation == t.Generation && e != nil && e.attempt != nil && e.attempt.Sequence == t.Sequence && e.state.Busy
 }
 func (c *TextProfileControls) Current(t TextProfileTicket) bool {
@@ -296,6 +315,9 @@ func (c *TextProfileControls) AbortUnsent(t TextProfileTicket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || e.attempt.Sent {
 		return
 	}
@@ -305,13 +327,16 @@ func (c *TextProfileControls) AbortUnsent(t TextProfileTicket, err error) {
 	e.state.Review = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefreshAndReview)
 	if err != nil {
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 	}
 }
 func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.DshbotCapabilityReceipt, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e := c.entries[t.Scope]
+	if e != nil {
+		e.dirty = true
+	}
 	if e == nil || e.attempt == nil || e.attempt.Sequence != t.Sequence || !e.attempt.Sent {
 		return
 	}
@@ -323,7 +348,7 @@ func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.Dshb
 		e.attempt = nil
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotNotSentRefresh)
 		if err != nil {
-			e.state.Error = err.Error()
+			e.state.Error = state.FaultOf(err)
 		}
 		return
 	}
@@ -332,7 +357,7 @@ func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.Dshb
 	}
 	if err != nil {
 		e.state.Uncertain = true
-		e.state.Error = err.Error()
+		e.state.Error = state.FaultOf(err)
 		e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotUnknownReadBackOnly)
 		return
 	}
@@ -341,7 +366,7 @@ func (c *TextProfileControls) FinishSave(t TextProfileTicket, out pluginrpc.Dshb
 	e.state.Dirty = false
 	e.state.Uncertain = false
 	e.state.Candidate = false
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotProfileSavedVerifyPresentationWarnin3)
 	e.attempt = nil
 }
@@ -360,7 +385,7 @@ func (c *TextProfileControls) Adopt(k RoutineScope) bool {
 	e.state.Uncertain = false
 	e.state.Candidate = false
 	e.state.Review = nil
-	e.state.Error = ""
+	e.state.Error = nil
 	e.state.Notice = storelocale.T(storelocale.KeyStoreDshbotAdoptedCatalogPresentationRenameAnd)
 	e.attempt = nil
 	c.generation++

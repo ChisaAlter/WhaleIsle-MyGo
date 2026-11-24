@@ -29,7 +29,7 @@ func (s *Service) BotCreateModel(ep harness.Endpoint) assistantui.BotCreateModel
 	rpc := host.PluginRPCClient(ep)
 	controls := &s.assistantBotCreator
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	modelSessions := host.Sessions()
 	var modelOptions []session.ModelOption
 	var workspaceOptions []session.WorkspaceRow
@@ -482,7 +482,7 @@ func (s *Service) BotDuplicateModel(ep harness.Endpoint, sourceID string) assist
 	rpc := host.PluginRPCClient(ep)
 	controls := &s.assistantBotDuplicator
 	controls.Bind(scope, binding)
-	snapshot := controls.Snapshot(scope)
+	snapshot := controls.Snapshot(scope).Value
 	current := func() bool {
 		sameAssistant := originalAssistant != nil && s.AssistantStore() == originalAssistant
 		if !sameAssistant || client == nil || s.roomClient(ep) != client || !controls.ViewCurrent(scope, snapshot.Generation) {

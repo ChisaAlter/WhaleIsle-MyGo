@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf16"
+	"whaleisle/internal/store/storelocale"
 )
 
 type DshbotRoutineWatch struct {
@@ -34,12 +35,12 @@ func CloneDshbotRoutineAdvanced(p DshbotRoutineAdvancedPatch) DshbotRoutineAdvan
 func ValidateDshbotRoutineAdvanced(p DshbotRoutineAdvancedPatch) error {
 	if p.ContextSet {
 		if len(p.ContextFrom) > 3 {
-			return fmt.Errorf("contextFrom permits at most 3 selected sources")
+			return storelocale.Authored("contextFrom permits at most 3 selected sources")
 		}
 		seen := map[string]bool{}
 		for _, id := range p.ContextFrom {
 			if strings.TrimSpace(id) == "" || strings.TrimSpace(id) != id || seen[id] {
-				return fmt.Errorf("contextFrom requires unique explicit source IDs")
+				return storelocale.Authored("contextFrom requires unique explicit source IDs")
 			}
 			seen[id] = true
 		}
@@ -47,13 +48,13 @@ func ValidateDshbotRoutineAdvanced(p DshbotRoutineAdvancedPatch) error {
 	if p.WatchSet && p.Watch != nil {
 		w := p.Watch
 		if w.Kind != "url" && w.Kind != "command" {
-			return fmt.Errorf("watch kind must be url or command")
+			return storelocale.Authored("watch kind must be url or command")
 		}
 		if strings.TrimSpace(w.Value) == "" || len(utf16.Encode([]rune(strings.TrimSpace(w.Value)))) > 2000 {
-			return fmt.Errorf("watch target must contain 1–2000 UTF-16 units")
+			return storelocale.Authored("watch target must contain 1–2000 UTF-16 units")
 		}
 		if w.TimeoutMS < 1 || w.TimeoutMS > 300000 {
-			return fmt.Errorf("watch timeout must be 1–300000 milliseconds")
+			return storelocale.Authored("watch timeout must be 1–300000 milliseconds")
 		}
 	}
 	return nil

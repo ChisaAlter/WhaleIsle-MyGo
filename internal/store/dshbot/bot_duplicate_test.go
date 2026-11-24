@@ -29,17 +29,17 @@ func duplicateStoreReady(t *testing.T) (*BotDuplicator, string) {
 }
 func duplicateStoreBegin(t *testing.T, c *BotDuplicator, k string) (BotDuplicateTicket, pluginrpc.DshbotBotDuplicateCommand) {
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	if r == nil {
-		t.Fatal(c.Snapshot(k).Error)
+		t.Fatal(c.Snapshot(k).Value.Error)
 	}
 	c.Acknowledge(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	if _, _, ok := c.Begin(k, r); ok {
 		t.Fatal("goal copied without separate execution acknowledgement")
 	}
 	c.AcknowledgeExecution(k, r, true)
-	r = c.Snapshot(k).Review
+	r = c.Snapshot(k).Value.Review
 	ticket, cmd, ok := c.Begin(k, r)
 	if !ok || !cmd.AllowObjectiveExecution {
 		t.Fatal("explicit begin")
@@ -75,13 +75,13 @@ func TestBotDuplicatorUnknownNeverAdoptsCandidate(t *testing.T) {
 	c.Suspend()
 	c.Bind("other-account/source", "client-b")
 	c.Finish(ticket, pluginrpc.DshbotBotDuplicateResult{Attempted: true}, fmt.Errorf("lost receipt"))
-	if c.Snapshot("other-account/source").Draft != nil {
+	if c.Snapshot("other-account/source").Value.Draft != nil {
 		t.Fatal("cross-account leak")
 	}
 	c.Bind(k, "client-c")
 	c.Discard(k)
 	c.Start(k, "source", "/other")
-	if !c.Snapshot(k).Uncertain || c.Snapshot(k).Draft.Name != cmd.Name {
+	if !c.Snapshot(k).Value.Uncertain || c.Snapshot(k).Value.Draft.Name != cmd.Name {
 		t.Fatal("unknown unlocked")
 	}
 	load, _ := c.BeginLoad(k)
@@ -89,18 +89,18 @@ func TestBotDuplicatorUnknownNeverAdoptsCandidate(t *testing.T) {
 	empty.Revision++
 	c.FinishLoad(load, empty, true, nil)
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil || len(c.Snapshot(k).Candidates) != 0 {
+	if c.Snapshot(k).Value.Review != nil || len(c.Snapshot(k).Value.Candidates) != 0 {
 		t.Fatal("absence authorized another copy")
 	}
 	result := duplicateStoreResult(cmd)
 	load, _ = c.BeginLoad(k)
 	c.FinishLoad(load, result.Catalog, true, nil)
-	snapshot := c.Snapshot(k)
+	snapshot := c.Snapshot(k).Value
 	if !snapshot.Uncertain || len(snapshot.Candidates) != 1 || snapshot.Created.ID != "" || snapshot.Pending == nil {
 		t.Fatal("candidate causally adopted", snapshot)
 	}
 	c.Prepare(k)
-	if c.Snapshot(k).Review != nil {
+	if c.Snapshot(k).Value.Review != nil {
 		t.Fatal("candidate unlocked duplicate")
 	}
 	c.Suspend()
@@ -112,7 +112,7 @@ func TestBotDuplicatorUnknownNeverAdoptsCandidate(t *testing.T) {
 func TestBotDuplicatorReviewLifecycleAndWarnings(t *testing.T) {
 	c, k := duplicateStoreReady(t)
 	c.Prepare(k)
-	r := c.Snapshot(k).Review
+	r := c.Snapshot(k).Value.Review
 	c.Acknowledge(k, r, true)
 	c.AcknowledgeExecution(k, r, true)
 	c.Change(k, "name", "Changed name")
@@ -123,7 +123,7 @@ func TestBotDuplicatorReviewLifecycleAndWarnings(t *testing.T) {
 	c.Suspend()
 	c.Finish(ticket, duplicateStoreResult(cmd), nil)
 	c.Bind(k, "replacement")
-	s := c.Snapshot(k)
+	s := c.Snapshot(k).Value
 	if s.Uncertain || s.Busy || s.Created.ID != "new-copy" || s.CreatedScratchCwd != "/reviewed/cwd" || len(s.Warnings) != 1 || s.Warnings[0] != "Memory copy failed: keep this entire warning" {
 		t.Fatal("lost independent result/warning", s)
 	}

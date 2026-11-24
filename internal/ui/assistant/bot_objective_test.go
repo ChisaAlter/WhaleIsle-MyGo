@@ -20,7 +20,7 @@ func TestBotObjectiveUIIndependentActionReview(t *testing.T) {
 			controls.FinishLoad(load, value, nil)
 			reads, actions := 0, 0
 			tt := ui.NewTester(func(c *ui.Context) {
-				s := controls.Snapshot(k)
+				s := controls.Snapshot(k).Value
 				m := BotObjectiveModel{State: s, HostLabel: "https://fixture.invalid", OnRefresh: func() { reads++ }, OnReview: func(a string) { controls.Prepare(k, a) }, OnDismiss: func() { controls.Dismiss(k, s.Review) }, OnConfirm: func() {
 					if _, cmd, ok := controls.BeginAction(k, s.Review); ok {
 						if cmd.Action != action {

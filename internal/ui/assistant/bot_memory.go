@@ -30,8 +30,8 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 		if ui.Button(c, i18n.T(i18n.KeyW4AssistantReadRefreshBotMemoryRefreshMemory)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "bot_memory:36", s.Notice)
 		if !s.Loaded {
