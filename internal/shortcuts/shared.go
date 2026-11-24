@@ -2,7 +2,10 @@ package shortcuts
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
+	"sync"
 	"whaleisle/internal/shortcutprefs"
 )
 
@@ -20,19 +23,33 @@ func CanonicalID(id string) string {
 	}
 	return "mygo." + id
 }
+
+var (
+	platformSharedDefaultsOnce sync.Once
+	platformSharedDefaults     map[string]string
+	sharedDefinitionsCache     sync.Map // profile string -> []shortcutprefs.Definition
+)
+
+func cachedSharedDefaults() map[string]string {
+	platformSharedDefaultsOnce.Do(func() {
+		d := maps.Clone(platformDefaults)
+		d["terminal.toggle"] = "Mod+`"
+		d["session.search"] = "Mod+K"
+		d["session.rename"] = "Mod+Alt+G"
+		d["harness.restart"] = "Mod+Shift+R"
+		d["session.fork"] = "Mod+Alt+F"
+		d["session.archive"] = "Mod+Shift+A"
+		d["workspace.add"] = "Mod+O"
+		// Compatibility rows remain editable, but do not introduce a second default owner.
+		d["workspace.open"] = ""
+		d["tools.toggle.alternate"] = ""
+		platformSharedDefaults = d
+	})
+	return platformSharedDefaults
+}
+
 func SharedDefaults() map[string]string {
-	d := Defaults()
-	d["terminal.toggle"] = "Mod+`"
-	d["session.search"] = "Mod+K"
-	d["session.rename"] = "Mod+Alt+G"
-	d["harness.restart"] = "Mod+Shift+R"
-	d["session.fork"] = "Mod+Alt+F"
-	d["session.archive"] = "Mod+Shift+A"
-	d["workspace.add"] = "Mod+O"
-	// Compatibility rows remain editable, but do not introduce a second default owner.
-	d["workspace.open"] = ""
-	d["tools.toggle.alternate"] = ""
-	return d
+	return maps.Clone(cachedSharedDefaults())
 }
 
 var physicalCodes = map[string]string{",": "Comma", ".": "Period", "/": "Slash", "\\": "Backslash", "`": "Backquote", ";": "Semicolon", "'": "Quote", "[": "BracketLeft", "]": "BracketRight", "-": "Minus", "=": "Equal", "ENTER": "Enter"}
@@ -78,17 +95,51 @@ func LegacySharedBinding(raw string) (*shortcutprefs.Binding, error) {
 	}
 	return b, nil
 }
+func cloneShortcutBinding(b shortcutprefs.Binding) shortcutprefs.Binding {
+	if b.Modifiers != nil {
+		b.Modifiers = slices.Clone(b.Modifiers)
+	}
+	return b
+}
+
+func cloneShortcutDefinitions(in []shortcutprefs.Definition) []shortcutprefs.Definition {
+	out := make([]shortcutprefs.Definition, len(in))
+	for i, d := range in {
+		out[i] = shortcutprefs.Definition{ID: d.ID}
+		if d.Defaults != nil {
+			out[i].Defaults = make(map[string]shortcutprefs.Binding, len(d.Defaults))
+			for k, b := range d.Defaults {
+				out[i].Defaults[k] = cloneShortcutBinding(b)
+			}
+		}
+		if d.Fixed != nil {
+			out[i].Fixed = make([]shortcutprefs.Binding, len(d.Fixed))
+			for j, b := range d.Fixed {
+				out[i].Fixed[j] = cloneShortcutBinding(b)
+			}
+		}
+	}
+	return out
+}
+
 func SharedDefinitions(profile string) []shortcutprefs.Definition {
-	var defs []shortcutprefs.Definition
-	for id, v := range SharedDefaults() {
-		d := shortcutprefs.Definition{ID: CanonicalID(id), Defaults: map[string]shortcutprefs.Binding{}}
+	if cached, ok := sharedDefinitionsCache.Load(profile); ok {
+		return cloneShortcutDefinitions(cached.([]shortcutprefs.Definition))
+	}
+	defaults := cachedSharedDefaults()
+	fixed := FixedDefinitions()
+	defs := make([]shortcutprefs.Definition, 0, len(defaults)+len(fixed))
+	for _, c := range platformCommands {
+		v := defaults[c.ID]
+		d := shortcutprefs.Definition{ID: CanonicalID(c.ID), Defaults: make(map[string]shortcutprefs.Binding, 1)}
 		if b, _ := SharedBinding(v); b != nil {
 			d.Defaults[profile] = *b
 		}
 		defs = append(defs, d)
 	}
-	defs = append(defs, FixedDefinitions()...)
-	return defs
+	defs = append(defs, fixed...)
+	sharedDefinitionsCache.Store(profile, defs)
+	return cloneShortcutDefinitions(defs)
 }
 
 // Fixed font commands keep the product's durable role-font semantics distinct
