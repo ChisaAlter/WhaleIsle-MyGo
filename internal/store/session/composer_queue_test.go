@@ -133,11 +133,11 @@ func TestEmptyComposerQueueSteerFIFOAndOwnership(t *testing.T) {
 			if !reflect.DeepEqual(remaining, want) {
 				t.Fatal("accepted rows resent or failed rows lost", remaining, want)
 			}
-			if tc.code == "fixture/failure" && !strings.Contains(s.lastAction, "fixture/failure") {
-				t.Fatal("genuine error hidden", s.lastAction)
+			if tc.code == "fixture/failure" && (!strings.HasPrefix(s.lastAction, "queue: ") || strings.Contains(s.lastAction, "fixture/failure")) {
+				t.Fatal("genuine error hidden or leaked raw text", s.lastAction)
 			}
-			if tc.reject && s.lastAction != "queue: mutation was not accepted" {
-				t.Fatal("rejection hidden", s.lastAction)
+			if tc.reject && (!strings.HasPrefix(s.lastAction, "queue: ") || strings.Contains(s.lastAction, "mutation was not accepted")) {
+				t.Fatal("rejection hidden or leaked raw text", s.lastAction)
 			}
 			if tc.code != "" && tc.code != "fixture/failure" && s.lastAction != "queue steer first" {
 				t.Fatal("known convergence surfaced as error", s.lastAction)

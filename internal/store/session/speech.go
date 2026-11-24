@@ -98,7 +98,8 @@ func (s *Store) CycleSpeechProvider(ctx context.Context) {
 		var catalog api.SpeechCatalog
 		if err := client.Call(ctx, "speech/catalog", map[string]any{}, &catalog); err != nil {
 			s.mu.Lock()
-			s.lastAction = "speech catalog: " + err.Error()
+			s.setLastActionFaultLocked("speech.catalog", "speech catalog: ", err)
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -132,7 +133,8 @@ func (s *Store) CycleSpeechProvider(ctx context.Context) {
 		}
 		if err := s.ConfigureSpeech(ctx, nextID, lang); err != nil {
 			s.mu.Lock()
-			s.lastAction = "speech configure: " + err.Error()
+			s.setLastActionFaultLocked("speech.configure", "speech configure: ", err)
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 			return

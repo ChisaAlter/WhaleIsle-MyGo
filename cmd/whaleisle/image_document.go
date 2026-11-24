@@ -29,7 +29,7 @@ func (s *mainState) openLocalImage(sessions *session.Store, sid, root, path stri
 		st := s.bootStatus
 		current := !s.quitting && s.sessions == sessions && s.win == win && st.Generation == host.Generation && st.State == host.State && st.Endpoint.Origin == host.Endpoint.Origin && st.Endpoint.Cookie == host.Endpoint.Cookie
 		s.mu.Unlock()
-		snap := sessions.Snapshot()
+		snap := sessions.Published().Value
 		return current && snap.SelectedID == sid && snap.SelectedCwd == root
 	}
 	if !valid() {

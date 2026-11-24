@@ -74,7 +74,7 @@ func (s *Store) ReviewSkillRemoval(ctx context.Context, name string) {
 		return
 	}
 	if err != nil {
-		s.skillRemoval.Message = err.Error()
+		s.skillRemoval.Message = faultText("skillDirectory.review", err)
 	} else if !loaded.Writable() {
 		s.skillRemoval.Message = "This Skill is read-only."
 	} else {
@@ -82,6 +82,7 @@ func (s *Store) ReviewSkillRemoval(ctx context.Context, name string) {
 		s.skillRemoval.Ready = true
 		s.skillRemoval.Message = storelocale.T(storelocale.KeyStoreSessionPermanentlyDeleteThisSkillDirectory)
 	}
+	s.invalidateViewLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -153,7 +154,7 @@ func (s *Store) ConfirmSkillRemoval(ctx context.Context, id uint64) {
 			readErr = fmt.Errorf("Host returned no valid skills array")
 		}
 		if readErr != nil {
-			message = "Deletion result unknown; refresh the original scope before any new review. " + readErr.Error()
+			message = prefixedFaultText("skillDirectory.reconcile", storelocale.Pick("删除结果未知，请先刷新原范围再重新检查：", "Deletion result unknown; refresh the original scope before any new review. "), readErr)
 		} else {
 			present := false
 			for _, row := range inv.Skills {
@@ -168,7 +169,7 @@ func (s *Store) ConfirmSkillRemoval(ctx context.Context, id uint64) {
 			}
 		}
 	} else if err != nil {
-		message = err.Error()
+		message = faultText("skillDirectory.confirm", err)
 	}
 	s.mu.Lock()
 	if s.skillRemoval.ID == id {
@@ -271,10 +272,11 @@ func (s *Store) OpenCapturedSkillDirectory(ctx context.Context, ticket SkillDire
 	s.mu.Lock()
 	if s.removalCurrentLocked(r, t.version) {
 		if err != nil {
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("skillDirectory.open", "", err)
 		} else {
 			s.lastAction = "Skill directory opened on its Host"
 		}
+		s.invalidateViewLocked()
 	}
 	s.mu.Unlock()
 	s.fire()

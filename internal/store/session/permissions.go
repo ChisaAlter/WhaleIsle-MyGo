@@ -77,7 +77,7 @@ func (s *Store) clearPermissionErrorLocked() {
 	if s.permissionsErr == nil && s.permissionsFault == nil {
 		return
 	}
-	if s.permissionsErr != nil && s.lastAction == s.permissionsErr.Error() {
+	if s.permissionsFault != nil && s.lastAction == s.permissionsFault.SentenceText() {
 		s.lastAction = ""
 	}
 	s.setPermissionsErrLocked(nil)
@@ -228,18 +228,19 @@ func (s *Store) settlePermissionPreset(ctx context.Context, client *dsh.Client, 
 			err = errors.New(storelocale.T(storelocale.KeyStoreSessionTheHostDidNotConfirmTheCurrentSession))
 		}
 	}
-	prevErr := s.permissionsErr
+	prevFault := s.permissionsFault
 	if s.setPermissionsErrLocked(err) {
 		s.invalidateViewLocked()
 	}
 	// The confirmed projection updates the chip in place. A configuration
 	// command is not a conversation or a permanent shell success notice.
 	if err != nil {
-		if s.lastAction != err.Error() {
+		msg := s.permissionsFault.SentenceText()
+		if s.lastAction != msg {
 			s.invalidateViewLocked()
 		}
-		s.lastAction = err.Error()
-	} else if prevErr != nil && s.lastAction == prevErr.Error() {
+		s.lastAction = msg
+	} else if prevFault != nil && s.lastAction == prevFault.SentenceText() {
 		s.lastAction = ""
 		s.invalidateViewLocked()
 	}

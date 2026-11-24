@@ -109,7 +109,7 @@ func (s *Store) ResolveNativeContributionsForEvents(owner *EventsOwner) {
 			return
 		}
 		if err != nil {
-			s.setNativeContributionsLocked(dsh.NativeContributions{Error: err.Error()})
+			s.setNativeContributionsLocked(dsh.NativeContributions{Error: faultText("nativeContributions", err)})
 		} else {
 			s.setNativeContributionsLocked(snapshot)
 		}

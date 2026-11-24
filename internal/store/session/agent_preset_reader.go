@@ -151,7 +151,7 @@ func (r *AgentPresetReader) Load(ctx context.Context, ticket uint64) {
 	}
 	r.state.Busy = false
 	if err != nil {
-		r.state.Error, _ = presetReaderBound(err.Error(), 4096)
+		r.state.Error, _ = presetReaderBound(faultText("agentPresetReader", err), 4096)
 		return
 	}
 	if doc.AgentPreset != id {

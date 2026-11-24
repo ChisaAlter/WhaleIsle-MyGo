@@ -67,7 +67,7 @@ func (s *mainState) openScheduleSession(row schedstore.Entry) {
 	if sessions == nil || row.Origin == "" || row.Origin != origin {
 		return
 	}
-	if _, available := scheduleSessionLinks(sessions.Snapshot())[row.SessionID]; !available {
+	if _, available := scheduleSessionLinks(sessions.Published().Value)[row.SessionID]; !available {
 		return
 	}
 	s.revokePhoneGit()

@@ -35,7 +35,7 @@ func (s *mainState) browserActionTarget() browserpreviewui.ActionTarget {
 	if quitting || win == nil || sessions == nil {
 		return browserpreviewui.ActionTarget{}
 	}
-	snap := sessions.Snapshot()
+	snap := sessions.Published().Value
 	id, cwd := snap.SelectedID, snap.SelectedCwd
 	var draft *composer.DraftState
 	if id != "" {
@@ -54,7 +54,7 @@ func (s *mainState) browserActionTarget() browserpreviewui.ActionTarget {
 		if !current || win.IsDestroyed() {
 			return false
 		}
-		currentSession := sessions.Snapshot()
+		currentSession := sessions.Published().Value
 		return currentSession.SelectedID == id && currentSession.SelectedCwd == cwd
 	}
 	target := browserpreviewui.ActionTarget{Valid: valid}

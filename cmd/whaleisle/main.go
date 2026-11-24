@@ -797,7 +797,7 @@ func (s *mainState) applyWorkspacePath(win *mygo.Window, sessions *session.Store
 	// A first workspace is chosen before any Host exists: workspace/create is
 	// unreachable, and the Host reads config.workspace when it launches. Saving
 	// it here is what lets the choice start the Host instead of dead-ending.
-	if !sessions.Snapshot().WorkspaceReady {
+	if !sessions.Published().Value.WorkspaceReady {
 		s.adoptFirstWorkspace(win, sessions, ws)
 		return
 	}
@@ -1339,7 +1339,7 @@ func (s *mainState) pollAcceptOpenHook() bool {
 					sessions = s.sessions
 					s.mu.Unlock()
 					if sessions != nil {
-						snap = sessions.Snapshot()
+						snap = sessions.Published().Value
 						if len(snap.Items) > 0 {
 							break
 						}
@@ -1623,7 +1623,7 @@ func (s *mainState) syncDialogue(st harness.Status) {
 		s.observeWorkbenchReady(startupGen, sessions)
 		s.recordStartupWorkspaceReady(sessions)
 		if !inventoryReleased.Load() {
-			v := sessions.Snapshot()
+			v := sessions.Published().Value
 			if (v.ClientReady && v.WorkspaceReady && !v.ListLoading) || v.WorkspaceError != nil || v.ListErr != nil {
 				if s.marketCoordinator().WorkspaceReady(client) {
 					inventoryReleased.Store(true)
@@ -6027,7 +6027,7 @@ func mainView(c *ui.Context) {
 								return
 							}
 							sessions.OpenWorkspacePicker()
-							request := sessions.Snapshot().WorkspaceNavigation
+							request := sessions.Published().Value.WorkspaceNavigation
 							if request != nil && request.Mode == "pick" && sessions.ChooseRegisteredWorkspace(request.Token, id, state.persistRegisteredWorkspace) {
 								state.workspaceSelectionCommitted(win, sessions, sessions.WorkspaceCwd())
 							}

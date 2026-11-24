@@ -26,7 +26,7 @@ func (t *ComposerTarget) settleRetirementLocked(id string, err error) {
 			copy.Attachments = append([]ComposerAttachment(nil), p.Attachments...)
 			go func() {
 				if saveErr := t.store.persistSubmissionOutcome(&copy, err); saveErr != nil {
-					t.store.SetLastAction(saveErr.Error())
+					t.store.SetLastAction(faultText("submissionOutcome", saveErr))
 				}
 			}()
 		}

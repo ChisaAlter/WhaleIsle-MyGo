@@ -144,7 +144,7 @@ func (s *Store) runHistoryPage(ctx context.Context, client *dsh.Client, sessionI
 	}
 	if err != nil {
 		s.setHistoryPageErrLocked(err)
-		s.lastAction = "session/page: " + err.Error()
+		s.lastAction = "session/page: " + s.historyPageFault.SentenceText()
 		s.mu.Unlock()
 		s.fire()
 		return

@@ -326,11 +326,12 @@ func (s *Store) startAgentNavigationReadLocked(earlier bool) {
 			s.refreshAgentNavigationRowsLocked(&v)
 		}
 		if err != nil {
-			n.view.Error = err.Error()
+			n.view.Error = faultText("agentNavigation.open", err)
 		} else {
 			v.Busy = false
 			n.view = v
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()
@@ -514,7 +515,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 			if !valid {
 				err = ctx.Err()
 				if err == nil {
-					err = fmt.Errorf("Child target is no longer in the current directory; refresh before retrying")
+					err = storelocale.Authored("Child target is no longer in the current directory; refresh before retrying")
 				}
 				break
 			}
@@ -528,14 +529,14 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 				valid = validLocked()
 				s.mu.Unlock()
 				if !valid {
-					err = fmt.Errorf("Child image target changed or request expired")
+					err = storelocale.Authored("Child image target changed or request expired")
 					break
 				}
 				req := api.SubagentPromptRequest{RequestId: newRequestID(), ChildSessionId: address.ChildSessionID, Delivery: delivery, Content: content}
 				var receipt api.SubagentPromptReceipt
 				err = client.Call(ctx, "subagents/prompt", map[string]any{"request": req}, &receipt)
 				if err == nil && strings.TrimSpace(receipt.MessageId) == "" {
-					err = fmt.Errorf("Invalid child prompt acknowledgement; refresh history before retrying")
+					err = storelocale.Authored("Invalid child prompt acknowledgement; refresh history before retrying")
 				}
 			} else {
 				var receipt json.RawMessage
@@ -554,7 +555,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		s.agentNavigation.view.ActionBusy = false
 		s.agentNavigation.actionCancel = nil
 		if err != nil {
-			s.agentNavigation.view.ActionStatus = err.Error()
+			s.agentNavigation.view.ActionStatus = faultText("agentNavigation.action", err)
 		} else if prompt {
 			s.agentNavigation.view.PromptReceipt++
 			s.agentNavigation.view.PromptImages = nil
@@ -562,6 +563,7 @@ func (s *Store) agentNavigationAction(token uint64, addresses []AgentSessionAddr
 		} else {
 			s.agentNavigation.view.ActionStatus = storelocale.T(storelocale.KeyStoreSessionInterruptRequested)
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

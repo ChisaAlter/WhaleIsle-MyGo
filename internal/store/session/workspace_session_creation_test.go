@@ -211,8 +211,8 @@ func TestWorkspaceSessionCreateErrorsAndPartialAttachment(t *testing.T) {
 			if id != "" || err == nil || !target.ReportFailure(err) {
 				t.Fatal("failed call not reported", id, err)
 			}
-			if h.store.Snapshot().SelectedID != "current" || !strings.Contains(h.store.Snapshot().LastAction, "session") {
-				t.Fatal("failure changed selection or omitted feedback")
+			if snap := h.store.Snapshot(); snap.SelectedID != "current" || snap.LastAction == "" || strings.Contains(snap.LastAction, "inspection failed") || strings.Contains(snap.LastAction, "missing workspace") || strings.Contains(snap.LastAction, "attach failed") {
+				t.Fatalf("failure changed selection, omitted feedback, or leaked raw text: %+v", snap.LastAction)
 			}
 			if mode == "reuse-error" && (len(h.calls) != 1 || h.calls[0].Method != "session/blankReuse") {
 				t.Fatalf("reuse error led to create: %v", h.calls)

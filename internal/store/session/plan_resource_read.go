@@ -115,7 +115,7 @@ func (s *Store) ReadSubagentPlan(ctx context.Context, binding string, target Pla
 		}
 		r.state.Loading = false
 		if err != nil {
-			r.state.Error = err.Error()
+			r.state.Error = faultText("planResourceRead", err)
 		} else {
 			r.state.Plan = plan
 		}

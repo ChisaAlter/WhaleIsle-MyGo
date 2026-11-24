@@ -34,7 +34,7 @@ func (s *mainState) openMediaFile(sessions *session.Store, expectedClient *dsh.C
 		st := s.bootStatus
 		current := !s.quitting && s.sessions == sessions && s.win == win && st.Generation == host.Generation && st.State == host.State && st.Endpoint.Origin == host.Endpoint.Origin && st.Endpoint.Cookie == host.Endpoint.Cookie
 		s.mu.Unlock()
-		snap := sessions.Snapshot()
+		snap := sessions.Published().Value
 		return current && sourceValid() && snap.SelectedID == sid && snap.SelectedCwd == root
 	}
 	if !valid() {

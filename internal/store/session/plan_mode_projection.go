@@ -92,7 +92,7 @@ func (s *Store) ExitPlanMode(ctx context.Context, targetID string) {
 		s.planModeControl.Leaving = false
 		s.invalidateViewLocked()
 		if err != nil {
-			s.planModeControl.Error = err.Error()
+			s.planModeControl.Error = faultText("planMode", err)
 		}
 		// A command acknowledgment is not a plan projection; the control watch owns
 		// active/pending, including an effective off target before durable mode flips.

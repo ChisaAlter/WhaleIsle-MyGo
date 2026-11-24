@@ -512,7 +512,7 @@ func (s *Store) RunTurnFileAction(ctx context.Context, scope TurnFileScope, requ
 }
 func runTurnFileHTTP(ctx context.Context, client *dsh.Client, scope TurnFileScope, request TurnFileRequest, route, method, expectedPath string) TurnFileResult {
 	result := TurnFileResult{Action: request.Action}
-	fail := func(err error) TurnFileResult { result.Error = err.Error(); return result }
+	fail := func(err error) TurnFileResult { result.Error = faultText("turnFile", err); return result }
 	origin, err := url.Parse(client.Endpoint.Origin)
 	if err != nil || (origin.Scheme != "http" && origin.Scheme != "https") || origin.Host == "" || origin.User != nil || origin.RawQuery != "" || origin.Fragment != "" {
 		return fail(fmt.Errorf("invalid Host origin"))

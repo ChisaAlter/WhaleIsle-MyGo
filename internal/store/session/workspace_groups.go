@@ -134,11 +134,12 @@ func (s *Store) reorderWorkspaceForHost(ctx context.Context, expectedGeneration 
 			err = errors.New("Host returned no workspace order")
 		}
 		if err != nil {
-			s.workspaceLayout.view.Error = err.Error()
+			s.workspaceLayout.view.Error = faultText("workspaceOrder", err)
 		} else {
 			s.workspaceOrder = append([]string(nil), out.WorkspaceIds...)
 			s.signalWorkspaceLocked()
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

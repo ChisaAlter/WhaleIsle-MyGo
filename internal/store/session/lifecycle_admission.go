@@ -21,7 +21,7 @@ func (s *Store) runCreateNoDirectorySession(ctx context.Context, client *dsh.Cli
 		return
 	}
 	if err != nil {
-		s.lastAction = "no workspace folder: " + err.Error()
+		s.setLastActionFaultLocked("createNoDirSession", "no workspace folder: ", err)
 		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
@@ -61,10 +61,8 @@ func (s *Store) runCreateSessionOwned(ctx context.Context, client *dsh.Client, h
 		return
 	}
 	if err != nil {
-		if s.lastAction != err.Error() {
-			s.invalidateViewLocked()
-		}
-		s.lastAction = err.Error()
+		s.setLastActionFaultLocked("createSession", "", err)
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		return
@@ -100,10 +98,8 @@ func (s *Store) runForkSessionOwned(ctx context.Context, client *dsh.Client, hos
 		return
 	}
 	if err != nil {
-		if s.lastAction != err.Error() {
-			s.invalidateViewLocked()
-		}
-		s.lastAction = err.Error()
+		s.setLastActionFaultLocked("createSession", "", err)
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 		return

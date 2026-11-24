@@ -118,7 +118,7 @@ func TestWorkspaceNavigationFixture(t *testing.T) {
 		s.RegisterWorkspace(context.Background(), token, "/draft", func(string) error { return errors.New("disk full") }, nil)
 		wait(func() bool {
 			op := s.Snapshot().WorkspaceNavigation
-			return op != nil && !op.Busy && op.Error == "disk full"
+			return op != nil && !op.Busy && op.Error != "" && !strings.Contains(op.Error, "disk full")
 		})
 		if s.WorkspaceCwd() != "/host/one" || s.Snapshot().SelectedID != "s" {
 			t.Fatal("failed persistence partially selected")

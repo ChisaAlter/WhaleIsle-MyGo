@@ -138,10 +138,10 @@ func (s *Store) runArchive(ctx context.Context, client *dsh.Client, token uint64
 		}
 		if s.archive.waiting {
 			if stopActivity || !refused {
-				s.archive.confirmation.Error = err.Error()
+				s.archive.confirmation.Error = faultText("archiveSession", err)
 			}
 		} else {
-			s.lastAction = err.Error()
+			s.lastAction = faultText("archiveSession", err)
 			s.invalidateArchiveLocked()
 		}
 		s.mu.Unlock()

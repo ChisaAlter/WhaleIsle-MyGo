@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/errcopy"
 	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
@@ -204,7 +205,8 @@ func (s *Store) DiscoverLLMProviders(ctx context.Context) {
 		err := client.Call(ctx, "llm/listConfigurableProviders", map[string]any{}, &providers)
 		if err != nil {
 			s.mu.Lock()
-			s.lastAction = err.Error()
+			s.setLastActionFaultLocked("models.discover", "", err)
+			s.invalidateViewLocked()
 			s.mu.Unlock()
 			s.fire()
 			return
@@ -438,7 +440,8 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 					err = baseline.RequireSequenced()
 				}
 				if err != nil {
-					err = errors.New(fmt.Sprintf(storelocale.T(storelocale.KeyStoreSessionModelSelectionSubmittedButReadingTheCu), err))
+					log.Printf("[session] models.select readCurrent: %v", err)
+					err = storelocale.Authored(errcopy.Under(storelocale.Pick("模型选择已提交，但读取当前会话状态失败", "Model selection submitted, but reading the current session state failed"), err))
 				}
 			}
 		}
@@ -465,10 +468,11 @@ func (s *Store) selectModelSelectionWithReceipt(ctx context.Context, sessionID s
 		}
 		s.setModelsErrLocked(err)
 		if err != nil {
-			s.lastAction = err.Error()
+			s.lastAction = s.modelsFault.SentenceText()
 		} else {
 			s.lastAction = storelocale.T(storelocale.KeyStoreSessionCurrentSessionModelUpdated)
 		}
+		s.invalidateViewLocked()
 		s.mu.Unlock()
 		s.fire()
 	}()

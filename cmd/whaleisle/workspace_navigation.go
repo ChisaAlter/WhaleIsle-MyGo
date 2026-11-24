@@ -29,7 +29,7 @@ type workspaceAdoption struct {
 }
 
 func (s *mainState) captureWorkspaceAdoption(sessions *session.Store) workspaceAdoption {
-	snap := sessions.Snapshot()
+	snap := sessions.Published().Value
 	panelGen := s.assistantService().ConversationGeneration()
 	s.mu.Lock()
 	d := s.composerDraftLocked(snap.SelectedID)
@@ -97,7 +97,7 @@ func (s *mainState) registerWorkspacePath(win *mygo.Window, sessions *session.St
 	}
 	adoption := s.captureWorkspaceAdoption(sessions)
 	sessions.OpenWorkspacePicker()
-	request := sessions.Snapshot().WorkspaceNavigation
+	request := sessions.Published().Value.WorkspaceNavigation
 	if request == nil || request.Mode != "pick" || request.Busy {
 		if request == nil {
 			log.Printf("workspace: register %q dropped: no pick request (Host not connected)", path)
@@ -139,7 +139,7 @@ func (s *mainState) workspaceNavigationView(c *ui.Context, win *mygo.Window, ses
 	workspacepicker.View(c, workspacepicker.Model{Store: sessions, ThemeID: themeID, SystemDark: systemDark, OnNoDirectory: onNoDirectory, DirectoryActions: s.projectDirectoryActions(win),
 		Anchor: c.Resolve(s.workspacePickerAnchor),
 		OnBrowse: func() {
-			if request := sessions.Snapshot().WorkspaceNavigation; request != nil {
+			if request := sessions.Published().Value.WorkspaceNavigation; request != nil {
 				sessions.CancelWorkspaceNavigation(request.Token)
 			}
 			s.openDirectoryPicker(sessions, win, "workspace")

@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"whaleisle/internal/dsh"
@@ -26,8 +27,8 @@ func TestVisualReplyPreviewAuthorizedSnapshot(t *testing.T) {
 	s.visualReply = visualReplyRead{VisualReplyState: VisualReplyState{SessionID: "A", AttachmentID: "page", HTML: "fixture", Ready: true}, generation: 7}
 	s.PreviewVisualReply(context.Background(), "A", "page", render)
 	state := s.VisualReplySnapshot()
-	if calls != 1 || !state.Ready || state.HTML != "fixture" || state.PreviewError != "isolation unavailable" {
-		t.Fatal("failure lost source fallback", state)
+	if calls != 1 || !state.Ready || state.HTML != "fixture" || state.PreviewError == "" || strings.Contains(state.PreviewError, "isolation unavailable") {
+		t.Fatal("failure lost source fallback or leaked raw text", state)
 	}
 	started, done := make(chan struct{}), make(chan struct{})
 	go func() {

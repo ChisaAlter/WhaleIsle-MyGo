@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"whaleisle/internal/dsh"
 )
@@ -72,7 +73,7 @@ func TestQueueActionProtocolAndReceipt(t *testing.T) {
 			if tc.stale && snap.LastAction != "" {
 				t.Fatalf("stale result changed status: %q", snap.LastAction)
 			}
-			if !tc.accepted && snap.LastAction != "queue: mutation was not accepted" {
+			if !tc.accepted && (!strings.HasPrefix(snap.LastAction, "queue: ") || strings.Contains(snap.LastAction, "mutation was not accepted")) {
 				t.Fatalf("rejection=%q", snap.LastAction)
 			}
 		})

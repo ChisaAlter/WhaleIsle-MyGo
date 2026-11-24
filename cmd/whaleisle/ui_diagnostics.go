@@ -159,7 +159,7 @@ func (s *mainState) recordStartupWorkspaceReady(sessions *session.Store) {
 	if !current || (!loading && (!startuptrace.Enabled() || uiDiagWorkspaceReady.Load())) {
 		return
 	}
-	snapshot := sessions.Snapshot()
+	snapshot := sessions.Published().Value
 	ready := snapshot.ClientReady && snapshot.WorkspaceReady && !snapshot.ListLoading && snapshot.ListErr == nil && snapshot.WorkspaceError == nil
 	if loading && (ready || snapshot.WorkspaceError != nil || snapshot.ListErr != nil) {
 		s.mu.Lock()
