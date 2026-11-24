@@ -11,7 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chat"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -40,33 +40,35 @@ func inspectorText(c *ui.Context, text string) ui.Element {
 }
 
 func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source session.InspectorSnapshot, rows []session.InspectorRecord, hasMore, busy bool, loadOlder func(), colors theme.Colors) {
-	ink, border := chrome.Color(colors.FG), chrome.Color(colors.Border)
-	toolbar := ui.Row(c.Key("inspector-toolbar")).Label("Inspector toolbar").FillWidth().Shrink(0).Gap(8).Padding(6, 8).
-		AlignItems(ui.Center).FontSize(11).TextColor(ink).BorderWidth(0, 0, .5, 0).BorderColor(border)
+	_ = colors
+	t := tk(c)
+	ink, border := t.Foreground, t.Border
+	toolbar := ui.Row(c.Key("inspector-toolbar")).Label("Inspector toolbar").FillWidth().Shrink(0).Gap(design.Sp(2)).Padding(design.Sp(1.5), design.Sp(2)).
+		AlignItems(ui.Center).FontSize(11).TextColor(ink).BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(border)
 	toolbar.Children(func() {
-		ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 			if p.Mode == "" {
 				p.Mode = "session-log"
 			}
 			mode := &p.Mode
 			parts := ui.SelectBase(c.Key("inspector-mode-select"), mode)
-			parts.Trigger.Label(paneLabel("展示形式", "Presentation")).Padding(2, 4).BorderWidth(0).Radius(0).
-				Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field))).FontSize(11).MinHeight(0).Cursor(ui.CursorPointer).Children(func() {
+			parts.Trigger.Label(paneLabel("展示形式", "Presentation")).Padding(design.Sp(0.5), design.Sp(1)).BorderWidth(0).Radius(0).
+				Background(frameInsetBg(t)).FontSize(11).MinHeight(0).Cursor(ui.CursorPointer).Children(func() {
 				label := paneLabel("原始数据", "Raw Log")
 				if *mode == "chat-node" {
 					label = paneLabel("对话分组", "Chat Group")
 				}
-				ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 					inspectorText(c, label)
 					ui.Icon(c, inspectorDownIcon).Size(12, 12).TextColor(ink)
 				})
 			})
 			parts.Popup(func(panel ui.Element) {
-				chrome.FrostSurface(panel.MinWidth(120).Padding(3).Border(.5, border), colors, c.Theme().Dark, chrome.Color(colors.Field), 4)
+				framePopoverPanel(panel.MinWidth(120).Padding(design.Sp(0.75)), t, design.RadiusXS*2)
 				for _, item := range []struct{ key, label string }{{"session-log", paneLabel("原始数据", "Raw Log")}, {"chat-node", paneLabel("对话分组", "Chat Group")}} {
-					option := parts.Item(item.key).Label(item.label).Padding(4, 6).Cursor(ui.CursorPointer)
+					option := parts.Item(item.key).Label(item.label).Padding(design.Sp(1), design.Sp(1.5)).Cursor(ui.CursorPointer)
 					if option.Highlighted() {
-						option.Background(chrome.Color(colors.Hover))
+						option.Background(t.Accent)
 					}
 					option.Children(func() { inspectorText(c, item.label) })
 				}
@@ -74,11 +76,11 @@ func inspectorToolbar(c *ui.Context, p *SessionInspectorPaneState, source sessio
 			if parts.Trigger.Changed() {
 				p.changeInspectorMode(*mode, source.SessionID)
 			}
-			pick := inspectorButton(c.Key("inspector-pick"), paneLabel("在对话面板中选取元素", "Pick an element in Chat View")).Tooltip(paneLabel("在对话面板中选取元素", "Pick an element in Chat View")).Size(22, 22).Padding(3).Radius(4).Selected(p.navigation.Picking)
+			pick := inspectorButton(c.Key("inspector-pick"), paneLabel("在对话面板中选取元素", "Pick an element in Chat View")).Tooltip(paneLabel("在对话面板中选取元素", "Pick an element in Chat View")).Size(22, 22).Padding(design.Sp(0.75)).Radius(design.RadiusXS * 2).Selected(p.navigation.Picking)
 			pickInk := ink
 			if pick.Hovered() || p.navigation.Picking {
-				pick.Background(chrome.Color(colors.Hover))
-				pickInk = chrome.Color(colors.Accent)
+				pick.Background(t.Accent)
+				pickInk = t.Primary
 			}
 			pick.Children(func() { ui.Icon(c, inspectorPickIcon).Size(16, 16).TextColor(pickInk) })
 			if pick.Clicked() {
@@ -204,6 +206,7 @@ func inspectorStickyIndexes(rows []session.InspectorRecord, branches map[string]
 // The horizontal viewport owns both the header and the virtual vertical list.
 // Narrow docks retain the reference's 660px table rather than wrapping cells.
 func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, colors theme.Colors) {
+	t := tk(c)
 	depths, _ := inspectorDepths(rows)
 	filtered := inspectorTypeRows(rows, p.Filter)
 	_, branches := inspectorDepths(filtered)
@@ -212,7 +215,7 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 	viewport := ui.ScrollHorizontal(c.Key("inspector-table-x")).Label("Inspector table horizontal scroll").TrackScroll(&p.tableX).Grow(1).MinHeight(0).FillWidth()
 	width := max(float32(660), viewport.Bounds().W)
 	viewport.Children(func() {
-		ui.Column(c.Key("inspector-table")).Role(ui.RoleTable).Label(paneLabel("会话数据诊断", "Session Log")).Width(width).FillHeight().Font(inspectorFont()).FontSize(11).TextColor(chrome.Color(colors.FG)).Children(func() {
+		ui.Column(c.Key("inspector-table")).Role(ui.RoleTable).Label(paneLabel("会话数据诊断", "Session Log")).Width(width).FillHeight().Font(inspectorFont()).FontSize(11).TextColor(t.Foreground).Children(func() {
 			inspectorTableHeader(c, p, rows, width, colors)
 			host := ui.Box(c.Key("inspector-table-rows")).Grow(1).MinHeight(0).FillWidth().Clip()
 			host.Children(func() {
@@ -247,7 +250,7 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 					inspectorTableRow(c.Key("inspector-row:"+row.Key), p, row, depths[row.Key], branches[row.Key], false, width, colors)
 				}).TrackScroll(&p.tableY).Fill().Padding(0, 0, layout.bottomPadding, 0).Children(func() {
 					if len(shown) == 0 {
-						ui.Text(c, paneLabel("暂无记录", "No records")).Padding(12).FontSize(11).TextColor(chrome.Color(colors.Muted))
+						ui.Text(c, paneLabel("暂无记录", "No records")).Padding(design.Sp(3)).FontSize(11).TextColor(t.MutedForeground)
 					}
 					// A child of the Y scroll owner receives wheel and scroll keys
 					// from the fixed band through the ordinary input ancestor chain.
@@ -269,13 +272,15 @@ func inspectorTable(c *ui.Context, p *SessionInspectorPaneState, rows []session.
 }
 
 func inspectorCell(c *ui.Context, width float32) ui.Element {
-	return ui.Row(c).Role(ui.RoleCell).Width(width).Shrink(0).Height(inspectorRowHeight).Padding(4, 8).AlignItems(ui.Center).Clip()
+	return ui.Row(c).Role(ui.RoleCell).Width(width).Shrink(0).Height(inspectorRowHeight).Padding(design.Sp(1), design.Sp(2)).AlignItems(ui.Center).Clip()
 }
 
 func inspectorTableHeader(c *ui.Context, p *SessionInspectorPaneState, rows []session.InspectorRecord, width float32, colors theme.Colors) {
-	ui.Row(c.Key("inspector-table-header")).Role(ui.RoleRow).Label("Inspector table header").FillWidth().Height(inspectorRowHeight).Shrink(0).FontWeight(700).Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field))).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1)).Children(func() {
+	_ = colors
+	t := tk(c)
+	ui.Row(c.Key("inspector-table-header")).Role(ui.RoleRow).Label("Inspector table header").FillWidth().Height(inspectorRowHeight).Shrink(0).FontWeight(design.WeightBold).Background(frameInsetBg(t)).BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(t.Border).Children(func() {
 		inspectorCell(c, 64).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, paneLabel("序号", "ID")).Tooltip(paneLabel("序号", "Index")) })
-		inspectorCell(c, 190).Role(ui.RoleColumnHeader).Gap(6).Children(func() { inspectorText(c, paneLabel("类型", "Type")); inspectorTypeFilter(c, p, rows) })
+		inspectorCell(c, 190).Role(ui.RoleColumnHeader).Gap(design.Sp(1.5)).Children(func() { inspectorText(c, paneLabel("类型", "Type")); inspectorTypeFilter(c, p, rows) })
 		inspectorCell(c, 65).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, "T/S") })
 		if p.Mode != "chat-node" {
 			inspectorCell(c, 100).Role(ui.RoleColumnHeader).Children(func() { inspectorText(c, paneLabel("时间 (UTC)", "Time (UTC)")) })
@@ -289,19 +294,20 @@ func inspectorTableHeader(c *ui.Context, p *SessionInspectorPaneState, rows []se
 }
 
 func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.InspectorRecord, depth int, branch, sticky bool, width float32, colors theme.Colors) {
-	ink := chrome.Color(colors.FG)
+	t := tk(c)
+	ink := t.Foreground
 	context := inspectorFilterQuery(p.Filter) != "" && !strings.Contains(strings.ToLower(row.Type), strings.ToLower(inspectorFilterQuery(p.Filter)))
 	if context {
-		ink = chrome.Color(colors.Muted)
+		ink = t.MutedForeground
 	}
-	container := ui.Row(c).Role(ui.RoleRow).Label("Inspector record "+row.Key).Checked(p.selected == row.Key).FillWidth().Height(inspectorRowHeight).Shrink(0).BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL1))
+	container := ui.Row(c).Role(ui.RoleRow).Label("Inspector record "+row.Key).Checked(p.selected == row.Key).FillWidth().Height(inspectorRowHeight).Shrink(0).BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(t.Border)
 	if container.Hovered() || p.selected == row.Key {
-		container.Background(chrome.Color(colors.Hover))
+		container.Background(t.Accent)
 	}
 	if sticky {
-		container.Background(chrome.FrostInset(colors, c.Theme().Dark, chrome.Color(colors.Field)))
+		container.Background(frameInsetBg(t))
 		if p.selected == row.Key {
-			ink = chrome.Color(colors.Accent)
+			ink = t.Primary
 		}
 	}
 	p.pulse.paint(c, container, row, p.Mode == "chat-node", colors)
@@ -315,8 +321,8 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 	}
 	container.Children(func() {
 		identity := inspectorRecordIdentity(row)
-		inspectorCell(c, 64).Children(func() { inspectorText(c, identity).TextColor(chrome.Color(colors.Muted)).Tooltip(identity).Focusable() })
-		inspectorCell(c, 190).Padding(4, 8, 4, 8+float32(depth)*20).Children(func() {
+		inspectorCell(c, 64).Children(func() { inspectorText(c, identity).TextColor(t.MutedForeground).Tooltip(identity).Focusable() })
+		inspectorCell(c, 190).Padding(design.Sp(1), design.Sp(2), design.Sp(1), design.Sp(2)+float32(depth)*design.Sp(5)).Children(func() {
 			if branch {
 				marker := "▾"
 				label := paneLabel("收起子行", "Collapse children")
@@ -336,14 +342,14 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 				selectRow()
 			}
 		})
-		inspectorCell(c, 65).Children(func() { inspectorText(c, inspectorRecordLocation(row)).TextColor(chrome.Color(colors.FG)) })
+		inspectorCell(c, 65).Children(func() { inspectorText(c, inspectorRecordLocation(row)).TextColor(t.Foreground) })
 		if p.Mode != "chat-node" {
 			inspectorCell(c, 100).Children(func() {
 				text := ""
 				if row.Time != 0 || inspectorHasTime(row.Raw) {
 					text = time.UnixMilli(int64(row.Time)).UTC().Format("15:04:05.000")
 				}
-				inspectorText(c, text).TextColor(chrome.Color(colors.FG))
+				inspectorText(c, text).TextColor(t.Foreground)
 			})
 		}
 		dataWidth := width - 319
@@ -356,7 +362,7 @@ func inspectorTableRow(c *ui.Context, p *SessionInspectorPaneState, row session.
 				preview = row.CollapsedSummary
 			}
 			button := inspectorButton(c.Key("preview"), preview).FillWidth().MinWidth(0)
-			button.Children(func() { inspectorText(c, preview).TextColor(chrome.Color(colors.FG)) })
+			button.Children(func() { inspectorText(c, preview).TextColor(t.Foreground) })
 			if button.Clicked() {
 				selectRow()
 			}

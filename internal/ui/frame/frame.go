@@ -26,8 +26,8 @@ import (
 	"whaleisle/internal/ui/agents"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/chat"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/diffsurface"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/files"
@@ -503,12 +503,13 @@ func View(c *ui.Context, m Model) {
 	viewport, viewportHeight := viewportDIP(c)
 	m.ViewportW, m.ViewportH = viewport, viewportHeight
 	m.Sizes.observeSidebarGeometry(c, viewport, viewportHeight)
-	m.Sizes.ObserveSidebarSessionSelection(m.Store.Snapshot())
+	m.Sizes.ObserveSidebarSessionSelection(m.Store.Published().Value)
 	registerPageCommands(c, m)
 	th := theme.Resolve(m.ThemeID)
 	colors := th.Active(m.SystemDark)
-	border := chrome.Color(colors.Border)
-	muted := chrome.Color(colors.Muted)
+	t := tk(c)
+	border := t.Border
+	muted := t.MutedForeground
 	if m.DisableDeveloperTools && !m.DeveloperToolsPending && m.ChatPaneTab != nil && *m.ChatPaneTab == "trajectory" {
 		selectConversationView(m, "chat")
 	}
@@ -566,7 +567,7 @@ func View(c *ui.Context, m Model) {
 	// ExternalNavigation's outer NavigationShell already owns the common canvas.
 	// Standalone and detached frames retain one canvas layer of their own.
 	if !m.ExternalNavigation {
-		shell.Background(chrome.BackdropCanvas(chrome.Color(colors.BG)))
+		shell.Background(t.Background)
 	}
 	workspaceFloatDropSurface(c, m, shell)
 	_, height := viewportDIP(c)
@@ -667,7 +668,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 	}
 	selectRoot := selectSession
 	selectSession = func(id string) {
-		for _, item := range m.Store.Snapshot().Items {
+		for _, item := range m.Store.Published().Value.Items {
 			if item.SessionID == id && routeRegisteredSessionOpen(m, item) {
 				return
 			}
@@ -804,7 +805,7 @@ func navigationView(c *ui.Context, m Model, snap session.ViewState) {
 		OnDelete: func(sessionID string) {
 			// Electron session delete: confirm before session/delete.
 			title := sessionID
-			for _, item := range m.Store.Snapshot().Items {
+			for _, item := range m.Store.Published().Value.Items {
 				if item.SessionID == sessionID && item.Title != "" {
 					title = item.Title
 					break
@@ -875,7 +876,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			// overlay). Add top inset on the chat column only 鈥?not the rail.
 			conversationArea := ui.Column(c.Key("conversation-files:" + snap.SelectedID)).Grow(1).MinWidth(0).MinHeight(0)
 			if skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); skinLayout.Active() {
-				conversationArea.Background(chrome.Color(skinLayout.ChatBackground)).Radius(0).Padding(0)
+				conversationArea.Background(theme.Color(skinLayout.ChatBackground)).Radius(0).Padding(0)
 			}
 			enter := conversationEnterLazy(c, conversationArea, conversationEnterOwner(snap), emptyHero, snap.PromptAttempted, func() string {
 				return conversationEnterStructure(m, snap, phase, takeover)
@@ -1061,7 +1062,7 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							_ = m.Store.ExecuteCommandLine(ctx, line)
 						},
 						OnPickCommand: func(generation uint64, sessionID, line string) {
-							current := m.Store.Snapshot()
+							current := m.Store.Published().Value
 							if generation != current.ComposerHostGeneration || sessionID != current.SelectedID {
 								return
 							}
@@ -1542,9 +1543,8 @@ func conversationContentWidth(colW float32) float32 {
 }
 
 func rightPane(c *ui.Context, m Model) {
-	th := theme.Resolve(m.ThemeID)
-	colors := th.Active(m.SystemDark)
-	border := chrome.Color(colors.Border)
+	t := tk(c)
+	border := t.Border
 
 	tab := "files"
 	if m.RightPaneTab != nil {
@@ -1556,14 +1556,13 @@ func rightPane(c *ui.Context, m Model) {
 
 	artifact := ui.Column(c).Label("Skin artifact boundary").Fill().MinWidth(0)
 	if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
-		artifact.Background(chrome.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, chrome.Color(layout.SidebarBorderColor), 0)
+		artifact.Background(theme.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, theme.Color(layout.SidebarBorderColor), 0)
 		})
 	} else {
 		if m.workspacePane == nil || m.workspacePane.Kind != "project-observer" {
-			// The right rail shares the left rail's material — one surface
-			// translucency over the themed background, not a raised panel.
-			artifact.Draw(chrome.Glass(chrome.Color(colors.Sidebar), chrome.MaterialSidebar))
+			// The right rail shares the left rail's surface token.
+			artifact.Background(t.Sidebar)
 		}
 	}
 	artifact.Children(func() {
@@ -1869,12 +1868,12 @@ func composerTelemetryDock(c *ui.Context, snap session.ViewState, m costui.Model
 	}
 	// InputBar .dock keeps its 24px stat row 4px under the card and 4px above
 	// the window edge; the region's own 4 DIP bottom pad ends the strip.
-	ui.Column(c).Key("composer-dock").Label("Composer dock").FillWidth().MinHeight(28).Padding(4, 8, 0, 8).Gap(4).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Key("composer-dock-stats").FillWidth().Justify(ui.Center).AlignItems(ui.Center).Gap(12).Children(func() {
+	ui.Column(c).Key("composer-dock").Label("Composer dock").FillWidth().MinHeight(28).Padding(design.Sp(1), design.Sp(2), 0, design.Sp(2)).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Key("composer-dock-stats").FillWidth().Justify(ui.Center).AlignItems(ui.Center).Gap(design.Sp(3)).Children(func() {
 			if hasSpeed {
-				ui.Row(c).AlignItems(ui.Center).Gap(6).Padding(1, 8).Children(func() {
+				ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.5)).Padding(design.BorderWidth, design.Sp(2)).Children(func() {
 					ui.Icon(c, telemetrySpeedSVG).Size(14, 14).TextColor(muted)
-					ui.Text(c, fmt.Sprintf("%.0f %s", perfTokens*1000/perfMS, i18n.T(i18n.KeyComposerDockSpeedUnit))).FontSize(12).FixedLineHeight(20).TextColor(muted)
+					ui.Text(c, fmt.Sprintf("%.0f %s", perfTokens*1000/perfMS, i18n.T(i18n.KeyComposerDockSpeedUnit))).FontSize(design.TextXS.Size).FixedLineHeight(design.TextXS.LineHeight).TextColor(muted)
 				})
 			}
 			if hasCache {
@@ -1883,9 +1882,9 @@ func composerTelemetryDock(c *ui.Context, snap session.ViewState, m costui.Model
 				if pct < 100 && math.Round(pct) >= 100 {
 					pctText = fmt.Sprintf("%.1f%%", pct)
 				}
-				ui.Row(c).AlignItems(ui.Center).Gap(6).Padding(1, 8).Children(func() {
+				ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.5)).Padding(design.BorderWidth, design.Sp(2)).Children(func() {
 					ui.Icon(c, telemetryCacheSVG).Size(14, 14).TextColor(muted)
-					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerDockCacheHit), pctText)).FontSize(12).FixedLineHeight(20).TextColor(muted)
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyComposerDockCacheHit), pctText)).FontSize(design.TextXS.Size).FixedLineHeight(design.TextXS.LineHeight).TextColor(muted)
 				})
 			}
 		})

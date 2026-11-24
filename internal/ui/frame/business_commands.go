@@ -39,7 +39,7 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 	}
 	actions["sessions.refresh"] = func() { m.Store.RefreshList(context.Background()) }
 	actions["session.rename"] = func() {
-		snap := m.Store.Snapshot()
+		snap := m.Store.Published().Value
 		for _, item := range snap.Items {
 			if item.SessionID == snap.SelectedID {
 				beginConversationRename(m, item.SessionID, item.Title)
@@ -58,7 +58,7 @@ func addBusinessCommands(c *ui.Context, m Model, actions map[string]func()) {
 		archiveConversation(m, id, false)
 	}
 	selectNeighbor := func(delta int) {
-		snap := m.Store.Snapshot()
+		snap := m.Store.Published().Value
 		for i, item := range snap.Items {
 			if item.SessionID == snap.SelectedID {
 				target := i + delta
@@ -89,7 +89,7 @@ func conversationActionItem(m Model, id string) (session.Item, bool) {
 	if m.Store == nil || id == "" {
 		return session.Item{}, false
 	}
-	for _, item := range m.Store.Snapshot().Items {
+	for _, item := range m.Store.Published().Value.Items {
 		if item.SessionID == id {
 			return item, !item.Blank
 		}

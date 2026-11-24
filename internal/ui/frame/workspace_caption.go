@@ -6,7 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -93,7 +93,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 			}
 			// titlebar-density.ts: the cluster sits 12px below the band's top edge
 			// and ends at the native caption reserve (dshd-wco-controls = 112px).
-			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(8)
+			trailing = ui.Row(c.Key("workspace-titlebar-trailing")).Absolute().Top(12).Right(controls).Height(32).Gap(design.Sp(2))
 			observeConversationTabInput(trailing, "trailing", m.ChatPaneTab)
 			trailing.Children(func() {
 				m.WorkspaceTrailing(c, density)
@@ -102,7 +102,8 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 		// The reference's corner order is terminal, right panel, minimize,
 		// maximize, close: the panel toggles come from the trailing cluster and the
 		// native overlay keeps the close, so the shell adds the two missing.
-		captionWindowButtons(c, chrome.Color(colors.Muted))
+		t := tk(c)
+		captionWindowButtons(c, t.MutedForeground)
 	})
 	// Build-time Bounds is the previous frame. Painting follows layout/commit,
 	// so this observes actual new geometry, including a trailing width of zero.
@@ -121,11 +122,12 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	// conversation-header ::after does.
 	layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
 	if layout.Active() {
-		row.Background(chrome.Color(layout.ChatBackground))
+		row.Background(theme.Color(layout.ChatBackground))
 	}
-	stroke, ink := float32(.5), chrome.Color(colors.Border)
+	tCaption := tk(c)
+	stroke, ink := design.BorderWidth/2, tCaption.Border
 	if m.SystemDark {
-		ink = ui.RGBA(255, 255, 255, 0.02)
+		ink = design.TW.White.Alpha(0.02)
 	}
 	// The header's one hairline sits under the view tabs, not between the title
 	// row and them (ConversationRoot.module.css .header::after vs .tabs), and a
@@ -134,7 +136,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 		stroke = 0
 	}
 	if layout.Skin == theme.SkinClaude {
-		stroke, ink = layout.HeaderBorder, chrome.Color(layout.BorderColor)
+		stroke, ink = layout.HeaderBorder, theme.Color(layout.BorderColor)
 	}
 	if stroke > 0 {
 		row.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -179,6 +181,7 @@ func selectConversationView(m Model, id string) {
 }
 
 func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact bool) {
+	_ = colors
 	if m.ChatPaneTab == nil {
 		return
 	}
@@ -196,21 +199,25 @@ func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact b
 	// ConversationRoot adds 8px inside the header's leading clearance. Keep
 	// the phone menu clearance used by the title band rather than hiding tabs
 	// underneath the floating drawer button.
-	leftInset := float32(28)
+	leftInset := design.Sp(7)
 	if m.Sizes != nil && m.Sizes.drawerMode() {
-		leftInset = 56
+		leftInset = design.Sp(14)
 	}
-	// The one header hairline is .header::after: a 0.5 DIP --dsw-alias-border-l3
-	// line at the strip's bottom edge, across the conversation column's full
-	// width — painting it on the tab list itself stops it at the tabs' width.
+	t := tk(c)
+	accent := t.Primary
+	if colors.Accent != "" {
+		accent = theme.Color(colors.Accent)
+	}
+	// The one header hairline is .header::after: a 0.5 DIP border line at the
+	// strip's bottom edge, across the conversation column's full width.
 	ui.ScrollHorizontal(c.Key("conversation-view-scroll")).FillWidth().MinWidth(0).Height(28).Shrink(0).
-		BorderWidth(0, 0, .5, 0).BorderColor(chrome.Color(colors.BorderL3)).Children(func() {
+		BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(t.Border).Children(func() {
 		tabs := ui.TabsBase(c.Key("conversation-view-tabs"), &selected, len(ids))
-		tabs.List.Label("Conversation views").MinWidth(0).Height(28).Shrink(0).AlignItems(ui.Start).Gap(36).Padding(0, 28, 0, leftInset).Children(func() {
+		tabs.List.Label("Conversation views").MinWidth(0).Height(28).Shrink(0).AlignItems(ui.Start).Gap(design.Sp(9)).Padding(0, design.Sp(7), 0, leftInset).Children(func() {
 			for index, id := range ids {
-				ink := chrome.Color(colors.Muted)
+				ink := t.MutedForeground
 				if selected == index {
-					ink = chrome.Color(colors.Accent)
+					ink = accent
 				}
 				tab := tabs.Tab(index).Label(labels[index]).Height(27).Padding(0)
 				if selected == index {
@@ -219,11 +226,11 @@ func conversationViewTabs(c *ui.Context, m Model, colors theme.Colors, compact b
 				observeConversationTabInput(tab, id, m.ChatPaneTab)
 				tab.Children(func() {
 					ui.Column(c).FillHeight().Children(func() {
-						ui.Text(c, labels[index]).FontSize(theme.InterfaceSize(13)).FixedLineHeight(16).FontWeight(500).TextColor(ink)
+						ui.Text(c, labels[index]).FontSize(theme.InterfaceSize(13)).FixedLineHeight(16).FontWeight(design.WeightMedium).TextColor(ink)
 						ui.Box(c).Grow(1)
-						line := ui.Box(c).FillWidth().Height(2).Margin(0, 0, 1, 0).Radius(2)
+						line := ui.Box(c).FillWidth().Height(2).Margin(0, 0, design.BorderWidth, 0).Radius(design.RadiusXS)
 						if selected == index {
-							line.Background(chrome.Color(colors.Accent))
+							line.Background(accent)
 						}
 					})
 				})

@@ -2,6 +2,7 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -81,6 +82,7 @@ func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 	}
 	childOver := false
 	width, height := surface.Bounds().W, max(float32(0), surface.Bounds().H-38)
+	t := tk(c)
 	ui.Box(c.Key("workspace-dock-hints")).Absolute().Left(0).Right(0).Top(38).Bottom(0).PassThrough().Children(func() {
 		for _, item := range []struct {
 			edge, label string
@@ -95,7 +97,7 @@ func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 				continue
 			}
 			zone := ui.Box(c.Key("dock-drop:" + item.edge)).Absolute().Left(item.x).Top(item.y).
-				Width(item.w).Height(item.h).Padding(8).Label("Dock drop " + item.edge)
+				Width(item.w).Height(item.h).Padding(design.Sp(2)).Label("Dock drop " + item.edge)
 			_, over := ui.DragOver[workspaceTabDrag](zone)
 			if over {
 				childOver = true
@@ -104,8 +106,8 @@ func workspaceDockDropTargets(c *ui.Context, m Model, surface ui.Element) {
 			// feedback paints only the active destination over the body.
 			if over {
 				zone.Children(func() {
-					ui.Box(c).Fill().Radius(12).Background(c.Theme().Surface).Border(1.5, c.Theme().Accent).
-						AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Text(c, item.label).FontSize(theme.InterfaceSize(13)).FontWeight(500) })
+					ui.Box(c).Fill().Radius(design.RadiusXL-design.Sp(0.5)).Background(t.Card).Border(1.5, t.Primary).
+						AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Text(c, item.label).FontSize(theme.InterfaceSize(13)).FontWeight(design.WeightMedium) })
 				})
 			}
 			if payload, ok := ui.Drop[workspaceTabDrag](zone); ok {

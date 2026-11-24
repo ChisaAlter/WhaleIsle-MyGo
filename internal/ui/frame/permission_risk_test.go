@@ -2,6 +2,7 @@ package frame
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/theme"
@@ -27,7 +28,8 @@ func TestPermissionRiskAcknowledgementEnablesConfirm(t *testing.T) {
 			},
 			func() { cancelled++ }, func() { confirmed++ })
 	}, 800, 600)
-	tt.Frame()
+	tt.SetTime(time.Unix(1000, 0))
+	tt.SetTime(time.Unix(1001, 0))
 	if _, ok := tt.Find("取消"); !ok {
 		t.Fatalf("dialog has no cancel; texts=%q", tt.Texts())
 	}
