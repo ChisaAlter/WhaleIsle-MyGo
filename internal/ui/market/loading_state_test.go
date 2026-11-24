@@ -24,7 +24,7 @@ func TestMarketLoadingAndEmptyAreDifferentStates(t *testing.T) {
 	render := func(d marketstore.Discovery) []string {
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Padding(12).Children(func() {
-				discoveryView(c, Model{Store: store}, d, marketstore.ViewState{}, c.Theme().Text, c.Theme().TextMuted, c.Theme().Surface, c.Theme().Border, c.Theme().Accent)
+				discoveryView(c, testPage(Model{Store: store}, d, marketstore.ViewState{}))
 			})
 		}, 800, 1400)
 		return tt.Texts()
