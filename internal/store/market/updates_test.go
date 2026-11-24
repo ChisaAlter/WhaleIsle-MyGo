@@ -35,7 +35,7 @@ func TestAutomaticUpdatesWaitForCatalogAndInventoryInEitherOrder(t *testing.T) {
 			s.Attach(client, nil)
 			s.SetCatalogService(automaticUpdateFixture{updateFixture{version: "1.1.0"}, checked})
 			inventory := func() {
-				s.finishRefresh(client, s.generation, s.refreshID, nil, []Entry{{Label: "demo", IdentityKnown: true, Installed: true, Removable: true, Source: "demo@1.0.0", Version: "1.0.0"}}, "", "", "")
+				s.finishRefresh(client, s.runtimeL.Generation(), s.inventoryL, nil, []Entry{{Label: "demo", IdentityKnown: true, Installed: true, Removable: true, Source: "demo@1.0.0", Version: "1.0.0"}}, "", "", "")
 			}
 			catalog := func() {
 				s.RefreshCatalog(false, "en")
@@ -133,7 +133,7 @@ func TestUpdatesPinVersionAndRejectStaleReceipts(t *testing.T) {
 	if err = s.ValidateTarget(target); err != nil {
 		t.Fatal(err)
 	}
-	s.refreshID++
+	s.inventoryL = s.inventory.Renew(context.Background())
 	if s.ValidateTarget(target) == nil {
 		t.Fatal("stale inventory accepted")
 	}

@@ -2,9 +2,11 @@ package imonboard
 
 import (
 	"encoding/json"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"strings"
+
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -24,10 +26,13 @@ func (s *Store) EditWorkspace(scope uint64, id, value string) {
 	}
 	for _, bot := range s.view.Bots {
 		if bot.BotID == id {
-			if s.view.WorkspaceDrafts == nil {
-				s.view.WorkspaceDrafts = map[string]string{}
+			drafts := maps.Clone(s.view.WorkspaceDrafts)
+			if drafts == nil {
+				drafts = map[string]string{}
 			}
-			s.view.WorkspaceDrafts[id] = value
+			drafts[id] = value
+			s.view.WorkspaceDrafts = drafts
+			s.publishLocked()
 			return
 		}
 	}
@@ -133,7 +138,9 @@ func (s *Store) applyConnectionStatusLocked(bots []Bot, presets []Preset) {
 	// unfinished draft with a periodic snapshot from the Host.
 	for _, bot := range bots {
 		if draft, ok := s.view.WorkspaceDrafts[bot.BotID]; ok && strings.TrimSpace(draft) == bot.Workspace {
-			delete(s.view.WorkspaceDrafts, bot.BotID)
+			drafts := maps.Clone(s.view.WorkspaceDrafts)
+			delete(drafts, bot.BotID)
+			s.view.WorkspaceDrafts = drafts
 		}
 	}
 }

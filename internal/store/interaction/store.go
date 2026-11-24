@@ -4,11 +4,13 @@ package interaction
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 const (
@@ -44,12 +46,12 @@ type Pending struct {
 	// CallID is the harness tool call id when present.
 	CallID  string
 	Sending bool
-	Error   string
+	Error   *state.Fault
 }
 
 // ViewState is UI-safe interaction state.
 type ViewState struct {
-	QuestionDraftError string
+	QuestionDraftError *state.Fault // render after QuestionDraftSaveFailed
 	QuestionHistory    []QuestionHistoryView
 	QuestionStatus     string
 	AutoAllow          bool
@@ -86,6 +88,7 @@ type Store struct {
 	questionDrafts      map[string]*draftSession
 	planReviewOpened    map[planReviewOpenKey]bool
 	waitCancels         map[string]context.CancelFunc
+	pub                 state.Published[ViewState]
 }
 
 // New returns an interaction store with manual tool approval (Electron default).
@@ -108,7 +111,7 @@ func New() *Store {
 func (s *Store) Attach(notify func()) {
 	s.mu.Lock()
 	s.notify = notify
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 // Detach clears pending state when harness stops.
@@ -145,7 +148,7 @@ func (s *Store) Detach() {
 	s.banner = ""
 	s.questionDrafts = make(map[string]*draftSession)
 	s.planReviewOpened = nil
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -168,37 +171,87 @@ func (s *Store) markCancelledLocked(id string) {
 	}
 }
 
-// Snapshot copies observable state.
-func (s *Store) Snapshot() ViewState {
+// Snapshot returns the current published version: pending requests in
+// display order, banner, auto-allow and the draft-save failure. The same
+// *Version is shared until a change publishes the next revision; its Value
+// is immutable. Question cards are not part of it: they read the live
+// answer drafts the UI binds through the Question*Ptr accessors and the
+// running wait clock, so they come from QuestionCards and SnapshotForAgent.
+func (s *Store) Snapshot() *state.Version[ViewState] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
+	s.mu.Lock()
+	s.unlockPublish()
+	return s.pub.Load()
+}
+
+// Changed closes when the next version is published.
+func (s *Store) Changed() <-chan struct{} { return s.pub.Changed() }
+
+// QuestionCards builds the question cards from the live drafts. This is the
+// mutable draft channel; it is computed per call, as before.
+func (s *Store) QuestionCards() map[string]QuestionCardView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	st := ViewState{
+	cards := make(map[string]QuestionCardView, len(s.questionDrafts))
+	for id, ds := range s.questionDrafts {
+		cards[id] = ds.cardView(id)
+	}
+	return cards
+}
+
+// planReviewPendingLocked reports whether eventID's draft is a plan review,
+// which the original domain ranks above other questions and approvals.
+func (s *Store) planReviewPendingLocked(eventID string) bool {
+	ds := s.questionDrafts[eventID]
+	return ds != nil && planReviewOf(ds.req.Questions) != nil
+}
+
+// pendingViewLocked is the pending list in display order. Original
+// PendingInteractionDomain uses publication order and lets the latest
+// value win within a domain's equal precedence.
+func (s *Store) pendingViewLocked() []Pending {
+	if len(s.pending) == 0 {
+		return nil
+	}
+	out := make([]Pending, 0, len(s.pending))
+	for index := len(s.pending) - 1; index >= 0; index-- {
+		out = append(out, s.pending[index])
+	}
+	rank := func(p Pending) int {
+		if s.planReviewPendingLocked(p.EventID) {
+			return 2
+		}
+		if p.Event == EventUserQuestions {
+			return 1
+		}
+		return 0
+	}
+	sort.SliceStable(out, func(i, j int) bool { return rank(out[i]) > rank(out[j]) })
+	return out
+}
+
+// unlockPublish publishes the view if it no longer matches the working
+// state, then releases mu. Every critical section ends with it; one that
+// changed nothing mints no revision. Pending entries are edited in place
+// through findPending, so the published list is always a fresh copy.
+func (s *Store) unlockPublish() {
+	next := ViewState{
 		QuestionDraftError: s.questionStorage.err,
 		AutoAllow:          s.autoAllow,
 		Banner:             s.banner,
-		QuestionCards:      make(map[string]QuestionCardView),
+		Pending:            s.pendingViewLocked(),
 	}
-	// Original PendingInteractionDomain uses publication order and lets the
-	// latest value win within a domain's equal precedence.
-	for index := len(s.pending) - 1; index >= 0; index-- {
-		st.Pending = append(st.Pending, s.pending[index])
+	if v := s.pub.Load(); v == nil || !viewEqual(&v.Value, &next) {
+		s.pub.Publish(next)
 	}
-	for id, ds := range s.questionDrafts {
-		st.QuestionCards[id] = ds.cardView(id)
-	}
-	sort.SliceStable(st.Pending, func(i, j int) bool {
-		rank := func(p Pending) int {
-			if card, ok := st.QuestionCards[p.EventID]; ok && card.PlanReview != nil {
-				return 2
-			}
-			if p.Event == EventUserQuestions {
-				return 1
-			}
-			return 0
-		}
-		return rank(st.Pending[i]) > rank(st.Pending[j])
-	})
-	return st
+	s.mu.Unlock()
+}
+
+func viewEqual(a, b *ViewState) bool {
+	return a.QuestionDraftError == b.QuestionDraftError && a.AutoAllow == b.AutoAllow &&
+		a.Banner == b.Banner && slices.Equal(a.Pending, b.Pending)
 }
 
 // SetAutoAllow toggles immediate allow for tool approvals.
@@ -208,7 +261,7 @@ func (s *Store) SetAutoAllow(on bool) {
 	if on {
 		s.banner = ""
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -227,10 +280,10 @@ func (s *Store) ResolveDeny(eventID string) {
 	p := s.findPending(eventID)
 	question := p != nil && p.Event == EventUserQuestions
 	if p != nil && p.Continued {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	if question {
 		s.resolve(eventID, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "User declined to answer"}})
 		return
@@ -243,13 +296,13 @@ func (s *Store) ResolveQuestions(eventID string) {
 	s.mu.Lock()
 	ds := s.questionDrafts[eventID]
 	if ds == nil || planReviewOf(ds.req.Questions) != nil || !ds.answerValid() {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	answer := ds.buildAnswer()
 	p := s.findPending(eventID)
 	continued := p != nil && p.Continued
-	s.mu.Unlock()
+	s.unlockPublish()
 	if continued {
 		s.resolveContinuedQuestions(eventID, answer)
 		return
@@ -267,7 +320,7 @@ func (s *Store) ResolveQuestions(eventID string) {
 func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if p := s.findPending(eventID); p != nil && p.Sending {
 		return
 	}
@@ -291,7 +344,7 @@ func (s *Store) SetQuestionSingleSelect(eventID, questionID, label string) {
 func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on bool) {
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if p := s.findPending(eventID); p != nil && p.Sending {
 		return
 	}
@@ -339,7 +392,7 @@ func (s *Store) SetQuestionOptionChecked(eventID, questionID, label string, on b
 func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if p := s.findPending(eventID); p != nil && p.Sending {
 		return
 	}
@@ -369,7 +422,7 @@ func (s *Store) SetQuestionCustom(eventID, questionID, text string) {
 // QuestionSingleSelectPtr returns a stable select binding for one question.
 func (s *Store) QuestionSingleSelectPtr(eventID, questionID string) *string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	ad := s.answerDraftLocked(eventID, questionID)
 	if ad == nil {
 		empty := ""
@@ -381,7 +434,7 @@ func (s *Store) QuestionSingleSelectPtr(eventID, questionID string) *string {
 // QuestionCustomPtr returns a stable text binding for a free-text question.
 func (s *Store) QuestionCustomPtr(eventID, questionID string) *string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	ad := s.answerDraftLocked(eventID, questionID)
 	if ad == nil {
 		empty := ""
@@ -393,7 +446,7 @@ func (s *Store) QuestionCustomPtr(eventID, questionID string) *string {
 // QuestionOptionCheckedPtr returns a stable checkbox binding for one option label.
 func (s *Store) QuestionOptionCheckedPtr(eventID, questionID, label string) *bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	ad := s.answerDraftLocked(eventID, questionID)
 	if ad == nil {
 		f := false
@@ -413,7 +466,7 @@ func (s *Store) QuestionOptionCheckedPtr(eventID, questionID, label string) *boo
 // QuestionsCanSubmit reports whether all answers are filled for a pending card.
 func (s *Store) QuestionsCanSubmit(eventID string) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	ds := s.questionDrafts[eventID]
 	if ds == nil || planReviewOf(ds.req.Questions) != nil {
 		return false
@@ -438,23 +491,23 @@ func (s *Store) resolve(eventID string, outcome dsh.EventResultOutcome) {
 	s.mu.Lock()
 	p := s.findPending(eventID)
 	if p == nil || p.Sending {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	eventID = p.EventID
 	ch := s.waiters[eventID]
 	if ch == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
-	p.Sending, p.Error = true, ""
+	p.Sending, p.Error = true, nil
 	s.responses[eventID] = outcome
 	s.closeDupDoneLocked(eventID)
 	select {
 	case ch <- outcome:
 	default:
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -471,12 +524,12 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	if owner != nil && !s.eventsResultCurrentLocked(owner, result) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return false
 	}
 	p := s.findPending(result.EventID)
 	if result.Outcome.Delivery != nil && s.responses[result.EventID].Delivery != result.Outcome.Delivery {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return false
 	}
 	retry := false
@@ -486,7 +539,7 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 				// HTTP delivery is not Host acceptance: an expired waterfall
 				// outcome may be silently ignored. Keep this draft and timed
 				// claim until the Host closes or continues the actual request.
-				s.mu.Unlock()
+				s.unlockPublish()
 				s.fire()
 				return false
 			}
@@ -496,7 +549,7 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 			s.reconcileProjectedQuestionsLocked(agentID)
 		} else {
 			p.Sending = false
-			p.Error = err.Error()
+			p.Error = state.FaultOf(err)
 			retry = true
 		}
 	}
@@ -504,7 +557,7 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 		s.forgetEventsDeliveryLocked(result.EventID)
 		delete(s.responses, result.EventID)
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	return retry
 }
@@ -512,10 +565,10 @@ func (s *Store) onResultForDelivery(owner *EventsDeliveryOwner, result dsh.Event
 func (s *Store) Retry(eventID string) {
 	s.mu.Lock()
 	p := s.findPending(eventID)
-	if p != nil && p.Event == EventUserQuestions && p.Error != "" {
+	if p != nil && p.Event == EventUserQuestions && p.Error != nil {
 		draft := s.questionDrafts[eventID]
 		if draft != nil && planReviewOf(draft.req.Questions) == nil {
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.ResolveQuestions(eventID)
 			return
 		}
@@ -523,7 +576,7 @@ func (s *Store) Retry(eventID string) {
 	if p != nil && p.Continued {
 		draft := s.questionDrafts[eventID]
 		plan := draft != nil && planReviewOf(draft.req.Questions) != nil
-		s.mu.Unlock()
+		s.unlockPublish()
 		if plan {
 			s.ApprovePlanReview(eventID)
 			return
@@ -532,33 +585,38 @@ func (s *Store) Retry(eventID string) {
 		return
 	}
 	outcome, ok := s.responses[eventID]
-	ok = ok && p != nil && p.Error != ""
-	s.mu.Unlock()
+	ok = ok && p != nil && p.Error != nil
+	s.unlockPublish()
 	if ok {
 		s.resolve(eventID, outcome)
 	}
 }
 
 // SnapshotForAgent prevents a request from appearing in another conversation.
+// Pending comes from the published version; the agent's question cards,
+// recovery status and history are read live, as before.
 func (s *Store) SnapshotForAgent(agentID string) ViewState {
-	snap := s.Snapshot()
-	pending := snap.Pending[:0]
-	cards := make(map[string]QuestionCardView)
+	snap := s.Snapshot().Value
+	var pending []Pending
 	for _, p := range snap.Pending {
 		if p.AgentID == agentID && agentID != "" {
 			pending = append(pending, p)
-			if card, ok := snap.QuestionCards[p.EventID]; ok {
-				cards[p.EventID] = card
-			}
 		}
 	}
-	snap.Pending, snap.QuestionCards = pending, cards
+	snap.Pending = pending
+	cards := make(map[string]QuestionCardView)
 	s.mu.Lock()
+	for _, p := range pending {
+		if ds := s.questionDrafts[p.EventID]; ds != nil {
+			cards[p.EventID] = ds.cardView(p.EventID)
+		}
+	}
+	snap.QuestionCards = cards
 	if p := s.questionRecovery.agents[agentID]; p != nil {
 		snap.QuestionStatus = p.status
 	}
 	snap.QuestionHistory = s.questionHistorySnapshotLocked(agentID)
-	s.mu.Unlock()
+	s.unlockPublish()
 	return snap
 }
 
@@ -615,7 +673,7 @@ func (s *Store) clearActiveWait(eventID string, tok uint64) {
 	if s.activeWait[eventID] == tok {
 		delete(s.activeWait, eventID)
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 func (s *Store) ensureDupDoneLocked(eventID string) chan struct{} {
@@ -678,7 +736,7 @@ func (s *Store) waitDuplicateWaterfall(owner *EventsDeliveryOwner, eventID strin
 		s.mu.Lock()
 		current := s.eventsOwnerCurrentLocked(owner)
 		cancelled := s.cancelled[eventID]
-		s.mu.Unlock()
+		s.unlockPublish()
 		if !current {
 			return expiredEventsOutcome(owner, eventID)
 		}
@@ -740,7 +798,7 @@ func (s *Store) handleWaterfallForDelivery(owner *EventsDeliveryOwner, wf dsh.Ev
 	}
 	s.mu.Lock()
 	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return expiredEventsOutcome(owner, wf.EventID), nil
 	}
 	existingCh := s.waiters[wf.EventID]
@@ -760,7 +818,7 @@ func (s *Store) handleWaterfallForDelivery(owner *EventsDeliveryOwner, wf dsh.Ev
 		}
 	}
 	cancelled := s.cancelled[wf.EventID]
-	s.mu.Unlock()
+	s.unlockPublish()
 	if cancelled {
 		out := approvalOutcome("cancelled")
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
@@ -811,15 +869,15 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 
 	s.mu.Lock()
 	auto := s.autoAllow
-	s.mu.Unlock()
+	s.unlockPublish()
 	if auto {
 		s.mu.Lock()
 		if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return expiredEventsOutcome(owner, wf.EventID), nil
 		}
 		s.banner = title
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		out := approvalOutcome(outcomeAllowedOnce)
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
@@ -828,11 +886,11 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 	ch := make(chan dsh.EventResultOutcome, 1)
 	s.mu.Lock()
 	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return expiredEventsOutcome(owner, wf.EventID), nil
 	}
 	if s.cancelled[wf.EventID] {
-		s.mu.Unlock()
+		s.unlockPublish()
 		out := approvalOutcome("cancelled")
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
@@ -841,11 +899,11 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 			tok := s.nextWaitTokenLocked(wf.EventID)
 			waitDone := s.ensureWaitDoneLocked(wf.EventID)
 			d := s.eventsDeliveries[wf.EventID]
-			s.mu.Unlock()
+			s.unlockPublish()
 			return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, existingCh, tok)
 		}
 		dupDone := s.ensureDupDoneLocked(wf.EventID)
-		s.mu.Unlock()
+		s.unlockPublish()
 		return s.waitDuplicateWaterfall(owner, wf.EventID, dupDone), nil
 	}
 	d, waitDone, tok := s.registerWaiterLocked(owner, wf.EventID, ch)
@@ -864,7 +922,7 @@ func (s *Store) handleApprovalForDelivery(owner *EventsDeliveryOwner, wf dsh.Eve
 		approvalRequester:      req.Requester != nil,
 		CallID:                 callID,
 	})
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 
 	return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, ch, tok)
@@ -887,12 +945,12 @@ func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf ds
 	ch := make(chan dsh.EventResultOutcome, 1)
 	s.mu.Lock()
 	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return expiredEventsOutcome(owner, wf.EventID), nil
 	}
 	mux := s.mux
 	if s.cancelled[wf.EventID] {
-		s.mu.Unlock()
+		s.unlockPublish()
 		out := approvalOutcome("cancelled")
 		return s.finishEventsOutcome(owner, wf.EventID, nil, out), nil
 	}
@@ -901,11 +959,11 @@ func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf ds
 			tok := s.nextWaitTokenLocked(wf.EventID)
 			waitDone := s.ensureWaitDoneLocked(wf.EventID)
 			d := s.eventsDeliveries[wf.EventID]
-			s.mu.Unlock()
+			s.unlockPublish()
 			return s.waitPrimaryWaterfall(owner, d, waitDone, wf.EventID, existingCh, tok)
 		}
 		dupDone := s.ensureDupDoneLocked(wf.EventID)
-		s.mu.Unlock()
+		s.unlockPublish()
 		return s.waitDuplicateWaterfall(owner, wf.EventID, dupDone), nil
 	}
 	d, waitDone, tok := s.registerWaiterLocked(owner, wf.EventID, ch)
@@ -922,7 +980,7 @@ func (s *Store) handleUserQuestionsForDelivery(owner *EventsDeliveryOwner, wf ds
 		CallID:            callID,
 		questionProjected: req.Wait != nil,
 	})
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	if callID != "" && req.Wait != nil && req.Wait.Timed {
 		s.attachQuestionWait(waitCtx, mux, wf.AgentID, callID, wf.EventID)
@@ -943,7 +1001,7 @@ func (s *Store) onCancelForDelivery(owner *EventsDeliveryOwner, c dsh.EventsCanc
 	defer s.persistQuestionDrafts()
 	s.mu.Lock()
 	if owner != nil && !s.eventsOwnerCurrentLocked(owner) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.markCancelledLocked(c.EventID)
@@ -957,7 +1015,7 @@ func (s *Store) onCancelForDelivery(owner *EventsDeliveryOwner, c dsh.EventsCanc
 	}
 	s.dropPending(c.EventID)
 	s.reconcileProjectedQuestionsLocked(agentID)
-	s.mu.Unlock()
+	s.unlockPublish()
 	if ok {
 		select {
 		case ch <- dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "Error", Message: "cancelled"}}:

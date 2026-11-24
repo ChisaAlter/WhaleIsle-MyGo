@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 func isFileMutation(op string) bool { return op == "mkdir" || op == "rename" || op == "remove" }
@@ -92,7 +94,7 @@ func (s *Files) mutate(operation, path, name string) error {
 		s.mu.Unlock()
 		return err
 	}
-	c, key, g, n := s.client, s.key, s.generation, s.notify
+	c, key, attachL, n := s.client, s.key, s.attachL, s.notify
 	owner := s.current
 	captured := *v
 	if operation == "mkdir" {
@@ -101,15 +103,18 @@ func (s *Files) mutate(operation, path, name string) error {
 		captured.Path = ParentDirectory(path)
 	}
 	v.Busy, v.MutationApplied = true, false
-	v.Operation, v.Error, v.Notice = operation, "", ""
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	s.cancel = cancel
+	v.Operation, v.Error, v.Notice = operation, nil, ""
+	parent, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.opL = s.op.Renew(parent)
+	op := s.opL
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 	go func() {
 		defer cancel()
+		ctx := op.Context()
 		var status struct {
 			SessionBound bool   `json:"sessionBound"`
 			SessionMode  string `json:"sessionMode"`
@@ -154,14 +159,13 @@ func (s *Files) mutate(operation, path, name string) error {
 			}
 		}
 		s.mu.Lock()
-		if s.generation != g || s.key != key || s.client != c || owner != nil && !owner() {
+		if s.attachL != attachL || s.key != key || s.client != c || owner != nil && !owner() {
 			s.mu.Unlock()
 			return
 		}
 		v = s.states[key]
 		syncResourceDrafts(v)
 		v.Busy, v.Operation, v.MutationApplied = false, "", applied
-		s.cancel = nil
 		if applied {
 			stashResource(v)
 			v.Notice = operation + " completed: " + target
@@ -175,7 +179,7 @@ func (s *Files) mutate(operation, path, name string) error {
 					}
 					if v.Tabs[i].Dirty() {
 						v.Tabs[i].Stale = true
-						v.Tabs[i].Error = "Remote resource was renamed or deleted; draft retained."
+						v.Tabs[i].Error = state.FaultText("Remote resource was renamed or deleted; draft retained.")
 					} else {
 						closeResource(v, v.Tabs[i].Path)
 					}
@@ -190,13 +194,13 @@ func (s *Files) mutate(operation, path, name string) error {
 		}
 		if err != nil {
 			v.Loaded, v.Bound = false, false
-			v.Error = err.Error()
-			v.TreeError = err.Error()
+			v.Error = state.FaultOf(err)
+			v.TreeError = state.FaultOf(err)
 			if attempted && !applied {
-				v.Error += "; outcome may be uncertain. Refresh before retrying."
+				v.Notice = "Outcome may be uncertain. Refresh before retrying."
 			}
 			if applied {
-				v.Error += "; the operation succeeded but the listing refresh failed."
+				v.Notice = "The operation succeeded but the listing refresh failed."
 			}
 		} else {
 			sortDirectoryEntries(listing.Items)
@@ -207,6 +211,7 @@ func (s *Files) mutate(operation, path, name string) error {
 			v.Tree[listing.Path] = FileLevel{Loaded: true, Items: append([]DirectoryEntry(nil), listing.Items...)}
 			v.Loaded, v.Bound = true, true
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()

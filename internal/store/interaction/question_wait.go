@@ -75,7 +75,7 @@ func (s *Store) engageQuestionLocked(eventID string) {
 	}
 	// A failed answer leaves this request editable. The next explicit submit
 	// rebuilds the outcome from this draft, rather than replaying old text.
-	p.Error = ""
+	p.Error = nil
 	if p.Continued {
 		return
 	}
@@ -98,7 +98,7 @@ func (s *Store) SyncQuestionFocus(agentID, eventID string) {
 		on := p.AgentID == agentID && p.EventID == eventID && !p.Sending && !p.Continued && !ds.hidden
 		changed = ds.wait.focus(on, now) || changed
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	if changed {
 		s.fire()
 	}
@@ -110,13 +110,13 @@ func (s *Store) TakeQuestionTime(agentID, eventID string) {
 	s.mu.Lock()
 	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
 	if p == nil || p.AgentID != agentID || p.Event != EventUserQuestions || p.Sending || p.Continued || ds == nil || !ds.wait.active || ds.wait.held {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ds.wait.pause(time.Now())
 	ds.wait.held, ds.wait.focused = true, false
 	ds.wait.signal()
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -127,7 +127,7 @@ func (s *Store) runQuestionWait(ctx context.Context, agentID, callID, eventID st
 	s.mu.Lock()
 	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
 	if ctx.Err() != nil || p == nil || p.AgentID != agentID || p.CallID != callID || p.Event != EventUserQuestions || p.Continued || ds == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	w := &ds.wait
@@ -140,7 +140,7 @@ func (s *Store) runQuestionWait(ctx context.Context, agentID, callID, eventID st
 	if !w.held && !w.editing && !w.focused {
 		w.deadline = time.Now().Add(remaining)
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	defer func() {
 		s.mu.Lock()
@@ -149,7 +149,7 @@ func (s *Store) runQuestionWait(ctx context.Context, agentID, callID, eventID st
 			w.active = false
 			w.deadline = time.Time{}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		if current {
 			s.fire()
 		}
@@ -158,7 +158,7 @@ func (s *Store) runQuestionWait(ctx context.Context, agentID, callID, eventID st
 		s.mu.Lock()
 		p = s.findPending(eventID)
 		if ctx.Err() != nil || p == nil || p.AgentID != agentID || p.CallID != callID || p.Continued || s.questionDrafts[eventID] != ds || w.generation != generation {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		delay := time.Duration(0)
@@ -168,17 +168,17 @@ func (s *Store) runQuestionWait(ctx context.Context, agentID, callID, eventID st
 				ch := s.waiters[eventID]
 				if ch != nil {
 					outcome := dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_TIMED_OUT", Message: "Question timed out"}}
-					p.Sending, p.Error = true, ""
+					p.Sending, p.Error = true, nil
 					s.responses[eventID] = outcome
 					ch <- outcome
 				}
-				s.mu.Unlock()
+				s.unlockPublish()
 				s.fire()
 				return
 			}
 			delay = min(delay, time.Second)
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		if delay == 0 {
 			select {
 			case <-ctx.Done():

@@ -2,37 +2,20 @@ package files
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
-	"io"
 	"net/url"
-	"os"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imgcache"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/errcopy"
 )
 
-var markdownImageCache struct {
-	sync.RWMutex
-	cache *imgcache.Cache
-}
-
-// SetRemoteImageCache shares the application's public-image cache, never Host
-// authentication. Per-resource cancellation remains owned by the file tab.
-func SetRemoteImageCache(cache *imgcache.Cache) {
-	markdownImageCache.Lock()
-	markdownImageCache.cache = cache
-	markdownImageCache.Unlock()
-}
-
 type markdownImageRead struct {
 	owner   imageReadOwner
-	queue   *imageReadQueue
 	preview *imagePreview
 }
 
@@ -41,10 +24,7 @@ func (t *FileTab) stopMarkdownImages() {
 		return
 	}
 	for _, r := range t.markdownImages {
-		r.queue.stop(true)
-		if r.preview != nil && r.preview.svg != nil {
-			r.preview.svg.Close()
-		}
+		r.preview.release()
 	}
 	t.markdownImages = nil
 }
@@ -60,71 +40,52 @@ func markdownImagePath(source, ref string) (string, error) {
 	}
 	return rel, nil
 }
-func markdownImageLoader(m Model, tab *FileTab, ref string) func(context.Context) *imagePreview {
+
+// markdownImagePreview prepares one rendered-Markdown image request: embedded
+// data and public URLs are keyed by content, relative resources by the tab's
+// authority. Every read and decode runs on a media worker.
+func markdownImagePreview(m Model, tab *FileTab, owner imageReadOwner, ref string) *imagePreview {
+	if strings.HasPrefix(ref, "data:image/") {
+		head, payload, ok := strings.Cut(ref, ",")
+		if !ok || !strings.HasSuffix(head, ";base64") || len(payload) > int(maxImageBytes)*4/3+8 {
+			return &imagePreview{err: errors.New("Unsupported or oversized embedded image")}
+		}
+		p := &imagePreview{owner: owner, loading: true, lease: filesMedia().NewOwner(nil, m.notify)}
+		p.key, p.src = media.DataURL(ref)
+		return p
+	}
+	if imgcache.IsHTTPURL(ref) {
+		u, err := url.Parse(ref)
+		if err != nil || u.User != nil {
+			return &imagePreview{err: errors.New("Public image cache is unavailable")}
+		}
+		p := &imagePreview{owner: owner, loading: true, lease: filesMedia().NewOwner(nil, m.notify)}
+		p.key, p.src = media.Remote(ref)
+		p.src.Kind = strings.ToLower(path.Ext(u.Path))
+		return p
+	}
 	source := tab.Path
 	read := m.ReadImageContext
 	// Local delivery authority is for that saved file only, not an unrelated Host
 	// reader or all sibling resources in its containing directory.
 	delivery := tab.deliverySource != nil
 	root := m.WorkspaceRoot
-	markdownImageCache.RLock()
-	cache := markdownImageCache.cache
-	markdownImageCache.RUnlock()
-	return func(ctx context.Context) *imagePreview {
-		if strings.HasPrefix(ref, "data:image/") {
-			parts := strings.SplitN(ref, ",", 2)
-			if len(parts) != 2 || !strings.HasSuffix(parts[0], ";base64") || len(parts[1]) > int(maxImageBytes)*4/3+8 {
-				return &imagePreview{err: errors.New("Unsupported or oversized embedded image")}
-			}
-			data, err := base64.StdEncoding.DecodeString(parts[1])
-			if err != nil {
-				return &imagePreview{err: err}
-			}
-			ext := ".png"
-			for mime, suffix := range map[string]string{"jpeg": ".jpg", "gif": ".gif", "webp": ".webp", "svg+xml": ".svg", "avif": ".avif", "bmp": ".bmp", "x-icon": ".ico"} {
-				if strings.HasPrefix(parts[0], "data:image/"+mime+";") {
-					ext = suffix
-				}
-			}
-			return decodeImagePreviewContext(ctx, "embedded"+ext, data)
-		}
-		if imgcache.IsHTTPURL(ref) {
-			u, err := url.Parse(ref)
-			if err != nil || u.User != nil || cache == nil {
-				return &imagePreview{err: errors.New("Public image cache is unavailable")}
-			}
-			file, err := cache.Fetch(ctx, ref)
-			if err != nil {
-				return &imagePreview{err: err}
-			}
-			f, err := os.Open(file)
-			if err != nil {
-				return &imagePreview{err: err}
-			}
-			defer f.Close()
-			data, err := io.ReadAll(io.LimitReader(f, maxImageBytes+1))
-			if err != nil {
-				return &imagePreview{err: err}
-			}
-			return decodeImagePreviewContext(ctx, u.Path, data)
-		}
+	rel, relErr := markdownImagePath(source, ref)
+	load := func(ctx context.Context) ([]byte, error) {
 		if delivery {
-			return &imagePreview{err: errors.New("Relative images require a workspace-owned document")}
+			return nil, errors.New("Relative images require a workspace-owned document")
 		}
-		rel, err := markdownImagePath(source, ref)
-		if err != nil {
-			return &imagePreview{err: err}
+		if relErr != nil {
+			return nil, relErr
 		}
 		if read != nil {
-			data, err := read(ctx, rel, imageByteLimit(rel))
-			if err != nil {
-				return &imagePreview{err: err}
-			}
-			return decodeImagePreviewContext(ctx, rel, data)
+			return read(ctx, rel, imageByteLimit(rel))
 		}
-		return loadImagePreviewContext(ctx, root, rel)
+		return readWorkspaceImage(ctx, root, rel)
 	}
+	return newImagePreview(owner, "files-markdown\x00"+mediaID(owner, nil)+"\x00"+ref, rel, m.notify, load)
 }
+
 func paintMarkdownImage(c *ui.Context, m Model, ref, alt string, muted ui.Color) bool {
 	tab := selectedTab(m)
 	if tab == nil {
@@ -141,39 +102,28 @@ func paintMarkdownImage(c *ui.Context, m Model, ref, alt string, muted ui.Color)
 		r = nil
 	}
 	if r == nil {
-		r = &markdownImageRead{owner: owner, queue: &imageReadQueue{}, preview: &imagePreview{loading: true}}
-		r.queue.setNotify(m.notify)
+		r = &markdownImageRead{owner: owner, preview: markdownImagePreview(m, tab, owner, ref)}
 		tab.markdownImages[ref] = r
-		r.queue.request(owner, markdownImageLoader(m, tab, ref))
-	}
-	if r.preview.loading {
-		if result, ok := r.queue.take(owner); ok {
-			r.preview = result
-		}
 	}
 	preview := r.preview
+	wait := preview.sync(time.Now())
 	if preview.loading {
 		ui.Text(c, label("正在加载图片…", "Loading image…")).TextColor(muted)
-		c.After(50 * time.Millisecond)
 		return true
 	}
 	if preview.err != nil {
 		ui.Text(c, alt+" · "+errcopy.Sentence(preview.err)).TextColor(muted).Tooltip(ref)
 		return true
 	}
-	if preview.svg != nil {
-		preview.svg.Prepare(c, m.SVGImages)
-		w, h := preview.svg.Size()
-		if w > 0 {
-			ui.Box(c).FillWidth().Height(min(360, h)).DrawOver(func(p *ui.Painter, rect ui.Rect) { preview.svg.Paint(p, rect, ui.Contain) })
-		}
-		return true
-	}
-	if wait := preview.advance(time.Now()); wait > 0 {
+	if wait > 0 {
 		c.After(wait)
 	}
 	if preview.bitmap != nil {
 		ui.Image(c, preview.bitmap).FillWidth().MaxHeight(360).Fit(ui.Contain).Tooltip(alt)
+		return true
+	}
+	if preview.vector != nil {
+		ui.Image(c, preview.vector).FillWidth().MaxHeight(360).Fit(ui.Contain).Tooltip(alt)
 		return true
 	}
 	return false

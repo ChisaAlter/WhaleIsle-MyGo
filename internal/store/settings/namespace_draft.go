@@ -32,7 +32,7 @@ func (s *Store) NamespaceDraft(namespace string) (map[string]string, bool) {
 		return nil, false
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.findNamespaceLocked(namespace) == nil {
 		return nil, false
 	}
@@ -62,7 +62,7 @@ func (s *Store) SaveNamespace(ctx context.Context, namespace string) error {
 	connected := s.client != nil
 	busy := s.saving || s.loading || s.themeWriteInFlightLocked(namespace)
 	writable := s.writable
-	s.mu.Unlock()
+	s.unlockPublish()
 	switch {
 	case !connected || !described:
 		return ErrSettingsNotReady

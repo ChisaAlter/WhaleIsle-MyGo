@@ -53,7 +53,7 @@ func TestEventsDeliveryReplayRetainsQuestionDraftAndReplacesWaiter(t *testing.T)
 	old := s.BeginEventsDelivery(oldCtx, client, mux)
 	wf := dsh.EventsWaterfall{EventID: "same", AgentID: "A", Event: EventUserQuestions, Request: json.RawMessage(`{"callId":"call-replay","questions":[{"id":"q","question":"Answer"}]}`)}
 	oldAnswer := deliveryAnswer(t, s, old, wf)
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 	s.SetQuestionCustom("same", "q", "kept\n中文 😀")
 	// MaintainMux can cancel the previous attempt before its FollowEvents
 	// finally reaches Retire. Beginning the replay must retire it immediately.
@@ -61,11 +61,11 @@ func TestEventsDeliveryReplayRetainsQuestionDraftAndReplacesWaiter(t *testing.T)
 	fresh := s.BeginEventsDelivery(context.Background(), client, mux)
 	defer s.RetireEventsDelivery(fresh)
 	retired := deliveryReceive(t, oldAnswer)
-	if retired.Delivery == nil || retired.Delivery.Valid() || len(s.Snapshot().Pending) != 0 {
+	if retired.Delivery == nil || retired.Delivery.Valid() || len(s.testView().Pending) != 0 {
 		t.Fatal("old delivery retained UI or HTTP authority")
 	}
 	newAnswer := deliveryAnswer(t, s, fresh, wf)
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 	if got := *s.QuestionCustomPtr("same", "q"); got != "kept\n中文 😀" {
 		t.Fatalf("replay discarded the callId draft: %q", got)
 	}
@@ -74,7 +74,7 @@ func TestEventsDeliveryReplayRetainsQuestionDraftAndReplacesWaiter(t *testing.T)
 	s.RetireEventsDelivery(old)
 	s.OnCancelForDelivery(old, dsh.EventsCancel{EventID: "same"})
 	s.OnResultForDelivery(old, dsh.EventResult{EventID: "same", Outcome: *retired}, nil)
-	if len(s.Snapshot().Pending) != 1 {
+	if len(s.testView().Pending) != 1 {
 		t.Fatal("old callback removed replay")
 	}
 	lateHandler := deliveryReceive(t, deliveryAnswer(t, s, old, wf))
@@ -92,7 +92,7 @@ func TestEventsDeliveryReplayRetainsQuestionDraftAndReplacesWaiter(t *testing.T)
 	}
 	// A genuine current Host cancellation still closes this request.
 	s.OnCancelForDelivery(fresh, dsh.EventsCancel{EventID: "same"})
-	if len(s.Snapshot().Pending) != 0 || out.Delivery.Valid() {
+	if len(s.testView().Pending) != 0 || out.Delivery.Valid() {
 		t.Fatal("real Host Cancel did not revoke delivery")
 	}
 }
@@ -127,7 +127,7 @@ func TestEventsDeliveryLateHTTPReceiptCannotSettleReplayedApproval(t *testing.T)
 			old := s.BeginEventsDelivery(context.Background(), client, mux)
 			wf := dsh.EventsWaterfall{EventID: "approval", AgentID: "A", Event: EventApproval, Request: json.RawMessage(`{"toolName":"fixture"}`)}
 			oldAnswer := deliveryAnswer(t, s, old, wf)
-			awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+			awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 			s.ResolveAllow("approval")
 			out := deliveryReceive(t, oldAnswer)
 			receipt := make(chan error, 1)
@@ -142,7 +142,7 @@ func TestEventsDeliveryLateHTTPReceiptCannotSettleReplayedApproval(t *testing.T)
 			fresh := s.BeginEventsDelivery(context.Background(), client, mux)
 			defer s.RetireEventsDelivery(fresh)
 			newAnswer := deliveryAnswer(t, s, fresh, wf)
-			awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+			awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 			close(release)
 			var err error
 			select {
@@ -156,20 +156,20 @@ func TestEventsDeliveryLateHTTPReceiptCannotSettleReplayedApproval(t *testing.T)
 			if s.OnResultForDelivery(old, dsh.EventResult{EventID: "approval", Outcome: *out}, err) {
 				t.Fatal("old failure requested a retry")
 			}
-			pending := s.Snapshot().Pending
-			if len(pending) != 1 || pending[0].Sending || pending[0].Error != "" {
+			pending := s.testView().Pending
+			if len(pending) != 1 || pending[0].Sending || pending[0].Error != nil {
 				t.Fatalf("late old HTTP mutated replay: %+v", pending)
 			}
 			s.ResolveDeny("approval")
 			current := deliveryReceive(t, newAnswer)
 			// Owner alone is insufficient: a mismatched response proof is stale.
 			s.OnResultForDelivery(fresh, dsh.EventResult{EventID: "approval", Outcome: *out}, errors.New("old response"))
-			pending = s.Snapshot().Pending
-			if len(pending) != 1 || !pending[0].Sending || pending[0].Error != "" {
+			pending = s.testView().Pending
+			if len(pending) != 1 || !pending[0].Sending || pending[0].Error != nil {
 				t.Fatal("old proof changed current owner's decision receipt")
 			}
 			s.OnResultForDelivery(fresh, dsh.EventResult{EventID: "approval", Outcome: *current}, nil)
-			if len(s.Snapshot().Pending) != 0 {
+			if len(s.testView().Pending) != 0 {
 				t.Fatal("current decision did not settle")
 			}
 		})
@@ -244,7 +244,7 @@ func TestEventsDeliveryDuplicateEventIDPumpExitsCleanly(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for duplicate waterfall frames")
 	}
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 
 	cancel()
 	select {
@@ -266,7 +266,7 @@ func TestEmptyEventIDDoesNotWipeCrossSessionPending(t *testing.T) {
 	wf2 := dsh.EventsWaterfall{EventID: "ev-session-b", AgentID: "B", Event: EventUserQuestions, Request: json.RawMessage(`{"callId":"c-b","questions":[{"id":"q1","question":"Keep?"}]}`)}
 	ans1 := deliveryAnswer(t, s, owner, wf1)
 	ans2 := deliveryAnswer(t, s, owner, wf2)
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 2 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 2 })
 
 	// Empty EventID frames / results must be rejected and never trigger dropPending("").
 	s.OnCancel(dsh.EventsCancel{EventID: ""})
@@ -282,7 +282,7 @@ func TestEmptyEventIDDoesNotWipeCrossSessionPending(t *testing.T) {
 		t.Fatalf("empty waterfall EventID unexpected outcome=%+v err=%v", outEmpty, err)
 	}
 
-	snap := s.Snapshot()
+	snap := s.testView()
 	if len(snap.Pending) != 2 || len(snap.QuestionCards) != 1 {
 		t.Fatalf("empty EventID cleared unrelated pending/question state: pending=%+v cards=%+v", snap.Pending, snap.QuestionCards)
 	}

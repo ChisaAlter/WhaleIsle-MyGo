@@ -2,7 +2,6 @@ package main
 
 import (
 	"whaleisle/internal/ui/settings"
-	"whaleisle/internal/ui/sidebar"
 )
 
 func (s *mainState) retryAccountAvatar() {
@@ -12,7 +11,7 @@ func (s *mainState) retryAccountAvatar() {
 	if store == nil {
 		return
 	}
-	v := store.Snapshot()
+	v := store.Snapshot().Value
 	if v.Details.Profile.Value.AvatarURL == nil {
 		return
 	}
@@ -23,5 +22,4 @@ func (s *mainState) retryAccountAvatar() {
 		}
 	}
 	settings.RetryAccountAvatar(raw, invalidate)
-	sidebar.RetryAccountAvatar(raw, invalidate)
 }

@@ -2,6 +2,7 @@ package remote
 
 import (
 	"testing"
+	"whaleisle/internal/state"
 	remotestore "whaleisle/internal/store/remote"
 )
 
@@ -11,7 +12,7 @@ func TestUpstreamDeltaRemovalConfirmation(t *testing.T) {
 	if e.PendingRemove != "one" || !e.Removing {
 		t.Fatal("pending request dismissed")
 	}
-	e.syncRemoval(remotestore.Snapshot{Generation: 3, Error: "fixture failure"})
+	e.syncRemoval(remotestore.Snapshot{Generation: 3, Error: state.FaultText("fixture failure")})
 	if e.PendingRemove != "one" || e.Removing || !e.Open || e.Draft.Name != "unsaved draft" {
 		t.Fatalf("failure lost confirmation/draft: %+v", e)
 	}

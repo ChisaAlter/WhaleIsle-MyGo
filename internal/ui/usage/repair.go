@@ -39,21 +39,21 @@ func repairView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 				ui.Text(c, o.SessionID+fmt.Sprintf(" · %d events · %d → %d bytes", r.Repaired, r.BytesBefore, r.BytesAfter)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 				ui.Text(c, usageText("宿主备份：", "Host backup: ")+r.Backup).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			} else {
-				ui.Text(c, usageText("未确认成功：", "Success not confirmed: ")+o.SessionID+" · "+o.Err).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
+				ui.Text(c, usageText("未确认成功：", "Success not confirmed: ")+o.SessionID+" · "+o.Err.SentenceText()).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 			}
 		}
 	}
-	if v.Err != "" {
+	if v.Err != nil {
 		if len(v.Outcomes) == 0 {
-			ui.Text(c, v.Err).TextColor(accent)
+			ui.Text(c, v.Err.SentenceText()).TextColor(accent)
 		}
 		ui.Text(c, usageText("失败请求未自动重试。超时或断线不代表宿主没有完成写入；只按重扫结果决定下一步。", "Failed requests are not retried automatically. Timeout or disconnect does not prove the host did not finish writing; use the rescan result to decide what to do next.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 	}
 	if len(v.Unattempted) > 0 && (!v.Busy || v.StopRequested) {
 		ui.Text(c, usageText("尚未发出修复：", "Repairs not submitted: ")+strings.Join(v.Unattempted, ", ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
-	if v.RescanErr != "" {
-		ui.Text(c, usageText("修复请求结果已保留，但重扫失败，旧统计仍在显示：", "Repair request results retained, but verification failed; previous statistics remain visible: ")+v.RescanErr).TextColor(accent)
+	if v.RescanErr != nil {
+		ui.Text(c, usageText("修复请求结果已保留，但重扫失败，旧统计仍在显示：", "Repair request results retained, but verification failed; previous statistics remain visible: ")+v.RescanErr.SentenceText()).TextColor(accent)
 		if !v.Busy && widgets.Button(c, colors, usageText("重新扫描以验证", "Rescan to verify"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.RefreshStats(context.Background(), true)
 		}

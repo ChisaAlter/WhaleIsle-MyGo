@@ -5,11 +5,14 @@ package imonboard
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -124,13 +127,25 @@ type View struct {
 	WorkspaceDrafts                 map[string]string
 	Presets                         []Preset
 }
+
+// Store keeps the mutable working View under mu and hands readers a
+// published, immutable version. The public Scope is minted by a scope
+// Lease renewed on Bind/Hide; the operation lifecycle (RPC runs and
+// provision polls) and the 15s status observation are Leases whose Renew
+// cancels the previous async body. Error and Notice stay strings: they
+// carry curated localized copy and sanitized Host messages.
 type Store struct {
 	mu               sync.Mutex
 	client           *pluginrpc.Client
 	notify           func()
 	view             View
-	cancel           context.CancelFunc
-	statusCancel     context.CancelFunc
+	pub              state.Published[View]
+	scope            state.LeaseOwner
+	scopeL           state.Lease
+	op               state.LeaseOwner
+	opL              state.Lease
+	status           state.LeaseOwner
+	statusL          state.Lease
 	statusGeneration uint64
 	statusReady      bool
 }
@@ -145,25 +160,21 @@ func (s *Store) fire() {
 }
 func (s *Store) Bind(client *pluginrpc.Client, epoch uint64, notify func()) {
 	s.mu.Lock()
-	if s.statusCancel != nil {
-		s.statusCancel()
-		s.statusCancel = nil
-	}
+	s.status.Retire()
 	s.statusReady = false
 	s.statusGeneration++
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
-	}
+	s.op.Retire()
 	old, ch, attempt := s.client, s.view.Channel, s.view.Provision.AttemptID
 	s.client = client
 	s.notify = notify
-	s.view = View{Available: client != nil, Scope: s.view.Scope + 1}
+	s.scopeL = s.scope.Renew(context.Background())
+	s.view = View{Available: client != nil, Scope: s.scopeL.Generation()}
 	if client != nil {
 		if u, err := url.Parse(client.BaseURL); err == nil {
 			s.view.Host = u.Scheme + "://" + u.Host
 		}
 	}
+	s.publishLocked()
 	s.mu.Unlock()
 	if old != nil && attempt != "" {
 		go cancelAttempt(old, ch, attempt)
@@ -174,29 +185,28 @@ func cancelAttempt(p *pluginrpc.Client, ch, id string) {
 	defer cancel()
 	_ = p.Call(ctx, ch, "provision.cancel", map[string]any{"attemptId": id}, &json.RawMessage{})
 }
-func (s *Store) Snapshot() View {
+
+// Snapshot returns the current published version. The same *Version is
+// shared by every reader until a write publishes the next revision; Value
+// is immutable. A zero-value Store publishes its empty view lazily — the
+// store is embedded inside the IM store without a constructor.
+func (s *Store) Snapshot() *state.Version[View] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.view
-	v.Bots = append([]Bot(nil), v.Bots...)
-	for i := range v.Bots {
-		v.Bots[i].Health.LastCheckedAt = append(json.RawMessage(nil), v.Bots[i].Health.LastCheckedAt...)
-		if v.Bots[i].LastMessageError.At != nil {
-			at := *v.Bots[i].LastMessageError.At
-			v.Bots[i].LastMessageError.At = &at
-		}
+	if s.pub.Load() == nil {
+		s.publishLocked()
 	}
-	v.PolicyDrafts = map[string]string{}
-	for k, value := range s.view.PolicyDrafts {
-		v.PolicyDrafts[k] = value
-	}
-	v.WorkspaceDrafts = map[string]string{}
-	for k, value := range s.view.WorkspaceDrafts {
-		v.WorkspaceDrafts[k] = value
-	}
-	v.Presets = append([]Preset(nil), s.view.Presets...)
-	return v
+	s.mu.Unlock()
+	return s.pub.Load()
 }
+
+// Changed closes when the next version is published.
+func (s *Store) Changed() <-chan struct{} { return s.pub.Changed() }
+
+func (s *Store) publishLocked() { s.pub.Publish(s.view) }
+
 func (s *Store) Show(ch string) {
 	if PlatformByID(ch).ID == "" {
 		return
@@ -207,9 +217,11 @@ func (s *Store) Show(ch string) {
 	s.view.Channel = ch
 	var statusContext context.Context
 	if s.client != nil {
-		statusContext, s.statusCancel = context.WithCancel(context.Background())
+		s.statusL = s.status.Renew(context.Background())
+		statusContext = s.statusL.Context()
 	}
 	client, scope := s.client, s.view.Scope
+	s.publishLocked()
 	s.mu.Unlock()
 	s.Refresh()
 	if statusContext != nil {
@@ -218,21 +230,16 @@ func (s *Store) Show(ch string) {
 }
 func (s *Store) Hide() {
 	s.mu.Lock()
-	if s.statusCancel != nil {
-		s.statusCancel()
-		s.statusCancel = nil
-	}
+	s.status.Retire()
 	s.statusReady = false
 	s.statusGeneration++
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
-	}
+	s.op.Retire()
 	p, ch, id := s.client, s.view.Channel, s.view.Provision.AttemptID
 	available := p != nil
-	scope := s.view.Scope + 1
 	host := s.view.Host
-	s.view = View{Available: available, Scope: scope, Host: host}
+	s.scopeL = s.scope.Renew(context.Background())
+	s.view = View{Available: available, Scope: s.scopeL.Generation(), Host: host}
+	s.publishLocked()
 	s.mu.Unlock()
 	if p != nil && id != "" {
 		go cancelAttempt(p, ch, id)
@@ -243,6 +250,7 @@ func (s *Store) Edit(scope uint64, d Draft) {
 	s.mu.Lock()
 	if s.view.Scope == scope && !s.view.Busy {
 		s.view.Draft = d
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 }
@@ -253,6 +261,7 @@ func (s *Store) Review(scope uint64, action, target, mode, allowlist string) {
 		s.view.Target = target
 		s.view.Mode = mode
 		s.view.Allowlist = allowlist
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -261,16 +270,20 @@ func (s *Store) EditPolicy(scope uint64, id, text string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if scope == s.view.Scope && !s.view.Busy {
-		if s.view.PolicyDrafts == nil {
-			s.view.PolicyDrafts = map[string]string{}
+		drafts := maps.Clone(s.view.PolicyDrafts)
+		if drafts == nil {
+			drafts = map[string]string{}
 		}
-		s.view.PolicyDrafts[id] = text
+		drafts[id] = text
+		s.view.PolicyDrafts = drafts
+		s.publishLocked()
 	}
 }
 func (s *Store) Dismiss() {
 	s.mu.Lock()
 	if !s.view.Busy {
 		s.view.Review = ""
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -279,17 +292,15 @@ func (s *Store) Refresh() {
 	s.mu.Lock()
 	provision := s.view.Provision
 	if s.client != nil && s.view.Open && !s.view.Busy && provision.AttemptID != "" && provision.Status != "failed" && provision.Status != "cancelled" && provision.Status != "expired" {
-		if s.cancel != nil {
-			s.cancel()
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		s.cancel = cancel
+		s.opL = s.op.Renew(context.Background())
+		op := s.opL
 		client, scope, channel := s.client, s.view.Scope, s.view.Channel
 		s.view.Error = ""
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 		// Observation resumes the same attempt; it never replays a mutation.
-		go s.poll(ctx, client, scope, channel, provision)
+		go s.poll(op, client, scope, channel, provision)
 		return
 	}
 	s.mu.Unlock()
@@ -355,6 +366,7 @@ func (s *Store) Confirm() {
 			s.mu.Lock()
 			if s.view.Scope == v.Scope {
 				s.view.Error = "请输入手机微信显示的 4–8 位数字配对码。"
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 			s.fire()
@@ -385,6 +397,7 @@ func (s *Store) Confirm() {
 			s.mu.Lock()
 			if s.view.Scope == v.Scope {
 				s.view.Error = message
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 			s.fire()
@@ -416,16 +429,15 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 		}
 		if message := s.validateBindingLocked(method, payload); message != "" {
 			s.view.Error = message
+			s.publishLocked()
 			s.mu.Unlock()
 			s.fire()
 			return
 		}
 	}
-	if s.cancel != nil {
-		s.cancel()
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancel = cancel
+	s.opL = s.op.Renew(context.Background())
+	op := s.opL
+	ctx := op.Context()
 	p, scope, ch, previous := s.client, s.view.Scope, s.view.Channel, s.view.Provision
 	s.statusGeneration++
 	s.view.Busy = true
@@ -434,6 +446,7 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 	if method == "bot.reconnect" {
 		s.view.TestNotice = ""
 	}
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 	go func() {
@@ -445,18 +458,18 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 		var raw json.RawMessage
 		if pairing && method != "provision.verify" && previous.AttemptID != "" {
 			if err := call("provision.cancel", map[string]any{"attemptId": previous.AttemptID}, &raw); err != nil {
-				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardCouldNotCancelThePreviousSetupRefresh), nil)
+				s.finish(scope, op, storelocale.T(storelocale.KeyStoreImonboardCouldNotCancelThePreviousSetupRefresh), nil)
 				return
 			}
 		}
 		if err := call(method, payload, &raw); err != nil {
-			s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardHostOperationFailedCheckThePlatformCon)+": "+publicOperationError(err, payload), nil)
+			s.finish(scope, op, storelocale.T(storelocale.KeyStoreImonboardHostOperationFailedCheckThePlatformCon)+": "+publicOperationError(err, payload), nil)
 			return
 		}
 		// A definite accepted mutation clears sensitive input. A rejected or
 		// failed call keeps the in-memory form intact for correction in place.
 		s.mu.Lock()
-		if s.view.Scope == scope {
+		if s.opL == op && s.view.Scope == scope {
 			if method == "bot.bind-credentials" {
 				s.view.Draft = Draft{}
 			}
@@ -466,14 +479,16 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 			if method == "bot.delete" {
 				s.view.Review = ""
 			}
+			s.publishLocked()
 		}
 		s.mu.Unlock()
 		testNotice, testError := "", ""
 		if method == "bot.reconnect" && payload["sendTest"] == true {
 			testNotice, testError = reconnectTestResult(raw, reconnectBotID(payload))
 			s.mu.Lock()
-			if s.view.Scope == scope {
+			if s.opL == op && s.view.Scope == scope {
 				s.view.TestNotice = testNotice
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 		}
@@ -498,16 +513,16 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 					expected = "group_message_permission"
 				}
 				if provision.Operation != expected || provision.BotID != payload["botId"] {
-					s.finish(scope, "Host returned an authorization for a different operation or Bot", nil)
+					s.finish(scope, op, "Host returned an authorization for a different operation or Bot", nil)
 					return
 				}
 			}
 			if provision.AttemptID == "" {
-				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardTheHostReturnedNoValidSetupTask), nil)
+				s.finish(scope, op, storelocale.T(storelocale.KeyStoreImonboardTheHostReturnedNoValidSetupTask), nil)
 				return
 			}
 			s.mu.Lock()
-			if scope != s.view.Scope {
+			if s.opL != op || scope != s.view.Scope {
 				s.mu.Unlock()
 				cancelAttempt(p, ch, provision.AttemptID)
 				return
@@ -515,22 +530,24 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 			s.view.Busy = false
 			s.view.Provision = provision
 			s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardWaitingForPlatformAuthorizationConnectio)
+			s.publishLocked()
 			s.mu.Unlock()
 			s.fire()
-			s.poll(ctx, p, scope, ch, provision)
+			s.poll(op, p, scope, ch, provision)
 			return
 		}
 		if method == "provision.cancel" {
 			s.mu.Lock()
-			if scope == s.view.Scope {
+			if s.opL == op && scope == s.view.Scope {
 				s.view.Provision = Provision{}
 				s.view.Draft.VerifyCode = ""
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 		}
 		if method != "connection.status" {
 			if err := call("connection.status", map[string]any{}, &raw); err != nil {
-				s.finish(scope, storelocale.T(storelocale.KeyStoreImonboardTheActionWasSubmittedButTheStatusRefr), nil)
+				s.finish(scope, op, storelocale.T(storelocale.KeyStoreImonboardTheActionWasSubmittedButTheStatusRefr), nil)
 				return
 			}
 		}
@@ -552,32 +569,34 @@ func (s *Store) runScoped(expectedScope uint64, method string, payload map[strin
 					previous = Provision{}
 				}
 				s.mu.Lock()
-				if scope == s.view.Scope {
+				if s.opL == op && scope == s.view.Scope {
 					s.view.Provision = previous
+					s.publishLocked()
 				}
 				s.mu.Unlock()
 			}
 		}
-		s.finish(scope, "", raw)
+		s.finish(scope, op, "", raw)
 		if testNotice != "" || testError != "" {
 			s.mu.Lock()
-			if s.view.Scope == scope {
+			if s.opL == op && s.view.Scope == scope {
 				s.view.TestNotice = testNotice
 				if testError != "" {
 					s.view.Error = testError
 				}
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 			s.fire()
 		}
 		if method != "provision.cancel" && previous.AttemptID != "" {
-			s.poll(ctx, p, scope, ch, previous)
+			s.poll(op, p, scope, ch, previous)
 		}
 	}()
 }
-func (s *Store) finish(scope uint64, message string, raw json.RawMessage) {
+func (s *Store) finish(scope uint64, op state.Lease, message string, raw json.RawMessage) {
 	s.mu.Lock()
-	if scope != s.view.Scope {
+	if s.opL != op || scope != s.view.Scope {
 		s.mu.Unlock()
 		return
 	}
@@ -595,6 +614,7 @@ func (s *Store) finish(scope uint64, message string, raw json.RawMessage) {
 			s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardHostConnectionStatusRefreshed)
 		}
 	}
+	s.publishLocked()
 	s.mu.Unlock()
 	s.fire()
 }
@@ -641,6 +661,7 @@ func (s *Store) pollConnectionStatus(ctx context.Context, client *pluginrpc.Clie
 		if message == "" {
 			s.applyConnectionStatusLocked(bots, presets)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}
@@ -704,21 +725,21 @@ func decodeProvision(raw json.RawMessage, previous Provision) Provision {
 	}
 	return p
 }
-func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch string, provision Provision) {
+func (s *Store) poll(op state.Lease, p *pluginrpc.Client, scope uint64, ch string, provision Provision) {
+	ctx := op.Context()
 	for {
 		if ctx.Err() != nil {
 			return
 		}
 		if provision.Status == "connected" {
 			s.mu.Lock()
-			if scope != s.view.Scope || ctx.Err() != nil {
+			if s.opL != op || scope != s.view.Scope || ctx.Err() != nil {
 				s.mu.Unlock()
 				return
 			}
-			if scope == s.view.Scope {
-				s.view.Provision = Provision{}
-				s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardPlatformAuthorizationCompleteReadingConn)
-			}
+			s.view.Provision = Provision{}
+			s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardPlatformAuthorizationCompleteReadingConn)
+			s.publishLocked()
 			s.mu.Unlock()
 			s.Refresh()
 			return
@@ -726,7 +747,7 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 		terminal := provision.Status == "failed" || provision.Status == "cancelled" || provision.Status == "expired"
 		if terminal || !provision.Applying() && time.Now().After(provision.Deadline) {
 			s.mu.Lock()
-			if scope == s.view.Scope && ctx.Err() == nil {
+			if s.opL == op && scope == s.view.Scope && ctx.Err() == nil {
 				if !terminal {
 					provision.Status = "expired"
 				}
@@ -734,6 +755,7 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 				provision.URL = ""
 				s.view.Provision = provision
 				s.view.Notice = storelocale.T(storelocale.KeyStoreImonboardSetupStopped) + provision.Status
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 			s.fire()
@@ -754,16 +776,17 @@ func (s *Store) poll(ctx context.Context, p *pluginrpc.Client, scope uint64, ch 
 			return
 		}
 		if err != nil {
-			s.finish(scope, "暂时无法读取接入状态。刷新会继续核对此接入任务，不会重新提交授权。", nil)
+			s.finish(scope, op, "暂时无法读取接入状态。刷新会继续核对此接入任务，不会重新提交授权。", nil)
 			return
 		}
 		provision = decodeProvision(raw, provision)
 		s.mu.Lock()
-		if scope != s.view.Scope || ctx.Err() != nil {
+		if s.opL != op || scope != s.view.Scope || ctx.Err() != nil {
 			s.mu.Unlock()
 			return
 		}
 		s.view.Provision = provision
+		s.publishLocked()
 		s.mu.Unlock()
 		s.fire()
 	}

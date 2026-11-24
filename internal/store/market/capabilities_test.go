@@ -43,6 +43,7 @@ func TestNativeCompatibleOnlyDefaultFilterAndDetailsSync(t *testing.T) {
 		},
 	})
 	s.discovery.catalog.Items = []desktopmarket.CatalogItem{uiItem, hostItem, mcpItem, skillItem}
+	s.republish()
 
 	filtered := s.Discovery()
 	if !filtered.NativeCompatibleOnly || filtered.Total != 3 || len(filtered.Rows) != 3 {

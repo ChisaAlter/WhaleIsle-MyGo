@@ -91,7 +91,7 @@ func TestUsageHeaderExportMenuAndBillingSettings(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	tt.Frame()
-	if tt.HasText("Billing settings") || s.Billing().Err != "" || s.Billing().Dirty {
+	if tt.HasText("Billing settings") || s.Billing().Err != nil || s.Billing().Dirty {
 		t.Fatal("successful Save did not close billing", s.Billing())
 	}
 }

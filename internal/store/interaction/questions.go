@@ -192,16 +192,16 @@ func (s *Store) SetQuestionSkipped(eventID, questionID string, skipped bool) {
 	s.mu.Lock()
 	p, ds := s.findPending(eventID), s.questionDrafts[eventID]
 	if p == nil || p.Event != EventUserQuestions || p.Sending || ds == nil || planReviewOf(ds.req.Questions) != nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ad := ds.answers[questionID]
 	if ad == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.setQuestionSkippedDraftLocked(eventID, ad, skipped)
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 

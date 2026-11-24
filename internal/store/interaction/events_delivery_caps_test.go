@@ -64,7 +64,7 @@ func TestBeginEventsDeliveryResetsOrphanSendingApprovalWithoutTouchingContinued(
 		out, _ := s.HandleWaterfallForDelivery(old, wf)
 		resultCh <- out
 	}()
-	awaitQuestionFixture(t, func() bool { return len(s.Snapshot().Pending) == 1 })
+	awaitQuestionFixture(t, func() bool { return len(s.testView().Pending) == 1 })
 
 	// Start in-flight approval send, then drop carrier / begin new delivery generation
 	// while the approval remains pending in-memory.

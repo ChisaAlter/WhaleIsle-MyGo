@@ -3,11 +3,11 @@ package market
 import (
 	"context"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	desktopmarket "whaleisle/internal/desktop/market"
+	"whaleisle/internal/errcopy"
 )
 
 type hangingCatalog struct{}
@@ -36,8 +36,8 @@ func TestSelectDetailsTimesOutAHangingService(t *testing.T) {
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
 		if d := s.Discovery(); !d.DetailsLoading {
-			if !strings.Contains(d.DetailsErr, "deadline") && !strings.Contains(d.DetailsErr, "canceled") {
-				t.Fatalf("details error=%q, want the context deadline", d.DetailsErr)
+			if d.DetailsErr == nil || (d.DetailsErr.Cause != errcopy.CauseTimeout && d.DetailsErr.Cause != errcopy.CauseCancelled) {
+				t.Fatalf("details error=%+v, want the context deadline", d.DetailsErr)
 			}
 			return
 		}

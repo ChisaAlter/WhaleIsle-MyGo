@@ -71,7 +71,7 @@ func TestProjectRankingFixture(t *testing.T) {
 	mode.Store(1)
 	s.LoadMoreProjects(ctx)
 	v = wait()
-	if v.Err == "" || len(v.Rows) != 1 || <-calls != "tokens:1" {
+	if v.Err == nil || len(v.Rows) != 1 || <-calls != "tokens:1" {
 		t.Fatal("failure lost page", v)
 	}
 	mode.Store(0)

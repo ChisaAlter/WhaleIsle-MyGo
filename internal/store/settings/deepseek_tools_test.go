@@ -95,7 +95,7 @@ func TestDeepSeekToolsBindingWritesOnlyItsOwnNamespace(t *testing.T) {
 		t.Fatalf("patch = %#v, want only the changed switch", patch)
 	}
 	deadline = time.Now().Add(3 * time.Second)
-	for st.Snapshot().Saving && time.Now().Before(deadline) {
+	for st.Snapshot().Value.Saving && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
 	after := st.SnapshotDeepSeekTools()

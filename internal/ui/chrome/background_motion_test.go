@@ -9,9 +9,10 @@ import (
 	"whaleisle/internal/desktop/wallpapers"
 )
 
-// This simulates desktop preferences through public MyGo UI APIs. It changes
-// no OS setting and makes no GPU-fluid or native OS-toggle acceptance claim.
-func TestWallpaperReducedMotionStopsSchedulingAndHoldsPhase(t *testing.T) {
+// The ambient gradient is baked once per configuration into a static
+// texture: frames at later clock times, with or without reduced motion,
+// render nothing new and schedule no repaint loop.
+func TestAmbientGradientIsBakedOnceAndNeverTicks(t *testing.T) {
 	prefs := wallpapers.Defaults()
 	prefs.Effect, prefs.Speed, prefs.Count = "gradient", 190, 5
 	prefs.EffectExplicit = true
@@ -24,37 +25,25 @@ func TestWallpaperReducedMotionStopsSchedulingAndHoldsPhase(t *testing.T) {
 		})
 	}, 280, 180)
 	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
-	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
-	before := paints
-	tt.Frame()
-	staticPaints := paints - before
-	if staticPaints != 1 {
-		t.Fatalf("reduced frame scheduled more painting: %d", staticPaints)
-	}
-	still := bytes.Clone(tt.Image().Pix)
-	time.Sleep(120 * time.Millisecond)
-	tt.Frame()
-	if !bytes.Equal(still, tt.Image().Pix) {
-		t.Fatal("reduced ambient phase changed with wall clock")
-	}
-	tt.SetPreferences(ui.Preferences{ReduceMotion: false})
-	// The gradient schedules its next phase with Painter.After and renders it on a
-	// worker, so a headless frame no longer repaints in a loop and the number of
-	// paints says nothing. What must hold is that the normal gradient keeps
-	// following the clock: drive it with a fixed later time, wait for the worker
-	// and paint again.
-	moving := bytes.Clone(tt.Image().Pix)
 	ambientGradientFrames.mu.Lock()
 	renders := ambientGradientFrames.renders
 	ambientGradientFrames.mu.Unlock()
-	tt.SetTime(time.Now().Add(120 * time.Millisecond))
-	waitRenders(t, &ambientGradientFrames, renders+1)
+	still := bytes.Clone(tt.Image().Pix)
+	tt.SetTime(time.Now().Add(2 * time.Second))
+	before := paints
 	tt.Frame()
-	if bytes.Equal(moving, tt.Image().Pix) {
-		t.Fatal("normal gradient phase no longer follows time")
+	if paints-before != 1 {
+		t.Fatalf("the gradient scheduled more painting: %d", paints-before)
 	}
-	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	time.Sleep(120 * time.Millisecond)
+	tt.SetTime(time.Now().Add(5 * time.Second))
+	tt.Frame()
 	if !bytes.Equal(still, tt.Image().Pix) {
-		t.Fatal("normal-to-reduced did not return to its static phase")
+		t.Fatal("the ambient gradient changed with the clock")
+	}
+	ambientGradientFrames.mu.Lock()
+	defer ambientGradientFrames.mu.Unlock()
+	if ambientGradientFrames.renders != renders || ambientGradientFrames.rendering {
+		t.Fatalf("the gradient rendered %d more frames", ambientGradientFrames.renders-renders)
 	}
 }

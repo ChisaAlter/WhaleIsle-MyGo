@@ -30,7 +30,6 @@ var carrierScan = []struct {
 	{"../schedule", regexp.MustCompile(`\.status = `)},
 	{"../assistant", regexp.MustCompile(`return err\.Error|ReviewText`)},
 	{"../widgets/markdown", regexp.MustCompile(`label = `)},
-	{"../svgimage", regexp.MustCompile(`message = |p[.]Text[(]`)},
 	// The import wizard paints a session row's reason itself, so the launcher
 	// owes every row a sentence rather than a string from below.
 	{"../launcher", regexp.MustCompile(`label|ui\.Text\(c, |releaseText`)},

@@ -10,19 +10,19 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/dsh/api"
 	marketstore "whaleisle/internal/store/market"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
 
 // Model wires the market panel to store, install state, and harness status.
 type Model struct {
-	SVGImages *svgimage.Owner
-	Store     *marketstore.Store
+	Media *media.Owner
+	Store *marketstore.Store
 	// Embedded is used by the Settings market section, whose shell owns its header and insets.
 	Embedded           bool
 	categoriesExpanded *bool
@@ -72,7 +72,7 @@ func View(c *ui.Context, m Model) {
 	m = withMarketConfirmations(m)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	border, fg, muted, field, accent := chrome.Color(colors.Border), chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Field), chrome.Color(colors.Accent)
-	snap := m.Store.Snapshot()
+	snap := m.Store.Snapshot().Value
 	d := m.Store.Discovery()
 	personal := m.Store.Personal()
 	top, side, bottom := float32(28), float32(24), float32(48)
@@ -122,8 +122,8 @@ func View(c *ui.Context, m Model) {
 				} else if d.Tab != "installed" {
 					discoveryView(c, m, d, snap, fg, muted, field, border, accent)
 				} else {
-					if snap.Err != "" {
-						ui.Text(c, snap.Err).TextColor(accent)
+					if snap.Err != nil {
+						ui.Text(c, snap.Err.SentenceText()).TextColor(accent)
 					}
 					if !snap.ClientReady {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketTheRuntimeIsNotConnectedTheCatalogIs), "Runtime disconnected; the catalog remains available.")).TextColor(muted)
@@ -305,8 +305,8 @@ func discoveryView(c *ui.Context, m Model, d marketstore.Discovery, inventory ma
 	if d.Catalog.Warning != "" {
 		ui.Text(c, d.Catalog.Warning).FontSize(theme.InterfaceSize(11)).TextColor(accent)
 	}
-	if d.Err != "" {
-		ui.Text(c, d.Err).TextColor(accent)
+	if d.Err != nil {
+		ui.Text(c, d.Err.SentenceText()).TextColor(accent)
 	}
 	query := d.Query
 	ui.TextInput(c, &query).FillWidth().Height(32).Radius(8).Border(.5, border).Background(chrome.FrostInset(theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, field)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Placeholder(marketText(i18n.T(i18n.KeyW4MarketSearchNamePackageOrDescription), "Search name, package or description")).OnChange(func() { m.Store.SetQuery(query) })
@@ -388,7 +388,7 @@ func catalogInstallButton(c *ui.Context, m Model, d marketstore.Discovery, item 
 	if name := marketstore.InstalledName(item, inventory.Rows); name != "" {
 		colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 		ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketInstalled), "Installed")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ready := inventory.ClientReady && !inventory.Loading && inventory.Err == "" && !m.InstallBusy && !d.Loading
+		ready := inventory.ClientReady && !inventory.Loading && inventory.Err == nil && !m.InstallBusy && !d.Loading
 		for _, update := range m.Store.Updates().Rows {
 			if update.ID == item.ID && update.Available && m.OnInstallCatalog != nil {
 				current, latest := update.Current, update.Latest
@@ -510,7 +510,7 @@ func favoriteButton(c *ui.Context, m Model, id string) {
 func updatesView(c *ui.Context, m Model, inventory marketstore.ViewState, fg, muted, border, accent ui.Color) {
 	u := m.Store.Updates()
 	ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketPluginVersionUpdates), "Plugin version updates")).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	if !m.InstallBusy && !inventory.Loading && inventory.Err == "" && inventory.ClientReady && !m.Store.Discovery().Loading && !u.Loading {
+	if !m.InstallBusy && !inventory.Loading && inventory.Err == nil && inventory.ClientReady && !m.Store.Discovery().Loading && !u.Loading {
 		if widgets.Button(c, theme.Resolve(m.ThemeID).Active(m.SystemDark), marketText(i18n.T(i18n.KeyW4MarketCheckPluginUpdates), "Check plugin updates"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 			m.Store.CheckUpdates()
 		}

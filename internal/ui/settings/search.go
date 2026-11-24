@@ -125,7 +125,7 @@ func searchEntries(m Model) []searchEntry {
 	}
 	var snap store.ViewState
 	if m.Store != nil {
-		snap = m.Store.Snapshot()
+		snap = m.Store.Snapshot().Value
 	}
 	for _, page := range primaryNavigation(m, snap) {
 		entries = append(entries, searchEntry{section: page.id, title: navigationLabel(m, page.id), detail: providerCopy("设置页面", "Settings page"), open: page.onSelect})

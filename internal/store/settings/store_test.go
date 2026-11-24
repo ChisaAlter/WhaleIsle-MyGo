@@ -52,7 +52,7 @@ func TestRefreshDescribeParsesNamespaces(t *testing.T) {
 	st := New()
 	done := make(chan struct{})
 	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, func() {
-		snap := st.Snapshot()
+		snap := st.Snapshot().Value
 		if len(snap.Namespaces) == 1 && !snap.Loading {
 			close(done)
 		}
@@ -64,7 +64,7 @@ func TestRefreshDescribeParsesNamespaces(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for describe")
 	}
-	snap := st.Snapshot()
+	snap := st.Snapshot().Value
 	if snap.SelectedNS != "permission" || len(snap.Namespaces[0].Fields) != 1 {
 		t.Fatalf("snap = %+v", snap)
 	}
@@ -119,7 +119,7 @@ func TestSaveUpdateSendsPatch(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -128,12 +128,12 @@ func TestSaveUpdateSendsPatch(t *testing.T) {
 	st.SaveUpdate(context.Background())
 	deadline = time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if updateHits.Load() > 0 && st.Snapshot().LastAction == "settings saved" {
+		if updateHits.Load() > 0 && st.Snapshot().Value.LastAction == "settings saved" {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("update hits = %d last = %q", updateHits.Load(), st.Snapshot().LastAction)
+	t.Fatalf("update hits = %d last = %q", updateHits.Load(), st.Snapshot().Value.LastAction)
 }
 
 func TestSaveReplaceFromDraftsSendsSection(t *testing.T) {
@@ -185,7 +185,7 @@ func TestSaveReplaceFromDraftsSendsSection(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -194,12 +194,12 @@ func TestSaveReplaceFromDraftsSendsSection(t *testing.T) {
 	st.SaveReplaceFromDrafts(context.Background())
 	deadline = time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if replaceHits.Load() > 0 && st.Snapshot().LastAction == "settings replaced" {
+		if replaceHits.Load() > 0 && st.Snapshot().Value.LastAction == "settings replaced" {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("replace hits = %d last = %q err = %q", replaceHits.Load(), st.Snapshot().LastAction, st.Snapshot().Err)
+	t.Fatalf("replace hits = %d last = %q err = %q", replaceHits.Load(), st.Snapshot().Value.LastAction, st.Snapshot().Value.Err)
 }
 
 func TestSaveReplaceEmptyFailsClosed(t *testing.T) {
@@ -234,13 +234,13 @@ func TestSaveReplaceEmptyFailsClosed(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	st.SaveReplace(context.Background(), nil)
-	snap := st.Snapshot()
+	snap := st.Snapshot().Value
 	if replaceHits.Load() != 0 {
 		t.Fatalf("RPC should not fire, hits=%d", replaceHits.Load())
 	}
@@ -288,14 +288,14 @@ func TestSaveReplaceFromDraftsInvalidFailsClosed(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	st.SetDraft("blob", "{not-json")
 	st.SaveReplaceFromDrafts(context.Background())
-	snap := st.Snapshot()
+	snap := st.Snapshot().Value
 	if replaceHits.Load() != 0 {
 		t.Fatalf("RPC should not fire, hits=%d", replaceHits.Load())
 	}
@@ -358,7 +358,7 @@ func TestSyncViewTabsPatchesConversation(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -377,7 +377,7 @@ func TestSyncViewTabsPatchesConversation(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("update hits = %d last=%q", updateHits.Load(), st.Snapshot().LastAction)
+	t.Fatalf("update hits = %d last=%q", updateHits.Load(), st.Snapshot().Value.LastAction)
 }
 
 func TestPatchBoolDiscardsStaleResponseAcrossDetachAndReattach(t *testing.T) {
@@ -454,7 +454,7 @@ func TestPatchBoolDiscardsStaleResponseAcrossDetachAndReattach(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -468,7 +468,7 @@ func TestPatchBoolDiscardsStaleResponseAcrossDetachAndReattach(t *testing.T) {
 	st.RefreshDescribe(context.Background())
 	deadline = time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -477,7 +477,7 @@ func TestPatchBoolDiscardsStaleResponseAcrossDetachAndReattach(t *testing.T) {
 	close(release)
 	time.Sleep(50 * time.Millisecond)
 
-	snap := st.Snapshot()
+	snap := st.Snapshot().Value
 	if snap.LastAction == "viewTabs synced" {
 		t.Fatalf("stale A update overwrote LastAction: %+v", snap)
 	}
@@ -576,13 +576,13 @@ func TestPatchBoolSerializesSequentialMutationsAndInvalidatesSnapCache(t *testin
 	st.RefreshDescribe(context.Background())
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(st.Snapshot().Namespaces) == 1 {
+		if len(st.Snapshot().Value.Namespaces) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	// Prime snapCache before mutating via SyncViewTabs.
-	_ = st.Snapshot()
+	// Publish a version before mutating via SyncViewTabs.
+	_ = st.Snapshot().Value
 
 	st.SyncViewTabs(context.Background(), false)
 	<-firstEntered
@@ -594,7 +594,7 @@ func TestPatchBoolSerializesSequentialMutationsAndInvalidatesSnapCache(t *testin
 		mu.Lock()
 		n := len(recorded)
 		mu.Unlock()
-		if n == 2 && st.Snapshot().Namespaces[0].Revision == 3.0 {
+		if n == 2 && st.Snapshot().Value.Namespaces[0].Revision == 3.0 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -614,9 +614,9 @@ func TestPatchBoolSerializesSequentialMutationsAndInvalidatesSnapCache(t *testin
 	if recorded[1] != (updateReq{expectedRev: 2.0, viewTabs: true}) {
 		t.Fatalf("second update = %+v", recorded[1])
 	}
-	snap := st.Snapshot()
+	snap := st.Snapshot().Value
 	if snap.LastAction != "viewTabs synced" {
-		t.Fatalf("snap.LastAction = %q (snapCache stale?)", snap.LastAction)
+		t.Fatalf("snap.LastAction = %q (published view stale?)", snap.LastAction)
 	}
 	var got struct {
 		ViewTabs bool `json:"viewTabs"`

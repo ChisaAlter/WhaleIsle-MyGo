@@ -53,7 +53,7 @@ func interactionView(c *ui.Context, m Model) {
 	snap := m.Snapshot
 	// Idle in manual mode: omit strip. Auto-allow on → banner (toggle to manual).
 	// Pending → approval / question cards.
-	if snap.Banner == "" && len(snap.Pending) == 0 && len(snap.QuestionHistory) == 0 && snap.QuestionStatus == "" && snap.QuestionDraftError == "" && !snap.AutoAllow {
+	if snap.Banner == "" && len(snap.Pending) == 0 && len(snap.QuestionHistory) == 0 && snap.QuestionStatus == "" && snap.QuestionDraftError == nil && !snap.AutoAllow {
 		return
 	}
 	th := theme.Resolve(m.ThemeID)
@@ -77,8 +77,8 @@ func interactionView(c *ui.Context, m Model) {
 	}
 	strip.Children(func() {
 		// no opaque border line above composer
-		if snap.QuestionDraftError != "" {
-			ui.Text(c, snap.QuestionDraftError).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		if snap.QuestionDraftError != nil {
+			ui.Text(c, interaction.QuestionDraftSaveFailed+snap.QuestionDraftError.SentenceText()).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 		if snap.AutoAllow {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -242,18 +242,18 @@ func pendingCard(c *ui.Context, p interaction.Pending, snap interaction.ViewStat
 				}
 			}
 		}
-		if p.Error != "" {
+		if p.Error != nil {
 			ui.Text(c, questionErrorText(p.Error)).FontSize(theme.InterfaceSize(12)).TextColor(t.Danger)
 		}
 		// Question affordances moved into the header icon seats of the
 		// Original's .headerActions; question cards keep no footer row at all.
-		if p.Event != interaction.EventUserQuestions || p.Sending || p.Error != "" {
+		if p.Event != interaction.EventUserQuestions || p.Sending || p.Error != nil {
 			ui.Row(c).FillWidth().Shrink(0).Padding(4, 16).Gap(8).Justify(ui.End).Wrap().Children(func() {
 				if p.Sending {
 					widgets.Button(c, colors, i18n.T(i18n.KeyInteractionContinue), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonMedium, Disabled: true})
 					return
 				}
-				if p.Error != "" {
+				if p.Error != nil {
 					if retry := widgets.Button(c, colors, i18n.T(i18n.KeyBootRetry), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonMedium}); retry.Clicked() {
 						store.Retry(p.EventID)
 					}

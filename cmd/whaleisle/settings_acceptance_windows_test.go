@@ -210,7 +210,7 @@ func nativeSettingsAcceptance() error {
 			if store == nil {
 				return false
 			}
-			snap := store.Snapshot()
+			snap := store.Snapshot().Value
 			return !snap.Loading && len(snap.Namespaces) > 0 && snap.Err == ""
 		}); err != nil {
 			finish(err)
@@ -228,8 +228,8 @@ func nativeSettingsAcceptance() error {
 			}
 			if page == "Plugins" {
 				err = settingsQAWait("real plugin inventory", func() bool {
-					s := state.marketCoordinator().Inventory().Snapshot()
-					return s.Ready && !s.Busy && s.Err == ""
+					s := state.marketCoordinator().Inventory().Snapshot().Value
+					return s.Ready && !s.Busy && s.Err == nil
 				})
 			} else if page == "MCP" {
 				err = settingsQAWait("real MCP empty catalog", func() bool {
@@ -327,7 +327,7 @@ func nativeSettingsAcceptance() error {
 		sessions := state.sessions
 		state.mu.Unlock()
 		skillCount := len(sessions.Snapshot().SkillCatalog.Skills)
-		proof := map[string]any{"layer": "real production native mainView and Host; production callbacks driven by public ui.Tester", "captures": proofs, "describedNamespacesAfterOwnedHostStop": len(setStore.Snapshot().Namespaces), "skillRows": skillCount, "focusReturnLayer": "production mainView ui.Tester only", "openerFocusRestored": focused, "nativeKeyboardFocusVerified": false, "modelRequests": 0, "settingsMutations": 0, "promptCalls": 0, "externalLinksOpened": false, "credentialDocumentAbsent": true, "originalPixelParityClaim": false, "nativeScreenshotsRequireIndependentVisualReview": true, "notVerified": []string{"Models/model discovery", "Account/sign-in", "Credentials and secret reveal", "remote authorization", "public market network/install", "update checking/install", "OS keyboard focus/IME", "scrolling all subpage content through native input"}}
+		proof := map[string]any{"layer": "real production native mainView and Host; production callbacks driven by public ui.Tester", "captures": proofs, "describedNamespacesAfterOwnedHostStop": len(setStore.Snapshot().Value.Namespaces), "skillRows": skillCount, "focusReturnLayer": "production mainView ui.Tester only", "openerFocusRestored": focused, "nativeKeyboardFocusVerified": false, "modelRequests": 0, "settingsMutations": 0, "promptCalls": 0, "externalLinksOpened": false, "credentialDocumentAbsent": true, "originalPixelParityClaim": false, "nativeScreenshotsRequireIndependentVisualReview": true, "notVerified": []string{"Models/model discovery", "Account/sign-in", "Credentials and secret reveal", "remote authorization", "public market network/install", "update checking/install", "OS keyboard focus/IME", "scrolling all subpage content through native input"}}
 		raw, _ := json.MarshalIndent(proof, "", "  ")
 		finish(os.WriteFile(filepath.Join(out, "settings-native.json"), append(raw, '\n'), 0600))
 	}()
@@ -350,7 +350,7 @@ func settingsQANarrowDiagnostic(win *mygo.Window, tt *ui.Tester, out string, act
 		state.mu.Lock()
 		s := state.settings
 		state.mu.Unlock()
-		return s != nil && !s.Snapshot().Loading && len(s.Snapshot().Namespaces) > 0
+		return s != nil && !s.Snapshot().Value.Loading && len(s.Snapshot().Value.Namespaces) > 0
 	}); err != nil {
 		return err
 	}

@@ -28,7 +28,7 @@ func TestEmbeddedUsageInitialLoadingErrorAndEmptyStates(t *testing.T) {
 			if state == "loading" && !strings.Contains(text, "Loading usage") {
 				t.Fatal(text)
 			}
-			if state == "error" && !strings.Contains(text, s.Stats().Err) {
+			if state == "error" && !strings.Contains(text, s.Stats().Err.SentenceText()) {
 				t.Fatal("initial error hidden", text)
 			}
 			if state == "empty" && !strings.Contains(text, "No data yet") {
@@ -66,7 +66,7 @@ func TestEmbeddedUsageCalendarSelectionKeepsOtherDimensionsAndExports(t *testing
 	s.SetStatsRangeDraft("2026-10-15", "2026-10-14")
 	s.ApplyStatsRangeDraft()
 	tt.Frame()
-	if s.Stats().RangeError == "" || !s.Stats().Range.Active() {
+	if s.Stats().RangeError == nil || !s.Stats().Range.Active() {
 		t.Fatal("invalid range silently replaced accepted selection")
 	}
 	if err := tt.Click("Last 7 days"); err != nil {

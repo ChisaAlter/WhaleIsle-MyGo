@@ -1,15 +1,14 @@
 package files
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"image"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 	fonttheme "whaleisle/internal/ui/theme"
 
@@ -17,54 +16,108 @@ import (
 	"whaleisle/internal/errcopy"
 
 	"whaleisle/internal/desktop/imagepreview"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/workspacefs"
-	"whaleisle/internal/ui/svgimage"
 )
 
 const maxImageBytes int64 = 32 << 20
-const maxImagePixels = 32_000_000
 
+// filesMedia is the process image service; tests substitute their own.
+var filesMedia = media.Default
+
+// imagePreview is a tab's image: the media key and source that make it, and
+// what the latest frame read from the service. Build code never reads or
+// decodes: the source's Load runs on a media worker, under the tab's lease.
 type imagePreview struct {
-	svg       *svgimage.Seat
-	owner     imageReadOwner
-	loading   bool
-	bitmap    *ui.Bitmap
-	vector    *ui.SVG
-	animation *imagepreview.Animation
-	frames    []*ui.Bitmap
-	started   time.Time
-	note      string
-	err       error
+	owner   imageReadOwner
+	key     media.Key
+	src     media.Source
+	lease   *media.Owner
+	handle  *media.Handle
+	loadErr atomic.Pointer[error]
+
+	loading bool
+	bitmap  *ui.Bitmap
+	vector  *ui.SVG
+	note    string
+	err     error
 }
 
-// advance uses a paint-driven deadline: hidden or closed tabs schedule no new
-// wakeups, and elapsed time skips missed frames without accumulating timers.
-func (p *imagePreview) advance(now time.Time) time.Duration {
-	if p.animation == nil || len(p.frames) == 0 {
+// newImagePreview prepares a request whose bytes come from read, run on a
+// media worker. Read's own error (an authority or path refusal) is kept so
+// the view can explain it; the media service only classifies.
+func newImagePreview(owner imageReadOwner, id, path string, notify func(), read func(context.Context) ([]byte, error)) *imagePreview {
+	p := &imagePreview{owner: owner, loading: true}
+	p.key = media.Key{ID: id}
+	p.src = media.Source{Kind: strings.ToLower(filepath.Ext(path)), MaxBytes: imageByteLimit(path), Load: func(ctx context.Context) ([]byte, error) {
+		data, err := read(ctx)
+		if err != nil {
+			p.loadErr.Store(&err)
+		}
+		return data, err
+	}}
+	p.lease = filesMedia().NewOwner(nil, notify)
+	return p
+}
+
+// release ends the preview's lease: a decode still waiting never runs.
+func (p *imagePreview) release() {
+	if p != nil && p.lease != nil {
+		p.lease.Release()
+	}
+}
+
+// refresh requests the picture (a cache hit after the first decode) and copies
+// its state for this frame. It never decodes and never advances animation.
+func (p *imagePreview) refresh() {
+	p.sync(time.Time{})
+}
+
+// sync is refresh that also shows the animation frame due at now (zero: do not
+// advance) and returns the wait until the next. Only the painted tab passes a
+// time, so hidden animations do not advance.
+func (p *imagePreview) sync(now time.Time) time.Duration {
+	if p == nil || p.lease == nil {
 		return 0
 	}
-	if p.started.IsZero() {
-		p.started = now
+	p.handle = filesMedia().Request(p.lease, p.key, p.src)
+	p.loading, p.err, p.bitmap, p.vector = false, nil, nil, nil
+	switch p.handle.State() {
+	case media.Pending:
+		p.loading = true
+		return 0
+	case media.Failed:
+		if e := p.loadErr.Load(); e != nil {
+			p.err = *e
+		} else {
+			p.err = p.handle.Err()
+		}
+		return 0
 	}
-	index, wait := p.animation.FrameAt(now.Sub(p.started))
-	p.bitmap = p.frames[index]
+	pic, _ := p.handle.Picture()
+	var wait time.Duration
+	if !now.IsZero() {
+		pic.Bitmap, wait = p.handle.Frame(now)
+	}
+	p.bitmap, p.vector = pic.Bitmap, pic.SVG
+	if p.bitmap != nil {
+		w, h := p.bitmap.Size()
+		p.note = fmt.Sprintf("%d × %d", w, h)
+	} else if p.vector != nil {
+		w, h := p.vector.Size()
+		p.note = fmt.Sprintf("%.0f × %.0f", w, h)
+	}
 	return wait
 }
 
-// Release decoded pixels for inactive tabs without touching their zoom/pan state.
+// retainImagePreview installs the selected tab's preview. Other tabs keep
+// theirs: their pictures stay in the shared cache and come back on revisit.
 func retainImagePreview(m Model, selected *FileTab, preview *imagePreview) {
 	if selected == nil {
 		return
 	}
-	if w := tabsFor(m); w != nil {
-		for _, tab := range w.Open {
-			if tab != selected {
-				if tab.image != nil && tab.image.svg != nil {
-					tab.image.svg.Close()
-				}
-				tab.image = nil
-			}
-		}
+	if selected.image != nil && selected.image != preview {
+		selected.image.release()
 	}
 	selected.image = preview
 }
@@ -86,9 +139,9 @@ func imageMode(m Model, path string) bool {
 func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 	t := selectedTab(m)
 	preview := readImagePreview(m, t)
+	wait := preview.sync(time.Now())
 	if preview.loading {
 		ui.Text(c, label("正在加载图片…", "Loading image…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Padding(8, 12, 8, 12)
-		c.After(50 * time.Millisecond)
 		return
 	}
 	if preview.err != nil {
@@ -96,84 +149,65 @@ func paintImagePreview(c *ui.Context, m Model, path string, muted ui.Color) {
 		ui.Text(c, label("可用“外部打开”查看此图片；不会自动启动其他应用。", "Use Open external to view this image. No other app is opened automatically.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Padding(4, 12, 4, 12)
 		return
 	}
-	note := preview.note
-	if preview.svg != nil {
-		preview.svg.Prepare(c, m.SVGImages)
-		w, h := preview.svg.Size()
-		note = fmt.Sprintf("%.0f × %.0f", w, h)
-		if err := preview.svg.Error(); err != nil {
-			ui.Text(c, errcopy.Sentence(err)).FontSize(12).TextColor(muted).FillWidth()
-		}
-	}
-	if note != "" {
-		ui.Text(c, note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
+	if preview.note != "" {
+		ui.Text(c, preview.note).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted).Padding(4, 12, 4, 12)
 	}
 	view := &imageViewState{}
 	if t != nil {
 		view = &t.imageView
 	}
-	if wait := preview.advance(time.Now()); wait > 0 {
+	if wait > 0 {
 		c.After(wait)
 	}
 	paintImageView(c, preview, view)
 }
 
-func loadImagePreview(root, rel string) *imagePreview {
-	return loadImagePreviewContext(context.Background(), root, rel)
-}
-
-func loadImagePreviewContext(ctx context.Context, root, rel string) *imagePreview {
-	p := &imagePreview{}
+// readWorkspaceImage reads one workspace image within the authorized root,
+// on a media worker.
+func readWorkspaceImage(ctx context.Context, root, rel string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
-		p.err = err
-		return p
+		return nil, err
 	}
 	full, err := workspacefs.JoinRoot(root, rel)
 	if err != nil {
-		p.err = err
-		return p
+		return nil, err
 	}
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
-		p.err = err
-		return p
+		return nil, err
 	}
 	realFile, err := filepath.EvalSymlinks(full)
 	if err != nil {
-		p.err = fmt.Errorf("%s: %w", label("本地图片不可用", "Local image unavailable"), err)
-		return p
+		return nil, fmt.Errorf("%s: %w", label("本地图片不可用", "Local image unavailable"), err)
 	}
 	within, err := filepath.Rel(realRoot, realFile)
 	if err != nil || outsideRoot(within) {
-		p.err = errors.New(label("图片路径超出当前工作区", "Image path is outside this workspace"))
-		return p
+		return nil, errors.New(label("图片路径超出当前工作区", "Image path is outside this workspace"))
 	}
 	file, err := os.Open(realFile)
 	if err != nil {
-		p.err = err
-		return p
+		return nil, err
 	}
 	defer file.Close()
 	info, err := file.Stat()
 	if err != nil {
-		p.err = err
-		return p
+		return nil, err
 	}
 	if !info.Mode().IsRegular() {
-		p.err = errors.New(label("图片路径不是普通文件", "Image path is not a regular file"))
-		return p
+		return nil, errors.New(label("图片路径不是普通文件", "Image path is not a regular file"))
 	}
 	limit := imageByteLimit(rel)
 	if info.Size() > limit {
-		p.err = errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
-		return p
+		return nil, errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
 	}
 	data, err := io.ReadAll(io.LimitReader(file, limit+1))
 	if err != nil {
-		p.err = err
-		return p
+		return nil, err
 	}
-	return decodeImagePreviewContext(ctx, rel, data)
+	if int64(len(data)) > limit {
+		return nil, errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
+	}
+	return data, nil
 }
 
 func imageByteLimit(path string) int64 {
@@ -181,85 +215,4 @@ func imageByteLimit(path string) int64 {
 		return imagepreview.MaxSVGBytes
 	}
 	return maxImageBytes
-}
-
-// Decode the Files snapshot with the existing byte/pixel limits and animation
-// timeline. The independent Host document route owns its own scoped snapshots.
-func decodeImagePreviewContext(ctx context.Context, path string, data []byte) *imagePreview {
-	p := &imagePreview{}
-	if int64(len(data)) > imageByteLimit(path) {
-		p.err = errors.New(label("图片超过安全预览大小限制", "Image exceeds the preview size limit"))
-		return p
-	}
-	if err := ctx.Err(); err != nil {
-		p.err = err
-		return p
-	}
-	var decoded image.Image
-	ext := strings.ToLower(filepath.Ext(path))
-	if bytes.HasPrefix(data, []byte("GIF87a")) || bytes.HasPrefix(data, []byte("GIF89a")) {
-		ext = ".gif"
-	}
-	if ext == "" && bytes.Contains(data[:min(len(data), 4096)], []byte("<svg")) {
-		ext = ".svg"
-	}
-	if len(data) >= 12 && string(data[4:8]) == "ftyp" && (bytes.Contains(data[8:min(len(data), 64)], []byte("avif")) || bytes.Contains(data[8:min(len(data), 64)], []byte("avis"))) {
-		ext = ".avif"
-	}
-	animatedAVIF := ext == ".avif" && imagepreview.IsAnimatedAVIF(data)
-	switch {
-	case ext == ".gif" || imagepreview.IsAnimatedWebP(data) || animatedAVIF:
-		if animatedAVIF {
-			p.animation, p.err = imagepreview.DecodeAVIFAnimationContext(ctx, data)
-		} else {
-			p.animation, p.err = imagepreview.DecodeAnimation(data)
-		}
-		if p.err == nil {
-			for _, frame := range p.animation.Frames {
-				if err := ctx.Err(); err != nil {
-					return &imagePreview{err: err}
-				}
-				p.frames = append(p.frames, ui.NewBitmap(frame))
-			}
-			// Keep timing metadata, but release the decoder staging canvases.
-			p.animation.Frames = nil
-			p.bitmap = p.frames[0]
-		}
-	case ext == ".svg":
-		if imagepreview.NeedsBrowserSVG(data) {
-			p.svg, p.err = svgimage.NewSeat(data)
-			if p.svg != nil {
-				w, h := p.svg.Size()
-				p.note = fmt.Sprintf("%.0f × %.0f", w, h)
-			}
-			return p
-		}
-		decoded, p.err = imagepreview.DecodeSVGContext(ctx, data)
-	case ext == ".ico":
-		decoded, p.err = imagepreview.DecodeIcon(data)
-	case ext == ".avif":
-		decoded, p.err = imagepreview.DecodeAVIFContext(ctx, data)
-	default:
-		config, _, decodeErr := image.DecodeConfig(bytes.NewReader(data))
-		if decodeErr != nil {
-			p.err = decodeErr
-			return p
-		}
-		if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > maxImagePixels {
-			p.err = errors.New(label("图片尺寸超过安全预览限制", "Image dimensions exceed the preview limit"))
-			return p
-		}
-		p.bitmap, p.err = ui.DecodeBitmap(data)
-	}
-	if err := ctx.Err(); err != nil {
-		return &imagePreview{err: err}
-	}
-	if decoded != nil && p.err == nil {
-		p.bitmap = ui.NewBitmap(decoded)
-	}
-	if p.bitmap != nil {
-		w, h := p.bitmap.Size()
-		p.note = fmt.Sprintf("%d × %d", w, h)
-	}
-	return p
 }

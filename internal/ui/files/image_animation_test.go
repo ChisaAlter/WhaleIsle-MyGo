@@ -28,17 +28,18 @@ func TestNativeGIFAnimationAndCacheLifetime(t *testing.T) {
 	if p.err != nil {
 		t.Fatal(p.err)
 	}
-	if p.animation == nil || len(p.frames) != 2 || len(p.animation.Frames) != 0 {
-		t.Fatal("animation frames or staging cleanup missing")
+	if !p.handle.Animated() {
+		t.Fatal("animation missing")
 	}
+	one := p.bitmap
 	start := time.Unix(100, 0)
-	if wait := p.advance(start); wait != 50*time.Millisecond || p.bitmap != p.frames[0] {
+	if wait := p.advance(start); wait != 50*time.Millisecond {
 		t.Fatal("first frame", wait)
 	}
-	if wait := p.advance(start.Add(60 * time.Millisecond)); wait != 60*time.Millisecond || p.bitmap != p.frames[1] {
+	if wait := p.advance(start.Add(60 * time.Millisecond)); wait != 60*time.Millisecond {
 		t.Fatal("second frame", wait)
 	}
-	if wait := p.advance(start.Add(time.Second)); wait != 0 || p.bitmap != p.frames[1] {
+	if wait := p.advance(start.Add(time.Second)); wait != 0 {
 		t.Fatal("finite animation did not stop", wait)
 	}
 	a, b := &FileTab{Path: "moving.gif", image: p}, &FileTab{Path: "next.png"}
@@ -47,9 +48,12 @@ func TestNativeGIFAnimationAndCacheLifetime(t *testing.T) {
 	a.Draft = "unsaved owner draft"
 	m := Model{WorkspaceRoot: root, Tabs: &Tabs{}}
 	tabsFor(m).Open = []*FileTab{a, b}
+	if p.bitmap != one {
+		t.Fatal("animation frames are separate bitmaps")
+	}
 	retainImagePreview(m, b, &imagePreview{})
-	if a.image != nil || b.image == nil {
-		t.Fatal("inactive frame cache retained")
+	if a.image != p || b.image == nil {
+		t.Fatal("inactive tab lost its media handle")
 	}
 	if a.imageView.scale != 2 || a.imageView.scroll.X != 17 || a.Draft != "unsaved owner draft" {
 		t.Fatal("cache cleanup changed owner state")

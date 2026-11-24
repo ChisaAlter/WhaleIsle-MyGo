@@ -21,7 +21,7 @@ func TestLibraryCopiesRemainIndependentAfterReload(t *testing.T) {
 	if err = s.Add(b, id); err != nil {
 		t.Fatal(err)
 	}
-	first := s.Snapshot(a).Instances[0]
+	first := MutableCopy(s.Snapshot(a).Value.Instances[0])
 	first.Definition.Width = 640
 	first.Definition.Widgets[0].Text = "local"
 	first.State["note"] = "private"
@@ -32,20 +32,20 @@ func TestLibraryCopiesRemainIndependentAfterReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := reloaded.Snapshot(a).Instances[0]
-	other := reloaded.Snapshot(b).Instances[0]
+	got := reloaded.Snapshot(a).Value.Instances[0]
+	other := MutableCopy(reloaded.Snapshot(b).Value.Instances[0])
 	if got.Definition.Width != 640 || got.State["note"] != "private" || other.Definition.Width != 420 || other.Definition.Widgets[0].Text != "seed" || other.State["note"] != "" {
 		t.Fatalf("copies leaked: %+v %+v", got, other)
 	}
-	library := reloaded.Snapshot(b).Library[0]
+	library := reloaded.Snapshot(b).Value.Library[0]
 	if library.Widgets[0].Text != "seed" {
 		t.Fatal("instance changed library")
 	}
 	other.Definition.Widgets[0].Text = "snapshot only"
-	if reloaded.Snapshot(b).Instances[0].Definition.Widgets[0].Text != "seed" {
+	if reloaded.Snapshot(b).Value.Instances[0].Definition.Widgets[0].Text != "seed" {
 		t.Fatal("snapshot aliases store")
 	}
-	if len(reloaded.Snapshot(Scope{Host: "other", Bot: "a"}).Instances) != 0 {
+	if len(reloaded.Snapshot(Scope{Host: "other", Bot: "a"}).Value.Instances) != 0 {
 		t.Fatal("host scope leaked")
 	}
 }

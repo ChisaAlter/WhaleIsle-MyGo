@@ -227,7 +227,7 @@ func TestFunctionalAssistantRuntime(t *testing.T) {
 		editor.Bind("owned-host-1")
 		ticket, ok := editor.BeginLoad("owned-host-1")
 		assert("BOT-01-native-editor-load-ticket", ok, 0)
-		assert("BOT-01-native-editor-real-load", editor.FinishLoad(ticket, settings, nil) && editor.Snapshot().Loaded, 0)
+		assert("BOT-01-native-editor-real-load", editor.FinishLoad(ticket, settings, nil) && editor.Snapshot().Value.Loaded, 0)
 		editor.Edit("owned-host-1", "name", "Owned Whale")
 		editor.Edit("owned-host-1", "title", "Owned user")
 		editor.Edit("owned-host-1", "persona", "Owned local persona; no prompt.")
@@ -242,7 +242,7 @@ func TestFunctionalAssistantRuntime(t *testing.T) {
 		ticket, ok = editor.BeginLoad("owned-host-1")
 		assert("BOT-01-native-editor-refresh-ticket", ok, 0)
 		editor.Bind("owned-host-2")
-		assert("BOT-01-native-editor-late-read-revoked", !editor.FinishLoad(ticket, savedWhale, nil) && !editor.Snapshot().Loaded, 0)
+		assert("BOT-01-native-editor-late-read-revoked", !editor.FinishLoad(ticket, savedWhale, nil) && !editor.Snapshot().Value.Loaded, 0)
 	}
 	var botIDs []string
 	var botSessionIDs []string

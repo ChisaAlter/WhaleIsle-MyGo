@@ -39,6 +39,7 @@ func TestWallpaperSourcePath(t *testing.T) {
 }
 
 func TestWallpaperPainterUsesAcceptedHostBackground(t *testing.T) {
+	useGlassTheme(t)
 	t.Cleanup(func() { chrome.ConfigureBackdrop("", wallpapers.Defaults()) })
 	for _, localNone := range []bool{false, true} {
 		name := "missing local preference"

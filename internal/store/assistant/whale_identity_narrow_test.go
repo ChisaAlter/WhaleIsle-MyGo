@@ -45,8 +45,8 @@ func TestWhaleIdentityNarrowWriteChecksAndReadbackPreserveOtherDrafts(t *testing
 			if !e.FinishWrite(q, cmd, &actual, true, nil) {
 				t.Fatal("readback not accepted")
 			}
-			got := e.Snapshot()
-			if got.Name != "New Whale" || got.UserTitle != "Captain draft" || got.Memory != "retained memory" || got.PersonaText != "retained persona" || got.Error != "" {
+			got := e.Snapshot().Value
+			if got.Name != "New Whale" || got.UserTitle != "Captain draft" || got.Memory != "retained memory" || got.PersonaText != "retained persona" || got.Error != nil {
 				t.Fatal("narrow readback committed or erased other drafts", got)
 			}
 			replacement := pluginrpc.WhaleSettings{HomeDir: "/other", SessionID: "other"}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 type ConnectionStatus struct {
@@ -35,7 +37,8 @@ type ForwardDraft struct {
 
 type ToolsSnapshot struct {
 	Loaded                    bool
-	Error, Notice             string
+	Error                     *state.Fault
+	Notice                    string
 	Forwards                  []Forward
 	SSHEntries                []SSHConfigEntry
 	AuditLoaded, AuditEnabled bool
@@ -133,17 +136,20 @@ func (s *Store) toolsRequest(operation string, payload any, machineID string) {
 		return
 	}
 	s.view.Busy = true
-	s.view.Tools.Error, s.view.Tools.Notice = "", ""
-	c, n, g := s.client, s.notify, s.generation
+	s.view.Tools.Error, s.view.Tools.Notice = nil, ""
+	c, n, attachL := s.client, s.notify, s.attachL
 	value := cloneTools(s.view.Tools)
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	s.cancel = cancel
+	parent, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	s.opL = s.op.Renew(parent)
+	op := s.opL
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 	go func() {
 		defer cancel()
+		ctx := op.Context()
 		var err error
 		switch operation {
 		case "load":
@@ -195,17 +201,16 @@ func (s *Store) toolsRequest(operation string, payload any, machineID string) {
 			err = request(ctx, c, "GET", "status", nil, &status)
 		}
 		s.mu.Lock()
-		if g != s.generation {
+		if s.attachL != attachL {
 			s.mu.Unlock()
 			return
 		}
-		s.cancel = nil
 		s.view.Busy = false
 		if operation == "load" {
 			value.Loaded = true
 		}
 		if err != nil {
-			value.Error = err.Error()
+			value.Error = state.FaultOf(err)
 			// A successful mutation followed by a failed refresh is not retried.
 			if operation == "forwards" {
 				value.Notice = "Refresh the forwarding list before retrying an uncertain operation."
@@ -214,6 +219,7 @@ func (s *Store) toolsRequest(operation string, payload any, machineID string) {
 			s.view.Status, s.view.Connected = status, status.Connected
 		}
 		s.view.Tools = value
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()

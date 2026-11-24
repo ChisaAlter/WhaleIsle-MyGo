@@ -15,7 +15,7 @@ func failedOutcome(result string) bool {
 	return result == "failed" || result == "interrupted" || result == "unknown" || result == "not-started"
 }
 func failedPlugin(m Model, id, name string) bool {
-	for _, row := range m.Store.Snapshot().Rows {
+	for _, row := range m.Store.Snapshot().Value.Rows {
 		if row.Label == name && row.Error != "" {
 			return true
 		}

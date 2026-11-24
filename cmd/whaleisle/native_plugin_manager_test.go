@@ -55,7 +55,7 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	owner := c.Snapshot().Owner
+	owner := c.Snapshot().Value.Owner
 	emit := s.nativePluginEventHandler(transport)
 	a := c.Actions(owner)
 	a.OpenInstall()
@@ -69,7 +69,7 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("fake install did not start")
 	}
-	id := c.Snapshot().Install.RequestID
+	id := c.Snapshot().Value.Install.RequestID
 	if id == "" {
 		t.Fatal("install request has no identity")
 	}
@@ -81,14 +81,14 @@ func TestNativePluginEventsFollowCapturedInstallAndHost(t *testing.T) {
 	send("plugin-manager/install-state", map[string]any{"requestId": id, "phase": "applying"})
 	send("plugin-manager/install-state", map[string]any{"requestId": id, "phase": "installing"})
 	send("plugin-manager/install-log", map[string]any{"requestId": id, "jobId": "job", "argv": []string{"pnpm", "install", "fixture"}, "cwd": "C:/fixture", "stream": "stdout", "text": "fixture output"})
-	if got := c.Snapshot().Install; got.Phase != "applying" || got.Log != "fixture output" {
+	if got := c.Snapshot().Value.Install; got.Phase != "applying" || got.Log != "fixture output" {
 		t.Fatalf("native event wire lost owner/phase/output: %+v", got)
 	}
 	// Replacing the controller Host invalidates the entire old event callback.
 	c.Attach(fixture, nil)
 	send("plugin-manager/install-log", map[string]any{"requestId": id, "jobId": "job", "text": "stale host"})
 	send("plugin-manager/install-state", map[string]any{"requestId": id, "phase": "applying"})
-	if got := c.Snapshot().Install; got.Log != "" || got.Phase != "" {
+	if got := c.Snapshot().Value.Install; got.Log != "" || got.Phase != "" {
 		t.Fatalf("old transport changed replacement Host: %+v", got)
 	}
 }
@@ -97,7 +97,7 @@ func waitNativeManager(t *testing.T, c *manager.Controller, ready func(manager.S
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if ready(c.Snapshot()) {
+		if ready(c.Snapshot().Value) {
 			return
 		}
 		time.Sleep(time.Millisecond)

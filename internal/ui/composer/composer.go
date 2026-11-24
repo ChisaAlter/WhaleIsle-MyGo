@@ -10,20 +10,20 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
 
 // Model is composer state for one frame.
 type Model struct {
-	SVGImages             *svgimage.Owner
+	Media                 *media.Owner
 	GroupMembers          []session.GroupMember
 	NextPrompt            session.NextPromptSuggestion
 	OnAcceptNextPrompt    func() string

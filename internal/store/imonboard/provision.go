@@ -21,6 +21,7 @@ func (s *Store) ClearCredentialDraft(scope uint64) {
 	if s.view.Scope == scope && !s.view.Busy {
 		s.view.Draft = Draft{}
 		s.view.Error = ""
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 	s.fire()
@@ -33,6 +34,7 @@ func (s *Store) CloseProvision(scope uint64) {
 		s.view.Provision = Provision{}
 		s.view.Draft.VerifyCode = ""
 		s.view.Error = ""
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 	s.fire()

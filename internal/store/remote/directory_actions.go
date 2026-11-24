@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 func (s *Store) SetDirectoryPath(path string) {
@@ -23,7 +25,7 @@ func (s *Store) ShowDirectoryCreate(open bool) {
 	if !s.view.Busy {
 		s.view.Directory.MkdirOpen = open
 		s.view.Directory.NewName = ""
-		s.view.Directory.CreateError = ""
+		s.view.Directory.CreateError = nil
 	}
 	n := s.notify
 	s.mu.Unlock()
@@ -36,7 +38,7 @@ func (s *Store) CreateDirectory(name string) error { return s.directoryAction("m
 
 func (s *Store) directoryAction(operation, name string) error {
 	s.mu.Lock()
-	if s.client == nil || s.view.Busy || s.view.CurrentID == "" || s.view.Error != "" {
+	if s.client == nil || s.view.Busy || s.view.CurrentID == "" || s.view.Error != nil {
 		s.mu.Unlock()
 		return fmt.Errorf("Select and refresh a remote machine first")
 	}
@@ -54,21 +56,24 @@ func (s *Store) directoryAction(operation, name string) error {
 			return err
 		}
 	}
-	c, n, g, machineID := s.client, s.notify, s.generation, s.view.CurrentID
+	c, n, attachL, machineID := s.client, s.notify, s.attachL, s.view.CurrentID
 	s.view.Busy = true
 	if operation == "mkdir" {
-		s.view.Directory.CreateError = ""
+		s.view.Directory.CreateError = nil
 	} else {
-		s.view.Directory.Error = ""
+		s.view.Directory.Error = nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	s.cancel = cancel
+	parent, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.opL = s.op.Renew(parent)
+	op := s.opL
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 	go func() {
 		defer cancel()
+		ctx := op.Context()
 		var current struct {
 			CurrentID string `json:"currentId"`
 		}
@@ -108,20 +113,19 @@ func (s *Store) directoryAction(operation, name string) error {
 			}
 		}
 		s.mu.Lock()
-		if s.generation != g {
+		if s.attachL != attachL {
 			s.mu.Unlock()
 			return
 		}
-		s.cancel = nil
 		s.view.Busy = false
 		if err != nil {
 			if operation == "mkdir" && !applied {
-				s.view.Directory.CreateError = err.Error()
+				s.view.Directory.CreateError = state.FaultOf(err)
 			} else {
-				s.view.Directory.Error = err.Error()
+				s.view.Directory.Error = state.FaultOf(err)
 			}
 			if applied {
-				s.view.Directory.Error += "; folder was created, but refreshing failed"
+				s.view.Notice = "Folder was created, but refreshing the listing failed"
 				s.view.Directory.MkdirOpen = false
 			}
 		} else {
@@ -129,6 +133,7 @@ func (s *Store) directoryAction(operation, name string) error {
 			listing.LocalMirror, listing.SelectedPath = captured.LocalMirror, captured.SelectedPath
 			s.view.Directory = listing
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()
@@ -137,20 +142,22 @@ func (s *Store) directoryAction(operation, name string) error {
 	return nil
 }
 
-func (s *Store) SetDirectoryError(message string) {
+func (s *Store) SetDirectoryError(f *state.Fault) {
 	s.mu.Lock()
-	s.view.Directory.Error = message
+	s.view.Directory.Error = f
 	n := s.notify
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 }
 
-func (s *Store) SetDirectoryCreateError(message string) {
+func (s *Store) SetDirectoryCreateError(f *state.Fault) {
 	s.mu.Lock()
-	s.view.Directory.CreateError = message
+	s.view.Directory.CreateError = f
 	n := s.notify
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()

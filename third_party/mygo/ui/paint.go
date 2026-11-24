@@ -146,7 +146,11 @@ func (p *Painter) elementBody(e *node) {
 	if e.flags&flagDisabled != 0 {
 		// The installed product disables controls at opacity .48
 		// (.primary-btn:disabled, .ghost-btn:disabled).
-		p.opacity *= 0.48
+		if e.disabledAlpha > 0 {
+			p.opacity *= e.disabledAlpha
+		} else {
+			p.opacity *= 0.48
+		}
 	}
 	if e.opacitySet {
 		p.opacity *= e.opacity

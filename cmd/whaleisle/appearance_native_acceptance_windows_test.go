@@ -135,7 +135,7 @@ func runNativeAppearanceAcceptance(output string) (failure error) {
 	if stop != nil {
 		defer stop()
 	}
-	access := &settings.BodySettingsAccess{Owner: 1, Snapshot: store.Snapshot(), OnChange: func(ns, key, value string) {
+	access := &settings.BodySettingsAccess{Owner: 1, Snapshot: store.Snapshot().Value, OnChange: func(ns, key, value string) {
 		store.Select(ns)
 		store.SetDraft(key, value)
 		store.SaveUpdate(context.Background())
@@ -451,7 +451,7 @@ func appearanceHostSettings(stage, root string, record map[string]any) (*setting
 	wait := func() error {
 		deadline := time.Now().Add(15 * time.Second)
 		for time.Now().Before(deadline) {
-			v := store.Snapshot()
+			v := store.Snapshot().Value
 			if !v.Loading && !v.Saving {
 				if v.Err != "" {
 					return errors.New(v.Err)
@@ -467,7 +467,7 @@ func appearanceHostSettings(stage, root string, record map[string]any) (*setting
 		if e := wait(); e != nil {
 			return nil, e
 		}
-		for _, ns := range store.Snapshot().Namespaces {
+		for _, ns := range store.Snapshot().Value.Namespaces {
 			if ns.NS == "ui-conversation" {
 				keys := []string{}
 				for _, field := range ns.Fields {
@@ -496,7 +496,7 @@ func appearanceHostSettings(stage, root string, record map[string]any) (*setting
 	store.Select("ui-conversation")
 	for k, v := range patch {
 		found := false
-		for _, ns := range store.Snapshot().Namespaces {
+		for _, ns := range store.Snapshot().Value.Namespaces {
 			if ns.NS == "ui-conversation" {
 				for _, field := range ns.Fields {
 					if field.Key == k {

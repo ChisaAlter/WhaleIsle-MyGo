@@ -69,6 +69,10 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 	if status.Err != nil {
 		errText = status.Err.Error()
 	}
+	failureAt := ""
+	if !status.FailureAt.IsZero() {
+		failureAt = status.FailureAt.Format(time.RFC3339Nano)
+	}
 	recovery := "idle"
 	if status.RecoveryActive {
 		recovery = "active"
@@ -87,7 +91,9 @@ func BootLogDump(version string, savedAt time.Time, status Status, logs []string
 		"error: " + value(errText),
 		"failure.phase: " + value(status.PluginLoad.Phase),
 		"failure.message: " + value(errText),
-		"failure.code: -", "failure.signal: -", "failure.occurredAt: -",
+		"failure.code: " + value(status.FailureCode),
+		"failure.signal: " + value(status.FailureSignal),
+		"failure.occurredAt: " + value(failureAt),
 		"source: " + value(status.Source),
 		fmt.Sprintf("generation: %d", status.Generation),
 		"recovery.status: " + recovery,

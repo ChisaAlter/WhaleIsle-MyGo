@@ -46,12 +46,12 @@ func TestDirectoryBrowseAndExplicitMirror(t *testing.T) {
 	}
 	s.ChooseDirectory()
 	v = waitStore(t, s)
-	if v.Directory.LocalMirror != "/host/mirrors/project" || v.Directory.SelectedPath != "/work/a & b" || v.Directory.Error != "" {
+	if v.Directory.LocalMirror != "/host/mirrors/project" || v.Directory.SelectedPath != "/work/a & b" || v.Directory.Error != nil {
 		t.Fatalf("choose: %+v", v)
 	}
 	s.ChooseDirectory()
 	v = waitStore(t, s)
-	if v.Directory.Error == "" || v.Directory.LocalMirror != "/host/mirrors/project" {
+	if v.Directory.Error == nil || v.Directory.LocalMirror != "/host/mirrors/project" {
 		t.Fatalf("invalid reply lost selection: %+v", v)
 	}
 }
@@ -75,7 +75,7 @@ func TestDirectoryExplicitChoiceReturnsOnlySuccessfulMirror(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("successful mirror was not delivered to its consumer")
 	}
-	if got := s.Snapshot().Directory; got.SelectedPath != "/empty" || got.LocalMirror != "/host/selected" {
+	if got := s.Snapshot().Value.Directory; got.SelectedPath != "/empty" || got.LocalMirror != "/host/selected" {
 		t.Fatalf("wrong adoption state %+v", got)
 	}
 }
@@ -141,7 +141,7 @@ func TestDirectoryCancelledChoiceCannotAdoptLateMirror(t *testing.T) {
 	s.CancelDirectoryChoice()
 	close(release)
 	<-responded
-	if s.Snapshot().Busy || s.Snapshot().Directory.LocalMirror != "" {
+	if s.Snapshot().Value.Busy || s.Snapshot().Value.Directory.LocalMirror != "" {
 		t.Fatal("cancelled mirror changed selection")
 	}
 	select {
@@ -163,7 +163,7 @@ func TestDirectoryFailurePreservesPositionAndDisablesChoose(t *testing.T) {
 	s.view.Directory = DirectorySnapshot{Path: "/work", Loaded: true, LocalMirror: "/mirror", SelectedPath: "/old"}
 	s.Browse("/denied")
 	v := waitStore(t, s)
-	if v.Directory.Error == "" || v.Directory.Path != "/work" || v.Directory.LocalMirror != "/mirror" || v.Directory.CanChoose() {
+	if v.Directory.Error == nil || v.Directory.Path != "/work" || v.Directory.LocalMirror != "/mirror" || v.Directory.CanChoose() {
 		t.Fatalf("bad error state %+v", v)
 	}
 }
@@ -192,7 +192,7 @@ func TestMachineSwitchClearsDirectoryEvenWhenRefreshFails(t *testing.T) {
 	s.view.Directory = DirectorySnapshot{Path: "/old", Loaded: true, LocalMirror: "/old-mirror"}
 	s.Select("new")
 	v := waitStore(t, s)
-	if v.Error == "" || v.Directory.Loaded || v.Directory.LocalMirror != "" {
+	if v.Error == nil || v.Directory.Loaded || v.Directory.LocalMirror != "" {
 		t.Fatalf("stale machine directory: %+v", v)
 	}
 }
@@ -211,13 +211,13 @@ func TestDirectoryReattachIgnoresLateListing(t *testing.T) {
 	s.view.CurrentID = "old"
 	s.Browse("")
 	<-started
-	if !s.Snapshot().Busy {
+	if !s.Snapshot().Value.Busy {
 		t.Fatal("missing loading state")
 	}
 	s.Attach(nil, nil)
 	close(release)
 	<-done
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	if v.Busy || v.Directory.Loaded || v.Directory.Path != "" {
 		t.Fatalf("reattach kept stale data: %+v", v)
 	}

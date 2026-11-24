@@ -33,7 +33,7 @@ func (s *Service) roomClient(ep harness.Endpoint) *dsh.Client {
 	if !open || blocking || asst == nil || !winSt.Exists || !winSt.Visible || winSt.Minimized {
 		return nil
 	}
-	if asst.Snapshot().Mode != "dshbot" {
+	if asst.Snapshot().Value.Mode != "dshbot" {
 		return nil
 	}
 	return client
@@ -44,7 +44,7 @@ func (s *Service) isRoomInRoster(ep harness.Endpoint, id string) bool {
 	if roster == nil || id == "" {
 		return false
 	}
-	cached := roster.Snapshot()
+	cached := roster.Snapshot().Value
 	if cached.Origin != ep.Origin {
 		return false
 	}
@@ -254,7 +254,7 @@ func (s *Service) openCreatedRoom(ep harness.Endpoint, client *dsh.Client, curre
 			return false
 		}
 		same := s.AssistantStore() == asst && host.Sessions() == sessions && host.Window() == win
-		selected := asst.Snapshot()
+		selected := asst.Snapshot().Value
 		return same && selected.DshbotID == expected.ID && selected.DshbotOrigin == ep.Origin && sessions.SelectedSessionID() == previous
 	}
 	s.UpdateAssistantTasks()
@@ -350,7 +350,7 @@ func (s *Service) RoomEditModel(ep harness.Endpoint, id string) assistantui.Room
 			return false
 		}
 		same := s.AssistantStore() == asst
-		selected := asst.Snapshot()
+		selected := asst.Snapshot().Value
 		return same && selected.DshbotID == id && selected.DshbotOrigin == ep.Origin
 	}
 	rpc := host.PluginRPCClient(ep)
@@ -472,7 +472,7 @@ func (s *Service) RoomRuntimeModel(ep harness.Endpoint, id string) assistantui.R
 			return false
 		}
 		same := s.AssistantStore() == asst && host.Sessions() == sessions
-		selected := asst.Snapshot()
+		selected := asst.Snapshot().Value
 		return same && selected.DshbotID == id && selected.DshbotOrigin == ep.Origin
 	}
 	rpc := host.PluginRPCClient(ep)

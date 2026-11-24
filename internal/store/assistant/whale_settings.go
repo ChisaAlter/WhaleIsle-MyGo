@@ -1,46 +1,64 @@
 package assistant
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
+
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
 // WhaleSettingsEditor holds only this native editor's in-memory drafts. It
 // never reads local MEMORY.md, persists drafts, or starts model/session work.
+// Host binding, in-flight requests and serialized mutations each own a lease;
+// tickets compare the lease token itself, so a rebound host or completed
+// mutation can never be matched by a stale ticket.
 type WhaleSettingsEditor struct {
-	Preferences                     WhalePreferencesEditor
-	mu                              sync.Mutex
-	host                            string
-	epoch, serial, revision         uint64
-	pending                         uint64
-	mutationSerial, mutationPending uint64
-	loaded, seen, busy, confirm     bool
-	server                          pluginrpc.WhaleSettings
-	draft                           pluginrpc.WhaleSettings
-	notice, lastErr                 string
-	completedAction                 string
-	completedSerial                 uint64
+	Preferences                 WhalePreferencesEditor
+	mu                          sync.Mutex
+	host                        string
+	revision                    uint64
+	scope                       state.LeaseOwner
+	scopeL                      state.Lease
+	op                          state.LeaseOwner
+	opL                         state.Lease
+	mut                         state.LeaseOwner
+	mutL                        state.Lease
+	loaded, seen, busy, confirm bool
+	server                      pluginrpc.WhaleSettings
+	draft                       pluginrpc.WhaleSettings
+	notice                      string
+	lastErr                     *state.Fault
+	completedAction             string
+	completedSerial             uint64
+	pub                         state.Published[WhaleSettingsSnapshot]
 }
 type WhaleSettingsSnapshot struct {
 	HostKey                              string
 	Loaded, Busy, ConfirmClear           bool
 	Name, UserTitle, PersonaText, Memory string
 	Server                               pluginrpc.WhaleSettings
-	Notice, Error                        string
+	Notice                               string
+	Error                                *state.Fault
 	Revision                             uint64
 	CompletedAction                      string
 	CompletedSerial                      uint64
 }
 type WhaleSettingsTicket struct {
-	host                    string
-	epoch, serial, revision uint64
+	host        string
+	scopeL, opL state.Lease
+	revision    uint64
 }
 type WhaleSettingsCommand struct {
 	Action      string
 	Base, Value pluginrpc.WhaleSettings
+}
+
+func (s *WhaleSettingsEditor) publishLocked() {
+	s.pub.Publish(WhaleSettingsSnapshot{HostKey: s.host, Loaded: s.loaded, Busy: s.busy || s.mutL.Valid(), ConfirmClear: s.confirm, Name: s.draft.Name, UserTitle: s.draft.UserTitle, PersonaText: s.draft.PersonaText, Memory: s.draft.Memory, Server: s.server, Notice: s.notice, Error: s.lastErr, Revision: s.revision, CompletedAction: s.completedAction, CompletedSerial: s.completedSerial})
 }
 
 func (s *WhaleSettingsEditor) Bind(host string) {
@@ -50,10 +68,10 @@ func (s *WhaleSettingsEditor) Bind(host string) {
 	if s.host == host {
 		return
 	}
-	s.epoch++
+	s.scopeL = s.scope.Renew(context.Background())
+	s.op.Retire()
+	s.mut.Retire()
 	s.host = host
-	s.pending = 0
-	s.mutationPending = 0
 	s.loaded = false
 	s.seen = false
 	s.busy = false
@@ -61,28 +79,36 @@ func (s *WhaleSettingsEditor) Bind(host string) {
 	s.server = pluginrpc.WhaleSettings{}
 	s.draft = pluginrpc.WhaleSettings{}
 	s.notice = ""
-	s.lastErr = ""
+	s.lastErr = nil
 	s.completedAction, s.completedSerial = "", 0
 	s.revision++
+	s.publishLocked()
 }
 func (s *WhaleSettingsEditor) Suspend() {
 	s.Preferences.Suspend()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.epoch++
-	s.pending = 0
-	s.mutationPending = 0
+	s.scopeL = s.scope.Renew(context.Background())
+	s.op.Retire()
+	s.mut.Retire()
 	if s.busy {
 		s.loaded = false
 		s.notice = storelocale.T(storelocale.KeyStoreAssistantInterruptedRefreshToVerify)
 	}
 	s.busy = false
 	s.confirm = false
+	s.publishLocked()
 }
-func (s *WhaleSettingsEditor) Snapshot() WhaleSettingsSnapshot {
+func (s *WhaleSettingsEditor) Snapshot() *state.Version[WhaleSettingsSnapshot] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return WhaleSettingsSnapshot{HostKey: s.host, Loaded: s.loaded, Busy: s.busy || s.mutationPending != 0, ConfirmClear: s.confirm, Name: s.draft.Name, UserTitle: s.draft.UserTitle, PersonaText: s.draft.PersonaText, Memory: s.draft.Memory, Server: s.server, Notice: s.notice, Error: s.lastErr, Revision: s.revision, CompletedAction: s.completedAction, CompletedSerial: s.completedSerial}
+	if s.pub.Load() == nil {
+		s.publishLocked()
+	}
+	return s.pub.Load()
 }
 
 // BeginMutation serializes the identity/memory and model/skill writers for the
@@ -90,17 +116,18 @@ func (s *WhaleSettingsEditor) Snapshot() WhaleSettingsSnapshot {
 func (s *WhaleSettingsEditor) BeginMutation(host string) (func(), bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if host == "" || host != s.host || s.busy || s.mutationPending != 0 {
+	if host == "" || host != s.host || s.busy || s.mutL.Valid() {
 		return nil, false
 	}
-	s.mutationSerial++
-	s.mutationPending = s.mutationSerial
-	epoch, serial := s.epoch, s.mutationPending
+	s.mutL = s.mut.Renew(context.Background())
+	scopeL, mutL := s.scopeL, s.mutL
+	s.publishLocked()
 	return func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if s.host == host && s.epoch == epoch && s.mutationPending == serial {
-			s.mutationPending = 0
+		if s.host == host && s.scopeL == scopeL && s.mutL == mutL {
+			s.mut.Retire()
+			s.publishLocked()
 		}
 	}, true
 }
@@ -125,6 +152,7 @@ func (s *WhaleSettingsEditor) Edit(host, field, value string) {
 	s.revision++
 	s.confirm = false
 	s.notice = ""
+	s.publishLocked()
 }
 func (s *WhaleSettingsEditor) Restore(host, field string) {
 	s.mu.Lock()
@@ -145,20 +173,20 @@ func (s *WhaleSettingsEditor) Restore(host, field string) {
 	}
 	s.revision++
 	s.confirm = false
-	s.lastErr = ""
+	s.lastErr = nil
 	s.notice = storelocale.T(storelocale.KeyStoreAssistantDraftRestoredFromHost)
+	s.publishLocked()
 }
 func (s *WhaleSettingsEditor) ticket() WhaleSettingsTicket {
-	s.serial++
-	s.pending = s.serial
+	s.opL = s.op.Renew(context.Background())
 	s.busy = true
 	s.confirm = false
-	s.lastErr = ""
+	s.lastErr = nil
 	s.notice = ""
-	return WhaleSettingsTicket{s.host, s.epoch, s.serial, s.revision}
+	return WhaleSettingsTicket{s.host, s.scopeL, s.opL, s.revision}
 }
 func (s *WhaleSettingsEditor) matches(q WhaleSettingsTicket) bool {
-	return q.host == s.host && q.epoch == s.epoch && q.serial == s.pending && s.busy
+	return q.host == s.host && q.scopeL == s.scopeL && q.opL == s.opL && s.opL.Valid() && s.busy
 }
 func (s *WhaleSettingsEditor) BeginLoad(host string) (WhaleSettingsTicket, bool) {
 	s.mu.Lock()
@@ -166,7 +194,9 @@ func (s *WhaleSettingsEditor) BeginLoad(host string) (WhaleSettingsTicket, bool)
 	if host == "" || host != s.host || s.busy {
 		return WhaleSettingsTicket{}, false
 	}
-	return s.ticket(), true
+	t := s.ticket()
+	s.publishLocked()
+	return t, true
 }
 func (s *WhaleSettingsEditor) mergeRead(v pluginrpc.WhaleSettings) {
 	if !s.seen || !s.server.SameIdentity(v) {
@@ -200,16 +230,17 @@ func (s *WhaleSettingsEditor) FinishLoad(q WhaleSettingsTicket, v pluginrpc.Whal
 		return false
 	}
 	s.busy = false
-	s.pending = 0
 	if err != nil {
 		s.loaded = false
-		s.lastErr = err.Error()
+		s.lastErr = state.FaultOf(err)
+		s.publishLocked()
 		return true
 	}
 	s.mergeRead(v)
 	if s.notice == "" {
 		s.notice = storelocale.T(storelocale.KeyStoreAssistantLoadedUnsavedDraftsPreserved)
 	}
+	s.publishLocked()
 	return true
 }
 func (s *WhaleSettingsEditor) ReviewClear(host string) {
@@ -218,6 +249,7 @@ func (s *WhaleSettingsEditor) ReviewClear(host string) {
 	if host == s.host && s.loaded && !s.busy {
 		s.confirm = true
 		s.notice = ""
+		s.publishLocked()
 	}
 }
 func (s *WhaleSettingsEditor) CancelClear(host string) {
@@ -225,6 +257,7 @@ func (s *WhaleSettingsEditor) CancelClear(host string) {
 	defer s.mu.Unlock()
 	if host == s.host && !s.busy {
 		s.confirm = false
+		s.publishLocked()
 	}
 }
 func (s *WhaleSettingsEditor) BeginWrite(host, action string) (WhaleSettingsTicket, WhaleSettingsCommand, bool) {
@@ -256,10 +289,13 @@ func (s *WhaleSettingsEditor) BeginWrite(host, action string) (WhaleSettingsTick
 		return WhaleSettingsTicket{}, WhaleSettingsCommand{}, false
 	}
 	if err != nil {
-		s.lastErr = err.Error()
+		s.lastErr = state.FaultText(err.Error())
+		s.publishLocked()
 		return WhaleSettingsTicket{}, WhaleSettingsCommand{}, false
 	}
-	return s.ticket(), cmd, true
+	t := s.ticket()
+	s.publishLocked()
+	return t, cmd, true
 }
 
 // Check compares only the edited field, plus the canonical Whale identity.
@@ -293,7 +329,6 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 		return false
 	}
 	s.busy = false
-	s.pending = 0
 	s.confirm = false
 	if err != nil || actual == nil || !accepted {
 		s.loaded = false
@@ -303,13 +338,15 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 			s.notice = storelocale.T(storelocale.KeyStoreAssistantNotConfirmedDraftRetainedRefreshBef)
 		}
 		if err != nil {
-			s.lastErr = err.Error()
+			s.lastErr = state.FaultOf(err)
 		}
+		s.publishLocked()
 		return true
 	}
 	if !cmd.Base.SameIdentity(*actual) {
 		s.loaded = false
-		s.lastErr = storelocale.T(storelocale.KeyStoreAssistantWhaleIdentityChangedAfterSubmission)
+		s.lastErr = state.FaultText(storelocale.T(storelocale.KeyStoreAssistantWhaleIdentityChangedAfterSubmission))
+		s.publishLocked()
 		return true
 	}
 	matches := true
@@ -327,7 +364,8 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 	}
 	if !matches {
 		s.mergeWriteRead(*actual, cmd.Action, true)
-		s.lastErr = storelocale.T(storelocale.KeyStoreAssistantHostAcceptedTheWriteButReadBackDi)
+		s.lastErr = state.FaultText(storelocale.T(storelocale.KeyStoreAssistantHostAcceptedTheWriteButReadBackDi))
+		s.publishLocked()
 		return true
 	}
 	if q.revision == s.revision {
@@ -346,13 +384,14 @@ func (s *WhaleSettingsEditor) FinishWrite(q WhaleSettingsTicket, cmd WhaleSettin
 		}
 	}
 	s.mergeWriteRead(*actual, cmd.Action, q.revision != s.revision)
-	s.lastErr = ""
+	s.lastErr = nil
 	s.notice = storelocale.T(storelocale.KeyStoreAssistantSavedAndReadBackFromHost)
 	s.completedAction = cmd.Action
 	s.completedSerial++
 	if cmd.Action == "clear" {
 		s.notice = storelocale.T(storelocale.KeyStoreAssistantClearConfirmedByHostCurrentContents)
 	}
+	s.publishLocked()
 	return true
 }
 

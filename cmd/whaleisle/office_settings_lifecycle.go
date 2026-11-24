@@ -7,7 +7,7 @@ func (s *mainState) hideOfficeSettings() {
 	s.mu.Lock()
 	im := s.im
 	s.mu.Unlock()
-	if im != nil && im.Office.Snapshot().Open {
+	if im != nil && im.Office.Snapshot().Value.Open {
 		im.Office.Hide()
 	}
 }

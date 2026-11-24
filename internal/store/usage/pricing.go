@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf16"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -43,7 +43,7 @@ type BillingView struct {
 	Settings            BillingSettings
 	Drafts              map[string]PriceDraft
 	Loaded, Busy, Dirty bool
-	Err                 string
+	Err                 *state.Fault
 	Notice              string
 }
 type billingState struct {
@@ -57,7 +57,7 @@ type billingState struct {
 func (s *Store) RequestBillingEditor() {
 	s.mu.Lock()
 	s.billing.editorRequested = true
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) TakeBillingEditorRequest() bool {
@@ -76,17 +76,6 @@ func (s *Store) resetBillingLocked() {
 		s.billing.modelsCancel()
 	}
 	s.billing = billingState{}
-}
-func (s *Store) Billing() BillingView {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v := s.billing.BillingView
-	v.Settings.Prices = clonePrices(v.Settings.Prices)
-	v.Drafts = map[string]PriceDraft{}
-	for k, d := range s.billing.Drafts {
-		v.Drafts[k] = d
-	}
-	return v
 }
 func clonePrices(p map[string]ModelPrice) map[string]ModelPrice {
 	out := make(map[string]ModelPrice, len(p))
@@ -121,7 +110,7 @@ func parseRates(d [3]string) (PriceRates, error) {
 	for i, v := range d {
 		x, e := strconv.ParseFloat(strings.TrimSpace(v), 64)
 		if e != nil || math.IsNaN(x) || math.IsInf(x, 0) || x < 0 || x > 1e6 {
-			return PriceRates{}, errors.New(storelocale.T(storelocale.KeyStoreUsagePricesMustBeFiniteNumbersIn010000))
+			return PriceRates{}, curated(storelocale.T(storelocale.KeyStoreUsagePricesMustBeFiniteNumbersIn010000))
 		}
 		n[i] = x
 	}
@@ -131,11 +120,11 @@ func settingsFromDrafts(d map[string]PriceDraft, peakValley bool) (BillingSettin
 	v := BillingSettings{Prices: map[string]ModelPrice{}, PeakValleyEnabled: peakValley}
 	for k, row := range d {
 		if !validPriceKey(k) {
-			return v, errors.New("invalid price key")
+			return v, curated("invalid price key")
 		}
 		p, e := parseRates(row.Peak)
 		if e != nil {
-			return v, fmt.Errorf("%s: %w", k, e)
+			return v, curated(k + ": " + e.Error())
 		}
 		entry := ModelPrice{PriceRates: p, Flat: row.Flat}
 		if row.Flat {
@@ -144,7 +133,7 @@ func settingsFromDrafts(d map[string]PriceDraft, peakValley bool) (BillingSettin
 		} else if row.Idle != [3]string{} {
 			idle, e := parseRates(row.Idle)
 			if e != nil {
-				return v, fmt.Errorf("%s idle: %w", k, e)
+				return v, curated(k + " idle: " + e.Error())
 			}
 			entry.Idle = &idle
 		}
@@ -206,27 +195,29 @@ func decodeBilling(raw json.RawMessage) (BillingSettings, error) {
 func (s *Store) EditPrice(key string, d PriceDraft) {
 	s.mu.Lock()
 	if !s.billing.Loaded || s.billing.Busy || !validPriceKey(key) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
+	s.billing.Drafts = cloneDrafts(s.billing.Drafts)
 	s.billing.Drafts[key] = d
 	s.billing.Dirty = true
-	s.billing.Err = ""
+	s.billing.Err = nil
 	s.billing.Notice = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) RemovePrice(key string) {
 	s.mu.Lock()
 	if !s.billing.Loaded || s.billing.Busy {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
+	s.billing.Drafts = cloneDrafts(s.billing.Drafts)
 	delete(s.billing.Drafts, key)
 	s.billing.Dirty = true
-	s.billing.Err = ""
+	s.billing.Err = nil
 	s.billing.Notice = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) DiscardPrices() {
@@ -234,10 +225,10 @@ func (s *Store) DiscardPrices() {
 	if !s.billing.Busy {
 		s.billing.Drafts = priceDrafts(s.billing.Settings.Prices)
 		s.billing.Dirty = false
-		s.billing.Err = ""
+		s.billing.Err = nil
 		s.billing.Notice = ""
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) LoadBilling(ctx context.Context) {
@@ -248,7 +239,7 @@ func (s *Store) SaveBilling(ctx context.Context) { s.billingRequest(ctx, true) }
 func (s *Store) billingRequest(ctx context.Context, save bool) {
 	s.mu.Lock()
 	if s.client == nil || s.billing.Busy || (!save && s.billing.Dirty) || (save && (!s.billing.Loaded || !s.billing.Dirty)) {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	method := "billing.get"
@@ -256,8 +247,8 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 	if save {
 		next, e := settingsFromDrafts(s.billing.Drafts, s.billing.Settings.PeakValleyEnabled)
 		if e != nil {
-			s.billing.Err = e.Error()
-			s.mu.Unlock()
+			s.billing.Err = faultOf(e)
+			s.unlockPublish()
 			s.fire()
 			return
 		}
@@ -265,13 +256,13 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 		payload = next
 	}
 	ep, httpClient := s.client.Endpoint, s.client.HTTP
-	epoch := s.statsEpoch
+	epoch := s.attachL.Generation()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	s.billing.cancel = cancel
 	s.billing.Busy = true
-	s.billing.Err = ""
+	s.billing.Err = nil
 	s.billing.Notice = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		defer cancel()
@@ -283,14 +274,14 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 			settings, err = decodeBilling(raw)
 		}
 		s.mu.Lock()
-		if epoch != s.statsEpoch {
-			s.mu.Unlock()
+		if epoch != s.attachL.Generation() {
+			s.unlockPublish()
 			return
 		}
 		s.billing.Busy = false
 		s.billing.cancel = nil
 		if err != nil {
-			s.billing.Err = err.Error()
+			s.billing.Err = faultOf(err)
 		} else {
 			s.resetRankingLocked()
 			s.billing.Settings = settings
@@ -301,7 +292,7 @@ func (s *Store) billingRequest(ctx context.Context, save bool) {
 				s.billing.Notice = storelocale.T(storelocale.KeyStoreUsagePricesSaved)
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -344,7 +335,7 @@ func EstimateModelPhases(row ModelUsage, settings BillingSettings) (float64, flo
 	return a, b, ok && ok2
 }
 
-func (s *Store) SetPriceKey(key string) { s.mu.Lock(); s.billing.NewKey = key; s.mu.Unlock() }
+func (s *Store) SetPriceKey(key string) { s.mu.Lock(); s.billing.NewKey = key; s.unlockPublish() }
 
 // Missing bucket fields mean an older/incomplete host contract, not zero cost.
 func (p *PhaseBuckets) UnmarshalJSON(raw []byte) error {

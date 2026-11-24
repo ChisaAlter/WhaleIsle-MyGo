@@ -41,6 +41,7 @@ import (
 	"whaleisle/internal/desktop/imgcache"
 	"whaleisle/internal/desktop/importer"
 	"whaleisle/internal/desktop/mcpconfig"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pet"
 	"whaleisle/internal/desktop/phoneremote"
@@ -123,8 +124,8 @@ type mainState struct {
 	launcherCtl                 *launcherctl.Controller
 	assistantCtl                *assistantctl.Service
 	projectCtl                  *projectctl.Manager
-	svgImages                   *nativeSVGImages
-	svgImagesPaused             bool
+	media                       *nativeMedia
+	mediaPaused                 bool
 	customPanels                customPanelState
 	applicationMenu             *desktopApplicationMenu
 	wallpaperControls           *settings.WallpaperEditor
@@ -2052,13 +2053,11 @@ func main() {
 		imgDir := imgcache.Dir(userData)
 		if err := os.MkdirAll(imgDir, 0o755); err != nil {
 			log.Println("imgcache:", err)
+			media.Init(media.Config{CacheDir: filepath.Join(userData, "cache", "media")})
 		} else {
 			cache := imgcache.New(imgDir)
+			media.Init(media.Config{CacheDir: filepath.Join(userData, "cache", "media"), Fetch: cache.Fetch})
 			chat.SetRemoteImageCache(cache)
-			marketui.SetRemoteImageCache(cache)
-			sidebar.SetRemoteImageCache(cache)
-			settings.SetAccountImageCache(cache)
-			files.SetRemoteImageCache(cache)
 			attDir := filepath.Join(userData, "cache", "attachments")
 			session.SetAttachmentCacheDir(attDir)
 		}
@@ -2128,6 +2127,7 @@ func main() {
 		// startup observation starts here too: it decides nothing until the
 		// window has been usable in the foreground for a while.
 		applyMinimalMode(cfg.MinimalMode)
+		applyGlassTheme(migrateGlassTheme(cfgStore))
 		state.minimalSuggestion = startupsuggest.New()
 
 		endOpenAtLogin := startuptrace.Begin("boot.open_at_login")
@@ -2277,11 +2277,12 @@ func main() {
 		win.OnClosed(state.pauseVoiceDevices)
 		win.OnClosed(state.closeWorkspaceOpenInApp)
 		win.OnClosed(state.cancelGitRefresh)
-		win.OnHide(state.pauseSVGImages)
-		win.OnMinimize(state.pauseSVGImages)
-		win.OnClosed(state.pauseSVGImages)
-		win.OnShow(state.resumeSVGImages)
-		win.OnRestore(state.resumeSVGImages)
+		win.OnHide(state.pauseMedia)
+		win.OnMinimize(state.pauseMedia)
+		win.OnClosed(state.pauseMedia)
+		media.Default().SetProcessNotify(win.Invalidate)
+		win.OnShow(state.resumeMedia)
+		win.OnRestore(state.resumeMedia)
 		asstSvc := state.assistantService()
 		win.OnHide(asstSvc.OnWindowHide)
 		win.OnMinimize(asstSvc.OnWindowMinimize)
@@ -3196,7 +3197,7 @@ func mainView(c *ui.Context) {
 	state.restoreResumeSelection()
 	state.refreshPetTask()
 	marketStore := state.marketCoordinator().EnsureStore()
-	marketSnap := state.marketCoordinator().ViewSnapshot()
+	marketSnap := state.marketCoordinator().ViewSnapshot().Value
 	marketCanRestart := marketSnap.CanRestart
 	assistantOpen := asstSvc.Open()
 	state.mu.Lock()
@@ -3423,7 +3424,7 @@ func mainView(c *ui.Context) {
 	}
 	imOnboardingRendered := false
 	defer func() {
-		if !imOnboardingRendered && imStore != nil && imStore.Onboarding.Snapshot().Open {
+		if !imOnboardingRendered && imStore != nil && imStore.Onboarding.Snapshot().Value.Open {
 			imStore.Onboarding.Hide()
 		}
 	}()
@@ -3497,7 +3498,7 @@ func mainView(c *ui.Context) {
 	state.mu.Unlock()
 	th := theme.Resolve(themeID)
 	systemDark := mygo.Theme.IsDark()
-	svgImages := state.svgImageOwner(win, sessions)
+	mediaOwner := state.mediaOwner(win, sessions)
 	colors := th.Active(systemDark)
 	// The quit layer paints from the same palette as everything above it.
 	closingColors = colors
@@ -3589,7 +3590,7 @@ func mainView(c *ui.Context) {
 		// through the panels; the canvas itself is not painted opaque. Minimal
 		// mode paints no blur material to see through, so the masked canvas it
 		// used to inherit from the desktop is painted here instead.
-		if renderpolicy.Minimal() {
+		if renderpolicy.NoBackdrop() {
 			canvasFill = chrome.FlatBackdropFill(chrome.Color(colors.BG), true)
 		} else {
 			canvasFill = ui.Transparent
@@ -3843,7 +3844,7 @@ func mainView(c *ui.Context) {
 		)
 		currentSettingsView := func() settingsstore.ViewState {
 			if !settingsViewReady && setStore != nil {
-				settingsView = setStore.Snapshot()
+				settingsView = setStore.Snapshot().Value
 				settingsViewReady = true
 			}
 			return settingsView
@@ -3992,7 +3993,7 @@ func mainView(c *ui.Context) {
 				if accountActive && !embeddedActive {
 					usageSnap := usagestore.ViewState{}
 					if usageStore != nil {
-						usageSnap = usageStore.Snapshot()
+						usageSnap = usageStore.Snapshot().Value
 					}
 					loginState := state.accountLogin.Snapshot()
 					signOutState := state.accountSignOutAccess()
@@ -4005,7 +4006,7 @@ func mainView(c *ui.Context) {
 						SignOut:          signOutState,
 						ClientReady:      usageSnap.ClientReady,
 						Loading:          usageSnap.Loading,
-						Err:              strings.TrimSpace(usageSnap.Err + " " + loginState.Error + " " + accountActionError),
+						Err:              strings.TrimSpace(usageSnap.Err.SentenceText() + " " + loginState.Error + " " + accountActionError),
 						Status:           usageSnap.AccountStatus,
 						Email:            usageSnap.Email,
 						Name:             usageSnap.Name,
@@ -4024,7 +4025,7 @@ func mainView(c *ui.Context) {
 								state.refuseHostAction()
 								return
 							}
-							if profile := usageStore.Snapshot().Details.Profile.Value; profile.AvatarURL != nil {
+							if profile := usageStore.Snapshot().Value.Details.Profile.Value; profile.AvatarURL != nil {
 								settings.RetryAccountAvatar(*profile.AvatarURL, func() {
 									if win != nil {
 										win.Invalidate()
@@ -4069,7 +4070,7 @@ func mainView(c *ui.Context) {
 						},
 					}
 				} else if usageStore != nil {
-					accountSection.Status = usageStore.Snapshot().AccountStatus
+					accountSection.Status = usageStore.Snapshot().Value.AccountStatus
 				}
 				credentialsSection := &settings.CredentialsAccess{}
 				if credsActive && !embeddedActive {
@@ -4188,6 +4189,7 @@ func mainView(c *ui.Context) {
 				if appearanceActive && !embeddedActive {
 					appearanceSection = &settings.AppearanceAccess{
 						Minimal:          state.minimalModeAccess(),
+						Glass:            state.glassThemeAccess(),
 						OnSetTheme:       state.setAppearanceTheme,
 						Background:       state.wallpaperSettings(true),
 						Preferences:      state.themeFontEditor(true),
@@ -4294,7 +4296,7 @@ func mainView(c *ui.Context) {
 					marketViewState := marketstore.ViewState{}
 					if marketStore != nil {
 						marketStore.EnsureInventory(context.Background())
-						marketViewState = marketStore.Snapshot()
+						marketViewState = marketStore.Snapshot().Value
 					}
 					pluginRows := make([]settings.PluginRow, 0, len(marketViewState.Rows))
 					for _, row := range marketViewState.Rows {
@@ -4308,7 +4310,7 @@ func mainView(c *ui.Context) {
 						Inventory:        state.pluginInventoryAccess(),
 						Rows:             pluginRows,
 						HasListRPC:       marketViewState.HasListRPC,
-						Err:              marketViewState.Err,
+						Err:              marketViewState.Err.SentenceText(),
 						ClientReady:      marketViewState.ClientReady,
 						Loading:          marketViewState.Loading,
 						Busy:             marketSnap.InstallBusy,
@@ -4974,7 +4976,7 @@ func mainView(c *ui.Context) {
 				marketOwner := marketSnap.Owner
 				spec := marketSnap.InstallSpec
 				marketui.View(c, marketui.Model{
-					SVGImages:     svgImages,
+					Media:         mediaOwner,
 					OnOpenManager: state.openNativePluginManager,
 					OnOpenURL: func(rawURL string) {
 						if err := mygo.Shell.OpenExternal(rawURL); err != nil {
@@ -5455,10 +5457,10 @@ func mainView(c *ui.Context) {
 						}
 					},
 					OnOpenUsageWeb: func() {
-						state.openAccountUsage(usageStore.Snapshot().UsageURL, "usage")
+						state.openAccountUsage(usageStore.Snapshot().Value.UsageURL, "usage")
 					},
 					OnOpenTopUp: func() {
-						state.openAccountTopUp(usageStore.Snapshot().TopUpURL)
+						state.openAccountTopUp(usageStore.Snapshot().Value.TopUpURL)
 					},
 					OnCopyUsageURL: func(u string) {
 						if strings.TrimSpace(u) != "" {
@@ -5514,7 +5516,7 @@ func mainView(c *ui.Context) {
 					var usageJobsToday *int
 					usageBalance := ""
 					if usageStore != nil {
-						us := usageStore.Snapshot()
+						us := usageStore.Snapshot().Value
 						usageBalance = us.BalanceSummary
 						if n, ok := usagestore.TodayJobCount(us.DayBuckets); ok {
 							usageJobsToday = &n
@@ -5687,7 +5689,7 @@ func mainView(c *ui.Context) {
 					// The sidebar account seat mirrors the settings account row.
 					accountUsage := usagestore.ViewState{}
 					if state.usage != nil {
-						accountUsage = state.usage.Snapshot()
+						accountUsage = state.usage.Snapshot().Value
 					}
 					avatarURL := ""
 					if accountUsage.Details.Profile.Value.AvatarURL != nil {
@@ -5709,7 +5711,7 @@ func mainView(c *ui.Context) {
 					// composer cannot disagree about why there are no sessions.
 					hostReport := hoststate.Of(st)
 					frameModel := frame.Model{
-						SVGImages:             svgImages,
+						Media:                 mediaOwner,
 						HostNote:              hostReport.Note,
 						HostPlaceholder:       hostReport.Placeholder,
 						ChildBusyEnter:        setStore.BusyEnterFor(fileClient),
@@ -6641,7 +6643,7 @@ func mainView(c *ui.Context) {
 		}
 		navAccountUsage := usagestore.ViewState{}
 		if state.usage != nil {
-			navAccountUsage = state.usage.Snapshot()
+			navAccountUsage = state.usage.Snapshot().Value
 		}
 		navAvatarURL := ""
 		if navAccountUsage.Details.Profile.Value.AvatarURL != nil {

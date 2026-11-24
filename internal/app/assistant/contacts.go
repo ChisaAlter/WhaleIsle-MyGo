@@ -170,7 +170,7 @@ func (s *Service) ContactsModel(ep harness.Endpoint) assistantui.ContactsModel {
 	}
 	newerCatalog := false
 	if roster != nil && snapshot.Loaded {
-		cached := roster.Snapshot()
+		cached := roster.Snapshot().Value
 		newerCatalog = cached.Origin == ep.Origin && cached.Revision > snapshot.Catalog.Revision
 	}
 	if scope != "" && (!snapshot.Loaded || newerCatalog) && !snapshot.Busy && snapshot.Error == "" {

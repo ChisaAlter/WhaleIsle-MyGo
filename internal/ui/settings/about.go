@@ -267,7 +267,7 @@ func aboutPane(c *ui.Context, m Model, fg, muted ui.Color) {
 				desktopDiagnostics(c, m.Desktop, fg, muted)
 			}
 			if m.Store != nil {
-				advancedNavigation(c, m, m.Store.Snapshot(), fg, muted)
+				advancedNavigation(c, m, m.Store.Snapshot().Value, fg, muted)
 			}
 		})
 	})

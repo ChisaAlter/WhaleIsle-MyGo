@@ -93,7 +93,7 @@ func activeSection(m Model, snap store.ViewState) (active SectionID) {
 func ActiveSectionID(m Model) SectionID {
 	var snapshot store.ViewState
 	if m.Store != nil {
-		snapshot = m.Store.Snapshot()
+		snapshot = m.Store.Snapshot().Value
 	}
 	return activeSection(m, snapshot)
 }

@@ -138,7 +138,7 @@ func paintAuthorizedProjectFile(c *ui.Context, m Model, n *WorkspacePane) bool {
 		}
 		state.rendered = true
 		fm := state.projectFileModel()
-		fm.SVGImages, fm.ThemeID, fm.SystemDark = m.SVGImages, m.ThemeID, m.SystemDark
+		fm.Media, fm.ThemeID, fm.SystemDark = m.Media, m.ThemeID, m.SystemDark
 		fm.AllowPageShortcuts = func() bool { return m.Sizes.Workspace.Active == n.ID }
 		local := m
 		local.workspacePane = n

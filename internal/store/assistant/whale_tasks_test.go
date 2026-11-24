@@ -20,7 +20,7 @@ func TestWhaleTaskPanelPreservesUnknownSubmissionAndHostOwnership(t *testing.T) 
 	if _, _, ok = panel.Begin("host-a", "start"); ok {
 		t.Fatal("uncertain start was submitted again")
 	}
-	snap := panel.Snapshot()
+	snap := panel.Snapshot().Value
 	if snap.Goal != "Keep this draft" || !snap.CreateUnknown {
 		t.Fatal("lost uncertain draft", snap)
 	}
@@ -40,9 +40,12 @@ func TestWhaleTaskPanelPreservesUnknownSubmissionAndHostOwnership(t *testing.T) 
 		t.Fatal("old Host receipt accepted")
 	}
 	panel.Finish(current, "refresh", &pluginrpc.WhaleTasks{Available: true, Tasks: []pluginrpc.WhaleTask{{ID: "task", Inputs: []pluginrpc.WhaleTaskInput{{ID: "input-1", Name: "original"}}}}}, false, "", nil)
-	snap = panel.Snapshot()
+	// A reader mutating its published clone must never reach the stored state;
+	// the next publish proves the catalog the store holds is still intact.
+	snap = panel.Snapshot().Value
 	snap.Catalog.Tasks[0].Inputs[0].Name = "mutated"
-	if panel.Snapshot().Catalog.Tasks[0].Inputs[0].Name != "original" {
+	panel.SetError("host-b", errors.New("republish"))
+	if panel.Snapshot().Value.Catalog.Tasks[0].Inputs[0].Name != "original" {
 		t.Fatal("render snapshot mutated stored tasks")
 	}
 }
@@ -55,7 +58,7 @@ func TestWhaleTaskPanelAcceptedStartClearsOnlyTaskDraft(t *testing.T) {
 	panel.Edit("host", "bot", "bot-id")
 	ticket, _, _ := panel.Begin("host", "start")
 	panel.Finish(ticket, "start", nil, true, "", errors.New("list readback unavailable"))
-	snap := panel.Snapshot()
+	snap := panel.Snapshot().Value
 	if snap.Goal != "" || snap.Files != "" || snap.CreateUnknown || snap.BotID != "bot-id" {
 		t.Fatal("accepted mutation not reflected in local draft", snap)
 	}

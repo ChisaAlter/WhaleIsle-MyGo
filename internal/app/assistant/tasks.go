@@ -22,7 +22,7 @@ func (s *Service) taskClient(ep harness.Endpoint, botID string) *dsh.Client {
 	if asst == nil {
 		return nil
 	}
-	current := asst.Snapshot()
+	current := asst.Snapshot().Value
 	if current.Mode != assiststore.ModeDshbot || current.DshbotOrigin != ep.Origin || current.DshbotID != botID || botID == "" {
 		return nil
 	}

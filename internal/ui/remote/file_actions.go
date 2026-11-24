@@ -31,8 +31,8 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 		a.Submitted = false
 		if s.MutationApplied {
 			*a = FileActions{}
-		} else if s.Error != "" {
-			a.Error = s.Error
+		} else if s.Error != nil {
+			a.Error = s.Error.SentenceText()
 		}
 	}
 	if widgets.Button(c, colors, label("新建远程文件夹", "New remote folder"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || !s.Bound || !s.Loaded).Clicked() {
@@ -84,8 +84,8 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 			if a.Error != "" {
 				ui.Text(c, a.Error).FillWidth()
 			}
-			if a.Submitted && s.Error != "" {
-				ui.Text(c, s.Error).FillWidth()
+			if a.Submitted && s.Error != nil {
+				ui.Text(c, s.Error.SentenceText()).FillWidth()
 			}
 			ui.Row(c).Gap(8).Wrap().Children(func() {
 				if widgets.Button(c, colors, label("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {

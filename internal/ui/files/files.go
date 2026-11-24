@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/errcopy"
@@ -18,7 +19,6 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -50,7 +50,7 @@ type Model struct {
 	ResourceOnly bool
 	// HostOnly forbids reading a coincidentally matching desktop path.
 	HostOnly           bool
-	SVGImages          *svgimage.Owner
+	Media              *media.Owner
 	OpenDocumentViewer func(string) (DocumentSurface, error)
 	// OpenDeliveryDocument accepts a validated local saved file in a read-only
 	// document route. Nil means that route was accepted, not that bytes rendered.

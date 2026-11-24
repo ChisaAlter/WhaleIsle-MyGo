@@ -48,13 +48,13 @@ func schedulePaneTarget(m Model) (*SchedulePaneState, string, ScheduleTaskTarget
 		return nil, "", ScheduleTaskTarget{}
 	}
 	state := m.workspacePane.Schedule
-	scope := scheduleScope(m.ScheduleStore.Snapshot().Origin, m.Store.SelectedSessionID())
+	scope := scheduleScope(m.ScheduleStore.Snapshot().Value.Origin, m.Store.SelectedSessionID())
 	return state, scope, state.Targets[scope]
 }
 func schedulePaneTitle(m Model) string {
 	_, _, target := schedulePaneTarget(m)
 	if m.ScheduleStore != nil {
-		for _, row := range m.ScheduleStore.Snapshot().Rows {
+		for _, row := range m.ScheduleStore.Snapshot().Value.Rows {
 			if row.ID == target.ID && row.SessionID == target.SessionID {
 				return row.Title
 			}

@@ -62,7 +62,7 @@ func (s *Store) invalidateUpdatesLocked() {
 }
 func (s *Store) updatesCurrentLocked() bool {
 	u := &s.updates
-	return s.client != nil && !s.loading && s.err == nil && !s.discovery.loading && u.runtime == s.generation && u.revision == s.discovery.revision && u.inventory == s.refreshID
+	return s.client != nil && !s.loading && s.err == nil && !s.discovery.loading && u.runtime == s.runtimeL.Generation() && u.revision == s.discovery.revision && u.inventory == s.inventoryL.Generation()
 }
 func (s *Store) Updates() Updates {
 	s.mu.Lock()
@@ -77,7 +77,7 @@ func (s *Store) Updates() Updates {
 
 func (s *Store) checkUpdatesWhenReady() {
 	s.mu.Lock()
-	ready := s.discovery.loaded && s.discovery.err == "" && !s.discovery.loading && s.inventoryLoaded && !s.loading && s.client != nil && s.err == nil
+	ready := s.discovery.loaded && s.discovery.err == nil && !s.discovery.loading && s.inventoryLoaded && !s.loading && s.client != nil && s.err == nil
 	checked := s.updatesCurrentLocked() && (s.updates.Loading || !s.updates.CheckedAt.IsZero())
 	s.mu.Unlock()
 	if ready && !checked {
@@ -101,7 +101,7 @@ func (s *Store) CheckUpdates() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	request := s.updates.request + 1
-	s.updates = updateState{Updates: Updates{Loading: true}, request: request, runtime: s.generation, revision: s.discovery.revision, inventory: s.refreshID, cancel: cancel}
+	s.updates = updateState{Updates: Updates{Loading: true}, request: request, runtime: s.runtimeL.Generation(), revision: s.discovery.revision, inventory: s.inventoryL.Generation(), cancel: cancel}
 	rows := append([]Entry(nil), s.rows...)
 	items := append([]desktopmarket.CatalogItem(nil), s.discovery.catalog.Items...)
 	service, ok := s.discovery.service.(versionService)
@@ -184,13 +184,13 @@ func (s *Store) CaptureUpdateTarget(id string) (InstallTarget, error) {
 	}
 	for _, u := range s.updates.Rows {
 		if u.ID == id && u.Available {
-			return InstallTarget{ID: id, Spec: u.Spec, Revision: s.discovery.revision, Runtime: s.generation, UpdateVersion: u.Latest, CurrentVersion: u.Current, Inventory: s.refreshID, UpdateCheck: s.updates.request}, nil
+			return InstallTarget{ID: id, Spec: u.Spec, Revision: s.discovery.revision, Runtime: s.runtimeL.Generation(), UpdateVersion: u.Latest, CurrentVersion: u.Current, Inventory: s.inventoryL.Generation(), UpdateCheck: s.updates.request}, nil
 		}
 	}
 	return InstallTarget{}, errors.New("No verified newer version available")
 }
 func (s *Store) validateUpdateLocked(t InstallTarget) error {
-	if !s.updatesCurrentLocked() || s.updates.Loading || s.updates.Err != "" || t.UpdateCheck != s.updates.request || t.Inventory != s.refreshID || time.Since(s.updates.CheckedAt) > 30*time.Minute {
+	if !s.updatesCurrentLocked() || s.updates.Loading || s.updates.Err != "" || t.UpdateCheck != s.updates.request || t.Inventory != s.inventoryL.Generation() || time.Since(s.updates.CheckedAt) > 30*time.Minute {
 		return errors.New("Update check expired; check again")
 	}
 	for _, u := range s.updates.Rows {

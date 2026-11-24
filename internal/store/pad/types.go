@@ -2,7 +2,11 @@
 // Panel definitions and scheduled work remain owned by that service.
 package pad
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"whaleisle/internal/state"
+)
 
 type ModelSelection struct {
 	Provider        string `json:"provider"`
@@ -123,8 +127,11 @@ type ModelAction struct {
 	Request   uint64
 	Busy      bool
 	Succeeded bool
-	Error     string
+	Error     *state.Fault
 }
+
+// Snapshot is the published immutable view. Error fields are classified
+// Faults; the UI renders Sentence — raw error text never leaves the store.
 type Snapshot struct {
 	Attached, Connected, Loaded bool
 	Disabled                    bool
@@ -133,17 +140,10 @@ type Snapshot struct {
 	Layout                      Layout
 	Catalog                     *Catalog
 	ModelsLoading               bool
-	ModelsError                 string
+	ModelsError                 *state.Fault
 	ModelActions                map[string]ModelAction
-	Error                       string
-	Notice                      string
-	PanelErrors                 map[string]string
-	ActionErrors                map[string]string
-}
-
-func clone[T any](v T) T {
-	raw, _ := json.Marshal(v)
-	var out T
-	_ = json.Unmarshal(raw, &out)
-	return out
+	Error                       *state.Fault
+	Notice                      *state.Fault
+	PanelErrors                 map[string]*state.Fault
+	ActionErrors                map[string]*state.Fault
 }

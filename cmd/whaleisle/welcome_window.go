@@ -133,7 +133,7 @@ func (w *welcomeWindow) model() welcome.Model {
 	s.mu.Unlock()
 	usage := usagestore.ViewState{}
 	if usageStore != nil {
-		usage = usageStore.Snapshot()
+		usage = usageStore.Snapshot().Value
 	}
 	login := s.accountLogin.Snapshot()
 	active := login.Busy || accountlogin.Active(usage.AttemptPhase)
@@ -370,7 +370,7 @@ func (w *welcomeWindow) cancelSignIn() {
 	usage, sessions := s.usage, s.sessions
 	s.mu.Unlock()
 	if client != nil && usage != nil {
-		if attemptID := strings.TrimSpace(usage.Snapshot().AttemptID); attemptID != "" {
+		if attemptID := strings.TrimSpace(usage.Snapshot().Value.AttemptID); attemptID != "" {
 			s.cancelAccountSignIn(client, attemptID, usage, sessions)
 		}
 	}
@@ -388,7 +388,7 @@ func (w *welcomeWindow) authorizeURL() string {
 	usage := s.usage
 	s.mu.Unlock()
 	if usage != nil {
-		return strings.TrimSpace(usage.Snapshot().AuthorizeURL)
+		return strings.TrimSpace(usage.Snapshot().Value.AuthorizeURL)
 	}
 	return ""
 }
@@ -414,7 +414,7 @@ func (w *welcomeWindow) poll() {
 	if usage == nil {
 		return
 	}
-	snap := usage.Snapshot()
+	snap := usage.Snapshot().Value
 	if snap.AccountStatus == "credential-stored" {
 		w.finish()
 		return

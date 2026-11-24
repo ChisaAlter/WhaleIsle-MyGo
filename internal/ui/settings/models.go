@@ -70,7 +70,7 @@ func modelsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		providerProfilesPane(c, a.ProviderProfiles, fg, muted)
 		if m.Store != nil {
 			m.Store.EnsureProviderDirectory(context.Background())
-			state := m.Store.Snapshot()
+			state := m.Store.Snapshot().Value
 			_, directoryLoading, directoryError := m.Store.ConfigurableProviders()
 			rows, anyUsable, readinessKnown := modelProviderDirectory(m)
 			_, catalogLoading, catalogError := m.Store.ModelConfigurationCatalog()

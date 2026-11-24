@@ -87,17 +87,17 @@ func (a Actions) FinishNativeReview() {
 	c.mu.Lock()
 	op := c.nativeInstall
 	if c.state.Owner != a.owner || op == nil || op.progress == nil || c.state.Install.RequestID != op.options.RequestID || c.state.Install.Phase != "unconfirmed" || c.state.Install.Recovering {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	_, completed, running, warnings := op.progress.snapshot()
 	if running {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	result := Change{Changed: completed > 0, Application: "failed", Stage: "unconfirmed", Target: op.target, Warnings: warnings, Error: &ManagementError{Code: "native-install/unconfirmed", Diagnostic: "Review ended with unconfirmed entries. Inspect MCP Settings and Skills before importing those entries again."}}
 	settleInstallState(&c.state, result)
 	c.state.Notice = changeMessage(result)
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 }

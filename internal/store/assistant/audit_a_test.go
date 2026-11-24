@@ -37,8 +37,8 @@ func TestAppendTurnReportsHistorySaveFailure(t *testing.T) {
 	blockStoreRoot(t, root)
 
 	s.AppendTurn(Turn{Prompt: "prompt", Response: "answer"})
-	snap := s.Snapshot()
-	if snap.LastErr == "" {
+	snap := s.Snapshot().Value
+	if snap.LastErr == nil {
 		t.Fatal("history save failure was not reported in LastErr")
 	}
 	if len(snap.History) != 1 {
@@ -47,8 +47,8 @@ func TestAppendTurnReportsHistorySaveFailure(t *testing.T) {
 
 	unblockStoreRoot(t, root)
 	s.AppendTurn(Turn{Prompt: "second", Response: "answer"})
-	if got := s.Snapshot().LastErr; got != "" {
-		t.Fatalf("stale save failure still shown after a successful write: %q", got)
+	if got := s.Snapshot().Value.LastErr; got != nil {
+		t.Fatalf("stale save failure still shown after a successful write: %v", got)
 	}
 }
 
@@ -62,17 +62,17 @@ func TestSetModeReportsModeSaveFailure(t *testing.T) {
 	blockStoreRoot(t, root)
 
 	s.SetMode(ModeDshbot)
-	snap := s.Snapshot()
+	snap := s.Snapshot().Value
 	if snap.Mode != ModeDshbot {
 		t.Fatalf("mode = %q, want %q", snap.Mode, ModeDshbot)
 	}
-	if snap.LastErr == "" {
+	if snap.LastErr == nil {
 		t.Fatal("mode save failure was not reported in LastErr")
 	}
 
 	unblockStoreRoot(t, root)
 	s.SetMode(ModeWhale)
-	if got := s.Snapshot().LastErr; got != "" {
-		t.Fatalf("stale save failure still shown after a successful write: %q", got)
+	if got := s.Snapshot().Value.LastErr; got != nil {
+		t.Fatalf("stale save failure still shown after a successful write: %v", got)
 	}
 }

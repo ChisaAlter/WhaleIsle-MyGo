@@ -19,7 +19,7 @@ import (
 
 func onboardingView(c *ui.Context, m Model) {
 	s := &m.Store.Onboarding
-	v := s.Snapshot()
+	v := s.Snapshot().Value
 	copy := copyForChannel(v.Channel)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)

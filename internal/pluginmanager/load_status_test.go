@@ -10,7 +10,7 @@ func TestLoadCaptureFailureLeavesARetryableErrorNotLoading(t *testing.T) {
 	if err := c.Load(context.Background()); err == nil {
 		t.Fatal("load without a captured client succeeded")
 	}
-	state := c.Snapshot()
+	state := c.Snapshot().Value
 	if state.Loading {
 		t.Fatal("capture failure left the page loading")
 	}

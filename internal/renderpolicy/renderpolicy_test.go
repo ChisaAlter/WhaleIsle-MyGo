@@ -9,6 +9,8 @@ import (
 
 func TestMinimalKeepsEveryStoredPreferenceWhenOff(t *testing.T) {
 	SetMinimal(false)
+	SetGlass(true)
+	defer SetGlass(false)
 	stored := wallpapers.Preferences{
 		SkinWallpaperEnabled: true,
 		CursorEnabled:        true,
@@ -81,5 +83,28 @@ func TestSetMinimalReportsOnlyRealChanges(t *testing.T) {
 	}
 	if !SetMinimal(false) {
 		t.Fatal("turning minimal mode off reported no change")
+	}
+}
+
+func TestGlassThemeIsOffByDefaultAndPaintsNoBackdrop(t *testing.T) {
+	SetMinimal(false)
+	if Glass() || !NoBackdrop() {
+		t.Fatal("the glass theme must start off")
+	}
+	stored := wallpapers.Preferences{SkinWallpaperEnabled: true, CursorEnabled: true, Effect: "gradient", EffectExplicit: true, Transparent: true, Glass: 35, Terminal: 45}
+	got := Background(stored)
+	if got.Effect != "none" || got.SkinWallpaperEnabled || got.Transparent || got.Glass != 100 || got.Terminal != 100 {
+		t.Fatalf("glass theme off still paints a backdrop: %+v", got)
+	}
+	if !got.CursorEnabled {
+		t.Fatal("the glass theme does not own the pointer decoration")
+	}
+	if Wallpaper("C:/wallpapers/sea.png") != "" {
+		t.Fatal("glass theme off kept the wallpaper")
+	}
+	SetGlass(true)
+	defer SetGlass(false)
+	if NoBackdrop() || !reflect.DeepEqual(Background(stored), stored) {
+		t.Fatal("glass theme on changed the stored look")
 	}
 }

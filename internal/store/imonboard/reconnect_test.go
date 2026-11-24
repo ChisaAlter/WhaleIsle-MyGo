@@ -48,12 +48,12 @@ func TestFeishuReconnectTestRequiresConfirmation(t *testing.T) {
 	}
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
-		if v := s.Snapshot(); !v.Busy && strings.Contains(v.TestNotice, "测试消息已发送") {
+		if v := s.Snapshot().Value; !v.Busy && strings.Contains(v.TestNotice, "测试消息已发送") {
 			return
 		}
 		time.Sleep(time.Millisecond)
 	}
-	t.Fatalf("test receipt lost during status refresh: %+v", s.Snapshot())
+	t.Fatalf("test receipt lost during status refresh: %+v", s.Snapshot().Value)
 }
 func TestFeishuReconnectReceiptStates(t *testing.T) {
 	for _, tc := range []struct {

@@ -79,7 +79,7 @@ func ConfigurationFields(raw json.RawMessage, path ...string) []Field {
 // SetConfigurationForm keeps creation form text separate from dirty settings.
 func (s *Store) SetConfigurationForm(key, value string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if s.selectedNS == "" {
 		return
 	}
@@ -89,14 +89,14 @@ func (s *Store) SetConfigurationForm(key, value string) {
 
 func (s *Store) ModelConfigurationCatalog() ([]VisionRoute, bool, string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return append([]VisionRoute(nil), s.modelRoutes...), s.modelCatalogLoading, s.modelCatalogErr
 }
 
 func (s *Store) EnsureModelConfigurationCatalog(ctx context.Context) {
 	s.mu.Lock()
 	loaded := s.modelCatalogLoaded || s.modelCatalogLoading || s.modelCatalogErr != ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	if !loaded {
 		s.RefreshModelConfigurationCatalog(ctx)
 	}
@@ -111,7 +111,7 @@ func (s *Store) InvalidateModelConfigurationCatalog(ctx context.Context) {
 		s.ensureDraftsLocked(ns.NS)
 		enabled = s.drafts[ns.NS]["enabled"] == "true"
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	if enabled {
 		s.RefreshModelConfigurationCatalog(ctx)
 	}
@@ -122,14 +122,14 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.generation
 	if client == nil || s.modelCatalogLoading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.modelCatalogLoading = true
 	s.modelCatalogRequest++
 	request := s.modelCatalogRequest
 	s.modelCatalogErr = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		var catalog api.ModelCatalog
@@ -142,7 +142,7 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 		}
 		s.mu.Lock()
 		if generation != s.generation || request != s.modelCatalogRequest {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.modelCatalogLoading = false
@@ -156,7 +156,7 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 				s.modelCatalogErr += failure.Name + ": " + failure.Message + "\n"
 			}
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }
@@ -164,7 +164,7 @@ func (s *Store) RefreshModelConfigurationCatalog(ctx context.Context) {
 // ConfigurationModels retains the live catalog's per-model metadata for the account editor.
 func (s *Store) ConfigurationModels(provider string) ([]any, bool, string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	rows := []any{}
 	for _, group := range s.modelCatalog.Groups {
 		if group.Id == provider {
@@ -193,7 +193,7 @@ func (s *Store) ConfigurationModels(provider string) ([]any, bool, string) {
 // ConfigurableProviders is the current Host directory, not an invented list of APIs.
 func (s *Store) ConfigurableProviders() (api.ListConfigurableProvidersResult, bool, string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	out := append(api.ListConfigurableProvidersResult(nil), s.providerDirectory...)
 	for i := range out {
 		out[i].SettingsPath = append([]string(nil), out[i].SettingsPath...)
@@ -215,19 +215,19 @@ func (s *Store) ConfigurableProviders() (api.ListConfigurableProvidersResult, bo
 
 func (s *Store) RegisteredProviders() (api.ListProvidersResult, bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return append(api.ListProvidersResult(nil), s.providerRegistered...), s.providerDirectoryLoaded
 }
 
 func (s *Store) ProviderPageOwner() string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return fmt.Sprintf("%p/%d/%d", s.client, s.generation, s.providerPageLocked())
 }
 
 func (s *Store) AccountModelsAvailable() (available, known bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if !s.modelCatalogLoaded {
 		return false, false
 	}
@@ -242,7 +242,7 @@ func (s *Store) AccountModelsAvailable() (available, known bool) {
 func (s *Store) EnsureProviderDirectory(ctx context.Context) {
 	s.mu.Lock()
 	needed := !s.providerDirectoryLoaded && !s.providerDirectoryLoading && s.providerDirectoryErr == ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	if needed {
 		s.RefreshProviderDirectory(ctx)
 	}
@@ -252,11 +252,11 @@ func (s *Store) RefreshProviderDirectory(ctx context.Context) {
 	s.mu.Lock()
 	client, generation := s.client, s.generation
 	if client == nil || s.providerDirectoryLoading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	s.providerDirectoryLoading, s.providerDirectoryErr = true, ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		var directory api.ListConfigurableProvidersResult
@@ -267,7 +267,7 @@ func (s *Store) RefreshProviderDirectory(ctx context.Context) {
 		}
 		s.mu.Lock()
 		if s.generation != generation || s.client != client {
-			s.mu.Unlock()
+			s.unlockPublish()
 			return
 		}
 		s.providerDirectoryLoading = false
@@ -277,7 +277,7 @@ func (s *Store) RefreshProviderDirectory(ctx context.Context) {
 		} else {
 			s.providerDirectoryErr = err.Error()
 		}
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 	}()
 }

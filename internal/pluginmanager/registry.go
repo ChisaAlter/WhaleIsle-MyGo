@@ -129,19 +129,19 @@ func (c *Controller) SetRegistryPersistence(load func() (*RegistryChoice, error)
 	if err != nil {
 		c.state.PreferenceError = "Could not read the remembered installation registry: " + err.Error()
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 }
 func (a Actions) DismissPreferenceError() { a.edit(func(s *State) { s.PreferenceError = "" }) }
 func (c *Controller) rememberRegistry(owner uint64, choice RegistryChoice) {
 	c.mu.Lock()
 	if c.state.Owner != owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.registryMemory = cloneRegistryChoice(&choice)
 	save := c.registrySave
-	c.mu.Unlock()
+	c.unlockPublish()
 	var err error
 	if save != nil {
 		err = save(cloneRegistryChoice(&choice))
@@ -218,12 +218,12 @@ func (a Actions) UseGitHubMirror() {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	registry, offered := GitHubRecoveryRegistry(c.state.Install)
 	if !offered {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	var resolved *string
@@ -239,7 +239,7 @@ func (a Actions) UseGitHubMirror() {
 		choice = RegistryChoice{Kind: "offered", Registry: registry}
 		setRegistrySelection(&c.state.Install, choice)
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	if !already {
 		c.rememberRegistry(a.owner, choice)

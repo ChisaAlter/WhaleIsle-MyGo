@@ -31,14 +31,14 @@ func TestQuestionWizardPagerScopeAndBusyRetention(t *testing.T) {
 	s.SetQuestionCustom("e", "last", "kept\nanswer")
 	s.HideQuestion("e")
 	s.ReopenQuestion("e")
-	if view := s.Snapshot().QuestionCards["e"]; view.Index != 1 || view.Rows[1].Custom != "kept\nanswer" {
+	if view := s.testView().QuestionCards["e"]; view.Index != 1 || view.Rows[1].Custom != "kept\nanswer" {
 		t.Fatal("hide/reopen reset progress")
 	}
 	s.ResolveDeny("e")
 	if s.NavigateQuestion("A", "e", 0) {
 		t.Fatal("busy request navigated")
 	}
-	if view := s.Snapshot().QuestionCards["e"]; view.Index != 1 || view.Rows[1].Custom != "kept\nanswer" {
+	if view := s.testView().QuestionCards["e"]; view.Index != 1 || view.Rows[1].Custom != "kept\nanswer" {
 		t.Fatal("busy request changed")
 	}
 }
@@ -46,22 +46,22 @@ func TestQuestionWizardPagerScopeAndBusyRetention(t *testing.T) {
 func TestQuestionWizardChoiceAdvanceDoesNotSubmit(t *testing.T) {
 	s := questionWizardFixture()
 	s.AdvanceQuestionChoice("A", "e", "first")
-	if s.Snapshot().QuestionCards["e"].Index != 0 {
+	if s.testView().QuestionCards["e"].Index != 0 {
 		t.Fatal("untouched choice advanced")
 	}
 	s.SetQuestionOptionChecked("e", "first", "A", true)
 	s.AdvanceQuestionChoice("B", "e", "first")
-	if s.Snapshot().QuestionCards["e"].Index != 0 {
+	if s.testView().QuestionCards["e"].Index != 0 {
 		t.Fatal("foreign session advanced")
 	}
 	s.AdvanceQuestionChoice("A", "e", "first")
-	if s.Snapshot().QuestionCards["e"].Index != 1 || len(s.waiters["e"]) != 0 {
+	if s.testView().QuestionCards["e"].Index != 1 || len(s.waiters["e"]) != 0 {
 		t.Fatal("single choice did not advance without sending")
 	}
 	s.NavigateQuestion("A", "e", 0)
 	s.questionDrafts["e"].req.Questions[0].MultiSelect = true
 	s.AdvanceQuestionChoice("A", "e", "first")
-	if s.Snapshot().QuestionCards["e"].Index != 0 {
+	if s.testView().QuestionCards["e"].Index != 0 {
 		t.Fatal("multi-select advanced")
 	}
 }
@@ -72,7 +72,7 @@ func TestQuestionWizardFinalSkipFindsMissingThenSubmits(t *testing.T) {
 	if focus, status := s.SkipQuestionAndContinue("A", "e", "last"); focus != "first" || status != "incomplete" {
 		t.Fatalf("missing earlier answer not targeted: %s %s", focus, status)
 	}
-	if len(s.waiters["e"]) != 0 || !s.Snapshot().QuestionCards["e"].Rows[1].Skipped {
+	if len(s.waiters["e"]) != 0 || !s.testView().QuestionCards["e"].Rows[1].Skipped {
 		t.Fatal("final skip submitted incomplete batch or lost skip")
 	}
 	s.SetQuestionCustom("e", "first", "custom")

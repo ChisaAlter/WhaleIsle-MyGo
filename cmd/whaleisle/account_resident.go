@@ -32,7 +32,7 @@ func (s *mainState) syncResidentAccount(c *ui.Context) {
 	store, win, themeID, sessions := s.usage, s.win, s.themeID, s.sessions
 	s.mu.Unlock()
 	if store != nil && client != nil {
-		account := store.Snapshot()
+		account := store.Snapshot().Value
 		code := account.AttemptErrorCode
 		s.accountLogin.Observe(api.AccountView{Status: account.AccountStatus, Attempt: api.AccountViewAttempt{
 			Id: account.AttemptID, Phase: account.AttemptPhase, AuthorizeUrl: &account.AuthorizeURL, ErrorCode: &code,
@@ -44,7 +44,7 @@ func (s *mainState) syncResidentAccount(c *ui.Context) {
 	review := s.accountSignOut.Snapshot()
 	colors := theme.Resolve(themeID).Active(mygo.Theme.IsDark())
 	if store != nil {
-		v := store.Snapshot()
+		v := store.Snapshot().Value
 		settings.AccountSignInDialog(c, &settings.AccountAccess{Status: v.AccountStatus, ClientReady: v.ClientReady, SignInBusy: login.Busy, AttemptPhase: v.AttemptPhase, AttemptErrorCode: v.AttemptErrorCode, SignInAttemptID: v.AttemptID, AuthorizeURL: v.AuthorizeURL, Err: login.Error, OnSignIn: s.retryAccountSignIn, OnCopyAuthorize: s.copyAccountAuthorization, OnCancelSignIn: func() { s.cancelAccountSignIn(client, v.AttemptID, store, sessions) }}, login.Visible, s.accountLogin.Finish, s.openAccountAPIKeySettings)
 	}
 	settings.AccountSignOutDialog(c, &settings.AccountAccess{
@@ -66,7 +66,7 @@ func (s *mainState) copyAccountAuthorization(raw string) {
 	if store == nil {
 		return
 	}
-	view := store.Snapshot()
+	view := store.Snapshot().Value
 	if !accountlogin.Active(view.AttemptPhase) || raw == "" || raw != view.AuthorizeURL {
 		return
 	}

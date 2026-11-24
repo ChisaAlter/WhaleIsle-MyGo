@@ -61,7 +61,7 @@ func (c *Controller) EnsureDiscover(owner uint64) {
 	if needed {
 		c.state.Discover.Status = "loading"
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	if needed {
 		go c.LoadIndexes(context.Background(), owner)
 	}
@@ -75,11 +75,11 @@ func (c *Controller) EnsureDiscover(owner uint64) {
 func (c *Controller) ProbeDiscover(ctx context.Context, owner uint64) {
 	c.mu.Lock()
 	if c.state.Owner != owner || c.state.Discover.Probe != "" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.state.Discover.Probe = "probing"
-	c.mu.Unlock()
+	c.unlockPublish()
 	go func() {
 		client, got, ctx, done, err := c.capture(ctx)
 		if err != nil {
@@ -88,7 +88,7 @@ func (c *Controller) ProbeDiscover(ctx context.Context, owner uint64) {
 			if c.state.Owner == owner {
 				c.state.Discover.Probe = ""
 			}
-			c.mu.Unlock()
+			c.unlockPublish()
 			c.fire()
 			return
 		}
@@ -108,13 +108,13 @@ func (c *Controller) ProbeDiscover(ctx context.Context, owner uint64) {
 }
 func (a Actions) ReloadIndexes() { go a.c.LoadIndexes(context.Background(), a.owner) }
 func (c *Controller) SourcesChanged(owner uint64) {
-	s := c.Snapshot()
+	s := c.Snapshot().Value
 	if s.Owner == owner && s.Discover.Status != "idle" {
 		go c.LoadIndexes(context.Background(), owner)
 	}
 }
 func (c *Controller) BundlesChanged(owner uint64) {
-	s := c.Snapshot()
+	s := c.Snapshot().Value
 	d := s.Discover
 	if s.Owner != owner || d.Listing == nil || d.Loading || d.MoreLoading || d.Error != "" {
 		return
@@ -194,7 +194,7 @@ func (c *Controller) LoadIndexes(ctx context.Context, expected uint64) error {
 	return err
 }
 func (a Actions) SelectIndex(url string) {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner || s.Discover.Selected == url {
 		return
 	}
@@ -206,7 +206,7 @@ func (a Actions) SelectIndex(url string) {
 	}
 }
 func (a Actions) Search(q Query) {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner || s.Discover.Selected == "" {
 		return
 	}
@@ -219,7 +219,7 @@ func (a Actions) SearchText(text string) {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner || c.state.Discover.Selected == "" {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.cancelDiscoverText()
@@ -228,7 +228,7 @@ func (a Actions) SearchText(text string) {
 	c.discoverTextTimer = time.AfterFunc(250*time.Millisecond, func() {
 		c.mu.Lock()
 		if c.state.Owner != a.owner || c.textRead != serial {
-			c.mu.Unlock()
+			c.unlockPublish()
 			return
 		}
 		q := WithText(c.state.Discover.Query, text)
@@ -236,11 +236,11 @@ func (a Actions) SearchText(text string) {
 		c.listingRead++
 		read := c.listingRead
 		c.beginDiscover(url, q, false)
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		go c.loadSearch(context.Background(), a.owner, url, q, false, read)
 	})
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 }
 
@@ -253,7 +253,7 @@ func (c *Controller) cancelDiscoverText() {
 	}
 }
 func (a Actions) RefreshDiscover() {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner || s.Discover.Selected == "" {
 		return
 	}
@@ -269,13 +269,13 @@ func (a Actions) RetryDiscover() {
 		value := *c.failedDiscover
 		retry = &value
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	if retry != nil {
 		c.queueSearch(a.owner, retry.url, retry.query, retry.more)
 	}
 }
 func (a Actions) More() {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	d := s.Discover
 	if s.Owner != a.owner || d.Listing == nil || d.Listing.NextOffset == nil || d.Loading || d.MoreLoading || d.Answered == nil || !sameQuery(d.Query, *d.Answered) {
 		return
@@ -291,14 +291,14 @@ func (a Actions) More() {
 func (c *Controller) queueSearch(owner uint64, url string, q Query, more bool) {
 	c.mu.Lock()
 	if c.state.Owner != owner || c.client == nil {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.listingRead++
 	read := c.listingRead
 	c.cancelDiscoverText()
 	c.beginDiscover(url, q, more)
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go c.loadSearch(context.Background(), owner, url, q, more, read)
 }
@@ -328,12 +328,12 @@ func (c *Controller) loadSearch(ctx context.Context, expected uint64, url string
 	}
 	c.mu.Lock()
 	if c.state.Owner != owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return context.Canceled
 	}
 	if len(reserved) > 0 {
 		if c.listingRead != reserved[0] {
-			c.mu.Unlock()
+			c.unlockPublish()
 			return nil
 		}
 	} else {
@@ -342,7 +342,7 @@ func (c *Controller) loadSearch(ctx context.Context, expected uint64, url string
 	read := c.listingRead
 	c.beginDiscover(url, q, more)
 	kept := c.state.Discover.Listing
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	count := q.Limit
 	if count <= 0 {
@@ -369,7 +369,7 @@ func (c *Controller) loadSearch(ctx context.Context, expected uint64, url string
 		result, e := client.Search(ctx, url, page)
 		c.mu.Lock()
 		current := c.state.Owner == owner && c.listingRead == read
-		c.mu.Unlock()
+		c.unlockPublish()
 		if !current {
 			return e
 		}
@@ -409,16 +409,16 @@ func (c *Controller) loadSearch(ctx context.Context, expected uint64, url string
 			declared.Limit = count
 			c.mu.Lock()
 			if c.state.Owner == owner && c.listingRead == read {
-				c.mu.Unlock()
+				c.unlockPublish()
 				return c.loadSearch(ctx, owner, url, declared, false, read)
 			}
-			c.mu.Unlock()
+			c.unlockPublish()
 			return nil
 		}
 	}
 	c.mu.Lock()
 	if c.state.Owner != owner || c.listingRead != read {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return err
 	}
 	d := &c.state.Discover
@@ -454,7 +454,7 @@ func (c *Controller) loadSearch(ctx context.Context, expected uint64, url string
 			}
 		}
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	return err
 }
@@ -483,7 +483,7 @@ func (a Actions) EditSource(value string) {
 	a.edit(func(s *State) { s.Discover.Draft = value; s.Discover.SourceError = "" })
 }
 func (a Actions) AddSource() {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner || strings.TrimSpace(s.Discover.Draft) == "" {
 		return
 	}
@@ -495,7 +495,7 @@ func (a Actions) AddSource() {
 	a.setSources(urls, true)
 }
 func (a Actions) RemoveSource(url string) {
-	s := a.c.Snapshot()
+	s := a.c.Snapshot().Value
 	if s.Owner != a.owner {
 		return
 	}
@@ -530,14 +530,14 @@ func (a Actions) setSources(urls []string, adding bool) {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner || c.client == nil || c.state.Discover.Saving {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	client, ctx := Client{c.client}, c.life
 	c.state.Discover.Saving = true
 	c.state.Discover.SourceError = ""
 	c.selectAdded = adding
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go func() {
 		err := client.SetIndexes(ctx, urls)
@@ -562,7 +562,7 @@ func (a Actions) InstallVersion(name, version string) {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner || c.state.Discover.Listing == nil {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	entries := c.state.Discover.Listing.Entries
@@ -574,26 +574,26 @@ func (a Actions) InstallVersion(name, version string) {
 			for _, v := range entry.Versions {
 				if v.Version == version && entry.Installation.InstalledVersion != version && (v.Compatibility.Compatible || v.Compatibility.Exempted) {
 					c.state.Discover.Choice = &MarketChoice{entry, v}
-					c.mu.Unlock()
+					c.unlockPublish()
 					c.fire()
 					return
 				}
 			}
 		}
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 }
 func (a Actions) CancelMarketChoice() { a.edit(func(s *State) { s.Discover.Choice = nil }) }
 func (a Actions) ConfirmMarketChoice() {
 	c := a.c
 	c.mu.Lock()
 	if c.state.Owner != a.owner || c.state.Discover.Choice == nil {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	choice := *c.state.Discover.Choice
 	c.state.Discover.Choice = nil
-	c.mu.Unlock()
+	c.unlockPublish()
 	registry := ""
 	if choice.Version.Install.Registry != nil {
 		registry = *choice.Version.Install.Registry

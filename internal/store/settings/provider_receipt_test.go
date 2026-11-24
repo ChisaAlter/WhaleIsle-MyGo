@@ -101,7 +101,7 @@ func TestProviderCreateAcceptedWhenReceiptFillsDefaults(t *testing.T) {
 	if state := binding.Snapshot(); state.Dirty || state.Err != "" {
 		t.Fatalf("accepted creation kept drafts or an error: %+v", state)
 	}
-	if !strings.Contains(string(s.Snapshot().Namespaces[0].Value), "magpie") {
+	if !strings.Contains(string(s.Snapshot().Value.Namespaces[0].Value), "magpie") {
 		t.Fatal("the stored profile was not adopted")
 	}
 }

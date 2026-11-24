@@ -30,13 +30,13 @@ func TestManagerRetiredLoadCannotMarkReplacementLoading(t *testing.T) {
 	if err := c.Load(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("retired load admitted: %v", err)
 	}
-	if state := c.Snapshot(); state.Loading || state.Status != "idle" || state.Error != "" || retiredCalls.Load() != 0 {
+	if state := c.Snapshot().Value; state.Loading || state.Status != "idle" || state.Error != "" || retiredCalls.Load() != 0 {
 		t.Fatalf("retired read polluted replacement: %+v calls=%d", state, retiredCalls.Load())
 	}
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if state := c.Snapshot(); state.Loading || state.Status != "ready" {
+	if state := c.Snapshot().Value; state.Loading || state.Status != "ready" {
 		t.Fatalf("replacement cannot load: %+v", state)
 	}
 }
@@ -57,7 +57,7 @@ func TestManagerOldInstallRegistryReadCannotPolluteReopenedDialog(t *testing.T) 
 		}
 		return reply(out, RegistryInfo{FallbackRegistries: []string{"https://fresh-registry.invalid/"}})
 	}), nil)
-	a := c.Actions(c.Snapshot().Owner)
+	a := c.Actions(c.Snapshot().Value.Owner)
 	a.OpenInstall()
 	select {
 	case <-started:
@@ -80,7 +80,7 @@ func TestManagerOldInstallRegistryReadCannotPolluteReopenedDialog(t *testing.T) 
 	case <-time.After(3 * time.Second):
 		t.Fatal("retired registry callback did not settle")
 	}
-	state := c.Snapshot()
+	state := c.Snapshot().Value
 	if state.Install.Error != "" || len(state.Install.RegistryInfo.FallbackRegistries) != 1 || state.Install.RegistryInfo.FallbackRegistries[0] != "https://fresh-registry.invalid/" {
 		t.Fatalf("retired dialog read replaced the reopened dialog: %+v", state.Install)
 	}

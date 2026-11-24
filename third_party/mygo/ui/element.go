@@ -220,6 +220,8 @@ type node struct {
 	st                *state
 	// track is the ScrollState of a scroll container (TrackScroll).
 	track *ScrollState
+	// disabledAlpha replaces the .48 disabled opacity when set.
+	disabledAlpha float32
 
 	// Layout.
 	row                    bool
@@ -1042,6 +1044,15 @@ func (e *node) Disabled(d bool) *node {
 	} else {
 		e.flags &^= flagDisabled
 	}
+	return e
+}
+
+// DisabledOpacity sets the opacity the element paints at while disabled,
+// in place of the toolkit's .48 (the installed product's disabled
+// buttons): a design system with its own disabled look, as coss's 64%,
+// sets it on its controls. 0 keeps the default.
+func (e *node) DisabledOpacity(o float32) *node {
+	e.disabledAlpha = max(0, min(o, 1))
 	return e
 }
 

@@ -21,8 +21,8 @@ func DirectoryPicker(c *ui.Context, m DirectoryPickerModel) {
 		ui.Text(c, label("启用远程工作区并连接 Host 后可选择远程目录。", "Enable remote workspaces and connect the Host to choose a remote directory."))
 		return
 	}
-	s := m.Store.Snapshot()
-	if !s.Loaded && !s.Busy && s.Error == "" {
+	s := m.Store.Snapshot().Value
+	if !s.Loaded && !s.Busy && s.Error == nil {
 		m.Store.Refresh()
 	}
 	ui.Column(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Gap(10).Children(func() {
@@ -51,13 +51,13 @@ func DirectoryPicker(c *ui.Context, m DirectoryPickerModel) {
 				m.Store.Refresh()
 			}
 		})
-		if s.Error != "" {
-			ui.Text(c, s.Error).FillWidth().Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).FillWidth().Selectable()
 		}
 		if s.Loaded && len(s.Machines) == 0 {
 			ui.Text(c, label("先在设置 → 远程工作区添加机器。", "Add a machine in Settings → Remote workspace first."))
 		}
-		if s.CurrentID != "" && !s.Busy && !s.Directory.Loaded && s.Directory.Error == "" && s.Error == "" {
+		if s.CurrentID != "" && !s.Busy && !s.Directory.Loaded && s.Directory.Error == nil && s.Error == nil {
 			m.Store.Browse("")
 		}
 		model := Model{Machines: m.Store, HarnessReady: m.Ready, RemoteWorkspaceEnabled: m.Enabled, OnUseWorkspaceMirror: m.OnPicked, OnUseWorkspaceChoice: m.OnChoice}

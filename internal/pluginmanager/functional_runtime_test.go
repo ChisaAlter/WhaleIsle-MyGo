@@ -193,7 +193,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	if err = controller.Load(ctx); err != nil {
 		add("PLUG-01 inventory", "fail", failure(err), 0)
 	} else {
-		st := controller.Snapshot()
+		st := controller.Snapshot().Value
 		add("PLUG-01 inventory", "pass", st.Status, len(st.Packages))
 	}
 	if _, err = (manager.Client{Caller: client}).Indexes(ctx); err != nil {
@@ -206,22 +206,22 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	defer market.Detach()
 	market.Refresh(ctx)
 	if err = wait(func() (bool, error) {
-		s := market.Snapshot()
-		if s.Err != "" {
-			return false, errors.New(s.Err)
+		s := market.Snapshot().Value
+		if s.Err != nil {
+			return false, errors.New(s.Err.SentenceText())
 		}
 		return !s.Loading, nil
 	}); err != nil {
 		add("PLUG-04 installed market", "fail", failure(err), 0)
 	} else {
-		add("PLUG-04 installed market", "pass", "real Host bundle inventory", len(market.Snapshot().Rows))
+		add("PLUG-04 installed market", "pass", "real Host bundle inventory", len(market.Snapshot().Value.Rows))
 	}
 	settings := settingsstore.New()
 	describe := func() error {
 		settings.Attach(client, nil)
 		settings.RefreshDescribe(ctx)
 		return wait(func() (bool, error) {
-			s := settings.Snapshot()
+			s := settings.Snapshot().Value
 			if s.Err != "" {
 				return false, errors.New(s.Err)
 			}
@@ -229,7 +229,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		})
 	}
 	readBusy := func() (string, bool) {
-		for _, ns := range settings.Snapshot().Namespaces {
+		for _, ns := range settings.Snapshot().Value.Namespaces {
 			if ns.NS == "ui-conversation" {
 				var value struct {
 					BusyEnter string `json:"busyEnter"`
@@ -247,7 +247,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	writeBusy := func(value string) error {
 		settings.PatchDescribedField(ctx, "ui-conversation", "busyEnter", value)
 		return wait(func() (bool, error) {
-			s := settings.Snapshot()
+			s := settings.Snapshot().Value
 			if s.Err != "" {
 				return false, errors.New(s.Err)
 			}
@@ -259,7 +259,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	if err = describe(); err != nil {
 		add("SET-18 served describe", "fail", failure(err), 0)
 	} else {
-		add("SET-18 served describe", "pass", "Go schema decoder against real Host", len(settings.Snapshot().Namespaces))
+		add("SET-18 served describe", "pass", "Go schema decoder against real Host", len(settings.Snapshot().Value.Namespaces))
 		if originalBusy, settingsChanged = readBusy(); settingsChanged && (originalBusy == "queue" || originalBusy == "steer") {
 			chosenBusy = "steer"
 			if originalBusy == "steer" {
@@ -297,12 +297,12 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		add("PLUG-03 local inspection", "blocked", inspection.Problem+" "+failure(inspectErr), 0)
 	} else {
 		add("PLUG-03 local inspection", "pass", "own directory; no dependencies or install scripts", 1)
-		a := controller.Actions(controller.Snapshot().Owner)
+		a := controller.Actions(controller.Snapshot().Value.Owner)
 		a.OpenInstall()
 		a.EditInstall(fixtureDir, registry.URL)
 		a.Inspect()
 		err = wait(func() (bool, error) {
-			s := controller.Snapshot()
+			s := controller.Snapshot().Value
 			if s.Install.Error != "" {
 				return false, errors.New(s.Install.Error)
 			}
@@ -310,7 +310,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		})
 		if err == nil {
 			err = wait(func() (bool, error) {
-				s := controller.Snapshot()
+				s := controller.Snapshot().Value
 				if s.Install.Error != "" {
 					return false, errors.New(s.Install.Error)
 				}
@@ -318,7 +318,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 			})
 		}
 		if err == nil {
-			r := controller.Snapshot().Install.Result
+			r := controller.Snapshot().Value.Install.Result
 			if r.Error != nil || r.Application == "failed" {
 				code := "failed"
 				if r.Error != nil {
@@ -339,9 +339,9 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	refreshTasks := func() error {
 		schedules.Refresh(ctx, fixtureSession)
 		return wait(func() (bool, error) {
-			s := schedules.Snapshot()
-			if s.Err != "" {
-				return false, errors.New(s.Err)
+			s := schedules.Snapshot().Value
+			if s.Err != nil {
+				return false, errors.New(s.Err.SentenceText())
 			}
 			return !s.Loading, nil
 		})
@@ -350,13 +350,13 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 	if err = refreshTasks(); err != nil {
 		add("TASK-03 catalog", "fail", failure(err), 0)
 	} else {
-		for _, row := range schedules.Snapshot().Rows {
+		for _, row := range schedules.Snapshot().Value.Rows {
 			if row.SessionID == fixtureSession {
 				task = row
 				break
 			}
 		}
-		add("TASK-03 catalog", "pass", "real Host catalog", len(schedules.Snapshot().Rows))
+		add("TASK-03 catalog", "pass", "real Host catalog", len(schedules.Snapshot().Value.Rows))
 	}
 	if installed && task.ID != "" {
 		at, e := time.Parse(time.RFC3339Nano, task.ScheduledAt)
@@ -428,7 +428,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 		if e := refreshTasks(); e != nil {
 			add("TASK-04 restart persistence", "fail", failure(e), 0)
 		} else {
-			for _, row := range schedules.Snapshot().Rows {
+			for _, row := range schedules.Snapshot().Value.Rows {
 				if row.ID == task.ID {
 					task = row
 				}
@@ -497,7 +497,7 @@ func TestFunctionalPluginsSettingsTasks(t *testing.T) {
 			add("TASK-04 deleted persistence", "fail", failure(e), 0)
 		} else {
 			remains := false
-			for _, row := range schedules.Snapshot().Rows {
+			for _, row := range schedules.Snapshot().Value.Rows {
 				remains = remains || row.SessionID == fixtureSession
 			}
 			if !remains {

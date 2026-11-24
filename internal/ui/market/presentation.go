@@ -57,7 +57,7 @@ func marketTabs(c *ui.Context, m Model, tab string, fg, muted, field ui.Color) {
 			active := tab == item.id || tab == "" && item.id == "discover"
 			label := marketText(item.zh, item.en)
 			if item.id == "installed" {
-				count := len(desktopInstalledRows(m.Store.Snapshot().Rows))
+				count := len(desktopInstalledRows(m.Store.Snapshot().Value.Rows))
 				if count > 0 {
 					label = fmt.Sprintf("%s (%d)", label, count)
 				}
@@ -104,7 +104,7 @@ func catalogCategories(c *ui.Context, m Model, d marketstore.Discovery, fg, mute
 }
 
 func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory marketstore.ViewState, fg, muted, field, border, accent ui.Color) {
-	if len(d.Rows) == 0 && !d.Loading && d.Err == "" && !d.Catalog.FetchedAt.IsZero() {
+	if len(d.Rows) == 0 && !d.Loading && d.Err == nil && !d.Catalog.FetchedAt.IsZero() {
 		message := marketText(i18n.T(i18n.KeyW4MarketNoPluginsYet), "No plugins available.")
 		if d.Query != "" || d.Category != "all" && d.Category != "" || d.Period != "all" || d.Tab == "favorites" {
 			message = marketText(i18n.T(i18n.KeyW4MarketNoMatchingPlugins), "No matching plugins.")
@@ -154,7 +154,7 @@ func catalogCards(c *ui.Context, m Model, d marketstore.Discovery, inventory mar
 							}
 						})
 						ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-							if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16, m.SVGImages) {
+							if i.Owner != "" && !PluginImage(c, "https://github.com/"+url.PathEscape(i.Owner)+".png?size=96", 16, 16, m.Media) {
 								ui.Text(c, strings.ToUpper(string([]rune(i.Owner)[0]))).Width(16).Height(16).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 							}
 							ui.Text(c, i.Owner).FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -281,7 +281,7 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 							}
 						})
 						ui.Row(c).Wrap().Gap(8).Children(func() {
-							if !m.Embedded && snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
+							if !m.Embedded && snap.ClientReady && !snap.Loading && snap.Err == nil && !m.InstallBusy && r.CanToggle() && m.OnSetBundleEnabled != nil {
 								label := i18n.T(i18n.KeySettingsPluginsEnable)
 								if *r.Enabled {
 									label = i18n.T(i18n.KeySettingsPluginsDisable)
@@ -290,7 +290,7 @@ func installedRows(c *ui.Context, m Model, d marketstore.Discovery, snap markets
 									m.OnSetBundleEnabled(r.Label, !*r.Enabled)
 								}
 							}
-							if snap.ClientReady && !snap.Loading && snap.Err == "" && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
+							if snap.ClientReady && !snap.Loading && snap.Err == nil && !m.InstallBusy && r.IdentityKnown && r.ReadOnlyReason == "" && r.Removable && m.OnRemoveBundle != nil && ui.Button(c, i18n.T(i18n.KeyMarketRemove)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(theme.InterfaceSize(12)).Clicked() {
 								m.OnRemoveBundle(r.Label)
 							}
 						})
@@ -382,8 +382,8 @@ func catalogDetailsDialog(c *ui.Context, m Model, d marketstore.Discovery, inven
 					if d.DetailsLoading {
 						ui.Text(c, i18n.T(i18n.KeyMarketLoading)).TextColor(muted)
 					}
-					if d.DetailsErr != "" {
-						ui.Text(c, d.DetailsErr).FillWidth().TextColor(accent)
+					if d.DetailsErr != nil {
+						ui.Text(c, d.DetailsErr.SentenceText()).FillWidth().TextColor(accent)
 					}
 					if d.Details.Partial {
 						ui.Text(c, marketText(i18n.T(i18n.KeyW4MarketSomeDetailsFailedToLoad), "Some details could not be loaded.")).FillWidth().TextColor(accent)

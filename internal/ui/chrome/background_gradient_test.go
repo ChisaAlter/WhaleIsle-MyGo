@@ -23,13 +23,13 @@ func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 		ui.Box(c).Fill().Draw(paint)
 	}, 320, 220)
 	image := tt.Image()
-	if gradientBackdrop.frame == nil || backgroundState.pixels != gradientBackdrop.frame.pixels {
+	if gradientBackdrop.frame == nil || backgroundState.colors == nil || backgroundState.colors != gradientBackdrop.frame.colors {
 		t.Fatal("paint and sampler do not share a generation")
 	}
-	pixels, box, keep, ok := backdropPixels()
-	if !ok || pixels != gradientBackdrop.frame.pixels || box.W != 320 || box.H != 220 || keep != 1 {
-		t.Fatalf("sample source=%p box=%v keep=%v valid=%v", pixels, box, keep, ok)
+	if _, ok := SampleBackdrop(ui.Rect{W: 40, H: 40}); !ok || backgroundState.box.W != 320 || backgroundState.box.H != 220 {
+		t.Fatalf("sample box=%v valid=%v", backgroundState.box, ok)
 	}
+	pixels := gradientBackdrop.frame.pixels
 	if gradientBackdrop.frame.tick != -1 || !gradientBackdrop.frame.config.reduced {
 		t.Fatal("reduced motion did not remove transforms")
 	}
@@ -57,7 +57,7 @@ func TestDefaultGradientIsASoftFullBleedWash(t *testing.T) {
 		t.Fatal("reduced source changed across repaint")
 	}
 	ConfigureBackdrop("", wallpapers.Defaults())
-	if gradientBackdrop.frame != nil || ambientGradientFrames.frame != nil || backgroundState.pixels != nil {
+	if gradientBackdrop.frame != nil || ambientGradientFrames.frame != nil || backgroundState.colors != nil {
 		t.Fatal("closed gradient retained stale bitmap/cache")
 	}
 }

@@ -18,7 +18,7 @@ type overviewCache struct {
 func (s *Store) SetStatsCachePath(path string) {
 	s.mu.Lock()
 	s.statsCachePath = path
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 func readStatsCacheFile(path string) json.RawMessage {

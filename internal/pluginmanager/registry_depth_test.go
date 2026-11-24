@@ -49,7 +49,7 @@ func TestDiscoverRegistryOverrideDoesNotReplaceRememberedInstallChoice(t *testin
 	c.SetRegistryPersistence(func() (*RegistryChoice, error) { return remembered, nil }, func(*RegistryChoice) error { saved.Add(1); return nil })
 	c.Attach(basicFixture(nil), nil)
 	defer c.Detach()
-	owner := c.Snapshot().Owner
+	owner := c.Snapshot().Value.Owner
 	if !c.openInstall(owner, "source-fixture", "https://source.invalid/", nil, false) {
 		t.Fatal("source install input was rejected")
 	}
@@ -89,22 +89,22 @@ func TestRegistryPersistenceFailuresRemainVisibleAcrossOwnerAndCanDismiss(t *tes
 	c.SetRegistryPersistence(func() (*RegistryChoice, error) { return nil, errors.New("read fixture") }, func(*RegistryChoice) error { return errors.New("write fixture") })
 	c.Attach(basicFixture(nil), nil)
 	t.Cleanup(c.Detach)
-	if c.Snapshot().PreferenceError == "" {
+	if c.Snapshot().Value.PreferenceError == "" {
 		t.Fatal("replacement owner hid a failed preference read")
 	}
-	owner := c.Snapshot().Owner
+	owner := c.Snapshot().Value.Owner
 	choice := RegistryChoice{Kind: "custom", URL: "https://private.invalid/npm/"}
 	c.rememberRegistry(owner, choice)
-	if c.Snapshot().PreferenceError != "Could not remember the installation registry: write fixture" {
-		t.Fatal(c.Snapshot().PreferenceError)
+	if c.Snapshot().Value.PreferenceError != "Could not remember the installation registry: write fixture" {
+		t.Fatal(c.Snapshot().Value.PreferenceError)
 	}
 	c.Actions(owner).DismissPreferenceError()
-	if c.Snapshot().PreferenceError != "" {
+	if c.Snapshot().Value.PreferenceError != "" {
 		t.Fatal("receipt did not dismiss")
 	}
 	c.Actions(owner).OpenInstall()
 	waitState(t, c, func(s State) bool { return s.Install.RegistryReadDone })
-	if c.Snapshot().Install.RegistrySelection.URL != choice.URL {
+	if c.Snapshot().Value.Install.RegistrySelection.URL != choice.URL {
 		t.Fatal("failed disk write discarded the active choice")
 	}
 }
@@ -129,7 +129,7 @@ func TestLatePublicMirrorProbeCannotOverwriteManualRegistry(t *testing.T) {
 		}
 	}), nil)
 	defer c.Detach()
-	a := c.Actions(c.Snapshot().Owner)
+	a := c.Actions(c.Snapshot().Value.Owner)
 	a.OpenInstall()
 	select {
 	case <-started:
@@ -197,7 +197,7 @@ func TestRetiredInstallReplyCannotClearReplacementRequestBusy(t *testing.T) {
 		return base(ctx, method, args, out)
 	}), nil)
 	defer c.Detach()
-	a := c.Actions(c.Snapshot().Owner)
+	a := c.Actions(c.Snapshot().Value.Owner)
 	start := func(spec string) {
 		a.edit(func(s *State) {
 			s.Install = InstallState{Open: true, Spec: spec, Phase: "idle", RegistryReadDone: true, Inspection: &Inspection{Status: "accepted", Name: spec}}
@@ -223,7 +223,7 @@ func TestRetiredInstallReplyCannotClearReplacementRequestBusy(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("old reply did not settle")
 	}
-	if s := c.Snapshot(); !s.Busy || s.Install.Spec != "second" || s.Install.Result != nil {
+	if s := c.Snapshot().Value; !s.Busy || s.Install.Spec != "second" || s.Install.Result != nil {
 		t.Fatalf("old reply changed a new request: %+v", s.Install)
 	}
 	freeSecond()

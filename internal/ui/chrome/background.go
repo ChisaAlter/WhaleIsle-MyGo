@@ -2,42 +2,19 @@ package chrome
 
 import (
 	"github.com/egoist/mygo/ui"
-	"image"
 	"math"
-	"time"
+	"strings"
 	"whaleisle/internal/desktop/wallpapers"
 )
 
 var backgroundState struct {
-	prefs       wallpapers.Preferences
-	active      bool
-	wallpaper   string
-	path        string
-	blur, pixel float64
-	bitmap      *ui.Bitmap
-	screenRGBA  *image.RGBA
-	// The bitmap is prepared at the window's own pixel size, so its cache key
-	// carries that size alongside the source and the two effect sliders.
-	targetW, targetH int
-	decodedPath      string
-	decoded          *image.RGBA
-	// samp* caches the source-resolution bitmap the glass surfaces sample; the
-	// painted bitmap above is screen-resolution.
-	sampPath  string
-	sampBlur  float64
-	sampPixel float64
-	sampBmp   *ui.Bitmap
-	// frost* caches the window-space Gaussian-blurred + saturate(150%) bitmap
-	// that MaterialMenu (backdrop-filter: blur(40px) saturate(150%)) paints.
-	frostSrc         *image.RGBA
-	frostBmp         *ui.Bitmap
-	frostDark        bool
-	frostTransparent bool
-	frostVersion     uint64
-	// pixels is the prepared wallpaper the surfaces sample, the box it was
-	// drawn in, and the scheme that decided its dim mask. version changes
-	// whenever a surface's frozen patch would go stale.
-	pixels  *image.RGBA
+	prefs     wallpapers.Preferences
+	active    bool
+	wallpaper string
+	// colors is the prepared wallpaper's color map the surfaces sample; box is
+	// where the wallpaper was drawn and dark the scheme that chose its dim
+	// mask. version changes whenever a sampled color could go stale.
+	colors  *wallpaperColors
 	box     ui.Rect
 	hasBox  bool
 	dark    bool
@@ -85,8 +62,9 @@ func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 	backgroundState.prefs = p
 	backgroundState.wallpaper = path
 	backgroundState.active = path != "" || p.Effect == "gradient"
-	if !backgroundState.active {
-		backgroundState.pixels, backgroundState.hasBox = nil, false
+	if !backgroundState.active || path == "" {
+		// No wallpaper: nothing of one stays referenced.
+		backgroundState.colors, backgroundState.hasBox = nil, false
 		backgroundState.version++
 	}
 }
@@ -158,18 +136,29 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	if path != "" {
 		return func(painter *ui.Painter, r ui.Rect) {
 			w, h := int(math.Round(float64(r.W))), int(math.Round(float64(r.H)))
-			backgroundSamplingBitmap(path, p)
-			bmp := backgroundScreenBitmap(path, p, w, h)
-			if bmp == nil {
-				if decodedWallpaperInFlight(path) {
-					painter.After(25 * time.Millisecond)
-				}
+			// The decode runs on a media worker; its completion repaints.
+			handle := wallpaperRequest(path, p, w, h)
+			pic, ok := handle.Picture()
+			if !ok || pic.Bitmap == nil {
 				return
 			}
-			// The bitmap is already the window's pixel size: FillBox keeps the
-			// screen-space pixel blocks and blur radius exact.
-			painter.Image(bmp, r, ui.Cover)
 			s := &backgroundState
+			if colors, _ := pic.Extra.(*wallpaperColors); colors != s.colors {
+				s.colors = colors
+				s.version++
+			}
+			if bw, bh := pic.Bitmap.Size(); strings.HasPrefix(wallpaperKind(p), "wallpaper/pixelate") {
+				// Pixelated at screen pixels already: draw at its own size,
+				// centred, so the blocks stay exact.
+				painter.Clip(r, 0, func() {
+					painter.Image(pic.Bitmap, ui.Rect{X: r.X + (r.W-float32(bw))/2, Y: r.Y + (r.H-float32(bh))/2, W: float32(bw), H: float32(bh)}, ui.FillBox)
+				})
+			} else {
+				painter.Image(pic.Bitmap, r, ui.Cover)
+			}
+			if radius := wallpaperBlurRadius(p.Blur); radius > 0 {
+				wallpaperBlurMaterial(radius).PaintMaterial(painter, r, [4]float32{})
+			}
 			s.box, s.hasBox, s.dark = r, true, painter.Theme().Dark
 			if p.Transparent {
 				return
@@ -182,82 +171,16 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	if p.Effect != "gradient" {
 		return func(*ui.Painter, ui.Rect) {}
 	}
-	var startedAt time.Time
 	return func(painter *ui.Painter, r ui.Rect) {
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
-		now := painter.Now()
+		// The ambient gradient is baked once per configuration (size, colors,
+		// scheme) into a static texture: no phase ticker, no repaint loop.
 		config := gradientConfiguration(p, float64(r.W), float64(r.H), painter.Theme().Dark, reduced)
-		freeze := shouldFreezeAmbientAnimation(reduced, &startedAt, now)
-		var frame *gradientFrame
-		if freeze {
-			frame = ambientGradientFrames.frozen(config, now)
-		} else {
-			// latest never renders a phase advance on this thread (6-12 ms of CPU, most
-			// of a 60 Hz frame); the finished frame is picked up by the next paint.
-			frame = ambientGradientFrames.latest(config, now)
-		}
-		if frame != nil {
+		if frame := ambientGradientFrames.frozen(config, painter.Now()); frame != nil {
 			painter.Image(frame.bitmap, r, ui.FillBox)
 			publishGradientBackdrop(frame, r)
 		}
-		if !reduced && !freeze {
-			// The phase only changes every gradientFrameInterval, so repainting at
-			// the display rate (AnimationFrame) painted the same frame twice for
-			// every new one, and kept the window repainting at 60 Hz while idle.
-			painter.After(gradientFrameInterval)
-		}
 	}
-}
-
-// Separable running-sum blur keeps slider updates linear in the image size.
-func blurBitmap(src *image.RGBA, radius int) *image.RGBA {
-	b := src.Bounds()
-	tmp := image.NewRGBA(b)
-	dst := image.NewRGBA(b)
-	for pass := 0; pass < 2; pass++ {
-		in, out := src, tmp
-		length, lines := b.Dx(), b.Dy()
-		if pass == 1 {
-			in, out = tmp, dst
-			length, lines = b.Dy(), b.Dx()
-		}
-		for line := 0; line < lines; line++ {
-			var sum [4]int
-			at := func(pos int) int {
-				if pass == 0 {
-					return in.PixOffset(pos, line)
-				}
-				return in.PixOffset(line, pos)
-			}
-			for pos := 0; pos <= min(radius, length-1); pos++ {
-				idx := at(pos)
-				for ch := 0; ch < 4; ch++ {
-					sum[ch] += int(in.Pix[idx+ch])
-				}
-			}
-			for pos := 0; pos < length; pos++ {
-				n := min(length-1, pos+radius) - max(0, pos-radius) + 1
-				idx := at(pos)
-				for ch := 0; ch < 4; ch++ {
-					out.Pix[idx+ch] = byte(sum[ch] / n)
-				}
-				drop, add := pos-radius, pos+radius+1
-				if drop >= 0 {
-					idx = at(drop)
-					for ch := 0; ch < 4; ch++ {
-						sum[ch] -= int(in.Pix[idx+ch])
-					}
-				}
-				if add < length {
-					idx = at(add)
-					for ch := 0; ch < 4; ch++ {
-						sum[ch] += int(in.Pix[idx+ch])
-					}
-				}
-			}
-		}
-	}
-	return dst
 }

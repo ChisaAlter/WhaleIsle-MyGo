@@ -60,7 +60,7 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 			}
 			state.mu.Lock()
 			defer state.mu.Unlock()
-			if state.request != request || m.Store.Onboarding.Snapshot().Scope != v.Scope {
+			if state.request != request || m.Store.Onboarding.Snapshot().Value.Scope != v.Scope {
 				return
 			}
 			state.loading = false

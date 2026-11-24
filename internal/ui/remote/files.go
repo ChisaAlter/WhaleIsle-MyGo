@@ -24,14 +24,14 @@ func viewSessionFiles(c *ui.Context, m Model) {
 	if m.Files == nil || m.FileEditor == nil {
 		return
 	}
-	s := m.Files.Snapshot()
+	s := m.Files.Snapshot().Value
 	ui.Column(c).FillWidth().Gap(8).Children(func() {
 		ui.Text(c, label("当前会话的远程文件", "Current session's remote files")).Bold()
 		if s.SessionID == "" {
 			ui.Text(c, label("先选择会话。", "Select a session first."))
 			return
 		}
-		if !s.Loaded && !s.Busy && s.Error == "" {
+		if !s.Loaded && !s.Busy && s.Error == nil {
 			m.Files.Browse("")
 		}
 		fileWorkspaceBody(c, m)
@@ -58,8 +58,8 @@ func fileResourceView(c *ui.Context, m Model, s remotestore.FileSnapshot) {
 		return
 	}
 	ui.Text(c, s.FilePath).FontSize(fonttheme.InterfaceSize(12)).Selectable()
-	if s.Error != "" {
-		ui.Text(c, s.Error).FillWidth().Selectable()
+	if s.Error != nil {
+		ui.Text(c, s.Error.SentenceText()).FillWidth().Selectable()
 	}
 	widgets.AckLine(c, "files:65", s.Notice)
 	if !s.FileLoaded {

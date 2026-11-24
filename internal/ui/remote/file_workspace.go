@@ -78,17 +78,17 @@ func FileWorkspace(c *ui.Context, m Model) bool {
 		})
 		return true
 	}
-	s := state.Files.Snapshot()
-	if !s.Resolved && !s.Resolving && s.ResolveError == "" {
+	s := state.Files.Snapshot().Value
+	if !s.Resolved && !s.Resolving && s.ResolveError == nil {
 		state.Files.Resolve()
 	}
 	if !wasVisible && s.Resolved && !s.Local && !s.Busy {
 		state.Files.Browse(s.RootPath)
 	}
 	if !s.Resolved || s.Local || s.RootPath == "" {
-		if s.ResolveError != "" {
+		if s.ResolveError != nil {
 			anchor.FillWidth().Gap(4).Children(func() {
-				ui.Text(c, s.ResolveError).FillWidth()
+				ui.Text(c, s.ResolveError.SentenceText()).FillWidth()
 				if widgets.Button(c, colors, label("重试远程工作区解析", "Retry remote workspace resolution"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Resolving).Clicked() {
 					state.Files.Resolve()
 				}
@@ -102,7 +102,7 @@ func FileWorkspace(c *ui.Context, m Model) bool {
 }
 
 func fileWorkspaceBody(c *ui.Context, m Model) {
-	s := m.Files.Snapshot()
+	s := m.Files.Snapshot().Value
 	if m.FileEditor.CopyBinding != remoteFileActionKey(s) {
 		m.FileEditor.CopyBinding = remoteFileActionKey(s)
 		m.FileEditor.CopiedPath, m.FileEditor.CopyError = "", ""
@@ -121,14 +121,14 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 	if s.MirrorDir != "" {
 		ui.Text(c, s.MirrorDir).FillWidth().FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color(colors.Muted))
 	}
-	if s.TreeError != "" {
-		ui.Text(c, s.TreeError).FillWidth().Selectable()
+	if s.TreeError != nil {
+		ui.Text(c, s.TreeError.SentenceText()).FillWidth().Selectable()
 	}
 	if m.FileEditor.CopyError != "" {
 		ui.Text(c, m.FileEditor.CopyError).FillWidth()
 	}
-	if s.ResolveError != "" {
-		ui.Text(c, s.ResolveError).FillWidth()
+	if s.ResolveError != nil {
+		ui.Text(c, s.ResolveError.SentenceText()).FillWidth()
 		if widgets.Button(c, colors, label("重试解析", "Retry resolution"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(s.Resolving).Clicked() {
 			m.Files.Resolve()
 		}
@@ -138,8 +138,8 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 	ui.Scroll(c.Key("remote-tree")).FillWidth().Height(treeHeight).Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
 			if s.RootPath == "" {
-				if s.Error != "" {
-					ui.Text(c, s.Error).FillWidth()
+				if s.Error != nil {
+					ui.Text(c, s.Error.SentenceText()).FillWidth()
 				} else {
 					ui.Text(c, label("正在解析远程工作区…", "Resolving remote workspace…"))
 				}
@@ -153,8 +153,8 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 					return
 				}
 				d := s.Tree[path]
-				if d.Error != "" {
-					ui.Text(c, d.Error).FillWidth().FontSize(theme.InterfaceSize(11))
+				if d.Error != nil {
+					ui.Text(c, d.Error.SentenceText()).FillWidth().FontSize(theme.InterfaceSize(11))
 					if widgets.Button(c, colors, label("重试目录", "Retry directory"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Disabled(disabled).Clicked() {
 						m.Files.Browse(path)
 					}

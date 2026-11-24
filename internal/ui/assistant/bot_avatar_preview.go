@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 	_ "image/png"
 	"math"
 	"strings"
-	"sync"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/pluginrpc"
 )
 
@@ -96,17 +97,10 @@ func botAvatarDrawBlob(c *ui.Context, v pluginrpc.DshbotAvatarValues, size float
 	})
 }
 
-// At most one decoded inline image is retained. Content-addressed lookup never
-// substitutes one account's image for another input; no file or URL is opened.
-var botAvatarImageCache struct {
-	sync.Mutex
-	key    [32]byte
-	set    bool
-	bitmap *ui.Bitmap
-	err    error
-}
-
-func decodeBotAvatarImage(v pluginrpc.DshbotAvatarValues) (*ui.Bitmap, error) {
+// botAvatarBytes validates one inline avatar record: a bounded JPEG/PNG data
+// URL whose header matches its declared type and safe dimensions. No file or
+// URL is ever opened. It runs on a media worker, never in build code.
+func botAvatarBytes(v pluginrpc.DshbotAvatarValues) ([]byte, error) {
 	if _, err := pluginrpc.ParseDshbotAvatar(v); err != nil || v.Kind != "image" {
 		return nil, fmt.Errorf("invalid inline image record")
 	}
@@ -123,19 +117,34 @@ func decodeBotAvatarImage(v pluginrpc.DshbotAvatarValues) (*ui.Bitmap, error) {
 	if err != nil || format != expected || config.Width < 1 || config.Height < 1 || config.Width > 2048 || config.Height > 2048 || int64(config.Width)*int64(config.Height) > 1048576 {
 		return nil, fmt.Errorf("inline image preview exceeds safe JPEG/PNG dimensions")
 	}
-	// The exact same bounded bytes are decoded only after dimensions and format.
-	return ui.DecodeBitmap(data)
+	return data, nil
 }
+
+// botAvatarImage reads the avatar's media handle: nil while it decodes, the
+// classified failure when its record is rejected. Content-addressed by the
+// data URL itself, so one account's image never stands in for another.
 func botAvatarImage(v pluginrpc.DshbotAvatarValues) (*ui.Bitmap, error) {
-	key := sha256.Sum256([]byte(v.DataURL))
-	botAvatarImageCache.Lock()
-	defer botAvatarImageCache.Unlock()
-	if !botAvatarImageCache.set || botAvatarImageCache.key != key {
-		botAvatarImageCache.set = true
-		botAvatarImageCache.key = key
-		botAvatarImageCache.bitmap, botAvatarImageCache.err = decodeBotAvatarImage(v)
+	return botAvatarFrom(media.Default(), v)
+}
+
+// draftAvatarMedia holds draft, crop and review-before-save previews apart
+// from the saved-image cache: its budget fits one preview, so the next draft
+// (or nothing) replaces it and a cancelled image is not retained.
+var draftAvatarMedia = media.New(media.Config{Workers: 1, MemoryBudget: 1 << 20})
+
+func botAvatarKey(v pluginrpc.DshbotAvatarValues) media.Key {
+	return media.Key{ID: "bot-avatar:" + v.DataURL}
+}
+
+func botAvatarFrom(s *media.Service, v pluginrpc.DshbotAvatarValues) (*ui.Bitmap, error) {
+	h := s.Request(nil, botAvatarKey(v), media.Source{Load: func(context.Context) ([]byte, error) { return botAvatarBytes(v) }})
+	switch h.State() {
+	case media.Pending:
+		return nil, nil
+	case media.Failed:
+		return nil, h.Err()
 	}
-	return botAvatarImageCache.bitmap, botAvatarImageCache.err
+	return h.Bitmap(), nil
 }
 func botAvatarSummary(v pluginrpc.DshbotAvatarValues) string {
 	if v.Kind == "blob" {
@@ -159,6 +168,10 @@ func botAvatarPreview(c *ui.Context, v pluginrpc.DshbotAvatarValues, size float3
 	radius := size * 10 / 64
 	if v.Crop == "circle" {
 		radius = size / 2
+	}
+	if bmp == nil {
+		ui.Box(c).Size(size, size).Radius(radius).Background(muted.Alpha(.12)).Label(label)
+		return nil
 	}
 	ui.Image(c, bmp).Size(size, size).Fit(ui.Cover).Radius(radius).Label(label)
 	return nil

@@ -64,7 +64,7 @@ func TestSupportedChannelReconnectReviewPayloadAndReceipt(t *testing.T) {
 				}
 				defer store.Hide()
 				store.Review(3, action.name, "fixture-bot", "", "")
-				if store.Snapshot().Review != action.name {
+				if store.Snapshot().Value.Review != action.name {
 					t.Fatal("supported platform cannot review reconnect")
 				}
 				select {
@@ -76,7 +76,7 @@ func TestSupportedChannelReconnectReviewPayloadAndReceipt(t *testing.T) {
 				deadline := time.NewTimer(time.Second)
 				defer deadline.Stop()
 				for {
-					view := store.Snapshot()
+					view := store.Snapshot().Value
 					if !view.Busy && len(calls) == 2 {
 						if view.Error != "" {
 							t.Fatal(view.Error)
@@ -90,7 +90,7 @@ func TestSupportedChannelReconnectReviewPayloadAndReceipt(t *testing.T) {
 					select {
 					case <-notifications:
 					case <-deadline.C:
-						t.Fatalf("reconnect did not settle: %+v", store.Snapshot())
+						t.Fatalf("reconnect did not settle: %+v", store.Snapshot().Value)
 					}
 				}
 				first, status := <-calls, <-calls
@@ -100,7 +100,7 @@ func TestSupportedChannelReconnectReviewPayloadAndReceipt(t *testing.T) {
 				if status.path != "/"+platform.ID+"/connection.status" || status.request.Method != "connection.status" {
 					t.Fatal("missing authoritative status refresh", status)
 				}
-				if !action.sendTest && store.Snapshot().TestNotice != "" {
+				if !action.sendTest && store.Snapshot().Value.TestNotice != "" {
 					t.Fatal("plain reconnect fabricated a test receipt")
 				}
 			})

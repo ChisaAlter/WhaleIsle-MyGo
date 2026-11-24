@@ -64,13 +64,17 @@ func botAvatarUncachedPreview(c *ui.Context, v pluginrpc.DshbotAvatarValues, siz
 	if v.Kind != "image" {
 		return botAvatarPreview(c, v, size, label, fg, muted)
 	}
-	bmp, err := decodeBotAvatarImage(v)
+	bmp, err := botAvatarFrom(draftAvatarMedia, v)
 	if err != nil {
 		return err
 	}
 	radius := size * 10 / 64
 	if v.Crop == "circle" {
 		radius = size / 2
+	}
+	if bmp == nil {
+		ui.Box(c).Size(size, size).Radius(radius).Background(muted.Alpha(.12)).Label(label)
+		return nil
 	}
 	ui.Image(c, bmp).Size(size, size).Fit(ui.Cover).Radius(radius).Label(label)
 	return nil

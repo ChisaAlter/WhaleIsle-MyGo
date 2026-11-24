@@ -32,12 +32,12 @@ func (s *Store) providerPageLocked() uint64 { return s.providerPage }
 func (s *Store) LeaveProviderForms() {
 	s.mu.Lock()
 	s.providerPage++
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 func (s *Store) BindProviderEditor(namespace, provider string, path []string) *NamespaceBinding {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	ns := s.findNamespaceLocked(namespace)
 	if ns == nil {
 		return nil
@@ -51,7 +51,7 @@ func (s *Store) BindProviderEditor(namespace, provider string, path []string) *N
 func (b *NamespaceBinding) providerSnapshot() ViewState {
 	s := b.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	d := b.providerDraft
 	st := ViewState{SelectedNS: b.namespace, Drafts: map[string]string{}}
 	if !b.currentLocked() {
@@ -77,7 +77,7 @@ func (b *NamespaceBinding) setProviderForm(key, value string) {
 	}
 	s := b.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	if b.currentLocked() {
 		b.providerDraft.drafts[key] = value
 	}
@@ -87,11 +87,11 @@ func (b *NamespaceBinding) setProviderDraft(key, value string, reset bool) {
 	s.mu.Lock()
 	d := b.providerDraft
 	if !b.currentLocked() || !s.writable || s.loading || d.busy {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if len(d.path) > 0 && key != d.path[0] {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	for _, f := range d.ns.Fields {
@@ -127,7 +127,7 @@ func (b *NamespaceBinding) setProviderDraft(key, value string, reset bool) {
 			break
 		}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (b *NamespaceBinding) discardProviderDraft() {
@@ -135,7 +135,7 @@ func (b *NamespaceBinding) discardProviderDraft() {
 	s.mu.Lock()
 	d := b.providerDraft
 	if !b.currentLocked() || d.busy {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ns := s.findNamespaceLocked(b.namespace)
@@ -148,7 +148,7 @@ func (b *NamespaceBinding) discardProviderDraft() {
 	for _, f := range ns.Fields {
 		d.drafts[f.Key] = ValueDraft(ns.Value, f.Key, f.Kind)
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 
@@ -157,15 +157,15 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 	s.mu.Lock()
 	d := b.providerDraft
 	if !b.currentLocked() || s.client == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	if d.busy || s.loading {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsBusy
 	}
 	if !s.writable {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsReadOnly
 	}
 	ns := d.ns
@@ -216,7 +216,7 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 	}
 	if err != nil {
 		d.err, d.errDetail = err.Error(), ""
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return api.SettingsNamespaceView{}, err
 	}
@@ -224,12 +224,12 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 		d.dirty = map[string]bool{}
 		d.resets = map[string]bool{}
 		d.paths = map[string][]string{}
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{Ns: ns.NS, Schema: ns.Schema, Value: ns.Value, Base: ns.Base, User: ns.User, Revision: ns.Revision}, nil
 	}
 	d.busy = true
 	d.err = ""
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	method := "settings/update"
 	args := map[string]any{"ns": ns.NS, "patch": patch, "expectedRevision": ns.Revision}
@@ -242,7 +242,7 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 	err = b.client.Call(ctx, method, args, &out)
 	s.mu.Lock()
 	if s.client != b.client || s.generation != b.generation {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return api.SettingsNamespaceView{}, ErrSettingsNotReady
 	}
 	d.busy = false
@@ -276,7 +276,7 @@ func (b *NamespaceBinding) saveProviderDraft(ctx context.Context) (api.SettingsN
 		}
 		d.paths = map[string][]string{}
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	return out, err
 }
@@ -310,7 +310,7 @@ func (b *NamespaceBinding) ProviderInput(path []string, effective any) (any, boo
 	}
 	s := b.store
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	d := b.providerDraft
 	for _, changed := range d.paths {
 		if providerContains(changed, path) || providerContains(path, changed) {

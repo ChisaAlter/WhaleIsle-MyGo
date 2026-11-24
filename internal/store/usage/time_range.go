@@ -2,9 +2,10 @@ package usage
 
 import (
 	"encoding/json"
-	"errors"
 	"sort"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 // DateRange uses inclusive UTC day keys, matching the overview's daily buckets.
@@ -83,17 +84,17 @@ func addTotals(dst *Totals, src Totals) {
 func (s *Store) SetStatsDateRange(start, end string) error {
 	a, err := time.Parse("2006-01-02", start)
 	if err != nil {
-		return errors.New("Start date must be YYYY-MM-DD (UTC)")
+		return curated("Start date must be YYYY-MM-DD (UTC)")
 	}
 	b, err := time.Parse("2006-01-02", end)
 	if err != nil || b.Before(a) {
-		return errors.New("End date must be YYYY-MM-DD and on or after start (UTC)")
+		return curated("End date must be YYYY-MM-DD and on or after start (UTC)")
 	}
 	s.mu.Lock()
-	var o Overview
-	if json.Unmarshal(s.stats.Raw, &o) != nil || len(o.Days) == 0 {
-		s.mu.Unlock()
-		return errors.New("No daily coverage available")
+	o := s.stats.parsed.overview
+	if o == nil || len(o.Days) == 0 {
+		s.unlockPublish()
+		return curated("No daily coverage available")
 	}
 	// Every requested day must be present. Missing days are not treated as zero usage.
 	available := map[string]bool{}
@@ -101,19 +102,19 @@ func (s *Store) SetStatsDateRange(start, end string) error {
 		available[d.Date] = true
 	}
 	if int(b.Sub(a).Hours()/24)+1 > len(available) {
-		s.mu.Unlock()
-		return errors.New("Select dates within the available daily coverage")
+		s.unlockPublish()
+		return curated("Select dates within the available daily coverage")
 	}
 	for d := a; !d.After(b); d = d.AddDate(0, 0, 1) {
 		if !available[d.Format("2006-01-02")] {
-			s.mu.Unlock()
-			return errors.New("Selected range includes unavailable daily coverage")
+			s.unlockPublish()
+			return curated("Selected range includes unavailable daily coverage")
 		}
 	}
 	s.ranking.modelLimit = 0
 	s.stats.Range = DateRange{start, end}
-	s.stats.RangeError = ""
-	s.mu.Unlock()
+	s.stats.RangeError = nil
+	s.unlockPublish()
 	s.fire()
 	return nil
 }
@@ -123,23 +124,23 @@ func (s *Store) ClearStatsDateRange() {
 	s.stats.Range = DateRange{}
 	s.stats.RangeStart = ""
 	s.stats.RangeEnd = ""
-	s.stats.RangeError = ""
-	s.mu.Unlock()
+	s.stats.RangeError = nil
+	s.unlockPublish()
 	s.fire()
 }
 func (s *Store) SetStatsRangeDraft(start, end string) {
 	s.mu.Lock()
 	s.stats.RangeStart = start
 	s.stats.RangeEnd = end
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 func (s *Store) ApplyStatsRangeDraft() {
 	v := s.Stats()
 	err := s.SetStatsDateRange(v.RangeStart, v.RangeEnd)
 	if err != nil {
 		s.mu.Lock()
-		s.stats.RangeError = err.Error()
-		s.mu.Unlock()
+		s.stats.RangeError = faultOf(err)
+		s.unlockPublish()
 		s.fire()
 	}
 }
@@ -192,8 +193,8 @@ func (s *Store) reconcileStatsRangeLocked() {
 	if !r.Active() {
 		return
 	}
-	var o Overview
-	if json.Unmarshal(s.stats.Raw, &o) != nil {
+	o := s.stats.parsed.overview
+	if o == nil {
 		return
 	}
 	available := map[string]bool{}
@@ -209,6 +210,6 @@ func (s *Store) reconcileStatsRangeLocked() {
 	if !valid {
 		s.ranking.modelLimit = 0
 		s.stats.Range = DateRange{}
-		s.stats.RangeError = "Date selection cleared: refreshed daily coverage no longer contains the full range."
+		s.stats.RangeError = state.FaultText("Date selection cleared: refreshed daily coverage no longer contains the full range.")
 	}
 }

@@ -71,7 +71,7 @@ func (s *Store) declaredKeyEnv(namespace string) string {
 		return ""
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	ns := s.findNamespaceLocked(namespace)
 	if ns == nil || len(ns.Value) == 0 {
 		return ""

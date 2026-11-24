@@ -7,7 +7,7 @@ import (
 
 func TestCalendarShiftPickShrinksEnd(t *testing.T) {
 	s := New()
-	s.stats.Raw = json.RawMessage(`{"days":[{"date":"2026-10-01"},{"date":"2026-10-02"},{"date":"2026-10-03"}]}`)
+	s.setStatsRaw(json.RawMessage(`{"days":[{"date":"2026-10-01"},{"date":"2026-10-02"},{"date":"2026-10-03"}]}`))
 	s.SelectStatsDay("2026-10-01", false)
 	s.SelectStatsDay("2026-10-03", true)
 	s.SelectStatsDay("2026-10-02", true)

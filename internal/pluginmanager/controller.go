@@ -11,13 +11,17 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"whaleisle/internal/state"
 )
 
 type Controller struct {
 	mu                                                                sync.Mutex
 	client                                                            Caller
 	life                                                              context.Context
-	cancel                                                            context.CancelFunc
+	owners                                                            state.LeaseOwner
+	ownerL                                                            state.Lease
+	pub                                                               state.Published[State]
 	inspectCancel                                                     context.CancelFunc
 	notify                                                            func()
 	state                                                             State
@@ -58,20 +62,21 @@ func initial(owner uint64, connected bool) State {
 func New() *Controller { return &Controller{state: initial(0, false)} }
 func (c *Controller) Attach(call Caller, notify func()) {
 	c.mu.Lock()
-	if c.cancel != nil {
-		c.cancel()
-	}
 	c.inspectCancel = nil
 	if c.discoverTextTimer != nil {
 		c.discoverTextTimer.Stop()
 		c.discoverTextTimer = nil
 	}
 	c.textRead++
-	c.life, c.cancel = context.WithCancel(context.Background())
+	// The owner lease replaces the owner counter and its lifecycle context:
+	// renewing it cancels the retired attachment's work, and State.Owner is
+	// the lease generation the UI hands back with every action.
+	c.ownerL = c.owners.Renew(context.Background())
+	c.life = c.ownerL.Context()
 	c.client = call
 	c.notify = notify
 	preferenceError := c.state.PreferenceError
-	c.state = initial(c.state.Owner+1, call != nil)
+	c.state = initial(c.ownerL.Generation(), call != nil)
 	c.state.PreferenceError = preferenceError
 	c.read++
 	c.listingRead++
@@ -84,7 +89,7 @@ func (c *Controller) Attach(call Caller, notify func()) {
 	c.nativeCancel = nil
 	c.selectAdded = false
 	c.failedDiscover = nil
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 }
 func (c *Controller) Detach()                 { c.mu.Lock(); notify := c.notify; c.mu.Unlock(); c.Attach(nil, notify) }
@@ -97,29 +102,21 @@ func (c *Controller) fire() {
 		fn()
 	}
 }
-func (c *Controller) Snapshot() State {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	raw, _ := json.Marshal(c.state)
-	var copy State
-	_ = json.Unmarshal(raw, &copy)
-	return copy
-}
 func (c *Controller) patch(owner uint64, fn func(*State)) bool {
 	c.mu.Lock()
 	if c.state.Owner != owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return false
 	}
 	fn(&c.state)
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	return true
 }
 func (c *Controller) capture(ctx context.Context) (Client, uint64, context.Context, func(), error) {
 	c.mu.Lock()
 	call, owner, life := c.client, c.state.Owner, c.life
-	c.mu.Unlock()
+	c.unlockPublish()
 	if call == nil {
 		return Client{}, owner, nil, func() {}, errors.New("Plugin manager is disconnected")
 	}
@@ -141,7 +138,7 @@ func (c *Controller) Ensure() {
 		c.state.Status = "loading"
 		c.state.Loading = true
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	if needed {
 		go c.Load(context.Background())
 	}
@@ -149,7 +146,7 @@ func (c *Controller) Ensure() {
 func (c *Controller) Refresh(ctx context.Context) {
 	c.mu.Lock()
 	caller := c.client
-	c.mu.Unlock()
+	c.unlockPublish()
 	if source, ok := caller.(interface{ InvalidateInventory() }); ok {
 		source.InvalidateInventory()
 	}
@@ -168,21 +165,21 @@ func (c *Controller) Load(ctx context.Context) error {
 		c.state.Loading = false
 		c.state.Status = "error"
 		c.state.Error = err.Error()
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return err
 	}
 	defer done()
 	c.mu.Lock()
 	if c.state.Owner != owner {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return context.Canceled
 	}
 	c.read++
 	read := c.read
 	c.state.Loading = true
 	c.state.Error = ""
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	var sourceVersion uint64
 	if source, ok := client.Caller.(interface{ InventoryVersion() uint64 }); ok {
@@ -204,12 +201,12 @@ func (c *Controller) Load(ctx context.Context) error {
 	}
 	c.mu.Lock()
 	if c.state.Owner != owner || c.read != read {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return err
 	}
 	if source, ok := client.Caller.(interface{ InventoryVersion() uint64 }); ok && err == nil && sourceVersion != source.InventoryVersion() {
 		c.state.Loading = false
-		c.mu.Unlock()
+		c.unlockPublish()
 		return c.Load(ctx)
 	}
 	c.state.Loading = false
@@ -233,7 +230,7 @@ func (c *Controller) Load(ctx context.Context) error {
 			}
 		}
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	return err
 }
@@ -377,7 +374,7 @@ func (a Actions) OpenPackage(name string) {
 	})
 }
 func (c *Controller) OpenPackage(name string) {
-	s := c.Snapshot()
+	s := c.Snapshot().Value
 	c.Actions(s.Owner).OpenPackage(name)
 }
 func (a Actions) OpenRow(name, id string) {
@@ -416,7 +413,7 @@ func (a Actions) Back() {
 	})
 }
 func (c *Controller) Leave() {
-	s := c.Snapshot()
+	s := c.Snapshot().Value
 	c.Actions(s.Owner).edit(func(s *State) {
 		c.cancelDiscoverText()
 		s.View = Subject{Kind: "list"}
@@ -440,7 +437,7 @@ func (a Actions) Remove(name string) {
 func (c *Controller) prepare(owner uint64, op action, confirm bool) {
 	c.mu.Lock()
 	if c.state.Owner != owner || !c.state.Connected || c.state.ActionBusy(op.target) || !c.state.ManagementReady() {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	op.owner, op.revision = owner, c.revision
@@ -455,7 +452,7 @@ func (c *Controller) prepare(owner uint64, op action, confirm bool) {
 				valid = valid && p.Removable
 			}
 			if op.kind == "bundle" && p.Availability == "missing" && op.enabled && p.InstallTarget != nil {
-				c.mu.Unlock()
+				c.unlockPublish()
 				c.openCatalogInstall(owner, p, op.enabled)
 				return
 			}
@@ -472,17 +469,17 @@ func (c *Controller) prepare(owner uint64, op action, confirm bool) {
 		}
 	}
 	if !valid {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	if confirm {
 		c.pending = &op
 		c.state.Confirmation = &Confirmation{Kind: op.kind, Target: op.target, Description: "Remove plugin " + op.target + "?"}
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.run(op)
 }
 func (a Actions) CancelConfirmation() {
@@ -494,7 +491,7 @@ func (a Actions) CancelConfirmation() {
 		a.c.pending = nil
 		a.c.state.Confirmation = nil
 	}
-	a.c.mu.Unlock()
+	a.c.unlockPublish()
 	a.c.fire()
 }
 func (a Actions) Confirm() {
@@ -502,24 +499,24 @@ func (a Actions) Confirm() {
 	c.mu.Lock()
 	op := c.pending
 	if c.state.Owner != a.owner || op == nil {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	c.pending = nil
 	c.state.Confirmation = nil
 	if op.owner != a.owner || op.revision != c.revision {
 		c.state.Notice = "The plugin inventory changed. Refresh and review the action again."
-		c.mu.Unlock()
+		c.unlockPublish()
 		c.fire()
 		return
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.run(*op)
 }
 func (c *Controller) run(op action) {
 	c.mu.Lock()
 	if c.state.Owner != op.owner || c.client == nil || op.kind == "install" && (c.state.Busy || c.state.Install.RequestID != op.options.RequestID) || op.kind != "install" && c.state.ActionBusy(op.target) {
-		c.mu.Unlock()
+		c.unlockPublish()
 		return
 	}
 	client, ctx := Client{c.client}, c.life
@@ -554,7 +551,7 @@ func (c *Controller) run(op action) {
 		c.state.Install.Log = ""
 		c.state.Install.Error = ""
 	}
-	c.mu.Unlock()
+	c.unlockPublish()
 	c.fire()
 	go func() {
 		var result Change

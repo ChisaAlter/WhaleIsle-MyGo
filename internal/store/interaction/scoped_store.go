@@ -45,7 +45,7 @@ func (s *ScopedStore) allows(id string) bool {
 		return false
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlockPublish()
 	return s.pendingLocked(id) != nil
 }
 func (s *ScopedStore) resolveScoped(id string, out dsh.EventResultOutcome) {
@@ -55,7 +55,7 @@ func (s *ScopedStore) resolveScoped(id string, out dsh.EventResultOutcome) {
 	s.mu.Lock()
 	p := s.pendingLocked(id)
 	if p == nil || p.Sending || p.Continued || s.waiters[id] == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	waiter := s.waiters[id]
@@ -64,13 +64,13 @@ func (s *ScopedStore) resolveScoped(id string, out dsh.EventResultOutcome) {
 			return false
 		}
 		s.mu.Lock()
-		defer s.mu.Unlock()
+		defer s.unlockPublish()
 		return s.pendingLocked(id) != nil && s.waiters[id] == waiter
 	}}
-	p.Sending, p.Error = true, ""
+	p.Sending, p.Error = true, nil
 	s.responses[id] = out
 	waiter <- out
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func (s *ScopedStore) ResolveAllow(id string) {
@@ -84,7 +84,7 @@ func (s *ScopedStore) ResolveAllow(id string) {
 	s.mu.Lock()
 	p := s.pendingLocked(id)
 	approval := p != nil && p.Event == EventApproval
-	s.mu.Unlock()
+	s.unlockPublish()
 	if approval {
 		s.resolveScoped(id, approvalOutcome(outcomeAllowedOnce))
 	}
@@ -101,7 +101,7 @@ func (s *ScopedStore) ResolveDeny(id string) {
 	s.mu.Lock()
 	p := s.pendingLocked(id)
 	question := p != nil && p.Event == EventUserQuestions
-	s.mu.Unlock()
+	s.unlockPublish()
 	if question {
 		s.resolveScoped(id, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "User declined to answer"}})
 		return
@@ -115,11 +115,11 @@ func (s *ScopedStore) sendAnswer(id string, answer userQuestionsAnswer) {
 	s.mu.Lock()
 	p := s.pendingLocked(id)
 	if p == nil || p.Sending {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	continued, agent, call := p.Continued, p.AgentID, p.CallID
-	s.mu.Unlock()
+	s.unlockPublish()
 	if continued {
 		out := api.AskUserQuestionAnswer{Answers: make([]questionAnswerItem, 0, len(answer.Answers))}
 		for _, item := range answer.Answers {
@@ -144,11 +144,11 @@ func (s *ScopedStore) ResolveQuestions(id string) {
 	s.mu.Lock()
 	ds := s.questionDrafts[id]
 	if ds == nil || planReviewOf(ds.req.Questions) != nil || !ds.answerValid() {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	answer := ds.buildAnswer()
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.sendAnswer(id, answer)
 }
 func (s *ScopedStore) ApprovePlanReview(id string) {
@@ -162,11 +162,11 @@ func (s *ScopedStore) ApprovePlanReview(id string) {
 	s.mu.Lock()
 	p, ds := s.pendingLocked(id), s.questionDrafts[id]
 	if p == nil || p.Event != EventUserQuestions || p.Sending || ds == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	review := planReviewOf(ds.req.Questions)
-	s.mu.Unlock()
+	s.unlockPublish()
 	if review != nil {
 		s.sendAnswer(id, userQuestionsAnswer{Answers: []userQuestionsAnswerItem{{ID: review.ID, Selected: []string{review.Approve.Label}}}})
 	}
@@ -182,17 +182,17 @@ func (s *ScopedStore) DismissPlanReview(id string) {
 	s.mu.Lock()
 	p, ds := s.pendingLocked(id), s.questionDrafts[id]
 	if p == nil || p.Event != EventUserQuestions || p.Sending || ds == nil || planReviewOf(ds.req.Questions) == nil {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	if p.CallID != "" {
 		ds.planReviewHidden = true
 		ds.hidden = true
-		s.mu.Unlock()
+		s.unlockPublish()
 		s.fire()
 		return
 	}
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.resolveScoped(id, dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_CANCELLED", Message: "the user cancelled ask_user_question"}})
 }
 func (s *ScopedStore) Retry(id string) {
@@ -205,14 +205,14 @@ func (s *ScopedStore) Retry(id string) {
 	}
 	s.mu.Lock()
 	p := s.pendingLocked(id)
-	if p == nil || p.Error == "" {
-		s.mu.Unlock()
+	if p == nil || p.Error == nil {
+		s.unlockPublish()
 		return
 	}
 	if p.Event == EventUserQuestions {
 		ds := s.questionDrafts[id]
 		if ds != nil && planReviewOf(ds.req.Questions) == nil {
-			s.mu.Unlock()
+			s.unlockPublish()
 			s.ResolveQuestions(id)
 			return
 		}
@@ -220,7 +220,7 @@ func (s *ScopedStore) Retry(id string) {
 	if p.Continued {
 		ds := s.questionDrafts[id]
 		plan := ds != nil && planReviewOf(ds.req.Questions) != nil
-		s.mu.Unlock()
+		s.unlockPublish()
 		if plan {
 			s.ApprovePlanReview(id)
 		} else {
@@ -229,7 +229,7 @@ func (s *ScopedStore) Retry(id string) {
 		return
 	}
 	out, ok := s.responses[id]
-	s.mu.Unlock()
+	s.unlockPublish()
 	if ok {
 		s.resolveScoped(id, out)
 	}

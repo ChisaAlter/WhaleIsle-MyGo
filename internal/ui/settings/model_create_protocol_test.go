@@ -18,7 +18,7 @@ func providerCreateTester(s *store.Store, fields, models []store.Field) *ui.Test
 	return ui.NewTester(func(c *ui.Context) {
 		ui.Scroll(c).Fill().Padding(20).Children(func() {
 			configurationCreateProvider(c, Model{Store: s, Models: &ModelsAccess{}},
-				s.Snapshot(), map[string]any{}, fields, models, ui.RGB(20, 20, 20), ui.RGB(120, 120, 120))
+				s.Snapshot().Value, map[string]any{}, fields, models, ui.RGB(20, 20, 20), ui.RGB(120, 120, 120))
 		})
 	}, 760, 900)
 }

@@ -18,6 +18,7 @@ var appearanceSchemeIcons = map[string]*ui.SVG{
 type AppearanceAccess struct {
 	Host              *BodySettingsAccess
 	Minimal           *MinimalModeAccess
+	Glass             *GlassThemeAccess
 	Background        *WallpaperEditor
 	Preferences       *theme.Editor
 	Theme             *string
@@ -39,6 +40,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 	bodyHostState(c, a.Host, muted)
 	// Minimal mode leads the page: it pauses the effects the rest of it edits.
 	minimalModePane(c, a.Minimal, fg, muted)
+	glassThemePane(c, a.Glass, fg, muted)
 	scheme := ui.Column(c.Key("appearance-scheme")).FillWidth().MaxWidth(720).MinWidth(0).Gap(12)
 	settingsSearchTarget(c, "appearance-scheme", providerCopy("颜色模式", "Color scheme"), scheme)
 	schemeError := ui.Local(scheme, "error", func() settingsRefusal { return settingsRefusal{} })
@@ -94,7 +96,9 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Text(c, i18n.T(i18n.KeySettingsParityThemeEffectLowPowerGPUAlt)).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
 	}
-	wallpaperBackgroundPane(c, a.Background, fg, muted)
+	if glassThemeOn(a.Glass) {
+		wallpaperBackgroundPane(c, a.Background, fg, muted)
+	}
 	themeTypographyPane(c, a.Preferences, fg, muted)
 	// Advanced: conversation font size (moved from General), the typing effect and the
 	// thinking glow (moved from Interface).

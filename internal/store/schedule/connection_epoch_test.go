@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 type epochRoundTrip func(*http.Request) (*http.Response, error)
@@ -76,10 +77,11 @@ func TestScheduleRepliesCannotCrossReattachedClientEpoch(t *testing.T) {
 			s.Detach()
 			s.Attach(client, nil)
 			s.mu.Lock()
-			s.busy, s.lastAction, s.err = true, "replacement write", errors.New("replacement error")
+			s.busy, s.lastAction, s.err = true, "replacement write", state.FaultOf(errors.New("replacement error"))
 			s.rows = []Entry{{ID: "task", SessionID: "owner", Title: "replacement row"}}
+			s.publishLocked()
 			s.mu.Unlock()
-			before := s.Snapshot()
+			before := s.Snapshot().Value
 			close(release)
 			select {
 			case err := <-done:
@@ -89,7 +91,7 @@ func TestScheduleRepliesCannotCrossReattachedClientEpoch(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatal("old reply did not settle")
 			}
-			if after := s.Snapshot(); !reflect.DeepEqual(before, after) {
+			if after := s.Snapshot().Value; !reflect.DeepEqual(before, after) {
 				t.Fatalf("old reply changed replacement state: before=%+v after=%+v", before, after)
 			}
 		})

@@ -9,7 +9,7 @@ import (
 // The inclusive filter belongs to the heatmap summary, not to export scope.
 func TestStatsDateRangeSelectionExportAndClear(t *testing.T) {
 	s := New()
-	s.stats.Raw = json.RawMessage(`{"days":[{"date":"2026-10-12","total":2,"models":{"a":{"input":2,"total":2}}},{"date":"2026-10-13","total":3,"models":{"b":{"output":3,"total":3}}},{"date":"2026-10-14","total":5,"models":{"a":{"input":5,"total":5}}}],"allTime":{"totals":{"total":100},"byModel":[{"model":"a","provider":"p","total":97},{"model":"b","provider":"q","total":3}]},"topSessions":[{"id":"outside","totals":{"total":100}}],"coverage":{"timezone":"UTC","sessionsFailed":1},"updatedAt":1}`)
+	s.setStatsRaw(json.RawMessage(`{"days":[{"date":"2026-10-12","total":2,"models":{"a":{"input":2,"total":2}}},{"date":"2026-10-13","total":3,"models":{"b":{"output":3,"total":3}}},{"date":"2026-10-14","total":5,"models":{"a":{"input":5,"total":5}}}],"allTime":{"totals":{"total":100},"byModel":[{"model":"a","provider":"p","total":97},{"model":"b","provider":"q","total":3}]},"topSessions":[{"id":"outside","totals":{"total":100}}],"coverage":{"timezone":"UTC","sessionsFailed":1},"updatedAt":1}`))
 	if err := s.SetStatsDateRange("2026-10-13", "2026-10-14"); err != nil {
 		t.Fatal(err)
 	}

@@ -55,10 +55,10 @@ func TestSessionFileReadConflictAndDownload(t *testing.T) {
 	wait := func() {
 		t.Helper()
 		deadline := time.Now().Add(time.Second)
-		for s.Snapshot().Busy && time.Now().Before(deadline) {
+		for s.Snapshot().Value.Busy && time.Now().Before(deadline) {
 			time.Sleep(time.Millisecond)
 		}
-		if s.Snapshot().Busy {
+		if s.Snapshot().Value.Busy {
 			t.Fatal("request did not settle")
 		}
 	}
@@ -69,13 +69,13 @@ func TestSessionFileReadConflictAndDownload(t *testing.T) {
 	s.SetDraft("edited")
 	s.Save()
 	wait()
-	v := s.Snapshot()
-	if writes != 1 || v.Draft != "edited" || !v.Stale || v.Error == "" {
+	v := s.Snapshot().Value
+	if writes != 1 || v.Draft != "edited" || !v.Stale || v.Error == nil {
 		t.Fatal(v)
 	}
 	s.Open("/work/a.txt")
 	wait()
-	if s.Snapshot().Draft != "edited" {
+	if s.Snapshot().Value.Draft != "edited" {
 		t.Fatal("reload discarded dirty draft")
 	}
 	s.Discard()
@@ -85,17 +85,17 @@ func TestSessionFileReadConflictAndDownload(t *testing.T) {
 	s.SetDraft("saved")
 	s.Save()
 	wait()
-	if s.Snapshot().Dirty() || s.Snapshot().Stale {
-		t.Fatal(s.Snapshot())
+	if s.Snapshot().Value.Dirty() || s.Snapshot().Value.Stale {
+		t.Fatal(s.Snapshot().Value)
 	}
 	s.Download()
 	wait()
-	if s.Snapshot().Downloaded != "/mirror/a.txt" {
-		t.Fatal(s.Snapshot())
+	if s.Snapshot().Value.Downloaded != "/mirror/a.txt" {
+		t.Fatal(s.Snapshot().Value)
 	}
 	s.SetDraft("keep me")
 	s.Bind(nil, "", nil)
-	if s.Snapshot().SessionID != "" {
+	if s.Snapshot().Value.SessionID != "" {
 		t.Fatal("leaked prior session")
 	}
 }

@@ -158,7 +158,7 @@ func scheduleHeader(c *ui.Context, m Model, sessionSnap session.ViewState, color
 		return
 	}
 	m.ScheduleStore.EnsureContext(context.Background(), sessionSnap.SelectedID, nil)
-	scheduleHeaderView(c, m, m.ScheduleStore.Snapshot(), sessionSnap.SelectedID, colors)
+	scheduleHeaderView(c, m, m.ScheduleStore.Snapshot().Value, sessionSnap.SelectedID, colors)
 }
 
 func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessionID string, colors theme.Colors) {
@@ -176,7 +176,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 	root := ui.Row(c.Key("schedule-header:" + snap.Origin + ":" + sessionID)).Shrink(0)
 	state := ui.Local(root, "schedule-menu", func() *scheduleHeaderState { return &scheduleHeaderState{} })
 	local := *state
-	if len(rows) == 0 && snap.Err == "" {
+	if len(rows) == 0 && snap.Err == nil {
 		root.Size(0, 0)
 		return
 	}
@@ -189,7 +189,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 			label = fmt.Sprintf(archiveText("%d 个定时任务", "%d scheduled tasks"), len(rows))
 		}
 		anchor := ui.Button(c.Key("conversation-schedule"), "").Label(label).Tooltip(label).Size(28, 28).Padding(6).Radius(14).BorderWidth(0).Background(ui.Transparent)
-		if snap.Err != "" {
+		if snap.Err != nil {
 			anchor.Tooltip(archiveText("定时任务读取失败", "Scheduled tasks could not be read"))
 		}
 		anchor.Children(func() {
@@ -198,12 +198,12 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 			} else {
 				ui.Icon(c, conversationHeaderIcons["ClockOutline"]).Size(16, 16).TextColor(muted)
 			}
-			if snap.Err != "" && !snap.Loading {
+			if snap.Err != nil && !snap.Loading {
 				ui.Box(c).Label("Scheduled tasks failed").Size(6, 6).Radius(3).Absolute().Top(3).Right(3).Background(chrome.Color(colors.Danger))
 			}
 		})
 		if anchor.Clicked() {
-			if len(rows) == 1 && !snap.Loading && snap.Err == "" && !local.open {
+			if len(rows) == 1 && !snap.Loading && snap.Err == nil && !local.open {
 				if m.OnOpenScheduleTask != nil {
 					m.OnOpenScheduleTask(rows[0])
 				}
@@ -218,12 +218,12 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 			panel.Children(func() {
 				ui.Scroll(c.Key("schedule-header-list")).Label("Scheduled tasks list").FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), min(float32(414), h-146))).Children(func() {
 					ui.Column(c).FillWidth().MinWidth(0).Gap(1).Children(func() {
-						if snap.Err != "" {
+						if snap.Err != nil {
 							ui.Box(c).FillWidth().MinWidth(0).Padding(6).Children(func() {
 								widgets.Alert(c, widgets.AlertOptions{
 									ID:      "schedule-catalog",
 									Message: archiveText("没能读取这个对话的定时任务，请重试。", "This conversation's scheduled tasks could not be read. Try again."),
-									Detail:  snap.Err,
+									Detail:  snap.Err.SentenceText(),
 									Action:  archiveText("重试", "Retry schedules"),
 									OnAction: func() {
 										if m.ScheduleStore != nil {
@@ -254,7 +254,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 									local.open = false
 									m.OnOpenScheduleTask(row)
 								}
-								remove := ui.Button(c, "").Label("Delete scheduled task: "+row.Title).Tooltip(archiveText("删除任务", "Delete task")).Size(24, 24).Padding(5).BorderWidth(0).Background(ui.Transparent).Disabled(snap.Busy || snap.Loading || snap.Err != "" || m.ScheduleStore == nil)
+								remove := ui.Button(c, "").Label("Delete scheduled task: "+row.Title).Tooltip(archiveText("删除任务", "Delete task")).Size(24, 24).Padding(5).BorderWidth(0).Background(ui.Transparent).Disabled(snap.Busy || snap.Loading || snap.Err != nil || m.ScheduleStore == nil)
 								remove.Children(func() { ui.Icon(c, jobIcons["trash"]).Size(14, 14).TextColor(muted) })
 								if remove.Clicked() {
 									services := c.Services()

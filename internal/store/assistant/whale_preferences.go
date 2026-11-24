@@ -1,30 +1,38 @@
 package assistant
 
 import (
+	"context"
 	"fmt"
 	"sync"
+
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/dsh/api"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
 type WhalePreferencesSnapshot struct {
-	Host                       string
-	Loaded, Busy               bool
-	Server                     pluginrpc.WhalePreferences
-	Route                      pluginrpc.WhaleModelRoute
-	IMDefault                  bool
-	Catalog                    api.ModelCatalog
-	ModelsError, Error, Notice string
+	Host         string
+	Loaded, Busy bool
+	Server       pluginrpc.WhalePreferences
+	Route        pluginrpc.WhaleModelRoute
+	IMDefault    bool
+	Catalog      api.ModelCatalog
+	ModelsError  *state.Fault
+	Error        *state.Fault
+	Notice       string
 }
 type WhalePreferencesEditor struct {
-	mu         sync.Mutex
-	state      WhalePreferencesSnapshot
-	generation uint64
+	mu    sync.Mutex
+	state WhalePreferencesSnapshot
+	op    state.LeaseOwner
+	opL   state.Lease
+	pub   state.Published[WhalePreferencesSnapshot]
 }
 type WhalePreferencesTicket struct {
 	Host       string
 	Generation uint64
+	lease      state.Lease
 }
 type WhalePreferencesCommand struct {
 	Action, Skill string
@@ -33,31 +41,43 @@ type WhalePreferencesCommand struct {
 	IMDefault     bool
 }
 
+func (s *WhalePreferencesEditor) publishLocked() {
+	v := s.state
+	v.Server.Skills = append([]pluginrpc.WhaleSkill(nil), v.Server.Skills...)
+	s.pub.Publish(v)
+}
+
 func (s *WhalePreferencesEditor) Bind(host string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.state.Host == host {
 		return
 	}
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	s.state = WhalePreferencesSnapshot{Host: host}
+	s.publishLocked()
 }
 func (s *WhalePreferencesEditor) Suspend() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	if s.state.Busy {
 		s.state.Loaded = false
 		s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantInterruptedRefresh)
 	}
 	s.state.Busy = false
+	s.publishLocked()
 }
-func (s *WhalePreferencesEditor) Snapshot() WhalePreferencesSnapshot {
+func (s *WhalePreferencesEditor) Snapshot() *state.Version[WhalePreferencesSnapshot] {
+	if v := s.pub.Load(); v != nil {
+		return v
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	v := s.state
-	v.Server.Skills = append([]pluginrpc.WhaleSkill(nil), v.Server.Skills...)
-	return v
+	if s.pub.Load() == nil {
+		s.pub.Publish(s.state)
+	}
+	return s.pub.Load()
 }
 func (s *WhalePreferencesEditor) Edit(host string, route pluginrpc.WhaleModelRoute, im bool) {
 	s.mu.Lock()
@@ -68,6 +88,7 @@ func (s *WhalePreferencesEditor) Edit(host string, route pluginrpc.WhaleModelRou
 	s.state.Route = route
 	s.state.IMDefault = im
 	s.state.Notice = ""
+	s.publishLocked()
 }
 func (s *WhalePreferencesEditor) Begin(host string, write bool) (WhalePreferencesTicket, bool) {
 	s.mu.Lock()
@@ -75,11 +96,12 @@ func (s *WhalePreferencesEditor) Begin(host string, write bool) (WhalePreference
 	if host == "" || host != s.state.Host || s.state.Busy || (write && !s.state.Loaded) {
 		return WhalePreferencesTicket{}, false
 	}
-	s.generation++
+	s.opL = s.op.Renew(context.Background())
 	s.state.Busy = true
-	s.state.Error = ""
+	s.state.Error = nil
 	s.state.Notice = ""
-	return WhalePreferencesTicket{host, s.generation}, true
+	s.publishLocked()
+	return WhalePreferencesTicket{host, s.opL.Generation(), s.opL}, true
 }
 func (s *WhalePreferencesEditor) Current(t WhalePreferencesTicket) bool {
 	s.mu.Lock()
@@ -87,9 +109,9 @@ func (s *WhalePreferencesEditor) Current(t WhalePreferencesTicket) bool {
 	return s.current(t)
 }
 func (s *WhalePreferencesEditor) current(t WhalePreferencesTicket) bool {
-	return t.Host == s.state.Host && t.Generation == s.generation && s.state.Busy
+	return t.Host == s.state.Host && t.lease == s.opL && s.opL.Valid() && s.state.Busy
 }
-func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.WhalePreferences, cat *api.ModelCatalog, modelErr string, cmd *WhalePreferencesCommand, err error) {
+func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.WhalePreferences, cat *api.ModelCatalog, modelErr *state.Fault, cmd *WhalePreferencesCommand, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.current(t) {
@@ -97,11 +119,12 @@ func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.Wh
 	}
 	s.state.Busy = false
 	if err != nil {
-		s.state.Error = err.Error()
+		s.state.Error = state.FaultOf(err)
 		s.state.Loaded = false
 		if cmd != nil {
 			s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantSaveNotVerifiedRefreshToCompare)
 		}
+		s.publishLocked()
 		return
 	}
 	old := s.state.Server
@@ -146,9 +169,11 @@ func (s *WhalePreferencesEditor) Finish(t WhalePreferencesTicket, v pluginrpc.Wh
 			}
 		}
 		if !matches {
-			s.state.Error = fmt.Sprintf(storelocale.T(storelocale.KeyStoreAssistantReadbackDiffers), cmd.Action)
+			s.state.Error = state.FaultText(fmt.Sprintf(storelocale.T(storelocale.KeyStoreAssistantReadbackDiffers), cmd.Action))
+			s.publishLocked()
 			return
 		}
 		s.state.Notice = storelocale.T(storelocale.KeyStoreAssistantSavedAndReadBack)
 	}
+	s.publishLocked()
 }

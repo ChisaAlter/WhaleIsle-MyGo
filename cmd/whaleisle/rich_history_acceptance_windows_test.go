@@ -151,7 +151,7 @@ func nativeRichHistory() error {
 			state.mu.Unlock()
 			livePending := 0
 			if interactions != nil {
-				for _, pending := range interactions.Snapshot().Pending {
+				for _, pending := range interactions.Snapshot().Value.Pending {
 					if !pending.Continued {
 						livePending++
 					}

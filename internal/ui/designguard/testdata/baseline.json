@@ -1,0 +1,1958 @@
+{
+  "agents/ancestors.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "agents/catalog_metrics.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "agents/child_file_drop.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "agents/manager.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "agents/navigation.go": {
+    "colors": 3,
+    "metrics": 36
+  },
+  "agents/panel.go": {
+    "colors": 6,
+    "metrics": 39
+  },
+  "assistant/bot_avatar.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "assistant/bot_avatar_image.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "assistant/bot_avatar_preview.go": {
+    "colors": 12,
+    "metrics": 0
+  },
+  "assistant/bot_capabilities.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "assistant/bot_create.go": {
+    "colors": 0,
+    "metrics": 29
+  },
+  "assistant/bot_delete.go": {
+    "colors": 0,
+    "metrics": 18
+  },
+  "assistant/bot_duplicate.go": {
+    "colors": 0,
+    "metrics": 26
+  },
+  "assistant/bot_memory.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "assistant/bot_memory_review.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "assistant/bot_notify.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "assistant/bot_objective.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "assistant/bot_objective_config.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "assistant/bot_route.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "assistant/bot_sender_policy.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "assistant/bot_text_profile.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "assistant/bot_visibility.go": {
+    "colors": 0,
+    "metrics": 19
+  },
+  "assistant/contacts.go": {
+    "colors": 0,
+    "metrics": 81
+  },
+  "assistant/panel.go": {
+    "colors": 0,
+    "metrics": 81
+  },
+  "assistant/proactive.go": {
+    "colors": 0,
+    "metrics": 17
+  },
+  "assistant/proactive_delivery.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "assistant/proactive_sources.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "assistant/room_create.go": {
+    "colors": 0,
+    "metrics": 26
+  },
+  "assistant/room_edit.go": {
+    "colors": 0,
+    "metrics": 23
+  },
+  "assistant/room_runtime.go": {
+    "colors": 0,
+    "metrics": 12
+  },
+  "assistant/routine_advanced.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "assistant/routine_create.go": {
+    "colors": 0,
+    "metrics": 44
+  },
+  "assistant/routine_trigger.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "assistant/routines.go": {
+    "colors": 0,
+    "metrics": 37
+  },
+  "assistant/tasks.go": {
+    "colors": 0,
+    "metrics": 30
+  },
+  "assistant/whale_preferences.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "assistant/whale_settings.go": {
+    "colors": 0,
+    "metrics": 44
+  },
+  "assistant/whale_settings_section.go": {
+    "colors": 1,
+    "metrics": 33
+  },
+  "assistant/whale_tasks.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "boot/backdrop.go": {
+    "colors": 46,
+    "metrics": 0
+  },
+  "boot/boot.go": {
+    "colors": 2,
+    "metrics": 25
+  },
+  "boot/brand.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "boot/ticker.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "browserpreview/actions.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "browserpreview/browser_chrome.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "browserpreview/external_button.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "browserpreview/floating_document.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "browserpreview/local_servers.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "browserpreview/mini_player.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "browserpreview/panel.go": {
+    "colors": 2,
+    "metrics": 24
+  },
+  "browserpreview/picture_in_picture.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "browserpreview/tools.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "browserpreview/tools_menu.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/ask_question_card.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "chat/attachments.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "chat/chat.go": {
+    "colors": 2,
+    "metrics": 13
+  },
+  "chat/child_image_gallery.go": {
+    "colors": 1,
+    "metrics": 3
+  },
+  "chat/child_workbook.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/citations.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "chat/command.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/compaction.go": {
+    "colors": 3,
+    "metrics": 7
+  },
+  "chat/connbanner.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "chat/context_body.go": {
+    "colors": 0,
+    "metrics": 26
+  },
+  "chat/context_disclosure.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "chat/deliverables.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "chat/failure_notice.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/feedback_dialog.go": {
+    "colors": 7,
+    "metrics": 24
+  },
+  "chat/feedback_editor.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/goal_dock.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "chat/group_threads.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "chat/history_navigation.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "chat/image.go": {
+    "colors": 5,
+    "metrics": 15
+  },
+  "chat/manual_compaction.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "chat/message_actions.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/openui.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/pending_submission.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "chat/performance_usage.go": {
+    "colors": 0,
+    "metrics": 24
+  },
+  "chat/planboard.go": {
+    "colors": 6,
+    "metrics": 55
+  },
+  "chat/question_reply.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "chat/queue_attachments.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "chat/queue_dock.go": {
+    "colors": 0,
+    "metrics": 23
+  },
+  "chat/read_only_history.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/retry_status.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "chat/schedule_context.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/terminal.go": {
+    "colors": 7,
+    "metrics": 29
+  },
+  "chat/terminal_badge.go": {
+    "colors": 2,
+    "metrics": 8
+  },
+  "chat/thinking.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/todopanel.go": {
+    "colors": 10,
+    "metrics": 13
+  },
+  "chat/tool_blocks.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "chat/tool_code.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "chat/tool_details.go": {
+    "colors": 2,
+    "metrics": 33
+  },
+  "chat/tool_details_badge.go": {
+    "colors": 1,
+    "metrics": 2
+  },
+  "chat/tool_details_entries.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "chat/tool_diff.go": {
+    "colors": 7,
+    "metrics": 3
+  },
+  "chat/tool_files.go": {
+    "colors": 2,
+    "metrics": 1
+  },
+  "chat/tool_header_summary.go": {
+    "colors": 3,
+    "metrics": 4
+  },
+  "chat/tool_image_card.go": {
+    "colors": 2,
+    "metrics": 14
+  },
+  "chat/tool_io.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "chat/tool_lifecycle.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "chat/tool_read.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "chat/tool_row_chrome.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "chat/tool_search.go": {
+    "colors": 2,
+    "metrics": 6
+  },
+  "chat/tool_seat.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/tool_web.go": {
+    "colors": 2,
+    "metrics": 3
+  },
+  "chat/toolcard.go": {
+    "colors": 3,
+    "metrics": 3
+  },
+  "chat/toolrow.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "chat/trajectory.go": {
+    "colors": 1,
+    "metrics": 36
+  },
+  "chat/trajectory_icons.go": {
+    "colors": 9,
+    "metrics": 0
+  },
+  "chat/trajectory_json.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/trajectory_native.go": {
+    "colors": 2,
+    "metrics": 6
+  },
+  "chat/trajectory_record_view.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "chat/trajectory_request_header.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "chat/trajectory_requests.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "chat/trajectory_timing.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/transcript_list.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "chat/transcript_preferences.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "chat/turn_deliverables.go": {
+    "colors": 26,
+    "metrics": 34
+  },
+  "chat/turn_rail.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "chat/turn_trigger.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "chat/usage_label.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "chat/user_content.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/user_message.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "chat/user_references.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "chat/visual_reply.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "chat/whale_ui_panel.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "chat/workflow.go": {
+    "colors": 0,
+    "metrics": 18
+  },
+  "chrome/background.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "chrome/brand.go": {
+    "colors": 11,
+    "metrics": 0
+  },
+  "chrome/closing.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "chrome/contrast.go": {
+    "colors": 4,
+    "metrics": 0
+  },
+  "chrome/cursor.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "chrome/desktop_glass.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "chrome/dialog_decor.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "chrome/dialog_surface.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "chrome/frame_ring.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "chrome/gitcommit.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "chrome/glass.go": {
+    "colors": 13,
+    "metrics": 3
+  },
+  "chrome/gradient_sampler.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "chrome/gradient_source.go": {
+    "colors": 15,
+    "metrics": 0
+  },
+  "chrome/motion.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "chrome/prpanel.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "chrome/titlebar.go": {
+    "colors": 4,
+    "metrics": 5
+  },
+  "chrome/updateprogress.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "chrome/wallpaper_screen.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "chrome/workspace_git_labels.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "chrome/workspace_trailing.go": {
+    "colors": 0,
+    "metrics": 18
+  },
+  "composer/attachment_display.go": {
+    "colors": 5,
+    "metrics": 14
+  },
+  "composer/beam.go": {
+    "colors": 43,
+    "metrics": 0
+  },
+  "composer/beam_raster.go": {
+    "colors": 6,
+    "metrics": 0
+  },
+  "composer/child_attachment.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "composer/child_editor.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "composer/child_toolbar.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "composer/chip.go": {
+    "colors": 1,
+    "metrics": 8
+  },
+  "composer/composer.go": {
+    "colors": 3,
+    "metrics": 96
+  },
+  "composer/context_meter.go": {
+    "colors": 1,
+    "metrics": 10
+  },
+  "composer/draft_inline.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "composer/file_intake.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "composer/leading_claim.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "composer/model_label_contribution.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "composer/model_picker.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "composer/model_picker_grouped.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "composer/native_commands.go": {
+    "colors": 0,
+    "metrics": 25
+  },
+  "composer/next_prompt.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "composer/permission_command.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "composer/permission_picker.go": {
+    "colors": 1,
+    "metrics": 8
+  },
+  "composer/plan_mode_control.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "composer/preset_introduction.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "composer/preset_picker.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "composer/reference_navigation.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "composer/select.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "composer/settings_preview.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "composer/tool_actions.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "composer/typing_effects.go": {
+    "colors": 18,
+    "metrics": 0
+  },
+  "composer/voice_setup.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "custompanel/panel.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "diffsurface/branches.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "diffsurface/caption_actions.go": {
+    "colors": 0,
+    "metrics": 13
+  },
+  "diffsurface/caption_review.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "diffsurface/commit_dialog.go": {
+    "colors": 2,
+    "metrics": 15
+  },
+  "diffsurface/commit_selection.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "diffsurface/comparison.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "diffsurface/diffsurface.go": {
+    "colors": 2,
+    "metrics": 17
+  },
+  "diffsurface/discard.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "diffsurface/git_progress.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "diffsurface/patch_rows.go": {
+    "colors": 2,
+    "metrics": 14
+  },
+  "diffsurface/patch_view.go": {
+    "colors": 3,
+    "metrics": 36
+  },
+  "diffsurface/pr_generation.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "diffsurface/repository_actions.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "diffsurface/workbench.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "dirpick/panel.go": {
+    "colors": 0,
+    "metrics": 45
+  },
+  "files/explorer.go": {
+    "colors": 0,
+    "metrics": 12
+  },
+  "files/files.go": {
+    "colors": 0,
+    "metrics": 95
+  },
+  "files/find.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "files/floating.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "files/image_view.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "files/markdown_metadata.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "files/media.go": {
+    "colors": 0,
+    "metrics": 16
+  },
+  "files/plan_resource.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "files/preview_toolbar.go": {
+    "colors": 0,
+    "metrics": 16
+  },
+  "files/preview_virtualized.go": {
+    "colors": 2,
+    "metrics": 2
+  },
+  "files/resource_observer.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "files/source_actions.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "files/table_grid.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "files/table_paint.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "files/table_view.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "files/tabs.go": {
+    "colors": 1,
+    "metrics": 15
+  },
+  "files/text_pages.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "files/tree_actions.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/archive_confirmation.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/caption_buttons.go": {
+    "colors": 2,
+    "metrics": 1
+  },
+  "frame/changes_review.go": {
+    "colors": 2,
+    "metrics": 4
+  },
+  "frame/changes_review_icons.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "frame/columns_view.go": {
+    "colors": 2,
+    "metrics": 2
+  },
+  "frame/conversation_blank_header.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "frame/conversation_file_drop.go": {
+    "colors": 2,
+    "metrics": 1
+  },
+  "frame/conversation_header.go": {
+    "colors": 1,
+    "metrics": 26
+  },
+  "frame/conversation_open_in_app.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "frame/conversation_phase.go": {
+    "colors": 0,
+    "metrics": 28
+  },
+  "frame/conversation_team.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "frame/cordis_panel.go": {
+    "colors": 0,
+    "metrics": 33
+  },
+  "frame/frame.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "frame/jobs.go": {
+    "colors": 1,
+    "metrics": 55
+  },
+  "frame/permission_risk.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/project_header_directory.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/project_observer.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "frame/session_ancestry.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "frame/session_inspector_controls.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "frame/session_inspector_details.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "frame/session_inspector_pane.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "frame/session_inspector_table.go": {
+    "colors": 0,
+    "metrics": 19
+  },
+  "frame/session_inspector_tree.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/session_inspector_typed_tree.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "frame/sidebar_columns.go": {
+    "colors": 2,
+    "metrics": 1
+  },
+  "frame/workflow_member.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "frame/workspace_agent_jobs.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "frame/workspace_authorized_file.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "frame/workspace_caption.go": {
+    "colors": 1,
+    "metrics": 5
+  },
+  "frame/workspace_close_save.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "frame/workspace_dock_drop.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/workspace_dock_tabs.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "frame/workspace_float.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/workspace_float_drop.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "frame/workspace_ordinary_team.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/workspace_project_team.go": {
+    "colors": 1,
+    "metrics": 16
+  },
+  "frame/workspace_resource_guide.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "frame/workspace_subagent_chat.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "frame/workspace_subagent_conversation.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "im/channel_bot.go": {
+    "colors": 1,
+    "metrics": 6
+  },
+  "im/channel_rail_logo.go": {
+    "colors": 8,
+    "metrics": 1
+  },
+  "im/channel_setup.go": {
+    "colors": 0,
+    "metrics": 20
+  },
+  "im/im.go": {
+    "colors": 0,
+    "metrics": 31
+  },
+  "im/office.go": {
+    "colors": 0,
+    "metrics": 31
+  },
+  "im/onboarding.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "im/settings.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "im/workspace_picker.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "interaction/approval_context.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "interaction/card.go": {
+    "colors": 2,
+    "metrics": 20
+  },
+  "interaction/card_chrome.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "interaction/plan_review.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "interaction/question_editing.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "interaction/question_history.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "interaction/question_navigation.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "interaction/question_options.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "interaction/question_wait.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "launcher/bridge_alerts.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "launcher/host_bundle.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "launcher/import_groups.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "launcher/maintenance.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "launcher/native_releases.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "launcher/panel.go": {
+    "colors": 48,
+    "metrics": 99
+  },
+  "launcher/startup_diagnostics.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "launcher/update_center.go": {
+    "colors": 0,
+    "metrics": 12
+  },
+  "market/gallery.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "market/management.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "market/market.go": {
+    "colors": 1,
+    "metrics": 50
+  },
+  "market/presentation.go": {
+    "colors": 0,
+    "metrics": 73
+  },
+  "market/readme.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "market/readme_images.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "market/readme_svg.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "planpreview/view.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "pluginmanager/artwork.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "pluginmanager/dialogs.go": {
+    "colors": 0,
+    "metrics": 27
+  },
+  "pluginmanager/install_footer.go": {
+    "colors": 4,
+    "metrics": 3
+  },
+  "pluginmanager/install_registry.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "pluginmanager/install_terminal.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "pluginmanager/view.go": {
+    "colors": 0,
+    "metrics": 58
+  },
+  "projects/activity.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "projects/assets.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "projects/conversation.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "projects/deliveries.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "projects/detail.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "projects/documents.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "projects/filter.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "projects/hero.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "projects/historical_process.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "projects/history.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "projects/lifecycle.go": {
+    "colors": 2,
+    "metrics": 14
+  },
+  "projects/material_collection.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "projects/materials.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "projects/modal.go": {
+    "colors": 1,
+    "metrics": 26
+  },
+  "projects/observer.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "projects/ordinary_team.go": {
+    "colors": 0,
+    "metrics": 32
+  },
+  "projects/process_records.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "projects/request_changes.go": {
+    "colors": 16,
+    "metrics": 20
+  },
+  "projects/request_diff_presentation.go": {
+    "colors": 9,
+    "metrics": 10
+  },
+  "projects/requests.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "projects/sidebar.go": {
+    "colors": 1,
+    "metrics": 23
+  },
+  "projects/task_cards.go": {
+    "colors": 0,
+    "metrics": 31
+  },
+  "projects/team.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "projects/team_action.go": {
+    "colors": 0,
+    "metrics": 33
+  },
+  "projects/visual_results.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "remote/directory.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "remote/directory_picker.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "remote/file_actions.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "remote/file_workspace.go": {
+    "colors": 0,
+    "metrics": 13
+  },
+  "remote/files.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "remote/machines.go": {
+    "colors": 3,
+    "metrics": 19
+  },
+  "remote/phone.go": {
+    "colors": 0,
+    "metrics": 18
+  },
+  "remote/phone_devices.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "remote/phone_git_workspaces.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "remote/phone_popup.go": {
+    "colors": 0,
+    "metrics": 12
+  },
+  "remote/remote.go": {
+    "colors": 0,
+    "metrics": 32
+  },
+  "remote/settings_body.go": {
+    "colors": 0,
+    "metrics": 25
+  },
+  "remote/tools.go": {
+    "colors": 0,
+    "metrics": 21
+  },
+  "schedule/choices.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "schedule/clock_picker.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "schedule/date_picker.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "schedule/delivery_history.go": {
+    "colors": 0,
+    "metrics": 29
+  },
+  "schedule/feedback.go": {
+    "colors": 1,
+    "metrics": 6
+  },
+  "schedule/presentation.go": {
+    "colors": 0,
+    "metrics": 51
+  },
+  "schedule/rule_rows.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "schedule/schedule.go": {
+    "colors": 0,
+    "metrics": 50
+  },
+  "schedule/timing_picker.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "schedule/zone_picker.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "sessioncost/view.go": {
+    "colors": 1,
+    "metrics": 12
+  },
+  "settings/about.go": {
+    "colors": 3,
+    "metrics": 29
+  },
+  "settings/account.go": {
+    "colors": 1,
+    "metrics": 18
+  },
+  "settings/account_signin.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "settings/account_signout.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "settings/acp.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "settings/acp_login.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/add_provider_editor.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "settings/agent_preset_guide.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "settings/agent_preset_reader.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "settings/agent_presets.go": {
+    "colors": 1,
+    "metrics": 20
+  },
+  "settings/api_key_input.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/appearance.go": {
+    "colors": 1,
+    "metrics": 6
+  },
+  "settings/appearance_controls.go": {
+    "colors": 1,
+    "metrics": 12
+  },
+  "settings/background_effects.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "settings/body_helpers.go": {
+    "colors": 0,
+    "metrics": 17
+  },
+  "settings/body_icons.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "settings/body_preferences.go": {
+    "colors": 0,
+    "metrics": 24
+  },
+  "settings/catalog_pass4b.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "settings/confirm.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "settings/creator_task.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "settings/credentials.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "settings/custom_instructions.go": {
+    "colors": 1,
+    "metrics": 7
+  },
+  "settings/data_location.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "settings/deepseek_tools.go": {
+    "colors": 0,
+    "metrics": 21
+  },
+  "settings/desktop.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "settings/effect_preferences.go": {
+    "colors": 63,
+    "metrics": 19
+  },
+  "settings/features.go": {
+    "colors": 1,
+    "metrics": 6
+  },
+  "settings/harness_restart.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "settings/mcp.go": {
+    "colors": 1,
+    "metrics": 32
+  },
+  "settings/mcp_catalog.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "settings/mcp_form.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/mcp_import.go": {
+    "colors": 0,
+    "metrics": 13
+  },
+  "settings/minimal_mode.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "settings/modal.go": {
+    "colors": 5,
+    "metrics": 1
+  },
+  "settings/model_base_url.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/model_body.go": {
+    "colors": 1,
+    "metrics": 10
+  },
+  "settings/model_cards.go": {
+    "colors": 1,
+    "metrics": 14
+  },
+  "settings/model_catalog.go": {
+    "colors": 0,
+    "metrics": 21
+  },
+  "settings/model_configuration.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "settings/model_controls.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "settings/model_create.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/model_discovery.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "settings/model_providers.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/models.go": {
+    "colors": 0,
+    "metrics": 12
+  },
+  "settings/navigation.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "settings/notice.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/onboarding.go": {
+    "colors": 0,
+    "metrics": 15
+  },
+  "settings/permission_defaults.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/pet.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "settings/pet_tabs.go": {
+    "colors": 0,
+    "metrics": 9
+  },
+  "settings/pet_whale.go": {
+    "colors": 1,
+    "metrics": 16
+  },
+  "settings/plugin_body.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "settings/plugin_inventory.go": {
+    "colors": 0,
+    "metrics": 36
+  },
+  "settings/plugin_tabs.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "settings/plugins.go": {
+    "colors": 4,
+    "metrics": 30
+  },
+  "settings/pointer_effects.go": {
+    "colors": 6,
+    "metrics": 0
+  },
+  "settings/preference_row.go": {
+    "colors": 2,
+    "metrics": 10
+  },
+  "settings/provider_credential_field.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "settings/provider_discovery.go": {
+    "colors": 0,
+    "metrics": 20
+  },
+  "settings/provider_profiles.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "settings/provider_specific_configuration.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "settings/referenced_credentials.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "settings/remote.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/search.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/search_target.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/served_plugin_body.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "settings/settings.go": {
+    "colors": 4,
+    "metrics": 46
+  },
+  "settings/settings_switch.go": {
+    "colors": 2,
+    "metrics": 1
+  },
+  "settings/shortcut_recording.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "settings/shortcuts.go": {
+    "colors": 0,
+    "metrics": 48
+  },
+  "settings/skill_create.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "settings/skill_groups.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "settings/skill_hub.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "settings/skills.go": {
+    "colors": 1,
+    "metrics": 51
+  },
+  "settings/theme_font_preferences.go": {
+    "colors": 5,
+    "metrics": 39
+  },
+  "settings/toggle.go": {
+    "colors": 3,
+    "metrics": 10
+  },
+  "settings/vision.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/voice_input.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "settings/voice_preparation.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "settings/wallpaper_background.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "settings/wallpaper_immediate.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "settings/wallpaper_modals.go": {
+    "colors": 0,
+    "metrics": 31
+  },
+  "sidebar/account.go": {
+    "colors": 0,
+    "metrics": 11
+  },
+  "sidebar/archive_section.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "sidebar/archive_undo.go": {
+    "colors": 0,
+    "metrics": 5
+  },
+  "sidebar/batch.go": {
+    "colors": 0,
+    "metrics": 13
+  },
+  "sidebar/batch_dialog.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "sidebar/connection_trigger.go": {
+    "colors": 7,
+    "metrics": 8
+  },
+  "sidebar/group_presence.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "sidebar/rail.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "sidebar/schedule_facts.go": {
+    "colors": 1,
+    "metrics": 3
+  },
+  "sidebar/session_dialogs.go": {
+    "colors": 2,
+    "metrics": 18
+  },
+  "sidebar/session_hover.go": {
+    "colors": 10,
+    "metrics": 10
+  },
+  "sidebar/session_menu.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "sidebar/session_metadata.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "sidebar/session_rename.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "sidebar/session_search.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "sidebar/sidebar.go": {
+    "colors": 2,
+    "metrics": 50
+  },
+  "sidebar/title_crawl.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "sidebar/workspace_empty.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "sidebar/workspace_groups.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "sidebar/workspace_heading.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "sidebar/workspace_hover.go": {
+    "colors": 9,
+    "metrics": 6
+  },
+  "sidebar/workspace_view_options.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "terminal/appearance.go": {
+    "colors": 20,
+    "metrics": 0
+  },
+  "terminal/host_rename.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "terminal/host_selection_view.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "terminal/host_surface.go": {
+    "colors": 0,
+    "metrics": 10
+  },
+  "terminal/pane_close.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "terminal/panel.go": {
+    "colors": 0,
+    "metrics": 25
+  },
+  "terminal/workspace_chrome.go": {
+    "colors": 1,
+    "metrics": 8
+  },
+  "theme/builtin_official.go": {
+    "colors": 316,
+    "metrics": 0
+  },
+  "theme/color.go": {
+    "colors": 7,
+    "metrics": 0
+  },
+  "theme/family_palette.go": {
+    "colors": 3,
+    "metrics": 0
+  },
+  "theme/palette_reveal.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "theme/preferences.go": {
+    "colors": 44,
+    "metrics": 0
+  },
+  "theme/scrollbar.go": {
+    "colors": 6,
+    "metrics": 0
+  },
+  "theme/skin_layout.go": {
+    "colors": 4,
+    "metrics": 0
+  },
+  "theme/theme.go": {
+    "colors": 62,
+    "metrics": 0
+  },
+  "usage/billing_models.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "usage/embedded.go": {
+    "colors": 0,
+    "metrics": 12
+  },
+  "usage/presentation.go": {
+    "colors": 7,
+    "metrics": 6
+  },
+  "usage/pricing.go": {
+    "colors": 1,
+    "metrics": 12
+  },
+  "usage/projects.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "usage/ranking.go": {
+    "colors": 1,
+    "metrics": 4
+  },
+  "usage/ranking_modal.go": {
+    "colors": 1,
+    "metrics": 8
+  },
+  "usage/repair.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "usage/statistics_dimensions.go": {
+    "colors": 6,
+    "metrics": 17
+  },
+  "usage/stats.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "usage/time_range.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "usage/usage.go": {
+    "colors": 0,
+    "metrics": 21
+  },
+  "webview/panel.go": {
+    "colors": 2,
+    "metrics": 11
+  },
+  "welcome/welcome.go": {
+    "colors": 0,
+    "metrics": 7
+  },
+  "widgets/alert.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "widgets/ansi/ansi.go": {
+    "colors": 22,
+    "metrics": 0
+  },
+  "widgets/button.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "widgets/confirm_dialog.go": {
+    "colors": 2,
+    "metrics": 9
+  },
+  "widgets/contrast.go": {
+    "colors": 2,
+    "metrics": 0
+  },
+  "widgets/disclosure.go": {
+    "colors": 0,
+    "metrics": 3
+  },
+  "widgets/markdown/blocks.go": {
+    "colors": 0,
+    "metrics": 1
+  },
+  "widgets/markdown/codeblock.go": {
+    "colors": 0,
+    "metrics": 8
+  },
+  "widgets/markdown/footnote.go": {
+    "colors": 0,
+    "metrics": 2
+  },
+  "widgets/markdown/highlight.go": {
+    "colors": 18,
+    "metrics": 0
+  },
+  "widgets/markdown/markdown.go": {
+    "colors": 2,
+    "metrics": 1
+  },
+  "widgets/markdown/metrics.go": {
+    "colors": 4,
+    "metrics": 0
+  },
+  "widgets/markdown/tool_codeblock.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "widgets/markdown/tool_diffblock.go": {
+    "colors": 0,
+    "metrics": 13
+  },
+  "widgets/markdown/tool_readblock.go": {
+    "colors": 0,
+    "metrics": 14
+  },
+  "widgets/markdown/tool_searchblock.go": {
+    "colors": 0,
+    "metrics": 20
+  },
+  "widgets/markdown/tool_webblock.go": {
+    "colors": 0,
+    "metrics": 13
+  },
+  "widgets/pill_select.go": {
+    "colors": 0,
+    "metrics": 6
+  },
+  "widgets/setting_row.go": {
+    "colors": 0,
+    "metrics": 4
+  },
+  "widgets/switch.go": {
+    "colors": 1,
+    "metrics": 0
+  },
+  "workspacepicker/picker.go": {
+    "colors": 1,
+    "metrics": 40
+  }
+}

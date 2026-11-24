@@ -20,7 +20,7 @@ func (s *Store) AttachClient(client *dsh.Client, mux *dsh.Mux) {
 	}
 	s.client = client
 	s.mux = mux
-	s.mu.Unlock()
+	s.unlockPublish()
 }
 
 // AnswerUserQuestionsRPC submits a recovered continued question. Live requests

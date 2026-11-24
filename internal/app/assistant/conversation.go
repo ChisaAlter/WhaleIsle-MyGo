@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/harness"
 	"whaleisle/internal/paths"
+	"whaleisle/internal/state"
 	assiststore "whaleisle/internal/store/assistant"
 	"whaleisle/internal/ui/i18n"
 )
@@ -129,7 +130,7 @@ func (s *Service) WhalePersistedInfo() (sessionID, name, homeDir string) {
 		}
 	}
 	if sessionID == "" && asst != nil {
-		if sid := strings.TrimSpace(asst.Snapshot().SessionID); sid != "" {
+		if sid := strings.TrimSpace(asst.Snapshot().Value.SessionID); sid != "" {
 			if persistedSessionExistsOnDisk(dshHome, sid) {
 				sessionID = sid
 			}
@@ -186,9 +187,9 @@ func (s *Service) HandleNativePrompt(_ string, ep harness.Endpoint, text string)
 	if asst == nil || strings.TrimSpace(text) == "" {
 		return
 	}
-	target := asst.Snapshot()
+	target := asst.Snapshot().Value
 	if target.Mode == assiststore.ModeDshbot && target.DshbotOrigin != ep.Origin {
-		asst.SetLastAction(i18n.T(i18n.KeyCmdSelectCurrentRosterBot), i18n.T(i18n.KeyCmdComposerHostChanged))
+		asst.SetLastAction(i18n.T(i18n.KeyCmdSelectCurrentRosterBot), state.FaultText(i18n.T(i18n.KeyCmdComposerHostChanged)))
 		return
 	}
 	s.OpenConversation(ep, target.Mode, target.DshbotID, strings.TrimSpace(text))
@@ -202,7 +203,7 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 	if asst == nil || sessions == nil || win == nil {
 		return
 	}
-	asstBusy := asst.Snapshot().Busy
+	asstBusy := asst.Snapshot().Value.Busy
 	s.mu.Lock()
 	if (!s.open && !sidebar) || (!sidebar && (s.pluginBusy || asstBusy)) {
 		s.mu.Unlock()
@@ -215,14 +216,14 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 	mode = assiststore.NormalizeMode(mode)
 	if mode == assiststore.ModeDshbot {
 		if strings.TrimSpace(botID) == "" {
-			asst.SetLastAction(i18n.T(i18n.KeyCmdSelectBotOrRoom), i18n.T(i18n.KeyCmdSelectBotOrRoom))
+			asst.SetLastAction(i18n.T(i18n.KeyCmdSelectBotOrRoom), state.FaultText(i18n.T(i18n.KeyCmdSelectBotOrRoom)))
 			return
 		}
 		asst.SelectDshbot(botID, ep.Origin)
 	}
 	owner, err := sessions.CaptureComposerTarget(sessions.SelectedSessionID())
 	if err != nil {
-		asst.SetLastAction(err.Error(), err.Error())
+		asst.SetLastAction(state.FaultOf(err).SentenceText(), state.FaultOf(err))
 		if sidebar {
 			host.NotifyUser(win, err.Error())
 		}
@@ -233,7 +234,7 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 		return
 	}
 	asst.SetBusy(true)
-	asst.SetLastAction(i18n.T(i18n.KeyCmdOpeningCanonicalConversation), "")
+	asst.SetLastAction(i18n.T(i18n.KeyCmdOpeningCanonicalConversation), nil)
 	rpc := host.PluginRPCClient(ep)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
@@ -255,7 +256,7 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 				openErr = fmt.Errorf("%s", i18n.T(i18n.KeyCmdCanonicalSessionMissing))
 			}
 			if openErr != nil {
-				asst.SetLastAction(openErr.Error(), openErr.Error())
+				asst.SetLastAction(state.FaultOf(openErr).SentenceText(), state.FaultOf(openErr))
 				if sidebar && !(mode == assiststore.ModeWhale && strings.HasPrefix(sessions.SelectedSessionID(), "session-whale-")) {
 					host.NotifyUser(win, openErr.Error())
 				}
@@ -264,7 +265,7 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 			// Preserve an existing session draft rather than submit it accidentally.
 			host.ClearResumePendingSession()
 			if text != "" && host.HasSessionDraftConflict(sid) {
-				asst.SetLastAction(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftBeforeS), i18n.T(i18n.KeyCmdDraftRetainedNothingSent))
+				asst.SetLastAction(i18n.T(i18n.KeyCmdResolveTheExistingChatDraftBeforeS), state.FaultText(i18n.T(i18n.KeyCmdDraftRetainedNothingSent)))
 				return
 			}
 			host.RevokePhoneGit()
@@ -290,7 +291,7 @@ func (s *Service) openConversationIntent(ep harness.Endpoint, mode assiststore.M
 			if text != "" {
 				staged = host.StageSessionDraft(sid, text)
 			}
-			asst.SetLastAction(i18n.T(i18n.KeyCmdCanonicalConversationOpened), "")
+			asst.SetLastAction(i18n.T(i18n.KeyCmdCanonicalConversationOpened), nil)
 			if text != "" && staged {
 				// Ownership moves to the visible canonical draft. Failed/uncertain sends
 				// stay in the standard composer/submission UI and are never auto-retried.

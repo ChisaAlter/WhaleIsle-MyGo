@@ -83,7 +83,7 @@ func waitState(t *testing.T, c *Controller, predicate func(State) bool) State {
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()
 	for {
-		snapshot := c.Snapshot()
+		snapshot := c.Snapshot().Value
 		if predicate(snapshot) {
 			return snapshot
 		}
@@ -108,7 +108,7 @@ func TestManagerJoinsLoaderIdentityAndKeepsCardsOnReadFailure(t *testing.T) {
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	state := c.Snapshot()
+	state := c.Snapshot().Value
 	if len(state.Packages) != 1 || state.Packages[0].Parts[0].Phase != "active" || !state.Packages[0].Parts[0].Enabled {
 		t.Fatalf("Loader identity join failed: %+v", state.Packages)
 	}
@@ -116,7 +116,7 @@ func TestManagerJoinsLoaderIdentityAndKeepsCardsOnReadFailure(t *testing.T) {
 	if c.Load(context.Background()) == nil {
 		t.Fatal("failed refresh reported success")
 	}
-	state = c.Snapshot()
+	state = c.Snapshot().Value
 	if state.Status != "error" || len(state.Packages) != 1 || state.Error != "bundle read failed" {
 		t.Fatal("same-owner refresh erased its cards or diagnostic")
 	}
@@ -136,9 +136,9 @@ func TestManagerCapturedControlsCannotMutateReplacementHost(t *testing.T) {
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	old := c.Actions(c.Snapshot().Owner)
+	old := c.Actions(c.Snapshot().Value.Owner)
 	old.Remove("fixture-plugin")
-	if c.Snapshot().Confirmation == nil {
+	if c.Snapshot().Value.Confirmation == nil {
 		t.Fatal("remove had no confirmation")
 	}
 	c.Attach(basicFixture(write), nil)
@@ -153,7 +153,7 @@ func TestManagerCapturedControlsCannotMutateReplacementHost(t *testing.T) {
 	if n != 0 {
 		t.Fatal("stale controls called the replacement Host")
 	}
-	current := c.Actions(c.Snapshot().Owner)
+	current := c.Actions(c.Snapshot().Value.Owner)
 	current.EnableRow("loader-42", false)
 	waitState(t, c, func(s State) bool { return !s.Busy && s.Notice == "applied" })
 	mu.Lock()
@@ -176,8 +176,8 @@ func TestManagerUnavailableCapabilityNeverCallsMutationOrBundleEndpoints(t *test
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	c.Actions(c.Snapshot().Owner).Enable("fixture-plugin", true)
-	if c.Snapshot().Status != "unavailable" || len(calls) != 1 {
+	c.Actions(c.Snapshot().Value.Owner).Enable("fixture-plugin", true)
+	if c.Snapshot().Value.Status != "unavailable" || len(calls) != 1 {
 		t.Fatal("management capability was ignored")
 	}
 }
@@ -198,7 +198,7 @@ func TestManagerInstallSingleGestureUsesAcceptedRegistryAndDisabledSelection(t *
 	if err := c.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	a := c.Actions(c.Snapshot().Owner)
+	a := c.Actions(c.Snapshot().Value.Owner)
 	a.OpenInstall()
 	a.EditInstall("fixture-plugin@2.0.0", "")
 	a.Inspect()
@@ -213,7 +213,7 @@ func TestManagerInstallSingleGestureUsesAcceptedRegistryAndDisabledSelection(t *
 		t.Fatal("one Install gesture did not inspect and install")
 	}
 	waitState(t, c, func(s State) bool { return !s.Busy && s.Install.Result != nil })
-	if c.Snapshot().Confirmation != nil {
+	if c.Snapshot().Value.Confirmation != nil {
 		t.Fatal("extra confirmation was inserted after Install")
 	}
 	select {
@@ -235,7 +235,7 @@ func TestManagerUnknownInstallCanReturnToInputWithoutInventedRefreshGate(t *test
 				return base(ctx, method, args, out)
 			}), nil)
 			t.Cleanup(c.Detach)
-			a := c.Actions(c.Snapshot().Owner)
+			a := c.Actions(c.Snapshot().Value.Owner)
 			a.edit(func(s *State) {
 				s.Install = InstallState{Open: true, Spec: "retained-spec", RequestID: "uncertain-request", Phase: "unconfirmed"}
 			})
@@ -244,7 +244,7 @@ func TestManagerUnknownInstallCanReturnToInputWithoutInventedRefreshGate(t *test
 			if err := c.Load(context.Background()); err != nil {
 				t.Fatal(err)
 			}
-			if c.Snapshot().Install.Phase != "unknown" {
+			if c.Snapshot().Value.Install.Phase != "unknown" {
 				t.Fatal("inventory refresh rewrote the Host's unknown result")
 			}
 			if leave == "cancel" {
@@ -252,7 +252,7 @@ func TestManagerUnknownInstallCanReturnToInputWithoutInventedRefreshGate(t *test
 			} else {
 				a.CloseInstall()
 			}
-			s := c.Snapshot()
+			s := c.Snapshot().Value
 			if s.Install.Phase != "idle" || s.Install.RequestID != "" || s.Busy {
 				t.Fatalf("retained unknown request was not released: %+v", s.Install)
 			}
@@ -299,7 +299,7 @@ func TestDiscoverMoreReloadsChangedDocumentWithoutMixingPages(t *testing.T) {
 		return reply(out, result)
 	}), nil)
 	defer c.Detach()
-	if err := c.LoadIndexes(context.Background(), c.Snapshot().Owner); err != nil {
+	if err := c.LoadIndexes(context.Background(), c.Snapshot().Value.Owner); err != nil {
 		t.Fatal(err)
 	}
 	nextQuery := func() Query {
@@ -313,7 +313,7 @@ func TestDiscoverMoreReloadsChangedDocumentWithoutMixingPages(t *testing.T) {
 		}
 	}
 	nextQuery()
-	c.Actions(c.Snapshot().Owner).More()
+	c.Actions(c.Snapshot().Value.Owner).More()
 	s := waitState(t, c, func(s State) bool {
 		return !s.Discover.Loading && !s.Discover.MoreLoading && s.Discover.Listing != nil && s.Discover.Listing.FetchedAt == 11
 	})
@@ -335,8 +335,8 @@ func TestDiscoverMissingEndpointStaysDistinctFromCuratedMarket(t *testing.T) {
 	c.Attach(fixtureCall(func(_ context.Context, method string, _, _ any) error {
 		return &dsh.Error{Code: "method-not-found", Message: method + " is unavailable"}
 	}), nil)
-	err := c.LoadIndexes(context.Background(), c.Snapshot().Owner)
-	state := c.Snapshot()
+	err := c.LoadIndexes(context.Background(), c.Snapshot().Value.Owner)
+	state := c.Snapshot().Value
 	if err == nil || state.Discover.Status != "error" || !strings.Contains(state.Discover.IndexesError, "pluginMarket/listIndexes") || state.Discover.Listing != nil {
 		t.Fatal("missing generic market endpoint was hidden by fallback data")
 	}

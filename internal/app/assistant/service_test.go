@@ -380,13 +380,13 @@ func TestBuildPanelModelAndBotNotificationLifecycle(t *testing.T) {
 	model.OnDshbotRefreshRoster()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if !svc.PluginStatus().Busy && len(roster.Snapshot().Rows) == 1 {
+		if !svc.PluginStatus().Busy && len(roster.Snapshot().Value.Rows) == 1 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if len(roster.Snapshot().Rows) != 1 || roster.Snapshot().Rows[0].ID != "bot-1" {
-		t.Fatalf("expected roster refreshed with bot-1, got %+v", roster.Snapshot())
+	if len(roster.Snapshot().Value.Rows) != 1 || roster.Snapshot().Value.Rows[0].ID != "bot-1" {
+		t.Fatalf("expected roster refreshed with bot-1, got %+v", roster.Snapshot().Value)
 	}
 
 	// Test mode switch & WebView open callbacks.

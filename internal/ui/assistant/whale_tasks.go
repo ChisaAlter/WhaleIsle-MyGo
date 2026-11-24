@@ -47,8 +47,8 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 			}
 		})
 		ui.Text(c, whaleTaskCopy("选定文本资料与目标。结果会回到鲸鱼娘会话，关闭此面板仍会继续。", "Choose text files and a goal. Results return to the Whale conversation while this panel is closed.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		if s.CreateUnknown && !s.Busy {
 			ui.Text(c, whaleTaskCopy("提交结果尚未确认，请刷新任务核对后再提交。", "Submission is not confirmed. Refresh and check tasks before submitting again.")).TextColor(accent)

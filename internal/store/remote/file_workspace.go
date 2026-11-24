@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 // FileLevel is one retained expanded directory, including a retryable soft
@@ -14,15 +15,16 @@ import (
 type FileLevel struct {
 	Items                    []DirectoryEntry
 	Loaded, Loading, Missing bool
-	Error                    string
+	Error                    *state.Fault
 }
 
 type FileResource struct {
-	draftOwner                             *fileDraftOwner
-	Path, Draft, Error, Notice, Downloaded string
-	File                                   RemoteFile
-	Loaded, Stale, Editing                 bool
-	Revision                               uint64
+	draftOwner                      *fileDraftOwner
+	Path, Draft, Notice, Downloaded string
+	Error                           *state.Fault
+	File                            RemoteFile
+	Loaded, Stale, Editing          bool
+	Revision                        uint64
 }
 
 func (r FileResource) Dirty() bool { return r.Loaded && r.Draft != r.File.Content }
@@ -50,19 +52,13 @@ func (s *Files) Suspend() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.syncDraftsLocked()
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
-	}
-	if s.resolveCancel != nil {
-		s.resolveCancel()
-		s.resolveCancel = nil
-	}
-	s.generation++
+	s.op.Retire()
+	s.resolve.Retire()
+	s.attachL = s.attach.Renew(context.Background())
 	if v := s.states[s.key]; v != nil {
 		if v.Busy && (v.Operation == "write" || isFileMutation(v.Operation)) {
 			v.Stale = true
-			v.Error = "Remote operation interrupted; its result is uncertain. Draft retained."
+			v.Error = state.FaultText("Remote operation interrupted; its result is uncertain. Draft retained.")
 			stashResource(v)
 		}
 		v.Busy, v.Resolving = false, false
@@ -71,6 +67,7 @@ func (s *Files) Suspend() {
 			v.Tree[path] = level
 		}
 	}
+	s.publishLocked()
 }
 
 func ResourceAddress(sessionID, path string) string {
@@ -98,24 +95,31 @@ func resourceIndex(v *FileSnapshot, path string) int {
 	return -1
 }
 
-func stashResource(v *FileSnapshot) {
+// stashResource reports whether it grew the state: a new tab or a lazily
+// created draft owner must republish so a captured snapshot can attach its
+// buffer owner.
+func stashResource(v *FileSnapshot) bool {
 	if v.FilePath == "" {
-		return
+		return false
 	}
+	changed := false
 	i := resourceIndex(v, v.FilePath)
 	if i < 0 {
 		v.Tabs = append(v.Tabs, FileResource{Path: v.FilePath})
 		i = len(v.Tabs) - 1
+		changed = true
 	}
 	r := &v.Tabs[i]
 	if r.draftOwner == nil {
 		r.draftOwner = &fileDraftOwner{}
+		changed = true
 	}
 	if r.draftOwner.buffer != nil {
 		v.Draft = r.draftOwner.buffer.CommittedText()
 	}
 	r.Draft, r.Error, r.Notice, r.Downloaded = v.Draft, v.Error, v.Notice, v.Downloaded
 	r.File, r.Loaded, r.Stale, r.Revision = v.File, v.FileLoaded, v.Stale, v.Revision
+	return changed
 }
 
 func restoreResource(v *FileSnapshot, r FileResource) {
@@ -166,17 +170,11 @@ func (s *Files) BindSession(c *dsh.Client, sessionID, cwd string, current func()
 	s.current = current
 	v := s.states[s.key]
 	if v != nil && (v.Cwd != cwd || retired) {
-		if s.cancel != nil {
-			s.cancel()
-			s.cancel = nil
-		}
-		if s.resolveCancel != nil {
-			s.resolveCancel()
-			s.resolveCancel = nil
-		}
-		s.generation++
+		s.op.Retire()
+		s.resolve.Retire()
+		s.attachL = s.attach.Renew(context.Background())
 		stashResource(v)
-		v.Cwd, v.RootPath, v.MirrorDir, v.ResolveError = cwd, "", "", ""
+		v.Cwd, v.RootPath, v.MirrorDir, v.ResolveError = cwd, "", "", nil
 		v.Resolved, v.Resolving, v.Local, v.Bound, v.Loaded, v.Busy = false, false, false, false, false, false
 		v.Tree, v.Expanded = nil, nil
 		v.PendingClose = ""
@@ -184,6 +182,7 @@ func (s *Files) BindSession(c *dsh.Client, sessionID, cwd string, current func()
 		for i := range v.Tabs {
 			v.Tabs[i].Stale = v.Tabs[i].Loaded
 		}
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 }
@@ -197,14 +196,17 @@ func (s *Files) Resolve() {
 		s.mu.Unlock()
 		return
 	}
-	v.Resolving, v.ResolveError = true, ""
-	c, key, generation, owner, notify := s.client, s.key, s.generation, s.current, s.notify
+	v.Resolving, v.ResolveError = true, nil
+	c, key, attachL, owner, notify := s.client, s.key, s.attachL, s.current, s.notify
 	sid := v.SessionID
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	s.resolveCancel = cancel
+	parent, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	s.resolveL = s.resolve.Renew(parent)
+	resolveL := s.resolveL
+	s.publishLocked()
 	s.mu.Unlock()
 	go func() {
 		defer cancel()
+		ctx := resolveL.Context()
 		var result struct {
 			RemotePath string `json:"remotePath"`
 			MirrorDir  string `json:"mirrorDir"`
@@ -212,19 +214,20 @@ func (s *Files) Resolve() {
 		}
 		err := request(ctx, c, "GET", "resolve-mirror?sessionId="+url.QueryEscape(sid), nil, &result)
 		s.mu.Lock()
-		if s.client != c || s.key != key || s.generation != generation || owner != nil && !owner() {
+		if s.client != c || s.key != key || s.attachL != attachL || owner != nil && !owner() {
 			s.mu.Unlock()
 			return
 		}
 		v = s.states[key]
 		v.Resolving = false
 		if err != nil {
-			v.ResolveError = err.Error()
+			v.ResolveError = state.FaultOf(err)
 		} else {
 			v.Resolved, v.Local = true, result.Mode != "remote" || result.RemotePath == ""
 			v.RootPath, v.MirrorDir = result.RemotePath, result.MirrorDir
 		}
 		remote, root := err == nil && !v.Local, v.RootPath
+		s.publishLocked()
 		s.mu.Unlock()
 		if notify != nil {
 			notify()
@@ -249,6 +252,7 @@ func (s *Files) ToggleDirectory(path string) {
 	// Reopening an expanded level refreshes its retained entries, as the original tree does.
 	load := v.Expanded[path]
 	n := s.notify
+	s.publishLocked()
 	s.mu.Unlock()
 	if load {
 		s.Browse(path)
@@ -293,6 +297,7 @@ func (s *Files) openResource(path string) {
 	r := v.Tabs[i]
 	restoreResource(v, r)
 	n := s.notify
+	s.publishLocked()
 	s.mu.Unlock()
 	if !r.Loaded {
 		s.run("read", path)
@@ -309,6 +314,7 @@ func (s *Files) SetEditing(editing bool) {
 		if i := resourceIndex(v, v.FilePath); i >= 0 {
 			v.Tabs[i].Editing = editing
 		}
+		s.publishLocked()
 	}
 	s.mu.Unlock()
 }
@@ -344,6 +350,7 @@ func (s *Files) RequestClose(path string) {
 				closeResource(v, path)
 			}
 		}
+		s.publishLocked()
 	}
 	n := s.notify
 	s.mu.Unlock()
@@ -360,6 +367,7 @@ func (s *Files) ConfirmClose(discard bool) {
 		} else {
 			v.PendingClose = ""
 		}
+		s.publishLocked()
 	}
 	n := s.notify
 	s.mu.Unlock()

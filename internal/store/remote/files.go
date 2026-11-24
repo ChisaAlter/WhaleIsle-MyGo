@@ -7,7 +7,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"whaleisle/internal/dsh"
+	"whaleisle/internal/state"
 )
 
 const filePreviewLimit = 256 * 1024
@@ -20,36 +22,46 @@ type RemoteFile struct {
 	Size      int64    `json:"size"`
 }
 type FileSnapshot struct {
-	TreeError                                                              string
-	Cwd, MirrorDir, ResolveError, PendingClose                             string
-	Resolved, Resolving, Local                                             bool
-	Tree                                                                   map[string]FileLevel
-	Expanded                                                               map[string]bool
-	Tabs                                                                   []FileResource
-	BindingID                                                              string
-	RootPath                                                               string
-	RemoteIdentity                                                         string
-	MutationApplied                                                        bool
-	SessionID, Path, FilePath, Draft, Error, Notice, Operation, Downloaded string
-	Items                                                                  []DirectoryEntry
-	File                                                                   RemoteFile
-	Bound, Loaded, FileLoaded, Busy, Stale                                 bool
-	Revision                                                               uint64
+	TreeError                                                       *state.Fault
+	Cwd, MirrorDir, PendingClose                                    string
+	ResolveError                                                    *state.Fault
+	Resolved, Resolving, Local                                      bool
+	Tree                                                            map[string]FileLevel
+	Expanded                                                        map[string]bool
+	Tabs                                                            []FileResource
+	BindingID                                                       string
+	RootPath                                                        string
+	RemoteIdentity                                                  string
+	MutationApplied                                                 bool
+	SessionID, Path, FilePath, Draft, Notice, Operation, Downloaded string
+	Error                                                           *state.Fault
+	Items                                                           []DirectoryEntry
+	File                                                            RemoteFile
+	Bound, Loaded, FileLoaded, Busy, Stale                          bool
+	Revision                                                        uint64
 }
 
 func (v FileSnapshot) Dirty() bool { return v.FileLoaded && v.Draft != v.File.Content }
 
+// Files keeps per-session mutable state under mu; the attach lease replaces
+// the old generation counter, op and resolve leases carry request contexts.
+// Readers receive a published deep-copied version refreshed on every write,
+// because file panes retain draft buffers and nested maps.
 type Files struct {
-	mu            sync.Mutex
-	client        *dsh.Client
-	key           string
-	generation    uint64
-	states        map[string]*FileSnapshot
-	notify        func()
-	cancel        context.CancelFunc
-	resolveCancel context.CancelFunc
-	current       func() bool
-	closeSave     *fileCloseSave
+	mu        sync.Mutex
+	client    *dsh.Client
+	key       string
+	attach    state.LeaseOwner
+	attachL   state.Lease
+	op        state.LeaseOwner
+	opL       state.Lease
+	resolve   state.LeaseOwner
+	resolveL  state.Lease
+	states    map[string]*FileSnapshot
+	notify    func()
+	current   func() bool
+	closeSave *fileCloseSave
+	pub       state.Published[FileSnapshot]
 }
 
 func NewFiles() *Files { return &Files{states: map[string]*FileSnapshot{}} }
@@ -65,19 +77,13 @@ func (s *Files) Bind(c *dsh.Client, sessionID string, notify func()) {
 	if c == s.client && key == s.key {
 		return
 	}
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
-	}
-	if s.resolveCancel != nil {
-		s.resolveCancel()
-		s.resolveCancel = nil
-	}
-	s.generation++
+	s.op.Retire()
+	s.resolve.Retire()
+	s.attachL = s.attach.Renew(context.Background())
 	if old := s.states[s.key]; old != nil {
 		if old.Busy && (old.Operation == "write" || isFileMutation(old.Operation)) {
 			old.Stale = true
-			old.Error = "Connection or session changed during a remote mutation; outcome is uncertain. Refresh before retrying."
+			old.Error = state.FaultText("Connection or session changed during a remote mutation; outcome is uncertain. Refresh before retrying.")
 			old.Loaded, old.Bound = false, false
 		}
 		old.Busy = false
@@ -101,14 +107,17 @@ func (s *Files) Bind(c *dsh.Client, sessionID string, notify func()) {
 	if key != "" && s.states[key] == nil {
 		s.states[key] = &FileSnapshot{BindingID: key, SessionID: sessionID}
 	}
+	s.publishLocked()
 }
-func (s *Files) Snapshot() FileSnapshot {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.syncDraftsLocked()
+
+// publishLocked clones the current key's state; callers hold mu and have
+// already synced draft buffers. Draft-owner pointers survive the clone so a
+// captured resource still resolves its native buffer.
+func (s *Files) publishLocked() {
 	v := s.states[s.key]
 	if v == nil {
-		return FileSnapshot{}
+		s.pub.Publish(FileSnapshot{})
+		return
 	}
 	out := *v
 	out.Items = append([]DirectoryEntry(nil), v.Items...)
@@ -118,7 +127,19 @@ func (s *Files) Snapshot() FileSnapshot {
 		out.Expanded[path] = open
 	}
 	out.Tabs = append([]FileResource(nil), v.Tabs...)
-	return out
+	s.pub.Publish(out)
+}
+
+// Snapshot returns the published version for the bound session. Committed
+// draft text arrives outside the mutex, so a read republishes only when a
+// buffer produced new text; an idle reader gets the shared immutable view.
+func (s *Files) Snapshot() *state.Version[FileSnapshot] {
+	s.mu.Lock()
+	if s.syncDraftsLocked() || s.pub.Load() == nil {
+		s.publishLocked()
+	}
+	s.mu.Unlock()
+	return s.pub.Load()
 }
 func (s *Files) SetDraft(text string) {
 	s.mu.Lock()
@@ -128,6 +149,7 @@ func (s *Files) SetDraft(text string) {
 	if v != nil && !v.Busy && v.FileLoaded && !v.File.Binary && !v.File.Truncated {
 		replaceResourceDraft(v, text)
 		stashResource(v)
+		s.publishLocked()
 	}
 }
 func (s *Files) Discard() {
@@ -136,8 +158,9 @@ func (s *Files) Discard() {
 	if v != nil && !v.Busy {
 		replaceResourceDraft(v, v.File.Content)
 		v.Revision++
-		v.Error = ""
+		v.Error = nil
 		stashResource(v)
+		s.publishLocked()
 	}
 	n := s.notify
 	s.mu.Unlock()
@@ -147,7 +170,7 @@ func (s *Files) Discard() {
 }
 func (s *Files) Browse(path string) { s.run("browse", path) }
 func (s *Files) Open(path string)   { s.openResource(path) }
-func (s *Files) Reload()            { s.run("read", s.Snapshot().FilePath) }
+func (s *Files) Reload()            { s.run("read", s.Snapshot().Value.FilePath) }
 func (s *Files) Save()              { s.run("write", "") }
 func (s *Files) Download()          { s.run("download", "") }
 func (s *Files) run(action, path string) {
@@ -159,8 +182,9 @@ func (s *Files) run(action, path string) {
 		return
 	}
 	fail := func(message string) {
-		v.Error = message
+		v.Error = state.FaultText(message)
 		n := s.notify
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()
@@ -210,7 +234,7 @@ func (s *Files) run(action, path string) {
 			v.Tree = map[string]FileLevel{}
 		}
 		level := v.Tree[path]
-		level.Loading, level.Error = true, ""
+		level.Loading, level.Error = true, nil
 		v.Tree[path] = level
 	}
 	v.Busy = true
@@ -219,26 +243,30 @@ func (s *Files) run(action, path string) {
 	}
 	v.MutationApplied = false
 	if action != "browse" && action != "download-entry" {
-		v.Error, v.Notice = "", ""
+		v.Error, v.Notice = nil, ""
 	} else {
-		v.TreeError = ""
+		v.TreeError = nil
 	}
 	v.Operation = action
-	c, key, g, n := s.client, s.key, s.generation, s.notify
+	c, key, attachL, n := s.client, s.key, s.attachL, s.notify
 	owner := s.current
 	captured := *v
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	s.cancel = cancel
+	parent, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.opL = s.op.Renew(parent)
+	op := s.opL
+	s.publishLocked()
 	s.mu.Unlock()
 	if n != nil {
 		n()
 	}
 	go func() {
 		defer cancel()
+		ctx := op.Context()
 		if owner != nil && !owner() {
 			s.mu.Lock()
-			if s.generation == g && s.key == key && s.client == c {
+			if s.attachL == attachL && s.key == key && s.client == c {
 				s.states[key].Busy = false
+				s.publishLocked()
 			}
 			s.mu.Unlock()
 			if n != nil {
@@ -305,7 +333,7 @@ func (s *Files) run(action, path string) {
 			}
 		}
 		s.mu.Lock()
-		if s.generation != g || s.key != key || s.client != c || owner != nil && !owner() {
+		if s.attachL != attachL || s.key != key || s.client != c || owner != nil && !owner() {
 			s.mu.Unlock()
 			return
 		}
@@ -314,16 +342,16 @@ func (s *Files) run(action, path string) {
 		v.Operation = ""
 		if err != nil {
 			if action == "browse" || action == "download-entry" {
-				v.TreeError = err.Error()
+				v.TreeError = state.FaultOf(err)
 				if v.FilePath == "" {
-					v.Error = err.Error()
+					v.Error = state.FaultOf(err)
 				}
 			} else {
-				v.Error = err.Error()
+				v.Error = state.FaultOf(err)
 			}
 			if action == "write" {
 				v.Stale = true
-				v.Error += "; draft retained. Do not retry automatically: the remote write may have conflicted or its outcome may be uncertain."
+				v.Notice = "Draft retained. Do not retry automatically: the remote write may have conflicted or its outcome may be uncertain."
 			}
 			if action == "browse" {
 				if localSession {
@@ -332,7 +360,7 @@ func (s *Files) run(action, path string) {
 				}
 				if v.Tree != nil {
 					level := v.Tree[path]
-					level.Loading, level.Error = false, err.Error()
+					level.Loading, level.Error = false, state.FaultOf(err)
 					v.Tree[path] = level
 				}
 			}
@@ -389,6 +417,7 @@ func (s *Files) run(action, path string) {
 		if action != "browse" && action != "download-entry" {
 			stashResource(v)
 		}
+		s.publishLocked()
 		s.mu.Unlock()
 		if n != nil {
 			n()

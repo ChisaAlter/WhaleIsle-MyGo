@@ -31,7 +31,7 @@ func TestPluginNamespaceBodySavesBoundNamespaceWithoutSelectingRail(t *testing.T
 	s := New()
 	saved := make(chan struct{}, 1)
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: "https://host.fixture.invalid"}, HTTP: &http.Client{Transport: transport}}, func() {
-		if s.Snapshot().LastAction == "settings saved" {
+		if s.Snapshot().Value.LastAction == "settings saved" {
 			select {
 			case saved <- struct{}{}:
 			default:
@@ -52,7 +52,7 @@ func TestPluginNamespaceBodySavesBoundNamespaceWithoutSelectingRail(t *testing.T
 		t.Fatal("transient provider form became a settings write")
 	}
 	binding.SetDraft("parallelToolCalls", "8")
-	if s.Snapshot().SelectedNS != "general" || binding.Snapshot().Drafts["parallelToolCalls"] != "8" {
+	if s.Snapshot().Value.SelectedNS != "general" || binding.Snapshot().Drafts["parallelToolCalls"] != "8" {
 		t.Fatal("bound draft changed the settings selection")
 	}
 	binding.Save(context.Background())
@@ -70,7 +70,7 @@ func TestPluginNamespaceBodySavesBoundNamespaceWithoutSelectingRail(t *testing.T
 	case <-time.After(3 * time.Second):
 		t.Fatal("fixture save did not settle")
 	}
-	if s.Snapshot().SelectedNS != "general" || binding.Snapshot().Dirty {
+	if s.Snapshot().Value.SelectedNS != "general" || binding.Snapshot().Dirty {
 		t.Fatal("save changed selection or failed to acknowledge its drafts")
 	}
 }
@@ -98,7 +98,7 @@ func TestPluginNamespaceOldCallbacksCannotWriteNewHost(t *testing.T) {
 	if calls.Load() != 0 || old.Snapshot().ClientReady {
 		t.Fatal("old namespace owner remained writable")
 	}
-	if s.Snapshot().Drafts["parallelToolCalls"] == "99" {
+	if s.Snapshot().Value.Drafts["parallelToolCalls"] == "99" {
 		t.Fatal("old field callback changed new Host drafts")
 	}
 }

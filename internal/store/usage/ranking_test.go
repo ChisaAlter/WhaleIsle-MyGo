@@ -56,7 +56,7 @@ func TestRankingPaginationFixture(t *testing.T) {
 	defer srv.Close()
 	s := New()
 	s.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL, Cookie: "fixture=yes"}}, nil)
-	s.stats.Raw = json.RawMessage(statsFixture)
+	s.setStatsRaw(json.RawMessage(statsFixture))
 	wait := func() SessionRanking {
 		t.Helper()
 		until := time.Now().Add(3 * time.Second)
@@ -87,13 +87,13 @@ func TestRankingPaginationFixture(t *testing.T) {
 	mode.Store(2)
 	s.LoadMoreSessions(context.Background())
 	v = wait()
-	if v.Err == "" || len(v.Rows) != 1 || <-offsets != 1 {
+	if v.Err == nil || len(v.Rows) != 1 || <-offsets != 1 {
 		t.Fatal("failed page lost rows/cursor")
 	}
 	mode.Store(3)
 	s.LoadMoreSessions(context.Background())
 	v = wait()
-	if v.Err != "" || len(v.Rows) != 2 || v.HasMore || <-offsets != 1 {
+	if v.Err != nil || len(v.Rows) != 2 || v.HasMore || <-offsets != 1 {
 		t.Fatalf("retry/dedup: %+v", v)
 	}
 	s.LoadMoreSessions(context.Background())

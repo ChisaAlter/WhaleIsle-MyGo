@@ -30,7 +30,7 @@ func ScheduleTurnCardsView(c *ui.Context, m Model, rows []schedstore.Entry) {
 	}
 	snap := schedstore.ViewState{}
 	if m.ScheduleStore != nil {
-		snap = m.ScheduleStore.Snapshot()
+		snap = m.ScheduleStore.Snapshot().Value
 	}
 	for _, receipt := range rows {
 		receipt.Origin = snap.Origin

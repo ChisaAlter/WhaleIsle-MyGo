@@ -22,7 +22,7 @@ func TestRequestReplaceRespectsConfirm(t *testing.T) {
 	if !asked {
 		t.Fatal("ConfirmReplace should be invoked")
 	}
-	if snap := st.Snapshot(); snap.LastAction != "" || snap.Err != "" {
+	if snap := st.Snapshot().Value; snap.LastAction != "" || snap.Err != "" {
 		t.Fatalf("cancelled replace must not mutate store, last=%q err=%q", snap.LastAction, snap.Err)
 	}
 }

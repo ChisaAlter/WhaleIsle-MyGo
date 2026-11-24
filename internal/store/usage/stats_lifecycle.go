@@ -6,5 +6,5 @@ import "fmt"
 func (s *Store) StatisticsOwner() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return fmt.Sprintf("%p/%p/%d", s, s.client, s.statsEpoch)
+	return fmt.Sprintf("%p/%p/%d", s, s.client, s.attachL.Generation())
 }

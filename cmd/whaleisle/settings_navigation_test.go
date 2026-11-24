@@ -51,7 +51,7 @@ func TestSettingsNavigationLoadsWithoutOpeningDocument(t *testing.T) {
 	store := settingsstore.New()
 	settled := make(chan struct{}, 8)
 	store.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, func() {
-		if !store.Snapshot().Loading {
+		if !store.Snapshot().Value.Loading {
 			settled <- struct{}{}
 		}
 	})
@@ -87,7 +87,7 @@ func TestSettingsNavigationLoadsWithoutOpeningDocument(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatal("settings navigation did not finish loading")
 		}
-		if !s.settingsOpen || s.settingsAccountActive || !s.settingsDesktopActive || store.Snapshot().Err != "" {
+		if !s.settingsOpen || s.settingsAccountActive || !s.settingsDesktopActive || store.Snapshot().Value.Err != "" {
 			t.Fatal("Settings navigation did not open General and load its data")
 		}
 		mu.Lock()

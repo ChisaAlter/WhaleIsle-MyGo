@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/internal/storefs"
 	"whaleisle/internal/store/storelocale"
 )
@@ -41,12 +42,13 @@ type Turn struct {
 	At        string `json:"at"`               // RFC3339
 }
 
-// ViewState is a UI-safe snapshot.
+// ViewState is a UI-safe snapshot. A published ViewState is immutable; the
+// History slice belongs to the store and is replaced, never edited, on write.
 type ViewState struct {
 	Mode         Mode
 	Busy         bool
 	LastAction   string
-	LastErr      string
+	LastErr      *state.Fault
 	SessionID    string // last known assistant / bot session from ensure/RPC
 	History      []Turn
 	DshbotID     string
@@ -57,20 +59,17 @@ type modeDisk struct {
 	Mode Mode `json:"mode"`
 }
 
-// Store holds mode + local history under root (userData/assistant).
+// Store holds mode + local history under root (userData/assistant). The view
+// lives in a state.Published version; disk writes run outside mu under
+// persistMu so the last queued write wins.
 type Store struct {
 	mu             sync.Mutex
+	persistMu      sync.Mutex
 	root           string
 	notify         func()
-	mode           Mode
-	busy           bool
-	lastAction     string
-	lastErr        string
-	sessionID      string
-	dshbotID       string
-	dshbotOrigin   string
+	view           ViewState
+	pub            state.Published[ViewState]
 	acceptedPrompt string
-	history        []Turn
 }
 
 // Dir returns userData/assistant.
@@ -80,7 +79,9 @@ func Dir(userData string) string {
 
 // New returns an in-memory store with no persistence root.
 func New() *Store {
-	return &Store{mode: ModeWhale}
+	s := &Store{view: ViewState{Mode: ModeWhale}}
+	s.pub.Publish(s.view)
+	return s
 }
 
 // Open loads (or seeds) persisted assistant state under userData/assistant.
@@ -89,10 +90,11 @@ func Open(userData string) (*Store, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, err
 	}
-	s := &Store{root: root, mode: ModeWhale}
+	s := &Store{root: root, view: ViewState{Mode: ModeWhale}}
 	if err := s.load(); err != nil {
 		return nil, err
 	}
+	s.pub.Publish(s.view)
 	return s, nil
 }
 
@@ -110,50 +112,41 @@ func (s *Store) Attach(notify func()) {
 	s.mu.Unlock()
 }
 
-// Snapshot copies observable state for one frame.
-func (s *Store) Snapshot() ViewState {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	st := ViewState{
-		Mode:         s.mode,
-		Busy:         s.busy,
-		LastAction:   s.lastAction,
-		LastErr:      s.lastErr,
-		SessionID:    s.sessionID,
-		DshbotID:     s.dshbotID,
-		DshbotOrigin: s.dshbotOrigin,
-	}
-	st.History = append([]Turn(nil), s.history...)
-	return st
+// Snapshot returns the published view; unchanged reads share one version.
+func (s *Store) Snapshot() *state.Version[ViewState] {
+	return s.pub.Load()
 }
 
 // SetMode updates the active native/WebView routing mode and persists it.
 func (s *Store) SetMode(mode Mode) {
 	mode = NormalizeMode(mode)
 	s.mu.Lock()
-	if s.mode == mode {
+	if s.view.Mode == mode {
 		s.mu.Unlock()
 		return
 	}
-	s.mode = mode
-	s.notePersistFailureLocked(s.saveModeLocked(), storelocale.KeyStoreAssistantModeSaveFailed)
+	s.view.Mode = mode
+	s.pub.Publish(s.view)
 	s.mu.Unlock()
 	s.fire()
+	s.persistMode(mode)
 }
 
 // SetBusy marks an in-flight native turn (streamed into LastAction by callers).
 func (s *Store) SetBusy(busy bool) {
 	s.mu.Lock()
-	s.busy = busy
+	s.view.Busy = busy
+	s.pub.Publish(s.view)
 	s.mu.Unlock()
 	s.fire()
 }
 
-// SetLastAction records a status line (and clears LastErr when err is empty).
-func (s *Store) SetLastAction(msg, errMsg string) {
+// SetLastAction records a status line and the classified fault behind it.
+func (s *Store) SetLastAction(msg string, f *state.Fault) {
 	s.mu.Lock()
-	s.lastAction = strings.TrimSpace(msg)
-	s.lastErr = strings.TrimSpace(errMsg)
+	s.view.LastAction = strings.TrimSpace(msg)
+	s.view.LastErr = f
+	s.pub.Publish(s.view)
 	s.mu.Unlock()
 	s.fire()
 }
@@ -161,7 +154,8 @@ func (s *Store) SetLastAction(msg, errMsg string) {
 // SetSessionID remembers the last ensure / open session id for 「打开会话」.
 func (s *Store) SetSessionID(id string) {
 	s.mu.Lock()
-	s.sessionID = strings.TrimSpace(id)
+	s.view.SessionID = strings.TrimSpace(id)
+	s.pub.Publish(s.view)
 	s.mu.Unlock()
 	s.fire()
 }
@@ -181,27 +175,30 @@ func (s *Store) AppendTurn(t Turn) {
 	t.Err = strings.TrimSpace(t.Err)
 	t.SessionID = strings.TrimSpace(t.SessionID)
 	if t.SessionID != "" {
-		s.sessionID = t.SessionID
+		s.view.SessionID = t.SessionID
 	}
-	s.history = append([]Turn{t}, s.history...)
-	if len(s.history) > MaxHistory {
-		s.history = s.history[:MaxHistory]
+	s.view.History = append([]Turn{t}, s.view.History...)
+	if len(s.view.History) > MaxHistory {
+		s.view.History = s.view.History[:MaxHistory]
 	}
-	s.notePersistFailureLocked(s.saveHistoryLocked(), storelocale.KeyStoreAssistantHistorySaveFailed)
+	history := append([]Turn(nil), s.view.History...)
+	s.pub.Publish(s.view)
 	s.mu.Unlock()
 	s.fire()
+	s.persistHistory(history)
 }
 
-// notePersistFailureLocked records a failed write in the field the panel renders,
+// notePersistFailure records a failed write in the field the panel renders,
 // and clears that note once a later write of the same kind succeeds.
-func (s *Store) notePersistFailureLocked(err error, key string) {
+func (s *Store) notePersistFailure(err error, key string) {
+	s.mu.Lock()
 	if err != nil {
-		s.lastErr = storelocale.T(key)
-		return
+		s.view.LastErr = state.FaultText(storelocale.T(key))
+	} else if s.view.LastErr != nil && s.view.LastErr.Text == storelocale.T(key) {
+		s.view.LastErr = nil
 	}
-	if s.lastErr == storelocale.T(key) {
-		s.lastErr = ""
-	}
+	s.pub.Publish(s.view)
+	s.mu.Unlock()
 }
 
 // PrefixForMode returns the prompt prefix used for session-routed native sends.
@@ -268,19 +265,19 @@ func (s *Store) load() error {
 	if ok, err := storefs.ReadJSON("assistant", filepath.Join(s.root, modeFile), &d, false); err != nil {
 		return err
 	} else if ok {
-		s.mode = NormalizeMode(d.Mode)
+		s.view.Mode = NormalizeMode(d.Mode)
 	}
 	var turns []Turn
 	if ok, err := storefs.ReadJSON("assistant", filepath.Join(s.root, historyFile), &turns, false); err != nil {
 		return err
 	} else if ok {
-		s.history = turns
-		if len(s.history) > MaxHistory {
-			s.history = s.history[:MaxHistory]
+		s.view.History = turns
+		if len(s.view.History) > MaxHistory {
+			s.view.History = s.view.History[:MaxHistory]
 		}
-		for _, t := range s.history {
+		for _, t := range s.view.History {
 			if sid := strings.TrimSpace(t.SessionID); sid != "" {
-				s.sessionID = sid
+				s.view.SessionID = sid
 				break
 			}
 		}
@@ -288,26 +285,34 @@ func (s *Store) load() error {
 	return nil
 }
 
-func (s *Store) saveModeLocked() error {
+// persistMode serializes mode writes so a slower earlier write cannot
+// overwrite a newer one; failures are reported through the view.
+func (s *Store) persistMode(mode Mode) {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
 	if s.root == "" {
-		return nil
+		return
 	}
-	raw, err := json.MarshalIndent(modeDisk{Mode: s.mode}, "", "  ")
-	if err != nil {
-		return err
+	raw, err := json.MarshalIndent(modeDisk{Mode: mode}, "", "  ")
+	if err == nil {
+		err = storefs.WriteFileAtomic(filepath.Join(s.root, modeFile), raw, 0o644)
 	}
-	return storefs.WriteFileAtomic(filepath.Join(s.root, modeFile), raw, 0o644)
+	s.notePersistFailure(err, storelocale.KeyStoreAssistantModeSaveFailed)
 }
 
-func (s *Store) saveHistoryLocked() error {
+// persistHistory serializes history writes; the slice passed in is a private
+// copy taken before the lock was released.
+func (s *Store) persistHistory(history []Turn) {
+	s.persistMu.Lock()
+	defer s.persistMu.Unlock()
 	if s.root == "" {
-		return nil
+		return
 	}
-	raw, err := json.MarshalIndent(s.history, "", "  ")
-	if err != nil {
-		return err
+	raw, err := json.MarshalIndent(history, "", "  ")
+	if err == nil {
+		err = storefs.WriteFileAtomic(filepath.Join(s.root, historyFile), raw, 0o644)
 	}
-	return storefs.WriteFileAtomic(filepath.Join(s.root, historyFile), raw, 0o644)
+	s.notePersistFailure(err, storelocale.KeyStoreAssistantHistorySaveFailed)
 }
 
 func (s *Store) fire() {
@@ -328,8 +333,9 @@ func newID() string {
 // recipient after reconnect or restart.
 func (s *Store) SelectDshbot(id, origin string) {
 	s.mu.Lock()
-	s.dshbotID = strings.TrimSpace(id)
-	s.dshbotOrigin = strings.TrimSpace(origin)
+	s.view.DshbotID = strings.TrimSpace(id)
+	s.view.DshbotOrigin = strings.TrimSpace(origin)
+	s.pub.Publish(s.view)
 	s.mu.Unlock()
 	s.fire()
 }

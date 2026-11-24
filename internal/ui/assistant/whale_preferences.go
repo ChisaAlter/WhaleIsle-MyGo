@@ -23,7 +23,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		return
 	}
 	s := m.State
-	if !blocked && s.Host != "" && !s.Loaded && !s.Busy && s.Error == "" && s.Notice == "" {
+	if !blocked && s.Host != "" && !s.Loaded && !s.Busy && s.Error == nil && s.Notice == "" {
 		m.OnRefresh()
 	}
 	blocked = blocked || s.Busy || s.Host == ""
@@ -32,8 +32,8 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).AlignSelf(ui.Start).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
 			m.OnRefresh()
 		}
-		if s.Error != "" {
-			ui.Text(c, s.Error).TextColor(accent).Selectable()
+		if s.Error != nil {
+			ui.Text(c, s.Error.SentenceText()).TextColor(accent).Selectable()
 		}
 		widgets.AckLine(c, "whale_preferences:39", s.Notice)
 		if s.Server.HomeDir == "" {
@@ -76,10 +76,10 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			labels = append(labels, selected)
 			choices[selected] = route
 		}
-		if s.ModelsError != "" {
-			ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelCatalog)+s.ModelsError).TextColor(accent).Selectable()
+		if s.ModelsError != nil {
+			ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelCatalog)+s.ModelsError.SentenceText()).TextColor(accent).Selectable()
 		}
-		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled || s.ModelsError != "").OnChange(func() {
+		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled || s.ModelsError != nil).OnChange(func() {
 			if v, ok := choices[selected]; ok && m.OnEdit != nil {
 				m.OnEdit(v, s.IMDefault)
 				if m.OnSave != nil {

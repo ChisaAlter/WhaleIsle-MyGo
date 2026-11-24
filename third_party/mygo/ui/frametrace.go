@@ -32,6 +32,7 @@ const frameTraceFlush = 50 * time.Millisecond
 
 type frameTracer struct {
 	w         *bufio.Writer
+	file      *os.File
 	lastStart time.Time
 	lastFlush time.Time
 }
@@ -46,9 +47,9 @@ func newFrameTrace(path string) *frameTracer {
 		log.Printf("mygo: MYGO_FRAME_TRACE=%q: %v", path, err)
 		return nil
 	}
-	t := &frameTracer{w: bufio.NewWriterSize(f, 1<<16)}
-	fmt.Fprintln(t.w, "kind,frame,start_unix_ns,gap_ns,dur_ns,build_ns,layout_ns,paint_ns,present_ns,passes,path,name,cycles,cycles_build,cycles_layout,cycles_paint,cycles_present,cycles_total,alloc_bytes,gc_cycles")
-	fmt.Fprintf(t.w, "cal,0,0,-1,0,0,0,0,0,0,none,clock,%.0f,0,0,0,0,0,0,0\n", measureCycleRate())
+	t := &frameTracer{w: bufio.NewWriterSize(f, 1<<16), file: f}
+	fmt.Fprintln(t.w, "kind,frame,start_unix_ns,gap_ns,dur_ns,build_ns,layout_ns,paint_ns,present_ns,passes,path,name,cycles,cycles_build,cycles_layout,cycles_paint,cycles_present,cycles_total,alloc_bytes,gc_cycles,present_upload_ns,present_draw_ns,present_swap_ns")
+	fmt.Fprintf(t.w, "cal,0,0,-1,0,0,0,0,0,0,none,clock,%.0f,0,0,0,0,0,0,0,0,0,0\n", measureCycleRate())
 	return t
 }
 
@@ -89,14 +90,15 @@ func (t *frameTracer) frame(rt *engine, f *frameStats, total time.Duration) {
 			path = strings.ReplaceAll(s, " ", "_")
 		}
 	}
-	fmt.Fprintf(t.w, "frame,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	fmt.Fprintf(t.w, "frame,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		rt.frame, f.start.UnixNano(), gap, int64(total),
 		int64(f.laps[phaseBuild]), int64(f.laps[phaseLayout]), int64(f.laps[phasePaint]), int64(f.laps[phasePresent]),
 		f.passes, path,
 		f.cycles[phaseBuild]+f.cycles[phaseLayout]+f.cycles[phasePaint]+f.cycles[phasePresent],
 		f.cycles[phaseBuild], f.cycles[phaseLayout], f.cycles[phasePaint], f.cycles[phasePresent],
 		f.cycles[phaseBuild]+f.cycles[phaseLayout]+f.cycles[phasePaint]+f.cycles[phasePresent],
-		uint64(f.delta[statBytes]), uint64(f.delta[statCycles]))
+		uint64(f.delta[statBytes]), uint64(f.delta[statCycles]),
+		int64(f.presentUpload), int64(f.presentDraw), int64(f.presentSwap))
 	t.flush()
 }
 
@@ -105,7 +107,7 @@ func (t *frameTracer) mark(name string) {
 	if t == nil {
 		return
 	}
-	fmt.Fprintf(t.w, "mark,0,%d,-1,0,0,0,0,0,0,none,%s,0,0,0,0,0,0\n", time.Now().UnixNano(), csvToken(name))
+	fmt.Fprintf(t.w, "mark,0,%d,-1,0,0,0,0,0,0,none,%s,0,0,0,0,0,0,0,0,0,0,0\n", time.Now().UnixNano(), csvToken(name))
 	t.flush()
 }
 
@@ -118,6 +120,16 @@ func (t *frameTracer) flush() {
 	}
 	t.lastFlush = now
 	_ = t.w.Flush()
+}
+
+// close flushes and closes the trace file. Tests use it to release the file;
+// the process keeps the trace open for its whole run instead.
+func (t *frameTracer) close() {
+	if t == nil {
+		return
+	}
+	_ = t.w.Flush()
+	_ = t.file.Close()
 }
 
 // csvToken fits a name into one CSV field.

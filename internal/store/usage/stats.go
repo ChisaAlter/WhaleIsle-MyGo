@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/state"
 	"whaleisle/internal/store/storelocale"
 )
 
@@ -86,56 +87,44 @@ type Overview struct {
 	Stale       bool           `json:"stale"`
 }
 type statsState struct {
-	generation                       uint64
-	Range                            DateRange
-	RangeStart, RangeEnd, RangeError string
-	Raw                              json.RawMessage
-	Loading                          bool
-	Cached                           bool
-	Err                              string
-	Days                             int
+	generation           uint64
+	Range                DateRange
+	RangeStart, RangeEnd string
+	RangeError           *state.Fault
+	Raw                  json.RawMessage
+	Loading              bool
+	Cached               bool
+	Err                  *state.Fault
+	ErrLead              string // authored lead the view shows before Err
+	parsed               decodedStats
+	Days                 int
 	// UpdatedAt is the Host's `updatedAt` for this snapshot (epoch seconds),
 	// 0 when the response carried none.
 	UpdatedAt int64
 }
 type StatsView struct {
-	raw                              json.RawMessage
-	Range                            DateRange
-	RangeStart, RangeEnd, RangeError string
-	Overview                         *Overview
-	Loading                          bool
-	Cached                           bool
-	Err                              string
-	Days                             int
+	raw                  json.RawMessage
+	Range                DateRange
+	RangeStart, RangeEnd string
+	RangeError           *state.Fault
+	Overview             *Overview
+	Loading              bool
+	Cached               bool
+	Err                  *state.Fault
+	ErrLead              string // authored lead the view shows before Err
+	Days                 int
 	// UpdatedAt is the Host's updatedAt for this snapshot (epoch seconds),
 	// 0 when the response carried none.
 	UpdatedAt int64
 }
 
-func (s *Store) Stats() StatsView {
-	s.mu.Lock()
-	raw := append(json.RawMessage(nil), s.stats.Raw...)
-	v := StatsView{raw: raw, Range: s.stats.Range, RangeStart: s.stats.RangeStart, RangeEnd: s.stats.RangeEnd, RangeError: s.stats.RangeError, Loading: s.stats.Loading, Cached: s.stats.Cached, Err: s.stats.Err, Days: s.stats.Days}
-	s.mu.Unlock()
-	if v.Days == 0 {
-		v.Days = 7
-	}
-	if len(raw) > 0 {
-		var o Overview
-		if json.Unmarshal(raw, &o) == nil {
-			v.Overview = &o
-			v.UpdatedAt = o.UpdatedAt
-		}
-	}
-	return v
-}
 func (s *Store) SetStatsDays(days int) {
 	if days != 7 && days != 14 && days != 30 {
 		return
 	}
 	s.mu.Lock()
 	s.stats.Days = days
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 }
 func decodeOverview(raw json.RawMessage) error {
@@ -152,21 +141,21 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 	s.mu.Lock()
 	client := s.client
 	if client == nil || s.stats.Loading || s.repair.Busy {
-		s.mu.Unlock()
+		s.unlockPublish()
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	s.statsCancel = cancel
-	epoch := s.statsEpoch
+	epoch := s.attachL.Generation()
 	s.resetRankingLocked()
 	s.clearRepairConfirmationLocked()
 	s.stats.generation++
 	generation := s.stats.generation
 	s.stats.Loading = true
-	s.stats.Err = ""
+	s.stats.Err, s.stats.ErrLead = nil, ""
 	ep := client.Endpoint
 	cachePath := s.statsCachePath
-	s.mu.Unlock()
+	s.unlockPublish()
 	s.fire()
 	go func() {
 		defer cancel()
@@ -180,24 +169,29 @@ func (s *Store) RefreshStats(ctx context.Context, force bool) {
 		if err == nil {
 			err = decodeOverview(raw)
 		}
+		// Decode the published form before taking the lock.
+		var parsed decodedStats
+		if err == nil {
+			parsed = decodeStats(raw)
+		}
 		s.mu.Lock()
-		if epoch != s.statsEpoch || client != s.client || generation != s.stats.generation {
-			s.mu.Unlock()
+		if epoch != s.attachL.Generation() || client != s.client || generation != s.stats.generation {
+			s.unlockPublish()
 			return
 		}
 		s.stats.Loading = false
 		s.statsCancel = nil
 		var writeCache bool
 		if err != nil {
-			s.stats.Err = storelocale.T(storelocale.KeyStoreUsageUsageStatisticsUnavailable) + err.Error()
+			s.stats.Err, s.stats.ErrLead = faultOf(err), storelocale.T(storelocale.KeyStoreUsageUsageStatisticsUnavailable)
 		} else {
-			s.stats.Raw = append(json.RawMessage(nil), raw...)
+			s.stats.Raw, s.stats.parsed = append(json.RawMessage(nil), raw...), parsed
 			s.stats.Cached = false
 			writeCache = cachePath != "" && s.statsCachePath == cachePath
 			s.reconcileStatsRangeLocked()
 		}
 		s.finishRepairScanLocked(err)
-		s.mu.Unlock()
+		s.unlockPublish()
 		if writeCache {
 			writeStatsCacheFile(cachePath, raw)
 		}

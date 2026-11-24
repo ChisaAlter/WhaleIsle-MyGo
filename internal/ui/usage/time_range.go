@@ -22,8 +22,8 @@ func timeRangeView(c *ui.Context, m Model, fg, muted, accent ui.Color) {
 			m.Store.ClearStatsDateRange()
 		}
 	})
-	if st.RangeError != "" {
-		ui.Text(c, st.RangeError).TextColor(accent)
+	if st.RangeError != nil {
+		ui.Text(c, st.RangeError.SentenceText()).TextColor(accent)
 	}
 	if st.Range.Active() {
 		selected := st.Selection()

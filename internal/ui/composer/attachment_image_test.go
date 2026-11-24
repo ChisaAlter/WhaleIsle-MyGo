@@ -14,6 +14,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/imagepreview"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/store/session"
 )
 
@@ -66,8 +67,8 @@ func attachmentFixture(name string, data []byte) session.ComposerAttachment {
 func TestAttachmentJPEGThumbnailOrientation(t *testing.T) {
 	for _, o := range []uint16{1, 2, 3, 4, 5, 6, 7, 8} {
 		a := attachmentFixture("photo.jpg", attachmentJPEGFixture(t, o))
-		thumb, full := readAttachmentDisplay(a), readAttachmentDisplay(a, true)
-		if thumb.err != nil || full.err != nil || thumb.bitmap == nil || full.bitmap == nil {
+		thumb, full := readSettled(a), readSettled(a, true)
+		if thumb.failure() != nil || full.failure() != nil || thumb.bitmap == nil || full.bitmap == nil {
 			t.Fatalf("orientation %d: thumbnail=%+v full=%+v", o, thumb, full)
 		}
 		w, h := thumb.bitmap.Size()
@@ -84,7 +85,7 @@ func TestAttachmentJPEGThumbnailOrientation(t *testing.T) {
 func TestAttachmentGIFRejectsFrameAndCanvasBudgets(t *testing.T) {
 	for _, data := range [][]byte{attachmentGIFFixture(t, imagepreview.MaxFrames+1, 2, 1, 0), attachmentGIFFixture(t, 2, 4000, 4001, 0)} {
 		for _, full := range []bool{false, true} {
-			if v := readAttachmentDisplay(attachmentFixture("moving.gif", data), full); v.err == nil || v.bitmap != nil {
+			if v := readSettled(attachmentFixture("moving.gif", data), full); v.failure() == nil || v.bitmap != nil {
 				t.Fatalf("over-budget GIF accepted (full=%t)", full)
 			}
 		}
@@ -93,12 +94,12 @@ func TestAttachmentGIFRejectsFrameAndCanvasBudgets(t *testing.T) {
 func TestAttachmentOriginalGIFAdvancesAndDismisses(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		a := attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))
-		v := readAttachmentDisplay(a, true)
+		v := readSettled(a, true)
 		if v.err != nil {
 			t.Fatal(v.err)
 		}
 		seat := attachmentDisplaySeat{open: true, full: &attachmentDisplaySeat{result: v}}
-		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name) }, 600, 400)
+		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentOriginal(c, &seat, a, a.Name, nil) }, 600, 400)
 		// The dialog's enter reveal reads the tester clock while the GIF's
 		// advance reads wall time: pin the clock past it so the panel is opaque
 		// and the first frame still shows.
@@ -135,11 +136,11 @@ func TestAttachmentOriginalGIFAdvancesAndDismisses(t *testing.T) {
 func TestAttachmentGIFTimingAndThumbnailBudget(t *testing.T) {
 	for _, full := range []bool{false, true} {
 		for _, loops := range []int{-1, 0} {
-			v := readAttachmentDisplay(attachmentFixture("moving.data", attachmentGIFFixture(t, 2, 480, 240, loops)), full)
+			v := readSettled(attachmentFixture("moving.data", attachmentGIFFixture(t, 2, 480, 240, loops)), full)
 			if v.err != nil {
 				t.Fatal(v.err)
 			}
-			if v.motion == nil || len(v.motion.frames) != 2 || len(v.motion.animation.Frames) != 0 {
+			if !v.handle.Animated() {
 				t.Fatal("frames flattened or staging canvases retained")
 			}
 			w, h := v.bitmap.Size()
@@ -151,18 +152,18 @@ func TestAttachmentGIFTimingAndThumbnailBudget(t *testing.T) {
 				t.Fatalf("thumbnail exceeds bounds: %dx%d", w, h)
 			}
 			start := time.Unix(100, 0)
-			if wait := v.advance(start); wait != 50*time.Millisecond || v.bitmap != v.motion.frames[0] {
+			if wait := v.advance(start); wait != 50*time.Millisecond {
 				t.Fatal("initial frame timing", wait)
 			}
-			if wait := v.advance(start.Add(60 * time.Millisecond)); wait != 40*time.Millisecond || v.bitmap != v.motion.frames[1] {
+			if wait := v.advance(start.Add(60 * time.Millisecond)); wait != 40*time.Millisecond {
 				t.Fatal("second frame timing", wait)
 			}
 			wait := v.advance(start.Add(110 * time.Millisecond))
 			if loops < 0 {
-				if wait != 0 || v.bitmap != v.motion.frames[1] {
+				if wait != 0 {
 					t.Fatal("finite GIF did not stop")
 				}
-			} else if wait != 40*time.Millisecond || v.bitmap != v.motion.frames[0] {
+			} else if wait != 40*time.Millisecond {
 				t.Fatal("loop/missed-frame timing changed", wait)
 			}
 		}
@@ -171,12 +172,18 @@ func TestAttachmentGIFTimingAndThumbnailBudget(t *testing.T) {
 
 func TestAttachmentGIFThumbnailRailAnimates(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
+		s := media.New(media.Config{Workers: -1})
+		previous := composerMedia
+		composerMedia = func() *media.Service { return s }
+		defer func() { composerMedia = previous }()
 		d := NewDraftState("")
 		d.Attachments = []session.ComposerAttachment{attachmentFixture("moving.gif", attachmentGIFFixture(t, 2, 2, 1, -1))}
 		tt := ui.NewTester(func(c *ui.Context) { paintAttachmentRail(c, Model{State: d}, ui.RGB(0, 0, 0), ui.RGB(80, 80, 80)) }, 600, 400)
 		// The preview label exists during loading. Drain its asynchronous decode
 		// before the first rendered frame starts the animation's paint clock.
 		synctest.Wait()
+		tt.Frame()
+		s.RunPending()
 		tt.Frame()
 		sample := func() color.RGBA {
 			t.Helper()

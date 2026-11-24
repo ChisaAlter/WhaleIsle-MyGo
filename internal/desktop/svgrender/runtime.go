@@ -135,8 +135,8 @@ func NewContext(ctx context.Context) (*Context, error) {
 }
 
 // Close releases this module instance. The shared runtime + compiled module persist for the process
-// lifetime (reclaimed by the OS on exit), so only the per-render instance is torn down here.
-func (c *Context) Close() error { return c.mod.Close(c.ctx) }
+// lifetime (reclaimed by the OS on exit), so only the instance is torn down here.
+func (c *Context) Close() error { return c.mod.Close(context.Background()) }
 
 // Renderer is a resvg renderer handle with its own font database.
 type Renderer struct {

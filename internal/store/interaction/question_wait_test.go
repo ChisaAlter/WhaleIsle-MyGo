@@ -99,22 +99,22 @@ func TestQuestionWaitTakeTimeAndEditsAreRequestScoped(t *testing.T) {
 	}
 	s.SyncQuestionFocus("a", "a")
 	s.SyncQuestionFocus("b", "b")
-	if s.Snapshot().QuestionCards["a"].Wait.State != "counting" || s.Snapshot().QuestionCards["b"].Wait.State != "focused" {
+	if s.testView().QuestionCards["a"].Wait.State != "counting" || s.testView().QuestionCards["b"].Wait.State != "focused" {
 		t.Fatal("focus crossed session switch")
 	}
 	s.TakeQuestionTime("wrong", "a")
-	if s.Snapshot().QuestionCards["a"].Wait.State != "counting" {
+	if s.testView().QuestionCards["a"].Wait.State != "counting" {
 		t.Fatal("stale owner held another request")
 	}
 	s.TakeQuestionTime("a", "a")
 	s.HideQuestion("a")
 	s.ReopenQuestion("a")
-	if s.Snapshot().QuestionCards["a"].Wait.State != "waiting" {
+	if s.testView().QuestionCards["a"].Wait.State != "waiting" {
 		t.Fatal("hide/remount lost take-time")
 	}
 	s.SetQuestionOptionChecked("b", "q", "A", true)
 	s.SyncQuestionFocus("", "")
-	if s.Snapshot().QuestionCards["b"].Wait.State != "editing" {
+	if s.testView().QuestionCards["b"].Wait.State != "editing" {
 		t.Fatal("first choice did not hold wait")
 	}
 }
@@ -143,7 +143,7 @@ func TestQuestionWaitUntouchedExpiresAndCancelledClaimDoesNot(t *testing.T) {
 		t.Fatal("cancelled claim settled")
 	default:
 	}
-	if s.Snapshot().QuestionCards["e"].Wait != nil {
+	if s.testView().QuestionCards["e"].Wait != nil {
 		t.Fatal("cancelled claim advertised countdown")
 	}
 }

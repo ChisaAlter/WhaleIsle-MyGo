@@ -33,7 +33,7 @@ func TestServedPluginBodyHasOneBoundFormAndShellOverride(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": body["rpcId"], "result": map[string]any{"ok": true, "value": map[string]any{"writable": true, "namespaces": []any{ns("agent-loop", "maxParallelToolCalls", 4), ns("pwsh-sandbox", "timeoutMs", 1000), ns("bash-sandbox", "maxOutputBytes", 500)}}}})
 		return w.Result(), nil
 	})}}, func() {
-		if snapshot := s.Snapshot(); !snapshot.Loading && len(snapshot.Namespaces) == 3 {
+		if snapshot := s.Snapshot().Value; !snapshot.Loading && len(snapshot.Namespaces) == 3 {
 			select {
 			case loaded <- struct{}{}:
 			default:
@@ -67,7 +67,7 @@ func TestServedPluginBodyHasOneBoundFormAndShellOverride(t *testing.T) {
 			t.Fatal("shell combined the active PowerShell override with Bash's form")
 		}
 	}
-	if s.Snapshot().SelectedNS != "agent-loop" {
+	if s.Snapshot().Value.SelectedNS != "agent-loop" {
 		t.Fatal("plugin form changed settings rail selection")
 	}
 	mounted := true

@@ -106,7 +106,7 @@ func (s *mainState) cancelMarketInstall() {
 
 func (s *mainState) pluginInventoryAccess() *settings.PluginInventoryAccess {
 	inv := s.marketCoordinator().Inventory()
-	snap := inv.Snapshot()
+	snap := inv.Snapshot().Value
 	return &settings.PluginInventoryAccess{
 		Snapshot:       snap,
 		OnRefresh:      s.refreshPluginInventory,
@@ -127,7 +127,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	sessions, win := s.sessions, s.win
 	s.mu.Unlock()
 	ctrl := s.nativePluginController()
-	snap := ctrl.Snapshot()
+	snap := ctrl.Snapshot().Value
 	if snap.Connected {
 		// Gates the Installed/Discover SegmentedTabs the way the original
 		// gates on a plugins.tab slot contribution; the catalog itself
@@ -141,7 +141,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	contributions := []managerui.Contribution{}
 	if store != nil {
 		served := map[string]bool{}
-		for _, ns := range store.Snapshot().Namespaces {
+		for _, ns := range store.Snapshot().Value.Namespaces {
 			served[ns.NS] = true
 		}
 		// Titles and summaries are the original plugins.item registrations'
@@ -181,7 +181,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 		}
 	}
 	managerui.View(c, managerui.Model{
-		SVGImages:               s.svgImageOwner(win, sessions),
+		Media:                   s.mediaOwner(win, sessions),
 		Controller:              ctrl,
 		ThemeID:                 themeID,
 		SystemDark:              mygo.Theme.IsDark(),

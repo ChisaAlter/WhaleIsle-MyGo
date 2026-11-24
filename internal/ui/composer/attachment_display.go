@@ -1,52 +1,61 @@
 package composer
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"image"
 	"io"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/desktop/avatarimage"
 	"whaleisle/internal/desktop/imagepreview"
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/svgimage"
-	"whaleisle/internal/ui/theme"
 )
 
 // attachmentErrorInk marks a failed attachment. theme.Colors carries no danger
 // token yet, so the shell's error red is kept here for the composer's rail.
 var attachmentErrorInk = ui.RGB(213, 73, 65)
 
+// composerMedia is the process image service; tests substitute their own.
+var composerMedia = media.Default
+
 // firstError prefers the staging error and falls back to the preview's.
 func firstError(prepare string, v *attachmentDisplay) string {
 	if prepare != "" {
 		return prepare
 	}
-	if v != nil && v.err != nil {
-		return errcopy.Sentence(v.err)
+	if err := v.failure(); err != nil {
+		return errcopy.Sentence(err)
 	}
 	return ""
 }
 
+// attachmentDisplay is one attachment's metadata, read off the UI thread, and
+// the media request for its pixels. Build code only reads the handle: the
+// bytes are read, base64-decoded and decoded on media workers.
 type attachmentDisplay struct {
-	svg       *svgimage.Seat
-	bitmap    *ui.Bitmap
-	motion    *attachmentMotion
+	key       media.Key
+	src       media.Source
+	image     bool
 	bytes     int64
 	mediaType string
 	err       error
+	readErr   error
+
+	handle *media.Handle
+	bitmap *ui.Bitmap
+	vector *ui.SVG
 }
 type attachmentDisplaySeat struct {
 	result             *attachmentDisplay
@@ -57,10 +66,14 @@ type attachmentDisplaySeat struct {
 
 var attachmentDecodeSlots = make(chan struct{}, 2)
 
+// Thumbnails are decoded for the rail's slot, not at the source's full size.
+const attachmentThumbW, attachmentThumbH = 240, 160
+
+// readAttachmentDisplay reads metadata only (a stat and a 512-byte sniff) and
+// prepares the pixel request. It runs on a goroutine, never in build code.
 func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachmentDisplay {
 	out := &attachmentDisplay{mediaType: a.MediaType}
-	var data []byte
-	var err error
+	whole := len(full) > 0 && full[0]
 	if a.Upload.ReceiptId != "" && a.ImageData == "" && !strings.HasPrefix(a.MediaType, "image/") {
 		out.bytes = int64(a.Upload.File.Bytes)
 		if out.mediaType == "" {
@@ -68,133 +81,148 @@ func readAttachmentDisplay(a session.ComposerAttachment, full ...bool) *attachme
 		}
 		return out
 	}
+	kind := strings.ToLower(filepath.Ext(a.Path))
 	if a.ImageData != "" {
 		if int64(base64.StdEncoding.DecodedLen(len(a.ImageData))) > imagepreview.MaxBytes+2 {
 			out.err = errors.New("image exceeds safe preview byte budget")
 			return out
 		}
-		data, err = base64.StdEncoding.DecodeString(a.ImageData)
-		out.bytes = int64(len(data))
-	} else {
-		info, e := os.Stat(a.Path)
-		if e != nil {
-			out.err = e
-			return out
-		}
-		out.bytes = info.Size()
-		if !info.Mode().IsRegular() {
-			out.err = errors.New("preview requires a regular file")
-			return out
-		}
-		if out.mediaType == "" {
-			out.mediaType = mime.TypeByExtension(strings.ToLower(filepath.Ext(a.Path)))
-		}
-		f, e := os.Open(a.Path)
-		if e != nil {
-			out.err = e
-			return out
-		}
-		defer f.Close()
-		var header [512]byte
-		n, e := f.Read(header[:])
-		if e != nil && e != io.EOF {
-			out.err = e
-			return out
-		}
-		detected := httpImageType(header[:n])
-		if detected != "" {
-			out.mediaType = detected
-		}
-		if !strings.HasPrefix(out.mediaType, "image/") {
-			return out
-		}
-		if info.Size() > imagepreview.MaxBytes {
-			out.err = errors.New("image exceeds safe preview byte budget")
-			return out
-		}
-		if _, e = f.Seek(0, 0); e != nil {
-			out.err = e
-			return out
-		}
-		data, err = io.ReadAll(io.LimitReader(f, imagepreview.MaxBytes+1))
-	}
-	if err != nil {
-		out.err = err
+		out.bytes = int64(base64.StdEncoding.DecodedLen(len(a.ImageData)))
+		encoded := a.ImageData
+		out.image = true
+		out.key = media.Key{ID: "attachment-b64:" + encoded}
+		out.src = media.Source{Kind: kind, MaxBytes: imagepreview.MaxBytes, Load: func(context.Context) ([]byte, error) {
+			return base64.StdEncoding.DecodeString(encoded)
+		}}
+		out.sized(whole)
 		return out
 	}
-	if int64(len(data)) > imagepreview.MaxBytes {
+	info, e := os.Stat(a.Path)
+	if e != nil {
+		out.err = e
+		return out
+	}
+	out.bytes = info.Size()
+	if !info.Mode().IsRegular() {
+		out.err = errors.New("preview requires a regular file")
+		return out
+	}
+	if out.mediaType == "" {
+		out.mediaType = mime.TypeByExtension(kind)
+	}
+	f, e := os.Open(a.Path)
+	if e != nil {
+		out.err = e
+		return out
+	}
+	var header [512]byte
+	n, e := f.Read(header[:])
+	f.Close()
+	if e != nil && e != io.EOF {
+		out.err = e
+		return out
+	}
+	if detected := httpImageType(header[:n]); detected != "" {
+		out.mediaType = detected
+	}
+	if !strings.HasPrefix(out.mediaType, "image/") {
+		return out
+	}
+	if info.Size() > imagepreview.MaxBytes {
 		out.err = errors.New("image exceeds safe preview byte budget")
 		return out
 	}
-	if imagepreview.IsAnimatedAVIF(data) {
-		out.decodeAnimation(data, len(full) > 0 && full[0])
-		return out
-	}
-	var decoded image.Image
-	switch strings.ToLower(filepath.Ext(a.Path)) {
-	case ".svg":
-		if imagepreview.NeedsBrowserSVG(data) {
-			out.svg, out.err = svgimage.NewSeat(data)
-			return out
-		}
-		decoded, err = imagepreview.DecodeSVGContext(context.Background(), data)
-	case ".ico":
-		decoded, err = imagepreview.DecodeIcon(data)
-	case ".avif":
-		decoded, err = imagepreview.DecodeAVIFContext(context.Background(), data)
-	default:
-		cfg, format, e := image.DecodeConfig(bytes.NewReader(data))
-		if e != nil {
-			out.err = e
-			return out
-		}
-		if format == "gif" || imagepreview.IsAnimatedWebP(data) {
-			out.decodeAnimation(data, len(full) > 0 && full[0])
-			return out
-		}
-		if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width) > imagepreview.MaxPixels/int64(cfg.Height) {
-			out.err = errors.New("image exceeds safe preview pixel budget")
-			return out
-		}
-		// The existing bitmap decoder preserves JPEG EXIF orientation.
-		if len(full) > 0 && full[0] {
-			out.bitmap, out.err = ui.DecodeBitmap(data)
-			return out
-		}
-		decoded, _, err = image.Decode(bytes.NewReader(data))
-		if err == nil && format == "jpeg" {
-			decoded = avatarimage.ApplyJPEGOrientation(decoded, data)
-		}
-	}
-	if err != nil {
-		out.err = err
-		return out
-	}
-	if decoded == nil {
-		out.err = errors.New("image unavailable")
-		return out
-	}
-	out.bitmap = attachmentBitmap(decoded, len(full) > 0 && full[0])
+	out.image = true
+	// A file's content identity is its path, size and modification time.
+	out.key = media.Key{ID: "attachment-file:" + a.Path + "|" + strconv.FormatInt(info.Size(), 10) + "|" + strconv.FormatInt(info.ModTime().UnixNano(), 10)}
+	out.src = media.Source{Path: a.Path, Kind: kind, MaxBytes: imagepreview.MaxBytes}
+	out.sized(whole)
 	return out
 }
-func (v *attachmentDisplaySeat) load(a session.ComposerAttachment, full bool, notify func()) {
+
+func (v *attachmentDisplay) sized(whole bool) {
+	if !whole {
+		v.key = v.key.Sized(attachmentThumbW, attachmentThumbH)
+	}
+}
+
+// refresh reads this frame's picture from the media service; with a non-zero
+// now it also shows the animation frame due and returns the wait to the next.
+func (v *attachmentDisplay) refresh(owner *media.Owner, now time.Time) time.Duration {
+	if v == nil || !v.image {
+		return 0
+	}
+	v.handle = composerMedia().Request(owner, v.key, v.src)
+	v.bitmap, v.vector = nil, nil
+	switch v.handle.State() {
+	case media.Failed:
+		v.readErr = v.handle.Err()
+		return 0
+	case media.Pending:
+		return 0
+	}
+	v.readErr = nil
+	pic, _ := v.handle.Picture()
+	var wait time.Duration
+	if !now.IsZero() {
+		pic.Bitmap, wait = v.handle.Frame(now)
+	}
+	v.bitmap, v.vector = pic.Bitmap, pic.SVG
+	return wait
+}
+
+// failure is the metadata or decode failure to explain, nil when none.
+func (v *attachmentDisplay) failure() error {
+	if v == nil {
+		return nil
+	}
+	if v.err != nil {
+		return v.err
+	}
+	return v.readErr
+}
+
+// picture is the drawable source once ready.
+func (v *attachmentDisplay) picture() ui.ImageSource {
+	if v == nil {
+		return nil
+	}
+	if v.bitmap != nil {
+		return v.bitmap
+	}
+	if v.vector != nil {
+		return v.vector
+	}
+	return nil
+}
+
+// animate shows the frame due now and schedules the next only while painted.
+func (v *attachmentDisplay) animate(c *ui.Context, owner *media.Owner) {
+	if wait := v.refresh(owner, time.Now()); wait > 0 {
+		c.After(wait)
+	}
+}
+
+func (v *attachmentDisplaySeat) load(a session.ComposerAttachment, full bool, owner *media.Owner, notify func()) {
+	if v.result == nil {
+		if v.pending == nil {
+			v.pending = make(chan *attachmentDisplay, 1)
+			result := v.pending
+			go func() {
+				attachmentDecodeSlots <- struct{}{}
+				out := readAttachmentDisplay(a, full)
+				<-attachmentDecodeSlots
+				result <- out
+				notify()
+			}()
+		}
+		select {
+		case v.result = <-v.pending:
+		default:
+		}
+	}
 	if v.result != nil {
-		return
-	}
-	if v.pending == nil {
-		v.pending = make(chan *attachmentDisplay, 1)
-		result := v.pending
-		go func() {
-			attachmentDecodeSlots <- struct{}{}
-			out := readAttachmentDisplay(a, full)
-			<-attachmentDecodeSlots
-			result <- out
-			notify()
-		}()
-	}
-	select {
-	case v.result = <-v.pending:
-	default:
+		v.result.refresh(owner, time.Time{})
 	}
 }
 func attachmentDisplayStatus(d *DraftState, i int) string {
@@ -240,7 +268,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					card.Padding(0, 12)
 				}
 				seat := ui.Local(card, "preview", func() attachmentDisplaySeat { return attachmentDisplaySeat{} })
-				seat.load(a, false, c.Services().Invalidate)
+				seat.load(a, false, m.Media, c.Services().Invalidate)
 				if seat.result != nil && strings.HasPrefix(seat.result.mediaType, "image/") {
 					imageFile = true
 					card.Width(64).Padding(0)
@@ -256,30 +284,19 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					if imageFile {
 						preview := ui.Box(c).Fill().Radius(20).Clip().Focusable().Label("Preview attachment " + label).Tooltip(label)
 						preview.Children(func() {
-							if v != nil && v.svg != nil {
-								v.svg.Prepare(c, m.SVGImages)
-								showClose := card.Hovered() || card.FocusWithin() || a.PrepareError != ""
-								ui.Box(c).Fill().DrawOver(func(p *ui.Painter, r ui.Rect) {
-									var holes []svgimage.Exclusion
-									if showClose {
-										holes = append(holes, svgimage.Exclusion{Bounds: ui.Rect{X: r.X + r.W - 22, Y: r.Y + 4, W: 18, H: 18}, Radius: 9})
-									}
-									if a.PrepareError != "" && m.OnRetryAttachment != nil {
-										holes = append(holes, svgimage.Exclusion{Bounds: ui.Rect{X: r.X + 4, Y: r.Y + r.H - 22, W: 18, H: 18}, Radius: p.Theme().Radius})
-									}
-									v.svg.PaintClipped(p, r, ui.Cover, 20, holes, chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).InputMajor))
-								})
-							} else if v != nil && v.bitmap != nil {
-								v.animate(c)
-								ui.Image(c, v.bitmap).Fill().Fit(ui.Cover)
+							if v != nil {
+								v.animate(c, m.Media)
+							}
+							if src := v.picture(); src != nil {
+								ui.Image(c, src).Fill().Fit(ui.Cover)
 							} else {
 								ui.Text(c, i18n.T(i18n.KeyComposerAttachmentImage)).FontSize(12).TextColor(muted)
 							}
 						})
-						if v != nil && v.err != nil {
-							preview.Tooltip(errcopy.Sentence(v.err))
+						if v.failure() != nil {
+							preview.Tooltip(errcopy.Sentence(v.failure()))
 						}
-						if v != nil && (v.bitmap != nil || v.svg != nil) && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
+						if v != nil && v.picture() != nil && (preview.Clicked() || preview.Shortcut(0, ui.KeyEnter)) {
 							seat.open = true
 						}
 					} else {
@@ -298,9 +315,9 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 								meta = attachmentDisplayStatus(d, i)
 							} else if a.PrepareError != "" {
 								meta = i18n.T(i18n.KeyComposerAttachmentFailed)
-							} else if v != nil && v.err != nil {
+							} else if v.failure() != nil {
 								meta = i18n.T(i18n.KeyComposerAttachmentUnavailable)
-								body.Tooltip(errcopy.Sentence(v.err))
+								body.Tooltip(errcopy.Sentence(v.failure()))
 							} else if v != nil && a.Upload.ReceiptId != "" {
 								meta = fmt.Sprintf("%s · %d bytes", strings.ToUpper(strings.TrimPrefix(filepath.Ext(label), ".")), v.bytes)
 							}
@@ -312,7 +329,7 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					// glyph colour checked against it.
 					discFill := ui.RGB(0, 0, 0).Alpha(0.55)
 					discInk := chrome.EnsureContrast(ui.RGB(255, 255, 255), ui.RGB(0, 0, 0))
-					failed := a.PrepareError != "" || v != nil && v.err != nil
+					failed := a.PrepareError != "" || v.failure() != nil
 					if failed {
 						// The theme exposes no danger token yet; this is the shell's
 						// error ink, kept in one place.
@@ -334,16 +351,10 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 					remove = close.Clicked()
 				})
 				if remove {
-					if seat.result != nil && seat.result.svg != nil {
-						seat.result.svg.Close()
-					}
-					if seat.full != nil && seat.full.result != nil && seat.full.result.svg != nil {
-						seat.full.result.svg.Close()
-					}
 					d.RemoveAttachment(i)
 					break
 				}
-				paintAttachmentOriginal(c, seat, a, label, m.SVGImages)
+				paintAttachmentOriginal(c, seat, a, label, m.Media)
 			}
 		})
 	}
@@ -351,18 +362,15 @@ func paintAttachmentRail(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, FormatComposerError(d.Error)).FontSize(12).TextColor(muted).Padding(0, 14)
 	}
 }
-func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a session.ComposerAttachment, label string, owners ...*svgimage.Owner) {
+func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a session.ComposerAttachment, label string, owner *media.Owner) {
 	if !seat.open {
-		if seat.full != nil && seat.full.result != nil && seat.full.result.svg != nil {
-			seat.full.result.svg.Close()
-		}
 		seat.full = nil
 		return
 	}
 	if seat.full == nil {
 		seat.full = &attachmentDisplaySeat{}
 	}
-	seat.full.load(a, true, c.Services().Invalidate)
+	seat.full.load(a, true, owner, c.Services().Invalidate)
 	ui.DialogBase(c, &seat.open, func(backdrop, panel ui.Element) {
 		chrome.RevealOverlay(c, backdrop, panel, ui.RGBA(0, 0, 0, .4))
 		_, height := c.Size()
@@ -377,45 +385,26 @@ func paintAttachmentOriginal(c *ui.Context, seat *attachmentDisplaySeat, a sessi
 					seat.open = false
 				}
 			})
-			if seat.full.result == nil {
+			v := seat.full.result
+			if v == nil || v.image && v.handle.State() == media.Pending {
 				ui.Text(c, i18n.T(i18n.KeyComposerAttachmentLoadingOriginal))
 				return
 			}
-			v := seat.full.result
-			if v.svg != nil {
-				var owner *svgimage.Owner
-				if len(owners) > 0 {
-					owner = owners[0]
-				}
-				v.svg.Prepare(c, owner)
-				paint := func() { ui.Box(c).Fill().DrawOver(func(p *ui.Painter, r ui.Rect) { v.svg.Paint(p, r, ui.Contain) }) }
-				if seat.originalSize {
-					w, h := v.svg.Size()
-					ui.ScrollBoth(c).Fill().Children(func() {
-						ui.Box(c).Width(w).Height(h).DrawOver(func(p *ui.Painter, r ui.Rect) { v.svg.Paint(p, r, ui.Contain) })
-					})
-				} else {
-					paint()
-				}
-				return
-			}
-			if v.bitmap == nil {
+			v.animate(c, owner)
+			src := v.picture()
+			if src == nil {
 				ui.Text(c, i18n.T(i18n.KeyComposerAttachmentOriginalUnavailable))
 				return
 			}
-			v.animate(c)
 			if seat.originalSize {
-				w, h := v.bitmap.Size()
-				ui.ScrollBoth(c).Fill().Children(func() { ui.Image(c, v.bitmap).Width(float32(w)).Height(float32(h)) })
+				w, h := v.handle.Size()
+				ui.ScrollBoth(c).Fill().Children(func() { ui.Image(c, src).Width(w).Height(h) })
 			} else {
-				ui.Image(c, v.bitmap).Fill().Fit(ui.Contain)
+				ui.Image(c, src).Fill().Fit(ui.Contain)
 			}
 		})
 	})
 	if !seat.open {
-		if seat.full != nil && seat.full.result != nil && seat.full.result.svg != nil {
-			seat.full.result.svg.Close()
-		}
 		seat.full = nil
 	}
 }

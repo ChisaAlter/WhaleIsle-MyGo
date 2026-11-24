@@ -67,7 +67,7 @@ func providerDialogCloseLabel() string { return copyText("关闭", "Close") }
 // and header, instead of the old 640 DIP fixed 720 DIP hand-painted panel.
 func TestInstallDialogUsesTheSharedModalSurface(t *testing.T) {
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "idle"}
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
 		installDialog(c, m, s, m.Controller.Actions(s.Owner))
@@ -91,7 +91,7 @@ func TestInstallDialogUsesTheSharedModalSurface(t *testing.T) {
 // log leaves no blank working height and a long one scrolls inside the card.
 func TestInstallDialogSizesTheLogScreenToItsContent(t *testing.T) {
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Install = manager.InstallState{Open: true, Phase: "failed", Spec: "fixture-plugin", DetailsOpen: true,
 		Runs: []manager.InstallRun{{JobID: "pnpm-1", Command: "pnpm add fixture-plugin", CWD: "fixture-profile",
 			Output: "Installing fixture\nFixture failure", Settled: true}}}
@@ -119,7 +119,7 @@ func TestInstallDialogSizesTheLogScreenToItsContent(t *testing.T) {
 // reference header now owns its close control, not a footer button.
 func TestSourcesDialogUsesTheSharedModalSurface(t *testing.T) {
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	s.Discover.SourcesOpen = true
 	tt := pluginDialogFixture(t, func(c *ui.Context) {
 		sourcesDialog(c, m, s, m.Controller.Actions(s.Owner))
@@ -133,7 +133,7 @@ func TestSourcesDialogUsesTheSharedModalSurface(t *testing.T) {
 // the reference header, a shared body, and the cancel/install footer row.
 func TestMarketChoiceDialogUsesTheSharedModalSurface(t *testing.T) {
 	m := pageModel(t)
-	s := m.Controller.Snapshot()
+	s := m.Controller.Snapshot().Value
 	entry := manager.MarketEntry{Name: "fixture-discover", Title: manager.Text(`"Discover fixture"`),
 		Description: manager.Text(`"A source-backed entry with exact install versions."`), Author: "Fixture author", DefaultVersion: "2.0.0"}
 	entry.Installation.Status = "not-installed"

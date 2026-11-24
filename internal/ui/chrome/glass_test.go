@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/theme"
 )
@@ -139,18 +140,18 @@ func gradientWallpaper() *image.RGBA {
 }
 
 func TestBackdropSamplingFollowsWallpaperBrightness(t *testing.T) {
-	sampler := newBackdropSampler(gradientWallpaper(), 1)
+	sampler := colorMap(gradientWallpaper())
 	box := ui.Rect{X: 0, Y: 0, W: 200, H: 100}
 	panel := func(x float32) ui.Rect { return ui.Rect{X: x, Y: 0, W: 40, H: 100} }
-	left, ok := sampler.average(box, panel(0))
+	left, ok := sampler.average(box, panel(0), 1)
 	if !ok {
 		t.Fatal("a panel over the wallpaper sampled nothing")
 	}
-	middle, ok := sampler.average(box, panel(80))
+	middle, ok := sampler.average(box, panel(80), 1)
 	if !ok {
 		t.Fatal("middle panel sampled nothing")
 	}
-	right, ok := sampler.average(box, panel(160))
+	right, ok := sampler.average(box, panel(160), 1)
 	if !ok {
 		t.Fatal("right panel sampled nothing")
 	}
@@ -169,10 +170,10 @@ func TestBackdropSamplingFollowsWallpaperBrightness(t *testing.T) {
 // panel color as the material gets more opaque, and never leaves the range
 // between the backdrop and the tint.
 func TestSurfaceFillTransparencyIsMonotone(t *testing.T) {
-	sampler := newBackdropSampler(gradientWallpaper(), 1)
+	sampler := colorMap(gradientWallpaper())
 	box := ui.Rect{X: 0, Y: 0, W: 200, H: 100}
 	panel := ui.Rect{X: 20, Y: 20, W: 40, H: 40}
-	backdrop, ok := sampler.average(box, panel)
+	backdrop, ok := sampler.average(box, panel, 1)
 	if !ok {
 		t.Fatal("no backdrop under the panel")
 	}
@@ -550,35 +551,6 @@ func TestMenuShadowAndElevationPaint(t *testing.T) {
 	}
 }
 
-// TestGlassPatchKeepsLocalBrightness checks the frost itself: a patch sampled
-// over the dark side of the wallpaper stays darker than one over the light
-// side, which is what makes a panel follow what is beneath it.
-func TestGlassPatchKeepsLocalBrightness(t *testing.T) {
-	sampler := newBackdropSampler(gradientWallpaper(), 1)
-	box := ui.Rect{X: 0, Y: 0, W: 200, H: 100}
-	dark, ok := sampler.patch(box, ui.Rect{X: 0, Y: 0, W: 40, H: 40}, 4, 4, 1)
-	if !ok {
-		t.Fatal("no frost over the dark side")
-	}
-	light, ok := sampler.patch(box, ui.Rect{X: 160, Y: 0, W: 40, H: 40}, 4, 4, 1)
-	if !ok {
-		t.Fatal("no frost over the light side")
-	}
-	if got, want := dark.RGBAAt(2, 2).R, light.RGBAAt(2, 2).R; got >= want {
-		t.Fatalf("frost did not follow the wallpaper: dark %d light %d", got, want)
-	}
-	if dark.RGBAAt(0, 0).R >= dark.RGBAAt(3, 0).R {
-		t.Fatal("frost cells are not ordered along the wallpaper")
-	}
-	saturated, ok := sampler.patch(box, ui.Rect{X: 160, Y: 0, W: 40, H: 40}, 4, 4, 1.5)
-	if !ok {
-		t.Fatal("no saturated frost")
-	}
-	if saturated.RGBAAt(2, 2).A != 255 {
-		t.Fatal("frost cells must stay opaque")
-	}
-}
-
 // TestMetallicSheenPaintsOnlyWhileHovered covers the metallic paint helper the
 // custom-painted buttons use.
 func TestMetallicSheenPaintsOnlyWhileHovered(t *testing.T) {
@@ -621,8 +593,17 @@ func TestFrostOfBlursMenuAndTerminal(t *testing.T) {
 	}
 }
 
-func TestMenuFrostScreenBitmapCachesAndBlurs(t *testing.T) {
+// The glass theme's wallpaper decodes once on a media worker; resizing
+// repaints the same texture, and surfaces sample its precomputed color map
+// (dark left half, bright right half) instead of the wallpaper's pixels.
+func TestWallpaperDecodesOnceAndSurfacesSampleItsColorMap(t *testing.T) {
 	t.Cleanup(func() { ConfigureBackdrop("", wallpapers.Defaults()) })
+	s := media.New(media.Config{Workers: -1})
+	previous := wallpaperMedia
+	wallpaperMedia = func() *media.Service { return s }
+	settle := wallpaperSettle
+	wallpaperSettle = nil
+	t.Cleanup(func() { wallpaperMedia, wallpaperSettle = previous, settle })
 	img := image.NewRGBA(image.Rect(0, 0, 80, 40))
 	for y := 0; y < 40; y++ {
 		for x := 0; x < 80; x++ {
@@ -640,6 +621,7 @@ func TestMenuFrostScreenBitmapCachesAndBlurs(t *testing.T) {
 	url := "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 	prefs := wallpapers.Defaults()
 	prefs.Effect = "none"
+	prefs.Blur = 50
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(ui.DarkTheme())
 		paint := WallpaperBackgroundPainter(url, prefs, c.Preferences().ReduceMotion)
@@ -647,16 +629,21 @@ func TestMenuFrostScreenBitmapCachesAndBlurs(t *testing.T) {
 		ui.Box(c).Absolute().Left(20).Top(5).Width(40).Height(30).
 			Draw(Glass(ui.RGB(67, 69, 74), MaterialMenu, 8))
 	}, 80, 40)
+	if s.Decodes() != 0 {
+		t.Fatal("the painter decoded on the UI thread")
+	}
+	s.RunPending()
 	tt.Frame()
-	bmp1, box, ok := menuFrostScreenBitmap()
-	if !ok || bmp1 == nil {
-		t.Fatal("menuFrostScreenBitmap did not build a frost bitmap")
+	tt.SetSize(120, 60)
+	tt.Frame()
+	tt.SetSize(80, 40)
+	tt.Frame()
+	if s.Decodes() != 1 || s.Queued() != 0 {
+		t.Fatalf("wallpaper decoded %d times", s.Decodes())
 	}
-	if box != (ui.Rect{X: 0, Y: 0, W: 80, H: 40}) {
-		t.Fatalf("frost box = %+v, want 80x40 window rect", box)
-	}
-	bmp2, _, ok := menuFrostScreenBitmap()
-	if !ok || bmp2 != bmp1 {
-		t.Fatal("menuFrostScreenBitmap did not reuse cached bitmap")
+	left, okL := SampleBackdrop(ui.Rect{X: 0, Y: 0, W: 30, H: 40})
+	right, okR := SampleBackdrop(ui.Rect{X: 50, Y: 0, W: 30, H: 40})
+	if !okL || !okR || left.R >= right.R {
+		t.Fatalf("color map sampling: left=%v right=%v", left, right)
 	}
 }

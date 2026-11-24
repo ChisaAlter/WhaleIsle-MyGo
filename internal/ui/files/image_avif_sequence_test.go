@@ -25,7 +25,7 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 		t.Fatal(err)
 	}
 	preview := loadImagePreview(root, path)
-	if preview.err != nil || preview.bitmap == nil || preview.animation == nil || len(preview.frames) != 17 || len(preview.animation.Frames) != 0 {
+	if preview.err != nil || preview.bitmap == nil || !preview.handle.Animated() {
 		t.Fatalf("desktop AVIF sequence/staging: %+v", preview)
 	}
 	if w, h := preview.bitmap.Size(); w != 500 || h != 360 {
@@ -33,10 +33,9 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 	}
 	start := time.Unix(100, 0)
 	preview.advance(start)
-	if wait := preview.advance(start.Add(90 * time.Millisecond)); wait != 70*time.Millisecond || preview.bitmap != preview.frames[1] {
+	if wait := preview.advance(start.Add(90 * time.Millisecond)); wait != 70*time.Millisecond {
 		t.Fatalf("AVIF timing=%v", wait)
 	}
-	preview.started = time.Time{}
 	// Raster workers are process-global: all native seat drawing uses the
 	// ordinary test lifetime. Exact frame timing is checked with advance above.
 	{
@@ -54,12 +53,12 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 				}
 			})
 		}, 700, 500)
-		before, first := append([]byte(nil), tt.Image().Pix...), preview.bitmap
+		before := append([]byte(nil), tt.Image().Pix...)
 		changed := false
 		for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
 			time.Sleep(5 * time.Millisecond)
 			tt.Frame()
-			if preview.bitmap != first && !bytes.Equal(before, tt.Image().Pix) {
+			if !bytes.Equal(before, tt.Image().Pix) {
 				changed = true
 				break
 			}
@@ -78,8 +77,8 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 		other := &FileTab{Path: "other.png"}
 		w.Open = append(w.Open, other)
 		retainImagePreview(m, other, &imagePreview{})
-		if tab.image != nil {
-			t.Fatal("inactive Files tab retained AVIF frames")
+		if tab.image == nil {
+			t.Fatal("inactive Files tab lost its media handle")
 		}
 	}
 	// The shared decoder must still fail the entire sequence if a later frame
@@ -88,7 +87,7 @@ func TestDesktopFilesAVIFSequenceUsesNativeTimeline(t *testing.T) {
 	for i := len(bad) - 5; i < len(bad); i++ {
 		bad[i] = 0
 	}
-	if p := decodeImagePreviewContext(context.Background(), path, bad); p.err == nil || p.bitmap != nil || len(p.frames) != 0 {
+	if p := decodeImagePreviewContext(context.Background(), path, bad); p.err == nil || p.bitmap != nil {
 		t.Fatal("corrupt later AVIF frame exposed incomplete Files pixels")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -105,7 +104,7 @@ func TestAVIFSequenceKeepsRegisteredBytesAndUnregisteredSuffixBoundaries(t *test
 	}
 	// Installed FilePreview sends complete image bytes to img, not a codec
 	// selected by the admitted suffix. An existing .gif entry may contain AVIF.
-	if p := decodeImagePreviewContext(context.Background(), "sequence.gif", data); p.err != nil || p.bitmap == nil || p.animation == nil {
+	if p := decodeImagePreviewContext(context.Background(), "sequence.gif", data); p.err != nil || p.bitmap == nil || !p.handle.Animated() {
 		t.Fatal("registered image path did not decode its actual AVIF bytes", p.err)
 	}
 	if isPreviewImage("sequence.avifs") {
