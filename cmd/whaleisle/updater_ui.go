@@ -12,6 +12,7 @@ import (
 	desktopupdate "whaleisle/internal/desktop/update"
 	"whaleisle/internal/paths"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/launcher"
 	"whaleisle/internal/ui/theme"
@@ -129,7 +130,13 @@ func (s *mainState) syncNativeUpdateModal(c *ui.Context, owner *mygo.Window) {
 			Border(1, chrome.Color(colors.Border)).Clip(), colors, dark, chrome.Color(colors.BG), 16).Children(func() {
 			ui.Row(c).FillWidth().Shrink(0).Padding(20, 24).AlignItems(ui.Center).Gap(12).Children(func() {
 				ui.Text(c, lifecycleText("更新中心", "Update center")).FontSize(18).FontWeight(600).TextColor(chrome.Color(colors.FG)).Grow(1)
-				if ui.Button(c, "×").Size(28, 28).Label(lifecycleText("关闭", "Close")).AutoFocus().Clicked() {
+				if coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconSM,
+					Icon:    coss.IconX,
+					Label:   lifecycleText("关闭", "Close"),
+					Key:     "native-update-center-close",
+				}).AutoFocus().Clicked() {
 					open = false
 				}
 			})
