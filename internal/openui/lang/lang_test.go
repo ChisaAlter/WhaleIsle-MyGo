@@ -82,6 +82,109 @@ func TestObjectKeyOrder(t *testing.T) {
 	if got := strings.Join(o.Keys(), ","); got != "2,10,b,a" {
 		t.Fatalf("keys = %s", got)
 	}
+	// Grow past mapThreshold (16) and exercise array-index insert, delete, overwrite and clone.
+	for i := range 24 {
+		o.Set("k"+itoa(i), float64(i))
+	}
+	o.Set("0", "zero")
+	o.Set("5", "five")
+	o.Set("k3", "updated")
+	o.Delete("10")
+	o.Delete("k0")
+	if v, ok := o.Get("0"); !ok || v != "zero" {
+		t.Fatalf("key 0 = %v, %v", v, ok)
+	}
+	if v, ok := o.Get("k3"); !ok || v != "updated" {
+		t.Fatalf("key k3 = %v, %v", v, ok)
+	}
+	if o.Has("10") || o.Has("k0") {
+		t.Fatal("deleted keys still present")
+	}
+	keys := o.Keys()
+	if keys[0] != "0" || keys[1] != "2" || keys[2] != "5" {
+		t.Fatalf("index prefix order = %v", keys[:4])
+	}
+	cp := o.Clone()
+	cp.Set("k2", "clone-only")
+	if o.Value("k2") == "clone-only" || cp.Value("k2") != "clone-only" || cp.Len() != o.Len() {
+		t.Fatal("clone mutated original or lost keys")
+	}
+}
+
+func TestIncrementalCacheAndScopeCapture(t *testing.T) {
+	lib := loadFixtureLibrary(t)
+
+	// 1. Streaming redefinition and statement aliasing must not corrupt cached StatementID.
+	in := NewInstance(lib, Options{})
+	in.Update(Update{Revision: 1, Program: "root = Stack([a, b])\na = x\nb = x\nx = Text(\"v1\")\n", Streaming: true})
+	f1 := in.Update(Update{Revision: 2, Program: "root = Stack([a, b])\na = x\nb = x\nx = Text(\"v1\")\nx = Text(\"v2\")\n", Streaming: false})
+	ch := f1.Root.Children()
+	if len(ch) != 2 || ch[0].StatementID != "a" || ch[1].StatementID != "b" || ch[0].Prop("text") != "v2" || ch[1].Prop("text") != "v2" {
+		t.Fatalf("alias/redef: %+v %+v", ch[0], ch[1])
+	}
+
+	// 2. Selective state invalidation keeps unrelated sibling subtrees consistent and updates changed ones.
+	in = NewInstance(lib, Options{})
+	f := in.Update(Update{Program: "$a = \"A1\"\n$b = \"B1\"\nroot = Stack([sa, sb])\nsa = Text($a)\nsb = Text($b)\n"})
+	if f.Root.Children()[0].Prop("text") != "A1" || f.Root.Children()[1].Prop("text") != "B1" {
+		t.Fatalf("initial: %+v", f.Root.Children())
+	}
+	_ = in.SetState("$a", "A2")
+	f = in.Render()
+	if f.Root.Children()[0].Prop("text") != "A2" || f.Root.Children()[1].Prop("text") != "B1" {
+		t.Fatalf("after $a change: %v %v", f.Root.Children()[0].Prop("text"), f.Root.Children()[1].Prop("text"))
+	}
+	_ = in.SetState("$b", "B2")
+	f = in.Render()
+	if f.Root.Children()[0].Prop("text") != "A2" || f.Root.Children()[1].Prop("text") != "B2" {
+		t.Fatalf("after $b change: %v %v", f.Root.Children()[0].Prop("text"), f.Root.Children()[1].Prop("text"))
+	}
+
+	// 3. Impure function must never be falsely cached across Render() calls.
+	tick := 0.0
+	impureLib := loadFixtureLibrary(t)
+	impureLib.Functions["Tick"] = &Function{
+		Name: "Tick",
+		Pure: false,
+		Impl: func(_ *Object, _ *FuncEnv) (Value, error) {
+			tick++
+			return tick, nil
+		},
+	}
+	impureLib.FunctionOrder = append(impureLib.FunctionOrder, "Tick")
+	if err := impureLib.Init(); err != nil {
+		t.Fatal(err)
+	}
+	inImp := NewInstance(impureLib, Options{})
+	f = inImp.Update(Update{Program: "root = Stack([Text(\"t=\" + @Tick())])"})
+	if f.Root.Children()[0].Prop("text") != "t=1" {
+		t.Fatalf("tick 1 = %v", f.Root.Children()[0].Prop("text"))
+	}
+	f = inImp.Render()
+	if f.Root.Children()[0].Prop("text") != "t=2" {
+		t.Fatalf("tick 2 = %v (impure cached!)", f.Root.Children()[0].Prop("text"))
+	}
+
+	// 4. Nested @Each deferred action capture + shadowing + ephemeral aliasing.
+	in = NewInstance(lib, Options{})
+	prog := `root = Stack([g1, g2])
+g1 = Stack(@Each(["a", "b"], "x", Stack(@Each([1, 2], "y", Button(x + y, @Set($picked, x + y))))))
+g2 = Stack(@Each(@Each(["ok"], "i", Text(i)), "el", Stack([el, el])))
+$picked = ""`
+	f = in.Update(Update{Program: prog})
+	rows := f.Root.Children()[0].Children()
+	btn := rows[1].Children()[0] // "b1"
+	run := in.Dispatch("b1", btn.FormName, btn.Prop("action"))
+	if eff, err := run.Next(); eff != nil || err != nil {
+		t.Fatalf("action: %v %v", eff, err)
+	}
+	if got := in.Store().Get("$picked"); got != "b1" {
+		t.Fatalf("picked = %v, want b1", got)
+	}
+	dup := f.Root.Children()[1].Children()[0].Children()
+	if len(dup) != 2 || dup[0].Prop("text") != "ok" || dup[1].Prop("text") != "ok" {
+		t.Fatalf("ephemeral alias: %+v", dup)
+	}
 }
 
 // evalExpr evaluates one expression through the fixture library.

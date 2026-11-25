@@ -1,8 +1,11 @@
 package lang
 
 import (
+	"math"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -108,10 +111,42 @@ func scanIdent(src string, i int, unicodeIdents bool) int {
 	return i
 }
 
+var tokSlicePool = sync.Pool{
+	New: func() any {
+		s := make([]token, 0, 256)
+		return &s
+	},
+}
+
+func acquireTokBuf(hint int) *[]token {
+	bp := tokSlicePool.Get().(*[]token)
+	s := *bp
+	if cap(s) < hint {
+		s = make([]token, 0, hint)
+	} else {
+		s = s[:0]
+	}
+	*bp = s
+	return bp
+}
+
+func releaseTokBuf(bp *[]token) {
+	s := *bp
+	if cap(s) > 65536 {
+		return
+	}
+	clear(s)
+	*bp = s[:0]
+	tokSlicePool.Put(bp)
+}
+
 // tokenize lexes source text. Lexing never fails: characters that match no
 // rule are skipped. It returns false when the token budget is exceeded.
 func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
-	toks := make([]token, 0, len(src)/3+1)
+	return tokenizeInto(make([]token, 0, len(src)/3+8), src, unicodeIdents, maxTokens)
+}
+
+func tokenizeInto(toks []token, src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 	i, n := 0, len(src)
 	for i < n {
 		if maxTokens > 0 && len(toks) >= maxTokens {
@@ -124,15 +159,6 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 			break
 		}
 		c := src[i]
-		two := func(next byte, a, b tokKind) {
-			if i+1 < n && src[i+1] == next {
-				toks = append(toks, token{k: a})
-				i += 2
-			} else {
-				toks = append(toks, token{k: b})
-				i++
-			}
-		}
 		switch c {
 		case '\n':
 			toks = append(toks, token{k: tNewline})
@@ -171,22 +197,56 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 			i++
 			continue
 		case '=':
-			two('=', tEqEq, tEquals)
+			if i+1 < n && src[i+1] == '=' {
+				toks = append(toks, token{k: tEqEq})
+				i += 2
+			} else {
+				toks = append(toks, token{k: tEquals})
+				i++
+			}
 			continue
 		case '!':
-			two('=', tNotEq, tNot)
+			if i+1 < n && src[i+1] == '=' {
+				toks = append(toks, token{k: tNotEq})
+				i += 2
+			} else {
+				toks = append(toks, token{k: tNot})
+				i++
+			}
 			continue
 		case '>':
-			two('=', tGreaterEq, tGreater)
+			if i+1 < n && src[i+1] == '=' {
+				toks = append(toks, token{k: tGreaterEq})
+				i += 2
+			} else {
+				toks = append(toks, token{k: tGreater})
+				i++
+			}
 			continue
 		case '<':
-			two('=', tLessEq, tLess)
+			if i+1 < n && src[i+1] == '=' {
+				toks = append(toks, token{k: tLessEq})
+				i += 2
+			} else {
+				toks = append(toks, token{k: tLess})
+				i++
+			}
 			continue
 		case '&':
-			two('&', tAnd, tAnd)
+			toks = append(toks, token{k: tAnd})
+			if i+1 < n && src[i+1] == '&' {
+				i += 2
+			} else {
+				i++
+			}
 			continue
 		case '|':
-			two('|', tOr, tOr)
+			toks = append(toks, token{k: tOr})
+			if i+1 < n && src[i+1] == '|' {
+				i += 2
+			} else {
+				i++
+			}
 			continue
 		case '.':
 			toks = append(toks, token{k: tDot})
@@ -216,19 +276,34 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 			start := i
 			i++
 			closed := false
+			hasEscape := false
+			hasCtrl := false
 			for i < n {
-				if src[i] == '\\' {
+				b := src[i]
+				if b == '\\' {
+					hasEscape = true
 					i += 2
-				} else if src[i] == '"' {
+				} else if b == '"' {
 					i++
 					closed = true
 					break
 				} else {
+					if b < 0x20 {
+						hasCtrl = true
+					}
 					i++
 				}
 			}
 			if i > n {
 				i = n
+			}
+			if !hasEscape && !hasCtrl {
+				end := i
+				if closed {
+					end--
+				}
+				toks = append(toks, token{k: tStr, s: src[start+1 : end]})
+				continue
 			}
 			raw := src[start:i]
 			lit := raw
@@ -246,7 +321,26 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 			continue
 		case '\'':
 			i++
+			start := i
+			hasEscape := false
+			for i < n {
+				if src[i] == '\\' {
+					hasEscape = true
+					break
+				}
+				if src[i] == '\'' {
+					toks = append(toks, token{k: tStr, s: src[start:i]})
+					i++
+					goto nextTok
+				}
+				i++
+			}
+			if !hasEscape {
+				toks = append(toks, token{k: tStr, s: src[start:i]})
+				continue
+			}
 			var b strings.Builder
+			b.WriteString(src[start:i])
 			for i < n {
 				if src[i] == '\\' {
 					i++
@@ -291,19 +385,30 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 		}
 		if c >= '0' && c <= '9' || c == '-' {
 			start := i
+			neg := false
 			if src[i] == '-' {
+				neg = true
 				i++
 			}
+			var iv int64
+			intDigits := 0
 			for i < n && src[i] >= '0' && src[i] <= '9' {
+				if intDigits < 15 {
+					iv = iv*10 + int64(src[i]-'0')
+				}
+				intDigits++
 				i++
 			}
+			isFloat := false
 			if i < n && src[i] == '.' && i+1 < n && src[i+1] >= '0' && src[i+1] <= '9' {
+				isFloat = true
 				i++
 				for i < n && src[i] >= '0' && src[i] <= '9' {
 					i++
 				}
 			}
 			if i < n && (src[i] == 'e' || src[i] == 'E') {
+				isFloat = true
 				i++
 				if i < n && (src[i] == '+' || src[i] == '-') {
 					i++
@@ -312,7 +417,26 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 					i++
 				}
 			}
-			toks = append(toks, token{k: tNum, n: StringToNumber(src[start:i])})
+			var num float64
+			if !isFloat && intDigits > 0 && intDigits <= 15 {
+				num = float64(iv)
+				if neg {
+					num = -num
+				}
+			} else {
+				raw := src[start:i]
+				f, err := strconv.ParseFloat(raw, 64)
+				if err != nil {
+					if ne, ok := err.(*strconv.NumError); ok && ne.Err == strconv.ErrRange {
+						num = f
+					} else {
+						num = math.NaN()
+					}
+				} else {
+					num = f
+				}
+			}
+			toks = append(toks, token{k: tNum, n: num})
 			continue
 		}
 		if c == '$' {
@@ -358,6 +482,7 @@ func tokenize(src string, unicodeIdents bool, maxTokens int) ([]token, bool) {
 			_, size := utf8.DecodeRuneInString(src[i:])
 			i += size
 		}
+	nextTok:
 	}
 	toks = append(toks, token{k: tEOF})
 	return toks, true

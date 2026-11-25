@@ -18,66 +18,73 @@ const (
 	stepReset       = "Reset"
 )
 
-type builtinFn func(args map[string]Value) Value
+type builtinFn func(args []Value) Value
 
 type builtinFunc struct {
 	params []string
 	fn     builtinFn
 }
 
+func argAt(a []Value, i int) Value {
+	if i < len(a) {
+		return a[i]
+	}
+	return nil
+}
+
 var builtinFuncs = map[string]*builtinFunc{
-	"Count": {[]string{"array"}, func(a map[string]Value) Value {
-		if arr, ok := a["array"].([]Value); ok {
+	"Count": {[]string{"array"}, func(a []Value) Value {
+		if arr, ok := argAt(a, 0).([]Value); ok {
 			return float64(len(arr))
 		}
 		return 0.0
 	}},
-	"First": {[]string{"array"}, func(a map[string]Value) Value {
-		if arr, ok := a["array"].([]Value); ok && len(arr) > 0 {
+	"First": {[]string{"array"}, func(a []Value) Value {
+		if arr, ok := argAt(a, 0).([]Value); ok && len(arr) > 0 {
 			return arr[0]
 		}
 		return nil
 	}},
-	"Last": {[]string{"array"}, func(a map[string]Value) Value {
-		if arr, ok := a["array"].([]Value); ok && len(arr) > 0 {
+	"Last": {[]string{"array"}, func(a []Value) Value {
+		if arr, ok := argAt(a, 0).([]Value); ok && len(arr) > 0 {
 			return arr[len(arr)-1]
 		}
 		return nil
 	}},
-	"Sum": {[]string{"numbers"}, func(a map[string]Value) Value {
-		arr, ok := a["numbers"].([]Value)
+	"Sum": {[]string{"numbers"}, func(a []Value) Value {
+		arr, ok := argAt(a, 0).([]Value)
 		if !ok {
 			return 0.0
 		}
 		return sumOf(arr)
 	}},
-	"Avg": {[]string{"numbers"}, func(a map[string]Value) Value {
-		arr, ok := a["numbers"].([]Value)
+	"Avg": {[]string{"numbers"}, func(a []Value) Value {
+		arr, ok := argAt(a, 0).([]Value)
 		if !ok || len(arr) == 0 {
 			return 0.0
 		}
 		return sumOf(arr) / float64(len(arr))
 	}},
-	"Min": {[]string{"numbers"}, func(a map[string]Value) Value {
-		return reduceMinMax(a["numbers"], math.Min)
+	"Min": {[]string{"numbers"}, func(a []Value) Value {
+		return reduceMinMax(argAt(a, 0), math.Min)
 	}},
-	"Max": {[]string{"numbers"}, func(a map[string]Value) Value {
-		return reduceMinMax(a["numbers"], math.Max)
+	"Max": {[]string{"numbers"}, func(a []Value) Value {
+		return reduceMinMax(argAt(a, 0), math.Max)
 	}},
 	"Sort":   {[]string{"array", "field", "direction"}, builtinSort},
 	"Filter": {[]string{"array", "field", "operator", "value"}, builtinFilter},
-	"Round": {[]string{"number", "decimals"}, func(a map[string]Value) Value {
-		num := ToNumber(a["number"])
+	"Round": {[]string{"number", "decimals"}, func(a []Value) Value {
+		num := ToNumber(argAt(a, 0))
 		d := 0.0
-		if a["decimals"] != nil {
-			d = ToNumber(a["decimals"])
+		if dec := argAt(a, 1); dec != nil {
+			d = ToNumber(dec)
 		}
 		f := math.Pow(10, d)
 		return jsRound(num*f) / f
 	}},
-	"Abs":   {[]string{"number"}, func(a map[string]Value) Value { return math.Abs(ToNumber(a["number"])) }},
-	"Floor": {[]string{"number"}, func(a map[string]Value) Value { return math.Floor(ToNumber(a["number"])) }},
-	"Ceil":  {[]string{"number"}, func(a map[string]Value) Value { return math.Ceil(ToNumber(a["number"])) }},
+	"Abs":   {[]string{"number"}, func(a []Value) Value { return math.Abs(ToNumber(argAt(a, 0))) }},
+	"Floor": {[]string{"number"}, func(a []Value) Value { return math.Floor(ToNumber(argAt(a, 0))) }},
+	"Ceil":  {[]string{"number"}, func(a []Value) Value { return math.Ceil(ToNumber(argAt(a, 0))) }},
 }
 
 // builtinCalls is the base call registry of every library.
@@ -213,26 +220,66 @@ func localeCompare(a, b string) int {
 	return localeCollator.CompareString(a, b)
 }
 
-func builtinSort(a map[string]Value) Value {
-	arr, ok := a["array"].([]Value)
+func builtinSort(a []Value) Value {
+	arr, ok := argAt(a, 0).([]Value)
 	if !ok {
-		return a["array"]
+		return argAt(a, 0)
 	}
 	f := ""
-	if a["field"] != nil {
-		f = ToString(a["field"])
+	if fv := argAt(a, 1); fv != nil {
+		f = ToString(fv)
 	}
-	desc := a["direction"] != nil && ToString(a["direction"]) == "desc"
-	out := append([]Value(nil), arr...)
-	key := func(v Value) Value {
-		if f != "" {
-			return resolveField(v, f)
+	desc := false
+	if dv := argAt(a, 2); dv != nil {
+		desc = ToString(dv) == "desc"
+	}
+	n := len(arr)
+	out := make([]Value, n)
+	copy(out, arr)
+	if n <= 1 {
+		return out
+	}
+	if f == "" {
+		sort.SliceStable(out, func(i, j int) bool {
+			return sortCompare(out[i], out[j], desc) < 0
+		})
+		return out
+	}
+	var keyBuf [8]Value
+	var keys []Value
+	if n <= len(keyBuf) {
+		keys = keyBuf[:n]
+	} else {
+		keys = make([]Value, n)
+	}
+	for i, it := range out {
+		keys[i] = resolveField(it, f)
+	}
+	// Insertion sort for small slices avoids interface/closure boxing overhead.
+	if n <= 16 {
+		for i := 1; i < n; i++ {
+			kv, ov := keys[i], out[i]
+			j := i - 1
+			for j >= 0 && sortCompare(kv, keys[j], desc) < 0 {
+				keys[j+1] = keys[j]
+				out[j+1] = out[j]
+				j--
+			}
+			keys[j+1] = kv
+			out[j+1] = ov
 		}
-		return v
+		return out
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		return sortCompare(key(out[i]), key(out[j]), desc) < 0
+	idx := make([]int, n)
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(i, j int) bool {
+		return sortCompare(keys[idx[i]], keys[idx[j]], desc) < 0
 	})
+	for i, pos := range idx {
+		out[i] = arr[pos]
+	}
 	return out
 }
 
@@ -262,20 +309,20 @@ func sortCompare(av, bv Value, desc bool) int {
 	return 0
 }
 
-func builtinFilter(a map[string]Value) Value {
-	arr, ok := a["array"].([]Value)
+func builtinFilter(a []Value) Value {
+	arr, ok := argAt(a, 0).([]Value)
 	if !ok {
 		return []Value{}
 	}
 	f := ""
-	if a["field"] != nil {
-		f = ToString(a["field"])
+	if fv := argAt(a, 1); fv != nil {
+		f = ToString(fv)
 	}
 	op := "=="
-	if a["operator"] != nil {
-		op = ToString(a["operator"])
+	if ov := argAt(a, 2); ov != nil {
+		op = ToString(ov)
 	}
-	val := a["value"]
+	val := argAt(a, 3)
 	out := make([]Value, 0, len(arr))
 	for _, item := range arr {
 		v := item

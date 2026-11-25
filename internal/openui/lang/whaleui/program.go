@@ -101,24 +101,30 @@ func closeJSON(s string) string {
 			}
 		}
 	}
-	out := s
-	if inStr {
-		if esc {
-			out = out[:len(out)-1]
-		}
-		out += `"`
+	var b strings.Builder
+	b.Grow(len(s) + len(stack) + 6)
+	body := s
+	if inStr && esc && len(body) > 0 {
+		body = body[:len(body)-1]
 	}
-	out = strings.TrimRight(out, " \t\r\n")
-	out = strings.TrimSuffix(out, ",")
-	if strings.HasSuffix(out, ":") {
-		out += "null"
+	b.WriteString(body)
+	if inStr {
+		b.WriteByte('"')
+	}
+	trimmed := strings.TrimRight(b.String(), " \t\r\n")
+	trimmed = strings.TrimSuffix(trimmed, ",")
+	b.Reset()
+	b.Grow(len(trimmed) + len(stack) + 4)
+	b.WriteString(trimmed)
+	if strings.HasSuffix(trimmed, ":") {
+		b.WriteString("null")
 	}
 	for i := len(stack) - 1; i >= 0; i-- {
 		if stack[i] == '{' {
-			out += "}"
+			b.WriteByte('}')
 		} else {
-			out += "]"
+			b.WriteByte(']')
 		}
 	}
-	return out
+	return b.String()
 }

@@ -11,6 +11,11 @@ var invalid Value = &invalidMarker{}
 
 func isInvalid(v Value) bool { _, ok := v.(*invalidMarker); return ok }
 
+type pathSeg struct {
+	seg string
+	idx int // >= 0 for array index, -1 for property/base segment
+}
+
 // vctx collects validation errors (upstream MaterializeCtx subset).
 type vctx struct {
 	lib       *Library
@@ -18,6 +23,38 @@ type vctx struct {
 	partial   bool
 	statement string
 	source    string
+	pathBase  string
+	pathSegs  []pathSeg
+	pathBuf   [8]pathSeg
+}
+
+func (c *vctx) resetPath(base string) {
+	c.pathBase = base
+	if cap(c.pathSegs) == 0 {
+		c.pathSegs = c.pathBuf[:0]
+	} else {
+		c.pathSegs = c.pathSegs[:0]
+	}
+}
+
+func (c *vctx) formatPath() string {
+	if len(c.pathSegs) == 0 {
+		return c.pathBase
+	}
+	if len(c.pathSegs) == 1 && c.pathBase == "" && c.pathSegs[0].idx < 0 {
+		return "/" + c.pathSegs[0].seg
+	}
+	var b strings.Builder
+	b.WriteString(c.pathBase)
+	for _, s := range c.pathSegs {
+		b.WriteByte('/')
+		if s.idx >= 0 {
+			b.WriteString(itoa(s.idx))
+		} else {
+			b.WriteString(s.seg)
+		}
+	}
+	return b.String()
 }
 
 func (c *vctx) push(component, path, code, message string) {
@@ -417,4 +454,374 @@ func (c *vctx) validateLeaf(v Value, s *Object, component, path string) bool {
 		return true
 	}
 	return false
+}
+
+// ── Precompiled schema validation (zero-alloc on valid values) ──
+
+type compiledReq struct {
+	key        string
+	hasDefault bool
+	defaultVal Value
+}
+
+type compiledProp struct {
+	key      string
+	schema   *compiledSchema
+	required bool
+}
+
+type compiledSchema struct {
+	raw           *Object
+	typ           string
+	types         []string
+	typesStr      string
+	hasEnum       bool
+	hasConst      bool
+	scalarType    string
+	isEnum        bool
+	enumVals      []Value
+	enumErrStr    string
+	isComposite   bool
+	onlyCompSlot  bool
+	slotNamesStr  string
+	anyOf         []*compiledSchema
+	oneOf         []*compiledSchema
+	allOf         []*compiledSchema
+	unionNamesStr string
+	nullable      bool
+	hasDefault    bool
+	defaultVal    Value
+	required      []compiledReq
+	props         []compiledProp
+	items         *compiledSchema
+}
+
+func compileSchema(s *Object, lib *Library) *compiledSchema {
+	if s == nil {
+		return nil
+	}
+	cs := &compiledSchema{
+		raw:         s,
+		isComposite: isCompositeSchema(s),
+		nullable:    schemaNullable(s),
+	}
+	if d, ok := s.Get("default"); ok {
+		cs.defaultVal, cs.hasDefault = d, true
+	}
+	if t, ok := s.Value("type").(string); ok {
+		cs.typ = t
+	} else if ts, ok := s.Value("type").([]Value); ok {
+		cs.types = make([]string, len(ts))
+		names := make([]string, len(ts))
+		for i, tv := range ts {
+			cs.types[i], _ = tv.(string)
+			names[i] = ToString(tv)
+		}
+		cs.typesStr = strings.Join(names, " | ")
+	}
+	if _, ok := s.Value("enum").([]Value); ok {
+		cs.hasEnum = true
+	}
+	if s.Has("const") {
+		cs.hasConst = true
+	}
+	cs.scalarType, cs.enumVals, cs.isEnum = scalarInfo(s)
+	if cs.isEnum {
+		parts := make([]string, len(cs.enumVals))
+		for i, e := range cs.enumVals {
+			parts[i] = string(EncodeJSON(e))
+		}
+		cs.enumErrStr = "one of [" + strings.Join(parts, ", ") + "]"
+	}
+	if cs.isComposite {
+		names := slotRefNames(s)
+		cs.slotNamesStr = strings.Join(names, " | ")
+		if len(names) > 0 && lib != nil {
+			allComp := true
+			for _, n := range names {
+				if n == "" || lib.Components[n] == nil {
+					allComp = false
+					break
+				}
+			}
+			cs.onlyCompSlot = allComp
+		}
+		if ms, ok := s.Value("anyOf").([]Value); ok {
+			cs.anyOf = make([]*compiledSchema, len(ms))
+			var unames []string
+			for i, m := range ms {
+				mo, _ := m.(*Object)
+				cs.anyOf[i] = compileSchema(mo, lib)
+				if n := schemaTypeName(mo); n != "" {
+					unames = append(unames, n)
+				}
+			}
+			cs.unionNamesStr = strings.Join(unames, " | ")
+		} else if ms, ok := s.Value("oneOf").([]Value); ok {
+			cs.oneOf = make([]*compiledSchema, len(ms))
+			var unames []string
+			for i, m := range ms {
+				mo, _ := m.(*Object)
+				cs.oneOf[i] = compileSchema(mo, lib)
+				if n := schemaTypeName(mo); n != "" {
+					unames = append(unames, n)
+				}
+			}
+			cs.unionNamesStr = strings.Join(unames, " | ")
+		}
+		if ms, ok := s.Value("allOf").([]Value); ok {
+			cs.allOf = make([]*compiledSchema, len(ms))
+			for i, m := range ms {
+				mo, _ := m.(*Object)
+				cs.allOf[i] = compileSchema(mo, lib)
+			}
+		}
+	}
+	switch cs.typ {
+	case "object":
+		propsObj, _ := s.Value("properties").(*Object)
+		reqKeys := schemaRequired(s)
+		if len(reqKeys) > 0 {
+			cs.required = make([]compiledReq, len(reqKeys))
+			for i, k := range reqKeys {
+				d, hasD := schemaDefault(propsObj.Value(k))
+				cs.required[i] = compiledReq{key: k, hasDefault: hasD, defaultVal: d}
+			}
+		}
+		if propsObj != nil && propsObj.Len() > 0 {
+			cs.props = make([]compiledProp, propsObj.Len())
+			for i, k := range propsObj.Keys() {
+				sub, _ := propsObj.vals[i].(*Object)
+				cs.props[i] = compiledProp{
+					key:      k,
+					schema:   compileSchema(sub, lib),
+					required: containsStr(reqKeys, k),
+				}
+			}
+		}
+	case "array":
+		if items, ok := s.Value("items").(*Object); ok {
+			cs.items = compileSchema(items, lib)
+		}
+	}
+	return cs
+}
+
+func (c *vctx) validateCompiled(v Value, cs *compiledSchema, component string) Value {
+	if cs == nil || v == nil {
+		return v
+	}
+	if _, ok := v.(Node); ok {
+		return v
+	}
+	if el, ok := v.(*Element); ok {
+		if cs.isComposite {
+			return v
+		}
+		if cs.typ != "" || cs.hasEnum || cs.hasConst {
+			exp := "a literal value"
+			if cs.typ != "" {
+				exp = cs.typ
+			}
+			c.typeMismatch(component, c.formatPath(), exp, `component "`+el.Type+`"`)
+			return invalid
+		}
+		return v
+	}
+	if _, ok := v.(*ActionPlan); ok {
+		return v
+	}
+	strict := c.lib != nil && c.lib.Profile.StrictUnions
+	if strict {
+		if len(cs.types) > 0 {
+			actual := jsTypeName(v)
+			okType := false
+			for _, ts := range cs.types {
+				if ts == actual || ts == "integer" && actual == "number" && isInteger(v) {
+					okType = true
+					break
+				}
+			}
+			if !okType {
+				c.typeMismatch(component, c.formatPath(), cs.typesStr, actual)
+				return invalid
+			}
+			return v
+		}
+		members := cs.anyOf
+		if members == nil {
+			members = cs.oneOf
+		}
+		if members != nil {
+			beforeErrs := len(c.errors)
+			for _, ms := range members {
+				out := c.validateCompiled(v, ms, component)
+				if !isInvalid(out) && len(c.errors) == beforeErrs {
+					return out
+				}
+				c.errors = c.errors[:beforeErrs]
+			}
+			exp := cs.unionNamesStr
+			if exp == "" {
+				exp = "an allowed union member"
+			}
+			c.typeMismatch(component, c.formatPath(), exp, jsTypeName(v))
+			return invalid
+		}
+		if len(cs.allOf) > 0 {
+			cur := v
+			for _, ms := range cs.allOf {
+				cur = c.validateCompiled(cur, ms, component)
+				if isInvalid(cur) {
+					break
+				}
+			}
+			return cur
+		}
+	}
+	if cs.isComposite {
+		if !cs.onlyCompSlot {
+			return v
+		}
+		c.typeMismatch(component, c.formatPath(), cs.slotNamesStr, describeValueKind(v))
+		return invalid
+	}
+	switch cs.typ {
+	case "object":
+		return c.validateCompiledObject(v, cs, component)
+	case "array":
+		return c.validateCompiledArray(v, cs, component)
+	}
+	if cs.scalarType == "" && !cs.isEnum {
+		return v
+	}
+	if cs.isEnum && c.partial {
+		return v
+	}
+	actual := typeofName(v)
+	if cs.isEnum {
+		if actual != "string" && actual != "number" && actual != "boolean" {
+			return v
+		}
+		for _, e := range cs.enumVals {
+			if StrictEqual(e, v) {
+				return v
+			}
+		}
+		c.typeMismatch(component, c.formatPath(), cs.enumErrStr, string(EncodeJSON(v)))
+		return invalid
+	}
+	if cs.scalarType != actual {
+		c.typeMismatch(component, c.formatPath(), cs.scalarType, jsTypeName(v))
+		return invalid
+	}
+	return v
+}
+
+func (c *vctx) validateCompiledObject(v Value, cs *compiledSchema, component string) Value {
+	obj, ok := v.(*Object)
+	if !ok {
+		c.typeMismatch(component, c.formatPath(), "object", jsTypeName(v))
+		return invalid
+	}
+	var out *Object
+	bad := false
+	if !c.partial && len(cs.required) > 0 {
+		for _, req := range cs.required {
+			cur, present := obj.Get(req.key)
+			if !present || cur == nil {
+				if req.hasDefault {
+					if out == nil {
+						out = obj.Clone()
+					}
+					out.Set(req.key, req.defaultVal)
+					continue
+				}
+				p := c.formatPath() + "/" + req.key
+				code := "missing-required"
+				msg := `missing required field "` + p + `"`
+				if present {
+					code = "null-required"
+					msg = `required field "` + p + `" cannot be null`
+				}
+				c.push(component, p, code, msg)
+				bad = true
+			}
+		}
+	}
+	for i := range cs.props {
+		prop := &cs.props[i]
+		cur, present := obj.Get(prop.key)
+		if !present {
+			continue
+		}
+		mark := len(c.pathSegs)
+		c.pathSegs = append(c.pathSegs, pathSeg{seg: prop.key, idx: -1})
+		next := c.validateCompiled(cur, prop.schema, component)
+		c.pathSegs = c.pathSegs[:mark]
+		if isInvalid(next) {
+			var d Value
+			var hasD bool
+			if prop.schema != nil {
+				d, hasD = prop.schema.defaultVal, prop.schema.hasDefault
+			}
+			next = resolveInvalid(prop.required, d, hasD)
+			if isInvalid(next) {
+				bad = true
+				continue
+			}
+		}
+		if isOmit(next) {
+			if out == nil {
+				out = obj.Clone()
+			}
+			out.Delete(prop.key)
+			continue
+		}
+		if sameValueOrNode(next, cur) {
+			continue
+		}
+		if out == nil {
+			out = obj.Clone()
+		}
+		out.Set(prop.key, next)
+	}
+	if bad {
+		return invalid
+	}
+	if out != nil {
+		return out
+	}
+	return obj
+}
+
+func (c *vctx) validateCompiledArray(v Value, cs *compiledSchema, component string) Value {
+	arr, ok := v.([]Value)
+	if !ok {
+		c.typeMismatch(component, c.formatPath(), "array", jsTypeName(v))
+		return invalid
+	}
+	if cs.items == nil {
+		return v
+	}
+	var out []Value
+	changed := false
+	mark := len(c.pathSegs)
+	c.pathSegs = append(c.pathSegs, pathSeg{idx: 0})
+	for i, x := range arr {
+		c.pathSegs[mark].idx = i
+		next := c.validateCompiled(x, cs.items, component)
+		if !changed && !sameValueOrNode(next, x) {
+			changed = true
+			out = append(make([]Value, 0, len(arr)), arr[:i]...)
+		}
+		if changed && !isInvalid(next) && !isOmit(next) {
+			out = append(out, next)
+		}
+	}
+	c.pathSegs = c.pathSegs[:mark]
+	if changed {
+		return out
+	}
+	return arr
 }

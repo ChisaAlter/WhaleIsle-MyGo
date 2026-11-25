@@ -67,6 +67,8 @@ type Instance struct {
 	fields   map[string]map[string]*fieldReg
 	persist  *Object
 	errors   []Diagnostic
+	depLog   []string
+	depSeen  map[string]struct{}
 }
 
 type fieldReg struct {
@@ -184,13 +186,37 @@ func (in *Instance) Render() (frame *Frame) {
 	}
 	frame.Errors = append(frame.Errors, in.errors...)
 	frame.Errors = append(frame.Errors, in.queries.errors()...)
+	rng := rand.New(rand.NewPCG(in.opts.Seed, 0))
 	r := &renderer{
-		env:    in.newEnv(rand.New(rand.NewPCG(in.opts.Seed, 0))),
-		lib:    in.lib,
-		budget: &budget{phase: "render", maxCount: in.limits.MaxRenderNodes, maxDepth: in.limits.MaxDepth},
-		limits: &in.limits,
+		in:       in,
+		store:    in.store,
+		lib:      in.lib,
+		budget:   &budget{phase: "render", maxCount: in.limits.MaxRenderNodes, maxDepth: in.limits.MaxDepth},
+		limits:   &in.limits,
+		useMemo:  len(in.errors) == 0,
+		queryVer: in.queries.version,
+		depLog:   in.depLog[:0],
+		depSeen:  in.depSeen,
+	}
+	fenv := &FuncEnv{
+		Random:       func() float64 { r.impure = true; return rng.Float64() },
+		Now:          func() time.Time { r.impure = true; return in.opts.Now() },
+		Location:     in.opts.Location,
+		Locale:       in.opts.Locale,
+		MaxListItems: in.limits.MaxListItems,
+	}
+	r.env = &evalEnv{
+		lib:        in.lib,
+		getState:   r.getStateTracked,
+		resolveRef: r.resolveRefTracked,
+		budget:     &budget{phase: "evaluation", maxCount: in.limits.MaxEvalSteps, maxDepth: in.limits.MaxDepth},
+		fenv:       fenv,
+		limits:     &in.limits,
+		onImpure:   r.markImpure,
 	}
 	defer func() {
+		in.depLog = r.depLog[:0]
+		in.depSeen = r.depSeen
 		if rec := recover(); rec != nil {
 			frame.Root = nil
 			code, msg := CodeRuntimeError, fmt.Sprintf("Prop evaluation failed: %v", rec)
@@ -362,9 +388,9 @@ func (in *Instance) whaleFormState(form string) *Object {
 		}
 	}
 	if all {
-		for _, k := range in.store.vals.keys {
+		for i, k := range in.store.vals.keys {
 			if len(k) > 0 && k[0] == '$' {
-				out.Set(k, unwrapField(in.store.vals.vals[k]))
+				out.Set(k, unwrapField(in.store.vals.vals[i]))
 			}
 		}
 	}
@@ -387,8 +413,8 @@ func encodeFields(v Value, persisted bool) Value {
 		return o
 	case *Object:
 		o := NewObject(t.Len())
-		for _, k := range t.keys {
-			o.Set(k, encodeFields(t.vals[k], persisted))
+		for i, k := range t.keys {
+			o.appendOrdered(k, encodeFields(t.vals[i], persisted))
 		}
 		return o
 	}

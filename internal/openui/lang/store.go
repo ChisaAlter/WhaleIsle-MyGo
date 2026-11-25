@@ -25,14 +25,17 @@ type Store struct {
 	vals      *Object
 	pristine  map[string]bool
 	persisted map[string]bool
+	keyVer    map[string]uint64
 	version   uint64
 	maxKeys   int
 	inited    bool
 }
 
 func newStore(maxKeys int) *Store {
-	return &Store{vals: NewObject(8), pristine: map[string]bool{}, persisted: map[string]bool{}, maxKeys: maxKeys}
+	return &Store{vals: NewObject(8), pristine: map[string]bool{}, persisted: map[string]bool{}, keyVer: map[string]uint64{}, maxKeys: maxKeys}
 }
+
+func (s *Store) keyVersion(name string) uint64 { return s.keyVer[name] }
 
 // Get returns the stored value (fields are not unwrapped).
 func (s *Store) Get(name string) Value { return s.vals.Value(name) }
@@ -61,6 +64,7 @@ func (s *Store) Set(name string, v Value, pristine bool) error {
 	}
 	s.vals.Set(name, v)
 	s.version++
+	s.keyVer[name] = s.version
 	return nil
 }
 
@@ -77,9 +81,9 @@ func shallowEqual(a, b Value) bool {
 	if !ok1 || !ok2 || oa.Len() != ob.Len() {
 		return false
 	}
-	for _, k := range oa.keys {
+	for i, k := range oa.keys {
 		bv, ok := ob.Get(k)
-		if !ok || !SameValue(oa.vals[k], bv) {
+		if !ok || !SameValue(oa.vals[i], bv) {
 			return false
 		}
 	}
@@ -90,10 +94,11 @@ func shallowEqual(a, b Value) bool {
 // values. Defaults replace only pristine values; keys are never deleted.
 func (s *Store) Initialize(defaults, persisted *Object) error {
 	changed := false
+	nextVer := s.version + 1
 	if !s.inited {
 		s.inited = true
-		for _, k := range persisted.Keys() {
-			v := persisted.vals[k]
+		for i, k := range persisted.Keys() {
+			v := persisted.vals[i]
 			delete(s.pristine, k)
 			s.persisted[k] = true
 			if old, ok := s.vals.Get(k); !ok || !SameValue(old, v) {
@@ -101,12 +106,13 @@ func (s *Store) Initialize(defaults, persisted *Object) error {
 					return errTooManyKeys
 				}
 				s.vals.Set(k, v)
+				s.keyVer[k] = nextVer
 				changed = true
 			}
 		}
 	}
-	for _, k := range defaults.Keys() {
-		v := defaults.vals[k]
+	for i, k := range defaults.Keys() {
+		v := defaults.vals[i]
 		old, ok := s.vals.Get(k)
 		switch {
 		case !ok:
@@ -115,14 +121,16 @@ func (s *Store) Initialize(defaults, persisted *Object) error {
 			}
 			s.vals.Set(k, v)
 			s.pristine[k] = true
+			s.keyVer[k] = nextVer
 			changed = true
 		case s.pristine[k] && !SameValue(old, v) && !deepEqualData(old, v):
 			s.vals.Set(k, v)
+			s.keyVer[k] = nextVer
 			changed = true
 		}
 	}
 	if changed {
-		s.version++
+		s.version = nextVer
 	}
 	return nil
 }
@@ -134,9 +142,9 @@ func (s *Store) Snapshot() *Object { return s.vals.Clone() }
 // defaults), the content of the persisted state document.
 func (s *Store) Persisted() *Object {
 	o := NewObject(len(s.persisted))
-	for _, k := range s.vals.keys {
+	for i, k := range s.vals.keys {
 		if s.persisted[k] {
-			o.Set(k, s.vals.vals[k])
+			o.appendOrdered(k, s.vals.vals[i])
 		}
 	}
 	return o
@@ -161,9 +169,9 @@ func deepEqualData(a, b Value) bool {
 		if !ok || x.Len() != y.Len() {
 			return false
 		}
-		for _, k := range x.keys {
+		for i, k := range x.keys {
 			yv, ok := y.Get(k)
-			if !ok || !deepEqualData(x.vals[k], yv) {
+			if !ok || !deepEqualData(x.vals[i], yv) {
 				return false
 			}
 		}

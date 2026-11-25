@@ -185,6 +185,56 @@ func copyList(l []lang.Value) []lang.Value { return append([]lang.Value(nil), l.
 var upperCaser = cases.Upper(language.Und)
 var lowerCaser = cases.Lower(language.Und)
 
+func fastUpper(s string) string {
+	hasLower := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 0x80 {
+			return upperCaser.String(s)
+		}
+		if c >= 'a' && c <= 'z' {
+			hasLower = true
+		}
+	}
+	if !hasLower {
+		return s
+	}
+	buf := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		buf[i] = c
+	}
+	return string(buf)
+}
+
+func fastLower(s string) string {
+	hasUpper := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 0x80 {
+			return lowerCaser.String(s)
+		}
+		if c >= 'A' && c <= 'Z' {
+			hasUpper = true
+		}
+	}
+	if !hasUpper {
+		return s
+	}
+	buf := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		buf[i] = c
+	}
+	return string(buf)
+}
+
 func jsSplit(s, sep string) []string {
 	if sep == "" {
 		u := []rune(s)
@@ -638,8 +688,8 @@ func Functions() map[string]lang.FuncImpl {
 			fill := strings.Repeat(ch, (n-cur)/lang.UTF16Len(ch)+1)
 			return lang.UTF16Slice(fill, 0, n-cur) + s, nil
 		},
-		"Upper": func(a args, _ env) (lang.Value, error) { return upperCaser.String(strArg(a, "text")), nil },
-		"Lower": func(a args, _ env) (lang.Value, error) { return lowerCaser.String(strArg(a, "text")), nil },
+		"Upper": func(a args, _ env) (lang.Value, error) { return fastUpper(strArg(a, "text")), nil },
+		"Lower": func(a args, _ env) (lang.Value, error) { return fastLower(strArg(a, "text")), nil },
 		"Trim":  func(a args, _ env) (lang.Value, error) { return lang.TrimSpace(strArg(a, "text")), nil },
 		"Capitalize": func(a args, _ env) (lang.Value, error) {
 			rs := []rune(strArg(a, "text"))

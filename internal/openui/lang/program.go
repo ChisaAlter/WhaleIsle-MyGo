@@ -2,7 +2,6 @@ package lang
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -24,6 +23,48 @@ type Statement struct {
 	Expr Node
 	// Deps lists the $variables written literally in a query's args.
 	Deps []string
+
+	stateRefsInit  bool
+	stateRefs      []string
+	litDefaultInit bool
+	litDefaultVal  Value
+	litDefaultOK   bool
+}
+
+func (st *Statement) getStateRefs() []string {
+	if st.stateRefsInit {
+		return st.stateRefs
+	}
+	st.stateRefsInit = true
+	switch st.Kind {
+	case StateStatement, ValueStatement:
+		st.stateRefs = collectStateRefs(st.Expr)
+	default:
+		args := st.Expr.(*CallNode).Args
+		var out []string
+		var seen map[string]bool
+		for _, a := range args {
+			for _, dep := range collectStateRefs(a) {
+				if seen == nil {
+					seen = map[string]bool{}
+				}
+				if !seen[dep] {
+					seen[dep] = true
+					out = append(out, dep)
+				}
+			}
+		}
+		st.stateRefs = out
+	}
+	return st.stateRefs
+}
+
+func (st *Statement) getLiteralDefault() (Value, bool) {
+	if !st.litDefaultInit {
+		st.litDefaultVal, st.litDefaultOK = literalValue(st.Expr)
+		st.litDefaultInit = true
+	}
+	return st.litDefaultVal, st.litDefaultOK
 }
 
 // QueryStatement is `name = Query(tool, args, defaults, refreshSeconds?)`.
@@ -105,31 +146,124 @@ func classify(raw rawStmt, expr Node) *Statement {
 // redefinition keeps the first position and takes the new value).
 type stmtMap struct {
 	order []string
-	m     map[string]*Statement
+	stmts []*Statement
+	vers  []uint64
+	idx   map[string]int
+	seq   uint64
 }
 
-func newStmtMap() *stmtMap { return &stmtMap{m: map[string]*Statement{}} }
+func newStmtMap() *stmtMap { return &stmtMap{idx: map[string]int{}} }
 
 func (s *stmtMap) set(st *Statement) {
-	if _, ok := s.m[st.ID]; !ok {
-		s.order = append(s.order, st.ID)
+	s.seq++
+	if i, ok := s.idx[st.ID]; ok {
+		s.stmts[i] = st
+		s.vers[i] = s.seq
+		return
 	}
-	s.m[st.ID] = st
+	s.idx[st.ID] = len(s.order)
+	s.order = append(s.order, st.ID)
+	s.stmts = append(s.stmts, st)
+	s.vers = append(s.vers, s.seq)
 }
 
-func (s *stmtMap) clone() *stmtMap {
-	c := &stmtMap{order: append([]string(nil), s.order...), m: make(map[string]*Statement, len(s.m))}
-	for k, v := range s.m {
-		c.m[k] = v
-	}
-	return c
+func (s *stmtMap) has(id string) bool {
+	_, ok := s.idx[id]
+	return ok
 }
 
-func (s *stmtMap) list() []*Statement {
-	out := make([]*Statement, len(s.order))
-	for i, id := range s.order {
-		out[i] = s.m[id]
+type stmtOverride struct {
+	idx int
+	st  *Statement
+}
+
+// stmtView overlays ephemeral pending statements onto a base stmtMap without
+// cloning the base map.
+type stmtView struct {
+	base     *stmtMap
+	extra    []*Statement
+	override []stmtOverride
+}
+
+func makeStmtView(base *stmtMap, added []*Statement) stmtView {
+	v := stmtView{base: base}
+	for _, st := range added {
+		if bi, ok := base.idx[st.ID]; ok {
+			replaced := false
+			for i := range v.override {
+				if v.override[i].idx == bi {
+					v.override[i].st = st
+					replaced = true
+					break
+				}
+			}
+			if !replaced {
+				v.override = append(v.override, stmtOverride{idx: bi, st: st})
+			}
+			continue
+		}
+		replaced := false
+		for i, e := range v.extra {
+			if e.ID == st.ID {
+				v.extra[i] = st
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			v.extra = append(v.extra, st)
+		}
 	}
+	return v
+}
+
+func (v *stmtView) len() int { return len(v.base.stmts) + len(v.extra) }
+
+func (v *stmtView) hasOverride(idx int) bool {
+	for _, ov := range v.override {
+		if ov.idx == idx {
+			return true
+		}
+	}
+	return false
+}
+
+func (v *stmtView) at(i int) *Statement {
+	if i < len(v.base.stmts) {
+		for _, ov := range v.override {
+			if ov.idx == i {
+				return ov.st
+			}
+		}
+		return v.base.stmts[i]
+	}
+	return v.extra[i-len(v.base.stmts)]
+}
+
+func (v *stmtView) lookup(id string) (*Statement, int, uint64) {
+	if bi, ok := v.base.idx[id]; ok {
+		for _, ov := range v.override {
+			if ov.idx == bi {
+				return ov.st, bi, 0
+			}
+		}
+		return v.base.stmts[bi], bi, v.base.vers[bi]
+	}
+	for i, st := range v.extra {
+		if st.ID == id {
+			return st, len(v.base.stmts) + i, 0
+		}
+	}
+	return nil, -1, 0
+}
+
+func (v *stmtView) list() []*Statement {
+	out := make([]*Statement, v.len())
+	copy(out, v.base.stmts)
+	for _, ov := range v.override {
+		out[ov.idx] = ov.st
+	}
+	copy(out[len(v.base.stmts):], v.extra)
 	return out
 }
 
@@ -144,7 +278,10 @@ func (p *parser) unicode() bool { return p.lib != nil && p.lib.Profile.UnicodeId
 // parseStatements lexes, splits and parses statement text into the table.
 // It returns the number of statements and false on a budget overrun.
 func (p *parser) parseInto(text string, into *stmtMap, calls *int, nodes *int) (int, error) {
-	toks, ok := tokenize(text, p.unicode(), p.limits.MaxTokens)
+	bp := acquireTokBuf(len(text)/3 + 8)
+	defer releaseTokBuf(bp)
+	toks, ok := tokenizeInto(*bp, text, p.unicode(), p.limits.MaxTokens)
+	*bp = toks
 	if !ok {
 		return 0, &budgetError{phase: "tokens", limit: p.limits.MaxTokens}
 	}
@@ -193,7 +330,7 @@ func (p *parser) parse(input string, complete bool) (res *ParseResult) {
 	if n == 0 {
 		return p.finish(emptyResult(incomplete), complete)
 	}
-	return p.finish(p.build(m, incomplete, len(m.order), nil), complete)
+	return p.finish(p.build(makeStmtView(m, nil), incomplete, len(m.order), nil, nil, nil, nil), complete)
 }
 
 func budgetResult(err error) *ParseResult {
@@ -258,23 +395,24 @@ func isComponentCall(lib *Library, n Node) (*CallNode, bool) {
 	return c, true
 }
 
-func pickEntry(m *stmtMap, root string) (string, bool, bool) {
-	if _, ok := m.m["root"]; ok {
-		return "root", false, true
+func pickEntry(v *stmtView, root string) (string, int, bool, bool) {
+	if _, idx, _ := v.lookup("root"); idx >= 0 {
+		return "root", idx, false, true
 	}
-	for _, id := range m.order {
-		st := m.m[id]
+	n := v.len()
+	for i := 0; i < n; i++ {
+		st := v.at(i)
 		if st.Kind != ValueStatement {
 			continue
 		}
 		if c, ok := isComponentCall(nil, st.Expr); ok && c.Name == root && root != "" {
-			return id, true, true
+			return st.ID, i, true, true
 		}
 	}
-	return "", false, false
+	return "", -1, false, false
 }
 
-func resolvesToComponentCall(n Node, syms map[string]Node) bool {
+func resolvesToComponentCall(n Node, v *stmtView) bool {
 	seen := map[string]bool{}
 	for {
 		r, ok := n.(*RefNode)
@@ -282,7 +420,12 @@ func resolvesToComponentCall(n Node, syms map[string]Node) bool {
 			break
 		}
 		seen[r.N] = true
-		n = syms[r.N]
+		st, _, _ := v.lookup(r.N)
+		if st == nil {
+			n = nil
+			break
+		}
+		n = st.Expr
 	}
 	_, ok := isComponentCall(nil, n)
 	return ok
@@ -304,45 +447,95 @@ type partialRef struct {
 	stmts map[*Statement]bool
 }
 
-func (p *parser) build(m *stmtMap, incomplete bool, count int, pref *partialRef) *ParseResult {
+type buildScratch struct {
+	visited   []bool
+	unreached []bool
+	cacheExpr []Node
+	cacheVal  []Node
+	stateHint int
+}
+
+func (b *buildScratch) reset(n int) (visited, unreached []bool, cacheExpr, cacheVal []Node) {
+	if b == nil {
+		return make([]bool, n), make([]bool, n), make([]Node, n), make([]Node, n)
+	}
+	if cap(b.visited) < n {
+		b.visited = make([]bool, n)
+	} else {
+		b.visited = b.visited[:n]
+		clear(b.visited)
+	}
+	if cap(b.unreached) < n {
+		b.unreached = make([]bool, n)
+	} else {
+		b.unreached = b.unreached[:n]
+		clear(b.unreached)
+	}
+	if cap(b.cacheExpr) < n {
+		b.cacheExpr = make([]Node, n)
+	} else {
+		b.cacheExpr = b.cacheExpr[:n]
+		clear(b.cacheExpr)
+	}
+	if cap(b.cacheVal) < n {
+		b.cacheVal = make([]Node, n)
+	} else {
+		b.cacheVal = b.cacheVal[:n]
+		clear(b.cacheVal)
+	}
+	return b.visited, b.unreached, b.cacheExpr, b.cacheVal
+}
+
+func (p *parser) build(view stmtView, incomplete bool, count int, pref *partialRef, matVal, matExpr map[string]*matEntry, sc *buildScratch) *ParseResult {
 	lib := p.lib
 	rootName := ""
 	if lib != nil {
 		rootName = lib.Root
 	}
-	entry, fallback, hasEntry := pickEntry(m, rootName)
-	syms := make(map[string]Node, len(m.order))
-	for _, id := range m.order {
-		syms[id] = m.m[id].Expr
-	}
-	unreached := map[string]bool{}
-	for _, id := range m.order {
-		st := m.m[id]
-		if hasEntry && id == entry || st.Kind != ValueStatement {
+	entry, entryIdx, fallback, hasEntry := pickEntry(&view, rootName)
+	n := view.len()
+	visited, unreached, cacheExpr, cacheVal := sc.reset(n)
+	for i := 0; i < n; i++ {
+		st := view.at(i)
+		if hasEntry && i == entryIdx || st.Kind != ValueStatement {
 			continue
 		}
-		unreached[id] = true
+		unreached[i] = true
+	}
+	stateCap := 4
+	if sc != nil && sc.stateHint > stateCap {
+		stateCap = sc.stateHint
 	}
 	c := &mctx{
-		vctx:      vctx{lib: lib, partial: incomplete, statement: entry},
-		syms:      syms,
-		visited:   map[string]bool{},
-		unreached: unreached,
-		cacheExpr: map[string]Node{},
-		cacheVal:  map[string]Node{},
-		budget:    &budget{phase: "materialization", maxCount: p.limits.MaxMaterializedNodes, maxDepth: p.limits.MaxDepth},
+		vctx:         vctx{lib: lib, partial: incomplete, statement: entry},
+		view:         view,
+		visited:      visited,
+		unreached:    unreached,
+		cacheExpr:    cacheExpr,
+		cacheVal:     cacheVal,
+		matValCache:  matVal,
+		matExprCache: matExpr,
+		budget:       &budget{phase: "materialization", maxCount: p.limits.MaxMaterializedNodes, maxDepth: p.limits.MaxDepth},
 	}
-	res := &ParseResult{Incomplete: incomplete, StatementCount: count, StateDefaults: NewObject(4), EntryID: entry}
+	res := &ParseResult{Incomplete: incomplete, StatementCount: count, StateDefaults: NewObject(stateCap), EntryID: entry}
 	if hasEntry {
-		v := c.materializeValue(syms[entry])
+		entryExpr := view.at(entryIdx).Expr
+		v := c.materializeValue(entryExpr)
 		if el, ok := v.(*Element); ok {
+			if el.StatementID != "" && el.StatementID != entry {
+				cp := *el
+				cp.StatementID = entry
+				cp.memo = nil
+				el = &cp
+			} else {
+				el.StatementID = entry
+			}
 			res.Root = el
-			el.StatementID = entry
-		} else if n, ok := v.(Node); ok && containsComponent(n) {
-			res.RootExpr = n
+		} else if nd, ok := v.(Node); ok && containsComponent(nd) {
+			res.RootExpr = nd
 		}
 	}
-	p.extract(m, c, res, pref)
+	p.extract(&view, c, res, pref)
 	c.statement = entry
 	noRoot := func(reason string) {
 		msg := "No root statement"
@@ -365,7 +558,7 @@ func (p *parser) build(m *stmtMap, incomplete bool, count int, pref *partialRef)
 	switch {
 	case !hasEntry:
 		noRoot("missing")
-	case res.Root == nil && res.RootExpr == nil && !resolvesToComponentCall(syms[entry], syms):
+	case res.Root == nil && res.RootExpr == nil && !resolvesToComponentCall(view.at(entryIdx).Expr, &view):
 		noRoot("not-component")
 	case fallback:
 		if res.Root != nil {
@@ -375,28 +568,33 @@ func (p *parser) build(m *stmtMap, incomplete bool, count int, pref *partialRef)
 		}
 	}
 	if hasEntry {
-		for _, id := range m.order {
-			if unreached[id] {
-				res.Orphaned = append(res.Orphaned, id)
+		for i := 0; i < n; i++ {
+			if unreached[i] {
+				res.Orphaned = append(res.Orphaned, view.at(i).ID)
 			}
 		}
 	}
 	res.Unresolved = c.unres
 	res.Errors = c.errors
-	res.Statements = m.list()
+	res.Statements = view.list()
 	res.Fatal = res.Root == nil && res.RootExpr == nil
+	if sc != nil {
+		sc.stateHint = res.StateDefaults.Len()
+	}
 	return res
 }
 
-func (p *parser) extract(m *stmtMap, c *mctx, res *ParseResult, pref *partialRef) {
+func (p *parser) extract(view *stmtView, c *mctx, res *ParseResult, pref *partialRef) {
 	literal := p.lib != nil && p.lib.Profile.LiteralStateDefaults
 	allowData := p.lib == nil || p.lib.Profile.AllowData
-	for _, id := range m.order {
-		st := m.m[id]
+	n := view.len()
+	for i := 0; i < n; i++ {
+		st := view.at(i)
+		id := st.ID
 		switch st.Kind {
 		case StateStatement:
 			if literal {
-				if v, ok := literalValue(st.Expr); ok {
+				if v, ok := st.getLiteralDefault(); ok {
 					res.StateDefaults.Set(id, v)
 				} else {
 					c.errors = append(c.errors, Diagnostic{Source: SourceParser, Code: CodeInvalidStateDflt, StatementID: id, Message: "State default " + id + " must be a literal (string, number, boolean, null, array, or object)"})
@@ -436,29 +634,30 @@ func (p *parser) extract(m *stmtMap, c *mctx, res *ParseResult, pref *partialRef
 		}
 	}
 	// Auto-declare every referenced $variable with null.
-	for _, id := range m.order {
-		st := m.m[id]
-		var nodes []Node
-		switch st.Kind {
-		case StateStatement, ValueStatement:
-			nodes = []Node{st.Expr}
-		default:
-			nodes = st.Expr.(*CallNode).Args
-		}
-		for _, n := range nodes {
-			for _, dep := range collectStateRefs(n) {
-				if pref != nil && dep == pref.name && pref.stmts[st] {
-					continue
-				}
-				if !res.StateDefaults.Has(dep) {
-					res.StateDefaults.Set(dep, nil)
-				}
+	for i := 0; i < n; i++ {
+		st := view.at(i)
+		for _, dep := range st.getStateRefs() {
+			if pref != nil && dep == pref.name && pref.stmts[st] {
+				continue
+			}
+			if !res.StateDefaults.Has(dep) {
+				res.StateDefaults.Set(dep, nil)
 			}
 		}
 	}
 }
 
-var tailStateRef = regexp.MustCompile(`\$\w+$`)
+// findTailStateRef matches `\$\w+$` at the end of s without regexp overhead.
+func findTailStateRef(s string) string {
+	i := len(s)
+	for i > 0 && isWordByte(s[i-1]) {
+		i--
+	}
+	if i == len(s) || i == 0 || s[i-1] != '$' {
+		return ""
+	}
+	return s[i-1:]
+}
 
 // StreamParser parses a growing program text, reusing completed statements
 // (spec section 4). It is not safe for concurrent use.
@@ -472,17 +671,40 @@ type StreamParser struct {
 	calls        int
 	nodes        int
 	last         *ParseResult
+	matVal       [2]map[string]*matEntry
+	matExpr      [2]map[string]*matEntry
+	scratch      buildScratch
 }
 
 // NewStreamParser returns a streaming parser for lib.
 func NewStreamParser(lib *Library, limits Limits) *StreamParser {
-	return &StreamParser{p: &parser{lib: lib, limits: limits.withDefaults()}, completed: newStmtMap()}
+	return &StreamParser{
+		p:         &parser{lib: lib, limits: limits.withDefaults()},
+		completed: newStmtMap(),
+		matVal:    [2]map[string]*matEntry{{}, {}},
+		matExpr:   [2]map[string]*matEntry{{}, {}},
+	}
+}
+
+func (s *StreamParser) clearMatCache() {
+	clear(s.matVal[0])
+	clear(s.matVal[1])
+	clear(s.matExpr[0])
+	clear(s.matExpr[1])
+}
+
+func (s *StreamParser) matCaches(incomplete bool) (map[string]*matEntry, map[string]*matEntry) {
+	if incomplete {
+		return s.matVal[1], s.matExpr[1]
+	}
+	return s.matVal[0], s.matExpr[0]
 }
 
 // Reset discards all cached state.
 func (s *StreamParser) Reset() {
 	s.buf, s.cleaned, s.completedEnd, s.count, s.calls, s.nodes = "", "", 0, 0, 0, 0
 	s.completed = newStmtMap()
+	s.clearMatCache()
 }
 
 // Push appends a chunk. complete marks the end of the stream.
@@ -518,6 +740,7 @@ func (s *StreamParser) result(complete bool) (res *ParseResult) {
 	if !strings.HasPrefix(next, s.cleaned[:s.completedEnd]) {
 		s.completedEnd, s.count, s.calls, s.nodes = 0, 0, 0, 0
 		s.completed = newStmtMap()
+		s.clearMatCache()
 	}
 	s.cleaned = next
 	pendingStart, err := s.scanCompleted()
@@ -529,10 +752,14 @@ func (s *StreamParser) result(complete bool) (res *ParseResult) {
 		if s.count == 0 {
 			return s.p.finish(emptyResult(true), complete)
 		}
-		return s.p.finish(s.p.build(s.completed.clone(), false, s.count, nil), complete)
+		mv, me := s.matCaches(false)
+		return s.p.finish(s.p.build(makeStmtView(s.completed, nil), false, s.count, nil, mv, me, &s.scratch), complete)
 	}
 	closed, incomplete := autoClose(pending)
-	toks, ok := tokenize(closed, s.p.unicode(), s.p.limits.MaxTokens)
+	bp := acquireTokBuf(len(closed)/3 + 8)
+	defer releaseTokBuf(bp)
+	toks, ok := tokenizeInto(*bp, closed, s.p.unicode(), s.p.limits.MaxTokens)
+	*bp = toks
 	if !ok {
 		return budgetResult(&budgetError{phase: "tokens", limit: s.p.limits.MaxTokens})
 	}
@@ -541,13 +768,13 @@ func (s *StreamParser) result(complete bool) (res *ParseResult) {
 		if s.count == 0 {
 			return s.p.finish(emptyResult(incomplete), complete)
 		}
-		return s.p.finish(s.p.build(s.completed.clone(), incomplete, s.count, nil), complete)
+		mv, me := s.matCaches(incomplete)
+		return s.p.finish(s.p.build(makeStmtView(s.completed, nil), incomplete, s.count, nil, mv, me, &s.scratch), complete)
 	}
-	all := s.completed.clone()
 	var added []*Statement
 	calls, nodes := s.calls, s.nodes
 	for _, r := range raws {
-		if _, done := s.completed.m[r.id]; done && incomplete {
+		if s.completed.has(r.id) && incomplete {
 			continue
 		}
 		expr, ok := parseExpression(r.toks, &s.p.limits, &calls, &nodes)
@@ -555,15 +782,15 @@ func (s *StreamParser) result(complete bool) (res *ParseResult) {
 			return budgetResult(&budgetError{phase: "AST", limit: s.p.limits.MaxASTNodes, path: r.id})
 		}
 		st := classify(r, expr)
-		all.set(st)
 		added = append(added, st)
 	}
-	if len(all.order) > s.p.limits.MaxStatements {
+	view := makeStmtView(s.completed, added)
+	if view.len() > s.p.limits.MaxStatements {
 		return budgetResult(&budgetError{phase: "statements", limit: s.p.limits.MaxStatements})
 	}
 	var pref *partialRef
 	if !complete {
-		if tail := tailStateRef.FindString(s.buf); tail != "" && strings.HasSuffix(pending, tail) {
+		if tail := findTailStateRef(s.buf); tail != "" && strings.HasSuffix(pending, tail) {
 			head := pending[:len(pending)-len(tail)]
 			if !containsWholeWord(head, tail) {
 				set := map[*Statement]bool{}
@@ -574,7 +801,8 @@ func (s *StreamParser) result(complete bool) (res *ParseResult) {
 			}
 		}
 	}
-	return s.p.finish(s.p.build(all, incomplete, s.count+len(raws), pref), complete)
+	mv, me := s.matCaches(incomplete)
+	return s.p.finish(s.p.build(view, incomplete, s.count+len(raws), pref, mv, me, &s.scratch), complete)
 }
 
 // containsWholeWord reports whether word occurs in s not followed by a word

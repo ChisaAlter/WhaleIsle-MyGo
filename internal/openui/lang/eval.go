@@ -17,6 +17,10 @@ type evalEnv struct {
 	budget     *budget
 	fenv       *FuncEnv
 	limits     *Limits
+	onImpure   func()
+	vctx       vctx
+	argPool    [4]Object
+	argDepth   int
 }
 
 type scopeVar struct {
@@ -51,6 +55,14 @@ func (e *evalEnv) reportf(format string, args ...any) {
 // plan back to Instance.Dispatch.
 type ActionPlan struct {
 	steps []planStep
+	step0 [1]planStep
+}
+
+func singleStepPlan(c *CallNode) *ActionPlan {
+	p := &ActionPlan{}
+	p.step0[0] = planStep{call: c}
+	p.steps = p.step0[:1]
+	return p
 }
 
 // Len returns the number of steps.
@@ -68,99 +80,106 @@ type planStep struct {
 
 func (e *evalEnv) eval(n Node) Value {
 	e.budget.enter(nodeKindName(n))
-	defer e.budget.leave()
+	var res Value
 	switch t := n.(type) {
 	case *StrNode:
-		return t.V
+		res = t.V
 	case *NumNode:
-		return t.V
+		res = t.V
 	case *BoolNode:
-		return t.V
+		res = t.V
 	case *NullNode, *PhNode:
-		return nil
+		res = nil
 	case *ValueNode:
-		return t.V
+		res = t.V
 	case *StateRefNode:
 		if e.extra != nil {
 			if v, ok := e.extra[t.N]; ok {
+				e.budget.leave()
 				return v
 			}
 		}
-		return e.getState(t.N)
+		res = e.getState(t.N)
 	case *RefNode:
 		if v, ok := e.lookup(t.N); ok {
+			e.budget.leave()
 			return v
 		}
 		if e.resolveRef != nil {
-			return e.resolveRef(t.N)
+			res = e.resolveRef(t.N)
 		}
-		return nil
 	case *RuntimeRefNode:
 		if e.resolveRef != nil {
-			return e.resolveRef(t.N)
+			res = e.resolveRef(t.N)
 		}
-		return nil
 	case *ArrNode:
 		out := make([]Value, len(t.Els))
 		for i, x := range t.Els {
 			out[i] = e.eval(x)
 		}
-		return out
+		res = out
 	case *ObjNode:
 		o := NewObject(len(t.Entries))
 		for _, x := range t.Entries {
 			o.Set(x.Key, e.eval(x.Value))
 		}
-		return o
+		res = o
 	case *CallNode:
-		return e.evalCall(t)
+		res = e.evalCall(t)
 	case *BinOpNode:
-		return e.evalBinOp(t)
+		res = e.evalBinOp(t)
 	case *UnaryNode:
 		x := e.eval(t.X)
 		if t.Op == "!" {
-			return !Truthy(x)
+			res = !Truthy(x)
+		} else {
+			res = -ToNumber(x)
 		}
-		return -ToNumber(x)
 	case *TernaryNode:
 		if Truthy(e.eval(t.Cond)) {
-			return e.eval(t.Then)
+			res = e.eval(t.Then)
+		} else {
+			res = e.eval(t.Else)
 		}
-		return e.eval(t.Else)
 	case *MemberNode:
 		x := e.eval(t.X)
 		if x == nil {
-			return nil
-		}
-		if arr, ok := x.([]Value); ok {
+			res = nil
+		} else if arr, ok := x.([]Value); ok {
 			if t.Field == "length" {
-				return float64(len(arr))
+				res = float64(len(arr))
+			} else {
+				out := make([]Value, len(arr))
+				for i, it := range arr {
+					out[i] = memberOf(it, t.Field)
+				}
+				res = out
 			}
-			out := make([]Value, len(arr))
-			for i, it := range arr {
-				out[i] = memberOf(it, t.Field)
-			}
-			return out
+		} else {
+			res = memberOf(x, t.Field)
 		}
-		return memberOf(x, t.Field)
 	case *IndexNode:
 		x := e.eval(t.X)
 		idx := e.eval(t.Index)
 		if x == nil || idx == nil {
-			return nil
-		}
-		if arr, ok := x.([]Value); ok {
+			res = nil
+		} else if arr, ok := x.([]Value); ok {
 			f := ToNumber(idx)
 			if f >= 0 && f == math.Trunc(f) && f < float64(len(arr)) {
-				return arr[int(f)]
+				res = arr[int(f)]
 			}
-			return nil
+		} else {
+			res = memberOf(x, ToString(idx))
 		}
-		return memberOf(x, ToString(idx))
 	case *AssignNode:
-		return &Binding{Target: t.Target, expr: t.Value}
+		expr := t.Value
+		if e.scope != nil {
+			expr = captureScope(expr, e.scope)
+		}
+		res = &Binding{Target: t.Target, expr: expr}
 	}
-	return nil
+	e.budget.leave()
+	return res
 }
 
 func nodeKindName(n Node) string {
@@ -246,28 +265,49 @@ func concatString(v Value) string {
 }
 
 func (e *evalEnv) evalArgs(c *CallNode, params []*Param) *Object {
-	var named []NamedArg
 	if c.HasMapped {
-		named = c.Mapped
-	} else {
-		named = nameArgs(c.Args, params)
+		args := NewObject(len(c.Mapped))
+		for _, a := range c.Mapped {
+			args.Set(a.Name, e.eval(a.Value))
+		}
+		return args
 	}
-	args := NewObject(len(named))
-	for _, a := range named {
-		args.Set(a.Name, e.eval(a.Value))
+	n := len(params)
+	if len(c.Args) < n {
+		n = len(c.Args)
+	}
+	args := NewObject(n)
+	for i := 0; i < n; i++ {
+		args.Set(params[i].Name, e.eval(c.Args[i]))
 	}
 	return args
 }
 
 func (e *evalEnv) evalCall(c *CallNode) Value {
 	if b := builtinFuncs[c.Name]; b != nil {
-		def := builtinCalls[c.Name]
-		args := e.evalArgs(c, def.params)
-		m := make(map[string]Value, args.Len())
-		for _, k := range args.Keys() {
-			m[k] = args.vals[k]
+		var buf [4]Value
+		var argv []Value
+		if c.HasMapped {
+			argv = buf[:len(b.params)]
+			for _, a := range c.Mapped {
+				for i, pn := range b.params {
+					if a.Name == pn {
+						argv[i] = e.eval(a.Value)
+						break
+					}
+				}
+			}
+		} else {
+			n := len(b.params)
+			if len(c.Args) < n {
+				n = len(c.Args)
+			}
+			argv = buf[:n]
+			for i := 0; i < n; i++ {
+				argv[i] = e.eval(c.Args[i])
+			}
 		}
-		return b.fn(m)
+		return b.fn(argv)
 	}
 	if c.Name == "Each" {
 		return e.evalEach(c)
@@ -281,13 +321,21 @@ func (e *evalEnv) evalCall(c *CallNode) Value {
 			arr, _ := list.([]Value)
 			return flattenPlans(arr)
 		}
-		return &ActionPlan{steps: []planStep{{call: c}}}
+		call := c
+		if e.scope != nil {
+			call = captureScopeCall(c, e.scope)
+		}
+		return singleStepPlan(call)
 	}
 	if fn := e.lib.Functions[c.Name]; fn != nil {
 		return e.callFunction(fn, c)
 	}
 	if e.lib.Actions[c.Name] != nil {
-		return &ActionPlan{steps: []planStep{{call: c}}}
+		call := c
+		if e.scope != nil {
+			call = captureScopeCall(c, e.scope)
+		}
+		return singleStepPlan(call)
 	}
 	if comp := e.lib.Components[c.Name]; comp != nil && c.HasMapped {
 		props := NewObject(len(c.Mapped))
@@ -303,7 +351,7 @@ func (e *evalEnv) evalCall(c *CallNode) Value {
 			}
 			props.Set(a.Name, e.eval(a.Value))
 		}
-		return &Element{Type: c.Name, Props: props, SourceKey: c.SourceKey, dynamic: true}
+		return &Element{Type: c.Name, Props: props, SourceKey: c.SourceKey, dynamic: true, kind: elEphemeral}
 	}
 	return nil
 }
@@ -334,14 +382,78 @@ func flattenPlans(vals []Value) *ActionPlan {
 
 // callArgs evaluates library function/action args; an explicit null for an
 // optional param is dropped so its default applies.
-func (e *evalEnv) callArgs(c *CallNode, params []*Param) *Object {
-	args := e.evalArgs(c, params)
-	for _, p := range params {
-		if v, ok := args.Get(p.Name); ok && v == nil && !p.Required {
-			args.Delete(p.Name)
+func (e *evalEnv) callArgsInto(dst *Object, c *CallNode, params []*Param) *Object {
+	if c.HasMapped {
+		for _, a := range c.Mapped {
+			v := e.eval(a.Value)
+			if v == nil {
+				opt := false
+				for _, p := range params {
+					if p.Name == a.Name {
+						opt = !p.Required
+						break
+					}
+				}
+				if opt {
+					continue
+				}
+			}
+			dst.Set(a.Name, v)
 		}
+		return dst
 	}
-	return args
+	n := len(params)
+	if len(c.Args) < n {
+		n = len(c.Args)
+	}
+	for i := 0; i < n; i++ {
+		p := params[i]
+		v := e.eval(c.Args[i])
+		if v == nil && !p.Required {
+			continue
+		}
+		dst.Set(p.Name, v)
+	}
+	return dst
+}
+
+func (e *evalEnv) callArgs(c *CallNode, params []*Param) *Object {
+	n := len(params)
+	if c.HasMapped {
+		n = len(c.Mapped)
+	} else if len(c.Args) < n {
+		n = len(c.Args)
+	}
+	return e.callArgsInto(NewObject(n), c, params)
+}
+
+func (e *evalEnv) acquireArgObj() (*Object, bool) {
+	if e.argDepth < len(e.argPool) {
+		o := &e.argPool[e.argDepth]
+		e.argDepth++
+		if cap(o.keys) == 0 {
+			o.keys = o.kbuf[:0]
+			o.vals = o.vbuf[:0]
+		} else {
+			o.keys = o.keys[:0]
+			o.vals = o.vals[:0]
+			if o.index != nil {
+				clear(o.index)
+				o.index = nil
+			}
+		}
+		return o, true
+	}
+	return NewObject(4), false
+}
+
+func (e *evalEnv) releaseArgObj(o *Object) {
+	clear(o.keys)
+	clear(o.vals)
+	o.keys = o.keys[:0]
+	o.vals = o.vals[:0]
+	o.index = nil
+	e.argDepth--
 }
 
 func missesRequired(args *Object, params []*Param) bool {
@@ -354,12 +466,21 @@ func missesRequired(args *Object, params []*Param) bool {
 }
 
 // checkValue validates a runtime value against a schema, reporting errors.
-func (e *evalEnv) checkValue(v Value, schema *Object, name, path string, strict bool) Value {
+func (e *evalEnv) checkValue(v Value, schema *Object, compiled *compiledSchema, name, path string, strict bool) Value {
 	if schema == nil {
 		return v
 	}
-	c := &vctx{lib: e.lib, source: SourceRuntime}
-	out := c.validateSchemaValue(v, schema, name, path)
+	c := &e.vctx
+	c.lib = e.lib
+	c.source = SourceRuntime
+	c.errors = c.errors[:0]
+	var out Value
+	if compiled != nil && compiled.raw == schema {
+		c.resetPath(path)
+		out = c.validateCompiled(v, compiled, name)
+	} else {
+		out = c.validateSchemaValue(v, schema, name, path)
+	}
 	for _, d := range c.errors {
 		e.reportf("@%s: %s", name, d.Message)
 	}
@@ -370,11 +491,24 @@ func (e *evalEnv) checkValue(v Value, schema *Object, name, path string, strict 
 }
 
 func (e *evalEnv) callFunction(fn *Function, c *CallNode) (result Value) {
-	args := e.callArgs(c, fn.Params)
+	if !fn.Pure && e.onImpure != nil {
+		e.onImpure()
+	}
+	args, pooled := e.acquireArgObj()
+	if pooled {
+		defer func() {
+			if result == args {
+				// Defensive: if a custom FuncImpl returned its args object, detach the pool slot.
+				e.argPool[e.argDepth-1] = Object{}
+			}
+			e.releaseArgObj(args)
+		}()
+	}
+	e.callArgsInto(args, c, fn.Params)
 	if missesRequired(args, fn.Params) {
 		return nil
 	}
-	checked := e.checkValue(args, fn.ParamsSchema, fn.Name, "", false)
+	checked := e.checkValue(args, fn.ParamsSchema, fn.paramsCompiled, fn.Name, "", false)
 	if isInvalid(checked) {
 		return nil
 	}
@@ -382,9 +516,13 @@ func (e *evalEnv) callFunction(fn *Function, c *CallNode) (result Value) {
 	if obj == nil {
 		obj = args
 	}
+	cloned := obj == args // args is owned here
 	for _, p := range fn.Params {
 		if p.HasDefault && !obj.Has(p.Name) {
-			obj = obj.Clone()
+			if !cloned {
+				obj = obj.Clone()
+				cloned = true
+			}
 			obj.Set(p.Name, p.Default)
 		}
 	}
@@ -420,7 +558,7 @@ func (e *evalEnv) callFunction(fn *Function, c *CallNode) (result Value) {
 	if fn.Returns == nil {
 		return result
 	}
-	out := e.checkValue(result, fn.Returns, fn.Name, "/returns", false)
+	out := e.checkValue(result, fn.Returns, fn.returnsCompiled, fn.Name, "/returns", false)
 	if isInvalid(out) || isOmit(out) {
 		return nil
 	}
@@ -430,6 +568,14 @@ func (e *evalEnv) callFunction(fn *Function, c *CallNode) (result Value) {
 // checkValueSize enforces the value-node, depth and collection budgets on
 // data produced by functions.
 func checkValueSize(v Value, lim *Limits, what string) *budgetError {
+	// Fast path for scalar values (most function returns: strings, numbers, bools, nil).
+	switch v.(type) {
+	case nil, bool, float64, string:
+		if lim.MaxValueNodes > 0 && 1 > lim.MaxValueNodes {
+			return &budgetError{phase: what + " nodes", limit: lim.MaxValueNodes}
+		}
+		return nil
+	}
 	nodes := 0
 	var walk func(v Value, depth int) *budgetError
 	walk = func(v Value, depth int) *budgetError {
@@ -454,8 +600,8 @@ func checkValueSize(v Value, lim *Limits, what string) *budgetError {
 			if t.Len() > lim.MaxListItems {
 				return &budgetError{phase: what + " collection", limit: lim.MaxListItems}
 			}
-			for _, k := range t.keys {
-				if err := walk(t.vals[k], depth+1); err != nil {
+			for i := range t.keys {
+				if err := walk(t.vals[i], depth+1); err != nil {
 					return err
 				}
 			}
@@ -483,9 +629,13 @@ func (e *evalEnv) evalEach(c *CallNode) Value {
 	}
 	tmpl := c.Args[2]
 	out := make([]Value, len(arr))
+	prev := e.scope
+	sv := scopeVar{name: name, next: prev}
+	e.scope = &sv
+	defer func() { e.scope = prev }()
 	for i, item := range arr {
-		sub := substituteRef(tmpl, name, item)
-		v := e.with(name, item).eval(sub)
+		sv.value = item
+		v := e.eval(tmpl)
 		if el, ok := v.(*Element); ok {
 			key := Value(float64(i))
 			if o, ok := item.(*Object); ok {
@@ -502,22 +652,56 @@ func (e *evalEnv) evalEach(c *CallNode) Value {
 	return out
 }
 
-// substituteRef replaces Ref(name) with the loop element as literal AST, so
-// deferred steps capture their own element. Unchanged subtrees are shared.
-func substituteRef(n Node, name string, v Value) Node {
-	out, _ := subst(n, name, v)
+type shadowVar struct {
+	name string
+	next *shadowVar
+}
+
+func isShadowed(sh *shadowVar, name string) bool {
+	for s := sh; s != nil; s = s.next {
+		if s.name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func lookupUnshadowed(scope *scopeVar, sh *shadowVar, name string) (Value, bool) {
+	if isShadowed(sh, name) {
+		return nil, false
+	}
+	for s := scope; s != nil; s = s.next {
+		if s.name == name {
+			return s.value, true
+		}
+	}
+	return nil, false
+}
+
+// captureScope substitutes active @Each loop variables inside a deferred AST
+// node (ActionPlan step or AssignNode expression), sharing unchanged subtrees.
+func captureScope(n Node, scope *scopeVar) Node {
+	out, _ := substScope(n, scope, nil)
 	return out
 }
 
-func subst(n Node, name string, v Value) (Node, bool) {
+func captureScopeCall(c *CallNode, scope *scopeVar) *CallNode {
+	out, ch := substScope(c, scope, nil)
+	if !ch {
+		return c
+	}
+	return out.(*CallNode)
+}
+
+func substScope(n Node, scope *scopeVar, sh *shadowVar) (Node, bool) {
 	switch t := n.(type) {
 	case *RefNode:
-		if t.N == name {
+		if v, ok := lookupUnshadowed(scope, sh, t.N); ok {
 			return &ValueNode{V: v}, true
 		}
 		return t, false
 	case *MemberNode:
-		obj, ch := subst(t.X, name, v)
+		obj, ch := substScope(t.X, scope, sh)
 		if !ch {
 			return t, false
 		}
@@ -530,29 +714,29 @@ func subst(n Node, name string, v Value) (Node, bool) {
 		}
 		return &MemberNode{X: obj, Field: t.Field}, true
 	case *IndexNode:
-		x, c1 := subst(t.X, name, v)
-		i, c2 := subst(t.Index, name, v)
+		x, c1 := substScope(t.X, scope, sh)
+		i, c2 := substScope(t.Index, scope, sh)
 		if !c1 && !c2 {
 			return t, false
 		}
 		return &IndexNode{X: x, Index: i}, true
 	case *BinOpNode:
-		l, c1 := subst(t.L, name, v)
-		r, c2 := subst(t.R, name, v)
+		l, c1 := substScope(t.L, scope, sh)
+		r, c2 := substScope(t.R, scope, sh)
 		if !c1 && !c2 {
 			return t, false
 		}
 		return &BinOpNode{Op: t.Op, L: l, R: r}, true
 	case *UnaryNode:
-		x, ch := subst(t.X, name, v)
+		x, ch := substScope(t.X, scope, sh)
 		if !ch {
 			return t, false
 		}
 		return &UnaryNode{Op: t.Op, X: x}, true
 	case *TernaryNode:
-		c, c1 := subst(t.Cond, name, v)
-		th, c2 := subst(t.Then, name, v)
-		el, c3 := subst(t.Else, name, v)
+		c, c1 := substScope(t.Cond, scope, sh)
+		th, c2 := substScope(t.Then, scope, sh)
+		el, c3 := substScope(t.Else, scope, sh)
 		if !c1 && !c2 && !c3 {
 			return t, false
 		}
@@ -560,7 +744,7 @@ func subst(n Node, name string, v Value) (Node, bool) {
 	case *ArrNode:
 		var els []Node
 		for i, x := range t.Els {
-			y, ch := subst(x, name, v)
+			y, ch := substScope(x, scope, sh)
 			if ch && els == nil {
 				els = append(make([]Node, 0, len(t.Els)), t.Els[:i]...)
 			}
@@ -575,7 +759,7 @@ func subst(n Node, name string, v Value) (Node, bool) {
 	case *ObjNode:
 		var ents []ObjEntry
 		for i, x := range t.Entries {
-			y, ch := subst(x.Value, name, v)
+			y, ch := substScope(x.Value, scope, sh)
 			if ch && ents == nil {
 				ents = append(make([]ObjEntry, 0, len(t.Entries)), t.Entries[:i]...)
 			}
@@ -588,38 +772,54 @@ func subst(n Node, name string, v Value) (Node, bool) {
 		}
 		return &ObjNode{Entries: ents}, true
 	case *CallNode:
-		shadow := t.Name == "Each" && eachVarName(t) == name
-		changed := false
-		args := make([]Node, len(t.Args))
-		for i, a := range t.Args {
-			if shadow && i > 0 {
-				args[i] = a
-				continue
+		innerSh := sh
+		var eachShadow shadowVar
+		isEach := t.Name == "Each"
+		if isEach {
+			if vn := eachVarName(t); vn != "" {
+				eachShadow = shadowVar{name: vn, next: sh}
+				innerSh = &eachShadow
 			}
-			y, ch := subst(a, name, v)
-			args[i] = y
-			changed = changed || ch
+		}
+		var args []Node
+		for i, a := range t.Args {
+			curSh := sh
+			if isEach && i > 0 {
+				curSh = innerSh
+			}
+			y, ch := substScope(a, scope, curSh)
+			if ch && args == nil {
+				args = append(make([]Node, 0, len(t.Args)), t.Args[:i]...)
+			}
+			if args != nil {
+				args = append(args, y)
+			}
 		}
 		var mapped []NamedArg
 		if t.HasMapped {
-			mapped = make([]NamedArg, len(t.Mapped))
 			for i, a := range t.Mapped {
-				y, ch := subst(a.Value, name, v)
-				mapped[i] = NamedArg{Name: a.Name, Value: y}
-				changed = changed || ch
+				y, ch := substScope(a.Value, scope, sh)
+				if ch && mapped == nil {
+					mapped = append(make([]NamedArg, 0, len(t.Mapped)), t.Mapped[:i]...)
+				}
+				if mapped != nil {
+					mapped = append(mapped, NamedArg{Name: a.Name, Value: y})
+				}
 			}
 		}
-		if !changed {
+		if args == nil && mapped == nil {
 			return t, false
 		}
 		cp := *t
-		cp.Args = args
-		if t.HasMapped {
+		if args != nil {
+			cp.Args = args
+		}
+		if mapped != nil {
 			cp.Mapped = mapped
 		}
 		return &cp, true
 	case *AssignNode:
-		x, ch := subst(t.Value, name, v)
+		x, ch := substScope(t.Value, scope, sh)
 		if !ch {
 			return t, false
 		}
@@ -653,8 +853,8 @@ func evalStandalone(v Value, defaults *Object, lib *Library, lim Limits) Value {
 			return out
 		case *Object:
 			o := NewObject(t.Len())
-			for _, k := range t.Keys() {
-				o.Set(k, walk(t.vals[k]))
+			for i, k := range t.Keys() {
+				o.appendOrdered(k, walk(t.vals[i]))
 			}
 			return o
 		case *Element:
@@ -678,8 +878,8 @@ func dataOnly(v Value) Value {
 		return out
 	case *Object:
 		o := NewObject(t.Len())
-		for _, k := range t.Keys() {
-			o.Set(k, dataOnly(t.vals[k]))
+		for i, k := range t.Keys() {
+			o.appendOrdered(k, dataOnly(t.vals[i]))
 		}
 		return o
 	}

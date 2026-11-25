@@ -142,6 +142,7 @@ func (r *ActionRun) ResolveMutation(data Value, err error) {
 	if me == nil {
 		return
 	}
+	r.in.queries.version++
 	if err != nil {
 		code := "tool-error"
 		msg := fmt.Sprintf("Mutation %q failed: %s", m.Tool, err.Error())
@@ -373,7 +374,7 @@ func (r *ActionRun) runStep(st planStep) (eff *Effect, err error) {
 	if missesRequired(args, def.Params) {
 		return nil, fmt.Errorf("@%s is missing required action arguments", c.Name)
 	}
-	checked := env.checkValue(args, def.ParamsSchema, c.Name, "", true)
+	checked := env.checkValue(args, def.ParamsSchema, def.paramsCompiled, c.Name, "", true)
 	if isInvalid(checked) {
 		return nil, fmt.Errorf("@%s action arguments are invalid", c.Name)
 	}
@@ -415,6 +416,7 @@ func (r *ActionRun) runMutation(id string, env *evalEnv) (*Effect, error) {
 		}
 	}
 	me.result = MutationResult{Status: "loading"}
+	q.version++
 	req := &MutationRequest{ID: id, Tool: me.tool, Args: args}
 	r.pending = req
 	return &Effect{Kind: EffectRunMutation, Mutation: req}, nil

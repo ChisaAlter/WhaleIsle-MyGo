@@ -57,6 +57,7 @@ type Param struct {
 	// Bindable marks a $binding<T> prop: a $variable passed to it becomes a
 	// two-way Binding.
 	Bindable bool
+	compiled *compiledSchema
 }
 
 // Component is a library component.
@@ -88,23 +89,26 @@ type FuncImpl func(args *Object, env *FuncEnv) (Value, error)
 
 // Function is a library function called as @Name(...).
 type Function struct {
-	Name         string
-	Description  string
-	Signature    string
-	Params       []*Param
-	ParamsSchema *Object
-	Returns      *Object
-	Pure         bool
-	Impl         FuncImpl
+	Name            string
+	Description     string
+	Signature       string
+	Params          []*Param
+	ParamsSchema    *Object
+	Returns         *Object
+	Pure            bool
+	Impl            FuncImpl
+	paramsCompiled  *compiledSchema
+	returnsCompiled *compiledSchema
 }
 
 // ActionDef is a custom library action step called as @Name(...).
 type ActionDef struct {
-	Name         string
-	Description  string
-	Signature    string
-	Params       []*Param
-	ParamsSchema *Object
+	Name           string
+	Description    string
+	Signature      string
+	Params         []*Param
+	ParamsSchema   *Object
+	paramsCompiled *compiledSchema
 }
 
 // Library defines the components, functions and actions a program may use.
@@ -319,7 +323,29 @@ func (lib *Library) init() error {
 		a := lib.Actions[name]
 		lib.calls[name] = &callDef{kind: callAction, params: a.Params, action: a}
 	}
+	lib.compileSchemas()
 	return nil
+}
+
+func (lib *Library) compileSchemas() {
+	for _, c := range lib.Components {
+		for _, p := range c.Params {
+			p.compiled = compileSchema(p.Schema, lib)
+		}
+	}
+	for _, f := range lib.Functions {
+		for _, p := range f.Params {
+			p.compiled = compileSchema(p.Schema, lib)
+		}
+		f.paramsCompiled = compileSchema(f.ParamsSchema, lib)
+		f.returnsCompiled = compileSchema(f.Returns, lib)
+	}
+	for _, a := range lib.Actions {
+		for _, p := range a.Params {
+			p.compiled = compileSchema(p.Schema, lib)
+		}
+		a.paramsCompiled = compileSchema(a.ParamsSchema, lib)
+	}
 }
 
 // Init finalizes a Library built by hand.
@@ -379,8 +405,8 @@ func inlineActionRefs(v Value, defs map[string]*Object, depth int) Value {
 			return t
 		}
 		var out *Object
-		for _, k := range t.Keys() {
-			x := t.vals[k]
+		for i, k := range t.Keys() {
+			x := t.vals[i]
 			y := inlineActionRefs(x, defs, depth+1)
 			if !sameValueOrNode(x, y) {
 				if out == nil {

@@ -212,7 +212,10 @@ func formatNumber(v float64, kind string, decimals *int, currency, lc string) st
 	if math.IsNaN(v) {
 		return "NaN"
 	}
-	cur := strings.ToUpper(currency)
+	cur := currency
+	if cur != "" {
+		cur = fastUpper(cur)
+	}
 	useCurrency := kind == "currency" || kind == "compact" && currency != ""
 	if useCurrency && cur == "" {
 		cur = "USD"
@@ -243,32 +246,77 @@ func formatNumber(v float64, kind string, decimals *int, currency, lc string) st
 		minF, maxF = *decimals, *decimals
 	}
 	if math.IsInf(v, 0) {
-		s := "∞"
 		if v < 0 {
-			s = "-∞"
+			return "-∞"
 		}
-		return s
+		return "∞"
 	}
 	neg := v < 0 || v == 0 && math.Signbit(v)
-	body := groupDigits(fixed(math.Abs(v), minF, maxF))
-	if neg && strings.Trim(body, "0.,") == "" {
-		neg = false
-	}
-	out := body + suffix
-	if kind == "percent" {
-		out += "%"
-	}
-	if useCurrency {
-		sym, ok := currencySymbols[lc][cur]
-		if !ok {
-			sym = cur + "\u00a0"
+	var numBuf [64]byte
+	raw := strconv.AppendFloat(numBuf[:0], math.Abs(v), 'f', maxF, 64)
+	dot := -1
+	for i, c := range raw {
+		if c == '.' {
+			dot = i
+			break
 		}
-		out = sym + out
+	}
+	if dot >= 0 {
+		end := len(raw)
+		for end > dot+1+minF && raw[end-1] == '0' {
+			end--
+		}
+		if end == dot+1 {
+			end = dot
+			dot = -1
+		}
+		raw = raw[:end]
 	}
 	if neg {
-		out = "-" + out
+		allZero := true
+		for _, c := range raw {
+			if c != '0' && c != '.' {
+				allZero = false
+				break
+			}
+		}
+		if allZero {
+			neg = false
+		}
 	}
-	return out
+	var outBuf [96]byte
+	out := outBuf[:0]
+	if neg {
+		out = append(out, '-')
+	}
+	if useCurrency {
+		if sym, ok := currencySymbols[lc][cur]; ok {
+			out = append(out, sym...)
+		} else {
+			out = append(out, cur...)
+			out = append(out, "\u00a0"...)
+		}
+	}
+	intEnd := len(raw)
+	if dot >= 0 {
+		intEnd = dot
+	}
+	for i := 0; i < intEnd; i++ {
+		if i > 0 && (intEnd-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, raw[i])
+	}
+	if dot >= 0 {
+		out = append(out, raw[dot:]...)
+	}
+	if suffix != "" {
+		out = append(out, suffix...)
+	}
+	if kind == "percent" {
+		out = append(out, '%')
+	}
+	return string(out)
 }
 
 func compactScale(v float64, lc string) (float64, string) {
@@ -295,37 +343,4 @@ func compactScale(v float64, lc string) (float64, string) {
 		return v / 1e3, "K"
 	}
 	return v, ""
-}
-
-// fixed rounds half away from zero (ICU half-even differs only on exact
-// binary ties) and trims fraction zeros beyond minF.
-func fixed(v float64, minF, maxF int) string {
-	s := strconv.FormatFloat(v, 'f', maxF, 64)
-	if dot := strings.IndexByte(s, '.'); dot >= 0 {
-		end := len(s)
-		for end > dot+1+minF && s[end-1] == '0' {
-			end--
-		}
-		if end == dot+1 {
-			end = dot
-		}
-		s = s[:end]
-	}
-	return s
-}
-
-func groupDigits(s string) string {
-	intPart, frac, hasFrac := strings.Cut(s, ".")
-	var b strings.Builder
-	for i, c := range intPart {
-		if i > 0 && (len(intPart)-i)%3 == 0 {
-			b.WriteByte(',')
-		}
-		b.WriteRune(c)
-	}
-	if hasFrac {
-		b.WriteByte('.')
-		b.WriteString(frac)
-	}
-	return b.String()
 }
