@@ -41,12 +41,30 @@ func ModalView(c *ui.Context, m Model) {
 			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
 		if t.Glass || chrome.BackdropActive() {
 			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), design.RadiusXL2))
+			rim := design.TW.White.Alpha(0.70)
+			if t.IsDark() {
+				rim = design.TW.White.Alpha(0.14)
+			}
+			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				inset := design.BorderWidth
+				inner := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
+				if inner.W > 0 && inner.H > 0 {
+					p.Stroke(inner, rim, max(0, design.RadiusXL2-inset), design.BorderWidth)
+				}
+			})
+			if t.IsDark() {
+				panel.Shadow(0, 12, 32, 0, design.TW.Black.Alpha(0.36)).
+					Shadow(0, 3, 10, 0, design.TW.Black.Alpha(0.18))
+			} else {
+				panel.Shadow(0, 12, 32, 0, design.TW.Black.Alpha(0.12)).
+					Shadow(0, 3, 10, 0, design.TW.Black.Alpha(0.06))
+			}
 		} else {
 			panel.Background(t.Popover)
-		}
-		for i := len(design.ShadowLg) - 1; i >= 0; i-- {
-			l := design.ShadowLg[i]
-			panel.Shadow(l.X, l.Y, l.Blur, l.Spread, design.TW.Black.Alpha(0.05))
+			for i := len(design.ShadowLg) - 1; i >= 0; i-- {
+				l := design.ShadowLg[i]
+				panel.Shadow(l.X, l.Y, l.Blur, l.Spread, design.TW.Black.Alpha(0.05))
+			}
 		}
 		panel.Children(func() { View(c, m) })
 	})

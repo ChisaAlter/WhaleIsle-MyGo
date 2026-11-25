@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/wallpapers"
@@ -33,6 +34,39 @@ var designGlassState struct {
 	sig   designGlassSignature
 }
 
+func applyDarkGlassPalette(p *design.Palette, canvasA, sidebarA, panelA, menuA float32) {
+	p.Background = chrome.MaterialFill(ui.RGB(18, 19, 23), canvasA)
+	p.Sidebar = chrome.MaterialFill(ui.RGB(22, 24, 30), sidebarA)
+	p.Card = chrome.MaterialFill(ui.RGB(30, 32, 38), panelA)
+	p.Popover = chrome.MaterialFill(ui.RGB(34, 36, 44), menuA)
+	p.Code = chrome.MaterialFill(ui.RGB(30, 32, 38), panelA)
+	p.Border = ui.RGBA(255, 255, 255, 0.14)
+	p.SidebarBorder = ui.RGBA(255, 255, 255, 0.10)
+	p.Input = ui.RGBA(255, 255, 255, 0.16)
+	p.Secondary = ui.RGBA(255, 255, 255, 0.10)
+	p.Muted = ui.RGBA(255, 255, 255, 0.09)
+	p.Accent = ui.RGBA(255, 255, 255, 0.11)
+	p.SidebarAccent = ui.RGBA(255, 255, 255, 0.10)
+	p.CodeHighlight = ui.RGBA(255, 255, 255, 0.09)
+}
+
+func applyLightGlassPalette(p *design.Palette, prefs wallpapers.Preferences) {
+	panelAlpha := chrome.MaterialAlpha(chrome.MaterialPanel, prefs, false)
+	p.Background = chrome.MaterialFill(p.Background, chrome.MaterialAlpha(chrome.MaterialCanvas, prefs, false))
+	p.Sidebar = chrome.MaterialFill(ui.RGB(246, 248, 252), chrome.MaterialAlpha(chrome.MaterialSidebar, prefs, false))
+	p.Card = chrome.MaterialFill(ui.RGB(252, 253, 255), panelAlpha)
+	p.Popover = chrome.MaterialFill(ui.RGB(252, 253, 255), chrome.MaterialAlpha(chrome.MaterialMenu, prefs, false))
+	p.Code = chrome.MaterialFill(ui.RGB(252, 253, 255), panelAlpha)
+	p.Border = ui.RGBA(0, 0, 0, 0.09)
+	p.SidebarBorder = ui.RGBA(0, 0, 0, 0.07)
+	p.Input = ui.RGBA(0, 0, 0, 0.12)
+	p.Secondary = ui.RGBA(0, 0, 0, 0.055)
+	p.Muted = ui.RGBA(0, 0, 0, 0.055)
+	p.Accent = ui.RGBA(0, 0, 0, 0.055)
+	p.SidebarAccent = ui.RGBA(0, 0, 0, 0.055)
+	p.CodeHighlight = ui.RGBA(0, 0, 0, 0.055)
+}
+
 func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {
 	prefs := wallpapers.Defaults()
 	prefs.Glass = sig.glass
@@ -41,18 +75,22 @@ func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {
 	return func(s design.Scheme, p *design.Palette) {
 		dark := s == design.Dark
 		if sig.backdropActive {
-			p.Background = chrome.MaterialFill(p.Background, chrome.MaterialAlpha(chrome.MaterialCanvas, prefs, dark))
-			p.Sidebar = chrome.MaterialFill(p.Sidebar, chrome.MaterialAlpha(chrome.MaterialSidebar, prefs, dark))
-			p.Card = chrome.MaterialFill(p.Card, chrome.MaterialAlpha(chrome.MaterialPanel, prefs, dark))
-			p.Popover = chrome.MaterialFill(p.Popover, chrome.MaterialAlpha(chrome.MaterialMenu, prefs, dark))
+			if dark {
+				applyDarkGlassPalette(
+					p,
+					chrome.MaterialAlpha(chrome.MaterialCanvas, prefs, true),
+					chrome.MaterialAlpha(chrome.MaterialSidebar, prefs, true),
+					chrome.MaterialAlpha(chrome.MaterialPanel, prefs, true),
+					chrome.MaterialAlpha(chrome.MaterialMenu, prefs, true),
+				)
+			} else {
+				applyLightGlassPalette(p, prefs)
+			}
 			return
 		}
 		if dark && sig.acrylic {
 			alpha := chrome.ShowThroughAlpha(prefs, true)
-			p.Background = chrome.MaterialFill(p.Background, alpha)
-			p.Sidebar = chrome.MaterialFill(p.Sidebar, alpha)
-			p.Card = chrome.MaterialFill(p.Card, alpha)
-			p.Popover = chrome.MaterialFill(p.Popover, alpha)
+			applyDarkGlassPalette(p, alpha, alpha, alpha, alpha)
 		}
 	}
 }

@@ -358,3 +358,205 @@ func TestWallpaperAndGlassThroughNavigationShellSidebarAndSettings(t *testing.T)
 		t.Fatalf("SettingsPanelGlass vs opaque settings modal produced insufficient pixel difference (%d pixels)", modalDiffPixels)
 	}
 }
+
+func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+	applyGlassTheme(true)
+
+	// Mid-saturation solid backdrop lets us verify both glass translucency/tints
+	// and that the settings modal rail has no opaque double-layer seam.
+	wallURL := testSolidWallpaperURL(t, color.RGBA{R: 60, G: 110, B: 190, A: 255}, 64, 64)
+	cfg := minimalModeStore(t)
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekDark
+		c.WallpaperPath = wallURL
+		on := true
+		c.GlassTheme = &on
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	prefs.Glass = 60
+	prefs.HideSidebarMask = false
+	prefs.Blur = 40
+	if err := cfg.SaveWallpaperBackground(prefs); err != nil {
+		t.Fatal(err)
+	}
+
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekDark}
+	store := session.New()
+	store.Select("fixture")
+	sizes := frame.DefaultLayout()
+	sizes.Bottom = 0
+	draft := ""
+	showSettings := true
+	var gotTokens design.Tokens
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		defer s.endAppearanceFrame()
+		gotTokens = *design.For(c)
+
+		wp := s.currentWallpaperConfigPath()
+		wallpaperDraw := s.wallpaperPainter(wp, true, c.Preferences().ReduceMotion)
+		m := frame.Model{
+			Store:              store,
+			Sizes:              &sizes,
+			Draft:              &draft,
+			ThemeID:            s.themeID,
+			SystemDark:         s.themeID == theme.IDDeepseekDark,
+			ExternalNavigation: true,
+		}
+		ui.Column(c).Fill().Background(chrome.Color(theme.Resolve(s.themeID).Active(m.SystemDark).BG)).Draw(wallpaperDraw).Children(func() {
+			frame.NavigationShell(c, m, func() {
+				frame.View(c, m)
+			})
+			if showSettings {
+				settings.ModalView(c, settings.Model{
+					ActiveSection: settings.SectionGeneral,
+					ThemeID:       s.themeID,
+					SystemDark:    m.SystemDark,
+					SectionContent: func(c *ui.Context) {
+						ui.Box(c).Size(8, 8)
+					},
+					OnClose: func() {},
+				})
+			}
+		})
+	}, 1100, 680)
+	tt.SetTime(time.Unix(1000, 0))
+	tt.SetTime(time.Unix(1002, 0))
+
+	renderSettled := func(dark bool) *image.RGBA {
+		t.Helper()
+		tt.SetDark(dark)
+		deadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(deadline) {
+			tt.Frame()
+			if _, ok := chrome.SampleBackdrop(ui.Rect{X: 0, Y: 0, W: 40, H: 40}); ok {
+				tt.Frame()
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if _, ok := chrome.SampleBackdrop(ui.Rect{X: 0, Y: 0, W: 40, H: 40}); !ok {
+			t.Fatal("wallpaper decode did not settle within timeout")
+		}
+		return tt.Image()
+	}
+
+	findDialogRect := func() ui.Rect {
+		t.Helper()
+		for _, b := range tt.Interactives() {
+			if b.Role == ui.RoleDialog {
+				return b.Rect
+			}
+		}
+		t.Fatal("settings dialog not found in interactives")
+		return ui.Rect{}
+	}
+
+	for _, tc := range []struct {
+		name    string
+		themeID string
+		dark    bool
+	}{
+		{"dark", theme.IDDeepseekDark, true},
+		{"light", theme.IDDeepseekLight, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s.themeID = tc.themeID
+			applyGlassTheme(true)
+			img := renderSettled(tc.dark)
+
+			if !gotTokens.Glass {
+				t.Fatalf("expected Glass=true tokens in %s mode", tc.name)
+			}
+			if gotTokens.Code.A != gotTokens.Card.A {
+				t.Fatalf("expected Code alpha (%d) to follow Card alpha (%d)", gotTokens.Code.A, gotTokens.Card.A)
+			}
+			if tc.dark {
+				if gotTokens.Border != ui.RGBA(255, 255, 255, 0.14) {
+					t.Fatalf("dark Border = %+v, want rgba(255,255,255,0.14)", gotTokens.Border)
+				}
+				if gotTokens.SidebarBorder != ui.RGBA(255, 255, 255, 0.10) {
+					t.Fatalf("dark SidebarBorder = %+v, want rgba(255,255,255,0.10)", gotTokens.SidebarBorder)
+				}
+				if gotTokens.Input != ui.RGBA(255, 255, 255, 0.16) {
+					t.Fatalf("dark Input = %+v, want rgba(255,255,255,0.16)", gotTokens.Input)
+				}
+			} else {
+				if gotTokens.Border != ui.RGBA(0, 0, 0, 0.09) {
+					t.Fatalf("light Border = %+v, want rgba(0,0,0,0.09)", gotTokens.Border)
+				}
+				if gotTokens.SidebarBorder != ui.RGBA(0, 0, 0, 0.07) {
+					t.Fatalf("light SidebarBorder = %+v, want rgba(0,0,0,0.07)", gotTokens.SidebarBorder)
+				}
+				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.12) {
+					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.12)", gotTokens.Input)
+				}
+			}
+
+			dlg := findDialogRect()
+			// Left rail background (empty bottom area of the 208-DIP rail) vs right
+			// content pane background: both must sit on the unified glass panel with
+			// only a subtle wash difference, no heavy double-layered seam.
+			railPx := img.RGBAAt(int(dlg.X)+24, int(dlg.Y+dlg.H)-24)
+			panePx := img.RGBAAt(int(dlg.X)+260, int(dlg.Y+dlg.H)-24)
+			channelDiff := max(
+				int(math.Abs(float64(railPx.R)-float64(panePx.R))),
+				max(
+					int(math.Abs(float64(railPx.G)-float64(panePx.G))),
+					int(math.Abs(float64(railPx.B)-float64(panePx.B))),
+				),
+			)
+			if channelDiff > 22 {
+				t.Fatalf("%s settings modal rail vs pane seam too strong (rail=%+v pane=%+v maxDiff=%d)", tc.name, railPx, panePx, channelDiff)
+			}
+
+			// Glass border & 1-DIP inner rim highlight on top edge of settings modal.
+			midX := int(dlg.X + dlg.W/2)
+			outerBorder := img.RGBAAt(midX, int(dlg.Y))
+			innerRim := img.RGBAAt(midX, int(dlg.Y)+1)
+			interior := img.RGBAAt(midX, int(dlg.Y)+16)
+			if tc.dark {
+				if innerRim.R <= interior.R || innerRim.B <= interior.B {
+					t.Fatalf("dark modal inner rim highlight not brighter than interior: rim=%+v interior=%+v", innerRim, interior)
+				}
+				if outerBorder.R <= interior.R {
+					t.Fatalf("dark modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
+				}
+			} else {
+				if innerRim.R <= outerBorder.R {
+					t.Fatalf("light modal inner rim highlight not brighter than outer border: rim=%+v border=%+v", innerRim, outerBorder)
+				}
+			}
+
+			// Turning GlassTheme OFF restores 100% original opaque coss tokens & rail/pane contrast.
+			applyGlassTheme(false)
+			tt.Frame()
+			offImg := tt.Image()
+			if gotTokens.Glass {
+				t.Fatalf("expected Glass=false after applyGlassTheme(false) in %s mode", tc.name)
+			}
+			scheme := design.Light
+			if tc.dark {
+				scheme = design.Dark
+			}
+			base := design.Base(scheme)
+			if gotTokens.Border != base.Border || gotTokens.Popover != base.Popover || gotTokens.Sidebar != base.Sidebar {
+				t.Fatalf("%s glass-off tokens diverged from base: border=%+v popover=%+v sidebar=%+v", tc.name, gotTokens.Border, gotTokens.Popover, gotTokens.Sidebar)
+			}
+			offRail := offImg.RGBAAt(int(dlg.X)+24, int(dlg.Y+dlg.H)-24)
+			offPane := offImg.RGBAAt(int(dlg.X)+260, int(dlg.Y+dlg.H)-24)
+			if offRail.R != base.Sidebar.R || offRail.G != base.Sidebar.G || offRail.B != base.Sidebar.B {
+				t.Fatalf("%s glass-off settings rail = %+v, want opaque base.Sidebar %+v", tc.name, offRail, base.Sidebar)
+			}
+			if offPane.R != base.Popover.R || offPane.G != base.Popover.G || offPane.B != base.Popover.B {
+				t.Fatalf("%s glass-off settings pane = %+v, want opaque base.Popover %+v", tc.name, offPane, base.Popover)
+			}
+		})
+	}
+}

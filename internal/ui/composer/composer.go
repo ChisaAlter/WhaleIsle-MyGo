@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -372,6 +373,12 @@ func View(c *ui.Context, m Model) {
 		focused := !inputDisabled && card.FocusWithin()
 		cardFill := composerCardFill(t)
 		cardBorder := composerCardBorder(t, focused)
+		glassMode := t.Glass || chrome.BackdropActive()
+		prefs := chrome.BackdropPreferences()
+		transparentActive := prefs.Transparent && chrome.BackdropHasWallpaper()
+		if glassMode && !transparentActive {
+			card.Material(glass.Blur{Radius: 16, Saturation: 0.35})
+		}
 		composerCardElevation(card, t, focused, inputDisabled)
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -386,6 +393,9 @@ func View(c *ui.Context, m Model) {
 			}
 		})
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			if glassMode {
+				paintGlassInnerRim(p, r, cardRadius, t.IsDark(), 0.12, 0.65)
+			}
 			p.Stroke(r, cardBorder, cardRadius, design.BorderWidth)
 		})
 		card.Children(func() {

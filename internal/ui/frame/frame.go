@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/media"
@@ -1565,9 +1566,15 @@ func rightPane(c *ui.Context, m Model) {
 	}
 
 	artifact := ui.Column(c.Key("frame-right-pane:" + tab)).Label("Skin artifact boundary").Fill().MinWidth(0)
+	prefs := chrome.BackdropPreferences()
+	blurRightPane := chrome.BackdropActive() && !prefs.HideSidebarMask &&
+		!(prefs.Transparent && chrome.BackdropHasWallpaper())
 	if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
 		if layout.Skin != theme.SkinCodex && chrome.BackdropActive() {
 			chrome.GlassSurface(artifact, t.Sidebar, chrome.MaterialSidebar).Radius(0).Padding(0).Clip()
+			if blurRightPane {
+				artifact.Material(glass.Blur{Radius: 16, Saturation: 0.35})
+			}
 		} else {
 			artifact.Background(theme.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip()
 		}
@@ -1579,6 +1586,9 @@ func rightPane(c *ui.Context, m Model) {
 			// The right rail shares the left rail's surface token.
 			if chrome.BackdropActive() {
 				chrome.GlassSurface(artifact, t.Sidebar, chrome.MaterialSidebar)
+				if blurRightPane {
+					artifact.Material(glass.Blur{Radius: 16, Saturation: 0.35})
+				}
 			} else {
 				artifact.Background(t.Sidebar)
 			}

@@ -294,8 +294,12 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 		}
 	}
 	railBg := t.Sidebar
-	if !t.Glass && chrome.BackdropActive() {
-		railBg = chrome.BackdropSidebar(t.Sidebar)
+	if t.Glass || chrome.BackdropActive() {
+		if t.IsDark() {
+			railBg = design.TW.White.Alpha(0.04)
+		} else {
+			railBg = design.TW.Black.Alpha(0.025)
+		}
 	}
 	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), 0, 0, 0).Gap(design.Sp(3)).
 		Background(railBg).BorderWidth(0, design.BorderWidth, 0, 0).BorderColor(t.SidebarBorder).
