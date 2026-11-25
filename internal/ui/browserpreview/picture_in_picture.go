@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"time"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
@@ -49,7 +50,7 @@ func (b *Controller) openPictureInPicture(t *Tab) {
 			ui.Column(c).Fill().MinHeight(0).Padding(8).Gap(6).Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, browserChromeLabel("网页画中画 · 最多 4 帧/秒 · 无音频", "Webpage picture-in-picture · Up to 4 frames/second · No audio")).FontSize(fonttheme.InterfaceSize(11)).Grow(1)
-					if ui.Button(c, browserChromeLabel("关闭", "Close")).Clicked() {
+					if coss.Button(c, browserChromeLabel("关闭", "Close"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
 						b.stopPictureInPicture()
 					}
 				})

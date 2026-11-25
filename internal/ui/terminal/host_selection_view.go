@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/hostterminal"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/widgets"
 )
 
@@ -28,7 +29,7 @@ func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v
 		}
 	}
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, terminalLabel("加入对话", "Add to chat")).Key("host-quote:" + v.ActiveID + text).FontSize(10).Disabled(!actions.CanAddToChat || actions.AddToChat == nil).Clicked() {
+		if coss.Button(c, terminalLabel("加入对话", "Add to chat"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Key: "host-quote:" + v.ActiveID + text, Disabled: !actions.CanAddToChat || actions.AddToChat == nil}).Clicked() {
 			run(func(text string) error { return actions.AddToChat(FormatSelection(text)) })
 		}
 		if target, ok := FirstSelectionTarget(text); ok {
@@ -36,7 +37,7 @@ func (h *HostState) selectionActions(c *ui.Context, store *hostterminal.Store, v
 			if target.URL {
 				label = terminalLabel("打开链接", "Open link")
 			}
-			if ui.Button(c, label).Key("host-target:" + v.ActiveID + text).FontSize(10).Disabled(actions.OpenTarget == nil).Clicked() {
+			if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Key: "host-target:" + v.ActiveID + text, Disabled: actions.OpenTarget == nil}).Clicked() {
 				run(func(text string) error { return actions.OpenTarget(text, v.Info.Cwd) })
 			}
 		}

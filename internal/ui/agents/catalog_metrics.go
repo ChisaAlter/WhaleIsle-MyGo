@@ -8,6 +8,8 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -109,59 +111,61 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 	for _, row := range v.Rows {
 		row := row
 		disabled := v.Busy || !row.CanOpen()
-		button := ui.Button(c.Key("agent/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID+"/"+row.Address.Mode), "").Label(row.Label).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(8, 10).Radius(6).BorderWidth(0).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Disabled(disabled)
-		if !disabled {
-			button.Cursor(ui.CursorPointer)
-			if button.Hovered() {
-				button.Background(chrome.Color(colors.Hover))
-			}
-		}
-		button.Children(func() {
-			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-				if row.Address.Mode != "external" {
-					state := widgets.StateDone
-					if !row.ActivityKnown {
-						state = widgets.StateIdle
-					} else if row.Running {
-						state = widgets.StateRunning
+		button := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Key:      "agent/" + row.Address.ParentSessionID + "/" + row.Address.ChildSessionID + "/" + row.Address.Mode,
+			Label:    row.Label,
+			Disabled: disabled,
+			Content: func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+					if row.Address.Mode != "external" {
+						state := widgets.StateDone
+						if !row.ActivityKnown {
+							state = widgets.StateIdle
+						} else if row.Running {
+							state = widgets.StateRunning
+						}
+						widgets.StateDot(c, state)
 					}
-					widgets.StateDot(c, state)
-				}
-				ui.Text(c, row.Label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
-				if row.Address.Mode != "external" {
-					if row.Metrics.Tokens != nil {
-						ui.Text(c, FormatSubagentTokens(*row.Metrics.Tokens)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
-					}
-					if row.ActivityKnown || row.Metrics.Timing != nil && row.Metrics.Timing.Since == nil {
-						if ms, ok := row.Metrics.Duration(row.Running, nowMs); ok {
-							durText := FormatSubagentDuration(ms)
-							exactTip := FormatSubagentExactDurationTitle(FormatSubagentExactDuration(ms))
-							ui.Text(c, durText).Tooltip(exactTip).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
+					ui.Text(c, row.Label).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(fg)
+					if row.Address.Mode != "external" {
+						if row.Metrics.Tokens != nil {
+							ui.Text(c, FormatSubagentTokens(*row.Metrics.Tokens)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
+						}
+						if row.ActivityKnown || row.Metrics.Timing != nil && row.Metrics.Timing.Since == nil {
+							if ms, ok := row.Metrics.Duration(row.Running, nowMs); ok {
+								durText := FormatSubagentDuration(ms)
+								exactTip := FormatSubagentExactDurationTitle(FormatSubagentExactDuration(ms))
+								ui.Text(c, durText).Tooltip(exactTip).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
+							}
 						}
 					}
-				}
-				meta := AgentsPanelLocale("activity.inactive")
-				if !row.ActivityKnown {
-					meta = agentText("模式未知", "Activity unknown")
-				}
-				if row.Running {
-					meta = AgentsPanelLocale("activity.running")
-				} else if row.ActivityKnown && row.Metrics.Completed {
-					meta = AgentsPanelLocale("activity.completed")
-				}
-				switch row.Address.Mode {
-				case "external":
-					meta = AgentsPanelLocale("mode.external")
-				case "one-shot":
-					meta += " · " + AgentsPanelLocale("mode.oneShot")
-				case "continuable":
-					meta += " · " + AgentsPanelLocale("mode.continuable")
-				case "unknown":
-					meta += " · " + AgentsPanelLocale("mode.unknown")
-				}
-				ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
-			})
-		})
+					meta := AgentsPanelLocale("activity.inactive")
+					if !row.ActivityKnown {
+						meta = agentText("模式未知", "Activity unknown")
+					}
+					if row.Running {
+						meta = AgentsPanelLocale("activity.running")
+					} else if row.ActivityKnown && row.Metrics.Completed {
+						meta = AgentsPanelLocale("activity.completed")
+					}
+					switch row.Address.Mode {
+					case "external":
+						meta = AgentsPanelLocale("mode.external")
+					case "one-shot":
+						meta += " · " + AgentsPanelLocale("mode.oneShot")
+					case "continuable":
+						meta += " · " + AgentsPanelLocale("mode.continuable")
+					case "unknown":
+						meta += " · " + AgentsPanelLocale("mode.unknown")
+					}
+					ui.Text(c, meta).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted).Shrink(0)
+				})
+			},
+		}).Tooltip(FormatSubagentSwitcherAria(row.Label)).FillWidth().MinWidth(0).MinHeight(36).Padding(design.Sp(2), design.Sp(2.5)).Radius(design.RadiusMD).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field)))
+		if !disabled && button.Hovered() {
+			button.Background(chrome.Color(colors.Hover))
+		}
 		if row.CanOpen() {
 			buttons = append(buttons, button)
 			addresses = append(addresses, row.Address)
@@ -171,12 +175,12 @@ func catalogRowsView(c *ui.Context, m Model, v session.AgentNavigationView, mute
 		}
 		if m.OnOpenChat != nil && row.CanOpen() {
 			sidebarAria := FormatSubagentOpenSidebarAria(row.Label)
-			sbBtn := ui.Button(c.Key("agent-sidebar/"+row.Address.ParentSessionID+"/"+row.Address.ChildSessionID), SubagentLocale("open.sidebar")).
-				Label(sidebarAria).Tooltip(sidebarAria).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
-				Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Disabled(v.Busy)
-			if !v.Busy {
-				sbBtn.Cursor(ui.CursorPointer)
-			}
+			sbBtn := coss.Button(c, SubagentLocale("open.sidebar"), coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonXS,
+				Key:      "agent-sidebar/" + row.Address.ParentSessionID + "/" + row.Address.ChildSessionID,
+				Disabled: v.Busy,
+			}).Label(sidebarAria).Tooltip(sidebarAria)
 			if sbBtn.Clicked() {
 				m.OnOpenChat(v.Token, row.Address)
 			}

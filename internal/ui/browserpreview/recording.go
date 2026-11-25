@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
@@ -230,13 +231,13 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 			ui.Text(c, browserChromeLabel("准备编码器…", "Preparing encoder…")).FontSize(fonttheme.InterfaceSize(11))
 		case "recording":
 			ui.Text(c, fmt.Sprintf(browserChromeLabel("● 录制 %02d:%02d · %d 帧", "● Recording %02d:%02d · %d frames"), int(r.elapsed.Seconds())/60, int(r.elapsed.Seconds())%60, r.frames)).FontSize(fonttheme.InterfaceSize(11))
-			if ui.Button(c, browserChromeLabel("停止录制", "Stop recording")).Clicked() {
+			if coss.Button(c, browserChromeLabel("停止录制", "Stop recording"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonXS}).Clicked() {
 				b.stopBrowserRecording(r)
 			}
 		case "stopping", "saving":
 			ui.Text(c, browserChromeLabel("完成视频编码…", "Finishing video encoding…")).FontSize(fonttheme.InterfaceSize(11))
 		case "ready":
-			if ui.Button(c, browserChromeLabel("导出视频…", "Export video…")).Clicked() {
+			if coss.Button(c, browserChromeLabel("导出视频…", "Export video…"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS}).Clicked() {
 				b.exportBrowserRecording(r)
 			}
 		case "exporting":
@@ -246,16 +247,16 @@ func (b *Controller) recordingControls(c *ui.Context, t *Tab, disabled bool) {
 		if r.phase == "ready" {
 			label = browserChromeLabel("丢弃视频", "Discard video")
 		}
-		if ui.Button(c, label).Clicked() {
+		if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 			b.cancelBrowserRecording(browserChromeLabel("录制已取消，未导出", "Recording cancelled; nothing exported"))
 			b.update()
 		}
 		return
 	}
-	if ui.Button(c, browserChromeLabel("录制视频", "Record video")).Disabled(disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()).Tooltip(browserChromeLabel("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后自动保存到应用录制目录。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。", "This webpage only, without audio; up to about 12 frames/second, using the first frame’s resolution, with no fixed duration limit. Encoded files are limited to 512 MiB and discarded if exceeded. Maximum viewport edge: 3840; area: 3840×2160. Native HiDPI pixels are retained; each PNG frame is limited to 64 MiB. Switching tabs, navigating or closing cancels recording; Stop saves to the application recordings folder. WebM/MP4 encoder support is detected at startup and depends on the system WebView and media plugins; MP4 is tried if WebM is unavailable.")).Clicked() {
+	if coss.Button(c, browserChromeLabel("录制视频", "Record video"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: disabled || t.tools.operation != nil || !browserrecording.PlatformAvailable()}).Tooltip(browserChromeLabel("仅当前网页，无音频；约 12 帧/秒上限，保留首帧分辨率，无固定时长上限；编码文件最多 512 MiB，超限会丢弃。支持最大边 3840、面积 3840×2160 的视口；保留原生 HiDPI 像素，单帧 PNG 最多 64 MiB。切换标签、导航或关闭将取消；停止后自动保存到应用录制目录。启动时检测系统 WebView 的 WebM/MP4 编码支持；可用格式取决于系统 WebView 与媒体插件；WebM 不可用时尝试 MP4。", "This webpage only, without audio; up to about 12 frames/second, using the first frame’s resolution, with no fixed duration limit. Encoded files are limited to 512 MiB and discarded if exceeded. Maximum viewport edge: 3840; area: 3840×2160. Native HiDPI pixels are retained; each PNG frame is limited to 64 MiB. Switching tabs, navigating or closing cancels recording; Stop saves to the application recordings folder. WebM/MP4 encoder support is detected at startup and depends on the system WebView and media plugins; MP4 is tried if WebM is unavailable.")).Clicked() {
 		b.startBrowserRecording(t)
 	}
-	if t.RecordingPath != "" && ui.Button(c, browserChromeLabel("显示视频", "Show video")).Clicked() {
+	if t.RecordingPath != "" && coss.Button(c, browserChromeLabel("显示视频", "Show video"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 		if info, err := os.Stat(t.RecordingPath); err == nil && info.Mode().IsRegular() {
 			mygo.Shell.ShowItemInFolder(t.RecordingPath)
 		} else {

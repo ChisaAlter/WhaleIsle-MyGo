@@ -22,13 +22,15 @@ var browserGoIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"
 var browserMoreIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16"><circle cx="4" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>`))
 
 func browserChromeTool(c *ui.Context, key, label string, icon *ui.SVG) ui.Element {
-	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Size(28, 28).Shrink(0).Padding(0).Radius(6).
-		BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
-	if button.Hovered() {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	button.Children(func() { ui.Icon(c, icon).Size(16, 16).PassThrough() })
-	return button
+	return coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconSM,
+		Label:   label,
+		Key:     key,
+		Content: func() {
+			ui.Icon(c, icon).Size(16, 16).PassThrough()
+		},
+	}).Tooltip(label).Shrink(0).Radius(design.RadiusMD)
 }
 
 func browserWebTab(t *Tab) bool {

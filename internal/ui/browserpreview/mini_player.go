@@ -6,6 +6,7 @@ import (
 	"strings"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -155,10 +156,10 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 					p.geometry = miniPlayerGeometry(p.geometry, conversation)
 					b.update()
 				}
-				if ui.Button(c, "↙").Label(browserPreviewText("miniRestore")).Clicked() {
+				if coss.Button(c, "↙", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Label(browserPreviewText("miniRestore")).Clicked() {
 					b.restoreMiniPlayer()
 				}
-				if ui.Button(c, "×").Label(browserPreviewText("miniClose")).Clicked() {
+				if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Label(browserPreviewText("miniClose")).Clicked() {
 					b.CloseMiniPlayer()
 				}
 			})
