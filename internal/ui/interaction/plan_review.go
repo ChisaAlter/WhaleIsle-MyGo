@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/widgets"
 )
@@ -60,17 +61,20 @@ func planReviewCard(c *ui.Context, pending interaction.Pending, card interaction
 				// lifts it to label-primary; the chevron is
 				// IconChevronRightOutlineRegular at 14px with a 4px gap.
 				// The original's aria-label/title carry preview.open.
-				link := ui.Button(c, "").Label(planpreview.Text("在侧边栏打开计划", "Open plan in sidebar")).Tooltip(planpreview.Text("在侧边栏打开计划", "Open plan in sidebar")).Padding(0, 0, 0, 0).BorderWidth(0).Background(ui.Transparent)
-				ink := muted
+				link := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+					Label:   planpreview.Text("在侧边栏打开计划", "Open plan in sidebar"),
+					Content: func() {
+						ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, planpreview.Text("查看全文", "View full plan")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20))
+							ui.Icon(c, planReviewChevron).Size(14, 14).Role(ui.RoleNone)
+						})
+					},
+				}).Tooltip(planpreview.Text("在侧边栏打开计划", "Open plan in sidebar")).Padding(0).TextColor(muted)
 				if link.Hovered() || link.Pressed() {
-					ink = fg
+					link.TextColor(fg)
 				}
-				link.Children(func() {
-					ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, planpreview.Text("查看全文", "View full plan")).FontSize(fonttheme.InterfaceSize(14)).FixedLineHeight(fonttheme.InterfaceSize(20)).TextColor(ink)
-						ui.Icon(c, planReviewChevron).Size(14, 14).TextColor(ink).Role(ui.RoleNone)
-					})
-				})
 				if link.Clicked() {
 					openPlan()
 				}

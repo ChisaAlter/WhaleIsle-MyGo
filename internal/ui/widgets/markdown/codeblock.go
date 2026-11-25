@@ -8,6 +8,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark/ast"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -94,8 +96,14 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 				if time.Now().Before(*copied) {
 					bannerLabel = codeCopiedLabel(st)
 				}
-				if ui.Button(c, bannerLabel).Label(bannerLabel).FontSize(size).FixedLineHeight(18).TextColor(st.FG).
-					Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Shrink(0).Clicked() {
+				if coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+					Label:   bannerLabel,
+					Content: func() {
+						ui.Text(c, bannerLabel).FontSize(size).FixedLineHeight(18).TextColor(st.FG)
+					},
+				}).Height(18).Padding(0).Shrink(0).Clicked() {
 					c.WriteClipboard(clipboardCode)
 					*copied = time.Now().Add(codeCopiedDelay)
 				}
@@ -160,9 +168,13 @@ func paintCodeCard(c *ui.Context, language, code, clipboardCode string, st Style
 // codeToolbarButton is one 22px icon seat in the code toolbar. A nil action
 // renders the copied state, which stays visually pressed without a handler.
 func codeToolbarButton(c *ui.Context, icon *ui.SVG, label string, st Style, action func()) {
-	b := ui.Button(c, "").Label(label).Tooltip(label).Width(codeToolbarBtn).Height(codeToolbarBtn).
-		Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).TextColor(st.Muted).
-		Cursor(ui.CursorPointer).
+	b := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconXS,
+		Label:   label,
+		Content: func() { ui.Icon(c, icon).Width(codeToolIcon).Height(codeToolIcon).PassThrough() },
+	}).Tooltip(label).Width(codeToolbarBtn).Height(codeToolbarBtn).
+		Padding(0).Radius(design.RadiusXS).TextColor(st.Muted).
 		Justify(ui.Center).AlignItems(ui.Center)
 	if b.Hovered() {
 		hover := st.ToolCodeHover
@@ -171,7 +183,6 @@ func codeToolbarButton(c *ui.Context, icon *ui.SVG, label string, st Style, acti
 		}
 		b.Background(hover).TextColor(st.FG)
 	}
-	b.Children(func() { ui.Icon(c, icon).Width(codeToolIcon).Height(codeToolIcon).PassThrough() })
 	if action != nil && b.Clicked() {
 		action()
 	}

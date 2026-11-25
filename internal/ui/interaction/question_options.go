@@ -5,6 +5,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -39,18 +41,20 @@ var (
 // label-primary. The module declares no transition on it, so none is added.
 func questionIconButton(c *ui.Context, icon *ui.SVG, label, tooltip string, enabled bool, colors theme.Colors) ui.Element {
 	t := c.Theme()
-	button := ui.Button(c, "").Label(label).Tooltip(tooltip).Width(24).Height(24).Radius(12).
-		Background(ui.Transparent).BorderWidth(0).Padding(0, 0, 0, 0)
-	iconColor := t.TextMuted
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconXS,
+		Disabled: !enabled,
+		Label:    label,
+		Content: func() {
+			ui.Icon(c, icon).Width(14).Height(14)
+		},
+	}).Tooltip(tooltip).Radius(design.RadiusFull).Padding(0).TextColor(t.TextMuted)
 	if !enabled {
-		button.Disabled(true).Opacity(.4)
+		button.Opacity(.4)
 	} else if button.Pressed() || button.Hovered() {
-		button.Background(theme.Color(colors.Hover))
-		iconColor = t.Text
+		button.Background(theme.Color(colors.Hover)).TextColor(t.Text)
 	}
-	button.Children(func() {
-		ui.Icon(c, icon).Width(14).Height(14).TextColor(iconColor)
-	})
 	return button
 }
 

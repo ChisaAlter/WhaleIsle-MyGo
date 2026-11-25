@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -42,7 +43,10 @@ func approvalArguments(c *ui.Context, p interaction.Pending, store CardStore, ke
 		ui.Column(c.Key("approval-arguments:" + p.AgentID + ":" + p.EventID)).FillWidth().MinWidth(0).Children(func() {
 			ui.Text(c, p.Args).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).Selectable().TextColor(fg)
 		})
-		copyButton := ui.Button(c, i18n.T(i18n.KeyInteractionCopyArgs)).FontSize(theme.InterfaceSize(11))
+		copyButton := coss.Button(c, i18n.T(i18n.KeyInteractionCopyArgs), coss.ButtonOptions{
+			Variant: coss.ButtonOutline,
+			Size:    coss.ButtonXS,
+		})
 		if keys != nil {
 			copyButton.HandleInput(approvalHandler(keys, p, store, true))
 		}

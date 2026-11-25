@@ -46,31 +46,36 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 	t := tk(c)
 	muted := t.MutedForeground
 	headerInk := muted
-	anchor := ui.Button(c.Key("conversation-jobs"), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, design.Sp(2)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk).Cursor(ui.CursorPointer)
+	anchor := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+		Label:   label,
+		Key:     "conversation-jobs",
+		Content: func() {
+			if compact {
+				ui.Icon(c, conversationHeaderIcons["CodeOutline"]).Size(14, 14).TextColor(muted)
+				if len(live) > 0 {
+					coss.Spinner(c, coss.SpinnerOptions{Size: 10}).Absolute().Top(0).Right(0).TextColor(muted)
+				}
+				return
+			}
+			ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
+				if len(live) > 0 {
+					coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(muted)
+				}
+				if !compact {
+					ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).SingleLine().MaxWidth(220).Ellipsis("…")
+					icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)
+					if s.Open {
+						icon.Rotate(180)
+					}
+				}
+			})
+		},
+	}).Tooltip(label).MinWidth(28).Shrink(0).Padding(0, design.Sp(2)).Radius(design.RadiusSM).TextColor(headerInk)
 	if compact {
 		anchor.Size(28, 28).Padding(0)
 	}
-	anchor.Children(func() {
-		if compact {
-			ui.Icon(c, conversationHeaderIcons["CodeOutline"]).Size(14, 14).TextColor(muted)
-			if len(live) > 0 {
-				coss.Spinner(c, coss.SpinnerOptions{Size: 10}).Absolute().Top(0).Right(0).TextColor(muted)
-			}
-			return
-		}
-		ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
-			if len(live) > 0 {
-				coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(muted)
-			}
-			if !compact {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).SingleLine().MaxWidth(220).Ellipsis("…")
-				icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)
-				if s.Open {
-					icon.Rotate(180)
-				}
-			}
-		})
-	})
 	if anchor.Clicked() {
 		if s.Open {
 			controller.Close(s.Generation)
@@ -121,21 +126,28 @@ func jobsHeaderView(c *ui.Context, controller *jobflow.Controller, compact bool,
 						}
 						ui.Row(c).FillWidth().Gap(design.Sp(1)).Padding(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 							text := fmt.Sprintf(archiveText("已结束 %d", "Finished %d"), len(settled))
-							button := ui.Button(c, "").Label("Toggle finished jobs").MinWidth(0).Padding(design.Sp(0.5), design.Sp(1)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer)
-							button.Children(func() {
-								ui.Row(c).Gap(design.Sp(0.75)).AlignItems(ui.Center).Children(func() {
-									icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
-									if !settledOpen {
-										icon.Rotate(-90)
-									}
-									ui.Text(c, text).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted)
-								})
-							})
+							button := coss.Button(c, "", coss.ButtonOptions{
+								Variant: coss.ButtonGhost,
+								Size:    coss.ButtonXS,
+								Label:   "Toggle finished jobs",
+								Content: func() {
+									ui.Row(c).Gap(design.Sp(0.75)).AlignItems(ui.Center).Children(func() {
+										icon := ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(muted)
+										if !settledOpen {
+											icon.Rotate(-90)
+										}
+										ui.Text(c, text).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(16)).TextColor(muted)
+									})
+								},
+							}).MinWidth(0).Padding(design.Sp(0.5), design.Sp(1)).TextColor(muted)
 							if button.Clicked() {
 								controller.ToggleSettled(s.Generation)
 							}
 							ui.Box(c).Grow(1)
-							if ui.Button(c, archiveText("清空", "Clear")).Label("Clear finished jobs").Padding(design.Sp(0.5), design.Sp(1)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+							if coss.Button(c, archiveText("清空", "Clear"), coss.ButtonOptions{
+								Variant: coss.ButtonGhost,
+								Size:    coss.ButtonXS,
+							}).Label("Clear finished jobs").Padding(design.Sp(0.5), design.Sp(1)).Clicked() {
 								controller.ClearSettled(s.Generation)
 							}
 						})
@@ -204,7 +216,7 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 			line.Padding(design.Sp(1), design.Sp(2), design.Sp(1), design.Sp(0.5)).Radius(design.RadiusMD).Background(frameInsetBg(t))
 		}
 		line.Children(func() {
-			button := ui.Button(c.Key("job-toggle-"+job.ID), "").Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(design.Sp(1), design.Sp(1.75)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(!job.Observable())
+			button := ui.ButtonBase(c.Key("job-toggle-"+job.ID)).Label("Toggle job output: "+job.ID).Grow(1).Shrink(1).MinWidth(0).Padding(design.Sp(1), design.Sp(1.75)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(!job.Observable())
 			button.Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Children(func() {
 					jobStateIndicator(c, job.Status)
@@ -258,14 +270,20 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 				controller.Toggle(s.Generation, job.ID)
 			}
 			if job.Status == "running" {
-				stop := ui.Button(c.Key("job-stop-"+job.ID), "").Label("Stop task "+job.Label).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(design.Sp(1)).Border(design.BorderWidth/2, t.Border).Radius(design.RadiusXS * 2).Background(t.Background).Cursor(ui.CursorPointer).Disabled(s.Loading || s.Error != "" || s.Kill.Phase == "pending")
-				stop.Children(func() {
-					if s.Kill.JobID == job.ID && s.Kill.Phase == "pending" {
-						coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(muted)
-					} else {
-						ui.Icon(c, jobIcons["stop"]).Size(10, 10).TextColor(muted)
-					}
-				})
+				stop := coss.Button(c, "", coss.ButtonOptions{
+					Variant:  coss.ButtonOutline,
+					Size:     coss.ButtonIconXS,
+					Disabled: s.Loading || s.Error != "" || s.Kill.Phase == "pending",
+					Label:    "Stop task " + job.Label,
+					Key:      "job-stop-" + job.ID,
+					Content: func() {
+						if s.Kill.JobID == job.ID && s.Kill.Phase == "pending" {
+							coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(muted)
+						} else {
+							ui.Icon(c, jobIcons["stop"]).Size(10, 10).TextColor(muted)
+						}
+					},
+				}).Tooltip(agents.FormatJobsKillStop(job.Label)).Size(20, 20).Padding(design.Sp(1)).Border(design.BorderWidth/2, t.Border).Radius(design.RadiusXS * 2).Background(t.Background)
 				if stop.Clicked() {
 					if s.Kill.JobID == job.ID && s.Kill.Phase == "armed" {
 						controller.ConfirmKill(s.Generation, job.ID)
@@ -278,10 +296,16 @@ func jobRowView(c *ui.Context, controller *jobflow.Controller, s jobflow.Snapsho
 		if s.Kill.JobID == job.ID && s.Kill.Phase == "armed" {
 			ui.Row(c.Key("job-kill-confirm-"+job.ID)).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Padding(0, design.Sp(2), design.Sp(1), design.Sp(2)).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, archiveText("再次点击确认停止", "Click again to confirm stop")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Grow(1).MinWidth(0)
-				if ui.Button(c, archiveText("确认停止", "Confirm stop")).Label("Confirm stop job "+job.ID).Height(24).Padding(0, design.Sp(2)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, archiveText("确认停止", "Confirm stop"), coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+				}).Label("Confirm stop job "+job.ID).Padding(0, design.Sp(2)).Clicked() {
 					controller.ConfirmKill(s.Generation, job.ID)
 				}
-				if ui.Button(c, archiveText("取消", "Cancel")).Label("Cancel stop job "+job.ID).Height(24).Padding(0, design.Sp(2)).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, archiveText("取消", "Cancel"), coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+				}).Label("Cancel stop job "+job.ID).Padding(0, design.Sp(2)).Clicked() {
 					controller.CancelKill(s.Generation)
 				}
 			})

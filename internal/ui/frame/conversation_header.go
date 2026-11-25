@@ -189,20 +189,26 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 		} else if len(rows) > 1 {
 			label = fmt.Sprintf(archiveText("%d 个定时任务", "%d scheduled tasks"), len(rows))
 		}
-		anchor := ui.Button(c.Key("conversation-schedule"), "").Label(label).Tooltip(label).Size(28, 28).Padding(design.Sp(1.5)).Radius(design.RadiusXL).BorderWidth(0).Background(ui.Transparent)
+		tip := label
 		if snap.Err != nil {
-			anchor.Tooltip(archiveText("定时任务读取失败", "Scheduled tasks could not be read"))
+			tip = archiveText("定时任务读取失败", "Scheduled tasks could not be read")
 		}
-		anchor.Children(func() {
-			if snap.Loading {
-				coss.Spinner(c, coss.SpinnerOptions{Size: 16}).TextColor(muted)
-			} else {
-				ui.Icon(c, conversationHeaderIcons["ClockOutline"]).Size(16, 16).TextColor(muted)
-			}
-			if snap.Err != nil && !snap.Loading {
-				ui.Box(c).Label("Scheduled tasks failed").Size(6, 6).Radius(design.RadiusFull).Absolute().Top(3).Right(3).Background(t.Destructive)
-			}
-		})
+		anchor := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonIconSM,
+			Label:   label,
+			Key:     "conversation-schedule",
+			Content: func() {
+				if snap.Loading {
+					coss.Spinner(c, coss.SpinnerOptions{Size: 16}).TextColor(muted)
+				} else {
+					ui.Icon(c, conversationHeaderIcons["ClockOutline"]).Size(16, 16).TextColor(muted)
+				}
+				if snap.Err != nil && !snap.Loading {
+					ui.Box(c).Label("Scheduled tasks failed").Size(6, 6).Radius(design.RadiusFull).Absolute().Top(3).Right(3).Background(t.Destructive)
+				}
+			},
+		}).Tooltip(tip).Padding(design.Sp(1.5)).Radius(design.RadiusXL)
 		if anchor.Clicked() {
 			if len(rows) == 1 && !snap.Loading && snap.Err == nil && !local.open {
 				if m.OnOpenScheduleTask != nil {
@@ -243,7 +249,7 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 						for _, entry := range rows {
 							row := entry
 							ui.Row(c.Key("header-task-"+row.ID)).FillWidth().MinWidth(0).Gap(design.Sp(0.5)).Padding(design.Sp(2.5), design.Sp(3)).Radius(design.RadiusLG).AlignItems(ui.Start).Children(func() {
-								button := ui.Button(c, "").Label("Open scheduled task: " + row.Title).Grow(1).MinWidth(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(m.OnOpenScheduleTask == nil)
+								button := ui.ButtonBase(c).Label("Open scheduled task: " + row.Title).Grow(1).MinWidth(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(m.OnOpenScheduleTask == nil)
 								button.Children(func() {
 									ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(0.75)).Children(func() {
 										ui.Text(c, row.Title).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(fg).FillWidth().MinWidth(0)
@@ -255,8 +261,13 @@ func scheduleHeaderView(c *ui.Context, m Model, snap schedstore.ViewState, sessi
 									local.open = false
 									m.OnOpenScheduleTask(row)
 								}
-								remove := ui.Button(c, "").Label("Delete scheduled task: "+row.Title).Tooltip(archiveText("删除任务", "Delete task")).Size(24, 24).Padding(design.Sp(1.25)).BorderWidth(0).Background(ui.Transparent).Disabled(snap.Busy || snap.Loading || snap.Err != nil || m.ScheduleStore == nil)
-								remove.Children(func() { ui.Icon(c, jobIcons["trash"]).Size(14, 14).TextColor(muted) })
+								remove := coss.Button(c, "", coss.ButtonOptions{
+									Variant:  coss.ButtonGhost,
+									Size:     coss.ButtonIconXS,
+									Disabled: snap.Busy || snap.Loading || snap.Err != nil || m.ScheduleStore == nil,
+									Label:    "Delete scheduled task: " + row.Title,
+									Content:  func() { ui.Icon(c, jobIcons["trash"]).Size(14, 14).TextColor(muted) },
+								}).Tooltip(archiveText("删除任务", "Delete task")).Padding(design.Sp(1.25))
 								if remove.Clicked() {
 									services := c.Services()
 									go func() {
@@ -334,15 +345,20 @@ func conversationHeaderButton(c *ui.Context, key, label, icon string, compact bo
 	if compact {
 		padX = design.Sp(1.5)
 	}
-	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Height(28).MinWidth(28).Shrink(0).Padding(0, padX).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).TextColor(ink)
-	button.Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Justify(ui.Center).Gap(design.Sp(1.25)).Children(func() {
-			ui.Icon(c, conversationHeaderIcons[icon]).Width(16).Height(16).TextColor(ink).Rotate(rotation)
-			if !compact {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).NoWrap().TextColor(ink)
-			}
-		})
-	})
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+		Label:   label,
+		Key:     key,
+		Content: func() {
+			ui.Row(c).AlignItems(ui.Center).Justify(ui.Center).Gap(design.Sp(1.25)).Children(func() {
+				ui.Icon(c, conversationHeaderIcons[icon]).Width(16).Height(16).TextColor(ink).Rotate(rotation)
+				if !compact {
+					ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).NoWrap().TextColor(ink)
+				}
+			})
+		},
+	}).Tooltip(label).MinWidth(28).Shrink(0).Padding(0, padX).Radius(design.RadiusSM).TextColor(ink)
 	if button.Clicked() {
 		action()
 	}
@@ -399,17 +415,21 @@ func subagentsHeader(c *ui.Context, m Model, snap session.ViewState, compact boo
 	if subCount == 1 {
 		summary = archiveText("1 个子智能体", "1 subagent")
 	}
-	btn := ui.Button(c.Key("conversation-subagents"), "").Label("Subagents").Tooltip(summary).
-		Height(28).MinWidth(28).Shrink(0).Padding(0, design.Sp(2)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).TextColor(headerInk)
-	btn.Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
-			if runningCount > 0 {
-				coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(headerInk)
-			}
-			ui.Text(c, summary).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).NoWrap()
-			ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)
-		})
-	})
+	btn := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+		Label:   "Subagents",
+		Key:     "conversation-subagents",
+		Content: func() {
+			ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
+				if runningCount > 0 {
+					coss.Spinner(c, coss.SpinnerOptions{Size: 10}).TextColor(headerInk)
+				}
+				ui.Text(c, summary).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(headerInk).NoWrap()
+				ui.Icon(c, jobIcons["chevron"]).Size(12, 12).TextColor(headerInk)
+			})
+		},
+	}).Tooltip(summary).MinWidth(28).Shrink(0).Padding(0, design.Sp(2)).Radius(design.RadiusSM).TextColor(headerInk)
 	if btn.Clicked() && m.OnOpenAgents != nil {
 		m.OnOpenAgents()
 	}

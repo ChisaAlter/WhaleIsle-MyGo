@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -66,7 +67,15 @@ func paintSessionAncestry(c *ui.Context, chain []session.Item, open func(string)
 			}
 			if i == len(chain)-1 || it.Origin == "subagent" || it.ContactError != "" || slices.Contains(blocked, it.SessionID) || open == nil {
 				ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(design.WeightMedium).MinWidth(0).Shrink(1).MaxWidth(220).NoWrap().Ellipsis("…").Padding(design.Sp(1), design.Sp(2))
-			} else if ui.Button(c, title).Key("session-ancestor-"+it.SessionID).Tooltip(title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(design.WeightNormal).MinWidth(0).Shrink(1).MaxWidth(220).NoWrap().Ellipsis("…").Padding(design.Sp(1), design.Sp(2)).BorderWidth(0).Background(ui.Transparent).Clicked() {
+			} else if coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonSM,
+				Label:   title,
+				Key:     "session-ancestor-" + it.SessionID,
+				Content: func() {
+					ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(design.WeightNormal).MinWidth(0).Shrink(1).MaxWidth(220).NoWrap().Ellipsis("…")
+				},
+			}).Tooltip(title).MinWidth(0).Shrink(1).MaxWidth(220).Padding(design.Sp(1), design.Sp(2)).Clicked() {
 				open(it.SessionID)
 			}
 		}

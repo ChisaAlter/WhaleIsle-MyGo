@@ -61,16 +61,21 @@ func projectTeamHeader(c *ui.Context, m Model, snap session.ViewState, model pro
 		if model.CountKnown {
 			hint = fmt.Sprintf(paneLabel("%d 名成员正在运行，含后台命令。点击查看。", "%d members running, including background commands. Click to inspect."), model.RunningCount)
 		}
-		anchor := ui.Button(c.Key("conversation-project-team"), "").Label(paneLabel("智能体团队", "Agent Team")+" · "+count).Tooltip(hint).Height(28).MinWidth(28).Padding(0, design.Sp(2)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent)
-		anchor.Children(func() {
-			ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
-				ui.Icon(c, conversationHeaderIcons["UsersOutline"]).Size(14, 14).TextColor(ink)
-				if !compact {
-					ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(ink)
-				}
-				ui.Text(c, count).FontSize(theme.InterfaceSize(12)).TextColor(ink)
-			})
-		})
+		anchor := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonSM,
+			Label:   paneLabel("智能体团队", "Agent Team") + " · " + count,
+			Key:     "conversation-project-team",
+			Content: func() {
+				ui.Row(c).AlignItems(ui.Center).Gap(design.Sp(1.25)).Children(func() {
+					ui.Icon(c, conversationHeaderIcons["UsersOutline"]).Size(14, 14).TextColor(ink)
+					if !compact {
+						ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(ink)
+					}
+					ui.Text(c, count).FontSize(theme.InterfaceSize(12)).TextColor(ink)
+				})
+			},
+		}).Tooltip(hint).MinWidth(28).Padding(0, design.Sp(2)).Radius(design.RadiusSM)
 		if anchor.Clicked() {
 			state.SetFloating(!state.FloatingOpen)
 		}

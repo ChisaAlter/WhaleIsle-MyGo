@@ -3,6 +3,7 @@ package widgets
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -72,9 +73,12 @@ func Alert(c *ui.Context, o AlertOptions) {
 
 // alertButton is the flat control inside an alert: the disclosure and the retry.
 func alertButton(c *ui.Context, label string, ink ui.Color, run func()) {
-	button := ui.Button(c, "").Label(label).Height(24).Padding(0, 8).BorderWidth(0).
-		Background(ui.Transparent).TextColor(ink).Shrink(0)
-	button.Children(func() { ui.Text(c, label).FontSize(12) })
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonXS,
+		Label:   label,
+		Content: func() { ui.Text(c, label).FontSize(12).TextColor(ink) },
+	}).Shrink(0)
 	if button.Clicked() {
 		run()
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -107,7 +108,10 @@ func commandBlock(c *ui.Context, t *ui.Theme, command string, onCopy func(string
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		ui.Text(c, command).Font(theme.RenderPreferences().Code.Family).FontSize(13).FixedLineHeight(20).TextColor(t.TextMuted).Selectable().MinWidth(0)
 		if onCopy != nil {
-			copyButton := ui.Button(c, i18n.T(i18n.KeyChatToolCopy)).FontSize(11).Height(24).BorderWidth(0).Background(ui.Transparent)
+			copyButton := coss.Button(c, i18n.T(i18n.KeyChatToolCopy), coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonXS,
+			})
 			for _, h := range handleInput {
 				if h != nil {
 					copyButton.HandleInput(h)

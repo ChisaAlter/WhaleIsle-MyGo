@@ -2,6 +2,7 @@ package frame
 
 import (
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 )
 
@@ -14,10 +15,10 @@ var reviewWrapIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none
 var reviewNowrapIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><path d="M2 15H1V1H2V15ZM12.3535 7.64645C12.5487 7.84171 12.5487 8.15829 12.3535 8.35355L9.85352 10.8535L9.14648 10.1465L10.793 8.5H3.5V7.5H10.793L9.14648 5.85352L9.85352 5.14648L12.3535 7.64645ZM15 15H14V1H15V15Z" fill="currentColor"/></svg>`))
 
 func reviewToolbarButton(c *ui.Context, label string, icon *ui.SVG) ui.Element {
-	button := ui.Button(c, "").Size(28, 28).Shrink(0).Padding(0).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Label(label).Tooltip(label)
-	if button.Hovered() {
-		button.Background(tk(c).Accent)
-	}
-	button.Children(func() { ui.Icon(c, icon).Size(16, 16).PassThrough() })
-	return button
+	return coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconSM,
+		Label:   label,
+		Content: func() { ui.Icon(c, icon).Size(16, 16).PassThrough() },
+	}).Shrink(0).Radius(design.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Tooltip(label)
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -41,7 +42,11 @@ func questionHistory(c *ui.Context, records []interaction.QuestionHistoryView, s
 			current = &records[i]
 		}
 	}
-	choice := ui.Select(c, &selected, labels).Tooltip(questionStatusText("reply.label"))
+	options := make([]coss.SelectOption, len(labels))
+	for i, label := range labels {
+		options[i] = coss.SelectOption{Value: label, Label: label}
+	}
+	choice := coss.Select(c, &selected, options, coss.SelectOptions{Size: coss.InputSM}).Tooltip(questionStatusText("reply.label"))
 	if choice.Changed() {
 		id := ""
 		for i, label := range labels[1:] {

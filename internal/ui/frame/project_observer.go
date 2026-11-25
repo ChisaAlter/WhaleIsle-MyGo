@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/projects"
 	"whaleisle/internal/ui/theme"
@@ -191,20 +192,25 @@ func projectObserverHeader(c *ui.Context, m Model) {
 				badge = "?"
 				status = paneLabel("正在加载", "Loading")
 			}
-			anchor := ui.Button(c.Key("project-requirements-trigger"), "").Label(paneLabel("需求", "Requirements")+" · "+status).Tooltip(status).Height(28).Padding(0, design.Sp(2)).BorderWidth(0).Radius(design.RadiusSM).Background(ui.Transparent)
-			anchor.Children(func() {
-				ui.Row(c).Gap(design.Sp(1.25)).AlignItems(ui.Center).Children(func() {
-					projects.HeaderIcon(c, "checklist", 14, ink)
-					w, _ := viewportDIP(c)
-					if w > 560 {
-						ui.Text(c, paneLabel("需求", "Requirements")).FontSize(theme.InterfaceSize(13)).TextColor(ink)
-					}
-					ui.Text(c, badge).FontSize(theme.InterfaceSize(12)).TextColor(ink)
-					if w > 720 {
-						ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(ink)
-					}
-				})
-			})
+			anchor := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonSM,
+				Label:   paneLabel("需求", "Requirements") + " · " + status,
+				Key:     "project-requirements-trigger",
+				Content: func() {
+					ui.Row(c).Gap(design.Sp(1.25)).AlignItems(ui.Center).Children(func() {
+						projects.HeaderIcon(c, "checklist", 14, ink)
+						w, _ := viewportDIP(c)
+						if w > 560 {
+							ui.Text(c, paneLabel("需求", "Requirements")).FontSize(theme.InterfaceSize(13)).TextColor(ink)
+						}
+						ui.Text(c, badge).FontSize(theme.InterfaceSize(12)).TextColor(ink)
+						if w > 720 {
+							ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(ink)
+						}
+					})
+				},
+			}).Tooltip(status).Padding(0, design.Sp(2)).Radius(design.RadiusSM)
 			if anchor.Clicked() {
 				if o.Pinned {
 					if m.Sizes != nil && m.Sizes.Workspace != nil {

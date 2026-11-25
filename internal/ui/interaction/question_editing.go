@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/interaction"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -108,8 +109,12 @@ func questionAnswerBody(c *ui.Context, p interaction.Pending, row interaction.Qu
 		}
 		// Frame-local binding prevents pre-Sending events from mutating the draft.
 		custom := row.Custom
-		input := ui.TextArea(c.Key("question-custom"), &custom).FillWidth().Lines(1, 5).MinHeight(41).Label("Question answer: " + label).
-			Placeholder(i18n.T(i18n.KeyChatQuestionCustomPlaceholder))
+		input := coss.Textarea(c, &custom, coss.TextareaOptions{
+			Key:         "question-custom",
+			Label:       "Question answer: " + label,
+			Placeholder: i18n.T(i18n.KeyChatQuestionCustomPlaceholder),
+			MaxLines:    5,
+		}).Lines(1, 5).MinHeight(41)
 		keys := ui.Local(input, "question-enter", func() questionEditorKeys { return questionEditorKeys{} })
 		input.OnChange(func() { store.SetQuestionCustom(p.EventID, row.ID, custom); flow.feedback = "" })
 		composing := input.Composing()
