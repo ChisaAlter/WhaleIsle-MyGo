@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
@@ -35,7 +36,29 @@ func SettingsView(c *ui.Context, m Model) {
 				if id != "office" {
 					title = imonboard.PlatformByID(id).Label
 				}
-				button := ui.Button(c.Key("channel-"+id), "").Label(title).MinWidth(0).Height(48).Padding(design.Sp(2), design.Sp(3)).Border(1, chrome.Color(colors.Border)).Radius(theme.ContextRadii(c).MD).Role(ui.RoleTab)
+				selected := v.Channel == id && !office.Open || id == "office" && office.Open
+				textCol := muted
+				if selected {
+					textCol = fg
+				}
+				button := coss.Button(c.Key("channel-"+id), "", coss.ButtonOptions{
+					Variant:  coss.ButtonGhost,
+					Size:     coss.ButtonXL,
+					Disabled: office.Busy,
+					Pressed:  selected,
+					Label:    title,
+					Content: func() {
+						ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
+							channelRailLogo(c, id)
+							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+								ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(textCol).FillWidth().MinWidth(0).SingleLine().Ellipsis("…")
+								if id == "office" {
+									ui.Text(c, channelText("（实验功能）", "(Experimental)")).FontSize(theme.InterfaceSize(10)).TextColor(muted).SingleLine()
+								}
+							})
+						})
+					},
+				}).MinWidth(0).Height(48).Padding(design.Sp(2), design.Sp(3)).Border(1, chrome.Color(colors.Border)).Radius(theme.ContextRadii(c).MD).Role(ui.RoleTab).Selected(selected)
 				if narrow {
 					if windowWidth <= 560 {
 						button.FillWidth()
@@ -45,24 +68,12 @@ func SettingsView(c *ui.Context, m Model) {
 				} else {
 					button.FillWidth()
 				}
-				selected := v.Channel == id && !office.Open || id == "office" && office.Open
 				if selected {
-					button = button.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).TextColor(fg)
+					button.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field)))
 				} else {
-					button = button.Background(ui.Transparent).TextColor(muted)
+					button.Background(ui.Transparent)
 				}
-				button.Selected(selected).Children(func() {
-					ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
-						channelRailLogo(c, id)
-						ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-							ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).FillWidth().MinWidth(0).SingleLine().Ellipsis("…")
-							if id == "office" {
-								ui.Text(c, channelText("（实验功能）", "(Experimental)")).FontSize(theme.InterfaceSize(10)).TextColor(muted).SingleLine()
-							}
-						})
-					})
-				})
-				if button.Disabled(office.Busy).Clicked() && !selected {
+				if button.Clicked() && !selected {
 					if id == "office" {
 						m.Store.Onboarding.Hide()
 						m.Store.Office.Show(context.Background())

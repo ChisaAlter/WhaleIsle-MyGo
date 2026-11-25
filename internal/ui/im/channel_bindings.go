@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -19,7 +20,7 @@ func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboar
 	if draft, ok := v.WorkspaceDrafts[b.BotID]; ok {
 		workspace = draft
 	}
-	if ui.TextInput(c.Key("channel-workspace"), &workspace).Label("Workspace path").FillWidth().Disabled(disabled).Changed() {
+	if coss.Input(c.Key("channel-workspace"), &workspace, coss.InputOptions{Label: "Workspace path", Disabled: disabled}).Changed() {
 		s.EditWorkspace(v.Scope, b.BotID, workspace)
 	}
 	botWorkspacePicker(c.Key("workspace/"+b.BotID+"/"+fmt.Sprint(v.Scope)), m, v, b, disabled, fg, muted)
@@ -43,7 +44,11 @@ func channelBindingControls(c *ui.Context, m Model, v imonboard.View, b imonboar
 		ui.Text(c, i18n.T(i18n.KeyMiscImCurrentPresetUnavailable)).TextColor(muted)
 	}
 	ui.Text(c, "Agent Preset").TextColor(fg)
-	ui.Select(c.Key("channel-preset"), &selected, labels).FillWidth().Disabled(disabled).OnChange(func() {
+	opts := make([]coss.SelectOption, len(labels))
+	for i, label := range labels {
+		opts[i] = coss.SelectOption{Value: label, Label: label}
+	}
+	coss.Select(c.Key("channel-preset"), &selected, opts, coss.SelectOptions{Disabled: disabled}).FillWidth().OnChange(func() {
 		if id, ok := ids[selected]; ok && id != b.AgentPreset {
 			s.SaveAgentPreset(v.Scope, b.BotID, id)
 		}

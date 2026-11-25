@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -70,7 +71,7 @@ func channelHeading(c *ui.Context, m Model, v imonboard.View, page *channelPageS
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 		if p.QR {
-			if ui.PrimaryButton(c, channelText("扫码接入机器人", "Connect with QR")).Disabled(blocked || v.Provision.AttemptID != "").Clicked() {
+			if coss.Button(c, channelText("扫码接入机器人", "Connect with QR"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: blocked || v.Provision.AttemptID != ""}).Clicked() {
 				page.credentials = false
 				channelAction(s, v, "provision.begin", "", "", "")
 			}
@@ -80,7 +81,7 @@ func channelHeading(c *ui.Context, m Model, v imonboard.View, page *channelPageS
 			if page.credentials {
 				caption = channelText("收起凭据", "Hide credentials")
 			}
-			if ui.Button(c, caption).Disabled(blocked || v.Provision.AttemptID != "").Clicked() {
+			if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked || v.Provision.AttemptID != ""}).Clicked() {
 				page.credentials = !page.credentials
 				if !page.credentials {
 					s.ClearCredentialDraft(v.Scope)
@@ -91,7 +92,7 @@ func channelHeading(c *ui.Context, m Model, v imonboard.View, page *channelPageS
 		if len(v.Bots) > 0 {
 			ui.Text(c, fmt.Sprintf(channelText("%d / %d 在线", "%d / %d online"), connected, len(v.Bots))).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
-		if ui.Button(c, channelText("刷新", "Refresh")).Disabled(blocked).Clicked() {
+		if coss.Button(c, channelText("刷新", "Refresh"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked}).Clicked() {
 			s.Refresh()
 		}
 	})
@@ -106,10 +107,10 @@ func channelEmptyView(c *ui.Context, m Model, v imonboard.View, page *channelPag
 				ui.Text(c, copy.title).FillWidth().FontSize(theme.InterfaceSize(17)).Bold().TextColor(fg)
 				ui.Text(c, copy.description).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
 				if imonboard.PlatformByID(v.Channel).QR {
-					if ui.PrimaryButton(c, channelText("生成二维码", "Generate QR code")).Disabled(blocked).Clicked() {
+					if coss.Button(c, channelText("生成二维码", "Generate QR code"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: blocked}).Clicked() {
 						channelAction(&m.Store.Onboarding, v, "provision.begin", "", "", "")
 					}
-				} else if ui.Button(c, channelText("填写 Bot Token", "Enter Bot Token")).Disabled(blocked).Clicked() {
+				} else if coss.Button(c, channelText("填写 Bot Token", "Enter Bot Token"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: blocked}).Clicked() {
 					page.credentials = true
 				}
 			})
@@ -127,7 +128,7 @@ func channelCredentials(c *ui.Context, m Model, v imonboard.View, page *channelP
 		ui.Text(c, copy.description).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		if v.Channel == "slack" {
 			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-				if ui.Button(c, channelText("复制 Manifest", "Copy Manifest")).Disabled(blocked).Clicked() {
+				if coss.Button(c, channelText("复制 Manifest", "Copy Manifest"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked}).Clicked() {
 					if err := mygo.Clipboard.Write(transfer.TextData(slackAppManifest), mygo.ClipboardOptions{}); err != nil {
 						page.copyError = errcopy.Sentence(err)
 						page.copyNotice = ""
@@ -154,10 +155,12 @@ func channelCredentials(c *ui.Context, m Model, v imonboard.View, page *channelP
 			}
 			column.Children(func() {
 				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				input := ui.TextInput(c, value).Label(label).FillWidth().Height(36).Disabled(blocked)
-				if secret {
-					input.Password()
-				}
+				coss.Input(c, value, coss.InputOptions{
+					Size:     coss.InputLG,
+					Label:    label,
+					Disabled: blocked,
+					Password: secret,
+				})
 			})
 		}
 		fields := func() {
@@ -182,12 +185,12 @@ func channelCredentials(c *ui.Context, m Model, v imonboard.View, page *channelP
 		}
 		missing := strings.TrimSpace(draft.Secret) == "" || p.Identity != "" && strings.TrimSpace(draft.Identity) == "" || p.Extra != "" && strings.TrimSpace(draft.Extra) == ""
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.PrimaryButton(c, channelText("绑定并连接", "Bind and connect")).Disabled(blocked || missing).Clicked() {
+			if coss.Button(c, channelText("绑定并连接", "Bind and connect"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: blocked || missing}).Clicked() {
 				s.Edit(v.Scope, draft)
 				page.submitted = true
 				channelAction(s, v, "bot.bind-credentials", "", "", "")
 			}
-			if ui.Button(c, channelText("取消", "Cancel")).Disabled(v.Busy).Clicked() {
+			if coss.Button(c, channelText("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: v.Busy}).Clicked() {
 				page.credentials, page.submitted = false, false
 				s.ClearCredentialDraft(v.Scope)
 			}
@@ -209,7 +212,7 @@ func channelProvisionView(c *ui.Context, m Model, v imonboard.View, blocked bool
 			}
 			ui.Text(c, title).FillWidth().Bold().TextColor(fg)
 			ui.Text(c, detail).FillWidth().FontSize(theme.InterfaceSize(13)).TextColor(muted)
-			if p.Cancelable() && ui.Button(c, channelText("取消接入", "Cancel setup")).Disabled(blocked).Clicked() {
+			if p.Cancelable() && coss.Button(c, channelText("取消接入", "Cancel setup"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked}).Clicked() {
 				channelAction(s, v, "provision.cancel", "", "", "")
 			}
 			return
@@ -231,10 +234,10 @@ func channelProvisionView(c *ui.Context, m Model, v imonboard.View, blocked bool
 				ui.Text(c, p.Error.Code).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
 			}
 			ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-				if ui.PrimaryButton(c, channelText("重新生成二维码", "Generate a new QR code")).Disabled(blocked).Clicked() {
+				if coss.Button(c, channelText("重新生成二维码", "Generate a new QR code"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: blocked}).Clicked() {
 					channelAction(s, v, "provision.begin", "", "", "")
 				}
-				if ui.Button(c, channelText("关闭", "Close")).Disabled(blocked).Clicked() {
+				if coss.Button(c, channelText("关闭", "Close"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: blocked}).Clicked() {
 					s.CloseProvision(v.Scope)
 				}
 			})
@@ -296,10 +299,10 @@ func channelProvisionView(c *ui.Context, m Model, v imonboard.View, blocked bool
 					if parsed, err := url.Parse(p.URL); err == nil && parsed.Scheme == "https" && parsed.Host != "" {
 						ui.Link(c, channelText("打开授权链接", "Open authorization link"), p.URL)
 					}
-					if ui.Button(c, channelText("换一个二维码", "Replace QR code")).Disabled(blocked).Clicked() {
+					if coss.Button(c, channelText("换一个二维码", "Replace QR code"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked}).Clicked() {
 						channelAction(s, v, "provision.begin", "", "", "")
 					}
-					if ui.Button(c, channelText("取消", "Cancel")).Disabled(blocked).Clicked() {
+					if coss.Button(c, channelText("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked}).Clicked() {
 						channelAction(s, v, "provision.cancel", "", "", "")
 					}
 				})
@@ -312,7 +315,7 @@ func channelVerification(c *ui.Context, m Model, v imonboard.View, blocked bool,
 	ui.Text(c, channelText("输入手机微信显示的数字", "Enter the digits shown in WeChat")).Bold().TextColor(fg)
 	ui.Text(c, channelText("配对码只用于本次扫码轮询，不写入配置或日志。", "The pairing code is only used for this scan and is not saved to configuration or logs.")).FillWidth().TextColor(muted)
 	draft := v.Draft
-	if ui.TextInput(c.Key("weixin-verification"), &draft.VerifyCode).Label(channelText("微信配对码", "WeChat pairing code")).FillWidth().Disabled(blocked).AutoFocus().Changed() {
+	if coss.Input(c.Key("weixin-verification"), &draft.VerifyCode, coss.InputOptions{Label: channelText("微信配对码", "WeChat pairing code"), Disabled: blocked}).AutoFocus().Changed() {
 		filtered := ""
 		for _, digit := range draft.VerifyCode {
 			if digit >= '0' && digit <= '9' && len(filtered) < 8 {
@@ -323,11 +326,11 @@ func channelVerification(c *ui.Context, m Model, v imonboard.View, blocked bool,
 		m.Store.Onboarding.Edit(v.Scope, draft)
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-		if ui.PrimaryButton(c, channelText("继续连接", "Continue")).Disabled(blocked || !imonboard.ValidVerificationCode(draft.VerifyCode)).Clicked() {
+		if coss.Button(c, channelText("继续连接", "Continue"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: blocked || !imonboard.ValidVerificationCode(draft.VerifyCode)}).Clicked() {
 			m.Store.Onboarding.Edit(v.Scope, draft)
 			channelAction(&m.Store.Onboarding, v, "provision.verify", "", "", "")
 		}
-		if ui.Button(c, channelText("取消绑定", "Cancel setup")).Disabled(blocked).Clicked() {
+		if coss.Button(c, channelText("取消绑定", "Cancel setup"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: blocked}).Clicked() {
 			channelAction(&m.Store.Onboarding, v, "provision.cancel", "", "", "")
 		}
 	})

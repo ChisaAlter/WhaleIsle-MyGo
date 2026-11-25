@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -82,7 +83,7 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 	open, loading, hidden, listing, errText, confirm := state.open, state.loading, state.hidden, state.listing, state.err, state.confirm
 	state.mu.Unlock()
 	controls.Children(func() {
-		if ui.Button(c, "选择目录…").Disabled(disabled).Clicked() {
+		if coss.Button(c, "选择目录…", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 			path := b.Workspace
 			if draft, ok := v.WorkspaceDrafts[b.BotID]; ok {
 				path = draft
@@ -93,7 +94,7 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 		if draft, ok := v.WorkspaceDrafts[b.BotID]; ok {
 			workspace = draft
 		}
-		if ui.Button(c, "保存工作区…").Disabled(disabled || strings.TrimSpace(workspace) == "" || strings.TrimSpace(workspace) == b.Workspace).Clicked() {
+		if coss.Button(c, "保存工作区…", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled || strings.TrimSpace(workspace) == "" || strings.TrimSpace(workspace) == b.Workspace}).Clicked() {
 			state.mu.Lock()
 			state.confirm = strings.TrimSpace(workspace)
 			state.mu.Unlock()
@@ -110,7 +111,7 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 				}
 				if errText != "" {
 					ui.Text(c, errText).TextColor(fg).Selectable()
-					if ui.Button(c, "重试").Disabled(loading).Clicked() {
+					if coss.Button(c, "重试", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: loading}).Clicked() {
 						path := ""
 						if listing != nil {
 							path = listing.Path
@@ -123,12 +124,12 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 					ui.Row(c).Wrap().Gap(6).Children(func() {
 						for _, crumb := range listing.Crumbs {
 							crumb := crumb
-							if ui.Button(c, crumb.Name).Disabled(loading).Clicked() {
+							if coss.Button(c, crumb.Name, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: loading}).Clicked() {
 								load(crumb.Path)
 							}
 						}
 					})
-					if ui.Button(c, "显示 / 隐藏隐藏目录").Disabled(loading).Clicked() {
+					if coss.Button(c, "显示 / 隐藏隐藏目录", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: loading}).Clicked() {
 						state.mu.Lock()
 						state.hidden = !state.hidden
 						state.mu.Unlock()
@@ -140,7 +141,7 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 								if entry.Hidden && !hidden {
 									continue
 								}
-								if ui.Button(c, entry.Name).FillWidth().Disabled(loading).Clicked() {
+								if coss.Button(c, entry.Name, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: loading}).FillWidth().Justify(ui.Start).Clicked() {
 									load(entry.Path)
 								}
 							}
@@ -151,14 +152,14 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 					}
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, "使用此目录").Disabled(loading || listing == nil || listing.Path == "" || disabled).Clicked() {
+					if coss.Button(c, "使用此目录", coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: loading || listing == nil || listing.Path == "" || disabled}).Clicked() {
 						state.mu.Lock()
 						state.confirm = listing.Path
 						state.open = false
 						state.mu.Unlock()
 						m.Store.Onboarding.EditWorkspace(v.Scope, b.BotID, listing.Path)
 					}
-					if ui.Button(c, "取消").Clicked() {
+					if coss.Button(c, "取消", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 						visible = false
 					}
 				})
@@ -183,14 +184,14 @@ func botWorkspacePicker(c *ui.Context, m Model, v imonboard.View, b imonboard.Bo
 					ui.Text(c, errText).FillWidth().TextColor(c.Theme().Danger).Selectable()
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, "确认切换").Disabled(disabled).Clicked() {
+					if coss.Button(c, "确认切换", coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 						m.Store.Onboarding.EditWorkspace(v.Scope, b.BotID, confirm)
 						state.mu.Lock()
 						state.submitted, state.err = true, ""
 						state.mu.Unlock()
 						m.Store.Onboarding.SaveWorkspace(v.Scope, b.BotID, confirm)
 					}
-					if ui.Button(c, "取消").Disabled(v.Busy).Clicked() {
+					if coss.Button(c, "取消", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: v.Busy}).Clicked() {
 						visible = false
 					}
 				})

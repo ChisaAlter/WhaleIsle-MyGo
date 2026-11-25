@@ -229,12 +229,12 @@ func officeSettingsView(c *ui.Context, m Model) {
 					})
 					ui.Column(c).FillWidth().Gap(design.Sp(1.5)).Children(func() {
 						ui.Text(c, channelText("Workspace 映射", "Workspace mappings")).FontSize(12).TextColor(fg)
-						ui.TextArea(c.Key("office-workspaces"), &draft.Workspaces).FillWidth().MinHeight(86).Lines(3, 8).Disabled(locked)
+						coss.Textarea(c.Key("office-workspaces"), &draft.Workspaces, coss.TextareaOptions{MaxLines: 8, Disabled: locked}).MinHeight(86)
 						ui.Text(c, channelText("每行 alias=Host 上的绝对路径；Office 仅收到 alias。", "One alias=/absolute/path/on/host per line; Office only sees the alias.")).FontSize(11).TextColor(muted)
 					})
 					ui.Column(c).FillWidth().Gap(design.Sp(1.5)).Children(func() {
 						ui.Text(c, channelText("Instruction Preset 映射", "Instruction preset mappings")).FontSize(12).TextColor(fg)
-						ui.TextArea(c.Key("office-presets"), &draft.InstructionPresets).FillWidth().MinHeight(86).Lines(3, 8).Disabled(locked)
+						coss.Textarea(c.Key("office-presets"), &draft.InstructionPresets, coss.TextareaOptions{MaxLines: 8, Disabled: locked}).MinHeight(86)
 						ui.Text(c, channelText("每行 alias=指令。", "One alias=instruction per line.")).FontSize(11).TextColor(muted)
 					})
 					if draft != v.Draft {

@@ -168,7 +168,7 @@ func View(c *ui.Context, m Model) {
 								if selected {
 									label = "• " + label
 								}
-								if ui.Button(c, label).Clicked() && m.Store != nil {
+								if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Pressed: selected}).FillWidth().Justify(ui.Start).Clicked() && m.Store != nil {
 									if m.Draft != nil {
 										m.Store.SetDraft(snap.SelectedID, *m.Draft)
 									}
@@ -204,16 +204,16 @@ func View(c *ui.Context, m Model) {
 						ui.Text(c, selected.Label+" · "+selected.Channel+" · "+selected.State).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 						ui.Text(c, selected.Detail).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						disabled := snap.ConnectionBusy || snap.Loading || m.PluginDisabled || m.Store == nil
-						if ui.Button(c, "重新连接").Disabled(disabled).Clicked() {
+						if coss.Button(c, "重新连接", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 							_ = m.Store.ReconnectBot(context.Background(), selected.ID)
 						}
 						ui.Text(c, "重连不会发送测试消息。账号凭证请在插件页面管理。").FontSize(theme.InterfaceSize(11)).TextColor(muted)
 						ui.Text(c, "工作区绝对路径").FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
 						workspace := snap.WorkspaceDraft
-						if ui.TextInput(c, &workspace).FillWidth().Placeholder("/path/to/workspace 或 C:\\workspace").Changed() && m.Store != nil {
+						if coss.Input(c, &workspace, coss.InputOptions{Placeholder: "/path/to/workspace 或 C:\\workspace"}).Changed() && m.Store != nil {
 							m.Store.SetWorkspaceDraft(selected.ID, workspace)
 						}
-						if ui.Button(c, "保存工作区").Disabled(disabled || strings.TrimSpace(workspace) == selected.Workspace).Clicked() {
+						if coss.Button(c, "保存工作区", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled || strings.TrimSpace(workspace) == selected.Workspace}).Clicked() {
 							_ = m.Store.SaveWorkspace(context.Background(), selected.ID, workspace)
 						}
 						currentPreset := selected.AgentPreset
@@ -222,11 +222,11 @@ func View(c *ui.Context, m Model) {
 						}
 						ui.Text(c, "Agent Preset："+currentPreset).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
 						ui.Row(c).Gap(6).Children(func() {
-							if ui.Button(c, "跟随 Host 默认").Disabled(disabled || selected.AgentPreset == "").Clicked() {
+							if coss.Button(c, "跟随 Host 默认", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled || selected.AgentPreset == ""}).Clicked() {
 								_ = m.Store.SaveAgentPreset(context.Background(), selected.ID, "")
 							}
 							for _, preset := range selected.Presets {
-								if ui.Button(c, preset.Label).Disabled(disabled || selected.AgentPreset == preset.ID).Clicked() {
+								if coss.Button(c, preset.Label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled || selected.AgentPreset == preset.ID}).Clicked() {
 									_ = m.Store.SaveAgentPreset(context.Background(), selected.ID, preset.ID)
 								}
 							}
@@ -263,7 +263,7 @@ func View(c *ui.Context, m Model) {
 										ui.Text(c, state).FontSize(theme.InterfaceSize(11)).TextColor(color).Shrink(0)
 									}
 									if strings.TrimSpace(entry.Text) != "" {
-										if ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(11)).Clicked() {
+										if coss.Button(c, i18n.T(i18n.KeyChatCopy), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 											mygo.Clipboard.WriteText(entry.Text)
 										}
 									}
@@ -275,13 +275,14 @@ func View(c *ui.Context, m Model) {
 
 					if m.Draft != nil {
 						ui.Text(c, i18n.T(i18n.KeyIMCompose)).FontSize(theme.InterfaceSize(12)).Bold().TextColor(fg)
-						if ui.TextArea(c, m.Draft).Fill().Lines(2, 4).Changed() && m.Store != nil && snap.SelectedID != "" {
+						if coss.Textarea(c, m.Draft, coss.TextareaOptions{MaxLines: 4}).Changed() && m.Store != nil && snap.SelectedID != "" {
 							m.Store.SetDraft(snap.SelectedID, *m.Draft)
 						}
-						send := ui.Button(c, i18n.T(i18n.KeyIMSend))
-						if snap.SelectedID == "" || strings.TrimSpace(*m.Draft) == "" {
-							send = send.Disabled(true)
-						}
+						send := coss.Button(c, i18n.T(i18n.KeyIMSend), coss.ButtonOptions{
+							Variant:  coss.ButtonDefault,
+							Size:     coss.ButtonSM,
+							Disabled: snap.SelectedID == "" || strings.TrimSpace(*m.Draft) == "",
+						})
 						if send.Clicked() && m.OnSend != nil {
 							m.OnSend(snap.SelectedID, strings.TrimSpace(*m.Draft))
 							if m.Store != nil {
