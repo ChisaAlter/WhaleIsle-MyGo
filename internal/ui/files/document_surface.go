@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/coss"
 )
 
 // DocumentSurface is an exact-Host child owned by one native file tab. The live
@@ -110,7 +111,7 @@ func paintDocumentViewerChoices(c *ui.Context, m Model, tab *FileTab) {
 	if tab.document.enabled {
 		title = label("返回原生预览", "Native preview")
 	}
-	if ui.Button(c, title).Disabled(tab.Editing).Clicked() {
+	if coss.Button(c, title, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: tab.Editing}).Clicked() {
 		if tab.document.enabled {
 			tab.document.choice = 1
 			tab.document.enabled = false
@@ -132,7 +133,7 @@ func paintDocumentViewerChoices(c *ui.Context, m Model, tab *FileTab) {
 		tab.document.workbook = isTablePreviewPath(tab.Path) && workbookViewerAvailable(tab.document.surface)
 		tab.document.enabled = tabDocumentSurfaceEnabled(tab)
 	}
-	if tab.document.choice != 0 && ui.Button(c, label("自动选择", "Auto viewer")).Clicked() {
+	if tab.document.choice != 0 && coss.Button(c, label("自动选择", "Auto viewer"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
 		tab.document.choice = 0
 		tab.document.enabled = tabDocumentSurfaceEnabled(tab)
 	}

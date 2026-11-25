@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -228,7 +229,7 @@ func View(c *ui.Context, m Model) {
 			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if w := tabsFor(m); w != nil {
 				automatic := !w.AutoRefreshDisabled
-				if ui.Checkbox(c, &automatic, label("自动刷新文件树", "Auto-refresh tree")).Changed() {
+				if coss.Checkbox(c, &automatic, label("自动刷新文件树", "Auto-refresh tree"), coss.CheckOptions{}).Changed() {
 					w.AutoRefreshDisabled = !automatic
 					m.Tabs.Tree.Observe(m.WatchRemoteContext, automatic)
 					c.Invalidate()
@@ -247,7 +248,11 @@ func View(c *ui.Context, m Model) {
 		paintPlanTabs(c, m)
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
-				input := ui.TextInput(c, m.Filter).FillWidth().Height(28).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(12.5)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter)).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
+				input := coss.Input(c, m.Filter, coss.InputOptions{
+					Size:        coss.InputSM,
+					Label:       i18n.T(i18n.KeyFilesFilter),
+					Placeholder: i18n.T(i18n.KeyFilesFilter),
+				})
 				if !input.Composing() && input.Shortcut(0, ui.KeyEscape) {
 					*m.Filter = ""
 				}

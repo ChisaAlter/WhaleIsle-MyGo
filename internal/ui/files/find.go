@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -131,11 +132,15 @@ func paintPreviewFindBar(c *ui.Context, m Model, path string, border, muted ui.C
 			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 0.5, W: r.W, H: 0.5}, border, 0)
 		}).
 		Children(func() {
-			input := ui.TextInput(c.Key("preview-find-input"), &t.findQuery).
-				Label(label("文件内查找", "Find in file")).
-				Placeholder(label("查找文本…", "Find text…")).
-				Grow(1).Shrink(1).MinWidth(60).MaxWidth(240).Height(26).Radius(6).Border(0.5, border).
-				FontSize(theme.InterfaceSize(12))
+			var input ui.Element
+			ui.Box(c).Grow(1).Shrink(1).MinWidth(60).MaxWidth(240).Children(func() {
+				input = coss.Input(c, &t.findQuery, coss.InputOptions{
+					Key:         "preview-find-input",
+					Size:        coss.InputSM,
+					Label:       label("文件内查找", "Find in file"),
+					Placeholder: label("查找文本…", "Find text…"),
+				})
+			})
 			if t.findFocusPending {
 				input.Focus()
 				t.findFocusPending = false

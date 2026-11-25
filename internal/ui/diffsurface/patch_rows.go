@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/widgets/diff"
 )
 
@@ -303,18 +304,18 @@ func paintHunkHeader(c *ui.Context, text string, index int, st diff.Style, fold 
 		if folded {
 			caption = text + "  …"
 		}
-		toggle := ui.Button(c, "").Label(text).FillWidth().Height(22).Padding(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Start).Tooltip(text)
-		toggle.Children(func() {
-			if folded {
-				ui.Icon(c, diffChevronRightIcon).Size(9, 9).TextColor(st.Muted).PassThrough()
-			} else {
-				ui.Icon(c, diffChevronDownIcon).Size(9, 9).TextColor(st.Muted).PassThrough()
-			}
-			ui.Text(c, " "+caption).Font("monospace").FontSize(st.FontSize).TextColor(st.Hunk).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
-		})
-		if toggle.Hovered() {
-			toggle.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .12))
-		}
+		toggle := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Label:   text,
+			Content: func() {
+				if folded {
+					ui.Icon(c, diffChevronRightIcon).Size(9, 9).TextColor(st.Muted).PassThrough()
+				} else {
+					ui.Icon(c, diffChevronDownIcon).Size(9, 9).TextColor(st.Muted).PassThrough()
+				}
+				ui.Text(c, " "+caption).Font("monospace").FontSize(st.FontSize).TextColor(st.Hunk).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+			},
+		}).FillWidth().Height(22).Padding(0).AlignItems(ui.Start).Tooltip(text)
 		if toggle.Clicked() {
 			fold.onToggle(index)
 		}

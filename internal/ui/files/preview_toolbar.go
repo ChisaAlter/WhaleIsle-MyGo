@@ -11,6 +11,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/widgets/markdown"
 )
@@ -77,11 +79,6 @@ func previewToolbarOwnerFor(m Model, path string) previewToolbarOwner {
 }
 
 func previewTool(c *ui.Context, key, caption string, icon *ui.SVG, ink ui.Color) ui.Element {
-	b := ui.Button(c.Key(key), "").Label(caption).Tooltip(caption).Width(28).Height(28).Shrink(0).Padding(0).
-		Radius(6).BorderWidth(0).Background(ui.Transparent).TextColor(ink).AlignItems(ui.Center).Justify(ui.Center)
-	if b.Hovered() {
-		b.Background(c.Theme().SurfaceHover)
-	}
 	glyph := float32(15)
 	if icon == previewFloatingIcon {
 		glyph = 14
@@ -90,17 +87,22 @@ func previewTool(c *ui.Context, key, caption string, icon *ui.SVG, ink ui.Color)
 	} else if icon == previewChevronIcon {
 		glyph = 10
 	}
-	b.Children(func() { ui.Icon(c, icon).Size(glyph, glyph).PassThrough() })
-	return b
+	return coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconSM,
+		Label:   caption,
+		Key:     key,
+		Content: func() {
+			ui.Icon(c, icon).Size(glyph, glyph).TextColor(ink).PassThrough()
+		},
+	}).Tooltip(caption).Shrink(0).Radius(design.RadiusMD)
 }
 
 func previewTextTool(c *ui.Context, caption string) ui.Element {
-	b := ui.Button(c, caption).Height(28).Radius(6).Shrink(0).FontSize(12).Padding(0, 10, 0, 10).
-		BorderWidth(0).Background(ui.Transparent)
-	if b.Hovered() {
-		b.Background(c.Theme().SurfaceHover)
-	}
-	return b
+	return coss.Button(c, caption, coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+	}).Shrink(0).Radius(design.RadiusMD)
 }
 
 func togglePreviewWrap(m Model) {
@@ -204,8 +206,11 @@ func paintPreviewToolbar(c *ui.Context, m Model, path string, muted, border ui.C
 			paintPreviewSelectionActions(c, m, path)
 			if previewEditable(m, path) || previewDirty(m) {
 				caption, busy := previewSaveCaption(m)
-				if previewTextTool(c, caption).Background(c.Theme().Accent).TextColor(c.Theme().AccentText).
-					Disabled(busy || explicitSaveDisabled(m)).Clicked() {
+				if coss.Button(c, caption, coss.ButtonOptions{
+					Variant:  coss.ButtonDefault,
+					Size:     coss.ButtonSM,
+					Disabled: busy || explicitSaveDisabled(m),
+				}).Shrink(0).Radius(design.RadiusMD).Clicked() {
 					if err := requestSaveDraft(m); err != nil {
 						setFileError(m, err)
 					}
@@ -448,7 +453,15 @@ func paintPreviewLineNavigation(c *ui.Context, m Model, open *bool) {
 		return
 	}
 	ui.Row(c).Height(32).Gap(6).Padding(2, 16, 2, 16).Children(func() {
-		input := ui.TextInput(c.Key("preview-line"), &t.lineDraft).Label("Line number").Width(80).Height(26).Radius(6).Border(0.5, c.Theme().Border).Placeholder(label("行号", "Line"))
+		var input ui.Element
+		ui.Box(c).Width(80).Children(func() {
+			input = coss.Input(c, &t.lineDraft, coss.InputOptions{
+				Key:         "preview-line",
+				Size:        coss.InputSM,
+				Label:       "Line number",
+				Placeholder: label("行号", "Line"),
+			})
+		})
 		focus := ui.Local(input, "focus-once", func() bool { return false })
 		if !*focus {
 			input.Focus()

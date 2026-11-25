@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -115,7 +116,7 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, word("正在读取分支…", "Loading branches…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 	}
 	ui.Text(c, word("切换分支会更新磁盘文件；未保存草稿会保留，保存时仍核对磁盘变化。", "Switching updates disk files. Unsaved editor drafts are retained and checked for disk changes on Save.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-	ui.TextInput(c, &w.BranchQuery).FillWidth().Radius(6).Border(0.5, c.Theme().Border).Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支…", "Search branches…"))
+	coss.Input(c, &w.BranchQuery, coss.InputOptions{Size: coss.InputSM, Label: word("筛选分支", "Filter branches"), Placeholder: word("搜索分支…", "Search branches…")})
 	needle := strings.ToLower(strings.TrimSpace(w.BranchQuery))
 	ui.Scroll(c).Height(120).FillWidth().Children(func() {
 		ui.Column(c).Gap(3).Children(func() {
@@ -156,7 +157,9 @@ func paintBranches(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 	ui.Text(c, word("首版只支持基于当前 HEAD 创建并切换。", "This version only creates and switches from the current HEAD.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	ui.Row(c).Gap(6).Children(func() {
-		ui.TextInput(c, &w.BranchName).Grow(1).Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("新分支名称", "New branch name"))
+		ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+			coss.Input(c, &w.BranchName, coss.InputOptions{Size: coss.InputSM, Placeholder: word("新分支名称", "New branch name")})
+		})
 		taken := false
 		for _, branch := range w.Branches {
 			if !branch.Remote && branch.Name == strings.TrimSpace(w.BranchName) {

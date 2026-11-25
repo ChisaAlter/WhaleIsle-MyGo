@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -34,18 +35,18 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 	}
 	blocked := tab.readLoading || tab.readBlocked
 	ui.Row(c).Wrap().Gap(6).Padding(0, 12, 4, 12).Children(func() {
-		options := make([]string, 0, len(page.Sheets))
+		options := make([]coss.SelectOption, 0, len(page.Sheets))
 		selected := ""
 		for i, sheet := range page.Sheets {
 			option := fmt.Sprintf("%d. %s", i+1, sheet.Name)
-			options = append(options, option)
+			options = append(options, coss.SelectOption{Value: option, Label: option})
 			if sheet.ID == page.Request.Sheet {
 				selected = option
 			}
 		}
-		if ui.Select(c, &selected, options).Disabled(tab.readLoading).Changed() {
+		if coss.Select(c, &selected, options, coss.SelectOptions{Size: coss.InputSM, Disabled: tab.readLoading}).Changed() {
 			for i, option := range options {
-				if option == selected {
+				if option.Value == selected {
 					requestTablePage(m, workspacefs.XLSXPageRequest{Sheet: page.Sheets[i].ID, Version: page.Version})
 					break
 				}
@@ -80,15 +81,15 @@ func paintTableControls(c *ui.Context, m Model, muted ui.Color) {
 	})
 	if len(page.Cells) > 0 {
 		ui.Row(c).Wrap().Gap(6).Padding(0, 12, 4, 12).Children(func() {
-			cells := make([]string, 0, len(page.Cells))
+			cells := make([]coss.SelectOption, 0, len(page.Cells))
 			for _, cell := range page.Cells {
-				cells = append(cells, cell.Address)
+				cells = append(cells, coss.SelectOption{Value: cell.Address, Label: cell.Address})
 			}
 			if !tableAddressInPage(page, tab.tableCell) {
-				tab.tableCell = cells[0]
+				tab.tableCell = cells[0].Value
 				tab.tableSelectionKind = "cell"
 			}
-			if ui.Select(c, &tab.tableCell, cells).Disabled(blocked).Changed() {
+			if coss.Select(c, &tab.tableCell, cells, coss.SelectOptions{Size: coss.InputSM, Disabled: blocked}).Changed() {
 				tab.tableSelectionKind = "cell"
 			}
 

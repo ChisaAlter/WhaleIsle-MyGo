@@ -9,6 +9,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -262,7 +263,7 @@ func paintCommitPreparation(c *ui.Context, m Model, fg, muted ui.Color) bool {
 func paintCommitCheckbox(c *ui.Context, w *Workbench, path string) {
 	s := w.commitState()
 	selected := !s.Excluded[path]
-	if ui.Checkbox(c, &selected, "").Label(path).Changed() {
+	if coss.Checkbox(c, &selected, "", coss.CheckOptions{Label: path}).Changed() {
 		s.Excluded[path] = !selected
 		s.LargeAcknowledged = false
 		w.invalidateCommitReview()
@@ -302,33 +303,33 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 				if s.Excluded[f.Path] {
 					caption = word("已排除（点此包含）", "Excluded (include)")
 				}
-				if ui.Button(c, caption).FontSize(fonttheme.InterfaceSize(10)).Clicked() {
+				if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 					s.Excluded[f.Path] = !s.Excluded[f.Path]
 					s.LargeAcknowledged = false
 					w.invalidateCommitReview()
 				}
 			})
 		}
-		if ui.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解风险，并愿意继续", "Keep checked large files; I understand they may be rejected")).Changed() {
+		if coss.Checkbox(c, &s.LargeAcknowledged, word("保留仍被勾选的大文件；我已了解风险，并愿意继续", "Keep checked large files; I understand they may be rejected"), coss.CheckOptions{}).Changed() {
 			w.invalidateCommitReview()
 		}
 	}
 	ui.Text(c, GitLocale("commit.message")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-	messageChanged := ui.TextInput(c, &w.Message).AutoFocus().FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)")).Changed()
-	makeBranchChanged := ui.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch")).Changed()
+	messageChanged := coss.Input(c, &w.Message, coss.InputOptions{Size: coss.InputSM, Placeholder: word("提交说明（留空自动生成，可修改后确认）", "Commit message (leave empty to generate, then review)")}).AutoFocus().Changed()
+	makeBranchChanged := coss.Checkbox(c, &s.MakeBranch, word("在新分支提交", "Commit on a new branch"), coss.CheckOptions{}).Changed()
 	newBranchChanged := false
 	if s.MakeBranch {
-		newBranchChanged = ui.TextInput(c, &s.NewBranch).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder("feature/my-change").Changed()
+		newBranchChanged = coss.Input(c, &s.NewBranch, coss.InputOptions{Size: coss.InputSM, Placeholder: "feature/my-change"}).Changed()
 	}
 	if messageChanged || makeBranchChanged || newBranchChanged {
 		w.invalidateCommitReview()
 	}
-	wantPRChanged := ui.Checkbox(c, &s.WantPR, word("准备提交、推送并创建 PR", "Prepare commit, push and PR")).Changed()
+	wantPRChanged := coss.Checkbox(c, &s.WantPR, word("准备提交、推送并创建 PR", "Prepare commit, push and PR"), coss.CheckOptions{}).Changed()
 	prDraftChanged, prTitleChanged, prBodyChanged := false, false, false
 	if s.WantPR {
-		prDraftChanged = ui.Checkbox(c, &s.PRDraft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)")).Changed()
-		prTitleChanged = ui.TextInput(c, &s.PRTitle).FillWidth().Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)")).Changed()
-		prBodyChanged = ui.TextArea(c, &s.PRBody).FillWidth().Lines(2, 5).Radius(8).Border(0.5, c.Theme().Border).Placeholder(word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)")).Changed()
+		prDraftChanged = coss.Checkbox(c, &s.PRDraft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"), coss.CheckOptions{}).Changed()
+		prTitleChanged = coss.Input(c, &s.PRTitle, coss.InputOptions{Size: coss.InputSM, Placeholder: word("PR 标题（空白时取提交标题）", "PR title (defaults to commit subject)")}).Changed()
+		prBodyChanged = coss.Textarea(c, &s.PRBody, coss.TextareaOptions{Size: coss.InputSM, MaxLines: 5, Placeholder: word("PR 正文（空白时取文件摘要）", "PR body (defaults to file summary)")}).Changed()
 		ui.Text(c, word("PR 使用手写文案；会展示收件仓库和目标分支，创建前要求仓库干净。", "PR text is editable. Review the recipient and base; PR creation requires a clean repository.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 	}
 	if wantPRChanged || prDraftChanged || prTitleChanged || prBodyChanged {
@@ -344,7 +345,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 			if s.WantPR {
 				caption = word("核对提交、推送及 PR…", "Review commit, push and PR…")
 			}
-			if ui.PrimaryButton(c, caption).Clicked() {
+			if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM}).Clicked() {
 				beginCommitPreparation(c, m, push, s.WantPR)
 			}
 			return
@@ -391,7 +392,7 @@ func paintCommitSelection(c *ui.Context, m Model, fg, muted ui.Color) {
 		if s.PRPlan != nil {
 			caption = word("确认提交、推送并创建", "Confirm commit, push and create ") + pullRequestModeLabel(s.PRPlan.Draft)
 		}
-		if ui.Button(c, caption).Clicked() {
+		if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM}).Clicked() {
 			confirmSelectedCommit(c, m)
 		}
 		if widgets.Button(c, colors, word("取消核对", "Cancel review"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {

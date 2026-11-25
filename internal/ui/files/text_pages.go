@@ -8,6 +8,7 @@ import (
 	"time"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -107,7 +108,7 @@ func paintTextPageControls(c *ui.Context, m Model, muted ui.Color) {
 		ui.Text(c, fmt.Sprintf(label("已载入 %d 字节", "Loaded %d bytes"), len(tab.Preview))).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 		if tab.textPage.EOF {
 			ui.Text(c, label("已到文件末尾（只读）", "End of file (read-only)")).TextColor(muted)
-		} else if ui.Button(c, label("读取下一页", "Load next page")).Disabled(tab.readLoading || tab.readBlocked || tab.Dirty()).Clicked() {
+		} else if coss.Button(c, label("读取下一页", "Load next page"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: tab.readLoading || tab.readBlocked || tab.Dirty()}).Clicked() {
 			beginNextTextPage(m)
 		}
 	})
