@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -27,13 +28,13 @@ func messageAction(c *ui.Context, icon *ui.SVG, label string, assistant bool, mu
 	if len(semanticID) > 0 {
 		key = semanticID[0]
 	}
-	b := ui.Button(c.Key("message-action-"+key), "").Label(label).Tooltip(label).Width(edge).Height(edge).Padding(0).
-		Radius(design.RadiusMD).BorderWidth(0).Background(ui.Transparent).TextColor(muted).
-		Justify(ui.Center).AlignItems(ui.Center).Cursor(ui.CursorPointer)
-	if b.Hovered() {
-		b.Background(t.Accent)
-	}
-	b.Children(func() { ui.Icon(c, icon).Width(glyph).Height(glyph).PassThrough() })
+	b := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconSM,
+		Label:   label,
+		Key:     "message-action-" + key,
+		Content: func() { ui.Icon(c, icon).Width(glyph).Height(glyph).PassThrough() },
+	}).Tooltip(label).Width(edge).Height(edge).Padding(0).Radius(design.RadiusMD).TextColor(muted).Justify(ui.Center).AlignItems(ui.Center)
 	return b
 }
 

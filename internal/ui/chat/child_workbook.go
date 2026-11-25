@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
@@ -26,17 +27,18 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 	blocked := read.Busy || opts.OnReadTable == nil
 	box.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyChatWorkbookReadOnly)).FontSize(10).TextColor(t.MutedForeground)
-		options := make([]string, len(page.Sheets))
+		selectOptions := make([]coss.SelectOption, len(page.Sheets))
 		selected := ""
 		for i, sheet := range page.Sheets {
-			options[i] = fmt.Sprintf("%d. %s", i+1, sheet.Name)
+			label := fmt.Sprintf("%d. %s", i+1, sheet.Name)
+			selectOptions[i] = coss.SelectOption{Value: label, Label: label}
 			if sheet.ID == page.Request.Sheet {
-				selected = options[i]
+				selected = label
 			}
 		}
-		if ui.Select(c, &selected, options).Disabled(blocked).Changed() {
-			for i, option := range options {
-				if option == selected {
+		if coss.Select(c, &selected, selectOptions, coss.SelectOptions{Size: coss.InputSM, Disabled: blocked}).Changed() {
+			for i, option := range selectOptions {
+				if option.Value == selected {
 					run(workspacefs.XLSXPageRequest{Sheet: page.Sheets[i].ID, Version: page.Version})
 				}
 			}
@@ -74,10 +76,10 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 			ui.Text(c, page.Problem).FontSize(11).TextColor(st.Muted)
 		}
 		if len(page.Cells) > 0 {
-			options := make([]string, len(page.Cells))
+			cellOptions := make([]coss.SelectOption, len(page.Cells))
 			found := false
 			for i, cell := range page.Cells {
-				options[i] = cell.Address
+				cellOptions[i] = coss.SelectOption{Value: cell.Address, Label: cell.Address}
 				if cell.Address == *selectedCell {
 					found = true
 				}
@@ -85,7 +87,7 @@ func childWorkbookView(c *ui.Context, path string, read session.AgentResourceRea
 			if !found {
 				*selectedCell = page.Cells[0].Address
 			}
-			ui.Select(c, selectedCell, options).Disabled(blocked)
+			coss.Select(c, selectedCell, cellOptions, coss.SelectOptions{Size: coss.InputSM, Disabled: blocked})
 			if stdButton(c, st.Colors, i18n.T(i18n.KeyChatWorkbookCopyShown), buttonGhost, blocked).Clicked() {
 				for _, cell := range page.Cells {
 					if cell.Address == *selectedCell {

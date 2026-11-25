@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
@@ -195,9 +196,13 @@ func paintTrajectoryLanes(c *ui.Context, rows []trajRow, selected *string, s *tr
 					width = float32((math.Min(span.End, model.End) - math.Max(span.Start, model.Start)) / (model.End - model.Start) * 100)
 				}
 				row := span.Row
-				b := ui.Button(c, "").Label("Trajectory span " + row.ID).Absolute().LeftPercent(left).Top(float32(5 + span.Lane*14)).WidthPercent(width).Height(8).
-					Padding(0).BorderWidth(0).Radius(design.RadiusXS / 2).Background(trajTimelineColor(p, row, trajCellKind(row))).
-					Tooltip(trajectoryTimingDetail(row)).Cursor(ui.CursorPointer)
+				b := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+					Label:   "Trajectory span " + row.ID,
+				}).Absolute().LeftPercent(left).Top(float32(5 + span.Lane*14)).WidthPercent(width).Height(8).
+					Padding(0).Radius(design.RadiusXS / 2).Background(trajTimelineColor(p, row, trajCellKind(row))).
+					Tooltip(trajectoryTimingDetail(row))
 				if width == 0 {
 					b.Width(2)
 				}
@@ -219,12 +224,12 @@ func paintTrajectoryLanes(c *ui.Context, rows []trajRow, selected *string, s *tr
 			}
 			ui.Text(c, label).FontSize(11).TextColor(p.muted).Grow(1)
 			if s.viewport.active {
-				if ui.Button(c, trajectoryText("重置缩放", "Reset zoom")).FontSize(11).Height(18).BorderWidth(0).Background(ui.Transparent).TextColor(p.muted).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, trajectoryText("重置缩放", "Reset zoom"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Height(18).Clicked() {
 					s.viewport = trajectoryViewport{}
 				}
 			}
 			if s.active {
-				if ui.Button(c, trajectoryText("清除范围", "Clear range")).FontSize(11).Height(18).BorderWidth(0).Background(ui.Transparent).TextColor(p.muted).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, trajectoryText("清除范围", "Clear range"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Height(18).Clicked() {
 					s.clear()
 				}
 			}

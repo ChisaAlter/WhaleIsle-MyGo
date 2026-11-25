@@ -86,20 +86,24 @@ func TurnUsageView(c *ui.Context, m Model, msg session.Message, _ ui.Color) {
 			summaryLabel = i18n.ChatParityf(i18n.KeyParityChatTurnUsageSummaryWithCache, "total", totalCompact, "percent", pct)
 			summaryAlt = i18n.ChatParityf(i18n.KeyParityChatTurnUsageSummaryWithCacheV2, "total", totalCompact, "percent", pct)
 		}
-		trigger := ui.Button(c, "").Label(i18n.T(i18n.KeyChatUsageTitle)).Tooltip(summaryLabel).Description(summaryLabel).
+		trigger := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonSM,
+			Label:   i18n.T(i18n.KeyChatUsageTitle),
+			Content: func() {
+				ui.Box(c).Absolute().Fill().PassThrough().Label(summaryLabel)
+				if summaryAlt != "" && summaryAlt != summaryLabel {
+					ui.Box(c).Absolute().Fill().PassThrough().Label(summaryAlt)
+				}
+				ui.Icon(c, usageDatabaseIcon).Size(15+delta, 15+delta)
+				w, _ := c.Size()
+				if w > 480 {
+					ui.Text(c, label).FontSize(12 + delta).FixedLineHeight(24 + delta).SingleLine().MinWidth(0)
+				}
+			},
+		}).Tooltip(summaryLabel).Description(summaryLabel).
 			Height(28+delta).MinWidth(0).Padding(0, design.Sp(2)).Gap(design.Sp(1)).Radius(design.RadiusMD).
-			BorderWidth(0).Background(ui.Transparent).TextColor(t.MutedForeground).Cursor(ui.CursorPointer).Expanded(*open)
-		trigger.Children(func() {
-			ui.Box(c).Absolute().Fill().PassThrough().Label(summaryLabel)
-			if summaryAlt != "" && summaryAlt != summaryLabel {
-				ui.Box(c).Absolute().Fill().PassThrough().Label(summaryAlt)
-			}
-			ui.Icon(c, usageDatabaseIcon).Size(15+delta, 15+delta)
-			w, _ := c.Size()
-			if w > 480 {
-				ui.Text(c, label).FontSize(12 + delta).FixedLineHeight(24 + delta).SingleLine().MinWidth(0)
-			}
-		})
+			TextColor(t.MutedForeground).Expanded(*open)
 		if trigger.Clicked() {
 			*open = !*open
 		}

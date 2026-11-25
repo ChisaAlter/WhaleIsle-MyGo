@@ -213,35 +213,37 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 						headerTitle = historyNavigationText("已编辑 ", "Edited ") + path.Base(strings.ReplaceAll(state.Summary.Files[0].Display, `\`, "/"))
 					}
 					hdrDisabled := !enabled || state.Busy || run == nil
-					hdr := ui.Button(c.Key("changes-header"), "").Label(headerTitle).FillWidth().MinWidth(0).Height(60).
-						Padding(design.Sp(2), design.Sp(2.5)).Gap(design.Sp(2.5)).BorderWidth(0).Background(pal.fill).AlignItems(ui.Center).
-						Disabled(hdrDisabled)
-					if !hdrDisabled {
-						hdr.Cursor(ui.CursorPointer)
-					}
+					hdr := coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonLG,
+						Disabled: hdrDisabled,
+						Label:    headerTitle,
+						Key:      "changes-header",
+						Content: func() {
+							ui.Box(c).Size(28, 28).Shrink(0).Center().PassThrough().Children(func() {
+								headerIconName := ""
+								if single {
+									headerIconName = state.Summary.Files[0].Display
+								}
+								paintDeliverableFileTileBadge(c, headerIconName, t.Accent, 28)
+							})
+							ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).PassThrough().Children(func() {
+								ui.Text(c, headerTitle).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).SingleLine().PassThrough()
+								if single && state.Summary.Files[0].Binary {
+									ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(10).FixedLineHeight(16).TextColor(pal.pathColor).PassThrough()
+								} else {
+									ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).PassThrough().Children(func() {
+										ui.Text(c, fmt.Sprintf("+%d", state.Summary.Added)).FontSize(10).FixedLineHeight(16).TextColor(pal.addColor).PassThrough()
+										ui.Text(c, fmt.Sprintf("-%d", state.Summary.Deleted)).FontSize(10).FixedLineHeight(16).TextColor(pal.delColor).PassThrough()
+									})
+								}
+							})
+						},
+					}).FillWidth().MinWidth(0).Height(60).
+						Padding(design.Sp(2), design.Sp(2.5)).Gap(design.Sp(2.5)).Radius(0).Background(pal.fill).AlignItems(ui.Center)
 					if hdr.Hovered() {
 						hdr.Background(pal.fillHover)
 					}
-					hdr.Children(func() {
-						ui.Box(c).Size(28, 28).Shrink(0).Center().PassThrough().Children(func() {
-							headerIconName := ""
-							if single {
-								headerIconName = state.Summary.Files[0].Display
-							}
-							paintDeliverableFileTileBadge(c, headerIconName, t.Accent, 28)
-						})
-						ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).PassThrough().Children(func() {
-							ui.Text(c, headerTitle).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).SingleLine().PassThrough()
-							if single && state.Summary.Files[0].Binary {
-								ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(10).FixedLineHeight(16).TextColor(pal.pathColor).PassThrough()
-							} else {
-								ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).PassThrough().Children(func() {
-									ui.Text(c, fmt.Sprintf("+%d", state.Summary.Added)).FontSize(10).FixedLineHeight(16).TextColor(pal.addColor).PassThrough()
-									ui.Text(c, fmt.Sprintf("-%d", state.Summary.Deleted)).FontSize(10).FixedLineHeight(16).TextColor(pal.delColor).PassThrough()
-								})
-							}
-						})
-					})
 					if hdr.Clicked() && enabled && !state.Busy && run != nil {
 						run(target, "summary")
 					}
@@ -264,28 +266,30 @@ func addressedTurnDeliveryView(c *ui.Context, d session.TurnDelivery, snapshot s
 							}
 							rowWrap.Children(func() {
 								rowDisabled := !enabled || comparison.Busy || run == nil
-								rowBtn := ui.Button(c.Key("diff-btn"), "").Label(file.Display).Grow(1).MinWidth(0).Height(34).
-									Padding(design.Sp(1.75), design.Sp(3.5), design.Sp(1.75), design.Sp(3.5)).Gap(design.Sp(2.5)).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
-									Disabled(rowDisabled)
-								if !rowDisabled {
-									rowBtn.Cursor(ui.CursorPointer)
-								}
+								rowBtn := coss.Button(c, "", coss.ButtonOptions{
+									Variant:  coss.ButtonGhost,
+									Size:     coss.ButtonMD,
+									Disabled: rowDisabled,
+									Label:    file.Display,
+									Key:      "diff-btn",
+									Content: func() {
+										ui.Text(c, file.Display).FontSize(12).FixedLineHeight(20).TextColor(pal.pathColor).Grow(1).MinWidth(0).SingleLine().PassThrough()
+										if file.Binary {
+											ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
+										} else if file.Oversized {
+											ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
+										} else {
+											ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Shrink(0).PassThrough().Children(func() {
+												ui.Text(c, fmt.Sprintf("+%d", file.Added)).FontSize(11).FixedLineHeight(18).TextColor(pal.addColor).PassThrough()
+												ui.Text(c, fmt.Sprintf("-%d", file.Deleted)).FontSize(11).FixedLineHeight(18).TextColor(pal.delColor).PassThrough()
+											})
+										}
+									},
+								}).Grow(1).MinWidth(0).Height(34).
+									Padding(design.Sp(1.75), design.Sp(3.5), design.Sp(1.75), design.Sp(3.5)).Gap(design.Sp(2.5)).Radius(0).AlignItems(ui.Center)
 								if rowBtn.Hovered() {
 									rowWrap.Background(pal.rowHover)
 								}
-								rowBtn.Children(func() {
-									ui.Text(c, file.Display).FontSize(12).FixedLineHeight(20).TextColor(pal.pathColor).Grow(1).MinWidth(0).SingleLine().PassThrough()
-									if file.Binary {
-										ui.Text(c, historyNavigationText("二进制文件，无法显示改动", "Binary file; cannot show diff")).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
-									} else if file.Oversized {
-										ui.Text(c, i18n.T(i18n.KeyChatDeliveryTooLarge)).FontSize(11).FixedLineHeight(18).TextColor(pal.pathColor).Shrink(0).PassThrough()
-									} else {
-										ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Shrink(0).PassThrough().Children(func() {
-											ui.Text(c, fmt.Sprintf("+%d", file.Added)).FontSize(11).FixedLineHeight(18).TextColor(pal.addColor).PassThrough()
-											ui.Text(c, fmt.Sprintf("-%d", file.Deleted)).FontSize(11).FixedLineHeight(18).TextColor(pal.delColor).PassThrough()
-										})
-									}
-								})
 								hoverSince := ui.Local(rowBtn, "diff-hover-since", func() time.Time { return time.Time{} })
 								if rowBtn.Hovered() {
 									if hoverSince.IsZero() {
@@ -442,35 +446,37 @@ func presentedFileCard(c *ui.Context, file session.TurnPresentedFile, snapshot s
 		cardRow.Children(func() {
 			label := historyNavigationText("预览 ", "Preview ") + name
 			cardDisabled := !enabled || preview == nil
-			card := ui.Button(c.Key("preview"), "").Label(label).Description(file.Path).Tooltip(file.Path).Grow(1).MinWidth(0).Height(60).
-				Padding(design.Sp(2), design.Sp(2.5)).Gap(design.Sp(2.5)).Radius(design.RadiusXL2).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).
-				Disabled(cardDisabled)
-			if !cardDisabled {
-				card.Cursor(ui.CursorPointer)
-			}
+			card := coss.Button(c, "", coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonLG,
+				Disabled: cardDisabled,
+				Label:    label,
+				Key:      "preview",
+				Content: func() {
+					ui.Box(c).Size(38, 38).Radius(design.RadiusMD).Background(pal.tileBg).Border(0.5, pal.borderL2).Shrink(0).Center().PassThrough().Children(func() {
+						paintDeliverableFileTileBadge(c, name, t.Accent, 24)
+					})
+					ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).PassThrough().Children(func() {
+						ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).SingleLine().PassThrough()
+						status, failed, opacity, repaint := presentedMetadata(snapshot, state, meta, c.Now())
+						if *previewError != "" && !state.Busy && !state.SettledAt.After(*previewErrorAt) {
+							status, failed, opacity, repaint = historyNavigationText("打开失败，请重试", "Could not preview file; try again"), true, 1, 0
+						}
+						if apps.Error != "" && !state.Busy && !state.Ready && state.Error == "" {
+							status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true
+						}
+						ink := pal.pathColor
+						if failed {
+							ink = t.DestructiveForeground
+						}
+						presentedStatusSeat(c, status, ink, opacity, repaint)
+					})
+				},
+			}).Description(file.Path).Tooltip(file.Path).Grow(1).MinWidth(0).Height(60).
+				Padding(design.Sp(2), design.Sp(2.5)).Gap(design.Sp(2.5)).Radius(design.RadiusXL2).AlignItems(ui.Center)
 			if card.Hovered() {
 				cardRow.Background(pal.fillHover)
 			}
-			card.Children(func() {
-				ui.Box(c).Size(38, 38).Radius(design.RadiusMD).Background(pal.tileBg).Border(0.5, pal.borderL2).Shrink(0).Center().PassThrough().Children(func() {
-					paintDeliverableFileTileBadge(c, name, t.Accent, 24)
-				})
-				ui.Column(c).Grow(1).MinWidth(0).Gap(design.Sp(0.5)).PassThrough().Children(func() {
-					ui.Text(c, name).FontSize(13).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).SingleLine().PassThrough()
-					status, failed, opacity, repaint := presentedMetadata(snapshot, state, meta, c.Now())
-					if *previewError != "" && !state.Busy && !state.SettledAt.After(*previewErrorAt) {
-						status, failed, opacity, repaint = historyNavigationText("打开失败，请重试", "Could not preview file; try again"), true, 1, 0
-					}
-					if apps.Error != "" && !state.Busy && !state.Ready && state.Error == "" {
-						status, failed = historyNavigationText("无法读取可用应用", "Could not read available applications"), true
-					}
-					ink := pal.pathColor
-					if failed {
-						ink = t.DestructiveForeground
-					}
-					presentedStatusSeat(c, status, ink, opacity, repaint)
-				})
-			})
 			if card.Clicked() && enabled && preview != nil {
 				*previewError = ""
 				if err := preview(target); err != nil {
@@ -502,11 +508,13 @@ func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, display
 	var menu ui.Element
 	ui.Row(c.Key("actions")).Width(42).Height(height).Margin(0, design.Sp(2.5), 0, 0).Gap(0).Radius(design.RadiusMD).Border(.5, pal.borderL4).Clip().Children(func() {
 		mainDisabled := !nativeAvailable || state.Busy || apps.Busy || run == nil
-		main := ui.Button(c, "").Label(historyNavigationText("打开文件：", "Open file: ") + name).Tooltip(historyNavigationText("打开文件", "Open file")).Width(24).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(mainDisabled)
-		if !mainDisabled {
-			main.Cursor(ui.CursorPointer)
-		}
-		main.Children(func() { paintOpenTargetAppIcon(c, name, apps.Applications) })
+		main := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Size:     coss.ButtonIconXS,
+			Disabled: mainDisabled,
+			Label:    historyNavigationText("打开文件：", "Open file: ") + name,
+			Content:  func() { paintOpenTargetAppIcon(c, name, apps.Applications) },
+		}).Tooltip(historyNavigationText("打开文件", "Open file")).Width(24).Height(height).Padding(0).Radius(0)
 		if main.Hovered() {
 			main.Background(pal.pillHover)
 		}
@@ -525,11 +533,13 @@ func deliverableActionPill(c *ui.Context, target session.TurnFileTarget, display
 		}
 		ui.Box(c).Width(1).Height(height).Background(pal.borderL4)
 		menuDisabled := !nativeAvailable || state.Busy || run == nil
-		menu = ui.Button(c, "").Label(menuLabel).Tooltip(menuLabel).Width(17).Height(height).Padding(0).BorderWidth(0).Radius(0).Background(ui.Transparent).Disabled(menuDisabled)
-		if !menuDisabled {
-			menu.Cursor(ui.CursorPointer)
-		}
-		menu.Children(func() { ui.Icon(c, deliverableChevronDownIcon).Size(10, 10).TextColor(pal.chevronColor).PassThrough() })
+		menu = coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Size:     coss.ButtonIconXS,
+			Disabled: menuDisabled,
+			Label:    menuLabel,
+			Content:  func() { ui.Icon(c, deliverableChevronDownIcon).Size(10, 10).TextColor(pal.chevronColor).PassThrough() },
+		}).Tooltip(menuLabel).Width(17).Height(height).Padding(0).Radius(0)
 		if menu.Hovered() {
 			menu.Background(pal.pillHover)
 		}

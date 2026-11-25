@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -108,7 +109,11 @@ func VisualReplyView(c *ui.Context, p session.VisualReplyPublication, m Model, f
 		}
 		if state.Ready {
 			source := state.HTML
-			ui.TextArea(c.Key("html-source"), &source).ReadOnly(true).FillWidth().Lines(8, 20).FontSize(12).TextColor(fg)
+			coss.Textarea(c, &source, coss.TextareaOptions{
+				Key:      "html-source",
+				ReadOnly: true,
+				MaxLines: 20,
+			}).ReadOnly(true).Lines(8, 20).FontSize(12)
 			ui.Text(c, i18n.T(i18n.KeyChatVisualSourceNote)).FontSize(11).TextColor(muted)
 		}
 	})

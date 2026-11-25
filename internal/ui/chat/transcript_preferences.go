@@ -352,7 +352,7 @@ func transcriptControlView(c *ui.Context, control transcriptControl, m Model, _ 
 		return
 	}
 	ui.Row(c).FillWidth().MinWidth(0).MinHeight(33 + delta).AlignItems(ui.Center).Children(func() {
-		btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).
+		btn := ui.ButtonBase(c.Key("transcript-control:"+control.key)).Label(control.label).
 			FillWidth().MinWidth(0).Height(33+delta).Padding(0, 0, design.Sp(2), 0).Gap(design.Sp(1)).BorderWidth(0).
 			Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 		target := float32(0)
@@ -449,7 +449,7 @@ func transcriptGroupView(c *ui.Context, control transcriptControl, m Model, mute
 	if control.open {
 		bottom = design.Sp(2)
 	}
-	btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).MinWidth(0).AlignSelf(ui.Start).
+	btn := ui.ButtonBase(c.Key("transcript-control:"+control.key)).Label(control.label).MinWidth(0).AlignSelf(ui.Start).
 		Padding(0, 0, bottom, 0).Gap(design.Sp(1.5)).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 	textColor := muted.Mix(secondary, btn.AnimateWith("group-hover", boolFloat(btn.Hovered()), 100*time.Millisecond, contextColorEase))
 	leadingSize, glyph := float32(16)+delta, float32(14)+delta

@@ -205,8 +205,12 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent, subtleBor
 		ui.Text(c, i18n.T(i18n.KeyPlanBoardNoGoal)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		if m.GoalDraft != nil && m.OnCreateGoal != nil {
 			ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, m.GoalDraft).Grow(1).
-					Placeholder(i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder))
+				ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+					coss.Input(c, m.GoalDraft, coss.InputOptions{
+						Size:        coss.InputSM,
+						Placeholder: i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder),
+					})
+				})
 				if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalCreate), buttonGhost, false).Clicked() {
 					obj := strings.TrimSpace(*m.GoalDraft)
 					if obj != "" {
@@ -239,8 +243,12 @@ func paintPlanGoal(c *ui.Context, m PlanBoardModel, fg, muted, accent, subtleBor
 		}
 		if m.GoalDraft != nil && m.OnEditGoal != nil {
 			ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c, m.GoalDraft).Grow(1).
-					Placeholder(i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder))
+				ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+					coss.Input(c, m.GoalDraft, coss.InputOptions{
+						Size:        coss.InputSM,
+						Placeholder: i18n.T(i18n.KeyPlanBoardGoalDraftPlaceholder),
+					})
+				})
 				if stdButton(c, palette, i18n.T(i18n.KeyPlanBoardGoalEdit), buttonGhost, false).Clicked() {
 					obj := strings.TrimSpace(*m.GoalDraft)
 					if obj != "" {
@@ -354,7 +362,12 @@ func paintQueueEditor(c *ui.Context, m PlanBoardModel, fg, muted ui.Color) {
 		ui.Text(c, i18n.T(i18n.KeyPlanBoardQueueEdit)).FontSize(theme.InterfaceSize(12)).TextColor(fg)
 		if e.Ready {
 			draft := e.Text
-			ui.TextArea(c.Key("queue-edit-"+e.ItemID), &draft).FillWidth().Lines(2, 6).ReadOnly(e.Saving).OnChange(func() {
+			coss.Textarea(c, &draft, coss.TextareaOptions{
+				Key:      "queue-edit-" + e.ItemID,
+				Size:     coss.InputSM,
+				ReadOnly: e.Saving,
+				MaxLines: 6,
+			}).Lines(2, 6).OnChange(func() {
 				if m.OnChangeQueueEdit != nil {
 					m.OnChangeQueueEdit(e.Token, draft)
 				}

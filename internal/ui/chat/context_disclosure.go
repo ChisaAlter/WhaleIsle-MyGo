@@ -109,7 +109,7 @@ func paintContextDisclosure(c *ui.Context, root ui.Element, open *bool, o contex
 	if o.Single {
 		row = ui.Row(c).Label(name)
 	} else {
-		row = ui.Button(c, "").Label(name).Role(ui.RoleDisclosure).Expanded(*open).
+		row = ui.ButtonBase(c).Label(name).Role(ui.RoleDisclosure).Expanded(*open).
 			Padding(0).BorderWidth(0).Background(ui.Transparent).Radius(0).Cursor(ui.CursorPointer)
 		if row.Clicked() {
 			*open = !*open

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
@@ -90,7 +91,12 @@ func paintTrajectoryRequestTabs(c *ui.Context, selected *string, schema, header 
 			if *selected == tab.id {
 				ink = accent
 			}
-			if ui.Button(c, tab.label).FontSize(theme.InterfaceSize(11)).BorderWidth(0).Background(ui.Transparent).TextColor(ink).Cursor(ui.CursorPointer).Clicked() {
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonXS,
+				Label:   tab.label,
+				Content: func() { ui.Text(c, tab.label).FontSize(theme.InterfaceSize(11)).TextColor(ink) },
+			}).Clicked() {
 				*selected = tab.id
 			}
 		}
