@@ -7,6 +7,7 @@ import (
 
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -83,7 +84,11 @@ func wallpaperImmediateSlider(c *ui.Context, g *WallpaperEditor, key, label stri
 			ui.Text(c, label).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(22)).TextColor(muted)
 			ui.Text(c, fmt.Sprintf("%.0f%%", value)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontFeatures("tnum").TextColor(muted)
 		})
-		if ui.StepSlider(c, &value, lo, hi, step).FillWidth().Label(label).Disabled(g.Save == nil || disabled).Changed() {
+		if coss.Slider(c, &value, lo, hi, coss.SliderOptions{
+			Step:     step,
+			Label:    label,
+			Disabled: g.Save == nil || disabled,
+		}).Changed() {
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { set(p, value) })
 		}
 	})

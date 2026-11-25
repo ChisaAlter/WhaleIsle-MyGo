@@ -693,7 +693,11 @@ func renderEffectControls(c *ui.Context, d *effectDraft, typing, blocked bool, f
 				label = fmt.Sprintf("%02d:%02d", int(value)/60, int(value)%60)
 			}
 			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if ui.StepSlider(c, &value, number.lo, number.hi, number.step).FillWidth().Label("effect-" + number.path).Disabled(blocked || disabled).Changed() {
+			if coss.Slider(c, &value, number.lo, number.hi, coss.SliderOptions{
+				Step:     number.step,
+				Label:    "effect-" + number.path,
+				Disabled: blocked || disabled,
+			}).Changed() {
 				effectSet(d.Style, number.path, value)
 				if !typing {
 					d.Style["mode"] = "custom"

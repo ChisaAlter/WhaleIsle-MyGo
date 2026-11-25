@@ -499,7 +499,11 @@ func wallpaperBackgroundPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Col
 		})
 		ui.Text(c, minimalOverrideHint(providerCopy("控制界面表层的实心程度：菜单、对话框、输入框，以及设置背景图后的侧栏和聊天区域。数值越低越通透。有背景图时画布不会完全实心，图始终能透出一层。", "Controls how solid UI surfaces are: menus, dialogs, the composer, and — with a wallpaper set — the sidebar and chat area. Lower values are more see-through. With a wallpaper, the canvas never goes fully opaque, so the image always shows through a little."))).FillWidth().FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(muted)
 		opacity := prefs.Glass
-		if ui.StepSlider(c, &opacity, 40, 100, 5).FillWidth().Label(providerCopy("玻璃透明度", "Glass opacity")).Disabled(g.Save == nil || prefs.Transparent && hasWallpaper).Changed() {
+		if coss.Slider(c, &opacity, 40, 100, coss.SliderOptions{
+			Step:     5,
+			Label:    providerCopy("玻璃透明度", "Glass opacity"),
+			Disabled: g.Save == nil || prefs.Transparent && hasWallpaper,
+		}).Changed() {
 			wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.Glass = opacity })
 		}
 		if appearanceGhostButton(c, providerCopy("重置", "Reset"), g.Save == nil).Clicked() {
@@ -552,7 +556,11 @@ func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64,
 	changed := false
 	bodyPreferenceRow(c, key, label, hint, fg, muted, func() {
 		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		changed = ui.StepSlider(c, value, lo, hi, step).FillWidth().Label(label).Disabled(disabled).Changed()
+		changed = coss.Slider(c, value, lo, hi, coss.SliderOptions{
+			Step:     step,
+			Label:    label,
+			Disabled: disabled,
+		}).Changed()
 	})
 	return changed
 }

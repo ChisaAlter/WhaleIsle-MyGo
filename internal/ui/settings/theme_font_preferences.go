@@ -279,7 +279,11 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				}
 				contrast := variant.seed.ContrastValue()
 				bodyPreferenceRow(c, "contrast-"+variant.label, providerCopy("对比度", "Contrast"), "", fg, muted, func() {
-					if ui.StepSlider(c, &contrast, 0, 100, 1).FillWidth().Disabled(e.FamilySavePending()).Changed() {
+					if coss.Slider(c, &contrast, 0, 100, coss.SliderOptions{
+						Step:     1,
+						Label:    providerCopy("对比度", "Contrast"),
+						Disabled: e.FamilySavePending(),
+					}).Changed() {
 						variant.seed.Contrast = &contrast
 					}
 				})
@@ -494,7 +498,11 @@ func typographyFontField(c *ui.Context, e *theme.Editor, key, label, hint, role 
 func typographySizeField(c *ui.Context, e *theme.Editor, key, label, role string, f *theme.FontPreference, lo, hi float64, muted ui.Color) {
 	typographyField(c, key, label, "", muted, func() {
 		value := float64(f.Size)
-		if ui.StepSlider(c, &value, lo, hi, 1).FillWidth().Label(label).Disabled(e.OnSave == nil).Changed() {
+		if coss.Slider(c, &value, lo, hi, coss.SliderOptions{
+			Step:     1,
+			Label:    label,
+			Disabled: e.OnSave == nil,
+		}).Changed() {
 			f.Size = float32(value)
 			e.SaveAppearanceFont(role, *f)
 		}
