@@ -7,6 +7,7 @@ import (
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -48,12 +49,12 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 		for _, id := range choices {
 			id := id
 			checked := slices.Contains(d.ContextFrom, id)
-			if ui.Checkbox(c.Key("routine-context-"+id), &checked, routineContextName(id, rows)).Disabled(disabled || !checked && len(d.ContextFrom) >= 3).Changed() && onChange != nil {
+			if aCheckbox(c.Key("routine-context-"+id), &checked, routineContextName(id, rows), disabled || !checked && len(d.ContextFrom) >= 3).Changed() && onChange != nil {
 				onChange("contextToggle", id)
 			}
 		}
 		silent := d.SilentAllowed
-		if ui.Checkbox(c, &silent, i18n.T(i18n.KeyMiscAssistantAllowSilentResponse)).Disabled(disabled).Changed() && onChange != nil {
+		if aCheckbox(c, &silent, i18n.T(i18n.KeyMiscAssistantAllowSilentResponse), disabled).Changed() && onChange != nil {
 			onChange("silentAllowed", fmt.Sprint(silent))
 		}
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantSilenceOnlyChangesHowNormalOutputIsDe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -63,7 +64,7 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 		ui.Row(c).Gap(8).Children(func() {
 			for _, choice := range []struct{ id, label string }{{"", i18n.T(i18n.KeyMiscAssistantNoWatch)}, {"url", i18n.T(i18n.KeyMiscAssistantUrlWatch)}, {"command", i18n.T(i18n.KeyMiscAssistantCommandWatch)}} {
 				choice := choice
-				if ui.Button(c, choice.label).Disabled(disabled || !d.WatchUnknown && d.WatchKind == choice.id).Clicked() && onChange != nil {
+				if aChoice(c, choice.label, !d.WatchUnknown && d.WatchKind == choice.id, disabled || !d.WatchUnknown && d.WatchKind == choice.id).Clicked() && onChange != nil {
 					onChange("watchKind", choice.id)
 				}
 			}
@@ -74,12 +75,12 @@ func routineAdvancedFields(c *ui.Context, d dshbotstore.RoutineAdvancedDraft, bo
 			if d.WatchKind == "command" {
 				label = i18n.T(i18n.KeyMiscAssistantFullHostShellCommand)
 			}
-			ui.TextArea(c.Key("routine-watch-value"), &value).Label(label).Lines(2, 6).FillWidth().Disabled(disabled).OnChange(func() {
+			aTextarea(c.Key("routine-watch-value"), &value, coss.TextareaOptions{Label: label, MaxLines: 6, Disabled: disabled}).OnChange(func() {
 				if onChange != nil {
 					onChange("watchValue", value)
 				}
 			})
-			ui.TextInput(c.Key("routine-watch-timeout"), &timeout).Label(i18n.T(i18n.KeyMiscAssistantTimeoutMs1300000)).FillWidth().Disabled(disabled).OnChange(func() {
+			aInput(c.Key("routine-watch-timeout"), &timeout, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantTimeoutMs1300000), Disabled: disabled}).OnChange(func() {
 				if onChange != nil {
 					onChange("watchTimeout", timeout)
 				}
@@ -121,7 +122,7 @@ func routineAdvancedReview(c *ui.Context, m RoutineModel, r dshbotstore.RoutineR
 	}
 	if dshbotstore.RoutineReviewNeedsWatchAcknowledgement(r) {
 		ack := r.WatchAcknowledged
-		if ui.Checkbox(c, &ack, routineWatchAcknowledgement()).Disabled(m.State.Busy).Changed() && m.OnAcknowledgeWatch != nil {
+		if aCheckbox(c, &ack, routineWatchAcknowledgement(), m.State.Busy).Changed() && m.OnAcknowledgeWatch != nil {
 			m.OnAcknowledgeWatch(ack)
 		}
 	}

@@ -62,7 +62,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 	card.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantGroupMemberRuntime)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantReadsCompleteMemberStatesErrorsAndPend)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshMemberRuntime)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+		if m.OnRefresh != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshMemberRuntime), blocked).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -111,7 +111,7 @@ func roomRuntimeView(c *ui.Context, m RoomRuntimeModel, blocked bool, fg, muted,
 					ui.Text(c, errcopy.SentenceText(member.OpenError)).FontSize(fonttheme.InterfaceSize(11)).TextColor(danger).Selectable()
 				}
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningSwitchesToTheVerifiedExistingMe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if m.OnOpen != nil && ui.Button(c, roomRuntimeOpenLabel()).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || member.OpenError != "" || member.SessionID == "").Clicked() {
+				if m.OnOpen != nil && aButton(c, roomRuntimeOpenLabel(), blocked || !s.Loaded || member.OpenError != "" || member.SessionID == "").Clicked() {
 					m.OnOpen(member.SessionID)
 				}
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantCompleteMemberRecord)+pluginrpc.DshbotRoomRuntimeJSON(member.Raw)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()

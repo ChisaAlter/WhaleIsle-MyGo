@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -30,13 +31,13 @@ func roomEditTextInputs(c *ui.Context, m RoomEditModel, disabled bool) {
 	}
 	d := m.State.Draft
 	name := d.Name
-	ui.TextInput(c.Key("room-edit-name"), &name).Label(i18n.T(i18n.KeyMiscAssistantRoomName120Utf16)).FillWidth().Disabled(disabled).OnChange(func() {
+	aInput(c.Key("room-edit-name"), &name, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantRoomName120Utf16), Disabled: disabled}).OnChange(func() {
 		if m.OnChange != nil {
 			m.OnChange("name", name)
 		}
 	})
 	description := d.Description
-	ui.TextArea(c.Key("room-edit-description"), &description).Label(i18n.T(i18n.KeyMiscAssistantCompleteRoomDescription12000Utf16)).Lines(3, 10).FillWidth().Disabled(disabled).OnChange(func() {
+	aTextarea(c.Key("room-edit-description"), &description, coss.TextareaOptions{Label: i18n.T(i18n.KeyMiscAssistantCompleteRoomDescription12000Utf16), MaxLines: 10, Disabled: disabled}).OnChange(func() {
 		if m.OnChange != nil {
 			m.OnChange("description", description)
 		}

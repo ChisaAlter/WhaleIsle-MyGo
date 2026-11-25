@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/pluginrpc"
 	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -44,7 +45,7 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 		widgets.AckLine(c, "whale-background-task-notice", s.Notice)
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, whaleTaskCopy("后台资料整理", "Background reading")).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(fg).Grow(1)
-			if ui.Button(c, whaleTaskCopy("刷新任务", "Refresh tasks")).Disabled(blocked).Clicked() {
+			if aButton(c, whaleTaskCopy("刷新任务", "Refresh tasks"), blocked).Clicked() {
 				w.OnRefresh()
 			}
 		})
@@ -65,7 +66,7 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 		}
 		field := func(label, key, value string, lines int) {
 			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			ui.TextArea(c.Key("whale-task-"+key), &value).Label(label).FillWidth().MinWidth(0).Lines(lines, lines+2).Disabled(blocked).OnChange(func() {
+			aTextarea(c.Key("whale-task-"+key), &value, coss.TextareaOptions{Label: label, MaxLines: lines + 2, Disabled: blocked}).OnChange(func() {
 				if w.OnEdit != nil {
 					w.OnEdit(key, value)
 				}
@@ -83,7 +84,7 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 		}
 		*seen = len(s.Catalog.Tasks)
 		form.Children(func() {
-			if ui.Button(c, whaleTaskCopy("新建资料任务", "New reading task")).Clicked() {
+			if aButton(c, whaleTaskCopy("新建资料任务", "New reading task"), false).Clicked() {
 				*creating = !*creating
 			}
 			if !*creating {
@@ -91,12 +92,12 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 			}
 			field(whaleTaskCopy("整理目标", "Reading goal"), "goal", s.Goal, 2)
 			field(whaleTaskCopy("资料路径（每行一个）", "Input paths (one per line)"), "files", s.Files, 2)
-			if w.OnPickFiles != nil && ui.Button(c, whaleTaskCopy("选择资料", "Choose files")).Disabled(blocked).Clicked() {
+			if w.OnPickFiles != nil && aButton(c, whaleTaskCopy("选择资料", "Choose files"), blocked).Clicked() {
 				w.OnPickFiles()
 			}
 			ui.Text(c, whaleTaskCopy("支持 UTF-8 文本：TXT、Markdown、CSV、JSON、LOG、RST。最多 8 个文件，单个 100KB、合计 300KB。", "UTF-8 text: TXT, Markdown, CSV, JSON, LOG, RST. Up to 8 files, 100KB each, 300KB total.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			field(whaleTaskCopy("完成条件（可选，每行一项）", "Completion criteria (optional, one per line)"), "criteria", s.Criteria, 2)
-			if ui.Button(c, whaleTaskCopy("开始整理", "Start reading")).Disabled(blocked || !s.Loaded || !s.Catalog.Available || active || s.CreateUnknown || strings.TrimSpace(s.Goal) == "" || strings.TrimSpace(s.Files) == "").Clicked() && w.OnStart != nil {
+			if aPrimary(c, whaleTaskCopy("开始整理", "Start reading"), blocked || !s.Loaded || !s.Catalog.Available || active || s.CreateUnknown || strings.TrimSpace(s.Goal) == "" || strings.TrimSpace(s.Files) == "").Clicked() && w.OnStart != nil {
 				w.OnStart()
 			}
 		})
@@ -106,7 +107,7 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 		owner := ui.Column(c.Key("whale-task-im-owner")).FillWidth().Gap(8)
 		open := ui.Local(owner, "open", func() bool { return false })
 		owner.Children(func() {
-			if ui.Button(c, whaleTaskCopy("飞书后台任务授权", "Feishu task authorization")).Clicked() {
+			if aButton(c, whaleTaskCopy("飞书后台任务授权", "Feishu task authorization"), false).Clicked() {
 				*open = !*open
 			}
 			if !*open {
@@ -116,10 +117,10 @@ func whaleTasksBlock(c *ui.Context, m Model, fg, muted, border, accent ui.Color)
 			field(whaleTaskCopy("飞书机器人 ID", "Feishu bot ID"), "bot", s.BotID, 1)
 			field(whaleTaskCopy("授权人的 open_id", "Authorized person's open_id"), "actor", s.Actor, 1)
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, whaleTaskCopy("授权此人", "Authorize person")).Disabled(blocked || !s.Catalog.Available || strings.TrimSpace(s.BotID) == "" || strings.TrimSpace(s.Actor) == "" || s.Actor == "*").Clicked() && w.OnAuthorize != nil {
+				if aPrimary(c, whaleTaskCopy("授权此人", "Authorize person"), blocked || !s.Catalog.Available || strings.TrimSpace(s.BotID) == "" || strings.TrimSpace(s.Actor) == "" || s.Actor == "*").Clicked() && w.OnAuthorize != nil {
 					w.OnAuthorize()
 				}
-				if ui.Button(c, whaleTaskCopy("撤销此机器人授权", "Revoke bot authorization")).Disabled(blocked || !s.Catalog.Available || strings.TrimSpace(s.BotID) == "").Clicked() && w.OnRevoke != nil {
+				if aDangerOutline(c, whaleTaskCopy("撤销此机器人授权", "Revoke bot authorization"), blocked || !s.Catalog.Available || strings.TrimSpace(s.BotID) == "").Clicked() && w.OnRevoke != nil {
 					w.OnRevoke()
 				}
 			})
@@ -160,13 +161,13 @@ func whaleTaskRow(c *ui.Context, m WhaleTasksModel, task pluginrpc.WhaleTask, bl
 			}
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if task.Active() && task.State != "stopping" && ui.Button(c, whaleTaskCopy("停止任务", "Stop task")).Disabled(blocked).Clicked() && m.OnControl != nil {
+			if task.Active() && task.State != "stopping" && aDangerOutline(c, whaleTaskCopy("停止任务", "Stop task"), blocked).Clicked() && m.OnControl != nil {
 				m.OnControl(task.ID, "stop")
 			}
-			if task.CanResume() && ui.Button(c, whaleTaskCopy("继续任务", "Resume task")).Disabled(blocked).Clicked() && m.OnControl != nil {
+			if task.CanResume() && aPrimary(c, whaleTaskCopy("继续任务", "Resume task"), blocked).Clicked() && m.OnControl != nil {
 				m.OnControl(task.ID, "resume")
 			}
-			if task.Execution != nil && task.Execution.SessionID != "" && m.OnOpenSession != nil && ui.Button(c, whaleTaskCopy("查看执行记录", "Open execution history")).Clicked() {
+			if task.Execution != nil && task.Execution.SessionID != "" && m.OnOpenSession != nil && aButton(c, whaleTaskCopy("查看执行记录", "Open execution history"), false).Clicked() {
 				m.OnOpenSession(task.Execution.SessionID)
 			}
 		})

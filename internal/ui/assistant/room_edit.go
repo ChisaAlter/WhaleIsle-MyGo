@@ -9,6 +9,7 @@ import (
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -63,7 +64,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 	card.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantGroupProfileAndLimits)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantEditTheSelectedGroupSNameFullDescript)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadGroupProfile)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+		if m.OnRefresh != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantReadGroupProfile), blocked).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -87,7 +88,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantRoomDetail), m.HostLabel, s.Status.Catalog.Revision, r.Name, r.ID, r.SessionID, r.WorkspaceID, r.MaxRounds, r.MaxSpeaks, roomEditMembers(r.MemberBotIDs, s.Status.Catalog))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 		}
 		if s.Draft == nil {
-			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantEditGroupSettings)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || s.Status.WriteError != "" || s.Uncertain).Clicked() {
+			if m.OnStart != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantEditGroupSettings), blocked || !s.Loaded || !s.Writable || s.Status.WriteError != "" || s.Uncertain).Clicked() {
 				m.OnStart()
 			}
 			return
@@ -97,7 +98,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 		for _, f := range []struct{ id, label, value string }{{"maxRounds", i18n.T(i18n.KeyMiscAssistantRounds13), s.Draft.MaxRounds}, {"maxSpeaks", i18n.T(i18n.KeyMiscAssistantSpeaks110), s.Draft.MaxSpeaks}} {
 			f := f
 			v := f.value
-			ui.TextInput(c.Key("room-edit-"+f.id), &v).Label(f.label).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
+			aInput(c.Key("room-edit-"+f.id), &v, coss.InputOptions{Label: f.label, Disabled: disabled}).OnChange(func() {
 				if m.OnChange != nil {
 					m.OnChange(f.id, v)
 				}
@@ -118,7 +119,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 			if row.Hidden {
 				label += " (hidden)"
 			}
-			if ui.Checkbox(c.Key("room-edit-member-"+row.ID), &checked, label).Disabled(disabled || !s.Loaded).Changed() && m.OnMember != nil {
+			if aCheckbox(c.Key("room-edit-member-"+row.ID), &checked, label, disabled || !s.Loaded).Changed() && m.OnMember != nil {
 				m.OnMember(row.ID)
 			}
 		}
@@ -132,7 +133,7 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 			if !available {
 				id := id
 				checked := true
-				if ui.Checkbox(c.Key("room-edit-missing-"+id), &checked, i18n.T(i18n.KeyMiscAssistantRemoveUnavailableMember2)+id).Disabled(disabled).Changed() && m.OnMember != nil {
+				if aCheckbox(c.Key("room-edit-missing-"+id), &checked, i18n.T(i18n.KeyMiscAssistantRemoveUnavailableMember2)+id, disabled).Changed() && m.OnMember != nil {
 					m.OnMember(id)
 				}
 			}
@@ -140,14 +141,14 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraftOrder)+roomEditMembers(s.Draft.MemberBotIDs, s.Status.Catalog)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 		if s.Uncertain {
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOutcomeIsUnknownAndTheDraftStaysL)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
-			if s.Candidate && m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback2)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+			if s.Candidate && m.OnAdopt != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback2), blocked).Clicked() {
 				m.OnAdopt()
 			}
 		} else {
-			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardEditDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardEditDraft), blocked).Clicked() {
 				m.OnDiscard()
 			}
-			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewGroupChanges)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || !s.Loaded || !s.Writable || s.Status.WriteError != "").Clicked() {
+			if m.OnReview != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewGroupChanges), disabled || !s.Loaded || !s.Writable || s.Status.WriteError != "").Clicked() {
 				m.OnReview()
 			}
 		}
@@ -163,13 +164,13 @@ func roomEditView(c *ui.Context, m RoomEditModel, blocked bool, fg, muted, field
 				}
 				ui.Text(c, roomEditReviewText(cmd)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				ack := r.Acknowledged
-				if ui.Checkbox(c, &ack, roomEditAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+				if aCheckbox(c, &ack, roomEditAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
-				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+				if m.OnDismiss != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantBackToDraft), blocked).Clicked() {
 					m.OnDismiss()
 				}
-				if m.OnConfirm != nil && ui.Button(c, roomEditConfirmLabel()).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
+				if m.OnConfirm != nil && aPrimary(c, roomEditConfirmLabel(), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
 					m.OnConfirm()
 				}
 			})

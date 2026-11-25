@@ -29,7 +29,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 	blocked = blocked || s.Busy || s.Host == ""
 	ui.Column(c.Key("whale-own-preferences")).Gap(8).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantWhalePreferences)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences)).AlignSelf(ui.Start).Height(28).Padding(0, 12).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshPreferences), blocked).AlignSelf(ui.Start).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -79,7 +79,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		if s.ModelsError != nil {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelCatalog)+s.ModelsError.SentenceText()).TextColor(accent).Selectable()
 		}
-		ui.Select(c.Key("whale-own-model"), &selected, labels).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled || s.ModelsError != nil).OnChange(func() {
+		aSelect(c.Key("whale-own-model"), &selected, labels, "", disabled || s.ModelsError != nil).FillWidth().OnChange(func() {
 			if v, ok := choices[selected]; ok && m.OnEdit != nil {
 				m.OnEdit(v, s.IMDefault)
 				if m.OnSave != nil {
@@ -107,7 +107,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			effortLabels = append(effortLabels, effortSelected)
 			effortValues[effortSelected] = effortSelected
 		}
-		ui.Select(c.Key("whale-own-effort"), &effortSelected, effortLabels).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
+		aSelect(c.Key("whale-own-effort"), &effortSelected, effortLabels, "", disabled).FillWidth().OnChange(func() {
 			route.ReasoningEffort = effortValues[effortSelected]
 			if m.OnEdit != nil {
 				m.OnEdit(route, s.IMDefault)
@@ -117,7 +117,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 			}
 		})
 		im := s.IMDefault
-		if ui.Checkbox(c.Key("whale-im-default"), &im, i18n.T(i18n.KeyMiscAssistantShareConversationWithIm)).Disabled(disabled).Changed() && m.OnEdit != nil {
+		if aCheckbox(c.Key("whale-im-default"), &im, i18n.T(i18n.KeyMiscAssistantShareConversationWithIm), disabled).Changed() && m.OnEdit != nil {
 			m.OnEdit(s.Route, im)
 			if m.OnSave != nil {
 				m.OnSave("im")
@@ -142,7 +142,7 @@ func whalePreferencesBlock(c *ui.Context, m WhalePreferencesModel, blocked bool,
 		for _, skill := range s.Server.Skills {
 			skill := skill
 			on := skill.Enabled
-			if ui.Checkbox(c.Key("whale-skill-"+skill.Name), &on, skill.Name).Disabled(disabled).Changed() && m.OnToggleSkill != nil {
+			if aCheckbox(c.Key("whale-skill-"+skill.Name), &on, skill.Name, disabled).Changed() && m.OnToggleSkill != nil {
 				m.OnToggleSkill(skill.Name, on)
 			}
 		}

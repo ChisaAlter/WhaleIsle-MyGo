@@ -26,7 +26,7 @@ func routineTriggerBlock(c *ui.Context, m RoutineModel, blocked bool, fg, muted,
 			return
 		}
 		if !s.Open {
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewHostCatalogCredential)).Disabled(blocked || !m.State.Loaded).Clicked() {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantReviewHostCatalogCredential), blocked || !m.State.Loaded).Clicked() {
 				m.OnPrepareTrigger()
 			}
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningThePageOrRefreshingTheCatalogD)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -37,10 +37,10 @@ func routineTriggerBlock(c *ui.Context, m RoutineModel, blocked bool, fg, muted,
 			ui.Text(c, routineTriggerImpact()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheConfirmationBindsToTheCurrentlyAuth)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := s.Acknowledged
-			if ui.Checkbox(c, &ack, routineTriggerAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledgeTrigger != nil {
+			if aCheckbox(c, &ack, routineTriggerAcknowledgement(), blocked).Changed() && m.OnAcknowledgeTrigger != nil {
 				m.OnAcknowledgeTrigger(ack)
 			}
-			if m.OnConfirmTrigger != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmHostCatalogCredential)).Disabled(blocked || !ack || !m.State.Loaded).Clicked() {
+			if m.OnConfirmTrigger != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmHostCatalogCredential), blocked || !ack || !m.State.Loaded).Clicked() {
 				m.OnConfirmTrigger()
 			}
 		}
@@ -54,16 +54,16 @@ func routineTriggerBlock(c *ui.Context, m RoutineModel, blocked bool, fg, muted,
 				ui.Text(c, header).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantASensitiveSharedCredentialShownOnlyTem)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 				ui.Row(c).Gap(8).Children(func() {
-					if m.OnCopyTrigger != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCopyTriggerAddress)).Disabled(blocked).Clicked() {
+					if m.OnCopyTrigger != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantCopyTriggerAddress), blocked).Clicked() {
 						m.OnCopyTrigger("address")
 					}
-					if m.OnCopyTrigger != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCopySecretHeader)).Disabled(blocked).Clicked() {
+					if m.OnCopyTrigger != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantCopySecretHeader), blocked).Clicked() {
 						m.OnCopyTrigger("header")
 					}
 				})
 			}
 		}
-		if m.OnCloseTrigger != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCloseAndClearCredential)).Clicked() {
+		if m.OnCloseTrigger != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantCloseAndClearCredential), false).Clicked() {
 			m.OnCloseTrigger()
 		}
 	})
