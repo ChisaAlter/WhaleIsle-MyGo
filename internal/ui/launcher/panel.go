@@ -13,6 +13,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -324,17 +325,19 @@ func componentCard(c *ui.Context, pal launcherPalette, m Model, row components.R
 					}
 					compPrimary := func(label string) ui.Element {
 						// Electron ?? ??72�42 device-px @150% ??~48�28 DIP.
-						return ui.Button(c, label).Height(28).Padding(0, 10, 0, 10).
-							Radius(14).Background(pal.primary).BorderWidth(0).
-							TextColor(pal.primaryFg).FontSize(theme.InterfaceSize(12))
+						return coss.Button(c, label, coss.ButtonOptions{
+							Variant:  coss.ButtonDefault,
+							Size:     coss.ButtonSM,
+							Disabled: componentBusy,
+						}).Radius(design.RadiusFull)
 					}
 					switch row.State {
 					case "available":
-						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "install")
 						}
 					case "running":
-						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "open")
 						}
 						if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherCompStop)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
@@ -345,7 +348,7 @@ func componentCard(c *ui.Context, pal launcherPalette, m Model, row components.R
 						if row.State == "error" {
 							label = i18n.T(i18n.KeyLauncherCompRetry)
 						}
-						if compPrimary(label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(label).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "start")
 						}
 					}
@@ -548,13 +551,17 @@ func importPanel(c *ui.Context, m Model) {
 					}
 				}
 				label := fmt.Sprintf("%s %d/%d", cat.name, n, d)
-				bg := pal.field
-				if importCatActive == cat.id {
-					bg = pal.navActive
-				}
 				id := cat.id
-				btn := ui.Button(c, label).Grow(1).MinWidth(0).Height(32).Role(ui.RoleTab).Checked(importCatActive == id).Background(bg).Border(1, pal.borderL2).
-					Padding(6, 4).Radius(8).TextColor(pal.primary).FontSize(theme.InterfaceSize(12))
+				active := importCatActive == id
+				variant := coss.ButtonOutline
+				if active {
+					variant = coss.ButtonSecondary
+				}
+				btn := coss.Button(c, label, coss.ButtonOptions{
+					Variant: variant,
+					Size:    coss.ButtonMD,
+					Pressed: active,
+				}).Grow(1).MinWidth(0).Role(ui.RoleTab).Checked(active).Padding(design.Sp(1.5), design.Sp(1))
 				if btn.Clicked() {
 					importCatActive = id
 					c.Invalidate()
@@ -632,7 +639,7 @@ func importPanel(c *ui.Context, m Model) {
 								if !it.Blocker.Importable() {
 									label += i18n.T(i18n.KeyLauncherImportUnsupported)
 								}
-								if ui.Checkbox(c, &it.Selected, label).FontSize(theme.InterfaceSize(12)).FillWidth().MinWidth(0).Disabled(!it.Blocker.Importable()).Changed() {
+								if coss.Checkbox(c, &it.Selected, label, coss.CheckOptions{Disabled: !it.Blocker.Importable()}).FillWidth().MinWidth(0).Changed() {
 									c.Invalidate()
 								}
 
@@ -792,14 +799,16 @@ func settingsPanel(c *ui.Context, m Model) {
 			chrome.FrostSurface(ui.Row(c).Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.base, 14).
 				Padding(2, 2, 2, 2).Gap(0).Children(func() {
 				seg := func(id, label string) {
-					bg := ui.Transparent
-					fg := pal.tertiary
+					variant := coss.ButtonGhost
 					if route == id {
-						bg = pal.segActive
-						fg = pal.primary
+						variant = coss.ButtonSecondary
 					}
-					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(theme.ContextRadii(c).MD).
-						Background(bg).BorderWidth(0).TextColor(fg).FontSize(theme.InterfaceSize(12))
+					b := coss.Button(c, label, coss.ButtonOptions{
+						Variant:  variant,
+						Size:     coss.ButtonSM,
+						Disabled: m.RouteUnavailable[id] != "",
+						Pressed:  route == id,
+					}).Height(26).Padding(0, design.Sp(3.5), 0, design.Sp(3.5)).Radius(theme.ContextRadii(c).MD)
 					if b.Clicked() && m.DownloadRoute != nil {
 						*m.DownloadRoute = id
 						if m.OnSaveLauncherPrefs != nil {
@@ -844,28 +853,12 @@ func switchCheck(c *ui.Context, pal launcherPalette, title, desc string, checked
 		before = *checked
 	}
 	switchRow(c, pal, title, desc, func() {
-		// Electron uses an iOS-style switch; approximate with a track + Absolute knob.
-		on := checked != nil && *checked
-		track := pal.field
-		if on {
-			track = pal.accent
+		val := before
+		target := checked
+		if target == nil {
+			target = &val
 		}
-		swW, swH := float32(48), float32(28)
-		knob := float32(22)
-		knobOn := float32(23)
-		btn := ui.Button(c, "").Width(swW).Height(swH).Radius(swH / 2).
-			Background(track).BorderWidth(0).Clip()
-		btn.Children(func() {
-			left := float32(3)
-			if on {
-				left = knobOn
-			}
-			ui.Box(c).Absolute().Left(left).Top((swH - knob) / 2).Width(knob).Height(knob).Radius(knob / 2).
-				Background(pal.base)
-		})
-		if btn.Clicked() && checked != nil {
-			*checked = !*checked
-		}
+		coss.Switch(c, target, "", coss.CheckOptions{Label: title, Disabled: checked == nil})
 	})
 	if checked != nil && *checked != before && onSave != nil {
 		onSave()

@@ -7,6 +7,8 @@ import (
 	"whaleisle/internal/directorypicker"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -54,10 +56,10 @@ func View(c *ui.Context, m Model) {
 		ui.Column(c).FillWidth().Shrink(0).Padding(16, 14, 8, 24).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Height(28).AlignItems(ui.Center).Gap(8).Children(func() {
 				ui.Text(c, dirText("\u9009\u62e9\u5de5\u4f5c\u76ee\u5f55", "Select Workspace Directory")).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-				if m.OnNativeMode == nil && m.OnNativePicker != nil && ui.Button(c, dirText("系统选择器…", "System picker…")).Height(28).Padding(2, 8).BorderWidth(0).Background(ui.Transparent).Disabled(inert || m.Loading).Clicked() {
+				if m.OnNativeMode == nil && m.OnNativePicker != nil && coss.Button(c, dirText("系统选择器…", "System picker…"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: inert || m.Loading}).Clicked() {
 					m.OnNativePicker()
 				}
-				if !s.UseNative && ui.Button(c, dirText("主目录", "Home")).Height(28).Padding(2, 8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert).Clicked() && m.OnNavigate != nil {
+				if !s.UseNative && coss.Button(c, dirText("主目录", "Home"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: inert}).Clicked() && m.OnNavigate != nil {
 					path := ""
 					if s.Parent != nil {
 						path = s.Parent.Home
@@ -107,8 +109,15 @@ func View(c *ui.Context, m Model) {
 									if !directorypicker.SelectablePath(crumb.Path) {
 										label = dirText("\u6b64\u7535\u8111", "This PC")
 									}
-									button := ui.Button(c, "").Label(label).Tooltip(crumb.Path).Height(22).MaxWidth(160).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert)
-									button.Children(func() { ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(muted).MinWidth(0).SingleLine() })
+									button := coss.Button(c, "", coss.ButtonOptions{
+										Variant:  coss.ButtonGhost,
+										Size:     coss.ButtonXS,
+										Disabled: inert,
+										Label:    label,
+										Content: func() {
+											ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(muted).MinWidth(0).SingleLine()
+										},
+									}).Tooltip(crumb.Path).Height(22).MaxWidth(160).Padding(0)
 									if index == len(current.Crumbs)-1 && s.ScrolledCrumb != current.Path {
 										button.ScrollIntoView()
 										s.ScrolledCrumb = current.Path
@@ -120,8 +129,15 @@ func View(c *ui.Context, m Model) {
 							}
 						})
 					})
-					edit := ui.Button(c, "").Label(dirText("编辑路径", "Edit path")).Tooltip(dirText("编辑路径", "Edit path")).MinWidth(34).Grow(1).Height(22).Padding(4).BorderWidth(0).Background(ui.Transparent).Disabled(inert)
-					edit.Children(func() { ui.Row(c).FillWidth().Justify(ui.End).Children(func() { editGlyph(c, muted) }) })
+					edit := coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonXS,
+						Disabled: inert,
+						Label:    dirText("编辑路径", "Edit path"),
+						Content: func() {
+							ui.Row(c).FillWidth().Justify(ui.End).Children(func() { editGlyph(c, muted) })
+						},
+					}).Tooltip(dirText("编辑路径", "Edit path")).MinWidth(34).Grow(1).Height(22).Padding(design.Sp(1))
 					if edit.Hovered() || edit.FocusVisible() {
 						bar.Border(1, border).Radius(6)
 					}
@@ -145,7 +161,7 @@ func View(c *ui.Context, m Model) {
 					if s.NativeBusy {
 						label = dirText("选择中…", "Choosing…")
 					}
-					if ui.Button(c, label).Height(32).Disabled(inert).Clicked() && m.OnNativePicker != nil {
+					if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: inert}).Clicked() && m.OnNativePicker != nil {
 						m.OnNativePicker()
 					}
 				})
@@ -191,7 +207,7 @@ func View(c *ui.Context, m Model) {
 		ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Wrap().Gap(8).Padding(16, 24).AlignItems(ui.Center).Children(func() {
 			blocked := inert || m.Loading || s.PathDraft != nil || !directorypicker.SelectablePath(s.TargetPath())
 			if !s.UseNative {
-				if ui.Button(c, dirText("新建文件夹", "New folder")).FontSize(theme.InterfaceSize(13)).Height(32).Disabled(blocked).Clicked() {
+				if coss.Button(c, dirText("新建文件夹", "New folder"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: blocked}).Clicked() {
 					draft := ""
 					s.FolderDraft = &draft
 					s.CreateError = ""
@@ -200,8 +216,15 @@ func View(c *ui.Context, m Model) {
 				if s.ShowHidden {
 					label += "  ✓"
 				}
-				toggle := ui.Button(c, "").Label(dirText("显示隐藏文件", "Show hidden files")).Height(28).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Disabled(inert)
-				toggle.Children(func() { ui.Text(c, label).FontSize(theme.InterfaceSize(13)).SingleLine() })
+				toggle := coss.Button(c, "", coss.ButtonOptions{
+					Variant:  coss.ButtonGhost,
+					Size:     coss.ButtonSM,
+					Disabled: inert,
+					Label:    dirText("显示隐藏文件", "Show hidden files"),
+					Content: func() {
+						ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(muted).SingleLine()
+					},
+				})
 				if toggle.Clicked() {
 					s.ShowHidden = !s.ShowHidden
 				}
@@ -217,10 +240,10 @@ func View(c *ui.Context, m Model) {
 				})
 			}
 			ui.Box(c).Grow(1).MinWidth(0)
-			if ui.Button(c, dirText("\u53d6\u6d88", "Cancel")).Height(32).MinWidth(72).Disabled(inert).Clicked() && m.OnClose != nil {
+			if coss.Button(c, dirText("\u53d6\u6d88", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: inert}).MinWidth(72).Clicked() && m.OnClose != nil {
 				m.OnClose()
 			}
-			if !s.UseNative && ui.Button(c, dirText("打开", "Open")).Height(32).MinWidth(72).Background(chrome.Color(colors.Accent)).TextColor(chrome.Color(colors.ButtonFG)).Disabled(blocked).Clicked() && m.OnPick != nil {
+			if !s.UseNative && coss.Button(c, dirText("打开", "Open"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: blocked}).MinWidth(72).Clicked() && m.OnPick != nil {
 				m.OnPick(s.TargetPath())
 			}
 		})
@@ -262,7 +285,24 @@ func levelColumn(c *ui.Context, m Model, listing api.DirectoryListing, selected,
 	column.Children(func() {
 		for _, entry := range VisibleEntries(listing.Entries, selected, s.ShowHidden, prefix) {
 			entry := entry
-			button := ui.Button(c.Key(entry.Path), "").Label(entry.Name).Tooltip(entry.Path).FillWidth().Height(28).Padding(4).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(inert)
+			button := coss.Button(c.Key(entry.Path), "", coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: inert,
+				Pressed:  entry.Path == selected,
+				Label:    entry.Name,
+				Content: func() {
+					ui.Row(c).FillWidth().Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+						icon := chrome.Color(colors.Muted)
+						if entry.Path == selected {
+							icon = chrome.Color(colors.ButtonInfoFill)
+						}
+						folderIcon(c, icon, entry.Path == selected)
+						ui.Text(c, entry.Name).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(chrome.Color(colors.FG)).Grow(1).MinWidth(0).SingleLine()
+						ui.Text(c, "›").FontSize(12).TextColor(chrome.Color(colors.Muted))
+					})
+				},
+			}).Tooltip(entry.Path).FillWidth().Padding(design.Sp(1)).Radius(design.RadiusMD)
 			if entry.Path == selected {
 				button.Background(chrome.Color(colors.Pressed))
 				if s.FocusSelection {
@@ -272,17 +312,6 @@ func levelColumn(c *ui.Context, m Model, listing api.DirectoryListing, selected,
 			} else if button.Hovered() || button.FocusWithin() {
 				button.Background(chrome.Color(colors.Hover))
 			}
-			button.Children(func() {
-				ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
-					icon := chrome.Color(colors.Muted)
-					if entry.Path == selected {
-						icon = chrome.Color(colors.ButtonInfoFill)
-					}
-					folderIcon(c, icon, entry.Path == selected)
-					ui.Text(c, entry.Name).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(chrome.Color(colors.FG)).Grow(1).MinWidth(0).SingleLine()
-					ui.Text(c, "›").FontSize(12).TextColor(chrome.Color(colors.Muted))
-				})
-			})
 			if button.Clicked() && m.OnSelect != nil {
 				m.OnSelect(entry, right)
 			}
@@ -330,13 +359,18 @@ func createDialog(c *ui.Context, m Model) {
 						Action: dirText("重试", "Retry"), OnAction: m.OnRetryCreate,
 						Dismiss: dirText("关闭", "Dismiss"), OnDismiss: m.OnDismissCreateError})
 				}
-				input := ui.TextInput(c.Key("directory-folder-name"), s.FolderDraft).Label(dirText("文件夹名称", "Folder name")).Placeholder(dirText("未命名文件夹", "Untitled folder")).FillWidth().Height(44).Padding(7, 14).Radius(12).FontSize(theme.InterfaceSize(14)).Disabled(s.Creating).AutoFocus()
+				input := coss.Input(c.Key("directory-folder-name"), s.FolderDraft, coss.InputOptions{
+					Size:        coss.InputLG,
+					Label:       dirText("文件夹名称", "Folder name"),
+					Placeholder: dirText("未命名文件夹", "Untitled folder"),
+					Disabled:    s.Creating,
+				}).Height(44).FixedLineHeight(44).AutoFocus()
 				ui.Row(c).FillWidth().Gap(8).Margin(8, 0, 0, 0).Justify(ui.End).Children(func() {
-					if ui.Button(c, dirText("取消", "Cancel")).Disabled(s.Creating).Clicked() {
+					if coss.Button(c, dirText("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: s.Creating}).Clicked() {
 						s.FolderDraft = nil
 						s.CreateError = ""
 					}
-					create := ui.Button(c, dirText("创建", "Create")).Background(chrome.Color(colors.Accent)).TextColor(chrome.Color(colors.ButtonFG)).Disabled(s.Creating || s.FolderDraft == nil || strings.TrimSpace(*s.FolderDraft) == "")
+					create := coss.Button(c, dirText("创建", "Create"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonMD, Disabled: s.Creating || s.FolderDraft == nil || strings.TrimSpace(*s.FolderDraft) == ""})
 					if !s.Creating && s.FolderDraft != nil && strings.TrimSpace(*s.FolderDraft) != "" && (create.Clicked() || input.Submitted() && !input.Composing()) && m.OnCreate != nil {
 						m.OnCreate(s.TargetPath(), *s.FolderDraft)
 					}

@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/update"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -33,7 +35,7 @@ func updateCenter(c *ui.Context, m Model, fixedFooter bool) {
 		ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Children(func() {
 			if m.OnSetAutoDownload != nil {
 				enabled := m.ReleaseAutoDownload
-				if ui.Checkbox(c, &enabled, releaseText("有新版本时在后台自动下载", "Download new versions automatically in the background")).Grow(1).Changed() {
+				if coss.Checkbox(c, &enabled, releaseText("有新版本时在后台自动下载", "Download new versions automatically in the background"), coss.CheckOptions{}).Grow(1).Changed() {
 					m.OnSetAutoDownload(enabled)
 				}
 			} else {
@@ -58,30 +60,34 @@ func updateCenter(c *ui.Context, m Model, fixedFooter bool) {
 			row := ui.Column(c.Key("release-"+r.PackageKey())).FillWidth().MinWidth(0).Border(1, pal.borderL2).Radius(12).Clip()
 			expanded := ui.Local(row, "expanded", func() bool { return false })
 			row.Children(func() {
-				header := ui.Button(c, "").FillWidth().MinWidth(0).Background(chrome.FrostInset(pal.colors, m.SystemDark, pal.sidebar)).BorderWidth(0).Padding(12).Label(r.Tag).Expanded(*expanded)
-				header.Children(func() {
-					ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, r.Tag).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(pal.primary)
-						if update.CompareVersions(r.Version, m.Version) == 0 {
-							releaseBadge(c, pal, releaseText("当前", "Current"))
-						}
-						if r.Version == latest {
-							releaseBadge(c, pal, releaseText("最新", "Latest"))
-						}
-						if r.Prerelease {
-							releaseBadge(c, pal, releaseText("预发布", "Prerelease"))
-						}
-						ui.Box(c).Grow(1)
-						if r.PublishedAt != "" {
-							ui.Text(c, releaseDate(r.PublishedAt)).FontSize(theme.InterfaceSize(11)).TextColor(pal.tertiary)
-						}
-						arrow := "⌄"
-						if *expanded {
-							arrow = "⌃"
-						}
-						ui.Text(c, arrow).TextColor(pal.secondary)
-					})
-				})
+				header := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXL,
+					Label:   r.Tag,
+					Content: func() {
+						ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, r.Tag).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(pal.primary)
+							if update.CompareVersions(r.Version, m.Version) == 0 {
+								releaseBadge(c, pal, releaseText("当前", "Current"))
+							}
+							if r.Version == latest {
+								releaseBadge(c, pal, releaseText("最新", "Latest"))
+							}
+							if r.Prerelease {
+								releaseBadge(c, pal, releaseText("预发布", "Prerelease"))
+							}
+							ui.Box(c).Grow(1)
+							if r.PublishedAt != "" {
+								ui.Text(c, releaseDate(r.PublishedAt)).FontSize(theme.InterfaceSize(11)).TextColor(pal.tertiary)
+							}
+							arrow := "⌄"
+							if *expanded {
+								arrow = "⌃"
+							}
+							ui.Text(c, arrow).TextColor(pal.secondary)
+						})
+					},
+				}).FillWidth().MinWidth(0).Background(chrome.FrostInset(pal.colors, m.SystemDark, pal.sidebar)).Padding(design.Sp(3)).Radius(0).Expanded(*expanded)
 				if header.Clicked() {
 					*expanded = !*expanded
 				}

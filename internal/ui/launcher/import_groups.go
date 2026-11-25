@@ -6,6 +6,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/importer"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -63,7 +65,14 @@ func importSessionGroups(c *ui.Context, pal launcherPalette, items []importer.Ca
 				if *expanded {
 					arrow = "⌃"
 				}
-				if ui.Button(c, arrow).Size(28, 28).Background(ui.Transparent).BorderWidth(0).Label(releaseText("展开或收起", "Expand or collapse")).Expanded(*expanded).Clicked() {
+				if coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconSM,
+					Label:   releaseText("展开或收起", "Expand or collapse"),
+					Content: func() {
+						ui.Text(c, arrow).TextColor(pal.secondary)
+					},
+				}).Expanded(*expanded).Clicked() {
 					*expanded = !*expanded
 				}
 			})
@@ -81,7 +90,7 @@ func importSessionGroups(c *ui.Context, pal launcherPalette, items []importer.Ca
 						label += " · " + why
 					}
 				}
-				if ui.Checkbox(c.Key("session-"+row.Rel+"-"+row.ID), &row.Selected, label).FillWidth().MinWidth(0).Padding(6, 12).FontSize(theme.InterfaceSize(12)).Disabled(!row.Blocker.Importable()).Changed() {
+				if coss.Checkbox(c.Key("session-"+row.Rel+"-"+row.ID), &row.Selected, label, coss.CheckOptions{Disabled: !row.Blocker.Importable()}).FillWidth().MinWidth(0).Padding(design.Sp(1.5), design.Sp(3)).Changed() {
 					c.Invalidate()
 				}
 			}

@@ -288,19 +288,21 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 
 func menuRow(c *ui.Context, label, path string, selected bool, icon string, disabled bool, colors theme.Colors) ui.Element {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	button := ui.Button(c, "").Label(label).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(6, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
-	if !disabled {
-		button.Cursor(ui.CursorPointer)
-	}
-	button.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, icon, muted) })
-			ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-			if selected {
-				ui.Box(c).Width(14).Height(14).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, "check", fg) })
-			}
-		})
-	})
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonMD,
+		Disabled: disabled,
+		Label:    label,
+		Content: func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, icon, muted) })
+				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+				if selected {
+					ui.Box(c).Width(14).Height(14).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, "check", fg) })
+				}
+			})
+		},
+	}).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(design.Sp(1.5), design.Sp(2)).Radius(design.RadiusLG)
 	return button
 }
 

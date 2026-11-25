@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	panel "whaleisle/internal/store/custompanel"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -63,16 +64,16 @@ func View(c *ui.Context, m Model) {
 			if !m.Available {
 				return
 			}
-			ui.TextArea(c.Key("panel-requirements"), &e.Requirements).Label(i18n.T(i18n.KeyMiscCustompanelRequirements)).Lines(2, 5).FillWidth()
-			if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelCreateWithBot)).Disabled(m.OnCreate == nil).Clicked() {
+			coss.Textarea(c.Key("panel-requirements"), &e.Requirements, coss.TextareaOptions{Label: i18n.T(i18n.KeyMiscCustompanelRequirements), MaxLines: 5})
+			if coss.Button(c, i18n.T(i18n.KeyMiscCustompanelCreateWithBot), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: m.OnCreate == nil}).Clicked() {
 				m.OnCreate()
 			}
 			ui.Text(c, i18n.T(i18n.KeyMiscCustompanelSendThePreparedDraftThenImportThe)).FontSize(11).TextColor(muted)
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelImportReply)).Disabled(m.OnImport == nil).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyMiscCustompanelImportReply), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: m.OnImport == nil}).Clicked() {
 					m.OnImport()
 				}
-				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelNewJson)).Disabled(m.OnNew == nil).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyMiscCustompanelNewJson), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: m.OnNew == nil}).Clicked() {
 					m.OnNew()
 				}
 			})
@@ -84,12 +85,12 @@ func View(c *ui.Context, m Model) {
 				}
 			}
 			ui.Text(c, mode).FontSize(11).TextColor(muted)
-			ui.TextArea(c.Key("panel-json"), &e.JSON).Label("Panel JSON").Lines(4, 10).FillWidth().OnChange(func() { e.Preview = nil })
+			coss.Textarea(c.Key("panel-json"), &e.JSON, coss.TextareaOptions{Label: "Panel JSON", MaxLines: 10}).OnChange(func() { e.Preview = nil })
 			ui.Row(c).Gap(4).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelPreview)).Disabled(m.OnPreview == nil).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyMiscCustompanelPreview), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: m.OnPreview == nil}).Clicked() {
 					m.OnPreview()
 				}
-				if ui.Button(c, i18n.T(i18n.KeyMiscCustompanelSave)).Disabled(e.Preview == nil || m.OnSave == nil).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyMiscCustompanelSave), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: e.Preview == nil || m.OnSave == nil}).Clicked() {
 					m.OnSave()
 				}
 			})
@@ -103,38 +104,38 @@ func View(c *ui.Context, m Model) {
 				pc := c.Key("instance-" + i.Definition.ID)
 				ui.Column(pc).FillWidth().Gap(4).Children(func() {
 					ui.Row(pc).Gap(4).Children(func() {
-						if ui.Button(pc, "↑").Clicked() && m.OnMove != nil {
+						if coss.Button(pc, "↑", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() && m.OnMove != nil {
 							m.OnMove(i.Definition.ID, -1)
 						}
-						if ui.Button(pc, "↓").Clicked() && m.OnMove != nil {
+						if coss.Button(pc, "↓", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() && m.OnMove != nil {
 							m.OnMove(i.Definition.ID, 1)
 						}
-						if ui.Button(pc, i18n.T(i18n.KeyMiscCustompanelEdit)).Clicked() && m.OnEdit != nil {
+						if coss.Button(pc, i18n.T(i18n.KeyMiscCustompanelEdit), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() && m.OnEdit != nil {
 							m.OnEdit(i.Definition, false)
 						}
-						if ui.Button(pc, i18n.T(i18n.KeyMiscCustompanelRemove)).Clicked() && m.OnRemove != nil {
+						if coss.Button(pc, i18n.T(i18n.KeyMiscCustompanelRemove), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonXS}).Clicked() && m.OnRemove != nil {
 							m.OnRemove(i.Definition.ID)
 						}
 					})
 					ui.Row(pc).Gap(4).Children(func() {
-						if ui.Button(pc, i18n.Pick("宽 −", "Width −")).Disabled(m.OnUpdate == nil || i.Definition.Width <= 240).Clicked() && m.OnUpdate != nil {
+						if coss.Button(pc, i18n.Pick("宽 −", "Width −"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: m.OnUpdate == nil || i.Definition.Width <= 240}).Clicked() && m.OnUpdate != nil {
 							i.Definition.Width = max(240, i.Definition.Width-40)
 							m.OnUpdate(i)
 						}
-						if ui.Button(pc, i18n.Pick("宽 +", "Width +")).Disabled(m.OnUpdate == nil || i.Definition.Width >= 1600).Clicked() && m.OnUpdate != nil {
+						if coss.Button(pc, i18n.Pick("宽 +", "Width +"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: m.OnUpdate == nil || i.Definition.Width >= 1600}).Clicked() && m.OnUpdate != nil {
 							i.Definition.Width = min(1600, i.Definition.Width+40)
 							m.OnUpdate(i)
 						}
-						if ui.Button(pc, i18n.Pick("高 −", "Height −")).Disabled(m.OnUpdate == nil || i.Definition.Height <= 120).Clicked() && m.OnUpdate != nil {
+						if coss.Button(pc, i18n.Pick("高 −", "Height −"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: m.OnUpdate == nil || i.Definition.Height <= 120}).Clicked() && m.OnUpdate != nil {
 							i.Definition.Height = max(120, i.Definition.Height-40)
 							m.OnUpdate(i)
 						}
-						if ui.Button(pc, i18n.Pick("高 +", "Height +")).Disabled(m.OnUpdate == nil || i.Definition.Height >= 1600).Clicked() && m.OnUpdate != nil {
+						if coss.Button(pc, i18n.Pick("高 +", "Height +"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: m.OnUpdate == nil || i.Definition.Height >= 1600}).Clicked() && m.OnUpdate != nil {
 							i.Definition.Height = min(1600, i.Definition.Height+40)
 							m.OnUpdate(i)
 						}
 					})
-					if ui.Button(pc, i18n.T(i18n.KeyMiscCustompanelUpdateLibraryTemplate)).Clicked() && m.OnTemplate != nil {
+					if coss.Button(pc, i18n.T(i18n.KeyMiscCustompanelUpdateLibraryTemplate), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() && m.OnTemplate != nil {
 						m.OnTemplate(i.Definition)
 					}
 					render(pc, i, m.OnUpdate, m.OnPrompt, fg, border)
@@ -153,10 +154,10 @@ func View(c *ui.Context, m Model) {
 								added = true
 							}
 						}
-						if ui.Button(lc, i18n.T(i18n.KeyMiscCustompanelAddCopy)).Disabled(added || m.OnAdd == nil).Clicked() {
+						if coss.Button(lc, i18n.T(i18n.KeyMiscCustompanelAddCopy), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: added || m.OnAdd == nil}).Clicked() {
 							m.OnAdd(d.ID)
 						}
-						if ui.Button(lc, i18n.T(i18n.KeyMiscCustompanelEditTemplate)).Disabled(m.OnEdit == nil).Clicked() {
+						if coss.Button(lc, i18n.T(i18n.KeyMiscCustompanelEditTemplate), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: m.OnEdit == nil}).Clicked() {
 							m.OnEdit(d, true)
 						}
 					})
@@ -201,10 +202,10 @@ func render(c *ui.Context, i panel.Instance, onUpdate func(panel.Instance), onPr
 								case "text":
 									ui.Text(wc, w.Text).FontSize(float32(size)).TextColor(fg).Selectable()
 								case "input":
-									ui.TextArea(wc, &value).Label(w.Label).Lines(2, 6).FillWidth().Disabled(onUpdate == nil).OnChange(func() { change(value) })
+									coss.Textarea(wc, &value, coss.TextareaOptions{Label: w.Label, MaxLines: 6, Disabled: onUpdate == nil}).OnChange(func() { change(value) })
 								case "checkbox":
 									checked := value == "true"
-									if ui.Checkbox(wc, &checked, w.Label).Disabled(onUpdate == nil).Changed() {
+									if coss.Checkbox(wc, &checked, w.Label, coss.CheckOptions{Disabled: onUpdate == nil}).Changed() {
 										change(fmt.Sprint(checked))
 									}
 								case "progress":
@@ -212,11 +213,15 @@ func render(c *ui.Context, i panel.Instance, onUpdate func(panel.Instance), onPr
 									ui.Progress(wc, w.Value).FillWidth()
 								case "select":
 									ui.Text(wc, w.Label).TextColor(fg)
-									if ui.Select(wc, &value, w.Options).Disabled(onUpdate == nil).Changed() {
+									opts := make([]coss.SelectOption, len(w.Options))
+									for idx, opt := range w.Options {
+										opts[idx] = coss.SelectOption{Value: opt, Label: opt}
+									}
+									if coss.Select(wc, &value, opts, coss.SelectOptions{Disabled: onUpdate == nil}).Changed() {
 										change(value)
 									}
 								case "action":
-									if ui.Button(wc, w.Label).Disabled(onPrompt == nil).Tooltip(i18n.T(i18n.KeyMiscCustompanelPrepareChatDraftDoesNotSend)).Clicked() {
+									if coss.Button(wc, w.Label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: onPrompt == nil}).Tooltip(i18n.T(i18n.KeyMiscCustompanelPrepareChatDraftDoesNotSend)).Clicked() {
 										onPrompt(w.Text)
 									}
 								}
