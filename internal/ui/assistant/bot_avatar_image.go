@@ -10,7 +10,7 @@ import (
 
 func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, fg, muted, accent ui.Color) {
 	p := m.State.ImageImport
-	if ui.Button(c, i18n.T(i18n.KeyMiscAssistantChooseLocalAvatarImage)).Disabled(!eligible || p.Busy || p.Ready || m.OnChooseImage == nil).Clicked() {
+	if aButton(c, i18n.T(i18n.KeyMiscAssistantChooseLocalAvatarImage), !eligible || p.Busy || p.Ready || m.OnChooseImage == nil).Clicked() {
 		m.OnChooseImage()
 	}
 	ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyAManuallyChosenLocalJpegPngIsUse)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
@@ -36,11 +36,7 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantVerticalOffset), crop.Y)).TextColor(fg)
 			changed = ui.StepSlider(c.Key("crop-y"), &crop.Y, 0, 1, .01).Label("Avatar crop Y").Disabled(!eligible).Changed() || changed
 			for _, shape := range []string{"circle", "square"} {
-				b := ui.Button(c, i18n.T(i18n.KeyMiscAssistantCrop)+shape).Disabled(!eligible)
-				if crop.Shape == shape {
-					b.Border(2, accent)
-				}
-				if b.Clicked() {
+				if aChoice(c, i18n.T(i18n.KeyMiscAssistantCrop)+shape, crop.Shape == shape, !eligible).Clicked() {
 					crop.Shape = shape
 					changed = true
 				}
@@ -48,11 +44,11 @@ func botAvatarImageImportBlock(c *ui.Context, m BotAvatarModel, eligible bool, f
 			if changed && m.OnImageCropChange != nil {
 				m.OnImageCropChange(crop)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantApplyCropToDraft)).Disabled(!eligible || p.Error != nil || m.OnApplyImageCrop == nil).Clicked() {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantApplyCropToDraft), !eligible || p.Error != nil || m.OnApplyImageCrop == nil).Clicked() {
 				m.OnApplyImageCrop()
 			}
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelImageSelection)).Disabled(m.OnCancelImageCrop == nil).Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelImageSelection), m.OnCancelImageCrop == nil).Clicked() {
 			m.OnCancelImageCrop()
 		}
 	})

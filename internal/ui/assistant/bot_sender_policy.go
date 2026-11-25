@@ -69,7 +69,7 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 	ui.Column(c.Key("bot-sender-policy-editor")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantMessageAndTaskSources)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantChoosePersonalBotsFromTheSameCatalogO)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshSourcePolicy)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshSourcePolicy), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -102,7 +102,7 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 		if draft.Selected {
 			selected = i18n.T(i18n.KeyMiscAssistantSelectedBots)
 		}
-		ui.Select(c.Key("bot-sender-policy-mode"), &selected, []string{i18n.T(i18n.KeyMiscAssistantDefaultRule), i18n.T(i18n.KeyMiscAssistantSelectedBots)}).FillWidth().Disabled(!editable).OnChange(func() {
+		aSelect(c.Key("bot-sender-policy-mode"), &selected, []string{i18n.T(i18n.KeyMiscAssistantDefaultRule), i18n.T(i18n.KeyMiscAssistantSelectedBots)}, "", !editable).FillWidth().OnChange(func() {
 			draft.Selected = selected == i18n.T(i18n.KeyMiscAssistantSelectedBots)
 			draft.IDs = []string{}
 			if m.OnChange != nil {
@@ -115,7 +115,7 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 				peer := peer
 				checked := slices.Contains(draft.IDs, peer.ID)
 				label := botSenderNames([]string{peer.ID}, s.Status)
-				if ui.Checkbox(c.Key("sender-peer-"+peer.ID), &checked, label).Disabled(!editable).Changed() && m.OnChange != nil {
+				if aCheckbox(c.Key("sender-peer-"+peer.ID), &checked, label, !editable).Changed() && m.OnChange != nil {
 					next := pluginrpc.CloneDshbotSenderPolicyValues(draft)
 					if checked {
 						next.IDs = append(next.IDs, peer.ID)
@@ -127,13 +127,13 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 			}
 		}
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraftRule)+botSenderPolicySummary(s.Status, draft)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardSourceDraft)).Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardSourceDraft), !editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewSourcePolicy)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewSourcePolicy), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
-		if s.Candidate && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptSourceReadback)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
+		if s.Candidate && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptSourceReadback), blocked).Clicked() && m.OnAdopt != nil {
 			m.OnAdopt()
 		}
 		if s.Review == nil {
@@ -154,19 +154,19 @@ func botSenderPolicyBlock(c *ui.Context, m BotSenderPolicyModel, blocked bool, f
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantRetainedObjective)+string(cmd.Expected.Profile["objective"])+i18n.T(i18n.KeyMiscAssistantRetainedModel)+string(cmd.Expected.Profile["model"])).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyAllowedsenderidsIsReplacedTheFullP)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botSenderPolicyAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botSenderPolicyAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
 			if expands {
 				ack := r.ExpansionAcknowledged
-				if ui.Checkbox(c, &ack, botSenderPolicyExpansionAcknowledgement()).Disabled(blocked).Changed() && m.OnExpansionAcknowledge != nil {
+				if aCheckbox(c, &ack, botSenderPolicyExpansionAcknowledgement(), blocked).Changed() && m.OnExpansionAcknowledge != nil {
 					m.OnExpansionAcknowledge(ack)
 				}
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelSourceSave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelSourceSave), blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmSourceSave)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged || (expands && !r.ExpansionAcknowledged)).Clicked() && m.OnConfirm != nil {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmSourceSave), blocked || !s.Loaded || !s.Writable || !r.Acknowledged || (expands && !r.ExpansionAcknowledged)).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

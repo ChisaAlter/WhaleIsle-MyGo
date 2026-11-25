@@ -7,6 +7,7 @@ import (
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -61,7 +62,7 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 			ui.Text(c, botDeleteReviewText(m.HostLabel, s.Plan)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			return
 		}
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadDeletionPreviewOrOutcome)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "" || m.SourceID == "").Clicked() {
+		if m.OnRefresh != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantReadDeletionPreviewOrOutcome), blocked || s.Scope == "" || m.SourceID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Uncertain {
@@ -83,7 +84,7 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 		}
 		if s.Review == nil {
 			ui.Text(c, botDeleteReviewText(m.HostLabel, s.Plan)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
-			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewDestructiveDeletion)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Writable).Clicked() {
+			if m.OnReview != nil && aDangerOutline(c, i18n.T(i18n.KeyMiscAssistantReviewDestructiveDeletion), blocked || !s.Writable).Clicked() {
 				m.OnReview()
 			}
 			return
@@ -92,29 +93,29 @@ func botDeleteView(c *ui.Context, m BotDeleteModel, blocked bool, fg, muted, fie
 		effects, confirmLabel, cancelLabel, idLabel := botDeleteReviewedLabels(r.Plan.Target.Kind)
 		ui.Column(c.Key("bot-delete-confirmation")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(8).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantDestructiveConfirmationCancelByDefau)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(accent)
-			if m.OnCancel != nil && ui.Button(c, cancelLabel).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+			if m.OnCancel != nil && aButton(c, cancelLabel, blocked).Clicked() {
 				m.OnCancel()
 			}
 			ui.Text(c, botDeleteReviewText(m.HostLabel, r.Plan)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			ui.Text(c, effects).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheNotepadDeletesAllCurrentContentByT)).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent)
 			name := r.TypedName
-			ui.TextInput(c.Key("bot-delete-exact-name"), &name).Label(i18n.T(i18n.KeyMiscAssistantTypeExactStableName)).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(blocked).OnChange(func() {
+			aInput(c.Key("bot-delete-exact-name"), &name, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantTypeExactStableName), Disabled: blocked}).OnChange(func() {
 				if m.OnIdentity != nil {
 					m.OnIdentity(r.TypedID, name)
 				}
 			})
 			id := r.TypedID
-			ui.TextInput(c.Key("bot-delete-exact-id"), &id).Label(idLabel).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(blocked).OnChange(func() {
+			aInput(c.Key("bot-delete-exact-id"), &id, coss.InputOptions{Label: idLabel, Disabled: blocked}).OnChange(func() {
 				if m.OnIdentity != nil {
 					m.OnIdentity(id, r.TypedName)
 				}
 			})
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botDeleteDangerAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botDeleteDangerAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if m.OnConfirm != nil && ui.Button(c, confirmLabel).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Writable || !botDeleteReviewConfirmed(r)).Clicked() {
+			if m.OnConfirm != nil && aDanger(c, confirmLabel, blocked || !s.Writable || !botDeleteReviewConfirmed(r)).Clicked() {
 				m.OnConfirm()
 			}
 		})

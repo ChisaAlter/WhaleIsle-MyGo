@@ -9,6 +9,7 @@ import (
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -57,7 +58,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 	card.Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreatePersonalBot)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantCreateABotWithTheApplicationDefaul)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-		if m.OnRefresh != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshBotCreationCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "").Clicked() {
+		if m.OnRefresh != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshBotCreationCatalog), blocked || s.Scope == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -72,12 +73,12 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		if s.Created.ID != "" {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantCreatedDetail), s.Created.Name, s.Created.ID, s.Created.SessionID)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantOpeningOnlyVerifiesOrResumesThisBotS)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-			if m.OnOpen != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantOpenCreatedBot)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+			if m.OnOpen != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantOpenCreatedBot), blocked).Clicked() {
 				m.OnOpen()
 			}
 		}
 		if s.Draft == nil {
-			if m.OnStart != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantNewPersonalBot)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
+			if m.OnStart != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantNewPersonalBot), blocked || !s.Loaded || !s.Writable || s.Uncertain).Clicked() {
 				m.OnStart()
 			}
 			return
@@ -88,7 +89,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		for _, f := range []struct{ id, label, value string }{{"name", i18n.T(i18n.KeyMiscAssistantStableBotName120), d.Name}, {"title", i18n.T(i18n.KeyMiscAssistantDisplayTitle120), d.Title}, {"scratchCwd", i18n.T(i18n.KeyMiscAssistantScratchCwdRequired), d.ScratchCwd}} {
 			f := f
 			value := f.value
-			ui.TextInput(c.Key("new-bot-"+f.id), &value).Label(f.label).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled || f.id == "scratchCwd" && d.WorkspaceID != "").OnChange(func() {
+			aInput(c.Key("new-bot-"+f.id), &value, coss.InputOptions{Label: f.label, Disabled: disabled || f.id == "scratchCwd" && d.WorkspaceID != ""}).OnChange(func() {
 				if m.OnChange != nil {
 					m.OnChange(f.id, value)
 				}
@@ -97,7 +98,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		createWorkspacePicker(c.Key("new-bot-workspace"), d.WorkspaceID, m.Workspaces, m.WorkspacesKnown, disabled, m.OnChange, muted)
 		botCreateModelPicker(c, m, d, disabled, muted)
 		description := d.Description
-		ui.TextArea(c.Key("new-bot-description"), &description).Label(i18n.T(i18n.KeyMiscAssistantDescription12000)).Lines(3, 8).Radius(8).Border(.5, border).FillWidth().Disabled(disabled).OnChange(func() {
+		aTextarea(c.Key("new-bot-description"), &description, coss.TextareaOptions{Label: i18n.T(i18n.KeyMiscAssistantDescription12000), MaxLines: 8, Disabled: disabled}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("description", description)
 			}
@@ -108,7 +109,7 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 		}{{"memoryReview", i18n.T(i18n.KeyMiscAssistantMemoryReview), d.MemoryReview}, {"notify", i18n.T(i18n.KeyMiscAssistantNotifications), d.Notify}} {
 			f := f
 			value := f.value
-			if ui.Checkbox(c.Key("new-bot-"+f.id), &value, f.label).Disabled(disabled).Changed() && m.OnChange != nil {
+			if aCheckbox(c.Key("new-bot-"+f.id), &value, f.label, disabled).Changed() && m.OnChange != nil {
 				m.OnChange(f.id, strconv.FormatBool(value))
 			}
 		}
@@ -120,15 +121,15 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 					ui.Text(c, botCreateReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 				}
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantEverySubmittedFieldMatchesThisIdentity)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-				if m.OnAdopt != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptInspectedBot)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+				if m.OnAdopt != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptInspectedBot), blocked).Clicked() {
 					m.OnAdopt(row.ID)
 				}
 			}
 		} else {
-			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardBotDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardBotDraft), blocked).Clicked() {
 				m.OnDiscard()
 			}
-			if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewBotCreation)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || !s.Loaded || !s.Writable).Clicked() {
+			if m.OnReview != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewBotCreation), disabled || !s.Loaded || !s.Writable).Clicked() {
 				m.OnReview()
 			}
 		}
@@ -139,13 +140,13 @@ func botCreateView(c *ui.Context, m BotCreateModel, blocked bool, fg, muted, fie
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantTheHostValidatesTheModelConfigurationW)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantThisActionSendsNoPromptCallsNoModelG)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ack := r.Acknowledged
-				if ui.Checkbox(c, &ack, botCreateAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+				if aCheckbox(c, &ack, botCreateAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
-				if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToBotDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+				if m.OnDismiss != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantBackToBotDraft), blocked).Clicked() {
 					m.OnDismiss()
 				}
-				if m.OnConfirm != nil && ui.Button(c, botCreateConfirmLabel()).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
+				if m.OnConfirm != nil && aPrimary(c, botCreateConfirmLabel(), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() {
 					m.OnConfirm()
 				}
 			})
@@ -175,7 +176,7 @@ func createWorkspacePicker(c *ui.Context, workspaceID string, rows []session.Wor
 		labels = append(labels, selected)
 	}
 	ui.Text(c, i18n.T(i18n.KeyMiscAssistantWorkspace)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Select(c.Key("workspace-choice"), &selected, labels).FillWidth().Height(32).Radius(8).Disabled(disabled).OnChange(func() {
+	aSelect(c.Key("workspace-choice"), &selected, labels, "", disabled).FillWidth().OnChange(func() {
 		if id, ok := choices[selected]; ok && change != nil {
 			change("workspaceId", id)
 		}
@@ -212,7 +213,7 @@ func botCreateModelPicker(c *ui.Context, m BotCreateModel, d dshbotstore.BotCrea
 		labels = append(labels, selected)
 	}
 	ui.Text(c, i18n.T(i18n.KeyMiscAssistantModel)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Select(c.Key("new-bot-model-choice"), &selected, labels).FillWidth().Height(32).Radius(8).Disabled(disabled).OnChange(func() {
+	aSelect(c.Key("new-bot-model-choice"), &selected, labels, "", disabled).FillWidth().OnChange(func() {
 		if choice, ok := choices[selected]; ok && m.OnSelectModel != nil {
 			m.OnSelectModel(choice)
 		}
@@ -242,7 +243,7 @@ func botCreateModelPicker(c *ui.Context, m BotCreateModel, d dshbotstore.BotCrea
 		effortLabels = append(effortLabels, effortSelected)
 	}
 	ui.Text(c, i18n.T(i18n.KeyMiscAssistantReasoningEffort)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	ui.Select(c.Key("new-bot-effort-choice"), &effortSelected, effortLabels).FillWidth().Height(32).Radius(8).Disabled(disabled || selectedOption == nil || selectedOption.Reasoning == nil).OnChange(func() {
+	aSelect(c.Key("new-bot-effort-choice"), &effortSelected, effortLabels, "", disabled || selectedOption == nil || selectedOption.Reasoning == nil).FillWidth().OnChange(func() {
 		if effort, ok := efforts[effortSelected]; ok && m.OnSelectModel != nil {
 			m.OnSelectModel(pluginrpc.DshbotRouteModel{Provider: d.Provider, Model: d.Model, ReasoningEffort: effort})
 		}

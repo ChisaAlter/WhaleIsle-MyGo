@@ -49,7 +49,7 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 	ui.Column(c.Key("bot-capabilities")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotCapabilities)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantEditTheToolsSkillsMcpScopeTheHostAct)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshCapabilities)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshCapabilities), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -87,7 +87,7 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 				ui.Row(c).Gap(6).Children(func() {
 					for _, mode := range []string{"all", "selected"} {
 						mode := mode
-						if ui.Button(c, group+": "+mode).Disabled(!editable || p.Mode == mode).Clicked() && m.OnChange != nil {
+						if aChoice(c, group+": "+mode, p.Mode == mode, !editable || p.Mode == mode).Clicked() && m.OnChange != nil {
 							m.OnChange(group, "mode", mode)
 						}
 					}
@@ -106,7 +106,7 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 					for _, e := range entries {
 						e := e
 						checked := slices.Contains(p.Names, e.Name)
-						if ui.Checkbox(c.Key(group+"-"+e.Name), &checked, e.Name).Disabled(!editable).Changed() && m.OnChange != nil {
+						if aCheckbox(c.Key(group+"-"+e.Name), &checked, e.Name, !editable).Changed() && m.OnChange != nil {
 							m.OnChange(group, "toggle", e.Name)
 						}
 						if e.Description != "" {
@@ -116,10 +116,10 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 				}
 			})
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardCapabilityDraft)).Disabled(blocked || !s.Loaded || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardCapabilityDraft), blocked || !s.Loaded || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewCapabilityChanges)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewCapabilityChanges), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
 		if s.Review != nil {
@@ -135,13 +135,13 @@ func botCapabilitiesBlock(c *ui.Context, m BotCapabilityModel, blocked bool, fg,
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantImportantTheOriginalBotUpdateAlsoSyncs)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantUnknownOutcomesRequireReadback)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ack := r.Acknowledged
-				if ui.Checkbox(c, &ack, botCapabilityAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+				if aCheckbox(c, &ack, botCapabilityAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelCapabilitySave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+				if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelCapabilitySave), blocked).Clicked() && m.OnDismiss != nil {
 					m.OnDismiss()
 				}
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmCapabilitySave)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+				if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmCapabilitySave), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 					m.OnConfirm()
 				}
 			})

@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -32,7 +33,7 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 	ui.Column(c.Key("bot-objective-config")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantObjectiveConfiguration)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantAddOrChangeTheCatalogObjectiveOfAnEx)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshObjectiveConfiguration)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshObjectiveConfiguration), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -61,20 +62,20 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 			ui.Text(c, s.Status.WriteError).TextColor(accent).Selectable()
 		}
 		draft := s.Draft
-		ui.TextArea(c.Key("objective-config-text"), &draft.Objective).Label(i18n.T(i18n.KeyMiscAssistantObjective)).FillWidth().Lines(3, 10).Disabled(!editable).OnChange(func() {
+		aTextarea(c.Key("objective-config-text"), &draft.Objective, coss.TextareaOptions{Label: i18n.T(i18n.KeyMiscAssistantObjective), MaxLines: 10, Disabled: !editable}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange(draft)
 			}
 		})
-		ui.TextInput(c.Key("objective-config-rounds"), &draft.MaxRounds).Label(i18n.T(i18n.KeyMiscAssistantRoundCap1200)).FillWidth().Disabled(!editable).OnChange(func() {
+		aInput(c.Key("objective-config-rounds"), &draft.MaxRounds, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantRoundCap1200), Disabled: !editable}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange(draft)
 			}
 		})
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardObjectiveDraft)).Disabled(blocked || !s.Loaded || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardObjectiveDraft), blocked || !s.Loaded || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewObjectiveConfiguration)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewObjectiveConfiguration), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
 		if s.Review == nil {
@@ -92,13 +93,13 @@ func botObjectiveConfigBlock(c *ui.Context, m BotObjectiveConfigModel, blocked b
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyObjectiveAndObjectivemaxroundsAreRe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantTheSaveIsSentOnlyAfterYouSeparatelyC)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botObjectiveConfigAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botObjectiveConfigAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelObjectiveConfiguration)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelObjectiveConfiguration), blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmObjectiveConfiguration)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmObjectiveConfiguration), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

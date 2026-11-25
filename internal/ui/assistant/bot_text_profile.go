@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -44,7 +45,7 @@ func botTextProfileBlock(c *ui.Context, m BotTextProfileModel, blocked bool, fg,
 	ui.Column(c.Key("bot-text-profile")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantNameDisplayTitleAndPersona)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantNameIsTheStableAddressNameRequiredUp)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshTextProfile)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshTextProfile), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -73,28 +74,28 @@ func botTextProfileBlock(c *ui.Context, m BotTextProfileModel, blocked bool, fg,
 			ui.Text(c, s.Status.WriteError).TextColor(accent).Selectable()
 		}
 		draft := s.Draft
-		ui.TextInput(c.Key("bot-text-name"), &draft.Name).Label(i18n.T(i18n.KeyMiscAssistantName120)).FillWidth().Disabled(!editable).OnChange(func() {
+		aInput(c.Key("bot-text-name"), &draft.Name, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantName120), Disabled: !editable}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange(draft)
 			}
 		})
-		ui.TextInput(c.Key("bot-text-title"), &draft.Title).Label(i18n.T(i18n.KeyMiscAssistantDisplayTitle120Optional)).FillWidth().Disabled(!editable).OnChange(func() {
+		aInput(c.Key("bot-text-title"), &draft.Title, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantDisplayTitle120Optional), Disabled: !editable}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange(draft)
 			}
 		})
-		ui.TextArea(c.Key("bot-text-description"), &draft.Description).Label(i18n.T(i18n.KeyMiscAssistantCompleteDescriptionPersona12000)).FillWidth().Lines(3, 10).Disabled(!editable).OnChange(func() {
+		aTextarea(c.Key("bot-text-description"), &draft.Description, coss.TextareaOptions{Label: i18n.T(i18n.KeyMiscAssistantCompleteDescriptionPersona12000), MaxLines: 10, Disabled: !editable}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange(draft)
 			}
 		})
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardTextDraft)).Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardTextDraft), !editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewTextProfile)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewTextProfile), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
-		if s.Candidate && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingTextReadback)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
+		if s.Candidate && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingTextReadback), blocked).Clicked() && m.OnAdopt != nil {
 			m.OnAdopt()
 		}
 		if s.Review == nil {
@@ -116,13 +117,13 @@ func botTextProfileBlock(c *ui.Context, m BotTextProfileModel, blocked bool, fg,
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantAColdSessionIsNotResolvedForObjective)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantKeepsWorkspaceidSNkeepsModelSNonlyNam), botCapabilityProfileText(cmd.Expected, "workspaceId"), botCapabilityProfileText(cmd.Expected, "model"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botTextProfileAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botTextProfileAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelTextProfileSave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelTextProfileSave), blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmTextProfileSave)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmTextProfileSave), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

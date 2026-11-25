@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -27,7 +28,7 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 	ui.Column(c.Key("bot-memory")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotLongTermMemory)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheBotAndUserTracksOfTheSelectedBot)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyW4AssistantReadRefreshBotMemoryRefreshMemory)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyW4AssistantReadRefreshBotMemoryRefreshMemory), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -50,7 +51,7 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 				if track == "user" {
 					label = i18n.T(i18n.KeyMiscAssistantUser)
 				}
-				if ui.Button(c, label).Disabled(blocked || s.Draft != nil || s.Track == track).Clicked() && m.OnTrack != nil {
+				if aChoice(c, label, s.Track == track, blocked || s.Draft != nil || s.Track == track).Clicked() && m.OnTrack != nil {
 					m.OnTrack(track)
 				}
 			}
@@ -66,16 +67,16 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 			ui.Column(c.Key(fmt.Sprintf("bot-memory-entry-%s-%d", s.Track, index))).Gap(4).Children(func() {
 				ui.Text(c, entry).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Row(c).Gap(7).Children(func() {
-					if m.OnEdit != nil && ui.Button(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantEditEntry), index+1)).Disabled(disabled).Clicked() {
+					if m.OnEdit != nil && aButton(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantEditEntry), index+1), disabled).Clicked() {
 						m.OnEdit(index)
 					}
-					if m.OnDelete != nil && ui.Button(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantDeleteEntry), index+1)).Disabled(disabled).Clicked() {
+					if m.OnDelete != nil && aDangerOutline(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantDeleteEntry), index+1), disabled).Clicked() {
 						m.OnDelete(index)
 					}
 				})
 			})
 		}
-		if m.OnEdit != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAddMemoryEntry)).Disabled(disabled).Clicked() {
+		if m.OnEdit != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantAddMemoryEntry), disabled).Clicked() {
 			m.OnEdit(-1)
 		}
 		if s.Draft != nil {
@@ -83,7 +84,7 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraft2)+d.Track+" · "+d.BaseRevision).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			if !d.Remove {
 				input := d.Input
-				ui.TextArea(c.Key("bot-memory-entry-editor"), &input).Label("Bot memory entry").FillWidth().Lines(3, 9).Disabled(blocked).OnChange(func() {
+				aTextarea(c.Key("bot-memory-entry-editor"), &input, coss.TextareaOptions{Label: "Bot memory entry", MaxLines: 9, Disabled: blocked}).OnChange(func() {
 					if m.OnChange != nil {
 						m.OnChange(input)
 					}
@@ -92,10 +93,10 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantEntryToRemove)+d.Input).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 			}
 			ui.Row(c).Gap(8).Children(func() {
-				if m.OnReview != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewMemorySave)).Disabled(blocked || !s.Loaded || !s.Writable).Clicked() {
+				if m.OnReview != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewMemorySave), blocked || !s.Loaded || !s.Writable).Clicked() {
 					m.OnReview()
 				}
-				if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardDraft)).Disabled(blocked).Clicked() {
+				if m.OnDiscard != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardDraft), blocked).Clicked() {
 					m.OnDiscard()
 				}
 			})
@@ -109,10 +110,10 @@ func botMemoryBlock(c *ui.Context, m BotMemoryModel, blocked bool, fg, muted, ac
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantUsesTheOriginalEntrySerializationTrimmi)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantBeforeContent)+r.Before+i18n.T(i18n.KeyMiscAssistantAfterContent)+r.Command.Text).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Row(c).Gap(8).Children(func() {
-					if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToMemoryEdit)).Disabled(blocked).Clicked() {
+					if m.OnDismiss != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantBackToMemoryEdit), blocked).Clicked() {
 						m.OnDismiss()
 					}
-					if m.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmTrackReplacement)).Disabled(blocked || !s.Loaded || !s.Writable).Clicked() {
+					if m.OnConfirm != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmTrackReplacement), blocked || !s.Loaded || !s.Writable).Clicked() {
 						m.OnConfirm()
 					}
 				})
