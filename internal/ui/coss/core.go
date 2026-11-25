@@ -3,6 +3,7 @@ package coss
 import (
 	"time"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
@@ -155,6 +156,9 @@ type deco struct {
 	before  bool
 	beforeY float32
 	beforeC ui.Color
+	// rimC paints a 1 DIP inner specular rim inside the padding box for
+	// glass surfaces.
+	rimC ui.Color
 	// fill paints an extra fill over the padding box (autofill tints,
 	// pressed washes layered over a base).
 	fill ui.Color
@@ -249,6 +253,9 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 	if d.fill.A > 0 {
 		p.Fill(pad, d.fill, inner)
 	}
+	if d.rimC.A > 0 && pad.W > 2 && pad.H > 2 {
+		p.Stroke(pad, d.rimC, inner, 1)
+	}
 	for i := d.insets.n - 1; i >= 0; i-- {
 		l := d.insets.l[i]
 		if !l.Inset {
@@ -267,7 +274,7 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 }
 
 func (d *deco) active() bool {
-	return d.ring != nil || d.ringForce > 0 || d.fill.A > 0 || d.insets.hasInset() || d.before && d.beforeC.A > 0
+	return d.ring != nil || d.ringForce > 0 || d.fill.A > 0 || d.insets.hasInset() || (d.before && d.beforeC.A > 0) || d.rimC.A > 0
 }
 
 // highlight sets the ::before shadow: 0 1px black/4% in light, 0 -1px
@@ -290,6 +297,134 @@ func finish(e ui.Element, sh *shadowList, d *deco) {
 			dd := *d
 			e.Draw(dd.paint)
 		}
+	}
+}
+
+// glassTier distinguishes surface elevation levels in frosted glass mode.
+type glassTier uint8
+
+const (
+	glassTierCard   glassTier = iota // Resting surface (Card)
+	glassTierPopup                   // Floating popup (Menu / Select / Popover / Tooltip)
+	glassTierModal                   // Top-level modal (Dialog / AlertDialog / Command)
+	glassTierSheet                   // Edge-docked sheet
+	glassTierDrawer                  // Bottom-docked drawer
+)
+
+type glassSurfaceMaterial struct {
+	blur glass.Blur
+	tint ui.Color
+}
+
+// PaintMaterial paints the GPU backdrop blur with vibrancy saturation and
+// overlays the translucent surface tint within radii.
+func (m glassSurfaceMaterial) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
+	m.blur.PaintMaterial(p, box, radii)
+	if m.tint.A == 0 || box.W <= 0 || box.H <= 0 {
+		return
+	}
+	fillRoundedRect(p, box, m.tint, radii)
+}
+
+func fillRoundedRect(p *ui.Painter, box ui.Rect, c ui.Color, radii [4]float32) {
+	if radii[0] == radii[1] && radii[1] == radii[2] && radii[2] == radii[3] {
+		p.Fill(box, c, radii[0])
+		return
+	}
+	// Top-only rounded rectangles (such as Drawer) split into disjoint top and
+	// bottom bands so translucent tints never double-blend.
+	if radii[0] == radii[1] && radii[2] == 0 && radii[3] == 0 && radii[0] > 0 {
+		r := min(radii[0], min(box.W/2, box.H))
+		p.Clip(ui.Rect{X: box.X, Y: box.Y, W: box.W, H: r}, 0, func() {
+			p.Fill(ui.Rect{X: box.X, Y: box.Y, W: box.W, H: max(box.H, 2*r)}, c, r)
+		})
+		if box.H > r {
+			p.Fill(ui.Rect{X: box.X, Y: box.Y + r, W: box.W, H: box.H - r}, c, 0)
+		}
+		return
+	}
+	p.Fill(box, c, radii[0])
+}
+
+// applyGlassMaterial attaches frosted backdrop blur and translucent surface
+// tint to e when t.Glass is true. When t.Glass is false it is a no-op.
+func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, radius, saturation float32) {
+	if t == nil || !t.Glass {
+		return
+	}
+	e.Material(glassSurfaceMaterial{
+		blur: glass.Blur{Radius: radius, Saturation: saturation},
+		tint: tint,
+	})
+}
+
+// applyGlassElevation upgrades sh and d with dark/light adaptive dual-layer
+// shadows and an inner specular rim when t.Glass is true.
+func applyGlassElevation(t *design.Tokens, sh *shadowList, d *deco, tier glassTier) {
+	if t == nil || !t.Glass {
+		return
+	}
+	*sh = shadowList{}
+	dark := t.IsDark()
+	switch tier {
+	case glassTierCard:
+		if dark {
+			sh.add(0, 8, 20, -2, black.Alpha(0.22))
+			sh.add(0, 2, 6, 0, black.Alpha(0.12))
+		} else {
+			sh.add(0, 6, 16, -2, black.Alpha(0.07))
+			sh.add(0, 1, 4, 0, black.Alpha(0.04))
+		}
+	case glassTierPopup:
+		if dark {
+			sh.add(0, 10, 28, -2, black.Alpha(0.32))
+			sh.add(0, 3, 8, 0, black.Alpha(0.16))
+		} else {
+			sh.add(0, 10, 28, -2, black.Alpha(0.10))
+			sh.add(0, 3, 8, 0, black.Alpha(0.05))
+		}
+	case glassTierModal:
+		if dark {
+			sh.add(0, 18, 40, -4, black.Alpha(0.32))
+			sh.add(0, 4, 12, 0, black.Alpha(0.16))
+		} else {
+			sh.add(0, 18, 40, -4, black.Alpha(0.10))
+			sh.add(0, 4, 12, 0, black.Alpha(0.05))
+		}
+	case glassTierSheet:
+		if dark {
+			sh.add(0, 0, 32, 0, black.Alpha(0.32))
+			sh.add(0, 0, 10, 0, black.Alpha(0.16))
+		} else {
+			sh.add(0, 0, 28, 0, black.Alpha(0.10))
+			sh.add(0, 0, 8, 0, black.Alpha(0.05))
+		}
+	case glassTierDrawer:
+		if dark {
+			sh.add(0, -10, 28, 0, black.Alpha(0.32))
+			sh.add(0, -2, 8, 0, black.Alpha(0.16))
+		} else {
+			sh.add(0, -10, 28, 0, black.Alpha(0.10))
+			sh.add(0, -2, 8, 0, black.Alpha(0.05))
+		}
+	}
+	if d == nil {
+		return
+	}
+	d.before = false
+	topC := white.Alpha(0.72)
+	rimC := white.Alpha(0.36)
+	if dark {
+		topC = white.Alpha(0.14)
+		rimC = white.Alpha(0.07)
+	}
+	switch tier {
+	case glassTierSheet:
+	case glassTierDrawer:
+		sh.inset(0, 1, 0, 0, topC)
+	default:
+		d.rimC = rimC
+		sh.inset(0, 1, 0, 0, topC)
 	}
 }
 

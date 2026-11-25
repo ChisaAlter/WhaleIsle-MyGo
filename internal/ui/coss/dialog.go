@@ -47,10 +47,18 @@ const (
 	kindDrawer
 )
 
-// backdropLook is coss's bg-black/32 backdrop (its backdrop-blur-sm is not
-// drawn: the toolkit has no backdrop blur outside materials).
-func backdropLook(back ui.Element, part string) {
-	back.Background(black.Alpha(0.32))
+// backdropLook is coss's bg-black/32 backdrop. In glass mode it softens the
+// scrim so wallpapers stay legible rather than crushed to solid black.
+func backdropLook(back ui.Element, t *design.Tokens, part string) {
+	c := black.Alpha(0.32)
+	if t != nil && t.Glass {
+		if t.IsDark() {
+			c = black.Alpha(0.18)
+		} else {
+			c = black.Alpha(0.20)
+		}
+	}
+	back.Background(c)
 	motion(back, part, 0, 0)
 }
 
@@ -94,7 +102,7 @@ func modal(c *ui.Context, open *bool, o DialogOptions, body func(), kind modalKi
 		ww, wh := c.Size()
 		switch kind {
 		case kindSheet:
-			backdropLook(back, "sheet/sheet-backdrop")
+			backdropLook(back, t, "sheet/sheet-backdrop")
 			back.Row().AlignItems(ui.Stretch)
 			switch o.Side {
 			case SideLeft:
@@ -108,14 +116,14 @@ func modal(c *ui.Context, open *bool, o DialogOptions, body func(), kind modalKi
 				back.Justify(ui.End)
 			}
 		case kindDrawer:
-			backdropLook(back, "drawer/drawer-backdrop")
+			backdropLook(back, t, "drawer/drawer-backdrop")
 			back.Column().Justify(ui.End).AlignItems(ui.Stretch).Padding(design.Sp(12), 0, 0, 0)
 		default:
 			part := "dialog/dialog-backdrop"
 			if kind == kindAlert {
 				part = "alert-dialog/alert-dialog-backdrop"
 			}
-			backdropLook(back, part)
+			backdropLook(back, t, part)
 			// grid-rows-[1fr_auto_3fr] p-4: a quarter of the free height above.
 			back.Column().Justify(ui.Start).AlignItems(ui.Center).Padding(design.Sp(4))
 			ph := panel.Bounds().H
@@ -222,7 +230,19 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		d.radius = radius
 	} else {
 		d.before = false
+		if t.Glass {
+			d.radius = radius
+		}
 	}
+	tier := glassTierModal
+	switch kind {
+	case kindSheet:
+		tier = glassTierSheet
+	case kindDrawer:
+		tier = glassTierDrawer
+	}
+	applyGlassMaterial(panel, t, t.Popover, 28, 0.45)
+	applyGlassElevation(t, &sh, &d, tier)
 	finish(panel, &sh, &d)
 	panel.Children(func() {
 		if kind == kindDrawer {
