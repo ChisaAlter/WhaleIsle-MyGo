@@ -6,6 +6,7 @@ import (
 	"strings"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -42,13 +43,13 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 				if card.Changes.Added > 0 || card.Changes.Removed > 0 {
 					ui.Text(c, fmt.Sprintf("+%d −%d", card.Changes.Added, card.Changes.Removed)).FontSize(theme.InterfaceSize(12))
 				}
-				if ui.Button(c, tr("查看改动", "View changes")).Height(28).Disabled(m.Busy || !m.Listing.Available || m.OnRequestDiff == nil).Clicked() {
+				if pButton(c, tr("查看改动", "View changes"), m.Busy || !m.Listing.Available || m.OnRequestDiff == nil).Clicked() {
 					m.OnRequestDiff(card.ID)
 				}
 			} else {
 				for _, work := range card.Work {
 					if work.MemberRole != "" && work.MemberRole != "readonly" && work.MemberRole != "research" {
-						if ui.Button(c, tr("查看改动", "View changes")).Height(28).Disabled(m.Busy || !actions.Known || actions.WorkDiff == nil).Clicked() {
+						if pButton(c, tr("查看改动", "View changes"), m.Busy || !actions.Known || actions.WorkDiff == nil).Clicked() {
 							actions.WorkDiff(work.WorkstreamID)
 						}
 						break
@@ -56,7 +57,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 				}
 			}
 			if card.Changes != nil && card.Changes.Revertible && card.Changes.RevertedAt == nil && m.RequestMutable {
-				if ui.Button(c, tr("撤销改动", "Revert changes")).Height(28).Disabled(m.Busy || !revert.Allowed || revert.Confirm == nil).Clicked() {
+				if pDanger(c, tr("撤销改动", "Revert changes"), m.Busy || !revert.Allowed || revert.Confirm == nil).Clicked() {
 					ask.Open, ask.Revision = true, card.Revision
 				}
 			}
@@ -74,14 +75,12 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 	colors := resolved.Active(m.SystemDark)
 	dark := resolved.Scheme == theme.SchemeDark || resolved.Scheme == theme.SchemeSystem && m.SystemDark
 	surface := ui.RGBA(255, 255, 255, .8)
-	secondary, stroke := ui.RGB(97, 102, 107), ui.RGBA(0, 0, 0, .12)
+	secondary := ui.RGB(97, 102, 107)
 	elevationStroke := ui.RGBA(0, 0, 0, .16)
-	primary, primaryHover, primaryText := ui.RGB(15, 17, 21), ui.RGB(67, 69, 74), ui.RGB(255, 255, 255)
 	if dark {
 		surface = ui.RGBA(44, 44, 46, .8)
-		secondary, stroke = ui.RGB(207, 211, 214), ui.RGBA(255, 255, 255, .16)
+		secondary = ui.RGB(207, 211, 214)
 		elevationStroke = ui.RGBA(255, 255, 255, .2)
-		primary, primaryHover, primaryText = ui.RGB(249, 250, 251), ui.RGB(235, 238, 242), ui.RGB(15, 17, 21)
 	}
 	conflict := strings.Contains(revert.Error, "pluginrpc: revert_conflict:")
 	close := func() {
@@ -109,13 +108,7 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 			ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 				ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, title).FontSize(16).FixedLineHeight(24).FontWeight(500).TextColor(chrome.Color(colors.FG)).Grow(1).MinWidth(0)
-					button := ui.Button(c.Key("revert-close"), "").Label(tr("取消", "Cancel")).Width(28).Height(28).Padding(0).Radius(theme.ContextRadii(c).SM).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy)
-					if m.Busy {
-						button.Opacity(.4)
-					} else if button.Hovered() {
-						button.Background(chrome.Color(colors.Hover))
-					}
-					button.Children(func() { projectIcon(c, "close", 14, secondary, false) })
+					button := pIconButton(c, "revert-close", tr("取消", "Cancel"), m.Busy, func() { projectIcon(c, "close", 14, secondary, false) })
 					if button.Clicked() {
 						close()
 					}
@@ -136,36 +129,18 @@ func taskDeliveryChangeActions(c *ui.Context, m Model, card projectflow.RequestC
 				})
 			})
 			stale := ask.Revision != card.Revision || !revert.Known
-			styleAction := func(button ui.Element, filled, disabled bool) ui.Element {
-				button.Height(36).Padding(0, 14).Radius(theme.ContextRadii(c).MD).FontSize(14).FixedLineHeight(22).Disabled(disabled)
-				if disabled {
-					button.Opacity(.4)
-				}
-				if filled {
-					button.BorderWidth(0).Background(primary).TextColor(primaryText)
-					if button.Hovered() && !disabled {
-						button.Background(primaryHover)
-					}
-				} else {
-					button.Border(.5, stroke).Background(ui.Transparent).TextColor(chrome.Color(colors.FG))
-					if button.Hovered() && !disabled {
-						button.Background(chrome.Color(colors.Hover))
-					}
-				}
-				return button
-			}
 			ui.Row(c).FillWidth().MinWidth(0).Padding(0, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Grow(1)
 				ui.Row(c).MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
-					if styleAction(ui.Button(c, tr("取消", "Cancel")), false, m.Busy).Clicked() {
+					if coss.Button(c, tr("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonLG, Disabled: m.Busy}).Clicked() {
 						close()
 					}
 					if conflict {
-						if styleAction(ui.PrimaryButton(c, tr("交给协调者处理", "Ask the coordinator")), true, m.Busy || stale || !revert.Allowed || revert.Ask == nil).Clicked() {
+						if coss.Button(c, tr("交给协调者处理", "Ask the coordinator"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonLG, Disabled: m.Busy || stale || !revert.Allowed || revert.Ask == nil}).Clicked() {
 							ask.Open = false
 							revert.Ask()
 						}
-					} else if styleAction(ui.PrimaryButton(c, tr("撤销改动", "Revert changes")), true, m.Busy || stale || !revert.Allowed || revert.Confirm == nil).Clicked() {
+					} else if coss.Button(c, tr("撤销改动", "Revert changes"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonLG, Disabled: m.Busy || stale || !revert.Allowed || revert.Confirm == nil}).Clicked() {
 						revert.Confirm()
 					}
 				})

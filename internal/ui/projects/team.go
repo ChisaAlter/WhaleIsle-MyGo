@@ -22,7 +22,7 @@ func teamView(c *ui.Context, m Model) {
 		return
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("刷新 Team", "Refresh Team")).Disabled(m.Busy).Clicked() && m.OnTeam != nil {
+		if pButton(c, tr("刷新 Team", "Refresh Team"), m.Busy).Clicked() && m.OnTeam != nil {
 			m.OnTeam(m.TeamID)
 		}
 	})
@@ -38,7 +38,7 @@ func teamView(c *ui.Context, m Model) {
 			label   string
 			history bool
 		}{{tr("当前工作", "Current"), false}, {tr("历史", "History"), true}} {
-			if ui.Button(c, option.label).Disabled(m.TeamHistory == option.history).Clicked() && m.OnTeamHistory != nil {
+			if pFilterButton(c, option.label, m.TeamHistory == option.history, m.TeamHistory == option.history).Clicked() && m.OnTeamHistory != nil {
 				m.OnTeamHistory(option.history)
 			}
 		}
@@ -56,10 +56,10 @@ func teamView(c *ui.Context, m Model) {
 	}
 	disabled := m.Busy || !m.Listing.Available || o.Team == nil || o.Team.Failure != "" || o.Project.Lifecycle != "ready"
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("停止全部工作", "Stop all work")).Disabled(disabled).Clicked() && m.OnControl != nil {
+		if pDanger(c, tr("停止全部工作", "Stop all work"), disabled).Clicked() && m.OnControl != nil {
 			m.OnControl("stop", "")
 		}
-		if o.Project.Paused && ui.Button(c, tr("解除暂停", "Unpause")).Disabled(disabled).Clicked() && m.OnControl != nil {
+		if o.Project.Paused && pPrimary(c, tr("解除暂停", "Unpause"), disabled).Clicked() && m.OnControl != nil {
 			m.OnControl("resume", "")
 		}
 	})
@@ -98,7 +98,7 @@ func teamView(c *ui.Context, m Model) {
 				if member.ModelLabel != "" {
 					ui.Text(c, member.ModelLabel).FontSize(fonttheme.InterfaceSize(12))
 				}
-				if member.Role != "lead" && ui.Button(c, tr("查看成员", "View member")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
+				if member.Role != "lead" && pButton(c, tr("查看成员", "View member"), m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect("", member.ID)
 				}
 				if member.Description != "" {
@@ -151,7 +151,7 @@ func teamView(c *ui.Context, m Model) {
 			ui.Text(c, fmt.Sprintf(tr("工作流（本页匹配 %d；当前总数 %d）", "Workstreams (%d matching on page; %d current total)"), len(works), o.WorkPage.CurrentTotal)).FontSize(fonttheme.InterfaceSize(13))
 			for _, work := range works {
 				work := work
-				if ui.Button(c, tr("查看工作详情", "View work details")).Disabled(m.Busy).Clicked() && m.OnInspect != nil {
+				if pButton(c, tr("查看工作详情", "View work details"), m.Busy).Clicked() && m.OnInspect != nil {
 					m.OnInspect(work.ID, "")
 				}
 				ui.Text(c, work.Title+" · "+stateLabel(work.Status)+" · "+work.Group).FontSize(fonttheme.InterfaceSize(13))
@@ -172,15 +172,15 @@ func teamView(c *ui.Context, m Model) {
 						live = worker.ActiveRunID != "" || len(worker.Jobs) > 0 || worker.Phase == "stopping" || work.Delegation.Phase == "queued" || work.Delegation.Phase == "preparing"
 					}
 				}
-				if live && ui.Button(c, tr("停止这项工作", "Stop this work")).Disabled(disabled).Clicked() && m.OnControl != nil {
+				if live && pDanger(c, tr("停止这项工作", "Stop this work"), disabled).Clicked() && m.OnControl != nil {
 					m.OnControl("stop", work.ID)
 				}
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-				if len(o.CurrentCursors) > 1 && ui.Button(c, tr("上一页当前工作", "Previous current-work page")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnPreviousWork != nil {
+				if len(o.CurrentCursors) > 1 && pButton(c, tr("上一页当前工作", "Previous current-work page"), m.Busy || !m.Listing.Available).Clicked() && m.OnPreviousWork != nil {
 					m.OnPreviousWork()
 				}
-				if o.WorkPage.CurrentNextCursor != nil && ui.Button(c, tr("下一页当前工作", "Next current-work page")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnNextWork != nil {
+				if o.WorkPage.CurrentNextCursor != nil && pButton(c, tr("下一页当前工作", "Next current-work page"), m.Busy || !m.Listing.Available).Clicked() && m.OnNextWork != nil {
 					m.OnNextWork(*o.WorkPage.CurrentNextCursor)
 				}
 			})

@@ -3,6 +3,7 @@ package projects
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -15,24 +16,24 @@ func materialCollectionView(c *ui.Context, m Model) {
 	}
 	ui.Text(c, d.Title+" · "+tr("材料集合", "Materials")).FontSize(fonttheme.InterfaceSize(14))
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("刷新要求材料", "Refresh requirement materials")).Disabled(m.Busy).Clicked() {
+		if pButton(c, tr("刷新要求材料", "Refresh requirement materials"), m.Busy).Clicked() {
 			action("refresh")
 		}
 	})
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("项目资料", "Documents")).Disabled(m.Busy).Clicked() && m.OnDocuments != nil {
+		if pButton(c, tr("项目资料", "Documents"), m.Busy).Clicked() && m.OnDocuments != nil {
 			m.OnDocuments(d.ProjectID)
 		}
-		if ui.Button(c, tr("历次交付", "Deliveries")).Disabled(m.Busy).Clicked() && m.OnDeliveries != nil {
+		if pButton(c, tr("历次交付", "Deliveries"), m.Busy).Clicked() && m.OnDeliveries != nil {
 			m.OnDeliveries(d.ProjectID)
 		}
-		if ui.Button(c, tr("成员报告", "Member reports")).Disabled(m.Busy).Clicked() && m.OnReports != nil {
+		if pButton(c, tr("成员报告", "Member reports"), m.Busy).Clicked() && m.OnReports != nil {
 			m.OnReports(d.ProjectID)
 		}
 	})
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
 		for _, path := range []string{"charter.md", "preferences.md", "notes.md", "research-hosts.txt"} {
-			if ui.Button(c, path).Disabled(m.Busy).Clicked() && m.OnMaterial != nil {
+			if pButton(c, path, m.Busy).Clicked() && m.OnMaterial != nil {
 				m.OnMaterial(d.ProjectID, path)
 			}
 		}
@@ -51,7 +52,10 @@ func materialCollectionView(c *ui.Context, m Model) {
 				ui.Text(c, fmt.Sprintf("%s · v%d", request.Title, request.Revision)).FontSize(fonttheme.InterfaceSize(14))
 				ui.Text(c, request.ID).FontSize(fonttheme.InterfaceSize(12)).Selectable()
 				body := request.Goal
-				ui.TextArea(c.Key("material-request-"+d.ProjectID+"-"+request.ID+fmt.Sprint(request.Revision)), &body).FillWidth().Height(130).ReadOnly(true)
+				pTextarea(c, &body, coss.TextareaOptions{
+					Key:      "material-request-" + d.ProjectID + "-" + request.ID + fmt.Sprint(request.Revision),
+					ReadOnly: true,
+				}).Height(130)
 				if request.AuthorityError != "" {
 					ui.Text(c, request.AuthorityError).FontSize(fonttheme.InterfaceSize(13)).Selectable()
 				}
@@ -59,11 +63,11 @@ func materialCollectionView(c *ui.Context, m Model) {
 		})
 	})
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || len(d.Cursors) < 2).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || len(d.Cursors) < 2).Clicked() {
 			action("previous")
 		}
 		ui.Text(c, fmt.Sprintf(tr("第 %d 页 · 共 %d 条", "Page %d · %d total"), len(d.Cursors), d.Requests.Total)).FontSize(fonttheme.InterfaceSize(12))
-		if ui.Button(c, tr("更早的要求", "Earlier requirements")).Disabled(m.Busy || d.Requests.NextCursor == "").Clicked() {
+		if pButton(c, tr("更早的要求", "Earlier requirements"), m.Busy || d.Requests.NextCursor == "").Clicked() {
 			action("next")
 		}
 	})

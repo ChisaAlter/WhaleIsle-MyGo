@@ -10,7 +10,7 @@ func assetDiffView(c *ui.Context, m Model) {
 	if m.RequestProjectID == "" && m.TeamID != "" && m.Detail != nil {
 		back = tr("返回工作详情", "Back to work details")
 	}
-	if ui.Button(c, back).Clicked() && m.OnCloseDiff != nil {
+	if pGhost(c, back, false).Clicked() && m.OnCloseDiff != nil {
 		m.OnCloseDiff()
 	}
 	value := m.AssetDiff

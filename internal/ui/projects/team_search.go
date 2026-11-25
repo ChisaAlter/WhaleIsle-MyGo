@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -60,10 +61,10 @@ func teamMemberMatches(o *projectflow.Overview, member projectflow.TeamMember, q
 }
 func teamSearchControls(c *ui.Context, m *Model) {
 	label := tr("查找成员、任务或工作", "Find members, tasks or work")
-	if ui.TextInput(c, &m.TeamQuery).FillWidth().Label(label).Placeholder(label).Changed() && m.OnTeamQuery != nil {
+	if pInput(c, &m.TeamQuery, coss.InputOptions{Size: coss.InputSM, Label: label, Placeholder: label}).Changed() && m.OnTeamQuery != nil {
 		m.OnTeamQuery(m.TeamQuery)
 	}
-	if m.TeamQuery != "" && ui.Button(c, tr("清除查找", "Clear search")).Clicked() && m.OnTeamQuery != nil {
+	if m.TeamQuery != "" && pGhost(c, tr("清除查找", "Clear search"), false).Clicked() && m.OnTeamQuery != nil {
 		m.TeamQuery = ""
 		m.OnTeamQuery("")
 	}

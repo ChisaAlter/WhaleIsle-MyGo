@@ -35,7 +35,7 @@ func requestActivityView(c *ui.Context, m Model) {
 	}
 	ui.Text(c, tr("要求活动时间线", "Request activity timeline")+" · "+a.Title).FontSize(fonttheme.InterfaceSize(14))
 	ui.Text(c, fmt.Sprintf("%s · %s · revision %d", a.Scope.ProjectID, a.Scope.RequestID, a.Revision)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
-	if ui.Button(c, tr("返回原要求详情", "Back to request details")).Clicked() {
+	if pGhost(c, tr("返回原要求详情", "Back to request details"), false).Clicked() {
 		action("close", "")
 	}
 	ui.Text(c, tr("来自 requests/get 的要求快照；包含版本、所关联派工及当前交付，不是全部跨派工运行日志。", "Request snapshot: revisions, associated assignments and its current delivery. This is not the complete cross-assignment run log.")).FontSize(fonttheme.InterfaceSize(12))
@@ -52,13 +52,13 @@ func requestActivityView(c *ui.Context, m Model) {
 			activityReportView(c, m)
 			return
 		}
-		if ui.Button(c, tr("返回时间线（保留筛选和页码）", "Back to timeline (keep filter/page)")).Clicked() {
+		if pGhost(c, tr("返回时间线（保留筛选和页码）", "Back to timeline (keep filter/page)"), false).Clicked() {
 			action("back-list", "")
 		}
 		activityEventView(c, m, *a.Selected)
 		return
 	}
-	if ui.Button(c, tr("刷新要求快照", "Refresh request snapshot")).Disabled(m.Busy).Clicked() {
+	if pButton(c, tr("刷新要求快照", "Refresh request snapshot"), m.Busy).Clicked() {
 		action("refresh", "")
 	}
 	if a.AuthorityError != "" {
@@ -71,10 +71,11 @@ func requestActivityView(c *ui.Context, m Model) {
 		for _, kind := range []string{"all", "version", "assignment", "report", "terminal", "delivery"} {
 			kind := kind
 			label := activityKindLabel(kind)
-			if a.Filter == kind {
+			active := a.Filter == kind
+			if active {
 				label = "● " + label
 			}
-			if ui.Button(c, label).Disabled(m.Busy).Clicked() {
+			if pFilterButton(c, label, active, m.Busy).Clicked() {
 				action("filter", kind)
 			}
 		}
@@ -87,7 +88,7 @@ func requestActivityView(c *ui.Context, m Model) {
 			for _, event := range a.Visible {
 				event := event
 				ui.Text(c, time.UnixMilli(int64(event.At)).Format(time.RFC3339)+" · "+activityKindLabel(event.Kind)).FontSize(fonttheme.InterfaceSize(12))
-				if ui.Button(c, event.Title).FillWidth().Disabled(m.Busy).Clicked() {
+				if pListButton(c, event.Title, m.Busy).Clicked() {
 					action("select", event.Key)
 				}
 				if event.Version != nil {
@@ -104,10 +105,10 @@ func requestActivityView(c *ui.Context, m Model) {
 	})
 	ui.Text(c, fmt.Sprintf(tr("本地第%d页 · 此筛选共%d个事件；翻页不调用新的 Host 游标。", "Local page %d · %d matching events; paging uses this captured snapshot."), a.Page+1, a.FilteredTotal)).FontSize(fonttheme.InterfaceSize(12))
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || a.Page == 0).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || a.Page == 0).Clicked() {
 			action("previous", "")
 		}
-		if ui.Button(c, tr("下一页", "Next")).Disabled(m.Busy || (a.Page+1)*projectflow.ActivityPageSize >= a.FilteredTotal).Clicked() {
+		if pButton(c, tr("下一页", "Next"), m.Busy || (a.Page+1)*projectflow.ActivityPageSize >= a.FilteredTotal).Clicked() {
 			action("next", "")
 		}
 	})
@@ -165,7 +166,7 @@ func activityEventView(c *ui.Context, m Model, e projectflow.ActivityEvent) {
 			}
 			for _, ref := range projectflow.ActivityEventReports(e) {
 				ref := ref
-				if ui.Button(c, tr("查看精确来源报告：", "Read exact source report: ")+ref.WorkstreamID+" · "+ref.DelegationRef).FillWidth().Disabled(m.Busy).Clicked() && m.OnActivityReport != nil {
+				if pListButton(c, tr("查看精确来源报告：", "Read exact source report: ")+ref.WorkstreamID+" · "+ref.DelegationRef, m.Busy).Clicked() && m.OnActivityReport != nil {
 					m.OnActivityReport(e.Key, ref)
 				}
 			}
@@ -177,10 +178,10 @@ func activityReportView(c *ui.Context, m Model) {
 	ref := a.ReportRef
 	e := a.Selected
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("返回原事件", "Back to original event")).Clicked() && m.OnActivityAction != nil {
+		if pGhost(c, tr("返回原事件", "Back to original event"), false).Clicked() && m.OnActivityAction != nil {
 			m.OnActivityAction("back-report", "")
 		}
-		if ui.Button(c, tr("重读此报告", "Reload this report")).Disabled(m.Busy).Clicked() && m.OnActivityReport != nil {
+		if pButton(c, tr("重读此报告", "Reload this report"), m.Busy).Clicked() && m.OnActivityReport != nil {
 			m.OnActivityReport(e.Key, *ref)
 		}
 	})

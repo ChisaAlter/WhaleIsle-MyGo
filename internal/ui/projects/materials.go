@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -39,12 +40,12 @@ func materialsView(c *ui.Context, m Model) {
 func materialBody(c *ui.Context, m Model, root ui.Element) {
 	d := m.Material
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("工作成果", "Work results")).Disabled(m.Busy).Clicked() && m.OnMaterialCollection != nil {
+		if pButton(c, tr("工作成果", "Work results"), m.Busy).Clicked() && m.OnMaterialCollection != nil {
 			m.OnMaterialCollection(d.ProjectID)
 		}
 		for _, path := range []string{"charter.md", "preferences.md", "notes.md", "research-hosts.txt"} {
 			path := path
-			if ui.Button(c, materialLabel(path)).Disabled(m.Busy || path == d.Path).Clicked() && m.OnMaterial != nil {
+			if pFilterButton(c, materialLabel(path), path == d.Path, m.Busy || path == d.Path).Clicked() && m.OnMaterial != nil {
 				m.OnMaterial(d.ProjectID, path)
 			}
 		}
@@ -82,7 +83,7 @@ func materialBody(c *ui.Context, m Model, root ui.Element) {
 				if present {
 					label = "✓ " + label
 				}
-				if ui.Button(c, label).Disabled(m.Busy || !m.MaterialMutable).Clicked() {
+				if pFilterButton(c, label, present, m.Busy || !m.MaterialMutable).Clicked() {
 					if present {
 						lines := []string{}
 						for _, line := range strings.Split(d.Draft, "\n") {
@@ -104,10 +105,17 @@ func materialBody(c *ui.Context, m Model, root ui.Element) {
 		})
 	}
 	if d.Loaded {
-		editor := ui.TextArea(c.Key("material/"+d.ProjectID+"/"+d.Path), &d.Draft).Label(tr("项目材料编辑器：", "Project material editor: ") + materialLabel(d.Path)).FillWidth().MinWidth(0).Height(240).FontSize(theme.InterfaceSize(14)).ReadOnly(!m.MaterialMutable).Disabled(m.Busy)
+		placeholder := ""
 		if d.Path == "research-hosts.txt" {
-			editor.Placeholder(tr("example.com\ndocs.example.org  # 注释", "example.com\ndocs.example.org  # comment"))
+			placeholder = tr("example.com\ndocs.example.org  # 注释", "example.com\ndocs.example.org  # comment")
 		}
+		pTextarea(c, &d.Draft, coss.TextareaOptions{
+			Key:         "material/" + d.ProjectID + "/" + d.Path,
+			Label:       tr("项目材料编辑器：", "Project material editor: ") + materialLabel(d.Path),
+			Placeholder: placeholder,
+			ReadOnly:    !m.MaterialMutable,
+			Disabled:    m.Busy,
+		}).Height(240).FontSize(theme.InterfaceSize(14))
 		if d.Path == "charter.md" {
 			ui.Progress(c, float64(len(d.Draft))/16000).FillWidth().Height(3)
 			ui.Text(c, fmt.Sprintf(tr("已使用 %.1f / 16 KB", "%.1f / 16 KB used"), float64(len(d.Draft))/1000)).FontSize(theme.InterfaceSize(12))
@@ -156,13 +164,13 @@ func materialFooter(c *ui.Context, m Model) {
 		if d.Notice != "" && !d.Dirty() {
 			label = tr("已保存", "Saved")
 		}
-		if ui.PrimaryButton(c, label).Tooltip(d.Error).Disabled(m.Busy || !m.MaterialMutable || !d.Dirty() || len(d.Draft) > materialLimit(d.Path)).Clicked() && m.OnSaveMaterial != nil {
+		if pPrimary(c, label, m.Busy || !m.MaterialMutable || !d.Dirty() || len(d.Draft) > materialLimit(d.Path)).Tooltip(d.Error).Clicked() && m.OnSaveMaterial != nil {
 			m.OnSaveMaterial()
 		}
-		if ui.Button(c, tr("重新读取", "Reload")).Disabled(m.Busy || d.Dirty()).Clicked() && m.OnReloadMaterial != nil {
+		if pButton(c, tr("重新读取", "Reload"), m.Busy || d.Dirty()).Clicked() && m.OnReloadMaterial != nil {
 			m.OnReloadMaterial()
 		}
-		if ui.Button(c, tr("放弃草稿", "Discard draft")).Disabled(m.Busy || !d.Dirty()).Clicked() && m.OnDiscardMaterial != nil {
+		if pDanger(c, tr("放弃草稿", "Discard draft"), m.Busy || !d.Dirty()).Clicked() && m.OnDiscardMaterial != nil {
 			m.OnDiscardMaterial()
 		}
 	})

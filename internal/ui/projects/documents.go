@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -26,10 +27,10 @@ func documentsView(c *ui.Context, m Model) {
 	}
 	if d.SelectedPath != "" {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-			if ui.Button(c, tr("返回资料清单", "Back to documents")).Clicked() {
+			if pGhost(c, tr("返回资料清单", "Back to documents"), false).Clicked() {
 				action("back", "")
 			}
-			if ui.Button(c, tr("重新读取正文", "Reload document")).Disabled(m.Busy).Clicked() {
+			if pButton(c, tr("重新读取正文", "Reload document"), m.Busy).Clicked() {
 				action("read", d.SelectedPath)
 			}
 		})
@@ -42,11 +43,15 @@ func documentsView(c *ui.Context, m Model) {
 			// Native read-only text keeps the entire body selectable and scrollable;
 			// there is no Markdown link handler, external opener or file execution.
 			text := d.Text
-			ui.TextArea(c.Key("project-document-"+d.Scope.ProjectID+"-"+d.SelectedPath), &text).Label(tr("文档正文", "Document text")).FillWidth().Height(320).ReadOnly(true).FontSize(fonttheme.InterfaceSize(13))
+			pTextarea(c, &text, coss.TextareaOptions{
+				Key:      "project-document-" + d.Scope.ProjectID + "-" + d.SelectedPath,
+				Label:    tr("文档正文", "Document text"),
+				ReadOnly: true,
+			}).Height(320).FontSize(fonttheme.InterfaceSize(13))
 		}
 		return
 	}
-	if ui.Button(c, tr("刷新资料清单", "Refresh documents")).Disabled(m.Busy).Clicked() {
+	if pButton(c, tr("刷新资料清单", "Refresh documents"), m.Busy).Clicked() {
 		action("list", "")
 	}
 	ui.Text(c, tr("从 Project 的 docs 读取资料正文，最多 512000 字节。", "Read Project docs as text, up to 512000 bytes.")).FontSize(fonttheme.InterfaceSize(12))
@@ -58,7 +63,7 @@ func documentsView(c *ui.Context, m Model) {
 			for _, entry := range d.Docs {
 				entry := entry
 				readErr := projectflow.DocumentReadError(entry)
-				if ui.Button(c, entry.Path).FillWidth().Disabled(m.Busy || readErr != nil).Clicked() {
+				if pListButton(c, entry.Path, m.Busy || readErr != nil).Clicked() {
 					action("read", entry.Path)
 				}
 				ui.Text(c, fmt.Sprintf("%d bytes", entry.Size)).FontSize(fonttheme.InterfaceSize(12))

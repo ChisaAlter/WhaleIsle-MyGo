@@ -10,7 +10,7 @@ import (
 
 func requestsView(c *ui.Context, m Model) {
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("打开 Lead", "Open Lead")).Disabled(m.Busy).Clicked() && m.OnOpen != nil {
+		if pButton(c, tr("打开 Lead", "Open Lead"), m.Busy).Clicked() && m.OnOpen != nil {
 			m.OnOpen(m.RequestProjectID)
 		}
 	})
@@ -24,10 +24,11 @@ func requestsView(c *ui.Context, m Model) {
 		for _, tab := range []struct{ kind, zh, en string }{{"current", "当前", "Current"}, {"completed", "已交付", "Delivered"}, {"archived", "已归档", "Archived"}} {
 			tab := tab
 			label := tr(tab.zh, tab.en)
-			if tab.kind == m.RequestKind {
+			active := tab.kind == m.RequestKind
+			if active {
 				label = "● " + label
 			}
-			if ui.Button(c, label).Disabled(m.Busy).Clicked() && m.OnRequestList != nil {
+			if pFilterButton(c, label, active, m.Busy).Clicked() && m.OnRequestList != nil {
 				m.OnRequestList(tab.kind)
 			}
 		}
@@ -40,7 +41,7 @@ func requestsView(c *ui.Context, m Model) {
 		ui.Column(c).FillWidth().Gap(8).Children(func() {
 			for _, card := range m.RequestPage.Items {
 				card := card
-				if ui.Button(c, card.Title).FillWidth().Disabled(m.Busy).Clicked() && m.OnRequestGet != nil {
+				if pListButton(c, card.Title, m.Busy).Clicked() && m.OnRequestGet != nil {
 					m.OnRequestGet(card.ID)
 				}
 				ui.Text(c, fmt.Sprintf(tr("第%d版 · %s", "Revision %d · %s"), card.Revision, requestStatus(card.Status))).FontSize(fonttheme.InterfaceSize(12))
@@ -56,10 +57,10 @@ func requestsView(c *ui.Context, m Model) {
 		})
 	})
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || m.RequestPageNumber <= 1).Clicked() && m.OnRequestPage != nil {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || m.RequestPageNumber <= 1).Clicked() && m.OnRequestPage != nil {
 			m.OnRequestPage(-1)
 		}
-		if ui.Button(c, tr("下一页", "Next")).Disabled(m.Busy || m.RequestPage.NextCursor == nil).Clicked() && m.OnRequestPage != nil {
+		if pButton(c, tr("下一页", "Next"), m.Busy || m.RequestPage.NextCursor == nil).Clicked() && m.OnRequestPage != nil {
 			m.OnRequestPage(1)
 		}
 	})
@@ -70,7 +71,7 @@ func requestArchiveButton(c *ui.Context, m Model, card projectflow.RequestCard) 
 		label = tr("恢复到任务列表", "Restore to task list")
 	}
 	allowed := m.Listing.Available && !m.Busy && m.RequestMutable && (card.ArchivedAt != nil || card.Status == "completed")
-	if ui.Button(c, label).Disabled(!allowed).Clicked() && m.OnRequestArchive != nil {
+	if pButton(c, label, !allowed).Clicked() && m.OnRequestArchive != nil {
 		m.OnRequestArchive(card.ID, card.ArchivedAt == nil)
 	}
 }
@@ -83,16 +84,16 @@ func requestDetailView(c *ui.Context, m Model) {
 		assetDiffView(c, m)
 		return
 	}
-	if ui.Button(c, tr("打开项目目录", "Open Project directory")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnProjectDirectory != nil {
+	if pButton(c, tr("打开项目目录", "Open Project directory"), m.Busy || !m.Listing.Available).Clicked() && m.OnProjectDirectory != nil {
 		m.OnProjectDirectory()
 	}
-	if ui.Button(c, tr("返回要求列表", "Back to request list")).Disabled(m.Busy).Clicked() && m.OnBackRequests != nil {
+	if pGhost(c, tr("返回要求列表", "Back to request list"), m.Busy).Clicked() && m.OnBackRequests != nil {
 		m.OnBackRequests()
 	}
 	ui.Text(c, card.Title).FontSize(fonttheme.InterfaceSize(14))
 	ui.Text(c, fmt.Sprintf(tr("第%d版 · %s", "Revision %d · %s"), card.Revision, requestStatus(card.Status))).FontSize(fonttheme.InterfaceSize(13))
 	requestArchiveButton(c, m, *card)
-	if ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnRequestActivity != nil {
+	if pButton(c, tr("活动时间线", "Activity timeline"), m.Busy || !m.Listing.Available).Clicked() && m.OnRequestActivity != nil {
 		m.OnRequestActivity()
 	}
 	ui.Column(c).FillWidth().MinWidth(0).Children(func() {
@@ -104,7 +105,7 @@ func requestDetailView(c *ui.Context, m Model) {
 			if card.HandoverError != "" {
 				ui.Text(c, tr("交付未完成：", "Delivery incomplete: ")+card.HandoverError).FontSize(fonttheme.InterfaceSize(13))
 				ui.Text(c, tr("点击后复核原要求，并向原 Lead 发送读取已保存成果的重新汇总请求。", "This action verifies the original request and sends the Lead a request to summarize its saved results.")).FontSize(fonttheme.InterfaceSize(12))
-				if ui.Button(c, tr("发送交付恢复请求", "Send handover recovery request")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || card.AuthorityError != "").Clicked() && m.OnHandoverRetryDraft != nil {
+				if pPrimary(c, tr("发送交付恢复请求", "Send handover recovery request"), m.Busy || !m.Listing.Available || !m.RequestMutable || card.AuthorityError != "").Clicked() && m.OnHandoverRetryDraft != nil {
 					m.OnHandoverRetryDraft()
 				}
 			}
@@ -124,7 +125,7 @@ func requestDetailView(c *ui.Context, m Model) {
 					if label == "" {
 						label = file.Path
 					}
-					if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().Disabled(m.Busy || !m.Listing.Available || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {
+					if pListButton(c, tr("打开文件：", "Open file: ")+label, m.Busy || !m.Listing.Available || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {
 						if m.OnArtifactTarget != nil && m.OnOpenAuthorizedFile != nil {
 							m.OnArtifactTarget(file, m.OnOpenAuthorizedFile)
 						} else if m.OnArtifact != nil {
@@ -148,7 +149,7 @@ func requestDetailView(c *ui.Context, m Model) {
 			ui.Text(c, tr("关联工作", "Associated work")).FontSize(fonttheme.InterfaceSize(13))
 			for _, work := range card.Work {
 				work := work
-				if ui.Button(c, tr("查看当前工作区差异", "View current workspace diff")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnWorkDiff != nil {
+				if pButton(c, tr("查看当前工作区差异", "View current workspace diff"), m.Busy || !m.Listing.Available).Clicked() && m.OnWorkDiff != nil {
 					m.OnWorkDiff(work.WorkstreamID)
 				}
 				ui.Text(c, work.Title+" · "+stateLabel(work.Status)).FontSize(fonttheme.InterfaceSize(12))

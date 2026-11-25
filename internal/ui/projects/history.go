@@ -26,7 +26,7 @@ func reportsView(c *ui.Context, m Model) {
 	widgets.AckLine(c, "history:26", h.Notice)
 	if h.Selected != nil {
 		r := h.Selected
-		if ui.Button(c, tr("返回报告列表", "Back to reports")).Disabled(m.Busy).Clicked() {
+		if pGhost(c, tr("返回报告列表", "Back to reports"), m.Busy).Clicked() {
 			action("back-detail", "")
 		}
 		ui.Text(c, h.Title+" · "+h.WorkID).FontSize(fonttheme.InterfaceSize(13))
@@ -71,7 +71,7 @@ func reportsView(c *ui.Context, m Model) {
 				}
 				for _, file := range r.Artifacts {
 					file := file
-					if ui.Button(c, tr("打开引用文件：", "Open referenced file:")+file.Path).FillWidth().Disabled(m.Busy || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {
+					if pListButton(c, tr("打开引用文件：", "Open referenced file:")+file.Path, m.Busy || m.OnOpenAuthorizedFile == nil && m.OnResolvedFile == nil).Clicked() {
 						if m.OnReportFileTarget != nil && m.OnOpenAuthorizedFile != nil {
 							m.OnReportFileTarget(file.Path, m.OnOpenAuthorizedFile)
 						} else if m.OnReportFile != nil {
@@ -85,7 +85,7 @@ func reportsView(c *ui.Context, m Model) {
 		return
 	}
 	if h.WorkID != "" {
-		if ui.Button(c, tr("返回全部工作报告", "Back to all work reports")).Disabled(m.Busy).Clicked() {
+		if pGhost(c, tr("返回全部工作报告", "Back to all work reports"), m.Busy).Clicked() {
 			action("back-work", "")
 		}
 		ui.Text(c, h.Title+" · "+h.WorkID).FontSize(fonttheme.InterfaceSize(13))
@@ -94,7 +94,7 @@ func reportsView(c *ui.Context, m Model) {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
 				for _, r := range h.History.Items {
 					r := r
-					if ui.Button(c, r.Outcome+" · "+r.DelegationRef).FillWidth().Disabled(m.Busy).Clicked() {
+					if pListButton(c, r.Outcome+" · "+r.DelegationRef, m.Busy).Clicked() {
 						action("detail", r.DelegationRef)
 					}
 					ui.Text(c, time.UnixMilli(int64(r.At)).Format(time.RFC3339)).FontSize(fonttheme.InterfaceSize(12))
@@ -102,10 +102,10 @@ func reportsView(c *ui.Context, m Model) {
 			})
 		})
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-			if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || len(h.WorkCursors) < 2).Clicked() {
+			if pButton(c, tr("上一页", "Previous"), m.Busy || len(h.WorkCursors) < 2).Clicked() {
 				action("work-prev", "")
 			}
-			if ui.Button(c, tr("更早报告", "Older reports")).Disabled(m.Busy || h.History.NextCursor == "").Clicked() {
+			if pButton(c, tr("更早报告", "Older reports"), m.Busy || h.History.NextCursor == "").Clicked() {
 				action("work-next", "")
 			}
 		})
@@ -116,7 +116,7 @@ func reportsView(c *ui.Context, m Model) {
 		ui.Column(c).FillWidth().Gap(4).Children(func() {
 			for _, e := range h.Listing.Results {
 				e := e
-				if ui.Button(c, e.Title+fmt.Sprintf(" (%d)", e.ReportCount)).FillWidth().Disabled(m.Busy).Clicked() {
+				if pListButton(c, e.Title+fmt.Sprintf(" (%d)", e.ReportCount), m.Busy).Clicked() {
 					action("work", e.WorkstreamID)
 				}
 				ui.Text(c, e.WorkstreamID+" · "+e.Report.DelegationRef+" · "+e.Report.Outcome).FontSize(fonttheme.InterfaceSize(12))
@@ -124,10 +124,10 @@ func reportsView(c *ui.Context, m Model) {
 		})
 	})
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || len(h.ListCursors) < 2).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || len(h.ListCursors) < 2).Clicked() {
 			action("list-prev", "")
 		}
-		if ui.Button(c, tr("下一页", "Next")).Disabled(m.Busy || h.Listing.NextCursor == "").Clicked() {
+		if pButton(c, tr("下一页", "Next"), m.Busy || h.Listing.NextCursor == "").Clicked() {
 			action("list-next", "")
 		}
 	})

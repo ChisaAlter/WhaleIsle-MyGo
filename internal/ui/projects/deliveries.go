@@ -30,13 +30,13 @@ func deliveryHistoryView(c *ui.Context, m Model) {
 			deliveryEvidenceView(c, m)
 			return
 		}
-		if ui.Button(c, tr("返回交付集合", "Back to deliveries")).Clicked() {
+		if pGhost(c, tr("返回交付集合", "Back to deliveries"), false).Clicked() {
 			action("back-list", "")
 		}
 		deliveryRecordView(c, m, *h.Selected)
 		return
 	}
-	if ui.Button(c, tr("刷新此页", "Refresh this page")).Disabled(m.Busy).Clicked() {
+	if pButton(c, tr("刷新此页", "Refresh this page"), m.Busy).Clicked() {
 		action("refresh", "")
 	}
 	if h.Loaded && len(h.Page.Items) == 0 {
@@ -66,7 +66,7 @@ func deliveryHistoryView(c *ui.Context, m Model) {
 				for _, d := range versions {
 					d := d
 					label := fmt.Sprintf(tr("第%d版 · %s", "Revision %d · %s"), d.RequestRevision, d.Title)
-					if ui.Button(c, label).FillWidth().Disabled(m.Busy).Clicked() {
+					if pListButton(c, label, m.Busy).Clicked() {
 						action("select", d.ID)
 					}
 					ui.Text(c, d.ID+" · "+d.Status+" · "+d.Outcome+" · "+time.UnixMilli(int64(d.At)).Format(time.RFC3339)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
@@ -76,10 +76,10 @@ func deliveryHistoryView(c *ui.Context, m Model) {
 	})
 	ui.Text(c, fmt.Sprintf(tr("第%d页 · 全部%d条交付；同一要求的其他版本可能在更早页。", "Page %d · %d deliveries total; more revisions may appear on earlier pages."), len(h.Cursors), h.Page.Total)).FontSize(fonttheme.InterfaceSize(12))
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || len(h.Cursors) < 2).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || len(h.Cursors) < 2).Clicked() {
 			action("previous", "")
 		}
-		if ui.Button(c, tr("更早交付", "Older deliveries")).Disabled(m.Busy || h.Page.NextCursor == "").Clicked() {
+		if pButton(c, tr("更早交付", "Older deliveries"), m.Busy || h.Page.NextCursor == "").Clicked() {
 			action("next", "")
 		}
 	})
@@ -104,7 +104,7 @@ func deliveryRecordView(c *ui.Context, m Model, d projectflow.HistoricalDelivery
 			}
 			for _, ref := range d.ReportRefs {
 				ref := ref
-				if ui.Button(c, tr("打开原报告：", "Open recorded report: ")+ref.WorkstreamID+" · "+ref.DelegationRef).FillWidth().Disabled(m.Busy).Clicked() && m.OnDeliveryReport != nil {
+				if pListButton(c, tr("打开原报告：", "Open recorded report: ")+ref.WorkstreamID+" · "+ref.DelegationRef, m.Busy).Clicked() && m.OnDeliveryReport != nil {
 					m.OnDeliveryReport(d.ID, ref)
 				}
 				if ref.ReportID != "" {
@@ -113,13 +113,13 @@ func deliveryRecordView(c *ui.Context, m Model, d projectflow.HistoricalDelivery
 			}
 			for _, ref := range d.TerminalRefs {
 				ref := ref
-				if ui.Button(c, tr("定位原执行：", "Locate recorded execution: ")+ref.WorkstreamID+" · "+ref.DelegationRef+" · "+ref.RunID).FillWidth().Disabled(m.Busy || m.OnDeliveryTerminal == nil).Clicked() {
+				if pListButton(c, tr("定位原执行：", "Locate recorded execution: ")+ref.WorkstreamID+" · "+ref.DelegationRef+" · "+ref.RunID, m.Busy || m.OnDeliveryTerminal == nil).Clicked() {
 					m.OnDeliveryTerminal(ref)
 				}
 			}
 			for _, file := range d.Artifacts {
 				file := file
-				if ui.Button(c, tr("打开引用文件：", "Open referenced file: ")+file.Path).FillWidth().Disabled(m.Busy || m.OnDeliveryFile == nil || m.OnOpenAuthorizedFile == nil).Clicked() {
+				if pListButton(c, tr("打开引用文件：", "Open referenced file: ")+file.Path, m.Busy || m.OnDeliveryFile == nil || m.OnOpenAuthorizedFile == nil).Clicked() {
 					m.OnDeliveryFile(file, m.OnOpenAuthorizedFile)
 				}
 			}
@@ -135,10 +135,10 @@ func deliveryEvidenceView(c *ui.Context, m Model) {
 	d := h.Selected
 	ref := h.ReportRef
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("返回该次交付", "Back to this delivery")).Clicked() && m.OnDeliveryAction != nil {
+		if pGhost(c, tr("返回该次交付", "Back to this delivery"), false).Clicked() && m.OnDeliveryAction != nil {
 			m.OnDeliveryAction("back-report", "")
 		}
-		if ui.Button(c, tr("重读原报告", "Reload recorded report")).Disabled(m.Busy).Clicked() && m.OnDeliveryReport != nil {
+		if pButton(c, tr("重读原报告", "Reload recorded report"), m.Busy).Clicked() && m.OnDeliveryReport != nil {
 			m.OnDeliveryReport(d.ID, *ref)
 		}
 	})
@@ -181,7 +181,7 @@ func deliveryEvidenceView(c *ui.Context, m Model) {
 			}
 			for _, file := range r.Artifacts {
 				file := file
-				if ui.Button(c, tr("打开原报告文件：", "Open recorded artifact: ")+file.Path).FillWidth().Disabled(m.Busy || m.OnDeliveryFile == nil || m.OnOpenAuthorizedFile == nil).Clicked() {
+				if pListButton(c, tr("打开原报告文件：", "Open recorded artifact: ")+file.Path, m.Busy || m.OnDeliveryFile == nil || m.OnOpenAuthorizedFile == nil).Clicked() {
 					m.OnDeliveryFile(file, m.OnOpenAuthorizedFile)
 				}
 			}
