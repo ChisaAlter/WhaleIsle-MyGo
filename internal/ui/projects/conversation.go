@@ -29,7 +29,7 @@ func ConversationComposer(c *ui.Context, m Model, sessionID, parentSessionID str
 	ui.Column(c).FillWidth().Padding(12).Gap(8).Children(func() {
 		if member {
 			ui.Text(c, tr("这是项目成员的只读执行记录。请回到 Lead 分配工作。", "This Project member record is read-only. Return to the Lead to assign work.")).FontSize(theme.InterfaceSize(13))
-			if ui.Button(c, tr("返回 Lead", "Back to Lead")).Disabled(m.Busy || m.OnOpen == nil).Clicked() {
+			if pButton(c, tr("返回 Lead", "Back to Lead"), m.Busy || m.OnOpen == nil).Clicked() {
 				m.OnOpen(p.ID)
 			}
 			ProjectStopButton(c, m, p.CoordinatorSessionID)
@@ -39,7 +39,7 @@ func ConversationComposer(c *ui.Context, m Model, sessionID, parentSessionID str
 				label = tr("正在停止后台工作并归档…", "Stopping background work and archiving…")
 			}
 			ui.Text(c, label).FontSize(theme.InterfaceSize(13))
-			if ui.Button(c, tr("恢复项目", "Restore Project")).Disabled(m.Busy || p.Archiving || m.OnRestoreProject == nil).Clicked() {
+			if pPrimary(c, tr("恢复项目", "Restore Project"), m.Busy || p.Archiving || m.OnRestoreProject == nil).Clicked() {
 				m.OnRestoreProject(p.ID)
 			}
 		}
@@ -60,7 +60,7 @@ func ProjectStopButton(c *ui.Context, m Model, leadSessionID string) bool {
 	if !active {
 		return false
 	}
-	if ui.Button(c, tr("停止项目工作", "Stop Project work")).Disabled(m.Busy || p.Archiving || m.OnStopProject == nil).Clicked() {
+	if pDanger(c, tr("停止项目工作", "Stop Project work"), m.Busy || p.Archiving || m.OnStopProject == nil).Clicked() {
 		m.OnStopProject(p.ID)
 	}
 	return true

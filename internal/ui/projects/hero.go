@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -30,13 +31,18 @@ func HeroOption(c *ui.Context, m Model, snap session.ViewState) {
 	// lines up with the card's inner controls at +32, not the envelope edge.
 	row := ui.Row(c).Key("project-hero-option").Gap(6).AlignItems(ui.Center).Padding(0, 0, 0, 32).Tooltip(hint)
 	row.Children(func() {
-		button := ui.Button(c, "").Label("Project").Tooltip(hint).Height(28).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy || m.HeroDirectoryReason != "")
-		button.Children(func() {
-			ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
-				projectIcon(c, "checklist", 16, ink, false)
-				ui.Text(c, "Project").FontSize(theme.InterfaceSize(13)).TextColor(ink)
-			})
-		})
+		button := coss.Button(c, "", coss.ButtonOptions{
+			Variant:  coss.ButtonGhost,
+			Size:     coss.ButtonSM,
+			Label:    "Project",
+			Disabled: m.Busy || m.HeroDirectoryReason != "",
+			Content: func() {
+				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
+					projectIcon(c, "checklist", 16, ink, false)
+					ui.Text(c, "Project").FontSize(theme.InterfaceSize(13)).TextColor(ink)
+				})
+			},
+		}).Tooltip(hint)
 		if button.Clicked() {
 			m.OnCreateFromDraft()
 		}
