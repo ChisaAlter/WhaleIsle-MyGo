@@ -24,6 +24,7 @@ import (
 	"whaleisle/internal/ui/agents"
 	"whaleisle/internal/ui/browserpreview"
 	"whaleisle/internal/ui/chat"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/diffsurface"
@@ -565,7 +566,7 @@ func View(c *ui.Context, m Model) {
 	// ExternalNavigation's outer NavigationShell already owns the common canvas.
 	// Standalone and detached frames retain one canvas layer of their own.
 	if !m.ExternalNavigation {
-		shell.Background(t.Background)
+		shell.Background(frameCanvasFill(t))
 	}
 	workspaceFloatDropSurface(c, m, shell)
 	_, height := viewportDIP(c)
@@ -1565,13 +1566,22 @@ func rightPane(c *ui.Context, m Model) {
 
 	artifact := ui.Column(c.Key("frame-right-pane:" + tab)).Label("Skin artifact boundary").Fill().MinWidth(0)
 	if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
-		artifact.Background(theme.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip().DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if layout.Skin != theme.SkinCodex && chrome.BackdropActive() {
+			chrome.GlassSurface(artifact, t.Sidebar, chrome.MaterialSidebar).Radius(0).Padding(0).Clip()
+		} else {
+			artifact.Background(theme.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip()
+		}
+		artifact.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, theme.Color(layout.SidebarBorderColor), 0)
 		})
 	} else {
 		if m.workspacePane == nil || m.workspacePane.Kind != "project-observer" {
 			// The right rail shares the left rail's surface token.
-			artifact.Background(t.Sidebar)
+			if chrome.BackdropActive() {
+				chrome.GlassSurface(artifact, t.Sidebar, chrome.MaterialSidebar)
+			} else {
+				artifact.Background(t.Sidebar)
+			}
 		}
 	}
 	artifact.Children(func() {

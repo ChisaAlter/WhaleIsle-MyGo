@@ -293,8 +293,12 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 			key.s(string(entry.id), navigationLabel(m, entry.id), entry.icon)
 		}
 	}
+	railBg := t.Sidebar
+	if !t.Glass && chrome.BackdropActive() {
+		railBg = chrome.BackdropSidebar(t.Sidebar)
+	}
 	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), 0, 0, 0).Gap(design.Sp(3)).
-		Background(t.Sidebar).BorderWidth(0, design.BorderWidth, 0, 0).BorderColor(t.SidebarBorder).
+		Background(railBg).BorderWidth(0, design.BorderWidth, 0, 0).BorderColor(t.SidebarBorder).
 		Label(providerCopy("设置导航", "Settings navigation"))
 	rail.Children(func() {
 		kText(c, i18n.T(i18n.KeySettingsTitle), design.TextBase, design.WeightSemibold, t.SidebarAccentForeground).PaddingX(design.Sp(4)).Role(ui.RoleHeading)

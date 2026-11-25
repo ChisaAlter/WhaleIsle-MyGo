@@ -21,6 +21,7 @@ import (
 	"whaleisle/internal/desktop/voiceinput"
 	"whaleisle/internal/dsh/api"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/filelink"
@@ -374,7 +375,11 @@ func View(c *ui.Context, m Model) {
 		composerCardElevation(card, t, focused, inputDisabled)
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(r, cardFill, cardRadius)
+			if chrome.BackdropActive() {
+				chrome.DrawGlass(p, r, cardFill, chrome.MaterialPanel, cardRadius)
+			} else {
+				p.Fill(r, cardFill, cardRadius)
+			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
 			if t.IsDark() {
 				paintInnerBloom(p, r, cardRadius)
@@ -599,7 +604,7 @@ func View(c *ui.Context, m Model) {
 				// surface underneath, so the overlay is only a visual promise.
 				images, bytes := composerIntake(m.State)
 				overlay := ui.Box(c.Key("composer-drop-overlay")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
-					Radius(cardRadius).Background(t.Background.Alpha(0.92)).
+					Radius(cardRadius).Background(chrome.MaterialFill(t.Background, 0.92)).
 					Border(design.BorderWidth, accent).Justify(ui.Center).AlignItems(ui.Center).PassThrough()
 				overlay.Children(func() {
 					ui.Column(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
@@ -909,7 +914,10 @@ func paintSkillsPopup(c *ui.Context, m Model, items []session.SkillOption, skill
 			}
 			l := ui.List(c, list, len(items)).Rows(func(row ui.ListRow) {
 				sk := items[row.Index]
-				bg := t.Popover
+				bg := ui.Transparent
+				if !chrome.BackdropActive() {
+					bg = t.Popover
+				}
 				rowFg := t.PopoverForeground
 				if row.Index == sel {
 					bg = t.Accent

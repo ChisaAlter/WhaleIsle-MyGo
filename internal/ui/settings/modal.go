@@ -39,7 +39,7 @@ func ModalView(c *ui.Context, m Model) {
 			Role(ui.RoleDialog).Label(i18n.T(i18n.KeySettingsTitle)).
 			Radius(design.RadiusXL2).Clip().Opacity(progress).
 			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
-		if t.Glass {
+		if t.Glass || chrome.BackdropActive() {
 			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), design.RadiusXL2))
 		} else {
 			panel.Background(t.Popover)

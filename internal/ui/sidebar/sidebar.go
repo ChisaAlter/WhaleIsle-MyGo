@@ -398,9 +398,16 @@ func View(c *ui.Context, m Model) {
 		if m.Collapsed && skinLayout.Skin == theme.SkinCodex {
 			fill = t.Background
 		}
-		root.Background(fill).Radius(0).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if skinLayout.Skin != theme.SkinCodex && chrome.BackdropActive() {
+			chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
+		} else {
+			root.Background(fill).Radius(0)
+		}
+		root.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			p.Fill(ui.Rect{X: r.X + r.W - skinLayout.SidebarBorder, Y: r.Y, W: skinLayout.SidebarBorder, H: r.H}, t.SidebarBorder, 0)
 		})
+	} else if chrome.BackdropActive() {
+		chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
 	} else {
 		root.Background(fill).Radius(0)
 	}

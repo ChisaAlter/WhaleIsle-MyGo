@@ -69,6 +69,27 @@ func ConfigureBackdrop(path string, p wallpapers.Preferences) {
 	}
 }
 
+// SetBackdropDark records the resolved scheme's dark flag during view
+// construction so backdrop helpers stay current even when path is empty or
+// only an ambient gradient is configured.
+func SetBackdropDark(dark bool) {
+	if backgroundState.dark != dark {
+		backgroundState.dark = dark
+		backgroundState.version++
+	}
+}
+
+// BackdropDark reports the scheme dark flag last recorded for the backdrop.
+func BackdropDark() bool { return backgroundState.dark }
+
+// BackdropHasWallpaper reports whether a non-empty wallpaper image path is
+// configured on the active backdrop.
+func BackdropHasWallpaper() bool { return strings.TrimSpace(backgroundState.wallpaper) != "" }
+
+// BackdropPreferences returns the effective clamped wallpaper preferences
+// currently configured on the backdrop.
+func BackdropPreferences() wallpapers.Preferences { return backgroundState.prefs }
+
 // effectivePrefs applies the transparent theme only while a wallpaper is live,
 // as the harness does (html[data-dsh-transparent] is effective with a wallpaper
 // and ignored over the ambient gradient), so the chrome is never cleared over a
@@ -135,6 +156,7 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	reduced := len(reducedMotion) > 0 && reducedMotion[0]
 	if path != "" {
 		return func(painter *ui.Painter, r ui.Rect) {
+			backgroundState.dark = painter.Theme().Dark
 			w, h := int(math.Round(float64(r.W))), int(math.Round(float64(r.H)))
 			// The decode runs on a media worker; its completion repaints.
 			handle := wallpaperRequest(path, p, w, h)
@@ -169,9 +191,12 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 	// Strict gate: a preset or colours alone must never paint; only an explicit
 	// gradient does (NormalizeEffect has already resolved unset -> none).
 	if p.Effect != "gradient" {
-		return func(*ui.Painter, ui.Rect) {}
+		return func(painter *ui.Painter, _ ui.Rect) {
+			backgroundState.dark = painter.Theme().Dark
+		}
 	}
 	return func(painter *ui.Painter, r ui.Rect) {
+		backgroundState.dark = painter.Theme().Dark
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 )
@@ -96,7 +97,12 @@ func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled boo
 // border, and shadow-lg/5 without an enter/position transition.
 func menuPanelLook(c *ui.Context, e ui.Element) ui.Element {
 	t := design.For(c)
-	e.Background(t.Popover).Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.PopoverForeground)
+	e.Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.PopoverForeground)
+	if chrome.BackdropActive() {
+		chrome.GlassSurface(e, t.Popover, chrome.MaterialMenu, design.RadiusXL)
+	} else {
+		e.Background(t.Popover)
+	}
 	applyShadows(e, design.ShadowLg, design.TW.Black, 0.05)
 	return e
 }
