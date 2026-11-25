@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/proactive"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
@@ -106,7 +107,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 	ui.Column(c.Key("proactive-inbox")).FillWidth().MinWidth(0).Gap(12).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, whaleTaskCopy("任务收件箱", "Task inbox")).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(fg).Grow(1)
-			if p.OnToggle != nil && ui.Button(c, whaleTaskCopy("返回助理", "Back to assistant")).Clicked() {
+			if p.OnToggle != nil && aButton(c, whaleTaskCopy("返回助理", "Back to assistant"), false).Clicked() {
 				p.OnToggle()
 			}
 		})
@@ -165,10 +166,10 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 				}
 				ui.Text(c, proactiveRisk(a.Risk, a.DataClass)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				ui.Row(c).Gap(8).Wrap().Children(func() {
-					if ui.Button(c, whaleTaskCopy("批准此操作", "Approve action")).Disabled(p.Busy || p.OnDecide == nil).Clicked() {
+					if aPrimary(c, whaleTaskCopy("批准此操作", "Approve action"), p.Busy || p.OnDecide == nil).Clicked() {
 						p.OnDecide(a.ID, "approved")
 					}
-					if ui.Button(c, whaleTaskCopy("拒绝", "Reject")).Disabled(p.Busy || p.OnDecide == nil).Clicked() {
+					if aDangerOutline(c, whaleTaskCopy("拒绝", "Reject"), p.Busy || p.OnDecide == nil).Clicked() {
 						p.OnDecide(a.ID, "rejected")
 					}
 				})
@@ -183,7 +184,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 		*seen = len(p.State.Tasks)
 		form.Children(func() {
 			ui.Row(c).Children(func() {
-				if ui.Button(c, whaleTaskCopy("记录任务", "Add task")).Clicked() {
+				if aButton(c, whaleTaskCopy("记录任务", "Add task"), false).Clicked() {
 					*creating = !*creating
 				}
 			})
@@ -194,7 +195,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 				value := field.value
 				label := whaleTaskCopy(field.zh, field.en)
 				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				ui.TextArea(c.Key("proactive-"+field.key), &value).Label(label).FillWidth().MinWidth(0).Lines(1, 4).Disabled(p.Busy).OnChange(func() {
+				aTextarea(c.Key("proactive-"+field.key), &value, coss.TextareaOptions{Label: label, MaxLines: 4, Disabled: p.Busy}).OnChange(func() {
 					if p.OnEdit != nil {
 						p.OnEdit(field.key, value)
 					}
@@ -203,13 +204,13 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 			ui.Text(c, whaleTaskCopy("自主级别", "Autonomy")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 			ui.Row(c).Gap(6).Wrap().Children(func() {
 				for level := 1; level <= 5; level++ {
-					if ui.Button(c, fmt.Sprintf("L%d", level)).Disabled(p.Busy || p.OnAutonomy == nil || level == p.Autonomy).Clicked() {
+					if aChoice(c, fmt.Sprintf("L%d", level), level == p.Autonomy, p.Busy || p.OnAutonomy == nil || level == p.Autonomy).Clicked() {
 						p.OnAutonomy(level)
 					}
 				}
 			})
 			ui.Text(c, whaleTaskCopy("L1 只读；L2–L5 可在工作目录内修改。级别不改变现有工具审批规则。", "L1 is read-only; L2–L5 can edit within the working directory. The level does not change existing tool approval rules.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if ui.Button(c, whaleTaskCopy("加入收件箱", "Add to inbox")).Disabled(p.Busy || strings.TrimSpace(p.Title) == "" || p.OnCreate == nil).Clicked() {
+			if aPrimary(c, whaleTaskCopy("加入收件箱", "Add to inbox"), p.Busy || strings.TrimSpace(p.Title) == "" || p.OnCreate == nil).Clicked() {
 				p.OnCreate()
 			}
 		})
@@ -223,7 +224,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 				ui.Row(c).FillWidth().Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 					ui.Text(c, t.Title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg).Grow(1)
 					ui.Text(c, proactiveState(t.State)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-					if ui.Button(c, whaleTaskCopy("详情", "Details")).Disabled(p.OnSelect == nil).Clicked() {
+					if aChoice(c, whaleTaskCopy("详情", "Details"), p.Selected == t.ID, p.OnSelect == nil).Clicked() {
 						if p.Selected == t.ID {
 							p.OnSelect("")
 						} else {
@@ -299,7 +300,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 								if j.IntervalMS != nil {
 									ui.Text(c, fmt.Sprintf(whaleTaskCopy("每 %d 分钟", "Every %d min"), *j.IntervalMS/60000)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 								}
-								if j.Status == "scheduled" && p.OnCancelSchedule != nil && ui.Button(c, whaleTaskCopy("取消安排", "Cancel schedule")).Disabled(p.Busy).Clicked() {
+								if j.Status == "scheduled" && p.OnCancelSchedule != nil && aDangerOutline(c, whaleTaskCopy("取消安排", "Cancel schedule"), p.Busy).Clicked() {
 									p.OnCancelSchedule(j.ID)
 								}
 							})
@@ -307,7 +308,7 @@ func proactiveBlock(c *ui.Context, p ProactiveModel, fg, muted, border, accent u
 					}
 					if !t.Terminal() {
 						ui.Row(c).Children(func() {
-							if ui.Button(c, whaleTaskCopy("取消任务", "Cancel task")).Disabled(p.Busy || p.OnCancel == nil).Clicked() {
+							if aDangerOutline(c, whaleTaskCopy("取消任务", "Cancel task"), p.Busy || p.OnCancel == nil).Clicked() {
 								p.OnCancel(t.ID)
 							}
 						})
@@ -330,17 +331,17 @@ func proactiveExecution(c *ui.Context, p ProactiveModel, t proactive.Task, fg, m
 			ui.Text(c, errcopy.SentenceText(e.Error)).FontSize(theme.InterfaceSize(12)).TextColor(design.For(c).Destructive).Selectable()
 		}
 		ui.Row(c).Gap(8).Wrap().Children(func() {
-			if ui.Button(c, whaleTaskCopy("查看执行会话", "Open execution")).Disabled(p.OnOpenSession == nil).Clicked() {
+			if aButton(c, whaleTaskCopy("查看执行会话", "Open execution"), p.OnOpenSession == nil).Clicked() {
 				p.OnOpenSession(e.SessionID)
 			}
-			if !t.Terminal() && e.Phase == "unknown" && ui.Button(c, whaleTaskCopy("核对执行状态", "Check execution")).Disabled(!p.CanRun || p.OnInspect == nil).Clicked() {
+			if !t.Terminal() && e.Phase == "unknown" && aButton(c, whaleTaskCopy("核对执行状态", "Check execution"), !p.CanRun || p.OnInspect == nil).Clicked() {
 				p.OnInspect(t.ID)
 			}
 			if !t.Terminal() && !e.Unsettled() && t.ApprovalID == "" {
-				if ui.Button(c, whaleTaskCopy("继续任务", "Continue task")).Disabled(p.Busy || !p.CanRun || p.OnRun == nil).Clicked() {
+				if aPrimary(c, whaleTaskCopy("继续任务", "Continue task"), p.Busy || !p.CanRun || p.OnRun == nil).Clicked() {
 					p.OnRun(t.ID, true)
 				}
-				if t.State == "verifying" && ui.Button(c, whaleTaskCopy("确认完成", "Accept result")).Disabled(p.Busy || p.OnComplete == nil).Clicked() {
+				if t.State == "verifying" && aPrimary(c, whaleTaskCopy("确认完成", "Accept result"), p.Busy || p.OnComplete == nil).Clicked() {
 					p.OnComplete(t.ID)
 				}
 			}
@@ -355,7 +356,7 @@ func proactiveExecution(c *ui.Context, p ProactiveModel, t proactive.Task, fg, m
 		ui.Text(c, whaleTaskCopy("L1：只读执行，工具权限请求仍需你确认。", "L1: read-only execution; tool permission requests still need your decision.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 	}
 	ui.Row(c).Gap(8).Wrap().Children(func() {
-		if ui.Button(c, whaleTaskCopy("开始执行", "Start task")).Disabled(p.Busy || !p.CanRun || p.OnRun == nil).Clicked() {
+		if aPrimary(c, whaleTaskCopy("开始执行", "Start task"), p.Busy || !p.CanRun || p.OnRun == nil).Clicked() {
 			p.OnRun(t.ID, false)
 		}
 	})
@@ -365,7 +366,7 @@ func proactiveExecution(c *ui.Context, p ProactiveModel, t proactive.Task, fg, m
 	repeat := ui.Local(form, "repeat", func() string { return "" })
 	form.Children(func() {
 		ui.Row(c).Children(func() {
-			if ui.Button(c, whaleTaskCopy("安排执行时间", "Schedule task")).Clicked() {
+			if aButton(c, whaleTaskCopy("安排执行时间", "Schedule task"), false).Clicked() {
 				*open = !*open
 			}
 		})
@@ -373,12 +374,12 @@ func proactiveExecution(c *ui.Context, p ProactiveModel, t proactive.Task, fg, m
 			return
 		}
 		ui.Text(c, whaleTaskCopy("执行时间（本地时间，年-月-日 时:分）", "Run at (local time, YYYY-MM-DD HH:MM)")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ui.TextInput(c.Key("schedule-at"), at).Label(whaleTaskCopy("执行时间", "Run at")).FillWidth().Height(36).Radius(8).Border(.5, border).Disabled(p.Busy)
+		aInput(c.Key("schedule-at"), at, coss.InputOptions{Label: whaleTaskCopy("执行时间", "Run at"), Disabled: p.Busy})
 		ui.Text(c, whaleTaskCopy("重复间隔（分钟，留空只执行一次）", "Repeat interval (minutes, leave blank for once)")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		ui.TextInput(c.Key("schedule-repeat"), repeat).Label(whaleTaskCopy("重复间隔", "Repeat interval")).FillWidth().Height(36).Radius(8).Border(.5, border).Disabled(p.Busy)
+		aInput(c.Key("schedule-repeat"), repeat, coss.InputOptions{Label: whaleTaskCopy("重复间隔", "Repeat interval"), Disabled: p.Busy})
 		ui.Text(c, whaleTaskCopy("应用与 Host 就绪时执行。错过的多次安排合并为一次，每次结果单独保留。", "Runs while the app and Host are ready. Missed occurrences coalesce into one run; each result is kept separately.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		ui.Row(c).Children(func() {
-			if ui.Button(c, whaleTaskCopy("保存执行安排", "Save schedule")).Disabled(p.Busy || !p.CanRun || p.OnSchedule == nil).Clicked() {
+			if aPrimary(c, whaleTaskCopy("保存执行安排", "Save schedule"), p.Busy || !p.CanRun || p.OnSchedule == nil).Clicked() {
 				p.OnSchedule(t.ID, *at, *repeat)
 			}
 		})

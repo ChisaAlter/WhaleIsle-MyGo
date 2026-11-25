@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/desktop/proactive"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -37,7 +38,7 @@ func proactiveDeliveryForm(c *ui.Context, p ProactiveModel, t proactive.Task, fg
 	text := ui.Local(form, "text", func() string { return t.Execution.Summary })
 	form.Children(func() {
 		ui.Row(c).Children(func() {
-			if ui.Button(c, whaleTaskCopy("发送结果到飞书", "Send result to Feishu")).Disabled(!p.CanRun || p.Busy).Clicked() {
+			if aButton(c, whaleTaskCopy("发送结果到飞书", "Send result to Feishu"), !p.CanRun || p.Busy).Clicked() {
 				*open = !*open
 				if *open && p.OnDeliveryRefresh != nil {
 					p.OnDeliveryRefresh()
@@ -59,7 +60,7 @@ func proactiveDeliveryForm(c *ui.Context, p ProactiveModel, t proactive.Task, fg
 					selected = true
 					label = "✓ " + label
 				}
-				if ui.Button(c, label).Disabled(p.Busy || p.DeliveryBusy).Clicked() {
+				if aChoice(c, label, *routeID == route.ID, p.Busy || p.DeliveryBusy).Clicked() {
 					*routeID = route.ID
 				}
 				ui.Text(c, route.ChatID+" · "+route.BotID).FontSize(theme.InterfaceSize(12)).TextColor(muted).Selectable()
@@ -68,13 +69,13 @@ func proactiveDeliveryForm(c *ui.Context, p ProactiveModel, t proactive.Task, fg
 		if len(p.DeliveryRoutes) == 0 && !p.DeliveryBusy {
 			ui.Text(c, whaleTaskCopy("暂无可用会话。请连接飞书机器人、授权任务用户，并在目标会话提交一次 /task。", "No conversations available. Connect a Feishu bot, authorize its task owner, and submit /task in the destination conversation.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		}
-		if ui.Button(c, whaleTaskCopy("刷新会话", "Refresh conversations")).Disabled(p.DeliveryBusy || p.OnDeliveryRefresh == nil).Clicked() {
+		if aButton(c, whaleTaskCopy("刷新会话", "Refresh conversations"), p.DeliveryBusy || p.OnDeliveryRefresh == nil).Clicked() {
 			p.OnDeliveryRefresh()
 		}
 		ui.Text(c, whaleTaskCopy("发送内容", "Message")).FontSize(theme.InterfaceSize(13)).TextColor(fg)
-		ui.TextArea(c.Key("delivery-text"), text).Label(whaleTaskCopy("发送内容", "Message")).FillWidth().MinWidth(0).Lines(3, 10).Disabled(p.Busy)
+		aTextarea(c.Key("delivery-text"), text, coss.TextareaOptions{Label: whaleTaskCopy("发送内容", "Message"), MaxLines: 10, Disabled: p.Busy})
 		ui.Text(c, whaleTaskCopy("下一步核对目标和正文，批准后发送。", "Review the destination and message next; sending begins after approval.")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-		if ui.Button(c, whaleTaskCopy("提交发送审批", "Review delivery")).Disabled(p.Busy || p.DeliveryBusy || !selected || strings.TrimSpace(*text) == "" || t.ApprovalID != "").Clicked() {
+		if aPrimary(c, whaleTaskCopy("提交发送审批", "Review delivery"), p.Busy || p.DeliveryBusy || !selected || strings.TrimSpace(*text) == "" || t.ApprovalID != "").Clicked() {
 			p.OnDelivery(t.ID, *routeID, *text)
 		}
 	})
