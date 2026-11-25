@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/coss"
 )
 
 // filteredProjects preserves the Host listing's order and identities. Search is
@@ -24,19 +25,19 @@ func filteredProjects(projects []projectflow.Project, query string, history bool
 
 func projectFilterControls(c *ui.Context, m *Model) {
 	label := tr("搜索 Project 标题", "Search Project titles")
-	if ui.TextInput(c, &m.SearchQuery).FillWidth().Label(label).Placeholder(label).Changed() && m.OnSearchQuery != nil {
+	if pInput(c, &m.SearchQuery, coss.InputOptions{Size: coss.InputSM, Label: label, Placeholder: label}).Changed() && m.OnSearchQuery != nil {
 		m.OnSearchQuery(m.SearchQuery)
 	}
 	ui.Row(c).Gap(4).Children(func() {
-		if ui.Button(c, tr("未归档", "Unarchived")).Disabled(!m.History).Clicked() && m.OnHistory != nil {
+		if pFilterButton(c, tr("未归档", "Unarchived"), !m.History, !m.History).Clicked() && m.OnHistory != nil {
 			m.History = false
 			m.OnHistory(false)
 		}
-		if ui.Button(c, tr("已归档", "Archived")).Disabled(m.History).Clicked() && m.OnHistory != nil {
+		if pFilterButton(c, tr("已归档", "Archived"), m.History, m.History).Clicked() && m.OnHistory != nil {
 			m.History = true
 			m.OnHistory(true)
 		}
-		if m.SearchQuery != "" && ui.Button(c, tr("清除搜索", "Clear search")).Clicked() && m.OnSearchQuery != nil {
+		if m.SearchQuery != "" && pGhost(c, tr("清除搜索", "Clear search"), false).Clicked() && m.OnSearchQuery != nil {
 			m.SearchQuery = ""
 			m.OnSearchQuery("")
 		}

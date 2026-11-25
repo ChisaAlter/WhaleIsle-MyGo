@@ -6,11 +6,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/dsh/api"
@@ -150,6 +150,10 @@ type ViewState struct {
 	nativeCommandGenerations      [4]uint64
 	projection                    ProjectionKey
 	historyProjection             ProjectionKey
+	durableHistoryProjection      ProjectionKey
+	durableHistorySessionID       string
+	durableHistoryBinding         string
+	durableHistoryMsgLen          int
 	rosterProjection              ProjectionKey
 	PermissionCatalogRevision     uint64
 	QueueEditor                   QueueEditorState
@@ -274,7 +278,17 @@ type Store struct {
 	trajEventsCache            map[float64]trajectoryRequestCacheEntry
 	trajHeadersCache           []TrajectoryRequestHeader
 	trajRequestsCache          []TrajectoryRequest
+	trajRequestsRev            uint64
+	trajLiveReqCache           []TrajectoryRequest
+	trajLiveAttemptID          string
+	trajLiveNextIndex          int
+	trajLiveStreamLen          int
+	trajLiveBaseRev            uint64
 	trajHadLiveAttempt         bool
+	trajectoryDisabled         bool
+	trajViewRev                uint64
+	trajViewValid              bool
+	trajViewCache              TrajectoryView
 	trajTimingCache            map[float64]trajectoryTimingCacheEntry
 	trajTimingRev              uint64
 	trajTimingParsed           map[float64]trajectoryParsedEvent
@@ -290,13 +304,27 @@ type Store struct {
 	durableHasEdits            bool
 	durableCacheValid          bool
 	trajectoryMessageCache     *trajectoryMessageCache
+	historyRev                 uint64
+	boundaryRev                uint64
+	workflowRev                uint64
+	streamRev                  uint64
+	cachedHistoryRev           uint64
+	cachedBoundaryRev          uint64
+	cachedWorkflowRev          uint64
+	cachedStreamRev            uint64
+	cachedDurableLen           int
+	cachedSplitOK              bool
+	cachedMsgPtr               *Message
+	cachedFirstDurable         historyEdgeGuard
+	cachedLastDurable          historyEdgeGuard
+	cachedSmallDurable         [16]historyEdgeGuard
+	cachedSmallDurableLen      int
+	cachedBoundaryLen          int
+	cachedWorkflowLen          int
 	boundariesVerifiedRev      uint64
 	historyVerifiedRev         uint64
 	historyValid               bool
-	historyMessages            []historyMessage
 	historyVolatiles           []historyMessage
-	historyBoundaries          map[float64]string
-	historyWorkflows           map[float64]string
 	historySelectedID          string
 	historyEditTurnSeq         float64
 	historyHasMorePrev         bool
@@ -308,78 +336,79 @@ type Store struct {
 	workflowRunsCache          []workflowrun.Run
 	// Cache hits require the same revision as the last projected view. Writers
 	// must invalidate under the same lock that publishes their state changes.
-	viewRev                   uint64
-	projectionToken           *projectionToken
-	projectionTokenRev        uint64
-	historyProjectionToken    *projectionToken
-	rosterProjectionToken     *projectionToken
-	rosterDirty               bool
-	renderFrame               *FrameSnapshot // lazily made by RenderSnapshot
-	pub                       state.Published[ViewState]
-	dirtyRev                  atomic.Uint64
-	publishedRev              atomic.Uint64
-	viewCacheRev              uint64
-	viewCache                 ViewState
-	viewCacheValid            bool
-	viewCacheFrameClaimed     bool
-	snapshotBuilds            uint64
-	snapshotHits              uint64
-	workflowBoundaries        map[float64]json.RawMessage
-	workflowMember            workflowMemberState
-	agentNavigation           agentNavigationState
-	agentNavigationPaneID     string
-	agentNavigationOwner      *Store
-	agentNavigationPanes      map[string]*Store
-	agentOccurrenceSequence   uint64
-	agentRetainedReads        map[string]*agentRetainedRead
-	agentRetainedRead         *agentRetainedRead
-	agentRetainEnabled        bool
-	planHistoryBinding        string
-	jobs                      nativeJobsState
-	composerHostGeneration    uint64
-	composerOrder             uint64
-	promptAttempted           map[string]bool
-	composerPending           map[string]*composerPending
-	composerObserved          map[string]composerObserved
-	composerAdmissions        map[string]*ComposerTarget
-	submissionPersistence     *submissionPersistence
-	submissionContext         context.Context
-	submissionWatches         map[string]*submissionWatch
-	submissionOutcomes        map[string]error
-	submissionTracked         map[string]*composerPending
-	workspacePreferences      workspacePreferenceBinding
-	rename                    SessionRenameView
-	renameEpoch               uint64
-	sessionFeedback           SessionFeedbackView
-	sessionFeedbackEpoch      uint64
-	workspaceLayout           workspaceLayoutState
-	workspaceNavigation       workspaceNavigationOperation
-	workspaceNavigationToken  uint64
-	initialWorkspaceSession   initialWorkspaceSessionState
-	workspaceReadyHost        uint64
-	workspaceOrder            []string
-	workspaceFollowGeneration uint64
-	questionProjections       map[string]QuestionProjectionState
-	permissionRisk            *permissionRiskOperation
-	permissionRiskToken       uint64
-	assistantStream           assistantStreamState
-	batch                     SessionBatch
-	batchToken                uint64
-	archive                   archiveOperation
-	deletion                  sessionDeletion
-	archiveToken              uint64
-	commandCatalog            commandCatalog
-	nativeContributions       nativeContributionState
-	feedback                  feedbackState
-	visualReply               visualReplyRead
-	visualReplyToken          uint64
-	queueEditor               queueEditor
-	queueMutationScope        string
-	queueMutationID           string
-	queueEditorToken          uint64
-	queueProjectionSessionID  string
-	queueProjectionGeneration uint64
-	queueProjectionSeq        float64
+	viewRev                       uint64
+	projectionToken               *projectionToken
+	projectionTokenRev            uint64
+	historyProjectionToken        *projectionToken
+	durableHistoryProjectionToken *projectionToken
+	rosterProjectionToken         *projectionToken
+	rosterDirty                   bool
+	renderFrame                   *FrameSnapshot // lazily made by RenderSnapshot
+	pub                           state.Published[ViewState]
+	dirtyRev                      atomic.Uint64
+	publishedRev                  atomic.Uint64
+	viewCacheRev                  uint64
+	viewCache                     ViewState
+	viewCacheValid                bool
+	viewCacheFrameClaimed         bool
+	snapshotBuilds                uint64
+	snapshotHits                  uint64
+	workflowBoundaries            map[float64]json.RawMessage
+	workflowMember                workflowMemberState
+	agentNavigation               agentNavigationState
+	agentNavigationPaneID         string
+	agentNavigationOwner          *Store
+	agentNavigationPanes          map[string]*Store
+	agentOccurrenceSequence       uint64
+	agentRetainedReads            map[string]*agentRetainedRead
+	agentRetainedRead             *agentRetainedRead
+	agentRetainEnabled            bool
+	planHistoryBinding            string
+	jobs                          nativeJobsState
+	composerHostGeneration        uint64
+	composerOrder                 uint64
+	promptAttempted               map[string]bool
+	composerPending               map[string]*composerPending
+	composerObserved              map[string]composerObserved
+	composerAdmissions            map[string]*ComposerTarget
+	submissionPersistence         *submissionPersistence
+	submissionContext             context.Context
+	submissionWatches             map[string]*submissionWatch
+	submissionOutcomes            map[string]error
+	submissionTracked             map[string]*composerPending
+	workspacePreferences          workspacePreferenceBinding
+	rename                        SessionRenameView
+	renameEpoch                   uint64
+	sessionFeedback               SessionFeedbackView
+	sessionFeedbackEpoch          uint64
+	workspaceLayout               workspaceLayoutState
+	workspaceNavigation           workspaceNavigationOperation
+	workspaceNavigationToken      uint64
+	initialWorkspaceSession       initialWorkspaceSessionState
+	workspaceReadyHost            uint64
+	workspaceOrder                []string
+	workspaceFollowGeneration     uint64
+	questionProjections           map[string]QuestionProjectionState
+	permissionRisk                *permissionRiskOperation
+	permissionRiskToken           uint64
+	assistantStream               assistantStreamState
+	batch                         SessionBatch
+	batchToken                    uint64
+	archive                       archiveOperation
+	deletion                      sessionDeletion
+	archiveToken                  uint64
+	commandCatalog                commandCatalog
+	nativeContributions           nativeContributionState
+	feedback                      feedbackState
+	visualReply                   visualReplyRead
+	visualReplyToken              uint64
+	queueEditor                   queueEditor
+	queueMutationScope            string
+	queueMutationID               string
+	queueEditorToken              uint64
+	queueProjectionSessionID      string
+	queueProjectionGeneration     uint64
+	queueProjectionSeq            float64
 
 	costProjections map[string]costProjection
 
@@ -390,6 +419,10 @@ type Store struct {
 	workspaceFault       *state.Fault // classified workspaceErr for the view; set with it
 	workspaceChanged     chan struct{}
 	workspaceMemberships map[string]workspaceMembership
+	sessionLRU           sessionLRUCache
+	streamNotifyTimer    *time.Timer
+	streamNotifyPending  bool
+	lastStreamNotify     time.Time
 	mu                   sync.Mutex
 	client               *dsh.Client
 	mux                  *dsh.Mux
@@ -536,6 +569,8 @@ func (s *Store) Attach(client *dsh.Client, notify func()) {
 		s.invalidateCommandsLocked()
 		s.resetWorkspaceLocked()
 		s.eventsGeneration++
+		s.sessionLRU.clear()
+		s.stopStreamNotifyTimerLocked()
 		s.invalidateFollowLocked()
 		s.listGeneration++
 		s.listLoading = false
@@ -652,6 +687,14 @@ func (s *Store) CreateSession(ctx context.Context) {
 		}
 		return
 	}
+	if len(blankIDs) > 0 {
+		go s.runCreateSessionWithBlankReuseOwned(ctx, client, hostGeneration, cwd, stagedPreset, navigation, follow, selectedID, blankIDs)
+		return
+	}
+	go s.runCreateSessionOwned(ctx, client, hostGeneration, cwd, stagedPreset, navigation, follow, selectedID)
+}
+
+func (s *Store) runCreateSessionWithBlankReuseOwned(ctx context.Context, client *dsh.Client, hostGeneration uint64, cwd, stagedPreset string, navigation, follow uint64, selectedID string, blankIDs []string) {
 	for _, id := range blankIDs {
 		var out api.SessionBlankReuseValue
 		err := client.Call(ctx, "session/blankReuse", map[string]any{
@@ -690,7 +733,7 @@ func (s *Store) CreateSession(ctx context.Context) {
 		}
 		s.mu.Unlock()
 	}
-	go s.runCreateSessionOwned(ctx, client, hostGeneration, cwd, stagedPreset, navigation, follow, selectedID)
+	s.runCreateSessionOwned(ctx, client, hostGeneration, cwd, stagedPreset, navigation, follow, selectedID)
 }
 
 func filepathClean(p string) string {
@@ -728,6 +771,8 @@ func (s *Store) Detach() {
 	s.invalidateCommandsLocked()
 	s.resetWorkspaceLocked()
 	s.eventsGeneration++
+	s.sessionLRU.clear()
+	s.stopStreamNotifyTimerLocked()
 	s.invalidateFollowLocked()
 	s.listGeneration++
 	s.listFollowGeneration = s.followGeneration
@@ -808,6 +853,54 @@ type historyMessage struct {
 	msg     Message
 }
 
+// historyEdgeGuard is a zero-allocation O(1) guard over the first and last
+// durable rows, catching direct white-box test edits to s.messages without
+// scanning the entire history.
+type historyEdgeGuard struct {
+	present   bool
+	id        string
+	seq       float64
+	body      string
+	rawPtr    *byte
+	rawLen    int
+	rawHead   byte
+	rawTail   byte
+	streaming bool
+	eventType string
+	turnSeq   float64
+}
+
+func makeHistoryEdgeGuard(m Message) historyEdgeGuard {
+	g := historyEdgeGuard{
+		present:   true,
+		id:        m.ID,
+		seq:       m.Seq,
+		body:      m.Body,
+		rawPtr:    unsafe.SliceData(m.Raw),
+		rawLen:    len(m.Raw),
+		streaming: m.Streaming,
+		eventType: m.EventType,
+		turnSeq:   m.TurnSeq,
+	}
+	if len(m.Raw) > 0 {
+		g.rawHead = m.Raw[0]
+		g.rawTail = m.Raw[len(m.Raw)-1]
+	}
+	return g
+}
+
+func (g historyEdgeGuard) matches(m Message) bool {
+	if !g.present || g.id != m.ID || g.seq != m.Seq || g.body != m.Body ||
+		g.rawPtr != unsafe.SliceData(m.Raw) || g.rawLen != len(m.Raw) || g.streaming != m.Streaming ||
+		g.eventType != m.EventType || g.turnSeq != m.TurnSeq {
+		return false
+	}
+	if len(m.Raw) > 0 && (g.rawHead != m.Raw[0] || g.rawTail != m.Raw[len(m.Raw)-1]) {
+		return false
+	}
+	return true
+}
+
 func equalFloat64Ptr(a, b *float64) bool {
 	if a == nil || b == nil {
 		return a == b
@@ -815,60 +908,12 @@ func equalFloat64Ptr(a, b *float64) bool {
 	return *a == *b
 }
 
-func equalStringSlice(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func hasMessagePointers(m Message) bool {
-	return m.AutomaticCompaction != nil || m.Retry != nil || m.TurnDelivery != nil || m.TrajectoryTime != nil || m.Workflow != nil || m.Submission != nil || m.Tool != nil || m.Command != nil || m.Web != nil
-}
-
 // volatileMessageRow reports a row that only exists while a reply streams: no
 // journal sequence and no raw record. The journal, usage and trajectory builders
 // read nothing else from a message, so such a row cannot change what they
-// produce. volatileHistoryRow is the same test on a remembered row.
+// produce.
 func volatileMessageRow(m Message) bool {
 	return m.Streaming && m.Seq == 0 && len(m.Raw) == 0
-}
-
-func volatileHistoryRow(h historyMessage) bool {
-	return h.msg.Streaming && h.seq == 0 && h.raw == ""
-}
-
-func sameHistoryMessage(h historyMessage, m Message) bool {
-	// A row that is still streaming has no journal record yet (no Seq, no Raw): its
-	// body grows with every chunk. Everything cached against history is derived
-	// from journal records, so treating each chunk as a history change threw all
-	// of it away and re-decoded every event for every frame of a stream.
-	if volatileHistoryRow(h) && volatileMessageRow(m) && h.msg.ID == m.ID {
-		return true
-	}
-	if h.seq != m.Seq || h.raw != string(m.Raw) || h.content != string(m.ContentBlock) ||
-		h.msg.ID != m.ID || h.msg.Role != m.Role || h.msg.Kind != m.Kind || h.msg.Body != m.Body ||
-		h.msg.Streaming != m.Streaming || h.msg.TurnSeq != m.TurnSeq || h.msg.TurnOpening != m.TurnOpening ||
-		h.msg.EventType != m.EventType || h.msg.EventTime != m.EventTime || h.msg.ImageRef != m.ImageRef ||
-		h.msg.SourceMessageID != m.SourceMessageID || h.msg.Model != m.Model || h.msg.Args != m.Args ||
-		h.msg.ContextWaking != m.ContextWaking ||
-		!equalFloat64Ptr(h.msg.ConversationTurn, m.ConversationTurn) ||
-		!equalFloat64Ptr(h.msg.ConversationStep, m.ConversationStep) ||
-		!equalStringSlice(h.msg.Files, m.Files) {
-		return false
-	}
-	if !hasMessagePointers(h.msg) && !hasMessagePointers(m) {
-		return true
-	}
-	mCopy := m
-	mCopy.Raw = nil
-	mCopy.ContentBlock = nil
-	return reflect.DeepEqual(h.msg, mCopy)
 }
 
 func splitVolatileTail(messages []Message) (durable []Message, volatile []Message, ok bool) {
@@ -882,6 +927,27 @@ func splitVolatileTail(messages []Message) (durable []Message, volatile []Messag
 		}
 	}
 	return messages[:split], messages[split:], true
+}
+
+// splitVolatileTailFastLocked avoids scanning the durable prefix on every
+// streaming tick when historyRev has not advanced and the backing slice header
+// is unchanged.
+func (s *Store) splitVolatileTailFastLocked() (durable []Message, volatile []Message, ok bool) {
+	if s.historyValid && s.historyRev == s.cachedHistoryRev && s.cachedSplitOK &&
+		s.cachedDurableLen <= len(s.messages) &&
+		(s.cachedDurableLen == 0 || &s.messages[0] == s.cachedMsgPtr) {
+		allVolatile := true
+		for i := s.cachedDurableLen; i < len(s.messages); i++ {
+			if !volatileMessageRow(s.messages[i]) {
+				allVolatile = false
+				break
+			}
+		}
+		if allVolatile {
+			return s.messages[:s.cachedDurableLen], s.messages[s.cachedDurableLen:], true
+		}
+	}
+	return splitVolatileTail(s.messages)
 }
 
 func (s *Store) boundariesVerifiedLocked() bool {
@@ -899,49 +965,53 @@ func (s *Store) historyVerifiedLocked() bool {
 }
 
 func (s *Store) boundariesCacheMatchesLocked() bool {
-	if !s.historyValid || len(s.historyBoundaries) != len(s.trajectoryBoundaries) {
-		return false
-	}
-	for seq, raw := range s.trajectoryBoundaries {
-		previous, ok := s.historyBoundaries[seq]
-		if !ok || previous != string(raw) {
-			return false
-		}
-	}
-	return true
+	return s.historyValid &&
+		s.boundaryRev == s.cachedBoundaryRev &&
+		len(s.trajectoryBoundaries) == s.cachedBoundaryLen
 }
 
 func (s *Store) workflowBoundariesMatchesLocked() bool {
-	if !s.historyValid || len(s.historyWorkflows) != len(s.workflowBoundaries) {
-		return false
-	}
-	for seq, raw := range s.workflowBoundaries {
-		previous, ok := s.historyWorkflows[seq]
-		if !ok || previous != string(raw) {
-			return false
-		}
-	}
-	return true
+	return s.historyValid &&
+		s.workflowRev == s.cachedWorkflowRev &&
+		len(s.workflowBoundaries) == s.cachedWorkflowLen
 }
 
-// historyCacheMatchesLocked compares the inputs used by both history parsers,
-// including the bytes at every position and boundary rather than a fingerprint.
-// Stored strings own their bytes, so in-place changes are detected as well.
+// historyCacheMatchesLocked verifies durable history in O(1) using monotonic
+// store revisions plus edge/slice guards instead of linearly comparing every
+// historical Raw JSON payload.
 func (s *Store) historyCacheMatchesLocked() bool {
 	if !s.boundariesVerifiedLocked() {
 		return false
 	}
-	durable, _, ok := splitVolatileTail(s.messages)
+	if s.historyRev != s.cachedHistoryRev {
+		return false
+	}
+	durable, _, ok := s.splitVolatileTailFastLocked()
 	if !ok {
 		durable = s.messages
 	}
-	if len(s.historyMessages) != len(durable) {
+	if len(durable) != s.cachedDurableLen {
 		return false
 	}
-	for i, message := range durable {
-		if !sameHistoryMessage(s.historyMessages[i], message) {
-			return false
+	if len(durable) == 0 {
+		return true
+	}
+	if &durable[0] != s.cachedMsgPtr {
+		return false
+	}
+	if len(durable) <= len(s.cachedSmallDurable) && s.cachedSmallDurableLen == len(durable) {
+		for i := range durable {
+			if !s.cachedSmallDurable[i].matches(durable[i]) {
+				return false
+			}
 		}
+		return true
+	}
+	if !s.cachedFirstDurable.matches(durable[0]) {
+		return false
+	}
+	if len(durable) > 1 && !s.cachedLastDurable.matches(durable[len(durable)-1]) {
+		return false
 	}
 	return true
 }
@@ -950,7 +1020,7 @@ func (s *Store) volatileMessagesMatchLocked() bool {
 	if !s.historyValid {
 		return false
 	}
-	_, volatile, ok := splitVolatileTail(s.messages)
+	_, volatile, ok := s.splitVolatileTailFastLocked()
 	if !ok || len(s.historyVolatiles) != len(volatile) {
 		return false
 	}
@@ -983,6 +1053,7 @@ func (s *Store) rememberVolatilesLocked(volatile []Message) {
 			msg:     cloned,
 		}
 	}
+	s.cachedStreamRev = s.streamRev
 }
 
 func (s *Store) rememberHistoryLocked() {
@@ -991,38 +1062,48 @@ func (s *Store) rememberHistoryLocked() {
 		durable = s.messages
 		volatile = nil
 	}
-	s.historyMessages = make([]historyMessage, len(durable))
-	for i, message := range durable {
-		cloned := cloneMessage(message)
-		cloned.Raw = nil
-		cloned.ContentBlock = nil
-		s.historyMessages[i] = historyMessage{
-			seq:     message.Seq,
-			raw:     string(message.Raw),
-			content: string(message.ContentBlock),
-			msg:     cloned,
+	s.cachedHistoryRev = s.historyRev
+	s.cachedBoundaryRev = s.boundaryRev
+	s.cachedWorkflowRev = s.workflowRev
+	s.cachedDurableLen = len(durable)
+	s.cachedSplitOK = ok
+	if len(durable) > 0 {
+		s.cachedMsgPtr = &durable[0]
+		s.cachedFirstDurable = makeHistoryEdgeGuard(durable[0])
+		if len(durable) > 1 {
+			s.cachedLastDurable = makeHistoryEdgeGuard(durable[len(durable)-1])
+		} else {
+			s.cachedLastDurable = historyEdgeGuard{}
 		}
+		if len(durable) <= len(s.cachedSmallDurable) {
+			s.cachedSmallDurableLen = len(durable)
+			for i := range durable {
+				s.cachedSmallDurable[i] = makeHistoryEdgeGuard(durable[i])
+			}
+		} else {
+			s.cachedSmallDurableLen = 0
+		}
+	} else {
+		s.cachedMsgPtr = nil
+		s.cachedFirstDurable = historyEdgeGuard{}
+		s.cachedLastDurable = historyEdgeGuard{}
+		s.cachedSmallDurableLen = 0
 	}
+	s.cachedBoundaryLen = len(s.trajectoryBoundaries)
+	s.cachedWorkflowLen = len(s.workflowBoundaries)
 	s.rememberVolatilesLocked(volatile)
-	s.historyBoundaries = make(map[float64]string, len(s.trajectoryBoundaries))
-	for seq, raw := range s.trajectoryBoundaries {
-		s.historyBoundaries[seq] = string(raw)
-	}
-	s.historyWorkflows = make(map[float64]string, len(s.workflowBoundaries))
-	for seq, raw := range s.workflowBoundaries {
-		s.historyWorkflows[seq] = string(raw)
-	}
 	s.historyValid = true
 	s.boundariesVerifiedRev = s.viewRev
 	s.historyVerifiedRev = s.viewRev
 }
 
-func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, rebuildDurable bool) ([]Message, bool) {
+func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, rebuildDurable bool) ([]Message, bool, bool) {
+	durableTouched := rebuildDurable
 	if rebuildDurable {
 		if hasMessageEdits(durable) {
 			s.durableHasEdits = true
 			s.durableCacheValid = false
-			return nil, false
+			return nil, false, true
 		}
 		s.durableHasEdits = false
 		base := projectCommandMessages(s.projectAssistantMessagesLocked(durable))
@@ -1033,16 +1114,19 @@ func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, re
 		s.durableStepIndices = stepIndices
 		s.durableCacheValid = true
 	} else if !s.durableCacheValid || s.durableHasEdits {
-		return nil, false
+		return nil, false, true
 	}
 	out := make([]Message, len(s.durableTimedCache), len(s.durableTimedCache)+len(volatile)+8)
 	copy(out, s.durableTimedCache)
 	_, ops, _ := s.ensureTrajectoryTimingCacheLocked()
 	liveOpID, liveOp, live := s.liveAttemptTimingLocked(ops)
 	if liveOpID != "" && liveOp != nil {
-		for _, idx := range s.durableStepIndices[liveOpID] {
-			if idx >= 0 && idx < len(out) {
-				out[idx].TrajectoryTime = cloneTrajectoryTiming(liveOp)
+		if idxs := s.durableStepIndices[liveOpID]; len(idxs) > 0 {
+			durableTouched = true
+			for _, idx := range idxs {
+				if idx >= 0 && idx < len(out) {
+					out[idx].TrajectoryTime = cloneTrajectoryTiming(liveOp)
+				}
 			}
 		}
 	}
@@ -1064,7 +1148,108 @@ func (s *Store) projectMessagesIncrementalLocked(durable, volatile []Message, re
 	}
 	out = s.projectRetryMessagesLocked(out)
 	out = s.projectSystemPromptsLocked(out)
-	return out[:len(out):len(out)], true
+	return out[:len(out):len(out)], true, durableTouched
+}
+
+// TrajectoryView holds the lazily projected trajectory inspection slices for
+// the currently selected session.
+type TrajectoryView struct {
+	Messages       []Message
+	Requests       []TrajectoryRequest
+	RequestHeaders []TrajectoryRequestHeader
+}
+
+// SetTrajectoryEnabled controls whether ViewState snapshots eagerly populate
+// TrajectoryMessages, TrajectoryRequests, and TrajectoryRequestHeaders. When
+// false (e.g. while the Trajectory panel is closed), the hot Snapshot/Published
+// path skips all trajectory construction and cloning; TrajectorySnapshot and
+// TrajectoryPublished still compute them lazily on demand.
+func (s *Store) SetTrajectoryEnabled(enabled bool) {
+	s.mu.Lock()
+	disabled := !enabled
+	if s.trajectoryDisabled == disabled {
+		s.mu.Unlock()
+		return
+	}
+	s.trajectoryDisabled = disabled
+	s.invalidateViewLocked()
+	s.mu.Unlock()
+	s.fire()
+}
+
+// TrajectoryEnabled reports whether ViewState snapshots include trajectory
+// projections. Defaults to true for backwards compatibility with callers that
+// read ViewState.Trajectory* directly without opting into demand gating.
+func (s *Store) TrajectoryEnabled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.trajectoryDisabled
+}
+
+// TrajectoryPublished returns a read-only lazily projected TrajectoryView for
+// the current store revision. Callers must not mutate the returned slices.
+func (s *Store) TrajectoryPublished() TrajectoryView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensureViewCacheLocked()
+	return s.ensureTrajectoryViewLocked()
+}
+
+// TrajectorySnapshot returns an independent mutable deep copy of the lazily
+// projected TrajectoryView for the current store revision.
+func (s *Store) TrajectorySnapshot() TrajectoryView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensureViewCacheLocked()
+	tv := s.ensureTrajectoryViewLocked()
+	return TrajectoryView{
+		Messages:       cloneMessages(tv.Messages),
+		Requests:       cloneTrajectoryRequests(tv.Requests, true),
+		RequestHeaders: cloneTrajectoryRequestHeaders(tv.RequestHeaders, true),
+	}
+}
+
+func (s *Store) ensureTrajectoryViewLocked() TrajectoryView {
+	if s.trajViewValid && s.trajViewRev == s.viewRev {
+		return s.trajViewCache
+	}
+	boundariesChanged := !s.boundariesVerifiedLocked()
+	historyChanged := boundariesChanged || !s.historyVerifiedLocked()
+	if boundariesChanged {
+		s.trajHeadersCache = nil
+		s.trajRequestsCache = nil
+		s.trajLiveReqCache = nil
+	}
+	if historyChanged {
+		s.trajJournalCache = nil
+		s.trajRequestsCache = nil
+		s.trajLiveReqCache = nil
+	}
+	var tv TrajectoryView
+	if s.trajViewValid && !historyChanged && !boundariesChanged && s.trajectoryMessageCache != nil && !s.volatileMessagesMatchLocked() {
+		tv.Messages = s.trajectoryMessagesViewLocked(false)
+	} else if s.trajViewValid && !historyChanged && !boundariesChanged && s.assistantStream.active == nil && !s.trajHadLiveAttempt && s.trajViewCache.Messages != nil {
+		tv.Messages = s.trajViewCache.Messages
+	} else {
+		tv.Messages = s.trajectoryMessagesViewLocked(historyChanged)
+	}
+	if !boundariesChanged && s.trajHeadersCache != nil {
+		tv.RequestHeaders = s.trajHeadersCache
+	} else {
+		s.trajHeadersCache = cloneTrajectoryRequestHeaders(s.trajectoryRequestHeadersLocked(), false)
+		tv.RequestHeaders = s.trajHeadersCache
+	}
+	hasLiveAttempt := s.assistantStream.active != nil
+	if !historyChanged && !boundariesChanged && !hasLiveAttempt && !s.trajHadLiveAttempt && s.trajViewValid && s.trajViewCache.Requests != nil {
+		tv.Requests = s.trajViewCache.Requests
+	} else {
+		tv.Requests = s.trajectoryRequestsViewLocked()
+	}
+	s.trajHadLiveAttempt = hasLiveAttempt
+	s.trajViewCache = tv
+	s.trajViewRev = s.viewRev
+	s.trajViewValid = true
+	return tv
 }
 
 // ensureViewCacheLocked builds an independent, immutable projection for the
@@ -1075,9 +1260,6 @@ func (s *Store) ensureViewCacheLocked() {
 		atomic.AddUint64(&s.snapshotHits, 1)
 		return
 	}
-	// The history fingerprint is only a hint: equal lengths and tails do not
-	// prove the journal is unchanged. Compare exact immutable source events
-	// against the last projection before trusting either parsed-history cache.
 	boundariesChanged := !s.boundariesCacheMatchesLocked()
 	if !boundariesChanged {
 		s.boundariesVerifiedRev = s.viewRev
@@ -1089,6 +1271,8 @@ func (s *Store) ensureViewCacheLocked() {
 	if boundariesChanged {
 		s.trajHeadersCache = nil
 		s.trajRequestsCache = nil
+		s.trajLiveReqCache = nil
+		s.trajViewValid = false
 		s.systemPromptRowsCache = nil
 		s.promptEventCache = nil
 		s.retryRowsCache = nil
@@ -1096,82 +1280,14 @@ func (s *Store) ensureViewCacheLocked() {
 	if historyChanged {
 		s.trajJournalCache = nil
 		s.trajRequestsCache = nil
+		s.trajLiveReqCache = nil
+		s.trajViewValid = false
 		s.promptEventCache = nil
 		s.trajTimingParsed = nil
 		s.trajTimingOps = nil
 		s.trajTimingAnchors = nil
 		s.durableCacheValid = false
 		s.historyNavigation.cachedValid = false
-	}
-	turnUsage := s.viewCache.TurnUsage
-	if historyChanged || !s.viewCacheValid {
-		turnUsage = cloneTurnUsageMap(s.turnUsageLocked())
-	}
-	st := ViewState{
-		StopTurnSeq:         s.editTurnSeq,
-		StopSequenceMS:      s.stopSequenceConfig.intervalMS,
-		StopGeneration:      s.followGeneration,
-		TurnUsage:           turnUsage,
-		TurnFiles:           s.turnFilesSnapshotLocked(),
-		PlanHistoryBinding:  s.planHistoryBinding,
-		WorkspaceLayout:     s.workspaceLayoutLocked(),
-		Workspaces:          s.workspaceRowsLocked(),
-		WorkspaceReady:      s.workspaceReady,
-		WorkspaceNavigation: s.workspaceNavigationSnapshotLocked(),
-		QuestionProjection:  s.questionProjectionLocked(),
-		ArchiveConfirmation: s.archiveConfirmationLocked(),
-		QueueEditor:         s.queueEditorSnapshotLocked(),
-		CostSources:         s.costSourcesLocked(),
-		ClientReady:         s.client != nil,
-		ScratchCwd:          s.scratchCwd,
-		WorkspaceMembers:    s.workspaceMembersLocked(),
-		LastAction:          s.lastAction,
-		GoalReadError:       s.goalReadErrorLocked(),
-		ListLoading:         s.listLoading,
-		SelectedID:          s.selectedID,
-		HistoryLoading:      s.historyLoading,
-		HistoryReconnecting: s.historyReconnecting,
-		HistoryReady:        s.historyReady,
-		HistoryError:        s.historyFault,
-		PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),
-		PromptAttempted:     s.promptAttempted[s.selectedID],
-		MessageEditBusy:     s.editTurnSeq > 0 || s.composerPendingForSelectedLocked(),
-		HistoryBranchBusy:   s.historyBranchBusy,
-		FeedbackBusyID:      s.feedbackBusyID,
-	}
-	st.WorkspaceError = s.workspaceFault
-	if len(s.messageRatings) > 0 {
-		st.MessageRatings = make(map[string]string, len(s.messageRatings))
-		for k, v := range s.messageRatings {
-			st.MessageRatings[k] = v
-		}
-	}
-	st.ListErr = s.listFault
-	st.PermissionsErr = s.permissionsFault
-	st.AgentPresetsErr = s.agentPresetsFault
-	st.SkillsErr = s.skillsFault
-	st.SidebarSubagentActivity = s.sidebarSubagentActivityLocked()
-	if s.selectedID != "" {
-		if len(s.subagentCatalogs[s.selectedID]) > 0 {
-			st.SubagentCatalog = append([]SubagentCatalogEntry(nil), s.subagentCatalogs[s.selectedID]...)
-		} else if cut, ok := s.sidebarCatalog.ByParent[s.selectedID]; ok && cut.Known && len(cut.IDs) > 0 {
-			entries := make([]SubagentCatalogEntry, 0, len(cut.IDs))
-			for _, id := range cut.IDs {
-				entries = append(entries, SubagentCatalogEntry{ID: id})
-			}
-			st.SubagentCatalog = entries
-		}
-	}
-	st.Items = append([]Item(nil), s.items...)
-	for i := range st.Items {
-		st.Items[i].CompletionUnread = s.completionUnread[st.Items[i].SessionID]
-	}
-	for _, it := range s.items {
-		if it.SessionID == s.selectedID {
-			st.SelectedCwd = it.Cwd
-			st.SelectedSummaryBlank = it.Blank
-			break
-		}
 	}
 	workflowsChanged := !s.workflowBoundariesMatchesLocked()
 	volatileChanged := !s.volatileMessagesMatchLocked()
@@ -1182,20 +1298,116 @@ func (s *Store) ensureViewCacheLocked() {
 	msgProjChanged := historyChanged || workflowsChanged || volatileChanged || !s.viewCacheValid ||
 		s.selectedID != s.historySelectedID || s.editTurnSeq != s.historyEditTurnSeq || s.historyHasMore != s.historyHasMorePrev ||
 		hasStream || s.historyHadStream || inspDirty
+
+	// Stream-only fast path: when only streaming chunks advanced (rosterDirty is
+	// false and durable history/selection/boundaries are unchanged), reuse all
+	// frozen non-message fields from s.viewCache without re-cloning 30+ slices/maps.
+	// Exclude active composer pending/tracked submissions so projectComposerSubmissionsLocked
+	// always receives a freshly cloned PlanBoard and never duplicates queued rows or
+	// mutates a previously published slice.
+	streamOnly := s.viewCacheValid && !s.rosterDirty &&
+		!historyChanged && !boundariesChanged && !workflowsChanged &&
+		s.selectedID == s.historySelectedID && s.editTurnSeq == s.historyEditTurnSeq &&
+		s.historyHasMore == s.historyHasMorePrev && !inspDirty &&
+		len(s.composerPending) == 0 && len(s.submissionTracked) == 0 &&
+		len(s.composerObserved) == 0 && len(s.viewCache.PlanBoard.Pending) == 0 &&
+		(s.trajectoryDisabled || s.trajViewValid)
+
+	var st ViewState
+	if streamOnly {
+		st = s.viewCache
+	} else {
+		turnUsage := s.viewCache.TurnUsage
+		if historyChanged || !s.viewCacheValid {
+			turnUsage = cloneTurnUsageMap(s.turnUsageLocked())
+		}
+		st = ViewState{
+			StopTurnSeq:         s.editTurnSeq,
+			StopSequenceMS:      s.stopSequenceConfig.intervalMS,
+			StopGeneration:      s.followGeneration,
+			TurnUsage:           turnUsage,
+			TurnFiles:           s.turnFilesSnapshotLocked(),
+			PlanHistoryBinding:  s.planHistoryBinding,
+			WorkspaceLayout:     s.workspaceLayoutLocked(),
+			Workspaces:          s.workspaceRowsLocked(),
+			WorkspaceReady:      s.workspaceReady,
+			WorkspaceNavigation: s.workspaceNavigationSnapshotLocked(),
+			QuestionProjection:  s.questionProjectionLocked(),
+			ArchiveConfirmation: s.archiveConfirmationLocked(),
+			QueueEditor:         s.queueEditorSnapshotLocked(),
+			CostSources:         s.costSourcesLocked(),
+			ClientReady:         s.client != nil,
+			ScratchCwd:          s.scratchCwd,
+			WorkspaceMembers:    s.workspaceMembersLocked(),
+			LastAction:          s.lastAction,
+			GoalReadError:       s.goalReadErrorLocked(),
+			ListLoading:         s.listLoading,
+			SelectedID:          s.selectedID,
+			HistoryLoading:      s.historyLoading,
+			HistoryReconnecting: s.historyReconnecting,
+			HistoryReady:        s.historyReady,
+			HistoryError:        s.historyFault,
+			PromptBusy:          s.promptBusy || s.composerPromptBusyLocked(),
+			PromptAttempted:     s.promptAttempted[s.selectedID],
+			MessageEditBusy:     s.editTurnSeq > 0 || s.composerPendingForSelectedLocked(),
+			HistoryBranchBusy:   s.historyBranchBusy,
+			FeedbackBusyID:      s.feedbackBusyID,
+		}
+		st.WorkspaceError = s.workspaceFault
+		if len(s.messageRatings) > 0 {
+			st.MessageRatings = make(map[string]string, len(s.messageRatings))
+			for k, v := range s.messageRatings {
+				st.MessageRatings[k] = v
+			}
+		}
+		st.ListErr = s.listFault
+		st.PermissionsErr = s.permissionsFault
+		st.AgentPresetsErr = s.agentPresetsFault
+		st.SkillsErr = s.skillsFault
+		st.SidebarSubagentActivity = s.sidebarSubagentActivityLocked()
+		if s.selectedID != "" {
+			if len(s.subagentCatalogs[s.selectedID]) > 0 {
+				st.SubagentCatalog = append([]SubagentCatalogEntry(nil), s.subagentCatalogs[s.selectedID]...)
+			} else if cut, ok := s.sidebarCatalog.ByParent[s.selectedID]; ok && cut.Known && len(cut.IDs) > 0 {
+				entries := make([]SubagentCatalogEntry, 0, len(cut.IDs))
+				for _, id := range cut.IDs {
+					entries = append(entries, SubagentCatalogEntry{ID: id})
+				}
+				st.SubagentCatalog = entries
+			}
+		}
+		st.Items = append([]Item(nil), s.items...)
+		for i := range st.Items {
+			st.Items[i].CompletionUnread = s.completionUnread[st.Items[i].SessionID]
+		}
+		for _, it := range s.items {
+			if it.SessionID == s.selectedID {
+				st.SelectedCwd = it.Cwd
+				st.SelectedSummaryBlank = it.Blank
+				break
+			}
+		}
+	}
+
+	durableDerivedChanged := historyChanged || workflowsChanged || !s.viewCacheValid ||
+		s.selectedID != s.historySelectedID || s.editTurnSeq != s.historyEditTurnSeq ||
+		s.historyHasMore != s.historyHasMorePrev || hasRetained || s.historyHadRetained || inspDirty
 	if !msgProjChanged {
 		st.Messages = s.msgProjCache
 		st.WorkflowRuns = s.workflowRunsCache
 	} else {
-		durable, volatile, splitOK := splitVolatileTail(s.messages)
-		durableProjChanged := !splitOK || historyChanged || workflowsChanged || !s.viewCacheValid ||
-			s.selectedID != s.historySelectedID || s.editTurnSeq != s.historyEditTurnSeq || s.historyHasMore != s.historyHasMorePrev ||
-			hasRetained || s.historyHadRetained || inspDirty ||
-			!s.durableCacheValid
+		durable, volatile, splitOK := s.splitVolatileTailFastLocked()
+		durableProjChanged := !splitOK || durableDerivedChanged || !s.durableCacheValid
 		var incrementalOK bool
+		var durableTouched bool
 		if splitOK && !hasRetained {
-			st.Messages, incrementalOK = s.projectMessagesIncrementalLocked(durable, volatile, durableProjChanged)
+			st.Messages, incrementalOK, durableTouched = s.projectMessagesIncrementalLocked(durable, volatile, durableProjChanged)
+			if durableTouched {
+				durableDerivedChanged = true
+			}
 		}
 		if !incrementalOK {
+			durableDerivedChanged = true
 			s.durableCacheValid = false
 			st.Messages = projectCommandMessages(s.projectAssistantMessagesLocked(projectMessageEdits(s.messages)))
 			st.Messages = s.projectPreparingToolsLocked(st.Messages)
@@ -1224,89 +1436,110 @@ func (s *Store) ensureViewCacheLocked() {
 		s.historyHadRetained = hasRetained
 		s.historyInspActive = inspActive
 	}
-	if !msgProjChanged && !boundariesChanged && s.viewCacheValid {
-		st.TrajectoryMessages = s.viewCache.TrajectoryMessages
-	} else {
-		st.TrajectoryMessages = s.trajectoryMessagesViewLocked(historyChanged)
-	}
-	if !boundariesChanged && s.viewCacheValid && s.trajHeadersCache != nil {
-		st.TrajectoryRequestHeaders = s.viewCache.TrajectoryRequestHeaders
-	} else {
-		s.trajHeadersCache = cloneTrajectoryRequestHeaders(s.trajectoryRequestHeadersLocked(), false)
-		st.TrajectoryRequestHeaders = s.trajHeadersCache
-	}
-	hasLiveAttempt := s.assistantStream.active != nil
-	if !historyChanged && s.viewCacheValid && !hasLiveAttempt && !s.trajHadLiveAttempt {
-		st.TrajectoryRequests = s.viewCache.TrajectoryRequests
-	} else {
-		st.TrajectoryRequests = s.trajectoryRequestsViewLocked()
-	}
-	s.trajHadLiveAttempt = hasLiveAttempt
-	s.snapshotCommandsLocked(&st)
-	st.NativeContributions = s.nativeContributions.snapshot
-	st.NativeContributionsGeneration = s.nativeContributions.generation
-	st.NativeModelLabelGeneration = s.nativeContributions.modelLabel
-	st.nativeCommandGenerations = s.nativeContributions.ports
-	st.PermissionCatalogRevision = s.permissionCatalogRevision
-	st.ComposerSessionGeneration = s.followGeneration
-	s.snapshotModelsLocked(&st)
-	st.HistoryNavigation = s.historyNavigationSnapshotLocked()
-	st.SelectedPermission = s.permissionLabelLocked()
-	if s.permissionProjectionCurrentLocked() {
-		st.SelectedPermissionValue = s.permissionProjection.Value
-		st.PermissionSelectionBusy = s.permissionProjection.Pending || s.permissionRisk != nil && s.permissionRiskCurrentLocked(s.permissionRisk.view.Token)
-	}
-	st.PlanModeControl = s.planModeControlLocked()
-	if s.permissionProjectionCurrentLocked() {
-		for _, o := range s.permissionOptions {
-			st.PermissionLabels = append(st.PermissionLabels, o.Label)
+
+	if s.trajectoryDisabled {
+		st.TrajectoryMessages = nil
+		st.TrajectoryRequestHeaders = nil
+		st.TrajectoryRequests = nil
+		if msgProjChanged || boundariesChanged {
+			s.trajViewValid = false
 		}
-	}
-	st.SelectedAgentPreset = s.selectedAgentPresetLabel
-	for _, o := range s.agentPresetOptions {
-		st.AgentPresetLabels = append(st.AgentPresetLabels, o.Label)
-	}
-	st.SkillCatalog = s.skillCatalog.clone()
-	if s.skillCatalogClient != s.client || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
-		st.SkillCatalog = SkillCatalog{}
-	}
-	st.SkillOptions = s.currentSkillOptionsLocked()
-	st.SkillHubHits = append([]SkillHubHit(nil), s.skillHubHits...)
-	st.SearchLoading = s.searchLoading
-	st.SearchUseLocal = s.searchUseLocal
-	st.SearchRPCQuery = s.searchRPCQuery
-	st.SearchResults = append([]api.SessionSearchValueItemsItem(nil), s.searchResults...)
-	st.SearchHasMore = s.searchHasMore
-	st.SearchErr = s.searchFault
-	if len(s.searchHits) > 0 {
-		st.SearchHitIDs = make(map[string]bool, len(s.searchHits))
-		for id := range s.searchHits {
-			st.SearchHitIDs[id] = true
+	} else {
+		needTrajMsg := msgProjChanged || boundariesChanged || !s.viewCacheValid || !s.trajViewValid || s.trajViewCache.Messages == nil
+		if !needTrajMsg {
+			st.TrajectoryMessages = s.trajViewCache.Messages
+		} else {
+			st.TrajectoryMessages = s.trajectoryMessagesViewLocked(historyChanged)
 		}
+		if !boundariesChanged && s.viewCacheValid && s.trajHeadersCache != nil && s.trajViewValid {
+			st.TrajectoryRequestHeaders = s.trajHeadersCache
+		} else {
+			s.trajHeadersCache = cloneTrajectoryRequestHeaders(s.trajectoryRequestHeadersLocked(), false)
+			st.TrajectoryRequestHeaders = s.trajHeadersCache
+		}
+		hasLiveAttempt := s.assistantStream.active != nil
+		if !historyChanged && !boundariesChanged && s.viewCacheValid && s.trajViewValid && !hasLiveAttempt && !s.trajHadLiveAttempt && s.trajViewCache.Requests != nil {
+			st.TrajectoryRequests = s.trajViewCache.Requests
+		} else {
+			st.TrajectoryRequests = s.trajectoryRequestsViewLocked()
+		}
+		s.trajHadLiveAttempt = hasLiveAttempt
+		s.trajViewCache = TrajectoryView{
+			Messages:       st.TrajectoryMessages,
+			Requests:       st.TrajectoryRequests,
+			RequestHeaders: st.TrajectoryRequestHeaders,
+		}
+		s.trajViewRev = s.viewRev
+		s.trajViewValid = true
 	}
-	st.PlanBoard = clonePlanBoard(s.planBoard)
-	st.PlanBoard.QueueActions = s.queueActionsLocked()
-	st.HistoryHasMore = s.historyHasMore
-	st.HistoryPageBusy = s.historyPageBusy
-	st.HistoryPageErr = s.historyPageFault
-	st.PromptMode = NormalizePromptMode(string(s.promptMode))
-	st.PromptModeExplicit = s.promptModeExplicit
-	st.ContextOccupancy = s.contextOccupancyLocked()
-	st.ComposerHostGeneration = s.composerHostGeneration
-	if len(s.pinnedSessionIDs) > 0 {
-		st.PinnedSessionIDs = append([]string(nil), s.pinnedSessionIDs...)
+
+	if !streamOnly {
+		s.snapshotCommandsLocked(&st)
+		st.NativeContributions = s.nativeContributions.snapshot
+		st.NativeContributionsGeneration = s.nativeContributions.generation
+		st.NativeModelLabelGeneration = s.nativeContributions.modelLabel
+		st.nativeCommandGenerations = s.nativeContributions.ports
+		st.PermissionCatalogRevision = s.permissionCatalogRevision
+		st.ComposerSessionGeneration = s.followGeneration
+		s.snapshotModelsLocked(&st)
+		st.HistoryNavigation = s.historyNavigationSnapshotLocked()
+		st.SelectedPermission = s.permissionLabelLocked()
+		if s.permissionProjectionCurrentLocked() {
+			st.SelectedPermissionValue = s.permissionProjection.Value
+			st.PermissionSelectionBusy = s.permissionProjection.Pending || s.permissionRisk != nil && s.permissionRiskCurrentLocked(s.permissionRisk.view.Token)
+		}
+		st.PlanModeControl = s.planModeControlLocked()
+		if s.permissionProjectionCurrentLocked() {
+			for _, o := range s.permissionOptions {
+				st.PermissionLabels = append(st.PermissionLabels, o.Label)
+			}
+		}
+		st.SelectedAgentPreset = s.selectedAgentPresetLabel
+		for _, o := range s.agentPresetOptions {
+			st.AgentPresetLabels = append(st.AgentPresetLabels, o.Label)
+		}
+		st.SkillCatalog = s.skillCatalog.clone()
+		if s.skillCatalogClient != s.client || s.skillCatalogSession != s.selectedID || s.skillCatalogCwd != s.cwd {
+			st.SkillCatalog = SkillCatalog{}
+		}
+		st.SkillOptions = s.currentSkillOptionsLocked()
+		st.SkillHubHits = append([]SkillHubHit(nil), s.skillHubHits...)
+		st.SearchLoading = s.searchLoading
+		st.SearchUseLocal = s.searchUseLocal
+		st.SearchRPCQuery = s.searchRPCQuery
+		st.SearchResults = append([]api.SessionSearchValueItemsItem(nil), s.searchResults...)
+		st.SearchHasMore = s.searchHasMore
+		st.SearchErr = s.searchFault
+		if len(s.searchHits) > 0 {
+			st.SearchHitIDs = make(map[string]bool, len(s.searchHits))
+			for id := range s.searchHits {
+				st.SearchHitIDs[id] = true
+			}
+		}
+		st.PlanBoard = clonePlanBoard(s.planBoard)
+		st.PlanBoard.QueueActions = s.queueActionsLocked()
+		st.HistoryHasMore = s.historyHasMore
+		st.HistoryPageBusy = s.historyPageBusy
+		st.HistoryPageErr = s.historyPageFault
+		st.PromptMode = NormalizePromptMode(string(s.promptMode))
+		st.PromptModeExplicit = s.promptModeExplicit
+		st.ContextOccupancy = s.contextOccupancyLocked()
+		st.ComposerHostGeneration = s.composerHostGeneration
+		if len(s.pinnedSessionIDs) > 0 {
+			st.PinnedSessionIDs = append([]string(nil), s.pinnedSessionIDs...)
+		}
+		if len(s.archivedSessionIDs) > 0 {
+			st.ArchivedSessionIDs = append([]string(nil), s.archivedSessionIDs...)
+		}
+		st.SpeechSelection = s.speechSelection
+		st.SpeechReadinessKnown, st.SpeechReady, st.SpeechNeedsInstallation = s.speechReadinessFlagsLocked()
+		st.ControlNote = s.controlNote
 	}
-	if len(s.archivedSessionIDs) > 0 {
-		st.ArchivedSessionIDs = append([]string(nil), s.archivedSessionIDs...)
-	}
-	st.SpeechSelection = s.speechSelection
-	st.SpeechReadinessKnown, st.SpeechReady, st.SpeechNeedsInstallation = s.speechReadinessFlagsLocked()
-	st.ControlNote = s.controlNote
 	inlinePendingChanged := s.projectComposerSubmissionsLocked(&st)
 	if historyChanged || workflowsChanged {
 		s.rememberHistoryLocked()
 	} else if volatileChanged {
-		if _, volatile, ok := splitVolatileTail(s.messages); ok {
+		if _, volatile, ok := s.splitVolatileTailFastLocked(); ok {
 			s.rememberVolatilesLocked(volatile)
 		} else {
 			s.rememberHistoryLocked()
@@ -1316,11 +1549,19 @@ func (s *Store) ensureViewCacheLocked() {
 	s.rosterDirty = false
 	st.projection = s.projectionKeyLocked()
 	st.historyProjection = s.historyProjectionKeyLocked(msgProjChanged || inlinePendingChanged)
+	st.durableHistoryProjection = s.durableHistoryProjectionKeyLocked(durableDerivedChanged || inlinePendingChanged)
+	st.durableHistorySessionID = st.SelectedID
+	st.durableHistoryBinding = st.PlanHistoryBinding
+	st.durableHistoryMsgLen = len(st.Messages)
 	st.rosterProjection = s.rosterProjectionKeyLocked(rosterChanged)
 	// A state-only revision can reuse the old message arrays. Its first frame
 	// must not claim them again while a handle from the old revision owns them.
 	s.viewCacheFrameClaimed = s.viewCacheFrameClaimed && !msgProjChanged
-	s.viewCache = cloneStoreViewCache(st)
+	if streamOnly {
+		s.viewCache = st
+	} else {
+		s.viewCache = cloneStoreViewCache(st)
+	}
 	s.viewCacheRev = s.viewRev
 	s.viewCacheValid = true
 	s.pub.Publish(s.viewCache)
@@ -1473,10 +1714,19 @@ func (s *Store) Select(sessionID string) {
 
 func (s *Store) refreshSelectedViews() {
 	s.FollowSelected(context.Background())
-	s.WatchControl(context.Background())
+	s.mu.Lock()
+	needControl := s.mux == nil || s.selectedID == ""
+	skillsWarm := s.skillOptionsScopeCurrentLocked(s.skillOptionsOwner) && len(s.skillOptions) > 0 &&
+		s.skillCatalogClient == s.client && s.skillCatalogSession == s.selectedID && len(s.skillCatalog.Skills) > 0
+	s.mu.Unlock()
+	if needControl {
+		s.WatchControl(context.Background())
+	}
 	s.RefreshProjections(context.Background())
 	s.RefreshGoal(context.Background())
-	s.RefreshSkills(context.Background())
+	if !skillsWarm {
+		s.RefreshSkills(context.Background())
+	}
 	s.RefreshFeedback(context.Background())
 }
 
@@ -1714,6 +1964,7 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 			for i := range s.messages {
 				if s.messages[i].Seq == editSeq && s.messages[i].Role == "user" {
 					s.messages[i].Body = text
+					s.markHistoryDirtyLocked()
 					break
 				}
 			}
@@ -1724,6 +1975,7 @@ func (s *Store) SendPromptEdit(ctx context.Context, text string, editSeq float64
 				Role: "user",
 				Body: text,
 			})
+			s.markHistoryDirtyLocked()
 		}
 		s.mu.Unlock()
 		s.fire()
@@ -1974,7 +2226,7 @@ func (s *Store) AppendStreamDelta(role, delta string) {
 }
 
 func (s *Store) appendStreamDeltaLocked(role, delta string) {
-	s.invalidateViewLocked()
+	s.markStreamDirtyLocked()
 	if n := len(s.messages); n > 0 && s.messages[n-1].Streaming && s.messages[n-1].Role == role {
 		s.messages[n-1].Body += delta
 	} else {
@@ -2018,6 +2270,26 @@ func (s *Store) invalidateViewLocked() {
 	}
 }
 
+func (s *Store) markHistoryDirtyLocked() {
+	s.historyRev++
+	s.invalidateViewLocked()
+}
+
+func (s *Store) markBoundaryDirtyLocked() {
+	s.boundaryRev++
+	s.invalidateViewLocked()
+}
+
+func (s *Store) markWorkflowDirtyLocked() {
+	s.workflowRev++
+	s.invalidateViewLocked()
+}
+
+func (s *Store) markStreamDirtyLocked() {
+	s.streamRev++
+	s.invalidateStreamViewLocked()
+}
+
 func (s *Store) invalidateStreamViewLocked() {
 	noteViewInvalidation()
 	s.viewRev++
@@ -2029,8 +2301,12 @@ func (s *Store) invalidateStreamViewLocked() {
 }
 
 func (s *Store) fire() {
+	if s.workspacePreferences.hasPending.Load() {
+		s.drainWorkspacePreferenceSave()
+	}
 	s.mu.Lock()
 	s.invalidateViewLocked()
+	s.flushStreamNotifyLocked()
 	fn := s.notify
 	s.mu.Unlock()
 	if fn != nil {
@@ -2042,12 +2318,42 @@ func (s *Store) fire() {
 // state: one chunk of the assistant attempt in flight. Unlike fire it does not
 // mark the roster dirty, so memos keyed on RosterProjectionKey (sidebar groups,
 // filters, cost) survive a stream instead of rebuilding for every chunk.
-// Any change that does reach the roster (a durable event, a rebaseline, a
-// retired attempt) invalidates the view itself, under the lock, before the
-// caller learns that something changed.
+// Notifications are coalesced to a 16ms frame window (first chunk immediate;
+// terminal/error/non-stream events flush immediately via fire()).
 func (s *Store) fireStream() {
 	s.mu.Lock()
 	s.invalidateStreamViewLocked()
+	fn := s.notify
+	if fn == nil {
+		s.mu.Unlock()
+		return
+	}
+	now := time.Now()
+	elapsed := now.Sub(s.lastStreamNotify)
+	if s.lastStreamNotify.IsZero() || elapsed >= streamNotifyInterval {
+		s.stopStreamNotifyTimerLocked()
+		s.lastStreamNotify = now
+		s.mu.Unlock()
+		fn()
+		return
+	}
+	if !s.streamNotifyPending {
+		s.streamNotifyPending = true
+		wait := streamNotifyInterval - elapsed
+		s.streamNotifyTimer = time.AfterFunc(wait, s.flushCoalescedStreamNotify)
+	}
+	s.mu.Unlock()
+}
+
+func (s *Store) flushCoalescedStreamNotify() {
+	s.mu.Lock()
+	if !s.streamNotifyPending {
+		s.mu.Unlock()
+		return
+	}
+	s.streamNotifyPending = false
+	s.streamNotifyTimer = nil
+	s.lastStreamNotify = time.Now()
 	fn := s.notify
 	s.mu.Unlock()
 	if fn != nil {

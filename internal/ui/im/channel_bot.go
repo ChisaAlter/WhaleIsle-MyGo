@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -42,16 +43,16 @@ func channelBotCard(c *ui.Context, m Model, v imonboard.View, bot imonboard.Bot,
 			channelProvisionView(c, m, v, blocked, fg, muted)
 		}
 		ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
-			if ui.Button(c, channelText("重新连接", "Reconnect")).Disabled(blocked || v.Provision.AttemptID != "").Clicked() {
+			if coss.Button(c, channelText("重新连接", "Reconnect"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked || v.Provision.AttemptID != ""}).Clicked() {
 				channelAction(&m.Store.Onboarding, v, "bot.reconnect", bot.BotID, "", "")
 			}
-			if ui.Button(c, channelText("发送测试消息", "Send test message")).Disabled(blocked || v.Provision.AttemptID != "").Clicked() {
+			if coss.Button(c, channelText("发送测试消息", "Send test message"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked || v.Provision.AttemptID != ""}).Clicked() {
 				channelAction(&m.Store.Onboarding, v, "bot.reconnect-test", bot.BotID, "", "")
 			}
-			if ui.Button(c, channelText("断开", "Disconnect")).Disabled(blocked || !bot.Connected).Clicked() {
+			if coss.Button(c, channelText("断开", "Disconnect"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: blocked || !bot.Connected}).Clicked() {
 				channelAction(&m.Store.Onboarding, v, "bot.disconnect", bot.BotID, "", "")
 			}
-			if ui.Button(c, channelText("删除机器人…", "Delete bot…")).TextColor(c.Theme().Danger).Disabled(blocked || v.Provision.AttemptID != "").Clicked() {
+			if coss.Button(c, channelText("删除机器人…", "Delete bot…"), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonSM, Disabled: blocked || v.Provision.AttemptID != ""}).Clicked() {
 				channelAction(&m.Store.Onboarding, v, "bot.delete", bot.BotID, "", "")
 			}
 		})
@@ -68,7 +69,8 @@ func channelFeishuPermissions(c *ui.Context, m Model, v imonboard.View, bot imon
 		selected = all
 	}
 	ui.Text(c, channelText("群消息响应", "Group responses")).Bold()
-	if ui.Select(c, &selected, []string{mention, all}).FillWidth().Disabled(disabled).Changed() {
+	opts := []coss.SelectOption{{Value: mention, Label: mention}, {Value: all, Label: all}}
+	if coss.Select(c, &selected, opts, coss.SelectOptions{Disabled: disabled}).FillWidth().Changed() {
 		mode := "mention"
 		if selected == all {
 			mode = "all"
@@ -90,12 +92,12 @@ func channelFeishuPermissions(c *ui.Context, m Model, v imonboard.View, bot imon
 			help = channelText("已开通“获取群组中所有消息”权限（im:message.group_msg）；机器人会处理群聊中的所有可见消息。", "Permission to read all group messages (im:message.group_msg) is granted. This bot handles all visible group messages.")
 			caption = channelText("重新授权群消息权限…", "Reauthorize group messages…")
 		}
-		if ui.Button(c, caption).Disabled(disabled).Clicked() {
+		if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 			channelAction(s, v, "bot.group-message-permission.begin", bot.BotID, "", "")
 		}
 	}
 	ui.Text(c, help).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-	if ui.Button(c, channelText("补全权限与卡片回调…", "Repair permissions and card callbacks…")).Disabled(disabled).Clicked() {
+	if coss.Button(c, channelText("补全权限与卡片回调…", "Repair permissions and card callbacks…"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 		channelAction(s, v, "bot.callback-repair.begin", bot.BotID, "", "")
 	}
 	ui.Text(c, channelText("最多增量补全 card.action.trigger、读取图片/文件所需 im:message:readonly，以及上传图片/文件所需 im:resource。确认页只显示缺失项，不创建新应用；完成后仅此机器人短暂重连。", "Incrementally adds missing card.action.trigger, im:message:readonly for reading media, and im:resource for uploads. The confirmation shows only missing items and creates no new app. Only this bot briefly reconnects.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
@@ -135,7 +137,11 @@ func channelAccessPolicy(c *ui.Context, m Model, v imonboard.View, bot imonboard
 	disabled := blocked || v.Provision.AttemptID != ""
 	owner.Children(func() {
 		ui.Text(c, channelText("消息访问策略", "Message access policy")).Bold()
-		if ui.Select(c, &selected, captions).FillWidth().Disabled(disabled).Changed() {
+		opts := make([]coss.SelectOption, len(captions))
+		for i, caption := range captions {
+			opts[i] = coss.SelectOption{Value: caption, Label: caption}
+		}
+		if coss.Select(c, &selected, opts, coss.SelectOptions{Disabled: disabled}).FillWidth().Changed() {
 			for index, caption := range captions {
 				if selected == caption {
 					state.mode = modes[index]
@@ -155,14 +161,14 @@ func channelAccessPolicy(c *ui.Context, m Model, v imonboard.View, bot imonboard
 				warning = channelText("白名单为空时，仅保留自己的自聊。号码会按国际号码规范化，策略仅影响此机器人。", "An empty allowlist keeps self-chat only. Numbers are normalized internationally; this policy applies only to this bot.")
 			}
 			ui.Text(c, caption).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
-			if ui.TextArea(c, &text).FillWidth().Height(84).Disabled(disabled).Changed() {
+			if coss.Textarea(c, &text, coss.TextareaOptions{Disabled: disabled}).Height(84).Changed() {
 				m.Store.Onboarding.EditPolicy(v.Scope, bot.BotID, text)
 			}
 			if strings.TrimSpace(text) == "" {
 				ui.Text(c, warning).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().Danger)
 			}
 		}
-		if ui.Button(c, channelText("保存访问策略", "Save access policy")).Disabled(disabled).Clicked() {
+		if coss.Button(c, channelText("保存访问策略", "Save access policy"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 			channelAction(&m.Store.Onboarding, v, "bot.access-policy.set", bot.BotID, state.mode, text)
 		}
 	})
@@ -189,10 +195,10 @@ func channelReviewDialog(c *ui.Context, m Model, v imonboard.View, fg, muted ui.
 				channelFeedback(c, v.Error, true)
 			}
 			ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-				if ui.Button(c, channelText("取消", "Cancel")).Disabled(v.Busy).Clicked() {
+				if coss.Button(c, channelText("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: v.Busy}).Clicked() {
 					m.Store.Onboarding.Dismiss()
 				}
-				if ui.Button(c, channelText("确认删除", "Delete")).TextColor(c.Theme().Danger).Disabled(v.Busy).Clicked() {
+				if coss.Button(c, channelText("确认删除", "Delete"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonSM, Disabled: v.Busy}).Clicked() {
 					m.Store.Onboarding.Confirm()
 				}
 			})

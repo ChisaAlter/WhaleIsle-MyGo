@@ -631,7 +631,7 @@ func (rt *engine) showMenu() {
 	rt.menu.focused = false
 	// The current scene was already presented. requestFrame skips requests
 	// made during a frame, so ask the host for the overlay's first build.
-	rt.redraw, rt.repaintDue = false, time.Time{}
+	rt.redraw, rt.fastScroll, rt.repaintDue = false, false, time.Time{}
 	rt.host.requestFrame()
 }
 

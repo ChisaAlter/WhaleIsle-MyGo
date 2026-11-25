@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/i18n"
@@ -23,10 +24,13 @@ func TestBotTaskPanelDetailsAndExplicitConfirmation(t *testing.T) {
 		}, OnConfirm: func() { confirmed++ }, OnDismiss: func() { state.Review = nil }}}
 		taskControlBlock(c, m, ui.RGB(255, 255, 255), ui.RGB(160, 160, 160), ui.RGB(20, 20, 20), ui.RGB(80, 80, 80), ui.RGB(80, 130, 220))
 	}, 1100, 1800)
-	for _, want := range []string{i18n.T(i18n.KeyMiscAssistantTask) + "Fixture task", i18n.T(i18n.KeyMiscAssistantSuccessCriteria) + "Fixture criteria", i18n.T(i18n.KeyMiscAssistantResult) + "Fixture result", i18n.T(i18n.KeyMiscAssistantError) + "Fixture error", taskActionLabel("retry")} {
+	for _, want := range []string{i18n.T(i18n.KeyMiscAssistantTask) + "Fixture task", i18n.T(i18n.KeyMiscAssistantSuccessCriteria) + "Fixture criteria", i18n.T(i18n.KeyMiscAssistantResult) + "Fixture result", i18n.T(i18n.KeyMiscAssistantError) + errcopy.SentenceText("Fixture error"), taskActionLabel("retry")} {
 		if !tt.HasText(want) {
 			t.Fatalf("missing %q; %q", want, tt.Texts())
 		}
+	}
+	if tt.HasText(i18n.T(i18n.KeyMiscAssistantError) + "Fixture error") {
+		t.Fatalf("raw task error leaked: %v", tt.Texts())
 	}
 	if tt.HasText(taskActionLabel("pause")) || tt.HasText(taskActionLabel("resume")) {
 		t.Fatal("invalid actions visible for failed task")

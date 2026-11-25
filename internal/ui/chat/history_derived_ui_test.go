@@ -95,3 +95,36 @@ func TestHistoryDerivedChatPerformanceChangesWithoutReplacingSlice(t *testing.T)
 		t.Fatal("untimed streaming row retained performance", tt.Texts())
 	}
 }
+
+func TestPrepareScheduleContextCachedUsesDurableKey(t *testing.T) {
+	base := historyDerivedChatFixture()
+	s := session.New()
+	view1 := s.Snapshot()
+	view1.SelectedID = base.SelectedID
+	view1.PlanHistoryBinding = base.PlanHistoryBinding
+	view1.Messages = append([]session.Message(nil), base.Messages...)
+
+	var cards map[float64][]schedstore.Entry
+	current := view1
+	tt := ui.NewTester(func(c *ui.Context) {
+		root := ui.Column(c).Fill()
+		memo := ui.Local(root, "history-derived", func() session.HistoryDerivedMemo { return session.HistoryDerivedMemo{} })
+		cards = prepareScheduleContextCached(root, Model{Snapshot: current}, memo)
+	}, 640, 360)
+
+	firstPtr := reflect.ValueOf(cards).Pointer()
+	if len(cards) != 1 || len(cards[5]) != 1 || cards[5][0].ID != "task-1" {
+		t.Fatalf("unexpected initial cached schedule cards: %+v", cards)
+	}
+	// Repeat frame with same projection key -> exact map reuse (0 re-clones).
+	tt.Frame()
+	if reflect.ValueOf(cards).Pointer() != firstPtr {
+		t.Fatal("expected prepareScheduleContextCached to reuse cached map on unchanged projection")
+	}
+	// Binding change must invalidate cache.
+	current.PlanHistoryBinding = "host-b/follow"
+	tt.Frame()
+	if reflect.ValueOf(cards).Pointer() == firstPtr {
+		t.Fatal("expected binding change to invalidate scheduleCardsCache")
+	}
+}

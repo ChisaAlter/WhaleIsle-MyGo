@@ -167,10 +167,16 @@ func changesReviewPane(c *ui.Context, m Model) {
 	nativeMenuError := ""
 	ui.Row(c).Height(36).Shrink(0).MinWidth(0).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 		file := files[r.Target.Index]
-		selector := ui.Button(c, "").Grow(1).MinWidth(0).Height(28).Padding(0, design.Sp(1)).Gap(design.Sp(1.5)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Label(paneLabel("选择要查看的文件", "Choose file")).Tooltip(fmt.Sprintf("%s\n%s · %s · event %d\n%s", file.Display, r.Host, r.SessionID, r.Target.Seq, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")))
-		if selector.Hovered() {
-			selector.Background(t.Accent)
-		}
+		selector := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonSM,
+			Label:   paneLabel("选择要查看的文件", "Choose file"),
+			Content: func() {
+				ui.Text(c, file.Display).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(12).PassThrough()
+				ui.Icon(c, reviewChevronIcon).Size(12, 12).Shrink(0).PassThrough()
+			},
+		}).Grow(1).MinWidth(0).Padding(0, design.Sp(1)).Gap(design.Sp(1.5)).Radius(design.RadiusSM).AlignItems(ui.Center).
+			Tooltip(fmt.Sprintf("%s\n%s · %s · event %d\n%s", file.Display, r.Host, r.SessionID, r.Target.Seq, paneLabel("本轮起止快照，并非当前文件", "Turn-start/end snapshot, not current file contents")))
 		selector.Menu(func(menu *ui.Menu) {
 			for i, f := range files {
 				counts := fmt.Sprintf("+%d −%d", f.Added, f.Deleted)
@@ -183,10 +189,6 @@ func changesReviewPane(c *ui.Context, m Model) {
 					r.Target.Index = i
 				}
 			}
-		})
-		selector.Children(func() {
-			ui.Text(c, file.Display).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").FontSize(12).PassThrough()
-			ui.Icon(c, reviewChevronIcon).Size(12, 12).Shrink(0).PassThrough()
 		})
 		if file.Binary || file.Oversized {
 			caption := paneLabel("二进制", "Binary")

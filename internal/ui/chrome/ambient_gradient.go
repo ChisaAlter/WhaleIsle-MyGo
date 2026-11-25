@@ -172,18 +172,26 @@ func (s *gradientFrameCache) frozen(c gradientConfig, now time.Time) *gradientFr
 	return s.get(c, now)
 }
 
+func sameGradientStyle(a, b gradientConfig) bool {
+	return a.colors == b.colors && a.variant == b.variant && a.speed == b.speed && a.count == b.count && a.dark == b.dark && a.reduced == b.reduced
+}
+
 func (s *gradientFrameCache) latest(c gradientConfig, now time.Time) *gradientFrame {
 	if _, ok := planGradient(c); !ok {
 		return nil
 	}
 	s.mu.Lock()
-	if !s.configured || s.config != c || s.frame == nil {
+	if !s.configured || s.frame == nil || !sameGradientStyle(s.config, c) {
 		s.mu.Unlock()
 		return s.get(c, now)
 	}
+	resized := s.config.width != c.width || s.config.height != c.height
+	if resized {
+		s.config = c
+	}
 	frame := s.frame
 	tick := gradientTick(now, s.epoch, c.reduced)
-	if frame.tick == tick || s.rendering {
+	if (!resized && frame.tick == tick && frame.config == c) || s.rendering {
 		s.mu.Unlock()
 		return frame
 	}
@@ -194,13 +202,14 @@ func (s *gradientFrameCache) latest(c gradientConfig, now time.Time) *gradientFr
 	s.cancel = cancel
 	s.rendering = true
 	generation := s.generation
+	target := c
 	s.mu.Unlock()
 	go func() {
 		seconds := float64(max(0, tick)) * gradientFrameInterval.Seconds()
-		pixels := renderGradient(ctx, c, seconds)
+		pixels := renderGradient(ctx, target, seconds)
 		var next *gradientFrame
 		if pixels != nil {
-			next = &gradientFrame{pixels: pixels, bitmap: ui.NewBitmap(pixels), config: c, tick: tick}
+			next = &gradientFrame{pixels: pixels, bitmap: ui.NewBitmap(pixels), config: target, tick: tick}
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()

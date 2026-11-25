@@ -17,6 +17,7 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -228,7 +229,7 @@ func View(c *ui.Context, m Model) {
 			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if w := tabsFor(m); w != nil {
 				automatic := !w.AutoRefreshDisabled
-				if ui.Checkbox(c, &automatic, label("自动刷新文件树", "Auto-refresh tree")).Changed() {
+				if coss.Checkbox(c, &automatic, label("自动刷新文件树", "Auto-refresh tree"), coss.CheckOptions{}).Changed() {
 					w.AutoRefreshDisabled = !automatic
 					m.Tabs.Tree.Observe(m.WatchRemoteContext, automatic)
 					c.Invalidate()
@@ -247,7 +248,11 @@ func View(c *ui.Context, m Model) {
 		paintPlanTabs(c, m)
 		if m.Filter != nil && root != "" {
 			ui.Column(c).Padding(0, 12, 8, 12).Children(func() {
-				input := ui.TextInput(c, m.Filter).FillWidth().Height(28).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(12.5)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter)).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
+				input := coss.Input(c, m.Filter, coss.InputOptions{
+					Size:        coss.InputSM,
+					Label:       i18n.T(i18n.KeyFilesFilter),
+					Placeholder: i18n.T(i18n.KeyFilesFilter),
+				})
 				if !input.Composing() && input.Shortcut(0, ui.KeyEscape) {
 					*m.Filter = ""
 				}
@@ -273,83 +278,85 @@ func View(c *ui.Context, m Model) {
 			m.Tabs.Search.EnsureHostOnly(m.BindingID, m.WorkspaceRoot, filter, m.ListRemoteContext, c.Invalidate, m.HostOnly)
 		}
 		ui.SplitVertical(c, split, func() {
-			ui.Scroll(c).Fill().MinHeight(0).Children(func() {
-				// .body in the original's FilesPanel.module.css: rows sit flush,
-				// inset 8/12/16 inside the scroll.
-				ui.Column(c).Margin(8, 12, 16, 12).Label(label("文件树", "File tree")).Children(func() {
-					name := filepath.Base(root)
-					ui.Text(c, name).FontSize(theme.InterfaceSize(12)).Bold().TextColor(muted).Padding(4, 8, 4, 8)
-					if filter != "" {
-						paintFiltered(c, m, root, filter, fg, muted, accent)
-						return
-					}
-					paintDir(c, m, root, "", 0, fg, muted, accent)
-				})
-			})
+			paintVirtualizedFileTree(c, m, root, filter, true, fg, muted, accent)
 		}, func() {
 			previewPane(c, m, fg, muted, border, field)
 		}).Fill()
 	})
 }
 
-func paintFiltered(c *ui.Context, m Model, root, filter string, fg, muted, accent ui.Color) {
-	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+type fileTreeRowKind uint8
+
+const (
+	vtreeRootHeader fileTreeRowKind = iota
+	vtreeStatusText
+	vtreeErrorText
+	vtreeEmptyDir
+	vtreeOtherEntry
+	vtreeDirEntry
+	vtreeFileEntry
+	vtreeSearchResult
+	vtreeSearchMore
+)
+
+type fileTreeVirtualRow struct {
+	kind       fileTreeRowKind
+	key        string
+	rel        string
+	name       string
+	depth      int
+	shownCount int
+	totalCount int
+}
+
+var filesTreeVirtualRowHook func(mode string, index int, key string)
+
+func collectFilteredTreeRows(m Model, out *[]fileTreeVirtualRow) {
 	if m.Tabs == nil || m.Tabs.Search == nil {
 		return
 	}
 	state := m.Tabs.Search.Snapshot()
 	if state.Busy {
-		ui.Text(c, label("正在搜索文件…", "Searching all files…")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeStatusText, key: "search:busy", name: label("正在搜索文件…", "Searching all files…")})
 		return
 	}
 	if state.Error != "" {
-		ui.Text(c, state.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeErrorText, key: "search:err", name: state.Error})
 		return
 	}
 	for _, path := range state.Paths {
-		row := ui.Row(c).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Radius(8).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
-		if m.SelectedFile != nil && *m.SelectedFile == path {
-			row.Background(accent.Alpha(0.12))
-		}
-		row.Children(func() {
-			ui.Text(c, path).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-			paintTreeReferenceButton(c, m, row, path, muted)
-		})
-		if row.Clicked() {
-			openTreeFile(m, path)
-		}
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeSearchResult, key: "hit:" + path, rel: path})
 	}
 	if len(state.Paths) < state.Total {
-		if widgets.Button(c, colors, fmt.Sprintf(label("加载更多（%d/%d）", "Show more (%d/%d)"), len(state.Paths), state.Total), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
-			m.Tabs.Search.More()
-		}
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeSearchMore, key: "search:more", shownCount: len(state.Paths), totalCount: state.Total})
 	}
 	if state.Total == 0 {
-		ui.Text(c, i18n.T(i18n.KeyFilesFilterEmpty)).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(8, 8, 8, 8)
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeStatusText, key: "search:empty", name: i18n.T(i18n.KeyFilesFilterEmpty)})
 	}
 }
 
-func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, accent ui.Color) {
+func collectDirTreeRows(m Model, rel string, depth int, invalidate func(), out *[]fileTreeVirtualRow) {
 	if m.Tabs == nil || m.Tabs.Tree == nil {
 		return
 	}
-	state := m.Tabs.Tree.Get(rel, m.ListRemoteContext, c.Invalidate)
+	state := m.Tabs.Tree.Get(rel, m.ListRemoteContext, invalidate)
 	if state.Busy {
-		ui.Text(c, label("加载中…", "Loading…")).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeStatusText, key: "busy:" + rel, name: label("加载中…", "Loading…")})
 		return
 	}
 	if state.Error != "" {
-		ui.Text(c, state.Error).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeErrorText, key: "err:" + rel, name: state.Error})
 		if len(state.Entries) == 0 {
 			return
 		}
 	}
 	if state.WatchError != "" {
-		ui.Text(c, state.WatchError).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(4, 8, 4, 8)
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeStatusText, key: "watch:" + rel, name: state.WatchError})
 	}
 	ents := state.Entries
 	if len(ents) == 0 {
-		ui.Text(c, label("空目录", "This folder is empty")).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8, 4, float32(8+depth*12))
+		*out = append(*out, fileTreeVirtualRow{kind: vtreeEmptyDir, key: "empty:" + rel, name: label("空目录", "This folder is empty"), depth: depth})
+		return
 	}
 	for _, e := range ents {
 		childRel := e.Name
@@ -357,16 +364,100 @@ func paintDir(c *ui.Context, m Model, root, rel string, depth int, fg, muted, ac
 			childRel = rel + "/" + e.Name
 		}
 		if e.Other {
-			ui.Text(c, e.Name).FillWidth().FontSize(theme.InterfaceSize(12.5)).TextColor(muted).SingleLine().Ellipsis("…").Padding(4, 8, 4, float32(26+depth*12)).Tooltip(label("此项目不是普通文件或文件夹，无法打开", "This entry is not a regular file or directory and cannot be opened"))
+			*out = append(*out, fileTreeVirtualRow{kind: vtreeOtherEntry, key: "other:" + childRel, rel: childRel, name: e.Name, depth: depth})
 		} else if e.IsDir {
-			rowDir(c, m, childRel, e.Name, depth, fg, muted, accent)
+			*out = append(*out, fileTreeVirtualRow{kind: vtreeDirEntry, key: "dir:" + childRel, rel: childRel, name: e.Name, depth: depth})
 			if isExpanded(m, childRel) {
-				paintDir(c, m, root, childRel, depth+1, fg, muted, accent)
+				collectDirTreeRows(m, childRel, depth+1, invalidate, out)
 			}
 		} else {
-			rowFile(c, m, childRel, e.Name, depth, fg, muted, accent)
+			*out = append(*out, fileTreeVirtualRow{kind: vtreeFileEntry, key: "file:" + childRel, rel: childRel, name: e.Name, depth: depth})
 		}
 	}
+}
+
+func paintFileTreeRow(rc *ui.Context, m Model, vr fileTreeVirtualRow, colors theme.Colors, fg, muted, accent ui.Color) {
+	switch vr.kind {
+	case vtreeRootHeader:
+		ui.Text(rc, vr.name).FontSize(theme.InterfaceSize(12)).Bold().TextColor(muted).Padding(4, 8, 4, 8)
+	case vtreeStatusText:
+		ui.Text(rc, vr.name).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(8, 8, 8, 8)
+	case vtreeErrorText:
+		ui.Text(rc, vr.name).FontSize(theme.InterfaceSize(11)).TextColor(accent).Padding(8, 8, 8, 8)
+	case vtreeEmptyDir:
+		ui.Text(rc, vr.name).FontSize(theme.InterfaceSize(12)).TextColor(muted).Padding(4, 8, 4, float32(8+vr.depth*12))
+	case vtreeOtherEntry:
+		ui.Text(rc, vr.name).FillWidth().FontSize(theme.InterfaceSize(12.5)).TextColor(muted).SingleLine().Ellipsis("…").
+			Padding(4, 8, 4, float32(26+vr.depth*12)).
+			Tooltip(label("此项目不是普通文件或文件夹，无法打开", "This entry is not a regular file or directory and cannot be opened"))
+	case vtreeDirEntry:
+		rowDir(rc, m, vr.rel, vr.name, vr.depth, fg, muted, accent)
+	case vtreeFileEntry:
+		rowFile(rc, m, vr.rel, vr.name, vr.depth, fg, muted, accent)
+	case vtreeSearchResult:
+		path := vr.rel
+		row := ui.Row(rc).Key(treeFileRowKey(m, path)).Label("File result "+path).Focusable().Height(28).Radius(8).Padding(0, 8).Gap(6).FillWidth().MinWidth(0).AlignItems(ui.Center).ContextMenu(treeFileMenu(m, path)).Drag(workspaceReference(m, path))
+		if m.SelectedFile != nil && *m.SelectedFile == path {
+			row.Background(accent.Alpha(0.12))
+		}
+		row.Children(func() {
+			ui.Text(rc, path).FontSize(theme.InterfaceSize(12.5)).FixedLineHeight(18).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+			paintTreeReferenceButton(rc, m, row, path, muted)
+		})
+		if row.Clicked() {
+			openTreeFile(m, path)
+		}
+	case vtreeSearchMore:
+		if widgets.Button(rc, colors, fmt.Sprintf(label("加载更多（%d/%d）", "Show more (%d/%d)"), vr.shownCount, vr.totalCount), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+			if m.Tabs != nil && m.Tabs.Search != nil {
+				m.Tabs.Search.More()
+			}
+		}
+	}
+}
+
+// paintDir renders a single directory subtree directly for standalone callers
+// and parity tests; interactive file views use paintVirtualizedFileTree.
+func paintDir(c *ui.Context, m Model, _ string, rel string, depth int, fg, muted, accent ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	var rows []fileTreeVirtualRow
+	collectDirTreeRows(m, rel, depth, c.Invalidate, &rows)
+	for _, vr := range rows {
+		paintFileTreeRow(c, m, vr, colors, fg, muted, accent)
+	}
+}
+
+func paintVirtualizedFileTree(c *ui.Context, m Model, root, filter string, showRootName bool, fg, muted, accent ui.Color) {
+	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
+	var rows []fileTreeVirtualRow
+	if showRootName {
+		rows = append(rows, fileTreeVirtualRow{kind: vtreeRootHeader, key: "root:" + root, name: filepath.Base(root)})
+	}
+	mode := "tree"
+	if filter != "" {
+		mode = "search"
+		collectFilteredTreeRows(m, &rows)
+	} else {
+		collectDirTreeRows(m, "", 0, c.Invalidate, &rows)
+	}
+	// .body in the original's FilesPanel.module.css: rows sit flush, inset 8/12/16.
+	host := ui.Column(c.Key("file-tree-host")).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Padding(8, 12, 16, 12).Label(label("文件树", "File tree"))
+	listState := ui.Local(host, "file-tree-list-state:"+mode, func() ui.ListState { return ui.ListState{} })
+	host.Children(func() {
+		if len(rows) == 0 {
+			return
+		}
+		ui.List(c.Key("file-tree-list:"+mode), listState, len(rows)).
+			ItemKey(func(i int) any { return rows[i].key }).
+			FillWidth().Grow(1).MinWidth(0).MinHeight(0).
+			Rows(func(lr ui.ListRow) {
+				vr := rows[lr.Index]
+				if filesTreeVirtualRowHook != nil {
+					filesTreeVirtualRowHook(mode, lr.Index, vr.key)
+				}
+				paintFileTreeRow(lr.Context, m, vr, colors, fg, muted, accent)
+			})
+	})
 }
 
 func rowDir(c *ui.Context, m Model, rel, name string, depth int, fg, muted, accent ui.Color) {

@@ -114,8 +114,12 @@ func Badge(c *ui.Context, label string, o BadgeOptions) ui.Element {
 	}
 	e.Background(bg).Border(design.BorderWidth, bc)
 	var sh shadowList
-	sh.ring(t, ringAmount(e, s.Has(StateFocusVisible)))
-	finish(e, &sh, nil)
+	var d deco
+	d.border, d.radius = design.BorderWidth, radius
+	if o.Interactive {
+		d.setRing(c, e, t, s.Has(StateFocusVisible), t.Ring)
+	}
+	finish(e, &sh, &d)
 	disabledLook(e, s)
 	e.Children(func() {
 		if o.Icon != IconNone {

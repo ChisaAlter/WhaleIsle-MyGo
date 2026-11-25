@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/ui/coss"
 )
 
 // ActionTarget is captured on the UI thread at the user's gesture. Valid and
@@ -200,30 +201,30 @@ func (b *Controller) actionControls(c *ui.Context, t *Tab, state desktop.State) 
 	ui.ScrollHorizontal(c).Height(28).FillWidth().Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			b.recordingControls(c, t, disabled)
-			if ui.Button(c, browserChromeLabel("可视批注", "Visual annotation")).Disabled(disabled).Clicked() {
+			if coss.Button(c, browserChromeLabel("可视批注", "Visual annotation"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: disabled}).Clicked() {
 				b.startAnnotation(t)
 			}
 			if op := b.operation; op != nil && op.ready {
-				if ui.Button(c, browserChromeLabel("查看批注截图", "View annotated screenshot")).Clicked() {
+				if coss.Button(c, browserChromeLabel("查看批注截图", "View annotated screenshot"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 					mygo.Shell.ShowItemInFolder(op.attachmentPath)
 				}
-				if ui.Button(c, browserChromeLabel("复制批注", "Copy annotation")).Clicked() {
+				if coss.Button(c, browserChromeLabel("复制批注", "Copy annotation"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 					mygo.Clipboard.WriteText(op.annotation)
 				}
-				if ui.Button(c, browserChromeLabel("批注和截图加入草稿", "Add annotation and screenshot to draft")).Tooltip(truncate(op.annotation, 2000)).Clicked() {
+				if coss.Button(c, browserChromeLabel("批注和截图加入草稿", "Add annotation and screenshot to draft"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS}).Tooltip(truncate(op.annotation, 2000)).Clicked() {
 					b.appendAnnotation(op)
 				}
 			}
-			if ui.Button(c, browserChromeLabel("选择元素", "Select element")).Disabled(disabled).Clicked() {
+			if coss.Button(c, browserChromeLabel("选择元素", "Select element"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: disabled}).Clicked() {
 				b.startAction(t, "pick")
 			}
-			if ui.Button(c, browserChromeLabel("网页截图", "Screenshot")).Disabled(disabled).Clicked() {
+			if coss.Button(c, browserChromeLabel("网页截图", "Screenshot"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: disabled}).Clicked() {
 				b.startAction(t, "screenshot")
 			}
-			if busy && ui.Button(c, browserChromeLabel("取消", "Cancel")).Clicked() {
+			if busy && coss.Button(c, browserChromeLabel("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 				b.CancelAction()
 			}
-			if t.ArtifactPath != "" && ui.Button(c, browserChromeLabel("显示截图", "Show screenshot")).Clicked() {
+			if t.ArtifactPath != "" && coss.Button(c, browserChromeLabel("显示截图", "Show screenshot"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 				if info, err := os.Stat(t.ArtifactPath); err == nil && info.Mode().IsRegular() {
 					mygo.Shell.ShowItemInFolder(t.ArtifactPath)
 				} else {

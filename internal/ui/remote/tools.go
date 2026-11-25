@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	remotestore "whaleisle/internal/store/remote"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -211,10 +212,16 @@ func viewForwardsCard(c *ui.Context, m Model, e *MachineEditor, border ui.Color)
 			if picked := remoteGatewaySegmented(c, "forward-direction", labels, active, s.Busy); picked >= 0 {
 				e.Forward.Direction = []string{"local", "reverse"}[picked]
 			}
-			ui.TextInput(c, &e.Forward.ListenPort).Width(90).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Placeholder(label("监听端口", "Listen port")).Disabled(s.Busy)
-			ui.TextInput(c, &e.Forward.TargetHost).Width(130).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Placeholder(label("目标主机", "Target host")).Disabled(s.Busy)
-			ui.TextInput(c, &e.Forward.TargetPort).Width(90).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Placeholder(label("目标端口", "Target port")).Disabled(s.Busy)
-			ui.Checkbox(c, &e.Forward.AutoStart, label("自动启动", "Auto start")).Disabled(s.Busy || e.Forward.Direction == "reverse")
+			ui.Box(c).Width(90).Children(func() {
+				coss.Input(c, &e.Forward.ListenPort, coss.InputOptions{Size: coss.InputMD, Placeholder: label("监听端口", "Listen port"), Disabled: s.Busy})
+			})
+			ui.Box(c).Width(130).Children(func() {
+				coss.Input(c, &e.Forward.TargetHost, coss.InputOptions{Size: coss.InputMD, Placeholder: label("目标主机", "Target host"), Disabled: s.Busy})
+			})
+			ui.Box(c).Width(90).Children(func() {
+				coss.Input(c, &e.Forward.TargetPort, coss.InputOptions{Size: coss.InputMD, Placeholder: label("目标端口", "Target port"), Disabled: s.Busy})
+			})
+			coss.Checkbox(c, &e.Forward.AutoStart, label("自动启动", "Auto start"), coss.CheckOptions{Disabled: s.Busy || e.Forward.Direction == "reverse"})
 			if widgets.Button(c, colors, label("添加转发", "Add forward"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Disabled(s.Busy || strings.TrimSpace(e.Forward.ListenPort) == "").Clicked() {
 				d := e.Forward
 				if d.Direction == "reverse" {

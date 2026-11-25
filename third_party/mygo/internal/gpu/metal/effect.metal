@@ -41,6 +41,6 @@ fragment PSOut effect_ps(VSOut v [[stage_in]],
 	// The shape's corners are continuous where its radii are negative,
 	// which the effect takes as circular.
 	Effect e = {i.rect, abs(i.radii), i.inner, i.color, i.color2, i.border, i.grad, i.uv, i.params.z, globals.z > 0.5f};
-	float4 res = effect(v.p, e, backdrop) * (rectCoverage(v.p, i.rect, i.radii) * rectCoverage(v.p, i.clip, i.clipRadii) * i.params.w);
+	float4 res = effect(v.p, e, backdrop) * (rectCoverage(v.p, i.rect, i.radii) * rectCoverage(v.p, i.clip, i.clipRadii) * fadeCoverage(v.p.x, i.clipFade) * i.params.w);
 	return PSOut{res, res.aaaa};
 }

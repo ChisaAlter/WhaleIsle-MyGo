@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -42,7 +43,10 @@ func toolImageGallery(c *ui.Context, refs []string, st ToolCardStyle, opts ToolI
 	if open {
 		arrow = "▾"
 	}
-	if ui.Button(c, fmt.Sprintf("%s"+fmt.Sprintf(i18n.T(i18n.KeyChatImageGallery), len(refs)), arrow, len(refs))).Clicked() {
+	if coss.Button(c, fmt.Sprintf("%s"+fmt.Sprintf(i18n.T(i18n.KeyChatImageGallery), len(refs)), arrow, len(refs)), coss.ButtonOptions{
+		Variant: coss.ButtonOutline,
+		Size:    coss.ButtonXS,
+	}).Clicked() {
 		toggleThinkingExpanded(opts.Expanded, key)
 	}
 	if open {

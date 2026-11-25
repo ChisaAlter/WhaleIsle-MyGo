@@ -485,6 +485,17 @@ func FieldName(el *lang.Element) (name, prop string) {
 	return prop, prop
 }
 
+func walkElementProps(v lang.Value, visit func(*lang.Element)) {
+	switch t := v.(type) {
+	case *lang.Element:
+		visit(t)
+	case []lang.Value:
+		for _, x := range t {
+			walkElementProps(x, visit)
+		}
+	}
+}
+
 // registerFieldsLocked records the inputs of the tree for the form payload
 // of actions (Whale viewer semantics: every mounted input).
 func (c *Card) registerFieldsLocked(root *lang.Element) {
@@ -508,8 +519,10 @@ func (c *Card) registerFieldsLocked(root *lang.Element) {
 			}
 			c.unregister = append(c.unregister, c.in.RegisterField(el.FormName, el.Identity(), name, target, fallback))
 		}
-		for _, ch := range el.Children() {
-			walk(ch)
+		if el.Props != nil {
+			for _, k := range el.Props.Keys() {
+				walkElementProps(el.Props.Value(k), walk)
+			}
 		}
 	}
 	walk(root)

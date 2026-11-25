@@ -6,6 +6,8 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -27,11 +29,14 @@ func terminalActionBar(c *ui.Context, m Model, compact bool) {
 	bar := chrome.FrostSurface(ui.Row(c).Height(size).Shrink(0).Gap(0), theme.Resolve(m.ThemeID).Active(m.SystemDark), m.SystemDark, c.Theme().Surface, 6).Border(0.5, c.Theme().Border)
 	bar.Children(func() {
 		tool := func(caption string, icon *ui.SVG, disabled bool) bool {
-			button := ui.Button(c, "").Label(caption).Tooltip(caption).Width(size).Height(size).Shrink(0).Padding(0).Radius(0).BorderWidth(0).Disabled(disabled).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
-			if button.Hovered() && !disabled {
-				button.Background(c.Theme().SurfaceHover)
-			}
-			button.Children(func() { ui.Icon(c, icon).Size(glyph, glyph).TextColor(c.Theme().TextMuted).PassThrough() })
+			button := coss.Button(c, "", coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Label:    caption,
+				Disabled: disabled,
+				Content: func() {
+					ui.Icon(c, icon).Size(glyph, glyph).TextColor(c.Theme().TextMuted).PassThrough()
+				},
+			}).Tooltip(caption).Width(size).Height(size).Shrink(0).Padding(0).Radius(0).AlignItems(ui.Center).Justify(ui.Center)
 			return button.Clicked()
 		}
 		group := p.activeGroup()
@@ -107,21 +112,26 @@ func paintTerminalChip(c *ui.Context, m Model, pane *terminalPane, ordinal int, 
 	}
 	caption := terminalTabLabel(pane, ordinal)
 	chip.Children(func() {
-		title := ui.Button(c, "").Label(terminalTitle(pane)).Grow(1).MinWidth(0).Height(24).Padding(0).BorderWidth(0).Background(ui.Transparent)
-		title.Children(func() {
-			ui.Text(c, caption).FontSize(12).TextColor(textColor).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
-		})
+		title := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Label:   terminalTitle(pane),
+			Content: func() {
+				ui.Text(c, caption).FontSize(12).TextColor(textColor).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+			},
+		}).Grow(1).MinWidth(0).Height(24).Padding(0).Background(ui.Transparent)
 		if title.Clicked() {
 			p.activate(pane.id)
 			p.focusPending = pane.id
 		}
 		if active || hovered {
 			closeLabel := terminalLabel("关闭终端", "Close terminal")
-			close := ui.Button(c, "").Label(closeLabel).Size(14, 14).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
-			close.Children(func() { ui.Icon(c, terminalCloseIcon).Size(10, 10).TextColor(muted).PassThrough() })
-			if close.Hovered() {
-				close.Background(c.Theme().SurfacePressed)
-			}
+			close := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Label:   closeLabel,
+				Content: func() {
+					ui.Icon(c, terminalCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
+				},
+			}).Size(14, 14).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
 			if close.Clicked() {
 				requestClosePane(m, pane.id)
 			}

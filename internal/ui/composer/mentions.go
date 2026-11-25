@@ -37,7 +37,7 @@ type ChipEdit struct {
 // ParseDraftMentions finds completed @path and /skill tokens at whitespace boundaries.
 // Bare "@" / "/" are skipped. Tokens run until whitespace (space, tab, newline).
 func ParseDraftMentions(draft string) []DraftMention {
-	if draft == "" {
+	if draft == "" || !strings.ContainsAny(draft, "@/") {
 		return nil
 	}
 	out := make([]DraftMention, 0, 4)

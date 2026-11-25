@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/desktop/htmldocument"
 	"whaleisle/internal/desktop/previewprocess"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 )
 
 type interactivePreview struct {
@@ -45,14 +46,14 @@ func (b *Controller) interactiveHTMLControls(c *ui.Context, t *Tab, dark bool) {
 		return
 	}
 	if t.interactive != nil {
-		if ui.Button(c, browserChromeLabel("停止交互预览", "Stop interactive preview")).Clicked() {
+		if coss.Button(c, browserChromeLabel("停止交互预览", "Stop interactive preview"), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonSM}).Clicked() {
 			b.stopInteractiveHTML(t)
 			t.ActionMessage = browserChromeLabel("交互预览已停止；当前静态快照保留", "Interactive preview stopped; the static snapshot is retained")
 		}
 		return
 	}
 	supported := (runtime.GOOS == "windows" || runtime.GOOS == "linux" || runtime.GOOS == "darwin") && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64")
-	if ui.Button(c, browserChromeLabel("运行脚本（隔离实验）", "Run scripts (isolated experiment)")).Disabled(!supported).
+	if coss.Button(c, browserChromeLabel("运行脚本（隔离实验）", "Run scripts (isolated experiment)"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: !supported}).
 		Tooltip(browserChromeLabel("仅本次在独立隔离窗口运行已保存 HTML 的脚本；不开放网络或应用权限。任何失败都保留当前静态预览。", "Run saved HTML scripts once in a separate isolated window, without network or app permissions. Any failure retains the static preview.")).Clicked() {
 		b.startInteractiveHTML(t, dark)
 	}

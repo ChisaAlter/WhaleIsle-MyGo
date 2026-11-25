@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -57,7 +58,28 @@ var commands = []Command{
 	{"pane.fullscreen.toggle", "切换面板全屏", "Toggle pane fullscreen", "Mod+Alt+Enter"},
 }
 
-func Commands() []Command { return commandsForPlatform(runtime.GOOS) }
+var (
+	platformCommands      []Command
+	platformIDs           []string
+	platformDefaults      map[string]string
+	platformDefaultChords map[string]Chord
+)
+
+func init() {
+	platformCommands = commandsForPlatform(runtime.GOOS)
+	platformIDs = make([]string, len(platformCommands))
+	platformDefaults = make(map[string]string, len(platformCommands))
+	platformDefaultChords = make(map[string]Chord, len(platformCommands))
+	for i, c := range platformCommands {
+		platformIDs[i] = c.ID
+		platformDefaults[c.ID] = c.Default
+		if chord, err := Parse(c.Default); err == nil {
+			platformDefaultChords[c.ID] = chord
+		}
+	}
+}
+
+func Commands() []Command { return slices.Clone(platformCommands) }
 func commandsForPlatform(platform string) []Command {
 	out := append([]Command(nil), commands...)
 	if platform == "darwin" {
@@ -69,25 +91,23 @@ func commandsForPlatform(platform string) []Command {
 	}
 	return out
 }
-func IDs() []string {
-	out := make([]string, 0, len(commands))
-	for _, c := range Commands() {
-		out = append(out, c.ID)
-	}
-	return out
-}
-func Defaults() map[string]string {
-	out := map[string]string{}
-	for _, c := range Commands() {
-		out[c.ID] = c.Default
-	}
-	return out
-}
+func IDs() []string { return slices.Clone(platformIDs) }
+
+// Defaults returns a fresh mutable copy of the cached platform default bindings.
+func Defaults() map[string]string { return maps.Clone(platformDefaults) }
+
+// DefaultFor returns the platform default binding for one command ID with zero
+// allocations.
+func DefaultFor(id string) string { return platformDefaults[id] }
+
 func effective(overrides map[string]string) map[string]string {
-	out := Defaults()
-	for _, c := range Commands() {
-		if value, ok := overrides[c.ID]; ok {
-			out[c.ID] = value
+	out := maps.Clone(platformDefaults)
+	if len(overrides) == 0 {
+		return out
+	}
+	for id, value := range overrides {
+		if _, known := platformDefaults[id]; known {
+			out[id] = value
 		}
 	}
 	return out
@@ -183,17 +203,41 @@ func parseForPlatform(raw, platform string) (Chord, error) {
 // Validate marks every row involved in a collision, including defaults that a
 // custom binding collides with. The UI must not save any invalid set.
 func Validate(values map[string]string) map[string]string {
-	values = effective(values)
+	issues, _ := validateAndParse(values, false)
+	return issues
+}
+
+func validateAndParse(values map[string]string, wantParsed bool) (map[string]string, map[string]Chord) {
 	issues := map[string]string{}
-	type acceptedChord struct {
-		id    string
-		zh    string
-		en    string
-		chord Chord
+	var parsed map[string]Chord
+	if wantParsed {
+		parsed = make(map[string]Chord, len(platformCommands))
 	}
-	seen := []acceptedChord{}
-	for _, c := range Commands() {
-		chord, err := Parse(values[c.ID])
+	type acceptedChord struct {
+		id         string
+		zh         string
+		en         string
+		modMask    uint8
+		code       string
+		secondCode string
+	}
+	seen := make([]acceptedChord, 0, len(platformCommands))
+	for _, c := range platformCommands {
+		raw, overridden := values[c.ID]
+		if !overridden {
+			raw = c.Default
+		}
+		var chord Chord
+		var err error
+		if raw == c.Default {
+			if cached, ok := platformDefaultChords[c.ID]; ok {
+				chord = cached
+			} else {
+				chord, err = Parse(raw)
+			}
+		} else {
+			chord, err = Parse(raw)
+		}
 		if err != nil {
 			issues[c.ID] = err.Error()
 			continue
@@ -201,15 +245,19 @@ func Validate(values map[string]string) map[string]string {
 		if chord.Key == "" {
 			continue
 		}
+		mask, code, secondCode := chordOverlapKey(chord)
 		for _, previous := range seen {
-			if overlappingChords(previous.chord, chord) {
+			if overlapKeysCollide(previous.modMask, previous.code, previous.secondCode, mask, code, secondCode) {
 				issues[c.ID] = fmt.Sprintf("已被「%s」占用 / Already used by “%s”", previous.zh, previous.en)
 				issues[previous.id] = fmt.Sprintf("已被「%s」占用 / Already used by “%s”", c.ZH, c.EN)
 			}
 		}
-		seen = append(seen, acceptedChord{c.ID, c.ZH, c.EN, chord})
+		seen = append(seen, acceptedChord{c.ID, c.ZH, c.EN, mask, code, secondCode})
+		if wantParsed {
+			parsed[c.ID] = chord
+		}
 	}
-	return issues
+	return issues, parsed
 }
 
 // Resolve fails closed per invalid/conflicting row. Unknown IDs cannot become
@@ -250,16 +298,11 @@ var resolveMemo struct {
 }
 
 func resolve(values map[string]string) map[string]Chord {
-	values = effective(values)
-	issues := Validate(values)
-	out := map[string]Chord{}
-	for _, c := range Commands() {
-		if _, bad := issues[c.ID]; bad {
-			continue
-		}
-		chord, _ := Parse(values[c.ID])
-		if chord.Key != "" {
-			out[c.ID] = chord
+	issues, parsed := validateAndParse(values, true)
+	out := make(map[string]Chord, len(parsed))
+	for id, chord := range parsed {
+		if _, bad := issues[id]; !bad {
+			out[id] = chord
 		}
 	}
 	return out
@@ -357,7 +400,7 @@ func (e *Editor) Default(id string) string {
 	if e.shared {
 		return e.defaults[id]
 	}
-	return Defaults()[id]
+	return platformDefaults[id]
 }
 func (e *Editor) ResetDraft(id string) {
 	if p := e.Draft(id); p != nil {
@@ -429,9 +472,12 @@ func (e *Editor) Reconcile(values map[string]string) bool {
 }
 func (e *Editor) Search(query string) []Command {
 	query = strings.ToLower(strings.TrimSpace(query))
-	out := []Command{}
-	for _, c := range Commands() {
-		if query == "" || strings.Contains(strings.ToLower(c.ID+" "+c.ZH+" "+c.EN+" "+c.Default+" "+*e.Draft(c.ID)), query) {
+	if query == "" {
+		return slices.Clone(platformCommands)
+	}
+	out := make([]Command, 0, len(platformCommands))
+	for _, c := range platformCommands {
+		if strings.Contains(strings.ToLower(c.ID+" "+c.ZH+" "+c.EN+" "+c.Default+" "+*e.Draft(c.ID)), query) {
 			out = append(out, c)
 		}
 	}
@@ -502,7 +548,7 @@ func (e *Editor) ConfirmReset() bool {
 		e.Status = "已恢复默认快捷键 / Default shortcuts restored"
 		return true
 	}
-	for id, v := range Defaults() {
+	for id, v := range platformDefaults {
 		*e.drafts[id] = v
 	}
 	return e.Save()

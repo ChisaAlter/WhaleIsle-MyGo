@@ -7,7 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/mcpconfig"
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -28,9 +29,13 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 		return
 	}
 	query := a.Snapshot.Query
-	ui.Column(c).FillWidth().MinWidth(0).Padding(0, 16, 0, 0).Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-			if ui.TextInput(c, &query).Label("MCP search").Basis(0).Grow(1).MinWidth(0).Height(36).Radius(12).Border(.667, c.Theme().Border).FontSize(fonttheme.InterfaceSize(14)).Placeholder(mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL")).Changed() && a.OnQuery != nil {
+	ui.Column(c).FillWidth().MinWidth(0).Padding(0, design.Sp(4), 0, 0).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+			if kInputRow(c, &query, coss.InputOptions{
+				Size:        coss.InputLG,
+				Label:       "MCP search",
+				Placeholder: mcpCatalogText("搜索名称、ID、命令或 URL", "Search name, ID, command or URL"),
+			}).Changed() && a.OnQuery != nil {
 				a.OnQuery(query)
 			}
 			// One dropdown replaces the three chips the installed build does not have.
@@ -44,7 +49,10 @@ func mcpCatalogControls(c *ui.Context, a *MCPCatalogAccess, fg, muted ui.Color) 
 			}
 			filtered := false
 			ui.Box(c).Width(88).Shrink(0).Clip().Children(func() {
-				filtered = chrome.FrostSurface(ui.Select(c, &current, labels).Label("MCP filter").FillWidth().Height(36).BorderWidth(0), fonttheme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 18).FontSize(fonttheme.InterfaceSize(14)).Changed()
+				filtered = coss.Select(c, &current, kOptions(labels), coss.SelectOptions{
+					Size:  coss.InputLG,
+					Label: "MCP filter",
+				}).FillWidth().Changed()
 			})
 			if filtered && a.OnFilter != nil {
 				for index, label := range labels {
@@ -82,7 +90,7 @@ func mcpCatalogDetails(c *ui.Context, a *MCPCatalogAccess, id string, fg, muted 
 	if open {
 		label = mcpCatalogText("收起工具明细", "Hide tools")
 	}
-	if ui.Button(c, label).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() && a.OnInspect != nil {
+	if kButton(c, label).AlignSelf(ui.Start).Clicked() && a.OnInspect != nil {
 		a.OnInspect(id)
 	}
 	if !open {

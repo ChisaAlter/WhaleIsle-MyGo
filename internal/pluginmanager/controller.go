@@ -235,8 +235,10 @@ func (c *Controller) Load(ctx context.Context) error {
 	return err
 }
 func JoinPackages(bundles []Bundle, plugins []Plugin) []Package {
+	runtimeVersion := shippedRuntimeVersion(bundles)
 	packages := make([]Package, 0, len(bundles))
 	for _, bundle := range bundles {
+		bundle = recoverSlimRuntimeOfficialTarget(bundle, runtimeVersion)
 		p := Package{Bundle: bundle}
 		for _, row := range bundle.Rows {
 			r := Row{BundleRow: row}
@@ -260,6 +262,71 @@ func JoinPackages(bundles []Bundle, plugins []Plugin) []Package {
 		return strings.ToLower(ShortName(packages[i].Name)) < strings.ToLower(ShortName(packages[j].Name))
 	})
 	return packages
+}
+
+// shippedRuntimeVersion returns the DSH release version reported by the
+// installation-shipped bundles in the same pluginManager/listBundles snapshot.
+func shippedRuntimeVersion(bundles []Bundle) string {
+	fallback := ""
+	for _, b := range bundles {
+		if b.Availability != "installation" || strings.TrimSpace(b.Version) == "" {
+			continue
+		}
+		switch b.Name {
+		case "@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app":
+			return strings.TrimSpace(b.Version)
+		default:
+			if fallback == "" && strings.HasPrefix(b.Name, "@deepseek-ai/dsh-") {
+				fallback = strings.TrimSpace(b.Version)
+			}
+		}
+	}
+	return fallback
+}
+
+// recoverSlimRuntimeOfficialTarget repairs the false-positive operation-error
+// emitted by DSH's officialBundleInstallTarget() on previously staged slim
+// desktop runtimes whose apps/cli/package.json still carried monorepo
+// `workspace:` dependency ranges while intentionally omitting on-demand
+// workspace packages (such as @deepseek-ai/dsh-subagent-codex and
+// @deepseek-ai/dsh-subagent-claude-code). Genuine bundle errors (platform,
+// compatibility, missing files, duplicate packages, unbuilt output) are never
+// cleared.
+func recoverSlimRuntimeOfficialTarget(bundle Bundle, runtimeVersion string) Bundle {
+	if !bundle.Official || bundle.InstallTarget != nil || runtimeVersion == "" {
+		return bundle
+	}
+	if !isSlimRuntimeOfficialTargetError(bundle.Name, bundle.Error) {
+		return bundle
+	}
+	bundle.InstallTarget = &InstallTarget{
+		Spec:    bundle.Name + "@" + runtimeVersion,
+		Version: runtimeVersion,
+	}
+	switch {
+	case bundle.Installed && bundle.Availability == "missing":
+		// Declared in profile but files are genuinely missing on disk; keep error.
+	case !bundle.Installed && bundle.Availability == "missing" && bundle.Enabled:
+		// Matches DSH readBundles(): without targetError, an enabled uninstalled
+		// catalog entry still surfaces not-bundle.
+		bundle.Error = &ManagementError{Code: "not-bundle"}
+	default:
+		bundle.Error = nil
+	}
+	return bundle
+}
+
+func isSlimRuntimeOfficialTargetError(name string, err *ManagementError) bool {
+	if err == nil || err.Code != "operation-error" || name == "" {
+		return false
+	}
+	prefix := "Official bundle " + name + ":"
+	if !strings.HasPrefix(err.Diagnostic, prefix) {
+		return false
+	}
+	rest := err.Diagnostic[len(prefix):]
+	return (strings.Contains(rest, "expected one workspace package in ") && strings.Contains(rest, ", found 0")) ||
+		strings.Contains(rest, "requires its complete workspace checkout")
 }
 
 func classifyInstalledBundle(bundle Bundle) PackageCapabilities {

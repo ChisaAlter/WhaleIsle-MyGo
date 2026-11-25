@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/localservers"
+	"whaleisle/internal/ui/coss"
 )
 
 type localDiscovery struct {
@@ -105,7 +106,7 @@ func (b *Controller) localServerControls(c *ui.Context, t *Tab) {
 		ui.ScrollHorizontal(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(4).Children(func() {
 				for _, server := range request.servers {
-					if ui.Button(c, server.URL).Clicked() && b.current() == t && b.discovery == request {
+					if coss.Button(c, server.URL, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() && b.current() == t && b.discovery == request {
 						// Navigate resolves current workspace ownership at the actual click.
 						b.Navigate(server.URL)
 					}

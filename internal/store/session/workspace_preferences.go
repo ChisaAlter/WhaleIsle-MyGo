@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 	"whaleisle/internal/config"
 	"whaleisle/internal/dsh"
 	"whaleisle/internal/store/storelocale"
@@ -14,6 +17,24 @@ type WorkspacePreferenceStore interface {
 	WorkspaceNavigationPreferences(string) (config.WorkspaceNavigationPreferences, error)
 	SaveWorkspaceNavigationPreferences(string, config.WorkspaceNavigationPreferences) error
 }
+
+type asyncWorkspacePreferenceStore interface {
+	SaveWorkspaceNavigationPreferencesAsync(string, config.WorkspaceNavigationPreferences) error
+}
+
+type flushableWorkspacePreferenceStore interface {
+	Flush() error
+}
+
+const defaultWorkspacePrefDebounce = 150 * time.Millisecond
+
+type workspacePrefSaveJob struct {
+	store WorkspacePreferenceStore
+	scope string
+	prefs config.WorkspaceNavigationPreferences
+	seq   uint64
+}
+
 type workspacePreferenceEdits struct {
 	groupBy, orderBy, archivedFilter *string
 	collapsed                        map[string]bool
@@ -31,6 +52,15 @@ type workspacePreferenceBinding struct {
 	errors           map[string]string
 	edits            map[string]*workspacePreferenceEdits
 	beforeBaseline   workspacePreferenceEdits
+
+	writeMu       sync.Mutex
+	asyncMode     bool
+	debounce      time.Duration
+	debounceTimer *time.Timer
+	saveSeq       uint64
+	latestJob     *workspacePrefSaveJob
+	lastSaveErr   error
+	hasPending    atomic.Bool
 }
 
 func preferenceHash(parts ...string) string {
@@ -78,6 +108,13 @@ func (s *Store) BindWorkspacePreferences(client *dsh.Client, authority string, s
 }
 func (s *Store) resetWorkspacePreferencesHostLocked() {
 	s.invalidateViewLocked()
+	if s.workspacePreferences.debounceTimer != nil {
+		s.workspacePreferences.debounceTimer.Stop()
+		s.workspacePreferences.debounceTimer = nil
+	}
+	s.workspacePreferences.latestJob = nil
+	s.workspacePreferences.lastSaveErr = nil
+	s.workspacePreferences.hasPending.Store(false)
 	s.workspacePreferences.scope = ""
 	s.workspaceLayout.view.SessionOrders = nil
 	s.workspacePreferences.authority = ""
@@ -338,25 +375,161 @@ func (s *Store) workspacePreferencesChangedLocked(kind, key string) {
 	}
 }
 
+// SetWorkspacePreferencesAsync toggles single-writer debounced background
+// persistence for any WorkspacePreferenceStore (even ones that only implement
+// synchronous SaveWorkspaceNavigationPreferences). Stores implementing
+// SaveWorkspaceNavigationPreferencesAsync (such as *config.Store) always run
+// non-blocking without holding Store.mu across disk I/O.
+func (s *Store) SetWorkspacePreferencesAsync(enabled bool) {
+	s.mu.Lock()
+	s.workspacePreferences.asyncMode = enabled
+	s.mu.Unlock()
+}
+
+// SetWorkspacePreferencesDebounce sets the coalescing window for debounced
+// background preference saves. Zero restores the default (150ms).
+func (s *Store) SetWorkspacePreferencesDebounce(d time.Duration) {
+	s.mu.Lock()
+	s.workspacePreferences.debounce = d
+	s.mu.Unlock()
+}
+
+// FlushWorkspacePreferences synchronously waits for any in-flight debounced
+// write to finish, drains all remaining pending preference edits in strict
+// sequence order, and flushes the underlying preference store if it supports
+// Flush(). Call before process exit or restart to guarantee durability.
+func (s *Store) FlushWorkspacePreferences() error {
+	err := s.flushWorkspacePreferencesLoop(false, true)
+	s.mu.Lock()
+	store := s.workspacePreferences.store
+	s.mu.Unlock()
+	if f, ok := store.(flushableWorkspacePreferenceStore); ok {
+		if flushErr := f.Flush(); flushErr != nil && err == nil {
+			err = flushErr
+		}
+	}
+	return err
+}
+
 func (s *Store) saveWorkspacePreferencesLocked() {
 	s.invalidateViewLocked()
 	b := &s.workspacePreferences
 	if b.store == nil || b.scope == "" || !b.dirty[b.scope] || b.readFailed[b.scope] {
 		return
 	}
-	if err := b.store.SaveWorkspaceNavigationPreferences(b.scope, cloneWorkspacePreferences(b.cache[b.scope])); err != nil {
-		b.errors[b.scope] = prefixedFaultText("workspacePreferences.save", storelocale.Pick("本次保留当前视图状态，但保存失败：", "View state kept for this run; saving failed: "), err)
-		s.workspaceLayout.view.PreferenceError = b.errors[b.scope]
+	b.saveSeq++
+	b.latestJob = &workspacePrefSaveJob{
+		store: b.store,
+		scope: b.scope,
+		prefs: cloneWorkspacePreferences(b.cache[b.scope]),
+		seq:   b.saveSeq,
+	}
+	b.hasPending.Store(true)
+}
+
+func (s *Store) drainWorkspacePreferenceSave() {
+	if !s.workspacePreferences.hasPending.Load() {
 		return
 	}
-	b.dirty[b.scope] = false
-	if e := b.edits[b.scope]; e != nil {
-		e.groupBy, e.orderBy, e.archivedFilter = nil, nil, nil
-		e.collapsed, e.sessionOrders = nil, nil
-		e.replaceSessionOrders = false
+	s.mu.Lock()
+	b := &s.workspacePreferences
+	if b.latestJob == nil {
+		b.hasPending.Store(false)
+		s.mu.Unlock()
+		return
 	}
-	b.errors[b.scope] = ""
-	s.workspaceLayout.view.PreferenceError = ""
+	if b.asyncMode {
+		delay := b.debounce
+		if delay <= 0 {
+			delay = defaultWorkspacePrefDebounce
+		}
+		if b.debounceTimer != nil {
+			b.debounceTimer.Reset(delay)
+		} else {
+			b.debounceTimer = time.AfterFunc(delay, func() {
+				_ = s.flushWorkspacePreferencesLoop(false, true)
+			})
+		}
+		b.hasPending.Store(false)
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+
+	// Execute persistence outside s.mu, serialized under b.writeMu so concurrent
+	// drains can never write an older saveSeq after a newer one.
+	_ = s.flushWorkspacePreferencesLoop(true, false)
+}
+
+// flushWorkspacePreferencesLoop enforces strict lock hierarchy b.writeMu -> s.mu.
+// Holding b.writeMu across the pop-and-write loop guarantees:
+//  1. FlushWorkspacePreferences blocks until any in-flight timer write completes;
+//  2. Only the newest saveSeq snapshot is popped and written, preventing
+//     out-of-order overwrites from concurrent callers.
+func (s *Store) flushWorkspacePreferencesLoop(useAsyncMethod bool, notifyAfter bool) error {
+	b := &s.workspacePreferences
+	b.writeMu.Lock()
+	var lastErr error
+	wroteAny := false
+	for {
+		s.mu.Lock()
+		if b.debounceTimer != nil {
+			b.debounceTimer.Stop()
+			b.debounceTimer = nil
+		}
+		job := b.latestJob
+		b.latestJob = nil
+		b.hasPending.Store(false)
+		if job == nil {
+			if !wroteAny {
+				lastErr = b.lastSaveErr
+			}
+			s.mu.Unlock()
+			break
+		}
+		s.mu.Unlock()
+
+		var err error
+		if asyncStore, ok := job.store.(asyncWorkspacePreferenceStore); ok && useAsyncMethod {
+			err = asyncStore.SaveWorkspaceNavigationPreferencesAsync(job.scope, job.prefs)
+		} else {
+			err = job.store.SaveWorkspaceNavigationPreferences(job.scope, job.prefs)
+		}
+		wroteAny = true
+		lastErr = err
+
+		s.mu.Lock()
+		b.lastSaveErr = err
+		if b.store == job.store && b.scope == job.scope {
+			if err != nil {
+				b.errors[job.scope] = prefixedFaultText("workspacePreferences.save", storelocale.Pick("本次保留当前视图状态，但保存失败：", "View state kept for this run; saving failed: "), err)
+				s.workspaceLayout.view.PreferenceError = b.errors[job.scope]
+				s.invalidateViewLocked()
+			} else {
+				if b.saveSeq == job.seq {
+					b.dirty[job.scope] = false
+					if e := b.edits[job.scope]; e != nil {
+						e.groupBy, e.orderBy, e.archivedFilter = nil, nil, nil
+						e.collapsed, e.sessionOrders = nil, nil
+						e.replaceSessionOrders = false
+					}
+				}
+				b.errors[job.scope] = ""
+				s.workspaceLayout.view.PreferenceError = ""
+				s.invalidateViewLocked()
+			}
+		}
+		hasMore := b.latestJob != nil
+		s.mu.Unlock()
+		if !hasMore {
+			break
+		}
+	}
+	b.writeMu.Unlock()
+	if notifyAfter && wroteAny {
+		s.fire()
+	}
+	return lastErr
 }
 
 func (s *Store) RetryWorkspacePreferences() {
@@ -369,6 +542,7 @@ func (s *Store) RetryWorkspacePreferences() {
 		s.applyWorkspacePreferenceViewLocked(b.scope)
 	}
 	s.mu.Unlock()
+	s.drainWorkspacePreferenceSave()
 	s.fire()
 }
 

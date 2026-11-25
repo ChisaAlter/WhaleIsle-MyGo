@@ -5,9 +5,12 @@ import (
 	"github.com/egoist/mygo/ui"
 	"strings"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -94,7 +97,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		botObjectiveConfigBlock(c, r.ObjectiveConfig, blocked, fg, muted, accent)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotRoutines)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshRoutines)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshRoutines), blocked || s.Scope.BotID == "").Clicked() {
 				r.OnRefresh()
 			}
 		})
@@ -129,14 +132,14 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 		}
 		if len(missed) > 0 {
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyMiscAssistantMissedRuns), len(missed))).TextColor(accent)
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDismissMissedRunNotice)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Clicked() {
+			if aGhost(c, i18n.T(i18n.KeyMiscAssistantDismissMissedRunNotice), false).Clicked() {
 				for _, id := range missed {
 					(*dismissed)[id] = true
 				}
 			}
 		}
 		query := ui.Local(block, "routine-query:"+s.Scope.HostKey+":"+s.Scope.BotID, func() string { return "" })
-		ui.TextInput(c.Key("routine-search"), query).Label(i18n.T(i18n.KeyMiscAssistantSearchRoutinesBotsOrErrors)).FillWidth().Height(32).Radius(8).Border(.5, border)
+		aInput(c.Key("routine-search"), query, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantSearchRoutinesBotsOrErrors)})
 		visible := visibleBotRoutines(s.Routines, s.BotName, *query)
 		if s.Loaded && len(s.Routines) > 0 && len(visible) == 0 {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingRoutines)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -151,7 +154,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					status = i18n.T(i18n.KeyMiscAssistantEnabled3)
 				}
 				title := firstTaskValue(row.Name, row.ID) + " · " + status
-				if r.OnSelect != nil && ui.Button(c, title).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+				if r.OnSelect != nil && aChoice(c, title, s.SelectedID == row.ID, blocked).Clicked() {
 					r.OnSelect(row.ID)
 				}
 				ui.Text(c, fmt.Sprintf("%s · %s · %s", row.ID, row.Schedule, row.Timezone)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -166,7 +169,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantPrompt)+row.Prompt).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, fmt.Sprintf("Next: %s · Last: %s\nRuns: %d / %s · Outcome: %s", taskTime(row.NextRunAt), taskTime(row.LastRunAt), row.RunCount, routineLimit(row.MaxRuns), firstTaskValue(row.LastOutcome, "—"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				if row.LastError != "" {
-					ui.Text(c, row.LastError).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+					ui.Text(c, errcopy.SentenceText(row.LastError)).FontSize(fonttheme.InterfaceSize(12)).TextColor(design.For(c).Destructive).Selectable()
 				}
 				if row.LastOutput != "" {
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantLastOutput)+row.LastOutput).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
@@ -174,13 +177,21 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 				ui.Text(c, fmt.Sprintf("Context: %s · Silent allowed: %t\nWatch: %s", strings.Join(row.ContextFrom, ", "), row.SilentAllowed, firstTaskValue(string(row.Watch), "—"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 				routineTriggerBlock(c, r, blocked, fg, muted, accent)
 				ui.Row(c).Gap(6).Children(func() {
-					if r.OnEdit != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantEditRoutine)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded).Clicked() {
+					if r.OnEdit != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantEditRoutine), blocked || !s.Loaded).Clicked() {
 						r.OnEdit()
 					}
 					for _, action := range []string{"toggle", "run", "delete"} {
 						action := action
-						if r.OnReview != nil && ui.Button(c, routineActionLabel(action, row.Enabled)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || s.Review != nil).Clicked() {
-							r.OnReview(action)
+						if r.OnReview != nil {
+							var btn ui.Element
+							if action == "delete" {
+								btn = aDangerOutline(c, routineActionLabel(action, row.Enabled), blocked || !s.Loaded || s.Review != nil)
+							} else {
+								btn = aButton(c, routineActionLabel(action, row.Enabled), blocked || !s.Loaded || s.Review != nil)
+							}
+							if btn.Clicked() {
+								r.OnReview(action)
+							}
 						}
 					}
 				})
@@ -197,7 +208,7 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					run := row.RunHistory[i]
 					ui.Text(c, fmt.Sprintf("%s · %s · %s\nCreated: %s · Started: %s · Ended: %s\nSession: %s · Turn: %d", run.RunID, run.Status, run.Trigger, taskTime(run.CreatedAt), taskTime(run.StartedAt), taskTime(run.EndedAt), run.SessionID, run.Turn)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 					if run.Error != "" {
-						ui.Text(c, run.Error).FontSize(fonttheme.InterfaceSize(11)).TextColor(accent).Selectable()
+						ui.Text(c, errcopy.SentenceText(run.Error)).FontSize(fonttheme.InterfaceSize(11)).TextColor(design.For(c).Destructive).Selectable()
 					}
 				}
 			})
@@ -217,11 +228,20 @@ func routineControlBlock(c *ui.Context, m Model, fg, muted, field, border, accen
 					routineAdvancedReview(c, r, *review, fg, muted, accent)
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if r.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBackToRoutine)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Busy).Clicked() {
+					if r.OnDismiss != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantBackToRoutine), s.Busy).Clicked() {
 						r.OnDismiss()
 					}
-					if r.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || cmd.Revision != s.Revision || dshbotstore.RoutineReviewNeedsWatchAcknowledgement(*review) && !review.WatchAcknowledged).Clicked() {
-						r.OnConfirm()
+					if r.OnConfirm != nil {
+						off := blocked || !s.Loaded || cmd.Revision != s.Revision || dshbotstore.RoutineReviewNeedsWatchAcknowledgement(*review) && !review.WatchAcknowledged
+						var confirmBtn ui.Element
+						if cmd.Action == "delete" {
+							confirmBtn = aDanger(c, i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction), off)
+						} else {
+							confirmBtn = aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmRoutineAction), off)
+						}
+						if confirmBtn.Clicked() {
+							r.OnConfirm()
+						}
 					}
 				})
 			})
@@ -245,7 +265,7 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, borde
 		for _, f := range []struct{ id, label, value string }{{"name", i18n.T(i18n.KeyMiscAssistantRoutineName), d.Edit.Name}, {"schedule", i18n.T(i18n.KeyMiscAssistantSchedule), d.Edit.Schedule}, {"timezone", i18n.T(i18n.KeyMiscAssistantTimezone), d.Edit.Timezone}, {"maxRuns", i18n.T(i18n.KeyMiscAssistantMaxRuns0Unlimited), d.MaxRunsText}} {
 			f := f
 			value := f.value
-			ui.TextInput(c.Key("routine-field-"+f.id), &value).Label(f.label).FillWidth().Height(32).Radius(8).Border(.5, border).Disabled(disabled).OnChange(func() {
+			aInput(c.Key("routine-field-"+f.id), &value, coss.InputOptions{Label: f.label, Disabled: disabled}).OnChange(func() {
 				if m.OnChange != nil {
 					m.OnChange(f.id, value)
 				}
@@ -253,7 +273,7 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, borde
 		}
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantRuleExamples30mOnceEvery1h0915Vali)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		prompt := d.Edit.Prompt
-		ui.TextArea(c.Key("routine-prompt"), &prompt).Label(i18n.T(i18n.KeyMiscAssistantRoutinePrompt)).Lines(4, 10).Radius(8).Border(.5, border).FillWidth().Disabled(disabled).OnChange(func() {
+		aTextarea(c.Key("routine-prompt"), &prompt, coss.TextareaOptions{Label: i18n.T(i18n.KeyMiscAssistantRoutinePrompt), MaxLines: 10, Disabled: disabled}).OnChange(func() {
 			if m.OnChange != nil {
 				m.OnChange("prompt", prompt)
 			}
@@ -263,14 +283,14 @@ func routineEditor(c *ui.Context, m RoutineModel, blocked bool, fg, muted, borde
 		if d.Edit.Enabled {
 			enabledLabel = i18n.T(i18n.KeyMiscAssistantDraftEnabled)
 		}
-		if m.OnChange != nil && ui.Button(c, enabledLabel).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled).Clicked() {
+		if m.OnChange != nil && aChoice(c, enabledLabel, d.Edit.Enabled, disabled).Clicked() {
 			m.OnChange("enabled", fmt.Sprint(!d.Edit.Enabled))
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if m.OnDiscard != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardRoutineDraft)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+			if m.OnDiscard != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardRoutineDraft), blocked).Clicked() {
 				m.OnDiscard()
 			}
-			if m.OnReview != nil && ui.Button(c, routineActionLabel("save", d.Edit.Enabled)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(disabled || !m.State.Loaded || d.Revision != m.State.Revision).Clicked() {
+			if m.OnReview != nil && aPrimary(c, routineActionLabel("save", d.Edit.Enabled), disabled || !m.State.Loaded || d.Revision != m.State.Revision).Clicked() {
 				m.OnReview("save")
 			}
 		})

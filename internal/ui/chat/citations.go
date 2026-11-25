@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -223,8 +224,12 @@ func CitationsView(c *ui.Context, cites []Citation, _, _ ui.Color, onOpen func(u
 			}
 			ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 				if onOpen != nil {
-					link := ui.Button(c, label).FontSize(theme.InterfaceSize(10)).BorderWidth(0).
-						Background(ui.Transparent).TextColor(accent).Padding(0, design.Sp(0.5), 0, design.Sp(0.5)).Cursor(ui.CursorPointer)
+					link := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonLink,
+						Size:    coss.ButtonXS,
+						Label:   label,
+						Content: func() { ui.Text(c, label).FontSize(theme.InterfaceSize(10)).TextColor(accent) },
+					}).Height(18).Padding(0, design.Sp(0.5))
 					if link.Clicked() {
 						onOpen(entry.URL)
 					}
@@ -232,8 +237,13 @@ func CitationsView(c *ui.Context, cites []Citation, _, _ ui.Color, onOpen func(u
 					ui.Text(c, "• "+label).FontSize(theme.InterfaceSize(10)).TextColor(accent).Grow(1)
 				}
 				if strings.TrimSpace(entry.URL) != "" {
-					copyAction := ui.Button(c, i18n.T(i18n.KeyChatCopy)).FontSize(theme.InterfaceSize(10)).
-						BorderWidth(0).Background(ui.Transparent).TextColor(muted).Padding(0, design.Sp(0.5), 0, design.Sp(0.5)).Cursor(ui.CursorPointer)
+					copyLabel := i18n.T(i18n.KeyChatCopy)
+					copyAction := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonXS,
+						Label:   copyLabel,
+						Content: func() { ui.Text(c, copyLabel).FontSize(theme.InterfaceSize(10)).TextColor(muted) },
+					}).Height(18).Padding(0, design.Sp(0.5))
 					if copyAction.Clicked() {
 						mygo.Clipboard.WriteText(entry.URL)
 					}

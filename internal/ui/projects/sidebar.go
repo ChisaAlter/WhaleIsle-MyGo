@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -25,24 +27,28 @@ func View(c *ui.Context, m Model) {
 			projectFilterControls(c, &m)
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
-			category := ui.Button(c, "").Label("Project").Height(36).Grow(1).MinWidth(0).Padding(0, 4).BorderWidth(0).Background(ui.Transparent)
-			category.Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Gap(4).AlignItems(ui.Center).Children(func() {
-					projectIcon(c, "chevron", 14, muted, m.Expanded)
-					label := "Project"
-					if m.History {
-						label += " · " + tr("已归档", "Archived")
-					}
-					ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(muted).MinWidth(0).SingleLine()
-					if len(visible) > 0 {
-						ui.Text(c, fmt.Sprint(len(visible))).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 6).Radius(9).Background(chrome.Color(colors.Hover))
-					}
-				})
-			})
+			category := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonLG,
+				Label:   "Project",
+				Content: func() {
+					ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+						projectIcon(c, "chevron", 14, muted, m.Expanded)
+						label := "Project"
+						if m.History {
+							label += " · " + tr("已归档", "Archived")
+						}
+						ui.Text(c, label).FontSize(theme.InterfaceSize(14)).TextColor(muted).MinWidth(0).SingleLine()
+						if len(visible) > 0 {
+							ui.Text(c, fmt.Sprint(len(visible))).FontSize(theme.InterfaceSize(11)).TextColor(muted).Padding(0, 6).Radius(9).Background(chrome.Color(colors.Hover))
+						}
+					})
+				},
+			}).Grow(1).MinWidth(0).PaddingX(design.Sp(1)).Justify(ui.Start)
 			if category.Clicked() && m.OnToggle != nil {
 				m.OnToggle()
 			}
-			add := projectIconButton(c, "project-add", tr("添加项目…", "Add Project…"), "add", muted).Disabled(m.Busy || !m.Listing.Available || m.Workspace == "")
+			add := pIconButton(c, "project-add", tr("添加项目…", "Add Project…"), m.Busy || !m.Listing.Available || m.Workspace == "", func() { projectIcon(c, "add", 16, muted, false) })
 			if add.Clicked() && m.OnCreate != nil {
 				m.OnCreate()
 			}
@@ -79,7 +85,10 @@ func View(c *ui.Context, m Model) {
 		}
 		if m.Loaded && m.Listing.Available && !m.Busy && len(visible) == 0 {
 			if !m.History && m.SearchQuery == "" {
-				add := ui.Button(c, "").Label(tr("添加 Project…", "Add Project…")).FillWidth().MinWidth(0).Padding(12).Margin(4, 0).Radius(theme.ContextRadii(c).MD).Border(1, chrome.Color(colors.Border)).Background(ui.Transparent)
+				add := ui.ButtonBase(c).Label(tr("添加 Project…", "Add Project…")).FillWidth().MinWidth(0).Padding(design.Sp(3)).Margin(design.Sp(1), 0).Radius(theme.ContextRadii(c).MD).Border(design.BorderWidth, chrome.Color(colors.Border)).Background(ui.Transparent).Cursor(ui.CursorPointer)
+				if add.Hovered() {
+					add.Background(chrome.Color(colors.Hover))
+				}
 				add.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(12).AlignItems(ui.Start).Children(func() {
 						ui.Box(c).Size(28, 28).Radius(8).Background(chrome.Color(colors.Pressed)).AlignItems(ui.Center).Justify(ui.Center).Children(func() { projectIcon(c, "add", 16, fg, false) })
@@ -119,7 +128,7 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 	menu := func(menu *ui.Menu) { projectRowMenu(menu, m, p) }
 	row.ContextMenu(menu)
 	row.Children(func() {
-		open := ui.Button(c, "").Label(p.Title).Tooltip(p.Title+"\n"+p.CanonicalWorkingDirectory).Grow(1).MinWidth(0).MinHeight(36).Padding(6, 0).BorderWidth(0).Background(ui.Transparent).Disabled(m.Busy || !m.Listing.Available)
+		open := ui.ButtonBase(c).Label(p.Title).Tooltip(p.Title+"\n"+p.CanonicalWorkingDirectory).Grow(1).MinWidth(0).MinHeight(36).Padding(6, 0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(m.Busy || !m.Listing.Available)
 		open.Children(func() {
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 				folderInk := muted
@@ -158,7 +167,7 @@ func projectSidebarRow(c *ui.Context, m Model, p projectflow.Project, directory 
 				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(ink).MinWidth(0).SingleLine()
 			})
 		}
-		more := projectIconButton(c, "project-row-menu", tr("更多：", "More: ")+p.Title, "more", muted).Disabled(m.Busy)
+		more := pIconButton(c, "project-row-menu", tr("更多：", "More: ")+p.Title, m.Busy, func() { projectIcon(c, "more", 16, muted, false) })
 		if m.presentation != nil {
 			handle := m.presentation.Rows[p.ID]
 			if handle == nil {
@@ -241,9 +250,7 @@ func projectDirectoryLabel(p projectflow.Project, projects []projectflow.Project
 }
 
 func projectIconButton(c *ui.Context, key, label, icon string, ink ui.Color) ui.Element {
-	button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Width(28).Height(28).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent)
-	button.Children(func() { projectIcon(c, icon, 16, ink, false) })
-	return button
+	return pIconButton(c, key, label, false, func() { projectIcon(c, icon, 16, ink, false) })
 }
 
 func projectIcon(c *ui.Context, kind string, size float32, ink ui.Color, expanded bool) {

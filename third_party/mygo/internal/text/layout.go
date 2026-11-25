@@ -242,6 +242,7 @@ type Layout struct {
 	// Width is the width of the longest line, Height the sum of the line
 	// heights.
 	Width, Height float32
+	geoMu         sync.Mutex
 	boundaries    []int // retained whole-grapheme offsets for visual navigation
 	// Truncated reports that MaxLines cut the text.
 	Truncated bool
@@ -300,7 +301,14 @@ type System struct {
 	layouts        map[Params]*cached
 	oldest, newest *cached
 	layoutBytes    int
-	frame          uint64
+	// shapes is a dedicated bounded LRU cache for System.Shape so repeated
+	// shaping of labels, single lines and rich runs avoids recreating native
+	// text layouts (e.g. DirectWrite IDWriteTextLayout) every frame without
+	// letting large edited paragraphs evict display-text layouts.
+	shapes                   map[Params]*cached
+	shapeOldest, shapeNewest *cached
+	shapeBytes               int
+	frame                    uint64
 	// made counts the layouts made (LayoutsMade), and gen the times the
 	// system forgot its layouts (Generation).
 	made, gen uint64
@@ -361,6 +369,7 @@ func newSystem() *System {
 	return &System{
 		fonts:     map[Style]*Font{},
 		layouts:   map[Params]*cached{},
+		shapes:    map[Params]*cached{},
 		marks:     map[markKey]float32{},
 		glyphs:    map[glyphKey]*atlasEntry{},
 		places:    map[placeKey]placement{},
@@ -516,6 +525,9 @@ func (s *System) EndFrame() {
 	for s.oldest != nil && s.frame-s.oldest.used > 240 {
 		s.removeLayout(s.oldest)
 	}
+	for s.shapeOldest != nil && s.frame-s.shapeOldest.used > 240 {
+		s.removeShape(s.shapeOldest)
+	}
 }
 
 // Layout shapes and wraps p.Text. The result is shared and must not be
@@ -552,8 +564,11 @@ func (s *System) Layout(p Params) *Layout {
 // The memory estimate includes text, shaped glyphs and room for lazy caret
 // geometry. A count limit also bounds the map for many very short labels.
 const (
-	maxLayoutBytes = 8 << 20
-	maxLayouts     = 4096
+	maxLayoutBytes     = 8 << 20
+	maxLayouts         = 4096
+	maxShapeBytes      = 4 << 20
+	maxShapes          = 1024
+	maxShapeEntryBytes = 64 << 10
 )
 
 func layoutBytes(c *cached) int {
@@ -617,6 +632,52 @@ func (s *System) clearLayouts() {
 	}
 	clear(s.layouts)
 	s.layoutBytes = 0
+	s.clearShapes()
+}
+
+func (s *System) unlinkShape(c *cached) {
+	if c.prev != nil {
+		c.prev.next = c.next
+	} else {
+		s.shapeOldest = c.next
+	}
+	if c.next != nil {
+		c.next.prev = c.prev
+	} else {
+		s.shapeNewest = c.prev
+	}
+	c.prev, c.next = nil, nil
+}
+
+func (s *System) useShape(c *cached) {
+	c.used = s.frame
+	if s.shapeNewest == c {
+		return
+	}
+	if c.prev != nil || c.next != nil || s.shapeOldest == c {
+		s.unlinkShape(c)
+	}
+	c.prev = s.shapeNewest
+	if s.shapeNewest != nil {
+		s.shapeNewest.next = c
+	} else {
+		s.shapeOldest = c
+	}
+	s.shapeNewest = c
+}
+
+func (s *System) removeShape(c *cached) {
+	s.unlinkShape(c)
+	delete(s.shapes, c.layout.Params)
+	s.shapeBytes -= c.bytes
+}
+
+func (s *System) clearShapes() {
+	for s.shapeOldest != nil {
+		s.unlinkShape(s.shapeOldest)
+	}
+	clear(s.shapes)
+	s.shapeBytes = 0
 }
 
 // LayoutsMade returns how many layouts the system has made, those Layout
@@ -637,13 +698,34 @@ func (s *System) Generation() uint64 {
 	return s.gen
 }
 
-// Shape lays out p.Text as Layout does, but caches nothing, for text that
-// its caller keeps or rarely draws twice. The result belongs to the
-// caller.
+// Shape lays out p.Text using a dedicated bounded LRU cache so repeated hot
+// shaping calls avoid recreating native text layouts (such as DirectWrite
+// IDWriteTextLayout) every frame while oversized entries bypass the cache.
+// Callers must treat the returned Layout as read-only; its lazy caret/boundary
+// geometry methods are concurrency-safe.
 func (s *System) Shape(p Params) *Layout {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return &s.layout(p).layout
+	if c, ok := s.shapes[p]; ok {
+		s.useShape(c)
+		return &c.layout
+	}
+	p.Text = strings.Clone(p.Text)
+	p.Spans = strings.Clone(p.Spans)
+	p.Ellipsis = strings.Clone(p.Ellipsis)
+	p.Style.Family = strings.Clone(p.Style.Family)
+	p.Style.Features = strings.Clone(p.Style.Features)
+	c := s.layout(p)
+	c.bytes = layoutBytes(c)
+	if c.bytes <= maxShapeEntryBytes {
+		for s.shapeOldest != nil && (s.shapeBytes+c.bytes > maxShapeBytes || len(s.shapes) >= maxShapes) {
+			s.removeShape(s.shapeOldest)
+		}
+		s.shapes[p] = c
+		s.shapeBytes += c.bytes
+		s.useShape(c)
+	}
+	return &c.layout
 }
 
 // Metrics returns the ascent, descent and default line height of a style.

@@ -1,11 +1,17 @@
 package ui
 
-import "math"
+import (
+	"math"
 
-// The mask uses disjoint physical-pixel strips only at the edges. All ordinary
-// UI/scene primitives, including color glyphs and images, already multiply the
-// painter's opacity. Reusing that path needs no renderer- or backend-specific
-// mask operation, and leaves transparent material behind the drawing intact.
+	"github.com/egoist/mygo/internal/scene"
+)
+
+// fadedElement paints e once under a single horizontal-fade clip operation
+// instead of slicing the edges into ~25 1px clip strips. Both the GPU shaders
+// and the CPU software rasterizer apply the linear edge alpha mask per pixel
+// across fills, glyphs (including ClearType and color emoji), images and
+// effects, preserving transparent/checkerboard/glass backgrounds with a single
+// draw call and GPU batch.
 func (p *Painter) fadedElement(e *node) {
 	if e.flags&flagInvisible != 0 || p.scale <= 0 || math.IsNaN(float64(p.scale)) || math.IsInf(float64(p.scale), 0) {
 		return
@@ -27,39 +33,22 @@ func (p *Painter) fadedElement(e *node) {
 	}
 	clipLeft := float64(round(p.clip.X * p.scale))
 	clipRight := float64(round((p.clip.X + p.clip.W) * p.scale))
-	a, z := math.Max(left, clipLeft), math.Min(right, clipRight)
-	if z <= a || p.clip.H <= 0 {
+	if math.Min(right, clipRight) <= math.Max(left, clipLeft) || p.clip.H <= 0 {
 		return
 	}
-	leftEnd := math.Min(right, left+math.Ceil(fadeLeft))
-	rightStart := math.Max(leftEnd, right-math.Ceil(fadeRight))
-	paint := func(x0, x1, alpha float64) {
-		x0, x1 = math.Max(a, x0), math.Min(z, x1)
-		if x1 <= x0 || alpha <= 0 {
-			return
-		}
-		saved := p.opacity
-		p.opacity *= float32(math.Min(alpha, 1))
-		p.Clip(Rect{X: float32(x0) / p.scale, Y: p.clip.Y, W: float32(x1-x0) / p.scale, H: p.clip.H}, 0, func() {
-			p.elementBody(e)
-		})
-		p.opacity = saved
+	y0 := round(p.clip.Y * p.scale)
+	y1 := round((p.clip.Y + p.clip.H) * p.scale)
+	if y1 <= y0 {
+		return
 	}
-	alphaAt := func(x float64) float64 {
-		alpha := float64(1)
-		if fadeLeft > 0 {
-			alpha = math.Min(alpha, (x-left)/fadeLeft)
-		}
-		if fadeRight > 0 {
-			alpha = math.Min(alpha, (right-x)/fadeRight)
-		}
-		return math.Max(0, alpha)
-	}
-	for x := a; x < math.Min(z, leftEnd); x++ {
-		paint(x, x+1, alphaAt(x+.5))
-	}
-	paint(leftEnd, rightStart, 1)
-	for x := math.Max(a, rightStart); x < z; x++ {
-		paint(x, x+1, alphaAt(x+.5))
-	}
+	savedClip := p.clip
+	p.clip = intersect(p.clip, Rect{X: float32(left) / p.scale, Y: p.clip.Y, W: float32(width) / p.scale, H: p.clip.H})
+	p.s.Ops = append(p.s.Ops, scene.Op{
+		Kind: scene.OpPushClip,
+		Rect: scene.Rect{X: float32(left), Y: y0, W: float32(width), H: y1 - y0},
+		Fade: [2]float32{float32(fadeLeft), float32(fadeRight)},
+	})
+	p.elementBody(e)
+	p.s.Ops = append(p.s.Ops, scene.Op{Kind: scene.OpPopClip})
+	p.clip = savedClip
 }

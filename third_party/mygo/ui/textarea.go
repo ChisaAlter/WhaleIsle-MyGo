@@ -426,7 +426,10 @@ func (a *area) paint(e *node, p *Painter, ox, oy float32) {
 	}
 	if focused && !ed.readOnly {
 		rt := e.c.rt
-		phase := time.Since(rt.blinkStart)
+		if rt.blinkStart.IsZero() {
+			rt.blinkStart = p.Now()
+		}
+		phase := max(p.Now().Sub(rt.blinkStart), 0)
 		const blink = 530 * time.Millisecond
 		if (phase/blink)%2 == 0 {
 			x, y, h := a.caretAt(ed, ed.caret, ed.composeCaret)
@@ -435,7 +438,7 @@ func (a *area) paint(e *node, p *Painter, ox, oy float32) {
 			op.Rect.W = max(round(p.scale), 1)
 		}
 		if phase < 30*time.Second {
-			e.c.After(blink - phase%blink)
+			p.After(blink - phase%blink)
 		}
 	}
 }

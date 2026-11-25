@@ -244,6 +244,7 @@ func (s *Store) prependPageRecordsLocked(records []api.SessionEventsPageRecordsI
 		return
 	}
 	s.messages = append(batch, s.messages...)
+	s.markHistoryDirtyLocked()
 }
 
 func (s *Store) historyPageOwnedLocked(client *dsh.Client, sessionID string, generation, requestID uint64) bool {

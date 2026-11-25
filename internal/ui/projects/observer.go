@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -154,7 +155,7 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 		colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 		ui.Row(c).FillWidth().MinWidth(0).Padding(10, 12).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, p.Title).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(p.CanonicalWorkingDirectory).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
-			if ui.Button(c, tr("任务材料", "Materials")).Height(28).Disabled(m.Busy).Clicked() && m.OnMaterialCollection != nil {
+			if pButton(c, tr("任务材料", "Materials"), m.Busy).Clicked() && m.OnMaterialCollection != nil {
 				m.OnMaterialCollection(p.ID)
 			}
 			label := tr("固定观察", "Keep observing")
@@ -163,13 +164,15 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 				label = tr("返回浮层", "Return to popover")
 				action = o.OnReturn
 			}
-			if ui.Button(c, label).Height(28).Disabled(action == nil || m.Busy).Clicked() {
+			if pButton(c, label, action == nil || m.Busy).Clicked() {
 				action()
 			}
-			if ui.Button(c, "↻").Label(tr("刷新需求", "Refresh requirements")).Height(28).Disabled(m.Busy).Clicked() {
+			refreshLabel := tr("刷新需求", "Refresh requirements")
+			if coss.Button(c, "↻", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: m.Busy}).Label(refreshLabel).Tooltip(refreshLabel).Clicked() {
 				o.RefreshCatalog()
 			}
-			ui.Button(c, "…").Label(tr("更多需求", "More requirements")).Height(28).Menu(func(menu *ui.Menu) {
+			moreLabel := tr("更多需求", "More requirements")
+			coss.Button(c, "…", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Label(moreLabel).Tooltip(moreLabel).Menu(func(menu *ui.Menu) {
 				for _, kind := range []string{"cancelled", "archived"} {
 					kind := kind
 					name := tr("已取消", "Cancelled")
@@ -217,7 +220,7 @@ func ObserverView(c *ui.Context, m Model, o *ObserverState) {
 	}
 }
 func observerLoad(c *ui.Context, m Model, load func()) {
-	if ui.Button(c, tr("读取此项目内容", "Load this Project")).Disabled(m.Busy).Clicked() {
+	if pPrimary(c, tr("读取此项目内容", "Load this Project"), m.Busy).Clicked() {
 		load()
 	}
 }

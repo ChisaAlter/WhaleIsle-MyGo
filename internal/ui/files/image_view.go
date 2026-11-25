@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
 )
 
 // The view state belongs to the resource tab, independently of the decoded
@@ -77,7 +78,7 @@ func paintImageView(c *ui.Context, preview *imagePreview, v *imageViewState) {
 		scale = imageFitScale(viewport, width)
 	}
 	ui.Row(c).FillWidth().Gap(6).Padding(4, 12).Children(func() {
-		if ui.Button(c, label("缩小", "Zoom out")).Disabled(scale <= .25).Clicked() {
+		if coss.Button(c, label("缩小", "Zoom out"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: scale <= .25}).Clicked() {
 			v.zoom(scale, imageZoomStep(scale, -1))
 		}
 		ui.MenuButton(c, fmt.Sprintf("%.0f%%", scale*100), func(menu *ui.Menu) {
@@ -87,14 +88,14 @@ func paintImageView(c *ui.Context, preview *imagePreview, v *imageViewState) {
 				}
 			}
 		}).Label(label("图片缩放", "Image zoom"))
-		if ui.Button(c, label("放大", "Zoom in")).Disabled(scale >= 4).Clicked() {
+		if coss.Button(c, label("放大", "Zoom in"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: scale >= 4}).Clicked() {
 			v.zoom(scale, imageZoomStep(scale, 1))
 		}
-		if ui.Button(c, label("适宽", "Fit width")).Clicked() {
+		if coss.Button(c, label("适宽", "Fit width"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 			v.scale = 0
 			v.scroll.X = 0
 		}
-		if ui.Button(c, "100%").Clicked() {
+		if coss.Button(c, "100%", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 			v.zoom(scale, 1)
 		}
 	})

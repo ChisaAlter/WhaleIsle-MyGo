@@ -85,8 +85,11 @@ func (s *Store) InitializeShortcutDocument(data []byte) error {
 }
 func (s *Store) SaveShortcutDocument(data []byte) error { return s.writeShortcutDocument(data, false) }
 func (s *Store) writeShortcutDocument(data []byte, initialize bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlockSync, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlockSync()
 	raw, baseline, err := s.shortcutSnapshotLocked()
 	if err != nil {
 		return err

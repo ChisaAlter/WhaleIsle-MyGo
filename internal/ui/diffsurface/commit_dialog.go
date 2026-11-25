@@ -3,12 +3,12 @@ package diffsurface
 import (
 	"fmt"
 	"strconv"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -39,7 +39,14 @@ func commitDialog(c *ui.Context, m Model, fg, muted ui.Color) {
 			Label(i18n.T(i18n.KeySurfacesGitCommitTitle)).Children(func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitTitle)).Grow(1).MinWidth(0).FontSize(fonttheme.InterfaceSize(16)).FontWeight(600).TextColor(fg)
-				if ui.Button(c, "").Label(i18n.T(i18n.KeySurfacesGitClose)).Size(24, 24).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).FocusRing(false).Clicked() {
+				closeLabel := i18n.T(i18n.KeySurfacesGitClose)
+				if coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconXS,
+					Icon:    coss.IconX,
+					Label:   closeLabel,
+					Key:     "commit-dialog-close",
+				}).Shrink(0).Tooltip(closeLabel).Clicked() {
 					open = false
 				}
 			})
@@ -78,7 +85,6 @@ func commitDialog(c *ui.Context, m Model, fg, muted ui.Color) {
 // paintCommitFileList is the dialog's staged checklist: one row per change with
 // its selection box, its status letters and its path.
 func paintCommitFileList(c *ui.Context, m Model, fg, muted ui.Color) {
-	colors := fonttheme.Resolve(m.ThemeID).Active(m.SystemDark)
 	w := m.Workbench
 	if w == nil {
 		return
@@ -86,10 +92,10 @@ func paintCommitFileList(c *ui.Context, m Model, fg, muted ui.Color) {
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeySurfacesGitCommitFiles)).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500).TextColor(fg).Grow(1)
 		ui.Text(c, formatSelectedCount(len(w.selectedCommitPaths()), len(w.Changes))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesGitSelectAll), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+		if coss.Button(c, i18n.T(i18n.KeySurfacesGitSelectAll), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Key: "commit-select-all"}).Shrink(0).Clicked() {
 			selectAllCommitFiles(w, true)
 		}
-		if widgets.Button(c, colors, i18n.T(i18n.KeySurfacesGitSelectNone), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
+		if coss.Button(c, i18n.T(i18n.KeySurfacesGitSelectNone), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Key: "commit-select-none"}).Shrink(0).Clicked() {
 			selectAllCommitFiles(w, false)
 		}
 	})
@@ -195,7 +201,7 @@ func commitLauncher(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	label := fmt.Sprintf(i18n.T(i18n.KeySurfacesGitCommitOpen), len(w.Changes))
 	ui.Row(c).FillWidth().Gap(8).Padding(8, 10).Radius(8).Border(0.5, c.Theme().Border).AlignItems(ui.Center).Children(func() {
-		if ui.PrimaryButton(c, label).Disabled(len(w.Changes) == 0 || w.Operation != nil).Clicked() {
+		if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: len(w.Changes) == 0 || w.Operation != nil, Key: "commit-open"}).Shrink(0).Clicked() {
 			w.CommitOpen = true
 		}
 		if w.Status != "" {

@@ -6,18 +6,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"whaleisle/internal/dsh"
 )
 
 func TestCreateSessionBlankReuseRPC(t *testing.T) {
-	var hitReuse bool
+	var hitReuse atomic.Bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		if strings.HasSuffix(r.URL.Path, "/session/blankReuse") {
-			hitReuse = true
+			hitReuse.Store(true)
 			payload, _ := body["payload"].(map[string]any)
 			args, _ := payload["args"].(map[string]any)
 			req, _ := args["request"].(map[string]any)
@@ -36,9 +38,22 @@ func TestCreateSessionBlankReuseRPC(t *testing.T) {
 	st.cwd = "/ws"
 	st.items = []Item{{SessionID: "blank-1", Blank: true, Cwd: "/ws"}}
 	st.mu.Unlock()
-	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
+	reused := make(chan struct{}, 1)
+	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, func() {
+		if snap := st.Snapshot(); snap.SelectedID == "blank-1" && snap.LastAction == "blank session reused" {
+			select {
+			case reused <- struct{}{}:
+			default:
+			}
+		}
+	})
 	st.CreateSession(context.Background())
-	if !hitReuse {
+	select {
+	case <-reused:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("timed out waiting for async blank reuse: selected=%q action=%q", st.Snapshot().SelectedID, st.Snapshot().LastAction)
+	}
+	if !hitReuse.Load() {
 		t.Fatal("expected session/blankReuse")
 	}
 	if st.Snapshot().SelectedID != "blank-1" {

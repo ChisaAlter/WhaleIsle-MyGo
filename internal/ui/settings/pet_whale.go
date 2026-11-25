@@ -6,9 +6,9 @@ import (
 
 	"whaleisle/internal/desktop/whale"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
-	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -63,10 +63,19 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 		whaleWideRow(c, "pet-whale-identity", i18n.T(i18n.KeySettingsWhaleIdentity),
 			i18n.T(i18n.KeySettingsWhaleIdentityHint), fg, muted, func() {
 				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					name := ui.TextInput(c, &st.Name).Width(180).Label(i18n.T(i18n.KeySettingsWhaleName)).
-						Placeholder(i18n.T(i18n.KeySettingsWhaleNamePlaceholder))
-					title := ui.TextInput(c, &st.Title).Width(180).Label(i18n.T(i18n.KeySettingsWhaleTitle)).
-						Placeholder(i18n.T(i18n.KeySettingsWhaleTitlePlaceholder))
+					var name, title ui.Element
+					ui.Box(c).Width(180).Shrink(0).Children(func() {
+						name = kInput(c, &st.Name, coss.InputOptions{
+							Label:       i18n.T(i18n.KeySettingsWhaleName),
+							Placeholder: i18n.T(i18n.KeySettingsWhaleNamePlaceholder),
+						})
+					})
+					ui.Box(c).Width(180).Shrink(0).Children(func() {
+						title = kInput(c, &st.Title, coss.InputOptions{
+							Label:       i18n.T(i18n.KeySettingsWhaleTitle),
+							Placeholder: i18n.T(i18n.KeySettingsWhaleTitlePlaceholder),
+						})
+					})
 					if name.Changed() {
 						st.NameDirty = true
 					}
@@ -148,15 +157,15 @@ func petWhaleSection(c *ui.Context, colors theme.Colors, a *PetSettingsAccess, f
 					return
 				}
 				ui.Column(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-					ui.TextArea(c, &st.PersonaText).FillWidth().Lines(3, 10).
-						Label(i18n.T(i18n.KeySettingsWhalePersona))
+					kTextarea(c, &st.PersonaText, coss.TextareaOptions{
+						Label:    i18n.T(i18n.KeySettingsWhalePersona),
+						MaxLines: 10,
+					}).Lines(3, 10)
 					ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.End).Children(func() {
-						if widgets.Button(c, colors, i18n.T(i18n.KeySettingsWhaleCancel),
-							widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+						if kGhost(c, i18n.T(i18n.KeySettingsWhaleCancel), false).Clicked() {
 							st.PersonaOpen = false
 						}
-						if widgets.Button(c, colors, i18n.T(i18n.KeySettingsSave),
-							widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: a.OnUpdateWhale == nil}).Clicked() {
+						if kPrimary(c, i18n.T(i18n.KeySettingsSave), a.OnUpdateWhale == nil).Clicked() {
 							value := st.PersonaText
 							st.PersonaOpen = false
 							update(whale.Patch{PersonaText: &value})
@@ -225,21 +234,22 @@ func petWhaleMemoryDialog(c *ui.Context, colors theme.Colors, st *petWhaleState,
 			Children(func() {
 				ui.Text(c, i18n.T(i18n.KeySettingsWhaleMemoryDialog)).FontSize(theme.InterfaceSize(16)).Bold().TextColor(fg)
 				ui.Text(c, i18n.T(i18n.KeySettingsWhaleMemoryHint)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
-				ui.TextArea(c, &st.MemoryText).FillWidth().Lines(8, 18).
-					Label(i18n.T(i18n.KeySettingsWhaleMemory))
+				kTextarea(c, &st.MemoryText, coss.TextareaOptions{
+					Label:    i18n.T(i18n.KeySettingsWhaleMemory),
+					MaxLines: 18,
+				}).Lines(8, 18)
 				if st.MemoryClear {
 					ui.Text(c, i18n.T(i18n.KeySettingsWhaleMemoryClearConfirm)).FontSize(theme.InterfaceSize(12)).
 						TextColor(chrome.Color(colors.Danger))
 				}
 				ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.End).Children(func() {
-					clearLabel := i18n.T(i18n.KeySettingsWhaleMemoryClear)
-					clearVariant := widgets.ButtonOutline
+					var clearBtn ui.Element
 					if st.MemoryClear {
-						clearLabel, clearVariant = i18n.T(i18n.KeySettingsWhaleMemoryClearConfirmAct), widgets.ButtonDanger
+						clearBtn = kDanger(c, i18n.T(i18n.KeySettingsWhaleMemoryClearConfirmAct), a.OnClearMemory == nil)
+					} else {
+						clearBtn = kButtonDisabled(c, i18n.T(i18n.KeySettingsWhaleMemoryClear), a.OnClearMemory == nil)
 					}
-					if widgets.Button(c, colors, clearLabel, widgets.ButtonSpec{
-						Variant: clearVariant, Size: widgets.ButtonSmall, Disabled: a.OnClearMemory == nil,
-					}).Clicked() {
+					if clearBtn.Clicked() {
 						if st.MemoryClear {
 							st.MemoryClear, st.MemoryOpen = false, false
 							a.OnClearMemory()
@@ -248,12 +258,10 @@ func petWhaleMemoryDialog(c *ui.Context, colors theme.Colors, st *petWhaleState,
 						}
 					}
 					ui.Box(c).Grow(1).MinWidth(0)
-					if widgets.Button(c, colors, i18n.T(i18n.KeySettingsWhaleCancel),
-						widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
+					if kGhost(c, i18n.T(i18n.KeySettingsWhaleCancel), false).Clicked() {
 						st.MemoryOpen, st.MemoryClear = false, false
 					}
-					if widgets.Button(c, colors, i18n.T(i18n.KeySettingsSave),
-						widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall, Disabled: a.OnReplaceMemory == nil}).Clicked() {
+					if kPrimary(c, i18n.T(i18n.KeySettingsSave), a.OnReplaceMemory == nil).Clicked() {
 						text := st.MemoryText
 						st.MemoryOpen = false
 						a.OnReplaceMemory(text)
@@ -265,12 +273,12 @@ func petWhaleMemoryDialog(c *ui.Context, colors theme.Colors, st *petWhaleState,
 
 // linkAction is the reference's blue text action on a settings row.
 func linkAction(c *ui.Context, label string, ink ui.Color, enabled bool, action func()) {
-	button := ui.Button(c, "").Label(label).Height(24).Padding(0, 4).Shrink(0).BorderWidth(0).
-		Background(ui.Transparent).TextColor(ink).Disabled(!enabled)
-	button.Children(func() {
-		ui.Text(c, label).SingleLine().FontSize(theme.InterfaceSize(13)).TextColor(ink)
-	})
-	if button.Clicked() && enabled {
+	_ = ink
+	if coss.Button(c, label, coss.ButtonOptions{
+		Variant:  coss.ButtonLink,
+		Size:     coss.ButtonXS,
+		Disabled: !enabled,
+	}).Label(label).Shrink(0).Clicked() && enabled {
 		action()
 	}
 }

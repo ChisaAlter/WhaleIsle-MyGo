@@ -57,8 +57,8 @@ func UnmarshalState(raw []byte) (*Object, error) {
 	}
 	// Legacy: $keys are plain values; other keys are fields or forms.
 	out := NewObject(doc.Len())
-	for _, k := range doc.Keys() {
-		val := doc.vals[k]
+	for i, k := range doc.Keys() {
+		val := doc.vals[i]
 		if strings.HasPrefix(k, "$") {
 			out.Set(k, val)
 			continue
@@ -87,8 +87,8 @@ func decodeFields(v Value, legacy bool) Value {
 		return v
 	}
 	out := NewObject(o.Len())
-	for _, k := range o.keys {
-		out.Set(k, decodeEntry(o.vals[k], legacy))
+	for i, k := range o.keys {
+		out.appendOrdered(k, decodeEntry(o.vals[i], legacy))
 	}
 	return out
 }
@@ -104,16 +104,16 @@ func decodeEntry(v Value, legacy bool) Value {
 	}
 	form := NewObject(o.Len())
 	changed := false
-	for _, k := range o.keys {
-		x := o.vals[k]
+	for i, k := range o.keys {
+		x := o.vals[i]
 		if xo, ok := x.(*Object); ok {
 			if f, ok := asField(xo, legacy); ok {
-				form.Set(k, f)
+				form.appendOrdered(k, f)
 				changed = true
 				continue
 			}
 		}
-		form.Set(k, x)
+		form.appendOrdered(k, x)
 	}
 	if !changed {
 		return o
@@ -153,8 +153,8 @@ func (in *Instance) RestoreState(raw []byte) error {
 		in.persist = vals
 		return nil
 	}
-	for _, k := range vals.Keys() {
-		if err := in.store.Set(k, vals.vals[k], false); err != nil {
+	for i, k := range vals.Keys() {
+		if err := in.store.Set(k, vals.vals[i], false); err != nil {
 			return err
 		}
 	}

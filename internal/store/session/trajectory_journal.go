@@ -11,7 +11,7 @@ type trajectoryMessageCache struct {
 }
 
 func (s *Store) trajectoryMessagesViewLocked(historyChanged bool) []Message {
-	durable, volatile, tail := splitVolatileTail(s.messages)
+	durable, volatile, tail := s.splitVolatileTailFastLocked()
 	if !tail || s.assistantStream.retained != nil || s.assistantStream.rebaseline {
 		s.trajectoryMessageCache = nil
 		return s.trajectoryJournalMessagesLocked()

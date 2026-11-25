@@ -52,6 +52,7 @@ func (s *mainState) askConfirm(req confirmAskRequest) *confirmAskRequest {
 	s.mu.Lock()
 	previous := s.confirmAsk
 	s.confirmAsk = &req
+	s.confirmAskActive.Store(true)
 	// A replaced request starts with the evidence block closed, so the previous
 	// question's expansion never leaks into an unrelated one.
 	s.confirmAskTechnicalOpen = false
@@ -213,6 +214,7 @@ func (s *mainState) settleConfirmationChoice(req *confirmAskRequest, choice int)
 		choice = 0
 	} else {
 		s.confirmAsk = nil
+		s.confirmAskActive.Store(false)
 	}
 	req.settled = true
 	off := req.closed

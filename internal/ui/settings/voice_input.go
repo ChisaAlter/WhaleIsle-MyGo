@@ -69,7 +69,7 @@ func VoiceInputDeviceView(c *ui.Context, microphone *voiceinput.Microphone) {
 					}
 				}
 			}
-			if ui.Button(c, text("刷新", "Refresh")).Disabled(state.Loading).Clicked() {
+			if kButtonDisabled(c, text("刷新", "Refresh"), state.Loading).Clicked() {
 				microphone.Refresh()
 			}
 		})

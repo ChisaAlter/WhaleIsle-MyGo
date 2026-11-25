@@ -21,17 +21,74 @@ import (
 // Evaluated element trees (Frame.Root) never contain Node values.
 type Value = any
 
+const (
+	smallObjCap  = 3
+	mapThreshold = 16
+)
+
 // Object is an ordered string-keyed map that follows ECMAScript property
 // order: array-index keys in ascending numeric order first, then the other
 // keys in insertion order.
 type Object struct {
-	keys []string
-	vals map[string]Value
+	keys  []string
+	vals  []Value
+	index map[string]int
+	kbuf  [smallObjCap]string
+	vbuf  [smallObjCap]Value
 }
 
 // NewObject returns an empty object with room for n keys.
 func NewObject(n int) *Object {
-	return &Object{keys: make([]string, 0, n), vals: make(map[string]Value, n)}
+	o := &Object{}
+	if n <= smallObjCap {
+		o.keys = o.kbuf[:0]
+		o.vals = o.vbuf[:0]
+		return o
+	}
+	o.keys = make([]string, 0, n)
+	o.vals = make([]Value, 0, n)
+	if n > mapThreshold {
+		o.index = make(map[string]int, n)
+	}
+	return o
+}
+
+func (o *Object) find(key string) int {
+	if o == nil {
+		return -1
+	}
+	if o.index != nil {
+		if i, ok := o.index[key]; ok {
+			return i
+		}
+		return -1
+	}
+	for i, k := range o.keys {
+		if k == key {
+			return i
+		}
+	}
+	return -1
+}
+
+func (o *Object) buildIndex() {
+	m := make(map[string]int, len(o.keys)+4)
+	for i, k := range o.keys {
+		m[k] = i
+	}
+	o.index = m
+}
+
+// appendOrdered appends a key known to be unique and already in property order.
+func (o *Object) appendOrdered(key string, v Value) {
+	pos := len(o.keys)
+	o.keys = append(o.keys, key)
+	o.vals = append(o.vals, v)
+	if o.index != nil {
+		o.index[key] = pos
+	} else if len(o.keys) > mapThreshold {
+		o.buildIndex()
+	}
 }
 
 // Len returns the number of keys.
@@ -52,35 +109,31 @@ func (o *Object) Keys() []string {
 
 // Get returns the value of key and whether it is present.
 func (o *Object) Get(key string) (Value, bool) {
-	if o == nil {
-		return nil, false
+	if i := o.find(key); i >= 0 {
+		return o.vals[i], true
 	}
-	v, ok := o.vals[key]
-	return v, ok
+	return nil, false
 }
 
 // Value returns the value of key, or nil.
 func (o *Object) Value(key string) Value {
-	v, _ := o.Get(key)
-	return v
+	if i := o.find(key); i >= 0 {
+		return o.vals[i]
+	}
+	return nil
 }
 
 // Has reports whether key is present.
 func (o *Object) Has(key string) bool {
-	if o == nil {
-		return false
-	}
-	_, ok := o.vals[key]
-	return ok
+	return o.find(key) >= 0
 }
 
 // Set sets key to v, inserting it in ECMAScript order when it is new.
 func (o *Object) Set(key string, v Value) {
-	if _, ok := o.vals[key]; ok {
-		o.vals[key] = v
+	if i := o.find(key); i >= 0 {
+		o.vals[i] = v
 		return
 	}
-	o.vals[key] = v
 	if idx, ok := arrayIndex(key); ok {
 		// Insert among the leading index keys in ascending order.
 		pos := 0
@@ -92,23 +145,46 @@ func (o *Object) Set(key string, v Value) {
 			pos++
 		}
 		o.keys = append(o.keys, "")
+		o.vals = append(o.vals, nil)
 		copy(o.keys[pos+1:], o.keys[pos:])
+		copy(o.vals[pos+1:], o.vals[pos:])
 		o.keys[pos] = key
+		o.vals[pos] = v
+		if o.index != nil {
+			for j := pos; j < len(o.keys); j++ {
+				o.index[o.keys[j]] = j
+			}
+		} else if len(o.keys) > mapThreshold {
+			o.buildIndex()
+		}
 		return
 	}
+	pos := len(o.keys)
 	o.keys = append(o.keys, key)
+	o.vals = append(o.vals, v)
+	if o.index != nil {
+		o.index[key] = pos
+	} else if len(o.keys) > mapThreshold {
+		o.buildIndex()
+	}
 }
 
 // Delete removes key.
 func (o *Object) Delete(key string) {
-	if _, ok := o.vals[key]; !ok {
+	i := o.find(key)
+	if i < 0 {
 		return
 	}
-	delete(o.vals, key)
-	for i, k := range o.keys {
-		if k == key {
-			o.keys = append(o.keys[:i], o.keys[i+1:]...)
-			break
+	copy(o.keys[i:], o.keys[i+1:])
+	o.keys[len(o.keys)-1] = ""
+	o.keys = o.keys[:len(o.keys)-1]
+	copy(o.vals[i:], o.vals[i+1:])
+	o.vals[len(o.vals)-1] = nil
+	o.vals = o.vals[:len(o.vals)-1]
+	if o.index != nil {
+		delete(o.index, key)
+		for j := i; j < len(o.keys); j++ {
+			o.index[o.keys[j]] = j
 		}
 	}
 }
@@ -118,10 +194,19 @@ func (o *Object) Clone() *Object {
 	if o == nil {
 		return NewObject(0)
 	}
-	c := &Object{keys: make([]string, len(o.keys), len(o.keys)+1), vals: make(map[string]Value, len(o.vals)+1)}
+	n := len(o.keys)
+	c := &Object{}
+	if n < smallObjCap {
+		c.keys = c.kbuf[:n]
+		c.vals = c.vbuf[:n]
+	} else {
+		c.keys = make([]string, n, n+1)
+		c.vals = make([]Value, n, n+1)
+	}
 	copy(c.keys, o.keys)
-	for k, v := range o.vals {
-		c.vals[k] = v
+	copy(c.vals, o.vals)
+	if n > mapThreshold {
+		c.buildIndex()
 	}
 	return c
 }
@@ -131,11 +216,15 @@ func arrayIndex(key string) (uint64, bool) {
 	if key == "" || len(key) > 10 {
 		return 0, false
 	}
-	if len(key) > 1 && key[0] == '0' {
+	c0 := key[0]
+	if c0 < '0' || c0 > '9' {
 		return 0, false
 	}
-	var n uint64
-	for i := 0; i < len(key); i++ {
+	if len(key) > 1 && c0 == '0' {
+		return 0, false
+	}
+	n := uint64(c0 - '0')
+	for i := 1; i < len(key); i++ {
 		c := key[i]
 		if c < '0' || c > '9' {
 			return 0, false
@@ -158,6 +247,12 @@ func ObjectFrom(kv ...any) *Object {
 }
 
 // Element is a component instance: a library component with resolved props.
+const (
+	elMaterialized uint8 = iota
+	elEphemeral
+	elConsumed
+)
+
 type Element struct {
 	// Type is the component name, for example "Button".
 	Type string
@@ -182,6 +277,8 @@ type Element struct {
 	// (for example invalid options of a specialized component).
 	Issues  []string
 	dynamic bool
+	kind    uint8
+	memo    *renderMemo
 }
 
 // Prop returns a prop value.

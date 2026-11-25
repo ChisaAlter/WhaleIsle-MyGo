@@ -37,10 +37,22 @@ func workspaceResourceGuide(c *ui.Context, m Model) {
 					ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
 						for j := i; j < min(i+2, len(entries)); j++ {
 							entry := entries[j]
-							button := ui.Button(c.Key("resource-guide:"+entry.id), "").Label(entry.title).Tooltip(entry.description).Width((width - 8) / 2).Height((width - 8) / 2).MinWidth(0).Padding(design.Sp(3)).Radius(design.RadiusMD).BorderWidth(0).Background(frameInsetBg(t)).Disabled(entry.disabled)
-							if !entry.disabled {
-								button.Cursor(ui.CursorPointer)
-							}
+							button := coss.Button(c, "", coss.ButtonOptions{
+								Variant:  coss.ButtonGhost,
+								Size:     coss.ButtonMD,
+								Disabled: entry.disabled,
+								Label:    entry.title,
+								Key:      "resource-guide:" + entry.id,
+								Content: func() {
+									ui.Column(c).Fill().MinWidth(0).AlignItems(ui.Center).Justify(ui.Center).Gap(design.Sp(1)).Children(func() {
+										ui.Icon(c, entry.icon).Size(20, 20).TextColor(muted)
+										ui.Text(c, entry.title).FontSize(theme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg).SingleLine().Ellipsis("…").MaxWidthPercent(100)
+										if entry.description != "" {
+											ui.Text(c, entry.description).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted).TextAlign(ui.Center).MaxLines(2).MaxWidthPercent(100)
+										}
+									})
+								},
+							}).Tooltip(entry.description).Width((width - 8) / 2).Height((width - 8) / 2).MinWidth(0).Padding(design.Sp(3)).Radius(design.RadiusMD).Background(frameInsetBg(t))
 							if entry.id == "more" {
 								button.Menu(func(menu *ui.Menu) {
 									if m.OnOpenMarket != nil && menu.Item(paneLabel("浏览更多插件", "Browse other plugins")).Disabled(m.ConnectionError != "").Chosen() {
@@ -51,15 +63,6 @@ func workspaceResourceGuide(c *ui.Context, m Model) {
 									}
 								})
 							}
-							button.Children(func() {
-								ui.Column(c).Fill().MinWidth(0).AlignItems(ui.Center).Justify(ui.Center).Gap(design.Sp(1)).Children(func() {
-									ui.Icon(c, entry.icon).Size(20, 20).TextColor(muted)
-									ui.Text(c, entry.title).FontSize(theme.InterfaceSize(14)).FontWeight(design.WeightMedium).TextColor(fg).SingleLine().Ellipsis("…").MaxWidthPercent(100)
-									if entry.description != "" {
-										ui.Text(c, entry.description).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).TextColor(muted).TextAlign(ui.Center).MaxLines(2).MaxWidthPercent(100)
-									}
-								})
-							})
 							if entry.id != "more" && button.Clicked() && entry.open != nil {
 								entry.open()
 							}

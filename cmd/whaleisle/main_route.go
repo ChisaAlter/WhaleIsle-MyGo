@@ -53,6 +53,7 @@ func (s *mainState) mainRouteCurrentLocked(token mainRouteToken) bool {
 func (s *mainState) setMainRouteLocked(route mainRoute) {
 	s.mainRoute = route
 	s.mainRouteEpoch++
+	s.mainRouteDirty.Store(true)
 	s.maintenanceOpen = route.isMaintenance()
 	s.settingsOpen = route == routeSettings
 	s.marketOpen = route == routeMarket || route == routePlugins
@@ -63,15 +64,58 @@ func (s *mainState) setMainRouteLocked(route mainRoute) {
 	s.remoteOpen = route == routeRemote
 	s.browserPreviewOpen = route == routeBrowser
 	s.webviewOpen = route == routeWebView
-	s.toolsMenuOpen = false
 	if route != routeSettings {
 		s.settingsEmbeddedSection = ""
 	}
 }
 
+type mainTopCaptionMode uint8
+
+const (
+	// topCaptionNone reserves 0 DIP because the route paints its own full
+	// native caption band (Workspace shell or Windows routeWebView).
+	topCaptionNone mainTopCaptionMode = iota
+	// topCaptionWindowsStandaloneStrip reserves a borderless, gitBadge-free
+	// transparent draggable strip of chrome.EffectiveTitleBarHeight() (12 DIP)
+	// for Windows standalone routes (routeBrowser, routeIM, routeRemote,
+	// routeUsage, and offline maintenance). Subpages align their headers with
+	// c.TitleBar().Left/Right at y=12..44 without a hairline slicing "- □ ×".
+	topCaptionWindowsStandaloneStrip
+	// topCaptionNonWindowsLocked keeps the macOS/Linux titlebar strip with
+	// actions for locked non-conversation routes.
+	topCaptionNonWindowsLocked
+	// topCaptionNonWindowsDragStrip keeps the macOS/Linux draggable caption
+	// strip for conversation/settings routes.
+	topCaptionNonWindowsDragStrip
+)
+
+func mainTopCaptionModeForOS(goos string, ready bool, route mainRoute) mainTopCaptionMode {
+	standalone := route == routeUsage || route == routeIM || route == routeRemote || route == routeBrowser
+	if goos == "windows" {
+		if route == routeWebView {
+			return topCaptionNone
+		}
+		if standalone {
+			return topCaptionWindowsStandaloneStrip
+		}
+		if !ready && route.isMaintenance() {
+			return topCaptionWindowsStandaloneStrip
+		}
+		return topCaptionNone
+	}
+	locked := route != routeConversation && route != routeSettings
+	if locked {
+		return topCaptionNonWindowsLocked
+	}
+	return topCaptionNonWindowsDragStrip
+}
+
 // syncMainRouteResources is also called after frame callbacks, so locked
 // platform/startup transitions have the same disposal path as user navigation.
 func (s *mainState) syncMainRouteResources() {
+	if !s.mainRouteDirty.Load() {
+		return
+	}
 	s.mu.Lock()
 	win := s.win
 	s.mu.Unlock()
@@ -90,6 +134,7 @@ func (s *mainState) applyMainRouteResources() {
 	route, epoch := s.mainRoute, s.mainRouteEpoch
 	changed := epoch != s.mainRouteApplied
 	s.mainRouteApplied = epoch
+	s.mainRouteDirty.Store(false)
 	var retired retiredWebView
 	if route != routeWebView {
 		retired = s.detachWebViewLocked()

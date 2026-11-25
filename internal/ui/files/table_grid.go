@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 func tableColumnName(index int) string {
@@ -107,8 +109,14 @@ func paintTableFormulaBar(c *ui.Context, tab *FileTab) {
 	formula := tableFormulaText(cell)
 	ui.Row(c).Gap(6).Padding(4, 12).FillWidth().Children(func() {
 		ui.Text(c, tab.tableCell+" · fx").Width(82)
-		ui.TextInput(c, &formula).ReadOnly(true).Grow(1).MinWidth(0).Label("Read-only cell formula or value").Tooltip(formula)
-		if ui.Button(c, label("复制公式/原文", "Copy formula/value")).Clicked() {
+		ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+			coss.Input(c, &formula, coss.InputOptions{
+				Size:     coss.InputSM,
+				ReadOnly: true,
+				Label:    "Read-only cell formula or value",
+			}).Tooltip(formula)
+		})
+		if coss.Button(c, label("复制公式/原文", "Copy formula/value"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 			mygo.Clipboard.WriteText(formula)
 		}
 	})
@@ -130,10 +138,10 @@ func paintTableFormulaBar(c *ui.Context, tab *FileTab) {
 			note += label(" · 数字格式回退为原值", " · number format falls back to raw value")
 		}
 		ui.Text(c, note).FontSize(11).Grow(1)
-		if ui.Button(c, label("复制已加载选区原值", "Copy loaded selection raw")).Clicked() {
+		if coss.Button(c, label("复制已加载选区原值", "Copy loaded selection raw"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 			mygo.Clipboard.WriteText(tableSelectionText(tab, false))
 		}
-		if ui.Button(c, label("复制已加载选区显示值", "Copy loaded selection display")).Clicked() {
+		if coss.Button(c, label("复制已加载选区显示值", "Copy loaded selection display"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 			mygo.Clipboard.WriteText(tableSelectionText(tab, true))
 		}
 	})
@@ -186,7 +194,13 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 					if tableColumnWidth(page, col) == 0 {
 						continue
 					}
-					if ui.Button(c.Key(fmt.Sprintf("column-%d", col)), tableColumnName(col)).Width(tableColumnWidth(page, col)).Selected(tab.tableSelectionKind == "column" && tab.tableSelectionIndex == col).Disabled(blocked).Clicked() {
+					if coss.Button(c, tableColumnName(col), coss.ButtonOptions{
+						Variant:  coss.ButtonOutline,
+						Size:     coss.ButtonSM,
+						Key:      fmt.Sprintf("column-%d", col),
+						Pressed:  tab.tableSelectionKind == "column" && tab.tableSelectionIndex == col,
+						Disabled: blocked,
+					}).Width(tableColumnWidth(page, col)).Radius(0).Selected(tab.tableSelectionKind == "column" && tab.tableSelectionIndex == col).Clicked() {
 						tab.tableSelectionKind = "column"
 						tab.tableSelectionIndex = col
 						tab.tableCell = tableAddress(page.Request.Row, col)
@@ -199,7 +213,13 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 						if tableRowHeight(page, row) == 0 {
 							continue
 						}
-						if ui.Button(c.Key(fmt.Sprintf("row-%d", row)), strconv.Itoa(row+1)).Absolute().Left(0).Top(ys[row]).Width(48).Height(tableRowHeight(page, row)).Selected(tab.tableSelectionKind == "row" && tab.tableSelectionIndex == row).Disabled(blocked).Clicked() {
+						if coss.Button(c, strconv.Itoa(row+1), coss.ButtonOptions{
+							Variant:  coss.ButtonOutline,
+							Size:     coss.ButtonXS,
+							Key:      fmt.Sprintf("row-%d", row),
+							Pressed:  tab.tableSelectionKind == "row" && tab.tableSelectionIndex == row,
+							Disabled: blocked,
+						}).Absolute().Left(0).Top(ys[row]).Width(48).Height(tableRowHeight(page, row)).Radius(0).Selected(tab.tableSelectionKind == "row" && tab.tableSelectionIndex == row).Clicked() {
 							tab.tableSelectionKind = "row"
 							tab.tableSelectionIndex = row
 							tab.tableCell = tableAddress(row, page.Request.Column)
@@ -235,7 +255,42 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 							if tab.tableSelectionKind == "column" {
 								selected = tab.tableSelectionIndex >= firstCol && tab.tableSelectionIndex < lastCol
 							}
-							button := ui.Button(c.Key(address), "").Absolute().Left(xs[col]).Top(ys[row]).Width(xs[lastCol]-xs[col]).Height(ys[lastRow]-ys[row]).Padding(3, 6).Clip().Selected(selected).Disabled(blocked).Label("Cell " + address).Tooltip(tooltip)
+							button := coss.Button(c, "", coss.ButtonOptions{
+								Variant:  coss.ButtonGhost,
+								Key:      address,
+								Disabled: blocked,
+								Label:    "Cell " + address,
+								Content: func() {
+									text := ui.Text(c, cell.DisplayValue).FillWidth()
+									if !cell.Style.Wrap {
+										text.SingleLine()
+									}
+									if cell.Style.FontName != "" {
+										text.Font(cell.Style.FontName)
+									}
+									if cell.Style.FontSize > 0 {
+										text.FontSize(min(float32(32), max(float32(8), cell.Style.FontSize*4/3)))
+									}
+									if cell.Style.Bold {
+										text.Bold()
+									}
+									if cell.Style.Italic {
+										text.Italic()
+									}
+									switch cell.Style.Horizontal {
+									case "center", "centerContinuous":
+										text.TextAlign(ui.Center)
+									case "right":
+										text.TextAlign(ui.End)
+									case "left":
+										text.TextAlign(ui.Start)
+									default:
+										if cell.Type == "number" || cell.Type == "date" {
+											text.TextAlign(ui.End)
+										}
+									}
+								},
+							}).Absolute().Left(xs[col]).Top(ys[row]).Width(xs[lastCol]-xs[col]).Height(ys[lastRow]-ys[row]).Padding(design.Sp(0.75), design.Sp(1.5)).Radius(0).Clip().Selected(selected).Tooltip(tooltip)
 							if merged {
 								paintTableMergedSourceStyle(button, cell.Style, selected, page, merge, cells, row, col, lastRow, lastCol)
 							} else {
@@ -247,36 +302,6 @@ func paintTableGrid(c *ui.Context, m Model) bool {
 							case "bottom":
 								button.AlignItems(ui.End)
 							}
-							button.Children(func() {
-								text := ui.Text(c, cell.DisplayValue).FillWidth()
-								if !cell.Style.Wrap {
-									text.SingleLine()
-								}
-								if cell.Style.FontName != "" {
-									text.Font(cell.Style.FontName)
-								}
-								if cell.Style.FontSize > 0 {
-									text.FontSize(min(float32(32), max(float32(8), cell.Style.FontSize*4/3)))
-								}
-								if cell.Style.Bold {
-									text.Bold()
-								}
-								if cell.Style.Italic {
-									text.Italic()
-								}
-								switch cell.Style.Horizontal {
-								case "center", "centerContinuous":
-									text.TextAlign(ui.Center)
-								case "right":
-									text.TextAlign(ui.End)
-								case "left":
-									text.TextAlign(ui.Start)
-								default:
-									if cell.Type == "number" || cell.Type == "date" {
-										text.TextAlign(ui.End)
-									}
-								}
-							})
 							if button.Clicked() {
 								tab.tableCell = address
 								if merged && tableAddressInPage(page, sourceAddress) {

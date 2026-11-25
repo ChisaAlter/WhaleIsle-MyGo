@@ -19,10 +19,11 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 	s.mu.Unlock()
 	if section == settings.SectionUsageStats && s.usage != nil {
 		owner := s.usage.StatisticsOwner()
-		previous, loaded := usagePageReads.LoadOrStore(s, owner)
-		if !loaded || previous != owner {
+		if s.settingsTabShouldRefresh("usage-stats", owner) {
 			usagePageReads.Store(s, owner)
 			s.usage.RefreshStats(context.Background(), false)
+		} else {
+			usagePageReads.LoadOrStore(s, owner)
 		}
 	}
 	if (section == settings.SectionMarket || section == settings.SectionVoice || section == settings.SectionDeepSeekAPIs || section == settings.SectionRemote || section == settings.SectionRemoteWorkspace || section == settings.SectionUsageStats) && sectionContent != nil {
@@ -76,8 +77,9 @@ func (s *mainState) settingsSectionModel(m settings.Model, sectionContent func(*
 
 // Native and contributed sections share one page-retirement boundary. In
 // particular, visiting a plugin section must retire the model card drafts too.
+// Leaving Usage retains its loaded SWR cache so switching back within TTL
+// paints immediately instead of forcing a blank reload.
 func (s *mainState) leaveSettingsSection(m settings.Model, section settings.SectionID) {
-	usagePageReads.Delete(s)
 	if section == settings.SectionUsageStats && s.usage != nil {
 		s.usage.ClearStatsDateRange()
 		s.usage.SetStatsDays(7)

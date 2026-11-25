@@ -52,6 +52,7 @@ type Companion struct {
 	growthClock               restClock
 	growthAutomatic           bool
 	motion                    motionState
+	motionSave                motionAnchorSaver
 	interaction               interactionState
 	careAction                careAnimation
 	rest                      restState
@@ -143,6 +144,7 @@ func (p *Companion) Close() {
 	p.CancelDownloadRenderAssets()
 	p.ready = false
 	p.close()
+	p.flushMotionAnchor()
 }
 func (p *Companion) close() {
 	p.stopGrowthClock()

@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/desktop/webview"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -161,9 +162,9 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 		ui.Text(c, word("正在准备后续操作…", "Preparing next action…")).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
 	} else {
 		if s.Mode == "pr" {
-			draftChanged := ui.Checkbox(c, &s.Draft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)")).Changed()
-			titleChanged := ui.TextInput(c, &s.Title).FillWidth().Placeholder(word("PR 标题", "PR title")).Changed()
-			bodyChanged := ui.TextArea(c, &s.Body).FillWidth().Lines(2, 6).Placeholder(word("PR 正文", "PR body")).Changed()
+			draftChanged := coss.Checkbox(c, &s.Draft, word("创建草稿 PR（取消勾选为普通 PR）", "Create draft PR (uncheck for ready PR)"), coss.CheckOptions{}).Changed()
+			titleChanged := coss.Input(c, &s.Title, coss.InputOptions{Size: coss.InputSM, Placeholder: word("PR 标题", "PR title")}).Changed()
+			bodyChanged := coss.Textarea(c, &s.Body, coss.TextareaOptions{Size: coss.InputSM, MaxLines: 6, Placeholder: word("PR 正文", "PR body")}).Changed()
 			if draftChanged || titleChanged || bodyChanged {
 				s.Plan = nil
 				s.PR = nil
@@ -192,7 +193,7 @@ func paintRemoteWorkflow(c *ui.Context, m Model, fg, muted ui.Color) bool {
 			if s.Mode == "pr" {
 				caption = word("确认创建", "Confirm create ") + pullRequestModeLabel(s.Draft)
 			}
-			if ui.Button(c, caption).Clicked() {
+			if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM}).Clicked() {
 				if !captionAdmitted(m) {
 					return true
 				}

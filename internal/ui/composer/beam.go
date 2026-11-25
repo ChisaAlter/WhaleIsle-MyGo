@@ -1,10 +1,12 @@
 package composer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/design"
@@ -43,12 +45,41 @@ type beamStyle struct {
 	} `json:"night"`
 }
 
+var (
+	beamStyleCacheMu    sync.RWMutex
+	beamStyleCacheValid bool
+	beamStyleCacheRaw   []byte
+	beamStyleCacheVal   beamStyle
+	defaultBeamStyle    = func() beamStyle {
+		style := beamStyle{Direction: "clockwise", Period: 1.96, Intensity: 100, Bloom: 100, TrackWidth: 2, GlowBlur: 8, Easing: "linear"}
+		style.Palette.Kind, style.Palette.ID = "preset", "legacy"
+		style.Breathing.Amplitude, style.Breathing.Period = .3, 6
+		style.HueCycle.Enabled, style.HueCycle.Range, style.HueCycle.Period = true, 30, 12
+		style.Night.FromMinute, style.Night.ToMinute, style.Night.Dim = 1320, 360, 40
+		return style
+	}()
+)
+
+func cloneBeamStyle(s beamStyle) beamStyle {
+	if len(s.Palette.Colors) > 0 {
+		s.Palette.Colors = append([]string(nil), s.Palette.Colors...)
+	}
+	return s
+}
+
 func readBeamStyle(raw json.RawMessage) beamStyle {
-	style := beamStyle{Direction: "clockwise", Period: 1.96, Intensity: 100, Bloom: 100, TrackWidth: 2, GlowBlur: 8, Easing: "linear"}
-	style.Palette.Kind, style.Palette.ID = "preset", "legacy"
-	style.Breathing.Amplitude, style.Breathing.Period = .3, 6
-	style.HueCycle.Enabled, style.HueCycle.Range, style.HueCycle.Period = true, 30, 12
-	style.Night.FromMinute, style.Night.ToMinute, style.Night.Dim = 1320, 360, 40
+	if len(raw) == 0 {
+		return defaultBeamStyle
+	}
+	beamStyleCacheMu.RLock()
+	if beamStyleCacheValid && bytes.Equal(beamStyleCacheRaw, raw) {
+		hit := cloneBeamStyle(beamStyleCacheVal)
+		beamStyleCacheMu.RUnlock()
+		return hit
+	}
+	beamStyleCacheMu.RUnlock()
+
+	style := defaultBeamStyle
 	_ = json.Unmarshal(raw, &style)
 	style.Period = min(60, max(.8, style.Period))
 	style.Intensity = min(140, max(40, style.Intensity))
@@ -61,13 +92,15 @@ func readBeamStyle(raw json.RawMessage) beamStyle {
 	style.HueCycle.Range = min(360, max(0, style.HueCycle.Range))
 	style.HueCycle.Period = min(60, max(1, style.HueCycle.Period))
 	style.Night.Dim = min(100, max(0, style.Night.Dim))
-	var values struct {
-		Night map[string]any `json:"night"`
-	}
-	_ = json.Unmarshal(raw, &values)
-	for key, out := range map[string]*int{"fromMinute": &style.Night.FromMinute, "toMinute": &style.Night.ToMinute} {
-		if value, ok := values.Night[key].(float64); ok {
-			*out = int(math.Round(min(1439, max(0, value))))
+	if bytes.Contains(raw, []byte("night")) {
+		var values struct {
+			Night map[string]any `json:"night"`
+		}
+		_ = json.Unmarshal(raw, &values)
+		for key, out := range map[string]*int{"fromMinute": &style.Night.FromMinute, "toMinute": &style.Night.ToMinute} {
+			if value, ok := values.Night[key].(float64); ok {
+				*out = int(math.Round(min(1439, max(0, value))))
+			}
 		}
 	}
 	if style.Direction != "clockwise" && style.Direction != "counterclockwise" && style.Direction != "pingPong" {
@@ -90,6 +123,11 @@ func readBeamStyle(raw json.RawMessage) beamStyle {
 	if !valid {
 		style.Palette.Kind, style.Palette.ID, style.Palette.Colors = "preset", "legacy", nil
 	}
+	beamStyleCacheMu.Lock()
+	beamStyleCacheRaw = append(beamStyleCacheRaw[:0], raw...)
+	beamStyleCacheVal = cloneBeamStyle(style)
+	beamStyleCacheValid = true
+	beamStyleCacheMu.Unlock()
 	return style
 }
 

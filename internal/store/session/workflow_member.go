@@ -30,7 +30,7 @@ type workflowMemberState struct {
 }
 
 func (s *Store) invalidateWorkflowLocked() {
-	s.invalidateViewLocked()
+	s.markWorkflowDirtyLocked()
 	s.workflowBoundaries = nil
 	if s.workflowMember.cancel != nil {
 		s.workflowMember.cancel()

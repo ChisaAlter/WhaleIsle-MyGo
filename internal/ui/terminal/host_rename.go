@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/hostterminal"
+	"whaleisle/internal/ui/coss"
 )
 
 // BeginHostTitleRename captures the selected terminal in this occurrence. The
@@ -35,15 +36,24 @@ func HostTitleEditor(c *ui.Context, store *hostterminal.Store, session string) b
 		return false
 	}
 	draft := edit.Draft
-	input := ui.TextInput(c.Key(fmt.Sprintf("host-chip-title:%d:%s:%s", v.Owner, session, v.ActiveID)), &draft).
-		Label(terminalLabel("终端名称", "Terminal name")).Height(24).Grow(1).MinWidth(0).MaxWidth(160).FontSize(12).Radius(4).Disabled(edit.Saving).AutoFocus()
+	var input ui.Element
+	ui.Box(c).Grow(1).MinWidth(0).MaxWidth(160).Children(func() {
+		input = coss.Input(c, &draft, coss.InputOptions{
+			Key:      fmt.Sprintf("host-chip-title:%d:%s:%s", v.Owner, session, v.ActiveID),
+			Size:     coss.InputSM,
+			Label:    terminalLabel("终端名称", "Terminal name"),
+			Disabled: edit.Saving,
+			Invalid:  edit.Error != "",
+			Error:    edit.Error,
+		}).Height(24).AutoFocus()
+	})
 	selected := ui.Local(input, "selected-once", func() bool { return false })
 	if !*selected && !edit.Saving {
 		input.SetTextSelection(0, len([]rune(draft))).Focus()
 		*selected = true
 	}
 	if edit.Error != "" {
-		input.Tooltip(edit.Error).Border(1, c.Theme().Danger)
+		input.Tooltip(edit.Error)
 	} else {
 		input.Tooltip(terminalLabel("Enter 保存，Esc 取消", "Enter saves, Esc cancels"))
 	}
@@ -70,23 +80,28 @@ func hostRenameView(c *ui.Context, store *hostterminal.Store, v hostterminal.Vie
 		if ui.Text(c, v.Info.Title).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(v.Info.Title).FontSize(12).Disabled(v.Phase == "closed" || v.Phase == "closing").DoubleClicked() {
 			store.BeginRename(v.Owner, session, v.ActiveID)
 		}
-		if ui.Button(c, terminalLabel("重命名终端", "Rename terminal")).FontSize(11).Disabled(v.ActiveID == "" || v.Phase == "closed" || v.Phase == "closing").Clicked() {
+		if coss.Button(c, terminalLabel("重命名终端", "Rename terminal"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: v.ActiveID == "" || v.Phase == "closed" || v.Phase == "closing"}).Clicked() {
 			store.BeginRename(v.Owner, session, v.ActiveID)
 		}
 		return
 	}
 	ui.Column(c).Key(fmt.Sprintf("host-title:%d:%s:%s", v.Owner, session, v.ActiveID)).Gap(4).Children(func() {
 		draft := edit.Draft
-		input := ui.TextInput(c, &draft).FillWidth().Label(terminalLabel("终端名称", "Terminal name")).Placeholder(terminalLabel("最多120字符", "Up to 120 characters")).Disabled(edit.Saving).AutoFocus()
+		input := coss.Input(c, &draft, coss.InputOptions{
+			Size:        coss.InputSM,
+			Label:       terminalLabel("终端名称", "Terminal name"),
+			Placeholder: terminalLabel("最多120字符", "Up to 120 characters"),
+			Disabled:    edit.Saving,
+		}).AutoFocus()
 		if input.Changed() {
 			store.EditRename(v.Owner, session, v.ActiveID, draft)
 		}
 		ui.Row(c).Gap(4).Children(func() {
-			save := ui.Button(c, terminalLabel("保存名称", "Save name")).FontSize(11).Disabled(edit.Saving || !v.Ready).Clicked()
+			save := coss.Button(c, terminalLabel("保存名称", "Save name"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonXS, Disabled: edit.Saving || !v.Ready}).Clicked()
 			if (save || input.Submitted()) && !edit.Saving {
 				store.SaveRename(v.Owner, session, v.ActiveID)
 			}
-			if ui.Button(c, terminalLabel("取消", "Cancel")).FontSize(11).Disabled(edit.Saving).Clicked() || input.Shortcut(0, ui.KeyEscape) {
+			if coss.Button(c, terminalLabel("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: edit.Saving}).Clicked() || input.Shortcut(0, ui.KeyEscape) {
 				store.CancelRename(v.Owner, session, v.ActiveID)
 			}
 		})

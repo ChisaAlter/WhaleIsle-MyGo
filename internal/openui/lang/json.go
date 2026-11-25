@@ -174,7 +174,7 @@ func writeJSON(b *strings.Builder, v Value, depth int) {
 			}
 			writeJSONString(b, k)
 			b.WriteByte(':')
-			writeJSON(b, t.vals[k], depth+1)
+			writeJSON(b, t.vals[i], depth+1)
 		}
 		b.WriteByte('}')
 	case *Element:

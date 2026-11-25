@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -73,24 +74,26 @@ func TodoPanelView(c *ui.Context, m TodoPanelModel) {
 			card.Background(t.Accent)
 		}
 		card.Children(func() {
-			hdr := ui.Button(c, "").FillWidth().
-				Background(ui.Transparent).
-				BorderWidth(0).Padding(0, 0, 0, 0).Cursor(ui.CursorPointer)
+			hdr := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonXS,
+				Label:   i18n.T(i18n.KeyTodoPanelTitle),
+				Content: func() {
+					ui.Row(c).FillWidth().Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
+						ui.Icon(c, todoChecklistIcon).Size(16, 16).TextColor(muted.Alpha(0.85)).PassThrough()
+						ui.Text(c, i18n.T(i18n.KeyTodoPanelTitle)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(24).FontWeight(500).TextColor(fg).PassThrough()
+						ui.Text(c, todoProgressLabel(m.Todos)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).FontWeight(400).TextColor(muted).Grow(1).PassThrough()
+						chev := todoChevronDown
+						if *collapsed {
+							chev = todoChevronUp
+						}
+						ui.Icon(c, chev).Size(16, 16).TextColor(muted.Alpha(0.82)).PassThrough()
+					})
+				},
+			}).FillWidth().Padding(0)
 			if hdr.Hovered() {
 				card.Background(t.Accent)
 			}
-			hdr.Children(func() {
-				ui.Row(c).FillWidth().Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, todoChecklistIcon).Size(16, 16).TextColor(muted.Alpha(0.85)).PassThrough()
-					ui.Text(c, i18n.T(i18n.KeyTodoPanelTitle)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(24).FontWeight(500).TextColor(fg).PassThrough()
-					ui.Text(c, todoProgressLabel(m.Todos)).FontSize(theme.InterfaceSize(13)).FixedLineHeight(20).FontWeight(400).TextColor(muted).Grow(1).PassThrough()
-					chev := todoChevronDown
-					if *collapsed {
-						chev = todoChevronUp
-					}
-					ui.Icon(c, chev).Size(16, 16).TextColor(muted.Alpha(0.82)).PassThrough()
-				})
-			})
 			if hdr.Clicked() {
 				*collapsed = !*collapsed
 			}

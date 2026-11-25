@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -42,7 +43,12 @@ func projectRenameDialog(c *ui.Context, m Model) {
 			submit := false
 			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(44, viewportHeight-240)).Padding(0, 24).Gap(12).Children(func() {
 				if m.RenameDraft != nil {
-					input := ui.TextInput(c.Key(m.RenameID), m.RenameDraft).Label(tr("项目名称", "Project name")).FillWidth().MinWidth(0).Height(44).FontSize(theme.InterfaceSize(14)).Disabled(m.Busy)
+					input := pInput(c, m.RenameDraft, coss.InputOptions{
+						Key:      m.RenameID,
+						Size:     coss.InputLG,
+						Label:    tr("项目名称", "Project name"),
+						Disabled: m.Busy,
+					}).FontSize(theme.InterfaceSize(14))
 					first := ui.Local(input, "initial-focus", func() bool { return true })
 					if *first {
 						input.Focus().SetTextSelection(0, utf8.RuneCountInString(*m.RenameDraft))
@@ -60,10 +66,10 @@ func projectRenameDialog(c *ui.Context, m Model) {
 			})
 			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Wrap().Padding(20, 24, 0, 24).Gap(8).Children(func() {
 				ui.Box(c).Grow(1)
-				if ui.Button(c, tr("取消", "Cancel")).MinWidth(72).Disabled(m.Busy).Clicked() {
+				if pButton(c, tr("取消", "Cancel"), m.Busy).MinWidth(72).Clicked() {
 					close()
 				}
-				if ui.PrimaryButton(c, tr("保存", "Save")).MinWidth(72).Disabled(blocked).Clicked() || submit && !blocked {
+				if pPrimary(c, tr("保存", "Save"), blocked).MinWidth(72).Clicked() || submit && !blocked {
 					if m.OnRename != nil {
 						m.OnRename(m.RenameID, *m.RenameDraft)
 					}
@@ -100,10 +106,10 @@ func projectArchiveDialog(c *ui.Context, m Model) {
 			})
 			ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Wrap().Padding(20, 24, 0, 24).Gap(8).Children(func() {
 				ui.Box(c).Grow(1)
-				if ui.Button(c, tr("取消", "Cancel")).Disabled(m.Busy).Clicked() {
+				if pButton(c, tr("取消", "Cancel"), m.Busy).Clicked() {
 					close()
 				}
-				if ui.Button(c, tr("停止工作并归档", "Stop work and archive")).Disabled(m.Busy || !m.Listing.Available).Clicked() && m.OnConfirmArchive != nil {
+				if pDangerSolid(c, tr("停止工作并归档", "Stop work and archive"), m.Busy || !m.Listing.Available).Clicked() && m.OnConfirmArchive != nil {
 					m.OnConfirmArchive()
 				}
 			})

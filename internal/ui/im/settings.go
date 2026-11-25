@@ -5,6 +5,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/imonboard"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -15,7 +17,7 @@ func SettingsView(c *ui.Context, m Model) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
 	m.Embedded = true
 	if m.Store == nil {
-		ui.Text(c, "Connect to a Host to configure channels.").TextColor(muted)
+		ui.Text(c, channelText("连接 Host 后即可配置消息渠道。", "Connect to a Host to configure channels.")).TextColor(muted)
 		return
 	}
 	v := m.Store.Onboarding.Snapshot().Value
@@ -25,15 +27,6 @@ func SettingsView(c *ui.Context, m Model) {
 		v = m.Store.Onboarding.Snapshot().Value
 	}
 	root := ui.Column(c.Key("channels-settings")).FillWidth().MinWidth(0)
-	width := root.Bounds().W
-	if width <= 0 {
-		width, _ = c.Size()
-	}
-	root.Draw(func(_ *ui.Painter, bounds ui.Rect) {
-		if bounds.W != width {
-			c.Invalidate()
-		}
-	})
 	windowWidth, _ := c.Size()
 	narrow := windowWidth <= 840
 	rail := func() {
@@ -43,34 +36,44 @@ func SettingsView(c *ui.Context, m Model) {
 				if id != "office" {
 					title = imonboard.PlatformByID(id).Label
 				}
-				button := ui.Button(c.Key("channel-"+id), "").Label(title).MinWidth(0).Height(48).Padding(8, 12).Border(1, chrome.Color(colors.Border)).Radius(theme.ContextRadii(c).MD).Role(ui.RoleTab)
+				selected := v.Channel == id && !office.Open || id == "office" && office.Open
+				textCol := muted
+				if selected {
+					textCol = fg
+				}
+				button := coss.Button(c.Key("channel-"+id), "", coss.ButtonOptions{
+					Variant:  coss.ButtonGhost,
+					Size:     coss.ButtonXL,
+					Disabled: office.Busy,
+					Pressed:  selected,
+					Label:    title,
+					Content: func() {
+						ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).AlignItems(ui.Center).Children(func() {
+							channelRailLogo(c, id)
+							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+								ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(textCol).FillWidth().MinWidth(0).SingleLine().Ellipsis("…")
+								if id == "office" {
+									ui.Text(c, channelText("（实验功能）", "(Experimental)")).FontSize(theme.InterfaceSize(10)).TextColor(muted).SingleLine()
+								}
+							})
+						})
+					},
+				}).MinWidth(0).Height(48).Padding(design.Sp(2), design.Sp(3)).Border(1, chrome.Color(colors.Border)).Radius(theme.ContextRadii(c).MD).Role(ui.RoleTab).Selected(selected)
 				if narrow {
-					buttonWidth := max(float32(0), (width-8)/2)
 					if windowWidth <= 560 {
-						buttonWidth = width
+						button.FillWidth()
+					} else {
+						button.WidthPercent(48)
 					}
-					button.Width(buttonWidth)
 				} else {
 					button.FillWidth()
 				}
-				selected := v.Channel == id && !office.Open || id == "office" && office.Open
 				if selected {
-					button = button.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).TextColor(fg)
+					button.Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field)))
 				} else {
-					button = button.Background(ui.Transparent).TextColor(muted)
+					button.Background(ui.Transparent)
 				}
-				button.Selected(selected).Children(func() {
-					ui.Row(c).FillWidth().MinWidth(0).Gap(10).AlignItems(ui.Center).Children(func() {
-						channelRailLogo(c, id)
-						ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-							ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).FillWidth().MinWidth(0).SingleLine().Ellipsis("…")
-							if id == "office" {
-								ui.Text(c, channelText("（实验功能）", "(Experimental)")).FontSize(theme.InterfaceSize(10)).TextColor(muted).SingleLine()
-							}
-						})
-					})
-				})
-				if button.Disabled(office.Busy).Clicked() && !selected {
+				if button.Clicked() && !selected {
 					if id == "office" {
 						m.Store.Onboarding.Hide()
 						m.Store.Office.Show(context.Background())
@@ -82,9 +85,11 @@ func SettingsView(c *ui.Context, m Model) {
 			}
 		}
 		if narrow {
-			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Role(ui.RoleTabList).Children(buttons)
+			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(design.Sp(2)).Role(ui.RoleTabList).Children(buttons)
 		} else {
-			ui.Scroll(c).Width(174).Height(520).Shrink(0).Padding(1, 4, 1, 1).Children(func() { ui.Column(c).FillWidth().Gap(8).Role(ui.RoleTabList).Children(buttons) })
+			// Render channel tabs directly in the parent Settings scroll container
+			// instead of nesting a fixed-height inner ui.Scroll.
+			ui.Column(c).Width(174).Shrink(0).Padding(1, design.Sp(1), 1, 1).Gap(design.Sp(2)).Role(ui.RoleTabList).Children(buttons)
 		}
 	}
 	body := func() {
@@ -109,9 +114,9 @@ func SettingsView(c *ui.Context, m Model) {
 			body()
 			return
 		}
-		ui.Row(c).FillWidth().MinWidth(0).Gap(24).AlignItems(ui.Start).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(6)).AlignItems(ui.Start).Children(func() {
 			rail()
-			ui.Box(c).Width(1).Height(520).Shrink(0).Background(chrome.Color(colors.Border))
+			ui.Box(c).Width(1).AlignSelf(ui.Stretch).Shrink(0).Background(chrome.Color(colors.Border))
 			body()
 		})
 	})

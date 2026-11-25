@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	store "whaleisle/internal/store/settings"
@@ -109,10 +110,15 @@ func configurationInput(c *ui.Context, m Model, s store.ViewState, key, label st
 			return
 		}
 		p := m.DraftPtr("configuration/"+key, text)
-		input := ui.TextInput(c, p).Label(label).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(fonttheme.InterfaceSize(14)).Disabled(!s.Writable || s.Saving)
+		hint := ""
 		if len(placeholder) > 0 {
-			input.Placeholder(placeholder[0])
+			hint = placeholder[0]
 		}
+		input := kInput(c, p, coss.InputOptions{
+			Label:       label,
+			Placeholder: hint,
+			Disabled:    !s.Writable || s.Saving,
+		})
 		if input.Changed() {
 			text = *p
 			if number {
@@ -203,7 +209,7 @@ func configurationModalities(c *ui.Context, s store.ViewState, row map[string]an
 					}
 				}
 				label := configurationModalityLabel(choice)
-				if ui.Checkbox(c.Key("modality/"+key+"/"+choice), &selected, label).Disabled(!s.Writable || s.Saving || selected && len(values) == 1).Changed() {
+				if kCheckbox(c.Key("modality/"+key+"/"+choice), &selected, label, !s.Writable || s.Saving || selected && len(values) == 1).Changed() {
 					next := []any{}
 					for _, v := range values {
 						if v != choice {
@@ -235,7 +241,7 @@ func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted 
 	ui.Text(c, providerCopy("子代理可选模型集合", "Selectable subagent models")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 	ui.Text(c, providerCopy("启用后须至少选择一个模型；此设置影响新会话。", "When enabled, select at least one model. This setting applies to new sessions.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 	routes, loading, message := m.Store.ModelConfigurationCatalog()
-	if ui.Button(c, providerCopy("刷新模型目录", "Refresh model catalog")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(loading || s.Saving).Clicked() {
+	if kButtonDisabled(c, providerCopy("刷新模型目录", "Refresh model catalog"), loading || s.Saving).AlignSelf(ui.Start).Clicked() {
 		m.Store.RefreshModelConfigurationCatalog(context.Background())
 	}
 	if message != "" {
@@ -263,7 +269,7 @@ func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted 
 				selected = true
 			}
 		}
-		if ui.Checkbox(c, &selected, route.Label).Disabled(!s.Writable || s.Saving).Changed() {
+		if kCheckbox(c, &selected, route.Label, !s.Writable || s.Saving).Changed() {
 			next := []any{}
 			for _, raw := range allowed {
 				item, _ := raw.(map[string]any)
@@ -284,7 +290,7 @@ func configurationSubagent(c *ui.Context, m Model, s store.ViewState, fg, muted 
 	if enabled && len(allowed) == 0 {
 		ui.Text(c, providerCopy("请选择至少一个模型后保存。", "Select at least one model before saving.")).TextColor(fg)
 	}
-	if ui.Button(c, providerCopy("继承可选模型集合", "Inherit selectable models")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(!s.Writable || s.Saving).Clicked() {
+	if kGhost(c, providerCopy("继承可选模型集合", "Inherit selectable models"), !s.Writable || s.Saving).AlignSelf(ui.Start).Clicked() {
 		configurationReset(m, "allowedModels")
 	}
 }

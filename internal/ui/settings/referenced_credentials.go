@@ -3,6 +3,7 @@ package settings
 import (
 	"whaleisle/internal/desktop/credentialrefs"
 	settingsstore "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -45,7 +46,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 	}
 	settingsAlert(c, "referenced_credentials:44", s.Err != "", providerCopy("没能读取引用的凭据，请重试。", "Referenced credentials could not be read. Try again."), s.Err)
 	settingsNotice(c, "referenced_credentials:47", s.LastAction != "", func() string { return settingsActionText(s.LastAction) })
-	if (!a.formOwned || !s.Ready || s.Err != "") && ui.Button(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy || a.locked || a.formOwned && s.Draft != "" || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
+	if (!a.formOwned || !s.Ready || s.Err != "") && kButtonDisabled(c, providerCopy("刷新引用与可写状态", "Refresh references and writable state"), s.Busy || a.locked || a.formOwned && s.Draft != "" || a.OnRefresh == nil).AlignSelf(ui.Start).Clicked() && a.OnRefresh != nil {
 		a.OnRefresh()
 	}
 	if !s.Ready {
@@ -82,7 +83,7 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 		a.OnSelect(rows[0].ID)
 		return
 	}
-	if !a.formOwned && ui.Select(c, &current, options).Label(providerCopy("供应商或搜索凭据", "Provider or search credential")).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(s.Busy).Changed() && a.OnSelect != nil {
+	if !a.formOwned && kSelect(c, &current, options, providerCopy("供应商或搜索凭据", "Provider or search credential"), s.Busy).FillWidth().Changed() && a.OnSelect != nil {
 		for i, row := range rows {
 			if current == options[i+1] {
 				a.OnSelect(row.ID)
@@ -124,19 +125,28 @@ func referencedCredentialsPane(c *ui.Context, a *ReferencedCredentialsAccess, na
 	if s.ClearPending {
 		ui.Text(c, providerCopy("确认后将清除此引用的本地密钥；同用此引用的功能也会受影响。", "Confirming clears the local key for this reference, affecting other features that share it.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
 	}
-	ui.Row(c).Gap(8).Wrap().Children(func() {
+	ui.Row(c).Gap(design.Sp(2)).Wrap().Children(func() {
 		saveLabel := providerCopy("保存此密钥", "Save this key")
 		if s.ClearPending {
 			saveLabel = providerCopy("确认清除此引用", "Confirm clear reference")
 		}
-		if !a.formOwned && ui.Button(c, saveLabel).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(locked || a.OnSave == nil || (!s.ClearPending && s.Draft == "")).Clicked() && a.OnSave != nil {
-			a.OnSave(s.Ticket)
+		if !a.formOwned {
+			saveDisabled := locked || a.OnSave == nil || (!s.ClearPending && s.Draft == "")
+			var saveBtn ui.Element
+			if s.ClearPending {
+				saveBtn = kDanger(c, saveLabel, saveDisabled)
+			} else {
+				saveBtn = kPrimary(c, saveLabel, saveDisabled)
+			}
+			if saveBtn.Clicked() && a.OnSave != nil {
+				a.OnSave(s.Ticket)
+			}
 		}
 		if s.ClearPending {
-			if ui.Button(c, providerCopy("取消清除", "Cancel clear")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Busy).Clicked() && a.OnClear != nil {
+			if kButtonDisabled(c, providerCopy("取消清除", "Cancel clear"), s.Busy).Clicked() && a.OnClear != nil {
 				a.OnClear(s.Ticket, false)
 			}
-		} else if ui.Button(c, providerCopy("清除此引用…", "Clear this reference…")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(locked || !row.Configured).Clicked() && a.OnClear != nil {
+		} else if kDanger(c, providerCopy("清除此引用…", "Clear this reference…"), locked || !row.Configured).Clicked() && a.OnClear != nil {
 			a.OnClear(s.Ticket, true)
 		}
 	})

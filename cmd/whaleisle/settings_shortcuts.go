@@ -265,13 +265,21 @@ func (s *mainState) pageShortcutEditor() *shortcuts.Editor {
 // was captured on the UI thread in tmp/stalls. The resolved chords and their
 // encoded form come from the same entry: resolving compares every command pair,
 // which allocated thousands of objects on every frame.
+type cachedNativeCommand struct {
+	id    string
+	key   string
+	scope string
+	chord shortcuts.Chord
+}
+
 type shortcutBindingsCache struct {
-	prefs      *shortcutprefs.Store
-	generation uint64
-	sequence   uint64
-	values     map[string]string
-	chords     map[string]shortcuts.Chord
-	encoded    string
+	prefs          *shortcutprefs.Store
+	generation     uint64
+	sequence       uint64
+	values         map[string]string
+	chords         map[string]shortcuts.Chord
+	encoded        string
+	nativeCommands []cachedNativeCommand
 }
 
 func (s *mainState) pageShortcutBindings() map[string]string {
@@ -287,9 +295,31 @@ func (s *mainState) pageShortcutEncoded() string {
 }
 
 type shortcutState struct {
-	values  map[string]string
-	chords  map[string]shortcuts.Chord
-	encoded string
+	values         map[string]string
+	chords         map[string]shortcuts.Chord
+	encoded        string
+	nativeCommands []cachedNativeCommand
+}
+
+func buildCachedNativeCommands(chords map[string]shortcuts.Chord, encoded string) []cachedNativeCommand {
+	cmds := shortcuts.Commands()
+	out := make([]cachedNativeCommand, 0, len(cmds))
+	for _, command := range cmds {
+		if !applicationMenuActionIDs[command.ID] {
+			continue
+		}
+		chord, ok := chords[command.ID]
+		if !ok {
+			continue
+		}
+		out = append(out, cachedNativeCommand{
+			id:    command.ID,
+			key:   command.ID + encoded,
+			scope: shortcuts.NativeCommandScope(command.ID),
+			chord: chord,
+		})
+	}
+	return out
 }
 
 func (s *mainState) pageShortcutState() shortcutState {
@@ -306,7 +336,12 @@ func (s *mainState) pageShortcutState() shortcutState {
 	cache := &s.shortcutBindingsCache
 	if cache.prefs == prefs && cache.generation == generation && cache.values != nil {
 		if snap := prefs.Accepted(); snap.Sequence == cache.sequence {
-			return shortcutState{values: cache.values, chords: cache.chords, encoded: cache.encoded}
+			return shortcutState{
+				values:         cache.values,
+				chords:         cache.chords,
+				encoded:        cache.encoded,
+				nativeCommands: cache.nativeCommands,
+			}
 		}
 	}
 	snap := prefs.Accepted()
@@ -317,9 +352,24 @@ func (s *mainState) pageShortcutState() shortcutState {
 	}
 	values := shortcutBindingValues(prefs, snap)
 	chords := shortcuts.Resolve(values)
-	encoded, _ := json.Marshal(values)
-	*cache = shortcutBindingsCache{prefs: prefs, generation: generation, sequence: snap.Sequence, values: values, chords: chords, encoded: string(encoded)}
-	return shortcutState{values: values, chords: chords, encoded: string(encoded)}
+	encodedBytes, _ := json.Marshal(values)
+	encoded := string(encodedBytes)
+	nativeCommands := buildCachedNativeCommands(chords, encoded)
+	*cache = shortcutBindingsCache{
+		prefs:          prefs,
+		generation:     generation,
+		sequence:       snap.Sequence,
+		values:         values,
+		chords:         chords,
+		encoded:        encoded,
+		nativeCommands: nativeCommands,
+	}
+	return shortcutState{
+		values:         values,
+		chords:         chords,
+		encoded:        encoded,
+		nativeCommands: nativeCommands,
+	}
 }
 
 // shortcutBindingValues applies one accepted snapshot to the native catalog.

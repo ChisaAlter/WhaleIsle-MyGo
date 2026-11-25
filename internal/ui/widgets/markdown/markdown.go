@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"whaleisle/internal/markdownsyntax"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -543,9 +544,18 @@ func LinkActions(c *ui.Context, links []Link, st Style, onLink func(string)) {
 	}
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for _, link := range links {
-			if ui.Button(c, "").Label("↗ " + link.Label).Tooltip(link.URL).
-				MaxWidthPercent(100).MinWidth(0).FontSize(theme.InterfaceSize(st.FontSize - 1)).
-				BorderWidth(0).Background(ui.Transparent).TextColor(st.Accent).Clicked() {
+			caption := "↗ " + link.Label
+			btn := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonLink,
+				Size:    coss.ButtonXS,
+				Label:   caption,
+				Key:     "md-link-" + link.URL,
+				Content: func() {
+					ui.Text(c, caption).MaxWidthPercent(100).MinWidth(0).SingleLine().Ellipsis("…").
+						FontSize(theme.InterfaceSize(st.FontSize - 1)).TextColor(st.Accent).PassThrough()
+				},
+			}).Tooltip(link.URL).MaxWidthPercent(100).MinWidth(0).Padding(0)
+			if btn.Clicked() {
 				onLink(link.URL)
 			}
 		}

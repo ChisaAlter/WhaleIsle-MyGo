@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -399,8 +400,8 @@ func MenuRow(c *ui.Context, colors theme.Colors) ui.Element {
 
 // MenuRowColors is MenuRow for callers that only hold ui.Theme colors.
 func MenuRowColors(c *ui.Context, hover, pressed ui.Color) ui.Element {
-	row := ui.Button(c, "").FillWidth().MinHeight(34).Padding(6, 8).Gap(6).Radius(theme.ContextRadii(c).MD).BorderWidth(0).
-		Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center)
+	row := ui.ButtonBase(c).FillWidth().MinHeight(34).Padding(design.Sp(1.5), design.Sp(2)).Gap(design.Sp(1.5)).Radius(theme.ContextRadii(c).MD).BorderWidth(0).
+		Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 	row = row.Transition(ui.ElementTransition{Duration: PopoverDuration, Colors: true})
 	if row.Pressed() {
 		return row.Background(pressed)

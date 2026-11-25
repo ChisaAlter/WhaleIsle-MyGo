@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/harness"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 )
 
 // The reference page's foot is .ticker (boot.css:432-501): one line of the
@@ -51,22 +53,27 @@ func bootTicker(c *ui.Context, m Model, palette *scenePalette, openLog ...func()
 	const size = 11.5
 	ui.Row(c).Key("boot-ticker").Absolute().Left(0).Right(0).Bottom(0).Justify(ui.Center).
 		Padding(0, tickerInsetX, tickerInsetBottom, tickerInsetX).Children(func() {
-		button := ui.Button(c, "").Key("boot-ticker-inner").Background(ui.Transparent).BorderWidth(0).Padding(4, 14).Label(bootText("全部日志", "All logs")).MaxWidth(tickerWidth).MaxWidthPercent(100).
-			Gap(10).AlignItems(ui.Center).Children(func() {
-			dot := ui.Box(c).Key("boot-ticker-dot").Size(5, 5).Radius(2.5).Shrink(0)
-			alpha := float32(1)
-			if !c.Preferences().ReduceMotion {
-				c.After(motionWait(c.Now()))
-				alpha = 1 - .65*ui.Bounce(ui.EaseInOut)(loopPhase(c.Now(), tickerPulse))
-			}
-			dot.Background(dotColor.Alpha(alpha))
-			ui.Text(c, line).Font(bootCodeFont).FontSize(size).FixedLineHeight(18).
-				TextColor(lineColor).MinWidth(0).SingleLine().Ellipsis("…")
-			// L 00: the count the drawer's title repeats (boot.js updateLogCount).
-			ui.Text(c, fmt.Sprintf("L %02d", len(m.Logs))).Font(bootCodeFont).FontSize(size).
-				LetterSpacing(size * .08).FixedLineHeight(18).TextColor(palette.log.Alpha(.6)).Shrink(0).NoWrap()
-			ui.Text(c, bootText("全部日志", "All logs")).FontSize(size).TextColor(palette.log.Alpha(.55)).Shrink(0).NoWrap()
-		})
+		button := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Key:     "boot-ticker-inner",
+			Label:   bootText("全部日志", "All logs"),
+			Content: func() {
+				dot := ui.Box(c).Key("boot-ticker-dot").Size(5, 5).Radius(design.RadiusFull).Shrink(0)
+				alpha := float32(1)
+				if !c.Preferences().ReduceMotion {
+					c.After(motionWait(c.Now()))
+					alpha = 1 - .65*ui.Bounce(ui.EaseInOut)(loopPhase(c.Now(), tickerPulse))
+				}
+				dot.Background(dotColor.Alpha(alpha))
+				ui.Text(c, line).Font(bootCodeFont).FontSize(size).FixedLineHeight(18).
+					TextColor(lineColor).MinWidth(0).SingleLine().Ellipsis("…")
+				// L 00: the count the drawer's title repeats (boot.js updateLogCount).
+				ui.Text(c, fmt.Sprintf("L %02d", len(m.Logs))).Font(bootCodeFont).FontSize(size).
+					LetterSpacing(size * .08).FixedLineHeight(18).TextColor(palette.log.Alpha(.6)).Shrink(0).NoWrap()
+				ui.Text(c, bootText("全部日志", "All logs")).FontSize(size).TextColor(palette.log.Alpha(.55)).Shrink(0).NoWrap()
+			},
+		}).Background(ui.Transparent).Padding(design.Sp(1), design.Sp(3.5)).MaxWidth(tickerWidth).MaxWidthPercent(100).
+			Gap(design.Sp(2.5)).AlignItems(ui.Center)
 		if button.Clicked() && len(openLog) > 0 && openLog[0] != nil {
 			openLog[0]()
 		}

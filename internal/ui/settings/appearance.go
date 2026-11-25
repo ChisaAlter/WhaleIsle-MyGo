@@ -51,7 +51,7 @@ func appearancePane(c *ui.Context, m Model, fg, muted ui.Color) {
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
 				for _, mode := range []struct{ id, zh, en string }{{"deepseek.light", "浅色", "Light"}, {"deepseek.dark", "深色", "Dark"}, {"system", "跟随系统", "System"}} {
 					selected := *a.Theme == mode.id || mode.id == "system" && *a.Theme == "deepseek" || mode.id == "deepseek.light" && *a.Theme == "light" || mode.id == "deepseek.dark" && *a.Theme == "dark"
-					button := ui.Button(c, "").Label(providerCopy(mode.zh, mode.en)).Basis(180).Grow(1).MinWidth(0).Padding(20, 32).Radius(16).Border(.5, c.Theme().Border).Background(ui.Transparent).Selected(selected).Disabled(a.OnSetTheme == nil)
+					button := ui.ButtonBase(c).Label(providerCopy(mode.zh, mode.en)).Basis(180).Grow(1).MinWidth(0).Padding(20, 32).Radius(16).Border(.5, c.Theme().Border).Background(ui.Transparent).Center().Cursor(ui.CursorPointer).Selected(selected).Disabled(a.OnSetTheme == nil)
 					if selected {
 						// ColorSchemeTiles.themeCube.selected: module-platform fill
 						// and the same .5 DIP border in neutral-bluish-400.

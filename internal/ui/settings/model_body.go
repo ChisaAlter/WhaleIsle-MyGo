@@ -6,6 +6,7 @@ import (
 	"strings"
 	store "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 
@@ -180,7 +181,7 @@ func modelNamespaceEditor(c *ui.Context, m Model, namespace string, onCancel fun
 					}
 				})
 			}
-			if *createKey == "" && m.ReferencedCredentials != nil && m.ReferencedCredentials.OnRefresh != nil && ui.Button(c, providerCopy("刷新密钥状态", "Refresh key status")).Disabled(snap.Saving).Clicked() {
+			if *createKey == "" && m.ReferencedCredentials != nil && m.ReferencedCredentials.OnRefresh != nil && kButtonDisabled(c, providerCopy("刷新密钥状态", "Refresh key status"), snap.Saving).AlignSelf(ui.Start).Clicked() {
 				m.ReferencedCredentials.OnRefresh()
 			}
 		}
@@ -251,7 +252,7 @@ func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store
 	ui.Column(c.Key("model-scalar/" + f.Key)).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, f.Label).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).FontWeight(500).TextColor(theme.Color(modelColors(c).Secondary)).Grow(1).MinWidth(0)
-			if ui.Button(c, providerCopy("继承", "Inherit")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(theme.InterfaceSize(12.5)).Disabled(disabled).Clicked() {
+			if kGhost(c, providerCopy("继承", "Inherit"), disabled).Clicked() {
 				binding.Reset(f.Key)
 			}
 		})
@@ -280,19 +281,26 @@ func modelBoundScalar(c *ui.Context, binding *store.NamespaceBinding, snap store
 				}
 			}
 		case store.FieldEnum:
-			if ui.Select(c, &value, f.EnumOptions).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).Label(f.Label).Disabled(disabled).Changed() {
+			if kSelect(c, &value, f.EnumOptions, f.Label, disabled).FillWidth().Changed() {
 				binding.SetDraft(f.Key, value)
 			}
 		default:
 			if f.Kind == store.FieldJSON || MultilineStringField(f) || strings.Contains(value, "\n") {
-				if ui.TextArea(c, &value).Label(f.Label).FillWidth().Lines(3, 12).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled).Changed() {
+				if kTextarea(c, &value, coss.TextareaOptions{
+					Label:    f.Label,
+					MaxLines: 12,
+					ReadOnly: disabled,
+				}).Lines(3, 12).Changed() {
 					binding.SetDraft(f.Key, value)
 				}
 			} else {
-				input := ui.TextInput(c, &value).Label(f.Label).Placeholder(placeholder).FillWidth().Height(36).Radius(8).Border(.667, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).FontSize(theme.InterfaceSize(14)).ReadOnly(disabled)
-				if f.Role != "credential-ref" && f.Key != "apiKeyEnv" && (SecretLikeKey(f.Key) || SecretLikeKey(f.Label)) {
-					input.Password()
-				}
+				password := f.Role != "credential-ref" && f.Key != "apiKeyEnv" && (SecretLikeKey(f.Key) || SecretLikeKey(f.Label))
+				input := kInput(c, &value, coss.InputOptions{
+					Label:       f.Label,
+					Placeholder: placeholder,
+					Password:    password,
+					ReadOnly:    disabled,
+				})
 				if input.Changed() {
 					if f.Key == "baseURL" && value == "" {
 						binding.Reset(f.Key)

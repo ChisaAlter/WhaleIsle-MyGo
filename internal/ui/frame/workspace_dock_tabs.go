@@ -247,7 +247,7 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					if editing {
 						chip = ui.Row(c.Key("resource-tab:" + tab.ID)).AlignItems(ui.Center)
 					} else {
-						chip = ui.Button(c.Key("resource-tab:"+tab.ID), "").Drag(workspaceTabDrag{ID: tab.ID}).ContextMenu(workspacePaneMenu(m, tab))
+						chip = ui.ButtonBase(c.Key("resource-tab:" + tab.ID)).Cursor(ui.CursorPointer).Drag(workspaceTabDrag{ID: tab.ID}).ContextMenu(workspacePaneMenu(m, tab))
 					}
 					// `.panel [data-dockkit-tab]`: 24px chips, 12px type; the kit's
 					// `.tab` is content-box, so the 80px content floor and 144px
@@ -269,13 +269,15 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 						fileTab := tab.Files != nil && tab.Files.ResourcePath != ""
 						if (tab.Kind == "agents" || fileTab) && w.canCloseResource(tab) && (tab == n || chipHovered) {
 							closeLabel := paneLabel("关闭", "Close")
-							close := ui.Button(c.Key("resource-tab-close:"+tab.ID), "").Label(closeLabel).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(design.RadiusXS * 2).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
-							close.Children(func() {
-								ui.Icon(c, workspacePaneCloseIcon).Size(10, 10).TextColor(t.MutedForeground).PassThrough()
-							})
-							if close.Hovered() {
-								close.Background(t.Accent)
-							}
+							close := coss.Button(c, "", coss.ButtonOptions{
+								Variant: coss.ButtonGhost,
+								Size:    coss.ButtonIconXS,
+								Label:   closeLabel,
+								Key:     "resource-tab-close:" + tab.ID,
+								Content: func() {
+									ui.Icon(c, workspacePaneCloseIcon).Size(10, 10).TextColor(t.MutedForeground).PassThrough()
+								},
+							}).Tooltip(closeLabel).Size(16, 16).Shrink(0).Padding(0).Radius(design.RadiusXS * 2).AlignItems(ui.Center).Justify(ui.Center)
 							if close.Clicked() {
 								workspacePaneClose(m, tab)
 							}
@@ -308,8 +310,13 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 					guide = guide || tab.Kind == "guide" && tab.Float == nil
 				}
 				if !guide {
-					add := ui.Button(c.Key("workspace-add-tab"), "").Label(paneLabel("新标签页", "New tab")).Tooltip(paneLabel("新标签页", "New tab")).Size(28, 28).Shrink(0).Padding(design.Sp(1.5)).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent)
-					add.Children(func() { ui.Icon(c, workspacePaneAddIcon).Size(16, 16).TextColor(t.MutedForeground) })
+					add := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonIconSM,
+						Label:   paneLabel("新标签页", "New tab"),
+						Key:     "workspace-add-tab",
+						Content: func() { ui.Icon(c, workspacePaneAddIcon).Size(16, 16).TextColor(t.MutedForeground) },
+					}).Tooltip(paneLabel("新标签页", "New tab")).Shrink(0).Padding(design.Sp(1.5)).Radius(design.RadiusSM)
 					if add.Clicked() {
 						w.pending = func() { w.openGuide(n.ID) }
 					}
@@ -325,10 +332,13 @@ func workspaceDockTabStrip(c *ui.Context, m Model) {
 		}).Grow(1).MinWidth(0).Height(24)
 		n.tabRunWidth = tabRun.Bounds().W
 		control := func(key string, icon *ui.SVG, label string) ui.Element {
-			button := ui.Button(c.Key(key), "").Label(label).Tooltip(label).Width(28).Height(28).
-				Padding(0).Radius(design.RadiusSM).BorderWidth(0).Background(ui.Transparent)
-			button.AlignItems(ui.Center).Justify(ui.Center).Children(func() { ui.Icon(c, icon).Width(16).Height(16).TextColor(t.MutedForeground) })
-			return button
+			return coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonIconSM,
+				Label:   label,
+				Key:     key,
+				Content: func() { ui.Icon(c, icon).Width(16).Height(16).TextColor(t.MutedForeground) },
+			}).Tooltip(label).Padding(0).Radius(design.RadiusSM).AlignItems(ui.Center).Justify(ui.Center)
 		}
 		control("workspace-resource-menu", workspacePaneResourcesIcon, paneLabel("资源菜单", "Resources")).Menu(func(menu *ui.Menu) { workspaceResourceMenu(menu, m) })
 		control("workspace-pane-menu", conversationHeaderIcons["EllipsisOutline"], paneLabel("面板操作", "Pane actions")).Menu(workspacePaneMenu(m, n))

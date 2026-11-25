@@ -26,6 +26,10 @@ import (
 )
 
 var (
+	kernel32                = syscall.NewLazyDLL("kernel32.dll")
+	procWaitForSingleObject = kernel32.NewProc("WaitForSingleObject")
+	procCloseHandle         = kernel32.NewProc("CloseHandle")
+
 	user32             = syscall.NewLazyDLL(device.SystemDir() + `\user32.dll`)
 	procSetTimer       = user32.NewProc("SetTimer")
 	procKillTimer      = user32.NewProc("KillTimer")
@@ -68,39 +72,44 @@ const (
 	devCreateSamplerState       = 23
 
 	// ID3D11DeviceContext
-	viewGetResource            = 7 // ID3D11View
-	ctxVSSetConstantBuffers    = 7
-	ctxPSSetShaderResources    = 8
-	ctxPSSetShader             = 9
-	ctxPSSetSamplers           = 10
-	ctxVSSetShader             = 11
-	ctxMap                     = 14
-	ctxUnmap                   = 15
-	ctxPSSetConstantBuffers    = 16
-	ctxIASetInputLayout        = 17
-	ctxIASetVertexBuffers      = 18
-	ctxDrawInstanced           = 21
-	ctxIASetPrimitiveTopology  = 24
-	ctxOMSetRenderTargets      = 33
-	ctxOMSetBlendState         = 35
-	ctxRSSetState              = 43
-	ctxRSSetViewports          = 44
-	ctxRSSetScissorRects       = 45
-	ctxCopySubresourceRegion   = 46
-	ctxUpdateSubresource       = 48
-	ctxClearRenderTargetView   = 50
-	ctxClearState              = 110
-	ctxFlush                   = 111
-	dxgiDevGetAdapter          = 7
-	dxgiDevSetMaxLatency       = 12 // IDXGIDevice1::SetMaximumFrameLatency
-	dxgiGetParent              = 6
-	factoryMakeWindowAssoc     = 8
-	factoryCreateSwapChainHwnd = 15
-	factoryCreateSwapChainComp = 24 // CreateSwapChainForComposition
-	scPresent                  = 8
-	scGetBuffer                = 9
-	scResizeBuffers            = 13
-	scSetSourceSize            = 29 // IDXGISwapChain2
+	viewGetResource                 = 7 // ID3D11View
+	ctxVSSetConstantBuffers         = 7
+	ctxPSSetShaderResources         = 8
+	ctxPSSetShader                  = 9
+	ctxPSSetSamplers                = 10
+	ctxVSSetShader                  = 11
+	ctxMap                          = 14
+	ctxUnmap                        = 15
+	ctxPSSetConstantBuffers         = 16
+	ctxIASetInputLayout             = 17
+	ctxIASetVertexBuffers           = 18
+	ctxDrawInstanced                = 21
+	ctxIASetPrimitiveTopology       = 24
+	ctxOMSetRenderTargets           = 33
+	ctxOMSetBlendState              = 35
+	ctxRSSetState                   = 43
+	ctxRSSetViewports               = 44
+	ctxRSSetScissorRects            = 45
+	ctxCopySubresourceRegion        = 46
+	ctxUpdateSubresource            = 48
+	ctxClearRenderTargetView        = 50
+	ctxClearState                   = 110
+	ctxFlush                        = 111
+	dxgiDevGetAdapter               = 7
+	dxgiDevSetMaxLatency            = 12 // IDXGIDevice1::SetMaximumFrameLatency
+	dxgiGetParent                   = 6
+	factoryMakeWindowAssoc          = 8
+	factoryCreateSwapChainHwnd      = 15
+	factoryCreateSwapChainComp      = 24 // CreateSwapChainForComposition
+	scPresent                       = 8
+	scGetBuffer                     = 9
+	scResizeBuffers                 = 13
+	scSetSourceSize                 = 29 // IDXGISwapChain2
+	scSetMaximumFrameLatency        = 31 // IDXGISwapChain2
+	scGetFrameLatencyWaitableObject = 33 // IDXGISwapChain2
+
+	dxgiSwapChainFlagWaitable = 0x40 // DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+	waitObject0               = 0x00000000
 
 	// IDCompositionDevice, IDCompositionTarget and IDCompositionVisual
 	dcompCommit           = 3
@@ -261,10 +270,13 @@ type Renderer struct {
 	// swapChain2 is the swap chain's IDXGISwapChain2 (Windows 8.1), bw×bh
 	// the size of its buffers, larger than w×h while resizing, and
 	// resizedAt when the window last changed size.
-	swapChain2 uintptr
-	bw, bh     int
-	resizing   bool
-	resizedAt  time.Time
+	swapChain2   uintptr
+	scFlags      uint32  // DXGI_SWAP_CHAIN_FLAG_* kept consistent across ResizeBuffers
+	waitable     uintptr // HANDLE from GetFrameLatencyWaitableObject (closed in Release)
+	slotAcquired bool    // true once a waitable frame slot has been consumed for the next frame
+	bw, bh       int
+	resizing     bool
+	resizedAt    time.Time
 
 	vs, ps, layout                 uintptr
 	blend, maskBlend, raster, samp uintptr
@@ -368,8 +380,8 @@ func (r *Renderer) init() error {
 			return fmt.Errorf("d3d11: cannot create the %s shader", s.name)
 		}
 	}
-	names := []string{"RECT", "RADII", "INNER", "COLOR", "COLOR", "COLOR", "GRAD", "UV", "CLIP", "CLIPR", "PARAMS"}
-	indices := []uint32{0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0}
+	names := []string{"RECT", "RADII", "INNER", "COLOR", "COLOR", "COLOR", "GRAD", "UV", "CLIP", "CLIPR", "PARAMS", "CLIPF"}
+	indices := []uint32{0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0}
 	elems := make([]inputElement, len(names))
 	cstr := make([][]byte, len(names))
 	for i, n := range names {
@@ -463,20 +475,28 @@ func (r *Renderer) buffers(w, h, bw, bh, n int) error {
 	free(&r.rtv)
 	if r.swapChain == 0 {
 		desc := swapChainDesc1{Width: uint32(bw), Height: uint32(bh), Format: formatB8G8R8A8Unorm, SampleCount: 1,
-			BufferUsage: 0x20, BufferCount: uint32(n), Scaling: 0, SwapEffect: 4 /* flip discard */}
+			BufferUsage: 0x20, BufferCount: uint32(n), Scaling: 0, SwapEffect: 4 /* flip discard */, Flags: dxgiSwapChainFlagWaitable}
 		if r.composed {
 			if err := r.composeSwapChain(desc); err != nil {
 				return err
 			}
 		} else {
-			if hr := call(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain))); failed(hr) {
+			hr := call(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain)))
+			if failed(hr) && desc.Flags != 0 {
+				// Fallback for older DXGI/drivers that reject the waitable flag.
+				desc.Flags = 0
+				hr = call(r.factory, factoryCreateSwapChainHwnd, r.device, r.hwnd, uintptr(unsafe.Pointer(&desc)), 0, 0, uintptr(unsafe.Pointer(&r.swapChain)))
+			}
+			if failed(hr) {
 				return fmt.Errorf("d3d11: cannot create the swap chain: %#x", uint32(hr))
 			}
+			r.scFlags = desc.Flags
 			const noAltEnter = 2
 			call(r.factory, factoryMakeWindowAssoc, r.hwnd, noAltEnter)
 		}
 		call(r.swapChain, 0, uintptr(unsafe.Pointer(&iidIDXGISwapChain2)), uintptr(unsafe.Pointer(&r.swapChain2)))
-	} else if hr := call(r.swapChain, scResizeBuffers, uintptr(n), uintptr(bw), uintptr(bh), 0, 0); failed(hr) {
+		r.initWaitable()
+	} else if hr := call(r.swapChain, scResizeBuffers, uintptr(n), uintptr(bw), uintptr(bh), 0, uintptr(r.scFlags)); failed(hr) {
 		return fmt.Errorf("d3d11: cannot resize the swap chain: %#x", uint32(hr))
 	}
 	if err := r.setSourceSize(w, h); err != nil {
@@ -493,6 +513,47 @@ func (r *Renderer) buffers(w, h, bw, bh, n int) error {
 	}
 	r.w, r.h = w, h
 	return nil
+}
+
+// initWaitable configures IDXGISwapChain2 frame latency and acquires the
+// waitable handle when the swap chain was created with the waitable flag.
+func (r *Renderer) initWaitable() {
+	if r.swapChain2 == 0 || r.scFlags&dxgiSwapChainFlagWaitable == 0 {
+		return
+	}
+	call(r.swapChain2, scSetMaximumFrameLatency, 1)
+	h := call(r.swapChain2, scGetFrameLatencyWaitableObject)
+	if h != 0 && h != ^uintptr(0) {
+		r.waitable = h
+		r.slotAcquired = false
+	}
+}
+
+// WaitHandle returns the DXGI frame-latency waitable HANDLE signaled when the
+// swap chain is ready to accept the next frame, or 0 if unavailable.
+func (r *Renderer) WaitHandle() uintptr { return r.waitable }
+
+// TryAcquireFrame performs a non-blocking check against the waitable handle.
+// It returns true when a frame may be drawn and presented without blocking on
+// VSync, or when waitable pacing is inactive.
+func (r *Renderer) TryAcquireFrame() bool {
+	if r.waitable == 0 || r.slotAcquired {
+		return true
+	}
+	ret, _, _ := procWaitForSingleObject.Call(r.waitable, 0)
+	if ret == waitObject0 {
+		r.slotAcquired = true
+		return true
+	}
+	return false
+}
+
+// MarkFrameReady records that the platform event loop was woken by WaitHandle
+// (consuming its semaphore count), allowing the next frame to proceed at once.
+func (r *Renderer) MarkFrameReady() {
+	if r.waitable != 0 {
+		r.slotAcquired = true
+	}
 }
 
 // setSourceSize makes the swap chain show the w×h pixels at the top left
@@ -528,9 +589,16 @@ func (r *Renderer) composeSwapChain(desc swapChainDesc1) error {
 	// A swap chain for composition flips in sequence and stretches, the
 	// only ways it takes.
 	desc.SwapEffect, desc.AlphaMode = 3 /* flip sequential */, 1 /* premultiplied */
-	if hr := call(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain))); failed(hr) {
+	hr = call(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain)))
+	if failed(hr) && desc.Flags != 0 {
+		// Fallback for older DXGI/drivers that reject the waitable flag.
+		desc.Flags = 0
+		hr = call(r.factory, factoryCreateSwapChainComp, r.device, uintptr(unsafe.Pointer(&desc)), 0, uintptr(unsafe.Pointer(&r.swapChain)))
+	}
+	if failed(hr) {
 		return fmt.Errorf("d3d11: cannot create the swap chain for composition: %#x", uint32(hr))
 	}
+	r.scFlags = desc.Flags
 	if hr := call(r.dcomp, dcompCreateTarget, r.hwnd, 1, uintptr(unsafe.Pointer(&r.target))); failed(hr) {
 		return fmt.Errorf("d3d11: cannot compose the window: %#x", uint32(hr))
 	}
@@ -612,6 +680,11 @@ func (r *Renderer) Release() {
 		free(&t.tex)
 	}
 	r.trimBackdrops(0)
+	if r.waitable != 0 {
+		procCloseHandle.Call(r.waitable)
+		r.waitable = 0
+		r.slotAcquired = false
+	}
 	// The target goes first: a window has one at most, which another
 	// renderer of it then makes.
 	for _, p := range []*uintptr{&r.visual, &r.target, &r.dcomp, &r.rtv, &r.swapChain2, &r.swapChain, &r.instBuf, &r.cbuf, &r.passCB, &r.samp, &r.raster, &r.maskBlend, &r.blend, &r.layout,
@@ -995,6 +1068,7 @@ func (r *Renderer) newTarget(t *texture, w, h int, drawn bool) error {
 
 // present shows the back buffer, after sync vertical blanks.
 func (r *Renderer) present(sync uintptr) error {
+	r.slotAcquired = false
 	hr := call(r.swapChain, scPresent, sync, 0)
 	if failed(hr) {
 		return fmt.Errorf("d3d11: present failed: %#x", uint32(hr))

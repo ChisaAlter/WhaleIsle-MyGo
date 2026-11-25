@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -120,7 +121,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 									borderColor = chrome.MaterialFill(chrome.Color(colors.Accent), .45)
 									borderWidth = 1
 								}
-								button := chrome.FrostSurface(ui.Button(c.Key("team-member:"+member.ID), "").Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
+								button := chrome.FrostSurface(ui.ButtonBase(c.Key("team-member:"+member.ID)).Label(member.Name).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
 								if !inert {
 									button.Tooltip(tr("打开成员会话", "Open member conversation")).Cursor(ui.CursorPointer)
 								} else {
@@ -271,17 +272,17 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 									label = tr("收起", "Show less")
 									icon = "chevron-up"
 								}
-								toggle := ui.Button(c, "").Label(label).Padding(0).BorderWidth(0).Background(ui.Transparent).Shrink(0).Cursor(ui.CursorPointer)
-								toggleColor := muted
-								if toggle.Hovered() || toggle.Focused() {
-									toggleColor = fg
-								}
-								toggle.Children(func() {
-									ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
-										ui.Text(c, label).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(toggleColor)
-										projectIcon(c, icon, 12, toggleColor, false)
-									})
-								})
+								toggle := coss.Button(c, "", coss.ButtonOptions{
+									Variant: coss.ButtonGhost,
+									Size:    coss.ButtonXS,
+									Label:   label,
+									Content: func() {
+										ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
+											ui.Text(c, label).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
+											projectIcon(c, icon, 12, muted, false)
+										})
+									},
+								}).Shrink(0)
 								if toggle.Clicked() {
 									*expanded = !*expanded
 									if m.State != nil {

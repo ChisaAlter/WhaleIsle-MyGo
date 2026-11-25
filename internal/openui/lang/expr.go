@@ -89,8 +89,8 @@ func (p *exprParser) parseExpr(minPrec int) Node {
 		return nullNode
 	}
 	p.depth++
-	defer func() { p.depth-- }()
 	if p.maxDepth > 0 && p.depth > p.maxDepth {
+		p.depth--
 		p.over = true
 		p.pos = len(p.toks)
 		return nullNode
@@ -99,6 +99,7 @@ func (p *exprParser) parseExpr(minPrec int) Node {
 	for !p.over && infixPrec(p.cur().k) > minPrec {
 		left = p.parseInfix(left)
 	}
+	p.depth--
 	return left
 }
 
@@ -169,37 +170,46 @@ func (p *exprParser) parsePrefix() Node {
 
 func (p *exprParser) parseInfix(left Node) Node {
 	tok := p.cur()
-	bin := func(op string, prec int) Node {
-		p.adv()
-		return &BinOpNode{Op: op, L: left, R: p.parseExpr(prec)}
-	}
 	switch tok.k {
 	case tPlus:
-		return bin("+", precAdd)
+		p.adv()
+		return &BinOpNode{Op: "+", L: left, R: p.parseExpr(precAdd)}
 	case tMinus:
-		return bin("-", precAdd)
+		p.adv()
+		return &BinOpNode{Op: "-", L: left, R: p.parseExpr(precAdd)}
 	case tStar:
-		return bin("*", precMul)
+		p.adv()
+		return &BinOpNode{Op: "*", L: left, R: p.parseExpr(precMul)}
 	case tSlash:
-		return bin("/", precMul)
+		p.adv()
+		return &BinOpNode{Op: "/", L: left, R: p.parseExpr(precMul)}
 	case tPercent:
-		return bin("%", precMul)
+		p.adv()
+		return &BinOpNode{Op: "%", L: left, R: p.parseExpr(precMul)}
 	case tEqEq:
-		return bin("==", precEq)
+		p.adv()
+		return &BinOpNode{Op: "==", L: left, R: p.parseExpr(precEq)}
 	case tNotEq:
-		return bin("!=", precEq)
+		p.adv()
+		return &BinOpNode{Op: "!=", L: left, R: p.parseExpr(precEq)}
 	case tGreater:
-		return bin(">", precCmp)
+		p.adv()
+		return &BinOpNode{Op: ">", L: left, R: p.parseExpr(precCmp)}
 	case tLess:
-		return bin("<", precCmp)
+		p.adv()
+		return &BinOpNode{Op: "<", L: left, R: p.parseExpr(precCmp)}
 	case tGreaterEq:
-		return bin(">=", precCmp)
+		p.adv()
+		return &BinOpNode{Op: ">=", L: left, R: p.parseExpr(precCmp)}
 	case tLessEq:
-		return bin("<=", precCmp)
+		p.adv()
+		return &BinOpNode{Op: "<=", L: left, R: p.parseExpr(precCmp)}
 	case tAnd:
-		return bin("&&", precAnd)
+		p.adv()
+		return &BinOpNode{Op: "&&", L: left, R: p.parseExpr(precAnd)}
 	case tOr:
-		return bin("||", precOr)
+		p.adv()
+		return &BinOpNode{Op: "||", L: left, R: p.parseExpr(precOr)}
 	case tQuestion:
 		p.adv()
 		then := p.parseExpr(0)
@@ -241,42 +251,96 @@ func (p *exprParser) parseCall() *CallNode {
 	}
 	p.adv()
 	p.eat(tLParen)
+	var buf [6]Node
 	var args []Node
+	n := 0
 	for !p.over && p.cur().k != tRParen && p.cur().k != tEOF {
-		args = append(args, p.parseExpr(0))
+		arg := p.parseExpr(0)
+		if args == nil {
+			if n < len(buf) {
+				buf[n] = arg
+				n++
+			} else {
+				args = make([]Node, n+1, n*2)
+				copy(args, buf[:n])
+				args[n] = arg
+			}
+		} else {
+			args = append(args, arg)
+		}
 		if p.cur().k == tComma {
 			p.adv()
 		}
 	}
 	p.eat(tRParen)
+	if args == nil && n > 0 {
+		args = make([]Node, n)
+		copy(args, buf[:n])
+	}
 	return &CallNode{Name: name, Args: args, SourceKey: key}
 }
 
 func (p *exprParser) parseArr() Node {
 	p.adv()
+	var buf [6]Node
 	var els []Node
+	n := 0
 	for !p.over && p.cur().k != tRBrack && p.cur().k != tEOF {
-		els = append(els, p.parseExpr(0))
+		el := p.parseExpr(0)
+		if els == nil {
+			if n < len(buf) {
+				buf[n] = el
+				n++
+			} else {
+				els = make([]Node, n+1, n*2)
+				copy(els, buf[:n])
+				els[n] = el
+			}
+		} else {
+			els = append(els, el)
+		}
 		if p.cur().k == tComma {
 			p.adv()
 		}
 	}
 	p.eat(tRBrack)
+	if els == nil && n > 0 {
+		els = make([]Node, n)
+		copy(els, buf[:n])
+	}
 	return &ArrNode{Els: els}
 }
 
 func (p *exprParser) parseObj() Node {
 	p.adv()
+	var buf [6]ObjEntry
 	var ents []ObjEntry
+	n := 0
 	for !p.over && p.cur().k != tRBrace && p.cur().k != tEOF {
 		key := p.keyToken()
 		p.eat(tColon)
-		ents = append(ents, ObjEntry{Key: key, Value: p.parseExpr(0)})
+		ent := ObjEntry{Key: key, Value: p.parseExpr(0)}
+		if ents == nil {
+			if n < len(buf) {
+				buf[n] = ent
+				n++
+			} else {
+				ents = make([]ObjEntry, n+1, n*2)
+				copy(ents, buf[:n])
+				ents[n] = ent
+			}
+		} else {
+			ents = append(ents, ent)
+		}
 		if p.cur().k == tComma {
 			p.adv()
 		}
 	}
 	p.eat(tRBrace)
+	if ents == nil && n > 0 {
+		ents = make([]ObjEntry, n)
+		copy(ents, buf[:n])
+	}
 	return &ObjNode{Entries: ents}
 }
 

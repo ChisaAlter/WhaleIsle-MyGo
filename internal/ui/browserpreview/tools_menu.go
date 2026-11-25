@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/desktop/browserrecording"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 )
 
 var previewMiniIcon = ui.MustParseSVG([]byte(`<svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="7" width="4.5" height="4.5" rx=".7" fill="currentColor"/></svg>`))
@@ -190,10 +191,10 @@ func (b *Controller) browserDataDialog(c *ui.Context, t *Tab, state desktop.Stat
 			ui.Text(c, browserChromeLabel("分区：", "Profile: ")+t.browserWorkspaceLabel()).FontSize(12)
 			ui.Text(c, notice).FontSize(12)
 			ui.Row(c).FillWidth().Wrap().Gap(8).Justify(ui.End).Children(func() {
-				if ui.Button(c, browserChromeLabel("取消", "Cancel")).Clicked() {
+				if coss.Button(c, browserChromeLabel("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
 					open = false
 				}
-				if ui.PrimaryButton(c, browserChromeLabel("确认清除", "Confirm clear")).Disabled(!supported || state.Loading || t.tools.operation != nil || b.operation != nil || b.recording != nil).Clicked() {
+				if coss.Button(c, browserChromeLabel("确认清除", "Confirm clear"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonSM, Disabled: !supported || state.Loading || t.tools.operation != nil || b.operation != nil || b.recording != nil}).Clicked() {
 					b.startBrowserTool(t, confirm.kind, "")
 					open = false
 				}

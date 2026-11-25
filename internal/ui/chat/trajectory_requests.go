@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"sort"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 )
 
@@ -62,7 +63,12 @@ func paintTrajectoryLifecycleTabs(c *ui.Context, selected *string, available boo
 			if *selected == tab.id {
 				ink = accent
 			}
-			if ui.Button(c, tab.label).TextColor(ink).Cursor(ui.CursorPointer).Clicked() {
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonXS,
+				Label:   tab.label,
+				Content: func() { ui.Text(c, tab.label).FontSize(design.TextXS.Size).TextColor(ink) },
+			}).Clicked() {
 				*selected = tab.id
 			}
 		}

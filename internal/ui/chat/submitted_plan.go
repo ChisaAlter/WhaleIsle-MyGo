@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/planpreview"
 )
 
@@ -13,7 +14,10 @@ func SubmittedPlanCardView(c *ui.Context, message session.Message, sessionID str
 	if !ok {
 		return
 	}
-	if len(onOpen) > 0 && onOpen[0] != nil && ui.Button(c, planpreview.Text("在右侧打开计划", "Open plan in sidebar")).FontSize(11).Clicked() {
+	if len(onOpen) > 0 && onOpen[0] != nil && coss.Button(c, planpreview.Text("在右侧打开计划", "Open plan in sidebar"), coss.ButtonOptions{
+		Variant: coss.ButtonOutline,
+		Size:    coss.ButtonXS,
+	}).Clicked() {
 		onOpen[0](planpreview.Document{Address: planpreview.PlanAddress(sessionID, plan.CallID), Title: plan.Title, Markdown: plan.Markdown})
 	}
 	planpreview.View(c, "plan:"+sessionID+":"+plan.CallID, plan.Title, plan.Markdown, false, style)

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/diff"
@@ -235,7 +236,7 @@ func trajectoryLinks(c *ui.Context, m TrajectoryModel, row trajRow, all []trajRo
 	ui.Row(c).FillWidth().Wrap().Gap(design.Sp(1.5)).Children(func() {
 		for _, label := range []string{"Assistant", "Parent tool", "Result"} {
 			if id := targets[label]; id != "" {
-				if ui.Button(c, label).Label("Trajectory jump " + label).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Label("Trajectory jump " + label).Clicked() {
 					*selected = id
 				}
 			}
@@ -423,10 +424,10 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 				if *jsonMode {
 					label = trajectoryText("程序源码", "Program source")
 				}
-				if ui.Button(c, label).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 					*jsonMode = !*jsonMode
 				}
-				if ui.Button(c, trajectoryText("复制程序", "Copy program")).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, trajectoryText("复制程序", "Copy program"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 					c.Services().WriteClipboard(program)
 				}
 			})
@@ -518,7 +519,7 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 				return
 			}
 			if row.Full.Think != "" {
-				if ui.Button(c, trajectoryText("思考", "Thinking")).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, trajectoryText("思考", "Thinking"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 					*thinking = !*thinking
 				}
 				if *thinking {
@@ -555,7 +556,7 @@ func trajectoryNativeDetail(c *ui.Context, m TrajectoryModel, row trajRow, all [
 		if *unix {
 			label = trajectoryText("显示本地时间", "Show local time")
 		}
-		if ui.Button(c, label).Cursor(ui.CursorPointer).Clicked() {
+		if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 			*unix = !*unix
 		}
 		body := trajectoryTimingDetail(row)

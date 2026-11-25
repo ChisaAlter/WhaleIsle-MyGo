@@ -45,7 +45,7 @@ PSOut effectps(VSOut i) {
 	e.p4 = i.grad;
 	e.area = i.widths;
 	e.down = i.params.z;
-	float4 res = effect(i.p, e) * (rectCoverage(i.p, i.rect, i.radii) * rectCoverage(i.p, i.clip, i.clipRadii) * i.params.w);
+	float4 res = effect(i.p, e) * (rectCoverage(i.p, i.rect, i.radii) * rectCoverage(i.p, i.clip, i.clipRadii) * fadeCoverage(i.p.x, i.clipFade) * i.params.w);
 	PSOut o;
 	o.color = res;
 	o.alpha = res.aaaa;

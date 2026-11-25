@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"whaleisle/internal/config"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -34,7 +35,7 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 	ui.Text(c, label("更改会重连网关并撤销当前手机 Git 授权；已配对设备保留。", "Changes reconnect the gateway and revoke the current phone Git grant; paired devices are retained.")).TextColor(muted)
 	ui.Text(c, label("连接模式", "Connection mode")).TextColor(fg)
-	ui.Select(c, &e.Draft.Mode, []string{"relay", "lan"}).FillWidth()
+	coss.Select(c, &e.Draft.Mode, []coss.SelectOption{{Value: "relay", Label: "relay"}, {Value: "lan", Label: "lan"}}, coss.SelectOptions{}).FillWidth()
 	for _, r := range []struct {
 		name  string
 		value *string
@@ -44,9 +45,9 @@ func viewGatewayEditor(c *ui.Context, m Model, fg, muted ui.Color) {
 		{label("中继 host[:port]（留空使用默认）", "Relay host[:port] (blank uses default)"), &e.Draft.RelayEndpoint},
 	} {
 		ui.Text(c, r.name).TextColor(fg)
-		ui.TextInput(c, r.value).FillWidth()
+		coss.Input(c, r.value, coss.InputOptions{Label: r.name})
 	}
-	ui.Checkbox(c, &e.Draft.RelayTLS, label("中继 TLS（默认中继始终使用 TLS）", "Relay TLS (always enabled for default relay)"))
+	coss.Checkbox(c, &e.Draft.RelayTLS, label("中继 TLS（默认中继始终使用 TLS）", "Relay TLS (always enabled for default relay)"), coss.CheckOptions{})
 	ui.Text(c, label("0.0.0.0 会监听全部网卡；仅填写信任的中继地址。", "0.0.0.0 listens on all interfaces; use only a trusted relay address.")).TextColor(muted)
 	if e.Error != "" {
 		ui.Text(c, e.Error).TextColor(fg)

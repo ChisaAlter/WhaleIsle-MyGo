@@ -21,18 +21,17 @@ func (s *mainState) setAppearanceTheme(id string) error {
 		if err := host.SaveScheme(id); err != nil {
 			return err
 		}
-		// Record the choice so a later config edit cannot take the scheme back.
-		if cfg != nil {
-			if err := cfg.Update(func(c *config.Config) {
-				c.Theme = id
-				c.AppearanceExplicit = true
-			}); err != nil {
-				return err
-			}
-		}
 		s.mu.Lock()
 		s.themeID, s.desktopDraft.theme = id, id
 		s.mu.Unlock()
+		// Record the choice asynchronously so a later config edit cannot take
+		// the scheme back, without stalling the UI thread on disk fsync.
+		if cfg != nil {
+			s.enqueueConfigUpdate(cfg, func(c *config.Config) {
+				c.Theme = id
+				c.AppearanceExplicit = true
+			})
+		}
 		applyAppearance(id)
 		if win != nil {
 			win.Invalidate()
@@ -42,19 +41,17 @@ func (s *mainState) setAppearanceTheme(id string) error {
 	if cfg == nil {
 		return fmt.Errorf("%s", i18n.T(i18n.KeyCmdConfigStoreNotReady))
 	}
-	if err := cfg.Update(func(c *config.Config) {
-		c.Theme = id
-		c.AppearanceExplicit = true
-	}); err != nil {
-		return err
-	}
 	s.mu.Lock()
 	s.themeID = id
 	s.desktopDraft.theme = id
 	s.mu.Unlock()
+	s.enqueueConfigUpdate(cfg, func(c *config.Config) {
+		c.Theme = id
+		c.AppearanceExplicit = true
+	})
 	applyAppearance(id)
 	if win != nil {
-		win.Update(func() {})
+		win.Invalidate()
 	}
 	return nil
 }

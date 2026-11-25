@@ -64,7 +64,21 @@ func workspaceDropPlacement(groups []session.WorkspaceGroup, bounds []ui.Rect, s
 			last++
 		}
 		r := bounds[i]
-		bottom := bounds[last].Y + bounds[last].H
+		bottom := r.Y + r.H
+		visibleLast := i
+		for k := i; k <= last; k++ {
+			if bounds[k].W > 0 && bounds[k].H > 0 {
+				if r.W <= 0 || r.H <= 0 {
+					r = bounds[k]
+				} else if bounds[k].Y < r.Y {
+					r.Y = bounds[k].Y
+				}
+				if b := bounds[k].Y + bounds[k].H; b > bottom {
+					bottom = b
+				}
+				visibleLast = k
+			}
+		}
 		r.H = bottom - r.Y
 		if r.W <= 0 || r.H <= 0 || !r.Contains(x, y) {
 			continue
@@ -73,7 +87,7 @@ func workspaceDropPlacement(groups []session.WorkspaceGroup, bounds []ui.Rect, s
 		before, ok = session.WorkspaceDropAnchor(groups, source, g.Key, after)
 		target, edge = i, i
 		if after {
-			edge = last
+			edge = visibleLast
 		}
 		return
 	}
@@ -134,6 +148,107 @@ func workspaceDropGroupsTarget(list ui.Element, m Model, blocks []workspaceDropB
 		}
 		if _, _, before, ok := place(v, x, y); ok {
 			m.OnDropWorkspaceBefore(v.HostGeneration, v.ID, before)
+		}
+	}
+}
+
+type workspaceGroupSpan struct {
+	group    session.WorkspaceGroup
+	bounds   ui.Rect
+	firstEl  ui.Element
+	lastEl   ui.Element
+	hasFirst bool
+	hasLast  bool
+}
+
+func (s *workspaceGroupSpan) include(e ui.Element) {
+	if !s.hasFirst {
+		s.firstEl = e
+		s.hasFirst = true
+	}
+	s.lastEl = e
+	s.hasLast = true
+	r := e.Bounds()
+	if r.W <= 0 || r.H <= 0 {
+		return
+	}
+	if s.bounds.W <= 0 || s.bounds.H <= 0 {
+		s.bounds = r
+		return
+	}
+	x0 := min(s.bounds.X, r.X)
+	y0 := min(s.bounds.Y, r.Y)
+	x1 := max(s.bounds.X+s.bounds.W, r.X+r.W)
+	y1 := max(s.bounds.Y+s.bounds.H, r.Y+r.H)
+	s.bounds = ui.Rect{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}
+}
+
+// workspaceDropVirtualGroupsTarget resolves workspace drag/drop across a
+// virtualized flattened group list using only the visible rendered row bounds.
+func workspaceDropVirtualGroupsTarget(list ui.Element, m Model, spans []workspaceGroupSpan, highlight ui.Color) {
+	if m.Snapshot.WorkspaceLayout.Reordering || m.OnDropWorkspaceBefore == nil || len(spans) == 0 {
+		return
+	}
+	groups := make([]session.WorkspaceGroup, len(spans))
+	bounds := make([]ui.Rect, len(spans))
+	for i := range spans {
+		groups[i] = spans[i].group
+		bounds[i] = spans[i].bounds
+	}
+	markEdge := func(edge int, after bool) {
+		if edge < 0 || edge >= len(spans) {
+			return
+		}
+		if after {
+			if spans[edge].hasLast {
+				insertionMarker(spans[edge].lastEl, true, highlight)
+			}
+			return
+		}
+		if spans[edge].hasFirst {
+			insertionMarker(spans[edge].firstEl, false, highlight)
+		}
+	}
+	if v, over := ui.DragOver[workspaceDrag](list); over {
+		x, y, _ := list.PointerPosition()
+		r := list.Bounds()
+		target, edge, after, _, ok := workspaceDropPlacement(groups, bounds, v.ID, r.X+x, r.Y+y)
+		if ok && v.HostGeneration == m.Snapshot.WorkspaceLayout.HostGeneration && v.Scope == currentSidebarDragScope(m) {
+			if m.sidebarDrag != nil {
+				m.sidebarDrag.Workspace = &workspaceDropMarker{Source: v, Scope: currentSidebarDragScope(m), Target: groups[target].Key, After: after}
+			}
+			markEdge(edge, after)
+		} else if m.sidebarDrag != nil {
+			m.sidebarDrag.Workspace = nil
+		}
+	} else if m.sidebarDrag != nil && m.sidebarDrag.Workspace != nil {
+		marker := m.sidebarDrag.Workspace
+		if marker.Scope == currentSidebarDragScope(m) {
+			for i, group := range groups {
+				if group.Key != marker.Target {
+					continue
+				}
+				edge := i
+				if marker.After {
+					for edge+1 < len(groups) && groups[edge+1].Depth > group.Depth {
+						edge++
+					}
+					for edge > i && !spans[edge].hasLast {
+						edge--
+					}
+				}
+				markEdge(edge, marker.After)
+			}
+		}
+	}
+	if v, x, y, dropped := ui.DropAt[workspaceDrag](list); dropped {
+		if m.sidebarDrag != nil {
+			m.sidebarDrag.Workspace = nil
+		}
+		if v.HostGeneration == m.Snapshot.WorkspaceLayout.HostGeneration && v.Scope == currentSidebarDragScope(m) {
+			if _, _, _, before, ok := workspaceDropPlacement(groups, bounds, v.ID, x, y); ok {
+				m.OnDropWorkspaceBefore(v.HostGeneration, v.ID, before)
+			}
 		}
 	}
 }

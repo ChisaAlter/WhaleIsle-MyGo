@@ -40,7 +40,7 @@ func botNotifyBlock(c *ui.Context, m BotNotifyModel, blocked bool, fg, muted, ac
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantPersonalBotNotificationSetting)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOriginalBotWebConsumesNotifyWhenTh)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantThisEntryEditsSharedConfigurationThePa)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshNotificationSetting)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshNotificationSetting), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -70,17 +70,17 @@ func botNotifyBlock(c *ui.Context, m BotNotifyModel, blocked bool, fg, muted, ac
 		}
 		editable := !blocked && s.Loaded && s.Writable && s.Status.WriteError == "" && !s.Uncertain && s.Review == nil
 		draft := s.Draft
-		if ui.Checkbox(c, &draft, botNotifyToggleLabel()).Disabled(!editable).Changed() && m.OnChange != nil {
+		if aCheckbox(c, &draft, botNotifyToggleLabel(), !editable).Changed() && m.OnChange != nil {
 			m.OnChange(draft)
 		}
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantDraft)+botNotifyValue(s.Draft)).TextColor(fg)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardNotificationDraft)).Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardNotificationDraft), !editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewNotificationSetting)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewNotificationSetting), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
-		if s.Candidate && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingNotificationReadback)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
+		if s.Candidate && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingNotificationReadback), blocked).Clicked() && m.OnAdopt != nil {
 			m.OnAdopt()
 		}
 		if s.Review == nil {
@@ -100,13 +100,13 @@ func botNotifyBlock(c *ui.Context, m BotNotifyModel, blocked bool, fg, muted, ac
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantABusyOrColdSessionMaySyncAtALaterI)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantKeepsHiddenNameAvatarModelWorkspaceAnd), botCapabilityProfileText(r.Command.Expected, "workspaceId"), botCapabilityProfileText(r.Command.Expected, "model"), botCapabilityProfileText(r.Command.Expected, "objective"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botNotifyAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botNotifyAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelNotificationSave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelNotificationSave), blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmNotificationSetting2)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmNotificationSetting2), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

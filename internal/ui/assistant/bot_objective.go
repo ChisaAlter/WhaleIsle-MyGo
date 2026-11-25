@@ -64,7 +64,7 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 	ui.Column(c.Key("bot-objective")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotObjective)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantStartPauseAndClearTheCatalogObjective)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshObjective)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshObjective), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -89,8 +89,19 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 		ui.Row(c).Gap(7).Children(func() {
 			for _, action := range []string{"start", "pause", "clear"} {
 				disabled := blocked || !s.Loaded || s.Review != nil || action == "start" && strings.TrimSpace(b.Objective) == ""
-				if m.OnReview != nil && ui.Button(c, botObjectiveActionLabel(action)).Disabled(disabled).Clicked() {
-					m.OnReview(action)
+				if m.OnReview != nil {
+					var btn ui.Element
+					switch action {
+					case "start":
+						btn = aPrimary(c, botObjectiveActionLabel(action), disabled)
+					case "clear":
+						btn = aDangerOutline(c, botObjectiveActionLabel(action), disabled)
+					default:
+						btn = aButton(c, botObjectiveActionLabel(action), disabled)
+					}
+					if btn.Clicked() {
+						m.OnReview(action)
+					}
 				}
 			}
 		})
@@ -109,11 +120,19 @@ func botObjectiveBlock(c *ui.Context, m BotObjectiveModel, blocked bool, fg, mut
 				}
 				ui.Text(c, i18n.T(i18n.KeyMiscAssistantRefreshUncertainOutcomesNeverAutoRe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ui.Row(c).Gap(8).Children(func() {
-					if m.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelObjectiveAction)).Disabled(blocked).Clicked() {
+					if m.OnDismiss != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantCancelObjectiveAction), blocked).Clicked() {
 						m.OnDismiss()
 					}
-					if m.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmObjectiveAction)).Disabled(blocked || !s.Loaded).Clicked() {
-						m.OnConfirm()
+					if m.OnConfirm != nil {
+						var confirmBtn ui.Element
+						if r.Command.Action == "clear" {
+							confirmBtn = aDanger(c, i18n.T(i18n.KeyMiscAssistantConfirmObjectiveAction), blocked || !s.Loaded)
+						} else {
+							confirmBtn = aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmObjectiveAction), blocked || !s.Loaded)
+						}
+						if confirmBtn.Clicked() {
+							m.OnConfirm()
+						}
 					}
 				})
 			})

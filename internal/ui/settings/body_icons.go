@@ -1,6 +1,11 @@
 package settings
 
-import "github.com/egoist/mygo/ui"
+import (
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+
+	"github.com/egoist/mygo/ui"
+)
 
 var bodyIcons = map[string]*ui.SVG{}
 
@@ -27,18 +32,29 @@ func bodyIcon(name string) *ui.SVG {
 	return icon
 }
 func bodyIconAction(c *ui.Context, label, icon string, disabled bool) bool {
-	button := ui.Button(c, "").Label(label).Size(28, 28).Padding(6).Radius(6).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(label)
-	button.Children(func() { ui.Icon(c, bodyIcon(icon)).Size(16, 16) })
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconSM,
+		Label:    label,
+		Disabled: disabled,
+		Content: func() {
+			ui.Icon(c, bodyIcon(icon)).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(tk(c).Foreground).PassThrough()
+		},
+	}).Tooltip(label)
 	return button.Clicked()
 }
 
 // bodyIconAction32 is bodyIconAction at the 32 DIP size the installed build uses
 // in page headers.
 func bodyIconAction32(c *ui.Context, label, icon string, disabled bool) bool {
-	button := ui.Button(c, "").Label(label).Size(32, 32).Padding(7).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled).Tooltip(label)
-	button.Children(func() { ui.Icon(c, bodyIcon(icon)).Size(16, 16) })
-	if button.Hovered() {
-		button.Background(c.Theme().SurfaceHover)
-	}
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIcon,
+		Label:    label,
+		Disabled: disabled,
+		Content: func() {
+			ui.Icon(c, bodyIcon(icon)).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(tk(c).Foreground).PassThrough()
+		},
+	}).Tooltip(label)
 	return button.Clicked()
 }

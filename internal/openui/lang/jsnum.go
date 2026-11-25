@@ -19,7 +19,12 @@ func NumberToString(x float64) string {
 	case math.IsInf(x, -1):
 		return "-Infinity"
 	case x < 0:
+		if x > -1e15 && x == math.Trunc(x) {
+			return strconv.FormatInt(int64(x), 10)
+		}
 		return "-" + NumberToString(-x)
+	case x < 1e15 && x == math.Trunc(x):
+		return strconv.FormatInt(int64(x), 10)
 	}
 	// Shortest round-trip digits.
 	e := strconv.FormatFloat(x, 'e', -1, 64) // d.ddddde±XX
@@ -56,7 +61,17 @@ func isJSSpace(r rune) bool {
 	return unicode.Is(unicode.Zs, r)
 }
 
-func trimJSSpace(s string) string { return strings.TrimFunc(s, isJSSpace) }
+func trimJSSpace(s string) string {
+	n := len(s)
+	if n == 0 {
+		return s
+	}
+	c0, c1 := s[0], s[n-1]
+	if c0 > ' ' && c0 < 0x80 && c1 > ' ' && c1 < 0x80 {
+		return s
+	}
+	return strings.TrimFunc(s, isJSSpace)
+}
 
 // StringToNumber implements ECMAScript StringToNumber (Number("...")).
 func StringToNumber(s string) float64 {

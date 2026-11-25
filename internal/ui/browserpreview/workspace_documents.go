@@ -12,6 +12,7 @@ import (
 	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -392,7 +393,7 @@ func (b *Controller) documentSourceControls(c *ui.Context, tab *Tab) {
 		return
 	}
 	ui.Text(c, filepath.Base(tab.source.Path)).FontSize(theme.InterfaceSize(12)).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(tab.source.Path)
-	if ui.Button(c, browserChromeLabel("重新读取", "Reread")).Disabled(tab.sourceRead != nil).Clicked() {
+	if coss.Button(c, browserChromeLabel("重新读取", "Reread"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: tab.sourceRead != nil}).Clicked() {
 		b.retryDocument(tab)
 	}
 }

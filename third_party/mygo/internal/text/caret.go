@@ -25,18 +25,33 @@ type caretStop struct {
 	arrival int
 }
 
-func (l *Layout) visualStops(li int) []caretStop {
+// GraphemeOffsets returns the cached whole-grapheme rune boundaries of l
+// (including len(l.Runes)). Safe to call concurrently from any goroutine.
+func (l *Layout) GraphemeOffsets() []int {
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
+	return l.boundariesLocked()
+}
+
+func (l *Layout) boundariesLocked() []int {
+	if l.boundaries == nil {
+		var b Boundaries
+		b.Reset(l.Runes)
+		l.boundaries = b.graphemes
+	}
+	return l.boundaries
+}
+
+func (l *Layout) visualStopsLocked(li int) []caretStop {
 	line := &l.Lines[li]
 	if line.stops != nil {
 		return line.stops
 	}
-	if l.boundaries == nil {
-		var b Boundaries
-		b.Reset(l.Runes)
-		l.boundaries = b.GraphemeOffsets()
-	}
-	var stops []caretStop
-	line.upstream = slices.Clone(line.lineCarets())
+	bounds := l.boundariesLocked()
+	carets := line.lineCarets()
+	line.upstream = slices.Clone(carets)
+	stops := make([]caretStop, 0, len(line.Glyphs)*2+2)
+	seen := make([]bool, len(carets))
 	for i := 0; i < len(line.Glyphs); {
 		g := line.Glyphs[i]
 		x0, x1 := g.X, g.X+g.Advance
@@ -51,7 +66,7 @@ func (l *Layout) visualStops(li int) []caretStop {
 		}
 		for k := 0; k <= g.Runes; k++ {
 			at := g.Cluster + k
-			if _, ok := slices.BinarySearch(l.boundaries, at); !ok {
+			if _, ok := slices.BinarySearch(bounds, at); !ok {
 				continue
 			}
 			x := x0 + (x1-x0)*float32(k)/float32(g.Runes)
@@ -68,19 +83,23 @@ func (l *Layout) visualStops(li int) []caretStop {
 			if g.RTL {
 				arrival = -arrival
 			}
-			if affinity == Upstream && at >= line.Start && at <= line.End {
-				line.upstream[at-line.Start] = x
+			if idx := at - line.Start; idx >= 0 && idx < len(seen) {
+				seen[idx] = true
+				if affinity == Upstream {
+					line.upstream[idx] = x
+				}
 			}
 			stops = append(stops, caretStop{CaretPosition{at, affinity}, x, arrival})
 		}
 	}
 	// Keep trimmed spaces and empty lines navigable too.
-	carets := line.lineCarets()
-	first, _ := slices.BinarySearch(l.boundaries, line.Start)
-	for k := first; k < len(l.boundaries) && l.boundaries[k] <= line.End; k++ {
-		at := l.boundaries[k]
-		if !slices.ContainsFunc(stops, func(s caretStop) bool { return s.position.Index == at }) {
-			stops = append(stops, caretStop{CaretPosition{at, Downstream}, carets[at-line.Start], 0})
+	first, _ := slices.BinarySearch(bounds, line.Start)
+	for k := first; k < len(bounds) && bounds[k] <= line.End; k++ {
+		at := bounds[k]
+		idx := at - line.Start
+		if idx >= 0 && idx < len(seen) && !seen[idx] {
+			seen[idx] = true
+			stops = append(stops, caretStop{CaretPosition{at, Downstream}, carets[idx], 0})
 		}
 	}
 	if len(stops) == 0 {
@@ -107,21 +126,31 @@ func (l *Layout) caretLine(p CaretPosition) int {
 	return li
 }
 
-// CaretAt preserves affinity at bidi boundaries and soft line breaks.
-func (l *Layout) CaretAt(p CaretPosition) (x, y, h float32) {
+func (l *Layout) caretAtLocked(p CaretPosition) (x, y, h float32) {
 	if len(l.Lines) == 0 {
 		return 0, 0, 0
 	}
 	p.Index = max(0, min(p.Index, len(l.Runes)))
 	li := l.caretLine(p)
-	l.visualStops(li)
 	line := &l.Lines[li]
-	i := max(0, min(p.Index-line.Start, len(line.carets)-1))
-	x = line.carets[i]
+	var xs []float32
 	if p.Affinity == Upstream {
-		x = line.upstream[i]
+		l.visualStopsLocked(li)
+		xs = line.upstream
+	} else {
+		// Downstream caret positions only depend on lineCarets; skip building
+		// full grapheme boundaries and visual stops on every keystroke.
+		xs = line.lineCarets()
 	}
-	return x, line.Y, line.Height
+	i := max(0, min(p.Index-line.Start, len(xs)-1))
+	return xs[i], line.Y, line.Height
+}
+
+// CaretAt preserves affinity at bidi boundaries and soft line breaks.
+func (l *Layout) CaretAt(p CaretPosition) (x, y, h float32) {
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
+	return l.caretAtLocked(p)
 }
 
 // PositionAt hit-tests whole graphemes, retaining the visual edge chosen.
@@ -129,6 +158,8 @@ func (l *Layout) PositionAt(x, y float32) CaretPosition {
 	if len(l.Lines) == 0 {
 		return CaretPosition{}
 	}
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
 	li := len(l.Lines) - 1
 	for i := range l.Lines {
 		if y < l.Lines[i].Y+l.Lines[i].Height {
@@ -136,7 +167,7 @@ func (l *Layout) PositionAt(x, y float32) CaretPosition {
 			break
 		}
 	}
-	stops := l.visualStops(li)
+	stops := l.visualStopsLocked(li)
 	best, distance := stops[0], float32(-1)
 	for _, s := range stops {
 		d := abs(s.x - x)
@@ -177,14 +208,16 @@ func (l *Layout) MoveCaret(p CaretPosition, direction int) CaretPosition {
 	if len(l.Lines) == 0 || direction == 0 {
 		return p
 	}
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
 	if direction < 0 {
 		direction = -1
 	} else {
 		direction = 1
 	}
 	li := l.caretLine(p)
-	x, _, _ := l.CaretAt(p)
-	stops := l.visualStops(li)
+	x, _, _ := l.caretAtLocked(p)
+	stops := l.visualStopsLocked(li)
 	if direction > 0 {
 		for _, s := range stops {
 			if s.x > x+0.001 {
@@ -205,7 +238,7 @@ func (l *Layout) MoveCaret(p CaretPosition, direction int) CaretPosition {
 	if next < 0 || next >= len(l.Lines) {
 		return p
 	}
-	stops = l.visualStops(next)
+	stops = l.visualStopsLocked(next)
 	x = stops[0].x
 	if direction < 0 {
 		x = stops[len(stops)-1].x
@@ -219,9 +252,11 @@ func (l *Layout) SelectionRanges(a, b CaretPosition) []Range {
 	if len(l.Lines) == 0 {
 		return nil
 	}
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
 	ai, bi := l.caretLine(a), l.caretLine(b)
-	ax, _, _ := l.CaretAt(a)
-	bx, _, _ := l.CaretAt(b)
+	ax, _, _ := l.caretAtLocked(a)
+	bx, _, _ := l.caretAtLocked(b)
 	if ai > bi {
 		ai, bi, ax, bx = bi, ai, bx, ax
 	}
@@ -247,15 +282,16 @@ func (l *Layout) SelectionRanges(a, b CaretPosition) []Range {
 				}
 			}
 		}
-		l.visualStops(li)
-		first, _ := slices.BinarySearch(l.boundaries, line.Start)
-		for k := first; k+1 < len(l.boundaries) && l.boundaries[k] < line.End; k++ {
-			start, end := l.boundaries[k], l.boundaries[k+1]
+		l.visualStopsLocked(li)
+		bounds := l.boundariesLocked()
+		first, _ := slices.BinarySearch(bounds, line.Start)
+		for k := first; k+1 < len(bounds) && bounds[k] < line.End; k++ {
+			start, end := bounds[k], bounds[k+1]
 			if start < line.Start || end > line.End {
 				continue
 			}
-			x0, _, _ := l.CaretAt(CaretPosition{start, Downstream})
-			x1, _, _ := l.CaretAt(CaretPosition{end, Upstream})
+			x0, _, _ := l.caretAtLocked(CaretPosition{start, Downstream})
+			x1, _, _ := l.caretAtLocked(CaretPosition{end, Upstream})
 			left, right := min(x0, x1), max(x0, x1)
 			if right > left && left >= lo-0.01 && right <= hi+0.01 {
 				ranges = append(ranges, Range{start, end})

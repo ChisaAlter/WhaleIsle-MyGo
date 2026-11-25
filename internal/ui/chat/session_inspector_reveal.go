@@ -112,6 +112,10 @@ func inspectorChatViewport(c *ui.Context, m Model, view ui.Element, list *ui.Lis
 	if n == nil {
 		return
 	}
+	inspectorChatViewportActive(c, m, n, view, list)
+}
+
+func inspectorChatViewportActive(c *ui.Context, m Model, n *InspectorNavigation, view ui.Element, list *ui.ListState) {
 	r := &n.reveal
 	inspectorChatRevealInput(c, n)
 	view.Draw(func(p *ui.Painter, box ui.Rect) {
@@ -250,6 +254,10 @@ func inspectorChatRowGeometry(c *ui.Context, m Model, msg session.Message, root 
 	if n == nil {
 		return
 	}
+	inspectorChatRowGeometryActive(n, msg, root, top, right, bottom, left)
+}
+
+func inspectorChatRowGeometryActive(n *InspectorNavigation, msg session.Message, root ui.Element, top, right, bottom, left float32) {
 	msgID := msg.ID
 	root.ObserveLayout(func(box ui.Rect) { n.reveal.layoutRows[msgID] = box })
 	root.DrawOver(func(p *ui.Painter, box ui.Rect) {

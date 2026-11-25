@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -104,11 +105,19 @@ func (s *mainState) syncAccountQuotaNotice(c *ui.Context) {
 			ui.Column(c).Gap(12).Children(func() {
 				ui.Text(c, i18n.T(i18n.KeyCmdNoBalanceAvailable)).Bold().FontSize(16).TextColor(chrome.Color(colors.FG))
 				ui.Text(c, i18n.T(i18n.KeyCmdMygoCannotStartANewTaskWithThisAccou)).TextColor(chrome.Color(colors.FG))
-				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, i18n.T(i18n.KeyCmdCancel)).Clicked() {
+				ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
+					if coss.Button(c, i18n.T(i18n.KeyCmdCancel), coss.ButtonOptions{
+						Variant: coss.ButtonOutline,
+						Size:    coss.ButtonSM,
+						Key:     "account-quota-cancel",
+					}).Clicked() {
 						sessions.DismissQuotaNotice(notice.ID)
 					}
-					if ui.Button(c, i18n.T(i18n.KeyCmdTopUp)).Clicked() && sessions.HoldQuotaNotice(notice.ID) {
+					if coss.Button(c, i18n.T(i18n.KeyCmdTopUp), coss.ButtonOptions{
+						Variant: coss.ButtonDefault,
+						Size:    coss.ButtonSM,
+						Key:     "account-quota-topup",
+					}).Clicked() && sessions.HoldQuotaNotice(notice.ID) {
 						s.openAccountTopUp(account.TopUpURL)
 						s.mu.Lock()
 						success := s.accountReturn.err == ""

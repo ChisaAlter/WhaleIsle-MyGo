@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/url"
+	"runtime"
 	"strings"
 	"whaleisle/internal/errcopy"
 
@@ -12,6 +13,20 @@ import (
 	"whaleisle/internal/ui/i18n"
 	webviewui "whaleisle/internal/ui/webview"
 )
+
+// webviewTopInset returns the DIP height reserved above an embedded routeWebView
+// WebView2 host. On Windows, webviewui.View owns the top 48 DIP caption band
+// aligned with WindowsCaptionButtons (no separate 12 DIP strip above it).
+func webviewTopInset() int {
+	return webviewTopInsetForOS(runtime.GOOS)
+}
+
+func webviewTopInsetForOS(goos string) int {
+	if goos == "windows" {
+		return webviewui.PanelChromeHeight
+	}
+	return chrome.TitleBarHeight + webviewui.PanelChromeHeight
+}
 
 // panelWindowTitle is the caption of a hosted plugin or Harness panel: this
 // product's identity, then the panel's name. The page itself belongs to another
@@ -159,7 +174,7 @@ func (s *mainState) openMainWebViewURL(browse string) {
 		Untrusted: true, SessionOrigin: sessionOrigin, SessionCookie: sessionCookie,
 		ShortcutPreferences: s.pageShortcutPreferences(), OnShortcutCloseWindow: s.queueProductShortcutClose,
 		OnChange: func() { win.Update(func() {}) }, OnFailure: s.onEmbeddedPageFailure,
-		Parent: win, URL: browse, Title: label, PinTitle: true, TopInset: chrome.TitleBarHeight + webviewui.PanelChromeHeight,
+		Parent: win, URL: browse, Title: label, PinTitle: true, TopInset: webviewTopInset(),
 		PermissionPolicy: desktopwebview.PermissionPolicy{
 			SessionHost: strings.TrimSpace(sessionOrigin) != "", NotificationsAllowed: systemNotificationsSupported,
 		}.Decide,

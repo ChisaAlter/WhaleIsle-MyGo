@@ -425,6 +425,9 @@ const (
 	qsAllInput         = 0x04FF
 	mwmoInputAvailable = 0x0004
 	pmRemove           = 0x0001
+	waitInfinite       = 0xFFFFFFFF
+	waitTimeout        = 0x00000102
+	waitFailed         = 0xFFFFFFFF
 
 	sOK          = 0
 	eNoInterface = 0x80004002

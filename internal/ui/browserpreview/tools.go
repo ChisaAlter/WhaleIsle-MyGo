@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 )
 
 type browserTools struct {
@@ -192,10 +193,15 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				}
 			}
 		}).Label(browserPreviewText("viewportPreset")).Height(28).MaxWidth(125).Disabled(disabled)
-		submitted := ui.TextInput(c, &s.WidthDraft).Width(58).Height(28).Label(browserPreviewText("viewportWidth")).Disabled(disabled).Submitted()
+		var submitted bool
+		ui.Box(c).Width(58).Children(func() {
+			submitted = coss.Input(c, &s.WidthDraft, coss.InputOptions{Size: coss.InputSM, Label: browserPreviewText("viewportWidth"), Disabled: disabled}).Submitted()
+		})
 		ui.Text(c, "×").FontSize(11)
-		submitted = ui.TextInput(c, &s.HeightDraft).Width(58).Height(28).Label(browserPreviewText("viewportHeight")).Disabled(disabled).Submitted() || submitted
-		if ui.Button(c, "↵").Size(28, 28).Label(browserPreviewText("viewportDimensions")).Disabled(disabled).Clicked() || submitted {
+		ui.Box(c).Width(58).Children(func() {
+			submitted = coss.Input(c, &s.HeightDraft, coss.InputOptions{Size: coss.InputSM, Label: browserPreviewText("viewportHeight"), Disabled: disabled}).Submitted() || submitted
+		})
+		if coss.Button(c, "↵", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Size(28, 28).Padding(0).Label(browserPreviewText("viewportDimensions")).Clicked() || submitted {
 			w, h, err := s.dimensions(s.WidthDraft, s.HeightDraft)
 			if err != nil {
 				t.fail("", err)
@@ -203,11 +209,11 @@ func (b *Controller) toolControls(c *ui.Context, t *Tab, state desktop.State) {
 				b.updateBrowserDevice(t, w, h, "")
 			}
 		}
-		if ui.Button(c, "↻").Size(28, 28).Label(browserPreviewText("viewportRotate")).Disabled(disabled).Clicked() {
+		if coss.Button(c, "↻", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: disabled}).Size(28, 28).Padding(0).Label(browserPreviewText("viewportRotate")).Clicked() {
 			b.updateBrowserDevice(t, s.Height, s.Width, s.Preset)
 		}
 		ui.Box(c).Grow(1)
-		if ui.Button(c, "×").Size(28, 28).Label(browserPreviewText("deviceToolbarHide")).Clicked() {
+		if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Size(28, 28).Padding(0).Label(browserPreviewText("deviceToolbarHide")).Clicked() {
 			s.Device = false
 			b.showHost(t.Host)
 			b.update()

@@ -112,8 +112,11 @@ func (s *Store) RefreshPetGrowthUsage(usage petgrowth.Usage, now time.Time) erro
 	return s.refreshPetGrowthUsage(usage, now, true)
 }
 func (s *Store) refreshPetGrowthUsage(usage petgrowth.Usage, now time.Time, migrate bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlockSync, syncErr := s.beginSyncWrite()
+	if syncErr != nil {
+		return syncErr
+	}
+	defer unlockSync()
 	if err := s.ensurePetCacheLocked(); err != nil {
 		return err
 	}
@@ -152,8 +155,11 @@ func (s *Store) refreshPetGrowthUsage(usage petgrowth.Usage, now time.Time, migr
 // lifetime feeding and the real feedToken care effect commit together. A disk
 // or stale-write failure leaves every value unchanged, including in memory.
 func (s *Store) FeedPetTokens(now time.Time) (int64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return 0, err
+	}
+	defer unlock()
 	pet, err := rawObject(s.raw["live2dPet"])
 	if err != nil {
 		return 0, err

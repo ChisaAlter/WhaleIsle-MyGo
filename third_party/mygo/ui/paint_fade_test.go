@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/egoist/mygo/internal/gpu"
 	"github.com/egoist/mygo/internal/scene"
 )
 
@@ -204,4 +205,50 @@ func floatLabel(n float32) string {
 		return "2"
 	}
 	return "1"
+}
+
+// TestFadeHorizontalSingleDrawPassAndBatch verifies that FadeHorizontal paints
+// its subtree and text exactly once under a single horizontal-fade clip rather
+// than slicing the edges into ~25 1px clip strips and fragmenting GPU batches.
+func TestFadeHorizontalSingleDrawPassAndBatch(t *testing.T) {
+	drawCalls := 0
+	tt := coreNewTester(func(c *context) {
+		coreBox(c).Absolute().Left(8).Top(8).Size(120, 28).FadeHorizontal(24, 24).Draw(func(p *Painter, r Rect) {
+			drawCalls++
+		}).Children(func() {
+			coreText(c, "Long sidebar session title that fades smoothly").NoWrap()
+		})
+	}, 160, 48)
+	tt.SetScale(2)
+	tt.Frame()
+	drawCalls = 0
+	tt.Frame()
+
+	if drawCalls != 1 {
+		t.Fatalf("FadeHorizontal invoked subtree draw %d times; want 1", drawCalls)
+	}
+	glyphOps := 0
+	fadeClips := 0
+	for _, op := range tt.rt.scene.Ops {
+		switch op.Kind {
+		case scene.OpGlyphs:
+			glyphOps++
+		case scene.OpPushClip:
+			if op.Fade[0] > 0 || op.Fade[1] > 0 {
+				fadeClips++
+			}
+		}
+	}
+	if fadeClips != 1 {
+		t.Fatalf("expected 1 horizontal fade clip op, got %d", fadeClips)
+	}
+	if glyphOps != 1 {
+		t.Fatalf("expected text to be emitted in 1 OpGlyphs pass, got %d", glyphOps)
+	}
+
+	var b gpu.Builder
+	b.Build(&tt.rt.scene, func(*scene.Image) uintptr { return 1 })
+	if len(b.Batches) > 2 {
+		t.Fatalf("FadeHorizontal fragmented GPU batches: got %d batches (want <=2)", len(b.Batches))
+	}
 }

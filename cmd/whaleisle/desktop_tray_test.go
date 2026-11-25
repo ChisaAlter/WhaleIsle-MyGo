@@ -111,10 +111,10 @@ func TestDesktopTrayRoutesClearHiddenPanelConflicts(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, action := range []deeplink.Action{deeplink.ActionLauncher, deeplink.ActionSettings, deeplink.ActionMarket} {
-		s := &mainState{cfgStore: store, imOpen: true, remoteOpen: true, marketOpen: true, toolsMenuOpen: true, webviewOpen: true, browserPreviewOpen: true}
+		s := &mainState{cfgStore: store, imOpen: true, remoteOpen: true, marketOpen: true, webviewOpen: true, browserPreviewOpen: true}
 		s.assistantService().SetOpen(true)
 		s.openDesktopTrayPage(action)
-		if s.imOpen || s.remoteOpen || s.toolsMenuOpen || s.webviewOpen || s.browserPreviewOpen || s.assistantService().Open() {
+		if s.imOpen || s.remoteOpen || s.webviewOpen || s.browserPreviewOpen || s.assistantService().Open() {
 			t.Fatalf("hidden route masks %s", action)
 		}
 		if s.maintenanceOpen || (action == deeplink.ActionSettings || action == deeplink.ActionLauncher) != s.settingsOpen || (action == deeplink.ActionMarket) != s.marketOpen {

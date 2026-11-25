@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/widgets"
 
 	"github.com/egoist/mygo/ui"
@@ -129,7 +130,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 	ui.PopoverBase(c.Key("caption-branch-picker"), anchor, open, func(panel ui.Element) {
 		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(max(0, min(float32(320), width-24))).MaxHeight(max(0, height-64)).Padding(4).Gap(2).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, 16))
 		panel.Children(func() {
-			ui.TextInput(c, &w.BranchQuery).FillWidth().Label(word("筛选分支", "Filter branches")).Placeholder(word("搜索分支…", "Search branches…"))
+			coss.Input(c, &w.BranchQuery, coss.InputOptions{Size: coss.InputSM, Label: word("筛选分支", "Filter branches"), Placeholder: word("搜索分支…", "Search branches…")})
 			if w.branchesRequest != nil {
 				ui.Text(c, word("正在读取分支…", "Loading branches…")).Padding(8, 10).FontSize(fonttheme.InterfaceSize(12)).Role(ui.RoleStatus).TextColor(c.Theme().TextMuted)
 			}
@@ -176,7 +177,7 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 			if name != "" {
 				label = word("创建分支 ", "Create branch ") + name + "…"
 			}
-			if ui.Button(c, label).FillWidth().Height(32).Justify(ui.Start).Role(ui.RoleMenuItem).Disabled(w.Operation != nil || name != "" && taken).Clicked() {
+			if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonMD, Disabled: w.Operation != nil || name != "" && taken}).FillWidth().Justify(ui.Start).Role(ui.RoleMenuItem).Clicked() {
 				*open = false
 				state.name = name
 				state.createOpen = true
@@ -195,14 +196,14 @@ func CaptionBranches(c *ui.Context, m Model, anchor ui.Element, open *bool) {
 				Label(word("创建分支", "Create branch")).Children(func() {
 				ui.Text(c, word("创建分支", "Create branch")).FontSize(fonttheme.InterfaceSize(16)).FontWeight(500)
 				ui.Text(c, word("首版只支持基于当前 HEAD 创建并切换。", "This version only creates and switches from the current HEAD.")).FillWidth().TextColor(c.Theme().TextMuted)
-				submitted := ui.TextInput(c, &state.name).FillWidth().Label(word("分支名称", "Branch name")).Placeholder("feature/my-change").Submitted()
+				submitted := coss.Input(c, &state.name, coss.InputOptions{Label: word("分支名称", "Branch name"), Placeholder: "feature/my-change"}).Submitted()
 				ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 					if widgets.Button(c, colors, word("取消", "Cancel"), widgets.ButtonSpec{Variant: widgets.ButtonGhost, Size: widgets.ButtonSmall}).Clicked() {
 						state.createOpen = false
 					}
 					name := strings.TrimSpace(state.name)
 					canCreate := name != "" && !captionBranchTaken(w, name) && w.Operation == nil
-					clicked := ui.PrimaryButton(c, word("创建并切换", "Create and switch")).Disabled(!canCreate).Clicked()
+					clicked := coss.Button(c, word("创建并切换", "Create and switch"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: !canCreate}).Clicked()
 					if canCreate && (clicked || submitted) {
 						state.createOpen = false
 						state.name = ""

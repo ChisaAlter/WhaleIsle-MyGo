@@ -30,8 +30,11 @@ var (
 // SaveAppearance commits native appearance preferences without changing unrelated config
 // and preserves unknown fields inside goAppearance, its fonts, and matched custom themes.
 func (s *Store) SaveAppearance(p theme.Preferences) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}

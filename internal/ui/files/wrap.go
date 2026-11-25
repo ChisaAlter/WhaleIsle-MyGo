@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
 	"strings"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -29,7 +30,7 @@ func paintWrapToggle(c *ui.Context, m Model) {
 	if prefs.WordWrap {
 		caption = label("关闭折行", "Unwrap lines")
 	}
-	if ui.Button(c, caption).FontSize(theme.InterfaceSize(11)).Clicked() {
+	if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Pressed: prefs.WordWrap}).Clicked() {
 		prefs.WordWrap = !prefs.WordWrap
 		if m.Tabs != nil && m.Tabs.floating != nil && m.Tabs.floating.win != nil {
 			m.Tabs.floating.win.Invalidate()
@@ -98,7 +99,13 @@ func sourceTextArea(c *ui.Context, m Model, text *string, readOnly bool, key str
 		if buffer != nil {
 			editor = ui.TextAreaBuffer(c, buffer)
 		} else {
-			editor = ui.TextArea(c, text)
+			ui.Box(c).Width(width).Shrink(0).FillHeight().MinHeight(0).Children(func() {
+				editor = coss.Textarea(c, text, coss.TextareaOptions{
+					ReadOnly: readOnly,
+					Label:    label("文件内容", "File content"),
+					Unstyled: true,
+				})
+			})
 		}
 		// FilePreview.module.css .code/.editor: the source paints straight on
 		// the pane — no box, no border — at a 1.5 code leading (12/18).

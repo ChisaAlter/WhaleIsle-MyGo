@@ -49,7 +49,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 	ui.Column(c.Key("bot-route-editor")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantModelAndWorkspace)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantChooseAModelReasoningEffortAndRealDir)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshModelAndWorkspace)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshModelAndWorkspace), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -104,7 +104,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 		if _, ok := modelChoices[modelSelected]; !ok {
 			modelLabels = append(modelLabels, modelSelected)
 		}
-		ui.Select(c.Key("bot-route-model"), &modelSelected, modelLabels).FillWidth().Disabled(!editable || !opts.ModelsKnown).OnChange(func() {
+		aSelect(c.Key("bot-route-model"), &modelSelected, modelLabels, "", !editable || !opts.ModelsKnown).FillWidth().OnChange(func() {
 			if v, ok := modelChoices[modelSelected]; ok && m.OnChange != nil {
 				draft.Model = v
 				m.OnChange(draft)
@@ -126,7 +126,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 			effortSelected = i18n.T(i18n.KeyMiscAssistantPreserve3) + draft.Model.ReasoningEffort
 			effortLabels = append(effortLabels, effortSelected)
 		}
-		ui.Select(c.Key("bot-route-effort"), &effortSelected, effortLabels).FillWidth().Disabled(!editable || !opts.ModelsKnown || draft.Model.Provider == "").OnChange(func() {
+		aSelect(c.Key("bot-route-effort"), &effortSelected, effortLabels, "", !editable || !opts.ModelsKnown || draft.Model.Provider == "").FillWidth().OnChange(func() {
 			if v, ok := effortChoices[effortSelected]; ok && m.OnChange != nil {
 				draft.Model.ReasoningEffort = v
 				m.OnChange(draft)
@@ -155,7 +155,7 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 		if _, ok := workspaceChoices[workspaceSelected]; !ok {
 			workspaceLabels = append(workspaceLabels, workspaceSelected)
 		}
-		ui.Select(c.Key("bot-route-workspace"), &workspaceSelected, workspaceLabels).FillWidth().Disabled(!editable || !opts.WorkspacesKnown || !opts.SessionKnown || opts.WorkspaceLocked).OnChange(func() {
+		aSelect(c.Key("bot-route-workspace"), &workspaceSelected, workspaceLabels, "", !editable || !opts.WorkspacesKnown || !opts.SessionKnown || opts.WorkspaceLocked).FillWidth().OnChange(func() {
 			if v, ok := workspaceChoices[workspaceSelected]; ok && m.OnChange != nil {
 				draft.WorkspaceID = v
 				m.OnChange(draft)
@@ -167,13 +167,13 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 		if !opts.SessionKnown || opts.WorkspaceLocked {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantHistoryPresentOrUnknown)).TextColor(accent)
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardRouteDraft)).Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardRouteDraft), !editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewModelAndWorkspace)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewModelAndWorkspace), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
-		if s.Candidate && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingReadback)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
+		if s.Candidate && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingReadback), blocked).Clicked() && m.OnAdopt != nil {
 			m.OnAdopt()
 		}
 		if s.Review == nil {
@@ -192,13 +192,13 @@ func botRouteBlock(c *ui.Context, m BotRouteModel, blocked bool, fg, muted, acce
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantBotUpdateValidatesTheModelWritesAudit)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantOnlyModelAndWorkspaceidAreReplacedAnd)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botRouteAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botRouteAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelRouteSave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelRouteSave), blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmRouteSave)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmRouteSave), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

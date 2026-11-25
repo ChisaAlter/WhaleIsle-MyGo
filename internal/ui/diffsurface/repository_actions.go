@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -209,8 +210,8 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 		ui.Text(c, word("填写已有 HTTPS/SSH 远端 URL，或用已登录的 gh 创建 GitHub 仓库。新仓库默认私有。", "Enter an existing HTTPS/SSH remote URL, or create a GitHub repository using your signed-in gh account. New repositories default to private.")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.Text(c, GitLocale("publish.description")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 		ui.Text(c, GitLocale("publish.note")).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
-		ui.TextInput(c, &w.PublishRemoteURL).FillWidth().Placeholder(word("已有远端 URL（可留空）", "Existing remote URL (optional)"))
-		ui.TextInput(c, &w.PublishName).FillWidth().Placeholder(word("仓库名称或 owner/name", "Repository name or owner/name"))
+		coss.Input(c, &w.PublishRemoteURL, coss.InputOptions{Size: coss.InputSM, Placeholder: word("已有远端 URL（可留空）", "Existing remote URL (optional)")})
+		coss.Input(c, &w.PublishName, coss.InputOptions{Size: coss.InputSM, Placeholder: word("仓库名称或 owner/name", "Repository name or owner/name")})
 		if strings.TrimSpace(w.PublishRemoteURL) == "" {
 			ui.Row(c).Gap(6).Children(func() {
 				privateLabel := word("私有", "Private")
@@ -220,10 +221,10 @@ func paintPublish(c *ui.Context, m Model, fg, muted ui.Color) {
 				} else {
 					privateLabel = "▸ " + privateLabel
 				}
-				if ui.Button(c, privateLabel).Clicked() {
+				if coss.Button(c, privateLabel, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Pressed: !w.PublishPublic}).Clicked() {
 					w.PublishPublic = false
 				}
-				if ui.Button(c, publicLabel).Clicked() {
+				if coss.Button(c, publicLabel, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Pressed: w.PublishPublic}).Clicked() {
 					w.PublishPublic = true
 				}
 			})

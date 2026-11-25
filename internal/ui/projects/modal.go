@@ -246,7 +246,7 @@ func projectModalHeader(c *ui.Context, m Model, title string, close func(), disa
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FontWeight(500).TextColor(chrome.Color(colors.FG)).Grow(1).MinWidth(0).SingleLine()
-		button := projectIconButton(c, "project-modal-close", tr("关闭", "Close"), "close", chrome.Color(colors.Muted)).Disabled(disabled)
+		button := pIconButton(c, "project-modal-close", tr("关闭", "Close"), disabled, func() { projectIcon(c, "close", 16, chrome.Color(colors.Muted), false) })
 		if autofocus {
 			button.Focus()
 		}
@@ -301,14 +301,14 @@ func materialTransitionDialog(c *ui.Context, m Model, state *projectPresentation
 				ui.Text(c, m.Material.Error).FontSize(theme.InterfaceSize(12)).Padding(0, 24, 12, 24)
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Padding(0, 24).Gap(8).Children(func() {
-				if ui.Button(c, tr("继续编辑", "Keep editing")).Disabled(m.Busy).Clicked() {
+				if pButton(c, tr("继续编辑", "Keep editing"), m.Busy).Clicked() {
 					cancel()
 				}
-				if ui.Button(c, tr("放弃", "Discard")).Disabled(m.Busy).Clicked() && m.OnDiscardMaterial != nil {
+				if pDanger(c, tr("放弃", "Discard"), m.Busy).Clicked() && m.OnDiscardMaterial != nil {
 					m.OnDiscardMaterial()
 					finish()
 				}
-				if ui.PrimaryButton(c, tr("保存并继续", "Save and continue")).Disabled(m.Busy || !m.MaterialMutable || len(m.Material.Draft) > materialLimit(m.Material.Path)).Clicked() && m.OnSaveMaterial != nil {
+				if pPrimary(c, tr("保存并继续", "Save and continue"), m.Busy || !m.MaterialMutable || len(m.Material.Draft) > materialLimit(m.Material.Path)).Clicked() && m.OnSaveMaterial != nil {
 					state.Saving = true
 					m.OnSaveMaterial()
 				}

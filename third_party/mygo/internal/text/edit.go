@@ -18,47 +18,71 @@ func (line *Line) lineCarets() []float32 {
 	if line.carets != nil {
 		return line.carets
 	}
-	type cluster struct {
-		x0, x1       float32
-		start, runes int
-		rtl          bool
-	}
-	var clusters []cluster
-	for g := 0; g < len(line.Glyphs); {
-		first := line.Glyphs[g]
-		c := cluster{first.X, first.X + first.Advance, first.Cluster, first.Runes, first.RTL}
-		g++
-		for g < len(line.Glyphs) && line.Glyphs[g].Cluster == first.Cluster && line.Glyphs[g].Runes == first.Runes {
-			c.x0 = min(c.x0, line.Glyphs[g].X)
-			c.x1 = max(c.x1, line.Glyphs[g].X+line.Glyphs[g].Advance)
-			g++
-		}
-		if c.runes > 0 {
-			clusters = append(clusters, c)
-		}
-	}
-	pos := func(c cluster, k int) float32 {
-		f := float32(k) / float32(c.runes)
-		if c.rtl {
-			return c.x1 - (c.x1-c.x0)*f
-		}
-		return c.x0 + (c.x1-c.x0)*f
-	}
 	n := line.End - line.Start + 1
 	carets := make([]float32, n)
 	set := make([]bool, n)
-	// A cluster's start takes precedence over the end of the cluster
-	// before it, which differ in bidirectional text.
-	for _, c := range clusters {
-		for k := 0; k < c.runes; k++ {
-			if i := c.start + k - line.Start; i >= 0 && i < n {
-				carets[i], set[i] = pos(c, k), true
+	// Fast path for the common case where every glyph is a 1-rune LTR cluster:
+	// avoids allocating an intermediate clusters slice.
+	simple := !line.RTL
+	if simple {
+		for _, g := range line.Glyphs {
+			if g.RTL || g.Runes != 1 {
+				simple = false
+				break
 			}
 		}
 	}
-	for _, c := range clusters {
-		if i := c.start + c.runes - line.Start; i >= 0 && i < n && !set[i] {
-			carets[i], set[i] = pos(c, c.runes), true
+	if simple {
+		for _, g := range line.Glyphs {
+			if i := g.Cluster - line.Start; i >= 0 && i < n {
+				carets[i], set[i] = g.X, true
+			}
+		}
+		for _, g := range line.Glyphs {
+			if i := g.Cluster + 1 - line.Start; i >= 0 && i < n && !set[i] {
+				carets[i], set[i] = g.X+g.Advance, true
+			}
+		}
+	} else {
+		type cluster struct {
+			x0, x1       float32
+			start, runes int
+			rtl          bool
+		}
+		clusters := make([]cluster, 0, len(line.Glyphs))
+		for g := 0; g < len(line.Glyphs); {
+			first := line.Glyphs[g]
+			c := cluster{first.X, first.X + first.Advance, first.Cluster, first.Runes, first.RTL}
+			g++
+			for g < len(line.Glyphs) && line.Glyphs[g].Cluster == first.Cluster && line.Glyphs[g].Runes == first.Runes {
+				c.x0 = min(c.x0, line.Glyphs[g].X)
+				c.x1 = max(c.x1, line.Glyphs[g].X+line.Glyphs[g].Advance)
+				g++
+			}
+			if c.runes > 0 {
+				clusters = append(clusters, c)
+			}
+		}
+		pos := func(c cluster, k int) float32 {
+			f := float32(k) / float32(c.runes)
+			if c.rtl {
+				return c.x1 - (c.x1-c.x0)*f
+			}
+			return c.x0 + (c.x1-c.x0)*f
+		}
+		// A cluster's start takes precedence over the end of the cluster
+		// before it, which differ in bidirectional text.
+		for _, c := range clusters {
+			for k := 0; k < c.runes; k++ {
+				if i := c.start + k - line.Start; i >= 0 && i < n {
+					carets[i], set[i] = pos(c, k), true
+				}
+			}
+		}
+		for _, c := range clusters {
+			if i := c.start + c.runes - line.Start; i >= 0 && i < n && !set[i] {
+				carets[i], set[i] = pos(c, c.runes), true
+			}
 		}
 	}
 	end := line.X + line.Width
@@ -97,6 +121,8 @@ func (l *Layout) Caret(index int) (x, y, h float32) {
 	if len(l.Lines) == 0 {
 		return 0, 0, 0
 	}
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
 	index = max(0, min(index, len(l.Runes)))
 	line := &l.Lines[l.LineAt(index)]
 	carets := line.lineCarets()
@@ -109,6 +135,8 @@ func (l *Layout) IndexAt(x, y float32) int {
 	if len(l.Lines) == 0 {
 		return 0
 	}
+	l.geoMu.Lock()
+	defer l.geoMu.Unlock()
 	li := len(l.Lines) - 1
 	for i := range l.Lines {
 		if y < l.Lines[i].Y+l.Lines[i].Height {
@@ -216,13 +244,35 @@ type Boundaries struct {
 // Reset prepares b for runes.
 func (b *Boundaries) Reset(runes []rune) {
 	b.runes = runes
-	b.graphemes = b.graphemes[:0]
+	n := len(runes)
+	if cap(b.graphemes) < n+1 {
+		b.graphemes = make([]int, 0, n+1)
+	} else {
+		b.graphemes = b.graphemes[:0]
+	}
+	// Fast path for pure ASCII without '\r': every rune is its own grapheme
+	// cluster per UAX #29 (only CRLF pairs join in ASCII), avoiding the
+	// heavy Unicode segmenter setup and allocations.
+	ascii := true
+	for _, r := range runes {
+		if r >= 0x80 || r == '\r' {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		b.graphemes = b.graphemes[:n+1]
+		for i := 0; i <= n; i++ {
+			b.graphemes[i] = i
+		}
+		return
+	}
 	b.seg.Init(runes)
 	it := b.seg.GraphemeIterator()
 	for it.Next() {
 		b.graphemes = append(b.graphemes, it.Grapheme().Offset)
 	}
-	b.graphemes = append(b.graphemes, len(runes))
+	b.graphemes = append(b.graphemes, n)
 }
 
 // GraphemeOffsets returns a copy of the grapheme starts and text's end for

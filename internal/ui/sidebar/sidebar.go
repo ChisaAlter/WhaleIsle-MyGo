@@ -76,11 +76,12 @@ type PluginEntry struct {
 
 // Model is sidebar state for one frame.
 type Model struct {
-	pinnedSection     bool
-	scrollbarsVisible bool
-	sidebarBodyFill   bool
-	sessionContext    string
-	DirectoryActions  []workspacepicker.DirectoryAction
+	pinnedSection      bool
+	scrollbarsVisible  bool
+	sidebarBodyFill    bool
+	sessionContext     string
+	schedulesBySession map[string][]schedstore.Entry
+	DirectoryActions   []workspacepicker.DirectoryAction
 	// ViewportW/H are the window's client area in DIPs. Context.Size reports
 	// device pixels on a scaled display, so the hover cards take their bounds
 	// from here and fall back to Context.Size only when the frame did not say.
@@ -297,30 +298,53 @@ func newSessionButton(c *ui.Context, m Model) {
 		Padding(design.Sp(2), design.Sp(3), design.Sp(2), design.Sp(3))
 	showShortcut := m.NewSessionShortcut != "" && (btn.Hovered() || btn.FocusVisible())
 	font := ui.Font{Family: c.Theme().Font, Size: fs(14), Weight: design.WeightMedium}
-	title := ui.ShapeTextLine(label, font, 0)
-	titleW, titleH := title.Size()
+	type newSessionLayoutCache struct {
+		label, shortcut, family string
+		size                    float32
+		title                   *ui.TextLayout
+		titleW, titleH          float32
+		shortcutW               float32
+	}
+	cache := ui.Local(btn, "sidebar-new-session-layouts", func() newSessionLayoutCache { return newSessionLayoutCache{} })
+	if cache.title == nil || cache.label != label || cache.family != font.Family || cache.size != font.Size {
+		cache.title = ui.ShapeTextLine(label, font, 0)
+		cache.titleW, cache.titleH = cache.title.Size()
+		cache.label, cache.family, cache.size = label, font.Family, font.Size
+		cache.shortcut = ""
+	}
+	title, titleW, titleH := cache.title, cache.titleW, cache.titleH
 	shortcutW := float32(0)
 	if showShortcut {
-		shortcutW, _ = ui.ShapeTextLine(m.NewSessionShortcut, ui.Font{Family: font.Family, Size: font.Size, Weight: design.WeightNormal}, 0).Size()
+		if cache.shortcut != m.NewSessionShortcut {
+			cache.shortcut = m.NewSessionShortcut
+			cache.shortcutW, _ = ui.ShapeTextLine(m.NewSessionShortcut, ui.Font{Family: font.Family, Size: font.Size, Weight: design.WeightNormal}, 0).Size()
+		}
+		shortcutW = cache.shortcutW
+	}
+	fadeBg := t.Popover
+	if t.IsDark() {
+		fadeBg = t.Input.Alpha(0.64).Over(t.Sidebar)
+	} else if btn.Hovered() || btn.Pressed() {
+		fadeBg = t.Accent.Alpha(0.5).Over(t.Popover)
 	}
 	btn.Children(func() {
 		mask := ui.Box(c.Key("sidebar-new-label")).Grow(1).MinWidth(0).Height(22).PassThrough()
 		mask.Draw(func(p *ui.Painter, r ui.Rect) {
 			x := r.X + (r.W+shortcutW-titleW-20)/2
-			draw := func(ink ui.Color) {
-				p.Icon(newSessionIcon, ui.Rect{X: x, Y: r.Y + (r.H-14)/2, W: 14, H: 14}, ink)
-				p.TextLayout(title, x+20, r.Y+(r.H-titleH)/2, ink)
-			}
-			if !showShortcut {
-				p.Clip(r, 0, func() { draw(fg) })
-				return
-			}
-			fade := min(design.Sp(4), r.W)
-			p.Clip(ui.Rect{X: r.X, Y: r.Y, W: r.W - fade, H: r.H}, 0, func() { draw(fg) })
-			for step := float32(0); step < fade; step++ {
-				p.Clip(ui.Rect{X: r.X + r.W - fade + step, Y: r.Y, W: min(float32(1), fade-step), H: r.H}, 0,
-					func() { draw(fg.Alpha((fade - step - .5) / fade)) })
-			}
+			p.Clip(r, 0, func() {
+				p.Icon(newSessionIcon, ui.Rect{X: x, Y: r.Y + (r.H-14)/2, W: 14, H: 14}, fg)
+				p.TextLayout(title, x+20, r.Y+(r.H-titleH)/2, fg)
+				if showShortcut {
+					fade := min(design.Sp(4), r.W)
+					if fade > 0 {
+						p.FillGradient(
+							ui.Rect{X: r.X + r.W - fade, Y: r.Y, W: fade, H: r.H},
+							ui.LinearGradient{From: fadeBg.Alpha(0), To: fadeBg, Angle: 90},
+							0,
+						)
+					}
+				}
+			})
 		})
 		if showShortcut {
 			ui.Text(c, m.NewSessionShortcut).Role(ui.RoleNone).Width(shortcutW).Shrink(1).MinWidth(0).SingleLine().
@@ -351,6 +375,7 @@ func View(c *ui.Context, m Model) {
 	skinLayout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark)
 	root := ui.Column(c.Key("sidebar-root")).Fill().MinWidth(0).Padding(design.Sp(1.5), skinLayout.SidebarInline, design.Sp(1.5), skinLayout.SidebarInline)
 	m = beginSessionHover(root, m)
+	m.schedulesBySession = buildActiveScheduleMap(m.Schedules)
 	if skinLayout.Active() {
 		root.FontSize(skinLayout.SidebarFont)
 	}
@@ -433,8 +458,12 @@ func View(c *ui.Context, m Model) {
 					}).FillWidth().Height(skinLayout.NavHeight).Radius(design.RadiusXL).
 						TextColor(fg).BorderWidth(0).
 						Padding(design.Sp(1.75), design.Sp(2), design.Sp(1.75), design.Sp(2)).AlignItems(ui.Center)
-					if m.ActivePanel == id || row.Hovered() {
-						row.Background(t.Accent)
+					active := m.ActivePanel == id
+					if active {
+						row.Background(sbSelectedBg(t))
+						sbActiveIndicator(row, t)
+					} else if row.Hovered() || row.FocusVisible() {
+						row.Background(sbHoverBg(t))
 					} else {
 						row.Background(ui.Transparent)
 					}
@@ -498,32 +527,18 @@ func View(c *ui.Context, m Model) {
 				} else {
 					filter := browseArchiveFilter(m)
 					items := sidebarItemsForArchiveFilter(m.Snapshot, m.SearchQuery, filter)
-					groups := visibleWorkspaceGroups(m, items)
 					archivedItems := archivedSectionItems(m)
 					showArchived := (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0
-					flatHost := len(groups) == 1 && groups[0].Kind == "flat"
-					if flatHost {
-						m.sidebarBodyFill = true
-						ui.Column(c.Key("sidebar-flat-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
-							workspaceRowsView(c, m, items, fg, muted, border)
-							workspaceListFeedback(c, m, items, fg, muted)
-							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
-							// projects.View(c, m.Projects)
-							if showArchived {
-								archivedSection(c, m, archivedItems, sectionInk, muted)
-							}
-						})
-					} else {
-						coss.ScrollArea(c, coss.ScrollAreaOptions{Key: "sidebar-tree-scroll"}, func() {
-							workspaceRowsView(c, m, items, fg, muted, border)
-							workspaceListFeedback(c, m, items, fg, muted)
-							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
-							// projects.View(c, m.Projects)
-							if showArchived {
-								archivedSection(c, m, archivedItems, sectionInk, muted)
-							}
-						}).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5))
-					}
+					m.sidebarBodyFill = true
+					ui.Column(c.Key("sidebar-tree-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
+						workspaceRowsView(c, m, items, fg, muted, border)
+						workspaceListFeedback(c, m, items, fg, muted)
+						// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+						// projects.View(c, m.Projects)
+						if showArchived {
+							archivedSection(c, m, archivedItems, sectionInk, muted)
+						}
+					})
 				}
 			})
 		}
@@ -575,7 +590,7 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	if text := statusLabel(status); text != "" {
 		hint += "\n" + text
 	}
-	tasks := schedstore.ActiveForSession(m.Schedules, it.SessionID)
+	tasks := activeSchedulesForSession(m, it.SessionID)
 	row := coss.Button(c, "", coss.ButtonOptions{
 		Variant: coss.ButtonGhost,
 		Size:    coss.ButtonSM,
@@ -585,8 +600,13 @@ func rowSession(c *ui.Context, it session.Item, depth int, m Model, fg, muted, b
 	}).Description(hint).FillWidth().Height(32).Radius(design.RadiusMD).
 		BorderWidth(0).Padding(0, design.Sp(2), 0, design.Sp(2)+float32(depth)*design.Sp(3)).Clip().AlignItems(ui.Center)
 	revealSessionSearchRow(row, m, it.SessionID)
-	if selected || row.Hovered() || row.FocusWithin() || row.MenuOpen() {
+	if selected {
 		row.Background(sbSelectedBg(t))
+		sbActiveIndicator(row, t)
+	} else if row.Hovered() || row.FocusWithin() || row.MenuOpen() {
+		row.Background(sbHoverBg(t))
+	} else {
+		row.Background(ui.Transparent)
 	}
 	menu := sessionRowMenu(m, it)
 	if !it.Blank && !renaming {

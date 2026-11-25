@@ -189,7 +189,10 @@ func (e *node) paintInput(p *Painter) {
 	}
 	if focused && !ed.readOnly {
 		rt := e.c.rt
-		phase := time.Since(rt.blinkStart)
+		if rt.blinkStart.IsZero() {
+			rt.blinkStart = p.Now()
+		}
+		phase := max(p.Now().Sub(rt.blinkStart), 0)
 		const blink = 530 * time.Millisecond
 		if (phase/blink)%2 == 0 {
 			x, y, h := l.CaretAt(text.CaretPosition{Index: ed.displayIndex(ed.caret) + ed.composeCaret, Affinity: ed.caretAffinity})
@@ -198,7 +201,7 @@ func (e *node) paintInput(p *Painter) {
 			op.Rect.W = max(round(p.scale), 1)
 		}
 		if phase < 30*time.Second {
-			e.c.After(blink - phase%blink)
+			p.After(blink - phase%blink)
 		}
 	}
 	p.popClip()

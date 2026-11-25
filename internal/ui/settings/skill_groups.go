@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -39,20 +41,29 @@ func skillGroupPicker(c *ui.Context, key string, groups *[]string, skills []Skil
 	var input ui.Element
 	box.Children(func() {
 		ui.Text(c, providerCopy("分组", "Groups")).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Wrap().Children(func() {
 			for _, label := range append([]string(nil), (*groups)...) {
-				chip := ui.Button(c.Key("selected/"+label), "").Label(providerCopy("移除分组 · ", "Remove group · ")+label).MaxWidthPercent(100).MinWidth(0).Height(28).Gap(4).Padding(0, 10).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).Disabled(disabled)
-				chip.Children(func() {
-					ui.Text(c, label).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
-					ui.Text(c, "×").Shrink(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-				})
+				chip := coss.Button(c, "", coss.ButtonOptions{
+					Variant:  coss.ButtonOutline,
+					Size:     coss.ButtonSM,
+					Label:    providerCopy("移除分组 · ", "Remove group · ") + label,
+					Disabled: disabled,
+					Key:      "selected/" + label,
+					Content: func() {
+						ui.Text(c, label).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).PassThrough()
+						ui.Text(c, "×").Shrink(0).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).PassThrough()
+					},
+				}).MaxWidthPercent(100).MinWidth(0)
 				if chip.Clicked() {
 					remove(label)
 				}
 			}
 		})
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-			input = ui.TextInput(c, text).Grow(1).MinWidth(0).Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Label(providerCopy("新分组", "New group")).Disabled(disabled)
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+			input = kInputRow(c, text, coss.InputOptions{
+				Label:    providerCopy("新分组", "New group"),
+				Disabled: disabled,
+			})
 			input.HandleInput(func(event ui.InputEvent) bool {
 				if event.Kind == ui.InputCompose {
 					*composing = event.Text != ""
@@ -67,7 +78,13 @@ func skillGroupPicker(c *ui.Context, key string, groups *[]string, skills []Skil
 				}
 				return false
 			})
-			if ui.Button(c, "⌄").Label(providerCopy("选择分组", "Choose groups")).Role(ui.RoleDisclosure).Expanded(*open).Size(32, 32).Disabled(disabled).Clicked() {
+			if coss.Button(c, "", coss.ButtonOptions{
+				Variant:  coss.ButtonOutline,
+				Size:     coss.ButtonIcon,
+				Icon:     coss.IconChevronDown,
+				Label:    providerCopy("选择分组", "Choose groups"),
+				Disabled: disabled,
+			}).Role(ui.RoleDisclosure).Expanded(*open).Clicked() {
 				*open = !*open
 			}
 		})
@@ -93,14 +110,17 @@ func skillGroupPicker(c *ui.Context, key string, groups *[]string, skills []Skil
 				}
 				for _, label := range known {
 					selected := slices.Contains(*groups, label)
-					option := ui.Button(c.Key("known/"+label), "").Label(label).Role(ui.RoleMenuItemCheckBox).Checked(selected).FillWidth().MinWidth(0).Gap(8).Justify(ui.Start).BorderWidth(0).Background(ui.Transparent)
+					option := ui.ButtonBase(c.Key("known/"+label)).Label(label).Role(ui.RoleMenuItemCheckBox).Checked(selected).FillWidth().MinWidth(0).Gap(design.Sp(2)).Padding(design.Sp(1.5), design.Sp(2)).Radius(design.RadiusMD).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
+					if option.Hovered() {
+						option.Background(tk(c).Accent)
+					}
 					option.Children(func() {
 						check := ""
 						if selected {
 							check = "✓"
 						}
-						ui.Text(c, check).Width(16).Shrink(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
-						ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg)
+						ui.Text(c, check).Width(16).Shrink(0).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).PassThrough()
+						ui.Text(c, label).Grow(1).MinWidth(0).SingleLine().Tooltip(label).FontSize(fonttheme.InterfaceSize(13)).TextColor(fg).PassThrough()
 					})
 					if option.Clicked() {
 						if selected {
@@ -111,7 +131,7 @@ func skillGroupPicker(c *ui.Context, key string, groups *[]string, skills []Skil
 					}
 				}
 			})
-			if ui.Button(c, providerCopy("清空分组", "Clear groups")).Role(ui.RoleMenuItem).FillWidth().Justify(ui.Start).Disabled(len(*groups) == 0).Clicked() {
+			if kGhost(c, providerCopy("清空分组", "Clear groups"), len(*groups) == 0).Role(ui.RoleMenuItem).FillWidth().Justify(ui.Start).Clicked() {
 				*groups = []string{}
 			}
 		})

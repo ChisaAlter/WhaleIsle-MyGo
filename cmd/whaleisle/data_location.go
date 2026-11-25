@@ -227,9 +227,6 @@ func (s *mainState) refuseDataLocationEdit(win *mygo.Window) bool {
 		return false
 	}
 	s.setDataLocationOutcome(i18n.T(i18n.KeyDataLocationReadOnly), "")
-	if win != nil {
-		win.Update(func() {})
-	}
 	return true
 }
 
@@ -252,9 +249,6 @@ func (s *mainState) chooseDataLocation(win *mygo.Window, sup *harness.Supervisor
 	chosen := strings.TrimSpace(picked[0])
 	if err := paths.ValidateDataLocationChoice(chosen, current, installDir()); err != nil {
 		s.setDataLocationOutcome(dataLocationMessage(err), "")
-		if win != nil {
-			win.Update(func() {})
-		}
 		return
 	}
 	s.applyDataLocation(win, sup, chosen, false)
@@ -269,9 +263,6 @@ func (s *mainState) resetDataLocation(win *mygo.Window, sup *harness.Supervisor)
 	def := paths.DefaultUserDataDir()
 	if err := paths.ValidateDataLocationChoice(def, paths.UserDataDir(), installDir()); err != nil {
 		s.setDataLocationOutcome(dataLocationMessage(err), "")
-		if win != nil {
-			win.Update(func() {})
-		}
 		return
 	}
 	s.applyDataLocation(win, sup, def, true)
@@ -290,16 +281,10 @@ func (s *mainState) applyDataLocation(win *mygo.Window, sup *harness.Supervisor,
 	if blocked {
 		s.mu.Unlock()
 		s.setDataLocationOutcome(i18n.T(i18n.KeyDataLocationBusy), "")
-		if win != nil {
-			win.Update(func() {})
-		}
 		return
 	}
 	s.taskRestartPending = true
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 	go func() {
 		defer func() {
 			s.mu.Lock()

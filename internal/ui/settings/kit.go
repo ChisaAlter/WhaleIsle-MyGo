@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
@@ -86,6 +87,59 @@ func kGhost(c *ui.Context, label string, off bool) ui.Element {
 // kDanger is coss's destructive-outline small button.
 func kDanger(c *ui.Context, label string, off bool) ui.Element {
 	return coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonSM, Disabled: off})
+}
+
+// kSecondary is coss's secondary small button.
+func kSecondary(c *ui.Context, label string, off bool) ui.Element {
+	return coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonSecondary, Size: coss.ButtonSM, Disabled: off})
+}
+
+// kChoiceButton is a selectable pill/tab button: secondary when selected,
+// outline otherwise, with aria-selected preserved for assistive technology.
+func kChoiceButton(c *ui.Context, label string, selected, off bool) ui.Element {
+	variant := coss.ButtonOutline
+	if selected {
+		variant = coss.ButtonSecondary
+	}
+	return coss.Button(c, label, coss.ButtonOptions{Variant: variant, Size: coss.ButtonSM, Pressed: selected, Disabled: off}).Selected(selected)
+}
+
+// kCheckbox is coss's Checkbox.
+func kCheckbox(c *ui.Context, checked *bool, label string, off bool) ui.Element {
+	return coss.Checkbox(c, checked, label, coss.CheckOptions{Disabled: off})
+}
+
+// kTextarea is coss's Textarea.
+func kTextarea(c *ui.Context, value *string, o coss.TextareaOptions) ui.Element {
+	return coss.Textarea(c, value, o)
+}
+
+// kInputRow wraps coss.Input in a flexible box so it expands inside a ui.Row.
+func kInputRow(c *ui.Context, value *string, o coss.InputOptions) ui.Element {
+	var in ui.Element
+	ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+		in = coss.Input(c, value, o)
+	})
+	return in
+}
+
+// settingsTitleBarTopInset returns the minimum top clearance needed to keep
+// interactive controls clear of hidden-titlebar window buttons (- □ × / traffic
+// lights). Returns 0 when the window has no overlaid caption controls.
+func settingsTitleBarTopInset(bar ui.TitleBar) float32 {
+	if bar.Height <= 0 && bar.Left <= 0 && bar.Right <= 0 {
+		return 0
+	}
+	safe := bar.Height
+	if bar.Right > 0 {
+		// Windows caption buttons sit at Top=12, Height=32 (bottom=44) even
+		// when TitleBarHeight is the 12 DIP drag strip.
+		winBottom := chrome.TitleBarHeight + design.Sp(8)
+		if winBottom > safe {
+			safe = winBottom
+		}
+	}
+	return safe + design.Sp(2)
 }
 
 // kIconButton is a ghost icon button drawing one of the settings icons,

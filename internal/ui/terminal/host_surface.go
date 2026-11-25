@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/hostterminal"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -61,7 +62,7 @@ func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session
 			ui.Row(c).FillWidth().Height(28).Shrink(0).MinWidth(0).Gap(8).Padding(0, 8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, hostStatus(v)).FontSize(12).Grow(1).MinWidth(0).SingleLine().Ellipsis("…").TextColor(muted)
 				hostRecoveryAction(c, store, v, session, colors)
-				ui.Button(c, "•••").Size(28, 28).Label(terminalLabel("终端选项", "Terminal options")).Menu(func(menu *ui.Menu) { HostResourceMenu(menu, h, store, session) })
+				coss.Button(c, "•••", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Size(28, 28).Padding(0).Label(terminalLabel("终端选项", "Terminal options")).Menu(func(menu *ui.Menu) { HostResourceMenu(menu, h, store, session) })
 			})
 		}
 
@@ -90,10 +91,10 @@ func hostSurface(c *ui.Context, h *HostState, store *hostterminal.Store, session
 				}
 				ui.Text(c, message).FontSize(14).TextColor(fg)
 				ui.Row(c).Wrap().Gap(6).Children(func() {
-					if ui.PrimaryButton(c, terminalLabel("新建终端", "New terminal")).Disabled(!v.Ready || v.Busy || session == "").Clicked() {
+					if coss.Button(c, terminalLabel("新建终端", "New terminal"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: !v.Ready || v.Busy || session == ""}).Clicked() {
 						store.Create(v.Owner, session)
 					}
-					ui.Button(c, terminalLabel("选择终端", "Choose terminal")).Disabled(!v.ClientReady || session == "").Menu(func(menu *ui.Menu) { HostResourceMenu(menu, h, store, session) })
+					coss.Button(c, terminalLabel("选择终端", "Choose terminal"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: !v.ClientReady || session == ""}).Menu(func(menu *ui.Menu) { HostResourceMenu(menu, h, store, session) })
 				})
 				ui.Text(c, terminalLabel("终端在当前 Host 和会话中保留；隐藏面板不会关闭进程。", "Terminals stay with this Host and session. Hiding the pane leaves the process running.")).FontSize(12).TextColor(muted)
 			})

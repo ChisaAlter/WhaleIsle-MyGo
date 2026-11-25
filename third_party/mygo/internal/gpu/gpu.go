@@ -79,14 +79,16 @@ type Instance struct {
 	// Color, Color2, Border and Grad, and in UV where its backdrop's area
 	// starts in the frame and its size in texels.
 	Grad, UV [4]float32
-	// Clip and ClipRadii are the innermost clip, which the shader cuts.
+	// Clip and ClipRadii are the innermost clip, which the shader cuts;
+	// ClipFade holds optional horizontal edge fade (left, right, fadeL, fadeR).
 	Clip, ClipRadii [4]float32
 	// Params is the kind (0 fill, 1 shadow, 2 mask glyph, 3 color glyph, 4
 	// image, 5 subpixel glyph, 6 effect); 1 for a dashed border or a
 	// grayscale image; the shadow's sigma (0 for none), the paint
 	// (scene.Paint) or the size of the squares an effect's backdrop
 	// averages; and the opacity.
-	Params [4]float32
+	Params   [4]float32
+	ClipFade [4]float32
 }
 
 // InstanceSize is the size of an Instance in bytes.
@@ -169,6 +171,7 @@ func (b *Builder) BackdropSize() (w, h int) {
 type clip struct {
 	rect    scene.Rect
 	radii   [4]float32
+	fade    [4]float32
 	bounds  scene.Rect
 	scissor Scissor
 }
@@ -189,9 +192,13 @@ func (b *Builder) Build(s *scene.Scene, image func(*scene.Image) uintptr) {
 		case scene.OpPushClip:
 			top := b.stack[len(b.stack)-1]
 			bounds := top.bounds.Intersect(op.Rect)
+			fade := top.fade
+			if op.Fade[0] > 0 || op.Fade[1] > 0 {
+				fade = [4]float32{op.Rect.X, op.Rect.X + op.Rect.W, op.Fade[0], op.Fade[1]}
+			}
 			// The innermost clip shapes its edges in the shader, the
 			// others cut with the scissor rectangle.
-			c := clip{rect: op.Rect, radii: scene.Corners(op.Rect, op.Radii, op.Continuous), bounds: bounds}
+			c := clip{rect: op.Rect, radii: scene.Corners(op.Rect, op.Radii, op.Continuous), fade: fade, bounds: bounds}
 			if bounds.W > 0 && bounds.H > 0 {
 				c.scissor = Scissor{int32(math.Floor(float64(bounds.X))), int32(math.Floor(float64(bounds.Y))),
 					int32(math.Ceil(float64(bounds.X + bounds.W))), int32(math.Ceil(float64(bounds.Y + bounds.H)))}
@@ -318,6 +325,7 @@ func (b *Builder) add(in Instance, image uintptr) {
 	}
 	in.Clip = rect(cur.rect)
 	in.ClipRadii = cur.radii
+	in.ClipFade = cur.fade
 	n := len(b.Batches)
 	if n == 0 || b.Batches[n-1].Scissor != cur.scissor || b.Batches[n-1].Effect != nil ||
 		(image != 0 && b.Batches[n-1].Image != 0 && b.Batches[n-1].Image != image) {
@@ -342,7 +350,7 @@ func (b *Builder) addEffect(s *scene.Scene, op *scene.Op) {
 	in := Instance{
 		Rect: rect(op.Rect), Radii: scene.Corners(op.Rect, op.Radii, op.Continuous),
 		Inner: p[0], Color: p[1], Color2: p[2], Border: p[3], Grad: p[4],
-		Clip: rect(cur.rect), ClipRadii: cur.radii,
+		Clip: rect(cur.rect), ClipRadii: cur.radii, ClipFade: cur.fade,
 		Params: [4]float32{6, 0, 1, opacity(op.Opacity)},
 	}
 	batch := Batch{Start: len(b.Instances), Count: 1, Scissor: cur.scissor, Effect: fx.Effect}

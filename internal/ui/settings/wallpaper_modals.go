@@ -4,15 +4,21 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"whaleisle/internal/desktop/media"
 
+	"whaleisle/internal/desktop/media"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
+
+type wallpaperMediaHolder struct {
+	owner *media.Owner
+}
 
 // Feature dialogs share the installed modal surface, but keep their own draft
 // and dismissal owner. The scroll area never includes the action footer.
@@ -21,15 +27,21 @@ func appearanceModal(c *ui.Context, open *bool, title string, width float32, bus
 		vw, vh := c.Size()
 		chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), min(width, max(float32(0), vw-48)), 0).MaxHeight(min(float32(800), vh*.85)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).MinHeight(0).Children(func() {
-				ui.Row(c).FillWidth().Padding(18, 24).Gap(12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(16)).FontWeight(500)
-					if ui.Button(c, "×").Label(providerCopy("关闭", "Close")+title).Size(28, 28).Padding(0).Radius(14).BorderWidth(0).Background(ui.Transparent).Disabled(busy).Clicked() {
+				ui.Row(c).FillWidth().Padding(design.Sp(4.5), design.Sp(6)).Gap(design.Sp(3)).AlignItems(ui.Center).Children(func() {
+					kText(c, title, design.TextBase, design.WeightMedium, tk(c).Foreground).Grow(1).MinWidth(0)
+					if coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonIconSM,
+						Icon:     coss.IconX,
+						Label:    providerCopy("关闭", "Close") + title,
+						Disabled: busy,
+					}).Clicked() {
 						dismiss()
 					}
 				})
-				ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(80), vh*.85-140)).Padding(0, 24, 24, 24).Gap(16).Children(body)
+				ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(80), vh*.85-140)).Padding(0, design.Sp(6), design.Sp(6), design.Sp(6)).Gap(design.Sp(4)).Children(body)
 				if footer != nil {
-					ui.Row(c).FillWidth().Shrink(0).Padding(16, 24).Gap(8).Justify(ui.End).AlignItems(ui.Center).BorderWidth(.5, 0, 0, 0).BorderColor(c.Theme().Border).Children(footer)
+					ui.Row(c).FillWidth().Shrink(0).Padding(design.Sp(4), design.Sp(6)).Gap(design.Sp(2)).Justify(ui.End).AlignItems(ui.Center).BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(tk(c).Border).Children(footer)
 				}
 			})
 		})
@@ -68,11 +80,11 @@ func wallpaperImagePreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 		})
 	}
 	row := bodyPreferenceRow(c, "appearance-wallpaper", providerCopy("背景图", "Wallpaper"), minimalOverrideHint(providerCopy("选一张图铺在整个界面后面。图要透过界面才能看见：玻璃透明度越高，图越被盖住。设好之后可以拉毛玻璃和像素化。", "Choose an image to sit behind the whole UI. It shows through the chrome: higher glass opacity hides more of it. Frost and pixelate sliders appear after it is set.")), fg, muted, func() {
-		ui.Row(c).Wrap().Gap(8).Children(func() {
-			if g.OnBrowse != nil && ui.Button(c, providerCopy("选择图片", "Choose image")).Disabled(g.Busy || g.Apply == nil).Clicked() {
+		ui.Row(c).Wrap().Gap(design.Sp(2)).Children(func() {
+			if g.OnBrowse != nil && kButtonDisabled(c, providerCopy("选择图片", "Choose image"), g.Busy || g.Apply == nil).Clicked() {
 				g.OnBrowse()
 			}
-			if ui.Button(c, providerCopy("壁纸图库", "Wallpaper library")).Disabled(g.Run == nil || g.Apply == nil).Clicked() {
+			if kButtonDisabled(c, providerCopy("壁纸图库", "Wallpaper library"), g.Run == nil || g.Apply == nil).Clicked() {
 				g.galleryOpen = true
 				g.sourcesOpen = false
 				g.filterKey = ""
@@ -85,9 +97,17 @@ func wallpaperImagePreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 	}
 	path := g.explicitWallpaper()
 	if path != "" {
-		preview := ui.Column(c.Key("current-wallpaper-preview")).FillWidth().MinWidth(0).Gap(8)
+		preview := ui.Column(c.Key("current-wallpaper-preview")).FillWidth().MinWidth(0).Gap(design.Sp(2))
 		// The preview shares the process media service: reading and decoding
 		// run on its workers, at the preview's own size.
+		holder := ui.Local(preview, "wallpaper-preview-owner", func() wallpaperMediaHolder {
+			return wallpaperMediaHolder{owner: media.Default().NewOwner(nil, c.Invalidate)}
+		})
+		if holder.owner == nil {
+			holder.owner = media.Default().NewOwner(nil, c.Invalidate)
+		} else {
+			holder.owner.SetNotify(c.Invalidate)
+		}
 		var key media.Key
 		var src media.Source
 		if strings.HasPrefix(path, "data:image/") {
@@ -98,24 +118,27 @@ func wallpaperImagePreference(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 		src.MaxBytes = wallpapers.MaxImportBytes
 		key = key.Sized(1440, 360)
 		key.Cover = true
-		previewBitmap := media.Default().Request(nil, key, src).Bitmap()
+		handle := media.Default().Request(holder.owner, key, src)
+		previewBitmap := handle.Bitmap()
 		preview.Children(func() {
 			if g.currentPreferences().Glass >= 90 {
-				ui.Text(c, providerCopy("玻璃透明度偏高时背景图会被盖住。把玻璃透明度调低，图会更清楚。", "High glass opacity covers the wallpaper. Lower Glass opacity to let more of the image show through.")).FillWidth().FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(muted)
+				kHint(c, providerCopy("玻璃透明度偏高时背景图会被盖住。把玻璃透明度调低，图会更清楚。", "High glass opacity covers the wallpaper. Lower Glass opacity to let more of the image show through."))
 			}
 			if previewBitmap != nil {
-				ui.Image(c, previewBitmap).FillWidth().Height(180).Fit(ui.Cover).Radius(12).Clip()
+				ui.Image(c, previewBitmap).FillWidth().Height(180).Fit(ui.Cover).Radius(design.RadiusXL).Clip()
+			} else if handle.State() == media.Pending {
+				coss.Skeleton(c).FillWidth().Height(180).Radius(design.RadiusXL)
 			}
 			wallpaperImmediateSlider(c, g, "wallpaper-blur", providerCopy("毛玻璃程度", "Frosted glass"), g.currentPreferences().Blur, 0, 100, 1, false, func(p *wallpapers.Preferences, v float64) { p.Blur = v }, fg, muted)
 			wallpaperImmediateSlider(c, g, "wallpaper-pixelate", providerCopy("像素化程度", "Pixelation"), g.currentPreferences().Pixelate, 0, 100, 1, false, func(p *wallpapers.Preferences, v float64) { p.Pixelate = v }, fg, muted)
-			ui.Row(c).Wrap().Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("重新裁剪", "Recrop")).Disabled(g.Busy || g.Apply == nil).Clicked() {
+			ui.Row(c).Wrap().Gap(design.Sp(2)).Children(func() {
+				if kButtonDisabled(c, providerCopy("重新裁剪", "Recrop"), g.Busy || g.Apply == nil).Clicked() {
 					g.openCrop()
 				}
-				if ui.Button(c, providerCopy("清除壁纸", "Clear wallpaper")).Disabled(g.Busy || g.Apply == nil).Clicked() {
+				if kDanger(c, providerCopy("清除壁纸", "Clear wallpaper"), g.Busy || g.Apply == nil).Clicked() {
 					g.ClearImage()
 				}
-				if ui.Button(c, providerCopy("恢复默认", "Reset")).Disabled(g.Save == nil).Clicked() {
+				if kGhost(c, providerCopy("恢复默认", "Reset"), g.Save == nil).Clicked() {
 					wallpaperChange(c, g, func(p *wallpapers.Preferences) { p.Blur = 0; p.Pixelate = 0 })
 				}
 			})
@@ -146,21 +169,21 @@ func wallpaperModals(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			}
 		}, func() {
 			if g.sourcesOpen {
-				if ui.Button(c, providerCopy("返回图库", "Back to library")).Clicked() {
+				if kButton(c, providerCopy("返回图库", "Back to library")).Clicked() {
 					g.sourcesOpen = false
 					g.filterKey = ""
 				}
-				if ui.PrimaryButton(c, providerCopy("添加来源", "Add source")).Disabled(g.Save == nil).Clicked() {
+				if kPrimary(c, providerCopy("添加来源", "Add source"), g.Save == nil).Clicked() {
 					g.sourceDraft = wallpapers.Source{Kind: "catalog"}
 					g.sourceEditingID = ""
 					g.sourceError = ""
 					g.sourceEditOpen = true
 				}
 			} else {
-				if ui.Button(c, providerCopy("管理来源", "Manage sources")).Clicked() {
+				if kButton(c, providerCopy("管理来源", "Manage sources")).Clicked() {
 					g.sourcesOpen = true
 				}
-				if ui.Button(c, providerCopy("完成", "Done")).Clicked() {
+				if kPrimary(c, providerCopy("完成", "Done"), false).Clicked() {
 					dismiss()
 				}
 			}
@@ -176,22 +199,22 @@ func wallpaperModals(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 		}
 		appearanceModal(c, &open, providerCopy("使用这张壁纸？", "Use this wallpaper?"), 600, g.Busy, dismiss, func() {
 			if bmp := g.Thumbs[item.ThumbURL]; bmp != nil {
-				ui.Image(c, bmp).FillWidth().Height(280).Fit(ui.Contain).Radius(12)
+				ui.Image(c, bmp).FillWidth().Height(280).Fit(ui.Contain).Radius(design.RadiusXL)
 			}
-			ui.Text(c, item.Title).FillWidth().FontSize(theme.InterfaceSize(14)).TextColor(fg)
-			ui.Text(c, item.Copyright).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			kBody(c, item.Title)
+			kHint(c, item.Copyright)
 			if g.Status != "" {
-				ui.Text(c, g.Status).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+				kHint(c, g.Status)
 			}
 		}, func() {
-			if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(g.Busy).Clicked() {
+			if kButtonDisabled(c, providerCopy("取消", "Cancel"), g.Busy).Clicked() {
 				dismiss()
 			}
 			label := providerCopy("下载并裁剪", "Download and crop")
 			if g.Busy {
 				label = providerCopy("正在准备…", "Preparing…")
 			}
-			if ui.PrimaryButton(c, label).Disabled(g.Busy).Clicked() {
+			if kPrimary(c, label, g.Busy).Clicked() {
 				g.download(*item)
 			}
 		})
@@ -200,7 +223,7 @@ func wallpaperModals(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 }
 
 func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
-	ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+	ui.Row(c).FillWidth().Wrap().Gap(design.Sp(2)).Children(func() {
 		for _, source := range g.currentPreferences().Sources {
 			label := source.Name
 			if label == "" {
@@ -214,15 +237,21 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 			g.Source = "收藏"
 		}
 	})
-	ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-		ui.TextInput(c, &g.Search).FillWidth().Placeholder(providerCopy("搜索壁纸", "Search wallpapers")).Label(providerCopy("搜索壁纸", "Search wallpapers"))
-		if ui.Button(c, providerCopy("刷新", "Refresh")).Disabled(g.Busy).Clicked() {
+	ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+		searchIn := kInputRow(c, &g.Search, coss.InputOptions{
+			Placeholder: providerCopy("搜索壁纸", "Search wallpapers"),
+			Label:       providerCopy("搜索壁纸", "Search wallpapers"),
+		})
+		if searchIn.Submitted() && !g.Busy {
+			g.load(1)
+		}
+		if kButtonDisabled(c, providerCopy("刷新", "Refresh"), g.Busy).Clicked() {
 			g.load(1)
 		}
 	})
 	switch g.sourceKind() {
 	case "bing":
-		ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
+		ui.Row(c).FillWidth().Wrap().Gap(design.Sp(1.5)).Children(func() {
 			if settingsPreferenceButton(c, providerCopy("今日", "Today")).Selected(g.Year == "最近").Clicked() {
 				g.Year = "最近"
 			}
@@ -234,7 +263,7 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 			}
 		})
 	case "wallhaven":
-		ui.Row(c).Wrap().Gap(6).Children(func() {
+		ui.Row(c).Wrap().Gap(design.Sp(1.5)).Children(func() {
 			for _, choice := range [][2]string{{"100", providerCopy("风景", "General")}, {"010", providerCopy("动漫", "Anime")}, {"001", providerCopy("人物", "People")}} {
 				if settingsPreferenceButton(c, choice[1]).Selected(g.Category == choice[0]).Clicked() {
 					g.Category = choice[0]
@@ -248,12 +277,12 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 		g.load(1)
 	}
 	if g.Status != "" {
-		ui.Text(c, g.Status).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		kHint(c, g.Status)
 	}
 	if g.Busy {
-		ui.Spinner(c).Size(24, 24)
+		coss.Spinner(c, coss.SpinnerOptions{})
 	}
-	grid := ui.Grid(c.Key("wallpaper-image-grid")).FillWidth().MinWidth(0).Gap(12)
+	grid := ui.Grid(c.Key("wallpaper-image-grid")).FillWidth().MinWidth(0).Gap(design.Sp(3))
 	width := grid.Bounds().W
 	grid.Draw(func(_ *ui.Painter, r ui.Rect) {
 		if width != r.W {
@@ -263,14 +292,14 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 	grid.Columns(max(1, int((width+12)/188))).Children(func() {
 		for _, item := range g.visible() {
 			item := item
-			card := chrome.FrostSurface(ui.Column(c.Key(item.SourceID+"/"+item.ID)).MinWidth(0).Clip(), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border)
+			card := kSurface(c, ui.Column(c.Key(item.SourceID+"/"+item.ID)).MinWidth(0).Clip())
 			card.Children(func() {
-				image := ui.ButtonBase(c).Label(item.Title).FillWidth().Height(118).Padding(0).BorderWidth(0).Clip().Disabled(g.Busy)
+				image := ui.ButtonBase(c).Label(item.Title).FillWidth().Height(118).Padding(0).BorderWidth(0).Clip().Cursor(ui.CursorPointer).Disabled(g.Busy)
 				image.Children(func() {
 					if bmp := g.Thumbs[item.ThumbURL]; bmp != nil {
 						ui.Image(c, bmp).Fill().Fit(ui.Cover)
 					} else {
-						ui.Box(c).Fill().Background(c.Theme().SurfaceHover).Center().Children(func() { ui.Icon(c, bodyIcon("image")).Size(24, 24).TextColor(muted) })
+						ui.Box(c).Fill().Background(tk(c).Muted).Center().Children(func() { ui.Icon(c, bodyIcon("image")).Size(24, 24).TextColor(muted) })
 					}
 				})
 				if image.Clicked() {
@@ -278,13 +307,18 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 					g.downloadItem = &copy
 					g.Status = ""
 				}
-				ui.Row(c).FillWidth().MinWidth(0).Padding(8).Gap(4).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Padding(design.Sp(2)).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, item.Title).Grow(1).MinWidth(0).SingleLine().Tooltip(item.Title + "\n" + item.Copyright).FontSize(theme.InterfaceSize(12))
 					star := "☆"
 					if g.Favorite(item) {
 						star = "★"
 					}
-					if ui.Button(c, star).Label(providerCopy("收藏", "Favorite")+" "+item.Title).Size(28, 28).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(g.Save == nil || g.Pending != nil && g.Pending()).Clicked() {
+					if coss.Button(c, star, coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonSM,
+						Label:    providerCopy("收藏", "Favorite") + " " + item.Title,
+						Disabled: g.Save == nil || g.Pending != nil && g.Pending(),
+					}).Size(28, 28).Padding(0).Clicked() {
 						g.toggleFavorite(item)
 						if g.Source == "收藏" {
 							g.load(1)
@@ -295,15 +329,15 @@ func wallpaperGalleryBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 		}
 	})
 	if len(g.Items) == 0 && !g.Busy && g.Status == "" {
-		ui.Text(c, providerCopy("没有找到壁纸", "No wallpapers found")).FillWidth().Padding(24).TextColor(muted)
+		kHint(c, providerCopy("没有找到壁纸", "No wallpapers found")).Padding(design.Sp(6))
 	}
 	if (g.LocalPage+1)*12 < len(g.Items) {
-		if ui.Button(c, providerCopy("加载更多", "Load more")).AlignSelf(ui.Center).Disabled(g.Busy).Clicked() {
+		if kButtonDisabled(c, providerCopy("加载更多", "Load more"), g.Busy).AlignSelf(ui.Center).Clicked() {
 			g.LocalPage++
 			g.loadThumbs()
 		}
 	} else if g.NextPage > 0 {
-		if ui.Button(c, providerCopy("加载更多", "Load more")).AlignSelf(ui.Center).Disabled(g.Busy).Clicked() {
+		if kButtonDisabled(c, providerCopy("加载更多", "Load more"), g.Busy).AlignSelf(ui.Center).Clicked() {
 			g.load(g.NextPage)
 		}
 	}
@@ -313,14 +347,14 @@ func wallpaperSourcesBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 	for _, source := range g.currentPreferences().Sources {
 		source := source
 		bodyPreferenceRow(c, "wallpaper-source-"+source.ID, source.Name, source.URL, fg, muted, func() {
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("编辑", "Edit")).Disabled(g.Save == nil).Clicked() {
+			ui.Row(c).Gap(design.Sp(2)).Children(func() {
+				if kButtonDisabled(c, providerCopy("编辑", "Edit"), g.Save == nil).Clicked() {
 					g.sourceDraft = source
 					g.sourceEditingID = source.ID
 					g.sourceError = ""
 					g.sourceEditOpen = true
 				}
-				if ui.Button(c, providerCopy("移除", "Remove")).Disabled(g.Save == nil).Clicked() {
+				if kDanger(c, providerCopy("移除", "Remove"), g.Save == nil).Clicked() {
 					out := []wallpapers.Source{}
 					for _, value := range g.currentPreferences().Sources {
 						if value.ID != source.ID {
@@ -335,7 +369,7 @@ func wallpaperSourcesBody(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color)
 			})
 		})
 	}
-	if ui.Button(c, providerCopy("恢复内置来源", "Restore built-in sources")).Disabled(g.Save == nil).Clicked() {
+	if kButtonDisabled(c, providerCopy("恢复内置来源", "Restore built-in sources"), g.Save == nil).AlignSelf(ui.Start).Clicked() {
 		sources := append([]wallpapers.Source(nil), g.currentPreferences().Sources...)
 		for _, builtin := range wallpapers.Sources() {
 			found := false
@@ -364,43 +398,41 @@ func wallpaperSourceEditModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Co
 	}
 	appearanceModal(c, &g.sourceEditOpen, title, 480, busy, dismiss, func() {
 		bodyHeading(c, providerCopy("来源类型", "Source type"), "", fg, muted)
-		selectKind := ui.SelectBase(c, &g.sourceDraft.Kind)
-		label := g.sourceDraft.Kind
-		switch label {
-		case "catalog":
-			label = providerCopy("自定义 JSON 目录", "Custom JSON catalog")
-		case "bing":
-			label = "Bing"
-		case "wallhaven":
-			label = "Wallhaven"
-		}
-		selectKind.Trigger.FillWidth().Padding(10, 12).Disabled(busy || g.sourceEditingID != "").Children(func() { ui.Text(c, label) })
-		selectKind.Popup(func(panel ui.Element) {
-			panel.Padding(4)
-			for _, choice := range [][2]string{{"bing", "Bing"}, {"wallhaven", "Wallhaven"}, {"catalog", providerCopy("自定义 JSON 目录", "Custom JSON catalog")}} {
-				occupied := false
-				for _, source := range g.currentPreferences().Sources {
-					if source.Kind == choice[0] && choice[0] != "catalog" {
-						occupied = true
-					}
+		kindOptions := make([]coss.SelectOption, 0, 3)
+		for _, choice := range [][2]string{{"bing", "Bing"}, {"wallhaven", "Wallhaven"}, {"catalog", providerCopy("自定义 JSON 目录", "Custom JSON catalog")}} {
+			occupied := false
+			for _, source := range g.currentPreferences().Sources {
+				if source.Kind == choice[0] && choice[0] != "catalog" {
+					occupied = true
 				}
-				selectKind.Item(choice[0]).FillWidth().Padding(10, 12).Disabled(occupied).Children(func() { ui.Text(c, choice[1]) })
 			}
-		})
+			kindOptions = append(kindOptions, coss.SelectOption{Value: choice[0], Label: choice[1], Disabled: occupied})
+		}
+		coss.Select(c, &g.sourceDraft.Kind, kindOptions, coss.SelectOptions{
+			Label:    providerCopy("来源类型", "Source type"),
+			Disabled: busy || g.sourceEditingID != "",
+		}).FillWidth()
 		bodyHeading(c, providerCopy("来源名称", "Source name"), "", fg, muted)
-		ui.TextInput(c, &g.sourceDraft.Name).FillWidth().Label(providerCopy("来源名称", "Source name")).Disabled(busy)
+		kInput(c, &g.sourceDraft.Name, coss.InputOptions{
+			Label:    providerCopy("来源名称", "Source name"),
+			Disabled: busy,
+		})
 		if g.sourceDraft.Kind == "catalog" {
 			bodyHeading(c, providerCopy("目录地址", "Catalog URL"), providerCopy("HTTPS JSON；支持 items 或 Bing images 格式。", "HTTPS JSON; supports items or Bing images format."), fg, muted)
-			ui.TextInput(c, &g.sourceDraft.URL).FillWidth().Label("Catalog URL").Placeholder("https://…/catalog.json").Disabled(busy)
+			kInput(c, &g.sourceDraft.URL, coss.InputOptions{
+				Label:       "Catalog URL",
+				Placeholder: "https://…/catalog.json",
+				Disabled:    busy,
+			})
 		}
 		if g.sourceError != "" {
-			ui.Text(c, g.sourceError).FillWidth().TextColor(c.Theme().Danger)
+			kError(c, g.sourceError)
 		}
 	}, func() {
-		if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(busy).Clicked() {
+		if kButtonDisabled(c, providerCopy("取消", "Cancel"), busy).Clicked() {
 			dismiss()
 		}
-		if ui.PrimaryButton(c, providerCopy("保存", "Save")).Disabled(g.Save == nil || busy).Clicked() {
+		if kPrimary(c, providerCopy("保存", "Save"), g.Save == nil || busy).Clicked() {
 			source := g.sourceDraft
 			source.Name = strings.TrimSpace(source.Name)
 			source.URL = strings.TrimSpace(source.URL)
@@ -474,9 +506,9 @@ func wallpaperCropModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 	busy := g.cropBusy || g.Pending != nil && g.Pending()
 	dismiss := func() { g.retire(); g.cancelCrop() }
 	appearanceModal(c, &g.cropOpen, providerCopy("裁剪壁纸", "Crop wallpaper"), 720, busy, dismiss, func() {
-		ui.Text(c, providerCopy("拖动图片调整位置，滚轮缩放。裁剪比例跟随当前窗口。", "Drag to position, scroll to zoom. The crop follows the current window's aspect ratio.")).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+		kHint(c, providerCopy("拖动图片调整位置，滚轮缩放。裁剪比例跟随当前窗口。", "Drag to position, scroll to zoom. The crop follows the current window's aspect ratio."))
 		if g.preview != nil {
-			ui.Image(c, g.preview).Label(providerCopy("壁纸裁剪预览", "Wallpaper crop preview")).FillWidth().Height(min(float32(340), max(float32(140), (min(float32(720), vw-48)-48)/float32(g.cropDraft.Aspect)))).Fit(ui.Cover).Radius(12).Clip().HandleInput(func(e ui.InputEvent) bool {
+			ui.Image(c, g.preview).Label(providerCopy("壁纸裁剪预览", "Wallpaper crop preview")).FillWidth().Height(min(float32(340), max(float32(140), (min(float32(720), vw-48)-48)/float32(g.cropDraft.Aspect)))).Fit(ui.Cover).Radius(design.RadiusXL).Clip().HandleInput(func(e ui.InputEvent) bool {
 				if busy {
 					return false
 				}
@@ -509,17 +541,17 @@ func wallpaperCropModal(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			g.updatePreview()
 		}
 		if g.Status != "" {
-			ui.Text(c, g.Status).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(muted)
+			kHint(c, g.Status)
 		}
 	}, func() {
-		if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(busy).Clicked() {
+		if kButtonDisabled(c, providerCopy("取消", "Cancel"), busy).Clicked() {
 			dismiss()
 		}
 		label := providerCopy("应用", "Apply")
 		if busy {
 			label = providerCopy("正在应用…", "Applying…")
 		}
-		if ui.PrimaryButton(c, label).Disabled(busy || g.previewSource == nil || g.Apply == nil).Clicked() {
+		if kPrimary(c, label, busy || g.previewSource == nil || g.Apply == nil).Clicked() {
 			g.applyCrop()
 		}
 	})

@@ -69,6 +69,7 @@ type queryManager struct {
 	cache     map[string]*cacheEntry
 	mutations map[string]*mutationEntry
 	resolving map[string]bool
+	version   uint64
 }
 
 func newQueryManager(in *Instance) *queryManager {
@@ -94,7 +95,7 @@ func sortedData(v Value) Value {
 		sortStrings(keys)
 		o := NewObject(len(keys))
 		for _, k := range keys {
-			o.Set(k, sortedData(t.vals[k]))
+			o.Set(k, sortedData(t.Value(k)))
 		}
 		return o
 	case []Value:
@@ -114,6 +115,10 @@ func (q *queryManager) sync() {
 	if res == nil {
 		return
 	}
+	if len(res.Queries) == 0 && len(res.Mutations) == 0 && len(q.queries) == 0 && len(q.mutations) == 0 {
+		return
+	}
+	q.version++
 	env := q.in.newEnv(q.in.actRand)
 	active := map[string]bool{}
 	q.order = q.order[:0]
@@ -271,6 +276,7 @@ func (in *Instance) PendingFetches() []FetchRequest {
 // result for arguments that are no longer current is cached but not shown.
 func (in *Instance) ResolveFetch(req FetchRequest, data Value, err error) {
 	q := in.queries
+	q.version++
 	c := q.cache[req.Key]
 	if c == nil {
 		c = &cacheEntry{}
@@ -315,6 +321,7 @@ func (in *Instance) Refetch(ids ...string) {
 	if !q.enabled() {
 		return
 	}
+	q.version++
 	targets := ids
 	if len(targets) == 0 {
 		targets = q.order

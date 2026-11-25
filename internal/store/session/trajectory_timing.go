@@ -156,6 +156,7 @@ func (s *Store) captureTrajectoryBoundaryWithSeqLocked(raw json.RawMessage, seqH
 		return false
 	}
 	s.trajectoryBoundaries[seq] = append(json.RawMessage(nil), raw...)
+	s.markBoundaryDirtyLocked()
 	return true
 }
 

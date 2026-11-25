@@ -275,9 +275,10 @@ func effectiveActiveSection(c *ui.Context, m Model, snap settings.ViewState) Sec
 
 // nsList is the settings rail as coss's Sidebar: the sidebar surface and
 // border, a title, the search field, then labelled groups of menu buttons
-// (32 DIPs, 8 DIP padding, rounded-lg; the active one on sidebar-accent in
-// medium weight). The groups are a memo region keyed by everything they
-// show, so a frame that changes nothing in the rail does not rebuild it.
+// (32 DIPs, rounded-lg). The scroll container spans the rail's full inner width
+// and reserves a right gutter so the overlay scrollbar never overlaps a button's
+// pill edge. The groups are a memo region keyed by everything they show, so a
+// frame that changes nothing in the rail does not rebuild it.
 func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color, query *string) {
 	t := tk(c)
 	active := effectiveActiveSection(c, m, snap)
@@ -292,13 +293,16 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 			key.s(string(entry.id), navigationLabel(m, entry.id), entry.icon)
 		}
 	}
-	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), design.Sp(2), 0, design.Sp(2)).Gap(design.Sp(3)).
+	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), 0, 0, 0).Gap(design.Sp(3)).
 		Background(t.Sidebar).BorderWidth(0, design.BorderWidth, 0, 0).BorderColor(t.SidebarBorder).
 		Label(providerCopy("设置导航", "Settings navigation"))
 	rail.Children(func() {
-		kText(c, i18n.T(i18n.KeySettingsTitle), design.TextBase, design.WeightSemibold, t.SidebarAccentForeground).PaddingX(design.Sp(2)).Role(ui.RoleHeading)
+		kText(c, i18n.T(i18n.KeySettingsTitle), design.TextBase, design.WeightSemibold, t.SidebarAccentForeground).PaddingX(design.Sp(4)).Role(ui.RoleHeading)
 		settingsRailSearch(c, m, snap, query, fg, muted, border)
-		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Memo(key.sum()).Children(func() {
+		// Reserve a dedicated right gutter (16 DIPs) inside the full-width
+		// scroll container so the vertical overlay scrollbar thumb and drag
+		// track stay strictly right of every navigation pill.
+		ui.Scroll(c.Key("settings-rail-scroll")).FillWidth().Grow(1).MinHeight(0).Padding(0, design.Sp(4), 0, design.Sp(2)).Memo(key.sum()).Children(func() {
 			for _, group := range groups {
 				ui.Column(c.Key("settings-group-"+group.label)).FillWidth().MinWidth(0).Gap(design.Sp(1)).Padding(0, 0, design.Sp(2), 0).Children(func() {
 					ui.Row(c).FillWidth().Height(design.Sp(8)).Shrink(0).PaddingX(design.Sp(2)).AlignItems(ui.Center).Children(func() {
@@ -314,29 +318,51 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 	})
 }
 
-// railButton is one SidebarMenuButton.
+// railButton is one SidebarMenuButton. Selected paints coss's sidebar-accent
+// pill with a hairline sidebar-border, a leading sidebar-primary indicator and
+// semibold ink; hover uses a noticeably lighter wash without border or
+// indicator so a hovered neighbor never reads as a second active section.
 func railButton(c *ui.Context, m Model, entry navigationEntry, selected bool, query *string) {
 	t := tk(c)
 	label := navigationLabel(m, entry.id)
+	borderColor := ui.Transparent
+	if selected {
+		borderColor = t.SidebarBorder
+	}
 	button := ui.ButtonBase(c.Key(string(entry.id))).Label(label).FillWidth().Height(design.Sp(8)).Shrink(0).
-		Radius(design.RadiusLG).Padding(design.Sp(2)).Gap(design.Sp(2)).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
+		Radius(design.RadiusLG).Border(design.BorderWidth, borderColor).Padding(0, design.Sp(2), 0, design.Sp(2.5)).Gap(design.Sp(2)).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
 	if selected {
 		button.Selected(true)
 	}
-	ink, weight := t.SidebarForeground, design.WeightNormal
-	if selected || button.Hovered() || button.Pressed() {
+	hovered, pressed := button.Hovered(), button.Pressed()
+	iconInk, textInk, weight := t.SidebarForeground, t.SidebarForeground, design.WeightNormal
+	switch {
+	case selected:
 		button.Background(t.SidebarAccent)
-		ink = t.SidebarAccentForeground
-	}
-	if selected {
-		weight = design.WeightMedium
+		iconInk = t.SidebarPrimary
+		textInk = t.SidebarAccentForeground
+		weight = design.WeightSemibold
+		indicator := t.SidebarPrimary
+		button.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			barH := min(design.Sp(4), max(0, r.H-design.Sp(3)))
+			barW := design.Sp(0.75)
+			p.Fill(ui.Rect{X: r.X + design.Sp(0.5), Y: r.Y + (r.H-barH)/2, W: barW, H: barH}, indicator, barW/2)
+		})
+	case pressed:
+		button.Background(t.SidebarAccent.Alpha(0.75))
+		iconInk = t.SidebarAccentForeground
+		textInk = t.SidebarAccentForeground
+	case hovered:
+		button.Background(t.SidebarAccent.Alpha(0.45))
+		mid := t.SidebarForeground.Mix(t.SidebarAccentForeground, 0.35)
+		iconInk, textInk = mid, mid
 	}
 	if button.FocusVisible() {
 		button.Shadow(0, 0, 0, design.RingWidth, t.SidebarRing)
 	}
 	button.Children(func() {
-		ui.Icon(c, settingsIcons[entry.icon]).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(ink).PassThrough()
-		kText(c, label, design.TextSM, weight, ink).Grow(1).MinWidth(0).SingleLine()
+		ui.Icon(c, settingsIcons[entry.icon]).Size(design.IconSM, design.IconSM).Shrink(0).TextColor(iconInk).PassThrough()
+		kText(c, label, design.TextSM, weight, textInk).Grow(1).MinWidth(0).SingleLine()
 	})
 	if button.Clicked() {
 		*query = ""
@@ -362,7 +388,7 @@ func settingsRailSearch(c *ui.Context, m Model, snap settings.ViewState, query *
 			}
 		}
 	}
-	ui.Box(c.Key("settings-search")).FillWidth().Shrink(0).Label(label).Children(func() {
+	ui.Box(c.Key("settings-search")).FillWidth().Shrink(0).PaddingX(design.Sp(2)).Label(label).Children(func() {
 		input := coss.InputGroup(c, query, coss.InputGroupOptions{
 			InputOptions: coss.InputOptions{Size: coss.InputSM, Placeholder: label, Label: label},
 			Start:        func() { coss.AddonIcon(c, coss.IconSearch) },

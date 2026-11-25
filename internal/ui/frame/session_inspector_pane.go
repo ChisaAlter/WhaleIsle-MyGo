@@ -33,6 +33,8 @@ type SessionInspectorPaneState struct {
 	Filter                                                  string `json:"filter,omitempty"`
 	binding, draft, selected                                string
 	collapsed                                               map[string]inspectorDisclosure
+	collapsedRev                                            uint64
+	renderCache                                             inspectorRenderCache
 	list                                                    ui.ListState
 	tableX, tableY                                          ui.ScrollState
 	scroll                                                  inspectorScrollState
@@ -203,11 +205,53 @@ func inspectorRowCollapsed(row session.InspectorRecord, choices map[string]inspe
 	return row.Disclosure == "closed"
 }
 
+func (p *SessionInspectorPaneState) resetCollapsed() {
+	p.collapsed = map[string]inspectorDisclosure{}
+	p.collapsedRev++
+	p.renderCache.tableValid = false
+}
+
 func (p *SessionInspectorPaneState) setInspectorCollapsed(row session.InspectorRecord, collapsed bool) {
 	if p.collapsed == nil {
 		p.collapsed = map[string]inspectorDisclosure{}
 	}
 	p.collapsed[row.Key] = inspectorDisclosure{state: row.Disclosure, collapsed: collapsed}
+	p.collapsedRev++
+	p.renderCache.tableValid = false
+}
+
+func (p *SessionInspectorPaneState) cachedSourceProjection(source session.InspectorSnapshot) ([]session.InspectorRecord, map[string]inspectorObject) {
+	key := makeInspectorSourceCacheKey(source, &p.navigation)
+	if p.renderCache.sourceValid && p.renderCache.sourceKey == key {
+		return p.renderCache.chatRows, p.renderCache.objects
+	}
+	chatRows := inspectorChatRows(source, &p.navigation)
+	source.Chat = chatRows
+	objects := inspectorNativeObjects(source, &p.navigation)
+	p.renderCache.sourceValid = true
+	p.renderCache.sourceKey = key
+	p.renderCache.chatRows = chatRows
+	p.renderCache.objects = objects
+	p.renderCache.tableValid = false
+	return chatRows, objects
+}
+
+func (p *SessionInspectorPaneState) cachedTableProjection(rows []session.InspectorRecord) (map[string]int, []session.InspectorRecord, map[string]bool, []session.InspectorRecord) {
+	key := makeInspectorTableCacheKey(rows, p.Filter, p.collapsedRev)
+	if p.renderCache.tableValid && p.renderCache.tableKey == key {
+		return p.renderCache.depths, p.renderCache.filtered, p.renderCache.branches, p.renderCache.shown
+	}
+	depths, _ := inspectorDepths(rows)
+	filtered := inspectorTypeRows(rows, p.Filter)
+	_, branches := inspectorDepths(filtered)
+	shown := inspectorDisclosedRows(filtered, p.collapsed)
+	p.renderCache.tableValid = true
+	p.renderCache.tableKey = key
+	p.renderCache.depths = depths
+	p.renderCache.filtered = filtered
+	p.renderCache.branches = branches
+	p.renderCache.shown = shown
+	return depths, filtered, branches, shown
 }
 
 func inspectorDisclosedRows(rows []session.InspectorRecord, folded map[string]inspectorDisclosure) []session.InspectorRecord {
@@ -259,8 +303,8 @@ func sessionInspectorPane(c *ui.Context, m Model) {
 
 func inspectorPresentation(c *ui.Context, p *SessionInspectorPaneState, source session.InspectorSnapshot, state session.ViewState, colors theme.Colors, loadOlder func()) {
 	t := tk(c)
-	source.Chat = inspectorChatRows(source, &p.navigation)
-	objects := inspectorNativeObjects(source, &p.navigation)
+	chatRows, objects := p.cachedSourceProjection(source)
+	source.Chat = chatRows
 	p.objects = objects
 	rows := source.Records
 	if p.Mode == "chat-node" {

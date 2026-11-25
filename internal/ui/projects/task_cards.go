@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chat"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -116,7 +117,7 @@ func observerRequests(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 		}
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, label).Grow(1).FontSize(theme.InterfaceSize(13)).FontWeight(600)
-			if ui.Button(c, tr("返回任务", "Back to tasks")).Clicked() {
+			if pGhost(c, tr("返回任务", "Back to tasks"), false).Clicked() {
 				o.HistoryKind = ""
 			}
 		})
@@ -138,16 +139,16 @@ func requirementPageControls(c *ui.Context, m Model, o *ObserverState, kind stri
 	}
 	ui.Row(c.Key("requirements-page/" + kind)).FillWidth().Gap(6).Justify(ui.End).Children(func() {
 		if o.CatalogErrors[kind] != "" {
-			if ui.Button(c, tr("重试读取", "Retry reading")).Disabled(m.Busy || o.OnLoadCatalog == nil).Clicked() {
+			if pButton(c, tr("重试读取", "Retry reading"), m.Busy || o.OnLoadCatalog == nil).Clicked() {
 				delete(o.CatalogErrors, kind)
 				o.OnLoadCatalog(kind, 0)
 			}
 		}
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || number <= 1 || o.OnLoadCatalog == nil).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || number <= 1 || o.OnLoadCatalog == nil).Clicked() {
 			o.OnLoadCatalog(kind, -1)
 		}
 		ui.Text(c, fmt.Sprintf("%d", number)).FontSize(theme.InterfaceSize(12))
-		if ui.Button(c, tr("下一页", "Next")).Disabled(m.Busy || page.NextCursor == nil || o.OnLoadCatalog == nil).Clicked() {
+		if pButton(c, tr("下一页", "Next"), m.Busy || page.NextCursor == nil || o.OnLoadCatalog == nil).Clicked() {
 			o.OnLoadCatalog(kind, 1)
 		}
 	})
@@ -183,7 +184,7 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 	if mode.Mode == "strip" {
 		box.Height(44).Padding(0, 4).Children(func() {
 			ui.Row(c).FillWidth().Height(44).MinWidth(0).AlignItems(ui.Center).Children(func() {
-				open := ui.Button(c, "").Label("Expand task: "+card.Title).Grow(1).MinWidth(0).Height(44).Padding(0, 8).BorderWidth(0).Background(ui.Transparent)
+				open := ui.ButtonBase(c).Label("Expand task: "+card.Title).Grow(1).MinWidth(0).Height(44).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer)
 				open.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 						taskStateDot(c, card.Status, chrome.Color(colors.Accent))
@@ -254,10 +255,7 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 		ui.Row(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 			for _, tab := range []struct{ id, label string }{{"overview", tr("概览", "Overview")}, {"plan", tr("计划", "Plan")}, {"work", tr("工作", "Work")}, {"results", tr("成果", "Results")}} {
 				active := mode.Tab == tab.id
-				button := ui.Button(c, tab.label).Role(ui.RoleTab).Selected(active).Height(28).Padding(0, 10).BorderWidth(0).Radius(6).Background(ui.Transparent).TextColor(chrome.Color(colors.FG)).FontSize(theme.InterfaceSize(12))
-				if active {
-					button.Background(chrome.Color(colors.Hover))
-				}
+				button := pTabButton(c, tab.label, active, false).Role(ui.RoleTab).Selected(active)
 				if button.Clicked() {
 					mode.Tab = tab.id
 					o.RequestModes[card.ID] = mode
@@ -266,7 +264,7 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 		})
 		if !loaded {
 			ui.Text(c, tr("正在加载详情…", "Loading details…")).FontSize(theme.InterfaceSize(13))
-			if m.Error != "" && ui.Button(c, tr("重试读取详情", "Retry task details")).Disabled(m.Busy || m.OnRequestGet == nil).Clicked() {
+			if m.Error != "" && pButton(c, tr("重试读取详情", "Retry task details"), m.Busy || m.OnRequestGet == nil).Clicked() {
 				delete(o.requested, preview.ID)
 				o.reading = ""
 			}
@@ -276,7 +274,13 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 			for _, action := range taskQueueActions(m, p, card, queue) {
 				if action.id == "enqueue" || action.id == "resume" || action.id == "cancel" && (card.Queue.State == "discussing" || card.Queue.State == "queued") {
-					if ui.Button(c, action.label).Height(28).Disabled(action.disabled).Clicked() && m.OnRequestQueue != nil {
+					var btn ui.Element
+					if action.id == "cancel" {
+						btn = pDanger(c, action.label, action.disabled)
+					} else {
+						btn = pPrimary(c, action.label, action.disabled)
+					}
+					if btn.Clicked() && m.OnRequestQueue != nil {
 						m.OnRequestQueue(card.ID, action.id)
 					}
 				}
@@ -547,7 +551,7 @@ func taskDeliveryFiles(c *ui.Context, m Model, card projectflow.RequestCard, lim
 			label = path.Base(strings.ReplaceAll(file.Path, "\\", "/"))
 		}
 		canOpen := actions.OpenAuthorizedFile != nil && m.OnOpenAuthorizedFile != nil || actions.OpenFile != nil && m.OnResolvedFile != nil
-		if ui.Button(c, tr("打开文件：", "Open file: ")+label).FillWidth().MinWidth(0).Height(32).Disabled(m.Busy || !m.Listing.Available || !actions.Known || !canOpen).Clicked() {
+		if pListButton(c, tr("打开文件：", "Open file: ")+label, m.Busy || !m.Listing.Available || !actions.Known || !canOpen).Height(32).Clicked() {
 			if actions.OpenAuthorizedFile != nil && m.OnOpenAuthorizedFile != nil {
 				actions.OpenAuthorizedFile(file, m.OnOpenAuthorizedFile)
 			} else if actions.OpenFile != nil {
@@ -560,7 +564,7 @@ func taskDeliveryFiles(c *ui.Context, m Model, card projectflow.RequestCard, lim
 func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab string) {
 	actions := requestCardActions(m, card)
 	current := taskCardCurrent(m, card)
-	if !current && m.OnRequestGet != nil && ui.Button(c, tr("刷新任务详情", "Refresh task details")).Disabled(m.Busy).Clicked() {
+	if !current && m.OnRequestGet != nil && pButton(c, tr("刷新任务详情", "Refresh task details"), m.Busy).Clicked() {
 		m.OnRequestGet(card.ID)
 	}
 	switch tab {
@@ -588,7 +592,7 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 			workColumn := ui.Column(c.Key("request-work/"+work.WorkstreamID+"/"+work.DelegationRef)).FillWidth().MinWidth(0).Gap(5).Padding(8, 0)
 			memberFailure := ui.Local(workColumn, "member-open-error", func() string { return "" })
 			workColumn.Children(func() {
-				button := ui.Button(c, "").Label(work.Title + " · " + tr("查看过程", "View process")).FillWidth().MinWidth(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Disabled(work.WorkerSessionID == "" || m.Busy || !current || historical && actions.OpenAssignment == nil || !historical && actions.OpenCurrent == nil)
+				button := ui.ButtonBase(c).Label(work.Title + " · " + tr("查看过程", "View process")).FillWidth().MinWidth(0).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Disabled(work.WorkerSessionID == "" || m.Busy || !current || historical && actions.OpenAssignment == nil || !historical && actions.OpenCurrent == nil)
 				button.Children(func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
 						taskStateDot(c, work.Status, chrome.Color(theme.Resolve(m.ThemeID).Active(m.SystemDark).Accent))
@@ -605,11 +609,11 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 				}
 				widgets.Alert(c, widgets.AlertOptions{ID: "project-member-open", Message: *memberFailure})
 				ui.Row(c).FillWidth().MinWidth(0).Gap(6).Wrap().Children(func() {
-					if work.ReportID != "" && ui.Button(c, tr("查看成果", "View result")).Height(28).Disabled(m.Busy || !current || actions.WorkAction == nil).Clicked() {
+					if work.ReportID != "" && pButton(c, tr("查看成果", "View result"), m.Busy || !current || actions.WorkAction == nil).Clicked() {
 						actions.WorkAction("report", work)
 					}
 					changes := card.Status != "completed" && !historical && work.MemberRole != "" && work.MemberRole != "readonly" && work.MemberRole != "research"
-					if changes && ui.Button(c, tr("查看变更", "View changes")).Height(28).Disabled(m.Busy || !current || actions.WorkDiff == nil).Clicked() {
+					if changes && pButton(c, tr("查看变更", "View changes"), m.Busy || !current || actions.WorkDiff == nil).Clicked() {
 						actions.WorkDiff(work.WorkstreamID)
 					}
 					stoppable := !historical && (work.Status == "running" || work.Status == "queued" || work.Status == "preparing" || work.Status == "provisioning" || work.Status == "stopping")
@@ -619,7 +623,7 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 							paused = p.Paused
 						}
 					}
-					if stoppable && !paused && ui.Button(c, tr("停止工作", "Stop work")).Height(28).Disabled(m.Busy || work.Status == "stopping" || !current || actions.WorkAction == nil).Clicked() {
+					if stoppable && !paused && pDanger(c, tr("停止工作", "Stop work"), m.Busy || work.Status == "stopping" || !current || actions.WorkAction == nil).Clicked() {
 						actions.WorkAction("stop", work)
 					}
 				})
@@ -642,10 +646,10 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 					}
 					ui.Text(c, tr("成果已保存，汇总失败：", "Results are saved; summary failed: ")+failure.Error.Message).FontSize(theme.InterfaceSize(12))
 					ui.Row(c).Gap(6).Children(func() {
-						if failure.Error.Code == "MISSING_CREDENTIAL" && m.OnOpenModelSettings != nil && ui.Button(c, tr("模型设置", "Model settings")).Height(28).Clicked() {
+						if failure.Error.Code == "MISSING_CREDENTIAL" && m.OnOpenModelSettings != nil && pButton(c, tr("模型设置", "Model settings"), false).Clicked() {
 							m.OnOpenModelSettings()
 						}
-						if ui.Button(c, tr("重新汇总", "Retry summary")).Height(28).Disabled(m.Busy || !current || card.AuthorityError != "" || actions.WorkAction == nil).Clicked() {
+						if pPrimary(c, tr("重新汇总", "Retry summary"), m.Busy || !current || card.AuthorityError != "" || actions.WorkAction == nil).Clicked() {
 							actions.WorkAction("summary", work)
 						}
 					})
@@ -673,7 +677,7 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 			}
 		}
 	case "activity":
-		button := ui.Button(c, tr("活动时间线", "Activity timeline")).Disabled(m.Busy || !m.Listing.Available || !current || actions.Activity == nil)
+		button := pButton(c, tr("活动时间线", "Activity timeline"), m.Busy || !m.Listing.Available || !current || actions.Activity == nil)
 		origin := ui.Local(button, "activity-origin", func() ui.Handle { return ui.Handle{} })
 		button.Bind(origin)
 		if button.Clicked() && actions.Activity != nil {
@@ -724,7 +728,7 @@ func taskCardDetail(c *ui.Context, m Model, card projectflow.RequestCard, tab st
 		}
 		if card.HandoverError != "" {
 			ui.Text(c, card.HandoverError).FontSize(theme.InterfaceSize(13))
-			if ui.Button(c, tr("发送交付恢复请求", "Send handover recovery request")).Disabled(m.Busy || !m.Listing.Available || !m.RequestMutable || !current || card.AuthorityError != "" || actions.HandoverRetry == nil).Clicked() && actions.HandoverRetry != nil {
+			if pPrimary(c, tr("发送交付恢复请求", "Send handover recovery request"), m.Busy || !m.Listing.Available || !m.RequestMutable || !current || card.AuthorityError != "" || actions.HandoverRetry == nil).Clicked() && actions.HandoverRetry != nil {
 				actions.HandoverRetry()
 			}
 		}
@@ -782,15 +786,20 @@ func taskCardAttention(c *ui.Context, box ui.Element, m Model, card projectflow.
 				ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(6).Children(func() {
 					for _, opt := range card.Stage.Ask.Options {
 						opt := opt
-						if ui.Button(c, opt).Height(26).Disabled(m.Busy || !m.RequestMutable).Clicked() {
+						if coss.Button(c, opt, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: m.Busy || !m.RequestMutable}).Clicked() {
 							*draft = opt
 						}
 					}
 				})
 			}
 			ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.TextInput(c.Key("ask-input/"+card.ID), draft).Placeholder(tr("直接输入回答，或点选上方选项后补充说明…", "Type your answer, or pick an option above and add context…")).Grow(1).MinWidth(0).Disabled(m.Busy || !m.RequestMutable)
-				if ui.PrimaryButton(c, tr("回答", "Answer")).Height(28).Disabled(m.Busy || !m.RequestMutable || strings.TrimSpace(*draft) == "" || m.OnAskAnswer == nil).Clicked() {
+				pRowInput(c, draft, coss.InputOptions{
+					Key:         "ask-input/" + card.ID,
+					Size:        coss.InputSM,
+					Placeholder: tr("直接输入回答，或点选上方选项后补充说明…", "Type your answer, or pick an option above and add context…"),
+					Disabled:    m.Busy || !m.RequestMutable,
+				})
+				if pPrimary(c, tr("回答", "Answer"), m.Busy || !m.RequestMutable || strings.TrimSpace(*draft) == "" || m.OnAskAnswer == nil).Clicked() {
 					ans := strings.TrimSpace(*draft)
 					*draft = ""
 					m.OnAskAnswer(card.ID, card.Stage.WorkstreamID, card.Stage.Ask.Question, ans)

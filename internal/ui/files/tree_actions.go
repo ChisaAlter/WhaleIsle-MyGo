@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/workspacefs"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 )
@@ -117,7 +119,15 @@ func paintTreeReferenceButton(c *ui.Context, m Model, row ui.Element, path strin
 	if m.OnReferenceFile == nil {
 		return
 	}
-	button := ui.Button(c.Key("tree-reference"), "@").Label("Reference file "+path).Tooltip(label("引用此文件到对话", "Reference file in chat")).Width(20).Height(20).Margin(0, 4, 0, 0).Radius(8).Padding(0).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(12).Disabled(!m.CanAddToChat)
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Key:      "tree-reference",
+		Label:    "Reference file " + path,
+		Disabled: !m.CanAddToChat,
+		Content: func() {
+			ui.Text(c, "@").FontSize(12).TextColor(muted)
+		},
+	}).Tooltip(label("引用此文件到对话", "Reference file in chat")).Width(20).Height(20).Margin(0, design.Sp(1), 0, 0).Radius(design.RadiusLG).Padding(0)
 	if !row.Hovered() && !row.FocusWithin() && !button.Focused() {
 		button.Opacity(0)
 	}

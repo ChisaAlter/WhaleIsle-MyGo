@@ -9,6 +9,7 @@
 // signing workflow between stage/archive and before publishing the catalog.
 import fs from 'node:fs';
 import {stagePreviewBundle, inspectEmbeddedPreview} from './macos-preview-bundle.mjs';
+import {normalizePackagedCliManifest} from './session-runtime.mjs';
 import {stageOptionalSamples} from './session-runtime-samples.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -109,6 +110,7 @@ export async function stage(config) {
   if (runtimeIncluded) {
     const runtimeDir = path.join(bin, 'runtime');
     copyTree(vendor, path.join(runtimeDir, 'vendor'));
+    await normalizePackagedCliManifest(path.join(runtimeDir, 'vendor', 'deepseek-harness'));
     copyTree(nodeDir, path.join(runtimeDir, 'node'));
     // Desktop Host resolution uses runtime/node/node; mobile keeps its own
     // exact-ABI distribution under runtime/vendor/dshd-remote/node/bin/node.

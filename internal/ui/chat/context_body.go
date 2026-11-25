@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -254,9 +255,14 @@ func paintContextJSONBlock(c *ui.Context, raw json.RawMessage, style contextBody
 			if *open {
 				marker = "▾"
 			}
-			toggle := ui.Button(c, marker+" "+label).Label(label).Role(ui.RoleDisclosure).Expanded(*open).
-				Font(style.Font).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(style.Secondary).
-				BorderWidth(0).Background(ui.Transparent).Radius(design.RadiusMD).Padding(design.Sp(0.5), design.Sp(1.5)).MinWidth(0).Shrink(1).Cursor(ui.CursorPointer)
+			toggle := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonXS,
+				Label:   label,
+				Content: func() {
+					ui.Text(c, marker+" "+label).Font(style.Font).FontSize(design.TextXS.Size).FixedLineHeight(18).TextColor(style.Secondary)
+				},
+			}).Role(ui.RoleDisclosure).Expanded(*open).Height(22).Radius(design.RadiusMD).Padding(design.Sp(0.5), design.Sp(1.5)).MinWidth(0).Shrink(1)
 			if toggle.Hovered() {
 				toggle.Background(style.Hover)
 			}

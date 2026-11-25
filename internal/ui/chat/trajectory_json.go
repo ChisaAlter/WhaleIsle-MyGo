@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
@@ -69,7 +70,7 @@ func trajectoryPayloadView(c *ui.Context, scope, body string, fg, muted ui.Color
 		if *tree {
 			label = "Raw text"
 		}
-		if ui.Button(c, label).Cursor(ui.CursorPointer).Clicked() {
+		if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 			*tree = !*tree
 		}
 		if !*tree {
@@ -102,7 +103,7 @@ func trajectoryJSONNode(c *ui.Context, path string, value any, depth int, budget
 					count = len(array)
 					kind = "array"
 				}
-				if ui.Button(c, fmt.Sprintf("%s · %s (%d)", path, kind, count)).Label("Expand JSON " + path).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, fmt.Sprintf("%s · %s (%d)", path, kind, count), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Label("Expand JSON " + path).Clicked() {
 					*open = !*open
 				}
 			} else {
@@ -110,19 +111,19 @@ func trajectoryJSONNode(c *ui.Context, path string, value any, depth int, budget
 			}
 		})
 		ui.Row(c).Gap(design.Sp(1)).Children(func() {
-			if ui.Button(c, "Copy value").Label("Copy JSON value " + path).Cursor(ui.CursorPointer).Clicked() {
+			if coss.Button(c, "Copy value", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Label("Copy JSON value " + path).Clicked() {
 				c.WriteClipboard(trajectoryJSONCopy(value, false))
 			}
-			if ui.Button(c, "Copy JSON").Label("Copy JSON pretty " + path).Cursor(ui.CursorPointer).Clicked() {
+			if coss.Button(c, "Copy JSON", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Label("Copy JSON pretty " + path).Clicked() {
 				c.WriteClipboard(trajectoryJSONCopy(value, true))
 			}
-			if ui.Button(c, "Copy path").Label("Copy JSON path " + path).Cursor(ui.CursorPointer).Clicked() {
+			if coss.Button(c, "Copy path", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Label("Copy JSON path " + path).Clicked() {
 				c.WriteClipboard(path)
 			}
 		})
 		if !container {
 			if text, ok := value.(string); ok && len([]rune(text)) > 160 {
-				if ui.Button(c, "Full value").Label("Full JSON value " + path).Clicked() {
+				if coss.Button(c, "Full value", coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Label("Full JSON value " + path).Clicked() {
 					*open = !*open
 				}
 				if *open {

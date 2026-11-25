@@ -221,7 +221,11 @@ func calendarUsageView(c *ui.Context, m Model, st usagestore.StatsView, provider
 									color := usageHeatColor(t, level)
 									selectedDay := st.Range.Active() && date >= st.Range.Start && date <= st.Range.End
 									ui.Column(c).Width(12).Children(func() {
-										button := ui.Button(c.Key("day-"+date), "").Label(date+" UTC").Size(12, 12).Padding(0).BorderWidth(0).Radius(design.RadiusXS).Background(color).FocusRing(false).Cursor(ui.CursorPointer).Tooltip(dayTip(day, providers, settings))
+										button := coss.Button(c, "", coss.ButtonOptions{
+											Variant: coss.ButtonGhost,
+											Key:     "day-" + date,
+											Label:   date + " UTC",
+										}).Size(12, 12).Padding(0).BorderWidth(0).Radius(design.RadiusXS).Background(color).Tooltip(dayTip(day, providers, settings))
 										if st.Range.Active() && !selectedDay {
 											button.Opacity(0.3)
 										}

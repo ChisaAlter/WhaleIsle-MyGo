@@ -37,7 +37,7 @@ func botMemoryReviewBlock(c *ui.Context, m BotMemoryReviewModel, blocked bool, f
 	ui.Column(c.Key("bot-memory-review")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantAutomaticMemoryLearning)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantManagesTheOriginalMemoryreviewSettingA)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshMemoryLearning)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshMemoryLearning), blocked || s.Scope.BotID == "").Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -66,15 +66,15 @@ func botMemoryReviewBlock(c *ui.Context, m BotMemoryReviewModel, blocked bool, f
 			ui.Text(c, s.Status.WriteError).TextColor(accent).Selectable()
 		}
 		draft := s.Draft
-		if ui.Checkbox(c, &draft, i18n.T(i18n.KeyMiscAssistantAllowAutomaticMemoryLearning)).Disabled(!editable).Changed() && m.OnChange != nil {
+		if aCheckbox(c, &draft, i18n.T(i18n.KeyMiscAssistantAllowAutomaticMemoryLearning), !editable).Changed() && m.OnChange != nil {
 			m.OnChange(draft)
 		}
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantOnceEnabledTheSideModelCanReadRecent)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantDisablingOnlyBlocksNewChecksItDoesNot)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardMemoryLearningDraft)).Disabled(blocked || !s.Loaded || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardMemoryLearningDraft), blocked || !s.Loaded || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewMemoryLearning)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewMemoryLearning), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
 		if s.Review != nil {
@@ -92,13 +92,13 @@ func botMemoryReviewBlock(c *ui.Context, m BotMemoryReviewModel, blocked bool, f
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantThisSaveOnlyChangesMemoryreviewOtherDa)).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent)
 				ui.Text(c, i18n.T(i18n.KeyW4AssistantThisPageOffersNoImmediateCheckOrReset)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				ack := r.Acknowledged
-				if ui.Checkbox(c, &ack, botMemoryReviewAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+				if aCheckbox(c, &ack, botMemoryReviewAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelMemoryLearning)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+				if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelMemoryLearning), blocked).Clicked() && m.OnDismiss != nil {
 					m.OnDismiss()
 				}
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmMemoryLearning)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+				if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmMemoryLearning), blocked || !s.Loaded || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 					m.OnConfirm()
 				}
 			})

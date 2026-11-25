@@ -3,11 +3,12 @@ package terminal
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/hostterminal"
+	"whaleisle/internal/ui/coss"
 )
 
 func hostShellView(c *ui.Context, store *hostterminal.Store, v hostterminal.View, session string, muted ui.Color) {
 	shells := store.ShellSnapshot(v.Owner, session)
-	if ui.Button(c, terminalLabel("选择或刷新 shell", "Choose or refresh the shell")).FontSize(12).Disabled(!v.Ready || session == "" || v.Busy || shells.Loading).Clicked() {
+	if coss.Button(c, terminalLabel("选择或刷新 shell", "Choose or refresh the shell"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: !v.Ready || session == "" || v.Busy || shells.Loading}).Clicked() {
 		store.DiscoverShells(v.Owner, session)
 	}
 	if shells.Loading {

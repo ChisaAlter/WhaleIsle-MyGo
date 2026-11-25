@@ -34,7 +34,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 	ui.Column(c.Key("bot-avatar")).Gap(7).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyMiscAssistantPersonalBotAvatar)).FontSize(fonttheme.InterfaceSize(13)).Bold().TextColor(fg)
 		ui.Text(c, i18n.T(i18n.KeyW4AssistantTheOriginalEightShapesByElevenColours)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshAvatar)).Disabled(blocked || s.Scope.BotID == "" || s.ImageImport.Busy || s.ImageImport.Ready).Clicked() {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshAvatar), blocked || s.Scope.BotID == "" || s.ImageImport.Busy || s.ImageImport.Ready).Clicked() {
 			m.OnRefresh()
 		}
 		if s.Error != nil {
@@ -84,11 +84,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 					v := pluginrpc.DshbotAvatarValues{Kind: "blob", Shape: choice, Color: color}
 					ui.Column(c.Key("shape-" + choice)).Gap(2).Children(func() {
 						botAvatarDrawBlob(c, v, 40, "shape preview "+choice, fg, muted)
-						button := ui.Button(c, i18n.T(i18n.KeyMiscAssistantShape)+choice).FontSize(fonttheme.InterfaceSize(11)).Disabled(!editable)
-						if draft.Kind == "blob" && draft.Shape == choice {
-							button.Border(2, accent)
-						}
-						if button.Clicked() && m.OnChange != nil {
+						if aChoice(c, i18n.T(i18n.KeyMiscAssistantShape)+choice, draft.Kind == "blob" && draft.Shape == choice, !editable).Clicked() && m.OnChange != nil {
 							m.OnChange(v)
 						}
 					})
@@ -102,11 +98,7 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 					v := pluginrpc.DshbotAvatarValues{Kind: "blob", Shape: shape, Color: choice}
 					ui.Column(c.Key("color-" + choice)).Gap(2).Children(func() {
 						botAvatarDrawBlob(c, v, 32, "color preview "+choice, fg, muted)
-						button := ui.Button(c, i18n.T(i18n.KeyMiscAssistantColor)+choice).FontSize(fonttheme.InterfaceSize(11)).Disabled(!editable)
-						if draft.Kind == "blob" && draft.Color == choice {
-							button.Border(2, accent)
-						}
-						if button.Clicked() && m.OnChange != nil {
+						if aChoice(c, i18n.T(i18n.KeyMiscAssistantColor)+choice, draft.Kind == "blob" && draft.Color == choice, !editable).Clicked() && m.OnChange != nil {
 							m.OnChange(v)
 						}
 					})
@@ -117,20 +109,20 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 		_ = botAvatarUncachedPreview(c.Key("draft-avatar"), draft, 64, i18n.T(i18n.KeyMiscAssistantDraftAvatarPreview), fg, muted)
 		if draft.Kind == "image" {
 			for _, crop := range []string{"circle", "square"} {
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDraftImageCrop)+crop).Disabled(!editable).Clicked() && m.OnChange != nil {
+				if aChoice(c, i18n.T(i18n.KeyMiscAssistantDraftImageCrop)+crop, draft.Crop == crop, !editable).Clicked() && m.OnChange != nil {
 					next := draft
 					next.Crop = crop
 					m.OnChange(next)
 				}
 			}
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantDiscardAvatarDraft)).Disabled(!editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantDiscardAvatarDraft), !editable || !s.Dirty).Clicked() && m.OnDiscard != nil {
 			m.OnDiscard()
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReviewAvatar)).Disabled(!editable || !s.Dirty).Clicked() && m.OnReview != nil {
+		if aPrimary(c, i18n.T(i18n.KeyMiscAssistantReviewAvatar), !editable || !s.Dirty).Clicked() && m.OnReview != nil {
 			m.OnReview()
 		}
-		if s.Candidate && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingAvatarReadback)).Disabled(blocked || previewErr != nil).Clicked() && m.OnAdopt != nil {
+		if s.Candidate && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptMatchingAvatarReadback), blocked || previewErr != nil).Clicked() && m.OnAdopt != nil {
 			m.OnAdopt()
 		}
 		if s.Review == nil {
@@ -155,13 +147,13 @@ func botAvatarBlock(c *ui.Context, m BotAvatarModel, blocked bool, fg, muted, ac
 			ui.Text(c, i18n.T(i18n.KeyW4AssistantABusyOrColdSessionMaySyncAtALaterI2)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 			ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyW4AssistantKeepsTheNameTitleDescriptionModelWorks), botCapabilityProfileText(cmd.Expected, "workspaceId"), botCapabilityProfileText(cmd.Expected, "model"))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Selectable()
 			ack := r.Acknowledged
-			if ui.Checkbox(c, &ack, botAvatarAcknowledgement()).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+			if aCheckbox(c, &ack, botAvatarAcknowledgement(), blocked).Changed() && m.OnAcknowledge != nil {
 				m.OnAcknowledge(ack)
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancelAvatarSave)).Disabled(blocked).Clicked() && m.OnDismiss != nil {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantCancelAvatarSave), blocked).Clicked() && m.OnDismiss != nil {
 				m.OnDismiss()
 			}
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave)).Disabled(blocked || !s.Loaded || !s.Writable || !r.Acknowledged || beforeErr != nil || afterErr != nil).Clicked() && m.OnConfirm != nil {
+			if aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmAvatarSave), blocked || !s.Loaded || !s.Writable || !r.Acknowledged || beforeErr != nil || afterErr != nil).Clicked() && m.OnConfirm != nil {
 				m.OnConfirm()
 			}
 		})

@@ -78,7 +78,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 	}
 	card.Children(func() {
 		ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
-			header := ui.Button(c, "").Label("Workflow " + name).Grow(1).FontSize(13).Cursor(ui.CursorPointer)
+			header := ui.ButtonBase(c).Label("Workflow " + name).Grow(1).FontSize(13).Cursor(ui.CursorPointer)
 			clicked := header.Clicked()
 			// Keep a pending header press through release. Keyboard departure
 			// still settles the deferred clean collapse of its content.
@@ -119,7 +119,7 @@ func WorkflowRunView(c *ui.Context, run workflowrun.Run, m Model, st ToolCardSty
 				pk := key + ":" + p.Key
 				phaseState := disclosures.phases[p.Key]
 				ui.Column(c.Key(pk)).FillWidth().Gap(design.Sp(1.25)).Padding(design.Sp(1.25), 0, design.Sp(1.25), design.Sp(3)).Children(func() {
-					header := ui.Button(c, "").Label("Workflow phase " + phaseName).FontSize(11).Cursor(ui.CursorPointer)
+					header := ui.ButtonBase(c).Label("Workflow phase " + phaseName).FontSize(11).Cursor(ui.CursorPointer)
 					clicked := header.Clicked()
 					phaseState.advance(workflowPhaseFacts(p), phaseState.content.FocusWithin(c) || phaseState.pendingCleanCollapse && (header.Pressed() || clicked))
 					if clicked {
@@ -192,7 +192,7 @@ func paintWorkflowMember(c *ui.Context, member workflowrun.Member, label string,
 		// blur. Its action is guarded by current availability, not old focus.
 		var row ui.Element
 		if available || action.Focused(c) {
-			row = ui.Button(c.Key("member-row"), "").Label(label)
+			row = ui.ButtonBase(c.Key("member-row")).Label(label)
 			if available {
 				row.Label(workflowText("打开 ", "Open ") + label).Cursor(ui.CursorPointer)
 			}

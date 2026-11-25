@@ -7,6 +7,8 @@ import (
 
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -119,12 +121,16 @@ func themeLibraryPane(c *ui.Context, e *theme.Editor, colors theme.Colors, fg, m
 }
 
 func themeFamilyAction(c *ui.Context, family theme.Family, action, label, glyph string, disabled bool) bool {
-	button := ui.Button(c.Key("theme-"+action+"-"+family.ID), glyph).
-		Label(label+" "+family.LocalizedName()).Tooltip(label).Size(24, 24).Padding(0).
-		Background(ui.Transparent).BorderWidth(0).Radius(6).TextColor(c.Theme().TextMuted).Disabled(disabled)
-	if button.Hovered() && !disabled {
-		button.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
-	}
+	button := coss.Button(c, glyph, coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonIconXS,
+		Label:    label + " " + family.LocalizedName(),
+		Disabled: disabled,
+		Key:      "theme-" + action + "-" + family.ID,
+		Content: func() {
+			kText(c, glyph, design.TextXS, design.WeightMedium, tk(c).MutedForeground).PassThrough()
+		},
+	}).Tooltip(label)
 	return button.Clicked() && !disabled
 }
 
@@ -250,8 +256,8 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 			if f.ID != e.Selected {
 				continue
 			}
-			ui.TextInput(c, &f.Name).FillWidth().Label(providerCopy("主题名称", "Theme name")).Disabled(e.FamilySavePending())
-			if ui.Button(c, providerCopy("导出主题 JSON", "Export theme JSON")).Clicked() {
+			kInput(c, &f.Name, coss.InputOptions{Label: providerCopy("主题名称", "Theme name"), Disabled: e.FamilySavePending()})
+			if kButton(c, providerCopy("导出主题 JSON", "Export theme JSON")).AlignSelf(ui.Start).Clicked() {
 				c.WriteClipboard(theme.SerializeFamily(*f))
 			}
 			for _, variant := range []struct {
@@ -280,7 +286,7 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				bodyDisclosure(c, "overrides-"+variant.label, providerCopy("高级颜色覆盖", "Advanced token overrides"), func() {
 					for _, key := range []string{"--dsw-alias-bg-base", "--dsw-alias-bg-layer-1", "--dsw-alias-bg-layer-2", "--dsw-alias-bg-overlay", "--dsw-alias-label-primary", "--dsw-alias-label-secondary", "--dsw-alias-brand-primary", "--dsw-alias-state-business-primary", "--dsw-alias-button-info-fill", "--dsw-alias-border-l1", "--dsw-alias-border-l2", "--dsw-specific-sidebar-fill", "--dsw-specific-bubble"} {
 						value := variant.seed.Overrides[key]
-						if ui.TextInput(c, &value).FillWidth().Label(key).Placeholder("Auto").Disabled(e.FamilySavePending()).Changed() {
+						if kInput(c, &value, coss.InputOptions{Label: key, Placeholder: "Auto", Disabled: e.FamilySavePending()}).Changed() {
 							if variant.seed.Overrides == nil {
 								variant.seed.Overrides = map[string]string{}
 							}
@@ -296,8 +302,8 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 		}
 		if e.Selected != "" {
 			e.PreviewSelectedFamily()
-			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(e.FamilySavePending()).Clicked() {
+			ui.Row(c).Gap(design.Sp(2)).Children(func() {
+				if kButtonDisabled(c, providerCopy("取消", "Cancel"), e.FamilySavePending()).Clicked() {
 					e.Cancel()
 					e.Selected = ""
 				}
@@ -305,7 +311,7 @@ func themeCustomEditor(c *ui.Context, e *theme.Editor, fg, muted ui.Color) {
 				if e.FamilySavePending() {
 					saveLabel = providerCopy("正在保存…", "Saving…")
 				}
-				if ui.PrimaryButton(c, saveLabel).Disabled(e.OnSave == nil || e.FamilySavePending()).Clicked() {
+				if kPrimary(c, saveLabel, e.OnSave == nil || e.FamilySavePending()).Clicked() {
 					e.SaveSelectedFamily()
 				}
 			})
@@ -377,9 +383,9 @@ func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string
 							label = providerCopy("减小", "Decrease") + " " + title
 							disabled = value <= lo
 						}
-						button := ui.Button(c.Key(label), "").Label(label).Tooltip(label).Size(17, 12).Padding(0).Radius(4).BorderWidth(0).Background(c.Theme().Background.Alpha(.75)).Disabled(e.OnSave == nil || disabled)
+						button := ui.ButtonBase(c.Key(label)).Label(label).Tooltip(label).Size(17, 12).Padding(0).Radius(design.RadiusSM).BorderWidth(0).Background(tk(c).Background.Alpha(.75)).Center().Cursor(ui.CursorPointer).Disabled(e.OnSave == nil || disabled)
 						button.Children(func() {
-							icon := ui.Icon(c, bodyIcon("down")).Size(9, 9).TextColor(fg)
+							icon := ui.Icon(c, bodyIcon("down")).Size(9, 9).TextColor(fg).PassThrough()
 							if direction > 0 {
 								icon.Rotate(180)
 							}
@@ -392,13 +398,18 @@ func generalFontSizeRow(c *ui.Context, e *theme.Editor, role, title, hint string
 				})
 			})
 			if open != nil {
-				button := ui.Button(c, "").Label(providerCopy("更多字体设置", "More font settings")).Tooltip(providerCopy("更多字体设置", "More font settings")).Size(24, 24).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent)
-				button.Children(func() {
-					icon := ui.Icon(c, bodyIcon("down")).Size(12, 12).TextColor(muted)
-					if *open {
-						icon.Rotate(180)
-					}
-				})
+				moreLabel := providerCopy("更多字体设置", "More font settings")
+				button := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonIconXS,
+					Label:   moreLabel,
+					Content: func() {
+						icon := ui.Icon(c, bodyIcon("down")).Size(12, 12).TextColor(muted).PassThrough()
+						if *open {
+							icon.Rotate(180)
+						}
+					},
+				}).Tooltip(moreLabel)
 				if button.Clicked() {
 					if *open {
 						e.FlushGeneralFontEdits(true)
@@ -427,7 +438,11 @@ func generalFontFamilyRow(c *ui.Context, e *theme.Editor, role, title, hint, sav
 			}
 		}
 		anchor.Children(func() {
-			input := ui.TextInput(c, &draft.Value).FillWidth().Label(title).Placeholder(providerCopy("默认", "Default")).Disabled(e.OnSave == nil).OnSubmit(commit)
+			input := kInput(c, &draft.Value, coss.InputOptions{
+				Label:       title,
+				Placeholder: providerCopy("默认", "Default"),
+				Disabled:    e.OnSave == nil,
+			}).OnSubmit(commit)
 			input.OnChange(func() {
 				units := 0
 				for at, r := range draft.Value {
@@ -466,7 +481,11 @@ func typographyField(c *ui.Context, key, label, hint string, muted ui.Color, con
 
 func typographyFontField(c *ui.Context, e *theme.Editor, key, label, hint, role string, f *theme.FontPreference, muted ui.Color) {
 	typographyField(c, key, label, hint, muted, func() {
-		if ui.TextInput(c, &f.Family).FillWidth().Label(label).Placeholder(providerCopy("系统默认", "System default")).Disabled(e.OnSave == nil).Changed() {
+		if kInput(c, &f.Family, coss.InputOptions{
+			Label:       label,
+			Placeholder: providerCopy("系统默认", "System default"),
+			Disabled:    e.OnSave == nil,
+		}).Changed() {
 			e.SaveAppearanceFont(role, *f)
 		}
 	})

@@ -29,6 +29,7 @@ func (s *Store) captureWorkflowBoundaryLocked(raw json.RawMessage) {
 		s.workflowBoundaries = map[float64]json.RawMessage{}
 	}
 	s.workflowBoundaries[e.Seq] = append(json.RawMessage(nil), raw...)
+	s.markWorkflowDirtyLocked()
 }
 func (s *Store) workflowRunsLocked(messages []Message) []workflowrun.Run {
 	raws := make([]json.RawMessage, 0, len(s.workflowBoundaries))

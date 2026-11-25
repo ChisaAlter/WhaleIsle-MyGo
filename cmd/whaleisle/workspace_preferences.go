@@ -16,7 +16,11 @@ func (s *mainState) bindWorkspacePreferences(sessions *session.Store, client *ds
 		s.viewPreferences = newWorkspaceViewPreferences(cfg)
 	}
 	prefs := s.viewPreferences
+	liveUI := s.win != nil
 	s.mu.Unlock()
+	if prefs != nil && liveUI {
+		prefs.enableAsync(asyncConfigDebounce, nil)
+	}
 	if cfg != nil {
 		sessions.BindWorkspacePreferences(client, "supervised-dsh-home:"+paths.DshHome(), prefs)
 	}

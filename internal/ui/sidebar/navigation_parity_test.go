@@ -106,11 +106,15 @@ func TestSidebarNavigationSelectionTracksActionsAndKeepsGeometry(t *testing.T) {
 								t.Fatalf("navigation moved %s: %+v -> %+v", id, original[id], r)
 							}
 							want := idle[id]
-							if id == chosen {
-								want = hovered[id]
-							}
 							got := tt.Image().RGBAAt(int(r.X+r.W-8), int(r.Y+r.H/2))
-							if got != want {
+							if id == chosen {
+								if got == idle[id] {
+									t.Fatalf("%s selected paint matched idle %v", id, got)
+								}
+								if !collapsed && got == hovered[id] {
+									t.Fatalf("%s selected paint %v must differ from hover %v", id, got, hovered[id])
+								}
+							} else if got != want {
 								t.Fatalf("%s selected=%v paint=%v want=%v", id, id == chosen, got, want)
 							}
 						}

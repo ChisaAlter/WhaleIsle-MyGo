@@ -36,38 +36,92 @@ func projectModelFlip(src *image.RGBA, seatWidth, seatHeight, scale float32, rot
 	}
 	left, top := int(math.Floor(minX*pixelsPerDIP)), int(math.Floor(minY*pixelsPerDIP))
 	right, bottom := int(math.Ceil(maxX*pixelsPerDIP)), int(math.Ceil(maxY*pixelsPerDIP))
-	dst := image.NewRGBA(image.Rect(0, 0, right-left, bottom-top))
-	sample := func(x, y int) [4]float64 {
-		if x < 0 || y < 0 || x >= bounds.Dx() || y >= bounds.Dy() {
-			return [4]float64{}
+	dstW, dstH := right-left, bottom-top
+	dst := image.NewRGBA(image.Rect(0, 0, dstW, dstH))
+	srcW, srcH := bounds.Dx(), bounds.Dy()
+	srcMinX, srcMinY := bounds.Min.X, bounds.Min.Y
+	srcPix, srcStride := src.Pix, src.Stride
+	dstPix, dstStride := dst.Pix, dst.Stride
+	baseOff := src.PixOffset(srcMinX, srcMinY)
+
+	// Identity fast path when flat and opaque.
+	if rotateXDeg == 0 && opacity == 1 && left == 0 && top == 0 && dstW == srcW && dstH == srcH {
+		for y := 0; y < dstH; y++ {
+			so := baseOff + y*srcStride
+			do := y * dstStride
+			copy(dstPix[do:do+dstW*4], srcPix[so:so+srcW*4])
 		}
-		at := src.PixOffset(bounds.Min.X+x, bounds.Min.Y+y)
-		return [4]float64{float64(src.Pix[at]), float64(src.Pix[at+1]), float64(src.Pix[at+2]), float64(src.Pix[at+3])}
+		return dst, ui.Point{}
 	}
-	for y := range dst.Bounds().Dy() {
-		projectedY := (float64(top+y)+.5)/pixelsPerDIP - centerY
+
+	op := float32(opacity)
+	invScale := 1.0 / pixelsPerDIP
+	for y := 0; y < dstH; y++ {
+		projectedY := (float64(top+y)+.5)*invScale - centerY
 		// Invert y'=y*cos(theta)/(1-y*sin(theta)/perspective).
 		denominator := cosine + projectedY*sine/perspective
 		sourceY := projectedY / denominator
 		perspectiveDivisor := 1 - sourceY*sine/perspective
 		sampleY := (centerY+sourceY)*pixelsPerDIP - .5
 		y0 := int(math.Floor(sampleY))
-		fractionY := sampleY - float64(y0)
-		for x := range dst.Bounds().Dx() {
-			projectedX := (float64(left+x)+.5)/pixelsPerDIP - centerX
-			sampleX := (centerX+projectedX*perspectiveDivisor)*pixelsPerDIP - .5
+		y1 := y0 + 1
+		if y1 < 0 || y0 >= srcH {
+			continue
+		}
+		fy := float32(sampleY - float64(y0))
+		fy1 := 1 - fy
+		y0In := y0 >= 0 && y0 < srcH
+		y1In := y1 >= 0 && y1 < srcH
+		row0 := baseOff + y0*srcStride
+		row1 := baseOff + y1*srcStride
+		dstRow := y * dstStride
+		stepX := perspectiveDivisor
+		sampleX := (centerX+(float64(left)+.5)*invScale*perspectiveDivisor-centerX*perspectiveDivisor)*pixelsPerDIP - .5
+		for x := 0; x < dstW; x++ {
 			x0 := int(math.Floor(sampleX))
-			fractionX := sampleX - float64(x0)
-			a, b := sample(x0, y0), sample(x0+1, y0)
-			c, d := sample(x0, y0+1), sample(x0+1, y0+1)
-			at := dst.PixOffset(x, y)
-			for channel := range 4 {
-				upper := a[channel]*(1-fractionX) + b[channel]*fractionX
-				lower := c[channel]*(1-fractionX) + d[channel]*fractionX
-				// Interpolate premultiplied channels directly, including alpha. Applying
-				// opacity to RGB and alpha together avoids dark transparent-edge fringes.
-				dst.Pix[at+channel] = uint8(math.Round((upper*(1-fractionY) + lower*fractionY) * opacity))
+			x1 := x0 + 1
+			fx := float32(sampleX - float64(x0))
+			sampleX += stepX
+			if x1 < 0 || x0 >= srcW {
+				continue
 			}
+			fx1 := 1 - fx
+			x0In := x0 >= 0 && x0 < srcW
+			x1In := x1 >= 0 && x1 < srcW
+
+			var a0, a1, a2, a3 float32
+			var b0, b1, b2, b3 float32
+			var c0, c1, c2, c3 float32
+			var d0, d1, d2, d3 float32
+			if y0In {
+				if x0In {
+					o := row0 + x0*4
+					a0, a1, a2, a3 = float32(srcPix[o]), float32(srcPix[o+1]), float32(srcPix[o+2]), float32(srcPix[o+3])
+				}
+				if x1In {
+					o := row0 + x1*4
+					b0, b1, b2, b3 = float32(srcPix[o]), float32(srcPix[o+1]), float32(srcPix[o+2]), float32(srcPix[o+3])
+				}
+			}
+			if y1In {
+				if x0In {
+					o := row1 + x0*4
+					c0, c1, c2, c3 = float32(srcPix[o]), float32(srcPix[o+1]), float32(srcPix[o+2]), float32(srcPix[o+3])
+				}
+				if x1In {
+					o := row1 + x1*4
+					d0, d1, d2, d3 = float32(srcPix[o]), float32(srcPix[o+1]), float32(srcPix[o+2]), float32(srcPix[o+3])
+				}
+			}
+			if a3 == 0 && b3 == 0 && c3 == 0 && d3 == 0 {
+				continue
+			}
+			do := dstRow + x*4
+			// Interpolate premultiplied channels directly, including alpha.
+			dstPix[do] = uint8(((a0*fx1+b0*fx)*fy1+(c0*fx1+d0*fx)*fy)*op + 0.5)
+			dstPix[do+1] = uint8(((a1*fx1+b1*fx)*fy1+(c1*fx1+d1*fx)*fy)*op + 0.5)
+			dstPix[do+2] = uint8(((a2*fx1+b2*fx)*fy1+(c2*fx1+d2*fx)*fy)*op + 0.5)
+			dstPix[do+3] = uint8(((a3*fx1+b3*fx)*fy1+(c3*fx1+d3*fx)*fy)*op + 0.5)
 		}
 	}
 	return dst, ui.Point{X: float32(float64(left) / pixelsPerDIP), Y: float32(float64(top) / pixelsPerDIP)}

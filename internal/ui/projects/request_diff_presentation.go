@@ -147,7 +147,7 @@ func renderRequestDiffFile(c *ui.Context, file requestDiffFile, initiallyOpen bo
 		case "untracked":
 			label = tr("未跟踪", "Untracked")
 		}
-		header := ui.Button(c, "").FillWidth().MinWidth(0).Gap(8).Padding(8, 12).Radius(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FontSize(12).FixedLineHeight(18).Label(file.Path).Expanded(*open)
+		header := ui.ButtonBase(c).FillWidth().MinWidth(0).Gap(8).Padding(8, 12).Radius(0).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).FontSize(12).FixedLineHeight(18).Label(file.Path).Expanded(*open).Cursor(ui.CursorPointer)
 		if header.Hovered() {
 			header.Background(hover)
 		}

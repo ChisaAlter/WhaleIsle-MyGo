@@ -3,6 +3,8 @@ package settings
 import (
 	"fmt"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
@@ -26,7 +28,15 @@ func appearanceColorWell(c *ui.Context, value *string, label string, disabled, i
 			text = providerCopy("跟随主题", "Theme")
 		}
 		ui.Text(c, text).FontSize(theme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-		if inherit && *value != "" && ui.Button(c, "↺").Label(label+" "+providerCopy("跟随主题", "Use theme")).Size(28, 28).Padding(0).Disabled(disabled).Clicked() {
+		if inherit && *value != "" && coss.Button(c, "↺", coss.ButtonOptions{
+			Variant:  coss.ButtonOutline,
+			Size:     coss.ButtonIconSM,
+			Label:    label + " " + providerCopy("跟随主题", "Use theme"),
+			Disabled: disabled,
+			Content: func() {
+				kText(c, "↺", design.TextSM, design.WeightMedium, tk(c).Foreground).PassThrough()
+			},
+		}).Clicked() {
 			*value = ""
 			changed = true
 		}
@@ -82,7 +92,15 @@ func appearanceChoiceCards(c *ui.Context, key string, value *string, choices [][
 }
 
 func settingsHelpPopover(c *ui.Context, key, label string, body func()) {
-	button := ui.Button(c.Key(key), "").Label(label).Size(24, 24).Padding(4).Shrink(0).Radius(8).BorderWidth(0).Background(ui.Transparent)
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconXS,
+		Label:   label,
+		Key:     key,
+		Content: func() {
+			ui.Icon(c, bodyIcon("help")).Size(16, 16).TextColor(tk(c).MutedForeground).PassThrough()
+		},
+	}).Shrink(0)
 	open := ui.Local(button, "open", func() bool { return false })
 	pinned := ui.Local(button, "pinned", func() bool { return false })
 	wasFocused := ui.Local(button, "focused", func() bool { return false })
@@ -97,10 +115,6 @@ func settingsHelpPopover(c *ui.Context, key, label string, body func()) {
 	}
 	*wasFocused = button.Focused()
 	*wasHovered = hovered
-	if hovered {
-		button.Background(c.Theme().SurfaceHover)
-	}
-	button.Children(func() { ui.Icon(c, bodyIcon("help")).Size(16, 16).TextColor(c.Theme().TextMuted) })
 	ui.PopoverBase(c, button, open, func(panel ui.Element) {
 		panelHovered = panel.Hovered() || panel.FocusWithin()
 		vw, vh := c.Size()

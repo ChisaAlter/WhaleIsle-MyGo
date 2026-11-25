@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/desktop/media"
 	manager "whaleisle/internal/pluginmanager"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	marketui "whaleisle/internal/ui/market"
 	"whaleisle/internal/ui/theme"
@@ -119,7 +120,7 @@ func previewSkeleton(c *ui.Context, retry func()) {
 		ui.Column(c).Fill().Center().Gap(10).Children(func() {
 			ui.Box(c).Width(180).Height(12).Radius(6).Background(t.Border.Alpha(.6))
 			ui.Box(c).Width(120).Height(10).Radius(5).Background(t.Border.Alpha(.45))
-			if ui.Button(c, i18n.T(i18n.KeyPluginPreviewRetry)).Clicked() {
+			if coss.Button(c, i18n.T(i18n.KeyPluginPreviewRetry), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 				retry()
 			}
 		})

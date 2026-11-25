@@ -322,16 +322,20 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 				if (m.OnQueueMove != nil || m.OnQueueMoveResult != nil) && len(m.Board.Queue) > 1 && item.ID != "" {
 					reorderLabel := queueReorderLabel(index+1, len(m.Board.Queue))
 					moveTip := queueMoveCopy()
-					grip := ui.Button(c, "").Key("queue-grip:"+item.ID).Label(reorderLabel).Tooltip(moveTip).Description(moveTip).Width(20).Height(24).Radius(design.RadiusSM).
-						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
-					grip.Children(func() {
-						ui.Box(c).Absolute().Fill().PassThrough().Label(moveTip)
-						ui.Icon(c, queueIconGrip).Width(12).Height(12).TextColor(muted)
-					})
+					grip := coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonIconXS,
+						Disabled: !moveEnabled,
+						Label:    reorderLabel,
+						Key:      "queue-grip:" + item.ID,
+						Content: func() {
+							ui.Box(c).Absolute().Fill().PassThrough().Label(moveTip)
+							ui.Icon(c, queueIconGrip).Width(12).Height(12).TextColor(muted)
+						},
+					}).Tooltip(moveTip).Description(moveTip).Width(20).Height(24).Radius(design.RadiusSM).Padding(0)
 					if !moveEnabled {
-						grip.Disabled(true).Opacity(.35)
+						grip.Opacity(.35)
 					} else {
-						grip.Cursor(ui.CursorPointer)
 						grip.Drag(queueDrag{Scope: can.Scope, ID: item.ID})
 						ui.DragEnd[queueDrag](grip)
 						grip.HandleInput(func(ev ui.InputEvent) bool {
@@ -378,14 +382,17 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 					if tip == "" {
 						tip = label
 					}
-					button := ui.Button(c, "").Label(label).Tooltip(tip).Description(tip).Width(24).Height(24).Radius(design.RadiusSM).
-						Padding(0, 0, 0, 0).Background(ui.Transparent).BorderWidth(0)
-					button.Children(func() { ui.Icon(c, icon).Width(13).Height(13).TextColor(tone) })
+					button := coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonIconXS,
+						Disabled: !enabled,
+						Label:    label,
+						Content:  func() { ui.Icon(c, icon).Width(13).Height(13).TextColor(tone) },
+					}).Tooltip(tip).Description(tip).Radius(design.RadiusSM).Padding(0)
 					if !enabled {
-						button.Disabled(true).Opacity(.35)
+						button.Opacity(.35)
 						return
 					}
-					button.Cursor(ui.CursorPointer)
 					if button.Hovered() {
 						button.Background(tone.Alpha(.12))
 					}
@@ -437,7 +444,13 @@ func paintQueueRows(c *ui.Context, m PlanBoardModel, fg, muted, accent, border u
 				}
 				ui.Column(c).Key("queue-inline-editor:"+item.ID).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Padding(design.Sp(1), design.Sp(1.5), design.Sp(1), design.Sp(1.5)).Children(func() {
 					if ready {
-						ta := ui.TextArea(c.Key("queue-edit-"+item.ID), &draft).Label(queueEditCopy()).FillWidth().Lines(2, 6).ReadOnly(saving)
+						ta := coss.Textarea(c, &draft, coss.TextareaOptions{
+							Key:      "queue-edit-" + item.ID,
+							Size:     coss.InputSM,
+							Label:    queueEditCopy(),
+							ReadOnly: saving,
+							MaxLines: 6,
+						}).Lines(2, 6)
 						if ta.Changed() {
 							localEdit.draft = draft
 							if storeEditing && m.OnChangeQueueEdit != nil {

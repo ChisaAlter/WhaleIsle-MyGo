@@ -284,8 +284,8 @@ func (s *serializer) value(v Value) string {
 		return "[" + strings.Join(parts, ", ") + "]"
 	case *Object:
 		parts := make([]string, 0, t.Len())
-		for _, k := range t.Keys() {
-			parts = append(parts, k+": "+s.value(t.vals[k]))
+		for i, k := range t.Keys() {
+			parts = append(parts, k+": "+s.value(t.vals[i]))
 		}
 		return "{" + strings.Join(parts, ", ") + "}"
 	case *Binding:
@@ -298,8 +298,8 @@ func (s *serializer) element(el *Element) string {
 	c := s.lib.Components[el.Type]
 	if c == nil {
 		parts := make([]string, 0, el.Props.Len())
-		for _, k := range el.Props.Keys() {
-			parts = append(parts, s.value(el.Props.vals[k]))
+		for i := range el.Props.Keys() {
+			parts = append(parts, s.value(el.Props.vals[i]))
 		}
 		return el.Type + "(" + strings.Join(parts, ", ") + ")"
 	}
@@ -329,8 +329,8 @@ func Serialize(root *Element, lib *Library, state *Object) string {
 			lines = append(lines, s.stmts[id])
 		}
 	}
-	for _, k := range state.Keys() {
-		if v := state.vals[k]; v != nil {
+	for i, k := range state.Keys() {
+		if v := state.vals[i]; v != nil {
 			lines = append(lines, k+" = "+s.value(v))
 		}
 	}
@@ -343,8 +343,8 @@ func Serialize(root *Element, lib *Library, state *Object) string {
 // {required: true, email: true, maxLength: 80}. It returns the message of
 // the first failing rule, or "".
 func ValidateRules(value Value, rules *Object) string {
-	for _, k := range rules.Keys() {
-		arg := rules.vals[k]
+	for i, k := range rules.Keys() {
+		arg := rules.vals[i]
 		if arg == nil || arg == false {
 			continue
 		}
@@ -387,8 +387,8 @@ func validateRule(rule string, v Value, arg Value) string {
 		}
 		if o, ok := v.(*Object); ok && o.Len() > 0 {
 			allBool, any := true, false
-			for _, k := range o.Keys() {
-				b, ok := o.vals[k].(bool)
+			for i := range o.Keys() {
+				b, ok := o.vals[i].(bool)
 				if !ok {
 					allBool = false
 					break

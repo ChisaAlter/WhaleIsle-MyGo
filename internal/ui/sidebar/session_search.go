@@ -232,8 +232,13 @@ func renderSearchResultRow(c *ui.Context, m Model, row sessionSearchRow, fg, mut
 		button.Label("Select session " + row.Item.SessionID)
 	}
 	menuOpen := button.MenuOpen()
-	if selected || button.Hovered() || button.FocusWithin() || menuOpen {
+	if selected {
 		button.Background(sbSelectedBg(t))
+		sbActiveIndicator(button, t)
+	} else if button.Hovered() || button.FocusWithin() || menuOpen {
+		button.Background(sbHoverBg(t))
+	} else {
+		button.Background(ui.Transparent)
 	}
 	if !batch && !menuOpen {
 		button.Tooltip(statusLabel(sessionStatus(m, row.Item)))

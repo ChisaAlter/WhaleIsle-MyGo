@@ -110,6 +110,7 @@ func (s *mainState) switchWorkspaceSessionLocked(scope, workspace, session strin
 	s.filesPaneOpen, s.rightPaneTab = entry.Open, entry.Tab
 	s.layout.Right, s.layout.RightTree = entry.Right, entry.Tree
 	s.layout.Workspace.PublishSessionProjection(s.workspaceProjectionLocked())
+	s.markWorkspaceProjectionMutatedLocked()
 	s.fileOpenWithFor, s.fileOpenWithApps = "", nil
 }
 
@@ -197,6 +198,15 @@ func (s *mainState) disposeWorkspaceSessions() {
 	for _, entry := range s.workspaceSessions.BySession {
 		entry.Panes.DisposeContent()
 	}
+}
+
+// newSessionStoreLocked creates a session store with trajectory projection
+// disabled unless the Trajectory tab is already active, so normal chat
+// streaming avoids eager trajectory cloning.
+func (s *mainState) newSessionStoreLocked() *session.Store {
+	store := session.New()
+	store.SetTrajectoryEnabled(s.chatPaneTab == "trajectory")
+	return store
 }
 
 // replaceSessionsLocked installs next as the session store and releases the

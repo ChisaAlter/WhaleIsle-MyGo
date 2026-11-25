@@ -222,3 +222,24 @@ test('verification refuses a changed readiness record even when event admission 
   await write(filename, manifest);
   await assert.rejects(verifyStagedSessionRuntime(vendor), /readiness record mismatch/);
 });
+test('stage resolves workspace dependency ranges in apps/cli/package.json without mutating source', async t => {
+  const f = await fixture(t);
+  await addVisualBytes(f);
+  await write(path.join(f.harness, 'apps/cli/package.json'), {
+    name: '@deepseek-ai/dsh',
+    type: 'module',
+    version: pin.npm,
+    dependencies: {
+      '@deepseek-ai/dsh-session': 'workspace:*',
+      commander: '^15.0.0',
+    },
+  });
+  await linkDirectory(path.join(f.harness, 'packages/core/session'), path.join(f.harness, 'node_modules/@deepseek-ai/dsh-session'));
+  await write(path.join(f.harness, '.dsh-runtime-links.json'), {version: 1, links: [{path: 'node_modules/@deepseek-ai/dsh-session', target: 'packages/core/session'}]});
+  await stageSessionRuntime(f.resources, f.destination);
+  const sourceCli = JSON.parse(await fs.readFile(path.join(f.harness, 'apps/cli/package.json'), 'utf8'));
+  const stagedCli = JSON.parse(await fs.readFile(path.join(f.destination, 'vendor/deepseek-harness/apps/cli/package.json'), 'utf8'));
+  assert.equal(sourceCli.dependencies['@deepseek-ai/dsh-session'], 'workspace:*');
+  assert.equal(stagedCli.dependencies['@deepseek-ai/dsh-session'], pin.npm);
+  assert.equal(stagedCli.dependencies.commander, '^15.0.0');
+});

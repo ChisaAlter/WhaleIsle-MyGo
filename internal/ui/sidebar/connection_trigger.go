@@ -102,9 +102,6 @@ func settingsConnectionTrigger(c *ui.Context, m Model, compact bool) {
 	if reduced {
 		opacity = 1
 	}
-	if !reduced && opacity < 1 {
-		c.After(16 * time.Millisecond)
-	}
 	for _, deadline := range []time.Time{state.holdUntil, state.recoveredUntil, state.leaveUntil} {
 		if deadline.After(c.Now()) {
 			c.After(deadline.Sub(c.Now()))
@@ -164,9 +161,42 @@ func settingsConnectionTrigger(c *ui.Context, m Model, compact bool) {
 		if status == "" {
 			return
 		}
-		seat := ui.Box(c).Size(36, 36).Absolute().Right(0).Top(design.Sp(1)).Opacity(opacity)
+		seat := ui.Box(c).Size(36, 36).Absolute().Right(0).Top(design.Sp(1))
 		if compact {
 			seat.Top(0)
+		}
+		if !reduced && (!state.entered.IsZero() || !state.leaveUntil.IsZero()) {
+			entered := state.entered
+			leaveUntil := state.leaveUntil
+			bg := t.Sidebar
+			seat.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				now := p.Now()
+				var a float32 = 1
+				animating := false
+				if !leaveUntil.IsZero() {
+					rem := leaveUntil.Sub(now)
+					if rem > 0 {
+						a = float32(rem) / float32(150*time.Millisecond)
+						animating = true
+					} else {
+						a = 0
+					}
+				} else if !entered.IsZero() {
+					el := now.Sub(entered)
+					if el < 150*time.Millisecond {
+						a = max(0, float32(el)/float32(150*time.Millisecond))
+						animating = true
+					}
+				}
+				if a < 1 {
+					p.Fill(r, bg.Alpha(1-max(0, a)), design.RadiusMD)
+				}
+				if animating {
+					p.After(16 * time.Millisecond)
+				}
+			})
+		} else if opacity < 1 {
+			seat.Opacity(opacity)
 		}
 		seat.Children(func() {
 			if status == "installing" || len(status) > 7 && status[:7] == "update:" {

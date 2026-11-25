@@ -2,11 +2,12 @@ package settings
 
 import (
 	"fmt"
-	fonttheme "whaleisle/internal/ui/theme"
-
-	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/mcpconfig"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+
+	"github.com/egoist/mygo/ui"
 )
 
 type MCPImportAccess struct {
@@ -22,22 +23,28 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 		return
 	}
 	s := a.State
-	ui.Text(c, mcpCatalogText("从 JSON 导入服务器", "Import server from JSON")).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	ui.Text(c, mcpCatalogText("支持单个 spec、命名对象或 mcpServers 对象。每次只选择一项；解析和预览不连接、不保存，也不执行文档里的指令。", "Accepts a single spec, named object or mcpServers object. Select one entry at a time. Parsing and previewing neither connect nor save or execute document instructions.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	kHeading(c, mcpCatalogText("从 JSON 导入服务器", "Import server from JSON"))
+	kHint(c, mcpCatalogText("支持单个 spec、命名对象或 mcpServers 对象。每次只选择一项；解析和预览不连接、不保存，也不执行文档里的指令。", "Accepts a single spec, named object or mcpServers object. Select one entry at a time. Parsing and previewing neither connect nor save or execute document instructions."))
 	text, name := s.Text, s.DefaultName
-	changed := ui.TextArea(c, &text).FillWidth().MinHeight(80).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Changed()
-	ui.Text(c, mcpCatalogText("单个 spec 的默认名称（可留空沿用当前表单）", "Default name for a single spec (blank uses the current form)")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-	if ui.TextInput(c, &name).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Changed() {
+	changed := kTextarea(c, &text, coss.TextareaOptions{
+		Label:    mcpCatalogText("从 JSON 导入服务器", "Import server from JSON"),
+		Disabled: busy,
+	}).MinHeight(80).Changed()
+	kHint(c, mcpCatalogText("单个 spec 的默认名称（可留空沿用当前表单）", "Default name for a single spec (blank uses the current form)"))
+	if kInput(c, &name, coss.InputOptions{
+		Label:    mcpCatalogText("默认名称", "Default name"),
+		Disabled: busy,
+	}).Changed() {
 		changed = true
 	}
 	if changed && a.OnInput != nil {
 		a.OnInput(text, name)
 	}
-	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, mcpCatalogText("解析并预览", "Parse and preview")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(busy || text == "").Clicked() && a.OnParse != nil {
+	ui.Row(c).Gap(design.Sp(2)).Children(func() {
+		if kPrimary(c, mcpCatalogText("解析并预览", "Parse and preview"), busy || text == "").Clicked() && a.OnParse != nil {
 			a.OnParse()
 		}
-		if ui.Button(c, mcpCatalogText("清除导入预览", "Clear import preview")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(busy).Clicked() && a.OnClear != nil {
+		if kButtonDisabled(c, mcpCatalogText("清除导入预览", "Clear import preview"), busy).Clicked() && a.OnClear != nil {
 			a.OnClear()
 		}
 	})
@@ -48,7 +55,7 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 	if !s.Ready {
 		return
 	}
-	ui.Text(c, fmt.Sprintf(mcpCatalogText("%d 个候选配置；忽略 %d 个非服务器条目。尚未批量应用任何配置。", "%d candidate configurations; %d non-server entries ignored. No batch application is performed."), len(s.Candidates), s.Ignored)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	kHint(c, fmt.Sprintf(mcpCatalogText("%d 个候选配置；忽略 %d 个非服务器条目。尚未批量应用任何配置。", "%d candidate configurations; %d non-server entries ignored. No batch application is performed."), len(s.Candidates), s.Ignored))
 	for index, candidate := range s.Candidates {
 		row := candidate
 		choice := index
@@ -56,7 +63,7 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 		if choice == s.Selected {
 			label = "• " + label
 		}
-		if ui.Button(c, label).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Disabled(busy || row.Err != "").Clicked() && a.OnSelect != nil {
+		if kChoiceButton(c, label, choice == s.Selected, busy || row.Err != "").AlignSelf(ui.Start).Clicked() && a.OnSelect != nil {
 			a.OnSelect(choice)
 		}
 		if row.Err != "" {
@@ -67,33 +74,33 @@ func mcpImportContent(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui
 		return
 	}
 	selected := s.Candidates[s.Selected]
-	ui.Text(c, selected.ID+" · "+selected.Name+" · "+selected.Transport).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg)
+	kLabel(c, selected.ID+" · "+selected.Name+" · "+selected.Transport, fg)
 	enabled := mcpCatalogText("禁用", "disabled")
 	if selected.Enabled {
 		enabled = mcpCatalogText("启用", "enabled")
 	}
-	ui.Text(c, mcpCatalogText("保存后状态：", "State after saving: ")+enabled).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	kHint(c, mcpCatalogText("保存后状态：", "State after saving: ")+enabled)
 	if selected.Transport == "stdio" {
-		ui.Text(c, mcpCatalogText("命令：", "Command: ")+selected.Command).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
-		ui.Text(c, mcpCatalogText("参数：", "Arguments: ")+selected.ArgsJSON).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		kText(c, mcpCatalogText("命令：", "Command: ")+selected.Command, design.TextXS, design.WeightNormal, fg).FillWidth()
+		kText(c, mcpCatalogText("参数：", "Arguments: ")+selected.ArgsJSON, design.TextXS, design.WeightNormal, fg).FillWidth()
 		if selected.Cwd != "" {
-			ui.Text(c, mcpCatalogText("工作目录：", "Working directory: ")+selected.Cwd).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+			kHint(c, mcpCatalogText("工作目录：", "Working directory: ")+selected.Cwd)
 		}
 	} else {
-		ui.Text(c, "URL: "+selected.URL).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg)
+		kText(c, "URL: "+selected.URL, design.TextXS, design.WeightNormal, fg).FillWidth()
 	}
-	ui.Text(c, fmt.Sprintf(mcpCatalogText("环境变量 %d 项，请求头 %d 项；值在载入后的编辑器中复核。", "%d environment entries, %d headers; review their values in the editor after loading."), selected.EnvCount, selected.HeaderCount)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+	kHint(c, fmt.Sprintf(mcpCatalogText("环境变量 %d 项，请求头 %d 项；值在载入后的编辑器中复核。", "%d environment entries, %d headers; review their values in the editor after loading."), selected.EnvCount, selected.HeaderCount))
 	for _, warning := range selected.Warnings {
-		ui.Text(c, warning).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		kHint(c, warning)
 	}
 	replacement := s.ReplaceExisting
 	if selected.Existing {
-		if ui.Checkbox(c, &replacement, mcpCatalogText("明确选择编辑同 ID 的现有服务器：", "Explicitly choose to edit the existing server with this ID: ")+selected.ID).Disabled(busy || !selected.Writable).Changed() && a.OnReplace != nil {
+		if kCheckbox(c, &replacement, mcpCatalogText("明确选择编辑同 ID 的现有服务器：", "Explicitly choose to edit the existing server with this ID: ")+selected.ID, busy || !selected.Writable).Changed() && a.OnReplace != nil {
 			a.OnReplace(replacement)
 		}
 	}
-	ui.Text(c, mcpCatalogText("载入会替换当前未保存草稿；必须再点击“保存配置”才写入 Host。保存启用配置可能启动命令或连接 HTTP。", "Loading replaces the current unsaved draft. A separate Save configuration action writes to the Host and may start a command or connect over HTTP when enabled.")).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
-	if ui.Button(c, mcpCatalogText("确认载入所选 1 项到草稿", "Confirm loading this one entry into the draft")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy || selected.Err != "" || (selected.Existing && !replacement)).Clicked() && a.OnStage != nil {
+	kHint(c, mcpCatalogText("载入会替换当前未保存草稿；必须再点击“保存配置”才写入 Host。保存启用配置可能启动命令或连接 HTTP。", "Loading replaces the current unsaved draft. A separate Save configuration action writes to the Host and may start a command or connect over HTTP when enabled."))
+	if kPrimary(c, mcpCatalogText("确认载入所选 1 项到草稿", "Confirm loading this one entry into the draft"), busy || selected.Err != "" || (selected.Existing && !replacement)).AlignSelf(ui.Start).Clicked() && a.OnStage != nil {
 		a.OnStage()
 	}
 }
@@ -105,7 +112,7 @@ func mcpImportPane(c *ui.Context, a *MCPImportAccess, busy bool, fg, muted ui.Co
 	box := ui.Column(c.Key("mcp-import-dialog"))
 	open := ui.Local(box, "open", func() bool { return false })
 	box.Children(func() {
-		if ui.Button(c, mcpCatalogText("从 JSON 导入", "Import from JSON")).AlignSelf(ui.Start).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).Disabled(busy).Clicked() {
+		if kButtonDisabled(c, mcpCatalogText("从 JSON 导入", "Import from JSON"), busy).AlignSelf(ui.Start).Clicked() {
 			*open = true
 		}
 		bodyDialog(c, open, mcpCatalogText("导入 MCP 服务器", "Import MCP server"), func() { mcpImportContent(c, a, busy, fg, muted) })

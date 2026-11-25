@@ -27,37 +27,37 @@ func startupCauseText(d startuprec.Diagnostics) string {
 		return releaseText("暂无足够证据定位插件。可重试或检查当前启动日志。", "There is not enough evidence to identify a faulty plugin. Retry or inspect the current startup log.")
 	}
 }
-func startupDiagnosticsPanel(c *ui.Context, m Model) {
+func startupDiagnosticsPanel(c *ui.Context, pal launcherPalette, m Model) {
 	d := m.StartupDiagnostics
 	ui.Column(c).FillWidth().Gap(6).Padding(10, 0, 10, 0).Children(func() {
 		if m.StartError != "" {
-			ui.Text(c, m.StartError).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(13)).TextColor(colPrimary)
+			ui.Text(c, m.StartError).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(13)).TextColor(pal.primary)
 		}
-		ui.Text(c, startupCauseText(d)).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+		ui.Text(c, startupCauseText(d)).FontSize(fonttheme.InterfaceSize(12)).TextColor(pal.secondary)
 		for _, e := range d.Evidence {
 			label := e.Name
 			if !e.Known {
 				label += " · " + releaseText("未在当前库存确认", "not verified in inventory")
 			}
-			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, e.Line).FontSize(fonttheme.InterfaceSize(11)).TextColor(colTertiary)
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).FontWeight(600).TextColor(pal.primary)
+			ui.Text(c, e.Line).FontSize(fonttheme.InterfaceSize(11)).TextColor(pal.tertiary)
 		}
 		if !d.InventoryReady {
-			ui.Text(c, releaseText("无法读取本地插件配置或库存，请修复配置后刷新。", "Local plugin configuration or inventory is unavailable. Repair the configuration and refresh.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, releaseText("无法读取本地插件配置或库存，请修复配置后刷新。", "Local plugin configuration or inventory is unavailable. Repair the configuration and refresh.")).FontSize(fonttheme.InterfaceSize(12)).TextColor(pal.secondary)
 		}
 		ui.Row(c).Gap(8).Children(func() {
-			if ghostSmall(c, releaseText("刷新诊断与库存", "Refresh diagnostics and inventory")).Disabled(m.StartupRepairBusy).Clicked() && m.OnRefreshStartupDiagnostics != nil {
+			if ghostSmall(c, pal, releaseText("刷新诊断与库存", "Refresh diagnostics and inventory")).Disabled(m.StartupRepairBusy).Clicked() && m.OnRefreshStartupDiagnostics != nil {
 				m.OnRefreshStartupDiagnostics()
 			}
-			if primaryBtn(c, releaseText("禁用可疑插件并重试", "Disable suspects and retry")).Disabled(!d.CanRepair || m.StartupRepairBusy).Clicked() && m.OnRepairStartupSuspects != nil {
+			if primaryBtn(c, pal, releaseText("禁用可疑插件并重试", "Disable suspects and retry")).Disabled(!d.CanRepair || m.StartupRepairBusy).Clicked() && m.OnRepairStartupSuspects != nil {
 				m.OnRepairStartupSuspects()
 			}
-			if (d.Kind == "runtime" || d.Kind == "missing-node") && ghostSmall(c, releaseText("选择修复版本", "Choose repair release")).Clicked() && m.OnChooseRepairRelease != nil {
+			if (d.Kind == "runtime" || d.Kind == "missing-node") && ghostSmall(c, pal, releaseText("选择修复版本", "Choose repair release")).Clicked() && m.OnChooseRepairRelease != nil {
 				m.OnChooseRepairRelease()
 			}
 		})
 		if len(d.RepairNames) > 0 {
-			ui.Text(c, releaseText("仅处理：", "Targets only: ")+strings.Join(d.RepairNames, ", ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(colTertiary)
+			ui.Text(c, releaseText("仅处理：", "Targets only: ")+strings.Join(d.RepairNames, ", ")).FontSize(fonttheme.InterfaceSize(11)).TextColor(pal.tertiary)
 		}
 		for _, p := range d.Plugins {
 			label := p.Name + " · " + releaseText("已禁用", "disabled")
@@ -70,16 +70,16 @@ func startupDiagnosticsPanel(c *ui.Context, m Model) {
 			if p.Restriction != "" {
 				label += " · " + p.Restriction
 			}
-			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(pal.secondary)
 			ui.Row(c).Gap(8).Children(func() {
 				toggle := releaseText("启用", "Enable")
 				if p.Enabled {
 					toggle = releaseText("禁用", "Disable")
 				}
-				if ghostSmall(c, toggle).Disabled(m.StartupRepairBusy || !p.Mutable || !d.InventoryReady).Clicked() && m.OnSetStartupPluginEnabled != nil {
+				if ghostSmall(c, pal, toggle).Disabled(m.StartupRepairBusy || !p.Mutable || !d.InventoryReady).Clicked() && m.OnSetStartupPluginEnabled != nil {
 					m.OnSetStartupPluginEnabled(p.Name, !p.Enabled)
 				}
-				if ghostSmall(c, releaseText("卸载", "Remove")).Disabled(m.StartupRepairBusy || !p.Removable || !d.InventoryReady).Clicked() && m.OnRemoveStartupPlugin != nil {
+				if ghostSmall(c, pal, releaseText("卸载", "Remove")).Disabled(m.StartupRepairBusy || !p.Removable || !d.InventoryReady).Clicked() && m.OnRemoveStartupPlugin != nil {
 					m.OnRemoveStartupPlugin(p.Name)
 				}
 			})

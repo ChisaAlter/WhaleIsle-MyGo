@@ -79,14 +79,14 @@ func pointerEffectsPane(c *ui.Context, g *WallpaperEditor, fg, muted ui.Color) {
 			settingsAlert(c, "appearance-dialog", true, providerCopy("没能保存指针效果，请重试。", "The pointer effect was not saved. Try again."), g.failure)
 		}
 	}, func() {
-		if ui.Button(c, providerCopy("恢复指针默认", "Reset pointer effects")).Disabled(g.Save == nil || busy).Clicked() {
+		if kGhost(c, providerCopy("恢复指针默认", "Reset pointer effects"), g.Save == nil || busy).Clicked() {
 			p.CursorEffect = "trail"
 			p.ApplyCursorPreset("default")
 		}
-		if ui.Button(c, providerCopy("取消", "Cancel")).Disabled(busy).Clicked() {
+		if kButtonDisabled(c, providerCopy("取消", "Cancel"), busy).Clicked() {
 			*open = false
 		}
-		if ui.PrimaryButton(c, providerCopy("保存", "Save")).Disabled(g.Save == nil || busy).Clicked() {
+		if kPrimary(c, providerCopy("保存", "Save"), g.Save == nil || busy).Clicked() {
 			if !wallpaperColorsValid(g, p.CursorColors[:]) {
 				return
 			}

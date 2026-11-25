@@ -5,6 +5,8 @@ import (
 	"sync"
 	"whaleisle/internal/errcopy"
 
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 
@@ -44,15 +46,11 @@ type patchListItem struct {
 
 // diffToolButton paints one compact control of the patch tool row.
 func diffToolButton(c *ui.Context, label string, selected bool, onClick func()) ui.Element {
-	button := ui.Button(c, label).Height(26).Padding(0, 10).Radius(6).BorderWidth(0).FontSize(fonttheme.InterfaceSize(12)).Selected(selected).Tooltip(label)
-	if selected {
-		button.Background(c.Theme().SurfaceHover).TextColor(c.Theme().Text)
-	} else {
-		button.Background(ui.Transparent).TextColor(c.Theme().TextMuted)
-	}
-	if button.Hovered() && !selected {
-		button.Background(ui.RGBA(c.Theme().TextMuted.R, c.Theme().TextMuted.G, c.Theme().TextMuted.B, .14))
-	}
+	button := coss.Button(c, label, coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonXS,
+		Pressed: selected,
+	}).Height(26).Selected(selected).Tooltip(label)
 	if button.Clicked() && onClick != nil {
 		onClick()
 	}
@@ -508,10 +506,11 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 			header.FillWidth()
 		}
 		header.Children(func() {
-			head := ui.Button(c, title).FontSize(fonttheme.InterfaceSize(12)).Grow(1).MinWidth(0).Height(24).Radius(6).Padding(0, 8).BorderWidth(0).Background(ui.Transparent).TextColor(st.FG).Disabled(m.OnOpenFile == nil || !safePatchPath(f.Path)).Tooltip(f.Path)
-			if head.Hovered() && m.OnOpenFile != nil && safePatchPath(f.Path) {
-				head.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
-			}
+			head := coss.Button(c, title, coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonXS,
+				Disabled: m.OnOpenFile == nil || !safePatchPath(f.Path),
+			}).Grow(1).MinWidth(0).Justify(ui.Start).Tooltip(f.Path)
 			if head.Clicked() && m.OnOpenFile != nil {
 				if err := m.OnOpenFile(f.Path); err != nil && m.Workbench != nil {
 					m.Workbench.Status = errcopy.Sentence(err)
@@ -522,17 +521,17 @@ func paintPatchListItem(c *ui.Context, m Model, view *patchViewState, item patch
 			if open {
 				fold = i18n.T(i18n.KeySurfacesDiffCollapseAll)
 			}
-			toggle := ui.Button(c, "").Label(fold).Size(22, 22).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(fold)
-			toggle.Children(func() {
-				if open {
-					ui.Icon(c, diffChevronDownIcon).Size(10, 10).TextColor(st.Muted).PassThrough()
-				} else {
-					ui.Icon(c, diffChevronRightIcon).Size(10, 10).TextColor(st.Muted).PassThrough()
-				}
-			})
-			if toggle.Hovered() {
-				toggle.Background(ui.RGBA(st.Muted.R, st.Muted.G, st.Muted.B, .14))
-			}
+			toggle := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Label:   fold,
+				Content: func() {
+					if open {
+						ui.Icon(c, diffChevronDownIcon).Size(10, 10).TextColor(st.Muted).PassThrough()
+					} else {
+						ui.Icon(c, diffChevronRightIcon).Size(10, 10).TextColor(st.Muted).PassThrough()
+					}
+				},
+			}).Size(22, 22).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(fold)
 			if toggle.Clicked() {
 				if view.Closed == nil {
 					view.Closed = map[string]bool{}
@@ -601,10 +600,10 @@ func paintPatchFileActions(c *ui.Context, m Model, path string) {
 		if change.Path != path {
 			continue
 		}
-		if change.Unstaged() && ui.Button(c, word("暂存", "Stage")).Height(24).Shrink(0).Padding(0, 6).FontSize(fonttheme.InterfaceSize(12)).Disabled(busy).Clicked() {
+		if change.Unstaged() && coss.Button(c, word("暂存", "Stage"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: busy}).Shrink(0).Clicked() {
 			stageCommitFile(m, change)
 		}
-		if change.Staged() && ui.Button(c, word("取消暂存", "Unstage")).Height(24).Shrink(0).Padding(0, 6).FontSize(fonttheme.InterfaceSize(12)).Disabled(busy).Clicked() {
+		if change.Staged() && coss.Button(c, word("取消暂存", "Unstage"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Disabled: busy}).Shrink(0).Clicked() {
 			unstageCommitFile(m, change)
 		}
 		if change.Unstaged() {

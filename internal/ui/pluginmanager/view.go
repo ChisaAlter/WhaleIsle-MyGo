@@ -558,9 +558,13 @@ func packageMetaLine(p manager.Package) string {
 }
 
 // packageSource names where a plugin comes from, in the terms the manager
-// already distinguishes: bundled, installed from a market entry, or local.
+// already distinguishes: bundled, official on-demand, market, or local.
 func packageSource(p manager.Package) string {
 	switch {
+	case p.Official && p.Availability == "missing" && !p.Installed:
+		return copyText("官方 · 按需安装", "Official · On-demand")
+	case p.Official && (p.Availability == "profile" || p.Availability == "missing"):
+		return copyText("官方", "Official")
 	case p.Official:
 		return copyText("内置", "Built-in")
 	case p.InstallTarget != nil:
@@ -579,7 +583,11 @@ func packageTags(c *ui.Context, p manager.Package) {
 		coss.Badge(c, copyText("异常", "Problem"), coss.BadgeOptions{Variant: coss.BadgeError})
 	}
 	if p.Availability == "missing" {
-		coss.Badge(c, copyText("未安装 / 包不可用", "Not installed / missing files"), coss.BadgeOptions{Variant: coss.BadgeWarning})
+		if p.Installed {
+			coss.Badge(c, copyText("包不可用", "Package unavailable"), coss.BadgeOptions{Variant: coss.BadgeWarning})
+		} else {
+			coss.Badge(c, copyText("未安装", "Not installed"), coss.BadgeOptions{Variant: coss.BadgeSecondary})
+		}
 	}
 	if manager.UpdateAvailable(p) {
 		coss.Badge(c, copyText("可更新", "Update available"), coss.BadgeOptions{Variant: coss.BadgeInfo})

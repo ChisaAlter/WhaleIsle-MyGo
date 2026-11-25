@@ -4,6 +4,7 @@ import (
 	myterm "github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 )
 
 // A changed Host/session, pane, process, or selected text gets a different
@@ -35,7 +36,7 @@ func paintSelectionTarget(c *ui.Context, m Model, key terminalSelectionKey) {
 			label = terminalLabel("Browser 打开链接", "Open link in Browser")
 		}
 	}
-	if !ui.Button(c, label).Key(key).FontSize(11).Disabled(m.OnOpenTarget == nil).Clicked() {
+	if !coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Key: key, Disabled: m.OnOpenTarget == nil}).Clicked() {
 		return
 	}
 	p := m.Panel

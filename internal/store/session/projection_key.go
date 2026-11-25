@@ -19,7 +19,8 @@ type ProjectionKey struct {
 // that revision the keys no longer describe it, and a memo that trusts them would
 // serve the projection of the unedited view. Call it on a copy after editing it.
 func (v ViewState) WithoutProjectionKeys() ViewState {
-	v.projection, v.historyProjection, v.rosterProjection = ProjectionKey{}, ProjectionKey{}, ProjectionKey{}
+	v.projection, v.historyProjection, v.rosterProjection, v.durableHistoryProjection = ProjectionKey{}, ProjectionKey{}, ProjectionKey{}, ProjectionKey{}
+	v.durableHistorySessionID, v.durableHistoryBinding, v.durableHistoryMsgLen = "", "", 0
 	return v
 }
 
@@ -39,6 +40,20 @@ func (v ViewState) HistoryProjectionKey() ProjectionKey {
 		return v.historyProjection
 	}
 	return v.projection
+}
+
+// DurableHistoryProjectionKey reports the durable (non-streaming) history
+// revision this view was projected from. Unlike HistoryProjectionKey, it stays
+// stable across streaming chunks that only mutate the volatile tail row and do
+// not alter any settled durable message or its recorded timing.
+func (v ViewState) DurableHistoryProjectionKey() ProjectionKey {
+	if v.durableHistoryProjection.Valid() &&
+		v.SelectedID == v.durableHistorySessionID &&
+		v.PlanHistoryBinding == v.durableHistoryBinding &&
+		len(v.Messages) == v.durableHistoryMsgLen {
+		return v.durableHistoryProjection
+	}
+	return ProjectionKey{}
 }
 
 // RosterProjectionKey reports the workspace/session roster revision this view
@@ -64,6 +79,13 @@ func (s *Store) historyProjectionKeyLocked(changed bool) ProjectionKey {
 		s.historyProjectionToken = new(projectionToken)
 	}
 	return ProjectionKey{token: s.historyProjectionToken}
+}
+
+func (s *Store) durableHistoryProjectionKeyLocked(changed bool) ProjectionKey {
+	if s.durableHistoryProjectionToken == nil || changed {
+		s.durableHistoryProjectionToken = new(projectionToken)
+	}
+	return ProjectionKey{token: s.durableHistoryProjectionToken}
 }
 
 func (s *Store) rosterProjectionKeyLocked(changed bool) ProjectionKey {

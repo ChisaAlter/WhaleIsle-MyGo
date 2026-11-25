@@ -12,6 +12,8 @@ import (
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
@@ -91,8 +93,7 @@ func View(c *ui.Context, m Model) {
 				}
 			}
 			if runningN > 0 && m.OnInterrupt != nil && rootID != "" {
-				if ui.Button(c, i18n.T(i18n.KeyAgentsInterruptAll)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
-					Background(ui.RGBA(0xef, 0x44, 0x44, 0.1)).TextColor(ui.RGB(0xef, 0x44, 0x44)).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyAgentsInterruptAll), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonXS}).Clicked() {
 					for _, ch := range children {
 						if ch.Running {
 							m.OnInterrupt(rootID, ch.SessionID)
@@ -101,8 +102,7 @@ func View(c *ui.Context, m Model) {
 				}
 			}
 			if m.OnClose != nil {
-				if ui.Button(c, i18n.T(i18n.KeyAgentsClose)).Height(24).Padding(0, 8).Radius(6).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(ui.Transparent).
-					TextColor(muted).Cursor(ui.CursorPointer).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyAgentsClose), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 					m.OnClose()
 				}
 			}
@@ -113,8 +113,7 @@ func View(c *ui.Context, m Model) {
 		}
 		ui.Column(c).FillWidth().Padding(10, 12, 10, 12).Gap(8).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyAgentsRootLabel)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-			rootBtn := ui.Button(c, rootTitle).FillWidth().FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).
-				Radius(10).Border(0.5, border).Background(ui.Transparent).Padding(10, 12, 10, 12).Cursor(ui.CursorPointer)
+			rootBtn := coss.Button(c, rootTitle, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonLG}).FillWidth().Justify(ui.Start)
 			if rootBtn.Clicked() && m.OnSelect != nil && rootID != "" {
 				m.OnSelect(rootID)
 			}
@@ -145,41 +144,42 @@ func View(c *ui.Context, m Model) {
 					}
 				}
 				ui.Row(c).FillWidth().Gap(6).Radius(10).Border(0.5, border).Padding(10, 12, 10, 12).Background(bg).AlignItems(ui.Center).Children(func() {
-					btn := ui.Button(c, "").Grow(1).Background(ui.Transparent).BorderWidth(0).
-						Padding(0).Radius(6).Cursor(ui.CursorPointer)
-					btn.Children(func() {
-						ui.Column(c).FillWidth().Gap(4).Children(func() {
-							ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-								ink := muted
-								pillBg := ui.RGBA(muted.R, muted.G, muted.B, 0.12)
-								statusLabel := agentText("空闲", "Idle")
-								if row.Running {
-									ink = accent
-									pillBg = accent.Alpha(0.14)
-									statusLabel = agentText("运行中", "Running")
-								}
-								ui.Text(c, "●").FontSize(theme.InterfaceSize(10)).TextColor(ink)
-								ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg).Grow(1)
-								ui.Row(c).Radius(999).Padding(2, 8).Background(pillBg).AlignItems(ui.Center).Children(func() {
-									ui.Text(c, statusLabel).FontSize(theme.InterfaceSize(11)).TextColor(ink)
+					btn := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Label:   label,
+						Content: func() {
+							ui.Column(c).FillWidth().Gap(design.Sp(1)).Children(func() {
+								ui.Row(c).FillWidth().Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+									ink := muted
+									pillBg := muted.Alpha(0.12)
+									statusLabel := agentText("空闲", "Idle")
+									if row.Running {
+										ink = accent
+										pillBg = accent.Alpha(0.14)
+										statusLabel = agentText("运行中", "Running")
+									}
+									ui.Text(c, "●").FontSize(theme.InterfaceSize(10)).TextColor(ink)
+									ui.Text(c, label).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg).Grow(1)
+									ui.Row(c).Radius(design.RadiusFull).Padding(design.Sp(0.5), design.Sp(2)).Background(pillBg).AlignItems(ui.Center).Children(func() {
+										ui.Text(c, statusLabel).FontSize(theme.InterfaceSize(11)).TextColor(ink)
+									})
 								})
+								if sub != "" {
+									ui.Text(c, sub).FontSize(theme.InterfaceSize(11)).TextColor(muted)
+								}
 							})
-							if sub != "" {
-								ui.Text(c, sub).FontSize(theme.InterfaceSize(11)).TextColor(muted)
-							}
-						})
-					})
+						},
+					}).Grow(1).Padding(0).Radius(design.RadiusMD)
 					if btn.Clicked() && m.OnSelect != nil {
 						m.OnSelect(row.SessionID)
 					}
 					if row.Running && m.OnStop != nil {
-						if ui.Button(c, i18n.T(i18n.KeyAgentsStop)).Height(24).Padding(0, 8).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+						if coss.Button(c, i18n.T(i18n.KeyAgentsStop), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 							m.OnStop(row.SessionID)
 						}
 					}
 					if row.Running && m.OnInterrupt != nil {
-						if ui.Button(c, i18n.T(i18n.KeyAgentsInterrupt)).Height(24).Padding(0, 8).Radius(6).BorderWidth(0).
-							Background(ui.RGBA(0xef, 0x44, 0x44, 0.1)).TextColor(ui.RGB(0xef, 0x44, 0x44)).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+						if coss.Button(c, i18n.T(i18n.KeyAgentsInterrupt), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonXS}).Clicked() {
 							m.OnInterrupt(rootID, row.SessionID)
 						}
 					}
@@ -205,8 +205,10 @@ func View(c *ui.Context, m Model) {
 				if isChild && target != "" {
 					ui.Text(c, i18n.T(i18n.KeyAgentsPromptPlaceholder)).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.TextInput(c, m.PromptDraft).Grow(1).Radius(8).Border(0.5, border).Placeholder(i18n.T(i18n.KeyAgentsPromptPlaceholder))
-						if ui.Button(c, i18n.T(i18n.KeyAgentsPromptSend)).Height(28).Padding(0, 10).Radius(6).Border(0.5, border).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+						ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+							coss.Input(c, m.PromptDraft, coss.InputOptions{Size: coss.InputSM, Placeholder: i18n.T(i18n.KeyAgentsPromptPlaceholder)})
+						})
+						if coss.Button(c, i18n.T(i18n.KeyAgentsPromptSend), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 							text := strings.TrimSpace(*m.PromptDraft)
 							if text != "" {
 								m.OnPrompt(rootID, target, text)

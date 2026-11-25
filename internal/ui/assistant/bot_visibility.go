@@ -86,10 +86,10 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantLastConfirmedResult)+visibilityIdentity(s.Result)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 		}
 		shown := s.ShowHidden
-		if ui.Checkbox(c, &shown, i18n.T(i18n.KeyMiscAssistantShowHiddenLocally)).Changed() && m.OnShowHidden != nil {
+		if aCheckbox(c, &shown, i18n.T(i18n.KeyMiscAssistantShowHiddenLocally), false).Changed() && m.OnShowHidden != nil {
 			m.OnShowHidden(shown)
 		}
-		if ui.Button(c, i18n.T(i18n.KeyMiscAssistantReadFullCatalog)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope == "").Clicked() && m.OnRefresh != nil {
+		if aButton(c, i18n.T(i18n.KeyMiscAssistantReadFullCatalog), blocked || s.Scope == "").Clicked() && m.OnRefresh != nil {
 			m.OnRefresh()
 		}
 		if s.Uncertain {
@@ -97,7 +97,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 			if s.Pending != nil {
 				ui.Text(c, botVisibilityReviewText(m.HostLabel, *s.Pending)).FontSize(fonttheme.InterfaceSize(11)).TextColor(fg).Selectable()
 			}
-			if s.Candidate != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() && m.OnAdopt != nil {
+			if s.Candidate != nil && aPrimary(c, i18n.T(i18n.KeyMiscAssistantAdoptExactReadback), blocked).Clicked() && m.OnAdopt != nil {
 				m.OnAdopt(s.Candidate.ID, s.Candidate.SessionID)
 			}
 			return
@@ -112,20 +112,20 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 		if s.Review != nil {
 			r := s.Review
 			ui.Column(c.Key("visibility-confirm")).Border(.5, accent).Radius(12).Padding(12, 16).Gap(8).Children(func() {
-				if ui.Button(c, i18n.T(i18n.KeyMiscAssistantCancel)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() && m.OnCancel != nil {
+				if aButton(c, i18n.T(i18n.KeyMiscAssistantCancel), blocked).Clicked() && m.OnCancel != nil {
 					m.OnCancel()
 				}
 				ui.Text(c, botVisibilityReviewText(m.HostLabel, r.Command)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				ui.Text(c, botVisibilityEffects()).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
 				ack := r.Acknowledged
-				if ui.Checkbox(c, &ack, i18n.T(i18n.KeyMiscAssistantIConfirmThisTargetAndEffects)).Disabled(blocked).Changed() && m.OnAcknowledge != nil {
+				if aCheckbox(c, &ack, i18n.T(i18n.KeyMiscAssistantIConfirmThisTargetAndEffects), blocked).Changed() && m.OnAcknowledge != nil {
 					m.OnAcknowledge(ack)
 				}
 				label := i18n.T(i18n.KeyMiscAssistantConfirmUnhide)
 				if r.Command.Hidden {
 					label = i18n.T(i18n.KeyMiscAssistantConfirmHide)
 				}
-				if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
+				if aPrimary(c, label, blocked || !s.Writable || !r.Acknowledged).Clicked() && m.OnConfirm != nil {
 					m.OnConfirm()
 				}
 			})
@@ -144,7 +144,7 @@ func botVisibilityView(c *ui.Context, m BotVisibilityModel, blocked bool, fg, mu
 				if v.Hidden {
 					label = i18n.T(i18n.KeyMiscAssistantReviewUnhide)
 				}
-				if ui.Button(c, label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Writable).Clicked() && m.OnReview != nil {
+				if aButton(c, label, blocked || !s.Writable).Clicked() && m.OnReview != nil {
 					m.OnReview(v.ID, v.SessionID)
 				}
 			})

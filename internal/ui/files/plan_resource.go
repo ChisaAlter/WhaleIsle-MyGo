@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/planpreview"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -123,11 +124,11 @@ func paintPlanTabs(c *ui.Context, m Model) {
 			if address == r.ActiveAddress(sid) {
 				name = "▸ " + name
 			}
-			if ui.Button(c, name).Tooltip(address).FontSize(theme.InterfaceSize(11)).Clicked() {
+			if coss.Button(c, name, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS, Pressed: address == r.ActiveAddress(sid)}).Tooltip(address).Clicked() {
 				r.Navigate(sid, address)
 				m.Tabs.AllowPlanRead(r.ActiveAddress(sid))
 			}
-			if ui.Button(c, "×").Tooltip(label("关闭计划", "Close plan")).FontSize(theme.InterfaceSize(11)).Clicked() {
+			if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(label("关闭计划", "Close plan")).Clicked() {
 				if r.ActiveAddress(sid) == address {
 					m.Tabs.CancelPlanRead()
 				}
@@ -161,7 +162,9 @@ func paintPlanResource(c *ui.Context, m Model) bool {
 	root.Children(func() {
 		paintPlanTabs(c, m)
 		ui.Row(c).FillWidth().Padding(0, 8).Gap(4).Children(func() {
-			ui.TextInput(c, &nav.Draft).Grow(1).Label("Plan resource address")
+			ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+				coss.Input(c, &nav.Draft, coss.InputOptions{Size: coss.InputSM, Label: "Plan resource address"})
+			})
 			if widgets.Button(c, colors, label("前往", "Go"), widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall}).Clicked() {
 				nav.Error = r.Navigate(sid, nav.Draft)
 				if nav.Error == "" {

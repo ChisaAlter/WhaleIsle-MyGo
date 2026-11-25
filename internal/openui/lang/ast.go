@@ -179,8 +179,8 @@ func toLiteralAST(v Value) Node {
 		return &ArrNode{Els: els}
 	case *Object:
 		ents := make([]ObjEntry, 0, t.Len())
-		for _, k := range t.Keys() {
-			ents = append(ents, ObjEntry{Key: k, Value: toLiteralAST(t.vals[k])})
+		for i, k := range t.Keys() {
+			ents = append(ents, ObjEntry{Key: k, Value: toLiteralAST(t.vals[i])})
 		}
 		return &ObjNode{Entries: ents}
 	}

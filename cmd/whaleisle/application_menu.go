@@ -68,8 +68,9 @@ func (s *mainState) syncApplicationMenu(c *ui.Context) {
 	// the shipped defaults instead of blank keycaps.
 	snapshot := prefs.Accepted()
 	hasRevision := snapshot.Status == "ready"
-	bindings := s.pageShortcutChords()
-	encoded := s.pageShortcutEncoded()
+	sc := s.pageShortcutState()
+	bindings := sc.chords
+	encoded := sc.encoded
 	revision := snapshot.Revision
 	signature := encoded + resumeText("zh", "en") + revision
 	if hasRevision {
@@ -111,13 +112,25 @@ func (s *mainState) processApplicationMenuFor(c *ui.Context, owner *mygo.Window)
 	if state == nil {
 		return
 	}
-	revision := s.pageShortcutPreferences().Accepted().Revision
 	pending := state.pendingByWindow[owner]
-	delete(state.pendingByWindow, owner)
 	if owner == s.win {
-		pending = append(pending, state.pending...)
-		state.pending = nil
+		if len(pending) == 0 && len(state.pending) == 0 {
+			return
+		}
+		if len(pending) > 0 {
+			delete(state.pendingByWindow, owner)
+		}
+		if len(state.pending) > 0 {
+			pending = append(pending, state.pending...)
+			state.pending = nil
+		}
+	} else {
+		if len(pending) == 0 {
+			return
+		}
+		delete(state.pendingByWindow, owner)
 	}
+	revision := s.pageShortcutPreferences().Accepted().Revision
 	actions := s.applicationMenuActions(c)
 	for _, gesture := range pending {
 		s.mu.Lock()
@@ -131,6 +144,32 @@ func (s *mainState) processApplicationMenuFor(c *ui.Context, owner *mygo.Window)
 			run()
 		}
 	}
+}
+
+// applicationMenuActionIDs lists every command ID supported by
+// applicationMenuActions so shortcut registration can pre-build its lookup
+// table once per shortcut revision without allocating closures every frame.
+var applicationMenuActionIDs = map[string]bool{
+	"window.zoomIn":       true,
+	"window.zoomOut":      true,
+	"window.actualSize":   true,
+	"window.fullscreen":   true,
+	"shortcuts.open":      true,
+	"workspace.add":       true,
+	"workspace.reveal":    true,
+	"workspace.openLocal": true,
+	"launcher.open":       true,
+	"settings.open":       true,
+	"market.open":         true,
+	"settings.mcp":        true,
+	"settings.skills":     true,
+	"settings.about":      true,
+	"app.quit":            true,
+	"window.close":        true,
+	"harness.restart":     true,
+	"window.refresh":      true,
+	"help.web":            true,
+	"help.sdk":            true,
 }
 
 func (s *mainState) applicationMenuActions(c *ui.Context) map[string]func() {

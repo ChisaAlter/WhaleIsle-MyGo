@@ -51,8 +51,11 @@ func (s *Store) WakePet(now time.Time) error {
 }
 
 func (s *Store) applyPetCare(kind string, effect func([]byte, time.Time) petcare.Stats, now time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	pet, err := rawObject(s.raw["live2dPet"])
 	if err != nil {
 		return err

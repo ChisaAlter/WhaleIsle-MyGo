@@ -49,6 +49,7 @@ func (s *mainState) openResume(dir string) {
 		s.resumeError = fmt.Sprintf("%s: %v", store.Path(), err)
 		return
 	}
+	s.markFileTabsMutatedLocked()
 	l := saved.Layout
 	if finiteSize(l.TranscriptWidth, 1, 100000) {
 		s.layout.TranscriptWidth = l.TranscriptWidth

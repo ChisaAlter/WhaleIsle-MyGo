@@ -3,6 +3,7 @@ package remote
 import (
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
+	"whaleisle/internal/ui/coss"
 )
 
 type DirectoryPickerModel struct {
@@ -44,10 +45,14 @@ func DirectoryPicker(c *ui.Context, m DirectoryPickerModel) {
 					selected = caption
 				}
 			}
-			if len(choices) > 0 && ui.Select(c, &selected, choices).Label(label("选择远程机器", "Select remote machine")).Grow(1).Disabled(s.Busy).Changed() {
+			opts := make([]coss.SelectOption, len(choices))
+			for i, choice := range choices {
+				opts[i] = coss.SelectOption{Value: choice, Label: choice}
+			}
+			if len(opts) > 0 && coss.Select(c, &selected, opts, coss.SelectOptions{Label: label("选择远程机器", "Select remote machine"), Disabled: s.Busy}).Grow(1).Changed() {
 				m.Store.Select(ids[selected])
 			}
-			if ui.Button(c, label("刷新机器", "Refresh machines")).Disabled(s.Busy).Clicked() {
+			if coss.Button(c, label("刷新机器", "Refresh machines"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: s.Busy}).Clicked() {
 				m.Store.Refresh()
 			}
 		})
@@ -68,11 +73,11 @@ func DirectoryPicker(c *ui.Context, m DirectoryPickerModel) {
 		ui.Column(c).FillWidth().Shrink(0).MinWidth(0).Gap(8).Children(func() {
 			ui.Box(c).FillWidth().Height(.5).Background(c.Theme().Border)
 			ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-				if ui.Button(c, label("新建文件夹", "New folder")).Disabled(directoryBlocked(model, s) || !s.Directory.CanChoose()).Clicked() {
+				if coss.Button(c, label("新建文件夹", "New folder"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: directoryBlocked(model, s) || !s.Directory.CanChoose()}).Clicked() {
 					m.Store.ShowDirectoryCreate(true)
 				}
 				ui.Box(c).Grow(1)
-				if ui.Button(c, label("取消", "Cancel")).Clicked() {
+				if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 					m.Store.CancelDirectoryChoice()
 					if m.OnCancel != nil {
 						m.OnCancel()

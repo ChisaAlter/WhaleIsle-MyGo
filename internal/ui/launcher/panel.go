@@ -13,39 +13,80 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/startuprec"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
 
-var (
-	colPrimary   = chrome.Color("rgb(15, 17, 21)")
-	colSecondary = chrome.Color("rgb(97, 102, 107)")
-	colTertiary  = chrome.Color("rgb(129, 133, 140)")
-	colAccent    = chrome.Color("rgb(65, 118, 230)")
-	colSidebar   = chrome.Color("rgb(249, 250, 251)")
-	colBase      = chrome.Color("rgb(255, 255, 255)")
-	colBorderL1  = chrome.Color("rgba(0, 0, 0, 0.04)")
-	colBorderL2  = chrome.Color("rgba(0, 0, 0, 0.10)")
-	colNavActive = chrome.Color("rgb(228, 237, 253)")
-	colNavHover  = chrome.Color("rgb(241, 243, 245)")
-	colPrimaryFg = chrome.Color("rgb(255, 255, 255)")
-	colField     = chrome.Color("rgb(245, 246, 247)")
-	// Update-available chip (Electron: green pill on version rows).
-	colSuccessBG  = chrome.Color("rgb(220, 252, 231)")
-	colSuccessFG  = chrome.Color("rgb(22, 101, 52)")
-	colWarnBG     = chrome.Color("rgb(255, 247, 230)")
-	colWarnBorder = chrome.Color("rgb(230, 190, 120)")
-	colKindBG     = chrome.Color("rgb(255, 237, 213)")
-	colKindFG     = chrome.Color("rgb(154, 52, 18)")
-	colOfficialBG = chrome.Color("rgb(228, 237, 253)")
-	colSegActive  = chrome.Color("rgb(235, 238, 242)")
-	colDanger     = chrome.Color("rgb(236, 19, 19)")
-)
+type launcherPalette struct {
+	colors     theme.Colors
+	primary    ui.Color
+	secondary  ui.Color
+	tertiary   ui.Color
+	accent     ui.Color
+	sidebar    ui.Color
+	base       ui.Color
+	borderL1   ui.Color
+	borderL2   ui.Color
+	navActive  ui.Color
+	navHover   ui.Color
+	primaryFg  ui.Color
+	field      ui.Color
+	successBG  ui.Color
+	successFG  ui.Color
+	warnBG     ui.Color
+	warnBorder ui.Color
+	kindBG     ui.Color
+	kindFG     ui.Color
+	officialBG ui.Color
+	segActive  ui.Color
+	danger     ui.Color
+}
 
-// launcherColors is the resolved palette the standard buttons read; the token
-// globals above stay for the rows and tabs that paint themselves.
-var launcherColors = theme.Resolve("deepseek").Light
+func resolveLauncherPalette(themeID string, dark bool) launcherPalette {
+	th := theme.Resolve(themeID).Active(dark)
+	accent := chrome.Color(th.Accent)
+	border := chrome.Color(th.Border)
+	hover := chrome.Color(th.Hover)
+	muted := chrome.Color(th.Muted)
+	p := launcherPalette{
+		colors:     th,
+		primary:    chrome.Color(th.FG),
+		secondary:  muted,
+		tertiary:   muted,
+		accent:     accent,
+		sidebar:    chrome.Color(th.Sidebar),
+		base:       chrome.Color(th.BG),
+		borderL1:   border,
+		borderL2:   border,
+		navActive:  hover,
+		navHover:   hover,
+		primaryFg:  chrome.Color(th.ButtonFG),
+		field:      chrome.Color(th.Field),
+		officialBG: accent.Alpha(0.14),
+		segActive:  hover,
+		danger:     chrome.Color(th.Danger),
+	}
+	if dark {
+		p.successBG = design.TW.Green500.Alpha(0.18)
+		p.successFG = design.TW.Green300
+		p.warnBG = design.TW.Amber500.Alpha(0.16)
+		p.warnBorder = design.TW.Amber500.Alpha(0.45)
+		p.kindBG = design.TW.Orange400.Alpha(0.18)
+		p.kindFG = design.TW.Orange300
+	} else {
+		p.navActive = accent.Alpha(0.12)
+		p.successBG = design.TW.Green100
+		p.successFG = design.TW.Green800
+		p.warnBG = design.TW.Amber50
+		p.warnBorder = design.TW.Amber300
+		p.kindBG = design.TW.Orange100
+		p.kindFG = design.TW.Orange800
+	}
+	return p
+}
 
 // Model wires launcher actions (version, import probe, update, start).
 type Model struct {
@@ -133,84 +174,33 @@ var (
 	importCatActive     = "sessions"
 )
 
-func applyLightTokens() {
-	launcherColors = theme.Resolve("deepseek").Light
-	colPrimary = chrome.Color("rgb(15, 17, 21)")
-	colSecondary = chrome.Color("rgb(97, 102, 107)")
-	colTertiary = chrome.Color("rgb(129, 133, 140)")
-	colAccent = chrome.Color("rgb(65, 118, 230)")
-	colSidebar = chrome.Color("rgb(249, 250, 251)")
-	colBase = chrome.Color("rgb(255, 255, 255)")
-	colBorderL1 = chrome.Color("rgba(0, 0, 0, 0.04)")
-	colBorderL2 = chrome.Color("rgba(0, 0, 0, 0.10)")
-	colNavActive = chrome.Color("rgb(228, 237, 253)")
-	colNavHover = chrome.Color("rgb(241, 243, 245)")
-	colPrimaryFg = chrome.Color("rgb(255, 255, 255)")
-	colField = chrome.Color("rgb(245, 246, 247)")
-	colSuccessBG = chrome.Color("rgb(220, 252, 231)")
-	colSuccessFG = chrome.Color("rgb(22, 101, 52)")
-	colWarnBG = chrome.Color("rgb(255, 247, 230)")
-	colWarnBorder = chrome.Color("rgb(230, 190, 120)")
-	colKindBG = chrome.Color("rgb(255, 237, 213)")
-	colKindFG = chrome.Color("rgb(154, 52, 18)")
-	colOfficialBG = chrome.Color("rgb(228, 237, 253)")
-	colSegActive = chrome.Color("rgb(235, 238, 242)")
-	colDanger = chrome.Color("rgb(236, 19, 19)")
-}
-
-func applyDarkTokens() {
-	launcherColors = theme.Resolve("deepseek").Dark
-	th := theme.Resolve("deepseek.dark").Dark
-	colPrimary = chrome.Color(th.FG)
-	colSecondary = chrome.Color(th.Muted)
-	colTertiary = chrome.Color(th.Muted)
-	colAccent = chrome.Color(th.Accent)
-	colSidebar = chrome.Color(th.Sidebar)
-	colBase = chrome.Color(th.BG)
-	colBorderL1 = chrome.Color(th.Border)
-	colBorderL2 = chrome.Color(th.Border)
-	colNavActive = chrome.Color(th.Hover)
-	colNavHover = chrome.Color(th.Hover)
-	colPrimaryFg = chrome.Color(th.ButtonFG)
-	colField = chrome.Color(th.Field)
-	// Dark: muted green chip on field (avoid light-only mint wash).
-	colSuccessBG = chrome.Color("rgba(34, 197, 94, 0.18)")
-	colSuccessFG = chrome.Color("rgb(134, 239, 172)")
-	colWarnBG = chrome.Color("rgba(245, 158, 11, 0.16)")
-	colWarnBorder = chrome.Color("rgba(245, 158, 11, 0.45)")
-	colKindBG = chrome.Color("rgba(251, 146, 60, 0.18)")
-	colKindFG = chrome.Color("rgb(253, 186, 116)")
-	colOfficialBG = chrome.Color(th.Hover)
-	colSegActive = chrome.Color(th.Hover)
-	colDanger = chrome.Color(th.Danger)
-}
-
 func componentsPanel(c *ui.Context, m Model) {
+	pal := resolveLauncherPalette(m.ThemeID, m.SystemDark)
 	ui.Column(c).Gap(12).Children(func() {
-		bridgeAlertSummary(c, m)
+		bridgeAlertSummary(c, pal, m)
 		if m.ComponentStatus != "" {
-			ui.Text(c, m.ComponentStatus).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, m.ComponentStatus).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 		}
 		if !components.WhaleBridgeManagementSupported() {
-			ui.Text(c, releaseText("鲸桥安装和组件管理仅支持 Windows x64。", "WhaleBridge installation and management require Windows x64.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, releaseText("鲸桥安装和组件管理仅支持 Windows x64。", "WhaleBridge installation and management require Windows x64.")).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 		}
 		// Electron: compact ????pill, not a full-width bar.
 		ui.Row(c).AlignSelf(ui.Start).Children(func() {
-			if ghostSmall(c, i18n.T(i18n.KeyUsageRefresh)).Clicked() && m.OnRefreshComponents != nil {
+			if ghostSmall(c, pal, i18n.T(i18n.KeyUsageRefresh)).Clicked() && m.OnRefreshComponents != nil {
 				m.OnRefreshComponents()
 			}
 		})
 		if len(m.Components) == 0 {
-			ui.Text(c, i18n.T(i18n.KeyLauncherComponentsEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(colSecondary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherComponentsEmpty)).FontSize(theme.InterfaceSize(14)).TextColor(pal.secondary)
 			return
 		}
 		for _, row := range m.Components {
-			componentCard(c, m, row, false)
+			componentCard(c, pal, m, row, false)
 		}
 	})
 }
 
-func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
+func componentCard(c *ui.Context, pal launcherPalette, m Model, row components.Row, compact bool) {
 	pendingAction := m.ComponentPending[row.ID]
 	componentBusy := m.ComponentBusy || pendingAction != ""
 	statusText := stateLabel(row.State)
@@ -218,7 +208,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 		statusText = componentPendingLabel(pendingAction)
 	}
 	if row.ID == components.HostComponentID {
-		hostBundleCard(c, m, row, compact)
+		hostBundleCard(c, pal, m, row, compact)
 		return
 	}
 	if compact {
@@ -227,31 +217,31 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 		if width <= 760 {
 			padding = 16
 		}
-		chrome.FrostSurface(ui.Column(c.Key("home-component-"+row.ID)).MinWidth(0).Border(1, colBorderL2), launcherColors, m.SystemDark, colSidebar, 12).
+		chrome.FrostSurface(ui.Column(c.Key("home-component-"+row.ID)).MinWidth(0).Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.sidebar, 12).
 			Padding(padding).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).Children(func() {
-				componentAvatar(c, row, 36)
+				componentAvatar(c, pal, row, 36)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
-						ui.Text(c, "v"+nonempty(row.InstalledVersion, row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-						componentStatusBadge(c, row, statusText)
+						ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(pal.primary)
+						ui.Text(c, "v"+nonempty(row.InstalledVersion, row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
+						componentStatusBadge(c, pal, row, statusText)
 					})
 					if row.Description != "" {
-						ui.Text(c, row.Description).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+						ui.Text(c, row.Description).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 					}
 				})
 			})
-			componentStatusDetail(c, row)
+			componentStatusDetail(c, pal, row)
 			// launcher-components.js renderHomeRows keeps stop and settings
 			// reachable from the home card while an installed component runs.
 			if row.State == "running" {
 				ui.Row(c).Wrap().Gap(8).Children(func() {
 					label := fmt.Sprintf(releaseText("关闭%s", "Close %s"), row.Name)
-					if ghostBtn(c, label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+					if ghostBtn(c, pal, label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 						m.OnComponentAction(row.ID, "stop")
 					}
-					if row.ID == "whalebridge" && ghostBtn(c, i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+					if row.ID == "whalebridge" && ghostBtn(c, pal, i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 						m.OnComponentAction(row.ID, "open")
 					}
 				})
@@ -264,7 +254,7 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					label = i18n.T(i18n.KeyLauncherCompInstall)
 				}
 				ui.Row(c).Children(func() {
-					if primaryBtn(c, label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+					if primaryBtn(c, pal, label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 						action := "start"
 						if row.State == "available" {
 							action = "install"
@@ -279,34 +269,34 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 
 	// Electron L-COMP: divider row ??avatar | copy+tags | trailing column (status + ??/??).
 	ui.Column(c.Key("component-"+row.ID)).FillWidth().Padding(12, 0, 14, 0).
-		BorderWidth(0, 0, 1, 0).BorderColor(colBorderL1).Children(func() {
+		BorderWidth(0, 0, 1, 0).BorderColor(pal.borderL1).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
-			componentAvatar(c, row, 40)
+			componentAvatar(c, pal, row, 40)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(colPrimary)
+					ui.Text(c, row.Name).FontSize(theme.InterfaceSize(15)).FontWeight(600).TextColor(pal.primary)
 					if row.Kind != "" {
-						ui.Row(c).Background(colKindBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, kindLabel(row.Kind)).FontSize(theme.InterfaceSize(11)).TextColor(colKindFG)
+						ui.Row(c).Background(pal.kindBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, kindLabel(row.Kind)).FontSize(theme.InterfaceSize(11)).TextColor(pal.kindFG)
 						})
 					}
 					if row.Source == "official" {
-						ui.Row(c).Background(colOfficialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyLauncherCompOfficial)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
+						ui.Row(c).Background(pal.officialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyLauncherCompOfficial)).FontSize(theme.InterfaceSize(11)).TextColor(pal.accent)
 						})
 					} else if row.Source == "bundled" {
-						ui.Row(c).Background(colOfficialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyLauncherCompBundled)).FontSize(theme.InterfaceSize(11)).TextColor(colAccent)
+						ui.Row(c).Background(pal.officialBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyLauncherCompBundled)).FontSize(theme.InterfaceSize(11)).TextColor(pal.accent)
 						})
 					}
 					if row.Orphan {
-						ui.Row(c).Background(colWarnBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, releaseText("目录外组件", "Outside catalog")).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
+						ui.Row(c).Background(pal.warnBG).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, releaseText("目录外组件", "Outside catalog")).FontSize(theme.InterfaceSize(11)).TextColor(pal.secondary)
 						})
 					}
 					if row.UpdateAvailable {
-						ui.Row(c).Background(colField).Padding(1, 6, 1, 6).Radius(6).Children(func() {
-							ui.Text(c, i18n.T(i18n.KeyLauncherCompUpdatable)).FontSize(theme.InterfaceSize(11)).TextColor(colSecondary)
+						ui.Row(c).Background(pal.field).Padding(1, 6, 1, 6).Radius(6).Children(func() {
+							ui.Text(c, i18n.T(i18n.KeyLauncherCompUpdatable)).FontSize(theme.InterfaceSize(11)).TextColor(pal.secondary)
 						})
 					}
 				})
@@ -321,34 +311,36 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 					meta = append(meta, releaseText("\u5b89\u88c5", "Installed")+" v"+row.InstalledVersion)
 				}
 				if len(meta) > 0 {
-					ui.Text(c, strings.Join(meta, " \u00b7 ")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+					ui.Text(c, strings.Join(meta, " \u00b7 ")).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 				}
 				if row.UpdateAvailable {
-					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+					ui.Text(c, fmt.Sprintf(i18n.T(i18n.KeyLauncherCompUpdateAvail), row.Version)).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 				}
 			})
 			ui.Column(c).MaxWidthPercent(55).MinWidth(0).Gap(8).AlignItems(ui.End).Children(func() {
-				componentStatusBadge(c, row, statusText)
+				componentStatusBadge(c, pal, row, statusText)
 				ui.Row(c).MaxWidthPercent(100).MinWidth(0).Wrap().Justify(ui.End).Gap(8).AlignItems(ui.Center).Children(func() {
 					if row.State == "unsupported" {
 						return
 					}
 					compPrimary := func(label string) ui.Element {
 						// Electron ?? ??72�42 device-px @150% ??~48�28 DIP.
-						return ui.Button(c, label).Height(28).Padding(0, 10, 0, 10).
-							Radius(14).Background(colPrimary).BorderWidth(0).
-							TextColor(colPrimaryFg).FontSize(theme.InterfaceSize(12))
+						return coss.Button(c, label, coss.ButtonOptions{
+							Variant:  coss.ButtonDefault,
+							Size:     coss.ButtonSM,
+							Disabled: componentBusy,
+						}).Radius(design.RadiusFull)
 					}
 					switch row.State {
 					case "available":
-						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(i18n.T(i18n.KeyLauncherCompInstall)).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "install")
 						}
 					case "running":
-						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if row.ID == "whalebridge" && compPrimary(i18n.T(i18n.KeyLauncherCompOpenSettings)).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "open")
 						}
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherCompStop)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherCompStop)).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "stop")
 						}
 					default:
@@ -356,21 +348,21 @@ func componentCard(c *ui.Context, m Model, row components.Row, compact bool) {
 						if row.State == "error" {
 							label = i18n.T(i18n.KeyLauncherCompRetry)
 						}
-						if compPrimary(label).Disabled(componentBusy).Clicked() && m.OnComponentAction != nil {
+						if compPrimary(label).Clicked() && m.OnComponentAction != nil {
 							m.OnComponentAction(row.ID, "start")
 						}
 					}
 					if row.InstalledVersion != "" {
-						componentManagement(c, m, row, componentBusy)
+						componentManagement(c, pal, m, row, componentBusy)
 					}
 				})
 			})
 		})
-		componentStatusDetail(c, row)
+		componentStatusDetail(c, pal, row)
 	})
 }
 
-func componentAvatar(c *ui.Context, row components.Row, size float32) {
+func componentAvatar(c *ui.Context, pal launcherPalette, row components.Row, size float32) {
 	if row.ID == "whalebridge" {
 		if bmp := chrome.BrandAvatar(); bmp != nil {
 			ui.Image(c, bmp).Width(size).Height(size).Fit(ui.Contain)
@@ -382,25 +374,25 @@ func componentAvatar(c *ui.Context, row components.Row, size float32) {
 	if len(name) > 0 {
 		glyph = strings.ToUpper(string(name[0]))
 	}
-	ui.Box(c).Width(size).Height(size).Radius(8).Background(colField).Center().Children(func() {
-		ui.Text(c, glyph).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(colSecondary)
+	ui.Box(c).Width(size).Height(size).Radius(8).Background(pal.field).Center().Children(func() {
+		ui.Text(c, glyph).FontSize(theme.InterfaceSize(16)).FontWeight(600).TextColor(pal.secondary)
 	})
 }
 
-func componentManagement(c *ui.Context, m Model, row components.Row, busy bool) {
+func componentManagement(c *ui.Context, pal launcherPalette, m Model, row components.Row, busy bool) {
 	busy = busy || (row.ID == "whalebridge" && !components.WhaleBridgeManagementSupported())
-	trigger := ghostSmall(c, i18n.T(i18n.KeyLauncherCompManage)).Disabled(busy)
+	trigger := ghostSmall(c, pal, i18n.T(i18n.KeyLauncherCompManage)).Disabled(busy)
 	open := ui.Local(trigger, "component-manage-open", func() bool { return false })
 	if trigger.Clicked() {
 		*open = !*open
 	}
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
-		chrome.PopoverReveal(c, chrome.FrostSurface(panel.MinWidth(168).Border(1, colBorderL2), launcherColors, m.SystemDark, colField, 12).Padding(8).Gap(4).
+		chrome.PopoverReveal(c, chrome.FrostSurface(panel.MinWidth(168).Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.field, 12).Padding(8).Gap(4).
 			AttachTo(trigger, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0))
 		ui.Text(c, fmt.Sprintf(releaseText("当前 v%s", "Current v%s"), row.InstalledVersion)).
-			FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(6, 10)
+			FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary).Padding(6, 10)
 		action := func(id, label string) {
-			if ghostSmall(c, label).FillWidth().Justify(ui.Start).Disabled(busy).Clicked() {
+			if ghostSmall(c, pal, label).FillWidth().Justify(ui.Start).Disabled(busy).Clicked() {
 				*open = false
 				if m.OnComponentAction != nil {
 					m.OnComponentAction(row.ID, id)
@@ -475,18 +467,19 @@ func stateLabel(state string) string {
 }
 
 func importPanel(c *ui.Context, m Model) {
+	pal := resolveLauncherPalette(m.ThemeID, m.SystemDark)
 	if m.ImportBusy {
 		ui.Column(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "正在导入 · 操作结束前不能再次开始").FontSize(theme.InterfaceSize(14)).TextColor(colPrimary)
-			ui.Text(c, m.ImportSummary).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-			ui.Text(c, "取消会在当前项目完成后停止；已完成的数据保留，可安全重扫。 ").FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-			if ghostSmall(c, "取消后续导入").Clicked() && m.OnCancelImport != nil {
+			ui.Text(c, releaseText("正在导入 · 操作结束前不能再次开始", "Importing · cannot start again until finished")).FontSize(theme.InterfaceSize(14)).TextColor(pal.primary)
+			ui.Text(c, m.ImportSummary).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
+			ui.Text(c, releaseText("取消会在当前项目完成后停止；已完成的数据保留，可安全重扫。", "Cancel stops after the current item finishes; already imported data is kept and can be safely rescanned.")).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
+			if ghostSmall(c, pal, releaseText("取消后续导入", "Cancel remaining import")).Clicked() && m.OnCancelImport != nil {
 				m.OnCancelImport()
 			}
 			ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(200).Children(func() {
 				ui.Column(c).FillWidth().Gap(4).Children(func() {
 					for _, line := range m.ImportJournal {
-						ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
+						ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(pal.tertiary)
 					}
 				})
 			})
@@ -495,10 +488,10 @@ func importPanel(c *ui.Context, m Model) {
 	}
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
 		ui.Text(c, i18n.T(i18n.KeyLauncherImportLede)).
-			FontSize(12).TextColor(colSecondary)
-		ui.Text(c, i18n.T(i18n.KeyLauncherImportChecklist)).FontSize(theme.InterfaceSize(12)).TextColor(colAccent)
-		ui.Text(c, importer.CopyOnlyNotice()).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
-		ui.Text(c, releaseText("确认导入后会先检查当前任务并停止 Host 内核；窗口保持打开，导入后可手动启动内核。", "After confirmation, import checks current tasks and stops the Host runtime. The window stays open; start the runtime manually after importing.")).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+			FontSize(12).TextColor(pal.secondary)
+		ui.Text(c, i18n.T(i18n.KeyLauncherImportChecklist)).FontSize(theme.InterfaceSize(12)).TextColor(pal.accent)
+		ui.Text(c, importer.CopyOnlyNotice()).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
+		ui.Text(c, releaseText("确认导入后会先检查当前任务并停止 Host 内核；窗口保持打开，导入后可手动启动内核。", "After confirmation, import checks current tasks and stops the Host runtime. The window stays open; start the runtime manually after importing.")).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 
 		pathLine := i18n.T(i18n.KeyLauncherImportEmpty)
 		if m.ImportSummary != "" {
@@ -506,24 +499,24 @@ func importPanel(c *ui.Context, m Model) {
 		}
 
 		ui.Row(c).Gap(8).Children(func() {
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportPickDir)).Clicked() {
+			if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherImportPickDir)).Clicked() {
 				if m.OnPickImportSource != nil {
 					m.OnPickImportSource()
 				} else if m.OnScanImport != nil {
 					m.OnScanImport()
 				}
 			}
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportAddSkillDir)).Disabled(m.ImportScanBusy).Clicked() {
+			if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherImportAddSkillDir)).Disabled(m.ImportScanBusy).Clicked() {
 				if m.OnAddSkillImportDir != nil {
 					m.OnAddSkillImportDir()
 				} else if m.OnScanImport != nil {
 					m.OnScanImport()
 				}
 			}
-			if ghostSmall(c, i18n.T(i18n.KeyLauncherImportRescan)).Disabled(m.ImportScanBusy).Clicked() && m.OnScanImport != nil {
+			if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherImportRescan)).Disabled(m.ImportScanBusy).Clicked() && m.OnScanImport != nil {
 				m.OnScanImport()
 			}
-			if m.ImportScanBusy && ghostSmall(c, releaseText("取消扫描", "Cancel scan")).Clicked() && m.OnCancelImportScan != nil {
+			if m.ImportScanBusy && ghostSmall(c, pal, releaseText("取消扫描", "Cancel scan")).Clicked() && m.OnCancelImportScan != nil {
 				m.OnCancelImportScan()
 			}
 		})
@@ -531,7 +524,7 @@ func importPanel(c *ui.Context, m Model) {
 		if m.ImportScanBusy {
 			pathLine = releaseText("正在扫描，保留当前选择…", "Scanning; current selections are retained…")
 		}
-		ui.Text(c, pathLine).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(pathLine).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
+		ui.Text(c, pathLine).FillWidth().MinWidth(0).SingleLine().Ellipsis("…").Tooltip(pathLine).FontSize(theme.InterfaceSize(12)).TextColor(pal.tertiary)
 
 		// Category chips: n/d from live catalog (fallback to probe CategoryFound).
 		cats := []struct{ id, name string }{
@@ -558,13 +551,17 @@ func importPanel(c *ui.Context, m Model) {
 					}
 				}
 				label := fmt.Sprintf("%s %d/%d", cat.name, n, d)
-				bg := colField
-				if importCatActive == cat.id {
-					bg = colNavActive
-				}
 				id := cat.id
-				btn := ui.Button(c, label).Grow(1).MinWidth(0).Height(32).Role(ui.RoleTab).Checked(importCatActive == id).Background(bg).Border(1, colBorderL2).
-					Padding(6, 4).Radius(8).TextColor(colPrimary).FontSize(theme.InterfaceSize(12))
+				active := importCatActive == id
+				variant := coss.ButtonOutline
+				if active {
+					variant = coss.ButtonSecondary
+				}
+				btn := coss.Button(c, label, coss.ButtonOptions{
+					Variant: variant,
+					Size:    coss.ButtonMD,
+					Pressed: active,
+				}).Grow(1).MinWidth(0).Role(ui.RoleTab).Checked(active).Padding(design.Sp(1.5), design.Sp(1))
 				if btn.Clicked() {
 					importCatActive = id
 					c.Invalidate()
@@ -572,11 +569,11 @@ func importPanel(c *ui.Context, m Model) {
 			}
 		})
 
-		chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colBase, 12).
+		chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.base, 12).
 			Padding(12, 12, 12, 12).Gap(8).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherImportByDir)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary).Grow(1)
-				if ghostSmall(c, i18n.T(i18n.KeyLauncherImportSelectAll)).Clicked() && m.ImportCatalog != nil {
+				ui.Text(c, i18n.T(i18n.KeyLauncherImportByDir)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(pal.primary).Grow(1)
+				if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherImportSelectAll)).Clicked() && m.ImportCatalog != nil {
 					if items := m.ImportCatalog.ItemsFor(importCatActive); items != nil {
 						for i := range *items {
 							if (*items)[i].Blocker.Importable() {
@@ -586,7 +583,7 @@ func importPanel(c *ui.Context, m Model) {
 					}
 					c.Invalidate()
 				}
-				if ghostSmall(c, i18n.T(i18n.KeyLauncherImportSelectNone)).Clicked() && m.ImportCatalog != nil {
+				if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherImportSelectNone)).Clicked() && m.ImportCatalog != nil {
 					if items := m.ImportCatalog.ItemsFor(importCatActive); items != nil {
 						for i := range *items {
 							(*items)[i].Selected = false
@@ -604,7 +601,7 @@ func importPanel(c *ui.Context, m Model) {
 					}
 					if importCatActive == "plugins" {
 						ui.Text(c, i18n.T(i18n.KeyLauncherImportPluginsNote)).
-							FontSize(12).TextColor(colAccent)
+							FontSize(12).TextColor(pal.accent)
 					}
 					if itemsPtr == nil || len(*itemsPtr) == 0 {
 						empty := i18n.T(i18n.KeyLauncherImportEmptyItems)
@@ -622,9 +619,9 @@ func importPanel(c *ui.Context, m Model) {
 						case "presets":
 							empty = i18n.T(i18n.KeyLauncherImportEmptyPresets)
 						}
-						ui.Text(c, empty).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
+						ui.Text(c, empty).FontSize(theme.InterfaceSize(13)).TextColor(pal.tertiary)
 					} else if importCatActive == "sessions" {
-						importSessionGroups(c, *itemsPtr)
+						importSessionGroups(c, pal, *itemsPtr)
 					} else {
 						for i := range *itemsPtr {
 							idx := i
@@ -642,7 +639,7 @@ func importPanel(c *ui.Context, m Model) {
 								if !it.Blocker.Importable() {
 									label += i18n.T(i18n.KeyLauncherImportUnsupported)
 								}
-								if ui.Checkbox(c, &it.Selected, label).FontSize(theme.InterfaceSize(12)).FillWidth().MinWidth(0).Disabled(!it.Blocker.Importable()).Changed() {
+								if coss.Checkbox(c, &it.Selected, label, coss.CheckOptions{Disabled: !it.Blocker.Importable()}).FillWidth().MinWidth(0).Changed() {
 									c.Invalidate()
 								}
 
@@ -663,8 +660,8 @@ func importPanel(c *ui.Context, m Model) {
 		}
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Wrap().Children(func() {
 			ui.Column(c).Gap(8).Grow(1).Children(func() {
-				switchCheck(c, i18n.T(i18n.KeyLauncherImportOverwrite), i18n.T(i18n.KeyLauncherImportOverwriteDesc), overwrite, nil)
-				switchCheck(c, i18n.T(i18n.KeyLauncherImportAttachments), i18n.T(i18n.KeyLauncherImportAttachmentsDesc), attachments, nil)
+				switchCheck(c, pal, i18n.T(i18n.KeyLauncherImportOverwrite), i18n.T(i18n.KeyLauncherImportOverwriteDesc), overwrite, nil)
+				switchCheck(c, pal, i18n.T(i18n.KeyLauncherImportAttachments), i18n.T(i18n.KeyLauncherImportAttachmentsDesc), attachments, nil)
 			})
 			if m.ImportCatalog != nil {
 				counts = m.ImportCatalog.CategoryCounts()
@@ -687,8 +684,8 @@ func importPanel(c *ui.Context, m Model) {
 				selLine += fmt.Sprintf(" %s %d ·", cat.name, n)
 			}
 			selLine = strings.TrimSuffix(selLine, " ·")
-			ui.Text(c, selLine).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
-			if primaryBtn(c, i18n.T(i18n.KeyLauncherImportStart)).Disabled(m.ImportScanBusy).Clicked() {
+			ui.Text(c, selLine).FontSize(theme.InterfaceSize(11)).TextColor(pal.tertiary)
+			if primaryBtn(c, pal, i18n.T(i18n.KeyLauncherImportStart)).Disabled(m.ImportScanBusy).Clicked() {
 				if m.OnStartImport != nil {
 					m.OnStartImport()
 				} else if m.OnScanImport != nil {
@@ -710,14 +707,14 @@ func importPanel(c *ui.Context, m Model) {
 		} else {
 			scope += releaseText(" 不导入附件。", " Do not import attachments.")
 		}
-		ui.Text(c, scope).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+		ui.Text(c, scope).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 		if len(m.ImportJournal) > 0 {
-			chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colBase, 12).
+			chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.base, 12).
 				Radius(12).Padding(10, 12, 10, 12).Gap(4).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, i18n.T(i18n.KeyLauncherImportLog)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(colPrimary).Grow(1)
+					ui.Text(c, i18n.T(i18n.KeyLauncherImportLog)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(pal.primary).Grow(1)
 					if m.OnCopyImportJournal != nil {
-						if ghostSmall(c, i18n.T(i18n.KeyLauncherImportCopy)).Clicked() {
+						if ghostSmall(c, pal, i18n.T(i18n.KeyLauncherImportCopy)).Clicked() {
 							m.OnCopyImportJournal(append([]string(nil), m.ImportJournal...))
 						}
 					}
@@ -725,7 +722,7 @@ func importPanel(c *ui.Context, m Model) {
 				ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(148).Children(func() {
 					ui.Column(c).FillWidth().Gap(4).Children(func() {
 						for _, line := range m.ImportJournal {
-							ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(colTertiary)
+							ui.Text(c, line).FontSize(theme.InterfaceSize(11)).TextColor(pal.tertiary)
 						}
 					})
 				})
@@ -735,21 +732,22 @@ func importPanel(c *ui.Context, m Model) {
 }
 
 func pluginsPanel(c *ui.Context, m Model) {
+	pal := resolveLauncherPalette(m.ThemeID, m.SystemDark)
 	ui.Column(c).FillWidth().Gap(12).Children(func() {
-		startupDiagnosticsPanel(c, m)
+		startupDiagnosticsPanel(c, pal, m)
 		if !m.VendorReady {
-			chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colSidebar, 12).
+			chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.sidebar, 12).
 				Padding(14, 16, 14, 16).Gap(6).Children(func() {
-				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntime)).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary)
-				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntimeDesc)).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntime)).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(pal.primary)
+				ui.Text(c, i18n.T(i18n.KeyLauncherPluginsNeedRuntimeDesc)).FontSize(theme.InterfaceSize(12)).TextColor(pal.tertiary)
 			})
 		}
 		if len(m.DisabledPlugins) == 0 && !m.SkipUserPlugins {
-			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(colTertiary)
-			ui.Box(c).FillWidth().Height(1).Background(colBorderL1)
+			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsEmpty)).FontSize(theme.InterfaceSize(13)).TextColor(pal.tertiary)
+			ui.Box(c).FillWidth().Height(1).Background(pal.borderL1)
 		} else {
-			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(colPrimary)
-			ui.Text(c, joinPlugins(m.DisabledPlugins)).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+			ui.Text(c, i18n.T(i18n.KeyLauncherPluginsTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(pal.primary)
+			ui.Text(c, joinPlugins(m.DisabledPlugins)).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 		}
 		recoveryLine := i18n.T(i18n.KeyLauncherSkipUserPluginsOff)
 		if m.SkipUserPlugins {
@@ -758,9 +756,9 @@ func pluginsPanel(c *ui.Context, m Model) {
 				recoveryLine += " (" + r + ")"
 			}
 		}
-		chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, colBorderL2), launcherColors, m.SystemDark, colField, 12).
+		chrome.FrostSurface(ui.Column(c).FillWidth().Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.field, 12).
 			Padding(14, 14, 14, 14).Gap(8).Children(func() {
-			kv(c, i18n.T(i18n.KeyLauncherSkipUserPlugins), recoveryLine)
+			kv(c, pal, i18n.T(i18n.KeyLauncherSkipUserPlugins), recoveryLine)
 			canRestore := m.SkipUserPlugins
 			canSkip := !canRestore && m.StartupDiagnostics.CanRepair && len(m.StartupDiagnostics.RepairNames) > 0
 			if !canRestore && !canSkip {
@@ -768,13 +766,13 @@ func pluginsPanel(c *ui.Context, m Model) {
 			}
 			busy := m.StartBusy || m.ImportBusy || m.StartupRepairBusy
 			ui.Row(c).Gap(8).Children(func() {
-				if canSkip && ghostSmall(c, i18n.T(i18n.KeyLauncherEnableSkipUserPlugins)).Disabled(busy).Clicked() && m.OnEnableSkipUserPlugins != nil {
+				if canSkip && ghostSmall(c, pal, i18n.T(i18n.KeyLauncherEnableSkipUserPlugins)).Disabled(busy).Clicked() && m.OnEnableSkipUserPlugins != nil {
 					m.OnEnableSkipUserPlugins()
 				}
-				if canRestore && ghostSmall(c, i18n.T(i18n.KeyLauncherClearPluginRecovery)).Disabled(busy).Clicked() && m.OnClearPluginRecovery != nil {
+				if canRestore && ghostSmall(c, pal, i18n.T(i18n.KeyLauncherClearPluginRecovery)).Disabled(busy).Clicked() && m.OnClearPluginRecovery != nil {
 					m.OnClearPluginRecovery()
 				}
-				if canRestore && ghostSmall(c, i18n.T(i18n.KeyLauncherRestartHarness)).Disabled(busy).Clicked() && m.OnRestartHarness != nil {
+				if canRestore && ghostSmall(c, pal, i18n.T(i18n.KeyLauncherRestartHarness)).Disabled(busy).Clicked() && m.OnRestartHarness != nil {
 					m.OnRestartHarness()
 				}
 			})
@@ -783,12 +781,13 @@ func pluginsPanel(c *ui.Context, m Model) {
 }
 
 func settingsPanel(c *ui.Context, m Model) {
+	pal := resolveLauncherPalette(m.ThemeID, m.SystemDark)
 	ui.Column(c).Gap(0).Children(func() {
 		if m.LauncherPrefsError != "" {
-			ui.Text(c, m.LauncherPrefsError).FontSize(theme.InterfaceSize(12)).TextColor(colPrimary).Padding(0, 0, 12, 0)
+			ui.Text(c, m.LauncherPrefsError).FontSize(theme.InterfaceSize(12)).TextColor(pal.danger).Padding(0, 0, 12, 0)
 		}
 
-		switchRow(c, i18n.T(i18n.KeyLauncherOptRouteTitle), i18n.T(i18n.KeyLauncherOptRouteDesc), func() {
+		switchRow(c, pal, i18n.T(i18n.KeyLauncherOptRouteTitle), i18n.T(i18n.KeyLauncherOptRouteDesc), func() {
 			route := ""
 			if m.DownloadRoute != nil {
 				route = strings.ToLower(strings.TrimSpace(*m.DownloadRoute))
@@ -797,17 +796,19 @@ func settingsPanel(c *ui.Context, m Model) {
 				route = "github"
 			}
 			// Electron: white bordered capsule; selected chip is light grey-blue (not white-on-grey).
-			chrome.FrostSurface(ui.Row(c).Border(1, colBorderL2), launcherColors, m.SystemDark, colBase, 14).
+			chrome.FrostSurface(ui.Row(c).Border(1, pal.borderL2), pal.colors, m.SystemDark, pal.base, 14).
 				Padding(2, 2, 2, 2).Gap(0).Children(func() {
 				seg := func(id, label string) {
-					bg := ui.Transparent
-					fg := colTertiary
+					variant := coss.ButtonGhost
 					if route == id {
-						bg = colSegActive
-						fg = colPrimary
+						variant = coss.ButtonSecondary
 					}
-					b := ui.Button(c, label).Disabled(m.RouteUnavailable[id] != "").Height(26).Padding(0, 14, 0, 14).Radius(theme.ContextRadii(c).MD).
-						Background(bg).BorderWidth(0).TextColor(fg).FontSize(theme.InterfaceSize(12))
+					b := coss.Button(c, label, coss.ButtonOptions{
+						Variant:  variant,
+						Size:     coss.ButtonSM,
+						Disabled: m.RouteUnavailable[id] != "",
+						Pressed:  route == id,
+					}).Height(26).Padding(0, design.Sp(3.5), 0, design.Sp(3.5)).Radius(theme.ContextRadii(c).MD)
 					if b.Clicked() && m.DownloadRoute != nil {
 						*m.DownloadRoute = id
 						if m.OnSaveLauncherPrefs != nil {
@@ -820,25 +821,25 @@ func settingsPanel(c *ui.Context, m Model) {
 			})
 		})
 		if reason := m.RouteUnavailable["cnb"]; reason != "" {
-			ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Padding(0, 0, 12, 0)
+			ui.Text(c, reason).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary).Padding(0, 0, 12, 0)
 		}
 
 		if m.AskOnUpdate != nil {
-			switchCheck(c, i18n.T(i18n.KeyLauncherOptAskTitle), i18n.T(i18n.KeyLauncherOptAskDesc), m.AskOnUpdate, m.OnSaveLauncherPrefs)
+			switchCheck(c, pal, i18n.T(i18n.KeyLauncherOptAskTitle), i18n.T(i18n.KeyLauncherOptAskDesc), m.AskOnUpdate, m.OnSaveLauncherPrefs)
 		}
-		applicationUninstallPanel(c, m.ApplicationUninstall)
+		applicationUninstallPanel(c, pal, m.ApplicationUninstall)
 	})
 }
 
-func switchRow(c *ui.Context, title, desc string, trailing func()) {
+func switchRow(c *ui.Context, pal launcherPalette, title, desc string, trailing func()) {
 	// Electron settings rows: copy on the left, control on the trailing edge.
 	padY := float32(14)
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(16).
 		Padding(padY, 0, padY, 0).
-		BorderWidth(0, 0, 1, 0).BorderColor(colBorderL1).Children(func() {
+		BorderWidth(0, 0, 1, 0).BorderColor(pal.borderL1).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(colPrimary).FillWidth()
-			ui.Text(c, desc).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary).FillWidth()
+			ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(pal.primary).FillWidth()
+			ui.Text(c, desc).FontSize(theme.InterfaceSize(12)).TextColor(pal.tertiary).FillWidth()
 		})
 		if trailing != nil {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(trailing)
@@ -846,56 +847,40 @@ func switchRow(c *ui.Context, title, desc string, trailing func()) {
 	})
 }
 
-func switchCheck(c *ui.Context, title, desc string, checked *bool, onSave func()) {
+func switchCheck(c *ui.Context, pal launcherPalette, title, desc string, checked *bool, onSave func()) {
 	before := false
 	if checked != nil {
 		before = *checked
 	}
-	switchRow(c, title, desc, func() {
-		// Electron uses an iOS-style switch; approximate with a track + Absolute knob.
-		on := checked != nil && *checked
-		track := colField
-		if on {
-			track = colAccent
+	switchRow(c, pal, title, desc, func() {
+		val := before
+		target := checked
+		if target == nil {
+			target = &val
 		}
-		swW, swH := float32(48), float32(28)
-		knob := float32(22)
-		knobOn := float32(23)
-		btn := ui.Button(c, "").Width(swW).Height(swH).Radius(swH / 2).
-			Background(track).BorderWidth(0).Clip()
-		btn.Children(func() {
-			left := float32(3)
-			if on {
-				left = knobOn
-			}
-			ui.Box(c).Absolute().Left(left).Top((swH - knob) / 2).Width(knob).Height(knob).Radius(knob / 2).
-				Background(colBase)
-		})
-		if btn.Clicked() && checked != nil {
-			*checked = !*checked
-		}
+		coss.Switch(c, target, "", coss.CheckOptions{Label: title, Disabled: checked == nil})
 	})
 	if checked != nil && *checked != before && onSave != nil {
 		onSave()
 	}
 }
 
-func primaryBtn(c *ui.Context, label string) ui.Element {
-	return widgets.Button(c, launcherColors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary})
+func primaryBtn(c *ui.Context, pal launcherPalette, label string) ui.Element {
+	return widgets.Button(c, pal.colors, label, widgets.ButtonSpec{Variant: widgets.ButtonPrimary})
 }
 
-func ghostBtn(c *ui.Context, label string) ui.Element {
-	return widgets.Button(c, launcherColors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline})
+func ghostBtn(c *ui.Context, pal launcherPalette, label string) ui.Element {
+	return widgets.Button(c, pal.colors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline})
 }
 
-func ghostSmall(c *ui.Context, label string) ui.Element {
-	return widgets.Button(c, launcherColors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall})
+func ghostSmall(c *ui.Context, pal launcherPalette, label string) ui.Element {
+	return widgets.Button(c, pal.colors, label, widgets.ButtonSpec{Variant: widgets.ButtonOutline, Size: widgets.ButtonSmall})
 }
 
-func kv(c *ui.Context, label, value string) {
+func kv(c *ui.Context, pal launcherPalette, label, value string) {
 	ui.Row(c).Gap(12).Children(func() {
-		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(colTertiary).Width(140)
-		ui.Text(c, value).FontSize(theme.InterfaceSize(12)).TextColor(colPrimary).Grow(1)
+		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(pal.tertiary).Width(140)
+		ui.Text(c, value).FontSize(theme.InterfaceSize(12)).TextColor(pal.primary).Grow(1)
 	})
 }
 
@@ -927,17 +912,17 @@ func joinPlugins(names []string) string {
 // componentStatusBadge draws the state pill. A row with a message carries it in
 // componentStatusDetail, in the row that says so, instead of a toast over the
 // launcher.
-func componentStatusBadge(c *ui.Context, row components.Row, label string) {
-	ui.Row(c).Background(colNavActive).Padding(1, 8).Radius(999).Children(func() {
-		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary)
+func componentStatusBadge(c *ui.Context, pal launcherPalette, row components.Row, label string) {
+	ui.Row(c).Background(pal.navActive).Padding(1, 8).Radius(999).Children(func() {
+		ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary)
 	})
 }
 
 // componentStatusDetail is the row's own status message: why the component is
 // not running, or what the last action did. It sits under the row it describes.
-func componentStatusDetail(c *ui.Context, row components.Row) {
+func componentStatusDetail(c *ui.Context, pal launcherPalette, row components.Row) {
 	if row.Message == "" {
 		return
 	}
-	ui.Text(c, row.Message).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(colSecondary).Selectable()
+	ui.Text(c, row.Message).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(12)).TextColor(pal.secondary).Selectable()
 }

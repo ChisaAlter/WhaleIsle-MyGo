@@ -11,6 +11,8 @@ import (
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/planpreview"
 	fonttheme "whaleisle/internal/ui/theme"
@@ -397,10 +399,13 @@ func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, mu
 		textColor = fg
 	}
 	chip.Children(func() {
-		title := ui.Button(c, "").Label(tab.Path).Grow(1).MinWidth(0).Height(26).Padding(0).BorderWidth(0).Background(ui.Transparent)
-		title.Children(func() {
-			ui.Text(c, filepath.Base(tab.Path)).FontSize(fonttheme.InterfaceSize(13)).TextColor(textColor).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
-		})
+		title := coss.Button(c, "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Label:   tab.Path,
+			Content: func() {
+				ui.Text(c, filepath.Base(tab.Path)).FontSize(fonttheme.InterfaceSize(13)).TextColor(textColor).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+			},
+		}).Grow(1).MinWidth(0).Height(26).Padding(0).Background(ui.Transparent)
 		if title.Clicked() {
 			selectFile(m, tab.Path)
 		}
@@ -410,13 +415,13 @@ func paintTabChip(c *ui.Context, m Model, w *WorkspaceTabs, tab *FileTab, fg, mu
 		}
 		if active || hovered {
 			closeLabel := i18n.T(i18n.KeySurfacesFilesClose)
-			close := ui.Button(c, "").Label(closeLabel).Size(18, 18).Shrink(0).Padding(0).Radius(4).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
-			close.Children(func() {
-				ui.Icon(c, tabCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
-			})
-			if close.Hovered() {
-				close.Background(c.Theme().SurfacePressed)
-			}
+			close := coss.Button(c, "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Label:   closeLabel,
+				Content: func() {
+					ui.Icon(c, tabCloseIcon).Size(10, 10).TextColor(muted).PassThrough()
+				},
+			}).Size(18, 18).Shrink(0).Padding(0).Radius(design.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).Tooltip(closeLabel)
 			if close.Clicked() {
 				closeTab(m, tab.Path, false)
 			}
@@ -432,13 +437,14 @@ func paintBrowseButton(c *ui.Context, m Model, muted ui.Color) {
 		return
 	}
 	caption := i18n.T(i18n.KeySurfacesFilesOpen)
-	control := ui.Button(c, "").Label(caption).Size(28, 28).Shrink(0).Padding(0).Radius(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).Tooltip(caption)
-	control.Children(func() {
-		ui.Icon(c, tabPlusIcon).Size(12, 12).TextColor(muted).PassThrough()
-	})
-	if control.Hovered() {
-		control.Background(c.Theme().SurfaceHover)
-	}
+	control := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonIconSM,
+		Label:   caption,
+		Content: func() {
+			ui.Icon(c, tabPlusIcon).Size(12, 12).TextColor(muted).PassThrough()
+		},
+	}).Shrink(0).Radius(design.RadiusMD).Tooltip(caption)
 	if control.Clicked() {
 		m.OnNewTab()
 	}

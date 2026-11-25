@@ -7,6 +7,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/proactive"
+	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -29,12 +32,13 @@ func proactiveSources(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 			if len(p.State.Sources) > 0 {
 				label += fmt.Sprintf(" (%d)", len(p.State.Sources))
 			}
-			if ui.Button(c, label).Clicked() {
+			if aButton(c, label, false).Clicked() {
 				*open = !*open
 			}
+			danger := design.For(c).Destructive
 			for _, source := range p.State.Sources {
 				if source.Error != "" {
-					ui.Text(c, whaleTaskCopy("来源检查失败", "Source check failed")).FontSize(theme.InterfaceSize(12)).TextColor(accent)
+					ui.Text(c, whaleTaskCopy("来源检查失败", "Source check failed")).FontSize(theme.InterfaceSize(12)).TextColor(danger)
 					break
 				}
 			}
@@ -55,17 +59,17 @@ func proactiveSources(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 				}
 				ui.Text(c, status).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				if source.Error != "" {
-					ui.Text(c, source.Error).TextColor(accent).Selectable()
+					ui.Text(c, errcopy.SentenceText(source.Error)).TextColor(design.For(c).Destructive).Selectable()
 				}
 				ui.Row(c).Gap(8).Wrap().Children(func() {
 					label := whaleTaskCopy("暂停来源", "Pause source")
 					if !source.Enabled {
 						label = whaleTaskCopy("恢复来源", "Resume source")
 					}
-					if ui.Button(c, label).Disabled(p.SourceBusy || p.OnSourceToggle == nil).Clicked() {
+					if aButton(c, label, p.SourceBusy || p.OnSourceToggle == nil).Clicked() {
 						p.OnSourceToggle(source.Repository, !source.Enabled)
 					}
-					if source.Enabled && ui.Button(c, whaleTaskCopy("立即检查", "Check now")).Disabled(p.SourceBusy || p.OnSourceRefresh == nil).Clicked() {
+					if source.Enabled && aButton(c, whaleTaskCopy("立即检查", "Check now"), p.SourceBusy || p.OnSourceRefresh == nil).Clicked() {
 						p.OnSourceRefresh(source.ID)
 					}
 				})
@@ -74,7 +78,7 @@ func proactiveSources(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 		}
 		ui.Text(c, whaleTaskCopy("添加仓库（owner/name）", "Add repository (owner/name)")).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 		repository := p.SourceRepository
-		ui.TextInput(c.Key("proactive-source-repo"), &repository).Label(whaleTaskCopy("GitHub 仓库", "GitHub repository")).FillWidth().Height(36).Radius(8).Border(.5, border).Disabled(p.SourceBusy).OnChange(func() {
+		aInput(c.Key("proactive-source-repo"), &repository, coss.InputOptions{Label: whaleTaskCopy("GitHub 仓库", "GitHub repository"), Disabled: p.SourceBusy}).OnChange(func() {
 			if p.OnSourceEdit != nil {
 				p.OnSourceEdit(repository)
 			}
@@ -84,7 +88,7 @@ func proactiveSources(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 			ui.Text(c, p.SourceError).TextColor(accent).Selectable()
 		}
 		ui.Row(c).Children(func() {
-			if ui.Button(c, whaleTaskCopy("添加来源", "Add source")).Disabled(p.SourceBusy || p.OnSourceAdd == nil || strings.TrimSpace(repository) == "").Clicked() {
+			if aPrimary(c, whaleTaskCopy("添加来源", "Add source"), p.SourceBusy || p.OnSourceAdd == nil || strings.TrimSpace(p.SourceRepository) == "").Clicked() {
 				p.OnSourceAdd()
 			}
 		})
@@ -115,7 +119,7 @@ func proactiveNotices(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 			if *history {
 				label = whaleTaskCopy("仅看未读", "Unread only")
 			}
-			if ui.Button(c, label).Clicked() {
+			if aGhost(c, label, false).Clicked() {
 				*history = !*history
 			}
 		})
@@ -134,13 +138,13 @@ func proactiveNotices(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 				ui.Text(c, title).FontSize(theme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
 				ui.Text(c, proactiveTime(n.CreatedAt)).FontSize(theme.InterfaceSize(12)).TextColor(muted)
 				ui.Row(c).Gap(8).Wrap().Children(func() {
-					if ui.Button(c, whaleTaskCopy("查看动态", "View update")).Clicked() {
+					if aButton(c, whaleTaskCopy("查看动态", "View update"), false).Clicked() {
 						*expanded = n.ID
 						if p.OnNoticeOpen != nil {
 							p.OnNoticeOpen(n)
 						}
 					}
-					if n.ReadAt == "" && ui.Button(c, whaleTaskCopy("标为已读", "Mark read")).Disabled(p.SourceBusy || p.OnNoticeRead == nil).Clicked() {
+					if n.ReadAt == "" && aGhost(c, whaleTaskCopy("标为已读", "Mark read"), p.SourceBusy || p.OnNoticeRead == nil).Clicked() {
 						p.OnNoticeRead(n.ID)
 					}
 				})
@@ -157,7 +161,7 @@ func proactiveNotices(c *ui.Context, p ProactiveModel, fg, muted, border, accent
 					}
 					if n.DesktopStatus == "failed" || n.DesktopStatus == "unknown" || n.DesktopStatus == "unavailable" {
 						ui.Row(c).Children(func() {
-							if ui.Button(c, whaleTaskCopy("重试桌面提醒", "Retry desktop notice")).Disabled(p.SourceBusy || p.OnNoticeRetry == nil).Clicked() {
+							if aButton(c, whaleTaskCopy("重试桌面提醒", "Retry desktop notice"), p.SourceBusy || p.OnNoticeRetry == nil).Clicked() {
 								p.OnNoticeRetry(n.ID)
 							}
 						})

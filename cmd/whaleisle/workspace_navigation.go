@@ -119,6 +119,10 @@ func (s *mainState) persistRegisteredWorkspace(path string) error {
 	if s.cfgStore == nil {
 		return errors.New(i18n.T(i18n.KeyCmdWorkspaceSettingsUnavailable))
 	}
+	if s.liveUIWindowActive.Load() {
+		s.enqueueConfigMerge(s.cfgStore, func(c *config.Config) { c.Workspace = path })
+		return nil
+	}
 	return s.cfgStore.Merge(func(c *config.Config) { c.Workspace = path })
 }
 func (s *mainState) workspaceSelectionCommitted(win *mygo.Window, sessions *session.Store, path string) {

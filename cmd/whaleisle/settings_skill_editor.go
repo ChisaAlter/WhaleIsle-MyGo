@@ -26,11 +26,7 @@ func (s *mainState) cancelSettingsSkillEdit() {
 	s.settingsSkillEditContent = ""
 	s.settingsSkillEditGroups = nil
 	s.settingsSkillsDetail = ""
-	win := s.win
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 }
 
 func (s *mainState) inspectSettingsSkill(name string) {
@@ -55,13 +51,7 @@ func (s *mainState) inspectSettingsSkill(name string) {
 		s.mu.Lock()
 		s.settingsSkillsDetail = errcopy.Sentence(err)
 		s.mu.Unlock()
-		if win != nil {
-			win.Update(func() {})
-		}
 		return
-	}
-	if win != nil {
-		win.Update(func() {})
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -113,9 +103,6 @@ func (s *mainState) reloadSettingsSkillEdit() {
 	s.settingsSkillEditorSaving = true
 	s.settingsSkillsLastAction = ""
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -157,9 +144,6 @@ func (s *mainState) saveSettingsSkillEdit() {
 	}
 	s.settingsSkillEditorSaving = true
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := source.SaveCatalogSkillEditor(ctx, target, fields)

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/yuin/goldmark"
@@ -185,9 +186,12 @@ func View(c *ui.Context, m Model) {
 	fg := t.Foreground
 	muted := t.MutedForeground
 	accent := t.Primary
-	beam := readBeamStyle(m.ComposerBeamStyle)
 	reducedMotion := c.Preferences().ReduceMotion
 	showBeam := m.ComposerBeam && composerRunning(m) && !reducedMotion
+	var beam beamStyle
+	if showBeam {
+		beam = readBeamStyle(m.ComposerBeamStyle)
+	}
 
 	if !m.Inert && m.State != nil && m.State.GroupReply != nil {
 		ui.Row(c).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
@@ -227,7 +231,6 @@ func View(c *ui.Context, m Model) {
 	if m.SkillsFilter != nil {
 		skillsQuery = *m.SkillsFilter
 	}
-	skillItems := FilterSkills(m.Skills, skillsQuery, len(m.Skills))
 	mentions := ParseDraftMentions(draft)
 	selectStart, selectEnd := -1, -1
 	selectIsUTF16 := m.UseTextInputClient && m.TextInput != nil
@@ -290,7 +293,7 @@ func View(c *ui.Context, m Model) {
 			m.State.PermissionCommand.Sync(m.Snapshot.SelectedID)
 		}
 		if m.SkillsOpen {
-			paintSkillsPopup(c, m, skillItems, skillsQuery)
+			paintSkillsPopup(c, m, FilterSkills(m.Skills, skillsQuery, len(m.Skills)), skillsQuery)
 		}
 		paintLeadingClaimHint(c, m, muted)
 		if m.Hero {
@@ -718,13 +721,32 @@ type draftLink struct {
 	Label, URL string
 }
 
+var (
+	draftLinkMD         = goldmark.New(goldmark.WithExtensions(extension.Linkify))
+	draftLinkCacheMu    sync.RWMutex
+	draftLinkCacheValid bool
+	draftLinkCacheSrc   string
+	draftLinkCacheOut   []draftLink
+)
+
 func extractDraftLinks(source string) []draftLink {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return nil
 	}
-	md := goldmark.New(goldmark.WithExtensions(extension.Linkify))
-	doc := md.Parser().Parse(text.NewReader([]byte(source)))
+	if !strings.Contains(source, "://") && !strings.Contains(source, "www.") && !strings.Contains(source, "](") {
+		return nil
+	}
+	draftLinkCacheMu.RLock()
+	if draftLinkCacheValid && draftLinkCacheSrc == source {
+		cached := draftLinkCacheOut
+		draftLinkCacheMu.RUnlock()
+		return cached
+	}
+	draftLinkCacheMu.RUnlock()
+
+	srcBytes := []byte(source)
+	doc := draftLinkMD.Parser().Parse(text.NewReader(srcBytes))
 	var out []draftLink
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -737,13 +759,13 @@ func extractDraftLinks(source string) []draftLink {
 			var buf bytes.Buffer
 			for ch := link.FirstChild(); ch != nil; ch = ch.NextSibling() {
 				if tx, ok := ch.(*ast.Text); ok {
-					buf.Write(tx.Segment.Value([]byte(source)))
+					buf.Write(tx.Segment.Value(srcBytes))
 				}
 			}
 			label = strings.TrimSpace(buf.String())
 		case *ast.AutoLink:
-			destination = string(link.URL([]byte(source)))
-			label = string(link.Label([]byte(source)))
+			destination = string(link.URL(srcBytes))
+			label = string(link.Label(srcBytes))
 		default:
 			return ast.WalkContinue, nil
 		}
@@ -763,6 +785,11 @@ func extractDraftLinks(source string) []draftLink {
 		out = append(out, draftLink{Label: label, URL: destination})
 		return ast.WalkContinue, nil
 	})
+	draftLinkCacheMu.Lock()
+	draftLinkCacheSrc = source
+	draftLinkCacheOut = out
+	draftLinkCacheValid = true
+	draftLinkCacheMu.Unlock()
 	return out
 }
 

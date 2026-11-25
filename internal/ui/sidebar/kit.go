@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	schedstore "whaleisle/internal/store/schedule"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
@@ -61,6 +62,62 @@ func sbSelectedBg(t *design.Tokens) ui.Color {
 		return t.SidebarAccent
 	}
 	return t.Accent
+}
+
+func sbHoverBg(t *design.Tokens) ui.Color {
+	base := sbSelectedBg(t)
+	if t.IsDark() {
+		return base.Alpha(0.45)
+	}
+	return base.Alpha(0.5)
+}
+
+// sbActiveIndicator paints a subtle 3px primary indicator bar along the leading
+// edge of an active sidebar row so active and hovered rows are unmistakably
+// distinct without shifting layout.
+func sbActiveIndicator(e ui.Element, t *design.Tokens) {
+	col := t.Primary
+	if col.A == 0 {
+		col = t.SidebarPrimary
+	}
+	if col.A == 0 {
+		return
+	}
+	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		h := max(float32(10), r.H-12)
+		y := r.Y + (r.H-h)/2
+		p.Fill(ui.Rect{X: r.X + 2, Y: y, W: 3, H: h}, col, 1.5)
+	})
+}
+
+func buildActiveScheduleMap(view schedstore.ViewState) map[string][]schedstore.Entry {
+	if !view.ClientReady || !view.CatalogSettled || len(view.Rows) == 0 {
+		return nil
+	}
+	var out map[string][]schedstore.Entry
+	for _, row := range view.Rows {
+		if row.Origin != view.Origin || row.SessionID == "" || row.Status != "active" {
+			continue
+		}
+		if out == nil {
+			out = make(map[string][]schedstore.Entry)
+		}
+		out[row.SessionID] = append(out[row.SessionID], row)
+	}
+	for id, rows := range out {
+		out[id] = schedstore.FilterEntries(rows, "", "active")
+	}
+	return out
+}
+
+func activeSchedulesForSession(m Model, sessionID string) []schedstore.Entry {
+	if sessionID == "" || !m.Schedules.ClientReady || !m.Schedules.CatalogSettled || len(m.Schedules.Rows) == 0 {
+		return nil
+	}
+	if m.schedulesBySession != nil {
+		return m.schedulesBySession[sessionID]
+	}
+	return schedstore.ActiveForSession(m.Schedules, sessionID)
 }
 
 func sbPopoverSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/i18n"
@@ -190,6 +191,9 @@ func (s *mainState) restartUnlessImportWithResult(sup *harness.Supervisor, maint
 	win := s.win
 	s.mu.Unlock()
 	go func() {
+		if err := s.flushPendingConfigWrites(); err != nil {
+			log.Println("config flush before restart:", err)
+		}
 		var did bool
 		var resultErr error
 		defer func() {

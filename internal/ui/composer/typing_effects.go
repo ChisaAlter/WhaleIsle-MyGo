@@ -1,8 +1,10 @@
 package composer
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -40,20 +42,49 @@ type typingEffects struct {
 	caretBorn       time.Time
 }
 
+var (
+	typingStyleCacheMu    sync.RWMutex
+	typingStyleCacheValid bool
+	typingStyleCacheRaw   []byte
+	typingStyleCacheVal   typingStyle
+	defaultTypingStyle    = func() typingStyle {
+		style := typingStyle{Effect: "drop", Cursor: "native", CursorBlink: true, Speed: 100}
+		style.Colors.Kind = "theme"
+		return style
+	}()
+)
+
 func (client *DraftClient) configureTyping(m Model, reduced bool) {
+	if !m.TypingFx || reduced {
+		client.typing.enabled = m.TypingFx
+		client.typing.reduced = reduced
+		client.typing.caretBorn = time.Time{}
+		client.typing.echoes = nil
+		return
+	}
 	style := readTypingStyle(m.TypingFxStyle)
-	if !m.TypingFx || reduced || client.typing.style.CursorBlink != style.CursorBlink || (client.typing.style.Cursor == "native") != (style.Cursor == "native") {
+	if client.typing.style.CursorBlink != style.CursorBlink || (client.typing.style.Cursor == "native") != (style.Cursor == "native") {
 		client.typing.caretBorn = time.Time{}
 	}
-	if !m.TypingFx || reduced || client.typing.style.Effect != style.Effect {
+	if client.typing.style.Effect != style.Effect {
 		client.typing.echoes = nil
 	}
 	client.typing.enabled, client.typing.reduced, client.typing.style = m.TypingFx, reduced, style
 }
 
 func readTypingStyle(raw json.RawMessage) typingStyle {
-	style := typingStyle{Effect: "drop", Cursor: "native", CursorBlink: true, Speed: 100}
-	style.Colors.Kind = "theme"
+	if len(raw) == 0 {
+		return defaultTypingStyle
+	}
+	typingStyleCacheMu.RLock()
+	if typingStyleCacheValid && bytes.Equal(typingStyleCacheRaw, raw) {
+		hit := typingStyleCacheVal
+		typingStyleCacheMu.RUnlock()
+		return hit
+	}
+	typingStyleCacheMu.RUnlock()
+
+	style := defaultTypingStyle
 	_ = json.Unmarshal(raw, &style)
 	if style.Effect != "drop" && style.Effect != "rise" && style.Effect != "flash" {
 		style.Effect = "drop"
@@ -69,6 +100,12 @@ func readTypingStyle(raw json.RawMessage) typingStyle {
 	style.Colors.Echo = strings.ToLower(style.Colors.Echo)
 	style.Colors.Caret = strings.ToLower(style.Colors.Caret)
 	style.Colors.Text = strings.ToLower(style.Colors.Text)
+
+	typingStyleCacheMu.Lock()
+	typingStyleCacheRaw = append(typingStyleCacheRaw[:0], raw...)
+	typingStyleCacheVal = style
+	typingStyleCacheValid = true
+	typingStyleCacheMu.Unlock()
 	return style
 }
 

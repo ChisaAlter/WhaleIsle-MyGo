@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/desktop/workspacefs"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -39,7 +40,13 @@ func viewExplorer(c *ui.Context, m Model) {
 		// difference, not a hidden gesture.
 		ui.Row(c).FillWidth().Shrink(0).Padding(8, 12, 0, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			if m.Filter != nil {
-				ui.TextInput(c, m.Filter).Grow(1).MinWidth(0).Height(33).Radius(12).Border(0.5, chrome.Color(colors.Border)).FontSize(theme.InterfaceSize(12)).Label(i18n.T(i18n.KeyFilesFilter)).Placeholder(i18n.T(i18n.KeyFilesFilter)).Background(chrome.FrostInset(colors, m.SystemDark, c.Theme().Surface))
+				ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+					coss.Input(c, m.Filter, coss.InputOptions{
+						Size:        coss.InputMD,
+						Label:       i18n.T(i18n.KeyFilesFilter),
+						Placeholder: i18n.T(i18n.KeyFilesFilter),
+					})
+				})
 			} else {
 				ui.Box(c).Grow(1).MinWidth(0)
 			}
@@ -73,18 +80,7 @@ func viewExplorer(c *ui.Context, m Model) {
 		if m.Tabs != nil {
 			m.Tabs.Search.EnsureHostOnly(m.BindingID, root, filter, m.ListRemoteContext, c.Invalidate, m.HostOnly)
 		}
-		ui.Scroll(c).FillWidth().Grow(1).MinWidth(0).MinHeight(0).Children(func() {
-			// FilesPanel.module.css `.body` pads the scroll content 8/12/16 and
-			// `.list[data-file-tree]` itself carries the rows, so the tree's
-			// semantic box is the padded column, not the scroll viewport.
-			ui.Column(c).MinWidth(0).Margin(8, 12, 16, 12).Label(label("文件树", "File tree")).Children(func() {
-				if filter != "" {
-					paintFiltered(c, m, root, filter, fg, muted, chrome.Color(colors.Accent))
-				} else {
-					paintDir(c, m, root, "", 0, fg, muted, chrome.Color(colors.Accent))
-				}
-			})
-		})
+		paintVirtualizedFileTree(c, m, root, filter, false, fg, muted, chrome.Color(colors.Accent))
 	})
 }
 

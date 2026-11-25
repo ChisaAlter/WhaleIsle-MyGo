@@ -68,9 +68,78 @@ window.__ModuleLoader__.load({
       whaleRegisterShortcutImport(ctx, React);
       const plugin = new URLSearchParams(location.search).get('desktopPlugin');
       if (!plugin) return;
-      let stopped = false, opened = false, revision = 0, views = [], navigationError = '', activeView = '', cancelPending = () => {};
+      let stopped = false, opened = false, revision = 0, views = [], navigationError = '', activeView = '', activeViewObj = null, focusShell = true, userInteracted = false, cancelPending = () => {}, cancelSettingsGuard = () => {};
       const listeners = new Set();
       const changed = () => { revision++; for (const listener of listeners) listener(); };
+      const rootEl = typeof document !== 'undefined' ? document.documentElement : null;
+      const setFocusMode = mode => {
+        if (!rootEl) return;
+        if (mode) {
+          if (rootEl.dataset) rootEl.dataset.whalePluginFocus = mode;
+          else if (typeof rootEl.setAttribute === 'function') rootEl.setAttribute('data-whale-plugin-focus', mode);
+        } else {
+          if (rootEl.dataset) delete rootEl.dataset.whalePluginFocus;
+          else if (typeof rootEl.removeAttribute === 'function') rootEl.removeAttribute('data-whale-plugin-focus');
+        }
+      };
+      const syncFocus = () => {
+        if (stopped || !focusShell || !activeViewObj) { setFocusMode(''); return; }
+        if (activeViewObj.slot === 'main') {
+          const panelSnap = ctx.layout?.panelInfo?.getSnapshot?.();
+          if (panelSnap && panelSnap.activePanelId === null) { setFocusMode(''); return; }
+          setFocusMode('main');
+          return;
+        }
+        if (activeViewObj.slot === 'settings.section' || activeViewObj.slot === 'settings.remote.tab') {
+          const navSnap = ctx.settingsNavigation?.getSnapshot?.();
+          if (navSnap && navSnap.open === false) { setFocusMode(''); return; }
+          setFocusMode('settings');
+          return;
+        }
+        setFocusMode('');
+      };
+      const hasVisibleDialog = () => {
+        if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return false;
+        return [...document.querySelectorAll('[role="dialog"]')].length > 0;
+      };
+      // SettingsRoot closes an already-open Settings modal when sessions.phase
+      // flips to 'ready' and an onboarding step transitions undefined -> defined,
+      // even if that step renders null. Re-open only when closed programmatically
+      // before any user interaction and with no visible dialog blocking.
+      function guardSettingsAutoOpen(sectionId, view) {
+        if (userInteracted || !ctx.settingsNavigation?.subscribe || !ctx.settingsNavigation?.getSnapshot) return () => {};
+        let retries = 0, reopenTimer = 0, expireTimer = 0, unsub = () => {};
+        const stop = () => {
+          unsub(); unsub = () => {};
+          clearTimeout(reopenTimer); clearTimeout(expireTimer);
+        };
+        const check = () => {
+          if (stopped || userInteracted) { stop(); return; }
+          const snap = ctx.settingsNavigation.getSnapshot();
+          if (snap && snap.open === false && !hasVisibleDialog() && retries < 3) {
+            retries++;
+            clearTimeout(reopenTimer);
+            reopenTimer = setTimeout(() => {
+              if (stopped || userInteracted || hasVisibleDialog()) return;
+              const current = ctx.settingsNavigation.getSnapshot();
+              if (current && current.open === false) {
+                try {
+                  ctx.settingsNavigation.open(sectionId);
+                  if (view.slot === 'settings.remote.tab') {
+                    cancelPending();
+                    cancelPending = activateTab(view);
+                  }
+                } catch {}
+                syncFocus();
+              }
+            }, 0);
+          }
+          syncFocus();
+        };
+        unsub = ctx.settingsNavigation.subscribe(check);
+        expireTimer = setTimeout(stop, 5000);
+        return stop;
+      }
       const entries = slot => ctx.slots.entriesOfSlot(slot);
       // rc.4 StoredEntry keeps ownership and child declarations beside options;
       // options contains only the entry's key/id/order/label/priority.
@@ -176,8 +245,9 @@ window.__ModuleLoader__.load({
         }
         return stop;
       }
-      function open(view) {
-        cancelPending(); navigationError = ''; activeView = viewKey(view);
+      function open(view, fromUser) {
+        cancelPending(); cancelSettingsGuard(); navigationError = ''; activeView = viewKey(view); activeViewObj = view;
+        if (fromUser) userInteracted = true;
         try {
         if (view.slot === 'main') {
           const navigation = view.bundle ? ctx.get('pluginNavigation') : null;
@@ -185,39 +255,81 @@ window.__ModuleLoader__.load({
           else ctx.layout.selectPanel(view.id);
           if (view.item) cancelPending = activatePluginItem(view.item);
         }
-        else if (view.slot === 'settings.section') ctx.settingsNavigation.open(view.id);
+        else if (view.slot === 'settings.section') {
+          ctx.settingsNavigation.open(view.id);
+          if (!fromUser) cancelSettingsGuard = guardSettingsAutoOpen(view.id, view);
+        }
         else if (view.slot === 'settings.remote.tab') {
           ctx.settingsNavigation.open('remote');
           cancelPending = activateTab(view);
+          if (!fromUser) cancelSettingsGuard = guardSettingsAutoOpen('remote', view);
         } else cancelPending = activateTab(view);
         } catch { navigationError = '该插件视图当前不可用，请刷新或重新启用插件。'; }
+        syncFocus();
         changed();
       }
       function sync() {
         if (stopped) return;
         views = buildViews(); revision++;
         if (activeView && !views.some(view => viewKey(view) === activeView)) {
-          cancelPending(); activeView = '';
+          cancelPending(); cancelSettingsGuard(); activeView = ''; activeViewObj = null;
           navigationError = '该插件视图已卸载或停用。';
+          syncFocus();
         }
         // One initial activation only: do not steal navigation after a user's
         // close/back action, or after the plugin opens its own conversation.
-        if (!opened && views.length) { opened = true; open(views[0]); }
+        if (!opened && views.length) { opened = true; open(views[0], false); }
         for (const listener of listeners) listener();
       }
       function View() {
         React.useSyncExternalStore(listener => {listeners.add(listener); return () => listeners.delete(listener);}, () => revision);
-        return h('div', {role: 'region', 'aria-label': 'Plugin views', style: {pointerEvents:'auto',position:'fixed',right:12,bottom:12,zIndex:10000,maxWidth:'min(640px,90vw)',padding:'8px 12px',border:'1px solid var(--border,#777)',borderRadius:8,background:'var(--bg,#fff)',color:'var(--text,#222)',font:'12px system-ui'}},
+        const canFocus = activeViewObj && (activeViewObj.slot === 'main' || activeViewObj.slot === 'settings.section' || activeViewObj.slot === 'settings.remote.tab');
+        return h('div', {role: 'region', 'aria-label': 'Plugin views', style: {pointerEvents:'auto',position:'fixed',right:12,bottom:12,zIndex:10000,maxWidth:'min(640px,90vw)',padding:'8px 12px',border:'1px solid var(--dsw-alias-border-l3,var(--border,#d0d7de))',borderRadius:8,background:'var(--dsw-alias-bg-elevated,var(--bg,#fff))',color:'var(--dsw-alias-label-primary,var(--text,#1f2328))',font:'12px system-ui',boxShadow:'0 2px 10px rgba(0,0,0,0.08)'}},
           h('span', null, plugin + ' · '),
           navigationError ? h('span', {role:'status'}, navigationError) : null,
-          views.length ? views.map(view => h('button', {key: viewKey(view),onClick:()=>open(view),style:{margin:'0 4px'}},view.label))
-            : h('span', {role:'status'}, '此插件尚无可独立打开的视图。会话内插槽需要在相应会话中使用。'));
+          views.length ? views.map(view => h('button', {key: viewKey(view),onClick:()=>open(view, true),style:{margin:'0 4px'}},view.label))
+            : h('span', {role:'status'}, '此插件尚无可独立打开的视图。会话内插槽需要在相应会话中使用。'),
+          canFocus ? h('button', {key:'__whale-focus-toggle',onClick:()=>{userInteracted=true;focusShell=!focusShell;syncFocus();changed();},style:{margin:'0 0 0 8px',opacity:0.85}}, focusShell ? '显示完整界面' : '仅显示插件') : null);
       }
       ctx.effect(() => {
+        let styleEl = null;
+        if (typeof document !== 'undefined' && document.head && typeof document.createElement === 'function') {
+          styleEl = document.createElement('style');
+          styleEl.setAttribute('data-whale-plugin-focus-style', '1');
+          styleEl.textContent = [
+            'html[data-whale-plugin-focus="main"] [data-dsh-frame]{grid-template-columns:0px minmax(0,1fr) 0px 0px!important;border-radius:0!important;padding-top:0!important}',
+            'html[data-whale-plugin-focus="main"] [data-dsh-frame-region="sidebar"]{visibility:hidden!important;pointer-events:none!important;width:0!important;min-width:0!important;border:none!important;overflow:hidden!important}',
+            'html[data-whale-plugin-focus="main"] [data-dsh-frame-region="center"]{grid-column:1/-1!important;border-radius:0!important;border-left:none!important}',
+            'html[data-whale-plugin-focus="main"] [data-main-panel],html[data-whale-plugin-focus="main"] [data-main-panel-full]{grid-row:1/-1!important}',
+            'html[data-whale-plugin-focus="main"] [data-side="sidebar"],html[data-whale-plugin-focus="main"] [data-titlebar-trailing],html[data-whale-plugin-focus="main"] [data-shell-leading-band],html[data-whale-plugin-focus="main"] [data-dshd-caption="band"],html[data-whale-plugin-focus="main"] [data-titlebar-row]{display:none!important}',
+            'html[data-whale-plugin-focus="settings"] [data-dsh-frame-region="sidebar"],html[data-whale-plugin-focus="settings"] [data-side="sidebar"],html[data-whale-plugin-focus="settings"] [data-titlebar-trailing],html[data-whale-plugin-focus="settings"] [data-shell-leading-band]{visibility:hidden!important;pointer-events:none!important}',
+          ].join('');
+          document.head.appendChild(styleEl);
+        }
+        const markUser = () => { userInteracted = true; cancelSettingsGuard(); };
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+          window.addEventListener('pointerdown', markUser, true);
+          window.addEventListener('keydown', markUser, true);
+        }
+        const unlistenLayout = typeof ctx.layout?.panelInfo?.subscribe === 'function'
+          ? ctx.layout.panelInfo.subscribe(syncFocus)
+          : () => {};
+        const unlistenSettings = typeof ctx.settingsNavigation?.subscribe === 'function'
+          ? ctx.settingsNavigation.subscribe(syncFocus)
+          : () => {};
         const unlisten = ctx.on('slots/changed', sync);
         const unmount = ctx.slots.inject('shell.overlay', () => ctx.slots.register({name:'shell.overlay',id:'whaleisle-plugin-view-picker'},View));
         sync();
-        return () => { stopped = true; cancelPending(); unlisten(); unmount(); listeners.clear(); };
+        return () => {
+          stopped = true; cancelPending(); cancelSettingsGuard();
+          unlisten(); unlistenLayout(); unlistenSettings(); unmount(); listeners.clear();
+          setFocusMode('');
+          if (styleEl && typeof styleEl.remove === 'function') styleEl.remove();
+          if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+            window.removeEventListener('pointerdown', markUser, true);
+            window.removeEventListener('keydown', markUser, true);
+          }
+        };
       });
     }
     return {inject: ['modules','slots','layout','settingsNavigation','shortcuts'], apply};

@@ -3,6 +3,7 @@ package chat
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -351,7 +352,7 @@ func transcriptControlView(c *ui.Context, control transcriptControl, m Model, _ 
 		return
 	}
 	ui.Row(c).FillWidth().MinWidth(0).MinHeight(33 + delta).AlignItems(ui.Center).Children(func() {
-		btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).
+		btn := ui.ButtonBase(c.Key("transcript-control:"+control.key)).Label(control.label).
 			FillWidth().MinWidth(0).Height(33+delta).Padding(0, 0, design.Sp(2), 0).Gap(design.Sp(1)).BorderWidth(0).
 			Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 		target := float32(0)
@@ -378,9 +379,11 @@ func transcriptControlView(c *ui.Context, control transcriptControl, m Model, _ 
 // transcriptFoldChevron paints the fold row's marker: one glyph rotates
 // 180deg over 100ms ease-in-out while the row opens (the Original's
 // .chevron transition), or flips immediately under reduced motion.
+// Rotation runs strictly in Draw with paint-only p.After so toggling a fold
+// never triggers full-tree rebuilds.
 func transcriptFoldChevron(c *ui.Context, open bool, color ui.Color) {
-	chev := ui.Icon(c, todoChevronDown).Size(14, 14).TextColor(color).PassThrough()
-	st := ui.Local(chev, "fold-open", func() struct {
+	box := ui.Box(c).Size(14, 14).PassThrough()
+	st := ui.Local(box, "fold-open", func() struct {
 		open  bool
 		since time.Time
 	} {
@@ -389,27 +392,48 @@ func transcriptFoldChevron(c *ui.Context, open bool, color ui.Color) {
 			since time.Time
 		}{open: open}
 	})
-	angle := float32(0)
-	if open {
-		angle = 180
-	}
 	if st.open != open {
 		st.open, st.since = open, c.Now()
 	}
-	if !st.since.IsZero() && !c.Preferences().ReduceMotion {
-		if t := float32(c.Now().Sub(st.since)) / float32(100*time.Millisecond); t < 1 {
-			p := ui.EaseInOut(t) * 180
-			if open {
-				angle = p
-			} else {
-				angle = 180 - p
-			}
-			c.After(16 * time.Millisecond)
+	reduceMotion := c.Preferences().ReduceMotion
+	box.Draw(func(p *ui.Painter, r ui.Rect) {
+		angle := float32(0)
+		if st.open {
+			angle = 180
 		}
-	}
-	if angle != 0 {
-		chev.Rotate(angle)
-	}
+		if !st.since.IsZero() && !reduceMotion {
+			now := p.Now()
+			if t := float32(now.Sub(st.since)) / float32(100*time.Millisecond); t < 1 {
+				eased := ui.EaseInOut(max(0, t)) * 180
+				if st.open {
+					angle = eased
+				} else {
+					angle = 180 - eased
+				}
+				p.After(16 * time.Millisecond)
+			}
+		}
+		rad := float64(angle) * math.Pi / 180.0
+		cos, sin := float32(math.Cos(rad)), float32(math.Sin(rad))
+		cx, cy := r.X+r.W/2, r.Y+r.H/2
+		sx, sy := r.W/16, r.H/16
+		pts := [3][2]float32{
+			{(4 - 8) * sx, (6 - 8) * sy},
+			{(8 - 8) * sx, (10 - 8) * sy},
+			{(12 - 8) * sx, (6 - 8) * sy},
+		}
+		var path ui.Path
+		for i, pt := range pts {
+			x := cx + pt[0]*cos - pt[1]*sin
+			y := cy + pt[0]*sin + pt[1]*cos
+			if i == 0 {
+				path.MoveTo(x, y)
+			} else {
+				path.LineTo(x, y)
+			}
+		}
+		p.StrokePath(&path, 1.5, color)
+	})
 }
 
 // transcriptGroupView paints a second-level process-group row, matching the
@@ -425,7 +449,7 @@ func transcriptGroupView(c *ui.Context, control transcriptControl, m Model, mute
 	if control.open {
 		bottom = design.Sp(2)
 	}
-	btn := ui.Button(c.Key("transcript-control:"+control.key), "").Label(control.label).MinWidth(0).AlignSelf(ui.Start).
+	btn := ui.ButtonBase(c.Key("transcript-control:"+control.key)).Label(control.label).MinWidth(0).AlignSelf(ui.Start).
 		Padding(0, 0, bottom, 0).Gap(design.Sp(1.5)).BorderWidth(0).Background(ui.Transparent).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 	textColor := muted.Mix(secondary, btn.AnimateWith("group-hover", boolFloat(btn.Hovered()), 100*time.Millisecond, contextColorEase))
 	leadingSize, glyph := float32(16)+delta, float32(14)+delta

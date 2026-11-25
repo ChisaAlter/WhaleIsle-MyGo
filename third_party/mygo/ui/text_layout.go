@@ -41,10 +41,33 @@ func (t *TextLayout) position(p TextCaretPosition) text.CaretPosition {
 	return text.CaretPosition{Index: t.runeAt(p.Index, false), Affinity: p.Affinity}
 }
 
+// ensureIndex lazily constructs UTF-16 rune offsets and grapheme boundaries on
+// first navigation/selection query so display-only ShapeText / ShapeTextLine
+// calls (Size, Painter.TextLayout, Rasterize) pay zero extra allocation.
+// Caller must hold t.mu.
+func (t *TextLayout) ensureIndex() {
+	if t.units != nil {
+		return
+	}
+	t.units = make([]int, len(t.l.Runes)+1)
+	for i, r := range t.l.Runes {
+		t.units[i+1] = t.units[i] + utf16.RuneLen(r)
+	}
+	t.boundaries = t.l.GraphemeOffsets()
+}
+
+func (t *TextLayout) graphemeBoundaries() []int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.ensureIndex()
+	return t.boundaries
+}
+
 // CaretAt returns the rectangle of the requested visual edge.
 func (t *TextLayout) CaretAt(p TextCaretPosition) Rect {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	x, y, h := t.l.CaretAt(t.position(p))
 	return Rect{x, y, 1, h}
 }
@@ -53,6 +76,7 @@ func (t *TextLayout) CaretAt(p TextCaretPosition) Rect {
 func (t *TextLayout) PositionAt(point Point) TextCaretPosition {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	p := t.l.PositionAt(point.X, point.Y)
 	return TextCaretPosition{Index: t.units[p.Index], Affinity: p.Affinity}
 }
@@ -61,6 +85,7 @@ func (t *TextLayout) PositionAt(point Point) TextCaretPosition {
 func (t *TextLayout) MoveCaret(p TextCaretPosition, direction int) TextCaretPosition {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	next := t.l.MoveCaret(t.position(p), direction)
 	return TextCaretPosition{Index: t.units[next.Index], Affinity: next.Affinity}
 }
@@ -71,6 +96,7 @@ func (t *TextLayout) MoveCaret(p TextCaretPosition, direction int) TextCaretPosi
 func (t *TextLayout) SelectionRanges(anchor, caret TextCaretPosition) []TextInputRange {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	var out []TextInputRange
 	for _, r := range t.l.SelectionRanges(t.position(anchor), t.position(caret)) {
 		out = append(out, TextInputRange{Start: t.units[r.Start], End: t.units[r.End]})
@@ -99,15 +125,7 @@ func shapeText(s string, font Font, width float32, spans []Span) *TextLayout {
 }
 
 func retainTextLayout(l *text.Layout, spans []Span) *TextLayout {
-	t := &TextLayout{l: l, units: make([]int, len(l.Runes)+1), spans: spans}
-	for i, r := range l.Runes {
-		t.units[i+1] = t.units[i] + utf16.RuneLen(r)
-	}
-	var boundaries text.Boundaries
-	boundaries.Reset(l.Runes)
-	// Boundary iteration is per shaped paragraph, never per document edit.
-	t.boundaries = boundaries.GraphemeOffsets()
-	return t
+	return &TextLayout{l: l, spans: spans}
 }
 
 // Size is the layout's extent in DIPs.
@@ -137,6 +155,7 @@ func (t *TextLayout) runeAt(index int, forward bool) int {
 func (t *TextLayout) Caret(index int) Rect {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	x, y, h := t.l.Caret(t.runeAt(index, false))
 	return Rect{x, y, 1, h}
 }
@@ -147,6 +166,7 @@ func (t *TextLayout) Caret(index int) Rect {
 func (t *TextLayout) PreviousBoundary(index int) int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	i := t.runeAt(index, false)
 	b, _ := slices.BinarySearch(t.boundaries, i)
 	return t.units[t.boundaries[max(0, b-1)]]
@@ -154,6 +174,7 @@ func (t *TextLayout) PreviousBoundary(index int) int {
 func (t *TextLayout) NextBoundary(index int) int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	i := t.runeAt(index, false)
 	b, _ := slices.BinarySearch(t.boundaries, i)
 	return t.units[t.boundaries[min(len(t.boundaries)-1, b+1)]]
@@ -168,6 +189,7 @@ func (t *TextLayout) IndexAt(point Point) int { return t.PositionAt(point).Index
 func (t *TextLayout) SelectionRects(ranges ...TextInputRange) []Rect {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.ensureIndex()
 	var out []Rect
 	for _, r := range ranges {
 		r = platformTextRange(r)

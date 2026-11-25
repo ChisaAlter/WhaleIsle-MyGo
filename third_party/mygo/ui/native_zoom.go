@@ -44,7 +44,7 @@ func (c *Context) SetZoomFactor(factor float64) {
 	h.zoom = factor
 	rt.pointerX *= float32(old / factor)
 	rt.pointerY *= float32(old / factor)
-	rt.redraw = false
+	rt.redraw, rt.fastScroll = false, false
 	rt.requestFrame()
 }
 

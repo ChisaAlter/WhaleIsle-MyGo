@@ -44,51 +44,18 @@ func (s *Store) SaveWorkspaceNavigationPreferences(hostKey string, prefs Workspa
 	if strings.TrimSpace(hostKey) == "" {
 		return errors.New("workspace preference Host is missing")
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.beginSyncWrite()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err := s.checkBaseline(); err != nil {
 		return err
 	}
-	root := map[string]json.RawMessage{}
-	if raw := s.raw[workspaceNavigationKey]; len(raw) > 0 {
-		if err := json.Unmarshal(raw, &root); err != nil {
-			return err
-		}
-	}
-	if root == nil {
-		root = map[string]json.RawMessage{}
-	}
-	host := map[string]json.RawMessage{}
-	if raw := root[hostKey]; len(raw) > 0 {
-		if err := json.Unmarshal(raw, &host); err != nil {
-			return err
-		}
-	}
-	if host == nil {
-		host = map[string]json.RawMessage{}
-	}
-	encoded, err := json.Marshal(prefs)
+	merged, err := s.prepareWorkspacePreferencesRawLocked(hostKey, prefs)
 	if err != nil {
 		return err
 	}
-	var known map[string]json.RawMessage
-	if err = json.Unmarshal(encoded, &known); err != nil {
-		return err
-	}
-	for k, v := range known {
-		host[k] = v
-	}
-	hostRaw, err := json.Marshal(host)
-	if err != nil {
-		return err
-	}
-	root[hostKey] = hostRaw
-	rootRaw, err := json.Marshal(root)
-	if err != nil {
-		return err
-	}
-	merged := cloneRawMap(s.raw)
-	merged[workspaceNavigationKey] = rootRaw
 	baseline, err := s.commitRawLocked(s.baseline, merged)
 	if err != nil {
 		return err

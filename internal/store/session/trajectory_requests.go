@@ -348,12 +348,38 @@ func (s *Store) trajectoryRequestsViewLocked() []TrajectoryRequest {
 			}
 		}
 		s.trajRequestsCache = cloneTrajectoryRequests(out, true)
+		s.trajRequestsRev++
+		s.trajLiveReqCache = nil
 	}
 	a := s.assistantStream.active
 	if a == nil {
-		return cloneSlice(s.trajRequestsCache)
+		s.trajLiveReqCache = nil
+		return s.trajRequestsCache
+	}
+	if s.trajLiveReqCache != nil &&
+		s.trajLiveBaseRev == s.trajRequestsRev &&
+		s.trajLiveAttemptID == a.AttemptID &&
+		s.trajLiveNextIndex == a.NextIndex &&
+		s.trajLiveStreamLen == len(a.Stream) {
+		return s.trajLiveReqCache
 	}
 	targetID := trajectoryStepID(&a.Turn, &a.Step)
+	matched := false
+	for i := range s.trajRequestsCache {
+		r := &s.trajRequestsCache[i]
+		if r.Purpose == "assistant" && r.Status == "running" && targetID == r.ID {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		s.trajLiveReqCache = s.trajRequestsCache
+		s.trajLiveBaseRev = s.trajRequestsRev
+		s.trajLiveAttemptID = a.AttemptID
+		s.trajLiveNextIndex = a.NextIndex
+		s.trajLiveStreamLen = len(a.Stream)
+		return s.trajLiveReqCache
+	}
 	out := append([]TrajectoryRequest(nil), s.trajRequestsCache...)
 	for i := range out {
 		r := &out[i]
@@ -365,6 +391,11 @@ func (s *Store) trajectoryRequestsViewLocked() []TrajectoryRequest {
 			r.LiveAttempt = &TrajectoryLiveAttempt{AttemptID: a.AttemptID, StartedAfterSeq: a.StartedAfterSeq, NextIndex: a.NextIndex, Stream: stream, Usage: a.currentLiveUsage()}
 		}
 	}
+	s.trajLiveReqCache = out
+	s.trajLiveBaseRev = s.trajRequestsRev
+	s.trajLiveAttemptID = a.AttemptID
+	s.trajLiveNextIndex = a.NextIndex
+	s.trajLiveStreamLen = len(a.Stream)
 	return out
 }
 

@@ -1,11 +1,11 @@
 package settings
 
 import (
-	fonttheme "whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
-
-	"whaleisle/internal/ui/i18n"
 )
 
 // CredentialsFields are editable secrets from credentials.json.
@@ -36,24 +36,24 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		return
 	}
 	d := m.Credentials
-	ui.Text(c, i18n.T(i18n.KeySettingsCredTitle)).FontSize(fonttheme.InterfaceSize(14)).FontWeight(600).TextColor(fg)
-	ui.Text(c, i18n.T(i18n.KeySettingsCredHint)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+	kHeading(c, i18n.T(i18n.KeySettingsCredTitle))
+	kHint(c, i18n.T(i18n.KeySettingsCredHint))
 	settingsAlert(c, "credentials:38", d.Err != "", providerCopy("没能读取凭据列表，请重试。", "The credential list could not be read. Try again."), d.Err)
 	settingsNotice(c, "credentials:41", d.LastAction != "", func() string { return settingsActionText(d.LastAction) })
 	if d.Ready != nil && !d.Ready() {
 		if d.Err == "" {
-			ui.Text(c, providerCopy("正在读取凭据…", "Loading credentials…")).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+			kHint(c, providerCopy("正在读取凭据…", "Loading credentials…"))
 		}
-		if d.OnReload != nil && ui.Button(c, providerCopy("重新读取文件", "Reload file")).Height(30).Padding(0, 12).Clicked() {
+		if d.OnReload != nil && kButton(c, providerCopy("重新读取文件", "Reload file")).AlignSelf(ui.Start).Clicked() {
 			d.OnReload()
 		}
 		return
 	}
 	if d.HarnessNote != "" {
-		ui.Text(c, d.HarnessNote).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
+		kHint(c, d.HarnessNote)
 	}
 	if d.ShowSecrets != nil {
-		ui.Checkbox(c, d.ShowSecrets, i18n.T(i18n.KeySettingsCredShow))
+		kCheckbox(c, d.ShowSecrets, i18n.T(i18n.KeySettingsCredShow), false)
 	}
 	show := d.ShowSecrets != nil && *d.ShowSecrets
 	secretRow(c, i18n.T(i18n.KeySettingsCredAPIKey), d.Fields.APIKey, show, fg)
@@ -61,31 +61,28 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 		if d.Fields.BaseURL == nil {
 			return
 		}
-		ui.TextInput(c, d.Fields.BaseURL).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
+		kInput(c, d.Fields.BaseURL, coss.InputOptions{Label: i18n.T(i18n.KeySettingsCredBaseURL)})
 	}, fg, muted)
 	secretRow(c, i18n.T(i18n.KeySettingsCredGithub), d.Fields.GithubToken, show, fg)
 	secretRow(c, i18n.T(i18n.KeySettingsCredRemote), d.Fields.RemoteToken, show, fg)
 	secretRow(c, i18n.T(i18n.KeySettingsCredRelay), d.Fields.RemoteRelayToken, show, fg)
-	ui.Row(c).Gap(8).Wrap().Children(func() {
-		save := ui.Button(c, i18n.T(i18n.KeySettingsSave)).Height(32).Padding(0, 14).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
-		if d.OnSave == nil || d.CanSave != nil && !d.CanSave() {
-			save = save.Disabled(true)
-		}
-		if save.Clicked() && d.OnSave != nil {
+	ui.Row(c).Gap(design.Sp(2)).Wrap().Children(func() {
+		saveDisabled := d.OnSave == nil || d.CanSave != nil && !d.CanSave()
+		if kPrimary(c, i18n.T(i18n.KeySettingsSave), saveDisabled).Clicked() && d.OnSave != nil {
 			d.OnSave()
 		}
-		if d.OnReload != nil && ui.Button(c, providerCopy("重新读取文件", "Reload file")).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+		if d.OnReload != nil && kButton(c, providerCopy("重新读取文件", "Reload file")).Clicked() {
 			d.OnReload()
 		}
-		if d.OnDescribe != nil && ui.Button(c, i18n.T(i18n.KeySettingsRefresh)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+		if d.OnDescribe != nil && kButton(c, i18n.T(i18n.KeySettingsRefresh)).Clicked() {
 			d.OnDescribe()
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearAPIKey)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+		if kDanger(c, i18n.T(i18n.KeySettingsCredClearAPIKey), false).Clicked() {
 			if d.Fields.APIKey != nil {
 				*d.Fields.APIKey = ""
 			}
 		}
-		if ui.Button(c, i18n.T(i18n.KeySettingsCredClearSecrets)).Height(30).Padding(0, 12).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).Clicked() {
+		if kDanger(c, i18n.T(i18n.KeySettingsCredClearSecrets), false).Clicked() {
 			clearSecret := func(p *string) {
 				if p != nil {
 					*p = ""
@@ -100,16 +97,16 @@ func credentialsPane(c *ui.Context, m Model, fg, muted ui.Color) {
 }
 
 func secretRow(c *ui.Context, label string, value *string, show bool, fg ui.Color) {
-	ui.Column(c).Gap(4).Children(func() {
-		ui.Text(c, label).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+	ui.Column(c).Gap(design.Sp(1)).Children(func() {
+		kLabel(c, label, fg)
 		if value == nil {
 			return
 		}
 		if show {
-			ui.TextInput(c, value).FillWidth().Height(32).Radius(8).Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13))
+			kInput(c, value, coss.InputOptions{Label: label})
 			return
 		}
-		ui.Text(c, maskSecret(*value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg)
+		kText(c, maskSecret(*value), design.TextXS, design.WeightNormal, fg)
 	})
 }
 

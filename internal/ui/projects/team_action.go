@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/projectflow"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 )
@@ -107,14 +108,18 @@ func ProjectTeamBody(c *ui.Context, m ProjectTeamModel) {
 						history bool
 						label   string
 					}{{false, tr("当前与近期", "Current and recent")}, {true, tr("全部记录", "All records")}} {
-						if ui.Button(c, option.label).Role(ui.RoleTab).Selected(s.History == option.history).Cursor(ui.CursorPointer).Clicked() {
+						if pTabButton(c, option.label, s.History == option.history, false).Role(ui.RoleTab).Selected(s.History == option.history).Clicked() {
 							s.SetHistory(option.history)
 						}
 					}
 				})
 				if s.History {
 					query := s.Query
-					if ui.TextInput(c, &query).FillWidth().Label(tr("查找成员或工作", "Find a member or work")).Placeholder(tr("输入名称或工作内容", "Search names or work descriptions")).Changed() {
+					if pInput(c, &query, coss.InputOptions{
+						Size:        coss.InputSM,
+						Label:       tr("查找成员或工作", "Find a member or work"),
+						Placeholder: tr("输入名称或工作内容", "Search names or work descriptions"),
+					}).Changed() {
 						s.SetQuery(query)
 					}
 				}
@@ -221,10 +226,10 @@ func projectTeamPagination(c *ui.Context, page *int, total, size int, label stri
 	}
 	ui.Row(c.Key(label)).FillWidth().MinWidth(0).Wrap().Gap(6).AlignItems(ui.Center).Label(label).Children(func() {
 		ui.Text(c, fmt.Sprintf("%d–%d / %d", *page*size+1, min((*page+1)*size, total), total)).Grow(1).FontSize(theme.InterfaceSize(12))
-		if ui.Button(c, tr("上一页", "Previous")).Cursor(ui.CursorPointer).Disabled(*page == 0).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), *page == 0).Clicked() {
 			*page--
 		}
-		if ui.Button(c, tr("下一页", "Next")).Cursor(ui.CursorPointer).Disabled((*page+1)*size >= total).Clicked() {
+		if pButton(c, tr("下一页", "Next"), (*page+1)*size >= total).Clicked() {
 			*page++
 		}
 	})
@@ -403,7 +408,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 	card := ui.Column(c.Key("project-member-card:" + member.ID)).FillWidth().MinWidth(0)
 	cardHovered := card.Hovered()
 	card.Children(func() {
-		button := chrome.FrostSurface(ui.Button(c, "").Label(label).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
+		button := chrome.FrostSurface(ui.ButtonBase(c).Label(label).FillWidth().MinWidth(0).Padding(10, 12).Border(borderWidth, borderColor), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).SM)
 		if !inert {
 			button.Tooltip(tr("查看工作过程", "View work history")).Cursor(ui.CursorPointer)
 		} else {
@@ -542,17 +547,17 @@ func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTas
 					label = tr("收起", "Show less")
 					icon = "chevron-up"
 				}
-				toggle := ui.Button(c, "").Label(label).Padding(0).BorderWidth(0).Background(ui.Transparent).Shrink(0).Cursor(ui.CursorPointer)
-				toggleColor := muted
-				if toggle.Hovered() || toggle.Focused() {
-					toggleColor = fg
-				}
-				toggle.Children(func() {
-					ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, label).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(toggleColor)
-						projectIcon(c, icon, 12, toggleColor, false)
-					})
-				})
+				toggle := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+					Label:   label,
+					Content: func() {
+						ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
+							ui.Text(c, label).FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(20)).TextColor(muted)
+							projectIcon(c, icon, 12, muted, false)
+						})
+					},
+				}).Shrink(0)
 				if toggle.Clicked() {
 					if m.State.ExpandedTaskIDs == nil {
 						m.State.ExpandedTaskIDs = map[string]bool{}

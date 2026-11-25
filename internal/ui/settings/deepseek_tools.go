@@ -5,6 +5,7 @@ import (
 
 	"whaleisle/internal/errcopy"
 	settingsstore "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -74,9 +75,7 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 		body(providerCopy(
 			"这次启动的引擎没有加载 DeepSeek 应用接口插件，所以没有可编辑的配置。重启应用后再看；仍然没有的话，说明当前版本还没带上这个插件。",
 			"This start did not load the DeepSeek app API plugin, so there is no configuration to edit. Restart the app and look again; if it is still missing, this build does not carry the plugin."))
-		if ui.Button(c, providerCopy("重新加载", "Reload")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).
-			Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(12.5)).
-			Disabled(s.Loading || a.OnRefresh == nil).Clicked() && a.OnRefresh != nil {
+		if kButtonDisabled(c, providerCopy("重新加载", "Reload"), s.Loading || a.OnRefresh == nil).AlignSelf(ui.Start).Clicked() && a.OnRefresh != nil {
 			a.OnRefresh()
 		}
 		return
@@ -87,9 +86,10 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 		ui.Column(c.Key("deepseek-tools/" + field)).FillWidth().MinWidth(0).Gap(6).Children(func() {
 			modelFieldLabel(c, label)
 			value := stagedText(s, field, stored)
-			input := ui.TextInput(c, &value).Grow(1).MinWidth(0).Height(36).Radius(8).
-				Border(.5, modelInputBorder(c)).Background(modelWell(c).Alpha(.8)).
-				FontSize(fonttheme.InterfaceSize(14)).Disabled(disabled)
+			input := kInput(c, &value, coss.InputOptions{
+				Label:    label,
+				Disabled: disabled,
+			})
 			if input.Changed() && a.OnStage != nil {
 				a.OnStage(field, value)
 			}
@@ -121,8 +121,7 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 		apiKeyInput(c, "deepseek-tools", key, placeholder, disabled || !a.Key.Writable)
 		body(providerCopy("留空表示保留已存的密钥。新密钥写进引擎的凭据存储，同一个引用下的其他提供方也会读到它。",
 			"Leave blank to keep the stored key. A new key is written to the engine's credential store, and other providers using the same reference read it too."))
-		if *key != "" && ui.Button(c, providerCopy("保存密钥", "Save key")).AlignSelf(ui.Start).Height(30).Padding(0, 12).Radius(8).
-			FontSize(fonttheme.InterfaceSize(12.5)).Disabled(s.Saving || a.OnSaveKey == nil).Clicked() && a.OnSaveKey != nil {
+		if *key != "" && kPrimary(c, providerCopy("保存密钥", "Save key"), s.Saving || a.OnSaveKey == nil).AlignSelf(ui.Start).Clicked() && a.OnSaveKey != nil {
 			a.OnSaveKey(stagedText(s, "apiKeyEnv", s.APIKeyEnv), *key)
 			*key = ""
 		}
@@ -152,9 +151,7 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 		if stagedText(s, "voice", s.Voice) == "tide" {
 			selected = labels[1]
 		}
-		colors := fonttheme.ResolveWithSystem(fonttheme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark)
-		ui.Select(c, &selected, labels).Width(200).Shrink(0).Height(32).Padding(0, 12).Radius(16).BorderWidth(0).
-			Background(fonttheme.Color(colors.SelectorFill)).FontSize(fonttheme.InterfaceSize(13)).Disabled(disabled).OnChange(func() {
+		kSelect(c, &selected, labels, providerCopy("默认音色", "Default voice"), disabled).Width(200).Shrink(0).OnChange(func() {
 			if a.OnStage == nil {
 				return
 			}
@@ -185,13 +182,10 @@ func DeepSeekToolsPane(c *ui.Context, a *DeepSeekToolsAccess, fg, muted ui.Color
 		case len(s.DirtyFields) > 0:
 			status = providerCopy("有尚未保存的更改", "Unsaved changes")
 		}
-		if ui.Button(c, providerCopy("保存", "Save")).Height(32).Padding(0, 16).Radius(16).FontSize(fonttheme.InterfaceSize(13)).
-			Disabled(disabled || a.OnSave == nil).Clicked() && a.OnSave != nil {
+		if kPrimary(c, providerCopy("保存", "Save"), disabled || a.OnSave == nil).Clicked() && a.OnSave != nil {
 			a.OnSave()
 		}
-		if ui.Button(c, providerCopy("重新加载", "Reload")).Height(32).Padding(0, 16).Radius(16).
-			Border(0.5, c.Theme().Border.Alpha(0.45)).FontSize(fonttheme.InterfaceSize(13)).
-			Disabled(s.Saving || a.OnReload == nil).Clicked() && a.OnReload != nil {
+		if kButtonDisabled(c, providerCopy("重新加载", "Reload"), s.Saving || a.OnReload == nil).Clicked() && a.OnReload != nil {
 			a.OnReload()
 		}
 		if status != "" {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -229,18 +230,26 @@ func terminalCard(c *ui.Context, st ToolCardStyle, key string, m *toolTerminalMo
 					if !*expanded {
 						restText := terminalExpandRestLabel(remaining)
 						restAria := terminalExpandAriaLabel(remaining)
-						btn := ui.Button(c.Key("expand-rest"), restText).Label(restAria).Tooltip(restAria).
-							Background(ui.Transparent).BorderWidth(0).Padding(0, design.Sp(3.5), design.Sp(2.5), 0).
-							FontSize(11).TextColor(t.MutedForeground).Cursor(ui.CursorPointer)
+						btn := coss.Button(c, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonXS,
+							Label:   restAria,
+							Key:     "expand-rest",
+							Content: func() { ui.Text(c, restText).FontSize(11).TextColor(t.MutedForeground) },
+						}).Tooltip(restAria).Padding(0, design.Sp(3.5), design.Sp(2.5), 0)
 						if btn.Clicked() {
 							*expanded = true
 						}
 					} else {
 						collapseText := i18n.T(i18n.KeyChatRowCollapse)
 						collapseAria := terminalCollapseAriaLabel()
-						btn := ui.Button(c.Key("collapse-rest"), collapseText).Label(collapseAria).Tooltip(collapseAria).
-							Background(ui.Transparent).BorderWidth(0).Padding(0, design.Sp(3.5), design.Sp(2.5), 0).
-							FontSize(11).TextColor(t.MutedForeground).Cursor(ui.CursorPointer)
+						btn := coss.Button(c, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonXS,
+							Label:   collapseAria,
+							Key:     "collapse-rest",
+							Content: func() { ui.Text(c, collapseText).FontSize(11).TextColor(t.MutedForeground) },
+						}).Tooltip(collapseAria).Padding(0, design.Sp(3.5), design.Sp(2.5), 0)
 						if btn.Clicked() {
 							*expanded = false
 						}

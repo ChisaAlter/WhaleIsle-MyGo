@@ -3,7 +3,7 @@ package settings
 import (
 	"github.com/egoist/mygo/ui"
 
-	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -20,23 +20,12 @@ func petHeader(c *ui.Context, fg, muted ui.Color) {
 // 180x34 tabs, the active one outlined (not filled) and semibold. It returns
 // the clicked index or -1.
 func petTabs(c *ui.Context, key string, labels []string, active int, fg ui.Color) int {
-	dark := c.Theme().Dark
-	colors := theme.ResolveWithSystem(theme.IDSystem, dark).Active(dark)
-	fill, outline, secondary := theme.Color(colors.SelectorFill), theme.Color(colors.BorderL3), theme.Color(colors.Secondary)
+	_ = fg
 	picked := -1
-	ui.Row(c.Key(key)).AlignSelf(ui.Start).Shrink(0).Padding(4).Gap(0).Radius(16).Background(chrome.FrostInset(colors, dark, fill)).Margin(12, 0, 8).Children(func() {
+	ui.Row(c.Key(key)).AlignSelf(ui.Start).Shrink(0).Padding(design.Sp(1)).Gap(design.Sp(1)).Radius(design.RadiusXL).Background(tk(c).Muted).Margin(design.Sp(3), 0, design.Sp(2)).Role(ui.RoleTabList).Children(func() {
 		for index, label := range labels {
 			selected := index == active
-			tab := ui.Button(c.Key(key+"-"+label), "").Label(label).Width(180).Height(34).Shrink(0).Padding(0, 12).Radius(12).BorderWidth(0).
-				Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center).FocusRing(false)
-			ink, weight := secondary, 400
-			if selected {
-				tab.Background(chrome.FrostInset(colors, dark, fill)).Border(.667, outline)
-				ink, weight = fg, 600
-			}
-			tab.Children(func() {
-				ui.Text(c, label).FontSize(theme.InterfaceSize(14)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(weight).TextColor(ink).SingleLine()
-			})
+			tab := kChoiceButton(c.Key(key+"-"+label), label, selected, false).Role(ui.RoleTab).Label(label).MinWidth(180).Shrink(0)
 			if tab.Clicked() {
 				picked = index
 			}

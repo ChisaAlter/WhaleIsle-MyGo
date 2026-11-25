@@ -9,6 +9,8 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
@@ -94,19 +96,23 @@ func remoteSettingsTabBlock(c *ui.Context, m Model, fg, muted, border ui.Color) 
 	tabRow.Children(func() {
 		for index, tab := range entries {
 			i, entry := index, tab
-			button := ui.Button(c.Key("remote-tab-"+entry.id), "").Label(entry.title).
-				Height(36).Padding(7, 1, 9, 1).BorderWidth(0).Role(ui.RoleTab).
-				Selected(*active == entry.id).Background(ui.Transparent).
-				AlignItems(ui.Center).Justify(ui.Center)
 			color, weight := muted, 400
 			if *active == entry.id {
 				color, weight = fg, 400
 			}
-			button.Children(func() {
-				ui.Text(c, entry.title).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(weight).TextColor(color)
-			})
+			button := coss.Button(c.Key("remote-tab-"+entry.id), "", coss.ButtonOptions{
+				Variant: coss.ButtonGhost,
+				Size:    coss.ButtonLG,
+				Pressed: *active == entry.id,
+				Label:   entry.title,
+				Content: func() {
+					ui.Text(c, entry.title).FontSize(theme.InterfaceSize(13)).FixedLineHeight(theme.InterfaceSize(20)).FontWeight(weight).TextColor(color)
+				},
+			}).Height(36).Padding(design.Sp(2), 0).Radius(0).Role(ui.RoleTab).
+				Selected(*active == entry.id).Background(ui.Transparent).
+				AlignItems(ui.Center).Justify(ui.Center)
 			// The 2 DIP rule sits on the hairline, as the installed page draws it.
-			button.Draw(func(p *ui.Painter, r ui.Rect) {
+			button.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				if *active == entry.id && r.W > 0 && r.H > 0 {
 					p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, fg, 0)
 				}
@@ -212,8 +218,11 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 	}
 
 	gatewaySettingRow(c, "gateway-relay", i18n.T(KeyPass6RemoteRelay), i18n.T(KeyPass6RemoteRelayHint), fg, muted, func() {
-		if ui.TextInput(c, &e.Draft.RelayEndpoint).Label(i18n.T(KeyPass6RemoteRelayLabel)).
-			FillWidth().Height(32).Radius(8).Background(chrome.FrostInset(colors, m.SystemDark, theme.Color(colors.SelectorFill))).Border(.667, theme.Color(colors.Border)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Disabled(busy).Changed() {
+		if coss.Input(c, &e.Draft.RelayEndpoint, coss.InputOptions{
+			Size:     coss.InputMD,
+			Label:    i18n.T(KeyPass6RemoteRelayLabel),
+			Disabled: busy,
+		}).Changed() {
 			e.Open = true
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Justify(ui.End).AlignItems(ui.Center).Children(func() {
@@ -264,8 +273,11 @@ func gatewaySettingsFields(c *ui.Context, m Model, fg, muted ui.Color) {
 	})
 
 	gatewaySettingRow(c, "gateway-port", i18n.T(KeyPass6RemotePort), i18n.T(KeyPass6RemotePortHint), fg, muted, func() {
-		if ui.TextInput(c, &e.Draft.Port).Label(i18n.T(KeyPass6RemotePortLabel)).
-			FillWidth().Height(32).Radius(8).Background(chrome.FrostInset(colors, m.SystemDark, theme.Color(colors.SelectorFill))).Border(.667, theme.Color(colors.Border)).Padding(0, 10).FontSize(theme.InterfaceSize(13)).Disabled(busy).Changed() {
+		if coss.Input(c, &e.Draft.Port, coss.InputOptions{
+			Size:     coss.InputMD,
+			Label:    i18n.T(KeyPass6RemotePortLabel),
+			Disabled: busy,
+		}).Changed() {
 			e.Open = true
 		}
 		ui.Row(c).FillWidth().MinWidth(0).Justify(ui.End).AlignItems(ui.Center).Children(func() {
@@ -328,21 +340,24 @@ func gatewayLegacySection(c *ui.Context, m Model, e *GatewayEditor, fg, muted ui
 	anchor := ui.Column(c.Key("gateway-legacy-section")).FillWidth().MinWidth(0).Gap(0)
 	open := ui.Local(anchor, "open", func() bool { return false })
 	anchor.Children(func() {
-		toggle := ui.Button(c.Key("gateway-legacy-toggle"), "").Label(i18n.T(KeyPass6RemoteLegacySection)).
-			FillWidth().Height(24).Padding(0).Gap(6).BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center)
-		toggle.Children(func() {
-			ui.Box(c).Size(16, 16).Shrink(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
-				var path ui.Path
-				if *open {
-					path.MoveTo(r.X+4, r.Y+6).LineTo(r.X+8, r.Y+10).LineTo(r.X+12, r.Y+6)
-				} else {
-					path.MoveTo(r.X+6, r.Y+4).LineTo(r.X+10, r.Y+8).LineTo(r.X+6, r.Y+12)
-				}
-				p.StrokePath(&path, 1.2, muted)
-			})
-			ui.Text(c, i18n.T(KeyPass6RemoteLegacySection)).FontSize(theme.InterfaceSize(13)).
-				FixedLineHeight(theme.InterfaceSize(24)).TextColor(muted).Grow(1).MinWidth(0)
-		})
+		toggle := coss.Button(c.Key("gateway-legacy-toggle"), "", coss.ButtonOptions{
+			Variant: coss.ButtonGhost,
+			Size:    coss.ButtonXS,
+			Label:   i18n.T(KeyPass6RemoteLegacySection),
+			Content: func() {
+				ui.Box(c).Size(16, 16).Shrink(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
+					var path ui.Path
+					if *open {
+						path.MoveTo(r.X+4, r.Y+6).LineTo(r.X+8, r.Y+10).LineTo(r.X+12, r.Y+6)
+					} else {
+						path.MoveTo(r.X+6, r.Y+4).LineTo(r.X+10, r.Y+8).LineTo(r.X+6, r.Y+12)
+					}
+					p.StrokePath(&path, 1.2, muted)
+				})
+				ui.Text(c, i18n.T(KeyPass6RemoteLegacySection)).FontSize(theme.InterfaceSize(13)).
+					FixedLineHeight(theme.InterfaceSize(24)).TextColor(muted).Grow(1).MinWidth(0)
+			},
+		}).FillWidth().Height(24).Padding(0).Gap(design.Sp(1.5)).AlignItems(ui.Center)
 		if toggle.Hovered() {
 			toggle.Background(c.Theme().SurfaceHover)
 		}
@@ -438,20 +453,22 @@ func remoteGatewaySegmented(c *ui.Context, key string, labels []string, active i
 	root.Children(func() {
 		for index, caption := range labels {
 			i, text := index, caption
-			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).
-				Width((gatewayControlWidth(key) - 8) / 2).Height(height).Padding(0).Radius(theme.ContextRadii(c).SM).
-				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
-			if disabled {
-				segment = segment.Disabled(true).Opacity(.4)
-			}
 			labelColor := c.Theme().Text
+			bg := ui.Transparent
 			if i == active {
-				segment.Background(labelColor)
+				bg = labelColor
 				labelColor = c.Theme().Background
 			}
-			segment.Children(func() {
-				ui.Text(c, text).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(labelColor)
-			})
+			segment := coss.Button(c.Key(key+"-"+strconv.Itoa(i)), "", coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: disabled,
+				Pressed:  i == active,
+				Label:    text,
+				Content: func() {
+					ui.Text(c, text).FontSize(theme.InterfaceSize(12)).FixedLineHeight(theme.InterfaceSize(18)).TextColor(labelColor)
+				},
+			}).Width((gatewayControlWidth(key) - 8) / 2).Height(height).Padding(0).Radius(theme.ContextRadii(c).SM).Background(bg).AlignItems(ui.Center).Justify(ui.Center)
 			if segment.Clicked() && !disabled {
 				picked = i
 			}

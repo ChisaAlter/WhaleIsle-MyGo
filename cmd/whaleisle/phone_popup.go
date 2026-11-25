@@ -30,11 +30,7 @@ func (s *mainState) phoneLauncherActions(menu *ui.Menu) {
 func (s *mainState) openPhonePopup() {
 	s.mu.Lock()
 	s.phonePopupOpen = true
-	win := s.win
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 }
 
 func (s *mainState) renderPhonePopup(c *ui.Context, anchor ui.Element) {
@@ -134,16 +130,10 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 		OnTogglePhoneGitWorkspace: func(id string, enabled bool) {
 			state.setPhoneGitWorkspace(id, enabled)
 			go state.refreshPhoneRemote()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnTogglePhoneGit: func(enabled bool) {
 			state.setPhoneGit(enabled)
 			go state.refreshPhoneRemote()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		RemoteMode:           cfgRemoteMode,
 		RemotePort:           cfgRemotePort,
@@ -186,9 +176,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			state.sshForward = sshForward
 			state.mu.Unlock()
 			state.syncMainRouteResources()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnToggleWorkspace: state.setRemoteWorkspacePreference,
 		OnTogglePairing: func(enabled bool) {
@@ -199,13 +186,7 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 				state.mu.Lock()
 				state.phoneActionMsg = i18n.T(i18n.KeyCmdPhoneRemoteSettingWasNotSavedRetry)
 				state.mu.Unlock()
-				if win != nil {
-					win.Update(func() {})
-				}
 				return
-			}
-			if win != nil {
-				win.Update(func() {})
 			}
 		},
 		OnCopyConnectURL: func() {
@@ -218,9 +199,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 				state.phoneActionMsg = i18n.T(i18n.KeyRemotePhoneCopied)
 			}
 			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnCopySSHTarget: func(target string) {
 			target = strings.TrimSpace(target)
@@ -231,9 +209,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			state.mu.Lock()
 			state.sshTunnelMsg = i18n.T(i18n.KeyChatCopy) + ": " + target
 			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnOpenConnectURL: func() {
 			url := state.phoneConnectURL()
@@ -249,9 +224,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			state.mu.Lock()
 			state.phoneActionMsg = message
 			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnRefreshPhone: func() {
 			go func() {
@@ -275,9 +247,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			state.mu.Lock()
 			state.sshProbeLine = line
 			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnSaveTunnel: func() {
 			port, _ := strconv.Atoi(strings.TrimSpace(sshPort))
@@ -306,9 +275,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 				state.sshTunnelMsg = i18n.T(i18n.KeyCmdSSHTunnelSaved)
 			}
 			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnConnectSSH: func() {
 			port, _ := strconv.Atoi(strings.TrimSpace(sshPort))
@@ -349,9 +315,6 @@ func (s *mainState) remoteModel(embeddedSection settings.SectionID, channelsCont
 			}
 			state.sshTunnelMsg = "disconnected"
 			state.mu.Unlock()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 	}
 }

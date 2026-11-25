@@ -150,14 +150,9 @@ func dataLocationRow(c *ui.Context, d *DataLocationAccess, fg, muted ui.Color) {
 }
 
 // button is the secondary action shape the settings pages use for row
-// actions: a hairline border, no fill, 30 high.
+// actions: a coss outline small button.
 func button(c *ui.Context, label string, enabled bool) bool {
-	control := ui.Button(c, label).Height(30).Padding(0, 12).Radius(8).
-		Border(0.5, c.Theme().Border.Alpha(0.45)).
-		FontSize(theme.InterfaceSize(12.5))
-	if !enabled {
-		control = control.Disabled(true)
-	}
+	control := kButtonDisabled(c, label, !enabled)
 	return enabled && control.Clicked()
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 func historicalSourceButton(c *ui.Context, m Model, source string) {
-	if ui.Button(c, tr("定位此报告的原派工", "Locate this report's original assignment")).Disabled(m.Busy || m.OnHistoricalSource == nil).Clicked() && m.OnHistoricalSource != nil {
+	if pButton(c, tr("定位此报告的原派工", "Locate this report's original assignment"), m.Busy || m.OnHistoricalSource == nil).Clicked() && m.OnHistoricalSource != nil {
 		m.OnHistoricalSource(source)
 	}
 }
@@ -21,7 +21,7 @@ func historicalProcessView(c *ui.Context, m Model) {
 		}
 	}
 	ui.Text(c, tr("历史派工 / 原过程", "Historical assignment / original process")).FontSize(fonttheme.InterfaceSize(14))
-	if ui.Button(c, tr("返回原报告（保留页码）", "Back to source report (keep page)")).Clicked() {
+	if pGhost(c, tr("返回原报告（保留页码）", "Back to source report (keep page)"), false).Clicked() {
 		action("close")
 	}
 	t := h.Target
@@ -32,7 +32,7 @@ func historicalProcessView(c *ui.Context, m Model) {
 			ui.Text(c, tr("保留上次成功定位的完整记录。", "Keeping the previously located records.")).FontSize(fonttheme.InterfaceSize(12))
 		}
 	}
-	if ui.Button(c, tr("重读原派工记录", "Reload original assignment receipt")).Disabled(m.Busy).Clicked() {
+	if pButton(c, tr("重读原派工记录", "Reload original assignment receipt"), m.Busy).Clicked() {
 		action("record")
 	}
 	if b := h.Binding; b != nil {
@@ -43,7 +43,7 @@ func historicalProcessView(c *ui.Context, m Model) {
 			ui.Text(c, errcopy.Sentence(err)).FontSize(fonttheme.InterfaceSize(12)).Selectable()
 		}
 		ui.Text(c, tr("打开过程只观察原成员 Session；不会激活会话、发送输入或重启旧 run。", "Opening process only observes the original member Session; it does not activate it, send input or restart an old run.")).FontSize(fonttheme.InterfaceSize(12))
-		if ui.Button(c, tr("打开并定位原过程", "Open and locate original process")).Disabled(m.Busy || err != nil).Clicked() {
+		if pPrimary(c, tr("打开并定位原过程", "Open and locate original process"), m.Busy || err != nil).Clicked() {
 			action("process")
 		}
 	}
@@ -76,10 +76,10 @@ func historicalProcessView(c *ui.Context, m Model) {
 		ui.Text(c, tr("记录截至此固定快照；尚未观察到下一次 Lead 派工边界。", "Records end at this frozen snapshot; no later Lead assignment boundary was observed.")).FontSize(fonttheme.InterfaceSize(12))
 	}
 	ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(4).Children(func() {
-		if ui.Button(c, tr("上一页", "Previous")).Disabled(m.Busy || start == 0).Clicked() {
+		if pButton(c, tr("上一页", "Previous"), m.Busy || start == 0).Clicked() {
 			action("previous")
 		}
-		if ui.Button(c, tr("下一页", "Next")).Disabled(m.Busy || end == len(w.Records)).Clicked() {
+		if pButton(c, tr("下一页", "Next"), m.Busy || end == len(w.Records)).Clicked() {
 			action("next")
 		}
 	})

@@ -40,18 +40,19 @@ func sbHoverDot(c *ui.Context, state hoverDotState) {
 	case hoverDotWarning:
 		col = t.Warning
 	}
-	ui.Box(c).Size(sbDotSize, sbDotSize).Radius(design.RadiusFull).Background(col).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-		if state != hoverDotRunning || c.Preferences().ReduceMotion {
-			return
-		}
-		phase := float64(c.Now().UnixNano()%int64(sbStatusPulseDur)) / float64(sbStatusPulseDur)
-		alpha := float32(0.35 * (1 - phase))
-		radius := (r.W / 2) * (1 + 0.6*float32(phase))
-		path := &ui.Path{}
-		path.Circle(r.X+r.W/2, r.Y+r.H/2, radius)
-		p.FillPath(path, col.Alpha(alpha))
-		c.After(16 * time.Millisecond)
-	})
+	reduceMotion := c.Preferences().ReduceMotion
+	dot := ui.Box(c).Size(sbDotSize, sbDotSize).Radius(design.RadiusFull).Background(col).Shrink(0)
+	if state == hoverDotRunning && !reduceMotion {
+		dot.Draw(func(p *ui.Painter, r ui.Rect) {
+			phase := float64(p.Now().UnixNano()%int64(sbStatusPulseDur)) / float64(sbStatusPulseDur)
+			alpha := float32(0.35 * (1 - phase))
+			radius := (r.W / 2) * (1 + 0.6*float32(phase))
+			path := &ui.Path{}
+			path.Circle(r.X+r.W/2, r.Y+r.H/2, radius)
+			p.FillPath(path, col.Alpha(alpha))
+			p.After(16 * time.Millisecond)
+		})
+	}
 }
 
 // One sidebar-local seat; the Model carries only a pointer to it during a frame.
@@ -158,7 +159,7 @@ func registerSessionHover(m Model, anchor ui.Element, item session.Item, label s
 	m.sessionHover.anchors = append(m.sessionHover.anchors, sessionHoverAnchor{
 		row: anchor, item: item, displayTitle: label, archived: archived, grouped: grouped,
 		blocked: m.Batch.Enabled || m.Batch.Busy || m.Batch.Confirming || anchor.MenuOpen(), pressed: pressed,
-		tasks: schedstore.ActiveForSession(m.Schedules, item.SessionID), statuses: sessionHoverStatuses(m, item, archived),
+		tasks: activeSchedulesForSession(m, item.SessionID), statuses: sessionHoverStatuses(m, item, archived),
 	})
 }
 

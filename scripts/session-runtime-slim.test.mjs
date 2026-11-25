@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { applyReleaseSlim, assertCapabilities, capabilityPairs, criticalPackagesToPreserve, optionalNativeEnginesToSlim } from './session-runtime.mjs';
+import { applyReleaseSlim, assertCapabilities, capabilityPairs, criticalPackagesToPreserve, normalizePackagedCliManifest, optionalNativeEnginesToSlim } from './session-runtime.mjs';
 import { emitRuntimeInclude } from './session-runtime-nsis.mjs';
 import { inventoryGraph } from './session-runtime-graph.mjs';
 
@@ -192,5 +192,57 @@ test('no capability package may be listed for slimming', () => {
   }
   for (const slimmed of optionalNativeEnginesToSlim) {
     assert.equal(preserved.has(slimmed), false, `${slimmed} is both slimmed and preserved`);
+  }
+});
+
+test('normalizePackagedCliManifest resolves workspace ranges so on-demand official bundles use published targets', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-manifest-normalize-'));
+  try {
+    const harness = path.join(root, 'deepseek-harness');
+    const cliDir = path.join(harness, 'apps', 'cli');
+    fs.mkdirSync(cliDir, { recursive: true });
+    fs.mkdirSync(path.join(harness, 'node_modules', '@deepseek-ai', 'cordis'), { recursive: true });
+    fs.mkdirSync(path.join(cliDir, 'node_modules', '@deepseek-ai', 'dsh-base'), { recursive: true });
+    fs.writeFileSync(path.join(harness, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-root', version: '0.2.2-rc.5' }));
+    fs.writeFileSync(path.join(harness, 'node_modules', '@deepseek-ai', 'cordis', 'package.json'), JSON.stringify({ name: '@deepseek-ai/cordis', version: '4.1.2' }));
+    fs.writeFileSync(path.join(cliDir, 'node_modules', '@deepseek-ai', 'dsh-base', 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-base', version: '0.2.2-rc.5' }));
+    const cliManifestPath = path.join(cliDir, 'package.json');
+    fs.writeFileSync(cliManifestPath, JSON.stringify({
+      name: '@deepseek-ai/dsh',
+      version: '0.2.2-rc.5',
+      dependencies: {
+        '@deepseek-ai/cordis': 'workspace:~',
+        '@deepseek-ai/dsh-base': 'workspace:*',
+        '@deepseek-ai/dsh-web-app': 'workspace:^',
+        '@deepseek-ai/dsh-pinned': 'workspace:0.2.2-rc.5',
+        commander: '^15.0.0',
+      },
+    }, null, 2));
+
+    // Mirror DSH officialBundleInstallTarget()'s source-checkout predicate:
+    const isDetectedAsSourceCheckout = manifest =>
+      manifest.name === '@deepseek-ai/dsh' &&
+      Object.values(manifest.dependencies ?? {}).some(v => typeof v === 'string' && v.startsWith('workspace:'));
+
+    assert.equal(isDetectedAsSourceCheckout(JSON.parse(fs.readFileSync(cliManifestPath, 'utf8'))), true);
+
+    const first = await normalizePackagedCliManifest(harness);
+    assert.deepEqual(first, { changed: true, rewritten: 4 });
+
+    const normalized = JSON.parse(fs.readFileSync(cliManifestPath, 'utf8'));
+    assert.equal(isDetectedAsSourceCheckout(normalized), false);
+    assert.deepEqual(normalized.dependencies, {
+      '@deepseek-ai/cordis': '~4.1.2',
+      '@deepseek-ai/dsh-base': '0.2.2-rc.5',
+      '@deepseek-ai/dsh-web-app': '^0.2.2-rc.5',
+      '@deepseek-ai/dsh-pinned': '0.2.2-rc.5',
+      commander: '^15.0.0',
+    });
+
+    // Idempotent on already-normalized manifests.
+    const second = await normalizePackagedCliManifest(harness);
+    assert.deepEqual(second, { changed: false, rewritten: 0 });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

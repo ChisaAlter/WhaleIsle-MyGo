@@ -15,6 +15,7 @@ import (
 	"whaleisle/internal/store/settings"
 	"whaleisle/internal/store/usage"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -338,7 +339,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 		if !m.Billing.Loaded && r.Available {
 			label = i18n.T(i18n.KeyComposerCostEstimate) + "：" + i18n.T(i18n.KeyComposerCostPricesLoading)
 		}
-		trigger := ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11))
+		trigger := coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Pressed: m.State.Open})
 		if trigger.Clicked() {
 			m.State.Open = !m.State.Open
 		}
@@ -395,7 +396,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 							}
 						}
 						if r.Children > 0 {
-							if ui.Button(c, childSummary(m, r.Children)).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+							if coss.Button(c, childSummary(m, r.Children), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Pressed: m.State.ChildrenOpen}).Clicked() {
 								m.State.ChildrenOpen = !m.State.ChildrenOpen
 							}
 							if m.State.ChildrenOpen {
@@ -404,7 +405,7 @@ func View(c *ui.Context, m Model, muted ui.Color) {
 						}
 						noPriceHint := costText("在 设置 → 消耗统计 → 计费设置 中设置模型价格", "Set model prices in Settings → Usage stats → Billing settings")
 						if m.OnPrices != nil {
-							if ui.Button(c, noPriceHint).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+							if coss.Button(c, noPriceHint, coss.ButtonOptions{Variant: coss.ButtonLink, Size: coss.ButtonXS}).Clicked() {
 								m.OnPrices()
 							}
 						} else if r.Priced == 0 || r.Unpriced > 0 {

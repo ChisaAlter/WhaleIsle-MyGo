@@ -2,9 +2,11 @@
 package webview
 
 import (
+	"runtime"
 	"strings"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 
@@ -41,37 +43,58 @@ func View(c *ui.Context, m Model) {
 
 	root := chrome.FrostSurface(ui.Column(c.Key("plugin-web-panel")).Grow(1).MinHeight(0), colors, m.SystemDark, bg, 0)
 	root.Children(func() {
-		ui.Row(c).Height(float32(PanelChromeHeight-1)).Padding(8, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
+		topPad, bottomPad := panelChromeVerticalPadding(runtime.GOOS)
+		leftPad, rightPad := panelChromeHorizontalPadding(c.TitleBar())
+		ui.Row(c.Key("plugin-web-chrome")).FillWidth().MinWidth(0).Height(float32(PanelChromeHeight-1)).Shrink(0).
+			Padding(topPad, rightPad, bottomPad, leftPad).Gap(8).AlignItems(ui.Center).DragWindow().Children(func() {
 			title := strings.TrimSpace(m.Title)
 			if title == "" {
 				title = i18n.T(i18n.KeyWebViewTitle)
 			}
-			ui.Text(c, title).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg)
+			ui.Text(c, title).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).MinWidth(0).Shrink(1).SingleLine().Ellipsis("…")
 			if m.HostActive && m.HostError != "" {
-				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Grow(1)
+				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)")).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
 			} else {
-				ui.Box(c).Grow(1)
+				ui.Box(c).Grow(1).MinWidth(8)
 			}
 			if m.HostActive && m.HostURL != "" && m.OnCopyURL != nil {
-				if ui.Button(c, i18n.T(i18n.KeyWebViewCopyURL)).FontSize(theme.InterfaceSize(11)).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyWebViewCopyURL), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonSM,
+					Key:     "plugin-web-copy-url",
+				}).Shrink(0).Clicked() {
 					m.OnCopyURL(m.HostURL)
 				}
 			}
 			if m.HostActive && m.HostURL != "" && m.OnReload != nil {
-				if ui.Button(c, i18n.T(i18n.KeyBrowserPreviewReload)).FontSize(theme.InterfaceSize(11)).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyBrowserPreviewReload), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonSM,
+					Key:     "plugin-web-reload",
+				}).Shrink(0).Clicked() {
 					m.OnReload(m.HostURL)
 				}
 			}
 			if m.HostActive && m.OnCloseHost != nil {
-				if ui.Button(c, i18n.T(i18n.KeyWebViewCloseHost)).Clicked() {
+				if coss.Button(c, i18n.T(i18n.KeyWebViewCloseHost), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonSM,
+					Key:     "plugin-web-close-host",
+				}).Shrink(0).Clicked() {
 					m.OnCloseHost()
 				}
 			}
-			if m.OnClose != nil && ui.Button(c, i18n.T(i18n.KeyWebViewBack)).Clicked() {
-				m.OnClose()
+			if m.OnClose != nil {
+				if coss.Button(c, i18n.T(i18n.KeyWebViewBack), coss.ButtonOptions{
+					Variant: coss.ButtonSecondary,
+					Size:    coss.ButtonSM,
+					Key:     "plugin-web-back",
+				}).Shrink(0).Clicked() {
+					m.OnClose()
+				}
 			}
 		})
-		ui.Box(c).Fill().Height(1).Background(border)
+		ui.Box(c).FillWidth().Height(1).Shrink(0).Background(border)
 
 		if m.HostActive {
 			// Body is covered by the WebView2 Host; keep a minimal native underlay.
@@ -84,17 +107,29 @@ func View(c *ui.Context, m Model) {
 				ui.Text(c, i18n.T(i18n.KeyWebViewOrigin)+": "+m.HarnessOrigin).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 			}
 			ui.Row(c).Gap(8).Children(func() {
-				if m.OnOpenHost != nil && ui.Button(c, i18n.T(i18n.KeyWebViewOpenHost)).Clicked() {
+				if m.OnOpenHost != nil && coss.Button(c, i18n.T(i18n.KeyWebViewOpenHost), coss.ButtonOptions{
+					Variant: coss.ButtonDefault,
+					Size:    coss.ButtonSM,
+					Key:     "plugin-web-open-host",
+				}).Clicked() {
 					m.OnOpenHost()
 				}
-				if m.OnOpenBrowser != nil && ui.Button(c, i18n.T(i18n.KeyWebViewOpenBrowser)).Clicked() {
+				if m.OnOpenBrowser != nil && coss.Button(c, i18n.T(i18n.KeyWebViewOpenBrowser), coss.ButtonOptions{
+					Variant: coss.ButtonOutline,
+					Size:    coss.ButtonSM,
+					Key:     "plugin-web-open-browser",
+				}).Clicked() {
 					m.OnOpenBrowser()
 				}
 			})
 			if m.HostError != "" {
 				ui.Text(c, m.HostError).FontSize(theme.InterfaceSize(11)).TextColor(chrome.Color("rgb(220, 38, 38)"))
 				if m.OnOpenURL != nil && strings.Contains(strings.ToLower(m.HostError), "webview2") {
-					if ui.Button(c, i18n.T(keyWebViewDownloadRuntime)).Clicked() {
+					if coss.Button(c, i18n.T(keyWebViewDownloadRuntime), coss.ButtonOptions{
+						Variant: coss.ButtonOutline,
+						Size:    coss.ButtonSM,
+						Key:     "plugin-web-download-runtime",
+					}).Clicked() {
 						m.OnOpenURL("https://go.microsoft.com/fwlink/p/?LinkId=2124703")
 					}
 				}
@@ -103,6 +138,27 @@ func View(c *ui.Context, m Model) {
 	})
 }
 
+func panelChromeVerticalPadding(goos string) (top, bottom float32) {
+	if goos == "windows" {
+		// Align the 32 DIP action strip (y=12..44) with WindowsCaptionButtons
+		// (Top: 12, Height: 32) inside the 48 DIP panel chrome band.
+		return 12, 4
+	}
+	return 8, 8
+}
+
+func panelChromeHorizontalPadding(bar ui.TitleBar) (left, right float32) {
+	const base = float32(12)
+	left, right = base, base
+	if bar.Left > 0 {
+		left += bar.Left
+	}
+	if bar.Right > 0 {
+		right += bar.Right
+	}
+	return left, right
+}
+
 // PanelChromeHeight is the DIP height reserved above the WebView2 Host
-// (main title bar is applied separately via HostOptions.TopInset).
+// (main title bar is applied separately via HostOptions.TopInset on non-Windows).
 const PanelChromeHeight = 48

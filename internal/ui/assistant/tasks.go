@@ -10,8 +10,11 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/pluginrpc"
+	"whaleisle/internal/errcopy"
 	assiststore "whaleisle/internal/store/assistant"
 	dshbotstore "whaleisle/internal/store/dshbot"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -51,7 +54,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 	block.Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantBotTasks)).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
-			if ui.Button(c, i18n.T(i18n.KeyMiscAssistantRefreshTasks)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || s.Scope.BotID == "").Clicked() {
+			if aButton(c, i18n.T(i18n.KeyMiscAssistantRefreshTasks), blocked || s.Scope.BotID == "").Clicked() {
 				tasks.OnRefresh()
 			}
 		})
@@ -70,7 +73,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		if s.Loaded {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, fmt.Sprintf("%s · %s · revision %d", s.BotName, s.Scope.BotID, s.Revision)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted).Grow(1)
-				if tasks.OnReview != nil && ui.Button(c, taskActionLabel("stop")).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+				if tasks.OnReview != nil && aDangerOutline(c, taskActionLabel("stop"), blocked).Clicked() {
 					tasks.OnReview("stop", "")
 				}
 			})
@@ -81,8 +84,8 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 		filterKey := s.Scope.HostKey + ":" + s.Scope.BotID
 		query := ui.Local(block, "task-query:"+filterKey, func() string { return "" })
 		status := ui.Local(block, "task-status:"+filterKey, func() string { return "all" })
-		ui.TextInput(c.Key("task-search"), query).Label(i18n.T(i18n.KeyMiscAssistantSearchTasksParticipantsOrErrors)).FillWidth().Height(32).Radius(8).Border(.5, border)
-		ui.Select(c.Key("task-status"), status, []string{"all", "queued", "delivered", "completed", "failed", "paused", "cancelled"}).Label(i18n.T(i18n.KeyMiscAssistantTaskStatus)).FillWidth().Height(32).Radius(8).Border(.5, border)
+		aInput(c.Key("task-search"), query, coss.InputOptions{Label: i18n.T(i18n.KeyMiscAssistantSearchTasksParticipantsOrErrors)})
+		aSelect(c.Key("task-status"), status, []string{"all", "queued", "delivered", "completed", "failed", "paused", "cancelled"}, i18n.T(i18n.KeyMiscAssistantTaskStatus), false).FillWidth()
 		visible := visibleBotTasks(s.Tasks, *query, *status)
 		if s.Loaded && len(s.Tasks) > 0 && len(visible) == 0 {
 			ui.Text(c, i18n.T(i18n.KeyMiscAssistantNoMatchingTasks)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -96,7 +99,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				if s.SelectedID == task.ID {
 					title = "▾ " + title
 				}
-				if tasks.OnSelect != nil && ui.Button(c, title).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked).Clicked() {
+				if tasks.OnSelect != nil && aChoice(c, title, s.SelectedID == task.ID, blocked).Clicked() {
 					tasks.OnSelect(task.ID)
 				}
 				ui.Text(c, taskParticipant(task.FromName, task.FromID)+" → "+taskParticipant(task.ToName, task.ToID)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
@@ -113,7 +116,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 						if m.Contacts.State.Loaded && m.OnDshbotOpenRosterSession != nil {
 							for _, item := range m.Contacts.State.Catalog.Items {
 								if item.ID == strings.TrimSpace(participant.id) && item.Kind == "bot" && strings.TrimSpace(item.SessionID) != "" {
-									if ui.Button(c, participant.label).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || m.Contacts.State.Busy).Clicked() {
+									if aButton(c, participant.label, blocked || m.Contacts.State.Busy).Clicked() {
 										m.OnDshbotOpenRosterSession(item.ID)
 									}
 									break
@@ -133,7 +136,7 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 					ui.Text(c, i18n.T(i18n.KeyMiscAssistantResult)+task.ResultSummary).FontSize(fonttheme.InterfaceSize(12)).TextColor(fg).Selectable()
 				}
 				if task.Error != "" {
-					ui.Text(c, i18n.T(i18n.KeyMiscAssistantError)+task.Error).FontSize(fonttheme.InterfaceSize(12)).TextColor(accent).Selectable()
+					ui.Text(c, i18n.T(i18n.KeyMiscAssistantError)+errcopy.SentenceText(task.Error)).FontSize(fonttheme.InterfaceSize(12)).TextColor(design.For(c).Destructive).Selectable()
 				}
 				ui.Text(c, fmt.Sprintf("Attempts: %d · %s", task.Attempts, taskTime(task.UpdatedAt))).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				if task.ParentTaskID != "" || task.RetryOf != "" {
@@ -142,8 +145,16 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 				ui.Row(c).Gap(6).Children(func() {
 					for _, action := range []string{"pause", "resume", "cancel", "retry"} {
 						action := action
-						if pluginrpc.DshbotTaskActionAllowed(action, task.Status) && tasks.OnReview != nil && ui.Button(c, taskActionLabel(action)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded).Clicked() {
-							tasks.OnReview(action, task.ID)
+						if pluginrpc.DshbotTaskActionAllowed(action, task.Status) && tasks.OnReview != nil {
+							var btn ui.Element
+							if action == "cancel" {
+								btn = aDangerOutline(c, taskActionLabel(action), blocked || !s.Loaded)
+							} else {
+								btn = aButton(c, taskActionLabel(action), blocked || !s.Loaded)
+							}
+							if btn.Clicked() {
+								tasks.OnReview(action, task.ID)
+							}
 						}
 					}
 				})
@@ -172,11 +183,19 @@ func taskControlBlock(c *ui.Context, m Model, fg, muted, field, border, accent u
 					ui.Text(c, i18n.T(i18n.KeyW4AssistantConfirmingAgainAfterAFailureReusesThe)).FontSize(fonttheme.InterfaceSize(11)).TextColor(muted)
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if tasks.OnDismiss != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantBack)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(s.Busy).Clicked() {
+					if tasks.OnDismiss != nil && aButton(c, i18n.T(i18n.KeyMiscAssistantBack), s.Busy).Clicked() {
 						tasks.OnDismiss()
 					}
-					if tasks.OnConfirm != nil && ui.Button(c, i18n.T(i18n.KeyMiscAssistantConfirmAction)).Height(28).Padding(0, 10).Radius(6).Border(.5, border).FontSize(fonttheme.InterfaceSize(12)).Disabled(blocked || !s.Loaded || command.Revision != s.Revision).Clicked() {
-						tasks.OnConfirm()
+					if tasks.OnConfirm != nil {
+						var confirmBtn ui.Element
+						if command.Action == "cancel" || command.Action == "stop" {
+							confirmBtn = aDanger(c, i18n.T(i18n.KeyMiscAssistantConfirmAction), blocked || !s.Loaded || command.Revision != s.Revision)
+						} else {
+							confirmBtn = aPrimary(c, i18n.T(i18n.KeyMiscAssistantConfirmAction), blocked || !s.Loaded || command.Revision != s.Revision)
+						}
+						if confirmBtn.Clicked() {
+							tasks.OnConfirm()
+						}
 					}
 				})
 			})

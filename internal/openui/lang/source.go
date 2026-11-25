@@ -137,6 +137,9 @@ func isFenceAt(s string, i int) bool {
 // text unchanged when it has none. Backtick runs inside double-quoted
 // strings do not open or close a fence. An unterminated fence runs to the end.
 func StripFences(input string) string {
+	if !strings.Contains(input, "```") {
+		return input
+	}
 	var blocks []string
 	i := 0
 	for i < len(input) {

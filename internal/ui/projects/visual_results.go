@@ -48,12 +48,12 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 				return
 			}
 			if state.Open != nil {
-				if ui.Button(c, tr("打开交互页面", "Open interactive page")).Clicked() {
+				if pPrimary(c, tr("打开交互页面", "Open interactive page"), false).Clicked() {
 					state.Open()
 				}
 				return
 			}
-			if state.Close != nil && ui.Button(c, tr("关闭页面预览", "Close page preview")).Clicked() {
+			if state.Close != nil && pGhost(c, tr("关闭页面预览", "Close page preview"), false).Clicked() {
 				state.Close()
 				return
 			}
@@ -63,7 +63,7 @@ func renderVisualPages(c *ui.Context, m Model, source string, pages []projectflo
 			if state.InteractiveError != "" {
 				ui.Text(c, tr("交互页面不可用，正在使用静态预览：", "Interactive page unavailable; using a static preview: ")+state.InteractiveError).FontSize(theme.InterfaceSize(12)).Selectable()
 			}
-			if (state.Error != "" || state.InteractiveError != "") && state.Retry != nil && ui.Button(c, tr("重试页面预览", "Retry page preview")).Clicked() {
+			if (state.Error != "" || state.InteractiveError != "") && state.Retry != nil && pButton(c, tr("重试页面预览", "Retry page preview"), false).Clicked() {
 				state.Retry()
 			}
 			if state.Surface != nil {

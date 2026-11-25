@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 )
 
 // assistantStreamState joins process-local attempts to their named durable
@@ -103,6 +104,7 @@ func (s *Store) retireAssistantAttemptLocked(attempt *assistantStreamAttempt) {
 		}
 	}
 	s.messages = kept
+	s.markHistoryDirtyLocked()
 }
 
 // acceptAssistantDurableLocked is called only for followed events. Historical
@@ -217,8 +219,7 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 		if a.inspectorAfterSeq == nil {
 			a.inspectorAfterSeq = s.inspectorCursorLocked()
 		}
-		record, _ := json.Marshal(map[string]any{"type": "chunk", "time": f.Time, "chunk": f.Chunk})
-		a.Stream = append(a.Stream, record)
+		a.Stream = append(a.Stream, encodeAssistantChunkRecord(f.Time, f.Chunk))
 		s.applyAssistantChunkLocked(a, f.Chunk, f.Time)
 		// Raw-only chunks also change the inspector, even when Chat text is unchanged.
 		return true
@@ -305,8 +306,26 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 	return true
 }
 
+func encodeAssistantChunkRecord(t float64, chunk json.RawMessage) json.RawMessage {
+	if math.IsNaN(t) || math.IsInf(t, 0) {
+		record, _ := json.Marshal(map[string]any{"type": "chunk", "time": t, "chunk": chunk})
+		return record
+	}
+	trimmed := bytes.TrimSpace(chunk)
+	if len(trimmed) == 0 {
+		trimmed = []byte("null")
+	}
+	buf := make([]byte, 0, 32+len(trimmed))
+	buf = append(buf, `{"chunk":`...)
+	buf = append(buf, trimmed...)
+	buf = append(buf, `,"time":`...)
+	buf = strconv.AppendFloat(buf, t, 'f', -1, 64)
+	buf = append(buf, `,"type":"chunk"}`...)
+	return buf
+}
+
 func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.RawMessage, time float64) bool {
-	s.invalidateStreamViewLocked()
+	s.markStreamDirtyLocked()
 	if a.trajectoryFirstToken == nil {
 		a.trajectoryFirstToken = trajectoryTokenTime(raw, time)
 	}
@@ -328,7 +347,7 @@ func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.Ra
 		a.rows[index] = id
 	}
 	msg := assistantBlockMessage(Message{ID: id, TurnSeq: s.editTurnSeq, Streaming: true, EventTime: block.time, ConversationTurn: &a.Turn, ConversationStep: &a.Step}, block)
-	for i := range s.messages {
+	for i := len(s.messages) - 1; i >= 0; i-- {
 		if s.messages[i].ID == id {
 			s.messages[i] = msg
 			return true

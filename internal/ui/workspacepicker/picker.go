@@ -10,6 +10,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -119,21 +121,23 @@ func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNaviga
 			}
 			ui.Text(c, request.Draft).FillWidth().MinWidth(0).FontSize(theme.InterfaceSize(14))
 			ui.Text(c, registrationFailureText(request.Error)).FillWidth().MinHeight(40).FontSize(theme.InterfaceSize(13)).TextColor(chrome.Color(colors.FG))
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				cancelBtn := ui.Button(c, text("取消", "Cancel")).Disabled(request.Busy)
-				if !request.Busy {
-					cancelBtn.Cursor(ui.CursorPointer)
-				}
-				if cancelBtn.Clicked() {
+			ui.Row(c).FillWidth().Gap(design.Sp(2)).Children(func() {
+				if coss.Button(c, text("取消", "Cancel"), coss.ButtonOptions{
+					Variant:  coss.ButtonOutline,
+					Size:     coss.ButtonSM,
+					Disabled: request.Busy,
+					Key:      "ws-reg-cancel",
+				}).Clicked() {
 					m.Store.CancelWorkspaceNavigation(request.Token)
 				}
 				ui.Box(c).Grow(1)
 				if m.OnBrowse != nil {
-					chooseBtn := ui.Button(c, text("重新选择…", "Choose again…")).Tooltip(i18n.T(i18n.KeyWSFolderErrorRetry)).Disabled(request.Busy)
-					if !request.Busy {
-						chooseBtn.Cursor(ui.CursorPointer)
-					}
-					if chooseBtn.Clicked() {
+					if coss.Button(c, text("重新选择…", "Choose again…"), coss.ButtonOptions{
+						Variant:  coss.ButtonOutline,
+						Size:     coss.ButtonSM,
+						Disabled: request.Busy,
+						Key:      "ws-reg-browse",
+					}).Tooltip(i18n.T(i18n.KeyWSFolderErrorRetry)).Clicked() {
 						m.OnBrowse()
 					}
 				}
@@ -143,11 +147,12 @@ func registrationDialog(c *ui.Context, m Model, request *session.WorkspaceNaviga
 				}
 				if m.OnRegister != nil {
 					regDisabled := request.Busy || strings.TrimSpace(request.Draft) == ""
-					regBtn := ui.PrimaryButton(c, label).Disabled(regDisabled)
-					if !regDisabled {
-						regBtn.Cursor(ui.CursorPointer)
-					}
-					if regBtn.Clicked() {
+					if coss.Button(c, label, coss.ButtonOptions{
+						Variant:  coss.ButtonDefault,
+						Size:     coss.ButtonSM,
+						Disabled: regDisabled,
+						Key:      "ws-reg-confirm",
+					}).Clicked() {
 						m.OnRegister(request.Token, request.Draft)
 					}
 				}
@@ -225,7 +230,8 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 				}
 			}
 			if len(snap.Workspaces) > 0 {
-				ui.Scroll(c).FillWidth().MinWidth(0).Height(min(float32(len(snap.Workspaces))*34, max(34, height-180))).Children(func() {
+				// Reserve a right scrollbar gutter so the vertical scrollbar never overlaps the selected checkmark.
+				ui.Scroll(c.Key("workspace-picker-scroll")).FillWidth().MinWidth(0).Height(min(float32(len(snap.Workspaces))*34, max(34, height-180))).Padding(0, design.Sp(3), 0, 0).Children(func() {
 					for _, workspace := range snap.Workspaces {
 						ws := workspace
 						title := session.WorkspaceDisplayTitle(ws.Title, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
@@ -282,19 +288,21 @@ func pickMenu(c *ui.Context, m Model, snap session.ViewState, request *session.W
 
 func menuRow(c *ui.Context, label, path string, selected bool, icon string, disabled bool, colors theme.Colors) ui.Element {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	button := ui.Button(c, "").Label(label).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(6, 8).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(disabled)
-	if !disabled {
-		button.Cursor(ui.CursorPointer)
-	}
-	button.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, icon, muted) })
-			ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-			if selected {
-				ui.Box(c).Width(14).Height(14).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, "check", fg) })
-			}
-		})
-	})
+	button := coss.Button(c, "", coss.ButtonOptions{
+		Variant:  coss.ButtonGhost,
+		Size:     coss.ButtonMD,
+		Disabled: disabled,
+		Label:    label,
+		Content: func() {
+			ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, icon, muted) })
+				ui.Text(c, label).FontSize(theme.InterfaceSize(13)).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
+				if selected {
+					ui.Box(c).Width(14).Height(14).Draw(func(p *ui.Painter, r ui.Rect) { drawIcon(p, r, "check", fg) })
+				}
+			})
+		},
+	}).Tooltip(path).FillWidth().MinWidth(0).Height(34).Padding(design.Sp(1.5), design.Sp(2)).Radius(design.RadiusLG)
 	return button
 }
 
@@ -333,23 +341,8 @@ func drawIcon(p *ui.Painter, r ui.Rect, kind string, ink ui.Color) {
 
 func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *session.WorkspaceNavigationState, colors theme.Colors) {
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	secondary := chrome.Color(colors.Secondary)
-	if secondary.A == 0 {
-		secondary = muted
-	}
 	borderL2 := chrome.Color(colors.Border)
-	borderL3 := chrome.Color(colors.BorderL3)
-	if borderL3.A == 0 {
-		borderL3 = borderL2
-	}
-	borderL4 := chrome.Color(colors.BorderL4)
-	if borderL4.A == 0 {
-		borderL4 = borderL3
-	}
-	danger := chrome.Color(colors.Danger)
-	if danger.A == 0 {
-		danger = ui.RGB(242, 90, 90)
-	}
+	danger := design.For(c).Destructive
 	title := text("工作区", "Workspace")
 	switch request.Mode {
 	case "rename":
@@ -375,24 +368,16 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 			feedback := request.Error
 			targetTitle := session.WorkspaceDisplayTitle(request.TargetTitle, i18n.T(i18n.KeyWSDefaultWorkspaceTitle))
 			ui.Column(c).FillWidth().MinWidth(0).Gap(0).Children(func() {
-				ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Padding(22, 14, 12, 24).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, title).FontSize(theme.InterfaceSize(16)).FixedLineHeight(theme.InterfaceSize(24)).FontWeight(500).TextColor(fg).Grow(1).MinWidth(0)
-					close := ui.Button(c, "").Label(text("关闭", "Close")).Width(28).Height(28).Padding(0).Radius(8).BorderWidth(0).Background(ui.Transparent).Disabled(request.Busy)
-					if !request.Busy {
-						close.Cursor(ui.CursorPointer)
-					}
-					if close.Hovered() && !request.Busy {
-						close.Background(chrome.Color(colors.Hover))
-					}
-					close.Draw(func(p *ui.Painter, r ui.Rect) {
-						path := &ui.Path{}
-						path.MoveTo(r.X+10, r.Y+10)
-						path.LineTo(r.X+18, r.Y+18)
-						path.MoveTo(r.X+18, r.Y+10)
-						path.LineTo(r.X+10, r.Y+18)
-						p.StrokePath(path, 1.3, secondary)
-					})
-					if close.Clicked() {
+					if coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonIconSM,
+						Icon:     coss.IconX,
+						Label:    text("关闭", "Close"),
+						Disabled: request.Busy,
+						Key:      "ws-mgmt-close",
+					}).Shrink(0).Clicked() {
 						m.Store.CancelWorkspaceNavigation(request.Token)
 					}
 				})
@@ -420,9 +405,13 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 								}
 								*seeded = true
 							}
-							input := ui.TextInput(c.Key(request.Token), &draft).FillWidth().MinWidth(0).Height(44).Padding(7, 14).Radius(16).
-								Border(0.5, borderL4).Background(ui.Transparent).
-								FontSize(theme.InterfaceSize(14)).Label(i18n.T(i18n.KeyWSFieldWorkspaceName)).Disabled(request.Busy)
+							input := coss.Input(c, &draft, coss.InputOptions{
+								Size:     coss.InputLG,
+								Label:    i18n.T(i18n.KeyWSFieldWorkspaceName),
+								Disabled: request.Busy,
+								Invalid:  feedback != "",
+								Key:      request.Token,
+							}).Height(44).FixedLineHeight(44)
 							first := ui.Local(input, "rename-focus", func() bool { return true })
 							if *first {
 								input.Focus().SetTextSelection(0, utf8.RuneCountInString(draft))
@@ -450,12 +439,10 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 							submitted = input.Submitted() && !input.Composing()
 						} else {
 							ui.Text(c, targetTitle).FontSize(theme.InterfaceSize(14)).TextColor(fg)
-							renameMenuBtn := ui.Button(c, i18n.T(i18n.KeyWSRenameWorkspaceTitle)).FillWidth().Cursor(ui.CursorPointer)
-							if renameMenuBtn.Clicked() {
+							if coss.Button(c, i18n.T(i18n.KeyWSRenameWorkspaceTitle), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Key: "ws-mgmt-rename-entry"}).FillWidth().Clicked() {
 								m.Store.BeginWorkspaceRename(request.TargetID)
 							}
-							deleteMenuBtn := ui.Button(c, i18n.T(i18n.KeyWSDeleteWorkspace)).FillWidth().Cursor(ui.CursorPointer)
-							if deleteMenuBtn.Clicked() {
+							if coss.Button(c, i18n.T(i18n.KeyWSDeleteWorkspace), coss.ButtonOptions{Variant: coss.ButtonDestructiveOutline, Size: coss.ButtonMD, Key: "ws-mgmt-delete-entry"}).FillWidth().Clicked() {
 								m.Store.BeginWorkspaceRemoval(request.TargetID)
 							}
 						}
@@ -468,58 +455,35 @@ func managementDialog(c *ui.Context, m Model, snap session.ViewState, request *s
 					})
 				}
 			})
-			ui.Row(c).FillWidth().Padding(0, 24).Gap(8).AlignItems(ui.Center).Justify(ui.End).Children(func() {
+			ui.Row(c).FillWidth().Padding(0, design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Center).Justify(ui.End).Children(func() {
 				cancelLabel := text("取消", "Cancel")
-				cancelBtn := ui.Button(c, cancelLabel).Label(cancelLabel).Height(36).Padding(0, 14).Radius(12).
-					FontSize(theme.InterfaceSize(14)).TextColor(fg).
-					Border(0.5, borderL3).Background(ui.Transparent).Disabled(request.Busy)
-				if !request.Busy {
-					cancelBtn.Cursor(ui.CursorPointer)
-				}
-				if cancelBtn.Hovered() && !request.Busy {
-					cancelBtn.Background(chrome.Color(colors.Hover))
-				}
-				if cancelBtn.Clicked() {
+				if coss.Button(c, cancelLabel, coss.ButtonOptions{
+					Variant:  coss.ButtonOutline,
+					Size:     coss.ButtonLG,
+					Disabled: request.Busy,
+					Key:      "ws-mgmt-cancel",
+				}).Label(cancelLabel).Clicked() {
 					m.Store.CancelWorkspaceNavigation(request.Token)
 				}
 				if request.Mode == "rename" {
-					brand := chrome.Color(colors.BrandPrimary)
-					if brand.A == 0 {
-						brand = chrome.Color(colors.Accent)
-					}
-					brandHover := chrome.Color(colors.BrandPrimaryHover)
-					if brandHover.A == 0 {
-						brandHover = brand
-					}
-					btnFG := chrome.Color(colors.ButtonFG)
-					if btnFG.A == 0 {
-						btnFG = chrome.Color(colors.BG)
-					}
 					renameLabel := i18n.T(i18n.KeyWSRename)
-					renameBtn := ui.Button(c, renameLabel).Label(renameLabel).Height(36).Padding(0, 14).Radius(12).
-						FontSize(theme.InterfaceSize(14)).TextColor(btnFG).
-						BorderWidth(0).Background(brand).Disabled(blocked)
-					if !blocked {
-						renameBtn.Cursor(ui.CursorPointer)
-					}
-					if renameBtn.Hovered() && !blocked {
-						renameBtn.Background(brandHover)
-					}
+					renameBtn := coss.Button(c, renameLabel, coss.ButtonOptions{
+						Variant:  coss.ButtonDefault,
+						Size:     coss.ButtonLG,
+						Disabled: blocked,
+						Key:      "ws-mgmt-rename",
+					}).Label(renameLabel)
 					if renameBtn.Clicked() || submitted && !blocked {
 						m.Store.ConfirmWorkspaceRename(context.Background(), request.Token, draft)
 					}
 				} else if request.Mode == "remove" {
 					deleteLabel := i18n.T(i18n.KeyWSDeleteWorkspace)
-					deleteBtn := ui.Button(c, deleteLabel).Label(deleteLabel).Height(36).Padding(0, 14).Radius(12).
-						FontSize(theme.InterfaceSize(14)).TextColor(danger).
-						Border(0.5, borderL3).Background(ui.Transparent).Disabled(request.Busy)
-					if !request.Busy {
-						deleteBtn.Cursor(ui.CursorPointer)
-					}
-					if deleteBtn.Hovered() && !request.Busy {
-						deleteBtn.Background(chrome.Color(colors.Hover))
-					}
-					if deleteBtn.Clicked() {
+					if coss.Button(c, deleteLabel, coss.ButtonOptions{
+						Variant:  coss.ButtonDestructiveOutline,
+						Size:     coss.ButtonLG,
+						Disabled: request.Busy,
+						Key:      "ws-mgmt-delete",
+					}).Label(deleteLabel).Clicked() {
 						m.Store.ConfirmWorkspaceRemoval(context.Background(), request.Token)
 					}
 				}

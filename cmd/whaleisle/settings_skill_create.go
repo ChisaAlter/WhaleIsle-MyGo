@@ -62,11 +62,7 @@ func (s *mainState) openSettingsSkillCreate() {
 		}
 	}
 	s.settingsSkillCreate = state
-	win := s.win
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 }
 
 func (s *mainState) settingsSkillCreateAccess() *settings.SkillCreateAccess {
@@ -85,11 +81,7 @@ func (s *mainState) cancelSettingsSkillCreate() {
 	if !s.settingsSkillCreate.busy {
 		s.invalidateSettingsSkillCreateLocked()
 	}
-	win := s.win
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 }
 
 func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
@@ -113,9 +105,6 @@ func (s *mainState) saveSettingsSkillCreate(draft settings.SkillCreateDraft) {
 	create.cancel = cancel
 	target.Root = draft.Root
 	s.mu.Unlock()
-	if win != nil {
-		win.Update(func() {})
-	}
 	go func() {
 		fields := session.SkillEditorFields{Description: draft.Description, WhenToUse: draft.WhenToUse, Content: draft.Content, Groups: draft.Groups, ModelInvocable: draft.ModelInvocable, UserInvocable: draft.UserInvocable}
 		err := source.CreateSkillInventoryFields(ctx, target, draft.Name, fields)

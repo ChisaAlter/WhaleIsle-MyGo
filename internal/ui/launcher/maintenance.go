@@ -3,6 +3,7 @@ package launcher
 import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -19,11 +20,7 @@ const (
 // Maintenance renders one explicitly requested task under the workbench title
 // bar. It has no home page, rail, or window ownership.
 func Maintenance(c *ui.Context, page MaintenancePage, m Model) {
-	if m.SystemDark {
-		applyDarkTokens()
-	} else {
-		applyLightTokens()
-	}
+	pal := resolveLauncherPalette(m.ThemeID, m.SystemDark)
 	var title, detail string
 	var body func(*ui.Context, Model)
 	switch page {
@@ -36,21 +33,22 @@ func Maintenance(c *ui.Context, page MaintenancePage, m Model) {
 	case MaintenancePreferences:
 		title, body = releaseText("更新偏好与卸载", "Update preferences and uninstall"), settingsPanel
 	}
-	chrome.FrostSurface(ui.Column(c).Fill().MinWidth(0), launcherColors, m.SystemDark, colBase, 0).Children(func() {
-		ui.Row(c).FillWidth().Wrap().AlignItems(ui.Center).Gap(12).Padding(16, 24).
-			BorderWidth(0, 0, 1, 0).BorderColor(colBorderL2).Children(func() {
-			ui.Text(c, title).Grow(1).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(colPrimary)
-			if m.OnClose != nil && ghostSmall(c, releaseText("返回工作台", "Back to workbench")).Clicked() {
+	leftPad, rightPad := chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(6))
+	chrome.FrostSurface(ui.Column(c).Fill().MinWidth(0), pal.colors, m.SystemDark, pal.base, 0).Children(func() {
+		ui.Row(c).FillWidth().Wrap().AlignItems(ui.Center).Gap(design.Sp(3)).Padding(design.Sp(4), rightPad, design.Sp(4), leftPad).
+			BorderWidth(0, 0, 1, 0).BorderColor(pal.borderL2).DragWindow().Children(func() {
+			ui.Text(c, title).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(18)).FontWeight(600).TextColor(pal.primary)
+			if m.OnClose != nil && ghostSmall(c, pal, releaseText("返回工作台", "Back to workbench")).Shrink(0).Clicked() {
 				m.OnClose()
 			}
 		})
 		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().MaxWidth(1040).MinWidth(0).Padding(20, 24).Gap(14).Children(func() {
+			ui.Column(c).FillWidth().MaxWidth(1040).MinWidth(0).Padding(design.Sp(5), design.Sp(6)).Gap(design.Sp(3.5)).Children(func() {
 				if detail != "" {
-					ui.Text(c, detail).FontSize(theme.InterfaceSize(13)).TextColor(colSecondary)
+					ui.Text(c, detail).FontSize(theme.InterfaceSize(13)).TextColor(pal.secondary)
 				}
 				if page == MaintenanceDiagnostics && m.StatusNote != "" {
-					ui.Text(c, m.StatusNote).FillWidth().Selectable().TextColor(colSecondary)
+					ui.Text(c, m.StatusNote).FillWidth().Selectable().TextColor(pal.secondary)
 				}
 				body(c, m)
 			})

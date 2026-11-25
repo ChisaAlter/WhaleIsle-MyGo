@@ -118,17 +118,19 @@ func (c Chord) PhysicalBinding() *shortcutprefs.Binding {
 	if c.Key == "" {
 		return nil
 	}
-	b := &shortcutprefs.Binding{Code: PhysicalCode(c.Key), SecondCode: PhysicalCode(c.SecondKey), Modifiers: []string{}}
 	mods := c.Modifiers
 	if mods == nil {
-		mods = []string{"Mod"}
+		b := &shortcutprefs.Binding{Code: PhysicalCode(c.Key), SecondCode: PhysicalCode(c.SecondKey), Modifiers: make([]string, 1, 3)}
+		b.Modifiers[0] = "primary"
 		if c.Shift {
-			mods = append(mods, "Shift")
+			b.Modifiers = append(b.Modifiers, "shift")
 		}
 		if c.Alt {
-			mods = append(mods, "Alt")
+			b.Modifiers = append(b.Modifiers, "alt")
 		}
+		return b
 	}
+	b := &shortcutprefs.Binding{Code: PhysicalCode(c.Key), SecondCode: PhysicalCode(c.SecondKey), Modifiers: make([]string, 0, len(mods))}
 	for _, m := range mods {
 		switch m {
 		case "Mod":
@@ -145,34 +147,61 @@ func (c Chord) PhysicalBinding() *shortcutprefs.Binding {
 	}
 	return b
 }
-func overlappingChords(left, right Chord) bool {
-	a, b := left.PhysicalBinding(), right.PhysicalBinding()
-	if a == nil || b == nil {
-		return false
+
+const (
+	modBitControl uint8 = 1 << iota
+	modBitMeta
+	modBitAlt
+	modBitShift
+)
+
+func chordOverlapKey(c Chord) (mask uint8, code, secondCode string) {
+	if c.Key == "" {
+		return 0, "", ""
 	}
-	mods := func(values []string) string {
-		set := map[string]bool{}
-		for _, m := range values {
-			if m == "primary" {
-				m = "control"
-				if runtime.GOOS == "darwin" {
-					m = "meta"
-				}
+	primaryBit := modBitControl
+	if runtime.GOOS == "darwin" {
+		primaryBit = modBitMeta
+	}
+	if c.Modifiers == nil {
+		mask = primaryBit
+		if c.Shift {
+			mask |= modBitShift
+		}
+		if c.Alt {
+			mask |= modBitAlt
+		}
+	} else {
+		for _, m := range c.Modifiers {
+			switch m {
+			case "Mod":
+				mask |= primaryBit
+			case "Control":
+				mask |= modBitControl
+			case "Alt":
+				mask |= modBitAlt
+			case "Shift":
+				mask |= modBitShift
+			case "Meta":
+				mask |= modBitMeta
 			}
-			set[m] = true
 		}
-		keys := []string{}
-		for m := range set {
-			keys = append(keys, m)
-		}
-		sort.Strings(keys)
-		return strings.Join(keys, "+")
 	}
-	if mods(a.Modifiers) != mods(b.Modifiers) {
+	return mask, PhysicalCode(c.Key), PhysicalCode(c.SecondKey)
+}
+
+func overlapKeysCollide(maskA uint8, codeA, secondA string, maskB uint8, codeB, secondB string) bool {
+	if codeA == "" || codeB == "" || maskA != maskB {
 		return false
 	}
-	if a.SecondCode != "" && b.SecondCode != "" {
-		return a.Code == b.Code && a.SecondCode == b.SecondCode
+	if secondA != "" && secondB != "" {
+		return codeA == codeB && secondA == secondB
 	}
-	return a.Code == b.Code || a.SecondCode != "" && a.SecondCode == b.Code || b.SecondCode != "" && a.Code == b.SecondCode
+	return codeA == codeB || (secondA != "" && secondA == codeB) || (secondB != "" && codeA == secondB)
+}
+
+func overlappingChords(left, right Chord) bool {
+	maskA, codeA, secondA := chordOverlapKey(left)
+	maskB, codeB, secondB := chordOverlapKey(right)
+	return overlapKeysCollide(maskA, codeA, secondA, maskB, codeB, secondB)
 }

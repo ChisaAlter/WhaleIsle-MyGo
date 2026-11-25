@@ -67,6 +67,8 @@ func (s *Store) clearPerSessionDecodeCachesLocked() {
 	s.trajEventsCache = nil
 	s.trajHeadersCache = nil
 	s.trajRequestsCache = nil
+	s.trajLiveReqCache = nil
+	s.trajViewValid = false
 	s.trajHadLiveAttempt = false
 	s.trajectoryMessageCache = nil
 	s.trajTimingRev = 0
@@ -160,27 +162,25 @@ func addTurnUsage(total *TurnUsage, u TurnUsage, first bool) {
 // Turn accounting reads the durable lifecycle, including retry attempts which
 // have no transcript row. Usage-only or incomplete history never becomes zero.
 // trajectoryFingerprintLocked is an O(1) change detector for the builders that
-// decode every historical event. Streaming appends a message (length changes)
-// and grows the last raw payload, so length plus the tail identity detects
-// realistic mutations without hashing the whole history on every frame.
+// decode durable historical events, driven by monotonic store revisions plus
+// fast durable tail checks (zero linear scan of s.messages).
 func (s *Store) trajectoryFingerprintLocked() uint64 {
 	h := uint64(1469598103934665603)
 	mix := func(v uint64) { h ^= v; h *= 1099511628211 }
-	// Rows that exist only while a reply streams carry no journal record, so they
-	// are left out: their body grows with every chunk and would otherwise change
-	// the fingerprint, and with it every cache built from the journal, each frame.
-	durable := 0
-	var last *Message
-	for i := range s.messages {
-		if volatileMessageRow(s.messages[i]) {
-			continue
-		}
-		durable++
-		last = &s.messages[i]
+	durable, _, ok := s.splitVolatileTailFastLocked()
+	if !ok {
+		durable = s.messages
 	}
-	mix(uint64(durable))
+	mix(s.historyRev)
+	mix(s.boundaryRev)
+	mix(uint64(len(durable)))
 	mix(uint64(len(s.trajectoryBoundaries)))
-	if last != nil {
+	if len(durable) > 0 {
+		first := &durable[0]
+		last := &durable[len(durable)-1]
+		mix(uint64(len(first.Raw)))
+		mix(uint64(len(first.Body)))
+		mix(uint64(int64(first.Seq)))
 		mix(uint64(len(last.Raw)))
 		mix(uint64(len(last.Body)))
 		mix(uint64(int64(last.Seq)))

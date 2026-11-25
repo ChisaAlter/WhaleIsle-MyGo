@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"whaleisle/internal/errcopy"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -130,7 +131,7 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 		label = word("基线：", "Base: ") + w.BaseRef
 	}
 	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, label).Clicked() {
+		if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 			w.CompareOpen = !w.CompareOpen
 			if w.CompareOpen {
 				w.requestCompareBranches(false)
@@ -155,7 +156,7 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 	if !w.CompareOpen {
 		return
 	}
-	ui.TextInput(c, &w.CompareQuery).FillWidth().Radius(6).Border(0.5, c.Theme().Border).Placeholder(word("筛选比较分支", "Filter comparison branches"))
+	coss.Input(c, &w.CompareQuery, coss.InputOptions{Size: coss.InputSM, Placeholder: word("筛选比较分支", "Filter comparison branches")})
 	needle := strings.ToLower(strings.TrimSpace(w.CompareQuery))
 	ui.Scroll(c).Height(110).FillWidth().Children(func() {
 		ui.Column(c).Gap(2).Children(func() {
@@ -167,7 +168,7 @@ func paintComparison(c *ui.Context, m Model, fg, muted ui.Color) {
 					if !strings.Contains(strings.ToLower(b.Name), needle) {
 						continue
 					}
-					if ui.Button(c, b.Name).FontSize(11).Clicked() {
+					if coss.Button(c, b.Name, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 						w.BaseRef = b.Name
 						w.Staged = false
 						w.CompareOpen = false

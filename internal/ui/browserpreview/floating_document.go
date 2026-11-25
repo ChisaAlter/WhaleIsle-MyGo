@@ -11,6 +11,7 @@ import (
 	"whaleisle/internal/desktop/mediapreview"
 	"whaleisle/internal/desktop/pdfpreview"
 	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/ui/coss"
 )
 
 const floatingDocumentChromeHeight = 40
@@ -100,14 +101,14 @@ func (b *Controller) openFloatingDocument(t *Tab) {
 			ui.Column(c).Fill().Children(func() {
 				ui.Row(c).Height(floatingDocumentChromeHeight).Padding(6, 10).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, truncate(opts.Title, 40)+browserChromeLabel(" · 只读快照", " · Read-only snapshot")).FontSize(fonttheme.InterfaceSize(12)).Grow(1).Tooltip(opts.Title)
-					if t.source != nil && ui.Button(c, browserChromeLabel("刷新", "Reload")).Disabled(t.sourceRead != nil).Clicked() {
+					if t.source != nil && coss.Button(c, browserChromeLabel("刷新", "Reload"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: t.sourceRead != nil}).Clicked() {
 						t.floatAfterRead = true
 						b.retryDocument(t)
 					}
 					if t.Error != "" {
 						ui.Text(c, t.Error).Tooltip(t.Error)
 					}
-					if ui.Button(c, browserChromeLabel("关闭", "Close")).Clicked() {
+					if coss.Button(c, browserChromeLabel("关闭", "Close"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
 						t.floatAfterRead = false
 						b.stopFloatingDocument()
 					}

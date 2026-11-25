@@ -2,8 +2,9 @@ package settings
 
 import (
 	"whaleisle/internal/accountlogin"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
-	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -51,17 +52,21 @@ func AccountSignInDialog(c *ui.Context, a *AccountAccess, visible bool, onClose,
 				description = a.Err
 			}
 		}
-		ui.Text(c, description).FillWidth().FontSize(theme.InterfaceSize(14)).TextColor(c.Theme().TextMuted)
-		if active && a.AuthorizeURL != "" && a.OnCopyAuthorize != nil && ui.Button(c, providerCopy("复制登录链接", "Copy sign-in link")).BorderWidth(0).Background(ui.Transparent).AlignSelf(ui.Start).Clicked() {
+		if failed {
+			kError(c, description)
+		} else {
+			kBody(c, description).TextColor(tk(c).MutedForeground)
+		}
+		if active && a.AuthorizeURL != "" && a.OnCopyAuthorize != nil && coss.Button(c, providerCopy("复制登录链接", "Copy sign-in link"), coss.ButtonOptions{Variant: coss.ButtonLink, Size: coss.ButtonSM}).AlignSelf(ui.Start).Padding(0).Clicked() {
 			a.OnCopyAuthorize(a.AuthorizeURL)
 		}
 	}, func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Wrap().Justify(ui.End).Children(func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).Wrap().Justify(ui.End).Children(func() {
 			secondary := providerCopy("使用 API Key", "Use API key")
 			if active {
 				secondary = i18n.T(i18n.KeySettingsWhaleCancel)
 			}
-			if ui.Button(c, secondary).Height(36).Padding(0, 16).Radius(8).Disabled(busy).Clicked() {
+			if coss.Button(c, secondary, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonLG, Disabled: busy}).Clicked() {
 				if active {
 					dismiss()
 				} else {
@@ -79,7 +84,7 @@ func AccountSignInDialog(c *ui.Context, a *AccountAccess, visible bool, onClose,
 			} else if failed || expired {
 				label = providerCopy("重试", "Retry")
 			}
-			if ui.Button(c, label).Height(36).Padding(0, 16).Radius(8).Disabled(busy || active && !failed || !a.ClientReady || a.OnSignIn == nil).Clicked() {
+			if coss.Button(c, label, coss.ButtonOptions{Size: coss.ButtonLG, Disabled: busy || active && !failed || !a.ClientReady || a.OnSignIn == nil}).Clicked() {
 				a.OnSignIn()
 			}
 		})

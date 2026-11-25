@@ -107,7 +107,6 @@ func feedbackDialogView(c *ui.Context, _ string, _ bool, note, category, failure
 	t := design.For(c)
 	mask := design.TW.Black.Alpha(0.32)
 	fg, muted := t.Foreground, t.MutedForeground
-	primary, onPrimary := t.Primary, t.PrimaryForeground
 	open := true
 	w, h := c.Size()
 	ui.DialogBase(c.Key("message-feedback-modal"), &open, func(backdrop, panel ui.Element) {
@@ -121,11 +120,13 @@ func feedbackDialogView(c *ui.Context, _ string, _ bool, note, category, failure
 			ui.Column(c).FillWidth().MinHeight(0).Shrink(1).Children(func() {
 				ui.Row(c).FillWidth().Shrink(0).Padding(design.Sp(5.5), design.Sp(3.5), design.Sp(3), design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, feedbackText("title")).FontSize(16).FixedLineHeight(24).FontWeight(500).TextColor(fg).Grow(1)
-					close := ui.Button(c.Key("feedback-close"), "").Label(feedbackText("close")).Width(28).Height(28).Padding(0).Radius(design.RadiusMD).BorderWidth(0).Background(ui.Transparent).TextColor(muted).Justify(ui.Center).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
-					if close.Hovered() {
-						close.Background(t.Accent)
-					}
-					close.Children(func() { ui.Icon(c, messageIconCloseOutline).Width(14).Height(14).PassThrough() })
+					close := coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonIconSM,
+						Label:   feedbackText("close"),
+						Key:     "feedback-close",
+						Content: func() { ui.Icon(c, messageIconCloseOutline).Width(14).Height(14).PassThrough() },
+					}).Radius(design.RadiusMD).TextColor(muted)
 					if close.Clicked() {
 						open = false
 					}
@@ -134,15 +135,16 @@ func feedbackDialogView(c *ui.Context, _ string, _ bool, note, category, failure
 					ui.Row(c).Key("feedback-categories").Role(ui.RoleGroup).Label(feedbackText("categories")).FillWidth().Wrap().Gap(design.Sp(2)).Margin(-design.Sp(3.5), 0, 0, 0).Children(func() {
 						for _, chipCategory := range feedbackCategories {
 							chipCategory := chipCategory
-							chip := ui.Button(c.Key("feedback-category-"+chipCategory), feedbackText(chipCategory)).Height(28).Padding(0, design.Sp(3)).FontSize(13).FixedLineHeight(18).Radius(design.RadiusMD).Border(.5, t.Border).Background(ui.Transparent).TextColor(fg).Checked(chipCategory == category).Disabled(busy)
-							if !busy {
-								chip.Cursor(ui.CursorPointer)
-							}
+							variant := coss.ButtonOutline
 							if chipCategory == category {
-								chip.Border(.5, primary).Background(primary).TextColor(onPrimary)
-							} else if chip.Hovered() {
-								chip.Background(t.Accent)
+								variant = coss.ButtonDefault
 							}
+							chip := coss.Button(c, feedbackText(chipCategory), coss.ButtonOptions{
+								Variant:  variant,
+								Size:     coss.ButtonSM,
+								Disabled: busy,
+								Key:      "feedback-category-" + chipCategory,
+							}).Radius(design.RadiusMD).Checked(chipCategory == category)
 							if chip.Clicked() {
 								next := chipCategory
 								if chipCategory == category {
@@ -167,10 +169,12 @@ func feedbackDialogView(c *ui.Context, _ string, _ bool, note, category, failure
 				if busy {
 					label = feedbackText("submitting")
 				}
-				submitBtn := ui.Button(c.Key("feedback-submit"), label).Label(label).FillWidth().Height(44).Radius(design.RadiusXL2).FontSize(14).FontWeight(500).BorderWidth(0).Background(primary).TextColor(onPrimary).Disabled(busy)
-				if !busy {
-					submitBtn.Cursor(ui.CursorPointer)
-				}
+				submitBtn := coss.Button(c, label, coss.ButtonOptions{
+					Variant:  coss.ButtonDefault,
+					Size:     coss.ButtonXL,
+					Disabled: busy,
+					Key:      "feedback-submit",
+				}).Label(label).FillWidth().Height(44).Radius(design.RadiusXL2)
 				if submitBtn.Clicked() {
 					submit()
 				}

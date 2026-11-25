@@ -226,9 +226,6 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 		HostRuntimeState:     host.Status.State,
 		OnRefreshComponents: func() {
 			l.RefreshComponents()
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnComponentAction: func(id, action string) {
 			if bridgeChangeActive.Load() {
@@ -311,9 +308,6 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 			} else {
 				l.SetPrefsError("")
 			}
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnClose:               func() { s.navigateMainRoute(routeConversation) },
 		OnStop:                func() { s.stopProtected(win, host.Supervisor) },
@@ -371,9 +365,6 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 					s.restartUnlessImport(host.Supervisor)
 				}
 			}
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnClearPluginRecovery: func() {
 			if cfgStore == nil {
@@ -390,17 +381,11 @@ func (s *mainState) maintenancePanel(c *ui.Context, win *mygo.Window, route main
 					s.restartUnlessImport(host.Supervisor)
 				}
 			}
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 		OnRestartHarness: func() {
 			s.syncHarnessFromConfig()
 			s.startWorkbenchHost(win, host.Supervisor)
 			l.SetNote(i18n.T(i18n.KeyLauncherRestartHarness))
-			if win != nil {
-				win.Update(func() {})
-			}
 		},
 	}
 	var page launcher.MaintenancePage

@@ -141,7 +141,13 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 			ui.Row(c).MaxWidth(164).MinWidth(84).Height(22).Grow(0).Shrink(1).Background(t.Muted).Border(design.BorderWidth, t.Input).Radius(design.RadiusMD).
 				Padding(0, design.Sp(1.5), 0, design.Sp(1.5)).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, trajIconSearch).Width(11).Height(11).TextColor(muted)
-				ui.TextInput(c, search).FillWidth().MinWidth(0).BorderWidth(0).Background(ui.Transparent).Placeholder(i18n.T(i18n.KeyTrajSearch)).FontSize(theme.InterfaceSize(12))
+				ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+					coss.Input(c, search, coss.InputOptions{
+						Size:        coss.InputSM,
+						Placeholder: i18n.T(i18n.KeyTrajSearch),
+						Unstyled:    true,
+					}).Height(20).FixedLineHeight(20).FontSize(theme.InterfaceSize(12))
+				})
 			})
 		})
 		coss.Separator(c, coss.Horizontal)
@@ -163,8 +169,11 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 						label = i18n.T(i18n.KeyTrajLoading)
 					}
 					ui.Row(c).FillWidth().Padding(design.Sp(1), design.Sp(2), design.Sp(1), design.Sp(2)).Children(func() {
-						if ui.Button(c, label).Cursor(ui.CursorPointer).Disabled(m.Snapshot.HistoryPageBusy).
-							FontSize(theme.InterfaceSize(12)).BorderWidth(0).Background(t.Muted).FillWidth().Clicked() {
+						if coss.Button(c, label, coss.ButtonOptions{
+							Variant:  coss.ButtonSecondary,
+							Size:     coss.ButtonXS,
+							Disabled: m.Snapshot.HistoryPageBusy,
+						}).FillWidth().Clicked() {
 							m.OnLoadEarlier()
 						}
 					})
@@ -196,27 +205,33 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 						bg = hover
 					}
 					ui.Column(lr.Context).FillWidth().MinWidth(0).Children(func() {
-						btn := ui.Button(lr.Context, "").Label("Trajectory row " + row.ID).FillWidth().Height(30).Background(bg).BorderWidth(0).
-							Padding(0).Radius(0).Cursor(ui.CursorPointer)
-						btn.Children(func() {
-							ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
-								// Fixed-width disclosure slot on every row so
-								// badge and title keep one x across foldable
-								// and plain rows.
-								ui.Box(lr.Context).Width(20).FillHeight().Children(func() {
-									if row.FoldKey != "" {
-										glyph := "▾"
-										if row.Folded {
-											glyph = "▸"
+						btn := coss.Button(lr.Context, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonSM,
+							Label:   "Trajectory row " + row.ID,
+							Content: func() {
+								ui.Row(lr.Context).FillWidth().Gap(0).Children(func() {
+									// Fixed-width disclosure slot on every row so
+									// badge and title keep one x across foldable
+									// and plain rows.
+									ui.Box(lr.Context).Width(20).FillHeight().Children(func() {
+										if row.FoldKey != "" {
+											glyph := "▾"
+											if row.Folded {
+												glyph = "▸"
+											}
+											if coss.Button(lr.Context, glyph, coss.ButtonOptions{
+												Variant: coss.ButtonGhost,
+												Size:    coss.ButtonXS,
+											}).Label("Fold trajectory " + row.ID).Width(20).Height(28).Padding(0).Clicked() {
+												folds.toggle(row)
+											}
 										}
-										if ui.Button(lr.Context, glyph).Label("Fold trajectory " + row.ID).Width(20).Height(28).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
-											folds.toggle(row)
-										}
-									}
+									})
+									ui.Column(lr.Context).Grow(1).MinWidth(0).Children(func() { paintTrajectoryRecord(lr.Context, row, palette, turnStart) })
 								})
-								ui.Column(lr.Context).Grow(1).MinWidth(0).Children(func() { paintTrajectoryRecord(lr.Context, row, palette, turnStart) })
-							})
-						})
+							},
+						}).FillWidth().Height(30).Background(bg).Padding(0).Radius(0)
 						if btn.Clicked() {
 							if timeRange.active && !rangeMatches[row.ID] {
 								timeRange.clear()
@@ -258,7 +273,12 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 			inspector.Children(func() {
 				ui.Row(c).Gap(design.Sp(1.5)).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, i18n.T(i18n.KeyTrajDetailTitle)).FontSize(theme.InterfaceSize(12)).FontWeight(600).TextColor(fg).Grow(1).MinWidth(0).SingleLine()
-					if ui.Button(c, "×").Label("Close trajectory details").Width(24).Height(24).Padding(0).BorderWidth(0).Background(ui.Transparent).Cursor(ui.CursorPointer).Clicked() {
+					if coss.Button(c, "", coss.ButtonOptions{
+						Variant: coss.ButtonGhost,
+						Size:    coss.ButtonIconXS,
+						Icon:    coss.IconX,
+						Label:   "Close trajectory details",
+					}).Clicked() {
 						*selected = ""
 					}
 				})
@@ -303,8 +323,12 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 								ink = accent
 								weight = 600
 							}
-							if ui.Button(c, t.label).FontSize(theme.InterfaceSize(11)).FontWeight(weight).BorderWidth(0).
-								Background(ui.Transparent).TextColor(ink).Cursor(ui.CursorPointer).Clicked() {
+							if coss.Button(c, "", coss.ButtonOptions{
+								Variant: coss.ButtonGhost,
+								Size:    coss.ButtonXS,
+								Label:   t.label,
+								Content: func() { ui.Text(c, t.label).FontSize(theme.InterfaceSize(11)).FontWeight(weight).TextColor(ink) },
+							}).Clicked() {
 								*detailTab = t.id
 							}
 						}
@@ -394,7 +418,10 @@ func trajectoryView(c *ui.Context, m TrajectoryModel) {
 					}
 				}).Grow(1).MinHeight(0).FillWidth()
 				if m.OnCopyDetail != nil && strings.TrimSpace(copyBody) != "" {
-					if ui.Button(c, i18n.T(i18n.KeyTrajCopy)).FontSize(theme.InterfaceSize(11)).Cursor(ui.CursorPointer).Clicked() {
+					if coss.Button(c, i18n.T(i18n.KeyTrajCopy), coss.ButtonOptions{
+						Variant: coss.ButtonOutline,
+						Size:    coss.ButtonXS,
+					}).Clicked() {
 						m.OnCopyDetail(copyBody)
 					}
 				}
@@ -414,14 +441,18 @@ func paintTrajToggle(c *ui.Context, label string, on bool, muted, hover, fg ui.C
 		bg = hover
 		ink = fg
 	}
-	btn := ui.Button(c, "").Label(label).Height(20).BorderWidth(0).Background(bg).
-		Padding(0, design.Sp(1), 0, design.Sp(1)).Radius(design.RadiusXS + 2).Cursor(ui.CursorPointer)
-	btn.Children(func() {
-		ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, trajIconClock).Width(11).Height(11).TextColor(ink)
-			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
-		})
-	})
+	btn := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonXS,
+		Pressed: on,
+		Label:   label,
+		Content: func() {
+			ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, trajIconClock).Width(11).Height(11).TextColor(ink)
+				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+			})
+		},
+	}).Height(20).Background(bg).Padding(0, design.Sp(1), 0, design.Sp(1)).Radius(design.RadiusXS + 2)
 	if btn.Clicked() {
 		click()
 	}
@@ -440,14 +471,18 @@ func paintTrajAction(c *ui.Context, label string, pressed bool, muted, hover, fg
 		bg = hover
 		ink = fg
 	}
-	btn := ui.Button(c, "").Label(label).Height(20).BorderWidth(0).Background(bg).
-		Padding(0, design.Sp(1), 0, design.Sp(1)).Radius(design.RadiusXS + 2).Cursor(ui.CursorPointer)
-	btn.Children(func() {
-		ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, icon).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
-			ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
-		})
-	})
+	btn := coss.Button(c, "", coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonXS,
+		Pressed: pressed,
+		Label:   label,
+		Content: func() {
+			ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, icon).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+				ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(ink).SingleLine()
+			})
+		},
+	}).Height(20).Background(bg).Padding(0, design.Sp(1), 0, design.Sp(1)).Radius(design.RadiusXS + 2)
 	if btn.Clicked() {
 		click()
 	}

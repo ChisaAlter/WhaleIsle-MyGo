@@ -40,7 +40,6 @@ internal/ui/composer/attachment_display.go	go	1
 internal/ui/composer/attachment_display.go	import	2
 internal/ui/composer/beam_raster.go	go	1
 internal/ui/composer/native_commands.go	go	2
-internal/ui/composer/reference_query.go	go	1
 internal/ui/composer/tool_actions.go	timer	1
 internal/ui/design/gen/main.go	import	1
 internal/ui/diffsurface/async_loader.go	go	6
@@ -107,7 +106,6 @@ internal/ui/schedule/schedule.go	snapshot	1
 internal/ui/schedule/system_zone_windows.go	import	1
 internal/ui/schedule/timing_picker.go	import	1
 internal/ui/sessioncost/view.go	timer	1
-internal/ui/settings/about.go	snapshot	1
 internal/ui/settings/add_provider_editor.go	snapshot	3
 internal/ui/settings/agent_presets.go	go	1
 internal/ui/settings/agent_presets.go	snapshot	1

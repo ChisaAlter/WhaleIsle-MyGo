@@ -3,8 +3,6 @@ package settings
 import (
 	"sort"
 
-	"whaleisle/internal/ui/theme"
-
 	"github.com/egoist/mygo/ui"
 )
 
@@ -46,10 +44,7 @@ func pluginSettingsTabs(c *ui.Context, a *PluginsAccess, fg, muted ui.Color) {
 			ui.Row(c).FillWidth().Wrap().Gap(8).Role(ui.RoleTabList).Label(pluginsText("插件设置页签", "Plugin settings tabs")).Children(func() {
 				for _, tab := range tabs {
 					active := tab.ID == *selected
-					button := ui.Button(c.Key("plugin-settings-tab/"+tab.ID), tab.Label).Role(ui.RoleTab).Selected(active).Height(30).Padding(0, 12).Radius(8).BorderWidth(0).Background(ui.Transparent).TextColor(muted).FontSize(theme.InterfaceSize(13))
-					if active {
-						button.Background(c.Theme().SurfaceHover).TextColor(fg)
-					}
+					button := kChoiceButton(c.Key("plugin-settings-tab/"+tab.ID), tab.Label, active, false).Role(ui.RoleTab)
 					if button.Clicked() {
 						*selected = tab.ID
 						(*visited)[tab.ID] = true
