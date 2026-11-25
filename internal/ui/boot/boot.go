@@ -16,6 +16,7 @@ import (
 	"whaleisle/internal/harness"
 	"whaleisle/internal/hoststate"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -71,14 +72,14 @@ func WorkbenchStatus(c *ui.Context, m Model, message, configureLabel string) {
 			if report.Action != "" {
 				label = report.Action
 			}
-			if ui.Button(c, label).Clicked() {
+			if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM}).Clicked() {
 				m.OnRetry()
 			}
 		}
-		if m.OnConfigure != nil && ui.Button(c, configureLabel).Clicked() {
+		if m.OnConfigure != nil && coss.Button(c, configureLabel, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 			m.OnConfigure()
 		}
-		if m.OnExport != nil && ui.Button(c, i18n.T(KeyExportLog)).Clicked() {
+		if m.OnExport != nil && coss.Button(c, i18n.T(KeyExportLog), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM}).Clicked() {
 			m.OnExport()
 		}
 	})
@@ -423,7 +424,7 @@ func cancelRecoveryAction(c *ui.Context, m Model) {
 	if !m.Status.RecoveryScheduled || m.Status.RecoveryCancelled || m.OnCancelRecovery == nil {
 		return
 	}
-	if ui.Button(c, cancelRecoveryLabel()).Clicked() {
+	if coss.Button(c, cancelRecoveryLabel(), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM}).Clicked() {
 		m.OnCancelRecovery()
 	}
 }

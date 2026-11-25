@@ -5,6 +5,7 @@ package planpreview
 import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
@@ -26,10 +27,10 @@ func View(c *ui.Context, key, title, source string, initiallyOpen bool, style St
 			if *open {
 				label = Text("收起文档", "Collapse document")
 			}
-			if ui.Button(c, label).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+			if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonXS}).Clicked() {
 				*open = !*open
 			}
-			if ui.Button(c, Text("复制文档", "Copy document")).FontSize(fonttheme.InterfaceSize(11)).Clicked() {
+			if coss.Button(c, Text("复制文档", "Copy document"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 				mygo.Clipboard.WriteText(source)
 			}
 		})

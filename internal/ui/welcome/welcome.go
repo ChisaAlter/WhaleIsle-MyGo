@@ -19,6 +19,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -150,8 +152,11 @@ func View(c *ui.Context, m Model) {
 						if m.Busy {
 							saveLabel = i18n.T(i18n.KeyWelcomeKeySaving)
 						}
-						save := ui.PrimaryButton(c, saveLabel).FillWidth().Height(buttonHeight).Radius(buttonRadius).
-							Disabled(m.Busy || m.OnSaveAPIKey == nil || keyBlank(m.APIKey))
+						save := coss.Button(c, saveLabel, coss.ButtonOptions{
+							Variant:  coss.ButtonDefault,
+							Size:     coss.ButtonXL,
+							Disabled: m.Busy || m.OnSaveAPIKey == nil || keyBlank(m.APIKey),
+						}).FillWidth().Height(buttonHeight).Radius(buttonRadius)
 						if save.Clicked() && m.OnSaveAPIKey != nil {
 							m.OnSaveAPIKey()
 						}
@@ -217,8 +222,11 @@ func keyForm(c *ui.Context, m Model, fg, muted, border ui.Color, failure ui.Colo
 				MaxLines(3)
 		})
 		if m.APIKey != nil {
-			ui.TextInput(c, m.APIKey).FillWidth().Height(inputHeight).Radius(inputRadius).Border(1, border).
-				Placeholder(i18n.T(i18n.KeyWelcomeKeyPlaceholder)).Label(i18n.T(i18n.KeyWelcomeAPIKey))
+			coss.Input(c, m.APIKey, coss.InputOptions{
+				Size:        coss.InputLG,
+				Placeholder: i18n.T(i18n.KeyWelcomeKeyPlaceholder),
+				Label:       i18n.T(i18n.KeyWelcomeAPIKey),
+			}).Height(inputHeight - 2)
 		}
 		if note := noteLine(m); note != "" {
 			ui.Text(c, note).FillWidth().FontSize(theme.InterfaceSize(14)).
@@ -285,15 +293,18 @@ func noteColor(m Model, muted, failure ui.Color) ui.Color {
 // secondaryButton is .actions button + .secondary: 44px tall, 10 radius, the l2
 // border and the elevated fill.
 func secondaryButton(c *ui.Context, label string, fg, border ui.Color) ui.Element {
-	return ui.Button(c, label).FillWidth().Height(buttonHeight).Radius(buttonRadius).
-		Border(1, border).Background(ui.Transparent).TextColor(fg)
+	return coss.Button(c, label, coss.ButtonOptions{
+		Variant: coss.ButtonOutline,
+		Size:    coss.ButtonXL,
+	}).FillWidth().Height(buttonHeight).Radius(buttonRadius)
 }
 
 // textAction is .actions .back: a borderless text button, 28 tall.
 func textAction(c *ui.Context, label string, muted ui.Color) ui.Element {
-	return ui.Button(c, label).MinWidth(backMinWidth).Height(backHeight).Padding(4, 10, 4, 10).
-		Radius(24).BorderWidth(0).Background(ui.Transparent).TextColor(muted).
-		FontSize(theme.InterfaceSize(12))
+	return coss.Button(c, label, coss.ButtonOptions{
+		Variant: coss.ButtonGhost,
+		Size:    coss.ButtonSM,
+	}).MinWidth(backMinWidth).Height(backHeight).Padding(design.Sp(1), design.Sp(2.5), design.Sp(1), design.Sp(2.5)).Radius(design.RadiusFull)
 }
 
 func keyBlank(key *string) bool {

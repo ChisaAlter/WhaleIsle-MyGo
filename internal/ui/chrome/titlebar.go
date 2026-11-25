@@ -5,6 +5,8 @@ package chrome
 import (
 	"fmt"
 	"strings"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 
 	"github.com/egoist/mygo"
@@ -131,8 +133,14 @@ func TitleBarWithLeadingActions(c *ui.Context, title string, colors TitleBarColo
 				if muted.A == 0 && muted.R == 0 && muted.G == 0 && muted.B == 0 {
 					muted = colors.Foreground
 				}
-				branchBtn := ui.Button(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted).
-					BorderWidth(0).Background(ui.Transparent).Padding(0, 4, 0, 4)
+				branchBtn := coss.Button(c, "", coss.ButtonOptions{
+					Variant: coss.ButtonGhost,
+					Size:    coss.ButtonXS,
+					Label:   label,
+					Content: func() {
+						ui.Text(c, label).FontSize(theme.InterfaceSize(12)).TextColor(muted)
+					},
+				}).Padding(0, design.Sp(1), 0, design.Sp(1))
 				if branchBtn.Clicked() && strings.TrimSpace(git.Branch) != "" {
 					mygo.Clipboard.WriteText(git.Branch)
 				}
@@ -140,37 +148,37 @@ func TitleBarWithLeadingActions(c *ui.Context, title string, colors TitleBarColo
 					ui.Text(c, git.PRSummary).FontSize(theme.InterfaceSize(11)).TextColor(muted)
 				}
 				if git.OnFetch != nil && git.FetchLabel != "" {
-					if ui.Button(c, git.FetchLabel).Tooltip(git.FetchLabel).Clicked() {
+					if coss.Button(c, git.FetchLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(git.FetchLabel).Clicked() {
 						git.OnFetch()
 					}
 				}
 				if git.OnPull != nil && git.PullLabel != "" {
-					if ui.Button(c, git.PullLabel).Tooltip(git.PullLabel).Clicked() {
+					if coss.Button(c, git.PullLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(git.PullLabel).Clicked() {
 						git.OnPull()
 					}
 				}
 				if git.OnPush != nil && git.PushLabel != "" {
-					if ui.Button(c, git.PushLabel).Tooltip(git.PushLabel).Clicked() {
+					if coss.Button(c, git.PushLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(git.PushLabel).Clicked() {
 						git.OnPush()
 					}
 				}
 				if git.OnCommit != nil && git.CommitLabel != "" {
-					if ui.Button(c, git.CommitLabel).Tooltip(git.CommitLabel).Clicked() {
+					if coss.Button(c, git.CommitLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(git.CommitLabel).Clicked() {
 						git.OnCommit()
 					}
 				}
 				if git.OnPRPanel != nil && git.PRPanelLabel != "" {
-					if ui.Button(c, git.PRPanelLabel).Tooltip(git.PRPanelLabel).Clicked() {
+					if coss.Button(c, git.PRPanelLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(git.PRPanelLabel).Clicked() {
 						git.OnPRPanel()
 					}
 				}
 				if git.OnPRView != nil && git.PRViewLabel != "" {
-					if ui.Button(c, git.PRViewLabel).Tooltip(git.PRViewLabel).Clicked() {
+					if coss.Button(c, git.PRViewLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Tooltip(git.PRViewLabel).Clicked() {
 						git.OnPRView()
 					}
 				}
 				if git.OnPRCreate != nil && git.PRCreateLabel != "" {
-					if ui.Button(c, git.PRCreateLabel).Clicked() {
+					if coss.Button(c, git.PRCreateLabel, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Clicked() {
 						git.OnPRCreate()
 					}
 				}
