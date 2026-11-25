@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -79,7 +80,7 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 				}
 				ui.Text(c, warning).FillWidth()
 			} else {
-				ui.TextInput(c, &a.Name).FillWidth().Disabled(disabled).Placeholder(label("名称", "Name")).AutoFocus().OnSubmit(confirm)
+				coss.Input(c, &a.Name, coss.InputOptions{Placeholder: label("名称", "Name"), Disabled: disabled}).AutoFocus().OnSubmit(confirm)
 			}
 			if a.Error != "" {
 				ui.Text(c, a.Error).FillWidth()
@@ -98,7 +99,11 @@ func remoteFileActionsView(c *ui.Context, m Model, s remotestore.FileSnapshot, d
 				if a.Operation == "remove" {
 					title = label("确认永久删除", "Confirm permanent deletion")
 				}
-				if ui.Button(c, title).Disabled(disabled || !s.Bound || !s.Loaded || a.Operation != "remove" && strings.TrimSpace(a.Name) == "").Clicked() {
+				variant := coss.ButtonDefault
+				if a.Operation == "remove" {
+					variant = coss.ButtonDestructive
+				}
+				if coss.Button(c, title, coss.ButtonOptions{Variant: variant, Size: coss.ButtonSM, Disabled: disabled || !s.Bound || !s.Loaded || a.Operation != "remove" && strings.TrimSpace(a.Name) == ""}).Clicked() {
 					confirm()
 				}
 			})

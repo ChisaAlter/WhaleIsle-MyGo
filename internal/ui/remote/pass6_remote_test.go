@@ -13,6 +13,7 @@ import (
 
 	"whaleisle/internal/config"
 	"whaleisle/internal/desktop/phoneremote"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 )
 
@@ -126,7 +127,9 @@ func TestPass6RemoteGatewayMatchesReference(t *testing.T) {
 	} {
 		pass6RequireBefore(t, tt, pair[0], pair[1])
 	}
-	// The text fields are 220 wide, the bind pill is as wide as its label, and every control ends at the row's edge.
+	// The text fields are 220 wide (their inner coss.Input text box is inset by
+	// design.BorderWidth on each side), the bind pill is as wide as its label,
+	// and every control ends at the row's edge.
 	var right float32
 	for _, control := range []string{
 		i18n.T(KeyPass6RemoteRelayLabel),
@@ -137,17 +140,19 @@ func TestPass6RemoteGatewayMatchesReference(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing control %q", control)
 		}
-		minW, maxW := float32(220), float32(220)
+		minW, maxW := float32(220)-2*design.BorderWidth, float32(220)-2*design.BorderWidth
+		edge := box.X + box.W + design.BorderWidth
 		if control == i18n.T(KeyPass6RemoteBindLabel) {
 			minW, maxW = 40, 200
+			edge = box.X + box.W
 		}
 		if box.W < minW-.5 || box.W > maxW+.5 {
 			t.Fatalf("%q is %v wide, want %v to %v", control, box.W, minW, maxW)
 		}
 		if right == 0 {
-			right = box.X + box.W
-		} else if box.X+box.W != right {
-			t.Fatalf("%q does not share the control column edge: %v vs %v", control, box.X+box.W, right)
+			right = edge
+		} else if edge != right {
+			t.Fatalf("%q does not share the control column edge: %v vs %v", control, edge, right)
 		}
 	}
 	refresh, ok := tt.Find(i18n.T(KeyPass6RemoteRefreshAction))

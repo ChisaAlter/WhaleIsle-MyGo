@@ -6,6 +6,7 @@ import (
 	"strings"
 	"whaleisle/internal/errcopy"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	fonttheme "whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets"
 
@@ -92,7 +93,7 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 				ui.Text(c, label("最近连接：", "Last seen: ")+device.LastSeenAt).FontSize(fonttheme.InterfaceSize(10)).TextColor(muted)
 			}
 			if e.EditingID == device.ID {
-				ui.TextInput(c, &e.Name).FillWidth().Disabled(disabled)
+				coss.Input(c, &e.Name, coss.InputOptions{Disabled: disabled})
 				ui.Row(c).Gap(8).Children(func() {
 					if widgets.Button(c, colors, label("保存名称", "Save name"), widgets.ButtonSpec{Variant: widgets.ButtonPrimary, Size: widgets.ButtonSmall}).Disabled(disabled || strings.TrimSpace(e.Name) == "").Clicked() {
 						run("rename", device.ID, e.Name)
@@ -136,10 +137,10 @@ func viewPhoneDevices(c *ui.Context, m Model, fg, muted, field, border, accent u
 	if e.ConfirmRevoke {
 		ui.Text(c, label("撤销并生成新长期链接？旧链接不能再配对，已配对设备保持连接。", "Revoke and replace this link? It will stop pairing new devices; paired devices stay connected.")).FillWidth().TextColor(muted)
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				e.ConfirmRevoke = false
 			}
-			if ui.Button(c, label("撤销并生成新链接", "Revoke and replace")).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("撤销并生成新链接", "Revoke and replace"), coss.ButtonOptions{Variant: coss.ButtonDestructive, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				run("revoke-link", "", "")
 			}
 		})

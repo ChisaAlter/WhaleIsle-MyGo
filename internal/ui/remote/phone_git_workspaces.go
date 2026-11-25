@@ -1,6 +1,9 @@
 package remote
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/coss"
+)
 
 // Candidate identities come from the current local Host/Project registry, never
 // an arbitrary path field or phone-supplied path.
@@ -22,7 +25,7 @@ func phoneGitWorkspaces(c *ui.Context, m Model) {
 		for _, row := range m.PhoneGitWorkspaces {
 			row := row
 			selected := row.Selected
-			if ui.Checkbox(c.Key(row.ID), &selected, row.Title+" · "+row.Root).Disabled(!m.RemoteEnabled).Changed() {
+			if coss.Checkbox(c.Key(row.ID), &selected, row.Title+" · "+row.Root, coss.CheckOptions{Disabled: !m.RemoteEnabled}).Changed() {
 				m.OnTogglePhoneGitWorkspace(row.ID, selected)
 			}
 		}

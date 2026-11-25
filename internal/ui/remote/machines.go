@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	fonttheme "whaleisle/internal/ui/theme"
 )
@@ -245,8 +246,8 @@ func machineEditor(c *ui.Context, m Model, s remotestore.Snapshot, e *MachineEdi
 		})
 		editorField(c, label("默认远程目录", "Default remote path"), &draft.Workspace, s.Busy, label("可选，如 /srv/app", "Optional, e.g. /srv/app"), false, border)
 		ui.Column(c).FillWidth().MinWidth(0).Gap(6).Children(func() {
-			ui.Checkbox(c, &o.UseAgent, label("使用 SSH Agent", "Use SSH agent")).Disabled(s.Busy)
-			ui.Checkbox(c, &o.KeyboardInteractive, label("键盘交互（OTP/二次验证）", "Keyboard-interactive (OTP/2FA)")).Disabled(s.Busy)
+			coss.Checkbox(c, &o.UseAgent, label("使用 SSH Agent", "Use SSH agent"), coss.CheckOptions{Disabled: s.Busy})
+			coss.Checkbox(c, &o.KeyboardInteractive, label("键盘交互（OTP/二次验证）", "Keyboard-interactive (OTP/2FA)"), coss.CheckOptions{Disabled: s.Busy})
 			ui.Switch(c, &o.EncryptPassword).Label(label("存入系统钥匙串", "Store in system keychain")).Disabled(s.Busy)
 		})
 		ui.Text(c, label("跳板机", "Jump host")).FontSize(fonttheme.InterfaceSize(13)).FontWeight(600)
@@ -299,20 +300,22 @@ func segmentedRow(c *ui.Context, key string, labels []string, active int, disabl
 		}
 		for index, caption := range labels {
 			i, text := index, caption
-			segment := ui.Button(c.Key(key+"-"+strconv.Itoa(i)), "").Label(text).
-				Width(width).Height(height).Padding(0).Radius(fonttheme.ContextRadii(c).SM).
-				BorderWidth(0).Background(ui.Transparent).AlignItems(ui.Center).Justify(ui.Center)
-			if disabled {
-				segment = segment.Disabled(true).Opacity(.4)
-			}
 			labelColor := c.Theme().Text
+			bg := ui.Transparent
 			if i == active {
-				segment.Background(labelColor)
+				bg = labelColor
 				labelColor = c.Theme().Background
 			}
-			segment.Children(func() {
-				ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(labelColor)
-			})
+			segment := coss.Button(c.Key(key+"-"+strconv.Itoa(i)), "", coss.ButtonOptions{
+				Variant:  coss.ButtonGhost,
+				Size:     coss.ButtonSM,
+				Disabled: disabled,
+				Pressed:  i == active,
+				Label:    text,
+				Content: func() {
+					ui.Text(c, text).FontSize(fonttheme.InterfaceSize(12)).FixedLineHeight(fonttheme.InterfaceSize(18)).TextColor(labelColor)
+				},
+			}).Width(width).Height(height).Padding(0).Radius(fonttheme.ContextRadii(c).SM).Background(bg).AlignItems(ui.Center).Justify(ui.Center)
 			if segment.Clicked() && !disabled {
 				picked = i
 			}
@@ -325,10 +328,13 @@ func segmentedRow(c *ui.Context, key string, labels []string, active int, disabl
 func editorField(c *ui.Context, title string, value *string, disabled bool, placeholder string, password bool, border ui.Color) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(4).Children(func() {
 		ui.Text(c, title).FontSize(fonttheme.InterfaceSize(12)).TextColor(c.Theme().TextMuted)
-		input := ui.TextInput(c, value).FillWidth().MinWidth(0).Height(32).Radius(8).Border(.5, border).Padding(0, 10).FontSize(fonttheme.InterfaceSize(13)).Disabled(disabled).Placeholder(placeholder)
-		if password {
-			input.Password()
-		}
+		coss.Input(c, value, coss.InputOptions{
+			Size:        coss.InputMD,
+			Placeholder: placeholder,
+			Disabled:    disabled,
+			Password:    password,
+			Label:       title,
+		})
 	})
 }
 

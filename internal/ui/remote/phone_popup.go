@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -13,7 +14,7 @@ import (
 // PhoneMenuAction is the same shortcut within gateway settings. The shell's
 // launcher uses PhonePopup with its own persistent anchor/open state.
 func PhoneMenuAction(c *ui.Context, m Model) {
-	anchor := ui.Button(c.Key("phone-connect-popup-action"), label("连接手机…", "Connect phone…"))
+	anchor := coss.Button(c.Key("phone-connect-popup-action"), label("连接手机…", "Connect phone…"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM})
 	open := ui.Local(anchor, "phone-popup-open", func() bool { return false })
 	if anchor.Clicked() {
 		*open = !*open
@@ -56,7 +57,7 @@ func PhonePopup(c *ui.Context, anchor ui.Element, open *bool, m Model) {
 				if m.RemoteEnabled {
 					caption = label("关闭", "Turn off")
 				}
-				if ui.Button(c, caption).Disabled(busy || m.OnTogglePairing == nil).Clicked() {
+				if coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: busy || m.OnTogglePairing == nil}).Clicked() {
 					m.OnTogglePairing(!m.RemoteEnabled)
 				}
 			})
@@ -107,21 +108,21 @@ func PhonePopup(c *ui.Context, anchor ui.Element, open *bool, m Model) {
 						ui.Text(c, m.PhoneActionMsg).FillWidth().FontSize(theme.InterfaceSize(12)).TextColor(accent)
 					}
 					ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
-						if ui.Button(c, label("复制链接", "Copy link")).Disabled(!usable || m.OnCopyConnectURL == nil).Clicked() {
+						if coss.Button(c, label("复制链接", "Copy link"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: !usable || m.OnCopyConnectURL == nil}).Clicked() {
 							m.OnCopyConnectURL()
 						}
-						if ui.Button(c, label("打开", "Open")).Disabled(!usable || m.OnOpenConnectURL == nil).Clicked() {
+						if coss.Button(c, label("打开", "Open"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: !usable || m.OnOpenConnectURL == nil}).Clicked() {
 							m.OnOpenConnectURL()
 						}
-						if ui.Button(c, label("刷新", "Refresh")).Disabled(busy || m.OnRefreshPhone == nil).Clicked() {
+						if coss.Button(c, label("刷新", "Refresh"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: busy || m.OnRefreshPhone == nil}).Clicked() {
 							m.OnRefreshPhone()
 						}
 					})
 					enabled := m.PhoneGitEnabled
-					if ui.Checkbox(c, &enabled, label("允许手机 Git 操作", "Allow phone Git")).Disabled(busy || m.OnTogglePhoneGit == nil).Changed() {
+					if coss.Checkbox(c, &enabled, label("允许手机 Git 操作", "Allow phone Git"), coss.CheckOptions{Disabled: busy || m.OnTogglePhoneGit == nil}).Changed() {
 						m.OnTogglePhoneGit(enabled)
 					}
-					if m.OnTogglePhoneGitWorkspace != nil && ui.Button(c, label("管理 Git 工作区…", "Manage Git workspaces…")).Disabled(busy).Clicked() {
+					if m.OnTogglePhoneGitWorkspace != nil && coss.Button(c, label("管理 Git 工作区…", "Manage Git workspaces…"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: busy}).Clicked() {
 						state.git = true
 					}
 				})
@@ -129,10 +130,10 @@ func PhonePopup(c *ui.Context, anchor ui.Element, open *bool, m Model) {
 			ui.Box(c).FillWidth().Height(.5).Background(border)
 			ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
 				count := phoneSnapshot(m).DeviceCount
-				if ui.Button(c, fmt.Sprintf(label("已配对设备 (%d)", "Paired devices (%d)"), count)).Grow(1).MinWidth(0).Disabled(busy).Clicked() {
+				if coss.Button(c, fmt.Sprintf(label("已配对设备 (%d)", "Paired devices (%d)"), count), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: busy}).Grow(1).MinWidth(0).Clicked() {
 					state.devices = true
 				}
-				if ui.Button(c, label("收起", "Close")).Disabled(busy).Clicked() {
+				if coss.Button(c, label("收起", "Close"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: busy}).Clicked() {
 					dismiss()
 				}
 			})
@@ -147,10 +148,10 @@ func PhonePopup(c *ui.Context, anchor ui.Element, open *bool, m Model) {
 					ui.Column(c).FillWidth().MinWidth(0).Gap(10).Children(func() { viewPhoneDevices(c, m, fg, muted, field, border, accent) })
 				})
 				ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-					if ui.Button(c, label("刷新", "Refresh")).Disabled(busy || m.OnRefreshPhone == nil).Clicked() {
+					if coss.Button(c, label("刷新", "Refresh"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: busy || m.OnRefreshPhone == nil}).Clicked() {
 						m.OnRefreshPhone()
 					}
-					if ui.Button(c, label("返回", "Back")).Disabled(runtime.DeviceAction.Busy).Clicked() {
+					if coss.Button(c, label("返回", "Back"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: runtime.DeviceAction.Busy}).Clicked() {
 						state.devices = false
 					}
 				})
@@ -162,7 +163,7 @@ func PhonePopup(c *ui.Context, anchor ui.Element, open *bool, m Model) {
 		ui.DialogBaseWithOptions(c.Key("phone-git-workspaces-popup"), &visible, ui.DialogOptions{DismissDisabled: busy, OnDismiss: func() { state.git = false }}, func(backdrop, panel ui.Element) {
 			chrome.DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 420, 16).MaxHeight(height - 24).Gap(12).Children(func() {
 				ui.Scroll(c).FillWidth().MinHeight(0).MaxHeight(max(float32(80), height-120)).Children(func() { phoneGitWorkspaces(c, m) })
-				if ui.Button(c, label("返回", "Back")).Disabled(busy).Clicked() {
+				if coss.Button(c, label("返回", "Back"), coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: busy}).Clicked() {
 					state.git = false
 				}
 			})

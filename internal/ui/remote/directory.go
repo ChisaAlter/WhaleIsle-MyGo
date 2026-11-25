@@ -6,6 +6,8 @@ import (
 	"whaleisle/internal/state"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	fonttheme "whaleisle/internal/ui/theme"
 )
 
@@ -21,7 +23,7 @@ func viewDirectory(c *ui.Context, m Model) {
 		directoryHeader(c, m, s)
 		ui.Scroll(c).FillWidth().Height(280).MinHeight(0).Children(func() { directoryContents(c, m, s) })
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).Children(func() {
-			if ui.Button(c, label("新建文件夹", "New folder")).Disabled(directoryBlocked(m, s) || !s.Directory.CanChoose()).Clicked() {
+			if coss.Button(c, label("新建文件夹", "New folder"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: directoryBlocked(m, s) || !s.Directory.CanChoose()}).Clicked() {
 				m.Machines.ShowDirectoryCreate(true)
 			}
 			directoryChoose(c, m, s)
@@ -40,28 +42,31 @@ func directoryHeader(c *ui.Context, m Model, s remotestore.Snapshot) {
 	ui.Column(c).FillWidth().MinWidth(0).Shrink(0).Gap(8).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, label("远程文件", "Remote files")).Bold().Grow(1).MinWidth(0)
-			if ui.Button(c, label("主目录", "Home")).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("主目录", "Home"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				m.Machines.BrowseHome()
 			}
 			parent := remotestore.ParentDirectory(d.Path)
-			if ui.Button(c, label("上级", "Up")).Disabled(disabled || !d.Loaded || d.Path == "" || parent == d.Path).Clicked() {
+			if coss.Button(c, label("上级", "Up"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled || !d.Loaded || d.Path == "" || parent == d.Path}).Clicked() {
 				m.Machines.Browse(parent)
 			}
-			if ui.Button(c, label("刷新", "Refresh")).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("刷新", "Refresh"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				m.Machines.Browse(d.Path)
 			}
 		})
 		directoryBreadcrumb(c, m, d, disabled, muted)
 		path := d.InputPath
 		ui.Row(c).FillWidth().MinWidth(0).Gap(8).Children(func() {
-			input := ui.TextInput(c, &path).Label(label("远程目录路径", "Remote directory path")).Grow(1).MinWidth(0).Disabled(disabled)
+			var input ui.Element
+			ui.Box(c).Grow(1).MinWidth(0).Children(func() {
+				input = coss.Input(c, &path, coss.InputOptions{Label: label("远程目录路径", "Remote directory path"), Disabled: disabled})
+			})
 			input.OnChange(func() { m.Machines.SetDirectoryPath(path) })
 			input.OnShortcut(0, ui.KeyEnter, func() {
 				if !disabled {
 					m.Machines.Browse(path)
 				}
 			})
-			if ui.Button(c, label("前往", "Go")).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("前往", "Go"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonMD, Disabled: disabled}).Clicked() {
 				m.Machines.Browse(path)
 			}
 		})
@@ -82,7 +87,7 @@ func directoryContents(c *ui.Context, m Model, s remotestore.Snapshot) {
 		if d.Error != nil {
 			ui.Text(c, label("无法读取此目录", "This directory could not be read")).FillWidth().Bold().TextColor(c.Theme().Danger)
 			ui.Text(c, d.Error.SentenceText()).FillWidth().Selectable().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
-			if ui.Button(c, label("重试", "Retry")).Disabled(disabled).Clicked() {
+			if coss.Button(c, label("重试", "Retry"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 				m.Machines.Browse(d.Path)
 			}
 			return
@@ -101,7 +106,7 @@ func directoryContents(c *ui.Context, m Model, s remotestore.Snapshot) {
 
 func directoryChoose(c *ui.Context, m Model, s remotestore.Snapshot) {
 	d, disabled := s.Directory, directoryBlocked(m, s)
-	if (m.OnUseWorkspaceChoice != nil || m.OnUseWorkspaceMirror != nil) && ui.PrimaryButton(c, label("选择此目录作为工作区", "Use this directory as workspace")).Disabled(disabled || !d.CanChoose()).Clicked() {
+	if (m.OnUseWorkspaceChoice != nil || m.OnUseWorkspaceMirror != nil) && coss.Button(c, label("选择此目录作为工作区", "Use this directory as workspace"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: disabled || !d.CanChoose()}).Clicked() {
 		if m.OnUseWorkspaceChoice != nil {
 			m.Machines.ChooseDirectoryWithChoice(m.OnUseWorkspaceChoice)
 		} else {
@@ -170,7 +175,7 @@ func directoryBreadcrumb(c *ui.Context, m Model, d remotestore.DirectorySnapshot
 				ui.Text(c, crumb.name).FontSize(fonttheme.InterfaceSize(12)).FontWeight(500)
 				continue
 			}
-			if ui.Button(c, crumb.name).FontSize(fonttheme.InterfaceSize(12)).BorderWidth(0).Padding(0, 4).Background(ui.Transparent).TextColor(muted).Disabled(disabled).Clicked() {
+			if coss.Button(c, crumb.name, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: disabled}).Padding(0, design.Sp(1)).Clicked() {
 				m.Machines.Browse(crumb.path)
 			}
 		}
@@ -205,7 +210,7 @@ func directoryRow(c *ui.Context, m Model, entry remotestore.DirectoryEntry, disa
 			name = entry.Path
 		}
 		if dir {
-			if ui.Button(c, name).Label(name).BorderWidth(0).Padding(0).Justify(ui.Start).Background(ui.Transparent).Grow(1).MinWidth(0).Disabled(disabled || entry.Path == "").Clicked() {
+			if coss.Button(c, name, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonSM, Disabled: disabled || entry.Path == ""}).Label(name).Padding(0).Justify(ui.Start).Grow(1).MinWidth(0).Clicked() {
 				m.Machines.Browse(entry.Path)
 			}
 		} else {
@@ -232,7 +237,7 @@ func directoryCreate(c *ui.Context, m Model, d remotestore.DirectorySnapshot, di
 			ui.Text(c, label("新建文件夹", "New folder")).Bold()
 			ui.Text(c, d.Path).FillWidth().FontSize(fonttheme.InterfaceSize(12)).TextColor(muted).Selectable()
 			name := d.NewName
-			input := ui.TextInput(c, &name).Label(label("文件夹名称", "Folder name")).FillWidth().Disabled(disabled).AutoFocus()
+			input := coss.Input(c, &name, coss.InputOptions{Label: label("文件夹名称", "Folder name"), Disabled: disabled}).AutoFocus()
 			input.OnChange(func() { m.Machines.SetDirectoryName(name) })
 			create := func() {
 				if !disabled && d.CanChoose() && strings.TrimSpace(name) != "" {
@@ -246,10 +251,10 @@ func directoryCreate(c *ui.Context, m Model, d remotestore.DirectorySnapshot, di
 				ui.Text(c, d.CreateError.SentenceText()).FillWidth().Selectable().TextColor(c.Theme().Danger)
 			}
 			ui.Row(c).FillWidth().Justify(ui.End).Gap(8).Children(func() {
-				if ui.Button(c, label("取消", "Cancel")).Disabled(disabled).Clicked() {
+				if coss.Button(c, label("取消", "Cancel"), coss.ButtonOptions{Variant: coss.ButtonOutline, Size: coss.ButtonSM, Disabled: disabled}).Clicked() {
 					m.Machines.ShowDirectoryCreate(false)
 				}
-				if ui.PrimaryButton(c, label("创建", "Create")).Disabled(disabled || !d.CanChoose() || strings.TrimSpace(name) == "").Clicked() {
+				if coss.Button(c, label("创建", "Create"), coss.ButtonOptions{Variant: coss.ButtonDefault, Size: coss.ButtonSM, Disabled: disabled || !d.CanChoose() || strings.TrimSpace(name) == ""}).Clicked() {
 					create()
 				}
 			})

@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	remotestore "whaleisle/internal/store/remote"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -187,10 +188,15 @@ func fileWorkspaceBody(c *ui.Context, m Model) {
 				title += " •"
 			}
 			ui.Row(c.Key(remotestore.ResourceAddress(s.SessionID, resource.Path))).Gap(2).Children(func() {
-				if ui.Button(c, title).Role(ui.RoleTab).Selected(s.FilePath == resource.Path).Disabled(s.Busy).Clicked() {
+				tabSelected := s.FilePath == resource.Path
+				tabVariant := coss.ButtonGhost
+				if tabSelected {
+					tabVariant = coss.ButtonSecondary
+				}
+				if coss.Button(c, title, coss.ButtonOptions{Variant: tabVariant, Size: coss.ButtonSM, Disabled: s.Busy, Pressed: tabSelected}).Role(ui.RoleTab).Selected(tabSelected).Clicked() {
 					m.Files.Open(resource.Path)
 				}
-				if ui.Button(c, "×").Label(label("关闭远程文件 ", "Close remote file ") + resource.Path).Disabled(s.Busy).Clicked() {
+				if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: s.Busy}).Label(label("关闭远程文件 ", "Close remote file ") + resource.Path).Clicked() {
 					m.Files.RequestClose(resource.Path)
 				}
 			})
@@ -242,7 +248,7 @@ func fileTreeRow(c *ui.Context, m Model, s remotestore.FileSnapshot, item remote
 		}
 	}
 	ui.Row(c.Key(s.BindingID+"\x00"+s.RemoteIdentity+"\x00"+item.Path)).FillWidth().MinWidth(0).Padding(0, 0, 0, float32(depth)*14).Children(func() {
-		row := ui.Button(c, caption).Grow(1).MinWidth(0).Height(26).FontSize(theme.InterfaceSize(12)).BorderWidth(0).Disabled(disabled || !s.Bound)
+		row := coss.Button(c, caption, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: disabled || !s.Bound}).Grow(1).MinWidth(0).Height(26).Justify(ui.Start)
 		row.ContextMenu(func(menu *ui.Menu) {
 			if menu.Item(label("打开 / 展开", "Open / expand")).Disabled(disabled).Chosen() {
 				open()
