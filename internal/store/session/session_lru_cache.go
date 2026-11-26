@@ -3,12 +3,15 @@ package session
 import (
 	"encoding/json"
 	"time"
+	"unsafe"
 
 	"whaleisle/internal/dsh"
-	"whaleisle/internal/workflowrun"
 )
 
-const defaultSessionCacheLimit = 24
+const (
+	defaultSessionCacheLimit    = 24
+	defaultSessionCacheMaxBytes = 64 << 20 // 64 MiB estimated memory budget
+)
 
 type sessionCacheKey struct {
 	client         *dsh.Client
@@ -17,29 +20,26 @@ type sessionCacheKey struct {
 }
 
 type cachedSessionState struct {
-	key                        sessionCacheKey
-	messages                   []Message
-	trajectoryBoundaries       map[float64]json.RawMessage
-	workflowBoundaries         map[float64]json.RawMessage
-	systemPromptAnchors        map[float64]float64
-	planBoard                  PlanBoard
-	planHistoryBinding         string
-	turnFilesHistoryBinding    string
-	historyThroughSeq          float64
-	historyHasMore             bool
-	messageRatings             map[string]string
-	durableTimedCache          []Message
-	durableUnmappedCompactions []Message
-	durableStepIndices         map[string][]int
-	durableCacheValid          bool
-	durableHasEdits            bool
-	msgProjCache               []Message
-	workflowRunsCache          []workflowrun.Run
+	key                     sessionCacheKey
+	estBytes                int64
+	messages                []Message
+	trajectoryBoundaries    map[float64]json.RawMessage
+	workflowBoundaries      map[float64]json.RawMessage
+	systemPromptAnchors     map[float64]float64
+	planBoard               PlanBoard
+	planHistoryBinding      string
+	turnFilesHistoryBinding string
+	historyThroughSeq       float64
+	historyHasMore          bool
+	messageRatings          map[string]string
+	durableHasEdits         bool
 }
 
 type sessionLRUCache struct {
-	limit   int
-	entries []*cachedSessionState // oldest at 0, most recently used at len-1
+	limit      int
+	maxBytes   int64
+	totalBytes int64
+	entries    []*cachedSessionState // oldest at 0, most recently used at len-1
 }
 
 func (c *sessionLRUCache) maxEntries() int {
@@ -47,6 +47,41 @@ func (c *sessionLRUCache) maxEntries() int {
 		return c.limit
 	}
 	return defaultSessionCacheLimit
+}
+
+func (c *sessionLRUCache) byteBudget() int64 {
+	if c.maxBytes > 0 {
+		return c.maxBytes
+	}
+	return defaultSessionCacheMaxBytes
+}
+
+func estimateCachedSessionBytes(entry *cachedSessionState) int64 {
+	if entry == nil {
+		return 0
+	}
+	const messageStructBytes = int64(unsafe.Sizeof(Message{}))
+	total := int64(unsafe.Sizeof(*entry)) + int64(len(entry.messages))*messageStructBytes
+	for i := range entry.messages {
+		m := &entry.messages[i]
+		total += int64(len(m.ID) + len(m.SourceMessageID) + len(m.ImageRef) + len(m.ContentBlock) +
+			len(m.Role) + len(m.Body) + len(m.EventType) + len(m.Raw) + len(m.Model) + len(m.Args))
+		for _, f := range m.Files {
+			total += int64(len(f)) + 16
+		}
+	}
+	for _, raw := range entry.trajectoryBoundaries {
+		total += int64(len(raw)) + 48
+	}
+	for _, raw := range entry.workflowBoundaries {
+		total += int64(len(raw)) + 48
+	}
+	total += int64(len(entry.systemPromptAnchors)) * 32
+	for k, v := range entry.messageRatings {
+		total += int64(len(k)+len(v)) + 48
+	}
+	total += int64(len(entry.planBoard.Todos)*64 + len(entry.planBoard.Queue)*96)
+	return total
 }
 
 func (c *sessionLRUCache) get(key sessionCacheKey) (*cachedSessionState, bool) {
@@ -66,20 +101,36 @@ func (c *sessionLRUCache) put(entry *cachedSessionState) {
 	if entry == nil || entry.key.sessionID == "" {
 		return
 	}
+	entry.estBytes = estimateCachedSessionBytes(entry)
 	for i, e := range c.entries {
 		if e.key == entry.key {
+			c.totalBytes -= e.estBytes
 			copy(c.entries[i:], c.entries[i+1:])
-			c.entries[len(c.entries)-1] = entry
-			return
+			c.entries[len(c.entries)-1] = nil
+			c.entries = c.entries[:len(c.entries)-1]
+			break
 		}
 	}
-	limit := c.maxEntries()
-	if len(c.entries) >= limit {
-		copy(c.entries, c.entries[1:])
-		c.entries[len(c.entries)-1] = entry
+	budget := c.byteBudget()
+	if entry.estBytes > budget {
+		// Single session exceeds the entire cache budget; evict older entries
+		// rather than exceeding the budget with stale sessions.
+		c.clear()
 		return
 	}
 	c.entries = append(c.entries, entry)
+	c.totalBytes += entry.estBytes
+	limit := c.maxEntries()
+	for len(c.entries) > 0 && (len(c.entries) > limit || c.totalBytes > budget) {
+		evicted := c.entries[0]
+		c.totalBytes -= evicted.estBytes
+		copy(c.entries, c.entries[1:])
+		c.entries[len(c.entries)-1] = nil
+		c.entries = c.entries[:len(c.entries)-1]
+	}
+	if c.totalBytes < 0 {
+		c.totalBytes = 0
+	}
 }
 
 func (c *sessionLRUCache) removeSession(sessionID string) {
@@ -90,12 +141,17 @@ func (c *sessionLRUCache) removeSession(sessionID string) {
 	for _, e := range c.entries {
 		if e.key.sessionID != sessionID {
 			kept = append(kept, e)
+		} else {
+			c.totalBytes -= e.estBytes
 		}
 	}
 	for i := len(kept); i < len(c.entries); i++ {
 		c.entries[i] = nil
 	}
 	c.entries = kept
+	if c.totalBytes < 0 {
+		c.totalBytes = 0
+	}
 }
 
 func (c *sessionLRUCache) clear() {
@@ -103,6 +159,26 @@ func (c *sessionLRUCache) clear() {
 		c.entries[i] = nil
 	}
 	c.entries = c.entries[:0]
+	c.totalBytes = 0
+}
+
+func cloneCachedTrajectoryBoundaries(in map[float64]json.RawMessage) map[float64]json.RawMessage {
+	if len(in) == 0 {
+		return nil
+	}
+	var out map[float64]json.RawMessage
+	for k, v := range in {
+		// Drop bulky request/header tool-schema payloads on backgrounding; the
+		// Host follow snapshot rehydrates full trajectory boundaries on return.
+		if typ, ok := peekEventType(v); ok && typ == "request/header" {
+			continue
+		}
+		if out == nil {
+			out = make(map[float64]json.RawMessage, len(in))
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func cloneRawBoundaryMap(in map[float64]json.RawMessage) map[float64]json.RawMessage {
@@ -144,7 +220,7 @@ func (s *Store) saveCurrentSessionToLRULocked() {
 	if s.selectedID == "" || !s.historyReady || s.historyErr != nil {
 		return
 	}
-	durable, volatile, splitOK := s.splitVolatileTailFastLocked()
+	durable, _, splitOK := s.splitVolatileTailFastLocked()
 	if !splitOK {
 		durable = make([]Message, 0, len(s.messages))
 		for _, m := range s.messages {
@@ -152,9 +228,12 @@ func (s *Store) saveCurrentSessionToLRULocked() {
 				durable = append(durable, m)
 			}
 		}
-		volatile = nil
 	} else {
 		durable = append([]Message(nil), durable...)
+	}
+	var cachedBoundaries map[float64]json.RawMessage
+	if !s.trajectoryDisabled {
+		cachedBoundaries = cloneCachedTrajectoryBoundaries(s.trajectoryBoundaries)
 	}
 	entry := &cachedSessionState{
 		key: sessionCacheKey{
@@ -163,7 +242,7 @@ func (s *Store) saveCurrentSessionToLRULocked() {
 			sessionID:      s.selectedID,
 		},
 		messages:                durable,
-		trajectoryBoundaries:    cloneRawBoundaryMap(s.trajectoryBoundaries),
+		trajectoryBoundaries:    cachedBoundaries,
 		workflowBoundaries:      cloneRawBoundaryMap(s.workflowBoundaries),
 		systemPromptAnchors:     cloneFloatMap(s.systemPromptAnchors),
 		planBoard:               clonePlanBoard(s.planBoard),
@@ -174,16 +253,8 @@ func (s *Store) saveCurrentSessionToLRULocked() {
 		messageRatings:          cloneStringStringMap(s.messageRatings),
 		durableHasEdits:         s.durableHasEdits,
 	}
-	if s.durableCacheValid && !s.durableHasEdits {
-		entry.durableTimedCache = s.durableTimedCache
-		entry.durableUnmappedCompactions = s.durableUnmappedCompactions
-		entry.durableStepIndices = cloneStepIndicesMap(s.durableStepIndices)
-		entry.durableCacheValid = true
-	}
-	if len(volatile) == 0 && s.historyValid && s.historySelectedID == s.selectedID {
-		entry.msgProjCache = s.msgProjCache
-		entry.workflowRunsCache = s.workflowRunsCache
-	}
+	// Release rebuildable derived caches when backgrounding a session so
+	// inactive entries only hold authoritative durable state.
 	s.sessionLRU.put(entry)
 }
 
@@ -215,16 +286,12 @@ func (s *Store) restoreSessionFromLRULocked(sessionID string) bool {
 	s.historyReady = true
 	s.historyLoading = false
 	s.durableHasEdits = entry.durableHasEdits
-	if entry.durableCacheValid {
-		s.durableTimedCache = entry.durableTimedCache
-		s.durableUnmappedCompactions = entry.durableUnmappedCompactions
-		s.durableStepIndices = cloneStepIndicesMap(entry.durableStepIndices)
-		s.durableCacheValid = true
-	}
-	if entry.msgProjCache != nil {
-		s.msgProjCache = entry.msgProjCache
-		s.workflowRunsCache = entry.workflowRunsCache
-	}
+	s.durableTimedCache = nil
+	s.durableUnmappedCompactions = nil
+	s.durableStepIndices = nil
+	s.durableCacheValid = false
+	s.msgProjCache = nil
+	s.workflowRunsCache = nil
 	s.markHistoryDirtyLocked()
 	s.markBoundaryDirtyLocked()
 	s.markWorkflowDirtyLocked()

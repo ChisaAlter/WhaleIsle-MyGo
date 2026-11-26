@@ -133,8 +133,8 @@ func (s *Store) Update(ctx context.Context, row Entry, title, prompt *string, ch
 			Record json.RawMessage `json:"record"`
 		}
 		_ = json.Unmarshal(out, &result)
-		committed = result.Record
-		if len(result.Record) == 0 {
+		committed = bytes.TrimSpace(result.Record)
+		if len(committed) == 0 || bytes.Equal(committed, []byte("null")) || committed[0] != '{' {
 			err = fmt.Errorf("schedule update returned no committed record")
 		}
 	}
@@ -262,7 +262,9 @@ func mergeCommittedRows(rows []Entry, row Entry, expected, committed json.RawMes
 		// The committed rule owns its new instant/zone as well as text.
 		// Preserve catalog-only ownership and lifecycle metadata.
 		var record, metadata map[string]json.RawMessage
-		_ = json.Unmarshal(committed, &record)
+		if err := json.Unmarshal(committed, &record); err != nil || record == nil {
+			continue
+		}
 		_ = json.Unmarshal(rows[i].Raw, &metadata)
 		for _, key := range []string{"sessionId", "status", "lastDelivery"} {
 			if len(record[key]) == 0 && len(metadata[key]) != 0 {

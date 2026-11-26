@@ -161,17 +161,19 @@ func (s *Store) captureTrajectoryBoundaryWithSeqLocked(raw json.RawMessage, seqH
 }
 
 func trajectoryTokenTime(raw json.RawMessage, timestamp float64) *float64 {
-	var c struct {
-		Type           string  `json:"type"`
-		Text           string  `json:"text"`
-		ArgumentsDelta string  `json:"argumentsDelta"`
-		Name           *string `json:"name"`
-	}
+	var c parsedAssistantChunk
 	if json.Unmarshal(raw, &c) != nil {
 		return nil
 	}
+	return trajectoryTokenTimeParsed(&c, timestamp)
+}
+
+func trajectoryTokenTimeParsed(c *parsedAssistantChunk, timestamp float64) *float64 {
+	if c == nil {
+		return nil
+	}
 	token := (c.Type == "text-delta" || c.Type == "reasoning-delta") && c.Text != ""
-	token = token || c.Type == "tool-call-delta" && (c.ArgumentsDelta != "" || c.Name != nil)
+	token = token || c.Type == "tool-call-delta" && ((c.Delta != nil && *c.Delta != "") || c.Name != nil)
 	if !token {
 		return nil
 	}
@@ -431,7 +433,7 @@ func (s *Store) ensureTrajectoryTimingCacheLocked() (map[float64]trajectoryParse
 }
 
 func (s *Store) liveAttemptTimingLocked(ops map[string]*TrajectoryTiming) (string, *TrajectoryTiming, map[string]*TrajectoryTiming) {
-	live := make(map[string]*TrajectoryTiming)
+	var live map[string]*TrajectoryTiming
 	var liveOpID string
 	var liveOp *TrajectoryTiming
 	if a := s.assistantStream.active; a != nil {
@@ -446,8 +448,11 @@ func (s *Store) liveAttemptTimingLocked(ops map[string]*TrajectoryTiming) (strin
 			}
 			liveOpID = id
 			liveOp = t
-			for _, rowID := range a.rows {
-				live[rowID] = t
+			if len(a.rows) > 0 {
+				live = make(map[string]*TrajectoryTiming, len(a.rows))
+				for _, rowID := range a.rows {
+					live[rowID] = t
+				}
 			}
 		}
 	}

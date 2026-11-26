@@ -237,6 +237,7 @@ func (s *Files) run(action, path string) {
 		level.Loading, level.Error = true, nil
 		v.Tree[path] = level
 	}
+	prevFileLoaded := v.FileLoaded
 	v.Busy = true
 	if action == "read" {
 		v.FileLoaded = false
@@ -251,6 +252,7 @@ func (s *Files) run(action, path string) {
 	c, key, attachL, n := s.client, s.key, s.attachL, s.notify
 	owner := s.current
 	captured := *v
+	captured.FileLoaded = prevFileLoaded
 	parent, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	s.opL = s.op.Renew(parent)
 	op := s.opL
@@ -265,7 +267,18 @@ func (s *Files) run(action, path string) {
 		if owner != nil && !owner() {
 			s.mu.Lock()
 			if s.attachL == attachL && s.key == key && s.client == c {
-				s.states[key].Busy = false
+				v := s.states[key]
+				v.Busy = false
+				v.Operation = ""
+				if action == "browse" && v.Tree != nil {
+					if level, ok := v.Tree[path]; ok && level.Loading {
+						level.Loading = false
+						v.Tree[path] = level
+					}
+				}
+				if action == "read" && v.FilePath == captured.FilePath {
+					v.FileLoaded = captured.FileLoaded
+				}
 				s.publishLocked()
 			}
 			s.mu.Unlock()
@@ -333,8 +346,28 @@ func (s *Files) run(action, path string) {
 			}
 		}
 		s.mu.Lock()
-		if s.attachL != attachL || s.key != key || s.client != c || owner != nil && !owner() {
+		if s.attachL != attachL || s.key != key || s.client != c {
 			s.mu.Unlock()
+			return
+		}
+		if owner != nil && !owner() {
+			v = s.states[key]
+			v.Busy = false
+			v.Operation = ""
+			if action == "browse" && v.Tree != nil {
+				if level, ok := v.Tree[path]; ok && level.Loading {
+					level.Loading = false
+					v.Tree[path] = level
+				}
+			}
+			if action == "read" && v.FilePath == captured.FilePath {
+				v.FileLoaded = captured.FileLoaded
+			}
+			s.publishLocked()
+			s.mu.Unlock()
+			if n != nil {
+				n()
+			}
 			return
 		}
 		v = s.states[key]
@@ -348,6 +381,9 @@ func (s *Files) run(action, path string) {
 				}
 			} else {
 				v.Error = state.FaultOf(err)
+			}
+			if action == "read" && v.FilePath == captured.FilePath {
+				v.FileLoaded = captured.FileLoaded
 			}
 			if action == "write" {
 				v.Stale = true
@@ -386,6 +422,12 @@ func (s *Files) run(action, path string) {
 				}
 				if v.Expanded == nil {
 					v.Expanded = map[string]bool{}
+				}
+				if path != directory.Path {
+					if level, ok := v.Tree[path]; ok && level.Loading {
+						level.Loading = false
+						v.Tree[path] = level
+					}
 				}
 				v.Tree[directory.Path] = FileLevel{Loaded: true, Missing: directory.Missing, Items: append([]DirectoryEntry(nil), directory.Items...)}
 				v.Expanded[directory.Path] = true

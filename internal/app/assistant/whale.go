@@ -503,19 +503,18 @@ func (s *Service) WhaleTasksModel(ep harness.Endpoint) assistantui.WhaleTasksMod
 				if poll {
 					lctx := host.LifecycleContext()
 					if lctx.Err() == nil {
-						var timer *time.Timer
-						var stopWatcher func() bool
-						timer = time.AfterFunc(2*time.Second, func() {
-							if stopWatcher != nil {
-								stopWatcher()
+						go func() {
+							timer := time.NewTimer(2 * time.Second)
+							defer timer.Stop()
+							select {
+							case <-lctx.Done():
+								return
+							case <-timer.C:
+								if lctx.Err() == nil && current() {
+									execute("refresh", "")
+								}
 							}
-							if lctx.Err() == nil && current() {
-								execute("refresh", "")
-							}
-						})
-						stopWatcher = context.AfterFunc(lctx, func() {
-							timer.Stop()
-						})
+						}()
 					}
 				}
 			}

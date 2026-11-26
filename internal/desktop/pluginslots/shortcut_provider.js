@@ -2,16 +2,49 @@
  * reads it. This neither creates dshDesktop nor changes global platform marks. */
 (()=>{
  if(window!==window.top||location.origin!==__MYGO_ORIGIN__)return;
- let queue=Promise.resolve(),listeners=new Set(),timer=null,latest=-1,closed=false;
+ let queue=Promise.resolve(),listeners=new Set(),waitAbort=null,waitActive=false,waitTimer=null,latest=-1,closed=false;
  const publish=s=>{if(s&&s.sequence>latest){latest=s.sequence;for(const f of listeners)f(s)};return s};
+ const post=(body,signal)=>fetch('/__whale_shortcuts',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
  const request=body=>{
   const run=async()=>{
    if(closed)throw Error('Shortcut source closed');
-   const r=await fetch('/__whale_shortcuts',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+   const r=await post(body);
    if(!r.ok)throw Error('Shortcut preferences unavailable');
    return r.json();
   };
   const result=queue.then(run);queue=result.catch(()=>{});return result;
+ };
+ const stopWait=()=>{
+  waitActive=false;
+  if(waitTimer!==null){clearTimeout(waitTimer);waitTimer=null;}
+  if(waitAbort){waitAbort.abort();waitAbort=null;}
+ };
+ const startWait=()=>{
+  if(closed||waitActive||!listeners.size)return;
+  waitActive=true;
+  let backoff=1000;
+  const loop=async()=>{
+   while(!closed&&waitActive&&listeners.size){
+    const ctrl=typeof AbortController==='function'?new AbortController():null;
+    waitAbort=ctrl;
+    try{
+     const body=latest>=0?{operation:'wait',since:latest}:{operation:'snapshot'};
+     const r=await post(body,ctrl?ctrl.signal:undefined);
+     if(!r.ok)throw Error('Shortcut preferences unavailable');
+     const snap=await r.json();
+     publish(snap);
+     backoff=1000;
+    }catch(_){
+     if(closed||!waitActive||!listeners.size)break;
+     await new Promise(resolve=>{waitTimer=setTimeout(()=>{waitTimer=null;resolve()},backoff)});
+     backoff=Math.min(backoff*2,15000);
+    }finally{
+     if(waitAbort===ctrl)waitAbort=null;
+    }
+   }
+   waitActive=false;
+  };
+  void loop();
  };
  // A top-product-only subscription, not a command invocation API. The key
  // transport supplies physical gestures; original native.ts checks live frame
@@ -35,12 +68,12 @@
   edit:(edit,revision)=>request({operation:'edit',edit,revision}).then(r=>{publish(r.snapshot);return r}),
   subscribe:listener=>{
    listeners.add(listener);
-   if(timer===null)timer=setInterval(()=>{request({operation:'snapshot'}).then(publish).catch(()=>{})},750);
-   return ()=>{listeners.delete(listener);if(!listeners.size&&timer!==null){clearInterval(timer);timer=null}};
+   startWait();
+   return ()=>{listeners.delete(listener);if(!listeners.size)stopWait()};
   },
   // Recording ownership remains with the existing accepted-registry adapter.
   recording:async active=>{window.dispatchEvent(new CustomEvent('whaleisle-shortcut-recording',{detail:!!active}))},
  });
  Object.defineProperty(window,'whaleisleShortcutProvider',{value:Object.freeze({version:1,platform:__MYGO_PLATFORM__,shortcuts:api,guestKeyboard}),writable:false,configurable:false});
- window.addEventListener('pagehide',()=>{closed=true;listeners.clear();guestListeners.clear();if(timer!==null)clearInterval(timer)},{once:true});
+ window.addEventListener('pagehide',()=>{closed=true;listeners.clear();guestListeners.clear();stopWait()},{once:true});
 })();

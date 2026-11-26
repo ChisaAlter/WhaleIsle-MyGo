@@ -19,6 +19,37 @@ type assistantStreamState struct {
 	rebaseline       bool
 }
 
+const maxInactiveAssistantStreamRecords = 64
+
+type assistantStreamWireFrame struct {
+	Type            string          `json:"type"`
+	AttemptID       string          `json:"attemptId"`
+	Revision        *float64        `json:"revision"`
+	StartedAfterSeq float64         `json:"startedAfterSeq"`
+	Turn            float64         `json:"turn"`
+	Step            float64         `json:"step"`
+	Index           *int            `json:"index"`
+	Time            float64         `json:"time"`
+	Chunk           json.RawMessage `json:"chunk"`
+	Outcome         struct {
+		Kind      string  `json:"kind"`
+		EventType string  `json:"eventType"`
+		Seq       float64 `json:"seq"`
+	} `json:"outcome"`
+}
+
+type parsedAssistantChunk struct {
+	Type      string             `json:"type"`
+	Index     *int               `json:"index"`
+	Text      string             `json:"text"`
+	BlockType string             `json:"blockType"`
+	Block     json.RawMessage    `json:"block"`
+	ID        string             `json:"id"`
+	Name      *string            `json:"name"`
+	Delta     *string            `json:"argumentsDelta"`
+	Usage     map[string]float64 `json:"usage"`
+}
+
 type assistantStreamAttempt struct {
 	trajectoryFirstToken *float64
 	inspectorAfterSeq    *float64
@@ -29,6 +60,7 @@ type assistantStreamAttempt struct {
 	Step                 float64           `json:"step"`
 	NextIndex            int               `json:"nextIndex"`
 	Stream               []json.RawMessage `json:"stream"`
+	streamRecorded       bool
 	blocks               map[int]assistantStreamBlock
 	rows                 map[int]string
 	settlementSeq        float64
@@ -162,29 +194,22 @@ func (s *Store) publishAssistantDurableLocked(raw json.RawMessage, seq float64) 
 }
 
 func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
-	s.invalidateStreamViewLocked()
 	var wrap struct {
-		Frame struct {
-			Type            string          `json:"type"`
-			AttemptID       string          `json:"attemptId"`
-			Revision        *float64        `json:"revision"`
-			StartedAfterSeq float64         `json:"startedAfterSeq"`
-			Turn            float64         `json:"turn"`
-			Step            float64         `json:"step"`
-			Index           *int            `json:"index"`
-			Time            float64         `json:"time"`
-			Chunk           json.RawMessage `json:"chunk"`
-			Outcome         struct {
-				Kind      string  `json:"kind"`
-				EventType string  `json:"eventType"`
-				Seq       float64 `json:"seq"`
-			} `json:"outcome"`
-		} `json:"frame"`
+		Frame assistantStreamWireFrame `json:"frame"`
 	}
 	if json.Unmarshal(raw, &wrap) != nil {
+		s.invalidateStreamViewLocked()
 		return false
 	}
-	f, st := wrap.Frame, &s.assistantStream
+	return s.applyAssistantStreamFrameLocked(&wrap.Frame)
+}
+
+func (s *Store) applyAssistantStreamFrameLocked(frame *assistantStreamWireFrame) bool {
+	s.invalidateStreamViewLocked()
+	if frame == nil {
+		return false
+	}
+	f, st := *frame, &s.assistantStream
 	if st.rebaseline {
 		return false
 	}
@@ -216,11 +241,17 @@ func (s *Store) applyAssistantStreamLocked(raw json.RawMessage) bool {
 			return s.rebaselineAssistantLocked()
 		}
 		a.NextIndex++
+		a.streamRecorded = true
 		if a.inspectorAfterSeq == nil {
 			a.inspectorAfterSeq = s.inspectorCursorLocked()
 		}
-		a.Stream = append(a.Stream, encodeAssistantChunkRecord(f.Time, f.Chunk))
-		s.applyAssistantChunkLocked(a, f.Chunk, f.Time)
+		prevStreamLen := len(a.Stream)
+		appendedStream := false
+		if !s.trajectoryDisabled || len(a.Stream) < maxInactiveAssistantStreamRecords {
+			a.Stream = append(a.Stream, encodeAssistantChunkRecord(f.Time, f.Chunk))
+			appendedStream = true
+		}
+		s.applyAssistantChunkWithStreamLocked(a, f.Chunk, f.Time, prevStreamLen, appendedStream)
 		// Raw-only chunks also change the inspector, even when Chat text is unchanged.
 		return true
 	case "end":
@@ -297,8 +328,11 @@ func (s *Store) restoreAssistantStreamLocked(baseline *assistantStreamBaseline) 
 		a.inspectorAfterSeq = s.inspectorCursorLocked()
 	}
 	st.active = a
+	if len(chunks) > 0 {
+		a.streamRecorded = true
+	}
 	for _, chunk := range chunks {
-		s.applyAssistantChunkLocked(a, chunk.chunk, chunk.time)
+		s.applyAssistantChunkWithStreamLocked(a, chunk.chunk, chunk.time, 0, false)
 	}
 	// Snapshot chunks are historical; preparing tool rows are a live-only
 	// projection and must reopen only from subsequent live deltas.
@@ -325,15 +359,45 @@ func encodeAssistantChunkRecord(t float64, chunk json.RawMessage) json.RawMessag
 }
 
 func (s *Store) applyAssistantChunkLocked(a *assistantStreamAttempt, raw json.RawMessage, time float64) bool {
+	return s.applyAssistantChunkWithStreamLocked(a, raw, time, 0, false)
+}
+
+func (s *Store) applyAssistantChunkWithStreamLocked(a *assistantStreamAttempt, raw json.RawMessage, time float64, prevStreamLen int, appendedStream bool) bool {
 	s.markStreamDirtyLocked()
-	if a.trajectoryFirstToken == nil {
-		a.trajectoryFirstToken = trajectoryTokenTime(raw, time)
+	var parsed parsedAssistantChunk
+	parsedOK := json.Unmarshal(raw, &parsed) == nil
+	if parsedOK {
+		if a.trajectoryFirstToken == nil {
+			a.trajectoryFirstToken = trajectoryTokenTimeParsed(&parsed, time)
+		}
+		if parsed.Type == "usage" && !a.liveUsageInvalid {
+			if !appendedStream || a.liveUsageStreamLen == prevStreamLen {
+				for _, key := range []string{"inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"} {
+					if v, ok := parsed.Usage[key]; ok {
+						if a.liveUsage == nil {
+							a.liveUsage = make(map[string]float64)
+						}
+						a.liveUsage[key] += v
+					}
+				}
+			}
+		}
+		if appendedStream && !a.liveUsageInvalid && a.liveUsageStreamLen == prevStreamLen {
+			a.liveUsageStreamLen = len(a.Stream)
+		}
 	}
-	toolChanged := foldToolPreparingChunk(&a.tools, raw, time)
+	var toolChanged bool
+	if parsedOK {
+		toolChanged = foldToolPreparingChunkParsed(&a.tools, &parsed, time)
+	}
 	if a.blocks == nil {
 		a.blocks = make(map[int]assistantStreamBlock)
 	}
-	index, changed := foldAssistantChunk(a.blocks, raw, time)
+	var index int
+	var changed bool
+	if parsedOK {
+		index, changed = foldAssistantChunkParsed(a.blocks, &parsed, time)
+	}
 	if !changed {
 		return toolChanged
 	}
@@ -587,20 +651,28 @@ func readAssistantContentBlock(raw json.RawMessage, time float64) (assistantStre
 }
 
 func foldAssistantChunk(blocks map[int]assistantStreamBlock, raw json.RawMessage, time float64) (int, bool) {
-	var c struct {
-		Type      string          `json:"type"`
-		Index     int             `json:"index"`
-		Text      string          `json:"text"`
-		BlockType string          `json:"blockType"`
-		Block     json.RawMessage `json:"block"`
-	}
-	if json.Unmarshal(raw, &c) != nil || c.Index < 0 {
+	var c parsedAssistantChunk
+	if json.Unmarshal(raw, &c) != nil {
 		return 0, false
 	}
-	previous := blocks[c.Index]
+	return foldAssistantChunkParsed(blocks, &c, time)
+}
+
+func foldAssistantChunkParsed(blocks map[int]assistantStreamBlock, c *parsedAssistantChunk, time float64) (int, bool) {
+	if c == nil {
+		return 0, false
+	}
+	idx := 0
+	if c.Index != nil {
+		idx = *c.Index
+	}
+	if idx < 0 {
+		return 0, false
+	}
+	previous := blocks[idx]
 	switch c.Type {
 	case "block-start":
-		blocks[c.Index] = assistantStreamBlock{kind: c.BlockType, time: time}
+		blocks[idx] = assistantStreamBlock{kind: c.BlockType, time: time}
 	case "text-delta", "reasoning-delta", "text":
 		kind := "text"
 		if c.Type == "reasoning-delta" {
@@ -610,18 +682,18 @@ func foldAssistantChunk(blocks map[int]assistantStreamBlock, raw json.RawMessage
 			previous = assistantStreamBlock{kind: kind, time: time}
 		}
 		previous.text += c.Text
-		blocks[c.Index] = previous
+		blocks[idx] = previous
 	case "block-end":
 		block, ok := readAssistantContentBlock(c.Block, time)
 		if !ok {
-			blocks[c.Index] = assistantStreamBlock{time: time}
+			blocks[idx] = assistantStreamBlock{time: time}
 		} else {
-			blocks[c.Index] = block
+			blocks[idx] = block
 		}
 	default:
-		return c.Index, false // Tool/usage/control frames count in nextIndex, not answer text.
+		return idx, false // Tool/usage/control frames count in nextIndex, not answer text.
 	}
-	return c.Index, true
+	return idx, true
 }
 
 type assistantTimedChunk struct {

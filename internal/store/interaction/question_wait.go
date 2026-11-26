@@ -170,7 +170,11 @@ func (s *Store) runQuestionWait(ctx context.Context, agentID, callID, eventID st
 					outcome := dsh.EventResultOutcome{Kind: "rejected", Error: &dsh.EventRejection{Name: "UserQuestionError", Code: "ASK_TIMED_OUT", Message: "Question timed out"}}
 					p.Sending, p.Error = true, nil
 					s.responses[eventID] = outcome
-					ch <- outcome
+					s.closeDupDoneLocked(eventID)
+					select {
+					case ch <- outcome:
+					default:
+					}
 				}
 				s.unlockPublish()
 				s.fire()

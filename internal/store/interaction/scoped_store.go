@@ -69,7 +69,11 @@ func (s *ScopedStore) resolveScoped(id string, out dsh.EventResultOutcome) {
 	}}
 	p.Sending, p.Error = true, nil
 	s.responses[id] = out
-	waiter <- out
+	s.closeDupDoneLocked(id)
+	select {
+	case waiter <- out:
+	default:
+	}
 	s.unlockPublish()
 	s.fire()
 }

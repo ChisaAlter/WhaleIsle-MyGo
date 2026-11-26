@@ -117,37 +117,36 @@ func (s *Store) WriteAccessError() error {
 // Reload refreshes the Store snapshot, preserved unmodeled JSON fields, and
 // disk baseline under the cross-process credentials lock.
 func (s *Store) Reload() error {
-	var (
-		creds    Credentials
-		raw      map[string]json.RawMessage
-		baseline fileBaseline
-	)
-	err := withDirLock(s.dir, false, func() error {
-		var data []byte
-		var readErr error
-		data, baseline, readErr = readBytesAndBaseline(s.path)
+	return withDirLock(s.dir, false, func() error {
+		var (
+			creds    Credentials
+			raw      map[string]json.RawMessage
+			baseline fileBaseline
+		)
+		data, b, readErr := readBytesAndBaseline(s.path)
+		baseline = b
 		if errors.Is(readErr, fs.ErrNotExist) {
 			raw = map[string]json.RawMessage{}
-			return nil
-		}
-		if readErr != nil {
+		} else if readErr != nil {
 			return readErr
+		} else {
+			var decErr error
+			raw, creds, decErr = decodeDocumentBytes(s.dir, s.path, data)
+			if decErr != nil {
+				return decErr
+			}
 		}
-		var decErr error
-		raw, creds, decErr = decodeDocumentBytes(s.dir, s.path, data)
-		return decErr
+		// Publish into memory while still holding dirLock so concurrent
+		// Reload and UpdateChecked preserve disk-to-memory ordering.
+		s.mu.Lock()
+		clearRawMap(s.raw)
+		s.creds = cloneCredentials(creds)
+		s.raw = cloneRawMap(raw)
+		s.baseline = baseline
+		s.mu.Unlock()
+		clearRawMap(raw)
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	clearRawMap(s.raw)
-	s.creds = cloneCredentials(creds)
-	s.raw = cloneRawMap(raw)
-	s.baseline = baseline
-	clearRawMap(raw)
-	return nil
 }
 
 // Get returns a defensive copy of the committed Credentials.
@@ -223,19 +222,17 @@ func (s *Store) UpdateChecked(fn func(*Credentials) error) error {
 			return readErr
 		}
 		committedRaw = cloneRawMap(merged)
+		// Publish committed state while still holding the profile dir lock so
+		// concurrent Reload/UpdateChecked cannot publish out of disk order.
+		s.mu.Lock()
+		clearRawMap(s.raw)
+		s.creds = cloneCredentials(draft)
+		s.raw = cloneRawMap(committedRaw)
+		s.baseline = committedBaseline
+		s.mu.Unlock()
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	clearRawMap(s.raw)
-	s.creds = cloneCredentials(draft)
-	s.raw = cloneRawMap(committedRaw)
-	s.baseline = committedBaseline
-	return nil
+	return err
 }
 
 // LoadNamespace decodes a single encrypted namespace key from credentials.json

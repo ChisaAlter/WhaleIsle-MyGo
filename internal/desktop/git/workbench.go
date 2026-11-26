@@ -34,6 +34,14 @@ func localCommand(root, command string, args ...string) (string, error) {
 	return out, nil
 }
 
+func localDiffCommand(root, command string, args ...string) (string, error) {
+	out, err := runGitDiffCommand(root, 10*time.Second, combinedExecRunner, command, args...)
+	if err != nil {
+		return out, fmt.Errorf("git %s: %w: %s", command, err, out)
+	}
+	return out, nil
+}
+
 func Changes(root string) ([]Change, error) {
 	prefix, err := localCommand(root, "rev-parse", "--show-prefix")
 	if err != nil {
@@ -192,7 +200,7 @@ func UnstagePaths(root string, paths ...string) (string, error) {
 	return localCommand(root, "--literal-pathspecs", append([]string{"reset", "HEAD", "--"}, paths...)...)
 }
 func IndexReview(root string) (text, token string, err error) {
-	text, err = localCommand(root, "diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv")
+	text, err = localDiffCommand(root, "diff", "--cached", "--binary", "--no-color", "--no-ext-diff", "--no-textconv")
 	if err != nil {
 		return
 	}
@@ -259,7 +267,7 @@ func diffWorkingTree(root, path string, staged, head bool) (string, error) {
 			return "", err
 		}
 	}
-	args := []string{"diff", "--no-ext-diff", "--no-textconv"}
+	args := []string{"diff", "--no-color", "--no-ext-diff", "--no-textconv"}
 	unborn := false
 	if staged {
 		args = append(args, "--cached")
@@ -279,13 +287,18 @@ func diffWorkingTree(root, path string, staged, head bool) (string, error) {
 		filter = "."
 	}
 	args = append(args, "--", filter)
-	out, err := localCommand(root, "--literal-pathspecs", args...)
+	out, err := localDiffCommand(root, "--literal-pathspecs", args...)
 	if unborn {
-		unstaged, unstagedErr := localCommand(root, "--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--", filter)
+		unstaged, unstagedErr := localDiffCommand(root, "--literal-pathspecs", "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--", filter)
 		if err != nil && unstagedErr != nil {
 			return out, err
 		}
-		out += unstaged
+		if unstaged != "" {
+			if out != "" && !strings.HasSuffix(out, "\n") {
+				out += "\n"
+			}
+			out += unstaged
+		}
 		err = nil
 	}
 	if err != nil || staged {
