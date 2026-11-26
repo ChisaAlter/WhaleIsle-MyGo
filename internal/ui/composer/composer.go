@@ -377,7 +377,7 @@ func View(c *ui.Context, m Model) {
 		prefs := chrome.BackdropPreferences()
 		transparentActive := prefs.Transparent && chrome.BackdropHasWallpaper()
 		if glassMode && !transparentActive {
-			card.Material(glass.Blur{Radius: 16, Saturation: 0.35})
+			card.Material(glass.Blur{Radius: 28, Saturation: 0.45, Dither: true})
 		}
 		composerCardElevation(card, t, focused, inputDisabled)
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
@@ -388,8 +388,14 @@ func View(c *ui.Context, m Model) {
 				p.Fill(r, cardFill, cardRadius)
 			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
-			if t.IsDark() {
-				paintInnerBloom(p, r, cardRadius)
+			if glassMode {
+				peakAlpha := float32(0.35)
+				if t.IsDark() {
+					peakAlpha = 0.14
+				}
+				paintInnerBloom(p, r, cardRadius, peakAlpha)
+			} else if t.IsDark() {
+				paintInnerBloom(p, r, cardRadius, 0.056)
 			}
 		})
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {

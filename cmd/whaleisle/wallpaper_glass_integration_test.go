@@ -19,8 +19,10 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/frame"
+	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/settings"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets/markdown"
 )
 
 func testStripedWallpaperURL(t *testing.T, w, h int) string {
@@ -98,9 +100,28 @@ func TestApplyGlassThemeAndMinimalModeSyncDesignGlass(t *testing.T) {
 		t.Fatal("design.GlassEnabled() = true with glass theme off")
 	}
 
+	// Light mode with no wallpaper and no gradient must keep design.GlassEnabled()
+	// false even when GlassTheme is on, avoiding glass rims/shadows on flat white.
+	cfg := minimalModeStore(t)
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}
 	applyGlassTheme(true)
+	ui.NewTester(func(c *ui.Context) { s.beginAppearanceFrame(c) }, 320, 200)
+	if design.GlassEnabled() {
+		t.Fatal("design.GlassEnabled() = true on flat light window without backdrop")
+	}
+
+	// Enabling a gradient backdrop activates design.SetGlass, while minimal mode
+	// and SkinCodex disable it cleanly and identical frames do not churn Revision().
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	if err := cfg.SaveWallpaperBackground(prefs); err != nil {
+		t.Fatal(err)
+	}
+	s.wallpaperControls = nil
+	ui.NewTester(func(c *ui.Context) { s.beginAppearanceFrame(c) }, 320, 200)
 	if !design.GlassEnabled() {
-		t.Fatal("design.GlassEnabled() = false after applyGlassTheme(true)")
+		t.Fatal("design.GlassEnabled() = false with gradient backdrop and glass theme on")
 	}
 
 	applyMinimalMode(true)
@@ -109,14 +130,11 @@ func TestApplyGlassThemeAndMinimalModeSyncDesignGlass(t *testing.T) {
 	}
 
 	applyMinimalMode(false)
+	ui.NewTester(func(c *ui.Context) { s.beginAppearanceFrame(c) }, 320, 200)
 	if !design.GlassEnabled() {
-		t.Fatal("design.GlassEnabled() = false after leaving minimal mode with glass theme on")
+		t.Fatal("design.GlassEnabled() = false after leaving minimal mode with gradient backdrop")
 	}
 
-	// Codex flat skin disables design.SetGlass, and identical frames do not
-	// churn design.Revision().
-	cfg := minimalModeStore(t)
-	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}
 	p := theme.Defaults()
 	p.Light = theme.SkinCodex
 	theme.SetPreferences(p)
@@ -474,22 +492,25 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 			if !gotTokens.Glass {
 				t.Fatalf("expected Glass=true tokens in %s mode", tc.name)
 			}
-			if gotTokens.Code.A != gotTokens.Card.A {
-				t.Fatalf("expected Code alpha (%d) to follow Card alpha (%d)", gotTokens.Code.A, gotTokens.Card.A)
-			}
 			if tc.dark {
+				if gotTokens.Code != ui.RGB(27, 27, 28) {
+					t.Fatalf("dark Code = %+v, want #1b1b1c", gotTokens.Code)
+				}
 				if gotTokens.Border != ui.RGBA(255, 255, 255, 0.14) {
 					t.Fatalf("dark Border = %+v, want rgba(255,255,255,0.14)", gotTokens.Border)
 				}
-				if gotTokens.SidebarBorder != ui.RGBA(255, 255, 255, 0.10) {
-					t.Fatalf("dark SidebarBorder = %+v, want rgba(255,255,255,0.10)", gotTokens.SidebarBorder)
+				if gotTokens.SidebarBorder != ui.RGBA(255, 255, 255, 0.08) {
+					t.Fatalf("dark SidebarBorder = %+v, want rgba(255,255,255,0.08)", gotTokens.SidebarBorder)
 				}
 				if gotTokens.Input != ui.RGBA(255, 255, 255, 0.16) {
 					t.Fatalf("dark Input = %+v, want rgba(255,255,255,0.16)", gotTokens.Input)
 				}
 			} else {
-				if gotTokens.Border != ui.RGBA(0, 0, 0, 0.09) {
-					t.Fatalf("light Border = %+v, want rgba(0,0,0,0.09)", gotTokens.Border)
+				if gotTokens.Code != ui.RGB(249, 250, 251) {
+					t.Fatalf("light Code = %+v, want #f9fafb", gotTokens.Code)
+				}
+				if gotTokens.Border != ui.RGBA(0, 0, 0, 0.10) {
+					t.Fatalf("light Border = %+v, want rgba(0,0,0,0.10)", gotTokens.Border)
 				}
 				if gotTokens.SidebarBorder != ui.RGBA(0, 0, 0, 0.07) {
 					t.Fatalf("light SidebarBorder = %+v, want rgba(0,0,0,0.07)", gotTokens.SidebarBorder)
@@ -558,5 +579,233 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				t.Fatalf("%s glass-off settings pane = %+v, want opaque base.Popover %+v", tc.name, offPane, base.Popover)
 			}
 		})
+	}
+}
+
+func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+	applyGlassTheme(true)
+
+	// 1. Light mode without wallpaper or gradient must yield t.Glass == false.
+	cfg := minimalModeStore(t)
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}
+	var gotLight design.Tokens
+	ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		gotLight = *design.For(c)
+	}, 320, 200)
+	if gotLight.Glass {
+		t.Fatal("expected t.Glass == false on light mode without wallpaper/gradient")
+	}
+
+	// 2. Verify Windows Acrylic curve (g=80% -> 0.30 canvas, ShowThroughAlpha sidebar,
+	// 0.80 card, 0.64 dark popover) and light menu opacity (g=80% -> 0.70).
+	prefs := wallpapers.Defaults()
+	prefs.Glass = 80
+	if got := acrylicCanvasAlpha(prefs); math.Abs(float64(got)-0.30) > 0.001 {
+		t.Fatalf("acrylicCanvasAlpha(80) = %.4f, want 0.30", got)
+	}
+	if got := darkGlassMenuAlpha(prefs); math.Abs(float64(got)-0.64) > 0.001 {
+		t.Fatalf("darkGlassMenuAlpha(80) = %.4f, want 0.64", got)
+	}
+	if got := lightGlassMenuAlpha(prefs); math.Abs(float64(got)-0.70) > 0.001 {
+		t.Fatalf("lightGlassMenuAlpha(80) = %.4f, want 0.70", got)
+	}
+
+	filter := glassSurfaceFilter(designGlassSignature{
+		enabled: true,
+		dark:    true,
+		glass:   80,
+		acrylic: true,
+	})
+	pal := design.Base(design.Dark)
+	filter(design.Dark, &pal)
+	if pal.Background != chrome.MaterialFill(ui.RGB(21, 21, 23), 0.30) {
+		t.Fatalf("Acrylic Background = %+v, want #151517 @ 0.30", pal.Background)
+	}
+	if pal.Sidebar != chrome.MaterialFill(ui.RGB(27, 27, 28), chrome.ShowThroughAlpha(prefs, true)) {
+		t.Fatalf("Acrylic Sidebar = %+v, want #1b1b1c @ ShowThroughAlpha", pal.Sidebar)
+	}
+	if pal.Card != chrome.MaterialFill(ui.RGB(35, 35, 36), 0.80) {
+		t.Fatalf("Acrylic Card = %+v, want #232324 @ 0.80", pal.Card)
+	}
+	if pal.Popover != chrome.MaterialFill(ui.RGB(48, 49, 54), 0.64) {
+		t.Fatalf("Acrylic Popover = %+v, want rgb(48,49,54) @ 0.64", pal.Popover)
+	}
+}
+
+func TestRightPaneDecoupledFromHideSidebarMask(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+	applyGlassTheme(true)
+
+	cfg := minimalModeStore(t)
+	stripedURL := testStripedWallpaperURL(t, 300, 200)
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekDark
+		c.WallpaperPath = stripedURL
+		on := true
+		c.GlassTheme = &on
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "none"
+	prefs.Glass = 80
+	prefs.HideSidebarMask = true
+	prefs.Transparent = false
+	prefs.Blur = 0
+	if err := cfg.SaveWallpaperBackground(prefs); err != nil {
+		t.Fatal(err)
+	}
+
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekDark}
+	store := session.New()
+	store.Select("fixture")
+	sizes := frame.DefaultLayout()
+	sizes.Bottom = 0
+	draft := ""
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		s.beginAppearanceFrame(c)
+		defer s.endAppearanceFrame()
+
+		wp := s.currentWallpaperConfigPath()
+		wallpaperDraw := s.wallpaperPainter(wp, true, c.Preferences().ReduceMotion)
+		m := frame.Model{
+			Store:              store,
+			Sizes:              &sizes,
+			Draft:              &draft,
+			ThemeID:            s.themeID,
+			SystemDark:         true,
+			ExternalNavigation: true,
+			RightPaneOpen:      true,
+		}
+		ui.Column(c).Fill().Background(chrome.Color(theme.Resolve(s.themeID).Active(true).BG)).Draw(wallpaperDraw).Children(func() {
+			frame.NavigationShell(c, m, func() {
+				frame.View(c, m)
+			})
+		})
+	}, 1100, 680)
+	tt.SetTime(time.Unix(1000, 0))
+	tt.SetTime(time.Unix(1001, 0))
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		tt.Frame()
+		if _, ok := chrome.SampleBackdrop(ui.Rect{X: 0, Y: 0, W: 40, H: 40}); ok {
+			tt.Frame()
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	img := tt.Image()
+
+	// Measure horizontal color variation across the right pane (x=920..1040, y=500):
+	// frosted glass blur must keep stripe variation low even though HideSidebarMask=true.
+	loR, hiR := 255, 0
+	loB, hiB := 255, 0
+	for x := 920; x < 1040; x++ {
+		px := img.RGBAAt(x, 500)
+		loR, hiR = min(loR, int(px.R)), max(hiR, int(px.R))
+		loB, hiB = min(loB, int(px.B)), max(hiB, int(px.B))
+	}
+	rightSpan := max(hiR-loR, hiB-loB)
+
+	// Left sidebar (x=40..160, y=500) with HideSidebarMask=true has no blur,
+	// so raw green/blue stripes retain high contrast.
+	lLoG, lHiG := 255, 0
+	lLoB, lHiB := 255, 0
+	for x := 40; x < 160; x++ {
+		px := img.RGBAAt(x, 500)
+		lLoG, lHiG = min(lLoG, int(px.G)), max(lHiG, int(px.G))
+		lLoB, lHiB = min(lLoB, int(px.B)), max(lHiB, int(px.B))
+	}
+	leftSpan := max(lHiG-lLoG, lHiB-lLoB)
+
+	if rightSpan >= leftSpan/2 || rightSpan > 25 {
+		t.Fatalf("right pane failed frosted blur decoupling under HideSidebarMask=true: rightSpan=%d leftSpan=%d", rightSpan, leftSpan)
+	}
+}
+
+func TestToolCodeBlockNoDoubleBlendOnStickyBanner(t *testing.T) {
+	translucentCode := ui.RGBA(27, 27, 28, 0.85)
+	st := markdown.Style{
+		FontSize: 14,
+		FG:       ui.RGB(235, 235, 240),
+		Muted:    ui.RGB(150, 150, 160),
+		CodeBG:   translucentCode,
+		CodeSurface: func(e ui.Element, radius float32) ui.Element {
+			return e.Background(translucentCode).Border(1, ui.RGBA(255, 255, 255, 0.14)).Radius(radius)
+		},
+		Dark: true,
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(40, 120, 220)).Padding(20).Children(func() {
+			markdown.ToolCodeBlock(c, "go", "x := 1\ny := 2\nz := 3", st, 0)
+		})
+	}, 420, 260)
+	tt.Frame()
+	img := tt.Image()
+
+	// Sample inside the top 42px banner (away from text/buttons) and inside the
+	// lower card body (away from text): both must match exactly (single-layer fill).
+	topPx := img.RGBAAt(220, 32)
+	bodyPx := img.RGBAAt(360, 100)
+	if topPx != bodyPx {
+		t.Fatalf("ToolCodeBlock sticky banner double-blended top 42px: banner=%+v body=%+v", topPx, bodyPx)
+	}
+}
+
+func TestSettingsDunePresetSelectable(t *testing.T) {
+	oldLocale := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(oldLocale)
+
+	var saved wallpapers.Preferences
+	g := settings.NewWallpaperEditor(wallpapers.Defaults(), "", func(p wallpapers.Preferences) error {
+		saved = p
+		return nil
+	}, nil, nil)
+	path := ""
+	glassOn := true
+	a := &settings.AppearanceAccess{
+		Glass:             &settings.GlassThemeAccess{Enabled: &glassOn},
+		Background:        g,
+		WallpaperPath:     &path,
+		OnBrowseWallpaper: func() {},
+	}
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		settings.ModalView(c, settings.Model{
+			Desktop:          &settings.DesktopAccess{},
+			ActiveSection:    settings.SectionAppearance,
+			AppearanceActive: true,
+			Appearance:       a,
+			ThemeID:          theme.IDDeepseekLight,
+			OnClose:          func() {},
+		})
+	}, 960, 1400)
+	tt.Frame()
+
+	if err := tt.Click("Background effect settings"); err != nil {
+		t.Fatalf("click Background effect settings: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Dune") {
+		t.Fatal("expected Dune preset option in background effect settings")
+	}
+	if err := tt.Click("Dune"); err != nil {
+		t.Fatalf("click Dune preset: %v", err)
+	}
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("click Save: %v", err)
+	}
+	if saved.Preset != "dune" {
+		t.Fatalf("saved.Preset = %q, want dune", saved.Preset)
+	}
+	if saved.Colors != wallpapers.PresetColors("dune") {
+		t.Fatalf("saved.Colors = %+v, want PresetColors(\"dune\")", saved.Colors)
 	}
 }

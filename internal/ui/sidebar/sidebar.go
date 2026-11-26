@@ -405,7 +405,7 @@ func View(c *ui.Context, m Model) {
 		if skinLayout.Skin != theme.SkinCodex && chrome.BackdropActive() {
 			chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
 			if blurSidebar {
-				root.Material(glass.Blur{Radius: 16, Saturation: 0.35})
+				root.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
 			}
 		} else {
 			root.Background(fill).Radius(0)
@@ -416,7 +416,7 @@ func View(c *ui.Context, m Model) {
 	} else if chrome.BackdropActive() {
 		chrome.GlassSurface(root, fill, chrome.MaterialSidebar).Radius(0)
 		if blurSidebar {
-			root.Material(glass.Blur{Radius: 16, Saturation: 0.35})
+			root.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
 		}
 	} else {
 		root.Background(fill).Radius(0)

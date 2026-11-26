@@ -157,6 +157,8 @@ func appearancePresetChoices(cursor bool) [][2]string {
 	choices := [][2]string{{"default", providerCopy("跟随主题", "Follow theme")}}
 	if cursor {
 		choices = append(choices, [2]string{"rainbow", providerCopy("彩虹", "Rainbow")})
+	} else {
+		choices = append(choices, [2]string{"dune", providerCopy("沙丘", "Dune")})
 	}
 	return append(choices, [][2]string{{"aurora", providerCopy("极光", "Aurora")}, {"sunset", providerCopy("晚霞", "Sunset")}, {"ocean", providerCopy("海洋", "Ocean")}, {"sakura", providerCopy("樱花", "Sakura")}, {"custom", providerCopy("自定义", "Custom")}}...)
 }

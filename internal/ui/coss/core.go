@@ -343,7 +343,25 @@ func fillRoundedRect(p *ui.Painter, box ui.Rect, c ui.Color, radii [4]float32) {
 		}
 		return
 	}
-	p.Fill(box, c, radii[0])
+	// General four-corner radii (such as ChatBubble) split into four disjoint
+	// quadrants so translucent tints keep per-corner radii without double-blending.
+	midX, midY := box.X+box.W/2, box.Y+box.H/2
+	quads := [4]struct {
+		clip ui.Rect
+		r    float32
+	}{
+		{ui.Rect{X: box.X, Y: box.Y, W: midX - box.X, H: midY - box.Y}, radii[0]},
+		{ui.Rect{X: midX, Y: box.Y, W: box.X + box.W - midX, H: midY - box.Y}, radii[1]},
+		{ui.Rect{X: midX, Y: midY, W: box.X + box.W - midX, H: box.Y + box.H - midY}, radii[2]},
+		{ui.Rect{X: box.X, Y: midY, W: midX - box.X, H: box.Y + box.H - midY}, radii[3]},
+	}
+	for _, q := range quads {
+		if q.clip.W > 0 && q.clip.H > 0 {
+			p.Clip(q.clip, 0, func() {
+				p.Fill(box, c, q.r)
+			})
+		}
+	}
 }
 
 // applyGlassMaterial attaches frosted backdrop blur and translucent surface
@@ -353,7 +371,7 @@ func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, radius, s
 		return
 	}
 	e.Material(glassSurfaceMaterial{
-		blur: glass.Blur{Radius: radius, Saturation: saturation},
+		blur: glass.Blur{Radius: radius, Saturation: saturation, Dither: true},
 		tint: tint,
 	})
 }

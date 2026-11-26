@@ -34,18 +34,36 @@ func ChatBubble(c *ui.Context, o ChatBubbleOptions, fn func()) ui.Element {
 	r := design.RadiusXL2
 	b := ui.Column(c).MinWidth(0).Gap(design.Sp(2)).Padding(design.Sp(2.5), design.Sp(3.5)).TextColor(t.Foreground)
 	if o.Side == ChatOutgoing {
-		b.Background(t.Foreground.Alpha(0.12))
 		if !o.Grouped {
 			b.Radius(r, design.RadiusMD, r, r)
 		} else {
 			b.Radius(r)
 		}
+		if t.Glass {
+			tint := ui.RGBA(237, 243, 254, 0.40)
+			if t.IsDark() {
+				tint = ui.RGBA(44, 44, 46, 0.40)
+			}
+			applyGlassMaterial(b, t, tint, 24, 0.45)
+			b.Border(design.BorderWidth*0.5, t.Border)
+		} else {
+			b.Background(t.Foreground.Alpha(0.12))
+		}
 	} else {
-		b.Background(t.Foreground.Alpha(0.04))
 		if !o.Grouped {
 			b.Radius(design.RadiusMD, r, r, r)
 		} else {
 			b.Radius(r)
+		}
+		if t.Glass {
+			tint := ui.RGBA(252, 253, 255, 0.40)
+			if t.IsDark() {
+				tint = ui.RGBA(35, 35, 36, 0.40)
+			}
+			applyGlassMaterial(b, t, tint, 24, 0.45)
+			b.Border(design.BorderWidth*0.5, t.Border)
+		} else {
+			b.Background(t.Foreground.Alpha(0.04))
 		}
 	}
 	if o.Highlighted {

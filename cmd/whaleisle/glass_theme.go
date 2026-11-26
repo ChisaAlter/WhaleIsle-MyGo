@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"sync"
 
@@ -34,14 +35,57 @@ var designGlassState struct {
 	sig   designGlassSignature
 }
 
+func clampGlassPercent(v float64) float64 {
+	if math.IsNaN(v) {
+		return 0
+	}
+	return math.Max(0, math.Min(100, v))
+}
+
+func canvasUncappedPercent(g float64) float64 {
+	k := clampGlassPercent(g)
+	switch {
+	case k <= 40:
+		return math.Round(k * 0.375)
+	case k <= 80:
+		return math.Round(15 + (k-40)*0.75)
+	default:
+		return math.Round(45 + (k-80)*2.75)
+	}
+}
+
+// acrylicCanvasAlpha implements round(100 * (canvasUncapped(g)/100)^1.5) / 100
+// so Windows Acrylic at g=80% yields a 0.30 canvas fill.
+func acrylicCanvasAlpha(prefs wallpapers.Preferences) float32 {
+	if prefs.Transparent {
+		return 0
+	}
+	u := canvasUncappedPercent(prefs.Glass) / 100.0
+	return float32(math.Round(100.0*math.Pow(u, 1.5)) / 100.0)
+}
+
+// darkGlassMenuAlpha implements max(g*0.8, g*2.75-175)/100 (g=80% -> 0.64).
+func darkGlassMenuAlpha(prefs wallpapers.Preferences) float32 {
+	g := clampGlassPercent(prefs.Glass)
+	pct := math.Max(g*0.8, g*2.75-175)
+	return float32(math.Max(0, math.Min(100, pct)) / 100.0)
+}
+
+// lightGlassMenuAlpha implements max(g*0.875, g*2.1-110)/100 (g=80% -> 0.70).
+func lightGlassMenuAlpha(prefs wallpapers.Preferences) float32 {
+	g := clampGlassPercent(prefs.Glass)
+	pct := math.Max(g*0.875, g*2.1-110)
+	return float32(math.Max(0, math.Min(100, pct)) / 100.0)
+}
+
 func applyDarkGlassPalette(p *design.Palette, canvasA, sidebarA, panelA, menuA float32) {
-	p.Background = chrome.MaterialFill(ui.RGB(18, 19, 23), canvasA)
-	p.Sidebar = chrome.MaterialFill(ui.RGB(22, 24, 30), sidebarA)
-	p.Card = chrome.MaterialFill(ui.RGB(30, 32, 38), panelA)
-	p.Popover = chrome.MaterialFill(ui.RGB(34, 36, 44), menuA)
-	p.Code = chrome.MaterialFill(ui.RGB(30, 32, 38), panelA)
+	p.Background = chrome.MaterialFill(ui.RGB(21, 21, 23), canvasA)
+	p.Sidebar = chrome.MaterialFill(ui.RGB(27, 27, 28), sidebarA)
+	p.Card = chrome.MaterialFill(ui.RGB(35, 35, 36), panelA)
+	p.Popover = chrome.MaterialFill(ui.RGB(48, 49, 54), menuA)
+	p.Code = ui.RGB(27, 27, 28)
 	p.Border = ui.RGBA(255, 255, 255, 0.14)
-	p.SidebarBorder = ui.RGBA(255, 255, 255, 0.10)
+	p.SidebarBorder = ui.RGBA(255, 255, 255, 0.08)
 	p.Input = ui.RGBA(255, 255, 255, 0.16)
 	p.Secondary = ui.RGBA(255, 255, 255, 0.10)
 	p.Muted = ui.RGBA(255, 255, 255, 0.09)
@@ -53,11 +97,11 @@ func applyDarkGlassPalette(p *design.Palette, canvasA, sidebarA, panelA, menuA f
 func applyLightGlassPalette(p *design.Palette, prefs wallpapers.Preferences) {
 	panelAlpha := chrome.MaterialAlpha(chrome.MaterialPanel, prefs, false)
 	p.Background = chrome.MaterialFill(p.Background, chrome.MaterialAlpha(chrome.MaterialCanvas, prefs, false))
-	p.Sidebar = chrome.MaterialFill(ui.RGB(246, 248, 252), chrome.MaterialAlpha(chrome.MaterialSidebar, prefs, false))
+	p.Sidebar = chrome.MaterialFill(ui.RGB(249, 250, 251), chrome.MaterialAlpha(chrome.MaterialSidebar, prefs, false))
 	p.Card = chrome.MaterialFill(ui.RGB(252, 253, 255), panelAlpha)
-	p.Popover = chrome.MaterialFill(ui.RGB(252, 253, 255), chrome.MaterialAlpha(chrome.MaterialMenu, prefs, false))
-	p.Code = chrome.MaterialFill(ui.RGB(252, 253, 255), panelAlpha)
-	p.Border = ui.RGBA(0, 0, 0, 0.09)
+	p.Popover = chrome.MaterialFill(ui.RGB(252, 253, 254), lightGlassMenuAlpha(prefs))
+	p.Code = ui.RGB(249, 250, 251)
+	p.Border = ui.RGBA(0, 0, 0, 0.10)
 	p.SidebarBorder = ui.RGBA(0, 0, 0, 0.07)
 	p.Input = ui.RGBA(0, 0, 0, 0.12)
 	p.Secondary = ui.RGBA(0, 0, 0, 0.055)
@@ -81,7 +125,7 @@ func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {
 					chrome.MaterialAlpha(chrome.MaterialCanvas, prefs, true),
 					chrome.MaterialAlpha(chrome.MaterialSidebar, prefs, true),
 					chrome.MaterialAlpha(chrome.MaterialPanel, prefs, true),
-					chrome.MaterialAlpha(chrome.MaterialMenu, prefs, true),
+					darkGlassMenuAlpha(prefs),
 				)
 			} else {
 				applyLightGlassPalette(p, prefs)
@@ -89,8 +133,13 @@ func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {
 			return
 		}
 		if dark && sig.acrylic {
-			alpha := chrome.ShowThroughAlpha(prefs, true)
-			applyDarkGlassPalette(p, alpha, alpha, alpha, alpha)
+			applyDarkGlassPalette(
+				p,
+				acrylicCanvasAlpha(prefs),
+				chrome.ShowThroughAlpha(prefs, true),
+				0.80,
+				darkGlassMenuAlpha(prefs),
+			)
 		}
 	}
 }
@@ -98,7 +147,7 @@ func glassSurfaceFilter(sig designGlassSignature) design.SurfaceFilter {
 // syncDesignGlass updates design.SetGlass only when the effective backdrop
 // signature changes, avoiding per-frame token cache resets and revision bumps.
 func syncDesignGlass(backdropActive, hasWallpaper, dark, acrylic, skinFlat bool, prefs wallpapers.Preferences) {
-	enabled := !renderpolicy.NoBackdrop() && !skinFlat
+	enabled := !renderpolicy.NoBackdrop() && !skinFlat && (backdropActive || acrylic)
 	var sig designGlassSignature
 	if enabled {
 		eff := prefs
@@ -144,7 +193,14 @@ func syncDesignGlassFromPolicy() {
 		systemDark = mygo.Theme.IsDark()
 	}
 	skinFlat := theme.SkinForMode(p, systemDark) == theme.SkinCodex
-	syncDesignGlass(chrome.BackdropActive(), chrome.BackdropHasWallpaper(), chrome.BackdropDark(), false, skinFlat, chrome.BackdropPreferences())
+	prefs := chrome.BackdropPreferences()
+	path := ""
+	if chrome.BackdropHasWallpaper() {
+		path = "wallpaper"
+	}
+	dark := chrome.BackdropDark()
+	acrylic := !skinFlat && desktopGlassMaterial(path, prefs, dark, false) != mygo.VibrancyNone
+	syncDesignGlass(chrome.BackdropActive(), chrome.BackdropHasWallpaper(), dark, acrylic, skinFlat, prefs)
 }
 
 func (s *mainState) syncAppearanceBackdrop(id string, systemDark, dark bool) {

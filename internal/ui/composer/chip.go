@@ -223,10 +223,12 @@ func chip(c *ui.Context, open bool, textColor ui.Color) ui.Element {
 	return trigger
 }
 
-// paintInnerBloom stands in for the dark card rim highlight: concentric
-// hairlines just inside the edge. Over white it stays invisible; in dark
-// themes it lights the rim subtly.
-func paintInnerBloom(p *ui.Painter, r ui.Rect, radius float32) {
+// paintInnerBloom stands in for the InputBar resting inner glow: concentric
+// hairlines just inside the edge, fading smoothly across 12 DIPs.
+func paintInnerBloom(p *ui.Painter, r ui.Rect, radius, peakAlpha float32) {
+	if peakAlpha <= 0 {
+		return
+	}
 	white := design.TW.White
 	p.Clip(r, radius, func() {
 		const steps = 16
@@ -238,7 +240,10 @@ func paintInnerBloom(p *ui.Painter, r ui.Rect, radius float32) {
 			}
 			t := float32(i) / float32(steps)
 			falloff := (1 - t) * (1 - t)
-			alpha := float32(0.004) + float32(0.052)*falloff
+			alpha := peakAlpha * falloff
+			if alpha < 0.002 {
+				continue
+			}
 			p.Stroke(band, white.Alpha(alpha), max(0, radius-d), 0.85)
 		}
 	})

@@ -3813,16 +3813,17 @@ func mainView(c *ui.Context) {
 		}
 	}
 	titleColors := chrome.TitleBarColorsFrom(colors)
+	darkCanvas := th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark)
+	flatCanvas := state.wallpaperCanvasFlatFor(wallpaperPath)
+	transparentTopStrip := chrome.BackdropActive() || (darkCanvas && flatCanvas && !renderpolicy.NoBackdrop())
 	// Electron desk caption is white/transparent on light; dark keeps theme bg
 	// so the strip under traffic lights matches the desk wash.
-	if !systemDark {
+	if !systemDark && !transparentTopStrip {
 		titleColors.Background = chrome.Color("#ffffff")
 	}
 	// The canvas alone carries the native flat mask; the sidebar, cards and
 	// caption keep their own tokens (round228/229).
 	canvasFill := chrome.Color(colors.BG)
-	darkCanvas := th.Scheme == theme.SchemeDark || (th.Scheme != theme.SchemeLight && systemDark)
-	flatCanvas := state.wallpaperCanvasFlatFor(wallpaperPath)
 	if darkCanvas && flatCanvas {
 		// Native glass model: the window stays transparent and the desktop shows
 		// through the panels; the canvas itself is not painted opaque. Minimal
@@ -3875,7 +3876,11 @@ func mainView(c *ui.Context) {
 				// strip so no hairline or gitBadge collides with "- □ ×".
 				ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).Background(ui.Transparent).DragWindow()
 			default:
-				if frame.SidebarRestoreCaption(c, &layout, titleColors, captionGit, captionNewSession) {
+				stripColors := titleColors
+				if transparentTopStrip {
+					stripColors.Background = ui.Transparent
+				}
+				if frame.SidebarRestoreCaption(c, &layout, stripColors, captionGit, captionNewSession) {
 					// Settings and other exclusive routes bypass the navigation shell's
 					// writeback. Persist caption restores through the same layout state.
 					state.mu.Lock()
@@ -3883,9 +3888,9 @@ func mainView(c *ui.Context) {
 					state.layout.Responsive = layout.Responsive
 					state.mu.Unlock()
 				} else if captionMode == topCaptionNonWindowsLocked {
-					chrome.TitleBarWithActions(c, "", titleColors, gitBadge, nil)
+					chrome.TitleBarWithActions(c, "", stripColors, gitBadge, nil)
 				} else {
-					ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).Background(titleColors.Background).DragWindow()
+					ui.Row(c).Fill().Height(chrome.EffectiveTitleBarHeight()).Background(stripColors.Background).DragWindow()
 				}
 			}
 		})
