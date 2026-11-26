@@ -44,7 +44,8 @@ func TestApplyMenuSurfaceBlursAndFallsBackCleanly(t *testing.T) {
 		t.Fatalf("expected opaque fallback with glass off, got stripe span=%d", span)
 	}
 
-	// On: blurs backdrop sharply (40px) and paints top inner specular rim.
+	// On: blurs backdrop sharply (40px) with a single crisp outer border and no
+	// inner specular rim.
 	design.SetGlass(true, func(_ design.Scheme, p *design.Palette) {
 		p.Popover = p.Popover.Alpha(0.58)
 	})
@@ -62,14 +63,18 @@ func TestApplyMenuSurfaceBlursAndFallsBackCleanly(t *testing.T) {
 		t.Fatalf("ApplyMenuSurface did not blur stripes enough: blurred=%d raw=%d", blurred, raw)
 	}
 	img := ttOn.Image()
-	rimLum := RelativeLuminance(pixel(img.RGBAAt(int(bOn.X+bOn.W/2), int(bOn.Y+1))))
+	outerLum := RelativeLuminance(pixel(img.RGBAAt(int(bOn.X+bOn.W/2), int(bOn.Y))))
+	innerEdgeLum := RelativeLuminance(pixel(img.RGBAAt(int(bOn.X+bOn.W/2), int(bOn.Y+1))))
 	inLum := RelativeLuminance(pixel(img.RGBAAt(int(bOn.X+bOn.W/2), int(bOn.Y+10))))
-	if rimLum <= inLum {
-		t.Fatalf("ApplyMenuSurface missing top inner specular rim: rim=%.3f inside=%.3f", rimLum, inLum)
+	if outerLum >= inLum {
+		t.Fatalf("ApplyMenuSurface missing single outer hairline border: outer=%.3f inside=%.3f", outerLum, inLum)
+	}
+	if innerEdgeLum > inLum+0.02 {
+		t.Fatalf("ApplyMenuSurface unexpectedly painted a bright inner specular rim: innerEdge=%.3f inside=%.3f", innerEdgeLum, inLum)
 	}
 }
 
-func TestDialogMaskBlurSoftensBackdropUnderGlass(t *testing.T) {
+func TestDialogMaskDimsWithoutFullscreenBlurUnderGlass(t *testing.T) {
 	t.Cleanup(func() {
 		ConfigureBackdrop("", wallpapers.Defaults())
 		design.SetGlass(false, nil)
@@ -100,9 +105,20 @@ func TestDialogMaskBlurSoftensBackdropUnderGlass(t *testing.T) {
 	start := time.Unix(1000, 0)
 	tt.SetTime(start)
 	tt.SetTime(start.Add(time.Second))
-	// Outside the centered dialog (x=10..50, y=20), 2px mask blur softens 2px stripes.
-	if span := testChannelSpan(tt, 20, 10, 50); span >= 120 {
-		t.Fatalf("expected 2px mask blur to soften fine stripes behind modal mask, got span=%d", span)
+	// Outside the centered dialog (x=10..50, y=20), pure dim scrim keeps 2px
+	// stripes crisp (zero fullscreen blur) while dimming peak brightness.
+	if span := testChannelSpan(tt, 20, 10, 50); span < 120 {
+		t.Fatalf("expected modal mask to dim without fullscreen blur, got softened span=%d", span)
+	}
+	var peakR uint8
+	img := tt.Image()
+	for x := 10; x < 50; x++ {
+		if r := img.RGBAAt(x, 20).R; r > peakR {
+			peakR = r
+		}
+	}
+	if peakR >= 210 {
+		t.Fatalf("expected modal mask dim fill to darken 230-red stripe, got peakR=%d", peakR)
 	}
 }
 
@@ -137,14 +153,12 @@ func TestDialogPureGlassEnabledBlursAndStaysOpaqueDuringReveal(t *testing.T) {
 	}, 260, 180)
 	start := time.Unix(1000, 0)
 	tt.SetTime(start)
-	// Mid-enter (progress ~0.5): mask blur radius is already constant 2px and
-	// panel stays opaque without breaking backdrop blur sampling.
+	// Mid-enter (progress ~0.5): mask dims without fullscreen blur and panel
+	// stays opaque so 40px backdrop blur sampling remains crisp.
 	tt.SetTime(start.Add(OverlayDuration / 2))
 	raw := testChannelSpan(tt, 10, 10, 40)
-	// Because mask blur runs across the full backdrop even at progress=0.5,
-	// 2px stripes soften immediately instead of animating blur radius from 0.
-	if raw >= 120 {
-		t.Fatalf("expected constant 2px mask blur mid-enter, got stripe span=%d", raw)
+	if raw < 120 {
+		t.Fatalf("expected pure dim scrim without fullscreen blur mid-enter, got stripe span=%d", raw)
 	}
 	insideSpan := testChannelSpan(tt, int(dlgRect.Y+dlgRect.H/2), int(dlgRect.X+20), int(dlgRect.X+dlgRect.W-20))
 	if insideSpan > 30 {

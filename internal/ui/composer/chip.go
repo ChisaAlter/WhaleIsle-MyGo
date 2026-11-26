@@ -65,19 +65,6 @@ func composerCardBorder(t *design.Tokens, focused bool) ui.Color {
 	return t.Input
 }
 
-func paintGlassInnerRim(p *ui.Painter, r ui.Rect, radius float32, dark bool, darkAlpha, lightAlpha float32) {
-	inset := design.BorderWidth
-	inner := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
-	if inner.W <= 0 || inner.H <= 0 {
-		return
-	}
-	alpha := lightAlpha
-	if dark {
-		alpha = darkAlpha
-	}
-	p.Stroke(inner, design.TW.White.Alpha(alpha), max(0, radius-inset), design.BorderWidth)
-}
-
 func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled bool) {
 	if disabled || !focused {
 		return
@@ -163,32 +150,6 @@ func chip(c *ui.Context, open bool, textColor ui.Color) ui.Element {
 		trigger.Background(t.Accent).TextColor(t.AccentForeground)
 	}
 	return trigger
-}
-
-// paintInnerBloom stands in for the InputBar resting inner glow: concentric
-// hairlines just inside the edge, fading smoothly across 12 DIPs.
-func paintInnerBloom(p *ui.Painter, r ui.Rect, radius, peakAlpha float32) {
-	if peakAlpha <= 0 {
-		return
-	}
-	white := design.TW.White
-	p.Clip(r, radius, func() {
-		const steps = 16
-		for i := 0; i <= steps; i++ {
-			d := float32(i)*0.75 + 0.4
-			band := ui.Rect{X: r.X + d, Y: r.Y + d, W: r.W - 2*d, H: r.H - 2*d}
-			if band.W <= 0 || band.H <= 0 {
-				return
-			}
-			t := float32(i) / float32(steps)
-			falloff := (1 - t) * (1 - t)
-			alpha := peakAlpha * falloff
-			if alpha < 0.002 {
-				continue
-			}
-			p.Stroke(band, white.Alpha(alpha), max(0, radius-d), 0.85)
-		}
-	})
 }
 
 func cossIcon(c *ui.Context, icon coss.Icon, size float32, color ui.Color) ui.Element {

@@ -75,10 +75,11 @@ func commandMatches(it CommandItem, q string) bool {
 func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *string, items []CommandItem, o CommandOptions, focus bool) string {
 	ww, _ := c.Size()
 	dlgRadius := theme.ContextRadii(c).Dialog
-	panel.Width(min(576, ww-2*design.Sp(4))).MaxHeight(420).Radius(dlgRadius).Background(t.Popover).Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
+	bw := glassBorderWidth(t)
+	panel.Width(min(576, ww-2*design.Sp(4))).MaxHeight(420).Radius(dlgRadius).Background(t.Popover).Border(bw, t.Border).TextColor(t.PopoverForeground)
 	var sh shadowList
 	sh.scale(design.ShadowLg, black, 0.05)
-	d := deco{border: design.BorderWidth, radius: dlgRadius}
+	d := deco{border: bw, radius: dlgRadius}
 	d.highlight(t, 0.04, 0.06)
 	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, glassTierModal)

@@ -409,13 +409,13 @@ func View(c *ui.Context, m Model) {
 				p.Fill(r, cardFill, cardRadius)
 			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
-			paintInnerBloom(p, r, cardRadius, 0.25)
 		})
+		borderWidth := design.BorderWidth
+		if glassMode && !focused {
+			borderWidth = design.BorderWidth * 0.5
+		}
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			if glassMode {
-				paintGlassInnerRim(p, r, cardRadius, t.IsDark(), 0.12, 0.65)
-			}
-			p.Stroke(r, cardBorder, cardRadius, design.BorderWidth)
+			p.Stroke(r, cardBorder, cardRadius, borderWidth)
 		})
 		card.Children(func() {
 			if !inputDisabled && !collapsedPill {

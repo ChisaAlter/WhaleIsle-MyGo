@@ -159,12 +159,14 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			type surfaceCase struct {
-				name  string
-				build func(c *ui.Context) ui.Element
+				name       string
+				expectBlur bool
+				build      func(c *ui.Context) ui.Element
 			}
 			surfaces := []surfaceCase{
 				{
-					name: "Card",
+					name:       "Card",
+					expectBlur: false,
 					build: func(c *ui.Context) ui.Element {
 						return Card(c, CardOptions{}, func() {
 							ui.Box(c).Size(180, 60)
@@ -172,7 +174,8 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 					},
 				},
 				{
-					name: "DialogPanel",
+					name:       "DialogPanel",
+					expectBlur: true,
 					build: func(c *ui.Context) ui.Element {
 						return DialogPanel(c, DialogOptions{NoClose: true}, func() {
 							ui.Box(c).Size(180, 60)
@@ -180,7 +183,8 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 					},
 				},
 				{
-					name: "MenuPanel",
+					name:       "MenuPanel",
+					expectBlur: true,
 					build: func(c *ui.Context) ui.Element {
 						p := ui.Column(c)
 						menuPanel(c, tok(c), p, []MenuItem{{ID: "a", Label: "   "}}, MenuOptions{MinWidth: 200}, nil, 0)
@@ -188,7 +192,8 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 					},
 				},
 				{
-					name: "PopoverPanel",
+					name:       "PopoverPanel",
+					expectBlur: true,
 					build: func(c *ui.Context) ui.Element {
 						return PopoverPanel(c, PopoverOptions{Width: 220}, func() {
 							ui.Box(c).Size(180, 60)
@@ -199,7 +204,7 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 
 			for _, sc := range surfaces {
 				t.Run(sc.name, func(t *testing.T) {
-					// 1) Compare striped backdrop softening and top specular rim.
+					// 1) Compare striped backdrop behavior: overlays blur, Card stays translucent without blur.
 					design.SetGlass(false, nil)
 					ttOff := ui.NewTester(func(c *ui.Context) {
 						setTheme(c, dark)
@@ -237,28 +242,24 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 						t.Fatalf("expected raw backdrop span >= 150, got %d", rawSpan)
 					}
 
-					// Inside the glass panel, backdrop blur must soften stripe contrast drastically
-					// while still letting blended backdrop color differ from opaque mode.
 					midY := int(b.Y + b.H/2)
 					x0, x1 := int(b.X)+24, int(b.X+b.W)-24
-					blurredSpan := channelSpan(imgOn, midY, x0, x1)
-					if blurredSpan > rawSpan/4 {
-						t.Fatalf("%s glass blur did not soften stripes enough: blurredSpan=%d rawSpan=%d", sc.name, blurredSpan, rawSpan)
+					innerSpan := channelSpan(imgOn, midY, x0, x1)
+					if sc.expectBlur {
+						if innerSpan > rawSpan/4 {
+							t.Fatalf("%s glass blur did not soften stripes enough: innerSpan=%d rawSpan=%d", sc.name, innerSpan, rawSpan)
+						}
+					} else {
+						// Resting Card must NOT run GPU backdrop blur; translucent tint lets stripes show cleanly.
+						if innerSpan <= rawSpan/4 || innerSpan >= rawSpan {
+							t.Fatalf("%s expected clean translucent fill without backdrop blur: innerSpan=%d rawSpan=%d", sc.name, innerSpan, rawSpan)
+						}
 					}
 
 					pOff := imgOff.RGBAAt(int(b.X+b.W/2), midY)
 					pOn := imgOn.RGBAAt(int(b.X+b.W/2), midY)
 					if pOff == pOn {
 						t.Fatalf("%s glass pixel %v identical to opaque %v", sc.name, pOn, pOff)
-					}
-
-					// Top 1 DIP inner specular rim (y = Top + 1) must be brighter than
-					// the panel interior below it (light: white/72, dark: white/14).
-					rimX := int(b.X + b.W/2)
-					topRimLuma := luma(imgOn, rimX, int(b.Y)+1)
-					innerLuma := luma(imgOn, rimX, int(b.Y)+8)
-					if topRimLuma <= innerLuma+2 {
-						t.Fatalf("%s expected bright inner top specular rim: topRim=%.2f inner=%.2f", sc.name, topRimLuma, innerLuma)
 					}
 
 					// 2) Compare adaptive drop shadow strength over a uniform neutral surface.
@@ -291,10 +292,18 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 					if shadowOnLuma >= shadowOffLuma-1 {
 						t.Fatalf("%s expected deeper adaptive glass shadow below panel: off=%.2f on=%.2f", sc.name, shadowOffLuma, shadowOnLuma)
 					}
+
+					// No harsh inner white rim along y = Top + 1 over uniform backdrop.
+					rimX := int(sb.X + sb.W/2)
+					topInner := luma(ttShOn.Image(), rimX, int(sb.Y)+1)
+					bodyLuma := luma(ttShOn.Image(), rimX, int(sb.Y)+8)
+					if topInner > bodyLuma+4 {
+						t.Fatalf("%s unexpected bright inner specular rim: topInner=%.2f body=%.2f", sc.name, topInner, bodyLuma)
+					}
 				})
 			}
 
-			// Verify CommandPanel also receives glass blur, inner specular rim, and adaptive shadow.
+			// Verify CommandPanel receives glass blur and no inner white rim.
 			t.Run("CommandPanel", func(t *testing.T) {
 				design.SetGlass(true, testGlassFilter)
 				var b ui.Rect
@@ -315,12 +324,9 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 				if span := channelSpan(img, int(b.Y+b.H/2), int(b.X)+24, int(b.X+b.W)-24); span > 35 {
 					t.Fatalf("CommandPanel glass blur did not soften stripes enough: span=%d", span)
 				}
-				if top, inner := luma(img, int(b.X+b.W/2), int(b.Y)+1), luma(img, int(b.X+b.W/2), int(b.Y)+10); top <= inner+2 {
-					t.Fatalf("CommandPanel missing top specular rim: top=%.2f inner=%.2f", top, inner)
-				}
 			})
 
-			// Verify DrawerPanel gets frosted blur, top specular catchlight, and square bottom corners.
+			// Verify DrawerPanel gets frosted blur and square bottom corners without inner white rim.
 			t.Run("DrawerPanel", func(t *testing.T) {
 				design.SetGlass(true, testGlassFilter)
 				var b ui.Rect
@@ -340,15 +346,12 @@ func TestGlassModeBlurRimAndShadows(t *testing.T) {
 				if span := channelSpan(img, int(b.Y+b.H/2), int(b.X)+24, int(b.X+b.W)-24); span > 35 {
 					t.Fatalf("DrawerPanel glass blur did not soften stripes enough: span=%d", span)
 				}
-				if top, inner := luma(img, int(b.X+b.W/2), int(b.Y)+1), luma(img, int(b.X+b.W/2), int(b.Y)+10); top <= inner+2 {
-					t.Fatalf("DrawerPanel missing top specular rim: top=%.2f inner=%.2f", top, inner)
-				}
 			})
 		})
 	}
 }
 
-func TestGlassDialogBackdropSofterScrim(t *testing.T) {
+func TestGlassDialogBackdropPureDimScrim(t *testing.T) {
 	defer design.SetGlass(false, nil)
 
 	for _, dark := range []bool{false, true} {
@@ -376,8 +379,30 @@ func TestGlassDialogBackdropSofterScrim(t *testing.T) {
 
 			opaqueScrim := renderBackdropPixel(false)
 			glassScrim := renderBackdropPixel(true)
-			if glassScrim <= opaqueScrim {
-				t.Fatalf("expected glass backdrop scrim to preserve more background brightness: opaque=%d glass=%d", opaqueScrim, glassScrim)
+			if dark {
+				if glassScrim >= opaqueScrim {
+					t.Fatalf("expected dark glass scrim (0.42) to dim more than non-glass (0.32): opaque=%d glass=%d", opaqueScrim, glassScrim)
+				}
+			} else {
+				if glassScrim <= opaqueScrim {
+					t.Fatalf("expected light glass scrim (0.24) to preserve more brightness than non-glass (0.32): opaque=%d glass=%d", opaqueScrim, glassScrim)
+				}
+			}
+
+			// Verify modal scrim does NOT run fullscreen backdrop blur over crisp stripes.
+			design.SetGlass(true, testGlassFilter)
+			open := true
+			tt := ui.NewTester(func(c *ui.Context) {
+				setTheme(c, dark)
+				ui.Box(c).Fill().Children(func() {
+					paintStripeBackdrop(c)
+					Dialog(c, &open, DialogOptions{Title: "Settings"}, nil)
+				})
+			}, 600, 400)
+			tt.Frame()
+			scrimSpan := channelSpan(tt.Image(), 10, 10, 80)
+			if scrimSpan < 70 {
+				t.Fatalf("expected crisp unblurred modal scrim over stripes, got span=%d", scrimSpan)
 			}
 		})
 	}
@@ -413,13 +438,45 @@ func TestGlassChatBubble40PercentAndSolidOverride(t *testing.T) {
 	img := tt.Image()
 	raw := channelSpan(img, 8, 10, 240)
 	glassSpan := channelSpan(img, int(glassRect.Y+glassRect.H/2), int(glassRect.X+20), int(glassRect.X+glassRect.W-20))
-	if glassSpan > raw/4 {
-		t.Fatalf("glass chat bubble did not blur backdrop: glassSpan=%d raw=%d", glassSpan, raw)
+	if glassSpan <= raw/4 || glassSpan >= raw {
+		t.Fatalf("glass chat bubble should use clean translucent fill without blur: glassSpan=%d raw=%d", glassSpan, raw)
 	}
 	solidSpan := channelSpan(img, int(solidRect.Y+solidRect.H/2), int(solidRect.X+20), int(solidRect.X+solidRect.W-20))
 	if solidSpan != 0 {
 		t.Fatalf("solid skin chat bubble leaked backdrop: solidSpan=%d", solidSpan)
 	}
+}
+
+func TestGlassDarkControlsRestrained(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, testGlassFilter)
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		setTheme(c, true)
+		tk := design.For(c)
+		rest := resolveButton(tk, ButtonOutline, 0)
+		if rest.bg.A != 0 {
+			t.Fatalf("dark glass ButtonOutline resting bg alpha = %d, want 0 (transparent)", rest.bg.A)
+		}
+		if rest.d.before {
+			t.Fatalf("dark glass ButtonOutline should not paint d.highlight top edge")
+		}
+		hov := resolveButton(tk, ButtonOutline, StateHover)
+		if hov.bg != white.Alpha(0.06) {
+			t.Fatalf("dark glass ButtonOutline hover bg = %+v, want %+v", hov.bg, white.Alpha(0.06))
+		}
+		dest := resolveButton(tk, ButtonDestructiveOutline, 0)
+		if dest.bg.A != 0 || dest.d.before {
+			t.Fatalf("dark glass ButtonDestructiveOutline should have transparent bg and no highlight: bg=%+v before=%v", dest.bg, dest.d.before)
+		}
+		val := ""
+		ui.Column(c).Gap(8).Padding(12).Children(func() {
+			Button(c, "Outline", ButtonOptions{Variant: ButtonOutline})
+			Input(c, &val, InputOptions{Placeholder: "Search"})
+			Badge(c, "Tag", BadgeOptions{Variant: BadgeOutline})
+		})
+	}, 240, 160)
+	tt.Frame()
 }
 
 func TestMenuSecondClickClosesAndRadiiMatchSpec(t *testing.T) {

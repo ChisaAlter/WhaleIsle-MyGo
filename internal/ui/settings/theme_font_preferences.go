@@ -214,7 +214,7 @@ func themePreviewHalf(c *ui.Context, family theme.Family, seed theme.Seed, schem
 				ui.Text(c, switchText).SingleLine().FontSize(theme.InterfaceSize(11)).FixedLineHeight(theme.InterfaceSize(11)).TextColor(ink)
 				if (scheme == "dark") == c.Theme().Dark {
 					ui.Text(c, providerCopy("当前模式", "Current mode")).Label("Theme current mode "+family.LocalizedName()+" "+scheme).
-						SingleLine().Padding(1, 5).Border(1, ink).Radius(999).FontSize(theme.InterfaceSize(10)).
+						SingleLine().Padding(1, 5).Border(0.5, ink.Alpha(0.42)).Radius(999).FontSize(theme.InterfaceSize(10)).
 						FixedLineHeight(theme.InterfaceSize(14)).TextColor(ink).Opacity(.85)
 				}
 			})
@@ -364,7 +364,7 @@ func generalFontRow(c *ui.Context, key, title, hint string, fg, muted ui.Color, 
 			})
 			control()
 		})
-		ui.Box(c).FillWidth().Height(.5).Background(c.Theme().Border)
+		ui.Box(c).FillWidth().Height(.5).Background(tk(c).Border)
 	})
 }
 

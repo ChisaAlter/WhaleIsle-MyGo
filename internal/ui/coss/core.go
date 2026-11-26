@@ -156,9 +156,6 @@ type deco struct {
 	before  bool
 	beforeY float32
 	beforeC ui.Color
-	// rimC paints a 1 DIP inner specular rim inside the padding box for
-	// glass surfaces.
-	rimC ui.Color
 	// fill paints an extra fill over the padding box (autofill tints,
 	// pressed washes layered over a base).
 	fill ui.Color
@@ -254,9 +251,6 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 	if d.fill.A > 0 {
 		p.Fill(pad, d.fill, inner)
 	}
-	if d.rimC.A > 0 && pad.W > 2 && pad.H > 2 {
-		p.Stroke(pad, d.rimC, inner, 1)
-	}
 	for i := d.insets.n - 1; i >= 0; i-- {
 		l := d.insets.l[i]
 		if !l.Inset {
@@ -275,7 +269,7 @@ func (d *deco) paint(p *ui.Painter, r ui.Rect) {
 }
 
 func (d *deco) active() bool {
-	return d.ring != nil || d.ringForce > 0 || d.fill.A > 0 || d.insets.hasInset() || (d.before && d.beforeC.A > 0) || d.rimC.A > 0
+	return d.ring != nil || d.ringForce > 0 || d.fill.A > 0 || d.insets.hasInset() || (d.before && d.beforeC.A > 0)
 }
 
 // highlight sets the ::before shadow: 0 1px black/4% in light, 0 -1px
@@ -365,8 +359,19 @@ func fillRoundedRect(p *ui.Painter, box ui.Rect, c ui.Color, radii [4]float32) {
 	}
 }
 
+// glassBorderWidth returns a crisp 0.5 DIP hairline border width when glass
+// mode is active (1 physical pixel across 100%-200% Windows DPI) and the
+// standard 1 DIP coss border width otherwise.
+func glassBorderWidth(t *design.Tokens) float32 {
+	if t != nil && t.Glass {
+		return design.BorderWidth * 0.5
+	}
+	return design.BorderWidth
+}
+
 // applyGlassMaterial attaches frosted backdrop blur and translucent surface
-// tint to e when t.Glass is true. When t.Glass is false it is a no-op.
+// tint to floating overlays (popup, modal, sheet, drawer) when t.Glass is true.
+// Resting surfaces such as Card and ChatBubble must not call this.
 func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, radius, saturation float32) {
 	if t == nil || !t.Glass {
 		return
@@ -378,7 +383,8 @@ func applyGlassMaterial(e ui.Element, t *design.Tokens, tint ui.Color, radius, s
 }
 
 // applyGlassElevation upgrades sh and d with dark/light adaptive dual-layer
-// shadows and an inner specular rim when t.Glass is true.
+// shadows when t.Glass is true, disabling the non-glass top highlight so glass
+// surfaces keep a single restrained outer border with no inner rim.
 func applyGlassElevation(t *design.Tokens, sh *shadowList, d *deco, tier glassTier) {
 	if t == nil || !t.Glass {
 		return
@@ -431,20 +437,6 @@ func applyGlassElevation(t *design.Tokens, sh *shadowList, d *deco, tier glassTi
 		return
 	}
 	d.before = false
-	topC := white.Alpha(0.72)
-	rimC := white.Alpha(0.36)
-	if dark {
-		topC = white.Alpha(0.14)
-		rimC = white.Alpha(0.07)
-	}
-	switch tier {
-	case glassTierSheet:
-	case glassTierDrawer:
-		sh.inset(0, 1, 0, 0, topC)
-	default:
-		d.rimC = rimC
-		sh.inset(0, 1, 0, 0, topC)
-	}
 }
 
 // text builds a single-line text in a coss type pair.

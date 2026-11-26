@@ -165,7 +165,7 @@ func View(c *ui.Context, m Model) {
 func header(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border ui.Color) {
 	t := tk(c)
 	bar := ui.Row(c).FillWidth().Height(design.Sp(14)).Shrink(0).PaddingX(design.Sp(6)).Gap(design.Sp(2)).AlignItems(ui.Center).
-		BorderWidth(0, 0, design.BorderWidth, 0).BorderColor(t.Border).Label(providerCopy("设置页头", "Settings header"))
+		BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(t.SidebarBorder).Label(providerCopy("设置页头", "Settings header"))
 	bar.Children(func() {
 		kText(c, navigationLabel(m, effectiveActiveSection(c, m, snap)), design.TextBase, design.WeightSemibold, t.Foreground).
 			Grow(1).MinWidth(0).SingleLine().Role(ui.RoleHeading)
@@ -295,14 +295,10 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 	}
 	railBg := t.Sidebar
 	if t.Glass || chrome.BackdropActive() {
-		if t.IsDark() {
-			railBg = design.TW.White.Alpha(0.04)
-		} else {
-			railBg = design.TW.Black.Alpha(0.025)
-		}
+		railBg = ui.Transparent
 	}
 	rail := ui.Column(c).Key("settings-rail").Width(design.Sp(52)).Shrink(0).MinHeight(0).Padding(design.Sp(4), 0, 0, 0).Gap(design.Sp(3)).
-		Background(railBg).BorderWidth(0, design.BorderWidth, 0, 0).BorderColor(t.SidebarBorder).
+		Background(railBg).BorderWidth(0, design.BorderWidth/2, 0, 0).BorderColor(t.SidebarBorder).
 		Label(providerCopy("设置导航", "Settings navigation"))
 	rail.Children(func() {
 		kText(c, i18n.T(i18n.KeySettingsTitle), design.TextBase, design.WeightSemibold, t.SidebarAccentForeground).PaddingX(design.Sp(4)).Role(ui.RoleHeading)
@@ -314,7 +310,7 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 			for _, group := range groups {
 				ui.Column(c.Key("settings-group-"+group.label)).FillWidth().MinWidth(0).Gap(design.Sp(1)).Padding(0, 0, design.Sp(2), 0).Children(func() {
 					ui.Row(c).FillWidth().Height(design.Sp(8)).Shrink(0).PaddingX(design.Sp(2)).AlignItems(ui.Center).Children(func() {
-						kText(c, group.label, design.TextXS, design.WeightMedium, t.SidebarForeground).SingleLine()
+						kText(c, group.label, design.TextXS, design.WeightMedium, t.MutedForeground).SingleLine()
 					})
 					for _, entry := range group.entries {
 						// The rail keeps no selection while the search lists results.
@@ -326,24 +322,22 @@ func nsList(c *ui.Context, m Model, snap settings.ViewState, fg, muted, border u
 	})
 }
 
-// railButton is one SidebarMenuButton. Selected paints coss's sidebar-accent
-// pill with a hairline sidebar-border, a leading sidebar-primary indicator and
-// semibold ink; hover uses a noticeably lighter wash without border or
-// indicator so a hovered neighbor never reads as a second active section.
+// railButton is one SidebarMenuButton. Selected paints coss's borderless
+// sidebar-accent pill with a leading sidebar-primary indicator and semibold
+// ink; hover uses a noticeably lighter wash without indicator so a hovered
+// neighbor never reads as a second active section.
 func railButton(c *ui.Context, m Model, entry navigationEntry, selected bool, query *string) {
 	t := tk(c)
 	label := navigationLabel(m, entry.id)
-	borderColor := ui.Transparent
-	if selected {
-		borderColor = t.SidebarBorder
-	}
 	button := ui.ButtonBase(c.Key(string(entry.id))).Label(label).FillWidth().Height(design.Sp(8)).Shrink(0).
-		Radius(design.RadiusLG).Border(design.BorderWidth, borderColor).Padding(0, design.Sp(2), 0, design.Sp(2.5)).Gap(design.Sp(2)).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
+		Radius(design.RadiusLG).BorderWidth(0).Padding(0, design.Sp(2), 0, design.Sp(2.5)).Gap(design.Sp(2)).AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
 	if selected {
 		button.Selected(true)
 	}
 	hovered, pressed := button.Hovered(), button.Pressed()
-	iconInk, textInk, weight := t.SidebarForeground, t.SidebarForeground, design.WeightNormal
+	iconInk := t.SidebarForeground
+	textInk := t.SidebarForeground.Mix(t.Foreground, 0.55)
+	weight := design.WeightNormal
 	switch {
 	case selected:
 		button.Background(t.SidebarAccent)
@@ -362,8 +356,8 @@ func railButton(c *ui.Context, m Model, entry navigationEntry, selected bool, qu
 		textInk = t.SidebarAccentForeground
 	case hovered:
 		button.Background(t.SidebarAccent.Alpha(0.45))
-		mid := t.SidebarForeground.Mix(t.SidebarAccentForeground, 0.35)
-		iconInk, textInk = mid, mid
+		iconInk = t.SidebarForeground.Mix(t.SidebarAccentForeground, 0.45)
+		textInk = textInk.Mix(t.SidebarAccentForeground, 0.45)
 	}
 	if button.FocusVisible() {
 		button.Shadow(0, 0, 0, design.RingWidth, t.SidebarRing)

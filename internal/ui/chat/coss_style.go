@@ -28,39 +28,16 @@ func (m chatGlassMaterial) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]fl
 	p.Fill(box, m.tint, radii[0])
 }
 
-func paintChatGlassRim(border, radius float32, dark bool) func(*ui.Painter, ui.Rect) {
-	return func(p *ui.Painter, r ui.Rect) {
-		pad := ui.Rect{X: r.X + border, Y: r.Y + border, W: r.W - 2*border, H: r.H - 2*border}
-		inner := max(radius-border, 0)
-		if pad.W <= 2 || pad.H <= 2 {
-			return
-		}
-		rimC := design.TW.White.Alpha(0.36)
-		topC := design.TW.White.Alpha(0.72)
-		if dark {
-			rimC = design.TW.White.Alpha(0.07)
-			topC = design.TW.White.Alpha(0.14)
-		}
-		p.Stroke(pad, rimC, inner, 1)
-		p.Clip(pad, inner, func() {
-			p.Shadow(pad, inner, 0, 1, 0, 0, topC)
-		})
-	}
-}
-
 func chatCardSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
 	t := design.For(c)
-	e.Border(design.BorderWidth, t.Border).Radius(radius).TextColor(t.CardForeground)
+	e.Radius(radius).TextColor(t.CardForeground)
 	if t.Glass || chrome.BackdropActive() {
 		dark := t.IsDark()
 		tint := t.Card
 		if !t.Glass && chrome.BackdropActive() {
 			tint = chrome.MaterialFill(t.Card, chrome.MaterialAlpha(chrome.MaterialPanel, chrome.BackdropPreferences(), dark))
 		}
-		e.Material(chatGlassMaterial{
-			blur: glass.Blur{Radius: 16, Saturation: 0.35, Dither: true},
-			tint: tint,
-		})
+		e.Background(tint).Border(design.BorderWidth*0.5, t.Border)
 		if dark {
 			e.Shadow(0, 2, 6, 0, design.TW.Black.Alpha(0.12)).
 				Shadow(0, 8, 20, -2, design.TW.Black.Alpha(0.22))
@@ -68,9 +45,9 @@ func chatCardSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
 			e.Shadow(0, 1, 4, 0, design.TW.Black.Alpha(0.04)).
 				Shadow(0, 6, 16, -2, design.TW.Black.Alpha(0.07))
 		}
-		return e.Draw(paintChatGlassRim(design.BorderWidth, radius, dark))
+		return e
 	}
-	return e.Background(t.Card)
+	return e.Border(design.BorderWidth, t.Border).Background(t.Card)
 }
 
 func chatInsetSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
@@ -80,14 +57,14 @@ func chatInsetSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
 
 func chatPopupSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
 	t := design.For(c)
-	e.Border(design.BorderWidth, t.Border).Radius(radius).TextColor(t.PopoverForeground)
+	e.Radius(radius).TextColor(t.PopoverForeground)
 	if t.Glass || chrome.BackdropActive() {
 		dark := t.IsDark()
 		tint := t.Popover
 		if !t.Glass && chrome.BackdropActive() {
 			tint = chrome.MaterialFill(t.Popover, chrome.MenuSolidity(chrome.BackdropPreferences(), dark))
 		}
-		e.Material(chatGlassMaterial{
+		e.Border(design.BorderWidth*0.5, t.Border).Material(chatGlassMaterial{
 			blur: glass.Blur{Radius: 40, Saturation: 0.50, Dither: true},
 			tint: tint,
 		})
@@ -98,9 +75,9 @@ func chatPopupSurface(c *ui.Context, e ui.Element, radius float32) ui.Element {
 			e.Shadow(0, 3, 8, 0, design.TW.Black.Alpha(0.05)).
 				Shadow(0, 10, 28, -2, design.TW.Black.Alpha(0.10))
 		}
-		return e.Draw(paintChatGlassRim(design.BorderWidth, radius, dark))
+		return e
 	}
-	e.Background(t.Popover)
+	e.Border(design.BorderWidth, t.Border).Background(t.Popover)
 	for i := len(design.ShadowLg) - 1; i >= 0; i-- {
 		s := design.ShadowLg[i]
 		e.Shadow(s.X, s.Y, s.Blur, s.Spread, s.Color)

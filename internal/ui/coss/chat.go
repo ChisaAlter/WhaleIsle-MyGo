@@ -51,19 +51,7 @@ func ChatBubble(c *ui.Context, o ChatBubbleOptions, fn func()) ui.Element {
 					base = ui.RGB(44, 44, 46)
 				}
 			}
-			applyGlassMaterial(b, t, base.Alpha(0.40), 40, 0.50)
-			b.Border(design.BorderWidth*0.5, t.Border)
-			rim := ui.RGBA(255, 255, 255, 0.45)
-			if t.IsDark() {
-				rim = ui.RGBA(255, 255, 255, 0.10)
-			}
-			b.DrawOver(func(p *ui.Painter, box ui.Rect) {
-				if box.W <= 2 || box.H <= 2 {
-					return
-				}
-				inner := ui.Rect{X: box.X + 0.5, Y: box.Y + 0.5, W: box.W - 1, H: box.H - 1}
-				p.Stroke(inner, rim, max(0, r-0.5), 0.5)
-			})
+			b.Background(base.Alpha(0.40)).Border(design.BorderWidth*0.5, t.Border)
 		} else if o.Solid && o.BubbleTint.A > 0 {
 			b.Background(o.BubbleTint.Alpha(1))
 		} else {
@@ -80,8 +68,7 @@ func ChatBubble(c *ui.Context, o ChatBubbleOptions, fn func()) ui.Element {
 			if t.IsDark() {
 				tint = ui.RGBA(35, 35, 36, 0.40)
 			}
-			applyGlassMaterial(b, t, tint, 40, 0.50)
-			b.Border(design.BorderWidth*0.5, t.Border)
+			b.Background(tint).Border(design.BorderWidth*0.5, t.Border)
 		} else {
 			b.Background(t.Foreground.Alpha(0.04))
 		}

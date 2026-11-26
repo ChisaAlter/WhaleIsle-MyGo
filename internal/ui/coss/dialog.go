@@ -1,7 +1,6 @@
 package coss
 
 import (
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
@@ -49,23 +48,18 @@ const (
 	kindDrawer
 )
 
-// backdropLook is coss's bg-black/32 backdrop. In glass mode it softens the
-// scrim so wallpapers stay legible rather than crushed to solid black.
+// backdropLook is coss's bg-black/32 backdrop. In glass mode it uses a pure
+// dim scrim without fullscreen backdrop blur (--dsw-mask-blur: none).
 func backdropLook(back ui.Element, t *design.Tokens, part string) {
 	c := black.Alpha(0.32)
 	if t != nil && t.Glass {
 		if t.IsDark() {
-			c = black.Alpha(0.18)
+			c = black.Alpha(0.42)
 		} else {
-			c = black.Alpha(0.20)
+			c = black.Alpha(0.24)
 		}
-		back.Material(glassSurfaceMaterial{
-			blur: glass.Blur{Radius: 2},
-			tint: c,
-		})
-	} else {
-		back.Background(c)
 	}
+	back.Background(c)
 	motion(back, part, 0, 0)
 }
 
@@ -175,9 +169,10 @@ func DrawerPanel(c *ui.Context, o DialogOptions, body func()) ui.Element {
 
 func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptions, body func(), kind modalKind, ww float32) {
 	radius := theme.ContextRadii(c).Dialog
+	bw := glassBorderWidth(t)
 	var sh shadowList
 	sh.scale(design.ShadowLg, black, 0.05)
-	d := deco{border: design.BorderWidth}
+	d := deco{border: bw}
 	d.highlight(t, 0.04, 0.06)
 	panel.Background(t.Popover).TextColor(t.PopoverForeground)
 	footRadius := radius - 1
@@ -190,13 +185,13 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		radius, footRadius = 0, 0
 		switch o.Side {
 		case SideLeft:
-			panel.BorderWidth(0, design.BorderWidth, 0, 0)
+			panel.BorderWidth(0, bw, 0, 0)
 		case SideTop:
-			panel.BorderWidth(0, 0, design.BorderWidth, 0)
+			panel.BorderWidth(0, 0, bw, 0)
 		case SideBottom:
-			panel.BorderWidth(design.BorderWidth, 0, 0, 0)
+			panel.BorderWidth(bw, 0, 0, 0)
 		default:
-			panel.BorderWidth(0, 0, 0, design.BorderWidth)
+			panel.BorderWidth(0, 0, 0, bw)
 		}
 		if o.Side == SideLeft || o.Side == SideRight {
 			panel.Width(min(maxW, ww-design.Sp(12))).FillHeight()
@@ -215,7 +210,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		}
 		motion(panel, part, 0, 0)
 	case kindDrawer:
-		panel.FillWidth().BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).Radius(radius, radius, 0, 0)
+		panel.FillWidth().BorderWidth(bw, 0, 0, 0).BorderColor(t.Border).Radius(radius, radius, 0, 0)
 		footRadius = 0
 		if forced == 0 {
 			panel.Transition(ui.ElementTransition{Duration: design.DurationDrawer, Ease: design.EaseDrawer, Position: true,
@@ -226,7 +221,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		if maxW == 0 {
 			maxW = 512
 		}
-		panel.Width(min(maxW, ww-2*design.Sp(4))).Radius(radius).Border(design.BorderWidth, t.Border)
+		panel.Width(min(maxW, ww-2*design.Sp(4))).Radius(radius).Border(bw, t.Border)
 		part := "dialog/dialog-popup"
 		if kind == kindAlert {
 			part = "alert-dialog/alert-dialog-popup"
@@ -287,7 +282,15 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 		if o.Footer != nil {
 			f := ui.Row(c).FillWidth().Justify(ui.End).Gap(design.Sp(2)).PaddingX(design.Sp(6))
 			if o.FooterVariant == FooterDefault {
-				f.PaddingY(design.Sp(4)).Background(t.Muted.Alpha(0.72)).BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).
+				footBg := t.Muted.Alpha(0.72)
+				if t.Glass {
+					if t.IsDark() {
+						footBg = black.Alpha(0.14)
+					} else {
+						footBg = black.Alpha(0.03)
+					}
+				}
+				f.PaddingY(design.Sp(4)).Background(footBg).BorderWidth(bw, 0, 0, 0).BorderColor(t.Border).
 					Radius(0, 0, footRadius, footRadius)
 			} else {
 				f.Padding(design.Sp(4), design.Sp(6), design.Sp(6), design.Sp(6))

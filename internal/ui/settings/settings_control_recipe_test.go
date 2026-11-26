@@ -221,8 +221,8 @@ func TestSettingsSourceRowHeightAndAdjacentGearToggle(t *testing.T) {
 	}, 560, 300)
 	first, _ := tt.Find("Source title")
 	second, _ := tt.Find("Other title")
-	if math.Abs(float64(second.Y-first.Y-75)) > .1 {
-		t.Fatalf("source row pitch=%g want 75 (rows tile with no gap)", second.Y-first.Y)
+	if math.Abs(float64(second.Y-first.Y-74.5)) > .1 {
+		t.Fatalf("source row pitch=%g want 74.5 (rows tile with 0.5 DIP hairline and no gap)", second.Y-first.Y)
 	}
 	gear, g := tt.Find("Source gear")
 	toggle, s := tt.Find("Source switch")

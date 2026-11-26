@@ -40,7 +40,7 @@ func appearanceModal(c *ui.Context, open *bool, title string, width float32, bus
 				})
 				ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(80), vh*.85-140)).Padding(0, design.Sp(6), design.Sp(6), design.Sp(6)).Gap(design.Sp(4)).Children(body)
 				if footer != nil {
-					ui.Row(c).FillWidth().Shrink(0).Padding(design.Sp(4), design.Sp(6)).Gap(design.Sp(2)).Justify(ui.End).AlignItems(ui.Center).BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(tk(c).Border).Children(footer)
+					ui.Row(c).FillWidth().Shrink(0).Padding(design.Sp(4), design.Sp(6)).Gap(design.Sp(2)).Justify(ui.End).AlignItems(ui.Center).BorderWidth(design.BorderWidth/2, 0, 0, 0).BorderColor(tk(c).Border).Children(footer)
 				}
 			})
 		})
