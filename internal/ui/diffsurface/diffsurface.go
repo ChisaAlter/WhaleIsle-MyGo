@@ -112,7 +112,11 @@ func View(c *ui.Context, m Model) {
 	border := chrome.Color(colors.Border)
 	accent := chrome.Color(colors.Accent)
 
-	chrome.FrostSurface(ui.Column(c).Fill().MinWidth(0), colors, m.SystemDark, field, 0).Label(word("工作区差异", "Diff panel")).Children(func() {
+	paneBg := field
+	if chrome.BackdropActive() {
+		paneBg = ui.Transparent
+	}
+	ui.Column(c).Fill().MinWidth(0).Background(paneBg).Label(word("工作区差异", "Diff panel")).Children(func() {
 		ui.Row(c).MinHeight(36).Padding(8, 12, 8, 12).Gap(8).FillWidth().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyDiffTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if strings.TrimSpace(m.WorkspaceRoot) != "" && m.Text != nil && strings.TrimSpace(*m.Text) != "" {

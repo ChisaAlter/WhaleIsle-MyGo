@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"sort"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	termui "whaleisle/internal/ui/terminal"
@@ -178,7 +179,13 @@ func workspaceFloating(c *ui.Context, m Model) {
 		ui.Overlay(c, func() {
 			t := tk(c)
 			visible := boundedFloat(*f, viewportWidth, viewportHeight)
-			panel := frameShadow(ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height).Border(design.BorderWidth, t.Border).Background(t.Popover), design.ShadowLg).Clip().FocusBind(&w.focusedResource, n.ID)
+			panel := ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height)
+			if t.Glass || chrome.BackdropActive() {
+				chrome.ApplyMenuSurface(panel, t, design.RadiusXL)
+			} else {
+				frameShadow(panel.Border(design.BorderWidth, t.Border).Background(t.Popover), design.ShadowLg)
+			}
+			panel.Clip().FocusBind(&w.focusedResource, n.ID)
 			n.paneBoxFocused = panel.Focused()
 			panel.Children(func() {
 				ui.Row(c).FillWidth().Height(38).Gap(design.Sp(1)).Padding(design.Sp(1)).Children(func() {

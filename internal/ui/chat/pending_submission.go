@@ -42,7 +42,7 @@ func paintPendingSubmission(c *ui.Context, p session.PendingSubmission, fg, mute
 			})
 		}
 		if text := strings.TrimSpace(p.Text); text != "" {
-			coss.ChatBubble(c, coss.ChatBubbleOptions{Side: coss.ChatOutgoing}, func() {
+			coss.ChatBubble(c, userBubbleOptions(c, "", c.Theme().Dark), func() {
 				ui.Text(c, maskedUserText(text)).FontSize(13).FixedLineHeight(22).TextColor(fg)
 			}).Label("User message bubble").MaxWidthPercent(100)
 		}

@@ -55,7 +55,7 @@ func panelLook(e ui.Element, t *design.Tokens, radius float32, sc design.Shadows
 	sh.scale(sc, black, 0.05)
 	d := deco{border: design.BorderWidth, radius: radius}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(e, t, t.Popover, 24, 0.45)
+	applyGlassMaterial(e, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, glassTierPopup)
 	finish(e, &sh, &d)
 }

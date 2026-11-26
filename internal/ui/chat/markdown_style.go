@@ -1,8 +1,10 @@
 package chat
 
 import (
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -45,7 +47,20 @@ func transcriptMarkdownStyleFor(c *ui.Context, size float32) markdown.Style {
 	st := transcriptMarkdownStyle(t.Foreground, t.MutedForeground, t.Code, t.Primary, t.Accent, size, t.IsDark(), t.MutedForeground)
 	st.CodeBG = t.Code
 	st.CodeSurface = func(e ui.Element, radius float32) ui.Element {
-		return e.Background(t.Code).Border(design.BorderWidth, t.Border).Radius(radius)
+		e = e.Border(design.BorderWidth, t.Border).Radius(radius)
+		if t.Glass || chrome.BackdropActive() {
+			fill := t.Code
+			if !t.Glass && chrome.BackdropActive() {
+				fill = chrome.MaterialFill(t.Code, chrome.MaterialAlpha(chrome.MaterialPanel, chrome.BackdropPreferences(), t.IsDark()))
+			} else if t.Code.A == 255 {
+				fill = t.Card
+			}
+			return e.Material(chatGlassMaterial{
+				blur: glass.Blur{Radius: 16, Saturation: 0.35, Dither: true},
+				tint: fill,
+			})
+		}
+		return e.Background(t.Code)
 	}
 	st.InlineCodeBG = t.CodeHighlight
 	st.TableHeader = t.Muted

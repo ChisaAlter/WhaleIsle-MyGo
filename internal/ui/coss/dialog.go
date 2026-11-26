@@ -1,6 +1,7 @@
 package coss
 
 import (
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
@@ -57,8 +58,13 @@ func backdropLook(back ui.Element, t *design.Tokens, part string) {
 		} else {
 			c = black.Alpha(0.20)
 		}
+		back.Material(glassSurfaceMaterial{
+			blur: glass.Blur{Radius: 2},
+			tint: c,
+		})
+	} else {
+		back.Background(c)
 	}
-	back.Background(c)
 	motion(back, part, 0, 0)
 }
 
@@ -241,7 +247,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 	case kindDrawer:
 		tier = glassTierDrawer
 	}
-	applyGlassMaterial(panel, t, t.Popover, 28, 0.45)
+	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, tier)
 	finish(panel, &sh, &d)
 	panel.Children(func() {

@@ -359,9 +359,11 @@ func View(c *ui.Context, m Model) {
 				}
 			})
 		}
-		// coss Composer frame (RadiusXL, coss input border/ring, 8 top pad, 12 gap;
-		// Hero retains the 114-DIP card height contract).
-		cardRadius := design.RadiusXL
+		// InputBar capsule radius (22px; Codex skin uses 18px).
+		cardRadius := theme.ContextRadii(c).Composer
+		if theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark).Skin == theme.SkinCodex {
+			cardRadius = theme.LayoutForSkin(theme.SkinCodex).ComposerRadius
+		}
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().
 			Radius(cardRadius).Padding(design.Sp(2), 0, 0, 0).Gap(design.Sp(3))
 		if m.Hero {
@@ -377,7 +379,7 @@ func View(c *ui.Context, m Model) {
 		prefs := chrome.BackdropPreferences()
 		transparentActive := prefs.Transparent && chrome.BackdropHasWallpaper()
 		if glassMode && !transparentActive {
-			card.Material(glass.Blur{Radius: 28, Saturation: 0.45, Dither: true})
+			card.Material(glass.Blur{Radius: 40, Saturation: 0.50, Dither: true})
 		}
 		composerCardElevation(card, t, focused, inputDisabled)
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
@@ -389,13 +391,15 @@ func View(c *ui.Context, m Model) {
 			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
 			if glassMode {
-				peakAlpha := float32(0.35)
+				peakAlpha := float32(0.25)
 				if t.IsDark() {
 					peakAlpha = 0.14
 				}
 				paintInnerBloom(p, r, cardRadius, peakAlpha)
 			} else if t.IsDark() {
 				paintInnerBloom(p, r, cardRadius, 0.056)
+			} else {
+				paintInnerBloom(p, r, cardRadius, 0.25)
 			}
 		})
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {

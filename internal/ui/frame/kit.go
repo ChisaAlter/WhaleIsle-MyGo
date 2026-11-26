@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
@@ -36,18 +37,24 @@ func frameInsetBg(t *design.Tokens) ui.Color {
 }
 
 func frameShadow(e ui.Element, sc design.Shadows) ui.Element {
-	if len(sc) > 0 {
-		s := sc[0]
-		e.Shadow(s.X, s.Y, s.Blur, s.Spread, s.Color)
+	for i := len(sc) - 1; i >= 0; i-- {
+		s := sc[i]
+		if s.Blur > 0 || s.Spread > 0 {
+			e.Shadow(s.X, s.Y, s.Blur, s.Spread, s.Color)
+		}
 	}
 	return e
 }
 
 func framePopoverPanel(p ui.Element, t *design.Tokens, radius float32) ui.Element {
-	frameShadow(p.
-		Radius(radius).
-		Border(design.BorderWidth, t.Border).
-		Background(t.Popover), design.ShadowLg)
+	if t.Glass || chrome.BackdropActive() {
+		chrome.ApplyMenuSurface(p, t, radius)
+	} else {
+		frameShadow(p.
+			Radius(radius).
+			Border(design.BorderWidth, t.Border).
+			Background(t.Popover), design.ShadowLg)
+	}
 	return p.Transition(ui.ElementTransition{
 		Duration: design.DurationDefault,
 		Ease:     design.EaseInOut,

@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
-	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/theme"
 )
@@ -30,8 +29,7 @@ func projectRenameDialog(c *ui.Context, m Model) {
 		}
 	}
 	ui.DialogBase(c.Key("rename/"+m.RenameID), &open, func(back, panel ui.Element) {
-		chrome.DialogReveal(c, back, panel)
-		chrome.FrostSurface(panel.Label(tr("重命名项目", "Rename Project")).Width(380).MaxWidthPercent(94).MaxHeight(max(1, viewportHeight-48)).MinHeight(0).Clip().Padding(0, 0, 24, 0), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).Panel).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+		projectModalSurface(c, back, panel.Label(tr("重命名项目", "Rename Project")).Width(380).MaxWidthPercent(94).MaxHeight(max(1, viewportHeight-48)).MinHeight(0).Padding(0, 0, 24, 0), colors).Children(func() {
 			projectModalHeader(c, m, tr("重命名项目", "Rename Project"), close, m.Busy, false)
 			available := false
 			for _, p := range m.Listing.Projects {
@@ -93,8 +91,7 @@ func projectArchiveDialog(c *ui.Context, m Model) {
 		}
 	}
 	ui.DialogBase(c.Key("archive/"+m.ArchiveCandidate.ID), &open, func(back, panel ui.Element) {
-		chrome.DialogReveal(c, back, panel)
-		chrome.FrostSurface(panel.Label(tr("停止并归档项目", "Stop work and archive Project")).Width(380).MaxWidthPercent(94).MaxHeight(max(1, viewportHeight-48)).MinHeight(0).Clip().Padding(0, 0, 24, 0), colors, m.SystemDark, chrome.Color(colors.Field), theme.ContextRadii(c).Panel).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, .2)).Children(func() {
+		projectModalSurface(c, back, panel.Label(tr("停止并归档项目", "Stop work and archive Project")).Width(380).MaxWidthPercent(94).MaxHeight(max(1, viewportHeight-48)).MinHeight(0).Padding(0, 0, 24, 0), colors).Children(func() {
 			first := ui.Local(panel, "archive-initial-focus", func() bool { return true })
 			projectModalHeader(c, m, tr("停止并归档项目", "Stop work and archive Project"), close, m.Busy, *first)
 			*first = false
