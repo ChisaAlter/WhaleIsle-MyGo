@@ -361,6 +361,7 @@ type mainState struct {
 	imOpen                                  bool
 	marketOpen                              bool
 	marketManager                           bool
+	pluginContribCache                      pluginContributionsCache
 	scheduleOpen                            bool
 	scheduleHistoryText                     string
 	remoteOpen                              bool
