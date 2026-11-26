@@ -47,12 +47,12 @@ type ComposerScrollSample struct {
 
 // ComposerCollapseGuards controls when the composer may collapse into pill form.
 type ComposerCollapseGuards struct {
-	ActivePhase               bool
-	HasOverlay                bool
-	HasPendingInteraction     bool
-	HasMultilineOrAttachment  bool
-	HasEditSession            bool
-	HasOpenPopover            bool
+	ActivePhase              bool
+	HasOverlay               bool
+	HasPendingInteraction    bool
+	HasMultilineOrAttachment bool
+	HasEditSession           bool
+	HasOpenPopover           bool
 }
 
 // CanCollapseComposer returns whether the composer may collapse under current guards.

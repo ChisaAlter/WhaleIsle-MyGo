@@ -1516,9 +1516,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 										Board:             snap.PlanBoard,
 										PendingSubmission: pendingSubmission,
 										LoadQueueImage:    m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
-										ThemeID:        m.ThemeID,
-										SystemDark:     m.SystemDark,
-										QueueEditor:    snap.QueueEditor,
+										ThemeID:           m.ThemeID,
+										SystemDark:        m.SystemDark,
+										QueueEditor:       snap.QueueEditor,
 										OnQueueRemove: func(itemID string) {
 											m.Store.UpdateQueue(context.Background(), snap.SelectedID, itemID, session.QueueActionRemove)
 										},

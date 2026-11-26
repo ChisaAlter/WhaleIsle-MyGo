@@ -266,7 +266,7 @@ func TestTypingEffectsIMECommitPasteUndoDeleteAndBatch(t *testing.T) {
 	client.typing.echoes = nil
 	end := ui.UTF16Len(draft)
 	client.ReplaceText(&ui.TextInputRange{Start: end, End: end}, "pasted") // paste bypasses typingInputClient
-	client.ReplaceText(&ui.TextInputRange{Start: end, End: end + 6}, "")  // delete
+	client.ReplaceText(&ui.TextInputRange{Start: end, End: end + 6}, "")   // delete
 	ti.ReplaceText(nil, " ")                                               // whitespace-only keystroke
 	ti.ReplaceText(nil, "abcdefghijklmnopq")                               // 17 UTF-16 code units (>16 batch)
 	client.Undo()

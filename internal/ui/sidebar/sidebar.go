@@ -451,130 +451,130 @@ func View(c *ui.Context, m Model) {
 				})
 			}
 			wide.Children(func() {
-			ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(design.Sp(1.5)).AlignItems(ui.Center).
-				DragWindow().Children(func() {
-				sidebarBrand(c, m, runtime.GOOS)
-				if m.OnToggle != nil {
-					collapse := coss.Button(c, "", coss.ButtonOptions{
-						Variant: coss.ButtonGhost,
-						Size:    coss.ButtonIconSM,
-						Label:   i18n.T(i18n.KeySidebarCollapse),
-						Key:     "sidebar-collapse",
-						Content: func() {},
-					}).Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse)+" (Ctrl+B)").
-						Size(28, 28).Shrink(0).Padding(0).Radius(design.RadiusMD).BorderWidth(0).Center()
-					collapseInk := t.MutedForeground
-					if collapse.Hovered() {
-						collapseInk = fg
-					}
-					collapse.Children(func() {
-						ui.Icon(c, sidebarRailIcons["panel"]).Size(design.IconSM, design.IconSM).TextColor(collapseInk)
-					})
-					if collapse.Clicked() {
-						m.OnToggle()
-					}
-				}
-			})
-			if m.OnCreate != nil {
-				newSessionButton(c, m)
-				if skinLayout.Skin != theme.SkinCodex {
-					ui.Box(c).Height(12)
-				}
-			}
-			ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, design.Sp(0.5), design.Sp(2), design.Sp(0.5)).Gap(design.Sp(0.5)).Children(func() {
-				nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
-					row := coss.Button(c, "", coss.ButtonOptions{
-						Variant: coss.ButtonGhost,
-						Size:    coss.ButtonMD,
-						Pressed: m.ActivePanel == id,
-						Key:     "sidebar-panel-" + key,
-						Content: func() {},
-					}).FillWidth().Height(skinLayout.NavHeight).Radius(design.RadiusXL).
-						TextColor(fg).BorderWidth(0).
-						Padding(design.Sp(1.75), design.Sp(2), design.Sp(1.75), design.Sp(2)).AlignItems(ui.Center)
-					active := m.ActivePanel == id
-					if active {
-						row.Background(sbSelectedBg(t))
-						sbActiveIndicator(row, t)
-					} else if row.Hovered() || row.FocusVisible() {
-						row.Background(sbHoverBg(t))
-					} else {
-						row.Background(ui.Transparent)
-					}
-					if skinLayout.Skin == theme.SkinCodex {
-						row.Padding(design.Sp(1.5), design.Sp(2)).MinHeight(32)
-					}
-					row.Children(func() {
-						ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
-							if drawIcon != nil {
-								drawIcon()
-							}
-							lineHeight := fs(22)
-							if skinLayout.Active() {
-								lineHeight = 20
-							}
-							ui.Text(c, label).FontSize(skinLayout.SidebarFont).
-								FixedLineHeight(lineHeight).TextColor(fg).Grow(1)
+				ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(design.Sp(1.5)).AlignItems(ui.Center).
+					DragWindow().Children(func() {
+					sidebarBrand(c, m, runtime.GOOS)
+					if m.OnToggle != nil {
+						collapse := coss.Button(c, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonIconSM,
+							Label:   i18n.T(i18n.KeySidebarCollapse),
+							Key:     "sidebar-collapse",
+							Content: func() {},
+						}).Label(i18n.T(i18n.KeySidebarCollapse)).Tooltip(i18n.T(i18n.KeySidebarCollapse)+" (Ctrl+B)").
+							Size(28, 28).Shrink(0).Padding(0).Radius(design.RadiusMD).BorderWidth(0).Center()
+						collapseInk := t.MutedForeground
+						if collapse.Hovered() {
+							collapseInk = fg
+						}
+						collapse.Children(func() {
+							ui.Icon(c, sidebarRailIcons["panel"]).Size(design.IconSM, design.IconSM).TextColor(collapseInk)
 						})
-					})
-					if contextMenu != nil {
-						row.ContextMenu(contextMenu)
-					}
-					if fn != nil && row.Clicked() {
-						fn()
-					}
-				}
-				for _, panel := range sidebarPanelRows(m) {
-					panel := panel
-					var menu func(*ui.Menu)
-					if panel.id == "plugins" && m.OnCreatePlugin != nil {
-						menu = func(ctxMenu *ui.Menu) {
-							ctxMenu.CloseOnPointerLeave(true)
-							if m.OnOpenMarket != nil && ctxMenu.Item(sidebarLocaleText("panels.browse")).Chosen() {
-								m.OnOpenMarket()
-							}
-							if ctxMenu.Item(sidebarLocaleText("panels.create")).Chosen() {
-								m.OnCreatePlugin()
-							}
+						if collapse.Clicked() {
+							m.OnToggle()
 						}
 					}
-					nav(panel.active, "builtin:"+panel.id, func() { sidebarPanelIcon(c, panel.id, fg) }, panel.label, panel.run, menu)
+				})
+				if m.OnCreate != nil {
+					newSessionButton(c, m)
+					if skinLayout.Skin != theme.SkinCodex {
+						ui.Box(c).Height(12)
+					}
 				}
-			})
-			menuOpen := &workspaceMenuFB
-			if m.WorkspaceMenuOpen != nil {
-				menuOpen = m.WorkspaceMenuOpen
-			}
-			ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(1)).Padding(design.Sp(0.6675), 0, 0, 0).Children(func() {
-				sectionInk := t.SidebarForeground
-				workspaceHeading(c, m, menuOpen, fg, sectionInk)
-				batchToolbar(c, m, fg)
-				m.scrollbarsVisible = sidebarScrollbarLinger(c, root)
-				searchActive := m.SearchQuery != nil && session.NormalizeSessionSearchQuery(*m.SearchQuery) != ""
-				if searchActive {
-					m.sidebarBodyFill = true
-					ui.Column(c.Key("sidebar-search-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
-						sessionSearchResultsView(c, m, fg, muted)
-						// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
-						// projects.View(c, m.Projects)
-					})
-				} else {
-					filter := browseArchiveFilter(m)
-					items := sidebarItemsForArchiveFilter(m.Snapshot, m.SearchQuery, filter)
-					archivedItems := archivedSectionItems(m)
-					showArchived := (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0
-					m.sidebarBodyFill = true
-					ui.Column(c.Key("sidebar-tree-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
-						workspaceRowsView(c, m, items, fg, muted, border)
-						workspaceListFeedback(c, m, items, fg, muted)
-						// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
-						// projects.View(c, m.Projects)
-						if showArchived {
-							archivedSection(c, m, archivedItems, sectionInk, muted)
+				ui.Column(c).Label(sidebarLocaleText("panels.label")).FillWidth().Padding(0, design.Sp(0.5), design.Sp(2), design.Sp(0.5)).Gap(design.Sp(0.5)).Children(func() {
+					nav := func(id, key string, drawIcon func(), label string, fn func(), contextMenu func(*ui.Menu)) {
+						row := coss.Button(c, "", coss.ButtonOptions{
+							Variant: coss.ButtonGhost,
+							Size:    coss.ButtonMD,
+							Pressed: m.ActivePanel == id,
+							Key:     "sidebar-panel-" + key,
+							Content: func() {},
+						}).FillWidth().Height(skinLayout.NavHeight).Radius(design.RadiusXL).
+							TextColor(fg).BorderWidth(0).
+							Padding(design.Sp(1.75), design.Sp(2), design.Sp(1.75), design.Sp(2)).AlignItems(ui.Center)
+						active := m.ActivePanel == id
+						if active {
+							row.Background(sbSelectedBg(t))
+							sbActiveIndicator(row, t)
+						} else if row.Hovered() || row.FocusVisible() {
+							row.Background(sbHoverBg(t))
+						} else {
+							row.Background(ui.Transparent)
 						}
-					})
+						if skinLayout.Skin == theme.SkinCodex {
+							row.Padding(design.Sp(1.5), design.Sp(2)).MinHeight(32)
+						}
+						row.Children(func() {
+							ui.Row(c).FillWidth().Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+								if drawIcon != nil {
+									drawIcon()
+								}
+								lineHeight := fs(22)
+								if skinLayout.Active() {
+									lineHeight = 20
+								}
+								ui.Text(c, label).FontSize(skinLayout.SidebarFont).
+									FixedLineHeight(lineHeight).TextColor(fg).Grow(1)
+							})
+						})
+						if contextMenu != nil {
+							row.ContextMenu(contextMenu)
+						}
+						if fn != nil && row.Clicked() {
+							fn()
+						}
+					}
+					for _, panel := range sidebarPanelRows(m) {
+						panel := panel
+						var menu func(*ui.Menu)
+						if panel.id == "plugins" && m.OnCreatePlugin != nil {
+							menu = func(ctxMenu *ui.Menu) {
+								ctxMenu.CloseOnPointerLeave(true)
+								if m.OnOpenMarket != nil && ctxMenu.Item(sidebarLocaleText("panels.browse")).Chosen() {
+									m.OnOpenMarket()
+								}
+								if ctxMenu.Item(sidebarLocaleText("panels.create")).Chosen() {
+									m.OnCreatePlugin()
+								}
+							}
+						}
+						nav(panel.active, "builtin:"+panel.id, func() { sidebarPanelIcon(c, panel.id, fg) }, panel.label, panel.run, menu)
+					}
+				})
+				menuOpen := &workspaceMenuFB
+				if m.WorkspaceMenuOpen != nil {
+					menuOpen = m.WorkspaceMenuOpen
 				}
-			})
+				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(1)).Padding(design.Sp(0.6675), 0, 0, 0).Children(func() {
+					sectionInk := t.SidebarForeground
+					workspaceHeading(c, m, menuOpen, fg, sectionInk)
+					batchToolbar(c, m, fg)
+					m.scrollbarsVisible = sidebarScrollbarLinger(c, root)
+					searchActive := m.SearchQuery != nil && session.NormalizeSessionSearchQuery(*m.SearchQuery) != ""
+					if searchActive {
+						m.sidebarBodyFill = true
+						ui.Column(c.Key("sidebar-search-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
+							sessionSearchResultsView(c, m, fg, muted)
+							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+							// projects.View(c, m.Projects)
+						})
+					} else {
+						filter := browseArchiveFilter(m)
+						items := sidebarItemsForArchiveFilter(m.Snapshot, m.SearchQuery, filter)
+						archivedItems := archivedSectionItems(m)
+						showArchived := (filter == "default" && !m.HideArchivedList) || len(archivedItems) > 0
+						m.sidebarBodyFill = true
+						ui.Column(c.Key("sidebar-tree-body")).FillWidth().Grow(1).MinHeight(0).Gap(design.Sp(0.5)).Children(func() {
+							workspaceRowsView(c, m, items, fg, muted, border)
+							workspaceListFeedback(c, m, items, fg, muted)
+							// Project 功能已改版，侧栏区块暂时下线；恢复时取消注释。
+							// projects.View(c, m.Projects)
+							if showArchived {
+								archivedSection(c, m, archivedItems, sectionInk, muted)
+							}
+						})
+					}
+				})
 			})
 		}
 		batchResultReceipt(c, m)

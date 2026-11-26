@@ -179,7 +179,7 @@ func workspaceFloating(c *ui.Context, m Model) {
 		ui.Overlay(c, func() {
 			t := tk(c)
 			visible := boundedFloat(*f, viewportWidth, viewportHeight)
-			panel := ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height)
+			panel := ui.Column(c).Key("workspace-float:" + n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height)
 			if t.Glass || chrome.BackdropActive() {
 				chrome.ApplyFloatingCardSurface(panel, t, design.RadiusXL)
 			} else {
