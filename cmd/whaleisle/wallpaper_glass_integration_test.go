@@ -904,3 +904,74 @@ func TestSettingsBodyDialogFrameGlassBlurAndRim(t *testing.T) {
 		t.Fatalf("expected opaque bodyDialogFrame when glass is off, got R span=%d", offHiR-offLoR)
 	}
 }
+
+func TestWallpaperPrecedenceAndTransparentThemeContract(t *testing.T) {
+	resetAppearanceGlobalsForTest(t)
+	applyMinimalMode(false)
+	applyGlassTheme(true)
+
+	// 1. Gradient without wallpaper: Transparent=true stays inert (does not drop
+	// backdrop glass opacity as transparent wallpaper theme).
+	cfg := minimalModeStore(t)
+	if err := cfg.Update(func(c *config.Config) {
+		c.Theme = theme.IDDeepseekLight
+		c.WallpaperPath = ""
+		on := true
+		c.GlassTheme = &on
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Transparent = true
+	prefs.Glass = 80
+	if err := cfg.SaveWallpaperBackground(prefs); err != nil {
+		t.Fatal(err)
+	}
+	s := &mainState{cfgStore: cfg, themeID: theme.IDDeepseekLight}
+	s.syncAppearanceBackdrop(theme.IDDeepseekLight, false, false)
+	if !chrome.BackdropActive() || chrome.BackdropHasWallpaper() {
+		t.Fatalf("gradient-only state wrong: active=%v hasWallpaper=%v", chrome.BackdropActive(), chrome.BackdropHasWallpaper())
+	}
+	// Transparent theme over gradient without wallpaper must keep non-zero canvas fill.
+	if bg := design.Base(design.Light).Background; bg.A == 0 {
+		t.Fatalf("expected Transparent=true to be inert without wallpaper, got Background.A=0")
+	}
+
+	// 2. Wallpaper image takes precedence over gradient, applies dim mask
+	// (0.24 light / 0.50 dark), and Transparent=true drops the mask only when
+	// a wallpaper is active.
+	if math.Abs(float64(chrome.MaskAlpha(false)-0.24)) > 1e-6 || math.Abs(float64(chrome.MaskAlpha(true)-0.50)) > 1e-6 {
+		t.Fatalf("unexpected MaskAlpha values: light=%v dark=%v", chrome.MaskAlpha(false), chrome.MaskAlpha(true))
+	}
+	stripedURL := testStripedWallpaperURL(t, 120, 80)
+	opaquePrefs := prefs
+	opaquePrefs.Transparent = false
+	paintOne := func(p wallpapers.Preferences) color.RGBA {
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(ui.LightTheme())
+			ui.Box(c).Fill().Draw(chrome.WallpaperBackgroundPainter(stripedURL, p, false))
+		}, 120, 80)
+		for i := 0; i < 60; i++ {
+			tt.Frame()
+			px := tt.Image().RGBAAt(10, 10)
+			if px != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) && px != (color.RGBA{A: 255}) {
+				return px
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		return tt.Image().RGBAAt(10, 10)
+	}
+	dimPx := paintOne(opaquePrefs)
+	transPx := paintOne(prefs)
+	if dimPx == (color.RGBA{R: 255, G: 255, B: 255, A: 255}) || int(transPx.R)+int(transPx.G)+int(transPx.B) <= int(dimPx.R)+int(dimPx.G)+int(dimPx.B) {
+		t.Fatalf("expected Transparent=true to drop 0.24 dim mask over wallpaper: dim=%+v trans=%+v", dimPx, transPx)
+	}
+
+	// 3. Turning off the optional glass theme switch disables backdrop & glass sampling.
+	applyGlassTheme(false)
+	if !renderpolicy.NoBackdrop() || design.GlassEnabled() {
+		t.Fatalf("expected glass theme off to enforce NoBackdrop and disable design glass: noBackdrop=%v glass=%v", renderpolicy.NoBackdrop(), design.GlassEnabled())
+	}
+}
