@@ -154,7 +154,7 @@ func TestSettingsSearchResultOpensItsSection(t *testing.T) {
 
 // TestSettingsPanelPaintsThePopoverSurface pins the modal's surface contract:
 // the panel reads coss's raised popover token in both schemes, floating over
-// the black/32 dimming backdrop.
+// the Electron-aligned dimming backdrop (black/24 light, black/48 dark).
 func TestSettingsPanelPaintsThePopoverSurface(t *testing.T) {
 	bg := ui.RGB(8, 96, 8)
 	var popover ui.Color
@@ -191,8 +191,9 @@ func TestSettingsPanelPaintsThePopoverSurface(t *testing.T) {
 			t.Fatalf("dark%v panel paints %v, want popover %v", dark, px, popover)
 		}
 		mask := tt.Image().RGBAAt(4, 4)
-		if !near(mask.G, uint8(float32(bg.G)*0.68+0.5)) || mask.G == popover.G {
-			t.Fatalf("dark%v backdrop is %v, want black/32 over %v", dark, mask, bg)
+		wantKeep := 1 - modalScrimAlpha(dark)
+		if !near(mask.G, uint8(float32(bg.G)*wantKeep+0.5)) || mask.G == popover.G {
+			t.Fatalf("dark%v backdrop is %v, want black/%.0f over %v", dark, mask, modalScrimAlpha(dark)*100, bg)
 		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -49,3 +50,60 @@ func TestSettingsModalDrawsItsElevationHairline(t *testing.T) {
 
 // modalPixel reads a rendered pixel as a theme color.
 func modalPixel(c color.RGBA) ui.Color { return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255) }
+
+// TestSettingsModalGlassClarityAndSingleHairline pins the glass polish
+// contract: dark/light scrim opacities match Electron (0.48 / 0.24), dark glass
+// modals paint a single outer hairline with no duplicate inner rim at y+1, and
+// the left rail shares the cohesive dark card surface without a white fog fill.
+func TestSettingsModalGlassClarityAndSingleHairline(t *testing.T) {
+	if got := modalScrimAlpha(true); got != 0.48 {
+		t.Fatalf("dark scrim alpha = %v, want 0.48", got)
+	}
+	if got := modalScrimAlpha(false); got != 0.24 {
+		t.Fatalf("light scrim alpha = %v, want 0.24", got)
+	}
+
+	design.SetGlass(true, func(s design.Scheme, p *design.Palette) {
+		if s == design.Dark {
+			p.Card = ui.RGBA(32, 32, 35, 0.80)
+			p.Popover = ui.RGBA(48, 49, 54, 0.64)
+			p.Border = ui.RGBA(255, 255, 255, 0.07)
+			p.SidebarBorder = ui.RGBA(255, 255, 255, 0.055)
+		}
+	})
+	t.Cleanup(func() { design.SetGlass(false, nil) })
+
+	dark := Model{
+		Desktop:       &DesktopAccess{},
+		DesktopActive: true,
+		ThemeID:       theme.IDDeepseekDark,
+		SystemDark:    true,
+		OnClose:       func() {},
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		design.Bind(c, design.Dark, ui.Color{}, ui.Color{})
+		ModalView(c, dark)
+	}, 1400, 900)
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(time.Second))
+
+	img := tt.Image()
+	const panelLeft, panelTop = 260, 50 // settingsModalSize(1400, 900) is 880×800 -> (260, 50)
+	edge := img.RGBAAt(panelLeft+440, panelTop)
+	belowEdge := img.RGBAAt(panelLeft+440, panelTop+1)
+	inside := img.RGBAAt(panelLeft+440, panelTop+8)
+	if edge.R <= inside.R {
+		t.Fatalf("dark glass outer hairline missing: edge=%v inside=%v", edge, inside)
+	}
+	// No duplicate inner rim stroke at y = panelTop + 1.
+	if absDiff(belowEdge.R, inside.R) > 3 || absDiff(belowEdge.G, inside.G) > 3 || absDiff(belowEdge.B, inside.B) > 3 {
+		t.Fatalf("unexpected inner rim at y=panelTop+1: belowEdge=%v inside=%v (edge=%v)", belowEdge, inside, edge)
+	}
+	// Rail background stays cohesive with the options surface (no white/4% fog).
+	railFill := img.RGBAAt(panelLeft+12, panelTop+8)
+	if absDiff(railFill.R, inside.R) > 3 || absDiff(railFill.G, inside.G) > 3 || absDiff(railFill.B, inside.B) > 3 {
+		t.Fatalf("rail painted extra fog fill over modal surface: rail=%v options=%v", railFill, inside)
+	}
+}

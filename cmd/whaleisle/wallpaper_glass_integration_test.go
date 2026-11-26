@@ -496,36 +496,57 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				if gotTokens.Code != ui.RGB(27, 27, 28) {
 					t.Fatalf("dark Code = %+v, want #1b1b1c", gotTokens.Code)
 				}
-				if gotTokens.Border != ui.RGBA(255, 255, 255, 0.14) {
-					t.Fatalf("dark Border = %+v, want rgba(255,255,255,0.14)", gotTokens.Border)
+				if gotTokens.Border != ui.RGBA(255, 255, 255, 0.07) {
+					t.Fatalf("dark Border = %+v, want rgba(255,255,255,0.07)", gotTokens.Border)
 				}
-				if gotTokens.SidebarBorder != ui.RGBA(255, 255, 255, 0.08) {
-					t.Fatalf("dark SidebarBorder = %+v, want rgba(255,255,255,0.08)", gotTokens.SidebarBorder)
+				if gotTokens.SidebarBorder != ui.RGBA(255, 255, 255, 0.055) {
+					t.Fatalf("dark SidebarBorder = %+v, want rgba(255,255,255,0.055)", gotTokens.SidebarBorder)
 				}
-				if gotTokens.Input != ui.RGBA(255, 255, 255, 0.16) {
-					t.Fatalf("dark Input = %+v, want rgba(255,255,255,0.16)", gotTokens.Input)
+				if gotTokens.Input != ui.RGBA(255, 255, 255, 0.095) {
+					t.Fatalf("dark Input = %+v, want rgba(255,255,255,0.095)", gotTokens.Input)
+				}
+				if gotTokens.Secondary != ui.RGBA(255, 255, 255, 0.06) ||
+					gotTokens.Muted != ui.RGBA(255, 255, 255, 0.05) ||
+					gotTokens.Accent != ui.RGBA(255, 255, 255, 0.075) ||
+					gotTokens.SidebarAccent != ui.RGBA(255, 255, 255, 0.08) ||
+					gotTokens.CodeHighlight != ui.RGBA(255, 255, 255, 0.06) {
+					t.Fatalf("dark subtle surface fills diverged: secondary=%+v muted=%+v accent=%+v sidebarAccent=%+v codeHighlight=%+v",
+						gotTokens.Secondary, gotTokens.Muted, gotTokens.Accent, gotTokens.SidebarAccent, gotTokens.CodeHighlight)
+				}
+				if gotTokens.Foreground != ui.RGB(245, 246, 248) ||
+					gotTokens.PopoverForeground != ui.RGB(245, 246, 248) ||
+					gotTokens.MutedForeground != ui.RGB(173, 178, 184) ||
+					gotTokens.SidebarForeground != ui.RGB(212, 216, 220) {
+					t.Fatalf("dark foreground contrast tokens diverged: fg=%+v popFg=%+v mutedFg=%+v sidebarFg=%+v",
+						gotTokens.Foreground, gotTokens.PopoverForeground, gotTokens.MutedForeground, gotTokens.SidebarForeground)
 				}
 			} else {
 				if gotTokens.Code != ui.RGB(249, 250, 251) {
 					t.Fatalf("light Code = %+v, want #f9fafb", gotTokens.Code)
 				}
-				if gotTokens.Border != ui.RGBA(0, 0, 0, 0.10) {
-					t.Fatalf("light Border = %+v, want rgba(0,0,0,0.10)", gotTokens.Border)
+				if gotTokens.Border != ui.RGBA(0, 0, 0, 0.075) {
+					t.Fatalf("light Border = %+v, want rgba(0,0,0,0.075)", gotTokens.Border)
 				}
-				if gotTokens.SidebarBorder != ui.RGBA(0, 0, 0, 0.07) {
-					t.Fatalf("light SidebarBorder = %+v, want rgba(0,0,0,0.07)", gotTokens.SidebarBorder)
+				if gotTokens.SidebarBorder != ui.RGBA(0, 0, 0, 0.055) {
+					t.Fatalf("light SidebarBorder = %+v, want rgba(0,0,0,0.055)", gotTokens.SidebarBorder)
 				}
-				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.12) {
-					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.12)", gotTokens.Input)
+				if gotTokens.Input != ui.RGBA(0, 0, 0, 0.095) {
+					t.Fatalf("light Input = %+v, want rgba(0,0,0,0.095)", gotTokens.Input)
+				}
+				if gotTokens.MutedForeground != ui.RGB(97, 102, 107) ||
+					gotTokens.SidebarForeground != ui.RGB(72, 76, 82) {
+					t.Fatalf("light foreground contrast tokens diverged: mutedFg=%+v sidebarFg=%+v",
+						gotTokens.MutedForeground, gotTokens.SidebarForeground)
 				}
 			}
 
 			dlg := findDialogRect()
-			// Left rail background (empty bottom area of the 208-DIP rail) vs right
-			// content pane background: both must sit on the unified glass panel with
-			// only a subtle wash difference, no heavy double-layered seam.
-			railPx := img.RGBAAt(int(dlg.X)+24, int(dlg.Y+dlg.H)-24)
-			panePx := img.RGBAAt(int(dlg.X)+260, int(dlg.Y+dlg.H)-24)
+			// Left rail background vs right content pane background across the
+			// 208-DIP rail divider (both over the main canvas, away from the app's
+			// outer left sidebar): both must sit on the unified glass panel with no
+			// double-layered seam.
+			railPx := img.RGBAAt(int(dlg.X)+196, int(dlg.Y+dlg.H)-24)
+			panePx := img.RGBAAt(int(dlg.X)+220, int(dlg.Y+dlg.H)-24)
 			channelDiff := max(
 				int(math.Abs(float64(railPx.R)-float64(panePx.R))),
 				max(
@@ -537,21 +558,17 @@ func TestDarkAndLightGlassPolishAndUnifiedSettingsModal(t *testing.T) {
 				t.Fatalf("%s settings modal rail vs pane seam too strong (rail=%+v pane=%+v maxDiff=%d)", tc.name, railPx, panePx, channelDiff)
 			}
 
-			// Glass border & 1-DIP inner rim highlight on top edge of settings modal.
+			// Single crisp outer hairline border on top edge of settings modal.
 			midX := int(dlg.X + dlg.W/2)
 			outerBorder := img.RGBAAt(midX, int(dlg.Y))
-			innerRim := img.RGBAAt(midX, int(dlg.Y)+1)
 			interior := img.RGBAAt(midX, int(dlg.Y)+16)
 			if tc.dark {
-				if innerRim.R <= interior.R || innerRim.B <= interior.B {
-					t.Fatalf("dark modal inner rim highlight not brighter than interior: rim=%+v interior=%+v", innerRim, interior)
-				}
 				if outerBorder.R <= interior.R {
 					t.Fatalf("dark modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
 				}
 			} else {
-				if innerRim.R <= outerBorder.R {
-					t.Fatalf("light modal inner rim highlight not brighter than outer border: rim=%+v border=%+v", innerRim, outerBorder)
+				if outerBorder.R >= interior.R {
+					t.Fatalf("light modal outer border not visible over interior: border=%+v interior=%+v", outerBorder, interior)
 				}
 			}
 
@@ -627,11 +644,11 @@ func TestLightFlatNoBackdropDisablesGlassAndAcrylicCurvesMatchReference(t *testi
 	if pal.Sidebar != chrome.MaterialFill(ui.RGB(27, 27, 28), chrome.ShowThroughAlpha(prefs, true)) {
 		t.Fatalf("Acrylic Sidebar = %+v, want #1b1b1c @ ShowThroughAlpha", pal.Sidebar)
 	}
-	if pal.Card != chrome.MaterialFill(ui.RGB(35, 35, 36), 0.80) {
-		t.Fatalf("Acrylic Card = %+v, want #232324 @ 0.80", pal.Card)
+	if pal.Card != chrome.MaterialFill(ui.RGB(32, 32, 35), 0.80) {
+		t.Fatalf("Acrylic Card = %+v, want #202023 @ 0.80", pal.Card)
 	}
-	if pal.Popover != chrome.MaterialFill(ui.RGB(48, 49, 54), 0.64) {
-		t.Fatalf("Acrylic Popover = %+v, want rgb(48,49,54) @ 0.64", pal.Popover)
+	if pal.Popover != chrome.MaterialFill(ui.RGB(38, 39, 43), 0.64) {
+		t.Fatalf("Acrylic Popover = %+v, want rgb(38,39,43) @ 0.64", pal.Popover)
 	}
 }
 

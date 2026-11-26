@@ -104,8 +104,9 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 				}
 			})
 		})
+		footerBg, footerBorder := dialogFooterStyle(t)
 		ui.Row(c).FillWidth().Shrink(0).Wrap().Gap(design.Sp(2)).Justify(ui.End).Padding(design.Sp(4), design.Sp(6)).
-			Background(t.Muted.Alpha(0.72)).BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).Children(func() {
+			Background(footerBg).BorderWidth(footerBorder, 0, 0, 0).BorderColor(t.Border).Children(func() {
 			if coss.Button(c, cancelLabel, coss.ButtonOptions{Variant: coss.ButtonOutline}).AutoFocus().Clicked() {
 				finish(opts.OnCancel)
 			}
@@ -142,26 +143,26 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		dlgRadius := theme.ContextRadii(c).Dialog
 		backdrop.Column().Justify(ui.Center).AlignItems(ui.Center).Padding(inset)
 		mask := design.TW.Black
+		scrimAlpha := modalScrimAlpha(t.IsDark())
+		glassActive := t.Glass || chrome.BackdropActive()
+		borderWidth := design.BorderWidth
+		if glassActive {
+			borderWidth = design.BorderWidth / 2
+		}
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
-		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(0.32), progress)
+		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(scrimAlpha), progress)
 		panel.Width(max(0, min(width, w-2*inset))).MaxHeight(max(0, h-2*inset)).Radius(dlgRadius).Clip().
-			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
+			Border(borderWidth, t.Border).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
 		chrome.RevealDialogPanel(c, panel, progress)
-		if t.Glass || chrome.BackdropActive() {
+		if glassActive {
 			if t.Glass && !chrome.BackdropActive() {
 				panel.Material(chrome.MenuGlassMaterial())
 			}
-			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), dlgRadius))
-			rim := design.TW.White.Alpha(0.70)
+			panelBase := t.Popover
 			if t.IsDark() {
-				rim = design.TW.White.Alpha(0.14)
+				panelBase = t.Card
 			}
-			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
-				pad := ui.Rect{X: r.X + design.BorderWidth, Y: r.Y + design.BorderWidth, W: r.W - 2*design.BorderWidth, H: r.H - 2*design.BorderWidth}
-				if pad.W > 2 && pad.H > 2 {
-					p.Stroke(pad, rim, max(0, dlgRadius-design.BorderWidth), design.BorderWidth)
-				}
-			})
+			panel.Draw(chrome.SettingsPanelGlass(panelBase, t.Background, mask.Alpha(scrimAlpha*progress), dlgRadius))
 			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)
@@ -172,4 +173,21 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		}
 		panel.Children(body)
 	})
+}
+
+func modalScrimAlpha(dark bool) float32 {
+	if dark {
+		return 0.48
+	}
+	return 0.24
+}
+
+func dialogFooterStyle(t *design.Tokens) (ui.Color, float32) {
+	if t.Glass || chrome.BackdropActive() {
+		if t.IsDark() {
+			return design.TW.Black.Alpha(0.14), design.BorderWidth / 2
+		}
+		return design.TW.Black.Alpha(0.03), design.BorderWidth / 2
+	}
+	return t.Muted.Alpha(0.72), design.BorderWidth
 }

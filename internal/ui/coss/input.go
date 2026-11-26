@@ -70,7 +70,13 @@ func (o *InputOptions) fromField() {
 // focused.
 func controlLook(e ui.Element, t *design.Tokens, s State, radius float32) {
 	bg := t.Background
-	if t.IsDark() {
+	if t.Glass {
+		if t.IsDark() {
+			bg = black.Alpha(0.18)
+		} else {
+			bg = white.Alpha(0.65)
+		}
+	} else if t.IsDark() {
 		bg = t.Input.Alpha(0.32)
 	}
 	bc := t.Input
@@ -90,19 +96,26 @@ func controlLook(e ui.Element, t *design.Tokens, s State, radius float32) {
 		sh.add(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
 	case disabled:
 	default:
-		sh.scale(design.ShadowXs, black, 0.05)
-		d.highlight(t, 0.04, 0.06)
+		if !t.Glass {
+			sh.scale(design.ShadowXs, black, 0.05)
+			d.highlight(t, 0.04, 0.06)
+		}
 	}
 	e.Background(bg).Border(design.BorderWidth, bc).Radius(radius)
 	d.border, d.radius = design.BorderWidth, radius
 	finish(e, &sh, &d)
 }
 
-// placeholder overlays coss's placeholder (muted-foreground/72) on an
-// empty text control: the toolkit's own takes the theme's muted color.
+// placeholder overlays coss's placeholder (muted-foreground/72, or /75 in
+// glass mode for crisp contrast) on an empty text control: the toolkit's own
+// takes the theme's muted color.
 func placeholder(c *ui.Context, t *design.Tokens, s string, padX, padY, lineHeight float32, ts design.TextStyle) {
+	a := float32(design.OpacityPlaceholder)
+	if t != nil && t.Glass {
+		a = 0.75
+	}
 	ui.Text(c, s).Absolute().Left(padX).Top(padY).Right(padX).PassThrough().
-		FontSize(ts.Size).FixedLineHeight(lineHeight).TextColor(t.MutedForeground.Alpha(design.OpacityPlaceholder)).SingleLine()
+		FontSize(ts.Size).FixedLineHeight(lineHeight).TextColor(t.MutedForeground.Alpha(a)).SingleLine()
 }
 
 // Input is coss's Input: a 32 DIP text field (InputSM 28, InputLG 36)

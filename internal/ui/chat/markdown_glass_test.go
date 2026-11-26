@@ -32,11 +32,12 @@ func TestMarkdownInlineCodeAndDockSurfaceBackdrop(t *testing.T) {
 		tt.Frame()
 	}
 
-	// Verify chatCardSurface (used by TodoPanel / GoalDock / QueueDock) stays frosted
-	// even when BackdropActive() is true without design.GlassEnabled().
+	// Verify chatCardSurface (used by TodoPanel / GoalDock / QueueDock) and CodeSurface
+	// use clean translucent fills without GPU backdrop blur under BackdropActive(),
+	// while chatPopupSurface retains frosted backdrop blur.
 	design.SetGlass(false, nil)
 	chrome.ConfigureBackdrop("wall.png", wallpapers.Defaults())
-	var rect ui.Rect
+	var cardRect, codeRect, popupRect ui.Rect
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) {
 			for i, x := 0, float32(0); x < r.W; i, x = i+1, x+4 {
@@ -47,17 +48,33 @@ func TestMarkdownInlineCodeAndDockSurfaceBackdrop(t *testing.T) {
 				p.Fill(ui.Rect{X: r.X + x, Y: r.Y, W: 4, H: r.H}, ui.RGB(col.R, col.G, col.B), 0)
 			}
 		}).Children(func() {
-			rect = chatCardSurface(c, ui.Box(c).Absolute().Left(20).Top(20).Width(120).Height(60), 12).Bounds()
+			cardRect = chatCardSurface(c, ui.Box(c).Absolute().Left(10).Top(10).Width(100).Height(40), 12).Bounds()
+			st := transcriptMarkdownStyleFor(c, 14)
+			codeRect = st.CodeSurface(ui.Box(c).Absolute().Left(10).Top(60).Width(100).Height(40), 10).Bounds()
+			popupRect = chatPopupSurface(c, ui.Box(c).Absolute().Left(120).Top(10).Width(100).Height(90), 12).Bounds()
 		})
-	}, 180, 120)
+	}, 240, 120)
 	tt.Frame()
 	img := tt.Image()
-	loR, hiR := 255, 0
-	for x := int(rect.X) + 16; x < int(rect.X+rect.W)-16; x++ {
-		r := int(img.RGBAAt(x, int(rect.Y+rect.H/2)).R)
-		loR, hiR = min(loR, r), max(hiR, r)
+	spanR := func(rect ui.Rect) int {
+		loR, hiR := 255, 0
+		for x := int(rect.X) + 12; x < int(rect.X+rect.W)-12; x++ {
+			r := int(img.RGBAAt(x, int(rect.Y+rect.H/2)).R)
+			loR, hiR = min(loR, r), max(hiR, r)
+		}
+		return hiR - loR
 	}
-	if hiR-loR > 40 {
-		t.Fatalf("chatCardSurface did not blur stripes under BackdropActive: span=%d", hiR-loR)
+	rawSpan := spanR(ui.Rect{X: 0, Y: 108, W: 220, H: 10})
+	if rawSpan < 150 {
+		t.Fatalf("expected crisp raw stripe span >= 150, got %d", rawSpan)
+	}
+	if s := spanR(cardRect); s == 0 || s >= rawSpan {
+		t.Fatalf("chatCardSurface should stay translucent without blur under BackdropActive: span=%d raw=%d", s, rawSpan)
+	}
+	if s := spanR(codeRect); s == 0 || s >= rawSpan {
+		t.Fatalf("CodeSurface should stay translucent without blur under BackdropActive: span=%d raw=%d", s, rawSpan)
+	}
+	if s := spanR(popupRect); s > 40 {
+		t.Fatalf("chatPopupSurface did not blur stripes under BackdropActive: span=%d", s)
 	}
 }

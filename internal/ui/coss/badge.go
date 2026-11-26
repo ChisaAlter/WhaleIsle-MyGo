@@ -89,13 +89,25 @@ func Badge(c *ui.Context, label string, o BadgeOptions) ui.Element {
 		}
 	case BadgeOutline:
 		bg, fg, bc = t.Background, t.Foreground, t.Input
-		if dark {
-			bg = t.Input.Alpha(0.32)
-		}
-		if hover {
-			bg = t.Accent.Alpha(0.5)
+		if t.Glass {
+			bg = ui.Transparent
+			bc = t.Border
+			if hover {
+				if dark {
+					bg = white.Alpha(0.06)
+				} else {
+					bg = t.Accent.Alpha(0.5)
+				}
+			}
+		} else {
 			if dark {
-				bg = t.Input.Alpha(0.48)
+				bg = t.Input.Alpha(0.32)
+			}
+			if hover {
+				bg = t.Accent.Alpha(0.5)
+				if dark {
+					bg = t.Input.Alpha(0.48)
+				}
 			}
 		}
 	case BadgeDestructive:
@@ -112,10 +124,14 @@ func Badge(c *ui.Context, label string, o BadgeOptions) ui.Element {
 	case BadgeWarning:
 		bg, fg = tint(t.Warning), t.WarningForeground
 	}
-	e.Background(bg).Border(design.BorderWidth, bc)
+	bw := design.BorderWidth
+	if o.Variant == BadgeOutline && t.Glass {
+		bw = design.BorderWidth * 0.5
+	}
+	e.Background(bg).Border(bw, bc)
 	var sh shadowList
 	var d deco
-	d.border, d.radius = design.BorderWidth, radius
+	d.border, d.radius = bw, radius
 	if o.Interactive {
 		d.setRing(c, e, t, s.Has(StateFocusVisible), t.Ring)
 	}

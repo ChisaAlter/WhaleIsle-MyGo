@@ -34,30 +34,31 @@ func ModalView(c *ui.Context, m Model) {
 			backdrop.Padding(topInset, sideInset, bottomInset, sideInset)
 		}
 		mask := design.TW.Black
+		scrimAlpha := modalScrimAlpha(t.IsDark())
+		glassActive := t.Glass || chrome.BackdropActive()
+		borderWidth := design.BorderWidth
+		if glassActive {
+			borderWidth = design.BorderWidth / 2
+		}
 		dlgRadius := theme.ContextRadii(c).Dialog
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
-		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(0.32), progress)
+		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(scrimAlpha), progress)
 		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
 			Role(ui.RoleDialog).Label(i18n.T(i18n.KeySettingsTitle)).
 			Radius(dlgRadius).Clip().
-			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
+			Border(borderWidth, t.Border).TextColor(t.PopoverForeground)
 		chrome.RevealDialogPanel(c, panel, progress)
-		if t.Glass || chrome.BackdropActive() {
+		if glassActive {
 			if t.Glass && !chrome.BackdropActive() {
+				// BackdropActive uses SettingsPanelGlass's single blur pass;
+				// desktop-glass without a live backdrop blurs via Material once.
 				panel.Material(chrome.MenuGlassMaterial())
 			}
-			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), dlgRadius))
-			rim := design.TW.White.Alpha(0.70)
+			panelBase := t.Popover
 			if t.IsDark() {
-				rim = design.TW.White.Alpha(0.14)
+				panelBase = t.Card
 			}
-			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
-				inset := design.BorderWidth
-				inner := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
-				if inner.W > 0 && inner.H > 0 {
-					p.Stroke(inner, rim, max(0, dlgRadius-inset), design.BorderWidth)
-				}
-			})
+			panel.Draw(chrome.SettingsPanelGlass(panelBase, t.Background, mask.Alpha(scrimAlpha*progress), dlgRadius))
 			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)

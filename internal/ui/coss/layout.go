@@ -114,13 +114,13 @@ type CardOptions struct {
 func Card(c *ui.Context, o CardOptions, panel func()) ui.Element {
 	t := tok(c)
 	withKey(c, o.Key)
-	card := ui.Column(c).Radius(design.RadiusXL2).Background(t.Card).Border(design.BorderWidth, t.Border).TextColor(t.CardForeground).
+	bw := glassBorderWidth(t)
+	card := ui.Column(c).Radius(design.RadiusXL2).Background(t.Card).Border(bw, t.Border).TextColor(t.CardForeground).
 		Transition(ui.ElementTransition{Duration: design.MotionPopover, Ease: design.EaseInOut, Colors: true})
 	var sh shadowList
 	sh.scale(design.ShadowXs, black, 0.05)
-	d := deco{border: design.BorderWidth, radius: design.RadiusXL2}
+	d := deco{border: bw, radius: design.RadiusXL2}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(card, t, t.Card, 16, 0.35)
 	applyGlassElevation(t, &sh, &d, glassTierCard)
 	finish(card, &sh, &d)
 	card.Children(func() {

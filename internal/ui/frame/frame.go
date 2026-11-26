@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/desktop/media"
@@ -1618,44 +1617,58 @@ func rightPane(c *ui.Context, m Model) {
 	artifact := ui.Column(c.Key("frame-right-pane:" + tab)).Label("Skin artifact boundary").Fill().MinWidth(0)
 	prefs := chrome.BackdropPreferences()
 	transparentBackdrop := prefs.Transparent && chrome.BackdropHasWallpaper()
-	blurRightPane := chrome.BackdropActive() && !transparentBackdrop
+	glassRightPane := chrome.BackdropActive() && !transparentBackdrop
+	rightGlassHairline := false
+	rightHairlineColor := border
 	if layout := theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark); layout.Active() {
 		if layout.Skin != theme.SkinCodex && chrome.BackdropActive() {
-			if blurRightPane {
+			if glassRightPane {
 				chrome.GlassSurface(artifact, t.Sidebar, chrome.MaterialPanel).Radius(0).Padding(0).Clip()
-				artifact.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
 			} else {
 				artifact.Background(ui.Transparent).Radius(0).Padding(0).Clip()
 			}
+			rightGlassHairline = true
+			rightHairlineColor = theme.Color(layout.SidebarBorderColor)
 		} else {
 			artifact.Background(theme.Color(layout.ChatBackground)).Radius(0).Padding(0).Clip()
+			artifact.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, theme.Color(layout.SidebarBorderColor), 0)
+			})
 		}
-		artifact.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: layout.SidebarBorder, H: r.H}, theme.Color(layout.SidebarBorderColor), 0)
-		})
 	} else {
 		if m.workspacePane == nil || m.workspacePane.Kind != "project-observer" {
-			// Right pane keeps its frosted glass material independently of the
-			// left rail's HideSidebarMask setting.
+			// Right pane keeps its translucent panel fill independently of the
+			// left rail's HideSidebarMask setting, with zero full-height GPU blur.
 			if chrome.BackdropActive() {
-				if blurRightPane {
+				if glassRightPane {
 					chrome.GlassSurface(artifact, t.Sidebar, chrome.MaterialPanel)
-					artifact.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
 				} else {
 					artifact.Background(ui.Transparent)
 				}
+				rightGlassHairline = true
 			} else {
 				artifact.Background(t.Sidebar)
+				if t.Glass {
+					rightGlassHairline = true
+				}
 			}
 		}
 	}
 	artifact.Children(func() {
+		if rightGlassHairline {
+			ui.Box(c.Key("right-pane-glass-hairline")).Absolute().Left(0).Top(0).Bottom(0).Width(1).
+				BorderWidth(0, 0, 0, design.BorderWidth*0.5).BorderColor(rightHairlineColor).PassThrough()
+		}
 		if m.workspacePane != nil && m.workspacePane.Kind == "project-observer" {
 			workspaceProjectRequirements(c, m)
 			return
 		}
 		workspacePaneControls(c, m)
-		ui.Box(c).Fill().Height(1).Background(border)
+		if t.Glass || chrome.BackdropActive() {
+			ui.Box(c).FillWidth().Height(1).BorderWidth(0, 0, design.BorderWidth*0.5, 0).BorderColor(border)
+		} else {
+			ui.Box(c).Fill().Height(1).Background(border)
+		}
 		if tab == "guide" {
 			workspaceResourceGuide(c, m)
 			return

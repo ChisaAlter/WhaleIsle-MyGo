@@ -71,8 +71,9 @@ func bodyDialogFooterWidth(c *ui.Context, open *bool, title string, width float3
 				ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(3)).Padding(design.Sp(1), design.Sp(6), design.Sp(6), design.Sp(6)).Children(content)
 			})
 			if footer != nil {
+				footerBg, footerBorder := dialogFooterStyle(t)
 				ui.Row(c).FillWidth().MinWidth(0).Shrink(0).Padding(design.Sp(4), design.Sp(6)).Wrap().Gap(design.Sp(2)).Justify(ui.End).AlignItems(ui.Center).
-					Background(t.Muted.Alpha(0.72)).BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).Children(footer)
+					Background(footerBg).BorderWidth(footerBorder, 0, 0, 0).BorderColor(t.Border).Children(footer)
 			}
 		}()
 	}, dismissal)

@@ -68,7 +68,8 @@ func TestGradientModeDrawGlassBlursBackdropAndDialogs(t *testing.T) {
 	}
 
 	// Verify DialogSurfaceTheme and DialogDecorTheme in gradient mode use
-	// menuPanelGlass (40px blur) and paint inner top rim highlight.
+	// menuPanelGlass (40px blur), deep charcoal tint, single crisp outer
+	// hairline border, and no inner specular rim.
 	for _, kind := range []string{"surface", "decor"} {
 		t.Run(kind, func(t *testing.T) {
 			open := true
@@ -104,12 +105,18 @@ func TestGradientModeDrawGlassBlursBackdropAndDialogs(t *testing.T) {
 				t.Fatalf("dialog %s in gradient mode did not blur stripes: span=%d", kind, blurredSpan)
 			}
 			midX := int(dlgRect.X + dlgRect.W/2)
-			rim := img.RGBAAt(midX, int(dlgRect.Y)+1)
-			interior := img.RGBAAt(midX, int(dlgRect.Y)+14)
-			rimLum := RelativeLuminance(pixel(rim))
+			topY := int(math.Round(float64(dlgRect.Y)))
+			outerEdge := img.RGBAAt(midX, topY)
+			innerEdge := img.RGBAAt(midX, topY+1)
+			interior := img.RGBAAt(midX, topY+14)
+			outerLum := RelativeLuminance(pixel(outerEdge))
+			edgeLum := RelativeLuminance(pixel(innerEdge))
 			intLum := RelativeLuminance(pixel(interior))
-			if rimLum <= intLum {
-				t.Fatalf("dialog %s missing top inner specular rim: rim=%v interior=%v", kind, rim, interior)
+			if outerLum <= intLum {
+				t.Fatalf("dialog %s missing single outer hairline border: outer=%v interior=%v", kind, outerEdge, interior)
+			}
+			if edgeLum > intLum+0.02 {
+				t.Fatalf("dialog %s unexpectedly painted an inner specular rim: edge=%v interior=%v", kind, innerEdge, interior)
 			}
 			_ = color.RGBA{}
 		})

@@ -130,7 +130,13 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 	outline := func(fg ui.Color, hoverBg, hoverBorder ui.Color) {
 		l.border, l.fg = t.Input, fg
 		l.bg = t.Popover
-		if dark {
+		if t.Glass {
+			if dark {
+				l.bg = ui.Transparent
+			} else {
+				l.bg = white.Alpha(0.72)
+			}
+		} else if dark {
 			l.bg = t.Input.Alpha(0.32)
 		}
 		if hover || pressed {
@@ -141,9 +147,11 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 		}
 		if !disabled && !pressed {
 			l.hasRing = focus
-			l.sh.scale(design.ShadowXs, black, 0.05)
-			l.d.highlight(t, 0.04, 0.06)
-		} else if dark && !disabled {
+			if !t.Glass {
+				l.sh.scale(design.ShadowXs, black, 0.05)
+				l.d.highlight(t, 0.04, 0.06)
+			}
+		} else if dark && !disabled && !t.Glass {
 			l.d.highlight(t, 0, 0.02)
 		}
 	}
@@ -154,12 +162,18 @@ func resolveButton(t *design.Tokens, v ButtonVariant, s State) buttonLook {
 		filled(t.Destructive, white)
 	case ButtonOutline:
 		hb := t.Accent.Alpha(0.5)
-		if dark {
+		if t.Glass && dark {
+			hb = white.Alpha(0.06)
+		} else if dark {
 			hb = t.Input.Alpha(0.64)
 		}
 		outline(t.Foreground, hb, ui.Transparent)
 	case ButtonDestructiveOutline:
-		outline(t.DestructiveForeground, t.Destructive.Alpha(0.04), t.Destructive.Alpha(0.32))
+		hb := t.Destructive.Alpha(0.04)
+		if t.Glass && dark {
+			hb = t.Destructive.Alpha(0.12)
+		}
+		outline(t.DestructiveForeground, hb, t.Destructive.Alpha(0.32))
 	case ButtonSecondary:
 		l.bg, l.fg = t.Secondary, t.SecondaryForeground
 		switch {

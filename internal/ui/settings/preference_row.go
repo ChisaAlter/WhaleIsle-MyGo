@@ -12,10 +12,11 @@ import (
 // beside its copy instead of under it.
 const settingsRowWide = 105 * design.Unit
 
-// settingsRowRule draws the row's 1 DIP border-colored bottom rule: rows of a
-// page are a coss item list, each separated from the next.
+// settingsRowRule draws the row's 0.5 DIP border-colored bottom hairline: rows
+// of a page are a coss item list, each separated from the next without jumping
+// to 2 physical pixels at 150% DPI.
 func settingsRowRule(c *ui.Context, row ui.Element) {
-	row.BorderWidth(0, 0, design.BorderWidth, 0).BorderColor(tk(c).Border)
+	row.BorderWidth(0, 0, design.BorderWidth/2, 0).BorderColor(tk(c).Border)
 }
 
 // settingsFieldRow paints one row of a schema-driven settings page: the title

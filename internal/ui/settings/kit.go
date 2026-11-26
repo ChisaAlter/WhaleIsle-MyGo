@@ -185,7 +185,11 @@ func kRule(c *ui.Context) ui.Element { return coss.Separator(c, coss.Horizontal)
 // token translucent.
 func kSurface(c *ui.Context, e ui.Element) ui.Element {
 	t := tk(c)
-	return e.Background(t.Card).Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.CardForeground)
+	borderWidth := design.BorderWidth
+	if t.Glass || chrome.BackdropActive() {
+		borderWidth = design.BorderWidth / 2
+	}
+	return e.Background(t.Card).Border(borderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.CardForeground)
 }
 
 // memoKey folds the parts a memo region shows into one version. Use it for
