@@ -382,3 +382,42 @@ func TestGlassDialogBackdropSofterScrim(t *testing.T) {
 		})
 	}
 }
+
+func TestGlassChatBubble40PercentAndSolidOverride(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, testGlassFilter)
+
+	var glassRect, solidRect ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		setTheme(c, false)
+		ui.Box(c).Fill().Children(func() {
+			paintStripeBackdrop(c)
+			ui.Column(c).Absolute().Left(20).Top(20).Gap(12).Children(func() {
+				glassRect = ChatBubble(c, ChatBubbleOptions{
+					Side:       ChatOutgoing,
+					BubbleTint: ui.RGB(237, 243, 254),
+				}, func() {
+					ui.Box(c).Size(160, 32)
+				}).Bounds()
+				solidRect = ChatBubble(c, ChatBubbleOptions{
+					Side:       ChatOutgoing,
+					Solid:      true,
+					BubbleTint: ui.RGB(239, 233, 223),
+				}, func() {
+					ui.Box(c).Size(160, 32)
+				}).Bounds()
+			})
+		})
+	}, 260, 160)
+	tt.Frame()
+	img := tt.Image()
+	raw := channelSpan(img, 8, 10, 240)
+	glassSpan := channelSpan(img, int(glassRect.Y+glassRect.H/2), int(glassRect.X+20), int(glassRect.X+glassRect.W-20))
+	if glassSpan > raw/4 {
+		t.Fatalf("glass chat bubble did not blur backdrop: glassSpan=%d raw=%d", glassSpan, raw)
+	}
+	solidSpan := channelSpan(img, int(solidRect.Y+solidRect.H/2), int(solidRect.X+20), int(solidRect.X+solidRect.W-20))
+	if solidSpan != 0 {
+		t.Fatalf("solid skin chat bubble leaked backdrop: solidSpan=%d", solidSpan)
+	}
+}
