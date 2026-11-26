@@ -36,6 +36,7 @@ var (
 	OverlayMotion = Motion{Duration: OverlayDuration, Ease: DesignEase}
 	PopoverMotion = Motion{Duration: PopoverDuration, Ease: DesignEase}
 	SwapMotion    = Motion{Duration: SwapDuration, Ease: DesignEase}
+	SlowMotion    = Motion{Duration: SlowDuration, Ease: DesignEase}
 	FlipMotion    = Motion{Duration: FlipDuration, Ease: DesignEase}
 )
 
@@ -62,14 +63,24 @@ func HoverTransition() ui.ElementTransition {
 // transitions rather than calling Motion.Animate. The tokens above read these,
 // so a duration has exactly one literal in the package.
 const (
+	// DefaultDuration is the design system's base transition duration,
+	// --ds-transition-duration (0.2s).
+	DefaultDuration = 200 * time.Millisecond
 	// OverlayDuration is how long a modal or a page takes to appear.
-	OverlayDuration = 200 * time.Millisecond
+	OverlayDuration = DefaultDuration
+	// OverlayExitDuration is how long a modal takes to leave, deriving from
+	// the fast token (--ds-motion-duration-overlay-out, 0.1s).
+	OverlayExitDuration = FastDuration
 	// PopoverDuration is how long a menu or a floating card takes.
 	PopoverDuration = 160 * time.Millisecond
 	// SwapDuration is how long a control takes to change its face: the
 	// reference's swap token is the fast token, not a duration of its own
 	// (base.css:19 `--ds-motion-duration-swap: var(--ds-transition-duration-fast)`).
 	SwapDuration = FastDuration
+	// SlowDuration is the design system's slow track duration,
+	// --ds-transition-duration-slow (0.3s), shared by sidebar, inspector, and
+	// draft composer tracks.
+	SlowDuration = 300 * time.Millisecond
 	// FlipDuration is how long a surface takes to turn over
 	// (base.css:20 `--ds-motion-duration-flip: 0.4s`).
 	FlipDuration = 400 * time.Millisecond

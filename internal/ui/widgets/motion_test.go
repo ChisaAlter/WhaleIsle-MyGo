@@ -14,6 +14,7 @@ func TestMotionTokens(t *testing.T) {
 		{"overlay", OverlayMotion, 200 * time.Millisecond},
 		{"popover", PopoverMotion, 160 * time.Millisecond},
 		{"swap", SwapMotion, 100 * time.Millisecond},
+		{"slow", SlowMotion, 300 * time.Millisecond},
 		{"flip", FlipMotion, 400 * time.Millisecond},
 	}
 	for _, c := range cases {
@@ -25,12 +26,12 @@ func TestMotionTokens(t *testing.T) {
 		}
 	}
 	if OverlayDuration != OverlayMotion.Duration || PopoverDuration != PopoverMotion.Duration ||
-		SwapDuration != SwapMotion.Duration || FlipDuration != FlipMotion.Duration {
+		SwapDuration != SwapMotion.Duration || SlowDuration != SlowMotion.Duration || FlipDuration != FlipMotion.Duration {
 		t.Fatal("the duration constants and the motion tokens disagree")
 	}
 	// Every token rides the design system's shared curve, cubic-bezier(0.4, 0,
 	// 0.2, 1): 0 to 1 over the duration, ahead of the midpoint in the middle.
-	for _, m := range []Motion{OverlayMotion, PopoverMotion, SwapMotion, FlipMotion} {
+	for _, m := range []Motion{OverlayMotion, PopoverMotion, SwapMotion, SlowMotion, FlipMotion} {
 		if got := m.Ease(0); got != 0 {
 			t.Errorf("easing at 0 is %v", got)
 		}
@@ -76,11 +77,13 @@ func TestMotionTokensMatchTheReferenceSheet(t *testing.T) {
 		got   time.Duration
 		want  time.Duration
 	}{
-		{"--ds-transition-duration", OverlayDuration, 200 * time.Millisecond},
+		{"--ds-transition-duration", DefaultDuration, 200 * time.Millisecond},
 		{"--ds-motion-duration-overlay", OverlayMotion.Duration, 200 * time.Millisecond},
 		{"--ds-transition-duration-fast", FastDuration, 100 * time.Millisecond},
+		{"--ds-motion-duration-overlay-out", OverlayExitDuration, 100 * time.Millisecond},
 		{"--ds-motion-duration-swap", SwapDuration, 100 * time.Millisecond},
 		{"--ds-motion-duration-popover", PopoverDuration, 160 * time.Millisecond},
+		{"--ds-transition-duration-slow", SlowDuration, 300 * time.Millisecond},
 		{"--ds-motion-duration-flip", FlipDuration, 400 * time.Millisecond},
 	}
 	for _, row := range sheet {
@@ -96,6 +99,9 @@ func TestMotionTokensMatchTheReferenceSheet(t *testing.T) {
 	if SwapDuration != FastDuration {
 		t.Errorf("swap = %v, want the fast token %v", SwapDuration, FastDuration)
 	}
+	if OverlayExitDuration != FastDuration {
+		t.Errorf("overlay-out = %v, want the fast token %v", OverlayExitDuration, FastDuration)
+	}
 	if HoverMotion.Duration != FastDuration {
 		t.Errorf("hover motion = %v, want the fast token %v", HoverMotion.Duration, FastDuration)
 	}
@@ -103,7 +109,7 @@ func TestMotionTokensMatchTheReferenceSheet(t *testing.T) {
 		t.Error("hover motion does not ride the design curve")
 	}
 	// Flip is the longest token; nothing in the sheet outlasts it.
-	for _, d := range []time.Duration{OverlayDuration, PopoverDuration, SwapDuration, FastDuration} {
+	for _, d := range []time.Duration{OverlayDuration, OverlayExitDuration, PopoverDuration, SwapDuration, FastDuration, SlowDuration} {
 		if d > FlipDuration {
 			t.Errorf("token %v outlasts the sheet's longest token %v", d, FlipDuration)
 		}

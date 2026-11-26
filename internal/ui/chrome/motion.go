@@ -27,6 +27,9 @@ const (
 	// (--ds-motion-duration-swap = --ds-transition-duration-fast;
 	// ui-theme/src/styles/base.css:16,21).
 	SwapDuration = 100 * time.Millisecond
+	// SlowDuration is the slow layout track duration (0.3s,
+	// --ds-transition-duration-slow).
+	SlowDuration = widgets.SlowDuration
 )
 
 // How far a surface rises as it appears, in DIPs, and how much smaller it is
@@ -117,11 +120,22 @@ func RevealMask(backdrop ui.Element, mask ui.Color, progress float32) {
 // together over the overlay token: the hand-run enter of a DialogBase panel that
 // keeps its own metrics, without the shared DialogSurface look.
 func RevealOverlay(c *ui.Context, backdrop, panel ui.Element, mask ui.Color) float32 {
-	return widgets.RevealOverlay(c, backdrop, panel, mask)
+	if !BackdropActive() {
+		return widgets.RevealOverlay(c, backdrop, panel, mask)
+	}
+	progress := Reveal(c, backdrop, OverlayDuration)
+	RevealMask(backdrop, mask, progress)
+	if progress < 1 {
+		panel.OffsetAfterLayout(func(ui.Rect) ui.Point {
+			return ui.Point{Y: (1 - progress) * overlayRise}
+		})
+	}
+	return progress
 }
 
-// PopoverReveal fades a PopoverBase panel in over the popover token and hands it
-// back ready to draw:
+// PopoverReveal enters a PopoverBase panel over the popover token (fading in
+// on solid surfaces, or rising 4 DIP with solid opacity when glass backdrop
+// sampling is active so blur stays crisp) and hands it back ready to draw:
 //
 //	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
 //		panel = chrome.PopoverReveal(c, panel.Width(220).Radius(10))
@@ -132,7 +146,16 @@ func RevealOverlay(c *ui.Context, backdrop, panel ui.Element, mask ui.Color) flo
 // frame (a keyed menu inside a column that stays), which an overlay panel never
 // does; this runs that enter by hand for one that does not.
 func PopoverReveal(c *ui.Context, panel ui.Element) ui.Element {
-	return panel.Opacity(Reveal(c, panel, PopoverDuration))
+	progress := Reveal(c, panel, PopoverDuration)
+	if BackdropActive() {
+		if progress < 1 {
+			panel = panel.OffsetAfterLayout(func(ui.Rect) ui.Point {
+				return ui.Point{Y: (1 - progress) * popoverRise}
+			})
+		}
+		return panel
+	}
+	return panel.Opacity(progress)
 }
 
 // DialogMask is the dim layer under a modal card, `--dsw-alias-bg-mask-1`: .24
