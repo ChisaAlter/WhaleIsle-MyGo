@@ -1,6 +1,9 @@
 package wallpapers
 
-import "strings"
+import (
+	"math"
+	"strings"
+)
 
 type Preferences struct {
 	SkinWallpaperEnabled bool      `json:"skinWallpaperEnabled"`
@@ -75,4 +78,42 @@ func PresetColors(id string) [7]string {
 		return [7]string{"", "", "#f9a8d4", "#f472b6", "#c4b5fd", "#fda4af", "#fbcfe8"}
 	}
 	return [7]string{}
+}
+
+// ClampEffectSpeed clamps background effect speed to the CSS/UI contract
+// range [20, 300] (rounded integer), defaulting non-finite values to 190.
+func ClampEffectSpeed(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 190
+	}
+	return math.Min(300, math.Max(20, math.Round(v)))
+}
+
+// ClampEffectCount clamps background effect blob count to [1, 5], defaulting
+// non-finite values to 5.
+func ClampEffectCount(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 5
+	}
+	return math.Min(5, math.Max(1, math.Round(v)))
+}
+
+// NormalizeEffectVariant maps unknown background variants to "orbs".
+func NormalizeEffectVariant(v string) string {
+	switch strings.TrimSpace(v) {
+	case "aurora", "chaos", "rays":
+		return strings.TrimSpace(v)
+	default:
+		return "orbs"
+	}
+}
+
+// NormalizeEffectPreset resolves unknown preset IDs to "default".
+func NormalizeEffectPreset(v string) string {
+	switch strings.TrimSpace(v) {
+	case "default", "aurora", "sunset", "ocean", "sakura", "dune", "custom":
+		return strings.TrimSpace(v)
+	default:
+		return "default"
+	}
 }
