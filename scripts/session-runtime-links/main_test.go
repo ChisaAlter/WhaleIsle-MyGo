@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -236,6 +237,51 @@ func TestRuntimeLinksRejectsUnexpectedArgumentCount(t *testing.T) {
 	for _, args := range [][]string{{"runtime-links.exe"}, {"runtime-links.exe", "restore"}, {"runtime-links.exe", "restore", "root", "trace", "extra"}} {
 		if code := run(args); code != 2 {
 			t.Fatalf("%v exit %d, want 2", args, code)
+		}
+	}
+}
+
+func TestRuntimeLinksLongPathWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows MAX_PATH (>260 chars) Win32 extended-length path test")
+	}
+	base := t.TempDir()
+	// Build a deep nested vendor root so both the physical target and junction
+	// source exceed Windows MAX_PATH (260 chars) even after promotion.
+	root := filepath.Join(base, strings.Repeat("segment-a-", 6), strings.Repeat("segment-b-", 6), "vendor")
+	targetRel := filepath.Join("deepseek-harness", "node_modules", ".dsh-instances", strings.Repeat("pkg-target-", 6))
+	linkParentRel := filepath.Join("deepseek-harness", "node_modules", ".dsh-instances", strings.Repeat("pkg-origin-", 6), "node_modules")
+	linkRel := filepath.Join(linkParentRel, "dep-link")
+
+	targetAbs := filepath.Join(root, targetRel)
+	linkAbs := filepath.Join(root, linkRel)
+	if len(targetAbs) <= 270 || len(linkAbs) <= 270 {
+		t.Fatalf("test fixture paths must exceed 270 chars: target=%d link=%d", len(targetAbs), len(linkAbs))
+	}
+	if err := os.MkdirAll(targetAbs, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, linkParentRel), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte("long-path immutable module\n")
+	payloadRel := filepath.ToSlash(filepath.Join(targetRel, "index.js"))
+	if err := os.WriteFile(filepath.Join(targetAbs, "index.js"), payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(payload)
+	g := graph{
+		SchemaVersion: 1,
+		Files:         map[string]string{payloadRel: hex.EncodeToString(sum[:])},
+		Links: map[string]linkSpec{
+			filepath.ToSlash(linkRel): {Target: filepath.ToSlash(targetRel), Kind: "directory"},
+		},
+	}
+	saveGraph(t, root, g)
+
+	for _, cmd := range []string{"check", "restore", "verify", "detach"} {
+		if err := operate(cmd, root); err != nil {
+			t.Fatalf("long-path %s failed (target=%d link=%d): %v", cmd, len(targetAbs), len(linkAbs), err)
 		}
 	}
 }

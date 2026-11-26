@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -128,5 +129,70 @@ func TestLockFileContainsOwnerDiagnosticsAndRespectsErrBusy(t *testing.T) {
 	}
 	if err := s.Update(func(v *State) { v.Workspace = "/ok" }); err != nil {
 		t.Fatalf("Update after release failed: %v", err)
+	}
+}
+
+func TestHelperRecoveryDeadPID(t *testing.T) {
+	if os.Getenv("WHALEISLE_TEST_RECOVERY_EXIT") == "1" {
+		os.Exit(0)
+	}
+}
+
+func TestStaleDeadPIDLockIsReclaimedWhileLiveOwnerStaysBusy(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(exe, "-test.run=^TestHelperRecoveryDeadPID$")
+	cmd.Env = append(os.Environ(), "WHALEISLE_TEST_RECOVERY_EXIT=1")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	deadPID := cmd.Process.Pid
+	if err := cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	lockPath := filepath.Join(dir, FileName+".lock")
+	stalePayload, err := json.Marshal(lockOwnerInfo{
+		PID:       deadPID,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockPath, append(stalePayload, '\n'), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Dead PID lock must be automatically reclaimed so Update succeeds.
+	if err := s.Update(func(v *State) { v.Workspace = "/reclaimed" }); err != nil {
+		t.Fatalf("Update failed to reclaim dead-PID lock (pid=%d): %v", deadPID, err)
+	}
+	if got := s.Snapshot().Workspace; got != "/reclaimed" {
+		t.Fatalf("workspace = %q, want /reclaimed", got)
+	}
+	if _, err := os.Stat(lockPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("lock file lingered after Update: %v", err)
+	}
+
+	// Live owner PID must still be rejected with ErrBusy.
+	livePayload, err := json.Marshal(lockOwnerInfo{
+		PID:       os.Getpid(),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockPath, append(livePayload, '\n'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Update(func(v *State) { v.Workspace = "/blocked" }); !errors.Is(err, ErrBusy) {
+		t.Fatalf("live-PID lock got %v, want ErrBusy", err)
 	}
 }

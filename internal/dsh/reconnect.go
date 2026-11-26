@@ -170,15 +170,15 @@ func MaintainMuxWithRecovery(ctx context.Context, mux *Mux, config RecoveryConfi
 	return maintainMux(ctx, mux, config.backoff(), config, true, onReady, onLost, onWarning, nil, nil)
 }
 
-// MaintainMuxFromBootstrap owns both bootstrap loading and the subsequent Mux
-// generations. A bootstrap error keeps that owner alive for explicit Retry;
-// the failed policy never substitutes defaults or starts a different Client.
-// onBootstrap(nil) starts a load; onBootstrap(err) exposes a retryable failure.
+// MaintainMuxFromBootstrap starts dialing immediately with DefaultRecoveryConfig
+// while refreshing the Host's connection recovery policy asynchronously in
+// parallel so boot HTML fetching never blocks the initial Mux handshake.
 func MaintainMuxFromBootstrap(ctx context.Context, mux *Mux, client *Client, onReady func(context.Context) error, onLost func(error), onWarning func(error), onBootstrap func(error)) error {
 	if client == nil {
 		return errors.New("dsh mux: missing bootstrap client")
 	}
-	return maintainMux(ctx, mux, Backoff{}, RecoveryConfig{}, true, onReady, onLost, onWarning, client.ReadConnectionRecovery, onBootstrap)
+	defaults := DefaultRecoveryConfig()
+	return maintainMux(ctx, mux, defaults.backoff(), defaults, true, onReady, onLost, onWarning, client.ReadConnectionRecovery, onBootstrap)
 }
 
 func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig, requireReady bool, onReady func(context.Context) error, onLost func(error), onWarning func(error), loadRecovery func(context.Context) (RecoveryConfig, error), onBootstrap func(error)) error {
@@ -245,46 +245,81 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 		<-a.watchDone
 		mux.Reset()
 	}
+	var recoveryUpdates chan RecoveryConfig
 	if loadRecovery != nil {
-		for {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			bootctx, cancel := context.WithCancelCause(ctx)
-			a := &muxAttempt{ctx: bootctx, cancel: cancel}
-			mux.maintainMu.Lock()
-			o.attempt = a
-			mux.maintainMu.Unlock()
-			if onBootstrap != nil {
-				onBootstrap(nil)
-			}
-			resolved, err := loadRecovery(bootctx)
-			manual := pending() || errors.Is(context.Cause(bootctx), ErrReconnectRequested)
-			cancel(context.Canceled)
-			mux.maintainMu.Lock()
-			o.attempt = nil
-			mux.maintainMu.Unlock()
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if manual {
-				continue
-			}
-			if err == nil {
-				err = resolved.validate()
-			}
-			if err == nil {
-				config = resolved
-				b = resolved.backoff()
-				break
-			}
-			if onBootstrap != nil {
-				onBootstrap(err)
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-o.requests:
+		if config.validate() == nil {
+			recoveryUpdates = make(chan RecoveryConfig, 1)
+			refreshDone := make(chan struct{})
+			refreshCtx, cancelRefresh := context.WithCancel(ctx)
+			defer func() {
+				cancelRefresh()
+				<-refreshDone
+			}()
+			go func() {
+				defer close(refreshDone)
+				resolved, err := loadRecovery(refreshCtx)
+				if err == nil {
+					err = resolved.validate()
+				}
+				if err != nil {
+					if refreshCtx.Err() == nil && onWarning != nil {
+						onWarning(fmt.Errorf("connection recovery refresh failed: %w", err))
+					}
+					return
+				}
+				if requireReady && previousDialTimeout <= 0 {
+					mux.mu.Lock()
+					if !mux.closed {
+						mux.DialTimeout = time.Duration(resolved.GenerationReadyTimeoutMS) * time.Millisecond
+					}
+					mux.mu.Unlock()
+				}
+				select {
+				case recoveryUpdates <- resolved:
+				default:
+				}
+			}()
+		} else {
+			for {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				bootctx, cancel := context.WithCancelCause(ctx)
+				a := &muxAttempt{ctx: bootctx, cancel: cancel}
+				mux.maintainMu.Lock()
+				o.attempt = a
+				mux.maintainMu.Unlock()
+				if onBootstrap != nil {
+					onBootstrap(nil)
+				}
+				resolved, err := loadRecovery(bootctx)
+				manual := pending() || errors.Is(context.Cause(bootctx), ErrReconnectRequested)
+				cancel(context.Canceled)
+				mux.maintainMu.Lock()
+				o.attempt = nil
+				mux.maintainMu.Unlock()
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				if manual {
+					continue
+				}
+				if err == nil {
+					err = resolved.validate()
+				}
+				if err == nil {
+					config = resolved
+					b = resolved.backoff()
+					break
+				}
+				if onBootstrap != nil {
+					onBootstrap(err)
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-o.requests:
+				}
 			}
 		}
 	}
@@ -294,8 +329,27 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 		mux.mu.Unlock()
 	}
 	delay := b.Initial
+	applyRecoveryUpdate := func() {
+		if recoveryUpdates == nil {
+			return
+		}
+		select {
+		case resolved := <-recoveryUpdates:
+			config = resolved
+			b = resolved.backoff()
+			if delay > b.Max {
+				delay = b.Max
+			}
+			if delay < b.Initial {
+				delay = b.Initial
+			}
+			recoveryUpdates = nil
+		default:
+		}
+	}
 	manualStart := false
 	for {
+		applyRecoveryUpdate()
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -363,6 +417,7 @@ func maintainMux(ctx context.Context, mux *Mux, b Backoff, config RecoveryConfig
 		default:
 		}
 		retire(a)
+		applyRecoveryUpdate()
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

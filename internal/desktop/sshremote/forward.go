@@ -198,15 +198,39 @@ func bridgeForwardConnections(ctx context.Context, listener net.Listener, target
 				return
 			}
 			defer remote.Close()
-			done := make(chan error, 2)
-			go func() { _, err := io.Copy(remote, local); done <- err }()
-			go func() { _, err := io.Copy(local, remote); done <- err }()
-			select {
-			case err := <-done:
-				if err != nil && ctx.Err() == nil {
-					log.Printf("ssh forward %s:%d: %v", targetHost, targetPort, err)
+			stopRemote := context.AfterFunc(ctx, func() { _ = remote.Close() })
+			defer stopRemote()
+			type closeWriter interface {
+				CloseWrite() error
+			}
+			halfClose := func(c net.Conn) {
+				if cw, ok := c.(closeWriter); ok {
+					_ = cw.CloseWrite()
 				}
-			case <-ctx.Done():
+			}
+			done := make(chan error, 2)
+			go func() {
+				_, err := io.Copy(remote, local)
+				halfClose(remote)
+				done <- err
+			}()
+			go func() {
+				_, err := io.Copy(local, remote)
+				halfClose(local)
+				done <- err
+			}()
+			for range 2 {
+				select {
+				case err := <-done:
+					if err != nil {
+						if ctx.Err() == nil {
+							log.Printf("ssh forward %s:%d: %v", targetHost, targetPort, err)
+						}
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
 			}
 		}(conn)
 	}

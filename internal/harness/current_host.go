@@ -2,8 +2,6 @@ package harness
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -194,12 +192,11 @@ func ReadCurrentHostCapabilities(vendorDir string, bridges CurrentHostBridges) C
 		return fail("Current Host artifacts were built for a different platform or architecture")
 	}
 	for _, name := range currentHostArtifacts {
-		data, err := os.ReadFile(filepath.Join(vendorDir, filepath.FromSlash(name)))
+		digest, err := fileSHA256(filepath.Join(vendorDir, filepath.FromSlash(name)))
 		if err != nil {
 			return fail(fmt.Sprintf("Current Host artifact missing: %s", name))
 		}
-		sum := sha256.Sum256(data)
-		if m.Artifacts[name] != hex.EncodeToString(sum[:]) {
+		if m.Artifacts[name] != digest {
 			return fail(fmt.Sprintf("Current Host artifact changed: %s", name))
 		}
 	}

@@ -15,7 +15,7 @@ try {
     '../../vendor/chisacode-remote/node_modules/@chisacode/server/package.json'));
   qrEncoder = serverRequire('qrcode');
 } catch { /* Link pairing remains available when the optional QR encoder is missing. */ }
-let qrURL = '', qrPNG = '', qrGeneration = 0, offerBlocked = false;
+let qrURL = '', qrPNG = '', qrGeneration = 0, offerBlocked = false, lastSnapshotWire = '';
 function clearQR() { qrURL = ''; qrPNG = ''; ++qrGeneration; }
 function parseOffer(raw) {
   try {
@@ -115,11 +115,11 @@ try {
     getSessionCookie: () => config.harnessCookie || '',
   });
 } catch { emit({kind:'error',code:'runtime-load'}); process.exit(1); }
-function snapshot() {
+function snapshot(force = false) {
   if (stopping || starting) return;
   ensureShellRoutes();
   const s = remote.snapshot();
-  if (s.error) { clearQR(); emit({kind:'error',code:'operation'}); return; }
+  if (s.error) { clearQR(); lastSnapshotWire = ''; emit({kind:'error',code:'operation'}); return; }
   const url = usableURL(s);
   if (url !== qrURL) {
     clearQR();
@@ -137,9 +137,13 @@ function snapshot() {
         }).catch(() => {});
     }
   }
-  emit({kind:'snapshot', listening:!!s.listening, relayConnected:!!s.relayConnected,
+  const payload = {kind:'snapshot', listening:!!s.listening, relayConnected:!!s.relayConnected,
     url, pairingLinkUrl: !offerBlocked && s.listening && (s.relayConnected || config.remoteMode === 'lan') ? (s.pairingLinkUrl || '') : '', qrPNG: url ? qrPNG : '', devices:publicPhoneDevices(s), devicesLoaded:Array.isArray(s.devices),
-    addresses:Array.isArray(s.addresses) ? s.addresses.filter(value => typeof value === 'string') : undefined});
+    addresses:Array.isArray(s.addresses) ? s.addresses.filter(value => typeof value === 'string') : undefined};
+  const wire = JSON.stringify(payload);
+  if (!force && wire === lastSnapshotWire) return;
+  lastSnapshotWire = wire;
+  write(wire + '\n');
 }
 async function deviceAction(command) {
   if (typeof command.id !== 'string' || !/^[0-9]{1,20}$/.test(command.id)) return;
@@ -163,6 +167,7 @@ async function deviceAction(command) {
       hideOffer() {
         offerBlocked = true;
         clearQR();
+        lastSnapshotWire = '';
         emit({kind:'snapshot',listening:false,relayConnected:false,url:'',devices:publicPhoneDevices(remote.snapshot()),devicesLoaded:true});
       },
       revokeGit,
@@ -182,7 +187,7 @@ async function deviceAction(command) {
     starting = false;
   }
   if (stopping) return;
-  try { snapshot(); } catch { clearQR(); emit({kind:'error',code:'snapshot'}); }
+  try { snapshot(true); } catch { clearQR(); lastSnapshotWire = ''; emit({kind:'error',code:'snapshot'}); }
   emit({kind:'device-action-result',id:command.id,operation:command.operation,code,applied});
 }
 let queue = Promise.resolve();
@@ -191,6 +196,7 @@ async function stop() {
   stopping = true;
   revokeGit();
   clearQR();
+  lastSnapshotWire = '';
   clearInterval(timer);
   try {
     // Do not wait behind sync(): the runtime cancels its pending ready lease
@@ -205,8 +211,8 @@ async function stop() {
     process.exit(1);
   }
 }
-const timer = setInterval(() => { try { snapshot(); } catch { clearQR(); emit({kind:'error',code:'snapshot'}); } },1000);
-remote.on('listening',snapshot);
+const timer = setInterval(() => { try { snapshot(false); } catch { clearQR(); lastSnapshotWire = ''; emit({kind:'error',code:'snapshot'}); } }, 5000);
+remote.on('listening', () => snapshot(true));
 let hostSequence=0;const hostPending=new Map();
 function hostCall(kind,payload){
   return new Promise(resolve=>{
@@ -240,10 +246,10 @@ input.on('line',line=>{
     const command=JSON.parse(line);
     if(stopping)return;
     if(command.action==='device-action')return deviceAction(command);
-    if(command.action==='start') {clearQR();offerBlocked=true;config=command.config||{};gitGate.configure(config);starting=true;try { await remote.sync();offerBlocked=false; } finally { starting=false; }}
-    else if(command.action==='refresh' && remote.daemon) {clearQR();offerBlocked=true;emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;gitGate.configure(config);starting=true;try {await remote.sync();offerBlocked=false;} finally {starting=false;}}
-    snapshot();
-  }).catch(()=>{if(!stopping)emit({kind:'error',code:'operation'});});
+    if(command.action==='start') {clearQR();lastSnapshotWire='';offerBlocked=true;config=command.config||{};gitGate.configure(config);starting=true;try { await remote.sync();offerBlocked=false; } finally { starting=false; }}
+    else if(command.action==='refresh' && remote.daemon) {clearQR();lastSnapshotWire='';offerBlocked=true;emit({kind:'snapshot',listening:false,relayConnected:false,url:''});config=command.config||config;gitGate.configure(config);starting=true;try {await remote.sync();offerBlocked=false;} finally {starting=false;}}
+    snapshot(true);
+  }).catch(()=>{if(!stopping){lastSnapshotWire='';emit({kind:'error',code:'operation'});}});
 });
 input.on('close',()=>{void stop();});
 process.on('SIGTERM',()=>{void stop();});

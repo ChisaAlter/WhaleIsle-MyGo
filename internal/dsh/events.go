@@ -82,6 +82,38 @@ type EventsSession struct {
 	mu     sync.Mutex
 }
 
+// eventEnvelope decodes any $events downlink frame in a single json.Unmarshal pass.
+type eventEnvelope struct {
+	Type     string `json:"type"`
+	ClientID string `json:"clientId"`
+	Host     struct {
+		Home string `json:"home"`
+	} `json:"host"`
+	Event   string            `json:"event"`
+	Args    []json.RawMessage `json:"args"`
+	EventID string            `json:"eventId"`
+	AgentID string            `json:"agentId"`
+	Request json.RawMessage   `json:"request"`
+}
+
+func (e eventEnvelope) ready() EventsReady {
+	out := EventsReady{Type: e.Type, ClientID: e.ClientID}
+	out.Host.Home = e.Host.Home
+	return out
+}
+
+func (e eventEnvelope) emit() EventsEmit {
+	return EventsEmit{Type: e.Type, Event: e.Event, Args: e.Args}
+}
+
+func (e eventEnvelope) waterfall() EventsWaterfall {
+	return EventsWaterfall{Type: e.Type, Event: e.Event, EventID: e.EventID, AgentID: e.AgentID, Request: e.Request}
+}
+
+func (e eventEnvelope) cancel() EventsCancel {
+	return EventsCancel{Type: e.Type, EventID: e.EventID}
+}
+
 // FollowEvents dials the mux if needed, opens $events, and dispatches until ctx
 // ends or the stream ends. Unhandled waterfalls are answered with outcome next.
 func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandler) error {
@@ -104,7 +136,8 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 	sess := &EventsSession{client: c, mux: mux, stream: stream}
 	failures := make(chan error, 1)
 	var activeMu sync.Mutex
-	active := make(map[string]context.CancelFunc)
+	var activeSeq uint64
+	active := make(map[string]map[uint64]context.CancelFunc)
 	var tasks sync.WaitGroup
 	defer func() {
 		cancel()
@@ -144,17 +177,22 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 			}
 			return err
 		}
-		var head struct {
-			Type string `json:"type"`
+		var env eventEnvelope
+		if err := json.Unmarshal(raw, &env); err != nil {
+			return fmt.Errorf("dsh events: item: %w", err)
 		}
-		if json.Unmarshal(raw, &head) == nil && head.Type == EventWaterfall {
-			var wf EventsWaterfall
-			if err := json.Unmarshal(raw, &wf); err != nil {
-				return err
-			}
+		if env.Type == EventWaterfall {
+			wf := env.waterfall()
 			requestCtx, requestCancel := context.WithCancel(ctx)
 			activeMu.Lock()
-			active[wf.EventID] = requestCancel
+			activeSeq++
+			token := activeSeq
+			attempts := active[wf.EventID]
+			if attempts == nil {
+				attempts = make(map[uint64]context.CancelFunc, 1)
+				active[wf.EventID] = attempts
+			}
+			attempts[token] = requestCancel
 			activeMu.Unlock()
 			// A prompt must not block later requests or its own cancellation frame.
 			tasks.Add(1)
@@ -163,7 +201,12 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 				defer func() {
 					requestCancel()
 					activeMu.Lock()
-					delete(active, wf.EventID)
+					if attempts := active[wf.EventID]; attempts != nil {
+						delete(attempts, token)
+						if len(attempts) == 0 {
+							delete(active, wf.EventID)
+						}
+					}
 					activeMu.Unlock()
 				}()
 				if err := sess.answerWaterfall(requestCtx, handler, wf); err != nil && requestCtx.Err() == nil {
@@ -176,36 +219,37 @@ func (c *Client) FollowEvents(ctx context.Context, mux *Mux, handler EventsHandl
 			}()
 			continue
 		}
-		if head.Type == EventCancel {
-			var event EventsCancel
-			if json.Unmarshal(raw, &event) == nil {
-				activeMu.Lock()
-				cancelRequest := active[event.EventID]
-				activeMu.Unlock()
-				if cancelRequest != nil {
-					cancelRequest()
-				}
+		if env.Type == EventCancel {
+			event := env.cancel()
+			activeMu.Lock()
+			attempts := active[event.EventID]
+			cancels := make([]context.CancelFunc, 0, len(attempts))
+			for _, cancelRequest := range attempts {
+				cancels = append(cancels, cancelRequest)
+			}
+			activeMu.Unlock()
+			for _, cancelRequest := range cancels {
+				cancelRequest()
 			}
 		}
-		if err := sess.dispatch(ctx, handler, raw); err != nil {
+		if err := sess.dispatchEnvelope(ctx, handler, env); err != nil {
 			return err
 		}
 	}
 }
 
 func (s *EventsSession) dispatch(ctx context.Context, handler EventsHandler, raw json.RawMessage) error {
-	var head struct {
-		Type string `json:"type"`
-	}
-	if err := json.Unmarshal(raw, &head); err != nil {
+	var env eventEnvelope
+	if err := json.Unmarshal(raw, &env); err != nil {
 		return fmt.Errorf("dsh events: item: %w", err)
 	}
-	switch head.Type {
+	return s.dispatchEnvelope(ctx, handler, env)
+}
+
+func (s *EventsSession) dispatchEnvelope(ctx context.Context, handler EventsHandler, env eventEnvelope) error {
+	switch env.Type {
 	case EventReady:
-		var ready EventsReady
-		if err := json.Unmarshal(raw, &ready); err != nil {
-			return err
-		}
+		ready := env.ready()
 		s.mu.Lock()
 		s.ClientID = ready.ClientID
 		s.Home = ready.Host.Home
@@ -213,27 +257,15 @@ func (s *EventsSession) dispatch(ctx context.Context, handler EventsHandler, raw
 		handler.OnReady(ready)
 		return nil
 	case EventEmit:
-		var emit EventsEmit
-		if err := json.Unmarshal(raw, &emit); err != nil {
-			return err
-		}
-		handler.OnEmit(emit)
+		handler.OnEmit(env.emit())
 		return nil
 	case EventWaterfall:
-		var wf EventsWaterfall
-		if err := json.Unmarshal(raw, &wf); err != nil {
-			return err
-		}
-		return s.answerWaterfall(ctx, handler, wf)
+		return s.answerWaterfall(ctx, handler, env.waterfall())
 	case EventCancel:
-		var cancel EventsCancel
-		if err := json.Unmarshal(raw, &cancel); err != nil {
-			return err
-		}
-		handler.OnCancel(cancel)
+		handler.OnCancel(env.cancel())
 		return nil
 	default:
-		return fmt.Errorf("dsh events: unknown item type %q", head.Type)
+		return fmt.Errorf("dsh events: unknown item type %q", env.Type)
 	}
 }
 

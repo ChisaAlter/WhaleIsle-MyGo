@@ -12,6 +12,7 @@ param(
     [switch]$CleanStage,
     [string]$GoExecutable = 'go',
     [string]$SigningScript = $env:WHALEISLE_SIGNING_SCRIPT,
+    [string]$ExpectedPublisher = $env:WHALEISLE_UPDATE_PUBLISHER,
     [switch]$RequireSignature = (([string]$env:WHALEISLE_UPDATE_REQUIRE_SIGNATURE).Trim() -notin @('', '0', 'false', 'no'))
 )
 
@@ -295,7 +296,7 @@ if ($MakensisPath -and (Test-Path $Nsi)) {
     if (Test-Path $Setup) {
         Write-Host "Installer: $Setup"
         $developmentBuild = $Version -match '^0\.0\.0(?:-|$)'
-        & (Join-Path $PSScriptRoot 'finalize-windows-release.ps1') -Installer $Setup -SigningScript $SigningScript -RequireSignature:$RequireSignature -Development:$developmentBuild
+        & (Join-Path $PSScriptRoot 'finalize-windows-release.ps1') -Installer $Setup -SigningScript $SigningScript -ExpectedPublisher $ExpectedPublisher -RequireSignature:$RequireSignature -Development:$developmentBuild
         if ($CleanStage) {
             & node (Join-Path $PSScriptRoot 'build-storage.mjs') package-stage $Stage $DistRoot
             if ($LASTEXITCODE -ne 0) { throw "Installer is ready at $Setup; package stage cleanup failed at $Stage" }

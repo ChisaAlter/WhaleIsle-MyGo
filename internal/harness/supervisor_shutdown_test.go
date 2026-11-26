@@ -1,7 +1,9 @@
 package harness
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -86,5 +88,90 @@ func TestStopRemovesTheHostRecordOnlyAfterAConfirmedExit(t *testing.T) {
 	}
 	if _, err := os.Stat(record); !os.IsNotExist(err) {
 		t.Fatalf("confirmed stop left the Host record behind: %v", err)
+	}
+}
+
+func TestFailPreservesHostRecordWhenExitUnconfirmed(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "host-process.json")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(exe)
+	cmd.Env = append(os.Environ(), "FAKE_DSH=hold")
+	detach(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { _ = terminate(cmd, true); <-exited })
+
+	s := New(Options{RecordPath: record})
+	s.mu.Lock()
+	s.gen = 1
+	s.cmd = cmd
+	s.exited = exited
+	s.setLocked(Status{State: Starting})
+	s.mu.Unlock()
+	s.recordHost(cmd.Process.Pid, 47911, exe, 1)
+	if _, err := os.Stat(record); err != nil {
+		t.Fatalf("record not written: %v", err)
+	}
+
+	s.failWithExit(1, errors.New("timed out waiting for exit"), "fixture", false)
+	if _, err := os.Stat(record); err != nil {
+		t.Fatalf("unconfirmed exit removed host-process.json: %v", err)
+	}
+}
+
+func TestCancelRecoveryCleansHostRecordAndLogSink(t *testing.T) {
+	dir := t.TempDir()
+	record := filepath.Join(dir, "host-process.json")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(exe)
+	cmd.Env = append(os.Environ(), "FAKE_DSH=hold")
+	detach(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	job := bindChildJob(cmd)
+	exited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { _ = terminateWithJob(cmd, job, true); job.close(); <-exited })
+
+	sink := newHostLogSink(filepath.Join(dir, "logs"), cmd.Process.Pid)
+	if sink == nil {
+		t.Fatal("failed to open hostLogSink")
+	}
+	sink.add("before cancel")
+
+	s := New(Options{RecordPath: record, AutoRestart: true, MaxAttempts: 2, BaseDelay: time.Hour})
+	s.mu.Lock()
+	s.gen = 5
+	s.recoveryActive = true
+	s.cmd, s.job, s.exited = cmd, job, exited
+	s.logSink = sink
+	s.setLocked(Status{State: Starting})
+	s.mu.Unlock()
+	s.recordHost(cmd.Process.Pid, 47912, exe, 5)
+
+	st := s.CancelRecovery()
+	if st.State != Failed || !st.RecoveryCancelled {
+		t.Fatalf("CancelRecovery status = %+v", st)
+	}
+	if _, err := os.Stat(record); !os.IsNotExist(err) {
+		t.Fatalf("CancelRecovery left host-process.json behind: %v", err)
+	}
+	select {
+	case <-sink.done:
+	case <-time.After(time.Second):
+		t.Fatal("CancelRecovery did not close logSink")
+	}
+	if err := os.Remove(sink.path); err != nil {
+		t.Fatalf("logSink file handle still open after CancelRecovery: %v", err)
 	}
 }

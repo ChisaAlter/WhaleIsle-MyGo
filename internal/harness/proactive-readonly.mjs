@@ -22,7 +22,7 @@ export function apply(ctx) {
         }
       }
     }
-    if (typeof globalThis.gc === 'function') {
+    if (process.env.WHALEISLE_FORCE_STARTUP_GC === '1' && typeof globalThis.gc === 'function') {
       globalThis.gc();
     }
   }, 1500);

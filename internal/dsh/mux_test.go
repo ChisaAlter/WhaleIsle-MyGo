@@ -420,3 +420,83 @@ func TestMuxCancelSurvivesStreamContextCancel(t *testing.T) {
 		}
 	}
 }
+
+func TestMuxPingWatchdogDetectsBlackhole(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.CloseNow()
+		// Never call c.Read: simulates a silent blackhole that stops answering Pings.
+		<-release
+	}))
+	defer srv.Close()
+
+	lost := make(chan error, 1)
+	mux := &Mux{
+		Endpoint:     Endpoint{Origin: srv.URL},
+		PingInterval: 30 * time.Millisecond,
+		PingTimeout:  60 * time.Millisecond,
+		OnCarrierLost: func(err error) {
+			select {
+			case lost <- err:
+			default:
+			}
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := mux.Dial(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer mux.Close()
+
+	select {
+	case err := <-lost:
+		if err == nil {
+			t.Fatal("expected non-nil carrier lost error")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ping watchdog did not detect silent blackhole and trigger OnCarrierLost")
+	}
+}
+
+func BenchmarkMuxOpen(b *testing.B) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.CloseNow()
+		for {
+			var f ClientFrame
+			if err := wsjson.Read(r.Context(), c, &f); err != nil {
+				return
+			}
+			if f.Type == FrameOpen {
+				_ = wsjson.Write(r.Context(), c, ServerFrame{Type: FrameEnd, StreamID: f.StreamID})
+			}
+		}
+	}))
+	defer srv.Close()
+
+	mux := &Mux{Endpoint: Endpoint{Origin: srv.URL}, PingInterval: -1}
+	ctx := context.Background()
+	if err := mux.Dial(ctx); err != nil {
+		b.Fatal(err)
+	}
+	defer mux.Close()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s, err := mux.Open(ctx, "session/follow", nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _ = s.Recv(ctx)
+	}
+}

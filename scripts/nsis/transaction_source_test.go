@@ -66,6 +66,8 @@ func TestInstallStagesBeforeReplacingAndRegistering(t *testing.T) {
 	requireSourceOrder(t, rollback, `Rename "$wiFinalFS" "$wiStageFS"`, `Rename "$wiOldFS" "$wiFinalFS"`)
 	failure := sourceRegion(t, helper, "Function .onInstFailed", "FunctionEnd")
 	requireSourceOrder(t, failure, "Call wiRollback", "Call wiRestoreRegistration")
+	guiEnd := sourceRegion(t, helper, "Function .onGUIEnd", "FunctionEnd")
+	requireSourceOrder(t, guiEnd, `${If} $wiCommitted != "1"`, "Call wiRollback", "Call wiRestoreRegistration", "${EndIf}")
 }
 
 func TestPayloadOutputDoesNotChangeProcessWorkingDirectory(t *testing.T) {

@@ -51,8 +51,8 @@ func TestMuxStreamRecvKeepsFrameQueuedBeforeCarrierLost(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("carrier never died")
 	}
-	if len(stream.inbox) != 1 {
-		t.Fatalf("queued frames = %d, want the snapshot the Host sent before it closed", len(stream.inbox))
+	if stream.inbox.len() != 1 {
+		t.Fatalf("queued frames = %d, want the snapshot the Host sent before it closed", stream.inbox.len())
 	}
 	raw, err := stream.Recv(ctx)
 	if err != nil {

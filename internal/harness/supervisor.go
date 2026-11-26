@@ -228,6 +228,7 @@ type Supervisor struct {
 	mu               sync.Mutex
 	status           Status
 	cmd              *exec.Cmd
+	job              *childJob
 	exited           chan struct{}
 	stoppingChildren int
 	gen              int
@@ -249,6 +250,8 @@ type Supervisor struct {
 	restartTimer      *time.Timer
 	launchCtx         context.Context
 	launchCancel      context.CancelFunc
+	installCtx        context.Context
+	installCancel     context.CancelFunc
 	statusChanged     chan struct{}
 	notify            *notifyWorker
 	prevNotifyDone    <-chan struct{}
@@ -326,11 +329,25 @@ func (s *Supervisor) startOwned() (int, bool) {
 	launchCtx, launchCancel := context.WithCancel(context.Background())
 	s.launchCtx = launchCtx
 	s.launchCancel = launchCancel
+	var installCtx context.Context
+	if install != nil {
+		if s.installCtx == nil || s.installCtx.Err() != nil {
+			s.installCtx, s.installCancel = context.WithCancel(context.Background())
+		}
+		installCtx = s.installCtx
+	}
 	s.setLocked(Status{State: Starting})
 	s.mu.Unlock()
 	if install != nil {
-		if err := install.Start(launchCtx); err != nil {
+		if err := install.Start(installCtx); err != nil {
 			if s.current(gen) {
+				s.mu.Lock()
+				if s.installCancel != nil {
+					s.installCancel()
+					s.installCancel = nil
+				}
+				s.installCtx = nil
+				s.mu.Unlock()
 				install.Stop()
 				s.set(gen, Status{State: Failed, Err: fmt.Errorf("install control: %w", err)})
 			}
@@ -358,8 +375,14 @@ func (s *Supervisor) CancelRecovery() Status {
 	}
 	st := s.status
 	s.nextGenLocked()
-	cmd, exited := s.cmd, s.exited
-	s.cmd, s.exited = nil, nil
+	cmd, job, exited := s.cmd, s.job, s.exited
+	s.cmd, s.job, s.exited = nil, nil, nil
+	sink := s.logSink
+	s.logSink = nil
+	recordPID := 0
+	if cmd != nil && cmd.Process != nil {
+		recordPID = cmd.Process.Pid
+	}
 	if cmd != nil {
 		s.stoppingChildren++
 	}
@@ -372,11 +395,19 @@ func (s *Supervisor) CancelRecovery() Status {
 	s.setLocked(st)
 	st = s.status
 	s.mu.Unlock()
+	if sink != nil {
+		sink.close()
+	}
 	if cmd != nil {
-		stopChild(cmd, exited)
+		stopped := stopChild(cmd, job, exited)
+		if stopped && recordPID > 0 {
+			RemoveHostRecord(s.opts.RecordPath, recordPID)
+		}
 		s.mu.Lock()
 		s.stoppingChildren--
 		s.mu.Unlock()
+	} else if job != nil {
+		job.close()
 	}
 	return st
 }
@@ -385,9 +416,11 @@ func (s *Supervisor) CancelRecovery() Status {
 func (s *Supervisor) Stop() {
 	s.mu.Lock()
 	install := s.opts.Install
+	installCancel := s.installCancel
+	s.installCtx, s.installCancel = nil, nil
 	s.nextGenLocked()
-	cmd, exited := s.cmd, s.exited
-	s.cmd, s.exited = nil, nil
+	cmd, job, exited := s.cmd, s.job, s.exited
+	s.cmd, s.job, s.exited = nil, nil, nil
 	sink := s.logSink
 	s.logSink = nil
 	if cmd != nil {
@@ -410,17 +443,22 @@ func (s *Supervisor) Stop() {
 	if sink != nil {
 		sink.close()
 	}
+	if installCancel != nil {
+		installCancel()
+	}
 	if install != nil {
 		install.Stop()
 	}
 	if cmd != nil {
-		stopped := stopChild(cmd, exited)
+		stopped := stopChild(cmd, job, exited)
 		if stopped {
 			RemoveHostRecord(s.opts.RecordPath, recordPID)
 		}
 		s.mu.Lock()
 		s.stoppingChildren--
 		s.mu.Unlock()
+	} else if job != nil {
+		job.close()
 	}
 	if !waitExit(notifyDone, notifyDrainBudget) {
 		log.Printf("harness: a status listener did not return within %s; continuing shutdown", notifyDrainBudget)
@@ -446,15 +484,20 @@ func waitExit(exited <-chan struct{}, budget time.Duration) bool {
 // The caller retains this exact child until its wait goroutine confirms exit.
 // Every wait is bounded: a Host that never reports exit must cost the window a
 // fixed delay and a log line, not the close itself.
-func stopChild(cmd *exec.Cmd, exited <-chan struct{}) bool {
+func stopChild(cmd *exec.Cmd, job *childJob, exited <-chan struct{}) bool {
+	defer func() {
+		if job != nil {
+			job.close()
+		}
+	}()
 	if cmd == nil {
 		return true
 	}
-	_ = terminate(cmd, false)
+	_ = terminateWithJob(cmd, job, false)
 	if waitExit(exited, stopGrace) {
 		return true
 	}
-	_ = terminate(cmd, true)
+	_ = terminateWithJob(cmd, job, true)
 	if waitExit(exited, stopExitBudget) {
 		return true
 	}
@@ -719,7 +762,8 @@ func (s *Supervisor) run(gen int) {
 		return
 	}
 	_ = writeOut.Close()
-	s.cmd, s.exited = cmd, exited
+	job := bindChildJob(cmd)
+	s.cmd, s.job, s.exited = cmd, job, exited
 	if sink := newHostLogSink(filepath.Join(paths.UserDataDir(), "logs"), cmd.Process.Pid); sink != nil {
 		// The file's pid needs the started process; the lines logged before
 		// Start (the plan, overlays) belong to this attempt, so replay them.
@@ -775,9 +819,9 @@ func (s *Supervisor) run(gen int) {
 			cancel()
 			if err != nil {
 				s.log("auth: "+redactScanLine(err.Error(), tokens), gen)
-				_ = terminate(cmd, true)
-				waitExit(exited, stopExitBudget)
-				s.fail(gen, err, plan.Source)
+				_ = terminateWithJob(cmd, job, true)
+				confirmed := waitExit(exited, stopExitBudget)
+				s.failWithExit(gen, err, plan.Source, confirmed)
 				return
 			}
 			// A successful transport handshake must not register a workspace.
@@ -795,9 +839,9 @@ func (s *Supervisor) run(gen int) {
 			s.exitedUnexpectedly(gen, waitErr, plan.Source)
 			return
 		case <-timer.C:
-			_ = terminate(cmd, true)
-			waitExit(exited, stopExitBudget)
-			s.fail(gen, fmt.Errorf("dsh web did not become ready within %s", s.opts.ReadyTimeout), plan.Source)
+			_ = terminateWithJob(cmd, job, true)
+			confirmed := waitExit(exited, stopExitBudget)
+			s.failWithExit(gen, fmt.Errorf("dsh web did not become ready within %s", s.opts.ReadyTimeout), plan.Source, confirmed)
 			return
 		case <-probeC:
 			if loggedListen {
@@ -931,10 +975,19 @@ func (s *Supervisor) exitedUnexpectedly(gen int, waitErr error, source string) {
 
 // fail records the failure, or schedules a restart when attempts remain.
 func (s *Supervisor) fail(gen int, err error, source string) {
+	s.failWithExit(gen, err, source, true)
+}
+
+func (s *Supervisor) failWithExit(gen int, err error, source string, confirmedExit bool) {
 	var oldSink *hostLogSink
+	var oldJob *childJob
 	defer func() {
 		if oldSink != nil {
 			oldSink.close()
+		}
+		if oldJob != nil {
+			_ = oldJob.terminate()
+			oldJob.close()
 		}
 	}()
 	// Take one policy snapshot without holding the supervisor mutex. A save
@@ -947,6 +1000,8 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 	}
 	oldSink = s.logSink
 	s.logSink = nil
+	oldJob = s.job
+	s.job = nil
 	if s.status.State == Ready && !s.readyAt.IsZero() && time.Since(s.readyAt) >= restartStablePeriod {
 		s.attempt = 0
 	}
@@ -964,7 +1019,7 @@ func (s *Supervisor) fail(gen int, err error, source string) {
 		s.mu.Unlock()
 		return
 	}
-	if failedPID > 0 {
+	if confirmedExit && failedPID > 0 {
 		RemoveHostRecord(s.opts.RecordPath, failedPID)
 	}
 	blob := err.Error() + "\n" + strings.Join(s.startLogs, "\n")
