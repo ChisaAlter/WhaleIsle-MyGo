@@ -1,6 +1,7 @@
 package coss
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -60,5 +61,34 @@ func TestCossSwitchUses100msAndButtonFeedbackFixedWidth(t *testing.T) {
 	tt.SetTime(start.Add(design.MotionFast + 2*time.Millisecond))
 	if !tt.HasText("Running long diagnostic verification step") {
 		t.Fatal("button feedback text missing")
+	}
+}
+
+func TestCossSkeletonUses2600msSweep(t *testing.T) {
+	if design.DurationSkeleton != 2600*time.Millisecond {
+		t.Fatalf("DurationSkeleton = %v, want 2600ms", design.DurationSkeleton)
+	}
+	start := time.Unix(1000, 0)
+	show := false
+	tt := ui.NewTester(func(c *ui.Context) {
+		if show {
+			Skeleton(c).Size(220, 40)
+		}
+	}, 220, 40)
+	tt.SetTime(start)
+	show = true
+	tt.Frame()
+	atStart := append([]byte(nil), tt.Image().Pix...)
+
+	tt.SetTime(start.Add(3 * design.DurationSkeleton / 4))
+	atThreeQuarters := tt.Image().Pix
+	if bytes.Equal(atStart, atThreeQuarters) {
+		t.Fatal("skeleton sweep did not advance within 2.6s period")
+	}
+
+	tt.SetTime(start.Add(design.DurationSkeleton))
+	atCycle := tt.Image().Pix
+	if !bytes.Equal(atStart, atCycle) {
+		t.Fatal("skeleton sweep did not wrap at 2600ms period")
 	}
 }

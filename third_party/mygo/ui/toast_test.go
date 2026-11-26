@@ -137,8 +137,10 @@ func TestToastReturnFocusUsesCurrentFrameAndRetiresLostOwner(t *testing.T) {
 
 func TestToastMotionTiming(t *testing.T) {
 	// The desktop banner enters from 6 DIP above, holds, then fades.
-	if toastHold != 3000*time.Millisecond || toastFade != 1000*time.Millisecond || toastTime != 4*time.Second {
-		t.Fatalf("toast life hold=%v fade=%v total=%v", toastHold, toastFade, toastTime)
+	if toastHold != 3000*time.Millisecond || toastErrorHold != 6000*time.Millisecond ||
+		toastFade != 1000*time.Millisecond || toastTime != 4*time.Second || errorToastTime != 7*time.Second {
+		t.Fatalf("toast life hold=%v errorHold=%v fade=%v total=%v errorTotal=%v",
+			toastHold, toastErrorHold, toastFade, toastTime, errorToastTime)
 	}
 	if toastEnter != 160*time.Millisecond || toastRise != -6 {
 		t.Fatalf("toast enter=%v rise=%v", toastEnter, toastRise)
@@ -251,8 +253,8 @@ func TestToastViewportBase(t *testing.T) {
 	if len(shown) != 1 || shown[0].Type != "info" || !tt.HasText("Note deleted") {
 		t.Fatalf("toasts %v, texts %q", shown, tt.Texts())
 	}
-	if lefts[0] != toastTime {
-		t.Errorf("a toast without a Timeout shows for %v", lefts[0])
+	if lefts[0] != errorToastTime {
+		t.Errorf("an action toast without a Timeout shows for %v, want %v", lefts[0], errorToastTime)
 	}
 	// The theme's look does not show them too.
 	if n := len(slices.DeleteFunc(tt.Texts(), func(s string) bool { return s != "Note deleted" })); n != 1 {
@@ -263,8 +265,8 @@ func TestToastViewportBase(t *testing.T) {
 		t.Errorf("the viewport did not go to the bottom right: %v", r)
 	}
 	tick(time.Second)
-	if lefts[0] != toastTime-time.Second {
-		t.Errorf("a second later, %v left", lefts[0])
+	if lefts[0] != errorToastTime-time.Second {
+		t.Errorf("a second later, %v left, want %v", lefts[0], errorToastTime-time.Second)
 	}
 	// Its action runs, and closes it.
 	tt.Click("Undo")
@@ -273,7 +275,7 @@ func TestToastViewportBase(t *testing.T) {
 	}
 	// Its time over, it closes.
 	tt.Click("Delete")
-	tick(toastTime)
+	tick(errorToastTime)
 	if len(closed) != 2 || tt.HasText("Note deleted") {
 		t.Errorf("after its time: closed %v, texts %q", closed, tt.Texts())
 	}
@@ -421,5 +423,63 @@ func TestToastExits(t *testing.T) {
 	tick(300 * time.Millisecond)
 	if reddish() {
 		t.Error("the toast stays after its exit transition")
+	}
+}
+
+func TestToastDefaultLifetimes(t *testing.T) {
+	cases := []struct {
+		name  string
+		toast Toast
+		want  time.Duration
+	}{
+		{name: "normal", toast: Toast{Title: "Saved"}, want: toastTime},
+		{name: "info", toast: Toast{Title: "Heads up", Type: "info"}, want: toastTime},
+		{name: "error", toast: Toast{Title: "Save failed", Type: "error"}, want: errorToastTime},
+		{name: "action", toast: Toast{Title: "Deleted", Action: "Undo"}, want: errorToastTime},
+		{name: "persistent error", toast: Toast{Title: "Offline", Type: "error", Timeout: -1}, want: 0},
+		{name: "explicit timeout", toast: Toast{Title: "Custom", Type: "error", Timeout: 2 * time.Second}, want: 2 * time.Second},
+	}
+	for _, tc := range cases {
+		if got := tc.toast.life(); got != tc.want {
+			t.Fatalf("%s: life() = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+
+	var c *context
+	var shown []string
+	var lefts []time.Duration
+	tt, now := clockTester(func(ctx *context) {
+		c = ctx
+		shown, lefts = shown[:0], lefts[:0]
+		coreToastViewportBase(c, func(viewport *node, toasts []Toast) {
+			for _, ts := range toasts {
+				toast := coreToastBase(c, ts)
+				shown, lefts = append(shown, ts.Title), append(lefts, toast.Left())
+				toast.Root.Children(func() { coreText(c, ts.Title) })
+			}
+		})
+	}, 400, 300)
+	tick := ticker(tt, now)
+
+	c.AddToast(Toast{ID: "normal", Title: "Normal"})
+	c.AddToast(Toast{ID: "error", Title: "Error", Type: "error"})
+	c.AddToast(Toast{ID: "action", Title: "Action", Action: "Undo"})
+	tt.Frame()
+	if !slices.Equal(shown, []string{"Normal", "Error", "Action"}) ||
+		!slices.Equal(lefts, []time.Duration{toastTime, errorToastTime, errorToastTime}) {
+		t.Fatalf("initial shown=%q lefts=%v, want [Normal Error Action] / [%v %v %v]",
+			shown, lefts, toastTime, errorToastTime, errorToastTime)
+	}
+
+	tick(toastTime)
+	if !slices.Equal(shown, []string{"Error", "Action"}) ||
+		!slices.Equal(lefts, []time.Duration{errorToastTime - toastTime, errorToastTime - toastTime}) {
+		t.Fatalf("after %v shown=%q lefts=%v, want [Error Action] / [%v %v]",
+			toastTime, shown, lefts, errorToastTime-toastTime, errorToastTime-toastTime)
+	}
+
+	tick(errorToastTime - toastTime)
+	if len(shown) != 0 {
+		t.Fatalf("after %v shown=%q, want empty", errorToastTime, shown)
 	}
 }

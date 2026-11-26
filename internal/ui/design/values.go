@@ -142,7 +142,7 @@ const (
 	DurationDrawer   = 450 * time.Millisecond
 	DurationProgress = 500 * time.Millisecond
 	DurationSpin     = time.Second     // animate-spin
-	DurationSkeleton = 2 * time.Second // animate-skeleton
+	DurationSkeleton = 2600 * time.Millisecond // animate-skeleton
 	DurationPulse    = 2 * time.Second // animate-pulse
 	DurationCaret    = time.Second     // caret-blink
 )

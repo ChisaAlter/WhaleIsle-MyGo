@@ -54,3 +54,9 @@ func TestButtonMarqueeDurationAndKeyframes(t *testing.T) {
 		t.Fatalf("reduce-motion marquee offset = %v, want 0", got)
 	}
 }
+
+func TestDurationSkeletonMatchesMotionSpec(t *testing.T) {
+	if DurationSkeleton != 2600*time.Millisecond {
+		t.Fatalf("DurationSkeleton = %v, want 2600ms", DurationSkeleton)
+	}
+}

@@ -9,6 +9,8 @@ const (
 	// toastHold is how long a toast shows at full opacity before it fades,
 	// as Toast.tsx's HOLD_MS.
 	toastHold = 3 * time.Second
+	// toastErrorHold is how long an error or action toast holds before fading.
+	toastErrorHold = 6 * time.Second
 	// toastFade is how long the fade-out takes, as Toast.tsx's FADE_MS. The
 	// toast's time runs out when the fade ends.
 	toastFade = time.Second
@@ -19,6 +21,9 @@ const (
 	// toastTime is how long a toast shows unless it says: the hold and the
 	// fade after it, as the native toast unmounts at HOLD_MS + FADE_MS.
 	toastTime = toastHold + toastFade
+	// errorToastTime is how long an error or action toast shows by default:
+	// 6s hold plus 1s fade.
+	errorToastTime = toastErrorHold + toastFade
 	// actionToastTime is how long one of ToastAction shows, which the user
 	// needs time to reach.
 	actionToastTime = 8 * time.Second
@@ -40,10 +45,10 @@ type Toast struct {
 	// Type tells what kind of toast it is, as "error" or "success", for
 	// the look to tell.
 	Type string
-	// Timeout is how long the toast shows: 4 seconds when zero, until it
-	// is closed when negative. The time stops while the pointer rests on
-	// the toasts, the keyboard focus is in them, or the window is in the
-	// background.
+	// Timeout is how long the toast shows: 4 seconds (7 seconds for error or
+	// action toasts) when zero, until it is closed when negative. The time
+	// stops while the pointer rests on the toasts, the keyboard focus is in
+	// them, or the window is in the background.
 	Timeout time.Duration
 	// Action labels a button that runs OnAction, as Undo after deleting,
 	// and closes the toast.
@@ -77,6 +82,9 @@ func (t *Toast) life() time.Duration {
 	case t.Timeout < 0:
 		return 0
 	case t.Timeout == 0:
+		if t.Type == "error" || t.Action != "" {
+			return errorToastTime
+		}
 		return toastTime
 	}
 	return t.Timeout
