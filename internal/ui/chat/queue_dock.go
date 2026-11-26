@@ -14,56 +14,87 @@ import (
 
 var queueIconGrip = ui.MustParseSVG([]byte(`<svg viewBox="0 0 12 12" fill="none"><circle cx="4" cy="3" r="1" fill="currentColor"/><circle cx="8" cy="3" r="1" fill="currentColor"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="8" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="9" r="1" fill="currentColor"/><circle cx="8" cy="9" r="1" fill="currentColor"/></svg>`))
 
+type queueDockSlideState struct {
+	settle    SystemRowSettleTracker
+	lastBoard session.PlanBoard
+	lastEdit  session.QueueEditorState
+	contentH  float32
+}
+
 // QueueDockView paints the compact queue dock that belongs above the composer:
 // one row per queued prompt with its preview and icon-only actions, plus the
-// inline queue editor. The expanded plan board renders the same rows from
-// paintQueueRows, so the two surfaces never drift.
-//
-// The frame owns the seat; it only needs to call this when the dock has rows:
-//
-//	if snap.PlanBoard.HasQueue() {
-//		chat.QueueDockView(c, chat.PlanBoardModel{...})
-//	}
+// inline queue editor. Animates via 200ms clipped vertical slide and reserves
+// layout for 400ms (SYSTEM_ROW_SETTLE_MS) when system dispatch drains the queue.
 func QueueDockView(c *ui.Context, m PlanBoardModel) {
-	if !queueDockHasRows(m.Board) && m.QueueEditor.ItemID == "" {
+	host := ui.Column(c.Key("queue-dock-slide")).FillWidth()
+	st := ui.Local(host, "queue-dock-slide-state", func() queueDockSlideState { return queueDockSlideState{} })
+	rawCount := len(m.Board.Queue) + len(m.Board.Pending)
+	if m.QueueEditor.ItemID != "" {
+		rawCount++
+	}
+	now := c.Now()
+	effectiveHasRows, stillSettling := st.settle.Update(now, rawCount, m.UserQueueAction, m.PendingSubmission)
+	if stillSettling && !now.IsZero() {
+		if rem := st.settle.SettleUntil.Sub(now); rem > 0 {
+			c.After(rem)
+		}
+	}
+	if rawCount > 0 {
+		st.lastBoard = m.Board
+		st.lastEdit = m.QueueEditor
+	}
+	progress := DockSlideProgress(c, host, effectiveHasRows, false)
+	if !effectiveHasRows && progress <= 0 {
+		st.lastBoard = session.PlanBoard{}
+		st.lastEdit = session.QueueEditorState{}
 		return
+	}
+	viewModel := m
+	if rawCount == 0 {
+		viewModel.Board = st.lastBoard
+		viewModel.QueueEditor = st.lastEdit
 	}
 	t := design.For(c)
 	fg := t.Foreground
 	muted := t.MutedForeground
 	border := t.Border
 	accent := t.Primary
-	root := chatCardSurface(c, ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(design.Sp(1.5)).
-		Padding(design.Sp(2), design.Sp(2.5), design.Sp(2), design.Sp(2.5)), design.RadiusLG)
-	collapsed := ui.Local(root, "collapsed", func() bool {
-		if m.Open != nil {
-			return !*m.Open
-		}
-		return true
-	})
-	root.Children(func() {
-		ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
-			if n := len(m.Board.Queue) + len(m.Board.Pending); n > 0 {
-				ui.Text(c, queueCountLabel(n)).FontSize(11).TextColor(muted)
+	paintDockSlide(c, host, progress, effectiveHasRows, &st.contentH, func(contentOpacity float32) {
+		root := chatCardSurface(c, ui.Column(c).Key("queue-dock").FillWidth().MinWidth(0).Gap(design.Sp(1.5)).
+			Padding(design.Sp(2), design.Sp(2.5), design.Sp(2), design.Sp(2.5)), design.RadiusLG)
+		collapsed := ui.Local(root, "collapsed", func() bool {
+			if viewModel.Open != nil {
+				return !*viewModel.Open
 			}
-			if len(m.Board.Queue)+len(m.Board.Pending) > 1 {
-				label := "▴"
-				if *collapsed {
-					label = "▾"
-				}
-				if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: m.QueueEditor.ItemID != ""}).Label(trajectoryText("展开或收起队列", "Expand or collapse queue")).Clicked() {
-					*collapsed = !*collapsed
-				}
-			}
+			return true
 		})
-		if len(m.Board.Queue)+len(m.Board.Pending) > 1 && *collapsed && m.QueueEditor.ItemID == "" {
-			return
-		}
-		if m.QueueEditor.ItemID != "" && !queueHasItemID(m.Board.Queue, m.QueueEditor.ItemID) {
-			paintQueueEditor(c, m, fg, muted)
-		}
-		paintQueueRows(c, m, fg, muted, accent, border, true)
+		root.Children(func() {
+			content := ui.Column(c).FillWidth().MinWidth(0).Gap(design.Sp(1.5)).Opacity(contentOpacity)
+			content.Children(func() {
+				ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2)).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, i18n.T(i18n.KeyChatQueueTitle)).FontSize(11).TextColor(muted).Grow(1)
+					if n := len(viewModel.Board.Queue) + len(viewModel.Board.Pending); n > 0 {
+						ui.Text(c, queueCountLabel(n)).FontSize(11).TextColor(muted)
+					}
+					if len(viewModel.Board.Queue)+len(viewModel.Board.Pending) > 1 {
+						label := "▴"
+						if *collapsed {
+							label = "▾"
+						}
+						if coss.Button(c, label, coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS, Disabled: viewModel.QueueEditor.ItemID != ""}).Label(trajectoryText("展开或收起队列", "Expand or collapse queue")).Clicked() {
+							*collapsed = !*collapsed
+						}
+					}
+				})
+				if len(viewModel.Board.Queue)+len(viewModel.Board.Pending) > 1 && *collapsed && viewModel.QueueEditor.ItemID == "" {
+					return
+				}
+				if viewModel.QueueEditor.ItemID != "" && !queueHasItemID(viewModel.Board.Queue, viewModel.QueueEditor.ItemID) {
+					paintQueueEditor(c, viewModel, fg, muted)
+				}
+				paintQueueRows(c, viewModel, fg, muted, accent, border, true)
+			})
+		})
 	})
 }
 

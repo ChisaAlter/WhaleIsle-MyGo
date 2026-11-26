@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/ui/widgets"
 )
 
 // ModelSelect's FlipText keeps its CSS animation mounted across rapid text
 // changes. Its outgoing-value cleanup effect has a separate 400ms clock.
-const modelFlipDuration = 400 * time.Millisecond
+const modelFlipDuration = widgets.FlipDuration
 
 type modelFlipTimeline struct {
 	Shown, Outgoing  string
@@ -138,7 +139,7 @@ func modelFlipText(c *ui.Context, key, value string, color ui.Color, fontSize fl
 				p.TextLayout(state.Current.layout, box.X, box.Y+(box.H-height)/2, color)
 				return
 			}
-			progress := cssBezier(float64(elapsed)/float64(modelFlipDuration), .4, 0, .2, 1)
+			progress := float64(widgets.DesignEase(float32(elapsed) / float32(modelFlipDuration)))
 			paint := func(ink *modelFlipInk, raster *ui.DecorativeRaster, angle, opacity float64) {
 				pixels, offset := projectModelFlip(ink.pixels, box.W, box.H, p.Scale(), angle, opacity)
 				if pixels == nil {

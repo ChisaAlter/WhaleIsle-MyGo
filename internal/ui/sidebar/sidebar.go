@@ -423,7 +423,7 @@ func View(c *ui.Context, m Model) {
 		})
 	} else {
 		root.Background(fill).Radius(0)
-		if t.Glass {
+		if t.Glass || chrome.BackdropActive() {
 			root.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				p.Fill(ui.Rect{X: r.X + r.W - design.BorderWidth, Y: r.Y, W: design.BorderWidth, H: r.H}, border, 0)
 			})
@@ -442,6 +442,15 @@ func View(c *ui.Context, m Model) {
 			}
 			rail.Children(func() { collapsedRail(c, m, fg) })
 		} else {
+			wide := ui.Column(c.Key("sidebar-wide-content")).FillWidth().Grow(1).MinHeight(0)
+			if !c.Preferences().ReduceMotion {
+				wide.Transition(ui.ElementTransition{
+					Duration: design.MotionDefault,
+					Ease:     design.EaseInOut,
+					Enter:    &ui.Motion{Opacity: 0},
+				})
+			}
+			wide.Children(func() {
 			ui.Row(c).Key("sidebar-brand-row").FillWidth().Height(skinLayout.BrandHeight).Margin(0, 0, skinLayout.BrandBottom, 0).Gap(design.Sp(1.5)).AlignItems(ui.Center).
 				DragWindow().Children(func() {
 				sidebarBrand(c, m, runtime.GOOS)
@@ -565,6 +574,7 @@ func View(c *ui.Context, m Model) {
 						}
 					})
 				}
+			})
 			})
 		}
 		batchResultReceipt(c, m)

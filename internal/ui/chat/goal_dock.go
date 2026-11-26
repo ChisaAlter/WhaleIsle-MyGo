@@ -17,11 +17,30 @@ type goalDockEditor struct {
 	draft, error, action string
 }
 
+type goalDockSlideState struct {
+	lastGoal *session.PlanGoal
+	contentH float32
+}
+
 // GoalDockView retains the strip while an action is pending. Only acknowledged
 // saves leave the editor; a failed CAS preserves the exact user's draft.
 func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
+	host := ui.Column(c.Key("goal-dock-slide")).FillWidth()
+	st := ui.Local(host, "goal-dock-slide-state", func() goalDockSlideState { return goalDockSlideState{} })
 	g := m.Board.Goal
-	if g == nil || g.Phase == "complete" || g.Phase == "completed" {
+	open := g != nil && g.Phase != "complete" && g.Phase != "completed"
+	if open {
+		st.lastGoal = g
+	}
+	progress := DockSlideProgress(c, host, open, false)
+	if !open && progress <= 0 {
+		st.lastGoal = nil
+		return
+	}
+	if !open {
+		g = st.lastGoal
+	}
+	if g == nil {
 		return
 	}
 	t := design.For(c)
@@ -30,150 +49,155 @@ func GoalDockView(c *ui.Context, m PlanBoardModel, stores ...*session.Store) {
 	if len(stores) > 0 && stores[0] != nil {
 		scope = stores[0].PlanHistoryBinding() + ":" + g.ID
 	}
-	root := chatCardSurface(c, ui.Row(c.Key("goal-dock:"+scope)).FillWidth().MinWidth(0).MinHeight(36).Shrink(0).Padding(design.Sp(1), design.Sp(1.25), design.Sp(1), design.Sp(3)).Gap(design.Sp(2.5)).AlignItems(ui.Center), design.RadiusLG)
-	state := ui.Local(root, "editor", func() goalDockEditor { return goalDockEditor{draft: g.Objective} })
-	if !state.editing {
-		root.Height(36)
-	}
-	var run func(context.Context, string, string) error
-	if len(stores) > 0 && stores[0] != nil {
-		run = stores[0].GoalDockAction(g.ID, g.Revision)
-	}
-	svc := c.Services()
-	start := func(action string) {
-		if state.pending {
-			return
+	paintDockSlide(c, host, progress, open, &st.contentH, func(contentOpacity float32) {
+		root := chatCardSurface(c, ui.Row(c.Key("goal-dock:"+scope)).FillWidth().MinWidth(0).MinHeight(36).Shrink(0).Padding(design.Sp(1), design.Sp(1.25), design.Sp(1), design.Sp(3)).Gap(design.Sp(2.5)).AlignItems(ui.Center), design.RadiusLG)
+		state := ui.Local(root, "editor", func() goalDockEditor { return goalDockEditor{draft: g.Objective} })
+		if !state.editing {
+			root.Height(36)
 		}
-		state.pending = true
-		state.error = ""
-		state.action = action
-		draft := strings.TrimSpace(state.draft)
-		if run == nil {
-			switch action {
-			case "edit":
-				if m.OnEditGoal != nil {
-					m.OnEditGoal(draft)
-				}
-				state.editing = false
-			case "pause":
-				if m.OnPauseGoal != nil {
-					m.OnPauseGoal()
-				}
-			case "resume":
-				if m.OnResumeGoal != nil {
-					m.OnResumeGoal()
-				}
-			case "clear":
-				if m.OnClearGoal != nil {
-					m.OnClearGoal()
-				}
+		var run func(context.Context, string, string) error
+		if len(stores) > 0 && stores[0] != nil {
+			run = stores[0].GoalDockAction(g.ID, g.Revision)
+		}
+		svc := c.Services()
+		start := func(action string) {
+			if state.pending {
+				return
 			}
-			state.pending = false
-			return
-		}
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			err := run(ctx, action, draft)
-			mygo.RunOnMain(func() {
-				state.pending = false
-				state.action = ""
-				if err != nil {
-					state.error = errcopy.Sentence(err)
-				} else if action == "edit" {
-					state.editing = false
-				}
-				svc.Invalidate()
-			})
-		}()
-	}
-	button := func(glyph, label, action string, disabled bool) {
-		isDisabled := state.pending || disabled
-		b := coss.Button(c, "", coss.ButtonOptions{
-			Variant:  coss.ButtonGhost,
-			Size:     coss.ButtonIconSM,
-			Disabled: isDisabled,
-			Label:    label,
-			Content: func() {
-				if state.pending && state.action == action {
-					ui.Spinner(c).Size(14, 14)
-				} else {
-					ui.Icon(c, goalDockIcons[glyph]).Size(14, 14)
-				}
-			},
-		}).Tooltip(label).Radius(design.RadiusFull).TextColor(muted)
-		if b.Clicked() {
-			start(action)
-		}
-	}
-	root.Children(func() {
-		if state.editing {
-			field := ui.TextAreaBase(c, &state.draft).Lines(1, 6).FontSize(13).FixedLineHeight(20).Padding(0).BorderWidth(0).Background(ui.Transparent).Label(referenceCopy("Goal objective", "目标内容")).FillWidth().Grow(1).MinWidth(0).ReadOnly(state.pending).AutoFocus()
-			keys := ui.Local(field, "goal-keys", func() goalEditorKeys { return goalEditorKeys{} })
-			composing := field.Composing()
-			keys.observe(composing)
-			field.HandleInput(func(ev ui.InputEvent) bool {
-				return keys.handle(ev, composing, state.pending, func() {
-					if strings.TrimSpace(state.draft) != "" {
-						start("edit")
+			state.pending = true
+			state.error = ""
+			state.action = action
+			draft := strings.TrimSpace(state.draft)
+			if run == nil {
+				switch action {
+				case "edit":
+					if m.OnEditGoal != nil {
+						m.OnEditGoal(draft)
 					}
-				}, func() { state.editing = false })
-			})
-			if state.error != "" {
-				ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(t.DestructiveForeground).SingleLine().Tooltip(state.error).MinWidth(0).Shrink(1)
+					state.editing = false
+				case "pause":
+					if m.OnPauseGoal != nil {
+						m.OnPauseGoal()
+					}
+				case "resume":
+					if m.OnResumeGoal != nil {
+						m.OnResumeGoal()
+					}
+				case "clear":
+					if m.OnClearGoal != nil {
+						m.OnClearGoal()
+					}
+				}
+				state.pending = false
+				return
 			}
-			button("✓", referenceCopy("Save goal", "保存目标"), "edit", strings.TrimSpace(state.draft) == "")
-			cancel := coss.Button(c, "", coss.ButtonOptions{
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				err := run(ctx, action, draft)
+				mygo.RunOnMain(func() {
+					state.pending = false
+					state.action = ""
+					if err != nil {
+						state.error = errcopy.Sentence(err)
+					} else if action == "edit" {
+						state.editing = false
+					}
+					svc.Invalidate()
+				})
+			}()
+		}
+		button := func(glyph, label, action string, disabled bool) {
+			isDisabled := state.pending || disabled
+			b := coss.Button(c, "", coss.ButtonOptions{
 				Variant:  coss.ButtonGhost,
 				Size:     coss.ButtonIconSM,
-				Disabled: state.pending,
-				Label:    referenceCopy("Cancel edit", "取消编辑"),
-				Content:  func() { ui.Icon(c, messageIconCloseOutline).Size(14, 14) },
-			}).Tooltip(referenceCopy("Cancel edit", "取消编辑")).Radius(design.RadiusFull)
-			if cancel.Clicked() {
-				state.editing = false
-			}
-			return
-		}
-		label := referenceCopy("Ongoing Goal", "进行中的目标")
-		switch g.Phase {
-		case "paused":
-			label = referenceCopy("Paused Goal", "已暂停的目标")
-		case "blocked":
-			label = referenceCopy("Blocked Goal", "受阻的目标")
-		default:
-			if g.Activation == "disarmed" {
-				label = referenceCopy("Inactive Goal", "已暂停的目标")
+				Disabled: isDisabled,
+				Label:    label,
+				Content: func() {
+					if state.pending && state.action == action {
+						ui.Spinner(c).Size(14, 14)
+					} else {
+						ui.Icon(c, goalDockIcons[glyph]).Size(14, 14)
+					}
+				},
+			}).Tooltip(label).Radius(design.RadiusFull).TextColor(muted)
+			if b.Clicked() {
+				start(action)
 			}
 		}
-		ui.Icon(c, goalDockIcons["goal"]).Size(14, 14).TextColor(muted).Shrink(0)
-		ui.Text(c, label).FontSize(13).FixedLineHeight(24).FontWeight(500).TextColor(fg).Shrink(0)
-		ui.Text(c, g.Objective).FontSize(13).FixedLineHeight(20).TextColor(fg).Grow(1).MinWidth(0).SingleLine().Tooltip(g.Objective)
-		if g.Phase == "blocked" && g.BlockedReason.Message != "" {
-			root.Tooltip(g.BlockedReason.Message)
-		}
-		if state.error != "" {
-			ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(t.DestructiveForeground).SingleLine().MinWidth(0).Shrink(1).Tooltip(state.error)
-		}
-		if g.Phase == "active" && g.Activation == "armed" {
-			button("Ⅱ", referenceCopy("Pause goal", "暂停目标"), "pause", false)
-		}
-		if g.Phase == "paused" || g.Phase == "active" && g.Activation == "disarmed" {
-			button("▷", referenceCopy("Resume goal", "恢复目标"), "resume", false)
-		}
-		edit := coss.Button(c, "", coss.ButtonOptions{
-			Variant:  coss.ButtonGhost,
-			Size:     coss.ButtonIconSM,
-			Disabled: state.pending,
-			Label:    referenceCopy("Edit goal", "编辑目标"),
-			Content:  func() { ui.Icon(c, messageIconEditOutline).Size(14, 14) },
-		}).Tooltip(referenceCopy("Edit goal", "编辑目标")).Radius(design.RadiusFull)
-		if edit.Clicked() {
-			state.draft = g.Objective
-			state.editing = true
-			state.error = ""
-		}
-		button("×", referenceCopy("Clear goal", "清除目标"), "clear", false)
+		root.Children(func() {
+			content := ui.Row(c).FillWidth().MinWidth(0).Gap(design.Sp(2.5)).AlignItems(ui.Center).Opacity(contentOpacity)
+			content.Children(func() {
+				if state.editing {
+					field := ui.TextAreaBase(c, &state.draft).Lines(1, 6).FontSize(13).FixedLineHeight(20).Padding(0).BorderWidth(0).Background(ui.Transparent).Label(referenceCopy("Goal objective", "目标内容")).FillWidth().Grow(1).MinWidth(0).ReadOnly(state.pending).AutoFocus()
+					keys := ui.Local(field, "goal-keys", func() goalEditorKeys { return goalEditorKeys{} })
+					composing := field.Composing()
+					keys.observe(composing)
+					field.HandleInput(func(ev ui.InputEvent) bool {
+						return keys.handle(ev, composing, state.pending, func() {
+							if strings.TrimSpace(state.draft) != "" {
+								start("edit")
+							}
+						}, func() { state.editing = false })
+					})
+					if state.error != "" {
+						ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(t.DestructiveForeground).SingleLine().Tooltip(state.error).MinWidth(0).Shrink(1)
+					}
+					button("✓", referenceCopy("Save goal", "保存目标"), "edit", strings.TrimSpace(state.draft) == "")
+					cancel := coss.Button(c, "", coss.ButtonOptions{
+						Variant:  coss.ButtonGhost,
+						Size:     coss.ButtonIconSM,
+						Disabled: state.pending,
+						Label:    referenceCopy("Cancel edit", "取消编辑"),
+						Content:  func() { ui.Icon(c, messageIconCloseOutline).Size(14, 14) },
+					}).Tooltip(referenceCopy("Cancel edit", "取消编辑")).Radius(design.RadiusFull)
+					if cancel.Clicked() {
+						state.editing = false
+					}
+					return
+				}
+				label := referenceCopy("Ongoing Goal", "进行中的目标")
+				switch g.Phase {
+				case "paused":
+					label = referenceCopy("Paused Goal", "已暂停的目标")
+				case "blocked":
+					label = referenceCopy("Blocked Goal", "受阻的目标")
+				default:
+					if g.Activation == "disarmed" {
+						label = referenceCopy("Inactive Goal", "已暂停的目标")
+					}
+				}
+				ui.Icon(c, goalDockIcons["goal"]).Size(14, 14).TextColor(muted).Shrink(0)
+				ui.Text(c, label).FontSize(13).FixedLineHeight(24).FontWeight(500).TextColor(fg).Shrink(0)
+				ui.Text(c, g.Objective).FontSize(13).FixedLineHeight(20).TextColor(fg).Grow(1).MinWidth(0).SingleLine().Tooltip(g.Objective)
+				if g.Phase == "blocked" && g.BlockedReason.Message != "" {
+					root.Tooltip(g.BlockedReason.Message)
+				}
+				if state.error != "" {
+					ui.Text(c, state.error).FontSize(12).FixedLineHeight(20).TextColor(t.DestructiveForeground).SingleLine().MinWidth(0).Shrink(1).Tooltip(state.error)
+				}
+				if g.Phase == "active" && g.Activation == "armed" {
+					button("Ⅱ", referenceCopy("Pause goal", "暂停目标"), "pause", false)
+				}
+				if g.Phase == "paused" || g.Phase == "active" && g.Activation == "disarmed" {
+					button("▷", referenceCopy("Resume goal", "恢复目标"), "resume", false)
+				}
+				edit := coss.Button(c, "", coss.ButtonOptions{
+					Variant:  coss.ButtonGhost,
+					Size:     coss.ButtonIconSM,
+					Disabled: state.pending,
+					Label:    referenceCopy("Edit goal", "编辑目标"),
+					Content:  func() { ui.Icon(c, messageIconEditOutline).Size(14, 14) },
+				}).Tooltip(referenceCopy("Edit goal", "编辑目标")).Radius(design.RadiusFull)
+				if edit.Clicked() {
+					state.draft = g.Objective
+					state.editing = true
+					state.error = ""
+				}
+				button("×", referenceCopy("Clear goal", "清除目标"), "clear", false)
+			})
+		})
 	})
 }
 

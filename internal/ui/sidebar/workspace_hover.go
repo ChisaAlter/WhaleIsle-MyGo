@@ -6,9 +6,11 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 const (
@@ -142,7 +144,8 @@ func workspaceHoverCard(c *ui.Context, m Model, list ui.Element, state *workspac
 			AttachTo(shown.row, ui.AnchorTopRight, ui.AnchorTopLeft).Margin(0, 0, 0, design.Sp(2)).
 			Width(min(float32(244), max(float32(0), width-16))).MaxHeight(max(float32(0), height-16)).
 			AlignItems(ui.Start).Justify(ui.Start).Padding(design.Sp(3), design.Sp(4)).Gap(design.Sp(2)).Clip().Cursor(ui.CursorPointer)
-		sbPopoverSurface(panel, t, design.RadiusXL)
+		panel = chrome.PopoverReveal(c, panel)
+		sbPopoverSurface(panel, t, theme.ContextRadii(c).MD)
 		copying := now.Before(state.copiedUntil)
 		if copying {
 			panel.MinHeight(state.panelHeight).Justify(ui.Center).AlignItems(ui.Center)

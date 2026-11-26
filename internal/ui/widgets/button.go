@@ -3,6 +3,7 @@ package widgets
 import (
 	"github.com/egoist/mygo/ui"
 
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -55,6 +56,13 @@ type ButtonSpec struct {
 	// action); HoverFill overrides the hover/pressed wash.
 	Ink       *ui.Color
 	HoverFill *ui.Color
+	// Busy renders an inline ongoing indicator and optional Feedback text
+	// inside a fixed-capacity overlay without resizing the button.
+	Busy bool
+	// Feedback overrides the transient status label while Busy or non-empty,
+	// scrolling back-and-forth horizontally (>=3.6s period) when wider than
+	// the caption slot.
+	Feedback string
 }
 
 // buttonRadius is the corner of spec's size from the frame's radius tokens:
@@ -125,14 +133,35 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 		// filled recipes have no stroke of their own.
 		b = b.BorderWidth(0)
 	}
-	if spec.Disabled {
+	if spec.Disabled || spec.Busy {
 		b = b.Disabled(true).Opacity(0.4)
 	} else if b.Pressed() {
 		b = b.Background(pressed)
 	} else if b.Hovered() {
 		b = b.Background(hover)
 	}
+	if press := design.ButtonPressOffset(c, b, b.Pressed(), spec.Disabled || spec.Busy); press > 0 {
+		b = b.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: press} })
+	}
+	transient := spec.Busy || spec.Feedback != ""
 	b.Children(func() {
+		if transient {
+			reserve := ui.Row(c).Gap(4).AlignItems(ui.Center).Opacity(0).PassThrough()
+			reserve.Children(func() {
+				if spec.Leading != nil {
+					spec.Leading(c)
+				}
+				ui.Text(c, label).FontSize(fontSize).FixedLineHeight(lineHeight).FontWeight(500).TextColor(fg).SingleLine()
+			})
+			fb := spec.Feedback
+			if fb == "" {
+				fb = label
+			}
+			ui.Row(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(0, 4).Center().PassThrough().Children(func() {
+				design.ButtonMarqueeLabel(c, b, fb, fontSize, lineHeight, 500, fg, spec.Busy)
+			})
+			return
+		}
 		if spec.Leading != nil {
 			spec.Leading(c)
 		}

@@ -72,5 +72,10 @@ func RevealOverlay(c *ui.Context, backdrop, panel ui.Element, mask ui.Color) flo
 	progress := Reveal(c, backdrop, OverlayDuration)
 	RevealMask(backdrop, mask, progress)
 	panel.Opacity(progress)
+	if !c.Preferences().ReduceMotion && progress < 1 {
+		panel.OffsetAfterLayout(func(ui.Rect) ui.Point {
+			return ui.Point{Y: (1 - progress) * 8}
+		})
+	}
 	return progress
 }

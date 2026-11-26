@@ -882,6 +882,49 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 			residentCard := ui.Local(conversationArea, "interaction-resident-card:"+snap.PlanHistoryBinding+":"+snap.SelectedID, func() ui.Rect { return ui.Rect{} })
 			enterScroll := ui.Local(conversationArea, "conversation-enter-scroll", func() conversationEnterScroll { return conversationEnterScroll{} })
 			enterScroll.signal(enter, c.Now())
+			type frameCollapseTracker struct {
+				initialized   bool
+				session       string
+				phase         conversationLayoutPhase
+				hero          bool
+				state         composer.ComposerCollapseState
+				prevScrollTop float32
+				prevScrollH   float32
+			}
+			collapseTracker := ui.Local(conversationArea, "composer-collapse:"+snap.SelectedID, func() frameCollapseTracker { return frameCollapseTracker{} })
+			pendingSubmission := (m.ComposerState != nil && m.ComposerState.Sending) || len(snap.PlanBoard.Pending) > 0
+			scrollH := enterScroll.scroll.MaxY + enterViewport.H
+			followingTail := m.ChatList == nil || m.ChatList.AtEnd()
+			editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
+			collapseGuards := composer.ComposerCollapseGuards{
+				ActivePhase:              phase == conversationActive && !emptyHero && !takeover,
+				HasPendingInteraction:    hasPendingStopInteraction(m.Interactions, snap.SelectedID),
+				HasMultilineOrAttachment: strings.Contains(derefString(m.Draft), "\n") || (m.ComposerState != nil && len(m.ComposerState.Attachments) > 0),
+				HasEditSession:           editing,
+			}
+			if !collapseTracker.initialized || collapseTracker.session != snap.SelectedID || collapseTracker.phase != phase || collapseTracker.hero != emptyHero {
+				collapseTracker.initialized = true
+				collapseTracker.session = snap.SelectedID
+				collapseTracker.phase = phase
+				collapseTracker.hero = emptyHero
+				collapseTracker.state = composer.ComposerCollapseState{}
+				collapseTracker.prevScrollTop = enterScroll.scroll.Y
+				collapseTracker.prevScrollH = scrollH
+			} else if enterViewport.H > 0 && (enterScroll.scroll.Y != collapseTracker.prevScrollTop || scrollH != collapseTracker.prevScrollH) {
+				collapseTracker.state = composer.ReduceComposerScroll(collapseTracker.state, composer.ComposerScrollSample{
+					ScrollTop:        enterScroll.scroll.Y,
+					ScrollHeight:     scrollH,
+					ClientHeight:     enterViewport.H,
+					PrevScrollTop:    collapseTracker.prevScrollTop,
+					PrevScrollHeight: collapseTracker.prevScrollH,
+					FollowingTail:    followingTail,
+				}, collapseGuards)
+				collapseTracker.prevScrollTop = enterScroll.scroll.Y
+				collapseTracker.prevScrollH = scrollH
+			} else if !composer.CanCollapseComposer(collapseGuards) && collapseTracker.state.Mode == composer.ComposerCollapseCollapsed {
+				collapseTracker.state = composer.ComposerCollapseState{}
+			}
+			composerCollapsed := composer.IsComposerCollapsed(collapseTracker.state, collapseGuards)
 			conversationArea.Children(func() {
 				if mainSubagentConversationBody(c, m) {
 					enter.cancel()
@@ -900,7 +943,6 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 						filePaths = m.OnIndexWorkspace(strings.TrimSpace(m.WorkspaceRoot))
 					}
 				}
-				editing := m.ComposerState != nil && m.ComposerState.EditSeq > 0
 				permissionOptions, agentPresetOptions := m.Store.PresetPickerOptions(snap.SelectedID, !m.DisableDeveloperTools)
 				presetSelection := m.Store.AgentPresetSelection()
 				presetPick := m.AgentPresetPick
@@ -913,10 +955,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 					if !hero {
 						// Electron TodoPanel: todos-only dock above composer (not PlanBoard).
 						chat.TodoPanelView(c, chat.TodoPanelModel{
-							Todos:      snap.PlanBoard.Todos,
-							ThemeID:    m.ThemeID,
-							SystemDark: m.SystemDark,
-							Collapsed:  m.TodoPanelCollapsed,
+							Todos:             snap.PlanBoard.Todos,
+							ThemeID:           m.ThemeID,
+							SystemDark:        m.SystemDark,
+							Collapsed:         m.TodoPanelCollapsed,
+							PendingSubmission: pendingSubmission,
 						})
 					}
 					composer.View(c, composer.Model{
@@ -958,7 +1001,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 								m.ComposerState.EndEdit()
 							}
 						},
-						Hero: hero,
+						Hero:              hero,
+						Collapsed:         !hero && composerCollapsed,
+						OnExpandCollapsed: func() { collapseTracker.state = composer.PinComposerExpanded(enterScroll.scroll.Y) },
 						OnCardLayout: func(r ui.Rect) {
 							enterCard = r
 							if r.W > 0 && r.H > 0 {
@@ -1194,7 +1239,11 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 							}
 							ui.Row(c).Fill().Children(func() {
 								ui.Box(c).Grow(sideGrow).MinWidth(0)
-								ui.Column(c.Key("frame-chat-pane")).Width(transcriptWidth).FillHeight().MinWidth(0).Children(func() {
+								chatPane := ui.Column(c.Key("frame-chat-pane")).Width(transcriptWidth).FillHeight().MinWidth(0)
+								if swapAlpha := enter.swapOpacity(c.Now(), c.Preferences().ReduceMotion); swapAlpha < 1 {
+									chatPane = chatPane.Opacity(swapAlpha)
+								}
+								chatPane.Children(func() {
 									if paneTab == "trajectory" {
 										if m.Store != nil && !m.Store.TrajectoryEnabled() &&
 											snap.TrajectoryMessages == nil && snap.TrajectoryRequests == nil && snap.TrajectoryRequestHeaders == nil {
@@ -1464,8 +1513,9 @@ func mainRow(c *ui.Context, m Model, snap session.ViewState, colors theme.Colors
 									// Queued prompts sit directly above the composer; the
 									// expanded plan board keeps goal/todo/plan sections only.
 									chat.QueueDockView(c, chat.PlanBoardModel{
-										Board:          snap.PlanBoard,
-										LoadQueueImage: m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
+										Board:             snap.PlanBoard,
+										PendingSubmission: pendingSubmission,
+										LoadQueueImage:    m.Store.QueueImageLoader(snap.SelectedID, snap.PlanBoard.QueueActions.Scope),
 										ThemeID:        m.ThemeID,
 										SystemDark:     m.SystemDark,
 										QueueEditor:    snap.QueueEditor,

@@ -44,6 +44,10 @@ type ButtonOptions struct {
 	// Loading disables the button and overlays a Spinner; the label keeps
 	// its room, transparent.
 	Loading bool
+	// Feedback overrides the transient status label while Loading or non-empty,
+	// scrolling back-and-forth horizontally (>=3.6s period) when wider than
+	// the caption slot.
+	Feedback string
 	// Icon goes before the label, TrailingIcon after it. Icon sizes use
 	// only Icon.
 	Icon, TrailingIcon Icon
@@ -214,7 +218,7 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	finish(b, &l.sh, &l.d)
 	disabledLook(b, s)
 	fg := l.fg
-	if o.Loading {
+	if o.Loading || o.Feedback != "" {
 		fg = ui.Transparent
 	}
 	b.Children(func() {
@@ -234,7 +238,11 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 				icon(c, o.TrailingIcon, m.IconSize, fg, false).MarginX(-2)
 			}
 		}
-		if o.Loading {
+		if o.Feedback != "" {
+			ui.Row(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(0, 4).Center().PassThrough().Children(func() {
+				design.ButtonMarqueeLabel(c, b, o.Feedback, m.Text.Size, m.Text.LineHeight, design.WeightMedium, l.fg, o.Loading)
+			})
+		} else if o.Loading {
 			ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().PassThrough().Children(func() {
 				Spinner(c, SpinnerOptions{Size: m.IconSize, Color: l.fg})
 			})

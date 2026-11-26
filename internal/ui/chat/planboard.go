@@ -56,6 +56,8 @@ type PlanBoardModel struct {
 	OnQueueMoveResult func(itemID string, toIndex int) bool
 	QueueMoveFailed   bool
 	QueueMoveError    string
+	PendingSubmission bool
+	UserQueueAction   bool
 }
 
 // PlanBoardView paints the M5 plan strip (empty state OK).
