@@ -99,8 +99,11 @@ func View(c *ui.Context, m Model) {
 	if m.Controller == nil {
 		return
 	}
-	m.Controller.Ensure()
 	ver := m.Controller.Snapshot()
+	if !ver.Value.Loading {
+		m.Controller.Ensure()
+		ver = m.Controller.Snapshot()
+	}
 	root := ui.Column(c).Key("plugin-manager-page").Grow(1).FillWidth().MinHeight(0).MinWidth(0)
 	epoch := ui.Local(root, "controller-epoch", func() controllerEpoch { return controllerEpoch{} })
 	if epoch.last != m.Controller {
@@ -299,22 +302,22 @@ func artworkSized(c *ui.Context, p *page, frame, size float32, source string) {
 
 func installedView(c *ui.Context, p *page) {
 	s, a, m := p.s, p.a, p.m
-	packages := make([]manager.Package, 0, len(s.Packages))
-	for _, pkg := range s.Packages {
-		if manager.Listed(pkg) {
-			packages = append(packages, pkg)
-		}
-	}
-	sort.SliceStable(packages, func(i, j int) bool {
-		if packages[i].Official != packages[j].Official {
-			return packages[i].Official
-		}
-		return packages[i].Official && manager.OfficialRank(packages[i].Name) < manager.OfficialRank(packages[j].Name)
-	})
 	version := p.version()
 	list := ui.Column(c).Key("plugins-installed").FillWidth().MinWidth(0).Gap(design.Sp(6)).Memo(version)
-	if s.View.Kind == "more" {
-		list.Children(func() {
+	list.Children(func() {
+		packages := make([]manager.Package, 0, len(s.Packages))
+		for _, pkg := range s.Packages {
+			if manager.Listed(pkg) {
+				packages = append(packages, pkg)
+			}
+		}
+		sort.SliceStable(packages, func(i, j int) bool {
+			if packages[i].Official != packages[j].Official {
+				return packages[i].Official
+			}
+			return packages[i].Official && manager.OfficialRank(packages[i].Name) < manager.OfficialRank(packages[j].Name)
+		})
+		if s.View.Kind == "more" {
 			rows(c, func() {
 				for _, pkg := range packages {
 					if pkg.Official {
@@ -322,30 +325,28 @@ func installedView(c *ui.Context, p *page) {
 					}
 				}
 			})
-		})
-		return
-	}
-	items := append([]Contribution{}, m.Contributions...)
-	sort.SliceStable(items, func(i, j int) bool { return items[i].Order < items[j].Order })
-	var bundles, official []manager.Package
-	offersMore := false
-	for _, pkg := range packages {
-		if pkg.Official {
-			offersMore = true
-			if manager.Pinned(pkg) {
-				official = append(official, pkg)
+			return
+		}
+		items := append([]Contribution{}, m.Contributions...)
+		sort.SliceStable(items, func(i, j int) bool { return items[i].Order < items[j].Order })
+		var bundles, official []manager.Package
+		offersMore := false
+		for _, pkg := range packages {
+			if pkg.Official {
+				offersMore = true
+				if manager.Pinned(pkg) {
+					official = append(official, pkg)
+				}
+				continue
 			}
-			continue
+			bundles = append(bundles, pkg)
 		}
-		bundles = append(bundles, pkg)
-	}
-	var basic []Contribution
-	for _, item := range items {
-		if item.Kind == "item" {
-			basic = append(basic, item)
+		var basic []Contribution
+		for _, item := range items {
+			if item.Kind == "item" {
+				basic = append(basic, item)
+			}
 		}
-	}
-	list.Children(func() {
 		if len(basic) > 0 {
 			pagekit.Section(c, copyText("内置插件配置", "Built-in plugin settings"), nil, func() {
 				rows(c, func() {

@@ -10,6 +10,7 @@ import (
 	"whaleisle/internal/harness"
 	manager "whaleisle/internal/pluginmanager"
 	marketstore "whaleisle/internal/store/market"
+	settingsstore "whaleisle/internal/store/settings"
 	"whaleisle/internal/ui/i18n"
 	managerui "whaleisle/internal/ui/pluginmanager"
 	"whaleisle/internal/ui/settings"
@@ -120,6 +121,114 @@ func (s *mainState) pluginInventoryAccess() *settings.PluginInventoryAccess {
 	}
 }
 
+type pluginContributionsCache struct {
+	store      *settingsstore.Store
+	locale     string
+	themeID    string
+	systemDark bool
+	nsMask     uint8
+	items      []managerui.Contribution
+}
+
+func pluginContributionNamespaceMask(store *settingsstore.Store) uint8 {
+	if store == nil {
+		return 0
+	}
+	var mask uint8
+	for _, ns := range store.Snapshot().Value.Namespaces {
+		switch ns.NS {
+		case "subagent":
+			mask |= 1 << 0
+		case "subagent-model-selection-settings":
+			mask |= 1 << 1
+		case "web-search-deepseek":
+			mask |= 1 << 2
+		case "web":
+			mask |= 1 << 3
+		case "web-deepseek-api":
+			mask |= 1 << 4
+		case "agent-loop":
+			mask |= 1 << 5
+		case "pwsh-sandbox":
+			mask |= 1 << 6
+		case "bash-sandbox":
+			mask |= 1 << 7
+		}
+	}
+	return mask
+}
+
+func (s *mainState) cachedPluginContributions(store *settingsstore.Store, themeID string, systemDark bool) []managerui.Contribution {
+	if store == nil {
+		return nil
+	}
+	locale := i18n.Locale()
+	mask := pluginContributionNamespaceMask(store)
+	s.mu.Lock()
+	cached := s.pluginContribCache
+	s.mu.Unlock()
+	if cached.store == store && cached.locale == locale && cached.themeID == themeID && cached.systemDark == systemDark && cached.nsMask == mask {
+		return cached.items
+	}
+	served := map[string]bool{
+		"subagent":                          mask&(1<<0) != 0,
+		"subagent-model-selection-settings": mask&(1<<1) != 0,
+		"web-search-deepseek":               mask&(1<<2) != 0,
+		"web":                               mask&(1<<3) != 0,
+		"web-deepseek-api":                  mask&(1<<4) != 0,
+		"agent-loop":                        mask&(1<<5) != 0,
+		"pwsh-sandbox":                      mask&(1<<6) != 0,
+		"bash-sandbox":                      mask&(1<<7) != 0,
+	}
+	var contributions []managerui.Contribution
+	// Titles and summaries are the original plugins.item registrations'
+	// label and the card's view:'summary' text (ui-settings-*/locales.ts).
+	add := func(key, zh, en, summaryZh, summaryEn string, order int, namespaces ...string) {
+		active := []string{}
+		for _, ns := range namespaces {
+			if served[ns] {
+				active = append(active, ns)
+			}
+		}
+		if len(active) == 0 {
+			return
+		}
+		title, summary := en, summaryEn
+		if i18n.Speaks("zh") {
+			title, summary = zh, summaryZh
+		}
+		contributions = append(contributions, managerui.Contribution{Kind: "item", Key: key, Title: title, Summary: summary, Order: order, Render: func(c *ui.Context, _ manager.Subject) {
+			if settings.ServedPluginBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: systemDark}, key) {
+				return
+			}
+			for _, ns := range active {
+				settings.NamespaceBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: systemDark}, ns)
+			}
+		}})
+	}
+	add("subagent", "子智能体", "Subagent", "设置子智能体的递归层级、数量和模型。", "Set Subagent recursion depth, count, and models.", 10, "subagent", "subagent-model-selection-settings")
+	if served["web-search-deepseek"] {
+		add("web-search", "网页搜索与获取", "Web search and fetch", "选择网页搜索与网页获取使用的提供方。", "Choose the providers web search and web fetch use.", 20, "web-search-deepseek", "web", "web-deepseek-api")
+	}
+	add("agent-loop", "Agent 循环", "Agent loop", "控制 Agent 派发工具调用的方式。", "Control how the Agent dispatches tool calls.", 30, "agent-loop")
+	if served["pwsh-sandbox"] {
+		add("shell", "终端", "Shell", "限制每条命令最多能跑多久、最多输出多少内容。", "Limit how long each command may run and how much it may output.", 40, "pwsh-sandbox")
+	} else {
+		add("shell", "终端", "Shell", "限制每条命令最多能跑多久、最多输出多少内容。", "Limit how long each command may run and how much it may output.", 40, "bash-sandbox")
+	}
+	s.mu.Lock()
+	s.pluginContribCache = pluginContributionsCache{
+		store:      store,
+		locale:     locale,
+		themeID:    themeID,
+		systemDark: systemDark,
+		nsMask:     mask,
+		items:      contributions,
+	}
+	s.mu.Unlock()
+	return contributions
+}
+
 func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	creatorReady, creatorDescription, createPlugin := s.pluginCreatorAccess()
 	s.mu.Lock()
@@ -128,7 +237,7 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	s.mu.Unlock()
 	ctrl := s.nativePluginController()
 	snap := ctrl.Snapshot().Value
-	if snap.Connected {
+	if snap.Connected && snap.Discover.Probe == "" {
 		// Gates the Installed/Discover SegmentedTabs the way the original
 		// gates on a plugins.tab slot contribution; the catalog itself
 		// still lazy-loads when the Discover tab opens.
@@ -138,53 +247,13 @@ func (s *mainState) pluginManagerView(c *ui.Context, themeID string) {
 	if s.marketCoordinator().ObserveFormSubject(view) && store != nil {
 		store.LeaveServedForms()
 	}
-	contributions := []managerui.Contribution{}
-	if store != nil {
-		served := map[string]bool{}
-		for _, ns := range store.Snapshot().Value.Namespaces {
-			served[ns.NS] = true
-		}
-		// Titles and summaries are the original plugins.item registrations'
-		// label and the card's view:'summary' text (ui-settings-*/locales.ts).
-		add := func(key, zh, en, summaryZh, summaryEn string, order int, namespaces ...string) {
-			active := []string{}
-			for _, ns := range namespaces {
-				if served[ns] {
-					active = append(active, ns)
-				}
-			}
-			if len(active) == 0 {
-				return
-			}
-			title, summary := en, summaryEn
-			if i18n.Speaks("zh") {
-				title, summary = zh, summaryZh
-			}
-			contributions = append(contributions, managerui.Contribution{Kind: "item", Key: key, Title: title, Summary: summary, Order: order, Render: func(c *ui.Context, _ manager.Subject) {
-				if settings.ServedPluginBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: mygo.Theme.IsDark()}, key) {
-					return
-				}
-				for _, ns := range active {
-					settings.NamespaceBody(c, settings.Model{Store: store, ThemeID: themeID, SystemDark: mygo.Theme.IsDark()}, ns)
-				}
-			}})
-		}
-		add("subagent", "子智能体", "Subagent", "设置子智能体的递归层级、数量和模型。", "Set Subagent recursion depth, count, and models.", 10, "subagent", "subagent-model-selection-settings")
-		if served["web-search-deepseek"] {
-			add("web-search", "网页搜索与获取", "Web search and fetch", "选择网页搜索与网页获取使用的提供方。", "Choose the providers web search and web fetch use.", 20, "web-search-deepseek", "web", "web-deepseek-api")
-		}
-		add("agent-loop", "Agent 循环", "Agent loop", "控制 Agent 派发工具调用的方式。", "Control how the Agent dispatches tool calls.", 30, "agent-loop")
-		if served["pwsh-sandbox"] {
-			add("shell", "终端", "Shell", "限制每条命令最多能跑多久、最多输出多少内容。", "Limit how long each command may run and how much it may output.", 40, "pwsh-sandbox")
-		} else {
-			add("shell", "终端", "Shell", "限制每条命令最多能跑多久、最多输出多少内容。", "Limit how long each command may run and how much it may output.", 40, "bash-sandbox")
-		}
-	}
+	systemDark := mygo.Theme.IsDark()
+	contributions := s.cachedPluginContributions(store, themeID, systemDark)
 	managerui.View(c, managerui.Model{
 		Media:                   s.mediaOwner(win, sessions),
 		Controller:              ctrl,
 		ThemeID:                 themeID,
-		SystemDark:              mygo.Theme.IsDark(),
+		SystemDark:              systemDark,
 		Contributions:           contributions,
 		OnCreatePlugin:          createPlugin,
 		CreatePluginReady:       creatorReady,
