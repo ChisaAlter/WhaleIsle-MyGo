@@ -11,6 +11,8 @@ const (
 	// once, as the pointer moves along a toolbar: Base UI's.
 	tooltipDelay = 700 * time.Millisecond
 	tooltipWarm  = 300 * time.Millisecond
+	// tooltipFade matches the design system's 100ms fade enter recipe.
+	tooltipFade = 100 * time.Millisecond
 )
 
 // tooltips is which element's tip shows, which the frame decides once
@@ -21,6 +23,7 @@ type tooltips struct {
 	// shown is the element whose tip shows in the frame, byFocus telling
 	// that the keyboard focus brought it rather than the pointer.
 	shown   uint64
+	shownAt time.Time
 	byFocus bool
 	// hover is the innermost element with a tip under the pointer since
 	// hoverSince, focus the one with the keyboard focus since focusSince.
@@ -78,6 +81,12 @@ func tooltipBase(c *context, anchor *node, fn func(tip *node)) (*node, bool) {
 	var tip *node
 	coreOverlay(c, func() {
 		tip = coreBox(c).Absolute().PassThrough().Role(RoleTooltip)
+		if !rt.preferences().ReduceMotion && !c.now.IsZero() && !rt.tips.shownAt.IsZero() {
+			if age := c.now.Sub(rt.tips.shownAt); age < tooltipFade {
+				tip.Opacity(designEase(max(0, float32(age)/float32(tooltipFade))))
+				c.AnimationFrame()
+			}
+		}
 		fn(tip)
 		if tip.attach == 0 && !tip.place.on {
 			tip.AttachTo(anchor, AnchorTop, AnchorBottom)
@@ -167,17 +176,31 @@ func (rt *engine) showTooltip(c *context) uint64 {
 	if focus == t.dismissed {
 		focus = 0
 	}
+	prevShown := t.shown
 	t.shown, t.byFocus = 0, false
+	warm := false
 	switch {
 	case focus != 0 && (hover == 0 || !t.focusSince.Before(t.hoverSince)):
 		t.shown, t.byFocus = focus, true
 	case hover != 0:
-		warm := !t.lastShown.IsZero() && t.hoverSince.Sub(t.lastShown) <= tooltipWarm
+		warm = !t.lastShown.IsZero() && t.hoverSince.Sub(t.lastShown) <= tooltipWarm
 		if wait := tooltipDelay - now.Sub(t.hoverSince); wait > 0 && !warm {
 			rt.scheduleAt(now.Add(wait))
 			break
 		}
 		t.shown = hover
+	}
+	if t.shown == 0 {
+		t.shownAt = time.Time{}
+	} else if t.shown != prevShown {
+		switch {
+		case t.byFocus:
+			t.shownAt = t.focusSince
+		case warm:
+			t.shownAt = t.hoverSince
+		default:
+			t.shownAt = t.hoverSince.Add(tooltipDelay)
+		}
 	}
 	return t.shown
 }

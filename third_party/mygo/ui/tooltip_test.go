@@ -145,3 +145,33 @@ func TestTooltipInnermost(t *testing.T) {
 		t.Errorf("over the toolbar: texts %q", tt.Texts())
 	}
 }
+
+func TestTooltipFadesInOver100ms(t *testing.T) {
+	var tip *node
+	tt, now := clockTester(func(c *context) {
+		coreColumn(c).Padding(40).Children(func() {
+			save := coreButton(c, "Save").Label("save")
+			tip = coreTooltipBase(c, save, func(tip *node) {
+				tip.Padding(6).Background(RGB(255, 0, 0)).Children(func() { coreText(c, "Saves") })
+			})
+		})
+	}, 200, 120)
+	tick := ticker(tt, now)
+	b, _ := tt.Find("save")
+	tt.Move(b.X+b.W/2, b.Y+b.H/2)
+	tick(tooltipDelay)
+	if tip == nil {
+		t.Fatal("tooltip missing at delay")
+	}
+	if !tip.opacitySet || tip.opacity != 0 {
+		t.Fatalf("at appear frame opacitySet=%v opacity=%v, want 0", tip.opacitySet, tip.opacity)
+	}
+	tick(tooltipFade / 2)
+	if tip.opacity <= 0.5 || tip.opacity >= 1 {
+		t.Fatalf("halfway opacity=%v, want design-eased value in (0.5, 1)", tip.opacity)
+	}
+	tick(tooltipFade / 2)
+	if tip.opacitySet && tip.opacity < 1 {
+		t.Fatalf("settled opacitySet=%v opacity=%v, want opaque", tip.opacitySet, tip.opacity)
+	}
+}
