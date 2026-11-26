@@ -134,14 +134,14 @@ func TestConversationFirstSubmissionPinsFirstFrameAndRetainsNativeDraft(t *testi
 			if !reduced && (math.Abs(float64(firstActive.Y-before.Y)) > .5 || firstActive.X != before.X || firstActive.W != before.W) {
 				t.Fatalf("first active paint jumped before the hold: Hero=%+v first=%+v", before, firstActive)
 			}
-			// At most 450ms hold + 300ms glide. Frames continue to use the
-			// real source clock; bound the wait and require a settled sample.
-			deadline := time.Now().Add(1200 * time.Millisecond)
+			// 300ms immediate glide (no 80ms/450ms timer hold). Frames continue to use
+			// the real source clock; bound the wait and require a settled sample.
+			deadline := time.Now().Add(600 * time.Millisecond)
 			var final ui.Rect
 			for time.Now().Before(deadline) {
 				tt.Frame()
 				final, ok = tt.Find("Composer card")
-				if ok && final.Y > before.Y+32 && time.Now().After(deadline.Add(-400*time.Millisecond)) {
+				if ok && final.Y > before.Y+32 && time.Now().After(deadline.Add(-200*time.Millisecond)) {
 					break
 				}
 				time.Sleep(10 * time.Millisecond)

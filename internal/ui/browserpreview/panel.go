@@ -48,7 +48,11 @@ func View(c *ui.Context, m Model) {
 	field := chrome.Color(colors.Field)
 	accent := chrome.Color(colors.Accent)
 
-	chrome.FrostSurface(ui.Column(c).Grow(1).MinHeight(0), colors, m.SystemDark, bg, 0).Children(func() {
+	paneBg := bg
+	if design.For(c).Glass || chrome.BackdropActive() {
+		paneBg = ui.Transparent
+	}
+	ui.Column(c).Grow(1).MinHeight(0).Background(paneBg).Children(func() {
 		leftPad, rightPad := chrome.TitleBarSafeHorizontalPadding(c.TitleBar(), design.Sp(3))
 		ui.Row(c.Key("browser-preview-header")).FillWidth().MinWidth(0).Height(float32(PanelChromeHeight-1)).Shrink(0).Padding(design.Sp(2), rightPad, design.Sp(2), leftPad).Gap(design.Sp(2)).AlignItems(ui.Center).DragWindow().Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyBrowserPreviewTitle)).FontSize(theme.InterfaceSize(15)).Bold().TextColor(fg).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
@@ -120,7 +124,11 @@ func View(c *ui.Context, m Model) {
 		}
 
 		if m.HostActive {
-			chrome.FrostSurface(ui.Box(c).Fill().MinHeight(0), colors, m.SystemDark, field, 0)
+			if design.For(c).Glass || chrome.BackdropActive() {
+				ui.Box(c).Fill().MinHeight(0).Background(ui.Transparent)
+			} else {
+				ui.Box(c).Fill().MinHeight(0).Background(field)
+			}
 			return
 		}
 		ui.Column(c).Grow(1).MinHeight(0).Padding(design.Sp(4), design.Sp(5), design.Sp(4), design.Sp(5)).Gap(design.Sp(2)).Children(func() {

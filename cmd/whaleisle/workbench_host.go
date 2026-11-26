@@ -99,11 +99,33 @@ func (s *mainState) paintColdLoading(c *ui.Context) bool {
 	} else if st.State == harness.Stopped && !st.RecoveryCancelled {
 		m.Status.State = harness.Starting
 	}
+	s.mu.Lock()
+	s.hadColdLoading = true
+	s.lastColdDark = m.Dark
+	s.lastColdFailed = m.Status.State == harness.Failed
+	s.mu.Unlock()
 	colors := themed.Active(systemDark)
 	defer s.paintClosingOverlayLayer(c, colors)
 	defer s.syncConfirmAsk(c, colors)
 	boot.View(c, m)
 	return true
+}
+
+func (s *mainState) paintBootReveal(c *ui.Context) {
+	s.mu.Lock()
+	if s.coldLoading {
+		s.mu.Unlock()
+		return
+	}
+	if s.hadColdLoading {
+		s.hadColdLoading = false
+		dark, failed := s.lastColdDark, s.lastColdFailed
+		s.mu.Unlock()
+		s.bootReveal.Trigger(dark, failed, c.Preferences().ReduceMotion)
+	} else {
+		s.mu.Unlock()
+	}
+	s.bootReveal.Paint(c)
 }
 
 func (s *mainState) hostStatusModel(win *mygo.Window, st harness.Status, sup *harness.Supervisor, logs []string) (boot.Model, bool, string, string) {

@@ -26,7 +26,7 @@ func settingsPreferenceSwitch(c *ui.Context, value *bool, style settingsSwitchSt
 	if style == settingsSwitchInput {
 		switcher.Size(11*design.Unit, 7*design.Unit)
 	}
-	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.DurationDefault, design.EaseInOut)
+	position := switcher.AnimateWith("settings-switch-thumb", b01(*value), design.MotionFast, design.EaseInOut)
 	off, on, thumb, ring, gap := t.Input, t.Primary, t.Background, t.Ring, t.Background
 	shadow := design.TW.Black.Alpha(0.05)
 	switcher.DisabledOpacity(design.OpacityDisabled)

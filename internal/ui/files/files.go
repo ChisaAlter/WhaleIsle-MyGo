@@ -18,6 +18,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -224,7 +225,11 @@ func View(c *ui.Context, m Model) {
 	}
 
 	root := strings.TrimSpace(m.WorkspaceRoot)
-	chrome.FrostSurface(ui.Column(c).Fill().MinWidth(0), colors, m.SystemDark, field, 0).Children(func() {
+	paneBg := field
+	if design.For(c).Glass || chrome.BackdropActive() {
+		paneBg = ui.Transparent
+	}
+	ui.Column(c).Fill().MinWidth(0).Background(paneBg).Children(func() {
 		ui.Row(c).Padding(12, 12, 8, 12).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyFilesTitle)).FontSize(theme.InterfaceSize(14)).Bold().TextColor(fg).Grow(1)
 			if w := tabsFor(m); w != nil {
@@ -507,7 +512,11 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 
 func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
-	chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0), colors, m.SystemDark, field, 0).Label(label("文件预览", "File preview")).Children(func() {
+	paneBg := field
+	if design.For(c).Glass || chrome.BackdropActive() {
+		paneBg = ui.Transparent
+	}
+	ui.Column(c).Fill().MinHeight(0).Background(paneBg).Label(label("文件预览", "File preview")).Children(func() {
 		ui.Box(c).FillWidth().Height(0.5).Background(border)
 		if !m.ResourceOnly {
 			paintTabs(c, m, fg, muted)

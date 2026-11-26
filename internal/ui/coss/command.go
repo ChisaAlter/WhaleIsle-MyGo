@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // CommandItem is one command of a CommandPalette.
@@ -73,12 +74,13 @@ func commandMatches(it CommandItem, q string) bool {
 
 func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *string, items []CommandItem, o CommandOptions, focus bool) string {
 	ww, _ := c.Size()
-	panel.Width(min(576, ww-2*design.Sp(4))).MaxHeight(420).Radius(design.RadiusXL2).Background(t.Popover).Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
+	dlgRadius := theme.ContextRadii(c).Dialog
+	panel.Width(min(576, ww-2*design.Sp(4))).MaxHeight(420).Radius(dlgRadius).Background(t.Popover).Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
 	var sh shadowList
 	sh.scale(design.ShadowLg, black, 0.05)
-	d := deco{border: design.BorderWidth, radius: design.RadiusXL2}
+	d := deco{border: design.BorderWidth, radius: dlgRadius}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(panel, t, t.Popover, 28, 0.45)
+	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, glassTierModal)
 	finish(panel, &sh, &d)
 	motion(panel, "command/command-dialog-popup", 0, 0)
@@ -143,7 +145,7 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 		if o.Footer != nil {
 			inner.Radius(design.RadiusXL, design.RadiusXL, 0, 0)
 		} else {
-			inner.Radius(design.RadiusXL, design.RadiusXL, design.RadiusXL2-1, design.RadiusXL2-1)
+			inner.Radius(design.RadiusXL, design.RadiusXL, dlgRadius-1, dlgRadius-1)
 		}
 		var ish shadowList
 		ish.scale(design.ShadowXs, black, 0.05)
@@ -202,7 +204,7 @@ func commandPanel(c *ui.Context, t *design.Tokens, panel ui.Element, query *stri
 		})
 		if o.Footer != nil {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Gap(design.Sp(2)).Padding(design.Sp(3), design.Sp(5)).
-				BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).Radius(0, 0, design.RadiusXL2-1, design.RadiusXL2-1).
+				BorderWidth(design.BorderWidth, 0, 0, 0).BorderColor(t.Border).Radius(0, 0, dlgRadius-1, dlgRadius-1).
 				TextColor(t.MutedForeground).FontSize(design.TextXS.Size).Children(o.Footer)
 		}
 	})

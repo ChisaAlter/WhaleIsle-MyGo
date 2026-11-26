@@ -251,6 +251,10 @@ type mainState struct {
 	bootStatus              harness.Status
 	bootLogs                appstate.Published[[]string] // immutable; replace or appendBootLogLocked, never edit in place
 	coldLoading             bool                         // first automatic launch, until the workbench can open
+	hadColdLoading          bool                         // armed once cold boot paints, so handoff triggers the 62% horizon reveal
+	lastColdDark            bool
+	lastColdFailed          bool
+	bootReveal              boot.RevealCurtains
 	// coldStartSkipped records that the automatic start was declined (a failed
 	// recovery record, a skip-user-plugins recovery, a waiting import) while the
 	// window still opens on the startup page, which carries the reason and the
@@ -357,6 +361,7 @@ type mainState struct {
 	imOpen                                  bool
 	marketOpen                              bool
 	marketManager                           bool
+	pluginContribCache                      pluginContributionsCache
 	scheduleOpen                            bool
 	scheduleHistoryText                     string
 	remoteOpen                              bool
@@ -3355,6 +3360,7 @@ func mainView(c *ui.Context) {
 			state.paintClosingOverlayLayer(c, closingColors)
 		}
 	}()
+	defer state.paintBootReveal(c)
 	// The startup offer paints over the workbench and under the closing layer.
 	defer func() {
 		if minimalOfferOpen || state.minimalOfferActive.Load() {

@@ -201,7 +201,7 @@ func (g *WallpaperEditor) toggleFavorite(item wallpapers.Item) {
 			break
 		}
 	}
-	if !found {
+	if !found && len(out) < 100 {
 		out = append(out, item)
 	}
 	g.changePreference(func(p *wallpapers.Preferences) { p.Favorites = out })
@@ -219,7 +219,7 @@ func (g *WallpaperEditor) load(page int) {
 	if g.Source == "收藏" {
 		g.Items = nil
 		for _, item := range g.currentPreferences().Favorites {
-			if strings.Contains(strings.ToLower(item.Title+" "+item.ID), strings.ToLower(g.Search)) {
+			if strings.Contains(strings.ToLower(item.Title+" "+item.Copyright+" "+item.ID), strings.ToLower(g.Search)) {
 				g.Items = append(g.Items, item)
 			}
 		}
@@ -553,9 +553,13 @@ func wallpaperSlider(c *ui.Context, key, label, hint string, value *float64, lo,
 }
 
 func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) bool {
+	return wallpaperSliderStepFormat(c, key, label, hint, "", value, lo, hi, step, disabled, fg, muted)
+}
+
+func wallpaperSliderStepFormat(c *ui.Context, key, label, hint, unit string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) bool {
 	changed := false
 	bodyPreferenceRow(c, key, label, hint, fg, muted, func() {
-		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%.0f%s", *value, unit)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		changed = coss.Slider(c, value, lo, hi, coss.SliderOptions{
 			Step:     step,
 			Label:    label,

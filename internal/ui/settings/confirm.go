@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/chrome"
@@ -127,19 +126,6 @@ func ConfirmDialog(c *ui.Context, opts ConfirmOptions) {
 	}
 }
 
-type dialogGlassMaterial struct {
-	blur glass.Blur
-	tint ui.Color
-}
-
-func (m dialogGlassMaterial) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
-	m.blur.PaintMaterial(p, box, radii)
-	if m.tint.A == 0 || box.W <= 0 || box.H <= 0 {
-		return
-	}
-	p.Fill(box, m.tint, radii[0])
-}
-
 // bodyDialogFrame is the coss dialog frame settings dialogs share: the
 // black/32 backdrop and the popover panel (2xl radius, border, shadow-lg/5),
 // at most width wide inside coss's 16 DIP viewport inset. body builds the
@@ -153,14 +139,19 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 		t := tk(c)
 		w, h := c.Size()
 		inset := design.Sp(4)
-		backdrop.Background(design.TW.Black.Alpha(0.32)).Column().Justify(ui.Center).AlignItems(ui.Center).Padding(inset)
-		panel.Width(max(0, min(width, w-2*inset))).MaxHeight(max(0, h-2*inset)).Radius(design.RadiusXL2).Clip().
+		dlgRadius := theme.ContextRadii(c).Dialog
+		backdrop.Column().Justify(ui.Center).AlignItems(ui.Center).Padding(inset)
+		mask := design.TW.Black
+		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
+		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(0.32), progress)
+		panel.Width(max(0, min(width, w-2*inset))).MaxHeight(max(0, h-2*inset)).Radius(dlgRadius).Clip().
 			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground).Role(ui.RoleDialog)
+		chrome.RevealDialogPanel(c, panel, progress)
 		if t.Glass || chrome.BackdropActive() {
-			panel.Material(dialogGlassMaterial{
-				blur: glass.Blur{Radius: 40, Saturation: 0.5, Dither: true},
-				tint: t.Popover,
-			})
+			if t.Glass && !chrome.BackdropActive() {
+				panel.Material(chrome.MenuGlassMaterial())
+			}
+			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), dlgRadius))
 			rim := design.TW.White.Alpha(0.70)
 			if t.IsDark() {
 				rim = design.TW.White.Alpha(0.14)
@@ -168,16 +159,10 @@ func bodyDialogFrame(c *ui.Context, open *bool, width float32, body func(), opti
 			panel.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				pad := ui.Rect{X: r.X + design.BorderWidth, Y: r.Y + design.BorderWidth, W: r.W - 2*design.BorderWidth, H: r.H - 2*design.BorderWidth}
 				if pad.W > 2 && pad.H > 2 {
-					p.Stroke(pad, rim, max(0, design.RadiusXL2-design.BorderWidth), design.BorderWidth)
+					p.Stroke(pad, rim, max(0, dlgRadius-design.BorderWidth), design.BorderWidth)
 				}
 			})
-			if t.IsDark() {
-				panel.Shadow(0, 4, 12, 0, design.TW.Black.Alpha(0.16)).
-					Shadow(0, 18, 40, -4, design.TW.Black.Alpha(0.32))
-			} else {
-				panel.Shadow(0, 4, 12, 0, design.TW.Black.Alpha(0.05)).
-					Shadow(0, 18, 40, -4, design.TW.Black.Alpha(0.10))
-			}
+			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)
 			for i := len(design.ShadowLg) - 1; i >= 0; i-- {

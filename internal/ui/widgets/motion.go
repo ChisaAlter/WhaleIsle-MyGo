@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"whaleisle/internal/ui/design"
 )
 
 // Motion pairs a duration with an easing curve, as the design system's motion
@@ -36,6 +38,7 @@ var (
 	OverlayMotion = Motion{Duration: OverlayDuration, Ease: DesignEase}
 	PopoverMotion = Motion{Duration: PopoverDuration, Ease: DesignEase}
 	SwapMotion    = Motion{Duration: SwapDuration, Ease: DesignEase}
+	SlowMotion    = Motion{Duration: SlowDuration, Ease: DesignEase}
 	FlipMotion    = Motion{Duration: FlipDuration, Ease: DesignEase}
 )
 
@@ -44,7 +47,7 @@ var (
 // under the pointer, as launcher.css:471 does for background
 // (`transition: background var(--ds-transition-duration-fast)
 // var(--ds-ease-in-out)`).
-const FastDuration = 100 * time.Millisecond
+const FastDuration = design.MotionFast
 
 // HoverMotion is a control's face changing under the pointer: the fast token
 // along the design curve.
@@ -58,21 +61,37 @@ func HoverTransition() ui.ElementTransition {
 	return ui.ElementTransition{Duration: FastDuration, Ease: DesignEase, Colors: true}
 }
 
+// CardHoverTransition is the border/background transition for interactive cards
+// over the popover token (160ms) along the design curve (docs/motion.md).
+func CardHoverTransition() ui.ElementTransition {
+	return ui.ElementTransition{Duration: PopoverDuration, Ease: DesignEase, Colors: true}
+}
+
 // The durations of the motion tokens, for code that builds its own
-// transitions rather than calling Motion.Animate. The tokens above read these,
-// so a duration has exactly one literal in the package.
+// transitions rather than calling Motion.Animate. All derive from design.Motion*
+// so the 5-tier sheet has one shared source of truth across packages.
 const (
+	// DefaultDuration is the design system's base transition duration,
+	// --ds-transition-duration (0.2s).
+	DefaultDuration = design.MotionDefault
 	// OverlayDuration is how long a modal or a page takes to appear.
-	OverlayDuration = 200 * time.Millisecond
+	OverlayDuration = DefaultDuration
+	// OverlayExitDuration is how long a modal takes to leave, deriving from
+	// the fast token (--ds-motion-duration-overlay-out, 0.1s).
+	OverlayExitDuration = FastDuration
 	// PopoverDuration is how long a menu or a floating card takes.
-	PopoverDuration = 160 * time.Millisecond
+	PopoverDuration = design.MotionPopover
 	// SwapDuration is how long a control takes to change its face: the
 	// reference's swap token is the fast token, not a duration of its own
 	// (base.css:19 `--ds-motion-duration-swap: var(--ds-transition-duration-fast)`).
 	SwapDuration = FastDuration
+	// SlowDuration is the design system's slow track duration,
+	// --ds-transition-duration-slow (0.3s), shared by sidebar, inspector, and
+	// draft composer tracks.
+	SlowDuration = design.MotionSlow
 	// FlipDuration is how long a surface takes to turn over
 	// (base.css:20 `--ds-motion-duration-flip: 0.4s`).
-	FlipDuration = 400 * time.Millisecond
+	FlipDuration = design.MotionFlip
 )
 
 // Animate moves the value kept under key toward target as the motion says,

@@ -8,6 +8,7 @@ import (
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets"
 )
 
 type permissionPickerState struct {
@@ -71,7 +72,13 @@ func paintPermissionPicker(c *ui.Context, m Model, ink ui.Color) {
 		if icon := permissionMenuIcon(value); icon != nil {
 			ui.Icon(c, icon).Size(design.IconXS, design.IconXS).Shrink(0)
 		}
-		ui.Text(c, display).Grow(1).MinWidth(0).SingleLine().FontSize(design.TextSM.Size).FixedLineHeight(design.TextSM.LineHeight).FontWeight(design.WeightMedium).TextColor(ink)
+		widgets.FlipText(c, display, widgets.FlipTextOptions{
+			Key:        "permission-trigger",
+			Color:      ink,
+			FontSize:   design.TextSM.Size,
+			LineHeight: design.TextSM.LineHeight,
+			FontWeight: design.WeightMedium,
+		}).Grow(1).MinWidth(0)
 		if value == session.PermissionAutoReview {
 			coss.Badge(c, "EXP", coss.BadgeOptions{Variant: coss.BadgeOutline, Size: coss.BadgeSM}).Shrink(0)
 		}

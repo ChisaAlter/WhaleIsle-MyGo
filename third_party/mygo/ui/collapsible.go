@@ -44,7 +44,7 @@ func coreCollapsibleBase(c *context, open *bool) collapsibleParts {
 		}
 	})
 	tr.expandable, tr.expanded = true, *open
-	p := tr.Animate("open", b2f(*open), 200*time.Millisecond)
+	p := tr.AnimateWith("open", b2f(*open), 200*time.Millisecond, designEase)
 	return collapsibleParts{Trigger: tr, c: c, open: open, progress: p}
 }
 
@@ -72,6 +72,7 @@ func (p collapsibleParts) Panel(fn func()) *node {
 		// The height the content had in the last frame, which is 0 as it
 		// starts to open, and grows as it does.
 		clip.ClipY().Height(p.progress * inner.Bounds().H)
+		inner.Opacity(p.progress)
 	}
 	return inner
 }

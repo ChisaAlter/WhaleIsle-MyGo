@@ -28,6 +28,7 @@ import (
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 // Model is composer state for one frame.
@@ -159,6 +160,10 @@ type Model struct {
 	// Hero paints the Electron empty-session centered composer (larger card,
 	// build-oriented placeholder, workspace/mode chips above the card).
 	Hero bool
+	// Collapsed collapses the active InputBar into a single-line capsule pill
+	// when the transcript is scrolled up (MO-08).
+	Collapsed         bool
+	OnExpandCollapsed func()
 	// OnCardLayout observes the current unshifted card before its enclosing
 	// stack receives the first-send displacement. It must not build controls.
 	OnCardLayout func(ui.Rect)
@@ -353,15 +358,22 @@ func View(c *ui.Context, m Model) {
 				} else {
 					ui.Row(c).Label("Composer hero preset").Gap(design.Sp(1)).AlignItems(ui.Center).Height(chipHeight).Padding(0, design.Sp(2), 0, design.Sp(2)).Children(func() {
 						ui.Icon(c, PresetAgentIcon).Size(design.IconSM, design.IconSM).TextColor(fg)
-						ui.Text(c, presetLabel).FontSize(design.TextSM.Size).FontWeight(design.WeightMedium).TextColor(fg)
+						widgets.FlipText(c, presetLabel, widgets.FlipTextOptions{
+							Key:        "hero-preset-fallback",
+							Color:      fg,
+							FontSize:   design.TextSM.Size,
+							FontWeight: design.WeightMedium,
+						})
 						ui.Icon(c, coss.IconChevronDown.SVG()).Size(design.IconXS, design.IconXS).TextColor(muted)
 					})
 				}
 			})
 		}
-		// coss Composer frame (RadiusXL, coss input border/ring, 8 top pad, 12 gap;
-		// Hero retains the 114-DIP card height contract).
-		cardRadius := design.RadiusXL
+		// InputBar capsule radius (22px; Codex skin uses 18px).
+		cardRadius := theme.ContextRadii(c).Composer
+		if theme.ResolvedSkinLayout(m.ThemeID, m.SystemDark).Skin == theme.SkinCodex {
+			cardRadius = theme.LayoutForSkin(theme.SkinCodex).ComposerRadius
+		}
 		card := ui.Column(c.Key("composer-card")).Label("Composer card").FillWidth().
 			Radius(cardRadius).Padding(design.Sp(2), 0, 0, 0).Gap(design.Sp(3))
 		if m.Hero {
@@ -377,9 +389,18 @@ func View(c *ui.Context, m Model) {
 		prefs := chrome.BackdropPreferences()
 		transparentActive := prefs.Transparent && chrome.BackdropHasWallpaper()
 		if glassMode && !transparentActive {
-			card.Material(glass.Blur{Radius: 28, Saturation: 0.45, Dither: true})
+			card.Material(glass.Blur{Radius: 40, Saturation: 0.50, Dither: true})
 		}
 		composerCardElevation(card, t, focused, inputDisabled)
+		collapsedPill := m.Collapsed && !m.Hero && !inputDisabled
+		collapseP := CollapseProgress(c, card, collapsedPill)
+		if collapsedPill {
+			card = card.Padding(design.Sp(0.5), 0, design.Sp(0.5), 0)
+			if (focused || card.Clicked()) && m.OnExpandCollapsed != nil {
+				m.OnExpandCollapsed()
+			}
+		}
+		_ = collapseP
 		beamState := ui.Local(card, "composer-beam-timeline", func() beamTimeline { return beamTimeline{} })
 		card.Draw(func(p *ui.Painter, r ui.Rect) {
 			if chrome.BackdropActive() {
@@ -388,15 +409,7 @@ func View(c *ui.Context, m Model) {
 				p.Fill(r, cardFill, cardRadius)
 			}
 			paintComposerBeam(p, r, beam, beamState, showBeam, reducedMotion)
-			if glassMode {
-				peakAlpha := float32(0.35)
-				if t.IsDark() {
-					peakAlpha = 0.14
-				}
-				paintInnerBloom(p, r, cardRadius, peakAlpha)
-			} else if t.IsDark() {
-				paintInnerBloom(p, r, cardRadius, 0.056)
-			}
+			paintInnerBloom(p, r, cardRadius, 0.25)
 		})
 		card.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			if glassMode {
@@ -405,22 +418,22 @@ func View(c *ui.Context, m Model) {
 			p.Stroke(r, cardBorder, cardRadius, design.BorderWidth)
 		})
 		card.Children(func() {
-			if !inputDisabled {
+			if !inputDisabled && !collapsedPill {
 				paintResizeHandles(c, m, card, muted)
 			}
 			// The suggestion menu floats above the card rather than growing it,
 			// and is built here so it precedes the toolbar in tree order (labels
 			// shared with the toolbar resolve to the menu while it is open).
-			if !inputDisabled && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0 || referenceQueryActive(m)) {
+			if !inputDisabled && !collapsedPill && suggestOpen && (len(items) > 0 || len(referenceBreadcrumbs(m)) > 0 || referenceQueryActive(m)) {
 				paintSuggestPopup(c, m, card, items, kind, tok)
 			}
-			if !inputDisabled && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
+			if !inputDisabled && !collapsedPill && m.ChipEdit != nil && m.ChipEdit.Open && m.Draft != nil {
 				paintChipEditPopup(c, m)
 			}
-			if m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
+			if !collapsedPill && m.State != nil && (len(m.State.Attachments) > 0 || m.State.Error != "") {
 				ui.Box(c).FillWidth().Disabled(inputDisabled).Children(func() { paintDraftAttachments(c, m, fg, muted) })
 			}
-			if m.Editing {
+			if !collapsedPill && m.Editing {
 				// InputBar.editRow floats above the card and never moves its draft.
 				editRow := ui.Row(c.Key("composer-edit-status")).Label("Composer edit status").Attach(ui.AnchorTopRight, ui.AnchorBottomRight).
 					Right(design.Sp(2)).Bottom(design.Sp(2)).MaxWidthPercent(100).Padding(design.Sp(1), design.Sp(2)).Gap(design.Sp(2)).
@@ -508,6 +521,9 @@ func View(c *ui.Context, m Model) {
 				if m.UseTextInputClient && m.TextInput != nil {
 					m.TextInput.syncFont(theme.FontForSkin(theme.RenderPreferences(), theme.ResolvedSkin(m.ThemeID, m.SystemDark), theme.SkinComposerFont))
 				}
+			}
+			if collapsedPill {
+				return
 			}
 			// InputBar keeps ONE toolbar row at every width: no Wrap, so the
 			// trailing group's shrinkable chip (model name) ellipsizes instead
@@ -1154,7 +1170,7 @@ func paintSuggestPopup(c *ui.Context, m Model, card ui.Element, items []suggestI
 	} else {
 		popup = popup.BottomPercent(100).Margin(0, 0, design.Sp(1), 0)
 	}
-	popup = menuPanelLook(c, popup.MaxHeight(height).Padding(design.Sp(1)).Gap(0))
+	popup = chrome.PopoverReveal(c, menuPanelLook(c, popup.MaxHeight(height).Padding(design.Sp(1)).Gap(0)))
 	popup.Children(func() {
 		paintReferenceBreadcrumbs(c, m, tok)
 		ui.Text(c, title).FontSize(design.TextXS.Size).FontWeight(design.WeightMedium).FixedLineHeight(design.TextXS.LineHeight).TextColor(t.MutedForeground).Padding(design.Sp(1), design.Sp(2), design.Sp(0.5), design.Sp(2))

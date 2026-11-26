@@ -3,10 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"whaleisle/internal/dsh"
 	manager "whaleisle/internal/pluginmanager"
+	settingsstore "whaleisle/internal/store/settings"
+	"whaleisle/internal/ui/i18n"
 )
 
 type nativeManagerFixture func(context.Context, string, any, any) error
@@ -103,4 +109,77 @@ func waitNativeManager(t *testing.T, c *manager.Controller, ready func(manager.S
 		time.Sleep(time.Millisecond)
 	}
 	t.Fatal("isolated plugin state did not settle")
+}
+
+func TestCachedPluginContributionsInvalidatesOnChanges(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+
+	var includeSearch atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if !strings.HasSuffix(r.URL.Path, "/settings/describe") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"type": "server-response", "rpcId": body["rpcId"], "result": map[string]any{"ok": true, "value": map[string]any{}}})
+			return
+		}
+		ns := []map[string]any{{
+			"ns": "agent-loop", "schema": json.RawMessage(`{"type":"object","properties":{}}`),
+			"value": map[string]any{}, "autoGenerate": true, "applies": "live", "secrets": []any{}, "revision": 1.0,
+		}}
+		if includeSearch.Load() {
+			ns = append(ns, map[string]any{
+				"ns": "web-search-deepseek", "schema": json.RawMessage(`{"type":"object","properties":{}}`),
+				"value": map[string]any{}, "autoGenerate": true, "applies": "live", "secrets": []any{}, "revision": 1.0,
+			})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"type": "server-response", "rpcId": body["rpcId"],
+			"result": map[string]any{"ok": true, "value": map[string]any{"writable": true, "hasDocument": true, "namespaces": ns}},
+		})
+	}))
+	defer srv.Close()
+
+	st := settingsstore.New()
+	st.Attach(&dsh.Client{Endpoint: dsh.Endpoint{Origin: srv.URL}}, nil)
+	st.RefreshDescribe(context.Background())
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && len(st.Snapshot().Value.Namespaces) < 1 {
+		time.Sleep(time.Millisecond)
+	}
+	if len(st.Snapshot().Value.Namespaces) != 1 {
+		t.Fatalf("settings namespaces did not load: %+v", st.Snapshot().Value.Namespaces)
+	}
+
+	var s mainState
+	first := s.cachedPluginContributions(st, "default", false)
+	second := s.cachedPluginContributions(st, "default", false)
+	if len(first) != 1 || &first[0] != &second[0] {
+		t.Fatalf("repeated identical call did not reuse cached contributions: len=%d", len(first))
+	}
+	if first[0].Title != "Agent loop" {
+		t.Fatalf("got EN title %q, want Agent loop", first[0].Title)
+	}
+
+	i18n.SetLocale(i18n.LocaleZH)
+	zh := s.cachedPluginContributions(st, "default", false)
+	if len(zh) != 1 || zh[0].Title != "Agent 循环" {
+		t.Fatalf("locale change did not invalidate contributions cache: %+v", zh)
+	}
+
+	dark := s.cachedPluginContributions(st, "default", true)
+	if &dark[0] == &zh[0] {
+		t.Fatal("systemDark change did not rebuild contributions cache")
+	}
+
+	includeSearch.Store(true)
+	st.RefreshDescribe(context.Background())
+	deadline = time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && len(st.Snapshot().Value.Namespaces) < 2 {
+		time.Sleep(time.Millisecond)
+	}
+	withSearch := s.cachedPluginContributions(st, "default", true)
+	if len(withSearch) != 2 {
+		t.Fatalf("namespace mask change did not rebuild contributions cache: len=%d", len(withSearch))
+	}
 }

@@ -552,3 +552,33 @@ type testCallFunc func(context.Context, string, any, any) error
 func (f testCallFunc) Call(ctx context.Context, method string, args, out any) error {
 	return f(ctx, method, args, out)
 }
+
+func TestLoadingViewSettlesWithoutAnimationLoop(t *testing.T) {
+	i18n.SetLocale(i18n.LocaleEN)
+	t.Cleanup(func() { i18n.SetLocale(i18n.DefaultLocale) })
+	gate := make(chan struct{})
+	defer close(gate)
+	c := manager.New()
+	c.Attach(testCallFunc(func(ctx context.Context, method string, args, out any) error {
+		if method == "pluginInventory/list" {
+			select {
+			case <-gate:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		return pageFixture{}.Call(ctx, method, args, out)
+	}), nil)
+	t.Cleanup(c.Detach)
+	builds := 0
+	tt := ui.NewTester(func(ctx *ui.Context) {
+		builds++
+		ui.Column(ctx).Fill().Children(func() { View(ctx, Model{Controller: c}) })
+	}, 900, 700)
+	if _, ok := tt.Find("Loading plugins"); !ok {
+		t.Fatal("loading plugin page did not render SkeletonRows")
+	}
+	if builds > 2 {
+		t.Fatalf("loading plugin page kept scheduling animation rebuilds: builds=%d, want <= 2", builds)
+	}
+}

@@ -118,7 +118,7 @@ func settingsHelpPopover(c *ui.Context, key, label string, body func()) {
 	ui.PopoverBase(c, button, open, func(panel ui.Element) {
 		panelHovered = panel.Hovered() || panel.FocusWithin()
 		vw, vh := c.Size()
-		panel = chrome.PopoverReveal(c, chrome.FrostSurface(panel.AttachTo(button, ui.AnchorRight, ui.AnchorLeft).Margin(0, 0, 0, 6).Width(min(float32(360), max(float32(0), vw-32))).MaxWidthPercent(90).MaxHeight(max(float32(0), vh-32)).Padding(16), theme.Default().Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Surface, 12).Border(.5, c.Theme().Border).Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, .16)))
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.AttachTo(button, ui.AnchorRight, ui.AnchorLeft).Margin(0, 0, 0, 6).Width(min(float32(360), max(float32(0), vw-32))).MaxWidthPercent(90).MaxHeight(max(float32(0), vh-32)).Padding(16), c.Theme().Surface, c.Theme().Border, theme.ContextRadii(c).MD))
 		panel.Children(func() {
 			ui.Scroll(c).FillWidth().MinWidth(0).MinHeight(0).MaxHeight(max(float32(0), vh-64)).Gap(10).Children(body)
 		})

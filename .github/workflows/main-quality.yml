@@ -195,6 +195,7 @@ jobs:
             ./internal/ui/im \
             ./internal/ui/market \
             ./internal/ui/openui \
+            ./internal/ui/pagekit \
             ./internal/ui/planpreview \
             ./internal/ui/pluginmanager \
             ./internal/ui/projects \

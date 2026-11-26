@@ -11,8 +11,6 @@ import (
 	"whaleisle/internal/renderpolicy"
 )
 
-const ambientFrameInterval = time.Second / 12
-
 type ambientAnimationClock struct {
 	mu        sync.Mutex
 	last      time.Time
@@ -286,7 +284,7 @@ func WallpaperBackgroundPainter(path string, p wallpapers.Preferences, reducedMo
 		publishGradientPalette(config, r)
 		config.ambientBackdrop(elapsed).PaintMaterial(painter, r, [4]float32{})
 		if !reduced && !freeze {
-			painter.After(ambientFrameInterval)
+			painter.AnimationFrame()
 		}
 	}
 }

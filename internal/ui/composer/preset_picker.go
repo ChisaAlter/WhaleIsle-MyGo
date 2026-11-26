@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/widgets"
 )
 
 // presetChoice is one row of a picker: the opaque value sent back, the
@@ -91,13 +92,16 @@ func presetSelect(c *ui.Context, caption string, options []presetChoice, pick fu
 		if opt.Leading != nil {
 			opt.Leading()
 		} else {
-			text := ui.Text(c, display).Grow(1).MinWidth(0).SingleLine()
-			if opt.FontSize > 0 {
-				text.FontSize(opt.FontSize)
+			flipKey := "preset-trigger:" + display
+			if opt.Icon != nil {
+				flipKey = "preset-trigger-icon"
 			}
-			if opt.Weight > 0 {
-				text.FontWeight(opt.Weight)
-			}
+			widgets.FlipText(c, display, widgets.FlipTextOptions{
+				Key:        flipKey,
+				Color:      textColor,
+				FontSize:   opt.FontSize,
+				FontWeight: opt.Weight,
+			}).Grow(1).MinWidth(0)
 		}
 		chevron(c, *open)
 	})

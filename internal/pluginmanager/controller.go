@@ -134,14 +134,14 @@ func (c *Controller) Ensure() {
 		needed = true
 	}
 	needed = needed && !c.state.Loading
-	if needed {
-		c.state.Status = "loading"
-		c.state.Loading = true
+	if !needed {
+		c.mu.Unlock()
+		return
 	}
+	c.state.Status = "loading"
+	c.state.Loading = true
 	c.unlockPublish()
-	if needed {
-		go c.Load(context.Background())
-	}
+	go c.Load(context.Background())
 }
 func (c *Controller) Refresh(ctx context.Context) {
 	c.mu.Lock()

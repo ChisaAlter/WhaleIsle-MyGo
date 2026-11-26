@@ -7,6 +7,7 @@ import (
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -115,40 +116,48 @@ func (b *Controller) MiniPlayerBounds() (mygo.Rectangle, bool) {
 	return b.mini.bounds, true
 }
 
-// ViewMiniPlayer is called by the conversation overlay after the dock. Its
-// bounds are relative to the same parent as the original native browser child.
-func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) {
-	if !b.miniPlayerCurrent() {
-		b.CloseMiniPlayer()
-		return
+const (
+	miniPlayerChromeHeight = 48
+	miniPlayerSeatInset    = 6
+)
+
+func miniPlayerSeat(bounds mygo.Rectangle) mygo.Rectangle {
+	return mygo.Rectangle{
+		X:      bounds.X + miniPlayerSeatInset,
+		Y:      bounds.Y + miniPlayerChromeHeight,
+		Width:  max(1, bounds.Width-2*miniPlayerSeatInset),
+		Height: max(1, bounds.Height-miniPlayerChromeHeight-miniPlayerSeatInset),
 	}
-	p := b.mini
-	if conversation.Width < 25 || conversation.Height < 65 {
-		p.host.SetVisible(false)
-		return
-	}
-	if !p.initialized {
-		p.geometry = miniPlayerGeometry(mygo.Rectangle{X: conversation.Width - 332, Y: 12, Width: 320, Height: 200}, conversation)
-		p.initialized = true
-	}
-	p.geometry = miniPlayerGeometry(p.geometry, conversation)
-	r := p.geometry
-	p.bounds = mygo.Rectangle{X: conversation.X + r.X, Y: conversation.Y + r.Y, Width: r.Width, Height: r.Height}
-	p.rendered = true
-	p.context = c
+}
+
+func (b *Controller) paintMiniPlayerOverlay(c *ui.Context, p *browserMiniPlayer, conversation, r mygo.Rectangle) {
 	ui.Overlay(c, func() {
-		panel := chrome.FrostSurface(ui.Column(c).Key(p).Absolute().Left(float32(p.bounds.X)).Top(float32(p.bounds.Y)).Width(float32(r.Width)).Height(float32(r.Height)).Border(1, c.Theme().Border).Clip(), theme.ResolveWithSystem(theme.IDSystem, c.Theme().Dark).Active(c.Theme().Dark), c.Theme().Dark, c.Theme().Background, 0)
+		dark := c.Theme().Dark
+		colors := theme.ResolveWithSystem(theme.IDSystem, dark).Active(dark)
+		panelRadius := theme.ContextRadii(c).Panel
+		seatRadius := max(float32(0), panelRadius-miniPlayerSeatInset)
+		panel := chrome.FloatingCardSurface(
+			ui.Column(c).Key(p).Absolute().Left(float32(p.bounds.X)).Top(float32(p.bounds.Y)).Width(float32(r.Width)).Height(float32(r.Height)).Clip(),
+			chrome.MenuBaseFill(colors, dark),
+			chrome.MenuBorderColor(colors, dark),
+			panelRadius,
+		)
 		panel.Children(func() {
-			ui.Row(c).Height(32).FillWidth().Padding(4).Gap(4).Children(func() {
-				grip := ui.Box(c).Key("browser-mini-move").Grow(1).Height(24).Cursor(ui.CursorMove).Focusable().Label(browserPreviewText("miniTitle"))
-				title := p.host.State().Title
-				if title == "" {
-					title = p.host.State().URL
+			ui.Row(c).Height(miniPlayerChromeHeight).FillWidth().Padding(design.Sp(2.5), design.Sp(2.5), design.Sp(2.5), design.Sp(4)).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
+				grip := ui.Row(c).Key("browser-mini-move").Grow(1).Height(28).AlignItems(ui.Center).Cursor(ui.CursorMove).Focusable().Label(browserPreviewText("miniTitle"))
+				var title string
+				if p.host != nil {
+					title = p.host.State().Title
+					if title == "" {
+						title = p.host.State().URL
+					}
 				}
 				if title == "" {
 					title = browserPreviewText("miniTitle")
 				}
-				grip.Children(func() { ui.Text(c, truncate(title, 32)).FontSize(theme.InterfaceSize(11)).Tooltip(title) })
+				grip.Children(func() {
+					ui.Text(c, truncate(title, 32)).FontSize(theme.InterfaceSize(12)).FixedLineHeight(18).FontWeight(500).SingleLine().Ellipsis("…").Tooltip(title)
+				})
 				dx, dy, held := grip.Dragged()
 				if held {
 					p.geometry.X += int(dx)
@@ -156,12 +165,15 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 					p.geometry = miniPlayerGeometry(p.geometry, conversation)
 					b.update()
 				}
-				if coss.Button(c, "↙", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Label(browserPreviewText("miniRestore")).Clicked() {
+				if coss.Button(c, "↙", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonIconSM}).Label(browserPreviewText("miniRestore")).Clicked() {
 					b.restoreMiniPlayer()
 				}
-				if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonXS}).Label(browserPreviewText("miniClose")).Clicked() {
+				if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonIconSM}).Label(browserPreviewText("miniClose")).Clicked() {
 					b.CloseMiniPlayer()
 				}
+			})
+			ui.Box(c).Grow(1).FillWidth().MinHeight(0).Padding(0, miniPlayerSeatInset, miniPlayerSeatInset, miniPlayerSeatInset).Children(func() {
+				ui.Box(c).Fill().Radius(seatRadius).Clip()
 			})
 			for _, side := range []string{"n", "e", "s", "w", "ne", "nw", "se", "sw"} {
 				x, y, w, h := 0, 0, r.Width, 5
@@ -198,10 +210,34 @@ func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) 
 			}
 		})
 	})
+}
+
+// ViewMiniPlayer is called by the conversation overlay after the dock. Its
+// bounds are relative to the same parent as the original native browser child.
+func (b *Controller) ViewMiniPlayer(c *ui.Context, conversation mygo.Rectangle) {
+	if !b.miniPlayerCurrent() {
+		b.CloseMiniPlayer()
+		return
+	}
+	p := b.mini
+	if conversation.Width < 25 || conversation.Height < 65 {
+		p.host.SetVisible(false)
+		return
+	}
+	if !p.initialized {
+		p.geometry = miniPlayerGeometry(mygo.Rectangle{X: conversation.Width - 332, Y: 12, Width: 320, Height: 200}, conversation)
+		p.initialized = true
+	}
+	p.geometry = miniPlayerGeometry(p.geometry, conversation)
+	r := p.geometry
+	p.bounds = mygo.Rectangle{X: conversation.X + r.X, Y: conversation.Y + r.Y, Width: r.Width, Height: r.Height}
+	p.rendered = true
+	p.context = c
+	b.paintMiniPlayerOverlay(c, p, conversation, r)
 	if b.mini != p {
 		return
 	}
-	seat := mygo.Rectangle{X: p.bounds.X + 5, Y: p.bounds.Y + 32, Width: max(1, p.bounds.Width-10), Height: max(1, p.bounds.Height-37)}
+	seat := miniPlayerSeat(p.bounds)
 	p.host.SetViewport(&seat)
 	p.host.SetVisible(true)
 }

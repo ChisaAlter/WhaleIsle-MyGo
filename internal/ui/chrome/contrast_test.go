@@ -240,9 +240,10 @@ func TestDarkModeGlassKeepsTokenTranslucencyOverBrightWallpaper(t *testing.T) {
 	tt.Frame()
 	got := float64(tt.Image().RGBAAt(20, 20).R)
 	under := float64(wall) * (1 - maskDark)
-	want := float64(menuBase.R)*menuSolidityDark + under*(1-menuSolidityDark)
+	solidity := float64(MenuSolidity(prefs, true))
+	want := float64(menuBase.R)*solidity + under*(1-solidity)
 	if math.Abs(got-want) > 4 {
-		t.Fatalf("dark menu over bright wallpaper = %.0f, want %.0f (45%% translucency preserved)", got, want)
+		t.Fatalf("dark menu over bright wallpaper = %.0f, want %.0f (MenuSolidity translucency preserved)", got, want)
 	}
 	fill := BackdropFill(ui.Rect{X: 0, Y: 0, W: 40, H: 40}, menuBase, MaterialMenu, prefs, true)
 	if math.Abs(float64(fill.R)-want) > 4 {

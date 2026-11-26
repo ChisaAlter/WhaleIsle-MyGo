@@ -24,6 +24,10 @@ type ChatBubbleOptions struct {
 	Grouped bool
 	// Highlighted rings the bubble (a jump to a replied message).
 	Highlighted bool
+	// Solid keeps the bubble opaque without backdrop blur (e.g. Codex/Claude/Minimal).
+	Solid bool
+	// BubbleTint overrides the theme bubble color when glass or solid skin tinting is used.
+	BubbleTint ui.Color
 }
 
 // ChatBubble is coss's ChatBubble: radius 16 with the top corner on the
@@ -39,13 +43,29 @@ func ChatBubble(c *ui.Context, o ChatBubbleOptions, fn func()) ui.Element {
 		} else {
 			b.Radius(r)
 		}
-		if t.Glass {
-			tint := ui.RGBA(237, 243, 254, 0.40)
-			if t.IsDark() {
-				tint = ui.RGBA(44, 44, 46, 0.40)
+		if t.Glass && !o.Solid {
+			base := o.BubbleTint
+			if base.A == 0 {
+				base = ui.RGB(237, 243, 254)
+				if t.IsDark() {
+					base = ui.RGB(44, 44, 46)
+				}
 			}
-			applyGlassMaterial(b, t, tint, 24, 0.45)
+			applyGlassMaterial(b, t, base.Alpha(0.40), 40, 0.50)
 			b.Border(design.BorderWidth*0.5, t.Border)
+			rim := ui.RGBA(255, 255, 255, 0.45)
+			if t.IsDark() {
+				rim = ui.RGBA(255, 255, 255, 0.10)
+			}
+			b.DrawOver(func(p *ui.Painter, box ui.Rect) {
+				if box.W <= 2 || box.H <= 2 {
+					return
+				}
+				inner := ui.Rect{X: box.X + 0.5, Y: box.Y + 0.5, W: box.W - 1, H: box.H - 1}
+				p.Stroke(inner, rim, max(0, r-0.5), 0.5)
+			})
+		} else if o.Solid && o.BubbleTint.A > 0 {
+			b.Background(o.BubbleTint.Alpha(1))
 		} else {
 			b.Background(t.Foreground.Alpha(0.12))
 		}
@@ -55,12 +75,12 @@ func ChatBubble(c *ui.Context, o ChatBubbleOptions, fn func()) ui.Element {
 		} else {
 			b.Radius(r)
 		}
-		if t.Glass {
+		if t.Glass && !o.Solid {
 			tint := ui.RGBA(252, 253, 255, 0.40)
 			if t.IsDark() {
 				tint = ui.RGBA(35, 35, 36, 0.40)
 			}
-			applyGlassMaterial(b, t, tint, 24, 0.45)
+			applyGlassMaterial(b, t, tint, 40, 0.50)
 			b.Border(design.BorderWidth*0.5, t.Border)
 		} else {
 			b.Background(t.Foreground.Alpha(0.04))

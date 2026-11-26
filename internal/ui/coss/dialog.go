@@ -1,9 +1,11 @@
 package coss
 
 import (
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // FooterVariant is a dialog footer's look.
@@ -57,8 +59,13 @@ func backdropLook(back ui.Element, t *design.Tokens, part string) {
 		} else {
 			c = black.Alpha(0.20)
 		}
+		back.Material(glassSurfaceMaterial{
+			blur: glass.Blur{Radius: 2},
+			tint: c,
+		})
+	} else {
+		back.Background(c)
 	}
-	back.Background(c)
 	motion(back, part, 0, 0)
 }
 
@@ -167,7 +174,7 @@ func DrawerPanel(c *ui.Context, o DialogOptions, body func()) ui.Element {
 }
 
 func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptions, body func(), kind modalKind, ww float32) {
-	radius := design.RadiusXL2
+	radius := theme.ContextRadii(c).Dialog
 	var sh shadowList
 	sh.scale(design.ShadowLg, black, 0.05)
 	d := deco{border: design.BorderWidth}
@@ -241,7 +248,7 @@ func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptio
 	case kindDrawer:
 		tier = glassTierDrawer
 	}
-	applyGlassMaterial(panel, t, t.Popover, 28, 0.45)
+	applyGlassMaterial(panel, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, tier)
 	finish(panel, &sh, &d)
 	panel.Children(func() {

@@ -305,6 +305,8 @@ func TestMCPFormAndSkillCreateErrorsUseDestructiveColor(t *testing.T) {
 		fgColor, errColor = t.Foreground, t.DestructiveForeground
 		mcpFormEditor(c, mcpForm, false, "", t.Foreground, t.MutedForeground)
 	}, 900, 900)
+	ttMCP.SetPreferences(ui.Preferences{ReduceMotion: true})
+	ttMCP.Frame()
 	if errColor == fgColor {
 		t.Fatal("destructive error token matches plain foreground")
 	}
@@ -343,6 +345,8 @@ func TestMCPFormAndSkillCreateErrorsUseDestructiveColor(t *testing.T) {
 		t := tk(c)
 		skillCreateDialog(c, &SkillsAccess{Create: create}, t.Foreground, t.MutedForeground)
 	}, 1100, 900)
+	ttSkill.SetPreferences(ui.Preferences{ReduceMotion: true})
+	ttSkill.Frame()
 	ttSkill.Scroll(650, 600, 0, 4000)
 	if err := ttSkill.Click("Create skill"); err != nil {
 		t.Fatal(err)

@@ -7,13 +7,29 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"whaleisle/internal/renderpolicy"
 	"whaleisle/internal/store/session"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/markdown"
 )
+
+func userBubbleOptions(c *ui.Context, themeID string, systemDark bool) coss.ChatBubbleOptions {
+	skin := theme.ResolvedSkinLayout(themeID, systemDark).Skin
+	solid := skin == theme.SkinCodex || skin == theme.SkinClaude || renderpolicy.Minimal()
+	var tint ui.Color
+	if design.For(c).Glass || chrome.BackdropActive() || solid {
+		tint = chrome.Color(theme.Resolve(themeID).Active(systemDark).Bubble)
+	}
+	return coss.ChatBubbleOptions{
+		Side:       coss.ChatOutgoing,
+		Solid:      solid,
+		BubbleTint: tint,
+	}
+}
 
 // parsedUserLinks memoizes the markdown link scan for one user message body.
 type parsedUserLinks struct {
@@ -91,7 +107,7 @@ func userMessageView(c *ui.Context, m Model, msg session.Message, _ theme.Colors
 						}
 					}
 					if body != "" || len(content.value.ExtraBlocks) > 0 {
-						coss.ChatBubble(c, coss.ChatBubbleOptions{Side: coss.ChatOutgoing}, func() {
+						coss.ChatBubble(c, userBubbleOptions(c, m.ThemeID, m.SystemDark), func() {
 							ink := fg
 							if m.EditingSeq > 0 && msg.Seq == m.EditingSeq {
 								ink = muted

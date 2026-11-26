@@ -3,6 +3,7 @@ package frame
 import (
 	"math"
 	"runtime"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/store/session"
@@ -10,6 +11,7 @@ import (
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
+	"whaleisle/internal/ui/widgets"
 )
 
 type workspaceCaptionMeasure struct {
@@ -24,6 +26,52 @@ func conversationIsManaged(snapshot session.ViewState) bool {
 		}
 	}
 	return false
+}
+
+type headerSwapState struct {
+	owner       string
+	initialized bool
+	wasHero     bool
+	swapping    bool
+	startedAt   time.Time
+}
+
+// conversationHeaderSwapOpacity fades the conversation title row in over
+// widgets.SwapDuration (100ms) on the commit leaving Hero.
+func conversationHeaderSwapOpacity(c *ui.Context, host ui.Element, owner string, hero, attempted bool) float32 {
+	st := ui.Local(host, "hero-header-swap", func() headerSwapState { return headerSwapState{} })
+	now := c.Now()
+	if !st.initialized || st.owner != owner {
+		*st = headerSwapState{owner: owner, initialized: true, wasHero: hero}
+		return 1
+	}
+	reduced := c.Preferences().ReduceMotion
+	if hero {
+		st.wasHero = true
+		st.swapping = false
+		st.startedAt = time.Time{}
+		return 1
+	}
+	if st.wasHero && attempted && !reduced && !now.IsZero() {
+		st.wasHero = false
+		st.swapping = true
+		st.startedAt = now
+	}
+	st.wasHero = false
+	if reduced || !st.swapping || now.IsZero() {
+		st.swapping = false
+		return 1
+	}
+	elapsed := now.Sub(st.startedAt)
+	if elapsed >= widgets.SwapDuration {
+		st.swapping = false
+		return 1
+	}
+	c.AnimationFrame()
+	if elapsed <= 0 {
+		return 0
+	}
+	return widgets.DesignEase(float32(elapsed) / float32(widgets.SwapDuration))
 }
 
 // workspaceCaptionHeight is the native title band. Conversation view tabs
@@ -62,7 +110,11 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	m.captionRightInset = max(float32(28), max(float32(0), trailingInset-details)+24)
 	var trailing ui.Element
 	row.Children(func() {
-		ui.Column(c.Key("workspace-caption-conversation")).Width(m.Sizes.Center + max(float32(0), m.RightOverlayReserve)).Shrink(0).MinWidth(0).Children(func() {
+		convCol := ui.Column(c.Key("workspace-caption-conversation")).Width(m.Sizes.Center + max(float32(0), m.RightOverlayReserve)).Shrink(0).MinWidth(0)
+		if swap := conversationHeaderSwapOpacity(c, convCol, conversationEnterOwner(snap), hero, snap.PromptAttempted); swap < 1 {
+			convCol = convCol.Opacity(swap)
+		}
+		convCol.Children(func() {
 			if m.WorkspacePage {
 				ui.Box(c).Height(workspaceCaptionContent)
 				return
@@ -126,12 +178,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	if layout.Active() {
 		row.Background(theme.Color(layout.ChatBackground))
 	} else if tCaption.Glass || chrome.BackdropActive() {
-		prefs := chrome.BackdropPreferences()
-		if chrome.BackdropActive() && !prefs.HideSidebarMask && !(prefs.Transparent && chrome.BackdropHasWallpaper()) {
-			chrome.GlassSurface(row, tCaption.Sidebar, chrome.MaterialSidebar)
-		} else {
-			row.Background(ui.Transparent)
-		}
+		row.Background(ui.Transparent)
 	}
 	stroke, ink := design.BorderWidth/2, tCaption.Border
 	if m.SystemDark {

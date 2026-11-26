@@ -2,8 +2,10 @@ package browserpreview
 
 import (
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 	"testing"
 	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/ui/design"
 )
 
 func TestMiniPlayerGeometryOriginalBounds(t *testing.T) {
@@ -52,5 +54,44 @@ func TestMiniPlayerCloseAndRestoreRetainExactTabAndHost(t *testing.T) {
 	b.Hide()
 	if b.mini == nil || first.Host != host {
 		t.Fatal("session hide discarded mini-player or guest")
+	}
+}
+
+func TestMiniPlayerChrome48pxAndSeatInsets(t *testing.T) {
+	bounds := mygo.Rectangle{X: 40, Y: 40, Width: 360, Height: 260}
+	seat := miniPlayerSeat(bounds)
+	if seat != (mygo.Rectangle{X: 46, Y: 88, Width: 348, Height: 206}) {
+		t.Fatalf("miniPlayerSeat = %+v, want {46 88 348 206}", seat)
+	}
+	b := NewController(nil)
+	p := &browserMiniPlayer{bounds: bounds, geometry: bounds}
+	tt := ui.NewTester(func(c *ui.Context) {
+		b.paintMiniPlayerOverlay(c, p, mygo.Rectangle{Width: 600, Height: 400}, bounds)
+	}, 600, 400)
+	tt.Frame()
+	if _, ok := tt.Find(browserPreviewText("miniTitle")); !ok {
+		t.Fatalf("mini player drag title missing: %v", tt.Texts())
+	}
+	if _, ok := tt.Find(browserPreviewText("miniRestore")); !ok {
+		t.Fatalf("mini player restore action missing: %v", tt.Texts())
+	}
+	if _, ok := tt.Find(browserPreviewText("miniClose")); !ok {
+		t.Fatalf("mini player close action missing: %v", tt.Texts())
+	}
+}
+
+func TestBrowserPanelTransparentUnderPureDesignGlass(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, func(_ design.Scheme, _ *design.Palette) {})
+
+	var urlDraft string
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(15, 95, 195)).Children(func() {
+			View(c, Model{URLDraft: &urlDraft, HostActive: true})
+		})
+	}, 400, 300)
+	tt.Frame()
+	if got := tt.Image().RGBAAt(200, 220); got.R != 15 || got.G != 95 || got.B != 195 {
+		t.Fatalf("browser panel under pure design.Glass leaked opaque fill: %+v", got)
 	}
 }

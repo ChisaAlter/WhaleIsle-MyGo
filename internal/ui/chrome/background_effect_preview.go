@@ -26,7 +26,7 @@ func (p *BackgroundEffectPreview) Draw(settings wallpapers.Preferences, reduced 
 		config := gradientConfiguration(settings, float64(bounds.W), float64(bounds.H), painter.Theme().Dark, reduced)
 		config.ambientBackdrop(elapsed).PaintMaterial(painter, bounds, [4]float32{})
 		if !reduced && !freeze {
-			painter.After(ambientFrameInterval)
+			painter.AnimationFrame()
 		}
 	}
 }

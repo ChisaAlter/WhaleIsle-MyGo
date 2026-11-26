@@ -141,10 +141,10 @@ const (
 	DurationPanel    = 200 * time.Millisecond // dialogs, sheets, tabs, accordion height
 	DurationDrawer   = 450 * time.Millisecond
 	DurationProgress = 500 * time.Millisecond
-	DurationSpin     = time.Second     // animate-spin
-	DurationSkeleton = 2 * time.Second // animate-skeleton
-	DurationPulse    = 2 * time.Second // animate-pulse
-	DurationCaret    = time.Second     // caret-blink
+	DurationSpin     = time.Second             // animate-spin
+	DurationSkeleton = 2600 * time.Millisecond // animate-skeleton
+	DurationPulse    = 2 * time.Second         // animate-pulse
+	DurationCaret    = time.Second             // caret-blink
 )
 
 // TransitionFor returns the transition of a coss part ("button/button",

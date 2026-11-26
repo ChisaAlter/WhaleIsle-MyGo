@@ -191,14 +191,19 @@ func Note(c *ui.Context, variant coss.AlertVariant, title, description string, a
 
 // SkeletonRows is a loading list: n rows of a 40 DIP tile and two text
 // bars, announced by label.
+//
+// Uses static muted placeholders rather than coss.Skeleton's per-frame Loop so
+// loading views waiting on Host RPCs stay at 0 Hz instead of driving continuous
+// full-window rebuilds.
 func SkeletonRows(c *ui.Context, n int, label string) {
+	t := design.For(c)
 	ui.Column(c).FillWidth().Gap(design.Sp(3)).Role(ui.RoleStatus).Label(label).Children(func() {
 		for i := 0; i < n; i++ {
 			ui.Row(c).FillWidth().Gap(design.Sp(3)).AlignItems(ui.Center).Children(func() {
-				coss.Skeleton(c).Size(40, 40).Radius(design.RadiusLG)
+				ui.Box(c).Size(40, 40).Radius(design.RadiusLG).Background(t.Muted)
 				ui.Column(c).Grow(1).Gap(design.Sp(2)).Children(func() {
-					coss.Skeleton(c).WidthPercent(36).Height(design.Sp(3.5))
-					coss.Skeleton(c).WidthPercent(68).Height(design.Sp(3))
+					ui.Box(c).WidthPercent(36).Height(design.Sp(3.5)).Radius(design.RadiusSM).Background(t.Muted)
+					ui.Box(c).WidthPercent(68).Height(design.Sp(3)).Radius(design.RadiusSM).Background(t.Muted)
 				})
 			})
 		}

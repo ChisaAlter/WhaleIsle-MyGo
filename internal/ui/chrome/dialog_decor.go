@@ -24,7 +24,9 @@ func decorateDialog(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Col
 	// used to be a static fill because a reveal would still be running when a
 	// test clicked; opacity only changes the paint, so a click still lands on the
 	// first frames (chrome.TestOverlayRevealKeepsControlsClickable).
-	RevealOverlay(c, backdrop, panel, dialogMaskColor(bg))
+	progress := Reveal(c, backdrop, OverlayDuration)
+	ApplyDialogBackdropMask(c, backdrop, dialogMaskColor(bg), progress)
+	RevealDialogPanel(c, panel, progress)
 	panel.Radius(radius).Clip()
 	applyDialogGlassSurface(c, panel, bg, border, radius)
 }

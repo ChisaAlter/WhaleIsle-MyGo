@@ -1,9 +1,12 @@
 package coss
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // easingOf returns the prebuilt ui.Easing of a coss curve.
@@ -55,7 +58,7 @@ func panelLook(e ui.Element, t *design.Tokens, radius float32, sc design.Shadows
 	sh.scale(sc, black, 0.05)
 	d := deco{border: design.BorderWidth, radius: radius}
 	d.highlight(t, 0.04, 0.06)
-	applyGlassMaterial(e, t, t.Popover, 24, 0.45)
+	applyGlassMaterial(e, t, t.Popover, 40, 0.50)
 	applyGlassElevation(t, &sh, &d, glassTierPopup)
 	finish(e, &sh, &d)
 }
@@ -143,6 +146,7 @@ func Popover(c *ui.Context, anchor ui.Element, open *bool, o PopoverOptions, fn 
 	return ui.PopoverBase(c, anchor, open, func(panel ui.Element) {
 		place(panel, anchor, o.Side, o.Align, 4)
 		popoverPanel(c, t, panel, o, fn)
+		popoverReveal(c, panel)
 	})
 }
 
@@ -155,18 +159,42 @@ func PopoverPanel(c *ui.Context, o PopoverOptions, fn func()) ui.Element {
 	return p
 }
 
+func popoverReveal(c *ui.Context, panel ui.Element) ui.Element {
+	const popoverDuration = 160 * time.Millisecond
+	if forced != 0 || c.Preferences().ReduceMotion {
+		panel.Opacity(1)
+		return panel
+	}
+	started := ui.Local(panel, "coss.popover.reveal", func() time.Time { return c.Now() })
+	elapsed := c.Now().Sub(*started)
+	progress := float32(1)
+	if elapsed < popoverDuration {
+		progress = design.EaseInOut(max(0, float32(elapsed)/float32(popoverDuration)))
+		c.After(16 * time.Millisecond)
+	}
+	if tok(c).Glass {
+		panel.Opacity(1)
+	} else {
+		panel.Opacity(progress)
+	}
+	if progress < 1 {
+		rise := 4 * (1 - progress)
+		panel.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: rise} })
+	}
+	return panel
+}
+
 func popoverPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o PopoverOptions, fn func()) {
 	if o.TooltipStyle {
 		panelLook(panel, t, design.RadiusMD, design.ShadowMd)
 		panel.Padding(design.Sp(1), design.Sp(2)).FontSize(design.TextXS.Size)
 	} else {
-		panelLook(panel, t, design.RadiusLG, design.ShadowLg)
+		panelLook(panel, t, theme.ContextRadii(c).MD, design.ShadowLg)
 		panel.Padding(design.Sp(4))
 	}
 	if o.Width > 0 {
 		panel.Width(o.Width)
 	}
-	motion(panel, "popover/popover-popup", 0, 0)
 	panel.Children(func() {
 		if o.Title != "" || o.Description != "" {
 			ui.Column(c).Gap(design.Sp(2)).Margin(0, 0, design.Sp(4), 0).Children(func() {

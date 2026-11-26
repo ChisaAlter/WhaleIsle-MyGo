@@ -161,7 +161,7 @@ func paintDisclosureRow(c *ui.Context, d disclosureRow, st disclosureStyle) {
 					if progress > 0.05 || hovered {
 						target = 1
 					}
-					fade = row.AnimateWith("coss.chevron", target, design.DurationDefault, design.EaseInOut)
+					fade = row.AnimateWith("coss.chevron", target, design.MotionFast, design.EaseInOut)
 					ui.Icon(c, d.Icon).Size(disclosureGlyph, disclosureGlyph).TextColor(leadingColor).Opacity(1 - fade)
 				}
 				angle := 180 * progress

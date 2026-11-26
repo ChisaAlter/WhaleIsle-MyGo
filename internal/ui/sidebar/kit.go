@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	schedstore "whaleisle/internal/store/schedule"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
@@ -58,6 +59,9 @@ func withSidebarTheme(c *ui.Context, m Model) func() {
 }
 
 func sbSelectedBg(t *design.Tokens) ui.Color {
+	if t.Glass || chrome.BackdropActive() {
+		return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Pressed)
+	}
 	if t.SidebarAccent.A > 0 {
 		return t.SidebarAccent
 	}
@@ -65,11 +69,7 @@ func sbSelectedBg(t *design.Tokens) ui.Color {
 }
 
 func sbHoverBg(t *design.Tokens) ui.Color {
-	base := sbSelectedBg(t)
-	if t.IsDark() {
-		return base.Alpha(0.45)
-	}
-	return base.Alpha(0.5)
+	return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Hover)
 }
 
 // sbActiveIndicator paints a subtle 3px primary indicator bar along the leading
@@ -121,6 +121,9 @@ func activeSchedulesForSession(m Model, sessionID string) []schedstore.Entry {
 }
 
 func sbPopoverSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
+	if t.Glass || chrome.BackdropActive() {
+		return chrome.ApplyMenuSurface(e, t, radius)
+	}
 	e.Background(t.Popover).Border(design.BorderWidth, t.Border).Radius(radius).TextColor(t.PopoverForeground)
 	for _, s := range design.ShadowLg {
 		if s.Blur > 0 || s.Spread > 0 {

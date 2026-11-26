@@ -90,11 +90,15 @@ func (s *mainState) syncHostAppearance() {
 	}
 	s.mu.Lock()
 	previousScheme := s.themeID
-	// Only a Host document that carries wallpaperImage can override the local
-	// wallpaper; a seeded empty/default value keeps the flat base.
+	// Only a Host document that carries a wallpaperImage, or explicitly clears
+	// an earlier Host-provided wallpaper, overrides the local wallpaper; a
+	// seeded empty default preserves an existing local goWallpaperPath.
 	if h.WallpaperImageExplicit {
+		prevHostWallpaper := s.hostWallpaperImage
 		s.hostWallpaperImage = h.WallpaperImage
-		s.desktopDraft.wallpaperPath = h.WallpaperImage
+		if h.WallpaperImage != "" || prevHostWallpaper != "" {
+			s.desktopDraft.wallpaperPath = h.WallpaperImage
+		}
 	}
 	// The Host always reports a scheme (default "system"), so it cannot tell an
 	// explicit choice from its default: the configured theme wins until the user
@@ -177,6 +181,10 @@ func applyAppearanceTheme(c *ui.Context, p theme.Preferences, colors theme.Color
 	t.ScrollbarAlways = false
 	rest, hover := theme.ScrollbarColors(dark)
 	t.Scrollbar, t.ScrollbarHover = chrome.Color(rest), chrome.Color(hover)
+	if !dark && (design.GlassEnabled() || chrome.BackdropActive()) {
+		t.Scrollbar = ui.RGBA(15, 17, 21, 0.18)
+		t.ScrollbarHover = ui.RGBA(15, 17, 21, 0.30)
+	}
 	// Menus, select popups and popovers take the chrome's menu look: the
 	// raised fill at its material share over the wallpaper frost, the
 	// border-l1 hairline and the menu's inks (chrome.MenuStyle).

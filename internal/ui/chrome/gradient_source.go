@@ -23,28 +23,27 @@ type gradientConfig struct {
 	dark, reduced bool
 }
 
-func gradientConfiguration(p wallpapers.Preferences, width, height float64, dark, reduced bool) gradientConfig {
-	c := gradientConfig{width: width, height: height, variant: p.Variant, dark: dark, reduced: reduced}
-	switch c.variant {
-	case "aurora", "chaos", "rays":
-	default:
-		c.variant = "orbs"
-	}
-	c.speed = p.Speed
-	if math.IsNaN(c.speed) || math.IsInf(c.speed, 0) {
-		c.speed = 190
-	}
-	// CSS clampBackgroundEffectSpeed: zero is 20%, not a paused animation.
-	c.speed = math.Min(300, math.Max(20, math.Round(c.speed)))
-	count := p.Count
-	if math.IsNaN(count) || math.IsInf(count, 0) {
-		count = 5
-	}
-	c.count = int(math.Min(5, math.Max(1, math.Round(count))))
-	defaults := [7]string{"#edf3fe", "#dbeafe", "#7aaaff", "#60a5fa", "#b7c8fe", "#4ed17e", "#f7ad31"}
+// GradientDefaultColors returns the theme-adaptive 7-slot default hex palette
+// for light or dark surfaces, matching the design-platform gradient tokens.
+func GradientDefaultColors(dark bool) [7]string {
 	if dark {
-		defaults = [7]string{"#283142", "#172554", "#4176e6", "#2563eb", "#5686fe", "#22c55e", "#f59e0b"}
+		return [7]string{"#283142", "#172554", "#4176e6", "#2563eb", "#5686fe", "#22c55e", "#f59e0b"}
 	}
+	return [7]string{"#edf3fe", "#dbeafe", "#7aaaff", "#60a5fa", "#b7c8fe", "#4ed17e", "#f7ad31"}
+}
+
+func gradientConfiguration(p wallpapers.Preferences, width, height float64, dark, reduced bool) gradientConfig {
+	c := gradientConfig{
+		width:   width,
+		height:  height,
+		variant: wallpapers.NormalizeEffectVariant(p.Variant),
+		// CSS clampBackgroundEffectSpeed: zero is 20%, not a paused animation.
+		speed:   wallpapers.ClampEffectSpeed(p.Speed),
+		count:   int(wallpapers.ClampEffectCount(p.Count)),
+		dark:    dark,
+		reduced: reduced,
+	}
+	defaults := GradientDefaultColors(dark)
 	colors := p.Colors
 	if colors == [7]string{} && p.Preset != "" {
 		colors = wallpapers.PresetColors(p.Preset)
@@ -304,7 +303,9 @@ func (c gradientConfig) uiColor(i int) ui.Color {
 		}
 		return uint8(math.Round(v * 255))
 	}
-	return ui.RGB(clampByte(gc.r), clampByte(gc.g), clampByte(gc.b))
+	var col ui.Color
+	col.R, col.G, col.B, col.A = clampByte(gc.r), clampByte(gc.g), clampByte(gc.b), 255
+	return col
 }
 
 func (c gradientConfig) ambientBackdrop(elapsedSec float64) glass.AmbientBackdrop {

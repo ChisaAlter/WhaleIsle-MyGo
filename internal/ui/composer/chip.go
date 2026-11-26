@@ -7,6 +7,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // Permission shield icons and folder icon keep their bespoke SVG paths while
@@ -47,27 +48,6 @@ func applyShadows(e ui.Element, sc design.Shadows, col ui.Color, alpha float32) 
 	}
 }
 
-func applyPopoverMotion(c *ui.Context, e ui.Element, part string) {
-	if c.Preferences().ReduceMotion {
-		return
-	}
-	in, out := design.EnterOf(part), design.ExitOf(part)
-	if in == (design.Delta{}) && out == (design.Delta{}) {
-		return
-	}
-	tr := design.TransitionFor(part)
-	et := ui.ElementTransition{Duration: tr.Duration, Ease: design.EaseInOut}
-	if in != (design.Delta{}) {
-		m := in.Motion(0, 0)
-		et.Enter = &m
-	}
-	if out != (design.Delta{}) {
-		m := out.Motion(0, 0)
-		et.Exit = &m
-	}
-	e.Transition(et)
-}
-
 func composerCardFill(t *design.Tokens) ui.Color {
 	if t.Glass {
 		return t.Card
@@ -85,15 +65,6 @@ func composerCardBorder(t *design.Tokens, focused bool) ui.Color {
 	return t.Input
 }
 
-func applyGlassShadows(e ui.Element, dark bool, darkOuter, darkInner, lightOuter, lightInner float32) {
-	outer, inner := lightOuter, lightInner
-	if dark {
-		outer, inner = darkOuter, darkInner
-	}
-	e.Shadow(0, 10, 26, 0, design.TW.Black.Alpha(outer)).
-		Shadow(0, 2, 8, 0, design.TW.Black.Alpha(inner))
-}
-
 func paintGlassInnerRim(p *ui.Painter, r ui.Rect, radius float32, dark bool, darkAlpha, lightAlpha float32) {
 	inset := design.BorderWidth
 	inner := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
@@ -108,52 +79,23 @@ func paintGlassInnerRim(p *ui.Painter, r ui.Rect, radius float32, dark bool, dar
 }
 
 func composerCardElevation(e ui.Element, t *design.Tokens, focused, disabled bool) {
-	if disabled {
+	if disabled || !focused {
 		return
 	}
-	glassMode := t.Glass || chrome.BackdropActive()
-	if focused {
-		e.Shadow(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
-		if glassMode {
-			applyGlassShadows(e, t.IsDark(), 0.28, 0.14, 0.08, 0.04)
-		}
-		return
-	}
-	if glassMode {
-		applyGlassShadows(e, t.IsDark(), 0.28, 0.14, 0.08, 0.04)
-		return
-	}
-	applyShadows(e, design.ShadowXs, design.TW.Black, 0.05)
+	e.Shadow(0, 0, 0, design.InputRingWidth, t.Ring.Alpha(design.InputRingAlpha))
 }
 
 // menuPanelLook gives a popup the shared coss popover look: popover fill,
-// border, and shadow-lg/5 without an enter/position transition.
+// border, and lv3 shadow without an enter/position transition.
 func menuPanelLook(c *ui.Context, e ui.Element) ui.Element {
-	t := design.For(c)
-	e.Border(design.BorderWidth, t.Border).Radius(design.RadiusXL).TextColor(t.PopoverForeground)
-	if chrome.BackdropActive() {
-		chrome.GlassSurface(e, t.Popover, chrome.MaterialMenu, design.RadiusXL)
-	} else {
-		e.Background(t.Popover)
-	}
-	if t.Glass || chrome.BackdropActive() {
-		dark := t.IsDark()
-		e.DrawOver(func(p *ui.Painter, r ui.Rect) {
-			paintGlassInnerRim(p, r, design.RadiusXL, dark, 0.12, 0.65)
-		})
-		applyGlassShadows(e, dark, 0.32, 0.16, 0.10, 0.05)
-	} else {
-		applyShadows(e, design.ShadowLg, design.TW.Black, 0.05)
-	}
-	return e
+	return chrome.ApplyMenuSurface(e, design.For(c), theme.ContextRadii(c).MD)
 }
 
-// menuSurface gives a PopoverBase panel the shared coss popover look plus coss
-// popover enter/exit motion.
+// menuSurface gives a PopoverBase panel the shared coss popover look plus
+// popover enter motion without breaking glass backdrop sampling.
 func menuSurface(c *ui.Context, e ui.Element) ui.Element {
 	menuPanelLook(c, e)
-	applyPopoverMotion(c, e, "popover/popover-popup")
-	return e
+	return chrome.PopoverReveal(c, e)
 }
 
 // menuRow is one selectable row inside a popover menu: no frame of its own, a

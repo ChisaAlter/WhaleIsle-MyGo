@@ -134,6 +134,31 @@ func EaseInOut(t float32) float32 {
 	return 1 - u*u*u/2
 }
 
+// designEase is CSS cubic-bezier(0.4, 0, 0.2, 1) for standard UI motion.
+func designEase(t float32) float32 {
+	switch {
+	case !(t > 0):
+		return 0
+	case t >= 1:
+		return 1
+	}
+	axis := func(s, p1, p2 float32) float32 {
+		u := 1 - s
+		return 3*u*u*s*p1 + 3*u*s*s*p2 + s*s*s
+	}
+	lo, hi := float32(0), float32(1)
+	s := t
+	for range 20 {
+		s = (lo + hi) / 2
+		if axis(s, 0.4, 0.2) < t {
+			lo = s
+		} else {
+			hi = s
+		}
+	}
+	return max(float32(0), min(float32(1), axis(s, 0, 1)))
+}
+
 // Bounce returns an easing that goes along ease and comes back, in the
 // same time, as a pulse does.
 func Bounce(ease Easing) Easing {
@@ -308,7 +333,7 @@ func coreRadio[T comparable](c *context, selected *T, value T, label string) *no
 func coreSwitch(c *context, on *bool) *node {
 	t := c.theme
 	sw := coreSwitchBase(c, on).Size(t.Space(9), t.Space(5)).Radius(t.Space(2.5))
-	pos := sw.Animate("knob", b2f(*on), 140*time.Millisecond)
+	pos := sw.AnimateWith("knob", b2f(*on), 100*time.Millisecond, designEase)
 	off := t.Border.Mix(t.Text, 0.05)
 	sw.Background(off.Mix(t.Accent, pos))
 	sw.Draw(func(p *Painter, r Rect) {

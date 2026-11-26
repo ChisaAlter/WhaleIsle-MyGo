@@ -6,6 +6,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
+	"whaleisle/internal/ui/theme"
 )
 
 // ModalView keeps the workspace tree mounted. DialogBase owns input isolation,
@@ -33,14 +34,19 @@ func ModalView(c *ui.Context, m Model) {
 			backdrop.Padding(topInset, sideInset, bottomInset, sideInset)
 		}
 		mask := design.TW.Black
+		dlgRadius := theme.ContextRadii(c).Dialog
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
-		chrome.RevealMask(backdrop, mask.Alpha(0.32), progress)
+		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(0.32), progress)
 		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
 			Role(ui.RoleDialog).Label(i18n.T(i18n.KeySettingsTitle)).
-			Radius(design.RadiusXL2).Clip().Opacity(progress).
+			Radius(dlgRadius).Clip().
 			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
+		chrome.RevealDialogPanel(c, panel, progress)
 		if t.Glass || chrome.BackdropActive() {
-			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), design.RadiusXL2))
+			if t.Glass && !chrome.BackdropActive() {
+				panel.Material(chrome.MenuGlassMaterial())
+			}
+			panel.Draw(chrome.SettingsPanelGlass(t.Popover, t.Background, mask.Alpha(0.32*progress), dlgRadius))
 			rim := design.TW.White.Alpha(0.70)
 			if t.IsDark() {
 				rim = design.TW.White.Alpha(0.14)
@@ -49,16 +55,10 @@ func ModalView(c *ui.Context, m Model) {
 				inset := design.BorderWidth
 				inner := ui.Rect{X: r.X + inset, Y: r.Y + inset, W: r.W - 2*inset, H: r.H - 2*inset}
 				if inner.W > 0 && inner.H > 0 {
-					p.Stroke(inner, rim, max(0, design.RadiusXL2-inset), design.BorderWidth)
+					p.Stroke(inner, rim, max(0, dlgRadius-inset), design.BorderWidth)
 				}
 			})
-			if t.IsDark() {
-				panel.Shadow(0, 12, 32, 0, design.TW.Black.Alpha(0.36)).
-					Shadow(0, 3, 10, 0, design.TW.Black.Alpha(0.18))
-			} else {
-				panel.Shadow(0, 12, 32, 0, design.TW.Black.Alpha(0.12)).
-					Shadow(0, 3, 10, 0, design.TW.Black.Alpha(0.06))
-			}
+			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)
 			for i := len(design.ShadowLg) - 1; i >= 0; i-- {

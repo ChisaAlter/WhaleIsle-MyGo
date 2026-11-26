@@ -192,6 +192,7 @@ func (f *focusRingState) update(now time.Time, on bool) {
 }
 
 func (f *focusRingState) eval(now time.Time) float32 {
+	const ringDuration = 100 * time.Millisecond
 	to := b2f(f.target)
 	if f.start.IsZero() {
 		return to
@@ -200,10 +201,10 @@ func (f *focusRingState) eval(now time.Time) float32 {
 	if elapsed <= 0 {
 		return f.from
 	}
-	if elapsed >= design.DurationDefault {
+	if elapsed >= ringDuration {
 		return to
 	}
-	p := float32(elapsed) / float32(design.DurationDefault)
+	p := float32(elapsed) / float32(ringDuration)
 	eased := design.EaseInOut(p)
 	return f.from + (to-f.from)*eased
 }
@@ -212,7 +213,7 @@ func (f *focusRingState) animating(now time.Time) bool {
 	if f.start.IsZero() {
 		return false
 	}
-	return now.Sub(f.start) < design.DurationDefault
+	return now.Sub(f.start) < 100*time.Millisecond
 }
 
 func (d *deco) setRing(c *ui.Context, e ui.Element, t *design.Tokens, on bool, ringColor ui.Color) {

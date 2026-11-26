@@ -185,3 +185,90 @@ func TestBackgroundEffectPreviewAnimatesAndFreezes(t *testing.T) {
 		t.Fatal("BackgroundEffectPreview did not freeze after 10s idle")
 	}
 }
+
+func TestAmbientGradientZeroHzWhenWindowInactiveOrReduced(t *testing.T) {
+	prevGlass := renderpolicy.Glass()
+	prevMinimal := renderpolicy.Minimal()
+	renderpolicy.SetMinimal(false)
+	renderpolicy.SetGlass(true)
+	t.Cleanup(func() {
+		renderpolicy.SetGlass(prevGlass)
+		renderpolicy.SetMinimal(prevMinimal)
+		resetBackdropPowerForTest()
+		ConfigureBackdrop("", wallpapers.Defaults())
+	})
+
+	light := GradientDefaultColors(false)
+	dark := GradientDefaultColors(true)
+	if light == dark || light[0] != "#edf3fe" || dark[0] != "#283142" {
+		t.Fatalf("unexpected theme default palettes: light=%+v dark=%+v", light, dark)
+	}
+
+	resetBackdropPowerForTest()
+	active := true
+	setBackdropWindowActiveHook(func() bool { return active })
+
+	prefs := wallpapers.Defaults()
+	prefs.Effect = "gradient"
+	prefs.EffectExplicit = true
+	prefs.Preset = "ocean"
+	prefs.Variant = "chaos"
+	prefs.Speed = 220
+	prefs.Count = 5
+
+	now := time.Unix(8000, 0)
+	NoteBackdropActivity(now)
+	reduced := false
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		ui.Box(c).Fill().Draw(WallpaperBackgroundPainter("", prefs, reduced))
+	}, 160, 120)
+	tt.SetTime(now)
+	t1 := now.Add(time.Second)
+	NoteBackdropActivity(t1)
+	tt.SetTime(t1)
+	pixActive := bytes.Clone(tt.Image().Pix)
+
+	// Window hidden / minimized / unfocused: freezes cleanly at 0 Hz.
+	active = false
+	t2 := t1.Add(2 * time.Second)
+	NoteBackdropActivity(t2)
+	tt.SetTime(t2)
+	pixInactive := bytes.Clone(tt.Image().Pix)
+	if !bytes.Equal(pixActive, pixInactive) {
+		t.Fatal("ambient gradient jumped phase when window became inactive")
+	}
+	t3 := t2.Add(2 * time.Second)
+	NoteBackdropActivity(t3)
+	tt.SetTime(t3)
+	if !bytes.Equal(pixInactive, tt.Image().Pix) {
+		t.Fatal("ambient gradient kept advancing while window was inactive")
+	}
+
+	// Resuming active window does not jump forward over the frozen gap on its
+	// first frame, then advances smoothly from the frozen phase on subsequent frames.
+	active = true
+	t4 := t3.Add(2 * time.Second)
+	NoteBackdropActivity(t4)
+	tt.SetTime(t4)
+	if !bytes.Equal(pixInactive, tt.Image().Pix) {
+		t.Fatal("ambient gradient jumped across frozen interval on resume")
+	}
+	t5 := t4.Add(2 * time.Second)
+	NoteBackdropActivity(t5)
+	tt.SetTime(t5)
+	if bytes.Equal(pixInactive, tt.Image().Pix) {
+		t.Fatal("ambient gradient failed to resume after window became active")
+	}
+
+	// Reduced motion locks to static phase regardless of time progression.
+	reduced = true
+	tt.Frame()
+	pixReduced := bytes.Clone(tt.Image().Pix)
+	t6 := t5.Add(5 * time.Second)
+	NoteBackdropActivity(t6)
+	tt.SetTime(t6)
+	if !bytes.Equal(pixReduced, tt.Image().Pix) {
+		t.Fatal("ambient gradient animated under prefers-reduced-motion")
+	}
+}

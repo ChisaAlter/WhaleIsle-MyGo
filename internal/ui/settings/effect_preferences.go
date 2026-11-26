@@ -439,7 +439,7 @@ func bodyEffectPreference(c *ui.Context, a *BodySettingsAccess, typing bool, fg,
 						*open = false
 					}
 				})
-				ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(0, design.Sp(6), design.Sp(6), design.Sp(6)).Gap(design.Sp(3)).Children(func() {
+				ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).MinWidth(0).Padding(design.Sp(2), design.Sp(6), design.Sp(6), design.Sp(6)).Gap(design.Sp(3)).Children(func() {
 					previewStyle, previewErr := normalizeEffect(draft.Style, typing)
 					if previewErr != nil {
 						previewStyle = effectDefaults(typing)

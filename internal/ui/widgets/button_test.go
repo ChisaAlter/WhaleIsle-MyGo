@@ -1,7 +1,9 @@
 package widgets
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -139,5 +141,78 @@ func TestButtonRadiusFollowsFamily(t *testing.T) {
 	p.Light, p.Dark = "codex", "codex"
 	if got := radiusAt(p); got != 8 {
 		t.Fatalf("official-family button radius %v, want 8", got)
+	}
+}
+
+func TestButtonPressDisplacementAndBusyFeedbackMarquee(t *testing.T) {
+	colors := theme.Resolve(theme.IDDeepseekLight).Light
+	busy := false
+	feedback := ""
+	start := time.Unix(1000, 0)
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Row(c).Fill().Padding(8).AlignItems(ui.Start).Children(func() {
+			Button(c, colors, "Save", ButtonSpec{
+				Variant:  ButtonPrimary,
+				Busy:     busy,
+				Feedback: feedback,
+			})
+		})
+	}, 240, 80)
+	tt.SetTime(start)
+	rest, ok := tt.Find("Save")
+	if !ok {
+		t.Fatal("resting button missing")
+	}
+
+	// Press applies 100ms displacement feedback.
+	tt.Press(rest.X+rest.W/2, rest.Y+rest.H/2)
+	tt.SetTime(start.Add(100 * time.Millisecond))
+	pressedRect, _ := tt.Find("Save")
+	if pressedRect.Y <= rest.Y {
+		t.Fatalf("pressed button did not displace downward: rest=%+v pressed=%+v", rest, pressedRect)
+	}
+	tt.Release(rest.X+rest.W/2, rest.Y+rest.H/2)
+	tt.SetTime(start.Add(220 * time.Millisecond))
+	releasedRect, _ := tt.Find("Save")
+	if math.Abs(float64(releasedRect.Y-rest.Y)) > 0.1 {
+		t.Fatalf("released button did not return to rest Y: rest=%+v released=%+v", rest, releasedRect)
+	}
+
+	// Long busy feedback keeps the button width constant and scrolls horizontally (>=3.6s period).
+	busy = true
+	feedback = "Syncing now..."
+	tt.SetTime(start.Add(300 * time.Millisecond))
+	busyRect, _ := tt.Find("Save")
+	if math.Abs(float64(busyRect.W-rest.W)) > 0.5 {
+		t.Fatalf("busy overflow resized button width: rest=%v busy=%v", rest.W, busyRect.W)
+	}
+	if _, ok := tt.Find(feedback); !ok {
+		t.Fatal("feedback marquee text missing")
+	}
+	imgStart := tt.Image()
+	snapPixels := func() []uint8 {
+		img := imgStart
+		out := make([]uint8, 0, int(busyRect.W)*int(busyRect.H)*4)
+		for y := int(busyRect.Y); y < int(busyRect.Y+busyRect.H); y++ {
+			for x := int(busyRect.X); x < int(busyRect.X+busyRect.W); x++ {
+				px := at(img, x, y)
+				out = append(out, px.R, px.G, px.B, px.A)
+			}
+		}
+		return out
+	}
+	beforePx := snapPixels()
+	// Advance to ~45% of period (~2.5s) where overflow has translated left inside clip box.
+	tt.SetTime(start.Add(300*time.Millisecond + 2500*time.Millisecond))
+	imgStart = tt.Image()
+	afterPx := snapPixels()
+	diffs := 0
+	for i := range beforePx {
+		if beforePx[i] != afterPx[i] {
+			diffs++
+		}
+	}
+	if diffs == 0 {
+		t.Fatalf("overflow marquee pixels did not translate inside button rect %+v", busyRect)
 	}
 }

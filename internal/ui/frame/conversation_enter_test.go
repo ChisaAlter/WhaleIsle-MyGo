@@ -20,27 +20,22 @@ func enteringFixture(now time.Time) conversationEnterState {
 	return s
 }
 
-func TestConversationEnterPinsActualCardAndStartsAfterQuiet(t *testing.T) {
+func TestConversationEnterStartsImmediatelyAndPinsDrift(t *testing.T) {
 	now := time.Unix(1000, 0)
 	s := enteringFixture(now)
-	if got := s.offset(now); got != -300 || !s.holding || s.running {
-		t.Fatalf("first active card was not held at the Hero card top: %v %+v", got, s)
+	// Leaving Hero starts the 300ms glide immediately on the first active frame (zero timer hold).
+	if got := s.offset(now); got != -300 || !s.running || s.pending || s.startedAt != now {
+		t.Fatalf("first active card did not start immediately from Hero top: %v %+v", got, s)
 	}
-	// Layout drift is pinned even when no structural change rearms the hold.
-	if offset := s.measure(now.Add(30*time.Millisecond), enterRect(540), enterRect(500), ui.Rect{W: 800, H: 700}); offset != -320 || s.quietAt != now {
-		t.Fatal("pin did not compensate drift or incorrectly postponed quiet", offset, s.quietAt)
+	// Layout drift adjusts the remaining origin without resetting startedAt.
+	if offset := s.measure(now.Add(30*time.Millisecond), enterRect(540), enterRect(500), ui.Rect{W: 800, H: 700}); offset >= 0 || s.startedAt != now {
+		t.Fatal("drift compensation reset startedAt or lost offset", offset, s.startedAt)
 	}
-	if s.offset(now.Add(79*time.Millisecond)) != -320 || !s.holding {
-		t.Fatal("hold ended before 80ms of quiet")
-	}
-	if s.offset(now.Add(80*time.Millisecond)) != -320 || !s.running || s.holding {
-		t.Fatal("glide did not begin at the quiet boundary")
-	}
-	middle := s.offset(now.Add(230 * time.Millisecond))
+	middle := s.offset(now.Add(150 * time.Millisecond))
 	if math.Abs(float64(middle-(-320*(1-.77556)))) > .02 {
 		t.Fatal("glide did not use the pinned CSS ease-in-out", middle)
 	}
-	if s.offset(now.Add(380*time.Millisecond)) != 0 || s.running || s.holding || s.pending {
+	if s.offset(now.Add(300*time.Millisecond)) != 0 || s.running || s.pending {
 		t.Fatal("animation end retained offset/play state", s)
 	}
 	// A later active repaint cannot create another first-send animation.
@@ -50,59 +45,27 @@ func TestConversationEnterPinsActualCardAndStartsAfterQuiet(t *testing.T) {
 	}
 }
 
-func TestConversationEnterChurnRearmsQuietButNeverItsCap(t *testing.T) {
+func TestConversationEnterSwapOpacity100msAndReducedMotion(t *testing.T) {
 	now := time.Unix(1000, 0)
-	s := enteringFixture(now)
-	for _, elapsed := range []time.Duration{70, 140, 210, 280, 350, 420} {
-		at := now.Add(elapsed * time.Millisecond)
-		s.signal(at) // Structural, attribute or actual scroll signal.
-		if s.offset(at) != -300 || !s.holding {
-			t.Fatal("churn released the card before quiet or cap", elapsed)
-		}
+	var s conversationEnterState
+	s.begin(now, "host:session", true, false, "hero", false)
+	s.measure(now, enterRect(220), enterRect(180), ui.Rect{W: 800, H: 700})
+	s.begin(now, "host:session", false, true, "active", false)
+	if !s.swapping || s.swapOpacity(now, false) != 0 {
+		t.Fatalf("expected 0 swap alpha at commit leaving hero: %+v", s)
 	}
-	if s.heldAt != now || s.quietAt != now.Add(420*time.Millisecond) {
-		t.Fatal("rearm moved the hard cap or lost the last signal")
+	mid := s.swapOpacity(now.Add(50*time.Millisecond), false)
+	if mid <= 0.5 || mid >= 1 {
+		t.Fatalf("mid swap alpha = %v, want DesignEase(0.5) in (0.5, 1)", mid)
 	}
-	s.offset(now.Add(450 * time.Millisecond))
-	if !s.running || s.holding || s.startedAt != now.Add(450*time.Millisecond) {
-		t.Fatal("continuous structural churn exceeded the 450ms hold cap")
+	if end := s.swapOpacity(now.Add(100*time.Millisecond), false); end != 1 || s.swapping {
+		t.Fatalf("swap alpha at 100ms = %v, swapping=%v, want 1/false", end, s.swapping)
 	}
-	s.signal(now.Add(460 * time.Millisecond))
-	if s.holding || s.startedAt != now.Add(450*time.Millisecond) {
-		t.Fatal("a detached observer restarted a running animation")
-	}
-	if s.offset(now.Add(750*time.Millisecond)) != 0 || s.running {
-		t.Fatal("capped hold did not reach its finite end")
-	}
-}
-
-func TestConversationEnterResizeAndScrollRearmWithoutTextEdits(t *testing.T) {
-	now := time.Unix(1000, 0)
-	s := enteringFixture(now)
-	stack, viewport := enterRect(480), ui.Rect{W: 800, H: 700}
-	stack.H++
-	s.measure(now.Add(60*time.Millisecond), enterRect(520), stack, viewport)
-	if s.quietAt != now.Add(60*time.Millisecond) {
-		t.Fatal("stack resize did not rearm quiet")
-	}
-	viewport.W++
-	s.measure(now.Add(100*time.Millisecond), enterRect(520), stack, viewport)
-	if s.quietAt != now.Add(100*time.Millisecond) {
-		t.Fatal("scrollport resize did not rearm quiet")
-	}
-	scroll := conversationEnterScroll{}
-	scroll.scroll.Y = 4
-	scroll.signal(&s, now.Add(140*time.Millisecond))
-	if s.quietAt != now.Add(140*time.Millisecond) {
-		t.Fatal("actual scroll offset did not rearm quiet")
-	}
-	scroll.signal(&s, now.Add(160*time.Millisecond))
-	if s.quietAt != now.Add(140*time.Millisecond) {
-		t.Fatal("unchanged scroll state continuously postponed quiet")
-	}
-	s.offset(now.Add(220 * time.Millisecond))
-	if !s.running {
-		t.Fatal("quiet after resize/scroll did not start the glide")
+	// Reduced motion skips swap fade immediately.
+	s.begin(now, "host:session", true, false, "hero", false)
+	s.begin(now, "host:session", false, true, "active", true)
+	if s.swapOpacity(now, true) != 1 || s.swapping {
+		t.Fatalf("reduced motion did not skip swap fade: %+v", s)
 	}
 }
 
@@ -123,7 +86,7 @@ func TestConversationEnterRequiresSameSessionHeroAndAttempt(t *testing.T) {
 			s.begin(now, "host:session", tc.previousHero, false, "before", false)
 			s.measure(now, enterRect(220), enterRect(180), ui.Rect{W: 800, H: 700})
 			s.begin(now, tc.session, false, tc.attempted, "after", tc.reduced)
-			if s.measure(now, enterRect(520), enterRect(480), ui.Rect{W: 800, H: 700}) != 0 || s.pending || s.holding || s.running {
+			if s.measure(now, enterRect(520), enterRect(480), ui.Rect{W: 800, H: 700}) != 0 || s.pending || s.running {
 				t.Fatal("unrelated/reduced-motion navigation animated", s)
 			}
 		})
@@ -141,7 +104,7 @@ func TestConversationEnterRequiresSameSessionHeroAndAttempt(t *testing.T) {
 			case "reduced":
 				s.begin(now, "host:session", false, true, "active", true)
 			}
-			if s.offset(now) != 0 || s.pending || s.holding || s.running || !s.startedAt.IsZero() {
+			if s.offset(now) != 0 || s.pending || s.running || !s.startedAt.IsZero() {
 				t.Fatal("retired animation retained offset/timeline", s)
 			}
 		})
@@ -166,24 +129,9 @@ func TestConversationEnterHeroMeasurementAndStructureSignal(t *testing.T) {
 	if next := conversationEnterStructure(Model{}, after, conversationActive, false); next != key {
 		t.Fatal("character-data edits became structural churn")
 	}
-	s.begin(now.Add(50*time.Millisecond), "host:session", false, true, key, false)
-	quiet := s.quietAt
-	s.begin(now.Add(100*time.Millisecond), "host:session", false, true, key, false)
-	if s.quietAt != quiet {
-		t.Fatal("text-only frames postponed quiet")
-	}
-	after.Messages = append(after.Messages, session.Message{ID: "new-row", Role: "assistant", Kind: session.MessageKindText})
-	next := conversationEnterStructure(Model{}, after, conversationActive, false)
-	if key == next {
-		t.Fatal("a new row did not change the structural signal")
-	}
-	s.begin(now.Add(120*time.Millisecond), "host:session", false, true, next, false)
-	if s.quietAt != now.Add(120*time.Millisecond) {
-		t.Fatal("new structure did not rearm quiet")
-	}
 }
 
-func TestConversationEnterUnmountDoesNotResumeAnOldHold(t *testing.T) {
+func TestConversationEnterUnmountDoesNotResumeAnOldRun(t *testing.T) {
 	mounted, hero := true, true
 	var state *conversationEnterState
 	armed := false
@@ -197,7 +145,7 @@ func TestConversationEnterUnmountDoesNotResumeAnOldHold(t *testing.T) {
 		var card ui.Rect
 		owner.OffsetAfterLayout(func(r ui.Rect) ui.Point {
 			offset := state.measure(c.Now(), card, r, r)
-			armed = armed || state.holding || state.running
+			armed = armed || state.running
 			return ui.Point{Y: offset}
 		}).Children(func() {
 			ui.Box(c).Height(30).ObserveLayout(func(r ui.Rect) { card = r })
@@ -206,14 +154,14 @@ func TestConversationEnterUnmountDoesNotResumeAnOldHold(t *testing.T) {
 	hero = false
 	tt.Frame()
 	if !armed {
-		t.Fatal("fixture never armed its same-session first-send hold")
+		t.Fatal("fixture never armed its same-session immediate first-send glide")
 	}
 	retired := state
 	mounted = false
 	tt.Frame()
 	mounted = true
 	tt.Frame()
-	if state == retired || state.pending || state.holding || state.running || state.currentOffset != 0 {
+	if state == retired || state.pending || state.running || state.currentOffset != 0 {
 		t.Fatal("remount resumed state belonging to the disposed conversation owner")
 	}
 }

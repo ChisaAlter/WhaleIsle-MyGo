@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // SelectOption is one choice of a Select or Combobox.
@@ -90,7 +91,13 @@ func Select(c *ui.Context, selected *string, options []SelectOption, o SelectOpt
 		if placeholder {
 			col = t.MutedForeground.Alpha(design.OpacityPlaceholder)
 		}
-		text(c, current, design.TextSM, design.WeightNormal, col).Grow(1).Shrink(1).MinWidth(0)
+		FlipText(c, current, FlipTextOptions{
+			Key:        "coss-select-trigger",
+			Color:      col,
+			FontSize:   design.TextSM.Size,
+			LineHeight: design.TextSM.LineHeight,
+			FontWeight: design.WeightNormal,
+		}).Grow(1).Shrink(1).MinWidth(0)
 		// The trigger is at least 144 DIPs wide by default. The spacer
 		// carries that floor as intrinsic width, so a caller's explicit
 		// Width — or a narrower row — still wins: ClipX drops its shrink
@@ -100,7 +107,8 @@ func Select(c *ui.Context, selected *string, options []SelectOption, o SelectOpt
 	})
 	parts.Popup(func(panel ui.Element) {
 		panel.Margin(4, 0, 0, 0)
-		panelLook(panel, t, design.RadiusLG, design.ShadowLg)
+		panel = selectPopoverReveal(c, t, panel)
+		panelLook(panel, t, theme.ContextRadii(c).MD, design.ShadowLg)
 		panel.Children(func() {
 			ui.Column(c).Padding(design.Sp(1)).FillWidth().Children(func() {
 				for i, op := range options {
@@ -263,8 +271,8 @@ func combo(c *ui.Context, selected *string, options []SelectOption, o ComboboxOp
 		filtering := cb.Filtering()
 		cb.Popup(func(panel ui.Element) {
 			panel.Margin(4, 0, 0, 0)
-			panelLook(panel, t, design.RadiusLG, design.ShadowLg)
-			motion(panel, "combobox/ComboboxPopup", 0, 0)
+			panel = selectPopoverReveal(c, t, panel)
+			panelLook(panel, t, theme.ContextRadii(c).MD, design.ShadowLg)
 			panel.Children(func() {
 				ui.Column(c).Padding(design.Sp(1)).FillWidth().Children(func() {
 					shown := 0

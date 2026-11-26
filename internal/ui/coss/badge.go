@@ -169,7 +169,7 @@ func Separator(c *ui.Context, o Orientation) ui.Element {
 }
 
 // Skeleton is coss's Skeleton: a muted placeholder with a light sweep
-// (animate-skeleton, 2 s linear, the gradient fixed to the window). Size it
+// (animate-skeleton, 2.6 s linear, the gradient fixed to the window). Size it
 // with Width/Height.
 func Skeleton(c *ui.Context) ui.Element {
 	t := tok(c)
@@ -180,7 +180,7 @@ func Skeleton(c *ui.Context) ui.Element {
 	e := ui.Box(c).Radius(design.RadiusSM).Background(t.Muted)
 	phase := float32(0.5)
 	if forced == 0 && !c.Preferences().ReduceMotion {
-		// -1 s delay: the sweep starts halfway.
+		// -0.5 cycle delay: the sweep starts halfway.
 		phase = e.Loop("coss.skeleton", design.DurationSkeleton, design.EaseLinear) + 0.5
 	}
 	ww, _ := c.Size()
