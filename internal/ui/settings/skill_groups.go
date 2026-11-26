@@ -91,7 +91,7 @@ func skillGroupPicker(c *ui.Context, key string, groups *[]string, skills []Skil
 	})
 	ui.PopoverBase(c.Key("group-menu"), input, open, func(panel ui.Element) {
 		width, height := c.Size()
-		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(min(input.Bounds().W, max(0, width-24))).Padding(4).Gap(2).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, 16))
+		panel = chrome.PopoverReveal(c, chrome.MenuSurface(panel.Width(min(input.Bounds().W, max(0, width-24))).Padding(4).Gap(2).Role(ui.RoleMenu), c.Theme().Surface, c.Theme().Border, fonttheme.ContextRadii(c).MD))
 		panel.Children(func() {
 			ui.Scroll(c).FillWidth().MaxHeight(min(280, max(0, height-120))).MinHeight(0).Children(func() {
 				known := []string{}

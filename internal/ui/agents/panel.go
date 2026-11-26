@@ -83,7 +83,11 @@ func View(c *ui.Context, m Model) {
 		}
 	}
 
-	chrome.FrostSurface(ui.Column(c).Fill().MinHeight(0), colors, m.SystemDark, field, 0).Children(func() {
+	paneBg := field
+	if design.For(c).Glass || chrome.BackdropActive() {
+		paneBg = ui.Transparent
+	}
+	ui.Column(c).Fill().MinHeight(0).Background(paneBg).Children(func() {
 		ui.Row(c).FillWidth().MinHeight(36).Padding(8, 12, 8, 12).AlignItems(ui.Center).Gap(8).Children(func() {
 			ui.Text(c, i18n.T(i18n.KeyAgentsTitle)).FontSize(theme.InterfaceSize(13)).FontWeight(600).TextColor(fg).Grow(1)
 			runningN := 0

@@ -79,8 +79,12 @@ func applyDialogGlassSurface(c *ui.Context, panel ui.Element, bg, border ui.Colo
 	glassActive := backgroundState.active || t.Glass
 	if backgroundState.active {
 		fillBase := MenuBaseFill(theme.Colors{}, dark)
+		material := MaterialPanel
+		if effectivePrefs(backgroundState.prefs).Transparent {
+			material = MaterialMenu
+		}
 		panel.Background(ui.Transparent).Material(menuPanelGlass{}).Draw(func(p *ui.Painter, r ui.Rect) {
-			drawGlass(p, r, fillBase, MaterialMenu, radius, false)
+			drawGlass(p, r, fillBase, material, radius, false)
 		})
 		modalElevationFor(panel, dark)
 	} else if t.Glass {

@@ -182,7 +182,7 @@ func menuButtonTester(build func(m *Menu)) (*Tester, func() Rect) {
 
 // TestMenuOverlayGeometry checks a button's menu against the product's: 4
 // below the button, from its left, 144 wide for short labels, padded by 4
-// and rounded by 16, with a hairline over two soft shadows, of rows 34
+// and rounded by 12, with a hairline over two soft shadows, of rows 34
 // high rounded by 12.
 func TestMenuOverlayGeometry(t *testing.T) {
 	tt, button := menuButtonTester(func(m *Menu) {
@@ -201,7 +201,7 @@ func TestMenuOverlayGeometry(t *testing.T) {
 	if !near(r.X, b.X) || !near(r.Y, b.Y+b.H+menuGap) || !menuNear(r.W, menuMinWidth) {
 		t.Errorf("the menu at %v, under the button at %v: want it 4 below, from its left, 144 wide", r, b)
 	}
-	if panel.radius != [4]float32{16, 16, 16, 16} || panel.pad != [4]float32{4, 4, 4, 4} {
+	if panel.radius != [4]float32{12, 12, 12, 12} || panel.pad != [4]float32{4, 4, 4, 4} {
 		t.Errorf("the panel is rounded by %v and padded by %v", panel.radius, panel.pad)
 	}
 	// At scale 1 the hairline is a pixel at half the border's alpha.
@@ -519,7 +519,7 @@ func TestSelectPopupLooksLikeAMenu(t *testing.T) {
 	if !near(r.X, b.X) || !near(r.Y, b.Y+b.H+menuGap) || r.W < menuMinWidth-0.01 {
 		t.Errorf("the popup at %v, under the select at %v: want it 4 below, from its left, at least 144 wide", r, b)
 	}
-	if panel.radius != [4]float32{16, 16, 16, 16} || panel.pad != [4]float32{4, 4, 4, 4} {
+	if panel.radius != [4]float32{12, 12, 12, 12} || panel.pad != [4]float32{4, 4, 4, 4} {
 		t.Errorf("the popup is rounded by %v and padded by %v", panel.radius, panel.pad)
 	}
 	n := 0

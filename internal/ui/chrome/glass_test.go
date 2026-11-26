@@ -83,10 +83,7 @@ func TestMaterialAlphaTransparentAndMasks(t *testing.T) {
 	}
 	for _, dark := range []bool{false, true} {
 		p.Glass = 95
-		want := float32(menuSolidityLight)
-		if dark {
-			want = menuSolidityDark
-		}
+		want := MenuSolidity(p, dark)
 		if alpha := MaterialAlpha(MaterialMenu, p, dark); alpha != want {
 			t.Fatalf("menu alpha dark=%v = %v, want %v", dark, alpha, want)
 		}
@@ -466,7 +463,8 @@ func TestMenuSurfaceSharesTheWallpaper(t *testing.T) {
 	}, 50, 24)
 	tt.Frame()
 	under := float64(wall) * (1 - maskDark)
-	want := float64(base.R)*menuSolidityDark + under*(1-menuSolidityDark)
+	solidity := float64(MenuSolidity(prefs, true))
+	want := float64(base.R)*solidity + under*(1-solidity)
 	if got := float64(tt.Image().RGBAAt(25, 12).R); math.Abs(got-want) > 4 {
 		t.Fatalf("menu over the wallpaper = %.0f, want about %.0f", got, want)
 	}
@@ -509,7 +507,8 @@ func TestFrostSurfaceSharesTheWallpaper(t *testing.T) {
 	}, 50, 24)
 	tt.Frame()
 	under := float64(wall) * (1 - maskDark)
-	want := float64(MenuBaseFill(colors, true).R)*menuSolidityDark + under*(1-menuSolidityDark)
+	solidity := float64(MenuSolidity(prefs, true))
+	want := float64(MenuBaseFill(colors, true).R)*solidity + under*(1-solidity)
 	if got := float64(tt.Image().RGBAAt(25, 12).R); math.Abs(got-want) > 4 {
 		t.Fatalf("frost surface over the wallpaper = %.0f, want about %.0f", got, want)
 	}

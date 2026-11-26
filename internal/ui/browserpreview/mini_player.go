@@ -134,7 +134,8 @@ func (b *Controller) paintMiniPlayerOverlay(c *ui.Context, p *browserMiniPlayer,
 		dark := c.Theme().Dark
 		colors := theme.ResolveWithSystem(theme.IDSystem, dark).Active(dark)
 		panelRadius := theme.ContextRadii(c).Panel
-		panel := chrome.MenuSurface(
+		seatRadius := max(float32(0), panelRadius-miniPlayerSeatInset)
+		panel := chrome.FloatingCardSurface(
 			ui.Column(c).Key(p).Absolute().Left(float32(p.bounds.X)).Top(float32(p.bounds.Y)).Width(float32(r.Width)).Height(float32(r.Height)).Clip(),
 			chrome.MenuBaseFill(colors, dark),
 			chrome.MenuBorderColor(colors, dark),
@@ -169,6 +170,9 @@ func (b *Controller) paintMiniPlayerOverlay(c *ui.Context, p *browserMiniPlayer,
 				if coss.Button(c, "×", coss.ButtonOptions{Variant: coss.ButtonGhost, Size: coss.ButtonIconSM}).Label(browserPreviewText("miniClose")).Clicked() {
 					b.CloseMiniPlayer()
 				}
+			})
+			ui.Box(c).Grow(1).FillWidth().MinHeight(0).Padding(0, miniPlayerSeatInset, miniPlayerSeatInset, miniPlayerSeatInset).Children(func() {
+				ui.Box(c).Fill().Radius(seatRadius).Clip()
 			})
 			for _, side := range []string{"n", "e", "s", "w", "ne", "nw", "se", "sw"} {
 				x, y, w, h := 0, 0, r.Width, 5

@@ -49,7 +49,7 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	paneBg := bg
-	if chrome.BackdropActive() {
+	if design.For(c).Glass || chrome.BackdropActive() {
 		paneBg = ui.Transparent
 	}
 	ui.Column(c).Grow(1).MinHeight(0).Background(paneBg).Children(func() {
@@ -124,7 +124,7 @@ func View(c *ui.Context, m Model) {
 		}
 
 		if m.HostActive {
-			if chrome.BackdropActive() {
+			if design.For(c).Glass || chrome.BackdropActive() {
 				ui.Box(c).Fill().MinHeight(0).Background(ui.Transparent)
 			} else {
 				ui.Box(c).Fill().MinHeight(0).Background(field)

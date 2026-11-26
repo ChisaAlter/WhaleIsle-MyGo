@@ -100,10 +100,7 @@ func MaterialAlpha(m Material, p wallpapers.Preferences, dark bool) float32 {
 	case MaterialTerminal:
 		return float32(clampPercent(p.Terminal) / 100)
 	case MaterialMenu:
-		if dark {
-			return menuSolidityDark
-		}
-		return menuSolidityLight
+		return MenuSolidity(p, dark)
 	}
 	if p.Transparent {
 		return 0
@@ -416,8 +413,19 @@ func drawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
 // MenuSurface dresses e as the shared menu panel: the menu material, which
 // blurs what was rendered under the menu (backdrop-filter: blur(40px)
 // saturate(150%)) and keeps its own fill instead of following the glass
-// slider, the hairline border, inner specular rim and the elevation shadow.
+// slider, the hairline border, inner specular rim and the lv3 elevation shadow.
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
+	return overlayGlassSurface(e, base, border, false, radius...)
+}
+
+// FloatingCardSurface dresses e as an in-app floating preview/panel card:
+// shared 40px menu glass blur, specular rim, hairline border, and lv2
+// floating-card elevation shadow.
+func FloatingCardSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
+	return overlayGlassSurface(e, base, border, true, radius...)
+}
+
+func overlayGlassSurface(e ui.Element, base, border ui.Color, floatingCard bool, radius ...float32) ui.Element {
 	round := firstRadius(radius)
 	glassActive := backgroundState.active || design.GlassEnabled()
 	if backgroundState.active {
@@ -435,7 +443,12 @@ func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Elem
 		e = GlassSurface(e.Radius(round), base, MaterialMenu, round)
 	}
 	e = e.Border(0.5, border)
-	return MenuElevation(e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+	if floatingCard {
+		e = FloatingCardElevation(e, backgroundState.dark)
+	} else {
+		e = MenuElevation(e)
+	}
+	return e.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
@@ -445,13 +458,23 @@ func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Elem
 		if border.A != 0 {
 			p.Stroke(r, border, round, 0.5)
 		}
-	}))
+	})
 }
 
 // ApplyMenuSurface dresses a token-styled menu/popover panel with the unified
 // 40px menu glass blur, specular rim, hairline border, and adaptive lv3 shadow
 // when glass or a live backdrop is active, falling back to solid coss tokens.
 func ApplyMenuSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
+	return applyTokenGlassSurface(e, t, radius, false)
+}
+
+// ApplyFloatingCardSurface dresses a token-styled floating card with the 40px
+// glass blur, specular rim, hairline border, and adaptive lv2 shadow.
+func ApplyFloatingCardSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element {
+	return applyTokenGlassSurface(e, t, radius, true)
+}
+
+func applyTokenGlassSurface(e ui.Element, t *design.Tokens, radius float32, floatingCard bool) ui.Element {
 	e.Border(design.BorderWidth, t.Border).Radius(radius).TextColor(t.PopoverForeground)
 	if t.Glass || backgroundState.active {
 		dark := t.IsDark()
@@ -460,7 +483,11 @@ func ApplyMenuSurface(e ui.Element, t *design.Tokens, radius float32) ui.Element
 			fill = MaterialFill(t.Popover, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
 		}
 		e.Material(blurFillMaterial{blur: menuBlur, tint: fill})
-		menuElevationFor(e, dark)
+		if floatingCard {
+			FloatingCardElevation(e, dark)
+		} else {
+			menuElevationFor(e, dark)
+		}
 		e.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			if r.W <= 0 || r.H <= 0 {
 				return
@@ -560,6 +587,21 @@ func modalElevationFor(e ui.Element, dark bool) ui.Element {
 	}
 	return e.Shadow(0, 18, 40, -4, ui.RGBA(0, 0, 0, .10)).
 		Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, .05))
+}
+
+// ModalElevation applies the shared lv3 modal elevation shadow to e.
+func ModalElevation(e ui.Element, dark bool) ui.Element {
+	return modalElevationFor(e, dark)
+}
+
+// FloatingCardElevation applies the shared lv2 floating-card elevation shadow to e.
+func FloatingCardElevation(e ui.Element, dark bool) ui.Element {
+	if dark {
+		return e.Shadow(0, 8, 20, -2, ui.RGBA(0, 0, 0, .22)).
+			Shadow(0, 2, 6, 0, ui.RGBA(0, 0, 0, .12))
+	}
+	return e.Shadow(0, 6, 16, -2, ui.RGBA(0, 0, 0, .07)).
+		Shadow(0, 1, 4, 0, ui.RGBA(0, 0, 0, .04))
 }
 
 // MenuElevation gives a floating menu or card its drop shadow, matching the

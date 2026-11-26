@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"testing"
 	desktop "whaleisle/internal/desktop/webview"
+	"whaleisle/internal/ui/design"
 )
 
 func TestMiniPlayerGeometryOriginalBounds(t *testing.T) {
@@ -76,5 +77,21 @@ func TestMiniPlayerChrome48pxAndSeatInsets(t *testing.T) {
 	}
 	if _, ok := tt.Find(browserPreviewText("miniClose")); !ok {
 		t.Fatalf("mini player close action missing: %v", tt.Texts())
+	}
+}
+
+func TestBrowserPanelTransparentUnderPureDesignGlass(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, func(_ design.Scheme, _ *design.Palette) {})
+
+	var urlDraft string
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(15, 95, 195)).Children(func() {
+			View(c, Model{URLDraft: &urlDraft, HostActive: true})
+		})
+	}, 400, 300)
+	tt.Frame()
+	if got := tt.Image().RGBAAt(200, 220); got.R != 15 || got.G != 95 || got.B != 195 {
+		t.Fatalf("browser panel under pure design.Glass leaked opaque fill: %+v", got)
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"whaleisle/internal/store/session"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/filelink"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
@@ -225,7 +226,7 @@ func View(c *ui.Context, m Model) {
 
 	root := strings.TrimSpace(m.WorkspaceRoot)
 	paneBg := field
-	if chrome.BackdropActive() {
+	if design.For(c).Glass || chrome.BackdropActive() {
 		paneBg = ui.Transparent
 	}
 	ui.Column(c).Fill().MinWidth(0).Background(paneBg).Children(func() {
@@ -512,7 +513,7 @@ func rowFile(c *ui.Context, m Model, rel, name string, depth int, fg, muted, acc
 func previewPane(c *ui.Context, m Model, fg, muted, border, field ui.Color) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	paneBg := field
-	if chrome.BackdropActive() {
+	if design.For(c).Glass || chrome.BackdropActive() {
 		paneBg = ui.Transparent
 	}
 	ui.Column(c).Fill().MinHeight(0).Background(paneBg).Label(label("文件预览", "File preview")).Children(func() {
