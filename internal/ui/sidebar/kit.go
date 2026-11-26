@@ -60,10 +60,7 @@ func withSidebarTheme(c *ui.Context, m Model) func() {
 
 func sbSelectedBg(t *design.Tokens) ui.Color {
 	if t.Glass || chrome.BackdropActive() {
-		if t.IsDark() {
-			return ui.RGBA(255, 255, 255, 0.14)
-		}
-		return ui.RGBA(38, 49, 72, 0.10)
+		return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Pressed)
 	}
 	if t.SidebarAccent.A > 0 {
 		return t.SidebarAccent
@@ -72,10 +69,7 @@ func sbSelectedBg(t *design.Tokens) ui.Color {
 }
 
 func sbHoverBg(t *design.Tokens) ui.Color {
-	if t.IsDark() {
-		return ui.RGBA(255, 255, 255, 0.08)
-	}
-	return ui.RGBA(38, 49, 72, 0.06)
+	return chrome.Color(theme.ResolveWithSystem(theme.IDSystem, t.IsDark()).Active(t.IsDark()).Hover)
 }
 
 // sbActiveIndicator paints a subtle 3px primary indicator bar along the leading

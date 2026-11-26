@@ -99,11 +99,8 @@ func View(c *ui.Context, m Model) {
 	if m.Controller == nil {
 		return
 	}
+	m.Controller.Ensure()
 	ver := m.Controller.Snapshot()
-	if !ver.Value.Loading {
-		m.Controller.Ensure()
-		ver = m.Controller.Snapshot()
-	}
 	root := ui.Column(c).Key("plugin-manager-page").Grow(1).FillWidth().MinHeight(0).MinWidth(0)
 	epoch := ui.Local(root, "controller-epoch", func() controllerEpoch { return controllerEpoch{} })
 	if epoch.last != m.Controller {

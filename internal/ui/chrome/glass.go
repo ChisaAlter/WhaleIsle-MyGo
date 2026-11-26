@@ -325,7 +325,7 @@ func MenuBaseFill(colors theme.Colors, dark bool) ui.Color {
 	if dark {
 		return Color(colors.Field)
 	}
-	return ui.RGB(255, 255, 255)
+	return design.TW.White
 }
 
 // MenuBorderColor returns the reference menu elevation hairline color:
@@ -395,11 +395,11 @@ func drawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
 		return
 	}
 	dark := p.Theme().Dark
-	rim := ui.RGBA(255, 255, 255, 0.36)
-	top := ui.RGBA(255, 255, 255, 0.72)
+	rim := design.TW.White.Alpha(0.36)
+	top := design.TW.White.Alpha(0.72)
 	if dark {
-		rim = ui.RGBA(255, 255, 255, 0.08)
-		top = ui.RGBA(255, 255, 255, 0.14)
+		rim = design.TW.White.Alpha(0.08)
+		top = design.TW.White.Alpha(0.14)
 	}
 	inner := ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
 	innerR := max(0, radius-1)
@@ -566,27 +566,27 @@ func MenuShadow(p *ui.Painter, rect ui.Rect, radius float32) {
 	if t.Dark {
 		soft = 0.28
 	}
-	p.Shadow(rect, radius, 0, 3, 8, 0, ui.RGBA(0, 0, 0, soft*.55))
-	p.Shadow(rect, radius, 0, 12, 32, 0, ui.RGBA(0, 0, 0, soft))
+	p.Shadow(rect, radius, 0, 3, 8, 0, design.TW.Black.Alpha(soft*.55))
+	p.Shadow(rect, radius, 0, 12, 32, 0, design.TW.Black.Alpha(soft))
 	p.Stroke(rect, t.Border, radius, 0.5)
 }
 
 func menuElevationFor(e ui.Element, dark bool) ui.Element {
 	if dark {
-		return e.Shadow(0, 10, 28, -2, ui.RGBA(0, 0, 0, .32)).
-			Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .16))
+		return e.Shadow(0, 10, 28, -2, design.TW.Black.Alpha(.32)).
+			Shadow(0, 3, 8, 0, design.TW.Black.Alpha(.16))
 	}
-	return e.Shadow(0, 10, 28, -2, ui.RGBA(0, 0, 0, .10)).
-		Shadow(0, 3, 8, 0, ui.RGBA(0, 0, 0, .05))
+	return e.Shadow(0, 10, 28, -2, design.TW.Black.Alpha(.10)).
+		Shadow(0, 3, 8, 0, design.TW.Black.Alpha(.05))
 }
 
 func modalElevationFor(e ui.Element, dark bool) ui.Element {
 	if dark {
-		return e.Shadow(0, 18, 40, -4, ui.RGBA(0, 0, 0, .32)).
-			Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, .16))
+		return e.Shadow(0, 18, 40, -4, design.TW.Black.Alpha(.32)).
+			Shadow(0, 4, 12, 0, design.TW.Black.Alpha(.16))
 	}
-	return e.Shadow(0, 18, 40, -4, ui.RGBA(0, 0, 0, .10)).
-		Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, .05))
+	return e.Shadow(0, 18, 40, -4, design.TW.Black.Alpha(.10)).
+		Shadow(0, 4, 12, 0, design.TW.Black.Alpha(.05))
 }
 
 // ModalElevation applies the shared lv3 modal elevation shadow to e.
@@ -597,11 +597,11 @@ func ModalElevation(e ui.Element, dark bool) ui.Element {
 // FloatingCardElevation applies the shared lv2 floating-card elevation shadow to e.
 func FloatingCardElevation(e ui.Element, dark bool) ui.Element {
 	if dark {
-		return e.Shadow(0, 8, 20, -2, ui.RGBA(0, 0, 0, .22)).
-			Shadow(0, 2, 6, 0, ui.RGBA(0, 0, 0, .12))
+		return e.Shadow(0, 8, 20, -2, design.TW.Black.Alpha(.22)).
+			Shadow(0, 2, 6, 0, design.TW.Black.Alpha(.12))
 	}
-	return e.Shadow(0, 6, 16, -2, ui.RGBA(0, 0, 0, .07)).
-		Shadow(0, 1, 4, 0, ui.RGBA(0, 0, 0, .04))
+	return e.Shadow(0, 6, 16, -2, design.TW.Black.Alpha(.07)).
+		Shadow(0, 1, 4, 0, design.TW.Black.Alpha(.04))
 }
 
 // MenuElevation gives a floating menu or card its drop shadow, matching the
@@ -739,10 +739,11 @@ func FlatBackdropFill(base ui.Color, dark bool) ui.Color {
 	if !dark {
 		return base
 	}
-	blended := ui.RGBA(0, 0, 0, 0.5).Over(base)
+	blended := design.TW.Black.Alpha(0.5).Over(base)
 	// Force full opacity: a translucent canvas in a transparent window lets the
 	// desktop tint the hero (round230 jitter), which the native mask never does.
-	return ui.RGBA(blended.R, blended.G, blended.B, 255)
+	blended.A = 255
+	return blended
 }
 
 // ShowThroughAlpha is the share a chrome surface paints when no wallpaper or

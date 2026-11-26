@@ -7,6 +7,7 @@ import (
 	desktop "whaleisle/internal/desktop/webview"
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/theme"
 )
 
@@ -142,7 +143,7 @@ func (b *Controller) paintMiniPlayerOverlay(c *ui.Context, p *browserMiniPlayer,
 			panelRadius,
 		)
 		panel.Children(func() {
-			ui.Row(c).Height(miniPlayerChromeHeight).FillWidth().Padding(10, 10, 10, 16).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Height(miniPlayerChromeHeight).FillWidth().Padding(design.Sp(2.5), design.Sp(2.5), design.Sp(2.5), design.Sp(4)).Gap(design.Sp(1)).AlignItems(ui.Center).Children(func() {
 				grip := ui.Row(c).Key("browser-mini-move").Grow(1).Height(28).AlignItems(ui.Center).Cursor(ui.CursorMove).Focusable().Label(browserPreviewText("miniTitle"))
 				var title string
 				if p.host != nil {

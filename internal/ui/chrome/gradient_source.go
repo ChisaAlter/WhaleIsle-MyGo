@@ -303,7 +303,9 @@ func (c gradientConfig) uiColor(i int) ui.Color {
 		}
 		return uint8(math.Round(v * 255))
 	}
-	return ui.RGB(clampByte(gc.r), clampByte(gc.g), clampByte(gc.b))
+	var col ui.Color
+	col.R, col.G, col.B, col.A = clampByte(gc.r), clampByte(gc.g), clampByte(gc.b), 255
+	return col
 }
 
 func (c gradientConfig) ambientBackdrop(elapsedSec float64) glass.AmbientBackdrop {

@@ -95,15 +95,21 @@ func responsiveDeliveryStore(t *testing.T) (*session.Store, session.TurnFileScop
 func settleResponsiveDeliveryFrame(t *testing.T, tt *ui.Tester, store *session.Store, target session.TurnFileTarget) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
+	var stable ui.Rect
 	for {
-		tt.Frame()
 		snap := store.Snapshot()
+		tt.Frame()
 		host := snap.TurnFiles.Results[session.TurnFileRequest{Target: target, Action: "host"}]
 		if snap.LastAction != "" && snap.GoalReadError != nil && host.Host != nil && !host.Busy {
 			if r, ok := tt.Find("Preview report.pdf"); ok && r.W > 0 && r.H > 0 {
-				return
+				if stable == r {
+					return
+				}
+				stable = r
+				continue
 			}
 		}
+		stable = ui.Rect{}
 		if !time.Now().Before(deadline) {
 			t.Fatalf("responsive delivery frame did not settle: lastAction=%q goalErr=%v host=%+v texts=%q", snap.LastAction, snap.GoalReadError, host, tt.Texts())
 		}

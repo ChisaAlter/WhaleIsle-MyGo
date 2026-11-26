@@ -476,7 +476,7 @@ func projectTeamMember(c *ui.Context, m ProjectTeamModel, member projectflow.Tea
 func projectTeamTask(c *ui.Context, m ProjectTeamModel, task projectflow.TeamTask, labels map[string]string) {
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted := chrome.Color(colors.FG), chrome.Color(colors.Muted)
-	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(.5, chrome.Color(colors.Border)).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(teamCardRadius).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(.5, chrome.Color(colors.Border)).Children(func() {
 		ui.Row(c).FillWidth().MinWidth(0).Wrap().Gap(8).AlignItems(ui.Start).Children(func() {
 			ui.Text(c, task.Subject).Grow(1).MinWidth(0).FontSize(theme.InterfaceSize(13)).FontWeight(500).TextColor(fg)
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Shrink(0).Children(func() {

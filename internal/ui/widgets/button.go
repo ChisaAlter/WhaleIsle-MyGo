@@ -146,7 +146,7 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 	transient := spec.Busy || spec.Feedback != ""
 	b.Children(func() {
 		if transient {
-			reserve := ui.Row(c).Gap(4).AlignItems(ui.Center).Opacity(0).PassThrough()
+			reserve := ui.Row(c).Gap(design.Sp(1)).AlignItems(ui.Center).Opacity(0).PassThrough()
 			reserve.Children(func() {
 				if spec.Leading != nil {
 					spec.Leading(c)
@@ -157,7 +157,7 @@ func Button(c *ui.Context, colors theme.Colors, label string, spec ButtonSpec) u
 			if fb == "" {
 				fb = label
 			}
-			ui.Row(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(0, 4).Center().PassThrough().Children(func() {
+			ui.Row(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(0, design.Sp(1)).Center().PassThrough().Children(func() {
 				design.ButtonMarqueeLabel(c, b, fb, fontSize, lineHeight, 500, fg, spec.Busy)
 			})
 			return

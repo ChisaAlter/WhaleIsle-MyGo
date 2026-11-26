@@ -13,6 +13,8 @@ import (
 	"whaleisle/internal/ui/widgets"
 )
 
+const teamCardRadius float32 = 9
+
 type OrdinaryTeamModel struct {
 	SessionID, ThemeID, Error string
 	SystemDark, Loading       bool
@@ -196,7 +198,7 @@ func OrdinaryTeamView(c *ui.Context, m OrdinaryTeamModel) {
 						continue
 					}
 					task := task
-					row := ui.Column(c.Key("team-task:"+task.ID)).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(9).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(.5, chrome.Color(colors.Border))
+					row := ui.Column(c.Key("team-task:"+task.ID)).FillWidth().MinWidth(0).Gap(6).Padding(11, 13).Radius(teamCardRadius).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(.5, chrome.Color(colors.Border))
 					expanded := ui.Local(row, "expanded", func() bool { return false })
 					if m.State != nil {
 						*expanded = m.State.Expanded[task.ID]
