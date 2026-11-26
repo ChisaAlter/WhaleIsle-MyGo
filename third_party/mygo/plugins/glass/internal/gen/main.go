@@ -23,10 +23,18 @@ type shader struct{ file, codeVar, sumVar string }
 
 func main() {
 	file := "shaders_darwin.go"
-	shaders := []shader{{"glass.metal", "metalLibrary", "metalSum"}, {"blur.metal", "blurMetalLibrary", "blurMetalSum"}}
+	shaders := []shader{
+		{"glass.metal", "metalLibrary", "metalSum"},
+		{"blur.metal", "blurMetalLibrary", "blurMetalSum"},
+		{"ambient.metal", "ambientMetalLibrary", "ambientMetalSum"},
+	}
 	if runtime.GOOS == "windows" {
 		file = "shaders_windows.go"
-		shaders = []shader{{"glass.hlsl", "hlslBytecode", "hlslSum"}, {"blur.hlsl", "blurBytecode", "blurHLSLSum"}}
+		shaders = []shader{
+			{"glass.hlsl", "hlslBytecode", "hlslSum"},
+			{"blur.hlsl", "blurBytecode", "blurHLSLSum"},
+			{"ambient.hlsl", "ambientBytecode", "ambientHLSLSum"},
+		}
 	}
 	var names []string
 	for _, sh := range shaders {

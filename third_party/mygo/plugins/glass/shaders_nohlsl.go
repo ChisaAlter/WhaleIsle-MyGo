@@ -3,6 +3,6 @@
 package glass
 
 // The Direct3D bytecode compiled ahead of time is for Windows alone.
-var hlslBytecode, blurBytecode []byte
+var hlslBytecode, blurBytecode, ambientBytecode []byte
 
-const hlslSum, blurHLSLSum = "", ""
+const hlslSum, blurHLSLSum, ambientHLSLSum = "", "", ""

@@ -16,6 +16,12 @@ float4 blurSample(Effect e, float2 q) {
 	return top * (1 - w.y) + bot * w.y;
 }
 
+float blurIGN(float2 pos) {
+	float n = frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
+	float r = n * 2.0 - 1.0;
+	return (r >= 0.0 ? 1.0 : -1.0) * (1.0 - sqrt(max(0.0, 1.0 - abs(r))));
+}
+
 float4 effect(float2 p, Effect e) {
 	float2 d = e.p0.zw - e.p0.xy;
 	float l = d.x * d.x + d.y * d.y;
@@ -32,5 +38,8 @@ float4 effect(float2 p, Effect e) {
 	float lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 	c.rgb = clamp(lum + (c.rgb - lum) * (1 + e.p2.x) + e.p2.y * c.a, 0, c.a);
 	c += (float4(e.p3.rgb, 1) - c) * e.p2.z;
+	if (e.p3.w > 0.5 && c.a > 0.0) {
+		c.rgb = clamp(c.rgb + blurIGN(floor(p)) * (0.5 / 255.0) * c.a, 0.0, c.a);
+	}
 	return c * w;
 }

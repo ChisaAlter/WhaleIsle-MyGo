@@ -32,6 +32,9 @@ type Blur struct {
 	// wholly where the blur is Radius, and less where it is less, down to
 	// none from about half of Radius.
 	Saturation float32
+	// Dither adds 8-bit triangular Interleaved Gradient Noise (±0.5/255)
+	// before output to eliminate banding in dark smooth gradients.
+	Dither bool
 }
 
 // PaintMaterial paints the blur over box, rounded by radii.
@@ -47,6 +50,9 @@ func (b Blur) String() string {
 	}
 	if b.Saturation != 0 {
 		s += fmt.Sprintf(" saturate(%g%%)", math.Round(float64(1+b.Saturation)*1000)/10)
+	}
+	if b.Dither {
+		s += " dither"
 	}
 	return s
 }
@@ -128,8 +134,8 @@ func paintBlur(p *ui.Painter, box ui.Rect, radii [4]float32, b Blur) {
 	if !held {
 		return
 	}
-	if b.Saturation != 0 {
-		last.Params[2], last.Params[3] = blurTone{saturation: b.Saturation}.params()
+	if b.Saturation != 0 || b.Dither {
+		last.Params[2], last.Params[3] = blurTone{saturation: b.Saturation, dither: b.Dither}.params()
 	}
 	effect(lastRect, last)
 }
@@ -235,11 +241,16 @@ func blurWanted(r scene.Rect, line [4]float32, at0, at1, lo float32) (scene.Rect
 type blurTone struct {
 	saturation, offset, mix float32
 	color                   [3]float32
+	dither                  bool
 }
 
 // params returns the tone's parameters, p2 and p3.
 func (t blurTone) params() (p2, p3 [4]float32) {
-	return [4]float32{t.saturation, t.offset, t.mix}, [4]float32{t.color[0], t.color[1], t.color[2], 1}
+	var d float32
+	if t.dither {
+		d = 1
+	}
+	return [4]float32{t.saturation, t.offset, t.mix}, [4]float32{t.color[0], t.color[1], t.color[2], d}
 }
 
 // blurPixels draws a level of a blur on the CPU, as its shaders do on the
@@ -267,8 +278,15 @@ func (px *blurPixels) Color(x, y float32, b *scene.BackdropImage) [4]float32 {
 	for i := range 3 {
 		c[i] = min(max(l+(c[i]-l)*(1+t[0])+t[1]*c[3], 0), c[3])
 	}
-	for i := range c {
+	for i := range 3 {
 		c[i] += (px.color[i] - c[i]) * t[2]
+	}
+	c[3] += (1 - c[3]) * t[2]
+	if px.color[3] > 0.5 && c[3] > 0 {
+		d := ignTriangular(floor(x), floor(y)) * (0.5 / 255) * c[3]
+		for i := range 3 {
+			c[i] = min(max(c[i]+d, 0), c[3])
+		}
 	}
 	return [4]float32{c[0] * w, c[1] * w, c[2] * w, c[3] * w}
 }
