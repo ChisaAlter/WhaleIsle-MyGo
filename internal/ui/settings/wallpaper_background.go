@@ -553,9 +553,13 @@ func wallpaperSlider(c *ui.Context, key, label, hint string, value *float64, lo,
 }
 
 func wallpaperSliderStep(c *ui.Context, key, label, hint string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) bool {
+	return wallpaperSliderStepFormat(c, key, label, hint, "", value, lo, hi, step, disabled, fg, muted)
+}
+
+func wallpaperSliderStepFormat(c *ui.Context, key, label, hint, unit string, value *float64, lo, hi, step float64, disabled bool, fg, muted ui.Color) bool {
 	changed := false
 	bodyPreferenceRow(c, key, label, hint, fg, muted, func() {
-		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
+		ui.Text(c, fmt.Sprintf("%.0f%s", *value, unit)).FontSize(fonttheme.InterfaceSize(12)).TextColor(muted)
 		changed = coss.Slider(c, value, lo, hi, coss.SliderOptions{
 			Step:     step,
 			Label:    label,

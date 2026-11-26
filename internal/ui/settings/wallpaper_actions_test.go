@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 	"whaleisle/internal/desktop/wallpapers"
+	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/i18n"
 
 	"github.com/egoist/mygo/ui"
@@ -159,5 +160,90 @@ func TestWallpaperCropAndPointerSandboxGestures(t *testing.T) {
 	}
 	if g.pointerPreview != nil || len(*saved) != 0 {
 		t.Fatal("closing the sandbox retained its engine or saved a draft")
+	}
+}
+
+func TestBackgroundEffectModalDraftIsolationSwatchesAndReset(t *testing.T) {
+	old := i18n.Locale()
+	i18n.SetLocale(i18n.LocaleEN)
+	defer i18n.SetLocale(old)
+
+	g, saves, _ := wallpaperFixture(t)
+	g.Prefs.Blur = 35
+	g.Prefs.HideSidebarMask = true
+	g.Prefs.Preset = "ocean"
+	g.Prefs.Variant = "rays"
+	g.Prefs.Speed = 120
+	g.Prefs.Count = 3
+	g.Saved = g.Prefs.Clone()
+	path := ""
+	a := &AppearanceAccess{Background: g, WallpaperPath: &path, OnBrowseWallpaper: func() {}}
+
+	// Swatches resolve empty base/default slots via theme defaults rather than Accent.
+	lightDefaults := chrome.GradientDefaultColors(false)
+	darkDefaults := chrome.GradientDefaultColors(true)
+	if got := backgroundPresetSwatches("default", [7]string{}, false); len(got) != 7 || got[0] != lightDefaults[0] {
+		t.Fatalf("light default swatches = %+v, want %+v", got, lightDefaults)
+	}
+	if got := backgroundPresetSwatches("aurora", [7]string{}, true); got[0] != darkDefaults[0] || got[2] != "#34d399" {
+		t.Fatalf("dark aurora swatches = %+v", got)
+	}
+	custom := [7]string{"#112233", "", "#445566", "", "", "", ""}
+	if got := backgroundPresetSwatches("custom", custom, false); got[0] != "#112233" || got[1] != lightDefaults[1] {
+		t.Fatalf("custom swatches = %+v", got)
+	}
+
+	tt := ui.NewTester(func(c *ui.Context) {
+		appearancePane(c, Model{Appearance: a, ThemeID: "deepseek.light"}, c.Theme().Text, c.Theme().TextMuted)
+	}, 900, 1800)
+	if err := tt.Click("Background effect settings"); err != nil {
+		t.Fatalf("open background effect modal: %v", err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Base start", "Base end", "Bloom 1", "Bloom 5", "120%"} {
+		if !tt.HasText(want) {
+			t.Fatalf("expected %q in background effect modal", want)
+		}
+	}
+
+	// Select Sunset in draft and cancel: zero saves, saved prefs unchanged.
+	if err := tt.Click("Sunset"); err != nil {
+		t.Fatalf("click Sunset: %v", err)
+	}
+	if err := tt.Click("Cancel"); err != nil {
+		t.Fatalf("click Cancel: %v", err)
+	}
+	if len(*saves) != 0 || g.Prefs.Preset != "ocean" {
+		t.Fatalf("cancel modified prefs: saves=%d preset=%q", len(*saves), g.Prefs.Preset)
+	}
+
+	// Re-open, Reset restores only effect defaults while preserving Blur/HideSidebarMask, Save writes once.
+	if err := tt.Click("Background effect settings"); err != nil {
+		t.Fatalf("reopen background effect modal: %v", err)
+	}
+	var resetRect ui.Rect
+	var foundReset bool
+	for _, b := range tt.Interactives() {
+		if b.Label == "Reset" {
+			resetRect = b.Rect
+			foundReset = true
+		}
+	}
+	if !foundReset {
+		t.Fatal("Reset button not found in background effect modal")
+	}
+	tt.ClickAt(resetRect.X+resetRect.W/2, resetRect.Y+resetRect.H/2)
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("click Save: %v", err)
+	}
+	if len(*saves) != 1 {
+		t.Fatalf("expected 1 save, got %d", len(*saves))
+	}
+	got := (*saves)[0]
+	if got.Preset != "default" || got.Speed != 190 || got.Count != 5 || got.Variant != "orbs" {
+		t.Fatalf("reset + save effect fields = %+v", got)
+	}
+	if got.Blur != 35 || !got.HideSidebarMask {
+		t.Fatalf("reset clobbered unrelated wallpaper prefs: blur=%v hideMask=%v", got.Blur, got.HideSidebarMask)
 	}
 }
