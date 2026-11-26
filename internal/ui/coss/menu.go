@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // MenuItemKind is what a menu row is.
@@ -72,6 +73,7 @@ func Menu(c *ui.Context, trigger ui.Element, open *bool, items []MenuItem, o Men
 	ui.PopoverBase(c, trigger, open, func(panel ui.Element) {
 		place(panel, trigger, o.Side, align, 4)
 		chosen = menuPanel(c, t, panel, items, o, open, 0)
+		popoverReveal(c, panel)
 	})
 	return chosen
 }
@@ -106,6 +108,7 @@ func ContextMenu(c *ui.Context, target ui.Element, items []MenuItem, o MenuOptio
 	ui.Overlay(c, func() {
 		panel := ui.Column(c).Absolute().Left(st.x).Top(st.y).Role(ui.RoleMenu)
 		chosen = menuPanel(c, t, panel, items, o, &st.open, 0)
+		popoverReveal(c, panel)
 		if panel.OverlayShortcut(0, ui.KeyEscape) || panel.PressedOutside() {
 			st.open = false
 		}
@@ -119,7 +122,7 @@ type contextState struct {
 }
 
 func menuPanel(c *ui.Context, t *design.Tokens, panel ui.Element, items []MenuItem, o MenuOptions, open *bool, depth int) string {
-	panelLook(panel, t, design.RadiusLG, design.ShadowLg)
+	panelLook(panel, t, theme.ContextRadii(c).MD, design.ShadowLg)
 	minW := o.MinWidth
 	if minW == 0 {
 		minW = 128

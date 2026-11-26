@@ -12,6 +12,7 @@ import (
 
 	"whaleisle/internal/desktop/git"
 	"whaleisle/internal/ui/chrome"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 	"whaleisle/internal/ui/widgets/diff"
@@ -113,7 +114,7 @@ func View(c *ui.Context, m Model) {
 	accent := chrome.Color(colors.Accent)
 
 	paneBg := field
-	if chrome.BackdropActive() {
+	if design.For(c).Glass || chrome.BackdropActive() {
 		paneBg = ui.Transparent
 	}
 	ui.Column(c).Fill().MinWidth(0).Background(paneBg).Label(word("工作区差异", "Diff panel")).Children(func() {

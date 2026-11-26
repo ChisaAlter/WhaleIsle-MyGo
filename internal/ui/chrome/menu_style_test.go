@@ -51,8 +51,8 @@ func TestMenuStyleSharesTheWallpaper(t *testing.T) {
 		colors   theme.Colors
 		solidity float32
 	}{
-		{"light", false, theme.Resolve("deepseek").Light, menuSolidityLight},
-		{"dark", true, theme.Resolve("deepseek").Dark, menuSolidityDark},
+		{"light", false, theme.Resolve("deepseek").Light, MenuSolidity(wallpapers.Defaults(), false)},
+		{"dark", true, theme.Resolve("deepseek").Dark, MenuSolidity(wallpapers.Defaults(), true)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ConfigureBackdrop("wall.png", wallpapers.Defaults())

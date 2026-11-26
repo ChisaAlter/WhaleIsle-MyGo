@@ -180,7 +180,7 @@ func observerTaskCard(c *ui.Context, m Model, o *ObserverState, p projectflow.Pr
 	}
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	state, executor, reason, next := taskCardStatus(p, card, m.Team, queue)
-	box := chrome.FrostSurface(ui.Column(c).Label("Task card: "+card.ID).FillWidth().MinWidth(0).Gap(8), colors, m.SystemDark, chrome.Color(colors.Field), 14).Border(1, chrome.Color(colors.Border)).TextColor(chrome.Color(colors.FG))
+	box := ui.Column(c).Label("Task card: "+card.ID).FillWidth().MinWidth(0).Gap(8).Radius(14).Background(chrome.FrostInset(colors, m.SystemDark, chrome.Color(colors.Field))).Border(1, chrome.Color(colors.Border)).TextColor(chrome.Color(colors.FG))
 	if mode.Mode == "strip" {
 		box.Height(44).Padding(0, 4).Children(func() {
 			ui.Row(c).FillWidth().Height(44).MinWidth(0).AlignItems(ui.Center).Children(func() {

@@ -58,13 +58,7 @@ func ModalView(c *ui.Context, m Model) {
 					p.Stroke(inner, rim, max(0, dlgRadius-inset), design.BorderWidth)
 				}
 			})
-			if t.IsDark() {
-				panel.Shadow(0, 12, 32, 0, design.TW.Black.Alpha(0.36)).
-					Shadow(0, 3, 10, 0, design.TW.Black.Alpha(0.18))
-			} else {
-				panel.Shadow(0, 12, 32, 0, design.TW.Black.Alpha(0.12)).
-					Shadow(0, 3, 10, 0, design.TW.Black.Alpha(0.06))
-			}
+			chrome.ModalElevation(panel, t.IsDark())
 		} else {
 			panel.Background(t.Popover)
 			for i := len(design.ShadowLg) - 1; i >= 0; i-- {

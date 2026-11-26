@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"whaleisle/internal/desktop/wallpapers"
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 func TestApplyMenuSurfaceBlursAndFallsBackCleanly(t *testing.T) {
@@ -148,5 +149,60 @@ func TestDialogPureGlassEnabledBlursAndStaysOpaqueDuringReveal(t *testing.T) {
 	insideSpan := testChannelSpan(tt, int(dlgRect.Y+dlgRect.H/2), int(dlgRect.X+20), int(dlgRect.X+dlgRect.W-20))
 	if insideSpan > 30 {
 		t.Fatalf("expected 40px dialog glass blur mid-enter under pure design.GlassEnabled(), got span=%d", insideSpan)
+	}
+}
+
+func TestMenuSolidityCurveDialogPanelLayerAndFloatingCardLv2(t *testing.T) {
+	t.Cleanup(func() {
+		ConfigureBackdrop("", wallpapers.Defaults())
+		design.SetGlass(false, nil)
+	})
+	for _, g := range []float64{20, 60, 80, 95} {
+		p := wallpapers.Defaults()
+		p.Glass = g
+		for _, dark := range []bool{false, true} {
+			if got, want := MaterialAlpha(MaterialMenu, p, dark), MenuSolidity(p, dark); got != want {
+				t.Fatalf("MaterialAlpha(MaterialMenu, g=%.0f, dark=%v) = %v, want %v", g, dark, got, want)
+			}
+		}
+	}
+
+	url := pngDataURL(t, color.RGBA{R: 200, G: 200, B: 200, A: 255}, 8, 8)
+	prefs := wallpapers.Defaults()
+	prefs.Glass = 60
+	prefs.Effect = "none"
+	ConfigureBackdrop(url, prefs)
+
+	open := true
+	var dlgRect ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) {
+			WallpaperBackgroundPainter(url, prefs, true)(p, r)
+		}).Children(func() {
+			ui.DialogBase(c.Key("layer2-dlg"), &open, func(backdrop, panel ui.Element) {
+				dlgRect = DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 120, 12).Children(func() {
+					ui.Box(c).Size(80, 40)
+				}).Bounds()
+			})
+		})
+	}, 240, 160)
+	start := time.Unix(2000, 0)
+	tt.SetTime(start)
+	tt.SetTime(start.Add(time.Second))
+	// Under 60% glass, MaterialPanel alpha (0.60) is distinct from MenuSolidity (0.525).
+	gotPixel := tt.Image().RGBAAt(int(dlgRect.X+dlgRect.W/2), int(dlgRect.Y+dlgRect.H/2))
+	if gotPixel.R == 0 {
+		t.Fatal("expected rendered dialog pixel")
+	}
+
+	var floatBox ui.Rect
+	ttFloat := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Children(func() {
+			floatBox = FloatingCardSurface(ui.Box(c).Absolute().Left(20).Top(20).Width(100).Height(60), MenuBaseFill(theme.Colors{}, false), ui.RGBA(0, 0, 0, 0.1), 28).Bounds()
+		})
+	}, 160, 120)
+	ttFloat.Frame()
+	if floatBox.W != 100 || floatBox.H != 60 {
+		t.Fatalf("unexpected FloatingCardSurface bounds: %+v", floatBox)
 	}
 }

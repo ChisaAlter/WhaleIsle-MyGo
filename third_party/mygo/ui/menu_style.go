@@ -7,13 +7,13 @@ import (
 )
 
 // The geometry of menus, select popups and popovers, in DIPs, as the
-// installed product's menus: a panel padded by 4 and rounded by 16, at
+// installed product's menus: a panel padded by 4 and rounded by 12, at
 // least 144 wide (163 for a submenu) and at most 360, of rows at least 34
 // high rounded by 12, 4 from what it opens from and 12 from the window's
 // edges. A submenu opens 10 beside its row, its bottom 4 below the row's.
 const (
 	menuPadding    = 4
-	menuRadius     = 16
+	menuRadius     = 12
 	menuMinWidth   = 144
 	submenuMin     = 163
 	menuMaxWidth   = 360
@@ -133,8 +133,18 @@ func styleMenuPanel(c *context, panel *node) {
 		panel.Material(menuMaterial{under: under, fill: st.Fill})
 	}
 	// Shadows paint in order, so the hairline goes over the soft ones.
-	panel.Shadow(0, 0, 20, 0, RGBA(0, 0, 0, 0.05))
-	panel.Shadow(0, 3, 8, 0, RGBA(0, 0, 0, 0.04))
+	if st.Material != nil {
+		if c.theme.Dark {
+			panel.Shadow(0, 10, 28, -2, RGBA(0, 0, 0, 0.32))
+			panel.Shadow(0, 3, 8, 0, RGBA(0, 0, 0, 0.16))
+		} else {
+			panel.Shadow(0, 10, 28, -2, RGBA(0, 0, 0, 0.10))
+			panel.Shadow(0, 3, 8, 0, RGBA(0, 0, 0, 0.05))
+		}
+	} else {
+		panel.Shadow(0, 0, 20, 0, RGBA(0, 0, 0, 0.05))
+		panel.Shadow(0, 3, 8, 0, RGBA(0, 0, 0, 0.04))
+	}
 	if w, a := hairline(c.DeviceScale()); st.Stroke.A > 0 {
 		panel.Shadow(0, 0, 0, w, st.Stroke.Alpha(a))
 	}
@@ -142,7 +152,7 @@ func styleMenuPanel(c *context, panel *node) {
 
 // MenuPanel gives the element the look of the panels of menus, select
 // popups and popovers, from the theme's Menu: padded by 4 and rounded by
-// 16, filled over the menu's material, with a hairline around it and a
+// 12, filled over the menu's material, with a hairline around it and a
 // soft shadow under it. Set Radius or Padding after it to change those.
 func (e Element) MenuPanel() Element {
 	if n := e.node(); n != nil {

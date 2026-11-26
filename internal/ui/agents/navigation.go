@@ -9,6 +9,7 @@ import (
 	"whaleisle/internal/ui/chrome"
 	"whaleisle/internal/ui/composer"
 	"whaleisle/internal/ui/coss"
+	"whaleisle/internal/ui/design"
 	"whaleisle/internal/ui/i18n"
 	"whaleisle/internal/ui/theme"
 )
@@ -24,7 +25,11 @@ func navigationView(c *ui.Context, m Model, tail ...func(*ui.Context)) {
 	v := m.Store.SyncAgentNavigation(snap.PlanHistoryBinding)
 	colors := theme.Resolve(m.ThemeID).Active(m.SystemDark)
 	fg, muted, border := chrome.Color(colors.FG), chrome.Color(colors.Muted), chrome.Color(colors.Border)
-	root := chrome.FrostSurface(ui.Column(c.Key(fmt.Sprintf("agents-navigation-root:%p:%d:%s:%s:%s", m.Store, v.Token, v.Address.ParentSessionID, v.Address.ChildSessionID, v.Address.Mode))).Fill().MinHeight(0), colors, m.SystemDark, chrome.Color(colors.Field), 0)
+	paneBg := chrome.Color(colors.Field)
+	if design.For(c).Glass || chrome.BackdropActive() {
+		paneBg = ui.Transparent
+	}
+	root := ui.Column(c.Key(fmt.Sprintf("agents-navigation-root:%p:%d:%s:%s:%s", m.Store, v.Token, v.Address.ParentSessionID, v.Address.ChildSessionID, v.Address.Mode))).Fill().MinHeight(0).Background(paneBg)
 	if m.ChildDraft != nil && v.Address.Mode == "continuable" {
 		if draft := m.ChildDraft(snap.PlanHistoryBinding, v.Address); draft != nil && draft.Client != nil {
 			composer.BindStopRegion(root, draft.Client, childStopModel(m, v, draft), true)

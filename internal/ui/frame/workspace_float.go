@@ -181,7 +181,7 @@ func workspaceFloating(c *ui.Context, m Model) {
 			visible := boundedFloat(*f, viewportWidth, viewportHeight)
 			panel := ui.Column(c).Key("workspace-float:"+n.ID).Absolute().Left(visible.X).Top(visible.Y).Width(visible.Width).Height(visible.Height)
 			if t.Glass || chrome.BackdropActive() {
-				chrome.ApplyMenuSurface(panel, t, design.RadiusXL)
+				chrome.ApplyFloatingCardSurface(panel, t, design.RadiusXL)
 			} else {
 				frameShadow(panel.Border(design.BorderWidth, t.Border).Background(t.Popover), design.ShadowLg)
 			}

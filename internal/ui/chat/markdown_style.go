@@ -62,7 +62,7 @@ func transcriptMarkdownStyleFor(c *ui.Context, size float32) markdown.Style {
 		}
 		return e.Background(t.Code)
 	}
-	st.InlineCodeBG = t.CodeHighlight
+	st.InlineCodeBG = markdown.InlineCodeBase(t.IsDark())
 	st.TableHeader = t.Muted
 	st.QuoteBorder = t.Border
 	st.RuleBorder = t.Border

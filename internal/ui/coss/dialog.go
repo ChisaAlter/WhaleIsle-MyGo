@@ -5,6 +5,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"whaleisle/internal/ui/design"
+	"whaleisle/internal/ui/theme"
 )
 
 // FooterVariant is a dialog footer's look.
@@ -173,7 +174,7 @@ func DrawerPanel(c *ui.Context, o DialogOptions, body func()) ui.Element {
 }
 
 func modalPanel(c *ui.Context, t *design.Tokens, panel ui.Element, o DialogOptions, body func(), kind modalKind, ww float32) {
-	radius := design.RadiusXL2
+	radius := theme.ContextRadii(c).Dialog
 	var sh shadowList
 	sh.scale(design.ShadowLg, black, 0.05)
 	d := deco{border: design.BorderWidth}

@@ -421,3 +421,40 @@ func TestGlassChatBubble40PercentAndSolidOverride(t *testing.T) {
 		t.Fatalf("solid skin chat bubble leaked backdrop: solidSpan=%d", solidSpan)
 	}
 }
+
+func TestMenuSecondClickClosesAndRadiiMatchSpec(t *testing.T) {
+	defer design.SetGlass(false, nil)
+	design.SetGlass(true, testGlassFilter)
+
+	open := false
+	var menuBounds, dlgBounds ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		setTheme(c, false)
+		ui.Box(c).Fill().Children(func() {
+			trigger := Button(c, "MenuTrigger", ButtonOptions{Variant: ButtonOutline, Size: ButtonSM})
+			Menu(c, trigger, &open, []MenuItem{{ID: "one", Label: "One"}}, MenuOptions{})
+			if open {
+				menuBounds = trigger.Bounds()
+			}
+			dlgBounds = DialogPanel(c, DialogOptions{NoClose: true}, func() {
+				ui.Box(c).Size(100, 40)
+			}).Bounds()
+		})
+	}, 400, 300)
+	tt.Frame()
+	if err := tt.Click("MenuTrigger"); err != nil {
+		t.Fatal(err)
+	}
+	if !open {
+		t.Fatalf("first click should open Menu (trigger=%+v)", menuBounds)
+	}
+	if err := tt.Click("MenuTrigger"); err != nil {
+		t.Fatal(err)
+	}
+	if open {
+		t.Fatal("second click on Menu trigger should close without reopening")
+	}
+	if dlgBounds.W == 0 {
+		t.Fatal("DialogPanel failed to lay out")
+	}
+}
