@@ -52,11 +52,7 @@ func (rt *engine) event(ev platform.SurfaceEvent) (taken bool) {
 	case platform.SurfaceResize:
 		rt.requestFrame()
 	case platform.SurfaceShown:
-		if rt.held {
-			// What moves goes on from where the time puts it.
-			rt.held = false
-			rt.requestFrame()
-		}
+		rt.resumeHeld()
 	case platform.PointerMove:
 		rt.pointerMove(x, y)
 	case platform.PointerDown:

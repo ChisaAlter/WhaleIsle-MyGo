@@ -64,6 +64,10 @@ func (r *Renderer) backdropView(j int, salt uint64) uintptr {
 		if err := r.newTarget(&e.tex, max(w+w/4, e.tex.w), max(h+h/4, e.tex.h), true); err != nil {
 			return r.backdrop[0].srv
 		}
+	} else if shouldShrinkTarget(e.tex.w, e.tex.h, w, h) {
+		if err := r.newTarget(&e.tex, w+w/4, h+h/4, true); err != nil {
+			return r.backdrop[0].srv
+		}
 	}
 	from := box{Right: uint32(w), Bottom: uint32(h), Back: 1}
 	call(r.ctx, ctxCopySubresourceRegion, e.tex.tex, 0, 0, 0, 0, r.backdrop[0].tex, 0, uintptr(unsafe.Pointer(&from)))

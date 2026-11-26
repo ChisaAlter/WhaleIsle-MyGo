@@ -2,13 +2,17 @@ package mygo
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -209,5 +213,255 @@ func TestSweepStaleSocketsSparesAFreshFile(t *testing.T) {
 	}
 	if _, err := os.Lstat(path); err != nil {
 		t.Fatalf("a fresh socket file was removed: %v", err)
+	}
+}
+
+// TestSingleInstanceConcurrencyHelper is invoked as a subprocess by
+// TestSingleInstanceConcurrency and TestSingleInstanceLongTempDir.
+func TestSingleInstanceConcurrencyHelper(t *testing.T) {
+	name := os.Getenv("MYGO_SI_TEST_NAME")
+	if name == "" {
+		return
+	}
+	// Wait until the parent removes the start gate (or closes stdin for non-gated).
+	if gate := os.Getenv("MYGO_SI_TEST_GATE"); gate != "" {
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(gate); os.IsNotExist(err) {
+				break
+			}
+			time.Sleep(2 * time.Millisecond)
+		}
+	}
+	App.SetName(name)
+	if App.RequestSingleInstanceLock() {
+		fmt.Println("RESULT:WINNER")
+		// Hold the lock until parent closes stdin, so all competitors finish
+		// handing over before the winner exits.
+		_, _ = io.ReadAll(os.Stdin)
+		releaseSingleInstanceLock()
+		return
+	}
+	fmt.Println("RESULT:FORWARDED")
+}
+
+// TestSingleInstanceConcurrency launches 5 competing OS processes at the same
+// time and asserts that exactly 1 wins the single-instance lock while the
+// other 4 complete handover to the winner.
+func TestSingleInstanceConcurrency(t *testing.T) {
+	const competitors = 5
+	appName := fmt.Sprintf("MyGoConcurrencyTest-%d-%d", os.Getpid(), time.Now().UnixNano())
+	gate := filepath.Join(t.TempDir(), "start.gate")
+	if err := os.WriteFile(gate, []byte("wait"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	type proc struct {
+		cmd   *exec.Cmd
+		stdin io.WriteCloser
+		out   bytes.Buffer
+		done  chan error
+	}
+	procs := make([]*proc, competitors)
+	for i := range competitors {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestSingleInstanceConcurrencyHelper$")
+		cmd.Env = append(os.Environ(),
+			"MYGO_SI_TEST_NAME="+appName,
+			"MYGO_SI_TEST_GATE="+gate,
+		)
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := &proc{cmd: cmd, stdin: stdin, done: make(chan error, 1)}
+		cmd.Stdout = &p.out
+		cmd.Stderr = &p.out
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		procs[i] = p
+		go func(p *proc) { p.done <- p.cmd.Wait() }(p)
+	}
+
+	// Give children a moment to reach the gate, then release all 5 together.
+	time.Sleep(150 * time.Millisecond)
+	_ = os.Remove(gate)
+
+	// Wait for the 4 losers to exit on their own, then close all stdins so the
+	// winner releases and exits cleanly.
+	var mu sync.Mutex
+	exited := 0
+	deadline := time.After(15 * time.Second)
+	for exited < competitors-1 {
+		select {
+		case <-deadline:
+			for _, p := range procs {
+				_ = p.stdin.Close()
+			}
+			t.Fatalf("timed out waiting for competitors to finish (only %d/%d exited)", exited, competitors-1)
+		default:
+		}
+		progressed := false
+		for _, p := range procs {
+			select {
+			case err := <-p.done:
+				if err != nil {
+					for _, q := range procs {
+						_ = q.stdin.Close()
+					}
+					t.Fatalf("competitor failed: %v\noutput:\n%s", err, p.out.String())
+				}
+				p.done = nil
+				mu.Lock()
+				exited++
+				mu.Unlock()
+				progressed = true
+			default:
+			}
+		}
+		if !progressed {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	for _, p := range procs {
+		_ = p.stdin.Close()
+	}
+	for _, p := range procs {
+		if p.done == nil {
+			continue
+		}
+		select {
+		case err := <-p.done:
+			if err != nil {
+				t.Fatalf("winner failed: %v\noutput:\n%s", err, p.out.String())
+			}
+		case <-time.After(5 * time.Second):
+			_ = p.cmd.Process.Kill()
+			t.Fatalf("winner did not exit cleanly\noutput:\n%s", p.out.String())
+		}
+	}
+
+	winners, forwarded := 0, 0
+	for i, p := range procs {
+		out := p.out.String()
+		switch {
+		case strings.Contains(out, "RESULT:WINNER"):
+			winners++
+		case strings.Contains(out, "RESULT:FORWARDED"):
+			forwarded++
+		default:
+			t.Fatalf("competitor %d produced unexpected output:\n%s", i, out)
+		}
+	}
+	if winners != 1 || forwarded != competitors-1 {
+		t.Fatalf("winners=%d forwarded=%d, want 1 and %d", winners, forwarded, competitors-1)
+	}
+}
+
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// TestSingleInstanceLongTempDir verifies that a long (>90 char) TEMP directory
+// does not silently disable the single-instance lock (e.g. by falling back to
+// non-existent "/tmp" on Windows).
+func TestSingleInstanceLongTempDir(t *testing.T) {
+	base := t.TempDir()
+	longDir := filepath.Join(base, strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32))
+	if err := os.MkdirAll(longDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if len(longDir) < 90 {
+		t.Fatalf("longDir len = %d, want >= 90", len(longDir))
+	}
+
+	t.Setenv("TEMP", longDir)
+	t.Setenv("TMP", longDir)
+	t.Setenv("TMPDIR", longDir)
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	appName := fmt.Sprintf("MyGoLongTempTest-%d-%d", os.Getpid(), time.Now().UnixNano())
+	sockPath := singleInstanceSocket(singleInstanceKey(appName))
+	if runtime.GOOS == "windows" {
+		if strings.HasPrefix(sockPath, "/tmp") || strings.HasPrefix(sockPath, `\tmp`) {
+			t.Fatalf("Windows socket path fell back to /tmp: %q", sockPath)
+		}
+		if len(sockPath) >= 107 {
+			t.Fatalf("Windows socket path too long (%d bytes): %q", len(sockPath), sockPath)
+		}
+	}
+
+	// Launch a primary process and a second process both using longDir as TEMP
+	// and assert the second process forwards to the primary instead of winning.
+	makeCmd := func() (*exec.Cmd, io.WriteCloser, *syncBuffer) {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestSingleInstanceConcurrencyHelper$")
+		var env []string
+		for _, kv := range os.Environ() {
+			k, _, _ := strings.Cut(kv, "=")
+			switch strings.ToUpper(k) {
+			case "TEMP", "TMP", "TMPDIR", "XDG_RUNTIME_DIR":
+				continue
+			}
+			env = append(env, kv)
+		}
+		cmd.Env = append(env,
+			"TEMP="+longDir,
+			"TMP="+longDir,
+			"TMPDIR="+longDir,
+			"XDG_RUNTIME_DIR=",
+			"MYGO_SI_TEST_NAME="+appName,
+		)
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := &syncBuffer{}
+		cmd.Stdout = out
+		cmd.Stderr = out
+		return cmd, stdin, out
+	}
+
+	cmd1, stdin1, out1 := makeCmd()
+	if err := cmd1.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = stdin1.Close()
+		_ = cmd1.Wait()
+	}()
+
+	// Wait until primary prints RESULT:WINNER.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(out1.String(), "RESULT:WINNER") {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+	if !strings.Contains(out1.String(), "RESULT:WINNER") {
+		t.Fatalf("primary did not acquire lock under long TEMP %q:\n%s", longDir, out1.String())
+	}
+
+	cmd2, stdin2, out2 := makeCmd()
+	_ = stdin2.Close()
+	if err := cmd2.Run(); err != nil {
+		t.Fatalf("second instance failed: %v\noutput:\n%s", err, out2.String())
+	}
+	if !strings.Contains(out2.String(), "RESULT:FORWARDED") {
+		t.Fatalf("second instance did not forward under long TEMP %q (got %q)", longDir, out2.String())
 	}
 }

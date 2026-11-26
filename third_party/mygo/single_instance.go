@@ -1,19 +1,14 @@
 package mygo
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json/v2"
-	"errors"
 	"io"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -22,6 +17,7 @@ var singleInstance struct {
 	listener net.Listener
 	path     string
 	socket   os.FileInfo // identifies our socket file at path
+	platform singleInstancePlatform
 	locked   bool
 	handlers listeners[func([]string, string)]
 }
@@ -83,60 +79,34 @@ func (a *Application) RequestSingleInstanceLock() bool {
 	if singleInstance.locked {
 		return true
 	}
-	path := singleInstanceSocket(singleInstanceKey(a.Name()))
+	key := singleInstanceKey(a.Name())
+	path := singleInstanceSocket(key)
 	wd, _ := os.Getwd()
 	msg, _ := json.Marshal(secondInstanceMessage{Args: os.Args[1:], WorkingDir: wd})
-	var lastErr error
-	for attempt := 0; attempt < 5; attempt++ {
-		if conn, err := net.DialTimeout("unix", path, time.Second); err == nil {
-			if handOverSecondInstance(conn, msg, secondInstanceHandshakeTimeout) {
-				if launchedByDev() {
-					// mygo dev would only see the app exit.
-					log.Printf("mygo: %s is already running: handed the command line over to it (RequestSingleInstanceLock)", a.Name())
-				}
-				return false
-			}
-			// The socket answered but no owner acknowledged: a crash left it
-			// behind, or a surviving child inherited the listening handle. Fall
-			// through and take the lock over, so the launch still shows a window.
-			log.Printf("mygo: %s: the single-instance socket has no live owner; taking it over", a.Name())
-		}
-		// Nobody answers: remove a stale socket left by a crash and take
-		// over. If another instance wins the race, Listen fails and the next
-		// attempt connects to it.
-		_ = os.Remove(path)
-		ln, err := net.Listen("unix", path)
-		if err == nil {
-			// The socket file is removed on release, and only if it is
-			// still ours: an instance that found it stale may have
-			// replaced it.
-			ln.(*net.UnixListener).SetUnlinkOnClose(false)
-			singleInstance.socket, _ = os.Stat(path)
-			singleInstance.listener, singleInstance.path, singleInstance.locked = ln, path, true
-			go acceptSecondInstances(ln)
-			// Every key leaves its file behind when its owner dies without
-			// releasing the lock, and a key is per profile: an isolated or
-			// test profile gets a fresh name each time. Nothing else ever
-			// names those files again, so they are swept here, out of the
-			// launch's way.
-			go sweepStaleSockets(filepath.Dir(path), path, staleSocketGrace)
-			a.OnQuit(releaseSingleInstanceLock)
-			return true
-		}
-		// Windows reports WSAEADDRINUSE.
-		if !errors.Is(err, syscall.EADDRINUSE) && !errors.Is(err, syscall.Errno(10048)) {
-			// Locking is not possible here (e.g. read-only temp dir):
-			// behave as if this were the only instance.
-			return true
-		}
-		lastErr = err
-		time.Sleep(time.Duration(attempt+1) * 20 * time.Millisecond)
+	plat, locked := acquireSingleInstance(key, path, msg, a.Name())
+	if !locked {
+		return false
 	}
-	// A stale listener that a surviving process still holds keeps the path
-	// bound. The app must still start: forwarding is unavailable until that
-	// process is gone, but a silent exit with no window is worse.
-	log.Printf("mygo: %s starts without the single-instance socket: %v", a.Name(), lastErr)
+	singleInstance.platform = plat
+	singleInstance.locked = true
+	a.OnQuit(releaseSingleInstanceLock)
 	return true
+}
+
+func startSingleInstanceListener(ln net.Listener, path string) {
+	if ul, ok := ln.(*net.UnixListener); ok {
+		// The socket file is removed on release, and only if it is still ours:
+		// an instance that found it stale may have replaced it.
+		ul.SetUnlinkOnClose(false)
+	}
+	singleInstance.socket, _ = os.Stat(path)
+	singleInstance.listener, singleInstance.path = ln, path
+	go acceptSecondInstances(ln)
+	// Every key leaves its file behind when its owner dies without releasing
+	// the lock, and a key is per profile: an isolated or test profile gets a
+	// fresh name each time. Nothing else ever names those files again, so they
+	// are swept here, out of the launch's way.
+	go sweepStaleSockets(filepath.Dir(path), path, staleSocketGrace)
 }
 
 // OnSecondInstance is called in the first instance when another instance
@@ -184,8 +154,10 @@ func releaseSingleInstanceLock() {
 		if fi, err := os.Stat(singleInstance.path); err == nil && singleInstance.socket != nil && os.SameFile(fi, singleInstance.socket) {
 			_ = os.Remove(singleInstance.path)
 		}
-		singleInstance.listener, singleInstance.socket, singleInstance.locked = nil, nil, false
+		singleInstance.listener, singleInstance.socket = nil, nil
 	}
+	singleInstance.platform.release()
+	singleInstance.locked = false
 }
 
 // singleInstanceKey identifies the lock of the app named name. The
@@ -275,17 +247,4 @@ func sweepStaleSockets(dir, own string, grace time.Duration) socketSweep {
 	}
 	log.Printf("mygo: single-instance sockets in %s: examined %d, removed %d, in use %d", dir, sweep.Examined, sweep.Removed, sweep.InUse)
 	return sweep
-}
-
-// singleInstanceSocket returns a short per-user socket path; Unix socket
-// paths are limited to about 100 bytes.
-func singleInstanceSocket(name string) string {
-	sum := sha256.Sum256([]byte(name))
-	file := "mygo-" + strconv.Itoa(os.Getuid()) + "-" + hex.EncodeToString(sum[:6]) + ".sock"
-	for _, dir := range []string{os.Getenv("XDG_RUNTIME_DIR"), os.TempDir(), "/tmp"} {
-		if dir != "" && len(filepath.Join(dir, file)) < 100 {
-			return filepath.Join(dir, file)
-		}
-	}
-	return filepath.Join("/tmp", file)
 }

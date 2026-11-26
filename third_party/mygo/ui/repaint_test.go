@@ -224,3 +224,63 @@ func TestHeldWhileOccluded(t *testing.T) {
 		t.Error("shown again while nothing waited, it asked for a frame")
 	}
 }
+
+// TestAfterTimerPausedWhileOccluded checks that c.After timers do not fire
+// while the surface is occluded (keeping occluded windows at 0 Hz), and resume
+// once SurfaceShown arrives.
+func TestAfterTimerPausedWhileOccluded(t *testing.T) {
+	tt := newRepaintTester(func(c *context) {
+		coreText(c, "timer")
+		c.After(25 * time.Millisecond)
+	})
+	defer tt.rt.close()
+
+	// Occlude the window and run a frame: armTimer must hold the wake time
+	// instead of arming a real timer.
+	tt.h.hidden = true
+	tt.h.requested.Store(false)
+	if _, more := tt.frame(5 * time.Millisecond); more {
+		t.Fatal("occluded frame asked for an immediate next frame")
+	}
+	if tt.rt.heldWake.IsZero() {
+		t.Fatal("occluded frame did not record heldWake for c.After")
+	}
+	// Wait longer than the 25ms After duration to prove no timer wakes it.
+	time.Sleep(60 * time.Millisecond)
+	if tt.h.requested.Load() {
+		t.Fatal("c.After timer fired while window was occluded")
+	}
+
+	// Restore after the deadline has passed: SurfaceShown must immediately
+	// request a frame.
+	tt.clock = tt.clock.Add(50 * time.Millisecond)
+	tt.h.hidden = false
+	tt.rt.event(platform.SurfaceEvent{Kind: platform.SurfaceShown})
+	if !tt.h.requested.Load() {
+		t.Fatal("SurfaceShown after elapsed heldWake did not request a frame")
+	}
+	if !tt.rt.heldWake.IsZero() {
+		t.Fatal("SurfaceShown did not clear heldWake")
+	}
+
+	// Re-occlude, run a frame with a future deadline, then restore BEFORE the
+	// deadline: SurfaceShown must re-arm the timer rather than drop it.
+	tt.h.hidden = true
+	tt.h.requested.Store(false)
+	tt.frame(5 * time.Millisecond)
+	if tt.rt.heldWake.IsZero() {
+		t.Fatal("second occluded frame did not record heldWake")
+	}
+	tt.h.hidden = false
+	tt.rt.event(platform.SurfaceEvent{Kind: platform.SurfaceShown})
+	if tt.h.requested.Load() {
+		t.Fatal("SurfaceShown before heldWake deadline requested an immediate frame")
+	}
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for !tt.h.requested.Load() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !tt.h.requested.Load() {
+		t.Fatal("re-armed timer after SurfaceShown never fired")
+	}
+}

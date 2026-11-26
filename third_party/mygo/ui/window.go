@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/egoist/mygo/internal/gpu"
 	"github.com/egoist/mygo/internal/platform"
 	"github.com/egoist/mygo/internal/raster"
 	"github.com/egoist/mygo/internal/scene"
@@ -311,6 +312,15 @@ func (h *windowHost) idle() {
 		return
 	}
 	h.soft.Release()
+	if h.occluded() {
+		if t, ok := h.gpu.(gpu.TrimmableRenderer); ok {
+			t.Trim()
+		} else if r, ok := h.gpu.(gpu.IdleRenderer); ok {
+			r.Idle()
+		}
+	} else if r, ok := h.gpu.(gpu.IdleRenderer); ok {
+		r.Idle()
+	}
 	if s, ok := h.conn.Surface.(platform.IdleSurface); ok {
 		s.Idle()
 	}
