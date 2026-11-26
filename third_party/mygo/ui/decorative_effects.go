@@ -198,9 +198,13 @@ func (s *decorationState) paintPointer(p *Painter, w, h float32, pointerIn bool,
 }
 
 // Sheen is clipped to the button's own corners and painted after its hover
-// background but before its label. Disabled buttons retain the original fill.
+// background but before its label. Disabled buttons and non-button rows (such
+// as disclosures, menu items, tabs and selects) retain only their plain fill.
 func (p *Painter) paintMetallicButton(e *node, r Rect) {
 	if !p.rt.decorations.config.MetallicButtons || !e.decorativeButton || !e.Hovered() || e.IsDisabled() {
+		return
+	}
+	if e.role != RoleAuto && e.role != RoleButton && e.role != RoleToggleButton {
 		return
 	}
 	t := p.Theme()
@@ -211,13 +215,30 @@ func (p *Painter) paintMetallicButton(e *node, r Rect) {
 	}
 	savedClip := p.clip
 	p.pushClip(r, e.radius)
-	width := max(float32(12), r.W*.24)
-	origin := r.X - r.W*1.2 + phase*r.W*1.2
+	// Match metallic-paint.css: 115deg multi-stop sheen at 320% span sweeping
+	// 0% -> 100% -> 0% over 4.5s ease-in-out (static midpoint under ReduceMotion).
+	span := max(float32(72), r.W*3.2)
+	origin := r.X - phase*max(float32(0), span-r.W)
+	mid := t.TextMuted.Alpha(.14)
+	shineBright := t.AccentText.Alpha(.42)
+	shineSoft := t.AccentText.Alpha(.36)
 	ink := t.Text.Alpha(.20)
-	shine := t.AccentText.Alpha(.38)
-	for band := 0; band < 8; band++ {
-		x := origin + float32(band)*width*1.3
-		p.FillGradient(Rect{X: x, Y: r.Y, W: width, H: r.H}, LinearGradient{From: ink, To: shine, Angle: 115}, 0)
+	stops := [7]struct {
+		at    float32
+		color Color
+	}{
+		{0, mid},
+		{.18, shineBright},
+		{.34, ink},
+		{.52, shineSoft},
+		{.68, ink},
+		{.84, shineSoft},
+		{1, mid},
+	}
+	for i := 0; i < len(stops)-1; i++ {
+		x0 := origin + stops[i].at*span
+		x1 := origin + stops[i+1].at*span
+		p.FillGradient(Rect{X: x0, Y: r.Y, W: x1 - x0, H: r.H}, LinearGradient{From: stops[i].color, To: stops[i+1].color, Angle: 115}, 0)
 	}
 	p.popClip()
 	p.clip = savedClip
