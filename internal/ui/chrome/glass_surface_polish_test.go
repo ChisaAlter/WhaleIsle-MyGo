@@ -104,3 +104,49 @@ func TestDialogMaskBlurSoftensBackdropUnderGlass(t *testing.T) {
 		t.Fatalf("expected 2px mask blur to soften fine stripes behind modal mask, got span=%d", span)
 	}
 }
+
+func TestDialogPureGlassEnabledBlursAndStaysOpaqueDuringReveal(t *testing.T) {
+	t.Cleanup(func() {
+		ConfigureBackdrop("", wallpapers.Defaults())
+		design.SetGlass(false, nil)
+	})
+	ConfigureBackdrop("", wallpapers.Defaults())
+	design.SetGlass(true, func(_ design.Scheme, p *design.Palette) {
+		p.Popover = p.Popover.Alpha(0.58)
+	})
+
+	open := true
+	var dlgRect ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) {
+			for i, x := 0, float32(0); x < r.W; i, x = i+1, x+2 {
+				col := ui.RGB(20, 80, 240)
+				if i%2 == 1 {
+					col = ui.RGB(240, 140, 20)
+				}
+				p.Fill(ui.Rect{X: r.X + x, Y: r.Y, W: 2, H: r.H}, col, 0)
+			}
+		}).Children(func() {
+			ui.DialogBase(c.Key("pure-glass-dlg"), &open, func(backdrop, panel ui.Element) {
+				dlgRect = DialogSurfaceTheme(c, backdrop, panel, c.Theme(), 140, 12).Children(func() {
+					ui.Box(c).Size(100, 50)
+				}).Bounds()
+			})
+		})
+	}, 260, 180)
+	start := time.Unix(1000, 0)
+	tt.SetTime(start)
+	// Mid-enter (progress ~0.5): mask blur radius is already constant 2px and
+	// panel stays opaque without breaking backdrop blur sampling.
+	tt.SetTime(start.Add(OverlayDuration / 2))
+	raw := testChannelSpan(tt, 10, 10, 40)
+	// Because mask blur runs across the full backdrop even at progress=0.5,
+	// 2px stripes soften immediately instead of animating blur radius from 0.
+	if raw >= 120 {
+		t.Fatalf("expected constant 2px mask blur mid-enter, got stripe span=%d", raw)
+	}
+	insideSpan := testChannelSpan(tt, int(dlgRect.Y+dlgRect.H/2), int(dlgRect.X+20), int(dlgRect.X+dlgRect.W-20))
+	if insideSpan > 30 {
+		t.Fatalf("expected 40px dialog glass blur mid-enter under pure design.GlassEnabled(), got span=%d", insideSpan)
+	}
+}

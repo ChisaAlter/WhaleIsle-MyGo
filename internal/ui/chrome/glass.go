@@ -420,10 +420,17 @@ func drawGlassRim(p *ui.Painter, r ui.Rect, radius float32) {
 func MenuSurface(e ui.Element, base, border ui.Color, radius ...float32) ui.Element {
 	round := firstRadius(radius)
 	glassActive := backgroundState.active || design.GlassEnabled()
-	if glassActive {
+	if backgroundState.active {
 		e = e.Radius(round).Background(ui.Transparent).Material(menuPanelGlass{}).Draw(func(p *ui.Painter, r ui.Rect) {
 			drawGlass(p, r, base, MaterialMenu, round, false)
 		})
+	} else if design.GlassEnabled() {
+		fill := base
+		if fill.A == 255 {
+			dark := (0.2126*float32(base.R)+0.7152*float32(base.G)+0.0722*float32(base.B))/255 < .5
+			fill = MaterialFill(base, MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
+		}
+		e = e.Radius(round).Background(ui.Transparent).Material(blurFillMaterial{blur: menuBlur, tint: fill})
 	} else {
 		e = GlassSurface(e.Radius(round), base, MaterialMenu, round)
 	}
@@ -571,7 +578,7 @@ type menuPanelGlass struct{}
 // PaintMaterial paints the menu frost and scene backdrop blur over box,
 // rounded by radii.
 func (menuPanelGlass) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
-	if !backgroundState.active || box.W <= 0 || box.H <= 0 {
+	if (!backgroundState.active && !design.GlassEnabled()) || box.W <= 0 || box.H <= 0 {
 		return
 	}
 	menuBlur.PaintMaterial(p, box, radii)

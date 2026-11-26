@@ -48,23 +48,47 @@ func dialogMaskColor(bg ui.Color) ui.Color {
 	return ui.RGBA(0, 0, 0, .24)
 }
 
-func applyDialogBackdropMask(c *ui.Context, backdrop ui.Element, bg ui.Color, progress float32) {
-	mask := dialogMaskColor(bg)
-	if (backgroundState.active || design.For(c).Glass) && progress > 0 {
-		backdrop.Material(MaskBlurMaterial(mask.Alpha(progress), 2*progress))
+// ApplyDialogBackdropMask paints the modal mask, using a constant 2px backdrop
+// blur and fading mask alpha when glass or a live backdrop is active.
+func ApplyDialogBackdropMask(c *ui.Context, backdrop ui.Element, mask ui.Color, progress float32) {
+	if backgroundState.active || design.For(c).Glass {
+		backdrop.Material(MaskBlurMaterial(mask.Alpha(progress), 2))
 		return
 	}
 	RevealMask(backdrop, mask, progress)
 }
 
+// RevealDialogPanel reveals a modal panel without fading a frosted glass layer's
+// own opacity (which breaks backdrop blur sampling), using an 8 DIP upward rise
+// in glass mode and opacity fade in non-glass mode.
+func RevealDialogPanel(c *ui.Context, panel ui.Element, progress float32) {
+	if backgroundState.active || design.For(c).Glass {
+		panel.Opacity(1)
+		if !c.Preferences().ReduceMotion && progress < 1 {
+			rise := 8 * (1 - progress)
+			panel.OffsetAfterLayout(func(ui.Rect) ui.Point { return ui.Point{Y: rise} })
+		}
+		return
+	}
+	panel.Opacity(progress)
+}
+
 func applyDialogGlassSurface(c *ui.Context, panel ui.Element, bg, border ui.Color, radius float32) ui.Element {
 	dark := c.Theme().Dark
-	glassActive := backgroundState.active || design.For(c).Glass
-	if glassActive {
+	t := design.For(c)
+	glassActive := backgroundState.active || t.Glass
+	if backgroundState.active {
 		fillBase := MenuBaseFill(theme.Colors{}, dark)
 		panel.Background(ui.Transparent).Material(menuPanelGlass{}).Draw(func(p *ui.Painter, r ui.Rect) {
 			drawGlass(p, r, fillBase, MaterialMenu, radius, false)
 		})
+		modalElevationFor(panel, dark)
+	} else if t.Glass {
+		fill := t.Popover
+		if fill.A == 255 {
+			fill = MaterialFill(MenuBaseFill(theme.Colors{}, dark), MenuSolidity(effectivePrefs(backgroundState.prefs), dark))
+		}
+		panel.Background(ui.Transparent).Material(blurFillMaterial{blur: menuBlur, tint: fill})
 		modalElevationFor(panel, dark)
 	} else {
 		panel.Background(bg).Draw(Glass(bg, MaterialPanel, radius))
@@ -86,8 +110,9 @@ func applyDialogGlassSurface(c *ui.Context, panel ui.Element, bg, border ui.Colo
 
 func dialogSurface(c *ui.Context, backdrop, panel ui.Element, bg, border ui.Color, box DialogSurfaceBox) ui.Element {
 	progress := Reveal(c, backdrop, OverlayDuration)
-	applyDialogBackdropMask(c, backdrop, bg, progress)
-	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip().Opacity(progress)
+	ApplyDialogBackdropMask(c, backdrop, dialogMaskColor(bg), progress)
+	panel.Width(box.Width).MaxWidthPercent(94).Padding(box.Padding).Radius(box.Radius).Clip()
+	RevealDialogPanel(c, panel, progress)
 	if box.Height > 0 {
 		panel.Height(box.Height).MaxHeightPercent(94)
 	}

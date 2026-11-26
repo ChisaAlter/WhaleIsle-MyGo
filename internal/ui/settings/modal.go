@@ -36,15 +36,12 @@ func ModalView(c *ui.Context, m Model) {
 		mask := design.TW.Black
 		dlgRadius := theme.ContextRadii(c).Dialog
 		progress := chrome.Reveal(c, backdrop, design.DurationPanel)
-		if (t.Glass || chrome.BackdropActive()) && progress > 0 {
-			backdrop.Material(chrome.MaskBlurMaterial(mask.Alpha(0.32*progress), 2*progress))
-		} else {
-			chrome.RevealMask(backdrop, mask.Alpha(0.32), progress)
-		}
+		chrome.ApplyDialogBackdropMask(c, backdrop, mask.Alpha(0.32), progress)
 		panel.Width(w).Height(h).MaxWidthPercent(100).MaxHeightPercent(100).
 			Role(ui.RoleDialog).Label(i18n.T(i18n.KeySettingsTitle)).
-			Radius(dlgRadius).Clip().Opacity(progress).
+			Radius(dlgRadius).Clip().
 			Border(design.BorderWidth, t.Border).TextColor(t.PopoverForeground)
+		chrome.RevealDialogPanel(c, panel, progress)
 		if t.Glass || chrome.BackdropActive() {
 			if t.Glass && !chrome.BackdropActive() {
 				panel.Material(chrome.MenuGlassMaterial())
