@@ -418,8 +418,16 @@ func View(c *ui.Context, m Model) {
 		if blurSidebar {
 			root.Material(glass.Blur{Radius: 16, Saturation: 0.35, Dither: true})
 		}
+		root.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X + r.W - design.BorderWidth, Y: r.Y, W: design.BorderWidth, H: r.H}, border, 0)
+		})
 	} else {
 		root.Background(fill).Radius(0)
+		if t.Glass {
+			root.DrawOver(func(p *ui.Painter, r ui.Rect) {
+				p.Fill(ui.Rect{X: r.X + r.W - design.BorderWidth, Y: r.Y, W: design.BorderWidth, H: r.H}, border, 0)
+			})
+		}
 	}
 	root.Children(func() {
 		if m.Collapsed {

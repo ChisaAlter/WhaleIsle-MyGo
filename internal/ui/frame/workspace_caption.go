@@ -126,12 +126,7 @@ func workspaceSharedCaption(c *ui.Context, m Model, snap session.ViewState, colo
 	if layout.Active() {
 		row.Background(theme.Color(layout.ChatBackground))
 	} else if tCaption.Glass || chrome.BackdropActive() {
-		prefs := chrome.BackdropPreferences()
-		if chrome.BackdropActive() && !prefs.HideSidebarMask && !(prefs.Transparent && chrome.BackdropHasWallpaper()) {
-			chrome.GlassSurface(row, tCaption.Sidebar, chrome.MaterialSidebar)
-		} else {
-			row.Background(ui.Transparent)
-		}
+		row.Background(ui.Transparent)
 	}
 	stroke, ink := design.BorderWidth/2, tCaption.Border
 	if m.SystemDark {
